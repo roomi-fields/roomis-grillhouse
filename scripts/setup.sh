@@ -16,6 +16,12 @@ fi
 if ! command -v bd >/dev/null; then
   npm install -g @beads/bd || { echo "Installing Beads failed: run npm install -g @beads/bd, then bash scripts/setup.sh again." >&2; exit 1; }
 fi
+# CodeGraph, the code knowledge graph the skills query for call paths (MCP server in .mcp.json)
+if ! command -v codegraph >/dev/null; then
+  npm install -g @colbymchenry/codegraph || { echo "Installing CodeGraph failed: run npm install -g @colbymchenry/codegraph, then bash scripts/setup.sh again." >&2; exit 1; }
+fi
+[ -d "$root/.codegraph" ] || codegraph init "$root"
+
 (cd "$root" && bd init --init-if-missing --non-interactive --skip-agents --quiet --prefix "$prefix")
 git -C "$root" config beads.role maintainer
 

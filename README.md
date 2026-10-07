@@ -31,6 +31,7 @@ Three layers, each with one job:
 ```
 ┌─ Claude Code layer ────────────────────────────────────────────────────────────┐
 │ .claude/settings.json   plugins (mattpocock-skills, rtfm), hooks, permissions  │
+│ .mcp.json               the CodeGraph server                                   │
 │ .claude/skills/         the brigade (below)                                    │
 │ scripts/session-start.sh  hook: what is still empty → propose the grill        │
 │ scripts/structure-guard.sh hook: a structure question → the grill              │
@@ -73,7 +74,7 @@ Grillhouse invents as little as possible; it wires together existing tools.
 | [Beads](https://github.com/gastownhall/beads) (`bd`) | Git-backed ticket store: the supervisor's queue, handoffs as comments. Installed by `setup` when missing. |
 | [mattpocock-skills](https://github.com/anthropics/claude-plugins-official) | The flow skills: `grilling` / `grill-me`, `tdd`, `code-review`, `handoff`, `domain-modeling`, `codebase-design`, `writing-for-agents`. |
 | [RTFM](https://github.com/roomi-fields/rtfm) | Search index over code and docs (MCP), kept in sync by its own hooks. |
-| [CodeGraph](https://github.com/colbymchenry/codegraph) | Call graph of the code, used when the project is indexed (optional). |
+| [CodeGraph](https://github.com/colbymchenry/codegraph) | Code knowledge graph (MCP): a symbol's source and its call paths in one query. Installed and indexed by `setup`. |
 | [TypeScript](https://www.typescriptlang.org/) | Type checking; `allowJs` lets a JavaScript project adopt the template and migrate file by file. |
 | [Vitest](https://vitest.dev/) + `@vitest/coverage-v8` | Tests and coverage, for `.ts`, `.js` and `.mjs`. |
 | [ESLint](https://eslint.org/) + [typescript-eslint](https://typescript-eslint.io/), [Prettier](https://prettier.io/), [EditorConfig](https://editorconfig.org/) | Lint and formatting. |
@@ -92,7 +93,7 @@ cd ~/dev/my-project && claude
 ```
 
 Requirements: Node.js ≥ 18, git, Claude Code. Everything else installs by default: `setup`
-installs Beads, and Claude Code offers to install the plugins the project declares when you first
+installs Beads and CodeGraph and indexes the code, and Claude Code offers to install the plugins the project declares when you first
 open it. An existing project adopts Grillhouse by copying the template files into it and running
 `bash scripts/setup.sh`. MIT licence.
 

@@ -7,7 +7,9 @@
       "Bash(npm install*)",
       "Bash(git *)",
       "Bash(gh *)",
-      "Bash(bd *)"
+      "Bash(bd *)",
+      "mcp__codegraph__*",
+      "mcp__plugin_rtfm_rtfm__*"
     ],
     "deny": []
   },
@@ -44,5 +46,8 @@
         "repo": "roomi-fields/claude-plugins"
       }
     }
-  }
+  },
+  "enabledMcpjsonServers": [
+    "codegraph"
+  ]
 }

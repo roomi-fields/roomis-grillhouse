@@ -85,7 +85,7 @@ dans le document.
 ## L'index d'abord
 
 Toute recherche commence par `rtfm_search` (mode `hybrid`) pour le quoi, et par
-`codegraph explore` pour l'appel quand le dépôt a un `.codegraph/`. Le shell lit un fichier déjà
+`codegraph explore` (ou l'outil `codegraph_explore`) pour l'appel. Le shell lit un fichier déjà
 nommé. Je vérifie que les agents font de même.
 
 ## Parler au responsable

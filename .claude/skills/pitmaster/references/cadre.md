@@ -7,7 +7,7 @@ responsable qui change le cadre du projet s'écrit dans la charte, en règle.
 
 Des produits sur étagère, et seulement eux : Beads (`bd`) pour les tickets
 (`docs/agents/issue-tracker.md`), le greffon `mattpocock-skills` pour le flux, l'index RTFM pour la
-recherche, CodeGraph pour les appels quand le dépôt est indexé. Les commandes du dépôt sont celles
+recherche, CodeGraph pour les appels. Les commandes du dépôt sont celles
 de la charte.
 
 ## 2. Une matière, une adresse

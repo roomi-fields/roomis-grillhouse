@@ -14,6 +14,8 @@ missing=()
 
 command -v bd >/dev/null || missing+=("l'outil de tickets bd (Beads)")
 [ -d "$root/.beads" ] || missing+=("le magasin de tickets (Beads)")
+command -v codegraph >/dev/null || missing+=("l'outil CodeGraph")
+[ -d "$root/.codegraph" ] || missing+=("l'index CodeGraph du code")
 [ ! -f "$root/package.json" ] || [ -d "$root/node_modules" ] || missing+=("les dépendances npm")
 
 # The key elements the skills read; each one still empty is proposed for a grill.

@@ -53,7 +53,7 @@ charge le développeur (`grillardin`).
   fichier temporaire dans le scratchpad de session ; aucun `cd` (`env -C <dossier>` ou `git -C`) ;
   une suppression passe par un script du scratchpad (`os.remove`) sur un chemin nommé et lu.
 - **L'index d'abord** : toute recherche commence par `rtfm_search` (mode `hybrid`) pour le quoi, et
-  par `codegraph explore` pour l'appel quand le dépôt a un `.codegraph/`.
+  par `codegraph explore` (ou l'outil `codegraph_explore`) pour l'appel.
 - Tickets : Beads (`bd`), préfixe `<prefixe>-`, voir `docs/agents/issue-tracker.md`.
 - Compétences du dépôt : le superviseur (`pitmaster`), le développeur (`grillardin`),
   l'initialisation et l'architecture (`grill`), la mesure (`thermometre`), le rédacteur pour un
