@@ -21,6 +21,16 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/structure-guard.sh\""
+          }
+        ]
+      }
     ]
   },
   "enabledPlugins": {

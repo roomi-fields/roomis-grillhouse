@@ -7,26 +7,28 @@ This is a complete project template for TypeScript and JavaScript (Node.js) deve
 ```
 roomis-grillhouse/
 ├── .claude/                    # Claude Code integrations
-│   ├── settings.json              # Permissions + SessionStart hook
+│   ├── settings.json              # Permissions, plugins, hooks
 │   ├── template                   # Marks the template itself (not copied)
 │   └── skills/                    # Skills, ready from the first session
-│       ├── initialiser/           # Initialisation grill → charter, architecture, frame, interfaces
-│       ├── superviseur/           # Orchestrates tickets and sub-agents, keeps the frame
+│       ├── grill/                 # Initialisation & architecture: the grill → charter, architecture, frame, interfaces
+│       │   └── references/           # releve-structurel (the structural survey brief)
+│       ├── pitmaster/             # The supervisor: tickets, sub-agents, reviews, the frame
 │       │   └── references/           # cadre, tour, erreurs, consigne-agent
-│       ├── developper/            # Works one ticket as a development agent
-│       ├── mesurer/               # Measures without lying, proves a guard bites
-│       ├── rediger/               # Writes human-read documents
+│       ├── grillardin/            # The developer: works one ticket as a development agent
+│       ├── thermometre/           # Measurement: measures without lying, proves a guard bites
+│       ├── menu/                  # The writer: human-read documents
 │       │   └── references/           # documents-d-un-composant
 │       └── release/               # Release automation
 │           ├── SKILL.md
 │           └── scripts/update-version.cjs
 │
 ├── CLAUDE.md                   # Charter skeleton, filled by the initialisation grill
-├── superviseur/SUIVI.md        # Supervision follow-up (open questions, last round)
+├── pitmaster/SUIVI.md          # Pitmaster follow-up (open questions, last round)
 ├── scripts/
 │   ├── new-project.sh             # npm run new -- <dest> [prefix] (template only, not copied)
 │   ├── setup.sh                   # npm run setup: git, Beads tickets, dependencies
-│   └── session-start.sh           # SessionStart hook: says what the project still lacks
+│   ├── session-start.sh           # SessionStart hook: says what the project still lacks
+│   └── structure-guard.sh         # UserPromptSubmit hook: a structure question goes to the grill
 │
 ├── .github/                    # GitHub integrations
 │   ├── workflows/                 # CI/CD workflows
@@ -117,7 +119,7 @@ Code offers to install when the project is first opened.
 ### 2. Open Claude Code in it
 
 The first session sees that the project is not initialised yet (SessionStart hook) and proposes
-the **initialisation grill** (skill `initialiser`). The grill settles, round by round: the project,
+the **initialisation grill** (skill `grill`). The grill settles, round by round: the project,
 its owner, what decides, library or service, the components and their frame, the interfaces, the
 architecture, the lexicon, the first chantier. Then it writes `CLAUDE.md`, `docs/ARCHITECTURE.md`,
 `docs/CADRE.md`, `docs/INTERFACE.md`, `CONTEXT.md`, the package identity, and opens the first
@@ -125,14 +127,14 @@ tickets. Once done, the hook stays silent.
 
 ### 3. Work
 
-- A supervision session loads `superviseur`: it keeps the tickets and hands each one to a fresh
+- A supervision session loads `pitmaster`: it keeps the tickets and hands each one to a fresh
   sub-agent.
-- A development agent loads `developper`, plus `mesurer` and `rediger` as needed.
+- A development agent loads `grillardin`, plus `thermometre` and `menu` as needed.
 
 ### An existing project
 
 Copy the template files into it, keep its code, run `bash scripts/setup.sh`, open Claude Code: the
-`initialiser` grill describes the existing construction from the code and asks only what the code
+`grill` grill describes the existing construction from the code and asks only what the code
 does not settle.
 
 ## JavaScript Projects

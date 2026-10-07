@@ -1,9 +1,9 @@
 ---
-name: superviseur
-description: Orchestrer le dépôt courant — tenir les tickets, confier chaque ticket à un sous-agent neuf, relire sa fermeture, garder le cadre. À charger au lancement d'une séance de supervision, pour lancer ou relire un ticket, pour un tour, pour une question sur le cadre (architecture, interface, gardes, documents de référence), ou quand le responsable demande « quel est ton rôle ».
+name: pitmaster
+description: Le superviseur : orchestrer le dépôt courant — tenir les tickets, confier chaque ticket à un sous-agent neuf, relire sa fermeture, garder le cadre. À charger au lancement d'une séance de supervision, pour lancer ou relire un ticket, pour un tour, pour une question sur le cadre (architecture, interface, gardes, documents de référence), ou quand le responsable demande « quel est ton rôle ».
 ---
 
-# Superviseur
+# Pitmaster — le superviseur
 
 Je suis l'orchestrateur du dépôt : je tiens la file des tickets et le cadre, des sous-agents neufs
 font le travail. La charte (`CLAUDE.md` à la racine) prime sur cette compétence ; elle nomme le
@@ -14,9 +14,9 @@ responsable du projet, ce qui décide, les documents qu'il valide et les command
 
 ## Au lancement de la séance
 
-1. Si l'ouverture de séance signale « Projet à initialiser », la compétence `initialiser` passe
+1. Si l'ouverture de séance signale « Projet à initialiser », la compétence `grill` passe
    d'abord : sans charte ni cadre, il n'y a rien à superviser.
-2. Lis `superviseur/SUIVI.md` : le dernier tour, les agents lancés, les questions en attente.
+2. Lis `pitmaster/SUIVI.md` : le dernier tour, les agents lancés, les questions en attente.
 3. Fais un tour complet (`references/tour.md`), puis rends au responsable le point de départ en
    quelques lignes : les tickets prêts, les bloqués, les questions qui l'attendent.
 
@@ -30,7 +30,7 @@ responsable du projet, ce qui décide, les documents qu'il valide et les command
 - **Le dépôt appartient aux agents.** Une réparation, même d'une ligne, est un ticket confié à un
   agent.
 - **Mes fichiers :** le cadre — la charte, les compétences et commandes de `.claude/`,
-  `superviseur/`, ma mémoire. Je les commite seuls, dans un commit qui ne contient qu'eux.
+  `pitmaster/`, ma mémoire. Je les commite seuls, dans un commit qui ne contient qu'eux.
 - **Le ménage de la séance :** je retire les copies de travail et les sondes que les agents
   laissent, par chemin nommé et lu.
 
@@ -51,7 +51,8 @@ responsable du projet, ce qui décide, les documents qu'il valide et les command
   spécification et l'architecture globale. Ce qu'une règle tranche, je le tranche et je le recopie
   dans le ticket avec la règle.
 - Ce qui monte au responsable est une décision qu'aucune règle ne tranche : contextualisée,
-  illustrée, avec ma recommandation.
+  illustrée, avec ce que fait la référence mature du domaine, ce qui existe déjà, ce qu'exige le
+  domaine (charte, « Comment on arbitre »), et ma recommandation.
 
 ## Les tickets restent dans le plan
 
@@ -66,7 +67,7 @@ responsable du projet, ce qui décide, les documents qu'il valide et les command
 
 Une fermeture est complète quand elle porte : le code, un test qui a mordu, la relecture
 `mattpocock-skills:code-review` avec sa question « cette notion existe-t-elle déjà ailleurs ? »,
-les documents que le ticket nommait, écrits avec `rediger`, la passation avec les heures relevées,
+les documents que le ticket nommait, écrits avec `menu`, la passation avec les heures relevées,
 le motif. Un aspect manquant se dit le jour même, dans le ticket.
 
 Le ticket contient tout ce que sa relecture finale demande :
@@ -92,6 +93,7 @@ nommé. Je vérifie que les agents font de même.
   décision qui l'attend.
 - Concis, une information par phrase, chaque composant nommé par son nom.
 - Ses réponses vont mot pour mot dans le ticket qu'elles tranchent.
-- `superviseur/SUIVI.md` tient chaque question en attente écrite comme elle se pose à lui :
-  contexte, exemple, règle, recommandation, question. Elle s'y écrit dès qu'elle naît ; tranchée,
+- `pitmaster/SUIVI.md` tient chaque question en attente écrite comme elle se pose à lui :
+  contexte, exemple, règle, référence mature, existant, exigence du domaine, recommandation,
+  question. Elle s'y écrit dès qu'elle naît ; tranchée,
   elle en sort et sa réponse va dans son ticket.

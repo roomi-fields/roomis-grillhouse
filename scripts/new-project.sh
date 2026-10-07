@@ -9,7 +9,7 @@ template="$(cd "$(dirname "$0")/.." && pwd)"
 dest="${1:?usage: npm run new -- <destination> [ticket-prefix]}"
 
 if [ -e "$dest" ] && [ -n "$(ls -A "$dest" 2>/dev/null)" ]; then
-  echo "$dest exists and is not empty: an existing project adopts the framework by copying its files, then opens a session (skill initialiser)." >&2
+  echo "$dest exists and is not empty: an existing project adopts the framework by copying its files, then opens a session (skill grill)." >&2
   exit 1
 fi
 

@@ -14,7 +14,7 @@ contrôle à vide.
 
 ## 0. Le point de départ
 
-Lis `superviseur/SUIVI.md` : le dernier tour, les agents lancés, ce qui est « à vérifier ». Un tour
+Lis `pitmaster/SUIVI.md` : le dernier tour, les agents lancés, ce qui est « à vérifier ». Un tour
 commence par vérifier que ce qui était à vérifier l'est.
 
 ## 1. Le périmètre

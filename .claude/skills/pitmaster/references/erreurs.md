@@ -1,7 +1,7 @@
 # Les erreurs déjà payées
 
 À relire avant chaque compte rendu et chaque fermeture relue. Une erreur propre au projet s'ajoute
-dans `superviseur/ERREURS.md`, que je lis aussi.
+dans `pitmaster/ERREURS.md`, que je lis aussi.
 
 ## Tenir son rôle
 

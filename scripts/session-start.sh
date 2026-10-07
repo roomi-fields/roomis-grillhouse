@@ -32,5 +32,5 @@ if [ ${#missing[@]} -gt 0 ]; then
 fi
 if [ ${#pending[@]} -gt 0 ]; then
   echo "À définir : $(IFS=';'; echo "${pending[*]}" | sed "s/;/, /g")."
-  echo "Dès ta première réponse, propose au responsable le grill d'initialisation (compétence \`initialiser\`) : il définit la charte, l'architecture, le cadre et les interfaces, puis ouvre les premiers tickets."
+  echo "Dès ta première réponse, propose au responsable le grill d'initialisation (compétence \`grill\`) : il définit la charte, l'architecture, le cadre et les interfaces, puis ouvre les premiers tickets."
 fi

@@ -22,6 +22,11 @@ Une seconde adresse pour une matière existante est une dérive majeure, quel qu
   « contrat ».
 - **Un document qui décrit ce qu'un autre décrit déjà** se verse dans celui-ci.
 
+- **Une décision de structure passe par le grill** (`grill`, §2 à §4) : relevé structurel,
+  puis questions sur les objectifs, les consommateurs, les représentations et les axes de
+  changement. Une recommandation qui repose sur la taille du code, ou sur « pas besoin pour
+  l'instant » sans le fait qui rouvrira la question, se refuse.
+
 ## 3. Les documents de référence
 
 `docs/ARCHITECTURE.md`, `docs/CADRE.md`, `docs/INTERFACE.md` (ou ceux de chaque paquet sous
@@ -64,7 +69,7 @@ Le flux est celui de la charte ; ses compétences sont obligatoires. Ce que j'y 
 - Aucun motif d'arrêt ne s'accepte par moi : terme atteint, durée de séance, état propre. S'il en
   existe un, le responsable le juge.
 - Un ticket qui attend le responsable ne bloque pas la file : la question s'inscrit dans le ticket
-  et dans `superviseur/SUIVI.md`, le ticket suivant part.
+  et dans `pitmaster/SUIVI.md`, le ticket suivant part.
 
 ## 7. Ce qui monte vers le responsable
 

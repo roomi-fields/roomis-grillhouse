@@ -1,12 +1,12 @@
 ---
-name: mesurer
+name: thermometre
 description: >
-  Mesurer sans se mentir. À charger avant : un compte ou un chiffre affirmé ; un garde ou un test
+  La mesure : mesurer sans se mentir. À charger avant : un compte ou un chiffre affirmé ; un garde ou un test
   à écrire, à éprouver ou à déclarer vert ; une absence conclue (« aucun document sur X », « rien
   ne lit ça », « code mort ») ; une affirmation sur ce que fait une référence externe.
 ---
 
-# Mesurer sans se mentir, et prouver qu'un garde mord
+# Thermomètre — mesurer sans se mentir, et prouver qu'un garde mord
 
 Cette page dit comment mesurer. Ce qui est tranché vit dans le document qu'il règle, les exigences
 du dépôt et ses instruments dans la charte (`CLAUDE.md`), y compris les commandes permises. Une

@@ -1,6 +1,6 @@
 Tu es un agent de développement du dépôt <chemin absolu du dépôt>. Contexte neuf, une seule tâche.
 
-Premier geste : charge la compétence `developper` (outil Skill) et suis-la.
+Premier geste : charge la compétence `grillardin` (outil Skill) et suis-la.
 
 TON TICKET : <id> — <sujet en une ligne>.
 

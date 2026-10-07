@@ -1,11 +1,11 @@
 ---
-name: developper
-description: Travailler un ticket du dépôt courant en agent de développement. À charger au démarrage de chaque séance d'agent, avant de lire le ticket.
+name: grillardin
+description: Le développeur : travailler un ticket du dépôt courant en agent de développement. À charger au démarrage de chaque séance d'agent, avant de lire le ticket.
 ---
 
-# Travailler un ticket
+# Grillardin — le développeur : travailler un ticket
 
-Tu travailles un seul ticket. Le superviseur te l'a confié ; le responsable du projet l'a validé.
+Tu travailles un seul ticket. Le superviseur (`pitmaster`) te l'a confié ; le responsable du projet l'a validé.
 
 ## Au démarrage
 
@@ -17,7 +17,7 @@ Tu travailles un seul ticket. Le superviseur te l'a confié ; le responsable du 
    responsable. Si l'un manque, continue sans le signaler.
 3. Lis `docs/agents/issue-tracker.md` : la passation note l'heure de fin de chaque phase (code,
    tests ciblés, relecture, corrections, commit), heures relevées.
-4. Charge `mesurer` ; `rediger` dès que tu écris un document lu par un humain ;
+4. Charge `thermometre` ; `menu` dès que tu écris un document lu par un humain ;
    `mattpocock-skills:tdd` (un test qui rougit d'abord) ; `mattpocock-skills:code-review` avant de
    fermer, lancé par toi.
 5. Lis ton ticket en entier (`bd show`, `bd comments`), puis `bd update <id> --claim`.
@@ -30,6 +30,9 @@ qu'il applique.
 
 Ce qui guide chaque choix :
 
+- **La référence mature d'abord** : ce que fait le produit mature du domaine que la charte nomme
+  (« Comment on arbitre ») est la réponse par défaut ; ce qui existe déjà se reprend ; un choix
+  qui dégrade une exigence du domaine se mesure et se dit.
 - **Le général, jamais le cas du ticket** : une règle s'écrit pour tout ce qu'elle couvre, jamais
   pour le seul exemple du ticket. Le test essaie un cas plus profond et un autre objet que
   l'exemple.
@@ -42,6 +45,10 @@ Ce qui guide chaque choix :
 **Un commentaire décrit ce que le code fait**, au présent, pour l'agent qui le lira : son rôle, ce
 qu'il reçoit et rend, l'invariant qu'il tient. Les décisions, les dates, les tickets, les auteurs
 et l'historique vivent dans le ticket et dans git.
+
+Une question de structure (un module à créer, à fusionner ou à scinder, une interface, une
+frontière) ne se tranche pas dans le ticket : elle remonte au superviseur, qui la porte au grill
+(`grill`). La taille du code n'est jamais un argument.
 
 Si aucune règle ne tranche, arrête-toi et rends la question illustrée : les écritures, ce que
 chacune rend aujourd'hui, les lectures possibles.

@@ -1,13 +1,13 @@
 ---
-name: rediger
+name: menu
 description: >
-  Rédiger un document du dépôt lu par des humains. À charger avant d'écrire ou de réécrire :
+  Le rédacteur : rédiger un document du dépôt lu par des humains. À charger avant d'écrire ou de réécrire :
   l'architecture du projet ou d'un composant, son cadre, son interface ; une spécification ; un
   guide ; tout document de référence. Pour un document lu par un agent (compétence, charte,
   consigne), `mattpocock-skills:writing-for-agents`.
 ---
 
-# Rédiger un document
+# Menu — le rédacteur : rédiger un document
 
 Chaque document a un public, un modèle que ce public connaît déjà, et un squelette de section.
 Les règles ci-dessous valent pour tous ; la référence du type donne le reste.
@@ -64,7 +64,7 @@ Lis la référence du type avant d'écrire la première section :
 - [Les documents d'un composant](references/documents-d-un-composant.md) — pour l'architecture du
   projet ou d'un composant (sa construction), son cadre (son rôle et sa frontière) ou son interface.
 
-Un projet ajoute ses propres types sous `docs/agents/rediger/`, un fichier par type, sur le même
+Un projet ajoute ses propres types sous `docs/agents/menu/`, un fichier par type, sur le même
 modèle (lecteur, modèle, squelette, critère de fin) : lis celui du document que tu écris.
 
 Une section est finie quand elle remplit le critère de fin de sa référence, point par point.

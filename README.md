@@ -5,12 +5,13 @@
 it, and the first session grills you on what the project is — then writes its charter,
 architecture, frame and interfaces, and opens the first tickets.
 
-- **Initialisation grill** — round by round: the project, its owner, what decides, the
+- **Initialisation grill** (`grill`) — round by round: the project, its owner, what decides, the
   components, their interfaces, the architecture, the vocabulary, the first milestone.
-- **Supervision by tickets** — a `superviseur` session keeps the ticket queue ([Beads](https://github.com/steveyegge/beads))
-  and hands each ticket to a fresh development agent (`developper`), then reviews its closure.
-- **Discipline skills** — `mesurer` (measure without fooling yourself, prove a guard bites),
-  `rediger` (write reference documents), `release`.
+- **Supervision by tickets** — the supervisor (`pitmaster`) keeps the ticket queue
+  ([Beads](https://github.com/steveyegge/beads)), hands each ticket to a fresh developer agent
+  (`grillardin`), then reviews its closure.
+- **Discipline skills** — measurement (`thermometre`: measure without fooling yourself, prove a
+  guard bites), writing (`menu`: reference documents), release (`release`).
 - **Code tooling** — TypeScript or JavaScript, Vitest, ESLint, Prettier, GitHub CI.
 - **Everything installs by default** — Beads, and the Claude Code plugins
   [`mattpocock-skills`](https://github.com/anthropics/claude-plugins-official) and

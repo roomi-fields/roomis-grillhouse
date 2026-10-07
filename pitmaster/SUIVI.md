@@ -1,6 +1,6 @@
 # Suivi de la supervision
 
-Tenu par la compétence `superviseur`. Une question s'écrit ici dès qu'elle naît ; tranchée, elle en
+Tenu par la compétence `pitmaster`. Une question s'écrit ici dès qu'elle naît ; tranchée, elle en
 sort et sa réponse va dans son ticket.
 
 ## Dernier tour
