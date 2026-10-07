@@ -23,6 +23,8 @@ roomis-grillhouse/
 │           └── scripts/update-version.cjs
 │
 ├── CLAUDE.md                   # Charter skeleton, filled by the initialisation grill
+├── README.md                   # Describes Grillhouse itself (not copied to projects)
+├── templates/README.md         # The README a new project starts from
 ├── pitmaster/SUIVI.md          # Pitmaster follow-up (open questions, last round)
 ├── scripts/
 │   ├── new-project.sh             # npm run new -- <dest> [prefix] (template only, not copied)
@@ -91,7 +93,6 @@ roomis-grillhouse/
 ├── CONTRIBUTING.md             # Contribution guide
 ├── CREDITS.md                  # Credits and acknowledgments
 ├── LICENSE                     # MIT License
-├── README.md                   # Project documentation
 ├── STRUCTURE.md                # This file
 ├── ecosystem.config.cjs        # PM2 daemon configuration (services only)
 ├── package.json                # npm package manifest

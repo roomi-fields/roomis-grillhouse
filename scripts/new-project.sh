@@ -19,8 +19,9 @@ tar -C "$template" --exclude=./node_modules --exclude=./.rtfm --exclude=./.codeg
   --exclude=./.claude/settings.local.json --exclude=./.claude/template \
   --exclude=./scripts/new-project.sh -cf - . | tar -C "$dest" -xf -
 
-# The template's own README banner and `npm run new` belong to the template only
-node -e 'const fs=require("fs"),f=process.argv[1];fs.writeFileSync(f,fs.readFileSync(f,"utf8").replace(/<!-- grillhouse:start[\s\S]*?<!-- grillhouse:end -->\n*/,""))' "$dest/README.md"
+# The project's README starts from templates/README.md; the template's own README describes Grillhouse
+mv "$dest/templates/README.md" "$dest/README.md" && rmdir "$dest/templates"
+# `npm run new` belongs to the template only
 node -e 'const f=process.argv[1],p=JSON.parse(require("fs").readFileSync(f));delete p.scripts.new;require("fs").writeFileSync(f,JSON.stringify(p,null,2)+"\n")' "$dest/package.json"
 
 bash "$dest/scripts/setup.sh" ${2:+"$2"}
