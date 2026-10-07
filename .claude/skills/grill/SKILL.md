@@ -1,6 +1,6 @@
 ---
 name: grill
-description: L'initialisation et l'architecture du projet : initialiser un projet bâti sur le framework Roomi's Grillhouse — préparer le dépôt, mener le grill d'initialisation, puis écrire la charte, l'architecture, le cadre, les interfaces et le lexique, et ouvrir les premiers tickets. À charger au premier lancement d'un projet neuf ou d'un projet existant qui adopte le framework, quand l'ouverture de séance signale « Projet à initialiser », quand le responsable demande d'initialiser ou de redéfinir ces éléments, et pour toute question de structure (découper en paquets ou modules, définir une interface, une frontière, l'architecture).
+description: L'initialisation et l'architecture du projet : initialiser un projet bâti sur le framework Roomi's Grillhouse — préparer le dépôt, mener le grill d'initialisation, puis écrire la charte, l'architecture, le cadre, les interfaces et le lexique, et ouvrir les premiers tickets. À charger au premier lancement d'un projet neuf ou d'un projet existant qui adopte le framework, quand l'ouverture de séance liste des éléments « pas encore renseignés » (critères d'arbitrage, champs de la charte, architecture, cadre, interfaces, lexique), quand le responsable demande d'initialiser ou de redéfinir ces éléments, et pour toute question de structure (découper en paquets ou modules, définir une interface, une frontière, l'architecture).
 ---
 
 # Grill — initialiser le projet et décider de sa structure
@@ -18,6 +18,19 @@ produit les éléments clés que les compétences `pitmaster` et `grillardin` li
 
 Dans un dépôt à plusieurs paquets, le cadre, l'interface et l'architecture de chaque paquet vivent
 sous `packages/<x>/docs/`, et `docs/ARCHITECTURE.md` décrit l'ensemble.
+
+## 0. Tout le projet, ou les seuls éléments vides
+
+À chaque ouverture de séance, la liste « Pas encore renseignés » dit ce qui reste vide. Un projet
+neuf passe par toutes les sections ci-dessous. Un projet déjà engagé ne grille que les éléments
+listés, ou celui que le responsable choisit, à n'importe quel moment : le relevé (§3) se limite à
+ce que l'élément touche, le grill (§4) à ses branches, l'écriture (§5) à son document.
+
+Chaque question arrive avec sa proposition, tirée du projet lui-même et de son domaine. Pour les
+critères d'arbitrage (branche 2), cherche — dans le code, les documents, les projets voisins, la
+documentation publique — les produits matures qui font le même travail, les standards et outils en
+usage, les exigences mesurables du domaine, et propose-les nommément : le responsable corrige une
+proposition, il ne part pas d'une page blanche.
 
 ## 1. Préparer le dépôt
 

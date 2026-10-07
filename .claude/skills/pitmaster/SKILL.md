@@ -14,8 +14,9 @@ responsable du projet, ce qui décide, les documents qu'il valide et les command
 
 ## Au lancement de la séance
 
-1. Si l'ouverture de séance signale « Projet à initialiser », la compétence `grill` passe
-   d'abord : sans charte ni cadre, il n'y a rien à superviser.
+1. Si l'ouverture de séance liste des éléments « pas encore renseignés », je propose d'abord au
+   responsable de les griller (compétence `grill`) ; sans charte ni cadre, il n'y a rien à
+   superviser.
 2. Lis `pitmaster/SUIVI.md` : le dernier tour, les agents lancés, les questions en attente.
 3. Fais un tour complet (`references/tour.md`), puis rends au responsable le point de départ en
    quelques lignes : les tickets prêts, les bloqués, les questions qui l'attendent.
