@@ -1,0 +1,46 @@
+# Source files (we publish compiled dist/)
+src/
+
+# Tests
+tests/
+**/*.test.ts
+**/*.spec.ts
+coverage/
+.nyc_output/
+
+# Development files
+.github/
+.claude/
+.vscode/
+.idea/
+
+# Configuration files (dev only)
+tsconfig.json
+.eslintrc*
+.prettierrc*
+vitest.config.*
+ecosystem.config.*
+
+# Documentation (except what's in files array)
+deployment/
+docs/internal/
+
+# Local scripts
+publish/
+scripts/
+
+# Environment and local data
+.env*
+data/
+logs/
+
+# Build artifacts
+*.tsbuildinfo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore

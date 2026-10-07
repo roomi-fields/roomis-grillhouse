@@ -1,0 +1,2 @@
+Ce dossier est le gabarit Roomi's Grillhouse lui-même, pas un projet.
+`scripts/new-project.sh` ne copie pas ce fichier : un projet créé ne le porte pas.

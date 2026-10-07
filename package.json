@@ -1,0 +1,75 @@
+{
+  "name": "@your-scope/project-name",
+  "version": "1.0.0",
+  "description": "A brief description of your project",
+  "author": "Your Name <your.email@example.com>",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "project-name": "dist/index.js"
+  },
+  "scripts": {
+    "new": "bash scripts/new-project.sh",
+    "setup": "bash scripts/setup.sh",
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src tests --ext .ts,.js,.mjs",
+    "lint:fix": "eslint src tests --ext .ts,.js,.mjs --fix",
+    "format": "prettier --write \"src/**/*.{ts,js,mjs}\" \"tests/**/*.{ts,js,mjs}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,js,mjs}\" \"tests/**/*.{ts,js,mjs}\"",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run lint && npm run typecheck && npm test && npm run build",
+    "daemon:start": "pm2 start ecosystem.config.cjs",
+    "daemon:stop": "pm2 stop project-name",
+    "daemon:restart": "pm2 restart project-name",
+    "daemon:logs": "pm2 logs project-name",
+    "daemon:status": "pm2 status",
+    "daemon:delete": "pm2 delete project-name"
+  },
+  "keywords": [
+    "keyword1",
+    "keyword2",
+    "keyword3"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-username/project-name.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/project-name/issues"
+  },
+  "homepage": "https://github.com/your-username/project-name#readme",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "docs"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "@vitest/coverage-v8": "^2.1.9",
+    "eslint": "^8.57.0",
+    "pm2": "^5.4.2",
+    "prettier": "^3.2.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "vitest": "^2.0.0"
+  }
+}

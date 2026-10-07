@@ -1,0 +1,101 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build --if-present
+
+      - name: Run tests
+        run: npm test
+
+      - name: Generate Release Notes
+        id: release_notes
+        run: |
+          # Get the current and previous tag
+          CURRENT_TAG=${GITHUB_REF#refs/tags/}
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          # Generate release notes from commits
+          if [ -n "$PREVIOUS_TAG" ]; then
+            echo "Generating notes from $PREVIOUS_TAG to $CURRENT_TAG"
+            COMMITS=$(git log --pretty=format:"- %s" $PREVIOUS_TAG..$CURRENT_TAG)
+          else
+            echo "First release - using all commits"
+            COMMITS=$(git log --pretty=format:"- %s")
+          fi
+
+          # Categorize commits
+          FEATURES=$(echo "$COMMITS" | grep -E "^- feat" || true)
+          FIXES=$(echo "$COMMITS" | grep -E "^- fix" || true)
+          DOCS=$(echo "$COMMITS" | grep -E "^- docs" || true)
+          REFACTOR=$(echo "$COMMITS" | grep -E "^- refactor" || true)
+          CHORE=$(echo "$COMMITS" | grep -E "^- chore" || true)
+          OTHER=$(echo "$COMMITS" | grep -vE "^- (feat|fix|docs|refactor|chore)" || true)
+
+          # Build release notes
+          NOTES=""
+          if [ -n "$FEATURES" ]; then
+            NOTES="${NOTES}## Features\n${FEATURES}\n\n"
+          fi
+          if [ -n "$FIXES" ]; then
+            NOTES="${NOTES}## Bug Fixes\n${FIXES}\n\n"
+          fi
+          if [ -n "$DOCS" ]; then
+            NOTES="${NOTES}## Documentation\n${DOCS}\n\n"
+          fi
+          if [ -n "$REFACTOR" ]; then
+            NOTES="${NOTES}## Refactoring\n${REFACTOR}\n\n"
+          fi
+          if [ -n "$CHORE" ]; then
+            NOTES="${NOTES}## Maintenance\n${CHORE}\n\n"
+          fi
+          if [ -n "$OTHER" ]; then
+            NOTES="${NOTES}## Other Changes\n${OTHER}\n\n"
+          fi
+
+          # Escape for GitHub Actions
+          NOTES="${NOTES//'%'/'%25'}"
+          NOTES="${NOTES//$'\n'/'%0A'}"
+          NOTES="${NOTES//$'\r'/'%0D'}"
+
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body: ${{ steps.release_notes.outputs.notes }}
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Uncomment to enable automatic npm publishing
+      # - name: Publish to npm
+      #   run: npm publish --access public
+      #   env:
+      #     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

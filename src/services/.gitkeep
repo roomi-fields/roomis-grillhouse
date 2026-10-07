@@ -1,0 +1,8 @@
+# This file keeps the empty directory in git.
+# Add your service modules here.
+#
+# Example services:
+# - api-client.ts     - External API client
+# - database.ts       - Database connection
+# - cache.ts          - Caching service
+# - queue.ts          - Message queue service

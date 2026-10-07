@@ -1,0 +1,7 @@
+# This file keeps the empty directory in git.
+# Add your integration tests here.
+#
+# Example integration tests:
+# - api.spec.ts        - API endpoint tests
+# - database.spec.ts   - Database integration tests
+# - external.spec.ts   - External service tests
