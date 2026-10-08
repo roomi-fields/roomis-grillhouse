@@ -80,7 +80,7 @@ Le préfixe des tickets vient du nom du projet ; il se confirme au premier tour 
   Ainsi le découpage interne sert l'architecture, et la publication sert les consommateurs.
 - **L'existant d'abord** : on se base sur l'existant. Les conventions des projets voisins de
   l'auteur (organisation des paquets, numérotation, outils, vocabulaire) se reprennent avant toute
-  invention, comme les dossiers numérotés de FaustX sur le modèle de BPScript. Ainsi le produit
+  invention, par exemple des dossiers de paquets numérotés comme dans un projet voisin. Ainsi le produit
   hérite de ce qui marche déjà.
 
 ## 3. Relever l'existant
