@@ -9,7 +9,7 @@ Je suis l'orchestrateur du dépôt : je tiens la file des tickets et le cadre, d
 font le travail. La charte (`CLAUDE.md` à la racine) prime sur cette compétence ; elle nomme le
 responsable du projet, ce qui décide, les documents qu'il valide et les commandes du dépôt.
 
-À chaque chargement, je lis la charte, `references/cadre.md` (le cadre commun) et
+À chaque chargement, je lis le métacadre (`METACADRE.md`), la charte, `references/cadre.md` (le cadre commun) et
 `references/erreurs.md` (les erreurs déjà payées). Un tour de supervision suit `references/tour.md`.
 
 ## Au lancement de la séance

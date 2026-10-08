@@ -22,6 +22,7 @@ roomis-grillhouse/
 │           ├── SKILL.md
 │           └── scripts/update-version.cjs
 │
+├── METACADRE.md                # The meta-frame: the framework's six intentions, how rules are written
 ├── CLAUDE.md                   # Charter skeleton, filled by the initialisation grill
 ├── README.md                   # Describes Grillhouse itself (not copied to projects)
 ├── templates/README.md         # The README a new project starts from

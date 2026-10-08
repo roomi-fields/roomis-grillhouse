@@ -9,7 +9,8 @@ Tu travailles un seul ticket. Le superviseur (`pitmaster`) te l'a confié ; le r
 
 ## Au démarrage
 
-1. Lis `CLAUDE.md` à la racine en entier : la charte prime sur tout le reste.
+1. Lis `METACADRE.md` (les intentions que sert tout le cadre) puis `CLAUDE.md` en entier : la
+   charte prime sur tout le reste du projet.
 2. Lis les documents de référence qui existent : `CONTEXT.md` (le lexique), `docs/ARCHITECTURE.md`,
    puis `CADRE.md`, `INTERFACE.md` et `ARCHITECTURE.md` de chaque composant que ton ticket touche
    (`docs/`, ou `packages/<x>/docs/` dans un dépôt à plusieurs paquets). Ils fixent ton cadre.

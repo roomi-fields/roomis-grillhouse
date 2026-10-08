@@ -38,9 +38,8 @@ charte nomme ceux que le responsable valide.
 - **Un écart document / code va dans les deux sens** : le document a vieilli, ou il porte une
   décision que le code n'honore pas. Il se tranche sur pièces ; sinon il s'écrit comme écart
   ouvert, et le responsable l'arbitre.
-- **Écrire une règle** : une règle part des mots de celui qui l'a décidée. Elle dit en positif ce
-  qu'on fait, au présent, en deux ou trois phrases courtes. Elle nomme les objets qu'elle cadre, à
-  leur échelle ; un exemple l'éclaire, jamais une liste de cas.
+- **Une règle s'écrit selon le métacadre** (`METACADRE.md`, §2) : elle sert une intention du cadre
+  et la nomme.
 - **Une rédaction, d'un agent ou la mienne, ne se présente jamais comme une décision du
   responsable.**
 

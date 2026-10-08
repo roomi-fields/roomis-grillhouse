@@ -7,11 +7,10 @@ INTERFACE.md> ; le superviseur valide les autres documents.
 
 ## Ce qui décide
 
-<La spécification ou la cible>, puis le cadre de chaque composant (`docs/CADRE.md`,
+Le métacadre (`METACADRE.md` : les intentions du cadre et l'écriture des règles), puis
+<la spécification ou la cible>, puis le cadre de chaque composant (`docs/CADRE.md`,
 `docs/INTERFACE.md`, `docs/ARCHITECTURE.md`), puis le code. Une décision vit dans le document
-qu'elle règle. **Écrire une règle** : une règle part des mots de celui qui l'a décidée. Elle dit en
-positif ce qu'on fait, au présent, en deux ou trois phrases courtes. Elle nomme les objets qu'elle
-cadre, à leur échelle ; un exemple l'éclaire, jamais une liste de cas.
+qu'elle règle. Une règle s'écrit selon le métacadre (`METACADRE.md`, §2).
 
 ## Comment on arbitre
 

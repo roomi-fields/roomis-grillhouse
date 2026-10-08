@@ -18,6 +18,12 @@ The skills speak French.
 | Every message | A hook sends any structure question (packages, modules, interfaces, boundaries) back to the grill. |
 | Daily work | The supervisor keeps the ticket queue, hands each ticket to a fresh developer agent, and reviews its closure against the frame. |
 
+**What every rule serves.** `METACADRE.md` fixes six intentions, and every rule of the framework
+names the one it serves: a mature, professional product; the architecture decides and the code
+follows; from the broadest to the most specific; proof before assertion; agents within a frame;
+the owner settles what matters. It also fixes how a rule is written: positive, short, in the words
+of whoever decided it, naming its intention.
+
 **How decisions are arbitrated.** Every recommendation answers three questions, in order: what
 does the mature reference of the domain do (a mature compiler, a professional DAW…); what already
 exists and can be reused (standards, off-the-shelf tools, the author's own conventions); what does
@@ -35,6 +41,8 @@ Three layers, each with one job:
 │ scripts/session-start.sh  hook: what is still empty → propose the grill        │
 │ scripts/structure-guard.sh hook: a structure question → the grill              │
 ├─ Project knowledge ────────────────────────────────────────────────────────────┤
+│ METACADRE.md            the six intentions every rule serves, how rules are    │
+│                         written (fixed by the framework)                       │
 │ CLAUDE.md               the charter: owner, what decides, how we arbitrate,    │
 │                         the task flow, the commands                            │
 │ docs/ARCHITECTURE.md    how it is built, and why        (written by the grill) │

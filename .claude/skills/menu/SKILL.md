@@ -29,9 +29,8 @@ les mots qu'il emploie lui-même. La langue du document est celle de la charte.
   « aussi ») a son antécédent dans la phrase ou juste avant.
 - **Le document parle de son sujet, et de lui seul.** Une architecture décrit le produit ;
   l'organisation du dépôt et la façon de travailler vivent dans la charte.
-- **Écrire une règle** : une règle part des mots de celui qui l'a décidée. Elle dit en positif ce
-  qu'on fait, au présent, en deux ou trois phrases courtes. Elle nomme les objets qu'elle cadre, à
-  leur échelle ; un exemple l'éclaire, jamais une liste de cas.
+- **Une règle s'écrit selon le métacadre** (`METACADRE.md`, §2) : elle sert une intention du cadre
+  et la nomme.
 
 ### La phrase
 
