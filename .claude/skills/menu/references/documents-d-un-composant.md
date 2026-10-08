@@ -9,24 +9,24 @@ chacun avec son lecteur et sa question :
 | `docs/INTERFACE.md` | le composant voisin | quelles formes traversent, qui juge quelle faute |
 | `docs/ARCHITECTURE.md` | l'architecte, le développeur | comment il est construit, et pourquoi |
 
-Une matière vit à une seule de ces adresses ; les autres y renvoient.
+**Une matière, un document** : une matière vit dans un seul de ces trois documents ; les deux
+autres y renvoient. Ainsi chaque décision a une seule version, celle que le code suit.
 
 ## Le cadre (`CADRE.md`)
 
 La fiche de rôle, huit rubriques : Rôle · Reçoit · Rend · Connaît · Ne connaît pas · Refuse ·
 Invariants · Coût. Chaque rubrique en phrases affirmatives, numérotées R1… pour qu'un ticket les
-cite. C'est une frontière, pas une conception : rien sur l'intérieur.
+cite. **Le cadre décrit la frontière** du composant ; son intérieur vit dans l'architecture. Ainsi
+l'agent qui travaille un ticket sait ce que son composant fait, et ce qu'il refuse.
 
 ## L'interface (`INTERFACE.md`)
 
 La liste de ce qui traverse : chaque élément exporté, sa forme, ce qu'il rend, ce qu'il refuse, et
-le garde qui la tient. Le consommateur n'a pas de copie de cette liste.
+le garde qui la tient. **L'interface vit chez l'offrant** : la liste de ce qui traverse une frontière vit dans l'`INTERFACE.md` du composant qui offre ; le consommateur y renvoie. Ainsi la frontière a une seule définition, tenue par son garde.
 
 ## L'architecture (`ARCHITECTURE.md`)
 
-Le modèle : arc42, réduit à ce qu'un composant porte, et les vues composant de C4. Le document
-montre la construction ; le cadre et l'interface disent la frontière, il y renvoie sans les
-recopier.
+Le modèle : arc42, réduit à ce qu'un composant porte, et les vues composant de C4. **L'architecture montre la construction** : `ARCHITECTURE.md` décrit l'intérieur du composant ; pour sa frontière, il renvoie au cadre et à l'interface. Ainsi chaque document reste à sa place.
 
 ```
 # <composant> — architecture
@@ -46,10 +46,12 @@ recopier.
 ## Risques           ce qui est fragile ou inconnu, et ce qui le lèvera
 ```
 
-Un schéma est en mermaid ou en texte. Un composant existant décrit sa construction réelle, relevée
-dans le code ; un composant neuf, la construction cible, que son code tiendra. Ce qui se dérive du
-code — la liste des fichiers, un compte de lignes — se génère et se cite ; le document ne le
-recopie pas.
+Un schéma est en mermaid ou en texte. **Un composant existant décrit sa construction réelle**,
+relevée dans le code ; un composant neuf, la construction cible, que son code tiendra. Ainsi
+l'architecture dit toujours ce qui est vrai, ou ce que le code doit rejoindre.
+
+**Ce qui se dérive du code se génère** : la liste des fichiers, par exemple, se génère et se cite.
+Ainsi le document reste exact quand le code bouge.
 
 Dans un dépôt à plusieurs paquets, `docs/ARCHITECTURE.md` à la racine décrit l'ensemble sur le même
 modèle et renvoie à l'architecture de chaque paquet.
@@ -57,13 +59,14 @@ modèle et renvoie à l'architecture de chaque paquet.
 ## Le ton
 
 Celui d'une spécification d'architecture (arc42, C4) : des noms de composants, des
-responsabilités, des flux, des choix avec leur raison. Une réécriture de forme commence par
-l'inventaire des affirmations du document (une ligne par fait) et se termine par leur vérification,
-une par une, sur le texte nouveau : un fait absent ou changé se rétablit.
+responsabilités, des flux, des choix avec leur raison. **Une réécriture de forme se vérifie fait
+par fait** : elle commence par l'inventaire des affirmations du document (une ligne par fait) et
+se termine par leur vérification, une par une, sur le texte nouveau ; un fait absent ou changé se
+rétablit. Ainsi la nouvelle forme garde tout le fond.
 
 ## Le critère de fin
 
-- Chaque section répond à sa question avec un schéma ou un exemple, pas une liste de noms.
+- Chaque section répond à sa question avec un schéma ou un exemple.
 - Chaque composant interne a une responsabilité, et une seule.
 - Chaque choix de la stratégie dit ce qu'il est et sa raison.
-- Rien de ce que le cadre ou l'interface dit n'y est recopié.
+- Ce que le cadre et l'interface disent y figure par renvoi.

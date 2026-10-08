@@ -19,44 +19,52 @@ les mots qu'il emploie lui-même. La langue du document est celle de la charte.
 
 ### Le fond
 
-- **Une phrase dit ce qui est.** Elle décrit ce qu'une chose est ou fait, jamais ce qu'elle n'est
-  pas, ni ce qu'on a écarté. Une limite s'énonce par ce que fait l'autre composant.
-- **Le principe vient avant le nom.** Aucun nom n'apparaît avant que le lecteur sache à quoi il
-  sert. Une notion se définit une fois, juste avant son premier usage.
-- **Une information a une seule adresse**, dans le document et entre les documents. Ce qu'un autre
-  document dit se cite par un renvoi, en fin de section.
-- **Deux choses parallèles se décrivent de la même manière.** Un mot de comparaison (« même »,
-  « aussi ») a son antécédent dans la phrase ou juste avant.
-- **Le document parle de son sujet, et de lui seul.** Une architecture décrit le produit ;
-  l'organisation du dépôt et la façon de travailler vivent dans la charte.
+- **Une phrase dit ce qui est** : elle décrit ce qu'une chose est ou fait ; une limite s'énonce par
+  ce que fait l'autre composant. Ainsi le document se lit comme l'architecture que le code suit.
+- **Le principe avant le nom** : le lecteur apprend à quoi sert une chose avant d'en lire le nom.
+  Une notion se définit une fois, juste avant son premier usage. Ainsi chaque nom du document
+  désigne une chose comprise.
+- **Une information, une adresse** : elle vit à une seule place, dans le document et entre les
+  documents ; ce qu'un autre document dit se cite par un renvoi, en fin de section. Ainsi chaque
+  décision de l'architecture a une seule version, celle que le code suit.
+- **Le document parle de son sujet** : une architecture décrit le produit ; l'organisation du
+  dépôt et la façon de travailler vivent dans la charte. Ainsi chaque document répond à une seule
+  question.
 - **Une règle s'écrit selon le métacadre** (`METACADRE.md`, §2) : elle sert une intention du cadre
   et la nomme.
 
 ### La phrase
 
-- **Le vocabulaire est celui de la programmation.** Une fonction reçoit et retourne ; un paquet
-  importe, exporte, dépend de ; un objet contient un champ. Un verbe courant pris dans un sens
-  détourné se remplace par le mot technique.
-- **Le sujet et le verbe sont précis.** On nomme ce qui agit et l'opération exacte.
-- **Le ton est celui d'un ingénieur, jamais littéraire** : pas de maxime, pas de gras rhétorique,
-  pas de formule ramassée, pas de génitifs empilés. Le gras marque un terme défini ou une entrée de
-  liste, jamais une sentence.
-- **Les identifiants du code sont en police de code** ; les composants se nomment par leur nom.
+- **Le vocabulaire de la programmation** : on emploie le mot technique exact (une fonction reçoit
+  et retourne, un paquet dépend d'un autre). Ainsi chaque phrase dit une seule chose, celle que le
+  code fait.
+- **Le sujet et le verbe précis** : la phrase nomme ce qui agit et l'opération exacte. Ainsi le
+  lecteur sait quel composant fait quoi.
+- **Le ton d'un ingénieur** : des phrases simples et neutres, une affirmation par phrase, comme
+  dans une spécification. Ainsi le document est celui d'un produit professionnel.
+- **Le gras marque un terme défini** ou une entrée de liste. Ainsi il guide la lecture au lieu
+  d'insister.
+- **Les identifiants en police de code** : un identifiant du code s'écrit en police de code. Ainsi
+  le lecteur distingue le code de la prose.
+- **Un composant se nomme par son nom.** Ainsi le lecteur sait toujours de quel composant on
+  parle.
 
 ### La forme
 
-- **L'introduction dit ce qu'est la chose et ce qu'elle fait** ; elle n'est ni un sommaire ni une
-  carte des documents.
-- **Les titres sont numérotés** (`## 1.`, `### 1.2`), pour qu'une section se cite par son numéro.
-- **Un paragraphe s'écrit sur une seule ligne**, sans retour à la ligne forcé.
-- **Tout exemple est exécuté par un test** — accepté, refusé ou joué ; le document ne nomme pas le
-  test.
+- **L'introduction dit ce qu'est la chose et ce qu'elle fait.** Ainsi le lecteur sait dès la
+  première phrase de quoi parle le document.
+- **Les titres numérotés** : chaque titre porte son numéro (`## 1.`, `### 1.2`). Ainsi un ticket
+  cite une section par son adresse.
+- **Tout exemple est exécuté** : un test exécute chaque exemple du document, accepté, refusé ou
+  joué ; le document cite l'exemple, le test vit à part. Ainsi chaque exemple est prouvé.
 
 ### Le circuit
 
-- **Les documents que la charte réserve au responsable** : le texte nouveau s'écrit d'abord dans
-  le ticket, et entre au document après son accord.
-- **Un déplacement se fait tel quel, puis la réécriture**, en deux commits.
+- **Les documents du responsable** : le texte nouveau d'un document que la charte lui réserve
+  s'écrit d'abord dans le ticket, et entre au document après son accord. Ainsi le responsable
+  tranche ce qui décide de l'architecture.
+- **Déplacer, puis réécrire** : un texte se déplace tel quel dans un commit ; sa réécriture vient
+  dans le suivant. Ainsi chaque changement de fond se lit et se vérifie seul.
 
 ## Le type du document
 
