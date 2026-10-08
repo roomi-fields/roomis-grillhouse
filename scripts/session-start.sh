@@ -27,13 +27,26 @@ else
   # an unfilled field of the charter template: <…> outside code spans
   node -e 'const t=require("fs").readFileSync(process.argv[1],"utf8").replace(/`[^`]*`/g,"");process.exit(/<[^<>\n]+>/.test(t)?0:1)' "$charter" \
     && pending+=("les champs <…> encore vides de la charte (CLAUDE.md)")
-  grep -qi '^## Comment on arbitre\|^## How we arbitrate' "$charter" \
+  # the arbitration criteria: a heading about arbitration in the charter or a reference document
+  grep -qiE '^#+ .*(arbitr)' "$charter" "$root"/docs/*.md 2>/dev/null \
     || pending+=("les critères d'arbitrage (section « Comment on arbitre » de CLAUDE.md : la référence mature du domaine, l'existant à reprendre, les exigences du domaine)")
 fi
-for doc in ARCHITECTURE CADRE INTERFACE; do
-  [ -f "$root/docs/$doc.md" ] || ls "$root"/packages/*/docs/$doc.md >/dev/null 2>&1 \
-    || pending+=("docs/$doc.md")
-done
+# One package: docs/ at the root. Several: each package under packages/ has its own three documents,
+# unless docs/agents/hors-cadre.txt lists it ("<package> <reason>", e.g. a frozen version).
+exempt="$root/docs/agents/hors-cadre.txt"
+if ls -d "$root"/packages/*/ >/dev/null 2>&1; then
+  for pkg in "$root"/packages/*/; do
+    name="$(basename "$pkg")"
+    grep -qE "^$name( |$)" "$exempt" 2>/dev/null && continue
+    for doc in ARCHITECTURE CADRE INTERFACE; do
+      [ -f "$pkg/docs/$doc.md" ] || pending+=("packages/$name/docs/$doc.md")
+    done
+  done
+else
+  for doc in ARCHITECTURE CADRE INTERFACE; do
+    [ -f "$root/docs/$doc.md" ] || pending+=("docs/$doc.md")
+  done
+fi
 [ -f "$root/CONTEXT.md" ] || pending+=("le lexique du domaine (CONTEXT.md)")
 
 [ ${#missing[@]} -eq 0 ] && [ ${#pending[@]} -eq 0 ] && exit 0

@@ -29,8 +29,9 @@ roomis-grillhouse/
 ├── scripts/
 │   ├── new-project.sh             # npm run new -- <dest> [prefix] (template only, not copied)
 │   ├── setup.sh                   # npm run setup: git, Beads tickets, dependencies
-│   ├── session-start.sh           # SessionStart hook: says what the project still lacks
-│   └── structure-guard.sh         # UserPromptSubmit hook: a structure question goes to the grill
+│   ├── session-start.sh           # SessionStart hook: what is still empty (per package; exemptions in
+│   │                              #   docs/agents/hors-cadre.txt, "<package> <reason>")
+│   └── structure-guard.sh         # UserPromptSubmit hook: a structure decision goes to the grill
 │
 ├── .github/                    # GitHub integrations
 │   ├── workflows/                 # CI/CD workflows
