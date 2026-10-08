@@ -32,6 +32,10 @@ qu'on fait, au présent, en deux ou trois phrases courtes. Elle nomme l'intentio
 sert, pour qu'on ne puisse pas l'appliquer contre elle. Elle nomme les objets qu'elle cadre, à leur
 échelle ; un exemple l'éclaire, jamais une liste de cas.
 
+**Une règle, une idée** : une règle dit une seule chose, qu'un lecteur comprend sans connaître son
+origine. Deux idées font deux règles ; une idée déjà écrite ailleurs se cite à son adresse. Ainsi
+un agent applique chaque règle sans la mal lire.
+
 Exemple : « Avant le code, tu nommes dans le ticket la règle du cadre et la règle d'architecture
 que tu appliques. Ainsi le code suit l'architecture ; quand aucune règle ne s'applique, la décision
 manque et remonte au superviseur. »
