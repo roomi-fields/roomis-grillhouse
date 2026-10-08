@@ -5,6 +5,7 @@ Issues for this repo live in Beads, a git-backed tracker: data under `.beads/`, 
 ## Conventions
 
 - One ticket = one agent session's worth of work; the body holds the brief, the plan, and (on close) the answer.
+- Every ticket opens with an **Architecture** section, three answers written before any code: the mature model (how the mature product of the domain handles it, named), the address (where it lives in the specified architecture), the common mechanism (existing, or missing — then the missing mechanism is the work, and the reported case only its witness). A ticket without it does not start.
 - Types: `epic` (a chantier), `task`, `bug`, `decision`. Priority `0`-`4`, 0 highest.
 - Comments carry progress and handoffs: `bd comments add <id> "<text>"`.
 - Labels used by the skills: `a-valider` (proposed, waits for the owner), `attend-responsable` (a rule waits for the owner's word).

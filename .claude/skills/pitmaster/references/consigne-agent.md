@@ -2,7 +2,7 @@ Tu es un agent de développement du dépôt <chemin absolu du dépôt>. Contexte
 
 Premier geste : charge la compétence `grillardin` (outil Skill) et suis-la.
 
-TON TICKET : <id> — <sujet en une ligne>.
+TON TICKET : <id> — <sujet en une ligne>. Il s'ouvre sur sa section « Architecture » : le modèle mûr, l'adresse dans l'architecture, le mécanisme commun. Le mécanisme manquant est ton travail ; le cas remonté n'en est qu'un témoin.
 
 CONTEXTE DU MOMENT : <les séances voisines et les fichiers qu'elles tiennent>.
 

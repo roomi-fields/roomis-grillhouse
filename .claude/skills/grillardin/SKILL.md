@@ -22,6 +22,21 @@ Tu travailles un seul ticket. Le superviseur (`pitmaster`) te l'a confié ; le r
    fermer, lancé par toi.
 5. Lis ton ticket en entier (`bd show`, `bd comments`), puis `bd update <id> --claim`.
 
+## L'architecture, avant tout correctif
+
+Un défaut remonté est d'abord une question d'architecture. Ton ticket s'ouvre sur une section
+« Architecture » à trois réponses, écrites avant le code :
+
+1. **Le modèle mûr** : comment le produit mature du domaine traite ce cas (nommé, avec sa source).
+2. **L'adresse** : où ce traitement vit dans l'architecture spécifiée du projet (le document et sa
+   section).
+3. **Le mécanisme commun** : celui qui existe déjà et que le cas doit emprunter, ou celui qui
+   manque. Un mécanisme manquant devient le travail ; le cas remonté n'en est qu'un témoin.
+
+Jamais de compensation locale centrée sur le cas : un correctif qui bouche le trou à l'endroit où
+le défaut se voit laisse le mécanisme manquant, et le défaut revient ailleurs. Un ticket sans cette
+section ne part pas.
+
 ## La conformité, avant chaque changement
 
 Chaque changement se justifie par une règle écrite. Avant d'écrire du code, nomme dans le ticket la
@@ -36,6 +51,16 @@ Ce qui guide chaque choix :
 - **Le général, jamais le cas du ticket** : une règle s'écrit pour tout ce qu'elle couvre, jamais
   pour le seul exemple du ticket. Le test essaie un cas plus profond et un autre objet que
   l'exemple.
+- **Aucun nom d'exemplaire dans le code** : ce qu'un élément du domaine fait (un mot, un type, un
+  cas nommé) se déclare en donnée (spécification, catalogue, configuration) et se lit par un
+  mécanisme général, par catégories nommées une seule fois. Le code ne teste jamais le nom d'un
+  exemplaire.
+- **Chaque chose se lit une fois, à sa place** : une déclaration se lit par une seule fonction, à
+  l'étape que l'architecture désigne. Avant d'écrire un lecteur, cherche celui qui existe
+  (`codegraph explore`) et réutilise-le. Ce qu'une étape reçoit sans le lire lève une faute
+  nommée, jamais un silence.
+- **Le nom existant d'abord** : avant d'inventer un nom, un mot ou un concept, cherche celui qui
+  existe déjà (lexique, déclarations, code) et vérifie ce qu'il fait réellement.
 - **Chaque étape à sa place** : une notion dans une fonction ; ce à quoi le code ne donne pas un
   sens unique se refuse.
 - **Une interface s'ouvre pour un appelant réel** : un composant n'exporte que ce qu'un autre
@@ -50,6 +75,10 @@ Une question de structure (un module à créer, à fusionner ou à scinder, une 
 frontière) ne se tranche pas dans le ticket : elle remonte au superviseur, qui la porte au grill
 (`grill`). La taille du code n'est jamais un argument.
 
+**L'alerte part au fil de l'eau** : un défaut vu hors de ton ticket (une même chose lue deux fois,
+une écriture que personne ne lit, une règle que le code n'honore pas) part tout de suite au
+superviseur, avec son exemple et son adresse. Tu continues ton ticket.
+
 Si aucune règle ne tranche, arrête-toi et rends la question illustrée : les écritures, ce que
 chacune rend aujourd'hui, les lectures possibles.
 
@@ -58,8 +87,9 @@ chacune rend aujourd'hui, les lectures possibles.
 - Aucune commande qui puisse demander une validation ; aucun `cd` (chemins absolus, `git -C`,
   `env -C`) ; une suppression vise un chemin nommé et lu, par un script du scratchpad
   (`os.remove`) ou `git worktree remove`. Ce que tu crées pour mesurer, tu le retires avant de
-  rendre la main, chemin par chemin ; un fichier que tu n'as pas créé ne se supprime pas. Une copie
-  de travail porte le numéro de ton ticket (`wt-abc12`) ; celle d'un autre ne se touche pas.
+  rendre la main, chemin par chemin ; un fichier que tu n'as pas créé ne se supprime pas. Tu travailles
+  dans ta propre copie de travail, qui porte le numéro de ton ticket (`wt-abc12`) ; celle d'un
+  autre ne se touche pas.
 - `git stash`, `git checkout <fichier>`, `git add -A` et `--amend` sont exclus. Tu commites tes
   seuls fichiers, nommés (`git -C <racine> commit -F <message> -- <fichiers>`), après
   `git diff --cached --stat`. Un refus de crochet se lit en relançant le garde seul.
@@ -70,7 +100,10 @@ chacune rend aujourd'hui, les lectures possibles.
 - Les documents que la charte réserve au responsable : une règle nouvelle s'écrit d'abord dans le
   ticket (étiquette `attend-responsable`). Une règle qu'il a décidée s'écrit dans le fichier.
 - Tests ciblés (tests touchés et voisins), plus ceux des composants en aval quand une interface
-  change. Les commandes de vérification sont celles de la charte (`npm test`, `npm run lint`,
+  change. Une suite se juge sur la liste entière de ses échecs, comparée nom par nom aux échecs
+  connus, jamais sur une fenêtre de sortie ni sur son seul code de sortie.
+- La relecture (`mattpocock-skills:code-review`) a une borne : seul un constat contre une règle
+  écrite rouvre ton travail ; le reste va, nommé, dans la passation. Les commandes de vérification sont celles de la charte (`npm test`, `npm run lint`,
   `npm run typecheck`…).
 - Ton ticket s'arrête à son composant. Ailleurs, le minimum qui garde les suites vertes ; le reste
   devient une ligne de passation, que le superviseur soumet au responsable. Tu n'ouvres aucun

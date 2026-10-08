@@ -24,6 +24,8 @@ dans `pitmaster/ERREURS.md`, que je lis aussi.
 ## Tenir la pièce avant le constat
 
 - **Ne pas trouver renseigne sur ma recherche**, pas sur le monde.
+- **Après un compactage, une décision se cherche dans la transcription** avant d'être déclarée
+  absente : le résumé perd ce qu'il ne cite pas.
 - **Un ticket se lit en entier** : description, notes et commentaires. `bd show --json` peut rendre
   `comments: 0` quand une passation existe ; `bd comments <id>` la montre.
 - **Une question tirée d'un ticket se cherche d'abord soldée** : commits sur le sujet, état présent
@@ -68,3 +70,10 @@ dans `pitmaster/ERREURS.md`, que je lis aussi.
 - **Une question d'agent se confronte aux reports du responsable avant de monter** : un sujet rangé
   dans les chantiers futurs ne monte pas comme décision actuelle.
 - **Un « reste à corriger » se vérifie dans les documents avant d'être dit.**
+- **Une question que monte une règle ou une déclaration se tranche par moi** : je lis la déclaration
+  et je cherche la règle avant de monter. Une question monte écrite pour le responsable, sans mots
+  internes du code.
+- **Un nom existant se cherche avant d'en recommander un neuf**, et ce qu'il fait se vérifie avant
+  de le donner pour réponse.
+- **Le diff de chaque fermeture se lit** pour ce que le cadre interdit (un nom d'exemplaire en dur,
+  une forme recopiée), avant d'accepter la fermeture.

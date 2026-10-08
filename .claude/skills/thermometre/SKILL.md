@@ -116,6 +116,10 @@ Une affirmation sur ce que fait un outil, une bibliothèque ou un système de r�
 documentation de son auteur, puis nos propres documents, qui ne prouvent jamais le comportement de
 la référence. Entre deux niveaux, l'inférieur gagne.
 
+La référence fixe le comportement, pas le code : on reproduit ce qu'elle fait, mesuré, jamais sa
+structure ligne à ligne ; un écart mesuré se nomme. Une capture de la référence ne se réécrit
+jamais pour suivre le code : elle change seulement par une recapture, nommée.
+
 ## Quand tu rends une mesure
 
 - **Donne son axe et son piège de reproduction.**

@@ -37,14 +37,24 @@ responsable du projet, ce qui décide, les documents qu'il valide et les command
 
 ## Un agent, un ticket
 
-- Un ticket tranché part à un sous-agent neuf (general-purpose), avec la consigne
+- Un ticket tranché part à un sous-agent neuf (general-purpose), dans sa propre copie de travail
+  (`isolation: worktree`), avec la consigne
   `references/consigne-agent.md`, et un nom qui dit son ticket et sa tâche
   (`name: abc12-catalogue-des-erreurs`).
 - Je réponds à ses questions pour qu'il finisse son ticket. Ce qui sort du ticket devient un
   ticket neuf, pour un agent neuf.
 - Deux agents ne touchent jamais le même fichier de code en même temps.
+- Une seule mesure lourde à la fois. Avant de lancer un agent, la charge de la machine se lit
+  (`uptime`) : au-delà, les agents attendent ; une machine saturée fausse les mesures et les tests.
+- Avec plusieurs agents en parallèle, un seul équipier commite : il applique les lots livrés (patch,
+  message, passation), lance le crochet, et rend à l'agent un lot qui enfreint une règle.
 
 ## L'architecture tranche d'abord
+
+- Un défaut remonté est d'abord une question d'architecture : chaque ticket s'ouvre sur sa section
+  « Architecture » (le modèle mûr nommé, l'adresse dans l'architecture spécifiée, le mécanisme
+  commun existant ou manquant ; `grillardin`, « L'architecture, avant tout correctif »). Un
+  mécanisme manquant devient le travail. Un ticket sans cette section ne part pas.
 
 - Un ticket nomme à l'ouverture les règles qu'il touche, par adresse (`docs/CADRE.md` R1…, une
   section d'architecture ou de la spécification), et les documents qu'il touchera.

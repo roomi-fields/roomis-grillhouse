@@ -13,7 +13,10 @@ qu'elle règle. Une règle s'écrit affirmative, au présent, sans date ni auteu
 
 ## Comment on arbitre
 
-Une décision ou une question se tranche par trois questions, dans cet ordre :
+Une décision ou une question se tranche par ces questions, dans cet ordre : la première qui
+s'applique l'emporte, et le choix la nomme ; deux réponses de même rang se tranchent par le
+responsable. Le projet ajoute ses propres forces à la liste, à leur rang (« le temps d'abord »,
+« une personne maintient le projet »…).
 
 1. **Que fait la référence mature ?** <Les références du domaine : un compilateur mature, une
    station audionumérique professionnelle…> Ce qu'elles font est la réponse par défaut ; s'en
@@ -28,7 +31,10 @@ Le but est un produit mature et professionnel, qui tient les exigences de son do
 ## Le flux d'une tâche
 
 1. `bd ready`, `bd update <id> --claim`, lis le ticket et le cadre de chaque composant touché.
-2. Une décision reste à prendre : `/grill-me` avant d'écrire, ses questions dans le ticket.
+2. Un défaut remonté est d'abord une question d'architecture : le ticket s'ouvre sur sa section
+   « Architecture » (le modèle mûr nommé, l'adresse dans l'architecture, le mécanisme commun),
+   jamais sur une compensation locale. Une décision reste à prendre : `/grill-me` avant d'écrire,
+   ses questions dans le ticket.
 3. Le plan va dans le ticket (`bd update <id> -d`), la réalisation se fait en `/tdd`. Un commit qui
    change un comportement corrige dans le même commit tout texte qui le décrit.
 4. Le ticket se ferme sur ses tests ciblés, la relecture (`mattpocock-skills:code-review`, qui pose
