@@ -77,7 +77,8 @@ responsable du projet, ce qui décide, les documents qu'il valide et les command
 ## La fermeture, ma promesse
 
 Une fermeture est complète quand elle porte : le code, un test qui a mordu, la relecture
-`mattpocock-skills:code-review` avec sa question « cette notion existe-t-elle déjà ailleurs ? »,
+`mattpocock-skills:code-review` avec sa question « cette notion existe-t-elle déjà ailleurs dans le projet, dans ce composant ou
+un autre ? »,
 les documents que le ticket nommait, écrits avec `menu`, la passation avec les heures relevées,
 le motif. Un aspect manquant se dit le jour même, dans le ticket.
 

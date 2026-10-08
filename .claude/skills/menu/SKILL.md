@@ -29,7 +29,10 @@ les mots qu'il emploie lui-même. La langue du document est celle de la charte.
   « aussi ») a son antécédent dans la phrase ou juste avant.
 - **Le document parle de son sujet, et de lui seul.** Une architecture décrit le produit ;
   l'organisation du dépôt et la façon de travailler vivent dans la charte.
-- **Une règle est au présent**, sans date, sans auteur, sans histoire de sa décision.
+- **Une règle est au présent**, sans date, sans auteur, sans histoire de sa décision, **à l'échelle
+  du travail qu'elle cadre** : elle nomme ses objets (un calcul, un composant, une donnée, une forme
+  publiée), l'acte qu'elle demande et ce qui se fait quand il manque. Un exemple l'éclaire ; une
+  liste de cas ne la remplace pas, elle se lirait comme fermée.
 
 ### La phrase
 

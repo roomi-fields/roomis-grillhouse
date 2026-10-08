@@ -19,7 +19,8 @@ Tu travailles un seul ticket. Le superviseur (`pitmaster`) te l'a confié ; le r
    tests ciblés, relecture, corrections, commit), heures relevées.
 4. Charge `thermometre` ; `menu` dès que tu écris un document lu par un humain ;
    `mattpocock-skills:tdd` (un test qui rougit d'abord) ; `mattpocock-skills:code-review` avant de
-   fermer, lancé par toi.
+   fermer, lancé par toi, avec la question « cette notion existe-t-elle déjà ailleurs dans le projet,
+   dans ce composant ou un autre ? ».
 5. Lis ton ticket en entier (`bd show`, `bd comments`), puis `bd update <id> --claim`.
 
 ## L'architecture, avant tout correctif
@@ -58,10 +59,11 @@ Ce qui guide chaque choix :
   branche à part, une exception de plus) se refuse : il cache le problème au lieu de le résoudre,
   et le problème revient sous une autre forme. Un agent fait spontanément l'inverse ; cette règle
   existe pour l'en empêcher.
-- **Chaque chose se lit une fois, à sa place** : une donnée s'analyse une seule fois, par une seule
-  fonction, à l'étape que l'architecture désigne, puis circule en structure. Avant d'écrire un lecteur, cherche celui qui existe
-  (`codegraph explore`) et réutilise-le. Ce qu'une étape reçoit sans le lire lève une faute
-  nommée, jamais un silence.
+- **Chaque calcul a un seul composant** : un composant fait seulement le travail de sa fonction.
+  Une donnée qui relève d'un autre composant se lit dans la forme que celui-ci publie ; quand elle
+  manque, ce composant la publie, et aucun autre ne la recalcule. Avant d'écrire un calcul, cherche
+  celui qui existe (`codegraph explore`). Une donnée reçue et non lue lève une faute nommée, jamais
+  un silence.
 - **Le nom existant d'abord** : avant d'inventer un nom, un mot ou un concept, cherche celui qui
   existe déjà (lexique, déclarations, code) et vérifie ce qu'il fait réellement.
 - **Chaque étape à sa place** : une notion dans une fonction ; ce à quoi le code ne donne pas un
