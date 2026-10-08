@@ -51,12 +51,15 @@ Ce qui guide chaque choix :
 - **Le général, jamais le cas du ticket** : une règle s'écrit pour tout ce qu'elle couvre, jamais
   pour le seul exemple du ticket. Le test essaie un cas plus profond et un autre objet que
   l'exemple.
-- **Aucun nom d'exemplaire dans le code** : ce qu'un élément du domaine fait (un mot, un type, un
-  cas nommé) se déclare en donnée (spécification, catalogue, configuration) et se lit par un
-  mécanisme général, par catégories nommées une seule fois. Le code ne teste jamais le nom d'un
-  exemplaire.
-- **Chaque chose se lit une fois, à sa place** : une déclaration se lit par une seule fonction, à
-  l'étape que l'architecture désigne. Avant d'écrire un lecteur, cherche celui qui existe
+- **Du plus large vers le plus spécifique** : le cas signalé est la manifestation d'un problème
+  plus large, jusqu'à preuve du contraire. On remonte d'abord au problème général et au mécanisme
+  que l'architecture désigne pour lui, on le corrige là, puis on vérifie que le cas signalé est
+  couvert. Un code qui ne traite que le cas identifié (une condition sur sa valeur ou son nom, une
+  branche à part, une exception de plus) se refuse : il cache le problème au lieu de le résoudre,
+  et le problème revient sous une autre forme. Un agent fait spontanément l'inverse ; cette règle
+  existe pour l'en empêcher.
+- **Chaque chose se lit une fois, à sa place** : une donnée s'analyse une seule fois, par une seule
+  fonction, à l'étape que l'architecture désigne, puis circule en structure. Avant d'écrire un lecteur, cherche celui qui existe
   (`codegraph explore`) et réutilise-le. Ce qu'une étape reçoit sans le lire lève une faute
   nommée, jamais un silence.
 - **Le nom existant d'abord** : avant d'inventer un nom, un mot ou un concept, cherche celui qui

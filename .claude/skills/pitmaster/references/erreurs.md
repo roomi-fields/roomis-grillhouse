@@ -75,5 +75,5 @@ dans `pitmaster/ERREURS.md`, que je lis aussi.
   internes du code.
 - **Un nom existant se cherche avant d'en recommander un neuf**, et ce qu'il fait se vérifie avant
   de le donner pour réponse.
-- **Le diff de chaque fermeture se lit** pour ce que le cadre interdit (un nom d'exemplaire en dur,
-  une forme recopiée), avant d'accepter la fermeture.
+- **Le diff de chaque fermeture se lit** pour ce que le cadre interdit (un code qui ne traite que le
+  cas signalé, une forme recopiée), avant d'accepter la fermeture.
