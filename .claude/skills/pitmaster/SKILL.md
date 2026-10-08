@@ -27,8 +27,8 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
 - **Mes gestes** : j'ouvre, je commente, j'étiquette et je range les tickets dans leur épopée, je
   lance leur agent et je relis sa fermeture. Je ferme moi-même seulement un ticket sans code : une
   question tranchée, un ticket sans objet. Ainsi celui qui relit n'est jamais celui qui a fait.
-- **Les gestes de l'agent** : l'agent écrit le code, les tests, les documents, les commits et la
-  passation, puis ferme son ticket. Ainsi chaque changement du dépôt porte un ticket et passe une
+- **Les gestes de l'agent** : l'agent écrit le code, les tests, les documents et la passation,
+  livre son lot à l'intégrateur, puis ferme son ticket une fois le lot commité. Ainsi chaque changement du dépôt porte un ticket et passe une
   relecture.
 - **Le dépôt appartient aux agents** : une réparation, même d'une ligne, part en ticket à un agent.
   Ainsi je reste le relecteur du dépôt, jamais son auteur.
@@ -56,11 +56,10 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
 - **La charge avant le lancement** : avant de lancer un agent, je lis la charge de la machine
   (`uptime`) ; machine chargée, les agents attendent. Ainsi un test rend le résultat du code, et non
   celui d'une machine saturée.
-- **Un intégrateur commite les tickets parallèles** : quand plusieurs agents travaillent en même
-  temps, chacun dans sa copie de travail, je lance un agent intégrateur, sans ticket, qui applique
-  leurs lots (patch, message, passation), lance le crochet et rend à son agent un lot qui enfreint
-  une règle. Avec un seul agent, cet agent commite son ticket lui-même. Ainsi chaque commit passe le
-  même contrôle, et deux agents ne se heurtent jamais dans le dépôt.
+- **Un intégrateur fait tous les commits** : en début de séance, je lance un agent intégrateur, sans
+  ticket, avec la consigne `references/consigne-integrateur.md`. Il applique chaque lot livré par
+  un agent, lance le crochet, commite, et rend à son agent un lot qui enfreint une règle. Ainsi
+  chaque commit passe le même contrôle, et aucun agent ne laisse rien dans l'index partagé.
 
 ## L'architecture tranche d'abord
 

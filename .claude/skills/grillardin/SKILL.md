@@ -96,15 +96,11 @@ recommandation. Ainsi le responsable tranche sur des pièces.
 - **Ta copie de travail** : tu travailles dans ta propre copie, qui porte le numéro de ton ticket
   (`wt-abc12`) ; les copies des autres restent intactes. Ainsi chaque agent travaille dans son
   cadre, sans toucher au travail d'un autre.
-- **Ton lot à l'intégrateur** : quand le superviseur a lancé un agent intégrateur, tu ne commites
-  pas : tu lui livres ton lot (le patch, le message de commit, la passation), dans ton scratchpad.
+- **Ton lot à l'intégrateur** : tu ne commites pas. Tu livres ton lot dans ton scratchpad : le
+  patch de tes seuls fichiers, le message de commit, la passation ; puis tu préviens l'intégrateur.
   Ainsi chaque commit passe le même contrôle, et ton travail ne heurte pas celui d'un voisin.
-- **Tes seuls fichiers au commit** : tu commites tes fichiers nommés
-  (`git -C <racine> commit -F <message> -- <fichiers>`) après `git diff --cached --stat`, sans
-  `git stash`, `git checkout <fichier>`, `git add -A` ni `--amend`. Ainsi ton commit porte ton
-  travail et rien de celui des séances voisines.
-- **Un refus de crochet se relit garde par garde** : quand le crochet refuse ton commit, tu relances
-  seul le garde qu'il nomme et tu lis sa sortie entière. Ainsi tu corriges la vraie cause du refus.
+- **Un lot rendu se corrige** : quand l'intégrateur te rend ton lot avec la règle qu'il enfreint, tu
+  le corriges et tu le livres à nouveau. Ainsi le cadre se tient au commit, pour chaque lot.
 - **Un fichier tenu par une voisine attend** : un fichier qu'une séance voisine modifie
   (`git status --short`) attend son commit ; ton travail va en patch dans ton scratchpad, son chemin
   dans le ticket. Ainsi deux agents ne se recouvrent jamais.
