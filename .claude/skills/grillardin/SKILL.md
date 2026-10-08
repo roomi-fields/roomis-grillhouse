@@ -96,6 +96,9 @@ recommandation. Ainsi le responsable tranche sur des pièces.
 - **Ta copie de travail** : tu travailles dans ta propre copie, qui porte le numéro de ton ticket
   (`wt-abc12`) ; les copies des autres restent intactes. Ainsi chaque agent travaille dans son
   cadre, sans toucher au travail d'un autre.
+- **Ton lot à l'intégrateur** : quand le superviseur a lancé un agent intégrateur, tu ne commites
+  pas : tu lui livres ton lot (le patch, le message de commit, la passation), dans ton scratchpad.
+  Ainsi chaque commit passe le même contrôle, et ton travail ne heurte pas celui d'un voisin.
 - **Tes seuls fichiers au commit** : tu commites tes fichiers nommés
   (`git -C <racine> commit -F <message> -- <fichiers>`) après `git diff --cached --stat`, sans
   `git stash`, `git checkout <fichier>`, `git add -A` ni `--amend`. Ainsi ton commit porte ton

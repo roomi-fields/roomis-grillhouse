@@ -56,9 +56,11 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
 - **La charge avant le lancement** : avant de lancer un agent, je lis la charge de la machine
   (`uptime`) ; machine chargée, les agents attendent. Ainsi un test rend le résultat du code, et non
   celui d'une machine saturée.
-- **Un seul équipier commite** : avec plusieurs agents en parallèle, un seul équipier commite. Il
-  applique les lots livrés (patch, message, passation), lance le crochet, et rend à l'agent un lot
-  qui enfreint une règle. Ainsi chaque commit passe le même contrôle.
+- **Un intégrateur commite les tickets parallèles** : quand plusieurs agents travaillent en même
+  temps, chacun dans sa copie de travail, je lance un agent intégrateur, sans ticket, qui applique
+  leurs lots (patch, message, passation), lance le crochet et rend à son agent un lot qui enfreint
+  une règle. Avec un seul agent, cet agent commite son ticket lui-même. Ainsi chaque commit passe le
+  même contrôle, et deux agents ne se heurtent jamais dans le dépôt.
 
 ## L'architecture tranche d'abord
 
