@@ -38,11 +38,11 @@ charte nomme ceux que le responsable valide.
 - **Un écart document / code va dans les deux sens** : le document a vieilli, ou il porte une
   décision que le code n'honore pas. Il se tranche sur pièces ; sinon il s'écrit comme écart
   ouvert, et le responsable l'arbitre.
-- **Une règle s'écrit affirmative, au présent, sans date ni auteur, à l'échelle du travail qu'elle
-  cadre**, en phrases courtes et directives, dans les mots du responsable : elle nomme ses objets, l'acte qu'elle demande et ce qui se fait quand il manque. Un
-  exemple l'éclaire ; une liste de cas ne la remplace pas. Une règle abstraite, qui pourrait viser
-  une valeur, un document ou un paquet, se réécrit. Une rédaction, d'un agent ou
-  la mienne, ne se présente jamais comme une décision du responsable.
+- **Écrire une règle** : une règle part des mots de celui qui l'a décidée. Elle dit en positif ce
+  qu'on fait, au présent, en deux ou trois phrases courtes. Elle nomme les objets qu'elle cadre, à
+  leur échelle ; un exemple l'éclaire, jamais une liste de cas.
+- **Une rédaction, d'un agent ou la mienne, ne se présente jamais comme une décision du
+  responsable.**
 
 ## 4. Le flux d'une tâche
 
