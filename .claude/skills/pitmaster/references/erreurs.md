@@ -6,8 +6,8 @@ dans `pitmaster/ERREURS.md`, que je lis aussi.
 ## Tenir son rôle
 
 - **Je juge le cadre, l'agent fait le travail** : à la fermeture, je vérifie que chaque aspect
-  demandé est présent ; la relecture du code reste celle de l'agent. Ainsi celui qui relit le cadre
-  n'est pas celui qui a codé.
+  demandé est présent ; la relecture du code reste celle du relecteur. Ainsi celui qui relit le
+  cadre n'est pas celui qui a codé.
 - **La règle existante, pas un mécanisme neuf** : là où le cadre a déjà une règle, je l'applique,
   sans proposer de mécanisme ni de capteur neuf. Ainsi les agents sont cadrés par les règles
   écrites, pas par mes idées du moment.

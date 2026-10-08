@@ -8,7 +8,7 @@ description: L'initialisation et l'architecture du projet : initialiser un proje
 Le framework fournit les outils et les compétences, et `METACADRE.md` les intentions qu'ils servent ;
 l'initialisation leur donne leur objet. Lis le métacadre avant le premier tour : chaque
 recommandation du grill sert une de ses intentions. L'initialisation produit les éléments clés que
-les compétences `pitmaster` et `grillardin` lisent à chaque séance :
+les compétences `pitmaster` et `developpeur` lisent à chaque séance :
 
 | élément | ce qu'il fixe |
 |---|---|
@@ -87,7 +87,7 @@ Le préfixe des tickets vient du nom du projet ; il se confirme au premier tour 
 
 **Les faits se cherchent** dans le code et les documents ; seules les décisions se posent au responsable. Ainsi il ne reçoit que des décisions.
 
-**Le relevé structurel vient avant le premier tour** : un sous-agent (Explore, « very thorough ») rend le relevé décrit dans `references/releve-structurel.md`, et tu le juges avec `thermometre` ; un relevé fait de comptes se refait. Ainsi l'architecture se décide sur une preuve.
+**Le relevé structurel vient avant le premier tour** : un sous-agent (Explore, « very thorough ») rend le relevé décrit dans `references/releve-structurel.md`, et tu le juges avec `mesure` ; un relevé fait de comptes se refait. Ainsi l'architecture se décide sur une preuve.
 
 **Le relevé dit ce qui est** : il décrit la construction réelle, défauts compris ; le grill décide
 ce qui doit être. Ainsi chaque décision part de l'état réel du code.
@@ -137,7 +137,7 @@ ensuite. Ainsi les documents écrivent des décisions prises.
 
 ## 5. Écrire
 
-- Les documents lus par un humain s'écrivent avec la compétence `menu` (référence
+- Les documents lus par un humain s'écrivent avec la compétence `redacteur` (référence
   « Les documents d'un composant ») ; la charte avec `mattpocock-skills:writing-for-agents`.
 - **Les champs de la charte** : chaque champ `<…>` de la charte modèle reçoit sa valeur. Ainsi la
   charte cadre les agents dès la séance suivante.

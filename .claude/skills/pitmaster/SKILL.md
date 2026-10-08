@@ -41,11 +41,15 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
 
 ## Un agent, un ticket
 
-- **Un agent neuf par ticket** : un ticket tranché part à un sous-agent neuf (general-purpose),
-  dans sa propre copie de travail (`isolation: worktree`), avec la consigne
-  `references/consigne-agent.md` et un nom qui dit son ticket et sa tâche
-  (`name: abc12-catalogue-des-erreurs`). Ainsi chaque agent travaille dans le cadre écrit, sans
-  l'histoire d'un autre ticket.
+- **Un agent neuf par ticket** : un ticket tranché part à un sous-agent neuf du rôle qu'il demande
+  (`subagent_type: testeur`, `developpeur` ou `relecteur`), dans sa propre copie de travail
+  (`isolation: worktree`), avec la consigne `references/consigne-agent.md` et un nom qui dit son
+  ticket et sa tâche (`name: abc12-catalogue-des-erreurs`). Ainsi chaque agent travaille dans le
+  cadre écrit et sous les verrous de son rôle, sans l'histoire d'un autre ticket.
+- **Un comportement change en deux tickets** : le ticket de tests part au testeur ; le ticket de
+  code, qui en dépend (`bd dep add`), part au développeur avec le lot de tests ; le relecteur relit
+  les deux lots et rend son verdict dans le ticket de code. Ainsi le code se mesure à des tests
+  qu'il n'a pas écrits, et un autre que son auteur le relit.
 - **Le ticket garde son périmètre** : je réponds aux questions de l'agent pour qu'il finisse son
   ticket. Ce qui sort du ticket devient un ticket neuf, pour un agent neuf. Ainsi chaque fermeture
   se relit sur un seul périmètre.
@@ -56,9 +60,9 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
 - **La charge avant le lancement** : avant de lancer un agent, je lis la charge de la machine
   (`uptime`) ; machine chargée, les agents attendent. Ainsi un test rend le résultat du code, et non
   celui d'une machine saturée.
-- **Un intégrateur fait tous les commits** : en début de séance, je lance un agent intégrateur, sans
-  ticket, avec la consigne `references/consigne-integrateur.md`. Il applique chaque lot livré par
-  un agent, lance le crochet, commite, et rend à son agent un lot qui enfreint une règle. Ainsi
+- **Un intégrateur fait tous les commits** : en début de séance, je lance l'agent intégrateur
+  (`subagent_type: integrateur`), sans ticket. Il applique chaque lot relu, lance le crochet,
+  commite, et rend à son agent un lot qui enfreint une règle. Ainsi
   chaque commit passe le même contrôle, et aucun agent ne laisse rien dans l'index partagé.
 
 ## L'architecture tranche d'abord
@@ -66,7 +70,7 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
 - **Une question d'architecture d'abord** : à chaque problème remonté, je demande d'abord comment le
   fait un produit mature et où il se situe dans l'architecture spécifiée ; après, on implémente.
   Chaque ticket s'ouvre sur sa section « Architecture » (le modèle mûr, l'adresse, le mécanisme
-  commun ; `grillardin`, « L'architecture, avant tout correctif ») et part seulement avec elle.
+  commun ; `developpeur`, « L'architecture, avant tout correctif ») et part seulement avec elle.
   Ainsi un mécanisme manquant devient le travail, jamais une compensation locale centrée sur le
   problème identifié.
 - **Un ticket nomme ses règles** : à l'ouverture, un ticket nomme les règles qu'il applique, par
@@ -94,9 +98,8 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
 
 ## La fermeture, ma promesse
 
-**Une fermeture complète** porte le code, un test qui a mordu, la relecture
-`mattpocock-skills:code-review` avec sa question « cette notion existe-t-elle déjà ailleurs dans le
-projet, dans ce composant ou un autre ? », les documents que le ticket nommait (écrits avec `menu`),
+**Une fermeture complète** porte le code, un test du testeur qui a mordu, le verdict `ACCEPTÉ` du
+relecteur, les documents que le ticket nommait (écrits avec `redacteur`),
 la passation avec ses heures relevées et le motif. Un aspect manquant se dit le jour même, dans le
 ticket. Ainsi ce qui est déclaré fini l'est vraiment.
 

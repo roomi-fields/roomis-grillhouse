@@ -40,15 +40,16 @@ maintient le projet »…). Ainsi chaque choix construit un produit mature et pr
    le correctif va dans ce mécanisme. Ainsi tout correctif passe par l'architecture.
 3. Une décision reste à prendre : `/grill-me` avant d'écrire, ses questions dans le ticket. Ainsi
    la décision est prise et écrite avant le code.
-4. Le plan va dans le ticket (`bd update <id> -d`), la réalisation se fait en `/tdd`. Ainsi le
-   travail suit un plan écrit, test d'abord.
-5. Le ticket se ferme sur ses tests ciblés, la relecture (`mattpocock-skills:code-review`, qui pose
-   la question : cette notion existe-t-elle déjà ailleurs dans le projet, dans ce composant ou un
-   autre ?) et un lot livré à l'intégrateur, qui le commite. Ainsi ce qui est déclaré fini l'est vraiment.
+4. Le plan va dans le ticket (`bd update <id> -d`). Un travail qui change un comportement part en
+   deux tickets : les tests d'abord (agent `testeur`), puis le code qui les rend verts (agent
+   `developpeur`). Ainsi le code se mesure à des tests qu'il n'a pas écrits.
+5. Le ticket se ferme sur ses tests ciblés, le verdict de l'agent `relecteur` sur le lot, et le
+   commit de l'agent `integrateur`, seul à commiter. Ainsi ce qui est déclaré fini l'est vraiment.
 6. `/handoff` dans le ticket, puis `bd close`, avec ce qui n'est pas fait et pourquoi.
 
-Une séance de supervision charge le superviseur (`pitmaster`) ; un agent de développement
-charge le développeur (`grillardin`). Ainsi chaque agent travaille dans son cadre.
+Une séance de supervision charge le superviseur (`pitmaster`). Les rôles sont des agents du projet
+(`.claude/agents/`) : `testeur`, `developpeur`, `relecteur`, `integrateur`, chacun sous ses verrous.
+Ainsi chaque agent travaille dans son cadre.
 
 ## Ce qui tient le dépôt droit
 
@@ -75,10 +76,11 @@ charge le développeur (`grillardin`). Ainsi chaque agent travaille dans son cad
   par `codegraph explore` (ou l'outil `codegraph_explore`) pour l'appel. Ainsi une affirmation sur
   le code repose sur ce que le code contient.
 - Tickets : Beads (`bd`), préfixe `<prefixe>-`, voir `docs/agents/issue-tracker.md`.
-- Compétences du dépôt : le superviseur (`pitmaster`), le développeur (`grillardin`),
-  l'initialisation et l'architecture (`grill`), la mesure (`thermometre`), le rédacteur pour un
-  lecteur humain (`menu`), la publication (`release`). Flux : greffon `mattpocock-skills`, préfixe
-  obligatoire ; un document pour un agent s'écrit avec `mattpocock-skills:writing-for-agents`.
+- Compétences du dépôt : le superviseur (`pitmaster`), les quatre rôles (`testeur`,
+  `developpeur`, `relecteur`, `integrateur`), l'initialisation et l'architecture (`grill`), la
+  mesure (`mesure`), le rédacteur pour un lecteur humain (`redacteur`), la publication
+  (`release`). Flux : greffon `mattpocock-skills`, préfixe obligatoire ; un document pour un agent
+  s'écrit avec `mattpocock-skills:writing-for-agents`.
 - Réponses en français ; le code et les noms d'API restent en anglais.
 
 ## Commandes

@@ -81,7 +81,7 @@ intact.** Ainsi l'architecture change par décision, et chaque ticket tient sa p
 ### 4 c. Le flux est-il suivi ?
 
 ```bash
-for k in grill tdd code-review handoff; do
+for k in grill testeur ACCEPTÉ handoff; do
   printf '%-12s commits:%s tickets:%s\n' $k \
     "$(git -C <racine> log --since='<dernier tour>' --format=%B | grep -ci "$k")" \
     "$(bd list --all --json | grep -oi "$k" | wc -l)"; done

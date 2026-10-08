@@ -9,14 +9,23 @@ roomis-grillhouse/
 ├── .claude/                    # Claude Code integrations
 │   ├── settings.json              # Permissions, plugins, hooks
 │   ├── template                   # Marks the template itself (not copied)
+│   ├── agents/                    # The roles, each under its locks (scripts/verrous/)
+│   │   ├── testeur.md                # Writes a ticket's tests from the spec; writes test files only
+│   │   ├── developpeur.md            # Writes the code; no test file, no code before the Architecture section
+│   │   ├── relecteur.md              # Reviews the lot adversarially; writes no file
+│   │   └── integrateur.md            # Commits the reviewed lots, the only one to commit; writes no file
 │   └── skills/                    # Skills, ready from the first session
 │       ├── grill/                 # Initialisation & architecture: the grill → charter, architecture, frame, interfaces
 │       │   └── references/           # releve-structurel (the structural survey brief)
-│       ├── pitmaster/             # The supervisor: tickets, sub-agents, reviews, the frame
+│       ├── pitmaster/             # The supervisor: tickets, role agents, closures, the frame
 │       │   └── references/           # cadre, tour, erreurs, consigne-agent
-│       ├── grillardin/            # The developer: works one ticket as a development agent
-│       ├── thermometre/           # Measurement: measures without lying, proves a guard bites
-│       ├── menu/                  # The writer: human-read documents
+│       ├── testeur/               # The tester's skill
+│       ├── developpeur/           # The developer's skill
+│       ├── relecteur/             # The reviewer's skill
+│       │   └── references/           # edge cases, verification gaps (from BMAD-METHOD, MIT)
+│       ├── integrateur/           # The integrator's skill
+│       ├── mesure/                # Measurement: measures without lying, proves a guard bites
+│       ├── redacteur/             # The writer: human-read documents
 │       │   └── references/           # documents-d-un-composant
 │       └── release/               # Release automation
 │           ├── SKILL.md
@@ -32,7 +41,8 @@ roomis-grillhouse/
 │   ├── setup.sh                   # npm run setup: git, Beads tickets, dependencies
 │   ├── session-start.sh           # SessionStart hook: what is still empty (per package; exemptions in
 │   │                              #   docs/agents/hors-cadre.txt, "<package> <reason>")
-│   └── structure-guard.sh         # UserPromptSubmit hook: a structure decision goes to the grill
+│   ├── structure-guard.sh         # UserPromptSubmit hook: a structure decision goes to the grill
+│   └── verrous/verrou.mjs         # The role agents' write locks (tests: tests/unit/verrous.spec.ts)
 │
 ├── .github/                    # GitHub integrations
 │   ├── workflows/                 # CI/CD workflows
@@ -132,7 +142,8 @@ tickets. Once done, the hook stays silent.
 
 - A supervision session loads `pitmaster`: it keeps the tickets and hands each one to a fresh
   sub-agent.
-- A development agent loads `grillardin`, plus `thermometre` and `menu` as needed.
+- The roles are project agents (`.claude/agents/`): `testeur` writes the tests, `developpeur` the
+  code, `relecteur` reviews, `integrateur` commits. Each loads its skill and works under its locks.
 
 ### An existing project
 

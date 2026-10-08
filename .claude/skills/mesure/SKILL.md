@@ -1,12 +1,12 @@
 ---
-name: thermometre
+name: mesure
 description: >
   La mesure : mesurer sans se mentir. À charger avant : un compte ou un chiffre affirmé ; un garde ou un test
   à écrire, à éprouver ou à déclarer vert ; une absence conclue (« aucun document sur X », « rien
   ne lit ça », « code mort ») ; une affirmation sur ce que fait une référence externe.
 ---
 
-# Thermomètre — mesurer sans se mentir, et prouver qu'un garde mord
+# Mesure — mesurer sans se mentir, et prouver qu'un garde mord
 
 Cette compétence sert l'intention 4 du métacadre (`METACADRE.md`), « La preuve avant
 l'affirmation » : chaque règle dit ce que sa preuve protège. Les commandes permises et les

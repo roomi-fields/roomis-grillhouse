@@ -1,9 +1,9 @@
 ---
-name: grillardin
+name: developpeur
 description: Le développeur : travailler un ticket du dépôt courant en agent de développement. À charger au démarrage de chaque séance d'agent, avant de lire le ticket.
 ---
 
-# Grillardin — le développeur : travailler un ticket
+# Développeur — travailler un ticket
 
 Tu travailles un seul ticket. Le superviseur (`pitmaster`) te l'a confié ; le responsable du projet l'a validé.
 
@@ -17,11 +17,11 @@ Tu travailles un seul ticket. Le superviseur (`pitmaster`) te l'a confié ; le r
    l'architecture écrite. Un document absent ne t'arrête pas : le superviseur le voit déjà.
 3. Lis `docs/agents/issue-tracker.md` : la passation note l'heure de fin de chaque phase (code,
    tests ciblés, relecture, corrections, commit), heures relevées.
-4. Charge `thermometre` ; `menu` dès que tu écris un document lu par un humain ;
-   `mattpocock-skills:tdd` (un test qui rougit d'abord) ; `mattpocock-skills:code-review` avant de
-   fermer, lancé par toi, avec la question « cette notion existe-t-elle déjà ailleurs dans le projet,
-   dans ce composant ou un autre ? ».
-5. Lis ton ticket en entier (`bd show`, `bd comments`), puis `bd update <id> --claim`.
+4. Charge `mesure`, et `redacteur` dès que tu écris un document lu par un humain.
+5. Applique dans ta copie le lot de tests que nomme ton message de lancement
+   (`git apply <patch>`), lance-le et vois-le rouge. Ainsi ton code se mesure à des tests que tu
+   n'as pas écrits.
+6. Lis ton ticket en entier (`bd show`, `bd comments`), puis `bd update <id> --claim`.
 
 ## L'architecture, avant tout correctif
 
@@ -97,9 +97,10 @@ recommandation. Ainsi le responsable tranche sur des pièces.
   (`wt-abc12`) ; les copies des autres restent intactes. Ainsi chaque agent travaille dans son
   cadre, sans toucher au travail d'un autre.
 - **Ton lot à l'intégrateur** : tu ne commites pas. Tu livres ton lot dans ton scratchpad : le
-  patch de tes seuls fichiers, le message de commit, la passation ; puis tu préviens l'intégrateur.
-  Ainsi chaque commit passe le même contrôle, et ton travail ne heurte pas celui d'un voisin.
-- **Un lot rendu se corrige** : quand l'intégrateur te rend ton lot avec la règle qu'il enfreint, tu
+  patch de tes seuls fichiers, le message de commit, la passation ; puis tu préviens le
+  superviseur, qui le fait relire avant l'intégrateur. Ainsi chaque commit passe le même contrôle,
+  et ton travail ne heurte pas celui d'un voisin.
+- **Un lot rendu se corrige** : quand le relecteur ou l'intégrateur te rend ton lot avec la règle qu'il enfreint, tu
   le corriges et tu le livres à nouveau. Ainsi le cadre se tient au commit, pour chaque lot.
 - **Un fichier tenu par une voisine attend** : un fichier qu'une séance voisine modifie
   (`git status --short`) attend son commit ; ton travail va en patch dans ton scratchpad, son chemin
@@ -113,9 +114,11 @@ recommandation. Ainsi le responsable tranche sur des pièces.
   quand une interface change. Ainsi chaque changement est vérifié là où il peut casser.
 - **Une suite se juge sur tous ses échecs** : la liste entière de ses échecs se compare nom par nom
   aux échecs connus. Ainsi « vert » veut dire que rien de neuf n'a cassé.
-- **La relecture rouvre sur une règle écrite** : un constat de la relecture
-  (`mattpocock-skills:code-review`) contre une règle écrite rouvre ton travail ; le reste va, nommé,
-  dans la passation. Ainsi la relecture applique le cadre, sans ouvrir de lot sans fin.
+- **Les tests appartiennent au testeur** : tu n'écris ni ne modifies aucun fichier de test ; un
+  verrou le refuse. Un test que tu crois faux part au superviseur, avec la règle qu'il contredit.
+  Ainsi ton code rend vrais les tests de la spécification, et non des tests taillés pour lui.
+- **Le relecteur rouvre sur une règle écrite** : un lot rendu par le relecteur, constat et règle
+  cités, rouvre ton travail. Ainsi la relecture applique le cadre, sans ouvrir de lot sans fin.
 - **Ton ticket s'arrête à son composant** : ailleurs, tu fais le minimum qui garde les suites
   vertes ; le reste devient une ligne de passation, que le superviseur soumet au responsable. Ainsi
   le travail reste dans le plan validé.

@@ -38,6 +38,7 @@ Three layers, each with one job:
 │ .claude/settings.json   plugins (mattpocock-skills, rtfm), hooks, permissions  │
 │ .mcp.json               the CodeGraph server                                   │
 │ .claude/skills/         the brigade (below)                                    │
+│ .claude/agents/         the four roles, each under its write locks             │
 │ scripts/session-start.sh  hook: what is still empty → propose the grill        │
 │ scripts/structure-guard.sh hook: a structure question → the grill              │
 ├─ Project knowledge ────────────────────────────────────────────────────────────┤
@@ -64,10 +65,17 @@ Three layers, each with one job:
 |---|---|---|
 | Initialisation & architecture | `grill` | Surveys the code, grills the owner, writes the charter and reference documents. |
 | Supervisor | `pitmaster` | Keeps the tickets, hands each one to a fresh agent, reviews closures, keeps the frame. |
-| Developer | `grillardin` | Works one ticket: rules cited, test first, review, handoff. |
-| Measurement | `thermometre` | Measures without fooling itself; proves a guard bites before calling it green. |
-| Writer | `menu` | Writes human-read documents (architecture on the arc42/C4 model, frame, interface). |
+| Tester (agent) | `testeur` | Writes a ticket's tests from the spec, before the code; writes test files only. |
+| Developer (agent) | `developpeur` | Makes those tests pass; touches no test, writes no code before the ticket's Architecture section. |
+| Reviewer (agent) | `relecteur` | Reviews the lot adversarially (edge cases, verification gaps, the frame); writes nothing. |
+| Integrator (agent) | `integrateur` | Commits the reviewed lots, tests and code together; the only one to commit. |
+| Measurement | `mesure` | Measures without fooling itself; proves a guard bites before calling it green. |
+| Writer | `redacteur` | Writes human-read documents (architecture on the arc42/C4 model, frame, interface). |
 | Release | `release` | Bumps the version, updates the changelog, tags, publishes. |
+
+A change of behaviour runs as: tests ticket (tester) → code ticket (developer) → review → commit.
+The locks are hooks in each agent's definition (`scripts/verrous/`), so an agent cannot aim the
+code at its own tests.
 
 The full file tree is in [STRUCTURE.md](STRUCTURE.md).
 
@@ -80,6 +88,7 @@ Grillhouse invents as little as possible; it wires together existing tools.
 | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Skills, hooks, plugins, sub-agents: the runtime of the whole workflow. |
 | [Beads](https://github.com/gastownhall/beads) (`bd`) | Git-backed ticket store: the supervisor's queue, handoffs as comments. Installed by `setup` when missing. |
 | [mattpocock-skills](https://github.com/anthropics/claude-plugins-official) | The flow skills: `grilling` / `grill-me`, `tdd`, `code-review`, `handoff`, `domain-modeling`, `codebase-design`, `writing-for-agents`. |
+| [BMAD-METHOD](https://github.com/bmad-code-org/BMAD-METHOD) (MIT) | The reviewer's edge-case and verification-gap passes, copied with their licence. |
 | [RTFM](https://github.com/roomi-fields/rtfm) | Search index over code and docs (MCP), kept in sync by its own hooks. |
 | [CodeGraph](https://github.com/colbymchenry/codegraph) | Code knowledge graph (MCP): a symbol's source and its call paths in one query. Installed and indexed by `setup`. |
 | [TypeScript](https://www.typescriptlang.org/) | Type checking; `allowJs` lets a JavaScript project adopt the template and migrate file by file. |

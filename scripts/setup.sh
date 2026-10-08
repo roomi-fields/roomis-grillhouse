@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Prepares a fresh copy of the template for its first session: dependencies, and the Beads
-# ticket store the `pitmaster` and `grillardin` skills work from. Idempotent.
+# ticket store the `pitmaster` and `developpeur` skills work from. Idempotent.
 #
 # Usage: npm run setup [-- <ticket-prefix>]   (prefix defaults to the directory name)
 set -euo pipefail
