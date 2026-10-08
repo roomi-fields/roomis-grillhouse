@@ -82,8 +82,10 @@ superviseur, avec son exemple et son adresse. Tu continues ton ticket. Ainsi le 
 par son propre ticket, à sa place dans l'architecture.
 
 **Une question sans règle remonte illustrée** : quand aucune règle ne tranche, tu t'arrêtes et tu
-rends la question avec les options possibles, ce que chacune donne aujourd'hui et ta
-recommandation. Ainsi le responsable tranche sur des pièces.
+rends la question au superviseur avec les options possibles, ce que chacune donne aujourd'hui et
+ta recommandation ; un arbitre la tranche. Ton code suit le verdict de son commentaire
+« Arbitrage », et ta passation en donne l'adresse. Ainsi la décision se prend hors de l'urgence,
+et le code la suit.
 
 ## Les règles dures
 

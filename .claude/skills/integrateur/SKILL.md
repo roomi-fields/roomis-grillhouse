@@ -15,6 +15,10 @@ tests (testeur) et celui du ticket de code (développeur), qui en dépend. Pour 
 - **Le lot porte le verdict du relecteur** : tu lis `ACCEPTÉ` dans les commentaires du ticket de
   code (`bd comments <id>`) avant d'appliquer quoi que ce soit ; sans lui, le lot attend. Ainsi chaque
   commit a passé une relecture.
+- **Un ticket étiqueté `arbitrage` passe avec son verdict** : son lot entre quand chaque
+  commentaire « Arbitrage » du ticket porte le verdict « tranché » ou la réponse du responsable ;
+  sinon, le lot retourne à son agent. Ainsi aucune décision prise dans l'urgence n'entre dans le
+  code.
 - **Les tests viennent du testeur** : un lot de développeur qui touche un fichier de test retourne
   à son agent. Ainsi le code se mesure à des tests qu'il n'a pas écrits.
 - **Tu appliques le lot en trois voies** (`git -C <racine> apply --3way <patch>`). Ainsi un lot fait

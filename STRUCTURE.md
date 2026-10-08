@@ -13,7 +13,8 @@ roomis-grillhouse/
 │   │   ├── testeur.md                # Writes a ticket's tests from the spec; writes test files only
 │   │   ├── developpeur.md            # Writes the code; no test file, no code before the Architecture section
 │   │   ├── relecteur.md              # Reviews the lot adversarially; writes no file
-│   │   └── integrateur.md            # Commits the reviewed lots, the only one to commit; writes no file
+│   │   ├── integrateur.md            # Commits the reviewed lots, the only one to commit; writes no file
+│   │   └── arbitre.md                # Settles a design question, or sends it to the owner; writes no file
 │   └── skills/                    # Skills, ready from the first session
 │       ├── grill/                 # Initialisation & architecture: the grill → charter, architecture, frame, interfaces
 │       │   └── references/           # releve-structurel (the structural survey brief)
@@ -24,6 +25,7 @@ roomis-grillhouse/
 │       ├── relecteur/             # The reviewer's skill
 │       │   └── references/           # edge cases, verification gaps (from BMAD-METHOD, MIT)
 │       ├── integrateur/           # The integrator's skill
+│       ├── arbitre/               # The arbiter's skill
 │       ├── mesure/                # Measurement: measures without lying, proves a guard bites
 │       ├── redacteur/             # The writer: human-read documents
 │       │   └── references/           # documents-d-un-composant

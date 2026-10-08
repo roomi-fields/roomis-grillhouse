@@ -38,7 +38,7 @@ Three layers, each with one job:
 │ .claude/settings.json   plugins (mattpocock-skills, rtfm), hooks, permissions  │
 │ .mcp.json               the CodeGraph server                                   │
 │ .claude/skills/         the brigade (below)                                    │
-│ .claude/agents/         the four roles, each under its write locks             │
+│ .claude/agents/         the five roles, each under its write locks             │
 │ scripts/session-start.sh  hook: what is still empty → propose the grill        │
 │ scripts/structure-guard.sh hook: a structure question → the grill              │
 ├─ Project knowledge ────────────────────────────────────────────────────────────┤
@@ -68,6 +68,7 @@ Three layers, each with one job:
 | Tester (agent) | `testeur` | Writes a ticket's tests from the spec, before the code; writes test files only. |
 | Developer (agent) | `developpeur` | Makes those tests pass; touches no test, writes no code before the ticket's Architecture section. |
 | Reviewer (agent) | `relecteur` | Reviews the lot adversarially (edge cases, verification gaps, the frame); writes nothing. |
+| Arbiter (agent) | `arbitre` | Settles a design question away from the rush: mature model, project texts, common mechanism; or sends it to the owner. Writes nothing. |
 | Integrator (agent) | `integrateur` | Commits the reviewed lots, tests and code together; the only one to commit. |
 | Measurement | `mesure` | Measures without fooling itself; proves a guard bites before calling it green. |
 | Writer | `redacteur` | Writes human-read documents (architecture on the arc42/C4 model, frame, interface). |

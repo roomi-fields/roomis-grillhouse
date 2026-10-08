@@ -80,6 +80,12 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   puis dans la spécification et l'architecture globale. Ce qu'une règle tranche, je le tranche et
   je le recopie dans le ticket avec sa règle. Ainsi le responsable ne reçoit jamais une question
   qu'une règle écrite tranche déjà.
+- **Une question de conception part à l'arbitre** : une question de conception d'un agent part à
+  un arbitre neuf (`subagent_type: arbitre`, `name: <ticket>-arbitrage-<sujet>`), et le ticket
+  reçoit l'étiquette `arbitrage`. La question part dans les mots de l'agent, sans ses options et
+  sans mon avis. Je transmets le verdict tel quel, avec l'adresse de son commentaire « Arbitrage »
+  ; s'il monte au responsable, la question monte comme il l'a rédigée. Ainsi une question de
+  conception se tranche hors de l'urgence de débloquer l'agent.
 - **Ce qui monte au responsable** : je lui monte une décision qu'aucune règle ne tranche, avec son
   contexte, un exemple, ce que fait la référence mature du domaine, ce qui existe déjà, ce qu'exige
   le domaine (charte, « Comment on arbitre ») et ma recommandation. Ainsi il arbitre sur pièces,

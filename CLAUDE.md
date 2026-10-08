@@ -48,8 +48,8 @@ maintient le projet »…). Ainsi chaque choix construit un produit mature et pr
 6. `/handoff` dans le ticket, puis `bd close`, avec ce qui n'est pas fait et pourquoi.
 
 Une séance de supervision charge le superviseur (`pitmaster`). Les rôles sont des agents du projet
-(`.claude/agents/`) : `testeur`, `developpeur`, `relecteur`, `integrateur`, chacun sous ses verrous.
-Ainsi chaque agent travaille dans son cadre.
+(`.claude/agents/`) : `testeur`, `developpeur`, `relecteur`, `integrateur`, chacun sous ses verrous,
+et `arbitre`, qui tranche une question de conception. Ainsi chaque agent travaille dans son cadre.
 
 ## Ce qui tient le dépôt droit
 
@@ -76,8 +76,8 @@ Ainsi chaque agent travaille dans son cadre.
   par `codegraph explore` (ou l'outil `codegraph_explore`) pour l'appel. Ainsi une affirmation sur
   le code repose sur ce que le code contient.
 - Tickets : Beads (`bd`), préfixe `<prefixe>-`, voir `docs/agents/issue-tracker.md`.
-- Compétences du dépôt : le superviseur (`pitmaster`), les quatre rôles (`testeur`,
-  `developpeur`, `relecteur`, `integrateur`), l'initialisation et l'architecture (`grill`), la
+- Compétences du dépôt : le superviseur (`pitmaster`), les cinq rôles (`testeur`,
+  `developpeur`, `relecteur`, `integrateur`, `arbitre`), l'initialisation et l'architecture (`grill`), la
   mesure (`mesure`), le rédacteur pour un lecteur humain (`redacteur`), la publication
   (`release`). Flux : greffon `mattpocock-skills`, préfixe obligatoire ; un document pour un agent
   s'écrit avec `mattpocock-skills:writing-for-agents`.

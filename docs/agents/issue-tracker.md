@@ -9,7 +9,7 @@ Issues for this repo live in Beads, a git-backed tracker: data under `.beads/`, 
 - A change of behaviour takes two tickets: the tests ticket (agent `testeur`), then the code ticket that depends on it (`bd dep add <code> <tests>`, agent `developpeur`). The `relecteur` agent writes its verdict (`ACCEPTÉ` or `RENDU`) on the code ticket; the `integrateur` agent commits both lots in one commit.
 - Types: `epic` (a chantier), `task`, `bug`, `decision`. Priority `0`-`4`, 0 highest.
 - Comments carry progress and handoffs: `bd comments add <id> "<text>"`.
-- Labels used by the skills: `a-valider` (proposed, waits for the owner), `attend-responsable` (a rule waits for the owner's word).
+- Labels used by the skills: `a-valider` (proposed, waits for the owner), `attend-responsable` (a rule waits for the owner's word), `arbitrage` (a design question went to the `arbitre` agent; the lot enters only with its verdict).
 
 ## When a skill says "publish to the issue tracker"
 
