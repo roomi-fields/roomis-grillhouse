@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "grillhouse",
+  "project_id": "56967470-73da-4c5e-aaef-e902baf04109"
+}
