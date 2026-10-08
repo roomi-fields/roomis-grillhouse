@@ -30,7 +30,8 @@ les mots qu'il emploie lui-même. La langue du document est celle de la charte.
 - **Le document parle de son sujet, et de lui seul.** Une architecture décrit le produit ;
   l'organisation du dépôt et la façon de travailler vivent dans la charte.
 - **Une règle est au présent**, sans date, sans auteur, sans histoire de sa décision, **à l'échelle
-  du travail qu'elle cadre** : elle nomme ses objets (un calcul, un composant, une donnée, une forme
+  du travail qu'elle cadre**, en phrases courtes et directives, dans les mots de celui qui l'a
+  décidée : elle nomme ses objets (un calcul, un composant, une donnée, une forme
   publiée), l'acte qu'elle demande et ce qui se fait quand il manque. Un exemple l'éclaire ; une
   liste de cas ne la remplace pas, elle se lirait comme fermée.
 

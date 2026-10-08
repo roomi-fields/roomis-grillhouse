@@ -10,7 +10,7 @@ INTERFACE.md> ; le superviseur valide les autres documents.
 <La spécification ou la cible>, puis le cadre de chaque composant (`docs/CADRE.md`,
 `docs/INTERFACE.md`, `docs/ARCHITECTURE.md`), puis le code. Une décision vit dans le document
 qu'elle règle. Une règle s'écrit affirmative, au présent, sans date ni auteur, à
-l'échelle du travail qu'elle cadre : elle nomme ses objets (un calcul, un composant, une donnée, une
+l'échelle du travail qu'elle cadre, en phrases courtes et directives : elle nomme ses objets (un calcul, un composant, une donnée, une
 forme publiée), l'acte qu'elle demande et ce qui se fait quand il manque. Un exemple l'éclaire ;
 une liste de cas ne la remplace pas, elle se lirait comme fermée.
 

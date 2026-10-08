@@ -52,13 +52,9 @@ Ce qui guide chaque choix :
 - **Le général, jamais le cas du ticket** : une règle s'écrit pour tout ce qu'elle couvre, jamais
   pour le seul exemple du ticket. Le test essaie un cas plus profond et un autre objet que
   l'exemple.
-- **Du plus large vers le plus spécifique** : le cas signalé est la manifestation d'un problème
-  plus large, jusqu'à preuve du contraire. On remonte d'abord au problème général et au mécanisme
-  que l'architecture désigne pour lui, on le corrige là, puis on vérifie que le cas signalé est
-  couvert. Un code qui ne traite que le cas identifié (une condition sur sa valeur ou son nom, une
-  branche à part, une exception de plus) se refuse : il cache le problème au lieu de le résoudre,
-  et le problème revient sous une autre forme. Un agent fait spontanément l'inverse ; cette règle
-  existe pour l'en empêcher.
+- **Du plus large vers le plus spécifique** : tout correctif passe par l'architecture. Un problème
+  identifié peut être la manifestation d'un problème plus large : on le traite toujours du plus
+  large vers le plus spécifique.
 - **Chaque calcul a un seul composant** : un composant fait seulement le travail de sa fonction.
   Une donnée qui relève d'un autre composant se lit dans la forme que celui-ci publie ; quand elle
   manque, ce composant la publie, et aucun autre ne la recalcule. Avant d'écrire un calcul, cherche
