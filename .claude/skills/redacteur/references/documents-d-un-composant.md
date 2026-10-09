@@ -26,6 +26,12 @@ le garde qui la tient. **Un titre par élément fourni** : chaque élément que 
 son titre (`##`, ou `###` sous un thème), suivi d'une phrase qui dit ce qu'il rend. Ainsi l'index des
 interfaces (`docs/agents/index-des-interfaces.md`, généré par `npm run interfaces`) dit à chaque
 agent ce qui existe et qui le fournit. **L'interface vit chez l'offrant** : la liste de ce qui traverse une frontière vit dans l'`INTERFACE.md` du composant qui offre ; le consommateur y renvoie. Ainsi la frontière a une seule définition, tenue par son garde.
+**Un élément se titre par son nom en code** : « ## `parse`(source, previous?) ». Chaque export
+du composant a son titre, et chaque titre en code est un export : le contrôle
+`scripts/interfaces-contre-code.mjs` le vérifie contre le rapport de l'API que génère API Extractor
+depuis le code construit (`docs/INTERFACE.api.md`, régénéré par `npm run api`), types exacts
+compris. **Les fautes se listent** sous « ## Les fautes » : leurs codes sont exactement ceux que le
+code du composant produit. Ainsi l'interface que lit un agent voisin dit vrai.
 **Les consommateurs sont déclarés** : une section `## Consommateurs` liste chaque composant qui
 utilise l'interface, avec les éléments qu'il importe (`` - `parser` : jeton, position ``, `*` pour
 un import entier). Le garde `scripts/consommateurs.mjs` refuse un import qu'elle ne déclare pas, et

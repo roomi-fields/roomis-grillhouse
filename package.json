@@ -34,10 +34,11 @@
     "daemon:status": "pm2 status",
     "daemon:delete": "pm2 delete project-name",
     "interfaces": "node scripts/index-interfaces.mjs",
-    "pretest": "node scripts/index-interfaces.mjs --verifier && node scripts/consommateurs.mjs && node scripts/frontieres.mjs",
+    "pretest": "node scripts/index-interfaces.mjs --verifier && node scripts/consommateurs.mjs && node scripts/frontieres.mjs && npm run --silent --if-present build && node scripts/interfaces-contre-code.mjs",
     "integration:suites": "node scripts/integration/suites-vitest.mjs",
     "integration:gardes": "npm run --silent pretest",
-    "frontieres": "node scripts/frontieres.mjs"
+    "frontieres": "node scripts/frontieres.mjs",
+    "api": "node scripts/interfaces-contre-code.mjs --ecrire"
   },
   "keywords": [
     "keyword1",
@@ -66,6 +67,7 @@
     "zod": "^3.22.0"
   },
   "devDependencies": {
+    "@microsoft/api-extractor": "7.59.2",
     "@types/node": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",

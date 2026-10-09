@@ -131,7 +131,10 @@ remplace jamais le grill. Les branches de l'arbre :
    de porte. Ainsi un agent enveloppé construit et teste son paquet avec ce que ses voisins
    publient.
 9. **Les interfaces** — pour chaque frontière : ce qui la traverse, qui offre, qui consomme, qui
-   juge quelle faute, et le garde qui la tiendra.
+   juge quelle faute, et le garde qui la tiendra. Le contrôle de l'interface contre le code
+   (`scripts/interfaces-contre-code.mjs`) tourne en une seule passe avant les tests (le défaut,
+   pour un petit projet), ou en un banc par composant qui appelle `verifierComposant` (un grand
+   projet, qui rejoue seulement les composants touchés) : le responsable choisit.
 10. **L'architecture** — les trois ou quatre choix qui commandent le reste, chacun avec sa raison et
    l'objectif qu'il sert ; les données centrales ; où le code tourne.
 11. **Le lexique** — les mots du domaine dont la définition change du code

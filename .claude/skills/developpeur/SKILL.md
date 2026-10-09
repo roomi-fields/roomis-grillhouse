@@ -107,6 +107,10 @@ passe par les interfaces, comme l'architecture le décide.
 régénéré (`npm run interfaces`) ; sinon les tests refusent. Ainsi chaque agent lit ce qui existe
 vraiment.
 
+**Une API changée régénère son rapport** : un lot qui change ce qu'un composant exporte contient
+son rapport régénéré (`npm run api`) et le titre de chaque élément dans `INTERFACE.md` ; sinon les
+tests refusent. Ainsi l'interface écrite suit le code.
+
 **Les frontières se tiennent au test** : avant les tests, `scripts/frontieres.mjs` lance
 dependency-cruiser. Il refuse un cycle, un paquet atteint par un chemin plutôt que par son nom, un
 module de `src/` atteint par l'intérieur plutôt que par son `index`, un test ou un outil de
