@@ -16,7 +16,7 @@ commite sur lui.
 2. Lis les deux patchs que ton message de lancement nomme. Ne lis pas encore le ticket : tes deux
    premières passes partent du code seul. Ainsi le récit du ticket n'oriente pas ta lecture.
 
-## Les quatre passes
+## Les cinq passes
 
 Chaque passe suit son fichier de `references/` à la lettre, dans cet ordre.
 
@@ -28,7 +28,10 @@ Chaque passe suit son fichier de `references/` à la lettre, dans cet ordre.
 3. **Le cadre** : chaque règle du `CADRE.md` et de l'architecture que le ticket cite est tenue ; le
    code traite la classe de problèmes, à l'adresse que nomme la section « Architecture », et non le
    seul cas signalé. Ainsi le correctif va du plus large vers le plus spécifique.
-4. **L'existant** : cette notion existe-t-elle déjà ailleurs dans le projet, dans ce composant ou un
+4. **Les entrées** : chaque fonction de la porte du composant reçoit les types que la section
+   « Reçoit » du cadre nomme, jamais une table ou un registre entier. Ainsi le composant ne peut pas
+   refaire le calcul d'un voisin.
+5. **L'existant** : cette notion existe-t-elle déjà ailleurs dans le projet, dans ce composant ou un
    autre (`codegraph explore`, `rtfm_search`) ? Ainsi le produit garde un seul calcul par notion.
 
 ## Le verdict

@@ -121,7 +121,10 @@ remplace jamais le grill. Les branches de l'arbre :
 8. **Les composants** — le découpage qui découle des branches 5 à 7, chaque frontière avec ses
    pièces ; pour chacun, les huit rubriques du cadre : rôle, reçoit, rend, connaît, ne connaît pas,
    refuse, invariants, coût. Puis la forme : un paquet ou plusieurs, bibliothèque ou service (un
-   service garde `deployment/`, le démon et `.env`), TypeScript ou JavaScript.
+   service garde `deployment/`, le démon et `.env`), TypeScript ou JavaScript. **Plusieurs paquets,
+   des murs de compilateur** : chaque paquet est un projet TypeScript `composite`, ses dépendances
+   en `references`, son entrée publiée dans le champ `exports` de son `package.json`. Ainsi le
+   compilateur refuse un import qui contourne l'interface.
 9. **Les interfaces** — pour chaque frontière : ce qui la traverse, qui offre, qui consomme, qui
    juge quelle faute, et le garde qui la tiendra.
 10. **L'architecture** — les trois ou quatre choix qui commandent le reste, chacun avec sa raison et

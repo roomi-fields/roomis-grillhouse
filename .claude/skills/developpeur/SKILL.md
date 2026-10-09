@@ -11,7 +11,8 @@ Tu travailles un seul ticket. Le superviseur (`pitmaster`) te l'a confié ; le r
 
 1. Lis `METACADRE.md` (les intentions que sert tout le cadre) puis `CLAUDE.md` en entier : la
    charte prime sur tout le reste du projet.
-2. Lis les documents de référence qui existent : `CONTEXT.md` (le lexique), `docs/ARCHITECTURE.md`,
+2. Lis l'index des interfaces (`docs/agents/index-des-interfaces.md`) : ce que chaque composant
+   fournit. Puis les documents de référence qui existent : `CONTEXT.md` (le lexique), `docs/ARCHITECTURE.md`,
    puis `CADRE.md`, `INTERFACE.md` et `ARCHITECTURE.md` de chaque composant que ton ticket touche
    (`docs/`, ou `packages/<x>/docs/` dans un dépôt à plusieurs paquets). Ainsi ton code part de
    l'architecture écrite. Un document absent ne t'arrête pas : le superviseur le voit déjà.
@@ -80,6 +81,15 @@ et ton ticket l'applique.
 une écriture que personne ne lit, une règle que le code n'honore pas) part tout de suite au
 superviseur, avec son exemple et son adresse. Tu continues ton ticket. Ainsi le défaut se traite
 par son propre ticket, à sa place dans l'architecture.
+
+**Ton composant, ton enveloppe** : tu travailles dans l'enveloppe de ton composant. Des autres, tu
+vois l'interface et la forme publiée ; tu les lis par l'index, puis par `rtfm_search`. Ainsi ton code
+passe par les interfaces, comme l'architecture le décide.
+
+**Une donnée manque, tu la demandes** : une donnée que ton composant ne reçoit pas, tu la cherches
+dans l'index ; tu t'arrêtes et tu la demandes au superviseur, avec le composant qui la fournit, ou
+« personne » quand l'index ne la nomme pas. Ainsi chaque donnée garde un seul composant qui la
+calcule.
 
 **Une question sans règle remonte illustrée** : quand aucune règle ne tranche, tu t'arrêtes et tu
 rends la question au superviseur avec les options possibles, ce que chacune donne aujourd'hui et

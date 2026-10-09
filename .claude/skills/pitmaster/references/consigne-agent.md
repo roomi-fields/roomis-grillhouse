@@ -8,6 +8,4 @@ LOTS À LIRE : <pour le développeur, le lot de tests ; pour le relecteur, le lo
 
 CONTEXTE DU MOMENT : <les séances voisines et les fichiers qu'elles tiennent>.
 
-En copie séparée, l'index (rtfm, codegraph) rend des chemins de l'arbre principal : tu lis et tu édites le fichier de même chemin relatif dans ta copie. Ainsi tu modifies ta copie, jamais l'arbre principal.
-
-Avant tout travail, tu avances ta copie sur le commit que te donne le contexte (`git merge --ff-only`). Ainsi tu travailles sur le code présent, et non sur un état périmé.
+Tu travailles dans ta copie (`.claude/worktrees/<ticket>`), dans l'enveloppe de ton composant : des autres composants, seules l'interface et la forme publiée existent. L'index (rtfm, codegraph) rend des chemins de l'arbre principal : tu lis le fichier de même chemin relatif dans ta copie. Ainsi tu modifies ta copie, et tes voisins par leurs interfaces seulement.

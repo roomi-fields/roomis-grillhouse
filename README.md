@@ -76,7 +76,10 @@ Three layers, each with one job:
 
 A change of behaviour runs as: tests ticket (tester) → code ticket (developer) → review → commit.
 The locks are hooks in each agent's definition (`scripts/verrous/`), so an agent cannot aim the
-code at its own tests.
+code at its own tests. Each agent runs as a fresh session inside the **envelope** of its component
+(`scripts/enveloppe/`, a bubblewrap sandbox): it sees its own component, an index of every
+component's interface, and of the others only their interface and built output. A missing piece
+of data becomes a request to the component that provides it, not a local recomputation.
 
 The full file tree is in [STRUCTURE.md](STRUCTURE.md).
 
@@ -87,6 +90,7 @@ Grillhouse invents as little as possible; it wires together existing tools.
 | Tool | Role here |
 |---|---|
 | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Skills, hooks, plugins, sub-agents: the runtime of the whole workflow. |
+| [bubblewrap](https://github.com/containers/bubblewrap) (`bwrap`) | The envelope of each role agent: its component writable, the others' interfaces read-only, the rest hidden. Linux only. |
 | [Beads](https://github.com/gastownhall/beads) (`bd`) | Git-backed ticket store: the supervisor's queue, handoffs as comments. Installed by `setup` when missing. |
 | [mattpocock-skills](https://github.com/anthropics/claude-plugins-official) | The flow skills: `grilling` / `grill-me`, `tdd`, `code-review`, `handoff`, `domain-modeling`, `codebase-design`, `writing-for-agents`. |
 | [BMAD-METHOD](https://github.com/bmad-code-org/BMAD-METHOD) (MIT) | The reviewer's edge-case and verification-gap passes, copied with their licence. |

@@ -32,7 +32,9 @@
     "daemon:restart": "pm2 restart project-name",
     "daemon:logs": "pm2 logs project-name",
     "daemon:status": "pm2 status",
-    "daemon:delete": "pm2 delete project-name"
+    "daemon:delete": "pm2 delete project-name",
+    "interfaces": "node scripts/index-interfaces.mjs",
+    "pretest": "node scripts/index-interfaces.mjs --verifier"
   },
   "keywords": [
     "keyword1",

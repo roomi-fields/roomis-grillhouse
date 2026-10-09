@@ -41,11 +41,15 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
 
 ## Un agent, un ticket
 
-- **Un agent neuf par ticket** : un ticket tranché part à un sous-agent neuf du rôle qu'il demande
-  (`subagent_type: testeur`, `developpeur` ou `relecteur`), dans sa propre copie de travail
-  (`isolation: worktree`), avec la consigne `references/consigne-agent.md` et un nom qui dit son
-  ticket et sa tâche (`name: abc12-catalogue-des-erreurs`). Ainsi chaque agent travaille dans le
-  cadre écrit et sous les verrous de son rôle, sans l'histoire d'un autre ticket.
+- **Un agent neuf par ticket, dans son enveloppe** : un ticket tranché part au testeur, au
+  développeur ou au relecteur, en séance neuve dans l'enveloppe de son composant :
+  `bash scripts/enveloppe/lancer.sh <ticket> <rôle> <composant> <consigne>`, lancé en arrière-plan,
+  la consigne écrite d'après `references/consigne-agent.md` dans mon scratchpad. Sa fin me
+  revient en notification ; son rapport est au ticket, sa sortie dans `.claude/worktrees/<ticket>.log`.
+  Ainsi chaque agent travaille dans le cadre écrit, sous les verrous de son rôle, et ne voit des
+  autres composants que leurs interfaces.
+- **Un ticket, un composant** : un travail qui touche deux composants part en deux tickets, liés
+  par dépendance (`bd dep add`). Ainsi chaque agent tient dans une seule enveloppe.
 - **Un comportement change en deux tickets** : le ticket de tests part au testeur ; le ticket de
   code, qui en dépend (`bd dep add`), part au développeur avec le lot de tests ; le relecteur relit
   les deux lots et rend son verdict dans le ticket de code. Ainsi le code se mesure à des tests
@@ -86,6 +90,9 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   sans mon avis. Je transmets le verdict tel quel, avec l'adresse de son commentaire « Arbitrage »
   ; s'il monte au responsable, la question monte comme il l'a rédigée. Ainsi une question de
   conception se tranche hors de l'urgence de débloquer l'agent.
+- **Une donnée manque, son fournisseur la publie** : la demande d'un agent ouvre un ticket chez le
+  composant qui fournit la donnée, et le ticket de l'agent en dépend ; quand aucun composant ne la
+  fournit, la question part à l'arbitre. Ainsi chaque donnée garde un seul composant qui la calcule.
 - **Ce qui monte au responsable** : je lui monte une décision qu'aucune règle ne tranche, avec son
   contexte, un exemple, ce que fait la référence mature du domaine, ce qui existe déjà, ce qu'exige
   le domaine (charte, « Comment on arbitre ») et ma recommandation. Ainsi il arbitre sur pièces,

@@ -5,7 +5,7 @@
 #   bash scripts/enveloppe/lancer.sh <ticket> <rôle> <composant> <fichier de consigne>
 #
 # - The agent's copy is the worktree .claude/worktrees/<ticket> (branch agent/<ticket>), created
-#   from HEAD when absent. Its dependencies are installed and every component is built there,
+#   from HEAD when absent and moved forward to HEAD otherwise. Its dependencies are installed and every component is built there,
 #   outside the envelope, so the agent finds the published parts of its neighbours.
 # - The session runs `claude -p` with the role's agent and the instruction file as its prompt;
 #   the prompt carries « TON TICKET : <ticket> », which the role's locks read. The envelope is the
@@ -24,6 +24,8 @@ grep -q "TON TICKET : $ticket" "$consigne" || { echo "⛔ La consigne ne porte p
 copie="$racine/.claude/worktrees/$ticket"
 if [ ! -d "$copie" ]; then
   git -C "$racine" worktree add -q -b "agent/$ticket" "$copie" HEAD
+else
+  git -C "$copie" merge -q --ff-only "$(git -C "$racine" rev-parse HEAD)"
 fi
 if [ -f "$copie/package.json" ]; then
   [ -d "$copie/node_modules" ] || npm --prefix "$copie" install --no-audit --no-fund --silent

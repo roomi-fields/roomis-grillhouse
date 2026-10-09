@@ -17,6 +17,7 @@ command -v bd >/dev/null || missing+=("l'outil de tickets bd (Beads)")
 command -v codegraph >/dev/null || missing+=("l'outil CodeGraph")
 [ -d "$root/.codegraph" ] || missing+=("l'index CodeGraph du code")
 [ ! -f "$root/package.json" ] || [ -d "$root/node_modules" ] || missing+=("les dépendances npm")
+command -v bwrap >/dev/null || missing+=("bubblewrap (bwrap), l'enveloppe des agents : sudo apt install bubblewrap")
 
 # The key elements the skills read; each one still empty is proposed for a grill.
 pending=()

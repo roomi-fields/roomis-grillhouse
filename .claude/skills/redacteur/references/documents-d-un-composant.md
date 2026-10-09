@@ -22,7 +22,10 @@ l'agent qui travaille un ticket sait ce que son composant fait, et ce qu'il refu
 ## L'interface (`INTERFACE.md`)
 
 La liste de ce qui traverse : chaque élément exporté, sa forme, ce qu'il rend, ce qu'il refuse, et
-le garde qui la tient. **L'interface vit chez l'offrant** : la liste de ce qui traverse une frontière vit dans l'`INTERFACE.md` du composant qui offre ; le consommateur y renvoie. Ainsi la frontière a une seule définition, tenue par son garde.
+le garde qui la tient. **Un titre par élément fourni** : chaque élément que le composant fournit a
+son titre (`##`, ou `###` sous un thème), suivi d'une phrase qui dit ce qu'il rend. Ainsi l'index des
+interfaces (`docs/agents/index-des-interfaces.md`, généré par `npm run interfaces`) dit à chaque
+agent ce qui existe et qui le fournit. **L'interface vit chez l'offrant** : la liste de ce qui traverse une frontière vit dans l'`INTERFACE.md` du composant qui offre ; le consommateur y renvoie. Ainsi la frontière a une seule définition, tenue par son garde.
 
 ## L'architecture (`ARCHITECTURE.md`)
 

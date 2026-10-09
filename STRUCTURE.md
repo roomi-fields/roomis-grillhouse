@@ -44,7 +44,11 @@ roomis-grillhouse/
 │   ├── session-start.sh           # SessionStart hook: what is still empty (per package; exemptions in
 │   │                              #   docs/agents/hors-cadre.txt, "<package> <reason>")
 │   ├── structure-guard.sh         # UserPromptSubmit hook: a structure decision goes to the grill
-│   └── verrous/verrou.mjs         # The role agents' write locks (tests: tests/unit/verrous.spec.ts)
+│   ├── verrous/verrou.mjs         # The role agents' write locks (tests: tests/unit/verrous.spec.ts)
+│   ├── enveloppe/                 # The envelope: an agent sees its component, and the others' interfaces only
+│   │   ├── enveloppe.mjs             # bwrap sandbox for one component (tests: tests/unit/enveloppe.spec.ts)
+│   │   └── lancer.sh                 # one ticket → one fresh role session in its envelope
+│   └── index-interfaces.mjs       # npm run interfaces: docs/agents/index-des-interfaces.md, checked by pretest
 │
 ├── .github/                    # GitHub integrations
 │   ├── workflows/                 # CI/CD workflows
