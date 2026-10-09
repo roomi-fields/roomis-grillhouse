@@ -16,7 +16,7 @@ const DOCK = 110
 export function placement(p: { isFullscreen: boolean; columns: number }): string {
   if (p.isFullscreen && p.columns >= DOCK) return 'Tableau Grillhouse ouvert sur le côté.'
   const manque = [
-    ...(p.isFullscreen ? [] : ["l'affichage plein écran (sans tmux, et sans CLAUDE_CODE_NO_FLICKER=0)"]),
+    ...(p.isFullscreen ? [] : ["l'affichage plein écran de Claude Code (/tui fullscreen)"]),
     ...(p.columns >= DOCK ? [] : [`un terminal d'au moins ${DOCK} colonnes (il en a ${p.columns})`]),
   ]
   return `Tableau Grillhouse ouvert au-dessus de la saisie. Pour l'avoir sur le côté : ${manque.join(' et ')}.`

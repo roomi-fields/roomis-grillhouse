@@ -82,5 +82,5 @@ for (const [cas, cwd, estProjet, isInteractive] of [
 test('the pane says where it sits, and what docking it beside the transcript takes', () => {
   expect(placement({ isFullscreen: true, columns: 140 })).toBe('Tableau Grillhouse ouvert sur le côté.')
   expect(placement({ isFullscreen: true, columns: 80 })).toMatch(/au moins 110 colonnes \(il en a 80\)/)
-  expect(placement({ isFullscreen: false, columns: 200 })).toMatch(/plein écran/)
+  expect(placement({ isFullscreen: false, columns: 200 })).toMatch(/\/tui fullscreen/)
 })
