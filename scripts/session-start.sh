@@ -17,6 +17,7 @@ command -v bd >/dev/null || missing+=("l'outil de tickets bd (Beads)")
 command -v codegraph >/dev/null || missing+=("l'outil CodeGraph")
 [ -d "$root/.codegraph" ] || missing+=("l'index CodeGraph du code")
 [ ! -f "$root/package.json" ] || [ -d "$root/node_modules" ] || missing+=("les dépendances npm")
+grep -q un-commit-par-ticket "$root/.beads/hooks/commit-msg" 2>/dev/null || missing+=("le crochet « un ticket, un commit »")
 command -v bwrap >/dev/null || missing+=("bubblewrap (bwrap), l'enveloppe des agents : sudo apt install bubblewrap")
 
 # The key elements the skills read; each one still empty is proposed for a grill.
@@ -50,7 +51,14 @@ else
 fi
 [ -f "$root/CONTEXT.md" ] || pending+=("le lexique du domaine (CONTEXT.md)")
 
-[ ${#missing[@]} -eq 0 ] && [ ${#pending[@]} -eq 0 ] && exit 0
+# The integration script runs the project's own suites and guards: two npm scripts to wire.
+wiring=()
+for s in integration:suites integration:gardes; do
+  node -e 'const p=require(process.argv[1]);process.exit(p.scripts&&p.scripts[process.argv[2]]?0:1)' \
+    "$root/package.json" "$s" 2>/dev/null || wiring+=("$s")
+done
+
+[ ${#missing[@]} -eq 0 ] && [ ${#pending[@]} -eq 0 ] && [ ${#wiring[@]} -eq 0 ] && exit 0
 
 echo "## Éléments du projet à définir (Roomi's Grillhouse)"
 if [ ${#missing[@]} -gt 0 ]; then
@@ -60,4 +68,7 @@ if [ ${#pending[@]} -gt 0 ]; then
   echo "Pas encore renseignés :"
   for p in "${pending[@]}"; do echo "- $p"; done
   echo "Dès ta première réponse, propose au responsable de les griller, chacun avec ce que tu recommandes pour ce projet (compétence \`grill\`). Il peut accepter, en choisir un, ou reporter ; tant qu'un élément reste vide, cette proposition revient à chaque séance."
+fi
+if [ ${#wiring[@]} -gt 0 ]; then
+  echo "À brancher : $(IFS=' '; echo "${wiring[*]}") dans le package.json de la racine. Le script d'intégration (\`scripts/integration/integrer.mjs\`, contrat en tête) en a besoin pour lancer les suites et les gardes du projet ; sans eux, il refuse chaque lot. Un projet testé par Vitest reprend \`node scripts/integration/suites-vitest.mjs\` et \`npm run --silent pretest\` ; sinon, écris l'adaptateur de ses suites."
 fi
