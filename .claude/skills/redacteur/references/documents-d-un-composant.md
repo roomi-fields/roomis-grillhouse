@@ -26,6 +26,11 @@ le garde qui la tient. **Un titre par élément fourni** : chaque élément que 
 son titre (`##`, ou `###` sous un thème), suivi d'une phrase qui dit ce qu'il rend. Ainsi l'index des
 interfaces (`docs/agents/index-des-interfaces.md`, généré par `npm run interfaces`) dit à chaque
 agent ce qui existe et qui le fournit. **L'interface vit chez l'offrant** : la liste de ce qui traverse une frontière vit dans l'`INTERFACE.md` du composant qui offre ; le consommateur y renvoie. Ainsi la frontière a une seule définition, tenue par son garde.
+**Les consommateurs sont déclarés** : une section `## Consommateurs` liste chaque composant qui
+utilise l'interface, avec les éléments qu'il importe (`` - `parser` : jeton, position ``, `*` pour
+un import entier). Le garde `scripts/consommateurs.mjs` refuse un import qu'elle ne déclare pas, et
+signale une déclaration qu'aucun code n'emploie ; une ligne nouvelle entre avec son arbitrage.
+Ainsi chaque dépendance entre composants est écrite et décidée.
 
 ## L'architecture (`ARCHITECTURE.md`)
 

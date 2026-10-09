@@ -9,10 +9,12 @@
 // An interface is found at `packages/<x>/docs/INTERFACE.md`, `src/<x>/docs/INTERFACE.md` and
 // `docs/INTERFACE.md`. Its title and first sentence give the component's line; each `##` and
 // `###` heading, with the first sentence under it, gives an element's line; code blocks (``` or
-// ~~~, indented or not) are skipped whole.
+// ~~~, indented or not) are skipped whole. The `## Consommateurs` section gives one line that
+// names each consumer with the elements it uses.
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { declares } from './consommateurs.mjs';
 
 export const SORTIE = 'docs/agents/index-des-interfaces.md';
 
@@ -63,7 +65,8 @@ export function entrees(rel, contenu) {
       fermer();
       courante = { niveau: m[1].length, titre: m[2].trim(), corps: [] };
     } else if (l.trim() && !l.startsWith('|')) {
-      if (courante.corps.length < 6) courante.corps.push(l.replace(/^[-*]\s+/, ''));
+      if (courante.corps.length < 6 || courante.titre === 'Consommateurs')
+        courante.corps.push(l.replace(/^[-*]\s+/, ''));
     }
   }
   fermer();
@@ -75,6 +78,13 @@ export function entrees(rel, contenu) {
     '',
   ];
   for (const s of reste) {
+    if (s.niveau === 2 && s.titre === 'Consommateurs') {
+      const liste = [...declares(`## Consommateurs\n${s.corps.map(l => `- ${l}`).join('\n')}`)]
+        .map(([qui, noms]) => `${qui} (${[...noms].join(', ')})`)
+        .join(' ; ');
+      out.push(`- **Consommateurs** — ${liste || 'aucun'}`);
+      continue;
+    }
     const indent = s.niveau === 3 ? '  ' : '';
     const phrase = firstSentence(s.corps);
     out.push(`${indent}- **${s.titre}**${phrase ? ` — ${phrase}` : ''}`);

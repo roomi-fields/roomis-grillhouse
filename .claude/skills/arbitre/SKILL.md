@@ -62,6 +62,15 @@ mécanisme qui existe ou qui se construit. Le cas qui a fait naître la question
 6. **Les options de l'agent.** Lis alors les commentaires du ticket, et dis pour chaque option de
    l'agent si elle rejoint ton verdict.
 
+## Une consommation nouvelle
+
+Une question peut être une consommation nouvelle : un composant demande un élément d'un autre que
+la section « Consommateurs » de son interface ne lui accorde pas. Tu la juges sur l'architecture
+d'ensemble, en plus des étapes : le sens des dépendances que fixe `docs/ARCHITECTURE.md`, le cycle
+qu'elle créerait, et le composant dont l'élément est la fonction. Un verdict « tranché » nomme la
+ligne à ajouter (`- <consommateur> : <éléments>`) à l'interface du fournisseur ; elle entre dans le
+lot qui l'utilise. Ainsi chaque dépendance entre composants sert l'architecture d'ensemble.
+
 ## Le rendu
 
 Un commentaire au ticket (`bd comments add`), sous ce titre et avec ces six sections, toutes

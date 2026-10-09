@@ -48,6 +48,9 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   revient en notification ; son rapport est au ticket, sa sortie dans `.claude/worktrees/<ticket>.log`.
   Ainsi chaque agent travaille dans le cadre écrit, sous les verrous de son rôle, et ne voit des
   autres composants que leurs interfaces.
+- **Un ticket bloqué repart de sa copie** : débloqué, un ticket repart avec un agent neuf, par le
+  même lanceur ; sa copie garde le code de l'agent précédent, et ses notes l'état du travail. La
+  consigne dit « reprise : lis les notes du ticket ». Ainsi le travail fait sert à l'agent suivant.
 - **L'exploration avant la réalisation** : un objectif dont le découpage n'est pas connu ouvre un
   ticket d'exploration, sans code, mené par l'agent explorateur (`subagent_type: explorateur`). Il
   se ferme sur les décisions et les tickets de réalisation proposés, que le responsable valide.
@@ -108,6 +111,9 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
 - **Une donnée manque, son fournisseur la publie** : la demande d'un agent ouvre un ticket chez le
   composant qui fournit la donnée, et le ticket de l'agent en dépend ; quand aucun composant ne la
   fournit, la question part à l'arbitre. Ainsi chaque donnée garde un seul composant qui la calcule.
+- **Une consommation nouvelle part à l'arbitre** : un composant qui veut un élément qu'une interface
+  ne lui accorde pas (section « Consommateurs ») pose une question de conception, même quand
+  l'élément est publié. Ainsi l'architecture d'ensemble décide de chaque dépendance.
 - **Ce qui monte au responsable** : je lui monte une décision qu'aucune règle ne tranche, avec son
   contexte, un exemple, ce que fait la référence mature du domaine, ce qui existe déjà, ce qu'exige
   le domaine (charte, « Comment on arbitre ») et ma recommandation. Ainsi il arbitre sur pièces,

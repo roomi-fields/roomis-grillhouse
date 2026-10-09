@@ -50,6 +50,7 @@ roomis-grillhouse/
 │   ├── enveloppe/                 # The envelope: an agent sees its component, and the others' interfaces only
 │   │   ├── enveloppe.mjs             # bwrap sandbox for one component (tests: tests/unit/enveloppe.spec.ts)
 │   │   └── lancer.sh                 # one ticket → one fresh role session in its envelope
+│   ├── consommateurs.mjs          # pretest: refuses an import that the provider's INTERFACE.md does not declare
 │   ├── index-interfaces.mjs       # npm run interfaces: docs/agents/index-des-interfaces.md, checked by pretest
 │   └── un-commit-par-ticket.mjs   # commit-msg hook (.beads/hooks/commit-msg): one ticket, one commit
 │

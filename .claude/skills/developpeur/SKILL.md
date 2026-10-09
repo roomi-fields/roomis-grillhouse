@@ -23,6 +23,10 @@ Tu travailles un seul ticket. Le superviseur (`pitmaster`) te l'a confié ; le r
    (`git apply <patch>`), lance-le et vois-le rouge. Ainsi ton code se mesure à des tests que tu
    n'as pas écrits.
 6. Lis ton ticket en entier (`bd show`, `bd comments`), puis `bd update <id> --claim`.
+7. **Un ticket repris part de ses notes** : quand ton ticket porte des notes (`bd show` les
+   affiche), un agent avant toi s'est arrêté dessus. Tu bâtis ton contexte sur elles, sur les
+   commentaires et sur l'état de ta copie (`git -C <copie> status`, `git -C <copie> diff`), puis tu
+   reprends au point qu'elles nomment. Ainsi le travail déjà fait sert, et rien ne se refait.
 
 ## L'architecture, avant tout correctif
 
@@ -90,8 +94,10 @@ sa place.
 
 **Une découverte qui bloque t'arrête** : quand ton ticket ne peut pas finir sans elle, tu
 t'arrêtes sans rien livrer ; ton ticket passe en bloqué par le ticket découvert
-(`bd dep add <id> <découvert>`, `bd update <id> --status blocked`). Ainsi un ticket ne livre jamais
-une partie de lui-même ; il repart entier, avec un agent neuf.
+(`bd dep add <id> <découvert>`, `bd update <id> --status blocked`). Avant de rendre la main, tu
+écris l'état du travail dans les notes du ticket (`bd update <id> --notes`) : ce qui est fait, ce
+qui reste, ce que tu attends et de quel composant ; ton code reste dans ta copie. Ainsi un ticket ne
+livre jamais une partie de lui-même, et l'agent neuf qui le reprend repart de ton travail.
 
 **Ton composant, ton enveloppe** : tu travailles dans l'enveloppe de ton composant. Des autres, tu
 vois l'interface et la forme publiée ; tu les lis par l'index, puis par `rtfm_search`. Ainsi ton code
@@ -105,6 +111,12 @@ vraiment.
 dans l'index ; c'est une découverte qui bloque, adressée au composant qui la fournit, ou à
 « personne » quand l'index ne la nomme pas. Ainsi chaque donnée garde un seul composant qui la
 calcule.
+
+**Une consommation nouvelle passe par l'arbitre** : un élément d'un autre composant que la section
+« Consommateurs » de son interface ne t'accorde pas, même publié, est une découverte qui bloque ;
+le superviseur la porte à l'arbitre, garant de l'architecture d'ensemble. Le garde des
+consommateurs (`scripts/consommateurs.mjs`) refuse un import que l'interface ne déclare pas. Ainsi
+chaque dépendance entre composants est une décision d'architecture.
 
 **Une question sans règle remonte illustrée** : quand aucune règle ne tranche, tu t'arrêtes et tu
 rends la question au superviseur avec les options possibles, ce que chacune donne aujourd'hui et

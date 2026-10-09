@@ -4,6 +4,8 @@ Premier geste : suis ta compétence, chargée avec toi. Ainsi tu travailles dans
 
 TON TICKET : <id> — <sujet en une ligne>. Il s'ouvre sur sa section « Architecture » : le modèle mûr, l'adresse dans l'architecture, le mécanisme commun. Le mécanisme manquant est ton travail ; le cas remonté n'en est qu'un témoin. Ainsi tu corriges dans l'architecture, du plus large vers le plus spécifique, jamais par une compensation locale centrée sur le problème identifié.
 
+REPRISE : <« oui » quand le ticket a été bloqué puis débloqué : ses notes disent où en est le travail, ta copie garde le code ; sinon « non »>.
+
 LOTS À LIRE : <pour le développeur, le lot de tests ; pour le relecteur, le lot de tests et le lot de code ; sinon « aucun »>.
 
 CONTEXTE DU MOMENT : <les séances voisines et les fichiers qu'elles tiennent>.

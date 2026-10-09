@@ -34,7 +34,7 @@
     "daemon:status": "pm2 status",
     "daemon:delete": "pm2 delete project-name",
     "interfaces": "node scripts/index-interfaces.mjs",
-    "pretest": "node scripts/index-interfaces.mjs --verifier"
+    "pretest": "node scripts/index-interfaces.mjs --verifier && node scripts/consommateurs.mjs"
   },
   "keywords": [
     "keyword1",

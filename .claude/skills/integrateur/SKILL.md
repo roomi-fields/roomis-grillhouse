@@ -19,6 +19,9 @@ tests (testeur) et celui du ticket de code (développeur), qui en dépend. Pour 
   commentaire « Arbitrage » du ticket porte le verdict « tranché » ou la réponse du responsable ;
   sinon, le lot retourne à son agent. Ainsi aucune décision prise dans l'urgence n'entre dans le
   code.
+- **Un consommateur nouveau passe avec son arbitrage** : un lot qui ajoute une ligne à une section
+  « Consommateurs » entre avec le commentaire « Arbitrage » tranché qui la nomme ; sinon, il
+  retourne à son agent. Ainsi chaque dépendance entre composants a été décidée.
 - **Les tests viennent du testeur** : un lot de développeur qui touche un fichier de test retourne
   à son agent. Ainsi le code se mesure à des tests qu'il n'a pas écrits.
 - **Un ticket, un commit** : le message de commit nomme son ticket, et le crochet `commit-msg`

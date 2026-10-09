@@ -78,6 +78,16 @@ describe('entrees and code blocks', () => {
   });
 });
 
+describe('entrees and consumers', () => {
+  it('gives one line naming each consumer and what it uses', () => {
+    const text =
+      '# d\n\nD.\n\n## Consommateurs\n\n- `a` : duree, tempo\n- `c` : *\n- `e` : f\n- `g` : h\n- `i` : j\n- `k` : l\n- `m` : n\n';
+    expect(entrees('packages/d/docs/INTERFACE.md', text)).toContain(
+      '- **Consommateurs** — a (duree, tempo) ; c (*) ; e (f) ; g (h) ; i (j) ; k (l) ; m (n)'
+    );
+  });
+});
+
 describe('interfaces', () => {
   it('finds the interfaces of packages, of modules and of the root, in order', () => {
     const dir = repo({
