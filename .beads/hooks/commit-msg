@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+# One ticket, one commit (Grillhouse): refuses a second commit for a ticket.
+exec node "$(git rev-parse --show-toplevel)/scripts/un-commit-par-ticket.mjs" "$1"

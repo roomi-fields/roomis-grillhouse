@@ -38,7 +38,7 @@ Three layers, each with one job:
 │ .claude/settings.json   plugins (mattpocock-skills, rtfm), hooks, permissions  │
 │ .mcp.json               the CodeGraph server                                   │
 │ .claude/skills/         the brigade (below)                                    │
-│ .claude/agents/         the five roles, each under its write locks             │
+│ .claude/agents/         the six roles, each under its write locks              │
 │ scripts/session-start.sh  hook: what is still empty → propose the grill        │
 │ scripts/structure-guard.sh hook: a structure question → the grill              │
 ├─ Project knowledge ────────────────────────────────────────────────────────────┤
@@ -69,6 +69,7 @@ Three layers, each with one job:
 | Developer (agent) | `developpeur` | Makes those tests pass; touches no test, writes no code before the ticket's Architecture section. |
 | Reviewer (agent) | `relecteur` | Reviews the lot adversarially (edge cases, verification gaps, the frame); writes nothing. |
 | Arbiter (agent) | `arbitre` | Settles a design question away from the rush: mature model, project texts, common mechanism; or sends it to the owner. Writes nothing. |
+| Explorer (agent) | `explorateur` | Runs an exploration ticket: surveys, lists the decisions, proposes small testable tickets. Writes no code. |
 | Integrator (agent) | `integrateur` | Commits the reviewed lots, tests and code together; the only one to commit. |
 | Measurement | `mesure` | Measures without fooling itself; proves a guard bites before calling it green. |
 | Writer | `redacteur` | Writes human-read documents (architecture on the arc42/C4 model, frame, interface). |
@@ -79,7 +80,9 @@ The locks are hooks in each agent's definition (`scripts/verrous/`), so an agent
 code at its own tests. Each agent runs as a fresh session inside the **envelope** of its component
 (`scripts/enveloppe/`, a bubblewrap sandbox): it sees its own component, an index of every
 component's interface, and of the others only their interface and built output. A missing piece
-of data becomes a request to the component that provides it, not a local recomputation.
+of data becomes a request to the component that provides it, not a local recomputation. One
+ticket makes one delivery: a goal of unknown size starts with an exploration ticket, a discovery
+becomes a linked ticket (`discovered-from`), and a hook refuses a second commit for a ticket.
 
 The full file tree is in [STRUCTURE.md](STRUCTURE.md).
 

@@ -21,6 +21,10 @@ tests (testeur) et celui du ticket de code (développeur), qui en dépend. Pour 
   code.
 - **Les tests viennent du testeur** : un lot de développeur qui touche un fichier de test retourne
   à son agent. Ainsi le code se mesure à des tests qu'il n'a pas écrits.
+- **Un ticket, un commit** : le message de commit nomme son ticket, et le crochet `commit-msg`
+  (`scripts/un-commit-par-ticket.mjs`) refuse un ticket qui a déjà son commit. Tu rends alors la
+  livraison au superviseur, qui fait de son reste un ticket neuf. Ainsi un ticket entre d'un seul
+  geste.
 - **Tu appliques le lot en trois voies** (`git -C <racine> apply --3way <patch>`). Ainsi un lot fait
   sur un commit plus ancien s'applique sur le code présent.
 - **Tu relis le diff contre le cadre** : un code qui traite seulement le cas signalé, une forme

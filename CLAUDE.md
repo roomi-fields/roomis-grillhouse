@@ -49,7 +49,12 @@ maintient le projet »…). Ainsi chaque choix construit un produit mature et pr
 
 Une séance de supervision charge le superviseur (`pitmaster`). Les rôles sont des agents du projet
 (`.claude/agents/`) : `testeur`, `developpeur`, `relecteur`, `integrateur`, chacun sous ses verrous,
-et `arbitre`, qui tranche une question de conception. Ainsi chaque agent travaille dans son cadre.
+`arbitre`, qui tranche une question de conception, et `explorateur`, qui mène une exploration.
+Ainsi chaque agent travaille dans son cadre.
+
+Un objectif dont le découpage n'est pas connu commence par une exploration, sans code ; un ticket
+de réalisation touche un composant et fait une seule livraison ; une découverte devient un ticket
+lié (`discovered-from`), à valider. Ainsi l'avancement se lit ticket par ticket.
 
 ## Ce qui tient le dépôt droit
 
@@ -76,10 +81,10 @@ et `arbitre`, qui tranche une question de conception. Ainsi chaque agent travail
   par `codegraph explore` (ou l'outil `codegraph_explore`) pour l'appel. Ainsi une affirmation sur
   le code repose sur ce que le code contient.
 - Tickets : Beads (`bd`), préfixe `<prefixe>-`, voir `docs/agents/issue-tracker.md`.
-- Compétences du dépôt : le superviseur (`pitmaster`), les cinq rôles (`testeur`,
-  `developpeur`, `relecteur`, `integrateur`, `arbitre`), l'initialisation et l'architecture (`grill`), la
-  mesure (`mesure`), le rédacteur pour un lecteur humain (`redacteur`), la publication
-  (`release`). Flux : greffon `mattpocock-skills`, préfixe obligatoire ; un document pour un agent
+- Compétences du dépôt : le superviseur (`pitmaster`), les six rôles (`testeur`,
+  `developpeur`, `relecteur`, `integrateur`, `arbitre`, `explorateur`), l'initialisation et
+  l'architecture (`grill`), la mesure (`mesure`), le rédacteur pour un lecteur humain
+  (`redacteur`), la publication (`release`). Flux : greffon `mattpocock-skills`, préfixe obligatoire ; un document pour un agent
   s'écrit avec `mattpocock-skills:writing-for-agents`.
 - Réponses en français ; le code et les noms d'API restent en anglais.
 

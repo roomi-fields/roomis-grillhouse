@@ -14,7 +14,8 @@ roomis-grillhouse/
 │   │   ├── developpeur.md            # Writes the code; no test file, no code before the Architecture section
 │   │   ├── relecteur.md              # Reviews the lot adversarially; writes no file
 │   │   ├── integrateur.md            # Commits the reviewed lots, the only one to commit; writes no file
-│   │   └── arbitre.md                # Settles a design question, or sends it to the owner; writes no file
+│   │   ├── arbitre.md                # Settles a design question, or sends it to the owner; writes no file
+│   │   └── explorateur.md            # Runs an exploration: survey, decisions, proposed tickets; writes no file
 │   └── skills/                    # Skills, ready from the first session
 │       ├── grill/                 # Initialisation & architecture: the grill → charter, architecture, frame, interfaces
 │       │   └── references/           # releve-structurel (the structural survey brief)
@@ -26,6 +27,7 @@ roomis-grillhouse/
 │       │   └── references/           # edge cases, verification gaps (from BMAD-METHOD, MIT)
 │       ├── integrateur/           # The integrator's skill
 │       ├── arbitre/               # The arbiter's skill
+│       ├── explorateur/           # The explorer's skill
 │       ├── mesure/                # Measurement: measures without lying, proves a guard bites
 │       ├── redacteur/             # The writer: human-read documents
 │       │   └── references/           # documents-d-un-composant
@@ -48,7 +50,8 @@ roomis-grillhouse/
 │   ├── enveloppe/                 # The envelope: an agent sees its component, and the others' interfaces only
 │   │   ├── enveloppe.mjs             # bwrap sandbox for one component (tests: tests/unit/enveloppe.spec.ts)
 │   │   └── lancer.sh                 # one ticket → one fresh role session in its envelope
-│   └── index-interfaces.mjs       # npm run interfaces: docs/agents/index-des-interfaces.md, checked by pretest
+│   ├── index-interfaces.mjs       # npm run interfaces: docs/agents/index-des-interfaces.md, checked by pretest
+│   └── un-commit-par-ticket.mjs   # commit-msg hook (.beads/hooks/commit-msg): one ticket, one commit
 │
 ├── .github/                    # GitHub integrations
 │   ├── workflows/                 # CI/CD workflows

@@ -77,10 +77,21 @@ interface, une frontière se décident au grill (`grill`), par le superviseur, s
 les consommateurs, quelle que soit la taille du code. Ainsi l'architecture décide de la structure,
 et ton ticket l'applique.
 
-**L'alerte part au fil de l'eau** : un défaut vu hors de ton ticket (une même chose lue deux fois,
-une écriture que personne ne lit, une règle que le code n'honore pas) part tout de suite au
-superviseur, avec son exemple et son adresse. Tu continues ton ticket. Ainsi le défaut se traite
-par son propre ticket, à sa place dans l'architecture.
+**Ton plan fait une seule livraison** : avant le code, tu écris ton plan au ticket ; il mène à une
+seule livraison, sur ton seul composant. Un plan qui en demande plusieurs t'arrête : tu rends ce
+découpage au superviseur, sans écrire de code. Ainsi un ticket reste petit, et son avancement se lit
+d'un mot : ouvert ou fermé.
+
+**Une découverte devient un ticket** : ce que tu découvres hors du comportement de ton ticket (un
+défaut, une question, un second morceau) devient un ticket neuf, que tu crées avec son exemple et
+son adresse : `bd create "<titre>" -t task --deps discovered-from:<id> -l a-valider -d "<…>"`. Tu
+continues ton ticket sans lui. Ainsi la découverte garde son origine, et le responsable décide de
+sa place.
+
+**Une découverte qui bloque t'arrête** : quand ton ticket ne peut pas finir sans elle, tu
+t'arrêtes sans rien livrer ; ton ticket passe en bloqué par le ticket découvert
+(`bd dep add <id> <découvert>`, `bd update <id> --status blocked`). Ainsi un ticket ne livre jamais
+une partie de lui-même ; il repart entier, avec un agent neuf.
 
 **Ton composant, ton enveloppe** : tu travailles dans l'enveloppe de ton composant. Des autres, tu
 vois l'interface et la forme publiée ; tu les lis par l'index, puis par `rtfm_search`. Ainsi ton code
@@ -91,7 +102,7 @@ régénéré (`npm run interfaces`) ; sinon les tests refusent. Ainsi chaque age
 vraiment.
 
 **Une donnée manque, tu la demandes** : une donnée que ton composant ne reçoit pas, tu la cherches
-dans l'index ; tu t'arrêtes et tu la demandes au superviseur, avec le composant qui la fournit, ou
+dans l'index ; c'est une découverte qui bloque, adressée au composant qui la fournit, ou à
 « personne » quand l'index ne la nomme pas. Ainsi chaque donnée garde un seul composant qui la
 calcule.
 
@@ -135,12 +146,8 @@ et le code la suit.
   Ainsi ton code rend vrais les tests de la spécification, et non des tests taillés pour lui.
 - **Le relecteur rouvre sur une règle écrite** : un lot rendu par le relecteur, constat et règle
   cités, rouvre ton travail. Ainsi la relecture applique le cadre, sans ouvrir de lot sans fin.
-- **Ton ticket s'arrête à son composant** : ailleurs, tu fais le minimum qui garde les suites
-  vertes ; le reste devient une ligne de passation, que le superviseur soumet au responsable. Ainsi
-  le travail reste dans le plan validé.
-- **Le superviseur ouvre les tickets** : tu n'en ouvres aucun ; ce que tu vois hors de ton ticket
-  part au superviseur (« L'alerte part au fil de l'eau »). Ainsi chaque ticket entre dans le plan
-  par le superviseur.
+- **Ton ticket s'arrête à son composant** : ce qui demande un autre composant est une découverte
+  (« Une découverte devient un ticket »). Ainsi le travail reste dans le plan validé.
 
 ## La fin
 

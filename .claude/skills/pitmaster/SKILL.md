@@ -48,6 +48,17 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   revient en notification ; son rapport est au ticket, sa sortie dans `.claude/worktrees/<ticket>.log`.
   Ainsi chaque agent travaille dans le cadre écrit, sous les verrous de son rôle, et ne voit des
   autres composants que leurs interfaces.
+- **L'exploration avant la réalisation** : un objectif dont le découpage n'est pas connu ouvre un
+  ticket d'exploration, sans code, mené par l'agent explorateur (`subagent_type: explorateur`). Il
+  se ferme sur les décisions et les tickets de réalisation proposés, que le responsable valide.
+  Ainsi chaque réalisation part petite et testable.
+- **Un ticket, une livraison** : je lis le plan de chaque agent au ticket avant son code ; un plan
+  qui annonce plusieurs livraisons s'arrête là. Un ticket qui s'est révélé trop gros fait entrer sa
+  livraison en cours si elle est complète et verte, puis ferme ; son reste devient des tickets
+  `discovered-from`, à valider. Ainsi aucun ticket ne devient un « lot 2 ».
+- **Les découvertes se trient** : les tickets `a-valider` que créent les agents
+  (`discovered-from`) passent au responsable avec ma proposition de place dans le plan. Ainsi le
+  plan reste le sien.
 - **Un ticket, un composant** : un travail qui traverse plusieurs composants est un ticket parent,
   avec un ticket enfant par composant. Le composant qui fournit passe d'abord, et l'ordre suit les
   dépendances des composants (`bd dep add`) ; son lot construit le nouvel export, que l'agent du
