@@ -1,12 +1,19 @@
 export type Liste = { id: string; titre: string; priorite: number }[]
-export type Compteurs = { enCours: number; prets: number; bloques: number; aValider: number; fermes: number }
+export type Compteurs = {
+  enCours: number
+  prets: number
+  bloques: number
+  aValider: number
+  reportes: number
+  fermes: number
+}
 export type Epopee = {
   id: string
   titre: string
   priorite: number
   enCours: boolean
   compteurs: Compteurs
-  tickets: { enCours: Liste; prets: Liste; bloques: Liste; aValider: Liste; fermes: Liste }
+  tickets: { enCours: Liste; prets: Liste; bloques: Liste; aValider: Liste; reportes: Liste; fermes: Liste }
   jetons: number
 }
 export type Mesure = { duree: number; travail: number; jetons: number; cache: number }

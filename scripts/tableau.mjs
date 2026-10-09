@@ -7,7 +7,8 @@
 //   node scripts/tableau.mjs --texte    the board, as text
 //
 // - Epics: the one(s) with tickets in progress first, each with its tickets in progress, ready,
-//   blocked, awaiting the responsable (label `a-valider`) and closed; the project's totals.
+//   blocked, awaiting the responsable (label `a-valider`), deferred and closed; the project's
+//   totals.
 // - The order: Beads' (`bd ready`: priority, then dependencies), its next five tickets, and the
 //   open epics without work in progress, by priority.
 // - Per ticket: its duration (claimed → closed, or now) and the agents' working time and tokens.
@@ -201,12 +202,20 @@ export function assembler({ tous, prets, bloques, aValider, nuit, jetons, vivant
   const etat = t => {
     if (t.status === 'closed') return 'fermes';
     if (t.status === 'in_progress') return 'enCours';
+    if (t.status === 'deferred') return 'reportes';
     if (avalider.has(t.id)) return 'aValider';
     if (t.status === 'blocked' || bloque.has(t.id)) return 'bloques';
     if (pret.has(t.id)) return 'prets';
     return 'bloques';
   };
-  const vide = () => ({ enCours: [], prets: [], bloques: [], aValider: [], fermes: [] });
+  const vide = () => ({
+    enCours: [],
+    prets: [],
+    bloques: [],
+    aValider: [],
+    reportes: [],
+    fermes: [],
+  });
   const total = vide();
   const groupes = new Map();
   for (const t of tous) {
@@ -337,7 +346,7 @@ const minutes = ms => `${Math.round(ms / MINUTE)} min`;
 export function texte(t) {
   const lignes = [];
   const c = x =>
-    `${x.enCours} en cours · ${x.prets} prêts · ${x.bloques} bloqués · ${x.aValider} à valider · ${x.fermes} fermés`;
+    `${x.enCours} en cours · ${x.prets} prêts · ${x.bloques} bloqués · ${x.aValider} à valider · ${x.reportes} reportés · ${x.fermes} fermés`;
   for (const a of t.alertes) lignes.push(`! ${a.texte}`);
   lignes.push(`Projet : ${c(t.projet)}`);
   for (const e of t.epopees) {

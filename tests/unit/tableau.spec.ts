@@ -164,6 +164,7 @@ describe('assembler', () => {
       closed_at: '2026-10-09T10:30:00Z',
     }),
     t('demo-6', 'open', { parent: 'demo-f' }),
+    t('demo-8', 'deferred'),
   ];
   const base = {
     tous,
@@ -179,11 +180,25 @@ describe('assembler', () => {
     maintenant,
   };
   const b = plateau(base);
-  it('sorts each ticket of each epic into in progress, ready, blocked, awaiting and closed', () => {
+  it('sorts each ticket of each epic into in progress, ready, blocked, awaiting, deferred and closed', () => {
     const e = b.epopees.find(x => x.id === 'demo-e')!;
-    expect(e.compteurs).toEqual({ enCours: 1, prets: 1, bloques: 1, aValider: 1, fermes: 1 });
+    expect(e.compteurs).toEqual({
+      enCours: 1,
+      prets: 1,
+      bloques: 1,
+      aValider: 1,
+      reportes: 1,
+      fermes: 1,
+    });
     expect(e.tickets.aValider.map(x => x.id)).toEqual(['demo-4']);
-    expect(b.projet).toEqual({ enCours: 1, prets: 2, bloques: 1, aValider: 1, fermes: 1 });
+    expect(b.projet).toEqual({
+      enCours: 1,
+      prets: 2,
+      bloques: 1,
+      aValider: 1,
+      reportes: 1,
+      fermes: 1,
+    });
   });
   it('puts the epic in progress first, then the others by priority', () => {
     expect(b.epopees.map(x => x.id)).toEqual(['demo-e', 'demo-f']);

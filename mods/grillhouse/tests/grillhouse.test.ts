@@ -3,16 +3,16 @@ import { expect, test } from 'claude-code/testing'
 import { compteurs, duree, ligneEtat } from '../hooks/register'
 import type { Tableau } from '../types'
 
-const vide = { enCours: [], prets: [], bloques: [], aValider: [], fermes: [] }
+const vide = { enCours: [], prets: [], bloques: [], aValider: [], reportes: [], fermes: [] }
 const TABLEAU: Tableau = {
-  projet: { enCours: 1, prets: 2, bloques: 1, aValider: 1, fermes: 5 },
+  projet: { enCours: 1, prets: 2, bloques: 1, aValider: 1, reportes: 3, fermes: 5 },
   epopees: [
     {
       id: 'demo-e',
       titre: 'E',
       priorite: 1,
       enCours: true,
-      compteurs: { enCours: 1, prets: 2, bloques: 1, aValider: 1, fermes: 5 },
+      compteurs: { enCours: 1, prets: 2, bloques: 1, aValider: 1, reportes: 3, fermes: 5 },
       tickets: { ...vide, enCours: [{ id: 'demo-1', titre: 'Un', priorite: 1 }] },
       jetons: 41_000,
     },

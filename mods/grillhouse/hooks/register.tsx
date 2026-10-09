@@ -22,7 +22,7 @@ export const duree = (ms: number) => {
   return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}`
 }
 export const compteurs = (c: Compteurs) =>
-  `${c.enCours} en cours · ${c.prets} prêts · ${c.bloques} bloqués · ${c.aValider} à valider · ${c.fermes} fermés`
+  `${c.enCours} en cours · ${c.prets} prêts · ${c.bloques} bloqués · ${c.aValider} à valider · ${c.reportes} reportés · ${c.fermes} fermés`
 
 // The status line: the epic(s) in progress and their counts, alerts first.
 export function ligneEtat(t: Tableau): string {
@@ -135,6 +135,9 @@ export const register: Register = on => {
               </Text>
               <Text color={ep.tickets.aValider.length ? 'yellow' : undefined} wrap="truncate-end">
                 {'  '}à valider : {noms(ep.tickets.aValider)}
+              </Text>
+              <Text dimColor wrap="truncate-end">
+                {'  '}reportés : {noms(ep.tickets.reportes)}
               </Text>
               {ep.tickets.fermes.slice(-5).map(x => (
                 <Text dimColor wrap="truncate-end">
