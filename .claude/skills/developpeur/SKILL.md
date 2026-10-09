@@ -145,6 +145,9 @@ et le code la suit.
 - **Ta copie de travail** : tu travailles dans ta propre copie, qui porte le numéro de ton ticket
   (`wt-abc12`) ; les copies des autres restent intactes. Ainsi chaque agent travaille dans son
   cadre, sans toucher au travail d'un autre.
+- **Tu attends ce que tu lances** : tests, relectures, scripts et sous-agents tournent au premier
+  plan et rendent leur résultat dans le même tour ; ta séance s'arrête avec ton tour, et aucun
+  rapport ne la réveille ensuite. Ainsi ton tour finit sur un résultat, jamais sur « j'attends ».
 - **Ton lot à l'intégrateur** : tu ne commites pas. Tu livres ton lot dans ton scratchpad : le
   patch de tes seuls fichiers, le message de commit, la passation ; puis tu préviens le
   superviseur, qui le fait relire avant l'intégrateur. Ainsi chaque commit passe le même contrôle,

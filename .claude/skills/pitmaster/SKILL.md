@@ -93,8 +93,9 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   le lis en ouvrant la séance, et il passe avant tout autre ticket. Ainsi un défaut que les
   intégrations du jour n'ont pas vu se corrige le lendemain.
 - **Un « en cours » est un processus vivant** : chaque agent et chaque script que je lance tourne
-  en arrière-plan, et sa fin me revient en notification. Un agent qui annonce une attente sans
-  processus qui tourne est arrêté, et son travail relancé. Ainsi la file ne s'arrête jamais sur une
+  en arrière-plan, et sa fin me revient en notification. Un « en cours » se vérifie par un
+  processus vivant ou un journal qui bouge, jamais par une phrase : un agent arrêté sur « j'attends »
+  est relancé par moi, sur son ticket. Ainsi la file ne s'arrête jamais sur une
   promesse.
 
 ## L'architecture tranche d'abord
