@@ -14,4 +14,4 @@ Tu travailles dans ta copie (`.claude/worktrees/<ticket>`), dans l'enveloppe de 
 
 Hors de ta copie, la machine est en lecture seule, `.git` compris : tu ne commites pas et tu n'écris pas l'index. Ton patch se fait sur tes seuls fichiers : `git diff -- <fichiers modifiés>`, plus `git diff --no-index /dev/null <fichier>` pour chaque fichier neuf, le tout dans ton scratchpad. Ainsi seul l'intégrateur écrit l'histoire du dépôt.
 
-Ce que tu lances (tests, relectures, scripts, sous-agents), tu l'attends au premier plan, dans le même tour : ta séance s'arrête avec ton tour, et aucun rapport ne la réveille ensuite. Ainsi ton tour finit sur un résultat, jamais sur « j'attends ».
+Ce que tu lances (tests, relectures, scripts, sous-agents), tu l'attends au premier plan, dans le même tour, par la commande elle-même et jamais par une boucle qui sonde un processus ou un fichier : ta séance s'arrête avec ton tour, et aucun rapport ne la réveille ensuite. Ainsi ton tour finit sur un résultat, jamais sur « j'attends ».
