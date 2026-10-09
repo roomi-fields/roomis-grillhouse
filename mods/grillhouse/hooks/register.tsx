@@ -9,6 +9,18 @@ import type { Compteurs, Etat, Liste, Tableau } from '../types'
 // and inside an agent's copy (`.claude/worktrees/`).
 const PANE = 'grillhouse'
 const PERIODE = 30_000
+const COLONNES = 52
+const DOCK = 110
+
+// Where the pane sits, and what it takes to have it docked beside the transcript.
+export function placement(p: { isFullscreen: boolean; columns: number }): string {
+  if (p.isFullscreen && p.columns >= DOCK) return 'Tableau Grillhouse ouvert sur le côté.'
+  const manque = [
+    ...(p.isFullscreen ? [] : ["l'affichage plein écran (sans tmux, et sans CLAUDE_CODE_NO_FLICKER=0)"]),
+    ...(p.columns >= DOCK ? [] : [`un terminal d'au moins ${DOCK} colonnes (il en a ${p.columns})`]),
+  ]
+  return `Tableau Grillhouse ouvert au-dessus de la saisie. Pour l'avoir sur le côté : ${manque.join(' et ')}.`
+}
 const etat = atom({ plugin: 'grillhouse', key: 'etat' } as const, {
   tableau: null,
   erreur: null,
@@ -74,10 +86,11 @@ export const register: Register = on => {
     return started
   })
 
-  on('command.run', { command: 'grillhouse' }, async $ => {
+  on('command.run', { command: 'grillhouse' }, async ($, e) => {
     await rafraichir($)
-    await $.ui.open({ id: PANE, title: 'Grillhouse' })
-    return { text: 'Tableau Grillhouse ouvert.' }
+    // A narrow column docked beside the transcript; a short block when seated above the prompt.
+    await $.ui.open({ id: PANE, title: 'Grillhouse', columns: COLONNES, rows: 12 })
+    return { text: placement(e.presentation) }
   })
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {

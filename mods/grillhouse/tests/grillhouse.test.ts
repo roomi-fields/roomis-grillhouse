@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { compteurs, duree, ligneEtat } from '../hooks/register'
+import { compteurs, duree, ligneEtat, placement } from '../hooks/register'
 import type { Tableau } from '../types'
 
 const vide = { enCours: [], prets: [], bloques: [], aValider: [], reportes: [], fermes: [] }
@@ -78,3 +78,9 @@ for (const [cas, cwd, estProjet, isInteractive] of [
     expect(lances).not.toContain('node scripts/tableau.mjs')
   })
 }
+
+test('the pane says where it sits, and what docking it beside the transcript takes', () => {
+  expect(placement({ isFullscreen: true, columns: 140 })).toBe('Tableau Grillhouse ouvert sur le côté.')
+  expect(placement({ isFullscreen: true, columns: 80 })).toMatch(/au moins 110 colonnes \(il en a 80\)/)
+  expect(placement({ isFullscreen: false, columns: 200 })).toMatch(/plein écran/)
+})
