@@ -21,7 +21,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const SOURCE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
+const SOURCE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|svelte|vue)$/;
 const TEST_DIR = new Set(['test', 'tests', '__tests__']);
 const isTest = name => /\.(test|spec)\.[cm]?[jt]sx?$/.test(name);
 const SKIP = new Set(['node_modules', 'dist', 'docs']);

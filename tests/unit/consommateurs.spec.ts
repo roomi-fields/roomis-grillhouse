@@ -120,6 +120,15 @@ describe('verifier', () => {
     });
     expect(verifier(dir).refus).toEqual([]);
   });
+  it('reads the script of a Svelte or Vue component', () => {
+    const dir = repo({
+      'src/vue/A.svelte':
+        '<script lang="ts">\n  import { jeton } from \'../lexer/jetons\';\n</script>',
+      'src/vue/B.vue': "<script setup>\nimport { position } from '../lexer/jetons';\n</script>",
+      'src/lexer/jetons.ts': '',
+    });
+    expect(verifier(dir).refus).toHaveLength(2);
+  });
   it('does not take a use inside one component for a consumer', () => {
     const dir = repo({ 'src/lexer/a.ts': "import { b } from './b';", 'src/lexer/b.ts': '' });
     expect(verifier(dir)).toEqual({ refus: [], signaux: [] });
