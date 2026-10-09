@@ -91,6 +91,7 @@ lié (`discovered-from`), à valider. Ainsi l'avancement se lit ticket par ticke
 ## Commandes
 
 - `npm test` · `npm run typecheck` · `npm run lint` · `npm run format:check`.
-- Un intégrateur fait tous les commits (`pitmaster`) : commits conventionnels, message par fichier
+- Un intégrateur neuf par livraison fait chaque commit, par le script
+  `scripts/integration/integrer.mjs` (`pitmaster`) : commits conventionnels, message par fichier
   (`git commit -F`), trailer `Co-Authored-By: Claude`.
   <La politique de poussée : à chaque commit, ou jamais sans le responsable.>

@@ -13,7 +13,7 @@ roomis-grillhouse/
 │   │   ├── testeur.md                # Writes a ticket's tests from the spec; writes test files only
 │   │   ├── developpeur.md            # Writes the code; no test file, no code before the Architecture section
 │   │   ├── relecteur.md              # Reviews the lot adversarially; writes no file
-│   │   ├── integrateur.md            # Commits the reviewed lots, the only one to commit; writes no file
+│   │   ├── integrateur.md            # One per delivery: judges the lot, runs the integration script; writes no file
 │   │   ├── arbitre.md                # Settles a design question, or sends it to the owner; writes no file
 │   │   └── explorateur.md            # Runs an exploration: survey, decisions, proposed tickets; writes no file
 │   └── skills/                    # Skills, ready from the first session
@@ -51,6 +51,9 @@ roomis-grillhouse/
 │   │   ├── enveloppe.mjs             # bwrap sandbox for one component (tests: tests/unit/enveloppe.spec.ts)
 │   │   └── lancer.sh                 # one ticket → one fresh role session in its envelope
 │   ├── consommateurs.mjs          # pretest: refuses an import that the provider's INTERFACE.md does not declare
+│   ├── integration/               # One delivery: verdicts, lots, base, guards, suites, commit
+│   │   ├── integrer.mjs              # run by the integrateur (tests: tests/unit/integrer.spec.ts)
+│   │   └── suites-vitest.mjs         # npm run integration:suites: failing tests by name, for Vitest
 │   ├── index-interfaces.mjs       # npm run interfaces: docs/agents/index-des-interfaces.md, checked by pretest
 │   └── un-commit-par-ticket.mjs   # commit-msg hook (.beads/hooks/commit-msg): one ticket, one commit
 │

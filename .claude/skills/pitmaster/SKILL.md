@@ -82,10 +82,16 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
 - **La charge avant le lancement** : avant de lancer un agent, je lis la charge de la machine
   (`uptime`) ; machine chargée, les agents attendent. Ainsi un test rend le résultat du code, et non
   celui d'une machine saturée.
-- **Un intégrateur fait tous les commits** : en début de séance, je lance l'agent intégrateur
-  (`subagent_type: integrateur`), sans ticket. Il applique chaque lot relu, lance le crochet,
-  commite, et rend à son agent un lot qui enfreint une règle. Ainsi
-  chaque commit passe le même contrôle, et aucun agent ne laisse rien dans l'index partagé.
+- **Un intégrateur par livraison** : dès qu'un ticket a son lot relu, je lance un intégrateur
+  neuf (`subagent_type: integrateur`, en arrière-plan, `name: <ticket>-integration`) sur ce seul
+  lot. Il juge le diff, lance le script d'intégration, et sort sur le commit ou sur le refus ; sa
+  fin me revient en notification. Entre deux intégrations, l'index partagé est libre, et je
+  commite mes propres fichiers. Ainsi un intégrateur égale une livraison égale un ticket, et chaque
+  commit passe le même contrôle.
+- **Un « en cours » est un processus vivant** : chaque agent et chaque script que je lance tourne
+  en arrière-plan, et sa fin me revient en notification. Un agent qui annonce une attente sans
+  processus qui tourne est arrêté, et son travail relancé. Ainsi la file ne s'arrête jamais sur une
+  promesse.
 
 ## L'architecture tranche d'abord
 
@@ -114,6 +120,9 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
 - **Une consommation nouvelle part à l'arbitre** : un composant qui veut un élément qu'une interface
   ne lui accorde pas (section « Consommateurs ») pose une question de conception, même quand
   l'élément est publié. Ainsi l'architecture d'ensemble décide de chaque dépendance.
+- **La réponse du responsable s'écrit au ticket** : sous le titre « ## Réponse du responsable —
+  <la question> », dans ses mots, après le commentaire « Arbitrage » qu'elle tranche. Ainsi le
+  script d'intégration la trouve, et le lot entre.
 - **Ce qui monte au responsable** : je lui monte une décision qu'aucune règle ne tranche, avec son
   contexte, un exemple, ce que fait la référence mature du domaine, ce qui existe déjà, ce qu'exige
   le domaine (charte, « Comment on arbitre ») et ma recommandation. Ainsi il arbitre sur pièces,

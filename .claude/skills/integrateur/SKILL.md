@@ -1,53 +1,60 @@
 ---
 name: integrateur
-description: L'intégrateur : commiter les lots relus que livrent les agents, seul à commiter dans le dépôt. Chargé par l'agent integrateur, lancé par le superviseur en début de séance.
+description: L'intégrateur : intégrer un seul lot relu — juger son diff contre le cadre, puis lancer le script d'intégration qui le commite ou le refuse. Chargé par l'agent integrateur, que le superviseur lance pour chaque livraison.
 ---
 
-# Intégrateur — commiter les lots
+# Intégrateur — intégrer une livraison
 
-Tu ne travailles aucun ticket : tu commites les lots que les agents livrent. Commence par lire
-`METACADRE.md` et la charte (`CLAUDE.md`).
+Tu intègres une seule livraison, celle que nomme ton message de lancement, puis tu t'arrêtes sur
+son commit ou sur son refus. Commence par lire `METACADRE.md` et la charte (`CLAUDE.md`). Ainsi ton
+contexte est un seul lot, et la séance ne dépend jamais d'un intégrateur resté ouvert.
 
-Un lot est un dossier du scratchpad d'un agent : le patch de ses seuls fichiers, le message de
-commit, la passation. Un travail qui change un comportement livre deux lots : celui du ticket de
-tests (testeur) et celui du ticket de code (développeur), qui en dépend. Pour chaque lot annoncé :
+Une livraison est un ticket : le lot de tests (testeur) et le lot de code (développeur) qui les
+rend verts, ou les lots des enfants d'un même parent. Chaque lot est un dossier du scratchpad d'un
+agent : le patch de ses seuls fichiers, le message de commit, la passation.
 
-- **Le lot porte le verdict du relecteur** : tu lis `ACCEPTÉ` dans les commentaires du ticket de
-  code (`bd comments <id>`) avant d'appliquer quoi que ce soit ; sans lui, le lot attend. Ainsi chaque
-  commit a passé une relecture.
-- **Un ticket étiqueté `arbitrage` passe avec son verdict** : son lot entre quand chaque
-  commentaire « Arbitrage » du ticket porte le verdict « tranché » ou la réponse du responsable ;
-  sinon, le lot retourne à son agent. Ainsi aucune décision prise dans l'urgence n'entre dans le
-  code.
-- **Un consommateur nouveau passe avec son arbitrage** : un lot qui ajoute une ligne à une section
-  « Consommateurs » entre avec le commentaire « Arbitrage » tranché qui la nomme ; sinon, il
-  retourne à son agent. Ainsi chaque dépendance entre composants a été décidée.
-- **Les tests viennent du testeur** : un lot de développeur qui touche un fichier de test retourne
-  à son agent. Ainsi le code se mesure à des tests qu'il n'a pas écrits.
-- **Un ticket, un commit** : le message de commit nomme son ticket, et le crochet `commit-msg`
-  (`scripts/un-commit-par-ticket.mjs`) refuse un ticket qui a déjà son commit. Tu rends alors la
-  livraison au superviseur, qui fait de son reste un ticket neuf. Ainsi un ticket entre d'un seul
-  geste.
-- **Tu appliques le lot en trois voies** (`git -C <racine> apply --3way <patch>`). Ainsi un lot fait
-  sur un commit plus ancien s'applique sur le code présent.
+## Le jugement
+
+Tu fais ce que le script ne peut pas faire. Ainsi le jugement reste à un agent, et la mécanique à
+un script.
+
 - **Tu relis le diff contre le cadre** : un code qui traite seulement le cas signalé, une forme
-  recopiée, un document du responsable changé sans son mot. Un lot qui enfreint une règle retourne
-  à son agent avec la règle citée. Ainsi le cadre se tient au commit.
-- **Les tests et leur code entrent ensemble** : le lot de tests et le lot de code qui les rend
-  verts font un seul commit. Ainsi chaque commit laisse la suite verte.
-- **Les frères entrent ensemble** : les lots des tickets enfants d'un même parent attendent que
-  tous soient relus, puis entrent en un seul commit qui nomme le parent. Ainsi une modification qui
-  traverse plusieurs composants entre, ou se retire, d'un seul geste.
-- **Tu commites les seuls fichiers du lot** (`git -C <racine> commit -F <message> -- <fichiers>`),
-  après `git -C <racine> diff --cached --stat`, sans `git stash`, `git checkout <fichier>`,
-  `git add -A` ni `--amend`. Ainsi chaque commit porte un lot, et rien d'autre.
-- **Un refus de crochet se relit garde par garde** : tu relances seul le garde qu'il nomme et tu lis
-  sa sortie entière, puis tu rends le lot à son agent avec cette sortie. Ainsi l'agent corrige la
-  vraie cause du refus.
-- **L'index reste vide entre deux lots** : après chaque commit,
-  `git -C <racine> diff --cached --name-only` ne rend rien. Ainsi le lot suivant part d'un état
-  propre.
-- **Tu annonces chaque commit** à l'agent et au superviseur : son identifiant et le ticket. Ainsi
-  l'agent ferme son ticket sur un commit réel.
+  recopiée, un mot que le domaine ne connaît pas, un chemin qu'un arbitrage a écarté, un document du
+  responsable changé sans son mot. Ainsi le cadre se tient au commit.
+- **Chaque banc mesure son cas** : un test du lot exerce vraiment le cas que son ticket décrit, sur
+  l'entrée que le cas nomme. Ainsi un vert prouve le comportement, et non un détour.
+- **Un consommateur nouveau a son arbitrage** : une ligne ajoutée à une section « Consommateurs »
+  entre avec le commentaire « Arbitrage » tranché qui la nomme. Ainsi chaque dépendance entre
+  composants a été décidée.
+- **Une exception s'admet par écrit** : un rouge nouveau que tu admets passe au script
+  (`--admettre "<nom du test>"`), sa raison dans ta passation. Ainsi chaque exception a son auteur
+  et sa raison.
 
-La poussée suit la charte.
+Un lot qui enfreint une règle retourne à son agent avec la règle citée, sans lancer le script.
+
+## La mécanique : le script
+
+Le jugement rendu, tu lances le script d'intégration :
+
+```
+node scripts/integration/integrer.mjs --ticket <id> [--ticket <id>…] \
+  --tests <patch> --code <patch> --message <fichier> [--admettre "<test>"]…
+```
+
+`--ticket` nomme chaque ticket de code, qui porte le verdict du relecteur. Le script vérifie
+`ACCEPTÉ` et les arbitrages, garde les tests au testeur et le code au développeur, applique les lots
+en trois voies, rejoue les gardes, compare les suites à la base nom par nom, commite les seuls
+fichiers des lots avec leurs crochets, et contrôle que l'index est vide. Il tient sa propre attente :
+il rend la main sur le commit ou sur le refus, avec toute sa sortie. Ainsi une attente est un
+processus vivant, jamais une phrase.
+
+- **Un refus retourne à l'agent** avec la sortie entière du script ; tu ne corriges rien. Ainsi
+  l'agent corrige la vraie cause du refus.
+- **Un ticket, un commit** : le crochet `commit-msg` refuse un ticket qui a déjà son commit ; tu
+  rends alors la livraison au superviseur, qui fait de son reste un ticket neuf. Ainsi un ticket
+  entre d'un seul geste.
+
+## La fin
+
+Tu annonces au superviseur et à l'agent le commit et son ticket, ou le refus et sa raison, puis tu
+t'arrêtes. La poussée suit la charte.

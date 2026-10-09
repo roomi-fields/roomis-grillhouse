@@ -1,6 +1,6 @@
 ---
 name: integrateur
-description: Commite les lots relus d'un ticket, seul à commiter. N'écrit aucun fichier à la main.
+description: Intègre une seule livraison relue — juge son diff, puis lance le script d'intégration qui la commite ou la refuse ; seul à commiter. N'écrit aucun fichier à la main.
 skills:
   - integrateur
 disallowedTools: Write, Edit, MultiEdit, NotebookEdit

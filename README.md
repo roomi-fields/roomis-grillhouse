@@ -70,7 +70,7 @@ Three layers, each with one job:
 | Reviewer (agent) | `relecteur` | Reviews the lot adversarially (edge cases, verification gaps, the frame); writes nothing. |
 | Arbiter (agent) | `arbitre` | Settles a design question away from the rush: mature model, project texts, common mechanism; or sends it to the owner. Writes nothing. |
 | Explorer (agent) | `explorateur` | Runs an exploration ticket: surveys, lists the decisions, proposes small testable tickets. Writes no code. |
-| Integrator (agent) | `integrateur` | Commits the reviewed lots, tests and code together; the only one to commit. |
+| Integrator (agent) | `integrateur` | One per delivery: judges the reviewed lot, then runs the integration script that commits it. |
 | Measurement | `mesure` | Measures without fooling itself; proves a guard bites before calling it green. |
 | Writer | `redacteur` | Writes human-read documents (architecture on the arc42/C4 model, frame, interface). |
 | Release | `release` | Bumps the version, updates the changelog, tags, publishes. |
