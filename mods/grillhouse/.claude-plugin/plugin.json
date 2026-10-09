@@ -1,0 +1,9 @@
+{
+  "name": "grillhouse",
+  "version": "0.1.0",
+  "description": "Roomi's Grillhouse : l'état réel du projet — épopées, tickets, ordre de passage, jetons et temps par ticket, ce qui tourne, alertes",
+  "types": "./types/index.d.ts",
+  "author": {
+    "name": "Roomi"
+  }
+}

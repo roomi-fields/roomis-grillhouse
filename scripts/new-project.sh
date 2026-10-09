@@ -17,7 +17,7 @@ mkdir -p "$dest"
 tar -C "$template" --exclude=./node_modules --exclude=./.rtfm --exclude=./.codegraph \
   --exclude=./.beads --exclude=./.git --exclude=./dist --exclude=./coverage \
   --exclude=./.claude/settings.local.json --exclude=./.claude/template \
-  --exclude=./scripts/new-project.sh -cf - . | tar -C "$dest" -xf -
+  --exclude=./scripts/new-project.sh --exclude=./mods --exclude=./.claude-plugin -cf - . | tar -C "$dest" -xf -
 
 # The project's README starts from templates/README.md; the template's own README describes Grillhouse
 mv "$dest/templates/README.md" "$dest/README.md" && rmdir "$dest/templates"

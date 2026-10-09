@@ -84,6 +84,12 @@ of data becomes a request to the component that provides it, not a local recompu
 ticket makes one delivery: a goal of unknown size starts with an exploration ticket, a discovery
 becomes a linked ticket (`discovered-from`), and a hook refuses a second commit for a ticket.
 
+**The board** — the `grillhouse` mod (a Claude Code plugin this repository publishes, enabled in
+each project's settings) shows, measured and never declared, the epic in progress in the status
+line and, in the `/grillhouse` pane: each epic's tickets in progress, ready, blocked, awaiting the
+owner and closed; Beads' order of the next tickets and epics; per ticket its duration, the agents'
+working time and tokens; what really runs; alerts. Without the mod, `npm run tableau` prints it.
+
 The full file tree is in [STRUCTURE.md](STRUCTURE.md).
 
 ## 3. What it builds on
