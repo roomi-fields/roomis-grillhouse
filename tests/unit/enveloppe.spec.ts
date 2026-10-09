@@ -4,13 +4,14 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  rmSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { plan } from '../../scripts/enveloppe/enveloppe.mjs';
+import { afterAll, describe, expect, it } from 'vitest';
+import { montagesDeLaSeance, plan } from '../../scripts/enveloppe/enveloppe.mjs';
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/enveloppe/enveloppe.mjs');
 const LAUNCHER = path.resolve(__dirname, '../../scripts/enveloppe/lancer.sh');
@@ -49,15 +50,21 @@ describe('plan', () => {
     disk
   );
 
+  it('mounts the machine read-only, with a /dev/shm of its own', () => {
+    expect(args.slice(0, 3)).toEqual(['--ro-bind', '/', '/']);
+    expect(args.join(' ')).not.toMatch(/--dev-bind \/ \//);
+    expect(pairs(args, '--tmpfs')[0]).toBe('/dev/shm');
+  });
   it('empties the components directory of every worktree', () => {
     expect(refus).toBeUndefined();
-    expect(pairs(args, '--tmpfs')).toEqual(['/main/packages', '/wt/packages']);
+    expect(pairs(args, '--tmpfs')).toEqual(['/dev/shm', '/main/packages', '/wt/packages']);
   });
-  it('mounts its own component in writing', () => {
-    expect(pairs(args, '--bind')).toEqual(['/wt/packages/a']);
+  it('mounts its copy, then its own component, in writing', () => {
+    expect(pairs(args, '--bind')).toEqual(['/wt', '/wt/packages/a']);
   });
   it('mounts only the published parts of a sibling, read-only', () => {
     expect(pairs(args, '--ro-bind')).toEqual([
+      '/',
       '/wt/packages/b/package.json',
       '/wt/packages/b/docs/INTERFACE.md',
       '/wt/packages/b/dist',
@@ -84,22 +91,83 @@ describe('plan in a one-package project', () => {
       },
       []
     );
-    const { args } = plan({ trees: ['/wt'], copie: '/wt', composant: 'src/parser' }, disk);
-    expect(pairs(args, '--ro-bind')).toEqual(['/wt/src/index.ts']);
+    const { args } = plan({ trees: ['/main', '/wt'], copie: '/wt', composant: 'src/parser' }, disk);
+    expect(pairs(args, '--ro-bind')).toEqual(['/', '/wt/src/index.ts']);
+  });
+});
+
+describe('plan and the session mounts', () => {
+  const montages = montagesDeLaSeance({
+    cacheNpm: '/h/.npm',
+    claude: '/h/.claude',
+    projet: '/h/.claude/projects/-wt',
+    etatJetable: '/t/claude.json',
+    scratchpads: '/tmp/claude-1/-wt',
+  });
+  const disk = fakeDisk({ '/wt/packages': [], '/wt/packages/a': [] }, [
+    '/h/.npm',
+    '/h/.claude',
+    '/t/claude.json',
+    '/h/.claude/settings.json',
+    '/h/.claude/projects',
+    '/h/.claude/projects/-wt',
+    '/tmp/claude-1/-wt',
+    '/wt/.git',
+  ]);
+  const { args } = plan(
+    { trees: ['/main', '/wt'], copie: '/wt', composant: 'packages/a', montages },
+    disk
+  );
+  const triples = (flag: string) =>
+    args.flatMap((a, i) => (a === flag ? [`${args[i + 1]}>${args[i + 2]}`] : []));
+
+  it('gives the session an empty /tmp, then its scratchpads, npm cache and state in writing', () => {
+    expect(pairs(args, '--tmpfs')).toContain('/tmp');
+    expect(triples('--bind')).toEqual([
+      '/tmp/claude-1/-wt>/tmp/claude-1/-wt',
+      '/h/.npm>/h/.npm',
+      '/h/.claude>/h/.claude',
+      '/t/claude.json>/h/.claude.json',
+      '/h/.claude/projects/-wt>/h/.claude/projects/-wt',
+      '/wt>/wt',
+      '/wt/packages/a>/wt/packages/a',
+    ]);
+  });
+  it('keeps the configuration and the other projects read-only, its own project writable', () => {
+    const ro = triples('--ro-bind');
+    expect(ro).toContain('/h/.claude/settings.json>/h/.claude/settings.json');
+    expect(ro).toContain('/h/.claude/projects>/h/.claude/projects');
+    expect(args.lastIndexOf('/h/.claude/projects/-wt')).toBeGreaterThan(
+      args.indexOf('/h/.claude/projects')
+    );
+  });
+  it('mounts nothing that does not exist', () => {
+    expect(args).not.toContain('/h/.claude/plugins');
+  });
+  it('mounts the copy after /tmp, and its .git read-only', () => {
+    expect(args.indexOf('/wt')).toBeGreaterThan(args.indexOf('/tmp'));
+    expect(triples('--ro-bind')).toContain('/wt/.git>/wt/.git');
   });
 });
 
 describe('plan refuses', () => {
+  it('the main tree', () => {
+    const { refus } = plan(
+      { trees: ['/main', '/wt'], copie: '/main', composant: 'packages/a' },
+      fakeDisk({ '/main/packages/a': [] }, ['/main/packages/a'])
+    );
+    expect(refus).toMatch(/arbre principal/);
+  });
   it('a missing component', () => {
     const { refus } = plan(
-      { trees: ['/wt'], copie: '/wt', composant: 'packages/z' },
+      { trees: ['/main', '/wt'], copie: '/wt', composant: 'packages/z' },
       fakeDisk({ '/wt/packages': [] }, [])
     );
     expect(refus).toMatch(/n'existe pas/);
   });
   it('a component without a parent directory', () => {
     const { refus } = plan(
-      { trees: ['/wt'], copie: '/wt', composant: 'a' },
+      { trees: ['/main', '/wt'], copie: '/wt', composant: 'a' },
       fakeDisk({ '/wt/a': [] }, [])
     );
     expect(refus).toMatch(/dossier parent/);
@@ -126,11 +194,17 @@ describe('plan refuses', () => {
   });
 });
 
-// The real envelope, when this machine can build one.
+// The real envelope, when this machine can build one. Its repositories live outside /tmp, which
+// the envelope replaces with an empty directory.
+const ESSAIS = path.join(homedir(), '.cache', 'grillhouse-essais-enveloppe');
+mkdirSync(ESSAIS, { recursive: true });
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+const essai = (nom: string) => mkdtempSync(path.join(ESSAIS, nom));
+
 const canWrap = spawnSync('bwrap', ['--dev-bind', '/', '/', 'true']).status === 0;
 
 describe.runIf(canWrap)('the envelope on disk', () => {
-  const repo = mkdtempSync(path.join(tmpdir(), 'enveloppe-'));
+  const repo = essai('enveloppe-');
   for (const d of ['packages/a/src', 'packages/b/src', 'packages/b/docs', 'packages/b/dist']) {
     mkdirSync(path.join(repo, d), { recursive: true });
   }
@@ -138,11 +212,24 @@ describe.runIf(canWrap)('the envelope on disk', () => {
   writeFileSync(path.join(repo, 'packages/b/src/b.ts'), 'secret');
   writeFileSync(path.join(repo, 'packages/b/docs/INTERFACE.md'), 'interface');
   writeFileSync(path.join(repo, 'packages/b/dist/index.d.ts'), 'declare');
-  execFileSync('git', ['init', '-q', repo]);
+  const git = (...a: string[]) =>
+    execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
+  git('init', '-q');
+  git('add', '.');
+  git('commit', '-qm', 'init');
+  const copie = path.join(repo, '.claude/worktrees/demo-1');
+  git('worktree', 'add', '-q', '-b', 'agent/demo-1', copie);
+  // A home of its own: the session state is read and written there, never in the real one.
+  const home = essai('home-');
+  mkdirSync(path.join(home, '.claude/projects/-autre'), { recursive: true });
+  writeFileSync(path.join(home, '.claude/settings.json'), '{}');
+  writeFileSync(path.join(home, '.claude.json'), '{"vrai":1}');
+  const dehors = mkdtempSync(path.join(tmpdir(), 'dehors-'));
 
-  const run = (shell: string) =>
-    spawnSync('node', [SCRIPT, repo, 'packages/a', '--', 'bash', '-c', shell], {
+  const run = (shell: string, dir = copie) =>
+    spawnSync('node', [SCRIPT, dir, 'packages/a', '--', 'bash', '-c', shell], {
       encoding: 'utf8',
+      env: { ...process.env, HOME: home },
     });
 
   it('hides the code of the other components', () => {
@@ -159,8 +246,40 @@ describe.runIf(canWrap)('the envelope on disk', () => {
   it('lets the agent write its own component', () => {
     expect(run('touch packages/a/src/new.ts').status).toBe(0);
   });
+  it('refuses every write outside the copy: the main tree, its .git, another directory', () => {
+    for (const f of [`${repo}/x`, `${repo}/.git/x`, `${home}/x`]) {
+      expect(run(`touch ${f}`).status).not.toBe(0);
+      expect(existsSync(f)).toBe(false);
+    }
+  });
+  it('shows an empty /tmp, without the files of other sessions', () => {
+    writeFileSync(path.join(dehors, 'secret'), 's');
+    expect(run(`cat ${dehors}/secret`).status).not.toBe(0);
+    expect(run('touch /tmp/x').status).toBe(0);
+  });
+  it('lets git read the copy and make a patch, but not write its index', () => {
+    const r = run('git status --short && git diff --no-index /dev/null packages/a/src/a.ts; true');
+    expect(r.stdout).toMatch(/\+a/);
+    expect(run('git add packages/a/src/a.ts').status).not.toBe(0);
+  });
+  it('writes the session state, but not the configuration nor the other projects', () => {
+    const projet = path.join(home, '.claude/projects', copie.replace(/[^A-Za-z0-9]/g, '-'));
+    expect(run(`touch ${projet}/x`).status).toBe(0);
+    expect(run(`touch ${home}/.claude/settings.json`).status).not.toBe(0);
+    expect(run(`touch ${home}/.claude/projects/-autre/x`).status).not.toBe(0);
+  });
+  it('gives a throwaway copy of the global state, that the session writes', () => {
+    const r = run(`cat ~/.claude.json && echo '{}' > ~/.claude.json && cat ~/.claude.json`);
+    expect(r.stdout).toBe('{"vrai":1}{}\n');
+    expect(readFileSync(path.join(home, '.claude.json'), 'utf8')).toBe('{"vrai":1}');
+  });
+  it('refuses the main tree', () => {
+    const r = run('true', repo);
+    expect(r.status).toBe(3);
+    expect(r.stderr).toMatch(/arbre principal/);
+  });
   it('refuses to launch through a crossing link', () => {
-    symlinkSync(path.join(repo, 'packages/b/src'), path.join(repo, 'packages/a/vers-b'));
+    symlinkSync(path.join(copie, 'packages/b/src'), path.join(copie, 'packages/a/vers-b'));
     const r = run('true');
     expect(r.status).toBe(3);
     expect(r.stderr).toMatch(/traverserait l'enveloppe/);
@@ -168,7 +287,7 @@ describe.runIf(canWrap)('the envelope on disk', () => {
 });
 
 describe.runIf(canWrap)('the launcher', () => {
-  const repo = mkdtempSync(path.join(tmpdir(), 'lancer-'));
+  const repo = essai('lancer-');
   for (const d of ['packages/a/src', 'packages/b/src', '.claude/agents', 'scripts/enveloppe']) {
     mkdirSync(path.join(repo, d), { recursive: true });
   }
@@ -202,8 +321,9 @@ describe.runIf(canWrap)('the launcher', () => {
     spawnSync('bash', [LAUNCHER, 'demo-1', 'developpeur', 'packages/a', file], {
       cwd: repo,
       encoding: 'utf8',
-      env: { ...process.env, CLAUDE_BIN: fake },
+      env: { ...process.env, CLAUDE_BIN: fake, HOME: home },
     });
+  const home = essai('home-');
   const copie = path.join(repo, '.claude/worktrees/demo-1');
 
   it('runs the role session in the envelope of its copy', () => {
@@ -224,7 +344,7 @@ describe.runIf(canWrap)('the launcher', () => {
     const r = spawnSync('bash', [LAUNCHER, 'demo-1', 'developpeur', 'packages/a', consigne], {
       cwd: copie,
       encoding: 'utf8',
-      env: { ...process.env, CLAUDE_BIN: fake },
+      env: { ...process.env, CLAUDE_BIN: fake, HOME: home },
     });
     expect(r.status).toBe(0);
     expect(existsSync(path.join(copie, '.claude/worktrees'))).toBe(false);

@@ -11,3 +11,5 @@ LOTS À LIRE : <pour le développeur, le lot de tests ; pour le relecteur, le lo
 CONTEXTE DU MOMENT : <les séances voisines et les fichiers qu'elles tiennent>.
 
 Tu travailles dans ta copie (`.claude/worktrees/<ticket>`), dans l'enveloppe de ton composant : des autres composants, seules l'interface et la forme publiée existent. L'index (rtfm, codegraph) rend des chemins de l'arbre principal : tu lis le fichier de même chemin relatif dans ta copie. Ainsi tu modifies ta copie, et tes voisins par leurs interfaces seulement.
+
+Hors de ta copie, la machine est en lecture seule, `.git` compris : tu ne commites pas et tu n'écris pas l'index. Ton patch se fait sur tes seuls fichiers : `git diff -- <fichiers modifiés>`, plus `git diff --no-index /dev/null <fichier>` pour chaque fichier neuf, le tout dans ton scratchpad. Ainsi seul l'intégrateur écrit l'histoire du dépôt.
