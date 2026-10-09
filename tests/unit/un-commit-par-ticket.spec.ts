@@ -25,7 +25,7 @@ describe('refusal', () => {
 
   it('refuses a ticket that already has its commit', () => {
     expect(refusal('fix: more of demo-1', 'demo', commitsOf)).toMatch(
-      /demo-1 a déjà son commit \(abc1234\).*discovered-from:demo-1/
+      /demo-1 a déjà son commit \(abc1234\).*sous demo-1 \(bd create --parent demo-1\)/
     );
   });
   it('lets the first commit of a ticket through', () => {

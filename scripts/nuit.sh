@@ -63,7 +63,10 @@ ouvert="$(cd "$racine" && bd list --status open --label nuit --json 2>/dev/null 
 if [ -n "$ouvert" ]; then
   (cd "$racine" && bd comments add "$ouvert" "$texte" >/dev/null)
 else
-  (cd "$racine" && bd create "La nuit est rouge depuis ${tete:0:7}" -t bug -p 1 -l nuit -d "$texte" >/dev/null)
+  # A night ticket is the mother of its fixes: « number — subject — parent ».
+  sujet="La nuit est rouge depuis ${tete:0:7}"
+  neuf="$(cd "$racine" && bd create "$sujet" -t bug -p 1 -l nuit -d "$texte" --silent)"
+  [ -n "$neuf" ] && (cd "$racine" && bd update "$neuf" --title "${neuf#*-} — $sujet — parent" >/dev/null)
 fi
 echo "✗ rouge : ticket ${ouvert:-neuf} (étiquette nuit)." >> "$journal"
 exit 1

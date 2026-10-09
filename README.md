@@ -81,8 +81,8 @@ code at its own tests. Each agent runs as a fresh session inside the **envelope*
 (`scripts/enveloppe/`, a bubblewrap sandbox): it sees its own component, an index of every
 component's interface, and of the others only their interface and built output. A missing piece
 of data becomes a request to the component that provides it, not a local recomputation. One
-ticket makes one delivery: a goal of unknown size starts with an exploration ticket, a discovery
-becomes a linked ticket (`discovered-from`), and a hook refuses a second commit for a ticket.
+ticket makes one delivery: a goal of unknown size starts with an exploration ticket, every ticket
+is created under its mother (numbered `320.2.1`) and every agent goes by its role's number, and a hook refuses a second commit for a ticket.
 
 **The board** — `npm run tableau` prints, measured and never declared, each epic's tickets in
 progress, ready, blocked, awaiting the owner, deferred and closed; Beads' order of the next

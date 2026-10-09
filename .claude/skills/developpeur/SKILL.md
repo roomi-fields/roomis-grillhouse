@@ -88,9 +88,10 @@ d'un mot : ouvert ou fermé.
 
 **Une découverte devient un ticket** : ce que tu découvres hors du comportement de ton ticket (un
 défaut, une question, un second morceau) devient un ticket neuf, que tu crées avec son exemple et
-son adresse : `bd create "<titre>" -t task --deps discovered-from:<id> -l a-valider -d "<…>"`. Tu
-continues ton ticket sans lui. Ainsi la découverte garde son origine, et le responsable décide de
-sa place.
+son adresse, sous ton ticket (`docs/agents/issue-tracker.md`, « Numéros et titres ») :
+`n=$(bd create "<sujet>" --parent <id> -t task -l a-valider -d "<…>" --silent)`, puis
+`bd update "$n" --title "${n#*-} — <sujet> — <composant>"``. Tu continues ton ticket sans lui. Ainsi la découverte
+garde son origine, et le responsable décide de sa place.
 
 **Une découverte qui bloque t'arrête** : quand ton ticket ne peut pas finir sans elle, tu
 t'arrêtes sans rien livrer ; ton ticket passe en bloqué par le ticket découvert

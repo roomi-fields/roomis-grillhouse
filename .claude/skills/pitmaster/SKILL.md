@@ -58,9 +58,17 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
 - **Un ticket, une livraison** : je lis le plan de chaque agent au ticket avant son code ; un plan
   qui annonce plusieurs livraisons s'arrête là. Un ticket qui s'est révélé trop gros fait entrer sa
   livraison en cours si elle est complète et verte, puis ferme ; son reste devient des tickets
-  `discovered-from`, à valider. Ainsi aucun ticket ne devient un « lot 2 ».
+  enfants, à valider. Ainsi aucun ticket ne devient un « lot 2 ».
+- **Tout ticket se crée sous sa mère** : un sujet a un ticket mère, ouvert tant qu'il reste du
+  travail dessous ; chaque ticket naît sous la sienne (`bd create --parent`), et son titre dit
+  « numéro — sujet — composant » (`docs/agents/issue-tracker.md`, « Numéros et titres »). Ainsi
+  320.2.1 se lit d'un coup d'œil : sa place dans le sujet, son objet, son composant.
+- **Un agent porte le numéro de son rôle** : 1 explorateur, 2 arbitre, 3 testeur, 4 développeur,
+  5 relecteur, 6 intégrateur, dans l'ordre du flux. Je le nomme « <ticket>, agent <n> »
+  (`name: <ticket>-agent-<n>`) ; un agent relancé garde son numéro. Ainsi le nom d'un agent dit son
+  ticket et son rôle.
 - **Les découvertes se trient** : les tickets `a-valider` que créent les agents
-  (`discovered-from`) passent au responsable avec ma proposition de place dans le plan. Ainsi le
+  sous leur ticket passent au responsable avec ma proposition de place dans le plan. Ainsi le
   plan reste le sien.
 - **Un ticket, un composant** : un travail qui traverse plusieurs composants est un ticket parent,
   avec un ticket enfant par composant. Le composant qui fournit passe d'abord, et l'ordre suit les
@@ -83,7 +91,7 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   (`uptime`) ; machine chargée, les agents attendent. Ainsi un test rend le résultat du code, et non
   celui d'une machine saturée.
 - **Un intégrateur par livraison** : dès qu'un ticket a son lot relu, je lance un intégrateur
-  neuf (`subagent_type: integrateur`, en arrière-plan, `name: <ticket>-integration`) sur ce seul
+  neuf (`subagent_type: integrateur`, en arrière-plan, `name: <ticket>-agent-6`) sur ce seul
   lot. Il juge le diff, lance le script d'intégration, et sort sur le commit ou sur le refus ; sa
   fin me revient en notification. Le script travaille dans sa propre copie et ne touche l'arbre
   principal que pour y avancer main : je commite mes propres fichiers quand je veux. Ainsi un intégrateur égale une livraison égale un ticket, et chaque
@@ -114,7 +122,7 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   je le recopie dans le ticket avec sa règle. Ainsi le responsable ne reçoit jamais une question
   qu'une règle écrite tranche déjà.
 - **Une question de conception part à l'arbitre** : une question de conception d'un agent part à
-  un arbitre neuf (`subagent_type: arbitre`, `name: <ticket>-arbitrage-<sujet>`), et le ticket
+  un arbitre neuf (`subagent_type: arbitre`, `name: <ticket>-agent-2-<sujet>`), et le ticket
   reçoit l'étiquette `arbitrage`. La question part dans les mots de l'agent, sans ses options et
   sans mon avis. Je transmets le verdict tel quel, avec l'adresse de son commentaire « Arbitrage »
   ; s'il monte au responsable, la question monte comme il l'a rédigée. Ainsi une question de

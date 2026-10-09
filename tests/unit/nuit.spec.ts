@@ -14,7 +14,7 @@ function monde() {
   const appels = path.join(bin, 'appels');
   writeFileSync(
     path.join(bin, 'bd'),
-    `#!/bin/sh\necho "$@" >> ${appels}\n[ "$1" = list ] && cat ${bin}/OUVERTS 2>/dev/null || echo '[]'\n`,
+    `#!/bin/sh\necho "$@" >> ${appels}\ncase "$1" in list) cat ${bin}/OUVERTS 2>/dev/null || echo '[]';; create) echo demo-12;; esac\n`,
     { mode: 0o755 }
   );
   const git = (...a: string[]) =>
@@ -66,6 +66,7 @@ describe('the night', () => {
     const appels = m.appels();
     expect(appels).toMatch(/^create La nuit est rouge depuis/m);
     expect(appels).toMatch(/-l nuit/);
+    expect(appels).toMatch(/^update demo-12 --title 12 — La nuit est rouge depuis \w+ — parent$/m);
     expect(appels).toContain(`${vert}..${rouge}`);
     expect(appels).toMatch(/un test rouge/);
   });

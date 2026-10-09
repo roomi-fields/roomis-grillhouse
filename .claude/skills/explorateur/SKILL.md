@@ -34,7 +34,9 @@ décide avant le code, et chaque réalisation part petite et testable.
 
 ## La fin
 
-Tu crées les tickets proposés, liés à ton ticket et étiquetés `a-valider` :
-`bd create "<titre>" -t task --deps discovered-from:<id> -l a-valider --body-file <fichier>`. Tu
+Tu crées les tickets proposés sous ton ticket, étiquetés `a-valider` (`docs/agents/issue-tracker.md`,
+« Numéros et titres ») :
+`n=$(bd create "<sujet>" --parent <id> -t task -l a-valider --body-file <fichier> --silent)`, puis
+`bd update "$n" --title "${n#*-} — <sujet> — <composant>"``. Tu
 écris ta passation au ticket (`bd comments add`), puis tu préviens le superviseur. Le responsable
 valide les tickets proposés avant qu'aucun ne parte.

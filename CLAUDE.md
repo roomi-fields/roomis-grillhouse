@@ -48,13 +48,14 @@ maintient le projet »…). Ainsi chaque choix construit un produit mature et pr
 6. `/handoff` dans le ticket, puis `bd close`, avec ce qui n'est pas fait et pourquoi.
 
 Une séance de supervision charge le superviseur (`pitmaster`). Les rôles sont des agents du projet
-(`.claude/agents/`) : `testeur`, `developpeur`, `relecteur`, `integrateur`, chacun sous ses verrous,
-`arbitre`, qui tranche une question de conception, et `explorateur`, qui mène une exploration.
-Ainsi chaque agent travaille dans son cadre.
+(`.claude/agents/`), chacun désigné par le numéro de son rôle, dans l'ordre du flux :
+1 `explorateur`, qui mène une exploration, 2 `arbitre`, qui tranche une question de conception,
+3 `testeur`, 4 `developpeur`, 5 `relecteur`, 6 `integrateur`, chacun sous ses verrous. Ainsi chaque
+agent travaille dans son cadre, et son numéro dit son rôle.
 
 Un objectif dont le découpage n'est pas connu commence par une exploration, sans code ; un ticket
-de réalisation touche un composant et fait une seule livraison ; une découverte devient un ticket
-lié (`discovered-from`), à valider. Ainsi l'avancement se lit ticket par ticket.
+de réalisation touche un composant et fait une seule livraison ; tout ticket se crée sous sa mère, et une découverte sous le ticket
+qui l'a trouvée, à valider (`docs/agents/issue-tracker.md`). Ainsi l'avancement se lit ticket par ticket.
 
 ## Ce qui tient le dépôt droit
 

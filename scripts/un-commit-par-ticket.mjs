@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // One ticket, one commit: refuses a commit message that names a ticket an earlier commit already
 // names. A second delivery for the same ticket is the sign of a ticket split into lots; its rest
-// becomes new tickets, linked by `discovered-from`. Run as the commit-msg hook
+// becomes new tickets, created under it (`--parent`). Run as the commit-msg hook
 // (`.beads/hooks/commit-msg`), with the message file as argument.
 //
 // - The tickets are the words `<prefix>-<id>` of the message, the prefix read from Beads
@@ -25,7 +25,7 @@ export function refusal(message, prefix, commitsOf) {
   for (const id of tickets(message, prefix)) {
     const earlier = commitsOf(id);
     if (earlier.length > 0) {
-      return `Le ticket ${id} a déjà son commit (${earlier.join(', ')}) : un ticket fait une seule livraison. Ce qui reste devient un ticket neuf, lié par discovered-from:${id}.`;
+      return `Le ticket ${id} a déjà son commit (${earlier.join(', ')}) : un ticket fait une seule livraison. Ce qui reste devient un ticket neuf sous ${id} (bd create --parent ${id}).`;
     }
   }
   return null;
