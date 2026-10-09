@@ -3,7 +3,9 @@
 // package.json. Given components' directories (`packages/a src/parser`), it runs the tests that
 // cover their files (`vitest related`: the tests that import them, directly or not, and their own
 // tests); without argument, every test. It writes the full name of each failing test, one per
-// line, to the file named by ROUGES. Its exit code is Vitest's.
+// line, to the file named by ROUGES. Its exit code is Vitest's. A time budget bench
+// (`*.budget.test.*`, `*.budget.spec.*`) does not run here: the day's load moves its measures,
+// and the night (`scripts/nuit.sh`, every test) judges it.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -27,9 +29,16 @@ const fichiers = dir => {
 const composants = process.argv.slice(2);
 const tmp = mkdtempSync(path.join(tmpdir(), 'suites-'));
 const rapport = path.join(tmp, 'rapport.json');
+const BUDGET = '**/*.budget.{test,spec}.?(c|m)[jt]s?(x)';
 const portee = composants.length
-  ? ['related', '--run', '--passWithNoTests', ...composants.flatMap(fichiers)]
-  : ['run'];
+  ? [
+      'related',
+      '--run',
+      '--passWithNoTests',
+      ...composants.flatMap(fichiers).filter(f => !/\.budget\.(test|spec)\./.test(f)),
+    ]
+  : ['run', '--passWithNoTests'];
+portee.push(`--exclude=${BUDGET}`);
 const r = spawnSync('npx', ['vitest', ...portee, '--reporter=json', `--outputFile=${rapport}`], {
   stdio: ['ignore', 'inherit', 'inherit'],
 });

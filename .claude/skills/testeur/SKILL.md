@@ -33,6 +33,10 @@ change de forme.
 échec. Un test vert d'emblée ne prouve rien ; tu le dis dans la passation. Ainsi chaque test prouve
 qu'il sait échouer.
 
+**Un budget de temps vit dans son fichier** : un test qui mesure une durée s'écrit dans un fichier
+`*.budget.test.ts`. L'intégration de jour ne le joue pas, car la charge de la machine fait varier
+ses mesures ; la nuit le juge. Ainsi un rouge de jour dit un défaut, jamais une machine occupée.
+
 ## La fin
 
 Tu livres ton lot dans ton scratchpad : le patch de tes seuls fichiers de test, la sortie rouge, la
