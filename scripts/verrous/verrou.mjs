@@ -7,7 +7,7 @@
 // - testeur writes test files only.
 // - developpeur writes no test file, and no other file until its ticket's description holds
 //   a "## Architecture" section. The ticket is the "TON TICKET : <id>" line of the agent's
-//   launch prompt, read from the agent's own transcript.
+//   launch prompt, read from its transcript.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -30,19 +30,26 @@ export function isScratch(file, tmp = tmpdir()) {
   return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
 }
 
-// The ticket id of the launch prompt, from the agent's transcript next to the session's.
+// The ticket id of the launch prompt. A sub-agent's prompt opens its own transcript, next to the
+// session's; an agent launched as its own session (`claude --agent`) has it in the session's.
 export function ticketOf(input) {
-  if (!input.transcript_path || !input.agent_id) {
+  if (!input.transcript_path) {
     return null;
   }
-  const transcript = path.join(
-    input.transcript_path.replace(/\.jsonl$/, ''),
-    'subagents',
-    `agent-${input.agent_id}.jsonl`
-  );
+  const transcript = input.agent_id
+    ? path.join(
+        input.transcript_path.replace(/\.jsonl$/, ''),
+        'subagents',
+        `agent-${input.agent_id}.jsonl`
+      )
+    : input.transcript_path;
   let first;
   try {
-    first = JSON.parse(readFileSync(transcript, 'utf8').split('\n')[0]);
+    first = readFileSync(transcript, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map(l => JSON.parse(l))
+      .find(e => e.type === 'user');
   } catch {
     return null;
   }

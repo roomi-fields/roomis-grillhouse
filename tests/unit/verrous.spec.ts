@@ -18,6 +18,20 @@ function session(prompt: string) {
   return { transcript_path: path.join(dir, 's1.jsonl'), agent_id: 'a1', cwd: ROOT };
 }
 
+// A session launched as its own agent (`claude --agent`): the prompt is the session's first user
+// line, after the setting and queue lines Claude Code writes first.
+function ownSession(prompt: string) {
+  const dir = mkdtempSync(path.join(tmpdir(), 'verrou-'));
+  const lines = [
+    { type: 'agent-setting', agentSetting: 'developpeur' },
+    { type: 'queue-operation', operation: 'enqueue', content: prompt },
+    { type: 'user', message: { role: 'user', content: prompt } },
+  ];
+  const transcript = path.join(dir, 's2.jsonl');
+  writeFileSync(transcript, lines.map(l => JSON.stringify(l)).join('\n') + '\n');
+  return { transcript_path: transcript, cwd: ROOT };
+}
+
 function write(file: string, extra: object = {}) {
   return { tool_name: 'Write', tool_input: { file_path: file, content: 'x' }, cwd: ROOT, ...extra };
 }
@@ -68,6 +82,13 @@ describe('developpeur', () => {
 
   it('writes code when its ticket has its Architecture section', () => {
     expect(refusal('developpeur', write('/repo/src/a.ts', ready), withArchitecture)).toBeNull();
+  });
+  it('reads its ticket in its own session', () => {
+    const own = ownSession('TON TICKET : demo-12 — un sujet.');
+    expect(refusal('developpeur', write('/repo/src/a.ts', own), withArchitecture)).toBeNull();
+    expect(refusal('developpeur', write('/repo/src/a.ts', own), options('## Travail'))).toMatch(
+      /section « ## Architecture »/
+    );
   });
   it('does not write a test file', () => {
     expect(refusal('developpeur', write('/repo/tests/a.spec.ts', ready), withArchitecture)).toMatch(

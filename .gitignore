@@ -83,3 +83,6 @@ pids/
 .claude/settings.local.json
 .rtfm/
 .codegraph/
+
+# Agent copies (one worktree per ticket) and their session logs
+.claude/worktrees/
