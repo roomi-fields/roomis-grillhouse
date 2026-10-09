@@ -39,8 +39,7 @@
     "integration:gardes": "npm run --silent pretest",
     "frontieres": "node scripts/frontieres.mjs",
     "api": "node scripts/interfaces-contre-code.mjs --ecrire",
-    "tableau": "node scripts/tableau.mjs --texte",
-    "mod:test": "claude plugin test mods/grillhouse"
+    "tableau": "node scripts/tableau.mjs --texte"
   },
   "keywords": [
     "keyword1",
