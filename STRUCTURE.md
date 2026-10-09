@@ -53,6 +53,7 @@ roomis-grillhouse/
 │   ├── consommateurs.mjs          # pretest: refuses an import that the provider's INTERFACE.md does not declare
 │   ├── frontieres.mjs             # pretest: dependency-cruiser, rules generated in .dependency-cruiser.cjs
 │   ├── interfaces-contre-code.mjs # pretest: INTERFACE.md against the API report of API Extractor (npm run api)
+│   ├── nuit.sh                    # every suite, once a night (mode « impactes »); a red opens a ticket
 │   ├── integration/               # One delivery, in a clean copy: verdicts, lots, base, guards, suites, commit
 │   │   ├── integrer.mjs              # run by the integrateur (tests: tests/unit/integrer.spec.ts)
 │   │   └── suites-vitest.mjs         # npm run integration:suites: failing tests by name, for Vitest

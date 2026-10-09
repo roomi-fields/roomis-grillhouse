@@ -45,7 +45,9 @@ node scripts/integration/integrer.mjs --ticket <id> [--ticket <id>…] \
 `ACCEPTÉ` et les arbitrages, garde les tests au testeur et le code au développeur. Puis, dans une
 copie d'intégration propre (`.claude/worktrees/integration`, sur HEAD, sans fichier local), il
 construit, mesure la base, applique les lots en trois voies, construit, rejoue les gardes, compare
-les suites à la base nom par nom et commite avec les crochets ; main avance alors sur ce commit.
+les suites à la base nom par nom et commite avec les crochets ; main avance alors sur ce commit. Les
+suites rejouées suivent le choix du projet : toutes (`complet`), ou les composants du lot et ceux
+qui en dépendent (`impactes`, toutes les suites tournant la nuit).
 Ainsi le commit validé est exactement celui qui entre. Il tient sa propre attente : il rend la main
 sur le commit ou sur le refus, avec toute sa sortie. Ainsi une attente est un processus vivant,
 jamais une phrase.

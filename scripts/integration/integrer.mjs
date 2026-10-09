@@ -14,8 +14,12 @@
 //  4. a clean integration copy (`.claude/worktrees/integration`): detached on HEAD, every
 //     untracked file removed, its dependencies installed again when `package-lock.json` changes
 //     (`npm ci`), then built (`npm run build`, when present);
-//  5. the base: the project's suites (`npm run integration:suites -- <packages>`) on HEAD; suites
-//     that fail without naming a test leave nothing to compare, and refuse;
+//  5. the base: the project's suites (`npm run integration:suites -- <components>`) on HEAD. The
+//     project chooses at its installation (`grillhouse.integration` in package.json):
+//     `impactes` (the default) replays the touched components and those that depend on them (the
+//     consumers' graph), a lot without code of a component no suite, and every suite runs once a
+//     night (`scripts/nuit.sh`); `complet` replays every suite at each integration;
+//     suites that fail without naming a test leave nothing to compare, and refuse;
 //  6. the lots, applied in three ways in the copy, tests first, then built;
 //  7. the project's guards (`npm run integration:gardes`, when present);
 //  8. the suites again: a failing test that the base did not have and --admettre does not name
@@ -24,15 +28,21 @@
 // 10. main moves forward onto it (`merge --ff-only`); main moved in the meantime refuses.
 //
 // The main tree is touched by the fast-forward only: the supervisor's own files stay as they are.
-// The suites command receives the touched packages (`packages/<x>`) as arguments and writes the
-// names of its failing tests, one per line, to the file named by the ROUGES variable.
+// The suites command receives the components' directories to replay (`packages/a src/parser`),
+// none for every suite (the night), and writes the names of its failing tests, one per line, to the file
+// named by the ROUGES variable.
+// The budget of an integration that touches one leaf component: 15 s, measured on the template
+// (12.8 s with its first `npm ci`, 8.6 s after). A project sets its own, measured on its code
+// (`npm pkg set grillhouse.budgetIntegration=<seconds>`). The duration is written at the end,
+// with a warning past the budget.
 // One integration runs at a time (`.git/integration.lock`). Exit code: 0 committed, 1 refused,
 // 2 usage or another integration running.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { composants as lesComposants, utilise } from '../consommateurs.mjs';
 import { isTestFile } from '../verrous/verrou.mjs';
 
 // The refusal for the verdicts of one ticket, or null. `ticket` and `comments` are Beads' JSON.
@@ -76,14 +86,34 @@ export function nouveauxRouges(base, apres, admis = []) {
   return [...new Set(apres)].filter(n => !connus.has(n));
 }
 
-// The packages a list of files touches: `packages/<x>`, in order.
-export function paquets(fichiers) {
-  const out = new Set();
-  for (const f of fichiers) {
-    const m = /^packages\/[^/]+/.exec(f);
-    if (m) out.add(m[0]);
+export const BUDGET_FEUILLE_S = 15;
+
+const lireJsonSiPresent = p => (existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : null);
+
+const CODE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|svelte|vue)$/;
+
+// What the suites replay for a lot. `composants` are the components' directories relative to the
+// root; `consommateurs` maps a component's directory to the directories of those that use it.
+// - no code file of a component: nothing (the guards only);
+// - otherwise: the touched components and, transitively, those that depend on them, in order.
+// The full suites run once a night (`scripts/nuit.sh`), never during an integration.
+export function perimetre(fichiers, composants, consommateurs) {
+  const touches = new Set();
+  for (const f of fichiers.filter(f => CODE.test(f))) {
+    const c = composants.find(d => f.startsWith(`${d}/`));
+    if (c) touches.add(c);
   }
-  return [...out].sort();
+  if (touches.size === 0) return { mode: 'aucun', composants: [] };
+  const file = [...touches];
+  while (file.length) {
+    for (const d of consommateurs.get(file.pop()) ?? []) {
+      if (!touches.has(d)) {
+        touches.add(d);
+        file.push(d);
+      }
+    }
+  }
+  return { mode: 'composants', composants: [...touches].sort() };
 }
 
 function lire(argv) {
@@ -160,6 +190,7 @@ function main(argv) {
     }
   }
   writeFileSync(verrou, String(process.pid));
+  const debut = Date.now();
   const tmp = mkdtempSync(path.join(tmpdir(), 'integration-'));
   try {
     // 1. The verdicts.
@@ -231,8 +262,33 @@ function main(argv) {
     if (!construire()) return refuser('HEAD ne se construit pas.');
     dire(`✓ copie d'intégration propre sur ${tete.slice(0, 7)}`);
 
-    const touches = paquets(fichiers);
+    // What the suites replay: the touched components and those that depend on them.
+    const comps = lesComposants(copie);
+    const dirDe = new Map(comps.map(c => [c.nom, path.relative(copie, c.dir)]));
+    const consommateurs = new Map();
+    for (const [fournisseur, parConsommateur] of utilise(copie, comps)) {
+      consommateurs.set(
+        dirDe.get(fournisseur),
+        [...parConsommateur.keys()].map(n => dirDe.get(n))
+      );
+    }
+    // The project chooses at its installation (grill): `complet` replays every suite at each
+    // integration; `impactes`, the default, the touched components, every suite once a night.
+    const reglage = lireJsonSiPresent(path.join(copie, 'package.json'))?.grillhouse?.integration;
+    const champ =
+      reglage === 'complet'
+        ? { mode: 'tous', composants: [] }
+        : perimetre(fichiers, [...dirDe.values()], consommateurs);
+    const touches = champ.composants;
+    dire(
+      champ.mode === 'aucun'
+        ? '✓ aucun code de composant dans le lot : les gardes seulement'
+        : champ.mode === 'tous'
+          ? '✓ toutes les suites (réglage « complet »)'
+          : `✓ suites de : ${touches.join(', ')}`
+    );
     const suites = nom => {
+      if (champ.mode === 'aucun') return [];
       const rouges = path.join(tmp, nom);
       writeFileSync(rouges, '');
       const r = npm(['run', '--silent', 'integration:suites', '--', ...touches], {
@@ -294,6 +350,14 @@ function main(argv) {
       );
     }
     dire(`✓ commit ${commit.slice(0, 7)}`);
+    const duree = Math.round((Date.now() - debut) / 100) / 10;
+    const budget =
+      lireJsonSiPresent(path.join(racine, 'package.json'))?.grillhouse?.budgetIntegration ??
+      BUDGET_FEUILLE_S;
+    dire(`⏱ ${duree} s (budget d'une feuille : ${budget} s)`);
+    if (champ.mode === 'composants' && touches.length === 1 && duree > budget) {
+      dire(`⚠ au-delà du budget : ${duree} s pour un seul composant.`);
+    }
     return 0;
   } finally {
     rmSync(tmp, { recursive: true, force: true });

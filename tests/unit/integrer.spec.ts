@@ -1,11 +1,11 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   nouveauxRouges,
-  paquets,
+  perimetre,
   refusLots,
   refusVerdicts,
 } from '../../scripts/integration/integrer.mjs';
@@ -57,21 +57,51 @@ describe('refusVerdicts', () => {
 
 describe('refusLots', () => {
   it('keeps tests to the tests lot and code to the code lot', () => {
-    expect(refusLots(['tests/unit/a.spec.ts'], ['src/a.ts'])).toBeNull();
-    expect(refusLots(['src/a.ts'], [])).toMatch(/lot de tests touche du code/);
+    expect(refusLots(['tests/unit/a.spec.ts'], ['src/a/index.ts'])).toBeNull();
+    expect(refusLots(['src/a/index.ts'], [])).toMatch(/lot de tests touche du code/);
     expect(refusLots([], ['packages/a/tests/x.ts'])).toMatch(/lot de code touche des tests/);
   });
 });
 
-describe('nouveauxRouges and paquets', () => {
+describe('nouveauxRouges', () => {
   it('keeps the failures the base did not have and that are not admitted', () => {
     expect(nouveauxRouges(['a', 'b'], ['b', 'c', 'd', 'd'], ['d'])).toEqual(['c']);
   });
-  it('names the packages touched', () => {
-    expect(paquets(['packages/b/src/x.ts', 'src/a.ts', 'packages/a/x', 'packages/b/y'])).toEqual([
-      'packages/a',
-      'packages/b',
-    ]);
+});
+
+describe('perimetre', () => {
+  const comps = ['packages/a', 'packages/b', 'packages/c', 'src/d'];
+  // b uses a, c uses b: a change in a replays a, b and c.
+  const graphe = new Map([
+    ['packages/a', ['packages/b']],
+    ['packages/b', ['packages/c']],
+  ]);
+  it('replays the touched components and, transitively, those that depend on them', () => {
+    expect(perimetre(['packages/a/src/x.ts'], comps, graphe)).toEqual({
+      mode: 'composants',
+      composants: ['packages/a', 'packages/b', 'packages/c'],
+    });
+  });
+  it('replays a leaf alone', () => {
+    expect(perimetre(['packages/c/src/x.ts', 'packages/c/test/x.spec.ts'], comps, graphe)).toEqual({
+      mode: 'composants',
+      composants: ['packages/c'],
+    });
+  });
+  it('replays nothing for a lot without code', () => {
+    expect(perimetre(['packages/a/docs/INTERFACE.md', 'README.md'], comps, graphe).mode).toBe(
+      'aucun'
+    );
+  });
+  it('replays no suite for code outside every component: the night replays everything', () => {
+    expect(perimetre(['scripts/y.mjs', 'tests/z.spec.ts'], comps, graphe).mode).toBe('aucun');
+    expect(perimetre(['packages/c/src/x.ts', 'scripts/y.mjs'], comps, graphe)).toEqual({
+      mode: 'composants',
+      composants: ['packages/c'],
+    });
+  });
+  it('does not take a sibling sharing a prefix for the component', () => {
+    expect(perimetre(['packages/ab/x.ts'], ['packages/a'], new Map()).mode).toBe('aucun');
   });
 });
 
@@ -103,8 +133,8 @@ function monde(commentaires: string[]) {
     path.join(repo, 'suites.mjs'),
     "import fs from 'node:fs';\nconst r = fs.existsSync('ROUGES_FORCES') ? fs.readFileSync('ROUGES_FORCES', 'utf8') : '';\nfs.writeFileSync(process.env.ROUGES, r);\nprocess.exit(r ? 1 : 0);\n"
   );
-  mkdirSync(path.join(repo, 'src'));
-  writeFileSync(path.join(repo, 'src/a.ts'), 'export const a = 1;\n');
+  mkdirSync(path.join(repo, 'src/a'), { recursive: true });
+  writeFileSync(path.join(repo, 'src/a/index.ts'), 'export const a = 1;\n');
   writeFileSync(path.join(repo, '.gitignore'), '.claude/worktrees/\n');
   git('init', '-q');
   git('add', '.');
@@ -115,46 +145,32 @@ function monde(commentaires: string[]) {
   git('add', '-N', 'tests/a.spec.ts');
   const lotTests = path.join(bin, 'tests.patch');
   writeFileSync(lotTests, git('diff', '--', 'tests'));
-  writeFileSync(path.join(repo, 'src/a.ts'), 'export const a = 2;\n');
+  writeFileSync(path.join(repo, 'src/a/index.ts'), 'export const a = 2;\n');
   const lotCode = path.join(bin, 'code.patch');
   writeFileSync(lotCode, git('diff', '--', 'src'));
   git('reset', '-q', '--hard');
   execFileSync('rm', ['-f', path.join(repo, 'tests/a.spec.ts')]);
   const message = path.join(bin, 'msg');
   writeFileSync(message, 'feat: a (demo-1)\n');
-  const run = (...extra: string[]) =>
-    spawnSync(
-      'node',
-      [
-        SCRIPT,
-        '--ticket',
-        'demo-1',
-        '--tests',
-        lotTests,
-        '--code',
-        lotCode,
-        '--message',
-        message,
-        ...extra,
-      ],
-      {
-        cwd: repo,
-        encoding: 'utf8',
-        env: {
-          ...process.env,
-          PATH: `${bin}:${process.env.PATH}`,
-          GIT_AUTHOR_NAME: 't',
-          GIT_AUTHOR_EMAIL: 't@t',
-          GIT_COMMITTER_NAME: 't',
-          GIT_COMMITTER_EMAIL: 't@t',
-          PRINCIPAL: repo,
-        },
-      }
-    );
+  const lancer = (lots: string[], extra: string[]) =>
+    spawnSync('node', [SCRIPT, '--ticket', 'demo-1', ...lots, '--message', message, ...extra], {
+      cwd: repo,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${bin}:${process.env.PATH}`,
+        GIT_AUTHOR_NAME: 't',
+        GIT_AUTHOR_EMAIL: 't@t',
+        GIT_COMMITTER_NAME: 't',
+        GIT_COMMITTER_EMAIL: 't@t',
+        PRINCIPAL: repo,
+      },
+    });
+  const run = (...extra: string[]) => lancer(['--tests', lotTests, '--code', lotCode], extra);
   const etat = () => ({
     log: git('log', '--format=%s').trim().split('\n'),
     status: git('status', '--porcelain'),
-    a: readFileSync(path.join(repo, 'src/a.ts'), 'utf8'),
+    a: readFileSync(path.join(repo, 'src/a/index.ts'), 'utf8'),
     test: existsSync(path.join(repo, 'tests/a.spec.ts')),
   });
   // Commits a file in the main tree, as another delivery would.
@@ -163,7 +179,7 @@ function monde(commentaires: string[]) {
     git('add', f);
     git('commit', '-qm', `pose ${f}`);
   };
-  return { repo, run, etat, poser };
+  return { repo, run, lancer, etat, poser, bin };
 }
 
 describe('an integration', () => {
@@ -260,7 +276,7 @@ describe('an integration', () => {
   });
   it('refuses when a file of the lot is modified in the tree', () => {
     const m = monde(['ACCEPTÉ']);
-    writeFileSync(path.join(m.repo, 'src/a.ts'), 'export const a = 3;\n');
+    writeFileSync(path.join(m.repo, 'src/a/index.ts'), 'export const a = 3;\n');
     const r = m.run();
     expect(r.status).toBe(1);
     expect(r.stdout).toMatch(/modifiés dans l'arbre/);
@@ -310,6 +326,69 @@ describe('an integration', () => {
     expect(r.stdout).toMatch(/main a bougé/);
     expect(r.status).toBe(1);
     expect(m.etat().log[0]).toBe('bouge');
+  });
+  it('replays no suite for a lot without code', () => {
+    const m = monde(['ACCEPTÉ']);
+    m.poser('suites.mjs', 'process.exit(9);\n');
+    mkdirSync(path.join(m.repo, 'docs'));
+    writeFileSync(path.join(m.repo, 'docs/note.md'), 'une note\n');
+    const patch = path.join(m.bin, 'docs.patch');
+    const diff = spawnSync(
+      'git',
+      ['-C', m.repo, 'diff', '--no-index', '/dev/null', 'docs/note.md'],
+      {
+        encoding: 'utf8',
+      }
+    ).stdout;
+    writeFileSync(patch, diff);
+    rmSync(path.join(m.repo, 'docs'), { recursive: true });
+    const r = m.lancer(['--code', patch], []);
+    expect(r.stdout).toMatch(/aucun code de composant dans le lot/);
+    expect(r.status).toBe(0);
+  });
+  it('hands the suites the touched component and those that use it, nothing else', () => {
+    const m = monde(['ACCEPTÉ']);
+    m.poser(
+      'suites.mjs',
+      "import fs from 'node:fs';\nfs.writeFileSync(`${process.env.PRINCIPAL}.args`, process.argv.slice(2).join(' '));\nfs.writeFileSync(process.env.ROUGES, '');\n"
+    );
+    mkdirSync(path.join(m.repo, 'src/feuille'));
+    mkdirSync(path.join(m.repo, 'src/haut'));
+    mkdirSync(path.join(m.repo, 'src/seul'));
+    m.poser('src/feuille/index.ts', 'export const f = 1;\n');
+    m.poser('src/haut/index.ts', "import { f } from '../feuille';\nexport const h = f;\n");
+    m.poser('src/seul/index.ts', 'export const s = 1;\n');
+    writeFileSync(path.join(m.repo, 'src/feuille/index.ts'), 'export const f = 2;\n');
+    const patch = path.join(m.bin, 'feuille.patch');
+    writeFileSync(
+      patch,
+      spawnSync('git', ['-C', m.repo, 'diff', '--', 'src/feuille'], { encoding: 'utf8' }).stdout
+    );
+    spawnSync('git', ['-C', m.repo, 'checkout', '--', 'src/feuille']);
+    const r = m.lancer(['--code', patch], []);
+    expect(r.status).toBe(0);
+    expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('src/feuille src/haut');
+  });
+  it('replays every suite when the project chose « complet »', () => {
+    const m = monde(['ACCEPTÉ']);
+    m.poser(
+      'package.json',
+      JSON.stringify({
+        grillhouse: { integration: 'complet' },
+        scripts: {
+          'integration:suites': 'node suites.mjs',
+          'integration:gardes': 'test ! -f GARDE_ROUGE && test ! -f RESTE',
+        },
+      })
+    );
+    m.poser(
+      'suites.mjs',
+      "import fs from 'node:fs';\nfs.writeFileSync(`${process.env.PRINCIPAL}.args`, `[${process.argv.slice(2).join(' ')}]`);\nfs.writeFileSync(process.env.ROUGES, '');\n"
+    );
+    const r = m.run();
+    expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/toutes les suites/);
+    expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('[]');
   });
   it('waits for another integration that runs', () => {
     const m = monde(['ACCEPTÉ']);

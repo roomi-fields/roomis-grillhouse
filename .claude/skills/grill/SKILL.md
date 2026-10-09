@@ -131,10 +131,17 @@ remplace jamais le grill. Les branches de l'arbre :
    de porte. Ainsi un agent enveloppé construit et teste son paquet avec ce que ses voisins
    publient.
 9. **Les interfaces** — pour chaque frontière : ce qui la traverse, qui offre, qui consomme, qui
-   juge quelle faute, et le garde qui la tiendra. Le contrôle de l'interface contre le code
-   (`scripts/interfaces-contre-code.mjs`) tourne en une seule passe avant les tests (le défaut,
-   pour un petit projet), ou en un banc par composant qui appelle `verifierComposant` (un grand
-   projet, qui rejoue seulement les composants touchés) : le responsable choisit.
+   juge quelle faute, et le garde qui la tiendra.
+   **Une fois les composants décidés**, deux choix selon la taille du projet, que le responsable
+   tranche :
+   - **les tests d'une intégration** : `complet` (toutes les suites à chaque intégration, pour un
+     petit projet) ou `impactes` (les composants du lot et ceux qui en dépendent, et toutes les
+     suites une fois la nuit par `scripts/nuit.sh`, pour un grand projet). Il s'écrit par
+     `npm pkg set grillhouse.integration=<choix>` ; pour `impactes`, la ligne de la nuit entre dans
+     la table des tâches du poste (`crontab -e` : `0 3 * * * bash <racine>/scripts/nuit.sh`) ;
+   - **le contrôle de l'interface contre le code** (`scripts/interfaces-contre-code.mjs`) : une
+     seule passe avant les tests (petit projet), ou un banc par composant qui appelle
+     `verifierComposant`, rejoué seulement quand son composant l'est (grand projet).
 10. **L'architecture** — les trois ou quatre choix qui commandent le reste, chacun avec sa raison et
    l'objectif qu'il sert ; les données centrales ; où le code tourne.
 11. **Le lexique** — les mots du domaine dont la définition change du code

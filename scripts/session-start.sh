@@ -51,6 +51,11 @@ else
 fi
 [ -f "$root/CONTEXT.md" ] || pending+=("le lexique du domaine (CONTEXT.md)")
 
+# Once the architecture is written, the project chooses how an integration tests (grill, branch 9).
+if [ -f "$root/docs/ARCHITECTURE.md" ] && [ -f "$root/package.json" ]; then
+  mode="$(node -e 'process.stdout.write(require(process.argv[1]).grillhouse?.integration ?? "")' "$root/package.json" 2>/dev/null)"
+  [ -n "$mode" ] || pending+=("les tests d'une intégration : « complet » ou « impactes » avec la nuit (grill, branche 9)")
+fi
 # The integration script runs the project's own suites and guards: two npm scripts to wire.
 wiring=()
 for s in integration:suites integration:gardes; do
@@ -58,7 +63,12 @@ for s in integration:suites integration:gardes; do
     "$root/package.json" "$s" 2>/dev/null || wiring+=("$s")
 done
 
-[ ${#missing[@]} -eq 0 ] && [ ${#pending[@]} -eq 0 ] && [ ${#wiring[@]} -eq 0 ] && exit 0
+# The « impactes » mode leaves every suite to the night, which needs its line in the crontab.
+if [ "${mode:-}" = impactes ] && ! crontab -l 2>/dev/null | grep -qF "$root/scripts/nuit.sh"; then
+  nuit="0 3 * * * bash $root/scripts/nuit.sh"
+fi
+
+[ ${#missing[@]} -eq 0 ] && [ ${#pending[@]} -eq 0 ] && [ ${#wiring[@]} -eq 0 ] && [ -z "${nuit:-}" ] && exit 0
 
 echo "## Éléments du projet à définir (Roomi's Grillhouse)"
 if [ ${#missing[@]} -gt 0 ]; then
@@ -71,4 +81,7 @@ if [ ${#pending[@]} -gt 0 ]; then
 fi
 if [ ${#wiring[@]} -gt 0 ]; then
   echo "À brancher : $(IFS=' '; echo "${wiring[*]}") dans le package.json de la racine. Le script d'intégration (\`scripts/integration/integrer.mjs\`, contrat en tête) en a besoin pour lancer les suites et les gardes du projet ; sans eux, il refuse chaque lot. Un projet testé par Vitest reprend \`node scripts/integration/suites-vitest.mjs\` et \`npm run --silent pretest\` ; sinon, écris l'adaptateur de ses suites."
+fi
+if [ -n "${nuit:-}" ]; then
+  echo "La nuit n'est pas programmée : le projet a choisi « impactes », et ses suites complètes ne tournent que la nuit (\`scripts/nuit.sh\`). Propose au responsable d'ajouter à la table des tâches du poste (\`crontab -e\`) : \`$nuit\`."
 fi
