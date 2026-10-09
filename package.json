@@ -38,7 +38,8 @@
     "integration:suites": "node scripts/integration/suites-vitest.mjs",
     "integration:gardes": "npm run --silent pretest",
     "frontieres": "node scripts/frontieres.mjs",
-    "api": "node scripts/interfaces-contre-code.mjs --ecrire"
+    "api": "node scripts/interfaces-contre-code.mjs --ecrire",
+    "tableau": "node scripts/tableau.mjs --texte"
   },
   "keywords": [
     "keyword1",
