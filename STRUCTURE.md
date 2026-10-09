@@ -51,6 +51,7 @@ roomis-grillhouse/
 │   │   ├── enveloppe.mjs             # bwrap sandbox for one component (tests: tests/unit/enveloppe.spec.ts)
 │   │   └── lancer.sh                 # one ticket → one fresh role session in its envelope
 │   ├── consommateurs.mjs          # pretest: refuses an import that the provider's INTERFACE.md does not declare
+│   ├── frontieres.mjs             # pretest: dependency-cruiser, rules generated in .dependency-cruiser.cjs
 │   ├── integration/               # One delivery, in a clean copy: verdicts, lots, base, guards, suites, commit
 │   │   ├── integrer.mjs              # run by the integrateur (tests: tests/unit/integrer.spec.ts)
 │   │   └── suites-vitest.mjs         # npm run integration:suites: failing tests by name, for Vitest

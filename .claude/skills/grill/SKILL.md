@@ -151,6 +151,10 @@ ensuite. Ainsi les documents écrivent des décisions prises.
   charte cadre les agents dès la séance suivante.
 - `package.json` (nom, description, auteur, dépôt), `README.md`, `LICENSE` et `CREDITS.md` prennent
   l'identité du projet.
+- **Les règles de dépendance propres au projet** (un paquet qui n'importe rien, une couche qui ne
+  lit qu'en type) s'écrivent dans `.dependency-cruiser.projet.cjs` ; les règles communes sont
+  générées (`node scripts/frontieres.mjs --ecrire`). Ainsi chaque règle de structure décidée au
+  grill est tenue par un test.
 - **Ce que la forme écarte se retire** dans le même commit (les parties de service d'une
   bibliothèque, le code d'exemple du modèle). Ainsi le dépôt contient seulement ce que
   l'architecture décidée garde.

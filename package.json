@@ -34,9 +34,10 @@
     "daemon:status": "pm2 status",
     "daemon:delete": "pm2 delete project-name",
     "interfaces": "node scripts/index-interfaces.mjs",
-    "pretest": "node scripts/index-interfaces.mjs --verifier && node scripts/consommateurs.mjs",
+    "pretest": "node scripts/index-interfaces.mjs --verifier && node scripts/consommateurs.mjs && node scripts/frontieres.mjs",
     "integration:suites": "node scripts/integration/suites-vitest.mjs",
-    "integration:gardes": "npm run --silent pretest"
+    "integration:gardes": "npm run --silent pretest",
+    "frontieres": "node scripts/frontieres.mjs"
   },
   "keywords": [
     "keyword1",
@@ -69,6 +70,7 @@
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "@vitest/coverage-v8": "^2.1.9",
+    "dependency-cruiser": "18.4.0",
     "eslint": "^8.57.0",
     "pm2": "^5.4.2",
     "prettier": "^3.2.0",

@@ -107,6 +107,12 @@ passe par les interfaces, comme l'architecture le décide.
 régénéré (`npm run interfaces`) ; sinon les tests refusent. Ainsi chaque agent lit ce qui existe
 vraiment.
 
+**Les frontières se tiennent au test** : avant les tests, `scripts/frontieres.mjs` lance
+dependency-cruiser. Il refuse un cycle, un paquet atteint par un chemin plutôt que par son nom, un
+module de `src/` atteint par l'intérieur plutôt que par son `index`, un test ou un outil de
+développement importé par le code livré, un import qui ne se résout pas. Ainsi chaque composant
+passe par l'entrée que son interface décrit.
+
 **Une donnée manque, tu la demandes** : une donnée que ton composant ne reçoit pas, tu la cherches
 dans l'index ; c'est une découverte qui bloque, adressée au composant qui la fournit, ou à
 « personne » quand l'index ne la nomme pas. Ainsi chaque donnée garde un seul composant qui la
