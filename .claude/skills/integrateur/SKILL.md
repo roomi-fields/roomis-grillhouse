@@ -42,11 +42,13 @@ node scripts/integration/integrer.mjs --ticket <id> [--ticket <id>…] \
 ```
 
 `--ticket` nomme chaque ticket de code, qui porte le verdict du relecteur. Le script vérifie
-`ACCEPTÉ` et les arbitrages, garde les tests au testeur et le code au développeur, applique les lots
-en trois voies, rejoue les gardes, compare les suites à la base nom par nom, commite les seuls
-fichiers des lots avec leurs crochets, et contrôle que l'index est vide. Il tient sa propre attente :
-il rend la main sur le commit ou sur le refus, avec toute sa sortie. Ainsi une attente est un
-processus vivant, jamais une phrase.
+`ACCEPTÉ` et les arbitrages, garde les tests au testeur et le code au développeur. Puis, dans une
+copie d'intégration propre (`.claude/worktrees/integration`, sur HEAD, sans fichier local), il
+construit, mesure la base, applique les lots en trois voies, construit, rejoue les gardes, compare
+les suites à la base nom par nom et commite avec les crochets ; main avance alors sur ce commit.
+Ainsi le commit validé est exactement celui qui entre. Il tient sa propre attente : il rend la main
+sur le commit ou sur le refus, avec toute sa sortie. Ainsi une attente est un processus vivant,
+jamais une phrase.
 
 - **Un refus retourne à l'agent** avec la sortie entière du script ; tu ne corriges rien. Ainsi
   l'agent corrige la vraie cause du refus.

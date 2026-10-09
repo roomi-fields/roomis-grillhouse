@@ -10,19 +10,24 @@
 //     `RENDU` at the start of a comment) and, when labelled `arbitrage`, each « ## Arbitrage »
 //     comment is `### Verdict — tranché`, or a « ## Réponse du responsable » comment follows it;
 //  2. the lots: the tests lot touches test files only, the code lot no test file;
-//  3. the tree: the index is empty and every file of the lots is unmodified in the work tree;
-//  4. the base: the project's suites (`npm run integration:suites -- <packages>`) on HEAD; suites
+//  3. the main tree: every file of the lots is unmodified there;
+//  4. a clean integration copy (`.claude/worktrees/integration`): detached on HEAD, every
+//     untracked file removed, its dependencies installed again when `package-lock.json` changes
+//     (`npm ci`), then built (`npm run build`, when present);
+//  5. the base: the project's suites (`npm run integration:suites -- <packages>`) on HEAD; suites
 //     that fail without naming a test leave nothing to compare, and refuse;
-//  5. the lots, applied in three ways to the index and the work tree, tests first;
-//  6. the project's guards (`npm run integration:gardes`, when present);
-//  7. the suites again: a failing test that the base did not have and --admettre does not name
+//  6. the lots, applied in three ways in the copy, tests first, then built;
+//  7. the project's guards (`npm run integration:gardes`, when present);
+//  8. the suites again: a failing test that the base did not have and --admettre does not name
 //     refuses the lot, compared name by name;
-//  8. the commit of the lots' files with the message, its hooks included, then an empty index.
+//  9. the commit in the copy, its hooks included: the commit validated is the commit that enters;
+// 10. main moves forward onto it (`merge --ff-only`); main moved in the meantime refuses.
 //
+// The main tree is touched by the fast-forward only: the supervisor's own files stay as they are.
 // The suites command receives the touched packages (`packages/<x>`) as arguments and writes the
 // names of its failing tests, one per line, to the file named by the ROUGES variable.
-// One integration runs at a time (`.git/integration.lock`). A refusal after step 5 restores the
-// lots' files to HEAD. Exit code: 0 committed, 1 refused, 2 usage or another integration running.
+// One integration runs at a time (`.git/integration.lock`). Exit code: 0 committed, 1 refused,
+// 2 usage or another integration running.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -187,23 +192,52 @@ function main(argv) {
     const fichiers = [...new Set([...tests, ...code])];
     dire(`✓ lots : ${fichiers.length} fichiers`);
 
-    // 3. The tree.
-    if (git('diff', '--cached', '--name-only').stdout.trim())
-      return refuser("L'index n'est pas vide.");
+    // 3. The main tree: the lots' files are free there, so the fast-forward can bring them.
     const tenus = git('status', '--porcelain', '--', ...fichiers).stdout.trim();
     if (tenus) return refuser(`Des fichiers du lot sont modifiés dans l'arbre :\n${tenus}`);
-    dire('✓ arbre propre');
+    dire('✓ arbre principal libre');
+
+    // 4. The integration copy: detached on HEAD, without any untracked file; its dependencies
+    // are kept only while the lock file is the same (a CI cache keyed by the lock file).
+    const tete = git('rev-parse', 'HEAD').stdout.trim();
+    const copie = path.join(racine, '.claude', 'worktrees', 'integration');
+    const dansCopie = (...args) => spawnSync('git', ['-C', copie, ...args], { encoding: 'utf8' });
+    const prete = existsSync(copie)
+      ? dansCopie('checkout', '-q', '--detach', '--force', tete).status === 0 &&
+        dansCopie('clean', '-q', '-f', '-d', '-x', '-e', 'node_modules').status === 0
+      : git('worktree', 'add', '-q', '--detach', copie, tete).status === 0;
+    if (!prete) return refuser(`La copie d'intégration ${copie} ne se prépare pas.`);
+    const npm = (args, env = {}) => {
+      const r = spawnSync('npm', args, {
+        cwd: copie,
+        encoding: 'utf8',
+        env: { ...process.env, ...env },
+      });
+      process.stdout.write(r.stdout + r.stderr);
+      return r;
+    };
+    const verrouNpm = path.join(copie, 'package-lock.json');
+    if (existsSync(verrouNpm)) {
+      const cle = path.join(copie, 'node_modules', '.integration-lock');
+      const empreinte = readFileSync(verrouNpm, 'utf8');
+      if (!existsSync(cle) || readFileSync(cle, 'utf8') !== empreinte) {
+        if (npm(['ci', '--no-audit', '--no-fund', '--silent']).status !== 0) {
+          return refuser("Les dépendances de la copie d'intégration ne s'installent pas.");
+        }
+        writeFileSync(cle, empreinte);
+      }
+    }
+    const construire = () => npm(['run', '--silent', '--if-present', 'build']).status === 0;
+    if (!construire()) return refuser('HEAD ne se construit pas.');
+    dire(`✓ copie d'intégration propre sur ${tete.slice(0, 7)}`);
 
     const touches = paquets(fichiers);
     const suites = nom => {
       const rouges = path.join(tmp, nom);
       writeFileSync(rouges, '');
-      const r = spawnSync('npm', ['run', '--silent', 'integration:suites', '--', ...touches], {
-        cwd: racine,
-        encoding: 'utf8',
-        env: { ...process.env, ROUGES: rouges },
+      const r = npm(['run', '--silent', 'integration:suites', '--', ...touches], {
+        ROUGES: rouges,
       });
-      process.stdout.write(r.stdout + r.stderr);
       const noms = readFileSync(rouges, 'utf8')
         .split('\n')
         .map(s => s.trim())
@@ -213,7 +247,7 @@ function main(argv) {
       return noms;
     };
 
-    // 4. The base.
+    // 5. The base.
     dire('— les suites sur HEAD (la base)');
     const base = suites('base');
     if (base.some(n => n.startsWith('(les suites sortent'))) {
@@ -223,51 +257,43 @@ function main(argv) {
     }
     dire(`✓ base : ${base.length} rouges`);
 
-    // From here on, a refusal restores the lots' files to HEAD.
-    const restaurer = () => {
-      git('reset', '-q', '--', ...fichiers);
-      for (const f of fichiers) {
-        const existe = git('cat-file', '-e', `HEAD:${f}`).status === 0;
-        if (existe) git('checkout', 'HEAD', '--', f);
-        else if (existsSync(path.join(racine, f))) unlinkSync(path.join(racine, f));
-      }
-    };
-    const refuserEtRestaurer = s => {
-      restaurer();
-      return refuser(s);
-    };
-
-    // 5. The lots, applied.
+    // 6. The lots, applied in the copy, then built.
     for (const p of lots) {
-      const r = git('apply', '--3way', '--index', p);
-      if (r.status !== 0)
-        return refuserEtRestaurer(`Le lot ${p} ne s'applique pas :\n${r.stdout}${r.stderr}`);
+      const r = dansCopie('apply', '--3way', '--index', p);
+      if (r.status !== 0) return refuser(`Le lot ${p} ne s'applique pas :\n${r.stdout}${r.stderr}`);
     }
-    dire('✓ lots appliqués');
+    if (!construire()) return refuser('Le lot ne se construit pas.');
+    dire('✓ lots appliqués et construits');
 
-    // 6. The guards.
-    const gardes = spawnSync('npm', ['run', '--silent', '--if-present', 'integration:gardes'], {
-      cwd: racine,
-      encoding: 'utf8',
-    });
-    if (gardes.status !== 0)
-      return refuserEtRestaurer(`Les gardes refusent :\n${gardes.stdout}${gardes.stderr}`);
+    // 7. The guards.
+    const gardes = npm(['run', '--silent', '--if-present', 'integration:gardes']);
+    if (gardes.status !== 0) return refuser('Les gardes refusent (sortie ci-dessus).');
     dire('✓ gardes');
 
-    // 7. The suites, compared to the base.
+    // 8. The suites, compared to the base.
     dire('— les suites avec le lot');
     const nouveaux = nouveauxRouges(base, suites('apres'), o.admettre);
     if (nouveaux.length)
-      return refuserEtRestaurer(`Rouges nouveaux :\n${nouveaux.map(n => `  ✗ ${n}`).join('\n')}`);
+      return refuser(`Rouges nouveaux :\n${nouveaux.map(n => `  ✗ ${n}`).join('\n')}`);
     for (const a of o.admettre) dire(`⚠ admis par l'intégrateur : ${a}`);
     dire('✓ suites');
 
-    // 8. The commit.
-    const c = git('commit', '-q', '-F', absolu(o.message));
-    if (c.status !== 0) return refuserEtRestaurer(`Le commit est refusé :\n${c.stdout}${c.stderr}`);
-    const reste = git('diff', '--cached', '--name-only').stdout.trim();
-    if (reste) return refuser(`L'index n'est pas vide après le commit :\n${reste}`);
-    dire(`✓ commit ${git('rev-parse', '--short', 'HEAD').stdout.trim()}`);
+    // 9. The commit, in the copy: the commit validated is the commit that enters.
+    const c = dansCopie('commit', '-q', '-F', absolu(o.message));
+    if (c.status !== 0) return refuser(`Le commit est refusé :\n${c.stdout}${c.stderr}`);
+    const commit = dansCopie('rev-parse', 'HEAD').stdout.trim();
+
+    // 10. main moves forward onto it, or main has moved and the integration starts again.
+    if (git('rev-parse', 'HEAD').stdout.trim() !== tete) {
+      return refuser("main a bougé pendant l'intégration : relance-la sur le nouveau HEAD.");
+    }
+    const avance = git('merge', '-q', '--ff-only', commit);
+    if (avance.status !== 0) {
+      return refuser(
+        `main n'avance pas sur ${commit.slice(0, 7)} :\n${avance.stdout}${avance.stderr}`
+      );
+    }
+    dire(`✓ commit ${commit.slice(0, 7)}`);
     return 0;
   } finally {
     rmSync(tmp, { recursive: true, force: true });

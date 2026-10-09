@@ -75,7 +75,8 @@ describe('nouveauxRouges and paquets', () => {
   });
 });
 
-// A repository with a fake Beads and suites that fail the tests named in ROUGES_FORCES.
+// A repository with a fake Beads, suites that fail the tests named in ROUGES_FORCES, and guards
+// that refuse while GARDE_ROUGE exists.
 function monde(commentaires: string[]) {
   const repo = mkdtempSync(path.join(tmpdir(), 'integrer-'));
   const bin = mkdtempSync(path.join(tmpdir(), 'bin-'));
@@ -94,7 +95,7 @@ function monde(commentaires: string[]) {
     JSON.stringify({
       scripts: {
         'integration:suites': 'node suites.mjs',
-        'integration:gardes': 'test ! -f GARDE_ROUGE',
+        'integration:gardes': 'test ! -f GARDE_ROUGE && test ! -f RESTE',
       },
     })
   );
@@ -104,7 +105,7 @@ function monde(commentaires: string[]) {
   );
   mkdirSync(path.join(repo, 'src'));
   writeFileSync(path.join(repo, 'src/a.ts'), 'export const a = 1;\n');
-  writeFileSync(path.join(repo, '.gitignore'), 'ROUGES_FORCES\nGARDE_ROUGE\n');
+  writeFileSync(path.join(repo, '.gitignore'), '.claude/worktrees/\n');
   git('init', '-q');
   git('add', '.');
   git('commit', '-q', '-m', 'base');
@@ -146,6 +147,7 @@ function monde(commentaires: string[]) {
           GIT_AUTHOR_EMAIL: 't@t',
           GIT_COMMITTER_NAME: 't',
           GIT_COMMITTER_EMAIL: 't@t',
+          PRINCIPAL: repo,
         },
       }
     );
@@ -155,7 +157,13 @@ function monde(commentaires: string[]) {
     a: readFileSync(path.join(repo, 'src/a.ts'), 'utf8'),
     test: existsSync(path.join(repo, 'tests/a.spec.ts')),
   });
-  return { repo, run, etat };
+  // Commits a file in the main tree, as another delivery would.
+  const poser = (f: string, contenu: string) => {
+    writeFileSync(path.join(repo, f), contenu);
+    git('add', f);
+    git('commit', '-qm', `pose ${f}`);
+  };
+  return { repo, run, etat, poser };
 }
 
 describe('an integration', () => {
@@ -175,12 +183,11 @@ describe('an integration', () => {
   });
   it('refuses a lot whose guards refuse, and restores its files', () => {
     const m = monde(['ACCEPTÉ']);
-    writeFileSync(path.join(m.repo, 'GARDE_ROUGE'), '');
+    m.poser('GARDE_ROUGE', '');
     const r = m.run();
     expect(r.status).toBe(1);
     expect(r.stdout).toMatch(/gardes refusent/);
     expect(m.etat()).toMatchObject({
-      log: ['base'],
       status: '',
       a: 'export const a = 1;\n',
       test: false,
@@ -214,7 +221,7 @@ describe('an integration', () => {
   });
   it('keeps a failure the base already had', () => {
     const m = monde(['ACCEPTÉ']);
-    writeFileSync(path.join(m.repo, 'ROUGES_FORCES'), 'vieux > rouge\n');
+    m.poser('ROUGES_FORCES', 'vieux > rouge\n');
     expect(m.run().status).toBe(0);
   });
   it('refuses suites that fail without naming a test, on the base or with the lot', () => {
@@ -258,6 +265,51 @@ describe('an integration', () => {
     expect(r.status).toBe(1);
     expect(r.stdout).toMatch(/modifiés dans l'arbre/);
     expect(m.etat().a).toBe('export const a = 3;\n');
+  });
+  it('runs the suites on a clean copy: an untracked file of the main tree does not count', () => {
+    const m = monde(['ACCEPTÉ']);
+    writeFileSync(path.join(m.repo, 'ROUGES_FORCES'), 'local > rouge\n');
+    writeFileSync(path.join(m.repo, 'GARDE_ROUGE'), '');
+    expect(m.run().status).toBe(0);
+  });
+  it('cleans the integration copy of what an earlier integration left there', () => {
+    const m = monde(['ACCEPTÉ']);
+    m.poser('GARDE_ROUGE', '');
+    expect(m.run().status).toBe(1);
+    execFileSync('git', ['-C', m.repo, 'rm', '-q', 'GARDE_ROUGE']);
+    execFileSync('git', [
+      '-C',
+      m.repo,
+      '-c',
+      'user.name=t',
+      '-c',
+      'user.email=t@t',
+      'commit',
+      '-qm',
+      'garde',
+    ]);
+    writeFileSync(path.join(m.repo, '.claude/worktrees/integration/RESTE'), '');
+    expect(m.run().status).toBe(0);
+  });
+  it("leaves the supervisor's own modified files in place", () => {
+    const m = monde(['ACCEPTÉ']);
+    m.poser('NOTES', 'v1\n');
+    writeFileSync(path.join(m.repo, 'NOTES'), 'v2 du superviseur\n');
+    expect(m.run().status).toBe(0);
+    expect(readFileSync(path.join(m.repo, 'NOTES'), 'utf8')).toBe('v2 du superviseur\n');
+    expect(m.etat()).toMatchObject({ a: 'export const a = 2;\n', test: true });
+  });
+  it('refuses when main moved during the integration', () => {
+    const m = monde(['ACCEPTÉ']);
+    // The suites commit on main while they run, as a supervisor would.
+    m.poser(
+      'suites.mjs',
+      "import fs from 'node:fs';\nimport { execSync } from 'node:child_process';\nif (fs.existsSync('tests/a.spec.ts')) execSync(`git -C ${process.env.PRINCIPAL} -c user.name=t -c user.email=t@t commit -q --allow-empty -m bouge`);\nfs.writeFileSync(process.env.ROUGES, '');\n"
+    );
+    const r = m.run();
+    expect(r.stdout).toMatch(/main a bougé/);
+    expect(r.status).toBe(1);
+    expect(m.etat().log[0]).toBe('bouge');
   });
   it('waits for another integration that runs', () => {
     const m = monde(['ACCEPTÉ']);

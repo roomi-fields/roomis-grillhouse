@@ -85,8 +85,8 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
 - **Un intégrateur par livraison** : dès qu'un ticket a son lot relu, je lance un intégrateur
   neuf (`subagent_type: integrateur`, en arrière-plan, `name: <ticket>-integration`) sur ce seul
   lot. Il juge le diff, lance le script d'intégration, et sort sur le commit ou sur le refus ; sa
-  fin me revient en notification. Entre deux intégrations, l'index partagé est libre, et je
-  commite mes propres fichiers. Ainsi un intégrateur égale une livraison égale un ticket, et chaque
+  fin me revient en notification. Le script travaille dans sa propre copie et ne touche l'arbre
+  principal que pour y avancer main : je commite mes propres fichiers quand je veux. Ainsi un intégrateur égale une livraison égale un ticket, et chaque
   commit passe le même contrôle.
 - **Un « en cours » est un processus vivant** : chaque agent et chaque script que je lance tourne
   en arrière-plan, et sa fin me revient en notification. Un agent qui annonce une attente sans
