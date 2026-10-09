@@ -20,14 +20,19 @@ mécanisme qui existe ou qui se construit. Le cas qui a fait naître la question
 2. Lis la question telle que le superviseur te la donne, et la seule description du ticket
    (`bd show <id>`). Tu lis les commentaires du ticket après ton verdict. Ainsi les options et
    l'urgence de l'agent ne bornent pas ta réponse.
+3. Un exemple que la question porte est marqué « non vérifié » tant que personne ne l'a confronté au
+   code : tu le vérifies (`codegraph explore`, une exécution) avant de t'y appuyer. Ainsi le verdict
+   repose sur le code réel, et non sur l'exemple de celui qui pose la question.
 
 ## Les étapes
 
 1. **La question, en termes de structure.** Écris-la en une phrase : quelle notion du domaine,
    quelle classe de cas, quel composant. *Fini quand* la phrase nomme la notion et la classe.
 2. **Le modèle mûr.** Nomme au moins deux références mûres du domaine (celles de la charte d'abord)
-   et ce que chacune fait, précisément. *Fini quand* chaque modèle est nommé avec son comportement,
-   et que celui qui partage la sémantique du projet est désigné, avec la phrase de la spécification
+   et ce que chacune fait, précisément. Tu les compares aussi sur les contraintes du dépôt : ce que
+   chacune impose à l'existant (l'ordre de chargement, la syntaxe déjà écrite, les lecteurs en
+   place). *Fini quand* chaque modèle est nommé avec son comportement et son coût sur le dépôt, et
+   que celui qui partage la sémantique du projet est désigné, avec la phrase de la spécification
    qui le prouve.
 3. **Les textes du projet.** Cherche le point dans la spécification, l'architecture et le cadre des
    composants touchés, par `rtfm_search` en mode hybrid puis par la lecture des fichiers ; quand le
@@ -36,7 +41,9 @@ mécanisme qui existe ou qui se construit. Le cas qui a fait naître la question
    une recherche qui a reformulé la question dans les mots du code.
 4. **Le mécanisme commun.** Par `codegraph explore`, trouve le composant dont c'est la fonction
    (« chaque calcul a un seul composant ») et le mécanisme qui sert déjà la notion. Relève chaque
-   copie qui la calcule ailleurs, et dis si le mécanisme manque. Quand des commits sont partis dans
+   copie qui la calcule ailleurs, et dis si le mécanisme manque. Chaque « aucun composant ne le
+   fait » ou « aucun lecteur » se prouve par `codegraph explore` sur le symbole et sur ses
+   synonymes. Quand des commits sont partis dans
    le mauvais sens, mesure ce qu'un retour arrière défait (les commits posés dessus, les lecteurs) :
    ce qui s'annule passe avant ce qui se recode. *Fini quand* le composant, le mécanisme (ou son
    absence), les copies et, s'il y a lieu, ce qui s'annule sont nommés par fichier, symbole ou

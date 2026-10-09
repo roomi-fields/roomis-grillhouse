@@ -52,6 +52,32 @@ describe('entrees', () => {
   });
 });
 
+describe('entrees and code blocks', () => {
+  it('takes no heading from inside a code block', () => {
+    const text = [
+      '# c',
+      '',
+      'C rend x.',
+      '',
+      '```ts',
+      '## pas un titre',
+      '```',
+      '',
+      '  ~~~',
+      '### non plus',
+      '  ~~~',
+      '',
+      '## vrai',
+      '',
+      'Oui.',
+    ].join('\n');
+    const lines = entrees('packages/c/docs/INTERFACE.md', text);
+    expect(lines.filter(l => l.startsWith('-') || l.startsWith('  -'))).toEqual([
+      '- **vrai** — Oui.',
+    ]);
+  });
+});
+
 describe('interfaces', () => {
   it('finds the interfaces of packages, of modules and of the root, in order', () => {
     const dir = repo({

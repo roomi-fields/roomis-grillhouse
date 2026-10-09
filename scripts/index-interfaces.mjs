@@ -8,7 +8,8 @@
 //
 // An interface is found at `packages/<x>/docs/INTERFACE.md`, `src/<x>/docs/INTERFACE.md` and
 // `docs/INTERFACE.md`. Its title and first sentence give the component's line; each `##` and
-// `###` heading, with the first sentence under it, gives an element's line.
+// `###` heading, with the first sentence under it, gives an element's line; code blocks (``` or
+// ~~~, indented or not) are skipped whole.
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -44,13 +45,24 @@ export function entrees(rel, contenu) {
   const sections = [];
   let courante = { niveau: 1, titre, corps: [] };
   const fermer = () => sections.push(courante);
+  let cloture = null;
   for (const l of lignes) {
+    // A code block is skipped whole: a `## …` written inside it is code, not a heading.
+    const f = /^\s*(```|~~~)/.exec(l);
+    if (cloture) {
+      if (f && f[1] === cloture) cloture = null;
+      continue;
+    }
+    if (f) {
+      cloture = f[1];
+      continue;
+    }
     const m = /^(#{1,3}) (.+)$/.exec(l);
     if (m) {
       if (m[1].length === 1) continue;
       fermer();
       courante = { niveau: m[1].length, titre: m[2].trim(), corps: [] };
-    } else if (l.trim() && !l.startsWith('|') && !l.startsWith('```')) {
+    } else if (l.trim() && !l.startsWith('|')) {
       if (courante.corps.length < 6) courante.corps.push(l.replace(/^[-*]\s+/, ''));
     }
   }

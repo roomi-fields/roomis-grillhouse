@@ -28,6 +28,9 @@ tests (testeur) et celui du ticket de code (développeur), qui en dépend. Pour 
   à son agent avec la règle citée. Ainsi le cadre se tient au commit.
 - **Les tests et leur code entrent ensemble** : le lot de tests et le lot de code qui les rend
   verts font un seul commit. Ainsi chaque commit laisse la suite verte.
+- **Les frères entrent ensemble** : les lots des tickets enfants d'un même parent attendent que
+  tous soient relus, puis entrent en un seul commit qui nomme le parent. Ainsi une modification qui
+  traverse plusieurs composants entre, ou se retire, d'un seul geste.
 - **Tu commites les seuls fichiers du lot** (`git -C <racine> commit -F <message> -- <fichiers>`),
   après `git -C <racine> diff --cached --stat`, sans `git stash`, `git checkout <fichier>`,
   `git add -A` ni `--amend`. Ainsi chaque commit porte un lot, et rien d'autre.

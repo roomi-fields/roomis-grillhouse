@@ -122,9 +122,14 @@ remplace jamais le grill. Les branches de l'arbre :
    pièces ; pour chacun, les huit rubriques du cadre : rôle, reçoit, rend, connaît, ne connaît pas,
    refuse, invariants, coût. Puis la forme : un paquet ou plusieurs, bibliothèque ou service (un
    service garde `deployment/`, le démon et `.env`), TypeScript ou JavaScript. **Plusieurs paquets,
-   des murs de compilateur** : chaque paquet est un projet TypeScript `composite`, ses dépendances
-   en `references`, son entrée publiée dans le champ `exports` de son `package.json`. Ainsi le
-   compilateur refuse un import qui contourne l'interface.
+   une forme publiée** : chaque paquet publie son entrée dans le champ `exports` de son
+   `package.json`, construite dans `dist/`, et sa matière de test partagée dans
+   `dist/test-fixtures/` (`exports["./test-fixtures"]`), comme les `testFixtures` de Gradle. L'ordre
+   de construction se lit dans les `dependencies` des `package.json`, comme Cargo et Turborepo ;
+   aucune configuration ne lit celle d'un voisin, que l'enveloppe cache. Un test atteint son paquet
+   par une seule route : les sources relatives pour un test unitaire, le nom du paquet pour un test
+   de porte. Ainsi un agent enveloppé construit et teste son paquet avec ce que ses voisins
+   publient.
 9. **Les interfaces** — pour chaque frontière : ce qui la traverse, qui offre, qui consomme, qui
    juge quelle faute, et le garde qui la tiendra.
 10. **L'architecture** — les trois ou quatre choix qui commandent le reste, chacun avec sa raison et

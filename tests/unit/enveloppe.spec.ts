@@ -1,5 +1,12 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -207,6 +214,51 @@ describe.runIf(canWrap)('the launcher', () => {
     );
     const vu = execFileSync('cat', [path.join(copie, 'packages/a/vu')], { encoding: 'utf8' });
     expect(vu).not.toMatch(/secret/);
+  });
+  it('matches the ticket whole', () => {
+    const longer = path.join(repo, 'plus-long.txt');
+    writeFileSync(longer, 'TON TICKET : demo-10 — un autre.');
+    expect(launch(longer).status).toBe(2);
+  });
+  it('places the copy next to the others when launched from a copy', () => {
+    const r = spawnSync('bash', [LAUNCHER, 'demo-1', 'developpeur', 'packages/a', consigne], {
+      cwd: copie,
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_BIN: fake },
+    });
+    expect(r.status).toBe(0);
+    expect(existsSync(path.join(copie, '.claude/worktrees'))).toBe(false);
+  });
+  it('stops when the copy cannot move forward, and logs why', () => {
+    execFileSync('git', [
+      '-C',
+      copie,
+      '-c',
+      'user.name=t',
+      '-c',
+      'user.email=t@t',
+      'commit',
+      '-q',
+      '--allow-empty',
+      '-m',
+      'agent',
+    ]);
+    execFileSync('git', [
+      '-C',
+      repo,
+      '-c',
+      'user.name=t',
+      '-c',
+      'user.email=t@t',
+      'commit',
+      '-q',
+      '--allow-empty',
+      '-m',
+      'main',
+    ]);
+    const r = launch(consigne);
+    expect(r.status).toBe(4);
+    expect(readFileSync(copie + '.log', 'utf8')).toMatch(/fast-forward|Not possible|impossible/i);
   });
   it('refuses an instruction without its ticket', () => {
     const other = path.join(repo, 'autre.txt');

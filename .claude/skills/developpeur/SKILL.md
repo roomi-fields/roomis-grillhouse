@@ -86,6 +86,10 @@ par son propre ticket, à sa place dans l'architecture.
 vois l'interface et la forme publiée ; tu les lis par l'index, puis par `rtfm_search`. Ainsi ton code
 passe par les interfaces, comme l'architecture le décide.
 
+**Une interface changée régénère l'index** : un lot qui change un `INTERFACE.md` contient l'index
+régénéré (`npm run interfaces`) ; sinon les tests refusent. Ainsi chaque agent lit ce qui existe
+vraiment.
+
 **Une donnée manque, tu la demandes** : une donnée que ton composant ne reçoit pas, tu la cherches
 dans l'index ; tu t'arrêtes et tu la demandes au superviseur, avec le composant qui la fournit, ou
 « personne » quand l'index ne la nomme pas. Ainsi chaque donnée garde un seul composant qui la

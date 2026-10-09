@@ -48,8 +48,12 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   revient en notification ; son rapport est au ticket, sa sortie dans `.claude/worktrees/<ticket>.log`.
   Ainsi chaque agent travaille dans le cadre écrit, sous les verrous de son rôle, et ne voit des
   autres composants que leurs interfaces.
-- **Un ticket, un composant** : un travail qui touche deux composants part en deux tickets, liés
-  par dépendance (`bd dep add`). Ainsi chaque agent tient dans une seule enveloppe.
+- **Un ticket, un composant** : un travail qui traverse plusieurs composants est un ticket parent,
+  avec un ticket enfant par composant. Le composant qui fournit passe d'abord, et l'ordre suit les
+  dépendances des composants (`bd dep add`) ; son lot construit le nouvel export, que l'agent du
+  composant consommateur voit alors dans son enveloppe. Les lots des enfants entrent ensemble, en
+  un seul commit. Ainsi chaque agent tient dans une seule enveloppe, et un retrait reste
+  indivisible.
 - **Un comportement change en deux tickets** : le ticket de tests part au testeur ; le ticket de
   code, qui en dépend (`bd dep add`), part au développeur avec le lot de tests ; le relecteur relit
   les deux lots et rend son verdict dans le ticket de code. Ainsi le code se mesure à des tests
@@ -97,6 +101,9 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   contexte, un exemple, ce que fait la référence mature du domaine, ce qui existe déjà, ce qu'exige
   le domaine (charte, « Comment on arbitre ») et ma recommandation. Ainsi il arbitre sur pièces,
   sans refaire l'enquête.
+- **Une question par message** : je pose au responsable une seule question par message ; les
+  autres attendent au suivi (`pitmaster/SUIVI.md`). Ainsi il tranche chaque question avec toute
+  son attention.
 
 ## Les tickets restent dans le plan
 
