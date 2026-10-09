@@ -24,7 +24,9 @@
 //  7. the project's guards (`npm run integration:gardes`, when present);
 //  8. the suites again: a failing test that the base did not have and --admettre does not name
 //     refuses the lot, compared name by name;
-//  9. the commit in the copy, its hooks included: the commit validated is the commit that enters;
+//  9. the commit in the copy, its hooks included, under GRILLHOUSE_INTEGRATION=1: a pre-commit
+//     hook that plays the guards skips them, as step 7 just played them; the commit validated is
+//     the commit that enters;
 // 10. main moves forward onto it (`merge --ff-only`); main moved in the meantime refuses.
 //
 // The main tree is touched by the fast-forward only: the supervisor's own files stay as they are.
@@ -335,7 +337,12 @@ function main(argv) {
     dire('✓ suites');
 
     // 9. The commit, in the copy: the commit validated is the commit that enters.
-    const c = dansCopie('commit', '-q', '-F', absolu(o.message));
+    // The guards have just run: a pre-commit hook that plays them skips them under
+    // GRILLHOUSE_INTEGRATION=1; commit-msg (one ticket, one commit) runs as always.
+    const c = spawnSync('git', ['-C', copie, 'commit', '-q', '-F', absolu(o.message)], {
+      encoding: 'utf8',
+      env: { ...process.env, GRILLHOUSE_INTEGRATION: '1' },
+    });
     if (c.status !== 0) return refuser(`Le commit est refusé :\n${c.stdout}${c.stderr}`);
     const commit = dansCopie('rev-parse', 'HEAD').stdout.trim();
 

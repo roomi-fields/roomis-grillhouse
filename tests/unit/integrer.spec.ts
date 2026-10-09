@@ -390,6 +390,17 @@ describe('an integration', () => {
     expect(r.stdout).toMatch(/toutes les suites/);
     expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('[]');
   });
+  it('tells the pre-commit hook that the guards have just run', () => {
+    const m = monde(['ACCEPTÉ']);
+    const crochets = path.join(m.repo, '.git', 'hooks');
+    writeFileSync(
+      path.join(crochets, 'pre-commit'),
+      `#!/bin/sh\necho "\${GRILLHOUSE_INTEGRATION:-absent}" > ${m.repo}.precommit\n`,
+      { mode: 0o755 }
+    );
+    expect(m.run().status).toBe(0);
+    expect(readFileSync(`${m.repo}.precommit`, 'utf8').trim()).toBe('1');
+  });
   it('waits for another integration that runs', () => {
     const m = monde(['ACCEPTÉ']);
     writeFileSync(path.join(m.repo, '.git/integration.lock'), String(process.pid));
