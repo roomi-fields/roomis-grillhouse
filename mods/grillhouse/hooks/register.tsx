@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Etat, Ligne, Tableau } from '../types'
+import type { Etat, Fiche, Ligne, Tableau } from '../types'
 
 // The board of a Grillhouse project: the status line holds the chantier in progress, the pane
 // (/grillhouse) its three levels. The project's own `scripts/tableau.mjs` measures and lays out the
@@ -26,7 +26,33 @@ const etat = atom({ plugin: 'grillhouse', key: 'etat' } as const, {
   tableau: null,
   erreur: null,
   lu: 0,
+  choisi: null,
 } as Etat)
+
+export const k = (n: number) =>
+  n >= 1e6 ? `${(n / 1e6).toFixed(1).replace('.', ',')} M` : n >= 1e3 ? `${Math.round(n / 1e3)} k` : `${n}`
+export const duree = (ms: number) => {
+  const min = Math.round(ms / 60_000)
+  return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}`
+}
+const STATUTS: Record<string, string> = {
+  open: 'ouvert',
+  in_progress: 'en cours',
+  blocked: 'bloqué',
+  deferred: 'reporté',
+  closed: 'fait',
+}
+// The card's lines, below its rule: number and whole title, then component, state, duration and
+// tokens, then the start of the description. The pane gives it its last rows.
+export const FICHE = 6
+export function ficheLignes(f: Fiche | undefined): string[] {
+  if (!f) return ['ctrl+x tab, puis tab : la fiche du ticket choisi ; Échap : le prompt.']
+  return [
+    `${f.numero} — ${f.titre}`,
+    [f.composant, STATUTS[f.statut] ?? f.statut, duree(f.duree), `${k(f.jetons)} jetons`].filter(Boolean).join(' · '),
+    f.resume,
+  ].filter(Boolean)
+}
 
 // The colour of a line's tone.
 export const couleur = (ton: Ligne['ton']) =>
@@ -45,7 +71,7 @@ async function rafraichir($: EngineInterface) {
     return
   }
   const tableau = JSON.parse(r.stdout) as Tableau
-  await update($, etat, () => ({ tableau, erreur: null, lu: Date.now() }))
+  await update($, etat, s => ({ ...s, tableau, erreur: null, lu: Date.now() }))
   $.ui.status(tableau.etat)
 }
 
@@ -79,22 +105,53 @@ export const register: Register = on => {
     return ran
   }).catch(($, e, next) => next(e))
 
+  // The ring that moves onto a ticket's line chooses that ticket.
+  on('ui.focus', async ($, e, next) => {
+    const r = await next(e)
+    if (e.requestId === PANE && e.element) {
+      const ticket = e.element.split(':')[0] ?? null
+      await update($, etat, s => ({ ...s, choisi: ticket }))
+    }
+    return r
+  })
+
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const { Box, Text } = $.ui.resolve(e)
-    const { tableau: t, erreur } = await read($, etat)
+    const { Box, Text, Button } = $.ui.resolve(e)
+    const { tableau: t, erreur, choisi } = await read($, etat)
     if (!t) return <Text dimColor>{erreur ?? 'Lecture du tableau…'}</Text>
+    const fiche = choisi ? t.fiches[choisi] : undefined
+    const hauteur = e.props.scroll.bodyRows
     return (
-      <Box flexDirection="column">
-        {t.lignes.map(l => (
-          <Text
-            bold={l.ton === 'titre'}
-            dimColor={l.ton === 'discret'}
-            color={couleur(l.ton)}
-            wrap="truncate-end"
-          >
-            {l.texte || ' '}
-          </Text>
-        ))}
+      <Box flexDirection="column" height={hauteur}>
+        <Box flexDirection="column" flexGrow={1} overflow="hidden">
+          {t.lignes.map((l, i) => {
+            const texte = (
+              <Text bold={l.ton === 'titre'} dimColor={l.ton === 'discret'} color={couleur(l.ton)} wrap="truncate-end">
+                {l.texte || ' '}
+              </Text>
+            )
+            // A ticket's line is a plain button: the ring inverts it and shows its card below.
+            return l.ticket ? (
+              <Button
+                key={`${l.ticket}:${i}`}
+                plain
+                onPress={() => void update($, etat, s => ({ ...s, choisi: l.ticket ?? null }))}
+              >
+                {texte}
+              </Button>
+            ) : (
+              texte
+            )
+          })}
+        </Box>
+        <Box flexDirection="column" height={FICHE + 1} overflow="hidden">
+          <Text dimColor>{'─'.repeat(e.props.bodyColumns)}</Text>
+          {ficheLignes(fiche).map((x, i) => (
+            <Text bold={i === 0 && !!fiche} dimColor={!fiche || i === 1} wrap="wrap">
+              {x}
+            </Text>
+          ))}
+        </Box>
       </Box>
     )
   })

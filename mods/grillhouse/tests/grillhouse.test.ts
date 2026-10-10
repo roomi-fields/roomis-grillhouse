@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { couleur, placement } from '../hooks/register'
+import { couleur, ficheLignes, placement } from '../hooks/register'
 import type { Tableau } from '../types'
 
 const TABLEAU: Tableau = {
@@ -9,6 +9,7 @@ const TABLEAU: Tableau = {
     { texte: '⚠ 1 ticket(s) attendent ta décision', ton: 'attention' },
     { texte: '4 développeur  ▶ c.1.1 moteur ⌁', ton: 'actif' },
   ],
+  fiches: {},
   etat: '⚠ 1 · c 1/5 · ▶ 1 en cours · 1 k aujourd\'hui',
 }
 
@@ -64,4 +65,19 @@ test('the pane says where it sits, and what docking it beside the transcript tak
   expect(placement({ isFullscreen: true, columns: 140 })).toBe('Tableau Grillhouse ouvert sur le côté.')
   expect(placement({ isFullscreen: true, columns: 80 })).toMatch(/au moins 110 colonnes \(il en a 80\)/)
   expect(placement({ isFullscreen: false, columns: 200 })).toMatch(/\/tui fullscreen/)
+})
+
+test("the card says the chosen ticket's whole title, its state, duration, tokens and summary", () => {
+  expect(
+    ficheLignes({
+      numero: '320.2.1',
+      titre: "Publie l'objet de la scène",
+      composant: '030-binder',
+      statut: 'in_progress',
+      duree: 12 * 60_000,
+      jetons: 310_000,
+      resume: 'Le résumé.',
+    }),
+  ).toEqual(["320.2.1 — Publie l'objet de la scène", '030-binder · en cours · 12 min · 310 k jetons', 'Le résumé.'])
+  expect(ficheLignes(undefined)[0]).toMatch(/ctrl\+x tab/)
 })
