@@ -29,8 +29,10 @@ décide avant le code, et chaque réalisation part petite et testable.
 3. **Le découpage.** Tu proposes les tickets de réalisation. Chacun touche un seul composant, décrit
    un seul comportement par ses tests, et fait une seule livraison. Un travail qui traverse
    plusieurs composants devient un ticket parent, un enfant par composant, le fournisseur d'abord.
+   Chaque critère de fin se confronte à la spécification et se mesure par une sonde avant d'être
+   proposé. Ainsi aucun ticket ne vise un résultat que la spécification interdit.
    *Fini quand* chaque ticket proposé a sa section « Architecture », son composant et son critère de
-   fin vérifiable.
+   fin vérifiable, confronté et mesuré.
 
 ## La fin
 

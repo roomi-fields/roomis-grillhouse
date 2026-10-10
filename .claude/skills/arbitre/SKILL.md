@@ -86,5 +86,10 @@ remplies :
 ### Les options de l'agent
 ```
 
+**Les tickets que le verdict demande** : chacun touche un seul composant, et tu le crées toi-même
+sous le ticket, étiqueté `a-valider` (`docs/agents/issue-tracker.md`, « Numéros et titres ») ; le
+verdict les nomme par leur numéro. Ainsi aucun travail demandé ne reste sans ticket, et chaque
+ticket tient dans une seule enveloppe.
+
 Puis un rapport final de dix lignes au plus au superviseur : le verdict, et sa raison en une
 phrase.
