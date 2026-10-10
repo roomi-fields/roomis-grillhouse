@@ -81,11 +81,13 @@ qui l'a trouvée, à valider (`docs/agents/issue-tracker.md`). Ainsi l'avancemen
   `env -C <dossier>` ou `git -C` à la place de `cd` ; une suppression passe par un script du
   scratchpad (`os.remove`) sur un chemin nommé et lu. Ainsi la séance avance seule, sans geler
   jusqu'au passage du responsable.
-- ⛔ **Aucune commande ne fait attendre le responsable** : toute commande qui peut dépasser une
-  minute part en arrière-plan, et son avis de fin réveille la séance ; aucune boucle d'attente,
-  aucun long délai au premier plan. Ce que la séance annonce de sa façon de faire vaut dès la
-  commande suivante ; quand le responsable arrête, elle ne lance plus rien. Ainsi il n'attend
-  jamais une commande.
+- ⛔ **Aucune commande ne fait attendre le responsable** : dans une séance où il attend, celle du
+  superviseur, toute commande qui peut dépasser une minute part en arrière-plan, et son avis de fin
+  réveille la séance ; aucune boucle d'attente, aucun long délai au premier plan. Ce que la séance
+  annonce de sa façon de faire vaut dès la commande suivante ; quand le responsable arrête, elle ne
+  lance plus rien. Un agent de rôle, lui, attend au premier plan ce qu'il lance, car sa séance
+  finit avec son tour. Ainsi le responsable n'attend jamais une commande, et aucun travail ne se
+  perd.
 - **L'index d'abord** : toute recherche commence par `rtfm_search` (mode `hybrid`) pour le quoi, et
   par `codegraph explore` (ou l'outil `codegraph_explore`) pour l'appel. Ainsi une affirmation sur
   le code repose sur ce que le code contient.

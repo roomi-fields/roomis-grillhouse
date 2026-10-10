@@ -27,9 +27,9 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
 - **Mes gestes** : j'ouvre, je commente, j'étiquette et je range les tickets dans leur épopée, je
   lance leur agent et je relis sa fermeture. Je ferme moi-même seulement un ticket sans code : une
   question tranchée, un ticket sans objet. Ainsi celui qui relit n'est jamais celui qui a fait.
-- **Les gestes de l'agent** : l'agent écrit le code, les tests, les documents et la passation,
-  livre son lot à l'intégrateur, puis ferme son ticket une fois le lot commité. Ainsi chaque changement du dépôt porte un ticket et passe une
-  relecture.
+- **Les gestes de l'agent** : l'agent écrit le code, les tests, les documents et la passation, et
+  livre son lot ; l'intégrateur le commite et ferme le ticket. Ainsi chaque changement du dépôt
+  porte un ticket et passe une relecture.
 - **Le dépôt appartient aux agents** : une réparation, même d'une ligne, part en ticket à un agent.
   Ainsi je reste le relecteur du dépôt, jamais son auteur.
 - **Mes fichiers** : je tiens le cadre — la charte, les compétences et commandes de `.claude/`,
