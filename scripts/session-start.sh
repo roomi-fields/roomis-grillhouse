@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 # SessionStart hook: tells the session what the project still lacks before work can start.
 # Silent once the project is set up and initialised. Read-only: it changes nothing.
+#
+# The project's own check: `grillhouse.demarrage` in the package.json of the root names an npm
+# script (`npm pkg set grillhouse.demarrage=<script>`). The session start plays
+# `npm run --silent <script>` at the root; each non-blank line it writes joins the list « Pas encore
+# renseignés », as an item to deal with. The script has 10 s: past them its whole process group is
+# stopped. A failure (non-zero code) or a stop adds a line that says so, after the lines already
+# written; the session start goes on. Without the key (or with null), nothing runs; a value that is
+# not a non-blank string runs nothing and adds a line that says so. An agent's copy does not play it.
 set -uo pipefail
 
 root="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -67,6 +75,35 @@ else
   done
 fi
 [ -f "$root/CONTEXT.md" ] || pending+=("le lexique du domaine (CONTEXT.md)")
+
+# The project's own check (grillhouse.demarrage, described in the header), outside an agent's copy.
+# The reading gives « script<TAB>name », « invalide<TAB>value as JSON », or nothing.
+lecture=
+[ -n "$copie_agent" ] || lecture="$(node -e '
+  const v = require(process.argv[1]).grillhouse?.demarrage;
+  if (v == null) process.exit(0);
+  if (typeof v === "string" && v.trim()) process.stdout.write("script\t" + v);
+  else process.stdout.write("invalide\t" + JSON.stringify(v));
+' "$root/package.json" 2>/dev/null)"
+demarrage=
+case "$lecture" in
+  script$'\t'*) demarrage="${lecture#script$'\t'}" ;;
+  invalide$'\t'*) pending+=("la clé grillhouse.demarrage vaut ${lecture#invalide$'\t'}, pas un nom de script npm : rien n'est lancé") ;;
+esac
+if [ -n "$demarrage" ]; then
+  # timeout signals the script's whole process group, so a child that keeps the output open stops too.
+  sortie="$(cd "$root" && timeout -k 2 10 npm run --silent "$demarrage" 2>/dev/null)"
+  code=$?
+  while IFS= read -r ligne; do
+    ligne="${ligne%$'\r'}"
+    [ -n "${ligne//[[:space:]]/}" ] && pending+=("$ligne")
+  done <<< "$sortie"
+  if [ "$code" -eq 124 ] || [ "$code" -eq 137 ]; then
+    pending+=("le contrôle d'ouverture \`npm run $demarrage\` (grillhouse.demarrage) a été interrompu après 10 s")
+  elif [ "$code" -ne 0 ]; then
+    pending+=("le contrôle d'ouverture \`npm run $demarrage\` (grillhouse.demarrage) échoue (code $code)")
+  fi
+fi
 
 # Once the architecture is written, the project chooses how an integration tests (grill, branch 9).
 if [ -f "$root/docs/ARCHITECTURE.md" ] && [ -f "$root/package.json" ]; then

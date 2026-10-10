@@ -3,7 +3,7 @@
 # a package, a module, an interface, a boundary) reminds the session that such a decision goes through
 # the grill. Read-only; silent on every other message, including one that merely mentions structure.
 prompt="$(node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.stdout.write(JSON.parse(s).prompt||"")}catch{}})')"
-noun='paquets?|packages?|modules?|interfaces?|fronti[eè]res?|boundar(y|ies)|couches?|layers?|monorepo|architecture'
+noun='paquets?|packages?|modules?|interfaces?|fronti[eè]res?|boundar(y|ies)|couches?|(é|e)tages?|layers?|monorepo|architecture'
 decision="faut-il|doit-on|devrait-on|est-ce qu.?il faut|besoin (de|d.)|on (d[ée]coupe|s[ée]pare)|d[ée]couper|s[ée]parer|scinder|fusionner|regrouper|extraire|cr[ée]er (un|une|des)|supprimer (le|la|les|un|une)|should (we|i)|do we need|split|merge"
 if printf '%s' "$prompt" | grep -qiE "($noun)" && printf '%s' "$prompt" | grep -qiE "($decision)"; then
   cat <<'MSG'
