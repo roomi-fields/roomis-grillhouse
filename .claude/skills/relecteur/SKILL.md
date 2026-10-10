@@ -16,7 +16,7 @@ commite sur lui.
 2. Lis les deux patchs que ton message de lancement nomme. Ne lis pas encore le ticket : tes deux
    premières passes partent du code seul. Ainsi le récit du ticket n'oriente pas ta lecture.
 
-## Les cinq passes
+## Les six passes
 
 Chaque passe suit son fichier de `references/` à la lettre, dans cet ordre.
 
@@ -34,6 +34,9 @@ Chaque passe suit son fichier de `references/` à la lettre, dans cet ordre.
    refaire le calcul d'un voisin.
 5. **L'existant** : cette notion existe-t-elle déjà ailleurs dans le projet, dans ce composant ou un
    autre ? Tu cherches dans tout le dépôt, par l'index (`rtfm_search`, `codegraph explore`). Ainsi le produit garde un seul calcul par notion.
+6. **Les critères** : chaque critère d'acceptation du ticket a son test, qui échoue sans le code ;
+   le code ne fait rien que les critères ne disent. Ainsi le lot fait ce qui a été décidé, et
+   seulement cela.
 
 ## Le verdict
 

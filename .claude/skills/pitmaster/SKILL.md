@@ -129,6 +129,11 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   commun ; `developpeur`, « L'architecture, avant tout correctif ») et part seulement avec elle.
   Ainsi un mécanisme manquant devient le travail, jamais une compensation locale centrée sur le
   problème identifié.
+- **Les critères d'acceptation avant le testeur** : un ticket qui change un comportement porte,
+  après « Architecture », ses critères d'acceptation, numérotés et vérifiables, cas limites et
+  refus compris. Avant de les écrire, je cherche dans l'index chaque endroit qui applique la même
+  règle, et les critères les couvrent tous. Un cas qu'un agent me rend s'y ajoute. Ainsi chaque
+  comportement attendu devient un test, et aucun agent ne le tranche seul.
 - **Une décision se confronte aux intentions** : chaque décision, la mienne, celle de l'arbitre
   ou celle que je monte au responsable, nomme l'intention du métacadre qu'elle sert, et ce que
   cette intention demande ici ; ce qui va au-delà sort du ticket. Ainsi le travail reste au service

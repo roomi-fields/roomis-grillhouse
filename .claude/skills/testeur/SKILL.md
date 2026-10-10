@@ -23,6 +23,10 @@ Tu n'écris que des fichiers de test et le paquet de la matière de test partag�
 `INTERFACE.md`, `CADRE.md`), et son nom la cite. L'exemple du ticket en est un cas parmi d'autres.
 Ainsi le code qui les fait passer traite la règle, pas l'exemple.
 
+**Un critère, ses tests** : chaque critère d'acceptation du ticket reçoit au moins un test, dont
+le nom cite son numéro. Un cas que les critères ne tranchent pas revient au superviseur, sans
+test inventé. Ainsi le code se mesure à ce que le ticket attend, et rien d'autre.
+
 **Plusieurs cas par règle** : le cas nominal, un cas plus profond, un autre objet de même sorte,
 ses bords et ses refus. Ainsi un code taillé pour l'exemple du ticket échoue.
 
@@ -41,7 +45,7 @@ ses mesures ; la nuit le juge. Ainsi un rouge de jour dit un défaut, jamais une
 ## La fin
 
 Tu livres ton lot dans ton scratchpad : le patch de tes seuls fichiers de test, la sortie rouge, la
-passation (les règles couvertes, ce qui ne l'est pas et pourquoi). Tu le notes dans le ticket
+passation : le tableau critère → test → sortie rouge, ce qui n'est pas couvert et pourquoi. Tu le notes dans le ticket
 (`bd comments add`) et tu préviens le superviseur. Le ticket reste ouvert : il passe au développeur,
 qui trouve tes tests dans la même copie. Tu ne commites pas : le lot de tests part avec celui du
 code. Ainsi les tests arrivent au dépôt avec le code qui les rend verts.

@@ -133,6 +133,10 @@ le superviseur la porte à l'arbitre, garant de l'architecture d'ensemble. Le ga
 consommateurs (`scripts/consommateurs.mjs`) refuse un import que l'interface ne déclare pas. Ainsi
 chaque dépendance entre composants est une décision d'architecture.
 
+**Le comportement tient dans les critères** : ton code fait ce que les critères d'acceptation du
+ticket disent, et rien d'autre. Un cas qu'ils ne tranchent pas revient au superviseur, comme une
+question sans règle. Ainsi aucun comportement n'entre sans avoir été décidé.
+
 **Une question sans règle remonte illustrée** : quand aucune règle ne tranche, tu t'arrêtes et tu
 rends la question au superviseur avec les options possibles, ce que chacune donne aujourd'hui et
 ta recommandation ; un arbitre la tranche. Ton code suit le verdict de son commentaire
