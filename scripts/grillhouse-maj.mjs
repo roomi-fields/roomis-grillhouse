@@ -8,11 +8,11 @@
 // - The frame's files are listed in `.claude/grillhouse/fichiers.txt` of the source: each copied as
 //   it is; a file the previous version installed and the new one no longer lists is removed, as is
 //   each « - <path> » line. A project's own files under a frame directory stay.
-// - `.claude/settings.json`: the frame's hooks, plugins and marketplaces are added; a hook the
+// - `.claude/settings.json`: the frame's hooks, plugins and marketplaces are added; one the
 //   previous version installed and the new one dropped is removed; the project's own settings stay.
 // - `package.json`, when there is one: the frame's npm scripts (`tableau`, `grillhouse:maj`).
 // - `.claude/grillhouse/empreintes.json` records the source's commit, each file's SHA-256 and the
-//   hooks installed. `--ecarts` compares the files with it: a frame file modified or missing in a
+//   hooks, plugins and marketplaces installed. `--ecarts` compares the files with it: a frame file modified or missing in a
 //   project is drift, which goes back to Grillhouse as a proposal.
 // - The source: --source, else GRILLHOUSE_SOURCE, else Grillhouse's repository on GitHub, kept in
 //   ~/.cache/grillhouse/roomis-grillhouse and moved to its last commit.
@@ -97,11 +97,12 @@ const crochets = s =>
   );
 const cle = h => `${h.ev}\u0000${h.matcher}\u0000${h.command}`;
 
-// The project's settings with the frame's added and the dropped frame hooks removed.
-export function fusionnerReglages(projet, cadre, anciens = []) {
+// The project's settings with the frame's added, and the hooks, plugins and marketplaces the
+// previous version installed (`avant`) and this one dropped removed.
+export function fusionnerReglages(projet, cadre, avant = {}) {
   const s = structuredClone(projet);
   const neufs = new Set(crochets(cadre).map(cle));
-  const retires = new Set(anciens.filter(k => !neufs.has(k)));
+  const retires = new Set((avant.crochets ?? []).filter(k => !neufs.has(k)));
   s.hooks ??= {};
   for (const ev of Object.keys(s.hooks)) {
     s.hooks[ev] = s.hooks[ev]
@@ -129,12 +130,21 @@ export function fusionnerReglages(projet, cadre, anciens = []) {
     }
     g.hooks.push({ type: 'command', command: h.command });
   }
-  s.enabledPlugins = { ...(s.enabledPlugins ?? {}), ...(cadre.enabledPlugins ?? {}) };
+  const plugins = Object.keys(cadre.enabledPlugins ?? {});
+  const marches = Object.keys(cadre.extraKnownMarketplaces ?? {});
+  const sans = (objet, garder, anciens = []) =>
+    Object.fromEntries(
+      Object.entries(objet ?? {}).filter(([k]) => garder.includes(k) || !anciens.includes(k))
+    );
+  s.enabledPlugins = {
+    ...sans(s.enabledPlugins, plugins, avant.plugins),
+    ...(cadre.enabledPlugins ?? {}),
+  };
   s.extraKnownMarketplaces = {
-    ...(s.extraKnownMarketplaces ?? {}),
+    ...sans(s.extraKnownMarketplaces, marches, avant.marches),
     ...(cadre.extraKnownMarketplaces ?? {}),
   };
-  return { reglages: s, installes: [...neufs] };
+  return { reglages: s, installes: { crochets: [...neufs], plugins, marches } };
 }
 
 // Brings the project at `projet` to the frame at `source`. Returns what changed.
@@ -164,11 +174,7 @@ export function mettreAJour(projet, source, version) {
   }
   const fichierReglages = path.join(projet, '.claude/settings.json');
   const cadre = lireJson(path.join(source, '.claude/settings.json'), {});
-  const { reglages, installes } = fusionnerReglages(
-    lireJson(fichierReglages, {}),
-    cadre,
-    avant.crochets ?? []
-  );
+  const { reglages, installes } = fusionnerReglages(lireJson(fichierReglages, {}), cadre, avant);
   mkdirSync(path.dirname(fichierReglages), { recursive: true });
   writeFileSync(fichierReglages, `${JSON.stringify(reglages, null, 2)}\n`);
   const pkg = path.join(projet, 'package.json');
@@ -180,7 +186,7 @@ export function mettreAJour(projet, source, version) {
   mkdirSync(path.dirname(path.join(projet, EMPREINTES)), { recursive: true });
   writeFileSync(
     path.join(projet, EMPREINTES),
-    `${JSON.stringify({ version, fichiers: empreintes, crochets: installes }, null, 2)}\n`
+    `${JSON.stringify({ version, fichiers: empreintes, ...installes }, null, 2)}\n`
   );
   return bilan;
 }

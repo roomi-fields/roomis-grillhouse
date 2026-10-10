@@ -68,9 +68,8 @@ roomis-grillhouse/
 │   ├── index-interfaces.mjs       # npm run interfaces: docs/agents/index-des-interfaces.md, checked by pretest
 │   └── un-commit-par-ticket.mjs   # commit-msg hook (.beads/hooks/commit-msg): one ticket, one commit
 │
-├── mods/grillhouse/            # The Grillhouse mod (Claude Code plugin): status line and /grillhouse pane,
+├── mods/grillhouse/            # The Grillhouse mod (grillhouse@roomi-fields): status line and /grillhouse pane,
 │                              #   the lines of scripts/tableau.mjs; tests: npm run mod:test
-├── .claude-plugin/             # marketplace.json: this repository publishes the mod (grillhouse@roomis-grillhouse)
 ├── .github/                    # GitHub integrations
 │   ├── workflows/                 # CI/CD workflows
 │   │   ├── ci.yml                    # Continuous Integration

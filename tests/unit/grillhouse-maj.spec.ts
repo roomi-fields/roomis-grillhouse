@@ -38,20 +38,25 @@ describe('the list of the frame', () => {
 });
 
 describe('the settings of the frame', () => {
-  it("adds the frame's hooks and plugins, keeps the project's, removes a dropped frame hook", () => {
+  it("adds the frame's hooks and plugins, keeps the project's, removes what the frame dropped", () => {
     const projet = {
       permissions: { allow: ['Bash(ls)'] },
       hooks: { SessionStart: [crochet('mon-crochet'), crochet('vieux-cadre')] },
-      enabledPlugins: { 'a@b': true },
+      enabledPlugins: { 'a@b': true, 'vieux@ancien': true },
+      extraKnownMarketplaces: { ancien: { source: {} }, mien: { source: {} } },
     };
     const cadre = {
       hooks: { PreToolUse: [crochet('verrou', 'Agent|Task')] },
       enabledPlugins: { 'g@h': true },
     };
-    const ancien = ['SessionStart\u0000\u0000vieux-cadre'];
-    const { reglages, installes } = fusionnerReglages(projet, cadre, ancien) as {
+    const avant = {
+      crochets: ['SessionStart\u0000\u0000vieux-cadre'],
+      plugins: ['vieux@ancien'],
+      marches: ['ancien'],
+    };
+    const { reglages, installes } = fusionnerReglages(projet, cadre, avant) as {
       reglages: object;
-      installes: string[];
+      installes: { crochets: string[]; plugins: string[]; marches: string[] };
     };
     expect(reglages).toEqual({
       permissions: { allow: ['Bash(ls)'] },
@@ -60,9 +65,13 @@ describe('the settings of the frame', () => {
         PreToolUse: [crochet('verrou', 'Agent|Task')],
       },
       enabledPlugins: { 'a@b': true, 'g@h': true },
-      extraKnownMarketplaces: {},
+      extraKnownMarketplaces: { mien: { source: {} } },
     });
-    expect(installes).toEqual(['PreToolUse\u0000Agent|Task\u0000verrou']);
+    expect(installes).toEqual({
+      crochets: ['PreToolUse\u0000Agent|Task\u0000verrou'],
+      plugins: ['g@h'],
+      marches: [],
+    });
     expect(fusionnerReglages(reglages, cadre, installes).reglages).toEqual(reglages);
   });
 });

@@ -88,7 +88,8 @@ of data becomes a request to the component that provides it, not a local recompu
 ticket makes one delivery: a goal of unknown size starts with an exploration ticket, every ticket
 is created under its mother (numbered `320.2.1`) and every agent goes by its role's number, and a hook refuses a second commit for a ticket.
 
-**The board** — the `grillhouse` mod (a Claude Code plugin this repository publishes, enabled in
+**The board** — the `grillhouse` mod (a Claude Code plugin whose source lives in `mods/grillhouse`, published
+in the `roomi-fields` marketplace as `grillhouse@roomi-fields`, enabled in
 each project's settings) shows, measured and never declared, the chantier in progress in the status
 line and, in the `/grillhouse` pane, three levels: the project (its work tickets by state, the
 agents' time and tokens of the day and in all, the alerts); the chantier in progress, its tree of
