@@ -56,7 +56,7 @@ describe('the settings of the frame', () => {
     };
     const { reglages, installes } = fusionnerReglages(projet, cadre, avant) as {
       reglages: object;
-      installes: { crochets: string[]; plugins: string[]; marches: string[] };
+      installes: { crochets: string[]; plugins: string[]; marches: string[]; ligneEtat: boolean };
     };
     expect(reglages).toEqual({
       permissions: { allow: ['Bash(ls)'] },
@@ -71,8 +71,21 @@ describe('the settings of the frame', () => {
       crochets: ['PreToolUse\u0000Agent|Task\u0000verrou'],
       plugins: ['g@h'],
       marches: [],
+      ligneEtat: false,
     });
     expect(fusionnerReglages(reglages, cadre, installes).reglages).toEqual(reglages);
+  });
+
+  it("sets the frame's status line, and removes it once the frame drops it", () => {
+    const ligne = { type: 'command', command: 'node ligne-etat.mjs' };
+    const pose = fusionnerReglages(
+      { statusLine: { type: 'command', command: 'mien' } },
+      { statusLine: ligne }
+    );
+    expect(pose.reglages).toMatchObject({ statusLine: ligne });
+    expect(pose.installes).toMatchObject({ ligneEtat: true });
+    const retire = fusionnerReglages(pose.reglages, {}, pose.installes);
+    expect(retire.reglages).not.toHaveProperty('statusLine');
   });
 });
 

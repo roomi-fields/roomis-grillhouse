@@ -61,6 +61,7 @@ roomis-grillhouse/
 │   ├── nuit.sh                    # every suite, once a night (mode « impactes »); a red opens a ticket
 │   ├── grillhouse-maj.mjs         # npm run grillhouse:maj: the frame brought to its last version; --ecarts
 │   ├── tableau.mjs                # npm run tableau: the board on three levels (project, chantier, agents)
+│   ├── ligne-etat/                # the status line: the person's own on the left, the chantier on the right
 │   ├── registre.mjs               # hook: one line per finished agent (ticket, role, time, tokens)
 │   ├── integration/               # One delivery, in a clean copy: verdicts, lots, base, guards, suites, commit
 │   │   ├── integrer.mjs              # run by the integrateur (tests: tests/unit/integrer.spec.ts)
@@ -68,8 +69,8 @@ roomis-grillhouse/
 │   ├── index-interfaces.mjs       # npm run interfaces: docs/agents/index-des-interfaces.md, checked by pretest
 │   └── un-commit-par-ticket.mjs   # commit-msg hook (.beads/hooks/commit-msg): one ticket, one commit
 │
-├── mods/grillhouse/            # The Grillhouse mod (grillhouse@roomi-fields): status line and /grillhouse pane,
-│                              #   the lines of scripts/tableau.mjs; tests: npm run mod:test
+├── mods/grillhouse/            # The Grillhouse mod (grillhouse@roomi-fields): the /grillhouse pane, the
+│                              #   lines of scripts/tableau.mjs; tests: npm run mod:test
 ├── .github/                    # GitHub integrations
 │   ├── workflows/                 # CI/CD workflows
 │   │   ├── ci.yml                    # Continuous Integration

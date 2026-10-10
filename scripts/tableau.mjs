@@ -7,7 +7,7 @@
 //   node scripts/tableau.mjs --texte    the board, as text
 //
 // Each measure writes the status line (the chantier in progress) to `grillhouse-etat.txt` in the
-// common git directory, where the person's status line command reads it.
+// common git directory, where the status line (`scripts/ligne-etat/`) reads it.
 //
 // - Global: the work tickets of the project (a ticket without children; a mother is a grouping)
 //   by state, the agents' working time and tokens of the day and in all, the alerts.

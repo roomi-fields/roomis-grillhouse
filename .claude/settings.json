@@ -66,6 +66,10 @@
       }
     ]
   },
+  "statusLine": {
+    "type": "command",
+    "command": "node \"$CLAUDE_PROJECT_DIR/scripts/ligne-etat/ligne-etat.mjs\""
+  },
   "enabledPlugins": {
     "mattpocock-skills@claude-plugins-official": true,
     "rtfm@roomi-fields": true,

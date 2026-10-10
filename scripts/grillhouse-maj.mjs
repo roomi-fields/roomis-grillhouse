@@ -8,8 +8,9 @@
 // - The frame's files are listed in `.claude/grillhouse/fichiers.txt` of the source: each copied as
 //   it is; a file the previous version installed and the new one no longer lists is removed, as is
 //   each « - <path> » line. A project's own files under a frame directory stay.
-// - `.claude/settings.json`: the frame's hooks, plugins and marketplaces are added; one the
-//   previous version installed and the new one dropped is removed; the project's own settings stay.
+// - `.claude/settings.json`: the frame's hooks, plugins, marketplaces and status line are added;
+//   one the previous version installed and the new one dropped is removed; the project's own
+//   settings stay.
 // - `package.json`, when there is one: the frame's npm scripts (`tableau`, `grillhouse:maj`).
 // - `.claude/grillhouse/empreintes.json` records the source's commit, each file's SHA-256 and the
 //   hooks, plugins and marketplaces installed. `--ecarts` compares the files with it: a frame file modified or missing in a
@@ -97,8 +98,8 @@ const crochets = s =>
   );
 const cle = h => `${h.ev}\u0000${h.matcher}\u0000${h.command}`;
 
-// The project's settings with the frame's added, and the hooks, plugins and marketplaces the
-// previous version installed (`avant`) and this one dropped removed.
+// The project's settings with the frame's added (hooks, plugins, marketplaces, the status line),
+// and what the previous version installed (`avant`) and this one dropped removed.
 export function fusionnerReglages(projet, cadre, avant = {}) {
   const s = structuredClone(projet);
   const neufs = new Set(crochets(cadre).map(cle));
@@ -144,7 +145,14 @@ export function fusionnerReglages(projet, cadre, avant = {}) {
     ...sans(s.extraKnownMarketplaces, marches, avant.marches),
     ...(cadre.extraKnownMarketplaces ?? {}),
   };
-  return { reglages: s, installes: { crochets: [...neufs], plugins, marches } };
+  // The status line is the frame's: set from it, removed when the frame no longer sets it.
+  if (cadre.statusLine) {
+    s.statusLine = cadre.statusLine;
+  } else if (avant.ligneEtat) {
+    delete s.statusLine;
+  }
+  const ligneEtat = Boolean(cadre.statusLine);
+  return { reglages: s, installes: { crochets: [...neufs], plugins, marches, ligneEtat } };
 }
 
 // Brings the project at `projet` to the frame at `source`. Returns what changed.

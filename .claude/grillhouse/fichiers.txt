@@ -23,6 +23,7 @@ scripts/frontieres.mjs
 scripts/grillhouse-maj.mjs
 scripts/index-interfaces.mjs
 scripts/integration/
+scripts/ligne-etat/
 scripts/interfaces-contre-code.mjs
 scripts/nuit.sh
 scripts/registre.mjs

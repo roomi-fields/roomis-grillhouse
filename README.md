@@ -96,9 +96,10 @@ mother tickets with each one's work done over all; the agents, one block per rol
 ticket stands once, running or waiting for the next role. A finished agent is read from the
 register its end writes (`scripts/registre.mjs`; `--rattraper` adds the agents that ended
 before it), a running one from its transcript, those launched
-in a shell included. Without the mod, `npm run tableau` prints the same lines. Each measure
-writes the chantier in progress to `grillhouse-etat.txt` in the common git directory, for the
-person's status line command to show.
+in a shell included. Without the mod, `npm run tableau` prints the same lines. The status line
+(`scripts/ligne-etat/`, the project's `statusLine`) keeps the person's own status line on the
+left, or a default one (model, context, rate limits), and shows the chantier in progress on the
+right, as each measure writes it to `grillhouse-etat.txt` in the common git directory.
 The pane docks beside the transcript in Claude Code's fullscreen layout (`/tui fullscreen`, from
 110 columns); the wheel scrolls the transcript there only while Claude Code captures the mouse, so
 `CLAUDE_CODE_DISABLE_MOUSE` stays unset (`CLAUDE_CODE_DISABLE_MOUSE_CLICKS` keeps the wheel).
