@@ -565,11 +565,14 @@ const liste = (l, place) => {
 
 // The board's lines, `largeur` columns wide, each with its tone (titre, alerte, attention, actif,
 // discret, or none) and, for a ticket's line, its id (`ticket`), which the pane makes selectable.
-// The pane and the text show the same lines.
+// A line that counts lines it does not show (« + 3 en attente ») carries them (`replie`), which
+// the pane unfolds when the person reaches it. The pane and the text show the same lines.
 export function lignes(t, nom, largeur = LARGEUR) {
   const out = [];
   const cadre = couper;
   const L = (texte, ton, ticket) => out.push(ticket ? { texte, ton, ticket } : { texte, ton });
+  // A line that counts the lines it folds, and carries them.
+  const replie = (texte, caches) => out.push({ texte, ton: 'discret', replie: caches });
   const g = t.global;
   const c = g.compteurs;
   L(nom.toUpperCase(), 'titre');
@@ -624,8 +627,22 @@ export function lignes(t, nom, largeur = LARGEUR) {
     // A level shows its mothers (unfolded while work runs below), its tickets in progress or
     // awaiting the responsable that no agent block shows, and one line counting its other open
     // tickets.
+    const ligneDe = (n, p) => {
+      const conso = n.jetons ? ` · ${k(n.jetons)}` : '';
+      const droite = n.mere
+        ? `${n.faits}/${n.total}${conso}${n.etat === 'fermes' ? ' ✓' : marque(n) ? ` ${marque(n)}` : ''}`
+        : n.etat === 'enCours'
+          ? `${duree(n.duree)}${conso} ▶`
+          : marque(n);
+      return {
+        texte: cadre(`${' '.repeat(p)}${n.numero}  ${n.sujet}`, droite, largeur),
+        ton: n.etat === 'enCours' ? 'actif' : n.etat === 'fermes' ? 'discret' : undefined,
+        ticket: n.id,
+      };
+    };
     const parcourir = (noeuds, p) => {
       const reste = { prets: 0, bloques: 0, reportes: 0 };
+      const caches = [];
       for (const n of noeuds) {
         if (!n.mere && dansAgents.has(n.id)) {
           continue;
@@ -634,20 +651,11 @@ export function lignes(t, nom, largeur = LARGEUR) {
         if (!visible) {
           if (n.etat in reste) {
             reste[n.etat]++;
+            caches.push(ligneDe(n, p));
           }
           continue;
         }
-        const conso = n.jetons ? ` · ${k(n.jetons)}` : '';
-        const droite = n.mere
-          ? `${n.faits}/${n.total}${conso}${n.etat === 'fermes' ? ' ✓' : marque(n) ? ` ${marque(n)}` : ''}`
-          : n.etat === 'enCours'
-            ? `${duree(n.duree)}${conso} ▶`
-            : marque(n);
-        arbre.push({
-          texte: cadre(`${' '.repeat(p)}${n.numero}  ${n.sujet}`, droite, largeur),
-          ton: n.etat === 'enCours' ? 'actif' : n.etat === 'fermes' ? 'discret' : undefined,
-          ticket: n.id,
-        });
+        arbre.push(ligneDe(n, p));
         if (n.mere && n.etat === 'enCours') {
           parcourir(n.enfants, p + 1);
         }
@@ -661,13 +669,14 @@ export function lignes(t, nom, largeur = LARGEUR) {
         arbre.push({
           texte: cadre(`${' '.repeat(p)}+ ${r.join(' · ')}`, '', largeur),
           ton: 'discret',
+          replie: caches,
         });
       }
     };
     parcourir(ch.enfants, 1);
     out.push(...arbre.slice(0, ARBRE_MAX));
     if (arbre.length > ARBRE_MAX) {
-      L(`  … ${arbre.length - ARBRE_MAX} lignes de plus`, 'discret');
+      replie(`  … ${arbre.length - ARBRE_MAX} lignes de plus`, arbre.slice(ARBRE_MAX));
     }
   }
   if (t.autres.length) {
@@ -693,39 +702,47 @@ export function lignes(t, nom, largeur = LARGEUR) {
         x.id
       );
     }
-    for (const x of b.attend.slice(0, ATTENTE_MAX)) {
-      L(
-        cadre(`· ${x.numero}  ${x.sujet}`, `${duree(x.duree)} · ${k(x.jetons)}`, largeur),
-        'discret',
-        x.id
-      );
-    }
+    const attente = x => ({
+      texte: cadre(`· ${x.numero}  ${x.sujet}`, `${duree(x.duree)} · ${k(x.jetons)}`, largeur),
+      ton: 'discret',
+      ticket: x.id,
+    });
+    out.push(...b.attend.slice(0, ATTENTE_MAX).map(attente));
     if (b.attend.length > ATTENTE_MAX) {
-      L(`  + ${b.attend.length - ATTENTE_MAX} en attente`, 'discret');
+      replie(
+        `  + ${b.attend.length - ATTENTE_MAX} en attente`,
+        b.attend.slice(ATTENTE_MAX).map(attente)
+      );
     }
   }
   if (t.faitsDuJour.length) {
     L('', undefined);
     L("FAITS AUJOURD'HUI", 'titre');
-    for (const x of t.faitsDuJour.slice(0, 5)) {
-      L(
-        cadre(`✓ ${x.numero}  ${x.sujet}`, `${duree(x.duree)} · ${k(x.jetons)}`, largeur),
-        'discret',
-        x.id
-      );
-    }
+    const fait = x => ({
+      texte: cadre(`✓ ${x.numero}  ${x.sujet}`, `${duree(x.duree)} · ${k(x.jetons)}`, largeur),
+      ton: 'discret',
+      ticket: x.id,
+    });
+    out.push(...t.faitsDuJour.slice(0, 5).map(fait));
     if (t.faitsDuJour.length > 5) {
-      L(`  + ${t.faitsDuJour.length - 5} autres`, 'discret');
+      replie(`  + ${t.faitsDuJour.length - 5} autres`, t.faitsDuJour.slice(5).map(fait));
     }
   }
   return out;
 }
 
-// The card of each ticket a line names: its number, whole title, component, state, duration,
-// agents' tokens (`jetons`: ticket → tokens) and the start of its description, which the pane
-// shows for the line chosen.
+// The lines of the board, the folded ones included.
+const toutes = lignesDuTableau => lignesDuTableau.flatMap(l => [l, ...toutes(l.replie ?? [])]);
+
+// The card of each ticket a line names, folded or not: its number, whole title, component, state,
+// duration, agents' tokens (`jetons`: ticket → tokens), the start of its description (`resume`)
+// and the whole description (`texte`), which the pane shows for the line chosen.
 export function fiches(tous, lignesDuTableau, prefix = '', jetons = {}, maintenant = Date.now()) {
-  const ids = new Set(lignesDuTableau.map(l => l.ticket).filter(Boolean));
+  const ids = new Set(
+    toutes(lignesDuTableau)
+      .map(l => l.ticket)
+      .filter(Boolean)
+  );
   const out = {};
   for (const t of tous) {
     if (!ids.has(t.id)) {
@@ -746,6 +763,7 @@ export function fiches(tous, lignesDuTableau, prefix = '', jetons = {}, maintena
         : 0,
       jetons: jetons[t.id] ?? 0,
       resume: resume.length > 400 ? `${resume.slice(0, 399)}…` : resume,
+      texte: (t.description ?? '').trim(),
     };
   }
   return out;
@@ -754,7 +772,11 @@ export function fiches(tous, lignesDuTableau, prefix = '', jetons = {}, maintena
 // Of the tickets the lines name, the one that moved last: a running agent's ticket at its last
 // activity, any other at its last update; null when none.
 export function dernierBouge(tous, lignesDuTableau, vivants = [], maintenant = Date.now()) {
-  const ids = new Set(lignesDuTableau.map(l => l.ticket).filter(Boolean));
+  const ids = new Set(
+    toutes(lignesDuTableau)
+      .map(l => l.ticket)
+      .filter(Boolean)
+  );
   const actif = new Map();
   for (const v of vivants) {
     if (v.ticket) {

@@ -28,6 +28,9 @@ const etat = atom({ plugin: 'grillhouse', key: 'etat' } as const, {
   erreur: null,
   lu: 0,
   choisi: null,
+  element: null,
+  ouvert: null,
+  grand: false,
 } as Etat)
 
 export const k = (n: number) =>
@@ -53,6 +56,30 @@ export function ficheLignes(f: Fiche | undefined): string[] {
     [f.composant, STATUTS[f.statut] ?? f.statut, duree(f.duree), `${k(f.jetons)} jetons`].filter(Boolean).join(' · '),
     f.resume,
   ].filter(Boolean)
+}
+
+// The lines the pane lists: the board's, the counting line `ouvert` unfolded below itself. Each
+// carries the key of its Button: `<ticket>:<i>`, `<ticket>:<i>.<j>` for a folded line, `+:<i>` for
+// a counting line; none for a plain line.
+export function visibles(lignes: Ligne[], ouvert: number | null): { l: Ligne; cle: string | null }[] {
+  return lignes.flatMap((l, i) => {
+    const ici = [{ l, cle: l.ticket ? `${l.ticket}:${i}` : l.replie?.length ? `+:${i}` : null }]
+    if (i !== ouvert || !l.replie) return ici
+    return [...ici, ...l.replie.map((r, j) => ({ l: r, cle: r.ticket ? `${r.ticket}:${i}.${j}` : null }))]
+  })
+}
+
+// The first of `n` lines to show in `rangs` rows, so the line at `idx` shows with one below it.
+export const debut = (n: number, idx: number, rangs: number) =>
+  Math.max(0, Math.min(idx - rangs + 2, n - rangs))
+
+// What the keyboard reaching an element changes: a ticket's line chooses its ticket, a counting
+// line or one of its folded lines keeps it unfolded, and the card goes back to its size.
+export function viser(s: Etat, element: string): Etat {
+  if (element === 'g') return s
+  const [tete, pos = ''] = element.split(':')
+  const ouvert = tete === '+' ? Number(pos) : pos.includes('.') ? Number(pos.split('.')[0]) : null
+  return { ...s, element, ouvert, grand: false, choisi: tete === '+' ? s.choisi : (tete ?? null) }
 }
 
 // The colour of a line's tone.
@@ -105,23 +132,64 @@ export const register: Register = on => {
     return ran
   }).catch(($, e, next) => next(e))
 
-  // The ring that moves onto a ticket's line chooses that ticket.
+  // The ring that moves onto a line acts on it (`viser`).
   on('ui.focus', async ($, e, next) => {
     const r = await next(e)
     if (e.requestId === PANE && e.element) {
-      const ticket = e.element.split(':')[0] ?? null
-      await update($, etat, s => ({ ...s, choisi: ticket }))
+      const element = e.element
+      await update($, etat, s => viser(s, element))
     }
     return r
   })
 
+  // An arrow, or the wheel, brings the whole card back to its size.
+  on('ui.scroll', async ($, e, next) => {
+    if (e.requestId !== PANE || !(await read($, etat)).grand) return next(e)
+    await update($, etat, s => ({ ...s, grand: false }))
+    return { deny: 'la fiche reprend sa taille' }
+  })
+
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const { Box, Text, Button } = $.ui.resolve(e)
-    const { tableau: t, erreur, choisi } = await read($, etat)
+    const { tableau: t, erreur, choisi, element, ouvert, grand } = await read($, etat)
     if (!t) return <Text dimColor>{erreur ?? 'Lecture du tableau…'}</Text>
     const colonnes = e.props.bodyColumns
     // Focused, the card shows the chosen ticket; otherwise the one that moved last.
     const montre = e.props.isFocused ? choisi : (t.dernier ?? choisi)
+    const fiche = montre ? t.fiches[montre] : undefined
+    // `g` on the rule makes the card fill the pane, and again brings it back.
+    const regle = (libelle: string) =>
+      e.props.isFocused && fiche ? (
+        <Button key="g" plain hotkey="g" onPress={() => void update($, etat, s => ({ ...s, grand: !s.grand }))}>
+          <Text dimColor wrap="truncate-end">
+            {`── g : ${libelle} ${'─'.repeat(colonnes)}`}
+          </Text>
+        </Button>
+      ) : (
+        <Text dimColor>{'─'.repeat(colonnes)}</Text>
+      )
+    if (grand && e.props.isFocused && fiche) {
+      const [titre, etatDuTicket] = ficheLignes(fiche)
+      // One row more than the pane, so an arrow scrolls, which brings the card back.
+      return (
+        <Box flexDirection="column" height={e.props.scroll.bodyRows + 1}>
+          {regle('retour')}
+          <Text bold wrap="wrap">
+            {titre}
+          </Text>
+          <Text dimColor wrap="truncate-end">
+            {etatDuTicket}
+          </Text>
+          <Box flexDirection="column" flexGrow={1} overflow="hidden">
+            <Text wrap="wrap">{fiche.texte || fiche.resume}</Text>
+          </Box>
+        </Box>
+      )
+    }
+    const liste = visibles(t.lignes, e.props.isFocused ? ouvert : null)
+    const rangs = Math.max(1, e.props.scroll.bodyRows - FICHE - 1)
+    const ici = liste.findIndex(x => x.cle === element)
+    const premier = e.props.isFocused && ici >= 0 ? debut(liste.length, ici, rangs) : 0
     // A card fills the pane's last rows: the whole title on as many lines as it takes, then the
     // component, state, duration and tokens, then the description in the rows left.
     const carte = (f: Fiche | undefined) => {
@@ -151,19 +219,27 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column" height={e.props.scroll.bodyRows}>
         <Box flexDirection="column" flexGrow={1} overflow="hidden">
-          {t.lignes.map((l, i) => {
+          {liste.slice(premier).map(({ l, cle }) => {
             const texte = (
               <Text bold={l.ton === 'titre'} dimColor={l.ton === 'discret'} color={couleur(l.ton)} wrap="truncate-end">
                 {l.texte || ' '}
               </Text>
             )
-            if (!l.ticket) return texte
+            if (!cle) return texte
+            if (!l.ticket) {
+              // A counting line: the ring on it unfolds the lines it counts.
+              return (
+                <Button key={cle} plain onPress={() => void update($, etat, s => viser(s, cle))}>
+                  {texte}
+                </Button>
+              )
+            }
             // A ticket's line is a plain button, in the hover group named by its ticket: the ring
             // chooses it, the pointer over it shows its card.
             return (
               <Box hover={{ scope: l.ticket }}>
                 <Button
-                  key={`${l.ticket}:${i}`}
+                  key={cle}
                   plain
                   onPress={() => void update($, etat, s => ({ ...s, choisi: l.ticket ?? null }))}
                 >
@@ -173,9 +249,9 @@ export const register: Register = on => {
             )
           })}
         </Box>
-        <Text dimColor>{'─'.repeat(colonnes)}</Text>
+        {regle('tout le texte')}
         <Box flexDirection="column" height={FICHE} flexShrink={0}>
-          {carte(montre ? t.fiches[montre] : undefined)}
+          {carte(fiche)}
           {Object.entries(t.fiches).map(([id, f]) => (
             // The card of the ticket under the pointer, drawn over the chosen one on a blank of its
             // size, so no character of the chosen card shows through.

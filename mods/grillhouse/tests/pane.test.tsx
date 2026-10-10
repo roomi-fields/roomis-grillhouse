@@ -87,3 +87,67 @@ test('unfocused, the card shows the ticket that moved last', async ($, on) => {
   expect(JSON.stringify(await ui.drawn())).toMatch(/alt\+g/)
   await ui.unmount()
 })
+
+const REPLI = {
+  lignes: [
+    { texte: 'DEMO', ton: 'titre' },
+    { texte: '· c.2  Le dernier', ticket: 'c.2' },
+    { texte: '  + 1 autres', ton: 'discret', replie: [{ texte: '✓ c.1.1  Le moteur', ticket: 'c.1.1' }] },
+  ],
+  fiches: {
+    ...TABLEAU.fiches,
+    'c.2': { ...TABLEAU.fiches['c.2'], texte: 'Le texte entier du ticket, jusqu’à sa dernière ligne.' },
+  },
+  dernier: 'c.2',
+}
+
+async function monter($: never, on: never) {
+  const o = on as (n: string, h: unknown) => void
+  const s = $ as { session: { start: (a: object) => Promise<unknown> }; ui: { mount: (a: object) => Promise<never> } }
+  o('process.run', (_: unknown, e: { argv: string[] }) => ({
+    value: { exitCode: 0, stdout: e.argv[0] === 'test' ? '' : JSON.stringify(REPLI), stderr: '' },
+  }))
+  o('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
+  o('command.register', () => ({ value: undefined }))
+  o('clock.every', () => ({ value: { cancel: () => undefined } }))
+  await s.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
+  await new Promise(r => setTimeout(r, 50))
+  return s.ui.mount({
+    plugin: 'grillhouse',
+    surface: 'terminal',
+    component: 'Pane',
+    requestId: 'grillhouse',
+    props: {
+      title: 't',
+      isFocused: true,
+      bodyColumns: 50,
+      placement: 'dock',
+      scroll: { bodyRows: 30 } as never,
+      view: {} as never,
+    },
+  }) as Promise<{
+    findAll: (q: object) => Promise<{ key: string }[]>
+    drawn: () => Promise<unknown>
+    unmount: () => Promise<void>
+  }>
+}
+
+test('reaching a counting line unfolds the lines it counts', async ($, on) => {
+  const ui = await monter($ as never, on as never)
+  const cles = async () => (await ui.findAll({ type: 'Button' })).map(b => b.key)
+  expect(await cles()).not.toContain('c.1.1:2.0')
+  await $.ui.press({ plugin: 'grillhouse', key: '+:2' })
+  expect(await cles()).toContain('c.1.1:2.0')
+  await ui.unmount()
+})
+
+test('g makes the card show the whole text, and g again brings it back', async ($, on) => {
+  const ui = await monter($ as never, on as never)
+  await $.ui.press({ plugin: 'grillhouse', key: 'c.2:1' })
+  expect(JSON.stringify(await ui.drawn())).not.toContain('jusqu’à sa dernière ligne')
+  await $.ui.press({ plugin: 'grillhouse', key: 'g' })
+  expect(JSON.stringify(await ui.drawn())).toContain('jusqu’à sa dernière ligne')
+  await $.ui.press({ plugin: 'grillhouse', key: 'g' })
+  expect(JSON.stringify(await ui.drawn())).not.toContain('jusqu’à sa dernière ligne')
+  await ui.unmount()
+})
