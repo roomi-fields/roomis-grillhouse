@@ -374,6 +374,49 @@ describe('assembler', () => {
   });
 });
 
+describe('a ticket in progress with children', () => {
+  it('unfolds its children in the tree, even while an agent block shows it', () => {
+    const T = (id: string, o: object = {}) => ({
+      id,
+      title: id,
+      status: 'open',
+      priority: 2,
+      issue_type: 'task',
+      ...o,
+    });
+    const t = plateau({
+      tous: [
+        T('demo-e', { issue_type: 'epic', title: 'e — Le chantier' }),
+        T('demo-m', { parent: 'demo-e', status: 'in_progress', title: 'm — La mère en cours' }),
+        T('demo-m.1', {
+          parent: 'demo-m',
+          status: 'in_progress',
+          title: 'm.1 — L’enfant en cours',
+        }),
+      ],
+      prefix: 'demo',
+      registre: [
+        {
+          agent: 'a',
+          ticket: 'demo-m',
+          role: 'testeur',
+          fin: '2026-10-10T10:00:00Z',
+          travail: 1,
+          jetons: 1,
+        },
+      ],
+      vivants: [],
+      maintenant: Date.parse('2026-10-10T12:00:00Z'),
+      jour: Date.parse('2026-10-10T00:00:00Z'),
+    });
+    const texte = dessin(t)
+      .map(x => x.texte)
+      .join('\n');
+    expect(texte).toMatch(/\n4 développeur\n· m {2}La mère en cours/);
+    expect(texte).toMatch(/\n m\.1 {2}L’enfant en cours/);
+  });
+});
+
 describe('dernierBouge', () => {
   const T = (id: string, updated_at: string) => ({ id, title: id, status: 'open', updated_at });
   const lignesDe = (...ids: string[]) => ids.map(ticket => ({ texte: ticket, ticket }));

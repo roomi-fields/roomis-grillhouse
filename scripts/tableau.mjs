@@ -624,9 +624,9 @@ export function lignes(t, nom, largeur = LARGEUR) {
               : n.etat === 'fermes'
                 ? '✓'
                 : '';
-    // A level shows its mothers (unfolded while work runs below), its tickets in progress or
-    // awaiting the responsable that no agent block shows, and one line counting its other open
-    // tickets.
+    // A level shows its mothers, its tickets in progress or awaiting the responsable that no agent
+    // block shows, and one line counting its other open tickets. A ticket with children unfolds
+    // them while work runs there; one an agent block shows lets its children take its place.
     const ligneDe = (n, p) => {
       const conso = n.jetons ? ` · ${k(n.jetons)}` : '';
       const droite = n.mere
@@ -644,7 +644,11 @@ export function lignes(t, nom, largeur = LARGEUR) {
       const reste = { prets: 0, bloques: 0, reportes: 0 };
       const caches = [];
       for (const n of noeuds) {
+        const deplie = n.enfants.length > 0 && n.etat === 'enCours';
         if (!n.mere && dansAgents.has(n.id)) {
+          if (deplie) {
+            parcourir(n.enfants, p);
+          }
           continue;
         }
         const visible = n.mere || n.etat === 'enCours' || n.etat === 'aValider';
@@ -656,7 +660,7 @@ export function lignes(t, nom, largeur = LARGEUR) {
           continue;
         }
         arbre.push(ligneDe(n, p));
-        if (n.mere && n.etat === 'enCours') {
+        if (deplie) {
           parcourir(n.enfants, p + 1);
         }
       }
