@@ -461,7 +461,12 @@ export function assembler({
     }
     const r = etape(p, verdicts[t.id] ?? null);
     if (r && bloc(r)) {
-      bloc(r).attend.push({ numero: numero(t.id), sujet: titre(t).sujet });
+      bloc(r).attend.push({
+        numero: numero(t.id),
+        sujet: titre(t).sujet,
+        duree: dureeDe(t),
+        ...mesure(new Set([t.id])),
+      });
     }
   }
   const debutJour = jour;
@@ -671,7 +676,10 @@ export function lignes(t, nom, largeur = LARGEUR) {
       L(cadre(`  ${x.sujet}`, '', largeur), 'discret');
     }
     for (const x of b.attend.slice(0, ATTENTE_MAX)) {
-      L(cadre(`· ${x.numero}  ${x.sujet}`, '', largeur), 'discret');
+      L(
+        cadre(`· ${x.numero}  ${x.sujet}`, `${duree(x.duree)} · ${k(x.jetons)}`, largeur),
+        'discret'
+      );
     }
     if (b.attend.length > ATTENTE_MAX) {
       L(`  + ${b.attend.length - ATTENTE_MAX} en attente`, 'discret');

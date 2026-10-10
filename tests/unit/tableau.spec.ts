@@ -293,7 +293,9 @@ describe('assembler', () => {
       expect.objectContaining({ numero: 'c.1.1', composant: 'moteur', ligne: true }),
     ]);
     expect(b(3).enCours).toEqual([]);
-    expect(b(4).attend).toEqual([{ numero: 'c.3', sujet: 'demo-c.3' }]);
+    expect(b(4).attend).toEqual([
+      { numero: 'c.3', sujet: 'demo-c.3', duree: 0, travail: 60_000, jetons: 50 },
+    ]);
     expect(b(3).attend).toEqual([]);
     expect(t.agents.flatMap(x => x.attend.map(y => y.numero))).not.toContain('c.4');
   });
@@ -335,7 +337,7 @@ describe('assembler', () => {
     expect(texte).toMatch(/\+ 1 prêts · 1 bloqués/);
     expect(texte).toMatch(/\n4 développeur\n▶ c\.1\.1 moteur ⌁/);
     expect(texte).toMatch(/▶ c\.1\.1 moteur ⌁[^\n]*\n {2}Écrit/);
-    expect(texte).toMatch(/\n4 développeur[\s\S]*\n· c\.3 {2}demo-c\.3/);
+    expect(texte).toMatch(/\n4 développeur[\s\S]*\n· c\.3 {2}demo-c\.3 +0 min · 50\n/);
     expect(texte).toMatch(/\n1 explorateur {2}—\n/);
     expect(texte).toMatch(/✓ c\.1\.2 {2}demo-c\.1\.2/);
     expect(texte).toMatch(/autres : z 1\/1/);
