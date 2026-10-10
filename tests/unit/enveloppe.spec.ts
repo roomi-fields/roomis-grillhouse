@@ -1,5 +1,8 @@
 import { execFileSync, spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import {
+  accessSync,
+  constants,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -9,7 +12,7 @@ import {
   utimesSync,
   writeFileSync,
 } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { homedir, tmpdir, userInfo } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { CODE_COPIE, CODE_REFUS, CODE_USAGE } from '../../scripts/enveloppe/codes.mjs';
@@ -355,6 +358,430 @@ describe.runIf(canWrap)('the envelope on disk', () => {
     const r = run('true');
     expect(r.status).toBe(CODE_REFUS);
     expect(r.stderr).toMatch(/traverserait l'enveloppe/);
+  });
+});
+
+// METACADRE intention 5, « des agents cadrés », and the arbitration of grillhouse-3uv.8: like
+// Flatpak and the development containers, the envelope shows of the home and of the session
+// directory ($XDG_RUNTIME_DIR, /run/user/<uid>) what it declares, and nothing else. It declares
+// what the session needs: `~/.claude` and `~/.claude.json`, claude's binary and versions
+// (`~/.local/bin/claude`, `~/.local/share/claude`), node and its tools (`~/.nvm`), `~/.gitconfig`,
+// the npm cache, and the repository (main tree, its `.git`, `.beads`) with today's rights. No
+// socket of the session comes back.
+describe.runIf(canWrap)(
+  'the envelope shows of the home and the session only what it declares',
+  () => {
+    const home = essai('home-');
+    // The repository lives in the home, as on the machine.
+    const repo = path.join(home, 'dev/projet');
+    mkdirSync(path.join(repo, 'packages/a/src'), { recursive: true });
+    mkdirSync(path.join(repo, 'packages/b/src'), { recursive: true });
+    writeFileSync(path.join(repo, 'packages/a/src/a.ts'), 'a');
+    writeFileSync(path.join(repo, 'packages/b/src/b.ts'), 'code-of-b');
+    writeFileSync(path.join(repo, 'LISEZMOI'), 'racine');
+    const git = (...a: string[]) =>
+      execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
+    git('init', '-q');
+    // A real tickets base, made by bd in this home: it writes there its own state (`~/.dolt`,
+    // `~/.beads`, `~/.config/bd`), which the session's bd reads to open the base.
+    const bdDehors = (...a: string[]) =>
+      execFileSync('bd', a, { cwd: repo, env: { ...process.env, HOME: home }, stdio: 'pipe' });
+    bdDehors('init', '-q', '--non-interactive', '-p', 'essai');
+    git('add', '.');
+    git('commit', '-qm', 'init');
+    const copie = path.join(repo, '.claude/worktrees/demo-1');
+    git('worktree', 'add', '-q', '-b', 'agent/demo-1', copie);
+
+    // Stores of secrets: those of the usual tools, those of rarer ones, and two whose names are
+    // drawn at random, so that no list of the envelope can name them.
+    const inconnu = `.${randomUUID()}`;
+    const SECRETS: Record<string, string> = {
+      '.ssh/id_ed25519': 'SECRET-ssh-key',
+      '.config/gh/hosts.yml': 'SECRET-gh-token',
+      '.npmrc': 'SECRET-npm-token',
+      '.aws/credentials': 'SECRET-aws-key',
+      '.gnupg/private-keys-v1.d/k.key': 'SECRET-gpg-key',
+      '.netrc': 'SECRET-netrc',
+      '.git-credentials': 'SECRET-git-credentials',
+      '.config/git/credentials': 'SECRET-git-xdg-credentials',
+      '.docker/config.json': 'SECRET-docker-auth',
+      '.kube/config': 'SECRET-kube-token',
+      '.ollama/id_ed25519': 'SECRET-ollama-key',
+      '.config/restic/password': 'SECRET-restic-password',
+      '.local/share/keyrings/login.keyring': 'SECRET-keyring',
+      '.bash_history': 'SECRET-history',
+      '.claude.json.bak': 'SECRET-claude-backup',
+      // Beside the targets of the declared configurations a dotfiles manager links (below).
+      'dotfiles/autre': 'SECRET-dotfiles-neighbour',
+      'dotfiles/git/autre': 'SECRET-dotfiles-deep-neighbour',
+      'stow/autre': 'SECRET-stow-neighbour',
+      [`${inconnu}/token`]: 'SECRET-unnamed-store',
+      [`.config/${randomUUID()}/auth.json`]: 'SECRET-unnamed-config',
+    };
+    // What the session reads to start and work: it comes back.
+    const DECLARES: Record<string, string> = {
+      '.claude/.credentials.json': 'claude-oauth',
+      '.claude/settings.json': '{}',
+      '.claude.json': '{"etat":1}',
+      '.nvm/versions/node/v1/bin/marque': 'nvm',
+      '.npm/_cacache/marque': 'cache',
+    };
+    for (const [rel, contenu] of Object.entries({ ...SECRETS, ...DECLARES })) {
+      mkdirSync(path.dirname(path.join(home, rel)), { recursive: true });
+      writeFileSync(path.join(home, rel), contenu);
+    }
+    // The launchers of the home are links, as on the machine: claude's to its binary; those of
+    // codegraph and rtfm to a script of their package, which finds the package's other files
+    // beside its own real path.
+    const ecrire = (rel: string, contenu: string, mode = 0o644) => {
+      mkdirSync(path.dirname(path.join(home, rel)), { recursive: true });
+      writeFileSync(path.join(home, rel), contenu, { mode });
+    };
+    const lier = (rel: string, cible: string) => {
+      mkdirSync(path.dirname(path.join(home, rel)), { recursive: true });
+      symlinkSync(cible, path.join(home, rel));
+    };
+    const LANCEUR = '#!/bin/sh\ncat "$(dirname "$(readlink -f "$0")")/voisin"\n';
+    ecrire('.local/share/claude/versions/1.0.0', '#!/bin/sh\necho claude-demarre\n', 0o755);
+    lier('.local/bin/claude', path.join(home, '.local/share/claude/versions/1.0.0'));
+    ecrire('.nvm/versions/node/v1/lib/node_modules/codegraph/shim.sh', LANCEUR, 0o755);
+    ecrire('.nvm/versions/node/v1/lib/node_modules/codegraph/voisin', 'codegraph-voisin\n');
+    lier('.nvm/versions/node/v1/bin/codegraph', '../lib/node_modules/codegraph/shim.sh');
+    lier('.local/bin/codegraph', path.join(home, '.nvm/versions/node/v1/bin/codegraph'));
+    ecrire('.local/share/pipx/venvs/rtfm/bin/rtfm', LANCEUR, 0o755);
+    ecrire('.local/share/pipx/venvs/rtfm/bin/voisin', 'rtfm-voisin\n');
+    lier('.local/bin/rtfm', path.join(home, '.local/share/pipx/venvs/rtfm/bin/rtfm'));
+    // The git configurations are links a dotfiles manager keeps into directories of the home the
+    // envelope does not declare: an absolute link, a relative one, and a link to a link.
+    ecrire('dotfiles/gitconfig', '[user]\n\tname = t\n');
+    lier('.gitconfig', path.join(home, 'dotfiles/gitconfig'));
+    ecrire('dotfiles/git/ignore', '*.sonde\n');
+    lier('.config/git/ignore', '../../dotfiles/git/ignore');
+    ecrire('stow/attributes', '*.sonde diff\n');
+    lier('dotfiles/lien-attributes', path.join(home, 'stow/attributes'));
+    lier('.config/git/attributes', path.join(home, 'dotfiles/lien-attributes'));
+    // The paths of the home the envelope declares, as prefixes; every file seen in the home falls
+    // under one of them.
+    const PREFIXES = [
+      '.claude/',
+      '.claude.json',
+      '.gitconfig',
+      '.local/bin/claude',
+      '.local/share/claude/',
+      '.nvm/',
+      '.npm/',
+      '.local/bin/codegraph',
+      '.local/bin/rtfm',
+      '.local/share/pipx/',
+      '.dolt/',
+      '.beads/',
+      '.config/bd/',
+      '.config/git/ignore',
+      '.config/git/attributes',
+      'dotfiles/gitconfig',
+      'dotfiles/git/ignore',
+      'dotfiles/lien-attributes',
+      'stow/attributes',
+      'dev/projet/',
+    ];
+
+    // A session directory holding the sockets of the session (ssh agent, bus, gpg-agent) and a
+    // file. A socket path is bound relative to its directory: the absolute one may pass the limit
+    // of 108 signs.
+    const session = essai('session-');
+    const prise = (rel: string) => {
+      const dir = path.join(session, path.dirname(rel));
+      mkdirSync(dir, { recursive: true });
+      execFileSync(
+        'python3',
+        [
+          '-c',
+          'import socket,sys; socket.socket(socket.AF_UNIX).bind(sys.argv[1])',
+          path.basename(rel),
+        ],
+        { cwd: dir }
+      );
+      return path.join(session, rel);
+    };
+    const agentSsh = prise('keyring/ssh');
+    const bus = prise('bus');
+    prise('gnupg/S.gpg-agent');
+    writeFileSync(path.join(session, 'SECRET-session-file'), 'SECRET-session');
+
+    const env = (maison: string) => ({
+      ...process.env,
+      HOME: maison,
+      XDG_RUNTIME_DIR: session,
+      SSH_AUTH_SOCK: agentSsh,
+      DBUS_SESSION_BUS_ADDRESS: `unix:path=${bus}`,
+      npm_config_cache: path.join(maison, '.npm'),
+    });
+    const run = (shell: string, maison = home) =>
+      spawnSync('node', [SCRIPT, copie, 'packages/a', '--', 'bash', '-c', shell], {
+        encoding: 'utf8',
+        env: env(maison),
+      });
+
+    it('shows no store of the home it does not declare, named by a list or not', () => {
+      for (const [rel, secret] of Object.entries(SECRETS)) {
+        const r = run(`cat ~/${rel}; test -e ~/${rel}`);
+        expect(r.stdout, rel).not.toContain(secret);
+        expect(r.status, rel).not.toBe(0);
+      }
+      expect(run(`test -e ~/${inconnu}`).status).not.toBe(0);
+    });
+    it('lets no search of the home reach a secret', () => {
+      const r = run('grep -rs SECRET ~ 2>/dev/null; true');
+      expect(r.stdout).not.toMatch(/SECRET/);
+    });
+    it('holds in the home only the files of its declared paths', () => {
+      const r = run('cd ~ && find . -type f -o -type l');
+      const vus = r.stdout
+        .split('\n')
+        .filter(Boolean)
+        .map(l => l.replace(/^\.\//, ''));
+      expect(vus.length).toBeGreaterThan(0);
+      const horsDeclares = vus.filter(f => !PREFIXES.some(p => f === p || f.startsWith(p)));
+      expect(horsDeclares).toEqual([]);
+    });
+    it('keeps what claude needs to start: credentials, settings, global state, binary, versions', () => {
+      expect(run('cat ~/.claude/.credentials.json').stdout).toBe('claude-oauth');
+      expect(run('cat ~/.claude/settings.json').stdout).toBe('{}');
+      expect(run('cat ~/.claude.json').stdout).toBe('{"etat":1}');
+      expect(run('~/.local/bin/claude').stdout).toBe('claude-demarre\n');
+    });
+    it('keeps a declared launcher that is a link a link: its package finds its other files', () => {
+      expect(run('~/.local/bin/codegraph').stdout).toBe('codegraph-voisin\n');
+      expect(run('~/.local/bin/rtfm').stdout).toBe('rtfm-voisin\n');
+      expect(run('PATH=~/.local/bin:$PATH codegraph').stdout).toBe('codegraph-voisin\n');
+    });
+    it('lets bd read and write the tickets base of the main tree with its own state', () => {
+      const cree = run('bd create "sonde de l\'enveloppe" --json');
+      expect(cree.status, cree.stderr).toBe(0);
+      const { id } = JSON.parse(cree.stdout) as { id: string };
+      const lu = run(`bd show ${id} --json`);
+      expect(lu.status, lu.stderr).toBe(0);
+      expect(lu.stdout).toContain("sonde de l'enveloppe");
+    });
+    it('keeps node and its tools, and the git configuration', () => {
+      expect(run('cat ~/.nvm/versions/node/v1/bin/marque').stdout).toBe('nvm');
+      expect(run('git config --global user.name').stdout.trim()).toBe('t');
+    });
+    // The rule of the links (enveloppe.mjs, `avecLiens`), as Flatpak exposes a link: a declared
+    // path that is a link brings back its target, link by link, with the link's rights, and
+    // nothing beside it.
+    it('brings back the target of a declared configuration linked into an undeclared directory', () => {
+      expect(run('git config --global user.name').stdout.trim()).toBe('t');
+      expect(run('cat ~/.gitconfig').stdout).toBe('[user]\n\tname = t\n');
+      expect(run('cat ~/.config/git/ignore').stdout).toBe('*.sonde\n');
+      expect(run('cat ~/.config/git/attributes').stdout).toBe('*.sonde diff\n');
+      expect(run('git check-ignore -q x.sonde').status).toBe(0);
+    });
+    it('shows nothing beside the target of a declared link, and keeps the link read-only', () => {
+      for (const rel of ['dotfiles/autre', 'dotfiles/git/autre', 'stow/autre']) {
+        expect(run(`test -e ~/${rel}`).status, rel).not.toBe(0);
+      }
+      expect(run('ls -A ~/dotfiles').stdout.split('\n').filter(Boolean).sort()).toEqual([
+        'git',
+        'gitconfig',
+        'lien-attributes',
+      ]);
+      expect(run('echo x >> ~/.gitconfig').status).not.toBe(0);
+      expect(run('echo x >> ~/.config/git/attributes').status).not.toBe(0);
+      expect(readFileSync(path.join(home, 'dotfiles/gitconfig'), 'utf8')).toBe(
+        '[user]\n\tname = t\n'
+      );
+      expect(readFileSync(path.join(home, 'stow/attributes'), 'utf8')).toBe('*.sonde diff\n');
+    });
+    it('lets the session write the npm cache', () => {
+      expect(run('touch ~/.npm/ecrit').status).toBe(0);
+      expect(existsSync(path.join(home, '.npm/ecrit'))).toBe(true);
+    });
+    it('keeps the repository of the home: the copy written, the main tree and its .git read', () => {
+      expect(run('git status --short').status).toBe(0);
+      expect(run(`cat ${repo}/LISEZMOI`).stdout).toBe('racine');
+      expect(run('touch packages/a/src/nouveau.ts').status).toBe(0);
+      expect(run(`touch ${repo}/x`).status).not.toBe(0);
+      expect(run(`touch ${repo}/.git/x`).status).not.toBe(0);
+      expect(run('cat packages/b/src/b.ts').stdout).not.toContain('code-of-b');
+    });
+    it('lets the session write the tickets base of the main tree in the home', () => {
+      expect(run(`touch ${repo}/.beads/ecrit`).status).toBe(0);
+      expect(existsSync(path.join(repo, '.beads/ecrit'))).toBe(true);
+    });
+    it('writes nothing to the home outside its declared paths', () => {
+      run(
+        'mkdir -p ~/.ssh; echo x > ~/.ssh/authorized_keys; echo x > ~/.npmrc; touch ~/neuf; true'
+      );
+      expect(existsSync(path.join(home, '.ssh/authorized_keys'))).toBe(false);
+      expect(readFileSync(path.join(home, '.npmrc'), 'utf8')).toBe('SECRET-npm-token');
+      expect(existsSync(path.join(home, 'neuf'))).toBe(false);
+    });
+    it('still launches in a home that holds none of the declared paths but ~/.claude', () => {
+      const nu = essai('home-nu-');
+      mkdirSync(path.join(nu, '.claude'));
+      const r = run('echo ok', nu);
+      expect(r.stderr).toBe('');
+      expect(r.status).toBe(0);
+      expect(r.stdout).toBe('ok\n');
+    });
+    it('shows the session directory empty: no ssh agent, no bus, no gpg-agent', () => {
+      expect(run('ls -A "$XDG_RUNTIME_DIR" 2>/dev/null; true').stdout).toBe('');
+      expect(run('test -S "$SSH_AUTH_SOCK"').status).not.toBe(0);
+      expect(run(`test -S ${bus}`).status).not.toBe(0);
+      expect(run(`cat ${session}/SECRET-session-file`).stdout).not.toContain('SECRET');
+    });
+  }
+);
+
+// The session directory of this machine, when it has one: the envelope shows it empty.
+const sessionReelle = `/run/user/${process.getuid?.()}`;
+describe.runIf(canWrap && existsSync(sessionReelle))(
+  'the envelope and the session of the machine',
+  () => {
+    const repo = essai('session-reelle-');
+    mkdirSync(path.join(repo, 'packages/a'), { recursive: true });
+    writeFileSync(path.join(repo, 'packages/a/a.ts'), 'a');
+    const git = (...a: string[]) =>
+      execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
+    git('init', '-q');
+    git('add', '.');
+    git('commit', '-qm', 'init');
+    const copie = path.join(repo, '.claude/worktrees/demo-1');
+    git('worktree', 'add', '-q', '-b', 'agent/demo-1', copie);
+    const home = essai('home-');
+    mkdirSync(path.join(home, '.claude'));
+
+    it('shows /run/user/<uid> empty, whatever the session holds there', () => {
+      const r = spawnSync(
+        'node',
+        [
+          SCRIPT,
+          copie,
+          'packages/a',
+          '--',
+          'bash',
+          '-c',
+          `ls -A ${sessionReelle} 2>/dev/null; true`,
+        ],
+        { encoding: 'utf8', env: { ...process.env, HOME: home, XDG_RUNTIME_DIR: sessionReelle } }
+      );
+      expect(r.status).toBe(0);
+      expect(r.stdout).toBe('');
+    });
+  }
+);
+
+// The probe of the ticket, on the real home of this machine: claude and the tools of the session
+// work in the envelope, each for real — claude reads its identity, bd opens a tickets base,
+// codegraph answers from an index. Its copy is the one this suite runs in, when that copy is not
+// the main tree and its session directory under the real `~/.claude/projects` can be written (a
+// role session); else, where `~/.claude/projects` can be written (outside an envelope), a test
+// repository, whose tickets base and index are made here and whose session directory is removed
+// after. On the copy of this suite, bd only reads the base: the probe writes no ticket there.
+const maisonReelle = userInfo().homedir;
+const projetsReels = path.join(maisonReelle, '.claude/projects');
+const ecrivable = (p: string) => {
+  try {
+    accessSync(p, constants.W_OK);
+    return true;
+  } catch {
+    return false;
+  }
+};
+const enTirets = (p: string) => p.replace(/[^A-Za-z0-9]/g, '-');
+const DEPOT = path.resolve(__dirname, '../..');
+const copieDeLaSuite = (() => {
+  const r = spawnSync('git', ['-C', DEPOT, 'worktree', 'list', '--porcelain'], {
+    encoding: 'utf8',
+  });
+  const principal = r.stdout?.split('\n')[0]?.replace(/^worktree /, '');
+  return r.status === 0 &&
+    principal &&
+    path.resolve(principal) !== DEPOT &&
+    ecrivable(path.join(projetsReels, enTirets(DEPOT)))
+    ? DEPOT
+    : null;
+})();
+const sondeEssai = !copieDeLaSuite && ecrivable(projetsReels);
+describe.runIf(canWrap && (copieDeLaSuite || sondeEssai))('the envelope on the real home', () => {
+  const reel = { ...process.env, HOME: maisonReelle };
+  const dehors = (cmd: string[], cwd: string) =>
+    spawnSync(cmd[0], cmd.slice(1), { cwd, encoding: 'utf8', env: reel, timeout: 60000 });
+  let copie: string;
+  let symbole: string;
+  if (copieDeLaSuite) {
+    copie = copieDeLaSuite;
+    symbole = 'montagesDeLaSeance';
+  } else {
+    const repo = essai('maison-reelle-');
+    mkdirSync(path.join(repo, 'packages/a'), { recursive: true });
+    symbole = 'sondeDeLEnveloppe';
+    writeFileSync(path.join(repo, 'packages/a/a.ts'), `export function ${symbole}() {}\n`);
+    const git = (...a: string[]) =>
+      execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
+    git('init', '-q');
+    dehors(['bd', 'init', '-q', '--non-interactive', '-p', 'essai'], repo);
+    dehors(['bd', 'create', 'ticket de la sonde', '--json'], repo);
+    dehors(['codegraph', 'init', repo], repo);
+    git('add', '.');
+    git('commit', '-qm', 'init');
+    copie = path.join(repo, '.claude/worktrees/demo-1');
+    git('worktree', 'add', '-q', '-b', 'agent/demo-1', copie);
+    const projet = path.join(projetsReels, enTirets(copie));
+    afterAll(() => rmSync(projet, { recursive: true, force: true }));
+  }
+  const composant = copieDeLaSuite ? 'scripts' : 'packages/a';
+  const dedans = (cmd: string[]) =>
+    spawnSync('node', [SCRIPT, copie, composant, '--', ...cmd], {
+      encoding: 'utf8',
+      env: reel,
+      timeout: 60000,
+    });
+  // A ticket of the base, as bd reads it outside the envelope.
+  const ticket = (() => {
+    const r = dehors(['bd', 'list', '--json', '--limit', '1'], copie);
+    if (r.status !== 0) {
+      return null;
+    }
+    const liste = JSON.parse(r.stdout) as { id: string }[];
+    return liste[0]?.id ?? null;
+  })();
+  // Each tool, its command and what its answer holds; a tool is probed when it answers so outside.
+  // bd and codegraph have their own probes, below.
+  const SONDES: { outil: string; cmd: string[]; attendu: string }[] = [
+    { outil: 'claude', cmd: ['claude', 'auth', 'status'], attendu: '"loggedIn": true' },
+    { outil: 'git', cmd: ['git', 'status', '--short'], attendu: '' },
+    { outil: 'npm', cmd: ['npm', 'config', 'get', 'cache'], attendu: '' },
+  ];
+  const sondes = SONDES.filter(s => {
+    const r = dehors(s.cmd, copie);
+    return r.status === 0 && r.stdout.includes(s.attendu);
+  });
+
+  it('starts claude with its identity, and the tools of the session for real', () => {
+    expect(sondes.map(s => s.outil)).toContain('claude');
+    for (const { outil, cmd, attendu } of sondes) {
+      const r = dedans(cmd);
+      expect(r.status, `${outil}: ${r.stderr}`).toBe(0);
+      expect(r.stdout, outil).toContain(attendu);
+    }
+  });
+  it('lets bd open the tickets base of the repository', () => {
+    expect(ticket).not.toBeNull();
+    const r = dedans(['bd', 'show', ticket as string, '--json']);
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stdout).toContain(ticket);
+  });
+  it('lets codegraph answer from the index of the repository', () => {
+    const r = dedans(['codegraph', 'query', symbole, '-p', copie, '--json']);
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stdout).toContain(symbole);
+  });
+  it.runIf(sondeEssai)('lets bd write a ticket in the tickets base of the repository', () => {
+    const r = dedans(['bd', 'create', "ticket écrit dans l'enveloppe", '--json']);
+    expect(r.status, r.stderr).toBe(0);
+    expect(dehors(['bd', 'list', '--json'], copie).stdout).toContain('écrit dans l');
   });
 });
 
