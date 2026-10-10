@@ -858,7 +858,8 @@ export function tableau(racine, { home = os.homedir(), maintenant = Date.now() }
     maintenant,
     jour: minuit.getTime(),
   });
-  const nom = (pkg.name ?? path.basename(racine)).replace(/^@[^/]+\//, '');
+  // The project is named by its repository's folder, as a shell prompt names it.
+  const nom = path.basename(racine);
   const l = lignes(t, nom);
   const parTicket = {};
   for (const r of registre) {
