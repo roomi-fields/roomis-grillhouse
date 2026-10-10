@@ -675,11 +675,7 @@ export function lignes(t, nom, largeur = LARGEUR) {
     L(`${b.numero} ${b.nom}${vide ? '  —' : ''}`, vide ? 'discret' : 'titre');
     for (const x of b.enCours) {
       L(
-        cadre(
-          `▶ ${x.numero}  ${x.sujet}`,
-          `${duree(x.travail)} · ${k(x.jetons)}`,
-          largeur
-        ),
+        cadre(`▶ ${x.numero}  ${x.sujet}`, `${duree(x.travail)} · ${k(x.jetons)}`, largeur),
         'actif',
         x.id
       );
