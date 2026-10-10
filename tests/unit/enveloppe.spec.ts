@@ -283,6 +283,34 @@ describe('plan refuses', () => {
     );
     expect(refus).toMatch(/traverserait l'enveloppe/);
   });
+  // grillhouse-2sq: the package of the shared test material comes back whole, so a link of it
+  // that aims at a hidden component would cross the envelope, for every role.
+  it.each(['testeur', 'developpeur'])(
+    'a link of the shared test material that crosses into a hidden component (%s)',
+    role => {
+      const disk = fakeDisk(
+        { '/wt/packages': [], '/wt/packages/a': [], '/wt/packages/matiere': [] },
+        ['/wt/packages/a', '/wt/packages/matiere'],
+        {
+          '/wt/packages/matiere': [
+            { lien: '/wt/packages/matiere/fixtures/x', cible: '/main/packages/b/src' },
+          ],
+        }
+      );
+      const { refus } = plan(
+        {
+          trees: ['/main', '/wt'],
+          copie: '/wt',
+          composant: 'packages/a',
+          role,
+          matieres: ['packages/matiere'],
+        },
+        disk
+      );
+      expect(refus).toMatch(/traverserait l'enveloppe/);
+      expect(refus).toContain('/wt/packages/matiere/fixtures/x');
+    }
+  );
   it('lets a link to an unhidden place through', () => {
     const disk = fakeDisk({ '/wt/packages': [], '/wt/packages/a': [] }, [], {
       '/wt/packages/a': [{ lien: '/wt/packages/a/x', cible: '/usr/lib/node' }],
@@ -301,6 +329,29 @@ const ESSAIS = path.join(homedir(), '.cache', 'grillhouse-essais-enveloppe');
 mkdirSync(ESSAIS, { recursive: true });
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 const essai = (nom: string) => mkdtempSync(path.join(ESSAIS, nom));
+
+// The envelope as a test repository holds it: enveloppe.mjs and every module it imports, followed
+// from import to import, each copied at its path relative to the repository root.
+const RACINE = path.resolve(__dirname, '../..');
+function installerEnveloppe(repo: string) {
+  const vus = new Set<string>();
+  const suivre = (fichier: string) => {
+    if (vus.has(fichier)) {
+      return;
+    }
+    vus.add(fichier);
+    const cible = path.join(repo, path.relative(RACINE, fichier));
+    mkdirSync(path.dirname(cible), { recursive: true });
+    execFileSync('cp', [fichier, cible]);
+    const source = readFileSync(fichier, 'utf8');
+    for (const [, spec] of source.matchAll(
+      /^\s*(?:import|export)\b[^'"]*?from\s+['"](\.{1,2}\/[^'"]+)['"]/gm
+    )) {
+      suivre(path.resolve(path.dirname(fichier), spec));
+    }
+  };
+  suivre(SCRIPT);
+}
 
 const canWrap = spawnSync('bwrap', ['--dev-bind', '/', '/', 'true']).status === 0;
 
@@ -330,7 +381,7 @@ describe.runIf(canWrap)('the envelope on disk', () => {
   const dehors = mkdtempSync(path.join(tmpdir(), 'dehors-'));
 
   const run = (shell: string, dir = copie) =>
-    spawnSync('node', [SCRIPT, dir, 'packages/a', '--', 'bash', '-c', shell], {
+    spawnSync('node', [SCRIPT, dir, 'packages/a', 'developpeur', '--', 'bash', '-c', shell], {
       encoding: 'utf8',
       env: { ...process.env, HOME: home },
     });
@@ -571,7 +622,7 @@ describe.runIf(canWrap)(
       npm_config_cache: path.join(maison, '.npm'),
     });
     const run = (shell: string, maison = home, dans = copie) =>
-      spawnSync('node', [SCRIPT, dans, 'packages/a', '--', 'bash', '-c', shell], {
+      spawnSync('node', [SCRIPT, dans, 'packages/a', 'developpeur', '--', 'bash', '-c', shell], {
         encoding: 'utf8',
         env: env(maison),
       });
@@ -816,7 +867,7 @@ describe.runIf(canWrap && existsSync(CERTIFICATS))(
       };
     };
     const run = (shell: string, extra: Record<string, string> = {}) =>
-      spawnSync('node', [SCRIPT, copie, 'packages/a', '--', 'bash', '-c', shell], {
+      spawnSync('node', [SCRIPT, copie, 'packages/a', 'developpeur', '--', 'bash', '-c', shell], {
         encoding: 'utf8',
         env: env(extra),
       });
@@ -908,6 +959,7 @@ describe.runIf(canWrap && existsSync(sessionReelle))(
           SCRIPT,
           copie,
           'packages/a',
+          'developpeur',
           '--',
           'bash',
           '-c',
@@ -992,7 +1044,7 @@ describe.runIf(canWrap && (copieDeLaSuite || sondeEssai))('the envelope on the r
   }
   const composant = copieDeLaSuite ? 'scripts' : 'packages/a';
   const dedans = (cmd: string[]) =>
-    spawnSync('node', [SCRIPT, copie, composant, '--', ...cmd], {
+    spawnSync('node', [SCRIPT, copie, composant, 'developpeur', '--', ...cmd], {
       encoding: 'utf8',
       env: reel,
       timeout: 60000,
@@ -1071,7 +1123,7 @@ describe.runIf(canWrap)('the launcher', () => {
   writeFileSync(path.join(repo, 'packages/a/src/a.ts'), 'a');
   writeFileSync(path.join(repo, 'packages/b/src/b.ts'), 'secret');
   writeFileSync(path.join(repo, '.claude/agents/developpeur.md'), '---\nname: developpeur\n---\n');
-  execFileSync('cp', [SCRIPT, CODES, path.join(repo, 'scripts/enveloppe/')]);
+  installerEnveloppe(repo);
   execFileSync('git', ['init', '-q', repo]);
   execFileSync('git', ['-C', repo, 'add', '.']);
   execFileSync('git', [
@@ -1190,7 +1242,7 @@ describe('the launcher and the dependencies of the copy', () => {
   writeFileSync(path.join(repo, 'package.json'), '{"name":"t","private":true}\n');
   writeFileSync(path.join(repo, 'package-lock.json'), '{"lockfileVersion":3}\n');
   writeFileSync(path.join(repo, '.gitignore'), 'node_modules\nbin\nappels\nconsigne.txt\n');
-  execFileSync('cp', [SCRIPT, CODES, path.join(repo, 'scripts/enveloppe/')]);
+  installerEnveloppe(repo);
   const appels = path.join(repo, 'appels');
   writeFileSync(
     path.join(repo, 'bin/npm'),
@@ -1280,7 +1332,7 @@ describe('the launcher and the work in progress of the copy', () => {
       '---\nname: developpeur\n---\n'
     );
     writeFileSync(path.join(repo, '.gitignore'), 'consigne.txt\n');
-    execFileSync('cp', [SCRIPT, CODES, path.join(repo, 'scripts/enveloppe/')]);
+    installerEnveloppe(repo);
     const consigne = path.join(repo, 'consigne.txt');
     writeFileSync(consigne, 'TON TICKET : demo-1 — un sujet.');
     const git = (dir: string, ...args: string[]) =>
@@ -1399,5 +1451,255 @@ describe('the launcher and the work in progress of the copy', () => {
     d.ecrire('packages/a/src/a.ts', lignes('COPIE'));
     expect(d.launch().status).toBe(CODE_COPIE);
     expect(d.lire('packages/a/src/a.ts')).toBe(lignes('COPIE'));
+  });
+});
+
+// METACADRE intentions 4, « la preuve avant l'affirmation », and 5, « des agents cadrés », and
+// grillhouse-2sq: like the *-test-utils packages of a monorepo, published by the subpath export
+// `./test-fixtures` and written by their owner, the package of the shared test material is the
+// package whose package.json exports `./test-fixtures`. In the envelope it comes back whole:
+// written for the testeur, read-only for every other role. A project without it does not change.
+// The role is the envelope's third argument: `enveloppe.mjs <copie> <composant> <rôle> -- …`.
+type Manifeste = Record<string, unknown>;
+const MATIERE_FICHIERS = [
+  'fixtures/index.js',
+  'fixtures/cas/un.txt',
+  'fixtures/cas/profond/plus/deux.txt',
+  'src/generer.ts',
+  'README.md',
+];
+// A repository with the agent's component `packages/a`, an ordinary sibling `packages/b`, siblings
+// that export other subpaths, and, when <matiere> is given, the package `packages/<nom>` with that
+// package.json and the files of MATIERE_FICHIERS. Its copy is `.claude/worktrees/demo-1`.
+function depotAvecMatiere(matiere?: { nom: string; manifeste: Manifeste }) {
+  const repo = essai('matiere-');
+  const ecrire = (rel: string, contenu: string) => {
+    mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true });
+    writeFileSync(path.join(repo, rel), contenu);
+  };
+  ecrire('packages/a/src/a.ts', 'a');
+  ecrire('packages/b/src/b.ts', 'secret-b');
+  ecrire('packages/b/package.json', '{"name":"b"}');
+  ecrire(
+    'packages/c/package.json',
+    JSON.stringify({ name: 'c', exports: { '.': './x.js', './utils': './u.js' } })
+  );
+  ecrire('packages/c/src/c.ts', 'secret-c');
+  ecrire('packages/d/package.json', JSON.stringify({ name: 'd', exports: './index.js' }));
+  ecrire('packages/d/src/d.ts', 'secret-d');
+  ecrire('scripts/outil.mjs', 'outil');
+  ecrire('.beads/config.yaml', '');
+  if (matiere) {
+    ecrire(`packages/${matiere.nom}/package.json`, JSON.stringify(matiere.manifeste));
+    for (const rel of MATIERE_FICHIERS) {
+      ecrire(`packages/${matiere.nom}/${rel}`, `matiere:${rel}`);
+    }
+  }
+  const git = (...a: string[]) =>
+    execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
+  git('init', '-q');
+  git('add', '.');
+  git('commit', '-qm', 'init');
+  const copie = path.join(repo, '.claude/worktrees/demo-1');
+  git('worktree', 'add', '-q', '-b', 'agent/demo-1', copie);
+  const home = essai('home-');
+  mkdirSync(path.join(home, '.claude'));
+  const run = (role: string, shell: string, composant = 'packages/a') =>
+    spawnSync('node', [SCRIPT, copie, composant, role, '--', 'bash', '-c', shell], {
+      encoding: 'utf8',
+      env: { ...process.env, HOME: home },
+    });
+  return { repo, copie, run };
+}
+
+const AUTRES_ROLES = ['developpeur', 'explorateur', 'arbitre'];
+
+describe.runIf(canWrap)('the envelope and the package of the shared test material', () => {
+  const { repo, copie, run } = depotAvecMatiere({
+    nom: 'matiere',
+    manifeste: {
+      name: 'matiere',
+      exports: { '.': './index.js', './test-fixtures': './fixtures/index.js' },
+    },
+  });
+  const m = 'packages/matiere';
+
+  it('shows every role the whole package, its deep files and its sources included', () => {
+    for (const role of ['testeur', ...AUTRES_ROLES]) {
+      const r = run(role, `cd ${m} && find . -type f`);
+      expect(r.status, role).toBe(0);
+      expect(r.stdout.split('\n').filter(Boolean).sort(), role).toEqual(
+        ['./package.json', ...MATIERE_FICHIERS.map(f => `./${f}`)].sort()
+      );
+      expect(run(role, `cat ${m}/fixtures/cas/profond/plus/deux.txt`).stdout, role).toBe(
+        'matiere:fixtures/cas/profond/plus/deux.txt'
+      );
+    }
+  });
+  it('lets the testeur write it: a new file, a new directory, a changed file', () => {
+    const r = run(
+      'testeur',
+      `echo n > ${m}/fixtures/cas/neuf.txt && mkdir -p ${m}/fixtures/nouveau/sous && ` +
+        `touch ${m}/fixtures/nouveau/sous/x && echo change > ${m}/fixtures/cas/un.txt`
+    );
+    expect(r.status, r.stderr).toBe(0);
+    expect(readFileSync(path.join(copie, m, 'fixtures/cas/neuf.txt'), 'utf8')).toBe('n\n');
+    expect(existsSync(path.join(copie, m, 'fixtures/nouveau/sous/x'))).toBe(true);
+    expect(readFileSync(path.join(copie, m, 'fixtures/cas/un.txt'), 'utf8')).toBe('change\n');
+  });
+  it('keeps it read-only for every other role', () => {
+    for (const role of AUTRES_ROLES) {
+      expect(run(role, `touch ${m}/fixtures/cas/${role}.txt`).status, role).not.toBe(0);
+      expect(run(role, `mkdir ${m}/${role}`).status, role).not.toBe(0);
+      expect(run(role, `echo x >> ${m}/src/generer.ts`).status, role).not.toBe(0);
+      expect(run(role, `rm ${m}/README.md`).status, role).not.toBe(0);
+      expect(existsSync(path.join(copie, m, 'fixtures/cas', `${role}.txt`)), role).toBe(false);
+      expect(existsSync(path.join(copie, m, 'README.md')), role).toBe(true);
+    }
+  });
+  it('gives the testeur its own component in writing and the other siblings hidden', () => {
+    expect(run('testeur', 'touch packages/a/src/neuf.ts').status).toBe(0);
+    for (const s of ['b', 'c', 'd']) {
+      expect(run('testeur', `cat packages/${s}/src/${s}.ts`).status, s).not.toBe(0);
+      expect(run('testeur', `touch packages/${s}/x`).status, s).not.toBe(0);
+    }
+  });
+  it('lets no role write the package in the main tree', () => {
+    for (const role of ['testeur', ...AUTRES_ROLES]) {
+      expect(run(role, `touch ${repo}/${m}/fixtures/${role}`).status, role).not.toBe(0);
+      expect(existsSync(path.join(repo, m, 'fixtures', role)), role).toBe(false);
+    }
+  });
+  it('keeps it read-only for another role whose component is a folder of the root', () => {
+    expect(run('developpeur', 'cat scripts/outil.mjs', 'scripts').stdout).toBe('outil');
+    expect(run('developpeur', `touch ${m}/fixtures/racine`, 'scripts').status).not.toBe(0);
+    expect(existsSync(path.join(copie, m, 'fixtures/racine'))).toBe(false);
+    expect(run('testeur', `touch ${m}/fixtures/racine`, 'scripts').status).toBe(0);
+  });
+});
+
+describe.runIf(canWrap)('the package of the shared test material, by any form of export', () => {
+  it('is found by a conditional export, under another name', () => {
+    const { copie, run } = depotAvecMatiere({
+      nom: 'outils-de-test',
+      manifeste: {
+        name: '@projet/outils-de-test',
+        exports: {
+          './test-fixtures': { import: './fixtures/index.mjs', require: './fixtures/index.cjs' },
+        },
+      },
+    });
+    const m = 'packages/outils-de-test';
+    expect(run('developpeur', `cat ${m}/src/generer.ts`).stdout).toBe('matiere:src/generer.ts');
+    expect(run('developpeur', `touch ${m}/fixtures/x`).status).not.toBe(0);
+    expect(run('testeur', `touch ${m}/fixtures/x`).status).toBe(0);
+    expect(existsSync(path.join(copie, m, 'fixtures/x'))).toBe(true);
+  });
+});
+
+describe.runIf(canWrap)('a project without the package of the shared test material', () => {
+  const { run } = depotAvecMatiere();
+  it('hides every sibling from every role, whatever subpaths it exports', () => {
+    for (const role of ['testeur', ...AUTRES_ROLES]) {
+      for (const s of ['b', 'c', 'd']) {
+        expect(run(role, `cat packages/${s}/src/${s}.ts`).status, `${role} ${s}`).not.toBe(0);
+        expect(run(role, `cat packages/${s}/package.json`).status, `${role} ${s}`).toBe(0);
+        expect(run(role, `touch packages/${s}/package.json`).status, `${role} ${s}`).not.toBe(0);
+      }
+      expect(run(role, 'touch packages/a/src/x.ts').status, role).toBe(0);
+    }
+  });
+});
+
+describe.runIf(canWrap)('the envelope and a link of the shared test material', () => {
+  it.each(['testeur', 'developpeur'])(
+    'refuses to launch (%s) when the material links into a hidden component',
+    role => {
+      const { copie, run } = depotAvecMatiere({
+        nom: 'matiere',
+        manifeste: { name: 'matiere', exports: { './test-fixtures': './fixtures/index.js' } },
+      });
+      symlinkSync(
+        path.join(copie, 'packages/b/src'),
+        path.join(copie, 'packages/matiere/fixtures/vers-b')
+      );
+      const r = run(role, 'true');
+      expect(r.status).toBe(CODE_REFUS);
+      expect(r.stderr).toMatch(/traverserait l'enveloppe/);
+    }
+  );
+});
+
+describe('the envelope without a role', () => {
+  it('exits CODE_USAGE and names the role in its usage', () => {
+    const r = spawnSync('node', [SCRIPT, '/wt', 'packages/a', '--', 'true'], { encoding: 'utf8' });
+    expect(r.status).toBe(CODE_USAGE);
+    expect(r.stderr).toMatch(/<rôle>/);
+  });
+});
+
+// The launcher passes its role on to the envelope: the testeur's session writes the package of the
+// shared test material, the developpeur's does not.
+describe.runIf(canWrap)('the launcher and the role in the envelope', () => {
+  const repo = essai('lancer-role-');
+  const ecrire = (rel: string, contenu: string, mode?: number) => {
+    mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true });
+    writeFileSync(path.join(repo, rel), contenu, mode ? { mode } : undefined);
+  };
+  ecrire('packages/a/src/a.ts', 'a');
+  ecrire(
+    'packages/matiere/package.json',
+    JSON.stringify({ name: 'matiere', exports: { './test-fixtures': './fixtures/index.js' } })
+  );
+  ecrire('packages/matiere/fixtures/index.js', 'm');
+  for (const role of ['testeur', 'developpeur']) {
+    ecrire(`.claude/agents/${role}.md`, `---\nname: ${role}\n---\n`);
+  }
+  mkdirSync(path.join(repo, 'scripts/enveloppe'), { recursive: true });
+  installerEnveloppe(repo);
+  // A stand-in for claude: tries to write the package, and records whether it could.
+  ecrire(
+    'faux-claude.sh',
+    '#!/bin/bash\nif touch packages/matiere/fixtures/ecrit 2>/dev/null; then r=oui; else r=non; fi\n' +
+      'echo "$r" > packages/a/ecrit\n',
+    0o755
+  );
+  execFileSync('git', ['init', '-q', repo]);
+  execFileSync('git', ['-C', repo, 'add', '.']);
+  execFileSync('git', [
+    '-C',
+    repo,
+    '-c',
+    'user.name=t',
+    '-c',
+    'user.email=t@t',
+    'commit',
+    '-qm',
+    'i',
+  ]);
+  const home = essai('home-');
+  const lancer = (ticket: string, role: string) => {
+    const consigne = path.join(repo, `${ticket}.txt`);
+    writeFileSync(consigne, `TON TICKET : ${ticket} — un sujet.`);
+    const r = spawnSync('bash', [LAUNCHER, ticket, role, 'packages/a', consigne], {
+      cwd: repo,
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_BIN: path.join(repo, 'faux-claude.sh'), HOME: home },
+    });
+    const copie = path.join(repo, '.claude/worktrees', ticket);
+    return { r, copie };
+  };
+
+  it("gives the testeur's session the package in writing", () => {
+    const { r, copie } = lancer('demo-t', 'testeur');
+    expect(r.status, r.stderr).toBe(0);
+    expect(readFileSync(path.join(copie, 'packages/a/ecrit'), 'utf8')).toBe('oui\n');
+    expect(existsSync(path.join(copie, 'packages/matiere/fixtures/ecrit'))).toBe(true);
+  });
+  it("gives the developpeur's session the package read-only", () => {
+    const { r, copie } = lancer('demo-d', 'developpeur');
+    expect(r.status, r.stderr).toBe(0);
+    expect(readFileSync(path.join(copie, 'packages/a/ecrit'), 'utf8')).toBe('non\n');
+    expect(existsSync(path.join(copie, 'packages/matiere/fixtures/ecrit'))).toBe(false);
   });
 });

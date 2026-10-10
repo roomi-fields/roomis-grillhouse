@@ -26,18 +26,50 @@ const TEST_DIR = new Set(['test', 'tests', '__tests__']);
 const isTest = name => /\.(test|spec)\.[cm]?[jt]sx?$/.test(name);
 const SKIP = new Set(['node_modules', 'dist', 'docs']);
 
-// The components of the repository at <racine>: [{ nom, dir, paquet }], `paquet` its package name.
-export function composants(racine) {
+// The component directories of the repository at <racine>: [{ nom, dir }], each directory under
+// `packages/` and `src/`.
+function dossiers(racine) {
   const found = [];
   for (const parent of ['packages', 'src']) {
     const base = path.join(racine, parent);
     if (!existsSync(base)) continue;
     for (const e of readdirSync(base, { withFileTypes: true })) {
-      if (!e.isDirectory()) continue;
-      const dir = path.join(base, e.name);
-      const pj = path.join(dir, 'package.json');
-      const paquet = existsSync(pj) ? (JSON.parse(readFileSync(pj, 'utf8')).name ?? null) : null;
-      found.push({ nom: e.name, dir, paquet });
+      if (e.isDirectory()) found.push({ nom: e.name, dir: path.join(base, e.name) });
+    }
+  }
+  return found;
+}
+
+// The components of the repository at <racine>: [{ nom, dir, paquet }], `paquet` its package name.
+// Throws when a package.json is unreadable.
+export function composants(racine) {
+  return dossiers(racine).map(({ nom, dir }) => {
+    const pj = path.join(dir, 'package.json');
+    const paquet = existsSync(pj) ? (JSON.parse(readFileSync(pj, 'utf8')).name ?? null) : null;
+    return { nom, dir, paquet };
+  });
+}
+
+// The subpath export by which a component publishes the shared test material.
+const EXPORT_MATIERE = './test-fixtures';
+
+// The components of <racine> whose `package.json` exports `./test-fixtures`, in any form of its
+// value: the packages of the shared test material, [{ nom, dir, paquet }] as `composants` gives.
+// A component whose `package.json` is unreadable is not a package of the material.
+export function matieres(racine) {
+  const found = [];
+  for (const { nom, dir } of dossiers(racine)) {
+    const pj = path.join(dir, 'package.json');
+    if (!existsSync(pj)) continue;
+    let paquet;
+    try {
+      paquet = JSON.parse(readFileSync(pj, 'utf8'));
+    } catch {
+      continue;
+    }
+    const { exports } = paquet ?? {};
+    if (exports !== null && typeof exports === 'object' && EXPORT_MATIERE in exports) {
+      found.push({ nom, dir, paquet: paquet.name ?? null });
     }
   }
   return found;

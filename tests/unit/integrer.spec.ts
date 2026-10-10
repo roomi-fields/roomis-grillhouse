@@ -55,11 +55,75 @@ describe('refusVerdicts', () => {
   });
 });
 
+// A repository at <racine>: its files are named relative to it, as `git apply --numstat` gives
+// them. `packages/matiere` exports `./test-fixtures`: the shared test material.
+function depotLots() {
+  const repo = mkdtempSync(path.join(tmpdir(), 'lots-'));
+  const ecrire = (rel: string, contenu: string) => {
+    mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true });
+    writeFileSync(path.join(repo, rel), contenu);
+  };
+  ecrire('package.json', JSON.stringify({ name: 'racine', private: true }));
+  ecrire(
+    'packages/matiere/package.json',
+    JSON.stringify({ name: 'matiere', exports: { '.': './i.js', './test-fixtures': './f.js' } })
+  );
+  ecrire(
+    'packages/corpus/package.json',
+    JSON.stringify({ name: 'corpus', exports: { './test-fixtures': { import: './f.mjs' } } })
+  );
+  ecrire('packages/a/package.json', JSON.stringify({ name: 'a', exports: { '.': './i.js' } }));
+  ecrire('packages/matiere-bis/package.json', JSON.stringify({ name: 'matiere-bis' }));
+  return repo;
+}
+
+// grillhouse-2sq.2: the lots follow the one rule of ownership of the locks (`isTesterFile`): the
+// tests lot holds what the testeur writes, test files and the shared test material; the code
+// lot holds none of it.
 describe('refusLots', () => {
+  const repo = depotLots();
+
   it('keeps tests to the tests lot and code to the code lot', () => {
-    expect(refusLots(['tests/unit/a.spec.ts'], ['src/a/index.ts'])).toBeNull();
-    expect(refusLots(['src/a/index.ts'], [])).toMatch(/lot de tests touche du code/);
-    expect(refusLots([], ['packages/a/tests/x.ts'])).toMatch(/lot de code touche des tests/);
+    expect(refusLots(['tests/unit/a.spec.ts'], ['src/a/index.ts'], repo)).toBeNull();
+    expect(refusLots(['src/a/index.ts'], [], repo)).toMatch(/lot de tests touche du code/);
+    expect(refusLots([], ['packages/a/tests/x.ts'], repo)).toMatch(/lot de code touche/);
+  });
+  it.each([
+    ['packages/matiere/fixtures/cas/un.txt'],
+    ['packages/matiere/fixtures/cas/profond/deux.json', 'tests/unit/a.spec.ts'],
+    ['packages/matiere/package.json', 'packages/matiere/src/generer.ts'],
+    ['packages/corpus/scenes/neuve.bps'],
+  ])('passes a tests lot that touches the shared test material (%s)', (...tests) => {
+    expect(refusLots(tests, ['packages/a/src/x.ts'], repo)).toBeNull();
+  });
+  it.each([
+    'packages/matiere/fixtures/cas/un.txt',
+    'packages/matiere/src/generer.ts',
+    'packages/matiere/package.json',
+    'packages/corpus/scenes/neuve.bps',
+  ])('refuses a code lot that touches the shared test material (%s)', f => {
+    const r = refusLots(['tests/unit/a.spec.ts'], ['packages/a/src/x.ts', f], repo);
+    expect(r).toMatch(/lot de code touche/);
+    expect(r).toContain(f);
+    expect(r).not.toContain('packages/a/src/x.ts');
+  });
+  it.each([
+    'packages/a/src/x.ts',
+    'packages/matiere-bis/src/a.ts',
+    'package.json',
+    'scripts/a.mjs',
+  ])('still refuses a tests lot that touches %s, code outside the material', f => {
+    const r = refusLots(['packages/matiere/fixtures/un.txt', f], [], repo);
+    expect(r).toMatch(/lot de tests touche du code/);
+    expect(r).toContain(f);
+    expect(r).not.toContain('packages/matiere/fixtures/un.txt');
+  });
+  it('a project without the material keeps the test files alone in the tests lot', () => {
+    const vide = mkdtempSync(path.join(tmpdir(), 'lots-vide-'));
+    expect(refusLots(['packages/matiere/fixtures/un.txt'], [], vide)).toMatch(
+      /lot de tests touche du code/
+    );
+    expect(refusLots([], ['packages/matiere/fixtures/un.txt'], vide)).toBeNull();
   });
 });
 
@@ -578,5 +642,39 @@ describe('an integration', () => {
     const m = monde(['ACCEPTÉ']);
     writeFileSync(path.join(m.repo, '.git/integration.lock'), String(process.pid));
     expect(m.run().status).toBe(2);
+  });
+});
+
+// grillhouse-2sq.2, relecture B: an unreadable package.json does not make its component a package
+// of the shared test material, and refuses no lot; the lots follow the rest of the rule.
+describe('refusLots with an unreadable package.json', () => {
+  const repo = depotLots();
+  mkdirSync(path.join(repo, 'packages/casse'), { recursive: true });
+  writeFileSync(path.join(repo, 'packages/casse/package.json'), '{"name":"casse",');
+
+  it('passes a code lot that repairs it or touches its component', () => {
+    expect(refusLots(['tests/unit/a.spec.ts'], ['packages/casse/package.json'], repo)).toBeNull();
+    expect(refusLots(['tests/unit/a.spec.ts'], ['packages/casse/src/x.ts'], repo)).toBeNull();
+  });
+  it('passes a tests lot that touches the material and the tests of the component', () => {
+    expect(
+      refusLots(
+        ['packages/matiere/fixtures/un.txt', 'packages/casse/tests/a.spec.ts'],
+        ['packages/a/src/x.ts'],
+        repo
+      )
+    ).toBeNull();
+  });
+  it('refuses its component in a tests lot as code, not as an unreadable material', () => {
+    const r = refusLots(['packages/casse/src/x.ts'], [], repo);
+    expect(r).toMatch(/lot de tests touche du code/);
+    expect(r).toContain('packages/casse/src/x.ts');
+    expect(r).not.toMatch(/illisible/);
+  });
+  it('still refuses a code lot that touches the material', () => {
+    const r = refusLots([], ['packages/casse/src/x.ts', 'packages/corpus/scenes/x.bps'], repo);
+    expect(r).toMatch(/lot de code touche/);
+    expect(r).toContain('packages/corpus/scenes/x.bps');
+    expect(r).not.toContain('packages/casse/src/x.ts');
   });
 });

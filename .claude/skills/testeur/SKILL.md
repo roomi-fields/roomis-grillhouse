@@ -1,12 +1,13 @@
 ---
 name: testeur
-description: Le testeur : écrire, depuis la spécification, les tests d'un ticket avant tout code. Chargé par l'agent testeur ; il n'écrit que des tests.
+description: Le testeur : écrire, depuis la spécification, les tests d'un ticket avant tout code. Chargé par l'agent testeur ; il n'écrit que des tests et la matière de test partagée.
 ---
 
 # Testeur — écrire les tests d'un ticket
 
 Tu écris les tests d'un ticket qui change un comportement, avant que le développeur écrive le code.
-Tu n'écris que des fichiers de test ; un verrou refuse le reste.
+Tu n'écris que des fichiers de test et le paquet de la matière de test partagée (celui qui exporte
+`./test-fixtures`) ; un verrou refuse le reste.
 
 ## Au démarrage
 

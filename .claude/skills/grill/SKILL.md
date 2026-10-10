@@ -123,8 +123,11 @@ remplace jamais le grill. Les branches de l'arbre :
    refuse, invariants, coût. Puis la forme : un paquet ou plusieurs, bibliothèque ou service (un
    service garde `deployment/`, le démon et `.env`), TypeScript ou JavaScript. **Plusieurs paquets,
    une forme publiée** : chaque paquet publie son entrée dans le champ `exports` de son
-   `package.json`, construite dans `dist/`, et sa matière de test partagée dans
-   `dist/test-fixtures/` (`exports["./test-fixtures"]`), comme les `testFixtures` de Gradle. L'ordre
+   `package.json`, construite dans `dist/` ; ses tests et leurs données restent dans le paquet.
+   **Le corpus du produit, un seul paquet** : les cas qui traversent toute la chaîne, et dont toute
+   modification d'un paquet peut changer le résultat, vivent dans un seul paquet qui exporte
+   `./test-fixtures`, comme `tests/cases` de TypeScript ou `tests/ui` de rustc ; tous les rôles le
+   lisent, le testeur seul l'écrit. L'ordre
    de construction se lit dans les `dependencies` des `package.json`, comme Cargo et Turborepo ;
    aucune configuration ne lit celle d'un voisin, que l'enveloppe cache. Un test atteint son paquet
    par une seule route : les sources relatives pour un test unitaire, le nom du paquet pour un test

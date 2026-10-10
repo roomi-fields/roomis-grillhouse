@@ -4,15 +4,19 @@
 // file write the role does not own, with exit code 2 and its reason on stderr.
 //
 // - A path under the system temp directory (the session scratchpad) is always writable.
-// - testeur writes test files only.
-// - developpeur writes no test file, and no other file until its ticket's description holds
-//   a "## Architecture" section. The ticket is the "TON TICKET : <id>" line of the agent's
+// - testeur writes the files it owns (`isTesterFile`): test files, and every file of a package
+//   of the shared test material.
+// - The repository root is that of the git repository holding the written file, whatever the
+//   agent's working directory; a file outside any repository is read against the working directory.
+// - developpeur writes none of the testeur's files, and no other file until its ticket's
+//   description holds a "## Architecture" section. The ticket is the "TON TICKET : <id>" line of the agent's
 //   launch prompt, read from its transcript.
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { matieres } from '../consommateurs.mjs';
 
 const WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 
@@ -25,9 +29,43 @@ export function isTestFile(file) {
   );
 }
 
-function isScratch(file, tmp = tmpdir()) {
-  const rel = path.relative(path.resolve(tmp), file);
+// True when <file>, absolute or relative to the repository root <racine>, is written by the
+// testeur: a test file, or a file of a package of the shared test material (a component of
+// <racine> whose package exports `./test-fixtures`, `matieres` of `scripts/consommateurs.mjs`).
+// The one rule of ownership, read by the locks of both roles and by the integration's lots.
+export function isTesterFile(file, racine) {
+  const abs = path.resolve(racine, file);
+  if (isTestFile(path.relative(path.resolve(racine), abs))) {
+    return true;
+  }
+  return matieres(racine).some(m => isInside(abs, m.dir));
+}
+
+// True when <file> lies strictly under the directory <dir>.
+function isInside(file, dir) {
+  const rel = path.relative(path.resolve(dir), file);
   return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
+}
+
+const isScratch = (file, tmp = tmpdir()) => isInside(file, tmp);
+
+// The root of the git repository (or worktree) that holds the absolute path <file>, read from its
+// nearest existing directory; null when no repository holds it.
+function racineDe(file) {
+  let dir = path.dirname(file);
+  while (!existsSync(dir)) {
+    const parent = path.dirname(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
+  try {
+    return execFileSync('git', ['-C', dir, 'rev-parse', '--show-toplevel'], {
+      encoding: 'utf8',
+      stdio: 'pipe',
+    }).trim();
+  } catch {
+    return null;
+  }
 }
 
 // The ticket id of the launch prompt. A sub-agent's prompt opens its own transcript, next to the
@@ -81,20 +119,24 @@ export function refusal(role, input, { tmp = tmpdir(), describe = ticketDescript
   if (!raw) {
     return null;
   }
-  const file = path.resolve(input.cwd ?? process.cwd(), raw);
+  const cwd = input.cwd ?? process.cwd();
+  const file = path.resolve(cwd, raw);
   if (isScratch(file, tmp)) {
     return null;
   }
-  const test = isTestFile(file);
+  const racine = racineDe(file) ?? cwd;
+  const testeur = isTesterFile(file, racine);
 
   if (role === 'testeur') {
-    return test
+    return testeur
       ? null
-      : `Le testeur écrit seulement des fichiers de test ; ${raw} n'en est pas un. Le code revient au développeur.`;
+      : `Le testeur écrit seulement des fichiers de test et la matière de test partagée ; ${raw} n'est ni l'un ni l'autre. Le code revient au développeur.`;
   }
   if (role === 'developpeur') {
-    if (test) {
-      return `Les tests appartiennent au testeur : ${raw} est un fichier de test. Un test faux se signale au superviseur.`;
+    if (testeur) {
+      return isTestFile(path.relative(path.resolve(racine), file))
+        ? `Les tests appartiennent au testeur : ${raw} est un fichier de test. Un test faux se signale au superviseur.`
+        : `La matière de test partagée appartient au testeur : ${raw} en fait partie. Un besoin de matière se signale au superviseur.`;
     }
     const id = ticketOf(input);
     if (!id) {

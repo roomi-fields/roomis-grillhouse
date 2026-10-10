@@ -13,6 +13,7 @@
 #   dependencies are installed when `node_modules` is absent or `package-lock.json` is newer than
 #   the last installation (`node_modules/.package-lock.json`, written by npm), and every component
 #   is built there, outside the envelope, so the agent finds the published parts of its neighbours.
+# - The envelope receives the role: it decides who writes the package of the shared test material.
 # - The session runs `claude -p` with the role's agent and the instruction file as its prompt;
 #   the prompt carries « TON TICKET : <ticket> », which the role's locks read. The envelope is the
 #   sandbox, so the session runs without permission prompts.
@@ -61,6 +62,6 @@ mkdir -p "$(dirname "$copie")"
   fi
 ) > "$journal" 2>&1 || { echo "⛔ La copie $copie n'a pas pu être préparée : voir $journal." >&2; exit "$CODE_COPIE"; }
 
-exec node "$racine/scripts/enveloppe/enveloppe.mjs" "$copie" "$composant" -- \
+exec node "$racine/scripts/enveloppe/enveloppe.mjs" "$copie" "$composant" "$role" -- \
   "${CLAUDE_BIN:-claude}" -p "$(cat "$consigne")" --agent "$role" \
   --permission-mode bypassPermissions < /dev/null >> "$journal" 2>&1

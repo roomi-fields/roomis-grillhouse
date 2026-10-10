@@ -9,7 +9,8 @@
 //  1. the verdicts: each --ticket has `ACCEPTÉ` as its last reviewer verdict (`ACCEPTÉ` or
 //     `RENDU` at the start of a comment) and, when labelled `arbitrage`, each « ## Arbitrage »
 //     comment is `### Verdict — tranché`, or a « ## Réponse du responsable » comment follows it;
-//  2. the lots: the tests lot touches test files only, the code lot no test file;
+//  2. the lots: the tests lot touches only what the testeur writes (`isTesterFile`: test files
+//     and the shared test material), the code lot none of it;
 //  3. the main tree: every file of the lots is unmodified there;
 //  4. a clean integration copy (`.claude/worktrees/integration`): detached on HEAD, every
 //     untracked file removed, its dependencies installed again when `package-lock.json` changes
@@ -48,7 +49,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { composants as lesComposants, utilise } from '../consommateurs.mjs';
-import { isTestFile } from '../verrous/verrou.mjs';
+import { isTesterFile } from '../verrous/verrou.mjs';
 
 // The refusal for the verdicts of one ticket, or null. `ticket` and `comments` are Beads' JSON.
 export function refusVerdicts(ticket, comments) {
@@ -76,12 +77,15 @@ export function refusVerdicts(ticket, comments) {
   return null;
 }
 
-// The refusal for the files of the lots, or null.
-export function refusLots(tests, code) {
-  const horsTests = tests.filter(f => !isTestFile(f));
+// The refusal for the files of the lots, or null. The files are relative to the repository root
+// <racine>; the tests lot holds only what the testeur writes, the code lot none of it.
+export function refusLots(tests, code, racine) {
+  const testeur = f => isTesterFile(f, racine);
+  const horsTests = tests.filter(f => !testeur(f));
   if (horsTests.length) return `Le lot de tests touche du code : ${horsTests.join(', ')}.`;
-  const tests2 = code.filter(isTestFile);
-  if (tests2.length) return `Le lot de code touche des tests : ${tests2.join(', ')}.`;
+  const duTesteur = code.filter(testeur);
+  if (duTesteur.length)
+    return `Le lot de code touche des fichiers du testeur (tests ou matière de test partagée) : ${duTesteur.join(', ')}.`;
   return null;
 }
 
@@ -224,7 +228,7 @@ function main(argv) {
     const tests = o.tests ? fichiersDe(absolu(o.tests)) : [];
     const code = o.code ? fichiersDe(absolu(o.code)) : [];
     if (!tests || !code) return refuser('Un patch du lot est illisible.');
-    const r2 = refusLots(tests, code);
+    const r2 = refusLots(tests, code, racine);
     if (r2) return refuser(r2);
     const fichiers = [...new Set([...tests, ...code])];
     dire(`✓ lots : ${fichiers.length} fichiers`);

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // The envelope of a role agent: runs a command (the agent's `claude` session) inside a bwrap
 // sandbox that shows the agent its own component, and of every other component only what it
-// publishes. `node scripts/enveloppe/enveloppe.mjs <copie> <composant> -- <commande…>`
+// publishes. `node scripts/enveloppe/enveloppe.mjs <copie> <composant> <rôle> -- <commande…>`
 //
 // - The root `/` is read-only. Only these are written: the agent's copy; a `/tmp` empty and
 //   proper to the session, where only the scratchpad directory of the copy comes back; the npm
@@ -34,7 +34,8 @@
 //   read-only, `.git` included; the copy and the tickets base are then written as above.
 // - An envelope on the main tree is refused.
 // - <copie> is the agent's git worktree; <composant> is the component's path inside it
-//   (`packages/a`, or `src/parser` in a one-package project).
+//   (`packages/a`, or `src/parser` in a one-package project); <rôle> is the agent's role
+//   (`testeur`, `developpeur`…).
 // - In every worktree of the repository, the component's parent directory (`packages/`, `src/`)
 //   is emptied. In <copie>, the component is mounted back in writing; every sibling component
 //   gets back, read-only, its published parts: `package.json`, `docs/INTERFACE.md`, `dist/`, and
@@ -43,8 +44,12 @@
 //   then sealed read-only.
 // - A folder of the root (`scripts`) hides nothing: its scripts work on the whole repository. The
 //   rest holds: the root read-only, the copy written, its `.git` read-only.
-// - The traversal guard refuses to launch when a symbolic link inside the component points into
-//   a hidden directory: such a link would cross the envelope.
+// - The package of the shared test material is every component of <copie> whose `package.json`
+//   exports `./test-fixtures` (`matieres` of `scripts/consommateurs.mjs`). It comes back whole, after the agent's own component:
+//   written for the `testeur`, read-only for every other role, its own component included.
+// - The traversal guard refuses to launch when a symbolic link inside the component, or inside a
+//   package of the shared test material, points into a hidden directory: such a link would cross
+//   the envelope.
 // - The exit codes are named in `codes.mjs`.
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
@@ -62,9 +67,12 @@ import {
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { matieres as lesMatieres } from '../consommateurs.mjs';
 import { CODE_REFUS, CODE_USAGE } from './codes.mjs';
 
 const PUBLISHED = ['package.json', 'docs/INTERFACE.md', 'dist'];
+// The role that writes the package of the shared test material.
+const ROLE_MATIERE = 'testeur';
 // The directories where codegraph and rtfm keep the index of a tree they index: the source of
 // every component, which the envelope hides.
 const INDEX = ['.codegraph', '.rtfm'];
@@ -268,9 +276,11 @@ const inside = (child, parent) => {
 // order, the paths outside the copy that are emptied, written, read back or made a symbolic link
 // (`lien`, its text) (`montagesDeLaSeance`); an emptied one marked `scelle` is sealed read-only
 // once every mount inside it is made.
+// `matieres` lists the packages of the shared test material, relative to the copy
+// (`matieres` of `scripts/consommateurs.mjs`); `role` is the agent's role, and only the `testeur` writes them.
 // `fs` gives `lister(dir)`, `existe(path)`, `liens(dir)` and `publies(dir)`, so the plan is
 // testable without disk.
-export function plan({ trees, copie, composant, montages = [] }, fs) {
+export function plan({ trees, copie, composant, role, matieres = [], montages = [] }, fs) {
   // The worktrees start with the main tree: an envelope on it would let the agent write its root.
   if (trees.length > 0 && path.resolve(trees[0]) === path.resolve(copie)) {
     return {
@@ -285,7 +295,8 @@ export function plan({ trees, copie, composant, montages = [] }, fs) {
   if (!fs.existe(propre)) return { refus: `Le composant ${propre} n'existe pas.` };
 
   const caches = racine ? [] : trees.map(t => path.join(t, parentRel));
-  for (const { lien, cible } of fs.liens(propre)) {
+  const matiere = matieres.map(m => path.join(copie, m));
+  for (const { lien, cible } of [propre, ...matiere].flatMap(d => fs.liens(d))) {
     if (caches.some(c => inside(cible, c))) {
       return {
         refus: `Le lien ${lien} vise ${cible}, que l'enveloppe masque : il traverserait l'enveloppe.`,
@@ -335,7 +346,7 @@ export function plan({ trees, copie, composant, montages = [] }, fs) {
     const p = path.join(parent, e.name);
     if (!e.dir) {
       args.push('--ro-bind', p, p);
-    } else if (e.name !== nom) {
+    } else if (e.name !== nom && !matiere.includes(p)) {
       for (const part of new Set([...PUBLISHED, ...fs.publies(p)])) {
         const q = path.join(p, part);
         if (inside(q, p) && fs.existe(q)) args.push('--ro-bind', q, q);
@@ -343,6 +354,7 @@ export function plan({ trees, copie, composant, montages = [] }, fs) {
     }
   }
   args.push('--bind', propre, propre);
+  for (const m of matiere) args.push(role === ROLE_MATIERE ? '--bind' : '--ro-bind', m, m);
   // The emptied directories close behind the mounts: nothing new is written there.
   for (const c of caches) if (fs.existe(c)) args.push('--remount-ro', c);
   for (const { chemin } of montages.filter(m => m.scelle)) args.push('--remount-ro', chemin);
@@ -360,10 +372,10 @@ const disque = {
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const sep = process.argv.indexOf('--');
-  const [copieArg, composant] = process.argv.slice(2, sep < 0 ? undefined : sep);
+  const [copieArg, composant, role] = process.argv.slice(2, sep < 0 ? undefined : sep);
   const commande = sep < 0 ? [] : process.argv.slice(sep + 1);
-  if (!copieArg || !composant || commande.length === 0) {
-    process.stderr.write('usage: enveloppe.mjs <copie> <composant> -- <commande…>\n');
+  if (!copieArg || !composant || !role || commande.length === 0) {
+    process.stderr.write('usage: enveloppe.mjs <copie> <composant> <rôle> -- <commande…>\n');
     process.exit(CODE_USAGE);
   }
   const copie = path.resolve(copieArg);
@@ -393,7 +405,11 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     montagesDeLaSeance({ cacheNpm, claude, projet, etatJetable, scratchpads, sessions }),
     lienSurDisque
   );
-  const { args, refus } = plan({ trees: worktrees(copie), copie, composant, montages }, disque);
+  const matieres = lesMatieres(copie).map(m => path.relative(copie, m.dir));
+  const { args, refus } = plan(
+    { trees: worktrees(copie), copie, composant, role, matieres, montages },
+    disque
+  );
   let code;
   if (refus) {
     process.stderr.write(`⛔ ENVELOPPE REFUSÉE — ${refus}\n`);

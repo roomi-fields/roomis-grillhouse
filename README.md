@@ -68,8 +68,8 @@ Three layers, each with one job:
 |---|---|---|
 | Initialisation & architecture | `grill` | Surveys the code, grills the owner, writes the charter and reference documents. |
 | Supervisor | `pitmaster` | Keeps the tickets, hands each one to a fresh agent, reviews closures, keeps the frame. |
-| Tester (agent) | `testeur` | Writes a ticket's tests from the spec, before the code; writes test files only. |
-| Developer (agent) | `developpeur` | Makes those tests pass; touches no test, writes no code before the ticket's Architecture section. |
+| Tester (agent) | `testeur` | Writes a ticket's tests from the spec, before the code; writes test files and the shared test material only. |
+| Developer (agent) | `developpeur` | Makes those tests pass; touches no test nor the shared test material, writes no code before the ticket's Architecture section. |
 | Reviewer (agent) | `relecteur` | Reviews the lot adversarially (edge cases, verification gaps, the frame); writes nothing. |
 | Arbiter (agent) | `arbitre` | Settles a design question away from the rush: mature model, project texts, common mechanism; or sends it to the owner. Writes nothing. |
 | Explorer (agent) | `explorateur` | Runs an exploration ticket: surveys, lists the decisions, proposes small testable tickets. Writes no code. |
@@ -81,9 +81,12 @@ Three layers, each with one job:
 A change of behaviour is one ticket that passes from agent to agent in its copy: tests (tester) →
 code (developer) → review → commit, which closes it.
 The locks are hooks in each agent's definition (`scripts/verrous/`), so an agent cannot aim the
-code at its own tests. Each agent runs as a fresh session inside the **envelope** of its component
+code at its own tests; the integration sorts the lots by the same rule (the tests lot holds the
+tester's files, the code lot none of them). Each agent runs as a fresh session inside the **envelope** of its component
 (`scripts/enveloppe/`, a bubblewrap sandbox): it sees its own component, an index of every
-component's interface, and of the others only their interface and built output. Of the home and
+component's interface, of the others only their interface and built output, and the whole package
+of the shared test material (the component that exports `./test-fixtures`), which the tester alone
+writes. Of the home and
 the session directory it shows only what it declares (claude, node, git, the session's tools and
 the repository), and of the environment only what it declares (the base of a login session and
 claude's own variables), in a process space of its own. So of the machine's credentials only

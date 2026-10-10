@@ -12,7 +12,7 @@ roomis-grillhouse/
 │   ├── grillhouse/charte.md       # The common charter: the frame's rules, the same in every project
 │   ├── grillhouse/fichiers.txt    # The frame's files, copied as they are by npm run grillhouse:maj
 │   ├── agents/                    # The roles, each under its locks (scripts/verrous/)
-│   │   ├── testeur.md                # Writes a ticket's tests from the spec; writes test files only
+│   │   ├── testeur.md                # Writes a ticket's tests from the spec; writes test files and the shared test material only
 │   │   ├── developpeur.md            # Writes the code; no test file, no code before the Architecture section
 │   │   ├── relecteur.md              # Reviews the lot adversarially; writes no file
 │   │   ├── integrateur.md            # One per delivery: judges the lot, runs the integration script; writes no file
@@ -50,7 +50,7 @@ roomis-grillhouse/
 │   ├── structure-guard.sh         # UserPromptSubmit hook: a structure decision goes to the grill
 │   ├── verrous/verrou.mjs         # The role agents' write locks (tests: tests/unit/verrous.spec.ts)
 │   ├── verrous/ticket-du-sous-agent.mjs # hook: a role agent launches with « TON TICKET : <id> »
-│   ├── enveloppe/                 # The envelope: an agent sees its component, and the others' interfaces only
+│   ├── enveloppe/                 # The envelope: an agent sees its component, the others' interfaces, the test material
 │   │   ├── enveloppe.mjs             # bwrap sandbox for one component (tests: tests/unit/enveloppe.spec.ts)
 │   │   ├── codes.mjs                 # the exit codes of the envelope and its launcher
 │   │   └── lancer.sh                 # one ticket → one fresh role session in its envelope

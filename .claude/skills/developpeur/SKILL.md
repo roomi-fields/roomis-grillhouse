@@ -103,8 +103,9 @@ qui reste, ce que tu attends et de quel composant ; ton code reste dans ta copie
 livre jamais une partie de lui-même, et l'agent neuf qui le reprend repart de ton travail.
 
 **Ton composant, ton enveloppe** : tu travailles dans l'enveloppe de ton composant. Des autres, tu
-vois l'interface et la forme publiée. Ainsi ton code passe par les interfaces, comme l'architecture
-le décide.
+vois l'interface et la forme publiée ; le paquet de la matière de test partagée (celui qui exporte
+`./test-fixtures`), tu le vois en entier, en lecture. Ainsi ton code passe par les interfaces, comme
+l'architecture le décide.
 
 **Une interface changée régénère l'index** : un lot qui change un `INTERFACE.md` contient l'index
 régénéré (`npm run interfaces`) ; sinon les tests refusent. Ainsi chaque agent lit ce qui existe
@@ -176,8 +177,8 @@ et le code la suit.
   nomme dans le message de commit et la passation, avec sa cause et le ticket qui le referme ; il
   ne se compense pas dans ton lot. Ainsi l'intégrateur l'admet sur pièces, et le mécanisme qui le
   referme reste un travail.
-- **Les tests appartiennent au testeur** : tu n'écris ni ne modifies aucun fichier de test ; un
-  verrou le refuse. Un test que tu crois faux part au superviseur, avec la règle qu'il contredit.
+- **Les tests appartiennent au testeur** : tu n'écris ni ne modifies aucun fichier de test, ni la
+  matière de test partagée ; un verrou le refuse. Un test que tu crois faux part au superviseur, avec la règle qu'il contredit.
   Ainsi ton code rend vrais les tests de la spécification, et non des tests taillés pour lui.
 - **Le relecteur rouvre sur une règle écrite** : un lot rendu par le relecteur, constat et règle
   cités, rouvre ton travail. Ainsi la relecture applique le cadre, sans ouvrir de lot sans fin.

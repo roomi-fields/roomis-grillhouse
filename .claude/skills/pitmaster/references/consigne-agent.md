@@ -10,7 +10,7 @@ LOTS À LIRE : <pour le développeur, le lot de tests, déjà dans la copie du t
 
 CONTEXTE DU MOMENT : <les séances voisines et les fichiers qu'elles tiennent>.
 
-<Pour le testeur et le développeur :> Tu travailles dans ta copie (`.claude/worktrees/<ticket>`), dans l'enveloppe de ton composant : des autres composants, seules l'interface et la forme publiée existent. L'index (rtfm, codegraph) n'y est pas : tu lis ton paquet et les interfaces de tes voisins. Ainsi tu modifies ta copie, et tes voisins par leurs interfaces seulement.
+<Pour le testeur et le développeur :> Tu travailles dans ta copie (`.claude/worktrees/<ticket>`), dans l'enveloppe de ton composant : des autres composants, seules l'interface et la forme publiée existent, et le paquet de la matière de test partagée en entier, que seul le testeur écrit. L'index (rtfm, codegraph) n'y est pas : tu lis ton paquet, les interfaces de tes voisins et la matière de test partagée. Ainsi tu modifies ta copie, et tes voisins par leurs interfaces seulement.
 
 <Pour le relecteur, à la place :> Tu relis le lot dans la copie du ticket (`.claude/worktrees/<ticket>`) et tu y rejoues les tests ; tu vois tout le dépôt, avec l'index (rtfm, codegraph), dont les chemins se lisent dans la copie. Ainsi tu cherches partout la notion déjà fournie et le texte resté à l'ancien comportement.
 
