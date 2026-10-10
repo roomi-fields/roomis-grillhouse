@@ -47,6 +47,7 @@ roomis-grillhouse/
 │   │                              #   docs/agents/hors-cadre.txt, "<package> <reason>")
 │   ├── structure-guard.sh         # UserPromptSubmit hook: a structure decision goes to the grill
 │   ├── verrous/verrou.mjs         # The role agents' write locks (tests: tests/unit/verrous.spec.ts)
+│   ├── verrous/ticket-du-sous-agent.mjs # hook: a role agent launches with « TON TICKET : <id> »
 │   ├── enveloppe/                 # The envelope: an agent sees its component, and the others' interfaces only
 │   │   ├── enveloppe.mjs             # bwrap sandbox for one component (tests: tests/unit/enveloppe.spec.ts)
 │   │   └── lancer.sh                 # one ticket → one fresh role session in its envelope
@@ -54,7 +55,8 @@ roomis-grillhouse/
 │   ├── frontieres.mjs             # pretest: dependency-cruiser, rules generated in .dependency-cruiser.cjs
 │   ├── interfaces-contre-code.mjs # pretest: INTERFACE.md against the API report of API Extractor (npm run api)
 │   ├── nuit.sh                    # every suite, once a night (mode « impactes »); a red opens a ticket
-│   ├── tableau.mjs                # npm run tableau: the project's board (tickets, order, tokens, time, what runs, alerts)
+│   ├── tableau.mjs                # npm run tableau: the board on three levels (project, chantier, agents)
+│   ├── registre.mjs               # hook: one line per finished agent (ticket, role, time, tokens)
 │   ├── integration/               # One delivery, in a clean copy: verdicts, lots, base, guards, suites, commit
 │   │   ├── integrer.mjs              # run by the integrateur (tests: tests/unit/integrer.spec.ts)
 │   │   └── suites-vitest.mjs         # npm run integration:suites: failing tests by name, for Vitest
@@ -62,7 +64,7 @@ roomis-grillhouse/
 │   └── un-commit-par-ticket.mjs   # commit-msg hook (.beads/hooks/commit-msg): one ticket, one commit
 │
 ├── mods/grillhouse/            # The Grillhouse mod (Claude Code plugin): status line and /grillhouse pane,
-│                              #   drawn from scripts/tableau.mjs; tests: npm run mod:test
+│                              #   the lines of scripts/tableau.mjs; tests: npm run mod:test
 ├── .claude-plugin/             # marketplace.json: this repository publishes the mod (grillhouse@roomis-grillhouse)
 ├── .github/                    # GitHub integrations
 │   ├── workflows/                 # CI/CD workflows

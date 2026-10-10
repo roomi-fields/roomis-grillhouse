@@ -1,42 +1,23 @@
 import { expect, test } from 'claude-code/testing'
 
-import { compteurs, duree, ligneEtat, placement } from '../hooks/register'
+import { couleur, placement } from '../hooks/register'
 import type { Tableau } from '../types'
 
-const vide = { enCours: [], prets: [], bloques: [], aValider: [], reportes: [], fermes: [] }
 const TABLEAU: Tableau = {
-  projet: { enCours: 1, prets: 2, bloques: 1, aValider: 1, reportes: 3, fermes: 5 },
-  epopees: [
-    {
-      id: 'demo-e',
-      titre: 'E',
-      priorite: 1,
-      enCours: true,
-      compteurs: { enCours: 1, prets: 2, bloques: 1, aValider: 1, reportes: 3, fermes: 5 },
-      tickets: { ...vide, enCours: [{ id: 'demo-1', titre: 'Un', priorite: 1 }] },
-      jetons: 41_000,
-    },
+  lignes: [
+    { texte: 'DEMO', ton: 'titre' },
+    { texte: '⚠ 1 ticket(s) attendent ta décision', ton: 'attention' },
+    { texte: '4 développeur  ▶ c.1.1 moteur ⌁', ton: 'actif' },
   ],
-  suivants: [],
-  epopeesSuivantes: [],
-  tickets: {},
-  supervision: { jetons: 0, cache: 0, travail: 0 },
-  vivant: [],
-  alertes: [{ niveau: 'decision', texte: '1 ticket(s) attendent ta décision' }],
+  etat: '⚠ 1 · c 1/5 · ▶ 1 en cours · 1 k aujourd\'hui',
 }
 
-test('the status line holds the epic in progress, its waiting tickets in one count, alerts first', () => {
-  expect(ligneEtat(TABLEAU)).toBe('⚠ 1 · demo-e : 1 en cours · 4 en attente · 5 fermés · 41 k jetons')
-})
-
-test('without epic in progress, the status line holds the project', () => {
-  const t = { ...TABLEAU, alertes: [], epopees: [] }
-  expect(ligneEtat(t)).toBe(`Grillhouse : ${compteurs(TABLEAU.projet)}`)
-})
-
-test('durations read in minutes, then hours', () => {
-  expect(duree(5 * 60_000)).toBe('5 min')
-  expect(duree(125 * 60_000)).toBe('2 h 05')
+test('each tone has its colour, the plain and quiet lines none', () => {
+  expect(couleur('alerte')).toBe('red')
+  expect(couleur('attention')).toBe('yellow')
+  expect(couleur('actif')).toBe('cyan')
+  expect(couleur('discret')).toBeUndefined()
+  expect(couleur(undefined)).toBeUndefined()
 })
 
 test('in a Grillhouse project, the session start measures the board and writes the status line', async ($, on) => {
@@ -55,7 +36,7 @@ test('in a Grillhouse project, the session start measures the board and writes t
     return { value: undefined }
   })
   await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
-  expect(await statut).toBe(ligneEtat(TABLEAU))
+  expect(await statut).toBe(TABLEAU.etat)
 })
 
 for (const [cas, cwd, estProjet, isInteractive] of [

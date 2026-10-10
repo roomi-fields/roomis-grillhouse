@@ -1,14 +1,15 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Compteurs, Etat, Liste, Tableau } from '../types'
+import type { Etat, Ligne, Tableau } from '../types'
 
-// The board of a Grillhouse project: the status line holds the epic in progress, the pane
-// (/grillhouse) the detail. The project's own `scripts/tableau.mjs` measures; this mod draws it,
-// every 30 s and after each `bd` or `git` command. It stays silent outside a Grillhouse project
+// The board of a Grillhouse project: the status line holds the chantier in progress, the pane
+// (/grillhouse) its three levels. The project's own `scripts/tableau.mjs` measures and lays out the
+// lines; this mod shows them, every 30 s and after each `bd` or `git` command. It stays silent outside a Grillhouse project
 // and inside an agent's copy (`.claude/worktrees/`).
 const PANE = 'grillhouse'
 const PERIODE = 30_000
+// The width of the lines `scripts/tableau.mjs` lays out (its LARGEUR).
 const COLONNES = 52
 const DOCK = 110
 
@@ -27,30 +28,9 @@ const etat = atom({ plugin: 'grillhouse', key: 'etat' } as const, {
   lu: 0,
 } as Etat)
 
-export const k = (n: number) =>
-  n >= 1e6 ? `${(n / 1e6).toFixed(1)} M` : n >= 1e3 ? `${Math.round(n / 1e3)} k` : `${n}`
-export const duree = (ms: number) => {
-  const min = Math.round(ms / 60_000)
-  return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}`
-}
-export const compteurs = (c: Compteurs) =>
-  `${c.enCours} en cours · ${c.prets} prêts · ${c.bloques} bloqués · ${c.aValider} à valider · ${c.reportes} reportés · ${c.fermes} fermés`
-
-// The status line: the epic(s) in progress and their counts, alerts first.
-export function ligneEtat(t: Tableau): string {
-  const alerte = t.alertes.length ? `⚠ ${t.alertes.length} · ` : ''
-  const encours = t.epopees.filter(e => e.enCours)
-  if (encours.length === 0) return `${alerte}Grillhouse : ${compteurs(t.projet)}`
-  return (
-    alerte +
-    encours
-      .map(e => {
-        const c = e.compteurs
-        return `${e.id} : ${c.enCours} en cours · ${c.prets + c.bloques + c.aValider} en attente · ${c.fermes} fermés · ${k(e.jetons)} jetons`
-      })
-      .join(' | ')
-  )
-}
+// The colour of a line's tone.
+export const couleur = (ton: Ligne['ton']) =>
+  ton === 'alerte' ? 'red' : ton === 'attention' ? 'yellow' : ton === 'actif' ? 'cyan' : undefined
 
 // The session's project, and whether the board applies to it.
 let cwd = ''
@@ -66,7 +46,7 @@ async function rafraichir($: EngineInterface) {
   }
   const tableau = JSON.parse(r.stdout) as Tableau
   await update($, etat, () => ({ tableau, erreur: null, lu: Date.now() }))
-  $.ui.status(ligneEtat(tableau))
+  $.ui.status(tableau.etat)
 }
 
 export const register: Register = on => {
@@ -79,7 +59,7 @@ export const register: Register = on => {
     if (!actif) return started
     await $.command.register({
       name: 'grillhouse',
-      description: "Ouvre le tableau Grillhouse : épopées, tickets, ordre, jetons et temps, ce qui tourne",
+      description: 'Ouvre le tableau Grillhouse : le projet, le chantier en cours, les agents',
     })
     void rafraichir($)
     $.clock.every(PERIODE, () => void rafraichir($))
@@ -103,98 +83,18 @@ export const register: Register = on => {
     const { Box, Text } = $.ui.resolve(e)
     const { tableau: t, erreur } = await read($, etat)
     if (!t) return <Text dimColor>{erreur ?? 'Lecture du tableau…'}</Text>
-    const noms = (l: Liste, n = 6) =>
-      l.length === 0
-        ? '—'
-        : l
-            .slice(0, n)
-            .map(x => x.id)
-            .join(', ') + (l.length > n ? ` (+${l.length - n})` : '')
-    const mesure = (id: string) => {
-      const m = t.tickets[id]
-      return m
-        ? ` — ${duree(m.duree)} (agents ${duree(m.travail)}) · ${k(m.jetons)} jetons`
-        : ''
-    }
     return (
       <Box flexDirection="column">
-        {t.alertes.map(a => (
-          <Text color={a.niveau === 'rouge' ? 'red' : 'yellow'}>⚠ {a.texte}</Text>
+        {t.lignes.map(l => (
+          <Text
+            bold={l.ton === 'titre'}
+            dimColor={l.ton === 'discret'}
+            color={couleur(l.ton)}
+            wrap="truncate-end"
+          >
+            {l.texte || ' '}
+          </Text>
         ))}
-        <Text bold>Projet : {compteurs(t.projet)}</Text>
-        {t.epopees
-          .filter(ep => ep.enCours)
-          .map(ep => (
-            <Box flexDirection="column" marginTop={1}>
-              <Text bold color="cyan">
-                ▶ {ep.id} — {ep.titre}
-              </Text>
-              <Text>
-                {'  '}
-                {compteurs(ep.compteurs)} · {k(ep.jetons)} jetons
-              </Text>
-              {ep.tickets.enCours.map(x => (
-                <Text wrap="truncate-end">
-                  {'  ◐ '}
-                  {x.id} {x.titre}
-                  {mesure(x.id)}
-                </Text>
-              ))}
-              <Text dimColor wrap="truncate-end">
-                {'  '}prêts : {noms(ep.tickets.prets)}
-              </Text>
-              <Text dimColor wrap="truncate-end">
-                {'  '}bloqués : {noms(ep.tickets.bloques)}
-              </Text>
-              <Text color={ep.tickets.aValider.length ? 'yellow' : undefined} wrap="truncate-end">
-                {'  '}à valider : {noms(ep.tickets.aValider)}
-              </Text>
-              <Text dimColor wrap="truncate-end">
-                {'  '}reportés : {noms(ep.tickets.reportes)}
-              </Text>
-              {ep.tickets.fermes.slice(-5).map(x => (
-                <Text dimColor wrap="truncate-end">
-                  {'  ✓ '}
-                  {x.id}
-                  {mesure(x.id)}
-                </Text>
-              ))}
-            </Box>
-          ))}
-        <Box flexDirection="column" marginTop={1}>
-          <Text bold>Ordre de passage</Text>
-          <Text wrap="truncate-end">
-            {'  '}tickets : {noms(t.suivants, 5)}
-          </Text>
-          <Text wrap="truncate-end">
-            {'  '}épopées : {noms(t.epopeesSuivantes, 5)}
-          </Text>
-        </Box>
-        <Box flexDirection="column" marginTop={1}>
-          <Text bold>Autres épopées</Text>
-          {t.epopees
-            .filter(ep => !ep.enCours)
-            .map(ep => (
-              <Text dimColor wrap="truncate-end">
-                {'  '}
-                {ep.id} : {compteurs(ep.compteurs)}
-              </Text>
-            ))}
-        </Box>
-        <Box flexDirection="column" marginTop={1}>
-          <Text bold>Ce qui tourne</Text>
-          {t.vivant.length === 0 && <Text dimColor>{'  '}rien</Text>}
-          {t.vivant.map(v => (
-            <Text>
-              {'  ● '}
-              {v.type}
-              {v.ticket ? ` ${v.ticket}` : ''} depuis {duree(Date.now() - v.depuis)}
-            </Text>
-          ))}
-          <Text dimColor>
-            {'  '}supervision : {k(t.supervision.jetons)} jetons
-          </Text>
-        </Box>
       </Box>
     )
   })

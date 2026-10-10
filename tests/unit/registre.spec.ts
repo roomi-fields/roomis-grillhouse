@@ -89,7 +89,7 @@ describe('the register on disk', () => {
     const lignes = readFileSync(registre, 'utf8')
       .trim()
       .split('\n')
-      .map(x => JSON.parse(x));
+      .map(x => JSON.parse(x) as Record<string, unknown>);
     expect(lignes).toHaveLength(2);
     expect(lignes[0]).toMatchObject({
       ticket: 'demo-3.2.1',
