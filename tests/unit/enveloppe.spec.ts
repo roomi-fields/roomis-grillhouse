@@ -209,6 +209,20 @@ describe('plan and the session mounts', () => {
   });
 });
 
+describe('plan for a folder of the root', () => {
+  const { args, refus } = plan(
+    { trees: ['/main', '/wt'], copie: '/wt', composant: 'scripts' },
+    fakeDisk({ '/wt': [{ name: 'scripts', dir: true }], '/wt/scripts': [] }, ['/wt/.git'])
+  );
+  it('hides nothing, and keeps the copy written and its .git read-only', () => {
+    expect(refus).toBeUndefined();
+    expect(pairs(args, '--tmpfs')).toEqual(['/dev/shm']);
+    expect(args.join(' ')).toContain('--bind /wt /wt');
+    expect(args.join(' ')).toContain('--ro-bind /wt/.git /wt/.git');
+    expect(args).not.toContain('--remount-ro');
+  });
+});
+
 describe('plan refuses', () => {
   it('the main tree', () => {
     const { refus } = plan(
@@ -223,13 +237,6 @@ describe('plan refuses', () => {
       fakeDisk({ '/wt/packages': [] }, [])
     );
     expect(refus).toMatch(/n'existe pas/);
-  });
-  it('a component without a parent directory', () => {
-    const { refus } = plan(
-      { trees: ['/main', '/wt'], copie: '/wt', composant: 'a' },
-      fakeDisk({ '/wt/a': [] }, [])
-    );
-    expect(refus).toMatch(/dossier parent/);
   });
   it('a link that crosses into a hidden component', () => {
     const disk = fakeDisk({ '/wt/packages': [], '/wt/packages/a': [] }, [], {

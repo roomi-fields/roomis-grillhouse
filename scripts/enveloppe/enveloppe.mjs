@@ -21,6 +21,8 @@
 //   the paths that the `files` field of its `package.json` names, when they exist inside it.
 //   The parent's own files (`src/index.ts`) come back read-only, and the emptied directories are
 //   then sealed read-only.
+// - A folder of the root (`scripts`) hides nothing: its scripts work on the whole repository. The
+//   rest holds: the root read-only, the copy written, its `.git` read-only.
 // - The traversal guard refuses to launch when a symbolic link inside the component points into
 //   a hidden directory: such a link would cross the envelope.
 // - The exit codes are named in `codes.mjs`.
@@ -136,15 +138,12 @@ export function plan({ trees, copie, composant, montages = [] }, fs) {
   }
   const parentRel = path.dirname(composant);
   const nom = path.basename(composant);
-  if (parentRel === '.' || parentRel === '') {
-    return {
-      refus: `Le composant ${composant} n'a pas de dossier parent : l'enveloppe masque ses voisins dans ce parent.`,
-    };
-  }
+  // A folder of the root (`scripts`) works on the whole repository: no neighbour to hide.
+  const racine = parentRel === '.' || parentRel === '';
   const propre = path.join(copie, composant);
   if (!fs.existe(propre)) return { refus: `Le composant ${propre} n'existe pas.` };
 
-  const caches = trees.map(t => path.join(t, parentRel));
+  const caches = racine ? [] : trees.map(t => path.join(t, parentRel));
   for (const { lien, cible } of fs.liens(propre)) {
     if (caches.some(c => inside(cible, c))) {
       return {
@@ -178,7 +177,7 @@ export function plan({ trees, copie, composant, montages = [] }, fs) {
   if (tickets && fs.existe(tickets)) args.push('--bind', tickets, tickets);
   for (const c of caches) if (fs.existe(c)) args.push('--tmpfs', c);
   const parent = path.join(copie, parentRel);
-  for (const e of fs.lister(parent)) {
+  for (const e of racine ? [] : fs.lister(parent)) {
     const p = path.join(parent, e.name);
     if (!e.dir) {
       args.push('--ro-bind', p, p);

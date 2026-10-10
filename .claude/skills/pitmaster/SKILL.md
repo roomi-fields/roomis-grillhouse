@@ -46,8 +46,10 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   `bash scripts/enveloppe/lancer.sh <ticket> <rôle> <composant> <consigne>`, lancé en arrière-plan,
   la consigne écrite d'après `references/consigne-agent.md` dans mon scratchpad. Sa fin me
   revient en notification ; son rapport est au ticket, sa sortie dans `.claude/worktrees/<ticket>.log`.
-  Ainsi chaque agent travaille dans le cadre écrit, sous les verrous de son rôle, et ne voit des
-  autres composants que leurs interfaces.
+  Un ticket sur un dossier de la racine (`scripts`) part par le même lanceur, ce dossier pour
+  composant : rien n'est caché, la racine reste en lecture seule et la copie en écriture. Ainsi
+  chaque agent travaille dans le cadre écrit, sous les verrous de son rôle, et ne voit des autres
+  composants que leurs interfaces.
 - **Un ticket bloqué repart de sa copie** : débloqué, un ticket repart avec un agent neuf, par le
   même lanceur ; sa copie garde le code de l'agent précédent, et ses notes l'état du travail. La
   consigne dit « reprise : lis les notes du ticket ». Ainsi le travail fait sert à l'agent suivant.
