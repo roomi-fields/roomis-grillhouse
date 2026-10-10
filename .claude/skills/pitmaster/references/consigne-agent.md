@@ -10,9 +10,11 @@ LOTS À LIRE : <pour le développeur, le lot de tests, déjà dans la copie du t
 
 CONTEXTE DU MOMENT : <les séances voisines et les fichiers qu'elles tiennent>.
 
-Tu travailles dans ta copie (`.claude/worktrees/<ticket>`), dans l'enveloppe de ton composant : des autres composants, seules l'interface et la forme publiée existent. L'index (rtfm, codegraph) n'y est pas : tu lis ton paquet et les interfaces de tes voisins. Ainsi tu modifies ta copie, et tes voisins par leurs interfaces seulement.
+<Pour le testeur et le développeur :> Tu travailles dans ta copie (`.claude/worktrees/<ticket>`), dans l'enveloppe de ton composant : des autres composants, seules l'interface et la forme publiée existent. L'index (rtfm, codegraph) n'y est pas : tu lis ton paquet et les interfaces de tes voisins. Ainsi tu modifies ta copie, et tes voisins par leurs interfaces seulement.
 
-Le lanceur a avancé ta copie sur main avant d'ouvrir ta séance : tu pars du dernier commit. Ainsi ton lot s'applique sur l'état présent du dépôt.
+<Pour le relecteur, à la place :> Tu relis le lot dans la copie du ticket (`.claude/worktrees/<ticket>`) et tu y rejoues les tests ; tu vois tout le dépôt, avec l'index (rtfm, codegraph), dont les chemins se lisent dans la copie. Ainsi tu cherches partout la notion déjà fournie et le texte resté à l'ancien comportement.
+
+<Pour le testeur et le développeur :> Le lanceur a avancé ta copie sur main avant d'ouvrir ta séance : tu pars du dernier commit. Ainsi ton lot s'applique sur l'état présent du dépôt.
 
 Hors de ta copie, la machine est en lecture seule, `.git` compris : tu ne commites pas et tu n'écris pas l'index. Ton patch se fait sur tes seuls fichiers : `git diff -- <fichiers modifiés>`, plus `git diff --no-index /dev/null <fichier>` pour chaque fichier neuf, le tout dans ton scratchpad. Ainsi seul l'intégrateur écrit l'histoire du dépôt.
 

@@ -41,8 +41,8 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
 
 ## Un agent, un ticket
 
-- **Un agent neuf par ticket, dans son enveloppe** : un ticket tranché part au testeur, au
-  développeur ou au relecteur, en séance neuve dans l'enveloppe de son composant :
+- **Un agent neuf par ticket, dans son enveloppe** : un ticket tranché part au testeur ou au
+  développeur, en séance neuve dans l'enveloppe de son composant :
   `bash scripts/enveloppe/lancer.sh <ticket> <rôle> <composant> <consigne>`, lancé en arrière-plan,
   la consigne écrite d'après `references/consigne-agent.md` dans mon scratchpad. Sa fin me
   revient en notification ; son rapport est au ticket, sa sortie dans `.claude/worktrees/<ticket>.log`.
@@ -50,6 +50,12 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   composant : rien n'est caché, la racine reste en lecture seule et la copie en écriture. Ainsi
   chaque agent travaille dans le cadre écrit, sous les verrous de son rôle, et ne voit des autres
   composants que leurs interfaces.
+- **Le relecteur voit tout le dépôt** : le lot écrit part au relecteur, sous-agent neuf
+  (`subagent_type: relecteur`, en arrière-plan, `name: <ticket>-agent-5`), hors enveloppe, la
+  consigne écrite d'après `references/consigne-agent.md`. Il relit le lot dans la copie du ticket,
+  y rejoue les tests, et cherche dans tout le dépôt, avec l'index, la notion déjà fournie ailleurs
+  et le texte qui décrit encore l'ancien comportement. Ainsi un doublon ou un texte périmé se voit
+  avant le commit.
 - **Un ticket bloqué repart de sa copie** : débloqué, un ticket repart avec un agent neuf, par le
   même lanceur ; sa copie garde le code de l'agent précédent, et ses notes l'état du travail. La
   consigne dit « reprise : lis les notes du ticket ». Ainsi le travail fait sert à l'agent suivant.
