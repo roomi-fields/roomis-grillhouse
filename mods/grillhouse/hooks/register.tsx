@@ -175,9 +175,17 @@ export const register: Register = on => {
         <Box flexDirection="column" height={FICHE} flexShrink={0}>
           {carte(choisi ? t.fiches[choisi] : undefined)}
           {Object.entries(t.fiches).map(([id, f]) => (
-            // The card of the ticket under the pointer, drawn over the chosen one.
+            // The card of the ticket under the pointer, drawn over the chosen one on a blank of its
+            // size, so no character of the chosen card shows through.
             <Box position="absolute" top={0} left={0} display="none" hover={{ scope: id, display: 'flex' }}>
-              {carte(f)}
+              <Box flexDirection="column">
+                {Array.from({ length: FICHE }, () => (
+                  <Text>{' '.repeat(colonnes)}</Text>
+                ))}
+              </Box>
+              <Box position="absolute" top={0} left={0}>
+                {carte(f)}
+              </Box>
             </Box>
           ))}
         </Box>
