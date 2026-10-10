@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   assembler,
   etape,
+  fiches,
   lecture,
   lignes,
   lireRegistre,
@@ -294,14 +295,14 @@ describe('assembler', () => {
     ]);
     expect(b(3).enCours).toEqual([]);
     expect(b(4).attend).toEqual([
-      { numero: 'c.3', sujet: 'demo-c.3', duree: 0, travail: 60_000, jetons: 50 },
+      { id: 'demo-c.3', numero: 'c.3', sujet: 'demo-c.3', duree: 0, travail: 60_000, jetons: 50 },
     ]);
     expect(b(3).attend).toEqual([]);
     expect(t.agents.flatMap(x => x.attend.map(y => y.numero))).not.toContain('c.4');
   });
   it('lists the tickets closed today', () => {
     expect(t.faitsDuJour).toEqual([
-      { numero: 'c.1.2', sujet: 'demo-c.1.2', duree: 0, travail: 0, jetons: 0 },
+      { id: 'demo-c.1.2', numero: 'c.1.2', sujet: 'demo-c.1.2', duree: 0, travail: 0, jetons: 0 },
     ]);
   });
   it('alerts on a decision awaited, a silent shell agent, a ticket in progress without anything running', () => {
@@ -330,28 +331,11 @@ describe('assembler', () => {
     for (const x of l) {
       expect([...x.texte].length).toBeLessThanOrEqual(LARGEUR);
     }
-    const long = lignes(
-      plateau({
-        tous: [
-          T('demo-k', { issue_type: 'epic', title: 'k — Chantier — parent' }),
-          T('demo-k.1', {
-            parent: 'demo-k',
-            status: 'in_progress',
-            title: 'k.1 — Un sujet bien trop long pour la largeur du panneau — moteur',
-          }),
-        ],
-        prefix: 'demo',
-        registre: [],
-        vivants: [],
-        maintenant,
-        jour,
-      }),
-      'demo'
-    ) as { texte: string; complet?: string }[];
-    expect(long.find(x => x.complet)?.complet).toMatch(
-      /Un sujet bien trop long pour la largeur du panneau$/
+    const marquees = l.filter((x: { ticket?: string }) => x.ticket);
+    expect(marquees.find(x => x.texte.includes('c.1.1'))?.ticket).toBe('demo-c.1.1');
+    expect(l.find((x: { texte: string }) => x.texte.startsWith('AGENTS'))).not.toHaveProperty(
+      'ticket'
     );
-    expect(long.filter(x => x.complet && !x.texte.includes('…'))).toEqual([]);
     const texte = l.map((x: { texte: string }) => x.texte).join('\n');
     expect(texte).toMatch(/CHANTIER c — Le chantier/);
     expect(texte).toMatch(/c\.1 {2}Une mère +1\/2 · 1 k ▶/);
@@ -363,5 +347,28 @@ describe('assembler', () => {
     expect(texte).toMatch(/\n1 explorateur {2}—\n/);
     expect(texte).toMatch(/✓ c\.1\.2 {2}demo-c\.1\.2/);
     expect(texte).toMatch(/autres : z 1\/1/);
+  });
+});
+
+describe('fiches', () => {
+  it('gives each ticket a line names its whole title, its state and the start of its description', () => {
+    const tous = [
+      {
+        id: 'demo-a',
+        title: 'a — Un titre entier — moteur',
+        status: 'open',
+        description: '## Architecture\nLe modèle mûr.\n\nSuite.',
+      },
+      { id: 'demo-b', title: 'b — Hors du tableau', status: 'open' },
+    ];
+    expect(fiches(tous, [{ texte: 'x', ticket: 'demo-a' }, { texte: 'y' }], 'demo')).toEqual({
+      'demo-a': {
+        numero: 'a',
+        titre: 'Un titre entier',
+        composant: 'moteur',
+        statut: 'open',
+        resume: 'Le modèle mûr. Suite.',
+      },
+    });
   });
 });

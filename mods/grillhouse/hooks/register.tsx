@@ -26,6 +26,7 @@ const etat = atom({ plugin: 'grillhouse', key: 'etat' } as const, {
   tableau: null,
   erreur: null,
   lu: 0,
+  choisi: null,
 } as Etat)
 
 // The colour of a line's tone.
@@ -45,7 +46,7 @@ async function rafraichir($: EngineInterface) {
     return
   }
   const tableau = JSON.parse(r.stdout) as Tableau
-  await update($, etat, () => ({ tableau, erreur: null, lu: Date.now() }))
+  await update($, etat, s => ({ ...s, tableau, erreur: null, lu: Date.now() }))
   $.ui.status(tableau.etat)
 }
 
@@ -80,35 +81,40 @@ export const register: Register = on => {
   }).catch(($, e, next) => next(e))
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const { Box, Text } = $.ui.resolve(e)
-    const { tableau: t, erreur } = await read($, etat)
+    const { Box, Text, Button } = $.ui.resolve(e)
+    const { tableau: t, erreur, choisi } = await read($, etat)
     if (!t) return <Text dimColor>{erreur ?? 'Lecture du tableau…'}</Text>
+    const choisir = (id: string | null) => void update($, etat, s => ({ ...s, choisi: s.choisi === id ? null : id }))
+    const fiche = choisi ? t.fiches[choisi] : undefined
     return (
       <Box flexDirection="column">
+        {fiche && (
+          // The selected ticket's card: its whole title, its state and the start of its description.
+          <Box flexDirection="column" borderStyle="round" marginBottom={1}>
+            <Text bold wrap="wrap">
+              {fiche.numero} — {fiche.titre}
+            </Text>
+            <Text dimColor>
+              {[fiche.composant, fiche.statut].filter(Boolean).join(' · ')}
+            </Text>
+            {fiche.resume ? <Text wrap="wrap">{fiche.resume}</Text> : null}
+            <Button label="fermer" role="dismiss" onPress={() => choisir(null)} />
+          </Box>
+        )}
         {t.lignes.map((l, i) => {
-          const ligne = (
+          const texte = (
             <Text bold={l.ton === 'titre'} dimColor={l.ton === 'discret'} color={couleur(l.ton)} wrap="truncate-end">
               {l.texte || ' '}
             </Text>
           )
-          // A cut line shows its whole text in a card under the pointer.
-          return l.complet ? (
-            <Box key={`l${i}`} flexDirection="column">
-              {ligne}
-              <Box
-                position="absolute"
-                top={1}
-                left={0}
-                display="none"
-                hover={{ display: 'flex' }}
-                borderStyle="round"
-                width={COLONNES}
-              >
-                <Text wrap="wrap">{l.complet}</Text>
-              </Box>
-            </Box>
+          // A ticket's line is a button: pressed (click, or Enter once the pane holds the
+          // keyboard), it shows the ticket's card above the board.
+          return l.ticket ? (
+            <Button key={`${l.ticket}:${i}`} onPress={() => choisir(l.ticket ?? null)}>
+              {texte}
+            </Button>
           ) : (
-            ligne
+            texte
           )
         })}
       </Box>

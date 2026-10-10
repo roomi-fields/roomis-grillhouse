@@ -462,6 +462,7 @@ export function assembler({
     const r = etape(p, verdicts[t.id] ?? null);
     if (r && bloc(r)) {
       bloc(r).attend.push({
+        id: t.id,
         numero: numero(t.id),
         sujet: titre(t).sujet,
         duree: dureeDe(t),
@@ -474,6 +475,7 @@ export function assembler({
     .filter(t => travail(t) && t.closed_at && Date.parse(t.closed_at) >= debutJour)
     .sort((a, b) => Date.parse(b.closed_at) - Date.parse(a.closed_at))
     .map(t => ({
+      id: t.id,
       numero: numero(t.id),
       sujet: titre(t).sujet,
       duree: dureeDe(t),
@@ -553,19 +555,12 @@ const liste = (l, place) => {
 };
 
 // The board's lines, `largeur` columns wide, each with its tone (titre, alerte, attention, actif,
-// discret, or none) and, when it was cut, its whole text (`complet`), which the pane shows under
-// the pointer. The pane and the text show the same lines.
+// discret, or none) and, for a ticket's line, its id (`ticket`), which the pane makes selectable.
+// The pane and the text show the same lines.
 export function lignes(t, nom, largeur = LARGEUR) {
   const out = [];
-  const complets = new Map();
-  const cadre = (gauche, droite, l) => {
-    const texte = couper(gauche, droite, l);
-    if (texte.includes('…')) {
-      complets.set(texte, gauche.trim());
-    }
-    return texte;
-  };
-  const L = (texte, ton) => out.push({ texte, ton });
+  const cadre = couper;
+  const L = (texte, ton, ticket) => out.push(ticket ? { texte, ton, ticket } : { texte, ton });
   const g = t.global;
   const c = g.compteurs;
   L(nom.toUpperCase(), 'titre');
@@ -633,6 +628,7 @@ export function lignes(t, nom, largeur = LARGEUR) {
         arbre.push({
           texte: cadre(`${' '.repeat(p)}${n.numero}  ${n.sujet}`, droite, largeur),
           ton: n.etat === 'enCours' ? 'actif' : n.etat === 'fermes' ? 'discret' : undefined,
+          ticket: n.id,
         });
         if (n.mere && n.etat === 'enCours') {
           parcourir(n.enfants, p + 1);
@@ -680,14 +676,16 @@ export function lignes(t, nom, largeur = LARGEUR) {
           `${duree(x.travail)} · ${k(x.jetons)}`,
           largeur
         ),
-        'actif'
+        'actif',
+        x.id
       );
-      L(cadre(`  ${x.sujet}`, '', largeur), 'discret');
+      L(cadre(`  ${x.sujet}`, '', largeur), 'discret', x.id);
     }
     for (const x of b.attend.slice(0, ATTENTE_MAX)) {
       L(
         cadre(`· ${x.numero}  ${x.sujet}`, `${duree(x.duree)} · ${k(x.jetons)}`, largeur),
-        'discret'
+        'discret',
+        x.id
       );
     }
     if (b.attend.length > ATTENTE_MAX) {
@@ -700,14 +698,40 @@ export function lignes(t, nom, largeur = LARGEUR) {
     for (const x of t.faitsDuJour.slice(0, 5)) {
       L(
         cadre(`✓ ${x.numero}  ${x.sujet}`, `${duree(x.duree)} · ${k(x.jetons)}`, largeur),
-        'discret'
+        'discret',
+        x.id
       );
     }
     if (t.faitsDuJour.length > 5) {
       L(`  + ${t.faitsDuJour.length - 5} autres`, 'discret');
     }
   }
-  return out.map(l => (complets.has(l.texte) ? { ...l, complet: complets.get(l.texte) } : l));
+  return out;
+}
+
+// The card of each ticket a line names: its number, whole title, state and the start of its
+// description, which the pane shows when the line is selected.
+export function fiches(tous, lignesDuTableau, prefix = '') {
+  const ids = new Set(lignesDuTableau.map(l => l.ticket).filter(Boolean));
+  const out = {};
+  for (const t of tous) {
+    if (!ids.has(t.id)) {
+      continue;
+    }
+    const resume = (t.description ?? '')
+      .split('\n')
+      .map(x => x.trim())
+      .filter(x => x && !x.startsWith('#'))
+      .join(' ');
+    out[t.id] = {
+      numero: lecture(t, prefix).numero,
+      titre: lecture(t, prefix).sujet,
+      composant: lecture(t, prefix).composant,
+      statut: t.status,
+      resume: resume.length > 400 ? `${resume.slice(0, 399)}…` : resume,
+    };
+  }
+  return out;
 }
 
 // The status line: the chantier in progress, alerts first.
@@ -830,7 +854,8 @@ export function tableau(racine, { home = os.homedir(), maintenant = Date.now() }
     jour: minuit.getTime(),
   });
   const nom = (pkg.name ?? path.basename(racine)).replace(/^@[^/]+\//, '');
-  return { ...t, lignes: lignes(t, nom), etat: ligneEtat(t) };
+  const l = lignes(t, nom);
+  return { ...t, lignes: l, fiches: fiches(tous, l, prefix), etat: ligneEtat(t) };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
