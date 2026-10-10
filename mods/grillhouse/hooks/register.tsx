@@ -82,7 +82,7 @@ export function debut(n: number, idx: number, rangs: number, avant: number): num
 // What the keyboard reaching an element changes: a ticket's line chooses its ticket, a counting
 // line or one of its folded lines keeps it unfolded, and the card goes back to its size.
 export function viser(s: Etat, element: string): Etat {
-  if (element === 'g') return s
+  if (element === 'g' || element === 'h') return s
   const [tete, pos = ''] = element.split(':')
   const ouvert = tete === '+' ? Number(pos) : pos.includes('.') ? Number(pos.split('.')[0]) : null
   return { ...s, element, ouvert, grand: false, choisi: tete === '+' ? s.choisi : (tete ?? null) }
@@ -115,7 +115,8 @@ export const bascule = (statut: string | undefined) => (statut === 'in_progress'
 
 // Switches a chantier on or off in Beads, then measures the board again.
 async function basculer($: EngineInterface, id: string, statut: string | undefined) {
-  await $.process.run(['bd', 'update', id, '--status', bascule(statut)], { cwd, timeoutMs: 20_000 })
+  const r = await $.process.run(['bd', 'update', id, '--status', bascule(statut)], { cwd, timeoutMs: 20_000 })
+  if (r.exitCode !== 0) await $.ui.toast(`Le chantier n'a pas basculé : ${r.stderr.slice(0, 200)}`)
   await rafraichir($)
 }
 
@@ -174,14 +175,27 @@ export const register: Register = on => {
     // Focused, the card shows the chosen ticket; otherwise the one that moved last.
     const montre = e.props.isFocused ? choisi : (t.dernier ?? choisi)
     const fiche = montre ? t.fiches[montre] : undefined
-    // `g` on the rule makes the card fill the pane, and again brings it back.
+    const liste = visibles(t.lignes, e.props.isFocused ? ouvert : null)
+    const ici = liste.findIndex(x => x.cle === element)
+    // The chantier the keyboard is on, which `h` switches on or off.
+    const chantier = ici >= 0 && liste[ici]?.l.chantier ? liste[ici]?.l.ticket : undefined
+    // `g` on the rule makes the card fill the pane, and again brings it back; `h` switches the
+    // chantier chosen.
     const regle = (libelle: string) =>
       e.props.isFocused && fiche ? (
-        <Button key="g" plain hotkey="g" onPress={() => void update($, etat, s => ({ ...s, grand: !s.grand }))}>
+        <Box flexDirection="row" width={colonnes} overflow="hidden">
+          <Button key="g" plain hotkey="g" onPress={() => void update($, etat, s => ({ ...s, grand: !s.grand }))}>
+            <Text dimColor>{`── g : ${libelle} `}</Text>
+          </Button>
+          {chantier ? (
+            <Button key="h" plain hotkey="h" onPress={() => void basculer($, chantier, t.fiches[chantier]?.statut)}>
+              <Text dimColor>{`· h : ${fiche.statut === 'in_progress' ? 'désactiver' : 'activer'} `}</Text>
+            </Button>
+          ) : null}
           <Text dimColor wrap="truncate-end">
-            {`── g : ${libelle} ${'─'.repeat(colonnes)}`}
+            {'─'.repeat(colonnes)}
           </Text>
-        </Button>
+        </Box>
       ) : (
         <Text dimColor>{'─'.repeat(colonnes)}</Text>
       )
@@ -203,9 +217,7 @@ export const register: Register = on => {
         </Box>
       )
     }
-    const liste = visibles(t.lignes, e.props.isFocused ? ouvert : null)
     const rangs = Math.max(1, e.props.scroll.bodyRows - FICHE - 1)
-    const ici = liste.findIndex(x => x.cle === element)
     const premier = e.props.isFocused && ici >= 0 ? debut(liste.length, ici, rangs, fenetre) : 0
     fenetre = premier
     // A card fills the pane's last rows: the whole title on as many lines as it takes, then the
@@ -259,10 +271,7 @@ export const register: Register = on => {
                 <Button
                   key={cle}
                   plain
-                  onPress={() => {
-                    void update($, etat, s => ({ ...s, choisi: l.ticket ?? null }))
-                    if (l.chantier && l.ticket) void basculer($, l.ticket, t.fiches[l.ticket]?.statut)
-                  }}
+                  onPress={() => void update($, etat, s => viser(s, cle))}
                 >
                   {texte}
                 </Button>

@@ -186,22 +186,26 @@ async function monterChantiers($: never, on: never, appels: string[][]) {
   }) as Promise<{ unmount: () => Promise<void> }>
 }
 
-test('3uv.24 critère 5 : pressing a chantier line switches its status and measures again', async ($, on) => {
+test('3uv.24 critère 5 : h on the chosen chantier switches its status and measures again', async ($, on) => {
   const appels: string[][] = []
   const ui = await monterChantiers($ as never, on as never, appels)
   const avant = appels.filter(a => a[0] === 'node').length
   await $.ui.press({ plugin: 'grillhouse', key: 'demo-a:1' })
+  await new Promise(r => setTimeout(r, 50))
+  expect(appels.some(a => a[0] === 'bd')).toBe(false)
+  await $.ui.press({ plugin: 'grillhouse', key: 'h' })
   await new Promise(r => setTimeout(r, 50))
   expect(appels).toContainEqual(['bd', 'update', 'demo-a', '--status', 'open'])
   expect(appels.filter(a => a[0] === 'node').length).toBeGreaterThan(avant)
   await ui.unmount()
 })
 
-test('3uv.24 critère 6 : pressing a ticket line switches nothing', async ($, on) => {
+test('3uv.24 critère 6 : on a ticket line, h is not drawn and nothing switches', async ($, on) => {
   const appels: string[][] = []
   const ui = await monterChantiers($ as never, on as never, appels)
   await $.ui.press({ plugin: 'grillhouse', key: 'c.2:2' })
   await new Promise(r => setTimeout(r, 50))
+  await expect($.ui.press({ plugin: 'grillhouse', key: 'h' })).rejects.toBeDefined()
   expect(appels.some(a => a[0] === 'bd')).toBe(false)
   await ui.unmount()
 })
