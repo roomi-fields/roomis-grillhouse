@@ -27,7 +27,10 @@ mécanisme qui existe ou qui se construit. Le cas qui a fait naître la question
 ## Les étapes
 
 1. **La question, en termes de structure.** Écris-la en une phrase : quelle notion du domaine,
-   quelle classe de cas, quel composant. *Fini quand* la phrase nomme la notion et la classe.
+   quelle classe de cas, quel composant. Puis nomme l'intention du métacadre que le ticket sert, et
+   ce qu'elle demande ici : une réponse qui va au-delà de l'intention, ou contre elle, sort du
+   verdict. *Fini quand* la phrase nomme la notion, la classe et l'intention servie. Ainsi chaque
+   décision reste au service de ce que le cadre veut.
 2. **Le modèle mûr.** Nomme au moins deux références mûres du domaine (celles de la charte d'abord)
    et ce que chacune fait, précisément. Tu les compares aussi sur les contraintes du dépôt : ce que
    chacune impose à l'existant (l'ordre de chargement, la syntaxe déjà écrite, les lecteurs en

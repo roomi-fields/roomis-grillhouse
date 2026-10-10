@@ -123,6 +123,10 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   commun ; `developpeur`, « L'architecture, avant tout correctif ») et part seulement avec elle.
   Ainsi un mécanisme manquant devient le travail, jamais une compensation locale centrée sur le
   problème identifié.
+- **Une décision se confronte aux intentions** : chaque décision, la mienne, celle de l'arbitre
+  ou celle que je monte au responsable, nomme l'intention du métacadre qu'elle sert, et ce que
+  cette intention demande ici ; ce qui va au-delà sort du ticket. Ainsi le travail reste au service
+  de ce que le cadre veut, sans dériver vers ce qu'un cas suggère.
 - **Un ticket nomme ses règles** : à l'ouverture, un ticket nomme les règles qu'il applique, par
   adresse (`docs/CADRE.md` R1…, une section d'architecture ou de la spécification). Ainsi le code suit l'architecture ; quand aucune règle ne s'applique,
   la décision manque et remonte au responsable.
