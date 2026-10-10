@@ -68,7 +68,10 @@ if [ "${mode:-}" = impactes ] && ! crontab -l 2>/dev/null | grep -qF "$root/scri
   nuit="0 3 * * * bash $root/scripts/nuit.sh"
 fi
 
-[ ${#missing[@]} -eq 0 ] && [ ${#pending[@]} -eq 0 ] && [ ${#wiring[@]} -eq 0 ] && [ -z "${nuit:-}" ] && exit 0
+# An epic is a chantier, at the root: one with a mother is a mother ticket typed by mistake.
+epopees="$(cd "$root" && bd list --type epic --all --json --limit 0 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.stdout.write(JSON.parse(s).filter(t=>t.parent).map(t=>t.id).join(" "))}catch{}})')"
+
+[ ${#missing[@]} -eq 0 ] && [ ${#pending[@]} -eq 0 ] && [ ${#wiring[@]} -eq 0 ] && [ -z "${nuit:-}" ] && [ -z "$epopees" ] && exit 0
 
 echo "## Éléments du projet à définir (Roomi's Grillhouse)"
 if [ ${#missing[@]} -gt 0 ]; then
@@ -84,4 +87,7 @@ if [ ${#wiring[@]} -gt 0 ]; then
 fi
 if [ -n "${nuit:-}" ]; then
   echo "La nuit n'est pas programmée : le projet a choisi « impactes », et ses suites complètes ne tournent que la nuit (\`scripts/nuit.sh\`). Propose au responsable d'ajouter à la table des tâches du poste (\`crontab -e\`) : \`$nuit\`."
+fi
+if [ -n "$epopees" ]; then
+  echo "Épopées qui ont une mère : $epopees. Une épopée est un chantier, à la racine ; une mère sous un chantier est une tâche (\`bd update <id> -t task\`, docs/agents/issue-tracker.md, « Numéros et titres »)."
 fi

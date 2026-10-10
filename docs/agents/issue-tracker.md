@@ -9,13 +9,13 @@ Issues for this repo live in Beads, a git-backed tracker: data under `.beads/`, 
 - A change of behaviour takes two tickets: the tests ticket (agent `testeur`), then the code ticket that depends on it (`bd dep add <code> <tests>`, agent `developpeur`). The `relecteur` agent writes its verdict (`ACCEPTÉ` or `RENDU`) on the code ticket; a fresh `integrateur` agent judges both lots and commits them in one commit through `scripts/integration/integrer.mjs`.
 - One ticket, one delivery: a goal whose split is unknown opens an exploration ticket (no code, agent `explorateur`), which closes on the realisation tickets it proposes, labelled `a-valider`. A realisation ticket touches one component and enters in one commit; the `commit-msg` hook refuses a second commit for a ticket.
 - A discovery during work becomes a new ticket, created by the agent under the ticket that found it (see « Numéros et titres »), labelled `a-valider`. A discovery that blocks: `bd dep add <id> <new>` and `bd update <id> --status blocked`.
-- Types: `epic` (a chantier), `task`, `bug`, `decision`. Priority `0`-`4`, 0 highest.
+- Types: `epic` (a chantier, always at the root: an epic has no mother), `task`, `bug`, `decision`. A mother under a chantier is a `task`; the session start lists an epic that has a mother. Priority `0`-`4`, 0 highest.
 - Comments carry progress and handoffs: `bd comments add <id> "<text>"`.
 - Labels used by the skills: `a-valider` (proposed, waits for the owner), `attend-responsable` (a rule waits for the owner's word), `arbitrage` (a design question went to the `arbitre` agent; the lot enters only with its verdict).
 
 ## Numéros et titres
 
-- Every subject has a mother ticket, open while work remains under it. Every ticket is created under its mother, so Beads numbers it natively: `320.1`, `320.2`, `320.2.1`. A discovery goes under the ticket that found it (`320.2.2.1`).
+- A chantier is an `epic` at the root; under it, every subject has a mother ticket (a `task`), open while work remains under it. Every ticket is created under its mother, so Beads numbers it natively: `320.1`, `320.2`, `320.2.1`. A discovery goes under the ticket that found it (`320.2.2.1`).
 - The title reads `<number> — <subject> — <component>`, the number being the id without its prefix; a mother takes `parent` as its component: `320.2.1 — Publie l'objet de la scène — binder`.
 - Creating one:
 
