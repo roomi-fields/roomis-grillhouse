@@ -387,7 +387,7 @@ export function assembler({
     const faits = liste.filter(x => x.status === 'closed').length;
     const e = travail(t)
       ? etat(t)
-      : liste.some(x => etat(x) === 'enCours')
+      : t.status === 'in_progress' || liste.some(x => etat(x) === 'enCours')
         ? 'enCours'
         : faits === liste.length
           ? 'fermes'
@@ -417,7 +417,7 @@ export function assembler({
     if (n.etat === 'enCours') {
       chantiers.push(n);
     } else {
-      autres.push({ id: n.id, numero: n.numero, faits: n.faits, total: n.total });
+      autres.push({ id: n.id, numero: n.numero, sujet: n.sujet, faits: n.faits, total: n.total });
     }
   }
 
@@ -564,7 +564,8 @@ const liste = (l, place) => {
 };
 
 // The board's lines, `largeur` columns wide, each with its tone (titre, alerte, attention, actif,
-// discret, or none) and, for a ticket's line, its id (`ticket`), which the pane makes selectable.
+// discret, or none) and, for a ticket's line, its id (`ticket`), which the pane makes selectable;
+// an epic's line is marked `chantier`.
 // A line that counts lines it does not show (« + 3 en attente ») carries them (`replie`), which
 // the pane unfolds when the person reaches it. The pane and the text show the same lines.
 export function lignes(t, nom, largeur = LARGEUR) {
@@ -602,7 +603,12 @@ export function lignes(t, nom, largeur = LARGEUR) {
   );
   for (const ch of t.chantiers) {
     L('', undefined);
-    L(cadre(`CHANTIER ${ch.numero} — ${ch.sujet}`, '', largeur), 'titre');
+    out.push({
+      texte: cadre(`CHANTIER ${ch.numero} — ${ch.sujet}`, '', largeur),
+      ton: 'titre',
+      ticket: ch.id,
+      chantier: true,
+    });
     L(
       cadre(
         `  ${ch.faits}/${ch.total} faits · ${duree(ch.travail)} · ${k(ch.jetons)} jetons`,
@@ -683,14 +689,23 @@ export function lignes(t, nom, largeur = LARGEUR) {
       replie(`  … ${arbre.length - ARBRE_MAX} lignes de plus`, arbre.slice(ARBRE_MAX));
     }
   }
+  // The epics not in progress, folded in one line: « N chantiers » when none is, else
+  // « + N autres chantiers ». Each is selectable, and a chantier (`chantier`) the pane can switch.
   if (t.autres.length) {
-    L(
-      cadre(
-        `autres : ${t.autres.map(a => `${a.numero} ${a.faits}/${a.total}`).join(' · ')}`,
-        '',
-        largeur
-      ),
-      'discret'
+    const n = t.autres.length;
+    if (!t.chantiers.length) {
+      L('', undefined);
+    }
+    replie(
+      t.chantiers.length
+        ? `+ ${n} autre${n > 1 ? 's' : ''} chantier${n > 1 ? 's' : ''}`
+        : `${n} chantier${n > 1 ? 's' : ''}`,
+      t.autres.map(a => ({
+        texte: cadre(`${a.numero}  ${a.sujet}`, `${a.faits}/${a.total}`, largeur),
+        ton: 'discret',
+        ticket: a.id,
+        chantier: true,
+      }))
     );
   }
 

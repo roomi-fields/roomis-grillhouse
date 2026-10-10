@@ -1,7 +1,8 @@
 export type Ton = 'titre' | 'alerte' | 'attention' | 'actif' | 'discret'
 // `ticket`: the id of the ticket a line names, which makes the line selectable. `replie`: the
 // lines a counting line (« + 3 en attente ») folds, which the pane unfolds when it is reached.
-export type Ligne = { texte: string; ton?: Ton; ticket?: string; replie?: Ligne[] }
+// `chantier`: the line is an epic's, which the pane switches on or off.
+export type Ligne = { texte: string; ton?: Ton; ticket?: string; replie?: Ligne[]; chantier?: boolean }
 export type Fiche = {
   numero: string
   titre: string

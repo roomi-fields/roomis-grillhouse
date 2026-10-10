@@ -151,3 +151,57 @@ test('g makes the card show the whole text, and g again brings it back', async (
   expect(JSON.stringify(await ui.drawn())).not.toContain('jusqu’à sa dernière ligne')
   await ui.unmount()
 })
+
+const CHANTIERS = {
+  lignes: [
+    { texte: 'DEMO', ton: 'titre' },
+    { texte: 'CHANTIER a — Premier', ton: 'titre', ticket: 'demo-a', chantier: true },
+    { texte: '· c.2  Le dernier', ticket: 'c.2' },
+  ],
+  fiches: {
+    ...TABLEAU.fiches,
+    'demo-a': { ...TABLEAU.fiches['c.2'], numero: 'a', statut: 'in_progress' },
+  },
+  dernier: 'c.2',
+}
+
+async function monterChantiers($: never, on: never, appels: string[][]) {
+  const o = on as (n: string, h: unknown) => void
+  const s = $ as { session: { start: (a: object) => Promise<unknown> }; ui: { mount: (a: object) => Promise<never> } }
+  o('process.run', (_: unknown, e: { argv: string[] }) => {
+    appels.push(e.argv)
+    return { value: { exitCode: 0, stdout: e.argv[0] === 'node' ? JSON.stringify(CHANTIERS) : '', stderr: '' } }
+  })
+  o('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
+  o('command.register', () => ({ value: undefined }))
+  o('clock.every', () => ({ value: { cancel: () => undefined } }))
+  await s.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
+  await new Promise(r => setTimeout(r, 50))
+  return s.ui.mount({
+    plugin: 'grillhouse',
+    surface: 'terminal',
+    component: 'Pane',
+    requestId: 'grillhouse',
+    props: { title: 't', isFocused: true, bodyColumns: 50, placement: 'dock', scroll: { bodyRows: 30 } as never, view: {} as never },
+  }) as Promise<{ unmount: () => Promise<void> }>
+}
+
+test('3uv.24 critère 5 : pressing a chantier line switches its status and measures again', async ($, on) => {
+  const appels: string[][] = []
+  const ui = await monterChantiers($ as never, on as never, appels)
+  const avant = appels.filter(a => a[0] === 'node').length
+  await $.ui.press({ plugin: 'grillhouse', key: 'demo-a:1' })
+  await new Promise(r => setTimeout(r, 50))
+  expect(appels).toContainEqual(['bd', 'update', 'demo-a', '--status', 'open'])
+  expect(appels.filter(a => a[0] === 'node').length).toBeGreaterThan(avant)
+  await ui.unmount()
+})
+
+test('3uv.24 critère 6 : pressing a ticket line switches nothing', async ($, on) => {
+  const appels: string[][] = []
+  const ui = await monterChantiers($ as never, on as never, appels)
+  await $.ui.press({ plugin: 'grillhouse', key: 'c.2:2' })
+  await new Promise(r => setTimeout(r, 50))
+  expect(appels.some(a => a[0] === 'bd')).toBe(false)
+  await ui.unmount()
+})

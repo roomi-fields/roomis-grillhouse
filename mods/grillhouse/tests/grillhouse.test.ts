@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { couleur, debut, ficheLignes, placement } from '../hooks/register'
+import { bascule, couleur, debut, ficheLignes, placement } from '../hooks/register'
 import type { Tableau } from '../types'
 
 const TABLEAU: Tableau = {
@@ -85,4 +85,10 @@ test('the window stays put while the line keeps one line above and below, and mo
   expect(debut(50, 20, 10, 20)).toBe(19)
   expect(debut(50, 0, 10, 20)).toBe(0)
   expect(debut(50, 49, 10, 20)).toBe(40)
+})
+
+test('3uv.24 critère 5 : the switch gives in progress → open, anything else → in progress', () => {
+  expect(bascule('in_progress')).toBe('open')
+  expect(bascule('open')).toBe('in_progress')
+  expect(bascule(undefined)).toBe('in_progress')
 })

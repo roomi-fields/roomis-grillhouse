@@ -110,6 +110,15 @@ async function rafraichir($: EngineInterface) {
   await update($, etat, s => ({ ...s, tableau, erreur: null, lu: Date.now() }))
 }
 
+// The status a chantier's switch gives it: in progress → open, anything else → in progress.
+export const bascule = (statut: string | undefined) => (statut === 'in_progress' ? 'open' : 'in_progress')
+
+// Switches a chantier on or off in Beads, then measures the board again.
+async function basculer($: EngineInterface, id: string, statut: string | undefined) {
+  await $.process.run(['bd', 'update', id, '--status', bascule(statut)], { cwd, timeoutMs: 20_000 })
+  await rafraichir($)
+}
+
 export const register: Register = on => {
 
   on('session.start', async ($, e, next) => {
@@ -250,7 +259,10 @@ export const register: Register = on => {
                 <Button
                   key={cle}
                   plain
-                  onPress={() => void update($, etat, s => ({ ...s, choisi: l.ticket ?? null }))}
+                  onPress={() => {
+                    void update($, etat, s => ({ ...s, choisi: l.ticket ?? null }))
+                    if (l.chantier && l.ticket) void basculer($, l.ticket, t.fiches[l.ticket]?.statut)
+                  }}
                 >
                   {texte}
                 </Button>

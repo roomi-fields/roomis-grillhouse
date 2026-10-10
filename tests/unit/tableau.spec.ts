@@ -309,7 +309,9 @@ describe('assembler', () => {
       total: 2,
     });
     expect(ch.enfants[1]).toMatchObject({ etat: 'bloques', bloquePar: ['c.1.1'] });
-    expect(t.autres).toEqual([{ id: 'demo-z', numero: 'z', faits: 1, total: 1 }]);
+    expect(t.autres).toEqual([
+      { id: 'demo-z', numero: 'z', sujet: 'Un autre', faits: 1, total: 1 },
+    ]);
   });
   it('puts each ticket in one place: running under its role, else waiting for the next one', () => {
     const b = (n: number) => t.agents[n - 1];
@@ -370,7 +372,70 @@ describe('assembler', () => {
     expect(texte).toMatch(/\n4 développeur[\s\S]*\n· c\.3 {2}demo-c\.3 +0 min · 50\n/);
     expect(texte).toMatch(/\n1 explorateur {2}—\n/);
     expect(texte).toMatch(/✓ c\.1\.2 {2}demo-c\.1\.2/);
-    expect(texte).toMatch(/autres : z 1\/1/);
+    expect(texte).toMatch(/\n\+ 1 autre chantier\n/);
+  });
+});
+
+describe('chantiers', () => {
+  const T = (id: string, o: object = {}) => ({
+    id,
+    title: id,
+    status: 'open',
+    priority: 2,
+    issue_type: 'task',
+    ...o,
+  });
+  const avec = (...tous: object[]) =>
+    dessin(
+      plateau({
+        tous,
+        prefix: 'demo',
+        registre: [],
+        vivants: [],
+        maintenant: Date.parse('2026-10-10T12:00:00Z'),
+        jour: Date.parse('2026-10-10T00:00:00Z'),
+      })
+    ) as {
+      texte: string;
+      ticket?: string;
+      chantier?: boolean;
+      replie?: { texte: string; ticket?: string; chantier?: boolean }[];
+    }[];
+  const a = T('demo-a', { issue_type: 'epic', title: 'a — Premier' });
+  const b = T('demo-b', { issue_type: 'epic', title: 'b — Second' });
+  const b1 = T('demo-b.1', { parent: 'demo-b', status: 'closed' });
+  it('3uv.24 critère 1 : an epic in progress is a chantier in progress without a ticket in progress', () => {
+    const l = avec({ ...a, status: 'in_progress' });
+    expect(l.find(x => x.texte.startsWith('CHANTIER a'))).toMatchObject({
+      ticket: 'demo-a',
+      chantier: true,
+    });
+  });
+  it('3uv.24 critère 2 : with none in progress, one line « N chantiers » folds an epic per line', () => {
+    const l = avec(a, b, b1);
+    const plie = l.find(x => x.texte === '2 chantiers');
+    expect(plie?.replie?.map(x => x.ticket)).toEqual(['demo-a', 'demo-b']);
+    expect(plie?.replie?.[1].texte).toMatch(/^b {2}Second +1\/1$/);
+    expect(plie?.replie?.every(x => x.chantier)).toBe(true);
+  });
+  it('3uv.24 critère 3 : with one in progress, the others fold in « + N autres chantiers »', () => {
+    expect(
+      avec({ ...a, status: 'in_progress' }, b).some(x => x.texte === '+ 1 autre chantier')
+    ).toBe(true);
+    const c = T('demo-c', { issue_type: 'epic', title: 'c — Troisième' });
+    expect(
+      avec({ ...a, status: 'in_progress' }, b, c).some(x => x.texte === '+ 2 autres chantiers')
+    ).toBe(true);
+  });
+  it('3uv.24 critère 4 : every epic line has its card', () => {
+    const l = [
+      { texte: '2 chantiers', replie: [{ texte: 'a', ticket: 'demo-a', chantier: true }] },
+    ];
+    expect(Object.keys(fiches([a], l, 'demo'))).toEqual(['demo-a']);
+  });
+  it('3uv.24 critère 7 : an epic set back to open stays in progress while a ticket of it is', () => {
+    const l = avec(a, T('demo-a.1', { parent: 'demo-a', status: 'in_progress' }));
+    expect(l.some(x => x.texte.startsWith('CHANTIER a'))).toBe(true);
   });
 });
 
