@@ -17,8 +17,10 @@
 //  5. the base: the project's suites (`npm run integration:suites -- <components>`) on HEAD. The
 //     project chooses at its installation (`grillhouse.integration` in package.json):
 //     `impactes` (the default) replays the touched components and those that depend on them (the
-//     consumers' graph), a lot without code of a component no suite, and every suite runs once a
-//     night (`scripts/nuit.sh`); `complet` replays every suite at each integration;
+//     consumers' graph), every suite for a lot touching a file outside every component (a root
+//     script or document, package.json, the lockfile, tsconfig, the CI), no suite for a lot
+//     without code of a component, and every suite runs once a night (`scripts/nuit.sh`);
+//     `complet` replays every suite at each integration;
 //     suites that fail without naming a test leave nothing to compare, and refuse;
 //  6. the lots, applied in three ways in the copy, tests first, then built;
 //  7. the project's guards (`npm run integration:gardes`, when present);
@@ -96,14 +98,20 @@ const CODE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|svelte|vue)$/;
 
 // What the suites replay for a lot. `composants` are the components' directories relative to the
 // root; `consommateurs` maps a component's directory to the directories of those that use it.
-// - no code file of a component: nothing (the guards only);
+// - a file outside every component: every suite, as such a file (a root script or document,
+//   package.json, the lockfile, tsconfig, the CI) can change any of them;
+// - otherwise, no code file of a component: nothing (the guards only);
 // - otherwise: the touched components and, transitively, those that depend on them, in order.
-// The full suites run once a night (`scripts/nuit.sh`), never during an integration.
 export function perimetre(fichiers, composants, consommateurs) {
   const touches = new Set();
-  for (const f of fichiers.filter(f => CODE.test(f))) {
+  for (const f of fichiers) {
     const c = composants.find(d => f.startsWith(`${d}/`));
-    if (c) touches.add(c);
+    if (!c) {
+      return { mode: 'tous', composants: [] };
+    }
+    if (CODE.test(f)) {
+      touches.add(c);
+    }
   }
   if (touches.size === 0) return { mode: 'aucun', composants: [] };
   const file = [...touches];
@@ -275,7 +283,7 @@ function main(argv) {
       );
     }
     // The project chooses at its installation (grill): `complet` replays every suite at each
-    // integration; `impactes`, the default, the touched components, every suite once a night.
+    // integration; `impactes`, the default, what `perimetre` computes, every suite once a night.
     const reglage = lireJsonSiPresent(path.join(copie, 'package.json'))?.grillhouse?.integration;
     const champ =
       reglage === 'complet'
@@ -286,7 +294,9 @@ function main(argv) {
       champ.mode === 'aucun'
         ? '✓ aucun code de composant dans le lot : les gardes seulement'
         : champ.mode === 'tous'
-          ? '✓ toutes les suites (réglage « complet »)'
+          ? reglage === 'complet'
+            ? '✓ toutes les suites (réglage « complet »)'
+            : '✓ toutes les suites : le lot touche un fichier hors de tout composant'
           : `✓ suites de : ${touches.join(', ')}`
     );
     const suites = nom => {

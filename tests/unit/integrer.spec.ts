@@ -88,20 +88,58 @@ describe('perimetre', () => {
       composants: ['packages/c'],
     });
   });
-  it('replays nothing for a lot without code', () => {
-    expect(perimetre(['packages/a/docs/INTERFACE.md', 'README.md'], comps, graphe).mode).toBe(
-      'aucun'
-    );
+  it('replays nothing for a lot without code inside its components', () => {
+    expect(
+      perimetre(['packages/a/docs/INTERFACE.md', 'packages/b/README.md'], comps, graphe).mode
+    ).toBe('aucun');
   });
-  it('replays no suite for code outside every component: the night replays everything', () => {
-    expect(perimetre(['scripts/y.mjs', 'tests/z.spec.ts'], comps, graphe).mode).toBe('aucun');
-    expect(perimetre(['packages/c/src/x.ts', 'scripts/y.mjs'], comps, graphe)).toEqual({
-      mode: 'composants',
-      composants: ['packages/c'],
-    });
+  // grillhouse-3uv.22: a file outside every declared component touches everything (Bazel, Nx
+  // affected), so a lot touching one replays every suite.
+  const tous = { mode: 'tous', composants: [] };
+  it('replays every suite for code outside every component (a root folder)', () => {
+    expect(perimetre(['scripts/y.mjs'], comps, graphe)).toEqual(tous);
   });
-  it('does not take a sibling sharing a prefix for the component', () => {
-    expect(perimetre(['packages/ab/x.ts'], ['packages/a'], new Map()).mode).toBe('aucun');
+  it('replays every suite for code outside every component, deep or at the root', () => {
+    expect(perimetre(['scripts/verrous/lib/z.mjs'], comps, graphe)).toEqual(tous);
+    expect(perimetre(['vitest.config.ts'], comps, graphe)).toEqual(tous);
+  });
+  it('replays every suite for a test file outside every component', () => {
+    expect(perimetre(['tests/unit/z.spec.ts'], comps, graphe)).toEqual(tous);
+  });
+  it('replays every suite when a lot mixes a component and a file outside every component', () => {
+    expect(perimetre(['packages/c/src/x.ts', 'scripts/y.mjs'], comps, graphe)).toEqual(tous);
+    expect(perimetre(['scripts/y.mjs', 'packages/a/src/x.ts'], comps, graphe)).toEqual(tous);
+  });
+  it('replays every suite for code in a project without any component', () => {
+    expect(perimetre(['scripts/y.mjs'], [], new Map())).toEqual(tous);
+  });
+  // The validated line names a FILE outside every component, with no exception: a document, a
+  // manifest, a lock, a compiler setting or the CI touch everything as code does (Nx global inputs).
+  it('replays every suite for a document outside every component, at the root or deep', () => {
+    expect(perimetre(['README.md'], comps, graphe)).toEqual(tous);
+    expect(perimetre(['docs/agents/x.md'], comps, graphe)).toEqual(tous);
+  });
+  it('replays every suite when a lot mixes a component document and a root document', () => {
+    expect(perimetre(['packages/a/docs/INTERFACE.md', 'README.md'], comps, graphe)).toEqual(tous);
+  });
+  it('replays every suite for the package manifest outside every component', () => {
+    expect(perimetre(['package.json'], comps, graphe)).toEqual(tous);
+  });
+  it('replays every suite for the dependency lock outside every component', () => {
+    expect(perimetre(['package-lock.json'], comps, graphe)).toEqual(tous);
+  });
+  it('replays every suite for a compiler setting outside every component', () => {
+    expect(perimetre(['tsconfig.json'], comps, graphe)).toEqual(tous);
+  });
+  it('replays every suite for the CI outside every component', () => {
+    expect(perimetre(['.github/workflows/ci.yml'], comps, graphe)).toEqual(tous);
+  });
+  it('replays every suite for any file outside every component, whatever its kind', () => {
+    expect(perimetre(['.gitignore'], comps, graphe)).toEqual(tous);
+    expect(perimetre(['LICENSE'], comps, graphe)).toEqual(tous);
+  });
+  it('does not take a sibling sharing a prefix for the component: it lies outside every one', () => {
+    expect(perimetre(['packages/ab/x.ts'], ['packages/a'], new Map())).toEqual(tous);
   });
 });
 
@@ -327,24 +365,45 @@ describe('an integration', () => {
     expect(r.status).toBe(1);
     expect(m.etat().log[0]).toBe('bouge');
   });
-  it('replays no suite for a lot without code', () => {
+  it('replays no suite for a lot without code inside its component', () => {
     const m = monde(['ACCEPTÉ']);
     m.poser('suites.mjs', 'process.exit(9);\n');
-    mkdirSync(path.join(m.repo, 'docs'));
-    writeFileSync(path.join(m.repo, 'docs/note.md'), 'une note\n');
+    writeFileSync(path.join(m.repo, 'src/a/NOTE.md'), 'une note\n');
     const patch = path.join(m.bin, 'docs.patch');
     const diff = spawnSync(
       'git',
-      ['-C', m.repo, 'diff', '--no-index', '/dev/null', 'docs/note.md'],
+      ['-C', m.repo, 'diff', '--no-index', '/dev/null', 'src/a/NOTE.md'],
       {
         encoding: 'utf8',
       }
     ).stdout;
     writeFileSync(patch, diff);
-    rmSync(path.join(m.repo, 'docs'), { recursive: true });
+    rmSync(path.join(m.repo, 'src/a/NOTE.md'));
     const r = m.lancer(['--code', patch], []);
     expect(r.stdout).toMatch(/aucun code de composant dans le lot/);
     expect(r.status).toBe(0);
+  });
+  it('hands the suites no component, so every suite, for a document outside every component', () => {
+    const m = monde(['ACCEPTÉ']);
+    m.poser(
+      'suites.mjs',
+      "import fs from 'node:fs';\nfs.writeFileSync(`${process.env.PRINCIPAL}.args`, `[${process.argv.slice(2).join(' ')}]`);\nfs.writeFileSync(process.env.ROUGES, '');\n"
+    );
+    mkdirSync(path.join(m.repo, 'docs'));
+    writeFileSync(path.join(m.repo, 'docs/note.md'), 'une note\n');
+    const patch = path.join(m.bin, 'docs.patch');
+    writeFileSync(
+      patch,
+      spawnSync('git', ['-C', m.repo, 'diff', '--no-index', '/dev/null', 'docs/note.md'], {
+        encoding: 'utf8',
+      }).stdout
+    );
+    rmSync(path.join(m.repo, 'docs'), { recursive: true });
+    const r = m.lancer(['--code', patch], []);
+    expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/toutes les suites/);
+    expect(r.stdout).not.toMatch(/aucun code de composant/);
+    expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('[]');
   });
   it('hands the suites the touched component and those that use it, nothing else', () => {
     const m = monde(['ACCEPTÉ']);
@@ -368,6 +427,48 @@ describe('an integration', () => {
     const r = m.lancer(['--code', patch], []);
     expect(r.status).toBe(0);
     expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('src/feuille src/haut');
+  });
+  it('hands the suites no component, so every suite, for a lot touching code outside every component', () => {
+    const m = monde(['ACCEPTÉ']);
+    m.poser(
+      'suites.mjs',
+      "import fs from 'node:fs';\nfs.writeFileSync(`${process.env.PRINCIPAL}.args`, `[${process.argv.slice(2).join(' ')}]`);\nfs.writeFileSync(process.env.ROUGES, '');\n"
+    );
+    mkdirSync(path.join(m.repo, 'scripts'));
+    m.poser('scripts/outil.mjs', 'export const o = 1;\n');
+    writeFileSync(path.join(m.repo, 'scripts/outil.mjs'), 'export const o = 2;\n');
+    const patch = path.join(m.bin, 'scripts.patch');
+    writeFileSync(
+      patch,
+      spawnSync('git', ['-C', m.repo, 'diff', '--', 'scripts'], { encoding: 'utf8' }).stdout
+    );
+    spawnSync('git', ['-C', m.repo, 'checkout', '--', 'scripts']);
+    const r = m.lancer(['--code', patch], []);
+    expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/toutes les suites/);
+    expect(r.stdout).not.toMatch(/aucun code de composant/);
+    expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('[]');
+  });
+  it('refuses a lot outside every component that brings a new failure', () => {
+    const m = monde(['ACCEPTÉ']);
+    // The suites fail once the root script changes: only a replay of every suite sees it.
+    m.poser(
+      'suites.mjs',
+      "import fs from 'node:fs';\nconst r = fs.readFileSync('scripts/outil.mjs', 'utf8').includes('2') ? 'tests/outil.spec.ts > outil\\n' : '';\nfs.writeFileSync(process.env.ROUGES, r);\nprocess.exit(r ? 1 : 0);\n"
+    );
+    mkdirSync(path.join(m.repo, 'scripts'));
+    m.poser('scripts/outil.mjs', 'export const o = 1;\n');
+    writeFileSync(path.join(m.repo, 'scripts/outil.mjs'), 'export const o = 2;\n');
+    const patch = path.join(m.bin, 'scripts.patch');
+    writeFileSync(
+      patch,
+      spawnSync('git', ['-C', m.repo, 'diff', '--', 'scripts'], { encoding: 'utf8' }).stdout
+    );
+    spawnSync('git', ['-C', m.repo, 'checkout', '--', 'scripts']);
+    const r = m.lancer(['--code', patch], []);
+    expect(r.status).toBe(1);
+    expect(r.stdout).toMatch(/Rouges nouveaux :\n {2}✗ tests\/outil\.spec\.ts > outil/);
+    expect(m.etat().log[0]).toBe('pose scripts/outil.mjs');
   });
   it('replays every suite when the project chose « complet »', () => {
     const m = monde(['ACCEPTÉ']);
