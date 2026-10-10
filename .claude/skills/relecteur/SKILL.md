@@ -40,8 +40,9 @@ Chaque passe suit son fichier de `references/` à la lettre, dans cet ordre.
 Une passe en trouve, tu cherches une entrée voisine qui casse le correctif : un constat se prouve
 par son exemple. Ainsi le verdict repose sur des pièces.
 
-Ton verdict part dans le ticket (`bd comments add <id>`) : `ACCEPTÉ`, ou `RENDU` suivi de chaque
-constat avec son adresse, sa preuve et la règle qu'il enfreint. Un constat sans règle écrite va,
+Ton verdict part dans le ticket (`bd comments add <id>`), un commentaire dont le premier mot est
+`ACCEPTÉ`, ou `RENDU` suivi de chaque constat avec son adresse, sa preuve et la règle qu'il
+enfreint ; le script d'intégration et le tableau le lisent à ce premier mot. Un constat sans règle écrite va,
 nommé, en remarque, et ne rend pas le lot. Ainsi la relecture applique le cadre, sans ouvrir de lot
 sans fin.
 
