@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { couleur, ficheLignes, placement } from '../hooks/register'
+import { couleur, debut, ficheLignes, placement } from '../hooks/register'
 import type { Tableau } from '../types'
 
 const TABLEAU: Tableau = {
@@ -74,4 +74,15 @@ test("the card says the chosen ticket's whole title, its state, duration, tokens
     }),
   ).toEqual(["320.2.1 — Publie l'objet de la scène", '030-binder · en cours · 12 min · 310 k jetons', 'Le résumé.'])
   expect(ficheLignes(undefined)[0]).toMatch(/ctrl\+x tab/)
+})
+
+test('the window stays put while the line keeps one line above and below, and moves at its edges', () => {
+  // 50 lines in 10 rows, the window showing lines 20 to 29.
+  expect(debut(50, 25, 10, 20)).toBe(20)
+  expect(debut(50, 28, 10, 20)).toBe(20)
+  expect(debut(50, 29, 10, 20)).toBe(21)
+  expect(debut(50, 21, 10, 20)).toBe(20)
+  expect(debut(50, 20, 10, 20)).toBe(19)
+  expect(debut(50, 0, 10, 20)).toBe(0)
+  expect(debut(50, 49, 10, 20)).toBe(40)
 })

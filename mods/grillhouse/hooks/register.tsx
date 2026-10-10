@@ -69,9 +69,15 @@ export function visibles(lignes: Ligne[], ouvert: number | null): { l: Ligne; cl
   })
 }
 
-// The first of `n` lines to show in `rangs` rows, so the line at `idx` shows with one below it.
-export const debut = (n: number, idx: number, rangs: number) =>
-  Math.max(0, Math.min(idx - rangs + 2, n - rangs))
+// The first of `n` lines to show in `rangs` rows: the window stays where it was (`avant`) while the
+// line at `idx` shows with one line above and one below it, and moves just enough otherwise. Only
+// the window's lines are drawn, so the engine has nothing to scroll and an arrow moves the ring.
+export function debut(n: number, idx: number, rangs: number, avant: number): number {
+  let p = avant
+  if (idx - 1 < p) p = idx - 1
+  if (idx + 1 > p + rangs - 1) p = idx + 2 - rangs
+  return Math.max(0, Math.min(p, n - rangs))
+}
 
 // What the keyboard reaching an element changes: a ticket's line chooses its ticket, a counting
 // line or one of its folded lines keeps it unfolded, and the card goes back to its size.
@@ -89,6 +95,8 @@ export const couleur = (ton: Ligne['ton']) =>
 // The session's project, and whether the board applies to it.
 let cwd = ''
 let actif = false
+// The first line the pane's window showed last.
+let fenetre = 0
 
 // Measures the board again and redraws the pane.
 async function rafraichir($: EngineInterface) {
@@ -189,7 +197,8 @@ export const register: Register = on => {
     const liste = visibles(t.lignes, e.props.isFocused ? ouvert : null)
     const rangs = Math.max(1, e.props.scroll.bodyRows - FICHE - 1)
     const ici = liste.findIndex(x => x.cle === element)
-    const premier = e.props.isFocused && ici >= 0 ? debut(liste.length, ici, rangs) : 0
+    const premier = e.props.isFocused && ici >= 0 ? debut(liste.length, ici, rangs, fenetre) : 0
+    fenetre = premier
     // A card fills the pane's last rows: the whole title on as many lines as it takes, then the
     // component, state, duration and tokens, then the description in the rows left.
     const carte = (f: Fiche | undefined) => {
@@ -219,7 +228,7 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column" height={e.props.scroll.bodyRows}>
         <Box flexDirection="column" flexGrow={1} overflow="hidden">
-          {liste.slice(premier).map(({ l, cle }) => {
+          {liste.slice(premier, premier + rangs).map(({ l, cle }) => {
             const texte = (
               <Text bold={l.ton === 'titre'} dimColor={l.ton === 'discret'} color={couleur(l.ton)} wrap="truncate-end">
                 {l.texte || ' '}
