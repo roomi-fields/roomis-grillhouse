@@ -18,8 +18,9 @@
 //     project chooses at its installation (`grillhouse.integration` in package.json):
 //     `impactes` (the default) replays the touched components and those that depend on them (the
 //     consumers' graph), every suite for a lot touching a file outside every component (a root
-//     script or document, package.json, the lockfile, tsconfig, the CI), no suite for a lot
-//     without code of a component, and every suite runs once a night (`scripts/nuit.sh`);
+//     script or document, package.json, the lockfile, tsconfig, the CI), any file of a component
+//     whatever its nature touching that component, and every suite runs once a night
+//     (`scripts/nuit.sh`);
 //     `complet` replays every suite at each integration;
 //     suites that fail without naming a test leave nothing to compare, and refuse;
 //  6. the lots, applied in three ways in the copy, tests first, then built;
@@ -94,14 +95,12 @@ const BUDGET_FEUILLE_S = 15;
 
 const lireJsonSiPresent = p => (existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : null);
 
-const CODE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|svelte|vue)$/;
-
 // What the suites replay for a lot. `composants` are the components' directories relative to the
 // root; `consommateurs` maps a component's directory to the directories of those that use it.
 // - a file outside every component: every suite, as such a file (a root script or document,
 //   package.json, the lockfile, tsconfig, the CI) can change any of them;
-// - otherwise, no code file of a component: nothing (the guards only);
-// - otherwise: the touched components and, transitively, those that depend on them, in order.
+// - otherwise: the components holding a file of the lot, whatever its nature (code, document,
+//   manifest, data), and, transitively, those that depend on them, in order.
 export function perimetre(fichiers, composants, consommateurs) {
   const touches = new Set();
   for (const f of fichiers) {
@@ -109,11 +108,8 @@ export function perimetre(fichiers, composants, consommateurs) {
     if (!c) {
       return { mode: 'tous', composants: [] };
     }
-    if (CODE.test(f)) {
-      touches.add(c);
-    }
+    touches.add(c);
   }
-  if (touches.size === 0) return { mode: 'aucun', composants: [] };
   const file = [...touches];
   while (file.length) {
     for (const d of consommateurs.get(file.pop()) ?? []) {
@@ -291,16 +287,13 @@ function main(argv) {
         : perimetre(fichiers, [...dirDe.values()], consommateurs);
     const touches = champ.composants;
     dire(
-      champ.mode === 'aucun'
-        ? '✓ aucun code de composant dans le lot : les gardes seulement'
-        : champ.mode === 'tous'
-          ? reglage === 'complet'
-            ? '✓ toutes les suites (réglage « complet »)'
-            : '✓ toutes les suites : le lot touche un fichier hors de tout composant'
-          : `✓ suites de : ${touches.join(', ')}`
+      champ.mode === 'tous'
+        ? reglage === 'complet'
+          ? '✓ toutes les suites (réglage « complet »)'
+          : '✓ toutes les suites : le lot touche un fichier hors de tout composant'
+        : `✓ suites de : ${touches.join(', ')}`
     );
     const suites = nom => {
-      if (champ.mode === 'aucun') return [];
       const rouges = path.join(tmp, nom);
       writeFileSync(rouges, '');
       const r = npm(['run', '--silent', 'integration:suites', '--', ...touches], {

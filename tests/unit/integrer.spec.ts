@@ -88,10 +88,57 @@ describe('perimetre', () => {
       composants: ['packages/c'],
     });
   });
-  it('replays nothing for a lot without code inside its components', () => {
+  // grillhouse-3uv.22.1: every file of a component touches that component, whatever its kind
+  // (Nx affected, Bazel), so it replays the component and those that depend on it.
+  it('replays a component and its consumers for its package manifest', () => {
+    expect(perimetre(['packages/a/package.json'], comps, graphe)).toEqual({
+      mode: 'composants',
+      composants: ['packages/a', 'packages/b', 'packages/c'],
+    });
+  });
+  it('replays a component and its consumers for a document deep inside it', () => {
+    expect(perimetre(['packages/a/docs/INTERFACE.md'], comps, graphe)).toEqual({
+      mode: 'composants',
+      composants: ['packages/a', 'packages/b', 'packages/c'],
+    });
+  });
+  it('replays a leaf alone for a file of it that is not code, whatever its kind', () => {
+    for (const f of ['packages/c/README.md', 'packages/c/LICENSE', 'packages/c/data/t.json']) {
+      expect(perimetre([f], comps, graphe)).toEqual({
+        mode: 'composants',
+        composants: ['packages/c'],
+      });
+    }
+    expect(perimetre(['src/d/assets/logo.svg'], comps, graphe)).toEqual({
+      mode: 'composants',
+      composants: ['src/d'],
+    });
+  });
+  it('replays every component a lot of documents touches, and their consumers', () => {
     expect(
-      perimetre(['packages/a/docs/INTERFACE.md', 'packages/b/README.md'], comps, graphe).mode
-    ).toBe('aucun');
+      perimetre(['packages/a/docs/INTERFACE.md', 'packages/b/README.md'], comps, graphe)
+    ).toEqual({ mode: 'composants', composants: ['packages/a', 'packages/b', 'packages/c'] });
+  });
+  it('counts a non-code file of a component alongside code of another one', () => {
+    expect(perimetre(['packages/c/src/x.ts', 'packages/a/package.json'], comps, graphe)).toEqual({
+      mode: 'composants',
+      composants: ['packages/a', 'packages/b', 'packages/c'],
+    });
+    expect(perimetre(['src/d/README.md', 'packages/c/src/x.ts'], comps, graphe)).toEqual({
+      mode: 'composants',
+      composants: ['packages/c', 'src/d'],
+    });
+  });
+  it('never replays nothing for a lot touching a component', () => {
+    for (const f of ['packages/b/CADRE.md', 'packages/b/.gitignore', 'src/d/tsconfig.json']) {
+      expect(perimetre([f], comps, graphe).mode).not.toBe('aucun');
+    }
+  });
+  it('does not take a sibling sharing a prefix for the component, for a document either', () => {
+    expect(perimetre(['packages/ab/README.md'], ['packages/a'], new Map())).toEqual({
+      mode: 'tous',
+      composants: [],
+    });
   });
   // grillhouse-3uv.22: a file outside every declared component touches everything (Bazel, Nx
   // affected), so a lot touching one replays every suite.
@@ -365,9 +412,12 @@ describe('an integration', () => {
     expect(r.status).toBe(1);
     expect(m.etat().log[0]).toBe('bouge');
   });
-  it('replays no suite for a lot without code inside its component', () => {
+  it('hands the suites its component for a file of it that is not code', () => {
     const m = monde(['ACCEPTÉ']);
-    m.poser('suites.mjs', 'process.exit(9);\n');
+    m.poser(
+      'suites.mjs',
+      "import fs from 'node:fs';\nfs.writeFileSync(`${process.env.PRINCIPAL}.args`, `[${process.argv.slice(2).join(' ')}]`);\nfs.writeFileSync(process.env.ROUGES, '');\n"
+    );
     writeFileSync(path.join(m.repo, 'src/a/NOTE.md'), 'une note\n');
     const patch = path.join(m.bin, 'docs.patch');
     const diff = spawnSync(
@@ -380,8 +430,30 @@ describe('an integration', () => {
     writeFileSync(patch, diff);
     rmSync(path.join(m.repo, 'src/a/NOTE.md'));
     const r = m.lancer(['--code', patch], []);
-    expect(r.stdout).toMatch(/aucun code de composant dans le lot/);
     expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/suites de : src\/a/);
+    expect(r.stdout).not.toMatch(/aucun code de composant/);
+    expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('[src/a]');
+  });
+  it('refuses a non-code file of a component that brings a new failure', () => {
+    const m = monde(['ACCEPTÉ']);
+    // The suites fail once the component's data changes: only a replay of src/a sees it.
+    m.poser('src/a/donnees.json', '{"v":1}\n');
+    m.poser(
+      'suites.mjs',
+      "import fs from 'node:fs';\nconst r = process.argv.includes('src/a') && fs.readFileSync('src/a/donnees.json', 'utf8').includes('2') ? 'src/a/a.spec.ts > donnees\\n' : '';\nfs.writeFileSync(process.env.ROUGES, r);\nprocess.exit(r ? 1 : 0);\n"
+    );
+    writeFileSync(path.join(m.repo, 'src/a/donnees.json'), '{"v":2}\n');
+    const patch = path.join(m.bin, 'donnees.patch');
+    writeFileSync(
+      patch,
+      spawnSync('git', ['-C', m.repo, 'diff', '--', 'src/a'], { encoding: 'utf8' }).stdout
+    );
+    spawnSync('git', ['-C', m.repo, 'checkout', '--', 'src/a']);
+    const r = m.lancer(['--code', patch], []);
+    expect(r.status).toBe(1);
+    expect(r.stdout).toMatch(/Rouges nouveaux :\n {2}✗ src\/a\/a\.spec\.ts > donnees/);
+    expect(m.etat().log[0]).toBe('pose suites.mjs');
   });
   it('hands the suites no component, so every suite, for a document outside every component', () => {
     const m = monde(['ACCEPTÉ']);
