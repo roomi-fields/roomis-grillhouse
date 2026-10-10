@@ -113,6 +113,7 @@ describe('plan and the session mounts', () => {
     '/h/.claude/projects/-wt',
     '/tmp/claude-1/-wt',
     '/wt/.git',
+    '/main/.beads',
   ]);
   const { args } = plan(
     { trees: ['/main', '/wt'], copie: '/wt', composant: 'packages/a', montages },
@@ -130,6 +131,7 @@ describe('plan and the session mounts', () => {
       '/t/claude.json>/h/.claude.json',
       '/h/.claude/projects/-wt>/h/.claude/projects/-wt',
       '/wt>/wt',
+      '/main/.beads>/main/.beads',
       '/wt/packages/a>/wt/packages/a',
     ]);
   });
@@ -209,6 +211,8 @@ describe.runIf(canWrap)('the envelope on disk', () => {
     mkdirSync(path.join(repo, d), { recursive: true });
   }
   writeFileSync(path.join(repo, 'packages/a/src/a.ts'), 'a');
+  mkdirSync(path.join(repo, '.beads'));
+  writeFileSync(path.join(repo, '.beads/config.yaml'), '');
   writeFileSync(path.join(repo, 'packages/b/src/b.ts'), 'secret');
   writeFileSync(path.join(repo, 'packages/b/docs/INTERFACE.md'), 'interface');
   writeFileSync(path.join(repo, 'packages/b/dist/index.d.ts'), 'declare');
@@ -245,6 +249,10 @@ describe.runIf(canWrap)('the envelope on disk', () => {
   });
   it('lets the agent write its own component', () => {
     expect(run('touch packages/a/src/new.ts').status).toBe(0);
+  });
+  it('lets the agent write the tickets base of the main tree', () => {
+    expect(run(`touch ${repo}/.beads/ecrit`).status).toBe(0);
+    expect(existsSync(path.join(repo, '.beads/ecrit'))).toBe(true);
   });
   it('refuses every write outside the copy: the main tree, its .git, another directory', () => {
     for (const f of [`${repo}/x`, `${repo}/.git/x`, `${home}/x`]) {

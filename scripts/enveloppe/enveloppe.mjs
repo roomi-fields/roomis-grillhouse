@@ -7,7 +7,9 @@
 //   proper to the session, where only the scratchpad directory of the copy comes back; the npm
 //   cache; the Claude session state (`~/.claude` and the copy's project directory), whose
 //   configuration, skills, plugins and other projects stay read-only. `~/.claude.json` is a
-//   throwaway copy: the session writes it, the real file does not change. Every `.git`, the
+//   throwaway copy: the session writes it, the real file does not change. The tickets base (the
+//   main tree's `.beads/`) is written: the agent claims, plans, hands over and files what it
+//   finds. Every `.git`, the
 //   copy's included, stays read-only: the agent reads the git state and delivers a patch
 //   (`git diff`, and `git diff --no-index /dev/null <file>` for a new file); it never commits.
 // - An envelope on the main tree is refused.
@@ -159,6 +161,8 @@ export function plan({ trees, copie, composant, montages = [] }, fs) {
   args.push('--bind', copie, copie);
   const gitDeLaCopie = path.join(copie, '.git');
   if (fs.existe(gitDeLaCopie)) args.push('--ro-bind', gitDeLaCopie, gitDeLaCopie);
+  const tickets = trees.length > 0 ? path.join(trees[0], '.beads') : null;
+  if (tickets && fs.existe(tickets)) args.push('--bind', tickets, tickets);
   for (const c of caches) if (fs.existe(c)) args.push('--tmpfs', c);
   const parent = path.join(copie, parentRel);
   for (const e of fs.lister(parent)) {
