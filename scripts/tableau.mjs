@@ -318,10 +318,14 @@ export function assembler({
   for (const l of enfants.values()) {
     l.sort(ordre);
   }
-  const travail = t => t.issue_type !== 'epic' && !enfants.has(t.id);
+  const actifs = new Set(vivants.map(v => v.ticket).filter(Boolean));
+  // A ticket is work unless it is an epic or a mother; a ticket an agent holds stays work, its
+  // discoveries under it notwithstanding.
+  const travail = t =>
+    t.issue_type !== 'epic' &&
+    (!enfants.has(t.id) || t.status === 'in_progress' || actifs.has(t.id));
   const pret = new Set(prets.map(t => t.id));
   const avalider = new Set(aValider.map(t => t.id));
-  const actifs = new Set(vivants.map(v => v.ticket).filter(Boolean));
   const bloquePar = t => blocages(t).map(d => numero(d.depends_on_id));
   const etat = t => {
     if (t.status === 'closed') {
@@ -672,14 +676,13 @@ export function lignes(t, nom, largeur = LARGEUR) {
     for (const x of b.enCours) {
       L(
         cadre(
-          `▶ ${x.numero} ${x.composant}${x.ligne ? ' ⌁' : ''}`,
+          `▶ ${x.numero}${x.ligne ? ' ⌁' : ''}  ${x.sujet}`,
           `${duree(x.travail)} · ${k(x.jetons)}`,
           largeur
         ),
         'actif',
         x.id
       );
-      L(cadre(`  ${x.sujet}`, '', largeur), 'discret', x.id);
     }
     for (const x of b.attend.slice(0, ATTENTE_MAX)) {
       L(

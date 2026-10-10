@@ -270,6 +270,20 @@ describe('assembler', () => {
       fermes: 2,
     });
   });
+  it('counts a ticket in progress as work, a discovery under it notwithstanding', () => {
+    const u = plateau({
+      tous: [
+        T('demo-d', { status: 'in_progress', title: 'd — Tenu' }),
+        T('demo-d.1', { parent: 'demo-d', labels: ['a-valider'] }),
+      ],
+      prefix: 'demo',
+      registre: [],
+      vivants: [],
+      maintenant,
+      jour,
+    });
+    expect(u.global.compteurs).toMatchObject({ enCours: 1, aValider: 1 });
+  });
   it('measures the day and the whole, a finished agent once even while its transcript still moves', () => {
     expect(t.global.cumul).toEqual({ travail: 1_860_000, jetons: 1350 });
     expect(t.global.jour).toEqual({ travail: 1_800_000, jetons: 1300 });
@@ -341,8 +355,7 @@ describe('assembler', () => {
     expect(texte).toMatch(/c\.1 {2}Une mère +1\/2 · 1 k ▶/);
     expect(texte).toMatch(/c\.1\.1 {2}Écrit +20 min · 1 k ▶|c\.1\.1 {2}Écrit/);
     expect(texte).toMatch(/\+ 1 prêts · 1 bloqués/);
-    expect(texte).toMatch(/\n4 développeur\n▶ c\.1\.1 moteur ⌁/);
-    expect(texte).toMatch(/▶ c\.1\.1 moteur ⌁[^\n]*\n {2}Écrit/);
+    expect(texte).toMatch(/\n4 développeur\n▶ c\.1\.1 ⌁ {2}Écrit/);
     expect(texte).toMatch(/\n4 développeur[\s\S]*\n· c\.3 {2}demo-c\.3 +0 min · 50\n/);
     expect(texte).toMatch(/\n1 explorateur {2}—\n/);
     expect(texte).toMatch(/✓ c\.1\.2 {2}demo-c\.1\.2/);
