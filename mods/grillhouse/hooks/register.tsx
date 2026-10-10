@@ -119,10 +119,35 @@ export const register: Register = on => {
     const { Box, Text, Button } = $.ui.resolve(e)
     const { tableau: t, erreur, choisi } = await read($, etat)
     if (!t) return <Text dimColor>{erreur ?? 'Lecture du tableau…'}</Text>
-    const fiche = choisi ? t.fiches[choisi] : undefined
-    const hauteur = e.props.scroll.bodyRows
+    const colonnes = e.props.bodyColumns
+    // A card fills the pane's last rows: the whole title on as many lines as it takes, then the
+    // component, state, duration and tokens, then the description in the rows left.
+    const carte = (f: Fiche | undefined) => {
+      const [titre, etatDuTicket, resume] = ficheLignes(f)
+      return (
+        <Box flexDirection="column" width={colonnes} height={FICHE}>
+          <Box flexShrink={0}>
+            <Text bold={!!f} dimColor={!f} wrap="wrap">
+              {titre}
+            </Text>
+          </Box>
+          {etatDuTicket ? (
+            <Box flexShrink={0}>
+              <Text dimColor wrap="truncate-end">
+                {etatDuTicket}
+              </Text>
+            </Box>
+          ) : null}
+          {resume ? (
+            <Box flexGrow={1} overflow="hidden">
+              <Text wrap="wrap">{resume}</Text>
+            </Box>
+          ) : null}
+        </Box>
+      )
+    }
     return (
-      <Box flexDirection="column" height={hauteur}>
+      <Box flexDirection="column" height={e.props.scroll.bodyRows}>
         <Box flexDirection="column" flexGrow={1} overflow="hidden">
           {t.lignes.map((l, i) => {
             const texte = (
@@ -130,26 +155,30 @@ export const register: Register = on => {
                 {l.texte || ' '}
               </Text>
             )
-            // A ticket's line is a plain button: the ring inverts it and shows its card below.
-            return l.ticket ? (
-              <Button
-                key={`${l.ticket}:${i}`}
-                plain
-                onPress={() => void update($, etat, s => ({ ...s, choisi: l.ticket ?? null }))}
-              >
-                {texte}
-              </Button>
-            ) : (
-              texte
+            if (!l.ticket) return texte
+            // A ticket's line is a plain button, in the hover group named by its ticket: the ring
+            // chooses it, the pointer over it shows its card.
+            return (
+              <Box hover={{ scope: l.ticket }}>
+                <Button
+                  key={`${l.ticket}:${i}`}
+                  plain
+                  onPress={() => void update($, etat, s => ({ ...s, choisi: l.ticket ?? null }))}
+                >
+                  {texte}
+                </Button>
+              </Box>
             )
           })}
         </Box>
-        <Box flexDirection="column" height={FICHE + 1} overflow="hidden">
-          <Text dimColor>{'─'.repeat(e.props.bodyColumns)}</Text>
-          {ficheLignes(fiche).map((x, i) => (
-            <Text bold={i === 0 && !!fiche} dimColor={!fiche || i === 1} wrap="wrap">
-              {x}
-            </Text>
+        <Text dimColor>{'─'.repeat(colonnes)}</Text>
+        <Box flexDirection="column" height={FICHE} flexShrink={0}>
+          {carte(choisi ? t.fiches[choisi] : undefined)}
+          {Object.entries(t.fiches).map(([id, f]) => (
+            // The card of the ticket under the pointer, drawn over the chosen one.
+            <Box position="absolute" top={0} left={0} display="none" hover={{ scope: id, display: 'flex' }}>
+              {carte(f)}
+            </Box>
           ))}
         </Box>
       </Box>
