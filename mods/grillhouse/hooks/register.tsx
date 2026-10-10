@@ -85,16 +85,32 @@ export const register: Register = on => {
     if (!t) return <Text dimColor>{erreur ?? 'Lecture du tableau…'}</Text>
     return (
       <Box flexDirection="column">
-        {t.lignes.map(l => (
-          <Text
-            bold={l.ton === 'titre'}
-            dimColor={l.ton === 'discret'}
-            color={couleur(l.ton)}
-            wrap="truncate-end"
-          >
-            {l.texte || ' '}
-          </Text>
-        ))}
+        {t.lignes.map((l, i) => {
+          const ligne = (
+            <Text bold={l.ton === 'titre'} dimColor={l.ton === 'discret'} color={couleur(l.ton)} wrap="truncate-end">
+              {l.texte || ' '}
+            </Text>
+          )
+          // A cut line shows its whole text in a card under the pointer.
+          return l.complet ? (
+            <Box key={`l${i}`} flexDirection="column">
+              {ligne}
+              <Box
+                position="absolute"
+                top={1}
+                left={0}
+                display="none"
+                hover={{ display: 'flex' }}
+                borderStyle="round"
+                width={COLONNES}
+              >
+                <Text wrap="wrap">{l.complet}</Text>
+              </Box>
+            </Box>
+          ) : (
+            ligne
+          )
+        })}
       </Box>
     )
   })

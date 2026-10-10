@@ -530,7 +530,7 @@ export const duree = ms => {
 };
 
 // A line of `largeur` columns: the left part cut to leave the right part whole.
-const cadre = (gauche, droite, largeur) => {
+const couper = (gauche, droite, largeur) => {
   if (!droite) {
     return gauche.length > largeur ? `${gauche.slice(0, largeur - 1)}…` : gauche;
   }
@@ -553,9 +553,18 @@ const liste = (l, place) => {
 };
 
 // The board's lines, `largeur` columns wide, each with its tone (titre, alerte, attention, actif,
-// discret, or none). The pane and the text show the same lines.
+// discret, or none) and, when it was cut, its whole text (`complet`), which the pane shows under
+// the pointer. The pane and the text show the same lines.
 export function lignes(t, nom, largeur = LARGEUR) {
   const out = [];
+  const complets = new Map();
+  const cadre = (gauche, droite, l) => {
+    const texte = couper(gauche, droite, l);
+    if (texte.includes('…')) {
+      complets.set(texte, gauche.trim());
+    }
+    return texte;
+  };
   const L = (texte, ton) => out.push({ texte, ton });
   const g = t.global;
   const c = g.compteurs;
@@ -698,7 +707,7 @@ export function lignes(t, nom, largeur = LARGEUR) {
       L(`  + ${t.faitsDuJour.length - 5} autres`, 'discret');
     }
   }
-  return out;
+  return out.map(l => (complets.has(l.texte) ? { ...l, complet: complets.get(l.texte) } : l));
 }
 
 // The status line: the chantier in progress, alerts first.

@@ -330,6 +330,28 @@ describe('assembler', () => {
     for (const x of l) {
       expect([...x.texte].length).toBeLessThanOrEqual(LARGEUR);
     }
+    const long = lignes(
+      plateau({
+        tous: [
+          T('demo-k', { issue_type: 'epic', title: 'k — Chantier — parent' }),
+          T('demo-k.1', {
+            parent: 'demo-k',
+            status: 'in_progress',
+            title: 'k.1 — Un sujet bien trop long pour la largeur du panneau — moteur',
+          }),
+        ],
+        prefix: 'demo',
+        registre: [],
+        vivants: [],
+        maintenant,
+        jour,
+      }),
+      'demo'
+    ) as { texte: string; complet?: string }[];
+    expect(long.find(x => x.complet)?.complet).toMatch(
+      /Un sujet bien trop long pour la largeur du panneau$/
+    );
+    expect(long.filter(x => x.complet && !x.texte.includes('…'))).toEqual([]);
     const texte = l.map((x: { texte: string }) => x.texte).join('\n');
     expect(texte).toMatch(/CHANTIER c — Le chantier/);
     expect(texte).toMatch(/c\.1 {2}Une mère +1\/2 · 1 k ▶/);
