@@ -5,8 +5,11 @@
 #   bash scripts/enveloppe/lancer.sh <ticket> <rôle> <composant> <fichier de consigne>
 #
 # - The agent's copy is the worktree .claude/worktrees/<ticket> (branch agent/<ticket>), created
-#   from the main tree's HEAD when absent and moved forward to it otherwise (a refusal, such as
-#   commits of the agent on its branch, goes to the log and stops the launch, CODE_COPIE). Its
+#   from the main tree's HEAD when absent and moved forward to it otherwise. Moving forward keeps
+#   the work in progress of the copy: git stashes it, fast-forwards, and reapplies it
+#   (`--autostash`). A refusal, such as commits of the agent on its branch, goes to the log and
+#   stops the launch, CODE_COPIE; so does a reapplication that conflicts: the log names each file
+#   in conflict, the work stays in git's stash, and no agent starts on a half-merged copy. Its
 #   dependencies are installed when `node_modules` is absent or `package-lock.json` is newer than
 #   the last installation (`node_modules/.package-lock.json`, written by npm), and every component
 #   is built there, outside the envelope, so the agent finds the published parts of its neighbours.
@@ -38,7 +41,15 @@ mkdir -p "$(dirname "$copie")"
   if [ ! -d "$copie" ]; then
     git -C "$racine" worktree add -q -b "agent/$ticket" "$copie" HEAD || exit 1
   else
-    git -C "$copie" merge -q --ff-only "$(git -C "$racine" rev-parse HEAD)" || exit 1
+    git -C "$copie" merge -q --ff-only --autostash "$(git -C "$racine" rev-parse HEAD)" || exit 1
+    # A conflicting reapplication exits 0: the unmerged files are what tells it.
+    conflits=$(git -C "$copie" diff --name-only --diff-filter=U) || exit 1
+    if [ -n "$conflits" ]; then
+      echo "⛔ Le travail en cours de la copie entre en conflit avec main ; il reste dans la remise de git (git stash list)."
+      echo "Fichiers en conflit :"
+      sed 's/^/  /' <<<"$conflits"
+      exit 1
+    fi
   fi
   if [ -f "$copie/package.json" ]; then
     # --no-save leaves the lock file as committed, so a clean copy stays clean.

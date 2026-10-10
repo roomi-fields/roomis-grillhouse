@@ -1259,3 +1259,145 @@ describe('the launcher and the dependencies of the copy', () => {
     expect(installs()).toBe(0);
   });
 });
+
+// « Un ticket bloqué repart de sa copie : sa copie garde le code de l'agent précédent » (pitmaster),
+// and the safety measure of grillhouse-3uv.8.3: a reapplication that conflicts stops the launch
+// (CODE_COPIE), names the conflict in the log and leaves the work in git's stash. The copy moves
+// forward before its envelope, so these tests do not depend on bwrap.
+describe('the launcher and the work in progress of the copy', () => {
+  const ident = ['-c', 'user.name=t', '-c', 'user.email=t@t'];
+  const lignes = (deuxieme: string) => `l1\n${deuxieme}\nl3\nl4\nl5\nl6\nl7\n`;
+  // A repository with one launch behind it: its copy exists, at the main tree's HEAD.
+  const depot = () => {
+    const repo = essai('encours-');
+    for (const d of ['packages/a/src', '.claude/agents', 'scripts/enveloppe']) {
+      mkdirSync(path.join(repo, d), { recursive: true });
+    }
+    writeFileSync(path.join(repo, 'packages/a/src/a.ts'), lignes('l2'));
+    writeFileSync(path.join(repo, 'packages/a/src/b.ts'), 'b\n');
+    writeFileSync(
+      path.join(repo, '.claude/agents/developpeur.md'),
+      '---\nname: developpeur\n---\n'
+    );
+    writeFileSync(path.join(repo, '.gitignore'), 'consigne.txt\n');
+    execFileSync('cp', [SCRIPT, CODES, path.join(repo, 'scripts/enveloppe/')]);
+    const consigne = path.join(repo, 'consigne.txt');
+    writeFileSync(consigne, 'TON TICKET : demo-1 — un sujet.');
+    const git = (dir: string, ...args: string[]) =>
+      execFileSync('git', ['-C', dir, ...ident, ...args], { encoding: 'utf8' });
+    git(repo, 'init', '-q');
+    git(repo, 'add', '.');
+    git(repo, 'commit', '-qm', 'init');
+    const copie = path.join(repo, '.claude/worktrees/demo-1');
+    const home = essai('home-');
+    const launch = () =>
+      spawnSync('bash', [LAUNCHER, 'demo-1', 'developpeur', 'packages/a', consigne], {
+        cwd: repo,
+        encoding: 'utf8',
+        env: { ...process.env, CLAUDE_BIN: 'true', HOME: home },
+      });
+    launch();
+    // main moves forward on a file: its new content is committed in the main tree.
+    const avance = (fichier: string, contenu: string) => {
+      writeFileSync(path.join(repo, fichier), contenu);
+      git(repo, 'commit', '-qam', `main ${fichier}`);
+    };
+    const lire = (fichier: string) => readFileSync(path.join(copie, fichier), 'utf8');
+    const ecrire = (fichier: string, contenu: string) =>
+      writeFileSync(path.join(copie, fichier), contenu);
+    const head = (dir: string) => git(dir, 'rev-parse', 'HEAD').trim();
+    return { repo, copie, git, launch, avance, lire, ecrire, head };
+  };
+
+  it('moves a copy whose work touches the file that main changed, and keeps both changes', () => {
+    const d = depot();
+    expect(existsSync(d.copie)).toBe(true);
+    d.avance('packages/a/src/a.ts', lignes('l2').replace('l7', 'MAIN'));
+    d.ecrire('packages/a/src/a.ts', lignes('COPIE'));
+    const r = d.launch();
+    expect(r.status, readFileSync(d.copie + '.log', 'utf8')).not.toBe(CODE_COPIE);
+    expect(d.head(d.copie)).toBe(d.head(d.repo));
+    expect(d.lire('packages/a/src/a.ts')).toBe(lignes('COPIE').replace('l7', 'MAIN'));
+  });
+
+  it('keeps every kind of work: staged, unstaged, a new file, a deleted file', () => {
+    const d = depot();
+    d.avance('packages/a/src/a.ts', lignes('l2').replace('l7', 'MAIN'));
+    d.avance('packages/a/src/b.ts', 'b\nMAIN\n');
+    d.ecrire('packages/a/src/a.ts', lignes('COPIE'));
+    d.git(d.copie, 'add', 'packages/a/src/a.ts');
+    d.ecrire('packages/a/src/b.ts', 'COPIE\nb\n');
+    d.ecrire('packages/a/src/neuf.ts', 'neuf\n');
+    d.git(d.copie, 'add', 'packages/a/src/neuf.ts');
+    d.ecrire('packages/a/src/libre.ts', 'libre\n');
+    d.git(d.copie, 'rm', '-q', '.gitignore');
+    const r = d.launch();
+    expect(r.status, readFileSync(d.copie + '.log', 'utf8')).not.toBe(CODE_COPIE);
+    expect(d.head(d.copie)).toBe(d.head(d.repo));
+    expect(d.lire('packages/a/src/a.ts')).toBe(lignes('COPIE').replace('l7', 'MAIN'));
+    expect(d.lire('packages/a/src/b.ts')).toBe('COPIE\nb\nMAIN\n');
+    expect(d.lire('packages/a/src/neuf.ts')).toBe('neuf\n');
+    expect(d.lire('packages/a/src/libre.ts')).toBe('libre\n');
+    expect(existsSync(path.join(d.copie, '.gitignore'))).toBe(false);
+  });
+
+  it('leaves no stash behind when the work reapplies cleanly', () => {
+    const d = depot();
+    d.avance('packages/a/src/a.ts', lignes('l2').replace('l7', 'MAIN'));
+    d.ecrire('packages/a/src/a.ts', lignes('COPIE'));
+    d.launch();
+    expect(d.head(d.copie)).toBe(d.head(d.repo));
+    expect(d.git(d.copie, 'stash', 'list')).toBe('');
+  });
+
+  it('refuses with CODE_COPIE when the work conflicts with main, and names the conflict in the log', () => {
+    const d = depot();
+    d.avance('packages/a/src/a.ts', lignes('MAIN'));
+    d.ecrire('packages/a/src/a.ts', lignes('COPIE'));
+    const r = d.launch();
+    expect(r.status).toBe(CODE_COPIE);
+    expect(r.stderr).toMatch(/demo-1\.log/);
+    const log = readFileSync(d.copie + '.log', 'utf8');
+    expect(log).toMatch(/conflit|conflict/i);
+    expect(log).toMatch(/packages\/a\/src\/a\.ts/);
+  });
+
+  it('keeps the conflicting work in the stash', () => {
+    const d = depot();
+    d.avance('packages/a/src/a.ts', lignes('MAIN'));
+    d.ecrire('packages/a/src/a.ts', lignes('COPIE'));
+    d.launch();
+    const remise = d.git(d.copie, 'stash', 'list');
+    expect(remise.trim().split('\n')).toHaveLength(1);
+    expect(d.git(d.copie, 'stash', 'show', '-p', 'stash@{0}')).toMatch(/^\+COPIE$/m);
+  });
+
+  it('starts no agent on a copy whose work conflicts', () => {
+    const d = depot();
+    const trace = path.join(d.repo, 'lance');
+    const fake = path.join(d.repo, 'faux-claude.sh');
+    writeFileSync(fake, `#!/bin/bash\ntouch ${trace}\n`, { mode: 0o755 });
+    d.avance('packages/a/src/a.ts', lignes('MAIN'));
+    d.ecrire('packages/a/src/a.ts', lignes('COPIE'));
+    const r = spawnSync(
+      'bash',
+      [LAUNCHER, 'demo-1', 'developpeur', 'packages/a', path.join(d.repo, 'consigne.txt')],
+      {
+        cwd: d.repo,
+        encoding: 'utf8',
+        env: { ...process.env, CLAUDE_BIN: fake, HOME: essai('home-') },
+      }
+    );
+    expect(r.status).toBe(CODE_COPIE);
+    expect(existsSync(trace)).toBe(false);
+  });
+
+  it('keeps the work in the copy when the copy cannot move forward', () => {
+    const d = depot();
+    d.git(d.copie, 'commit', '-q', '--allow-empty', '-m', 'agent');
+    d.avance('packages/a/src/a.ts', lignes('l2').replace('l7', 'MAIN'));
+    d.ecrire('packages/a/src/a.ts', lignes('COPIE'));
+    expect(d.launch().status).toBe(CODE_COPIE);
+    expect(d.lire('packages/a/src/a.ts')).toBe(lignes('COPIE'));
+  });
+});
