@@ -90,14 +90,15 @@ is created under its mother (numbered `320.2.1`) and every agent goes by its rol
 
 **The board** — the `grillhouse` mod (a Claude Code plugin whose source lives in `mods/grillhouse`, published
 in the `roomi-fields` marketplace as `grillhouse@roomi-fields`, enabled in
-each project's settings) shows, measured and never declared, the chantier in progress in the status
-line and, in the `/grillhouse` pane, three levels: the project (its work tickets by state, the
+each project's settings) shows, measured and never declared, in the `/grillhouse` pane, three levels: the project (its work tickets by state, the
 agents' time and tokens of the day and in all, the alerts); the chantier in progress, its tree of
 mother tickets with each one's work done over all; the agents, one block per role, where each
 ticket stands once, running or waiting for the next role. A finished agent is read from the
 register its end writes (`scripts/registre.mjs`; `--rattraper` adds the agents that ended
 before it), a running one from its transcript, those launched
-in a shell included. Without the mod, `npm run tableau` prints the same lines.
+in a shell included. Without the mod, `npm run tableau` prints the same lines. Each measure
+writes the chantier in progress to `grillhouse-etat.txt` in the common git directory, for the
+person's status line command to show.
 The pane docks beside the transcript in Claude Code's fullscreen layout (`/tui fullscreen`, from
 110 columns); the wheel scrolls the transcript there only while Claude Code captures the mouse, so
 `CLAUDE_CODE_DISABLE_MOUSE` stays unset (`CLAUDE_CODE_DISABLE_MOUSE_CLICKS` keeps the wheel).

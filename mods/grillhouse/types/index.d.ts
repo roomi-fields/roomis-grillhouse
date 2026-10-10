@@ -10,8 +10,8 @@ export type Fiche = {
   jetons: number
   resume: string
 }
-// What the mod reads of `scripts/tableau.mjs`: the board's lines, laid out there, and the status line.
-export type Tableau = { lignes: Ligne[]; fiches: Record<string, Fiche>; etat: string }
+// What the mod reads of `scripts/tableau.mjs`: the board's lines, laid out there, and their cards.
+export type Tableau = { lignes: Ligne[]; fiches: Record<string, Fiche> }
 // `choisi`: the ticket whose card the pane shows.
 export type Etat = { tableau: Tableau | null; erreur: string | null; lu: number; choisi: string | null }
 

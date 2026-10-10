@@ -3,10 +3,11 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { Etat, Fiche, Ligne, Tableau } from '../types'
 
-// The board of a Grillhouse project: the status line holds the chantier in progress, the pane
-// (/grillhouse) its three levels. The project's own `scripts/tableau.mjs` measures and lays out the
-// lines; this mod shows them, every 30 s and after each `bd` or `git` command. It stays silent outside a Grillhouse project
-// and inside an agent's copy (`.claude/worktrees/`).
+// The board of a Grillhouse project, in the pane (/grillhouse) on its three levels. The project's
+// own `scripts/tableau.mjs` measures and lays out the lines, and writes the status line for the
+// person's status line command; this mod shows the lines, every 30 s and after each `bd` or `git`
+// command. It stays silent outside a Grillhouse project and inside an agent's copy
+// (`.claude/worktrees/`).
 const PANE = 'grillhouse'
 const PERIODE = 30_000
 // The width of the lines `scripts/tableau.mjs` lays out (its LARGEUR).
@@ -62,7 +63,7 @@ export const couleur = (ton: Ligne['ton']) =>
 let cwd = ''
 let actif = false
 
-// Measures the board again and redraws the status line and the pane.
+// Measures the board again and redraws the pane.
 async function rafraichir($: EngineInterface) {
   if (!actif) return
   const r = await $.process.run(['node', 'scripts/tableau.mjs'], { cwd, timeoutMs: 20_000 })
@@ -72,7 +73,6 @@ async function rafraichir($: EngineInterface) {
   }
   const tableau = JSON.parse(r.stdout) as Tableau
   await update($, etat, s => ({ ...s, tableau, erreur: null, lu: Date.now() }))
-  $.ui.status(tableau.etat)
 }
 
 export const register: Register = on => {

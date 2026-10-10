@@ -6,6 +6,9 @@
 //   node scripts/tableau.mjs            the board, as JSON (with its lines, 52 columns wide)
 //   node scripts/tableau.mjs --texte    the board, as text
 //
+// Each measure writes the status line (the chantier in progress) to `grillhouse-etat.txt` in the
+// common git directory, where the person's status line command reads it.
+//
 // - Global: the work tickets of the project (a ticket without children; a mother is a grouping)
 //   by state, the agents' working time and tokens of the day and in all, the alerts.
 // - Chantier: a root epic with work in progress, its tree of mothers, each with its work tickets
@@ -868,11 +871,19 @@ export function tableau(racine, { home = os.homedir(), maintenant = Date.now() }
       parTicket[r.ticket] = (parTicket[r.ticket] ?? 0) + (r.jetons ?? 0);
     }
   }
+  const etat = ligneEtat(t);
+  try {
+    if (commun) {
+      writeFileSync(path.join(commun, 'grillhouse-etat.txt'), `${etat}\n`);
+    }
+  } catch {
+    // A read-only place keeps the board working, without its status line.
+  }
   return {
     ...t,
     lignes: l,
     fiches: fiches(tous, l, prefix, parTicket, maintenant),
-    etat: ligneEtat(t),
+    etat,
   };
 }
 

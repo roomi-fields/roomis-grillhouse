@@ -16,7 +16,6 @@ const TABLEAU = {
       resume: 'R',
     },
   },
-  etat: '',
 }
 
 test('the pane draws each ticket line as a button, and a hidden card per ticket on a blank', async ($, on) => {
@@ -26,7 +25,6 @@ test('the pane draws each ticket line as a button, and a hidden card per ticket 
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('command.register', () => ({ value: undefined }))
   on('clock.every', () => ({ value: { cancel: () => undefined } }))
-  on('ui.status', () => ({ value: undefined }))
   await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
   await new Promise(r => setTimeout(r, 50))
   const ui = await $.ui.mount({

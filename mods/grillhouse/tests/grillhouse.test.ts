@@ -10,7 +10,6 @@ const TABLEAU: Tableau = {
     { texte: '4 développeur  ▶ c.1.1  Écrit', ton: 'actif' },
   ],
   fiches: {},
-  etat: '⚠ 1 · c 1/5 · ▶ 1 en cours · 1 k aujourd\'hui',
 }
 
 test('each tone has its colour, the plain and quiet lines none', () => {
@@ -21,23 +20,19 @@ test('each tone has its colour, the plain and quiet lines none', () => {
   expect(couleur(undefined)).toBeUndefined()
 })
 
-test('in a Grillhouse project, the session start measures the board and writes the status line', async ($, on) => {
-  let ecrit: (texte: string | undefined) => void = () => undefined
-  const statut = new Promise<string | undefined>(r => (ecrit = r))
-  on('process.run', ($, e) =>
-    e.argv[0] === 'test'
-      ? { value: { exitCode: 0, stdout: '', stderr: '' } }
-      : { value: { exitCode: 0, stdout: JSON.stringify(TABLEAU), stderr: '' } },
-  )
+test('in a Grillhouse project, the session start measures the board', async ($, on) => {
+  let lance: (argv: string) => void = () => undefined
+  const mesure = new Promise<string>(r => (lance = r))
+  on('process.run', ($, e) => {
+    if (e.argv[0] !== 'test') lance(e.argv.join(' '))
+    return { value: { exitCode: 0, stdout: JSON.stringify(TABLEAU), stderr: '' } }
+  })
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('command.register', () => ({ value: undefined }))
   on('clock.every', () => ({ value: { cancel: () => undefined } }))
-  on('ui.status', ($, e) => {
-    ecrit(e.text)
-    return { value: undefined }
-  })
   await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
-  expect(await statut).toBe(TABLEAU.etat)
+  expect(await mesure).toBe('node scripts/tableau.mjs')
+  await new Promise(r => setTimeout(r, 50))
 })
 
 for (const [cas, cwd, estProjet, isInteractive] of [
@@ -55,7 +50,6 @@ for (const [cas, cwd, estProjet, isInteractive] of [
     on('session.start', ($, e) => ({ cwd: e.cwd }))
     on('command.register', () => ({ value: undefined }))
     on('clock.every', () => ({ value: { cancel: () => undefined } }))
-    on('ui.status', () => ({ value: undefined }))
     await $.session.start({ cwd, surface: isInteractive ? 'terminal' : null, isInteractive })
     expect(lances).not.toContain('node scripts/tableau.mjs')
   })
