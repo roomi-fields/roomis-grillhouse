@@ -152,7 +152,7 @@ describe('critère 3 — the index of the interfaces leaves out a package out of
   it('critère 3 — the written index holds no line of a package out of the frame', () => {
     const dir = repo({ ...files, [HORS_CADRE]: 'v1 version gelée\n' });
     const texte = index(dir);
-    expect(texte).toContain('## a — a');
+    expect(texte.split('\n')).toContain('## a');
     expect(texte).not.toContain('## v1');
     expect(texte).not.toContain('packages/v1/');
   });

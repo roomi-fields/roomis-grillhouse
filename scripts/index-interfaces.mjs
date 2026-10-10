@@ -8,9 +8,11 @@
 //
 // An interface is found at `packages/<x>/docs/INTERFACE.md` and `src/<x>/docs/INTERFACE.md` for
 // each component of `composants` (a package out of the frame has none), and at
-// `docs/INTERFACE.md`. Its title and first sentence give the component's line; each `##` and
-// `###` heading, with the first sentence under it, gives an element's line; code blocks (``` or
-// ~~~, indented or not) are skipped whole. The `## Consommateurs` section gives one line that
+// `docs/INTERFACE.md`. Its title and first sentence give the component's line, headed by the title
+// alone when the title already begins with the component's folder name (exact case, followed by a
+// blank or ending the title), else by `<component> — <title>`; the root interface is always
+// headed `(racine) — <title>`. Each `##` and `###` heading, with the first sentence under it, gives
+// an element's line; code blocks (``` or ~~~, indented or not) are skipped whole. The `## Consommateurs` section gives one line that
 // names each consumer with the elements it uses.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -28,6 +30,15 @@ export function interfaces(racine) {
   if (existsSync(path.join(racine, 'docs', 'INTERFACE.md'))) found.push('docs/INTERFACE.md');
   return found.sort();
 }
+
+// The heading of a component's line: the title as it is when it already begins with the component's
+// name, exact case, followed by a blank or ending the title; else the name, a dash, the title.
+const tetiere = (composant, titre) =>
+  composant !== '(racine)' &&
+  titre.startsWith(composant) &&
+  (titre.length === composant.length || /\s/.test(titre[composant.length]))
+    ? titre
+    : `${composant} — ${titre}`;
 
 const firstSentence = lines => {
   const text = lines.join(' ').replace(/\s+/g, ' ').trim();
@@ -68,7 +79,7 @@ export function entrees(rel, contenu) {
   fermer();
   const [tete, ...reste] = sections;
   const out = [
-    `## ${composant} — ${tete.titre}`,
+    `## ${tetiere(composant, tete.titre)}`,
     '',
     `${firstSentence(tete.corps)} (\`${rel}\`)`,
     '',
