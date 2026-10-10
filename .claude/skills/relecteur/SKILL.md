@@ -33,7 +33,7 @@ Chaque passe suit son fichier de `references/` à la lettre, dans cet ordre.
    « Reçoit » du cadre nomme, jamais une table ou un registre entier. Ainsi le composant ne peut pas
    refaire le calcul d'un voisin.
 5. **L'existant** : cette notion existe-t-elle déjà ailleurs dans le projet, dans ce composant ou un
-   autre (`codegraph explore`, `rtfm_search`) ? Ainsi le produit garde un seul calcul par notion.
+   autre (son paquet, le lexique, les interfaces des voisins) ? Ainsi le produit garde un seul calcul par notion.
 
 ## Le verdict
 

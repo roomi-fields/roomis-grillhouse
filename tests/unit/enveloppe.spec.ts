@@ -212,6 +212,38 @@ describe('plan and the session mounts', () => {
   });
 });
 
+// The index is for the roles that see the whole repository (charter, « L'index d'abord »): in its
+// envelope an agent reads its package and the interfaces of its neighbours, as Bazel shows an
+// action only its declared inputs. The envelope declares neither codegraph nor rtfm.
+describe('the session mounts and the index', () => {
+  const montages = montagesDeLaSeance({
+    cacheNpm: '/h/.npm',
+    claude: '/h/.claude',
+    projet: '/h/.claude/projects/-wt',
+    etatJetable: '/t/claude.json',
+    scratchpads: '/tmp/claude-1/-wt',
+  });
+  const chemins = (montages as { chemin: string }[]).map(m => m.chemin);
+
+  it('declares no launcher, state or environment of codegraph or rtfm', () => {
+    for (const rel of [
+      '.local/bin/codegraph',
+      '.codegraph',
+      '.local/bin/rtfm',
+      '.rtfm',
+      '.local/share/pipx',
+    ]) {
+      expect(chemins, rel).not.toContain(`/h/${rel}`);
+    }
+    expect(chemins.filter(c => /codegraph|rtfm/.test(c))).toEqual([]);
+  });
+  it('still declares claude, node and its tools, bd and the git configuration', () => {
+    for (const rel of ['.local/bin/claude', '.nvm', '.beads', '.config/bd', '.gitconfig']) {
+      expect(chemins, rel).toContain(`/h/${rel}`);
+    }
+  });
+});
+
 describe('plan for a folder of the root', () => {
   const { args, refus } = plan(
     { trees: ['/main', '/wt'], copie: '/wt', composant: 'scripts' },
@@ -391,6 +423,25 @@ describe.runIf(canWrap)(
     git('commit', '-qm', 'init');
     const copie = path.join(repo, '.claude/worktrees/demo-1');
     git('worktree', 'add', '-q', '-b', 'agent/demo-1', copie);
+    const autre = path.join(repo, '.claude/worktrees/demo-2');
+    git('worktree', 'add', '-q', '-b', 'agent/demo-2', autre);
+    const copieRtfm = path.join(repo, '.claude/worktrees/demo-3');
+    git('worktree', 'add', '-q', '-b', 'agent/demo-3', copieRtfm);
+    // The indexes of the repository, as codegraph and rtfm make them in each tree they index (the
+    // main tree, a copy), and their state in the home. demo-3 holds the index of rtfm alone.
+    const INDEX: string[] = [];
+    const indexer = (arbre: string, rels: string[]) => {
+      for (const rel of rels) {
+        const f = path.join(arbre, rel);
+        mkdirSync(path.dirname(f), { recursive: true });
+        writeFileSync(f, 'INDEX-of-the-repository code-of-b');
+        INDEX.push(f);
+      }
+    };
+    for (const arbre of [repo, copie, autre]) {
+      indexer(arbre, ['.codegraph/codegraph.db', '.codegraph/sub/wal', '.rtfm/index.db']);
+    }
+    indexer(copieRtfm, ['.rtfm/index.db']);
 
     // Stores of secrets: those of the usual tools, those of rarer ones, and two whose names are
     // drawn at random, so that no list of the envelope can name them.
@@ -411,6 +462,9 @@ describe.runIf(canWrap)(
       '.local/share/keyrings/login.keyring': 'SECRET-keyring',
       '.bash_history': 'SECRET-history',
       '.claude.json.bak': 'SECRET-claude-backup',
+      // The state of codegraph and rtfm in the home: the envelope does not declare it.
+      '.codegraph/daemons/sonde': 'SECRET-codegraph-state',
+      '.rtfm/memory.db': 'SECRET-rtfm-state',
       // Beside the targets of the declared configurations a dotfiles manager links (below).
       'dotfiles/autre': 'SECRET-dotfiles-neighbour',
       'dotfiles/git/autre': 'SECRET-dotfiles-deep-neighbour',
@@ -431,8 +485,8 @@ describe.runIf(canWrap)(
       writeFileSync(path.join(home, rel), contenu);
     }
     // The launchers of the home are links, as on the machine: claude's to its binary; those of
-    // codegraph and rtfm to a script of their package, which finds the package's other files
-    // beside its own real path.
+    // codegraph, rtfm and a tool of node to a script of their package, which finds the package's
+    // other files beside its own real path.
     const ecrire = (rel: string, contenu: string, mode = 0o644) => {
       mkdirSync(path.dirname(path.join(home, rel)), { recursive: true });
       writeFileSync(path.join(home, rel), contenu, { mode });
@@ -451,6 +505,9 @@ describe.runIf(canWrap)(
     ecrire('.local/share/pipx/venvs/rtfm/bin/rtfm', LANCEUR, 0o755);
     ecrire('.local/share/pipx/venvs/rtfm/bin/voisin', 'rtfm-voisin\n');
     lier('.local/bin/rtfm', path.join(home, '.local/share/pipx/venvs/rtfm/bin/rtfm'));
+    ecrire('.nvm/versions/node/v1/lib/node_modules/outil/shim.sh', LANCEUR, 0o755);
+    ecrire('.nvm/versions/node/v1/lib/node_modules/outil/voisin', 'outil-voisin\n');
+    lier('.nvm/versions/node/v1/bin/outil', '../lib/node_modules/outil/shim.sh');
     // The git configurations are links a dotfiles manager keeps into directories of the home the
     // envelope does not declare: an absolute link, a relative one, and a link to a link.
     ecrire('dotfiles/gitconfig', '[user]\n\tname = t\n');
@@ -470,9 +527,6 @@ describe.runIf(canWrap)(
       '.local/share/claude/',
       '.nvm/',
       '.npm/',
-      '.local/bin/codegraph',
-      '.local/bin/rtfm',
-      '.local/share/pipx/',
       '.dolt/',
       '.beads/',
       '.config/bd/',
@@ -516,8 +570,8 @@ describe.runIf(canWrap)(
       DBUS_SESSION_BUS_ADDRESS: `unix:path=${bus}`,
       npm_config_cache: path.join(maison, '.npm'),
     });
-    const run = (shell: string, maison = home) =>
-      spawnSync('node', [SCRIPT, copie, 'packages/a', '--', 'bash', '-c', shell], {
+    const run = (shell: string, maison = home, dans = copie) =>
+      spawnSync('node', [SCRIPT, dans, 'packages/a', '--', 'bash', '-c', shell], {
         encoding: 'utf8',
         env: env(maison),
       });
@@ -550,10 +604,62 @@ describe.runIf(canWrap)(
       expect(run('cat ~/.claude.json').stdout).toBe('{"etat":1}');
       expect(run('~/.local/bin/claude').stdout).toBe('claude-demarre\n');
     });
-    it('keeps a declared launcher that is a link a link: its package finds its other files', () => {
-      expect(run('~/.local/bin/codegraph').stdout).toBe('codegraph-voisin\n');
-      expect(run('~/.local/bin/rtfm').stdout).toBe('rtfm-voisin\n');
-      expect(run('PATH=~/.local/bin:$PATH codegraph').stdout).toBe('codegraph-voisin\n');
+    it('keeps a tool of node reached through its link: its package finds its other files', () => {
+      expect(run('PATH=~/.nvm/versions/node/v1/bin:$PATH outil').stdout).toBe('outil-voisin\n');
+    });
+    it('shows neither codegraph nor rtfm of the home: no launcher, no state, no environment', () => {
+      for (const rel of [
+        '.local/bin/codegraph',
+        '.local/bin/rtfm',
+        '.codegraph',
+        '.rtfm',
+        '.local/share/pipx',
+      ]) {
+        expect(run(`test -e ~/${rel} || test -L ~/${rel}`).status, rel).not.toBe(0);
+      }
+      expect(run('~/.local/bin/codegraph; ~/.local/bin/rtfm; true').stdout).toBe('');
+    });
+    // Ticket grillhouse-3uv.8.4, Architecture: the envelope shows no content of an index, whether
+    // its directory is seen or not; the index stays whole on disk for the roles that use it.
+    it("shows no content of an index of the repository: the main tree's, the copy's or another copy's", () => {
+      for (const dans of [copie, copieRtfm]) {
+        for (const f of INDEX) {
+          expect(run(`cat ${f}; test -e ${f}`, home, dans).status, `${dans}: ${f}`).not.toBe(0);
+          const dir = path.dirname(f);
+          expect(run(`find ${dir} -mindepth 1 2>/dev/null; true`, home, dans).stdout, dir).toBe('');
+        }
+        const r = run(`grep -rs INDEX-of-the-repository ${repo} ~ 2>/dev/null; true`, home, dans);
+        expect(r.stdout, dans).toBe('');
+      }
+    });
+    it('leaves every index whole on disk', () => {
+      run(`rm -rf ${INDEX.map(f => path.dirname(f)).join(' ')} 2>/dev/null; true`);
+      for (const f of INDEX) {
+        expect(readFileSync(f, 'utf8'), f).toBe('INDEX-of-the-repository code-of-b');
+      }
+    });
+    // The envelope's contract: « Only these are written: the agent's copy ». A copy that holds an
+    // index keeps its root written: a file is created, replaced and deleted there, a directory made.
+    it('lets a copy that holds an index create, replace and delete a file of its root', () => {
+      for (const dans of [copie, copieRtfm]) {
+        const ecrit = run(
+          'echo neuf > neuf.txt && printf remplace > t && mv t LISEZMOI && mkdir dossier-neuf' +
+            ' && echo a > efface.txt && rm efface.txt && mv neuf.txt renomme.txt',
+          home,
+          dans
+        );
+        expect(ecrit.status, `${dans}: ${ecrit.stderr}`).toBe(0);
+        expect(readFileSync(path.join(dans, 'renomme.txt'), 'utf8'), dans).toBe('neuf\n');
+        expect(readFileSync(path.join(dans, 'LISEZMOI'), 'utf8'), dans).toBe('remplace');
+        expect(existsSync(path.join(dans, 'dossier-neuf')), dans).toBe(true);
+        expect(existsSync(path.join(dans, 'efface.txt')), dans).toBe(false);
+        expect(existsSync(path.join(dans, 'neuf.txt')), dans).toBe(false);
+        const efface = run('rm LISEZMOI renomme.txt && rmdir dossier-neuf', home, dans);
+        expect(efface.status, `${dans}: ${efface.stderr}`).toBe(0);
+        expect(existsSync(path.join(dans, 'LISEZMOI')), dans).toBe(false);
+        expect(existsSync(path.join(dans, 'renomme.txt')), dans).toBe(false);
+        writeFileSync(path.join(dans, 'LISEZMOI'), 'racine');
+      }
     });
     it('lets bd read and write the tickets base of the main tree with its own state', () => {
       const cree = run('bd create "sonde de l\'enveloppe" --json');
@@ -673,11 +779,11 @@ describe.runIf(canWrap && existsSync(sessionReelle))(
 );
 
 // The probe of the ticket, on the real home of this machine: claude and the tools of the session
-// work in the envelope, each for real — claude reads its identity, bd opens a tickets base,
-// codegraph answers from an index. Its copy is the one this suite runs in, when that copy is not
+// work in the envelope, each for real — claude reads its identity, bd opens a tickets base — and
+// no index of the repository is in sight. Its copy is the one this suite runs in, when that copy is not
 // the main tree and its session directory under the real `~/.claude/projects` can be written (a
 // role session); else, where `~/.claude/projects` can be written (outside an envelope), a test
-// repository, whose tickets base and index are made here and whose session directory is removed
+// repository, whose tickets base and indexes are made here and whose session directory is removed
 // after. On the copy of this suite, bd only reads the base: the probe writes no ticket there.
 const maisonReelle = userInfo().homedir;
 const projetsReels = path.join(maisonReelle, '.claude/projects');
@@ -709,9 +815,15 @@ describe.runIf(canWrap && (copieDeLaSuite || sondeEssai))('the envelope on the r
   const dehors = (cmd: string[], cwd: string) =>
     spawnSync(cmd[0], cmd.slice(1), { cwd, encoding: 'utf8', env: reel, timeout: 60000 });
   let copie: string;
+  let principal: string;
   let symbole: string;
   if (copieDeLaSuite) {
     copie = copieDeLaSuite;
+    principal = execFileSync('git', ['-C', copie, 'worktree', 'list', '--porcelain'], {
+      encoding: 'utf8',
+    })
+      .split('\n')[0]
+      .replace(/^worktree /, '');
     symbole = 'montagesDeLaSeance';
   } else {
     const repo = essai('maison-reelle-');
@@ -724,6 +836,10 @@ describe.runIf(canWrap && (copieDeLaSuite || sondeEssai))('the envelope on the r
     dehors(['bd', 'init', '-q', '--non-interactive', '-p', 'essai'], repo);
     dehors(['bd', 'create', 'ticket de la sonde', '--json'], repo);
     dehors(['codegraph', 'init', repo], repo);
+    mkdirSync(path.join(repo, '.rtfm'), { recursive: true });
+    writeFileSync(path.join(repo, '.rtfm/index.db'), symbole);
+    principal = repo;
+    writeFileSync(path.join(repo, '.gitignore'), '.codegraph/\n.rtfm/\n');
     git('add', '.');
     git('commit', '-qm', 'init');
     copie = path.join(repo, '.claude/worktrees/demo-1');
@@ -773,10 +889,29 @@ describe.runIf(canWrap && (copieDeLaSuite || sondeEssai))('the envelope on the r
     expect(r.status, r.stderr).toBe(0);
     expect(r.stdout).toContain(ticket);
   });
-  it('lets codegraph answer from the index of the repository', () => {
-    const r = dedans(['codegraph', 'query', symbole, '-p', copie, '--json']);
-    expect(r.status, r.stderr).toBe(0);
-    expect(r.stdout).toContain(symbole);
+  it('shows no content of an index of the repository, nor the state of codegraph and rtfm', () => {
+    for (const p of [principal, copie].flatMap(t => [
+      path.join(t, '.codegraph'),
+      path.join(t, '.rtfm'),
+    ])) {
+      const r = dedans(['bash', '-c', `find ${p} -mindepth 1 2>/dev/null; true`]);
+      expect(r.stdout, p).toBe('');
+    }
+    for (const rel of ['.codegraph', '.rtfm', '.local/bin/codegraph', '.local/bin/rtfm']) {
+      const p = path.join(maisonReelle, rel);
+      const r = dedans(['bash', '-c', `test -e ${p} || test -L ${p}`]);
+      expect(r.status, p).not.toBe(0);
+    }
+  });
+  it('lets no codegraph of the session answer from the index of the repository', () => {
+    for (const t of [principal, copie]) {
+      const r = dedans([
+        'bash',
+        '-c',
+        `codegraph query ${symbole} -p ${t} --json 2>/dev/null; true`,
+      ]);
+      expect(r.stdout, t).not.toContain(symbole);
+    }
   });
   it.runIf(sondeEssai)('lets bd write a ticket in the tickets base of the repository', () => {
     const r = dedans(['bd', 'create', "ticket écrit dans l'enveloppe", '--json']);

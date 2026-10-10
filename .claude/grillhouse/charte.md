@@ -77,8 +77,9 @@ qui l'a trouvée, à valider (`docs/agents/issue-tracker.md`). Ainsi l'avancemen
   perd.
 - **L'index d'abord** : toute recherche commence par `rtfm_search` (mode `hybrid`) pour le quoi, et
   par `codegraph explore` (ou l'outil `codegraph_explore`) pour l'appel ; le shell lit un fichier
-  déjà nommé. Une recherche vide se reformule dans les mots du code. Ainsi une affirmation sur le
-  code repose sur ce que le code contient.
+  déjà nommé. Une recherche vide se reformule dans les mots du code. Dans son enveloppe, un agent
+  lit son paquet et les interfaces de ses voisins ; l'index est aux rôles qui voient tout le dépôt.
+  Ainsi une affirmation sur le code repose sur ce que le code contient.
 - Tickets : Beads (`bd`), sous le préfixe du projet, voir `docs/agents/issue-tracker.md`.
 - Compétences du dépôt : le superviseur (`pitmaster`), les six rôles (`testeur`,
   `developpeur`, `relecteur`, `integrateur`, `arbitre`, `explorateur`), l'initialisation et

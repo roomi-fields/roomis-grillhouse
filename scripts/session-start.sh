@@ -14,8 +14,18 @@ missing=()
 
 command -v bd >/dev/null || missing+=("l'outil de tickets bd (Beads)")
 [ -d "$root/.beads" ] || missing+=("le magasin de tickets (Beads)")
-command -v codegraph >/dev/null || missing+=("l'outil CodeGraph")
-[ -d "$root/.codegraph" ] || missing+=("l'index CodeGraph du code")
+# The index of CodeGraph is for the roles that see the whole repository: an agent's copy (a git
+# worktree under .claude/worktrees/) is asked for neither the tool nor the index.
+copie_agent=
+case "$root" in
+  */.claude/worktrees/*)
+    [ "$(git -C "$root" rev-parse --git-dir 2>/dev/null)" != "$(git -C "$root" rev-parse --git-common-dir 2>/dev/null)" ] && copie_agent=1
+    ;;
+esac
+if [ -z "$copie_agent" ]; then
+  command -v codegraph >/dev/null || missing+=("l'outil CodeGraph")
+  [ -d "$root/.codegraph" ] || missing+=("l'index CodeGraph du code")
+fi
 [ ! -f "$root/package.json" ] || [ -d "$root/node_modules" ] || missing+=("les dépendances npm")
 grep -q un-commit-par-ticket "$root/.beads/hooks/commit-msg" 2>/dev/null || missing+=("le crochet « un ticket, un commit »")
 command -v bwrap >/dev/null || missing+=("bubblewrap (bwrap), l'enveloppe des agents : sudo apt install bubblewrap")

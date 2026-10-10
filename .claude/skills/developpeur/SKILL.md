@@ -61,7 +61,7 @@ Ce qui guide chaque choix :
   manque, ce composant la publie, et aucun autre ne la recalcule. Ainsi l'architecture garde un
   seul endroit par calcul.
 - **L'existant d'abord** : avant d'écrire un calcul ou d'inventer un nom, tu cherches celui qui
-  existe (`codegraph explore`, le lexique, les déclarations) et tu vérifies ce qu'il fait
+  existe (ton paquet, le lexique, les interfaces de tes voisins) et tu vérifies ce qu'il fait
   réellement. Ainsi le produit garde un seul vocabulaire et un seul calcul par notion.
 - **Une entrée ambiguë se refuse** : ce que le produit ne sait pas interpréter d'une seule façon
   produit une erreur qui le nomme, jamais une supposition. Ainsi un défaut se voit là où il naît.
@@ -103,8 +103,8 @@ qui reste, ce que tu attends et de quel composant ; ton code reste dans ta copie
 livre jamais une partie de lui-même, et l'agent neuf qui le reprend repart de ton travail.
 
 **Ton composant, ton enveloppe** : tu travailles dans l'enveloppe de ton composant. Des autres, tu
-vois l'interface et la forme publiée ; tu les lis par l'index, puis par `rtfm_search`. Ainsi ton code
-passe par les interfaces, comme l'architecture le décide.
+vois l'interface et la forme publiée. Ainsi ton code passe par les interfaces, comme l'architecture
+le décide.
 
 **Une interface changée régénère l'index** : un lot qui change un `INTERFACE.md` contient l'index
 régénéré (`npm run interfaces`) ; sinon les tests refusent. Ainsi chaque agent lit ce qui existe

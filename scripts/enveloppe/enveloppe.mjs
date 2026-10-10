@@ -17,6 +17,9 @@
 //   `~/.claude`, `~/.claude.json`, the npm cache, the paths of `MAISON_EN_LECTURE` (claude, node,
 //   git and the session's tools) and the repository. No socket of the session comes back. Of
 //   the machine's credentials, only claude's own are in sight.
+// - No index of the repository is in sight: neither codegraph nor rtfm comes back in the home,
+//   and every index directory (`INDEX`) of every worktree, the copy's included, is an empty
+//   directory sealed read-only; the worktree around it keeps its mount, the copy in writing.
 // - A declared path that is a symbolic link comes back as that link, and its target with it
 //   (`avecLiens`).
 // - A worktree of the repository under an emptied directory (the home, `/tmp`) comes back
@@ -54,6 +57,9 @@ import { pathToFileURL } from 'node:url';
 import { CODE_REFUS, CODE_USAGE } from './codes.mjs';
 
 const PUBLISHED = ['package.json', 'docs/INTERFACE.md', 'dist'];
+// The directories where codegraph and rtfm keep the index of a tree they index: the source of
+// every component, which the envelope hides.
+const INDEX = ['.codegraph', '.rtfm'];
 // The machine's temporary directory: an empty one, proper to the session, replaces it. Claude
 // keeps its scratchpads there, under `claude-<uid>/<working directory in dashes>/`.
 const TEMPORAIRE = '/tmp';
@@ -71,18 +77,13 @@ const CLAUDE_EN_LECTURE = [
   'projects',
 ];
 // What the home shows read-only besides `~/.claude`, as paths relative to it: claude's launcher
-// and versions, node and its global tools (bd, codegraph), the launchers of codegraph and rtfm
-// with their state and rtfm's environment, the state of bd and of its dolt database, and the git
-// configuration. The home shows nothing else.
+// and versions, node and its global tools (bd), the state of bd and of its dolt database, and the
+// git configuration. The home shows nothing else: neither codegraph nor rtfm, whose index is for
+// the roles that see the whole repository.
 const MAISON_EN_LECTURE = [
   '.local/bin/claude',
   '.local/share/claude',
   '.nvm',
-  '.local/bin/codegraph',
-  '.codegraph',
-  '.local/bin/rtfm',
-  '.local/share/pipx',
-  '.rtfm',
   '.config/bd',
   '.beads',
   '.dolt',
@@ -262,6 +263,12 @@ export function plan({ trees, copie, composant, montages = [] }, fs) {
   if (fs.existe(gitDeLaCopie)) args.push('--ro-bind', gitDeLaCopie, gitDeLaCopie);
   const tickets = trees.length > 0 ? path.join(trees[0], '.beads') : null;
   if (tickets && fs.existe(tickets)) args.push('--bind', tickets, tickets);
+  // Every index directory of every worktree, the copy's included, becomes an empty directory in
+  // its place; the worktree around it keeps its mount.
+  const index = [...new Set([...trees, copie])]
+    .flatMap(t => INDEX.map(i => path.join(t, i)))
+    .filter(i => fs.existe(i));
+  for (const i of index) args.push('--tmpfs', i);
   for (const c of caches) if (fs.existe(c)) args.push('--tmpfs', c);
   const parent = path.join(copie, parentRel);
   for (const e of racine ? [] : fs.lister(parent)) {
@@ -279,6 +286,7 @@ export function plan({ trees, copie, composant, montages = [] }, fs) {
   // The emptied directories close behind the mounts: nothing new is written there.
   for (const c of caches) if (fs.existe(c)) args.push('--remount-ro', c);
   for (const { chemin } of montages.filter(m => m.scelle)) args.push('--remount-ro', chemin);
+  for (const i of index) args.push('--remount-ro', i);
   args.push('--chdir', copie);
   return { args };
 }

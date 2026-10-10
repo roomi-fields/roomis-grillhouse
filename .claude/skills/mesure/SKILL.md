@@ -63,7 +63,8 @@ intact, et la mesure manquante reste visible.
 
 - **Un compte par recherche de texte est un minimum** : une recherche par `grep` ou `find` donne
   un minimum. Pour savoir où vit une chose, tu passes par l'index (`rtfm_search`,
-  `codegraph explore`). Ainsi un nom écrit autrement, un chemin assemblé ou un appel indirect
+  `codegraph explore`) ; dans une enveloppe, qui n'en montre aucun, tu lis ton paquet en entier.
+  Ainsi un nom écrit autrement, un chemin assemblé ou un appel indirect
   entrent dans le compte.
 - **Un zéro se vérifie par ses causes** : avant de croire un zéro, tu vérifies le périmètre, la
   casse, le type de fichier, la forme du motif, les accents, la délégation à une autre fonction, le
