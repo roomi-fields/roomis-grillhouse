@@ -45,8 +45,7 @@ roomis-grillhouse/
 ├── scripts/
 │   ├── new-project.sh             # npm run new -- <dest> [prefix] (template only, not copied)
 │   ├── setup.sh                   # npm run setup: git, Beads tickets, dependencies
-│   ├── session-start.sh           # SessionStart hook: what is still empty (per package; exemptions in
-│   │                              #   docs/agents/hors-cadre.txt, "<package> <reason>")
+│   ├── session-start.sh           # SessionStart hook: what is still empty (per package in the frame)
 │   ├── structure-guard.sh         # UserPromptSubmit hook: a structure decision goes to the grill
 │   ├── verrous/verrou.mjs         # The role agents' write locks (tests: tests/unit/verrous.spec.ts)
 │   ├── verrous/ticket-du-sous-agent.mjs # hook: a role agent launches with « TON TICKET : <id> »
@@ -56,6 +55,8 @@ roomis-grillhouse/
 │   │   └── lancer.sh                 # one ticket → one fresh role session in its envelope
 │   ├── code-mort.mjs              # pretest: refuses dead code, measured by knip (knip.json)
 │   ├── consommateurs.mjs          # pretest: refuses an import that the provider's INTERFACE.md does not declare
+│   │                              #   composants(): the components for every check, minus the packages out of
+│   │                              #   the frame listed in docs/agents/hors-cadre.txt, "<package> <reason>"
 │   ├── frontieres.mjs             # pretest: dependency-cruiser, rules generated in .dependency-cruiser.cjs
 │   ├── interfaces-contre-code.mjs # pretest: INTERFACE.md against the API report of API Extractor (npm run api)
 │   ├── nuit.sh                    # every suite, once a night (mode « impactes »); a red opens a ticket

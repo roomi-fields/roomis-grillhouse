@@ -6,29 +6,25 @@
 //   node scripts/index-interfaces.mjs            writes docs/agents/index-des-interfaces.md
 //   node scripts/index-interfaces.mjs --verifier refuses (exit 1) when that file is out of date
 //
-// An interface is found at `packages/<x>/docs/INTERFACE.md`, `src/<x>/docs/INTERFACE.md` and
+// An interface is found at `packages/<x>/docs/INTERFACE.md` and `src/<x>/docs/INTERFACE.md` for
+// each component of `composants` (a package out of the frame has none), and at
 // `docs/INTERFACE.md`. Its title and first sentence give the component's line; each `##` and
 // `###` heading, with the first sentence under it, gives an element's line; code blocks (``` or
 // ~~~, indented or not) are skipped whole. The `## Consommateurs` section gives one line that
 // names each consumer with the elements it uses.
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { declares } from './consommateurs.mjs';
+import { composants, declares } from './consommateurs.mjs';
 
 export const SORTIE = 'docs/agents/index-des-interfaces.md';
 
-// The interface files of the repository at <racine>, as paths relative to it, in a stable order.
+// The interface files of the repository at <racine>, as paths relative to it, in a stable order:
+// the interface of each component that `composants` gives, and the root interface.
 export function interfaces(racine) {
-  const found = [];
-  for (const parent of ['packages', 'src']) {
-    const dir = path.join(racine, parent);
-    if (!existsSync(dir)) continue;
-    for (const e of readdirSync(dir, { withFileTypes: true })) {
-      const rel = path.join(parent, e.name, 'docs', 'INTERFACE.md');
-      if (e.isDirectory() && existsSync(path.join(racine, rel))) found.push(rel);
-    }
-  }
+  const found = composants(racine)
+    .map(c => path.relative(racine, path.join(c.dir, 'docs', 'INTERFACE.md')))
+    .filter(rel => existsSync(path.join(racine, rel)));
   if (existsSync(path.join(racine, 'docs', 'INTERFACE.md'))) found.push('docs/INTERFACE.md');
   return found.sort();
 }

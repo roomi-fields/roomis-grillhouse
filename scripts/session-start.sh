@@ -43,13 +43,20 @@ else
   grep -qiE '^#+ .*(arbitr)' "$charter" "$root"/docs/*.md 2>/dev/null \
     || pending+=("les critères d'arbitrage (section « Comment on arbitre » de CLAUDE.md : la référence mature du domaine, l'existant à reprendre, les exigences du domaine)")
 fi
+# The packages out of the frame: docs/agents/hors-cadre.txt ("<package> <reason>", e.g. a frozen
+# version), read by scripts/consommateurs.mjs as every check reads it. Line 1: the names listed;
+# line 2: the names that no directory under packages/ or src/ bears.
+{ read -r hors; read -r inconnus; } < <(node --input-type=module -e '
+const { pathToFileURL } = await import("node:url");
+const m = await import(pathToFileURL(process.argv[1]).href);
+process.stdout.write(`${[...m.horsCadre(process.argv[2])].join(" ")}\n${m.horsCadreInconnus(process.argv[2]).join(" ")}\n`);
+' "$root/scripts/consommateurs.mjs" "$root" 2>/dev/null)
 # One package: docs/ at the root. Several: each package under packages/ has its own three documents,
-# unless docs/agents/hors-cadre.txt lists it ("<package> <reason>", e.g. a frozen version).
-exempt="$root/docs/agents/hors-cadre.txt"
+# unless it is out of the frame.
 if ls -d "$root"/packages/*/ >/dev/null 2>&1; then
   for pkg in "$root"/packages/*/; do
     name="$(basename "$pkg")"
-    grep -qE "^$name( |$)" "$exempt" 2>/dev/null && continue
+    case " ${hors:-} " in *" $name "*) continue ;; esac
     for doc in ARCHITECTURE CADRE INTERFACE; do
       [ -f "$pkg/docs/$doc.md" ] || pending+=("packages/$name/docs/$doc.md")
     done
@@ -84,7 +91,7 @@ epopees="$(cd "$root" && bd list --type epic --all --json --limit 0 2>/dev/null 
 # The frame's files as the project installed them (scripts/grillhouse-maj.mjs).
 ecarts="$(cd "$root" && node scripts/grillhouse-maj.mjs --ecarts 2>/dev/null)"
 
-[ ${#missing[@]} -eq 0 ] && [ ${#pending[@]} -eq 0 ] && [ ${#wiring[@]} -eq 0 ] && [ -z "${nuit:-}" ] && [ -z "$epopees" ] && [ -z "$ecarts" ] && exit 0
+[ ${#missing[@]} -eq 0 ] && [ ${#pending[@]} -eq 0 ] && [ ${#wiring[@]} -eq 0 ] && [ -z "${nuit:-}" ] && [ -z "$epopees" ] && [ -z "$ecarts" ] && [ -z "${inconnus:-}" ] && exit 0
 
 echo "## Éléments du projet à définir (Roomi's Grillhouse)"
 if [ ${#missing[@]} -gt 0 ]; then
@@ -103,6 +110,9 @@ if [ -n "${nuit:-}" ]; then
 fi
 if [ -n "$epopees" ]; then
   echo "Épopées qui ont une mère : $epopees. Une épopée est un chantier, à la racine ; une mère sous un chantier est une tâche (\`bd update <id> -t task\`, docs/agents/issue-tracker.md, « Numéros et titres »)."
+fi
+if [ -n "${inconnus:-}" ]; then
+  echo "docs/agents/hors-cadre.txt nomme un dossier absent de packages/ et de src/ : $inconnus. Corrige la ligne (faute de frappe) ou retire-la : un nom sans dossier n'écarte rien."
 fi
 [ -n "$ecarts" ] && echo "$ecarts"
 exit 0

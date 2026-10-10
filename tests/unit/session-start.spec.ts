@@ -92,3 +92,72 @@ describe('the session start and the index of CodeGraph', () => {
     expect(demarrer(c, avec).stdout).not.toMatch(/CodeGraph|codegraph/);
   });
 });
+
+// Ticket grillhouse-3uv.27: the session start reads docs/agents/hors-cadre.txt as every check
+// does (« <package> <reason> », first word = a directory under packages/ or src/), and refuses a
+// line that names no directory, so that a typo does not pass in silence.
+describe('the session start and the packages out of the frame', () => {
+  const SCRIPTS = path.resolve(__dirname, '../../scripts');
+  // A project with packages a, v1 and v10, none with its three documents, the frame's scripts
+  // installed, and the given list out of the frame.
+  const avecPaquets = (liste: string | null) => {
+    const dir = mkdtempSync(path.join(racine, 'paquets-'));
+    symlinkSync(SCRIPTS, path.join(dir, 'scripts'));
+    for (const nom of ['a', 'v1', 'v10']) {
+      mkdirSync(path.join(dir, 'packages', nom, 'src'), { recursive: true });
+    }
+    mkdirSync(path.join(dir, 'src', 'gele'), { recursive: true });
+    if (liste !== null) {
+      mkdirSync(path.join(dir, 'docs', 'agents'), { recursive: true });
+      writeFileSync(path.join(dir, 'docs', 'agents', 'hors-cadre.txt'), liste);
+    }
+    const r = demarrer(dir, avec);
+    expect(r.status, r.stderr).toBe(0);
+    return r.stdout;
+  };
+  const docs = (nom: string) =>
+    ['ARCHITECTURE', 'CADRE', 'INTERFACE'].map(d => `packages/${nom}/docs/${d}.md`);
+
+  it('critère 5 — does not ask the three documents of a package out of the frame', () => {
+    const sortie = avecPaquets('v1 version gelée\n');
+    for (const d of docs('v1')) {
+      expect(sortie).not.toContain(d);
+    }
+    for (const d of [...docs('a'), ...docs('v10')]) {
+      expect(sortie).toContain(d);
+    }
+  });
+  it('critère 5 — reads the first word as every check does: a tab or a bare name', () => {
+    for (const liste of ['v1\tversion gelée\n', 'v1\n', 'v1   version gelée\n']) {
+      const sortie = avecPaquets(liste);
+      for (const d of docs('v1')) {
+        expect(sortie, JSON.stringify(liste)).not.toContain(d);
+      }
+      for (const d of docs('v10')) {
+        expect(sortie, JSON.stringify(liste)).toContain(d);
+      }
+    }
+  });
+  it('critère 6 — without hors-cadre.txt, asks the three documents of every package', () => {
+    const sortie = avecPaquets(null);
+    for (const d of [...docs('a'), ...docs('v1'), ...docs('v10')]) {
+      expect(sortie).toContain(d);
+    }
+  });
+  it('critère 6 — a blank line or a line starting with # leaves out no package', () => {
+    const sortie = avecPaquets('# v1 version gelée\n\n   \n#v10\n');
+    for (const d of [...docs('a'), ...docs('v1'), ...docs('v10')]) {
+      expect(sortie).toContain(d);
+    }
+    expect(sortie).not.toMatch(/hors-cadre\.txt/);
+  });
+  it('critère 7 — a line naming no directory under packages/ or src/ is reported', () => {
+    const sortie = avecPaquets('v1 version gelée\nv2 faute de frappe\n');
+    expect(sortie).toMatch(/hors-cadre\.txt/);
+    expect(sortie).toMatch(/\bv2\b/);
+  });
+  it('critère 7 — a line naming a directory under src/ is not reported', () => {
+    const sortie = avecPaquets('gele module gelé\nv1 version gelée\n');
+    expect(sortie).not.toMatch(/hors-cadre\.txt/);
+  });
+});

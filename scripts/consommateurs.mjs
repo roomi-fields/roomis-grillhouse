@@ -15,7 +15,9 @@
 //   node scripts/consommateurs.mjs        run from the repository root
 //
 // Components are the directories under `packages/` (reached by their package name or a relative
-// path) and under `src/` (reached by a relative path). Test files, `dist/`, `docs/` and
+// path) and under `src/` (reached by a relative path), except those listed out of the frame in
+// `docs/agents/hors-cadre.txt`: neither read nor checked, as provider or as consumer. Every check
+// of the frame enumerates the components through `composants`. Test files, `dist/`, `docs/` and
 // `node_modules/` are not production code and are not read.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -26,9 +28,25 @@ const TEST_DIR = new Set(['test', 'tests', '__tests__']);
 const isTest = name => /\.(test|spec)\.[cm]?[jt]sx?$/.test(name);
 const SKIP = new Set(['node_modules', 'dist', 'docs']);
 
-// The component directories of the repository at <racine>: [{ nom, dir }], each directory under
-// `packages/` and `src/`.
-function dossiers(racine) {
+// The list of the packages out of the frame: one line per package, « <package> <reason> », its
+// first word the name of a directory under `packages/` or `src/`; a blank line or a line starting
+// with `#` names nothing.
+const HORS_CADRE = 'docs/agents/hors-cadre.txt';
+
+// The names listed in <racine>'s `docs/agents/hors-cadre.txt`: a Set, empty without the file.
+export function horsCadre(racine) {
+  const liste = path.join(racine, HORS_CADRE);
+  if (!existsSync(liste)) return new Set();
+  const noms = new Set();
+  for (const ligne of readFileSync(liste, 'utf8').split('\n')) {
+    const mot = ligne.trim().split(/\s+/)[0];
+    if (mot && !mot.startsWith('#')) noms.add(mot);
+  }
+  return noms;
+}
+
+// Every directory under `packages/` and `src/` of the repository at <racine>: [{ nom, dir }].
+function tousDossiers(racine) {
   const found = [];
   for (const parent of ['packages', 'src']) {
     const base = path.join(racine, parent);
@@ -38,6 +56,20 @@ function dossiers(racine) {
     }
   }
   return found;
+}
+
+// The component directories of the repository at <racine>: [{ nom, dir }], each directory under
+// `packages/` and `src/` that `docs/agents/hors-cadre.txt` does not list.
+function dossiers(racine) {
+  const hors = horsCadre(racine);
+  return tousDossiers(racine).filter(d => !hors.has(d.nom));
+}
+
+// The names of `docs/agents/hors-cadre.txt` that no directory under `packages/` or `src/` bears,
+// in the order of the list.
+export function horsCadreInconnus(racine) {
+  const presents = new Set(tousDossiers(racine).map(d => d.nom));
+  return [...horsCadre(racine)].filter(nom => !presents.has(nom));
 }
 
 // The components of the repository at <racine>: [{ nom, dir, paquet }], `paquet` its package name.
@@ -54,7 +86,8 @@ export function composants(racine) {
 const EXPORT_MATIERE = './test-fixtures';
 
 // The components of <racine> whose `package.json` exports `./test-fixtures`, in any form of its
-// value: the packages of the shared test material, [{ nom, dir, paquet }] as `composants` gives.
+// value, a package out of the frame never one: the packages of the shared test material,
+// [{ nom, dir, paquet }] as `composants` gives.
 // A component whose `package.json` is unreadable is not a package of the material.
 export function matieres(racine) {
   const found = [];
@@ -179,9 +212,11 @@ export function utilise(racine, tous = composants(racine)) {
   return out;
 }
 
-// The refusals (uses no interface declares) and the reports (declared uses no code makes).
+// The refusals (uses no interface declares) and the reports (declared uses no code makes). A
+// declared consumer out of the frame is passed over: its code is not read.
 export function verifier(racine) {
   const tous = composants(racine);
+  const hors = horsCadre(racine);
   const reel = utilise(racine, tous);
   const refus = [];
   const signaux = [];
@@ -198,6 +233,7 @@ export function verifier(racine) {
       }
     }
     for (const [consommateur, noms] of declare) {
+      if (hors.has(consommateur)) continue;
       const faits = utilises.get(consommateur) ?? new Set();
       for (const n of noms) {
         if (!faits.has(n))

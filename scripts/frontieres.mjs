@@ -11,17 +11,28 @@
 // module of `src/` reaches another by its entry (`index`); production code imports no test and no
 // development dependency; every import resolves (a path a package does not export is refused);
 // an orphan file is reported, without refusing. Who uses which component is the consumers
-// check's (`scripts/consommateurs.mjs`).
+// check's (`scripts/consommateurs.mjs`). The files of a package out of the frame
+// (`docs/agents/hors-cadre.txt`) are excluded, and no module rule is written for it.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { composants } from './consommateurs.mjs';
+import { composants, horsCadre } from './consommateurs.mjs';
 
 export const CONFIGURATION = '.dependency-cruiser.cjs';
 export const RACINES = ['src', 'packages'];
 const TESTS = '(^|/)(test|tests|__tests__)/|[.](test|spec)[.][a-z]+$';
 const CODE = '^src/|^packages/[^/]+/src/';
+
+// The `exclude` pattern of the configuration: built files, and the directories under `src/` and
+// `packages/` that the list out of the frame names.
+function exclus(racine) {
+  const motifs = ['^(dist|build|coverage)/', '^packages/[^/]+/(dist|build|coverage)/'];
+  for (const nom of [...horsCadre(racine)].sort()) {
+    motifs.push(`^(packages|src)/${nom.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/`);
+  }
+  return motifs.join('|');
+}
 
 // The configuration text for the repository at <racine>.
 export function configuration(racine) {
@@ -98,7 +109,7 @@ ${regles.map(r => `    ${JSON.stringify(r)},`).join('\n')}
   ],
   options: {
     doNotFollow: { path: 'node_modules' },
-    exclude: { path: '^(dist|build|coverage)/|^packages/[^/]+/(dist|build|coverage)/' },
+    exclude: { path: '${exclus(racine).replace(/[\\']/g, '\\$&')}' },
     tsPreCompilationDeps: true,
     preserveSymlinks: true,
 ${tsconfig ? "    tsConfig: { fileName: 'tsconfig.json' },\n" : ''}    enhancedResolveOptions: {
