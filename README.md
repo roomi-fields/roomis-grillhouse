@@ -84,10 +84,14 @@ of data becomes a request to the component that provides it, not a local recompu
 ticket makes one delivery: a goal of unknown size starts with an exploration ticket, every ticket
 is created under its mother (numbered `320.2.1`) and every agent goes by its role's number, and a hook refuses a second commit for a ticket.
 
-**The board** — `npm run tableau` prints, measured and never declared, each epic's tickets in
-progress, ready, blocked, awaiting the owner, deferred and closed; Beads' order of the next
-tickets and epics; per ticket its duration, the agents' working time and tokens; what really
-runs; alerts.
+**The board** — the `grillhouse` mod (a Claude Code plugin this repository publishes, enabled in
+each project's settings) shows, measured and never declared, the epic in progress in the status
+line and, in the `/grillhouse` pane: each epic's tickets in progress, ready, blocked, awaiting the
+owner and closed; Beads' order of the next tickets and epics; per ticket its duration, the agents'
+working time and tokens; what really runs; alerts. Without the mod, `npm run tableau` prints it.
+The pane docks beside the transcript in Claude Code's fullscreen layout (`/tui fullscreen`, from
+110 columns); the wheel scrolls the transcript there only while Claude Code captures the mouse, so
+`CLAUDE_CODE_DISABLE_MOUSE` stays unset (`CLAUDE_CODE_DISABLE_MOUSE_CLICKS` keeps the wheel).
 
 The full file tree is in [STRUCTURE.md](STRUCTURE.md).
 

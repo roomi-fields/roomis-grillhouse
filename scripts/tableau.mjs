@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // The board of a project: its state in one object, measured on Beads, the session transcripts,
 // the integration lock, the agents' copies and the running processes — never on what an agent
-// writes. `npm run tableau` prints it as text.
+// writes. The Grillhouse mod draws it; it also reads as text.
 //
 //   node scripts/tableau.mjs            the board, as JSON
 //   node scripts/tableau.mjs --texte    the board, as text
