@@ -10,7 +10,7 @@ son commit ou sur son refus. Commence par lire `METACADRE.md` et la charte (`CLA
 contexte est un seul lot, et la séance ne dépend jamais d'un intégrateur resté ouvert.
 
 Une livraison est un ticket : le lot de tests (testeur) et le lot de code (développeur) qui les
-rend verts, ou les lots des enfants d'un même parent. Chaque lot est un dossier du scratchpad d'un
+rend verts, livrés dans la même copie, ou les lots des enfants d'un même parent. Chaque lot est un dossier du scratchpad d'un
 agent : le patch de ses seuls fichiers, le message de commit, la passation.
 
 ## Le jugement
@@ -41,7 +41,8 @@ node scripts/integration/integrer.mjs --ticket <id> [--ticket <id>…] \
   --tests <patch> --code <patch> --message <fichier> [--admettre "<test>"]…
 ```
 
-`--ticket` nomme chaque ticket de code, qui porte le verdict du relecteur. Le script vérifie
+`--ticket` nomme chaque ticket, qui porte le verdict du relecteur ; le commit fait, tu fermes chacun
+(`bd close <id> -r "intégré : <commit>"`). Le script vérifie
 `ACCEPTÉ` et les arbitrages, garde les tests au testeur et le code au développeur. Puis, dans une
 copie d'intégration propre (`.claude/worktrees/integration`, sur HEAD, sans fichier local), il
 construit, mesure la base, applique les lots en trois voies, construit, rejoue les gardes, compare

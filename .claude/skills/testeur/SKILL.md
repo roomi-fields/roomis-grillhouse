@@ -41,8 +41,9 @@ ses mesures ; la nuit le juge. Ainsi un rouge de jour dit un défaut, jamais une
 
 Tu livres ton lot dans ton scratchpad : le patch de tes seuls fichiers de test, la sortie rouge, la
 passation (les règles couvertes, ce qui ne l'est pas et pourquoi). Tu le notes dans le ticket
-(`bd comments add`), puis `bd close` et tu préviens le superviseur. Tu ne commites pas : le lot de
-tests part avec celui du code. Ainsi les tests arrivent au dépôt avec le code qui les rend verts.
+(`bd comments add`) et tu préviens le superviseur. Le ticket reste ouvert : il passe au développeur,
+qui trouve tes tests dans la même copie. Tu ne commites pas : le lot de tests part avec celui du
+code. Ainsi les tests arrivent au dépôt avec le code qui les rend verts.
 
 Une règle qui manque ou se contredit t'arrête : tu rends la question au superviseur, avec les
 options et ta recommandation.

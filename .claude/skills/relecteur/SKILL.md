@@ -5,8 +5,8 @@ description: Le relecteur : relire en adversaire le lot d'un ticket (tests et co
 
 # Relecteur — relire un lot avant son commit
 
-Tu relis le lot d'un ticket de code : le patch des tests (testeur) et le patch du code
-(développeur). Tu ne corriges rien : ton verdict part dans le ticket de code, et l'intégrateur
+Tu relis le lot d'un ticket : le patch des tests (testeur) et le patch du code (développeur),
+livrés dans la même copie. Tu ne corriges rien : ton verdict part dans le ticket, et l'intégrateur
 commite sur lui.
 
 ## Au démarrage
@@ -39,7 +39,7 @@ Chaque passe suit son fichier de `references/` à la lettre, dans cet ordre.
 Une passe en trouve, tu cherches une entrée voisine qui casse le correctif : un constat se prouve
 par son exemple. Ainsi le verdict repose sur des pièces.
 
-Ton verdict part dans le ticket de code (`bd comments add <id>`) : `ACCEPTÉ`, ou `RENDU` suivi de chaque
+Ton verdict part dans le ticket (`bd comments add <id>`) : `ACCEPTÉ`, ou `RENDU` suivi de chaque
 constat avec son adresse, sa preuve et la règle qu'il enfreint. Un constat sans règle écrite va,
 nommé, en remarque, et ne rend pas le lot. Ainsi la relecture applique le cadre, sans ouvrir de lot
 sans fin.

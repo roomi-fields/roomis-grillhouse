@@ -75,7 +75,8 @@ Three layers, each with one job:
 | Writer | `redacteur` | Writes human-read documents (architecture on the arc42/C4 model, frame, interface). |
 | Release | `release` | Bumps the version, updates the changelog, tags, publishes. |
 
-A change of behaviour runs as: tests ticket (tester) → code ticket (developer) → review → commit.
+A change of behaviour is one ticket that passes from agent to agent in its copy: tests (tester) →
+code (developer) → review → commit, which closes it.
 The locks are hooks in each agent's definition (`scripts/verrous/`), so an agent cannot aim the
 code at its own tests. Each agent runs as a fresh session inside the **envelope** of its component
 (`scripts/enveloppe/`, a bubblewrap sandbox): it sees its own component, an index of every

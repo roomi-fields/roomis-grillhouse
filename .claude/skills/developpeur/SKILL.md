@@ -19,8 +19,8 @@ Tu travailles un seul ticket. Le superviseur (`pitmaster`) te l'a confié ; le r
 3. Lis `docs/agents/issue-tracker.md` : la passation note l'heure de fin de chaque phase (code,
    tests ciblés, relecture, corrections, commit), heures relevées.
 4. Charge `mesure`, et `redacteur` dès que tu écris un document lu par un humain.
-5. Applique dans ta copie le lot de tests que nomme ton message de lancement
-   (`git apply <patch>`), lance-le et vois-le rouge. Ainsi ton code se mesure à des tests que tu
+5. Les tests du testeur sont déjà dans ta copie, la copie du ticket : lance-les et vois-les
+   rouges. Ainsi ton code se mesure à des tests que tu
    n'as pas écrits.
 6. Lis ton ticket en entier (`bd show`, `bd comments`), puis `bd update <id> --claim`.
 7. **Un ticket repris part de ses notes** : quand ton ticket porte des notes (`bd show` les
@@ -151,7 +151,8 @@ et le code la suit.
   dans le même tour ; ta séance s'arrête avec ton tour, et aucun
   rapport ne la réveille ensuite. Ainsi ton tour finit sur un résultat, jamais sur « j'attends ».
 - **Ton lot à l'intégrateur** : tu ne commites pas. Tu livres ton lot dans ton scratchpad : le
-  patch de tes seuls fichiers, le message de commit, la passation ; puis tu préviens le
+  patch de tes seuls fichiers, sans les tests du testeur (`code.patch`), le message de commit, la
+  passation ; puis tu préviens le
   superviseur, qui le fait relire avant l'intégrateur. Ainsi chaque commit passe le même contrôle,
   et ton travail ne heurte pas celui d'un voisin.
 - **Un lot rendu se corrige** : quand le relecteur ou l'intégrateur te rend ton lot avec la règle qu'il enfreint, tu
@@ -178,7 +179,8 @@ et le code la suit.
 
 ## La fin
 
-Passation dans le ticket avec les heures (`bd comments add`), puis `bd close` avec son motif. Le
+Passation dans le ticket avec les heures (`bd comments add`) ; le ticket reste ouvert, il passe au
+relecteur puis à l'intégrateur, qui le ferme. Le
 rapport final, court et en mots simples : la cause, ce qui est juste et la règle citée, le test et
 sa morsure, les commits, les heures, les questions. Ainsi le superviseur relit ta fermeture sur
 pièces.

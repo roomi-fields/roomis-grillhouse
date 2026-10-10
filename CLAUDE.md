@@ -40,12 +40,15 @@ maintient le projet »…). Ainsi chaque choix construit un produit mature et pr
    le correctif va dans ce mécanisme. Ainsi tout correctif passe par l'architecture.
 3. Une décision reste à prendre : `/grill-me` avant d'écrire, ses questions dans le ticket. Ainsi
    la décision est prise et écrite avant le code.
-4. Le plan va dans le ticket (`bd update <id> -d`). Un travail qui change un comportement part en
-   deux tickets : les tests d'abord (agent `testeur`), puis le code qui les rend verts (agent
-   `developpeur`). Ainsi le code se mesure à des tests qu'il n'a pas écrits.
+4. Le plan va dans le ticket (`bd update <id> -d`). Un travail qui change un comportement est un
+   seul ticket, qui passe d'un agent au suivant dans sa copie : les tests d'abord (agent
+   `testeur`), puis le code qui les rend verts (agent `developpeur`). Ainsi le code se mesure à des
+   tests qu'il n'a pas écrits.
 5. Le ticket se ferme sur ses tests ciblés, le verdict de l'agent `relecteur` sur le lot, et le
-   commit de l'agent `integrateur`, seul à commiter. Ainsi ce qui est déclaré fini l'est vraiment.
-6. `/handoff` dans le ticket, puis `bd close`, avec ce qui n'est pas fait et pourquoi.
+   commit de l'agent `integrateur`, seul à commiter, qui le ferme. Ainsi ce qui est déclaré fini
+   l'est vraiment.
+6. Chaque agent laisse sa passation dans le ticket (`/handoff`), avec ce qui n'est pas fait et
+   pourquoi.
 
 Une séance de supervision charge le superviseur (`pitmaster`). Les rôles sont des agents du projet
 (`.claude/agents/`), chacun désigné par le numéro de son rôle, dans l'ordre du flux :

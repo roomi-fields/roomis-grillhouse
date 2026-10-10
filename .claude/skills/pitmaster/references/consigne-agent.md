@@ -6,7 +6,7 @@ TON TICKET : <id> — <sujet en une ligne>. Il s'ouvre sur sa section « Archite
 
 REPRISE : <« oui » quand le ticket a été bloqué puis débloqué : ses notes disent où en est le travail, ta copie garde le code ; sinon « non »>.
 
-LOTS À LIRE : <pour le développeur, le lot de tests ; pour le relecteur, le lot de tests et le lot de code ; sinon « aucun »>.
+LOTS À LIRE : <pour le développeur, le lot de tests, déjà dans la copie du ticket ; pour le relecteur, le lot de tests et le lot de code ; sinon « aucun »>.
 
 CONTEXTE DU MOMENT : <les séances voisines et les fichiers qu'elles tiennent>.
 

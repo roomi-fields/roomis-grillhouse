@@ -78,10 +78,11 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   composant consommateur voit alors dans son enveloppe. Les lots des enfants entrent ensemble, en
   un seul commit. Ainsi chaque agent tient dans une seule enveloppe, et un retrait reste
   indivisible.
-- **Un comportement change en deux tickets** : le ticket de tests part au testeur ; le ticket de
-  code, qui en dépend (`bd dep add`), part au développeur avec le lot de tests ; le relecteur relit
-  les deux lots et rend son verdict dans le ticket de code. Ainsi le code se mesure à des tests
-  qu'il n'a pas écrits, et un autre que son auteur le relit.
+- **Un comportement qui change est un seul ticket, qui passe d'agent en agent** : dans la copie du
+  ticket, le testeur écrit les tests ; le développeur les y trouve et écrit le code ; le relecteur
+  relit les deux lots et rend son verdict au même ticket ; l'intégrateur commite et le ferme. Je
+  n'ouvre jamais un ticket par poste. Ainsi le code se mesure à des tests qu'il n'a pas écrits, un
+  autre que son auteur le relit, et le ticket se suit d'un bout à l'autre.
 - **Le ticket garde son périmètre** : je réponds aux questions de l'agent pour qu'il finisse son
   ticket. Ce qui sort du ticket devient un ticket neuf, pour un agent neuf. Ainsi chaque fermeture
   se relit sur un seul périmètre.
