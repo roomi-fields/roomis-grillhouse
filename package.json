@@ -40,7 +40,8 @@
     "frontieres": "node scripts/frontieres.mjs",
     "api": "node scripts/interfaces-contre-code.mjs --ecrire",
     "tableau": "node scripts/tableau.mjs --texte",
-    "mod:test": "claude plugin test mods/grillhouse"
+    "mod:test": "claude plugin test mods/grillhouse",
+    "grillhouse:maj": "node scripts/grillhouse-maj.mjs"
   },
   "keywords": [
     "keyword1",

@@ -71,7 +71,10 @@ fi
 # An epic is a chantier, at the root: one with a mother is a mother ticket typed by mistake.
 epopees="$(cd "$root" && bd list --type epic --all --json --limit 0 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.stdout.write(JSON.parse(s).filter(t=>t.parent).map(t=>t.id).join(" "))}catch{}})')"
 
-[ ${#missing[@]} -eq 0 ] && [ ${#pending[@]} -eq 0 ] && [ ${#wiring[@]} -eq 0 ] && [ -z "${nuit:-}" ] && [ -z "$epopees" ] && exit 0
+# The frame's files as the project installed them (scripts/grillhouse-maj.mjs).
+ecarts="$(cd "$root" && node scripts/grillhouse-maj.mjs --ecarts 2>/dev/null)"
+
+[ ${#missing[@]} -eq 0 ] && [ ${#pending[@]} -eq 0 ] && [ ${#wiring[@]} -eq 0 ] && [ -z "${nuit:-}" ] && [ -z "$epopees" ] && [ -z "$ecarts" ] && exit 0
 
 echo "## Éléments du projet à définir (Roomi's Grillhouse)"
 if [ ${#missing[@]} -gt 0 ]; then
@@ -91,3 +94,5 @@ fi
 if [ -n "$epopees" ]; then
   echo "Épopées qui ont une mère : $epopees. Une épopée est un chantier, à la racine ; une mère sous un chantier est une tâche (\`bd update <id> -t task\`, docs/agents/issue-tracker.md, « Numéros et titres »)."
 fi
+[ -n "$ecarts" ] && echo "$ecarts"
+exit 0

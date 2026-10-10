@@ -1,0 +1,45 @@
+# The frame's files: `npm run grillhouse:maj` copies them, as they are, into a project. A line
+# ending with « / » covers every file under that directory. A line « - <path> » removes that path
+# from a project: a file the frame no longer places there. The frame's own tests stay in Grillhouse.
+METACADRE.md
+.claude/grillhouse/
+.claude/agents/
+.claude/skills/arbitre/
+.claude/skills/developpeur/
+.claude/skills/explorateur/
+.claude/skills/grill/
+.claude/skills/integrateur/
+.claude/skills/mesure/
+.claude/skills/pitmaster/
+.claude/skills/redacteur/
+.claude/skills/release/
+.claude/skills/relecteur/
+.claude/skills/testeur/
+docs/agents/issue-tracker.md
+scripts/consommateurs.mjs
+scripts/enveloppe/
+scripts/frontieres.mjs
+scripts/grillhouse-maj.mjs
+scripts/index-interfaces.mjs
+scripts/integration/
+scripts/interfaces-contre-code.mjs
+scripts/nuit.sh
+scripts/registre.mjs
+scripts/session-start.sh
+scripts/setup.sh
+scripts/structure-guard.sh
+scripts/tableau.mjs
+scripts/un-commit-par-ticket.mjs
+scripts/verrous/
+- tests/unit/consommateurs.spec.ts
+- tests/unit/enveloppe.spec.ts
+- tests/unit/frontieres.spec.ts
+- tests/unit/index-interfaces.spec.ts
+- tests/unit/integrer.spec.ts
+- tests/unit/interfaces-contre-code.spec.ts
+- tests/unit/nuit.spec.ts
+- tests/unit/registre.spec.ts
+- tests/unit/tableau.spec.ts
+- tests/unit/ticket-du-sous-agent.spec.ts
+- tests/unit/un-commit-par-ticket.spec.ts
+- tests/unit/verrous.spec.ts

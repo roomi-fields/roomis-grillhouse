@@ -15,6 +15,7 @@ The skills speak French.
 | `npm run new -- <path>` | Copies the template, initialises git and the ticket store, installs the dependencies, makes the first commit. |
 | Every session start | A hook lists the key elements still empty (arbitration criteria, charter fields, architecture, frame, interfaces, lexicon) and the session proposes to grill them, each with its recommendation. It keeps proposing until they are filled. |
 | The grill | Round by round: goals, mature references and domain demands, owner, consumers, data representations, axes of change, components, interfaces, architecture, lexicon, first milestone. A structural survey of the code comes first; nothing is decided on the size of the code. |
+| `npm run grillhouse:maj` | Brings the project's frame files (`.claude/grillhouse/fichiers.txt`: skills, agents, scripts, the common charter) to Grillhouse's last version, removes the ones it dropped, adds its hooks; the project's own files stay. Each session start names a frame file a project changed: a change of the frame goes to Grillhouse. |
 | Every message | A hook sends any structure question (packages, modules, interfaces, boundaries) back to the grill. |
 | Daily work | The supervisor keeps the ticket queue, hands each ticket to a fresh developer agent, and reviews its closure against the frame. |
 
@@ -131,7 +132,7 @@ npm run new -- ~/dev/my-project [ticket-prefix]
 cd ~/dev/my-project && claude
 ```
 
-Requirements: Node.js ≥ 18, git, Claude Code. Everything else installs by default: `setup`
+Requirements: Node.js ≥ 22, git, Claude Code. Everything else installs by default: `setup`
 installs Beads and CodeGraph and indexes the code, and Claude Code offers to install the plugins the project declares when you first
 open it. An existing project adopts Grillhouse by copying the template files into it and running
 `bash scripts/setup.sh`. MIT licence.

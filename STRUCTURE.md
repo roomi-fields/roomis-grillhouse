@@ -10,6 +10,7 @@ roomis-grillhouse/
 │   ├── settings.json              # Permissions, plugins, hooks
 │   ├── template                   # Marks the template itself (not copied)
 │   ├── grillhouse/charte.md       # The common charter: the frame's rules, the same in every project
+│   ├── grillhouse/fichiers.txt    # The frame's files, copied as they are by npm run grillhouse:maj
 │   ├── agents/                    # The roles, each under its locks (scripts/verrous/)
 │   │   ├── testeur.md                # Writes a ticket's tests from the spec; writes test files only
 │   │   ├── developpeur.md            # Writes the code; no test file, no code before the Architecture section
@@ -57,6 +58,7 @@ roomis-grillhouse/
 │   ├── frontieres.mjs             # pretest: dependency-cruiser, rules generated in .dependency-cruiser.cjs
 │   ├── interfaces-contre-code.mjs # pretest: INTERFACE.md against the API report of API Extractor (npm run api)
 │   ├── nuit.sh                    # every suite, once a night (mode « impactes »); a red opens a ticket
+│   ├── grillhouse-maj.mjs         # npm run grillhouse:maj: the frame brought to its last version; --ecarts
 │   ├── tableau.mjs                # npm run tableau: the board on three levels (project, chantier, agents)
 │   ├── registre.mjs               # hook: one line per finished agent (ticket, role, time, tokens)
 │   ├── integration/               # One delivery, in a clean copy: verdicts, lots, base, guards, suites, commit
