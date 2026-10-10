@@ -740,6 +740,149 @@ describe.runIf(canWrap)(
   }
 );
 
+// The environment of the envelope (grillhouse-3uv.8.1; METACADRE intention 5, des agents cadrés):
+// as for the home, the session gets only the environment the envelope declares, and the rest is
+// emptied. It keeps the base of a login session (HOME, PATH, USER, LANG, TERM, as sudo's
+// env_reset keeps them) and claude's own credentials (ANTHROPIC_API_KEY,
+// CLAUDE_CODE_OAUTH_TOKEN); a variable that names a file comes with its file, or not at all. No
+// token of the machine reaches the session, neither in its own environment nor in that of another
+// process.
+const CERTIFICATS = '/etc/ssl/certs/ca-certificates.crt';
+describe.runIf(canWrap && existsSync(CERTIFICATS))(
+  'the envelope passes on only the environment it declares',
+  () => {
+    const home = essai('home-env-');
+    // The repository lives in the home, as on the machine.
+    const repo = path.join(home, 'dev/projet');
+    mkdirSync(path.join(repo, 'packages/a'), { recursive: true });
+    writeFileSync(path.join(repo, 'packages/a/a.ts'), 'a');
+    const git = (...a: string[]) =>
+      execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
+    git('init', '-q');
+    git('add', '.');
+    git('commit', '-qm', 'init');
+    const copie = path.join(repo, '.claude/worktrees/demo-1');
+    git('worktree', 'add', '-q', '-b', 'agent/demo-1', copie);
+    mkdirSync(path.join(home, '.claude'), { recursive: true });
+    // A certificate the envelope shows (the main tree comes back read-only), and one it hides
+    // (an undeclared directory of the home), as a house certificate under ~/.local/share.
+    const caVue = path.join(repo, 'certificats/maison.pem');
+    const caCachee = path.join(home, '.local/share/ca-certificates/maison.pem');
+    for (const ca of [caVue, caCachee]) {
+      mkdirSync(path.dirname(ca), { recursive: true });
+      writeFileSync(ca, readFileSync(CERTIFICATS));
+    }
+    // An npm cache kept elsewhere than ~/.npm: the envelope mounts it in writing.
+    const cacheAilleurs = path.join(home, 'caches/npm');
+    mkdirSync(cacheAilleurs, { recursive: true });
+
+    // Tokens of the usual tools, and two variables whose names are drawn at random, so that no
+    // list of the envelope can name them.
+    const auHasard = () => randomUUID().replace(/-/g, '_');
+    const JETONS: Record<string, string> = {
+      GH_TOKEN: 'SECRET-gh-token',
+      GITHUB_TOKEN: 'SECRET-github-token',
+      NPM_TOKEN: 'SECRET-npm-token',
+      NODE_AUTH_TOKEN: 'SECRET-node-auth-token',
+      AWS_ACCESS_KEY_ID: 'SECRET-aws-key-id',
+      AWS_SECRET_ACCESS_KEY: 'SECRET-aws-secret',
+      OPENAI_API_KEY: 'SECRET-openai-key',
+      GITLAB_TOKEN: 'SECRET-gitlab-token',
+      [`V_${auHasard()}`]: 'SECRET-unnamed-variable',
+      [`v_${auHasard()}`]: 'SECRET-unnamed-lowercase-variable',
+    };
+    // What claude needs to authenticate, and the base of the session.
+    const CLAUDE: Record<string, string> = {
+      ANTHROPIC_API_KEY: 'claude-api-key',
+      CLAUDE_CODE_OAUTH_TOKEN: 'claude-oauth-token',
+    };
+    const BASE: Record<string, string> = {
+      HOME: home,
+      PATH: process.env.PATH ?? '/usr/bin:/bin',
+      USER: userInfo().username,
+      LANG: 'C.UTF-8',
+      TERM: 'xterm-256color',
+    };
+    const env = (extra: Record<string, string> = {}) => {
+      const dehors: Record<string, string | undefined> = { ...process.env };
+      delete dehors.NODE_EXTRA_CA_CERTS;
+      return {
+        ...dehors,
+        ...BASE,
+        ...JETONS,
+        ...CLAUDE,
+        npm_config_cache: path.join(home, '.npm'),
+        ...extra,
+      };
+    };
+    const run = (shell: string, extra: Record<string, string> = {}) =>
+      spawnSync('node', [SCRIPT, copie, 'packages/a', '--', 'bash', '-c', shell], {
+        encoding: 'utf8',
+        env: env(extra),
+      });
+
+    it('passes on no variable it does not declare, named by a list or not', () => {
+      const r = run('env');
+      expect(r.status).toBe(0);
+      expect(r.stdout).not.toMatch(/SECRET/);
+      for (const nom of Object.keys(JETONS)) {
+        expect(run(`printenv ${nom}`).status, nom).not.toBe(0);
+      }
+    });
+    it('lets no process of the session read a token in the environment of another process', () => {
+      const r = run(`cat /proc/[0-9]*/environ 2>/dev/null | tr '\\0' '\\n'; true`);
+      expect(r.stdout).not.toMatch(/SECRET/);
+    });
+    it("keeps claude's own credentials: ANTHROPIC_API_KEY and CLAUDE_CODE_OAUTH_TOKEN", () => {
+      for (const [nom, valeur] of Object.entries(CLAUDE)) {
+        const r = run(`printenv ${nom}`);
+        expect(r.status, nom).toBe(0);
+        expect(r.stdout, nom).toBe(`${valeur}\n`);
+      }
+    });
+    it('keeps the base of the session: HOME, PATH, USER, LANG, TERM', () => {
+      for (const [nom, valeur] of Object.entries(BASE)) {
+        const r = run(`printenv ${nom}`);
+        expect(r.status, nom).toBe(0);
+        expect(r.stdout, nom).toBe(`${valeur}\n`);
+      }
+    });
+    it('brings a variable that names a file in sight with its file: NODE_EXTRA_CA_CERTS', () => {
+      const r = run('printenv NODE_EXTRA_CA_CERTS && test -r "$NODE_EXTRA_CA_CERTS" && node -e 0', {
+        NODE_EXTRA_CA_CERTS: caVue,
+      });
+      expect(r.stderr).toBe('');
+      expect(r.status).toBe(0);
+      expect(r.stdout).toBe(`${caVue}\n`);
+    });
+    it('passes on no variable whose file it hides: node starts without a warning', () => {
+      const r = run(
+        'if [ -n "${NODE_EXTRA_CA_CERTS-}" ]; then test -r "$NODE_EXTRA_CA_CERTS"; fi && node -e 0',
+        { NODE_EXTRA_CA_CERTS: caCachee }
+      );
+      expect(r.stderr).toBe('');
+      expect(r.status).toBe(0);
+    });
+    it('passes on no variable whose socket it hides: SSH_AUTH_SOCK', () => {
+      const prise = path.join(home, '.ssh/agent.sock');
+      mkdirSync(path.dirname(prise), { recursive: true });
+      writeFileSync(prise, '');
+      const r = run('if [ -n "${SSH_AUTH_SOCK-}" ]; then test -e "$SSH_AUTH_SOCK"; fi', {
+        SSH_AUTH_SOCK: prise,
+      });
+      expect(r.status).toBe(0);
+    });
+    it('gives npm the cache it mounts in writing, wherever the session keeps it', () => {
+      const r = run('c=$(npm config get cache) && echo "$c" && touch "$c/sonde"', {
+        npm_config_cache: cacheAilleurs,
+      });
+      expect(r.status).toBe(0);
+      expect(r.stdout.trim().split('\n').pop()).toBe(cacheAilleurs);
+      expect(existsSync(path.join(cacheAilleurs, 'sonde'))).toBe(true);
+    });
+  }
+);
+
 // The session directory of this machine, when it has one: the envelope shows it empty.
 const sessionReelle = `/run/user/${process.getuid?.()}`;
 describe.runIf(canWrap && existsSync(sessionReelle))(

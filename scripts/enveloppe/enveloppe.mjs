@@ -17,6 +17,14 @@
 //   `~/.claude`, `~/.claude.json`, the npm cache, the paths of `MAISON_EN_LECTURE` (claude, node,
 //   git and the session's tools) and the repository. No socket of the session comes back. Of
 //   the machine's credentials, only claude's own are in sight.
+// - The session gets only the environment the envelope declares (`environnementDeLaSeance`), as
+//   sudo's env_reset and bwrap's --clearenv give it: the base of a login session, claude's own
+//   configuration and credentials (`ANTHROPIC_*`, `CLAUDE_CODE_OAUTH_TOKEN`) and the npm cache it mounts. bwrap
+//   starts with that environment alone, so no other variable of the machine (`GH_TOKEN`,
+//   `NPM_TOKEN`…) enters, by name or by argument. A declared variable that names a path
+//   (`VARIABLES_DE_CHEMIN`) enters only when its path is in sight inside the envelope, tested there
+//   before the command runs. The session has its own process space: it reads the environment of
+//   no process of the machine.
 // - No index of the repository is in sight: neither codegraph nor rtfm comes back in the home,
 //   and every index directory (`INDEX`) of every worktree, the copy's included, is an empty
 //   directory sealed read-only; the worktree around it keeps its mount, the copy in writing.
@@ -92,6 +100,57 @@ const MAISON_EN_LECTURE = [
   '.config/git/ignore',
   '.config/git/attributes',
 ];
+
+// The variables of a login session that the envelope passes on, as sudo's env_reset keeps them,
+// claude's OAuth credential, and the prefixes of the families it passes on: the locale, and the
+// configuration and credentials of claude's API. The state of a launching claude session
+// (`CLAUDE_CODE_SESSION_ID`, its messaging socket and token…) stays out.
+const ENVIRONNEMENT_DECLARE = [
+  'HOME',
+  'PATH',
+  'USER',
+  'LOGNAME',
+  'SHELL',
+  'LANG',
+  'LANGUAGE',
+  'TZ',
+  'TERM',
+  'COLORTERM',
+  'CLAUDE_CODE_OAUTH_TOKEN',
+];
+const FAMILLES_DECLAREES = ['LC_', 'ANTHROPIC_'];
+// The declared variables that name a path: each enters only when its path is in sight inside the
+// envelope, so a tool never reads a path the envelope hides.
+const VARIABLES_DE_CHEMIN = [
+  'NODE_EXTRA_CA_CERTS',
+  'SSL_CERT_FILE',
+  'SSL_CERT_DIR',
+  'NVM_DIR',
+  'XDG_RUNTIME_DIR',
+];
+// Run inside the envelope before the command: unsets each named variable whose path does not
+// exist there, then runs the command. `sh -c EPREUVE sh <variables…> -- <commande…>`.
+const EPREUVE =
+  'while [ "$1" != -- ]; do eval "p=\\${$1-}"; ' +
+  'if [ -n "$p" ] && [ ! -e "$p" ]; then unset "$1"; fi; shift; done; shift; exec "$@"';
+
+// The environment of the session, from the environment <env> of the launch: the declared
+// variables and families that <env> holds, and `npm_config_cache` set to the npm cache that the
+// envelope mounts in writing. Nothing else of <env> enters.
+function environnementDeLaSeance(env, { cacheNpm }) {
+  const declare = nom =>
+    ENVIRONNEMENT_DECLARE.includes(nom) ||
+    VARIABLES_DE_CHEMIN.includes(nom) ||
+    FAMILLES_DECLAREES.some(f => nom.startsWith(f));
+  const garde = Object.entries(env).filter(([nom, v]) => v !== undefined && declare(nom));
+  return { ...Object.fromEntries(garde), npm_config_cache: cacheNpm };
+}
+
+// The command run inside the envelope: <commande>, behind the test of the variables that name a
+// path.
+function commandeEprouvee(commande) {
+  return ['/bin/sh', '-c', EPREUVE, 'sh', ...VARIABLES_DE_CHEMIN, '--', ...commande];
+}
 
 // The mounts outside the copy, in bwrap's order: an empty `/tmp`; the home that holds
 // `~/.claude` and the session directories, empty and sealed; the copy's scratchpads, the npm
@@ -244,6 +303,7 @@ export function plan({ trees, copie, composant, montages = [] }, fs) {
     '/dev',
     '--tmpfs',
     '/dev/shm',
+    '--unshare-pid',
     '--proc',
     '/proc',
   ];
@@ -339,7 +399,10 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     process.stderr.write(`⛔ ENVELOPPE REFUSÉE — ${refus}\n`);
     code = CODE_REFUS;
   } else {
-    const r = spawnSync('bwrap', [...args, ...commande], { stdio: 'inherit' });
+    const r = spawnSync('bwrap', [...args, ...commandeEprouvee(commande)], {
+      stdio: 'inherit',
+      env: environnementDeLaSeance(process.env, { cacheNpm }),
+    });
     if (r.error) process.stderr.write(`⛔ ENVELOPPE IMPOSSIBLE — ${r.error.message}\n`);
     code = r.error ? CODE_REFUS : (r.status ?? 1);
   }

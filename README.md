@@ -85,8 +85,10 @@ code at its own tests. Each agent runs as a fresh session inside the **envelope*
 (`scripts/enveloppe/`, a bubblewrap sandbox): it sees its own component, an index of every
 component's interface, and of the others only their interface and built output. Of the home and
 the session directory it shows only what it declares (claude, node, git, the session's tools and
-the repository), so of the machine's credentials only claude's own are reachable (`~/.claude` and a
-throwaway copy of `~/.claude.json`), and no socket of the session. A missing piece
+the repository), and of the environment only what it declares (the base of a login session and
+claude's own variables), in a process space of its own. So of the machine's credentials only
+claude's own are reachable (`~/.claude`, a throwaway copy of `~/.claude.json`, its API key or OAuth
+token), and no socket of the session, no token held in a variable (`GH_TOKEN`…). A missing piece
 of data becomes a request to the component that provides it, not a local recomputation. One
 ticket makes one delivery: a goal of unknown size starts with an exploration ticket, every ticket
 is created under its mother (numbered `320.2.1`) and every agent goes by its role's number, and a hook refuses a second commit for a ticket.
