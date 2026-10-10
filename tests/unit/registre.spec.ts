@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { ligne, source } from '../../scripts/registre.mjs';
+import { aRattraper, ligne, source } from '../../scripts/registre.mjs';
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/registre.mjs');
 const l = (o: object) => JSON.stringify(o);
@@ -101,5 +101,28 @@ describe('the register on disk', () => {
   it('never stops the session on a bad input', () => {
     const r = spawnSync('node', [SCRIPT], { input: 'pas du json' });
     expect(r.status).toBe(0);
+  });
+});
+
+describe('the catch-up of finished agents', () => {
+  it("finds the project's sessions, their sub-agents and the agents' copies, not the known nor the running", () => {
+    const home = mkdtempSync(path.join(tmpdir(), 'home-'));
+    const p = path.join(home, '.claude/projects');
+    const propre = path.join(p, '-depot');
+    mkdirSync(path.join(propre, 's1/subagents'), { recursive: true });
+    writeFileSync(path.join(propre, 's1.jsonl'), '');
+    writeFileSync(path.join(propre, 's1/subagents/agent-a1.jsonl'), '');
+    writeFileSync(path.join(propre, 's1/subagents/agent-a2.jsonl'), '');
+    mkdirSync(path.join(p, '-depot--claude-worktrees-demo-3'), { recursive: true });
+    writeFileSync(path.join(p, '-depot--claude-worktrees-demo-3/c1.jsonl'), '');
+    mkdirSync(path.join(p, '-autre'), { recursive: true });
+    writeFileSync(path.join(p, '-autre/x.jsonl'), '');
+    const plusTard = Date.now() + 10 * 60_000;
+    const r = aRattraper('/depot', home, new Set(['a2']), plusTard) as {
+      session_id?: string;
+      agent_id?: string;
+    }[];
+    expect(r.map(x => x.agent_id ?? x.session_id).sort()).toEqual(['a1', 'c1', 's1']);
+    expect(aRattraper('/depot', home, new Set(), Date.now())).toEqual([]);
   });
 });

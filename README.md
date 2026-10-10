@@ -94,7 +94,8 @@ line and, in the `/grillhouse` pane, three levels: the project (its work tickets
 agents' time and tokens of the day and in all, the alerts); the chantier in progress, its tree of
 mother tickets with each one's work done over all; the agents, one block per role, where each
 ticket stands once, running or waiting for the next role. A finished agent is read from the
-register its end writes (`scripts/registre.mjs`), a running one from its transcript, those launched
+register its end writes (`scripts/registre.mjs`; `--rattraper` adds the agents that ended
+before it), a running one from its transcript, those launched
 in a shell included. Without the mod, `npm run tableau` prints the same lines.
 The pane docks beside the transcript in Claude Code's fullscreen layout (`/tui fullscreen`, from
 110 columns); the wheel scrolls the transcript there only while Claude Code captures the mouse, so

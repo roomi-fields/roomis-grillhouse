@@ -367,6 +367,12 @@ export function assembler({
 
   // Chantiers.
   const sous = t => [t, ...(enfants.get(t.id) ?? []).flatMap(sous)];
+  const mesure = ids => somme(mesures.filter(m => ids.has(m.ticket)));
+  // A ticket's duration: claimed → closed, or now.
+  const dureeDe = t =>
+    t.started_at
+      ? (t.closed_at ? Date.parse(t.closed_at) : maintenant) - Date.parse(t.started_at)
+      : 0;
   const noeud = t => {
     const liste = sous(t).filter(travail);
     const faits = liste.filter(x => x.status === 'closed').length;
@@ -387,10 +393,11 @@ export function assembler({
       faits,
       total: liste.length,
       bloquePar: bloquePar(t),
+      duree: dureeDe(t),
+      ...mesure(new Set(sous(t).map(x => x.id))),
       enfants: (enfants.get(t.id) ?? []).map(noeud),
     };
   };
-  const mesure = ids => somme(mesures.filter(m => ids.has(m.ticket)));
   const racines = tous
     .filter(t => t.issue_type === 'epic' && !t.parent && t.status !== 'closed')
     .sort((a, b) => a.priority - b.priority || ordre(a, b));
@@ -399,7 +406,7 @@ export function assembler({
   for (const r of racines) {
     const n = noeud(r);
     if (n.etat === 'enCours') {
-      chantiers.push({ ...n, ...mesure(new Set(sous(r).map(x => x.id))) });
+      chantiers.push(n);
     } else {
       autres.push({ id: n.id, numero: n.numero, faits: n.faits, total: n.total });
     }
@@ -430,6 +437,7 @@ export function assembler({
     bloc(v.role).enCours.push({
       id: t.id,
       numero: numero(t.id),
+      sujet: titre(t).sujet,
       composant: titre(t).composant,
       ligne: v.ligne,
       depuis: v.depuis,
@@ -453,14 +461,19 @@ export function assembler({
     }
     const r = etape(p, verdicts[t.id] ?? null);
     if (r && bloc(r)) {
-      bloc(r).attend.push(numero(t.id));
+      bloc(r).attend.push({ numero: numero(t.id), sujet: titre(t).sujet });
     }
   }
   const debutJour = jour;
   const faitsDuJour = tous
     .filter(t => travail(t) && t.closed_at && Date.parse(t.closed_at) >= debutJour)
-    .sort(ordre)
-    .map(t => numero(t.id));
+    .sort((a, b) => Date.parse(b.closed_at) - Date.parse(a.closed_at))
+    .map(t => ({
+      numero: numero(t.id),
+      sujet: titre(t).sujet,
+      duree: dureeDe(t),
+      ...mesure(new Set([t.id])),
+    }));
 
   // Alerts.
   const alertes = [];
@@ -597,9 +610,12 @@ export function lignes(t, nom, largeur = LARGEUR) {
           }
           continue;
         }
+        const conso = n.jetons ? ` · ${k(n.jetons)}` : '';
         const droite = n.mere
-          ? `${n.faits}/${n.total}${n.etat === 'fermes' ? ' ✓' : marque(n) ? ` ${marque(n)}` : ''}`
-          : marque(n);
+          ? `${n.faits}/${n.total}${conso}${n.etat === 'fermes' ? ' ✓' : marque(n) ? ` ${marque(n)}` : ''}`
+          : n.etat === 'enCours'
+            ? `${duree(n.duree)}${conso} ▶`
+            : marque(n);
         arbre.push({
           texte: cadre(`${' '.repeat(p)}${n.numero}  ${n.sujet}`, droite, largeur),
           ton: n.etat === 'enCours' ? 'actif' : n.etat === 'fermes' ? 'discret' : undefined,
@@ -638,32 +654,47 @@ export function lignes(t, nom, largeur = LARGEUR) {
   }
 
   L('', undefined);
-  L('AGENTS', 'titre');
+  L('AGENTS  ▶ en cours · en attente', 'titre');
   const marge = 15;
+  const blanc = ' '.repeat(marge);
+  const ATTENTE_MAX = 3;
   for (const b of t.agents) {
     const tete = `${b.numero} ${b.nom}`.padEnd(marge);
-    const attend = b.attend.length ? `attend : ${liste(b.attend, largeur - marge - 9)}` : '';
-    if (b.enCours.length === 0) {
-      L(cadre(`${tete}—${attend ? ` · ${attend}` : ''}`, '', largeur), 'discret');
+    if (b.enCours.length === 0 && b.attend.length === 0) {
+      L(`${tete}—`, 'discret');
       continue;
     }
     b.enCours.forEach((x, i) => {
-      const droite = `${duree(x.travail)} · ${k(x.jetons)}`;
       L(
         cadre(
-          `${i === 0 ? tete : ' '.repeat(marge)}▶ ${x.numero} ${x.composant}${x.ligne ? ' ⌁' : ''}`,
-          droite,
+          `${i === 0 ? tete : blanc}▶ ${x.numero} ${x.composant}${x.ligne ? ' ⌁' : ''}`,
+          `${duree(x.travail)} · ${k(x.jetons)}`,
           largeur
         ),
         'actif'
       );
+      L(cadre(`${blanc}  ${x.sujet}`, '', largeur), 'discret');
     });
-    if (attend) {
-      L(cadre(`${' '.repeat(marge)}${attend}`, '', largeur), 'discret');
+    b.attend.slice(0, ATTENTE_MAX).forEach((x, i) => {
+      const debut = b.enCours.length === 0 && i === 0 ? tete : blanc;
+      L(cadre(`${debut}· ${x.numero}  ${x.sujet}`, '', largeur), 'discret');
+    });
+    if (b.attend.length > ATTENTE_MAX) {
+      L(`${blanc}+ ${b.attend.length - ATTENTE_MAX} en attente`, 'discret');
     }
   }
   if (t.faitsDuJour.length) {
-    L(cadre(`faits aujourd'hui : ${liste(t.faitsDuJour, largeur - 20)}`, '', largeur), 'discret');
+    L('', undefined);
+    L("FAITS AUJOURD'HUI", 'titre');
+    for (const x of t.faitsDuJour.slice(0, 5)) {
+      L(
+        cadre(`✓ ${x.numero}  ${x.sujet}`, `${duree(x.duree)} · ${k(x.jetons)}`, largeur),
+        'discret'
+      );
+    }
+    if (t.faitsDuJour.length > 5) {
+      L(`  + ${t.faitsDuJour.length - 5} autres`, 'discret');
+    }
   }
   return out;
 }

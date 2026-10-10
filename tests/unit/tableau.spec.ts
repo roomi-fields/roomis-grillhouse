@@ -70,8 +70,8 @@ interface Board {
   global: { compteurs: Record<string, number>; jour: object; cumul: object };
   chantiers: Noeud[];
   autres: object[];
-  agents: { enCours: object[]; attend: string[] }[];
-  faitsDuJour: string[];
+  agents: { enCours: object[]; attend: { numero: string; sujet: string }[] }[];
+  faitsDuJour: object[];
   alertes: { texte: string }[];
 }
 const plateau = (a: Parameters<typeof assembler>[0]) => assembler(a) as Board;
@@ -293,12 +293,14 @@ describe('assembler', () => {
       expect.objectContaining({ numero: 'c.1.1', composant: 'moteur', ligne: true }),
     ]);
     expect(b(3).enCours).toEqual([]);
-    expect(b(4).attend).toEqual(['c.3']);
+    expect(b(4).attend).toEqual([{ numero: 'c.3', sujet: 'demo-c.3' }]);
     expect(b(3).attend).toEqual([]);
-    expect(t.agents.flatMap((x: { attend: string[] }) => x.attend)).not.toContain('c.4');
+    expect(t.agents.flatMap(x => x.attend.map(y => y.numero))).not.toContain('c.4');
   });
   it('lists the tickets closed today', () => {
-    expect(t.faitsDuJour).toEqual(['c.1.2']);
+    expect(t.faitsDuJour).toEqual([
+      { numero: 'c.1.2', sujet: 'demo-c.1.2', duree: 0, travail: 0, jetons: 0 },
+    ]);
   });
   it('alerts on a decision awaited, a silent shell agent, a ticket in progress without anything running', () => {
     const textes = t.alertes.map((a: { texte: string }) => a.texte);
@@ -328,9 +330,13 @@ describe('assembler', () => {
     }
     const texte = l.map((x: { texte: string }) => x.texte).join('\n');
     expect(texte).toMatch(/CHANTIER c — Le chantier/);
-    expect(texte).toMatch(/c\.1 {2}Une mère +1\/2 ▶/);
+    expect(texte).toMatch(/c\.1 {2}Une mère +1\/2 · 1 k ▶/);
+    expect(texte).toMatch(/c\.1\.1 {2}Écrit +20 min · 1 k ▶|c\.1\.1 {2}Écrit/);
     expect(texte).toMatch(/\+ 1 prêts · 1 bloqués/);
     expect(texte).toMatch(/4 développeur +▶ c\.1\.1 moteur ⌁/);
+    expect(texte).toMatch(/4 développeur[^\n]*\n +Écrit/);
+    expect(texte).toMatch(/\n4 développeur[\s\S]*· c\.3 {2}demo-c\.3/);
+    expect(texte).toMatch(/✓ c\.1\.2 {2}demo-c\.1\.2/);
     expect(texte).toMatch(/autres : z 1\/1/);
   });
 });
