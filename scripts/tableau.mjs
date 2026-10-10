@@ -18,8 +18,8 @@
 //   roles that ran on it and the reviewer's last verdict (`ACCEPTÉ` or `RENDU` at the start of a
 //   comment). Then the tickets closed today.
 // - Measures: a finished agent from the register (`scripts/registre.mjs`), a running one from its
-//   transcript: a role agent launched in a shell (`TON TICKET` and `--agent` in its arguments,
-//   marked ⌁), a sub-agent or a session whose transcript moved in the last 2 minutes.
+//   transcript: a role agent launched in a shell (`TON TICKET` and `--agent` in its arguments),
+//   a sub-agent or a session whose transcript moved in the last 2 minutes.
 // - Alerts: a red night, tickets awaiting the responsable, a shell agent silent for 10 minutes,
 //   a ticket in progress without anything running for 30 minutes.
 import { execFileSync } from 'node:child_process';
@@ -676,7 +676,7 @@ export function lignes(t, nom, largeur = LARGEUR) {
     for (const x of b.enCours) {
       L(
         cadre(
-          `▶ ${x.numero}${x.ligne ? ' ⌁' : ''}  ${x.sujet}`,
+          `▶ ${x.numero}  ${x.sujet}`,
           `${duree(x.travail)} · ${k(x.jetons)}`,
           largeur
         ),

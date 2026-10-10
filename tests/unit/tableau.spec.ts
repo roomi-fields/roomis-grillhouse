@@ -355,7 +355,7 @@ describe('assembler', () => {
     expect(texte).toMatch(/c\.1 {2}Une mère +1\/2 · 1 k ▶/);
     expect(texte).toMatch(/c\.1\.1 {2}Écrit +20 min · 1 k ▶|c\.1\.1 {2}Écrit/);
     expect(texte).toMatch(/\+ 1 prêts · 1 bloqués/);
-    expect(texte).toMatch(/\n4 développeur\n▶ c\.1\.1 ⌁ {2}Écrit/);
+    expect(texte).toMatch(/\n4 développeur\n▶ c\.1\.1 {2}Écrit/);
     expect(texte).toMatch(/\n4 développeur[\s\S]*\n· c\.3 {2}demo-c\.3 +0 min · 50\n/);
     expect(texte).toMatch(/\n1 explorateur {2}—\n/);
     expect(texte).toMatch(/✓ c\.1\.2 {2}demo-c\.1\.2/);

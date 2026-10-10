@@ -7,7 +7,7 @@ const TABLEAU: Tableau = {
   lignes: [
     { texte: 'DEMO', ton: 'titre' },
     { texte: '⚠ 1 ticket(s) attendent ta décision', ton: 'attention' },
-    { texte: '4 développeur  ▶ c.1.1 moteur ⌁', ton: 'actif' },
+    { texte: '4 développeur  ▶ c.1.1  Écrit', ton: 'actif' },
   ],
   fiches: {},
   etat: '⚠ 1 · c 1/5 · ▶ 1 en cours · 1 k aujourd\'hui',
