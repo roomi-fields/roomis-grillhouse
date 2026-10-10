@@ -120,6 +120,8 @@ export const register: Register = on => {
     const { tableau: t, erreur, choisi } = await read($, etat)
     if (!t) return <Text dimColor>{erreur ?? 'Lecture du tableau…'}</Text>
     const colonnes = e.props.bodyColumns
+    // Focused, the card shows the chosen ticket; otherwise the one that moved last.
+    const montre = e.props.isFocused ? choisi : (t.dernier ?? choisi)
     // A card fills the pane's last rows: the whole title on as many lines as it takes, then the
     // component, state, duration and tokens, then the description in the rows left.
     const carte = (f: Fiche | undefined) => {
@@ -173,7 +175,7 @@ export const register: Register = on => {
         </Box>
         <Text dimColor>{'─'.repeat(colonnes)}</Text>
         <Box flexDirection="column" height={FICHE} flexShrink={0}>
-          {carte(choisi ? t.fiches[choisi] : undefined)}
+          {carte(montre ? t.fiches[montre] : undefined)}
           {Object.entries(t.fiches).map(([id, f]) => (
             // The card of the ticket under the pointer, drawn over the chosen one on a blank of its
             // size, so no character of the chosen card shows through.

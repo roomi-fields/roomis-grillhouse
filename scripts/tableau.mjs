@@ -743,6 +743,35 @@ export function fiches(tous, lignesDuTableau, prefix = '', jetons = {}, maintena
   return out;
 }
 
+// Of the tickets the lines name, the one that moved last: a running agent's ticket at its last
+// activity, any other at its last update; null when none.
+export function dernierBouge(tous, lignesDuTableau, vivants = [], maintenant = Date.now()) {
+  const ids = new Set(lignesDuTableau.map(l => l.ticket).filter(Boolean));
+  const actif = new Map();
+  for (const v of vivants) {
+    if (v.ticket) {
+      const quand = maintenant - (v.silence ?? 0);
+      actif.set(v.ticket, Math.max(actif.get(v.ticket) ?? 0, quand));
+    }
+  }
+  let dernier = null;
+  let plusTard = -Infinity;
+  for (const t of tous) {
+    if (!ids.has(t.id)) {
+      continue;
+    }
+    const quand = Math.max(
+      actif.get(t.id) ?? -Infinity,
+      Date.parse(t.updated_at ?? t.closed_at ?? t.created_at ?? '') || -Infinity
+    );
+    if (quand > plusTard) {
+      plusTard = quand;
+      dernier = t.id;
+    }
+  }
+  return dernier;
+}
+
 // The status line: the chantier in progress, alerts first.
 export function ligneEtat(t) {
   const alerte = t.alertes.length ? `⚠ ${t.alertes.length} · ` : '';
@@ -883,6 +912,7 @@ export function tableau(racine, { home = os.homedir(), maintenant = Date.now() }
     ...t,
     lignes: l,
     fiches: fiches(tous, l, prefix, parTicket, maintenant),
+    dernier: dernierBouge(tous, l, vivants, maintenant),
     etat,
   };
 }

@@ -4,6 +4,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   assembler,
+  dernierBouge,
   etape,
   fiches,
   lecture,
@@ -368,6 +369,30 @@ describe('assembler', () => {
     expect(texte).toMatch(/\n1 explorateur {2}—\n/);
     expect(texte).toMatch(/✓ c\.1\.2 {2}demo-c\.1\.2/);
     expect(texte).toMatch(/autres : z 1\/1/);
+  });
+});
+
+describe('dernierBouge', () => {
+  const T = (id: string, updated_at: string) => ({ id, title: id, status: 'open', updated_at });
+  const lignesDe = (...ids: string[]) => ids.map(ticket => ({ texte: ticket, ticket }));
+  const maintenant = Date.parse('2026-10-10T12:00:00Z');
+  it('names the ticket of the lines updated last', () => {
+    const tous = [
+      T('d-1', '2026-10-10T09:00:00Z'),
+      T('d-2', '2026-10-10T11:00:00Z'),
+      T('d-3', '2026-10-10T11:30:00Z'),
+    ];
+    expect(dernierBouge(tous, lignesDe('d-1', 'd-2'), [], maintenant)).toBe('d-2');
+  });
+  it("counts a running agent's ticket at its last activity", () => {
+    const tous = [T('d-1', '2026-10-10T08:00:00Z'), T('d-2', '2026-10-10T11:00:00Z')];
+    const vivants = [{ ticket: 'd-1', silence: 60_000 }];
+    expect(dernierBouge(tous, lignesDe('d-1', 'd-2'), vivants, maintenant)).toBe('d-1');
+  });
+  it('names none without a ticket line', () => {
+    expect(
+      dernierBouge([T('d-1', '2026-10-10T09:00:00Z')], [{ texte: 'X' }], [], maintenant)
+    ).toBeNull();
   });
 });
 
