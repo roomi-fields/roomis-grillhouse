@@ -9,7 +9,7 @@ Tu travailles un seul ticket. Le superviseur (`pitmaster`) te l'a confié ; le r
 
 ## Au démarrage
 
-1. Lis `METACADRE.md` (les intentions que sert tout le cadre) puis `CLAUDE.md` en entier : la
+1. Lis `METACADRE.md` (les intentions que sert tout le cadre) puis `CLAUDE.md` en entier, avec la charte commune qu'il importe (`.claude/grillhouse/charte.md`) : la
    charte prime sur tout le reste du projet.
 2. Lis l'index des interfaces (`docs/agents/index-des-interfaces.md`) : ce que chaque composant
    fournit. Puis les documents de référence qui existent : `CONTEXT.md` (le lexique), `docs/ARCHITECTURE.md`,

@@ -9,6 +9,7 @@ roomis-grillhouse/
 ├── .claude/                    # Claude Code integrations
 │   ├── settings.json              # Permissions, plugins, hooks
 │   ├── template                   # Marks the template itself (not copied)
+│   ├── grillhouse/charte.md       # The common charter: the frame's rules, the same in every project
 │   ├── agents/                    # The roles, each under its locks (scripts/verrous/)
 │   │   ├── testeur.md                # Writes a ticket's tests from the spec; writes test files only
 │   │   ├── developpeur.md            # Writes the code; no test file, no code before the Architecture section
@@ -36,7 +37,7 @@ roomis-grillhouse/
 │           └── scripts/update-version.cjs
 │
 ├── METACADRE.md                # The meta-frame: the framework's six intentions, how rules are written
-├── CLAUDE.md                   # Charter skeleton, filled by the initialisation grill
+├── CLAUDE.md                   # The project's charter, filled by the initialisation grill; imports the common one
 ├── README.md                   # Describes Grillhouse itself (not copied to projects)
 ├── templates/README.md         # The README a new project starts from
 ├── pitmaster/SUIVI.md          # Pitmaster follow-up (open questions, last round)

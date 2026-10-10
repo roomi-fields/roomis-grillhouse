@@ -11,7 +11,7 @@ décide avant le code, et chaque réalisation part petite et testable.
 
 ## Au démarrage
 
-1. Lis `METACADRE.md`, la charte `CLAUDE.md`, `docs/agents/issue-tracker.md`, l'index des
+1. Lis `METACADRE.md`, la charte `CLAUDE.md` et la charte commune qu'elle importe, `docs/agents/issue-tracker.md`, l'index des
    interfaces (`docs/agents/index-des-interfaces.md`), puis le cadre et l'interface des composants
    que le ticket nomme.
 2. Lis ton ticket (`bd show <id>`, `bd comments <id>`), puis `bd update <id> --claim`.

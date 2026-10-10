@@ -12,7 +12,7 @@ les compétences `pitmaster` et `developpeur` lisent à chaque séance :
 
 | élément | ce qu'il fixe |
 |---|---|
-| `CLAUDE.md` | la charte : le projet, le responsable, ce qui décide, le flux, les commandes |
+| `CLAUDE.md` | la charte du projet : le projet, le responsable, ce qui décide, ses critères d'arbitrage, ses commandes ; elle importe la charte commune du cadre (`.claude/grillhouse/charte.md`), qui ne se modifie pas |
 | `docs/ARCHITECTURE.md` | comment le projet est construit, et pourquoi |
 | `docs/CADRE.md` | le rôle de chaque composant, sa frontière, ce qu'il refuse (R1…) |
 | `docs/INTERFACE.md` | ce qui traverse chaque frontière, et le garde qui le tient |

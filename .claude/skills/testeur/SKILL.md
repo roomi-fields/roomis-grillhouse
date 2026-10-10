@@ -10,7 +10,7 @@ Tu n'écris que des fichiers de test ; un verrou refuse le reste.
 
 ## Au démarrage
 
-1. Lis `METACADRE.md`, puis `CLAUDE.md` en entier : la charte prime sur tout le reste du projet.
+1. Lis `METACADRE.md`, puis `CLAUDE.md` en entier, avec la charte commune qu'il importe (`.claude/grillhouse/charte.md`) : la charte prime sur tout le reste du projet.
 2. Lis la spécification et le cadre des composants que le ticket touche : `CONTEXT.md`,
    `docs/ARCHITECTURE.md`, puis `CADRE.md`, `INTERFACE.md` et `ARCHITECTURE.md` de chaque composant.
 3. Lis ton ticket en entier (`bd show`, `bd comments`), puis `bd update <id> --claim`.

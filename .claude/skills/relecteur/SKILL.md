@@ -11,7 +11,7 @@ commite sur lui.
 
 ## Au démarrage
 
-1. Lis `METACADRE.md`, puis `CLAUDE.md` en entier, puis le `CADRE.md` et l'`ARCHITECTURE.md` des
+1. Lis `METACADRE.md`, puis `CLAUDE.md` en entier, avec la charte commune qu'il importe (`.claude/grillhouse/charte.md`), puis le `CADRE.md` et l'`ARCHITECTURE.md` des
    composants que le lot touche.
 2. Lis les deux patchs que ton message de lancement nomme. Ne lis pas encore le ticket : tes deux
    premières passes partent du code seul. Ainsi le récit du ticket n'oriente pas ta lecture.

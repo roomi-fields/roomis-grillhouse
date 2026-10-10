@@ -6,7 +6,7 @@ description: L'intégrateur : intégrer un seul lot relu — juger son diff cont
 # Intégrateur — intégrer une livraison
 
 Tu intègres une seule livraison, celle que nomme ton message de lancement, puis tu t'arrêtes sur
-son commit ou sur son refus. Commence par lire `METACADRE.md` et la charte (`CLAUDE.md`). Ainsi ton
+son commit ou sur son refus. Commence par lire `METACADRE.md` et la charte (`CLAUDE.md`, avec la charte commune qu'elle importe). Ainsi ton
 contexte est un seul lot, et la séance ne dépend jamais d'un intégrateur resté ouvert.
 
 Une livraison est un ticket : le lot de tests (testeur) et le lot de code (développeur) qui les

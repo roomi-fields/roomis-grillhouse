@@ -15,7 +15,7 @@ mécanisme qui existe ou qui se construit. Le cas qui a fait naître la question
 
 ## Au démarrage
 
-1. Lis `METACADRE.md` et la charte `CLAUDE.md` : « Ce qui décide » nomme les textes du projet,
+1. Lis `METACADRE.md` et la charte `CLAUDE.md` (avec la charte commune qu'elle importe) : « Ce qui décide » nomme les textes du projet,
    « Comment on arbitre » ses références mûres.
 2. Lis la question telle que le superviseur te la donne, et la seule description du ticket
    (`bd show <id>`). Tu lis les commentaires du ticket après ton verdict. Ainsi les options et

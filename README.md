@@ -44,8 +44,10 @@ Three layers, each with one job:
 ├─ Project knowledge ────────────────────────────────────────────────────────────┤
 │ METACADRE.md            the six intentions every rule serves, how rules are    │
 │                         written (fixed by the framework)                       │
-│ CLAUDE.md               the charter: owner, what decides, how we arbitrate,    │
-│                         the task flow, the commands                            │
+│ CLAUDE.md               the project's charter: owner, what decides, how we     │
+│                         arbitrate, the commands; imports the common charter    │
+│ .claude/grillhouse/     the common charter: the task flow and the frame's      │
+│   charte.md             rules, the same in every project (fixed by framework)  │
 │ docs/ARCHITECTURE.md    how it is built, and why        (written by the grill) │
 │ docs/CADRE.md           each component's role and boundary (R1…)               │
 │ docs/INTERFACE.md       what crosses each boundary, and the guard that holds it│
