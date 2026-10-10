@@ -79,8 +79,9 @@ qui l'a trouvée, à valider (`docs/agents/issue-tracker.md`). Ainsi l'avancemen
 
 - ⛔ **Des commandes sans invite** : tout fichier temporaire dans le scratchpad de session ;
   `env -C <dossier>` ou `git -C` à la place de `cd` ; une suppression passe par un script du
-  scratchpad (`os.remove`) sur un chemin nommé et lu. Ainsi la séance avance seule, sans geler
-  jusqu'au passage du responsable.
+  scratchpad (`os.remove`) sur un chemin nommé et lu ; un signal vise seulement un processus que la
+  séance a lancé. Une commande dont on doute s'écrit dans le compte rendu, sans se lancer. Ainsi
+  la séance avance seule, sans geler jusqu'au passage du responsable.
 - ⛔ **Aucune commande ne fait attendre le responsable** : dans une séance où il attend, celle du
   superviseur, toute commande qui peut dépasser une minute part en arrière-plan, et son avis de fin
   réveille la séance ; aucune boucle d'attente, aucun long délai au premier plan. Ce que la séance
@@ -89,8 +90,9 @@ qui l'a trouvée, à valider (`docs/agents/issue-tracker.md`). Ainsi l'avancemen
   finit avec son tour. Ainsi le responsable n'attend jamais une commande, et aucun travail ne se
   perd.
 - **L'index d'abord** : toute recherche commence par `rtfm_search` (mode `hybrid`) pour le quoi, et
-  par `codegraph explore` (ou l'outil `codegraph_explore`) pour l'appel. Ainsi une affirmation sur
-  le code repose sur ce que le code contient.
+  par `codegraph explore` (ou l'outil `codegraph_explore`) pour l'appel ; le shell lit un fichier
+  déjà nommé. Une recherche vide se reformule dans les mots du code. Ainsi une affirmation sur le
+  code repose sur ce que le code contient.
 - Tickets : Beads (`bd`), préfixe `<prefixe>-`, voir `docs/agents/issue-tracker.md`.
 - Compétences du dépôt : le superviseur (`pitmaster`), les six rôles (`testeur`,
   `developpeur`, `relecteur`, `integrateur`, `arbitre`, `explorateur`), l'initialisation et

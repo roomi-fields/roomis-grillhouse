@@ -16,10 +16,16 @@ projet se base sur l'existant, et chaque agent trouve les mêmes outils.
 Chaque matière a une seule adresse ; une seconde adresse, quel que soit son nom, est une dérive
 majeure. Ainsi un lecteur trouve une seule version vraie.
 
+- **Un mot par chose** : l'interface d'un composant est ce qu'il offre ; un composant qui en
+  utilise un autre en dépend. Ces mots valent dans les documents, les tickets et mes phrases.
+  Ainsi chaque lecteur nomme la frontière avec les mêmes mots.
 - **Une décision vit dans le document qu'elle règle** (spécification, architecture, cadre ou
   interface du composant, charte), au présent, avec sa raison, sans ce qu'elle écarte ni son
   histoire ; ce document est son seul registre. Ainsi l'architecture dit l'état décidé, au seul
   endroit où on la cherche.
+- **Ce qui décide a une seule adresse** : la charte, à « Ce qui décide », nomme les documents qui
+  décident ; un autre document qui redéfinit cette autorité est une seconde adresse. Ainsi chaque
+  agent sait quel texte l'emporte.
 - **Les contrats entre composants** vivent dans l'`INTERFACE.md` du composant qui offre : la liste
   de ce qui traverse, avec le garde qui la tient. Le consommateur lit cette liste chez l'offrant,
   sans en tenir de copie. Ainsi une interface a un seul texte, et son garde le tient.
@@ -38,6 +44,9 @@ charte nomme ceux que le responsable valide.
 
 - **Un document faux se corrige avant d'entrer** : un document entre dans le dépôt relu et corrigé,
   ou reste dehors. Ainsi chaque document trouvé par recherche dit vrai.
+- **Un document entre trié** (Diátaxis) : une référence entre avec son générateur et se
+  régénère ; une procédure devient une compétence ; une explication entre si elle est vraie et
+  citée. Ainsi chaque document a la forme que son lecteur attend.
 - **Un écart entre document et code se lit dans les deux sens** : le document a vieilli, ou il porte
   une décision que le code n'honore pas. Je le tranche sur pièces ; sinon il s'écrit comme écart
   ouvert, que le responsable arbitre. Ainsi l'architecture décidée reste celle que le code suit.
@@ -54,23 +63,30 @@ Le flux est celui de la charte, et toutes ses compétences s'appliquent. Ce que 
 - **Une décision ouverte se grille avant le plan** : quand une décision reste à prendre, l'agent la
   grille avant d'écrire son plan, et les questions vont dans le ticket. Ainsi une décision se prend
   avant le code, jamais dans le code.
+- **Le grill reste à l'agent** : l'agent décide seul de griller, et une réponse directe du
+  responsable ne remplace pas le grill. Ainsi l'analyse s'éprouve avant d'arriver au responsable.
 - **Le ticket suit le geste** : il s'ouvre avant le premier commit et se ferme avec le travail.
   Chaque commit cite un ticket ouvert avant lui. Ainsi chaque changement du dépôt se relit avec son
   ticket.
 - **Un ticket nomme ses documents à l'ouverture** ; à la fermeture, chacun a bougé. Ainsi
-  l'architecture écrite suit le code dans le même mouvement.
+  l'architecture écrite décide, et le code la suit dans le même mouvement.
 
 ## 5. Les vérifications
 
 - **Une vérification entre sur quatre critères** : elle refuse un défaut réel, dont l'échec
   d'origine est nommé dans son fichier ; elle se tait quand tout va bien ; son temps est borné ; elle
   seule mesure ce qu'elle mesure. Ainsi chaque vérification prouve quelque chose, sans bruit.
+- **Une vérification change par le responsable** : une vérification ajoutée, retirée ou élargie
+  part avec son accord, écrit au ticket. Ainsi ce qui refuse un commit reste sa décision.
 - **Un plafond ne remonte jamais** : quand une vérification tolère des défauts jusqu'à un plafond,
   ce plafond baisse avec les corrections et ne remonte jamais. Ainsi le compte mesure le progrès
   réel.
+- **Une vérification sort quand elle ne mord plus** : celle qui ne peut plus refuser son défaut,
+  faute d'objet, sort du crochet dans le commit qui le constate. Ainsi chaque vérification
+  branchée prouve encore quelque chose.
 - **Un commentaire dit ce que la chose est, au présent** ; la décision vit dans le document qu'elle
-  règle, la mesure dans son ticket. Ainsi le code se lit sans son histoire, et chaque fait garde
-  une seule adresse.
+  règle, la mesure dans son ticket. Je le vérifie sur les commentaires neufs de chaque commit.
+  Ainsi le code se lit sans son histoire, et chaque fait garde une seule adresse.
 - **La charte grandit sur un échec réel, d'une ligne, à la place d'une autre.** Je signale une ligne
   ajoutée sans ligne retirée. Ainsi la charte reste courte, et chaque règle répond à un échec vécu.
 

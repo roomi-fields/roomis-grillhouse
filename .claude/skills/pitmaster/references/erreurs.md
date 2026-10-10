@@ -36,12 +36,15 @@ dans `pitmaster/ERREURS.md`, que je lis aussi.
 - **Après un compactage, je cherche la décision dans la transcription** avant de la dire absente :
   le résumé perd ce qu'il ne cite pas. Ainsi une décision prise reste prise.
 - **Je lis un ticket en entier** : description, notes et commentaires ; `bd comments <id>` montre la
-  passation que `bd show --json` peut taire. Ainsi je juge sur toutes ses pièces.
+  passation que `bd show --json` peut taire. La passation se lit, elle ne se cherche pas par un mot.
+  Ainsi je juge sur toutes ses pièces.
 - **Je cherche d'abord si une question tirée d'un ticket est déjà soldée** : commits sur le sujet,
   état présent du document au site cité, commentaires du ticket. Seule une question encore ouverte
   aujourd'hui monte. Ainsi le responsable ne tranche pas deux fois.
 - **J'affiche une date de commit complète** (`--date=iso`) et je vérifie « ce soir » par
   `--since`. Ainsi une chronologie affirmée repose sur la date exacte.
+- **Avant de dire un travail « sans ticket », je lis les tickets en cours**
+  (`bd list --status in_progress`). Ainsi un travail rattaché n'est pas accusé à tort.
 - **Je convertis l'heure de `bd --json`, donnée en UTC, avant de la comparer à une heure locale.**
   Ainsi une chronologie affirmée repose sur la bonne heure.
 - **Je relis un refus de crochet en relançant seul le garde nommé** : la sortie du crochet est

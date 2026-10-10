@@ -6,27 +6,33 @@ import {
   readFileSync,
   rmSync,
   symlinkSync,
+  utimesSync,
   writeFileSync,
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { CODE_COPIE, CODE_REFUS, CODE_USAGE } from '../../scripts/enveloppe/codes.mjs';
 import { montagesDeLaSeance, plan } from '../../scripts/enveloppe/enveloppe.mjs';
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/enveloppe/enveloppe.mjs');
+const CODES = path.resolve(__dirname, '../../scripts/enveloppe/codes.mjs');
 const LAUNCHER = path.resolve(__dirname, '../../scripts/enveloppe/lancer.sh');
 
-// A disk described as { path: entries } for directories and a set of existing paths.
+// A disk described as { path: entries } for directories, a set of existing paths, the outgoing
+// links of a directory and the `files` field of a directory's package.json.
 function fakeDisk(
   dirs: Record<string, { name: string; dir: boolean }[]>,
   files: string[],
-  links = {}
+  links = {},
+  manifests: Record<string, string[]> = {}
 ) {
   const exists = new Set([...Object.keys(dirs), ...files]);
   return {
     lister: (d: string) => dirs[d] ?? [],
     existe: (p: string) => exists.has(p),
     liens: (d: string) => (links as Record<string, { lien: string; cible: string }[]>)[d] ?? [],
+    publies: (d: string) => manifests[d] ?? [],
   };
 }
 
@@ -76,6 +82,57 @@ describe('plan', () => {
   });
   it('runs in the agent copy', () => {
     expect(pairs(args, '--chdir')).toEqual(['/wt']);
+  });
+});
+
+describe('plan and the files field of a sibling', () => {
+  const siblings = {
+    '/wt/packages': [
+      { name: 'a', dir: true },
+      { name: 'b', dir: true },
+      { name: 'c', dir: true },
+    ],
+    '/wt/packages/a': [],
+  };
+  const roBinds = (manifests: Record<string, string[]>, files: string[]) =>
+    pairs(
+      plan(
+        { trees: ['/main', '/wt'], copie: '/wt', composant: 'packages/a' },
+        fakeDisk(siblings, files, {}, manifests)
+      ).args,
+      '--ro-bind'
+    );
+
+  it('mounts read-only the paths that the files field names', () => {
+    const ro = roBinds({ '/wt/packages/b': ['lib'] }, [
+      '/wt/packages/b/package.json',
+      '/wt/packages/b/lib',
+      '/wt/packages/c/package.json',
+    ]);
+    expect(ro).toContain('/wt/packages/b/lib');
+    expect(ro).not.toContain('/wt/packages/c/lib');
+  });
+  it('gives a sibling without files its published parts only', () => {
+    const ro = roBinds({}, [
+      '/wt/packages/b/package.json',
+      '/wt/packages/b/dist',
+      '/wt/packages/b/lib',
+      '/wt/packages/b/src',
+    ]);
+    expect(ro).toEqual(['/', '/wt/packages/b/package.json', '/wt/packages/b/dist']);
+  });
+  it('mounts no path of files that the disk lacks', () => {
+    const ro = roBinds({ '/wt/packages/b': ['lib', 'bin'] }, ['/wt/packages/b/lib']);
+    expect(ro).toContain('/wt/packages/b/lib');
+    expect(ro).not.toContain('/wt/packages/b/bin');
+  });
+  it('mounts no path of files that leaves the sibling', () => {
+    const ro = roBinds({ '/wt/packages/b': ['../c/src'] }, ['/wt/packages/c/src']);
+    expect(ro).not.toContain('/wt/packages/c/src');
+  });
+  it('mounts a path once when files repeats a published part', () => {
+    const ro = roBinds({ '/wt/packages/b': ['dist'] }, ['/wt/packages/b/dist']);
+    expect(ro.filter(p => p === '/wt/packages/b/dist')).toHaveLength(1);
   });
 });
 
@@ -283,13 +340,13 @@ describe.runIf(canWrap)('the envelope on disk', () => {
   });
   it('refuses the main tree', () => {
     const r = run('true', repo);
-    expect(r.status).toBe(3);
+    expect(r.status).toBe(CODE_REFUS);
     expect(r.stderr).toMatch(/arbre principal/);
   });
   it('refuses to launch through a crossing link', () => {
     symlinkSync(path.join(copie, 'packages/b/src'), path.join(copie, 'packages/a/vers-b'));
     const r = run('true');
-    expect(r.status).toBe(3);
+    expect(r.status).toBe(CODE_REFUS);
     expect(r.stderr).toMatch(/traverserait l'enveloppe/);
   });
 });
@@ -302,7 +359,7 @@ describe.runIf(canWrap)('the launcher', () => {
   writeFileSync(path.join(repo, 'packages/a/src/a.ts'), 'a');
   writeFileSync(path.join(repo, 'packages/b/src/b.ts'), 'secret');
   writeFileSync(path.join(repo, '.claude/agents/developpeur.md'), '---\nname: developpeur\n---\n');
-  execFileSync('cp', [SCRIPT, path.join(repo, 'scripts/enveloppe/enveloppe.mjs')]);
+  execFileSync('cp', [SCRIPT, CODES, path.join(repo, 'scripts/enveloppe/')]);
   execFileSync('git', ['init', '-q', repo]);
   execFileSync('git', ['-C', repo, 'add', '.']);
   execFileSync('git', [
@@ -346,7 +403,7 @@ describe.runIf(canWrap)('the launcher', () => {
   it('matches the ticket whole', () => {
     const longer = path.join(repo, 'plus-long.txt');
     writeFileSync(longer, 'TON TICKET : demo-10 — un autre.');
-    expect(launch(longer).status).toBe(2);
+    expect(launch(longer).status).toBe(CODE_USAGE);
   });
   it('places the copy next to the others when launched from a copy', () => {
     const r = spawnSync('bash', [LAUNCHER, 'demo-1', 'developpeur', 'packages/a', consigne], {
@@ -385,14 +442,108 @@ describe.runIf(canWrap)('the launcher', () => {
       'main',
     ]);
     const r = launch(consigne);
-    expect(r.status).toBe(4);
+    expect(r.status).toBe(CODE_COPIE);
     expect(readFileSync(copie + '.log', 'utf8')).toMatch(/fast-forward|Not possible|impossible/i);
   });
   it('refuses an instruction without its ticket', () => {
     const other = path.join(repo, 'autre.txt');
     writeFileSync(other, 'TON TICKET : demo-2 — autre.');
     const r = launch(other);
-    expect(r.status).toBe(2);
+    expect(r.status).toBe(CODE_USAGE);
     expect(r.stderr).toMatch(/ne porte pas/);
+  });
+});
+
+describe('the exit codes', () => {
+  it('are printed as NAME=value for the launcher', () => {
+    const out = execFileSync('node', [CODES], { encoding: 'utf8' });
+    expect(out).toBe(
+      `CODE_USAGE=${CODE_USAGE}\nCODE_REFUS=${CODE_REFUS}\nCODE_COPIE=${CODE_COPIE}\n`
+    );
+  });
+  it('make the launcher exit CODE_USAGE on a malformed call', () => {
+    expect(spawnSync('bash', [LAUNCHER, 'demo-1'], { encoding: 'utf8' }).status).toBe(CODE_USAGE);
+  });
+});
+
+// The launcher before its envelope: a stand-in for npm, first in the PATH, records its calls and
+// writes the installation mark that npm writes. The installation does not depend on bwrap.
+describe('the launcher and the dependencies of the copy', () => {
+  const repo = essai('installer-');
+  for (const d of ['packages/a/src', '.claude/agents', 'scripts/enveloppe', 'bin']) {
+    mkdirSync(path.join(repo, d), { recursive: true });
+  }
+  writeFileSync(path.join(repo, 'packages/a/src/a.ts'), 'a');
+  writeFileSync(path.join(repo, '.claude/agents/developpeur.md'), '---\nname: developpeur\n---\n');
+  writeFileSync(path.join(repo, 'package.json'), '{"name":"t","private":true}\n');
+  writeFileSync(path.join(repo, 'package-lock.json'), '{"lockfileVersion":3}\n');
+  writeFileSync(path.join(repo, '.gitignore'), 'node_modules\nbin\nappels\nconsigne.txt\n');
+  execFileSync('cp', [SCRIPT, CODES, path.join(repo, 'scripts/enveloppe/')]);
+  const appels = path.join(repo, 'appels');
+  writeFileSync(
+    path.join(repo, 'bin/npm'),
+    [
+      '#!/bin/bash',
+      `echo "$*" >> ${appels}`,
+      '[ "$1" = config ] && { echo "$HOME/.npm"; exit 0; }',
+      '[ "$3" = install ] && mkdir -p "$2/node_modules" && touch "$2/node_modules/.package-lock.json"',
+      'exit 0',
+      '',
+    ].join('\n'),
+    { mode: 0o755 }
+  );
+  const consigne = path.join(repo, 'consigne.txt');
+  writeFileSync(consigne, 'TON TICKET : demo-1 — un sujet.');
+  execFileSync('git', ['init', '-q', repo]);
+  execFileSync('git', ['-C', repo, 'add', '.']);
+  execFileSync('git', [
+    '-C',
+    repo,
+    '-c',
+    'user.name=t',
+    '-c',
+    'user.email=t@t',
+    'commit',
+    '-qm',
+    'init',
+  ]);
+  const home = essai('home-');
+  const copie = path.join(repo, '.claude/worktrees/demo-1');
+  const lock = path.join(copie, 'package-lock.json');
+  const mark = path.join(copie, 'node_modules/.package-lock.json');
+  const installs = () => {
+    writeFileSync(appels, '');
+    spawnSync('bash', [LAUNCHER, 'demo-1', 'developpeur', 'packages/a', consigne], {
+      cwd: repo,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CLAUDE_BIN: 'true',
+        HOME: home,
+        PATH: `${path.join(repo, 'bin')}:${process.env.PATH}`,
+      },
+    });
+    return readFileSync(appels, 'utf8')
+      .split('\n')
+      .filter(l => / install /.test(l)).length;
+  };
+  const age = (file: string, seconds: number) => {
+    const t = new Date(Date.now() - seconds * 1000);
+    utimesSync(file, t, t);
+  };
+
+  it('installs a copy without node_modules', () => {
+    expect(installs()).toBe(1);
+    expect(existsSync(mark)).toBe(true);
+  });
+  it('reinstalls when package-lock.json is newer than the installation', () => {
+    age(mark, 3600);
+    age(lock, 0);
+    expect(installs()).toBe(1);
+  });
+  it('does not reinstall an up-to-date copy', () => {
+    age(lock, 3600);
+    age(mark, 0);
+    expect(installs()).toBe(0);
   });
 });

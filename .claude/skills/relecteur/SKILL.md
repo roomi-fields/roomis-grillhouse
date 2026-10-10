@@ -25,10 +25,11 @@ Chaque passe suit son fichier de `references/` à la lettre, dans cet ordre.
    scratchpad (`bd show <id> > <scratchpad>/ticket.md`) : c'est le fichier d'affirmations.
 2. **Les trous de vérification** (`references/verification-gap.md`) : chaque comportement changé
    qu'un test ne protège pas réellement.
-3. **Le cadre** : chaque règle du `CADRE.md` et de l'architecture que le ticket cite est tenue ; le
-   code traite la classe de problèmes, à l'adresse que nomme la section « Architecture », et non le
-   seul cas signalé. Ainsi le correctif va du plus large vers le plus spécifique.
-4. **Les entrées** : chaque fonction de la porte du composant reçoit les types que la section
+3. **Le cadre** : chaque règle du `CADRE.md`, de l'architecture et de la spécification que le
+   ticket cite est tenue ; le code traite la classe de problèmes, à l'adresse que nomme la section
+   « Architecture », et non le seul cas signalé. Ainsi le correctif va du plus large vers le plus
+   spécifique.
+4. **Les entrées** : chaque fonction de l'interface du composant reçoit les types que la section
    « Reçoit » du cadre nomme, jamais une table ou un registre entier. Ainsi le composant ne peut pas
    refaire le calcul d'un voisin.
 5. **L'existant** : cette notion existe-t-elle déjà ailleurs dans le projet, dans ce composant ou un

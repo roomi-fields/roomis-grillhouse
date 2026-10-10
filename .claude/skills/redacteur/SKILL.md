@@ -27,6 +27,8 @@ les mots qu'il emploie lui-même. La langue du document est celle de la charte.
 - **Une information, une adresse** : elle vit à une seule place, dans le document et entre les
   documents ; ce qu'un autre document dit se cite par un renvoi, en fin de section. Ainsi chaque
   décision de l'architecture a une seule version, celle que le code suit.
+- **Deux choses parallèles se décrivent de la même manière** : si les entrées passent par un bus,
+  les sorties aussi, ou aucune des deux n'en parle. Ainsi le lecteur compare ce qui se compare.
 - **Le document parle de son sujet** : une architecture décrit le produit ; l'organisation du
   dépôt et la façon de travailler vivent dans la charte. Ainsi chaque document répond à une seule
   question.

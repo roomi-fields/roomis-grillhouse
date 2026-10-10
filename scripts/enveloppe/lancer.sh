@@ -6,25 +6,29 @@
 #
 # - The agent's copy is the worktree .claude/worktrees/<ticket> (branch agent/<ticket>), created
 #   from the main tree's HEAD when absent and moved forward to it otherwise (a refusal, such as
-#   commits of the agent on its branch, goes to the log and stops the launch, exit code 4). Its dependencies are installed and every component is built there,
-#   outside the envelope, so the agent finds the published parts of its neighbours.
+#   commits of the agent on its branch, goes to the log and stops the launch, CODE_COPIE). Its
+#   dependencies are installed when `node_modules` is absent or `package-lock.json` is newer than
+#   the last installation (`node_modules/.package-lock.json`, written by npm), and every component
+#   is built there, outside the envelope, so the agent finds the published parts of its neighbours.
 # - The session runs `claude -p` with the role's agent and the instruction file as its prompt;
 #   the prompt carries « TON TICKET : <ticket> », which the role's locks read. The envelope is the
 #   sandbox, so the session runs without permission prompts.
-# - Its output, and an envelope refusal (exit code 3), go to .claude/worktrees/<ticket>.log; the
+# - Its output, and an envelope refusal (CODE_REFUS), go to .claude/worktrees/<ticket>.log; the
 #   agent writes its report in the ticket.
+# - The exit codes are named in scripts/enveloppe/codes.mjs; a malformed call exits CODE_USAGE.
 # - CLAUDE_BIN replaces `claude` (the tests use it).
 set -euo pipefail
-[ $# -eq 4 ] || { echo "usage: lancer.sh <ticket> <rôle> <composant> <fichier de consigne>" >&2; exit 2; }
+eval "$(node "$(dirname "${BASH_SOURCE[0]}")/codes.mjs")"
+[ $# -eq 4 ] || { echo "usage: lancer.sh <ticket> <rôle> <composant> <fichier de consigne>" >&2; exit "$CODE_USAGE"; }
 ticket=$1 role=$2 composant=$3 consigne=$4
 # The main tree, from the common git directory: launched from an agent copy, the new copy still
 # lands next to the others, never inside one.
 racine=$(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd)
-[ -f "$racine/.claude/agents/$role.md" ] || { echo "⛔ Rôle inconnu : $role (.claude/agents/$role.md absent)." >&2; exit 2; }
-[ -f "$consigne" ] || { echo "⛔ Consigne introuvable : $consigne" >&2; exit 2; }
+[ -f "$racine/.claude/agents/$role.md" ] || { echo "⛔ Rôle inconnu : $role (.claude/agents/$role.md absent)." >&2; exit "$CODE_USAGE"; }
+[ -f "$consigne" ] || { echo "⛔ Consigne introuvable : $consigne" >&2; exit "$CODE_USAGE"; }
 # The ticket is matched whole: `demo-3160` is not `demo-316`, and its dots are dots.
 motif=$(printf '%s' "$ticket" | sed 's/[.[\*^$]/\\&/g')
-grep -qE "TON TICKET : ${motif}([^A-Za-z0-9_.-]|$)" "$consigne" || { echo "⛔ La consigne ne porte pas « TON TICKET : $ticket »." >&2; exit 2; }
+grep -qE "TON TICKET : ${motif}([^A-Za-z0-9_.-]|$)" "$consigne" || { echo "⛔ La consigne ne porte pas « TON TICKET : $ticket »." >&2; exit "$CODE_USAGE"; }
 
 copie="$racine/.claude/worktrees/$ticket"
 journal="$copie.log"
@@ -38,10 +42,13 @@ mkdir -p "$(dirname "$copie")"
   fi
   if [ -f "$copie/package.json" ]; then
     # --no-save leaves the lock file as committed, so a clean copy stays clean.
-    [ -d "$copie/node_modules" ] || npm --prefix "$copie" install --no-save --no-audit --no-fund --silent || exit 1
+    installe="$copie/node_modules/.package-lock.json"
+    if [ ! -d "$copie/node_modules" ] || [ "$copie/package-lock.json" -nt "$installe" ]; then
+      npm --prefix "$copie" install --no-save --no-audit --no-fund --silent || exit 1
+    fi
     npm --prefix "$copie" run build --if-present --silent || exit 1
   fi
-) > "$journal" 2>&1 || { echo "⛔ La copie $copie n'a pas pu être préparée : voir $journal." >&2; exit 4; }
+) > "$journal" 2>&1 || { echo "⛔ La copie $copie n'a pas pu être préparée : voir $journal." >&2; exit "$CODE_COPIE"; }
 
 exec node "$racine/scripts/enveloppe/enveloppe.mjs" "$copie" "$composant" -- \
   "${CLAUDE_BIN:-claude}" -p "$(cat "$consigne")" --agent "$role" \

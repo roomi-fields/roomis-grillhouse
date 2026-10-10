@@ -9,6 +9,9 @@ construction ; la recommandation vient au grill. Chaque point se répond par ce 
 avec son fichier et son symbole : c'est la seule réponse recevable. Ainsi l'architecture se décide
 sur une preuve, et un compte de lignes, de fichiers ou d'imports ne répond à aucun point.
 
+L'index d'abord : `codegraph explore` pour les appels, `rtfm_search` en mode hybrid pour les
+documents. Ainsi le relevé voit les appels indirects qu'une recherche de texte manque.
+
 1. **Les points d'entrée** — ce que le projet exporte, sa ligne de commande, ses scripts ; pour
    chacun, ce qu'il reçoit et ce qu'il rend.
 2. **La chaîne de traitement** — les étapes, dans l'ordre, de l'entrée à la sortie : qui appelle
@@ -28,6 +31,8 @@ sur une preuve, et un compte de lignes, de fichiers ou d'imports ne répond à a
    s'écrit à la main.
 8. **Les tests** — ce que chaque test mesure, et à travers quelle surface. Signale chaque test qui
    ouvre l'intérieur d'un module : l'interface manque là.
+9. **La référence mature** — comment le produit mature du domaine (nommé, celui de la charte
+   d'abord) construit la même chose, et en quoi le dépôt la suit ou s'en écarte.
 
 Rends chaque point avec ses pièces (fichier, symbole, extrait court), puis la liste des questions
 que le code ne tranche pas.

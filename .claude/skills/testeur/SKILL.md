@@ -22,8 +22,8 @@ Tu n'écris que des fichiers de test ; un verrou refuse le reste.
 `INTERFACE.md`, `CADRE.md`), et son nom la cite. L'exemple du ticket en est un cas parmi d'autres.
 Ainsi le code qui les fait passer traite la règle, pas l'exemple.
 
-**Plusieurs cas par règle** : le cas nominal, ses voisins, ses bords et ses refus. Ainsi un code
-taillé pour un seul cas échoue.
+**Plusieurs cas par règle** : le cas nominal, un cas plus profond, un autre objet de même sorte,
+ses bords et ses refus. Ainsi un code taillé pour l'exemple du ticket échoue.
 
 **Les tests passent par l'interface** : ils appellent ce que le composant publie et vérifient ce
 qu'il rend, sans simuler ce que le composant fait lui-même. Ainsi ils restent vrais quand le code

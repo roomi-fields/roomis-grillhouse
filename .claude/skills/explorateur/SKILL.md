@@ -11,9 +11,9 @@ décide avant le code, et chaque réalisation part petite et testable.
 
 ## Au démarrage
 
-1. Lis `METACADRE.md`, la charte `CLAUDE.md`, l'index des interfaces
-   (`docs/agents/index-des-interfaces.md`), puis le cadre et l'interface des composants que le
-   ticket nomme.
+1. Lis `METACADRE.md`, la charte `CLAUDE.md`, `docs/agents/issue-tracker.md`, l'index des
+   interfaces (`docs/agents/index-des-interfaces.md`), puis le cadre et l'interface des composants
+   que le ticket nomme.
 2. Lis ton ticket (`bd show <id>`, `bd comments <id>`), puis `bd update <id> --claim`.
 
 ## Les étapes
@@ -30,7 +30,9 @@ décide avant le code, et chaque réalisation part petite et testable.
    un seul comportement par ses tests, et fait une seule livraison. Un travail qui traverse
    plusieurs composants devient un ticket parent, un enfant par composant, le fournisseur d'abord.
    Chaque critère de fin se confronte à la spécification et se mesure par une sonde avant d'être
-   proposé. Ainsi aucun ticket ne vise un résultat que la spécification interdit.
+   proposé, la sortie de la sonde au ticket. Un critère que la spécification contredit ou que la
+   sonde dément se reformule, ou monte au superviseur. Ainsi aucun ticket ne vise un résultat que
+   la spécification interdit.
    *Fini quand* chaque ticket proposé a sa section « Architecture », son composant et son critère de
    fin vérifiable, confronté et mesuré.
 

@@ -16,6 +16,8 @@ intact, et la mesure manquante reste visible.
 
 ## Avant de mesurer
 
+1. **Un axe qui peut voir l'effet** : avant de mesurer, tu montres que ton axe peut bouger sous
+   l'effet cherché. Ainsi un axe immobile ne passe pas pour une absence d'effet.
 2. **Le cas qui sépare deux explications** : entre deux explications, tu construis le cas où elles
    donnent deux résultats différents, puis tu le mesures. Ainsi tu tranches sur une différence, et
    non sur une vérification de plus du même cas.
@@ -41,14 +43,18 @@ intact, et la mesure manquante reste visible.
 8. **Un résultat trouvé se vérifie aussi** : une recherche qui trouve se vérifie comme une recherche
    qui ne trouve rien (son périmètre, sa casse, le type de fichier lu). Ainsi un résultat unique
    ne cache pas les autres.
+9. **Ralentir après une trouvaille** : quand tu viens de trouver, tu vérifies que ton outil répond
+   à la question posée, et non à sa voisine. Ainsi la satisfaction de trouver ne saute pas la
+   vérification.
 10. **La sortie entière** : tu conclus sur la sortie complète d'une commande ; tu la tronques
     seulement quand tu sais déjà ce que tu cherches. Ainsi rien de ce qui contredit ta conclusion
     ne reste hors de vue.
 11. **On répare l'outil, et le témoin reste** : quand un témoin contredit ton outil, c'est l'outil
     qui se corrige. Ainsi l'outil devient juste pour toutes les mesures suivantes.
 12. **On répare tous les jumeaux** : un défaut corrigé dans un outil se cherche et se corrige dans
-    les outils écrits sur le même modèle. Ainsi le défaut se règle à sa source, du plus large vers
-    le plus spécifique.
+    les outils écrits sur le même modèle. Un jumeau immuable, comme un message de commit poussé, se
+    marque ailleurs, et tu le dis. Ainsi le défaut se règle à sa source, du plus large vers le plus
+    spécifique.
 13. **Deux défauts du même genre, une cause commune** : au deuxième défaut du même genre, tu
     cherches ce que les deux ont en commun, et tu corriges cette cause. Ainsi la correction porte
     sur le problème plus large dont les deux défauts sont les manifestations.
@@ -65,6 +71,9 @@ intact, et la mesure manquante reste visible.
   l'étroitesse de la recherche.
 - **Inventorier par les lecteurs** : un inventaire part des lecteurs dans le code, puis va aux
   données. Ainsi il compte ce que le produit utilise.
+- **Un dossier ne couvre pas un composant** : les données d'un composant vivent aussi dans son
+  code (gabarits, chaînes, tableaux de lignes joints) ; un relevé fait sur un dossier le dit. Ainsi
+  un relevé ne prend pas une partie pour le tout.
 - **Un lecteur se compte par son usage** : le nombre de fichiers qui citent un chemin est un
   maximum ; les lecteurs se comptent dans le code qui l'ouvre. Ainsi une citation dans un
   commentaire ou un document ne passe pas pour un usage.
@@ -95,6 +104,18 @@ signale comme un trou. Ainsi un défaut de ta recherche ne devient pas un fait d
 - **Une interface se mesure en l'exécutant** : tu appelles l'interface, tu comptes ce qu'elle rend
   et ce que les autres composants appellent vraiment. Ainsi la mesure peut contredire le code, ce
   qu'une lecture du code ne fait jamais.
+- **Trois instruments, chacun aveugle** : le manifeste voit ce qu'un composant déclare publier,
+  l'appel réel ce qu'un autre ouvre vraiment, le garde ce qu'un composant défend. Un relevé dit de
+  quel instrument il vient, donc ce qu'il ne voit pas. Ainsi aucune mesure d'une interface ne passe
+  pour un total.
+- **Une sonde accepte tout ce qui est valide** : elle accepte chaque valeur que l'interface peut
+  légitimement rendre (« rien » pour un refus, un objet sans prototype). Ainsi un échec de la sonde
+  accuse l'interface, et non l'observateur.
+- **Un objet porte plus que sa classe** : ses champs se relèvent sur l'objet construit, car le
+  constructeur pose des champs que la classe ne déclare pas. Ainsi le relevé décrit ce que l'objet
+  porte.
+- **Un filtre de chemin porte sur les fichiers** : il se pose sur les noms de fichiers, et non sur
+  des lignes qui ont perdu leur nom de fichier. Ainsi le filtre écarte vraiment ce qu'il vise.
 - **Un import se lit en entier** : un import écrit sur plusieurs lignes se lit comme un bloc. Ainsi
   chaque nom importé compte, y compris ceux des lignes sans `from`.
 - **Un motif borné par ses délimiteurs** : un motif de recherche s'ancre sur les délimiteurs de ce
@@ -112,6 +133,16 @@ signale comme un trou. Ainsi un défaut de ta recherche ne devient pas un fait d
   tu lances `git status`. Ainsi un fichier neuf non suivi, absent des copies, se repère avant
   d'être pris pour un défaut d'import.
 
+## Agréger des états
+
+- **Une forme illisible se compte** : ce que l'agrégateur ne sait pas lire se compte et se dit, et
+  un composant dont aucun état n'est lisible fait refuser. Ainsi une colonne ne tombe pas à zéro
+  en silence.
+- **« Ne rend pas la main » est un état** : ni vert, ni rouge, ni partiel. Ainsi un blocage ne
+  passe pas pour un verdict.
+- **Un producteur se liste chez l'agrégateur** : chaque fiche d'état a son lecteur, et ce qui
+  manque au tableau se compte et se dit. Ainsi un tableau troué ne se lit pas comme complet.
+
 ## Prouver qu'un garde mord
 
 - **Un garde se prouve par une faute injectée** : tu injectes chez toi une faute réelle, et le
@@ -123,6 +154,8 @@ signale comme un trou. Ainsi un défaut de ta recherche ne devient pas un fait d
 - **Chaque injection repart de la source** : chaque faute s'injecte dans une copie neuve de la
   source, jamais dans un objet déjà modifié par une autre injection. Ainsi chaque résultat mesure
   une seule faute.
+- **Une morsure se relit** : quand un garde mord, tu vérifies qu'il a mordu un défaut, et non une
+  forme voulue. Ainsi un critère trop strict n'accuse pas un code juste.
 
 ## Écrire une assertion juste
 
@@ -161,6 +194,11 @@ affirme.
   prochain lecteur ne la croit pas close.
 - **Le symbole avec la ligne** : une citation de code donne le nom du symbole en plus du numéro de
   ligne. Ainsi la citation reste juste quand les lignes bougent.
+- **Ce qui ne s'y confond pas** : une citation nomme aussi ce qui lui ressemble et ne s'y applique
+  pas. Ainsi le lecteur ne prend pas le voisin pour la pièce.
+- **Une copie se mesure contre son amont** : une donnée de test qui affirme copier une source se
+  compare à elle par du code ; une donnée réduite ne prétend rien copier. Ainsi une copie périmée
+  se voit.
 - **« Pas mesuré » est une réponse** : quand tu n'as pas mesuré, tu réponds « pas mesuré ». Ainsi
   une supposition ne passe pas pour une mesure.
 - **Ton propre travail se mesure aussi** : avant d'affirmer quelque chose sur ce que tu as fait, tu
@@ -181,11 +219,14 @@ affirme.
 
 - **Ce qui tenait tient encore** : après une correction, tu revérifies les observations faites
   ailleurs qui en dépendent. Ainsi une correction juste ne rend pas aveugle un outil juste.
+- **Un indice se revalide** : quand la cause qu'un indice détectait est corrigée, tu vérifies
+  qu'il discrimine encore. Ainsi un indice devenu muet ne passe pas pour un vert.
 - **Une exclusion se vérifie chez celui qu'elle protège** : quand une règle ou un garde exclut un
   cas pour protéger un composant, tu vérifies l'exclusion dans ce composant, pas là où elle est
   écrite. Ainsi elle protège vraiment ce composant.
 - **Corriger, c'est remplacer** : dans un document de référence, la phrase fausse se remplace par
-  la juste. Ainsi le lecteur ne trouve que la version juste.
+  la juste ; dans un registre, l'entrée fausse se marque sur place, datée. Ainsi le lecteur ne
+  trouve que la version juste.
 - **Une exécution se compte par ses appels** : tu comptes les lancements d'un programme, en
   interposant un appelant qui les note, et non les lignes de sa sortie. Ainsi les sous-processus
   comptent aussi.

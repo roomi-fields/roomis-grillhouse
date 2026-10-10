@@ -51,6 +51,10 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
 - **Un ticket bloqué repart de sa copie** : débloqué, un ticket repart avec un agent neuf, par le
   même lanceur ; sa copie garde le code de l'agent précédent, et ses notes l'état du travail. La
   consigne dit « reprise : lis les notes du ticket ». Ainsi le travail fait sert à l'agent suivant.
+- **Un lot rendu repart au développeur** : un verdict `RENDU` du relecteur, ou un refus de
+  l'intégrateur, relance l'agent 4 sur le même ticket, par le même lanceur, avec « REPRISE : oui » ;
+  il corrige chaque constat dans la copie, puis le relecteur relit. Ainsi un lot rendu revient
+  corrigé sur son ticket, sans ticket neuf.
 - **L'exploration avant la réalisation** : un objectif dont le découpage n'est pas connu ouvre un
   ticket d'exploration, sans code, mené par l'agent explorateur (`subagent_type: explorateur`). Il
   se ferme sur les décisions et les tickets de réalisation proposés, que le responsable valide.

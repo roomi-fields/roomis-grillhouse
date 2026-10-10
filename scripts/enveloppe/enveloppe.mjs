@@ -17,11 +17,13 @@
 //   (`packages/a`, or `src/parser` in a one-package project).
 // - In every worktree of the repository, the component's parent directory (`packages/`, `src/`)
 //   is emptied. In <copie>, the component is mounted back in writing; every sibling component
-//   gets back, read-only, its published parts: `package.json`, `docs/INTERFACE.md`, `dist/`.
+//   gets back, read-only, its published parts: `package.json`, `docs/INTERFACE.md`, `dist/`, and
+//   the paths that the `files` field of its `package.json` names, when they exist inside it.
 //   The parent's own files (`src/index.ts`) come back read-only, and the emptied directories are
 //   then sealed read-only.
 // - The traversal guard refuses to launch when a symbolic link inside the component points into
 //   a hidden directory: such a link would cross the envelope.
+// - The exit codes are named in `codes.mjs`.
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
   copyFileSync,
@@ -29,6 +31,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readdirSync,
+  readFileSync,
   readlinkSync,
   rmSync,
   statSync,
@@ -36,6 +39,7 @@ import {
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { CODE_REFUS, CODE_USAGE } from './codes.mjs';
 
 export const PUBLISHED = ['package.json', 'docs/INTERFACE.md', 'dist'];
 // The machine's temporary directory: an empty one, proper to the session, replaces it. Claude
@@ -106,6 +110,14 @@ export function liensSortants(dir) {
   return found;
 }
 
+// The paths that the `files` field of <dir>'s `package.json` names; none without that field.
+export function fichiersPublies(dir) {
+  const manifeste = path.join(dir, 'package.json');
+  if (!existsSync(manifeste)) return [];
+  const { files } = JSON.parse(readFileSync(manifeste, 'utf8'));
+  return Array.isArray(files) ? files : [];
+}
+
 const inside = (child, parent) => {
   const rel = path.relative(parent, child);
   return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
@@ -113,7 +125,8 @@ const inside = (child, parent) => {
 
 // The bwrap arguments for this agent, or the refusal that stops its launch. `montages` lists, in
 // order, the paths outside the copy that are written or read back (`montagesDeLaSeance`).
-// `fs` gives `lister(dir)`, `existe(path)` and `liens(dir)`, so the plan is testable without disk.
+// `fs` gives `lister(dir)`, `existe(path)`, `liens(dir)` and `publies(dir)`, so the plan is
+// testable without disk.
 export function plan({ trees, copie, composant, montages = [] }, fs) {
   // The worktrees start with the main tree: an envelope on it would let the agent write its root.
   if (trees.length > 0 && path.resolve(trees[0]) === path.resolve(copie)) {
@@ -170,9 +183,9 @@ export function plan({ trees, copie, composant, montages = [] }, fs) {
     if (!e.dir) {
       args.push('--ro-bind', p, p);
     } else if (e.name !== nom) {
-      for (const part of PUBLISHED) {
+      for (const part of new Set([...PUBLISHED, ...fs.publies(p)])) {
         const q = path.join(p, part);
-        if (fs.existe(q)) args.push('--ro-bind', q, q);
+        if (inside(q, p) && fs.existe(q)) args.push('--ro-bind', q, q);
       }
     }
   }
@@ -187,6 +200,7 @@ const disque = {
   lister,
   existe: existsSync,
   liens: d => (existsSync(d) && statSync(d).isDirectory() ? liensSortants(d) : []),
+  publies: fichiersPublies,
 };
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
@@ -195,7 +209,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const commande = sep < 0 ? [] : process.argv.slice(sep + 1);
   if (!copieArg || !composant || commande.length === 0) {
     process.stderr.write('usage: enveloppe.mjs <copie> <composant> -- <commande…>\n');
-    process.exit(2);
+    process.exit(CODE_USAGE);
   }
   const copie = path.resolve(copieArg);
   const cacheNpm = execFileSync('npm', ['config', 'get', 'cache'], { encoding: 'utf8' }).trim();
@@ -217,11 +231,11 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   let code;
   if (refus) {
     process.stderr.write(`⛔ ENVELOPPE REFUSÉE — ${refus}\n`);
-    code = 3;
+    code = CODE_REFUS;
   } else {
     const r = spawnSync('bwrap', [...args, ...commande], { stdio: 'inherit' });
     if (r.error) process.stderr.write(`⛔ ENVELOPPE IMPOSSIBLE — ${r.error.message}\n`);
-    code = r.error ? 3 : (r.status ?? 1);
+    code = r.error ? CODE_REFUS : (r.status ?? 1);
   }
   rmSync(temporaire, { recursive: true, force: true });
   process.exit(code);

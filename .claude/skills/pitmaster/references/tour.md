@@ -81,11 +81,14 @@ intact.** Ainsi l'architecture change par décision, et chaque ticket tient sa p
 ### 4 c. Le flux est-il suivi ?
 
 ```bash
-for k in grill testeur ACCEPTÉ handoff; do
+for k in grill testeur ACCEPTÉ RENDU; do
   printf '%-12s commits:%s tickets:%s\n' $k \
     "$(git -C <racine> log --since='<dernier tour>' --format=%B | grep -ci "$k")" \
     "$(bd list --all --json | grep -oi "$k" | wc -l)"; done
 ```
+
+**La passation se lit dans `bd comments <id>` de chaque ticket fermé.** Ainsi un ticket fermé sans
+passation se voit, quel que soit le mot qu'elle emploie.
 
 **Je signale une dérive du cadre quand plusieurs tickets fermés ne portent aucune trace du flux**
 (grill, tests d'abord, relecture, passation). Ainsi les agents restent dans le flux écrit.

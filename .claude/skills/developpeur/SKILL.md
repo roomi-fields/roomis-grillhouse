@@ -70,6 +70,8 @@ Ce qui guide chaque choix :
   appelant de l'architecture.
 - **Un remplacement supprime le remplacé** dans le même commit, avec ses consommateurs et ses
   gardes. Ainsi le produit garde une seule façon de faire chaque chose.
+- **Un retrait lit ses lecteurs** : avant de retirer une surface, tu lis ce que chaque lecteur en
+  fait. Ainsi le retrait emporte ses consommateurs sans en casser un.
 
 **Un commentaire décrit ce que le code fait**, au présent, pour l'agent qui le lira : son rôle, ce
 qu'il reçoit et rend, l'invariant qu'il tient. Les décisions, les dates, les tickets, les auteurs
@@ -110,7 +112,8 @@ vraiment.
 
 **Une API changée régénère son rapport** : un lot qui change ce qu'un composant exporte contient
 son rapport régénéré (`npm run api`) et le titre de chaque élément dans `INTERFACE.md` ; sinon les
-tests refusent. Ainsi l'interface écrite suit le code.
+tests refusent. Ainsi le code tient l'interface écrite, qui ne change qu'avec l'accord du
+responsable.
 
 **Les frontières se tiennent au test** : avant les tests, `scripts/frontieres.mjs` lance
 dependency-cruiser. Il refuse un cycle, un paquet atteint par un chemin plutôt que par son nom, un
@@ -169,6 +172,10 @@ et le code la suit.
   quand une interface change. Ainsi chaque changement est vérifié là où il peut casser.
 - **Une suite se juge sur tous ses échecs** : la liste entière de ses échecs se compare nom par nom
   aux échecs connus. Ainsi « vert » veut dire que rien de neuf n'a cassé.
+- **Un rouge de structure se nomme** : un test que ton changement de structure fait rougir se
+  nomme dans le message de commit et la passation, avec sa cause et le ticket qui le referme ; il
+  ne se compense pas dans ton lot. Ainsi l'intégrateur l'admet sur pièces, et le mécanisme qui le
+  referme reste un travail.
 - **Les tests appartiennent au testeur** : tu n'écris ni ne modifies aucun fichier de test ; un
   verrou le refuse. Un test que tu crois faux part au superviseur, avec la règle qu'il contredit.
   Ainsi ton code rend vrais les tests de la spécification, et non des tests taillés pour lui.

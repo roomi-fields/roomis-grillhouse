@@ -50,6 +50,7 @@ roomis-grillhouse/
 │   ├── verrous/ticket-du-sous-agent.mjs # hook: a role agent launches with « TON TICKET : <id> »
 │   ├── enveloppe/                 # The envelope: an agent sees its component, and the others' interfaces only
 │   │   ├── enveloppe.mjs             # bwrap sandbox for one component (tests: tests/unit/enveloppe.spec.ts)
+│   │   ├── codes.mjs                 # the exit codes of the envelope and its launcher
 │   │   └── lancer.sh                 # one ticket → one fresh role session in its envelope
 │   ├── consommateurs.mjs          # pretest: refuses an import that the provider's INTERFACE.md does not declare
 │   ├── frontieres.mjs             # pretest: dependency-cruiser, rules generated in .dependency-cruiser.cjs
