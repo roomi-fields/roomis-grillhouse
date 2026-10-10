@@ -66,7 +66,9 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
 - **Un agent porte le numéro de son rôle** : 1 explorateur, 2 arbitre, 3 testeur, 4 développeur,
   5 relecteur, 6 intégrateur, dans l'ordre du flux. Je le nomme « <ticket>, agent <n> »
   (`name: <ticket>-agent-<n>`) ; un agent relancé garde son numéro. Ainsi le nom d'un agent dit son
-  ticket et son rôle.
+  ticket et son rôle. Sa consigne porte la ligne « TON TICKET : <id> », arbitre et intégrateur
+  compris ; un contrôle refuse de lancer un agent de rôle sans elle. Ainsi le tableau rattache
+  chaque agent, son temps et ses jetons à son ticket.
 - **Les découvertes se trient** : les tickets `a-valider` que créent les agents
   sous leur ticket passent au responsable avec ma proposition de place dans le plan. Ainsi le
   plan reste le sien.
