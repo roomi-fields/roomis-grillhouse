@@ -26,7 +26,7 @@ import {
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { lireTranscription } from './tableau.mjs';
+import { lireTranscription, roleDuMeta } from './tableau.mjs';
 
 const REGISTRE =
   process.env.GRILLHOUSE_REGISTRE ??
@@ -44,16 +44,19 @@ export function source(input) {
             `agent-${input.agent_id}.jsonl`
           )
         : null);
-    let role = input.agent_type ?? null;
-    if (!role && transcription) {
+    // The meta file names the type the sub-agent was spawned as; the input's `agent_type` is a
+    // named agent's name.
+    let role = null;
+    if (transcription) {
       try {
-        role =
+        role = roleDuMeta(
           JSON.parse(readFileSync(transcription.replace(/\.jsonl$/, '.meta.json'), 'utf8'))
-            .agentType ?? null;
+        );
       } catch {
-        // A sub-agent without its meta file keeps a null role.
+        // A sub-agent without its meta file takes the input's type.
       }
     }
+    role ??= input.agent_type ?? null;
     return { transcription, role, agent: input.agent_id ?? null };
   }
   return {

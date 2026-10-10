@@ -42,6 +42,9 @@ export const ROLES = [
   'relecteur',
   'integrateur',
 ];
+// A sub-agent's role from its meta file: the type it was spawned as; a named agent's `agentType`
+// is its name.
+export const roleDuMeta = m => m.spawnedAgentType ?? m.customAgentType ?? m.agentType ?? null;
 const NOMS = { developpeur: 'développeur', integrateur: 'intégrateur' };
 const enTirets = p => p.replace(/[^A-Za-z0-9]/g, '-');
 
@@ -206,8 +209,7 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
       }
       let role = null;
       try {
-        role =
-          JSON.parse(readFileSync(f.replace(/\.jsonl$/, '.meta.json'), 'utf8')).agentType ?? null;
+        role = roleDuMeta(JSON.parse(readFileSync(f.replace(/\.jsonl$/, '.meta.json'), 'utf8')));
       } catch {
         role = null;
       }
@@ -239,10 +241,10 @@ export function verdict(commentaires) {
   return v;
 }
 
-// The role a ticket waits for, from the roles that ran on it (finished, oldest first) and the
-// reviewer's last verdict; null when it waits for none.
+// The role a ticket waits for, from the roles of the flow that ran on it (finished, oldest first)
+// and the reviewer's last verdict; null when it waits for none.
 export function etape(passages, v) {
-  const faits = passages.filter(p => p.role && p.role !== 'arbitre');
+  const faits = passages.filter(p => ROLES.includes(p.role) && p.role !== 'arbitre');
   const dernier = faits[faits.length - 1];
   if (!dernier) {
     return 'testeur';

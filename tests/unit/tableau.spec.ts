@@ -130,6 +130,14 @@ describe('verdict and etape', () => {
       'developpeur'
     );
   });
+  it('reads only the roles of the flow, a passage under a name or no role skipped', () => {
+    expect(
+      etape(
+        [p('relecteur', '2026-10-10T12:00:00Z'), p('demo-agent-2-liste', '2026-10-10T12:30:00Z')],
+        { verdict: 'RENDU', date: Date.parse('2026-10-10T12:00:00Z') }
+      )
+    ).toBe('developpeur');
+  });
   it('resumes the role an arbiter interrupted', () => {
     expect(
       etape([p('developpeur', '2026-10-10T11:00:00Z'), p('arbitre', '2026-10-10T11:30:00Z')], null)

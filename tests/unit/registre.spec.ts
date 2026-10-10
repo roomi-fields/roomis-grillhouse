@@ -59,6 +59,21 @@ describe('the register line', () => {
       agent: 'a1',
     });
   });
+  it('takes a named sub-agent role from the type it was spawned as, never its name', () => {
+    const d = mkdtempSync(path.join(tmpdir(), 'registre-'));
+    mkdirSync(path.join(d, 's/subagents'), { recursive: true });
+    writeFileSync(
+      path.join(d, 's/subagents/agent-a2.meta.json'),
+      l({ agentType: 't-agent-2-liste', name: 't-agent-2-liste', spawnedAgentType: 'arbitre' })
+    );
+    const s = source({
+      hook_event_name: 'SubagentStop',
+      transcript_path: path.join(d, 's.jsonl'),
+      agent_id: 'a2',
+      agent_type: 't-agent-2-liste',
+    });
+    expect(s.role).toBe('arbitre');
+  });
   it('writes nothing for a transcript without time', () => {
     expect(ligne({ hook_event_name: 'SessionEnd' }, '', '/repo')).toBeNull();
   });
