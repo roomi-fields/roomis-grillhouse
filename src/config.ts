@@ -66,5 +66,3 @@ export const config = {
     level: env.LOG_LEVEL,
   },
 } as const;
-
-export type Config = typeof config;

@@ -41,7 +41,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { CODE_REFUS, CODE_USAGE } from './codes.mjs';
 
-export const PUBLISHED = ['package.json', 'docs/INTERFACE.md', 'dist'];
+const PUBLISHED = ['package.json', 'docs/INTERFACE.md', 'dist'];
 // The machine's temporary directory: an empty one, proper to the session, replaces it. Claude
 // keeps its scratchpads there, under `claude-<uid>/<working directory in dashes>/`.
 const TEMPORAIRE = '/tmp';
@@ -73,7 +73,7 @@ export function montagesDeLaSeance({ cacheNpm, claude, projet, etatJetable, scra
 }
 
 // The worktrees of the repository that holds <copie>, main tree first.
-export function worktrees(copie) {
+function worktrees(copie) {
   const out = execFileSync('git', ['-C', copie, 'worktree', 'list', '--porcelain'], {
     encoding: 'utf8',
   });
@@ -84,7 +84,7 @@ export function worktrees(copie) {
 }
 
 // What a directory of the real disk holds, as { name, dir } entries.
-export function lister(dir) {
+function lister(dir) {
   return readdirSync(dir, { withFileTypes: true }).map(e => ({
     name: e.name,
     dir: e.isDirectory(),
@@ -92,7 +92,7 @@ export function lister(dir) {
 }
 
 // The symbolic links under <dir> whose resolved target lies outside <dir>.
-export function liensSortants(dir) {
+function liensSortants(dir) {
   const found = [];
   const walk = d => {
     for (const e of readdirSync(d, { withFileTypes: true })) {
@@ -111,7 +111,7 @@ export function liensSortants(dir) {
 }
 
 // The paths that the `files` field of <dir>'s `package.json` names; none without that field.
-export function fichiersPublies(dir) {
+function fichiersPublies(dir) {
   const manifeste = path.join(dir, 'package.json');
   if (!existsSync(manifeste)) return [];
   const { files } = JSON.parse(readFileSync(manifeste, 'utf8'));

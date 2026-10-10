@@ -25,14 +25,14 @@ export function isTestFile(file) {
   );
 }
 
-export function isScratch(file, tmp = tmpdir()) {
+function isScratch(file, tmp = tmpdir()) {
   const rel = path.relative(path.resolve(tmp), file);
   return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
 }
 
 // The ticket id of the launch prompt. A sub-agent's prompt opens its own transcript, next to the
 // session's; an agent launched as its own session (`claude --agent`) has it in the session's.
-export function ticketOf(input) {
+function ticketOf(input) {
   if (!input.transcript_path) {
     return null;
   }
@@ -59,7 +59,7 @@ export function ticketOf(input) {
   return m ? m[1] : null;
 }
 
-export function ticketDescription(id, cwd) {
+function ticketDescription(id, cwd) {
   try {
     const out = execFileSync('bd', ['show', id, '--json'], {
       cwd,

@@ -16,6 +16,7 @@ METACADRE.md
 .claude/skills/relecteur/
 .claude/skills/testeur/
 docs/agents/issue-tracker.md
+scripts/code-mort.mjs
 scripts/consommateurs.mjs
 scripts/enveloppe/
 scripts/frontieres.mjs

@@ -1,0 +1,8 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": ["scripts/**/*.mjs", ".claude/skills/*/scripts/*.cjs"],
+  "project": ["src/**/*.ts", "scripts/**/*.mjs", "tests/**/*.ts"],
+  "ignore": ["mods/**"],
+  "ignoreBinaries": ["bd", "bwrap", "claude", "codegraph", "pm2"],
+  "ignoreUnresolved": ["./.dependency-cruiser.projet.cjs"]
+}

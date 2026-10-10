@@ -9,7 +9,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-export const TICKET = /TON TICKET\s*:\s*[A-Za-z0-9_.-]+/;
+const TICKET = /TON TICKET\s*:\s*[A-Za-z0-9_.-]+/;
 
 // The refusal for this launch, or null. `isRole(name)` says whether the project defines that agent.
 export function refusal(input, isRole) {

@@ -88,7 +88,7 @@ export function nouveauxRouges(base, apres, admis = []) {
   return [...new Set(apres)].filter(n => !connus.has(n));
 }
 
-export const BUDGET_FEUILLE_S = 15;
+const BUDGET_FEUILLE_S = 15;
 
 const lireJsonSiPresent = p => (existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : null);
 

@@ -17,7 +17,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { lireTranscription } from './tableau.mjs';
 
-export const REGISTRE =
+const REGISTRE =
   process.env.GRILLHOUSE_REGISTRE ??
   path.join(os.homedir(), '.claude', 'grillhouse', 'registre.jsonl');
 
