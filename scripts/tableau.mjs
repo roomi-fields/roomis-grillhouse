@@ -32,13 +32,16 @@ export const SANS_AGENT = 30 * MINUTE;
 const RECENT = 2 * MINUTE;
 const enTirets = p => p.replace(/[^A-Za-z0-9]/g, '-');
 
-// The tokens and the working span of a transcript's lines (one JSON object per line).
+// The tokens, the working span, the ticket, the role (a session launched with `--agent`) and the
+// cost (the total a session writes) of a transcript's lines (one JSON object per line).
 export function lireTranscription(texte) {
   let jetons = 0;
   let cache = 0;
   let premier = null;
   let dernier = null;
   let ticket = null;
+  let role = null;
+  let cout = null;
   const vus = new Set();
   for (const ligne of texte.split('\n')) {
     if (!ligne.trim()) continue;
@@ -48,6 +51,8 @@ export function lireTranscription(texte) {
     } catch {
       continue;
     }
+    if (e.type === 'agent-setting') role ??= e.agentSetting ?? null;
+    if (e.type === 'cost-state' && typeof e.totalCostUSD === 'number') cout = e.totalCostUSD;
     const t = e.timestamp ? Date.parse(e.timestamp) : NaN;
     if (!Number.isNaN(t)) {
       premier ??= t;
@@ -75,8 +80,11 @@ export function lireTranscription(texte) {
     jetons,
     cache,
     travail: premier !== null ? dernier - premier : 0,
+    premier,
     dernier,
     ticket: ticket || null,
+    role,
+    cout,
   };
 }
 
