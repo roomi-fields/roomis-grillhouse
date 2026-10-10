@@ -655,32 +655,26 @@ export function lignes(t, nom, largeur = LARGEUR) {
 
   L('', undefined);
   L('AGENTS  ▶ en cours · en attente', 'titre');
-  const marge = 15;
-  const blanc = ' '.repeat(marge);
   const ATTENTE_MAX = 3;
   for (const b of t.agents) {
-    const tete = `${b.numero} ${b.nom}`.padEnd(marge);
-    if (b.enCours.length === 0 && b.attend.length === 0) {
-      L(`${tete}—`, 'discret');
-      continue;
-    }
-    b.enCours.forEach((x, i) => {
+    const vide = b.enCours.length === 0 && b.attend.length === 0;
+    L(`${b.numero} ${b.nom}${vide ? '  —' : ''}`, vide ? 'discret' : 'titre');
+    for (const x of b.enCours) {
       L(
         cadre(
-          `${i === 0 ? tete : blanc}▶ ${x.numero} ${x.composant}${x.ligne ? ' ⌁' : ''}`,
+          `▶ ${x.numero} ${x.composant}${x.ligne ? ' ⌁' : ''}`,
           `${duree(x.travail)} · ${k(x.jetons)}`,
           largeur
         ),
         'actif'
       );
-      L(cadre(`${blanc}  ${x.sujet}`, '', largeur), 'discret');
-    });
-    b.attend.slice(0, ATTENTE_MAX).forEach((x, i) => {
-      const debut = b.enCours.length === 0 && i === 0 ? tete : blanc;
-      L(cadre(`${debut}· ${x.numero}  ${x.sujet}`, '', largeur), 'discret');
-    });
+      L(cadre(`  ${x.sujet}`, '', largeur), 'discret');
+    }
+    for (const x of b.attend.slice(0, ATTENTE_MAX)) {
+      L(cadre(`· ${x.numero}  ${x.sujet}`, '', largeur), 'discret');
+    }
     if (b.attend.length > ATTENTE_MAX) {
-      L(`${blanc}+ ${b.attend.length - ATTENTE_MAX} en attente`, 'discret');
+      L(`  + ${b.attend.length - ATTENTE_MAX} en attente`, 'discret');
     }
   }
   if (t.faitsDuJour.length) {
