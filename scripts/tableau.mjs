@@ -592,6 +592,11 @@ export function lignes(t, nom, largeur = LARGEUR) {
     L(cadre(`⚠ ${a.texte}`, '', largeur), a.niveau === 'rouge' ? 'alerte' : 'attention');
   }
 
+  // The tickets the agents' blocks show: the chantier's tree does not show them a second time.
+  const ATTENTE_MAX = 3;
+  const dansAgents = new Set(
+    t.agents.flatMap(b => [...b.enCours, ...b.attend.slice(0, ATTENTE_MAX)].map(x => x.id))
+  );
   for (const ch of t.chantiers) {
     L('', undefined);
     L(cadre(`CHANTIER ${ch.numero} — ${ch.sujet}`, '', largeur), 'titre');
@@ -617,10 +622,14 @@ export function lignes(t, nom, largeur = LARGEUR) {
                 ? '✓'
                 : '';
     // A level shows its mothers (unfolded while work runs below), its tickets in progress or
-    // awaiting the responsable, and one line counting its other open tickets.
+    // awaiting the responsable that no agent block shows, and one line counting its other open
+    // tickets.
     const parcourir = (noeuds, p) => {
       const reste = { prets: 0, bloques: 0, reportes: 0 };
       for (const n of noeuds) {
+        if (!n.mere && dansAgents.has(n.id)) {
+          continue;
+        }
         const visible = n.mere || n.etat === 'enCours' || n.etat === 'aValider';
         if (!visible) {
           if (n.etat in reste) {
@@ -674,7 +683,6 @@ export function lignes(t, nom, largeur = LARGEUR) {
 
   L('', undefined);
   L('AGENTS  ▶ en cours · en attente', 'titre');
-  const ATTENTE_MAX = 3;
   for (const b of t.agents) {
     const vide = b.enCours.length === 0 && b.attend.length === 0;
     L(`${b.numero} ${b.nom}${vide ? '  —' : ''}`, vide ? 'discret' : 'titre');

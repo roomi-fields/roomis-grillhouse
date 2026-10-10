@@ -362,8 +362,10 @@ describe('assembler', () => {
     const texte = l.map((x: { texte: string }) => x.texte).join('\n');
     expect(texte).toMatch(/CHANTIER c — Le chantier/);
     expect(texte).toMatch(/c\.1 {2}Une mère +1\/2 · 1 k ▶/);
-    expect(texte).toMatch(/c\.1\.1 {2}Écrit +20 min · 1 k ▶|c\.1\.1 {2}Écrit/);
-    expect(texte).toMatch(/\+ 1 prêts · 1 bloqués/);
+    // A ticket the agents' blocks show is not drawn again in the chantier's tree, nor counted.
+    expect(texte.match(/c\.1\.1 {2}Écrit/g)).toHaveLength(1);
+    expect(texte.match(/c\.3 {2}demo-c\.3/g)).toHaveLength(1);
+    expect(texte).toMatch(/\n \+ 1 bloqués\n/);
     expect(texte).toMatch(/\n4 développeur\n▶ c\.1\.1 {2}Écrit/);
     expect(texte).toMatch(/\n4 développeur[\s\S]*\n· c\.3 {2}demo-c\.3 +0 min · 50\n/);
     expect(texte).toMatch(/\n1 explorateur {2}—\n/);
