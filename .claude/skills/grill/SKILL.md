@@ -148,6 +148,10 @@ remplace jamais le grill. Les branches de l'arbre :
    - **le contrôle de l'interface contre le code** (`scripts/interfaces-contre-code.mjs`) : une
      seule passe avant les tests (petit projet), ou un banc par composant qui appelle
      `verifierComposant`, rejoué seulement quand son composant l'est (grand projet).
+   - **les sous-modules partagés** : un sous-module qu'aucun ticket n'écrit (un moteur de
+     référence, une dépendance externe) se déclare partagé, `npm pkg set 'grillhouse.partage[0]=<chemin>'` ;
+     chaque copie le lit alors dans le dépôt principal, en lecture seule
+     (`scripts/sous-modules.sh`).
 10. **L'architecture** — les trois ou quatre choix qui commandent le reste, chacun avec sa raison et
    l'objectif qu'il sert ; les données centrales ; où le code tourne.
 11. **Le lexique** — les mots du domaine dont la définition change du code

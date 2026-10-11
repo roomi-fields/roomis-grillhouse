@@ -40,3 +40,6 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
 - La politique de poussée : la clé `grillhouse.poussee` du `package.json` (`commit` : la branche où
   part chaque commit, main par défaut ; `nuit` : la branche où la nuit pousse son commit vert ;
   seule la nuit la pousse, le crochet pre-push refuse toute autre poussée vers elle).
+- Les sous-modules partagés : la clé `grillhouse.partage` du `package.json` (les chemins des
+  sous-modules qu'aucun ticket n'écrit ; chaque copie les lit dans le dépôt principal, en lecture
+  seule, au lieu d'en recevoir un exemplaire).
