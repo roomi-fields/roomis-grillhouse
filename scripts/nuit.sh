@@ -8,6 +8,12 @@
 #   file removed, its submodules set at the commit of HEAD (scripts/sous-modules.sh, a local
 #   modification overwritten; one that cannot be set turns the night red), dependencies reinstalled (npm ci) when package-lock.json changes, built, then
 #   `npm test` (the guards of pretest, then every suite).
+# - The project's night script: `grillhouse.nuit` in the package.json of the commit it plays names
+#   an npm script (`npm pkg set grillhouse.nuit=<script>`). After a green `npm test`, the night plays
+#   `npm run <script>` in its copy; a red script turns the night red, with a log line that names it.
+#   The key is read as written, before any work: without it (or with null) the night plays
+#   `npm test` alone; a value that is not a non-blank string, or a name absent from the scripts of
+#   that package.json, turns the night red, with a log line that cites it, and nothing runs.
 # - It holds the integration lock while it runs: an integration waits for the morning.
 # - Its log is <git common dir>/nuit/<date>.log. Green: HEAD becomes the last green commit
 #   (<git common dir>/nuit/dernier-vert). Red: a ticket labelled `nuit`, with the commits since the
@@ -37,13 +43,37 @@ jouer() {
   else
     git -C "$racine" worktree add -q --detach "$copie" "$tete" || return 1
   fi
+  # The reading gives « script<TAB>name », « invalide<TAB>value as JSON », « absent<TAB>name », or nothing.
+  local lecture nuit=
+  lecture="$(node -e '
+    const pkg = require(process.argv[1]);
+    const v = pkg.grillhouse?.nuit;
+    if (v == null) process.exit(0);
+    if (typeof v !== "string" || !v.trim()) process.stdout.write("invalide\t" + JSON.stringify(v));
+    else if (!Object.hasOwn(pkg.scripts ?? {}, v)) process.stdout.write("absent\t" + v);
+    else process.stdout.write("script\t" + v);
+  ' "$copie/package.json" 2>/dev/null)"
+  case "$lecture" in
+    script$'\t'*) nuit="${lecture#script$'\t'}" ;;
+    invalide$'\t'*)
+      echo "✗ la clé grillhouse.nuit vaut ${lecture#invalide$'\t'}, pas un nom de script npm : rien n'est joué."
+      return 1 ;;
+    absent$'\t'*)
+      echo "✗ la clé grillhouse.nuit nomme « ${lecture#absent$'\t'} », absent des scripts du package.json : rien n'est joué."
+      return 1 ;;
+  esac
   bash "$racine/scripts/sous-modules.sh" pose "$copie" || return 1
   if [ -f "$copie/package-lock.json" ] && ! cmp -s "$copie/package-lock.json" "$copie/node_modules/.nuit-lock"; then
     npm --prefix "$copie" ci --no-audit --no-fund --silent || return 1
     cp "$copie/package-lock.json" "$copie/node_modules/.nuit-lock"
   fi
   npm --prefix "$copie" run --silent --if-present build || return 1
-  npm --prefix "$copie" test
+  npm --prefix "$copie" test || return 1
+  [ -n "$nuit" ] || return 0
+  if ! npm --prefix "$copie" run "$nuit"; then
+    echo "✗ le script de nuit du projet \`npm run $nuit\` (grillhouse.nuit) a échoué."
+    return 1
+  fi
 }
 jouer >> "$journal" 2>&1
 verdict=$?
