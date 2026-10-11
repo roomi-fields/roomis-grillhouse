@@ -719,6 +719,27 @@ function mondePartage({
     spawnSync('bash', [POSE, 'pose', copie], { encoding: 'utf8', env: ENV_SCRIPTS });
   const garder = (copie: string) =>
     spawnSync('bash', [POSE, 'garde', copie], { encoding: 'utf8', env: ENV_SCRIPTS });
+  // The build of the copy, run in it as the project runs it: it notes what it read (`vus`).
+  const construire = (copie: string) =>
+    spawnSync('node', ['build.mjs'], { cwd: copie, encoding: 'utf8', env: ENV_SCRIPTS });
+  // A reused copy moved onto the HEAD of the main repository, by the very commands of its caller,
+  // then prepared again by the common preparation. Without bwrap, lancer.sh and the integration
+  // refuse a copy with a shared submodule (critères 13 and 15): these tests of the preparation run
+  // on every machine.
+  const tete = () => git(m.repo, 'rev-parse', 'HEAD').trim();
+  // As lancer.sh does for the agent copy: the guard, then a fast-forward merge with autostash.
+  const avancerCommeLAgent = (copie: string) => {
+    const g = garder(copie);
+    expect(g.status, g.stderr).toBe(0);
+    git(copie, 'merge', '-q', '--ff-only', '--autostash', tete());
+    return poser(copie);
+  };
+  // As the integration does for its copy: detached on HEAD, forced, every untracked file removed.
+  const avancerCommeLIntegration = (copie: string) => {
+    git(copie, 'checkout', '-q', '--detach', '--force', tete());
+    git(copie, 'clean', '-q', '-f', '-d', '-x', '-e', 'node_modules');
+    return poser(copie);
+  };
   // The copy reads the main repository's submodule: its path is a symbolic link to it.
   const lit = (copie: string, chemin = 'vendor/natif') => {
     const p = path.join(copie, chemin);
@@ -751,6 +772,9 @@ function mondePartage({
     copieFraiche,
     poser,
     garder,
+    construire,
+    avancerCommeLAgent,
+    avancerCommeLIntegration,
     lit,
     etat,
     nonSuivi,
@@ -775,15 +799,18 @@ describe('grillhouse-3uv.58.1 critères 1 et 7 — a shared submodule is read fr
     LONG
   );
   it(
-    'critère 1: the agent copy reads the main repository’s submodule at its usual path, and its build sees it',
+    'critère 1: a prepared copy reads the main repository’s submodule at its usual path, and its build sees it',
     () => {
       const m = mondePartage();
       // The main repository's submodule is checked out at v2; HEAD references v1.
       git(m.principalNatif, 'checkout', '-q', m.commits[1] ?? '');
-      const r = m.lancer();
-      expect(r.status, r.stderr).not.toBe(CODE_COPIE);
-      expect(m.lit(m.copies.agent)).toBe(true);
-      expect(m.vus()[0]).toBe('v2');
+      const copie = m.copieFraiche('demo-1');
+      const r = m.poser(copie);
+      expect(r.status, r.stderr).toBe(0);
+      expect(m.lit(copie)).toBe(true);
+      const b = m.construire(copie);
+      expect(b.status, b.stderr).toBe(0);
+      expect(m.vus()).toEqual(['v2']);
     },
     LONG
   );
@@ -791,16 +818,18 @@ describe('grillhouse-3uv.58.1 critères 1 et 7 — a shared submodule is read fr
     'critère 1: a reused integration copy whose submodule was set gets the link once main declares it shared',
     () => {
       const m = mondePartage({ partage: null });
-      expect(m.integrer().status).toBe(0);
-      expect(m.lit(m.copies.integration)).toBe(false);
+      const copie = m.copieFraiche('integration');
+      expect(m.poser(copie).status).toBe(0);
+      expect(m.lit(copie)).toBe(false);
+      expect(m.natifDe(copie)).toBe('v1');
       const pkgPath = path.join(m.repo, 'package.json');
       const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as Paquet;
       writeFileSync(pkgPath, JSON.stringify({ ...pkg, grillhouse: { partage: ['vendor/natif'] } }));
       git(m.repo, 'commit', '-qm', 'partage déclaré', '--', 'package.json');
-      const r = m.integrer();
-      expect(r.status, r.stdout + r.stderr).toBe(0);
-      expect(m.lit(m.copies.integration)).toBe(true);
-      expect(m.etat(m.copies.integration).complet).toBe('');
+      const r = m.avancerCommeLIntegration(copie);
+      expect(r.status, r.stderr).toBe(0);
+      expect(m.lit(copie)).toBe(true);
+      expect(m.etat(copie).complet).toBe('');
     },
     LONG
   );
@@ -821,16 +850,22 @@ describe('grillhouse-3uv.58.1 critère 2 — git status of the copy does not rep
     LONG
   );
   it(
-    'critère 2: the guard lets through a copy whose shared submodule is linked, and the reused agent copy builds again',
+    'critère 2: the guard lets through a copy whose shared submodule is linked, and the reused copy builds again',
     () => {
       const m = mondePartage();
-      expect(m.lancer().status).not.toBe(CODE_COPIE);
-      expect(m.lit(m.copies.agent)).toBe(true);
-      expect(m.garder(m.copies.agent).status).toBe(0);
-      const avant = m.vus().length;
-      const r = m.lancer();
-      expect(r.status, readFileSync(`${m.copies.agent}.log`, 'utf8')).not.toBe(CODE_COPIE);
-      expect(m.vus()).toHaveLength(avant + 1);
+      const copie = m.copieFraiche('demo-1');
+      expect(m.poser(copie).status).toBe(0);
+      expect(m.lit(copie)).toBe(true);
+      expect(m.construire(copie).status).toBe(0);
+      const g = m.garder(copie);
+      expect(g.status, g.stderr).toBe(0);
+      // Reused as lancer.sh reuses the agent copy: the guard, the move onto HEAD, the preparation.
+      const r = m.avancerCommeLAgent(copie);
+      expect(r.status, r.stderr).toBe(0);
+      expect(m.lit(copie)).toBe(true);
+      const b = m.construire(copie);
+      expect(b.status, b.stderr).toBe(0);
+      expect(m.vus()).toEqual(['v1', 'v1']);
     },
     LONG
   );
@@ -905,23 +940,22 @@ describe('grillhouse-3uv.58.1 critère 4 — a submodule not declared shared kee
     'critère 4: a copy whose shared submodule was linked sets its own submodule at the commit of HEAD once main no longer declares it shared',
     () => {
       const m = mondePartage();
-      expect(m.lancer().status).not.toBe(CODE_COPIE);
-      expect(m.lit(m.copies.agent)).toBe(true);
+      const copie = m.copieFraiche('demo-1');
+      expect(m.poser(copie).status).toBe(0);
+      expect(m.lit(copie)).toBe(true);
       git(m.principalNatif, 'checkout', '-q', m.commits[1] ?? '');
       const pkgPath = path.join(m.repo, 'package.json');
       const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as Paquet;
       delete pkg.grillhouse;
       writeFileSync(pkgPath, JSON.stringify(pkg));
       git(m.repo, 'commit', '-qm', 'partage retiré', '--', 'package.json');
-      const r = m.lancer();
-      expect(r.status, readFileSync(`${m.copies.agent}.log`, 'utf8')).not.toBe(CODE_COPIE);
-      const sous = path.join(m.copies.agent, 'vendor/natif');
+      const r = m.avancerCommeLAgent(copie);
+      expect(r.status, r.stderr).toBe(0);
+      const sous = path.join(copie, 'vendor/natif');
       expect(lstatSync(sous).isSymbolicLink()).toBe(false);
-      expect(m.natifDe(m.copies.agent)).toBe('v1');
-      expect(git(m.copies.agent, 'ls-files', '-v', '--', 'vendor/natif')).toMatch(
-        /^H vendor\/natif$/m
-      );
-      expect(m.etat(m.copies.agent).complet).toBe('');
+      expect(m.natifDe(copie)).toBe('v1');
+      expect(git(copie, 'ls-files', '-v', '--', 'vendor/natif')).toMatch(/^H vendor\/natif$/m);
+      expect(m.etat(copie).complet).toBe('');
       // The main repository's submodule is left as it was.
       expect(git(m.principalNatif, 'rev-parse', 'HEAD').trim()).toBe(m.commits[1]);
       expect(existsSync(m.nonSuivi)).toBe(true);
@@ -945,16 +979,17 @@ describe('grillhouse-3uv.58.1 critère 5 — removing a copy never touches the m
       `critère 5: retirer-copie.sh${jetable ? ' --jetable' : ''} removes a copy that links the shared submodule, and the main repository’s submodule stays intact`,
       () => {
         const m = mondePartage();
-        expect(m.lancer().status).not.toBe(CODE_COPIE);
-        expect(m.lit(m.copies.agent)).toBe(true);
+        const copie = m.copieFraiche('demo-1');
+        expect(m.poser(copie).status).toBe(0);
+        expect(m.lit(copie)).toBe(true);
         const avant = principal(m);
-        const r = spawnSync('bash', [RETIRER, ...(jetable ? ['--jetable'] : []), m.copies.agent], {
+        const r = spawnSync('bash', [RETIRER, ...(jetable ? ['--jetable'] : []), copie], {
           cwd: m.repo,
           encoding: 'utf8',
           env: ENV_SCRIPTS,
         });
         expect(r.status, r.stderr).toBe(0);
-        expect(existsSync(m.copies.agent)).toBe(false);
+        expect(existsSync(copie)).toBe(false);
         expect(principal(m)).toEqual(avant);
         expect(avant.fichiers).toContain('principal-non-suivi.txt=travail du principal\n');
       },
@@ -1018,31 +1053,36 @@ describe('grillhouse-3uv.58.1 critère 9 — the preparation never enters a shar
 
 describe('grillhouse-3uv.58.1 critère 10 — when moving a copy forward changes the shared submodule’s commit, the next preparation puts the link back', () => {
   it(
-    'critère 10: the reused agent copy, moved forward onto a commit that moves the shared submodule, links it again and git status stays silent',
+    'critère 10: a reused agent copy, moved forward as lancer.sh moves it onto a commit that moves the shared submodule, links it again and git status stays silent',
     () => {
       const m = mondePartage();
-      expect(m.lancer().status).not.toBe(CODE_COPIE);
-      expect(m.lit(m.copies.agent)).toBe(true);
+      const copie = m.copieFraiche('demo-1');
+      expect(m.poser(copie).status).toBe(0);
+      expect(m.lit(copie)).toBe(true);
       m.avancerNatif();
-      const r = m.lancer();
-      expect(r.status, readFileSync(`${m.copies.agent}.log`, 'utf8')).not.toBe(CODE_COPIE);
-      expect(m.lit(m.copies.agent)).toBe(true);
-      expect(m.etat(m.copies.agent)).toEqual({ status: '', complet: '' });
-      expect(m.vus().at(-1)).toBe('v2');
+      const r = m.avancerCommeLAgent(copie);
+      expect(r.status, r.stderr).toBe(0);
+      expect(m.lit(copie)).toBe(true);
+      expect(m.etat(copie)).toEqual({ status: '', complet: '' });
+      expect(m.construire(copie).status).toBe(0);
+      expect(m.vus()).toEqual(['v2']);
     },
     LONG
   );
   it(
-    'critère 10: the reused integration copy, put on a commit that moves the shared submodule, links it again and git status stays silent',
+    'critère 10: a reused integration copy, put as the integration puts it on a commit that moves the shared submodule, links it again and git status stays silent',
     () => {
       const m = mondePartage();
-      expect(m.integrer().status).toBe(0);
+      const copie = m.copieFraiche('integration');
+      expect(m.poser(copie).status).toBe(0);
+      expect(m.lit(copie)).toBe(true);
       m.avancerNatif();
-      const r = m.integrer();
-      expect(r.status, r.stdout + r.stderr).toBe(0);
-      expect(m.lit(m.copies.integration)).toBe(true);
-      expect(m.etat(m.copies.integration)).toEqual({ status: '', complet: '' });
-      expect(m.vus().at(-1)).toBe('v2');
+      const r = m.avancerCommeLIntegration(copie);
+      expect(r.status, r.stderr).toBe(0);
+      expect(m.lit(copie)).toBe(true);
+      expect(m.etat(copie)).toEqual({ status: '', complet: '' });
+      expect(m.construire(copie).status).toBe(0);
+      expect(m.vus()).toEqual(['v2']);
     },
     LONG
   );
