@@ -279,13 +279,13 @@ describe('3uv.49 critère 2 : the agents a manager launches are tied to their ti
     });
   });
 
-  it('3uv.49 critère 2 : the tester a manager launches in a shell runs under its role, the manager under 0', () => {
+  it('3uv.49 critère 2 : the tester a manager launches in a shell runs under its role, the manager no longer listed', () => {
     const home = nouveauHome();
     sousAgent(home, 'c13', { agentType: CHEF }, 'demo-9', 2);
     const ps = agentShell(home, 's-t13', 'testeur', 'demo-9');
     const t = plateauVivant(home, [T('demo-9')], [], ps);
     expect(enCours(t, 'testeur')).toEqual(['demo-9']);
-    expect(enCours(t, CHEF)).toEqual(['demo-9']);
+    expect(enCours(t, CHEF)).toEqual([]);
   });
 });
 
@@ -317,7 +317,7 @@ describe('3uv.49 critère 3 : a ticket a running manager leads waits for no role
     expect(enCours(t, CHEF)).toEqual(['demo-9']);
   });
 
-  it('3uv.49 critère 3 : with its tester running too, the ticket is in progress under both, waiting nowhere', () => {
+  it('with its tester running too, the ticket is in progress under the tester alone, waiting nowhere', () => {
     const t = plateau(
       [T('demo-9')],
       [],
@@ -325,7 +325,7 @@ describe('3uv.49 critère 3 : a ticket a running manager leads waits for no role
     );
     expect(attentes(t)).not.toContain('demo-9');
     expect(enCours(t, 'testeur')).toEqual(['demo-9']);
-    expect(enCours(t, CHEF)).toEqual(['demo-9']);
+    expect(enCours(t, CHEF)).toEqual([]);
   });
 
   it('3uv.49 critère 3 : a ticket without a manager still waits for the next role of the flow', () => {
@@ -943,7 +943,7 @@ describe('3uv.49 critère 13 : a sub-agent, whatever its role, runs while its la
     expect(v.find(x => x.agent === 'c20')).toBeUndefined();
   });
 
-  it('3uv.49 critère 13 : the real case, a manager silent 5 minutes in the middle of a call and its integrator silent 3 minutes in the middle of a call, both run', () => {
+  it('3uv.49 critère 13 : the real case, a manager silent 5 minutes in the middle of a call and its integrator silent 3 minutes in the middle of a call, both run, the ticket shown under the integrator', () => {
     const home = nouveauHome();
     enAttente(home, ID_CHEF, { agentType: CHEF }, 'demo-9', 5 * MIN);
     enAttente(home, 'i21', { agentType: 'integrateur', parentAgentId: ID_CHEF }, 'demo-9', 3 * MIN);
@@ -954,7 +954,7 @@ describe('3uv.49 critère 13 : a sub-agent, whatever its role, runs while its la
       ticket: 'demo-9',
     });
     const t = plateauVivant(home, [T('demo-9')]);
-    expect(enCours(t, CHEF)).toEqual(['demo-9']);
+    expect(enCours(t, CHEF)).toEqual([]);
     expect(enCours(t, 'integrateur')).toEqual(['demo-9']);
   });
 

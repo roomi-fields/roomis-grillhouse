@@ -691,9 +691,14 @@ export function assembler({
   }));
   const bloc = role => blocs.find(b => b.role === role);
   const places = new Set();
+  // One line per ticket: a ticket on which a role of the flow runs stands under that role, and
+  // under the site manager only while none of its agents runs.
+  const auTravail = new Set(
+    enCoursMesures.filter(v => v.role !== CHEF && bloc(v.role)).map(v => v.ticket)
+  );
   for (const v of enCoursMesures) {
     const t = v.ticket && parId.get(v.ticket);
-    if (!t || !bloc(v.role)) {
+    if (!t || !bloc(v.role) || (v.role === CHEF && auTravail.has(v.ticket))) {
       continue;
     }
     places.add(t.id);
