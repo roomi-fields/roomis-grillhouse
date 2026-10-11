@@ -37,7 +37,8 @@ describe('the register line', () => {
       SESSION,
       '/repo'
     );
-    expect(r).toEqual({
+    // The line may carry the turns its day time is read from (grillhouse-3uv.41).
+    expect(r).toMatchObject({
       projet: '/repo',
       agent: 's1',
       ticket: 'demo-3.2.1',

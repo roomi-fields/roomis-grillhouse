@@ -53,8 +53,40 @@ export const roleDuMeta = m => m.spawnedAgentType ?? m.customAgentType ?? m.agen
 const NOMS = { developpeur: 'développeur', integrateur: 'intégrateur' };
 const enTirets = p => p.replace(/[^A-Za-z0-9]/g, '-');
 
-// The tokens, the working span, the ticket, the role (a session launched with `--agent`) and the
-// cost (the total a session writes) of a transcript's lines (one JSON object per line).
+// The origins of an incoming message: the person, another agent, a notification.
+const ORIGINES = new Set(['human', 'peer', 'task-notification']);
+// The mark the tool writes when the person stops a turn.
+const INTERRUPTION = /^\[Request interrupted by user( for tool use)?\]$/;
+
+// An incoming message opens a turn: a message of the person, of another agent or a notification.
+// Its origin decides; a message without origin is one unless it is a tool's result, a meta message
+// (a system reminder, a loaded skill), the summary written after a compaction or the interruption
+// mark.
+function entrant(e) {
+  if (e.type !== 'user') {
+    return false;
+  }
+  if (e.origin) {
+    return ORIGINES.has(e.origin.kind);
+  }
+  const contenu = e.message?.content;
+  if (e.isMeta || e.isCompactSummary) {
+    return false;
+  }
+  if (Array.isArray(contenu)) {
+    if (contenu.some(c => c.type === 'tool_result')) {
+      return false;
+    }
+    return !INTERRUPTION.test(contenu.map(c => c.text ?? '').join(''));
+  }
+  return typeof contenu === 'string' && !INTERRUPTION.test(contenu);
+}
+
+// The tokens, the turns and their working time, the ticket, the role (a session launched with
+// `--agent`) and the cost (the total a session writes) of a transcript's lines (one JSON object per
+// line). The first turn runs from the first dated event, each next one from an incoming message,
+// to the last event before the next incoming message; the working time is the sum of the turns,
+// the waits left out.
 export function lireTranscription(texte) {
   let jetons = 0;
   let cache = 0;
@@ -63,6 +95,8 @@ export function lireTranscription(texte) {
   let ticket = null;
   let role = null;
   let cout = null;
+  const tours = [];
+  let recu = false;
   const vus = new Set();
   for (const ligne of texte.split('\n')) {
     if (!ligne.trim()) {
@@ -84,6 +118,14 @@ export function lireTranscription(texte) {
     if (!Number.isNaN(t)) {
       premier ??= t;
       dernier = t;
+      // The first incoming message continues the turn its earlier events opened.
+      const coupe = entrant(e) && recu;
+      recu ||= entrant(e);
+      if (tours.length === 0 || coupe) {
+        tours.push([t, t]);
+      } else {
+        tours[tours.length - 1][1] = t;
+      }
     }
     if (ticket === null && e.type === 'user') {
       const contenu = e.message?.content;
@@ -110,7 +152,8 @@ export function lireTranscription(texte) {
   return {
     jetons,
     cache,
-    travail: premier !== null ? dernier - premier : 0,
+    travail: tours.reduce((s, [debut, fin]) => s + (fin - debut), 0),
+    tours,
     premier,
     dernier,
     ticket: ticket || null,
@@ -199,6 +242,7 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
       dernier: lu?.dernier ?? null,
       jetons: lu?.jetons ?? 0,
       travail: lu?.travail ?? 0,
+      tours: lu?.tours ?? [],
     });
   }
   const propre = path.join(projets, enTirets(racine));
@@ -215,6 +259,7 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
         dernier: lu.dernier,
         jetons: lu.jetons,
         travail: lu.travail,
+        tours: lu.tours,
       });
     }
   }
@@ -242,6 +287,7 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
         dernier: lu.dernier,
         jetons: lu.jetons,
         travail: lu.travail,
+        tours: lu.tours,
       });
     }
   }
@@ -387,16 +433,19 @@ export function assembler({
   }
   const mesures = [
     ...finis.map(r => ({ ...r, quand: Date.parse(r.fin) })),
-    ...enCoursMesures.map(v => ({ ...v, quand: maintenant, court: true })),
+    ...enCoursMesures.map(v => ({ ...v, quand: maintenant })),
   ];
   const somme = l => ({
     travail: l.reduce((s, x) => s + (x.travail ?? 0), 0),
     jetons: l.reduce((s, x) => s + (x.jetons ?? 0), 0),
   });
-  // A running session counts in the day only for its part since midnight.
+  // A measure with its turns counts in the day their parts since midnight; a register line
+  // written without them counts whole in the day it ended.
+  const partDuJour = tours =>
+    tours.reduce((s, [debut, fin]) => s + Math.max(0, fin - Math.max(debut, jour)), 0);
   const duJour = mesures
     .filter(m => m.quand >= jour)
-    .map(m => (m.court ? { ...m, travail: Math.min(m.travail, maintenant - jour) } : m));
+    .map(m => (m.tours ? { ...m, travail: partDuJour(m.tours) } : m));
   const global = { compteurs, jour: somme(duJour), cumul: somme(mesures) };
 
   // Chantiers.

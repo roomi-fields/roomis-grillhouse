@@ -5,8 +5,9 @@
 // reads an agent's latest line, and the transcripts of running ones.
 //
 // - The line: the project (its main tree), the agent, its ticket (« TON TICKET : »), its role,
-//   its start and end, its working time, its tokens, its cache reads and its cost when the session
-//   wrote one. All of it is read from the agent's transcript; the agent declares nothing.
+//   its start and end, its working time and the turns it sums (start and end in milliseconds, the
+//   waits for a message left out), its tokens, its cache reads and its cost when the session wrote
+//   one. All of it is read from the agent's transcript; the agent declares nothing.
 // - The register is `~/.claude/grillhouse/registre.jsonl` (GRILLHOUSE_REGISTRE replaces it): the
 //   envelope of a role agent leaves it writable.
 // - A hook never stops the session: a transcript it cannot read writes nothing.
@@ -81,6 +82,7 @@ export function ligne(input, texte, projet) {
     debut: new Date(t.premier).toISOString(),
     fin: new Date(t.dernier).toISOString(),
     travail: t.travail,
+    tours: t.tours,
     jetons: t.jetons,
     cache: t.cache,
     cout: t.cout,
