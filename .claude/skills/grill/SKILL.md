@@ -139,7 +139,9 @@ remplace jamais le grill. Les branches de l'arbre :
    tranche :
    - **les tests d'une intégration** : `complet` (toutes les suites à chaque intégration, pour un
      petit projet) ou `impactes` (les composants du lot et ceux qui en dépendent, toutes les
-     suites pour un lot qui touche un fichier hors de tout composant, et toutes les suites une
+     suites pour un lot qui touche un fichier hors de tout composant qui n'est pas un document, les gardes
+     seules pour un lot fait seulement de documents hors de tout composant (les `*.md`, et sous
+     `.claude/` tout fichier qui n'est ni un script ni un réglage), et toutes les suites une
      fois la nuit par `scripts/nuit.sh`, pour un grand projet). Il s'écrit par
      `npm pkg set grillhouse.integration=<choix>` ; pour `impactes`, la ligne de la nuit entre dans
      la table des tâches du poste (`crontab -e` : `0 3 * * * bash <racine>/scripts/nuit.sh`) ;

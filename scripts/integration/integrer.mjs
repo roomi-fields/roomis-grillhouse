@@ -20,11 +20,14 @@
 //  5. the base: the project's suites (`npm run integration:suites -- --tous|<components>`) on
 //     HEAD. The project chooses at its installation (`grillhouse.integration` in package.json):
 //     `impactes` (the default) replays the touched components and those that depend on them (the
-//     consumers' graph), every suite for a lot touching a file outside every component (a root
-//     script or document, package.json, the lockfile, tsconfig, the CI), any file of a component
-//     whatever its nature touching that component, and every suite runs once a night
-//     (`scripts/nuit.sh`);
-//     `complet` replays every suite at each integration;
+//     consumers' graph), every suite for a lot touching a file outside every component that is
+//     not a document (a root script, package.json, the lockfile, tsconfig, the CI, a setting
+//     under `.claude/`), no suite (the guards alone, step 7) for a lot made only of documents
+//     outside every component (a `*.md`, or a file under `.claude/` that is neither a script nor
+//     a setting), any file of a component whatever its nature touching that component (a
+//     document outside every component next to it does not count), and every suite runs once a
+//     night (`scripts/nuit.sh`);
+//     `complet` replays every suite at each integration, documents included;
 //     suites that fail without naming a test leave nothing to compare, and refuse;
 //  6. the lots, applied in three ways in the copy, tests first, then built;
 //  7. the project's guards (`npm run integration:gardes`, when present);
@@ -34,6 +37,9 @@
 //     hook that plays the guards skips them, as step 7 just played them; the commit validated is
 //     the commit that enters;
 // 10. main moves forward onto it (`merge --ff-only`); main moved in the meantime refuses.
+//
+// What the base and the suites read of a lot is its files: each file added, modified or
+// deleted, a rename counting its source and its destination, a copy its destination only.
 //
 // The main tree is touched by the fast-forward only: the supervisor's own files stay as they are.
 // The suites command receives `--tous` for every suite, or the components' directories to replay
@@ -104,19 +110,27 @@ const lireJsonSiPresent = p => (existsSync(p) ? JSON.parse(readFileSync(p, 'utf8
 
 // What the suites replay for a lot. `composants` are the components' directories relative to the
 // root; `consommateurs` maps a component's directory to the directories of those that use it.
-// - a file outside every component: every suite, as such a file (a root script or document,
-//   package.json, the lockfile, tsconfig, the CI) can change any of them;
+// - a file outside every component that is not a document: every suite, as such a file (a root
+//   script, package.json, the lockfile, tsconfig, the CI, a setting) can change any of them;
+// - a document outside every component (`estDocument`) counts for nothing: a lot made only of
+//   such documents replays no suite (mode `aucun`, the guards alone);
 // - otherwise: the components holding a file of the lot, whatever its nature (code, document,
 //   manifest, data), and, transitively, those that depend on them, in order.
+const SCRIPTS = /\.(mjs|js|cjs|ts|sh|py)$/;
+const REGLAGES = /(\.json|(^|\/)fichiers\.txt)$/;
+function estDocument(f) {
+  if (f.startsWith('.claude/')) return !SCRIPTS.test(f) && !REGLAGES.test(f);
+  return f.endsWith('.md');
+}
+
 export function perimetre(fichiers, composants, consommateurs) {
   const touches = new Set();
   for (const f of fichiers) {
     const c = composants.find(d => f.startsWith(`${d}/`));
-    if (!c) {
-      return { mode: 'tous', composants: [] };
-    }
-    touches.add(c);
+    if (c) touches.add(c);
+    else if (!estDocument(f)) return { mode: 'tous', composants: [] };
   }
+  if (touches.size === 0) return { mode: 'aucun', composants: [] };
   const file = [...touches];
   while (file.length) {
     for (const d of consommateurs.get(file.pop()) ?? []) {
@@ -223,10 +237,14 @@ function main(argv) {
     const fichiersDe = p => {
       const r = git('apply', '--numstat', '-z', p);
       if (r.status !== 0) return null;
-      return r.stdout
+      const destinations = r.stdout
         .split('\0')
         .map(l => l.split('\t')[2])
         .filter(Boolean);
+      // A rename names its source too (numstat names only the destination); a copy leaves its
+      // source intact, so only its destination counts.
+      const sources = [...readFileSync(p, 'utf8').matchAll(/^rename from (.+)$/gm)].map(m => m[1]);
+      return [...destinations, ...sources];
     };
     const tests = o.tests ? fichiersDe(absolu(o.tests)) : [];
     const code = o.code ? fichiersDe(absolu(o.code)) : [];
@@ -300,11 +318,13 @@ function main(argv) {
         : perimetre(fichiers, [...dirDe.values()], consommateurs);
     const touches = champ.composants;
     dire(
-      champ.mode === 'tous'
-        ? reglage === 'complet'
-          ? '✓ toutes les suites (réglage « complet »)'
-          : '✓ toutes les suites : le lot touche un fichier hors de tout composant'
-        : `✓ suites de : ${touches.join(', ')}`
+      champ.mode === 'aucun'
+        ? '✓ aucune suite : le lot ne contient que des documents hors de tout composant'
+        : champ.mode === 'tous'
+          ? reglage === 'complet'
+            ? '✓ toutes les suites (réglage « complet »)'
+            : '✓ toutes les suites : le lot touche un fichier hors de tout composant'
+          : `✓ suites de : ${touches.join(', ')}`
     );
     const suites = nom => {
       const rouges = path.join(tmp, nom);
@@ -322,15 +342,18 @@ function main(argv) {
       return noms;
     };
 
-    // 5. The base.
-    dire('— les suites sur HEAD (la base)');
-    const base = suites('base');
-    if (base.some(n => n.startsWith('(les suites sortent'))) {
-      return refuser(
-        'La base ne se mesure pas : les suites échouent sur HEAD sans nommer de test.'
-      );
+    // 5. The base (no suite replays for a lot of documents: nothing to compare).
+    let base = [];
+    if (champ.mode !== 'aucun') {
+      dire('— les suites sur HEAD (la base)');
+      base = suites('base');
+      if (base.some(n => n.startsWith('(les suites sortent'))) {
+        return refuser(
+          'La base ne se mesure pas : les suites échouent sur HEAD sans nommer de test.'
+        );
+      }
+      dire(`✓ base : ${base.length} rouges`);
     }
-    dire(`✓ base : ${base.length} rouges`);
 
     // 6. The lots, applied in the copy, then built.
     for (const p of lots) {
@@ -346,12 +369,14 @@ function main(argv) {
     dire('✓ gardes');
 
     // 8. The suites, compared to the base.
-    dire('— les suites avec le lot');
-    const nouveaux = nouveauxRouges(base, suites('apres'), o.admettre);
-    if (nouveaux.length)
-      return refuser(`Rouges nouveaux :\n${nouveaux.map(n => `  ✗ ${n}`).join('\n')}`);
-    for (const a of o.admettre) dire(`⚠ admis par l'intégrateur : ${a}`);
-    dire('✓ suites');
+    if (champ.mode !== 'aucun') {
+      dire('— les suites avec le lot');
+      const nouveaux = nouveauxRouges(base, suites('apres'), o.admettre);
+      if (nouveaux.length)
+        return refuser(`Rouges nouveaux :\n${nouveaux.map(n => `  ✗ ${n}`).join('\n')}`);
+      for (const a of o.admettre) dire(`⚠ admis par l'intégrateur : ${a}`);
+      dire('✓ suites');
+    }
 
     // 9. The commit, in the copy: the commit validated is the commit that enters.
     // The guards have just run: a pre-commit hook that plays them skips them under
