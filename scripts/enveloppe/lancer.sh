@@ -10,6 +10,9 @@
 #   (`--autostash`). A refusal, such as commits of the agent on its branch, goes to the log and
 #   stops the launch, CODE_COPIE; so does a reapplication that conflicts: the log names each file
 #   in conflict, the work stays in git's stash, and no agent starts on a half-merged copy. Its
+#   submodules go through the common preparation (scripts/sous-modules.sh): before moving forward,
+#   a submodule carrying local work stops the launch, CODE_COPIE, its log naming it, the work in
+#   place; then every submodule is set at the commit of HEAD, before any installation. Its
 #   dependencies are installed when `node_modules` is absent or `package-lock.json` is newer than
 #   the last installation (`node_modules/.package-lock.json`, written by npm), and every component
 #   is built there, outside the envelope, so the agent finds the published parts of its neighbours.
@@ -22,7 +25,8 @@
 # - The exit codes are named in scripts/enveloppe/codes.mjs; a malformed call exits CODE_USAGE.
 # - CLAUDE_BIN replaces `claude` (the tests use it).
 set -euo pipefail
-eval "$(node "$(dirname "${BASH_SOURCE[0]}")/codes.mjs")"
+ici="$(dirname "${BASH_SOURCE[0]}")"
+eval "$(node "$ici/codes.mjs")"
 [ $# -eq 4 ] || { echo "usage: lancer.sh <ticket> <rôle> <composant> <fichier de consigne>" >&2; exit "$CODE_USAGE"; }
 ticket=$1 role=$2 composant=$3 consigne=$4
 # The main tree, from the common git directory: launched from an agent copy, the new copy still
@@ -42,6 +46,7 @@ mkdir -p "$(dirname "$copie")"
   if [ ! -d "$copie" ]; then
     git -C "$racine" worktree add -q -b "agent/$ticket" "$copie" HEAD || exit 1
   else
+    bash "$ici/../sous-modules.sh" garde "$copie" || exit 1
     git -C "$copie" merge -q --ff-only --autostash "$(git -C "$racine" rev-parse HEAD)" || exit 1
     # A conflicting reapplication exits 0: the unmerged files are what tells it.
     conflits=$(git -C "$copie" diff --name-only --diff-filter=U) || exit 1
@@ -52,6 +57,7 @@ mkdir -p "$(dirname "$copie")"
       exit 1
     fi
   fi
+  bash "$ici/../sous-modules.sh" pose "$copie" || exit 1
   if [ -f "$copie/package.json" ]; then
     # --no-save leaves the lock file as committed, so a clean copy stays clean.
     installe="$copie/node_modules/.package-lock.json"

@@ -13,10 +13,12 @@
 //     and the shared test material), the code lot none of it;
 //  3. the main tree: every file of the lots is unmodified there;
 //  4. a clean integration copy (`.claude/worktrees/integration`): detached on HEAD, every
-//     untracked file removed, its dependencies installed again when `package-lock.json` changes
-//     (`npm ci`), then built (`npm run build`, when present);
-//  5. the base: the project's suites (`npm run integration:suites -- <components>`) on HEAD. The
-//     project chooses at its installation (`grillhouse.integration` in package.json):
+//     untracked file removed, its submodules set at the commit of HEAD (`scripts/sous-modules.sh`,
+//     a local modification overwritten, one that cannot be set refuses), its dependencies
+//     installed again when `package-lock.json` changes (`npm ci`), then built (`npm run build`,
+//     when present);
+//  5. the base: the project's suites (`npm run integration:suites -- --tous|<components>`) on
+//     HEAD. The project chooses at its installation (`grillhouse.integration` in package.json):
 //     `impactes` (the default) replays the touched components and those that depend on them (the
 //     consumers' graph), every suite for a lot touching a file outside every component (a root
 //     script or document, package.json, the lockfile, tsconfig, the CI), any file of a component
@@ -34,9 +36,9 @@
 // 10. main moves forward onto it (`merge --ff-only`); main moved in the meantime refuses.
 //
 // The main tree is touched by the fast-forward only: the supervisor's own files stay as they are.
-// The suites command receives the components' directories to replay (`packages/a src/parser`),
-// none for every suite (the night), and writes the names of its failing tests, one per line, to the file
-// named by the ROUGES variable.
+// The suites command receives `--tous` for every suite, or the components' directories to replay
+// (`packages/a src/parser`), never nothing, and writes the names of its failing tests, one per
+// line, to the file named by the ROUGES variable.
 // The budget of an integration that touches one leaf component: 15 s, measured on the template
 // (12.8 s with its first `npm ci`, 8.6 s after). A project sets its own, measured on its code
 // (`npm pkg set grillhouse.budgetIntegration=<seconds>`). The duration is written at the end,
@@ -47,7 +49,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { composants as lesComposants, utilise } from '../consommateurs.mjs';
 import { isTesterFile } from '../verrous/verrou.mjs';
 
@@ -96,6 +98,7 @@ export function nouveauxRouges(base, apres, admis = []) {
 }
 
 const BUDGET_FEUILLE_S = 15;
+const SOUS_MODULES = fileURLToPath(new URL('../sous-modules.sh', import.meta.url));
 
 const lireJsonSiPresent = p => (existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : null);
 
@@ -248,6 +251,12 @@ function main(argv) {
         dansCopie('clean', '-q', '-f', '-d', '-x', '-e', 'node_modules').status === 0
       : git('worktree', 'add', '-q', '--detach', copie, tete).status === 0;
     if (!prete) return refuser(`La copie d'intégration ${copie} ne se prépare pas.`);
+    const poses = spawnSync('bash', [SOUS_MODULES, 'pose', copie], { encoding: 'utf8' });
+    if (poses.status !== 0) {
+      return refuser(
+        `La copie d'intégration ne pose pas ses sous-modules : ${poses.stderr.trim()}`
+      );
+    }
     const npm = (args, env = {}) => {
       const r = spawnSync('npm', args, {
         cwd: copie,
@@ -300,7 +309,8 @@ function main(argv) {
     const suites = nom => {
       const rouges = path.join(tmp, nom);
       writeFileSync(rouges, '');
-      const r = npm(['run', '--silent', 'integration:suites', '--', ...touches], {
+      const portee = champ.mode === 'tous' ? ['--tous'] : touches;
+      const r = npm(['run', '--silent', 'integration:suites', '--', ...portee], {
         ROUGES: rouges,
       });
       const noms = readFileSync(rouges, 'utf8')

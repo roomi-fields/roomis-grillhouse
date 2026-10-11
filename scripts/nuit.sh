@@ -5,7 +5,8 @@
 #   bash scripts/nuit.sh        from the crontab of the machine, e.g. « 0 3 * * * bash <root>/scripts/nuit.sh »
 #
 # - It plays main's HEAD in its own clean copy (.claude/worktrees/nuit): detached, every untracked
-#   file removed, dependencies reinstalled (npm ci) when package-lock.json changes, built, then
+#   file removed, its submodules set at the commit of HEAD (scripts/sous-modules.sh, a local
+#   modification overwritten; one that cannot be set turns the night red), dependencies reinstalled (npm ci) when package-lock.json changes, built, then
 #   `npm test` (the guards of pretest, then every suite).
 # - It holds the integration lock while it runs: an integration waits for the morning.
 # - Its log is <git common dir>/nuit/<date>.log. Green: HEAD becomes the last green commit
@@ -36,6 +37,7 @@ jouer() {
   else
     git -C "$racine" worktree add -q --detach "$copie" "$tete" || return 1
   fi
+  bash "$racine/scripts/sous-modules.sh" pose "$copie" || return 1
   if [ -f "$copie/package-lock.json" ] && ! cmp -s "$copie/package-lock.json" "$copie/node_modules/.nuit-lock"; then
     npm --prefix "$copie" ci --no-audit --no-fund --silent || return 1
     cp "$copie/package-lock.json" "$copie/node_modules/.nuit-lock"

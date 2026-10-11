@@ -519,11 +519,12 @@ describe('an integration', () => {
     expect(r.stdout).toMatch(/Rouges nouveaux :\n {2}✗ src\/a\/a\.spec\.ts > donnees/);
     expect(m.etat().log[0]).toBe('pose suites.mjs');
   });
-  it('hands the suites no component, so every suite, for a document outside every component', () => {
+  // The suites run twice, on the base and with the lot: each call is recorded.
+  it('critère 5: hands the suites --tous, never no argument, for a document outside every component', () => {
     const m = monde(['ACCEPTÉ']);
     m.poser(
       'suites.mjs',
-      "import fs from 'node:fs';\nfs.writeFileSync(`${process.env.PRINCIPAL}.args`, `[${process.argv.slice(2).join(' ')}]`);\nfs.writeFileSync(process.env.ROUGES, '');\n"
+      "import fs from 'node:fs';\nfs.appendFileSync(`${process.env.PRINCIPAL}.args`, `[${process.argv.slice(2).join(' ')}]`);\nfs.writeFileSync(process.env.ROUGES, '');\n"
     );
     mkdirSync(path.join(m.repo, 'docs'));
     writeFileSync(path.join(m.repo, 'docs/note.md'), 'une note\n');
@@ -539,7 +540,7 @@ describe('an integration', () => {
     expect(r.status).toBe(0);
     expect(r.stdout).toMatch(/toutes les suites/);
     expect(r.stdout).not.toMatch(/aucun code de composant/);
-    expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('[]');
+    expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('[--tous][--tous]');
   });
   it('hands the suites the touched component and those that use it, nothing else', () => {
     const m = monde(['ACCEPTÉ']);
@@ -564,11 +565,11 @@ describe('an integration', () => {
     expect(r.status).toBe(0);
     expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('src/feuille src/haut');
   });
-  it('hands the suites no component, so every suite, for a lot touching code outside every component', () => {
+  it('critère 5: hands the suites --tous, never no argument, for code outside every component', () => {
     const m = monde(['ACCEPTÉ']);
     m.poser(
       'suites.mjs',
-      "import fs from 'node:fs';\nfs.writeFileSync(`${process.env.PRINCIPAL}.args`, `[${process.argv.slice(2).join(' ')}]`);\nfs.writeFileSync(process.env.ROUGES, '');\n"
+      "import fs from 'node:fs';\nfs.appendFileSync(`${process.env.PRINCIPAL}.args`, `[${process.argv.slice(2).join(' ')}]`);\nfs.writeFileSync(process.env.ROUGES, '');\n"
     );
     mkdirSync(path.join(m.repo, 'scripts'));
     m.poser('scripts/outil.mjs', 'export const o = 1;\n');
@@ -583,7 +584,7 @@ describe('an integration', () => {
     expect(r.status).toBe(0);
     expect(r.stdout).toMatch(/toutes les suites/);
     expect(r.stdout).not.toMatch(/aucun code de composant/);
-    expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('[]');
+    expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('[--tous][--tous]');
   });
   it('refuses a lot outside every component that brings a new failure', () => {
     const m = monde(['ACCEPTÉ']);
@@ -606,7 +607,7 @@ describe('an integration', () => {
     expect(r.stdout).toMatch(/Rouges nouveaux :\n {2}✗ tests\/outil\.spec\.ts > outil/);
     expect(m.etat().log[0]).toBe('pose scripts/outil.mjs');
   });
-  it('replays every suite when the project chose « complet »', () => {
+  it('critère 5: hands the suites --tous when the project chose « complet »', () => {
     const m = monde(['ACCEPTÉ']);
     m.poser(
       'package.json',
@@ -620,12 +621,12 @@ describe('an integration', () => {
     );
     m.poser(
       'suites.mjs',
-      "import fs from 'node:fs';\nfs.writeFileSync(`${process.env.PRINCIPAL}.args`, `[${process.argv.slice(2).join(' ')}]`);\nfs.writeFileSync(process.env.ROUGES, '');\n"
+      "import fs from 'node:fs';\nfs.appendFileSync(`${process.env.PRINCIPAL}.args`, `[${process.argv.slice(2).join(' ')}]`);\nfs.writeFileSync(process.env.ROUGES, '');\n"
     );
     const r = m.run();
     expect(r.status).toBe(0);
     expect(r.stdout).toMatch(/toutes les suites/);
-    expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('[]');
+    expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('[--tous][--tous]');
   });
   it('tells the pre-commit hook that the guards have just run', () => {
     const m = monde(['ACCEPTÉ']);

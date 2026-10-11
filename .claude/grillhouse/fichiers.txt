@@ -29,6 +29,7 @@ scripts/nuit.sh
 scripts/registre.mjs
 scripts/session-start.sh
 scripts/setup.sh
+scripts/sous-modules.sh
 scripts/structure-guard.sh
 scripts/tableau.mjs
 scripts/un-commit-par-ticket.mjs

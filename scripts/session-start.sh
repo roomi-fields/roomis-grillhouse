@@ -140,7 +140,7 @@ if [ ${#pending[@]} -gt 0 ]; then
   echo "Dès ta première réponse, propose au responsable de les griller, chacun avec ce que tu recommandes pour ce projet (compétence \`grill\`). Il peut accepter, en choisir un, ou reporter ; tant qu'un élément reste vide, cette proposition revient à chaque séance."
 fi
 if [ ${#wiring[@]} -gt 0 ]; then
-  echo "À brancher : $(IFS=' '; echo "${wiring[*]}") dans le package.json de la racine. Le script d'intégration (\`scripts/integration/integrer.mjs\`, contrat en tête) en a besoin pour lancer les suites et les gardes du projet ; sans eux, il refuse chaque lot. Un projet testé par Vitest reprend \`node scripts/integration/suites-vitest.mjs\` et \`npm run --silent pretest\` ; sinon, écris l'adaptateur de ses suites."
+  echo "À brancher : $(IFS=' '; echo "${wiring[*]}") dans le package.json de la racine. Le script d'intégration (\`scripts/integration/integrer.mjs\`, contrat en tête) en a besoin pour lancer les suites (\`--tous\`, ou les dossiers des composants à rejouer) et les gardes du projet ; sans eux, il refuse chaque lot. Un projet testé par Vitest reprend \`node scripts/integration/suites-vitest.mjs\` et \`npm run --silent pretest\` ; sinon, écris l'adaptateur de ses suites."
 fi
 if [ -n "${nuit:-}" ]; then
   echo "La nuit n'est pas programmée : le projet a choisi « impactes », et ses suites complètes tournent une fois la nuit (\`scripts/nuit.sh\`). Propose au responsable d'ajouter à la table des tâches du poste (\`crontab -e\`) : \`$nuit\`."

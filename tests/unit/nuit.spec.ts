@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -21,8 +21,8 @@ function monde() {
     execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], {
       encoding: 'utf8',
     });
-  mkdirSync(path.join(repo, 'scripts'));
-  execFileSync('cp', [NUIT, path.join(repo, 'scripts/nuit.sh')]);
+  // The night runs from the repository's own scripts, the copy's preparation with them.
+  cpSync(path.dirname(NUIT), path.join(repo, 'scripts'), { recursive: true });
   writeFileSync(
     path.join(repo, 'package.json'),
     JSON.stringify({ scripts: { test: 'node t.mjs' } })

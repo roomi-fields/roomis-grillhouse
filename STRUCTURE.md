@@ -60,13 +60,14 @@ roomis-grillhouse/
 │   ├── frontieres.mjs             # pretest: dependency-cruiser, rules generated in .dependency-cruiser.cjs
 │   ├── interfaces-contre-code.mjs # pretest: INTERFACE.md against the API report of API Extractor (npm run api)
 │   ├── nuit.sh                    # every suite, once a night (mode « impactes »); a red opens a ticket
+│   ├── sous-modules.sh            # the submodules of a working copy (integration, agent, night) at HEAD
 │   ├── grillhouse-maj.mjs         # npm run grillhouse:maj: the frame brought to its last version; --ecarts
 │   ├── tableau.mjs                # npm run tableau: the board on three levels (project, chantier, agents)
 │   ├── ligne-etat/                # the status line: the person's own on the left, the chantier on the right
 │   ├── registre.mjs               # hook: one line per finished agent (ticket, role, time, tokens)
 │   ├── integration/               # One delivery, in a clean copy: verdicts, lots, base, guards, suites, commit
 │   │   ├── integrer.mjs              # run by the integrateur (tests: tests/unit/integrer.spec.ts)
-│   │   └── suites-vitest.mjs         # npm run integration:suites: failing tests by name, for Vitest
+│   │   └── suites-vitest.mjs         # npm run integration:suites -- --tous|<components>: failing tests by name, for Vitest
 │   ├── index-interfaces.mjs       # npm run interfaces: docs/agents/index-des-interfaces.md, checked by pretest
 │   └── un-commit-par-ticket.mjs   # commit-msg hook (.beads/hooks/commit-msg): one ticket, one commit
 │

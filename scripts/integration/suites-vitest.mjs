@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // The suites of an integration for a project tested by Vitest: `integration:suites` in
-// package.json. Given components' directories (`packages/a src/parser`), it runs the tests that
-// cover their files (`vitest related`: the tests that import them, directly or not, and their own
-// tests); without argument, every test. It writes the full name of each failing test, one per
+// package.json. Its call is `--tous`, every test, or a non-empty list of components' directories
+// (`packages/a src/parser`), the tests that cover their files (`vitest related`: the tests that
+// import them, directly or not, and their own tests). A call without argument, or `--tous` with
+// directories, is ambiguous: refused, exit 2, nothing runs. It writes the full name of each failing test, one per
 // line, to the file named by ROUGES. Its exit code is Vitest's. A time budget bench
 // (`*.budget.test.*`, `*.budget.spec.*`) does not run here: the day's load moves its measures,
 // and the night (`scripts/nuit.sh`, every test) judges it.
@@ -26,11 +27,19 @@ const fichiers = dir => {
   return out;
 };
 
-const composants = process.argv.slice(2);
+const args = process.argv.slice(2);
+const tous = args.includes('--tous');
+if (args.length === 0 || (tous && args.length > 1)) {
+  process.stderr.write(
+    'usage: suites-vitest.mjs --tous | <dossier de composant>… (--tous seul, ou une liste non vide de dossiers)\n'
+  );
+  process.exit(2);
+}
+const composants = tous ? [] : args;
 const tmp = mkdtempSync(path.join(tmpdir(), 'suites-'));
 const rapport = path.join(tmp, 'rapport.json');
 const BUDGET = '**/*.budget.{test,spec}.?(c|m)[jt]s?(x)';
-const portee = composants.length
+const portee = !tous
   ? [
       'related',
       '--run',
