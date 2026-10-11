@@ -29,8 +29,8 @@ const etat = atom({ plugin: 'grillhouse', key: 'etat' } as const, {
   lu: 0,
   choisi: null,
   element: null,
-  ouverts: [],
   grand: false,
+  vue: 'tableau',
 } as Etat)
 
 export const k = (n: number) =>
@@ -58,19 +58,13 @@ export function ficheLignes(f: Fiche | undefined): string[] {
   ].filter(Boolean)
 }
 
-// A line the pane lists, the key of its Button and `i`, the index in the board of the line it
-// comes from.
+// A line the pane lists, the key of its Button and `i`, its index in the lines shown.
 export type Visible = { l: Ligne; cle: string | null; i: number }
 
-// The lines the pane lists: the board's, each board counting line in `ouverts` unfolded below
-// itself. Each carries the key of its Button: `<ticket>:<i>`, `<ticket>:<i>.<j>` for a folded
-// line, `+:<i>` for a counting line; none for a plain line.
-export function visibles(lignes: Ligne[], ouverts: string[]): Visible[] {
-  return lignes.flatMap((l, i) => {
-    const ici = [{ l, cle: l.ticket ? `${l.ticket}:${i}` : l.replie?.length ? `+:${i}` : null, i }]
-    if (!l.replie || !ouverts.includes(`+:${i}`)) return ici
-    return [...ici, ...l.replie.map((r, j) => ({ l: r, cle: r.ticket ? `${r.ticket}:${i}.${j}` : null, i }))]
-  })
+// The lines the pane lists, each with the key of its Button: `<ticket>:<i>` for a ticket's line,
+// none for a plain line.
+export function visibles(lignes: Ligne[]): Visible[] {
+  return lignes.map((l, i) => ({ l, cle: l.ticket ? `${l.ticket}:${i}` : null, i }))
 }
 
 // The first of `n` lines to show in `rangs` rows: the window stays where it was (`avant`) while the
@@ -87,24 +81,26 @@ export function debut(n: number, idx: number, rangs: number, avant: number, haut
   return Math.max(0, Math.min(p, n - rangs))
 }
 
-// Whether the counting line keyed `compte`, unfolded, holds `element`: a counting line `+:<i>`
-// holds itself and its folded lines `<ticket>:<i>.<j>`.
-function tient(compte: string, element: string): boolean {
-  const [, pos = ''] = compte.split(':')
-  const [t, p = ''] = element.split(':')
-  return Number(p.split('.')[0]) === Number(pos) && (t === '+' || p.includes('.'))
+// What the keyboard reaching a ticket's line changes: the line chooses its ticket, and the card
+// goes back to its size.
+export function viser(s: Etat, element: string): Etat {
+  if (element === 'g' || element === 'h' || element === 'e') return s
+  const [tete] = element.split(':')
+  return { ...s, element, grand: false, choisi: tete ?? null }
 }
 
-// What the keyboard reaching an element changes: the unfolded counting lines that hold it stay
-// unfolded and the others fold, a counting line unfolds, a ticket's line chooses its ticket, and
-// the card goes back to its size.
-export function viser(s: Etat, element: string): Etat {
-  if (element === 'g' || element === 'h') return s
-  const [tete] = element.split(':')
-  const compte = tete === '+'
-  const ouverts = [...s.ouverts.filter(c => c !== element && tient(c, element)), ...(compte ? [element] : [])]
-  return { ...s, element, ouverts, grand: false, choisi: compte ? s.choisi : (tete ?? null) }
-}
+// The lines the pane shows: the board's, or the states' view.
+export const lignesDe = (s: Etat): Ligne[] =>
+  (s.vue === 'etats' ? s.tableau?.vueEtats : s.tableau?.lignes) ?? []
+
+// `e` switches between the board and the states' view: the keyboard starts over in the other
+// view, the card stays.
+export const basculerVue = (s: Etat): Etat => ({
+  ...s,
+  vue: s.vue === 'etats' ? 'tableau' : 'etats',
+  element: null,
+  grand: false,
+})
 
 // The colour of a line's tone.
 export const couleur = (ton: Ligne['ton']) =>
@@ -123,7 +119,7 @@ let cadre = { rangs: 1, focus: false }
 // ring has moved to another line since the window last followed it, the window follows it
 // (`debut`); it stays within the lines.
 function placer(s: Etat, rangs: number, focus: boolean): Visible[] {
-  const liste = visibles(s.tableau?.lignes ?? [], focus ? s.ouverts : [])
+  const liste = visibles(lignesDe(s))
   const ici = liste.findIndex(x => x.cle === s.element)
   if (focus && ici >= 0 && s.element !== suivi) {
     // The ring's next stops: the nearest lines with a button, above and below.
@@ -228,14 +224,29 @@ export const register: Register = on => {
     // The chantier the keyboard is on, which `h` switches on or off.
     const chantier = ici >= 0 && liste[ici]?.l.chantier ? liste[ici]?.l.ticket : undefined
     // `g` on the rule makes the card fill the pane, and again brings it back; `h` switches the
-    // chantier chosen.
+    // chantier chosen; `e` switches between the board and the states' view.
     const regle = (libelle: string) =>
-      e.props.isFocused && fiche ? (
+      e.props.isFocused ? (
         <Box flexDirection="row" width={colonnes} overflow="hidden">
-          <Button key="g" plain hotkey="g" onPress={() => void update($, etat, s => ({ ...s, grand: !s.grand }))}>
-            <Text dimColor>{`── g : ${libelle} `}</Text>
+          <Text dimColor>{'── '}</Text>
+          <Button
+            key="e"
+            plain
+            hotkey="e"
+            onPress={() => {
+              fenetre = 0
+              suivi = null
+              void update($, etat, basculerVue)
+            }}
+          >
+            <Text dimColor>{`e : ${s.vue === 'etats' ? 'tableau' : 'états'} `}</Text>
           </Button>
-          {chantier ? (
+          {fiche ? (
+            <Button key="g" plain hotkey="g" onPress={() => void update($, etat, s => ({ ...s, grand: !s.grand }))}>
+              <Text dimColor>{`· g : ${libelle} `}</Text>
+            </Button>
+          ) : null}
+          {chantier && fiche ? (
             <Button key="h" plain hotkey="h" onPress={() => void basculer($, chantier, t.fiches[chantier]?.statut)}>
               <Text dimColor>{`· h : ${fiche.statut === 'in_progress' ? 'désactiver' : 'activer'} `}</Text>
             </Button>
@@ -301,15 +312,7 @@ export const register: Register = on => {
                 {l.texte || ' '}
               </Text>
             )
-            if (!cle) return texte
-            if (!l.ticket) {
-              // A counting line: the ring on it unfolds the lines it counts.
-              return (
-                <Button key={cle} plain onPress={() => void update($, etat, s => viser(s, cle))}>
-                  {texte}
-                </Button>
-              )
-            }
+            if (!cle || !l.ticket) return texte
             // A ticket's line is a plain button, in the hover group named by its ticket: the ring
             // chooses it, the pointer over it shows its card.
             return (

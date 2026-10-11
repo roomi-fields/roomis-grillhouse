@@ -389,7 +389,7 @@ const finRecente = (id: string, ticket: string, fini: number, finInscrite = fini
 });
 
 interface Panneau {
-  global: { compteurs: { enCours: number; prets: number } };
+  global: { compteurs: { enCours: number; enAttente: number } };
   alertes: { texte: string }[];
   agents: Bloc[];
 }
@@ -429,7 +429,7 @@ describe('3uv.40 critère 6 : the board has one definition of a running agent, f
   it('3uv.40 critère 6 : an open ticket whose only sub-agent just finished counts ready, not in progress', () => {
     const home = avecSousAgentRecent('e3', 'demo-2', 30 * SEC);
     const p = panneau(home, [ouvert('demo-2')], [finRecente('e3', 'demo-2', 30 * SEC)]);
-    expect(p.global.compteurs).toMatchObject({ enCours: 0, prets: 1 });
+    expect(p.global.compteurs).toMatchObject({ enCours: 0, enAttente: 1 });
   });
 
   it('3uv.40 critère 6 : among two tickets, only the one whose agent runs counts in progress', () => {
@@ -463,7 +463,7 @@ describe('3uv.40 critère 6 : the board has one definition of a running agent, f
       [ouvert('demo-2'), ouvert('demo-8')],
       [finRecente('e3', 'demo-2', 30 * SEC), finRecente('e4', 'demo-8', 60 * SEC)]
     );
-    expect(p.global.compteurs).toMatchObject({ enCours: 1, prets: 1 });
+    expect(p.global.compteurs).toMatchObject({ enCours: 1, enAttente: 1 });
   });
 
   it('3uv.40 critère 6 : a ticket in progress whose sub-agent was resumed after its end raises no alert', () => {

@@ -9,6 +9,7 @@ import {
   fiches,
   lecture,
   lignes,
+  lignesEtats,
   lireRegistre,
   lireTranscription,
   lireVivant,
@@ -228,6 +229,7 @@ describe('assembler', () => {
     T('demo-c.1.2', { parent: 'demo-c.1', status: 'closed', closed_at: '2026-10-10T09:00:00Z' }),
     T('demo-c.2', {
       parent: 'demo-c',
+      labels: [],
       dependencies: [{ type: 'blocks', depends_on_id: 'demo-c.1.1' }],
     }),
     T('demo-c.3', { parent: 'demo-c' }),
@@ -278,11 +280,12 @@ describe('assembler', () => {
   it('counts the work tickets only, never a mother nor an epic', () => {
     expect(t.global.compteurs).toEqual({
       enCours: 1,
-      prets: 1,
-      bloques: 1,
+      enAttente: 1,
+      bloques: 0,
+      fermes: 2,
+      sansGo: 1,
       aValider: 1,
       reportes: 0,
-      fermes: 2,
     });
   });
   it('counts a ticket in progress as work, a discovery under it notwithstanding', () => {
@@ -314,7 +317,7 @@ describe('assembler', () => {
       faits: 1,
       total: 2,
     });
-    expect(ch.enfants[1]).toMatchObject({ etat: 'bloques', bloquePar: ['c.1.1'] });
+    expect(ch.enfants[1]).toMatchObject({ etat: 'sansGo', bloquePar: ['c.1.1'] });
     expect(t.autres).toEqual([
       { id: 'demo-z', numero: 'z', sujet: 'Un autre', faits: 1, total: 1 },
     ]);
@@ -326,7 +329,15 @@ describe('assembler', () => {
     ]);
     expect(b(3).enCours).toEqual([]);
     expect(b(4).attend).toEqual([
-      { id: 'demo-c.3', numero: 'c.3', sujet: 'demo-c.3', duree: 0, travail: 60_000, jetons: 50 },
+      {
+        id: 'demo-c.3',
+        numero: 'c.3',
+        sujet: 'demo-c.3',
+        duree: 0,
+        bloquePar: [],
+        travail: 60_000,
+        jetons: 50,
+      },
     ]);
     expect(b(3).attend).toEqual([]);
     expect(t.agents.flatMap(x => x.attend.map(y => y.numero))).not.toContain('c.4');
@@ -336,9 +347,9 @@ describe('assembler', () => {
       { id: 'demo-c.1.2', numero: 'c.1.2', sujet: 'demo-c.1.2', duree: 0, travail: 0, jetons: 0 },
     ]);
   });
-  it('alerts on a decision awaited, a silent shell agent, a ticket in progress without anything running', () => {
+  it('alerts on a silent shell agent and a ticket in progress without anything running, never on a decision awaited', () => {
     const textes = t.alertes.map((a: { texte: string }) => a.texte);
-    expect(textes).toContain('1 ticket(s) attendent ta décision');
+    expect(textes.some((x: string) => /décision/.test(x))).toBe(false);
     expect(textes.some((x: string) => /c\.1\.1, agent 4 silencieux/.test(x))).toBe(true);
     const seul = plateau({
       tous: [
@@ -357,7 +368,7 @@ describe('assembler', () => {
       'x en cours sans rien qui tourne',
     ]);
   });
-  it('draws lines no wider than the pane, the tree folded per level', () => {
+  it('draws lines no wider than the pane, every open ticket of the chantier under its state', () => {
     const l = dessin(t);
     for (const x of l) {
       expect([...x.texte].length).toBeLessThanOrEqual(LARGEUR);
@@ -369,16 +380,77 @@ describe('assembler', () => {
     );
     const texte = l.map((x: { texte: string }) => x.texte).join('\n');
     expect(texte).toMatch(/CHANTIER c — Le chantier/);
-    expect(texte).toMatch(/c\.1 {2}Une mère +1\/2 · 1 k ▶/);
+    expect(texte).toMatch(/\n {2}en cours +1\n {3}c\.1 {2}Une mère +1\/2 · 1 k\n/);
     // A ticket the agents' blocks show is not drawn again in the chantier's tree, nor counted.
     expect(texte.match(/c\.1\.1 {2}Écrit/g)).toHaveLength(1);
     expect(texte.match(/c\.3 {2}demo-c\.3/g)).toHaveLength(1);
-    expect(texte).toMatch(/\n \+ 1 bloqués\n/);
+    expect(texte).toMatch(/\n {2}sans go +1\n {3}c\.2 {2}demo-c\.2\n/);
     expect(texte).toMatch(/\n4 développeur\n▶ c\.1\.1 {2}Écrit/);
     expect(texte).toMatch(/\n4 développeur[\s\S]*\n· c\.3 {2}demo-c\.3 +0 min · 50\n/);
     expect(texte).toMatch(/\n1 explorateur {2}—\n/);
     expect(texte).toMatch(/✓ c\.1\.2 {2}demo-c\.1\.2/);
-    expect(texte).toMatch(/\n\+ 1 autre chantier\n/);
+    expect(texte).toMatch(/\nAUTRES CHANTIERS +1\nz {2}Un autre +1\/1\n/);
+  });
+  it('heads the board with two lines of states, the circuit then what waits for the owner', () => {
+    const l = dessin(t).map(x => x.texte);
+    expect(l[1]).toBe('▶ 1 en cours · 1 en attente · 0 bloqués · 2 faits');
+    expect(l[2]).toBe('1 sans go · 1 à valider · 0 reportés');
+    expect((dessin(t)[2] as { ton?: string }).ton).toBe('attention');
+  });
+  it('lists each state, its meaning and its tickets one per line in the states view', () => {
+    const v = lignesEtats(t) as { texte: string; ticket?: string; section: string }[];
+    const titres = v.filter(x => !x.ticket && x.texte.trim() && x.texte.trim() !== '—');
+    expect(titres.map(x => x.texte.split(' — ')[0])).toEqual([
+      'EN COURS',
+      'EN ATTENTE',
+      'BLOQUÉ',
+      'SANS GO',
+      'À VALIDER',
+      'REPORTÉ',
+      'FAIT',
+    ]);
+    expect(v.find(x => x.texte.startsWith('EN ATTENTE'))?.texte).toMatch(
+      /^EN ATTENTE — ton go, prêt à partir +1$/
+    );
+    const sous = (titre: string) => {
+      const i = v.findIndex(x => x.texte.startsWith(titre));
+      const j = v.findIndex((x, n) => n > i && !x.texte.trim());
+      return v.slice(i + 1, j < 0 ? undefined : j).map(x => x.ticket ?? x.texte.trim());
+    };
+    expect(sous('EN ATTENTE')).toEqual(['demo-c.3']);
+    expect(sous('SANS GO')).toEqual(['demo-c.2']);
+    expect(sous('BLOQUÉ')).toEqual(['—']);
+    // The done tickets, the last closed first.
+    expect(sous('FAIT')).toEqual(['demo-c.1.2', 'demo-z.1']);
+    expect(new Set(v.map(x => x.section))).toEqual(new Set(['etats']));
+    for (const x of v) {
+      expect([...x.texte].length).toBeLessThanOrEqual(LARGEUR);
+    }
+  });
+  it('shows no time nor tokens on a ticket line at 0 min and 0 tokens', () => {
+    const l = dessin(t).map(x => x.texte);
+    expect(l).toContain('✓ c.1.2  demo-c.1.2');
+  });
+  it('waits a blocked ticket in the circuit under the manager, naming the ticket it waits for', () => {
+    const b = plateau({
+      tous: [
+        T('demo-e', { issue_type: 'epic', status: 'in_progress', title: 'e — Bloqué' }),
+        T('demo-e.1', { parent: 'demo-e' }),
+        T('demo-e.2', {
+          parent: 'demo-e',
+          dependencies: [{ type: 'blocks', depends_on_id: 'demo-e.1' }],
+        }),
+      ],
+      prefix: 'demo',
+      registre: [],
+      vivants: [],
+      maintenant,
+      jour,
+    });
+    expect(b.global.compteurs).toMatchObject({ enAttente: 1, bloques: 1 });
+    const l = dessin(b).map(x => x.texte);
+    const i = l.indexOf('0 chef de chantier');
+    expect(l[i + 2]).toMatch(/^· e\.2 {2}demo-e\.2 +attend e\.1$/);
   });
 });
 
@@ -405,7 +477,7 @@ describe('chantiers', () => {
       texte: string;
       ticket?: string;
       chantier?: boolean;
-      replie?: { texte: string; ticket?: string; chantier?: boolean }[];
+      ton?: string;
     }[];
   const a = T('demo-a', { issue_type: 'epic', title: 'a — Premier' });
   const b = T('demo-b', { issue_type: 'epic', title: 'b — Second' });
@@ -417,27 +489,24 @@ describe('chantiers', () => {
       chantier: true,
     });
   });
-  it('3uv.24 critère 2 : with none in progress, one line « N chantiers » folds an epic per line', () => {
+  it('with none in progress, « CHANTIERS » titles the epics, one per line', () => {
     const l = avec(a, b, b1);
-    const plie = l.find(x => x.texte === '2 chantiers');
-    expect(plie?.replie?.map(x => x.ticket)).toEqual(['demo-a', 'demo-b']);
-    expect(plie?.replie?.[1].texte).toMatch(/^b {2}Second +1\/1$/);
-    expect(plie?.replie?.every(x => x.chantier)).toBe(true);
+    const i = l.findIndex(x => x.texte.startsWith('CHANTIERS'));
+    expect(l[i].texte).toMatch(/ 2$/);
+    expect(l.slice(i + 1, i + 3).map(x => x.ticket)).toEqual(['demo-a', 'demo-b']);
+    expect(l[i + 2].texte).toMatch(/^b {2}Second +1\/1$/);
+    expect(l.slice(i + 1, i + 3).every(x => x.chantier)).toBe(true);
   });
-  it('3uv.24 critère 3 : with one in progress, the others fold in « + N autres chantiers »', () => {
-    expect(
-      avec({ ...a, status: 'in_progress' }, b).some(x => x.texte === '+ 1 autre chantier')
-    ).toBe(true);
+  it('with one in progress, « AUTRES CHANTIERS » titles the others, one per line', () => {
     const c = T('demo-c', { issue_type: 'epic', title: 'c — Troisième' });
-    expect(
-      avec({ ...a, status: 'in_progress' }, b, c).some(x => x.texte === '+ 2 autres chantiers')
-    ).toBe(true);
+    const l = avec({ ...a, status: 'in_progress' }, b, c);
+    const i = l.findIndex(x => x.texte.startsWith('AUTRES CHANTIERS'));
+    expect(l[i].texte).toMatch(/ 2$/);
+    expect(l.slice(i + 1, i + 3).map(x => x.ticket)).toEqual(['demo-b', 'demo-c']);
   });
   it('3uv.24 critère 4 : every epic line has its card', () => {
-    const l = [
-      { texte: '2 chantiers', replie: [{ texte: 'a', ticket: 'demo-a', chantier: true }] },
-    ];
-    expect(Object.keys(fiches([a], l, 'demo'))).toEqual(['demo-a']);
+    const l = avec(a, b, b1);
+    expect(Object.keys(fiches([a, b, b1], l, 'demo')).sort()).toEqual(['demo-a', 'demo-b']);
   });
   it('3uv.24 critère 7 : an epic set back to open stays in progress while a ticket of it is', () => {
     const l = avec(a, T('demo-a.1', { parent: 'demo-a', status: 'in_progress' }));
@@ -486,7 +555,7 @@ describe('a ticket in progress with children', () => {
       .map(x => x.texte)
       .join('\n');
     expect(texte).toMatch(/\n4 développeur\n· m {2}La mère en cours/);
-    expect(texte).toMatch(/\n m\.1 {2}L’enfant en cours/);
+    expect(texte).toMatch(/\n {2}en cours +1\n {3}m\.1 {2}L’enfant en cours/);
   });
 });
 
@@ -537,31 +606,5 @@ describe('fiches', () => {
         texte: '## Architecture\nLe modèle mûr.\n\nSuite.',
       },
     });
-  });
-  it('gives a card to the ticket of a folded line too', () => {
-    const tous = [{ id: 'demo-a', title: 'a — Replié', status: 'open' }];
-    const l = [{ texte: '+ 1 autre chantier', replie: [{ texte: 'x', ticket: 'demo-a' }] }];
-    expect(Object.keys(fiches(tous, l, 'demo'))).toEqual(['demo-a']);
-  });
-});
-
-describe('folded lines', () => {
-  it('a counting line carries the lines it counts', () => {
-    const t = {
-      global: {
-        compteurs: { enCours: 0, prets: 2, bloques: 0, fermes: 0 },
-        jour: { travail: 0, jetons: 0 },
-        cumul: { travail: 0, jetons: 0 },
-      },
-      alertes: [],
-      chantiers: [],
-      autres: ['a', 'b'].map(n => ({ id: `demo-${n}`, numero: n, sujet: n, faits: 0, total: 1 })),
-      agents: [],
-      faitsDuJour: [],
-    };
-    const plie = (lignes(t, 'demo') as { texte: string; replie?: { ticket?: string }[] }[]).find(
-      l => l.texte === '2 chantiers'
-    );
-    expect(plie?.replie?.map(l => l.ticket)).toEqual(['demo-a', 'demo-b']);
   });
 });

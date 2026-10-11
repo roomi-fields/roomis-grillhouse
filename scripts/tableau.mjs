@@ -80,6 +80,16 @@ const NOMS = {
   developpeur: 'développeur',
   integrateur: 'intégrateur',
 };
+// The states of a ticket, in the order the states' view lists them, with their meaning.
+export const ETATS = [
+  { cle: 'enCours', nom: 'en cours', sens: 'un agent y travaille' },
+  { cle: 'enAttente', nom: 'en attente', sens: 'ton go, prêt à partir' },
+  { cle: 'bloques', nom: 'bloqué', sens: 'ton go, il attend un autre ticket' },
+  { cle: 'sansGo', nom: 'sans go', sens: 'validé, il attend ton go' },
+  { cle: 'aValider', nom: 'à valider', sens: 'une trouvaille attend ton accord' },
+  { cle: 'reportes', nom: 'reporté', sens: 'mis de côté' },
+  { cle: 'fermes', nom: 'fait', sens: 'fermé' },
+];
 const enTirets = p => p.replace(/[^A-Za-z0-9]/g, '-');
 
 // The origins of an incoming message: the person, another agent, a notification.
@@ -578,6 +588,10 @@ export function assembler({
   const pret = new Set(prets.map(t => t.id));
   const avalider = new Set(aValider.map(t => t.id));
   const bloquePar = t => blocages(t).map(d => numero(d.depends_on_id));
+  // The owner's go: the label `circuit`, set on his word.
+  const circuit = t => (t.labels ?? []).includes('circuit');
+  // A ticket's state: done, in progress, deferred, awaiting validation; else, with the owner's go,
+  // waiting (ready) or blocked (an open ticket it depends on); without it, awaiting his go.
   const etat = t => {
     if (t.status === 'closed') {
       return 'fermes';
@@ -591,19 +605,42 @@ export function assembler({
     if (avalider.has(t.id)) {
       return 'aValider';
     }
-    if (pret.has(t.id)) {
-      return 'prets';
+    if (!circuit(t)) {
+      return 'sansGo';
     }
-    return 'bloques';
+    return pret.has(t.id) ? 'enAttente' : 'bloques';
   };
 
   // Global.
-  const compteurs = { enCours: 0, prets: 0, bloques: 0, aValider: 0, reportes: 0, fermes: 0 };
-  for (const t of tous) {
+  const compteurs = {
+    enCours: 0,
+    enAttente: 0,
+    bloques: 0,
+    fermes: 0,
+    sansGo: 0,
+    aValider: 0,
+    reportes: 0,
+  };
+  // Each state's tickets, one per line in the states' view: the done ones, last closed first.
+  const parEtat = Object.fromEntries(Object.keys(compteurs).map(e => [e, []]));
+  for (const t of [...tous].sort(ordre)) {
     if (travail(t)) {
       compteurs[etat(t)]++;
+      parEtat[etat(t)].push(t);
     }
   }
+  parEtat.fermes.sort((a, b) => Date.parse(b.closed_at ?? '') - Date.parse(a.closed_at ?? ''));
+  const etats = ETATS.map(({ cle, nom, sens }) => ({
+    cle,
+    nom,
+    sens,
+    tickets: parEtat[cle].map(t => ({
+      id: t.id,
+      numero: numero(t.id),
+      sujet: titre(t).sujet,
+      bloquePar: bloquePar(t),
+    })),
+  }));
   const mesures = [
     ...finis.map(r => ({ ...r, quand: Date.parse(r.fin) })),
     ...enCoursMesures.map(v => ({ ...v, quand: maintenant })),
@@ -632,15 +669,18 @@ export function assembler({
   const noeud = t => {
     const liste = sous(t).filter(travail);
     const faits = liste.filter(x => x.status === 'closed').length;
+    // A mother not in progress has her own state; an epic, the state of its tickets.
     const e = travail(t)
       ? etat(t)
       : t.status === 'in_progress' || liste.some(x => etat(x) === 'enCours')
         ? 'enCours'
-        : faits === liste.length
-          ? 'fermes'
-          : bloquePar(t).length
-            ? 'bloques'
-            : 'prets';
+        : t.issue_type !== 'epic'
+          ? etat(t)
+          : faits === liste.length
+            ? 'fermes'
+            : bloquePar(t).length
+              ? 'bloques'
+              : 'sansGo';
     return {
       id: t.id,
       ...titre(t),
@@ -713,31 +753,34 @@ export function assembler({
       ...mesure(new Set([t.id])),
     });
   }
-  // A ticket waits in AGENTS only once the owner launched it (label `circuit`); a ticket created
-  // or ready, never launched, stands in CHANTIER alone.
+  // A ticket waits in AGENTS only with the owner's go (`circuit`): ready, blocked, or claimed with
+  // nothing running; a ticket without it stands in CHANTIER alone. A ticket no agent took yet, or a site manager led, waits
+  // for the site manager, who takes each ticket first; the flow's deduction serves the others.
   for (const t of [...tous].sort(ordre)) {
     if (
       !travail(t) ||
       places.has(t.id) ||
-      t.status === 'closed' ||
-      t.status === 'deferred' ||
-      avalider.has(t.id) ||
-      !(t.labels ?? []).includes('circuit')
+      ['fermes', 'reportes', 'aValider', 'sansGo'].includes(etat(t)) ||
+      !circuit(t)
     ) {
       continue;
     }
     const p = passages.get(t.id) ?? [];
-    if (p.length === 0 && !pret.has(t.id)) {
+    // Claimed without any passage, the ticket keeps its line in its chantier.
+    if (p.length === 0 && t.status === 'in_progress') {
       continue;
     }
-    // A ticket a site manager led waits for it; the flow's deduction serves the other tickets.
-    const r = avecChef && p.some(x => x.role === CHEF) ? CHEF : etape(p, verdicts[t.id] ?? null);
+    const r =
+      avecChef && (p.length === 0 || p.some(x => x.role === CHEF))
+        ? CHEF
+        : etape(p, verdicts[t.id] ?? null);
     if (r && bloc(r)) {
       bloc(r).attend.push({
         id: t.id,
         numero: numero(t.id),
         sujet: titre(t).sujet,
         duree: dureeDe(t),
+        bloquePar: bloquePar(t),
         ...mesure(new Set([t.id])),
       });
     }
@@ -760,12 +803,6 @@ export function assembler({
     const { sujet, numero: n } = titre(t);
     alertes.push({ niveau: 'rouge', texte: `${sujet} ${n}`, sujet, numero: n });
   }
-  if (aValider.length) {
-    alertes.push({
-      niveau: 'decision',
-      texte: `${aValider.length} ticket(s) attendent ta décision`,
-    });
-  }
   for (const b of blocs) {
     for (const x of b.enCours) {
       if (x.ligne && x.silence !== null && x.silence > SILENCE) {
@@ -787,7 +824,7 @@ export function assembler({
       alertes.push({ niveau: 'orange', texte: `${numero(t.id)} en cours sans rien qui tourne` });
     }
   }
-  return { global, alertes, chantiers, autres, agents: blocs, faitsDuJour };
+  return { global, alertes, chantiers, autres, agents: blocs, faitsDuJour, etats };
 }
 
 export const k = n =>
@@ -800,6 +837,10 @@ export const duree = ms => {
   const min = Math.round(ms / MINUTE);
   return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}`;
 };
+
+// A ticket's time and tokens, « 12 min · 310 k »; nothing when both are zero.
+const conso = (ms, jetons) =>
+  Math.round(ms / MINUTE) === 0 && !jetons ? '' : `${duree(ms)} · ${k(jetons)}`;
 
 // A line of `largeur` columns: the left part cut to leave the right part whole.
 const couper = (gauche, droite, largeur) => {
@@ -815,28 +856,30 @@ const couper = (gauche, droite, largeur) => {
 // discret, or none), its section (`section`: agents, chantier or faits, in that order) and, for a
 // ticket's line, its id (`ticket`), which the pane makes selectable; an epic's line is marked
 // `chantier`. The head belongs to agents, the first section; a blank line belongs to the section
-// of the title after it. A line that counts lines it does not show (« + 2 prêts ») carries them
-// (`replie`), which the pane unfolds when the person reaches it; a folded line carries the section
-// of the line that folds it. The pane and the text show the same lines.
+// of the title after it. Every line shows: none folds others. The pane and the text show the same
+// lines.
 export function lignes(t, nom, largeur = LARGEUR) {
   const out = [];
   let section = 'agents';
-  // Each line laid down takes the current section, its folded lines at any depth with it.
-  const marquer = l => ({ ...l, section, ...(l.replie ? { replie: l.replie.map(marquer) } : {}) });
+  // Each line laid down takes the current section.
+  const marquer = l => ({ ...l, section });
   const poser = (...l) => out.push(...l.map(marquer));
   const cadre = couper;
   const L = (texte, ton, ticket) => poser(ticket ? { texte, ton, ticket } : { texte, ton });
-  // A line that counts the lines it folds, and carries them.
-  const replie = (texte, caches) => poser({ texte, ton: 'discret', replie: caches });
   const g = t.global;
   const c = g.compteurs;
   L(nom.toUpperCase(), 'titre');
+  // Two lines of states: those of the circuit, then those that wait for the owner.
   L(
     cadre(
-      `▶ ${c.enCours} en cours · ${c.prets} prêts · ${c.bloques} bloqués · ${c.fermes} faits`,
+      `▶ ${c.enCours} en cours · ${c.enAttente} en attente · ${c.bloques} bloqués · ${c.fermes} faits`,
       '',
       largeur
     )
+  );
+  L(
+    cadre(`${c.sansGo} sans go · ${c.aValider} à valider · ${c.reportes} reportés`, '', largeur),
+    c.sansGo || c.aValider ? 'attention' : undefined
   );
   L(
     cadre(
@@ -859,14 +902,14 @@ export function lignes(t, nom, largeur = LARGEUR) {
     const vide = b.enCours.length === 0 && b.attend.length === 0;
     L(`${b.numero} ${b.nom}${vide ? '  —' : ''}`, vide ? 'discret' : 'titre');
     for (const x of b.enCours) {
-      L(
-        cadre(`▶ ${x.numero}  ${x.sujet}`, `${duree(x.travail)} · ${k(x.jetons)}`, largeur),
-        'actif',
-        x.id
-      );
+      L(cadre(`▶ ${x.numero}  ${x.sujet}`, conso(x.travail, x.jetons), largeur), 'actif', x.id);
     }
     const attente = x => ({
-      texte: cadre(`· ${x.numero}  ${x.sujet}`, `${duree(x.duree)} · ${k(x.jetons)}`, largeur),
+      texte: cadre(
+        `· ${x.numero}  ${x.sujet}`,
+        x.bloquePar?.length ? `attend ${x.bloquePar.join(', ')}` : conso(x.duree, x.jetons),
+        largeur
+      ),
       ton: 'discret',
       ticket: x.id,
     });
@@ -897,84 +940,68 @@ export function lignes(t, nom, largeur = LARGEUR) {
       n.etat === 'enCours'
         ? '▶'
         : n.etat === 'bloques' && n.bloquePar.length
-          ? `⏸ ${n.bloquePar.join(', ')}`
+          ? `attend ${n.bloquePar.join(', ')}`
           : n.etat === 'aValider'
             ? '? à valider'
-            : n.etat === 'reportes'
-              ? 'reporté'
-              : n.etat === 'fermes'
-                ? '✓'
-                : '';
-    // A level shows its mothers, its tickets in progress or awaiting the responsable that no agent
-    // block shows, and one line counting its other open tickets. A ticket with children unfolds
-    // them while work runs there; one an agent block shows lets its children take its place.
-    const ligneDe = (n, p) => {
+            : n.etat === 'sansGo'
+              ? 'sans go'
+              : n.etat === 'enAttente'
+                ? 'en attente'
+                : n.etat === 'reportes'
+                  ? 'reporté'
+                  : n.etat === 'fermes'
+                    ? '✓'
+                    : '';
+    // Every open ticket of the chantier has its line under the title of its state, the states in
+    // their order, the tickets in their numbers' order. A ticket an agent block shows stands there
+    // alone; its children keep their lines.
+    const ligneDe = n => {
       const conso = n.jetons ? ` · ${k(n.jetons)}` : '';
       const droite = n.mere
-        ? `${n.faits}/${n.total}${conso}${n.etat === 'fermes' ? ' ✓' : marque(n) ? ` ${marque(n)}` : ''}`
+        ? `${n.faits}/${n.total}${conso}${n.etat === 'bloques' ? ` ${marque(n)}` : ''}`
         : n.etat === 'enCours'
-          ? `${duree(n.duree)}${conso} ▶`
-          : marque(n);
+          ? `${duree(n.duree)}${conso}`
+          : n.etat === 'bloques'
+            ? marque(n)
+            : '';
       return {
-        texte: cadre(`${' '.repeat(p)}${n.numero}  ${n.sujet}`, droite, largeur),
-        ton: n.etat === 'enCours' ? 'actif' : n.etat === 'fermes' ? 'discret' : undefined,
+        texte: cadre(`   ${n.numero}  ${n.sujet}`, droite, largeur),
+        ton: n.etat === 'enCours' ? 'actif' : undefined,
         ticket: n.id,
       };
     };
-    const parcourir = (noeuds, p) => {
-      const reste = { prets: 0, bloques: 0, reportes: 0 };
-      const caches = [];
+    const parEtat = new Map(ETATS.map(e => [e.cle, []]));
+    const parcourir = noeuds => {
       for (const n of noeuds) {
-        const deplie = n.enfants.length > 0 && n.etat === 'enCours';
-        if (!n.mere && dansAgents.has(n.id)) {
-          if (deplie) {
-            parcourir(n.enfants, p);
-          }
-          continue;
+        if (n.mere || !dansAgents.has(n.id)) {
+          parEtat.get(n.etat)?.push(n);
         }
-        const visible = n.mere || n.etat === 'enCours' || n.etat === 'aValider';
-        if (!visible) {
-          if (n.etat in reste) {
-            reste[n.etat]++;
-            caches.push(ligneDe(n, p));
-          }
-          continue;
-        }
-        arbre.push(ligneDe(n, p));
-        if (deplie) {
-          parcourir(n.enfants, p + 1);
-        }
-      }
-      const r = [
-        reste.prets && `${reste.prets} prêts`,
-        reste.bloques && `${reste.bloques} bloqués`,
-        reste.reportes && `${reste.reportes} reportés`,
-      ].filter(Boolean);
-      if (r.length) {
-        arbre.push({
-          texte: cadre(`${' '.repeat(p)}+ ${r.join(' · ')}`, '', largeur),
-          ton: 'discret',
-          replie: caches,
-        });
+        parcourir(n.enfants);
       }
     };
-    parcourir(ch.enfants, 1);
+    parcourir(ch.enfants);
+    for (const e of ETATS) {
+      const liste = parEtat.get(e.cle);
+      if (!liste.length) {
+        continue;
+      }
+      arbre.push({ texte: cadre(`  ${e.nom}`, `${liste.length}`, largeur), ton: 'titre' });
+      arbre.push(...liste.map(ligneDe));
+    }
     poser(...arbre);
   }
-  // The epics not in progress, folded in one line: « N chantiers » when none is, else
-  // « + N autres chantiers ». Each is selectable, and a chantier (`chantier`) the pane can switch.
+  // The epics not in progress, under their title (« AUTRES CHANTIERS » beside one in progress,
+  // « CHANTIERS » alone), each on its line, selectable, and a chantier (`chantier`) the pane can
+  // switch.
   if (t.autres.length) {
-    const n = t.autres.length;
-    if (!t.chantiers.length) {
-      L('', undefined);
-    }
-    replie(
-      t.chantiers.length
-        ? `+ ${n} autre${n > 1 ? 's' : ''} chantier${n > 1 ? 's' : ''}`
-        : `${n} chantier${n > 1 ? 's' : ''}`,
-      t.autres.map(a => ({
+    L('', undefined);
+    L(
+      cadre(t.chantiers.length ? 'AUTRES CHANTIERS' : 'CHANTIERS', `${t.autres.length}`, largeur),
+      'titre'
+    );
+    poser(
+      ...t.autres.map(a => ({
         texte: cadre(`${a.numero}  ${a.sujet}`, `${a.faits}/${a.total}`, largeur),
-        ton: 'discret',
         ticket: a.id,
         chantier: true,
       }))
@@ -997,7 +1024,7 @@ export function lignes(t, nom, largeur = LARGEUR) {
       'titre'
     );
     const fait = x => ({
-      texte: cadre(`✓ ${x.numero}  ${x.sujet}`, `${duree(x.duree)} · ${k(x.jetons)}`, largeur),
+      texte: cadre(`✓ ${x.numero}  ${x.sujet}`, conso(x.duree, x.jetons), largeur),
       ton: 'discret',
       ticket: x.id,
     });
@@ -1006,18 +1033,43 @@ export function lignes(t, nom, largeur = LARGEUR) {
   return out;
 }
 
-// The lines of the board, the folded ones included.
-const toutes = lignesDuTableau => lignesDuTableau.flatMap(l => [l, ...toutes(l.replie ?? [])]);
+// The states' view, `largeur` columns wide: each state, its meaning, then its tickets one per
+// line, selectable as the board's are; section `etats`.
+export function lignesEtats(t, largeur = LARGEUR) {
+  const out = [];
+  for (const e of t.etats) {
+    if (out.length) {
+      out.push({ texte: '', section: 'etats' });
+    }
+    out.push({
+      texte: couper(`${e.nom.toUpperCase()} — ${e.sens}`, `${e.tickets.length}`, largeur),
+      ton: 'titre',
+      section: 'etats',
+    });
+    if (!e.tickets.length) {
+      out.push({ texte: '  —', ton: 'discret', section: 'etats' });
+    }
+    for (const x of e.tickets) {
+      out.push({
+        texte: couper(
+          `  ${x.numero}  ${x.sujet}`,
+          e.cle === 'bloques' && x.bloquePar.length ? `attend ${x.bloquePar.join(', ')}` : '',
+          largeur
+        ),
+        ton: e.cle === 'fermes' ? 'discret' : undefined,
+        ticket: x.id,
+        section: 'etats',
+      });
+    }
+  }
+  return out;
+}
 
-// The card of each ticket a line names, folded or not: its number, whole title, component, state,
+// The card of each ticket a line names: its number, whole title, component, state,
 // duration, agents' tokens (`jetons`: ticket → tokens), the start of its description (`resume`)
 // and the whole description (`texte`), which the pane shows for the line chosen.
 export function fiches(tous, lignesDuTableau, prefix = '', jetons = {}, maintenant = Date.now()) {
-  const ids = new Set(
-    toutes(lignesDuTableau)
-      .map(l => l.ticket)
-      .filter(Boolean)
-  );
+  const ids = new Set(lignesDuTableau.map(l => l.ticket).filter(Boolean));
   const out = {};
   for (const t of tous) {
     if (!ids.has(t.id)) {
@@ -1047,11 +1099,7 @@ export function fiches(tous, lignesDuTableau, prefix = '', jetons = {}, maintena
 // Of the tickets the lines name, the one that moved last: a running agent's ticket at its last
 // activity, any other at its last update; null when none.
 export function dernierBouge(tous, lignesDuTableau, vivants = [], maintenant = Date.now()) {
-  const ids = new Set(
-    toutes(lignesDuTableau)
-      .map(l => l.ticket)
-      .filter(Boolean)
-  );
+  const ids = new Set(lignesDuTableau.map(l => l.ticket).filter(Boolean));
   const actif = new Map();
   for (const v of vivants) {
     if (v.ticket) {
@@ -1083,7 +1131,7 @@ export function ligneEtat(t) {
   const ch = t.chantiers[0];
   const c = t.global.compteurs;
   if (!ch) {
-    return `${alerte}Grillhouse : ${c.enCours} en cours · ${c.prets} prêts · ${c.fermes} faits`;
+    return `${alerte}Grillhouse : ${c.enCours} en cours · ${c.enAttente} en attente · ${c.fermes} faits`;
   }
   return `${alerte}${ch.numero} ${ch.faits}/${ch.total} · ▶ ${c.enCours} en cours · ${k(t.global.jour.jetons)} aujourd'hui`;
 }
@@ -1199,6 +1247,7 @@ export function tableau(racine, { home = os.homedir(), maintenant = Date.now() }
   // The project is named by its repository's folder, as a shell prompt names it.
   const nom = path.basename(racine);
   const l = lignes(t, nom);
+  const vue = lignesEtats(t);
   const parTicket = {};
   for (const r of registre) {
     if (r.ticket) {
@@ -1216,7 +1265,8 @@ export function tableau(racine, { home = os.homedir(), maintenant = Date.now() }
   return {
     ...t,
     lignes: l,
-    fiches: fiches(tous, l, prefix, parTicket, maintenant),
+    vueEtats: vue,
+    fiches: fiches(tous, [...l, ...vue], prefix, parTicket, maintenant),
     dernier: dernierBouge(tous, l, vivants, maintenant),
     etat,
   };

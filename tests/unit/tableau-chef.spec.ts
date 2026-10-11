@@ -764,9 +764,10 @@ describe('3uv.49 critère 10 : a blocked ticket a manager led waits under block 
     expect(bloc(t, 'testeur')!.attend.map(x => x.id)).not.toContain('demo-9');
   });
 
-  it('3uv.49 critère 10 : a blocked ticket without any passage waits nowhere, led by no one', () => {
+  it('a blocked ticket in the circuit without any passage waits under 0, for the manager who takes it first', () => {
     const t = plateau([bloque('demo-9', 'demo-8'), T('demo-8')], [], []);
-    expect(attentes(t)).not.toContain('demo-9');
+    expect(bloc(t, CHEF)!.attend.map(x => x.id)).toContain('demo-9');
+    expect(bloc(t, 'testeur')!.attend.map(x => x.id)).not.toContain('demo-9');
   });
 
   it('3uv.49 critère 10 : a blocked ticket no manager led still waits for the next role of the flow', () => {

@@ -52,7 +52,7 @@ test('the pane draws each ticket line as a button, and a hidden card per ticket 
       view: {} as never,
     },
   })
-  expect((await ui.findAll({ type: 'Button' })).map(b => b.key)).toEqual(['c.1.1:1', 'c.2:2'])
+  expect((await ui.findAll({ type: 'Button' })).map(b => b.key)).toEqual(['c.1.1:1', 'c.2:2', 'e'])
   expect(JSON.stringify(await ui.drawn())).toContain(' '.repeat(50))
   await ui.unmount()
 })
@@ -88,11 +88,11 @@ test('unfocused, the card shows the ticket that moved last', async ($, on) => {
   await ui.unmount()
 })
 
-const REPLI = {
+const ENTIER = {
   lignes: [
     { texte: 'DEMO', ton: 'titre' },
     { texte: '· c.2  Le dernier', ticket: 'c.2' },
-    { texte: '  + 1 autres', ton: 'discret', replie: [{ texte: '✓ c.1.1  Le moteur', ticket: 'c.1.1' }] },
+    { texte: '✓ c.1.1  Le moteur', ticket: 'c.1.1' },
   ],
   fiches: {
     ...TABLEAU.fiches,
@@ -105,7 +105,7 @@ async function monter($: never, on: never) {
   const o = on as (n: string, h: unknown) => void
   const s = $ as { session: { start: (a: object) => Promise<unknown> }; ui: { mount: (a: object) => Promise<never> } }
   o('process.run', (_: unknown, e: { argv: string[] }) => ({
-    value: { exitCode: 0, stdout: e.argv[0] === 'test' ? '' : JSON.stringify(REPLI), stderr: '' },
+    value: { exitCode: 0, stdout: e.argv[0] === 'test' ? '' : JSON.stringify(ENTIER), stderr: '' },
   }))
   o('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
   o('command.register', () => ({ value: undefined }))
@@ -131,15 +131,6 @@ async function monter($: never, on: never) {
     unmount: () => Promise<void>
   }>
 }
-
-test('reaching a counting line unfolds the lines it counts', async ($, on) => {
-  const ui = await monter($ as never, on as never)
-  const cles = async () => (await ui.findAll({ type: 'Button' })).map(b => b.key)
-  expect(await cles()).not.toContain('c.1.1:2.0')
-  await $.ui.press({ plugin: 'grillhouse', key: '+:2' })
-  expect(await cles()).toContain('c.1.1:2.0')
-  await ui.unmount()
-})
 
 test('g makes the card show the whole text, and g again brings it back', async ($, on) => {
   const ui = await monter($ as never, on as never)

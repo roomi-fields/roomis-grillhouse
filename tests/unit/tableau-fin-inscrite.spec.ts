@@ -149,7 +149,6 @@ interface Ligne {
   texte: string;
   ticket?: string;
   section?: string;
-  replie?: Ligne[];
 }
 
 const plateau = (home: string, tous: object[], registre: object[], ps = ''): Board => {
@@ -369,8 +368,7 @@ describe('3uv.45 critère 3 : a closed ticket has no agent running from writings
   it("3uv.45 critère 3 : its lines stand in FAITS AUJOURD'HUI only, none in the agents' section", () => {
     const t = avecFinTardive();
     expect(t.faitsDuJour.map(x => x.id)).toContain('demo-e.2');
-    const toutes = (ls: Ligne[]): Ligne[] => ls.flatMap(x => [x, ...toutes(x.replie ?? [])]);
-    const siennes = toutes(lignes(t, 'demo') as Ligne[]).filter(x => x.ticket === 'demo-e.2');
+    const siennes = (lignes(t, 'demo') as Ligne[]).filter(x => x.ticket === 'demo-e.2');
     expect(siennes.length).toBeGreaterThan(0);
     expect([...new Set(siennes.map(x => x.section))]).toEqual(['faits']);
   });

@@ -2,27 +2,21 @@ import { expect, test } from 'claude-code/testing'
 
 // The pane lists every line of the board, in the board's order — the head, AGENTS, CHANTIER, then
 // FAITS AUJOURD'HUI — and folds none to save rows: its window runs over them all, moved by the
-// wheel (ui.scroll, by `e.by` rows, focused or not) and following the ring the arrows move. A
-// counting line folds only lines of another state (« + 3 prêts ») or the chantiers not in
-// progress, and unfolds below itself when the ring reaches it. The card keeps its place below
-// the list.
+// wheel (ui.scroll, by `e.by` rows, focused or not) and following the ring the arrows move. The
+// card keeps its place below the list.
 //
 // The pane gives the list `bodyRows - FICHE - 1` rows (FICHE = 6): 23 rows for 30 body rows.
 // These tests write no file, so they hold no trial folder.
 
-type L = { texte: string; ton?: string; ticket?: string; chantier?: boolean; section: string; replie?: L[] }
+type L = { texte: string; ton?: string; ticket?: string; chantier?: boolean; section: string }
 
 // A board laid out as `scripts/tableau.mjs` lays it: the head and AGENTS with `m` agents' lines
 // (section agents), one chantier with `n` tree lines (section chantier), FAITS AUJOURD'HUI with `p`
 // lines (section faits, absent when `p` is 0). A blank line belongs to the section after it.
-// `o` adds CHANTIER's counting lines: `prets` « + N prêts » after the tree line c.<apres>, folding
-// N ready tickets; `autres` « + N autres chantiers », folding the epics not in progress. Folded
-// lines carry the section of their counting line.
-type Plis = { prets?: { apres: number; n: number }; autres?: number }
-function tableau(n: number, m: number, p: number, o: Plis = {}) {
+function tableau(n: number, m: number, p: number) {
   const tete: L[] = [
     { texte: 'DEMO', ton: 'titre', section: 'agents' },
-    { texte: '▶ 1 en cours · 2 prêts · 0 bloqués · 4 faits', section: 'agents' },
+    { texte: '▶ 1 en cours · 2 en attente · 0 bloqués · 4 faits', section: 'agents' },
   ]
   const agents: L[] = [
     { texte: '', section: 'agents' },
@@ -30,36 +24,11 @@ function tableau(n: number, m: number, p: number, o: Plis = {}) {
     ...Array.from({ length: m }, (_, k) => ({ texte: `▶ a.${k + 1}  Agent ${k + 1}`, ton: 'actif', ticket: `a.${k + 1}`, section: 'agents' })),
   ]
   const arbre: L[] = Array.from({ length: n }, (_, k) => ({ texte: `· c.${k + 1}  Ticket ${k + 1}`, ticket: `c.${k + 1}`, section: 'chantier' }))
-  if (o.prets) {
-    const { apres, n: r } = o.prets
-    arbre.splice(apres, 0, {
-      texte: `  + ${r} prêts`,
-      ton: 'discret',
-      section: 'chantier',
-      replie: Array.from({ length: r }, (_, k) => ({ texte: `  · r.${k + 1}  Prêt ${k + 1}`, ticket: `r.${k + 1}`, section: 'chantier' })),
-    })
-  }
   const chantier: L[] = [
     { texte: '', section: 'chantier' },
     { texte: 'CHANTIER 1 — Le sujet', ton: 'titre', ticket: 'ch-1', chantier: true, section: 'chantier' },
     { texte: '  4/40 faits · 3 h 00 · 1,2 M jetons', ton: 'discret', section: 'chantier' },
     ...arbre,
-    ...(o.autres
-      ? [
-          {
-            texte: `+ ${o.autres} autres chantiers`,
-            ton: 'discret',
-            section: 'chantier',
-            replie: Array.from({ length: o.autres }, (_, k) => ({
-              texte: `ch-${k + 2}  Autre ${k + 1}`,
-              ton: 'discret',
-              ticket: `ch-${k + 2}`,
-              chantier: true,
-              section: 'chantier',
-            })),
-          },
-        ]
-      : []),
   ]
   const faits: L[] = p
     ? [
@@ -71,7 +40,6 @@ function tableau(n: number, m: number, p: number, o: Plis = {}) {
   const lignes = [...tete, ...agents, ...chantier, ...faits]
   const fiches = Object.fromEntries(
     lignes
-      .flatMap(l => [l, ...(l.replie ?? [])])
       .filter(l => l.ticket)
       .map(l => [
         l.ticket,
@@ -82,9 +50,16 @@ function tableau(n: number, m: number, p: number, o: Plis = {}) {
   const vu = (ls: L[]) => ls.map(l => l.texte || ' ')
   // The key of a ticket line's Button: `<ticket>:<index in the board>`.
   const cle = (ticket: string) => `${ticket}:${lignes.findIndex(l => l.ticket === ticket)}`
-  // The key of a counting line's Button: `+:<index in the board>`.
-  const compte = (texte: string) => `+:${lignes.findIndex(l => l.texte === texte)}`
-  return { t: { lignes, fiches, dernier: 'a.1' }, tout: vu(lignes), tete: vu(tete), agents: vu(agents), chantier: vu(chantier), faits: vu(faits), cle, compte }
+  // The states' view: a state, its meaning, its tickets one per line.
+  const vueEtats: L[] = [
+    { texte: 'EN ATTENTE — ton go, prêt à partir', ton: 'titre', section: 'etats' },
+    { texte: '  w.1  Attente 1', ticket: 'w.1', section: 'etats' },
+    { texte: '  w.2  Attente 2', ticket: 'w.2', section: 'etats' },
+  ]
+  for (const l of vueEtats.filter(l => l.ticket)) {
+    fiches[l.ticket as string] = { numero: l.ticket, titre: `Titre de ${l.ticket}`, composant: 'x', statut: 'open', duree: 0, jetons: 0, resume: 'R', texte: `Le texte entier de ${l.ticket}.` }
+  }
+  return { t: { lignes, vueEtats, fiches, dernier: 'a.1' }, tout: vu(lignes), tete: vu(tete), agents: vu(agents), chantier: vu(chantier), faits: vu(faits), cle }
 }
 
 type Arbre = { type?: string; props?: { height?: number }; children?: unknown[] }
@@ -180,7 +155,7 @@ async function monter($: never, on: never, t: object, o: { bodyRows?: number; is
 
 // The keys of the Buttons drawn in the list, in order (g and h sit on the rule, below it).
 async function boutons(m: Monte): Promise<string[]> {
-  return (await m.ui.findAll({ type: 'Button' })).map(x => x.key).filter(k => k !== 'g' && k !== 'h')
+  return (await m.ui.findAll({ type: 'Button' })).map(x => x.key).filter(k => k !== 'g' && k !== 'h' && k !== 'e')
 }
 // The arrow down: the ring, on the drawn line keyed `cle`, moves onto the next Button drawn.
 async function bas(m: Monte, cle: string): Promise<string> {
@@ -365,42 +340,27 @@ test('h on a chantier switches it', async ($, on) => {
   await m.ui.unmount()
 })
 
-// ── The counting lines that stay: by state, and the other chantiers ─────────────────────────────
-
-test('the ring on « + 3 prêts » unfolds its lines right below it, each reached by the arrow, then the tree goes on', async ($, on) => {
-  const b = tableau(30, 6, 3, { prets: { apres: 5, n: 3 } })
+test('e switches to the states view, its tickets chosen by the ring and g shows their card, e again comes back', async ($, on) => {
+  const b = tableau(30, 6, 3)
   const m = await monter($ as never, on as never, b.t)
-  let cle = b.cle('c.5')
-  await m.viser(cle)
-  cle = await bas(m, cle)
-  expect(cle).toBe(b.compte('  + 3 prêts'))
-  const l = liste(await m.ui.drawn())
-  const ici = l.indexOf('  + 3 prêts')
-  expect(l.slice(ici, ici + 5)).toEqual(['  + 3 prêts', '  · r.1  Prêt 1', '  · r.2  Prêt 2', '  · r.3  Prêt 3', '· c.6  Ticket 6'])
-  for (const t of ['r.1', 'r.2', 'r.3']) {
-    cle = await bas(m, cle)
-    expect(cle.startsWith(`${t}:`)).toBe(true)
-  }
-  expect(await bas(m, cle)).toBe(b.cle('c.6'))
-  // The ring left the counting line: its lines fold again.
-  expect(liste(await m.ui.drawn())).not.toContain('  · r.1  Prêt 1')
+  const press = ($ as { ui: { press: (a: object) => Promise<unknown> } }).ui.press
+  await press({ plugin: 'grillhouse', key: 'e' })
+  expect(liste(await m.ui.drawn()).slice(0, 3)).toEqual(['EN ATTENTE — ton go, prêt à partir', '  w.1  Attente 1', '  w.2  Attente 2'])
+  expect(await boutons(m)).toEqual(['w.1:1', 'w.2:2'])
+  await press({ plugin: 'grillhouse', key: 'w.2:2' })
+  expect(dessous(await m.ui.drawn()).join('\n')).toContain('w.2 — Titre de w.2')
+  await press({ plugin: 'grillhouse', key: 'g' })
+  expect(textes(await m.ui.drawn()).join('\n')).toContain('Le texte entier de w.2.')
+  await press({ plugin: 'grillhouse', key: 'e' })
+  expect(liste(await m.ui.drawn()).slice(0, 2)).toEqual(b.tout.slice(0, 2))
   await m.ui.unmount()
 })
 
-test('the ring on « + 2 autres chantiers » unfolds the epics below it', async ($, on) => {
-  const b = tableau(30, 6, 3, { autres: 2 })
+test('the rule names e and what it switches to', async ($, on) => {
+  const b = tableau(3, 2, 2)
   const m = await monter($ as never, on as never, b.t)
-  let cle = b.compte('+ 2 autres chantiers')
-  await m.viser(cle)
-  let l = liste(await m.ui.drawn())
-  expect(l[l.indexOf('+ 2 autres chantiers') + 1]).toBe('ch-2  Autre 1')
-  cle = await bas(m, cle)
-  expect(cle.startsWith('ch-2:')).toBe(true)
-  l = liste(await m.ui.drawn())
-  expect(l.slice(l.indexOf('+ 2 autres chantiers'), l.indexOf('+ 2 autres chantiers') + 3)).toEqual([
-    '+ 2 autres chantiers',
-    'ch-2  Autre 1',
-    'ch-3  Autre 2',
-  ])
+  expect(dessous(await m.ui.drawn()).slice(0, 3).join('')).toContain('e : états')
+  await ($ as { ui: { press: (a: object) => Promise<unknown> } }).ui.press({ plugin: 'grillhouse', key: 'e' })
+  expect(dessous(await m.ui.drawn()).slice(0, 3).join('')).toContain('e : tableau')
   await m.ui.unmount()
 })
