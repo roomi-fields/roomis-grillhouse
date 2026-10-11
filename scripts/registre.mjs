@@ -15,20 +15,14 @@
 // - `node scripts/registre.mjs --rattraper` writes the lines of the project's finished agents the
 //   register does not hold yet: those that ended before the hook existed, read from their
 //   transcripts (the project's sessions and their sub-agents, the agents' copies). A transcript
-//   that moved in the last 2 minutes still runs, and waits for its hook.
+//   that the board shows running (`tourne` in tableau.mjs: moved in the last 2 minutes, or, for a
+//   sub-agent, its last tool call awaiting its answer within 30 minutes) waits for its hook.
 import { execFileSync } from 'node:child_process';
-import {
-  appendFileSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  statSync,
-} from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { lireTranscription, roleDuMeta, ticketDuChef } from './tableau.mjs';
+import { lireTranscription, roleDuMeta, ticketDuChef, tourne } from './tableau.mjs';
 
 const REGISTRE =
   process.env.GRILLHOUSE_REGISTRE ??
@@ -107,7 +101,6 @@ function arbrePrincipal(dir) {
   }
 }
 
-const RECENT = 2 * 60_000;
 const enTirets = p => p.replace(/[^A-Za-z0-9]/g, '-');
 
 // The hook inputs of the project's finished agents that `connus` (agent ids) does not hold.
@@ -117,7 +110,7 @@ export function aRattraper(racine, home, connus, maintenant = Date.now()) {
     return [];
   }
   const out = [];
-  const fini = f => maintenant - statSync(f).mtimeMs >= RECENT;
+  const fini = (f, sousAgent) => !tourne(f, maintenant, sousAgent);
   const jsonl = d => (existsSync(d) ? readdirSync(d).filter(n => n.endsWith('.jsonl')) : []);
   const propre = path.join(projets, enTirets(racine));
   const copies = `${enTirets(path.join(racine, '.claude', 'worktrees'))}-`;
@@ -129,7 +122,7 @@ export function aRattraper(racine, home, connus, maintenant = Date.now()) {
     for (const n of jsonl(dir)) {
       const f = path.join(dir, n);
       const session = n.replace(/\.jsonl$/, '');
-      if (!connus.has(session) && fini(f)) {
+      if (!connus.has(session) && fini(f, false)) {
         out.push({
           hook_event_name: 'SessionEnd',
           transcript_path: f,
@@ -144,7 +137,7 @@ export function aRattraper(racine, home, connus, maintenant = Date.now()) {
       for (const m of jsonl(sous)) {
         const agent = m.replace(/^agent-/, '').replace(/\.jsonl$/, '');
         const g = path.join(sous, m);
-        if (!connus.has(agent) && fini(g)) {
+        if (!connus.has(agent) && fini(g, true)) {
           out.push({
             hook_event_name: 'SubagentStop',
             transcript_path: f,

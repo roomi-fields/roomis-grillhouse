@@ -34,8 +34,12 @@
 //   board reads no transcript older than 30 minutes: a shell agent whose transcript is older shows
 //   by its process alone. A sub-agent whose prompt names no ticket takes that of the site manager
 //   that launched it.
-// - Alerts: a red night, tickets awaiting the responsable, a shell agent silent for 10 minutes,
-//   a ticket in progress without anything running for 30 minutes.
+// - Time: a transcript's working time is the union of its turns, each bounded by the earliest and
+//   the latest date of its events, whatever their order in the file; a transcript is read where the
+//   board stopped, its reading kept in the cache file.
+// - Alerts: one red alert per open night ticket (its subject, then its number), tickets awaiting
+//   the responsable, a shell agent silent for 10 minutes, a ticket in progress without anything
+//   running for 30 minutes.
 import { execFileSync } from 'node:child_process';
 import {
   closeSync,
@@ -106,26 +110,46 @@ function entrant(e) {
   return typeof contenu === 'string' && !INTERRUPTION.test(contenu);
 }
 
-// The tokens, the turns and their working time, the ticket, the role (a session launched with
-// `--agent`) and the cost (the total a session writes) of a transcript's lines (one JSON object per
-// line). The first turn runs from the first dated event, each next one from an incoming message,
-// to the last event before the next incoming message; the working time is the sum of the turns,
-// the waits left out. `entre` is the time of the last incoming message, or null; `attend` tells
-// whether the last tool call still awaits its answer.
-export function lireTranscription(texte) {
-  let jetons = 0;
-  let cache = 0;
-  let premier = null;
-  let dernier = null;
-  let entre = null;
-  let ticket = null;
-  let role = null;
-  let cout = null;
-  let appel = null;
-  const reponses = new Set();
-  const tours = [];
-  let recu = false;
-  const vus = new Set();
+// The reading of a transcript is a state that lines are added to, one JSON object per line: it
+// holds the tokens, the turns, the start and end, the last incoming message, the ticket, the role,
+// the cost and the last tool call, and it is plain JSON, so the board keeps it between two
+// measures and reads only what was appended. A turn is bounded by the earliest and the latest date
+// of its events, whatever their order in the file; the first one holds the events before the first
+// incoming message, each next one opens at an incoming message and holds the events up to the next.
+const etatNeuf = () => ({
+  jetons: 0,
+  cache: 0,
+  premier: null,
+  dernier: null,
+  entre: null,
+  ticket: null,
+  role: null,
+  cout: null,
+  appel: null,
+  reponses: [],
+  tours: [],
+  recu: false,
+  vus: [],
+});
+
+// The union of intervals, ordered by date: no instant is in two of them.
+function reunir(intervalles) {
+  const out = [];
+  for (const [debut, fin] of [...intervalles].sort((a, b) => a[0] - b[0] || a[1] - b[1])) {
+    const dernier = out[out.length - 1];
+    if (dernier && debut <= dernier[1]) {
+      dernier[1] = Math.max(dernier[1], fin);
+    } else {
+      out.push([debut, fin]);
+    }
+  }
+  return out;
+}
+
+// Adds the lines of `texte` to the state `etat`, which it returns.
+function avancer(etat, texte) {
+  const vus = new Set(etat.vus);
+  const reponses = new Set(etat.reponses);
   for (const ligne of texte.split('\n')) {
     if (!ligne.trim()) {
       continue;
@@ -137,35 +161,38 @@ export function lireTranscription(texte) {
       continue;
     }
     if (e.type === 'agent-setting') {
-      role ??= e.agentSetting ?? null;
+      etat.role ??= e.agentSetting ?? null;
     }
     if (e.type === 'cost-state' && typeof e.totalCostUSD === 'number') {
-      cout = e.totalCostUSD;
+      etat.cout = e.totalCostUSD;
     }
     const t = e.timestamp ? Date.parse(e.timestamp) : NaN;
     if (!Number.isNaN(t)) {
-      premier ??= t;
-      dernier = t;
+      etat.premier = etat.premier === null ? t : Math.min(etat.premier, t);
+      etat.dernier = etat.dernier === null ? t : Math.max(etat.dernier, t);
       // The first incoming message continues the turn its earlier events opened.
-      const coupe = entrant(e) && recu;
-      recu ||= entrant(e);
-      if (entrant(e)) {
-        entre = t;
+      const recoit = entrant(e);
+      const coupe = recoit && etat.recu;
+      etat.recu ||= recoit;
+      if (recoit) {
+        etat.entre = etat.entre === null ? t : Math.max(etat.entre, t);
       }
-      if (tours.length === 0 || coupe) {
-        tours.push([t, t]);
+      if (etat.tours.length === 0 || coupe) {
+        etat.tours.push([t, t]);
       } else {
-        tours[tours.length - 1][1] = t;
+        const tour = etat.tours[etat.tours.length - 1];
+        tour[0] = Math.min(tour[0], t);
+        tour[1] = Math.max(tour[1], t);
       }
     }
     for (const c of Array.isArray(e.message?.content) ? e.message.content : []) {
       if (c.type === 'tool_use') {
-        appel = c.id;
+        etat.appel = c.id;
       } else if (c.type === 'tool_result') {
         reponses.add(c.tool_use_id);
       }
     }
-    if (ticket === null && e.type === 'user') {
+    if (etat.ticket === null && e.type === 'user') {
       const contenu = e.message?.content;
       const texteUser =
         typeof contenu === 'string'
@@ -174,7 +201,7 @@ export function lireTranscription(texte) {
             ? contenu.map(c => c.text ?? '').join(' ')
             : '';
       const m = /TON TICKET : ([A-Za-z0-9_-]+-[A-Za-z0-9]+(?:\.[0-9]+)*)/.exec(texteUser);
-      ticket = m ? m[1] : '';
+      etat.ticket = m ? m[1] : '';
     }
     const u = e.message?.usage;
     const id = e.message?.id ?? e.requestId;
@@ -184,23 +211,36 @@ export function lireTranscription(texte) {
     if (id) {
       vus.add(id);
     }
-    jetons += (u.input_tokens ?? 0) + (u.output_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0);
-    cache += u.cache_read_input_tokens ?? 0;
+    etat.jetons +=
+      (u.input_tokens ?? 0) + (u.output_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0);
+    etat.cache += u.cache_read_input_tokens ?? 0;
   }
-  return {
-    jetons,
-    cache,
-    travail: tours.reduce((s, [debut, fin]) => s + (fin - debut), 0),
-    tours,
-    premier,
-    dernier,
-    entre,
-    attend: appel !== null && !reponses.has(appel),
-    ticket: ticket || null,
-    role,
-    cout,
-  };
+  etat.vus = [...vus];
+  etat.reponses = [...reponses];
+  return etat;
 }
+
+// The measures of a state: the tokens, the turns and their working time (the union of the turns,
+// the waits left out), the start (the oldest date) and the end (the latest), the ticket, the role
+// (a session launched with `--agent`) and the cost (the total a session writes). `entre` is the
+// time of the latest incoming message, or null; `attend` tells whether the last tool call still
+// awaits its answer, the call and its answer paired by their identifier.
+const mesurer = etat => ({
+  jetons: etat.jetons,
+  cache: etat.cache,
+  travail: reunir(etat.tours).reduce((s, [debut, fin]) => s + (fin - debut), 0),
+  tours: etat.tours.map(tour => [...tour]),
+  premier: etat.premier,
+  dernier: etat.dernier,
+  entre: etat.entre,
+  attend: etat.appel !== null && !etat.reponses.includes(etat.appel),
+  ticket: etat.ticket || null,
+  role: etat.role,
+  cout: etat.cout,
+});
+
+// The measures of the transcript `texte`, read whole.
+export const lireTranscription = texte => mesurer(avancer(etatNeuf(), texte));
 
 // One line per agent, its latest end: the register holds a line at each stop of an agent, each
 // the reading of its whole transcript at that stop, so the latest one holds all its sessions.
@@ -231,15 +271,47 @@ export function lireRegistre(texte, racine) {
   return parAgent(out);
 }
 
-// A transcript read again only when it changed: `cache` maps a file to its size, time and reading.
+// The bytes of `f` from `decalage` to `taille`, cut after their last whole line: a line still being
+// written waits for its end, unless it is already whole JSON.
+function lireDepuis(f, decalage, taille) {
+  const fd = openSync(f, 'r');
+  try {
+    const tampon = Buffer.alloc(taille - decalage);
+    const lus = readSync(fd, tampon, 0, tampon.length, decalage);
+    const lu = tampon.subarray(0, lus);
+    const fin = lu.lastIndexOf(10) + 1;
+    let entier = lu.subarray(0, fin);
+    if (fin < lu.length) {
+      try {
+        JSON.parse(lu.subarray(fin).toString('utf8'));
+        entier = lu;
+      } catch {
+        // The line is not whole yet.
+      }
+    }
+    return { texte: entier.toString('utf8'), lus: entier.length };
+  } finally {
+    closeSync(fd);
+  }
+}
+
+// A transcript read where it stopped: `cache` maps a file to its reading state and the byte it
+// reached. A transcript only grows; one that became shorter is read again from its start.
 const lecteur = cache => f => {
   try {
-    const st = statSync(f);
-    const cle = `${st.size}:${st.mtimeMs}`;
-    if (cache[f]?.cle !== cle) {
-      cache[f] = { cle, lu: lireTranscription(readFileSync(f, 'utf8')) };
+    const taille = statSync(f).size;
+    let { etat, decalage } = cache[f] ?? {};
+    if (!etat || taille < decalage) {
+      etat = etatNeuf();
+      decalage = 0;
     }
-    return cache[f].lu;
+    if (taille > decalage) {
+      const { texte, lus } = lireDepuis(f, decalage, taille);
+      avancer(etat, texte);
+      decalage += lus;
+    }
+    cache[f] = { etat, decalage };
+    return mesurer(etat);
   } catch {
     return null;
   }
@@ -257,20 +329,27 @@ const fichiers = (dir, fin) =>
 const FIN_LUE = 65_536;
 function appelEnAttente(f) {
   try {
-    const fd = openSync(f, 'r');
-    try {
-      const taille = statSync(f).size;
-      const debut = Math.max(0, taille - FIN_LUE);
-      const tampon = Buffer.alloc(taille - debut);
-      readSync(fd, tampon, 0, tampon.length, debut);
-      const lignes = tampon.toString('utf8').split('\n');
-      return lireTranscription(lignes.slice(debut > 0 ? 1 : 0).join('\n')).attend;
-    } finally {
-      closeSync(fd);
-    }
+    const taille = statSync(f).size;
+    const debut = Math.max(0, taille - FIN_LUE);
+    const { texte } = lireDepuis(f, debut, taille);
+    return lireTranscription(
+      texte
+        .split('\n')
+        .slice(debut > 0 ? 1 : 0)
+        .join('\n')
+    ).attend;
   } catch {
     return false;
   }
+}
+
+// Whether the agent whose transcript is `f` runs at `maintenant`: its transcript moved in the last
+// 2 minutes; a sub-agent (`sousAgent`) runs also while its last tool call awaits its answer, its
+// transcript having moved in the last 30 minutes. The board and the catch-up of the register share
+// this definition.
+export function tourne(f, maintenant, sousAgent) {
+  const age = maintenant - statSync(f).mtimeMs;
+  return age < RECENT || (sousAgent && age <= SANS_AGENT && appelEnAttente(f));
 }
 
 // A sub-agent's meta file (next to its transcript `f`), or {}.
@@ -285,8 +364,8 @@ const metaDe = f => {
 // The ticket a sub-agent takes from the site manager that launched it: the ticket its prompt names,
 // read from the manager's transcript in the same folder; null when its parent is not a site manager
 // (by its spawned role) or names no ticket. With `depuis`, a manager whose transcript has not moved
-// since that time (ms) is not read.
-export function ticketDuChef(f, depuis = -Infinity) {
+// since that time (ms) is not read. `lire` reads a transcript (the board passes its cached reader).
+export function ticketDuChef(f, depuis = -Infinity, lire = lecteur({})) {
   const parent = metaDe(f).parentAgentId;
   if (!parent) {
     return null;
@@ -299,7 +378,7 @@ export function ticketDuChef(f, depuis = -Infinity) {
     if (statSync(g).mtimeMs < depuis) {
       return null;
     }
-    return lireTranscription(readFileSync(g, 'utf8')).ticket;
+    return lire(g)?.ticket ?? null;
   } catch {
     return null;
   }
@@ -341,8 +420,7 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
     });
   }
   const propre = path.join(projets, enTirets(racine));
-  const recent = f => maintenant - statSync(f).mtimeMs < RECENT;
-  for (const f of fichiers(propre, '.jsonl').filter(recent)) {
+  for (const f of fichiers(propre, '.jsonl').filter(g => tourne(g, maintenant, false))) {
     const lu = lire(f);
     if (lu) {
       vivants.push({
@@ -363,12 +441,7 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
     : [];
   for (const s of sessions) {
     const dossier = path.join(propre, s.name, 'subagents');
-    // Only a transcript that moved in the last 30 minutes is read; a sub-agent runs when it moved
-    // in the last 2 minutes, or while its last tool call awaits its answer.
-    for (const f of fichiers(dossier, '.jsonl').filter(f => statSync(f).mtimeMs >= limite)) {
-      if (!recent(f) && !appelEnAttente(f)) {
-        continue;
-      }
+    for (const f of fichiers(dossier, '.jsonl').filter(g => tourne(g, maintenant, true))) {
       const lu = lire(f);
       if (!lu) {
         continue;
@@ -376,7 +449,7 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
       const meta = metaDe(f);
       vivants.push({
         agent: path.basename(f, '.jsonl').replace(/^agent-/, ''),
-        ticket: lu.ticket ?? ticketDuChef(f, limite),
+        ticket: lu.ticket ?? ticketDuChef(f, limite, lire),
         role: roleDuMeta(meta),
         ligne: false,
         depuis: lu.premier ?? maintenant,
@@ -538,10 +611,10 @@ export function assembler({
     travail: l.reduce((s, x) => s + (x.travail ?? 0), 0),
     jetons: l.reduce((s, x) => s + (x.jetons ?? 0), 0),
   });
-  // A measure with its turns counts in the day their parts since midnight; a register line
-  // written without them counts whole in the day it ended.
+  // A measure with its turns counts in the day the parts since midnight of their union; a register
+  // line written without them counts whole in the day it ended.
   const partDuJour = tours =>
-    tours.reduce((s, [debut, fin]) => s + Math.max(0, fin - Math.max(debut, jour)), 0);
+    reunir(tours).reduce((s, [debut, fin]) => s + Math.max(0, fin - Math.max(debut, jour)), 0);
   const duJour = mesures
     .filter(m => m.quand >= jour)
     .map(m => (m.tours ? { ...m, travail: partDuJour(m.tours) } : m));
@@ -674,11 +747,9 @@ export function assembler({
 
   // Alerts.
   const alertes = [];
-  if (nuit.length) {
-    alertes.push({
-      niveau: 'rouge',
-      texte: `La nuit est rouge : ${nuit.map(t => numero(t.id)).join(', ')}`,
-    });
+  for (const t of nuit) {
+    const { sujet, numero: n } = titre(t);
+    alertes.push({ niveau: 'rouge', texte: `${sujet} ${n}`, sujet, numero: n });
   }
   if (aValider.length) {
     alertes.push({
@@ -767,7 +838,10 @@ export function lignes(t, nom, largeur = LARGEUR) {
     'discret'
   );
   for (const a of t.alertes) {
-    L(cadre(`⚠ ${a.texte}`, '', largeur), a.niveau === 'rouge' ? 'alerte' : 'attention');
+    L(
+      a.numero ? cadre(`⚠ ${a.sujet}`, a.numero, largeur) : cadre(`⚠ ${a.texte}`, '', largeur),
+      a.niveau === 'rouge' ? 'alerte' : 'attention'
+    );
   }
 
   // The tickets the agents' blocks show: the chantier's tree does not show them a second time.
