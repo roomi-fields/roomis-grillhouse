@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // The boundaries of the code, checked by dependency-cruiser. Its configuration
 // (`.dependency-cruiser.cjs`) is generated from the components of the repository, like the index
-// of the interfaces; a project adds its own rules in `.dependency-cruiser.projet.cjs`
-// (`module.exports = { forbidden: [...] }`), which the generated file reads.
+// of the interfaces; a project adds its own rules and options in `.dependency-cruiser.projet.cjs`
+// (`module.exports = { forbidden: [...], options: {...} }`), which the generated file reads when
+// dependency-cruiser loads it. Its `exclude` and `doNotFollow` patterns add to the frame's; any
+// other option replaces the frame's at its first level, as the `extends` of dependency-cruiser does.
 //
 //   node scripts/frontieres.mjs           refuses a stale configuration, then runs dependency-cruiser
 //   node scripts/frontieres.mjs --ecrire  writes the configuration
@@ -95,27 +97,46 @@ export function configuration(racine) {
     });
   }
   const tsconfig = existsSync(path.join(racine, 'tsconfig.json'));
-  return `// Généré par \`node scripts/frontieres.mjs --ecrire\` ; ne pas éditer. Les règles propres au
-// projet vivent dans .dependency-cruiser.projet.cjs.
+  return `// Généré par \`node scripts/frontieres.mjs --ecrire\` ; ne pas éditer. Les règles et les options
+// propres au projet vivent dans .dependency-cruiser.projet.cjs, lu au chargement.
 const fs = require('node:fs');
 const projet = fs.existsSync(\`\${__dirname}/.dependency-cruiser.projet.cjs\`)
   ? require('./.dependency-cruiser.projet.cjs')
-  : { forbidden: [] };
+  : {};
+
+// The non-empty patterns of a filter written in any form dependency-cruiser accepts.
+const motifs = f => {
+  if (typeof f === 'string') return [f];
+  if (Array.isArray(f)) return f;
+  return f && typeof f === 'object' ? motifs(f.path) : [];
+};
+// A filter of the frame plus the project's: the patterns add up, the other keys come from the project.
+const ajoute = (cadre, propre) => {
+  const ajouts = motifs(propre).filter(Boolean);
+  const reste = propre && typeof propre === 'object' && !Array.isArray(propre) ? propre : {};
+  return { ...reste, path: [cadre.path, ...ajouts].join('|') };
+};
+const cadre = {
+  doNotFollow: { path: 'node_modules' },
+  exclude: { path: '${exclus(racine).replace(/[\\']/g, '\\$&')}' },
+  tsPreCompilationDeps: true,
+  preserveSymlinks: true,
+${tsconfig ? "  tsConfig: { fileName: 'tsconfig.json' },\n" : ''}  enhancedResolveOptions: {
+    exportsFields: ['exports'],
+    conditionNames: ['import', 'require', 'default', 'types'],
+  },
+};
 
 module.exports = {
   forbidden: [
 ${regles.map(r => `    ${JSON.stringify(r)},`).join('\n')}
-    ...projet.forbidden,
+    ...(projet.forbidden ?? []),
   ],
   options: {
-    doNotFollow: { path: 'node_modules' },
-    exclude: { path: '${exclus(racine).replace(/[\\']/g, '\\$&')}' },
-    tsPreCompilationDeps: true,
-    preserveSymlinks: true,
-${tsconfig ? "    tsConfig: { fileName: 'tsconfig.json' },\n" : ''}    enhancedResolveOptions: {
-      exportsFields: ['exports'],
-      conditionNames: ['import', 'require', 'default', 'types'],
-    },
+    ...cadre,
+    ...projet.options,
+    doNotFollow: ajoute(cadre.doNotFollow, projet.options?.doNotFollow),
+    exclude: ajoute(cadre.exclude, projet.options?.exclude),
   },
 };
 `;
