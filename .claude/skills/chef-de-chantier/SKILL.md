@@ -23,7 +23,8 @@ garde au superviseur.
    relecture repart au même relecteur, par message.
 3. **Intégrateur** : après `ACCEPTÉ`, sous-agent neuf (`subagent_type: integrateur`), sur les lots
    que je construis depuis la copie du ticket.
-4. **Poussée et fin** : je pousse le commit, je retire la copie du ticket, j'arrête chaque agent que
+4. **Poussée et fin** : je pousse le commit et je lis sa CI (`gh run list --limit 1`, puis
+   `gh run watch <id>` par tranches) ; une CI rouge sur mon commit rouvre mon circuit. Je retire la copie du ticket, j'arrête chaque agent que
    j'ai lancé et qui reste listé, puis je rends mon rapport.
 
 Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son auteur le relit.

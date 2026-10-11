@@ -23,6 +23,7 @@ ouvert ne se perd entre deux tours.
 ```bash
 git -C <racine> log --format='%h %ad %an %s' --date=iso --since='<dernier tour>'
 git -C <racine> log @{u}..HEAD --oneline | wc -l   # commits non poussés
+gh run list --limit 3                               # la CI des derniers commits ; un rouge ouvre un ticket
 git -C <racine> status --short
 ```
 
