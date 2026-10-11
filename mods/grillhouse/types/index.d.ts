@@ -1,8 +1,17 @@
 export type Ton = 'titre' | 'alerte' | 'attention' | 'actif' | 'discret'
 // `ticket`: the id of the ticket a line names, which makes the line selectable. `replie`: the
 // lines a counting line (« + 3 en attente ») folds, which the pane unfolds when it is reached.
-// `chantier`: the line is an epic's, which the pane switches on or off.
-export type Ligne = { texte: string; ton?: Ton; ticket?: string; replie?: Ligne[]; chantier?: boolean }
+// `chantier`: the line is an epic's, which the pane switches on or off. `section`: the board's
+// section the line belongs to, by which the pane shares its rows.
+export type Section = 'chantier' | 'agents' | 'faits'
+export type Ligne = {
+  texte: string
+  ton?: Ton
+  ticket?: string
+  replie?: Ligne[]
+  chantier?: boolean
+  section: Section
+}
 export type Fiche = {
   numero: string
   titre: string
@@ -17,14 +26,15 @@ export type Fiche = {
 // the ticket that moved last.
 export type Tableau = { lignes: Ligne[]; fiches: Record<string, Fiche>; dernier?: string | null }
 // `choisi`: the ticket whose card the pane shows; `element`: the line the keyboard is on;
-// `ouvert`: the counting line unfolded, by its index; `grand`: the card fills the pane.
+// `ouverts`: the counting lines unfolded, by the key of their Button, the widest first; `grand`:
+// the card fills the pane.
 export type Etat = {
   tableau: Tableau | null
   erreur: string | null
   lu: number
   choisi: string | null
   element: string | null
-  ouvert: number | null
+  ouverts: string[]
   grand: boolean
 }
 

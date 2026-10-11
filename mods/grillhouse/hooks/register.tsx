@@ -29,7 +29,7 @@ const etat = atom({ plugin: 'grillhouse', key: 'etat' } as const, {
   lu: 0,
   choisi: null,
   element: null,
-  ouvert: null,
+  ouverts: [],
   grand: false,
 } as Etat)
 
@@ -58,15 +58,57 @@ export function ficheLignes(f: Fiche | undefined): string[] {
   ].filter(Boolean)
 }
 
-// The lines the pane lists: the board's, the counting line `ouvert` unfolded below itself. Each
-// carries the key of its Button: `<ticket>:<i>`, `<ticket>:<i>.<j>` for a folded line, `+:<i>` for
-// a counting line; none for a plain line.
-export function visibles(lignes: Ligne[], ouvert: number | null): { l: Ligne; cle: string | null }[] {
+// A line the pane lists, the key of its Button and `i`, the index in the board of the line it
+// comes from.
+export type Visible = { l: Ligne; cle: string | null; i: number }
+
+// The lines the pane lists: the board's, each board counting line in `ouverts` unfolded below
+// itself. Each carries the key of its Button: `<ticket>:<i>`, `<ticket>:<i>.<j>` for a folded
+// line, `+:<i>` for a counting line; none for a plain line.
+export function visibles(lignes: Ligne[], ouverts: string[]): Visible[] {
   return lignes.flatMap((l, i) => {
-    const ici = [{ l, cle: l.ticket ? `${l.ticket}:${i}` : l.replie?.length ? `+:${i}` : null }]
-    if (i !== ouvert || !l.replie) return ici
-    return [...ici, ...l.replie.map((r, j) => ({ l: r, cle: r.ticket ? `${r.ticket}:${i}.${j}` : null }))]
+    const ici = [{ l, cle: l.ticket ? `${l.ticket}:${i}` : l.replie?.length ? `+:${i}` : null, i }]
+    if (!l.replie || !ouverts.includes(`+:${i}`)) return ici
+    return [...ici, ...l.replie.map((r, j) => ({ l: r, cle: r.ticket ? `${r.ticket}:${i}.${j}` : null, i }))]
   })
+}
+
+// The key of CHANTIER's counting line, `+chantier:<a>`, which folds the CHANTIER lines from board
+// index `a` on.
+const SUITE = '+chantier'
+
+// The lines the pane's window runs over, its rows shared among the sections: every line when all
+// fit in `rangs`; otherwise AGENTS whole, CHANTIER in the rows left with the lines past them folded
+// in one counting line (« + N lignes de plus », « + 1 ligne de plus » for one, N the board lines it folds; none when no row is
+// left), FAITS after. The rows are shared on the board's own lines: a counting line's unfolded
+// lines come below it and push the fold back by as many rows, the count unchanged. Unfolded (its
+// key in `ouverts`), the counting line stays before the board line it folds from, its text
+// unchanged, and the lines it folds come below it.
+export function repartir(liste: Visible[], rangs: number, ouverts: string[]): Visible[] {
+  if (liste.length <= rangs) return liste
+  const chantier = liste.filter(x => x.l.section === 'chantier')
+  const base = chantier.filter((x, n) => chantier[n - 1]?.i !== x.i)
+  const garde = rangs - liste.filter(x => x.l.section === 'agents').length - 1
+  if (base.length <= garde + 1) return liste
+  if (garde < 0) return liste.filter(x => x.l.section !== 'chantier')
+  const voulu = ouverts.find(c => c.startsWith(`${SUITE}:`))
+  const a = voulu ? Number(voulu.slice(SUITE.length + 1)) : NaN
+  const deplie = chantier.some(x => x.i >= a)
+  const ancre = deplie ? a : (base[garde] as Visible).i
+  const pliees = new Set(chantier.filter(x => x.i >= ancre).map(x => x.i)).size
+  const compte: Visible = {
+    l: {
+      texte: `+ ${pliees} ${pliees === 1 ? 'ligne' : 'lignes'} de plus`,
+      ton: 'discret',
+      section: 'chantier',
+    },
+    cle: `${SUITE}:${ancre}`,
+    i: ancre,
+  }
+  const bloc = deplie
+    ? [...chantier.filter(x => x.i < ancre), compte, ...chantier.filter(x => x.i >= ancre)]
+    : [...chantier.filter(x => x.i < ancre), compte]
+  return liste.flatMap(x => (x === chantier[0] ? bloc : x.l.section === 'chantier' ? [] : [x]))
 }
 
 // The first of `n` lines to show in `rangs` rows: the window stays where it was (`avant`) while the
@@ -79,13 +121,28 @@ export function debut(n: number, idx: number, rangs: number, avant: number): num
   return Math.max(0, Math.min(p, n - rangs))
 }
 
-// What the keyboard reaching an element changes: a ticket's line chooses its ticket, a counting
-// line or one of its folded lines keeps it unfolded, and the card goes back to its size.
+// Whether the counting line keyed `compte`, unfolded, holds `element`: a board counting line
+// `+:<i>` holds itself and its folded lines `<ticket>:<i>.<j>`; CHANTIER's `+chantier:<a>` holds
+// itself and every CHANTIER line from board index `a` on, with their folded lines.
+function tient(lignes: Ligne[], compte: string, element: string): boolean {
+  const [tete, pos = ''] = compte.split(':')
+  const [t, p = ''] = element.split(':')
+  const i = Number(pos)
+  const j = Number(p.split('.')[0])
+  if (tete === SUITE) return j >= i && lignes[j]?.section === 'chantier'
+  return j === i && (t === '+' || p.includes('.'))
+}
+
+// What the keyboard reaching an element changes: the unfolded counting lines that hold it stay
+// unfolded and the others fold, a counting line unfolds, a ticket's line chooses its ticket, and
+// the card goes back to its size.
 export function viser(s: Etat, element: string): Etat {
   if (element === 'g' || element === 'h') return s
-  const [tete, pos = ''] = element.split(':')
-  const ouvert = tete === '+' ? Number(pos) : pos.includes('.') ? Number(pos.split('.')[0]) : null
-  return { ...s, element, ouvert, grand: false, choisi: tete === '+' ? s.choisi : (tete ?? null) }
+  const [tete] = element.split(':')
+  const compte = tete === '+' || tete === SUITE
+  const lignes = s.tableau?.lignes ?? []
+  const ouverts = [...s.ouverts.filter(c => c !== element && tient(lignes, c, element)), ...(compte ? [element] : [])]
+  return { ...s, element, ouverts, grand: false, choisi: compte ? s.choisi : (tete ?? null) }
 }
 
 // The colour of a line's tone.
@@ -95,8 +152,24 @@ export const couleur = (ton: Ligne['ton']) =>
 // The session's project, and whether the board applies to it.
 let cwd = ''
 let actif = false
-// The first line the pane's window showed last.
+// The pane's window: its first line, the element it last followed, and the rows and focus it was
+// last drawn with. The wheel moves it; the ring moving to another line makes it follow.
 let fenetre = 0
+let suivi: string | null = null
+let cadre = { rangs: 1, focus: false }
+
+// The lines the window runs over, the window placed on them: when the ring has moved to another
+// line since the window last followed it, the window follows it (`debut`); it stays within the lines.
+function placer(s: Etat, rangs: number, focus: boolean): Visible[] {
+  const liste = repartir(visibles(s.tableau?.lignes ?? [], focus ? s.ouverts : []), rangs, focus ? s.ouverts : [])
+  const ici = liste.findIndex(x => x.cle === s.element)
+  if (focus && ici >= 0 && s.element !== suivi) {
+    fenetre = debut(liste.length, ici, rangs, fenetre)
+    suivi = s.element
+  }
+  fenetre = Math.max(0, Math.min(fenetre, liste.length - rangs))
+  return liste
+}
 
 // Measures the board again and redraws the pane.
 async function rafraichir($: EngineInterface) {
@@ -160,22 +233,32 @@ export const register: Register = on => {
     return r
   })
 
-  // An arrow, or the wheel, brings the whole card back to its size.
+  // The pane draws its own rows: the wheel moves its window by `e.by` rows, within its lines, and
+  // draws it again. On the whole card, a scroll brings the card back to its size.
   on('ui.scroll', async ($, e, next) => {
-    if (e.requestId !== PANE || !(await read($, etat)).grand) return next(e)
-    await update($, etat, s => ({ ...s, grand: false }))
-    return { deny: 'la fiche reprend sa taille' }
+    if (e.requestId !== PANE) return next(e)
+    if ((await read($, etat)).grand) {
+      await update($, etat, s => ({ ...s, grand: false }))
+      return { deny: 'la fiche reprend sa taille' }
+    }
+    const liste = placer(await read($, etat), cadre.rangs, cadre.focus)
+    fenetre = Math.max(0, Math.min(fenetre + e.by, liste.length - cadre.rangs))
+    $.ui.invalidate('ui.render')
+    return {}
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const { Box, Text, Button } = $.ui.resolve(e)
-    const { tableau: t, erreur, choisi, element, ouvert, grand } = await read($, etat)
+    const s = await read($, etat)
+    const { tableau: t, erreur, choisi, element, grand } = s
     if (!t) return <Text dimColor>{erreur ?? 'Lecture du tableau…'}</Text>
     const colonnes = e.props.bodyColumns
     // Focused, the card shows the chosen ticket; otherwise the one that moved last.
     const montre = e.props.isFocused ? choisi : (t.dernier ?? choisi)
     const fiche = montre ? t.fiches[montre] : undefined
-    const liste = visibles(t.lignes, e.props.isFocused ? ouvert : null)
+    const rangs = Math.max(1, e.props.scroll.bodyRows - FICHE - 1)
+    cadre = { rangs, focus: e.props.isFocused }
+    const liste = placer(s, rangs, e.props.isFocused)
     const ici = liste.findIndex(x => x.cle === element)
     // The chantier the keyboard is on, which `h` switches on or off.
     const chantier = ici >= 0 && liste[ici]?.l.chantier ? liste[ici]?.l.ticket : undefined
@@ -217,9 +300,7 @@ export const register: Register = on => {
         </Box>
       )
     }
-    const rangs = Math.max(1, e.props.scroll.bodyRows - FICHE - 1)
-    const premier = e.props.isFocused && ici >= 0 ? debut(liste.length, ici, rangs, fenetre) : 0
-    fenetre = premier
+    const premier = fenetre
     // A card fills the pane's last rows: the whole title on as many lines as it takes, then the
     // component, state, duration and tokens, then the description in the rows left.
     const carte = (f: Fiche | undefined) => {
