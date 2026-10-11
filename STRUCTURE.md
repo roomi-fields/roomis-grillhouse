@@ -66,14 +66,17 @@ roomis-grillhouse/
 │   ├── vitest.nuit.config.mjs     # the Vitest configuration of the night tests, played by nuit.sh
 │   ├── sous-modules.sh            # the submodules of a working copy (integration, agent, night) at HEAD, or shared read-only (grillhouse.partage)
 │   ├── branche-de-nuit.mjs        # pre-push guard: only the night pushes the branch of grillhouse.poussee.nuit
-│   ├── poussee-cles.mjs           # reads the grillhouse.poussee and grillhouse.poussee.nuit keys of package.json for nuit.sh and the guard
+│   ├── poussee-cles.mjs           # reads the grillhouse.poussee, .nuit and .commit keys of package.json for nuit.sh, the guard and the queue
 │   ├── retirer-copie.sh           # removes a working copy, submodules included (agent, integration, night)
 │   ├── grillhouse-maj.mjs         # npm run grillhouse:maj: the frame brought to its last version (files, git hooks, scripts, the controls' devDependencies); --ecarts
 │   ├── tableau.mjs                # npm run tableau: the board on three levels (project, agents, chantier)
 │   ├── ligne-etat/                # the status line: the person's own on the left, the chantier on the right
 │   ├── registre.mjs               # hook: one line per finished agent (ticket, role, time, tokens)
-│   ├── integration/               # One delivery, in a clean copy: verdicts, lots, base, guards, suites, commit
-│   │   ├── integrer.mjs              # run by the integrateur (tests: tests/unit/integrer.spec.ts)
+│   ├── integration/               # One delivery, in a clean copy: verdicts, lots, base, guards, suites, commit on agent/<ticket>; then the queue brings it onto main
+│   │   ├── integrer.mjs              # run by the integrateur: commits the lot on agent/<ticket>, labels the ticket en-file (tests: tests/unit/integrer.spec.ts)
+│   │   ├── file.mjs                  # the queue: brings the branches onto main one at a time, replaced and replayed when main moved, pushes main (tests: tests/unit/file-integration.spec.ts)
+│   │   ├── rejeu.mjs                 # the replay shared by integrer.mjs and file.mjs: clean copy, scope of the suites, suites by test name, guards
+│   │   ├── file-attente.mjs          # the locks and the queue's entries, in git's common directory
 │   │   └── suites-vitest.mjs         # npm run integration:suites -- --tous|<components>: failing tests by name, for Vitest
 │   │                                 #   (budget benches and night tests left out)
 │   ├── index-interfaces.mjs       # npm run interfaces: docs/agents/index-des-interfaces.md from the generated parts, checked by grillhouse:gardes

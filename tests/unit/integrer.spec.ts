@@ -11,6 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { chantier } from './integration-essai.js';
 import {
   nouveauxRouges,
   perimetre,
@@ -368,7 +369,7 @@ function monde(commentaires: string[]) {
   mkdirSync(path.join(repo, 'src/a'), { recursive: true });
   writeFileSync(path.join(repo, 'src/a/index.ts'), 'export const a = 1;\n');
   writeFileSync(path.join(repo, '.gitignore'), '.claude/worktrees/\n');
-  git('init', '-q');
+  git('init', '-q', '-b', 'main');
   git('add', '.');
   git('commit', '-q', '-m', 'base');
   // The lot: a test file and a code change, as two patches.
@@ -384,23 +385,51 @@ function monde(commentaires: string[]) {
   execFileSync('rm', ['-f', path.join(repo, 'tests/a.spec.ts')]);
   const message = path.join(bin, 'msg');
   writeFileSync(message, 'feat: a (demo-1)\n');
-  const lancer = (lots: string[], extra: string[]) =>
-    spawnSync('node', [SCRIPT, '--ticket', 'demo-1', ...lots, '--message', message, ...extra], {
-      cwd: repo,
-      encoding: 'utf8',
-      env: {
-        ...process.env,
-        PATH: `${bin}:${process.env.PATH}`,
-        GIT_AUTHOR_NAME: 't',
-        GIT_AUTHOR_EMAIL: 't@t',
-        GIT_COMMITTER_NAME: 't',
-        GIT_COMMITTER_EMAIL: 't@t',
-        PRINCIPAL: repo,
-      },
-    });
+  // The ticket's copy, made as the launcher makes it (branch agent/demo-1 from main's HEAD) at the
+  // first integration, the lots applied there as the agents' local work (grillhouse-3uv.63).
+  const copie = path.join(repo, '.claude/worktrees/demo-1');
+  const preparerCopie = (lots: string[]) => {
+    if (existsSync(copie)) {
+      return;
+    }
+    const branche = spawnSync('git', ['-C', repo, 'rev-parse', '--verify', '-q', 'agent/demo-1']);
+    if (branche.status === 0) {
+      git('worktree', 'add', '-q', copie, 'agent/demo-1');
+    } else {
+      git('worktree', 'add', '-q', '-b', 'agent/demo-1', copie, 'HEAD');
+    }
+    for (let i = 0; i < lots.length; i += 2) {
+      execFileSync('git', ['-C', copie, 'apply', lots[i + 1]]);
+    }
+  };
+  const lancer = (lots: string[], extra: string[]) => {
+    preparerCopie(lots);
+    return spawnSync(
+      'node',
+      [SCRIPT, '--ticket', 'demo-1', ...lots, '--message', message, ...extra],
+      {
+        cwd: repo,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          PATH: `${bin}:${process.env.PATH}`,
+          GIT_AUTHOR_NAME: 't',
+          GIT_AUTHOR_EMAIL: 't@t',
+          GIT_COMMITTER_NAME: 't',
+          GIT_COMMITTER_EMAIL: 't@t',
+          PRINCIPAL: repo,
+        },
+      }
+    );
+  };
   const run = (...extra: string[]) => lancer(['--tests', lotTests, '--code', lotCode], extra);
+  const branche = () =>
+    spawnSync('git', ['-C', repo, 'rev-parse', '--verify', '-q', 'agent/demo-1']).status === 0
+      ? 'agent/demo-1'
+      : 'HEAD';
+  // `log` is the history of the ticket's branch (main's before its first integration), where the integration commits (grillhouse-3uv.63).
   const etat = () => ({
-    log: git('log', '--format=%s').trim().split('\n'),
+    log: git('log', '--format=%s', branche()).trim().split('\n'),
     status: git('status', '--porcelain'),
     a: readFileSync(path.join(repo, 'src/a/index.ts'), 'utf8'),
     test: existsSync(path.join(repo, 'tests/a.spec.ts')),
@@ -545,9 +574,10 @@ describe('an integration', () => {
     writeFileSync(path.join(m.repo, 'NOTES'), 'v2 du superviseur\n');
     expect(m.run().status).toBe(0);
     expect(readFileSync(path.join(m.repo, 'NOTES'), 'utf8')).toBe('v2 du superviseur\n');
-    expect(m.etat()).toMatchObject({ a: 'export const a = 2;\n', test: true });
   });
-  it('refuses when main moved during the integration', () => {
+  // grillhouse-3uv.63 critère 11: the refusal « main a bougé » disappears; the lot goes onto its
+  // branch, and the queue brings it onto the main of the moment.
+  it('3uv.63 critère 11: main moving during the integration refuses nothing, the lot committed on its branch', () => {
     const m = monde(['ACCEPTÉ']);
     // The suites commit on main while they run, as a supervisor would.
     m.poser(
@@ -555,9 +585,14 @@ describe('an integration', () => {
       "import fs from 'node:fs';\nimport { execSync } from 'node:child_process';\nif (fs.existsSync('tests/a.spec.ts')) execSync(`git -C ${process.env.PRINCIPAL} -c user.name=t -c user.email=t@t commit -q --allow-empty -m bouge`);\nfs.writeFileSync(process.env.ROUGES, '');\n"
     );
     const r = m.run();
-    expect(r.stdout).toMatch(/main a bougé/);
-    expect(r.status).toBe(1);
-    expect(m.etat().log[0]).toBe('bouge');
+    expect(r.status, r.stdout + r.stderr).toBe(0);
+    expect(r.stdout).not.toMatch(/main a bougé/);
+    expect(m.etat().log[0]).toBe('feat: a (demo-1)');
+    expect(
+      execFileSync('git', ['-C', m.repo, 'log', '-1', '--format=%s', 'main'], {
+        encoding: 'utf8',
+      }).trim()
+    ).toBe('bouge');
   });
   it('hands the suites its component for a file of it that is not code', () => {
     const m = monde(['ACCEPTÉ']);
@@ -851,11 +886,6 @@ describe('an integration', () => {
     expect(m.run().status).toBe(0);
     expect(readFileSync(`${m.repo}.precommit`, 'utf8').trim()).toBe('1');
   });
-  it('waits for another integration that runs', () => {
-    const m = monde(['ACCEPTÉ']);
-    writeFileSync(path.join(m.repo, '.git/integration.lock'), String(process.pid));
-    expect(m.run().status).toBe(2);
-  });
 });
 
 // grillhouse-2sq.2, relecture B: an unreadable package.json does not make its component a package
@@ -934,7 +964,7 @@ describe('grillhouse-3uv.58 critère 6 — the integration removes and recreates
     let natif = '';
     const sousModule = () => {
       natif = mkdtempSync(path.join(ESSAIS, 'natif-'));
-      gitDe(natif, 'init', '-q');
+      gitDe(natif, 'init', '-q', '-b', 'main');
       writeFileSync(path.join(natif, 'natif.txt'), 'v1\n');
       gitDe(natif, 'add', '.');
       gitDe(natif, 'commit', '-qm', 'v1');
@@ -943,7 +973,16 @@ describe('grillhouse-3uv.58 critère 6 — the integration removes and recreates
     };
     const perdre = () => renameSync(natif, `${natif}-parti`);
     const listees = () => gitDe(m.repo, 'worktree', 'list', '--porcelain');
-    const log = () => gitDe(m.repo, 'log', '--format=%s');
+    // The ticket's branch, where the integration commits (grillhouse-3uv.63).
+    const log = () =>
+      gitDe(
+        m.repo,
+        'log',
+        '--format=%s',
+        spawnSync('git', ['-C', m.repo, 'rev-parse', '--verify', '-q', 'agent/demo-1']).status === 0
+          ? 'agent/demo-1'
+          : 'HEAD'
+      );
     return { ...m, copie, gitdir, marque, creer, bloquerPassage, sousModule, perdre, listees, log };
   }
 
@@ -1076,6 +1115,436 @@ describe('grillhouse-3uv.58 critère 6 — the integration removes and recreates
       expect(raison.status, raison.stderr).toBe(1);
       expect(raison.stderr.trim()).not.toBe('');
       expect(r.stdout.slice(r.stdout.indexOf('⛔'))).toContain(raison.stderr.trim());
+    },
+    LONG
+  );
+});
+
+// grillhouse-3uv.63: the integration commits the lot on the ticket's branch agent/<ticket>, after
+// the controls of today; the ticket's copy is then clean, and the queue brings the branch onto main.
+describe('grillhouse-3uv.63 — the integration commits on the ticket branch', () => {
+  const LONG = 60_000;
+  // The copy is clean once the lot is committed, and the integration removes it at once
+  // (critère 15): it is gone from the disk and from git's list of copies, its branch kept.
+  const propre = (m: ReturnType<typeof chantier>, id: string) => {
+    const copie = m.copieDe(id);
+    expect(existsSync(copie)).toBe(false);
+    expect(m.git('worktree', 'list', '--porcelain')).not.toContain(`worktree ${copie}\n`);
+    expect(m.existe(`refs/heads/agent/${id}`)).toBe(true);
+  };
+
+  it(
+    'critère 1: the lot is committed on agent/<ticket>, main untouched, and the copy is clean and removed without --jetable',
+    () => {
+      const m = chantier(ESSAIS);
+      m.ticket('demo-1', {
+        'src/a/index.ts': 'export const a = 1;\n',
+        'src/a/a.spec.ts': 'test\n',
+      });
+      const r = m.integrer('demo-1');
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(m.sujets('agent/demo-1')).toEqual(['feat: lot (demo-1)', 'base']);
+      expect(m.sujets('main')).toEqual(['base']);
+      expect(m.git('show', 'agent/demo-1:src/a/index.ts')).toBe('export const a = 1;\n');
+      expect(m.git('show', 'agent/demo-1:src/a/a.spec.ts')).toBe('test\n');
+      expect(m.git('status', '--porcelain')).toBe('');
+      propre(m, 'demo-1');
+    },
+    LONG
+  );
+  it(
+    'critère 1: a lot that adds and deletes files leaves its copy clean too',
+    () => {
+      const m = chantier(ESSAIS);
+      m.ticket('demo-1', {
+        'src/b/index.ts': null,
+        'src/b/neuf.ts': 'export const n = 1;\n',
+        'src/b/profond/x.spec.ts': 'test\n',
+      });
+      const r = m.integrer('demo-1');
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(
+        m.git('ls-tree', '-r', '--name-only', 'agent/demo-1', 'src/b').trim().split('\n')
+      ).toEqual(['src/b/neuf.ts', 'src/b/profond/x.spec.ts']);
+      propre(m, 'demo-1');
+    },
+    LONG
+  );
+  it(
+    'critère 1: main moved since the copy was made: the lot is still committed on agent/<ticket>, the copy clean',
+    () => {
+      const m = chantier(ESSAIS);
+      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
+      m.poser({ 'src/c/index.ts': 'export const c = 9;\n' }, 'ailleurs');
+      const r = m.integrer('demo-1');
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(m.sujets('agent/demo-1')[0]).toBe('feat: lot (demo-1)');
+      expect(m.git('show', 'agent/demo-1:src/a/index.ts')).toBe('export const a = 1;\n');
+      expect(m.sujets('main')).toEqual(['ailleurs', 'base']);
+      propre(m, 'demo-1');
+    },
+    LONG
+  );
+  it(
+    'critère 2: the committed ticket is labelled en-file and stays open',
+    () => {
+      const m = chantier(ESSAIS);
+      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
+      expect(m.integrer('demo-1').status).toBe(0);
+      const t = m.bd('demo-1');
+      expect(t.labels).toContain('en-file');
+      expect(t.status).not.toBe('closed');
+      expect(m.appels()).not.toMatch(/^close /m);
+    },
+    LONG
+  );
+  it(
+    'critère 11: two integrations launched together both commit, none refused « une intégration tourne déjà »',
+    async () => {
+      const m = chantier(ESSAIS);
+      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
+      m.ticket('demo-2', { 'src/b/index.ts': 'export const b = 2;\n' });
+      const [r1, r2] = await Promise.all([m.integrerEnFond('demo-1'), m.integrerEnFond('demo-2')]);
+      expect(r1.status, r1.stdout + r1.stderr).toBe(0);
+      expect(r2.status, r2.stdout + r2.stderr).toBe(0);
+      expect(r1.stderr + r2.stderr).not.toMatch(/tourne déjà/);
+      expect(m.sujets('agent/demo-1')[0]).toBe('feat: lot (demo-1)');
+      expect(m.sujets('agent/demo-2')[0]).toBe('feat: lot (demo-2)');
+      expect(m.sujets('main')).toEqual(['base']);
+    },
+    LONG
+  );
+  // Critère 14: the ticket's copy carries the lot and nothing else; anything else refuses the
+  // integration before any commit, naming those files, and touches nothing.
+  const refuseAvantCommit = (
+    m: ReturnType<typeof chantier>,
+    r: { status: number | null; stdout: string; stderr: string },
+    noms: string[]
+  ) => {
+    expect(r.status, r.stdout + r.stderr).toBe(1);
+    for (const n of noms) {
+      expect(r.stdout + r.stderr).toContain(n);
+    }
+    expect(m.sujets('agent/demo-1')).toEqual(['base']);
+    expect(m.sujets('main')).toEqual(['base']);
+    expect(m.bd('demo-1').labels).not.toContain('en-file');
+    expect(existsSync(m.copieDe('demo-1'))).toBe(true);
+  };
+  it(
+    'critère 14: an untracked file outside the lot in the copy refuses before any commit, named, and stays',
+    () => {
+      const m = chantier(ESSAIS);
+      const copie = m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
+      writeFileSync(path.join(copie, 'src/a/brouillon.ts'), 'brouillon\n');
+      refuseAvantCommit(m, m.integrer('demo-1'), ['src/a/brouillon.ts']);
+      expect(readFileSync(path.join(copie, 'src/a/brouillon.ts'), 'utf8')).toBe('brouillon\n');
+    },
+    LONG
+  );
+  it(
+    'critère 14: an untracked file deep in a new directory is named by its own path',
+    () => {
+      const m = chantier(ESSAIS);
+      const copie = m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
+      mkdirSync(path.join(copie, 'src/c/neuf/profond'), { recursive: true });
+      writeFileSync(path.join(copie, 'src/c/neuf/profond/x.ts'), 'x\n');
+      refuseAvantCommit(m, m.integrer('demo-1'), ['src/c/neuf/profond/x.ts']);
+    },
+    LONG
+  );
+  it(
+    'critère 14: tracked files modified or deleted outside the lot refuse, each named',
+    () => {
+      const m = chantier(ESSAIS);
+      const copie = m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
+      writeFileSync(path.join(copie, 'src/b/index.ts'), 'export const b = 99;\n');
+      m.gitDans(copie, 'rm', '-q', 'src/c/index.ts');
+      refuseAvantCommit(m, m.integrer('demo-1'), ['src/b/index.ts', 'src/c/index.ts']);
+      expect(readFileSync(path.join(copie, 'src/b/index.ts'), 'utf8')).toBe(
+        'export const b = 99;\n'
+      );
+    },
+    LONG
+  );
+  it(
+    'critère 14: a file of the lot whose content in the copy differs from the lot refuses, named',
+    () => {
+      const m = chantier(ESSAIS);
+      const copie = m.ticket('demo-1', {
+        'src/a/index.ts': 'export const a = 1;\n',
+        'src/a/a.spec.ts': 'test\n',
+      });
+      writeFileSync(path.join(copie, 'src/a/a.spec.ts'), 'test retouché\n');
+      refuseAvantCommit(m, m.integrer('demo-1'), ['src/a/a.spec.ts']);
+    },
+    LONG
+  );
+  it(
+    'critère 14: files the project ignores (node_modules) are not work: the lot is committed',
+    () => {
+      const m = chantier(ESSAIS);
+      const copie = m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
+      mkdirSync(path.join(copie, 'node_modules/x'), { recursive: true });
+      writeFileSync(path.join(copie, 'node_modules/x/index.js'), 'x\n');
+      const r = m.integrer('demo-1');
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(m.sujets('agent/demo-1')[0]).toBe('feat: lot (demo-1)');
+    },
+    LONG
+  );
+
+  // Critère 22: a copy that carries exactly the lot passes critère 14 even when main changed,
+  // since the copy's base, another part of a file of the lot: the copy is compared to its own
+  // base plus the lot.
+  const lignes = (n: number, change: Record<number, string> = {}) =>
+    Array.from({ length: n }, (_, i) => change[i + 1] ?? `ligne ${i + 1}`).join('\n') + '\n';
+  it(
+    'critère 22: a document of 80 lines, line 5 changed in the copy, line 70 changed on main: the exact lot is committed on agent/<ticket>',
+    () => {
+      const m = chantier(ESSAIS);
+      m.poser({ 'DOC.md': lignes(80) }, 'doc');
+      m.ticket('demo-1', { 'DOC.md': lignes(80, { 5: 'ligne 5 du ticket' }) });
+      m.poser({ 'DOC.md': lignes(80, { 70: 'ligne 70 de main' }) }, 'un autre ticket');
+      const r = m.integrer('demo-1');
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(r.stdout + r.stderr).not.toMatch(/diffèrent/);
+      expect(m.sujets('agent/demo-1')).toEqual([
+        'feat: lot (demo-1)',
+        'un autre ticket',
+        'doc',
+        'base',
+      ]);
+      expect(m.git('show', 'agent/demo-1:DOC.md')).toBe(
+        lignes(80, { 5: 'ligne 5 du ticket', 70: 'ligne 70 de main' })
+      );
+      expect(m.sujets('main')).toEqual(['un autre ticket', 'doc', 'base']);
+      expect(m.bd('demo-1').labels).toContain('en-file');
+      propre(m, 'demo-1');
+    },
+    LONG
+  );
+  it(
+    'critère 22: a code file and a test file of the lot, each changed elsewhere on main: the exact lot is committed',
+    () => {
+      const m = chantier(ESSAIS);
+      m.poser({ 'src/a/index.ts': lignes(40), 'src/a/a.spec.ts': lignes(40) }, 'a long');
+      m.ticket('demo-1', {
+        'src/a/index.ts': lignes(40, { 2: 'code du ticket' }),
+        'src/a/a.spec.ts': lignes(40, { 38: 'test du ticket' }),
+      });
+      m.poser(
+        {
+          'src/a/index.ts': lignes(40, { 35: 'code de main' }),
+          'src/a/a.spec.ts': lignes(40, { 3: 'test de main' }),
+        },
+        'un autre ticket'
+      );
+      const r = m.integrer('demo-1');
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(m.git('show', 'agent/demo-1:src/a/index.ts')).toBe(
+        lignes(40, { 2: 'code du ticket', 35: 'code de main' })
+      );
+      expect(m.git('show', 'agent/demo-1:src/a/a.spec.ts')).toBe(
+        lignes(40, { 3: 'test de main', 38: 'test du ticket' })
+      );
+      propre(m, 'demo-1');
+    },
+    LONG
+  );
+  it(
+    'critère 22: main changed another part of a file of the lot, and the copy differs from the lot in that file: still refused, named',
+    () => {
+      const m = chantier(ESSAIS);
+      m.poser({ 'DOC.md': lignes(80) }, 'doc');
+      const copie = m.ticket('demo-1', { 'DOC.md': lignes(80, { 5: 'ligne 5 du ticket' }) });
+      m.poser({ 'DOC.md': lignes(80, { 70: 'ligne 70 de main' }) }, 'un autre ticket');
+      // After its lot was made, the copy changes one more line of the file: not the lot.
+      writeFileSync(
+        path.join(copie, 'DOC.md'),
+        lignes(80, { 5: 'ligne 5 du ticket', 40: 'retouche hors lot' })
+      );
+      const r = m.integrer('demo-1');
+      expect(r.status, r.stdout + r.stderr).toBe(1);
+      expect(r.stdout + r.stderr).toContain('DOC.md');
+      expect(m.sujets('agent/demo-1')).toEqual(['doc', 'base']);
+      expect(m.bd('demo-1').labels).not.toContain('en-file');
+      expect(existsSync(copie)).toBe(true);
+    },
+    LONG
+  );
+
+  // Critère 15: once its commit is made, the integration removes the ticket's copy itself.
+  it(
+    'critère 15: the integration removes the copy itself once the commit is made, the branch kept',
+    () => {
+      const m = chantier(ESSAIS);
+      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
+      const r = m.integrer('demo-1');
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(m.sujets('agent/demo-1')[0]).toBe('feat: lot (demo-1)');
+      propre(m, 'demo-1');
+    },
+    LONG
+  );
+  it(
+    'critère 15: a locked copy that the script refuses to remove: the refusal is written to the ticket, the branch stays in the queue',
+    () => {
+      const m = chantier(ESSAIS);
+      const copie = m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
+      m.git('worktree', 'lock', '--reason', 'en cours', copie);
+      m.integrer('demo-1');
+      expect(m.sujets('agent/demo-1')[0]).toBe('feat: lot (demo-1)');
+      expect(existsSync(copie)).toBe(true);
+      const t = m.bd('demo-1');
+      expect(t.labels).toContain('en-file');
+      expect(t.status).not.toBe('closed');
+      expect(t.comments.map(c => c.text).join('\n')).toMatch(/verrouill/i);
+    },
+    LONG
+  );
+
+  // Critère 17: two integrations launched together: the second waits for the end of the first,
+  // then goes through; a lock left by a process that is gone is taken over.
+  it(
+    'critère 17: two integrations launched together run one after the other, and both commit',
+    async () => {
+      const m = chantier(ESSAIS);
+      // The suites mark their start « < » and their end « > », one second apart.
+      m.poser(
+        {
+          'suites.mjs':
+            "import fs from 'node:fs';\n" +
+            "const t = process.env.PRINCIPAL + '.trace';\n" +
+            "fs.appendFileSync(t, '<');\n" +
+            'Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1000);\n' +
+            "fs.appendFileSync(t, '>');\n" +
+            "fs.writeFileSync(process.env.ROUGES, '');\n",
+        },
+        'suites lentes'
+      );
+      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
+      m.ticket('demo-2', { 'src/b/index.ts': 'export const b = 2;\n' });
+      const [r1, r2] = await Promise.all([m.integrerEnFond('demo-1'), m.integrerEnFond('demo-2')]);
+      expect(r1.status, r1.stdout + r1.stderr).toBe(0);
+      expect(r2.status, r2.stdout + r2.stderr).toBe(0);
+      expect(m.sujets('agent/demo-1')[0]).toBe('feat: lot (demo-1)');
+      expect(m.sujets('agent/demo-2')[0]).toBe('feat: lot (demo-2)');
+      // Base and lot for each integration, never two suites at once.
+      expect(readFileSync(`${m.repo}.trace`, 'utf8')).toBe('<><><><>');
+    },
+    LONG
+  );
+  it(
+    'critère 17: an integration killed midway leaves no lock that holds the next one',
+    async () => {
+      const m = chantier(ESSAIS);
+      // The suites mark their start, then take ten seconds.
+      m.poser(
+        {
+          'suites.mjs':
+            "import fs from 'node:fs';\n" +
+            "fs.writeFileSync(process.env.PRINCIPAL + '.debut', '');\n" +
+            'Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10000);\n' +
+            "fs.writeFileSync(process.env.ROUGES, '');\n",
+        },
+        'suites lentes'
+      );
+      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
+      m.ticket('demo-2', { 'src/b/index.ts': 'export const b = 2;\n' });
+      const premiere = m.integrerProcessus('demo-1');
+      const debut = `${m.repo}.debut`;
+      for (let i = 0; i < 300 && !existsSync(debut); i++) {
+        await new Promise(r => setTimeout(r, 100));
+      }
+      expect(existsSync(debut)).toBe(true);
+      premiere.p.kill('SIGKILL');
+      await premiere.fin;
+      // The next integration's suites are quick again.
+      m.poser(
+        { 'suites.mjs': "import fs from 'node:fs';\nfs.writeFileSync(process.env.ROUGES, '');\n" },
+        'suites rapides'
+      );
+      const r = await Promise.race([
+        m.integrerEnFond('demo-2'),
+        new Promise<null>(r => setTimeout(() => r(null), 45_000)),
+      ]);
+      expect(r, 'la seconde intégration attend encore').not.toBeNull();
+      expect(r!.status, r!.stdout + r!.stderr).toBe(0);
+      expect(m.sujets('agent/demo-2')[0]).toBe('feat: lot (demo-2)');
+    },
+    LONG
+  );
+  it(
+    'critère 17: a lock written by a process that is gone is taken over',
+    () => {
+      const m = chantier(ESSAIS);
+      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
+      const parti = spawnSync('true').pid;
+      writeFileSync(path.join(m.repo, '.git/integration.lock'), String(parti));
+      const r = m.integrer('demo-1');
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(m.sujets('agent/demo-1')[0]).toBe('feat: lot (demo-1)');
+    },
+    LONG
+  );
+
+  // Critère 19: an integration of several tickets: the first ticket named gives its branch and
+  // its copy (critères 1, 14, 15); every ticket named is labelled en-file.
+  it(
+    'critère 19: the first ticket named gives its branch and its copy; each ticket named is labelled en-file and stays open',
+    () => {
+      const m = chantier(ESSAIS);
+      m.ticket(
+        'demo-1',
+        { 'src/a/index.ts': 'export const a = 1;\n' },
+        'feat: lot (demo-1, demo-2)'
+      );
+      m.inscrire('demo-2');
+      const r = m.integrer('demo-1', '--ticket', 'demo-2');
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(m.sujets('agent/demo-1')).toEqual(['feat: lot (demo-1, demo-2)', 'base']);
+      expect(m.existe('refs/heads/agent/demo-2')).toBe(false);
+      expect(m.sujets('main')).toEqual(['base']);
+      propre(m, 'demo-1');
+      for (const id of ['demo-1', 'demo-2']) {
+        expect(m.bd(id).labels, id).toContain('en-file');
+        expect(m.bd(id).status, id).not.toBe('closed');
+      }
+    },
+    LONG
+  );
+  it(
+    'critère 19: named in the other order, the other ticket gives its branch and its copy',
+    () => {
+      const m = chantier(ESSAIS);
+      m.inscrire('demo-1');
+      m.ticket(
+        'demo-2',
+        { 'src/b/index.ts': 'export const b = 2;\n' },
+        'feat: lot (demo-2, demo-1)'
+      );
+      const r = m.integrer('demo-2', '--ticket', 'demo-1');
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(m.sujets('agent/demo-2')[0]).toBe('feat: lot (demo-2, demo-1)');
+      expect(m.existe('refs/heads/agent/demo-1')).toBe(false);
+      propre(m, 'demo-2');
+      expect(m.bd('demo-1').labels).toContain('en-file');
+    },
+    LONG
+  );
+  it(
+    "critère 19 et 14: the first ticket's copy carrying a file outside the lot refuses, named",
+    () => {
+      const m = chantier(ESSAIS);
+      const copie = m.ticket(
+        'demo-1',
+        { 'src/a/index.ts': 'export const a = 1;\n' },
+        'feat: lot (demo-1, demo-2)'
+      );
+      m.inscrire('demo-2');
+      writeFileSync(path.join(copie, 'src/a/brouillon.ts'), 'brouillon\n');
+      refuseAvantCommit(m, m.integrer('demo-1', '--ticket', 'demo-2'), ['src/a/brouillon.ts']);
+      expect(m.bd('demo-2').labels).not.toContain('en-file');
     },
     LONG
   );

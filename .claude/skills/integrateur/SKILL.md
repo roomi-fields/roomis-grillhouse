@@ -41,19 +41,28 @@ node scripts/integration/integrer.mjs --ticket <id> [--ticket <id>…] \
   --tests <patch> --code <patch> --message <fichier> [--admettre "<test>"]…
 ```
 
-`--ticket` nomme chaque ticket, qui porte le verdict du relecteur ; le commit fait, tu fermes chacun
-(`bd close <id> -r "intégré : <commit>"`). Le script vérifie
+`--ticket` nomme chaque ticket, qui porte le verdict du relecteur ; le premier donne sa branche
+`agent/<ticket>` et sa copie. Le script vérifie
 `ACCEPTÉ` et les arbitrages, garde les tests au testeur et le code au développeur. Puis, dans une
 copie d'intégration propre (`.claude/worktrees/integration`, sur HEAD, sans fichier local), il
 construit, mesure la base, applique les lots en trois voies, construit, rejoue les gardes, compare
-les suites à la base nom par nom et commite avec les crochets ; main avance alors sur ce commit. Les
+les suites à la base nom par nom et commite avec les crochets sur `agent/<ticket>` ; main n'avance
+pas ici. Il étiquette chaque ticket `en-file`, place la branche dans la file et retire la copie du
+ticket. Les
 suites rejouées suivent le choix du projet : toutes (`complet`), ou les composants du lot et ceux
 qui en dépendent (`impactes`, toutes les suites tournant la nuit) ; un lot qui touche un fichier
 hors de tout composant autre qu'un document les rejoue toutes, un lot fait seulement de documents
 hors de tout composant n'en rejoue aucune (les gardes seules).
 Ainsi le commit validé est exactement celui qui entre. Il tient sa propre attente : il rend la main
 sur le commit ou sur le refus, avec toute sa sortie. Ainsi une attente est un processus vivant,
-jamais une phrase.
+jamais une phrase. Une intégration lancée pendant qu'une autre tourne attend la fin de la première.
+
+**La file** : le commit fait, tu lances `node scripts/integration/file.mjs` depuis l'arbre
+principal. Elle amène les branches sur main une à une, rejoue les gardes et les suites quand main a
+bougé, ferme chaque ticket « intégré : <commit> », efface sa branche et pousse main. Une branche
+qui ne passe pas (fichiers en conflit, garde refusé, test rouge neuf) sort de la file : son ticket
+perd `en-file` et se rouvre avec les fichiers ou les tests nommés, et la branche reste en place pour
+la relance. Ainsi main n'avance que sur des branches rejouées contre lui.
 
 - **Un refus retourne à l'agent** avec la sortie entière du script ; tu ne corriges rien. Un refus
   de garde se relit d'abord en relançant seul le garde qu'il nomme, et cette sortie part avec.
@@ -64,5 +73,5 @@ jamais une phrase.
 
 ## La fin
 
-Tu annonces au superviseur et à l'agent le commit et son ticket, ou le refus et sa raison, puis tu
-t'arrêtes. La poussée suit la charte.
+Tu annonces au superviseur et à l'agent le commit, sa branche et ce qu'en a fait la file (entré
+sur main, ou sorti et pourquoi), ou le refus et sa raison, puis tu t'arrêtes. La file pousse main.

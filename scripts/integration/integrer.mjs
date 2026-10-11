@@ -1,32 +1,26 @@
 #!/usr/bin/env node
 // The mechanical steps of one integration, run by the integrateur agent once it has judged the
-// lot. It commits the lot, or refuses it with the full output of the step that refused.
+// lot. It commits the lot on the branch of the ticket, or refuses it with the full output of the
+// step that refused. The branch then waits for the queue (scripts/integration/file.mjs), which
+// brings it onto main.
 //
 //   node scripts/integration/integrer.mjs --ticket <id> [--ticket <id>…]
 //        [--tests <patch>] [--code <patch>] --message <file> [--admettre "<test name>"…]
 //
-// In order, each step refusing stops the run:
+// The first ticket named gives its branch `agent/<ticket>` and its copy
+// (`.claude/worktrees/<ticket>`, the one the lot was written in, when it exists); the other tickets
+// ride on that branch. In order, each step refusing stops the run:
 //  1. the verdicts: each --ticket has `ACCEPTÉ` as its last reviewer verdict (`ACCEPTÉ` or
 //     `RENDU` at the start of a comment) and, when labelled `arbitrage`, each « ## Arbitrage »
 //     comment is `### Verdict — tranché`, or a « ## Réponse du responsable » comment follows it;
 //  2. the lots: the tests lot touches only what the testeur writes (`isTesterFile`: test files
 //     and the shared test material), the code lot none of it;
-//  3. the main tree: every file of the lots is unmodified there;
-//  4. a clean integration copy (`.claude/worktrees/integration`): detached on HEAD, every
-//     untracked file removed, its submodules set at the commit of HEAD (`scripts/sous-modules.sh`,
-//     a local modification overwritten; a submodule the project shares, `grillhouse.partage`, is
-//     linked to the main repository's instead, not set), its dependencies installed again when
-//     `package-lock.json` changes (`npm ci`), then built (`npm run build`, when present). An
-//     existing copy that does not get ready (its move onto HEAD, its cleaning or the setting of
-//     its submodules fails) is removed by `scripts/retirer-copie.sh --jetable` (local work does
-//     not hold it, a lock does) and created again, once; a copy that does not get ready the
-//     second time refuses, and so does a removal the script refuses, with its reason. Every command
-//     of the project from here on (installation, build, suites, guards, and the hooks of the commit)
-//     plays through `scripts/sous-modules.sh monter`: each submodule the preparation linked, its
-//     working tree and its git repository, read-only in the main repository, by the list the pose
-//     printed before the lot, whatever the lot or a command rewrites afterwards (the declaration,
-//     .gitmodules, the index); a write into it fails. With a link and no possible mount (bwrap absent or refused),
-//     the lot is refused before any command runs;
+//  3. the main tree: every file of the lots is unmodified there; the ticket's copy is on its
+//     branch and carries the lot and nothing else: a modified or untracked file outside the lot
+//     refuses, named (what an ignored folder such as node_modules holds is not work);
+//  4. a clean integration copy (`.claude/worktrees/integration`) on HEAD, made ready by the
+//     replay (scripts/integration/rejeu.mjs: submodules by scripts/sous-modules.sh, dependencies,
+//     build, mounts);
 //  5. the base: the project's suites (`npm run integration:suites -- --tous|<components>`) on
 //     HEAD. The project chooses at its installation (`grillhouse.integration` in package.json):
 //     `impactes` (the default) replays the touched components and those that depend on them (the
@@ -39,35 +33,42 @@
 //     night (`scripts/nuit.sh`);
 //     `complet` replays every suite at each integration, documents included;
 //     suites that fail without naming a test leave nothing to compare, and refuse;
-//  6. the lots, applied in three ways in the copy, tests first, then built;
+//  6. the lots, applied in three ways in the copy, tests first, then built; the files of the lot
+//     in the ticket's copy are compared with the copy's own base plus the lot, not with the
+//     integration copy;
 //  7. the project's guards (`npm run integration:gardes`, when present);
 //  8. the suites again: a failing test that the base did not have and --admettre does not name
 //     refuses the lot, compared name by name;
 //  9. the commit in the copy, its hooks included, under GRILLHOUSE_INTEGRATION=1: a pre-commit
 //     hook that plays the guards skips them, as step 7 just played them; the commit validated is
 //     the commit that enters;
-// 10. main moves forward onto it (`merge --ff-only`); main moved in the meantime refuses.
+// 10. the branch `agent/<ticket>` is set on that commit, the ticket's copy follows it and is
+//     removed by `scripts/retirer-copie.sh` (no `--jetable`): a refusal, a locked copy for
+//     example, is written to the first ticket, the commit stands. Every ticket named is labelled
+//     `en-file` and the branch takes its place at the end of the queue
+//     (scripts/integration/file-attente.mjs). main does not move here.
 //
 // What the base and the suites read of a lot is its files: each file added, modified or
 // deleted, a rename counting its source and its destination, a copy its destination only.
 //
-// The main tree is touched by the fast-forward only: the supervisor's own files stay as they are.
-// The suites command receives `--tous` for every suite, or the components' directories to replay
-// (`packages/a src/parser`), never nothing, and writes the names of its failing tests, one per
-// line, to the file named by the ROUGES variable.
+// The main tree is not touched. The suites command receives `--tous` for every suite, or the
+// components' directories to replay (`packages/a src/parser`), never nothing, and writes the names
+// of its failing tests, one per line, to the file named by the ROUGES variable.
 // The budget of an integration that touches one leaf component: 15 s, measured on the template
 // (12.8 s with its first `npm ci`, 8.6 s after). A project sets its own, measured on its code
 // (`npm pkg set grillhouse.budgetIntegration=<seconds>`). The duration is written at the end,
 // with a warning past the budget.
-// One integration runs at a time (`.git/integration.lock`). Exit code: 0 committed, 1 refused,
-// 2 usage or another integration running.
+// One integration runs at a time (`.git/integration.lock`): another waits for the end of the
+// running one; a lock whose process is gone is taken over. Exit code: 0 committed, 1 refused,
+// 2 usage.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { composants as lesComposants, utilise } from '../consommateurs.mjs';
+import { pathToFileURL } from 'node:url';
 import { isTesterFile } from '../verrous/verrou.mjs';
+import { dossierCommun, inscrireEntree, lacherVerrou, prendreVerrou } from './file-attente.mjs';
+import { lireJsonSiPresent, nouveauxRouges, ouvrirCopie, RETIRER_COPIE } from './rejeu.mjs';
 
 // The refusal for the verdicts of one ticket, or null. `ticket` and `comments` are Beads' JSON.
 export function refusVerdicts(ticket, comments) {
@@ -107,52 +108,11 @@ export function refusLots(tests, code, racine) {
   return null;
 }
 
-// The failing tests after the lot that the base did not have and that are not admitted.
-export function nouveauxRouges(base, apres, admis = []) {
-  const connus = new Set([...base, ...admis]);
-  return [...new Set(apres)].filter(n => !connus.has(n));
-}
+// The scope of the suites and the comparison of failing tests live in the replay, shared with the
+// queue.
+export { nouveauxRouges, perimetre } from './rejeu.mjs';
 
 const BUDGET_FEUILLE_S = 15;
-const SOUS_MODULES = fileURLToPath(new URL('../sous-modules.sh', import.meta.url));
-const RETIRER_COPIE = fileURLToPath(new URL('../retirer-copie.sh', import.meta.url));
-
-const lireJsonSiPresent = p => (existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : null);
-
-// What the suites replay for a lot. `composants` are the components' directories relative to the
-// root; `consommateurs` maps a component's directory to the directories of those that use it.
-// - a file outside every component that is not a document: every suite, as such a file (a root
-//   script, package.json, the lockfile, tsconfig, the CI, a setting) can change any of them;
-// - a document outside every component (`estDocument`) counts for nothing: a lot made only of
-//   such documents replays no suite (mode `aucun`, the guards alone);
-// - otherwise: the components holding a file of the lot, whatever its nature (code, document,
-//   manifest, data), and, transitively, those that depend on them, in order.
-const SCRIPTS = /\.(mjs|js|cjs|ts|sh|py)$/;
-const REGLAGES = /(\.json|(^|\/)fichiers\.txt)$/;
-function estDocument(f) {
-  if (f.startsWith('.claude/')) return !SCRIPTS.test(f) && !REGLAGES.test(f);
-  return f.endsWith('.md');
-}
-
-export function perimetre(fichiers, composants, consommateurs) {
-  const touches = new Set();
-  for (const f of fichiers) {
-    const c = composants.find(d => f.startsWith(`${d}/`));
-    if (c) touches.add(c);
-    else if (!estDocument(f)) return { mode: 'tous', composants: [] };
-  }
-  if (touches.size === 0) return { mode: 'aucun', composants: [] };
-  const file = [...touches];
-  while (file.length) {
-    for (const d of consommateurs.get(file.pop()) ?? []) {
-      if (!touches.has(d)) {
-        touches.add(d);
-        file.push(d);
-      }
-    }
-  }
-  return { mode: 'composants', composants: [...touches].sort() };
-}
 
 function lire(argv) {
   const o = { tickets: [], tests: null, code: null, message: null, admettre: [] };
@@ -187,6 +147,38 @@ function lire(argv) {
   return o;
 }
 
+// The files of the ticket's copy that are not the lot: every modified, deleted or untracked file
+// (ignored ones do not count) the lot does not name.
+function horsLot(copieTicket, fichiers) {
+  const r = spawnSync(
+    'git',
+    ['-C', copieTicket, 'status', '--porcelain=v1', '-z', '-uall', '--no-renames'],
+    { encoding: 'utf8' }
+  );
+  if (r.status !== 0) return null;
+  const dans = new Set(fichiers);
+  return r.stdout
+    .split('\0')
+    .filter(Boolean)
+    .map(l => l.slice(3))
+    .filter(f => !dans.has(f));
+}
+
+// The files of the lot whose content in the ticket's copy differs from its own base plus the lot:
+// the lots are applied to the copy's HEAD in a temporary index, which the copy's files are compared
+// to. Every file of the lot differs when the lots do not apply to that base.
+function differents(copieTicket, lots, fichiers, tmp) {
+  const index = path.join(tmp, 'index-copie');
+  const env = { ...process.env, GIT_INDEX_FILE: index };
+  const dansCopie = (...args) =>
+    spawnSync('git', ['-C', copieTicket, ...args], { encoding: 'utf8', env });
+  if (dansCopie('read-tree', 'HEAD').status !== 0) return fichiers;
+  for (const p of lots) if (dansCopie('apply', '--cached', p).status !== 0) return fichiers;
+  const r = dansCopie('diff', '--name-only', '--no-renames', '-z', '--', ...fichiers);
+  if (r.status !== 0) return fichiers;
+  return r.stdout.split('\0').filter(Boolean);
+}
+
 function main(argv) {
   const o = lire(argv);
   if (!o) {
@@ -199,6 +191,7 @@ function main(argv) {
     encoding: 'utf8',
   }).stdout.trim();
   const git = (...args) => spawnSync('git', ['-C', racine, ...args], { encoding: 'utf8' });
+  const bd = (...a) => spawnSync('bd', a, { cwd: racine, encoding: 'utf8' });
   const dire = s => process.stdout.write(`${s}\n`);
   const refuser = s => {
     process.stdout.write(`⛔ ${s}\nLe lot retourne à son agent avec cette sortie.\n`);
@@ -206,34 +199,15 @@ function main(argv) {
   };
   const absolu = p => path.resolve(p);
 
-  // One integration at a time; a lock whose process is gone is taken over.
-  const verrou = path.join(
-    spawnSync('git', ['-C', racine, 'rev-parse', '--path-format=absolute', '--git-common-dir'], {
-      encoding: 'utf8',
-    }).stdout.trim(),
-    'integration.lock'
-  );
-  if (existsSync(verrou)) {
-    const pid = Number(readFileSync(verrou, 'utf8'));
-    let vivant = false;
-    try {
-      process.kill(pid, 0);
-      vivant = true;
-    } catch {
-      vivant = false;
-    }
-    if (vivant) {
-      process.stderr.write(`⛔ Une intégration tourne déjà (processus ${pid}).\n`);
-      return 2;
-    }
-  }
-  writeFileSync(verrou, String(process.pid));
+  // One integration at a time: a second waits for the end of the first; a lock whose process is
+  // gone is taken over.
+  const verrou = path.join(dossierCommun(racine), 'integration.lock');
+  prendreVerrou(verrou, { attendre: true });
   const debut = Date.now();
   const tmp = mkdtempSync(path.join(tmpdir(), 'integration-'));
   try {
     // 1. The verdicts.
     for (const id of o.tickets) {
-      const bd = (...a) => spawnSync('bd', a, { cwd: racine, encoding: 'utf8' });
       const show = bd('show', id, '--json');
       const comments = bd('comments', id, '--json');
       if (show.status !== 0 || comments.status !== 0)
@@ -265,132 +239,49 @@ function main(argv) {
     const fichiers = [...new Set([...tests, ...code])];
     dire(`✓ lots : ${fichiers.length} fichiers`);
 
-    // 3. The main tree: the lots' files are free there, so the fast-forward can bring them.
+    // 3. The main tree: the lots' files are free there, so the queue can bring them. The ticket's
+    // copy holds the lot and nothing else.
     const tenus = git('status', '--porcelain', '--', ...fichiers).stdout.trim();
     if (tenus) return refuser(`Des fichiers du lot sont modifiés dans l'arbre :\n${tenus}`);
     dire('✓ arbre principal libre');
+    const premier = o.tickets[0];
+    const branche = `agent/${premier}`;
+    const copieTicket = path.join(racine, '.claude', 'worktrees', premier);
+    // A ticket without a copy (none was made, or it is gone) has nothing to check nor to remove.
+    const avecCopie = existsSync(copieTicket);
+    if (avecCopie) {
+      const surBranche = spawnSync(
+        'git',
+        ['-C', copieTicket, 'rev-parse', '--abbrev-ref', 'HEAD'],
+        { encoding: 'utf8' }
+      );
+      if (surBranche.stdout.trim() !== branche) {
+        return refuser(`La copie du ticket ${copieTicket} n'est pas sur la branche ${branche}.`);
+      }
+      const autres = horsLot(copieTicket, fichiers);
+      if (autres === null) return refuser(`L'état de la copie ${copieTicket} ne se lit pas.`);
+      if (autres.length) {
+        return refuser(
+          `La copie du ticket porte autre chose que le lot :\n${autres.map(f => `  ${f}`).join('\n')}`
+        );
+      }
+      dire('✓ copie du ticket : le lot seul');
+    }
 
     // 4. The integration copy: detached on HEAD, without any untracked file; its dependencies
     // are kept only while the lock file is the same (a CI cache keyed by the lock file).
-    const tete = git('rev-parse', 'HEAD').stdout.trim();
     const copie = path.join(racine, '.claude', 'worktrees', 'integration');
-    const dansCopie = (...args) => spawnSync('git', ['-C', copie, ...args], { encoding: 'utf8' });
-    // The copy gets ready or the reason it does not. An existing copy that does not get ready is
-    // removed by the frame's script (`--jetable`: its own copy carries no work) and created again,
-    // once; a removal the script refuses refuses the lot with the script's reason. The pose prints
-    // the shared submodules it linked: that list, fixed before the lot, is the one every mount gets.
-    let partages = '';
-    const preparer = () => {
-      const prete = existsSync(copie)
-        ? dansCopie('checkout', '-q', '--detach', '--force', tete).status === 0 &&
-          dansCopie('clean', '-q', '-f', '-d', '-x', '-e', 'node_modules').status === 0
-        : git('worktree', 'add', '-q', '--detach', copie, tete).status === 0;
-      if (!prete) return `La copie d'intégration ${copie} ne se prépare pas.`;
-      const poses = spawnSync('bash', [SOUS_MODULES, 'pose', copie], { encoding: 'utf8' });
-      if (poses.status !== 0)
-        return `La copie d'intégration ne pose pas ses sous-modules : ${poses.stderr.trim()}`;
-      partages = poses.stdout;
-      return null;
-    };
-    const existait = existsSync(copie);
-    let refus = preparer();
-    if (refus && existait) {
-      const retrait = spawnSync('bash', [RETIRER_COPIE, '--jetable', copie], {
-        cwd: racine,
-        encoding: 'utf8',
-      });
-      if (retrait.status !== 0) {
-        return refuser(
-          `${refus}\nLa copie d'intégration ne se retire pas : ${retrait.stderr.trim()}`
-        );
-      }
-      refus = preparer();
-    }
-    if (refus) return refuser(refus);
-    // The project's commands play through the common mount: each shared submodule the pose linked
-    // is read-only there. A mount that is impossible refuses before any command runs.
-    const monter = (...commande) => [
-      SOUS_MODULES,
-      'monter',
-      copie,
-      '--partages',
-      partages,
-      ...commande,
-    ];
-    const montage = spawnSync('bash', monter('true'), { encoding: 'utf8' });
-    if (montage.status !== 0) return refuser(montage.stderr.trim());
-    const npm = (args, env = {}) => {
-      const r = spawnSync('bash', monter('npm', ...args), {
-        cwd: copie,
-        encoding: 'utf8',
-        env: { ...process.env, ...env },
-      });
-      process.stdout.write(r.stdout + r.stderr);
-      return r;
-    };
-    const verrouNpm = path.join(copie, 'package-lock.json');
-    if (existsSync(verrouNpm)) {
-      const cle = path.join(copie, 'node_modules', '.integration-lock');
-      const empreinte = readFileSync(verrouNpm, 'utf8');
-      if (!existsSync(cle) || readFileSync(cle, 'utf8') !== empreinte) {
-        if (npm(['ci', '--no-audit', '--no-fund', '--silent']).status !== 0) {
-          return refuser("Les dépendances de la copie d'intégration ne s'installent pas.");
-        }
-        writeFileSync(cle, empreinte);
-      }
-    }
-    const construire = () => npm(['run', '--silent', '--if-present', 'build']).status === 0;
-    if (!construire()) return refuser('HEAD ne se construit pas.');
-    dire(`✓ copie d'intégration propre sur ${tete.slice(0, 7)}`);
-
-    // What the suites replay: the touched components and those that depend on them.
-    const comps = lesComposants(copie);
-    const dirDe = new Map(comps.map(c => [c.nom, path.relative(copie, c.dir)]));
-    const consommateurs = new Map();
-    for (const [fournisseur, parConsommateur] of utilise(copie, comps)) {
-      consommateurs.set(
-        dirDe.get(fournisseur),
-        [...parConsommateur.keys()].map(n => dirDe.get(n))
-      );
-    }
-    // The project chooses at its installation (grill): `complet` replays every suite at each
-    // integration; `impactes`, the default, what `perimetre` computes, every suite once a night.
-    const reglage = lireJsonSiPresent(path.join(copie, 'package.json'))?.grillhouse?.integration;
-    const champ =
-      reglage === 'complet'
-        ? { mode: 'tous', composants: [] }
-        : perimetre(fichiers, [...dirDe.values()], consommateurs);
-    const touches = champ.composants;
-    dire(
-      champ.mode === 'aucun'
-        ? '✓ aucune suite : le lot ne contient que des documents hors de tout composant'
-        : champ.mode === 'tous'
-          ? reglage === 'complet'
-            ? '✓ toutes les suites (réglage « complet »)'
-            : '✓ toutes les suites : le lot touche un fichier hors de tout composant'
-          : `✓ suites de : ${touches.join(', ')}`
-    );
-    const suites = nom => {
-      const rouges = path.join(tmp, nom);
-      writeFileSync(rouges, '');
-      const portee = champ.mode === 'tous' ? ['--tous'] : touches;
-      const r = npm(['run', '--silent', 'integration:suites', '--', ...portee], {
-        ROUGES: rouges,
-      });
-      const noms = readFileSync(rouges, 'utf8')
-        .split('\n')
-        .map(s => s.trim())
-        .filter(Boolean);
-      if (r.status !== 0 && noms.length === 0)
-        noms.push(`(les suites sortent en ${r.status} sans test nommé)`);
-      return noms;
-    };
+    const ouverte = ouvrirCopie({ racine, copie, ref: 'HEAD', tmp, dire });
+    if (ouverte.refus) return refuser(ouverte.refus);
+    const { dansCopie, monter, construire, portee, suites, gardes } = ouverte;
+    const { champ, message } = portee(fichiers);
+    dire(message);
 
     // 5. The base (no suite replays for a lot of documents: nothing to compare).
     let base = [];
     if (champ.mode !== 'aucun') {
       dire('— les suites sur HEAD (la base)');
-      base = suites('base');
+      base = suites(champ, 'base');
       if (base.some(n => n.startsWith('(les suites sortent'))) {
         return refuser(
           'La base ne se mesure pas : les suites échouent sur HEAD sans nommer de test.'
@@ -404,18 +295,23 @@ function main(argv) {
       const r = dansCopie('apply', '--3way', '--index', p);
       if (r.status !== 0) return refuser(`Le lot ${p} ne s'applique pas :\n${r.stdout}${r.stderr}`);
     }
+    const divergents = avecCopie ? differents(copieTicket, lots, fichiers, tmp) : [];
+    if (divergents.length) {
+      return refuser(
+        `Des fichiers du lot diffèrent dans la copie du ticket :\n${divergents.map(f => `  ${f}`).join('\n')}`
+      );
+    }
     if (!construire()) return refuser('Le lot ne se construit pas.');
     dire('✓ lots appliqués et construits');
 
     // 7. The guards.
-    const gardes = npm(['run', '--silent', '--if-present', 'integration:gardes']);
-    if (gardes.status !== 0) return refuser('Les gardes refusent (sortie ci-dessus).');
+    if (gardes().status !== 0) return refuser('Les gardes refusent (sortie ci-dessus).');
     dire('✓ gardes');
 
     // 8. The suites, compared to the base.
     if (champ.mode !== 'aucun') {
       dire('— les suites avec le lot');
-      const nouveaux = nouveauxRouges(base, suites('apres'), o.admettre);
+      const nouveaux = nouveauxRouges(base, suites(champ, 'apres'), o.admettre);
       if (nouveaux.length)
         return refuser(`Rouges nouveaux :\n${nouveaux.map(n => `  ✗ ${n}`).join('\n')}`);
       for (const a of o.admettre) dire(`⚠ admis par l'intégrateur : ${a}`);
@@ -436,29 +332,39 @@ function main(argv) {
     if (c.status !== 0) return refuser(`Le commit est refusé :\n${c.stdout}${c.stderr}`);
     const commit = dansCopie('rev-parse', 'HEAD').stdout.trim();
 
-    // 10. main moves forward onto it, or main has moved and the integration starts again.
-    if (git('rev-parse', 'HEAD').stdout.trim() !== tete) {
-      return refuser("main a bougé pendant l'intégration : relance-la sur le nouveau HEAD.");
+    // 10. The branch of the ticket takes the commit; the ticket's copy follows it (it carried the
+    // lot, which the commit now holds) and is removed; the tickets wait in the queue.
+    const pose = git('update-ref', `refs/heads/${branche}`, commit);
+    if (pose.status !== 0) {
+      return refuser(`La branche ${branche} ne prend pas ${commit.slice(0, 7)} :\n${pose.stderr}`);
     }
-    const avance = git('merge', '-q', '--ff-only', commit);
-    if (avance.status !== 0) {
-      return refuser(
-        `main n'avance pas sur ${commit.slice(0, 7)} :\n${avance.stdout}${avance.stderr}`
-      );
+    if (avecCopie) {
+      spawnSync('git', ['-C', copieTicket, 'reset', '-q', '--hard', commit], { encoding: 'utf8' });
     }
-    dire(`✓ commit ${commit.slice(0, 7)}`);
+    for (const id of o.tickets) bd('update', id, '--add-label', 'en-file');
+    dire(`✓ commit ${commit.slice(0, 7)} sur ${branche}`);
+    const retrait = avecCopie
+      ? spawnSync('bash', [RETIRER_COPIE, copieTicket], { cwd: racine, encoding: 'utf8' })
+      : { status: 0, stderr: '' };
+    if (retrait.status !== 0) {
+      const raison = `La copie ${copieTicket} n'est pas retirée après le commit de ${branche} : ${retrait.stderr.trim()}\nLa branche reste en file.`;
+      bd('comments', 'add', premier, raison);
+      dire(`⚠ ${raison}`);
+    }
+    inscrireEntree(racine, branche, o.tickets);
+    dire('✓ en file');
     const duree = Math.round((Date.now() - debut) / 100) / 10;
     const budget =
       lireJsonSiPresent(path.join(racine, 'package.json'))?.grillhouse?.budgetIntegration ??
       BUDGET_FEUILLE_S;
     dire(`⏱ ${duree} s (budget d'une feuille : ${budget} s)`);
-    if (champ.mode === 'composants' && touches.length === 1 && duree > budget) {
+    if (champ.mode === 'composants' && champ.composants.length === 1 && duree > budget) {
       dire(`⚠ au-delà du budget : ${duree} s pour un seul composant.`);
     }
     return 0;
   } finally {
     rmSync(tmp, { recursive: true, force: true });
-    rmSync(verrou, { force: true });
+    lacherVerrou(verrou);
   }
 }
 

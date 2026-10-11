@@ -12,7 +12,13 @@
 #   an unknown option or an option after the four arguments is refused, CODE_USAGE, before the copy
 #   is prepared. A repeated option keeps its last value; every level given is checked.
 # - The agent's copy is the worktree .claude/worktrees/<ticket> (branch agent/<ticket>), created
-#   from the main tree's HEAD when absent and moved forward to it otherwise. Moving forward keeps
+#   from the main tree's HEAD when absent and moved forward to it otherwise. When the branch exists
+#   without a copy, it is brought back to the main tree's HEAD and the copy is made on it: the lot
+#   the branch carried ahead of main (a branch the queue sent back) comes back as local work in
+#   the copy, a conflict with main marked in its file; a branch with nothing ahead simply starts
+#   again from main. A ticket whose branch is still in the integration queue is not launched:
+#   the refusal goes to the log, which names the queue, CODE_COPIE, before any copy is made.
+#   Moving forward keeps
 #   the work in progress of the copy: git stashes it, fast-forwards, and reapplies it
 #   (`--autostash`). A refusal, such as commits of the agent on its branch, goes to the log and
 #   stops the launch, CODE_COPIE; so does a reapplication that conflicts: the log names each file
@@ -38,7 +44,7 @@
 # - The exit codes are named in scripts/enveloppe/codes.mjs; a malformed call exits CODE_USAGE.
 # - CLAUDE_BIN replaces `claude` (the tests use it).
 set -euo pipefail
-ici="$(dirname "${BASH_SOURCE[0]}")"
+ici="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 eval "$(node "$ici/codes.mjs")"
 usage="usage: lancer.sh [--modele <m>] [--effort <e>] <ticket> <rôle> <composant> <fichier de consigne>"
 refus_usage() { echo "$usage" >&2; exit "$CODE_USAGE"; }
@@ -73,10 +79,39 @@ grep -qE "TON TICKET : ${motif}([^A-Za-z0-9_.-]|$)" "$consigne" || { echo "⛔ L
 copie="$racine/.claude/worktrees/$ticket"
 journal="$copie.log"
 mkdir -p "$(dirname "$copie")"
+# A branch still in the queue is not relaunched: the queue brings it onto main, or sends it back.
+if node --input-type=module -e "import { lireEntrees } from '$ici/../integration/file-attente.mjs'; const [r, b, t] = process.argv.slice(1); process.exit(lireEntrees(r).some(e => e.branche === b || e.tickets.includes(t)) ? 0 : 1);" "$racine" "agent/$ticket" "$ticket"; then
+  refus="⛔ La branche agent/$ticket est encore en file d'intégration : la file l'amène sur main ou la renvoie ; le ticket ne se relance pas avant."
+  echo "$refus" > "$journal"
+  echo "$refus" >&2
+  exit "$CODE_COPIE"
+fi
 (
   # Each step returns on failure: `set -e` does not act inside a subshell tested by `||`.
   if [ ! -d "$copie" ]; then
-    git -C "$racine" worktree add -q -b "agent/$ticket" "$copie" HEAD || exit 1
+    tete=$(git -C "$racine" rev-parse HEAD) || exit 1
+    branche="agent/$ticket"
+    lot=
+    if git -C "$racine" rev-parse --verify -q "refs/heads/$branche" > /dev/null; then
+      # A branch already there: the queue sent it back, or it was left without a commit. Its lot,
+      # when it carries one, goes back as local work on main; the branch returns to main.
+      if [ "$(git -C "$racine" rev-list --count "$tete..$branche")" -gt 0 ]; then
+        base=$(git -C "$racine" merge-base "$tete" "$branche") || exit 1
+        lot=$(mktemp) || exit 1
+        git -C "$racine" diff --binary "$base" "$branche" > "$lot" || exit 1
+      fi
+      git -C "$racine" branch -q -f "$branche" "$tete" || exit 1
+      git -C "$racine" worktree add -q "$copie" "$branche" || exit 1
+    else
+      git -C "$racine" worktree add -q -b "$branche" "$copie" HEAD || exit 1
+    fi
+    if [ -n "$lot" ]; then
+      # The lot is applied three ways: a conflict is marked in the file, the rest of the lot is
+      # there. The index is left as HEAD has it, so that all of it is local work.
+      git -C "$copie" apply --3way "$lot" || [ -n "$(git -C "$copie" ls-files -u)" ] || exit 1
+      git -C "$copie" reset -q || exit 1
+      rm -f "$lot"
+    fi
   else
     bash "$ici/../sous-modules.sh" garde "$copie" || exit 1
     git -C "$copie" merge -q --ff-only --autostash "$(git -C "$racine" rev-parse HEAD)" || exit 1

@@ -73,13 +73,13 @@ Three layers, each with one job:
 | Reviewer (agent)              | `relecteur`   | Reviews the lot adversarially (edge cases, verification gaps, the frame); writes nothing.                                              |
 | Arbiter (agent)               | `arbitre`     | Settles a design question away from the rush: mature model, project texts, common mechanism; or sends it to the owner. Writes nothing. |
 | Explorer (agent)              | `explorateur` | Runs an exploration ticket: surveys, lists the decisions, proposes small testable tickets. Writes no code.                             |
-| Integrator (agent)            | `integrateur` | One per delivery: judges the reviewed lot, then runs the integration script that commits it.                                           |
+| Integrator (agent)            | `integrateur` | One per delivery: judges the reviewed lot, commits it on its branch, brings it onto main by the queue.                                 |
 | Measurement                   | `mesure`      | Measures without fooling itself; proves a guard bites before calling it green.                                                         |
 | Writer                        | `redacteur`   | Writes human-read documents (architecture on the arc42/C4 model, frame, interface).                                                    |
 | Release                       | `release`     | Bumps the version, updates the changelog, tags, publishes.                                                                             |
 
 A change of behaviour is one ticket that passes from agent to agent in its copy: tests (tester) →
-code (developer) → review → commit, which closes it.
+code (developer) → review → commit on the ticket's branch → the queue brings it onto main, which closes it.
 The locks are hooks in each agent's definition (`scripts/verrous/`), so an agent cannot aim the
 code at its own tests; the integration sorts the lots by the same rule (the tests lot holds the
 tester's files, the code lot none of them). Each agent runs as a fresh session inside the **envelope** of its component

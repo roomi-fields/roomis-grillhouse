@@ -28,7 +28,8 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   lance leur agent et je relis sa fermeture. Je ferme moi-même seulement un ticket sans code : une
   question tranchée, un ticket sans objet. Ainsi celui qui relit n'est jamais celui qui a fait.
 - **Les gestes de l'agent** : l'agent écrit le code, les tests, les documents et la passation, et
-  livre son lot ; l'intégrateur le commite et ferme le ticket. Ainsi chaque changement du dépôt
+  livre son lot ; l'intégrateur le commite sur la branche du ticket, et la file
+  (`scripts/integration/file.mjs`) l'amène sur main et ferme le ticket. Ainsi chaque changement du dépôt
   porte un ticket et passe une relecture.
 - **Le dépôt appartient aux agents** : une réparation, même d'une ligne, part en ticket à un agent.
   Ainsi je reste le relecteur du dépôt, jamais son auteur.
@@ -94,7 +95,8 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   indivisible.
 - **Un comportement qui change est un seul ticket, qui passe d'agent en agent** : dans la copie du
   ticket, le testeur écrit les tests ; le développeur les y trouve et écrit le code ; le relecteur
-  relit les deux lots et rend son verdict au même ticket ; l'intégrateur commite et le ferme. Je
+  relit les deux lots et rend son verdict au même ticket ; l'intégrateur commite sur sa branche,
+  et la file l'amène sur main et le ferme. Je
   n'ouvre jamais un ticket par poste. Ainsi le code se mesure à des tests qu'il n'a pas écrits, un
   autre que son auteur le relit, et le ticket se suit d'un bout à l'autre.
 - **Le ticket garde son périmètre** : je réponds aux questions de l'agent pour qu'il finisse son
@@ -107,8 +109,9 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
 - **La charge avant le lancement** : avant de lancer un agent, je lis la charge de la machine
   (`uptime`) ; machine chargée, les agents attendent. Ainsi un test rend le résultat du code, et non
   celui d'une machine saturée.
-- **Mes commits** : le script d'intégration travaille dans sa propre copie et ne touche l'arbre
-  principal que pour y avancer main ; je commite mes propres fichiers quand je veux. Ainsi un
+- **Mes commits** : l'intégration travaille dans sa propre copie et ne touche pas l'arbre
+  principal ; seule la file y avance main. Je commite mes propres fichiers quand je veux. Un ticket
+  resté `en-file` sans file lancée se vide à la main : `node scripts/integration/file.mjs`. Ainsi un
   changement du cadre n'attend aucune livraison.
 - **La nuit se lit le matin** : en mode `impactes`, les suites complètes tournent une fois la nuit
   (`scripts/nuit.sh`), suivies des tests de nuit (`*.nuit.test.*`) ; un rouge ouvre un ticket étiqueté `nuit`, avec les commits où chercher. Je
@@ -156,7 +159,7 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   l'élément est publié. Ainsi l'architecture d'ensemble décide de chaque dépendance.
 - **La réponse du responsable s'écrit au ticket** : sous le titre « ## Réponse du responsable —
   <la question> », dans ses mots, après le commentaire « Arbitrage » qu'elle tranche. Ainsi le
-  script d'intégration la trouve, et le lot entre.
+  script d'intégration la trouve, et le lot se commite sur sa branche.
 - **Ce qui monte au responsable** : je lui monte une décision qu'aucune règle ne tranche, avec son
   contexte, un exemple, ce que fait la référence mature du domaine, ce qui existe déjà, ce qu'exige
   le domaine (charte, « Comment on arbitre ») et ma recommandation. Ainsi il arbitre sur pièces,

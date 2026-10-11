@@ -18,6 +18,10 @@
 //   a delivery counts when no effective reverting commit, on any branch, names it, and a reverting
 //   commit is effective when no effective reverting commit names it (a chain reads one link at a
 //   time: a revert of a revert, which git writes `Reapply "…"`, makes the first delivery count again).
+// - The commits counted are those of the branches (`refs/heads`) alone: no stash, no remote-tracking
+//   reference, no tag. The branch `agent/<ticket>` of the ticket itself does not count for that
+//   ticket: the integration commits there before the queue brings the commit onto main, which
+//   then holds the one delivery; the branch of another ticket counts.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -83,12 +87,12 @@ function log(...args) {
   return execFileSync('git', ['log', ...args], { encoding: 'utf8' });
 }
 
-// The reverting commits of the history, over every branch, as a map from a commit's full sha to the
+// The reverting commits of the history, over the branches, as a map from a commit's full sha to the
 // full sha it reverts. Git keeps the commits whose message holds a `This reverts commit` line and a
 // `Revert "` or `Reapply "` line; the output grows with those commits alone.
 function revertingCommits() {
   const out = log(
-    '--all',
+    '--branches',
     '--all-match',
     '-P',
     '--grep=^This reverts commit [0-9a-f]{40}',
@@ -126,7 +130,7 @@ function withoutWithdrawn(candidates) {
   return candidates.filter(c => !reverts.has(c.full) && !withdrawn(c.full));
 }
 
-// The commits delivering `id`, over every branch: those whose message's first line names it, less
+// The commits delivering `id`, over every branch but its own `agent/<id>`: those whose message's first line names it, less
 // the reverting commits and the deliveries they withdraw (`withoutWithdrawn`). Git
 // keeps the commits whose message quotes the id (`--grep`, bounded like an id) and renders their
 // subject (`%s`, the first paragraph with its lines joined by a space); a subject naming the id
@@ -136,7 +140,8 @@ function withoutWithdrawn(candidates) {
 // their bodies, since the cut keeps every line break.
 function commitsDelivering(id, prefix) {
   const subjects = log(
-    '--all',
+    `--exclude=agent/${id}`,
+    '--branches',
     '-P',
     `--grep=(?<![\\w.-])${escape(id)}(?![\\w-]|\\.\\w)`,
     '--format=%H %h %s'

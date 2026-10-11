@@ -30,9 +30,9 @@ professionnel.
    seul ticket, qui passe d'un agent au suivant dans sa copie : les tests d'abord (agent
    `testeur`), puis le code qui les rend verts (agent `developpeur`). Ainsi le code se mesure à des
    tests qu'il n'a pas écrits.
-5. Le ticket se ferme sur ses tests ciblés, le verdict de l'agent `relecteur` sur le lot, et le
-   commit de l'agent `integrateur`, seul à commiter, qui le ferme. Ainsi ce qui est déclaré fini
-   l'est vraiment.
+5. Le ticket se ferme sur ses tests ciblés, le verdict de l'agent `relecteur` sur le lot, le
+   commit de l'agent `integrateur`, seul à commiter, sur la branche du ticket, et l'entrée de
+   cette branche sur main par la file, qui le ferme. Ainsi ce qui est déclaré fini l'est vraiment.
 6. Chaque agent laisse sa passation dans le ticket (`/handoff`), avec ce qui n'est pas fait et
    pourquoi.
 

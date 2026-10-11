@@ -194,7 +194,7 @@ et le code la suit.
 ## La fin
 
 Passation dans le ticket avec les heures (`bd comments add`) ; le ticket reste ouvert, il passe au
-relecteur puis à l'intégrateur, qui le ferme. Le
+relecteur puis à l'intégrateur ; la file le ferme à l'entrée de sa branche sur main. Le
 rapport final, court et en mots simples : la cause, ce qui est juste et la règle citée, le test et
 sa morsure, les commits, les heures, les questions. Ainsi le superviseur relit ta fermeture sur
 pièces.

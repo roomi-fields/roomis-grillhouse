@@ -53,7 +53,7 @@ function history(messages: Message[]) {
   writeFileSync(path.join(bin, 'bd'), '#!/bin/sh\necho demo\n', { mode: 0o755 });
   const git = (...args: string[]) =>
     execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...args]);
-  git('init', '-q');
+  git('init', '-q', '-b', 'main');
   const shas: string[] = [];
   const short: string[] = [];
   const commit = (message: Message, ...extra: string[]) => {
@@ -437,5 +437,59 @@ describe('the hook on a history of more than 1100 commits naming a ticket (grill
     const second = check('fix: lot 2 (demo-700)');
     expect(second.status).toBe(1);
     expect(second.stderr).toMatch(/demo-700 a déjà son commit/);
+  });
+});
+
+// grillhouse-3uv.63 critères 9 et 13: the integration commits a ticket on its branch agent/<ticket>,
+// and the queue brings that commit onto main. The rule counts main and the branches of the other
+// tickets (refs/heads), never the ticket's own branch, nor a stash (refs/stash).
+describe('the rule counts the branches, not the ticket branch nor a stash (grillhouse-3uv.63)', () => {
+  // A history on main, then <id>'s branch carrying <message>, main checked out again.
+  const avecBranche = (id: string, message: string) => {
+    const check = history(['feat: the frame']);
+    check.git('checkout', '-q', '-b', `agent/${id}`);
+    check.commit(message);
+    check.git('checkout', '-q', '-');
+    return check;
+  };
+
+  it('critère 9: the entry on main of a ticket whose branch carries its commit passes', () => {
+    const check = avecBranche('demo-1', 'feat: lot (demo-1)');
+    const r = check('feat: lot (demo-1)');
+    expect(r.status, r.stderr).toBe(0);
+  });
+  it('critère 9: the same for a child ticket on its own branch', () => {
+    const check = avecBranche('demo-9.2', 'feat: lot (demo-9.2)');
+    expect(check('feat: lot (demo-9.2)').status).toBe(0);
+  });
+  it('critère 9 (gardé): a second delivering commit on main is still refused', () => {
+    const check = avecBranche('demo-1', 'feat: lot (demo-1)');
+    check.commit('feat: lot (demo-1)');
+    const r = check('fix: more (demo-1)');
+    expect(r.status).toBe(1);
+    expect(r.stderr).toMatch(/demo-1 a déjà son commit/);
+  });
+  it("critère 9 (gardé): a delivering commit on another ticket's branch is still counted", () => {
+    const check = avecBranche('demo-2', 'feat: lot (demo-1)');
+    const r = check('feat: lot (demo-1)');
+    expect(r.status).toBe(1);
+    expect(r.stderr).toMatch(/demo-1 a déjà son commit/);
+  });
+  it('critère 13: a stash made on the branch of a ticket does not deliver it', () => {
+    const check = history(['feat: the frame']);
+    check.git('checkout', '-q', '-b', 'agent/demo-1');
+    writeFileSync(
+      path.join(String(check.git('rev-parse', '--show-toplevel')).trim(), 'travail.txt'),
+      'x\n'
+    );
+    check.git('add', 'travail.txt');
+    check.git('stash', 'push', '-q', '-m', 'autostash');
+    expect(String(check.git('log', '-1', '--format=%s', 'refs/stash'))).toMatch(
+      /^On agent\/demo-1: autostash/
+    );
+    check.git('checkout', '-q', '-');
+    check.git('branch', '-q', '-D', 'agent/demo-1');
+    const r = check('feat: lot (demo-1)');
+    expect(r.status, r.stderr).toBe(0);
   });
 });

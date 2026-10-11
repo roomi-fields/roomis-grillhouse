@@ -41,7 +41,8 @@
 #   a log line that cites it, one line per faulty key. A refused push keeps the last green, opens
 #   (or completes) the night ticket « La poussée de la nuit est refusée sur <commit> », and exits
 #   1; a remote already at the commit accepts the push.
-# - It holds the integration lock while it runs: an integration waits for the morning.
+# - It takes no lock of the integration or of the queue (scripts/integration/file.mjs): an
+#   integration and the queue run during the night, each in its own copy.
 # - Its log is <git common dir>/nuit/<date>.log. Green: HEAD becomes the last green commit
 #   (<git common dir>/nuit/dernier-vert). Red: a ticket labelled `nuit`, with the commits since the
 #   last green, where `git bisect` looks for the culprit; an open one gets a comment instead.
@@ -51,13 +52,6 @@ commun="$(git -C "$racine" rev-parse --path-format=absolute --git-common-dir)"
 dossier="$commun/nuit"
 mkdir -p "$dossier"
 journal="$dossier/$(date +%Y-%m-%d).log"
-verrou="$commun/integration.lock"
-if [ -f "$verrou" ] && kill -0 "$(cat "$verrou")" 2>/dev/null; then
-  echo "⛔ Une intégration tourne (processus $(cat "$verrou")) : la nuit attend la prochaine." >> "$journal"
-  exit 2
-fi
-echo $$ > "$verrou"
-trap 'rm -f "$verrou"' EXIT
 
 tete="$(git -C "$racine" rev-parse HEAD)"
 copie="$racine/.claude/worktrees/nuit"

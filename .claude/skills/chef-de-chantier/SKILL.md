@@ -22,13 +22,14 @@ garde au superviseur.
 2. **Relecteur** : sous-agent neuf (`subagent_type: relecteur`), sans nom, hors enveloppe. Une nouvelle
    relecture repart au même relecteur, par message.
 3. **Intégrateur** : après `ACCEPTÉ`, sous-agent neuf (`subagent_type: integrateur`), sans nom, sur les lots
-   que je construis depuis la copie du ticket.
-4. **Poussée et fin** : je pousse le main local sur la branche que déclare le projet
-   (`npm pkg get grillhouse.poussee.commit`, `git push origin main:<branche>` ; sans la clé, main)
-   et je lis sa CI (`gh run list --limit 1`, puis
-   `gh run watch <id>` par tranches) ; une CI rouge sur mon commit rouvre mon circuit. Je retire la copie du ticket par le script commun,
-   `bash scripts/retirer-copie.sh .claude/worktrees/<ticket>` ; un refus (travail local, copie
-   verrouillée) s'écrit dans mon rapport, et la copie reste en place. Puis je rends mon rapport ; mes agents, lancés sans nom, ne restent pas listés.
+   que je construis depuis la copie du ticket. Il commite le lot sur `agent/<ticket>`, ce qui retire
+   la copie, puis lance la file (`scripts/integration/file.mjs`), qui amène la branche sur main,
+   ferme le ticket et pousse main.
+4. **CI et fin** : le ticket fermé, je lis la CI de son commit sur main (`gh run list --limit 1`,
+   puis `gh run watch <id>` par tranches) ; une CI rouge sur mon commit rouvre mon circuit. Un
+   ticket que la file a rouvert (il a perdu `en-file`, les fichiers ou les tests nommés au ticket)
+   rouvre aussi mon circuit : le lanceur recrée la copie sur main avec le lot de la branche en
+   travail local. Puis je rends mon rapport ; mes agents, lancés sans nom, ne restent pas listés.
 
 Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son auteur le relit.
 

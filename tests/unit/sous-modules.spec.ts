@@ -190,12 +190,16 @@ function monde(avecSousModule = true, adresse: Adresse = 'absolue', imbrique = f
   };
   const consigne = path.join(bin, 'consigne.txt');
   writeFileSync(consigne, 'TON TICKET : demo-1 — un sujet.');
-  const lancer = () =>
-    spawnSync('bash', [LANCER, 'demo-1', 'developpeur', 'packages/a', consigne], {
+  // `ticket`: the ticket launched, demo-1 by default; another one has a consigne of its own.
+  const lancer = (ticket = 'demo-1') => {
+    const c = ticket === 'demo-1' ? consigne : path.join(bin, `consigne-${ticket}.txt`);
+    writeFileSync(c, `TON TICKET : ${ticket} — un sujet.`);
+    return spawnSync('bash', [LANCER, ticket, 'developpeur', 'packages/a', c], {
       cwd: repo,
       encoding: 'utf8',
       env: { ...env, CLAUDE_BIN: 'true' },
     });
+  };
   const copies = {
     integration: path.join(repo, '.claude/worktrees/integration'),
     agent: path.join(repo, '.claude/worktrees/demo-1'),
@@ -552,9 +556,11 @@ describe('grillhouse-3uv.52 critère 1 — a submodule at a local address is set
 describe('grillhouse-3uv.52 critère 2 — the file transport is allowed on the submodule command only', () => {
   // The places a lasting allowance would live: the repository, each copy, each submodule and
   // nested submodule of a copy (their own configuration), and the global configuration.
-  const sansAutorisationDurable = (m: ReturnType<typeof monde>) => {
+  const AUTRE = 'demo-2';
+  const sansAutorisationDurable = (m: ReturnType<typeof monde>, agent: string) => {
     const lieux = [m.repo];
-    for (const copie of Object.values(m.copies)) {
+    const copies = { ...m.copies, agent: path.join(m.repo, '.claude/worktrees', agent) };
+    for (const copie of Object.values(copies)) {
       lieux.push(copie, path.join(copie, 'vendor/natif'), path.join(copie, 'vendor/natif/profond'));
     }
     for (const lieu of lieux) {
@@ -571,9 +577,11 @@ describe('grillhouse-3uv.52 critère 2 — the file transport is allowed on the 
       const m = monde(true, 'absolue', true);
       const i = m.integrer();
       expect(i.status, i.stdout + i.stderr).toBe(0);
-      expect(m.lancer().status).not.toBe(CODE_COPIE);
+      // The integration puts agent/demo-1 in the queue, and a ticket whose branch is in the queue
+      // is not launched again (grillhouse-3uv.63 critère 23): the agent copy is another ticket's.
+      expect(m.lancer(AUTRE).status).not.toBe(CODE_COPIE);
       expect(m.nuit().status, m.journalNuit()).toBe(0);
-      expect(sansAutorisationDurable(m)).toBe(10);
+      expect(sansAutorisationDurable(m, AUTRE)).toBe(10);
     },
     LONG * 2
   );
@@ -601,8 +609,11 @@ exec ${JSON.stringify(vrai)} "$@"
       const i1 = m.integrer();
       expect(i1.status, i1.stdout + i1.stderr).toBe(0);
       expect(m.integrer().status).toBe(0);
-      expect(m.lancer().status).not.toBe(CODE_COPIE);
-      expect(m.lancer().status).not.toBe(CODE_COPIE);
+      // The integrations put agent/demo-1 in the queue, and a ticket whose branch is in the queue
+      // is not launched again (grillhouse-3uv.63 critère 23): the agent copy, created then
+      // reused, is another ticket's.
+      expect(m.lancer(AUTRE).status).not.toBe(CODE_COPIE);
+      expect(m.lancer(AUTRE).status).not.toBe(CODE_COPIE);
       expect(m.nuit().status, m.journalNuit()).toBe(0);
       const commandes = readFileSync(journal, 'utf8')
         .trim()

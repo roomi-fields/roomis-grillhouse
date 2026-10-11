@@ -46,7 +46,7 @@ function monde() {
     "import fs from 'node:fs';\nif (fs.existsSync('ROUGE')) { console.log('✗ un test rouge'); process.exit(1); }\nconsole.log('tout vert');\n"
   );
   writeFileSync(path.join(repo, '.gitignore'), '.claude/worktrees/\n');
-  git('init', '-q');
+  git('init', '-q', '-b', 'main');
   git('add', '.');
   git('commit', '-qm', 'base');
   const nuit = () =>
@@ -99,10 +99,33 @@ describe('the night', () => {
     writeFileSync(path.join(m.repo, 'ROUGE'), '');
     expect(m.nuit().status).toBe(0);
   });
-  it('waits while an integration runs', () => {
+  // grillhouse-3uv.63 critère 10: the night takes no lock of the integration or the queue; an
+  // integration and the queue run during the night.
+  it('3uv.63 critère 10: the night runs while an integration holds the old lock', () => {
     const m = monde();
     writeFileSync(path.join(m.repo, '.git', 'integration.lock'), String(process.pid));
-    expect(m.nuit().status).toBe(2);
+    expect(m.nuit().status).toBe(0);
+    expect(m.lire(path.join(m.commun, 'dernier-vert')).trim()).toBe(
+      m.git('rev-parse', 'HEAD').trim()
+    );
+  });
+  it('3uv.63 critère 10: during the night no integration lock is held, and the queue runs', () => {
+    const m = monde();
+    const trace = path.join(m.bin, 'pendant');
+    // The night's tests look at the lock and launch the queue from the main tree.
+    writeFileSync(
+      path.join(m.repo, 't.mjs'),
+      `import fs from 'node:fs';\nimport { spawnSync } from 'node:child_process';\n` +
+        `const verrou = fs.existsSync(${JSON.stringify(path.join(m.repo, '.git', 'integration.lock'))});\n` +
+        `const f = spawnSync('node', [${JSON.stringify(path.join(m.repo, 'scripts/integration/file.mjs'))}], { cwd: ${JSON.stringify(m.repo)}, encoding: 'utf8', timeout: 30000 });\n` +
+        `fs.writeFileSync(${JSON.stringify(trace)}, JSON.stringify({ verrou, file: f.status, sortie: f.stdout + f.stderr }));\n`
+    );
+    m.git('add', 't.mjs');
+    m.git('commit', '-qm', 'pendant');
+    expect(m.nuit().status).toBe(0);
+    const p = JSON.parse(m.lire(trace)) as { verrou: boolean; file: number; sortie: string };
+    expect(p.verrou).toBe(false);
+    expect(p.file, p.sortie).toBe(0);
   });
 });
 
@@ -340,7 +363,7 @@ describe('the night pushes its green commit (grillhouse.poussee.nuit)', () => {
   ) {
     const m = monde();
     const bare = mkdtempSync(path.join(ESSAIS, 'distant-'));
-    execFileSync('git', ['init', '-q', '--bare', bare]);
+    execFileSync('git', ['init', '-q', '--bare', '-b', 'main', bare]);
     const trace = path.join(m.bin, 'trace');
     const recus = path.join(m.bin, 'recus');
     const noter = (nom: string, code = 0) =>
@@ -777,7 +800,7 @@ describe('grillhouse-3uv.58 critère 6 — the night removes and recreates a cop
       natif = mkdtempSync(path.join(ESSAIS, 'natif-'));
       const g = (...a: string[]) =>
         execFileSync('git', ['-C', natif, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
-      g('init', '-q');
+      g('init', '-q', '-b', 'main');
       writeFileSync(path.join(natif, 'natif.txt'), 'v1\n');
       g('add', '.');
       g('commit', '-qm', 'v1');
