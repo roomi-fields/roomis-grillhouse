@@ -1,5 +1,15 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -736,4 +746,218 @@ describe('the night pushes its green commit (grillhouse.poussee.nuit)', () => {
     expect(d.nuit().status, d.journal()).toBe(0);
     expect(d.ref('main')).toBe(apres);
   });
+});
+
+// grillhouse-3uv.58 critère 6: an existing night copy that does not get ready (its move onto HEAD,
+// its cleaning or the setting of its submodules fails) is removed by the frame's script
+// (scripts/retirer-copie.sh --jetable, critère 11) and created again, once; the night turns red as
+// today when the new copy does not get ready either, or when the removal is refused, its log
+// repeating the script's reason (critère 9).
+describe('grillhouse-3uv.58 critère 6 — the night removes and recreates a copy that does not get ready', () => {
+  const LONG = 60_000;
+  // A world whose node_modules is ignored, with a night copy left by an earlier night; a mark in
+  // its node_modules survives its cleaning, never its removal.
+  function existante() {
+    const m = monde();
+    writeFileSync(path.join(m.repo, '.gitignore'), '.claude/worktrees/\nnode_modules\n');
+    m.git('commit', '-qam', 'ignore');
+    const copie = path.join(m.repo, '.claude/worktrees/nuit');
+    const gitdir = path.join(m.repo, '.git/worktrees/nuit');
+    const marque = path.join(copie, 'node_modules/.marque');
+    const creer = () => {
+      m.git('worktree', 'add', '-q', '--detach', copie, 'HEAD');
+      mkdirSync(path.dirname(marque), { recursive: true });
+      writeFileSync(marque, 'ancienne copie\n');
+    };
+    // The copy's move onto HEAD fails: a lock left in its git directory by a stopped git.
+    const bloquerPassage = () => writeFileSync(path.join(gitdir, 'index.lock'), '');
+    // main references the submodule vendor/natif; `perdre` moves its source away.
+    let natif = '';
+    const sousModule = () => {
+      natif = mkdtempSync(path.join(ESSAIS, 'natif-'));
+      const g = (...a: string[]) =>
+        execFileSync('git', ['-C', natif, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
+      g('init', '-q');
+      writeFileSync(path.join(natif, 'natif.txt'), 'v1\n');
+      g('add', '.');
+      g('commit', '-qm', 'v1');
+      m.git('-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', natif, 'vendor/natif');
+      m.git('commit', '-qm', 'natif');
+    };
+    const perdre = () => renameSync(natif, `${natif}-parti`);
+    const listees = () => m.git('worktree', 'list', '--porcelain');
+    const journal = () =>
+      existsSync(m.commun)
+        ? readdirSync(m.commun)
+            .filter(f => f.endsWith('.log'))
+            .map(f => m.lire(path.join(m.commun, f)))
+            .join('')
+        : '';
+    const vert = () => m.lire(path.join(m.commun, 'dernier-vert')).trim();
+    return {
+      ...m,
+      copie,
+      gitdir,
+      marque,
+      creer,
+      bloquerPassage,
+      sousModule,
+      perdre,
+      listees,
+      journal,
+      vert,
+    };
+  }
+
+  it(
+    'critère 6: a copy whose move onto HEAD fails is removed, recreated, and the night plays green',
+    () => {
+      const m = existante();
+      m.creer();
+      m.bloquerPassage();
+      const r = m.nuit();
+      expect(r.status, m.journal()).toBe(0);
+      expect(m.journal()).toMatch(/✓ vert/);
+      expect(m.vert()).toBe(m.git('rev-parse', 'HEAD').trim());
+      expect(existsSync(m.marque)).toBe(false);
+      expect(m.listees()).toContain(`worktree ${m.copie}\n`);
+    },
+    LONG
+  );
+  it(
+    'critère 6: a copy whose submodules do not set is removed, recreated, and the night plays green',
+    () => {
+      const m = existante();
+      m.sousModule();
+      m.creer();
+      m.git(
+        '-C',
+        m.copie,
+        '-c',
+        'protocol.file.allow=always',
+        'submodule',
+        'update',
+        '--init',
+        '-q'
+      );
+      // The submodule's own git directory in the copy holds a stale lock: its checkout fails.
+      const gitdirNatif = path.join(m.gitdir, 'modules/vendor/natif');
+      expect(existsSync(gitdirNatif)).toBe(true);
+      writeFileSync(path.join(gitdirNatif, 'index.lock'), '');
+      const r = m.nuit();
+      expect(r.status, m.journal()).toBe(0);
+      expect(m.journal()).toMatch(/✓ vert/);
+      expect(existsSync(m.marque)).toBe(false);
+      expect(m.lire(path.join(m.copie, 'vendor/natif/natif.txt'))).toBe('v1\n');
+    },
+    LONG
+  );
+  it(
+    'critère 6: a recreated copy that does not get ready either turns the night red, its log naming the submodule',
+    () => {
+      const m = existante();
+      m.creer();
+      m.bloquerPassage();
+      m.sousModule();
+      m.perdre();
+      const r = m.nuit();
+      expect(r.status).toBe(1);
+      expect(m.journal()).toMatch(/vendor\/natif/);
+      expect(m.journal()).toMatch(/✗ rouge/);
+      expect(m.vert()).toBe('');
+      // The old copy was removed before the second try.
+      expect(existsSync(m.marque)).toBe(false);
+    },
+    LONG
+  );
+  // grillhouse-3uv.58 critère 11: the night passes --jetable for its own copy; local work left in
+  // it (a file, a submodule moved) does not hold its removal.
+  it(
+    'critère 6 et 11: a copy that does not get ready and carries an untracked file is removed, recreated, and the night plays green',
+    () => {
+      const m = existante();
+      m.creer();
+      writeFileSync(path.join(m.copie, 'RESTE'), 'reste\n');
+      m.bloquerPassage();
+      const r = m.nuit();
+      expect(r.status, m.journal()).toBe(0);
+      expect(m.journal()).toMatch(/✓ vert/);
+      expect(existsSync(path.join(m.copie, 'RESTE'))).toBe(false);
+      expect(existsSync(m.marque)).toBe(false);
+    },
+    LONG
+  );
+  it(
+    'critère 6 et 11: a copy that does not get ready and carries a modified tracked file is removed, recreated, and the night plays green',
+    () => {
+      const m = existante();
+      m.creer();
+      writeFileSync(path.join(m.copie, 't.mjs'), "console.log('modifié');\n");
+      m.bloquerPassage();
+      const r = m.nuit();
+      expect(r.status, m.journal()).toBe(0);
+      expect(m.journal()).toMatch(/✓ vert/);
+      expect(m.lire(path.join(m.copie, 't.mjs'))).toBe(m.lire(path.join(m.repo, 't.mjs')));
+      expect(existsSync(m.marque)).toBe(false);
+    },
+    LONG
+  );
+  it(
+    'critère 6 et 11: a copy whose submodule carries local work and does not set is removed, recreated, and the night plays green',
+    () => {
+      const m = existante();
+      m.sousModule();
+      m.creer();
+      m.git(
+        '-C',
+        m.copie,
+        '-c',
+        'protocol.file.allow=always',
+        'submodule',
+        'update',
+        '--init',
+        '-q'
+      );
+      writeFileSync(path.join(m.copie, 'vendor/natif/natif.txt'), 'travail\n');
+      writeFileSync(path.join(m.copie, 'vendor/natif/neuf.txt'), 'neuf\n');
+      writeFileSync(path.join(m.gitdir, 'modules/vendor/natif/index.lock'), '');
+      const r = m.nuit();
+      expect(r.status, m.journal()).toBe(0);
+      expect(m.journal()).toMatch(/✓ vert/);
+      expect(existsSync(m.marque)).toBe(false);
+      expect(m.lire(path.join(m.copie, 'vendor/natif/natif.txt'))).toBe('v1\n');
+      expect(existsSync(path.join(m.copie, 'vendor/natif/neuf.txt'))).toBe(false);
+    },
+    LONG
+  );
+  // grillhouse-3uv.58 critère 9: the red night repeats the reason the script gives.
+  it(
+    'critère 6, 9 et 11: a locked copy that does not get ready turns the night red, the script’s reason in its log, the copy left in place and locked',
+    () => {
+      const m = existante();
+      m.creer();
+      writeFileSync(path.join(m.copie, 'RESTE'), 'reste\n');
+      m.git('worktree', 'lock', '--reason', 'en cours', m.copie);
+      m.bloquerPassage();
+      const r = m.nuit();
+      expect(r.status).toBe(1);
+      expect(m.journal()).toMatch(/✗ rouge/);
+      expect(m.lire(path.join(m.copie, 'RESTE'))).toBe('reste\n');
+      expect(existsSync(m.marque)).toBe(true);
+      expect(m.listees()).toMatch(new RegExp(`worktree ${m.copie}\n[^]*?locked`));
+      // The reason the frame's script gives for this copy, as the night calls it.
+      const raison = spawnSync(
+        'bash',
+        [path.join(m.repo, 'scripts/retirer-copie.sh'), '--jetable', m.copie],
+        {
+          cwd: m.repo,
+          encoding: 'utf8',
+        }
+      );
+      expect(raison.status, raison.stderr).toBe(1);
+      expect(raison.stderr.trim()).not.toBe('');
+      expect(m.journal()).toContain(raison.stderr.trim());
+    },
+    LONG
+  );
 });

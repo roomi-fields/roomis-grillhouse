@@ -8,6 +8,10 @@
 #   file removed, its submodules set at the commit of HEAD (scripts/sous-modules.sh, a local
 #   modification overwritten; one that cannot be set turns the night red), dependencies reinstalled (npm ci) when package-lock.json changes, built, then
 #   `npm test` (the guards of pretest, then every suite of the day, time budget benches included).
+#   An existing copy that does not get ready (its move onto HEAD, its cleaning or the setting of
+#   its submodules fails) is removed by `scripts/retirer-copie.sh --jetable` (local work does not
+#   hold it, a lock does) and created again, once; a copy that does not get ready the second time
+#   turns the night red, and so does a removal the script refuses, the log repeating its reason.
 # - The night tests: after a green `npm test`, the files `*.nuit.test.*` and `*.nuit.spec.*` of the
 #   copy (outside node_modules, dist and .git), which `npm test` and the integration leave out, run
 #   by Vitest with the frame's configuration (scripts/vitest.nuit.config.mjs of the copy). A red
@@ -49,14 +53,29 @@ trap 'rm -f "$verrou"' EXIT
 tete="$(git -C "$racine" rev-parse HEAD)"
 copie="$racine/.claude/worktrees/nuit"
 branche=
-# Plays the copy; its status is the night's verdict.
-jouer() {
-  echo "— la nuit du $(date '+%Y-%m-%d %H:%M') sur ${tete:0:7}"
+# Gets the copy ready on HEAD: detached, cleaned, its submodules set. Prints the reason on failure.
+preparer() {
   if [ -d "$copie" ]; then
     git -C "$copie" checkout -q --detach --force "$tete" || return 1
     git -C "$copie" clean -q -f -d -x -e node_modules || return 1
   else
     git -C "$racine" worktree add -q --detach "$copie" "$tete" || return 1
+  fi
+  bash "$racine/scripts/sous-modules.sh" pose "$copie"
+}
+# Plays the copy; its status is the night's verdict. An existing copy that does not get ready is
+# removed (scripts/retirer-copie.sh --jetable) and created again, once.
+jouer() {
+  echo "— la nuit du $(date '+%Y-%m-%d %H:%M') sur ${tete:0:7}"
+  local existait=0 raison
+  [ -d "$copie" ] && existait=1
+  if ! preparer; then
+    [ "$existait" -eq 1 ] || return 1
+    if ! raison=$(cd "$racine" && bash "$racine/scripts/retirer-copie.sh" --jetable "$copie" 2>&1); then
+      echo "✗ la copie de la nuit ne se prépare pas et ne se retire pas : $raison"
+      return 1
+    fi
+    preparer || return 1
   fi
   # The reading gives one line per finding: « script<TAB>name », « pousse<TAB>branch », or a fault
   # « nuit-invalide<TAB>value as JSON », « nuit-absent<TAB>name », « poussee-invalide<TAB>value »,
@@ -101,7 +120,6 @@ jouer() {
     esac
   done <<< "$lecture"
   [ "$faute" -eq 0 ] || return 1
-  bash "$racine/scripts/sous-modules.sh" pose "$copie" || return 1
   if [ -f "$copie/package-lock.json" ] && ! cmp -s "$copie/package-lock.json" "$copie/node_modules/.nuit-lock"; then
     npm --prefix "$copie" ci --no-audit --no-fund --silent || return 1
     cp "$copie/package-lock.json" "$copie/node_modules/.nuit-lock"

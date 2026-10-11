@@ -14,9 +14,12 @@
 //  3. the main tree: every file of the lots is unmodified there;
 //  4. a clean integration copy (`.claude/worktrees/integration`): detached on HEAD, every
 //     untracked file removed, its submodules set at the commit of HEAD (`scripts/sous-modules.sh`,
-//     a local modification overwritten, one that cannot be set refuses), its dependencies
-//     installed again when `package-lock.json` changes (`npm ci`), then built (`npm run build`,
-//     when present);
+//     a local modification overwritten), its dependencies installed again when
+//     `package-lock.json` changes (`npm ci`), then built (`npm run build`, when present). An
+//     existing copy that does not get ready (its move onto HEAD, its cleaning or the setting of
+//     its submodules fails) is removed by `scripts/retirer-copie.sh --jetable` (local work does
+//     not hold it, a lock does) and created again, once; a copy that does not get ready the
+//     second time refuses, and so does a removal the script refuses, with its reason;
 //  5. the base: the project's suites (`npm run integration:suites -- --tous|<components>`) on
 //     HEAD. The project chooses at its installation (`grillhouse.integration` in package.json):
 //     `impactes` (the default) replays the touched components and those that depend on them (the
@@ -105,6 +108,7 @@ export function nouveauxRouges(base, apres, admis = []) {
 
 const BUDGET_FEUILLE_S = 15;
 const SOUS_MODULES = fileURLToPath(new URL('../sous-modules.sh', import.meta.url));
+const RETIRER_COPIE = fileURLToPath(new URL('../retirer-copie.sh', import.meta.url));
 
 const lireJsonSiPresent = p => (existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : null);
 
@@ -264,17 +268,35 @@ function main(argv) {
     const tete = git('rev-parse', 'HEAD').stdout.trim();
     const copie = path.join(racine, '.claude', 'worktrees', 'integration');
     const dansCopie = (...args) => spawnSync('git', ['-C', copie, ...args], { encoding: 'utf8' });
-    const prete = existsSync(copie)
-      ? dansCopie('checkout', '-q', '--detach', '--force', tete).status === 0 &&
-        dansCopie('clean', '-q', '-f', '-d', '-x', '-e', 'node_modules').status === 0
-      : git('worktree', 'add', '-q', '--detach', copie, tete).status === 0;
-    if (!prete) return refuser(`La copie d'intégration ${copie} ne se prépare pas.`);
-    const poses = spawnSync('bash', [SOUS_MODULES, 'pose', copie], { encoding: 'utf8' });
-    if (poses.status !== 0) {
-      return refuser(
-        `La copie d'intégration ne pose pas ses sous-modules : ${poses.stderr.trim()}`
-      );
+    // The copy gets ready or the reason it does not. An existing copy that does not get ready is
+    // removed by the frame's script (`--jetable`: its own copy carries no work) and created again,
+    // once; a removal the script refuses refuses the lot with the script's reason.
+    const preparer = () => {
+      const prete = existsSync(copie)
+        ? dansCopie('checkout', '-q', '--detach', '--force', tete).status === 0 &&
+          dansCopie('clean', '-q', '-f', '-d', '-x', '-e', 'node_modules').status === 0
+        : git('worktree', 'add', '-q', '--detach', copie, tete).status === 0;
+      if (!prete) return `La copie d'intégration ${copie} ne se prépare pas.`;
+      const poses = spawnSync('bash', [SOUS_MODULES, 'pose', copie], { encoding: 'utf8' });
+      if (poses.status !== 0)
+        return `La copie d'intégration ne pose pas ses sous-modules : ${poses.stderr.trim()}`;
+      return null;
+    };
+    const existait = existsSync(copie);
+    let refus = preparer();
+    if (refus && existait) {
+      const retrait = spawnSync('bash', [RETIRER_COPIE, '--jetable', copie], {
+        cwd: racine,
+        encoding: 'utf8',
+      });
+      if (retrait.status !== 0) {
+        return refuser(
+          `${refus}\nLa copie d'intégration ne se retire pas : ${retrait.stderr.trim()}`
+        );
+      }
+      refus = preparer();
     }
+    if (refus) return refuser(refus);
     const npm = (args, env = {}) => {
       const r = spawnSync('npm', args, {
         cwd: copie,

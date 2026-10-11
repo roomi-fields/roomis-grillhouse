@@ -146,7 +146,8 @@ et le code la suit.
 ## Les règles dures
 
 - **Des commandes sans invite** : chemins absolus, `git -C`, `env -C` ; une suppression vise un
-  chemin nommé et lu, par un script du scratchpad (`os.remove`) ou `git worktree remove`. Ainsi la
+  chemin nommé et lu, par un script du scratchpad (`os.remove`) ou, pour une copie,
+  `bash scripts/retirer-copie.sh <copie>`. Ainsi la
   séance avance seule, sans attendre le responsable.
 - **Tu retires ce que tu crées** : ce que tu crées pour mesurer, tu le retires avant de rendre la
   main, chemin par chemin ; tu supprimes seulement ce que tu as créé. Ainsi le dépôt et le

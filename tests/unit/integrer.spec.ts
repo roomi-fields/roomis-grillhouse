@@ -1,5 +1,13 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -15,6 +23,7 @@ const ESSAIS = mkdtempSync(path.join(tmpdir(), 'integrer-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/integration/integrer.mjs');
+const RETIRER = path.resolve(__dirname, '../../scripts/retirer-copie.sh');
 const c = (text: string) => ({ text });
 
 describe('refusVerdicts', () => {
@@ -881,4 +890,193 @@ describe('refusLots with an unreadable package.json', () => {
     expect(r).toContain('packages/corpus/scenes/x.bps');
     expect(r).not.toContain('packages/casse/src/x.ts');
   });
+});
+
+// grillhouse-3uv.58 critère 6: an existing integration copy that does not get ready (its move onto
+// HEAD, its cleaning or the setting of its submodules fails) is removed by the frame's script
+// (scripts/retirer-copie.sh --jetable, critère 11) and created again, once; the integration
+// refuses as today when the new copy does not get ready either, or when the removal is refused,
+// its refusal repeating the script's reason (critère 9).
+describe('grillhouse-3uv.58 critère 6 — the integration removes and recreates a copy that does not get ready', () => {
+  const LONG = 60_000;
+  const gitDe = (dir: string, ...a: string[]) =>
+    execFileSync(
+      'git',
+      [
+        '-C',
+        dir,
+        '-c',
+        'user.name=t',
+        '-c',
+        'user.email=t@t',
+        '-c',
+        'protocol.file.allow=always',
+        ...a,
+      ],
+      { encoding: 'utf8' }
+    );
+  // A world whose node_modules is ignored, with an integration copy left by an earlier
+  // integration; a mark in its node_modules survives its cleaning, never its removal.
+  function existante() {
+    const m = monde(['ACCEPTÉ']);
+    m.poser('.gitignore', '.claude/worktrees/\nnode_modules\n');
+    const copie = path.join(m.repo, '.claude/worktrees/integration');
+    const gitdir = path.join(m.repo, '.git/worktrees/integration');
+    const marque = path.join(copie, 'node_modules/.marque');
+    const creer = () => {
+      gitDe(m.repo, 'worktree', 'add', '-q', '--detach', copie, 'HEAD');
+      mkdirSync(path.dirname(marque), { recursive: true });
+      writeFileSync(marque, 'ancienne copie\n');
+    };
+    // The copy's move onto HEAD fails: a lock left in its git directory by a stopped git.
+    const bloquerPassage = () => writeFileSync(path.join(gitdir, 'index.lock'), '');
+    // main references the submodule vendor/natif; `perdre` moves its source away.
+    let natif = '';
+    const sousModule = () => {
+      natif = mkdtempSync(path.join(ESSAIS, 'natif-'));
+      gitDe(natif, 'init', '-q');
+      writeFileSync(path.join(natif, 'natif.txt'), 'v1\n');
+      gitDe(natif, 'add', '.');
+      gitDe(natif, 'commit', '-qm', 'v1');
+      gitDe(m.repo, 'submodule', 'add', '-q', natif, 'vendor/natif');
+      gitDe(m.repo, 'commit', '-qm', 'natif');
+    };
+    const perdre = () => renameSync(natif, `${natif}-parti`);
+    const listees = () => gitDe(m.repo, 'worktree', 'list', '--porcelain');
+    const log = () => gitDe(m.repo, 'log', '--format=%s');
+    return { ...m, copie, gitdir, marque, creer, bloquerPassage, sousModule, perdre, listees, log };
+  }
+
+  it(
+    'critère 6: a copy whose move onto HEAD fails is removed, recreated, and the lot is committed',
+    () => {
+      const m = existante();
+      m.creer();
+      m.bloquerPassage();
+      const r = m.run();
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(r.stdout).toMatch(/✓ commit/);
+      expect(m.log().split('\n')[0]).toBe('feat: a (demo-1)');
+      expect(existsSync(m.marque)).toBe(false);
+      expect(m.listees()).toContain(`worktree ${m.copie}\n`);
+    },
+    LONG
+  );
+  it(
+    'critère 6: a copy whose submodules do not set is removed, recreated, and the lot is committed',
+    () => {
+      const m = existante();
+      m.sousModule();
+      m.creer();
+      gitDe(m.copie, 'submodule', 'update', '--init', '-q');
+      // The submodule's own git directory in the copy holds a stale lock: its checkout fails.
+      const gitdirNatif = path.join(m.gitdir, 'modules/vendor/natif');
+      expect(existsSync(gitdirNatif)).toBe(true);
+      writeFileSync(path.join(gitdirNatif, 'index.lock'), '');
+      const r = m.run();
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(r.stdout).toMatch(/✓ commit/);
+      expect(existsSync(m.marque)).toBe(false);
+      expect(readFileSync(path.join(m.copie, 'vendor/natif/natif.txt'), 'utf8')).toBe('v1\n');
+    },
+    LONG
+  );
+  it(
+    'critère 6: a recreated copy that does not get ready either refuses as today, naming the submodule',
+    () => {
+      const m = existante();
+      m.creer();
+      m.bloquerPassage();
+      m.sousModule();
+      m.perdre();
+      const avant = m.log();
+      const r = m.run();
+      expect(r.status, r.stdout + r.stderr).toBe(1);
+      expect(r.stdout).toMatch(/⛔[^\n]*vendor\/natif/);
+      // The old copy was removed before the second try.
+      expect(existsSync(m.marque)).toBe(false);
+      expect(m.log()).toBe(avant);
+    },
+    LONG
+  );
+  // grillhouse-3uv.58 critère 11: the integration passes --jetable for its own copy; local work
+  // left in it (a refused lot still applied, a file, a submodule moved) does not hold its removal.
+  it(
+    'critère 6 et 11: a copy that does not get ready and carries an untracked file is removed, recreated, and the lot is committed',
+    () => {
+      const m = existante();
+      m.creer();
+      writeFileSync(path.join(m.copie, 'RESTE'), 'reste\n');
+      m.bloquerPassage();
+      const r = m.run();
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(r.stdout).toMatch(/✓ commit/);
+      expect(m.log().split('\n')[0]).toBe('feat: a (demo-1)');
+      expect(existsSync(path.join(m.copie, 'RESTE'))).toBe(false);
+      expect(existsSync(m.marque)).toBe(false);
+    },
+    LONG
+  );
+  it(
+    'critère 6 et 11: a copy that does not get ready and carries a modified tracked file (a refused lot still applied) is removed, recreated, and the lot is committed',
+    () => {
+      const m = existante();
+      m.creer();
+      writeFileSync(path.join(m.copie, 'src/a/index.ts'), 'export const a = 99;\n');
+      m.bloquerPassage();
+      const r = m.run();
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(r.stdout).toMatch(/✓ commit/);
+      expect(m.log().split('\n')[0]).toBe('feat: a (demo-1)');
+      expect(existsSync(m.marque)).toBe(false);
+    },
+    LONG
+  );
+  it(
+    'critère 6 et 11: a copy whose submodule carries local work and does not set is removed, recreated, and the lot is committed',
+    () => {
+      const m = existante();
+      m.sousModule();
+      m.creer();
+      gitDe(m.copie, 'submodule', 'update', '--init', '-q');
+      writeFileSync(path.join(m.copie, 'vendor/natif/natif.txt'), 'travail\n');
+      writeFileSync(path.join(m.copie, 'vendor/natif/neuf.txt'), 'neuf\n');
+      writeFileSync(path.join(m.gitdir, 'modules/vendor/natif/index.lock'), '');
+      const r = m.run();
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(r.stdout).toMatch(/✓ commit/);
+      expect(existsSync(m.marque)).toBe(false);
+      expect(readFileSync(path.join(m.copie, 'vendor/natif/natif.txt'), 'utf8')).toBe('v1\n');
+      expect(existsSync(path.join(m.copie, 'vendor/natif/neuf.txt'))).toBe(false);
+    },
+    LONG
+  );
+  // grillhouse-3uv.58 critère 9: the refusal repeats the reason the script gives.
+  it(
+    'critère 6, 9 et 11: a locked copy that does not get ready refuses as today, the script’s reason in the refusal, the copy left in place and locked',
+    () => {
+      const m = existante();
+      m.creer();
+      writeFileSync(path.join(m.copie, 'RESTE'), 'reste\n');
+      gitDe(m.repo, 'worktree', 'lock', '--reason', 'en cours', m.copie);
+      m.bloquerPassage();
+      const avant = m.log();
+      const r = m.run();
+      expect(r.status, r.stdout + r.stderr).toBe(1);
+      expect(r.stdout).toMatch(/⛔/);
+      expect(readFileSync(path.join(m.copie, 'RESTE'), 'utf8')).toBe('reste\n');
+      expect(existsSync(m.marque)).toBe(true);
+      expect(m.listees()).toMatch(new RegExp(`worktree ${m.copie}\n[^]*?locked`));
+      expect(m.log()).toBe(avant);
+      // The reason the frame's script gives for this copy, as the integration calls it.
+      const raison = spawnSync('bash', [RETIRER, '--jetable', m.copie], {
+        cwd: m.repo,
+        encoding: 'utf8',
+      });
+      expect(raison.status, raison.stderr).toBe(1);
+      expect(raison.stderr.trim()).not.toBe('');
+      expect(r.stdout.slice(r.stdout.indexOf('⛔'))).toContain(raison.stderr.trim());
+    },
+    LONG
+  );
 });

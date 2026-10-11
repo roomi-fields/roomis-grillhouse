@@ -26,7 +26,9 @@ garde au superviseur.
 4. **Poussée et fin** : je pousse le main local sur la branche que déclare le projet
    (`npm pkg get grillhouse.poussee.commit`, `git push origin main:<branche>` ; sans la clé, main)
    et je lis sa CI (`gh run list --limit 1`, puis
-   `gh run watch <id>` par tranches) ; une CI rouge sur mon commit rouvre mon circuit. Je retire la copie du ticket, puis je rends mon rapport ; mes agents, lancés sans nom, ne restent pas listés.
+   `gh run watch <id>` par tranches) ; une CI rouge sur mon commit rouvre mon circuit. Je retire la copie du ticket par le script commun,
+   `bash scripts/retirer-copie.sh .claude/worktrees/<ticket>` ; un refus (travail local, copie
+   verrouillée) s'écrit dans mon rapport, et la copie reste en place. Puis je rends mon rapport ; mes agents, lancés sans nom, ne restent pas listés.
 
 Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son auteur le relit.
 

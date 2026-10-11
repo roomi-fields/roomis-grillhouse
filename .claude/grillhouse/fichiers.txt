@@ -28,6 +28,7 @@ scripts/ligne-etat/
 scripts/interfaces-contre-code.mjs
 scripts/nuit.sh
 scripts/registre.mjs
+scripts/retirer-copie.sh
 scripts/session-start.sh
 scripts/setup.sh
 scripts/sous-modules.sh

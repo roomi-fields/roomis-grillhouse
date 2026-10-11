@@ -39,7 +39,8 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   `pitmaster/`, ma mémoire. Je les commite seuls, dans un commit qui ne contient qu'eux. Ainsi un
   changement du cadre se relit à part du travail des agents.
 - **Le ménage de la séance** : je retire les copies de travail et les sondes que les agents
-  laissent, chacune par son chemin nommé et lu. Ainsi le dépôt garde seulement le travail commité,
+  laissent, chacune par son chemin nommé et lu, une copie par
+  `bash scripts/retirer-copie.sh <copie>`. Ainsi le dépôt garde seulement le travail commité,
   et rien ne se supprime sans avoir été lu.
 
 ## Un agent, un ticket
