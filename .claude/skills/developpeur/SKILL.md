@@ -91,7 +91,7 @@ d'un mot : ouvert ou fermé.
 **Une découverte devient un ticket** : ce que tu découvres hors du comportement de ton ticket (un
 défaut, une question, un second morceau) devient un ticket neuf, que tu crées avec son exemple et
 son adresse, sous ton ticket (`docs/agents/issue-tracker.md`, « Numéros et titres ») :
-`n=$(bd create "<sujet>" --parent <id> -t task -l a-valider -d "<…>" --silent)`, puis
+`n=$(bd create "<sujet>" --parent <id> --no-inherit-labels -t task -l a-valider -d "<…>" --silent)`, puis
 `bd update "$n" --title "${n#*-} — <sujet> — <composant>"``. Tu continues ton ticket sans lui. Ainsi la découverte
 garde son origine, et le responsable décide de sa place.
 

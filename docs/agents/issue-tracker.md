@@ -22,7 +22,7 @@ Issues for this repo live in Beads, a git-backed tracker: data under `.beads/`, 
 - Creating one:
 
   ```bash
-  n=$(bd create "<subject>" --parent <mother> -t task -l a-valider -d "<body>" --silent)
+  n=$(bd create "<subject>" --parent <mother> --no-inherit-labels -t task -l a-valider -d "<body>" --silent)
   bd update "$n" --title "${n#*-} — <subject> — <component>"
   ```
 
@@ -30,7 +30,7 @@ Issues for this repo live in Beads, a git-backed tracker: data under `.beads/`, 
 
 ## When a skill says "publish to the issue tracker"
 
-`bd create "<title>" -t task -p <n> -d "<body>"` with `--parent <mother>` and the title of « Numéros et titres », `-l <label>` for labels.
+`bd create "<title>" -t task -p <n> -d "<body>"` with `--parent <mother> --no-inherit-labels` (a child never inherits its mother's `circuit`) and the title of « Numéros et titres », `-l <label>` for labels.
 
 ## When a skill says "fetch the relevant ticket"
 
