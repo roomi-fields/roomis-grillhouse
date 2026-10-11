@@ -1,9 +1,13 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { entrees, index, interfaces } from '../../scripts/index-interfaces.mjs';
+
+// The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
+const ESSAIS = mkdtempSync(path.join(tmpdir(), 'index-interfaces-'));
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/index-interfaces.mjs');
 
@@ -26,7 +30,7 @@ const INTERFACE_B = [
 ].join('\n');
 
 function repo(files: Record<string, string>) {
-  const dir = mkdtempSync(path.join(tmpdir(), 'index-'));
+  const dir = mkdtempSync(path.join(ESSAIS, 'index-'));
   for (const [rel, text] of Object.entries(files)) {
     mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
     writeFileSync(path.join(dir, rel), text);

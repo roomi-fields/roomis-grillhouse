@@ -18,6 +18,10 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { CODE_COPIE, CODE_REFUS, CODE_USAGE } from '../../scripts/enveloppe/codes.mjs';
 import { montagesDeLaSeance, plan } from '../../scripts/enveloppe/enveloppe.mjs';
 
+// The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
+const ESSAIS_TEMP = mkdtempSync(path.join(tmpdir(), 'enveloppe-'));
+afterAll(() => rmSync(ESSAIS_TEMP, { recursive: true, force: true }));
+
 const SCRIPT = path.resolve(__dirname, '../../scripts/enveloppe/enveloppe.mjs');
 const CODES = path.resolve(__dirname, '../../scripts/enveloppe/codes.mjs');
 const LAUNCHER = path.resolve(__dirname, '../../scripts/enveloppe/lancer.sh');
@@ -324,9 +328,8 @@ describe('plan refuses', () => {
 });
 
 // The real envelope, when this machine can build one. Its repositories live outside /tmp, which
-// the envelope replaces with an empty directory.
-const ESSAIS = path.join(homedir(), '.cache', 'grillhouse-essais-enveloppe');
-mkdirSync(ESSAIS, { recursive: true });
+// the envelope replaces with an empty directory, in a trial directory of this run alone.
+const ESSAIS = mkdtempSync(path.join(homedir(), '.cache', 'grillhouse-essais-enveloppe-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 const essai = (nom: string) => mkdtempSync(path.join(ESSAIS, nom));
 
@@ -378,7 +381,7 @@ describe.runIf(canWrap)('the envelope on disk', () => {
   mkdirSync(path.join(home, '.claude/projects/-autre'), { recursive: true });
   writeFileSync(path.join(home, '.claude/settings.json'), '{}');
   writeFileSync(path.join(home, '.claude.json'), '{"vrai":1}');
-  const dehors = mkdtempSync(path.join(tmpdir(), 'dehors-'));
+  const dehors = mkdtempSync(path.join(ESSAIS_TEMP, 'dehors-'));
 
   const run = (shell: string, dir = copie) =>
     spawnSync('node', [SCRIPT, dir, 'packages/a', 'developpeur', '--', 'bash', '-c', shell], {

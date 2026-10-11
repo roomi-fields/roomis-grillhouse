@@ -4,9 +4,11 @@
 // (`packages/a src/parser`), the tests that cover their files (`vitest related`: the tests that
 // import them, directly or not, and their own tests). A call without argument, or `--tous` with
 // directories, is ambiguous: refused, exit 2, nothing runs. It writes the full name of each failing test, one per
-// line, to the file named by ROUGES. Its exit code is Vitest's. A time budget bench
-// (`*.budget.test.*`, `*.budget.spec.*`) does not run here: the day's load moves its measures,
-// and the night (`scripts/nuit.sh`, every test) judges it.
+// line, to the file named by ROUGES. Its exit code is Vitest's. Two categories do not run here,
+// in either call: a time budget bench (`*.budget.test.*`, `*.budget.spec.*`), whose measures the
+// day's load moves, and a night test (`*.nuit.test.*`, `*.nuit.spec.*`), too long for the day.
+// The night (`scripts/nuit.sh`) plays both: the bench in `npm test`, the night test after it
+// (scripts/vitest.nuit.config.mjs).
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -38,16 +40,18 @@ if (args.length === 0 || (tous && args.length > 1)) {
 const composants = tous ? [] : args;
 const tmp = mkdtempSync(path.join(tmpdir(), 'suites-'));
 const rapport = path.join(tmp, 'rapport.json');
-const BUDGET = '**/*.budget.{test,spec}.?(c|m)[jt]s?(x)';
+const HORS_DU_JOUR = ['budget', 'nuit'];
 const portee = !tous
   ? [
       'related',
       '--run',
       '--passWithNoTests',
-      ...composants.flatMap(fichiers).filter(f => !/\.budget\.(test|spec)\./.test(f)),
+      ...composants
+        .flatMap(fichiers)
+        .filter(f => !new RegExp(`\\.(${HORS_DU_JOUR.join('|')})\\.(test|spec)\\.`).test(f)),
     ]
   : ['run', '--passWithNoTests'];
-portee.push(`--exclude=${BUDGET}`);
+for (const c of HORS_DU_JOUR) portee.push(`--exclude=**/*.${c}.{test,spec}.?(c|m)[jt]s?(x)`);
 const r = spawnSync('npx', ['vitest', ...portee, '--reporter=json', `--outputFile=${rapport}`], {
   stdio: ['ignore', 'inherit', 'inherit'],
 });

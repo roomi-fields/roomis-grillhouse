@@ -1,7 +1,7 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import {
   assembler,
   dernierBouge,
@@ -17,6 +17,10 @@ import {
   SILENCE,
   verdict,
 } from '../../scripts/tableau.mjs';
+
+// The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
+const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tableau-'));
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const ligne = (o: object) => JSON.stringify(o);
 const reponse = (id: string, t: string, u: object) =>
@@ -158,7 +162,7 @@ describe('lireRegistre', () => {
 });
 
 describe('lireVivant', () => {
-  const home = mkdtempSync(path.join(tmpdir(), 'home-'));
+  const home = mkdtempSync(path.join(ESSAIS, 'home-'));
   const racine = '/depot';
   const projets = path.join(home, '.claude/projects');
   const copie = path.join(projets, '-depot--claude-worktrees-demo-3-1');

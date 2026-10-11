@@ -1,14 +1,18 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { declares, imports, verifier } from '../../scripts/consommateurs.mjs';
+
+// The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
+const ESSAIS = mkdtempSync(path.join(tmpdir(), 'consommateurs-'));
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/consommateurs.mjs');
 
 function repo(files: Record<string, string>) {
-  const dir = mkdtempSync(path.join(tmpdir(), 'consommateurs-'));
+  const dir = mkdtempSync(path.join(ESSAIS, 'consommateurs-'));
   for (const [rel, text] of Object.entries(files)) {
     mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
     writeFileSync(path.join(dir, rel), text);

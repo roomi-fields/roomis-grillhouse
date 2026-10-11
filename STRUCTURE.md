@@ -59,7 +59,9 @@ roomis-grillhouse/
 │   │                              #   the frame listed in docs/agents/hors-cadre.txt, "<package> <reason>"
 │   ├── frontieres.mjs             # pretest: dependency-cruiser, rules generated in .dependency-cruiser.cjs
 │   ├── interfaces-contre-code.mjs # pretest: INTERFACE.md against the API report of API Extractor (npm run api)
-│   ├── nuit.sh                    # every suite, once a night (mode « impactes »); a red opens a ticket
+│   ├── nuit.sh                    # every suite, once a night (mode « impactes »), then the night tests
+│   │                              #   (*.nuit.test.*, *.nuit.spec.*); a red opens a ticket
+│   ├── vitest.nuit.config.mjs     # the Vitest configuration of the night tests, played by nuit.sh
 │   ├── sous-modules.sh            # the submodules of a working copy (integration, agent, night) at HEAD
 │   ├── grillhouse-maj.mjs         # npm run grillhouse:maj: the frame brought to its last version; --ecarts
 │   ├── tableau.mjs                # npm run tableau: the board on three levels (project, chantier, agents)
@@ -68,6 +70,7 @@ roomis-grillhouse/
 │   ├── integration/               # One delivery, in a clean copy: verdicts, lots, base, guards, suites, commit
 │   │   ├── integrer.mjs              # run by the integrateur (tests: tests/unit/integrer.spec.ts)
 │   │   └── suites-vitest.mjs         # npm run integration:suites -- --tous|<components>: failing tests by name, for Vitest
+│   │                                 #   (budget benches and night tests left out)
 │   ├── index-interfaces.mjs       # npm run interfaces: docs/agents/index-des-interfaces.md, checked by pretest
 │   └── un-commit-par-ticket.mjs   # commit-msg hook (.beads/hooks/commit-msg): one ticket, one commit
 │
@@ -139,7 +142,7 @@ roomis-grillhouse/
 ├── package.json                # npm package manifest
 ├── tsconfig.json               # TypeScript configuration (allowJs: JS compiles as is)
 ├── tsconfig.eslint.json        # Lint scope: src/ + tests/
-└── vitest.config.ts            # Vitest test configuration
+└── vitest.config.ts            # Vitest test configuration of the day: npm test, night tests left out
 ```
 
 ## Quick Start

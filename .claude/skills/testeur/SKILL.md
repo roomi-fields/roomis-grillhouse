@@ -42,6 +42,11 @@ qu'il sait échouer.
 `*.budget.test.ts`. L'intégration de jour ne le joue pas, car la charge de la machine fait varier
 ses mesures ; la nuit le juge. Ainsi un rouge de jour dit un défaut, jamais une machine occupée.
 
+**Un test trop long pour le jour est un test de nuit** : il s'écrit dans un fichier
+`*.nuit.test.ts`. Ni `npm test` ni l'intégration ne le jouent ; la nuit le joue elle-même, après
+un `npm test` vert, avec la configuration du cadre (`scripts/vitest.nuit.config.mjs`). Ainsi le
+jour reste court, et la preuve longue tourne chaque nuit.
+
 ## La fin
 
 Tu livres ton lot dans ton scratchpad : le patch de tes seuls fichiers de test, la sortie rouge, la

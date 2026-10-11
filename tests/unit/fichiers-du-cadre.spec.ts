@@ -4,11 +4,23 @@
 // scripts call. The guard reads the frame's files through what grillhouse-maj publishes (lireListe,
 // fichiersDuCadre) and resolves each reference the way the caller does: from the caller's directory
 // for a relative path, from the root of the repository for a path under scripts/.
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { fichiersDuCadre, lireListe } from '../../scripts/grillhouse-maj.mjs';
+
+// The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
+const ESSAIS = mkdtempSync(path.join(tmpdir(), 'fichiers-du-cadre-'));
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const RACINE = path.resolve(__dirname, '../..');
 const LISTE = '.claude/grillhouse/fichiers.txt';
@@ -80,7 +92,7 @@ function manquants(racine: string): string[] {
 }
 
 function depot(fichiers: Record<string, string>) {
-  const r = mkdtempSync(path.join(tmpdir(), 'cadre-liste-'));
+  const r = mkdtempSync(path.join(ESSAIS, 'cadre-liste-'));
   for (const [f, t] of Object.entries(fichiers)) {
     mkdirSync(path.dirname(path.join(r, f)), { recursive: true });
     writeFileSync(path.join(r, f), t);

@@ -34,6 +34,7 @@ scripts/structure-guard.sh
 scripts/tableau.mjs
 scripts/un-commit-par-ticket.mjs
 scripts/verrous/
+scripts/vitest.nuit.config.mjs
 - tests/unit/consommateurs.spec.ts
 - tests/unit/enveloppe.spec.ts
 - tests/unit/frontieres.spec.ts

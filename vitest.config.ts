@@ -1,5 +1,9 @@
 import { defineConfig } from 'vitest/config';
 
+// A night test (`*.nuit.test.*`, `*.nuit.spec.*`) is too long for the day: `npm test` and the
+// integration leave it out, and the night plays it (scripts/nuit.sh, scripts/vitest.nuit.config.mjs).
+const NUIT = '**/*.nuit.{test,spec}.{ts,js,mjs}';
+
 export default defineConfig({
   test: {
     // Test environment
@@ -12,7 +16,7 @@ export default defineConfig({
     include: ['src/**/*.{test,spec}.{ts,js,mjs}', 'tests/**/*.{test,spec}.{ts,js,mjs}'],
 
     // Exclude patterns
-    exclude: ['node_modules', 'dist'],
+    exclude: ['node_modules', 'dist', NUIT],
 
     // Coverage configuration
     coverage: {

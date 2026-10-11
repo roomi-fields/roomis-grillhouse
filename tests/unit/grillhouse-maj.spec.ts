@@ -1,13 +1,17 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import {
   ecarts,
   fusionnerReglages,
   lireListe,
   mettreAJour,
 } from '../../scripts/grillhouse-maj.mjs';
+
+// The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
+const ESSAIS = mkdtempSync(path.join(tmpdir(), 'grillhouse-maj-'));
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const ecrire = (racine: string, f: string, texte: string) => {
   mkdirSync(path.dirname(path.join(racine, f)), { recursive: true });
@@ -21,7 +25,7 @@ const crochet = (command: string, matcher?: string) => ({
 });
 
 function source(fichiers: Record<string, string>) {
-  const s = mkdtempSync(path.join(tmpdir(), 'cadre-'));
+  const s = mkdtempSync(path.join(ESSAIS, 'cadre-'));
   for (const [f, t] of Object.entries(fichiers)) {
     ecrire(s, f, t);
   }
@@ -98,7 +102,7 @@ describe('the update of a project', () => {
     'scripts/verrous/b.mjs': 'b 1',
     '.claude/settings.json': JSON.stringify({ hooks: { SessionStart: [crochet('debut')] } }),
   });
-  const projet = mkdtempSync(path.join(tmpdir(), 'projet-'));
+  const projet = mkdtempSync(path.join(ESSAIS, 'projet-'));
   ecrire(projet, 'scripts/verrous/mien.mjs', 'à moi');
   ecrire(projet, 'tests/unit/vieux.spec.ts', 'copie ancienne');
   ecrire(projet, 'package.json', JSON.stringify({ name: 'p', scripts: { test: 'vitest' } }));

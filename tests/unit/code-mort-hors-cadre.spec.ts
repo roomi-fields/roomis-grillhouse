@@ -4,12 +4,17 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  rmSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
+
+// The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
+const ESSAIS = mkdtempSync(path.join(tmpdir(), 'code-mort-hors-cadre-'));
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 // Ticket grillhouse-3uv.32: the dead-code guard skips the packages listed out of the frame in
 // docs/agents/hors-cadre.txt, read through the common function of consommateurs.mjs (3uv.27).
@@ -25,7 +30,7 @@ const KNIP = {
 
 // A file given as null is left out of the repository (knip.json, for the default settings).
 function codeMort(files: Record<string, string | null>) {
-  const dir = mkdtempSync(path.join(tmpdir(), 'code-mort-hors-cadre-'));
+  const dir = mkdtempSync(path.join(ESSAIS, 'code-mort-hors-cadre-'));
   const tous: Record<string, string | null> = {
     'package.json': JSON.stringify({ name: 'r', private: true, workspaces: ['packages/*'] }),
     'knip.json': JSON.stringify(KNIP, null, 2) + '\n',

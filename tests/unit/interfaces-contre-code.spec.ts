@@ -1,9 +1,13 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { declare, exportsDuRapport } from '../../scripts/interfaces-contre-code.mjs';
+
+// The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
+const ESSAIS = mkdtempSync(path.join(tmpdir(), 'interfaces-contre-code-'));
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/interfaces-contre-code.mjs');
 const MODULES = path.resolve(__dirname, '../../node_modules');
@@ -12,7 +16,7 @@ const TSCONFIG = JSON.stringify({ compilerOptions: { strict: true, skipLibCheck:
 
 // A one-package project whose module `a` is built in dist/a, with the given files on top.
 function projet(files: Record<string, string>) {
-  const dir = mkdtempSync(path.join(tmpdir(), 'icc-'));
+  const dir = mkdtempSync(path.join(ESSAIS, 'icc-'));
   const base = {
     'package.json': '{"name":"p","types":"dist/index.d.ts"}',
     'tsconfig.json': TSCONFIG,

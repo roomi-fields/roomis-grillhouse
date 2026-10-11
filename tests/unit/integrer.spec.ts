@@ -2,13 +2,17 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import {
   nouveauxRouges,
   perimetre,
   refusLots,
   refusVerdicts,
 } from '../../scripts/integration/integrer.mjs';
+
+// The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
+const ESSAIS = mkdtempSync(path.join(tmpdir(), 'integrer-'));
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/integration/integrer.mjs');
 const c = (text: string) => ({ text });
@@ -58,7 +62,7 @@ describe('refusVerdicts', () => {
 // A repository at <racine>: its files are named relative to it, as `git apply --numstat` gives
 // them. `packages/matiere` exports `./test-fixtures`: the shared test material.
 function depotLots() {
-  const repo = mkdtempSync(path.join(tmpdir(), 'lots-'));
+  const repo = mkdtempSync(path.join(ESSAIS, 'lots-'));
   const ecrire = (rel: string, contenu: string) => {
     mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true });
     writeFileSync(path.join(repo, rel), contenu);
@@ -119,7 +123,7 @@ describe('refusLots', () => {
     expect(r).not.toContain('packages/matiere/fixtures/un.txt');
   });
   it('a project without the material keeps the test files alone in the tests lot', () => {
-    const vide = mkdtempSync(path.join(tmpdir(), 'lots-vide-'));
+    const vide = mkdtempSync(path.join(ESSAIS, 'lots-vide-'));
     expect(refusLots(['packages/matiere/fixtures/un.txt'], [], vide)).toMatch(
       /lot de tests touche du code/
     );
@@ -257,8 +261,8 @@ describe('perimetre', () => {
 // A repository with a fake Beads, suites that fail the tests named in ROUGES_FORCES, and guards
 // that refuse while GARDE_ROUGE exists.
 function monde(commentaires: string[]) {
-  const repo = mkdtempSync(path.join(tmpdir(), 'integrer-'));
-  const bin = mkdtempSync(path.join(tmpdir(), 'bin-'));
+  const repo = mkdtempSync(path.join(ESSAIS, 'integrer-'));
+  const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
   const comments = JSON.stringify(commentaires.map(text => ({ text })));
   writeFileSync(
     path.join(bin, 'bd'),

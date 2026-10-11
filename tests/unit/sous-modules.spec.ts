@@ -18,8 +18,12 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { CODE_COPIE } from '../../scripts/enveloppe/codes.mjs';
+
+// The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
+const ESSAIS = mkdtempSync(path.join(tmpdir(), 'sous-modules-'));
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const RACINE = path.resolve(__dirname, '../..');
 const SCRIPTS = path.join(RACINE, 'scripts');
@@ -46,8 +50,8 @@ const git = (dir: string, ...a: string[]) =>
 // commits, `v1` then `v2`; the superproject references `v1`, the older one, so a copy that takes the
 // submodule's tip instead of the referenced commit is seen.
 function monde(avecSousModule = true) {
-  const repo = mkdtempSync(path.join(tmpdir(), 'sousmod-'));
-  const bin = mkdtempSync(path.join(tmpdir(), 'bin-'));
+  const repo = mkdtempSync(path.join(ESSAIS, 'sousmod-'));
+  const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
   writeFileSync(
     path.join(bin, 'bd'),
     `#!/bin/sh\ncase "$1" in show) echo '[{"id":"demo-1","labels":[]}]';; comments) echo '[{"text":"ACCEPTÉ"}]';; list) echo '[]';; create) echo demo-12;; esac\n`,
@@ -89,7 +93,7 @@ function monde(avecSousModule = true) {
   git(repo, 'add', '.');
   git(repo, 'commit', '-qm', 'base');
 
-  const natif = mkdtempSync(path.join(tmpdir(), 'natif-'));
+  const natif = mkdtempSync(path.join(ESSAIS, 'natif-'));
   const commits: string[] = [];
   if (avecSousModule) {
     git(natif, 'init', '-q');

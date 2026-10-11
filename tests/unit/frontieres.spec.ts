@@ -1,16 +1,20 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { configuration } from '../../scripts/frontieres.mjs';
+
+// The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
+const ESSAIS = mkdtempSync(path.join(tmpdir(), 'frontieres-'));
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/frontieres.mjs');
 const MODULES = path.resolve(__dirname, '../../node_modules');
 
 // A repository with the given files, the template's dependencies, and its generated configuration.
 function repo(files: Record<string, string>) {
-  const dir = mkdtempSync(path.join(tmpdir(), 'frontieres-'));
+  const dir = mkdtempSync(path.join(ESSAIS, 'frontieres-'));
   for (const [rel, text] of Object.entries({ 'package.json': '{"name":"r"}', ...files })) {
     mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
     writeFileSync(path.join(dir, rel), text);

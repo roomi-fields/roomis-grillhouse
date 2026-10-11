@@ -7,12 +7,17 @@
 # - It plays main's HEAD in its own clean copy (.claude/worktrees/nuit): detached, every untracked
 #   file removed, its submodules set at the commit of HEAD (scripts/sous-modules.sh, a local
 #   modification overwritten; one that cannot be set turns the night red), dependencies reinstalled (npm ci) when package-lock.json changes, built, then
-#   `npm test` (the guards of pretest, then every suite).
+#   `npm test` (the guards of pretest, then every suite of the day, time budget benches included).
+# - The night tests: after a green `npm test`, the files `*.nuit.test.*` and `*.nuit.spec.*` of the
+#   copy (outside node_modules, dist and .git), which `npm test` and the integration leave out, run
+#   by Vitest with the frame's configuration (scripts/vitest.nuit.config.mjs of the copy). A red
+#   turns the night red, with a log line that says so, and the project's night script does not run.
+#   A copy without any night test plays none.
 # - The project's night script: `grillhouse.nuit` in the package.json of the commit it plays names
-#   an npm script (`npm pkg set grillhouse.nuit=<script>`). After a green `npm test`, the night plays
+#   an npm script (`npm pkg set grillhouse.nuit=<script>`). After the night tests, the night plays
 #   `npm run <script>` in its copy; a red script turns the night red, with a log line that names it.
 #   The key is read as written, before any work: without it (or with null) the night plays
-#   `npm test` alone; a value that is not a non-blank string, or a name absent from the scripts of
+#   no script of the project; a value that is not a non-blank string, or a name absent from the scripts of
 #   that package.json, turns the night red, with a log line that cites it, and nothing runs.
 # - It holds the integration lock while it runs: an integration waits for the morning.
 # - Its log is <git common dir>/nuit/<date>.log. Green: HEAD becomes the last green commit
@@ -69,6 +74,14 @@ jouer() {
   fi
   npm --prefix "$copie" run --silent --if-present build || return 1
   npm --prefix "$copie" test || return 1
+  if [ -n "$(find "$copie" \( -name node_modules -o -name dist -o -name .git \) -prune -o \
+      -type f -regextype posix-extended -regex '.*\.nuit\.(test|spec)\.(c|m)?[jt]sx?' -print -quit)" ]; then
+    if ! (cd "$copie" && npx --no-install vitest run --root "$copie" \
+        --config "$copie/scripts/vitest.nuit.config.mjs"); then
+      echo "✗ les tests de nuit (*.nuit.test.*, *.nuit.spec.*) ont échoué."
+      return 1
+    fi
+  fi
   [ -n "$nuit" ] || return 0
   if ! npm --prefix "$copie" run "$nuit"; then
     echo "✗ le script de nuit du projet \`npm run $nuit\` (grillhouse.nuit) a échoué."

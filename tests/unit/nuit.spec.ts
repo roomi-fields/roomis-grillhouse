@@ -1,16 +1,20 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
+
+// The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
+const ESSAIS = mkdtempSync(path.join(tmpdir(), 'nuit-'));
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const NUIT = path.resolve(__dirname, '../../scripts/nuit.sh');
 
 // A repository whose tests fail while ROUGE is committed, with a fake Beads that records its calls
 // and answers `list` with the open tickets written in OUVERTS.
 function monde() {
-  const repo = mkdtempSync(path.join(tmpdir(), 'nuit-'));
-  const bin = mkdtempSync(path.join(tmpdir(), 'bin-'));
+  const repo = mkdtempSync(path.join(ESSAIS, 'nuit-'));
+  const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
   const appels = path.join(bin, 'appels');
   writeFileSync(
     path.join(bin, 'bd'),

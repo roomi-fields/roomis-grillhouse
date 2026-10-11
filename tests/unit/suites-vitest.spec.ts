@@ -8,11 +8,16 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
+
+// The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
+const ESSAIS = mkdtempSync(path.join(tmpdir(), 'suites-vitest-'));
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const RACINE = path.resolve(__dirname, '../..');
 const ADAPTATEUR = path.join(RACINE, 'scripts/integration/suites-vitest.mjs');
@@ -21,8 +26,8 @@ const INTEGRER = path.join(RACINE, 'scripts/integration/integrer.mjs');
 // A project with a component src/a, and a stand-in for npx that records its arguments, one call
 // per line, and exits with the code written in CODE (0 otherwise).
 function projet() {
-  const repo = mkdtempSync(path.join(tmpdir(), 'suites-'));
-  const bin = mkdtempSync(path.join(tmpdir(), 'bin-'));
+  const repo = mkdtempSync(path.join(ESSAIS, 'suites-'));
+  const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
   const appels = path.join(bin, 'appels');
   writeFileSync(
     path.join(bin, 'npx'),

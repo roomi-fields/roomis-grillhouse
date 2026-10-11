@@ -112,7 +112,7 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   principal que pour y avancer main : je commite mes propres fichiers quand je veux. Ainsi un intégrateur égale une livraison égale un ticket, et chaque
   commit passe le même contrôle.
 - **La nuit se lit le matin** : en mode `impactes`, les suites complètes tournent une fois la nuit
-  (`scripts/nuit.sh`) ; un rouge ouvre un ticket étiqueté `nuit`, avec les commits où chercher. Je
+  (`scripts/nuit.sh`), suivies des tests de nuit (`*.nuit.test.*`) ; un rouge ouvre un ticket étiqueté `nuit`, avec les commits où chercher. Je
   le lis en ouvrant la séance, et il passe avant tout autre ticket. Ainsi un défaut que les
   intégrations du jour n'ont pas vu se corrige le lendemain.
 - **Un « en cours » est un processus vivant** : chaque agent et chaque script que je lance tourne

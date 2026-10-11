@@ -1,9 +1,13 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { refusal, tickets } from '../../scripts/un-commit-par-ticket.mjs';
+
+// The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
+const ESSAIS = mkdtempSync(path.join(tmpdir(), 'un-commit-par-ticket-'));
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/un-commit-par-ticket.mjs');
 
@@ -37,8 +41,8 @@ describe('refusal', () => {
 });
 
 describe('the hook on a real history', () => {
-  const repo = mkdtempSync(path.join(tmpdir(), 'commit-'));
-  const bin = mkdtempSync(path.join(tmpdir(), 'bin-'));
+  const repo = mkdtempSync(path.join(ESSAIS, 'commit-'));
+  const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
   writeFileSync(path.join(bin, 'bd'), '#!/bin/sh\necho demo\n', { mode: 0o755 });
   const git = (...args: string[]) =>
     execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...args]);

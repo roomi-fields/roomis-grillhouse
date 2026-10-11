@@ -1,9 +1,13 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { aRattraper, ligne, source } from '../../scripts/registre.mjs';
+
+// The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
+const ESSAIS = mkdtempSync(path.join(tmpdir(), 'registre-'));
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/registre.mjs');
 const l = (o: object) => JSON.stringify(o);
@@ -60,7 +64,7 @@ describe('the register line', () => {
     });
   });
   it('takes a named sub-agent role from the type it was spawned as, never its name', () => {
-    const d = mkdtempSync(path.join(tmpdir(), 'registre-'));
+    const d = mkdtempSync(path.join(ESSAIS, 'registre-'));
     mkdirSync(path.join(d, 's/subagents'), { recursive: true });
     writeFileSync(
       path.join(d, 's/subagents/agent-a2.meta.json'),
@@ -81,7 +85,7 @@ describe('the register line', () => {
 
 describe('the register on disk', () => {
   it('appends one line per finished sub-agent, its role read from its meta file', () => {
-    const d = mkdtempSync(path.join(tmpdir(), 'registre-'));
+    const d = mkdtempSync(path.join(ESSAIS, 'registre-'));
     mkdirSync(path.join(d, 's/subagents'), { recursive: true });
     writeFileSync(
       path.join(d, 's/subagents/agent-a1.jsonl'),
@@ -121,7 +125,7 @@ describe('the register on disk', () => {
 
 describe('the catch-up of finished agents', () => {
   it("finds the project's sessions, their sub-agents and the agents' copies, not the known nor the running", () => {
-    const home = mkdtempSync(path.join(tmpdir(), 'home-'));
+    const home = mkdtempSync(path.join(ESSAIS, 'home-'));
     const p = path.join(home, '.claude/projects');
     const propre = path.join(p, '-depot');
     mkdirSync(path.join(propre, 's1/subagents'), { recursive: true });

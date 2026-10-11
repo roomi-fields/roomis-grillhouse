@@ -1,8 +1,8 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 
 import {
   commandePersonnelle,
@@ -10,6 +10,10 @@ import {
   largeurVisible,
   sansCouleur,
 } from '../../scripts/ligne-etat/ligne-etat.mjs';
+
+// The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
+const ESSAIS = mkdtempSync(path.join(tmpdir(), 'ligne-etat-'));
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const SCRIPT = path.resolve('scripts/ligne-etat/ligne-etat.mjs');
 
@@ -30,7 +34,7 @@ describe('composer', () => {
 
 describe('commandePersonnelle', () => {
   const maison = (reglages: object | null) => {
-    const d = mkdtempSync(path.join(tmpdir(), 'ligne-'));
+    const d = mkdtempSync(path.join(ESSAIS, 'ligne-'));
     mkdirSync(path.join(d, '.claude'));
     if (reglages) {
       writeFileSync(path.join(d, '.claude/settings.json'), JSON.stringify(reglages));
@@ -54,7 +58,7 @@ describe('commandePersonnelle', () => {
 
 describe('the status line command', () => {
   const projet = () => {
-    const d = mkdtempSync(path.join(tmpdir(), 'ligne-projet-'));
+    const d = mkdtempSync(path.join(ESSAIS, 'ligne-projet-'));
     execFileSync('git', ['init', '-q', d]);
     writeFileSync(path.join(d, '.git/grillhouse-etat.txt'), '▶ 2 en cours\n');
     return d;
@@ -66,7 +70,7 @@ describe('the status line command', () => {
       encoding: 'utf8',
     });
   it("puts the person's own line on the left and the chantier on the right", () => {
-    const home = mkdtempSync(path.join(tmpdir(), 'ligne-maison-'));
+    const home = mkdtempSync(path.join(ESSAIS, 'ligne-maison-'));
     mkdirSync(path.join(home, '.claude'));
     writeFileSync(
       path.join(home, '.claude/settings.json'),
@@ -75,7 +79,7 @@ describe('the status line command', () => {
     expect(sansCouleur(lancer(home, projet()))).toMatch(/^ma ligne +▶ 2 en cours\n$/);
   });
   it('puts the default line on the left for a person without one', () => {
-    const home = mkdtempSync(path.join(tmpdir(), 'ligne-maison-'));
+    const home = mkdtempSync(path.join(ESSAIS, 'ligne-maison-'));
     expect(sansCouleur(lancer(home, projet()))).toMatch(/^Opus 5\.5 +▶ 2 en cours\n$/);
   });
 });

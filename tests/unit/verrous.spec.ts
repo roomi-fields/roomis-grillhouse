@@ -1,9 +1,13 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { isTestFile, isTesterFile, refusal } from '../../scripts/verrous/verrou.mjs';
+
+// The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
+const ESSAIS = mkdtempSync(path.join(tmpdir(), 'verrous-'));
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/verrous/verrou.mjs');
 const ROOT = '/repo';
@@ -11,7 +15,7 @@ const SCRATCH = '/scratch';
 
 // A session whose sub-agent was launched with `prompt`, as Claude Code lays it on disk.
 function session(prompt: string) {
-  const dir = mkdtempSync(path.join(tmpdir(), 'verrou-'));
+  const dir = mkdtempSync(path.join(ESSAIS, 'verrou-'));
   mkdirSync(path.join(dir, 's1', 'subagents'), { recursive: true });
   const first = { type: 'user', message: { role: 'user', content: prompt } };
   writeFileSync(path.join(dir, 's1', 'subagents', 'agent-a1.jsonl'), JSON.stringify(first) + '\n');
@@ -21,7 +25,7 @@ function session(prompt: string) {
 // A session launched as its own agent (`claude --agent`): the prompt is the session's first user
 // line, after the setting and queue lines Claude Code writes first.
 function ownSession(prompt: string) {
-  const dir = mkdtempSync(path.join(tmpdir(), 'verrou-'));
+  const dir = mkdtempSync(path.join(ESSAIS, 'verrou-'));
   const lines = [
     { type: 'agent-setting', agentSetting: 'developpeur' },
     { type: 'queue-operation', operation: 'enqueue', content: prompt },
@@ -151,11 +155,12 @@ describe('the hook command', () => {
 // grillhouse-2sq: the package of the shared test material, the component whose package.json
 // exports `./test-fixtures`, is written by the testeur alone, every file of it; the rest of the
 // code stays refused to the testeur, and the developpeur's lock does not change. The repositories
-// live outside the system temp directory, which the hook command takes for the scratchpad.
-const ESSAIS_VERROU = path.join(homedir(), '.cache', 'grillhouse-essais-verrou');
+// live outside the system temp directory, which the hook command takes for the scratchpad, in a
+// trial directory of this run alone.
+const ESSAIS_VERROU = mkdtempSync(path.join(homedir(), '.cache', 'grillhouse-essais-verrou-'));
+afterAll(() => rmSync(ESSAIS_VERROU, { recursive: true, force: true }));
 
 function depotAvecMatiere() {
-  mkdirSync(ESSAIS_VERROU, { recursive: true });
   const repo = mkdtempSync(path.join(ESSAIS_VERROU, 'depot-'));
   const ecrire = (rel: string, contenu: string) => {
     mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true });
