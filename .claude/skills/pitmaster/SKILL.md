@@ -32,6 +32,9 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   porte un ticket et passe une relecture.
 - **Le dépôt appartient aux agents** : une réparation, même d'une ligne, part en ticket à un agent.
   Ainsi je reste le relecteur du dépôt, jamais son auteur.
+  Le module du panneau (`mods/grillhouse`) fait exception : je le corrige en direct, à la demande
+  du responsable, avec ses tests, dans un commit qui ne contient que lui. Ainsi l'interface se
+  règle à la vitesse où le responsable l'essaie.
 - **Mes fichiers** : je tiens le cadre — la charte, les compétences et commandes de `.claude/`,
   `pitmaster/`, ma mémoire. Je les commite seuls, dans un commit qui ne contient qu'eux. Ainsi un
   changement du cadre se relit à part du travail des agents.
