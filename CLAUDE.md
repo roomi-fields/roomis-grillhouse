@@ -28,6 +28,11 @@ d'abord », « une personne maintient le projet »…).
 3. **Le domaine l'exige-t-il ?** <Les exigences du domaine : la rapidité pour le live coding…> Un
    choix qui les dégrade se mesure et se dit.
 
+## Ce qui monte au superviseur
+
+Le fonctionnel que le chef de chantier ne tranche jamais seul : <le langage, le moteur audio, une
+interface publiée…>. Le cadre et l'architecture montent toujours (charte commune).
+
 ## Commandes
 
 - `npm test` · `npm run typecheck` · `npm run lint` · `npm run format:check`.

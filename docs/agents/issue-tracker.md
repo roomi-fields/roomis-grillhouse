@@ -26,7 +26,7 @@ Issues for this repo live in Beads, a git-backed tracker: data under `.beads/`, 
   bd update "$n" --title "${n#*-} — <subject> — <component>"
   ```
 
-- Each agent goes by the fixed number of its role, in the order of the flow: 1 `explorateur`, 2 `arbitre`, 3 `testeur`, 4 `developpeur`, 5 `relecteur`, 6 `integrateur`. One says « 320.2.1, agent 4 »; a relaunched agent keeps its number.
+- Each agent goes by the fixed number of its role, in the order of the flow: 0 `chef-de-chantier` (leads one ticket from claim to pushed commit), 1 `explorateur`, 2 `arbitre`, 3 `testeur`, 4 `developpeur`, 5 `relecteur`, 6 `integrateur`. One says « 320.2.1, agent 4 »; a relaunched agent keeps its number.
 
 ## When a skill says "publish to the issue tracker"
 

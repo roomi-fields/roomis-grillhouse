@@ -41,28 +41,18 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
 
 ## Un agent, un ticket
 
-- **Un agent neuf par ticket, dans son enveloppe** : un ticket tranché part au testeur ou au
-  développeur, en séance neuve dans l'enveloppe de son composant :
-  `bash scripts/enveloppe/lancer.sh <ticket> <rôle> <composant> <consigne>`, lancé en arrière-plan,
-  la consigne écrite d'après `references/consigne-agent.md` dans mon scratchpad. Sa fin me
-  revient en notification ; son rapport est au ticket, sa sortie dans `.claude/worktrees/<ticket>.log`.
-  Un ticket sur un dossier de la racine (`scripts`) part par le même lanceur, ce dossier pour
-  composant : rien n'est caché, la racine reste en lecture seule et la copie en écriture. Ainsi
-  chaque agent travaille dans le cadre écrit, sous les verrous de son rôle, et ne voit des autres
-  composants que leurs interfaces.
-- **Le relecteur voit tout le dépôt** : le lot écrit part au relecteur, sous-agent neuf
-  (`subagent_type: relecteur`, en arrière-plan, `name: <ticket>-agent-5`), hors enveloppe, la
-  consigne écrite d'après `references/consigne-agent.md`. Il relit le lot dans la copie du ticket,
-  y rejoue les tests, et cherche dans tout le dépôt, avec l'index, la notion déjà fournie ailleurs
-  et le texte qui décrit encore l'ancien comportement. Ainsi un doublon ou un texte périmé se voit
-  avant le commit.
-- **Un ticket bloqué repart de sa copie** : débloqué, un ticket repart avec un agent neuf, par le
-  même lanceur ; sa copie garde le code de l'agent précédent, et ses notes l'état du travail. La
-  consigne dit « reprise : lis les notes du ticket ». Ainsi le travail fait sert à l'agent suivant.
-- **Un lot rendu repart au développeur** : un verdict `RENDU` du relecteur, ou un refus de
-  l'intégrateur, relance l'agent 4 sur le même ticket, par le même lanceur, avec « REPRISE : oui » ;
-  il corrige chaque constat dans la copie, puis le relecteur relit. Ainsi un lot rendu revient
-  corrigé sur son ticket, sans ticket neuf.
+- **Un chef de chantier par ticket** : un ticket tranché part à un chef de chantier neuf
+  (`subagent_type: chef-de-chantier`, en arrière-plan, sans nom), la consigne réduite à « TON
+  TICKET : <id> », le composant, le contexte du moment et son dossier dans mon scratchpad. Il
+  lance le testeur, le développeur, le relecteur et l'intégrateur, tranche ce que les règles
+  tranchent, pousse le commit et arrête ses agents (compétence `chef-de-chantier`). Ainsi chaque
+  ticket a un seul responsable de son circuit, et je garde la vue d'ensemble.
+- **J'interviens sur ce qui dépasse le ticket** : la fin du chef m'apporte soit son rapport, soit
+  une question qu'aucune règle ne tranche ; je réponds par message à son identifiant, et il
+  repart. Je n'arrête que le chef, une fois son ticket fermé. Ainsi ma séance ne porte pas le
+  détail des tickets, et elle reste courte.
+- **Un ticket débloqué repart avec un chef neuf** : l'état du travail est au ticket et dans sa
+  copie ; le chef neuf les relit et reprend. Ainsi le travail fait sert au chef suivant.
 - **L'exploration avant la réalisation** : un objectif dont le découpage n'est pas connu ouvre un
   ticket d'exploration, sans code, mené par l'agent explorateur (`subagent_type: explorateur`). Il
   se ferme sur les décisions et les tickets de réalisation proposés, que le responsable valide.
@@ -75,12 +65,10 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   travail dessous ; chaque ticket naît sous la sienne (`bd create --parent`), et son titre dit
   « numéro — sujet — composant » (`docs/agents/issue-tracker.md`, « Numéros et titres »). Ainsi
   320.2.1 se lit d'un coup d'œil : sa place dans le sujet, son objet, son composant.
-- **Un agent porte le numéro de son rôle** : 1 explorateur, 2 arbitre, 3 testeur, 4 développeur,
-  5 relecteur, 6 intégrateur, dans l'ordre du flux. Je le nomme « <ticket>, agent <n> »
-  (`name: <ticket>-agent-<n>`) ; un agent relancé garde son numéro. Ainsi le nom d'un agent dit son
-  ticket et son rôle. Sa consigne porte la ligne « TON TICKET : <id> », arbitre et intégrateur
-  compris ; un contrôle refuse de lancer un agent de rôle sans elle. Ainsi le tableau rattache
-  chaque agent, son temps et ses jetons à son ticket.
+- **Un agent porte le numéro de son rôle** : 0 chef de chantier, 1 explorateur, 2 arbitre,
+  3 testeur, 4 développeur, 5 relecteur, 6 intégrateur, dans l'ordre du flux. Sa consigne porte la
+  ligne « TON TICKET : <id> » ; un contrôle refuse de lancer un agent de rôle sans elle. Ainsi le
+  tableau rattache chaque agent, son temps et ses jetons à son ticket.
 - **Les découvertes se trient** : les tickets `a-valider` que créent les agents
   sous leur ticket passent au responsable avec ma proposition de place dans le plan. Ainsi le
   plan reste le sien.
@@ -111,21 +99,16 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
 - **La charge avant le lancement** : avant de lancer un agent, je lis la charge de la machine
   (`uptime`) ; machine chargée, les agents attendent. Ainsi un test rend le résultat du code, et non
   celui d'une machine saturée.
-- **Un intégrateur par livraison** : dès qu'un ticket a son lot relu, je lance un intégrateur
-  neuf (`subagent_type: integrateur`, en arrière-plan, `name: <ticket>-agent-6`) sur ce seul
-  lot. Il juge le diff, lance le script d'intégration, et sort sur le commit ou sur le refus ; sa
-  fin me revient en notification. Le script travaille dans sa propre copie et ne touche l'arbre
-  principal que pour y avancer main : je commite mes propres fichiers quand je veux. Ainsi un intégrateur égale une livraison égale un ticket, et chaque
-  commit passe le même contrôle.
+- **Mes commits** : le script d'intégration travaille dans sa propre copie et ne touche l'arbre
+  principal que pour y avancer main ; je commite mes propres fichiers quand je veux. Ainsi un
+  changement du cadre n'attend aucune livraison.
 - **La nuit se lit le matin** : en mode `impactes`, les suites complètes tournent une fois la nuit
   (`scripts/nuit.sh`), suivies des tests de nuit (`*.nuit.test.*`) ; un rouge ouvre un ticket étiqueté `nuit`, avec les commits où chercher. Je
   le lis en ouvrant la séance, et il passe avant tout autre ticket. Ainsi un défaut que les
   intégrations du jour n'ont pas vu se corrige le lendemain.
-- **Un « en cours » est un processus vivant** : chaque agent et chaque script que je lance tourne
-  en arrière-plan, et sa fin me revient en notification. Un « en cours » se vérifie par un
-  processus vivant ou un journal qui bouge, jamais par une phrase : un agent arrêté sur « j'attends »
-  est relancé par moi, sur son ticket. Ainsi la file ne s'arrête jamais sur une
-  promesse.
+- **Un « en cours » est un processus vivant** : un « en cours » se vérifie par un processus vivant
+  ou un journal qui bouge, jamais par une phrase ; un chef arrêté sans rapport est relancé par moi,
+  sur son ticket. Ainsi la file ne s'arrête jamais sur une promesse.
 
 ## L'architecture tranche d'abord
 

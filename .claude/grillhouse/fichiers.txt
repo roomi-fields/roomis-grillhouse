@@ -5,6 +5,7 @@ METACADRE.md
 .claude/grillhouse/
 .claude/agents/
 .claude/skills/arbitre/
+.claude/skills/chef-de-chantier/
 .claude/skills/developpeur/
 .claude/skills/explorateur/
 .claude/skills/grill/

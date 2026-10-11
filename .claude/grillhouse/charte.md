@@ -38,9 +38,16 @@ professionnel.
 
 Une séance de supervision charge le superviseur (`pitmaster`). Les rôles sont des agents du projet
 (`.claude/agents/`), chacun désigné par le numéro de son rôle, dans l'ordre du flux :
-1 `explorateur`, qui mène une exploration, 2 `arbitre`, qui tranche une question de conception,
-3 `testeur`, 4 `developpeur`, 5 `relecteur`, 6 `integrateur`, chacun sous ses verrous. Ainsi chaque
-agent travaille dans son cadre, et son numéro dit son rôle.
+0 `chef-de-chantier`, qui mène un ticket de sa prise à son commit, 1 `explorateur`, qui mène une
+exploration, 2 `arbitre`, qui tranche une question de conception, 3 `testeur`, 4 `developpeur`,
+5 `relecteur`, 6 `integrateur`, chacun sous ses verrous. Ainsi chaque agent travaille dans son
+cadre, et son numéro dit son rôle.
+
+**Le superviseur intervient sur ce qui dépasse le ticket** : le chef de chantier tranche ce que la
+lettre d'un critère, un précédent écrit ou une règle du cadre tranchent ; il fait monter au
+superviseur le reste, et tout sujet sensible : le cadre, l'architecture, et le fonctionnel que la
+charte du projet nomme (« Ce qui monte au superviseur »). Ainsi chaque décision se prend au plus
+près du travail, et le superviseur garde les siennes.
 
 Un objectif dont le découpage n'est pas connu commence par une exploration, sans code ; un ticket
 de réalisation touche un composant et fait une seule livraison ; tout ticket se crée sous sa mère, et une découverte sous le ticket

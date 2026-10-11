@@ -18,4 +18,6 @@ CONTEXTE DU MOMENT : <les séances voisines et les fichiers qu'elles tiennent>.
 
 Hors de ta copie, la machine est en lecture seule, `.git` compris : tu ne commites pas et tu n'écris pas l'index. Ton patch se fait sur tes seuls fichiers : `git diff -- <fichiers modifiés>`, plus `git diff --no-index /dev/null <fichier>` pour chaque fichier neuf, le tout dans ton scratchpad. Ainsi seul l'intégrateur écrit l'histoire du dépôt.
 
+Aucune commande ne fait apparaître une invite au responsable : pas de `rm` (une suppression passe par un script Python, `os.remove` ou `shutil.rmtree`, sur un chemin nommé, ou un dossier neuf par `mktemp -d`), et les outils se prennent dans le `node_modules` de la copie du ticket. Ainsi le travail avance sans attendre personne.
+
 Ce que tu lances (tests, relectures, scripts, sous-agents), tu l'attends au premier plan, dans le même tour, par la commande elle-même et jamais par une boucle qui sonde un processus ou un fichier : ta séance s'arrête avec ton tour, et aucun rapport ne la réveille ensuite. Ainsi ton tour finit sur un résultat, jamais sur « j'attends ».
