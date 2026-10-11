@@ -39,7 +39,7 @@ Three layers, each with one job:
 │ .claude/settings.json   plugins (mattpocock-skills, rtfm), hooks, permissions  │
 │ .mcp.json               the CodeGraph server                                   │
 │ .claude/skills/         the brigade (below)                                    │
-│ .claude/agents/         the six roles, each under its write locks              │
+│ .claude/agents/         the seven roles, each under its write locks            │
 │ scripts/session-start.sh  hook: what is still empty → propose the grill        │
 │ scripts/structure-guard.sh hook: a structure question → the grill              │
 ├─ Project knowledge ────────────────────────────────────────────────────────────┤
@@ -100,8 +100,10 @@ is created under its mother (numbered `320.2.1`) and every agent goes by its rol
 in the `roomi-fields` marketplace as `grillhouse@roomi-fields`, enabled in
 each project's settings) shows, measured and never declared, in the `/grillhouse` pane, three levels: the project (its work tickets by state, the
 agents' time and tokens of the day and in all, the alerts); the chantier in progress, its tree of
-mother tickets with each one's work done over all; the agents, one block per role, where each
-ticket stands once, running or waiting for the next role. A finished agent is read from the
+mother tickets with each one's work done over all; the agents, one block per role (the site
+manager's, numbered 0, heads them), where each ticket stands under the agent that runs on it, or waiting:
+for the next role of the flow, or for its site manager when one led it. A ticket a site manager
+leads shows under the manager and under the agent the manager launched. A finished agent is read from the
 register its end writes (`scripts/registre.mjs`; `--rattraper` adds the agents that ended
 before it), a running one from its transcript, those launched
 in a shell included. Without the mod, `npm run tableau` prints the same lines. The status line

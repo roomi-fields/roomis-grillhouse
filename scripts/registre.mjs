@@ -4,7 +4,8 @@
 // launched in a shell included). An agent resumed by a message has one line per stop; the board
 // reads an agent's latest line, and the transcripts of running ones.
 //
-// - The line: the project (its main tree), the agent, its ticket (« TON TICKET : »), its role,
+// - The line: the project (its main tree), the agent, its ticket (« TON TICKET : »; a sub-agent
+//   whose prompt names none takes that of the site manager that launched it), its role,
 //   its start and end, its working time and the turns it sums (start and end in milliseconds, the
 //   waits for a message left out), its tokens, its cache reads and its cost when the session wrote
 //   one. All of it is read from the agent's transcript; the agent declares nothing.
@@ -27,7 +28,7 @@ import {
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { lireTranscription, roleDuMeta } from './tableau.mjs';
+import { lireTranscription, roleDuMeta, ticketDuChef } from './tableau.mjs';
 
 const REGISTRE =
   process.env.GRILLHOUSE_REGISTRE ??
@@ -69,7 +70,7 @@ export function source(input) {
 
 // The register's line for this hook input, or null. `projet` is the main tree of the session.
 export function ligne(input, texte, projet) {
-  const { role, agent } = source(input);
+  const { transcription, role, agent } = source(input);
   const t = lireTranscription(texte);
   if (t.premier === null) {
     return null;
@@ -77,7 +78,7 @@ export function ligne(input, texte, projet) {
   return {
     projet,
     agent,
-    ticket: t.ticket,
+    ticket: t.ticket ?? (transcription ? ticketDuChef(transcription) : null),
     role: role ?? t.role,
     debut: new Date(t.premier).toISOString(),
     fin: new Date(t.dernier).toISOString(),

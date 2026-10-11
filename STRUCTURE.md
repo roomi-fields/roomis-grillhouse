@@ -174,8 +174,9 @@ tickets. Once done, the hook stays silent.
 
 - A supervision session loads `pitmaster`: it keeps the tickets and hands each one to a fresh
   sub-agent.
-- The roles are project agents (`.claude/agents/`): `testeur` writes the tests, `developpeur` the
-  code, `relecteur` reviews, `integrateur` commits. Each loads its skill and works under its locks.
+- The roles are project agents (`.claude/agents/`): `chef-de-chantier` leads one ticket from its
+  claim to its commit, `testeur` writes the tests, `developpeur` the code, `relecteur` reviews,
+  `integrateur` commits. Each loads its skill and works under its locks.
 
 ### An existing project
 

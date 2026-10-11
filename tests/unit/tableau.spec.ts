@@ -318,7 +318,7 @@ describe('assembler', () => {
     ]);
   });
   it('puts each ticket in one place: running under its role, else waiting for the next one', () => {
-    const b = (n: number) => t.agents[n - 1];
+    const b = (n: number) => t.agents.find((x: { numero: number }) => x.numero === n)!;
     expect(b(4).enCours).toEqual([
       expect.objectContaining({ numero: 'c.1.1', composant: 'moteur', ligne: true }),
     ]);

@@ -15,21 +15,38 @@
 //   done over all; the tree shows the open work: a closed ticket, mother included, counts without
 //   a line, and a closed mother's open tickets take her place; past 30 lines, the lines in excess
 //   fold into one line that counts them. The other chantiers, one line each.
-// - Agents: one block per role, numbered in the order of the flow (`grillhouse.roles` in
-//   package.json replaces the default), for the whole project. A ticket stands in one place:
-//   in progress under the role that runs on it, or waiting for the next role, deduced from the
-//   roles that ran on it and the reviewer's last verdict (`ACCEPTÉ` or `RENDU` at the start of a
-//   comment). Then the tickets closed today.
+// - Agents: one block per role (`grillhouse.roles` in package.json replaces the default), for the
+//   whole project. The site manager's block heads them as 0 wherever the list declares it, the
+//   other roles are numbered from 1 in the order declared. A ticket stands under every agent that
+//   runs on it, or waits in one place. A ticket a site manager led (a passage of its role in the
+//   register) waits under block 0; any other waits for the next role, deduced from the roles that
+//   ran on it and the reviewer's last verdict (`ACCEPTÉ` or `RENDU` at the start of a comment). A
+//   project whose roles leave the site manager out keeps the deduction for every ticket. Then the
+//   tickets closed today.
 // - Measures: a finished agent from the register (`scripts/registre.mjs`), a running one from its
 //   transcript: a role agent launched in a shell (`TON TICKET` and `--agent` in its arguments)
 //   while its process runs, a sub-agent or a session whose transcript moved in the last 2 minutes.
 //   With an end in the register, it runs only when an incoming message (of the person, another
 //   agent, a notification) follows its latest end strictly (a reviewer resumed by a message); the
 //   writings of its last turn after that end leave it finished, measured by that latest end.
+//   A sub-agent, whatever its role, runs also while its last tool call awaits its answer, its
+//   transcript having moved in the last 30 minutes; a session keeps the 2-minute rule alone. The
+//   board reads no transcript older than 30 minutes: a shell agent whose transcript is older shows
+//   by its process alone. A sub-agent whose prompt names no ticket takes that of the site manager
+//   that launched it.
 // - Alerts: a red night, tickets awaiting the responsable, a shell agent silent for 10 minutes,
 //   a ticket in progress without anything running for 30 minutes.
 import { execFileSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import {
+  closeSync,
+  existsSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  readSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -40,7 +57,9 @@ export const SANS_AGENT = 30 * MINUTE;
 const RECENT = 2 * MINUTE;
 export const LARGEUR = 52;
 const ARBRE_MAX = 30;
+const CHEF = 'chef-de-chantier';
 export const ROLES = [
+  CHEF,
   'explorateur',
   'arbitre',
   'testeur',
@@ -51,7 +70,11 @@ export const ROLES = [
 // A sub-agent's role from its meta file: the type it was spawned as; a named agent's `agentType`
 // is its name.
 export const roleDuMeta = m => m.spawnedAgentType ?? m.customAgentType ?? m.agentType ?? null;
-const NOMS = { developpeur: 'développeur', integrateur: 'intégrateur' };
+const NOMS = {
+  [CHEF]: 'chef de chantier',
+  developpeur: 'développeur',
+  integrateur: 'intégrateur',
+};
 const enTirets = p => p.replace(/[^A-Za-z0-9]/g, '-');
 
 // The origins of an incoming message: the person, another agent, a notification.
@@ -87,7 +110,8 @@ function entrant(e) {
 // `--agent`) and the cost (the total a session writes) of a transcript's lines (one JSON object per
 // line). The first turn runs from the first dated event, each next one from an incoming message,
 // to the last event before the next incoming message; the working time is the sum of the turns,
-// the waits left out. `entre` is the time of the last incoming message, or null.
+// the waits left out. `entre` is the time of the last incoming message, or null; `attend` tells
+// whether the last tool call still awaits its answer.
 export function lireTranscription(texte) {
   let jetons = 0;
   let cache = 0;
@@ -97,6 +121,8 @@ export function lireTranscription(texte) {
   let ticket = null;
   let role = null;
   let cout = null;
+  let appel = null;
+  const reponses = new Set();
   const tours = [];
   let recu = false;
   const vus = new Set();
@@ -132,6 +158,13 @@ export function lireTranscription(texte) {
         tours[tours.length - 1][1] = t;
       }
     }
+    for (const c of Array.isArray(e.message?.content) ? e.message.content : []) {
+      if (c.type === 'tool_use') {
+        appel = c.id;
+      } else if (c.type === 'tool_result') {
+        reponses.add(c.tool_use_id);
+      }
+    }
     if (ticket === null && e.type === 'user') {
       const contenu = e.message?.content;
       const texteUser =
@@ -162,6 +195,7 @@ export function lireTranscription(texte) {
     premier,
     dernier,
     entre,
+    attend: appel !== null && !reponses.has(appel),
     ticket: ticket || null,
     role,
     cout,
@@ -217,11 +251,66 @@ const fichiers = (dir, fin) =>
         .map(n => path.join(dir, n))
     : [];
 
+// Whether the last tool call of the transcript `f` awaits its answer, read from the end of the
+// file (the last call and its answer sit in its last bytes) so a transcript that waits on nothing
+// is never read whole.
+const FIN_LUE = 65_536;
+function appelEnAttente(f) {
+  try {
+    const fd = openSync(f, 'r');
+    try {
+      const taille = statSync(f).size;
+      const debut = Math.max(0, taille - FIN_LUE);
+      const tampon = Buffer.alloc(taille - debut);
+      readSync(fd, tampon, 0, tampon.length, debut);
+      const lignes = tampon.toString('utf8').split('\n');
+      return lireTranscription(lignes.slice(debut > 0 ? 1 : 0).join('\n')).attend;
+    } finally {
+      closeSync(fd);
+    }
+  } catch {
+    return false;
+  }
+}
+
+// A sub-agent's meta file (next to its transcript `f`), or {}.
+const metaDe = f => {
+  try {
+    return JSON.parse(readFileSync(f.replace(/\.jsonl$/, '.meta.json'), 'utf8'));
+  } catch {
+    return {};
+  }
+};
+
+// The ticket a sub-agent takes from the site manager that launched it: the ticket its prompt names,
+// read from the manager's transcript in the same folder; null when its parent is not a site manager
+// (by its spawned role) or names no ticket. With `depuis`, a manager whose transcript has not moved
+// since that time (ms) is not read.
+export function ticketDuChef(f, depuis = -Infinity) {
+  const parent = metaDe(f).parentAgentId;
+  if (!parent) {
+    return null;
+  }
+  const g = path.join(path.dirname(f), `agent-${parent}.jsonl`);
+  if (roleDuMeta(metaDe(g)) !== CHEF) {
+    return null;
+  }
+  try {
+    if (statSync(g).mtimeMs < depuis) {
+      return null;
+    }
+    return lireTranscription(readFileSync(g, 'utf8')).ticket;
+  } catch {
+    return null;
+  }
+}
+
 // The agents running now, each with its measures so far. `ps` is the process list
 // (`pid etimes args` per line); `cache` keeps the readings of unchanged transcripts.
 export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} }) {
   const lire = lecteur(cache);
   const vivants = [];
+  const limite = maintenant - SANS_AGENT;
   const projets = path.join(home, '.claude', 'projects');
   const motif = new RegExp(`TON TICKET : (${prefix}-[A-Za-z0-9]+(?:\\.[0-9]+)*)`);
   const vus = new Set();
@@ -237,7 +326,7 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
     const dernier = fichiers(path.join(projets, enTirets(copie)), '.jsonl')
       .map(f => ({ f, mtime: statSync(f).mtimeMs }))
       .sort((a, b) => b.mtime - a.mtime)[0];
-    const lu = dernier ? lire(dernier.f) : null;
+    const lu = dernier && dernier.mtime >= limite ? lire(dernier.f) : null;
     vivants.push({
       agent: dernier ? path.basename(dernier.f, '.jsonl') : `pid-${m[1]}`,
       ticket: t[1],
@@ -273,21 +362,22 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
     ? readdirSync(propre, { withFileTypes: true }).filter(e => e.isDirectory())
     : [];
   for (const s of sessions) {
-    for (const f of fichiers(path.join(propre, s.name, 'subagents'), '.jsonl').filter(recent)) {
+    const dossier = path.join(propre, s.name, 'subagents');
+    // Only a transcript that moved in the last 30 minutes is read; a sub-agent runs when it moved
+    // in the last 2 minutes, or while its last tool call awaits its answer.
+    for (const f of fichiers(dossier, '.jsonl').filter(f => statSync(f).mtimeMs >= limite)) {
+      if (!recent(f) && !appelEnAttente(f)) {
+        continue;
+      }
       const lu = lire(f);
       if (!lu) {
         continue;
       }
-      let role = null;
-      try {
-        role = roleDuMeta(JSON.parse(readFileSync(f.replace(/\.jsonl$/, '.meta.json'), 'utf8')));
-      } catch {
-        role = null;
-      }
+      const meta = metaDe(f);
       vivants.push({
         agent: path.basename(f, '.jsonl').replace(/^agent-/, ''),
-        ticket: lu.ticket,
-        role,
+        ticket: lu.ticket ?? ticketDuChef(f, limite),
+        role: roleDuMeta(meta),
         ligne: false,
         depuis: lu.premier ?? maintenant,
         entre: lu.entre,
@@ -317,7 +407,9 @@ export function verdict(commentaires) {
 // The role a ticket waits for, from the roles of the flow that ran on it (finished, oldest first)
 // and the reviewer's last verdict; null when it waits for none.
 export function etape(passages, v) {
-  const faits = passages.filter(p => ROLES.includes(p.role) && p.role !== 'arbitre');
+  const faits = passages.filter(
+    p => ROLES.includes(p.role) && p.role !== 'arbitre' && p.role !== CHEF
+  );
   const dernier = faits[faits.length - 1];
   if (!dernier) {
     return 'testeur';
@@ -513,8 +605,11 @@ export function assembler({
       (passages.get(r.ticket) ?? passages.set(r.ticket, []).get(r.ticket)).push(r);
     }
   }
-  const blocs = roles.map((role, i) => ({
-    numero: i + 1,
+  // The site manager heads the blocks as 0; the other roles follow from 1 in their declared order.
+  const avecChef = roles.includes(CHEF);
+  const ordreDesBlocs = avecChef ? [CHEF, ...roles.filter(r => r !== CHEF)] : roles;
+  const blocs = ordreDesBlocs.map((role, i) => ({
+    numero: avecChef ? i : i + 1,
     role,
     nom: NOMS[role] ?? role,
     enCours: [],
@@ -553,7 +648,8 @@ export function assembler({
     if (p.length === 0 && !pret.has(t.id)) {
       continue;
     }
-    const r = etape(p, verdicts[t.id] ?? null);
+    // A ticket a site manager led waits for it; the flow's deduction serves the other tickets.
+    const r = avecChef && p.some(x => x.role === CHEF) ? CHEF : etape(p, verdicts[t.id] ?? null);
     if (r && bloc(r)) {
       bloc(r).attend.push({
         id: t.id,
@@ -959,7 +1055,7 @@ export function tableau(racine, { home = os.homedir(), maintenant = Date.now() }
   // The reviewer's verdict matters once a developer or a reviewer ran: only those tickets are read.
   const dernier = {};
   for (const r of [...registre].sort((x, y) => Date.parse(x.fin) - Date.parse(y.fin))) {
-    if (r.ticket && r.role !== 'arbitre') {
+    if (r.ticket && r.role !== 'arbitre' && r.role !== CHEF) {
       dernier[r.ticket] = r.role;
     }
   }
