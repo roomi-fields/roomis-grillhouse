@@ -2,8 +2,15 @@
 # Launches a role agent on one ticket, as its own Claude session inside the envelope of its
 # component. The supervisor runs it in the background and is told when the session ends.
 #
-#   bash scripts/enveloppe/lancer.sh <ticket> <rôle> <composant> <fichier de consigne>
+#   bash scripts/enveloppe/lancer.sh [--modele <m>] [--effort <e>] <ticket> <rôle> <composant> <fichier de consigne>
 #
+# - --modele <m> and --effort <e> override, for this session only, the model and the thinking level
+#   of the role's definition (.claude/agents/<rôle>.md); they reach claude as --model and --effort.
+#   Each is optional and works alone; without them the role decides. The level is one of low,
+#   medium, high, xhigh, max; the model is any non-empty text, passed to claude as given. They come
+#   first, each as two words (`--modele opus`); `--modele=opus`, `--`, a value starting with `--`,
+#   an unknown option or an option after the four arguments is refused, CODE_USAGE, before the copy
+#   is prepared. A repeated option keeps its last value; every level given is checked.
 # - The agent's copy is the worktree .claude/worktrees/<ticket> (branch agent/<ticket>), created
 #   from the main tree's HEAD when absent and moved forward to it otherwise. Moving forward keeps
 #   the work in progress of the copy: git stashes it, fast-forwards, and reapplies it
@@ -27,7 +34,26 @@
 set -euo pipefail
 ici="$(dirname "${BASH_SOURCE[0]}")"
 eval "$(node "$ici/codes.mjs")"
-[ $# -eq 4 ] || { echo "usage: lancer.sh <ticket> <rôle> <composant> <fichier de consigne>" >&2; exit "$CODE_USAGE"; }
+usage="usage: lancer.sh [--modele <m>] [--effort <e>] <ticket> <rôle> <composant> <fichier de consigne>"
+refus_usage() { echo "$usage" >&2; exit "$CODE_USAGE"; }
+modele="" effort="" surcharge=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --modele|--effort)
+      [ $# -ge 2 ] && [ -n "$2" ] && [[ "$2" != --* ]] || refus_usage
+      if [ "$1" = --modele ]; then
+        modele=$2
+      else
+        case "$2" in low|medium|high|xhigh|max) effort=$2 ;; *) refus_usage ;; esac
+      fi
+      shift 2 ;;
+    -*) refus_usage ;;
+    *) break ;;
+  esac
+done
+[ -z "$modele" ] || surcharge+=(--model "$modele")
+[ -z "$effort" ] || surcharge+=(--effort "$effort")
+[ $# -eq 4 ] || refus_usage
 ticket=$1 role=$2 composant=$3 consigne=$4
 # The main tree, from the common git directory: launched from an agent copy, the new copy still
 # lands next to the others, never inside one.
@@ -70,4 +96,4 @@ mkdir -p "$(dirname "$copie")"
 
 exec node "$racine/scripts/enveloppe/enveloppe.mjs" "$copie" "$composant" "$role" -- \
   "${CLAUDE_BIN:-claude}" -p "$(cat "$consigne")" --agent "$role" \
-  --permission-mode bypassPermissions < /dev/null >> "$journal" 2>&1
+  ${surcharge[@]+"${surcharge[@]}"} --permission-mode bypassPermissions < /dev/null >> "$journal" 2>&1
