@@ -6,12 +6,19 @@
 #
 # - It plays main's HEAD in its own clean copy (.claude/worktrees/nuit): detached, every untracked
 #   file removed, its submodules set at the commit of HEAD (scripts/sous-modules.sh, a local
-#   modification overwritten; one that cannot be set turns the night red), dependencies reinstalled (npm ci) when package-lock.json changes, built, then
+#   modification overwritten; one that cannot be set turns the night red; a submodule the project
+#   shares, `grillhouse.partage`, is linked to the main repository's instead, not set),
+#   dependencies reinstalled (npm ci) when package-lock.json changes, built, then
 #   `npm test` (the guards of pretest, then every suite of the day, time budget benches included).
 #   An existing copy that does not get ready (its move onto HEAD, its cleaning or the setting of
 #   its submodules fails) is removed by `scripts/retirer-copie.sh --jetable` (local work does not
 #   hold it, a lock does) and created again, once; a copy that does not get ready the second time
 #   turns the night red, and so does a removal the script refuses, the log repeating its reason.
+# - Every command of the project (installation, build, tests, night tests, night script) plays
+#   through `scripts/sous-modules.sh monter`, each shared submodule of the main repository
+#   read-only, its working tree and its git repository (the list the preparation's pose printed,
+#   whatever a command rewrites afterwards): a write into it fails. With a shared submodule and no possible mount (bwrap absent
+#   or refused), the night turns red, the log saying so, before any command runs.
 # - The night tests: after a green `npm test`, the files `*.nuit.test.*` and `*.nuit.spec.*` of the
 #   copy (outside node_modules, dist and .git), which `npm test` and the integration leave out, run
 #   by Vitest with the frame's configuration (scripts/vitest.nuit.config.mjs of the copy). A red
@@ -55,7 +62,9 @@ trap 'rm -f "$verrou"' EXIT
 tete="$(git -C "$racine" rev-parse HEAD)"
 copie="$racine/.claude/worktrees/nuit"
 branche=
-# Gets the copy ready on HEAD: detached, cleaned, its submodules set. Prints the reason on failure.
+# Gets the copy ready on HEAD: detached, cleaned, its submodules set; `partages` holds the list the
+# pose fixes, which every mount gets. Prints the reason on failure.
+partages=
 preparer() {
   if [ -d "$copie" ]; then
     git -C "$copie" checkout -q --detach --force "$tete" || return 1
@@ -63,7 +72,7 @@ preparer() {
   else
     git -C "$racine" worktree add -q --detach "$copie" "$tete" || return 1
   fi
-  bash "$racine/scripts/sous-modules.sh" pose "$copie"
+  partages=$(bash "$racine/scripts/sous-modules.sh" pose "$copie")
 }
 # Plays the copy; its status is the night's verdict. An existing copy that does not get ready is
 # removed (scripts/retirer-copie.sh --jetable) and created again, once.
@@ -78,6 +87,13 @@ jouer() {
       return 1
     fi
     preparer || return 1
+  fi
+  # The project's commands play with the shared submodules read-only; no possible mount stops here.
+  monter() { bash "$racine/scripts/sous-modules.sh" monter "$copie" --partages "$partages" "$@"; }
+  if ! raison=$(monter true 2>&1); then
+    echo "✗ le montage en lecture seule des sous-modules partagés est impossible : rien n'est joué."
+    echo "$raison"
+    return 1
   fi
   # The reading gives one line per finding: « script<TAB>name », « pousse<TAB>branch », or a fault
   # « nuit-invalide<TAB>value as JSON », « nuit-absent<TAB>name », « poussee-invalide<TAB>value »,
@@ -121,21 +137,21 @@ jouer() {
   done <<< "$lecture"
   [ "$faute" -eq 0 ] || return 1
   if [ -f "$copie/package-lock.json" ] && ! cmp -s "$copie/package-lock.json" "$copie/node_modules/.nuit-lock"; then
-    npm --prefix "$copie" ci --no-audit --no-fund --silent || return 1
+    monter npm --prefix "$copie" ci --no-audit --no-fund --silent || return 1
     cp "$copie/package-lock.json" "$copie/node_modules/.nuit-lock"
   fi
-  npm --prefix "$copie" run --silent --if-present build || return 1
-  npm --prefix "$copie" test || return 1
+  monter npm --prefix "$copie" run --silent --if-present build || return 1
+  monter npm --prefix "$copie" test || return 1
   if [ -n "$(find "$copie" \( -name node_modules -o -name dist -o -name .git \) -prune -o \
       -type f -regextype posix-extended -regex '.*\.nuit\.(test|spec)\.(c|m)?[jt]sx?' -print -quit)" ]; then
-    if ! (cd "$copie" && npx --no-install vitest run --root "$copie" \
+    if ! (cd "$copie" && monter npx --no-install vitest run --root "$copie" \
         --config "$copie/scripts/vitest.nuit.config.mjs"); then
       echo "✗ les tests de nuit (*.nuit.test.*, *.nuit.spec.*) ont échoué."
       return 1
     fi
   fi
   [ -n "$nuit" ] || return 0
-  if ! npm --prefix "$copie" run "$nuit"; then
+  if ! monter npm --prefix "$copie" run "$nuit"; then
     echo "✗ le script de nuit du projet \`npm run $nuit\` (grillhouse.nuit) a échoué."
     return 1
   fi

@@ -19,10 +19,16 @@
 #   in conflict, the work stays in git's stash, and no agent starts on a half-merged copy. Its
 #   submodules go through the common preparation (scripts/sous-modules.sh): before moving forward,
 #   a submodule carrying local work stops the launch, CODE_COPIE, its log naming it, the work in
-#   place; then every submodule is set at the commit of HEAD, before any installation. Its
+#   place; then every submodule is set at the commit of HEAD, before any installation, except one the
+#   project shares (`grillhouse.partage`), which the copy reads from the main repository. Its
 #   dependencies are installed when `node_modules` is absent or `package-lock.json` is newer than
 #   the last installation (`node_modules/.package-lock.json`, written by npm), and every component
-#   is built there, outside the envelope, so the agent finds the published parts of its neighbours.
+#   is built there, outside the envelope, so the agent finds the published parts of its neighbours. The
+#   installation and the build play through `scripts/sous-modules.sh monter`, each shared submodule
+#   of the main repository read-only, by the list the pose printed, whatever the installation
+#   rewrites afterwards; with a shared submodule and no possible mount (bwrap absent or
+#   refused), the launch stops, CODE_COPIE, before any command runs. In the envelope the main
+#   repository is read-only as a whole.
 # - The envelope receives the role: it decides who writes the package of the shared test material.
 # - The session runs `claude -p` with the role's agent and the instruction file as its prompt;
 #   the prompt carries « TON TICKET : <ticket> », which the role's locks read. The envelope is the
@@ -83,14 +89,17 @@ mkdir -p "$(dirname "$copie")"
       exit 1
     fi
   fi
-  bash "$ici/../sous-modules.sh" pose "$copie" || exit 1
+  # The list the pose fixes is the one every mount gets, whatever the installation rewrites.
+  partages=$(bash "$ici/../sous-modules.sh" pose "$copie") || exit 1
+  monter() { bash "$ici/../sous-modules.sh" monter "$copie" --partages "$partages" "$@"; }
+  monter true || exit 1
   if [ -f "$copie/package.json" ]; then
     # --no-save leaves the lock file as committed, so a clean copy stays clean.
     installe="$copie/node_modules/.package-lock.json"
     if [ ! -d "$copie/node_modules" ] || [ "$copie/package-lock.json" -nt "$installe" ]; then
-      npm --prefix "$copie" install --no-save --no-audit --no-fund --silent || exit 1
+      monter npm --prefix "$copie" install --no-save --no-audit --no-fund --silent || exit 1
     fi
-    npm --prefix "$copie" run build --if-present --silent || exit 1
+    monter npm --prefix "$copie" run build --if-present --silent || exit 1
   fi
 ) > "$journal" 2>&1 || { echo "⛔ La copie $copie n'a pas pu être préparée : voir $journal." >&2; exit "$CODE_COPIE"; }
 

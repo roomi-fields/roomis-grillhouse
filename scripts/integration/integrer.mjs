@@ -14,12 +14,19 @@
 //  3. the main tree: every file of the lots is unmodified there;
 //  4. a clean integration copy (`.claude/worktrees/integration`): detached on HEAD, every
 //     untracked file removed, its submodules set at the commit of HEAD (`scripts/sous-modules.sh`,
-//     a local modification overwritten), its dependencies installed again when
+//     a local modification overwritten; a submodule the project shares, `grillhouse.partage`, is
+//     linked to the main repository's instead, not set), its dependencies installed again when
 //     `package-lock.json` changes (`npm ci`), then built (`npm run build`, when present). An
 //     existing copy that does not get ready (its move onto HEAD, its cleaning or the setting of
 //     its submodules fails) is removed by `scripts/retirer-copie.sh --jetable` (local work does
 //     not hold it, a lock does) and created again, once; a copy that does not get ready the
-//     second time refuses, and so does a removal the script refuses, with its reason;
+//     second time refuses, and so does a removal the script refuses, with its reason. Every command
+//     of the project from here on (installation, build, suites, guards, and the hooks of the commit)
+//     plays through `scripts/sous-modules.sh monter`: each submodule the preparation linked, its
+//     working tree and its git repository, read-only in the main repository, by the list the pose
+//     printed before the lot, whatever the lot or a command rewrites afterwards (the declaration,
+//     .gitmodules, the index); a write into it fails. With a link and no possible mount (bwrap absent or refused),
+//     the lot is refused before any command runs;
 //  5. the base: the project's suites (`npm run integration:suites -- --tous|<components>`) on
 //     HEAD. The project chooses at its installation (`grillhouse.integration` in package.json):
 //     `impactes` (the default) replays the touched components and those that depend on them (the
@@ -270,7 +277,9 @@ function main(argv) {
     const dansCopie = (...args) => spawnSync('git', ['-C', copie, ...args], { encoding: 'utf8' });
     // The copy gets ready or the reason it does not. An existing copy that does not get ready is
     // removed by the frame's script (`--jetable`: its own copy carries no work) and created again,
-    // once; a removal the script refuses refuses the lot with the script's reason.
+    // once; a removal the script refuses refuses the lot with the script's reason. The pose prints
+    // the shared submodules it linked: that list, fixed before the lot, is the one every mount gets.
+    let partages = '';
     const preparer = () => {
       const prete = existsSync(copie)
         ? dansCopie('checkout', '-q', '--detach', '--force', tete).status === 0 &&
@@ -280,6 +289,7 @@ function main(argv) {
       const poses = spawnSync('bash', [SOUS_MODULES, 'pose', copie], { encoding: 'utf8' });
       if (poses.status !== 0)
         return `La copie d'intégration ne pose pas ses sous-modules : ${poses.stderr.trim()}`;
+      partages = poses.stdout;
       return null;
     };
     const existait = existsSync(copie);
@@ -297,8 +307,20 @@ function main(argv) {
       refus = preparer();
     }
     if (refus) return refuser(refus);
+    // The project's commands play through the common mount: each shared submodule the pose linked
+    // is read-only there. A mount that is impossible refuses before any command runs.
+    const monter = (...commande) => [
+      SOUS_MODULES,
+      'monter',
+      copie,
+      '--partages',
+      partages,
+      ...commande,
+    ];
+    const montage = spawnSync('bash', monter('true'), { encoding: 'utf8' });
+    if (montage.status !== 0) return refuser(montage.stderr.trim());
     const npm = (args, env = {}) => {
-      const r = spawnSync('npm', args, {
+      const r = spawnSync('bash', monter('npm', ...args), {
         cwd: copie,
         encoding: 'utf8',
         env: { ...process.env, ...env },
@@ -403,10 +425,14 @@ function main(argv) {
     // 9. The commit, in the copy: the commit validated is the commit that enters.
     // The guards have just run: a pre-commit hook that plays them skips them under
     // GRILLHOUSE_INTEGRATION=1; commit-msg (one ticket, one commit) runs as always.
-    const c = spawnSync('git', ['-C', copie, 'commit', '-q', '-F', absolu(o.message)], {
-      encoding: 'utf8',
-      env: { ...process.env, GRILLHOUSE_INTEGRATION: '1' },
-    });
+    const c = spawnSync(
+      'bash',
+      monter('git', '-C', copie, 'commit', '-q', '-F', absolu(o.message)),
+      {
+        encoding: 'utf8',
+        env: { ...process.env, GRILLHOUSE_INTEGRATION: '1' },
+      }
+    );
     if (c.status !== 0) return refuser(`Le commit est refusé :\n${c.stdout}${c.stderr}`);
     const commit = dansCopie('rev-parse', 'HEAD').stdout.trim();
 

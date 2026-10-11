@@ -10,7 +10,8 @@
 #   an absent path, a plain folder or a submodule's folder is refused, nothing touched.
 # - A copy that carries a submodule is removed too: `git worktree remove` refuses it, so the
 #   script reads the copy first, then removes it with `git worktree remove --force`. Only the named
-#   copy goes; the main repository and its submodules (.git/modules) stay as they are.
+#   copy goes, with the link to a shared submodule (`grillhouse.partage`); the main repository and
+#   its submodules (.git/modules) stay as they are.
 # - Without `--jetable`, the reading stands in for what `--force` would erase: a copy that carries
 #   local work (a modified tracked file, an untracked file outside the ignored ones, a submodule
 #   modified or at another commit, read by `git status --ignore-submodules=none`), or whose state
