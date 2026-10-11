@@ -37,4 +37,5 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
 
 - `npm test` · `npm run typecheck` · `npm run lint` · `npm run format:check`.
 - Préfixe des tickets : `<prefixe>-`.
-- <La politique de poussée : à chaque commit, ou jamais sans le responsable.>
+- La politique de poussée : la clé `grillhouse.poussee` du `package.json` (`commit` : la branche où
+  part chaque commit, main par défaut ; `nuit` : la branche où la nuit pousse son commit vert).
