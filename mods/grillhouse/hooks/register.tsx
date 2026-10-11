@@ -112,12 +112,16 @@ export function repartir(liste: Visible[], rangs: number, ouverts: string[]): Vi
 }
 
 // The first of `n` lines to show in `rangs` rows: the window stays where it was (`avant`) while the
-// line at `idx` shows with one line above and one below it, and moves just enough otherwise. Only
-// the window's lines are drawn, so the engine has nothing to scroll and an arrow moves the ring.
-export function debut(n: number, idx: number, rangs: number, avant: number): number {
+// line at `idx` shows with the lines `haut` above and `bas` below it — the ring's next stops, one
+// line away by default — and moves just enough otherwise, `idx` itself always in sight. Only the
+// window's lines are drawn, so the engine has nothing to scroll and an arrow moves the ring: the
+// next stop must be drawn, or the arrow skips past the lines to the rule.
+export function debut(n: number, idx: number, rangs: number, avant: number, haut = idx - 1, bas = idx + 1): number {
   let p = avant
-  if (idx - 1 < p) p = idx - 1
-  if (idx + 1 > p + rangs - 1) p = idx + 2 - rangs
+  if (haut < p) p = haut
+  if (bas > p + rangs - 1) p = bas + 1 - rangs
+  p = Math.min(p, idx)
+  p = Math.max(p, idx + 1 - rangs)
   return Math.max(0, Math.min(p, n - rangs))
 }
 
@@ -164,7 +168,10 @@ function placer(s: Etat, rangs: number, focus: boolean): Visible[] {
   const liste = repartir(visibles(s.tableau?.lignes ?? [], focus ? s.ouverts : []), rangs, focus ? s.ouverts : [])
   const ici = liste.findIndex(x => x.cle === s.element)
   if (focus && ici >= 0 && s.element !== suivi) {
-    fenetre = debut(liste.length, ici, rangs, fenetre)
+    // The ring's next stops: the nearest lines with a button, above and below.
+    const avant = liste.slice(0, ici).findLastIndex(x => x.cle)
+    const apres = liste.findIndex((x, j) => j > ici && x.cle)
+    fenetre = debut(liste.length, ici, rangs, fenetre, avant < 0 ? ici - 1 : avant, apres < 0 ? ici + 1 : apres)
     suivi = s.element
   }
   fenetre = Math.max(0, Math.min(fenetre, liste.length - rangs))

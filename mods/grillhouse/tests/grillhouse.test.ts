@@ -87,6 +87,17 @@ test('the window stays put while the line keeps one line above and below, and mo
   expect(debut(50, 49, 10, 20)).toBe(40)
 })
 
+test('the window keeps the ring\'s next stop in sight, past the lines without a button', () => {
+  // The ring on line 25; the next line with a button is 31, three plain lines after the window's end.
+  expect(debut(50, 25, 10, 20, 24, 31)).toBe(22)
+  // Going up, the previous stop 17 comes into sight.
+  expect(debut(50, 22, 10, 22, 17, 23)).toBe(17)
+  // A stop too far to show with the ring: the ring stays in sight, at the window's edge.
+  expect(debut(50, 25, 10, 20, 24, 40)).toBe(25)
+  // Both stops cannot show with the ring: the one below wins, the window going down.
+  expect(debut(50, 25, 10, 25, 10, 26)).toBe(17)
+})
+
 test('3uv.24 critère 5 : the switch gives in progress → open, anything else → in progress', () => {
   expect(bascule('in_progress')).toBe('open')
   expect(bascule('open')).toBe('in_progress')
