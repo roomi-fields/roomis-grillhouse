@@ -34,7 +34,7 @@ hook="$root/.beads/hooks/commit-msg"
 if ! grep -q un-commit-par-ticket "$hook" 2>/dev/null; then
   mkdir -p "$root/.beads/hooks"
   printf '%s\n' '#!/usr/bin/env sh' \
-    '# One ticket, one commit (Grillhouse): refuses a second commit for a ticket.' \
+    '# One ticket, one commit (Grillhouse): a second commit for a ticket whose delivery stands is refused; a revert (Revert "…", Reapply "…") passes and withdraws the delivery it names.' \
     'exec node "$(git rev-parse --show-toplevel)/scripts/un-commit-par-ticket.mjs" "$1"' > "$hook"
   chmod +x "$hook"
 fi

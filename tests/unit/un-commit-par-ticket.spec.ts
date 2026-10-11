@@ -42,19 +42,33 @@ describe('refusal', () => {
 
 // A trial repository whose history holds `messages`, one commit each (`git commit -F`, so a message
 // keeps its lines), and a fake `bd` answering the prefix `demo`. `check` runs the hook on a message.
-function history(messages: string[]) {
+// A message given as a function receives the full shas of the commits before it; `check.shas` holds
+// the full sha of each commit, `check.short` its short form as `git log --format=%h` writes it.
+// `check.git` runs git in the repository, `check.commit` adds one more commit on the current branch
+// (its extra arguments go to `git commit`, or replace it with `git merge` when the first is `merge`).
+type Message = string | ((shas: string[]) => string);
+function history(messages: Message[]) {
   const repo = mkdtempSync(path.join(ESSAIS, 'commit-'));
   const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
   writeFileSync(path.join(bin, 'bd'), '#!/bin/sh\necho demo\n', { mode: 0o755 });
   const git = (...args: string[]) =>
     execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...args]);
   git('init', '-q');
-  messages.forEach((message, i) => {
-    const file = path.join(ESSAIS, `${path.basename(repo)}-${i}.msg`);
-    writeFileSync(file, message);
-    git('commit', '-q', '--allow-empty', '-F', file);
-  });
-  return (message: string) => {
+  const shas: string[] = [];
+  const short: string[] = [];
+  const commit = (message: Message, ...extra: string[]) => {
+    const file = path.join(ESSAIS, `${path.basename(repo)}-${shas.length}.msg`);
+    writeFileSync(file, typeof message === 'function' ? message([...shas]) : message);
+    if (extra[0] === 'merge') {
+      git('merge', '-q', '--no-ff', '-F', file, ...extra.slice(1));
+    } else {
+      git('commit', '-q', '--allow-empty', '-F', file, ...extra);
+    }
+    shas.push(git('rev-parse', 'HEAD').toString().trim());
+    short.push(git('log', '-1', '--format=%h').toString().trim());
+  };
+  messages.forEach(message => commit(message));
+  const check = (message: string) => {
     const file = path.join(repo, 'MSG');
     writeFileSync(file, message);
     return spawnSync('node', [SCRIPT, file], {
@@ -63,6 +77,7 @@ function history(messages: string[]) {
       env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
     });
   };
+  return Object.assign(check, { shas, short, git, commit });
 }
 
 describe('the hook on a real history', () => {
@@ -186,6 +201,177 @@ describe('the title line names the delivery (grillhouse-3uv.57)', () => {
   it('criterion 6: in the history, the title line is the first line of the message', () => {
     expect(check('feat: demo-61').status).toBe(0);
     expect(check('fix: lot 2 (demo-60)').status).toBe(1);
+  });
+});
+
+// grillhouse-3uv.57.2: a revert commit carries both marks git writes, the title line `Revert "…"` or
+// `Reapply "…"` and the body line `This reverts commit <sha>.`; it delivers nothing, and the commit
+// whose sha it names no longer counts. The messages are those git 2.43 writes (`git revert`).
+const reverting = (title: string, sha: string) => `${title}\n\nThis reverts commit ${sha}.\n`;
+
+describe('a revert delivers nothing and withdraws the commit it names (grillhouse-3uv.57.2)', () => {
+  // Criterion 1
+  it('criterion 1: a revert commit passes, even when its title line names a delivered ticket', () => {
+    const check = history(['fix: y (demo-1)']);
+    const r = check(reverting('Revert "fix: y (demo-1)"', check.shas[0]));
+    expect(r.status, r.stderr).toBe(0);
+  });
+  it('criterion 1: a Revert title line without the body line is a delivery like any other', () => {
+    const check = history(['fix: y (demo-1)']);
+    expect(check('Revert "fix: y (demo-1)"\n\nUndo it.\n').status).toBe(1);
+  });
+  it('criterion 1: the body line under a title line that is not a revert is a delivery like any other', () => {
+    const check = history(['fix: y (demo-1)']);
+    expect(check(reverting('fix: undo y (demo-1)', check.shas[0])).status).toBe(1);
+  });
+
+  // Criterion 2
+  it('criterion 2: a reverted delivery no longer counts, the ticket delivers again', () => {
+    const check = history(['fix: y (demo-1)', ([o]) => reverting('Revert "fix: y (demo-1)"', o)]);
+    const r = check('fix: y again (demo-1)');
+    expect(r.status, r.stderr).toBe(0);
+  });
+  it('criterion 2: the sha a revert names decides which delivery it withdraws, not its title line', () => {
+    const check = history([
+      'fix: y (demo-1)',
+      'feat: z (demo-2)',
+      ([, z]) => reverting('Revert "fix: y (demo-1)"', z),
+    ]);
+    const kept = check('fix: y again (demo-1)');
+    expect(kept.status).toBe(1);
+    expect(kept.stderr).toMatch(new RegExp(`demo-1 a déjà son commit \\(${check.short[0]}\\)`));
+    const withdrawn = check('feat: z again (demo-2)');
+    expect(withdrawn.status, withdrawn.stderr).toBe(0);
+  });
+  it('criterion 2: a commit of the history carrying one mark only withdraws nothing', () => {
+    const titleOnly = history(['fix: y (demo-1)', 'Revert "fix: y (demo-1)"\n\nUndo it.\n']);
+    expect(titleOnly('fix: y again (demo-1)').status).toBe(1);
+    const bodyOnly = history(['fix: y (demo-1)', ([o]) => reverting('feat: w (demo-3)', o)]);
+    expect(bodyOnly('fix: y again (demo-1)').status).toBe(1);
+  });
+  // One effective revert naming the sha withdraws the delivery, however many other reverts name it
+  // and whatever their place in the history: here the first and the last of three are reapplied.
+  it('criterion 2: one effective revert among several of the same commit withdraws it', () => {
+    const check = history([
+      'fix: y (demo-1)',
+      ([o]) => reverting('Revert "fix: y (demo-1)"', o),
+      ([o]) => reverting('Revert "fix: y (demo-1)"', o),
+      ([o]) => reverting('Revert "fix: y (demo-1)"', o),
+      ([, r1]) => reverting('Reapply "fix: y (demo-1)"', r1),
+      ([, , , r3]) => reverting('Reapply "fix: y (demo-1)"', r3),
+    ]);
+    expect(new Set(check.shas.slice(1, 4)).size).toBe(3);
+    const r = check('fix: y again (demo-1)');
+    expect(r.status, r.stderr).toBe(0);
+  });
+  // The body mark is the line git writes: « This reverts commit <sha> » quoted inside a line is not it.
+  it('criterion 2: « This reverts commit <sha> » inside a line withdraws nothing', () => {
+    const quoted = history([
+      'fix: y (demo-1)',
+      ([o]) => `Revert "chore: x"\n\nThe note says This reverts commit ${o}.\n`,
+    ]);
+    const kept = quoted('fix: y again (demo-1)');
+    expect(kept.status).toBe(1);
+    expect(kept.stderr).toMatch(new RegExp(`demo-1 a déjà son commit \\(${quoted.short[0]}\\)`));
+    // The quote comes before the body line of a real revert of another commit z: that line decides.
+    const before = history([
+      'fix: y (demo-1)',
+      'chore: z',
+      ([o, z]) =>
+        `Revert "chore: z"\n\nThe note says This reverts commit ${o}.\nThis reverts commit ${z}.\n`,
+    ]);
+    const still = before('fix: y again (demo-1)');
+    expect(still.status).toBe(1);
+    expect(still.stderr).toMatch(new RegExp(`demo-1 a déjà son commit \\(${before.short[0]}\\)`));
+  });
+
+  // Criterion 3
+  it('criterion 3: the revert of a revert (Reapply) makes the original delivery count again', () => {
+    const check = history([
+      'fix: y (demo-1)',
+      ([o]) => reverting('Revert "fix: y (demo-1)"', o),
+      ([, r]) => reverting('Reapply "fix: y (demo-1)"', r),
+    ]);
+    const second = check('fix: y again (demo-1)');
+    expect(second.status).toBe(1);
+    expect(second.stderr).toMatch(new RegExp(`demo-1 a déjà son commit \\(${check.short[0]}\\)`));
+  });
+  it('criterion 3: the revert of a revert titled Revert "Revert …" makes the original count again', () => {
+    const check = history([
+      'fix: y (demo-1)',
+      ([o]) => reverting('Revert "fix: y (demo-1)"', o),
+      ([, r]) => reverting('Revert "Revert "fix: y (demo-1)""', r),
+    ]);
+    const second = check('fix: y again (demo-1)');
+    expect(second.status).toBe(1);
+    expect(second.stderr).toMatch(new RegExp(`demo-1 a déjà son commit \\(${check.short[0]}\\)`));
+  });
+
+  // Criterion 5
+  it('criterion 5: a Reapply commit passes, even when its title line names a delivered ticket', () => {
+    const check = history(['fix: y (demo-1)', ([o]) => reverting('Revert "fix: y (demo-1)"', o)]);
+    const r = check(reverting('Reapply "fix: y (demo-1)"', check.shas[1]));
+    expect(r.status, r.stderr).toBe(0);
+  });
+  it('criterion 5: a reverted Reapply delivers nothing, the original stays withdrawn (three reverts)', () => {
+    const check = history([
+      'fix: y (demo-1)',
+      ([o]) => reverting('Revert "fix: y (demo-1)"', o),
+      ([, r]) => reverting('Reapply "fix: y (demo-1)"', r),
+      ([, , a]) => reverting('Revert "Reapply "fix: y (demo-1)""', a),
+    ]);
+    const r = check('fix: y again (demo-1)');
+    expect(r.status, r.stderr).toBe(0);
+  });
+
+  // Criterion 6
+  it('criterion 6: a revert on another branch withdraws the delivery, the ticket delivers again', () => {
+    const check = history(['fix: y (demo-1)']);
+    const main = check.git('rev-parse', '--abbrev-ref', 'HEAD').toString().trim();
+    check.git('checkout', '-q', '-b', 'other');
+    check.commit(([o]) => reverting('Revert "fix: y (demo-1)"', o));
+    check.git('checkout', '-q', main);
+    const r = check('fix: y again (demo-1)');
+    expect(r.status, r.stderr).toBe(0);
+  });
+  it('criterion 6: a delivery on another branch is withdrawn by its revert on the current one', () => {
+    const check = history(['chore: start']);
+    const main = check.git('rev-parse', '--abbrev-ref', 'HEAD').toString().trim();
+    check.git('checkout', '-q', '-b', 'other');
+    check.commit('fix: y (demo-1)');
+    check.git('checkout', '-q', main);
+    check.commit(([, o]) => reverting('Revert "fix: y (demo-1)"', o));
+    const r = check('fix: y again (demo-1)');
+    expect(r.status, r.stderr).toBe(0);
+  });
+
+  // Criterion 7: the message git 2.43 writes for `git revert -m 1` of a merge X whose first parent
+  // is Y; its body line is cut after « reversing ».
+  const revertingMerge = (title: string, x: string, y: string) =>
+    `${title}\n\nThis reverts commit ${x}, reversing\nchanges made to ${y}.\n`;
+  const merged = () => {
+    const check = history(['fix: y (demo-2)']);
+    const main = check.git('rev-parse', '--abbrev-ref', 'HEAD').toString().trim();
+    check.git('checkout', '-q', '-b', 'feature');
+    check.commit('chore: work');
+    check.git('checkout', '-q', main);
+    check.commit('feat: merge (demo-1)', 'merge', 'feature');
+    return check;
+  };
+  it('criterion 7: the revert of a merge passes, even when its title line names a delivered ticket', () => {
+    const check = merged();
+    const [y, , x] = check.shas;
+    const r = check(revertingMerge('Revert "feat: merge (demo-1)"', x, y));
+    expect(r.status, r.stderr).toBe(0);
+  });
+  it('criterion 7: the revert of a merge withdraws the merge X and it alone, its parent Y still counts', () => {
+    const check = merged();
+    check.commit(([y, , x]) => revertingMerge('Revert "feat: merge (demo-1)"', x, y));
+    const withdrawn = check('feat: merge again (demo-1)');
+    expect(withdrawn.status, withdrawn.stderr).toBe(0);
+    const kept = check('fix: y again (demo-2)');
+    expect(kept.status).toBe(1);
+    expect(kept.stderr).toMatch(new RegExp(`demo-2 a déjà son commit \\(${check.short[0]}\\)`));
   });
 });
 

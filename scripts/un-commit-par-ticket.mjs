@@ -12,6 +12,12 @@
 //   (`bd config get issue_prefix`).
 // - The children of one parent enter in one commit: that commit names them all once, and passes.
 // - A message that names no ticket passes (the supervisor's commits of the frame).
+// - A reverting commit delivers nothing and passes: it carries both marks git writes, a title line
+//   starting `Revert "` or `Reapply "` and a body line `This reverts commit <sha>` (the sha is the one
+//   after `reverts commit`, not the one after `changes made to`). It withdraws the commit it names:
+//   a delivery counts when no effective reverting commit, on any branch, names it, and a reverting
+//   commit is effective when no effective reverting commit names it (a chain reads one link at a
+//   time: a revert of a revert, which git writes `Reapply "…"`, makes the first delivery count again).
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -34,8 +40,24 @@ export function tickets(message, prefix) {
   return named(title(message), prefix);
 }
 
+const REVERT_TITLE = /^(?:Revert|Reapply) "/;
+const REVERTS_LINE = /^This reverts commit ([0-9a-f]{40})\b/m;
+
+// The full sha a reverting message names, or null when the message is not a reverting commit (it
+// lacks the title mark or the body mark).
+function revertedBy(message) {
+  if (!REVERT_TITLE.test(title(message))) {
+    return null;
+  }
+  return REVERTS_LINE.exec(message)?.[1] ?? null;
+}
+
 // The refusal for this message, or null. `commitsOf(id)` gives the earlier commits delivering the id.
+// A reverting message delivers nothing and passes.
 export function refusal(message, prefix, commitsOf) {
+  if (revertedBy(message) !== null) {
+    return null;
+  }
   for (const id of tickets(message, prefix)) {
     const earlier = commitsOf(id);
     if (earlier.length > 0) {
@@ -61,7 +83,51 @@ function log(...args) {
   return execFileSync('git', ['log', ...args], { encoding: 'utf8' });
 }
 
-// The commits delivering `id`, over every branch: those whose message's first line names it. Git
+// The reverting commits of the history, over every branch, as a map from a commit's full sha to the
+// full sha it reverts. Git keeps the commits whose message holds a `This reverts commit` line and a
+// `Revert "` or `Reapply "` line; the output grows with those commits alone.
+function revertingCommits() {
+  const out = log(
+    '--all',
+    '--all-match',
+    '-P',
+    '--grep=^This reverts commit [0-9a-f]{40}',
+    '--grep=^(?:Revert|Reapply) "',
+    '--format=%x1e%H%n%B'
+  );
+  const map = new Map();
+  for (const entry of out.split('\x1e').filter(Boolean)) {
+    const [hash, ...message] = entry.split('\n');
+    const target = revertedBy(message.join('\n'));
+    if (target !== null) {
+      map.set(hash, target);
+    }
+  }
+  return map;
+}
+
+// The commits among `candidates` (`{ full, short }`) that no effective reverting commit names, and
+// that are not reverting commits themselves. A reverting commit is effective when no effective
+// reverting commit names it.
+function withoutWithdrawn(candidates) {
+  const reverts = revertingCommits();
+  const namedBy = new Map();
+  for (const [hash, target] of reverts) {
+    namedBy.set(target, [...(namedBy.get(target) ?? []), hash]);
+  }
+  const memo = new Map();
+  const withdrawn = target => (namedBy.get(target) ?? []).some(effective);
+  const effective = hash => {
+    if (!memo.has(hash)) {
+      memo.set(hash, !withdrawn(hash));
+    }
+    return memo.get(hash);
+  };
+  return candidates.filter(c => !reverts.has(c.full) && !withdrawn(c.full));
+}
+
+// The commits delivering `id`, over every branch: those whose message's first line names it, less
+// the reverting commits and the deliveries they withdraw (`withoutWithdrawn`). Git
 // keeps the commits whose message quotes the id (`--grep`, bounded like an id) and renders their
 // subject (`%s`, the first paragraph with its lines joined by a space); a subject naming the id
 // makes a candidate. Git then renders each candidate's message cut two columns past the byte length
@@ -73,17 +139,20 @@ function commitsDelivering(id, prefix) {
     '--all',
     '-P',
     `--grep=(?<![\\w.-])${escape(id)}(?![\\w-]|\\.\\w)`,
-    '--format=%h %s'
+    '--format=%H %h %s'
   )
     .split('\n')
     .filter(Boolean)
-    .map(l => ({ hash: l.slice(0, l.indexOf(' ')), subject: l.slice(l.indexOf(' ') + 1) }))
+    .map(l => {
+      const [full, short, ...subject] = l.split(' ');
+      return { hash: short, full, subject: subject.join(' ') };
+    })
     .filter(c => named(c.subject, prefix).includes(id));
   if (subjects.length === 0) {
     return [];
   }
   const width = Math.max(...subjects.map(c => Buffer.byteLength(c.subject))) + 2;
-  return log(
+  const delivering = log(
     '--no-walk=unsorted',
     `--format=%x1e%h%n%<(${width},trunc)%B`,
     ...subjects.map(c => c.hash)
@@ -93,6 +162,9 @@ function commitsDelivering(id, prefix) {
     .map(entry => entry.split('\n'))
     .filter(([, first = '']) => named(first, prefix).includes(id))
     .map(([hash]) => hash);
+  return withoutWithdrawn(
+    delivering.map(short => ({ short, full: subjects.find(c => c.hash === short).full }))
+  ).map(c => c.short);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
