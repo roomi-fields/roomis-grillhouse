@@ -158,6 +158,7 @@ const TICKETS_8 = [
     status: 'in_progress',
     priority: 2,
     issue_type: 'task',
+    labels: ['circuit'],
   },
 ];
 const travailDe = (...lignes: string[]) => lireTranscription(transcription(...lignes)).travail;
@@ -487,12 +488,14 @@ describe('3uv.41 critère 3 : a transcript of one turn keeps its time, first to 
 });
 
 // The board of one ticket in progress, with the register's lines and the running agents given.
+// Each ticket is in the circuit (label `circuit`), as the owner launched it.
 const T = (id: string, o: object = {}) => ({
   id,
   title: id,
   status: 'in_progress',
   priority: 2,
   issue_type: 'task',
+  labels: ['circuit'],
   ...o,
 });
 interface Mesure {
