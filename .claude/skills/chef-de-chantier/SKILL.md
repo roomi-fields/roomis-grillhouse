@@ -64,7 +64,7 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
   du domaine et de me les rendre ensemble. Ainsi une seule relance couvre les cas qu'il a trouvés.
 - **Des tests à la mesure des critères** : un test par critère et par cas limite relevé. Ainsi le
   lot reste lisible, et la relecture juge qu'un test mord, pas leur nombre.
-- **Le développeur monte d'un cran** : quand le relecteur rend son lot deux fois, ou quand le
+- **Le développeur monte d'un cran** : quand le relecteur rend deux fois le code de son lot (un rendu pour un texte seul ne compte pas), ou quand le
   développeur dit qu'il bloque, je le relance sur le modèle fort
   (`lancer.sh --modele opus --effort high …`). Ainsi le modèle léger fait le courant, et le fort
   le difficile.
