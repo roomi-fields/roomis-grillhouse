@@ -12,8 +12,8 @@
 // - Global: the work tickets of the project (a ticket without children; a mother is a grouping)
 //   by state, the agents' working time and tokens of the day and in all, the alerts.
 // - Chantier: a root epic with work in progress, its tree of mothers, each with its work tickets
-//   done over all; a finished mother folds into one line, a finished ticket counts without a
-//   line; past 30 lines, the open tickets by number replace the tree. The other chantiers, one
+//   done over all; the tree shows the open work: a closed ticket, mother included, counts without
+//   a line, and a closed mother's open tickets take her place; past 30 lines, the open tickets by number replace the tree. The other chantiers, one
 //   line each.
 // - Agents: one block per role, numbered in the order of the flow (`grillhouse.roles` in
 //   package.json replaces the default), for the whole project. A ticket stands in one place:
@@ -478,9 +478,13 @@ export function assembler({
       bloquePar: bloquePar(t),
       duree: dureeDe(t),
       ...mesure(new Set(sous(t).map(x => x.id))),
-      enfants: (enfants.get(t.id) ?? []).map(noeud),
+      enfants: ouverts(t).map(noeud),
     };
   };
+  // The tree holds open tickets only: a closed child leaves it, and a closed mother gives her place
+  // to her open descendants, at her level, in her order.
+  const ouverts = t =>
+    (enfants.get(t.id) ?? []).flatMap(x => (x.status === 'closed' ? ouverts(x) : [x]));
   const racines = tous
     .filter(t => t.issue_type === 'epic' && !t.parent && t.status !== 'closed')
     .sort((a, b) => a.priority - b.priority || ordre(a, b));
@@ -624,30 +628,23 @@ const couper = (gauche, droite, largeur) => {
     gauche.length > place ? `${gauche.slice(0, Math.max(place - 1, 0))}…` : gauche.padEnd(place);
   return `${g} ${droite}`;
 };
-const liste = (l, place) => {
-  let s = '';
-  for (let i = 0; i < l.length; i++) {
-    const suite = `${s ? `${s} · ` : ''}${l[i]}`;
-    const reste = l.length - i - 1;
-    if (suite.length + (reste ? ` +${reste}`.length : 0) > place) {
-      return `${s} +${l.length - i}`;
-    }
-    s = suite;
-  }
-  return s;
-};
-
 // The board's lines, `largeur` columns wide, each with its tone (titre, alerte, attention, actif,
-// discret, or none) and, for a ticket's line, its id (`ticket`), which the pane makes selectable;
-// an epic's line is marked `chantier`.
+// discret, or none), its section (`section`: chantier, agents or faits) and, for a ticket's line,
+// its id (`ticket`), which the pane makes selectable; an epic's line is marked `chantier`.
+// The head belongs to chantier; a blank line belongs to the section of the title after it.
 // A line that counts lines it does not show (« + 3 en attente ») carries them (`replie`), which
-// the pane unfolds when the person reaches it. The pane and the text show the same lines.
+// the pane unfolds when the person reaches it; a folded line carries the section of the line that
+// folds it. The pane and the text show the same lines.
 export function lignes(t, nom, largeur = LARGEUR) {
   const out = [];
+  let section = 'chantier';
+  // Each line laid down takes the current section, its folded lines at any depth with it.
+  const marquer = l => ({ ...l, section, ...(l.replie ? { replie: l.replie.map(marquer) } : {}) });
+  const poser = (...l) => out.push(...l.map(marquer));
   const cadre = couper;
-  const L = (texte, ton, ticket) => out.push(ticket ? { texte, ton, ticket } : { texte, ton });
+  const L = (texte, ton, ticket) => poser(ticket ? { texte, ton, ticket } : { texte, ton });
   // A line that counts the lines it folds, and carries them.
-  const replie = (texte, caches) => out.push({ texte, ton: 'discret', replie: caches });
+  const replie = (texte, caches) => poser({ texte, ton: 'discret', replie: caches });
   const g = t.global;
   const c = g.compteurs;
   L(nom.toUpperCase(), 'titre');
@@ -677,7 +674,7 @@ export function lignes(t, nom, largeur = LARGEUR) {
   );
   for (const ch of t.chantiers) {
     L('', undefined);
-    out.push({
+    poser({
       texte: cadre(`CHANTIER ${ch.numero} — ${ch.sujet}`, '', largeur),
       ton: 'titre',
       ticket: ch.id,
@@ -758,7 +755,7 @@ export function lignes(t, nom, largeur = LARGEUR) {
       }
     };
     parcourir(ch.enfants, 1);
-    out.push(...arbre.slice(0, ARBRE_MAX));
+    poser(...arbre.slice(0, ARBRE_MAX));
     if (arbre.length > ARBRE_MAX) {
       replie(`  … ${arbre.length - ARBRE_MAX} lignes de plus`, arbre.slice(ARBRE_MAX));
     }
@@ -783,6 +780,7 @@ export function lignes(t, nom, largeur = LARGEUR) {
     );
   }
 
+  section = 'agents';
   L('', undefined);
   L('AGENTS  ▶ en cours · en attente', 'titre');
   for (const b of t.agents) {
@@ -800,7 +798,7 @@ export function lignes(t, nom, largeur = LARGEUR) {
       ton: 'discret',
       ticket: x.id,
     });
-    out.push(...b.attend.slice(0, ATTENTE_MAX).map(attente));
+    poser(...b.attend.slice(0, ATTENTE_MAX).map(attente));
     if (b.attend.length > ATTENTE_MAX) {
       replie(
         `  + ${b.attend.length - ATTENTE_MAX} en attente`,
@@ -809,6 +807,7 @@ export function lignes(t, nom, largeur = LARGEUR) {
     }
   }
   if (t.faitsDuJour.length) {
+    section = 'faits';
     L('', undefined);
     L("FAITS AUJOURD'HUI", 'titre');
     const fait = x => ({
@@ -816,7 +815,7 @@ export function lignes(t, nom, largeur = LARGEUR) {
       ton: 'discret',
       ticket: x.id,
     });
-    out.push(...t.faitsDuJour.slice(0, 5).map(fait));
+    poser(...t.faitsDuJour.slice(0, 5).map(fait));
     if (t.faitsDuJour.length > 5) {
       replie(`  + ${t.faitsDuJour.length - 5} autres`, t.faitsDuJour.slice(5).map(fait));
     }
