@@ -2,6 +2,7 @@
 # ending with « / » covers every file under that directory. A line « - <path> » removes that path
 # from a project: a file the frame no longer places there. The frame's own tests stay in Grillhouse.
 METACADRE.md
+tsdoc.json
 .claude/grillhouse/
 .claude/agents/
 .claude/skills/arbitre/

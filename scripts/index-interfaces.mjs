@@ -11,13 +11,17 @@
 // `docs/INTERFACE.md`. Its title and first sentence give the component's line, headed by the title
 // alone when the title already begins with the component's folder name (exact case, followed by a
 // blank or ending the title), else by `<component> — <title>`; the root interface is always
-// headed `(racine) — <title>`. Each `##` and `###` heading, with the first sentence under it, gives
-// an element's line; code blocks (``` or ~~~, indented or not) are skipped whole. The `## Consommateurs` section gives one line that
+// headed `(racine) — <title>`. Each `##` and `###` heading of the generated part (between the
+// marks `<!-- généré: début -->` and `<!-- généré: fin -->`, written by `npm run api`), with the
+// first sentence under it, gives an element's line; a heading outside the generated part gives
+// none, and an interface without marks (the root one) gives no element line. Code blocks (``` or
+// ~~~, indented or not) are skipped whole. The `## Consommateurs` section gives one line that
 // names each consumer with the elements it uses.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { composants, declares } from './consommateurs.mjs';
+import { DEBUT, FIN, marques } from './interfaces-contre-code.mjs';
 
 export const SORTIE = 'docs/agents/index-des-interfaces.md';
 
@@ -55,7 +59,10 @@ export function entrees(rel, contenu) {
   let courante = { niveau: 1, titre, corps: [] };
   const fermer = () => sections.push(courante);
   let cloture = null;
-  for (const l of lignes) {
+  // The generated part is read where the check finds its marks; invalid marks give none.
+  const m0 = marques(contenu);
+  let generee = false;
+  for (const [i, l] of lignes.entries()) {
     // A code block is skipped whole: a `## …` written inside it is code, not a heading.
     const f = /^\s*(```|~~~)/.exec(l);
     if (cloture) {
@@ -66,11 +73,17 @@ export function entrees(rel, contenu) {
       cloture = f[1];
       continue;
     }
+    if (l.trim() === DEBUT || l.trim() === FIN) {
+      fermer();
+      generee = m0.etat === 'ok' && i === m0.debut;
+      courante = { niveau: 2, titre: '', corps: [], generee, ignoree: true };
+      continue;
+    }
     const m = /^(#{1,3}) (.+)$/.exec(l);
     if (m) {
       if (m[1].length === 1) continue;
       fermer();
-      courante = { niveau: m[1].length, titre: m[2].trim(), corps: [] };
+      courante = { niveau: m[1].length, titre: m[2].trim(), corps: [], generee };
     } else if (l.trim() && !l.startsWith('|')) {
       if (courante.corps.length < 6 || courante.titre === 'Consommateurs')
         courante.corps.push(l.replace(/^[-*]\s+/, ''));
@@ -85,6 +98,7 @@ export function entrees(rel, contenu) {
     '',
   ];
   for (const s of reste) {
+    if (s.ignoree) continue;
     if (s.niveau === 2 && s.titre === 'Consommateurs') {
       const liste = [...declares(`## Consommateurs\n${s.corps.map(l => `- ${l}`).join('\n')}`)]
         .map(([qui, noms]) => `${qui} (${[...noms].join(', ')})`)
@@ -92,9 +106,9 @@ export function entrees(rel, contenu) {
       out.push(`- **Consommateurs** — ${liste || 'aucun'}`);
       continue;
     }
-    const indent = s.niveau === 3 ? '  ' : '';
+    if (!s.generee) continue;
     const phrase = firstSentence(s.corps);
-    out.push(`${indent}- **${s.titre}**${phrase ? ` — ${phrase}` : ''}`);
+    out.push(`- **${s.titre}**${phrase ? ` — ${phrase}` : ''}`);
   }
   out.push('');
   return out;

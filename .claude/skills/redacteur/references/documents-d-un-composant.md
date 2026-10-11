@@ -22,16 +22,26 @@ l'agent qui travaille un ticket sait ce que son composant fait, et ce qu'il refu
 ## L'interface (`INTERFACE.md`)
 
 La liste de ce qui traverse : chaque élément exporté, sa forme, ce qu'il rend, ce qu'il refuse, et
-le garde qui la tient. **Un titre par élément fourni** : chaque élément que le composant fournit a
-son titre (`##`, ou `###` sous un thème), suivi d'une phrase qui dit ce qu'il rend. Ainsi l'index des
-interfaces (`docs/agents/index-des-interfaces.md`, généré par `npm run interfaces`) dit à chaque
-agent ce qui existe et qui le fournit. **L'interface vit chez l'offrant** : la liste de ce qui traverse une frontière vit dans l'`INTERFACE.md` du composant qui offre ; le consommateur y renvoie. Ainsi la frontière a une seule définition, tenue par son garde.
-**Un élément se titre par son nom en code** : « ## `parse`(source, previous?) ». Chaque export
-du composant a son titre, et chaque titre en code est un export : le contrôle
-`scripts/interfaces-contre-code.mjs` le vérifie contre le rapport de l'API que génère API Extractor
-depuis le code construit (`docs/INTERFACE.api.md`, régénéré par `npm run api`), types exacts
-compris. **Les fautes se listent** sous « ## Les fautes » : leurs codes sont exactement ceux que le
-code du composant produit. Ainsi l'interface que lit un agent voisin dit vrai.
+le garde qui la tient. **L'interface vit chez l'offrant** : la liste de ce qui traverse une
+frontière vit dans l'`INTERFACE.md` du composant qui offre ; le consommateur y renvoie. Ainsi la
+frontière a une seule définition, tenue par son garde.
+**Le contrat d'un export vit dans le code**, en commentaire TSDoc sur l'export : un résumé, un
+`@param` par paramètre, `@returns` quand la fonction rend une valeur, un `@faute CODE` par faute
+qu'il rend. L'étiquette `@faute` est déclarée dans la configuration TSDoc du cadre (`tsdoc.json`).
+Ainsi le contrat change avec le code qu'il décrit.
+**`INTERFACE.md` a deux parts** : la part écrite à la main porte la vue d'ensemble, les fautes et
+les consommateurs ; la part générée, entre `<!-- généré: début -->` et `<!-- généré: fin -->`,
+donne une entrée par export (son nom en code, sa signature, son résumé, ses paramètres, son retour,
+ses fautes, et le résumé de ses membres), tirée des commentaires TSDoc. `npm run api` la refait,
+avec le rapport de l'API qu'API Extractor tire du code construit (`docs/INTERFACE.api.md`), et ne
+touche jamais la part écrite à la main. Le contrôle `scripts/interfaces-contre-code.mjs` refuse une
+part générée périmée ou sans ses marques, un export auquel une rubrique manque, une étiquette
+inconnue ou mal formée, un `@faute` hors du catalogue, et un code du catalogue qu'aucun `@faute` ne
+nomme. L'index des interfaces (`docs/agents/index-des-interfaces.md`, généré par
+`npm run interfaces`) se construit depuis la part générée. Ainsi l'interface que lit un agent
+voisin dit vrai.
+**Les fautes se listent** sous « ## Les fautes » : leurs codes sont exactement ceux que le code du
+composant produit.
 **Les consommateurs sont déclarés** : une section `## Consommateurs` liste chaque composant qui
 utilise l'interface, avec les éléments qu'il importe (`` - `parser` : jeton, position ``, `*` pour
 un import entier). Le garde `scripts/consommateurs.mjs` refuse un import qu'elle ne déclare pas, et

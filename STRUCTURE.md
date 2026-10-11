@@ -58,7 +58,8 @@ roomis-grillhouse/
 │   │                              #   composants(): the components for every check, minus the packages out of
 │   │                              #   the frame listed in docs/agents/hors-cadre.txt, "<package> <reason>"
 │   ├── frontieres.mjs             # grillhouse:gardes: dependency-cruiser, rules generated in .dependency-cruiser.cjs
-│   ├── interfaces-contre-code.mjs # grillhouse:gardes: INTERFACE.md against the API report of API Extractor (npm run api)
+│   ├── interfaces-contre-code.mjs # grillhouse:gardes: the TSDoc contract of each export (rubrics, tsdoc.json) and the generated part
+│   │                              #   of INTERFACE.md between its two marks; npm run api writes the reports and the parts
 │   ├── nuit.sh                    # every suite, once a night (mode « impactes »), then the night tests
 │   │                              #   (*.nuit.test.*, *.nuit.spec.*); a red opens a ticket
 │   ├── vitest.nuit.config.mjs     # the Vitest configuration of the night tests, played by nuit.sh
@@ -74,7 +75,7 @@ roomis-grillhouse/
 │   │   ├── integrer.mjs              # run by the integrateur (tests: tests/unit/integrer.spec.ts)
 │   │   └── suites-vitest.mjs         # npm run integration:suites -- --tous|<components>: failing tests by name, for Vitest
 │   │                                 #   (budget benches and night tests left out)
-│   ├── index-interfaces.mjs       # npm run interfaces: docs/agents/index-des-interfaces.md, checked by grillhouse:gardes
+│   ├── index-interfaces.mjs       # npm run interfaces: docs/agents/index-des-interfaces.md from the generated parts, checked by grillhouse:gardes
 │   └── un-commit-par-ticket.mjs   # commit-msg hook (.beads/hooks/commit-msg): one ticket, one commit
 │
 ├── mods/grillhouse/            # The Grillhouse mod (grillhouse@roomi-fields): the /grillhouse pane, the
@@ -143,6 +144,7 @@ roomis-grillhouse/
 ├── STRUCTURE.md                # This file
 ├── ecosystem.config.cjs        # PM2 daemon configuration (services only)
 ├── package.json                # npm package manifest
+├── tsdoc.json                  # TSDoc configuration of the frame (the @faute tag), read for every component
 ├── tsconfig.json               # TypeScript configuration (allowJs: JS compiles as is)
 ├── tsconfig.eslint.json        # Lint scope: src/ + tests/
 └── vitest.config.ts            # Vitest test configuration of the day: npm test, night tests left out

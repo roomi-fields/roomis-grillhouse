@@ -13,12 +13,13 @@
 //   settings stay.
 // - `package.json`, when there is one: the frame's npm scripts (`tableau`, `grillhouse:maj`), and
 //   `grillhouse:gardes`, the list of the frame's controls, and `api` (`npm run api`, which writes
-//   the API reports), each read as it is in the source's `package.json` (a source without one
+//   the API reports and the generated part of each `docs/INTERFACE.md`), each read as it is in the source's `package.json` (a source without one
 //   writes none). The project's `pretest` calls it: a project without a pretest receives
 //   `npm run --silent grillhouse:gardes`, one whose pretest does not call it receives it at the
 //   head (`… && <its pretest>`), one that calls it stays. A source without `grillhouse:gardes`
 //   writes neither it nor a pretest.
-// - The controls' tools (API Extractor, dependency-cruiser, knip) are added to the project's
+// - The controls' tools (API Extractor and its model, the TSDoc configuration reader,
+//   dependency-cruiser, knip) are added to the project's
 //   `devDependencies` at the version the source's `devDependencies` give; a tool the project
 //   already declares in `dependencies`, `devDependencies` or `optionalDependencies` keeps its
 //   declaration, one a previous version added stays, and `devDependencies` are written sorted by
@@ -58,7 +59,13 @@ const SCRIPTS = {
 };
 
 // The controls' tools: their names are the frame's, their versions are read in the source.
-const OUTILS_DES_CONTROLES = ['@microsoft/api-extractor', 'dependency-cruiser', 'knip'];
+const OUTILS_DES_CONTROLES = [
+  '@microsoft/api-extractor',
+  '@microsoft/api-extractor-model',
+  '@microsoft/tsdoc-config',
+  'dependency-cruiser',
+  'knip',
+];
 const CHAMPS_INSTALLES = ['dependencies', 'devDependencies', 'optionalDependencies'];
 
 const APPELLE =

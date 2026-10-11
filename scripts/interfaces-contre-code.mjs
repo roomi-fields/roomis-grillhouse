@@ -3,27 +3,42 @@
 //
 // - The public API of a component is reported by API Extractor from its built declarations:
 //   `docs/INTERFACE.api.md`, kept in the repository. The check refuses an API that changed
-//   without its report. The interface is compared to the built API, not to the recorded report.
-//   A package's entry is its main entry
-//   (`types`, or `exports["."].types`); its other entries (test material) are not its API. A
+//   without its report. The interface is compared to the built API (the documentation model
+//   API Extractor builds from the code), not to the recorded report. A package's entry is its main
+//   entry (`types`, or `exports["."].types`); its other entries (test material) are not its API. A
 //   module of `src/` has `<types directory>/<module>/index.d.ts`. Types of a neighbour stay
 //   references to it.
-// - Each export of the report has its title in `docs/INTERFACE.md`, and each element title is
-//   an export. An element title starts with its name in code: « ## `parse`(source, previous?) ».
+// - The contract of each export lives in its TSDoc comment, in the code: a summary, one `@param`
+//   per parameter (a destructured parameter by its position, under any name), `@returns` for a
+//   function that returns a value (not void, undefined, never or Promise<void>), and one
+//   `@faute CODE` per fault it returns, the code being one of the « ## Les fautes » catalogue. The
+//   frame's `tsdoc.json` (repository root) declares `@faute` and is read for every component; an
+//   unknown or malformed TSDoc tag is refused. Every export is judged on its own rubrics, each
+//   overload signature included; the members of a class or interface are not.
+// - `docs/INTERFACE.md` has two parts: the hand-written one, never touched, and the generated one
+//   between the marks `<!-- généré: début -->` and `<!-- généré: fin -->`, one entry per export
+//   (title, signature, summary, parameters, return, faults; an interface or a class lists its
+//   members). The check refuses a generated part that differs from what `--ecrire` writes, and
+//   marks that are missing, alone, doubled or out of order. `--ecrire` adds the marks at the end
+//   of an interface that has none, writes the part even when a rubric is missing, and then
+//   returns the refusals of the check.
+// - The root interface `docs/INTERFACE.md` is not a component's: it needs no marks.
 // - When the interface has a « ## Les fautes » section, its codes (`PARSE_EXPECTED`…) are exactly
-//   the codes with the same prefixes found in the component's production code.
+//   the codes with the same prefixes found in the component's production code, and each is named
+//   by an `@faute` of the component.
 //
 //   node scripts/interfaces-contre-code.mjs   checks every component (run after the build)
-//   npm run api                               writes the API reports (run after the build)
+//   npm run api                               writes the API reports and the generated parts
+//                                             (`--ecrire`; run after the build)
 //
 // A missing report, or an API changed without its report, is refused with `npm run api`, the
 // command that writes it; API Extractor's own warning on that report is not relayed (the refusal
-// says what to do). `--ecrire`, the flag `npm run api` passes, writes the reports.
+// says what to do).
 //
 // A component without `docs/INTERFACE.md` is reported and skipped. A project that prefers a
 // bench per component calls `verifierComposant(racine, composant)` from its test.
 import { createRequire } from 'node:module';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -53,43 +68,23 @@ export function entree(racine, c) {
   return path.join(racine, path.dirname(types), path.basename(c.dir), 'index.d.ts');
 }
 
-// The exported names of an API Extractor report.
-export function exportsDuRapport(rapport) {
-  const noms = new Set();
-  const re =
-    /^export (?:declare )?(?:abstract )?(?:default )?(?:function|const|let|var|class|interface|type|enum|namespace) (\w+)/gm;
-  for (const m of rapport.matchAll(re)) noms.add(m[1]);
-  for (const m of rapport.matchAll(/^export \{([^}]*)\}/gm)) {
-    for (const part of m[1].split(',')) {
-      const nom = part
-        .split(/\s+as\s+/)
-        .pop()
-        .trim();
-      if (nom) noms.add(nom);
-    }
-  }
-  return noms;
-}
-
-// The element names and the fault codes an interface text declares (code blocks are not titles).
+// The fault codes an interface text declares in « ## Les fautes » of its hand-written part (null
+// without the section); the generated part and code blocks are not read.
 export function declare(texte) {
-  const elements = new Set();
   let fautes = null;
   let section = null;
   let bloc = false;
-  for (const l of texte.split('\n')) {
+  for (const l of ecrite(texte)) {
     if (/^\s*(```|~~~)/.test(l)) bloc = !bloc;
     const titre = !bloc && /^(#{2,3}) (.+)$/.exec(l);
     if (titre) {
       section = titre[1] === '##' ? titre[2].trim() : section;
-      const nom = /^`([A-Za-z_$][\w$]*)/.exec(titre[2].trim());
-      if (nom) elements.add(nom[1]);
       if (section === 'Les fautes' && fautes === null) fautes = new Set();
       continue;
     }
     if (section === 'Les fautes') for (const m of l.matchAll(CODE)) fautes.add(m[0]);
   }
-  return { elements, fautes };
+  return { fautes };
 }
 
 // The codes with one of <prefixes> found in the production code under <dir>.
@@ -111,11 +106,12 @@ function codesDuCode(dir, racine, prefixes) {
   return trouves;
 }
 
-// Runs API Extractor on one component: the report of the built API (read from API Extractor's
-// temporary folder, which holds it whether or not the repository's report exists) and whether the
-// repository's report is up to date.
-function rapportApi(racine, c, entreeDts, ecrire) {
+// Runs API Extractor on one component: whether the repository's report is up to date, the exports
+// of the documentation model built from the code (whether or not the report exists) and the TSDoc
+// messages of its comments.
+function rapportApi(racine, c, entreeDts, ecrire, tsdocConfigFile) {
   const { Extractor, ExtractorConfig } = require('@microsoft/api-extractor');
+  const { ApiModel } = require('@microsoft/api-extractor-model');
   const pj = existsSync(path.join(c.dir, 'package.json'))
     ? path.join(c.dir, 'package.json')
     : path.join(racine, 'package.json');
@@ -124,7 +120,9 @@ function rapportApi(racine, c, entreeDts, ecrire) {
   );
   const tmp = mkdtempSync(path.join(tmpdir(), 'api-'));
   const messages = [];
+  const tsdoc = new Set();
   try {
+    const modele = path.join(tmp, 'modele.api.json');
     const config = ExtractorConfig.prepare({
       configObject: {
         projectFolder: path.dirname(pj),
@@ -136,35 +134,245 @@ function rapportApi(racine, c, entreeDts, ecrire) {
           reportTempFolder: tmp,
           reportFileName: 'INTERFACE',
         },
-        docModel: { enabled: false },
+        docModel: { enabled: true, apiJsonFilePath: modele },
         dtsRollup: { enabled: false },
         tsdocMetadata: { enabled: false },
         messages: {
           extractorMessageReporting: { 'ae-missing-release-tag': { logLevel: 'none' } },
-          tsdocMessageReporting: { default: { logLevel: 'none' } },
+          tsdocMessageReporting: { default: { logLevel: 'warning' } },
         },
       },
       packageJsonFullPath: pj,
+      tsdocConfigFile,
     });
     const resultat = Extractor.invoke(config, {
       localBuild: ecrire,
       messageCallback: m => {
         const duRapport = String(m.messageId).startsWith('console-api-report');
-        if ((m.logLevel === 'error' || m.logLevel === 'warning') && (ecrire || !duRapport)) {
+        if (m.category === 'TSDoc') {
+          const lieu = m.sourceFilePath
+            ? `${path.relative(racine, m.sourceFilePath)}:${m.sourceFileLine ?? 1}: `
+            : '';
+          tsdoc.add(`${lieu}${m.text}`);
+          m.logLevel = 'none';
+        } else if ((m.logLevel === 'error' || m.logLevel === 'warning') && (ecrire || !duRapport)) {
           messages.push(m.text);
         }
         m.handled = true;
       },
     });
-    const construit = path.join(tmp, 'INTERFACE.api.md');
+    const paquet = new ApiModel().loadPackage(modele);
     return {
       ajour: resultat.succeeded && !resultat.apiReportChanged,
-      texte: existsSync(construit) ? readFileSync(construit, 'utf8') : '',
       messages,
+      tsdoc: [...tsdoc],
+      exports: paquet.entryPoints.flatMap(e => [...e.members]),
     };
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
+}
+
+// ---- The TSDoc contract of an export ----
+
+const RETOUR_VIDE = new Set(['void', 'undefined', 'never', 'Promise<void>']);
+const CODE_SEUL = new RegExp(`^${CODE.source}$`);
+
+// The text of a TSDoc node, its paragraphs apart by a blank line, each on one line.
+function texteDoc(noeud) {
+  if (!noeud) return '';
+  const feuilles = n =>
+    n.kind === 'Excerpt' ? n.content.toString() : n.getChildNodes().map(feuilles).join('');
+  const paragraphes = noeud.kind === 'Section' ? noeud.getChildNodes() : [noeud];
+  return paragraphes
+    .map(p => feuilles(p).replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+// The parameters of a function as the model gives them. API Extractor lists a destructuring pattern
+// (`{ a }`, `[a]`) as a parameter without type, then the parameter itself under the name `input`,
+// `input2`…; the pattern entry is dropped and the parameter that follows it is marked destructured
+// (documented by its position, under any name). A parameter named `input` after no pattern is a
+// named parameter.
+function parametresDe(item) {
+  const sortie = [];
+  let motif = false;
+  for (const p of item.parameters) {
+    if (p.parameterTypeExcerpt.isEmpty && /^[{[]/.test(p.name)) {
+      motif = true;
+      continue;
+    }
+    sortie.push({ name: p.name, destructure: motif });
+    motif = false;
+  }
+  return sortie;
+}
+
+// A function declared with `function` (API Extractor also models a function-typed constant as a
+// function; a constant is a variable and takes its summary only).
+const estFonction = item =>
+  item.kind === 'Function' &&
+  /^(?:(?:export|declare|default|async)\s+)*function\b/.test(item.getExcerptWithModifiers().trim());
+
+// The rubrics of an export: its summary, its parameters, its return and its faults.
+function contratDe(item) {
+  const doc = item.tsdocComment;
+  const blocs = doc?.params.blocks ?? [];
+  return {
+    resume: texteDoc(doc?.summarySection),
+    params: blocs.map(b => ({ nom: b.parameterName, texte: texteDoc(b.content) })),
+    retour: doc?.returnsBlock ? texteDoc(doc.returnsBlock.content) : null,
+    fautes: (doc?.customBlocks ?? [])
+      .filter(b => b.blockTag.tagName === '@faute')
+      .map(b => texteDoc(b.content)),
+    parametres: estFonction(item) ? parametresDe(item) : [],
+    rendUneValeur:
+      item.kind === 'Function' && !RETOUR_VIDE.has(item.returnTypeExcerpt.text.replace(/\s+/g, '')),
+  };
+}
+
+// The code an `@faute` text starts with, or null when its first word is not a code.
+const codeDeFaute = texte => {
+  const mot = texte.split(/\s+/)[0];
+  return CODE_SEUL.test(mot) ? mot : null;
+};
+
+// The `@faute` texts <textes> of one element judged against the catalogue <fautes>: refusals are
+// pushed on <refus>, the codes named on <codes>.
+function fautesJugees(nom, textes, fautes, refus, codes) {
+  for (const f of textes) {
+    const code = codeDeFaute(f);
+    if (!code) {
+      refus.push(`${nom} : un @faute est mal formé (il commence par un code, ex. @faute CODE).`);
+    } else if (!fautes?.has(code)) {
+      refus.push(`${nom} : le @faute ${code} n'est pas au catalogue « ## Les fautes ».`);
+    } else codes.add(code);
+  }
+}
+
+// The refusals for one export against its contract, with the fault codes it and its members name.
+function jugerExport(item, fautes) {
+  const refus = [];
+  const nom = `\`${item.displayName}\``;
+  const k = contratDe(item);
+  if (!k.resume) refus.push(`${nom} n'a pas de résumé TSDoc.`);
+  const codes = new Set();
+  if (estFonction(item)) {
+    const noms = new Set(k.parametres.filter(p => !p.destructure).map(p => p.name));
+    const prises = new Set();
+    k.parametres.forEach((p, i) => {
+      const parNom = p.destructure ? -1 : k.params.findIndex(b => b.nom === p.name);
+      if (parNom >= 0) prises.add(parNom);
+      else if (!p.destructure) refus.push(`${nom} : le paramètre « ${p.name} » n'a pas de @param.`);
+      else if (!k.params[i] || noms.has(k.params[i].nom))
+        refus.push(
+          `${nom} : le paramètre déstructuré en position ${i + 1} n'a pas son @param à cette position.`
+        );
+      else prises.add(i);
+    });
+    k.params.forEach((b, i) => {
+      if (!prises.has(i)) refus.push(`${nom} : le @param « ${b.nom} » ne nomme aucun paramètre.`);
+    });
+    if (k.rendUneValeur && k.retour === null)
+      refus.push(`${nom} rend une valeur mais n'a pas de @returns.`);
+  }
+  fautesJugees(nom, k.fautes, fautes, refus, codes);
+  for (const m of item.members ?? []) {
+    const km = contratDe(m);
+    fautesJugees(`\`${m.displayName}\``, km.fautes, fautes, refus, codes);
+  }
+  return { refus, codes };
+}
+
+// ---- The generated part of docs/INTERFACE.md ----
+
+export const DEBUT = '<!-- généré: début -->';
+export const FIN = '<!-- généré: fin -->';
+
+// The positions of the two marks in an interface text: { etat: 'ok' | 'absentes' | 'invalides', … }.
+// A mark written in a code block is an example, not a mark.
+export function marques(texte) {
+  const lignes = texte.split('\n');
+  const debuts = [];
+  const fins = [];
+  let cloture = null;
+  lignes.forEach((l, i) => {
+    const f = /^\s*(```|~~~)/.exec(l);
+    if (cloture) {
+      if (f && f[1] === cloture) cloture = null;
+      return;
+    }
+    if (f) {
+      cloture = f[1];
+      return;
+    }
+    if (l.trim() === DEBUT) debuts.push(i);
+    if (l.trim() === FIN) fins.push(i);
+  });
+  if (!debuts.length && !fins.length) return { etat: 'absentes', lignes };
+  if (debuts.length === 1 && fins.length === 1 && debuts[0] < fins[0])
+    return { etat: 'ok', lignes, debut: debuts[0], fin: fins[0] };
+  return { etat: 'invalides', lignes };
+}
+
+// The lines of an interface text outside its generated part.
+function ecrite(texte) {
+  const m = marques(texte);
+  return m.etat === 'ok' ? [...m.lignes.slice(0, m.debut), ...m.lignes.slice(m.fin + 1)] : m.lignes;
+}
+
+// The signature of an element on one line; a constant keeps its declaration (`const`, `let`).
+const signature = item => {
+  const texte = item.getExcerptWithModifiers().replace(/\s+/g, ' ').replace(/;$/, '').trim();
+  if (
+    /^(?:(?:export|declare|default|async)\s+)*(?:function|class|interface|type|enum|namespace|const|let|var)\b/.test(
+      texte
+    )
+  )
+    return texte;
+  if (item.kind === 'Variable')
+    return `export declare ${item.isReadonly ? 'const' : 'let'} ${texte}`;
+  return item.kind === 'Function' ? `const ${texte}` : texte;
+};
+
+// The generated entry of one export: title, summary, signature, parameters, return, faults and,
+// for an interface or a class, its members.
+function entreeDe(item) {
+  const k = contratDe(item);
+  const out = [`### \`${item.displayName}\``, ''];
+  if (k.resume) out.push(k.resume, '');
+  out.push('```ts', `${signature(item)};`, '```');
+  const params = k.params.filter(b => b.texte);
+  if (params.length)
+    out.push('', '**Paramètres**', '', ...params.map(b => `- \`${b.nom}\` — ${b.texte}`));
+  if (k.retour) out.push('', `**Retour** — ${k.retour}`);
+  const codes = [...new Set(k.fautes.map(f => f.replace(/\s+/g, ' ')))];
+  if (codes.length)
+    out.push('', '**Fautes**', '', ...codes.map(f => `- ${f.replace(/^(\S+)/, '`$1`')}`));
+  const membres = [...(item.members ?? [])];
+  if (membres.length) {
+    out.push('', '**Membres**', '');
+    for (const m of membres) {
+      const resume = texteDoc(m.tsdocComment?.summarySection);
+      out.push(`- \`${signature(m)}\`${resume ? ` — ${resume}` : ''}`);
+    }
+  }
+  return out.join('\n');
+}
+
+// The text between the marks for <exports>: empty without export.
+const partieGeneree = exports =>
+  exports.length ? `\n${exports.map(entreeDe).join('\n\n')}\n\n` : '\n';
+
+// The text of an interface with its generated part replaced; the marks are added at the end of a
+// text that has none.
+function avecPartie(m, texte, partie) {
+  if (m.etat === 'absentes')
+    return `${texte}${texte.endsWith('\n') ? '' : '\n'}\n${DEBUT}${partie}${FIN}\n`;
+  const avant = m.lignes.slice(0, m.debut).join('\n');
+  const apres = m.lignes.slice(m.fin + 1).join('\n');
+  return `${avant}${m.debut ? '\n' : ''}${DEBUT}${partie}${FIN}\n${apres}`;
 }
 
 // The refusals and reports for one component.
@@ -177,15 +385,28 @@ export function verifierComposant(racine, c, { ecrire = false } = {}) {
     signaux.push(`${rel} n'a pas d'interface (docs/INTERFACE.md) : rien n'est vérifié.`);
     return { refus, signaux };
   }
-  const { elements, fautes } = declare(readFileSync(iface, 'utf8'));
+  const texte = readFileSync(iface, 'utf8');
+  const { fautes } = declare(texte);
+  const m = marques(texte);
+  if (m.etat === 'invalides') {
+    refus.push(
+      `${rel} : docs/INTERFACE.md doit porter la marque « ${DEBUT} » puis la marque « ${FIN} », chacune une fois ; corrige les marques à la main (npm run api n'écrit rien).`
+    );
+  }
+  const fichierTsdoc = path.join(racine, 'tsdoc.json');
   const dts = entree(racine, c);
-  if (!dts || !existsSync(dts)) {
+  if (!existsSync(fichierTsdoc)) {
+    refus.push(`${rel} : la configuration TSDoc du cadre (tsdoc.json à la racine) manque.`);
+  } else if (!dts || !existsSync(dts)) {
     refus.push(
       `${rel} : son entrée construite (${dts ?? 'types absent'}) manque ; construis d'abord.`
     );
   } else {
-    const api = rapportApi(racine, c, dts, ecrire);
-    for (const m of api.messages) signaux.push(`${rel} : ${m}`);
+    const { TSDocConfigFile } = require('@microsoft/tsdoc-config');
+    const config = TSDocConfigFile.loadFile(fichierTsdoc);
+    const api = rapportApi(racine, c, dts, ecrire, config);
+    for (const msg of api.messages) signaux.push(`${rel} : ${msg}`);
+    for (const msg of api.tsdoc) refus.push(`${rel} : TSDoc : ${msg}`);
     const manque = !ecrire && !existsSync(path.join(c.dir, 'docs', 'INTERFACE.api.md'));
     if (manque) {
       refus.push(
@@ -196,16 +417,25 @@ export function verifierComposant(racine, c, { ecrire = false } = {}) {
         `${rel} : l'API a changé sans son rapport docs/INTERFACE.api.md ; npm run api le régénère, après la construction.`
       );
     }
-    const exportes = exportsDuRapport(api.texte);
-    for (const n of exportes) {
-      if (!elements.has(n))
-        refus.push(
-          `${rel} exporte ${n}, que docs/INTERFACE.md ne décrit pas (titre « ## \`${n}\` »).`
-        );
+    const nommees = new Set();
+    for (const item of api.exports) {
+      const j = jugerExport(item, fautes);
+      for (const r of j.refus) refus.push(`${rel} : ${r}`);
+      for (const code of j.codes) nommees.add(code);
     }
-    for (const n of elements) {
-      if (!exportes.has(n))
-        refus.push(`${rel} : docs/INTERFACE.md décrit ${n}, que le code n'exporte pas.`);
+    for (const f of fautes ?? []) {
+      if (!nommees.has(f))
+        refus.push(`${rel} : la faute ${f} du catalogue n'est nommée par aucun @faute.`);
+    }
+    if (m.etat !== 'invalides') {
+      const attendu = avecPartie(m, texte, partieGeneree(api.exports));
+      if (ecrire) {
+        if (attendu !== texte) writeFileSync(iface, attendu);
+      } else if (attendu !== texte) {
+        refus.push(
+          `${rel} : la part générée de docs/INTERFACE.md (entre ${DEBUT} et ${FIN}) n'est pas celle du code ; npm run api la refait.`
+        );
+      }
     }
   }
   if (fautes) {

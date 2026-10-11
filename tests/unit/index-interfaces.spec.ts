@@ -11,22 +11,56 @@ afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/index-interfaces.mjs');
 
+const DEBUT = '<!-- généré: début -->';
+const FIN = '<!-- généré: fin -->';
+
+// An interface whose elements live in its generated part, between the two marks, in the format
+// npm run api writes: one `### \`nom\`` entry per export, its summary, its signature in a code
+// block, then its parameters, return, faults and members (grillhouse-3uv.64, critère 26).
 const INTERFACE_B = [
   '# b — l’interface',
   '',
   'Le composant b rend les durées. Il ne lit rien du disque.',
   '',
-  '## durée(objet)',
+  DEBUT,
+  '',
+  '### `duree`',
   '',
   'Rend la durée d’un objet en battements. Refuse un objet sans tempo.',
   '',
-  '### Les fautes',
+  '```ts',
+  'export declare function duree(objet: Objet): number;',
+  '```',
   '',
-  '- Un objet sans tempo produit la faute B1.',
+  '**Paramètres**',
   '',
-  '## Le garde',
+  '- `objet` — L’objet lu.',
   '',
-  '| colonne | x |',
+  '**Retour** — La durée.',
+  '',
+  '**Fautes**',
+  '',
+  '- `B_SANS_TEMPO`',
+  '',
+  '### `Objet`',
+  '',
+  'Un objet lu. Il porte son tempo.',
+  '',
+  '```ts',
+  'export interface Objet',
+  '```',
+  '',
+  '**Membres**',
+  '',
+  '- `tempo: number` — Le tempo de l’objet.',
+  '',
+  '### `garde`',
+  '',
+  '```ts',
+  'export declare function garde(): void;',
+  '```',
+  '',
+  FIN,
 ].join('\n');
 
 function repo(files: Record<string, string>) {
@@ -46,13 +80,20 @@ describe('entrees', () => {
     expect(lines[2]).toBe('Le composant b rend les durées. (`packages/b/docs/INTERFACE.md`)');
   });
   it('gives each provided element its first sentence', () => {
-    expect(lines).toContain('- **durée(objet)** — Rend la durée d’un objet en battements.');
+    expect(lines).toContain('- **`duree`** — Rend la durée d’un objet en battements.');
+    expect(lines).toContain('- **`Objet`** — Un objet lu.');
   });
-  it('indents a sub-section under its element', () => {
-    expect(lines).toContain('  - **Les fautes** — Un objet sans tempo produit la faute B1.');
+  it('critère 26 : gives each entry of the generated part a line of the first rank, not indented', () => {
+    const elements = lines.filter(l => /^\s*- \*\*/.test(l));
+    expect(elements.map(l => /^- \*\*(`\w+`)\*\*/.exec(l)?.[1])).toEqual([
+      '`duree`',
+      '`Objet`',
+      '`garde`',
+    ]);
+    expect(lines.filter(l => /^\s+-/.test(l))).toEqual([]);
   });
-  it('keeps a heading whose body is only a table', () => {
-    expect(lines).toContain('- **Le garde**');
+  it('keeps an entry without summary, its body being only its signature', () => {
+    expect(lines).toContain('- **`garde`**');
   });
 });
 
@@ -179,21 +220,25 @@ describe('entrees and code blocks', () => {
       '',
       'C rend x.',
       '',
+      DEBUT,
+      '',
+      '### `vrai`',
+      '',
+      'Oui.',
+      '',
       '```ts',
-      '## pas un titre',
+      '### pas un titre',
       '```',
       '',
       '  ~~~',
       '### non plus',
       '  ~~~',
       '',
-      '## vrai',
-      '',
-      'Oui.',
+      FIN,
     ].join('\n');
     const lines = entrees('packages/c/docs/INTERFACE.md', text);
     expect(lines.filter(l => l.startsWith('-') || l.startsWith('  -'))).toEqual([
-      '- **vrai** — Oui.',
+      '- **`vrai`** — Oui.',
     ]);
   });
 });
@@ -243,12 +288,126 @@ describe('the command', () => {
   it('refuses again once an interface changes', () => {
     writeFileSync(
       path.join(dir, 'packages/b/docs/INTERFACE.md'),
-      INTERFACE_B + '\n## nouveau\n\nX.'
+      INTERFACE_B.replace(FIN, '### `nouveau`\n\nX.\n\n' + FIN)
     );
     expect(run('--verifier').status).toBe(1);
   });
   it('writes what index() returns', () => {
     run();
-    expect(index(dir)).toContain('- **nouveau** — X.');
+    expect(index(dir)).toContain('- **`nouveau`** — X.');
+  });
+});
+
+// Critère 6 : the index of the interfaces is built from the generated part; critère 16 : the root
+// interface needs no marks, and the index takes from it the component line and its consumers, and
+// no element line outside a generated part (grillhouse-3uv.64).
+describe('entrees and the generated part (grillhouse-3uv.64)', () => {
+  const elements = (lines: string[]) =>
+    lines.filter(
+      l => (l.startsWith('-') || l.startsWith('  -')) && !l.includes('**Consommateurs**')
+    );
+
+  it('critère 6 : the hand-written headings around the generated part give no element line', () => {
+    const text = [
+      '# e',
+      '',
+      'E rend des durées.',
+      '',
+      '## Vue d’ensemble',
+      '',
+      'Tout passe par duree.',
+      '',
+      '### Le détail',
+      '',
+      'Rien de plus.',
+      '',
+      DEBUT,
+      '',
+      '### `duree`',
+      '',
+      'Rend la durée.',
+      '',
+      '```ts',
+      'export declare function duree(x: number): number;',
+      '```',
+      '',
+      FIN,
+      '',
+      '## Les fautes',
+      '',
+      '- `E_VIDE` : un objet vide.',
+    ].join('\n');
+    expect(elements(entrees('packages/e/docs/INTERFACE.md', text))).toEqual([
+      '- **`duree`** — Rend la durée.',
+    ]);
+  });
+  it('critère 6 : the consumers of the hand-written part keep their line', () => {
+    const text = `# e\n\nE.\n\n${DEBUT}\n\n### \`duree\`\n\nRend.\n\n${FIN}\n\n## Consommateurs\n\n- \`a\` : duree\n`;
+    expect(entrees('packages/e/docs/INTERFACE.md', text)).toContain(
+      '- **Consommateurs** — a (duree)'
+    );
+  });
+  it('critère 6 : an interface without a generated part gives its component line and no element', () => {
+    const lines = entrees(
+      'packages/e/docs/INTERFACE.md',
+      '# e\n\nE rend x.\n\n## `duree`\n\nRend.\n'
+    );
+    expect(lines[0]).toBe('## e');
+    expect(elements(lines)).toEqual([]);
+  });
+  it('critère 16 : the root interface without marks gives its line and its consumers, no element', () => {
+    const text = [
+      '# Le projet',
+      '',
+      'Le projet rend des durées. Il a deux composants.',
+      '',
+      '## Les composants',
+      '',
+      'Deux.',
+      '',
+      '### Le premier',
+      '',
+      'Un.',
+      '',
+      '## Consommateurs',
+      '',
+      '- `a` : duree, tempo',
+    ].join('\n');
+    const lines = entrees('docs/INTERFACE.md', text);
+    expect(lines[0]).toBe('## (racine) — Le projet');
+    expect(lines[2]).toBe('Le projet rend des durées. (`docs/INTERFACE.md`)');
+    expect(lines).toContain('- **Consommateurs** — a (duree, tempo)');
+    expect(elements(lines)).toEqual([]);
+  });
+  it('critère 16 : the root interface with marks gives the lines of its generated part only', () => {
+    const text = [
+      '# Le projet',
+      '',
+      'Le projet rend des durées.',
+      '',
+      '## Les composants',
+      '',
+      'Deux.',
+      '',
+      DEBUT,
+      '',
+      '### `tempo`',
+      '',
+      'Rend le tempo du projet.',
+      '',
+      '```ts',
+      'export declare function tempo(): number;',
+      '```',
+      '',
+      FIN,
+      '',
+      '## Consommateurs',
+      '',
+      '- `a` : tempo',
+    ].join('\n');
+    const lines = entrees('docs/INTERFACE.md', text);
+    expect(lines[0]).toBe('## (racine) — Le projet');
+    expect(lines).toContain('- **Consommateurs** — a (tempo)');
+    expect(elements(lines)).toEqual(['- **`tempo`** — Rend le tempo du projet.']);
   });
 });

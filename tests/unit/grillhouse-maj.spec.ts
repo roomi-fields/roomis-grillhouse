@@ -418,8 +418,17 @@ describe('grillhouse-3uv.55 critère 7 — what calls grillhouse:gardes', () => 
 
 // grillhouse-3uv.60: the update writes in the project the script that writes the API reports and
 // the development dependencies of the frame's controls (interfaces-contre-code.mjs: API
-// Extractor; frontieres.mjs: dependency-cruiser; code-mort.mjs: knip), as the source declares them.
-const DEPENDANCES = ['@microsoft/api-extractor', 'dependency-cruiser', 'knip'];
+// Extractor, its documentation model and the TSDoc configuration loader; frontieres.mjs:
+// dependency-cruiser; code-mort.mjs: knip), as the source declares them. grillhouse-3uv.64
+// critère 25: each tool the controls import is declared, @microsoft/api-extractor-model and
+// @microsoft/tsdoc-config included, at the frame's versions.
+const DEPENDANCES = [
+  '@microsoft/api-extractor',
+  '@microsoft/api-extractor-model',
+  '@microsoft/tsdoc-config',
+  'dependency-cruiser',
+  'knip',
+];
 type Pkg = {
   scripts?: Record<string, string>;
   dependencies?: Record<string, string>;
@@ -483,6 +492,8 @@ describe('grillhouse-3uv.60 critère 1 — the update writes api and the depende
   it("critère 1: the versions are read in the source — another source's versions are written", () => {
     const versions: Record<string, string> = {
       '@microsoft/api-extractor': '7.1.0',
+      '@microsoft/api-extractor-model': '7.2.0',
+      '@microsoft/tsdoc-config': '~0.17.1',
       'dependency-cruiser': '^16.0.0',
       knip: '5.0.1',
     };
@@ -544,6 +555,8 @@ describe('grillhouse-3uv.60 critère 4 — api is written as the frame’s other
     const { pkg } = apresMaj({ name: 'p' }, src);
     expect(Object.keys(pkg.devDependencies ?? {}).sort()).toEqual([
       '@microsoft/api-extractor',
+      '@microsoft/api-extractor-model',
+      '@microsoft/tsdoc-config',
       'dependency-cruiser',
     ]);
   });
@@ -592,6 +605,8 @@ describe('grillhouse-3uv.60 critère 5 — a declared dependency keeps its decla
     });
     expect(Object.keys(pkg.devDependencies ?? {})).toEqual([
       '@microsoft/api-extractor',
+      '@microsoft/api-extractor-model',
+      '@microsoft/tsdoc-config',
       '@types/node',
       'dependency-cruiser',
       'eslint',
@@ -608,8 +623,11 @@ describe('grillhouse-3uv.60 critère 5 — a declared dependency keeps its decla
         '@microsoft/api-extractor': '3.0.0',
       },
     });
+    const m = modele();
     expect(Object.entries(pkg.devDependencies ?? {})).toEqual([
       ['@microsoft/api-extractor', '3.0.0'],
+      ['@microsoft/api-extractor-model', m.devDependencies?.['@microsoft/api-extractor-model']],
+      ['@microsoft/tsdoc-config', m.devDependencies?.['@microsoft/tsdoc-config']],
       ['dependency-cruiser', '2.0.0'],
       ['knip', '1.0.0'],
     ]);
@@ -745,6 +763,8 @@ describe('grillhouse-3uv.60 critère 8 — only the source’s devDependencies a
       }
       expect(Object.keys(pkg.devDependencies ?? {}).sort()).toEqual([
         '@microsoft/api-extractor',
+        '@microsoft/api-extractor-model',
+        '@microsoft/tsdoc-config',
         'dependency-cruiser',
       ]);
     });
@@ -840,6 +860,8 @@ describe('grillhouse-3uv.60 critère 9 — the report names each added dependenc
         knip: '1.0.0',
         'dependency-cruiser': '2.0.0',
         '@microsoft/api-extractor': '3.0.0',
+        '@microsoft/api-extractor-model': '4.0.0',
+        '@microsoft/tsdoc-config': '0.1.0',
       },
     });
     const r = lancerMaj(projet, src);
@@ -885,5 +907,17 @@ describe('grillhouse-3uv.60 critère 9 — the report names each added dependenc
     const r = lancerMaj(projet, src);
     expect(r.status, r.stderr).toBe(0);
     expect(r.stdout).not.toMatch(NPM_INSTALL);
+  });
+});
+
+// grillhouse-3uv.64 critère 25: the update declares in the project each tool the controls import,
+// @microsoft/api-extractor-model and @microsoft/tsdoc-config included, at the frame's versions.
+describe('grillhouse-3uv.64 critère 25 — the update declares every tool of the controls', () => {
+  const NEUFS = ['@microsoft/api-extractor-model', '@microsoft/tsdoc-config'];
+  it.each(NEUFS)('critère 25: a project receives %s at the version of the frame', nom => {
+    const { pkg } = apresMaj({ name: 'p', devDependencies: { vitest: '^2.0.0' } });
+    const version = modele().devDependencies?.[nom];
+    expect(version, `the frame declares ${nom}`).toBeTypeOf('string');
+    expect(pkg.devDependencies?.[nom]).toBe(version);
   });
 });
