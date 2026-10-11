@@ -17,6 +17,7 @@ METACADRE.md
 .claude/skills/relecteur/
 .claude/skills/testeur/
 docs/agents/issue-tracker.md
+scripts/branche-de-nuit.mjs
 scripts/code-mort.mjs
 scripts/consommateurs.mjs
 scripts/enveloppe/
@@ -27,6 +28,7 @@ scripts/integration/
 scripts/ligne-etat/
 scripts/interfaces-contre-code.mjs
 scripts/nuit.sh
+scripts/poussee-cles.mjs
 scripts/registre.mjs
 scripts/retirer-copie.sh
 scripts/session-start.sh

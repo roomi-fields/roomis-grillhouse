@@ -17,6 +17,10 @@
 //   `npm run --silent grillhouse:gardes`, one whose pretest does not call it receives it at the
 //   head (`… && <its pretest>`), one that calls it stays. A source without `grillhouse:gardes`
 //   writes neither it nor a pretest.
+// - The git hooks: the frame's line of the pre-push hook (the night branch guard,
+//   scripts/branche-de-nuit.mjs) is placed in the hooks folder git reads for the project
+//   (`core.hooksPath`, else the default one; the configuration stays), before the Beads section; a
+//   project without a pre-push hook receives one, executable. A line already there stays once.
 // - `.claude/grillhouse/empreintes.json` records the source's commit, each file's SHA-256 and the
 //   hooks, plugins and marketplaces installed. `--ecarts` compares the files with it: a frame file modified or missing in a
 //   project is drift, which goes back to Grillhouse as a proposal.
@@ -25,6 +29,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
+  chmodSync,
   copyFileSync,
   existsSync,
   mkdirSync,
@@ -164,6 +169,56 @@ export function fusionnerReglages(projet, cadre, avant = {}) {
   return { reglages: s, installes: { crochets: [...neufs], plugins, marches, ligneEtat } };
 }
 
+// The frame's lines of the pre-push hook: the guard reads git's standard input, which is kept in a
+// file and given back to the lines that follow (Beads' section).
+const PRE_PUSH = {
+  marque: 'branche-de-nuit',
+  lignes: [
+    '# Night branch guard (Grillhouse): only the night pushes the branch of grillhouse.poussee.nuit, after its green.',
+    '_gh_entree=$(mktemp) && cat > "$_gh_entree" && node "$(git rev-parse --show-toplevel)/scripts/branche-de-nuit.mjs" "$@" < "$_gh_entree" || { rm -f "$_gh_entree"; exit 1; }',
+    'exec < "$_gh_entree"',
+    'rm -f "$_gh_entree"',
+  ],
+};
+
+// Places the frame's `lignes` in the git hook `nom` of the project, in the folder git reads (through
+// `core.hooksPath` when set) and without changing the configuration: a hook that does not exist is
+// created (shebang, the lines), executable; one that lacks the `marque` receives the lines right
+// after its shebang; one that has it stays as it is. A directory that is not a git repository
+// receives nothing. Returns the hook's path when it was written.
+export function poserCrochet(projet, nom, { marque, lignes }) {
+  let dossier;
+  try {
+    dossier = path.resolve(
+      projet,
+      execFileSync('git', ['-C', projet, 'rev-parse', '--git-path', 'hooks'], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim()
+    );
+  } catch {
+    return null;
+  }
+  const f = path.join(dossier, nom);
+  const bloc = `${lignes.join('\n')}\n`;
+  let texte;
+  if (!existsSync(f)) {
+    texte = `#!/usr/bin/env sh\n${bloc}`;
+  } else {
+    const actuel = readFileSync(f, 'utf8');
+    if (actuel.includes(marque)) {
+      chmodSync(f, statSync(f).mode | 0o111);
+      return null;
+    }
+    const i = actuel.startsWith('#!') ? actuel.indexOf('\n') + 1 : 0;
+    texte = `${actuel.slice(0, i)}${bloc}${actuel.slice(i)}`;
+  }
+  mkdirSync(dossier, { recursive: true });
+  writeFileSync(f, texte);
+  chmodSync(f, statSync(f).mode | 0o111);
+  return f;
+}
+
 // Brings the project at `projet` to the frame at `source`. Returns what changed.
 export function mettreAJour(projet, source, version) {
   const { garder, retirer } = lireListe(readFileSync(path.join(source, LISTE), 'utf8'));
@@ -210,6 +265,7 @@ export function mettreAJour(projet, source, version) {
     }
     writeFileSync(pkg, `${JSON.stringify(p, null, 2)}\n`);
   }
+  poserCrochet(projet, 'pre-push', PRE_PUSH);
   mkdirSync(path.dirname(path.join(projet, EMPREINTES)), { recursive: true });
   writeFileSync(
     path.join(projet, EMPREINTES),

@@ -63,6 +63,8 @@ roomis-grillhouse/
 │   │                              #   (*.nuit.test.*, *.nuit.spec.*); a red opens a ticket
 │   ├── vitest.nuit.config.mjs     # the Vitest configuration of the night tests, played by nuit.sh
 │   ├── sous-modules.sh            # the submodules of a working copy (integration, agent, night) at HEAD
+│   ├── branche-de-nuit.mjs        # pre-push guard: only the night pushes the branch of grillhouse.poussee.nuit
+│   ├── poussee-cles.mjs           # reads the grillhouse.poussee and grillhouse.poussee.nuit keys of package.json for nuit.sh and the guard
 │   ├── retirer-copie.sh           # removes a working copy, submodules included (agent, integration, night)
 │   ├── grillhouse-maj.mjs         # npm run grillhouse:maj: the frame brought to its last version; --ecarts
 │   ├── tableau.mjs                # npm run tableau: the board on three levels (project, chantier, agents)
