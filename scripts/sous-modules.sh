@@ -10,6 +10,9 @@
 #   included (`submodule update --init --recursive --force`), then removes the untracked files of
 #   every submodule: a local modification is overwritten. A submodule that cannot be set stops it,
 #   exit 1, its first line on stderr naming the submodule and its commit, git's output after.
+#   A submodule whose address is local (a path or a file:// URL) is set too: the command alone
+#   carries `-c protocol.file.allow=always`, the authorization of the file transport; no
+#   repository or machine configuration holds it.
 # - `garde` reads the copy as it stands: a submodule modified in `git status` (an edited or
 #   untracked file, another commit checked out) stops it, exit 1, its first line on stderr naming
 #   the submodule. The agent copy calls it before moving forward, as its work stays in place.
@@ -36,7 +39,7 @@ if [ "$action" = garde ]; then
 fi
 
 for p in "${chemins[@]}"; do
-  if ! sortie=$(git -C "$copie" submodule update --init --recursive --force -- "$p" 2>&1); then
+  if ! sortie=$(git -c protocol.file.allow=always -C "$copie" submodule update --init --recursive --force -- "$p" 2>&1); then
     commit=$(git -C "$copie" ls-tree HEAD -- "$p" | cut -d' ' -f3 | cut -f1)
     echo "le sous-module $p ne se pose pas au commit ${commit:0:7} :" >&2
     echo "$sortie" >&2

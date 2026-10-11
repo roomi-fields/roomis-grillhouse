@@ -33,7 +33,8 @@ const LANCER = path.join(SCRIPTS, 'enveloppe/lancer.sh');
 const LONG = 60_000;
 
 // The file protocol is refused to submodule commands by default; the test repositories live on
-// disk, so every process of these tests allows it, as a project's own remote would be allowed.
+// disk, so the commands that build them allow it. The scripts under test run without it, as on the
+// machine (grillhouse-3uv.52): an empty global configuration of their own, no system one.
 const ENV_GIT = {
   GIT_CONFIG_COUNT: '1',
   GIT_CONFIG_KEY_0: 'protocol.file.allow',
@@ -45,12 +46,31 @@ const ENV_GIT = {
 };
 const git = (dir: string, ...a: string[]) =>
   execFileSync('git', ['-C', dir, ...a], { encoding: 'utf8', env: { ...process.env, ...ENV_GIT } });
+const CONFIG_GLOBALE = path.join(ESSAIS, 'gitconfig');
+writeFileSync(CONFIG_GLOBALE, '');
+const ENV_SCRIPTS: NodeJS.ProcessEnv = {
+  ...Object.fromEntries(
+    Object.entries(process.env).filter(([k]) => !/^GIT_(CONFIG|ALLOW_PROTOCOL)/.test(k))
+  ),
+  GIT_CONFIG_GLOBAL: CONFIG_GLOBALE,
+  GIT_CONFIG_NOSYSTEM: '1',
+  GIT_AUTHOR_NAME: 't',
+  GIT_AUTHOR_EMAIL: 't@t',
+  GIT_COMMITTER_NAME: 't',
+  GIT_COMMITTER_EMAIL: 't@t',
+};
+// git as the scripts see it: no allowance from the environment of the test.
+const gitScripts = (dir: string, ...a: string[]) =>
+  spawnSync('git', ['-C', dir, ...a], { encoding: 'utf8', env: ENV_SCRIPTS });
 
 // A repository whose build succeeds only when its submodule vendor/natif is set, and records what
 // it saw; with a fake Beads (every ticket ACCEPTÉ, every list empty). The submodule has two
 // commits, `v1` then `v2`; the superproject references `v1`, the older one, so a copy that takes the
-// submodule's tip instead of the referenced commit is seen.
-function monde(avecSousModule = true) {
+// submodule's tip instead of the referenced commit is seen. Its address in .gitmodules is an absolute
+// path, a path relative to the superproject, or a file:// URL; `imbrique` gives it a submodule of
+// its own, vendor/natif/profond, also at a local address (grillhouse-3uv.52).
+type Adresse = 'absolue' | 'relative' | 'file';
+function monde(avecSousModule = true, adresse: Adresse = 'absolue', imbrique = false) {
   const repo = mkdtempSync(path.join(ESSAIS, 'sousmod-'));
   const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
   writeFileSync(
@@ -98,18 +118,34 @@ function monde(avecSousModule = true) {
   const commits: string[] = [];
   if (avecSousModule) {
     git(natif, 'init', '-q');
+    if (imbrique) {
+      const profond = mkdtempSync(path.join(ESSAIS, 'profond-'));
+      git(profond, 'init', '-q');
+      writeFileSync(path.join(profond, 'profond.txt'), 'p1\n');
+      git(profond, 'add', '.');
+      git(profond, 'commit', '-qm', 'p1');
+      git(natif, 'submodule', 'add', '-q', profond, 'profond');
+    }
     for (const v of ['v1', 'v2']) {
       writeFileSync(path.join(natif, 'natif.txt'), `${v}\n`);
       git(natif, 'add', '.');
       git(natif, 'commit', '-qm', v);
       commits.push(git(natif, 'rev-parse', 'HEAD').trim());
     }
-    git(repo, 'submodule', 'add', '-q', natif, 'vendor/natif');
+    const url = {
+      absolue: natif,
+      relative: `../${path.basename(natif)}`,
+      file: `file://${natif}`,
+    }[adresse];
+    git(repo, 'submodule', 'add', '-q', url, 'vendor/natif');
+    if (imbrique) {
+      git(repo, 'submodule', 'update', '--init', '--recursive');
+    }
     git(path.join(repo, 'vendor/natif'), 'checkout', '-q', commits[0] ?? '');
     git(repo, 'add', 'vendor/natif');
     git(repo, 'commit', '-qm', 'natif v1');
   }
-  const env = { ...process.env, ...ENV_GIT, PATH: `${bin}:${process.env.PATH}` };
+  const env = { ...ENV_SCRIPTS, PATH: `${bin}:${process.env.PATH}` };
 
   // A lot that adds a document outside every component.
   let n = 0;
@@ -171,6 +207,7 @@ function monde(avecSousModule = true) {
   };
   return {
     repo,
+    bin,
     commits,
     copies,
     integrer,
@@ -460,5 +497,118 @@ describe('critère 10 — a local modification in a submodule: overwritten in th
       expect(m.vus()).toHaveLength(avant);
     },
     LONG
+  );
+});
+
+// grillhouse-3uv.52: a submodule at a local address. git refuses the file transport to submodule
+// commands by default (CVE-2022-39253); the preparation allows it on its submodule command only,
+// as `git -c protocol.file.allow=always submodule update …` does.
+describe('grillhouse-3uv.52 critère 1 — a submodule at a local address is set in each copy', () => {
+  it(
+    'critère 1 (3uv.52): a file:// URL is set in the agent copy at the referenced commit',
+    () => {
+      const m = monde(true, 'file');
+      const r = m.lancer();
+      expect(r.status, r.stderr).not.toBe(CODE_COPIE);
+      expect(m.natifDe(m.copies.agent)).toBe('v1');
+      expect(m.vus()[0]).toBe('v1');
+    },
+    LONG
+  );
+  it(
+    'critère 1 (3uv.52): a path relative to the superproject is set in the night copy at the referenced commit',
+    () => {
+      const m = monde(true, 'relative');
+      const r = m.nuit();
+      expect(r.status, m.journalNuit()).toBe(0);
+      expect(m.natifDe(m.copies.nuit)).toBe('v1');
+      expect(m.vus()[0]).toBe('v1');
+    },
+    LONG
+  );
+  it(
+    'critère 1 (3uv.52): a nested submodule at a local address is set in the integration copy',
+    () => {
+      const m = monde(true, 'absolue', true);
+      const r = m.integrer();
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(m.natifDe(m.copies.integration)).toBe('v1');
+      const profond = path.join(m.copies.integration, 'vendor/natif/profond/profond.txt');
+      expect(existsSync(profond) ? readFileSync(profond, 'utf8').trim() : 'absent').toBe('p1');
+    },
+    LONG
+  );
+});
+
+describe('grillhouse-3uv.52 critère 2 — the file transport is allowed on the submodule command only', () => {
+  // The places a lasting allowance would live: the repository, each copy, each submodule and
+  // nested submodule of a copy (their own configuration), and the global configuration.
+  const sansAutorisationDurable = (m: ReturnType<typeof monde>) => {
+    const lieux = [m.repo];
+    for (const copie of Object.values(m.copies)) {
+      lieux.push(copie, path.join(copie, 'vendor/natif'), path.join(copie, 'vendor/natif/profond'));
+    }
+    for (const lieu of lieux) {
+      expect(existsSync(lieu), lieu).toBe(true);
+      const r = gitScripts(lieu, 'config', '--show-origin', '--get-regexp', '^protocol\\.');
+      expect(r.stdout, lieu).toBe('');
+    }
+    expect(readFileSync(CONFIG_GLOBALE, 'utf8')).not.toMatch(/protocol/i);
+    return lieux.length;
+  };
+  it(
+    'critère 2 (3uv.52): after the three copies set their submodules, no configuration carries the allowance',
+    () => {
+      const m = monde(true, 'absolue', true);
+      const i = m.integrer();
+      expect(i.status, i.stdout + i.stderr).toBe(0);
+      expect(m.lancer().status).not.toBe(CODE_COPIE);
+      expect(m.nuit().status, m.journalNuit()).toBe(0);
+      expect(sansAutorisationDurable(m)).toBe(10);
+    },
+    LONG * 2
+  );
+  it(
+    'critère 2 (3uv.52): of the git commands the copies run, only the submodule update carries the allowance',
+    () => {
+      const m = monde(true, 'absolue', true);
+      // A git first on the PATH of the scripts notes each command it receives, and whether it
+      // carries a file transport allowance (by -c, by GIT_CONFIG_*, or by GIT_ALLOW_PROTOCOL).
+      const vrai = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
+      const journal = path.join(m.bin, 'git.log');
+      writeFileSync(
+        path.join(m.bin, 'git'),
+        `#!/bin/sh
+a=0
+case " $* " in *protocol.allow=*|*protocol.file.allow=*) a=1;; esac
+case "\${GIT_CONFIG_PARAMETERS:-}" in *protocol.*allow*) a=1;; esac
+env | grep -q '^GIT_CONFIG_KEY_[0-9]*=protocol\\.' && a=1
+[ -n "\${GIT_ALLOW_PROTOCOL+x}" ] && a=1
+printf '%s\\t%s\\n' "$a" "$*" >> ${JSON.stringify(journal)}
+exec ${JSON.stringify(vrai)} "$@"
+`,
+        { mode: 0o755 }
+      );
+      const i1 = m.integrer();
+      expect(i1.status, i1.stdout + i1.stderr).toBe(0);
+      expect(m.integrer().status).toBe(0);
+      expect(m.lancer().status).not.toBe(CODE_COPIE);
+      expect(m.lancer().status).not.toBe(CODE_COPIE);
+      expect(m.nuit().status, m.journalNuit()).toBe(0);
+      const commandes = readFileSync(journal, 'utf8')
+        .trim()
+        .split('\n')
+        .map(l => {
+          const [a, ...args] = l.split('\t');
+          return { autorise: a === '1', args: args.join('\t') };
+        });
+      const pose = (args: string) => /\bsubmodule\b.*\bupdate\b/.test(args);
+      // The note sees the commands of the copies: the poses, and the others.
+      expect(commandes.filter(c => pose(c.args)).length).toBeGreaterThanOrEqual(5);
+      expect(commandes.filter(c => !pose(c.args)).length).toBeGreaterThan(0);
+      expect(commandes.filter(c => c.autorise && !pose(c.args)).map(c => c.args)).toEqual([]);
+      expect(commandes.filter(c => !c.autorise && pose(c.args)).map(c => c.args)).toEqual([]);
+    },
+    LONG * 2
   );
 });
