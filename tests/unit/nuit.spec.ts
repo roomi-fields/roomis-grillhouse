@@ -317,3 +317,423 @@ describe('the night plays the project night script (grillhouse.nuit)', () => {
     expect(entete).toMatch(/npm test/);
   });
 });
+
+// The night pushes its green commit (grillhouse-3uv.51): `grillhouse.poussee.nuit` in the package.json
+// of the commit it plays names the remote branch where, after writing the last green, it runs
+// `git push origin <commit>:<branch>` (decision of grillhouse-3uv.53). The remote is a local bare
+// repository, `origin`, whose branches start at the base commit; its pre-receive hook records the
+// last green at the moment of each push, and refuses the push while the file REFUSE exists.
+describe('the night pushes its green commit (grillhouse.poussee.nuit)', () => {
+  function distant(
+    grillhouse: unknown,
+    opts: { branches?: string[]; testRouge?: boolean; scripts?: Record<string, string> } = {}
+  ) {
+    const m = monde();
+    const bare = mkdtempSync(path.join(ESSAIS, 'distant-'));
+    execFileSync('git', ['init', '-q', '--bare', bare]);
+    const trace = path.join(m.bin, 'trace');
+    const recus = path.join(m.bin, 'recus');
+    const noter = (nom: string, code = 0) =>
+      `node -e "require('fs').appendFileSync('${trace}', '${nom}\\n'); process.exit(${code})"`;
+    const pkg: Record<string, unknown> = {
+      scripts: {
+        test: opts.testRouge ? noter('test', 1) : `${noter('test')} && node t.mjs`,
+        ...Object.fromEntries(
+          Object.entries(opts.scripts ?? {}).map(([nom, code]) => [
+            nom,
+            code === 'rouge' ? noter(nom, 1) : noter(nom),
+          ])
+        ),
+      },
+    };
+    if (grillhouse !== undefined) {
+      pkg.grillhouse = grillhouse;
+    }
+    writeFileSync(path.join(m.repo, 'package.json'), JSON.stringify(pkg, null, 2));
+    m.git('add', 'package.json');
+    m.git('commit', '-qm', 'projet');
+    m.git('remote', 'add', 'origin', bare);
+    const base = m.git('rev-parse', 'HEAD').trim();
+    for (const b of opts.branches ?? ['main']) {
+      m.git('push', '-q', 'origin', `HEAD:refs/heads/${b}`);
+    }
+    writeFileSync(
+      path.join(bare, 'hooks', 'pre-receive'),
+      `#!/bin/sh\nif [ -f ${m.commun}/dernier-vert ]; then cat ${m.commun}/dernier-vert; else echo aucun; fi >> ${recus}\n[ -f ${bare}/REFUSE ] && exit 1\nexit 0\n`,
+      { mode: 0o755 }
+    );
+    writeFileSync(path.join(m.repo, 'suite'), '');
+    m.git('add', 'suite');
+    m.git('commit', '-qm', 'suite');
+    const tete = m.git('rev-parse', 'HEAD').trim();
+    const ref = (b: string) =>
+      spawnSync('git', ['--git-dir', bare, 'rev-parse', '--verify', '-q', `refs/heads/${b}`], {
+        encoding: 'utf8',
+      }).stdout.trim();
+    const journal = () => {
+      const f = execFileSync('ls', [m.commun], { encoding: 'utf8' })
+        .split('\n')
+        .find(x => x.endsWith('.log'));
+      return f ? m.lire(path.join(m.commun, f)) : '';
+    };
+    const joues = () => m.lire(trace).split('\n').filter(Boolean);
+    const poussees = () => m.lire(recus).split('\n').filter(Boolean);
+    const dernierVert = () => m.lire(path.join(m.commun, 'dernier-vert')).trim();
+    // Commits what changes makes in the main tree, and returns the new HEAD.
+    const suivant = (changes: () => void) => {
+      changes();
+      m.git('add', '-A');
+      m.git('commit', '-qm', 'suivant');
+      return m.git('rev-parse', 'HEAD').trim();
+    };
+    const avecPaquet = (modifier: (pkg: Record<string, unknown>) => void) => () => {
+      const pkg = JSON.parse(m.lire(path.join(m.repo, 'package.json'))) as Record<string, unknown>;
+      modifier(pkg);
+      writeFileSync(path.join(m.repo, 'package.json'), JSON.stringify(pkg, null, 2));
+    };
+    return {
+      ...m,
+      bare,
+      base,
+      tete,
+      ref,
+      journal,
+      joues,
+      poussees,
+      dernierVert,
+      suivant,
+      avecPaquet,
+    };
+  }
+  // A line of the night ticket's text that names the refused push and its branch.
+  const nommePoussee = (texte: string, branche: string) =>
+    texte.split('\n').some(l => /pouss/i.test(l) && l.includes(branche));
+
+  it('1 — a green night pushes its commit onto the branch the key names', () => {
+    const d = distant({ poussee: { nuit: 'main' } });
+    expect(d.nuit().status, d.journal()).toBe(0);
+    expect(d.ref('main')).toBe(d.tete);
+    expect(d.dernierVert()).toBe(d.tete);
+    expect(d.appels()).toBe('');
+  });
+  it('1 — another branch, with a slash, among other keys: only that branch moves', () => {
+    const d = distant(
+      { integration: 'impactes', poussee: { commit: 'travail', nuit: 'deploiement/nuit' } },
+      { branches: ['main', 'travail', 'deploiement/nuit'] }
+    );
+    expect(d.nuit().status, d.journal()).toBe(0);
+    expect(d.ref('deploiement/nuit')).toBe(d.tete);
+    expect(d.ref('travail')).toBe(d.base);
+    expect(d.ref('main')).toBe(d.base);
+  });
+  it('1 — the push happens once, after the last green is written', () => {
+    const d = distant({ poussee: { nuit: 'main' } });
+    expect(d.nuit().status, d.journal()).toBe(0);
+    expect(d.poussees()).toEqual([d.tete]);
+  });
+  it('1 — the push follows a green project night script', () => {
+    const d = distant(
+      { nuit: 'nuit-projet', poussee: { nuit: 'main' } },
+      { scripts: { 'nuit-projet': 'vert' } }
+    );
+    expect(d.nuit().status, d.journal()).toBe(0);
+    expect(d.joues()).toEqual(['test', 'nuit-projet']);
+    expect(d.ref('main')).toBe(d.tete);
+  });
+  // Each red night is followed by the green night of its fix, which pushes: the push waits for green.
+  it('1, 2 — a red npm test pushes nothing; the green night of its fix pushes', () => {
+    const d = distant({ poussee: { nuit: 'main' } });
+    const rouge = d.suivant(() => writeFileSync(path.join(d.repo, 'ROUGE'), ''));
+    expect(d.nuit().status).toBe(1);
+    expect(d.poussees()).toEqual([]);
+    expect(d.ref('main')).toBe(d.base);
+    const vert = d.suivant(() => rmSync(path.join(d.repo, 'ROUGE')));
+    expect(vert).not.toBe(rouge);
+    expect(d.nuit().status, d.journal()).toBe(0);
+    expect(d.ref('main')).toBe(vert);
+    expect(d.poussees()).toEqual([vert]);
+  });
+  it('2 — a red project night script pushes nothing; the green night of its fix pushes', () => {
+    const d = distant(
+      { nuit: 'nuit-projet', poussee: { nuit: 'main' } },
+      { scripts: { 'nuit-projet': 'rouge' } }
+    );
+    expect(d.nuit().status).toBe(1);
+    expect(d.poussees()).toEqual([]);
+    expect(d.ref('main')).toBe(d.base);
+    const vert = d.suivant(
+      d.avecPaquet(pkg => {
+        (pkg.scripts as Record<string, string>)['nuit-projet'] = 'node -e ""';
+      })
+    );
+    expect(d.nuit().status, d.journal()).toBe(0);
+    expect(d.ref('main')).toBe(vert);
+  });
+  it('2 — a night red on its grillhouse.nuit key pushes nothing; the green night of its fix pushes', () => {
+    const d = distant({ nuit: 'nuit-absente', poussee: { nuit: 'main' } });
+    expect(d.nuit().status).toBe(1);
+    expect(d.poussees()).toEqual([]);
+    expect(d.ref('main')).toBe(d.base);
+    const vert = d.suivant(
+      d.avecPaquet(pkg => {
+        pkg.grillhouse = { poussee: { nuit: 'main' } };
+      })
+    );
+    expect(d.nuit().status, d.journal()).toBe(0);
+    expect(d.ref('main')).toBe(vert);
+  });
+  it('3 — a push refused by the remote keeps the last green and opens a night ticket naming it', () => {
+    const d = distant({ poussee: { nuit: 'deploiement' } }, { branches: ['deploiement'] });
+    writeFileSync(path.join(d.bare, 'REFUSE'), '');
+    d.nuit();
+    expect(d.poussees()).toEqual([d.tete]);
+    expect(d.ref('deploiement')).toBe(d.base);
+    expect(d.dernierVert()).toBe(d.tete);
+    expect(d.appels()).toMatch(/^create .*-l nuit/m);
+    expect(nommePoussee(d.appels(), 'deploiement')).toBe(true);
+  });
+  it('3 — a push refused as not fast-forward keeps the last green and names the push', () => {
+    const d = distant({ poussee: { nuit: 'deploiement' } }, { branches: ['deploiement'] });
+    const ailleurs = d
+      .git('commit-tree', `${d.base}^{tree}`, '-p', d.base, '-m', 'ailleurs')
+      .trim();
+    d.git('push', '-q', 'origin', `${ailleurs}:refs/heads/deploiement`);
+    d.nuit();
+    expect(d.ref('deploiement')).toBe(ailleurs);
+    expect(d.dernierVert()).toBe(d.tete);
+    expect(d.appels()).toMatch(/^create .*-l nuit/m);
+    expect(nommePoussee(d.appels(), 'deploiement')).toBe(true);
+  });
+  it('3 — a refused push comments the open night ticket instead of opening another', () => {
+    const d = distant({ poussee: { nuit: 'deploiement' } }, { branches: ['deploiement'] });
+    writeFileSync(path.join(d.bare, 'REFUSE'), '');
+    writeFileSync(path.join(d.bin, 'OUVERTS'), '[{"id":"demo-9"}]');
+    d.nuit();
+    expect(d.dernierVert()).toBe(d.tete);
+    expect(d.appels()).toMatch(/^comments add demo-9 /m);
+    expect(d.appels()).not.toMatch(/^create/m);
+    expect(nommePoussee(d.appels(), 'deploiement')).toBe(true);
+  });
+  for (const [cas, cle] of [
+    ['without a grillhouse section', undefined],
+    ['without the poussee key', { integration: 'impactes' }],
+    ['with poussee but no nuit', { poussee: { commit: 'main' } }],
+  ] as const) {
+    // The next night, once the key is committed, pushes: the key alone drives the push.
+    it(`4 — ${cas}, a green night pushes nothing; with the key committed, the next one pushes`, () => {
+      const d = distant(cle);
+      expect(d.nuit().status, d.journal()).toBe(0);
+      expect(d.dernierVert()).toBe(d.tete);
+      expect(d.poussees()).toEqual([]);
+      expect(d.ref('main')).toBe(d.base);
+      expect(d.appels()).toBe('');
+      const avec = d.suivant(
+        d.avecPaquet(pkg => {
+          pkg.grillhouse = { ...(pkg.grillhouse as object), poussee: { nuit: 'main' } };
+        })
+      );
+      expect(d.nuit().status, d.journal()).toBe(0);
+      expect(d.ref('main')).toBe(avec);
+    });
+  }
+  // Each invalid value is one whose coercion could name the remote branch main.
+  for (const [cas, valeur] of [
+    ['a number', 3],
+    ['a boolean', true],
+    ['an array', ['main']],
+    ['an object', { branche: 'main' }],
+    ['an empty string', ''],
+    ['a string of spaces', '   '],
+    ['a string of tabs and spaces', '\t \t'],
+  ] as const) {
+    it(`4 — ${cas} as poussee.nuit turns the night red before any work, citing the key`, () => {
+      const d = distant({ poussee: { nuit: valeur } }, { branches: ['main', '3', 'true'] });
+      expect(d.nuit().status).toBe(1);
+      expect(d.joues()).toEqual([]);
+      expect(d.poussees()).toEqual([]);
+      expect(d.dernierVert()).toBe('');
+      expect(
+        d
+          .journal()
+          .split('\n')
+          .some(l => l.includes('grillhouse.poussee.nuit'))
+      ).toBe(true);
+      expect(d.appels()).toMatch(/^create La nuit est rouge depuis/m);
+      expect(d.appels()).toMatch(/grillhouse\.poussee\.nuit/);
+    });
+  }
+  it('4 — an invalid poussee.nuit is caught before npm test: a red suite still reports the key', () => {
+    const d = distant({ poussee: { nuit: '' } }, { testRouge: true });
+    expect(d.nuit().status).toBe(1);
+    expect(d.joues()).toEqual([]);
+    expect(d.appels()).toMatch(/grillhouse\.poussee\.nuit/);
+  });
+  it('4 — the key is read in the committed package.json: an uncommitted removal still pushes', () => {
+    const d = distant({ poussee: { nuit: 'main' } });
+    writeFileSync(
+      path.join(d.repo, 'package.json'),
+      JSON.stringify({ scripts: { test: 'node t.mjs' } })
+    );
+    expect(d.nuit().status, d.journal()).toBe(0);
+    expect(d.ref('main')).toBe(d.tete);
+  });
+  it('4 — a key only in the uncommitted package.json pushes nothing; once committed, it pushes', () => {
+    const d = distant(undefined);
+    const ajouter = d.avecPaquet(pkg => {
+      pkg.grillhouse = { poussee: { nuit: 'main' } };
+    });
+    ajouter();
+    expect(d.nuit().status, d.journal()).toBe(0);
+    expect(d.poussees()).toEqual([]);
+    expect(d.ref('main')).toBe(d.base);
+    const avec = d.suivant(() => {});
+    expect(d.nuit().status, d.journal()).toBe(0);
+    expect(d.ref('main')).toBe(avec);
+  });
+  it('5 — the header of nuit.sh describes the grillhouse.poussee.nuit key', () => {
+    const entete = readFileSync(NUIT, 'utf8')
+      .split('\n')
+      .slice(1)
+      .filter((l, i, t) => t.slice(0, i + 1).every(x => x.startsWith('#')))
+      .join('\n');
+    expect(entete).toMatch(/grillhouse\.poussee\.nuit/);
+    expect(entete).toMatch(/git push origin/);
+  });
+  // A refused push is a defect to deal with, like a red: the night exits 1 (the remote's hook, or
+  // a remote branch that moved elsewhere and refuses a push that is not fast-forward).
+  const refus: [string, (d: ReturnType<typeof distant>) => void][] = [
+    ['the remote hook', d => writeFileSync(path.join(d.bare, 'REFUSE'), '')],
+    [
+      'a remote branch moved elsewhere',
+      d => {
+        const ailleurs = d
+          .git('commit-tree', `${d.base}^{tree}`, '-p', d.base, '-m', 'ailleurs')
+          .trim();
+        d.git('push', '-q', 'origin', `${ailleurs}:refs/heads/deploiement`);
+      },
+    ],
+  ];
+  for (const [cas, refuser] of refus) {
+    it(`6 — a green night whose push is refused by ${cas} exits 1, on a ticket « La poussée de la nuit est refusée sur <commit> »`, () => {
+      const d = distant({ poussee: { nuit: 'deploiement' } }, { branches: ['deploiement'] });
+      refuser(d);
+      expect(d.nuit().status, d.journal()).toBe(1);
+      expect(d.dernierVert()).toBe(d.tete);
+      const court = d.tete.slice(0, 7);
+      const appels = d.appels();
+      expect(appels).toMatch(
+        new RegExp(`^create La poussée de la nuit est refusée sur ${court} .*-l nuit`, 'm')
+      );
+      expect(appels).toMatch(
+        new RegExp(
+          `^update demo-12 --title 12 — La poussée de la nuit est refusée sur ${court} — parent$`,
+          'm'
+        )
+      );
+      expect(appels).not.toMatch(/La nuit est rouge depuis/);
+    });
+  }
+  it('6 — a refused push that comments the open night ticket also exits 1', () => {
+    const d = distant({ poussee: { nuit: 'deploiement' } }, { branches: ['deploiement'] });
+    writeFileSync(path.join(d.bare, 'REFUSE'), '');
+    writeFileSync(path.join(d.bin, 'OUVERTS'), '[{"id":"demo-9"}]');
+    expect(d.nuit().status, d.journal()).toBe(1);
+    expect(d.appels()).toMatch(/^comments add demo-9 /m);
+    expect(d.appels()).not.toMatch(/^create/m);
+  });
+  it('7 — a null poussee is an absent key: nothing pushed; with the key committed, the next night pushes', () => {
+    const d = distant({ poussee: null });
+    expect(d.nuit().status, d.journal()).toBe(0);
+    expect(d.dernierVert()).toBe(d.tete);
+    expect(d.poussees()).toEqual([]);
+    expect(d.ref('main')).toBe(d.base);
+    expect(d.appels()).toBe('');
+    const avec = d.suivant(
+      d.avecPaquet(pkg => {
+        pkg.grillhouse = { poussee: { nuit: 'main' } };
+      })
+    );
+    expect(d.nuit().status, d.journal()).toBe(0);
+    expect(d.ref('main')).toBe(avec);
+  });
+  // A line cites grillhouse.poussee itself, not only its nuit key.
+  const citePoussee = (l: string) => /grillhouse\.poussee(?!\.\w)/.test(l);
+  // Each invalid value is one whose coercion could name the remote branch main.
+  for (const [cas, valeur] of [
+    ['a string', 'main'],
+    ['a number', 3],
+    ['a boolean', true],
+    ['an array', ['main']],
+    ['an array of an object', [{ nuit: 'main' }]],
+  ] as const) {
+    it(`7 — ${cas} as poussee turns the night red before any work, citing grillhouse.poussee`, () => {
+      const d = distant({ poussee: valeur }, { branches: ['main', '3', 'true'] });
+      expect(d.nuit().status).toBe(1);
+      expect(d.joues()).toEqual([]);
+      expect(d.poussees()).toEqual([]);
+      expect(d.dernierVert()).toBe('');
+      expect(d.journal().split('\n').some(citePoussee)).toBe(true);
+      expect(d.appels()).toMatch(/^create La nuit est rouge depuis/m);
+      expect(d.appels().split('\n').some(citePoussee)).toBe(true);
+    });
+  }
+  it('8 — a null poussee.nuit is an absent key: nothing pushed; with the key committed, the next night pushes', () => {
+    const d = distant({ poussee: { commit: 'main', nuit: null } });
+    expect(d.nuit().status, d.journal()).toBe(0);
+    expect(d.dernierVert()).toBe(d.tete);
+    expect(d.poussees()).toEqual([]);
+    expect(d.ref('main')).toBe(d.base);
+    expect(d.appels()).toBe('');
+    const avec = d.suivant(
+      d.avecPaquet(pkg => {
+        pkg.grillhouse = { poussee: { commit: 'main', nuit: 'main' } };
+      })
+    );
+    expect(d.nuit().status, d.journal()).toBe(0);
+    expect(d.ref('main')).toBe(avec);
+  });
+  // A ticket call: a creation, or a comment on the open night ticket.
+  const signalements = (appels: string) =>
+    appels.split('\n').filter(l => /^(create|comments add) /.test(l));
+  it('9 — grillhouse.nuit and grillhouse.poussee.nuit both wrong: a line for each, one ticket', () => {
+    const d = distant(
+      { nuit: 3, poussee: { nuit: '' } },
+      { scripts: { '3': 'vert' }, branches: ['main', '3'] }
+    );
+    expect(d.nuit().status).toBe(1);
+    expect(d.joues()).toEqual([]);
+    expect(d.poussees()).toEqual([]);
+    expect(d.dernierVert()).toBe('');
+    const lignes = d.journal().split('\n');
+    expect(lignes.some(l => l.includes('grillhouse.nuit'))).toBe(true);
+    expect(lignes.some(l => l.includes('grillhouse.poussee.nuit'))).toBe(true);
+    expect(signalements(d.appels())).toHaveLength(1);
+    expect(d.appels()).toMatch(/^create La nuit est rouge depuis/m);
+  });
+  it('9 — both keys wrong, with an open night ticket: a line for each, one comment', () => {
+    const d = distant({ nuit: 'nuit-absente', poussee: { nuit: ['main'] } });
+    writeFileSync(path.join(d.bin, 'OUVERTS'), '[{"id":"demo-9"}]');
+    expect(d.nuit().status).toBe(1);
+    expect(d.joues()).toEqual([]);
+    const lignes = d.journal().split('\n');
+    expect(lignes.some(l => l.includes('grillhouse.nuit') && l.includes('nuit-absente'))).toBe(
+      true
+    );
+    expect(lignes.some(l => l.includes('grillhouse.poussee.nuit'))).toBe(true);
+    expect(signalements(d.appels())).toEqual([expect.stringMatching(/^comments add demo-9 /)]);
+  });
+  // The common night without a commit of the day: the remote already holds the green commit.
+  it('10 — a remote already at the green commit: the night is green, without a refusal or a ticket', () => {
+    const d = distant({ poussee: { nuit: 'main' } });
+    expect(d.nuit().status, d.journal()).toBe(0);
+    expect(d.ref('main')).toBe(d.tete);
+    expect(d.nuit().status, d.journal()).toBe(0);
+    expect(d.ref('main')).toBe(d.tete);
+    expect(d.dernierVert()).toBe(d.tete);
+    expect(d.appels()).toBe('');
+    expect(d.journal()).not.toMatch(/refus/i);
+    const apres = d.suivant(() => writeFileSync(path.join(d.repo, 'apres'), ''));
+    expect(d.nuit().status, d.journal()).toBe(0);
+    expect(d.ref('main')).toBe(apres);
+  });
+});
