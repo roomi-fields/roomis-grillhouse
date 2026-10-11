@@ -174,9 +174,11 @@ const plateauVivant = (home: string, tous: object[], registre: object[] = [], ps
 const bloc = (t: Board, role: string) => t.agents.find(b => b.role === role);
 const enCours = (t: Board, role: string) => (bloc(t, role)?.enCours ?? []).map(x => x.id);
 const attentes = (t: Board) => t.agents.flatMap(b => b.attend.map(x => x.id));
+// The lines of AGENTS: the lines of section agents from the blank line above its title, the head
+// above it left out.
 const agentsTextes = (t: Board) => {
-  const out = lignes(t, 'depot') as Ligne[];
-  return out.filter(x => x.section === 'agents');
+  const out = (lignes(t, 'depot') as Ligne[]).filter(x => x.section === 'agents');
+  return out.slice(out.findIndex(x => x.texte.startsWith('AGENTS')) - 1);
 };
 const pane = (t: Board) => agentsTextes(t).map(x => x.texte);
 

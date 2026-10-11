@@ -536,38 +536,28 @@ describe('fiches', () => {
   });
   it('gives a card to the ticket of a folded line too', () => {
     const tous = [{ id: 'demo-a', title: 'a — Replié', status: 'open' }];
-    const l = [{ texte: '+ 1 autres', replie: [{ texte: 'x', ticket: 'demo-a' }] }];
+    const l = [{ texte: '+ 1 autre chantier', replie: [{ texte: 'x', ticket: 'demo-a' }] }];
     expect(Object.keys(fiches(tous, l, 'demo'))).toEqual(['demo-a']);
   });
 });
 
 describe('folded lines', () => {
   it('a counting line carries the lines it counts', () => {
-    const x = (n: number) => ({
-      id: `demo-${n}`,
-      numero: `${n}`,
-      sujet: `S${n}`,
-      duree: 0,
-      travail: 0,
-      jetons: 0,
-    });
     const t = {
       global: {
-        compteurs: { enCours: 0, prets: 5, bloques: 0, fermes: 0 },
+        compteurs: { enCours: 0, prets: 2, bloques: 0, fermes: 0 },
         jour: { travail: 0, jetons: 0 },
         cumul: { travail: 0, jetons: 0 },
       },
       alertes: [],
       chantiers: [],
-      autres: [],
-      agents: [
-        { numero: 3, role: 'testeur', nom: 'testeur', enCours: [], attend: [1, 2, 3, 4, 5].map(x) },
-      ],
+      autres: ['a', 'b'].map(n => ({ id: `demo-${n}`, numero: n, sujet: n, faits: 0, total: 1 })),
+      agents: [],
       faitsDuJour: [],
     };
     const plie = (lignes(t, 'demo') as { texte: string; replie?: { ticket?: string }[] }[]).find(
-      l => l.texte.includes('+ 2 en attente')
+      l => l.texte === '2 chantiers'
     );
-    expect(plie?.replie?.map(l => l.ticket)).toEqual(['demo-4', 'demo-5']);
+    expect(plie?.replie?.map(l => l.ticket)).toEqual(['demo-a', 'demo-b']);
   });
 });

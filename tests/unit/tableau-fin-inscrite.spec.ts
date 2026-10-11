@@ -664,8 +664,11 @@ describe('3uv.45 critère 4 : the header of the board script tells true, in 100 
     expect(PROSE).not.toMatch(/open tickets by number replace the tree/);
   });
 
-  it('3uv.45 critère 4 : it says that past 30 lines the lines in excess fold', () => {
-    expect(PROSE).toMatch(/30 lines[^.;]*\bfold/);
+  it('3uv.45 critère 4 : it says every line of each list shows, AGENTS before CHANTIER', () => {
+    expect(PROSE).not.toMatch(/30 lines/);
+    expect(PROSE).toMatch(
+      /AGENTS, CHANTIER, then FAITS AUJOURD'HUI, every line of each list shown/
+    );
   });
 
   it('3uv.45 critère 4 : it says an agent runs on an incoming message after its end, not on its last message', () => {

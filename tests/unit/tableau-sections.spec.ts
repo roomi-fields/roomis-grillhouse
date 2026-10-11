@@ -1,7 +1,7 @@
 // The board shows the open work: a closed ticket leaves the chantier's tree, mother included, and
 // stays counted in the « faits » of the head and of the chantier; the tickets closed today go to
-// FAITS AUJOURD'HUI. Each line of the board carries its section (chantier, agents, faits), which
-// the pane reads instead of guessing it from the text (grillhouse-3uv.42).
+// FAITS AUJOURD'HUI. Each line of the board carries its section (agents, chantier, faits), which
+// a reader takes instead of guessing it from the text (grillhouse-3uv.42).
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -14,7 +14,7 @@ const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tableau-sections-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/tableau.mjs');
-const SECTIONS = ['chantier', 'agents', 'faits'];
+const SECTIONS = ['agents', 'chantier', 'faits'];
 
 interface Ligne {
   texte: string;
@@ -106,10 +106,22 @@ const L0 = lignes(T0, 'demo') as Ligne[];
 
 // The lines with the lines they fold, each once.
 const toutes = (l: Ligne[]): Ligne[] => l.flatMap(x => [x, ...toutes(x.replie ?? [])]);
-// The chantier's part of the board, by position: from the head to the AGENTS title.
+// The board's parts, by position: the head down to the AGENTS title, AGENTS down to the first
+// CHANTIER line (the blank line before it, or « N chantiers »), CHANTIER down to FAITS AUJOURD'HUI.
 const indexAgents = (l: Ligne[]) => l.findIndex(x => x.texte.startsWith('AGENTS'));
-const partieChantier = (l: Ligne[]) => toutes(l.slice(0, indexAgents(l)));
 const indexFaits = (l: Ligne[]) => l.findIndex(x => x.texte === "FAITS AUJOURD'HUI");
+const finChantier = (l: Ligne[]) => (indexFaits(l) < 0 ? l.length : indexFaits(l) - 1);
+const debutChantier = (l: Ligne[]) => {
+  const i = l.findIndex(
+    (x, j) =>
+      j > indexAgents(l) &&
+      (x.texte.startsWith('CHANTIER ') || /^(\+ )?\d+ (autres? )?chantiers?$/.test(x.texte))
+  );
+  return i < 0 ? finChantier(l) : i - 1;
+};
+const lignesChantier = (l: Ligne[]) => l.slice(debutChantier(l), finChantier(l));
+const partieChantier = (l: Ligne[]) => toutes(lignesChantier(l));
+const partieAgents = (l: Ligne[]) => toutes(l.slice(indexAgents(l), debutChantier(l)));
 const partieFaits = (l: Ligne[]) => toutes(l.slice(indexFaits(l)));
 
 describe('3uv.42 critère 1 : a closed ticket leaves CHANTIER, mother included, and stays counted', () => {
@@ -175,7 +187,7 @@ describe('3uv.42 critère 1 : a closed ticket leaves CHANTIER, mother included, 
 
 describe("3uv.42 critère 2 : a ticket closed today stands in FAITS AUJOURD'HUI", () => {
   it("3uv.42 critère 2 : the work tickets closed today, at any depth, have their line in FAITS AUJOURD'HUI", () => {
-    expect(indexFaits(L0)).toBeGreaterThan(indexAgents(L0));
+    expect(indexFaits(L0)).toBeGreaterThan(debutChantier(L0));
     const ids = partieFaits(L0).map(x => x.ticket);
     for (const id of ['demo-e.1.2', 'demo-e.2.2', 'demo-e.5']) {
       expect(ids, id).toContain(id);
@@ -210,19 +222,15 @@ describe('3uv.42 critère 3 : an open mother keeps its open tickets in place, it
   });
 
   it('3uv.42 critère 3 : its blocked ticket stays counted under it, carried by the counting line', () => {
-    const plie = L0.slice(0, indexAgents(L0)).find(x =>
-      x.replie?.some(y => y.ticket === 'demo-e.1.6')
-    );
+    const plie = lignesChantier(L0).find(x => x.replie?.some(y => y.ticket === 'demo-e.1.6'));
     expect(plie?.texte).toMatch(/^ {2}\+ 1 bloqués$/);
   });
 
   it('3uv.42 critère 3 : its ticket an agent block shows stays in the agents only', () => {
     expect(partieChantier(L0).some(x => x.ticket === 'demo-e.1.4')).toBe(false);
-    expect(
-      toutes(L0.slice(indexAgents(L0))).some(
-        x => x.ticket === 'demo-e.1.4' && x.texte.startsWith('·')
-      )
-    ).toBe(true);
+    expect(partieAgents(L0).some(x => x.ticket === 'demo-e.1.4' && x.texte.startsWith('·'))).toBe(
+      true
+    );
   });
 
   it('3uv.42 critère 3 : its closed tickets, a closed mother and its tickets included, have no line', () => {
@@ -242,7 +250,7 @@ describe('3uv.42 critère 3 : an open mother keeps its open tickets in place, it
 describe('3uv.42 critère 4 : each line carries its section', () => {
   const section = (l: Ligne[], f: (x: Ligne) => boolean) => l.find(f)?.section;
 
-  it('3uv.42 critère 4 : every line carries chantier, agents or faits, in that order', () => {
+  it('3uv.42 critère 4 : every line carries agents, chantier or faits, in that order', () => {
     expect(L0.length).toBeGreaterThan(10);
     for (const x of L0) {
       expect(SECTIONS, JSON.stringify(x)).toContain(x.section);
@@ -251,15 +259,12 @@ describe('3uv.42 critère 4 : each line carries its section', () => {
     expect(rangs).toEqual([...rangs].sort((a, b) => a - b));
   });
 
-  it('3uv.42 critère 4 : the head above CHANTIER counts in chantier', () => {
-    const tete = L0.slice(
-      0,
-      L0.findIndex(x => x.texte.startsWith('CHANTIER'))
-    );
+  it('3uv.42 critère 4 : the head above AGENTS counts in agents', () => {
+    const tete = L0.slice(0, indexAgents(L0));
     expect(tete.length).toBeGreaterThanOrEqual(4);
     expect(tete.some(x => x.texte.startsWith('⚠'))).toBe(true);
     for (const x of tete) {
-      expect(x.section, x.texte).toBe('chantier');
+      expect(x.section, x.texte).toBe('agents');
     }
   });
 
@@ -289,7 +294,7 @@ describe('3uv.42 critère 4 : each line carries its section', () => {
     }
   });
 
-  it('3uv.42 critère 4 : the counting lines of the agents and of the faits carry their section', () => {
+  it('3uv.42 critère 4 : the waiting lines of the agents and the lines of the faits carry their section', () => {
     const x = (n: number) => ({
       id: `demo-${n}`,
       numero: `${n}`,
@@ -313,15 +318,15 @@ describe('3uv.42 critère 4 : each line carries its section', () => {
       faitsDuJour: [1, 2, 3, 4, 5, 6, 7].map(x),
     };
     const l = lignes(t, 'demo') as Ligne[];
-    expect(section(l, y => y.texte === '  + 2 en attente')).toBe('agents');
-    expect(section(l, y => y.texte === '  + 2 autres')).toBe('faits');
-    expect(section(l, y => y.texte.startsWith('⚠ La nuit'))).toBe('chantier');
+    expect(section(l, y => y.ticket === 'demo-5')).toBe('agents');
+    expect(section(l, y => y.ticket === 'demo-7')).toBe('faits');
+    expect(section(l, y => y.texte.startsWith('⚠ La nuit'))).toBe('agents');
     for (const y of l) {
       expect(SECTIONS, y.texte).toContain(y.section);
     }
   });
 
-  it('3uv.42 critère 4 : without a chantier in progress, the head and « N chantiers » are in chantier', () => {
+  it('3uv.42 critère 4 : without a chantier in progress, the head is in agents and « N chantiers » in chantier', () => {
     const l = lignes(
       plateau([
         T('demo-a', { issue_type: 'epic', title: 'a — Premier' }),
@@ -330,7 +335,7 @@ describe('3uv.42 critère 4 : each line carries its section', () => {
       'demo'
     ) as Ligne[];
     expect(l.some(x => x.texte.startsWith('CHANTIER'))).toBe(false);
-    expect(section(l, x => x.texte === 'DEMO')).toBe('chantier');
+    expect(section(l, x => x.texte === 'DEMO')).toBe('agents');
     expect(section(l, x => x.texte === '1 chantier')).toBe('chantier');
     expect(section(l, x => x.texte.startsWith('AGENTS'))).toBe('agents');
   });
@@ -403,8 +408,8 @@ describe('3uv.42 critère 5 : the text output stays readable, without the closed
   it('3uv.42 critère 5 : the chantier of the text names no closed ticket', () => {
     const l = texte.split('\n');
     const chantier = l.slice(
-      0,
-      l.findIndex(x => x.startsWith('AGENTS'))
+      l.findIndex(x => x.startsWith('CHANTIER')),
+      l.findIndex(x => x.startsWith("FAITS AUJOURD'HUI"))
     );
     expect(chantier.some(x => /\be\.1 {2}Une mère ouverte/.test(x))).toBe(true);
     expect(chantier.some(x => /\be\.2 {2}Mère fermée/.test(x))).toBe(false);
@@ -421,9 +426,9 @@ describe('3uv.42 critère 6 : the unused module-level liste is gone', () => {
   });
 });
 
-// A board that folds lines everywhere: a tree longer than ARBRE_MAX (30 lines) whose fold holds a
-// fold (« + 2 prêts » carries its tickets), the agents' « + N en attente », the faits'
-// « + N autres », and « + 1 autre chantier ».
+// A long board: a tree of 31 tickets in progress, then a line folding by state the open tickets
+// no agent block shows (« + 1 bloqués » carries its ticket), 6 tickets waiting for the tester,
+// 7 tickets closed today, and « + 1 autre chantier ».
 const PLIS = [
   T('demo-e', { issue_type: 'epic', title: 'e — Le chantier' }),
   ...Array.from({ length: 31 }, (_, i) =>
@@ -447,45 +452,30 @@ describe('3uv.42 critère 7 : a folded line carries the section of the line that
   const plis = (l: Ligne[]): [Ligne, Ligne][] =>
     l.flatMap(x => (x.replie ?? []).flatMap(y => [[x, y] as [Ligne, Ligne], ...plis([y])]));
 
-  it('3uv.42 critère 7 : the fixture folds in the chantier, the agents and the faits, a fold inside a fold', () => {
+  it('3uv.42 critère 7 : the fixture folds the tree by state and the other chantiers', () => {
     const p = plis(LP);
-    expect(LP.some(x => /^ {2}… \d+ lignes de plus$/.test(x.texte))).toBe(true);
     expect(p.some(([x]) => x.texte === '+ 1 autre chantier')).toBe(true);
-    expect(p.some(([x]) => /^ {2}\+ \d+ en attente$/.test(x.texte))).toBe(true);
-    expect(p.some(([x]) => x.texte === '  + 2 autres')).toBe(true);
-    expect(p.some(([x]) => (x.replie ?? []).length > 0 && /prêts/.test(x.texte))).toBe(true);
+    expect(p.some(([x]) => x.texte === ' + 1 bloqués')).toBe(true);
   });
 
   it('3uv.42 critère 7 : every folded line, at any depth, carries the section of its folding line', () => {
     const p = plis(LP);
-    expect(p.length).toBeGreaterThan(10);
+    expect(p.length).toBe(2);
     for (const [x, y] of p) {
       expect(SECTIONS, x.texte).toContain(x.section);
       expect(y.section, `${y.texte} ⊂ ${x.texte}`).toBe(x.section);
     }
   });
 
-  it('3uv.42 critère 7 : the folds of the chantier are chantier, of the agents agents, of the faits faits', () => {
+  it('3uv.42 critère 7 : the folds of the chantier are chantier', () => {
     const sous = (f: (x: Ligne) => boolean) => toutes(LP.find(f)?.replie ?? []).map(y => y.section);
-    const chantier = sous(x => /^ {2}… \d+ lignes de plus$/.test(x.texte));
-    expect(chantier.length).toBeGreaterThan(1);
-    expect(new Set(chantier)).toEqual(new Set(['chantier']));
+    const arbre = sous(x => x.texte === ' + 1 bloqués');
+    expect(arbre).toHaveLength(1);
+    expect(new Set(arbre)).toEqual(new Set(['chantier']));
     expect(new Set(sous(x => x.texte === '+ 1 autre chantier'))).toEqual(new Set(['chantier']));
-    expect(new Set(sous(x => /^ {2}\+ \d+ en attente$/.test(x.texte)))).toEqual(
-      new Set(['agents'])
-    );
-    expect(new Set(sous(x => x.texte === '  + 2 autres'))).toEqual(new Set(['faits']));
   });
 
-  it('3uv.42 critère 7 : the folded counting lines of a hand-built board carry their section', () => {
-    const x = (n: number) => ({
-      id: `demo-${n}`,
-      numero: `${n}`,
-      sujet: `S${n}`,
-      duree: 0,
-      travail: 0,
-      jetons: 0,
-    });
+  it('3uv.42 critère 7 : « N chantiers » of a hand-built board folds lines of chantier', () => {
     const t = {
       global: {
         compteurs: { enCours: 0, prets: 5, bloques: 0, fermes: 7 },
@@ -495,17 +485,92 @@ describe('3uv.42 critère 7 : a folded line carries the section of the line that
       alertes: [],
       chantiers: [],
       autres: [{ id: 'demo-a', numero: 'a', sujet: 'A', faits: 0, total: 1 }],
-      agents: [
-        { numero: 3, role: 'testeur', nom: 'testeur', enCours: [], attend: [1, 2, 3, 4, 5].map(x) },
-      ],
-      faitsDuJour: [1, 2, 3, 4, 5, 6, 7].map(x),
+      agents: [],
+      faitsDuJour: [],
     };
     const l = lignes(t, 'demo') as Ligne[];
-    const de = (texte: string) =>
-      (l.find(y => y.texte === texte)?.replie ?? []).map(y => y.section);
-    expect(de('1 chantier')).toEqual(['chantier']);
-    expect(de('  + 2 en attente')).toEqual(['agents', 'agents']);
-    expect(de('  + 2 autres')).toEqual(['faits', 'faits']);
+    expect((l.find(y => y.texte === '1 chantier')?.replie ?? []).map(y => y.section)).toEqual([
+      'chantier',
+    ]);
+  });
+});
+
+describe('the board shows every line of each list, and AGENTS before CHANTIER', () => {
+  const x = (n: number) => ({
+    id: `demo-${n}`,
+    numero: `${n}`,
+    sujet: `S${n}`,
+    duree: 0,
+    travail: 0,
+    jetons: 0,
+  });
+  const MAIN = {
+    global: {
+      compteurs: { enCours: 0, prets: 40, bloques: 0, fermes: 40 },
+      jour: { travail: 0, jetons: 0 },
+      cumul: { travail: 0, jetons: 0 },
+    },
+    alertes: [],
+    chantiers: [],
+    autres: [],
+    agents: [
+      {
+        numero: 3,
+        role: 'testeur',
+        nom: 'testeur',
+        enCours: [],
+        attend: Array.from({ length: 20 }, (_, i) => x(i + 1)),
+      },
+    ],
+    faitsDuJour: Array.from({ length: 20 }, (_, i) => x(i + 101)),
+  };
+  const LM = lignes(MAIN, 'demo') as Ligne[];
+
+  it('the tree of a chantier shows its 31 tickets in progress, each on its line, none folded', () => {
+    const arbre = lignesChantier(LP);
+    for (let i = 1; i <= 31; i++) {
+      expect(
+        arbre.some(y => y.ticket === `demo-e.${i}` && !y.replie),
+        `e.${i}`
+      ).toBe(true);
+    }
+    expect(LP.some(y => /lignes? de plus/.test(y.texte))).toBe(false);
+  });
+
+  it('an agent block shows its 20 waiting tickets, each on its line, none folded', () => {
+    const attente = LM.filter(y => y.section === 'agents' && y.ticket);
+    expect(attente.map(y => y.ticket)).toEqual(MAIN.agents[0].attend.map(y => y.id));
+    expect(LM.some(y => / en attente$/.test(y.texte) && y.replie)).toBe(false);
+  });
+
+  it("FAITS AUJOURD'HUI shows its 20 tickets, each on its line, none folded", () => {
+    const faits = LM.filter(y => y.section === 'faits' && y.ticket);
+    expect(faits.map(y => y.ticket)).toEqual(MAIN.faitsDuJour.map(y => y.id));
+    expect(LM.some(y => y.section === 'faits' && y.replie)).toBe(false);
+  });
+
+  it("the head comes first, then AGENTS, then CHANTIER, then FAITS AUJOURD'HUI", () => {
+    for (const l of [L0, LP]) {
+      const tete = l.findIndex(y => y.texte === 'DEMO');
+      const agents = indexAgents(l);
+      const chantier = l.findIndex(y => y.texte.startsWith('CHANTIER e'));
+      const faits = indexFaits(l);
+      expect(tete).toBe(0);
+      expect(agents).toBeGreaterThan(tete);
+      expect(chantier).toBeGreaterThan(agents);
+      expect(faits).toBeGreaterThan(chantier);
+    }
+  });
+
+  it('the text output lays AGENTS before CHANTIER too', () => {
+    const lancer = depot([
+      T('demo-e', { issue_type: 'epic', title: 'e — Le chantier' }),
+      T('demo-e.1', { parent: 'demo-e', status: 'in_progress' }),
+    ]);
+    const l = lancer('--texte').split('\n');
+    const agents = l.findIndex(y => y.startsWith('AGENTS'));
+    expect(agents).toBeGreaterThan(0);
+    expect(l.findIndex(y => y.startsWith('CHANTIER e'))).toBeGreaterThan(agents);
   });
 });
 
@@ -616,7 +681,7 @@ const T10 = [
 ];
 const B10 = plateau(T10);
 const L10 = lignes(B10, 'demo') as Ligne[];
-const C10 = L10.slice(0, indexAgents(L10));
+const C10 = lignesChantier(L10);
 
 describe('3uv.42 critère 10 : the open ticket of a closed mother rises to its mother’s level, in its place', () => {
   it('3uv.42 critère 10 : a ticket in progress of a closed mother stands at its mother’s level, in her place', () => {

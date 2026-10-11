@@ -11,18 +11,20 @@
 //
 // - Global: the work tickets of the project (a ticket without children; a mother is a grouping)
 //   by state, the agents' working time and tokens of the day and in all, the alerts.
-// - Chantier: a root epic with work in progress, its tree of mothers, each with its work tickets
-//   done over all; the tree shows the open work: a closed ticket, mother included, counts without
-//   a line, and a closed mother's open tickets take her place; past 30 lines, the lines in excess
-//   fold into one line that counts them. The other chantiers, one line each.
 // - Agents: one block per role (`grillhouse.roles` in package.json replaces the default), for the
 //   whole project. The site manager's block heads them as 0 wherever the list declares it, the
 //   other roles are numbered from 1 in the order declared. A ticket stands under every agent that
 //   runs on it, or waits in one place. A ticket a site manager led (a passage of its role in the
 //   register) waits under block 0; any other waits for the next role, deduced from the roles that
 //   ran on it and the reviewer's last verdict (`ACCEPTÉ` or `RENDU` at the start of a comment). A
-//   project whose roles leave the site manager out keeps the deduction for every ticket. Then the
-//   tickets closed today.
+//   project whose roles leave the site manager out keeps the deduction for every ticket.
+// - Chantier: a root epic with work in progress, its tree of mothers, each with its work tickets
+//   done over all; the tree shows the open work: a closed ticket, mother included, counts without
+//   a line, and a closed mother's open tickets take her place. The other chantiers, one line each.
+//   Then the tickets closed today.
+// - Lines: the head, AGENTS, CHANTIER, then FAITS AUJOURD'HUI, every line of each list shown; a
+//   line folds only lines of another state (the tree's « + 2 prêts ») or the chantiers not in
+//   progress.
 // - Measures: a finished agent from the register (`scripts/registre.mjs`), a running one from its
 //   transcript: a role agent launched in a shell (`TON TICKET` and `--agent` in its arguments)
 //   while its process runs, a sub-agent or a session whose transcript moved in the last 2 minutes.
@@ -60,7 +62,6 @@ export const SILENCE = 10 * MINUTE;
 export const SANS_AGENT = 30 * MINUTE;
 const RECENT = 2 * MINUTE;
 export const LARGEUR = 52;
-const ARBRE_MAX = 30;
 const CHEF = 'chef-de-chantier';
 export const ROLES = [
   CHEF,
@@ -803,15 +804,15 @@ const couper = (gauche, droite, largeur) => {
   return `${g} ${droite}`;
 };
 // The board's lines, `largeur` columns wide, each with its tone (titre, alerte, attention, actif,
-// discret, or none), its section (`section`: chantier, agents or faits) and, for a ticket's line,
-// its id (`ticket`), which the pane makes selectable; an epic's line is marked `chantier`.
-// The head belongs to chantier; a blank line belongs to the section of the title after it.
-// A line that counts lines it does not show (« + 3 en attente ») carries them (`replie`), which
-// the pane unfolds when the person reaches it; a folded line carries the section of the line that
-// folds it. The pane and the text show the same lines.
+// discret, or none), its section (`section`: agents, chantier or faits, in that order) and, for a
+// ticket's line, its id (`ticket`), which the pane makes selectable; an epic's line is marked
+// `chantier`. The head belongs to agents, the first section; a blank line belongs to the section
+// of the title after it. A line that counts lines it does not show (« + 2 prêts ») carries them
+// (`replie`), which the pane unfolds when the person reaches it; a folded line carries the section
+// of the line that folds it. The pane and the text show the same lines.
 export function lignes(t, nom, largeur = LARGEUR) {
   const out = [];
-  let section = 'chantier';
+  let section = 'agents';
   // Each line laid down takes the current section, its folded lines at any depth with it.
   const marquer = l => ({ ...l, section, ...(l.replie ? { replie: l.replie.map(marquer) } : {}) });
   const poser = (...l) => out.push(...l.map(marquer));
@@ -844,11 +845,29 @@ export function lignes(t, nom, largeur = LARGEUR) {
     );
   }
 
+  L('', undefined);
+  L('AGENTS  ▶ en cours · en attente', 'titre');
+  for (const b of t.agents) {
+    const vide = b.enCours.length === 0 && b.attend.length === 0;
+    L(`${b.numero} ${b.nom}${vide ? '  —' : ''}`, vide ? 'discret' : 'titre');
+    for (const x of b.enCours) {
+      L(
+        cadre(`▶ ${x.numero}  ${x.sujet}`, `${duree(x.travail)} · ${k(x.jetons)}`, largeur),
+        'actif',
+        x.id
+      );
+    }
+    const attente = x => ({
+      texte: cadre(`· ${x.numero}  ${x.sujet}`, `${duree(x.duree)} · ${k(x.jetons)}`, largeur),
+      ton: 'discret',
+      ticket: x.id,
+    });
+    poser(...b.attend.map(attente));
+  }
+
+  section = 'chantier';
   // The tickets the agents' blocks show: the chantier's tree does not show them a second time.
-  const ATTENTE_MAX = 3;
-  const dansAgents = new Set(
-    t.agents.flatMap(b => [...b.enCours, ...b.attend.slice(0, ATTENTE_MAX)].map(x => x.id))
-  );
+  const dansAgents = new Set(t.agents.flatMap(b => [...b.enCours, ...b.attend].map(x => x.id)));
   for (const ch of t.chantiers) {
     L('', undefined);
     poser({
@@ -932,10 +951,7 @@ export function lignes(t, nom, largeur = LARGEUR) {
       }
     };
     parcourir(ch.enfants, 1);
-    poser(...arbre.slice(0, ARBRE_MAX));
-    if (arbre.length > ARBRE_MAX) {
-      replie(`  … ${arbre.length - ARBRE_MAX} lignes de plus`, arbre.slice(ARBRE_MAX));
-    }
+    poser(...arbre);
   }
   // The epics not in progress, folded in one line: « N chantiers » when none is, else
   // « + N autres chantiers ». Each is selectable, and a chantier (`chantier`) the pane can switch.
@@ -957,32 +973,6 @@ export function lignes(t, nom, largeur = LARGEUR) {
     );
   }
 
-  section = 'agents';
-  L('', undefined);
-  L('AGENTS  ▶ en cours · en attente', 'titre');
-  for (const b of t.agents) {
-    const vide = b.enCours.length === 0 && b.attend.length === 0;
-    L(`${b.numero} ${b.nom}${vide ? '  —' : ''}`, vide ? 'discret' : 'titre');
-    for (const x of b.enCours) {
-      L(
-        cadre(`▶ ${x.numero}  ${x.sujet}`, `${duree(x.travail)} · ${k(x.jetons)}`, largeur),
-        'actif',
-        x.id
-      );
-    }
-    const attente = x => ({
-      texte: cadre(`· ${x.numero}  ${x.sujet}`, `${duree(x.duree)} · ${k(x.jetons)}`, largeur),
-      ton: 'discret',
-      ticket: x.id,
-    });
-    poser(...b.attend.slice(0, ATTENTE_MAX).map(attente));
-    if (b.attend.length > ATTENTE_MAX) {
-      replie(
-        `  + ${b.attend.length - ATTENTE_MAX} en attente`,
-        b.attend.slice(ATTENTE_MAX).map(attente)
-      );
-    }
-  }
   if (t.faitsDuJour.length) {
     section = 'faits';
     L('', undefined);
@@ -992,10 +982,7 @@ export function lignes(t, nom, largeur = LARGEUR) {
       ton: 'discret',
       ticket: x.id,
     });
-    poser(...t.faitsDuJour.slice(0, 5).map(fait));
-    if (t.faitsDuJour.length > 5) {
-      replie(`  + ${t.faitsDuJour.length - 5} autres`, t.faitsDuJour.slice(5).map(fait));
-    }
+    poser(...t.faitsDuJour.map(fait));
   }
   return out;
 }

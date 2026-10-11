@@ -99,10 +99,11 @@ is created under its mother (numbered `320.2.1`) and every agent goes by its rol
 **The board** — the `grillhouse` mod (a Claude Code plugin whose source lives in `mods/grillhouse`, published
 in the `roomi-fields` marketplace as `grillhouse@roomi-fields`, enabled in
 each project's settings) shows, measured and never declared, in the `/grillhouse` pane, three levels: the project (its work tickets by state, the
-agents' time and tokens of the day and in all, the alerts); the chantier in progress, its tree of
-mother tickets with each one's work done over all; the agents, one block per role (the site
+agents' time and tokens of the day and in all, the alerts); the agents, one block per role (the site
 manager's, numbered 0, heads them), where each ticket stands under the agent that runs on it, or waiting:
-for the next role of the flow, or for its site manager when one led it. A ticket a site manager
+for the next role of the flow, or for its site manager when one led it; the chantier in progress, its tree of
+mother tickets with each one's work done over all; then the tickets closed today. Every line of each list
+shows, and the wheel scrolls the pane. A ticket a site manager
 leads shows under the manager and under the agent the manager launched. A finished agent is read from the
 register its end writes (`scripts/registre.mjs`; `--rattraper` adds the agents that ended
 before it), a running one from its transcript, those launched

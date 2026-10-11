@@ -5,8 +5,8 @@ import type { Tableau } from '../types'
 
 const TABLEAU: Tableau = {
   lignes: [
-    { texte: 'DEMO', ton: 'titre', section: 'chantier' },
-    { texte: '⚠ 1 ticket(s) attendent ta décision', ton: 'attention', section: 'chantier' },
+    { texte: 'DEMO', ton: 'titre', section: 'agents' },
+    { texte: '⚠ 1 ticket(s) attendent ta décision', ton: 'attention', section: 'agents' },
     { texte: '4 développeur  ▶ c.1.1  Écrit', ton: 'actif', section: 'agents' },
   ],
   fiches: {},

@@ -1,9 +1,9 @@
 export type Ton = 'titre' | 'alerte' | 'attention' | 'actif' | 'discret'
 // `ticket`: the id of the ticket a line names, which makes the line selectable. `replie`: the
-// lines a counting line (« + 3 en attente ») folds, which the pane unfolds when it is reached.
+// lines a counting line (« + 2 prêts ») folds, which the pane unfolds when it is reached.
 // `chantier`: the line is an epic's, which the pane switches on or off. `section`: the board's
-// section the line belongs to, by which the pane shares its rows.
-export type Section = 'chantier' | 'agents' | 'faits'
+// section the line belongs to.
+export type Section = 'agents' | 'chantier' | 'faits'
 export type Ligne = {
   texte: string
   ton?: Ton

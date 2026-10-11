@@ -73,44 +73,6 @@ export function visibles(lignes: Ligne[], ouverts: string[]): Visible[] {
   })
 }
 
-// The key of CHANTIER's counting line, `+chantier:<a>`, which folds the CHANTIER lines from board
-// index `a` on.
-const SUITE = '+chantier'
-
-// The lines the pane's window runs over, its rows shared among the sections: every line when all
-// fit in `rangs`; otherwise AGENTS whole, CHANTIER in the rows left with the lines past them folded
-// in one counting line (« + N lignes de plus », « + 1 ligne de plus » for one, N the board lines it folds; none when no row is
-// left), FAITS after. The rows are shared on the board's own lines: a counting line's unfolded
-// lines come below it and push the fold back by as many rows, the count unchanged. Unfolded (its
-// key in `ouverts`), the counting line stays before the board line it folds from, its text
-// unchanged, and the lines it folds come below it.
-export function repartir(liste: Visible[], rangs: number, ouverts: string[]): Visible[] {
-  if (liste.length <= rangs) return liste
-  const chantier = liste.filter(x => x.l.section === 'chantier')
-  const base = chantier.filter((x, n) => chantier[n - 1]?.i !== x.i)
-  const garde = rangs - liste.filter(x => x.l.section === 'agents').length - 1
-  if (base.length <= garde + 1) return liste
-  if (garde < 0) return liste.filter(x => x.l.section !== 'chantier')
-  const voulu = ouverts.find(c => c.startsWith(`${SUITE}:`))
-  const a = voulu ? Number(voulu.slice(SUITE.length + 1)) : NaN
-  const deplie = chantier.some(x => x.i >= a)
-  const ancre = deplie ? a : (base[garde] as Visible).i
-  const pliees = new Set(chantier.filter(x => x.i >= ancre).map(x => x.i)).size
-  const compte: Visible = {
-    l: {
-      texte: `+ ${pliees} ${pliees === 1 ? 'ligne' : 'lignes'} de plus`,
-      ton: 'discret',
-      section: 'chantier',
-    },
-    cle: `${SUITE}:${ancre}`,
-    i: ancre,
-  }
-  const bloc = deplie
-    ? [...chantier.filter(x => x.i < ancre), compte, ...chantier.filter(x => x.i >= ancre)]
-    : [...chantier.filter(x => x.i < ancre), compte]
-  return liste.flatMap(x => (x === chantier[0] ? bloc : x.l.section === 'chantier' ? [] : [x]))
-}
-
 // The first of `n` lines to show in `rangs` rows: the window stays where it was (`avant`) while the
 // line at `idx` shows with the lines `haut` above and `bas` below it — the ring's next stops, one
 // line away by default — and moves just enough otherwise, `idx` itself always in sight. Only the
@@ -125,16 +87,12 @@ export function debut(n: number, idx: number, rangs: number, avant: number, haut
   return Math.max(0, Math.min(p, n - rangs))
 }
 
-// Whether the counting line keyed `compte`, unfolded, holds `element`: a board counting line
-// `+:<i>` holds itself and its folded lines `<ticket>:<i>.<j>`; CHANTIER's `+chantier:<a>` holds
-// itself and every CHANTIER line from board index `a` on, with their folded lines.
-function tient(lignes: Ligne[], compte: string, element: string): boolean {
-  const [tete, pos = ''] = compte.split(':')
+// Whether the counting line keyed `compte`, unfolded, holds `element`: a counting line `+:<i>`
+// holds itself and its folded lines `<ticket>:<i>.<j>`.
+function tient(compte: string, element: string): boolean {
+  const [, pos = ''] = compte.split(':')
   const [t, p = ''] = element.split(':')
-  const i = Number(pos)
-  const j = Number(p.split('.')[0])
-  if (tete === SUITE) return j >= i && lignes[j]?.section === 'chantier'
-  return j === i && (t === '+' || p.includes('.'))
+  return Number(p.split('.')[0]) === Number(pos) && (t === '+' || p.includes('.'))
 }
 
 // What the keyboard reaching an element changes: the unfolded counting lines that hold it stay
@@ -143,9 +101,8 @@ function tient(lignes: Ligne[], compte: string, element: string): boolean {
 export function viser(s: Etat, element: string): Etat {
   if (element === 'g' || element === 'h') return s
   const [tete] = element.split(':')
-  const compte = tete === '+' || tete === SUITE
-  const lignes = s.tableau?.lignes ?? []
-  const ouverts = [...s.ouverts.filter(c => c !== element && tient(lignes, c, element)), ...(compte ? [element] : [])]
+  const compte = tete === '+'
+  const ouverts = [...s.ouverts.filter(c => c !== element && tient(c, element)), ...(compte ? [element] : [])]
   return { ...s, element, ouverts, grand: false, choisi: compte ? s.choisi : (tete ?? null) }
 }
 
@@ -162,10 +119,11 @@ let fenetre = 0
 let suivi: string | null = null
 let cadre = { rangs: 1, focus: false }
 
-// The lines the window runs over, the window placed on them: when the ring has moved to another
-// line since the window last followed it, the window follows it (`debut`); it stays within the lines.
+// The lines the window runs over, every line of the board, the window placed on them: when the
+// ring has moved to another line since the window last followed it, the window follows it
+// (`debut`); it stays within the lines.
 function placer(s: Etat, rangs: number, focus: boolean): Visible[] {
-  const liste = repartir(visibles(s.tableau?.lignes ?? [], focus ? s.ouverts : []), rangs, focus ? s.ouverts : [])
+  const liste = visibles(s.tableau?.lignes ?? [], focus ? s.ouverts : [])
   const ici = liste.findIndex(x => x.cle === s.element)
   if (focus && ici >= 0 && s.element !== suivi) {
     // The ring's next stops: the nearest lines with a button, above and below.
@@ -210,7 +168,7 @@ export const register: Register = on => {
     if (!actif) return started
     await $.command.register({
       name: 'grillhouse',
-      description: 'Ouvre le tableau Grillhouse : le projet, le chantier en cours, les agents',
+      description: 'Ouvre le tableau Grillhouse : le projet, les agents, le chantier en cours',
     })
     void rafraichir($)
     $.clock.every(PERIODE, () => void rafraichir($))
