@@ -12,11 +12,17 @@
 //   one the previous version installed and the new one dropped is removed; the project's own
 //   settings stay.
 // - `package.json`, when there is one: the frame's npm scripts (`tableau`, `grillhouse:maj`), and
-//   `grillhouse:gardes`, the list of the frame's controls, read as it is in the source's
-//   `package.json`. The project's `pretest` calls it: a project without a pretest receives
+//   `grillhouse:gardes`, the list of the frame's controls, and `api` (`npm run api`, which writes
+//   the API reports), each read as it is in the source's `package.json` (a source without one
+//   writes none). The project's `pretest` calls it: a project without a pretest receives
 //   `npm run --silent grillhouse:gardes`, one whose pretest does not call it receives it at the
 //   head (`… && <its pretest>`), one that calls it stays. A source without `grillhouse:gardes`
 //   writes neither it nor a pretest.
+// - The controls' tools (API Extractor, dependency-cruiser, knip) are added to the project's
+//   `devDependencies` at the version the source's `devDependencies` give; a tool the project
+//   already declares in `dependencies`, `devDependencies` or `optionalDependencies` keeps its
+//   declaration, one a previous version added stays, and `devDependencies` are written sorted by
+//   name. The report names each tool added and `npm install`, which installs them.
 // - The git hooks: the frame's line of the pre-push hook (the night branch guard,
 //   scripts/branche-de-nuit.mjs) is placed in the hooks folder git reads for the project
 //   (`core.hooksPath`, else the default one; the configuration stays), before the Beads section; a
@@ -50,6 +56,10 @@ const SCRIPTS = {
   tableau: 'node scripts/tableau.mjs --texte',
   'grillhouse:maj': 'node scripts/grillhouse-maj.mjs',
 };
+
+// The controls' tools: their names are the frame's, their versions are read in the source.
+const OUTILS_DES_CONTROLES = ['@microsoft/api-extractor', 'dependency-cruiser', 'knip'];
+const CHAMPS_INSTALLES = ['dependencies', 'devDependencies', 'optionalDependencies'];
 
 const APPELLE =
   /(?:^|[\s;&|(])npm\s+run(?:-script)?(?:\s+-{1,2}[\w-]+(?:=\S+)?)*\s+grillhouse:gardes(?=$|[\s;&|)])/;
@@ -224,7 +234,7 @@ export function mettreAJour(projet, source, version) {
   const { garder, retirer } = lireListe(readFileSync(path.join(source, LISTE), 'utf8'));
   const avant = lireJson(path.join(projet, EMPREINTES), { fichiers: {}, crochets: [] });
   const fichiers = fichiersDuCadre(source, garder);
-  const bilan = { copies: [], retires: [] };
+  const bilan = { copies: [], retires: [], dependances: [] };
   const empreintes = {};
   for (const f of fichiers) {
     const dst = path.join(projet, f);
@@ -252,8 +262,24 @@ export function mettreAJour(projet, source, version) {
   const pkg = path.join(projet, 'package.json');
   if (existsSync(pkg)) {
     const p = lireJson(pkg, {});
-    const gardes = lireJson(path.join(source, 'package.json'), {}).scripts?.['grillhouse:gardes'];
+    const pkgSource = lireJson(path.join(source, 'package.json'), {});
+    const gardes = pkgSource.scripts?.['grillhouse:gardes'];
     p.scripts = { ...(p.scripts ?? {}), ...SCRIPTS };
+    if (typeof pkgSource.scripts?.api === 'string') {
+      p.scripts.api = pkgSource.scripts.api;
+    }
+    for (const nom of OUTILS_DES_CONTROLES) {
+      const version = pkgSource.devDependencies?.[nom];
+      if (typeof version === 'string' && !CHAMPS_INSTALLES.some(c => p[c]?.[nom] !== undefined)) {
+        p.devDependencies = { ...(p.devDependencies ?? {}), [nom]: version };
+        bilan.dependances.push(nom);
+      }
+    }
+    if (p.devDependencies) {
+      p.devDependencies = Object.fromEntries(
+        Object.entries(p.devDependencies).sort(([a], [b]) => a.localeCompare(b, 'en'))
+      );
+    }
     if (typeof gardes === 'string') {
       p.scripts['grillhouse:gardes'] = gardes;
       const pretest = typeof p.scripts.pretest === 'string' ? p.scripts.pretest.trim() : '';
@@ -343,5 +369,10 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   }
   for (const f of b.retires) {
     process.stdout.write(`  - ${f}\n`);
+  }
+  if (b.dependances.length > 0) {
+    process.stdout.write(
+      `Dépendances de développement ajoutées : ${b.dependances.join(', ')}. \`npm install\` les installe.\n`
+    );
   }
 }

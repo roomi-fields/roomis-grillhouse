@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -412,5 +413,477 @@ describe('grillhouse-3uv.55 critère 7 — what calls grillhouse:gardes', () => 
       mettreAJour(projet, DEPOT, 'essai');
       expect(lire(projet, 'package.json'), pretest).toBe(premier);
     }
+  });
+});
+
+// grillhouse-3uv.60: the update writes in the project the script that writes the API reports and
+// the development dependencies of the frame's controls (interfaces-contre-code.mjs: API
+// Extractor; frontieres.mjs: dependency-cruiser; code-mort.mjs: knip), as the source declares them.
+const DEPENDANCES = ['@microsoft/api-extractor', 'dependency-cruiser', 'knip'];
+type Pkg = {
+  scripts?: Record<string, string>;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+};
+const modele = () => JSON.parse(readFileSync(path.join(DEPOT, 'package.json'), 'utf8')) as Pkg;
+// The template's package.json, changed by `retouche`, as the package.json of a trial source.
+function sourceRetouchee(retouche: (p: Pkg) => void) {
+  const p = modele();
+  retouche(p);
+  return sourceAvec(p as Record<string, unknown>);
+}
+// The package.json of a project brought to the frame at `src` (this repository by default).
+function apresMaj(pkg: Record<string, unknown>, src: string = DEPOT) {
+  const projet = mkdtempSync(path.join(ESSAIS, 'deps-'));
+  ecrire(projet, 'package.json', `${JSON.stringify(pkg, null, 2)}\n`);
+  mettreAJour(projet, src, 'essai');
+  return { projet, pkg: json(projet, 'package.json') as Pkg };
+}
+
+describe('grillhouse-3uv.60 critère 1 — the update writes api and the dependencies of the controls', () => {
+  it('critère 1: the template declares the api script and the three dependencies of the controls', () => {
+    const m = modele();
+    expect(m.scripts?.api).toBe('node scripts/interfaces-contre-code.mjs --ecrire');
+    for (const d of DEPENDANCES) {
+      expect(m.devDependencies?.[d], d).toBeTypeOf('string');
+    }
+  });
+  it("critère 1: a project receives the template's api script", () => {
+    const { pkg } = apresMaj({ name: 'p', scripts: { test: 'vitest run' } });
+    expect(pkg.scripts?.api).toBe(modele().scripts?.api);
+    expect(pkg.scripts?.test).toBe('vitest run');
+  });
+  it('critère 1: a project without dependencies receives the three, at the versions of the template', () => {
+    const { pkg } = apresMaj({ name: 'p' });
+    const m = modele();
+    expect(pkg.devDependencies).toEqual(
+      Object.fromEntries(DEPENDANCES.map(d => [d, m.devDependencies?.[d]]))
+    );
+  });
+  it("critère 1: none of the template's other dependencies is written", () => {
+    const { pkg } = apresMaj({ name: 'p', scripts: {} });
+    expect(Object.keys(pkg.devDependencies ?? {}).sort()).toEqual(DEPENDANCES);
+    expect(pkg).not.toHaveProperty('dependencies');
+    expect(pkg).not.toHaveProperty('optionalDependencies');
+  });
+  it("critère 1: the project's own dependencies stay as they are, the three added beside them", () => {
+    const { pkg } = apresMaj({
+      name: 'p',
+      dependencies: { zod: '^3.0.0' },
+      devDependencies: { vitest: '^2.0.0' },
+    });
+    expect(pkg.dependencies).toEqual({ zod: '^3.0.0' });
+    expect(pkg.devDependencies?.vitest).toBe('^2.0.0');
+    for (const d of DEPENDANCES) {
+      expect(pkg.devDependencies?.[d], d).toBe(modele().devDependencies?.[d]);
+    }
+  });
+  it("critère 1: the versions are read in the source — another source's versions are written", () => {
+    const versions: Record<string, string> = {
+      '@microsoft/api-extractor': '7.1.0',
+      'dependency-cruiser': '^16.0.0',
+      knip: '5.0.1',
+    };
+    const src = sourceRetouchee(p => {
+      p.devDependencies = { ...p.devDependencies, ...versions };
+    });
+    const { pkg } = apresMaj({ name: 'p' }, src);
+    expect(pkg.devDependencies).toEqual(versions);
+  });
+  it('critère 1: a version the project already declares in devDependencies is not overwritten', () => {
+    const { pkg } = apresMaj({ name: 'p', devDependencies: { knip: '^5.0.0' } });
+    expect(pkg.devDependencies?.knip).toBe('^5.0.0');
+    expect(pkg.devDependencies?.['dependency-cruiser']).toBe(
+      modele().devDependencies?.['dependency-cruiser']
+    );
+  });
+  it('critère 1: a project without package.json gets none for the dependencies', () => {
+    const projet = mkdtempSync(path.join(ESSAIS, 'deps-'));
+    mettreAJour(projet, DEPOT, 'essai');
+    expect(existsSync(path.join(projet, 'package.json'))).toBe(false);
+  });
+});
+
+describe('grillhouse-3uv.60 critère 4 — api is written as the frame’s other scripts', () => {
+  it("critère 4: the source's api replaces the project's own", () => {
+    const { pkg } = apresMaj({ name: 'p', scripts: { api: 'echo à moi' } });
+    expect(pkg.scripts?.api).toBe(modele().scripts?.api);
+  });
+  it("critère 4: another source's api is written as it is", () => {
+    const src = sourceRetouchee(p => {
+      p.scripts = { ...p.scripts, api: 'node scripts/autre.mjs --rapports' };
+    });
+    const { pkg } = apresMaj({ name: 'p', scripts: { api: 'echo à moi' } }, src);
+    expect(pkg.scripts?.api).toBe('node scripts/autre.mjs --rapports');
+  });
+  it('critère 4: a source without api writes none', () => {
+    const src = sourceRetouchee(p => {
+      delete p.scripts?.api;
+    });
+    const { pkg } = apresMaj({ name: 'p', scripts: { test: 'vitest' } }, src);
+    expect(pkg.scripts).not.toHaveProperty('api');
+  });
+  it("critère 4: a source without api leaves the project's own api as it is", () => {
+    const src = sourceRetouchee(p => {
+      delete p.scripts?.api;
+    });
+    const { pkg } = apresMaj({ name: 'p', scripts: { api: 'echo à moi' } }, src);
+    expect(pkg.scripts?.api).toBe('echo à moi');
+  });
+  it('critère 4: a source without package.json writes neither api nor a dependency', () => {
+    const { pkg } = apresMaj({ name: 'p', scripts: { test: 'vitest' } }, sourceAvec(null));
+    expect(pkg.scripts).not.toHaveProperty('api');
+    expect(pkg).not.toHaveProperty('devDependencies');
+  });
+  it('critère 4: a dependency the source does not declare is not written', () => {
+    const src = sourceRetouchee(p => {
+      delete p.devDependencies?.knip;
+    });
+    const { pkg } = apresMaj({ name: 'p' }, src);
+    expect(Object.keys(pkg.devDependencies ?? {}).sort()).toEqual([
+      '@microsoft/api-extractor',
+      'dependency-cruiser',
+    ]);
+  });
+  it('critère 4: a source that declares none of the three writes no devDependencies', () => {
+    const src = sourceRetouchee(p => {
+      for (const d of DEPENDANCES) {
+        delete p.devDependencies?.[d];
+      }
+    });
+    const { pkg } = apresMaj({ name: 'p' }, src);
+    expect(pkg).not.toHaveProperty('devDependencies');
+  });
+});
+
+describe('grillhouse-3uv.60 critère 5 — a declared dependency keeps its declaration; devDependencies sorted', () => {
+  const champs = ['dependencies', 'devDependencies', 'optionalDependencies'] as const;
+  for (const champ of champs) {
+    it(`critère 5: a dependency declared in ${champ} keeps its declaration, without a duplicate`, () => {
+      const { pkg } = apresMaj({ name: 'p', [champ]: { 'dependency-cruiser': '^15.0.0' } });
+      expect(pkg[champ]?.['dependency-cruiser']).toBe('^15.0.0');
+      const ailleurs = champs.filter(c => c !== champ);
+      for (const c of ailleurs) {
+        expect(pkg[c]?.['dependency-cruiser'], c).toBeUndefined();
+      }
+      expect(pkg.devDependencies?.knip).toBe(modele().devDependencies?.knip);
+    });
+  }
+  it('critère 5: a dependency declared in peerDependencies only receives its development dependency', () => {
+    const { pkg } = apresMaj({ name: 'p', peerDependencies: { knip: '>=5' } });
+    expect(pkg.peerDependencies).toEqual({ knip: '>=5' });
+    expect(pkg.devDependencies?.knip).toBe(modele().devDependencies?.knip);
+  });
+  it('critère 5: a dependency in peerDependencies and dependencies keeps its declaration only', () => {
+    const { pkg } = apresMaj({
+      name: 'p',
+      peerDependencies: { knip: '>=5' },
+      dependencies: { knip: '^5.2.0' },
+    });
+    expect(pkg.dependencies).toEqual({ knip: '^5.2.0' });
+    expect(pkg.devDependencies?.knip).toBeUndefined();
+  });
+  it('critère 5: devDependencies are written sorted by name, the project’s own among them', () => {
+    const { pkg } = apresMaj({
+      name: 'p',
+      devDependencies: { vitest: '^2.0.0', eslint: '^8.0.0', '@types/node': '^20.0.0' },
+    });
+    expect(Object.keys(pkg.devDependencies ?? {})).toEqual([
+      '@microsoft/api-extractor',
+      '@types/node',
+      'dependency-cruiser',
+      'eslint',
+      'knip',
+      'vitest',
+    ]);
+  });
+  it('critère 5: a project already holding the three, unsorted, gets them sorted, versions kept', () => {
+    const { pkg } = apresMaj({
+      name: 'p',
+      devDependencies: {
+        knip: '1.0.0',
+        'dependency-cruiser': '2.0.0',
+        '@microsoft/api-extractor': '3.0.0',
+      },
+    });
+    expect(Object.entries(pkg.devDependencies ?? {})).toEqual([
+      ['@microsoft/api-extractor', '3.0.0'],
+      ['dependency-cruiser', '2.0.0'],
+      ['knip', '1.0.0'],
+    ]);
+  });
+});
+
+describe('grillhouse-3uv.60 critère 3 — a replayed update changes nothing', () => {
+  const cas: [string, Record<string, unknown>][] = [
+    ['without dependencies', { name: 'p', scripts: { test: 'vitest run' } }],
+    [
+      'holding part of the dependencies at other versions',
+      { name: 'p', devDependencies: { knip: '^5.0.0', vitest: '^2.0.0' } },
+    ],
+    [
+      'holding all three at other versions, unsorted',
+      {
+        name: 'p',
+        devDependencies: {
+          knip: '1.0.0',
+          'dependency-cruiser': '2.0.0',
+          '@microsoft/api-extractor': '3.0.0',
+        },
+      },
+    ],
+    [
+      'declaring them in dependencies, optionalDependencies and peerDependencies',
+      {
+        name: 'p',
+        dependencies: { 'dependency-cruiser': '^15.0.0' },
+        optionalDependencies: { '@microsoft/api-extractor': '7.0.0' },
+        peerDependencies: { knip: '>=5' },
+      },
+    ],
+    ['with an api script of its own', { name: 'p', scripts: { api: 'echo à moi' } }],
+    [
+      'with all of these at once',
+      {
+        name: 'p',
+        scripts: { api: 'echo à moi', pretest: 'node mien.mjs' },
+        dependencies: { zod: '^3.0.0' },
+        devDependencies: { vitest: '^2.0.0', knip: '^5.0.0' },
+      },
+    ],
+  ];
+  for (const [nom, pkg] of cas) {
+    it(`critère 3: a project ${nom} keeps its package.json byte for byte on a second update`, () => {
+      const { projet } = apresMaj(pkg);
+      const premier = lire(projet, 'package.json');
+      mettreAJour(projet, DEPOT, 'essai');
+      expect(lire(projet, 'package.json')).toBe(premier);
+      const p = JSON.parse(premier) as Pkg;
+      expect(p.scripts?.api, 'the first update wrote api').toBe(modele().scripts?.api);
+    });
+  }
+  it('critère 3: a replayed update from another source changes nothing either', () => {
+    const src = sourceRetouchee(p => {
+      p.devDependencies = { ...p.devDependencies, knip: '5.0.1' };
+    });
+    const { projet } = apresMaj({ name: 'p', devDependencies: { eslint: '^8.0.0' } }, src);
+    const premier = lire(projet, 'package.json');
+    mettreAJour(projet, src, 'essai');
+    expect(lire(projet, 'package.json')).toBe(premier);
+    expect((JSON.parse(premier) as Pkg).devDependencies?.knip).toBe('5.0.1');
+  });
+});
+
+describe('grillhouse-3uv.60 critère 7 — a dependency a previous version wrote stays when the source drops it', () => {
+  it('critère 7: knip, written by a previous update, stays when the new source no longer declares it', () => {
+    const { projet } = apresMaj({ name: 'p' });
+    const avant = (json(projet, 'package.json') as Pkg).devDependencies?.knip;
+    expect(avant, 'the first update wrote knip').toBe(modele().devDependencies?.knip);
+    const src = sourceRetouchee(p => {
+      delete p.devDependencies?.knip;
+    });
+    mettreAJour(projet, src, 'essai');
+    const pkg = json(projet, 'package.json') as Pkg;
+    expect(pkg.devDependencies?.knip).toBe(avant);
+    expect(pkg.devDependencies?.['dependency-cruiser']).toBe(
+      modele().devDependencies?.['dependency-cruiser']
+    );
+  });
+  it('critère 7: all three stay when the new source declares none of them', () => {
+    const { projet } = apresMaj({ name: 'p', devDependencies: { vitest: '^2.0.0' } });
+    const premier = (json(projet, 'package.json') as Pkg).devDependencies;
+    expect(Object.keys(premier ?? {}).sort(), 'the first update wrote the three').toEqual([
+      ...DEPENDANCES,
+      'vitest',
+    ]);
+    const src = sourceRetouchee(p => {
+      for (const d of DEPENDANCES) {
+        delete p.devDependencies?.[d];
+      }
+    });
+    mettreAJour(projet, src, 'essai');
+    expect((json(projet, 'package.json') as Pkg).devDependencies).toEqual(premier);
+  });
+  it('critère 7: they stay when the new source has no package.json', () => {
+    const { projet } = apresMaj({ name: 'p' });
+    const premier = (json(projet, 'package.json') as Pkg).devDependencies;
+    expect(Object.keys(premier ?? {}).sort(), 'the first update wrote the three').toEqual(
+      DEPENDANCES
+    );
+    mettreAJour(projet, sourceAvec(null), 'essai');
+    expect((json(projet, 'package.json') as Pkg).devDependencies).toEqual(premier);
+  });
+  it('critère 7: a dependency written from another source stays, at its version, when the next drops it', () => {
+    const premiere = sourceRetouchee(p => {
+      p.devDependencies = { ...p.devDependencies, knip: '5.0.1' };
+    });
+    const { projet } = apresMaj({ name: 'p' }, premiere);
+    expect((json(projet, 'package.json') as Pkg).devDependencies?.knip).toBe('5.0.1');
+    const suivante = sourceRetouchee(p => {
+      delete p.devDependencies?.knip;
+    });
+    mettreAJour(projet, suivante, 'essai');
+    expect((json(projet, 'package.json') as Pkg).devDependencies?.knip).toBe('5.0.1');
+  });
+});
+
+describe('grillhouse-3uv.60 critère 8 — only the source’s devDependencies are written', () => {
+  const champs = ['dependencies', 'optionalDependencies', 'peerDependencies'] as const;
+  for (const champ of champs) {
+    it(`critère 8: a control dependency the source declares in ${champ} only is not written`, () => {
+      const src = sourceRetouchee(p => {
+        const v = p.devDependencies?.knip ?? '^6.0.0';
+        delete p.devDependencies?.knip;
+        p[champ] = { ...(p[champ] ?? {}), knip: v };
+      });
+      const { pkg } = apresMaj({ name: 'p' }, src);
+      expect(pkg.devDependencies?.knip).toBeUndefined();
+      for (const c of champs) {
+        expect(pkg[c]?.knip, c).toBeUndefined();
+      }
+      expect(Object.keys(pkg.devDependencies ?? {}).sort()).toEqual([
+        '@microsoft/api-extractor',
+        'dependency-cruiser',
+      ]);
+    });
+  }
+  it('critère 8: a source declaring none of the three in devDependencies, all elsewhere, writes no devDependencies', () => {
+    const src = sourceRetouchee(p => {
+      for (const d of DEPENDANCES) {
+        delete p.devDependencies?.[d];
+      }
+      p.dependencies = { ...(p.dependencies ?? {}), '@microsoft/api-extractor': '7.0.0' };
+      p.optionalDependencies = { 'dependency-cruiser': '16.0.0' };
+      p.peerDependencies = { knip: '>=5' };
+    });
+    const { pkg } = apresMaj({ name: 'p' }, src);
+    expect(pkg).not.toHaveProperty('devDependencies');
+    expect(pkg).not.toHaveProperty('dependencies');
+    expect(pkg).not.toHaveProperty('optionalDependencies');
+    expect(pkg).not.toHaveProperty('peerDependencies');
+  });
+  it('critère 8: a dependency the source declares in dependencies and devDependencies is written at its devDependencies version', () => {
+    const src = sourceRetouchee(p => {
+      p.devDependencies = { ...p.devDependencies, knip: '5.0.1' };
+      p.dependencies = { ...(p.dependencies ?? {}), knip: '9.9.9' };
+    });
+    const { pkg } = apresMaj({ name: 'p' }, src);
+    expect(pkg.devDependencies?.knip).toBe('5.0.1');
+    expect(pkg).not.toHaveProperty('dependencies');
+  });
+});
+
+// The update as a project runs it: the script, in the trial project, from the source named.
+const SCRIPT_MAJ = path.join(DEPOT, 'scripts/grillhouse-maj.mjs');
+const lancerMaj = (projet: string, src: string) =>
+  spawnSync('node', [SCRIPT_MAJ, '--source', src], { cwd: projet, encoding: 'utf8' });
+// A trial project with `pkg` as its package.json, and a one-file source with the template's
+// package.json (its file list names no control's file, so the report names a dependency only
+// as a dependency).
+function projetEtSource(
+  pkg: Record<string, unknown> | null,
+  retouche: (p: Pkg) => void = () => {}
+) {
+  const projet = mkdtempSync(path.join(ESSAIS, 'bilan-'));
+  if (pkg) {
+    ecrire(
+      projet,
+      'package.json',
+      `${JSON.stringify(pkg, null, 2)}
+`
+    );
+  }
+  return { projet, src: sourceRetouchee(retouche) };
+}
+const NPM_INSTALL = /npm install/;
+
+describe('grillhouse-3uv.60 critère 9 — the report names each added dependency and npm install', () => {
+  it('critère 9: a project without dependencies hears the three named, and npm install', () => {
+    const { projet, src } = projetEtSource({ name: 'p' });
+    const r = lancerMaj(projet, src);
+    expect(r.status, r.stderr).toBe(0);
+    for (const d of DEPENDANCES) {
+      expect(r.stdout, d).toContain(d);
+    }
+    expect(r.stdout).toMatch(NPM_INSTALL);
+  });
+  it('critère 9: only the dependencies added are named — one the project declares is not', () => {
+    const { projet, src } = projetEtSource({
+      name: 'p',
+      dependencies: { knip: '^5.0.0' },
+      devDependencies: { 'dependency-cruiser': '^15.0.0' },
+    });
+    const r = lancerMaj(projet, src);
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stdout).toContain('@microsoft/api-extractor');
+    expect(r.stdout).not.toContain('knip');
+    expect(r.stdout).not.toContain('dependency-cruiser');
+    expect(r.stdout).toMatch(NPM_INSTALL);
+  });
+  it('critère 9: a dependency declared in peerDependencies only is added, so named', () => {
+    const { projet, src } = projetEtSource({
+      name: 'p',
+      peerDependencies: { knip: '>=5' },
+      devDependencies: { '@microsoft/api-extractor': '7.0.0', 'dependency-cruiser': '16.0.0' },
+    });
+    const r = lancerMaj(projet, src);
+    expect(r.stdout).toContain('knip');
+    expect(r.stdout).not.toContain('dependency-cruiser');
+    expect(r.stdout).toMatch(NPM_INSTALL);
+  });
+  it('critère 9: an update adding none says nothing of dependencies nor npm install', () => {
+    const { projet, src } = projetEtSource({
+      name: 'p',
+      devDependencies: {
+        knip: '1.0.0',
+        'dependency-cruiser': '2.0.0',
+        '@microsoft/api-extractor': '3.0.0',
+      },
+    });
+    const r = lancerMaj(projet, src);
+    expect(r.status, r.stderr).toBe(0);
+    for (const d of DEPENDANCES) {
+      expect(r.stdout, d).not.toContain(d);
+    }
+    expect(r.stdout).not.toMatch(NPM_INSTALL);
+  });
+  it('critère 9: a replayed update says nothing of dependencies nor npm install', () => {
+    const { projet, src } = projetEtSource({ name: 'p' });
+    const premier = lancerMaj(projet, src);
+    expect(premier.stdout, 'the first update named npm install').toMatch(NPM_INSTALL);
+    const r = lancerMaj(projet, src);
+    expect(r.status, r.stderr).toBe(0);
+    for (const d of DEPENDANCES) {
+      expect(r.stdout, d).not.toContain(d);
+    }
+    expect(r.stdout).not.toMatch(NPM_INSTALL);
+  });
+  it('critère 9: a source declaring none of the three adds none, so says nothing of them', () => {
+    const { projet, src } = projetEtSource({ name: 'p' }, p => {
+      for (const d of DEPENDANCES) {
+        delete p.devDependencies?.[d];
+      }
+    });
+    const r = lancerMaj(projet, src);
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stdout).not.toMatch(NPM_INSTALL);
+  });
+  it('critère 9: a dependency the source declares outside devDependencies is not named', () => {
+    const { projet, src } = projetEtSource({ name: 'p' }, p => {
+      delete p.devDependencies?.knip;
+      p.dependencies = { ...(p.dependencies ?? {}), knip: '^6.0.0' };
+    });
+    const r = lancerMaj(projet, src);
+    expect(r.stdout).not.toContain('knip');
+    expect(r.stdout).toContain('dependency-cruiser');
+    expect(r.stdout).toMatch(NPM_INSTALL);
+  });
+  it('critère 9: a project without package.json hears nothing of npm install', () => {
+    const { projet, src } = projetEtSource(null);
+    const r = lancerMaj(projet, src);
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stdout).not.toMatch(NPM_INSTALL);
   });
 });

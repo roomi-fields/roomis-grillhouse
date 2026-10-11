@@ -3,7 +3,8 @@
 //
 // - The public API of a component is reported by API Extractor from its built declarations:
 //   `docs/INTERFACE.api.md`, kept in the repository. The check refuses an API that changed
-//   without its report; `--ecrire` writes the reports. A package's entry is its main entry
+//   without its report. The interface is compared to the built API, not to the recorded report.
+//   A package's entry is its main entry
 //   (`types`, or `exports["."].types`); its other entries (test material) are not its API. A
 //   module of `src/` has `<types directory>/<module>/index.d.ts`. Types of a neighbour stay
 //   references to it.
@@ -12,8 +13,12 @@
 // - When the interface has a « ## Les fautes » section, its codes (`PARSE_EXPECTED`…) are exactly
 //   the codes with the same prefixes found in the component's production code.
 //
-//   node scripts/interfaces-contre-code.mjs            checks every component (run after the build)
-//   node scripts/interfaces-contre-code.mjs --ecrire   writes the API reports
+//   node scripts/interfaces-contre-code.mjs   checks every component (run after the build)
+//   npm run api                               writes the API reports (run after the build)
+//
+// A missing report, or an API changed without its report, is refused with `npm run api`, the
+// command that writes it; API Extractor's own warning on that report is not relayed (the refusal
+// says what to do). `--ecrire`, the flag `npm run api` passes, writes the reports.
 //
 // A component without `docs/INTERFACE.md` is reported and skipped. A project that prefers a
 // bench per component calls `verifierComposant(racine, composant)` from its test.
@@ -106,7 +111,9 @@ function codesDuCode(dir, racine, prefixes) {
   return trouves;
 }
 
-// Runs API Extractor on one component: its report and whether it is up to date.
+// Runs API Extractor on one component: the report of the built API (read from API Extractor's
+// temporary folder, which holds it whether or not the repository's report exists) and whether the
+// repository's report is up to date.
 function rapportApi(racine, c, entreeDts, ecrire) {
   const { Extractor, ExtractorConfig } = require('@microsoft/api-extractor');
   const pj = existsSync(path.join(c.dir, 'package.json'))
@@ -142,14 +149,17 @@ function rapportApi(racine, c, entreeDts, ecrire) {
     const resultat = Extractor.invoke(config, {
       localBuild: ecrire,
       messageCallback: m => {
-        if (m.logLevel === 'error' || m.logLevel === 'warning') messages.push(m.text);
+        const duRapport = String(m.messageId).startsWith('console-api-report');
+        if ((m.logLevel === 'error' || m.logLevel === 'warning') && (ecrire || !duRapport)) {
+          messages.push(m.text);
+        }
         m.handled = true;
       },
     });
-    const rapport = path.join(c.dir, 'docs', 'INTERFACE.api.md');
+    const construit = path.join(tmp, 'INTERFACE.api.md');
     return {
       ajour: resultat.succeeded && !resultat.apiReportChanged,
-      texte: existsSync(rapport) ? readFileSync(rapport, 'utf8') : '',
+      texte: existsSync(construit) ? readFileSync(construit, 'utf8') : '',
       messages,
     };
   } finally {
@@ -176,9 +186,14 @@ export function verifierComposant(racine, c, { ecrire = false } = {}) {
   } else {
     const api = rapportApi(racine, c, dts, ecrire);
     for (const m of api.messages) signaux.push(`${rel} : ${m}`);
-    if (!api.ajour && !ecrire) {
+    const manque = !ecrire && !existsSync(path.join(c.dir, 'docs', 'INTERFACE.api.md'));
+    if (manque) {
       refus.push(
-        `${rel} : l'API a changé sans son rapport docs/INTERFACE.api.md ; node scripts/interfaces-contre-code.mjs --ecrire le régénère.`
+        `${rel} : son rapport docs/INTERFACE.api.md manque ; npm run api l'écrit, après la construction.`
+      );
+    } else if (!api.ajour && !ecrire) {
+      refus.push(
+        `${rel} : l'API a changé sans son rapport docs/INTERFACE.api.md ; npm run api le régénère, après la construction.`
       );
     }
     const exportes = exportsDuRapport(api.texte);
