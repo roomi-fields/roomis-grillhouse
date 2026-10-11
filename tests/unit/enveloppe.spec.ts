@@ -15,7 +15,7 @@ import {
 import { tmpdir, userInfo } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { canWrap, racineSousLaMaison } from '../machine.js';
+import { canWrap, hasBd, racineSousLaMaison } from '../machine.js';
 import { CODE_COPIE, CODE_REFUS, CODE_USAGE } from '../../scripts/enveloppe/codes.mjs';
 import { montagesDeLaSeance, plan } from '../../scripts/enveloppe/enveloppe.mjs';
 
@@ -467,11 +467,20 @@ describe.runIf(canWrap)(
     const git = (...a: string[]) =>
       execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
     git('init', '-q');
-    // A real tickets base, made by bd in this home: it writes there its own state (`~/.dolt`,
-    // `~/.beads`, `~/.config/bd`), which the session's bd reads to open the base.
-    const bdDehors = (...a: string[]) =>
-      execFileSync('bd', a, { cwd: repo, env: { ...process.env, HOME: home }, stdio: 'pipe' });
-    bdDehors('init', '-q', '--non-interactive', '-p', 'essai');
+    // A real tickets base, made by bd in this home when the machine has bd: it writes there its own
+    // state (`~/.dolt`, `~/.beads`, `~/.config/bd`), which the session's bd reads to open the base.
+    // Without bd, the directory of the base is made by hand: the test that reads and writes the
+    // base through bd skips, the one that writes in its directory runs (grillhouse-3uv.50.1).
+    if (hasBd) {
+      execFileSync('bd', ['init', '-q', '--non-interactive', '-p', 'essai'], {
+        cwd: repo,
+        env: { ...process.env, HOME: home },
+        stdio: 'pipe',
+      });
+    } else {
+      mkdirSync(path.join(repo, '.beads'));
+      writeFileSync(path.join(repo, '.beads/config.yaml'), '');
+    }
     git('add', '.');
     git('commit', '-qm', 'init');
     const copie = path.join(repo, '.claude/worktrees/demo-1');
@@ -714,14 +723,18 @@ describe.runIf(canWrap)(
         writeFileSync(path.join(dans, 'LISEZMOI'), 'racine');
       }
     });
-    it('lets bd read and write the tickets base of the main tree with its own state', () => {
-      const cree = run('bd create "sonde de l\'enveloppe" --json');
-      expect(cree.status, cree.stderr).toBe(0);
-      const { id } = JSON.parse(cree.stdout) as { id: string };
-      const lu = run(`bd show ${id} --json`);
-      expect(lu.status, lu.stderr).toBe(0);
-      expect(lu.stdout).toContain("sonde de l'enveloppe");
-    });
+    // Needs the real bd: it opens the base with its own state (grillhouse-3uv.50.1).
+    it.runIf(hasBd)(
+      'lets bd read and write the tickets base of the main tree with its own state',
+      () => {
+        const cree = run('bd create "sonde de l\'enveloppe" --json');
+        expect(cree.status, cree.stderr).toBe(0);
+        const { id } = JSON.parse(cree.stdout) as { id: string };
+        const lu = run(`bd show ${id} --json`);
+        expect(lu.status, lu.stderr).toBe(0);
+        expect(lu.stdout).toContain("sonde de l'enveloppe");
+      }
+    );
     it('keeps node and its tools, and the git configuration', () => {
       expect(run('cat ~/.nvm/versions/node/v1/bin/marque').stdout).toBe('nvm');
       expect(run('git config --global user.name').stdout.trim()).toBe('t');
@@ -1080,7 +1093,8 @@ describe.runIf(canWrap && (copieDeLaSuite || sondeEssai))('the envelope on the r
       expect(r.stdout, outil).toContain(attendu);
     }
   });
-  it('lets bd open the tickets base of the repository', () => {
+  // Needs the real bd: it opens the tickets base of the repository (grillhouse-3uv.50.1).
+  it.runIf(hasBd)('lets bd open the tickets base of the repository', () => {
     expect(ticket).not.toBeNull();
     const r = dedans(['bd', 'show', ticket as string, '--json']);
     expect(r.status, r.stderr).toBe(0);
@@ -1110,11 +1124,16 @@ describe.runIf(canWrap && (copieDeLaSuite || sondeEssai))('the envelope on the r
       expect(r.stdout, t).not.toContain(symbole);
     }
   });
-  it.runIf(sondeEssai)('lets bd write a ticket in the tickets base of the repository', () => {
-    const r = dedans(['bd', 'create', "ticket écrit dans l'enveloppe", '--json']);
-    expect(r.status, r.stderr).toBe(0);
-    expect(dehors(['bd', 'list', '--json'], copie).stdout).toContain('écrit dans l');
-  });
+  // Needs the real bd, which writes the ticket, and the trial repository, made for the probe alone
+  // (grillhouse-3uv.50.1).
+  it.runIf(hasBd && sondeEssai)(
+    'lets bd write a ticket in the tickets base of the repository',
+    () => {
+      const r = dedans(['bd', 'create', "ticket écrit dans l'enveloppe", '--json']);
+      expect(r.status, r.stderr).toBe(0);
+      expect(dehors(['bd', 'list', '--json'], copie).stdout).toContain('écrit dans l');
+    }
+  );
 });
 
 describe.runIf(canWrap)('the launcher', () => {

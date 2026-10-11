@@ -15,12 +15,12 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { canWrap, racineSousLaMaison } from '../machine.js';
+import { canWrap, hasBd, racineSousLaMaison } from '../machine.js';
 
-// Ticket grillhouse-3uv.50: the suite runs on every machine where the project builds. A test that
-// needs a capacity of the machine (a directory under the home, a bwrap sandbox) creates it or
-// skips with its reason, never fails for its lack. Each case runs the suite itself, in a child
-// vitest, on a machine without the capacity.
+// Tickets grillhouse-3uv.50 and grillhouse-3uv.50.1: the suite runs on every machine where the
+// project builds. A test that needs a capacity of the machine (a directory under the home, a bwrap
+// sandbox, the real bd) creates it or skips with its reason, never fails for its lack. Each case
+// runs the suite itself, in a child vitest, on a machine without the capacity.
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'machine-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
@@ -108,33 +108,40 @@ function nuitDeLArbre(): string {
 // A fresh home, without ~/.cache.
 const maisonNeuve = () => mkdtempSync(path.join(ESSAIS, 'maison-'));
 
-// A PATH that holds every command of this one but bwrap: a directory of links.
-function cheminSansBwrap(): string {
-  const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
-  for (const d of (process.env.PATH ?? '').split(':')) {
-    let noms: string[];
-    try {
-      noms = readdirSync(d);
-    } catch {
-      continue;
-    }
-    for (const nom of noms) {
-      const f = path.join(d, nom);
-      const lien = path.join(bin, nom);
-      if (nom === 'bwrap' || existsSync(lien)) {
-        continue;
-      }
+// A PATH that holds every command of this one but <absente>: each directory of this PATH, but a
+// directory that holds <absente> gives way to a directory of links to its other commands. The other
+// directories stay as they are, seen by an envelope as on the machine.
+function cheminSans(absente: string): string {
+  return (process.env.PATH ?? '')
+    .split(':')
+    .map(d => {
+      let noms: string[];
       try {
-        accessSync(f, constants.X_OK);
-        if (statSync(f).isFile()) {
-          symlinkSync(f, lien);
-        }
+        noms = readdirSync(d);
       } catch {
-        // Not a command.
+        return d;
       }
-    }
-  }
-  return bin;
+      if (!noms.includes(absente)) {
+        return d;
+      }
+      const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
+      for (const nom of noms) {
+        const f = path.join(d, nom);
+        if (nom === absente) {
+          continue;
+        }
+        try {
+          accessSync(f, constants.X_OK);
+          if (statSync(f).isFile()) {
+            symlinkSync(f, path.join(bin, nom));
+          }
+        } catch {
+          // Not a command.
+        }
+      }
+      return bin;
+    })
+    .join(':');
 }
 
 // The files of a report that failed to load, with their message.
@@ -222,7 +229,7 @@ describe('critère 2 — on a machine without bwrap, a test that launches a real
     'critère 2: the agent copy of the submodules skips, the other tests of its describe run green',
     () => {
       const r = jouer(['tests/unit/sous-modules.spec.ts'], 'critère 4', {
-        PATH: cheminSansBwrap(),
+        PATH: cheminSans('bwrap'),
       });
       expect(statut(r, ENVELOPPE_REELLE)).toBe('skipped');
       for (const titre of SANS_ENVELOPPE) {
@@ -240,6 +247,73 @@ describe.runIf(canWrap)('critère 4 — on a machine where bwrap works, nothing 
       const r = jouer(['tests/unit/sous-modules.spec.ts'], 'critère 4', {});
       expect(statut(r, ENVELOPPE_REELLE)).toBe('passed');
       for (const titre of SANS_ENVELOPPE) {
+        expect(statut(r, titre), titre).toBe('passed');
+      }
+    },
+    LONG
+  );
+});
+
+// The test of the envelope that needs the real bd, and two beside it in their describe that need
+// none: one writes in the directory of the tickets base, made by hand without bd
+// (grillhouse-3uv.50.1).
+const BASE_REELLE = 'lets bd read and write the tickets base of the main tree with its own state';
+const SANS_BD = [
+  'lets the session write the tickets base of the main tree in the home',
+  'leaves every index whole on disk',
+];
+const filtreBase = [BASE_REELLE, ...SANS_BD].join('|');
+
+// True when a file named bd, executable, lies in a directory of the PATH: read without running bd,
+// apart from the detection of tests/machine.ts that the critère 3 watches.
+const bdSurLeChemin = (process.env.PATH ?? '').split(':').some(d => {
+  try {
+    accessSync(path.join(d, 'bd'), constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+});
+
+describe('critère 1 (grillhouse-3uv.50.1) — on a machine without bd, no test file fails', () => {
+  it(
+    'critère 1 (grillhouse-3uv.50.1): every day test file loads on a machine without bd',
+    () => {
+      const r = jouer([], AUCUN, { HOME: maisonNeuve(), PATH: cheminSans('bd') });
+      expect(nonCharges(r)).toEqual([]);
+      expect(r.numFailedTestSuites).toBe(0);
+    },
+    LONG
+  );
+
+  it.runIf(canWrap)(
+    'critère 1 (grillhouse-3uv.50.1): the test that needs the real bd skips, those beside it pass',
+    () => {
+      const r = jouer(['tests/unit/enveloppe.spec.ts'], filtreBase, {
+        HOME: maisonNeuve(),
+        PATH: cheminSans('bd'),
+      });
+      expect(statut(r, BASE_REELLE)).toBe('skipped');
+      for (const titre of SANS_BD) {
+        expect(statut(r, titre), titre).toBe('passed');
+      }
+    },
+    LONG
+  );
+});
+
+// Guarded by bd found on the PATH, not by the detection it watches: a detection that misses bd
+// fails here.
+describe.runIf(bdSurLeChemin)('critère 3 (grillhouse-3uv.50.1) — on a machine with bd', () => {
+  it('critère 3 (grillhouse-3uv.50.1): the detection of the machine sees bd', () => {
+    expect(hasBd).toBe(true);
+  });
+
+  it.runIf(canWrap)(
+    'critère 3 (grillhouse-3uv.50.1): the test that needs the real bd runs, with those beside it',
+    () => {
+      const r = jouer(['tests/unit/enveloppe.spec.ts'], filtreBase, { HOME: maisonNeuve() });
+      for (const titre of [BASE_REELLE, ...SANS_BD]) {
         expect(statut(r, titre), titre).toBe('passed');
       }
     },

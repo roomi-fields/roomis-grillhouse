@@ -18,3 +18,7 @@ export function racineSousLaMaison(prefixe: string, maison = homedir()): string 
 // True when bwrap builds a sandbox on this machine: installed, and allowed its namespaces. A test
 // that launches a real envelope runs under it (`it.runIf(canWrap)`, `describe.runIf(canWrap)`).
 export const canWrap = spawnSync('bwrap', ['--dev-bind', '/', '/', 'true']).status === 0;
+
+// True when the real bd (Beads) runs on this machine. A test that needs a real tickets base runs
+// under it (`it.runIf(hasBd)`); a test that plays bd through a fake one on its PATH needs it not.
+export const hasBd = spawnSync('bd', ['--version']).status === 0;
