@@ -53,7 +53,7 @@ roomis-grillhouse/
 │   │   ├── enveloppe.mjs             # bwrap sandbox for one component (tests: tests/unit/enveloppe.spec.ts)
 │   │   ├── codes.mjs                 # the exit codes of the envelope and its launcher
 │   │   └── lancer.sh                 # one ticket → one fresh role session in its envelope
-│   ├── code-mort.mjs              # grillhouse:gardes: refuses dead code, measured by knip (knip.json)
+│   ├── code-mort.mjs              # grillhouse:gardes: refuses dead code, measured by knip (knip.json); tests and benches count for dependency use only
 │   ├── consommateurs.mjs          # grillhouse:gardes: refuses an import that the provider's INTERFACE.md does not declare
 │   │                              #   composants(): the components for every check, minus the packages out of
 │   │                              #   the frame listed in docs/agents/hors-cadre.txt, "<package> <reason>"

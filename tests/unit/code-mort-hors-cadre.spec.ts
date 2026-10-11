@@ -1,16 +1,8 @@
-import { spawnSync } from 'node:child_process';
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { codeMortEssai } from './code-mort-essai.js';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'code-mort-hors-cadre-'));
@@ -21,7 +13,6 @@ afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 // Each test runs the real guard (knip) in a repository built for it.
 const HORS_CADRE = 'docs/agents/hors-cadre.txt';
 const SCRIPT = path.resolve(__dirname, '../../scripts/code-mort.mjs');
-const MODULES = path.resolve(__dirname, '../../node_modules');
 const KNIP = {
   $schema: 'https://unpkg.com/knip@6/schema.json',
   entry: ['src/index.ts'],
@@ -29,25 +20,13 @@ const KNIP = {
 };
 
 // A file given as null is left out of the repository (knip.json, for the default settings).
-function codeMort(files: Record<string, string | null>) {
-  const dir = mkdtempSync(path.join(ESSAIS, 'code-mort-hors-cadre-'));
-  const tous: Record<string, string | null> = {
+const codeMort = (files: Record<string, string | null>) =>
+  codeMortEssai(ESSAIS, {
     'package.json': JSON.stringify({ name: 'r', private: true, workspaces: ['packages/*'] }),
     'knip.json': JSON.stringify(KNIP, null, 2) + '\n',
     'src/index.ts': 'export const i = 1;\n',
     ...files,
-  };
-  for (const [rel, text] of Object.entries(tous)) {
-    if (text === null) {
-      continue;
-    }
-    mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
-    writeFileSync(path.join(dir, rel), text);
-  }
-  symlinkSync(MODULES, path.join(dir, 'node_modules'));
-  const r = spawnSync('node', [SCRIPT], { cwd: dir, encoding: 'utf8' });
-  return { dir, status: r.status, sortie: (r.stdout ?? '') + (r.stderr ?? '') };
-}
+  });
 
 const paquet = (name: string, deps: Record<string, string> = {}) =>
   JSON.stringify({ name, main: 'src/index.ts', dependencies: deps });
