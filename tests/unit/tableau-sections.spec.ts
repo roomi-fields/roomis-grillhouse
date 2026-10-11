@@ -7,7 +7,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { assembler, lignes, LARGEUR } from '../../scripts/tableau.mjs';
+import { assembler, duree, k, lignes, LARGEUR } from '../../scripts/tableau.mjs';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tableau-sections-'));
@@ -109,7 +109,7 @@ const toutes = (l: Ligne[]): Ligne[] => l.flatMap(x => [x, ...toutes(x.replie ??
 // The board's parts, by position: the head down to the AGENTS title, AGENTS down to the first
 // CHANTIER line (the blank line before it, or « N chantiers »), CHANTIER down to FAITS AUJOURD'HUI.
 const indexAgents = (l: Ligne[]) => l.findIndex(x => x.texte.startsWith('AGENTS'));
-const indexFaits = (l: Ligne[]) => l.findIndex(x => x.texte === "FAITS AUJOURD'HUI");
+const indexFaits = (l: Ligne[]) => l.findIndex(x => x.texte.startsWith("FAITS AUJOURD'HUI"));
 const finChantier = (l: Ligne[]) => (indexFaits(l) < 0 ? l.length : indexFaits(l) - 1);
 const debutChantier = (l: Ligne[]) => {
   const i = l.findIndex(
@@ -182,6 +182,18 @@ describe('3uv.42 critère 1 : a closed ticket leaves CHANTIER, mother included, 
     expect(e1?.texte).toMatch(/ 3\/6\b/);
     const e8 = partieChantier(L0).find(x => x.ticket === 'demo-e.8');
     expect(e8?.texte).toMatch(/ 1\/2\b/);
+  });
+});
+
+describe("FAITS AUJOURD'HUI carries the day's total on its title", () => {
+  it('the title ends with the count of tickets, their working time and their tokens, right-aligned', () => {
+    const f = T0.faitsDuJour;
+    const n = f.length;
+    const total = `${n} ticket${n > 1 ? 's' : ''} · ${duree(f.reduce((s, x) => s + x.duree, 0))} · ${k(f.reduce((s, x) => s + x.jetons, 0))}`;
+    const titre = L0[indexFaits(L0)]!.texte;
+    expect(titre.startsWith("FAITS AUJOURD'HUI")).toBe(true);
+    expect(titre.endsWith(total)).toBe(true);
+    expect(titre.length).toBe(L0.find(x => x.ticket && x.section === 'faits')!.texte.length);
   });
 });
 
@@ -285,7 +297,7 @@ describe('3uv.42 critère 4 : each line carries its section', () => {
   });
 
   it("3uv.42 critère 4 : the FAITS AUJOURD'HUI title and its tickets are in faits", () => {
-    expect(section(L0, x => x.texte === "FAITS AUJOURD'HUI")).toBe('faits');
+    expect(section(L0, x => x.texte.startsWith("FAITS AUJOURD'HUI"))).toBe('faits');
     for (const id of ['demo-e.1.2', 'demo-e.2.2', 'demo-e.5']) {
       expect(
         section(L0, x => x.ticket === id && x.texte.startsWith('✓')),

@@ -976,7 +976,18 @@ export function lignes(t, nom, largeur = LARGEUR) {
   if (t.faitsDuJour.length) {
     section = 'faits';
     L('', undefined);
-    L("FAITS AUJOURD'HUI", 'titre');
+    // The title carries the day's total: tickets, working time and tokens of the facts below.
+    const n = t.faitsDuJour.length;
+    const temps = t.faitsDuJour.reduce((s, x) => s + x.duree, 0);
+    const jetons = t.faitsDuJour.reduce((s, x) => s + x.jetons, 0);
+    L(
+      cadre(
+        "FAITS AUJOURD'HUI",
+        `${n} ticket${n > 1 ? 's' : ''} · ${duree(temps)} · ${k(jetons)}`,
+        largeur
+      ),
+      'titre'
+    );
     const fait = x => ({
       texte: cadre(`✓ ${x.numero}  ${x.sujet}`, `${duree(x.duree)} · ${k(x.jetons)}`, largeur),
       ton: 'discret',
