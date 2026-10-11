@@ -53,12 +53,12 @@ roomis-grillhouse/
 │   │   ├── enveloppe.mjs             # bwrap sandbox for one component (tests: tests/unit/enveloppe.spec.ts)
 │   │   ├── codes.mjs                 # the exit codes of the envelope and its launcher
 │   │   └── lancer.sh                 # one ticket → one fresh role session in its envelope
-│   ├── code-mort.mjs              # pretest: refuses dead code, measured by knip (knip.json)
-│   ├── consommateurs.mjs          # pretest: refuses an import that the provider's INTERFACE.md does not declare
+│   ├── code-mort.mjs              # grillhouse:gardes: refuses dead code, measured by knip (knip.json)
+│   ├── consommateurs.mjs          # grillhouse:gardes: refuses an import that the provider's INTERFACE.md does not declare
 │   │                              #   composants(): the components for every check, minus the packages out of
 │   │                              #   the frame listed in docs/agents/hors-cadre.txt, "<package> <reason>"
-│   ├── frontieres.mjs             # pretest: dependency-cruiser, rules generated in .dependency-cruiser.cjs
-│   ├── interfaces-contre-code.mjs # pretest: INTERFACE.md against the API report of API Extractor (npm run api)
+│   ├── frontieres.mjs             # grillhouse:gardes: dependency-cruiser, rules generated in .dependency-cruiser.cjs
+│   ├── interfaces-contre-code.mjs # grillhouse:gardes: INTERFACE.md against the API report of API Extractor (npm run api)
 │   ├── nuit.sh                    # every suite, once a night (mode « impactes »), then the night tests
 │   │                              #   (*.nuit.test.*, *.nuit.spec.*); a red opens a ticket
 │   ├── vitest.nuit.config.mjs     # the Vitest configuration of the night tests, played by nuit.sh
@@ -71,7 +71,7 @@ roomis-grillhouse/
 │   │   ├── integrer.mjs              # run by the integrateur (tests: tests/unit/integrer.spec.ts)
 │   │   └── suites-vitest.mjs         # npm run integration:suites -- --tous|<components>: failing tests by name, for Vitest
 │   │                                 #   (budget benches and night tests left out)
-│   ├── index-interfaces.mjs       # npm run interfaces: docs/agents/index-des-interfaces.md, checked by pretest
+│   ├── index-interfaces.mjs       # npm run interfaces: docs/agents/index-des-interfaces.md, checked by grillhouse:gardes
 │   └── un-commit-par-ticket.mjs   # commit-msg hook (.beads/hooks/commit-msg): one ticket, one commit
 │
 ├── mods/grillhouse/            # The Grillhouse mod (grillhouse@roomi-fields): the /grillhouse pane, the

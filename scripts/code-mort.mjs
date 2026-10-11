@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // The dead-code guard: refuses a file, an export, a type or a dependency that nothing living
-// uses, measured by knip (configured in the project's `knip.json`). Run by `pretest`.
+// uses, measured by knip (configured in the project's `knip.json`). Run by `grillhouse:gardes`.
 //
 // - Each finding is named with its file; exit code 1 when there is one.
 // - A knip that measured nothing (it failed, or its output is not its report) refuses too: an

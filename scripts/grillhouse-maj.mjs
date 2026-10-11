@@ -11,7 +11,12 @@
 // - `.claude/settings.json`: the frame's hooks, plugins, marketplaces and status line are added;
 //   one the previous version installed and the new one dropped is removed; the project's own
 //   settings stay.
-// - `package.json`, when there is one: the frame's npm scripts (`tableau`, `grillhouse:maj`).
+// - `package.json`, when there is one: the frame's npm scripts (`tableau`, `grillhouse:maj`), and
+//   `grillhouse:gardes`, the list of the frame's controls, read as it is in the source's
+//   `package.json`. The project's `pretest` calls it: a project without a pretest receives
+//   `npm run --silent grillhouse:gardes`, one whose pretest does not call it receives it at the
+//   head (`… && <its pretest>`), one that calls it stays. A source without `grillhouse:gardes`
+//   writes neither it nor a pretest.
 // - `.claude/grillhouse/empreintes.json` records the source's commit, each file's SHA-256 and the
 //   hooks, plugins and marketplaces installed. `--ecarts` compares the files with it: a frame file modified or missing in a
 //   project is drift, which goes back to Grillhouse as a proposal.
@@ -40,6 +45,10 @@ const SCRIPTS = {
   tableau: 'node scripts/tableau.mjs --texte',
   'grillhouse:maj': 'node scripts/grillhouse-maj.mjs',
 };
+
+const APPELLE =
+  /(?:^|[\s;&|(])npm\s+run(?:-script)?(?:\s+-{1,2}[\w-]+(?:=\S+)?)*\s+grillhouse:gardes(?=$|[\s;&|)])/;
+const APPEL_GARDES = 'npm run --silent grillhouse:gardes';
 
 const empreinte = f => createHash('sha256').update(readFileSync(f)).digest('hex');
 const lireJson = (f, defaut) => {
@@ -188,7 +197,17 @@ export function mettreAJour(projet, source, version) {
   const pkg = path.join(projet, 'package.json');
   if (existsSync(pkg)) {
     const p = lireJson(pkg, {});
+    const gardes = lireJson(path.join(source, 'package.json'), {}).scripts?.['grillhouse:gardes'];
     p.scripts = { ...(p.scripts ?? {}), ...SCRIPTS };
+    if (typeof gardes === 'string') {
+      p.scripts['grillhouse:gardes'] = gardes;
+      const pretest = typeof p.scripts.pretest === 'string' ? p.scripts.pretest.trim() : '';
+      if (!pretest) {
+        p.scripts.pretest = APPEL_GARDES;
+      } else if (!APPELLE.test(pretest)) {
+        p.scripts.pretest = `${APPEL_GARDES} && ${p.scripts.pretest}`;
+      }
+    }
     writeFileSync(pkg, `${JSON.stringify(p, null, 2)}\n`);
   }
   mkdirSync(path.dirname(path.join(projet, EMPREINTES)), { recursive: true });

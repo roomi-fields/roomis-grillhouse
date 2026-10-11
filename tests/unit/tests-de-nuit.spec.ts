@@ -92,7 +92,21 @@ function projet(
       }
     }
   }
+  // The project of trial proves the night, not the controls of the frame (grillhouse-3uv.55,
+  // critère 8): of its pretest it keeps after the update what it held before.
+  const pretest = (pkg.scripts as Record<string, string> | undefined)?.pretest;
   mettreAJour(repo, DEPOT, 'essai');
+  const installe = JSON.parse(readFileSync(path.join(repo, 'package.json'), 'utf8')) as {
+    scripts?: Record<string, string>;
+  };
+  if (installe.scripts) {
+    if (pretest === undefined) {
+      delete installe.scripts.pretest;
+    } else {
+      installe.scripts.pretest = pretest;
+    }
+    writeFileSync(path.join(repo, 'package.json'), JSON.stringify(installe, null, 2));
+  }
   if (o.dependances !== false) {
     lierDependances(repo);
   }
@@ -490,4 +504,41 @@ describe('critère 5 — by day, a fast test keeps the trial directories off a f
       expect(p.joues()).toContain(path.basename(f));
     }
   }, 120_000);
+});
+
+describe('grillhouse-3uv.55 critère 8 — the project of trial stays without the controls of the frame', () => {
+  // The pretest a project of trial holds once projet() has brought it to the frame.
+  const pretestDe = (p: { repo: string }) =>
+    (
+      JSON.parse(readFileSync(path.join(p.repo, 'package.json'), 'utf8')) as {
+        scripts?: Record<string, string>;
+      }
+    ).scripts?.pretest;
+  it('critère 8: the package.json of the repository, its pretest left out, gets none back from the update', () => {
+    expect(pretestDe(projet({}, { nuits: false, dependances: false }))).toBeUndefined();
+  });
+  it('critère 8: a project of its own without pretest gets none from the update', () => {
+    const p = projet(
+      {},
+      {
+        pkg: { name: 'propre', scripts: { test: 'vitest run' } },
+        nuits: false,
+        jourVitest: false,
+        dependances: false,
+      }
+    );
+    expect(pretestDe(p)).toBeUndefined();
+  });
+  it('critère 8: a project of trial with a pretest of its own keeps it as it was', () => {
+    const p = projet(
+      {},
+      {
+        pkg: { name: 'propre', scripts: { test: 'vitest run', pretest: 'node mien.mjs' } },
+        nuits: false,
+        jourVitest: false,
+        dependances: false,
+      }
+    );
+    expect(pretestDe(p)).toBe('node mien.mjs');
+  });
 });
