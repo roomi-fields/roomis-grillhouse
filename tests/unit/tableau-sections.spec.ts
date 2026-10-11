@@ -1,7 +1,8 @@
 // The board shows the open work: a closed ticket leaves the chantier's tree, mother included, and
 // stays counted in the « faits » of the head and of the chantier; the tickets closed today go to
 // FAITS AUJOURD'HUI. Each line of the board carries its section (agents, chantier, faits), which
-// a reader takes instead of guessing it from the text (grillhouse-3uv.42).
+// a reader takes instead of guessing it from the text (grillhouse-3uv.42). A ticket waits in
+// AGENTS only once the owner launched it (label `circuit`); one never launched stands in CHANTIER.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -29,12 +30,14 @@ interface Board {
   faitsDuJour: { id: string }[];
 }
 
+// A fixture ticket is in the circuit (label `circuit`): the owner launched it.
 const T = (id: string, o: object = {}) => ({
   id,
   title: `${id.slice(5)} — Sujet ${id.slice(5)}`,
   status: 'open',
   priority: 2,
   issue_type: 'task',
+  labels: ['circuit'],
   ...o,
 });
 const MAINTENANT = Date.parse('2026-10-10T12:00:00Z');
@@ -745,5 +748,75 @@ describe('3uv.42 critère 10 : the open ticket of a closed mother rises to its m
     expect(B10.global.compteurs).toMatchObject({ enCours: 4, bloques: 1, reportes: 3, fermes: 1 });
     expect([B10.chantiers[0].faits, B10.chantiers[0].total]).toEqual([1, 10]);
     expect(C10.some(x => /^ {2}1\/10 faits · /.test(x.texte))).toBe(true);
+  });
+});
+
+describe('a ticket waits in AGENTS only once the owner launched it (label circuit)', () => {
+  interface Agents {
+    agents: { role: string; enCours: { id: string }[]; attend: { id: string }[] }[];
+  }
+  // A chantier in progress, its ticket k.1 ready and open, with the labels, passages and running
+  // agents given.
+  const circuit = (labels: string[], registre: object[] = [], vivants: object[] = []) => {
+    const t = assembler({
+      tous: [
+        T('demo-k', { issue_type: 'epic', status: 'in_progress', title: 'k — Le circuit' }),
+        T('demo-k.1', { parent: 'demo-k', labels }),
+      ],
+      prefix: 'demo',
+      registre,
+      vivants,
+      maintenant: MAINTENANT,
+      jour: JOUR,
+    }) as Board & Agents;
+    return { t, l: lignes(t, 'demo') as Ligne[] };
+  };
+  const attend = (t: Agents) => t.agents.flatMap(b => b.attend.map(x => `${b.role} ${x.id}`));
+  const passage = {
+    agent: 'r1',
+    ticket: 'demo-k.1',
+    role: 'testeur',
+    fin: '2026-10-10T10:00:00Z',
+    travail: 60_000,
+    jetons: 10,
+  };
+
+  it('a ready ticket never launched waits nowhere in AGENTS and stands in CHANTIER', () => {
+    const { t, l } = circuit([]);
+    expect(attend(t)).toEqual([]);
+    expect(partieAgents(l).some(x => x.ticket === 'demo-k.1')).toBe(false);
+    expect(partieChantier(l).some(x => x.ticket === 'demo-k.1')).toBe(true);
+  });
+
+  it('the same ticket in the circuit waits under the tester', () => {
+    const { t, l } = circuit(['circuit']);
+    expect(attend(t)).toEqual(['testeur demo-k.1']);
+    expect(partieAgents(l).some(x => x.ticket === 'demo-k.1')).toBe(true);
+  });
+
+  it('a ticket worked then taken out of the circuit waits nowhere in AGENTS', () => {
+    const { t, l } = circuit([], [passage]);
+    expect(attend(t)).toEqual([]);
+    expect(partieAgents(l).some(x => x.ticket === 'demo-k.1')).toBe(false);
+    expect(partieChantier(l).some(x => x.ticket === 'demo-k.1')).toBe(true);
+  });
+
+  it('an agent running on a ticket out of the circuit still stands in progress', () => {
+    const vivant = {
+      agent: 'd1',
+      ticket: 'demo-k.1',
+      role: 'developpeur',
+      ligne: false,
+      depuis: MAINTENANT - 30 * 60_000,
+      entre: null,
+      jetons: 40,
+      travail: 20 * 60_000,
+      tours: [[MAINTENANT - 20 * 60_000, MAINTENANT]],
+    };
+    const { t } = circuit([], [passage], [vivant]);
+    expect(t.agents.find(b => b.role === 'developpeur')?.enCours.map(x => x.id)).toEqual([
+      'demo-k.1',
+    ]);
+    expect(attend(t)).toEqual([]);
   });
 });

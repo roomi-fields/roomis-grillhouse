@@ -119,6 +119,7 @@ const arret = (agent: string, ticket: string, role: string, fin: string) => ({
   cout: null,
 });
 
+// A fixture ticket is in the circuit (label `circuit`): the owner launched it.
 const T = (id: string, o: object = {}) => ({
   id,
   title: `${id.slice(5)} — Sujet ${id.slice(5)}`,
@@ -126,6 +127,7 @@ const T = (id: string, o: object = {}) => ({
   priority: 2,
   issue_type: 'task',
   started_at: quand(0),
+  labels: ['circuit'],
   ...o,
 });
 

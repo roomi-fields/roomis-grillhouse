@@ -209,12 +209,14 @@ describe('lireVivant', () => {
 });
 
 describe('assembler', () => {
+  // A fixture ticket is in the circuit (label `circuit`): the owner launched it.
   const T = (id: string, o: object = {}) => ({
     id,
     title: id,
     status: 'open',
     priority: 2,
     issue_type: 'task',
+    labels: ['circuit'],
     ...o,
   });
   const maintenant = Date.parse('2026-10-10T12:00:00Z');
@@ -445,12 +447,14 @@ describe('chantiers', () => {
 
 describe('a ticket in progress with children', () => {
   it('unfolds its children in the tree, even while an agent block shows it', () => {
+    // A fixture ticket is in the circuit (label `circuit`): the owner launched it.
     const T = (id: string, o: object = {}) => ({
       id,
       title: id,
       status: 'open',
       priority: 2,
       issue_type: 'task',
+      labels: ['circuit'],
       ...o,
     });
     const t = plateau({

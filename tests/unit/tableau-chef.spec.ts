@@ -89,6 +89,7 @@ const agentShell = (home: string, session: string, role: string, ticket: string)
 const vivants = (home: string, ps = '', cache: Record<string, unknown> = {}) =>
   lireVivant({ racine: RACINE, home, prefix: 'demo', maintenant: Date.now(), ps, cache });
 
+// A fixture ticket is in the circuit (label `circuit`): the owner launched it.
 const T = (id: string, o: object = {}) => ({
   id,
   title: id,
@@ -96,6 +97,7 @@ const T = (id: string, o: object = {}) => ({
   priority: 2,
   issue_type: 'task',
   started_at: at('07:00'),
+  labels: ['circuit'],
   ...o,
 });
 const fin = (agent: string, ticket: string, role: string, hm: string, jetons = 10) => ({

@@ -713,13 +713,16 @@ export function assembler({
       ...mesure(new Set([t.id])),
     });
   }
+  // A ticket waits in AGENTS only once the owner launched it (label `circuit`); a ticket created
+  // or ready, never launched, stands in CHANTIER alone.
   for (const t of [...tous].sort(ordre)) {
     if (
       !travail(t) ||
       places.has(t.id) ||
       t.status === 'closed' ||
       t.status === 'deferred' ||
-      avalider.has(t.id)
+      avalider.has(t.id) ||
+      !(t.labels ?? []).includes('circuit')
     ) {
       continue;
     }

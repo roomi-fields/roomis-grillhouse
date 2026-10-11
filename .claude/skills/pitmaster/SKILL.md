@@ -83,8 +83,9 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   avec le prochain ticket du composant ou à cinq corrections. Ainsi une petite correction ne paie
   jamais seule un circuit complet.
 - **Je ne lance que sur le mot du responsable** : un ticket part quand il dit de le lancer ; valider
-  un ticket, trancher sa question ou remplir un lot ne le lance pas. Ainsi le responsable décide de
-  ce qui tourne.
+  un ticket, trancher sa question ou remplir un lot ne le lance pas. Son mot pose l'étiquette
+  `circuit`, que je retire d'un ticket arrêté ; seul un ticket `circuit` attend dans AGENTS. Ainsi
+  le responsable décide de ce qui tourne, et le panneau montre ce qu'il a lancé.
 - **Un ticket, un composant** : un travail qui traverse plusieurs composants est un ticket parent,
   avec un ticket enfant par composant. Le composant qui fournit passe d'abord, et l'ordre suit les
   dépendances des composants (`bd dep add`) ; son lot construit le nouvel export, que l'agent du

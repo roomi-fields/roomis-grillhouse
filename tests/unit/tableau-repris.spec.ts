@@ -77,6 +77,7 @@ const avecAgentShell = (session: string, role: string, ticket: string, reponses:
   return home;
 };
 
+// A fixture ticket is in the circuit (label `circuit`): the owner launched it.
 const T = (id: string, o: object = {}) => ({
   id,
   title: id,
@@ -84,6 +85,7 @@ const T = (id: string, o: object = {}) => ({
   priority: 2,
   issue_type: 'task',
   started_at: at('07:00'),
+  labels: ['circuit'],
   ...o,
 });
 
