@@ -22,7 +22,9 @@
 //   comment). Then the tickets closed today.
 // - Measures: a finished agent from the register (`scripts/registre.mjs`), a running one from its
 //   transcript: a role agent launched in a shell (`TON TICKET` and `--agent` in its arguments),
-//   a sub-agent or a session whose transcript moved in the last 2 minutes.
+//   a sub-agent or a session whose transcript moved in the last 2 minutes. An agent's state is
+//   its last event: it runs while its last message is after its latest end in the register (a
+//   reviewer resumed by a message), and its measure is that latest end, or its running transcript.
 // - Alerts: a red night, tickets awaiting the responsable, a shell agent silent for 10 minutes,
 //   a ticket in progress without anything running for 30 minutes.
 import { execFileSync } from 'node:child_process';
@@ -117,7 +119,20 @@ export function lireTranscription(texte) {
   };
 }
 
-// The register's lines of this project.
+// One line per agent, its latest end: the register holds a line at each stop of an agent, each
+// the reading of its whole transcript at that stop, so the latest one holds all its sessions.
+function parAgent(registre) {
+  const derniere = new Map();
+  for (const r of registre) {
+    const avant = derniere.get(r.agent);
+    if (!avant || Date.parse(r.fin) > Date.parse(avant.fin)) {
+      derniere.set(r.agent, r);
+    }
+  }
+  return [...derniere.values()];
+}
+
+// The register's lines of this project, one per agent: its latest end.
 export function lireRegistre(texte, racine) {
   const out = [];
   for (const l of texte.split('\n')) {
@@ -130,7 +145,7 @@ export function lireRegistre(texte, racine) {
       // A torn line counts nothing.
     }
   }
-  return out;
+  return parAgent(out);
 }
 
 // A transcript read again only when it changed: `cache` maps a file to its size, time and reading.
@@ -181,6 +196,7 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
       ligne: true,
       depuis: maintenant - Number(m[2]) * 1000,
       silence: dernier ? maintenant - dernier.mtime : null,
+      dernier: lu?.dernier ?? null,
       jetons: lu?.jetons ?? 0,
       travail: lu?.travail ?? 0,
     });
@@ -196,6 +212,7 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
         role: null,
         ligne: false,
         depuis: lu.premier ?? maintenant,
+        dernier: lu.dernier,
         jetons: lu.jetons,
         travail: lu.travail,
       });
@@ -222,6 +239,7 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
         role,
         ligne: false,
         depuis: lu.premier ?? maintenant,
+        dernier: lu.dernier,
         jetons: lu.jetons,
         travail: lu.travail,
       });
@@ -293,13 +311,22 @@ export function lecture(t, prefix) {
 export function assembler({
   tous,
   prefix = '',
-  registre,
+  registre: lignesDuRegistre,
   vivants,
   verdicts = {},
   roles = ROLES,
   maintenant,
   jour,
 }) {
+  const registre = parAgent(lignesDuRegistre);
+  // An agent runs on its last event: its last message after its latest end in the register, or
+  // no end at all. A running agent's transcript holds its sessions already in the register.
+  const fins = new Map(registre.map(r => [r.agent, Date.parse(r.fin)]));
+  const enCoursMesures = vivants.filter(
+    v => !fins.has(v.agent) || (v.dernier ?? -Infinity) > fins.get(v.agent)
+  );
+  const repris = new Set(enCoursMesures.map(v => v.agent));
+  const finis = registre.filter(r => !repris.has(r.agent));
   const parId = new Map(tous.map(t => [t.id, t]));
   const lu = new Map(tous.map(t => [t.id, lecture(t, prefix)]));
   const numero = id => lu.get(id)?.numero ?? id;
@@ -323,7 +350,7 @@ export function assembler({
   for (const l of enfants.values()) {
     l.sort(ordre);
   }
-  const actifs = new Set(vivants.map(v => v.ticket).filter(Boolean));
+  const actifs = new Set(enCoursMesures.map(v => v.ticket).filter(Boolean));
   // A ticket is work unless it is an epic or a mother; a ticket an agent holds stays work, its
   // discoveries under it notwithstanding.
   const travail = t =>
@@ -358,10 +385,8 @@ export function assembler({
       compteurs[etat(t)]++;
     }
   }
-  const finis = new Set(registre.map(r => r.agent));
-  const enCoursMesures = vivants.filter(v => !finis.has(v.agent));
   const mesures = [
-    ...registre.map(r => ({ ...r, quand: Date.parse(r.fin) })),
+    ...finis.map(r => ({ ...r, quand: Date.parse(r.fin) })),
     ...enCoursMesures.map(v => ({ ...v, quand: maintenant, court: true })),
   ];
   const somme = l => ({

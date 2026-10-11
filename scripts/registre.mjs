@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // The register of finished agents: one JSON line per agent that ends, written by a hook
 // (`.claude/settings.json`: SubagentStop for a sub-agent, SessionEnd for a session, a role agent
-// launched in a shell included). The board reads finished agents here, and the transcripts of
-// running ones only.
+// launched in a shell included). An agent resumed by a message has one line per stop; the board
+// reads an agent's latest line, and the transcripts of running ones.
 //
 // - The line: the project (its main tree), the agent, its ticket (« TON TICKET : »), its role,
 //   its start and end, its working time, its tokens, its cache reads and its cost when the session
