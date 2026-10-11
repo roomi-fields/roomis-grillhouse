@@ -1,7 +1,8 @@
 // An agent resumed by a message (a reviewer asked to review again): the register holds one line
 // per stop, each the reading of the whole transcript at that stop; the transcript keeps moving.
-// The board reads an agent's state on its last event: running when its transcript is more recent
-// than its last end in the register, finished otherwise; its measures count its transcript once.
+// The board reads an agent's state on its last event: running when an incoming message follows
+// its last end in the register (grillhouse-3uv.45), finished otherwise; its measures count its
+// transcript once.
 import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -17,7 +18,8 @@ const l = (o: object) => JSON.stringify(o);
 const MIN = 60_000;
 const at = (hm: string) => `2026-10-11T${hm}:00Z`;
 
-// A transcript: the prompt at 08:00, then one answer of 10 tokens at each time given.
+// A transcript: the prompt at 08:00, then one answer of 10 tokens at each time given; a time
+// marked `>` is a message of the person, which opens a turn.
 const transcription = (ticket: string, reponses: string[], role?: string) =>
   [
     ...(role ? [l({ type: 'agent-setting', agentSetting: role })] : []),
@@ -27,11 +29,18 @@ const transcription = (ticket: string, reponses: string[], role?: string) =>
       message: { content: `TON TICKET : ${ticket} — le lot` },
     }),
     ...reponses.map((hm, i) =>
-      l({
-        type: 'assistant',
-        timestamp: at(hm),
-        message: { id: `m${i}`, usage: { input_tokens: 6, output_tokens: 4 } },
-      })
+      hm.startsWith('>')
+        ? l({
+            type: 'user',
+            timestamp: at(hm.slice(1)),
+            origin: { kind: 'human' },
+            message: { content: 'Relis le lot.' },
+          })
+        : l({
+            type: 'assistant',
+            timestamp: at(hm),
+            message: { id: `m${i}`, usage: { input_tokens: 6, output_tokens: 4 } },
+          })
     ),
   ].join('\n');
 
@@ -105,9 +114,9 @@ const enCours = (t: Board, role: string) =>
 const partout = (t: Board, cle: 'enCours' | 'attend') =>
   t.agents.flatMap(b => b[cle].map(x => x.id));
 
-describe('3uv.40 critère 1 : an agent whose transcript is more recent than its last end in the register runs', () => {
+describe('3uv.40 critère 1 : an agent whose last end in the register is followed by an incoming message runs (3uv.45)', () => {
   it('3uv.40 critère 1 : a reviewer stopped twice then resumed by a message is in progress, waiting nowhere', () => {
-    const home = avecSousAgent('a9', 'relecteur', 'demo-5', ['08:28', '08:41', '08:50']);
+    const home = avecSousAgent('a9', 'relecteur', 'demo-5', ['08:28', '08:41', '>08:45', '08:50']);
     const t = plateau(
       home,
       ['demo-5'],
@@ -118,7 +127,7 @@ describe('3uv.40 critère 1 : an agent whose transcript is more recent than its 
   });
 
   it('3uv.40 critère 1 : the last end is the latest one, whatever the order of the register lines', () => {
-    const home = avecSousAgent('b4', 'relecteur', 'demo-7', ['08:28', '08:41', '08:50']);
+    const home = avecSousAgent('b4', 'relecteur', 'demo-7', ['08:28', '08:41', '>08:45', '08:50']);
     const t = plateau(
       home,
       ['demo-7'],
@@ -128,7 +137,7 @@ describe('3uv.40 critère 1 : an agent whose transcript is more recent than its 
   });
 
   it('3uv.40 critère 1 : a role agent in a shell, resumed after its session ended, is in progress', () => {
-    const home = avecAgentShell('s7', 'developpeur', 'demo-6', ['08:30', '08:50']);
+    const home = avecAgentShell('s7', 'developpeur', 'demo-6', ['08:30', '>08:40', '08:50']);
     const ps = '  77  600 claude -p TON TICKET : demo-6 --agent developpeur\n';
     const t = plateau(home, ['demo-6'], [fin('s7', 'demo-6', 'developpeur', '08:30', 1)], ps);
     expect(enCours(t, 'developpeur')).toEqual(['demo-6']);
@@ -161,15 +170,22 @@ describe('3uv.40 critère 2 : an agent whose last end is not older than its last
 
 describe('3uv.40 critère 3 : a resumed agent counts its sessions already in the register once', () => {
   it('3uv.40 critère 3 : a running resumed reviewer counts its whole transcript once, in all and on its ticket', () => {
-    const home = avecSousAgent('a9', 'relecteur', 'demo-5', ['08:28', '08:41', '08:45', '08:50']);
+    const home = avecSousAgent('a9', 'relecteur', 'demo-5', [
+      '08:28',
+      '08:41',
+      '>08:43',
+      '08:45',
+      '08:50',
+    ]);
     const t = plateau(
       home,
       ['demo-5'],
       [fin('a9', 'demo-5', 'relecteur', '08:28', 1), fin('a9', 'demo-5', 'relecteur', '08:41', 2)]
     );
-    expect(t.global.cumul).toEqual({ travail: 50 * MIN, jetons: 40 });
+    // Its turns: 08:00 → 08:41, then 08:43 → 08:50; the wait for the message left out.
+    expect(t.global.cumul).toEqual({ travail: 48 * MIN, jetons: 40 });
     const ligneTicket = t.agents.find(b => b.role === 'relecteur')!.enCours[0];
-    expect(ligneTicket).toMatchObject({ travail: 50 * MIN, jetons: 40 });
+    expect(ligneTicket).toMatchObject({ travail: 48 * MIN, jetons: 40 });
   });
 
   it('3uv.40 critère 3 : two different agents on one ticket both count', () => {
@@ -187,8 +203,8 @@ describe('3uv.40 critère 3 : a resumed agent counts its sessions already in the
 const ilYa = (ms: number) => new Date(Date.now() - ms).toISOString();
 const SEC = 1000;
 
-describe('3uv.40 critère 4 : the last writing of a transcript is the time of its last message, not the file date', () => {
-  it('3uv.40 critère 4 : a last message after the last end runs, its file dated before that end notwithstanding', () => {
+describe('3uv.40 critère 4 : the time of a transcript is the time written in its messages, not the file date', () => {
+  it('3uv.40 critère 4 : an incoming message after the last end runs, its file dated before that end notwithstanding', () => {
     const home = mkdtempSync(path.join(ESSAIS, 'home-repris-'));
     const sous = path.join(home, '.claude/projects/-depot/sess/subagents');
     mkdirSync(sous, { recursive: true });
@@ -205,6 +221,12 @@ describe('3uv.40 critère 4 : the last writing of a transcript is the time of it
           type: 'assistant',
           timestamp: ilYa(60 * SEC),
           message: { id: 'm0', usage: { input_tokens: 6, output_tokens: 4 } },
+        }),
+        l({
+          type: 'user',
+          timestamp: ilYa(30 * SEC),
+          origin: { kind: 'human' },
+          message: { content: 'Relis le lot.' },
         }),
         l({
           type: 'assistant',
@@ -316,8 +338,9 @@ describe('3uv.40 critère 5 : an agent resumed then finished again counts each o
   });
 });
 
-// A sub-agent of `ticket` whose transcript ends `fini` ms ago, its file just written (recent).
-const avecSousAgentRecent = (id: string, ticket: string, fini: number) => {
+// A sub-agent of `ticket` whose transcript ends `fini` ms ago, its file just written (recent);
+// resumed `relance` ms ago by a message of the person, when given.
+const avecSousAgentRecent = (id: string, ticket: string, fini: number, relance?: number) => {
   const home = mkdtempSync(path.join(ESSAIS, 'home-repris-'));
   const sous = path.join(home, '.claude/projects/-depot/sess/subagents');
   mkdirSync(sous, { recursive: true });
@@ -329,6 +352,16 @@ const avecSousAgentRecent = (id: string, ticket: string, fini: number) => {
         timestamp: ilYa(fini + 60 * SEC),
         message: { content: `TON TICKET : ${ticket} — le lot` },
       }),
+      ...(relance === undefined
+        ? []
+        : [
+            l({
+              type: 'user',
+              timestamp: ilYa(relance),
+              origin: { kind: 'human' },
+              message: { content: 'Relis le lot.' },
+            }),
+          ]),
       l({
         type: 'assistant',
         timestamp: ilYa(fini),
@@ -409,6 +442,12 @@ describe('3uv.40 critère 6 : the board has one definition of a running agent, f
           message: { content: 'TON TICKET : demo-8 — le lot' },
         }),
         l({
+          type: 'user',
+          timestamp: ilYa(30 * SEC),
+          origin: { kind: 'human' },
+          message: { content: 'Relis le lot.' },
+        }),
+        l({
           type: 'assistant',
           timestamp: ilYa(10 * SEC),
           message: { id: 'm0', usage: { input_tokens: 6, output_tokens: 4 } },
@@ -416,7 +455,7 @@ describe('3uv.40 critère 6 : the board has one definition of a running agent, f
       ].join('\n')
     );
     writeFileSync(path.join(sous, 'agent-e4.meta.json'), l({ agentType: 'relecteur' }));
-    // e4 resumed: its last message (10 s ago) is after its end in the register (60 s ago).
+    // e4 resumed: a message (30 s ago) follows its end in the register (60 s ago).
     const p = panneau(
       home,
       [ouvert('demo-2'), ouvert('demo-8')],
@@ -426,7 +465,7 @@ describe('3uv.40 critère 6 : the board has one definition of a running agent, f
   });
 
   it('3uv.40 critère 6 : a ticket in progress whose sub-agent was resumed after its end raises no alert', () => {
-    const home = avecSousAgentRecent('e5', 'demo-6', 10 * SEC);
+    const home = avecSousAgentRecent('e5', 'demo-6', 10 * SEC, 30 * SEC);
     const p = panneau(home, [reclame('demo-6')], [finRecente('e5', 'demo-6', 10 * SEC, 60 * SEC)]);
     expect(sansRien(p, 'demo-6')).toBe(false);
   });

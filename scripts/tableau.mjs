@@ -13,18 +13,19 @@
 //   by state, the agents' working time and tokens of the day and in all, the alerts.
 // - Chantier: a root epic with work in progress, its tree of mothers, each with its work tickets
 //   done over all; the tree shows the open work: a closed ticket, mother included, counts without
-//   a line, and a closed mother's open tickets take her place; past 30 lines, the open tickets by number replace the tree. The other chantiers, one
-//   line each.
+//   a line, and a closed mother's open tickets take her place; past 30 lines, the lines in excess
+//   fold into one line that counts them. The other chantiers, one line each.
 // - Agents: one block per role, numbered in the order of the flow (`grillhouse.roles` in
 //   package.json replaces the default), for the whole project. A ticket stands in one place:
 //   in progress under the role that runs on it, or waiting for the next role, deduced from the
 //   roles that ran on it and the reviewer's last verdict (`ACCEPTÉ` or `RENDU` at the start of a
 //   comment). Then the tickets closed today.
 // - Measures: a finished agent from the register (`scripts/registre.mjs`), a running one from its
-//   transcript: a role agent launched in a shell (`TON TICKET` and `--agent` in its arguments),
-//   a sub-agent or a session whose transcript moved in the last 2 minutes. An agent's state is
-//   its last event: it runs while its last message is after its latest end in the register (a
-//   reviewer resumed by a message), and its measure is that latest end, or its running transcript.
+//   transcript: a role agent launched in a shell (`TON TICKET` and `--agent` in its arguments)
+//   while its process runs, a sub-agent or a session whose transcript moved in the last 2 minutes.
+//   With an end in the register, it runs only when an incoming message (of the person, another
+//   agent, a notification) follows its latest end strictly (a reviewer resumed by a message); the
+//   writings of its last turn after that end leave it finished, measured by that latest end.
 // - Alerts: a red night, tickets awaiting the responsable, a shell agent silent for 10 minutes,
 //   a ticket in progress without anything running for 30 minutes.
 import { execFileSync } from 'node:child_process';
@@ -86,12 +87,13 @@ function entrant(e) {
 // `--agent`) and the cost (the total a session writes) of a transcript's lines (one JSON object per
 // line). The first turn runs from the first dated event, each next one from an incoming message,
 // to the last event before the next incoming message; the working time is the sum of the turns,
-// the waits left out.
+// the waits left out. `entre` is the time of the last incoming message, or null.
 export function lireTranscription(texte) {
   let jetons = 0;
   let cache = 0;
   let premier = null;
   let dernier = null;
+  let entre = null;
   let ticket = null;
   let role = null;
   let cout = null;
@@ -121,6 +123,9 @@ export function lireTranscription(texte) {
       // The first incoming message continues the turn its earlier events opened.
       const coupe = entrant(e) && recu;
       recu ||= entrant(e);
+      if (entrant(e)) {
+        entre = t;
+      }
       if (tours.length === 0 || coupe) {
         tours.push([t, t]);
       } else {
@@ -156,6 +161,7 @@ export function lireTranscription(texte) {
     tours,
     premier,
     dernier,
+    entre,
     ticket: ticket || null,
     role,
     cout,
@@ -239,7 +245,7 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
       ligne: true,
       depuis: maintenant - Number(m[2]) * 1000,
       silence: dernier ? maintenant - dernier.mtime : null,
-      dernier: lu?.dernier ?? null,
+      entre: lu?.entre ?? null,
       jetons: lu?.jetons ?? 0,
       travail: lu?.travail ?? 0,
       tours: lu?.tours ?? [],
@@ -256,7 +262,7 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
         role: null,
         ligne: false,
         depuis: lu.premier ?? maintenant,
-        dernier: lu.dernier,
+        entre: lu.entre,
         jetons: lu.jetons,
         travail: lu.travail,
         tours: lu.tours,
@@ -284,7 +290,7 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
         role,
         ligne: false,
         depuis: lu.premier ?? maintenant,
-        dernier: lu.dernier,
+        entre: lu.entre,
         jetons: lu.jetons,
         travail: lu.travail,
         tours: lu.tours,
@@ -365,11 +371,12 @@ export function assembler({
   jour,
 }) {
   const registre = parAgent(lignesDuRegistre);
-  // An agent runs on its last event: its last message after its latest end in the register, or
-  // no end at all. A running agent's transcript holds its sessions already in the register.
+  // A living agent runs without an end in the register, or when an incoming message follows its
+  // latest end strictly; the writings of its last turn after that end leave it finished. A running
+  // agent's transcript holds its sessions already in the register.
   const fins = new Map(registre.map(r => [r.agent, Date.parse(r.fin)]));
   const enCoursMesures = vivants.filter(
-    v => !fins.has(v.agent) || (v.dernier ?? -Infinity) > fins.get(v.agent)
+    v => !fins.has(v.agent) || (v.entre ?? -Infinity) > fins.get(v.agent)
   );
   const repris = new Set(enCoursMesures.map(v => v.agent));
   const finis = registre.filter(r => !repris.has(r.agent));
