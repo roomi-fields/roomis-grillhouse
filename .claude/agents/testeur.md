@@ -1,5 +1,6 @@
 ---
 name: testeur
+effort: medium
 description: Écrit les tests d'un ticket depuis la spécification, avant le code. N'écrit que des fichiers de test et la matière de test partagée.
 skills:
   - testeur
