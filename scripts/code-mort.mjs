@@ -15,15 +15,27 @@
 // - The tests and benches of a component count for the use of its dependencies only. knip runs a
 //   first time on the settings above and gives every finding. It runs a second time, restricted
 //   to the dependency findings, with the test and bench files of the repository as its only
-//   entries, in every workspace the `knip.json` names: knip ties each file to the workspace that
-//   holds it. A dependency is unused when both runs report it, so the entries knip takes by itself
-//   stay in the first run. The files, exports and types findings are those of the first run.
+//   entries, each place receiving its own files: the root (its `.` key, which knip reads as soon
+//   as there are `workspaces`) those that no package holds, each package of the repository those
+//   under its directory, the deepest package holding a file owning it. The packages are the
+//   workspaces knip makes, with its own glob matcher (`picomatch`, loaded from the repository's
+//   knip): the directories holding a `package.json` that the `workspaces` of the root
+//   `package.json` select or a key of the `knip.json` names, exact or by pattern. Each place
+//   receives the settings knip gives it (`getWorkspaceConfig`): those of the key knip chooses
+//   (`getConfigKeyForWorkspace`: the keys sorted by knip's `byPathDepth`, the last one that
+//   matches), the whole `knip.json` for the root without `workspaces`, empty settings when no key
+//   matches; kept to those knip's schema admits in a workspace key, the top-level-only ones
+//   (`$schema`, `rules`…) staying at the top level. So a pattern key (`packages/*`) holds for
+//   each package it names and a package no key names is covered too. A dependency is unused when
+//   both runs report it, so the entries knip takes by itself stay in the first run. The files,
+//   exports and types findings are those of the first run.
 // - The test and bench files are those git does not ignore (`.gitignore`, as knip reads it): a
 //   ticket copy or a build that git ignores counts for nothing. A test file is known by the
 //   repository's rule (`isTestFile`, `verrous/verrou.mjs`), plus the benches `*.budget.*` and
 //   `*.nuit.*`. A file the top-level or workspace `ignore` targets is not an entry: these patterns
 //   become negated entry patterns, which knip matches as its own.
 import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -106,7 +118,8 @@ const CODE = /\.[cm]?[jt]sx?$/;
 const BANC = /\.(budget|nuit)\.[cm]?[jt]sx?$/;
 
 // The test and bench files of the repository at <racine>, relative to it with `/` separators,
-// as `fichiers`; `erreur` is git's message when git fails. git lists every file its ignore rules
+// as `fichiers`, and the directories holding a `package.json` as `dossiers` (`.` for the root);
+// `erreur` is git's message when git fails. git lists every file its ignore rules
 // (`.gitignore`) leave in against a fresh empty index, so a file counts whether tracked or not,
 // and the user's global ignore file stays out, as knip reads them; a file under `node_modules`
 // stays out, as knip skips it.
@@ -137,43 +150,125 @@ function fichiersTests(racine) {
     if (!r || r.status !== 0) {
       return { erreur: (r || init).stderr || `git : code ${(r || init).status}` };
     }
-    const fichiers = r.stdout
-      .split('\0')
-      .filter(
-        f =>
-          CODE.test(f) &&
-          !f.split('/').includes('node_modules') &&
-          (isTestFile(f) || BANC.test(path.posix.basename(f)))
-      );
-    return { fichiers };
+    const tous = r.stdout.split('\0').filter(f => f && !f.split('/').includes('node_modules'));
+    const fichiers = tous.filter(
+      f => CODE.test(f) && (isTestFile(f) || BANC.test(path.posix.basename(f)))
+    );
+    const dossiers = tous
+      .filter(f => path.posix.basename(f) === 'package.json')
+      .map(f => path.posix.dirname(f));
+    return { fichiers, dossiers };
   } finally {
     rmSync(index, { recursive: true, force: true });
   }
 }
 
-// The settings of the dependency pass: <config> whose entries, top-level and in each workspace,
-// are the test and bench files <fichiers> of the repository at <racine>, by absolute path, so
-// that knip ties each file to the workspace that holds it. The `ignore` patterns, top-level and
-// of each workspace, follow as negated entry patterns rooted at their directory: knip matches
-// them as it matches its own patterns, and a file they target is not an entry.
-function reglagesDependances(racine, config, fichiers) {
-  const r = config ?? {};
-  const sauf = (dossier, motifs) =>
-    liste(motifs).map(m => `!${path.posix.join(racine, dossier === '.' ? '' : dossier, m)}`);
-  const espaces = Object.entries(r.workspaces ?? {});
-  const entry = [
-    ...fichiers.map(f => path.posix.join(racine, f)),
-    ...sauf('.', r.ignore),
-    ...espaces.flatMap(([k, v]) => sauf(k, v.ignore)),
-  ];
-  if (!r.workspaces) {
-    return { ...r, entry };
+// The parts of the repository's `knip` the dependency pass follows, loaded from its own files:
+// `picomatch`, its glob matcher; `byPathDepth` (util/workspace.js), its order of workspace keys;
+// `reglagesEspace`, the settings its schema admits in a workspace key
+// (`workspaceConfigurationSchema`, schema/configuration.js). null when knip is not installed
+// there or lacks one of them (the guard then refuses).
+async function knipDuDepot(racine) {
+  try {
+    const entree = createRequire(path.join(racine, 'noeud.js')).resolve('knip');
+    const dist = path.dirname(entree);
+    const module = f => import(pathToFileURL(path.join(dist, f)).href);
+    const { byPathDepth } = await module('util/workspace.js');
+    const { workspaceConfigurationSchema } = await module('schema/configuration.js');
+    const reglagesEspace = new Set(Object.keys(workspaceConfigurationSchema.shape));
+    const picomatch = createRequire(entree)('picomatch');
+    return typeof byPathDepth === 'function' && reglagesEspace.has('entry')
+      ? { picomatch, byPathDepth, reglagesEspace }
+      : null;
+  } catch {
+    return null;
   }
-  return {
-    ...r,
-    entry,
-    workspaces: Object.fromEntries(espaces.map(([k, v]) => [k, { ...v, entry }])),
-  };
+}
+
+// The workspace keys knip reads in <config>: those of its `workspaces` (`.` without them) less the
+// ones `ignoreWorkspaces` names (`getConfiguredWorkspaceKeys`).
+const clesConfigurees = config =>
+  (config?.workspaces ? Object.keys(config.workspaces) : ['.']).filter(
+    k => !liste(config?.ignoreWorkspaces).includes(k)
+  );
+
+// The key of <cles> knip chooses for the workspace <nom> (`getConfigKeyForWorkspace`): the keys
+// sorted by knip's `byPathDepth`, the deepest one that matches; undefined when none does.
+const cleDe = ({ picomatch, byPathDepth }, cles, nom) =>
+  [...cles]
+    .sort(byPathDepth)
+    .reverse()
+    .find(c => picomatch.isMatch(nom, c));
+
+// The settings knip gives the workspace <nom> in <config> (`getWorkspaceConfig`): those of the key
+// it chooses, the whole of <config> when that key is `.` without `workspaces`, empty settings when
+// no key matches; kept to the settings a workspace key admits (<knipLu>.reglagesEspace), so they
+// can be written under a key of `workspaces`.
+function reglagesDeEspace(knipLu, config, nom) {
+  const cle = cleDe(knipLu, clesConfigurees(config), nom);
+  const brut =
+    cle === undefined
+      ? {}
+      : cle === '.' && !('.' in (config?.workspaces ?? {}))
+        ? (config ?? {})
+        : (config.workspaces[cle] ?? {});
+  return Object.fromEntries(Object.entries(brut).filter(([k]) => knipLu.reglagesEspace.has(k)));
+}
+
+// The workspaces of the repository at <racine> among <dossiers> (the directories holding a
+// `package.json`), as knip makes them (`getWorkspaces`): those the `workspaces` of the root
+// `package.json` select (negated globs exclude), plus those the keys of <config> name, exact or
+// by pattern, even when the root `package.json` lists them not; the ones the negated globs and
+// `ignoreWorkspaces` of <config> target are left out. The root is not one. Sorted.
+function paquets({ picomatch }, racine, dossiers, config) {
+  const fichier = path.join(racine, 'package.json');
+  const w = existsSync(fichier) ? JSON.parse(readFileSync(fichier, 'utf8')).workspaces : undefined;
+  const globs = liste(Array.isArray(w) ? w : w?.packages).map(g => g.replace(/^\.\//, ''));
+  const nies = globs.filter(g => g.startsWith('!')).map(g => g.slice(1));
+  const cles = clesConfigurees(config).filter(k => k !== '.');
+  const retenus = [...globs.filter(g => !g.startsWith('!')), ...cles];
+  const ignores = [...nies, ...liste(config?.ignoreWorkspaces).filter(g => !g.endsWith('!'))];
+  const exclus = ignores.length ? picomatch(ignores) : () => false;
+  return dossiers
+    .filter(d => d !== '.' && retenus.some(g => picomatch.isMatch(d, g)) && !exclus(d))
+    .sort();
+}
+
+// The settings of the dependency pass: <config> whose `workspaces` are replaced by the places
+// of the run, each receiving the settings knip gives it in <config> (`reglagesDeEspace`, <knipLu>
+// the parts of knip it follows) and as entries its own test and bench files of the repository at
+// <racine>, by absolute path: the `.` key the files no package holds, and one exact key per
+// package <paquets> the files under its directory (the deepest package owns a file). The keys of
+// <config> leave: an exact key per package is the only key knip finds for it. The `ignore`
+// patterns follow as negated entry patterns rooted at their directory: the top-level ones in
+// every place, those of a key in the place it serves; knip matches them as it matches its own
+// patterns, and a file they target is not an entry.
+function reglagesDependances(knipLu, racine, config, fichiers, paquets) {
+  const r = config ?? {};
+  const absolu = (dossier, m) => path.posix.join(racine, dossier === '.' ? '' : dossier, m);
+  const sauf = (dossier, motifs) => liste(motifs).map(m => `!${absolu(dossier, m)}`);
+  const proprio = f =>
+    paquets.filter(p => f.startsWith(`${p}/`)).sort((a, b) => b.length - a.length)[0] ?? '.';
+  const parPlace = new Map([['.', []], ...paquets.map(p => [p, []])]);
+  for (const f of fichiers) {
+    parPlace.get(proprio(f))?.push(path.posix.join(racine, f));
+  }
+  const racineIgnore = sauf('.', r.ignore);
+  const reglagesRacine = reglagesDeEspace(knipLu, r, '.');
+  const entryRacine = [...parPlace.get('.'), ...racineIgnore, ...sauf('.', reglagesRacine.ignore)];
+  if (!paquets.length && !r.workspaces) {
+    return { ...r, entry: entryRacine };
+  }
+  const espaces = {};
+  espaces['.'] = { ...reglagesRacine, entry: entryRacine };
+  for (const p of paquets) {
+    const reglages = reglagesDeEspace(knipLu, r, p);
+    espaces[p] = {
+      ...reglages,
+      entry: [...parPlace.get(p), ...racineIgnore, ...sauf(p, reglages.ignore)],
+    };
+  }
+  return { ...r, entry: entryRacine, workspaces: espaces };
 }
 
 // Runs knip on <config> (knip's defaults when null), restricted to <include> when given; the
@@ -204,15 +299,31 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const config =
     hors ?? (existsSync(fichierKnip) ? JSON.parse(readFileSync(fichierKnip, 'utf8')) : null);
   const DEPS = ['dependencies', 'devDependencies'];
-  const { fichiers, erreur } = fichiersTests(racine);
+  const { fichiers, dossiers, erreur } = fichiersTests(racine);
   if (erreur) {
     process.stderr.write(`⛔ CODE MORT — git n'a pas listé les fichiers de test :\n${erreur}\n`);
+    process.exit(1);
+  }
+  const knipLu = await knipDuDepot(racine);
+  if (!knipLu) {
+    process.stderr.write(
+      '⛔ CODE MORT — knip du dépôt illisible : son matcher (picomatch), son ordre des clés (byPathDepth) ou son schéma des espaces manque.\n'
+    );
     process.exit(1);
   }
   const premier = knip(hors);
   const c1 = constats(premier.stdout ?? '');
   const second = fichiers.length
-    ? knip(reglagesDependances(racine, config, fichiers), DEPS.join(','))
+    ? knip(
+        reglagesDependances(
+          knipLu,
+          racine,
+          config,
+          fichiers,
+          paquets(knipLu, racine, dossiers, config)
+        ),
+        DEPS.join(',')
+      )
     : null;
   const c2 = second ? constats(second.stdout ?? '', DEPS) : null;
   let c = null;
