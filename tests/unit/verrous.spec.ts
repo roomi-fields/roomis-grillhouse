@@ -1,8 +1,9 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { racineSousLaMaison } from '../machine.js';
 import { isTestFile, isTesterFile, refusal } from '../../scripts/verrous/verrou.mjs';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
@@ -157,7 +158,7 @@ describe('the hook command', () => {
 // code stays refused to the testeur, and the developpeur's lock does not change. The repositories
 // live outside the system temp directory, which the hook command takes for the scratchpad, in a
 // trial directory of this run alone.
-const ESSAIS_VERROU = mkdtempSync(path.join(homedir(), '.cache', 'grillhouse-essais-verrou-'));
+const ESSAIS_VERROU = racineSousLaMaison('grillhouse-essais-verrou-');
 afterAll(() => rmSync(ESSAIS_VERROU, { recursive: true, force: true }));
 
 function depotAvecMatiere() {

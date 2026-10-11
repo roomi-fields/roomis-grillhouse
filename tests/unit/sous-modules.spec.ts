@@ -19,6 +19,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { canWrap } from '../machine.js';
 import { CODE_COPIE } from '../../scripts/enveloppe/codes.mjs';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
@@ -326,7 +327,8 @@ describe('critère 4 — without .gitmodules, nothing changes', () => {
     },
     LONG
   );
-  it(
+  // The agent copy runs its agent in a real envelope: without bwrap, the test skips.
+  it.runIf(canWrap)(
     'critère 4: the agent copy is prepared in a repository without submodules',
     () => {
       const m = monde(false);

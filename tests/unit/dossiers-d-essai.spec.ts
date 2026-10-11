@@ -54,15 +54,23 @@ function instruction(source: string, i: number): string {
 // The calls of the temp directory of the session: `tmpdir()` and `os.tmpdir()`.
 const APPEL_TEMP = /\b(?:os\.)?tmpdir\(\)/g;
 
-// The roots of trial of a file: `const NAME = mkdtempSync(...)` at the start of a line, made in
-// the temp directory or under the home. Every other trial directory lives inside one of them.
+// The roots of trial of a file, at the start of a line: `const NAME = mkdtempSync(...)` made in
+// the temp directory, and `const NAME = racineSousLaMaison('prefix-')`, the root under the home
+// of tests/machine.ts. Every other trial directory lives inside one of them.
 function racines(source: string) {
   const out: { nom: string; ligne: number; prefixe: string | null; horsTemp: boolean }[] = [];
+  for (const m of source.matchAll(/^const (\w+) = racineSousLaMaison\('([^']*)'\);$/gm)) {
+    out.push({
+      nom: m[1] ?? '',
+      ligne: source.slice(0, m.index).split('\n').length,
+      prefixe: m[2] ?? null,
+      horsTemp: true,
+    });
+  }
   for (const m of source.matchAll(/^const (\w+) = mkdtempSync\(([^\n]*)$/gm)) {
     const fin = source.indexOf(';\n', m.index);
     const stmt = source.slice(m.index, fin < 0 ? source.length : fin + 1);
-    const horsTemp = /\b(?:os\.)?homedir\(\)/.test(stmt);
-    if (!horsTemp && !/\b(?:os\.)?tmpdir\(\)/.test(stmt)) {
+    if (!/\b(?:os\.)?tmpdir\(\)/.test(stmt)) {
       continue;
     }
     const litteraux = [...stmt.matchAll(/'([^']*)'/g)].map(x => x[1]);
@@ -70,13 +78,73 @@ function racines(source: string) {
       nom: m[1],
       ligne: source.slice(0, m.index).split('\n').length,
       prefixe: litteraux.at(-1) ?? null,
-      horsTemp,
+      horsTemp: false,
     });
   }
   return out;
 }
 
 const racinesHorsTemp = (source: string) => racines(source).filter(r => r.horsTemp);
+
+// The roots of a file made by mkdtemp straight under the home, as « line: statement »: mkdtemp
+// does not create the parent, so they fail to load on a machine without ~/.cache
+// (grillhouse-3uv.50). The root under the home goes through racineSousLaMaison, which creates it.
+function racinesSansParent(source: string): string[] {
+  const out: string[] = [];
+  for (const m of source.matchAll(/^const \w+ = mkdtempSync\(/gm)) {
+    const fin = source.indexOf(';\n', m.index);
+    const stmt = source.slice(m.index, fin < 0 ? source.length : fin + 1);
+    if (/\b(?:os\.)?homedir\(\)/.test(stmt)) {
+      out.push(`${source.slice(0, m.index).split('\n').length}: ${stmt}`);
+    }
+  }
+  return out;
+}
+
+// The calls of racineSousLaMaison on the real home of the session, as their lines: a call with
+// one argument, the prefix. A call that names its home (a second argument) works in a fresh home.
+function appelsSurLaMaison(source: string): number[] {
+  const out: number[] = [];
+  for (const m of source.matchAll(/\bracineSousLaMaison\(/g)) {
+    let profondeur = 1;
+    let virgules = 0;
+    for (let i = m.index + m[0].length; i < source.length && profondeur > 0; i++) {
+      const c = source[i];
+      if (c === '(' || c === '[' || c === '{') {
+        profondeur++;
+      } else if (c === ')' || c === ']' || c === '}') {
+        profondeur--;
+      } else if (c === ',' && profondeur === 1) {
+        virgules++;
+      }
+    }
+    if (virgules === 0) {
+      out.push(source.slice(0, m.index).split('\n').length);
+    }
+  }
+  return out;
+}
+
+// The lines of a file that make a trial directory in the temp directory or under the real home
+// outside a root of the file: a mkdtemp there, or a call of racineSousLaMaison on the real home.
+function horsRacine(source: string): number[] {
+  const lignesRacines = new Set(racines(source).map(r => r.ligne));
+  const out = new Set<number>();
+  for (const appel of [APPEL_TEMP, APPEL_MAISON]) {
+    for (const m of source.matchAll(appel)) {
+      const ligne = source.slice(0, m.index).split('\n').length;
+      if (/\bmkdtempSync\(/.test(instruction(source, m.index)) && !lignesRacines.has(ligne)) {
+        out.add(ligne);
+      }
+    }
+  }
+  for (const ligne of appelsSurLaMaison(source)) {
+    if (!lignesRacines.has(ligne)) {
+      out.add(ligne);
+    }
+  }
+  return [...out].sort((a, b) => a - b);
+}
 
 // The calls that write a file or a directory.
 const ECRITURE =
@@ -156,6 +224,70 @@ describe('critère 6 — the guard sees a fixed path under the temp directory, a
   }
 });
 
+describe('grillhouse-3uv.50, critère 1 — a root under the home creates its parent, in one way', () => {
+  const imports = "import { homedir } from 'node:os';\nimport path from 'node:path';\n";
+  it('critère 1: flags a root made by mkdtemp straight under the home', () => {
+    const ligne = "const R = mkdtempSync(path.join(homedir(), '.cache', 'grillhouse-essais-x-'));";
+    expect(racinesSansParent(`${imports}${ligne}\n`)).toEqual([`3: ${ligne}`]);
+  });
+  it('critère 1: takes the root of tests/machine.ts for a root under the home, with its prefix', () => {
+    const source = `${imports}// reason\nconst R = racineSousLaMaison('grillhouse-essais-x-');\n`;
+    expect(racinesSansParent(source)).toEqual([]);
+    expect(cheminsFixes(source)).toEqual([]);
+    expect(racinesHorsTemp(source)).toEqual([
+      { nom: 'R', ligne: 4, prefixe: 'grillhouse-essais-x-', horsTemp: true },
+    ]);
+  });
+  it('critère 1: takes a root made by mkdtemp under the home for no root: racineSousLaMaison replaces it', () => {
+    const source = `${imports}// reason\nconst R = mkdtempSync(path.join(homedir(), '.cache', 'grillhouse-essais-x-'));\n`;
+    expect(racinesHorsTemp(source)).toEqual([]);
+    expect(horsRacine(source)).toEqual([4]);
+  });
+  for (const [cas, lignes, attendu] of [
+    [
+      'a call indented in a describe',
+      "describe('x', () => {\n  const R = racineSousLaMaison('grillhouse-essais-x-');\n});",
+      [4],
+    ],
+    [
+      'a call in an arrow function, one root per call',
+      "const essai = () => racineSousLaMaison('grillhouse-essais-x-');",
+      [3],
+    ],
+    [
+      'a call in the body of a function',
+      "function essai() {\n  return racineSousLaMaison('grillhouse-essais-x-');\n}",
+      [4],
+    ],
+    [
+      'a call inside an expression of a root line',
+      "const R = path.join(racineSousLaMaison('grillhouse-essais-x-'), 'a');",
+      [3],
+    ],
+    ['a call whose prefix is a variable', 'const R = racineSousLaMaison(PREFIXE);', [3]],
+  ] as const) {
+    it(`critère 1: flags ${cas} on the real home, outside a root of the file`, () => {
+      expect(horsRacine(`${imports}${lignes}\n`), lignes).toEqual(attendu);
+    });
+  }
+  for (const [cas, lignes] of [
+    ['the root of the file', "const R = racineSousLaMaison('grillhouse-essais-x-');"],
+    [
+      'a call that names its home, in a fresh home',
+      "it('a', () => {\n  const r = racineSousLaMaison('grillhouse-essais-x-', maison);\n});",
+    ],
+  ] as const) {
+    it(`critère 1: leaves ${cas}`, () => {
+      expect(horsRacine(`${imports}${lignes}\n`), lignes).toEqual([]);
+    });
+  }
+  it('critère 1: still flags a parent made by hand under the home, a fixed path', () => {
+    const ligne = "mkdirSync(path.join(homedir(), '.cache'), { recursive: true });";
+    expect(cheminsFixes(`${imports}${ligne}\n`), ligne).toHaveLength(1);
+    expect(cheminsFixes(`${imports}${ligne}\n`)[0], ligne).toMatch(/^3: /);
+  });
+});
+
 describe('the trial directories of the tests', () => {
   const fichiers = fichiersDeTest();
   const sources = fichiers.map(f => ({ f, s: readFileSync(path.join(DEPOT, f), 'utf8') }));
@@ -170,6 +302,10 @@ describe('the trial directories of the tests', () => {
     expect(fixes.filter(x => /homedir/.test(x))).toEqual([]);
   });
 
+  it('grillhouse-3uv.50, critère 1 — every root under the home is made by racineSousLaMaison', () => {
+    expect(sources.flatMap(({ f, s }) => racinesSansParent(s).map(x => `${f}:${x}`))).toEqual([]);
+  });
+
   it('critère 6 — no test names a fixed directory under the temp directory: every path there is made by mkdtemp', () => {
     const fixes = sources.flatMap(({ f, s }) => cheminsFixes(s).map(x => `${f}:${x}`));
     expect(fixes).toEqual([]);
@@ -180,7 +316,7 @@ describe('the trial directories of the tests', () => {
     for (const { f, s } of sources) {
       for (const m of s.matchAll(/'(grillhouse-essais[^']*)'/g)) {
         const stmt = instruction(s, m.index);
-        if (!m[1].endsWith('-') || !/\bmkdtempSync\(/.test(stmt)) {
+        if (!m[1].endsWith('-') || !/\b(?:mkdtempSync|racineSousLaMaison)\(/.test(stmt)) {
           fixes.push(`${f}:${s.slice(0, m.index).split('\n').length}: '${m[1]}'`);
         }
       }
@@ -189,19 +325,7 @@ describe('the trial directories of the tests', () => {
   });
 
   it('critère 2 — every trial directory made in the temp directory or under the home is the root of its file', () => {
-    const horsRacine: string[] = [];
-    for (const { f, s } of sources) {
-      const lignesRacines = new Set(racines(s).map(r => r.ligne));
-      for (const appel of [APPEL_TEMP, APPEL_MAISON]) {
-        for (const m of s.matchAll(appel)) {
-          const ligne = s.slice(0, m.index).split('\n').length;
-          if (/\bmkdtempSync\(/.test(instruction(s, m.index)) && !lignesRacines.has(ligne)) {
-            horsRacine.push(`${f}:${ligne}`);
-          }
-        }
-      }
-    }
-    expect(horsRacine).toEqual([]);
+    expect(sources.flatMap(({ f, s }) => horsRacine(s).map(l => `${f}:${l}`))).toEqual([]);
   });
 
   it('critère 2 — each run removes the root of trial of each file, in the temp directory or outside it, at its end', () => {

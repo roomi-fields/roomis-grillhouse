@@ -1,20 +1,19 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { canWrap, racineSousLaMaison } from '../machine.js';
 import { CODE_USAGE } from '../../scripts/enveloppe/codes.mjs';
 
 // Ticket grillhouse-3uv.46: the launcher takes a model and a reasoning level for one session
 // (--modele, --effort) and hands them to claude (--model, --effort); without them, the role's
 // definition decides. The trial repositories live outside /tmp, which the envelope replaces.
-const ESSAIS = mkdtempSync(path.join(homedir(), '.cache', 'grillhouse-essais-lancer-modele-'));
+const ESSAIS = racineSousLaMaison('grillhouse-essais-lancer-modele-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const RACINE = path.resolve(__dirname, '../..');
 const LAUNCHER = path.join(RACINE, 'scripts/enveloppe/lancer.sh');
 const SCRIPT = path.join(RACINE, 'scripts/enveloppe/enveloppe.mjs');
-const canWrap = spawnSync('bwrap', ['--dev-bind', '/', '/', 'true']).status === 0;
 
 // The envelope as a test repository holds it: enveloppe.mjs and every module it imports.
 function installerEnveloppe(repo: string) {

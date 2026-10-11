@@ -4,20 +4,20 @@ import {
   constants,
   existsSync,
   mkdirSync,
-  mkdtempSync,
   readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { homedir, userInfo } from 'node:os';
+import { userInfo } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { canWrap, racineSousLaMaison } from '../machine.js';
 
 // Ticket grillhouse-3uv.46, critère 3: a real session launched with --modele runs on the model
 // asked, over the model of the role's definition; its transcript says so in the model field of
 // its messages. A real claude answers, on the real home, so the night plays it.
-const ESSAIS = mkdtempSync(path.join(homedir(), '.cache', 'grillhouse-essais-lancer-nuit-'));
+const ESSAIS = racineSousLaMaison('grillhouse-essais-lancer-nuit-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const RACINE = path.resolve(__dirname, '../..');
@@ -33,7 +33,6 @@ const ecrivable = (p: string) => {
     return false;
   }
 };
-const canWrap = spawnSync('bwrap', ['--dev-bind', '/', '/', 'true']).status === 0;
 const connecte = (() => {
   const r = spawnSync('claude', ['auth', 'status'], { encoding: 'utf8', timeout: 60000 });
   return r.status === 0 && r.stdout.includes('"loggedIn": true');

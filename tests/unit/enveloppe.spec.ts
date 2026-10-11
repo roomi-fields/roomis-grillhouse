@@ -12,9 +12,10 @@ import {
   utimesSync,
   writeFileSync,
 } from 'node:fs';
-import { homedir, tmpdir, userInfo } from 'node:os';
+import { tmpdir, userInfo } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { canWrap, racineSousLaMaison } from '../machine.js';
 import { CODE_COPIE, CODE_REFUS, CODE_USAGE } from '../../scripts/enveloppe/codes.mjs';
 import { montagesDeLaSeance, plan } from '../../scripts/enveloppe/enveloppe.mjs';
 
@@ -329,7 +330,7 @@ describe('plan refuses', () => {
 
 // The real envelope, when this machine can build one. Its repositories live outside /tmp, which
 // the envelope replaces with an empty directory, in a trial directory of this run alone.
-const ESSAIS = mkdtempSync(path.join(homedir(), '.cache', 'grillhouse-essais-enveloppe-'));
+const ESSAIS = racineSousLaMaison('grillhouse-essais-enveloppe-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 const essai = (nom: string) => mkdtempSync(path.join(ESSAIS, nom));
 
@@ -355,8 +356,6 @@ function installerEnveloppe(repo: string) {
   };
   suivre(SCRIPT);
 }
-
-const canWrap = spawnSync('bwrap', ['--dev-bind', '/', '/', 'true']).status === 0;
 
 describe.runIf(canWrap)('the envelope on disk', () => {
   const repo = essai('enveloppe-');
