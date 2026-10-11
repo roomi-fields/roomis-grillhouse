@@ -35,7 +35,10 @@ if [ -z "$copie_agent" ]; then
   [ -d "$root/.codegraph" ] || missing+=("l'index CodeGraph du code")
 fi
 [ ! -f "$root/package.json" ] || [ -d "$root/node_modules" ] || missing+=("les dépendances npm")
-grep -q un-commit-par-ticket "$root/.beads/hooks/commit-msg" 2>/dev/null || missing+=("le crochet « un ticket, un commit »")
+# The frame's git hooks absent from the folder git reads (scripts/crochets.mjs), each named.
+while IFS= read -r crochet; do
+  [ -n "$crochet" ] && missing+=("le crochet git $crochet du cadre")
+done < <(node "$root/scripts/crochets.mjs" --absents "$root" 2>/dev/null)
 command -v bwrap >/dev/null || missing+=("bubblewrap (bwrap), l'enveloppe des agents : sudo apt install bubblewrap")
 
 # The key elements the skills read; each one still empty is proposed for a grill.

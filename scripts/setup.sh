@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Prepares a fresh copy of the template for its first session: dependencies, and the Beads
-# ticket store the `pitmaster` and `developpeur` skills work from. Idempotent.
+# ticket store the `pitmaster` and `developpeur` skills work from, and the frame's git hooks
+# (scripts/crochets.mjs, the mechanism npm run grillhouse:maj also calls). Idempotent.
 #
 # Usage: npm run setup [-- <ticket-prefix>]   (prefix: the store's own, else the directory name)
 set -euo pipefail
@@ -29,16 +30,9 @@ fi
 
 (cd "$root" && bd init --init-if-missing --non-interactive --skip-agents --quiet --prefix "$prefix")
 git -C "$root" config beads.role maintainer
-# One ticket, one commit: the commit-msg hook, next to the hooks Beads installs
-hook="$root/.beads/hooks/commit-msg"
-if ! grep -q un-commit-par-ticket "$hook" 2>/dev/null; then
-  mkdir -p "$root/.beads/hooks"
-  printf '%s\n' '#!/usr/bin/env sh' \
-    '# One ticket, one commit (Grillhouse): a second commit for a ticket whose delivery stands is refused; a revert (Revert "…", Reapply "…") passes and withdraws the delivery it names.' \
-    'exec node "$(git rev-parse --show-toplevel)/scripts/un-commit-par-ticket.mjs" "$1"' > "$hook"
-  chmod +x "$hook"
-fi
+# The frame's git hooks (commit-msg, pre-push), in the folder git reads: the hooks path first
 [ -n "$(git -C "$root" config core.hooksPath)" ] || git -C "$root" config core.hooksPath .beads/hooks
+node "$root/scripts/crochets.mjs" "$root"
 
 [ -f "$root/package.json" ] && npm --prefix "$root" install
 

@@ -2,7 +2,7 @@
 // One ticket, one commit: refuses a commit message whose title line names a ticket an earlier
 // commit already delivers. A second delivery for the same ticket is the sign of a ticket split into
 // lots; its rest becomes new tickets, created under it (`--parent`). Run as the commit-msg hook
-// (`.beads/hooks/commit-msg`), with the message file as argument.
+// (placed by `scripts/crochets.mjs`), with the message file as argument.
 //
 // - A commit delivers the tickets its title line names; a ticket named only in a body (a
 //   reference, a `Refs:` trailer) is not delivered.

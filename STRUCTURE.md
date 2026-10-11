@@ -44,7 +44,7 @@ roomis-grillhouse/
 ├── pitmaster/SUIVI.md          # Pitmaster follow-up (open questions, last round)
 ├── scripts/
 │   ├── new-project.sh             # npm run new -- <dest> [prefix] (template only, not copied)
-│   ├── setup.sh                   # npm run setup: git, Beads tickets, dependencies
+│   ├── setup.sh                   # npm run setup: git, Beads tickets, the frame's git hooks (crochets.mjs), dependencies
 │   ├── session-start.sh           # SessionStart hook: what is still empty (per package in the frame)
 │   ├── structure-guard.sh         # UserPromptSubmit hook: a structure decision goes to the grill
 │   ├── verrous/verrou.mjs         # The role agents' write locks (tests: tests/unit/verrous.spec.ts)
@@ -57,6 +57,7 @@ roomis-grillhouse/
 │   ├── consommateurs.mjs          # grillhouse:gardes: refuses an import that the provider's INTERFACE.md does not declare
 │   │                              #   composants(): the components for every check, minus the packages out of
 │   │                              #   the frame listed in docs/agents/hors-cadre.txt, "<package> <reason>"
+│   ├── crochets.mjs               # the frame's git hooks (commit-msg, pre-push): placed by setup.sh and grillhouse:maj, absent ones named by the session start
 │   ├── frontieres.mjs             # grillhouse:gardes: dependency-cruiser, rules generated in .dependency-cruiser.cjs
 │   ├── interfaces-contre-code.mjs # grillhouse:gardes: the TSDoc contract of each export (rubrics, tsdoc.json) and the generated part
 │   │                              #   of INTERFACE.md between its two marks; npm run api writes the reports and the parts
@@ -67,7 +68,7 @@ roomis-grillhouse/
 │   ├── branche-de-nuit.mjs        # pre-push guard: only the night pushes the branch of grillhouse.poussee.nuit
 │   ├── poussee-cles.mjs           # reads the grillhouse.poussee and grillhouse.poussee.nuit keys of package.json for nuit.sh and the guard
 │   ├── retirer-copie.sh           # removes a working copy, submodules included (agent, integration, night)
-│   ├── grillhouse-maj.mjs         # npm run grillhouse:maj: the frame brought to its last version (files, hooks, scripts, the controls' devDependencies); --ecarts
+│   ├── grillhouse-maj.mjs         # npm run grillhouse:maj: the frame brought to its last version (files, git hooks, scripts, the controls' devDependencies); --ecarts
 │   ├── tableau.mjs                # npm run tableau: the board on three levels (project, agents, chantier)
 │   ├── ligne-etat/                # the status line: the person's own on the left, the chantier on the right
 │   ├── registre.mjs               # hook: one line per finished agent (ticket, role, time, tokens)
@@ -76,7 +77,7 @@ roomis-grillhouse/
 │   │   └── suites-vitest.mjs         # npm run integration:suites -- --tous|<components>: failing tests by name, for Vitest
 │   │                                 #   (budget benches and night tests left out)
 │   ├── index-interfaces.mjs       # npm run interfaces: docs/agents/index-des-interfaces.md from the generated parts, checked by grillhouse:gardes
-│   └── un-commit-par-ticket.mjs   # commit-msg hook (.beads/hooks/commit-msg): one ticket, one commit
+│   └── un-commit-par-ticket.mjs   # commit-msg hook (placed by crochets.mjs): one ticket, one commit
 │
 ├── mods/grillhouse/            # The Grillhouse mod (grillhouse@roomi-fields): the /grillhouse pane, the
 │                              #   lines of scripts/tableau.mjs; tests: npm run mod:test
