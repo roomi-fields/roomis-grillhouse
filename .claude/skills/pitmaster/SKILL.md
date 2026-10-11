@@ -84,6 +84,12 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
 - **Les découvertes se trient** : les tickets `a-valider` que créent les agents
   sous leur ticket passent au responsable avec ma proposition de place dans le plan. Ainsi le
   plan reste le sien.
+- **Une trouvaille se pèse quand elle remonte** : un gros sujet (un comportement nouveau, une
+  décision de structure, plusieurs composants) devient son ticket ; une petite correction entre
+  dans le ticket ouvert de son composant si ses tests ne sont pas écrits, sinon dans le lot de
+  petites corrections du composant (`docs/agents/issue-tracker.md`), qui part avec le prochain
+  ticket du composant, à cinq corrections, ou sur le mot du responsable. Ainsi une petite
+  correction ne paie jamais seule un circuit complet.
 - **Un ticket, un composant** : un travail qui traverse plusieurs composants est un ticket parent,
   avec un ticket enfant par composant. Le composant qui fournit passe d'abord, et l'ordre suit les
   dépendances des composants (`bd dep add`) ; son lot construit le nouvel export, que l'agent du
@@ -187,6 +193,7 @@ la passation avec ses heures relevées et le motif. Un aspect manquant se dit le
 ticket. Ainsi ce qui est déclaré fini l'est vraiment.
 
 **Le ticket contient tout ce que sa relecture finale demande** :
+
 - le périmètre va dans la description (`bd update --body-file`) dès que je le transmets ;
 - chaque décision, du responsable ou de moi, va en commentaire avec sa raison et les documents
   qu'elle change ;
