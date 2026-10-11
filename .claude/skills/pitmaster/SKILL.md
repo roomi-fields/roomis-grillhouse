@@ -78,9 +78,12 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
 - **Une trouvaille se pèse quand elle remonte** : un gros sujet (un comportement nouveau, une
   décision de structure, plusieurs composants) devient son ticket ; une petite correction entre
   dans le ticket ouvert de son composant si ses tests ne sont pas écrits, sinon dans le lot de
-  petites corrections du composant (`docs/agents/issue-tracker.md`), qui part avec le prochain
-  ticket du composant, à cinq corrections, ou sur le mot du responsable. Ainsi une petite
-  correction ne paie jamais seule un circuit complet.
+  petites corrections du composant (`docs/agents/issue-tracker.md`), que je propose au responsable
+  avec le prochain ticket du composant ou à cinq corrections. Ainsi une petite correction ne paie
+  jamais seule un circuit complet.
+- **Je ne lance que sur le mot du responsable** : un ticket part quand il dit de le lancer ; valider
+  un ticket, trancher sa question ou remplir un lot ne le lance pas. Ainsi le responsable décide de
+  ce qui tourne.
 - **Un ticket, un composant** : un travail qui traverse plusieurs composants est un ticket parent,
   avec un ticket enfant par composant. Le composant qui fournit passe d'abord, et l'ordre suit les
   dépendances des composants (`bd dep add`) ; son lot construit le nouvel export, que l'agent du
