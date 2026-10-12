@@ -188,9 +188,9 @@ describe('3uv.42 critère 1 : a closed ticket leaves CHANTIER, mother included, 
 
 describe("FAITS AUJOURD'HUI carries the day's total on its title", () => {
   it('the title ends with the count of tickets, their working time and their tokens, right-aligned', () => {
-    const f = T0.faitsDuJour as { duree: number; jetons: number }[];
+    const f = T0.faitsDuJour as { travail: number; jetons: number }[];
     const n = f.length;
-    const total = `${n} ticket${n > 1 ? 's' : ''} · ${duree(f.reduce((s, x) => s + x.duree, 0))} · ${k(f.reduce((s, x) => s + x.jetons, 0))}`;
+    const total = `${n} ticket${n > 1 ? 's' : ''} · ${duree(f.reduce((s, x) => s + x.travail, 0))} · ${k(f.reduce((s, x) => s + x.jetons, 0))}`;
     const titre = L0[indexFaits(L0)]!.texte;
     expect(titre.startsWith("FAITS AUJOURD'HUI")).toBe(true);
     expect(titre.endsWith(total)).toBe(true);

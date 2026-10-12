@@ -14,7 +14,7 @@ export type Fiche = {
   titre: string
   composant: string
   statut: string
-  duree: number
+  travail: number
   jetons: number
   resume: string
   texte?: string

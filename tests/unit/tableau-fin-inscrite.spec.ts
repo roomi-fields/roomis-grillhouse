@@ -68,6 +68,14 @@ const venu =
 const personne = venu('human');
 const pair = venu('peer');
 const avis = venu('task-notification');
+// The supervisor's message that resumes a sub-agent: a meta message with its own origin.
+const coordinateur: Evenement = t => ({
+  type: 'user',
+  timestamp: t,
+  isMeta: true,
+  origin: { kind: 'coordinator' },
+  message: { content: 'The coordinator sent a message while you were working:\nRelis le lot.' },
+});
 const sansOrigine: Evenement = t => ({
   type: 'user',
   timestamp: t,
@@ -181,6 +189,7 @@ const ENTRANTS: [string, Evenement][] = [
   ['a message of the person', personne],
   ['a message of another agent', pair],
   ['a notification', avis],
+  ['a message of the supervisor that resumes a sub-agent', coordinateur],
   ['a message without origin', sansOrigine],
 ];
 

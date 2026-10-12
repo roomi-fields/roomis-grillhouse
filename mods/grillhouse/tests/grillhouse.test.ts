@@ -68,7 +68,7 @@ test("the card says the chosen ticket's whole title, its state, duration, tokens
       titre: "Publie l'objet de la scène",
       composant: '030-binder',
       statut: 'in_progress',
-      duree: 12 * 60_000,
+      travail: 12 * 60_000,
       jetons: 310_000,
       resume: 'Le résumé.',
     }),

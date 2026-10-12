@@ -92,12 +92,14 @@ export const ETATS = [
 ];
 const enTirets = p => p.replace(/[^A-Za-z0-9]/g, '-');
 
-// The origins of an incoming message: the person, another agent, a notification.
-const ORIGINES = new Set(['human', 'peer', 'task-notification']);
+// The origins of an incoming message: the person, another agent, a notification, the supervisor
+// resuming a sub-agent.
+const ORIGINES = new Set(['human', 'peer', 'task-notification', 'coordinator']);
 // The mark the tool writes when the person stops a turn.
 const INTERRUPTION = /^\[Request interrupted by user( for tool use)?\]$/;
 
-// An incoming message opens a turn: a message of the person, of another agent or a notification.
+// An incoming message opens a turn: a message of the person, of another agent, a notification or
+// the supervisor's.
 // Its origin decides; a message without origin is one unless it is a tool's result, a meta message
 // (a system reminder, a loaded skill), the summary written after a compaction or the interruption
 // mark.
@@ -661,11 +663,6 @@ export function assembler({
   // Chantiers.
   const sous = t => [t, ...(enfants.get(t.id) ?? []).flatMap(sous)];
   const mesure = ids => somme(mesures.filter(m => ids.has(m.ticket)));
-  // A ticket's duration: claimed → closed, or now.
-  const dureeDe = t =>
-    t.started_at
-      ? (t.closed_at ? Date.parse(t.closed_at) : maintenant) - Date.parse(t.started_at)
-      : 0;
   const noeud = t => {
     const liste = sous(t).filter(travail);
     const faits = liste.filter(x => x.status === 'closed').length;
@@ -689,7 +686,6 @@ export function assembler({
       faits,
       total: liste.length,
       bloquePar: bloquePar(t),
-      duree: dureeDe(t),
       ...mesure(new Set(sous(t).map(x => x.id))),
       enfants: ouverts(t).map(noeud),
     };
@@ -779,7 +775,6 @@ export function assembler({
         id: t.id,
         numero: numero(t.id),
         sujet: titre(t).sujet,
-        duree: dureeDe(t),
         bloquePar: bloquePar(t),
         ...mesure(new Set([t.id])),
       });
@@ -793,7 +788,6 @@ export function assembler({
       id: t.id,
       numero: numero(t.id),
       sujet: titre(t).sujet,
-      duree: dureeDe(t),
       ...mesure(new Set([t.id])),
     }));
 
@@ -824,7 +818,14 @@ export function assembler({
       alertes.push({ niveau: 'orange', texte: `${numero(t.id)} en cours sans rien qui tourne` });
     }
   }
-  return { global, alertes, chantiers, autres, agents: blocs, faitsDuJour, etats };
+  // Each ticket's own measures: its agents' working time and tokens, running agents included.
+  const parTicket = Object.fromEntries(
+    [...new Set(mesures.map(m => m.ticket).filter(Boolean))].map(id => [
+      id,
+      mesure(new Set([id])),
+    ])
+  );
+  return { global, alertes, chantiers, autres, agents: blocs, faitsDuJour, etats, parTicket };
 }
 
 export const k = n =>
@@ -907,7 +908,7 @@ export function lignes(t, nom, largeur = LARGEUR) {
     const attente = x => ({
       texte: cadre(
         `· ${x.numero}  ${x.sujet}`,
-        x.bloquePar?.length ? `attend ${x.bloquePar.join(', ')}` : conso(x.duree, x.jetons),
+        x.bloquePar?.length ? `attend ${x.bloquePar.join(', ')}` : conso(x.travail, x.jetons),
         largeur
       ),
       ton: 'discret',
@@ -960,7 +961,7 @@ export function lignes(t, nom, largeur = LARGEUR) {
       const droite = n.mere
         ? `${n.faits}/${n.total}${conso}${n.etat === 'bloques' ? ` ${marque(n)}` : ''}`
         : n.etat === 'enCours'
-          ? `${duree(n.duree)}${conso}`
+          ? `${duree(n.travail)}${conso}`
           : n.etat === 'bloques'
             ? marque(n)
             : '';
@@ -1013,7 +1014,7 @@ export function lignes(t, nom, largeur = LARGEUR) {
     L('', undefined);
     // The title carries the day's total: tickets, working time and tokens of the facts below.
     const n = t.faitsDuJour.length;
-    const temps = t.faitsDuJour.reduce((s, x) => s + x.duree, 0);
+    const temps = t.faitsDuJour.reduce((s, x) => s + x.travail, 0);
     const jetons = t.faitsDuJour.reduce((s, x) => s + x.jetons, 0);
     L(
       cadre(
@@ -1024,7 +1025,7 @@ export function lignes(t, nom, largeur = LARGEUR) {
       'titre'
     );
     const fait = x => ({
-      texte: cadre(`✓ ${x.numero}  ${x.sujet}`, conso(x.duree, x.jetons), largeur),
+      texte: cadre(`✓ ${x.numero}  ${x.sujet}`, conso(x.travail, x.jetons), largeur),
       ton: 'discret',
       ticket: x.id,
     });
@@ -1065,10 +1066,10 @@ export function lignesEtats(t, largeur = LARGEUR) {
   return out;
 }
 
-// The card of each ticket a line names: its number, whole title, component, state,
-// duration, agents' tokens (`jetons`: ticket → tokens), the start of its description (`resume`)
-// and the whole description (`texte`), which the pane shows for the line chosen.
-export function fiches(tous, lignesDuTableau, prefix = '', jetons = {}, maintenant = Date.now()) {
+// The card of each ticket a line names: its number, whole title, component, state, its agents'
+// working time and tokens (`mesures`: ticket → { travail, jetons }), the start of its description
+// (`resume`) and the whole description (`texte`), which the pane shows for the line chosen.
+export function fiches(tous, lignesDuTableau, prefix = '', mesures = {}) {
   const ids = new Set(lignesDuTableau.map(l => l.ticket).filter(Boolean));
   const out = {};
   for (const t of tous) {
@@ -1085,10 +1086,8 @@ export function fiches(tous, lignesDuTableau, prefix = '', jetons = {}, maintena
       titre: lecture(t, prefix).sujet,
       composant: lecture(t, prefix).composant,
       statut: t.status,
-      duree: t.started_at
-        ? (t.closed_at ? Date.parse(t.closed_at) : maintenant) - Date.parse(t.started_at)
-        : 0,
-      jetons: jetons[t.id] ?? 0,
+      travail: mesures[t.id]?.travail ?? 0,
+      jetons: mesures[t.id]?.jetons ?? 0,
       resume: resume.length > 400 ? `${resume.slice(0, 399)}…` : resume,
       texte: (t.description ?? '').trim(),
     };
@@ -1248,12 +1247,6 @@ export function tableau(racine, { home = os.homedir(), maintenant = Date.now() }
   const nom = path.basename(racine);
   const l = lignes(t, nom);
   const vue = lignesEtats(t);
-  const parTicket = {};
-  for (const r of registre) {
-    if (r.ticket) {
-      parTicket[r.ticket] = (parTicket[r.ticket] ?? 0) + (r.jetons ?? 0);
-    }
-  }
   const etat = ligneEtat(t);
   try {
     if (commun) {
@@ -1266,7 +1259,7 @@ export function tableau(racine, { home = os.homedir(), maintenant = Date.now() }
     ...t,
     lignes: l,
     vueEtats: vue,
-    fiches: fiches(tous, [...l, ...vue], prefix, parTicket, maintenant),
+    fiches: fiches(tous, [...l, ...vue], prefix, t.parTicket),
     dernier: dernierBouge(tous, l, vivants, maintenant),
     etat,
   };

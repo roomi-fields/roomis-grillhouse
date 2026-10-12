@@ -294,7 +294,7 @@ describe('3uv.44 critère 3 : an origin out of the three opens no turn', () => {
       lire(
         humain('10:00'),
         reponse('10:05'),
-        origine('10:30', { kind: 'coordinator' }),
+        origine('10:30', { kind: 'inconnue' }),
         reponse('10:32')
       ).tours
     ).toEqual([[ms('10:00'), ms('10:32')]]);

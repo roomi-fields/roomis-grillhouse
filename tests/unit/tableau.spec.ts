@@ -333,7 +333,6 @@ describe('assembler', () => {
         id: 'demo-c.3',
         numero: 'c.3',
         sujet: 'demo-c.3',
-        duree: 0,
         bloquePar: [],
         travail: 60_000,
         jetons: 50,
@@ -344,7 +343,7 @@ describe('assembler', () => {
   });
   it('lists the tickets closed today', () => {
     expect(t.faitsDuJour).toEqual([
-      { id: 'demo-c.1.2', numero: 'c.1.2', sujet: 'demo-c.1.2', duree: 0, travail: 0, jetons: 0 },
+      { id: 'demo-c.1.2', numero: 'c.1.2', sujet: 'demo-c.1.2', travail: 0, jetons: 0 },
     ]);
   });
   it('alerts on a silent shell agent and a ticket in progress without anything running, never on a decision awaited', () => {
@@ -386,7 +385,7 @@ describe('assembler', () => {
     expect(texte.match(/c\.3 {2}demo-c\.3/g)).toHaveLength(1);
     expect(texte).toMatch(/\n {2}sans go +1\n {3}c\.2 {2}demo-c\.2\n/);
     expect(texte).toMatch(/\n4 développeur\n▶ c\.1\.1 {2}Écrit/);
-    expect(texte).toMatch(/\n4 développeur[\s\S]*\n· c\.3 {2}demo-c\.3 +0 min · 50\n/);
+    expect(texte).toMatch(/\n4 développeur[\s\S]*\n· c\.3 {2}demo-c\.3 +1 min · 50\n/);
     expect(texte).toMatch(/\n1 explorateur {2}—\n/);
     expect(texte).toMatch(/✓ c\.1\.2 {2}demo-c\.1\.2/);
     expect(texte).toMatch(/\nAUTRES CHANTIERS +1\nz {2}Un autre +1\/1\n/);
@@ -584,6 +583,20 @@ describe('dernierBouge', () => {
 });
 
 describe('fiches', () => {
+  it("gives a ticket its agents' working time and tokens, never the time since it was claimed", () => {
+    const tous = [
+      {
+        id: 'demo-a',
+        title: 'a — Un ticket qui a dormi la nuit',
+        status: 'in_progress',
+        started_at: new Date(Date.now() - 7 * 3_600_000).toISOString(),
+      },
+    ];
+    const f = fiches(tous, [{ texte: 'x', ticket: 'demo-a' }], 'demo', {
+      'demo-a': { travail: 17 * 60_000, jetons: 900 },
+    });
+    expect(f['demo-a']).toMatchObject({ travail: 17 * 60_000, jetons: 900 });
+  });
   it('gives each ticket a line names its whole title, its state and the start of its description', () => {
     const tous = [
       {
@@ -600,7 +613,7 @@ describe('fiches', () => {
         titre: 'Un titre entier',
         composant: 'moteur',
         statut: 'open',
-        duree: 0,
+        travail: 0,
         jetons: 0,
         resume: 'Le modèle mûr. Suite.',
         texte: '## Architecture\nLe modèle mûr.\n\nSuite.',

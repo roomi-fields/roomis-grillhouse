@@ -53,7 +53,7 @@ export function ficheLignes(f: Fiche | undefined): string[] {
   if (!f) return ['alt+g (ou ctrl+x tab), puis tab : la fiche du ticket choisi ; Échap : le prompt.']
   return [
     `${f.numero} — ${f.titre}`,
-    [f.composant, STATUTS[f.statut] ?? f.statut, duree(f.duree), `${k(f.jetons)} jetons`].filter(Boolean).join(' · '),
+    [f.composant, STATUTS[f.statut] ?? f.statut, duree(f.travail), `${k(f.jetons)} jetons`].filter(Boolean).join(' · '),
     f.resume,
   ].filter(Boolean)
 }
