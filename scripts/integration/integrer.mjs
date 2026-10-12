@@ -26,7 +26,7 @@
 //     a suite whose fingerprint has a trace is not replayed, so the base of a HEAD already
 //     measured costs nothing. The project chooses at its installation (`grillhouse.integration` in
 //     package.json): `impactes` (the default) replays the components that hold a file of the lot and
-//     those that depend on them (the consumers' graph), whatever the nature of the file; every suite
+//     those that depend on them (the graph of the dependencies), whatever the nature of the file; every suite
 //     for a lot that touches the lock file or a root path the project declares read
 //     (`grillhouse.lusParLesSuites`); the root suite for a lot of test helpers outside every
 //     component; the test files alone for a lot made only of test files; no suite (the guards

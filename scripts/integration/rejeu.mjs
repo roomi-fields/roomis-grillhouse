@@ -32,7 +32,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { composants as lesComposants, NOM_DE_TEST, utilise } from '../consommateurs.mjs';
+import { composants as lesComposants, NOM_DE_TEST, dependances } from '../consommateurs.mjs';
 import { isTestFile } from '../verrous/verrou.mjs';
 import { etapesDesGardes } from './gardes.mjs';
 import { ouvrirTraces } from './traces.mjs';
@@ -50,7 +50,8 @@ export function nouveauxRouges(base, apres, admis = []) {
 }
 
 // What the suites replay for a lot. `composants` are the components' directories relative to the
-// root; `consommateurs` maps a component's directory to the directories of those that use it;
+// root; `consommateurs` maps a component's directory to the directories of those that depend on it
+// (`dependances` of scripts/consommateurs.mjs: production consumptions and links of shared test material);
 // `lus` are the root paths the project declares read by its suites (`grillhouse.lusParLesSuites`,
 // files or folders). The lock file of the dependencies is always read.
 // - a file the lot touches that the project declares read, or the lock file: every suite (mode
@@ -163,11 +164,11 @@ export function ouvrirCopie({ racine, copie, ref, tmp, dire }) {
     const comps = lesComposants(copie);
     const dirDe = new Map(comps.map(c => [c.nom, path.relative(copie, c.dir)]));
     const consommateurs = new Map();
-    for (const [fournisseur, parConsommateur] of utilise(copie, comps)) {
-      consommateurs.set(
-        dirDe.get(fournisseur),
-        [...parConsommateur.keys()].map(n => dirDe.get(n))
-      );
+    for (const [consommateur, fournisseurs] of dependances(copie)) {
+      for (const fournisseur of fournisseurs) {
+        const dir = dirDe.get(fournisseur);
+        consommateurs.set(dir, [...(consommateurs.get(dir) ?? []), dirDe.get(consommateur)]);
+      }
     }
     // The project chooses at its installation (grill): `complet` replays every suite each time;
     // `impactes`, the default, what `perimetre` computes, every suite once a night.

@@ -130,8 +130,10 @@ remplace jamais le grill. Les branches de l'arbre :
    lisent, le testeur seul l'écrit. Chaque
    paquet construit porte un script `build` qui écrit son `dist/` ; le cadre les lance un à un par
    son point d'entrée (`scripts/integration/constructions.mjs`), que le `build` de la racine
-   appelle, dans l'ordre de ce que le code de production importe vraiment, comme Turborepo suit le
-   graphe des paquets ; une construction inchangée se restaure du magasin. Aucune configuration ne lit celle d'un voisin, que l'enveloppe cache. Un test atteint son paquet
+   appelle, dans l'ordre de ce que chaque paquet importe vraiment, son code de production et la
+   matière de test partagée d'un voisin (`<paquet>/test-fixtures`), comme Turborepo suit le graphe
+   des paquets ; une construction inchangée se restaure du magasin. Aucune configuration ne lit
+   celle d'un voisin, que l'enveloppe cache. Un test atteint son paquet
    par une seule route : les sources relatives pour un test unitaire, le nom du paquet pour un test
    de porte. Ainsi un agent enveloppé construit et teste son paquet avec ce que ses voisins
    publient.

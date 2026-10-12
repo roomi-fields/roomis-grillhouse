@@ -8,7 +8,9 @@
 //   - `c` : *
 //
 // This check reads what the production code of every component imports from every other, and
-// refuses (exit 1) a use that the provider's interface does not declare. A declared use that no
+// refuses (exit 1) a use that the provider's interface does not declare. `dependances` gives the
+// graph of the dependencies the fingerprints, the scope of the suites and the order of the builds
+// read: these production uses plus the links of the shared test material. A declared use that no
 // code makes is reported, without refusing. `*` stands for a namespace, default, re-export-all or
 // side-effect import.
 //
@@ -17,8 +19,9 @@
 // Components are the directories under `packages/` (reached by their package name or a relative
 // path) and under `src/` (reached by a relative path), except those listed out of the frame in
 // `docs/agents/hors-cadre.txt`: neither read nor checked, as provider or as consumer. Every check
-// of the frame enumerates the components through `composants`. Test files, `dist/`, `docs/` and
-// `node_modules/` are not production code and are not read.
+// of the frame enumerates the components through `composants`. For the check of the uses, test files,
+// `dist/`, `docs/` and `node_modules/` are not production code and are not read; `dependances` also
+// reads the imports of a neighbour's shared test material (`matieres`), wherever they sit.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -166,15 +169,17 @@ export function imports(source) {
   return out;
 }
 
-// The production source files under <dir>.
-function fichiers(dir) {
+// The source files under <dir>: the production ones, or with <avecTests> every one, test
+// folders and test files included.
+function fichiers(dir, avecTests = false) {
   const out = [];
   const walk = d => {
     for (const e of readdirSync(d, { withFileTypes: true })) {
-      if (SKIP.has(e.name) || TEST_DIR.has(e.name) || e.name.startsWith('.')) continue;
+      if (SKIP.has(e.name) || e.name.startsWith('.')) continue;
+      if (!avecTests && TEST_DIR.has(e.name)) continue;
       const p = path.join(d, e.name);
       if (e.isDirectory()) walk(p);
-      else if (SOURCE.test(e.name) && !isTest(e.name)) out.push(p);
+      else if (SOURCE.test(e.name) && (avecTests || !isTest(e.name))) out.push(p);
     }
   };
   walk(dir);
@@ -208,6 +213,40 @@ export function utilise(racine, tous = composants(racine)) {
         const parConsommateur = out.get(p.nom);
         if (!parConsommateur.has(c.nom)) parConsommateur.set(c.nom, new Set());
         for (const n of noms) parConsommateur.get(c.nom).add(n);
+      }
+    }
+  }
+  return out;
+}
+
+// The graph of the dependencies of the repository at <racine>: Map component name → Set of the
+// names of the components it depends on; a component that depends on none is absent. A dependency
+// is a production consumption (`utilise`) or a link of material: an import of exactly
+// `<package name>/test-fixtures` (static, dynamic, `require`, type-only) in any source file of the
+// component, tests and material included, the package named publishing `./test-fixtures`. A
+// component never depends on itself; a component out of the frame is neither provider nor
+// consumer. The check of the interfaces reads `utilise`, not this graph.
+export function dependances(racine) {
+  const tous = composants(racine);
+  const out = new Map();
+  const lier = (consommateur, fournisseur) => {
+    if (consommateur === fournisseur) return;
+    if (!out.has(consommateur)) out.set(consommateur, new Set());
+    out.get(consommateur).add(fournisseur);
+  };
+  for (const [fournisseur, parConsommateur] of utilise(racine, tous)) {
+    for (const consommateur of parConsommateur.keys()) lier(consommateur, fournisseur);
+  }
+  const parSpec = new Map(
+    matieres(racine)
+      .filter(m => m.paquet)
+      .map(m => [`${m.paquet}/test-fixtures`, m.nom])
+  );
+  for (const c of tous) {
+    for (const f of fichiers(c.dir, true)) {
+      for (const { spec } of imports(readFileSync(f, 'utf8'))) {
+        const fournisseur = parSpec.get(spec);
+        if (fournisseur) lier(c.nom, fournisseur);
       }
     }
   }

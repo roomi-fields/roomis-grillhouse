@@ -17,8 +17,8 @@
 //     branches of the queue (scripts/integration/file-attente.mjs), read in git, their submodules
 //     included; a commit that cannot be read keeps nothing;
 //  3. a component has a build when its package.json has a `build` script, its output is its `dist/`.
-//     When at least one has, each is built in the order of the consumptions (`utilise` of
-//     scripts/consommateurs.mjs, devDependencies out) and the root's build never runs. When none has,
+//     When at least one has, each is built in the order of the dependencies (`dependances` of
+//     scripts/consommateurs.mjs: production consumptions and links of shared test material) and the root's build never runs. When none has,
 //     the root's `build` script is the single build, its output the `dist/` of the root; none, no build;
 //  4. for each build: its `dist/` is restored when its fingerprint is in the store, else emptied, built,
 //     and stored. A build that leaves no `dist/` stores nothing and says so in one line. A red build
@@ -26,14 +26,7 @@
 // FORCER=1 reads no entry and writes again what it builds. Outside a git repository there is no store:
 // every passage builds.
 import { spawnSync } from 'node:child_process';
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  rmSync,
-  statSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

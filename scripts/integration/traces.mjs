@@ -22,12 +22,13 @@
 //
 // A fingerprint hashes the content of the files git lists (tracked or not, not ignored), each by its
 // path and content, never by date; a submodule enters by its files. Component: its files and those
-// of the components it consumes, transitively (`utilise` of scripts/consommateurs.mjs; a cycle
+// of the components it depends on, transitively (`dependances` of scripts/consommateurs.mjs: the
+// production consumptions and the imports of a neighbour's shared test material; a cycle
 // ends), the lock file `package-lock.json` and the root paths the project declares read
 // (`grillhouse.lusParLesSuites` of package.json, files or folders). Root suite: the lock file, the
 // declared paths, its test files and the files of every component.
 // - A component's trace is `{ code, rouges }` (exit code, failing tests by name). A component stale
-//   only by what it consumes, whose own files are those of its last full suite, green and
+//   only by the components it depends on, whose own files are those of its last full suite, green and
 //   measured, owes the quick set: that suite without the test files measured at SEUIL seconds or
 //   more (a file never measured is never left out), under a trace of its own. Any other owes its
 //   full suite.
@@ -71,7 +72,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
-import { composants as lesComposants, utilise } from '../consommateurs.mjs';
+import { composants as lesComposants, dependances } from '../consommateurs.mjs';
 import { isTestFile } from '../verrous/verrou.mjs';
 import { dossierCommun } from './file-attente.mjs';
 
@@ -294,14 +295,14 @@ export function ouvrirTraces(racine, { forcer = false, extra = [], fichiers = nu
   };
   const empreinteDes = fichiers => sha([...fichiers].sort().map(f => `${f}\0${contenu(f)}`));
 
-  // The components and what each consumes.
+  // The components and the providers each depends on (the graph of the dependencies).
   const connus = lesComposants(racine);
   const relDe = new Map(connus.map(c => [c.nom, posix(path.relative(racine, c.dir))]));
   const dossiers = [...new Set([...relDe.values(), ...extra])];
   const proprietaire = f => dossiers.find(d => dedans(f, d)) ?? '';
   const fournisseursDe = new Map(dossiers.map(d => [d, new Set()]));
-  for (const [fournisseur, parConsommateur] of utilise(racine, connus)) {
-    for (const consommateur of parConsommateur.keys()) {
+  for (const [consommateur, fournisseurs] of dependances(racine)) {
+    for (const fournisseur of fournisseurs) {
       fournisseursDe.get(relDe.get(consommateur))?.add(relDe.get(fournisseur));
     }
   }
@@ -361,7 +362,7 @@ export function ouvrirTraces(racine, { forcer = false, extra = [], fichiers = nu
           ...fermeture(dir).map(d => `${d}:${propre.get(d) ?? ''}`),
           empreinteRacine,
         ]);
-  // The directories <dirs> in the order of the consumptions: a provider before its consumers.
+  // The directories <dirs> in the order of the graph of the dependencies: a provider before its dependents.
   const ordreDeConstruction = dirs => {
     const voulus = new Set(dirs);
     const vus = new Set();
