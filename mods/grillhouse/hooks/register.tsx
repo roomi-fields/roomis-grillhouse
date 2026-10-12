@@ -134,7 +134,43 @@ function placer(s: Etat, rangs: number, focus: boolean): Visible[] {
 }
 
 // Measures the board again and redraws the pane.
-async function rafraichir($: EngineInterface) {
+// One board at a time: a refresh asked while one runs is folded into a single next one, so a
+// loop of commands never stacks boards, each reading every ticket.
+let enCours: Promise<void> | null = null
+let encore = false
+function rafraichir($: EngineInterface): Promise<void> {
+  if (enCours) {
+    encore = true
+    return enCours
+  }
+  enCours = (async () => {
+    try {
+      do {
+        encore = false
+        await mesurer($)
+      } while (encore)
+    } finally {
+      enCours = null
+    }
+  })()
+  return enCours
+}
+
+// After a `bd` or `git` command, one refresh REBOND ms after the first of a burst.
+const REBOND = 3_000
+let attend = false
+async function bientot($: EngineInterface) {
+  if (attend) return
+  attend = true
+  try {
+    await $.clock.sleep(REBOND)
+  } finally {
+    attend = false
+  }
+  await rafraichir($)
+}
+
+async function mesurer($: EngineInterface) {
   if (!actif) return
   const r = await $.process.run(['node', 'scripts/tableau.mjs'], { cwd, timeoutMs: 20_000 })
   if (r.exitCode !== 0) {
@@ -203,7 +239,7 @@ export const register: Register = on => {
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const ran = await next(e)
-    if (actif && /(^|[\s;&|(])(bd|git)\s/.test(e.command)) void rafraichir($)
+    if (actif && /(^|[\s;&|(])(bd|git)\s/.test(e.command)) void bientot($)
     return ran
   }).catch(($, e, next) => next(e))
 

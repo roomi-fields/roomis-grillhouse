@@ -244,3 +244,24 @@ test('a board past what a process returns opens the pane on a message, not on a 
   expect(JSON.stringify(await ui.drawn())).toContain('Tableau illisible')
   await ui.unmount()
 })
+
+test('refreshes asked while a board is read fold into one more, never one board each', async ($, on) => {
+  let tableaux = 0
+  on('process.run', async ($, e) => {
+    if (e.argv[0] === 'node') {
+      tableaux++
+      await new Promise(r => setTimeout(r, 30))
+    }
+    return { value: { exitCode: 0, stdout: e.argv[0] === 'test' ? '' : JSON.stringify(TABLEAU), stderr: '' } }
+  })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('command.register', () => ({ value: undefined }))
+  on('clock.every', () => ({ value: { cancel: () => undefined } }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
+  await new Promise(r => setTimeout(r, 100))
+  const avant = tableaux
+  const run = () => $.command.run({ command: 'grillhouse', presentation: { isFullscreen: true, columns: 200 } } as never)
+  await Promise.all([run(), run(), run(), run(), run()])
+  expect(tableaux - avant).toBeLessThanOrEqual(2)
+})
