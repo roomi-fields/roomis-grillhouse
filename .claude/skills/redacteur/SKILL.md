@@ -67,6 +67,9 @@ les mots qu'il emploie lui-même. La langue du document est celle de la charte.
   tranche ce qui décide de l'architecture.
 - **Déplacer, puis réécrire** : un texte se déplace tel quel dans un commit ; sa réécriture vient
   dans le suivant. Ainsi chaque changement de fond se lit et se vérifie seul.
+- **Un paragraphe sur une seule ligne** : un paragraphe, une entrée de liste ou une cellule
+  s'écrit sans retour à la ligne ; l'éditeur replie le texte. Ainsi un diff montre la phrase
+  changée, et non le paragraphe recoupé.
 
 ## Le type du document
 
