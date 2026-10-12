@@ -13,6 +13,8 @@ sort et sa réponse va dans son ticket.
 
 Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 
+- **3uv.74** (a-valider, P1, signalé par BPScript) : un lot qui ajoute un paquet est refusé, l'installation des dépendances ne suit pas le verrou après l'application du lot. Bloque à nouveau le lot A de 322.4. Recommandation : le lancer. Question : on le lance ?
+
 
 
 
