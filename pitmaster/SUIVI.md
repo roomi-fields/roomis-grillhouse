@@ -20,7 +20,7 @@ Chaque point : ce qui se surveille, ce qui le fermera.
 - **Avis aux projets après 3uv.65** : BPScript (son adaptateur des suites disparaît, il abandonne
   sa copie des traces, il déclare grillhouse.lusParLesSuites) ; FaustX (déclarer src/). Se ferme
   quand l'avis est passé, à la mise à jour du cadre chez eux.
-- **Avis aux projets après 3uv.67 et 3uv.67.1** : rédigé (scratchpad avis-projets.md), à envoyer sur le mot du responsable.
+- **Avis aux projets après 3uv.67 et 3uv.67.1** : envoyé à BPScript le 2026-10-12 (séance BPScript) ; FaustX à envoyer sur le mot du responsable.
 - **3uv.67.1.1** (a-valider, nom ou chemin d'un composant) : aucun projet n'a deux composants de même nom ; proposé de le ranger, pas important pour BPScript.
 - **Lot des petites corrections des scripts (3uv.56)** : 6 corrections, à présenter au responsable.
 
