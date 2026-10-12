@@ -23,7 +23,7 @@ Chaque point : ce qui se surveille, ce qui le fermera.
 
 
 - **Consigne du testeur** (remarque du chef de 3uv.72.1) : un test qui se construit un environnement neuf y remet le réglage git de la suite (`tests/config-git.ts`). Texte sous `.claude/`, à moi ; à proposer au responsable.
-- **Lot 3uv.56** : 9 corrections, à présenter au responsable.
+- **Lot 3uv.56** : 10 corrections, à présenter au responsable.
 - **Mesure de Beads** : refaire la mesure du coût d'une commande bd (bd show contre bd list --all) machine calme, avant de toucher à la lecture des tickets du tableau (« ok » du responsable).
 - **Contrôle du câblage des gardes** (idée, pas un ticket) : refuser un `integration:gardes` qui omet les gardes du cadre, en tolérant un écart nommé. À proposer au responsable quand BPScript aura fermé 322.6.7 (branchement de gardes.mjs chez lui).
 - **Avis aux projets après 3uv.65** : BPScript (son adaptateur des suites disparaît, il abandonne
