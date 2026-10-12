@@ -96,7 +96,6 @@ const ENTIER = {
   ],
   fiches: {
     ...TABLEAU.fiches,
-    'c.2': { ...TABLEAU.fiches['c.2'], texte: 'Le texte entier du ticket, jusqu’à sa dernière ligne.' },
   },
   dernier: 'c.2',
 }
@@ -104,8 +103,18 @@ const ENTIER = {
 async function monter($: never, on: never) {
   const o = on as (n: string, h: unknown) => void
   const s = $ as { session: { start: (a: object) => Promise<unknown> }; ui: { mount: (a: object) => Promise<never> } }
+  // The whole text comes from Beads (`bd show <id> --json`), not from the board.
   o('process.run', (_: unknown, e: { argv: string[] }) => ({
-    value: { exitCode: 0, stdout: e.argv[0] === 'test' ? '' : JSON.stringify(ENTIER), stderr: '' },
+    value: {
+      exitCode: 0,
+      stdout:
+        e.argv[0] === 'test'
+          ? ''
+          : e.argv[0] === 'bd'
+            ? JSON.stringify([{ id: e.argv[2], description: 'Le texte entier du ticket, jusqu’à sa dernière ligne.' }])
+            : JSON.stringify(ENTIER),
+      stderr: '',
+    },
   }))
   o('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
   o('command.register', () => ({ value: undefined }))
@@ -198,5 +207,40 @@ test('3uv.24 critère 6 : on a ticket line, h is not drawn and nothing switches'
   await new Promise(r => setTimeout(r, 50))
   await expect($.ui.press({ plugin: 'grillhouse', key: 'h' })).rejects.toBeDefined()
   expect(appels.some(a => a[0] === 'bd')).toBe(false)
+  await ui.unmount()
+})
+
+test('a board past what a process returns opens the pane on a message, not on a failure', async ($, on) => {
+  on('process.run', ($, e) => ({
+    value: {
+      exitCode: 0,
+      stdout: e.argv[0] === 'test' ? '' : JSON.stringify(TABLEAU).slice(0, 40),
+      stderr: '',
+      isStdoutTruncated: e.argv[0] !== 'test',
+    },
+  }))
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('command.register', () => ({ value: undefined }))
+  on('clock.every', () => ({ value: { cancel: () => undefined } }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
+  await new Promise(r => setTimeout(r, 50))
+  const r = await $.command.run({ command: 'grillhouse', presentation: { isFullscreen: true, columns: 200 } } as never)
+  expect(JSON.stringify(r)).toContain('Tableau Grillhouse')
+  const ui = await $.ui.mount({
+    plugin: 'grillhouse',
+    surface: 'terminal',
+    component: 'Pane',
+    requestId: 'grillhouse',
+    props: {
+      title: 't',
+      isFocused: true,
+      bodyColumns: 50,
+      placement: 'dock',
+      scroll: { bodyRows: 30 } as never,
+      view: {} as never,
+    },
+  })
+  expect(JSON.stringify(await ui.drawn())).toContain('Tableau illisible')
   await ui.unmount()
 })

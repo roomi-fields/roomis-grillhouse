@@ -1067,8 +1067,8 @@ export function lignesEtats(t, largeur = LARGEUR) {
 }
 
 // The card of each ticket a line names: its number, whole title, component, state, its agents'
-// working time and tokens (`mesures`: ticket → { travail, jetons }), the start of its description
-// (`resume`) and the whole description (`texte`), which the pane shows for the line chosen.
+// working time and tokens (`mesures`: ticket → { travail, jetons }) and the start of its
+// description (`resume`). The pane reads the whole description from Beads when the card fills it.
 export function fiches(tous, lignesDuTableau, prefix = '', mesures = {}) {
   const ids = new Set(lignesDuTableau.map(l => l.ticket).filter(Boolean));
   const out = {};
@@ -1089,7 +1089,6 @@ export function fiches(tous, lignesDuTableau, prefix = '', mesures = {}) {
       travail: mesures[t.id]?.travail ?? 0,
       jetons: mesures[t.id]?.jetons ?? 0,
       resume: resume.length > 400 ? `${resume.slice(0, 399)}…` : resume,
-      texte: (t.description ?? '').trim(),
     };
   }
   return out;

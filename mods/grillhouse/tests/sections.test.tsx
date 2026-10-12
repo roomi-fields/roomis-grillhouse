@@ -43,7 +43,7 @@ function tableau(n: number, m: number, p: number) {
       .filter(l => l.ticket)
       .map(l => [
         l.ticket,
-        { numero: l.ticket, titre: `Titre de ${l.ticket}`, composant: 'x', statut: 'in_progress', travail: 0, jetons: 0, resume: 'R', texte: `Le texte entier de ${l.ticket}.` },
+        { numero: l.ticket, titre: `Titre de ${l.ticket}`, composant: 'x', statut: 'in_progress', travail: 0, jetons: 0, resume: 'R' },
       ]),
   )
   // The pane draws an empty line as one space.
@@ -57,7 +57,7 @@ function tableau(n: number, m: number, p: number) {
     { texte: '  w.2  Attente 2', ticket: 'w.2', section: 'etats' },
   ]
   for (const l of vueEtats.filter(l => l.ticket)) {
-    fiches[l.ticket as string] = { numero: l.ticket, titre: `Titre de ${l.ticket}`, composant: 'x', statut: 'open', travail: 0, jetons: 0, resume: 'R', texte: `Le texte entier de ${l.ticket}.` }
+    fiches[l.ticket as string] = { numero: l.ticket, titre: `Titre de ${l.ticket}`, composant: 'x', statut: 'open', travail: 0, jetons: 0, resume: 'R' }
   }
   return { t: { lignes, vueEtats, fiches, dernier: 'a.1' }, tout: vu(lignes), tete: vu(tete), agents: vu(agents), chantier: vu(chantier), faits: vu(faits), cle }
 }
@@ -107,7 +107,14 @@ async function monter($: never, on: never, t: object, o: { bodyRows?: number; is
   let courant = t
   h('process.run', (_: unknown, e: { argv: string[] }) => {
     appels.push(e.argv)
-    return { value: { exitCode: 0, stdout: e.argv[0] === 'node' ? JSON.stringify(courant) : '', stderr: '' } }
+    // The board from scripts/tableau.mjs; a ticket's whole text from Beads (`bd show <id> --json`).
+    const stdout =
+      e.argv[0] === 'node'
+        ? JSON.stringify(courant)
+        : e.argv[0] === 'bd' && e.argv[1] === 'show'
+          ? JSON.stringify([{ id: e.argv[2], description: `Le texte entier de ${e.argv[2]}.` }])
+          : ''
+    return { value: { exitCode: 0, stdout, stderr: '' } }
   })
   h('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
   h('command.register', () => ({ value: undefined }))

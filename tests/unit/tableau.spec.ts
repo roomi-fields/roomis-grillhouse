@@ -597,7 +597,7 @@ describe('fiches', () => {
     });
     expect(f['demo-a']).toMatchObject({ travail: 17 * 60_000, jetons: 900 });
   });
-  it('gives each ticket a line names its whole title, its state and the start of its description', () => {
+  it('gives each ticket a line names its whole title, its state and the start of its description, never its whole text', () => {
     const tous = [
       {
         id: 'demo-a',
@@ -616,7 +616,6 @@ describe('fiches', () => {
         travail: 0,
         jetons: 0,
         resume: 'Le modèle mûr. Suite.',
-        texte: '## Architecture\nLe modèle mûr.\n\nSuite.',
       },
     });
   });

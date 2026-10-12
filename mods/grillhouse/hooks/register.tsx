@@ -31,6 +31,7 @@ const etat = atom({ plugin: 'grillhouse', key: 'etat' } as const, {
   element: null,
   grand: false,
   vue: 'tableau',
+  texte: null,
 } as Etat)
 
 export const k = (n: number) =>
@@ -140,8 +141,30 @@ async function rafraichir($: EngineInterface) {
     await update($, etat, s => ({ ...s, erreur: r.stderr.slice(0, 300) }))
     return
   }
-  const tableau = JSON.parse(r.stdout) as Tableau
+  // A board past what a process returns (4 MiB) or that does not parse is said, never thrown.
+  let tableau: Tableau
+  try {
+    if (r.isStdoutTruncated) throw new Error('la sortie de scripts/tableau.mjs dépasse 4 Mio')
+    tableau = JSON.parse(r.stdout) as Tableau
+  } catch (err) {
+    await update($, etat, s => ({ ...s, erreur: `Tableau illisible : ${(err as Error).message}`.slice(0, 300) }))
+    return
+  }
   await update($, etat, s => ({ ...s, tableau, erreur: null, lu: Date.now() }))
+}
+
+// The whole text of a ticket, read from Beads when the card fills the pane: the board carries
+// only each card's start.
+async function lireTexte($: EngineInterface, id: string) {
+  const r = await $.process.run(['bd', 'show', id, '--json'], { cwd, timeoutMs: 20_000 })
+  let contenu = ''
+  try {
+    const lu = JSON.parse(r.stdout) as { description?: string }[] | { description?: string }
+    contenu = ((Array.isArray(lu) ? lu[0] : lu)?.description ?? '').trim()
+  } catch {
+    contenu = ''
+  }
+  await update($, etat, s => ({ ...s, texte: { id, contenu } }))
 }
 
 // The status a chantier's switch gives it: in progress → open, anything else → in progress.
@@ -242,7 +265,15 @@ export const register: Register = on => {
             <Text dimColor>{`e : ${s.vue === 'etats' ? 'tableau' : 'états'} `}</Text>
           </Button>
           {fiche ? (
-            <Button key="g" plain hotkey="g" onPress={() => void update($, etat, s => ({ ...s, grand: !s.grand }))}>
+            <Button
+              key="g"
+              plain
+              hotkey="g"
+              onPress={() => {
+                if (!grand && montre) void lireTexte($, montre)
+                void update($, etat, s => ({ ...s, grand: !s.grand }))
+              }}
+            >
               <Text dimColor>{`· g : ${libelle} `}</Text>
             </Button>
           ) : null}
@@ -271,7 +302,7 @@ export const register: Register = on => {
             {etatDuTicket}
           </Text>
           <Box flexDirection="column" flexGrow={1} overflow="hidden">
-            <Text wrap="wrap">{fiche.texte || fiche.resume}</Text>
+            <Text wrap="wrap">{(s.texte?.id === montre && s.texte.contenu) || fiche.resume}</Text>
           </Box>
         </Box>
       )
