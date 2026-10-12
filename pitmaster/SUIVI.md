@@ -20,20 +20,21 @@ Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 
 Chaque point : ce qui se surveille, ce qui le fermera.
 
+- **3uv.72.1** (main rouge : test fragile de sous-modules.spec contre la maintenance de git) : « oui », lancé le 2026-10-12. À sa livraison, signal à BPScript pour la mise à jour du cadre (décision du responsable : attendre 3uv.72).
+- **Lot 3uv.56** : 9 corrections, à présenter au responsable.
 - **Mesure de Beads** : refaire la mesure du coût d'une commande bd (bd show contre bd list --all) machine calme, avant de toucher à la lecture des tickets du tableau (« ok » du responsable).
 - **Contrôle du câblage des gardes** (idée, pas un ticket) : refuser un `integration:gardes` qui omet les gardes du cadre, en tolérant un écart nommé. À proposer au responsable quand BPScript aura fermé 322.6.7 (branchement de gardes.mjs chez lui).
-- **3uv.72** (ligne du registre d'une longue séance) : « oui », lancé le 2026-10-12 ; prévenir BPScript à la livraison.
 - **Avis aux projets après 3uv.65** : BPScript (son adaptateur des suites disparaît, il abandonne
   sa copie des traces, il déclare grillhouse.lusParLesSuites) ; FaustX (déclarer src/). Se ferme
   quand l'avis est passé, à la mise à jour du cadre chez eux.
 - **Avis aux projets après 3uv.67 et 3uv.67.1** : envoyé à BPScript le 2026-10-12 (séance BPScript) ; FaustX à envoyer sur le mot du responsable.
 - **3uv.67.1.1** (a-valider, nom ou chemin d'un composant) : aucun projet n'a deux composants de même nom ; proposé de le ranger, pas important pour BPScript.
-- **Lot des petites corrections des scripts (3uv.56)** : 6 corrections, à présenter au responsable.
 
 ## F — fermés
 
 Chaque point : ce qui l'a fermé, le ticket.
 
+- **3uv.72** : livré (d72df51) ; son contrôle continu rouge vient de 3uv.69, confié à 3uv.72.1.
 - **3uv.71** : livré (0722766) ; greffons installés ici, avis à BPScript le 2026-10-12.
 - **3uv.69** : livré (c49ae4b) ; avis à BPScript le 2026-10-12.
 - **Redacteur, un paragraphe sur une ligne** (BPScript) : « non pas de coupure », écrit dans la compétence redacteur.
