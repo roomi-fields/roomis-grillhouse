@@ -13,6 +13,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -665,5 +666,109 @@ describe('critère 11 — with --jetable, a copy is removed even with local work
         LONG
       );
     }
+  }
+});
+
+// grillhouse-3uv.63.1: a locked copy is refused whatever its place in `git worktree list`. The
+// order of that list is the machine's own (git reads its administrative directory), so a test
+// never counts on a place: it builds several copies and locks each in turn, which puts a locked
+// copy at every place the list can give it. The refusal is the script's own lock message, not
+// git's refusal of `worktree remove`.
+describe('grillhouse-3uv.63.1 — a locked copy is refused whatever its place in the list of copies', () => {
+  const NOMS = ['place-a', 'place-b', 'place-c'];
+  // The copy, named by `arg`, is refused for its lock, by the plain call and by --jetable, and
+  // stays listed, locked and intact.
+  const refuseeVerrouillee = (
+    m: ReturnType<typeof monde>,
+    dir: string,
+    arg: string,
+    cwd = m.repo
+  ) => {
+    for (const option of [[], ['--jetable']]) {
+      const avant = empreinte(dir);
+      const r = m.lancer([...option, arg], cwd);
+      const vu = `${option.join(' ')} ${arg} (list: ${m.listees().join(', ')})\n${r.stderr}`;
+      expect(r.status, vu).toBe(1);
+      expect(r.stderr, vu).toContain(`la copie ${arg} est verrouillée`);
+      expect(m.listees()).toContain(dir);
+      expect(m.verrouillee(dir)).toBe(true);
+      expect(empreinte(dir)).toEqual(avant);
+    }
+  };
+  const MOTIFS: [string, (autre: string) => string[]][] = [
+    ['with a reason', () => ['--reason', 'en cours']],
+    ['without a reason', () => []],
+    // A reason over two lines whose second line reads like the head of another copy's block.
+    [
+      'with a reason over two lines naming another copy',
+      autre => ['--reason', `en cours\nworktree ${autre}`],
+    ],
+  ];
+  for (const [motif, raison] of MOTIFS) {
+    it(
+      `critère 1 et 3: three copies, each locked in turn ${motif} — each is refused with « la copie … est verrouillée », stays locked and intact`,
+      () => {
+        const m = monde({ sousModule: false });
+        const dirs = NOMS.map(nom => m.copie(nom));
+        dirs.forEach((dir, i) => {
+          const autre = dirs[(i + 1) % dirs.length] ?? '';
+          git(m.repo, 'worktree', 'lock', ...raison(autre), dir);
+          refuseeVerrouillee(m, dir, dir);
+          git(m.repo, 'worktree', 'unlock', dir);
+        });
+      },
+      LONG
+    );
+  }
+  it(
+    'critère 1 et 3: a copy that carries a submodule, among three, each locked in turn — each is refused with the lock message',
+    () => {
+      const m = monde();
+      const dirs = NOMS.map(nom => m.copie(nom));
+      for (const dir of dirs) {
+        git(m.repo, 'worktree', 'lock', '--reason', 'en cours', dir);
+        refuseeVerrouillee(m, dir, dir);
+        git(m.repo, 'worktree', 'unlock', dir);
+      }
+    },
+    LONG
+  );
+  it(
+    'critère 1 et 3: each locked copy named by a path relative to the main repository, and by a symbolic link, is refused with the lock message',
+    () => {
+      const m = monde({ sousModule: false });
+      const dirs = NOMS.map(nom => m.copie(nom));
+      const liens = mkdtempSync(path.join(ESSAIS, 'liens-'));
+      for (const [i, dir] of dirs.entries()) {
+        const nom = NOMS[i] ?? '';
+        const lien = path.join(liens, nom);
+        symlinkSync(dir, lien);
+        git(m.repo, 'worktree', 'lock', '--reason', 'en cours', dir);
+        refuseeVerrouillee(m, dir, `.claude/worktrees/${nom}`);
+        refuseeVerrouillee(m, dir, lien);
+        git(m.repo, 'worktree', 'unlock', dir);
+      }
+    },
+    LONG
+  );
+  // Garde: green on the present code, it keeps a fix of the lock reading from holding free copies.
+  for (const [i, libre] of NOMS.entries()) {
+    it(
+      `critère 3 (garde): a free copy (${libre}) among locked ones is removed as today; the locked ones stay, locked`,
+      () => {
+        const m = monde({ sousModule: false });
+        const dirs = NOMS.map(nom => m.copie(nom));
+        const verrouillees = dirs.filter((_d, j) => j !== i);
+        for (const dir of verrouillees) {
+          git(m.repo, 'worktree', 'lock', '--reason', 'en cours', dir);
+        }
+        retiree(m, dirs[i] ?? '');
+        for (const dir of verrouillees) {
+          expect(m.listees()).toContain(dir);
+          expect(m.verrouillee(dir)).toBe(true);
+        }
+      },
+      LONG
+    );
   }
 });

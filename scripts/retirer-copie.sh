@@ -43,18 +43,19 @@ liste=$(git worktree list --porcelain 2>&1) ||
   refuser "la liste des copies ne se lit pas pour retirer $copie : rien n'est retiré." "$liste"
 
 # The list is one block per copy, separated by a blank line: the first block is the main working
-# tree, never removable; a `locked` line marks a locked copy. `trouvee` is the block of the copy.
+# tree, never removable; a `locked` line marks a locked copy. `trouvee` is the verdict of the block of the copy, printed
+# once (`dit`: `exit` runs the END rule, which must not read the same block again).
 trouvee=$(printf '%s\n' "$liste" | awk -v cible="$chemin" '
   function fin() {
     if (n > 1 && dossier != "") {
       cmd = "cd \"" dossier "\" 2>/dev/null && pwd -P"
       cmd | getline reel; close(cmd)
-      if (reel == cible) { print (verrou ? "verrouillee" : "libre"); exit }
+      if (reel == cible) { print (verrou ? "verrouillee" : "libre"); dit = 1; exit }
     }
   }
   /^worktree / { fin(); n++; dossier = substr($0, 10); verrou = 0; reel = ""; next }
   /^locked/ { verrou = 1 }
-  END { fin() }
+  END { if (!dit) fin() }
 ')
 [ -n "$trouvee" ] || refuser "$copie n'est pas une copie inscrite de ce dépôt (git worktree list) : rien n'est retiré."
 [ "$trouvee" != verrouillee ] || refuser "la copie $copie est verrouillée (git worktree lock) : elle n'est pas retirée."
