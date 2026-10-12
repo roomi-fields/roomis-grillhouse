@@ -3,7 +3,14 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { chantier, FILE, INTEGRER_SCRIPT, type Chantier } from './integration-essai.js';
+import {
+  chantier,
+  construireParLiens,
+  FILE,
+  poserLies,
+  INTEGRER_SCRIPT,
+  type Chantier,
+} from './integration-essai.js';
 import { CODE_COPIE } from '../../scripts/enveloppe/codes.mjs';
 
 // grillhouse-3uv.63: the integration commits a ticket's lot on its branch agent/<ticket>, and a
@@ -853,4 +860,53 @@ describe('grillhouse-3uv.63 — the old way is gone, the texts say the new one',
       expect(lire(f), f).toMatch(/file\.mjs|en-file/);
     }
   });
+});
+
+// grillhouse-3uv.73 critère 3: in the queue, the base built on main hard-links tracked files
+// (./integration-essai.ts, `construireParLiens`) before the branch is replaced on main; the index of
+// the queue's copy goes stale, and the branch still replaces and is replayed. The build arrives on
+// main after the branch's integration, so the queue alone builds with the links.
+describe('grillhouse-3uv.73 — the queue after a build that hard-links tracked files', () => {
+  it(
+    'critère 3: a branch that deletes a file the build of main hard-linked replaces on main, its suites replayed, and enters',
+    () => {
+      const m = chantier(ESSAIS);
+      poserLies(m);
+      m.ticket('demo-1', { 'src/a/donnees.txt': null });
+      m.livrer('demo-1');
+      const builds = construireParLiens(m);
+      const avant = m.suites().length;
+      const r = m.file();
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(r.stdout).not.toMatch(/ne se replace pas/);
+      expect(builds()).toContain('lien');
+      expect(m.suites().length).toBeGreaterThan(avant);
+      expect(m.sujets().slice(0, 2)).toEqual(['feat: lot (demo-1)', 'construction par liens']);
+      expect(m.git('ls-tree', '-r', '--name-only', 'main')).not.toMatch(/src\/a\/donnees\.txt/);
+      expect(m.bd('demo-1').status).toBe('closed');
+    },
+    LONG
+  );
+  it(
+    'critère 3: a branch that modifies files the build of main hard-linked, in its tests and its code, replaces on main and enters',
+    () => {
+      const m = chantier(ESSAIS);
+      poserLies(m);
+      m.ticket('demo-1', {
+        'src/a/tests/fixture.txt': 'f1\nF2\n',
+        'src/a/donnees.txt': 'un\nDEUX\ntrois\n',
+      });
+      m.livrer('demo-1');
+      const builds = construireParLiens(m);
+      const r = m.file();
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(r.stdout).not.toMatch(/ne se replace pas/);
+      expect(builds()).toContain('lien');
+      expect(m.sujets().slice(0, 2)).toEqual(['feat: lot (demo-1)', 'construction par liens']);
+      expect(m.git('show', 'main:src/a/donnees.txt')).toBe('un\nDEUX\ntrois\n');
+      expect(m.git('show', 'main:src/a/tests/fixture.txt')).toBe('f1\nF2\n');
+      expect(m.bd('demo-1').status).toBe('closed');
+    },
+    LONG
+  );
 });

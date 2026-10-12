@@ -28,6 +28,10 @@
 //   built after the lots: by the `suites` of the lot when one plays, otherwise by `gardes` when a
 //   control of `grillhouse:gardes` follows its build step (it reads the build). No control is left
 //   out.
+// - Every command of the project run in the copy (`lancer`: the install, the build, the suites,
+//   the guards) leaves the index of its copy up to date, green or red: the consumers that apply a
+//   lot with `--index` (the integration, the queue) read an index that matches the files the
+//   command touched, and none refreshes for its own account.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -143,6 +147,10 @@ export function ouvrirCopie({ racine, copie, ref, tmp, dire }) {
       env: { ...process.env, ...env },
     });
     process.stdout.write(r.stdout + r.stderr);
+    // After every command, green or red, `git update-index -q --refresh` re-reads the stat data of
+    // the files it touched (a hard link changes an inode date), as git does before it judges a
+    // tree. A refresh that fails changes nothing to the result, which is the command's.
+    dansCopie('update-index', '-q', '--refresh');
     return r;
   };
   const npm = (args, env = {}) => lancer('npm', args, env);

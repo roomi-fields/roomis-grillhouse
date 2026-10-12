@@ -35,13 +35,16 @@
 //     suite at each integration. The project is built after the lots, as soon as a suite or a guard
 //     reads the build (main, only when one of its suites plays), through the one entry point that
 //     builds (scripts/integration/constructions.mjs): a build whose fingerprint is in the store is
-//     restored, not done again; suites that fail without naming a test leave nothing to compare,
-//     and refuse;
+//     restored, not done again; every command of the project run in the copy leaves its index up to
+//     date (rejeu.mjs), so step 6 applies the lots on an index that matches the files the commands
+//     touched; suites that fail without naming a test leave nothing to compare, and refuse;
 //  6. the lots, applied in three ways in the copy, tests first; the files of the lot in the
 //     ticket's copy are compared with the copy's own base plus the lot, not with the integration
 //     copy;
-//  7. the suites again, with the lot (the project built after the lots, as soon as a suite or a guard
-//     reads the build; the lot's own content is built beside the base's, none overwrites the other);
+//  7. the suites again, with the lot (the project built after the lots, as soon as a suite or a
+//     guard reads the build; the lot's own content is built beside the base's, none overwrites the
+//     other); every command of the project run in the copy leaves its index up to date
+//     (rejeu.mjs);
 //  8. the project's guards (`npm run integration:gardes`, when present); every control plays. The
 //     project is built after the lots: by step 7 when a suite plays, else here when a control
 //     of `grillhouse:gardes` follows its build step (it reads the build);

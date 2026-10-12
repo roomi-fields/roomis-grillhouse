@@ -80,7 +80,7 @@ roomis-grillhouse/
 │   │   ├── rejeu.mjs                 # the replay shared by integrer.mjs and file.mjs: clean copy, scope of the suites, suites by test name, guards
 │   │   ├── file-attente.mjs          # the queue's entries, in git's common directory, and the directory the integration's locks live in
 │   │   ├── traces.mjs                # the fingerprints of the content, the store in git's common directory (traces of the suites, builds kept by fingerprint), its purge, what each suite owes
-│   │   ├── constructions.mjs         # the one entry point that builds: purges the store, restores the dist/ of an unchanged build or builds it and stores it (FORCER=1 builds all); called by rejeu.mjs, nuit.sh, enveloppe/lancer.sh and the root build of a project with packages
+│   │   ├── constructions.mjs         # the one entry point that builds: purges the store, restores the dist/ of an unchanged build or builds it and stores it (FORCER=1 builds all); called by rejeu.mjs (which refreshes the index of its copy after every command it runs), nuit.sh, enveloppe/lancer.sh and the root build of a project with packages
 │   │   ├── gardes.mjs                # npm run integration:gardes: the controls of grillhouse:gardes without its build step (the integration builds after the lots, through constructions.mjs, whenever a suite or a control reads the build)
 │   │   └── suites-vitest.mjs         # npm run integration:suites -- --tous|<components>|--racine|--tests <files>: failing tests by name, for Vitest
 │   │                                 #   (budget benches and night tests left out); the verdict of each suite is kept under the fingerprint

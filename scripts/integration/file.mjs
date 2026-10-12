@@ -20,7 +20,9 @@
 //    replayed there, the project built after the lots, as soon as a suite or a guard reads the build
 //    (main is built only when one of its suites plays), through the one entry point that builds
 //    (scripts/integration/constructions.mjs: a build whose fingerprint is in the store is restored),
-//    and main moves forward onto the replaced branch when no failing test is new compared to main;
+//    every command of the project run in the copy leaving its index up to date, for the base and
+//    then for the branch replaced (scripts/integration/rejeu.mjs), and main moves forward onto the
+//    replaced branch when no failing test is new compared to main;
 //  - a branch with nothing ahead of main does not enter: it leaves the queue, its tickets lose
 //    `en-file` and take a comment, and stay as they are;
 //  - a branch that does not replace (the files in conflict), whose guards refuse or that adds a

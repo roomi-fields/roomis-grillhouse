@@ -493,3 +493,85 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
 }
 
 export type Chantier = ReturnType<typeof chantier>;
+
+// The build of grillhouse-3uv.73, as BPScript's: it hard-links each file of LIES that exists into
+// dist/ (fs.linkSync), which changes that tracked file's status-change time (ctime) after the copy
+// wrote its index. It first waits for the clock to pass the second of the last status change of
+// those files, so the change shows whatever precision git compares. It appends « lien » to
+// <PRINCIPAL>.builds, and fails, after linking, while CONSTRUCTION_ROUGE exists.
+const LIES = ['src/a/donnees.txt', 'src/a/tests/fixture.txt'];
+const BUILD_LIENS = `import fs from 'node:fs';
+import path from 'node:path';
+const lies = ${JSON.stringify(LIES)}.filter(f => fs.existsSync(f));
+const dernier = Math.max(0, ...lies.map(f => fs.statSync(f).ctimeMs));
+const reste = (Math.floor(dernier / 1000) + 1) * 1000 + 20 - Date.now();
+if (reste > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, reste);
+for (const f of lies) {
+  const cible = path.join('dist', f);
+  fs.mkdirSync(path.dirname(cible), { recursive: true });
+  fs.linkSync(f, cible);
+}
+fs.appendFileSync(process.env.PRINCIPAL + '.builds', 'lien\\n');
+process.exit(fs.existsSync('CONSTRUCTION_ROUGE') ? 1 : 0);
+`;
+
+// The files the build of grillhouse-3uv.73 links, committed on main of <m> without any build.
+const LIES_CONTENUS = {
+  'src/a/donnees.txt': 'un\ndeux\ntrois\n',
+  'src/a/tests/fixture.txt': 'f1\nf2\n',
+};
+export function poserLies(m: Chantier) {
+  m.poser(LIES_CONTENUS, 'fichiers liés');
+}
+
+// Commits on main of <m> the build of grillhouse-3uv.73 as the root's `build` script (the trial's
+// components have none), the files it links, and dist/ ignored. Returns the builds so far.
+export function construireParLiens(m: Chantier) {
+  const pkg = JSON.parse(readFileSync(path.join(m.repo, 'package.json'), 'utf8')) as {
+    scripts: Record<string, string>;
+  };
+  m.poser(
+    {
+      'package.json': JSON.stringify(
+        { ...pkg, scripts: { ...pkg.scripts, build: 'node build.mjs' } },
+        null,
+        2
+      ),
+      'build.mjs': BUILD_LIENS,
+      '.gitignore': '.claude/worktrees/\nnode_modules\ndist/\n',
+      ...LIES_CONTENUS,
+    },
+    'construction par liens'
+  );
+  const f = `${m.repo}.builds`;
+  return () => (existsSync(f) ? readFileSync(f, 'utf8') : '').split('\n').filter(Boolean);
+}
+
+// The suites of grillhouse-3uv.73 critère 8: the trial's suites (SUITES), which first hard-link
+// each file of LIES that exists to a name of their own and unlink it at once, after waiting for the
+// clock to pass the second of the last status change of those files: the link changes the tracked
+// file's ctime after the copy wrote its index, with no build. They append « lien » to
+// <PRINCIPAL>.suites-liens on each call.
+const SUITES_LIENS = SUITES.replace(
+  "import fs from 'node:fs';\n",
+  `import fs from 'node:fs';
+const lies = ${JSON.stringify(LIES)}.filter(f => fs.existsSync(f));
+const dernier = Math.max(0, ...lies.map(f => fs.statSync(f).ctimeMs));
+const reste = (Math.floor(dernier / 1000) + 1) * 1000 + 20 - Date.now();
+if (reste > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, reste);
+for (const f of lies) {
+  const cible = f + '.lien-' + process.pid;
+  fs.linkSync(f, cible);
+  fs.unlinkSync(cible);
+}
+fs.appendFileSync(process.env.PRINCIPAL + '.suites-liens', 'lien\\n');
+`
+);
+
+// Commits on main of <m> the suites of grillhouse-3uv.73 critère 8 and the files they link, with
+// no build. Returns the runs of those suites so far.
+export function suitesParLiens(m: Chantier) {
+  m.poser({ 'suites.mjs': SUITES_LIENS, ...LIES_CONTENUS }, 'suites par liens');
+  const f = `${m.repo}.suites-liens`;
+  return () => (existsSync(f) ? readFileSync(f, 'utf8') : '').split('\n').filter(Boolean);
+}
