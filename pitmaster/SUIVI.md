@@ -20,7 +20,7 @@ Chaque point : ce qui se surveille, ce qui le fermera.
 - **Avis aux projets après 3uv.65** : BPScript (son adaptateur des suites disparaît, il abandonne
   sa copie des traces, il déclare grillhouse.lusParLesSuites) ; FaustX (déclarer src/). Se ferme
   quand l'avis est passé, à la mise à jour du cadre chez eux.
-- **3uv.67** (constructions gardées par paquet) : circuit, part à la fermeture de 3uv.65.
+- **3uv.67** (constructions gardées par paquet) : lancé le 2026-10-12 après 3uv.65 (5002027).
 
 ## F — fermés
 
