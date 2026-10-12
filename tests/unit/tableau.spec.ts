@@ -8,7 +8,7 @@ import {
   etape,
   fiches,
   lecture,
-  lignes,
+  lignes as lignesRepliees,
   lignesEtats,
   lireRegistre,
   lireTranscription,
@@ -18,6 +18,14 @@ import {
   SILENCE,
   verdict,
 } from '../../scripts/tableau.mjs';
+
+// The board's lines with each folded group unfolded in place: the lines the tests of the tree read.
+const lignes = (t: unknown, nom: string, largeur?: number) => {
+  const groupes: Record<string, { groupe?: string }[]> = {};
+  return (lignesRepliees(t, nom, largeur, groupes) as { groupe?: string }[]).flatMap(l =>
+    l.groupe ? groupes[l.groupe] : [l]
+  );
+};
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tableau-'));

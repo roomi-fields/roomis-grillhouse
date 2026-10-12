@@ -1,6 +1,6 @@
 {
   "name": "grillhouse",
-  "version": "0.13.1",
+  "version": "0.14.0",
   "description": "Roomi's Grillhouse : le tableau du projet sur trois niveaux — le projet, les agents, le chantier en cours",
   "types": "./types/index.d.ts",
   "author": {

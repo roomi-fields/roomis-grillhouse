@@ -31,6 +31,7 @@ const etat = atom({ plugin: 'grillhouse', key: 'etat' } as const, {
   element: null,
   grand: false,
   vue: 'tableau',
+  groupe: null,
   texte: null,
 } as Etat)
 
@@ -63,9 +64,9 @@ export function ficheLignes(f: Fiche | undefined): string[] {
 export type Visible = { l: Ligne; cle: string | null; i: number }
 
 // The lines the pane lists, each with the key of its Button: `<ticket>:<i>` for a ticket's line,
-// none for a plain line.
+// `>:<i>` for a folded group's title, none for a plain line.
 export function visibles(lignes: Ligne[]): Visible[] {
-  return lignes.map((l, i) => ({ l, cle: l.ticket ? `${l.ticket}:${i}` : null, i }))
+  return lignes.map((l, i) => ({ l, cle: l.ticket ? `${l.ticket}:${i}` : l.groupe ? `>:${i}` : null, i }))
 }
 
 // The first of `n` lines to show in `rangs` rows: the window stays where it was (`avant`) while the
@@ -85,23 +86,36 @@ export function debut(n: number, idx: number, rangs: number, avant: number, haut
 // What the keyboard reaching a ticket's line changes: the line chooses its ticket, and the card
 // goes back to its size.
 export function viser(s: Etat, element: string): Etat {
-  if (element === 'g' || element === 'h' || element === 'e') return s
+  if (element === 'g' || element === 'h' || element === 'e' || element === 'o') return s
   const [tete] = element.split(':')
+  if (tete === '>') return { ...s, element, grand: false }
   return { ...s, element, grand: false, choisi: tete ?? null }
 }
 
-// The lines the pane shows: the board's, or the states' view.
+// The lines the pane shows: the board's, the states' view, or one folded group's, whole.
 export const lignesDe = (s: Etat): Ligne[] =>
-  (s.vue === 'etats' ? s.tableau?.vueEtats : s.tableau?.lignes) ?? []
+  (s.vue === 'etats'
+    ? s.tableau?.vueEtats
+    : s.vue === 'groupe'
+      ? s.tableau?.groupes?.[s.groupe ?? '']
+      : s.tableau?.lignes) ?? []
 
 // `e` switches between the board and the states' view: the keyboard starts over in the other
 // view, the card stays.
 export const basculerVue = (s: Etat): Etat => ({
   ...s,
-  vue: s.vue === 'etats' ? 'tableau' : 'etats',
+  vue: s.vue === 'tableau' ? 'etats' : 'tableau',
   element: null,
   grand: false,
 })
+
+// `o` on a folded group's title opens that group alone, whole; `o` again comes back to the board.
+export const ouvrirGroupe = (s: Etat, groupe: string | undefined): Etat =>
+  s.vue === 'groupe'
+    ? { ...s, vue: 'tableau', groupe: null, element: null, grand: false }
+    : groupe
+      ? { ...s, vue: 'groupe', groupe, element: null, grand: false }
+      : s
 
 // The colour of a line's tone.
 export const couleur = (ton: Ligne['ton']) =>
@@ -282,6 +296,8 @@ export const register: Register = on => {
     const ici = liste.findIndex(x => x.cle === element)
     // The chantier the keyboard is on, which `h` switches on or off.
     const chantier = ici >= 0 && liste[ici]?.l.chantier ? liste[ici]?.l.ticket : undefined
+    // The folded group the keyboard is on, which `o` opens.
+    const groupe = ici >= 0 ? liste[ici]?.l.groupe : undefined
     // `g` on the rule makes the card fill the pane, and again brings it back; `h` switches the
     // chantier chosen; `e` switches between the board and the states' view.
     const regle = (libelle: string) =>
@@ -298,8 +314,22 @@ export const register: Register = on => {
               void update($, etat, basculerVue)
             }}
           >
-            <Text dimColor>{`e : ${s.vue === 'etats' ? 'tableau' : 'états'} `}</Text>
+            <Text dimColor>{`e : ${s.vue === 'tableau' ? 'états' : 'tableau'} `}</Text>
           </Button>
+          {groupe || s.vue === 'groupe' ? (
+            <Button
+              key="o"
+              plain
+              hotkey="o"
+              onPress={() => {
+                fenetre = 0
+                suivi = null
+                void update($, etat, x => ouvrirGroupe(x, groupe))
+              }}
+            >
+              <Text dimColor>{`· o : ${s.vue === 'groupe' ? 'retour' : 'ouvrir'} `}</Text>
+            </Button>
+          ) : null}
           {fiche ? (
             <Button
               key="g"
@@ -379,6 +409,13 @@ export const register: Register = on => {
                 {l.texte || ' '}
               </Text>
             )
+            if (cle && l.groupe) {
+              return (
+                <Button key={cle} plain onPress={() => void update($, etat, s => viser(s, cle))}>
+                  {texte}
+                </Button>
+              )
+            }
             if (!cle || !l.ticket) return texte
             // A ticket's line is a plain button, in the hover group named by its ticket: the ring
             // chooses it, the pointer over it shows its card.

@@ -265,3 +265,57 @@ test('refreshes asked while a board is read fold into one more, never one board 
   await Promise.all([run(), run(), run(), run(), run()])
   expect(tableaux - avant).toBeLessThanOrEqual(2)
 })
+
+const REPLIE = {
+  lignes: [
+    { texte: 'DEMO', ton: 'titre' },
+    { texte: '  sans go ›  2', ton: 'titre', groupe: 'c/sansGo' },
+    { texte: '· c.2  Le dernier', ticket: 'c.2' },
+  ],
+  groupes: {
+    'c/sansGo': [
+      { texte: '  sans go  2', ton: 'titre' },
+      { texte: '   c.1.1  Le moteur', ticket: 'c.1.1' },
+      { texte: '   c.9  Le neuvième, caché', ticket: 'c.9' },
+    ],
+  },
+  fiches: TABLEAU.fiches,
+  dernier: 'c.2',
+}
+
+test('o on a folded group opens it alone and whole, and o again comes back to the board', async ($, on) => {
+  on('process.run', ($, e) => ({
+    value: { exitCode: 0, stdout: e.argv[0] === 'test' ? '' : JSON.stringify(REPLIE), stderr: '' },
+  }))
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('command.register', () => ({ value: undefined }))
+  on('clock.every', () => ({ value: { cancel: () => undefined } }))
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
+  await new Promise(r => setTimeout(r, 50))
+  const ui = await $.ui.mount({
+    plugin: 'grillhouse',
+    surface: 'terminal',
+    component: 'Pane',
+    requestId: 'grillhouse',
+    props: {
+      title: 't',
+      isFocused: true,
+      bodyColumns: 50,
+      placement: 'dock',
+      scroll: { bodyRows: 30 } as never,
+      view: {} as never,
+    },
+  })
+  const vu = async () => JSON.stringify(await ui.drawn())
+  expect(await vu()).not.toContain('Le neuvième, caché')
+  expect((await ui.findAll({ type: 'Button' })).map(b => b.key)).not.toContain('o')
+  await $.ui.press({ plugin: 'grillhouse', key: '>:1' })
+  expect((await ui.findAll({ type: 'Button' })).map(b => b.key)).toContain('o')
+  await $.ui.press({ plugin: 'grillhouse', key: 'o' })
+  expect(await vu()).toContain('Le neuvième, caché')
+  expect(await vu()).not.toContain('· c.2  Le dernier')
+  await $.ui.press({ plugin: 'grillhouse', key: 'o' })
+  expect(await vu()).not.toContain('Le neuvième, caché')
+  expect(await vu()).toContain('· c.2  Le dernier')
+  await ui.unmount()
+})

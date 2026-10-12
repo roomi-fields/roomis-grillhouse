@@ -8,7 +8,14 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { assembler, duree, k, lignes, LARGEUR } from '../../scripts/tableau.mjs';
+import { assembler, duree, k, lignes as lignesRepliees, LARGEUR } from '../../scripts/tableau.mjs';
+// The board's lines with each folded group unfolded in place: the lines the tests of the tree read.
+const lignes = (t: unknown, nom: string, largeur?: number) => {
+  const groupes: Record<string, { groupe?: string }[]> = {};
+  return (lignesRepliees(t, nom, largeur, groupes) as { groupe?: string }[]).flatMap(l =>
+    l.groupe ? groupes[l.groupe] : [l]
+  );
+};
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tableau-sections-'));
@@ -833,5 +840,45 @@ describe('a ticket waits in AGENTS only once the owner launched it (label circui
       'demo-k.1',
     ]);
     expect(attend(t)).toEqual([]);
+  });
+});
+
+describe('the heavy groups fold to their title and count, the pane opens them whole', () => {
+  const sansGo = (id: string, o: object = {}) => T(id, { parent: 'demo-r', labels: [], ...o });
+  const tous = [
+    T('demo-r', { issue_type: 'epic', title: 'r — Le chantier', status: 'in_progress' }),
+    T('demo-r.1', { parent: 'demo-r', status: 'in_progress' }),
+    sansGo('demo-r.2'),
+    sansGo('demo-r.3', { status: 'deferred' }),
+    ...Array.from({ length: 11 }, (_, i) => sansGo(`demo-r.${10 + i}`, { labels: ['a-valider'] })),
+    T('demo-q', { issue_type: 'epic', title: 'q — Un autre chantier' }),
+  ];
+  const fold = (l: object[]) => {
+    const groupes: Record<string, Ligne[]> = {};
+    return {
+      l: lignesRepliees(plateau(l), 'demo', LARGEUR, groupes) as (Ligne & { groupe?: string })[],
+      groupes,
+    };
+  };
+  it('« sans go », « reporté », « à valider » past 10 and the other chantiers fold, each line naming its group', () => {
+    const { l, groupes } = fold(tous);
+    const replies = l.filter(x => x.groupe).map(x => [x.texte.split('›')[0].trim(), x.groupe]);
+    expect(replies).toEqual([
+      ['sans go', 'demo-r/sansGo'],
+      ['à valider', 'demo-r/aValider'],
+      ['reporté', 'demo-r/reportes'],
+      ['AUTRES CHANTIERS', 'autres'],
+    ]);
+    expect(
+      l.some(x => x.ticket === 'demo-r.2' || x.ticket === 'demo-r.10' || x.ticket === 'demo-q')
+    ).toBe(false);
+    expect(groupes['demo-r/sansGo'].map(x => x.ticket)).toEqual([undefined, 'demo-r.2']);
+    expect(groupes['demo-r/aValider']).toHaveLength(12);
+    expect(groupes.autres.map(x => x.ticket)).toEqual([undefined, 'demo-q']);
+  });
+  it('« à valider » with 10 tickets or fewer keeps its lines', () => {
+    const { l } = fold(tous.filter(x => x.id !== 'demo-r.20'));
+    expect(l.some(x => x.groupe === 'demo-r/aValider')).toBe(false);
+    expect(l.some(x => x.ticket === 'demo-r.10')).toBe(true);
   });
 });

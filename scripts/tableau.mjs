@@ -866,9 +866,13 @@ const couper = (gauche, droite, largeur) => {
 // discret, or none), its section (`section`: agents, chantier or faits, in that order) and, for a
 // ticket's line, its id (`ticket`), which the pane makes selectable; an epic's line is marked
 // `chantier`. The head belongs to agents, the first section; a blank line belongs to the section
-// of the title after it. Every line shows: none folds others. The pane and the text show the same
-// lines.
-export function lignes(t, nom, largeur = LARGEUR) {
+// of the title after it. A chantier's « sans go » and « reporté » groups, its « à valider » group
+// past SEUIL_REPLI tickets, and the other chantiers beside one in progress fold to their title and
+// count: the folded title carries its group's key (`groupe`), and `groupes` receives, under that
+// key, the group's lines whole, which the pane opens on its own. The pane and the text show the
+// same lines.
+export const SEUIL_REPLI = 10;
+export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   const out = [];
   let section = 'agents';
   // Each line laid down takes the current section.
@@ -995,7 +999,25 @@ export function lignes(t, nom, largeur = LARGEUR) {
       if (!liste.length) {
         continue;
       }
-      arbre.push({ texte: cadre(`  ${e.nom}`, `${liste.length}`, largeur), ton: 'titre' });
+      const titreDuGroupe = {
+        texte: cadre(`  ${e.nom}`, `${liste.length}`, largeur),
+        ton: 'titre',
+      };
+      const replie =
+        e.cle === 'sansGo' ||
+        e.cle === 'reportes' ||
+        (e.cle === 'aValider' && liste.length > SEUIL_REPLI);
+      if (replie) {
+        const cle = `${ch.id}/${e.cle}`;
+        groupes[cle] = [titreDuGroupe, ...liste.map(ligneDe)].map(marquer);
+        arbre.push({
+          texte: cadre(`  ${e.nom} ›`, `${liste.length}`, largeur),
+          ton: 'titre',
+          groupe: cle,
+        });
+        continue;
+      }
+      arbre.push(titreDuGroupe);
       arbre.push(...liste.map(ligneDe));
     }
     poser(...arbre);
@@ -1005,17 +1027,25 @@ export function lignes(t, nom, largeur = LARGEUR) {
   // switch.
   if (t.autres.length) {
     L('', undefined);
-    L(
-      cadre(t.chantiers.length ? 'AUTRES CHANTIERS' : 'CHANTIERS', `${t.autres.length}`, largeur),
-      'titre'
-    );
-    poser(
-      ...t.autres.map(a => ({
-        texte: cadre(`${a.numero}  ${a.sujet}`, `${a.faits}/${a.total}`, largeur),
-        ticket: a.id,
-        chantier: true,
-      }))
-    );
+    const autres = t.autres.map(a => ({
+      texte: cadre(`${a.numero}  ${a.sujet}`, `${a.faits}/${a.total}`, largeur),
+      ticket: a.id,
+      chantier: true,
+    }));
+    if (t.chantiers.length) {
+      groupes.autres = [
+        { texte: cadre('AUTRES CHANTIERS', `${t.autres.length}`, largeur), ton: 'titre' },
+        ...autres,
+      ].map(marquer);
+      poser({
+        texte: cadre('AUTRES CHANTIERS ›', `${t.autres.length}`, largeur),
+        ton: 'titre',
+        groupe: 'autres',
+      });
+    } else {
+      L(cadre('CHANTIERS', `${t.autres.length}`, largeur), 'titre');
+      poser(...autres);
+    }
   }
 
   if (t.faitsDuJour.length) {
@@ -1253,7 +1283,8 @@ export function tableau(racine, { home = os.homedir(), maintenant = Date.now() }
   });
   // The project is named by its repository's folder, as a shell prompt names it.
   const nom = path.basename(racine);
-  const l = lignes(t, nom);
+  const groupes = {};
+  const l = lignes(t, nom, LARGEUR, groupes);
   const vue = lignesEtats(t);
   const etat = ligneEtat(t);
   try {
@@ -1267,7 +1298,8 @@ export function tableau(racine, { home = os.homedir(), maintenant = Date.now() }
     ...t,
     lignes: l,
     vueEtats: vue,
-    fiches: fiches(tous, [...l, ...vue], prefix, t.parTicket),
+    groupes,
+    fiches: fiches(tous, [...l, ...vue, ...Object.values(groupes).flat()], prefix, t.parTicket),
     dernier: dernierBouge(tous, l, vivants, maintenant),
     etat,
   };
