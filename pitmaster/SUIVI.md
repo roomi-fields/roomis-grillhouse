@@ -13,6 +13,8 @@ sort et sa réponse va dans son ticket.
 
 Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 
+- **3uv.73** (a-valider, P1) : integrer.mjs refuse un lot qui supprime ou modifie un fichier que la construction a touché (lien physique, index périmé). Bloque le lot A de 322.4 chez BPScript (947 suppressions refusées). Recommandation : le lancer. Question : on le lance ?
+
 
 
 
