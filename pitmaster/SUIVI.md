@@ -13,7 +13,6 @@ sort et sa réponse va dans son ticket.
 
 Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 
-- **3uv.73** (a-valider, P1) : integrer.mjs refuse un lot qui supprime ou modifie un fichier que la construction a touché (lien physique, index périmé). Bloque le lot A de 322.4 chez BPScript (947 suppressions refusées). Recommandation : le lancer. Question : on le lance ?
 
 
 
@@ -21,6 +20,8 @@ Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 ## S — à surveiller
 
 Chaque point : ce qui se surveille, ce qui le fermera.
+
+- **3uv.73** (index périmé après la construction, signalé par BPScript) : « ok », lancé le 2026-10-12. À sa livraison, prévenir BPScript avec 3uv.72.1.
 
 - **3uv.72.1** (main rouge : test fragile de sous-modules.spec contre la maintenance de git) : « oui », lancé le 2026-10-12. À sa livraison, signal à BPScript pour la mise à jour du cadre (décision du responsable : attendre 3uv.72).
 - **Lot 3uv.56** : 9 corrections, à présenter au responsable.
