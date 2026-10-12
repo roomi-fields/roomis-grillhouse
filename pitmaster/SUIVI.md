@@ -13,7 +13,6 @@ sort et sa réponse va dans son ticket.
 
 Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 
-- **Redacteur, « un paragraphe sur une seule ligne »** (proposé par BPScript, 2026-10-12) : pas de retour à la ligne dur dans un paragraphe d'un document lu par un humain ; un diff montre la phrase changée, un éditeur replie. Référence : la règle de BPScript ; le cadre coupe aujourd'hui à 100 colonnes. Question : le cadre la prend-il ?
 
 
 ## S — à surveiller
@@ -34,6 +33,7 @@ Chaque point : ce qui se surveille, ce qui le fermera.
 
 Chaque point : ce qui l'a fermé, le ticket.
 
+- **Redacteur, un paragraphe sur une ligne** (BPScript) : « non pas de coupure », écrit dans la compétence redacteur.
 - **3uv.70** : sans objet, BPScript monte vitest à la version du cadre.
 - **3uv.67.1** : livré (209c970), contrôle continu vert.
 - **3uv.67** : livré (68894a9), contrôle continu vert ; textes de .claude/ écrits par le superviseur dans le lot.
