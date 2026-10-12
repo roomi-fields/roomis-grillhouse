@@ -17,6 +17,11 @@ Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 
 Chaque point : ce qui se surveille, ce qui le fermera.
 
+- **Avis aux projets après 3uv.65** : BPScript (son adaptateur des suites disparaît, il abandonne
+  sa copie des traces, il déclare grillhouse.lusParLesSuites) ; FaustX (déclarer src/). Se ferme
+  quand l'avis est passé, à la mise à jour du cadre chez eux.
+- **3uv.67** (constructions gardées par paquet) : circuit, part à la fermeture de 3uv.65.
+
 ## F — fermés
 
 Chaque point : ce qui l'a fermé, le ticket.
@@ -27,3 +32,4 @@ Chaque point : ce qui l'a fermé, le ticket.
 - **3uv.65 Q14** : « oui c'est bon », au ticket (critère 25) ; chef relancé.
 - **3uv.63.1** : « oui », lancé le 2026-10-12 (chef ab8c82415b3a1fd44).
 - **Copies livrées** : « oui » ; 22 copies retirées le 2026-10-12, chaque contenu modifié vérifié dans l'histoire de main ; 55.1 (ouvert) gardée.
+- **3uv.65 constat 1** : « je suis d'accord sur le principe », au ticket ; découpage « oui » → 3uv.67.
