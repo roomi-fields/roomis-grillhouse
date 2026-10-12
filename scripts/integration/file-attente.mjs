@@ -1,9 +1,8 @@
-// The waiting side of the integration, kept in git's common directory: the integration lock, the
-// queue lock, and the queue's entries. The integration writes an entry when it commits a ticket on
-// its branch; the queue (scripts/integration/file.mjs) reads them in their order of arrival.
+// The waiting side of the integration, kept in git's common directory: the queue's entries, and
+// the git directory the integration's locks live in (taken through scripts/verrou-de-fichier.mjs).
+// The integration writes an entry when it commits a ticket on its branch; the queue
+// (scripts/integration/file.mjs) reads them in their order of arrival.
 //
-// - A lock is a file holding the process number of its owner; a lock whose process is gone is
-//   taken over. `prendreVerrou` waits for a live owner (`attendre`) or gives up at once.
 // - An entry is one JSON file `<arrival>-<process>.json` under `file-integration/` holding the
 //   branch and the tickets it carries; the name sorts in the order of arrival. One branch has one
 //   entry: writing it again replaces the earlier one.
@@ -18,51 +17,6 @@ export function dossierCommun(racine) {
     ['-C', racine, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
     { encoding: 'utf8' }
   ).stdout.trim();
-}
-
-const attendreUnPeu = ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
-
-function vivant(pid) {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (e) {
-    return e.code === 'EPERM';
-  }
-}
-
-// Takes the lock file <verrou>. Returns true once taken; with `attendre` false, returns false when a
-// live process owns it. A lock being written (empty) counts as owned.
-export function prendreVerrou(verrou, { attendre }) {
-  for (;;) {
-    try {
-      writeFileSync(verrou, String(process.pid), { flag: 'wx' });
-      return true;
-    } catch (e) {
-      if (e.code !== 'EEXIST') throw e;
-    }
-    let contenu = '';
-    try {
-      contenu = readFileSync(verrou, 'utf8').trim();
-    } catch {
-      continue;
-    }
-    const pid = Number(contenu);
-    if (contenu && Number.isInteger(pid) && !vivant(pid)) {
-      try {
-        if (readFileSync(verrou, 'utf8').trim() === contenu) rmSync(verrou, { force: true });
-      } catch {
-        // the owner released it meanwhile: the next turn takes it
-      }
-      continue;
-    }
-    if (!attendre) return false;
-    attendreUnPeu(200);
-  }
-}
-
-export function lacherVerrou(verrou) {
-  rmSync(verrou, { force: true });
 }
 
 const dossierEntrees = racine => path.join(dossierCommun(racine), 'file-integration');

@@ -11,18 +11,26 @@
 //   one. All of it is read from the agent's transcript; the agent declares nothing.
 // - The register is `~/.claude/grillhouse/registre.jsonl` (GRILLHOUSE_REGISTRE replaces it): the
 //   envelope of a role agent leaves it writable.
-// - A hook never stops the session: a transcript it cannot read writes nothing.
+// - A hook never stops the session, and never waits for a transcript: it hands the fields of its
+//   input that the line reads to a detached process (`--ecrire`) and ends at once, so a session of several hundred MB closes
+//   before Claude Code's hook time limit. The detached process reads the transcript in chunks
+//   (`lireFichier` in tableau.mjs), never whole; a transcript it cannot read writes nothing.
+// - One stop has one line: the write holds the register's lock (`prendreVerrou`, judged by the
+//   lock's age, since a role agent's envelope and the outside do not share process numbers),
+//   and skips a line whose agent and end the register already holds. The hook and
+//   `--rattraper` write the same way.
 // - `node scripts/registre.mjs --rattraper` writes the lines of the project's finished agents the
 //   register does not hold yet: those that ended before the hook existed, read from their
 //   transcripts (the project's sessions and their sub-agents, the agents' copies). A transcript
 //   that the board shows running (`tourne` in tableau.mjs: moved in the last 2 minutes, or, for a
 //   sub-agent, its last tool call awaiting its answer within 30 minutes) waits for its hook.
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { lireTranscription, roleDuMeta, ticketDuChef, tourne } from './tableau.mjs';
+import { lireFichier, roleDuMeta, ticketDuChef, tourne } from './tableau.mjs';
+import { lacherVerrou, prendreVerrou } from './verrou-de-fichier.mjs';
 
 const REGISTRE =
   process.env.GRILLHOUSE_REGISTRE ??
@@ -62,10 +70,10 @@ export function source(input) {
   };
 }
 
-// The register's line for this hook input, or null. `projet` is the main tree of the session.
-export function ligne(input, texte, projet) {
+// The register's line for this hook input and the reading `t` of its transcript (`lireFichier` or
+// `lireTranscription`), or null. `projet` is the main tree of the session.
+export function ligne(input, t, projet) {
   const { transcription, role, agent } = source(input);
-  const t = lireTranscription(texte);
   if (t.premier === null) {
     return null;
   }
@@ -152,10 +160,59 @@ export function aRattraper(racine, home, connus, maintenant = Date.now()) {
   return out;
 }
 
-if (
-  import.meta.url === pathToFileURL(process.argv[1] ?? '').href &&
-  process.argv.includes('--rattraper')
-) {
+// How long a register lock may stand before it counts as abandoned: a write holds it for the
+// time of one read and one append.
+const PERIME = 30_000;
+
+// Appends `l` to the register unless it already holds the line of this agent's end. Returns whether
+// it wrote. The check and the append happen under the register's lock.
+function ecrire(l) {
+  mkdirSync(path.dirname(REGISTRE), { recursive: true });
+  const verrou = `${REGISTRE}.verrou`;
+  prendreVerrou(verrou, { attendre: true, perime: PERIME });
+  try {
+    const deja = existsSync(REGISTRE) ? readFileSync(REGISTRE, 'utf8') : '';
+    for (const x of deja.split('\n')) {
+      try {
+        const e = JSON.parse(x);
+        if (e.agent === l.agent && e.fin === l.fin) {
+          return false;
+        }
+      } catch {
+        // A torn line holds nothing.
+      }
+    }
+    appendFileSync(REGISTRE, `${JSON.stringify(l)}\n`);
+    return true;
+  } finally {
+    lacherVerrou(verrou);
+  }
+}
+
+// Reads the transcript of `input` in chunks and writes its line; false when nothing was written.
+function ecrireLaLigne(input, projet) {
+  const { transcription } = source(input);
+  if (!transcription || !existsSync(transcription)) {
+    return false;
+  }
+  const l = ligne(input, lireFichier(transcription), projet);
+  return l ? ecrire(l) : false;
+}
+
+// The fields of the hook input that `source` and `ligne` read: the detached process receives these
+// only, since an input also carries the agent's last message and an argument is bound to 128 KiB.
+const CHAMPS = [
+  'hook_event_name',
+  'transcript_path',
+  'session_id',
+  'agent_id',
+  'agent_type',
+  'agent_transcript_path',
+  'cwd',
+];
+
+const direct = import.meta.url === pathToFileURL(process.argv[1] ?? '').href;
+if (direct && process.argv.includes('--rattraper')) {
   const racine = arbrePrincipal(process.cwd());
   const deja = existsSync(REGISTRE) ? readFileSync(REGISTRE, 'utf8') : '';
   const connus = new Set(
@@ -171,31 +228,31 @@ if (
       .filter(Boolean)
   );
   let n = 0;
-  mkdirSync(path.dirname(REGISTRE), { recursive: true });
   for (const input of aRattraper(racine, os.homedir(), connus)) {
-    const { transcription } = source(input);
-    const l = ligne(input, readFileSync(transcription, 'utf8'), racine);
-    if (l) {
-      appendFileSync(REGISTRE, `${JSON.stringify(l)}\n`);
-      n++;
+    try {
+      if (ecrireLaLigne(input, racine)) {
+        n++;
+      }
+    } catch {
+      // A transcript it cannot read waits for the next catch-up.
     }
   }
   process.stdout.write(`${n} agent(s) fini(s) ajouté(s) au registre.\n`);
-} else if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+} else if (direct && process.argv[2] === '--ecrire') {
+  try {
+    const input = JSON.parse(process.argv[3]);
+    ecrireLaLigne(input, arbrePrincipal(input.cwd ?? process.cwd()));
+  } catch {
+    // A reading that fails writes nothing.
+  }
+} else if (direct) {
   try {
     const input = JSON.parse(readFileSync(0, 'utf8'));
-    const { transcription } = source(input);
-    if (transcription && existsSync(transcription)) {
-      const l = ligne(
-        input,
-        readFileSync(transcription, 'utf8'),
-        arbrePrincipal(input.cwd ?? process.cwd())
-      );
-      if (l) {
-        mkdirSync(path.dirname(REGISTRE), { recursive: true });
-        appendFileSync(REGISTRE, `${JSON.stringify(l)}\n`);
-      }
-    }
+    const retenu = Object.fromEntries(CHAMPS.filter(c => input[c] != null).map(c => [c, input[c]]));
+    spawn(process.execPath, [process.argv[1], '--ecrire', JSON.stringify(retenu)], {
+      detached: true,
+      stdio: 'ignore',
+    }).unref();
   } catch {
     // A hook never stops the session.
   }

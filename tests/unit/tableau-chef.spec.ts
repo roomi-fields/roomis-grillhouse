@@ -11,7 +11,13 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { ligne as ligneDuRegistre } from '../../scripts/registre.mjs';
-import { assembler, lignes, lireVivant, tableau } from '../../scripts/tableau.mjs';
+import {
+  assembler,
+  lignes,
+  lireTranscription,
+  lireVivant,
+  tableau,
+} from '../../scripts/tableau.mjs';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tableau-chef-'));
@@ -412,7 +418,7 @@ function ligneFinie(home: string, id: string, session = 'sess') {
       agent_transcript_path: f,
       agent_type: meta.agentType,
     },
-    readFileSync(f, 'utf8'),
+    lireTranscription(readFileSync(f, 'utf8')),
     RACINE
   );
 }

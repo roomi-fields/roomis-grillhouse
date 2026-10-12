@@ -1,9 +1,11 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { aRattraper, ligne, source } from '../../scripts/registre.mjs';
+import { lireTranscription } from '../../scripts/tableau.mjs';
+import { attendre, lignes, repos } from './registre-essai.js';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'registre-'));
@@ -34,7 +36,7 @@ describe('the register line', () => {
   it('reads a shell session: its role, ticket, span, tokens and cost', () => {
     const r = ligne(
       { hook_event_name: 'SessionEnd', transcript_path: '/t.jsonl', session_id: 's1' },
-      SESSION,
+      lireTranscription(SESSION),
       '/repo'
     );
     // The line may carry the turns its day time is read from (grillhouse-3uv.41).
@@ -80,12 +82,12 @@ describe('the register line', () => {
     expect(s.role).toBe('arbitre');
   });
   it('writes nothing for a transcript without time', () => {
-    expect(ligne({ hook_event_name: 'SessionEnd' }, '', '/repo')).toBeNull();
+    expect(ligne({ hook_event_name: 'SessionEnd' }, lireTranscription(''), '/repo')).toBeNull();
   });
 });
 
 describe('the register on disk', () => {
-  it('appends one line per finished sub-agent, its role read from its meta file', () => {
+  it('writes one line per stop of a sub-agent, its end reported twice (3uv.72 critère 6), its role read from its meta file', async () => {
     const d = mkdtempSync(path.join(ESSAIS, 'registre-'));
     mkdirSync(path.join(d, 's/subagents'), { recursive: true });
     writeFileSync(
@@ -105,19 +107,18 @@ describe('the register on disk', () => {
         env: { ...process.env, GRILLHOUSE_REGISTRE: registre },
       });
     expect(run().status).toBe(0);
+    await attendre(registre, 1);
     expect(run().status).toBe(0);
-    const lignes = readFileSync(registre, 'utf8')
-      .trim()
-      .split('\n')
-      .map(x => JSON.parse(x) as Record<string, unknown>);
-    expect(lignes).toHaveLength(2);
-    expect(lignes[0]).toMatchObject({
+    await repos();
+    const lues = lignes(registre).map(x => JSON.parse(x) as Record<string, unknown>);
+    expect(lues).toHaveLength(1);
+    expect(lues[0]).toMatchObject({
       ticket: 'demo-3.2.1',
       role: 'relecteur',
       jetons: 18,
       agent: 'a1',
     });
-  });
+  }, 30_000);
   it('never stops the session on a bad input', () => {
     const r = spawnSync('node', [SCRIPT], { input: 'pas du json' });
     expect(r.status).toBe(0);

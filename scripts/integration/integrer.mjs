@@ -76,7 +76,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isTesterFile } from '../verrous/verrou.mjs';
-import { dossierCommun, inscrireEntree, lacherVerrou, prendreVerrou } from './file-attente.mjs';
+import { lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
+import { dossierCommun, inscrireEntree } from './file-attente.mjs';
 import { lireJsonSiPresent, nouveauxRouges, ouvrirCopie, RETIRER_COPIE } from './rejeu.mjs';
 
 // The refusal for the verdicts of one ticket, or null. `ticket` and `comments` are Beads' JSON.

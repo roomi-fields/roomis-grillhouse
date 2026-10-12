@@ -93,10 +93,12 @@ describe('3uv.44 critère 1 : no turn lasts less than nothing; an event dated be
     const debut = [invite('09:00'), reponse('09:40'), humain('10:00')];
     const avec = ligne(
       SESSION,
-      transcription(...debut, reponse('09:59'), piece('09:58')),
+      lireTranscription(transcription(...debut, reponse('09:59'), piece('09:58'))),
       RACINE
     ) as { travail: number; tours: [number, number][] };
-    const sans = ligne(SESSION, transcription(...debut), RACINE) as { travail: number };
+    const sans = ligne(SESSION, lireTranscription(transcription(...debut)), RACINE) as {
+      travail: number;
+    };
     expect(avec.tours.filter(([d, f]) => f < d)).toEqual([]);
     expect(avec.travail).toBeGreaterThanOrEqual(sans.travail);
   });
@@ -178,7 +180,14 @@ describe('3uv.44 critère 8 : the time of a transcript is the union of its turns
     };
     const r = ligne(
       SESSION,
-      transcription(invite('10:00', 'demo-5'), reponse('10:20'), humain('10:10'), reponse('10:30')),
+      lireTranscription(
+        transcription(
+          invite('10:00', 'demo-5'),
+          reponse('10:20'),
+          humain('10:10'),
+          reponse('10:30')
+        )
+      ),
       RACINE
     ) as { tours: [number, number][] };
     const t = assembler({
@@ -220,7 +229,9 @@ describe('3uv.44 critère 9 : the start, the end and the last incoming message o
     };
     const r = ligne(
       SESSION,
-      transcription(invite('10:00'), piece('09:55'), reponse('10:30'), piece('10:20')),
+      lireTranscription(
+        transcription(invite('10:00'), piece('09:55'), reponse('10:30'), piece('10:20'))
+      ),
       RACINE
     ) as { debut: string; fin: string };
     expect(r.debut).toBe(at('09:55:00.000'));
@@ -256,7 +267,7 @@ describe('3uv.44 critère 9 : the start, the end and the last incoming message o
       reponse('10:30'),
       piece('10:20')
     );
-    const r = ligne(SESSION, texte, RACINE) as { fin: string };
+    const r = ligne(SESSION, lireTranscription(texte), RACINE) as { fin: string };
     const lu = lireTranscription(texte) as {
       entre: number | null;
       jetons: number;

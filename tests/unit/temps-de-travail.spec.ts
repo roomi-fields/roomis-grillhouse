@@ -354,13 +354,15 @@ describe('3uv.41 critère 10 : the compaction summary and the interruption mark 
   it('3uv.41 critère 10 : the register line of a transcript compacted mid-turn holds the sum of its turns', () => {
     const lu = ligne(
       SESSION,
-      transcription(
-        invite(at('08:00'), 'demo-c.1'),
-        reponse(at('08:30')),
-        resume(at('08:45')),
-        reponse(at('09:00')),
-        humain(at('14:00')),
-        reponse(at('14:10'))
+      lireTranscription(
+        transcription(
+          invite(at('08:00'), 'demo-c.1'),
+          reponse(at('08:30')),
+          resume(at('08:45')),
+          reponse(at('09:00')),
+          humain(at('14:00')),
+          reponse(at('14:10'))
+        )
       ),
       RACINE
     );
@@ -440,12 +442,14 @@ describe('3uv.41 critère 8 : the events dated before the first incoming message
   it("3uv.41 critère 8 : the register's day takes the part after midnight of a first turn begun by an earlier event", () => {
     const r = ligne(
       SESSION_8,
-      transcription(
-        systeme(at('23:55', '2026-10-10')),
-        invite(at('00:05'), 'demo-c.1'),
-        reponse(at('00:10')),
-        humain(at('09:00')),
-        reponse(at('09:05'))
+      lireTranscription(
+        transcription(
+          systeme(at('23:55', '2026-10-10')),
+          invite(at('00:05'), 'demo-c.1'),
+          reponse(at('00:10')),
+          humain(at('09:00')),
+          reponse(at('09:05'))
+        )
       ),
       RACINE
     );
@@ -549,7 +553,7 @@ const DEUX_TOURS = transcription(
 
 describe('3uv.41 critère 4 : the register writes the working time, and every time the board shows follows from it', () => {
   it('3uv.41 critère 4 : the register line of a transcript of two turns holds the sum of its turns', () => {
-    const r = ligne(SESSION, DEUX_TOURS, RACINE);
+    const r = ligne(SESSION, lireTranscription(DEUX_TOURS), RACINE);
     expect(r).toMatchObject({
       agent: 's1',
       ticket: 'demo-c.1',
@@ -561,7 +565,7 @@ describe('3uv.41 critère 4 : the register writes the working time, and every ti
   });
 
   it('3uv.41 critère 4 : the ticket, the chantier and the whole carry the register time, without another reckoning', () => {
-    const r = ligne(SESSION, DEUX_TOURS, RACINE);
+    const r = ligne(SESSION, lireTranscription(DEUX_TOURS), RACINE);
     const b = plateau({
       registre: [r],
       maintenant: Date.parse(at('12:00')),
@@ -576,16 +580,18 @@ describe('3uv.41 critère 4 : the register writes the working time, and every ti
   it('3uv.41 critère 4 : two agents on a ticket add their sums of turns', () => {
     const autre = ligne(
       { hook_event_name: 'SessionEnd', transcript_path: '/u.jsonl', session_id: 's2' },
-      transcription(
-        invite(at('09:00'), 'demo-c.1'),
-        reponse(at('09:04'), 5),
-        avis(at('10:00')),
-        reponse(at('10:02'), 5)
+      lireTranscription(
+        transcription(
+          invite(at('09:00'), 'demo-c.1'),
+          reponse(at('09:04'), 5),
+          avis(at('10:00')),
+          reponse(at('10:02'), 5)
+        )
       ),
       RACINE
     );
     const b = plateau({
-      registre: [ligne(SESSION, DEUX_TOURS, RACINE), autre],
+      registre: [ligne(SESSION, lireTranscription(DEUX_TOURS), RACINE), autre],
       maintenant: Date.parse(at('12:00')),
       jour: Date.parse(at('00:00')),
     });
@@ -696,11 +702,13 @@ describe("3uv.41 critère 6 : the day time of an agent resumed over two days cou
   it("3uv.41 critère 6 : a finished agent with a turn yesterday and one today counts today's turn in the day, both in all", () => {
     const r = ligne(
       SESSION,
-      transcription(
-        invite(at('22:00', '2026-10-10'), 'demo-c.1'),
-        reponse(at('22:30', '2026-10-10')),
-        humain(at('09:00')),
-        reponse(at('09:20'))
+      lireTranscription(
+        transcription(
+          invite(at('22:00', '2026-10-10'), 'demo-c.1'),
+          reponse(at('22:30', '2026-10-10')),
+          humain(at('09:00')),
+          reponse(at('09:20'))
+        )
       ),
       RACINE
     );
@@ -712,11 +720,13 @@ describe("3uv.41 critère 6 : the day time of an agent resumed over two days cou
   it('3uv.41 critère 6 : a turn across midnight counts in the day its part after midnight', () => {
     const r = ligne(
       SESSION,
-      transcription(
-        invite(at('23:50', '2026-10-10'), 'demo-c.1'),
-        reponse(at('00:10')),
-        humain(at('09:00')),
-        reponse(at('09:20'))
+      lireTranscription(
+        transcription(
+          invite(at('23:50', '2026-10-10'), 'demo-c.1'),
+          reponse(at('00:10')),
+          humain(at('09:00')),
+          reponse(at('09:20'))
+        )
       ),
       RACINE
     );
@@ -728,13 +738,15 @@ describe("3uv.41 critère 6 : the day time of an agent resumed over two days cou
   it('3uv.41 critère 6 : several turns before today count nothing in the day', () => {
     const r = ligne(
       SESSION,
-      transcription(
-        invite(at('08:00', '2026-10-09'), 'demo-c.1'),
-        reponse(at('08:30', '2026-10-09')),
-        humain(at('14:00', '2026-10-10')),
-        reponse(at('14:40', '2026-10-10')),
-        humain(at('07:00')),
-        reponse(at('07:05'))
+      lireTranscription(
+        transcription(
+          invite(at('08:00', '2026-10-09'), 'demo-c.1'),
+          reponse(at('08:30', '2026-10-09')),
+          humain(at('14:00', '2026-10-10')),
+          reponse(at('14:40', '2026-10-10')),
+          humain(at('07:00')),
+          reponse(at('07:05'))
+        )
       ),
       RACINE
     );
@@ -818,11 +830,13 @@ describe('3uv.41 critère 9 : a register line written without its turns keeps th
   it('3uv.41 critère 9 : beside a line with its turns, an old line still counts whole and the new one only today', () => {
     const nouvelle = ligne(
       SESSION,
-      transcription(
-        invite(at('22:00', '2026-10-10'), 'demo-c.1'),
-        reponse(at('22:30', '2026-10-10')),
-        humain(at('09:00')),
-        reponse(at('09:20'))
+      lireTranscription(
+        transcription(
+          invite(at('22:00', '2026-10-10'), 'demo-c.1'),
+          reponse(at('22:30', '2026-10-10')),
+          humain(at('09:00')),
+          reponse(at('09:20'))
+        )
       ),
       RACINE
     );

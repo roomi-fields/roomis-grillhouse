@@ -41,13 +41,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { lireCommit } from '../poussee-cles.mjs';
-import {
-  dossierCommun,
-  lacherVerrou,
-  lireEntrees,
-  prendreVerrou,
-  retirerEntree,
-} from './file-attente.mjs';
+import { lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
+import { dossierCommun, lireEntrees, retirerEntree } from './file-attente.mjs';
 import { nouveauxRouges, ouvrirCopie } from './rejeu.mjs';
 
 const ESSAIS_PAR_BRANCHE = 5;

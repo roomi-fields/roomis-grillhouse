@@ -72,12 +72,13 @@ roomis-grillhouse/
 │   ├── grillhouse-maj.mjs         # npm run grillhouse:maj: the frame brought to its last version (files, git hooks, the frame's plugins, scripts, the controls' devDependencies); --ecarts
 │   ├── tableau.mjs                # npm run tableau: the board on three levels (project, agents, chantier)
 │   ├── ligne-etat/                # the status line: the person's own on the left, the chantier on the right
+│   ├── verrou-de-fichier.mjs      # the lock of a file shared between processes (judged by the owner's process or by age); taken by integrer.mjs, file.mjs and registre.mjs
 │   ├── registre.mjs               # hook: one line per finished agent (ticket, role, time, tokens)
 │   ├── integration/               # One delivery, in a clean copy: verdicts, lots, base, guards, suites, commit on agent/<ticket>; then the queue brings it onto main
 │   │   ├── integrer.mjs              # run by the integrateur: commits the lot on agent/<ticket>, labels the ticket en-file (tests: tests/unit/integrer.spec.ts)
 │   │   ├── file.mjs                  # the queue: brings the branches onto main one at a time, replaced and replayed when main moved, pushes main (tests: tests/unit/file-integration.spec.ts)
 │   │   ├── rejeu.mjs                 # the replay shared by integrer.mjs and file.mjs: clean copy, scope of the suites, suites by test name, guards
-│   │   ├── file-attente.mjs          # the locks and the queue's entries, in git's common directory
+│   │   ├── file-attente.mjs          # the queue's entries, in git's common directory, and the directory the integration's locks live in
 │   │   ├── traces.mjs                # the fingerprints of the content, the store in git's common directory (traces of the suites, builds kept by fingerprint), its purge, what each suite owes
 │   │   ├── constructions.mjs         # the one entry point that builds: purges the store, restores the dist/ of an unchanged build or builds it and stores it (FORCER=1 builds all); called by rejeu.mjs, nuit.sh, enveloppe/lancer.sh and the root build of a project with packages
 │   │   ├── gardes.mjs                # npm run integration:gardes: the controls of grillhouse:gardes without its build step (the integration builds after the lots, through constructions.mjs, whenever a suite or a control reads the build)

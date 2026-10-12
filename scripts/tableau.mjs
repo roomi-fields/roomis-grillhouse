@@ -252,7 +252,7 @@ const mesurer = etat => ({
   cout: etat.cout,
 });
 
-// The measures of the transcript `texte`, read whole.
+// The measures of the transcript text `texte` held in memory.
 export const lireTranscription = texte => mesurer(avancer(etatNeuf(), texte));
 
 // One line per agent, its latest end: the register holds a line at each stop of an agent, each
@@ -308,6 +308,38 @@ function lireDepuis(f, decalage, taille) {
   }
 }
 
+// The read unit of a transcript file: a chunk holds whole lines, a line longer than it widens it.
+const MORCEAU = 1_048_576;
+
+// Adds the lines of `f` between the bytes `decalage` and `taille` to the state `etat`, chunk by
+// chunk so the file is never held whole, and returns the bytes it consumed.
+function avancerDepuis(etat, f, decalage, taille) {
+  let position = decalage;
+  let pas = MORCEAU;
+  while (position < taille) {
+    const fin = Math.min(taille, position + pas);
+    const { texte, lus } = lireDepuis(f, position, fin);
+    if (lus === 0) {
+      if (fin === taille) {
+        break;
+      }
+      pas *= 2;
+      continue;
+    }
+    avancer(etat, texte);
+    position += lus;
+    pas = MORCEAU;
+  }
+  return position - decalage;
+}
+
+// The measures of the transcript file `f`, read in chunks. Throws when the file cannot be read.
+export function lireFichier(f) {
+  const etat = etatNeuf();
+  avancerDepuis(etat, f, 0, statSync(f).size);
+  return mesurer(etat);
+}
+
 // A transcript read where it stopped: `cache` maps a file to its reading state and the byte it
 // reached. A transcript only grows; one that became shorter is read again from its start.
 const lecteur = cache => f => {
@@ -319,9 +351,7 @@ const lecteur = cache => f => {
       decalage = 0;
     }
     if (taille > decalage) {
-      const { texte, lus } = lireDepuis(f, decalage, taille);
-      avancer(etat, texte);
-      decalage += lus;
+      decalage += avancerDepuis(etat, f, decalage, taille);
     }
     cache[f] = { etat, decalage };
     return mesurer(etat);
