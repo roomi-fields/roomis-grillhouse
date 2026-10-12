@@ -12,6 +12,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { configGit } from '../config-git.js';
 
 // Ticket grillhouse-3uv.8.4: the index is for the roles that see the whole repository (charter,
 // « L'index d'abord »); in an agent's copy (`.claude/worktrees/`), the session start asks neither
@@ -70,7 +71,7 @@ const projet = (nom: string) => {
 const demarrer = (dir: string, bin: string) =>
   spawnSync(BASH, [SCRIPT], {
     encoding: 'utf8',
-    env: { HOME: racine, PATH: bin, CLAUDE_PROJECT_DIR: dir },
+    env: { HOME: racine, PATH: bin, CLAUDE_PROJECT_DIR: dir, ...configGit() },
   });
 
 const p = projet('projet');
@@ -204,7 +205,7 @@ describe('the session start plays the check the project declares', () => {
       cwd: ailleurs,
       encoding: 'utf8',
       timeout: 30_000,
-      env: { HOME: racine, PATH, CLAUDE_PROJECT_DIR: dir },
+      env: { HOME: racine, PATH, CLAUDE_PROJECT_DIR: dir, ...configGit() },
     });
     expect(r.error, 'la séance a gelé').toBeUndefined();
     expect(r.status, r.stderr).toBe(0);
@@ -387,7 +388,7 @@ describe('the session start plays the check the project declares', () => {
       cwd: ailleurs,
       encoding: 'utf8',
       timeout: 30_000,
-      env: { HOME: racine, PATH, CLAUDE_PROJECT_DIR: dir },
+      env: { HOME: racine, PATH, CLAUDE_PROJECT_DIR: dir, ...configGit() },
     });
     expect(r.error, 'la séance a gelé').toBeUndefined();
     expect(r.status, r.stderr).toBe(0);
@@ -448,7 +449,7 @@ describe('grillhouse-3uv.65 critère 26 — the session start asks for grillhous
     const r = spawnSync(BASH, [SCRIPT], {
       encoding: 'utf8',
       timeout: 30_000,
-      env: { HOME: racine, PATH, CLAUDE_PROJECT_DIR: dir },
+      env: { HOME: racine, PATH, CLAUDE_PROJECT_DIR: dir, ...configGit() },
     });
     expect(r.status, r.stderr).toBe(0);
     const bloc = r.stdout.split('Pas encore renseignés :\n')[1] ?? '';

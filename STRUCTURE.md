@@ -64,7 +64,7 @@ roomis-grillhouse/
 │   │                              #   of INTERFACE.md between its two marks; npm run api writes the reports and the parts
 │   ├── nuit.sh                    # every suite, once a night (mode « impactes »), building once through constructions.mjs and reading no trace of the suites or stored build (FORCER=1), then the night tests
 │   │                              #   (*.nuit.test.*, *.nuit.spec.*); a red opens a ticket
-│   ├── vitest.nuit.config.mjs     # the Vitest configuration of the night tests, played by nuit.sh
+│   ├── vitest.nuit.config.mjs     # the Vitest configuration of the night tests, played by nuit.sh; the one address of git's settings for the suite (automatic maintenance off in the tests' environment), which the day configuration reads
 │   ├── sous-modules.sh            # the submodules of a working copy (integration, agent, night) at HEAD, or shared read-only (grillhouse.partage)
 │   ├── branche-de-nuit.mjs        # pre-push guard: only the night pushes the branch of grillhouse.poussee.nuit
 │   ├── poussee-cles.mjs           # reads the grillhouse.poussee, .nuit and .commit keys of package.json for nuit.sh, the guard and the queue
@@ -157,7 +157,7 @@ roomis-grillhouse/
 ├── tsdoc.json                  # TSDoc configuration of the frame (the @faute tag), read for every component
 ├── tsconfig.json               # TypeScript configuration (allowJs: JS compiles as is)
 ├── tsconfig.eslint.json        # Lint scope: src/ + tests/
-└── vitest.config.ts            # Vitest test configuration of the day: npm test, night tests left out
+└── vitest.config.ts            # Vitest test configuration of the day: npm test, night tests left out; git's settings read from vitest.nuit.config.mjs
 ```
 
 ## Quick Start

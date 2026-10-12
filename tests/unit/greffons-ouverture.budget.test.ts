@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { cheminSysteme, claudeSubstitut } from '../claude-substitut.js';
+import { configGit } from '../config-git.js';
 
 // grillhouse-3uv.71, critères 5 and 14: the session start holds its budget of 10 s while it reads
 // the plugins; a reading that would exceed it is interrupted, and a line says so.
@@ -33,6 +34,7 @@ function ouvrir(sommeil: number) {
       PATH: cheminSysteme(claude.bin, bd),
       HOME: mkdtempSync(path.join(ESSAIS, 'maison-')),
       CLAUDE_PROJECT_DIR: p,
+      ...configGit(),
     },
     timeout: 60_000,
   });

@@ -22,6 +22,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { configGit } from '../config-git.js';
 import { canWrap } from '../machine.js';
 import { CODE_COPIE } from '../../scripts/enveloppe/codes.mjs';
 
@@ -38,12 +39,11 @@ const RETIRER = path.join(SCRIPTS, 'retirer-copie.sh');
 const LONG = 60_000;
 
 // The file protocol is refused to submodule commands by default; the test repositories live on
-// disk, so the commands that build them allow it. The scripts under test run without it, as on the
-// machine (grillhouse-3uv.52): an empty global configuration of their own, no system one.
+// disk, so the commands that build them allow it, beside the git settings of the suite. The scripts
+// under test run without it, as on the machine (grillhouse-3uv.52): an empty global configuration
+// of their own, no system one, and the git settings of the suite but that allowance.
 const ENV_GIT = {
-  GIT_CONFIG_COUNT: '1',
-  GIT_CONFIG_KEY_0: 'protocol.file.allow',
-  GIT_CONFIG_VALUE_0: 'always',
+  ...configGit([['protocol.file.allow', 'always']]),
   GIT_AUTHOR_NAME: 't',
   GIT_AUTHOR_EMAIL: 't@t',
   GIT_COMMITTER_NAME: 't',
@@ -57,6 +57,7 @@ const ENV_SCRIPTS: NodeJS.ProcessEnv = {
   ...Object.fromEntries(
     Object.entries(process.env).filter(([k]) => !/^GIT_(CONFIG|ALLOW_PROTOCOL)/.test(k))
   ),
+  ...configGit([], cle => !cle.startsWith('protocol.')),
   GIT_CONFIG_GLOBAL: CONFIG_GLOBALE,
   GIT_CONFIG_NOSYSTEM: '1',
   GIT_AUTHOR_NAME: 't',

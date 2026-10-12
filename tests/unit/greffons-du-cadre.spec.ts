@@ -20,6 +20,7 @@ import {
   claudeSubstitut,
   sansClaude,
 } from '../claude-substitut.js';
+import { configGit } from '../config-git.js';
 
 // grillhouse-3uv.71: the nominal configuration. The frame's plugins are listed once, in
 // `enabledPlugins` (and `extraKnownMarketplaces`) of the project's `.claude/settings.json`. One
@@ -101,7 +102,8 @@ const portee = (a: AppelClaude) => {
   return a.argv.find(x => x.startsWith('--scope='))?.slice('--scope='.length);
 };
 
-// The environment of a command: the given directories first, then the system's; a home of its own.
+// The environment of a command: the given directories first, then the system's; a home of its own;
+// the git settings of the suite.
 const env = (...dossiers: string[]): NodeJS.ProcessEnv => ({
   PATH: cheminSysteme(...dossiers),
   HOME: dossier('maison'),
@@ -110,6 +112,7 @@ const env = (...dossiers: string[]): NodeJS.ProcessEnv => ({
   GIT_AUTHOR_EMAIL: 't@t',
   GIT_COMMITTER_NAME: 't',
   GIT_COMMITTER_EMAIL: 't@t',
+  ...configGit(),
 });
 
 // scripts/greffons.mjs run on the project, from another directory, the stand-in on the PATH.

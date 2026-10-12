@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import nuit from './scripts/vitest.nuit.config.mjs';
 
 // A night test (`*.nuit.test.*`, `*.nuit.spec.*`) is too long for the day: `npm test` and the
 // integration leave it out, and the night plays it (scripts/nuit.sh, scripts/vitest.nuit.config.mjs).
@@ -8,6 +9,10 @@ export default defineConfig({
   test: {
     // Test environment
     environment: 'node',
+
+    // Environment of the tests: the night configuration's, the one address of git's settings
+    // (automatic maintenance and garbage collection off)
+    env: nuit.test.env,
 
     // Global test configuration
     globals: true,

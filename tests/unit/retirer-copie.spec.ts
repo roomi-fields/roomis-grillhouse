@@ -19,6 +19,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { configGit } from '../config-git.js';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'retirer-copie-'));
@@ -28,7 +29,8 @@ const RETIRER = path.resolve(__dirname, '../../scripts/retirer-copie.sh');
 const LONG = 30_000;
 
 // The test repositories live on disk: the commands that build them allow the file transport to
-// submodule commands. The script under test runs without that allowance.
+// submodule commands, beside the git settings of the suite. The script under test runs with the
+// settings of the suite, without that allowance.
 const IDENTITE = {
   GIT_AUTHOR_NAME: 't',
   GIT_AUTHOR_EMAIL: 't@t',
@@ -38,14 +40,13 @@ const IDENTITE = {
 const ENV_GIT = {
   ...process.env,
   ...IDENTITE,
-  GIT_CONFIG_COUNT: '1',
-  GIT_CONFIG_KEY_0: 'protocol.file.allow',
-  GIT_CONFIG_VALUE_0: 'always',
+  ...configGit([['protocol.file.allow', 'always']]),
 };
 const ENV_SCRIPT: NodeJS.ProcessEnv = {
   ...Object.fromEntries(
     Object.entries(process.env).filter(([k]) => !/^GIT_(CONFIG|ALLOW_PROTOCOL)/.test(k))
   ),
+  ...configGit([], cle => !cle.startsWith('protocol.')),
   ...IDENTITE,
 };
 const git = (dir: string, ...a: string[]) =>
