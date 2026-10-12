@@ -30,6 +30,28 @@
 #   local (a path or a file:// URL) is set too: the command alone carries
 #   `-c protocol.file.allow=always`, the authorization of the file transport; no repository or
 #   machine configuration holds it.
+# - The address a submodule is set from is the one the main repository uses: its
+#   `submodule.<name>.url` (git's own rule: the local configuration wins), else the url of
+#   .gitmodules. A copy shares the configuration of the main repository, so the pose reads it
+#   there. The command carries that address (`-c submodule.<name>.url=…`) and, in a copy whose
+#   submodule was already set, the `origin` remote of that submodule is moved to it first (git
+#   fetches through `origin`, fixed at the first clone). The pose never writes the main
+#   repository's configuration. A url relative to the superproject (`./`, `../`), in the
+#   configuration or in .gitmodules, is resolved as `git submodule init` resolves it for the main
+#   repository (relative_url and chop_last_dir of git), against the url of the remote the current
+#   branch of the main repository follows (`branch.<b>.remote`), else its `origin`, else its working
+#   tree folder. A remote url that is a local path not absolute is relative to the main repository.
+#   Each `../` removes the last component of that url, at its last slash, else at its colon:
+#   `host:repo.git` with `../natif.git` gives `host:natif.git`, `git@github.com:org/repo.git` with
+#   `../../x.git` gives `git@github.com:x.git`, `upstream.git` with `../natif.git` gives `natif.git`.
+#   One final « / » of the url goes. A local path not absolute that results is taken from the main
+#   repository's folder, which need not exist (`../up/repo.git` with `../../natif.git` gives
+#   `<main repository>/../up/natif.git`). A url git refuses for the main repository stops the pose
+#   before the submodule is set — a `../` that finds neither slash nor colon left in a relative
+#   remote url (`upstream.git` with `../../natif.git`), or in the `.` an absolute one becomes once
+#   emptied of its components: exit 1, its first line on stderr naming the submodule, and the
+#   main repository's configuration stays as it is. The resolved address is the one the command
+#   carries, so a copy under .claude/worktrees/ never resolves it from its own folder.
 # - `pose` never enters a shared submodule, nor a submodule nested in it: they belong to the main
 #   repository, which neither sets nor cleans them.
 # - `garde` reads the copy as it stands: a submodule modified in `git status` (an edited or
@@ -142,7 +164,15 @@ fi
 lire_partage
 [ -f "$copie/.gitmodules" ] || [ ${#partages[@]} -eq 0 ] || refuser "la clé grillhouse.partage nomme ${partages[0]}, mais la copie n'a pas de .gitmodules : rien n'est posé."
 [ -f "$copie/.gitmodules" ] || exit 0
-mapfile -t chemins < <(git -C "$copie" config -f .gitmodules --get-regexp '^submodule\..*\.path$' | cut -d' ' -f2-)
+# The submodules of .gitmodules: `chemins[i]` is a path, `noms[i]` its name. Read with -z so that a
+# path or a name holding a space stays whole.
+chemins=() noms=()
+while IFS= read -r -d '' entree; do
+  cle=${entree%%$'\n'*}
+  cle=${cle#submodule.}
+  noms+=("${cle%.path}")
+  chemins+=("${entree#*$'\n'}")
+done < <(git -C "$copie" config -f .gitmodules -z --get-regexp '^submodule\..*\.path$')
 
 if [ "$action" = garde ]; then
   for p in "${chemins[@]}"; do
@@ -155,6 +185,86 @@ if [ "$action" = garde ]; then
   done
   exit 0
 fi
+
+# The name of the submodule at path $1, in .gitmodules.
+nom_du_sous_module() {
+  local i
+  for i in "${!chemins[@]}"; do
+    [ "${chemins[$i]}" = "$1" ] && { printf '%s\n' "${noms[$i]}"; return; }
+  done
+}
+
+# The url of the main repository's remote a relative address resolves against, as git chooses it:
+# the remote its current branch follows (`branch.<b>.remote`), else origin; no url, its folder.
+base_relative() {
+  local principal=$1 branche remote base=
+  branche=$(git -C "$principal" symbolic-ref -q --short HEAD) || branche=
+  remote=
+  [ -z "$branche" ] || remote=$(git -C "$principal" config --get "branch.$branche.remote") || remote=
+  [ -n "$remote" ] || remote=origin
+  base=$(git -C "$principal" config --get "remote.$remote.url") || base=
+  [ -n "$base" ] || base=$principal
+  printf '%s\n' "$base"
+}
+
+# Whether a url is a local path, as git reads it (url_is_local_not_ssh): no colon, or a slash
+# before its first colon.
+est_locale() {
+  case "$1" in *:*) ;; *) return 0 ;; esac
+  case "${1%%:*}" in */*) return 0 ;; esac
+  return 1
+}
+
+# The url relative to the superproject (`./`, `../`) $1 of the submodule at path $2, resolved as
+# `git submodule init` resolves it for the main repository (relative_url and chop_last_dir of git):
+# the base loses one final « / »; a base that is a local path not absolute is relative to the main
+# repository (`upstream.git` reads `./upstream.git`). Each `../` removes the last component of the
+# base, at its last slash, else at its colon, which then joins the rest with « : »; a base left
+# without either refuses when it is relative or `.`, and becomes `.` otherwise. One final « / » of
+# the url goes. A local path not absolute that results is made absolute from the main repository's
+# folder, without requiring it to exist. A refusal names the submodule, exit 1.
+resoudre_relative() {
+  local url=$1 principal base relative=0 deuxpoints=0 resolue
+  principal=$(dossier_principal)
+  base=$(base_relative "$principal")
+  base=${base%/}
+  if est_locale "$base" && [ "${base#/}" = "$base" ]; then
+    relative=1
+    case "$base" in ./* | ../*) ;; *) base=./$base ;; esac
+  fi
+  while :; do
+    case "$url" in
+      ./*) url=${url#./} ;;
+      ../*)
+        url=${url#../}
+        case "$base" in
+          */*) base=${base%/*} ;;
+          *:*) base=${base%:*} deuxpoints=1 ;;
+          *)
+            [ "$relative" = 0 ] && [ "$base" != . ] ||
+              refuser "le sous-module $2 ne se pose pas : son adresse relative $1 remonte au-delà de l'adresse $(base_relative "$principal") du dépôt principal, que git refuse de même ; il n'est pas posé, et la configuration du dépôt principal reste intacte."
+            base=. ;;
+        esac ;;
+      *) break ;;
+    esac
+  done
+  if [ "$deuxpoints" = 1 ]; then resolue=$base:$url; else resolue=$base/$url; fi
+  case "$url" in */) resolue=${resolue%/} ;; esac
+  resolue=${resolue#./}
+  if est_locale "$resolue" && [ "${resolue#/}" = "$resolue" ]; then
+    resolue=$(realpath -m -s -- "$principal/$resolue") || return 1
+  fi
+  printf '%s\n' "$resolue"
+}
+
+adresse_du_sous_module() {
+  local nom url
+  nom=$(nom_du_sous_module "$1")
+  url=$(git -C "$copie" config --get "submodule.$nom.url") ||
+    url=$(git -C "$copie" config -f .gitmodules --get "submodule.$nom.url") || url=
+  case "$url" in ./* | ../*) url=$(resoudre_relative "$url" "$1") || return 1 ;; esac
+  printf '%s\n' "$url"
+}
 
 # Refuses before setting anything.
 for p in "${partages[@]}"; do
@@ -182,7 +292,17 @@ for p in "${chemins[@]}"; do
   est_partage "$p" && continue
   [ -L "$copie/$p" ] && rm -f -- "${copie:?}/$p"
   git -C "$copie" update-index --no-skip-worktree -- "$p" || exit 1
-  if ! sortie=$(git -c protocol.file.allow=always -C "$copie" submodule update --init --recursive --force -- "$p" 2>&1); then
+  adresse=$(adresse_du_sous_module "$p") || exit 1
+  options=(-c protocol.file.allow=always)
+  if [ -n "$adresse" ]; then
+    options+=(-c "submodule.$(nom_du_sous_module "$p").url=$adresse")
+    if [ -e "$copie/$p/.git" ] && ! sortie=$(git -C "$copie/$p" remote set-url origin "$adresse" 2>&1); then
+      echo "le sous-module $p ne se pose pas : son remote origin ne passe pas à $adresse :" >&2
+      echo "$sortie" >&2
+      exit 1
+    fi
+  fi
+  if ! sortie=$(git "${options[@]}" -C "$copie" submodule update --init --recursive --force -- "$p" 2>&1); then
     commit=$(git -C "$copie" ls-tree HEAD -- "$p" | cut -d' ' -f3 | cut -f1)
     echo "le sous-module $p ne se pose pas au commit ${commit:0:7} :" >&2
     echo "$sortie" >&2
