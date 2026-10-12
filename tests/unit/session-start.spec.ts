@@ -420,3 +420,55 @@ describe('the session start plays the check the project declares', () => {
     expect(commentaires).toMatch(/10 s/);
   });
 });
+
+// Ticket grillhouse-3uv.65 critère 26: a project that chose the tests of its integration
+// (`grillhouse.integration`) declares the root paths its suites read (`grillhouse.lusParLesSuites`);
+// while it has not, the session start lists it among « Pas encore renseignés » (grill). An empty
+// list is a declaration.
+describe('grillhouse-3uv.65 critère 26 — the session start asks for grillhouse.lusParLesSuites', () => {
+  const bin = mkdtempSync(path.join(racine, 'bin-lus-'));
+  stub(bin, 'bd', 'echo "[]"');
+  stub(bin, 'crontab', 'exit 1');
+  const PATH = `${bin}:${process.env.PATH ?? ''}`;
+  // The items of « Pas encore renseignés » for a project with its architecture written and
+  // <grillhouse> as the grillhouse section of its package.json.
+  const elements = (grillhouse: Record<string, unknown>) => {
+    const dir = mkdtempSync(path.join(racine, 'lus-'));
+    mkdirSync(path.join(dir, 'node_modules'));
+    mkdirSync(path.join(dir, 'docs'));
+    writeFileSync(path.join(dir, 'docs/ARCHITECTURE.md'), '# Architecture\n');
+    writeFileSync(
+      path.join(dir, 'package.json'),
+      JSON.stringify({ name: 'demo', version: '1.0.0', scripts: {}, grillhouse })
+    );
+    const r = spawnSync(BASH, [SCRIPT], {
+      encoding: 'utf8',
+      timeout: 30_000,
+      env: { HOME: racine, PATH, CLAUDE_PROJECT_DIR: dir },
+    });
+    expect(r.status, r.stderr).toBe(0);
+    const bloc = r.stdout.split('Pas encore renseignés :\n')[1] ?? '';
+    return bloc
+      .split('\n')
+      .filter(l => l.startsWith('- '))
+      .map(l => l.slice(2));
+  };
+  const demande = (liste: string[]) => liste.filter(l => /lusParLesSuites/.test(l));
+  it.each(['complet', 'impactes'])(
+    'critère 26: a project whose integration is « %s », without grillhouse.lusParLesSuites, has it listed',
+    mode => {
+      expect(demande(elements({ integration: mode }))).toHaveLength(1);
+    }
+  );
+  it('critère 26: an empty grillhouse.lusParLesSuites is a declaration: not listed', () => {
+    expect(demande(elements({ integration: 'complet', lusParLesSuites: [] }))).toEqual([]);
+  });
+  it('critère 26 (garde): a declared grillhouse.lusParLesSuites is not listed', () => {
+    expect(demande(elements({ integration: 'impactes', lusParLesSuites: ['src'] }))).toEqual([]);
+  });
+  it('critère 26 (garde): a project that has not chosen its integration is asked for that choice, not for the declaration', () => {
+    const liste = elements({});
+    expect(liste.some(l => /intégration/.test(l))).toBe(true);
+    expect(demande(liste)).toEqual([]);
+  });
+});

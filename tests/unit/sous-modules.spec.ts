@@ -152,12 +152,12 @@ function monde(avecSousModule = true, adresse: Adresse = 'absolue', imbrique = f
   }
   const env = { ...ENV_SCRIPTS, PATH: `${bin}:${process.env.PATH}` };
 
-  // A lot that adds a document outside every component.
+  // A lot that adds a source to the component packages/a: its suite plays, so the copy builds.
   let n = 0;
   const lot = () => {
     n += 1;
-    const f = `note-${n}.md`;
-    writeFileSync(path.join(repo, f), `note ${n}\n`);
+    const f = `packages/a/src/lot-${n}.ts`;
+    writeFileSync(path.join(repo, f), `export const lot${n} = ${n};\n`);
     const p = path.join(bin, `lot-${n}.patch`);
     writeFileSync(
       p,
@@ -168,7 +168,7 @@ function monde(avecSousModule = true, adresse: Adresse = 'absolue', imbrique = f
     return p;
   };
   const message = path.join(bin, 'msg');
-  writeFileSync(message, 'docs: une note (demo-1)\n');
+  writeFileSync(message, 'feat: une source (demo-1)\n');
   // `ailleurs`: the environment of the scripts with some variables changed (its PATH, say).
   const integrer = (ailleurs: NodeJS.ProcessEnv = {}) =>
     spawnSync('node', [INTEGRER, '--ticket', 'demo-1', '--code', lot(), '--message', message], {

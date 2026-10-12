@@ -218,25 +218,36 @@ describe('perimetre', () => {
       composants: [],
     });
   });
-  // grillhouse-3uv.22: a file outside every declared component touches everything (Bazel, Nx
-  // affected), so a lot touching one replays every suite.
-  const tous = { mode: 'tous', composants: [] };
-  it('replays every suite for code outside every component (a root folder)', () => {
-    expect(perimetre(['scripts/y.mjs'], comps, graphe)).toEqual(tous);
+  // grillhouse-3uv.65 critère 17: a root file replays only the suites that declare it read
+  // (`grillhouse.lusParLesSuites`, given here to none); a file outside every component that no
+  // declaration names, code, setting or CI, replays no suite.
+  it('3uv.65 critère 17: replays no suite for a file outside every component that no declaration names, whatever its kind', () => {
+    for (const f of [
+      'scripts/y.mjs',
+      'scripts/verrous/lib/z.mjs',
+      'vitest.config.ts',
+      'tsconfig.json',
+      '.github/workflows/ci.yml',
+      '.gitignore',
+      'LICENSE',
+      'docs/schema.txt',
+    ]) {
+      expect(perimetre([f], comps, graphe).mode, f).toBe('aucun');
+    }
   });
-  it('replays every suite for code outside every component, deep or at the root', () => {
-    expect(perimetre(['scripts/verrous/lib/z.mjs'], comps, graphe)).toEqual(tous);
-    expect(perimetre(['vitest.config.ts'], comps, graphe)).toEqual(tous);
+  it('3uv.65 critère 17: a file outside every component that no declaration names adds nothing to the scope of a component next to it', () => {
+    expect(perimetre(['packages/c/src/x.ts', 'scripts/y.mjs'], comps, graphe)).toEqual(
+      perimetre(['packages/c/src/x.ts'], comps, graphe)
+    );
+    expect(perimetre(['scripts/y.mjs', 'packages/a/src/x.ts'], comps, graphe)).toEqual(
+      perimetre(['packages/a/src/x.ts'], comps, graphe)
+    );
   });
-  it('replays every suite for a test file outside every component', () => {
-    expect(perimetre(['tests/unit/z.spec.ts'], comps, graphe)).toEqual(tous);
+  it('3uv.65 critère 17: replays no suite for code in a project without any component, undeclared', () => {
+    expect(perimetre(['scripts/y.mjs'], [], new Map()).mode).toBe('aucun');
   });
-  it('replays every suite when a lot mixes a component and a file outside every component', () => {
-    expect(perimetre(['packages/c/src/x.ts', 'scripts/y.mjs'], comps, graphe)).toEqual(tous);
-    expect(perimetre(['scripts/y.mjs', 'packages/a/src/x.ts'], comps, graphe)).toEqual(tous);
-  });
-  it('replays every suite for code in a project without any component', () => {
-    expect(perimetre(['scripts/y.mjs'], [], new Map())).toEqual(tous);
+  it('3uv.65 critère 16 (garde): the lock file of the dependencies replays suites, undeclared', () => {
+    expect(perimetre(['package-lock.json'], comps, graphe).mode).not.toBe('aucun');
   });
   // grillhouse-3uv.54: a lot made only of documents outside every component replays the guards
   // and no suite (paths-ignore of a CI); a document is a *.md outside every component, or a file
@@ -268,34 +279,27 @@ describe('perimetre', () => {
     }
   });
   it.each(['.mjs', '.js', '.cjs', '.ts', '.sh', '.py'])(
-    '3uv.54 critères 2 et 7: a script under .claude/ (%s) replays every suite',
+    '3uv.65 critère 17: a script under .claude/ (%s), undeclared, replays no suite',
     ext => {
-      expect(perimetre([`.claude/hooks/garde${ext}`], comps, graphe)).toEqual(tous);
-      expect(perimetre([`.claude/skills/x/scripts/a.md${ext}`], comps, graphe)).toEqual(tous);
+      expect(perimetre([`.claude/hooks/garde${ext}`], comps, graphe).mode).toBe('aucun');
+      expect(perimetre([`.claude/skills/x/scripts/a.md${ext}`], comps, graphe).mode).toBe('aucun');
     }
   );
-  it('3uv.54 critères 2 et 7: a setting under .claude/ (*.json, fichiers.txt) replays every suite', () => {
+  it('3uv.65 critère 17: a setting under .claude/ (*.json, fichiers.txt), undeclared, replays no suite', () => {
     for (const f of [
       '.claude/settings.json',
       '.claude/settings.local.json',
       '.claude/skills/x/config.json',
       '.claude/grillhouse/fichiers.txt',
     ]) {
-      expect(perimetre([f], comps, graphe)).toEqual(tous);
+      expect(perimetre([f], comps, graphe).mode, f).toBe('aucun');
     }
   });
-  it('3uv.54 critère 7: a file outside .claude/ that is not a *.md is not a document', () => {
-    for (const f of ['LICENSE', '.gitignore', 'docs/schema.txt', '.claudex/notes.txt']) {
-      expect(perimetre([f], comps, graphe)).toEqual(tous);
-    }
-  });
-  it('3uv.54 critère 2: replays every suite when documents outside every component come with another file outside', () => {
-    expect(perimetre(['README.md', 'scripts/y.mjs'], comps, graphe)).toEqual(tous);
-    expect(perimetre(['scripts/y.mjs', 'docs/a.md'], comps, graphe)).toEqual(tous);
-    expect(perimetre(['.claude/agents/a.md', '.claude/settings.json'], comps, graphe)).toEqual(
-      tous
+  it('3uv.65 critère 17: documents outside every component that come with another undeclared file replay no suite', () => {
+    expect(perimetre(['README.md', 'scripts/y.mjs'], comps, graphe).mode).toBe('aucun');
+    expect(perimetre(['.claude/agents/a.md', '.claude/settings.json'], comps, graphe).mode).toBe(
+      'aucun'
     );
-    expect(perimetre(['docs/a.md', 'package.json'], comps, graphe)).toEqual(tous);
   });
   it('3uv.54 critères 3 et 5: a document outside every component next to code of a component replays that component and its consumers', () => {
     expect(perimetre(['README.md', 'packages/a/src/x.ts'], comps, graphe)).toEqual({
@@ -317,24 +321,8 @@ describe('perimetre', () => {
       composants: ['src/d'],
     });
   });
-  it('replays every suite for the package manifest outside every component', () => {
-    expect(perimetre(['package.json'], comps, graphe)).toEqual(tous);
-  });
-  it('replays every suite for the dependency lock outside every component', () => {
-    expect(perimetre(['package-lock.json'], comps, graphe)).toEqual(tous);
-  });
-  it('replays every suite for a compiler setting outside every component', () => {
-    expect(perimetre(['tsconfig.json'], comps, graphe)).toEqual(tous);
-  });
-  it('replays every suite for the CI outside every component', () => {
-    expect(perimetre(['.github/workflows/ci.yml'], comps, graphe)).toEqual(tous);
-  });
-  it('replays every suite for any file outside every component, whatever its kind', () => {
-    expect(perimetre(['.gitignore'], comps, graphe)).toEqual(tous);
-    expect(perimetre(['LICENSE'], comps, graphe)).toEqual(tous);
-  });
-  it('does not take a sibling sharing a prefix for the component: it lies outside every one', () => {
-    expect(perimetre(['packages/ab/x.ts'], ['packages/a'], new Map())).toEqual(tous);
+  it('3uv.65 critère 17: does not take a sibling sharing a prefix for the component: it lies outside every one, undeclared', () => {
+    expect(perimetre(['packages/ab/x.ts'], ['packages/a'], new Map()).mode).toBe('aucun');
   });
 });
 
@@ -680,7 +668,7 @@ describe('an integration', () => {
     expect(r.stdout).toMatch(/gardes refusent/);
     expect(m.etat().log[0]).toBe('pose GARDE_ROUGE');
   });
-  it('3uv.54 critère 2: hands the suites --tous for documents that come with a setting under .claude/', () => {
+  it('3uv.65 critère 17: plays the guards and no suite for documents that come with a setting under .claude/ no declaration names', () => {
     const m = monde(['ACCEPTÉ']);
     m.poser('suites.mjs', enregistrer);
     const patch = lotNeuf(m, 'reglage.patch', {
@@ -689,8 +677,9 @@ describe('an integration', () => {
     });
     const r = m.lancer(['--code', patch], []);
     expect(r.status).toBe(0);
-    expect(r.stdout).toMatch(/toutes les suites/);
-    expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('[--tous][--tous]');
+    expect(r.stdout).toMatch(/✓ gardes/);
+    expect(r.stdout).not.toMatch(/toutes les suites/);
+    expect(existsSync(`${m.repo}.args`)).toBe(false);
   });
   it('3uv.54 critère 5: hands the suites the component alone for a document outside every component next to it', () => {
     const m = monde(['ACCEPTÉ']);
@@ -746,7 +735,7 @@ describe('an integration', () => {
     writeFileSync(patch, diff);
     return patch;
   };
-  it('3uv.54 critère 2: hands the suites --tous for a script outside every component renamed into a document', () => {
+  it('3uv.65 critère 17: plays no suite for a script outside every component no declaration names, renamed into a document', () => {
     const m = monde(['ACCEPTÉ']);
     m.poser('suites.mjs', enregistrer);
     mkdirSync(path.join(m.repo, 'scripts'));
@@ -761,9 +750,8 @@ describe('an integration', () => {
     );
     const r = m.lancer(['--code', patch], []);
     expect(r.status).toBe(0);
-    expect(r.stdout).toMatch(/toutes les suites/);
-    expect(r.stdout).not.toMatch(/aucune suite/);
-    expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('[--tous][--tous]');
+    expect(r.stdout).not.toMatch(/toutes les suites/);
+    expect(existsSync(`${m.repo}.args`)).toBe(false);
   });
   it('3uv.54 critère 5: hands the suites its component for a document of it moved outside every component', () => {
     const m = monde(['ACCEPTÉ']);
@@ -812,12 +800,20 @@ describe('an integration', () => {
     expect(r.status).toBe(0);
     expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('src/feuille src/haut');
   });
-  it('critère 5: hands the suites --tous, never no argument, for code outside every component', () => {
-    const m = monde(['ACCEPTÉ']);
+  // grillhouse-3uv.65: the project declares the root paths its suites read.
+  const declarer = (m: ReturnType<typeof monde>, lus: string[]) =>
     m.poser(
-      'suites.mjs',
-      "import fs from 'node:fs';\nfs.appendFileSync(`${process.env.PRINCIPAL}.args`, `[${process.argv.slice(2).join(' ')}]`);\nfs.writeFileSync(process.env.ROUGES, '');\n"
+      'package.json',
+      JSON.stringify({
+        grillhouse: { lusParLesSuites: lus },
+        scripts: {
+          'integration:suites': 'node suites.mjs',
+          'integration:gardes': 'test ! -f GARDE_ROUGE && test ! -f RESTE',
+        },
+      })
     );
+  // A code lot that changes the root script scripts/outil.mjs, committed on main beforehand.
+  const lotOutil = (m: ReturnType<typeof monde>) => {
     mkdirSync(path.join(m.repo, 'scripts'));
     m.poser('scripts/outil.mjs', 'export const o = 1;\n');
     writeFileSync(path.join(m.repo, 'scripts/outil.mjs'), 'export const o = 2;\n');
@@ -827,29 +823,33 @@ describe('an integration', () => {
       spawnSync('git', ['-C', m.repo, 'diff', '--', 'scripts'], { encoding: 'utf8' }).stdout
     );
     spawnSync('git', ['-C', m.repo, 'checkout', '--', 'scripts']);
-    const r = m.lancer(['--code', patch], []);
-    expect(r.status).toBe(0);
-    expect(r.stdout).toMatch(/toutes les suites/);
-    expect(r.stdout).not.toMatch(/aucun code de composant/);
-    expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('[--tous][--tous]');
-  });
-  it('refuses a lot outside every component that brings a new failure', () => {
+    return patch;
+  };
+  it('3uv.65 critère 17: plays no suite for code outside every component no declaration names', () => {
     const m = monde(['ACCEPTÉ']);
-    // The suites fail once the root script changes: only a replay of every suite sees it.
+    m.poser('suites.mjs', enregistrer);
+    const r = m.lancer(['--code', lotOutil(m)], []);
+    expect(r.status).toBe(0);
+    expect(r.stdout).not.toMatch(/toutes les suites/);
+    expect(existsSync(`${m.repo}.args`)).toBe(false);
+  });
+  it('3uv.65 critère 21 (garde): hands the suites a scope, never nothing, on the base and after, for code outside every component the project declares read', () => {
+    const m = monde(['ACCEPTÉ']);
+    declarer(m, ['scripts']);
+    m.poser('suites.mjs', enregistrer);
+    const r = m.lancer(['--code', lotOutil(m)], []);
+    expect(r.status).toBe(0);
+    expect(readFileSync(`${m.repo}.args`, 'utf8')).toMatch(/^\[[^\]]+\]\[[^\]]+\]$/);
+  });
+  it('3uv.65 critère 8 (garde): refuses a lot outside every component, declared read, that brings a new failure', () => {
+    const m = monde(['ACCEPTÉ']);
+    declarer(m, ['scripts']);
+    // The suites fail once the root script changes: only a replay of the suites that read it sees it.
     m.poser(
       'suites.mjs',
       "import fs from 'node:fs';\nconst r = fs.readFileSync('scripts/outil.mjs', 'utf8').includes('2') ? 'tests/outil.spec.ts > outil\\n' : '';\nfs.writeFileSync(process.env.ROUGES, r);\nprocess.exit(r ? 1 : 0);\n"
     );
-    mkdirSync(path.join(m.repo, 'scripts'));
-    m.poser('scripts/outil.mjs', 'export const o = 1;\n');
-    writeFileSync(path.join(m.repo, 'scripts/outil.mjs'), 'export const o = 2;\n');
-    const patch = path.join(m.bin, 'scripts.patch');
-    writeFileSync(
-      patch,
-      spawnSync('git', ['-C', m.repo, 'diff', '--', 'scripts'], { encoding: 'utf8' }).stdout
-    );
-    spawnSync('git', ['-C', m.repo, 'checkout', '--', 'scripts']);
-    const r = m.lancer(['--code', patch], []);
+    const r = m.lancer(['--code', lotOutil(m)], []);
     expect(r.status).toBe(1);
     expect(r.stdout).toMatch(/Rouges nouveaux :\n {2}✗ tests\/outil\.spec\.ts > outil/);
     expect(m.etat().log[0]).toBe('pose scripts/outil.mjs');

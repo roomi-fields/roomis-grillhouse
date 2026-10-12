@@ -16,7 +16,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { matieres } from '../consommateurs.mjs';
+import { matieres, NOM_DE_TEST } from '../consommateurs.mjs';
 
 const WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 
@@ -25,7 +25,7 @@ export function isTestFile(file) {
   const base = parts[parts.length - 1];
   return (
     parts.slice(0, -1).some(d => d === 'test' || d === 'tests' || d === '__tests__') ||
-    /\.(test|spec)\.[cm]?[jt]sx?$/.test(base)
+    NOM_DE_TEST.test(base)
   );
 }
 

@@ -45,14 +45,18 @@ node scripts/integration/integrer.mjs --ticket <id> [--ticket <id>…] \
 `agent/<ticket>` et sa copie. Le script vérifie
 `ACCEPTÉ` et les arbitrages, garde les tests au testeur et le code au développeur. Puis, dans une
 copie d'intégration propre (`.claude/worktrees/integration`, sur HEAD, sans fichier local), il
-construit, mesure la base, applique les lots en trois voies, construit, rejoue les gardes, compare
-les suites à la base nom par nom et commite avec les crochets sur `agent/<ticket>` ; main n'avance
-pas ici. Il étiquette chaque ticket `en-file`, place la branche dans la file et retire la copie du
-ticket. Les
-suites rejouées suivent le choix du projet : toutes (`complet`), ou les composants du lot et ceux
-qui en dépendent (`impactes`, toutes les suites tournant la nuit) ; un lot qui touche un fichier
-hors de tout composant autre qu'un document les rejoue toutes, un lot fait seulement de documents
-hors de tout composant n'en rejoue aucune (les gardes seules).
+mesure la base, applique les lots en trois voies, construit une fois quand une suite ou une garde
+lit la construction, rejoue les suites et les gardes, compare les suites à la base nom par nom et commite avec les
+crochets sur `agent/<ticket>` ; main n'avance pas ici. Il étiquette chaque ticket `en-file`, place
+la branche dans la file et retire la copie du ticket. Les suites rejouées suivent le choix du
+projet : toutes (`complet`), ou les composants du lot et ceux qui en dépendent (`impactes`, toutes
+les suites tournant la nuit). Chaque suite garde son verdict sous l'empreinte du contenu de ce
+qu'elle lit, et une suite inchangée ne se rejoue pas. Les tests hors de tout composant forment la
+suite de la racine : une aide de test changée la rejoue entière, un lot fait seulement de tests
+joue ces seuls tests, et un composant changé y joue les seuls tests qui l'importent. Le fichier de verrou ou un chemin que le projet
+déclare lu par ses suites (`grillhouse.lusParLesSuites`) rejoue toutes les suites ; un autre
+fichier hors de tout composant (un document, un crochet, un script du cadre) n'en rejoue aucune.
+La base de main se construit seulement quand une de ses suites se rejoue.
 Ainsi le commit validé est exactement celui qui entre. Il tient sa propre attente : il rend la main
 sur le commit ou sur le refus, avec toute sa sortie. Ainsi une attente est un processus vivant,
 jamais une phrase. Une intégration lancée pendant qu'une autre tourne attend la fin de la première.

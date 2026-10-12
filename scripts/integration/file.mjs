@@ -14,8 +14,11 @@
 //  - main is an ancestor of the branch (main has not moved since its base): main moves forward onto
 //    the branch (`merge --ff-only`), nothing replayed;
 //  - main has moved: the branch is replaced on main in the queue's own copy
-//    (`.claude/worktrees/file`, made ready by scripts/integration/rejeu.mjs), the project's guards
-//    and the suites of the touched components (rule `grillhouse.integration`) are replayed there,
+//    (`.claude/worktrees/file`, made ready by scripts/integration/rejeu.mjs), the suites that read
+//    what the branch touches (rule `grillhouse.integration`; a suite whose content was already
+//    measured is not replayed, scripts/integration/suites-vitest.mjs) and the project's guards are
+//    replayed there, the project built once after the lots, as soon as a suite or a guard reads the build
+//    (main is built only when one of its suites plays),
 //    and main moves forward onto the replaced branch when no failing test is new compared to main;
 //  - a branch with nothing ahead of main does not enter: it leaves the queue, its tickets lose
 //    `en-file` and take a comment, and stay as they are;
@@ -120,7 +123,7 @@ function main(argv) {
       spawnSync('git', ['-C', copie, 'rebase', '--abort'], { encoding: 'utf8' });
     const ouverte = ouvrirCopie({ racine, copie, ref: tete, tmp, dire });
     if (ouverte.refus) return { garde: ouverte.refus };
-    const { dansCopie, portee, suites, construire, gardes } = ouverte;
+    const { dansCopie, portee, suites, gardes } = ouverte;
     const { champ, message } = portee(fichiers);
     dire(message);
     let avant = [];
@@ -149,14 +152,14 @@ function main(argv) {
         ],
       };
     }
-    if (!construire()) return { sortie: ['elle ne se construit pas une fois replacée.', ''] };
+    const apres = champ.mode !== 'aucun' ? suites(champ, 'apres') : [];
     const g = gardes();
     if (g.status !== 0) {
       const fin = `${g.stdout}${g.stderr}`.trim().split('\n').slice(-40).join('\n');
       return { sortie: ['les gardes refusent une fois la branche replacée.', fin] };
     }
     if (champ.mode !== 'aucun') {
-      const nouveaux = nouveauxRouges(avant, suites(champ, 'apres'));
+      const nouveaux = nouveauxRouges(avant, apres);
       if (nouveaux.length) {
         return {
           sortie: [

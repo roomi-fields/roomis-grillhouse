@@ -921,3 +921,54 @@ describe('grillhouse-3uv.64 critère 25 — the update declares every tool of th
     expect(pkg.devDependencies?.[nom]).toBe(version);
   });
 });
+
+// grillhouse-3uv.65 critère 27: the frame's wiring of the integration's guards was
+// `npm run --silent pretest`, which builds again; the update replaces it with the frame's command
+// (`integration:gardes` of the source), and leaves a wiring of the project's own as it is.
+describe('grillhouse-3uv.65 critère 27 — the update replaces the frame’s old wiring of integration:gardes', () => {
+  const ANCIEN = 'npm run --silent pretest';
+  it('critère 27: integration:gardes left at the frame’s old wiring receives the frame’s command', () => {
+    const { scripts } = installe({ name: 'p', scripts: { 'integration:gardes': ANCIEN } });
+    expect(scripts()['integration:gardes']).toBe(gabarit()['integration:gardes']);
+  });
+  it('critère 27: the command written is the one of the source, read there', () => {
+    const autre = 'node scripts/integration/autres-gardes.mjs';
+    const src = sourceAvec({ name: 'cadre', scripts: { 'integration:gardes': autre } });
+    const { scripts } = installeDepuis(src, {
+      name: 'p',
+      scripts: { 'integration:gardes': ANCIEN },
+    });
+    expect(scripts['integration:gardes']).toBe(autre);
+  });
+  it('critère 27: the replacement holds on a second update, byte for byte', () => {
+    const projet = mkdtempSync(path.join(ESSAIS, 'installe-'));
+    ecrire(
+      projet,
+      'package.json',
+      `${JSON.stringify({ name: 'p', scripts: { 'integration:gardes': ANCIEN } }, null, 2)}\n`
+    );
+    mettreAJour(projet, DEPOT, 'essai');
+    const premier = lire(projet, 'package.json');
+    mettreAJour(projet, DEPOT, 'essai');
+    expect(lire(projet, 'package.json')).toBe(premier);
+    expect(
+      (JSON.parse(premier) as { scripts: Record<string, string> }).scripts['integration:gardes']
+    ).toBe(gabarit()['integration:gardes']);
+  });
+  it.each([
+    ['a script of its own', 'node scripts/mes-gardes.mjs'],
+    ['the old wiring with a step of its own', `${ANCIEN} && node scripts/mien.mjs`],
+    ['another npm script', 'npm run --silent verifier'],
+  ])('critère 27 (garde): a wiring of the project’s own (%s) stays as it is', (_nom, propre) => {
+    const { scripts } = installe({ name: 'p', scripts: { 'integration:gardes': propre } });
+    expect(scripts()['integration:gardes']).toBe(propre);
+  });
+  it('critère 27 (garde): a source without integration:gardes leaves the old wiring as it is', () => {
+    const src = sourceAvec({ name: 'cadre', scripts: { 'grillhouse:gardes': 'node seul.mjs' } });
+    const { scripts } = installeDepuis(src, {
+      name: 'p',
+      scripts: { 'integration:gardes': ANCIEN },
+    });
+    expect(scripts['integration:gardes']).toBe(ANCIEN);
+  });
+});

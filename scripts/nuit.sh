@@ -9,7 +9,9 @@
 #   modification overwritten; one that cannot be set turns the night red; a submodule the project
 #   shares, `grillhouse.partage`, is linked to the main repository's instead, not set),
 #   dependencies reinstalled (npm ci) when package-lock.json changes, built, then
-#   `npm test` (the guards of pretest, then every suite of the day, time budget benches included).
+#   `npm test` (the guards of pretest, then every suite of the day, time budget benches included),
+#   under FORCER=1: it reads no trace of the suites (scripts/integration/suites-vitest.mjs) and
+#   writes them again.
 #   An existing copy that does not get ready (its move onto HEAD, its cleaning or the setting of
 #   its submodules fails) is removed by `scripts/retirer-copie.sh --jetable` (local work does not
 #   hold it, a lock does) and created again, once; a copy that does not get ready the second time
@@ -135,7 +137,8 @@ jouer() {
     cp "$copie/package-lock.json" "$copie/node_modules/.nuit-lock"
   fi
   monter npm --prefix "$copie" run --silent --if-present build || return 1
-  monter npm --prefix "$copie" test || return 1
+  # The night reads no trace of the suites (scripts/integration/suites-vitest.mjs): FORCER=1.
+  FORCER=1 monter npm --prefix "$copie" test || return 1
   if [ -n "$(find "$copie" \( -name node_modules -o -name dist -o -name .git \) -prune -o \
       -type f -regextype posix-extended -regex '.*\.nuit\.(test|spec)\.(c|m)?[jt]sx?' -print -quit)" ]; then
     if ! (cd "$copie" && monter npx --no-install vitest run --root "$copie" \

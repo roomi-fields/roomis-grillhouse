@@ -20,29 +20,33 @@
 //     refuses, named (what an ignored folder such as node_modules holds is not work);
 //  4. a clean integration copy (`.claude/worktrees/integration`) on HEAD, made ready by the
 //     replay (scripts/integration/rejeu.mjs: submodules by scripts/sous-modules.sh, dependencies,
-//     build, mounts);
-//  5. the base: the project's suites (`npm run integration:suites -- --tous|<components>`) on
-//     HEAD. The project chooses at its installation (`grillhouse.integration` in package.json):
-//     `impactes` (the default) replays the touched components and those that depend on them (the
-//     consumers' graph), every suite for a lot touching a file outside every component that is
-//     not a document (a root script, package.json, the lockfile, tsconfig, the CI, a setting
-//     under `.claude/`), no suite (the guards alone, step 7) for a lot made only of documents
-//     outside every component (a `*.md`, or a file under `.claude/` that is neither a script nor
-//     a setting), any file of a component whatever its nature touching that component (a
-//     document outside every component next to it does not count), and every suite runs once a
-//     night (`scripts/nuit.sh`);
-//     `complet` replays every suite at each integration, documents included;
-//     suites that fail without naming a test leave nothing to compare, and refuse;
-//  6. the lots, applied in three ways in the copy, tests first, then built; the files of the lot
-//     in the ticket's copy are compared with the copy's own base plus the lot, not with the
-//     integration copy;
-//  7. the project's guards (`npm run integration:gardes`, when present);
-//  8. the suites again: a failing test that the base did not have and --admettre does not name
+//     mounts); it builds nothing;
+//  5. the base: the project's suites (`npm run integration:suites -- <scope>`) on HEAD. Each suite
+//     keeps its verdict under the fingerprint of its content (scripts/integration/suites-vitest.mjs):
+//     a suite whose fingerprint has a trace is not replayed, so the base of a HEAD already
+//     measured costs nothing. The project chooses at its installation (`grillhouse.integration` in
+//     package.json): `impactes` (the default) replays the components that hold a file of the lot and
+//     those that depend on them (the consumers' graph), whatever the nature of the file; every suite
+//     for a lot that touches the lock file or a root path the project declares read
+//     (`grillhouse.lusParLesSuites`); the root suite for a lot of test helpers outside every
+//     component; the test files alone for a lot made only of test files; no suite (the guards
+//     alone, step 8) for any other file outside every component, a document, a hook, a script no
+//     declaration names. Every suite runs once a night (`scripts/nuit.sh`); `complet` replays every
+//     suite at each integration. The project is built once after the lots, as soon as a suite or a guard reads the build (main, only when one of its suites plays); suites that
+//     fail without naming a test leave nothing to compare, and refuse;
+//  6. the lots, applied in three ways in the copy, tests first; the files of the lot in the
+//     ticket's copy are compared with the copy's own base plus the lot, not with the integration
+//     copy;
+//  7. the suites again, with the lot (the project built once after the lots, as soon as a suite or a guard reads the build);
+//  8. the project's guards (`npm run integration:gardes`, when present); every control plays. The
+//     project is built once after the lots: by step 7 when a suite plays, else here when a control
+//     of `grillhouse:gardes` follows its build step (it reads the build);
+//  9. the comparison: a failing test that the base did not have and --admettre does not name
 //     refuses the lot, compared name by name;
-//  9. the commit in the copy, its hooks included, under GRILLHOUSE_INTEGRATION=1: a pre-commit
-//     hook that plays the guards skips them, as step 7 just played them; the commit validated is
+// 10. the commit in the copy, its hooks included, under GRILLHOUSE_INTEGRATION=1: a pre-commit
+//     hook that plays the guards skips them, as step 8 just played them; the commit validated is
 //     the commit that enters;
-// 10. the branch `agent/<ticket>` is set on that commit, the ticket's copy follows it and is
+// 11. the branch `agent/<ticket>` is set on that commit, the ticket's copy follows it and is
 //     removed by `scripts/retirer-copie.sh` (no `--jetable`): a refusal, a locked copy for
 //     example, is written to the first ticket, the commit stands. Every ticket named is labelled
 //     `en-file` and the branch takes its place at the end of the queue
@@ -51,9 +55,10 @@
 // What the base and the suites read of a lot is its files: each file added, modified or
 // deleted, a rename counting its source and its destination, a copy its destination only.
 //
-// The main tree is not touched. The suites command receives `--tous` for every suite, or the
-// components' directories to replay (`packages/a src/parser`), never nothing, and writes the names
-// of its failing tests, one per line, to the file named by the ROUGES variable.
+// The main tree is not touched. The suites command receives `--tous` for every suite, the
+// components' directories to replay (`packages/a src/parser`), `--racine`, or `--tests <files>`,
+// never nothing, and writes the names of its failing tests, one per line, to the file named by the
+// ROUGES variable.
 // The budget of an integration that touches one leaf component: 15 s, measured on the template
 // (12.8 s with its first `npm ci`, 8.6 s after). A project sets its own, measured on its code
 // (`npm pkg set grillhouse.budgetIntegration=<seconds>`). The duration is written at the end,
@@ -273,11 +278,11 @@ function main(argv) {
     const copie = path.join(racine, '.claude', 'worktrees', 'integration');
     const ouverte = ouvrirCopie({ racine, copie, ref: 'HEAD', tmp, dire });
     if (ouverte.refus) return refuser(ouverte.refus);
-    const { dansCopie, monter, construire, portee, suites, gardes } = ouverte;
+    const { dansCopie, monter, portee, suites, gardes } = ouverte;
     const { champ, message } = portee(fichiers);
     dire(message);
 
-    // 5. The base (no suite replays for a lot of documents: nothing to compare).
+    // 5. The base (no suite replays for a lot no suite reads: nothing to compare).
     let base = [];
     if (champ.mode !== 'aucun') {
       dire('— les suites sur HEAD (la base)');
@@ -301,24 +306,29 @@ function main(argv) {
         `Des fichiers du lot diffèrent dans la copie du ticket :\n${divergents.map(f => `  ${f}`).join('\n')}`
       );
     }
-    if (!construire()) return refuser('Le lot ne se construit pas.');
-    dire('✓ lots appliqués et construits');
+    dire('✓ lots appliqués');
 
-    // 7. The guards.
+    // 7. The suites with the lot (the build, once, when a suite or a guard reads it).
+    let apres = [];
+    if (champ.mode !== 'aucun') {
+      dire('— les suites avec le lot');
+      apres = suites(champ, 'apres');
+    }
+
+    // 8. The guards.
     if (gardes().status !== 0) return refuser('Les gardes refusent (sortie ci-dessus).');
     dire('✓ gardes');
 
-    // 8. The suites, compared to the base.
+    // 9. The suites compared to the base.
     if (champ.mode !== 'aucun') {
-      dire('— les suites avec le lot');
-      const nouveaux = nouveauxRouges(base, suites(champ, 'apres'), o.admettre);
+      const nouveaux = nouveauxRouges(base, apres, o.admettre);
       if (nouveaux.length)
         return refuser(`Rouges nouveaux :\n${nouveaux.map(n => `  ✗ ${n}`).join('\n')}`);
       for (const a of o.admettre) dire(`⚠ admis par l'intégrateur : ${a}`);
       dire('✓ suites');
     }
 
-    // 9. The commit, in the copy: the commit validated is the commit that enters.
+    // 10. The commit, in the copy: the commit validated is the commit that enters.
     // The guards have just run: a pre-commit hook that plays them skips them under
     // GRILLHOUSE_INTEGRATION=1; commit-msg (one ticket, one commit) runs as always.
     const c = spawnSync(
@@ -332,7 +342,7 @@ function main(argv) {
     if (c.status !== 0) return refuser(`Le commit est refusé :\n${c.stdout}${c.stderr}`);
     const commit = dansCopie('rev-parse', 'HEAD').stdout.trim();
 
-    // 10. The branch of the ticket takes the commit; the ticket's copy follows it (it carried the
+    // 11. The branch of the ticket takes the commit; the ticket's copy follows it (it carried the
     // lot, which the commit now holds) and is removed; the tickets wait in the queue.
     const pose = git('update-ref', `refs/heads/${branche}`, commit);
     if (pose.status !== 0) {

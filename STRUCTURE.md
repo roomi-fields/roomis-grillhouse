@@ -61,7 +61,7 @@ roomis-grillhouse/
 │   ├── frontieres.mjs             # grillhouse:gardes: dependency-cruiser, rules generated in .dependency-cruiser.cjs
 │   ├── interfaces-contre-code.mjs # grillhouse:gardes: the TSDoc contract of each export (rubrics, tsdoc.json) and the generated part
 │   │                              #   of INTERFACE.md between its two marks; npm run api writes the reports and the parts
-│   ├── nuit.sh                    # every suite, once a night (mode « impactes »), then the night tests
+│   ├── nuit.sh                    # every suite, once a night (mode « impactes »), reading no trace of the suites (FORCER=1), then the night tests
 │   │                              #   (*.nuit.test.*, *.nuit.spec.*); a red opens a ticket
 │   ├── vitest.nuit.config.mjs     # the Vitest configuration of the night tests, played by nuit.sh
 │   ├── sous-modules.sh            # the submodules of a working copy (integration, agent, night) at HEAD, or shared read-only (grillhouse.partage)
@@ -77,8 +77,11 @@ roomis-grillhouse/
 │   │   ├── file.mjs                  # the queue: brings the branches onto main one at a time, replaced and replayed when main moved, pushes main (tests: tests/unit/file-integration.spec.ts)
 │   │   ├── rejeu.mjs                 # the replay shared by integrer.mjs and file.mjs: clean copy, scope of the suites, suites by test name, guards
 │   │   ├── file-attente.mjs          # the locks and the queue's entries, in git's common directory
-│   │   └── suites-vitest.mjs         # npm run integration:suites -- --tous|<components>: failing tests by name, for Vitest
-│   │                                 #   (budget benches and night tests left out)
+│   │   ├── traces.mjs                # the fingerprints of the content, the traces of the suites in git's common directory, what each suite owes
+│   │   ├── gardes.mjs                # npm run integration:gardes: the controls of grillhouse:gardes without its build step (the integration builds once after the lots, whenever a suite or a control reads the build)
+│   │   └── suites-vitest.mjs         # npm run integration:suites -- --tous|<components>|--racine|--tests <files>: failing tests by name, for Vitest
+│   │                                 #   (budget benches and night tests left out); the verdict of each suite is kept under the fingerprint
+│   │                                 #   of its content in git's common directory and a suite unchanged is not replayed (FORCER=1 replays)
 │   ├── index-interfaces.mjs       # npm run interfaces: docs/agents/index-des-interfaces.md from the generated parts, checked by grillhouse:gardes
 │   └── un-commit-par-ticket.mjs   # commit-msg hook (placed by crochets.mjs): one ticket, one commit
 │

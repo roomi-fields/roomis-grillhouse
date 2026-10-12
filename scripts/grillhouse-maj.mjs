@@ -17,7 +17,8 @@
 //   writes none). The project's `pretest` calls it: a project without a pretest receives
 //   `npm run --silent grillhouse:gardes`, one whose pretest does not call it receives it at the
 //   head (`… && <its pretest>`), one that calls it stays. A source without `grillhouse:gardes`
-//   writes neither it nor a pretest.
+//   writes neither it nor a pretest. An `integration:gardes` left at the frame's old wiring
+//   (`npm run --silent pretest`) receives the source's command; a wiring of the project's own stays.
 // - The controls' tools (API Extractor and its model, the TSDoc configuration reader,
 //   dependency-cruiser, knip) are added to the project's
 //   `devDependencies` at the version the source's `devDependencies` give; a tool the project
@@ -71,6 +72,7 @@ const CHAMPS_INSTALLES = ['dependencies', 'devDependencies', 'optionalDependenci
 const APPELLE =
   /(?:^|[\s;&|(])npm\s+run(?:-script)?(?:\s+-{1,2}[\w-]+(?:=\S+)?)*\s+grillhouse:gardes(?=$|[\s;&|)])/;
 const APPEL_GARDES = 'npm run --silent grillhouse:gardes';
+const ANCIEN_CABLAGE_DES_GARDES = 'npm run --silent pretest';
 
 const empreinte = f => createHash('sha256').update(readFileSync(f)).digest('hex');
 const lireJson = (f, defaut) => {
@@ -245,6 +247,15 @@ export function mettreAJour(projet, source, version) {
       } else if (!APPELLE.test(pretest)) {
         p.scripts.pretest = `${APPEL_GARDES} && ${p.scripts.pretest}`;
       }
+    }
+    // The guards of an integration: the frame's old wiring (`npm run --silent pretest`, which builds
+    // again) becomes the source's command; a wiring of the project's own stays.
+    const gardesIntegration = pkgSource.scripts?.['integration:gardes'];
+    if (
+      typeof gardesIntegration === 'string' &&
+      p.scripts['integration:gardes']?.trim() === ANCIEN_CABLAGE_DES_GARDES
+    ) {
+      p.scripts['integration:gardes'] = gardesIntegration;
     }
     writeFileSync(pkg, `${JSON.stringify(p, null, 2)}\n`);
   }

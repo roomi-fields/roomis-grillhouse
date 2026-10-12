@@ -49,16 +49,19 @@ function projet() {
 }
 
 describe('critère 6 — the suites adapter: --tous, or a non-empty list of components', () => {
-  it('critère 6: --tous runs every suite (vitest run), budget benches excluded', () => {
+  // grillhouse-3uv.65: --tous plays every suite, each under its own trace (the suite of each
+  // component and the root suite), in as many calls of Vitest as it needs.
+  it('critère 6: --tous runs every suite, budget benches excluded', () => {
     const p = projet();
     const r = p.lancer('--tous');
     expect(r.status, r.stderr).toBe(0);
     const appels = p.appels();
-    expect(appels).toHaveLength(1);
-    expect(appels[0]).toMatch(/^vitest run /);
-    expect(appels[0]).not.toMatch(/related/);
-    expect(appels[0]).not.toMatch(/--tous/);
-    expect(appels[0]).toMatch(/--exclude=\S*budget/);
+    expect(appels.length).toBeGreaterThan(0);
+    for (const a of appels) {
+      expect(a).toMatch(/^vitest /);
+      expect(a).not.toMatch(/--tous/);
+      expect(a).toMatch(/--exclude=\S*budget/);
+    }
   });
   it("critère 6: --tous gives back Vitest's exit code", () => {
     const p = projet();

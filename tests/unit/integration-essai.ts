@@ -259,6 +259,14 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
     etat[id].comments.push({ text: 'ACCEPTÉ' });
     ecrireEtat(etat);
   };
+  // True when <rel> goes to the tests lot: a test file, or any file under a test folder (the
+  // frame's rule, scripts/verrous/verrou.mjs isTestFile).
+  const duTesteur = (rel: string) =>
+    /\.(spec|test)\.[cm]?[jt]s$/.test(rel) ||
+    rel
+      .split('/')
+      .slice(0, -1)
+      .some(d => d === 'test' || d === 'tests' || d === '__tests__');
   // Opens <id> in Beads with the reviewer's ACCEPTÉ, creates its copy as the launcher does, and
   // writes <fichiers> there as the agents' local work; its lots are the patches of those files,
   // its message « feat: lot (<id>) ».
@@ -282,7 +290,7 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
         : contenu === null
           ? gitDans(copie, 'diff', '--cached', '--', rel)
           : gitDans(copie, 'diff', '--', rel);
-      if (/\.(spec|test)\.[cm]?[jt]s$/.test(rel)) {
+      if (duTesteur(rel)) {
         tests += diff;
       } else {
         code += diff;
@@ -323,7 +331,7 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
         : spawnSync('git', ['-C', copie, 'diff', '--no-index', '/dev/null', rel], {
             encoding: 'utf8',
           }).stdout;
-      if (/\.(spec|test)\.[cm]?[jt]s$/.test(rel)) {
+      if (duTesteur(rel)) {
         tests += diff;
       } else {
         code += diff;

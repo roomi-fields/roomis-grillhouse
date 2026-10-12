@@ -6,8 +6,9 @@
 // - `ouvrirCopie` makes the copy <copie> ready on <ref>: detached, every untracked file removed, its
 //   submodules set (`scripts/sous-modules.sh`, a local modification overwritten; a submodule the
 //   project shares, `grillhouse.partage`, is linked to the main repository's instead), its
-//   dependencies installed again when `package-lock.json` changes (`npm ci`), then built. An
-//   existing copy that does not get ready is removed by `scripts/retirer-copie.sh --jetable` (local
+//   dependencies installed again when `package-lock.json` changes (`npm ci`). It builds nothing:
+//   the build comes after the lots, once, as soon as a suite or a guard reads the build (main is
+//   built only when one of its suites plays). An existing copy that does not get ready is removed by `scripts/retirer-copie.sh --jetable` (local
 //   work does not hold it, a lock does) and created again, once; a copy that does not get ready the
 //   second time refuses, and so does a removal the script refuses, with its reason. Every command
 //   of the project plays through `scripts/sous-modules.sh monter`: each submodule the preparation
@@ -15,13 +16,23 @@
 //   link and no possible mount (bwrap absent or refused), the copy refuses before any command runs.
 // - `perimetre` is the scope of the suites for a set of files (see below); the project's choice
 //   (`grillhouse.integration`: `impactes` by default, `complet`) decides in `portee`.
-// - `suites` plays `npm run integration:suites -- --tous|<components>`, which writes the names of
-//   its failing tests, one per line, to the file named by ROUGES.
+// - `suites` plays `npm run integration:suites -- <scope>` (scripts/integration/suites-vitest.mjs:
+//   `--tous`, the components' directories, `--racine`, or `--tests <files>`), which writes the names
+//   of its failing tests, one per line, to the file named by ROUGES. It builds the project
+//   (`npm run build`) just before, only when a suite of the call plays, that is when one has no
+//   trace (scripts/integration/traces.mjs, `aJouer`): a call whose suites are all kept builds nothing.
+// - `gardes` plays `npm run integration:gardes` (scripts/integration/gardes.mjs). The project is
+//   built once after the lots: by the `suites` of the lot when one plays, otherwise by `gardes`
+//   when a control of `grillhouse:gardes` follows its build step (it reads the build). No control
+//   is left out.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { composants as lesComposants, utilise } from '../consommateurs.mjs';
+import { composants as lesComposants, NOM_DE_TEST, utilise } from '../consommateurs.mjs';
+import { isTestFile } from '../verrous/verrou.mjs';
+import { etapesDesGardes } from './gardes.mjs';
+import { ouvrirTraces } from './traces.mjs';
 
 const SOUS_MODULES = fileURLToPath(new URL('../sous-modules.sh', import.meta.url));
 export const RETIRER_COPIE = fileURLToPath(new URL('../retirer-copie.sh', import.meta.url));
@@ -35,28 +46,37 @@ export function nouveauxRouges(base, apres, admis = []) {
 }
 
 // What the suites replay for a lot. `composants` are the components' directories relative to the
-// root; `consommateurs` maps a component's directory to the directories of those that use it.
-// - a file outside every component that is not a document: every suite, as such a file (a root
-//   script, package.json, the lockfile, tsconfig, the CI, a setting) can change any of them;
-// - a document outside every component (`estDocument`) counts for nothing: a lot made only of
-//   such documents replays no suite (mode `aucun`, the guards alone);
-// - otherwise: the components holding a file of the lot, whatever its nature (code, document,
-//   manifest, data), and, transitively, those that depend on them, in order.
-const SCRIPTS = /\.(mjs|js|cjs|ts|sh|py)$/;
-const REGLAGES = /(\.json|(^|\/)fichiers\.txt)$/;
-function estDocument(f) {
-  if (f.startsWith('.claude/')) return !SCRIPTS.test(f) && !REGLAGES.test(f);
-  return f.endsWith('.md');
-}
+// root; `consommateurs` maps a component's directory to the directories of those that use it;
+// `lus` are the root paths the project declares read by its suites (`grillhouse.lusParLesSuites`,
+// files or folders). The lock file of the dependencies is always read.
+// - a file the lot touches that the project declares read, or the lock file: every suite (mode
+//   `tous`), as it can change any of them;
+// - a lot made only of test files: these files alone (mode `tests`);
+// - otherwise the components holding a file of the lot, whatever its nature (code, document,
+//   manifest, data), and, transitively, those that depend on them, in order (mode `composants`);
+// - otherwise a file of a test folder outside every component (a helper, test material): the root
+//   suite (mode `racine`);
+// - a file outside every component that nothing declares read replays nothing: with no other file,
+//   no suite (mode `aucun`, the guards alone).
+const VERROU = 'package-lock.json';
+const nu = p => p.replace(/^\.\//, '').replace(/\/+$/, '');
 
-export function perimetre(fichiers, composants, consommateurs) {
+export function perimetre(fichiers, composants, consommateurs, lus = []) {
+  const declares = lus.map(nu);
+  const lu = f => f === VERROU || declares.some(d => f === d || f.startsWith(`${d}/`));
+  if (fichiers.some(lu)) return { mode: 'tous', composants: [] };
+  if (fichiers.length > 0 && fichiers.every(f => NOM_DE_TEST.test(f))) {
+    return { mode: 'tests', composants: [], tests: [...fichiers] };
+  }
   const touches = new Set();
   for (const f of fichiers) {
     const c = composants.find(d => f.startsWith(`${d}/`));
     if (c) touches.add(c);
-    else if (!estDocument(f)) return { mode: 'tous', composants: [] };
   }
-  if (touches.size === 0) return { mode: 'aucun', composants: [] };
+  if (touches.size === 0) {
+    const racine = fichiers.some(f => isTestFile(f));
+    return { mode: racine ? 'racine' : 'aucun', composants: [] };
+  }
   const file = [...touches];
   while (file.length) {
     for (const d of consommateurs.get(file.pop()) ?? []) {
@@ -71,7 +91,7 @@ export function perimetre(fichiers, composants, consommateurs) {
 
 // The copy <copie> ready on <ref>, or `{ refus }`. `tmp` is a folder for the failing-test lists;
 // `dire` writes a progress line. Returns the copy's tools: `dansCopie` (git in the copy), `npm`,
-// `monter` (the command line of a mounted command), `construire`, `portee`, `suites`, `gardes`.
+// `monter` (the command line of a mounted command), `portee`, `suites`, `gardes`.
 export function ouvrirCopie({ racine, copie, ref, tmp, dire }) {
   const git = (...args) => spawnSync('git', ['-C', racine, ...args], { encoding: 'utf8' });
   const dansCopie = (...args) => spawnSync('git', ['-C', copie, ...args], { encoding: 'utf8' });
@@ -131,8 +151,6 @@ export function ouvrirCopie({ racine, copie, ref, tmp, dire }) {
       writeFileSync(cle, empreinte);
     }
   }
-  const construire = () => npm(['run', '--silent', '--if-present', 'build']).status === 0;
-  if (!construire()) return { refus: `${ref} ne se construit pas.` };
   dire(`✓ copie propre sur ${tete.slice(0, 7)}`);
 
   // The scope of the suites for <fichiers>: the touched components and those that depend on them.
@@ -148,27 +166,54 @@ export function ouvrirCopie({ racine, copie, ref, tmp, dire }) {
     }
     // The project chooses at its installation (grill): `complet` replays every suite each time;
     // `impactes`, the default, what `perimetre` computes, every suite once a night.
-    const reglage = lireJsonSiPresent(path.join(copie, 'package.json'))?.grillhouse?.integration;
+    const grillhouse = lireJsonSiPresent(path.join(copie, 'package.json'))?.grillhouse;
+    const reglage = grillhouse?.integration;
+    const lus = Array.isArray(grillhouse?.lusParLesSuites) ? grillhouse.lusParLesSuites : [];
     const champ =
       reglage === 'complet'
         ? { mode: 'tous', composants: [] }
-        : perimetre(fichiers, [...dirDe.values()], consommateurs);
-    const message =
-      champ.mode === 'aucun'
-        ? '✓ aucune suite : le lot ne contient que des documents hors de tout composant'
-        : champ.mode === 'tous'
-          ? reglage === 'complet'
-            ? '✓ toutes les suites (réglage « complet »)'
-            : '✓ toutes les suites : le lot touche un fichier hors de tout composant'
-          : `✓ suites de : ${champ.composants.join(', ')}`;
+        : perimetre(fichiers, [...dirDe.values()], consommateurs, lus);
+    const message = {
+      aucun: '✓ aucune suite : le lot ne touche aucun fichier que les suites lisent',
+      tous:
+        reglage === 'complet'
+          ? '✓ toutes les suites (réglage « complet »)'
+          : '✓ toutes les suites : le lot touche un chemin que les suites lisent',
+      tests: `✓ ces tests seuls : ${(champ.tests ?? []).join(', ')}`,
+      racine: '✓ la suite de la racine : le lot touche ses aides de test',
+      composants: `✓ suites de : ${champ.composants.join(', ')}`,
+    }[champ.mode];
     return { champ, message };
   };
   // The failing tests of one run of the suites over <champ>, by name; a run that fails without
-  // naming a test leaves one name « (les suites sortent en <code> sans test nommé) ».
+  // naming a test leaves one name « (les suites sortent en <code> sans test nommé) ». The project
+  // is built first when a suite of the run plays; `construit` says the lot was built (not the base).
+  let construit = false;
+  const construire = () => npm(['run', '--silent', '--if-present', 'build']).status === 0;
   const suites = (champ, nom) => {
     const rouges = path.join(tmp, nom);
     writeFileSync(rouges, '');
-    const portee = champ.mode === 'tous' ? ['--tous'] : champ.composants;
+    const portee =
+      champ.mode === 'tous'
+        ? ['--tous']
+        : champ.mode === 'racine'
+          ? ['--racine']
+          : champ.mode === 'tests'
+            ? ['--tests', ...champ.tests]
+            : champ.composants;
+    const traces = ouvrirTraces(copie, {
+      forcer: process.env.FORCER === '1',
+      extra: champ.composants,
+    });
+    const jouera =
+      champ.mode === 'tests' ||
+      traces.aJouer(
+        champ.mode === 'tous' ? traces.dossiers : champ.mode === 'racine' ? [] : champ.composants
+      );
+    if (jouera && !construire()) {
+      return ['(les suites sortent en 1 sans test nommé : la construction échoue)'];
+    }
+    if (nom !== 'base') construit = jouera;
     const r = npm(['run', '--silent', 'integration:suites', '--', ...portee], { ROUGES: rouges });
     const noms = readFileSync(rouges, 'utf8')
       .split('\n')
@@ -178,6 +223,16 @@ export function ouvrirCopie({ racine, copie, ref, tmp, dire }) {
       noms.push(`(les suites sortent en ${r.status} sans test nommé)`);
     return noms;
   };
-  const gardes = () => npm(['run', '--silent', '--if-present', 'integration:gardes']);
-  return { dansCopie, monter, npm, construire, portee, suites, gardes, tete };
+  // The guards. A control that follows the build step of `grillhouse:gardes` reads the build: the
+  // project is built first unless the suites of the lot did.
+  const gardes = () => {
+    const scripts = lireJsonSiPresent(path.join(copie, 'package.json'))?.scripts;
+    const lisent = etapesDesGardes(scripts)?.lisentLaConstruction ?? [];
+    if (scripts?.['integration:gardes'] && lisent.length > 0 && !construit) {
+      if (!construire()) return { status: 1, stdout: '', stderr: 'La construction échoue.\n' };
+      construit = true;
+    }
+    return npm(['run', '--silent', '--if-present', 'integration:gardes']);
+  };
+  return { dansCopie, monter, npm, portee, suites, gardes, tete };
 }

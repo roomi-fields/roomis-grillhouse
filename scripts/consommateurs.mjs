@@ -25,7 +25,9 @@ import { pathToFileURL } from 'node:url';
 
 const SOURCE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|svelte|vue)$/;
 const TEST_DIR = new Set(['test', 'tests', '__tests__']);
-const isTest = name => /\.(test|spec)\.[cm]?[jt]sx?$/.test(name);
+// The name of a test file: `x.test.ts`, `x.spec.mjs`…
+export const NOM_DE_TEST = /\.(test|spec)\.[cm]?[jt]sx?$/;
+const isTest = name => NOM_DE_TEST.test(name);
 const SKIP = new Set(['node_modules', 'dist', 'docs']);
 
 // The list of the packages out of the frame: one line per package, « <package> <reason> », its

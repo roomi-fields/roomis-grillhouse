@@ -21,8 +21,9 @@ tar -C "$template" --exclude=./node_modules --exclude=./.rtfm --exclude=./.codeg
 
 # The project's README starts from templates/README.md; the template's own README describes Grillhouse
 mv "$dest/templates/README.md" "$dest/README.md" && rmdir "$dest/templates"
-# `npm run new` belongs to the template only
-node -e 'const f=process.argv[1],p=JSON.parse(require("fs").readFileSync(f));delete p.scripts.new;require("fs").writeFileSync(f,JSON.stringify(p,null,2)+"\n")' "$dest/package.json"
+# `npm run new` belongs to the template only; the paths the template's suites read
+# (`grillhouse.lusParLesSuites`) are its own: the project declares its own, the other settings stay
+node -e 'const f=process.argv[1],p=JSON.parse(require("fs").readFileSync(f));delete p.scripts.new;if(p.grillhouse){delete p.grillhouse.lusParLesSuites;if(!Object.keys(p.grillhouse).length)delete p.grillhouse}require("fs").writeFileSync(f,JSON.stringify(p,null,2)+"\n")' "$dest/package.json"
 
 bash "$dest/scripts/setup.sh" ${2:+"$2"}
 git -C "$dest" add -A

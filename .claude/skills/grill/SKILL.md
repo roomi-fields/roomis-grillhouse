@@ -138,13 +138,16 @@ remplace jamais le grill. Les branches de l'arbre :
    **Une fois les composants décidés**, deux choix selon la taille du projet, que le responsable
    tranche :
    - **les tests d'une intégration** : `complet` (toutes les suites à chaque intégration, pour un
-     petit projet) ou `impactes` (les composants du lot et ceux qui en dépendent, toutes les
-     suites pour un lot qui touche un fichier hors de tout composant qui n'est pas un document, les gardes
-     seules pour un lot fait seulement de documents hors de tout composant (les `*.md`, et sous
-     `.claude/` tout fichier qui n'est ni un script ni un réglage), et toutes les suites une
-     fois la nuit par `scripts/nuit.sh`, pour un grand projet). Il s'écrit par
+     petit projet) ou `impactes` (les composants du lot et ceux qui en dépendent, et toutes les
+     suites une fois la nuit par `scripts/nuit.sh`, pour un grand projet). Il s'écrit par
      `npm pkg set grillhouse.integration=<choix>` ; pour `impactes`, la ligne de la nuit entre dans
      la table des tâches du poste (`crontab -e` : `0 3 * * * bash <racine>/scripts/nuit.sh`) ;
+   - **ce que lisent les suites** : les fichiers et dossiers hors de tout composant que les tests
+     lisent (des scripts, des réglages de test), déclarés par
+     `npm pkg set 'grillhouse.lusParLesSuites[]=<chemin>'`, une liste vide si aucun. Un chemin
+     déclaré qui change rejoue toutes les suites, comme le fichier de verrou ; un autre fichier hors
+     de tout composant, qui n'est ni un test ni une aide de test, n'en rejoue aucune. Un projet
+     créé ne reçoit pas les chemins de Grillhouse ;
    - **le contrôle de l'interface contre le code** (`scripts/interfaces-contre-code.mjs`) : une
      seule passe avant les tests (petit projet), ou un banc par composant qui appelle
      `verifierComposant`, rejoué seulement quand son composant l'est (grand projet).
