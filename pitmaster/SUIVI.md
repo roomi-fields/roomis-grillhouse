@@ -20,13 +20,14 @@ Chaque point : ce qui se surveille, ce qui le fermera.
 - **Avis aux projets après 3uv.65** : BPScript (son adaptateur des suites disparaît, il abandonne
   sa copie des traces, il déclare grillhouse.lusParLesSuites) ; FaustX (déclarer src/). Se ferme
   quand l'avis est passé, à la mise à jour du cadre chez eux.
-- **3uv.67** (constructions gardées par paquet) : lancé le 2026-10-12 après 3uv.65 (5002027).
-- **3uv.67.1** (ordre des matières de test, repris de BPScript) : circuit, part à la fermeture de 3uv.67.
+- **3uv.67.1** (ordre des matières de test, repris de BPScript) : lancé le 2026-10-12 après 3uv.67 (68894a9).
+- **Lot des petites corrections des scripts (3uv.56)** : 6 corrections, à présenter au responsable.
 
 ## F — fermés
 
 Chaque point : ce qui l'a fermé, le ticket.
 
+- **3uv.67** : livré (68894a9), contrôle continu vert ; textes de .claude/ écrits par le superviseur dans le lot.
 - **3uv.65, Q1, Q2-Q3, Q10, F5** : tranchés par le responsable, au ticket ; chef aa8e68b26a06389ac
   relancé le 2026-10-12.
 - **3uv.65, la suite de la racine** : « ok » du responsable, au ticket ; chef relancé.
