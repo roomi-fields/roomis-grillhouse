@@ -23,7 +23,7 @@ Chaque point : ce qui se surveille, ce qui le fermera.
 
 - **3uv.73** (index périmé après la construction, signalé par BPScript) : « ok », lancé le 2026-10-12. À sa livraison, prévenir BPScript avec 3uv.72.1.
 
-- **3uv.72.1** (main rouge : test fragile de sous-modules.spec contre la maintenance de git) : « oui », lancé le 2026-10-12. À sa livraison, signal à BPScript pour la mise à jour du cadre (décision du responsable : attendre 3uv.72).
+- **Consigne du testeur** (remarque du chef de 3uv.72.1) : un test qui se construit un environnement neuf y remet le réglage git de la suite (`tests/config-git.ts`). Texte sous `.claude/`, à moi ; à proposer au responsable.
 - **Lot 3uv.56** : 9 corrections, à présenter au responsable.
 - **Mesure de Beads** : refaire la mesure du coût d'une commande bd (bd show contre bd list --all) machine calme, avant de toucher à la lecture des tickets du tableau (« ok » du responsable).
 - **Contrôle du câblage des gardes** (idée, pas un ticket) : refuser un `integration:gardes` qui omet les gardes du cadre, en tolérant un écart nommé. À proposer au responsable quand BPScript aura fermé 322.6.7 (branchement de gardes.mjs chez lui).
@@ -36,6 +36,8 @@ Chaque point : ce qui se surveille, ce qui le fermera.
 ## F — fermés
 
 Chaque point : ce qui l'a fermé, le ticket.
+
+- **3uv.72.1** : livré (dc8cce3), contrôle continu vert (Node 22 et 24) ; copie et branche retirées. Signal à BPScript groupé avec 3uv.73.
 
 - **3uv.72** : livré (d72df51) ; son contrôle continu rouge vient de 3uv.69, confié à 3uv.72.1.
 - **3uv.71** : livré (0722766) ; greffons installés ici, avis à BPScript le 2026-10-12.
