@@ -13,12 +13,12 @@ sort et sa réponse va dans son ticket.
 
 Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 
-- **3uv.69** (a-valider) : régression du cadre relevée par BPScript sur 7e1d614 : la pose d'un sous-module ignore l'adresse de la configuration locale. Recommandation : valider et lancer. Question : je le lance ?
 
 ## S — à surveiller
 
 Chaque point : ce qui se surveille, ce qui le fermera.
 
+- **3uv.69** (adresse locale d'un sous-module) : « oui », lancé le 2026-10-12 ; prévenir BPScript à la livraison.
 - **Avis aux projets après 3uv.65** : BPScript (son adaptateur des suites disparaît, il abandonne
   sa copie des traces, il déclare grillhouse.lusParLesSuites) ; FaustX (déclarer src/). Se ferme
   quand l'avis est passé, à la mise à jour du cadre chez eux.
