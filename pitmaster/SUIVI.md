@@ -13,11 +13,6 @@ sort et sa réponse va dans son ticket.
 
 Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 
-- **R5 — 3uv.63.1, CI de main rouge** (integrer.spec.ts:1390, copie verrouillée sous git 2.55).
-  Recommandation : le lancer.
-- **R6 — copies restantes sous .claude/worktrees/** (58, 59, 60, 62, 64, 50.1, 59.1, 62.2, 63).
-  Recommandation : vérifier que le travail de chacune est sur main, puis les retirer.
-
 ## S — à surveiller
 
 Chaque point : ce qui se surveille, ce qui le fermera.
@@ -29,3 +24,6 @@ Chaque point : ce qui l'a fermé, le ticket.
 - **3uv.65, Q1, Q2-Q3, Q10, F5** : tranchés par le responsable, au ticket ; chef aa8e68b26a06389ac
   relancé le 2026-10-12.
 - **3uv.65, la suite de la racine** : « ok » du responsable, au ticket ; chef relancé.
+- **3uv.65 Q14** : « oui c'est bon », au ticket (critère 25) ; chef relancé.
+- **3uv.63.1** : « oui », lancé le 2026-10-12 (chef ab8c82415b3a1fd44).
+- **Copies livrées** : « oui » ; 22 copies retirées le 2026-10-12, chaque contenu modifié vérifié dans l'histoire de main ; 55.1 (ouvert) gardée.
