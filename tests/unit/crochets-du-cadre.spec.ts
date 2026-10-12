@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { mettreAJour } from '../../scripts/grillhouse-maj.mjs';
+import { claudeSubstitut } from '../claude-substitut.js';
 
 // grillhouse-3uv.59.1: the frame's git hooks — commit-msg (« un ticket, un commit »,
 // scripts/un-commit-par-ticket.mjs) and pre-push (the night branch guard, scripts/branche-de-nuit.mjs)
@@ -92,6 +93,12 @@ function outils() {
   return bin;
 }
 const BIN = outils();
+// The claude command, stood in: no test launches the real one (grillhouse-3uv.71, critère 6). The
+// marketplace the framework's settings declare, added from its GitHub repository, takes the name its
+// catalogue gives, roomi-fields, as the real command does.
+const CLAUDE = claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')), {
+  noms: { 'roomi-fields/claude-plugins': 'roomi-fields' },
+});
 
 // The environment of a human's command: the simulated tools first, a home of its own (no global
 // git configuration), without the night's mark.
@@ -99,7 +106,7 @@ const MAISON = mkdtempSync(path.join(ESSAIS, 'maison-'));
 const ENV: NodeJS.ProcessEnv = (() => {
   const env: NodeJS.ProcessEnv = {
     ...process.env,
-    PATH: `${BIN}:${process.env.PATH}`,
+    PATH: `${BIN}:${CLAUDE.bin}:${process.env.PATH}`,
     HOME: MAISON,
     GIT_CONFIG_NOSYSTEM: '1',
     GIT_AUTHOR_NAME: 't',

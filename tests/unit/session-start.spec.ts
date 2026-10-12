@@ -33,6 +33,8 @@ const stub = (bin: string, nom: string, corps: string) => {
 const outils = (avecCodegraph: boolean) => {
   const bin = mkdtempSync(path.join(racine, 'bin-'));
   stub(bin, 'bd', 'echo "[]"');
+  // the claude command, stood in: no test launches the real one (grillhouse-3uv.71, critère 6)
+  stub(bin, 'claude', 'echo "[]"');
   for (const outil of ['node', 'grep', 'sed', 'ls', 'basename', 'dirname', 'cat', 'git']) {
     const r = spawnSync('bash', ['-c', `command -v ${outil}`], { encoding: 'utf8' });
     if (r.status === 0) {
@@ -179,6 +181,7 @@ describe('the session start plays the check the project declares', () => {
   // The ticket tool is a stub with no ticket; every other tool, npm included, is the machine's.
   const bin = mkdtempSync(path.join(racine, 'bin-demarrage-'));
   stub(bin, 'bd', 'echo "[]"');
+  stub(bin, 'claude', 'echo "[]"');
   const PATH = `${bin}:${process.env.PATH ?? ''}`;
   const ailleurs = mkdtempSync(path.join(racine, 'ailleurs-'));
 
@@ -428,6 +431,7 @@ describe('the session start plays the check the project declares', () => {
 describe('grillhouse-3uv.65 critère 26 — the session start asks for grillhouse.lusParLesSuites', () => {
   const bin = mkdtempSync(path.join(racine, 'bin-lus-'));
   stub(bin, 'bd', 'echo "[]"');
+  stub(bin, 'claude', 'echo "[]"');
   stub(bin, 'crontab', 'exit 1');
   const PATH = `${bin}:${process.env.PATH ?? ''}`;
   // The items of « Pas encore renseignés » for a project with its architecture written and

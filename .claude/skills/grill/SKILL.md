@@ -37,8 +37,11 @@ le responsable corrige une proposition et garde son temps pour les vraies décis
 
 ## 1. Préparer le dépôt
 
-`bash scripts/setup.sh <préfixe>` s'il manque les tickets ou les dépendances : sans invite, idempotent.
-Le préfixe des tickets vient du nom du projet ; il se confirme au premier tour du grill.
+`bash scripts/setup.sh <préfixe>` s'il manque les tickets, les dépendances ou un greffon : sans
+invite, idempotent. Il installe pour le projet chaque greffon que `.claude/settings.json` déclare
+(`enabledPlugins`), après son marketplace ; l'ouverture de séance signale sous « Manque » chaque
+greffon absent, avec cette commande. Le préfixe des tickets vient du nom du projet ; il se confirme
+au premier tour du grill.
 
 ## 2. La règle de l'architecture
 

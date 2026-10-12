@@ -9,6 +9,12 @@
 # stopped. A failure (non-zero code) or a stop adds a line that says so, after the lines already
 # written; the session start goes on. Without the key (or with null), nothing runs; a value that is
 # not a non-blank string runs nothing and adds a line that says so. An agent's copy does not play it.
+#
+# The frame's plugins: scripts/greffons.mjs --absents reads `.claude/settings.json` and
+# `claude plugin list --json` (each call stopped after 5 s). Each declared plugin not installed for
+# the project joins « Manque » as « le greffon <id> », the missing claude command as « la commande
+# claude » (the line gives `bash scripts/setup.sh`, which installs them), and a reading that fails
+# or is stopped as « la lecture des greffons … ». An agent's copy does not read them.
 set -uo pipefail
 
 root="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -35,6 +41,17 @@ if [ -z "$copie_agent" ]; then
   [ -d "$root/.codegraph" ] || missing+=("l'index CodeGraph du code")
 fi
 [ ! -f "$root/package.json" ] || [ -d "$root/node_modules" ] || missing+=("les dépendances npm")
+# The frame's plugins not installed for the project (scripts/greffons.mjs): the plugins are the
+# machine's installation for the project, so an agent's copy does not read them.
+if [ -z "$copie_agent" ]; then
+  while IFS= read -r ligne; do
+    case "$ligne" in
+      claude) missing+=("la commande claude") ;;
+      "greffon "*) missing+=("le greffon ${ligne#greffon }") ;;
+      "lecture "*) missing+=("la lecture des greffons : ${ligne#lecture }") ;;
+    esac
+  done < <(timeout -k 1 8 node "$root/scripts/greffons.mjs" --absents "$root" 2>/dev/null)
+fi
 # The frame's git hooks absent from the folder git reads (scripts/crochets.mjs), each named.
 while IFS= read -r crochet; do
   [ -n "$crochet" ] && missing+=("le crochet git $crochet du cadre")

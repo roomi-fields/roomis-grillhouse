@@ -44,7 +44,7 @@ roomis-grillhouse/
 ├── pitmaster/SUIVI.md          # Pitmaster follow-up (open questions, last round)
 ├── scripts/
 │   ├── new-project.sh             # npm run new -- <dest> [prefix] (template only, not copied)
-│   ├── setup.sh                   # npm run setup: git, Beads tickets, the frame's git hooks (crochets.mjs), dependencies
+│   ├── setup.sh                   # npm run setup: git, Beads tickets, the frame's git hooks (crochets.mjs), the frame's plugins (greffons.mjs), dependencies
 │   ├── session-start.sh           # SessionStart hook: what is still empty (per package in the frame)
 │   ├── structure-guard.sh         # UserPromptSubmit hook: a structure decision goes to the grill
 │   ├── verrous/verrou.mjs         # The role agents' write locks (tests: tests/unit/verrous.spec.ts)
@@ -58,6 +58,7 @@ roomis-grillhouse/
 │   │                              #   composants(): the components for every check, minus the packages out of
 │   │                              #   the frame listed in docs/agents/hors-cadre.txt, "<package> <reason>"
 │   ├── crochets.mjs               # the frame's git hooks (commit-msg, pre-push): placed by setup.sh and grillhouse:maj, absent ones named by the session start
+│   ├── greffons.mjs               # the frame's plugins (those `.claude/settings.json` enables): installed for the project by setup.sh and grillhouse:maj, absent ones named by the session start
 │   ├── frontieres.mjs             # grillhouse:gardes: dependency-cruiser, rules generated in .dependency-cruiser.cjs
 │   ├── interfaces-contre-code.mjs # grillhouse:gardes: the TSDoc contract of each export (rubrics, tsdoc.json) and the generated part
 │   │                              #   of INTERFACE.md between its two marks; npm run api writes the reports and the parts
@@ -68,7 +69,7 @@ roomis-grillhouse/
 │   ├── branche-de-nuit.mjs        # pre-push guard: only the night pushes the branch of grillhouse.poussee.nuit
 │   ├── poussee-cles.mjs           # reads the grillhouse.poussee, .nuit and .commit keys of package.json for nuit.sh, the guard and the queue
 │   ├── retirer-copie.sh           # removes a working copy, submodules included (agent, integration, night)
-│   ├── grillhouse-maj.mjs         # npm run grillhouse:maj: the frame brought to its last version (files, git hooks, scripts, the controls' devDependencies); --ecarts
+│   ├── grillhouse-maj.mjs         # npm run grillhouse:maj: the frame brought to its last version (files, git hooks, the frame's plugins, scripts, the controls' devDependencies); --ecarts
 │   ├── tableau.mjs                # npm run tableau: the board on three levels (project, agents, chantier)
 │   ├── ligne-etat/                # the status line: the person's own on the left, the chantier on the right
 │   ├── registre.mjs               # hook: one line per finished agent (ticket, role, time, tokens)
@@ -170,9 +171,10 @@ Copies the template (without its caches and this marker), initialises git and th
 store, installs the dependencies, and makes the first commit.
 
 Prerequisites: Node.js and Claude Code. Everything else installs by default: `setup` installs
-Beads (`bd`) when missing, and the project settings declare the Claude Code plugins
-`mattpocock-skills` (grill, TDD, code review, handoff) and `rtfm` (search index), which Claude
-Code offers to install when the project is first opened.
+Beads (`bd`) when missing, and installs, for the project, the Claude Code plugins the project
+settings enable: `mattpocock-skills` (grill, TDD, code review, handoff), `rtfm` (search index) and
+`grillhouse` (the board). `grillhouse:maj` installs them too, and a session start names under
+« Manque » each one still missing.
 
 ### 2. Open Claude Code in it
 

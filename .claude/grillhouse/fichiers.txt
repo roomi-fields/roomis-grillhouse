@@ -22,6 +22,7 @@ scripts/branche-de-nuit.mjs
 scripts/code-mort.mjs
 scripts/consommateurs.mjs
 scripts/crochets.mjs
+scripts/greffons.mjs
 scripts/enveloppe/
 scripts/frontieres.mjs
 scripts/grillhouse-maj.mjs

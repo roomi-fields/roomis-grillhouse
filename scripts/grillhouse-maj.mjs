@@ -29,6 +29,10 @@
 //   guard) are placed by scripts/crochets.mjs, the mechanism scripts/setup.sh also calls, in the
 //   hooks folder git reads for the project (`core.hooksPath`, else the default one; the
 //   configuration stays). A hook of the project keeps its lines, which still run.
+// - The plugins: after the files, the command line installs the plugins the project's settings
+//   declare, for the project, by scripts/greffons.mjs (the mechanism scripts/setup.sh also calls;
+//   `mettreAJour` itself never calls claude). A plugin that cannot be installed has its line naming
+//   the command to type; the update has finished its files, and the exit code is non-zero.
 // - `.claude/grillhouse/empreintes.json` records the source's commit, each file's SHA-256 and the
 //   hooks, plugins and marketplaces installed. `--ecarts` compares the files with it: a frame file modified or missing in a
 //   project is drift, which goes back to Grillhouse as a proposal.
@@ -50,6 +54,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { poserCrochets } from './crochets.mjs';
+import { installerGreffons } from './greffons.mjs';
 
 export const DEPOT = 'https://github.com/roomi-fields/roomis-grillhouse.git';
 const LISTE = '.claude/grillhouse/fichiers.txt';
@@ -342,5 +347,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     process.stdout.write(
       `Dépendances de développement ajoutées : ${b.dependances.join(', ')}. \`npm install\` les installe.\n`
     );
+  }
+  for (const l of installerGreffons(projet)) {
+    process.stderr.write(`${l}\n`);
+    process.exitCode = 1;
   }
 }

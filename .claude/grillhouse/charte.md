@@ -24,7 +24,7 @@ professionnel.
 2. Un défaut remonté est d'abord une question d'architecture : le ticket s'ouvre sur sa section
    « Architecture » (le modèle mûr nommé, l'adresse dans l'architecture, le mécanisme commun), et
    le correctif va dans ce mécanisme. Ainsi tout correctif passe par l'architecture.
-3. Une décision reste à prendre : `mattpocock-skills:grill-me` avant d'écrire, ses questions dans
+3. Une décision reste à prendre : `mattpocock-skills:grilling` avant d'écrire, ses questions dans
    le ticket. Ainsi la décision est prise et écrite avant le code.
 4. Le plan va dans le ticket (`bd update <id> -d`). Un travail qui change un comportement est un
    seul ticket, qui passe d'un agent au suivant dans sa copie : les tests d'abord (agent
@@ -33,8 +33,9 @@ professionnel.
 5. Le ticket se ferme sur ses tests ciblés, le verdict de l'agent `relecteur` sur le lot, le
    commit de l'agent `integrateur`, seul à commiter, sur la branche du ticket, et l'entrée de
    cette branche sur main par la file, qui le ferme. Ainsi ce qui est déclaré fini l'est vraiment.
-6. Chaque agent laisse sa passation dans le ticket (`mattpocock-skills:handoff`), avec ce qui
-   n'est pas fait et pourquoi.
+6. Chaque agent laisse sa passation en commentaire au ticket (`bd comments add`,
+   `docs/agents/issue-tracker.md`), avec ce qui n'est pas fait et pourquoi. Ainsi l'agent suivant
+   la trouve par `bd show`.
 
 Une séance de supervision charge le superviseur (`pitmaster`). Les rôles sont des agents du projet
 (`.claude/agents/`), chacun désigné par le numéro de son rôle, dans l'ordre du flux :

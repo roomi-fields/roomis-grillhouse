@@ -45,6 +45,6 @@ Issues for this repo live in Beads, a git-backed tracker: data under `.beads/`, 
 
 ## Handoff
 
-`/handoff` writes its document as a comment on the ticket being worked (`bd comments add`), not in a temp file, so the next session finds it with `bd show`.
+The handoff is a comment on the ticket being worked, written by `bd comments add <id>`, not a temp file or a skill's document: the next session finds it with `bd show` or `bd comments <id>`.
 
 The handoff notes the clock time at which each phase ended: code, tests, review, fixes, commit.

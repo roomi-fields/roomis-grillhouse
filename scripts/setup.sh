@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 # Prepares a fresh copy of the template for its first session: dependencies, and the Beads
-# ticket store the `pitmaster` and `developpeur` skills work from, and the frame's git hooks
-# (scripts/crochets.mjs, the mechanism npm run grillhouse:maj also calls). Idempotent.
+# ticket store the `pitmaster` and `developpeur` skills work from, the frame's git hooks
+# (scripts/crochets.mjs) and the frame's plugins (scripts/greffons.mjs), both mechanisms that
+# npm run grillhouse:maj also calls. Idempotent.
+#
+# The plugins are the ones `.claude/settings.json` declares at true in `enabledPlugins`, installed
+# for the project (`--scope project`) after their absent marketplaces are added. A plugin that
+# cannot be installed (no `claude` command, a failure) has its line naming the command to type; the
+# other steps still run, then the exit code is non-zero.
 #
 # Usage: npm run setup [-- <ticket-prefix>]   (prefix: the store's own, else the directory name)
 set -euo pipefail
@@ -33,7 +39,11 @@ git -C "$root" config beads.role maintainer
 # The frame's git hooks (commit-msg, pre-push), in the folder git reads: the hooks path first
 [ -n "$(git -C "$root" config core.hooksPath)" ] || git -C "$root" config core.hooksPath .beads/hooks
 node "$root/scripts/crochets.mjs" "$root"
+# The frame's plugins, for the project: a failure is reported at the end, after the other steps.
+greffons=0
+node "$root/scripts/greffons.mjs" "$root" || greffons=1
 
 [ -f "$root/package.json" ] && npm --prefix "$root" install
 
 echo "Ready: tickets '$prefix-*' (bd ready), skills: $(ls "$root/.claude/skills" | tr '\n' ' ')"
+exit "$greffons"
