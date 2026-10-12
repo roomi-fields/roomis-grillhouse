@@ -13,6 +13,8 @@ sort et sa réponse va dans son ticket.
 
 Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 
+- **3uv.72** (a-valider, BPScript) : le crochet de fin de séance est annulé sur une transcription de 236 Mo ; le temps de travail de la séance manque au tableau. Recommandation : valider et lancer (crochet détaché, lecture en flux). Question : je le lance ?
+
 
 
 ## S — à surveiller
