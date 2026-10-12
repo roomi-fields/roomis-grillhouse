@@ -632,17 +632,22 @@ export function assembler({
     }
   }
   parEtat.fermes.sort((a, b) => Date.parse(b.closed_at ?? '') - Date.parse(a.closed_at ?? ''));
-  const etats = ETATS.map(({ cle, nom, sens }) => ({
-    cle,
-    nom,
-    sens,
-    tickets: parEtat[cle].map(t => ({
-      id: t.id,
-      numero: numero(t.id),
-      sujet: titre(t).sujet,
-      bloquePar: bloquePar(t),
-    })),
-  }));
+  // The states' view lists the tickets of the chantiers in progress only (`garde`, their ids); the
+  // counters keep every ticket.
+  const etatsDe = garde =>
+    ETATS.map(({ cle, nom, sens }) => ({
+      cle,
+      nom,
+      sens,
+      tickets: parEtat[cle]
+        .filter(t => garde.has(t.id))
+        .map(t => ({
+          id: t.id,
+          numero: numero(t.id),
+          sujet: titre(t).sujet,
+          bloquePar: bloquePar(t),
+        })),
+    }));
   const mesures = [
     ...finis.map(r => ({ ...r, quand: Date.parse(r.fin) })),
     ...enCoursMesures.map(v => ({ ...v, quand: maintenant })),
@@ -707,6 +712,13 @@ export function assembler({
       autres.push({ id: n.id, numero: n.numero, sujet: n.sujet, faits: n.faits, total: n.total });
     }
   }
+  const duChantier = new Set(
+    racines
+      .filter(r => chantiers.some(c => c.id === r.id))
+      .flatMap(sous)
+      .map(t => t.id)
+  );
+  const etats = etatsDe(duChantier);
 
   // Agents.
   const passages = new Map();
@@ -820,10 +832,7 @@ export function assembler({
   }
   // Each ticket's own measures: its agents' working time and tokens, running agents included.
   const parTicket = Object.fromEntries(
-    [...new Set(mesures.map(m => m.ticket).filter(Boolean))].map(id => [
-      id,
-      mesure(new Set([id])),
-    ])
+    [...new Set(mesures.map(m => m.ticket).filter(Boolean))].map(id => [id, mesure(new Set([id]))])
   );
   return { global, alertes, chantiers, autres, agents: blocs, faitsDuJour, etats, parTicket };
 }
@@ -1034,8 +1043,8 @@ export function lignes(t, nom, largeur = LARGEUR) {
   return out;
 }
 
-// The states' view, `largeur` columns wide: each state, its meaning, then its tickets one per
-// line, selectable as the board's are; section `etats`.
+// The states' view, `largeur` columns wide: each state, its meaning, then the tickets of the
+// chantiers in progress one per line, selectable as the board's are; section `etats`.
 export function lignesEtats(t, largeur = LARGEUR) {
   const out = [];
   for (const e of t.etats) {

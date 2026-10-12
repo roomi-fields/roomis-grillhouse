@@ -396,7 +396,7 @@ describe('assembler', () => {
     expect(l[2]).toBe('1 sans go · 1 à valider · 0 reportés');
     expect((dessin(t)[2] as { ton?: string }).ton).toBe('attention');
   });
-  it('lists each state, its meaning and its tickets one per line in the states view', () => {
+  it('lists each state, its meaning and the tickets of the chantier in progress one per line in the states view', () => {
     const v = lignesEtats(t) as { texte: string; ticket?: string; section: string }[];
     const titres = v.filter(x => !x.ticket && x.texte.trim() && x.texte.trim() !== '—');
     expect(titres.map(x => x.texte.split(' — ')[0])).toEqual([
@@ -419,8 +419,10 @@ describe('assembler', () => {
     expect(sous('EN ATTENTE')).toEqual(['demo-c.3']);
     expect(sous('SANS GO')).toEqual(['demo-c.2']);
     expect(sous('BLOQUÉ')).toEqual(['—']);
-    // The done tickets, the last closed first.
-    expect(sous('FAIT')).toEqual(['demo-c.1.2', 'demo-z.1']);
+    // The done tickets, the last closed first; demo-z.1, outside the chantier in progress, is
+    // counted but not listed.
+    expect(sous('FAIT')).toEqual(['demo-c.1.2']);
+    expect(t.global.compteurs.fermes).toBe(2);
     expect(new Set(v.map(x => x.section))).toEqual(new Set(['etats']));
     for (const x of v) {
       expect([...x.texte].length).toBeLessThanOrEqual(LARGEUR);
