@@ -21,6 +21,7 @@ Chaque point : ce qui se surveille, ce qui le fermera.
   sa copie des traces, il déclare grillhouse.lusParLesSuites) ; FaustX (déclarer src/). Se ferme
   quand l'avis est passé, à la mise à jour du cadre chez eux.
 - **3uv.67** (constructions gardées par paquet) : lancé le 2026-10-12 après 3uv.65 (5002027).
+- **3uv.67.1** (ordre des matières de test, repris de BPScript) : circuit, part à la fermeture de 3uv.67.
 
 ## F — fermés
 
@@ -33,3 +34,6 @@ Chaque point : ce qui l'a fermé, le ticket.
 - **3uv.63.1** : « oui », lancé le 2026-10-12 (chef ab8c82415b3a1fd44).
 - **Copies livrées** : « oui » ; 22 copies retirées le 2026-10-12, chaque contenu modifié vérifié dans l'histoire de main ; 55.1 (ouvert) gardée.
 - **3uv.65 constat 1** : « je suis d'accord sur le principe », au ticket ; découpage « oui » → 3uv.67.
+- **3uv.67 R10, ce qu'est une construction** : « ok go », au ticket.
+- **3uv.67 R11, purge** : règle du responsable (main, main~1, tickets en cours), « oui », au ticket.
+- **3uv.67.1** : validé et lancé après 3uv.67, « oui », au ticket.
