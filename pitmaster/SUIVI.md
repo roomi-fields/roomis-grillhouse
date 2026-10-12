@@ -13,7 +13,7 @@ sort et sa réponse va dans son ticket.
 
 Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 
-- **3uv.69 et 3uv.70** (a-valider) : deux régressions du cadre relevées par BPScript sur 7e1d614, qui bloquent sa mise à jour (adresse locale d'un sous-module ignorée ; un seul --exclude accepté par vitest 1.6). Recommandation : valider et lancer, l'un après l'autre (une mesure lourde à la fois). Question : je les lance ?
+- **3uv.69** (a-valider) : régression du cadre relevée par BPScript sur 7e1d614 : la pose d'un sous-module ignore l'adresse de la configuration locale. Recommandation : valider et lancer. Question : je le lance ?
 
 ## S — à surveiller
 
@@ -30,6 +30,7 @@ Chaque point : ce qui se surveille, ce qui le fermera.
 
 Chaque point : ce qui l'a fermé, le ticket.
 
+- **3uv.70** : sans objet, BPScript monte vitest à la version du cadre.
 - **3uv.67.1** : livré (209c970), contrôle continu vert.
 - **3uv.67** : livré (68894a9), contrôle continu vert ; textes de .claude/ écrits par le superviseur dans le lot.
 - **3uv.65, Q1, Q2-Q3, Q10, F5** : tranchés par le responsable, au ticket ; chef aa8e68b26a06389ac
