@@ -45,8 +45,9 @@ node scripts/integration/integrer.mjs --ticket <id> [--ticket <id>…] \
 `agent/<ticket>` et sa copie. Le script vérifie
 `ACCEPTÉ` et les arbitrages, garde les tests au testeur et le code au développeur. Puis, dans une
 copie d'intégration propre (`.claude/worktrees/integration`, sur HEAD, sans fichier local), il
-mesure la base, applique les lots en trois voies, construit une fois quand une suite ou une garde
-lit la construction, rejoue les suites et les gardes, compare les suites à la base nom par nom et commite avec les
+mesure la base, applique les lots en trois voies, construit une fois, par le point d'entrée des
+constructions (`scripts/integration/constructions.mjs`), quand une suite ou une garde lit la
+construction (une construction inchangée se restaure du magasin), rejoue les suites et les gardes, compare les suites à la base nom par nom et commite avec les
 crochets sur `agent/<ticket>` ; main n'avance pas ici. Il étiquette chaque ticket `en-file`, place
 la branche dans la file et retire la copie du ticket. Les suites rejouées suivent le choix du
 projet : toutes (`complet`), ou les composants du lot et ceux qui en dépendent (`impactes`, toutes

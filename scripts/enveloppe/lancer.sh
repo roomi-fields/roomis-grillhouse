@@ -28,8 +28,10 @@
 #   place; then every submodule is set at the commit of HEAD, before any installation, except one the
 #   project shares (`grillhouse.partage`), which the copy reads from the main repository. Its
 #   dependencies are installed when `node_modules` is absent or `package-lock.json` is newer than
-#   the last installation (`node_modules/.package-lock.json`, written by npm), and every component
-#   is built there, outside the envelope, so the agent finds the published parts of its neighbours. The
+#   the last installation (`node_modules/.package-lock.json`, written by npm), and it is built there
+#   by the one entry point that builds (scripts/integration/constructions.mjs, which restores an
+#   unchanged build from the store), outside the envelope, so the agent finds the published parts of
+#   its neighbours. The
 #   installation and the build play through `scripts/sous-modules.sh monter`, each shared submodule
 #   of the main repository read-only, by the list the pose printed, whatever the installation
 #   rewrites afterwards; with a shared submodule and no possible mount (bwrap absent or
@@ -134,7 +136,7 @@ fi
     if [ ! -d "$copie/node_modules" ] || [ "$copie/package-lock.json" -nt "$installe" ]; then
       monter npm --prefix "$copie" install --no-save --no-audit --no-fund --silent || exit 1
     fi
-    monter npm --prefix "$copie" run build --if-present --silent || exit 1
+    (cd "$copie" && monter node "$ici/../integration/constructions.mjs") || exit 1
   fi
 ) > "$journal" 2>&1 || { echo "⛔ La copie $copie n'a pas pu être préparée : voir $journal." >&2; exit "$CODE_COPIE"; }
 

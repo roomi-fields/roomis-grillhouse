@@ -7,9 +7,12 @@
 //   submodules set (`scripts/sous-modules.sh`, a local modification overwritten; a submodule the
 //   project shares, `grillhouse.partage`, is linked to the main repository's instead), its
 //   dependencies installed again when `package-lock.json` changes (`npm ci`). It builds nothing:
-//   the build comes after the lots, once, as soon as a suite or a guard reads the build (main is
-//   built only when one of its suites plays). An existing copy that does not get ready is removed by `scripts/retirer-copie.sh --jetable` (local
-//   work does not hold it, a lock does) and created again, once; a copy that does not get ready the
+//   the build comes after the lots, as soon as a suite or a guard reads the build (main is built only
+//   when one of its suites plays), through the one entry point that builds
+//   (scripts/integration/constructions.mjs: a build whose fingerprint is in the store is restored,
+//   not done again; the base and the lot each read the build of their own content). An existing
+//   copy that does not get ready is removed by `scripts/retirer-copie.sh --jetable` (local work
+//   does not hold it, a lock does) and created again, once; a copy that does not get ready the
 //   second time refuses, and so does a removal the script refuses, with its reason. Every command
 //   of the project plays through `scripts/sous-modules.sh monter`: each submodule the preparation
 //   linked is read-only, by the list the pose printed, whatever a command rewrites afterwards. With a
@@ -18,13 +21,13 @@
 //   (`grillhouse.integration`: `impactes` by default, `complet`) decides in `portee`.
 // - `suites` plays `npm run integration:suites -- <scope>` (scripts/integration/suites-vitest.mjs:
 //   `--tous`, the components' directories, `--racine`, or `--tests <files>`), which writes the names
-//   of its failing tests, one per line, to the file named by ROUGES. It builds the project
-//   (`npm run build`) just before, only when a suite of the call plays, that is when one has no
-//   trace (scripts/integration/traces.mjs, `aJouer`): a call whose suites are all kept builds nothing.
+//   of its failing tests, one per line, to the file named by ROUGES. It builds the project (the
+//   entry point) just before, only when a suite of the call plays, that is when one has no trace
+//   (scripts/integration/traces.mjs, `aJouer`): a call whose suites are all kept builds nothing.
 // - `gardes` plays `npm run integration:gardes` (scripts/integration/gardes.mjs). The project is
-//   built once after the lots: by the `suites` of the lot when one plays, otherwise by `gardes`
-//   when a control of `grillhouse:gardes` follows its build step (it reads the build). No control
-//   is left out.
+//   built after the lots: by the `suites` of the lot when one plays, otherwise by `gardes` when a
+//   control of `grillhouse:gardes` follows its build step (it reads the build). No control is left
+//   out.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -35,6 +38,7 @@ import { etapesDesGardes } from './gardes.mjs';
 import { ouvrirTraces } from './traces.mjs';
 
 const SOUS_MODULES = fileURLToPath(new URL('../sous-modules.sh', import.meta.url));
+const CONSTRUCTIONS = fileURLToPath(new URL('./constructions.mjs', import.meta.url));
 export const RETIRER_COPIE = fileURLToPath(new URL('../retirer-copie.sh', import.meta.url));
 
 export const lireJsonSiPresent = p => (existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : null);
@@ -131,8 +135,8 @@ export function ouvrirCopie({ racine, copie, ref, tmp, dire }) {
   ];
   const montage = spawnSync('bash', monter('true'), { encoding: 'utf8' });
   if (montage.status !== 0) return { refus: montage.stderr.trim() };
-  const npm = (args, env = {}) => {
-    const r = spawnSync('bash', monter('npm', ...args), {
+  const lancer = (commande, args, env = {}) => {
+    const r = spawnSync('bash', monter(commande, ...args), {
       cwd: copie,
       encoding: 'utf8',
       env: { ...process.env, ...env },
@@ -140,6 +144,7 @@ export function ouvrirCopie({ racine, copie, ref, tmp, dire }) {
     process.stdout.write(r.stdout + r.stderr);
     return r;
   };
+  const npm = (args, env = {}) => lancer('npm', args, env);
   const verrouNpm = path.join(copie, 'package-lock.json');
   if (existsSync(verrouNpm)) {
     const cle = path.join(copie, 'node_modules', '.integration-lock');
@@ -189,7 +194,7 @@ export function ouvrirCopie({ racine, copie, ref, tmp, dire }) {
   // naming a test leaves one name « (les suites sortent en <code> sans test nommé) ». The project
   // is built first when a suite of the run plays; `construit` says the lot was built (not the base).
   let construit = false;
-  const construire = () => npm(['run', '--silent', '--if-present', 'build']).status === 0;
+  const construire = () => lancer('node', [CONSTRUCTIONS]).status === 0;
   const suites = (champ, nom) => {
     const rouges = path.join(tmp, nom);
     writeFileSync(rouges, '');

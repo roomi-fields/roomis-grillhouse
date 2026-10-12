@@ -127,9 +127,11 @@ remplace jamais le grill. Les branches de l'arbre :
    **Le corpus du produit, un seul paquet** : les cas qui traversent toute la chaîne, et dont toute
    modification d'un paquet peut changer le résultat, vivent dans un seul paquet qui exporte
    `./test-fixtures`, comme `tests/cases` de TypeScript ou `tests/ui` de rustc ; tous les rôles le
-   lisent, le testeur seul l'écrit. L'ordre
-   de construction se lit dans les `dependencies` des `package.json`, comme Cargo et Turborepo ;
-   aucune configuration ne lit celle d'un voisin, que l'enveloppe cache. Un test atteint son paquet
+   lisent, le testeur seul l'écrit. Chaque
+   paquet construit porte un script `build` qui écrit son `dist/` ; le cadre les lance un à un par
+   son point d'entrée (`scripts/integration/constructions.mjs`), que le `build` de la racine
+   appelle, dans l'ordre de ce que le code de production importe vraiment, comme Turborepo suit le
+   graphe des paquets ; une construction inchangée se restaure du magasin. Aucune configuration ne lit celle d'un voisin, que l'enveloppe cache. Un test atteint son paquet
    par une seule route : les sources relatives pour un test unitaire, le nom du paquet pour un test
    de porte. Ainsi un agent enveloppé construit et teste son paquet avec ce que ses voisins
    publient.

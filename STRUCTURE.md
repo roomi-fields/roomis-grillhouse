@@ -61,7 +61,7 @@ roomis-grillhouse/
 │   ├── frontieres.mjs             # grillhouse:gardes: dependency-cruiser, rules generated in .dependency-cruiser.cjs
 │   ├── interfaces-contre-code.mjs # grillhouse:gardes: the TSDoc contract of each export (rubrics, tsdoc.json) and the generated part
 │   │                              #   of INTERFACE.md between its two marks; npm run api writes the reports and the parts
-│   ├── nuit.sh                    # every suite, once a night (mode « impactes »), reading no trace of the suites (FORCER=1), then the night tests
+│   ├── nuit.sh                    # every suite, once a night (mode « impactes »), building once through constructions.mjs and reading no trace of the suites or stored build (FORCER=1), then the night tests
 │   │                              #   (*.nuit.test.*, *.nuit.spec.*); a red opens a ticket
 │   ├── vitest.nuit.config.mjs     # the Vitest configuration of the night tests, played by nuit.sh
 │   ├── sous-modules.sh            # the submodules of a working copy (integration, agent, night) at HEAD, or shared read-only (grillhouse.partage)
@@ -77,8 +77,9 @@ roomis-grillhouse/
 │   │   ├── file.mjs                  # the queue: brings the branches onto main one at a time, replaced and replayed when main moved, pushes main (tests: tests/unit/file-integration.spec.ts)
 │   │   ├── rejeu.mjs                 # the replay shared by integrer.mjs and file.mjs: clean copy, scope of the suites, suites by test name, guards
 │   │   ├── file-attente.mjs          # the locks and the queue's entries, in git's common directory
-│   │   ├── traces.mjs                # the fingerprints of the content, the traces of the suites in git's common directory, what each suite owes
-│   │   ├── gardes.mjs                # npm run integration:gardes: the controls of grillhouse:gardes without its build step (the integration builds once after the lots, whenever a suite or a control reads the build)
+│   │   ├── traces.mjs                # the fingerprints of the content, the store in git's common directory (traces of the suites, builds kept by fingerprint), its purge, what each suite owes
+│   │   ├── constructions.mjs         # the one entry point that builds: purges the store, restores the dist/ of an unchanged build or builds it and stores it (FORCER=1 builds all); called by rejeu.mjs, nuit.sh, enveloppe/lancer.sh and the root build of a project with packages
+│   │   ├── gardes.mjs                # npm run integration:gardes: the controls of grillhouse:gardes without its build step (the integration builds after the lots, through constructions.mjs, whenever a suite or a control reads the build)
 │   │   └── suites-vitest.mjs         # npm run integration:suites -- --tous|<components>|--racine|--tests <files>: failing tests by name, for Vitest
 │   │                                 #   (budget benches and night tests left out); the verdict of each suite is kept under the fingerprint
 │   │                                 #   of its content in git's common directory and a suite unchanged is not replayed (FORCER=1 replays)

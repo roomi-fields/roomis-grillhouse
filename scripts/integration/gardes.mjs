@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 // The guards of an integration: `integration:gardes` in package.json. It plays the controls of
 // `grillhouse:gardes`, the one list of them, in their order, without its build step: the
-// integration builds the project once, after the lots (scripts/integration/rejeu.mjs, as soon as a
-// suite or a control that follows the build step in the list reads the build), and plays every
-// control, none is left out. Exit code: the first control that refuses, else 0.
+// integration builds the project after the lots, through the one entry point that builds
+// (scripts/integration/constructions.mjs; scripts/integration/rejeu.mjs calls it as soon as a suite
+// or a control that follows the build step in the list reads the build), and plays every control,
+// none is left out. The night does the same (scripts/nuit.sh). Exit code: the first control that
+// refuses, else 0.
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
