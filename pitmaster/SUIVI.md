@@ -13,8 +13,7 @@ sort et sa réponse va dans son ticket.
 
 Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 
-- **Charte, étapes 3 et 6** (posée le 2026-10-12) : `grill-me` et `handoff` sont réservées à l'humain (disable-model-invocation), aucun agent ne peut les lancer. Recommandation : étape 3 → `mattpocock-skills:grilling` ; étape 6 → la passation en commentaire au ticket (`bd comments add`). Question : je corrige la charte ainsi ?
-- **Redacteur, « un paragraphe sur une seule ligne »** (proposé par BPScript, 2026-10-12) : pas de retour à la ligne dur dans un paragraphe d'un document lu par un humain ; un diff montre la phrase changée, un éditeur replie. Référence : la règle de BPScript ; le cadre coupe aujourd'hui à 100 colonnes. Question : le cadre la prend-il ? (à poser après la précédente)
+- **Redacteur, « un paragraphe sur une seule ligne »** (proposé par BPScript, 2026-10-12) : pas de retour à la ligne dur dans un paragraphe d'un document lu par un humain ; un diff montre la phrase changée, un éditeur replie. Référence : la règle de BPScript ; le cadre coupe aujourd'hui à 100 colonnes. Question : le cadre la prend-il ?
 
 
 ## S — à surveiller
@@ -22,6 +21,7 @@ Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 Chaque point : ce qui se surveille, ce qui le fermera.
 
 - **Contrôle du câblage des gardes** (idée, pas un ticket) : refuser un `integration:gardes` qui omet les gardes du cadre, en tolérant un écart nommé. À proposer au responsable quand BPScript aura fermé 322.6.7 (branchement de gardes.mjs chez lui).
+- **3uv.71** (configuration nominale, greffons installés par la préparation et la mise à jour ; charte étapes 3 et 6) : « oui », lancé le 2026-10-12. À la livraison : installer ici, mise à jour chez BPScript.
 - **3uv.69** (adresse locale d'un sous-module) : « oui », lancé le 2026-10-12 ; prévenir BPScript à la livraison.
 - **Avis aux projets après 3uv.65** : BPScript (son adaptateur des suites disparaît, il abandonne
   sa copie des traces, il déclare grillhouse.lusParLesSuites) ; FaustX (déclarer src/). Se ferme
