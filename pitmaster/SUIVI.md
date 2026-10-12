@@ -13,6 +13,9 @@ sort et sa réponse va dans son ticket.
 
 Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 
+- **Charte, étapes 3 et 6** (posée le 2026-10-12) : `grill-me` et `handoff` sont réservées à l'humain (disable-model-invocation), aucun agent ne peut les lancer. Recommandation : étape 3 → `mattpocock-skills:grilling` ; étape 6 → la passation en commentaire au ticket (`bd comments add`). Question : je corrige la charte ainsi ?
+- **Redacteur, « un paragraphe sur une seule ligne »** (proposé par BPScript, 2026-10-12) : pas de retour à la ligne dur dans un paragraphe d'un document lu par un humain ; un diff montre la phrase changée, un éditeur replie. Référence : la règle de BPScript ; le cadre coupe aujourd'hui à 100 colonnes. Question : le cadre la prend-il ? (à poser après la précédente)
+
 
 ## S — à surveiller
 
