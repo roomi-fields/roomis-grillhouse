@@ -13,7 +13,6 @@ sort et sa réponse va dans son ticket.
 
 Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 
-- **3uv.72** (a-valider, BPScript) : le crochet de fin de séance est annulé sur une transcription de 236 Mo ; le temps de travail de la séance manque au tableau. Recommandation : valider et lancer (crochet détaché, lecture en flux). Question : je le lance ?
 
 
 
@@ -22,6 +21,7 @@ Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 Chaque point : ce qui se surveille, ce qui le fermera.
 
 - **Contrôle du câblage des gardes** (idée, pas un ticket) : refuser un `integration:gardes` qui omet les gardes du cadre, en tolérant un écart nommé. À proposer au responsable quand BPScript aura fermé 322.6.7 (branchement de gardes.mjs chez lui).
+- **3uv.72** (ligne du registre d'une longue séance) : « oui », lancé le 2026-10-12 ; prévenir BPScript à la livraison.
 - **3uv.71** (configuration nominale, greffons installés par la préparation et la mise à jour ; charte étapes 3 et 6) : « oui », lancé le 2026-10-12. À la livraison : installer ici, mise à jour chez BPScript.
 - **3uv.69** (adresse locale d'un sous-module) : « oui », lancé le 2026-10-12 ; prévenir BPScript à la livraison.
 - **Avis aux projets après 3uv.65** : BPScript (son adaptateur des suites disparaît, il abandonne
