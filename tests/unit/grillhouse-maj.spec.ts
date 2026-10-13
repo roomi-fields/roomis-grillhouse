@@ -7,6 +7,7 @@ import {
   readFileSync,
   rmSync,
   statSync,
+  symlinkSync,
   utimesSync,
   writeFileSync,
 } from 'node:fs';
@@ -1273,8 +1274,24 @@ describe('grillhouse-3uv.76 critère 2 — the update regenerates what a frame g
       echecsInstall: [],
     });
     lancerMajAvec(projet, ['--source', DEPOT], claude.bin);
+    // The project's tools are its installed devDependencies (the update declares dependency-cruiser
+    // there): the frame's node_modules stands for them. The checks run with node and npx alone on
+    // the PATH and an empty global prefix (npx --no-install also takes the global packages), so no
+    // tool installed on the machine stands in for the project's.
+    symlinkSync(path.join(DEPOT, 'node_modules'), path.join(projet, 'node_modules'), 'dir');
+    const noeudSeul = mkdtempSync(path.join(ESSAIS, 'noeud-'));
+    symlinkSync(process.execPath, path.join(noeudSeul, 'node'));
+    symlinkSync(path.join(path.dirname(process.execPath), 'npx'), path.join(noeudSeul, 'npx'));
     const noeud = (args: string[]) =>
-      spawnSync(process.execPath, args, { cwd: projet, encoding: 'utf8' });
+      spawnSync(process.execPath, args, {
+        cwd: projet,
+        encoding: 'utf8',
+        env: {
+          PATH: cheminSysteme(noeudSeul),
+          HOME: mkdtempSync(path.join(ESSAIS, 'maison-')),
+          npm_config_prefix: mkdtempSync(path.join(ESSAIS, 'global-')),
+        },
+      });
     for (const [fichier, g] of Object.entries(generes)) {
       expect(lire(projet, g.generateur), g.generateur).toBe(lire(DEPOT, g.generateur));
       const ecrite = lire(projet, fichier);
