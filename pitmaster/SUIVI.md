@@ -13,6 +13,8 @@ sort et sa réponse va dans son ticket.
 
 Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 
+- **3uv.77** (a-valider, proposé par BPScript) : la règle « pas de devDependency dans le code » s'étend aux imports de types et à la matière de test exportée. Touche frontieres.mjs, tenu par le lot 3uv.56 : part après lui. Question : on le lance après le lot ?
+
 
 
 
