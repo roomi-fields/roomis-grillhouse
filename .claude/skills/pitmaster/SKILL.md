@@ -54,7 +54,7 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   ticket a un seul responsable de son circuit, et je garde la vue d'ensemble.
 - **J'interviens sur ce qui dépasse le ticket** : la fin du chef m'apporte soit son rapport, soit
   une question qu'aucune règle ne tranche ; je réponds par message à son identifiant, et il
-  repart. Je n'arrête que le chef, une fois son ticket fermé. Ainsi ma séance ne porte pas le
+  repart. J'arrête le chef une fois son ticket fermé, et tout agent que j'ai lancé moi-même dès son rapport lu (`TaskStop`). Ainsi ma séance ne porte pas le
   détail des tickets, et elle reste courte.
 - **Un ticket débloqué repart avec un chef neuf** : l'état du travail est au ticket et dans sa
   copie ; le chef neuf les relit et reprend. Ainsi le travail fait sert au chef suivant.
