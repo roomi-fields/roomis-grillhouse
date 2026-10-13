@@ -25,12 +25,11 @@ Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 Chaque point : ce qui se surveille, ce qui le fermera.
 
 - **3uv.56.2** (bissection par composant, nuit.sh) : « go » le 2026-10-13 ; part après le lot 3uv.56 et après 3uv.75.1 (commande unique).
-- **3uv.75** (les tests relus quand rien n'a bougé) : grill fait, décisions à la mère ; 75.1 (cache par fichier, commande unique), 75.2 (contrôles en cache), 75.3 (refus du lancement direct), à valider. 75.1 : « oui », part à la livraison du lot 3uv.56 (étiquette circuit posée au lancement).
+- **3uv.75** (les tests relus quand rien n'a bougé) : grill fait, décisions à la mère ; 75.1 (cache par fichier, commande unique), 75.2 (contrôles en cache), 75.3 (refus du lancement direct), à valider. 75.1 : « oui », lancé le 2026-10-13 ; à sa livraison, mesurer le gain (temps et jetons des agents) et le dire au responsable.
 - **3uv.74.1** (a-valider, découverte du chef de 3uv.74) : la nuit et le lanceur des copies d'agent installent les dépendances par leurs propres mécanismes ; passer par la fonction commune `accorder` ? Décision de structure, pas urgente pour BPScript.
 
 
 - **Consigne du testeur** (remarque du chef de 3uv.72.1) : un test qui se construit un environnement neuf y remet le réglage git de la suite (`tests/config-git.ts`). Texte sous `.claude/`, à moi ; à proposer au responsable.
-- **Lot 3uv.56** : 13 corrections, « oui », lancé le 2026-10-13 ; le point 13 (settings.json réécrit) gêne BPScript : le prévenir à la livraison.
 - **Mesure de Beads** : refaire la mesure du coût d'une commande bd (bd show contre bd list --all) machine calme, avant de toucher à la lecture des tickets du tableau (« ok » du responsable).
 - **Contrôle du câblage des gardes** (idée, pas un ticket) : refuser un `integration:gardes` qui omet les gardes du cadre, en tolérant un écart nommé. À proposer au responsable quand BPScript aura fermé 322.6.7 (branchement de gardes.mjs chez lui).
 - **Avis aux projets après 3uv.65** : BPScript (son adaptateur des suites disparaît, il abandonne
@@ -42,6 +41,8 @@ Chaque point : ce qui se surveille, ce qui le fermera.
 ## F — fermés
 
 Chaque point : ce qui l'a fermé, le ticket.
+
+- **Lot 3uv.56** : livré (a1cd46f), contrôle continu vert ; 3uv.67.1.1 fermé avec lui ; BPScript prévenu le 2026-10-13. Nouveau lot ouvert : 3uv.76 (lien symbolique qui retient une copie).
 
 - **3uv.74** : livré (36704f8), contrôle continu vert ; BPScript prévenu le 2026-10-13 pour reprendre 322.4.
 
