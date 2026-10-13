@@ -38,9 +38,6 @@ décide avant le code, et chaque réalisation part petite et testable.
 
 ## La fin
 
-Tu crées les tickets proposés sous ton ticket, étiquetés `a-valider` (`docs/agents/issue-tracker.md`,
-« Numéros et titres ») :
-`n=$(bd create "<sujet>" --parent <id> --no-inherit-labels -t task -l a-valider --body-file <fichier> --silent)`, puis
-`bd update "$n" --title "${n#"$(bd config get issue_prefix)"-} — <sujet> — <composant>"`. Tu
-écris ta passation au ticket (`bd comments add`), puis tu préviens le superviseur. Le responsable
-valide les tickets proposés avant qu'aucun ne parte.
+Tu écris les tickets proposés dans ta passation au ticket (`bd comments add`), chacun avec sa
+section « Architecture », son composant et ses critères, puis tu préviens le superviseur. Tu ne crées
+aucun ticket : le superviseur crée ceux que le responsable valide.

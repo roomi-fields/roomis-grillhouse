@@ -88,16 +88,13 @@ seule livraison, sur ton seul composant. Un plan qui en demande plusieurs t'arr�
 découpage au superviseur, sans écrire de code. Ainsi un ticket reste petit, et son avancement se lit
 d'un mot : ouvert ou fermé.
 
-**Une découverte devient un ticket** : ce que tu découvres hors du comportement de ton ticket (un
-défaut, une question, un second morceau) devient un ticket neuf, que tu crées avec son exemple et
-son adresse, sous ton ticket (`docs/agents/issue-tracker.md`, « Numéros et titres ») :
-`n=$(bd create "<sujet>" --parent <id> --no-inherit-labels -t task -l a-valider -d "<…>" --silent)`, puis
-`bd update "$n" --title "${n#"$(bd config get issue_prefix)"-} — <sujet> — <composant>"`. Tu continues ton ticket sans lui. Ainsi la découverte
-garde son origine, et le responsable décide de sa place.
+**Une découverte reste une remarque** : ce que tu découvres hors du comportement de ton ticket (un
+défaut, une question, un second morceau) va dans ta passation, avec son exemple et son adresse ; tu
+ne crées aucun ticket. Tu continues ton ticket sans elle. Ainsi le responsable décide seul de ce qui
+entre au plan.
 
 **Une découverte qui bloque t'arrête** : quand ton ticket ne peut pas finir sans elle, tu
-t'arrêtes sans rien livrer ; ton ticket passe en bloqué par le ticket découvert
-(`bd dep add <id> <découvert>`, `bd update <id> --status blocked`). Avant de rendre la main, tu
+t'arrêtes sans rien livrer, et ta passation la nomme comme ce qui bloque. Avant de rendre la main, tu
 écris l'état du travail dans les notes du ticket (`bd update <id> --notes`) : ce qui est fait, ce
 qui reste, ce que tu attends et de quel composant ; ton code reste dans ta copie. Ainsi un ticket ne
 livre jamais une partie de lui-même, et l'agent neuf qui le reprend repart de ton travail.
@@ -190,7 +187,7 @@ et le code la suit.
 - **Le relecteur rouvre sur une règle écrite** : un lot rendu par le relecteur, constat et règle
   cités, rouvre ton travail. Ainsi la relecture applique le cadre, sans ouvrir de lot sans fin.
 - **Ton ticket s'arrête à son composant** : ce qui demande un autre composant est une découverte
-  (« Une découverte devient un ticket »). Ainsi le travail reste dans le plan validé.
+  (« Une découverte reste une remarque »). Ainsi le travail reste dans le plan validé.
 
 ## La fin
 

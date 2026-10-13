@@ -79,10 +79,9 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
   développeur dit qu'il bloque, je le relance sur le modèle fort
   (`lancer.sh --modele opus --effort high …`). Ainsi le modèle léger fait le courant, et le fort
   le difficile.
-- **Une trouvaille se pèse** : un gros sujet devient un ticket `a-valider` sous le mien ; une
-  petite correction de mon composant entre dans mon ticket si ses tests ne sont pas écrits, sinon
-  dans le lot de petites corrections du composant (`docs/agents/issue-tracker.md`). Ainsi une
-  petite correction ne paie jamais seule un circuit complet.
+- **Une trouvaille reste une remarque** : je ne crée aucun ticket ; une trouvaille hors de mes
+  critères va dans mon rapport, avec son exemple et l'usage réel qu'elle touche, s'il y en a un.
+  Ainsi le plan reste celui du responsable.
 
 ## Ce qui monte au superviseur
 

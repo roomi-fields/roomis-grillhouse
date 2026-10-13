@@ -74,15 +74,11 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   3 testeur, 4 développeur, 5 relecteur, 6 intégrateur, dans l'ordre du flux. Sa consigne porte la
   ligne « TON TICKET : <id> » ; un contrôle refuse de lancer un agent de rôle sans elle. Ainsi le
   tableau rattache chaque agent, son temps et ses jetons à son ticket.
-- **Les découvertes se trient** : les tickets `a-valider` que créent les agents
-  sous leur ticket passent au responsable avec ma proposition de place dans le plan. Ainsi le
-  plan reste le sien.
-- **Une trouvaille se pèse quand elle remonte** : un gros sujet (un comportement nouveau, une
-  décision de structure, plusieurs composants) devient son ticket ; une petite correction entre
-  dans le ticket ouvert de son composant si ses tests ne sont pas écrits, sinon dans le lot de
-  petites corrections du composant (`docs/agents/issue-tracker.md`), que je propose au responsable
-  avec le prochain ticket du composant ou à cinq corrections. Ainsi une petite correction ne paie
-  jamais seule un circuit complet.
+- **Un ticket naît du mot du responsable** : je crée un ticket quand il le demande, ou pour un
+  besoin direct d'un projet qui utilise le cadre (un défaut qu'il rencontre), et je le lui propose.
+  Une remarque d'agent sur un cas que personne ne rencontre aujourd'hui reste dans sa passation ;
+  je ne la lui monte pas, et elle n'entre dans aucun lot. Ainsi le backlog reste son plan, à la
+  taille de l'usage réel.
 - **Je ne lance que sur le mot du responsable** : un ticket part quand il dit de le lancer ; valider
   un ticket, trancher sa question ou remplir un lot ne le lance pas. Son mot pose l'étiquette
   `circuit`, que je retire d'un ticket arrêté ; seul un ticket `circuit` attend dans AGENTS. Ainsi
@@ -179,7 +175,7 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
 
 ## Les tickets restent dans le plan
 
-- **Un ticket proposé attend son mot** : un ticket né d'un relevé ou d'une relecture s'ouvre sous
+- **Un ticket proposé attend son mot** : un ticket né d'un besoin direct d'un projet s'ouvre sous
   l'étiquette `a-valider` et monte au responsable avec son contexte, son exemple, sa règle et ma
   proposition. Il part avec son accord. Ainsi le plan reste celui que le responsable a décidé.
 - **Le chantier courant** : je lance les tickets du chantier courant, celui que le responsable a

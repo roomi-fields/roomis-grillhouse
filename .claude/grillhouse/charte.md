@@ -53,8 +53,13 @@ près du travail, et le superviseur garde les siennes.
 
 Un objectif dont le découpage n'est pas connu commence par une exploration, sans code ; un ticket
 de réalisation touche un composant, ou porte un geste transverse sur tout le dépôt, et fait une seule
-livraison ; tout ticket se crée sous sa mère, et une découverte sous le ticket
-qui l'a trouvée, à valider (`docs/agents/issue-tracker.md`). Ainsi l'avancement se lit ticket par ticket.
+livraison ; tout ticket se crée sous sa mère (`docs/agents/issue-tracker.md`). Ainsi l'avancement
+se lit ticket par ticket.
+
+**Un ticket naît du mot du responsable**, ou d'un besoin direct d'un projet qui utilise le cadre
+(un défaut qu'il rencontre). Une découverte d'agent reste une remarque de sa passation, jamais un
+ticket ni un critère ; le superviseur porte au responsable celles qui touchent un usage réel. Ainsi
+le backlog reste le plan du responsable.
 
 ## Ce qui tient le dépôt droit
 
