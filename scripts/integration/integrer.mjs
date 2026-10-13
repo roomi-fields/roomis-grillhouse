@@ -19,8 +19,8 @@
 //     branch and carries the lot and nothing else: a modified or untracked file outside the lot
 //     refuses, named (what an ignored folder such as node_modules holds is not work);
 //  4. a clean integration copy (`.claude/worktrees/integration`) on HEAD, made ready by the
-//     replay (scripts/integration/rejeu.mjs: submodules by scripts/sous-modules.sh, dependencies,
-//     mounts); it builds nothing;
+//     replay (scripts/integration/rejeu.mjs: submodules by scripts/sous-modules.sh, dependencies
+//     in agreement with the lock file, mounts); it builds nothing;
 //  5. the base: the project's suites (`npm run integration:suites -- <scope>`) on HEAD. Each suite
 //     keeps its verdict under the fingerprint of its content (scripts/integration/suites-vitest.mjs):
 //     a suite whose fingerprint has a trace is not replayed, so the base of a HEAD already
@@ -41,11 +41,14 @@
 //  6. the lots, applied in three ways in the copy, tests first; the files of the lot in the
 //     ticket's copy are compared with the copy's own base plus the lot, not with the integration
 //     copy;
-//  7. the suites again, with the lot (the project built after the lots, as soon as a suite or a
+//  7. the suites again, with the lot (the dependencies first made to agree with the lock file the
+//     lot leaves, by the replay; an install that fails refuses the lot, « Les dépendances de la
+//     copie ne s'installent pas. », before any suite; the project built after the lots, as soon as a suite or a
 //     guard reads the build; the lot's own content is built beside the base's, none overwrites the
 //     other); every command of the project run in the copy leaves its index up to date
 //     (rejeu.mjs);
-//  8. the project's guards (`npm run integration:gardes`, when present); every control plays. The
+//  8. the project's guards (`npm run integration:gardes`, when present), the dependencies again in
+//     agreement with the lock file; every control plays. The
 //     project is built after the lots: by step 7 when a suite plays, else here when a control
 //     of `grillhouse:gardes` follows its build step (it reads the build);
 //  9. the comparison: a failing test that the base did not have and --admettre does not name
@@ -81,7 +84,13 @@ import { pathToFileURL } from 'node:url';
 import { isTesterFile } from '../verrous/verrou.mjs';
 import { lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
 import { dossierCommun, inscrireEntree } from './file-attente.mjs';
-import { lireJsonSiPresent, nouveauxRouges, ouvrirCopie, RETIRER_COPIE } from './rejeu.mjs';
+import {
+  DEPENDANCES_REFUSEES,
+  lireJsonSiPresent,
+  nouveauxRouges,
+  ouvrirCopie,
+  RETIRER_COPIE,
+} from './rejeu.mjs';
 
 // The refusal for the verdicts of one ticket, or null. `ticket` and `comments` are Beads' JSON.
 export function refusVerdicts(ticket, comments) {
@@ -295,6 +304,7 @@ function main(argv) {
     if (champ.mode !== 'aucun') {
       dire('— les suites sur HEAD (la base)');
       base = suites(champ, 'base');
+      if (base.includes(DEPENDANCES_REFUSEES)) return refuser(DEPENDANCES_REFUSEES);
       if (base.some(n => n.startsWith('(les suites sortent'))) {
         return refuser(
           'La base ne se mesure pas : les suites échouent sur HEAD sans nommer de test.'
@@ -321,10 +331,18 @@ function main(argv) {
     if (champ.mode !== 'aucun') {
       dire('— les suites avec le lot');
       apres = suites(champ, 'apres');
+      if (apres.includes(DEPENDANCES_REFUSEES)) return refuser(DEPENDANCES_REFUSEES);
     }
 
     // 8. The guards.
-    if (gardes().status !== 0) return refuser('Les gardes refusent (sortie ci-dessus).');
+    const g = gardes();
+    if (g.status !== 0) {
+      return refuser(
+        g.stderr.includes(DEPENDANCES_REFUSEES)
+          ? DEPENDANCES_REFUSEES
+          : 'Les gardes refusent (sortie ci-dessus).'
+      );
+    }
     dire('✓ gardes');
 
     // 9. The suites compared to the base.

@@ -7,6 +7,7 @@ import {
 } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { inscrireEntree } from '../../scripts/integration/file-attente.mjs';
 
 // The trial harness of the integration and of its queue (grillhouse-3uv.63): a repository with
 // a fake Beads that keeps the state of its tickets, a bare remote `origin`, the frame's real
@@ -574,4 +575,209 @@ export function suitesParLiens(m: Chantier) {
   m.poser({ 'suites.mjs': SUITES_LIENS, ...LIES_CONTENUS }, 'suites par liens');
   const f = `${m.repo}.suites-liens`;
   return () => (existsSync(f) ? readFileSync(f, 'utf8') : '').split('\n').filter(Boolean);
+}
+
+// grillhouse-3uv.74: the dependencies of the replay's copy follow its lock file. The project's
+// suites and guards read the dependencies (DEPENDANCES): for each package of package-lock.json,
+// they resolve it by its name from the root and compare its version with the lock's; a package not
+// found or at another version fails the suites (one failing test per package) and the guards. The
+// suites also fail the tests named by ROUGES_FORCES, as the trial's suites (SUITES) do. Each
+// call appends to <PRINCIPAL>.dependances one JSON line: the packages node_modules holds then, name
+// → version (null for a package without one).
+const DEPENDANCES = `import fs from 'node:fs';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+export function desaccords(qui) {
+  const verrou = JSON.parse(fs.readFileSync('package-lock.json', 'utf8')).packages ?? {};
+  const requerir = createRequire(path.resolve('package.json'));
+  const faux = [];
+  for (const [cle, e] of Object.entries(verrou)) {
+    if (!cle.startsWith('node_modules/')) continue;
+    const nom = cle.slice('node_modules/'.length);
+    const attendu = e.link ? verrou[e.resolved]?.version : e.version;
+    let vu = null;
+    try {
+      vu = JSON.parse(fs.readFileSync(requerir.resolve(nom + '/package.json'), 'utf8')).version;
+    } catch {
+      faux.push('dépendance introuvable : ' + nom);
+      continue;
+    }
+    if (vu !== attendu) faux.push('dépendance ' + nom + ' : ' + vu + ' au lieu de ' + attendu);
+  }
+  const presents = {};
+  const dossier = 'node_modules';
+  for (const n of fs.existsSync(dossier) ? fs.readdirSync(dossier) : []) {
+    if (n.startsWith('.')) continue;
+    const pj = path.join(dossier, n, 'package.json');
+    presents[n] = fs.existsSync(pj) ? (JSON.parse(fs.readFileSync(pj, 'utf8')).version ?? null) : null;
+  }
+  fs.appendFileSync(process.env.PRINCIPAL + '.dependances', JSON.stringify({ qui, presents }) + '\\n');
+  return faux;
+}
+`;
+const SUITES_DEPENDANCES = `import fs from 'node:fs';
+import { desaccords } from './dependances.mjs';
+fs.appendFileSync(process.env.PRINCIPAL + '.suites', '[' + process.argv.slice(2).join(' ') + ']');
+let r = fs.existsSync('ROUGES_FORCES') ? fs.readFileSync('ROUGES_FORCES', 'utf8') : '';
+r += desaccords('suites').map(n => n + '\\n').join('');
+fs.writeFileSync(process.env.ROUGES, r);
+process.exit(r ? 1 : 0);
+`;
+const GARDES_DEPENDANCES = `import fs from 'node:fs';
+import { desaccords } from './dependances.mjs';
+fs.appendFileSync(process.env.PRINCIPAL + '.gardes', 'g');
+const faux = desaccords('gardes');
+for (const f of faux) console.error(f);
+process.exit(faux.length ? 1 : 0);
+`;
+// The build of the trial project with dependencies (`chantierDependances`, `construction`): it
+// reads the dependencies as the guards do, fails on a package not found or at another version,
+// and leaves no dist/, so every passage builds again.
+const CONSTRUCTION_DEPENDANCES = `import { desaccords } from './dependances.mjs';
+const faux = desaccords('construction');
+for (const f of faux) console.error(f);
+process.exit(faux.length ? 1 : 0);
+`;
+
+// The state of the dependencies of the trial project: its workspaces (directory → package name,
+// version 1.0.0) and the version of its external dependency `ext-lib`, a local archive
+// vendor/ext-lib-<version>.tgz (1.0.0 and 2.0.0 exist), so `npm ci` needs no registry.
+interface EtatDependances {
+  espaces: Record<string, string>;
+  externe: string;
+}
+
+// The trial project of the integration with dependencies (grillhouse-3uv.74): workspaces src/a and
+// src/b, ext-lib 1.0.0, its lock file, its suites and guards reading the dependencies, committed
+// on main. npm runs offline, on a cache of its own. With `construction`, the root's `build` script
+// reads the dependencies too (CONSTRUCTION_DEPENDANCES), in every manifest of the project.
+export function chantierDependances(essais: string, { construction = false } = {}) {
+  const vendor = mkdtempSync(path.join(essais, 'vendor-'));
+  const cache = mkdtempSync(path.join(essais, 'cache-npm-'));
+  const npmCles = {
+    npm_config_cache: cache,
+    npm_config_offline: 'true',
+    npm_config_update_notifier: 'false',
+  };
+  const npmEnv = { ...process.env, ...npmCles };
+  for (const version of ['1.0.0', '2.0.0']) {
+    const src = mkdtempSync(path.join(essais, 'ext-lib-'));
+    writeFileSync(
+      path.join(src, 'package.json'),
+      JSON.stringify({ name: 'ext-lib', version, main: 'index.js' })
+    );
+    writeFileSync(path.join(src, 'index.js'), `module.exports = '${version}';\n`);
+    execFileSync('npm', ['pack', '--silent', '--pack-destination', vendor, src], { env: npmEnv });
+  }
+  const m = chantier(essais);
+  Object.assign(m.env, npmCles);
+  const scripts = (
+    JSON.parse(readFileSync(path.join(m.repo, 'package.json'), 'utf8')) as {
+      scripts: Record<string, string>;
+    }
+  ).scripts;
+  if (construction) {
+    scripts.build = 'node construction.mjs';
+  }
+  const manifeste = ({ espaces, externe }: EtatDependances) =>
+    JSON.stringify(
+      {
+        name: 'essai',
+        private: true,
+        workspaces: Object.keys(espaces),
+        dependencies: { 'ext-lib': `file:vendor/ext-lib-${externe}.tgz` },
+        scripts,
+      },
+      null,
+      2
+    );
+  const espace = (nom: string) => JSON.stringify({ name: nom, version: '1.0.0' }, null, 2);
+  // The files of the state <etat>: package.json, each workspace's package.json and the lock file
+  // npm writes for them.
+  const fichiers = (etat: EtatDependances): Fichiers => {
+    const dir = mkdtempSync(path.join(essais, 'verrou-'));
+    const out: Fichiers = { 'package.json': manifeste(etat) };
+    for (const [d, nom] of Object.entries(etat.espaces)) {
+      out[`${d}/package.json`] = espace(nom);
+    }
+    for (const [rel, contenu] of Object.entries(out)) {
+      mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
+      writeFileSync(path.join(dir, rel), contenu!);
+    }
+    execFileSync('cp', ['-r', vendor, path.join(dir, 'vendor')]);
+    execFileSync(
+      'npm',
+      ['install', '--package-lock-only', '--ignore-scripts', '--no-audit', '--no-fund', '--silent'],
+      { cwd: dir, env: npmEnv }
+    );
+    out['package-lock.json'] = readFileSync(path.join(dir, 'package-lock.json'), 'utf8');
+    return out;
+  };
+  const initial: EtatDependances = { espaces: { 'src/a': 'a', 'src/b': 'b' }, externe: '1.0.0' };
+  execFileSync('cp', ['-r', vendor, path.join(m.repo, 'vendor')]);
+  m.git('add', 'vendor');
+  m.poser(
+    {
+      ...fichiers(initial),
+      'dependances.mjs': DEPENDANCES,
+      'suites.mjs': SUITES_DEPENDANCES,
+      'gardes.mjs': GARDES_DEPENDANCES,
+      ...(construction ? { 'construction.mjs': CONSTRUCTION_DEPENDANCES } : {}),
+    },
+    'dépendances'
+  );
+  // The files of a lot that installs nowhere: its manifest and lock file name an archive absent
+  // from the repository and from npm's cache, so `npm ci` empties node_modules, then fails.
+  const introuvable = (): Fichiers => {
+    const f = fichiers({ ...initial, externe: '2.0.0' });
+    const absent = (t: string) =>
+      t
+        .replaceAll('ext-lib-2.0.0.tgz', 'ext-lib-9.9.9.tgz')
+        .replace(/"integrity": "[^"]*"/g, '"integrity": "sha512-absente"');
+    return {
+      'package.json': absent(f['package.json']!),
+      'package-lock.json': absent(f['package-lock.json']!),
+    };
+  };
+  const lireF = (f: string) => (existsSync(f) ? readFileSync(f, 'utf8') : '');
+  // Each reading of the dependencies so far, in order: who read (construction, suites, gardes) and
+  // the packages node_modules held.
+  const lectures = () =>
+    lireF(`${m.repo}.dependances`)
+      .split('\n')
+      .filter(Boolean)
+      .map(l => JSON.parse(l) as { qui: string; presents: Record<string, string | null> });
+  // The number of suites calls so far.
+  const appelsSuites = () => (m.suites().match(/\[/g) ?? []).length;
+  // A mark in the node_modules of the copy <nom> (`integration`, `file`): `npm ci` empties
+  // node_modules, so the mark says whether it ran since it was posed.
+  const marque = (nom: string) =>
+    path.join(m.repo, '.claude/worktrees', nom, 'node_modules/.marque');
+  const poserMarque = (nom: string) => writeFileSync(marque(nom), 'posée\n');
+  const marquee = (nom: string) => existsSync(marque(nom));
+  // <id> waiting in the queue, in the place of its integration: its lot committed on agent/<id>
+  // over the base its copy was made from, its copy removed, its ticket labelled `en-file`, its
+  // branch at the end of the queue. The queue alone replays it.
+  const enFile = (id: string) => {
+    const copie = m.copieDe(id);
+    m.gitDans(copie, 'add', '-A');
+    m.gitDans(copie, 'commit', '-q', '-m', `feat: lot (${id})`);
+    const x = m.retirer(id);
+    if (x.status !== 0) {
+      throw new Error(`retirer ${id} : ${x.stderr}`);
+    }
+    execFileSync('bd', ['update', id, '--add-label', 'en-file'], { env: m.env });
+    inscrireEntree(m.repo, `agent/${id}`, [id]);
+  };
+  return {
+    ...m,
+    initial,
+    fichiers,
+    introuvable,
+    lectures,
+    appelsSuites,
+    poserMarque,
+    marquee,
+    enFile,
+  };
 }

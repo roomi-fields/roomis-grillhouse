@@ -17,7 +17,10 @@
 //    (`.claude/worktrees/file`, made ready by scripts/integration/rejeu.mjs), the suites that read
 //    what the branch touches (rule `grillhouse.integration`; a suite whose content was already
 //    measured is not replayed, scripts/integration/suites-vitest.mjs) and the project's guards are
-//    replayed there, the project built after the lots, as soon as a suite or a guard reads the build
+//    replayed there, the dependencies made to agree with the lock file of the branch once replaced
+//    (rejeu.mjs installs before the build, the suites and the guards; an install that fails makes
+//    the branch leave the queue, « Les dépendances de la copie ne s'installent pas. », its suites
+//    not played), the project built after the lots, as soon as a suite or a guard reads the build
 //    (main is built only when one of its suites plays), through the one entry point that builds
 //    (scripts/integration/constructions.mjs: a build whose fingerprint is in the store is restored),
 //    every command of the project run in the copy leaving its index up to date, for the base and
@@ -45,7 +48,7 @@ import { pathToFileURL } from 'node:url';
 import { lireCommit } from '../poussee-cles.mjs';
 import { lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
 import { dossierCommun, lireEntrees, retirerEntree } from './file-attente.mjs';
-import { nouveauxRouges, ouvrirCopie } from './rejeu.mjs';
+import { DEPENDANCES_REFUSEES, nouveauxRouges, ouvrirCopie } from './rejeu.mjs';
 
 const ESSAIS_PAR_BRANCHE = 5;
 
@@ -127,6 +130,7 @@ function main(argv) {
     let avant = [];
     if (champ.mode !== 'aucun') {
       avant = suites(champ, 'base');
+      if (avant.includes(DEPENDANCES_REFUSEES)) return { garde: DEPENDANCES_REFUSEES };
       if (avant.some(n => n.startsWith('(les suites sortent'))) {
         return {
           garde: `la base ne se mesure pas : les suites échouent sur ${principale} sans nommer de test`,
@@ -151,7 +155,17 @@ function main(argv) {
       };
     }
     const apres = champ.mode !== 'aucun' ? suites(champ, 'apres') : [];
+    if (apres.includes(DEPENDANCES_REFUSEES)) {
+      return {
+        sortie: [DEPENDANCES_REFUSEES, "Le verrou de la branche replacée ne s'installe pas."],
+      };
+    }
     const g = gardes();
+    if (g.stderr.includes(DEPENDANCES_REFUSEES)) {
+      return {
+        sortie: [DEPENDANCES_REFUSEES, "Le verrou de la branche replacée ne s'installe pas."],
+      };
+    }
     if (g.status !== 0) {
       const fin = `${g.stdout}${g.stderr}`.trim().split('\n').slice(-40).join('\n');
       return { sortie: ['les gardes refusent une fois la branche replacée.', fin] };
