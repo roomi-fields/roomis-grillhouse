@@ -13,7 +13,6 @@ sort et sa réponse va dans son ticket.
 
 Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 
-- **3uv.77** (a-valider, proposé par BPScript) : la règle « pas de devDependency dans le code » s'étend aux imports de types et à la matière de test exportée. Touche frontieres.mjs, tenu par le lot 3uv.56 : part après lui. Question : on le lance après le lot ?
 
 
 
@@ -25,6 +24,8 @@ Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 ## S — à surveiller
 
 Chaque point : ce qui se surveille, ce qui le fermera.
+
+- **3uv.77** (devDependency dans le code publié, proposé par BPScript) : « oui lance-le », lancé le 2026-10-13. À sa livraison, prévenir BPScript.
 
 - **3uv.56.2** (bissection par composant, nuit.sh) : « go » le 2026-10-13 ; part après le lot 3uv.56 et après 3uv.75.1 (commande unique).
 - **3uv.75** (les tests relus quand rien n'a bougé) : grill fait, décisions à la mère ; 75.1 (cache par fichier, commande unique), 75.2 (contrôles en cache), 75.3 (refus du lancement direct), à valider. 75.1 : « oui », lancé le 2026-10-13 ; à sa livraison, mesurer le gain (temps et jetons des agents) et le dire au responsable.
