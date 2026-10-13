@@ -19,7 +19,6 @@ Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 
 
 
-- **Geste transverse, un seul ticket** (proposé par BPScript, mots du responsable cités : « tout ce qui touche au tooling devrait être lancé par des agents qui ont une action et vision transverse » ; « on doit s'assurer de l'homogénéité entre paquets et qu'ils utilisent les mêmes outils de cadre et qu'on a pas à maintenir des spécificités par paquet »). Cas : migration vers 990-corpus en onze tickets par paquet, conflits et écarts (dependencies contre devDependencies). Règles touchées : charte « un ticket de réalisation touche un composant », pitmaster « Un ticket, un composant ». Le principe est dit par le responsable ; la forme est à griller : comment un testeur et un développeur travaillent hors de l'enveloppe d'un composant (enveloppe « dépôt » ?), le gabarit unique, et un contrôle d'homogénéité des configurations des composants (package.json, tsconfig, tests), écart nommé. À poser après 3uv.77.
 
 ## S — à surveiller
 
@@ -29,6 +28,7 @@ Chaque point : ce qui se surveille, ce qui le fermera.
 
 - **3uv.56.2** (bissection par composant, nuit.sh) : « go » le 2026-10-13 ; part après le lot 3uv.56 et après 3uv.75.1 (commande unique).
 - **Lot 3uv.76** (petites corrections, 5 points) : 4 viennent du relecteur de BPScript (322.10), dont l'ordre de settings.json encore cassé par l'installation des greffons et `--help` qui lance la mise à jour. Touche grillhouse-maj.mjs (tenu par 3uv.75.1) et frontieres.mjs (tenu par 3uv.77) : à proposer au responsable à leur livraison.
+- **3uv.78.1** (a-valider, modèle commun et contrôle d'homogénéité) : passe après 3uv.75.1 et 3uv.77. À proposer à leur livraison.
 - **3uv.77.1** (usage non déclaré) : règle du responsable au ticket, critères écrits ; passe après 3uv.77. Attend son mot pour partir.
 - **3uv.75** (les tests relus quand rien n'a bougé) : grill fait, décisions à la mère ; 75.1 (cache par fichier, commande unique), 75.2 (contrôles en cache), 75.3 (refus du lancement direct), à valider. 75.1 : « oui », lancé le 2026-10-13 ; à sa livraison, mesurer le gain (temps et jetons des agents) et le dire au responsable.
 - **3uv.74.1** (a-valider, découverte du chef de 3uv.74) : la nuit et le lanceur des copies d'agent installent les dépendances par leurs propres mécanismes ; passer par la fonction commune `accorder` ? Décision de structure, pas urgente pour BPScript.
@@ -46,6 +46,8 @@ Chaque point : ce qui se surveille, ce qui le fermera.
 ## F — fermés
 
 Chaque point : ce qui l'a fermé, le ticket.
+
+- **Geste transverse** (BPScript) : grill fait, « ok » à chaque tour ; décisions à 3uv.78 ; règles écrites dans la charte, pitmaster et chef-de-chantier.
 
 - **Lot 3uv.56** : livré (a1cd46f), contrôle continu vert ; 3uv.67.1.1 fermé avec lui ; BPScript prévenu le 2026-10-13. Nouveau lot ouvert : 3uv.76 (lien symbolique qui retient une copie).
 
