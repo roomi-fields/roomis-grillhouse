@@ -163,31 +163,32 @@ describe('critère 4 — npm test leaves the night tests out', () => {
   }, 120_000);
 });
 
+// grillhouse-3uv.75.1: the integration of the day launches the tests by `npm test -- <scope>`.
 describe('critère 4 — the integration of the day leaves the night tests out', () => {
-  const ADAPTATEUR = 'scripts/integration/suites-vitest.mjs';
-  it('critère 4: integration:suites --tous plays the day tests and no night test', () => {
+  const npmTest = (...portee: string[]) => ['test', '--ignore-scripts', '--', ...portee];
+  it('critère 4: npm test -- --tous plays the day tests and no night test', () => {
     const p = projet();
-    const r = p.lancer('node', [ADAPTATEUR, '--tous']);
+    const r = p.lancer('npm', npmTest('--tous'));
     expect(r.status, sortie(r)).toBe(0);
     expect(p.joues()).toEqual(noms(JOUR));
   }, 120_000);
-  it('critère 4: integration:suites on a component plays its day tests and none of its night tests', () => {
+  it('critère 4: npm test -- --racine plays the day tests outside every component and none of the night tests', () => {
     const p = projet();
-    const r = p.lancer('node', [ADAPTATEUR, 'tests']);
+    const r = p.lancer('npm', npmTest('--racine'));
     expect(r.status, sortie(r)).toBe(0);
     expect(p.joues()).toEqual(noms(JOUR));
   }, 120_000);
   it('critère 4: a red night test leaves the integration of the day green, and unnamed in its reds', () => {
     const p = projet({ 'tests/e.nuit.test.ts': essai('e.nuit.test.ts', true) });
     const rouges = path.join(p.bin, 'rouges');
-    for (const args of [['--tous'], ['tests']]) {
-      const r = spawnSync('node', [ADAPTATEUR, ...args], {
+    for (const portee of ['--tous', '--racine']) {
+      const r = spawnSync('npm', npmTest(portee), {
         cwd: p.repo,
         encoding: 'utf8',
         env: { ...p.env, ROUGES: rouges },
         timeout: 120_000,
       });
-      expect(r.status, `${args.join(' ')}\n${sortie(r)}`).toBe(0);
+      expect(r.status, `${portee}\n${sortie(r)}`).toBe(0);
       expect(existsSync(rouges) ? readFileSync(rouges, 'utf8') : '').not.toMatch(/nuit/);
     }
   }, 240_000);
@@ -264,6 +265,39 @@ function pkgDuDepot(grillhouse?: unknown, scripts: Record<string, string> = {}) 
 
 // The positions of the names in the order of the trace.
 const rangs = (lignes: string[], noms_: string[]) => noms_.map(n => lignes.indexOf(n));
+
+// grillhouse-3uv.75.1 critères 11 and 17: the night launches `npm test` under FORCER=1, which plays
+// neither the time budget benches nor the night tests; the night plays its benches itself, after
+// `npm test`, even without a night test, and a red bench turns the night red.
+describe('3uv.75.1 critères 11 et 17 — the day leaves the time budget benches out, the night plays them itself', () => {
+  const BANC = 'tests/temps.budget.test.ts';
+  it('critères 11 et 17: npm test plays no bench; the night of a project without night test plays its bench itself, once, after npm test, green', () => {
+    const p = projet({ [BANC]: essai('temps.budget.test.ts') }, { nuits: false });
+    const jour = p.lancer('npm', ['run', 'test', '--ignore-scripts']);
+    expect(jour.status, sortie(jour)).toBe(0);
+    expect(p.joues()).toEqual(noms(JOUR));
+    const avant = p.lignes().length;
+    const n = nuitDe(p);
+    expect(n.status, n.journal).toBe(0);
+    const l = p.lignes().slice(avant);
+    expect(
+      l.filter(x => x === 'temps.budget.test.ts'),
+      `${l.join(', ')}\n${n.journal}`
+    ).toHaveLength(1);
+    const jourRangs = rangs(l, noms(JOUR));
+    expect(jourRangs, `${l.join(', ')}\n${n.journal}`).not.toContain(-1);
+    expect(Math.max(...jourRangs), l.join(', ')).toBeLessThan(l.indexOf('temps.budget.test.ts'));
+  }, 240_000);
+  it('critère 17: a red bench turns the night red, with or without night tests', () => {
+    for (const nuits of [true, false]) {
+      const p = projet({ [BANC]: essai('temps.budget.test.ts', true) }, { nuits });
+      const n = nuitDe(p);
+      expect(n.status, `nuits ${nuits}\n${n.journal}`).toBe(1);
+      expect(n.dernierVert, `nuits ${nuits}`).toBe('');
+      expect(p.lignes(), `nuits ${nuits}`).toContain('temps.budget.test.ts');
+    }
+  }, 480_000);
+});
 
 describe('critère 7 — scripts/nuit.sh plays the night tests itself', () => {
   it('critère 7: without the key grillhouse.nuit, the night plays every night test after the day tests', () => {

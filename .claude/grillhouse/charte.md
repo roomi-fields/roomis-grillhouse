@@ -95,6 +95,11 @@ qui l'a trouvée, à valider (`docs/agents/issue-tracker.md`). Ainsi l'avancemen
   lance plus rien. Un agent de rôle, lui, attend au premier plan ce qu'il lance, car sa séance
   finit avec son tour. Ainsi le responsable n'attend jamais une commande, et aucun travail ne se
   perd.
+- **Les tests se lancent par `npm test`** : `npm test -- <fichiers>` pour un lancement ciblé,
+  `FORCER=1 npm test -- <fichiers>` pour rejouer pour de vrai un test soupçonné instable ; aucun
+  agent ne lance l'outil de test directement. Un fichier de test dont rien n'a bougé n'est pas
+  rejoué : sa sortie consignée s'affiche sous « relu, code inchangé depuis … » et vaut un
+  lancement. Ainsi un test ne tourne qu'une fois tant que rien ne change.
 - **L'index d'abord** : toute recherche commence par `rtfm_search` (mode `hybrid`) pour le quoi, et
   par `codegraph explore` (ou l'outil `codegraph_explore`) pour l'appel ; le shell lit un fichier
   déjà nommé. Une recherche vide se reformule dans les mots du code. Dans son enveloppe, un agent

@@ -92,8 +92,7 @@ function monde(avecSousModule = true, adresse: Adresse = 'absolue', imbrique = f
       private: true,
       scripts: {
         build: 'node build.mjs',
-        test: 'node build.mjs',
-        'integration:suites': 'node suites.mjs',
+        test: 'node suites.mjs',
         'integration:gardes': 'true',
       },
     })
@@ -104,9 +103,11 @@ function monde(avecSousModule = true, adresse: Adresse = 'absolue', imbrique = f
     path.join(repo, 'build.mjs'),
     `import fs from 'node:fs';\nconst f = 'vendor/natif/natif.txt';\nconst v = fs.existsSync(f) ? fs.readFileSync(f, 'utf8').trim() : 'absent';\nfs.appendFileSync(${JSON.stringify(vu)}, v + '\\n');\nprocess.exit(v === 'absent' && fs.existsSync('.gitmodules') ? 1 : 0);\n`
   );
+  // The one test command (grillhouse-3uv.75.1): the integration's call names ROUGES and gets no
+  // failing test; any other call (the night's, the agent's) reads the submodule as the build does.
   writeFileSync(
     path.join(repo, 'suites.mjs'),
-    "import fs from 'node:fs';\nfs.writeFileSync(process.env.ROUGES, '');\n"
+    "import fs from 'node:fs';\nif (process.env.ROUGES) fs.writeFileSync(process.env.ROUGES, '');\nelse await import('./build.mjs');\n"
   );
   writeFileSync(path.join(repo, '.gitignore'), '.claude/worktrees/\nnode_modules\n');
   mkdirSync(path.join(repo, '.claude/agents'), { recursive: true });
@@ -691,8 +692,7 @@ function mondePartage({
     pkg.scripts = {
       postinstall: 'node ecrire.mjs installation',
       build: 'node build.mjs && node ecrire.mjs construction',
-      test: 'node build.mjs && node ecrire.mjs tests',
-      'integration:suites': 'node ecrire.mjs suites && node suites.mjs',
+      test: 'node ecrire.mjs tests && node suites.mjs',
       'integration:gardes': 'node ecrire.mjs gardes',
       nocturne: 'node ecrire.mjs nuit',
     };
@@ -776,7 +776,7 @@ function mondePartage({
   // The files a copy's commands managed to write into the main repository's submodule.
   const intrus = () =>
     readdirSync(principalNatif).filter(f =>
-      /^(installation|construction|tests|suites|gardes|nuit|agent)\.txt$/.test(f)
+      /^(installation|construction|tests|gardes|nuit|agent)\.txt$/.test(f)
     );
   return {
     ...m,
@@ -1013,14 +1013,14 @@ describe('grillhouse-3uv.58.1 critère 5 — removing a copy never touches the m
 
 describe('grillhouse-3uv.58.1 critère 8 — the integration and the night play the project’s commands with the shared submodule read-only', () => {
   it.runIf(canWrap)(
-    'critère 8: in the integration, installation, build, suites and guards fail to write into the shared submodule and write into their copy',
+    'critère 8: in the integration, installation, build, tests and guards fail to write into the shared submodule and write into their copy',
     () => {
       const m = mondePartage({ ecritures: true });
       const r = m.integrer();
       expect(r.status, r.stdout + r.stderr).toBe(0);
       expect(m.lit(m.copies.integration)).toBe(true);
       const vues = m.ecrituresDe(m.copies.integration);
-      for (const e of ['installation', 'construction', 'suites', 'gardes']) {
+      for (const e of ['installation', 'construction', 'tests', 'gardes']) {
         expect(vues.filter(l => l.startsWith(`${e} `)).length, vues.join('\n')).toBeGreaterThan(0);
       }
       expect(ecrituresFautives(vues), vues.join('\n')).toEqual([]);
@@ -1598,7 +1598,7 @@ describe('grillhouse-3uv.58.1 critère 18 — the mount finds a shared submodule
     );
   }
   it.runIf(canWrap)(
-    'critère 18: in the integration, a build that runs git read-tree HEAD leaves the following commands (suites, guards) unable to write into the shared submodule',
+    'critère 18: in the integration, a build that runs git read-tree HEAD leaves the following commands (tests, guards) unable to write into the shared submodule',
     () => {
       const m = mondePartage({ ecritures: true });
       const pkgPath = path.join(m.repo, 'package.json');
@@ -1612,7 +1612,7 @@ describe('grillhouse-3uv.58.1 critère 18 — the mount finds a shared submodule
       const r = m.integrer();
       const vues = m.ecrituresDe(m.copies.integration);
       expect(m.intrus(), r.stdout + r.stderr + vues.join('\n')).toEqual([]);
-      for (const e of ['suites', 'gardes']) {
+      for (const e of ['tests', 'gardes']) {
         expect(vues.filter(l => l.startsWith(`${e} `)).length, vues.join('\n')).toBeGreaterThan(0);
       }
       expect(ecrituresFautives(vues), vues.join('\n')).toEqual([]);
@@ -1778,7 +1778,7 @@ describe('grillhouse-3uv.58.1 critère 20 — the mount reads nothing the copy c
   }
   for (const [cas, commande] of Object.entries(commandesGitmodules)) {
     it.runIf(canWrap)(
-      `critère 20: in the integration, a build that ${cas} leaves the following commands (suites, guards) unable to write into the shared submodule, the main repository’s submodule intact`,
+      `critère 20: in the integration, a build that ${cas} leaves the following commands (tests, guards) unable to write into the shared submodule, the main repository’s submodule intact`,
       () => {
         const m = mondeReecrit(commande);
         const commit = git(m.principalNatif, 'rev-parse', 'HEAD');
@@ -1786,7 +1786,7 @@ describe('grillhouse-3uv.58.1 critère 20 — the mount reads nothing the copy c
         const vues = m.ecrituresDe(m.copies.integration);
         const dit = r.stdout + r.stderr + vues.join('\n');
         expect(m.intrus(), dit).toEqual([]);
-        for (const e of ['suites', 'gardes']) {
+        for (const e of ['tests', 'gardes']) {
           expect(vues.filter(l => l.startsWith(`${e} `)).length, dit).toBeGreaterThan(0);
         }
         expect(ecrituresFautives(vues), dit).toEqual([]);

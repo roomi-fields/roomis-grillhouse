@@ -1,35 +1,31 @@
-// grillhouse-3uv.65: the integration and the queue with the suites' traces. The trial project
-// plays the frame's real suites command (scripts/integration/suites-vitest.mjs, Vitest stood in
-// by a fake npx) and the frame's real command of the guards (`integration:gardes` as the frame's
+// grillhouse-3uv.65, grillhouse-3uv.75.1: the integration and the queue with the traces kept by
+// test file. The trial project plays the frame's real launcher of the tests (`npm test`, which
+// runs scripts/integration/suites-vitest.mjs) with the real Vitest, its dependencies linked to this
+// repository's, and the frame's real command of the guards (`integration:gardes` as the frame's
 // package.json writes it, the scripts of scripts/integration/ it runs played as they are, with the
 // frame's list `grillhouse:gardes`); each guard script of that list is stood in by a script that
 // writes its name and passes, unless the file REFUS-<its name> exists where it runs. Its `build`
 // writes one line per build, the files of src/a, src/b and scripts it saw, so a build after the lot
-// is told from a build before it.
+// is told from a build before it. Each test file of the trial appends its path to
+// <PRINCIPAL>.joues when Vitest loads it: the files a passage played are read there.
 import { mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { chantier } from './integration-essai.js';
-import {
-  ADAPTATEUR,
-  fauxNpx,
-  fichiersJoues,
-  joue,
-  type FichierDuPlan,
-} from './suites-traces-essai.js';
+import { lierDependances } from './tests-en-cache-essai.js';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'integration-traces-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
-const LONG = 120_000;
+const LONG = 180_000;
 const RACINE = path.resolve(__dirname, '../..');
+const LANCEUR = path.join(RACINE, 'scripts/integration/suites-vitest.mjs');
 
 // The frame's chain of guards: `integration:gardes` and every npm script it runs, followed
 // through `npm run` and the pre/post hooks, with `grillhouse:gardes`, the frame's one list of the
-// guards; `build` and `integration:suites` left to the trial; and the files of the scripts they run
-// with node.
+// guards; `build` and `test` left to the trial; and the files of the scripts they run with node.
 function chaineDesGardes() {
   const paquet = JSON.parse(readFileSync(path.join(RACINE, 'package.json'), 'utf8')) as {
     scripts: Record<string, string>;
@@ -38,7 +34,7 @@ function chaineDesGardes() {
   const pris: Record<string, string> = {};
   const fichiers = new Set<string>();
   const visiter = (nom: string) => {
-    if (nom in pris || nom === 'build' || nom === 'integration:suites' || !(nom in scripts)) {
+    if (nom in pris || nom === 'build' || nom === 'test' || !(nom in scripts)) {
       return;
     }
     pris[nom] = scripts[nom];
@@ -65,20 +61,55 @@ const vus = ['src/a', 'src/b', 'scripts']
 fs.appendFileSync(process.env.PRINCIPAL + '.builds', vus + '\\n');
 `;
 
-// src/a: « a ok », « vieux » red on main from the start, « neuf » red once src/a/casse.ts exists.
-const PLAN: FichierDuPlan[] = [
-  {
-    fichier: 'src/a/a.spec.ts',
-    comp: 'src/a',
-    tests: [{ nom: 'a ok' }, { nom: 'neuf', si: 'src/a/casse.ts' }],
+// A test file of the trial at <rel>: it appends <rel> to <PRINCIPAL>.joues when loaded, imports
+// <importe> as the namespace m, then holds <tests> (the source of its tests).
+const essai = (rel: string, importe: string | null, tests: string) =>
+  `import { appendFileSync } from 'node:fs';\nimport { test } from 'vitest';\n` +
+  (importe ? `import * as m from '${importe}';\n` : 'const m = {};\n') +
+  `appendFileSync(process.env.PRINCIPAL + '.joues', '${rel}\\n');\n${tests}`;
+
+// src/a: « a ok », and « neuf », red once src/a/index.ts exports casse; src/a/vieux.spec.ts:
+// « vieux », red on main from the start; src/b, src/c: one green test each; tests/unit/r.spec.ts:
+// the root, one green test, importing the helper tests/unit/aide-essai.ts.
+const TESTS = {
+  'src/a/a.spec.ts': essai(
+    'src/a/a.spec.ts',
+    './index',
+    "test('a ok', () => {});\ntest('neuf', () => {\n  if ((m as Record<string, unknown>).casse) throw new Error('neuf');\n});\n"
+  ),
+  'src/a/vieux.spec.ts': essai(
+    'src/a/vieux.spec.ts',
+    null,
+    "test('vieux', () => {\n  throw new Error('vieux');\n});\n"
+  ),
+  'src/b/b.spec.ts': essai('src/b/b.spec.ts', './index', "test('b ok', () => {});\n"),
+  'src/c/c.spec.ts': essai('src/c/c.spec.ts', './index', "test('c ok', () => {});\n"),
+  'tests/unit/r.spec.ts': essai(
+    'tests/unit/r.spec.ts',
+    './aide-essai',
+    "test('r ok', () => {});\n"
+  ),
+  'tests/unit/aide-essai.ts': 'export const aide = 1;\n',
+};
+const CONFIG = `export default {
+  test: {
+    include: ['src/**/*.{test,spec}.ts', 'tests/**/*.{test,spec}.ts'],
+    exclude: ['**/node_modules/**', '**/*.nuit.{test,spec}.*'],
   },
-  { fichier: 'src/a/vieux.spec.ts', comp: 'src/a', tests: [{ nom: 'vieux', rouge: true }] },
-  { fichier: 'src/b/b.spec.ts', comp: 'src/b', tests: [{ nom: 'b ok' }] },
-  { fichier: 'src/c/c.spec.ts', comp: 'src/c', tests: [{ nom: 'c ok' }] },
-  // A test file a lot adds to src/b, and the root suite: one test file outside every component.
-  { fichier: 'src/b/b2.spec.ts', comp: 'src/b', present: true, tests: [{ nom: 'b2 ok' }] },
-  { fichier: 'tests/unit/r.spec.ts', comp: '', tests: [{ nom: 'r ok' }] },
-];
+};
+`;
+
+// A lot of src/a that adds src/a/<nom>.ts and makes src/a/index.ts import it: the tests of src/a
+// read it, so they play after the lot.
+const lotA = (nom: string) => ({
+  [`src/a/${nom}.ts`]: `export const ${nom} = 1;\n`,
+  'src/a/index.ts': `import { ${nom} } from './${nom}';\nexport const a = ${nom};\n`,
+});
+// The same for src/b.
+const lotB = (nom: string) => ({
+  [`src/b/${nom}.ts`]: `export const ${nom} = 2;\n`,
+  'src/b/index.ts': `import { ${nom} } from './${nom}';\nexport const b = ${nom};\n`,
+});
 
 // A guard of the trial: it writes <nom> and passes, unless REFUS-<nom> exists where it runs.
 const garde = (nom: string) => `import fs from 'node:fs';
@@ -92,26 +123,27 @@ if (fs.existsSync('REFUS-${nom}')) {
 // <grillhouse> is the project's `grillhouse` section of package.json.
 function chantierTraces(grillhouse: Record<string, unknown> = {}) {
   const m = chantier(ESSAIS);
-  const npx = fauxNpx(m.bin);
-  npx.planifier(PLAN);
+  lierDependances(m.repo);
   const { scripts, fichiers } = chaineDesGardes();
   const poses: Record<string, string> = {
     'package.json': JSON.stringify(
       {
         name: 'essai',
         private: true,
+        type: 'module',
         grillhouse,
         scripts: {
           ...scripts,
           build: 'node build.mjs',
-          'integration:suites': `node ${ADAPTATEUR}`,
+          test: `node ${LANCEUR}`,
         },
       },
       null,
       2
     ),
     'build.mjs': BUILD,
-    'tests/unit/r.spec.ts': '// r\n',
+    'vitest.config.mjs': CONFIG,
+    ...TESTS,
   };
   for (const f of fichiers) {
     poses[f] = f.startsWith('scripts/integration/')
@@ -123,25 +155,27 @@ function chantierTraces(grillhouse: Record<string, unknown> = {}) {
   const builds = () => lire(`${m.repo}.builds`).split('\n').filter(Boolean);
   // The guards played so far, by name, one per run.
   const jouees = () => lire(`${m.repo}.gardes-jouees`).split('\n').filter(Boolean);
-  return { ...m, npx, builds, jouees };
+  // The test files Vitest loaded so far, one line per load.
+  const joues = () => lire(`${m.repo}.joues`).split('\n').filter(Boolean);
+  return { ...m, builds, jouees, joues };
 }
+type ChantierTraces = ReturnType<typeof chantierTraces>;
+// The test files Vitest loaded since <avant> loads, each once, sorted.
+const jouesDepuis = (m: ChantierTraces, avant: number) =>
+  [...new Set(m.joues().slice(avant))].sort();
 
 describe('critère 2 — at the integration, a base already measured is not replayed', () => {
   it(
-    'critère 2: the next integration on the same HEAD reads the base of the touched component from its trace, and plays only the suites after its lot',
+    'critère 2: the next integration on the same HEAD reads the base of the touched files from their traces, and plays only what its lot changes',
     () => {
       const m = chantierTraces();
-      m.ticket('demo-1', { 'src/a/un.ts': 'export const un = 1;\n' });
+      m.ticket('demo-1', lotA('un'));
       m.livrer('demo-1');
-      m.ticket('demo-2', { 'src/a/deux.ts': 'export const deux = 2;\n' });
-      const avant = m.npx.appels().length;
+      m.ticket('demo-2', lotA('deux'));
+      const avant = m.joues().length;
       const r = m.integrer('demo-2');
       expect(r.status, r.stdout + r.stderr).toBe(0);
-      const jouees = m.npx
-        .appels()
-        .slice(avant)
-        .filter(a => joue(a, 'src/a'));
-      expect(jouees).toHaveLength(1);
+      expect(m.joues().slice(avant)).toEqual(['src/a/a.spec.ts']);
     },
     LONG
   );
@@ -152,7 +186,7 @@ describe('critère 7 — an integration builds the project once, after the lots'
     'critère 7: once the lot is applied, the project is built once: the guards do not build it again',
     () => {
       const m = chantierTraces();
-      m.ticket('demo-1', { 'src/a/un.ts': 'export const un = 1;\n' });
+      m.ticket('demo-1', lotA('un'));
       const avant = m.builds().length;
       m.livrer('demo-1');
       const apresLot = m
@@ -167,9 +201,9 @@ describe('critère 7 — an integration builds the project once, after the lots'
     'critère 7: an integration whose base comes from the traces builds the project once in all, after its lot',
     () => {
       const m = chantierTraces();
-      m.ticket('demo-1', { 'src/a/un.ts': 'export const un = 1;\n' });
+      m.ticket('demo-1', lotA('un'));
       m.livrer('demo-1');
-      m.ticket('demo-2', { 'src/a/deux.ts': 'export const deux = 2;\n' });
+      m.ticket('demo-2', lotA('deux'));
       const avant = m.builds().length;
       m.livrer('demo-2');
       const faits = m.builds().slice(avant);
@@ -182,8 +216,8 @@ describe('critère 7 — an integration builds the project once, after the lots'
     'critère 7: the queue replaying a branch on a main that moved builds it once after the replacement: the guards do not build it again',
     () => {
       const m = chantierTraces();
-      m.ticket('demo-1', { 'src/a/un.ts': 'export const un = 1;\n' });
-      m.ticket('demo-2', { 'src/b/deux.ts': 'export const deux = 2;\n' });
+      m.ticket('demo-1', lotA('un'));
+      m.ticket('demo-2', lotB('deux'));
       m.livrer('demo-1');
       m.livrer('demo-2');
       const avant = m.builds().length;
@@ -205,9 +239,9 @@ describe('critère 8 — the verdict of the integration is unchanged, traces in 
     'critère 8 (garde): a failing test main already has stays admitted when the base comes from a trace',
     () => {
       const m = chantierTraces();
-      m.ticket('demo-1', { 'src/a/un.ts': 'export const un = 1;\n' });
+      m.ticket('demo-1', lotA('un'));
       m.livrer('demo-1');
-      m.ticket('demo-2', { 'src/a/deux.ts': 'export const deux = 2;\n' });
+      m.ticket('demo-2', lotA('deux'));
       const r = m.integrer('demo-2');
       expect(r.status, r.stdout + r.stderr).toBe(0);
     },
@@ -217,9 +251,9 @@ describe('critère 8 — the verdict of the integration is unchanged, traces in 
     'critère 8 (garde): a new failing test refuses the lot when the base comes from a trace',
     () => {
       const m = chantierTraces();
-      m.ticket('demo-1', { 'src/a/un.ts': 'export const un = 1;\n' });
+      m.ticket('demo-1', lotA('un'));
       m.livrer('demo-1');
-      m.ticket('demo-2', { 'src/a/casse.ts': 'export const casse = 1;\n' });
+      m.ticket('demo-2', { 'src/a/index.ts': 'export const a = 0;\nexport const casse = true;\n' });
       const r = m.integrer('demo-2');
       expect(r.status).toBe(1);
       expect(r.stdout).toMatch(/Rouges nouveaux/);
@@ -230,9 +264,6 @@ describe('critère 8 — the verdict of the integration is unchanged, traces in 
   );
 });
 
-// The test files Vitest ran since <avant> calls.
-const jouesDepuis = (m: ReturnType<typeof chantierTraces>, avant: number) =>
-  fichiersJoues(m.npx.appels().slice(avant));
 // A lot of root files no declaration names: a script, a hook, a setting of the frame, a document.
 const HORS_DECLARES = {
   'scripts/outil.mjs': 'export const o = 1;\n',
@@ -243,11 +274,11 @@ const HORS_DECLARES = {
 
 describe('critère 17 — a root file replays only the suites that declare it read', () => {
   it(
-    'critère 17: a lot of root files no declaration names replays no suite, and is committed',
+    'critère 17: a lot of root files no declaration names replays no test, and is committed',
     () => {
       const m = chantierTraces();
       m.ticket('demo-1', HORS_DECLARES);
-      const avant = m.npx.appels().length;
+      const avant = m.joues().length;
       const r = m.integrer('demo-1');
       expect(r.status, r.stdout + r.stderr).toBe(0);
       expect(jouesDepuis(m, avant)).toEqual([]);
@@ -257,14 +288,14 @@ describe('critère 17 — a root file replays only the suites that declare it re
     LONG
   );
   it(
-    'critère 17: the queue replaying such a branch on a main that moved replays no suite',
+    'critère 17: the queue replaying such a branch on a main that moved replays no test',
     () => {
       const m = chantierTraces();
-      m.ticket('demo-1', { 'src/a/un.ts': 'export const un = 1;\n' });
+      m.ticket('demo-1', lotA('un'));
       m.ticket('demo-2', HORS_DECLARES);
       m.livrer('demo-1');
       m.livrer('demo-2');
-      const avant = m.npx.appels().length;
+      const avant = m.joues().length;
       const r = m.file();
       expect(r.status, r.stdout + r.stderr).toBe(0);
       expect(m.sujets()[0]).toBe('feat: lot (demo-2)');
@@ -279,8 +310,10 @@ describe('critère 18 — a lot that changes only tests plays those tests', () =
     'critère 18: a lot that changes only a test file outside every component plays that file alone, on the base and after',
     () => {
       const m = chantierTraces();
-      m.ticket('demo-1', { 'tests/unit/r.spec.ts': '// r, changé\n' });
-      const avant = m.npx.appels().length;
+      m.ticket('demo-1', {
+        'tests/unit/r.spec.ts': `${TESTS['tests/unit/r.spec.ts']}// changé\n`,
+      });
+      const avant = m.joues().length;
       const r = m.integrer('demo-1');
       expect(r.status, r.stdout + r.stderr).toBe(0);
       expect(jouesDepuis(m, avant)).toEqual(['tests/unit/r.spec.ts']);
@@ -292,8 +325,10 @@ describe('critère 18 — a lot that changes only tests plays those tests', () =
     () => {
       const m = chantierTraces();
       m.poser({ 'src/c/index.ts': "import { b } from '../b/index';\nexport const c = b;\n" });
-      m.ticket('demo-1', { 'src/b/b2.spec.ts': '// b2\n' });
-      const avant = m.npx.appels().length;
+      m.ticket('demo-1', {
+        'src/b/b2.spec.ts': essai('src/b/b2.spec.ts', './index', "test('b2 ok', () => {});\n"),
+      });
+      const avant = m.joues().length;
       const r = m.integrer('demo-1');
       expect(r.status, r.stdout + r.stderr).toBe(0);
       expect(jouesDepuis(m, avant)).toEqual(['src/b/b2.spec.ts']);
@@ -302,14 +337,65 @@ describe('critère 18 — a lot that changes only tests plays those tests', () =
   );
 });
 
-describe('critère 22 — at the integration, a helper of the tests changed alone replays the root suite', () => {
+// grillhouse-3uv.75.1 critère 14: the replay hands the base only the test files of the lot that exist there.
+describe('3uv.75.1 critère 14 — the replay hands the base only the test files of the lot that exist there', () => {
   it(
-    'critère 22: a lot that changes only a helper outside every component plays the root suite, and no suite of a component',
+    'critère 14: the base receives only the test files of the lot that exist there: a lot that changes a root test file and adds another plays the existing file alone on the base, both after the lot',
     () => {
       const m = chantierTraces();
-      m.poser({ 'tests/unit/aide-essai.ts': 'export const aide = 1;\n' });
+      m.ticket('demo-1', {
+        'tests/unit/r.spec.ts': `${TESTS['tests/unit/r.spec.ts']}// changé\n`,
+        'tests/unit/neuf.spec.ts': essai(
+          'tests/unit/neuf.spec.ts',
+          null,
+          "test('neuf ok', () => {});\n"
+        ),
+      });
+      const avant = m.joues().length;
+      const r = m.integrer('demo-1');
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      const charges = m.joues().slice(avant);
+      // r.spec.ts loads on the base and after the lot; neuf.spec.ts after the lot alone.
+      expect(
+        charges.filter(f => f === 'tests/unit/r.spec.ts'),
+        charges.join(', ')
+      ).toHaveLength(2);
+      expect(
+        charges.filter(f => f === 'tests/unit/neuf.spec.ts'),
+        charges.join(', ')
+      ).toHaveLength(1);
+      expect(jouesDepuis(m, avant)).toEqual(['tests/unit/neuf.spec.ts', 'tests/unit/r.spec.ts']);
+    },
+    LONG
+  );
+  it(
+    'critère 14: the base receives only the test files of the lot that exist there: a lot whose added test file is red is refused on that new failing test, not on a base that does not measure',
+    () => {
+      const m = chantierTraces();
+      m.ticket('demo-1', {
+        'tests/unit/r.spec.ts': `${TESTS['tests/unit/r.spec.ts']}// changé\n`,
+        'tests/unit/neuf.spec.ts': essai(
+          'tests/unit/neuf.spec.ts',
+          null,
+          "test('neuf rouge', () => {\n  throw new Error('neuf');\n});\n"
+        ),
+      });
+      const r = m.integrer('demo-1');
+      expect(r.status, r.stdout + r.stderr).not.toBe(0);
+      expect(r.stdout + r.stderr).toContain('neuf rouge');
+      expect(r.stdout + r.stderr).not.toMatch(/La base ne se mesure pas/);
+    },
+    LONG
+  );
+});
+
+describe('critère 22 — at the integration, a helper of the tests changed alone replays the root tests that import it', () => {
+  it(
+    'critère 22: a lot that changes only a helper outside every component plays the root test that imports it, and no test of a component',
+    () => {
+      const m = chantierTraces();
       m.ticket('demo-1', { 'tests/unit/aide-essai.ts': 'export const aide = 2;\n' });
-      const avant = m.npx.appels().length;
+      const avant = m.joues().length;
       const r = m.integrer('demo-1');
       expect(r.status, r.stdout + r.stderr).toBe(0);
       expect(jouesDepuis(m, avant)).toEqual(['tests/unit/r.spec.ts']);
@@ -372,7 +458,7 @@ describe('critère 19 — an integration builds once after the lots as soon as a
     'critère 19: an integration whose base replays builds main once, then the project once after its lot',
     () => {
       const m = chantierTraces();
-      m.ticket('demo-1', { 'src/a/un.ts': 'export const un = 1;\n' });
+      m.ticket('demo-1', lotA('un'));
       const avant = m.builds().length;
       m.livrer('demo-1');
       const faits = m.builds().slice(avant);
@@ -386,7 +472,7 @@ describe('critère 19 — an integration builds once after the lots as soon as a
     'critère 19: the queue replaying a branch that replays no suite, at a project whose guards read the build, builds it once after the replacement',
     () => {
       const m = chantierTraces();
-      m.ticket('demo-1', { 'src/a/un.ts': 'export const un = 1;\n' });
+      m.ticket('demo-1', lotA('un'));
       m.ticket('demo-2', HORS_DECLARES);
       m.livrer('demo-1');
       m.livrer('demo-2');
@@ -405,7 +491,7 @@ describe('critère 19 — an integration builds once after the lots as soon as a
     () => {
       const m = chantierTraces();
       sansGardeQuiLit(m);
-      m.ticket('demo-1', { 'src/a/un.ts': 'export const un = 1;\n' });
+      m.ticket('demo-1', lotA('un'));
       m.ticket('demo-2', HORS_DECLARES);
       m.livrer('demo-1');
       m.livrer('demo-2');
@@ -437,10 +523,10 @@ describe('critères 7 et 19 — a guard that reads the build is never left out',
     'critère 19: a lot of a component that the dead-code guard refuses is refused at each passage, its suites kept by their traces the second time',
     () => {
       const m = chantierTraces();
-      m.ticket('demo-1', refuse({ 'src/a/un.ts': 'export const un = 1;\n' }));
+      m.ticket('demo-1', refuse(lotA('un')));
       const r1 = m.integrer('demo-1');
       expect(r1.status, r1.stdout + r1.stderr).toBe(1);
-      const avant = m.npx.appels().length;
+      const avant = m.joues().length;
       const r2 = m.integrer('demo-1');
       expect(jouesDepuis(m, avant), 'the second passage reads its suites from the traces').toEqual(
         []
@@ -455,7 +541,7 @@ describe('critères 7 et 19 — a guard that reads the build is never left out',
     'critère 19: the queue replaying a branch that replays no suite refuses it when the dead-code guard refuses',
     () => {
       const m = chantierTraces();
-      m.ticket('demo-1', { 'src/a/un.ts': 'export const un = 1;\n' });
+      m.ticket('demo-1', lotA('un'));
       m.ticket('demo-2', HORS_DECLARES);
       m.livrer('demo-1');
       m.livrer('demo-2');
@@ -475,7 +561,7 @@ describe('critère 21 — at the integration, a declared path replays every suit
     () => {
       const m = chantierTraces({ lusParLesSuites: ['config'] });
       m.ticket('demo-1', { 'config/reglage.json': '{"x":1}\n' });
-      const avant = m.npx.appels().length;
+      const avant = m.joues().length;
       const r = m.integrer('demo-1');
       expect(r.status, r.stdout + r.stderr).toBe(0);
       const joues = jouesDepuis(m, avant);

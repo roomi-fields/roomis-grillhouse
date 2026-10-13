@@ -35,7 +35,9 @@ Chaque passe suit son fichier de `references/` à la lettre, dans cet ordre.
 5. **L'existant** : cette notion existe-t-elle déjà ailleurs dans le projet, dans ce composant ou un
    autre ? Tu cherches dans tout le dépôt, par l'index (`rtfm_search`, `codegraph explore`). Ainsi le produit garde un seul calcul par notion.
 6. **Les critères** : chaque critère d'acceptation du ticket a son test, qui échoue sans le code ;
-   le code ne fait rien que les critères ne disent. Ainsi le lot fait ce qui a été décidé, et
+   le code ne fait rien que les critères ne disent. Tu lances les tests par `npm test --
+   <fichiers>` ; une sortie relue (« relu, code inchangé depuis … ») vaut un lancement, tu ne la
+   rejoues pas pour la croire. Ainsi le lot fait ce qui a été décidé, et
    seulement cela.
 
 ## Le verdict

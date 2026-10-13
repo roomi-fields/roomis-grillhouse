@@ -156,11 +156,11 @@ describe('critère 4 — the witness: the material of b changes', () => {
     },
     LONG
   );
-  it('critère 4: the trace of a is no longer valid (its fingerprint changes)', () => {
+  it('critère 4: the stored build of a is no longer valid (its fingerprint changes)', () => {
     const dir = projet(TEMOIN);
-    const avant = ouvrirTraces(dir).statutComposant('packages/a').empreinte;
+    const avant = ouvrirTraces(dir).empreinteConstruction('packages/a');
     ecrire(dir, { 'packages/b/test/fixture.ts': 'export const exemple = 2;\n' });
-    expect(ouvrirTraces(dir).statutComposant('packages/a').empreinte).not.toBe(avant);
+    expect(ouvrirTraces(dir).empreinteConstruction('packages/a')).not.toBe(avant);
   });
   it(
     'critère 4: b is built before a',
@@ -194,12 +194,12 @@ describe('critère 5 — a cycle of links of material ends', () => {
   it('critère 5: in the fingerprints, each side of the cycle follows the material of the other', () => {
     const dir = projet(CYCLE);
     const avant = ouvrirTraces(dir);
-    const a = avant.statutComposant('packages/a').empreinte;
-    const b = avant.statutComposant('packages/b').empreinte;
+    const a = avant.empreinteConstruction('packages/a');
+    const b = avant.empreinteConstruction('packages/b');
     ecrire(dir, { 'packages/b/test/fixture.ts': 'export const exemple = 2;\n' });
-    expect(ouvrirTraces(dir).statutComposant('packages/a').empreinte).not.toBe(a);
+    expect(ouvrirTraces(dir).empreinteConstruction('packages/a')).not.toBe(a);
     ecrire(dir, { 'packages/a/test/fixture.ts': 'export const autre = 2;\n' });
-    expect(ouvrirTraces(dir).statutComposant('packages/b').empreinte).not.toBe(b);
+    expect(ouvrirTraces(dir).empreinteConstruction('packages/b')).not.toBe(b);
   });
   it(
     'critère 5: in the order of the builds, each is built once and the passage ends green',

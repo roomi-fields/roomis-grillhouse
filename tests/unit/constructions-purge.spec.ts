@@ -11,7 +11,6 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { inscrireEntree } from '../../scripts/integration/file-attente.mjs';
-import { ouvrirTraces } from '../../scripts/integration/traces.mjs';
 import { depot, fichiersPaquets, fichiersUnique, type Depot } from './constructions-essai.js';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
@@ -100,28 +99,6 @@ describe('critère 6 — the store keeps main, main^ and the tickets in progress
       vert(d.passage());
       expect(present(d, a0)).toBe(true);
       expect(present(d, e0)).toBe(false);
-    },
-    LONG
-  );
-  it(
-    'critère 6: the traces of the suites follow the same rule: t- and r- of no live content go, those of a live content stay',
-    () => {
-      const { d } = historique();
-      const t = ouvrirTraces(d.repo);
-      const vivante = t.statutComposant('src/a').empreinte;
-      const racine = t.statutRacine().empreinte;
-      const morte = 'f'.repeat(64);
-      mkdirSync(d.suites, { recursive: true });
-      const trace = JSON.stringify({ code: 0, rouges: [] });
-      for (const n of [`t-${vivante}`, `r-${vivante}`, `t-${racine}`, `t-${morte}`, `r-${morte}`]) {
-        writeFileSync(path.join(d.suites, `${n}.json`), trace);
-      }
-      vert(d.passage());
-      expect(existsSync(path.join(d.suites, `t-${vivante}.json`))).toBe(true);
-      expect(existsSync(path.join(d.suites, `r-${vivante}.json`))).toBe(true);
-      expect(existsSync(path.join(d.suites, `t-${racine}.json`))).toBe(true);
-      expect(existsSync(path.join(d.suites, `t-${morte}.json`))).toBe(false);
-      expect(existsSync(path.join(d.suites, `r-${morte}.json`))).toBe(false);
     },
     LONG
   );
@@ -271,27 +248,6 @@ describe('critère 18 — the purge runs at the start of each passage; its live 
     },
     LONG
   );
-  it(
-    'critère 18: the records of the last full suite (d-…, racine-dernier), which bear no content fingerprint, stay',
-    () => {
-      const d = depot(ESSAIS, fichiersUnique());
-      mkdirSync(d.suites, { recursive: true });
-      const dernier = path.join(d.suites, `d-${'c'.repeat(64)}.json`);
-      const racine = path.join(d.suites, 'racine-dernier.json');
-      writeFileSync(dernier, JSON.stringify({ propre: 'x', racine: 'y', code: 0, durees: {} }));
-      writeFileSync(
-        racine,
-        JSON.stringify({ code: 0, rouges: [], racine: 'y', tests: 'z', composants: {} })
-      );
-      const passe = new Date(Date.now() - 86_400_000);
-      utimesSync(dernier, passe, passe);
-      utimesSync(racine, passe, passe);
-      vert(d.passage());
-      expect(existsSync(dernier)).toBe(true);
-      expect(existsSync(racine)).toBe(true);
-    },
-    LONG
-  );
 });
 
 describe('critère 20 — the purge removes the temporary folders of the store left for more than an hour by an interrupted process', () => {
@@ -327,32 +283,18 @@ describe('critère 20 — the purge removes the temporary folders of the store l
 
 describe('critère 25 — the temporary files of the traces of the suites (an interrupted write of a trace) follow critère 20: the purge removes them past an hour', () => {
   it(
-    'critère 25: a temporary file of the traces (<name>.<pid>.tmp, as traces.mjs writes it) older than an hour goes, whatever trace it was writing; a younger one stays, and the traces stay',
+    'critère 25: a temporary file of the traces (<name>.<pid>.tmp, as traces.mjs writes it) older than an hour goes, whatever trace it was writing; a younger one stays',
     () => {
       const d = depot(ESSAIS, fichiersUnique());
-      const t = ouvrirTraces(d.repo);
-      const vivante = t.statutComposant('src/a').empreinte;
-      const morte = 'f'.repeat(64);
       mkdirSync(d.suites, { recursive: true });
-      const trace = JSON.stringify({ code: 0, rouges: [] });
-      writeFileSync(path.join(d.suites, `t-${vivante}.json`), trace);
-      writeFileSync(
-        path.join(d.suites, 'racine-dernier.json'),
-        JSON.stringify({ code: 0, rouges: [], racine: 'y', tests: 'z', composants: {} })
-      );
       const ilYa = (ms: number) => new Date(Date.now() - ms);
-      const orphelins = [
-        `t-${vivante}.4242.tmp`,
-        `r-${morte}.4243.tmp`,
-        `d-${'c'.repeat(64)}.4244.tmp`,
-        'racine-dernier.4245.tmp',
-      ];
+      const orphelins = [`${'a'.repeat(64)}.4242.tmp`, `${'b'.repeat(64)}.4243.tmp`];
       for (const n of orphelins) {
         const p = path.join(d.suites, n);
         writeFileSync(p, '{"code": 0, "rou');
         utimesSync(p, ilYa(7_200_000), ilYa(7_200_000));
       }
-      const recent = path.join(d.suites, `t-${morte}.4246.tmp`);
+      const recent = path.join(d.suites, `${'f'.repeat(64)}.4246.tmp`);
       writeFileSync(recent, '{"code": 0, "rou');
       utimesSync(recent, ilYa(600_000), ilYa(600_000));
       vert(d.passage());
@@ -360,8 +302,6 @@ describe('critère 25 — the temporary files of the traces of the suites (an in
         expect(existsSync(path.join(d.suites, n)), n).toBe(false);
       }
       expect(existsSync(recent)).toBe(true);
-      expect(existsSync(path.join(d.suites, `t-${vivante}.json`))).toBe(true);
-      expect(existsSync(path.join(d.suites, 'racine-dernier.json'))).toBe(true);
     },
     LONG
   );

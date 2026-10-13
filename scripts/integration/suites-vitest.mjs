@@ -1,253 +1,209 @@
 #!/usr/bin/env node
-// The suites of an integration for a project tested by Vitest: `integration:suites` in
-// package.json. Its call is one of:
-//   --tous                     every suite: the suite of each component, then the root suite;
-//   <dossier de composant>…    the suites of these components (`packages/a src/parser`), then the
-//                              root suite (its share the components change);
-//   --racine                   the root suite alone;
-//   --tests <fichier>…         these test files alone, under no trace.
-// Any other call, a call without argument, or `--tous` with directories, is ambiguous: refused,
-// exit 2, nothing runs. It writes the full name of each failing test, one per line, to the file
-// named by ROUGES. Its exit code is Vitest's (the first non-zero of the suites). Two categories do
-// not run here, in any call: a time budget bench (`*.budget.test.*`, `*.budget.spec.*`), whose
-// measures the day's load moves, and a night test (`*.nuit.test.*`, `*.nuit.spec.*`), too long for
-// the day. The night (`scripts/nuit.sh`) plays both: the bench in `npm test`, the night test after
-// it (scripts/vitest.nuit.config.mjs).
+// The launcher of the tests of a project tested by Vitest: the `test` script of package.json, so
+// `npm test`. Its call is one of:
+//   npm test                          every test file of the day;
+//   npm test -- <fichier de test>…    these test files alone;
+//   npm test -- <dossier>…            the scope of each directory (a component's: `src/parser`): the
+//                                     test files under it, and the test files outside every
+//                                     component whose imports reach it; the test files under another
+//                                     component are not in it, even when they import it;
+//   npm test -- --racine              the test files outside every component;
+//   npm test -- --tous                every test file of the day, as `npm test` does.
+// The test files of the day are those Vitest lists for the project's configuration, without the time
+// budget benches (`*.budget.test.*`, `*.budget.spec.*`) and the night tests (`*.nuit.test.*`,
+// `*.nuit.spec.*`): their measures move with the day's load, or they are too long for the day; the
+// night (`scripts/nuit.sh`) plays them (scripts/vitest.nuit.config.mjs). A named file that is not a
+// test file of the day plays nothing. Any call of another form is ambiguous and is refused: exit 2.
 //
-// A suite is the suite of a component (the tests that cover its files, its own tests included: the
-// verdict keeps the tests under its directory), or the root suite (the test files outside every
-// component, every file of the test folders counted). The command keeps the verdict of each suite
-// (exit code and failing tests by name) under the fingerprint of what produces it, and does not
-// replay a suite whose fingerprint has a trace, red included (the task cache of Turborepo and Nx);
-// the fingerprints, the traces and what each suite owes are in scripts/integration/traces.mjs.
-// FORCER=1 reads no trace, plays every suite whole and writes its trace again. A suite ended by a
-// signal writes none. A component's call plays `vitest related` on its files, without the other
-// components' files; the test files outside every component it played credit the root suite,
-// which plays only the others it owes.
+// The launcher keeps, for each test file it plays, the verdict of Vitest (exit code, failing tests
+// by name) and its whole output, under the fingerprint of what the file reads
+// (scripts/integration/traces.mjs: its content, the closure of its imports, the paths the project
+// declares read by its suites, the configuration of Vitest, the lock file). A file whose
+// fingerprint has a trace is not played: its kept output shows under the line « relu, code
+// inchangé depuis <date> », and its exit code and failing tests count as if it had run, red
+// included (the task cache of Turborepo and Nx, at the grain of a Bazel test target). The files to
+// play go in one call of Vitest, each reported apart (scripts/integration/rapporteur-vitest.mjs).
+// FORCER=1 reads no trace, plays the files of the call and writes their traces again. A file ended
+// by a signal, or that Vitest leaves unnamed (a setup that fails), writes no trace; a call that
+// fails without any failing test writes none. Outside a git repository there is no store and every
+// file plays.
+//
+// The tests run in an environment the fingerprint can vouch for: the launch's own variables
+// (FORCER, ROUGES) and the ones npm sets for its call (npm_command, npm_lifecycle_*, npm_config_*)
+// are not passed on (the strict environment of Turborepo); the other variables pass.
+//
+// `--a-jouer`, with any of the calls above, plays nothing and prints nothing: the exit code is 0
+// when at least one file of the call would play, 7 when every file has its trace (the replay builds
+// the project only then), 2 for a refused call. The environment: ROUGES names a file that receives
+// the full name of each failing test, one per line. The exit code is 1 when a test fails, else
+// Vitest's.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { dossierNu, ouvrirTraces, posix } from './traces.mjs';
 
+const RAPPORTEUR = fileURLToPath(new URL('./rapporteur-vitest.mjs', import.meta.url));
 const HORS_DU_JOUR = ['budget', 'nuit'];
-const CODE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|svelte|vue)$/;
-const BUDGET_OU_NUIT = new RegExp(`\\.(${HORS_DU_JOUR.join('|')})\\.(test|spec)\\.`);
 const racine = process.cwd();
+const TOUT_GARDE = 7;
 
-const usage = () => {
-  process.stderr.write(
-    'usage: suites-vitest.mjs --tous | --racine | --tests <fichier>… | <dossier de composant>… (--tous seul, ou une liste non vide de dossiers)\n'
-  );
+const refuser = lignes => {
+  process.stderr.write(`${lignes.join('\n')}\n`);
   process.exit(2);
 };
-const args = process.argv.slice(2);
+const USAGE =
+  'usage: npm test [-- --tous | --racine | <fichier de test>… | <dossier>…] (un drapeau seul)';
+
+const sonde = process.argv.includes('--a-jouer');
+const args = process.argv.slice(2).filter(a => a !== '--a-jouer');
 const drapeaux = args.filter(a => a.startsWith('--'));
-if (args.length === 0) usage();
-if (drapeaux.length > 0) {
-  const seul = args.length === 1 && (args[0] === '--tous' || args[0] === '--racine');
-  const tests = args[0] === '--tests' && args.length > 1 && drapeaux.length === 1;
-  if (!seul && !tests) usage();
+if (
+  drapeaux.some(d => d !== '--tous' && d !== '--racine') ||
+  (drapeaux.length > 0 && args.length > 1)
+) {
+  refuser([USAGE]);
 }
-const demandes = drapeaux.length === 0 ? args.map(dossierNu) : [];
-const traces = ouvrirTraces(racine, { forcer: process.env.FORCER === '1', extra: demandes });
-const { dossiers, proprietaire } = traces;
 
-// The code files under <dir> (relative to the root), out of node_modules, dist, docs and dot folders.
-function fichiersDeCode(dir) {
-  if (!existsSync(path.join(racine, dir))) return [];
-  const out = [];
-  const walk = d => {
-    for (const e of readdirSync(d, { withFileTypes: true })) {
-      if (['node_modules', 'dist', 'docs'].includes(e.name) || e.name.startsWith('.')) continue;
-      const p = path.join(d, e.name);
-      if (e.isDirectory()) walk(p);
-      else if (CODE.test(e.name) && !BUDGET_OU_NUIT.test(e.name)) out.push(posix(p));
+// The named files and directories, relative to the root.
+const fichiersNommes = [];
+const dossiersNommes = [];
+for (const a of args.filter(x => !x.startsWith('--'))) {
+  const abs = path.resolve(racine, a);
+  const rel = posix(path.relative(racine, abs));
+  if (existsSync(abs) && statSync(abs).isDirectory()) dossiersNommes.push(dossierNu(rel));
+  else fichiersNommes.push(rel);
+}
+
+const exclusions = HORS_DU_JOUR.map(c => `--exclude=**/*.${c}.{test,spec}.?(c|m)[jt]s?(x)`);
+
+// The test files of the day, relative to the root: what Vitest lists for the project's
+// configuration.
+function fichiersDuJour() {
+  const r = spawnSync('npx', ['--no-install', 'vitest', 'list', '--filesOnly', ...exclusions], {
+    cwd: racine,
+    encoding: 'utf8',
+    maxBuffer: 1 << 28,
+  });
+  if (r.status !== 0) {
+    process.stderr.write(r.stderr || r.stdout);
+    process.exit(r.status ?? 1);
+  }
+  return r.stdout
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l !== '' && existsSync(path.resolve(racine, l)))
+    .map(l => posix(path.relative(racine, path.resolve(racine, l))))
+    .sort();
+}
+
+const jour = fichiersDuJour();
+// A named file plays when it is a test file of the day; any other is not in the selection.
+const nommesDuJour = fichiersNommes.filter(f => jour.includes(f));
+
+const traces = ouvrirTraces(racine, { extra: dossiersNommes });
+const { proprietaire } = traces;
+const toutLeJour = args.length === 0 || drapeaux.length > 0;
+// The importers of a directory are found in the imports of every test file of the day.
+const analyses = await traces.analyserTests(
+  toutLeJour || dossiersNommes.length > 0 ? jour : nommesDuJour
+);
+const choisis = new Set(nommesDuJour);
+for (const d of dossiersNommes) {
+  for (const f of jour) {
+    if (proprietaire(f) === d || (proprietaire(f) === '' && analyses.get(f)?.dirs.has(d))) {
+      choisis.add(f);
     }
-  };
-  walk(dir);
-  return out;
+  }
 }
+const selection = !toutLeJour
+  ? jour.filter(f => choisis.has(f))
+  : args[0] === '--racine'
+    ? jour.filter(f => proprietaire(f) === '')
+    : jour;
 
-const exclusions = (...motifs) => [
-  ...HORS_DU_JOUR.map(c => `--exclude=**/*.${c}.{test,spec}.?(c|m)[jt]s?(x)`),
-  ...motifs.map(m => `--exclude=${m}`),
-];
-
-const tmp = mkdtempSync(path.join(tmpdir(), 'suites-'));
-let appels = 0;
-// One call of Vitest: { interrompu } when a signal ended it, else { status, resultats } with, for
-// each test file reported, its path, its failing tests by name and its duration in seconds (null
-// when unmeasured).
-function vitest(argsVitest) {
-  const rapport = path.join(tmp, `rapport-${++appels}.json`);
-  const r = spawnSync(
-    'npx',
-    ['vitest', ...argsVitest, '--reporter=json', `--outputFile=${rapport}`],
-    { stdio: ['ignore', 'inherit', 'inherit'] }
+const forcer = process.env.FORCER === '1';
+// The environment of the tests: the process's, without the launch's variables and npm's.
+const environnementDesTests = () =>
+  Object.fromEntries(
+    Object.entries(process.env).filter(
+      ([k]) => !/^(FORCER|ROUGES|npm_command|npm_lifecycle_.*|npm_config_.*)$/.test(k)
+    )
   );
-  if (r.status === null || r.status > 128) return { interrompu: true };
-  const resultats = [];
-  if (existsSync(rapport)) {
-    const { testResults = [] } = JSON.parse(readFileSync(rapport, 'utf8'));
-    for (const f of testResults) {
-      const rel = posix(path.relative(racine, f.name));
-      const tests = f.assertionResults ?? [];
-      const rouges = tests.filter(t => t.status === 'failed').map(t => `${rel} > ${t.fullName}`);
-      // A file that fails without any failing test (a collect error) is named by itself.
-      if (f.status === 'failed' && rouges.length === 0) rouges.push(rel);
-      const duree =
-        typeof f.startTime === 'number' && typeof f.endTime === 'number'
-          ? Math.round((f.endTime - f.startTime) / 100) / 10
-          : null;
-      resultats.push({ rel, rouges, duree });
-    }
-  }
-  return { status: r.status, resultats };
-}
-const echecs = resultats => resultats.flatMap(r => r.rouges);
-// The exit code of a call for the files it is judged on: red tests there, or a call that fails
-// without any red test anywhere.
-const codeDe = (appel, siens) =>
-  echecs(siens).length > 0
-    ? 1
-    : appel.status !== 0 && echecs(appel.resultats).length === 0
-      ? appel.status
-      : 0;
-
-// The suite of the component <dir>, without the files <ecartes>: { code, rouges, resultats, siens }
-// (`resultats` every file Vitest reported, `siens` those under <dir>), or { interrompu }.
-function jouerComposant(dir, ecartes) {
-  const fichiers = fichiersDeCode(dir);
-  if (fichiers.length === 0) return { code: 0, rouges: [], resultats: [], siens: [] };
-  const autres = dossiers.filter(d => d !== dir).map(d => `**/${d}/**`);
-  const appel = vitest([
-    'related',
-    '--run',
-    '--passWithNoTests',
-    ...fichiers,
-    ...exclusions(...autres, ...ecartes.map(f => `**/${f}`)),
-  ]);
-  if (appel.interrompu) return appel;
-  const siens = appel.resultats.filter(r => proprietaire(r.rel) === dir);
-  return { code: codeDe(appel, siens), rouges: echecs(siens), resultats: appel.resultats, siens };
-}
-
-// One component's verdict, from its trace or from a run: { code, rouges, resultats, siens }.
-function suiteComposant(dir) {
-  const { gardee, jeu, ecartes, empreinte, nomDernier } = traces.statutComposant(dir);
-  if (gardee) {
-    console.log(`↺ ${dir} : inchangé depuis sa dernière suite, non rejoué`);
-    return { code: gardee.code, rouges: gardee.rouges, resultats: [] };
-  }
-  if (jeu === 'rapide')
-    console.log(`↻ ${dir} : jeu rapide, sans ${ecartes.length} fichier(s) lent(s)`);
-  const r = jouerComposant(dir, ecartes);
-  if (r.interrompu) return r;
-  if (jeu === 'rapide') {
-    traces.ecrire(`r-${empreinte}`, { code: r.code, rouges: r.rouges, jeu });
-    return r;
-  }
-  traces.ecrire(`t-${empreinte}`, { code: r.code, rouges: r.rouges, jeu });
-  const durees = {};
-  for (const f of r.siens) if (f.duree !== null) durees[f.rel] = f.duree;
-  traces.ecrire(nomDernier, {
-    propre: traces.propre.get(dir) ?? '',
-    racine: traces.empreinteRacine,
-    code: r.code,
-    durees,
-  });
-  return r;
-}
-
-// The root suite: the test files outside every component. <credits> maps the root test files the
-// components' calls already played to their failing tests, and `composant:<dir>` to [] for each
-// component whose call ran. { code, rouges, resultats } or { interrompu }.
-function suiteRacine(credits) {
-  if (traces.fichiersDeTest.length === 0) return { code: 0, rouges: [], resultats: [] };
-  const { gardee, partielle, changes, dernier, empreinte } = traces.statutRacine();
-  if (gardee) {
-    console.log('↺ suite de la racine : inchangée depuis sa dernière suite, non rejouée');
-    return { code: gardee.code, rouges: gardee.rouges, resultats: [] };
-  }
-  const hors = dossiers.map(d => `**/${d}/**`);
-  let rouges;
-  let code;
-  let sansNom = false;
-  if (partielle) {
-    console.log(`↻ suite de la racine : ses tests qui atteignent ${changes.join(', ')}`);
-    const vus = new Map(credits);
-    let appelCode = 0;
-    const fichiers = changes.filter(d => !vus.has(`composant:${d}`)).flatMap(fichiersDeCode);
-    if (fichiers.length > 0) {
-      const appel = vitest([
-        'related',
-        '--run',
-        '--passWithNoTests',
-        ...fichiers,
-        ...exclusions(...hors),
-      ]);
-      if (appel.interrompu) return appel;
-      for (const r of appel.resultats) vus.set(r.rel, r.rouges);
-      appelCode = codeDe(appel, appel.resultats);
-    }
-    const joues = [...vus.keys()].filter(k => !k.startsWith('composant:'));
-    const gardes = dernier.rouges.filter(n => !joues.includes(n.split(' > ')[0]));
-    rouges = [...new Set([...gardes, ...joues.flatMap(k => vus.get(k))])];
-    // A failure of the last run that named no test stays: the partial replay cannot clear it.
-    sansNom = dernier.sansNom === true;
-    code = rouges.length > 0 ? 1 : sansNom ? dernier.code : appelCode;
-  } else {
-    console.log('↻ suite de la racine : tous ses tests');
-    const appel = vitest(['run', '--passWithNoTests', ...exclusions(...hors)]);
-    if (appel.interrompu) return appel;
-    rouges = echecs(appel.resultats);
-    code = codeDe(appel, appel.resultats);
-    sansNom = code !== 0 && rouges.length === 0;
-  }
-  traces.ecrire(`t-${empreinte}`, { code, rouges, jeu: 'racine' });
-  traces.ecrire('racine-dernier', {
-    code,
-    rouges,
-    sansNom,
-    racine: traces.empreinteRacine,
-    tests: traces.empreinteDesTests,
-    composants: Object.fromEntries(traces.propre),
-  });
-  return { code, rouges, resultats: [] };
-}
-
 const rougesTotal = [];
-let sortie = 0;
-let interrompu = false;
-const accueillir = r => {
-  if (r.interrompu) {
-    interrompu = true;
-    return;
-  }
-  for (const n of r.rouges) if (!rougesTotal.includes(n)) rougesTotal.push(n);
-  if (r.code !== 0 && sortie === 0) sortie = r.code;
+const noter = noms => {
+  for (const n of noms) if (!rougesTotal.includes(n)) rougesTotal.push(n);
 };
 
-if (args[0] === '--tests') {
-  const appel = vitest(['run', '--passWithNoTests', ...args.slice(1), ...exclusions()]);
-  if (appel.interrompu) interrompu = true;
-  else accueillir({ code: codeDe(appel, appel.resultats), rouges: echecs(appel.resultats) });
-} else {
-  const dirs = args[0] === '--tous' ? dossiers : args[0] === '--racine' ? [] : demandes;
-  const credits = new Map();
-  for (const d of dirs) {
-    const r = suiteComposant(d);
-    accueillir(r);
-    if (r.interrompu) continue;
-    for (const f of r.resultats) {
-      if (proprietaire(f.rel) === '' && !credits.has(f.rel)) credits.set(f.rel, f.rouges);
-    }
-    // A component whose call ran credits the root suite with its share of the tests.
-    if (r.siens) credits.set(`composant:${d}`, []);
-  }
-  accueillir(suiteRacine(credits));
+// The files with a trace are read again, the others are to play.
+const relus = new Set();
+for (const f of selection) {
+  const trace = forcer ? null : traces.lire(analyses.get(f).empreinte);
+  if (!trace) continue;
+  relus.add(f);
+  if (sonde) continue;
+  process.stdout.write(`relu, code inchangé depuis ${trace.quand ?? '?'} : ${f}\n${trace.sortie}`);
+  noter(trace.rouges);
 }
-if (process.env.ROUGES) writeFileSync(process.env.ROUGES, rougesTotal.map(n => `${n}\n`).join(''));
-rmSync(tmp, { recursive: true, force: true });
-process.exit(interrompu ? 1 : sortie);
+const ajouer = selection.filter(f => !relus.has(f));
+
+if (sonde) process.exit(ajouer.length > 0 ? 0 : TOUT_GARDE);
+let sortie = rougesTotal.length > 0 ? 1 : 0;
+if (ajouer.length > 0) {
+  const tmp = mkdtempSync(path.join(tmpdir(), 'tests-'));
+  const rapport = path.join(tmp, 'rapport.jsonl');
+  writeFileSync(rapport, '');
+  const r = spawnSync(
+    'npx',
+    [
+      '--no-install',
+      'vitest',
+      'run',
+      ...ajouer.map(f => path.resolve(racine, f)),
+      `--reporter=${RAPPORTEUR}`,
+      ...exclusions,
+    ],
+    {
+      cwd: racine,
+      stdio: ['ignore', 'inherit', 'inherit'],
+      env: { ...environnementDesTests(), RAPPORT_VITEST: rapport },
+    }
+  );
+  const interrompu = r.status === null || r.status > 128;
+  const rapportes = new Map(
+    readFileSync(rapport, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map(l => JSON.parse(l))
+      .map(x => [x.fichier, x])
+  );
+  rmSync(tmp, { recursive: true, force: true });
+  const rouges = [...rapportes.values()].flatMap(x => x.rouges);
+  noter(rouges);
+  // A call that fails without any failing test is unexplained: none of its files is vouched for.
+  const inexplique = !interrompu && r.status !== 0 && rouges.length === 0;
+  if (!inexplique) {
+    for (const f of ajouer) {
+      const x = rapportes.get(f);
+      if (x) {
+        traces.ecrire(analyses.get(f).empreinte, {
+          code: x.rouges.length > 0 ? 1 : 0,
+          rouges: x.rouges,
+          sortie: x.sortie,
+        });
+      }
+    }
+  }
+  sortie = interrompu ? 1 : rougesTotal.length > 0 ? 1 : (r.status ?? 1);
+}
+if (selection.length === 0) process.stdout.write('aucun fichier de test à jouer\n');
+else {
+  process.stdout.write(
+    `\nTest Files  ${selection.length} (${relus.size} relu${relus.size > 1 ? 's' : ''}, ${ajouer.length} joué${ajouer.length > 1 ? 's' : ''})\n`
+  );
+}
+if (process.env.ROUGES) {
+  writeFileSync(process.env.ROUGES, rougesTotal.map(n => `${n}\n`).join(''));
+}
+process.exit(sortie);

@@ -51,13 +51,15 @@ construction (une construction inchangée se restaure du magasin), rejoue les su
 crochets sur `agent/<ticket>` ; main n'avance pas ici. Il étiquette chaque ticket `en-file`, place
 la branche dans la file et retire la copie du ticket. Les suites rejouées suivent le choix du
 projet : toutes (`complet`), ou les composants du lot et ceux qui en dépendent (`impactes`, toutes
-les suites tournant la nuit). Chaque suite garde son verdict sous l'empreinte du contenu de ce
-qu'elle lit, et une suite inchangée ne se rejoue pas. Les tests hors de tout composant forment la
-suite de la racine : une aide de test changée la rejoue entière, un lot fait seulement de tests
-joue ces seuls tests, et un composant changé y joue les seuls tests qui l'importent. Le fichier de verrou ou un chemin que le projet
+les suites tournant la nuit), toutes lancées par `npm test`. Chaque fichier de test garde son
+verdict et sa sortie sous l'empreinte de son contenu et des modules qu'il importe, et un fichier
+inchangé se relit sans se rejouer. Les tests hors de tout composant forment la
+suite de la racine : une aide de test changée y rejoue les seuls fichiers qui l'importent, un
+lot fait seulement de tests joue ces seuls tests, et un composant changé y joue les seuls tests
+qui l'importent. Le fichier de verrou ou un chemin que le projet
 déclare lu par ses suites (`grillhouse.lusParLesSuites`) rejoue toutes les suites ; un autre
 fichier hors de tout composant (un document, un crochet, un script du cadre) n'en rejoue aucune.
-La base de main se construit seulement quand une de ses suites se rejoue.
+La base de main se construit seulement quand un de ses fichiers de test va se jouer.
 Ainsi le commit validé est exactement celui qui entre. Il tient sa propre attente : il rend la main
 sur le commit ou sur le refus, avec toute sa sortie. Ainsi une attente est un processus vivant,
 jamais une phrase. Une intégration lancée pendant qu'une autre tourne attend la fin de la première.

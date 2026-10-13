@@ -352,7 +352,7 @@ function monde(commentaires: string[]) {
     path.join(repo, 'package.json'),
     JSON.stringify({
       scripts: {
-        'integration:suites': 'node suites.mjs',
+        test: 'node suites.mjs',
         'integration:gardes': 'test ! -f GARDE_ROUGE && test ! -f RESTE',
       },
     })
@@ -707,7 +707,7 @@ describe('an integration', () => {
       JSON.stringify({
         grillhouse: { integration: 'complet' },
         scripts: {
-          'integration:suites': 'node suites.mjs',
+          test: 'node suites.mjs',
           'integration:gardes': 'test ! -f GARDE_ROUGE && test ! -f RESTE',
         },
       })
@@ -851,7 +851,7 @@ describe('an integration', () => {
       JSON.stringify({
         grillhouse: { lusParLesSuites: lus },
         scripts: {
-          'integration:suites': 'node suites.mjs',
+          test: 'node suites.mjs',
           'integration:gardes': 'test ! -f GARDE_ROUGE && test ! -f RESTE',
         },
       })
@@ -898,6 +898,15 @@ describe('an integration', () => {
     expect(r.stdout).toMatch(/Rouges nouveaux :\n {2}✗ tests\/outil\.spec\.ts > outil/);
     expect(m.etat().log[0]).toBe('pose scripts/outil.mjs');
   });
+  it('3uv.75.1 critères 1 et 9: hands npm test the test files of a lot made only of tests, named as they are, without --tests', () => {
+    const m = monde(['ACCEPTÉ']);
+    m.poser('suites.mjs', enregistrer);
+    const r = m.lancer(['--tests', path.join(m.bin, 'tests.patch')], []);
+    expect(r.status, r.stdout + r.stderr).toBe(0);
+    const appels = readFileSync(`${m.repo}.args`, 'utf8');
+    expect(appels).toMatch(/\[tests\/a\.spec\.ts\]$/);
+    expect(appels).not.toMatch(/--tests/);
+  });
   it('critère 5: hands the suites --tous when the project chose « complet »', () => {
     const m = monde(['ACCEPTÉ']);
     m.poser(
@@ -905,7 +914,7 @@ describe('an integration', () => {
       JSON.stringify({
         grillhouse: { integration: 'complet' },
         scripts: {
-          'integration:suites': 'node suites.mjs',
+          test: 'node suites.mjs',
           'integration:gardes': 'test ! -f GARDE_ROUGE && test ! -f RESTE',
         },
       })

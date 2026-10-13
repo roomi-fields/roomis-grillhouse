@@ -34,8 +34,8 @@ ses bords et ses refus. Ainsi un code taillé pour l'exemple du ticket échoue.
 qu'il rend, sans simuler ce que le composant fait lui-même. Ainsi ils restent vrais quand le code
 change de forme.
 
-**Chaque test rougit d'abord** : tu le lances sur le code présent et tu gardes la sortie de son
-échec. Un test vert d'emblée ne prouve rien ; tu le dis dans la passation. Ainsi chaque test prouve
+**Chaque test rougit d'abord** : tu le lances sur le code présent (`npm test -- <fichier>`) et tu
+gardes la sortie de son échec. Un test vert d'emblée ne prouve rien ; tu le dis dans la passation. Ainsi chaque test prouve
 qu'il sait échouer.
 
 **Un budget de temps vit dans son fichier** : un test qui mesure une durée s'écrit dans un fichier

@@ -21,7 +21,6 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
-import { ouvrirTraces } from '../../scripts/integration/traces.mjs';
 import {
   arbre,
   arbreExact,
@@ -362,22 +361,7 @@ describe('critère 11 — without any component that has a build, the root build
   );
 });
 
-describe('critère 15 — the fingerprint of a build is computed in traces.mjs on the inputs of the full suite, under a label of its own', () => {
-  it(
-    'critère 15: a build and the full suite of the same component never share a fingerprint',
-    () => {
-      const d = depot(ESSAIS, fichiersPaquets());
-      const t = ouvrirTraces(d.repo);
-      for (const comp of CONSTRUITS) {
-        const e = d.empreinte(comp);
-        expect(e).toMatch(HEX);
-        expect(e).not.toBe(t.statutComposant(comp).empreinte);
-      }
-      const u = depot(ESSAIS, fichiersUnique());
-      expect(u.empreinte('')).not.toBe(ouvrirTraces(u.repo).statutRacine().empreinte);
-    },
-    LONG
-  );
+describe('critère 15 — the fingerprint of a build is computed in traces.mjs on the inputs of its component', () => {
   it(
     'critère 15: the fingerprint of a component follows its files, its closure, the lock file and the declared paths, and nothing else',
     () => {

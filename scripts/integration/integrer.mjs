@@ -21,10 +21,10 @@
 //  4. a clean integration copy (`.claude/worktrees/integration`) on HEAD, made ready by the
 //     replay (scripts/integration/rejeu.mjs: submodules by scripts/sous-modules.sh, dependencies
 //     in agreement with the lock file and the manifests, mounts); it builds nothing;
-//  5. the base: the project's suites (`npm run integration:suites -- <scope>`) on HEAD. Each suite
-//     keeps its verdict under the fingerprint of its content (scripts/integration/suites-vitest.mjs):
-//     a suite whose fingerprint has a trace is not replayed, so the base of a HEAD already
-//     measured costs nothing. The project chooses at its installation (`grillhouse.integration` in
+//  5. the base: the project's tests (`npm test -- <scope>`) on HEAD. Each test file keeps its
+//     verdict under the fingerprint of what it reads (scripts/integration/suites-vitest.mjs): a file
+//     whose fingerprint has a trace is not replayed, so the base of a HEAD already measured costs
+//     nothing. The project chooses at its installation (`grillhouse.integration` in
 //     package.json): `impactes` (the default) replays the components that hold a file of the lot and
 //     those that depend on them (the graph of the dependencies), whatever the nature of the file; every suite
 //     for a lot that touches the lock file or a root path the project declares read
@@ -69,10 +69,10 @@
 // against the main tree and the ticket's copy, step 5 hands them to the scope of the suites, and
 // step 6 compares them with the copy's own base plus the lot.
 //
-// The main tree is not touched. The suites command receives `--tous` for every suite, the
-// components' directories to replay (`packages/a src/parser`), `--racine`, or `--tests <files>`,
-// never nothing, and writes the names of its failing tests, one per line, to the file named by the
-// ROUGES variable.
+// The main tree is not touched. The tests command (`npm test`) receives `--tous` for every test
+// file, the components' directories to replay (`packages/a src/parser`), `--racine`, or the test
+// files of the lot that exist in the copy, never nothing, and writes the names of its failing tests,
+// one per line, to the file named by the ROUGES variable.
 // The budget of an integration that touches one leaf component: 15 s, measured on the template
 // (12.8 s with its first `npm ci`, 8.6 s after). A project sets its own, measured on its code
 // (`npm pkg set grillhouse.budgetIntegration=<seconds>`). The duration is written at the end,

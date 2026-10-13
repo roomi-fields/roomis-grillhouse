@@ -221,7 +221,6 @@ describe('grillhouse-3uv.55 critère 1 — the update writes grillhouse:gardes',
   });
   it("critère 1: the project's other scripts stay, the frame's tableau and grillhouse:maj with them", () => {
     const s = installe({ name: 'p', scripts: { test: 'vitest run', lint: 'eslint .' } }).scripts();
-    expect(s.test).toBe('vitest run');
     expect(s.lint).toBe('eslint .');
     expect(s.tableau).toMatch(/tableau\.mjs/);
     expect(s['grillhouse:maj']).toMatch(/grillhouse-maj\.mjs/);
@@ -468,10 +467,10 @@ describe('grillhouse-3uv.60 critère 1 — the update writes api and the depende
       expect(m.devDependencies?.[d], d).toBeTypeOf('string');
     }
   });
-  it("critère 1: a project receives the template's api script", () => {
+  it("critère 1: a project receives the template's api script, and the frame's test in place of its own (3uv.75.1 critère 12)", () => {
     const { pkg } = apresMaj({ name: 'p', scripts: { test: 'vitest run' } });
     expect(pkg.scripts?.api).toBe(modele().scripts?.api);
-    expect(pkg.scripts?.test).toBe('vitest run');
+    expect(pkg.scripts?.test).toBe(modele().scripts?.test);
   });
   it('critère 1: a project without dependencies receives the three, at the versions of the template', () => {
     const { pkg } = apresMaj({ name: 'p' });
@@ -1079,5 +1078,61 @@ describe('grillhouse-3uv.56 critère 13 — the settings are written only when t
     expect(Object.keys(r.hooks as object)).toEqual(['Stop', 'PreToolUse', 'SessionStart']);
     expect(Object.keys(r.enabledPlugins as object)).toEqual(['a@b', 'g@h']);
     expect(Object.keys(r.extraKnownMarketplaces as object)).toEqual(['mien', 'h']);
+  });
+});
+
+// grillhouse-3uv.75.1 critère 12 (Q6): one command launches the tests, `npm test`, through the
+// frame's launcher; the update of the frame poses the frame's test in a project that has its own
+// (BPScript), and says so in its report.
+const TEST_DU_CADRE = 'node scripts/integration/suites-vitest.mjs';
+describe('grillhouse-3uv.75.1 critère 12 — the update poses the frame’s test in a project that has its own, and says so', () => {
+  it('critère 12: the test script of the template is the launcher', () => {
+    expect(gabarit().test).toBe(TEST_DU_CADRE);
+  });
+  it('critère 12: a project whose test is its own receives the frame’s test', () => {
+    const s = installe({ name: 'p', scripts: { test: 'vitest run --project mien' } }).scripts();
+    expect(s.test).toBe(gabarit().test);
+  });
+  it('critère 12: the report of the update says that the frame’s test replaces the project’s', () => {
+    const { projet, src } = projetEtSource({
+      name: 'p',
+      scripts: { test: 'vitest run --project mien' },
+    });
+    const r = lancerMaj(projet, src);
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stdout).toContain(TEST_DU_CADRE);
+    expect(r.stdout).toMatch(/\btest\b/);
+  });
+  // Arbitrage of the supervisor (constat 2 of the review): a project is known to Vitest when vitest
+  // is in the dependencies or devDependencies of its root package.json or of one of its
+  // workspaces; it then receives the frame's test, whatever the text of its own.
+  it('critère 12: a project that declares vitest in a workspace alone (BPScript) receives the frame’s test, whatever the text of its own, and the report says so', () => {
+    const propre = 'FORCER=1 bash scripts/suites-des-paquets.sh';
+    const { projet, src } = projetEtSource({
+      name: 'p',
+      private: true,
+      workspaces: ['packages/*'],
+      scripts: { test: propre },
+    });
+    ecrire(
+      projet,
+      'packages/moteur/package.json',
+      `${JSON.stringify({ name: 'moteur', devDependencies: { vitest: '^3.0.0' } }, null, 2)}\n`
+    );
+    const r = lancerMaj(projet, src);
+    expect(r.status, r.stderr).toBe(0);
+    expect((json(projet, 'package.json').scripts as Record<string, string>).test).toBe(
+      TEST_DU_CADRE
+    );
+    expect(r.stdout).toContain(TEST_DU_CADRE);
+  });
+  it('critère 12: a project whose test is already the frame’s keeps it, and the report says nothing of it', () => {
+    const { projet, src } = projetEtSource({ name: 'p', scripts: { test: TEST_DU_CADRE } });
+    const r = lancerMaj(projet, src);
+    expect(r.status, r.stderr).toBe(0);
+    expect((json(projet, 'package.json').scripts as Record<string, string>).test).toBe(
+      TEST_DU_CADRE
+    );
+    expect(r.stdout).not.toContain(TEST_DU_CADRE);
   });
 });

@@ -26,6 +26,11 @@
 //   already declares in `dependencies`, `devDependencies` or `optionalDependencies` keeps its
 //   declaration, one a previous version added stays, and `devDependencies` are written sorted by
 //   name. The report names each tool added and `npm install`, which installs them.
+// - A project that runs Vitest (its `test` script names it, or `vitest` is in the `dependencies` or
+//   `devDependencies` of its root `package.json` or of one of its workspaces) has its `test` script
+//   become the source's `test` (the launcher with its cache, scripts/integration/suites-vitest.mjs);
+//   the report says so. A `test` that runs anything
+//   else stays.
 // - The git hooks: both of the frame (commit-msg « un ticket, un commit », pre-push night branch
 //   guard) are placed by scripts/crochets.mjs, the mechanism scripts/setup.sh also calls, in the
 //   hooks folder git reads for the project (`core.hooksPath`, else the default one; the
@@ -82,6 +87,27 @@ const APPEL_GARDES = 'npm run --silent grillhouse:gardes';
 const ANCIEN_CABLAGE_DES_GARDES = 'npm run --silent pretest';
 
 const empreinte = f => createHash('sha256').update(readFileSync(f)).digest('hex');
+// Whether `vitest` is declared in the dependencies of the package.json <p> (read at <dossier>) or of
+// one of its workspaces (the entries of `workspaces`, or of `workspaces.packages`; a trailing `/*`
+// lists the folders under it).
+const declareVitest = (dossier, p) => {
+  const a = pkg => Boolean(pkg?.dependencies?.vitest ?? pkg?.devDependencies?.vitest);
+  if (a(p)) return true;
+  const ws = Array.isArray(p?.workspaces) ? p.workspaces : (p?.workspaces?.packages ?? []);
+  return ws.some(w => {
+    const motif = String(w).replace(/\/$/, '');
+    const base = motif.endsWith('/*') ? motif.slice(0, -2) : null;
+    let dossiers = [motif];
+    if (base !== null) {
+      try {
+        dossiers = readdirSync(path.join(dossier, base)).map(d => `${base}/${d}`);
+      } catch {
+        dossiers = [];
+      }
+    }
+    return dossiers.some(d => a(lireJson(path.join(dossier, d, 'package.json'), null)));
+  });
+};
 const lireJson = (f, defaut) => {
   try {
     return JSON.parse(readFileSync(f, 'utf8'));
@@ -200,7 +226,7 @@ export function mettreAJour(projet, source, version) {
   const { garder, retirer } = lireListe(readFileSync(path.join(source, LISTE), 'utf8'));
   const avant = lireJson(path.join(projet, EMPREINTES), { fichiers: {}, crochets: [] });
   const fichiers = fichiersDuCadre(source, garder);
-  const bilan = { copies: [], retires: [], dependances: [] };
+  const bilan = { copies: [], retires: [], dependances: [], test: null };
   const empreintes = {};
   for (const f of fichiers) {
     const dst = path.join(projet, f);
@@ -236,6 +262,18 @@ export function mettreAJour(projet, source, version) {
     p.scripts = { ...(p.scripts ?? {}), ...SCRIPTS };
     if (typeof pkgSource.scripts?.api === 'string') {
       p.scripts.api = pkgSource.scripts.api;
+    }
+    // The frame's test (the launcher with its cache) replaces a project's own test that runs Vitest.
+    const testDuCadre = pkgSource.scripts?.test;
+    const testDuProjet = p.scripts.test;
+    if (
+      typeof testDuCadre === 'string' &&
+      typeof testDuProjet === 'string' &&
+      testDuProjet !== testDuCadre &&
+      (/\bvitest\b/.test(testDuProjet) || declareVitest(projet, p))
+    ) {
+      p.scripts.test = testDuCadre;
+      bilan.test = { ancien: testDuProjet, nouveau: testDuCadre };
     }
     for (const nom of OUTILS_DES_CONTROLES) {
       const version = pkgSource.devDependencies?.[nom];
@@ -351,6 +389,11 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   if (b.dependances.length > 0) {
     process.stdout.write(
       `Dépendances de développement ajoutées : ${b.dependances.join(', ')}. \`npm install\` les installe.\n`
+    );
+  }
+  if (b.test) {
+    process.stdout.write(
+      `Script test : \`${b.test.ancien}\` remplacé par le test du cadre \`${b.test.nouveau}\` (relit les fichiers de test dont rien n'a bougé).\n`
     );
   }
   for (const l of installerGreffons(projet)) {

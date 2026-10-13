@@ -16,7 +16,7 @@
 //  - main has moved: the branch is replaced on main in the queue's own copy
 //    (`.claude/worktrees/file`, made ready by scripts/integration/rejeu.mjs), the suites that read
 //    what the branch touches (rule `grillhouse.integration`; a suite whose content was already
-//    measured is not replayed, scripts/integration/suites-vitest.mjs) and the project's guards are
+//    measured is not replayed, `npm test`, scripts/integration/suites-vitest.mjs) and the project's guards are
 //    replayed there, the dependencies made to agree with the lock file and the manifests of the
 //    branch once replaced (rejeu.mjs installs before the build, the suites and the guards; an
 //    install that fails makes the branch leave the queue, « Les dépendances de la copie ne

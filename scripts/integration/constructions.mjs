@@ -130,10 +130,10 @@ function fichiersDe(dossier, rel = '') {
 
 // The fingerprints of every live content, given the project's traces <actuelles> (the copy of this
 // passage, not read twice).
-function empreintesVivantes(racine, actuelles) {
+async function empreintesVivantes(racine, actuelles) {
   const vivantes = new Set();
-  const ajouter = traces => {
-    for (const e of traces.empreintesVivantes()) vivantes.add(e);
+  const ajouter = async traces => {
+    for (const e of await traces.empreintesVivantes()) vivantes.add(e);
   };
   const ici = path.resolve(racine);
   const liste = git(['-C', racine], 'worktree', 'list', '--porcelain').stdout;
@@ -142,7 +142,7 @@ function empreintesVivantes(racine, actuelles) {
     const dir = lignes.find(l => l.startsWith('worktree '))?.slice('worktree '.length);
     if (!dir || lignes.some(l => l.startsWith('prunable')) || !existsSync(dir)) continue;
     try {
-      ajouter(path.resolve(dir) === ici ? actuelles : ouvrirTraces(dir));
+      await ajouter(path.resolve(dir) === ici ? actuelles : ouvrirTraces(dir));
     } catch {
       // a copy that does not read keeps nothing
     }
@@ -160,7 +160,7 @@ function empreintesVivantes(racine, actuelles) {
     const dest = mkdtempSync(path.join(tmpdir(), 'constructions-'));
     try {
       if (extraire(depot, commit, dest))
-        ajouter(ouvrirTraces(dest, { fichiers: fichiersDe(dest) }));
+        await ajouter(ouvrirTraces(dest, { fichiers: fichiersDe(dest) }));
     } catch {
       // a commit that does not read keeps nothing
     } finally {
@@ -196,17 +196,17 @@ function construire(racine, dir) {
 }
 
 // One passage over the project at <racine>; the exit code.
-function passer(racine, forcer) {
+async function passer(racine, forcer) {
   if (process.env[MARQUE]) {
     process.stderr.write('⛔ un build lancé par ce point d’entrée le rappelle : refusé.\n');
     return 1;
   }
   const debut = Date.now();
-  const traces = ouvrirTraces(racine, { forcer });
+  const traces = ouvrirTraces(racine);
   const magasin = traces.dossierConstructions;
   if (magasin) {
     try {
-      purgerMagasin(traces.commun, empreintesVivantes(racine, traces), debut);
+      purgerMagasin(traces.commun, await empreintesVivantes(racine, traces), debut);
     } catch (e) {
       process.stderr.write(`⚠ purge du magasin non faite : ${e.message}\n`);
     }
@@ -238,5 +238,5 @@ function passer(racine, forcer) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  process.exit(passer(process.cwd(), process.env.FORCER === '1'));
+  process.exit(await passer(process.cwd(), process.env.FORCER === '1'));
 }

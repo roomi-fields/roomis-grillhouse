@@ -28,11 +28,13 @@
 //   suites and the guards run on dependencies in agreement, and none reads the key or installs.
 // - `perimetre` is the scope of the suites for a set of files (see below); the project's choice
 //   (`grillhouse.integration`: `impactes` by default, `complet`) decides in `portee`.
-// - `suites` plays `npm run integration:suites -- <scope>` (scripts/integration/suites-vitest.mjs:
-//   `--tous`, the components' directories, `--racine`, or `--tests <files>`), which writes the names
-//   of its failing tests, one per line, to the file named by ROUGES. It builds the project (the
-//   entry point) just before, only when a suite of the call plays, that is when one has no trace
-//   (scripts/integration/traces.mjs, `aJouer`): a call whose suites are all kept builds nothing.
+// - `suites` plays `npm test -- <scope>` (scripts/integration/suites-vitest.mjs: `--tous`, the
+//   components' directories, `--racine`, or the test files of the lot that exist in the copy), which
+//   writes the names of its failing tests, one per line, to the file named by ROUGES. It builds the
+//   project (the entry point) just before, only when a test file of the call plays, that is when one
+//   has no trace: the launcher says so (`--a-jouer`, scripts/integration/suites-vitest.mjs), and a
+//   launcher that cannot tell leaves the project built; a call whose test files are all kept builds
+//   nothing.
 // - `gardes` plays `npm run integration:gardes` (scripts/integration/gardes.mjs). The project is
 //   built after the lots: by the `suites` of the lot when one plays, otherwise by `gardes` when a
 //   control of `grillhouse:gardes` follows its build step (it reads the build). No control is left
@@ -49,10 +51,12 @@ import { fileURLToPath } from 'node:url';
 import { composants as lesComposants, NOM_DE_TEST, dependances } from '../consommateurs.mjs';
 import { isTestFile } from '../verrous/verrou.mjs';
 import { etapesDesGardes } from './gardes.mjs';
-import { ouvrirTraces } from './traces.mjs';
 
 const SOUS_MODULES = fileURLToPath(new URL('../sous-modules.sh', import.meta.url));
 const CONSTRUCTIONS = fileURLToPath(new URL('./constructions.mjs', import.meta.url));
+// The exit code of the launcher's `--a-jouer` when every test file of the call has its trace.
+const TOUT_GARDE = 7;
+const LANCEUR = fileURLToPath(new URL('./suites-vitest.mjs', import.meta.url));
 export const RETIRER_COPIE = fileURLToPath(new URL('../retirer-copie.sh', import.meta.url));
 
 export const lireJsonSiPresent = p => (existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : null);
@@ -63,14 +67,15 @@ export function nouveauxRouges(base, apres, admis = []) {
   return [...new Set(apres)].filter(n => !connus.has(n));
 }
 
-// What the suites replay for a lot. `composants` are the components' directories relative to the
+// What the tests replay for a lot. `composants` are the components' directories relative to the
 // root; `consommateurs` maps a component's directory to the directories of those that depend on it
 // (`dependances` of scripts/consommateurs.mjs: production consumptions and links of shared test material);
 // `lus` are the root paths the project declares read by its suites (`grillhouse.lusParLesSuites`,
 // files or folders). The lock file of the dependencies is always read.
 // - a file the lot touches that the project declares read, or the lock file: every suite (mode
 //   `tous`), as it can change any of them;
-// - a lot made only of test files: these files alone (mode `tests`);
+// - a lot made only of test files: these files alone (mode `tests`; the replay hands each copy those
+//   that exist there);
 // - otherwise the components holding a file of the lot, whatever its nature (code, document,
 //   manifest, data), and, transitively, those that depend on them, in order (mode `composants`);
 // - otherwise a file of a test folder outside every component (a helper, test material): the root
@@ -229,36 +234,36 @@ export function ouvrirCopie({ racine, copie, ref, tmp, dire }) {
     }[champ.mode];
     return { champ, message };
   };
-  // The failing tests of one run of the suites over <champ>, by name; a run that fails without
+  // The failing tests of one run of the tests over <champ>, by name; a run that fails without
   // naming a test leaves one name « (les suites sortent en <code> sans test nommé) ». The project
-  // is built first when a suite of the run plays; `construit` says the lot was built (not the base).
+  // is built first when a test file of the run plays; `construit` says the lot was built (not the
+  // base).
   let construit = false;
   const construire = () => lancer('node', [CONSTRUCTIONS]).status === 0;
   const suites = (champ, nom) => {
     const rouges = path.join(tmp, nom);
     writeFileSync(rouges, '');
+    const tests =
+      champ.mode === 'tests' ? champ.tests.filter(f => existsSync(path.join(copie, f))) : [];
+    if (champ.mode === 'tests' && tests.length === 0) return [];
     const portee =
       champ.mode === 'tous'
         ? ['--tous']
         : champ.mode === 'racine'
           ? ['--racine']
           : champ.mode === 'tests'
-            ? ['--tests', ...champ.tests]
+            ? tests
             : champ.composants;
-    const traces = ouvrirTraces(copie, {
-      forcer: process.env.FORCER === '1',
-      extra: champ.composants,
+    const sonde = spawnSync('node', [LANCEUR, '--a-jouer', ...portee], {
+      cwd: copie,
+      stdio: 'ignore',
     });
-    const jouera =
-      champ.mode === 'tests' ||
-      traces.aJouer(
-        champ.mode === 'tous' ? traces.dossiers : champ.mode === 'racine' ? [] : champ.composants
-      );
+    const jouera = sonde.status !== TOUT_GARDE;
     if (jouera && !construire()) {
       return ['(les suites sortent en 1 sans test nommé : la construction échoue)'];
     }
     if (nom !== 'base') construit = jouera;
-    const r = npm(['run', '--silent', 'integration:suites', '--', ...portee], { ROUGES: rouges });
+    const r = npm(['test', '--ignore-scripts', '--silent', '--', ...portee], { ROUGES: rouges });
     const noms = readFileSync(rouges, 'utf8')
       .split('\n')
       .map(s => s.trim())

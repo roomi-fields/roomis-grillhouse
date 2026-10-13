@@ -175,8 +175,12 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
   writeFileSync(path.join(bin, 'bd'), FAUX_BD, { mode: 0o755 });
   writeFileSync(path.join(bin, 'etat.json'), '{}');
   writeFileSync(path.join(bin, 'appels'), '');
+  // The environment of the scripts: this process's, without what Vitest set for itself, so that a
+  // project of trial tested by Vitest runs it as a project does (grillhouse-3uv.75.1).
   const env = {
-    ...process.env,
+    ...Object.fromEntries(
+      Object.entries(process.env).filter(([k]) => !k.startsWith('VITEST') && k !== 'NODE_OPTIONS')
+    ),
     PATH: `${bin}:${process.env.PATH}`,
     GIT_AUTHOR_NAME: 't',
     GIT_AUTHOR_EMAIL: 't@t',
@@ -200,7 +204,7 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
       {
         ...pkg,
         scripts: {
-          'integration:suites': 'node suites.mjs',
+          test: 'node suites.mjs',
           'integration:gardes': 'node gardes.mjs',
         },
       },

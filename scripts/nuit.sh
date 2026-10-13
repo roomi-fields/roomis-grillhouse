@@ -10,8 +10,8 @@
 #   shares, `grillhouse.partage`, is linked to the main repository's instead, not set),
 #   dependencies reinstalled (npm ci) when package-lock.json changes, built once by the one entry
 #   point that builds (scripts/integration/constructions.mjs), then the guards, then `npm test`
-#   (every suite of the day, time budget benches included), under FORCER=1: it reads no trace of the
-#   suites (scripts/integration/suites-vitest.mjs) and no stored build, and writes them again. The
+#   (every test file of the day), under FORCER=1: it reads no trace of the
+#   test files (scripts/integration/suites-vitest.mjs) and no stored build, and writes them again. The
 #   guards are those of `integration:gardes` (the controls of `grillhouse:gardes` without its build
 #   step), played by the night itself, and `npm test` runs without its pretest: nothing builds behind
 #   the entry point. `npm test` skips its pretest only when the pretest is exactly the call of `grillhouse:gardes`
@@ -26,11 +26,12 @@
 #   read-only, its working tree and its git repository (the list the preparation's pose printed,
 #   whatever a command rewrites afterwards): a write into it fails. With a shared submodule and no possible mount (bwrap absent
 #   or refused), the night turns red, the log saying so, before any command runs.
-# - The night tests: after a green `npm test`, the files `*.nuit.test.*` and `*.nuit.spec.*` of the
-#   copy (outside node_modules, dist and .git), which `npm test` and the integration leave out, run
-#   by Vitest with the frame's configuration (scripts/vitest.nuit.config.mjs of the copy). A red
-#   turns the night red, with a log line that says so, and the project's night script does not run.
-#   A copy without any night test plays none.
+# - The night tests: after a green `npm test`, the files `*.nuit.test.*`, `*.nuit.spec.*`,
+#   `*.budget.test.*` and `*.budget.spec.*` of the copy (outside node_modules, dist and .git): the
+#   night tests and the time budget benches, which `npm test` and the integration leave out, run
+#   by Vitest with the frame's configuration (scripts/vitest.nuit.config.mjs of the copy), bench or
+#   night test alone as well. A red turns the night red, with a log line that says so, and the
+#   project's night script does not run. A copy with neither plays none.
 # - The project's night script: `grillhouse.nuit` in the package.json of the commit it plays names
 #   an npm script (`npm pkg set grillhouse.nuit=<script>`). After the night tests, the night plays
 #   `npm run <script>` in its copy; a red script turns the night red, with a log line that names it.
@@ -154,10 +155,10 @@ jouer() {
     FORCER=1 monter npm --prefix "$copie" test || return 1
   fi
   if [ -n "$(find "$copie" \( -name node_modules -o -name dist -o -name .git \) -prune -o \
-      -type f -regextype posix-extended -regex '.*\.nuit\.(test|spec)\.(c|m)?[jt]sx?' -print -quit)" ]; then
+      -type f -regextype posix-extended -regex '.*\.(nuit|budget)\.(test|spec)\.(c|m)?[jt]sx?' -print -quit)" ]; then
     if ! (cd "$copie" && monter npx --no-install vitest run --root "$copie" \
         --config "$copie/scripts/vitest.nuit.config.mjs"); then
-      echo "✗ les tests de nuit (*.nuit.test.*, *.nuit.spec.*) ont échoué."
+      echo "✗ les bancs de temps ou les tests de nuit (*.budget.*, *.nuit.*) ont échoué."
       return 1
     fi
   fi

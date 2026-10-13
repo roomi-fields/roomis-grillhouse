@@ -1,40 +1,37 @@
-// The store of the suites and of the builds: the verdict of each suite and the `dist/` of each build
-// kept under the fingerprint of the content of what produces it. The suites command
-// (scripts/integration/suites-vitest.mjs) and the replay (scripts/integration/rejeu.mjs) read the
-// traces; the one entry point that builds (scripts/integration/constructions.mjs) stores, restores
-// and purges the builds, and purges the traces with them.
+// The store of the traces of the test files and of the builds: the verdict of each test file and
+// the `dist/` of each build kept under the fingerprint of the content of what produces it. The
+// launcher of the tests (scripts/integration/suites-vitest.mjs) reads and writes the traces of the
+// test files; the one entry point that builds (scripts/integration/constructions.mjs) stores,
+// restores and purges the builds, and purges the traces with them.
 //
 // `ouvrirTraces(racine, options)` reads the project at <racine> and returns:
 // - the components (`dossiers`: the directories under `packages/` and `src/`, plus the directories
-//   given in `extra`), `proprietaire(fichier)` (a component's directory, '' outside every one) and
-//   `fichiersDeTest` (the root suite: the files outside every component that are test files or lie
-//   in a test folder, helpers and test material included);
-// - `statutComposant(dir)` and `statutRacine()`: what a suite owes (see below);
-// - `aJouer(dirs)`: true when a suite of the call would play;
+//   given in `extra`) and `proprietaire(fichier)` (a component's directory, '' outside every one);
+// - `fichiersDeTest`: the files git lists whose name is a test file's (`x.test.ts`, `x.spec.mjs`);
+// - `analyserTests(fichiers)`: for each of these test files, its fingerprint and the directories of
+//   the components its imports reach (see below), computed with dependency-cruiser;
 // - `lire` and `ecrire`: the store of the traces, `<git common dir>/grillhouse/suites/`, shared by
 //   every copy; a trace is written whole (a temporary file of its own, then a rename). Outside a git
-//   repository there is no store and every suite plays;
+//   repository there is no store and every test file plays;
 // - `empreinteConstruction(dir)`, `ordreDeConstruction(dirs)`, `dossierConstructions` and
-//   `empreintesVivantes()`: the builds (see below).
+//   `empreintesVivantes()`: the builds (see below) and the live fingerprints.
 // With the option `fichiers` (the list of the files of the content, relative to <racine>) the
 // content is that list, read on the disk at <racine>, and there is no store: the content of a
 // commit extracted aside.
 //
 // A fingerprint hashes the content of the files git lists (tracked or not, not ignored), each by its
-// path and content, never by date; a submodule enters by its files. Component: its files and those
-// of the components it depends on, transitively (`dependances` of scripts/consommateurs.mjs: the
-// production consumptions and the imports of a neighbour's shared test material; a cycle
-// ends), the lock file `package-lock.json` and the root paths the project declares read
-// (`grillhouse.lusParLesSuites` of package.json, files or folders). Root suite: the lock file, the
-// declared paths, its test files and the files of every component.
-// - A component's trace is `{ code, rouges }` (exit code, failing tests by name). A component stale
-//   only by the components it depends on, whose own files are those of its last full suite, green and
-//   measured, owes the quick set: that suite without the test files measured at SEUIL seconds or
-//   more (a file never measured is never left out), under a trace of its own. Any other owes its
-//   full suite.
-// - The root suite stale only by components owes the tests that import them; stale otherwise, it
-//   owes all its tests.
-// - A trace that does not read as `{ code, rouges }` is none. FORCER=1 reads no trace.
+// path and content, never by date; a submodule enters by its files. Test file: its path, the
+// content of the files its imports reach, directly or by ricochet (dependency-cruiser; a cycle
+// ends), the files that configure Vitest (`vitest.config.*`, `vitest.workspace.*`,
+// `vite.config.*`) and what they import, the lock file `package-lock.json` and the root paths the
+// project declares read (`grillhouse.lusParLesSuites` of package.json, files or folders). An
+// import of a component by its package name, and an import of a file git does not list (a
+// `dist/`), enter by the files of that component and of the components it depends on
+// (`dependances` of scripts/consommateurs.mjs), so that the fingerprint does not depend on what
+// `node_modules` links.
+// - A trace is `{ code, rouges, sortie }`: the exit code of the file (0 or 1), its failing tests by
+//   name, and the whole output of Vitest for that file. A trace that does not read as that is none.
+//   FORCER=1 reads no trace.
 //
 // The builds. A build is the `dist/` of a component (of the root for a project without a component
 // that builds). Its fingerprint (`empreinteConstruction`) hashes the same inputs as the full suite
@@ -50,10 +47,9 @@
 // The purge (`purgerMagasin`) keeps the traces and the builds whose fingerprint belongs to a live
 // content (`empreintesVivantes()` of each: the copies git knows, main, main's previous commit, the
 // branches of the queue; the reachability of git's garbage collector) and those written since its
-// start. It removes any other trace `t-…`, `r-…` and any other build, an entry in one move (set
-// aside, then erased), no size cap. The last-suite records (`d-…`, `racine-dernier`), which bear no
-// content fingerprint, stay. Temporary files and folders of the two stores left for more than an
-// hour by an interrupted process go too.
+// start. It removes any other trace and any other build, an entry in one move (set aside, then
+// erased), no size cap. Temporary files and folders of the two stores left for more than an hour by
+// an interrupted process go too.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
@@ -72,11 +68,9 @@ import {
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
-import { composants as lesComposants, dependances } from '../consommateurs.mjs';
-import { isTestFile } from '../verrous/verrou.mjs';
+import { composants as lesComposants, NOM_DE_TEST, dependances } from '../consommateurs.mjs';
 import { dossierCommun } from './file-attente.mjs';
 
-const SEUIL = 10;
 const VERROU = 'package-lock.json';
 export const posix = p => p.split(path.sep).join('/');
 export const dossierNu = d => posix(path.normalize(d)).replace(/\/$/, '');
@@ -199,10 +193,12 @@ export function purgerMagasin(commun, vivantes, debut = Date.now()) {
   }
   for (const [nom, p] of dans(sous('suites'))) {
     try {
-      const trace = /^[tr]-([0-9a-f]{64})\.json$/.exec(nom);
+      const trace = /^([0-9a-f]{64})\.json$/.exec(nom);
       if (trace) {
         if (!vivantes.has(trace[1]) && date(p) <= debut) rmSync(p, { force: true });
       } else if (nom.endsWith('.tmp') && date(p) < limite) {
+        rmSync(p, { force: true });
+      } else if (nom.endsWith('.json') && date(p) <= debut) {
         rmSync(p, { force: true });
       }
     } catch {
@@ -255,26 +251,12 @@ const estTrace = t =>
   typeof t === 'object' &&
   Number.isInteger(t.code) &&
   Array.isArray(t.rouges) &&
-  t.rouges.every(n => typeof n === 'string');
-const estDernier = t =>
-  t !== null && typeof t === 'object' && typeof t.propre === 'string' && Number.isInteger(t.code);
-const estDerniereRacine = t =>
-  estTrace(t) &&
-  typeof t.racine === 'string' &&
-  typeof t.tests === 'string' &&
-  t.composants !== null &&
-  typeof t.composants === 'object';
-const dureesDe = d =>
-  d && typeof d.durees === 'object' && d.durees !== null && !Array.isArray(d.durees)
-    ? d.durees
-    : {};
-const lents = d =>
-  Object.entries(dureesDe(d))
-    .filter(([, s]) => typeof s === 'number' && s >= SEUIL)
-    .map(([f]) => f)
-    .sort();
+  t.rouges.every(n => typeof n === 'string') &&
+  typeof t.sortie === 'string';
+const CONFIGURATION =
+  /^(vitest|vite)(\.workspace)?\.config\.[cm]?[jt]s$|^vitest\.workspace\.[cm]?[jt]s$/;
 
-export function ouvrirTraces(racine, { forcer = false, extra = [], fichiers = null } = {}) {
+export function ouvrirTraces(racine, { extra = [], fichiers = null } = {}) {
   const listeGit = fichiers ? null : listerFichiers(racine);
   const tousLesFichiers = (fichiers ?? listeGit ?? parcourir(racine)).sort();
 
@@ -343,15 +325,9 @@ export function ouvrirTraces(racine, { forcer = false, extra = [], fichiers = nu
     ...declares,
     empreinteDes(tousLesFichiers.filter(f => declares.some(d => dedans(f, d)))),
   ]);
-  const fichiersDeTest = tousLesFichiers.filter(f => proprietaire(f) === '' && isTestFile(f));
-  const empreinteDesTests = empreinteDes(fichiersDeTest);
-  const empreinteComposant = dir =>
-    sha([
-      'complet',
-      dir,
-      ...fermeture(dir).map(d => `${d}:${propre.get(d) ?? ''}`),
-      empreinteRacine,
-    ]);
+  const fichiersDeTest = tousLesFichiers.filter(f => NOM_DE_TEST.test(path.basename(f)));
+  // The hash of a component and of the components it depends on.
+  const fermetureDe = dir => sha(fermeture(dir).map(d => `${d}:${propre.get(d) ?? ''}`));
   // The build of <dir>, a component's directory or '' for the root's single build.
   const empreinteConstruction = dir =>
     dir === ''
@@ -376,23 +352,15 @@ export function ouvrirTraces(racine, { forcer = false, extra = [], fichiers = nu
     [...dirs].sort().forEach(visiter);
     return ordre;
   };
-  const empreinteDeLaRacine = () =>
-    sha([
-      'racine',
-      empreinteRacine,
-      empreinteDesTests,
-      ...dossiers.map(d => `${d}:${propre.get(d)}`),
-    ]);
-
   // The store.
   const commun = listeGit === null ? '' : dossierCommun(racine);
   const magasin = commun ? path.join(commun, 'grillhouse', 'suites') : null;
   const dossierConstructions = commun ? path.join(commun, 'grillhouse', 'constructions') : null;
-  const lire = (nom, valide = estTrace) => {
+  const lire = nom => {
     if (!magasin) return null;
     try {
       const t = JSON.parse(readFileSync(path.join(magasin, `${nom}.json`), 'utf8'));
-      return valide(t) ? t : null;
+      return estTrace(t) ? t : null;
     } catch {
       return null;
     }
@@ -409,59 +377,109 @@ export function ouvrirTraces(racine, { forcer = false, extra = [], fichiers = nu
     }
   };
 
-  // What the suite of the component <dir> owes: { gardee, jeu, ecartes, empreinte, nomDernier }.
-  // `gardee` is the trace to reuse, or null when the suite plays; `jeu` is 'rapide' when it plays
-  // without `ecartes`, the test files left out.
-  function statutComposant(dir) {
-    const empreinte = empreinteComposant(dir);
-    const nomDernier = `d-${sha([dir])}`;
-    const vide = { gardee: null, jeu: 'complet', ecartes: [], empreinte, nomDernier };
-    if (!magasin || forcer) return vide;
-    const complete = lire(`t-${empreinte}`);
-    if (complete) return { ...vide, gardee: complete };
-    const dernier = lire(nomDernier, estDernier);
-    const ecartes = dernier ? lents(dernier) : [];
-    const rapide =
-      dernier !== null &&
-      dernier.code === 0 &&
-      dernier.propre === propre.get(dir) &&
-      dernier.racine === empreinteRacine &&
-      ecartes.length > 0;
-    if (!rapide) return vide;
-    return { ...vide, jeu: 'rapide', ecartes, gardee: lire(`r-${empreinte}`) };
+  // The graph of the imports of <entrees> (files relative to the root), by dependency-cruiser: the
+  // map from a file to the files and the packages it imports. Core modules and what lies in
+  // node_modules are left out; an import of a package that is a component of the project keeps the
+  // component's name, whatever `node_modules` links. An import that does not resolve stays by its
+  // specifier when it is a path.
+  async function graphe(entrees) {
+    const { cruise } = await import('dependency-cruiser');
+    const options = {
+      baseDir: racine,
+      exclude: { path: 'node_modules' },
+      doNotFollow: { path: 'node_modules' },
+    };
+    const tsconfig = path.join(racine, 'tsconfig.json');
+    let sortie;
+    try {
+      sortie = await cruise(
+        entrees,
+        existsSync(tsconfig) ? { ...options, tsConfig: tsconfig } : options
+      );
+    } catch {
+      sortie = await cruise(entrees, options);
+    }
+    const noms = connus.map(c => c.nom);
+    const duComposant = module => noms.find(n => module === n || module.startsWith(`${n}/`));
+    const modules = new Map();
+    for (const m of sortie.output.modules) {
+      const fichiersImportes = [];
+      const paquets = [];
+      for (const d of m.dependencies ?? []) {
+        const nom = duComposant(d.module);
+        if (nom !== undefined) paquets.push(nom);
+        else if (d.coreModule) continue;
+        else if (d.couldNotResolve) {
+          if (/^[./]/.test(d.module))
+            fichiersImportes.push(
+              `manque:${path.posix.join(path.posix.dirname(m.source), d.module)}`
+            );
+        } else if (!/(^|\/)node_modules\//.test(d.resolved)) fichiersImportes.push(d.resolved);
+      }
+      modules.set(m.source, { fichiersImportes, paquets });
+    }
+    return modules;
   }
 
-  // What the root suite owes: { gardee, partielle, changes, dernier, empreinte }. `partielle` is
-  // true when it is stale by components alone, `changes` those components.
-  function statutRacine() {
-    const empreinte = empreinteDeLaRacine();
-    const vide = { gardee: null, partielle: false, changes: [], dernier: null, empreinte };
-    if (!magasin || forcer) return vide;
-    const gardee = lire(`t-${empreinte}`);
-    if (gardee) return { ...vide, gardee };
-    const dernier = lire('racine-dernier', estDerniereRacine);
-    if (!dernier) return vide;
-    const changes = dossiers.filter(d => dernier.composants[d] !== propre.get(d));
-    const partielle =
-      dernier.racine === empreinteRacine &&
-      dernier.tests === empreinteDesTests &&
-      Object.keys(dernier.composants).every(d => propre.has(d)) &&
-      changes.length > 0;
-    return { ...vide, partielle, changes: partielle ? changes : [], dernier };
+  // The fingerprint of each test file of <fichiersAnalyses> and the components its imports reach:
+  // Map from the file to { empreinte, dirs } (`dirs`: the directories of the components holding a
+  // file of its closure, or named by an import). See the head of this file.
+  async function analyserTests(fichiersAnalyses) {
+    if (fichiersAnalyses.length === 0) return new Map();
+    const configs = tousLesFichiers.filter(f => !f.includes('/') && CONFIGURATION.test(f));
+    const modules = await graphe([...fichiersAnalyses, ...configs]);
+    const fermer = entree => {
+      const fichiersVus = new Set();
+      const paquets = new Set();
+      const file = [entree];
+      while (file.length) {
+        const f = file.pop();
+        if (fichiersVus.has(f)) continue;
+        fichiersVus.add(f);
+        const m = modules.get(f);
+        for (const p of m?.paquets ?? []) paquets.add(p);
+        for (const i of m?.fichiersImportes ?? []) file.push(i);
+      }
+      return { fichiersVus, paquets };
+    };
+    const listes = new Set(tousLesFichiers);
+    const dirDuPaquet = nom => relDe.get(nom);
+    const contenuDe = f =>
+      f.startsWith('manque:') ? f : `${f}\0${listes.has(f) ? contenu(f) : 'non listé'}`;
+    const configuration = sha(
+      configs.flatMap(c => [...fermer(c).fichiersVus].sort().map(contenuDe))
+    );
+    const resultat = new Map();
+    for (const f of fichiersAnalyses) {
+      const { fichiersVus, paquets } = fermer(f);
+      const dirs = new Set();
+      const composantsAtteints = new Set([...paquets].map(dirDuPaquet).filter(Boolean));
+      for (const v of fichiersVus) {
+        const d = proprietaire(v);
+        if (d !== '') dirs.add(d);
+        // A file git does not list (a build) stands for the sources of its component.
+        if (!listes.has(v) && !v.startsWith('manque:') && d !== '') composantsAtteints.add(d);
+      }
+      for (const d of composantsAtteints) dirs.add(d);
+      const empreinte = sha([
+        'test',
+        f,
+        ...[...fichiersVus].sort().map(contenuDe),
+        ...[...composantsAtteints].sort().map(d => `${d}:${fermetureDe(d)}`),
+        empreinteRacine,
+        configuration,
+      ]);
+      resultat.set(f, { empreinte, dirs });
+    }
+    return resultat;
   }
 
-  // True when a suite of the call would play: one of the components <dirs>, or the root suite
-  // when <avecRacine>.
-  const aJouer = (dirs, avecRacine = true) =>
-    dirs.some(d => statutComposant(d).gardee === null) ||
-    (avecRacine && fichiersDeTest.length > 0 && statutRacine().gardee === null);
-
-  // Every fingerprint of this content, of a suite or of a build: the names the purge keeps.
-  const empreintesVivantes = () =>
+  // Every fingerprint of this content, of a test file or of a build: the names the purge keeps.
+  const empreintesVivantes = async () =>
     new Set([
-      empreinteDeLaRacine(),
+      ...[...(await analyserTests(fichiersDeTest)).values()].map(a => a.empreinte),
       empreinteConstruction(''),
-      ...dossiers.flatMap(d => [empreinteComposant(d), empreinteConstruction(d)]),
+      ...dossiers.map(empreinteConstruction),
     ]);
 
   return {
@@ -473,12 +491,7 @@ export function ouvrirTraces(racine, { forcer = false, extra = [], fichiers = nu
     empreintesVivantes,
     proprietaire,
     fichiersDeTest,
-    propre,
-    empreinteRacine,
-    empreinteDesTests,
-    statutComposant,
-    statutRacine,
-    aJouer,
+    analyserTests,
     lire,
     ecrire,
   };

@@ -136,9 +136,9 @@ if [ -f "$root/docs/ARCHITECTURE.md" ] && [ -f "$root/package.json" ]; then
       || pending+=("les chemins de la racine que les suites lisent (\`grillhouse.lusParLesSuites\` du package.json : fichiers ou dossiers, comme les globalDependencies de Turborepo ; une liste vide est une déclaration ; grill)")
   fi
 fi
-# The integration script runs the project's own suites and guards: two npm scripts to wire.
+# The integration script runs the project's own guards: one npm script to wire (its tests are `npm test`).
 wiring=()
-for s in integration:suites integration:gardes; do
+for s in integration:gardes; do
   node -e 'const p=require(process.argv[1]);process.exit(p.scripts&&p.scripts[process.argv[2]]?0:1)' \
     "$root/package.json" "$s" 2>/dev/null || wiring+=("$s")
 done
@@ -166,7 +166,7 @@ if [ ${#pending[@]} -gt 0 ]; then
   echo "Dès ta première réponse, propose au responsable de les griller, chacun avec ce que tu recommandes pour ce projet (compétence \`grill\`). Il peut accepter, en choisir un, ou reporter ; tant qu'un élément reste vide, cette proposition revient à chaque séance."
 fi
 if [ ${#wiring[@]} -gt 0 ]; then
-  echo "À brancher : $(IFS=' '; echo "${wiring[*]}") dans le package.json de la racine. Le script d'intégration (\`scripts/integration/integrer.mjs\`, contrat en tête) en a besoin pour lancer les suites (\`--tous\`, les dossiers des composants, \`--racine\`, \`--tests <fichiers>\`) et les gardes du projet ; sans eux, il refuse chaque lot. Un projet testé par Vitest reprend \`node scripts/integration/suites-vitest.mjs\` et \`node scripts/integration/gardes.mjs\` ; sinon, écris l'adaptateur de ses suites."
+  echo "À brancher : $(IFS=' '; echo "${wiring[*]}") dans le package.json de la racine. Le script d'intégration (\`scripts/integration/integrer.mjs\`, contrat en tête) en a besoin pour lancer les gardes du projet ; sans lui, il refuse chaque lot. Ses tests sont \`npm test -- <portée>\` (\`--tous\`, les dossiers des composants, \`--racine\`, des fichiers de test) : un projet testé par Vitest reprend \`node scripts/integration/suites-vitest.mjs\` pour \`test\` et \`node scripts/integration/gardes.mjs\` pour les gardes ; sinon, écris l'adaptateur de ses tests."
 fi
 if [ -n "${nuit:-}" ]; then
   echo "La nuit n'est pas programmée : le projet a choisi « impactes », et ses suites complètes tournent une fois la nuit (\`scripts/nuit.sh\`). Propose au responsable d'ajouter à la table des tâches du poste (\`crontab -e\`) : \`$nuit\`."

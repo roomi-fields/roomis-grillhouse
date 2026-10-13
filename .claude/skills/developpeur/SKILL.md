@@ -19,8 +19,8 @@ Tu travailles un seul ticket. Le superviseur (`pitmaster`) te l'a confié ; le r
 3. Lis `docs/agents/issue-tracker.md` : la passation note l'heure de fin de chaque phase (code,
    tests ciblés, relecture, corrections, commit), heures relevées.
 4. Charge `mesure`, et `redacteur` dès que tu écris un document lu par un humain.
-5. Les tests du testeur sont déjà dans ta copie, la copie du ticket : lance-les et vois-les
-   rouges. Ainsi ton code se mesure à des tests que tu
+5. Les tests du testeur sont déjà dans ta copie, la copie du ticket : lance-les (`npm test --
+   <fichiers>`) et vois-les rouges. Ainsi ton code se mesure à des tests que tu
    n'as pas écrits.
 6. Lis ton ticket en entier (`bd show`, `bd comments`), puis `bd update <id> --claim`.
 7. **Un ticket repris part de ses notes** : quand ton ticket porte des notes (`bd show` les
@@ -175,7 +175,8 @@ et le code la suit.
   nouvelle s'écrit d'abord dans le ticket (étiquette `attend-responsable`) ; une règle qu'il a
   décidée s'écrit dans le fichier. Ainsi seul le responsable fait entrer une règle neuve dans ces
   documents.
-- **Les tests ciblés** : tu lances les tests touchés et voisins, plus ceux des composants en aval
+- **Les tests ciblés** : tu lances (`npm test -- <fichiers>`) les tests touchés et
+  voisins, plus ceux des composants en aval
   quand une interface change. Ainsi chaque changement est vérifié là où il peut casser.
 - **Une suite se juge sur tous ses échecs** : la liste entière de ses échecs se compare nom par nom
   aux échecs connus. Ainsi « vert » veut dire que rien de neuf n'a cassé.
