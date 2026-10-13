@@ -22,7 +22,7 @@ Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 
 Chaque point : ce qui se surveille, ce qui le fermera.
 
-- **3uv.56.2** (a-valider, sorti du lot 3uv.56) : la bissection par composant rouge dans le ticket de nuit ; change le mode de jeu de la nuit. Pas important pour BPScript.
+- **3uv.56.2** (bissection par composant, nuit.sh) : « go » le 2026-10-13, architecture et 7 critères écrits ; part à la livraison du lot 3uv.56, qui tient nuit.sh.
 - **3uv.74.1** (a-valider, découverte du chef de 3uv.74) : la nuit et le lanceur des copies d'agent installent les dépendances par leurs propres mécanismes ; passer par la fonction commune `accorder` ? Décision de structure, pas urgente pour BPScript.
 
 
