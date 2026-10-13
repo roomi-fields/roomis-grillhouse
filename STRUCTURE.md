@@ -54,7 +54,7 @@ roomis-grillhouse/
 │   │   ├── codes.mjs                 # the exit codes of the envelope and its launcher
 │   │   └── lancer.sh                 # one ticket → one fresh role session in its envelope
 │   ├── code-mort.mjs              # grillhouse:gardes: refuses dead code, measured by knip (knip.json); tests and benches count for dependency use only
-│   ├── consommateurs.mjs          # grillhouse:gardes: refuses an import that the provider's INTERFACE.md does not declare
+│   ├── consommateurs.mjs          # grillhouse:gardes: refuses an import that the provider's INTERFACE.md does not declare, and two components of the same name
 │   │                              #   composants(): the components for every check, minus the packages out of
 │   │                              #   the frame listed in docs/agents/hors-cadre.txt, "<package> <reason>"
 │   ├── crochets.mjs               # the frame's git hooks (commit-msg, pre-push): placed by setup.sh and grillhouse:maj, absent ones named by the session start
@@ -62,13 +62,13 @@ roomis-grillhouse/
 │   ├── frontieres.mjs             # grillhouse:gardes: dependency-cruiser, rules generated in .dependency-cruiser.cjs
 │   ├── interfaces-contre-code.mjs # grillhouse:gardes: the TSDoc contract of each export (rubrics, tsdoc.json) and the generated part
 │   │                              #   of INTERFACE.md between its two marks; npm run api writes the reports and the parts
-│   ├── nuit.sh                    # every suite, once a night (mode « impactes »), building once through constructions.mjs and reading no trace of the suites or stored build (FORCER=1), then the night tests
+│   ├── nuit.sh                    # every suite, once a night (mode « impactes »), building once through constructions.mjs and reading no trace of the suites or stored build (FORCER=1), then the night tests, then the project's night script (`grillhouse.nuit`), and pushes the green commit (`grillhouse.poussee.nuit`)
 │   │                              #   (*.nuit.test.*, *.nuit.spec.*); a red opens a ticket
 │   ├── vitest.nuit.config.mjs     # the Vitest configuration of the night tests, played by nuit.sh; the one address of git's settings for the suite (automatic maintenance off in the tests' environment), which the day configuration reads
 │   ├── sous-modules.sh            # the submodules of a working copy (integration, agent, night) at HEAD, or shared read-only (grillhouse.partage)
 │   ├── branche-de-nuit.mjs        # pre-push guard: only the night pushes the branch of grillhouse.poussee.nuit
 │   ├── poussee-cles.mjs           # reads the grillhouse.poussee, .nuit and .commit keys of package.json for nuit.sh, the guard and the queue
-│   ├── retirer-copie.sh           # removes a working copy, submodules included (agent, integration, night)
+│   ├── retirer-copie.sh           # removes a working copy, submodules included (local work already entered on main does not hold it) (agent, integration, night)
 │   ├── grillhouse-maj.mjs         # npm run grillhouse:maj: the frame brought to its last version (files, git hooks, the frame's plugins, scripts, the controls' devDependencies); --ecarts
 │   ├── tableau.mjs                # npm run tableau: the board on three levels (project, agents, chantier)
 │   ├── ligne-etat/                # the status line: the person's own on the left, the chantier on the right

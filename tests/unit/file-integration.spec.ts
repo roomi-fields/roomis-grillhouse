@@ -1038,3 +1038,54 @@ describe('grillhouse-3uv.74 — the dependencies of the queue copy follow its lo
     D
   );
 });
+
+// grillhouse-3uv.56 critères 11 and 21: a failed installation of the replay copy comes up in one
+// form, the refusals of the replay module; the queue judges the guards as integrer.mjs does, by
+// their exit code first. Guards that pass, whatever text they write, are green; guards that fail,
+// whatever text they write, are guards that refuse.
+const GARDES_BAVARDES = `import fs from 'node:fs';
+fs.appendFileSync(process.env.PRINCIPAL + '.gardes', 'g');
+process.stderr.write("Les dépendances de la copie ne s'installent pas.\\n");
+process.exit(fs.existsSync('GARDE_ROUGE') ? 1 : 0);
+`;
+describe('grillhouse-3uv.56 critères 11 and 21 — the queue judges the guards by their status', () => {
+  it(
+    'critère 21: guards that pass (exit 0) while writing the text of an installation refusal let a replaced branch enter',
+    () => {
+      const m = chantier(ESSAIS);
+      m.poser({ 'gardes.mjs': GARDES_BAVARDES }, 'gardes bavardes');
+      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
+      m.ticket('demo-2', { 'src/b/index.ts': 'export const b = 2;\n' });
+      m.livrer('demo-1');
+      m.livrer('demo-2');
+      const gardes = m.gardes();
+      const r = m.file();
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(m.gardes().length).toBeGreaterThan(gardes.length);
+      expect(m.sujets().slice(0, 2)).toEqual(['feat: lot (demo-2)', 'feat: lot (demo-1)']);
+      expect(m.bd('demo-2').status).toBe('closed');
+    },
+    LONG
+  );
+  it(
+    'critère 21: guards that fail while writing the text of an installation refusal take the branch out as guards that refuse',
+    () => {
+      const m = chantier(ESSAIS);
+      m.poser({ 'gardes.mjs': GARDES_BAVARDES }, 'gardes bavardes');
+      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
+      m.ticket('demo-2', { 'src/b/index.ts': 'export const b = 2;\n' });
+      m.livrer('demo-1');
+      m.livrer('demo-2');
+      m.poser({ GARDE_ROUGE: '' }, 'garde rouge');
+      const r = m.file();
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(m.sujets()[0]).toBe('garde rouge');
+      const t = m.bd('demo-2');
+      expect(t.status).toBe('open');
+      const refus = t.comments.at(-1)!.text;
+      expect(refus).toContain('les gardes refusent une fois la branche replacée.');
+      expect(refus).not.toContain("Le verrou de la branche replacée ne s'installe pas.");
+    },
+    LONG
+  );
+});

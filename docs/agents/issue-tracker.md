@@ -18,12 +18,12 @@ Issues for this repo live in Beads, a git-backed tracker: data under `.beads/`, 
 ## Numéros et titres
 
 - A chantier is an `epic` at the root; under it, every subject has a mother ticket (a `task`), open while work remains under it. Every ticket is created under its mother, so Beads numbers it natively: `320.1`, `320.2`, `320.2.1`. A discovery goes under the ticket that found it (`320.2.2.1`).
-- The title reads `<number> — <subject> — <component>`, the number being the id without its prefix; a mother takes `parent` as its component: `320.2.1 — Publie l'objet de la scène — binder`.
+- The title reads `<number> — <subject> — <component>`, the number being the id without the whole prefix of the project (`bd config get issue_prefix`, which may hold dashes: `bp-mono-`); a mother takes `parent` as its component: `320.2.1 — Publie l'objet de la scène — binder`.
 - Creating one:
 
   ```bash
   n=$(bd create "<subject>" --parent <mother> --no-inherit-labels -t task -l a-valider -d "<body>" --silent)
-  bd update "$n" --title "${n#*-} — <subject> — <component>"
+  bd update "$n" --title "${n#"$(bd config get issue_prefix)"-} — <subject> — <component>"
   ```
 
 - Each agent goes by the fixed number of its role, in the order of the flow: 0 `chef-de-chantier` (leads one ticket from claim to pushed commit), 1 `explorateur`, 2 `arbitre`, 3 `testeur`, 4 `developpeur`, 5 `relecteur`, 6 `integrateur`. One says « 320.2.1, agent 4 »; a relaunched agent keeps its number.

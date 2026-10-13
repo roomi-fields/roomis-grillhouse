@@ -22,6 +22,9 @@
 // of the frame enumerates the components through `composants`. For the check of the uses, test files,
 // `dist/`, `docs/` and `node_modules/` are not production code and are not read; `dependances` also
 // reads the imports of a neighbour's shared test material (`matieres`), wherever they sit.
+// The identity of a component is its name: two directories of the same name, one under `packages/`
+// and one under `src/`, are refused, both paths named (the way npm workspaces, Nx and Cargo refuse
+// two projects of one name). Names differing by case are two names.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -253,13 +256,24 @@ export function dependances(racine) {
   return out;
 }
 
+// The refusals of the components that share a name: one line per name, both paths.
+function homonymes(racine) {
+  const parNom = new Map();
+  for (const { nom, dir } of dossiers(racine)) {
+    parNom.set(nom, [...(parNom.get(nom) ?? []), path.relative(racine, dir)]);
+  }
+  return [...parNom]
+    .filter(([, dirs]) => dirs.length > 1)
+    .map(([nom, dirs]) => `${nom} : ${dirs.join(' et ')} portent le même nom de composant.`);
+}
+
 // The refusals (uses no interface declares) and the reports (declared uses no code makes). A
 // declared consumer out of the frame is passed over: its code is not read.
 export function verifier(racine) {
   const tous = composants(racine);
   const hors = horsCadre(racine);
   const reel = utilise(racine, tous);
-  const refus = [];
+  const refus = homonymes(racine);
   const signaux = [];
   for (const p of tous) {
     const iface = path.join(p.dir, 'docs', 'INTERFACE.md');

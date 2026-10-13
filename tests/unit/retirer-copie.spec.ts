@@ -7,12 +7,14 @@
 // copy whose state does not read, is refused; a refusal exits 1, a malformed call 2.
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
   rmSync,
+  statSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
@@ -52,14 +54,14 @@ const ENV_SCRIPT: NodeJS.ProcessEnv = {
 const git = (dir: string, ...a: string[]) =>
   execFileSync('git', ['-C', dir, ...a], { encoding: 'utf8', env: ENV_GIT });
 
-// A repository with a tracked file `a.txt`, node_modules ignored, and, unless `sousModule` is
-// false, the submodule vendor/natif (two commits, v1 then v2; the repository references v1). With
-// `imbrique`, vendor/natif carries a submodule of its own, profond.
+// A repository on the branch main with a tracked file `a.txt`, node_modules ignored, and, unless
+// `sousModule` is false, the submodule vendor/natif (two commits, v1 then v2; the repository
+// references v1). With `imbrique`, vendor/natif carries a submodule of its own, profond.
 function monde({ sousModule = true, imbrique = false } = {}) {
   const repo = mkdtempSync(path.join(ESSAIS, 'repo-'));
   writeFileSync(path.join(repo, 'a.txt'), 'a\n');
   writeFileSync(path.join(repo, '.gitignore'), '.claude/worktrees/\nnode_modules\n');
-  git(repo, 'init', '-q');
+  git(repo, 'init', '-q', '-b', 'main');
   git(repo, 'add', '.');
   git(repo, 'commit', '-qm', 'base');
   const commits: string[] = [];
@@ -752,7 +754,7 @@ describe('grillhouse-3uv.63.1 — a locked copy is refused whatever its place in
     },
     LONG
   );
-  // Garde: green on the present code, it keeps a fix of the lock reading from holding free copies.
+  // Garde: a free copy among locked ones is removed; the lock of the others holds only them.
   for (const [i, libre] of NOMS.entries()) {
     it(
       `critère 3 (garde): a free copy (${libre}) among locked ones is removed as today; the locked ones stay, locked`,
@@ -772,4 +774,318 @@ describe('grillhouse-3uv.63.1 — a locked copy is refused whatever its place in
       LONG
     );
   }
+});
+
+// grillhouse-3uv.56 critère 5: a project may hide its submodules from git status
+// (`submodule.<name>.ignore = all`, in .gitmodules or in the configuration, or
+// `diff.ignoreSubmodules = all`); the script still reads them, and a copy whose submodule carries
+// local work stays without --jetable.
+const IGNORES: { nom: string; poser: (m: ReturnType<typeof monde>) => void }[] = [
+  {
+    nom: 'submodule.vendor/natif.ignore = all in .gitmodules',
+    poser: m => {
+      git(m.repo, 'config', '-f', '.gitmodules', 'submodule.vendor/natif.ignore', 'all');
+      git(m.repo, 'commit', '-qam', 'ignore');
+    },
+  },
+  {
+    nom: 'submodule.vendor/natif.ignore = all in the configuration',
+    poser: m => git(m.repo, 'config', 'submodule.vendor/natif.ignore', 'all'),
+  },
+  {
+    nom: 'diff.ignoreSubmodules = all in the configuration',
+    poser: m => git(m.repo, 'config', 'diff.ignoreSubmodules', 'all'),
+  },
+];
+describe('grillhouse-3uv.56 critère 5 — the submodules are read in a project that ignores them', () => {
+  let n = 500;
+  for (const ignore of IGNORES) {
+    it(
+      `critère 5: with ${ignore.nom}, a copy whose submodule carries a modified file is not removed without --jetable`,
+      () => {
+        const m = monde();
+        ignore.poser(m);
+        n += 1;
+        const dir = m.copie(`demo-${n}`);
+        expect(git(dir, 'status', '--porcelain')).toBe('');
+        writeFileSync(path.join(dir, 'vendor/natif/natif.txt'), 'travail\n');
+        const r = m.retirer(dir);
+        expect(r.status, r.stdout + r.stderr).toBe(1);
+        expect(r.stderr).toMatch(/vendor\/natif/);
+        expect(m.listees()).toContain(dir);
+        expect(lire(path.join(dir, 'vendor/natif/natif.txt'))).toBe('travail\n');
+      },
+      LONG
+    );
+  }
+  it(
+    'critère 5: with diff.ignoreSubmodules = all, a copy whose submodule is at another commit is not removed without --jetable',
+    () => {
+      const m = monde();
+      git(m.repo, 'config', 'diff.ignoreSubmodules', 'all');
+      const dir = m.copie('demo-520');
+      git(path.join(dir, 'vendor/natif'), 'checkout', '-q', m.commits[1] ?? '');
+      const r = m.retirer(dir);
+      expect(r.status, r.stdout + r.stderr).toBe(1);
+      expect(r.stderr).toMatch(/vendor\/natif/);
+      expect(git(path.join(dir, 'vendor/natif'), 'rev-parse', 'HEAD').trim()).toBe(m.commits[1]);
+    },
+    LONG
+  );
+});
+
+// grillhouse-3uv.56 critère 9: local work already entered on main (each file of the work holds, in
+// the copy, the content of the commit that entered) loses nothing; the copy is removed without
+// --jetable. Work of which a part has not entered is refused as before. Witness: BPScript, the
+// twelve copies of the children of 322.6.6, refused to the chef de chantier.
+describe('grillhouse-3uv.56 critère 9 — a copy whose local work has entered main is removed without --jetable', () => {
+  // In the copy <dir>: a.txt modified (staged), livre.txt added untracked.
+  const travailler = (dir: string) => {
+    writeFileSync(path.join(dir, 'a.txt'), 'a livré\n');
+    git(dir, 'add', 'a.txt');
+    writeFileSync(path.join(dir, 'livre.txt'), 'livré\n');
+  };
+  // The same work, committed on main in the main repository: the commit that entered.
+  const entrer = (m: ReturnType<typeof monde>, fichiers: Record<string, string>) => {
+    for (const [f, t] of Object.entries(fichiers)) {
+      writeFileSync(path.join(m.repo, f), t);
+      git(m.repo, 'add', f);
+    }
+    git(m.repo, 'commit', '-qm', 'entré');
+  };
+  const LIVRE = { 'a.txt': 'a livré\n', 'livre.txt': 'livré\n' };
+
+  it(
+    'critère 9: a copy on its branch whose modified and untracked files are those of main’s last commit is removed',
+    () => {
+      const m = monde();
+      const dir = m.copie('demo-900', 'agent/demo-900');
+      travailler(dir);
+      entrer(m, LIVRE);
+      retiree(m, dir);
+    },
+    LONG
+  );
+  it(
+    'critère 9: the work entered in a commit main has since moved past is removed too',
+    () => {
+      const m = monde({ sousModule: false });
+      const dir = m.copie('demo-901', 'agent/demo-901');
+      travailler(dir);
+      entrer(m, LIVRE);
+      entrer(m, { 'a.txt': 'a repris après\n', 'autre.txt': 'autre\n' });
+      retiree(m, dir);
+    },
+    LONG
+  );
+  it(
+    'critère 9: a detached copy whose deleted file is deleted on main is removed',
+    () => {
+      const m = monde({ sousModule: false });
+      const dir = m.copie('demo-902');
+      git(dir, 'rm', '-q', 'a.txt');
+      git(m.repo, 'rm', '-q', 'a.txt');
+      git(m.repo, 'commit', '-qm', 'entré');
+      retiree(m, dir);
+    },
+    LONG
+  );
+  it(
+    'critère 9: work of which one file differs from the commit that entered is refused, named, and stays intact',
+    () => {
+      const m = monde({ sousModule: false });
+      const dir = m.copie('demo-903', 'agent/demo-903');
+      travailler(dir);
+      writeFileSync(path.join(dir, 'reste.txt'), 'pas entré\n');
+      entrer(m, LIVRE);
+      const r = m.retirer(dir);
+      expect(r.status, r.stdout + r.stderr).toBe(1);
+      expect(r.stderr).toContain('demo-903');
+      expect(r.stderr).toMatch(/reste\.txt/);
+      expect(m.listees()).toContain(dir);
+      expect(lire(path.join(dir, 'reste.txt'))).toBe('pas entré\n');
+      expect(lire(path.join(dir, 'livre.txt'))).toBe('livré\n');
+    },
+    LONG
+  );
+  it(
+    'critère 9: work whose content differs from main’s, a later commit changing the same file, is refused',
+    () => {
+      const m = monde({ sousModule: false });
+      const dir = m.copie('demo-904', 'agent/demo-904');
+      travailler(dir);
+      entrer(m, { 'a.txt': 'a autrement\n', 'livre.txt': 'livré\n' });
+      const r = m.retirer(dir);
+      expect(r.status, r.stdout + r.stderr).toBe(1);
+      expect(r.stderr).toMatch(/a\.txt/);
+      expect(lire(path.join(dir, 'a.txt'))).toBe('a livré\n');
+    },
+    LONG
+  );
+  it(
+    'critère 9: work identical to a commit outside main (another branch) has not entered: refused',
+    () => {
+      const m = monde({ sousModule: false });
+      const dir = m.copie('demo-905', 'agent/demo-905');
+      travailler(dir);
+      git(m.repo, 'checkout', '-q', '-b', 'ailleurs');
+      entrer(m, LIVRE);
+      git(m.repo, 'checkout', '-q', 'main');
+      const r = m.retirer(dir);
+      expect(r.status, r.stdout + r.stderr).toBe(1);
+      expect(m.listees()).toContain(dir);
+      expect(lire(path.join(dir, 'livre.txt'))).toBe('livré\n');
+    },
+    LONG
+  );
+  // Arbitrage of the chef (comment « cas relevés par le testeur »): « main » is the branch main,
+  // not the head of the main tree.
+  it(
+    'critère 9: « main » is the branch main: work entered on main is removed while the main tree stands on another branch without it',
+    () => {
+      const m = monde({ sousModule: false });
+      const dir = m.copie('demo-910', 'agent/demo-910');
+      travailler(dir);
+      entrer(m, LIVRE);
+      git(m.repo, 'checkout', '-q', '-b', 'autre', 'HEAD~1');
+      retiree(m, dir);
+    },
+    LONG
+  );
+  // Same arbitrage: a submodule whose commit is the one main references, without local work in
+  // it, does not hold the copy.
+  for (const indexe of [false, true]) {
+    it(
+      `critère 9: a copy whose submodule stands, ${indexe ? 'staged' : 'unstaged'}, at the commit main now references, without work in it, is removed`,
+      () => {
+        const m = monde();
+        const dir = m.copie(`demo-91${indexe ? 2 : 1}`, `agent/demo-91${indexe ? 2 : 1}`);
+        git(path.join(dir, 'vendor/natif'), 'checkout', '-q', m.commits[1] ?? '');
+        if (indexe) {
+          git(dir, 'add', 'vendor/natif');
+        }
+        git(path.join(m.repo, 'vendor/natif'), 'checkout', '-q', m.commits[1] ?? '');
+        git(m.repo, 'add', 'vendor/natif');
+        git(m.repo, 'commit', '-qm', 'natif v2 entré');
+        retiree(m, dir);
+      },
+      LONG
+    );
+  }
+  // Arbitrage of the chef (comment « suite au RENDU du relecteur »): the work has entered when it
+  // is identical to the commit that entered, content and mode. A content main gave a path before
+  // the copy was made is not a work that entered: the copy that puts it back undoes main's later
+  // commit, and that work stands nowhere else.
+  const refusee = (m: ReturnType<typeof monde>, dir: string, nom: string, chemin: RegExp) => {
+    const r = m.retirer(dir);
+    expect(r.status, r.stdout + r.stderr).toBe(1);
+    expect(r.stderr).toContain(nom);
+    expect(r.stderr).toMatch(chemin);
+    expect(m.listees()).toContain(dir);
+  };
+  for (const indexe of [false, true]) {
+    it(
+      `critère 9: a file put back, ${indexe ? 'staged' : 'unstaged'}, to the content an older commit of main gave it has not entered: refused, the copy intact`,
+      () => {
+        const m = monde({ sousModule: false });
+        entrer(m, { 'a.txt': 'ligne1\n' });
+        entrer(m, { 'a.txt': 'ligne1\nligne2\n' });
+        const nom = `demo-92${indexe ? 1 : 0}`;
+        const dir = m.copie(nom, `agent/${nom}`);
+        writeFileSync(path.join(dir, 'a.txt'), 'ligne1\n');
+        if (indexe) {
+          git(dir, 'add', 'a.txt');
+        }
+        refusee(m, dir, nom, /a\.txt/);
+        expect(lire(path.join(dir, 'a.txt'))).toBe('ligne1\n');
+      },
+      LONG
+    );
+  }
+  it(
+    'critère 9: a detached copy that deletes a file main deleted once, then gave back, has not entered: refused',
+    () => {
+      const m = monde({ sousModule: false });
+      entrer(m, { 'b.txt': 'b\n' });
+      git(m.repo, 'rm', '-q', 'b.txt');
+      git(m.repo, 'commit', '-qm', 'b retiré');
+      entrer(m, { 'b.txt': 'b repris\n' });
+      const dir = m.copie('demo-922');
+      git(dir, 'rm', '-q', 'b.txt');
+      refusee(m, dir, 'demo-922', /b\.txt/);
+      expect(git(dir, 'status', '--porcelain')).toMatch(/^D {2}b\.txt$/m);
+    },
+    LONG
+  );
+  it(
+    'critère 9: a submodule put back at the commit main referenced before its later commit has not entered: refused',
+    () => {
+      const m = monde();
+      git(path.join(m.repo, 'vendor/natif'), 'checkout', '-q', m.commits[1] ?? '');
+      git(m.repo, 'add', 'vendor/natif');
+      git(m.repo, 'commit', '-qm', 'natif v2 entré');
+      const dir = m.copie('demo-923', 'agent/demo-923');
+      git(path.join(dir, 'vendor/natif'), 'checkout', '-q', m.commits[0] ?? '');
+      refusee(m, dir, 'demo-923', /vendor\/natif/);
+      expect(git(path.join(dir, 'vendor/natif'), 'rev-parse', 'HEAD').trim()).toBe(m.commits[0]);
+    },
+    LONG
+  );
+  for (const indexe of [false, true]) {
+    it(
+      `critère 9: a mode change alone (chmod +x of a tracked file), ${indexe ? 'staged' : 'unstaged'}, has not entered: refused, the mode kept`,
+      () => {
+        const m = monde({ sousModule: false });
+        const nom = `demo-93${indexe ? 1 : 0}`;
+        const dir = m.copie(nom, `agent/${nom}`);
+        chmodSync(path.join(dir, 'a.txt'), 0o755);
+        if (indexe) {
+          git(dir, 'add', 'a.txt');
+        }
+        refusee(m, dir, nom, /a\.txt/);
+        expect(statSync(path.join(dir, 'a.txt')).mode & 0o111).not.toBe(0);
+      },
+      LONG
+    );
+  }
+  it(
+    'critère 9: a mode main gave the file before the copy was made, then took back, has not entered: refused',
+    () => {
+      const m = monde({ sousModule: false });
+      chmodSync(path.join(m.repo, 'a.txt'), 0o755);
+      git(m.repo, 'commit', '-qam', 'a exécutable');
+      chmodSync(path.join(m.repo, 'a.txt'), 0o644);
+      git(m.repo, 'commit', '-qam', 'a non exécutable');
+      const dir = m.copie('demo-932', 'agent/demo-932');
+      chmodSync(path.join(dir, 'a.txt'), 0o755);
+      refusee(m, dir, 'demo-932', /a\.txt/);
+      expect(statSync(path.join(dir, 'a.txt')).mode & 0o111).not.toBe(0);
+    },
+    LONG
+  );
+  it(
+    'critère 9: the same mode change entered on main after the copy was made is removed',
+    () => {
+      const m = monde({ sousModule: false });
+      const dir = m.copie('demo-933', 'agent/demo-933');
+      chmodSync(path.join(dir, 'a.txt'), 0o755);
+      chmodSync(path.join(m.repo, 'a.txt'), 0o755);
+      git(m.repo, 'commit', '-qam', 'a exécutable entré');
+      retiree(m, dir);
+    },
+    LONG
+  );
+});
+
+// grillhouse-3uv.56 critère 19: the comments of the script hold in 100 columns, the width of the
+// project (.prettierrc).
+describe('grillhouse-3uv.56 critère 19 — the comments of the script hold in 100 columns', () => {
+  it('critère 19: every comment line of scripts/retirer-copie.sh holds in 100 columns', () => {
+    const longues = readFileSync(RETIRER, 'utf8')
+      .split('\n')
+      .map((l, i) => ({ n: i + 1, l }))
+      .filter(({ l }) => /^\s*#/.test(l) && [...l].length > 100)
+      .map(({ n, l }) => `${n}: ${[...l].length}`);
+    expect(longues).toEqual([]);
+  });
 });

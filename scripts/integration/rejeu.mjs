@@ -6,7 +6,7 @@
 // - `ouvrirCopie` makes the copy <copie> ready on <ref>: detached, every untracked file removed, its
 //   submodules set (`scripts/sous-modules.sh`, a local modification overwritten; a submodule the
 //   project shares, `grillhouse.partage`, is linked to the main repository's instead), its
-//   dependencies made to agree with its lock file (below). It builds nothing:
+//   dependencies made to agree with its lock file and manifests (below). It builds nothing:
 //   the build comes after the lots, as soon as a suite or a guard reads the build (main is built only
 //   when one of its suites plays), through the one entry point that builds
 //   (scripts/integration/constructions.mjs: a build whose fingerprint is in the store is restored,
@@ -17,14 +17,15 @@
 //   of the project plays through `scripts/sous-modules.sh monter`: each submodule the preparation
 //   linked is read-only, by the list the pose printed, whatever a command rewrites afterwards. With a
 //   link and no possible mount (bwrap absent or refused), the copy refuses before any command runs.
-// - The dependencies follow the lock file of the moment. One function (`accorder`) compares
-//   `package-lock.json` with the key `node_modules/.integration-lock`, runs `npm ci` when they differ
-//   and writes the key again; a failing install gives `DEPENDANCES_REFUSEES`. It runs at the opening
-//   and before every command of the project that reads the dependencies: the build, `suites`,
-//   `gardes`. A lot that changes the lock file is installed before its suites, a copy that goes
-//   back to HEAD for the next pass is installed again for it. `suites` then returns
-//   `[DEPENDANCES_REFUSEES]` and `gardes` a result of status 1 whose stderr is that message; the
-//   consumers refuse on it, running no suite, and none reads the key or installs.
+// - The dependencies follow the lock file and the manifests of the moment. One function (`accorder`,
+//   which `ouvrirCopie` hands out as `installer`) compares the fingerprint of the lock file and of
+//   the manifests (every `package.json` git tracks) with the key
+//   `node_modules/.integration-lock`, runs `npm ci` when they differ and writes the key again; a
+//   failing install gives `DEPENDANCES_REFUSEES`, the one form of that refusal. It runs at the
+//   opening, and the consumer calls `installer` once the lot is in the copy, before any suite or
+//   guard: a lot that changes the lock file or a manifest is installed as the continuous
+//   integration installs it (`npm ci` refuses a lock file in disagreement with its manifest). The
+//   suites and the guards run on dependencies in agreement, and none reads the key or installs.
 // - `perimetre` is the scope of the suites for a set of files (see below); the project's choice
 //   (`grillhouse.integration`: `impactes` by default, `complet`) decides in `portee`.
 // - `suites` plays `npm run integration:suites -- <scope>` (scripts/integration/suites-vitest.mjs:
@@ -41,6 +42,7 @@
 //   lot with `--index` (the integration, the queue) read an index that matches the files the
 //   command touched, and none refreshes for its own account.
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -76,7 +78,7 @@ export function nouveauxRouges(base, apres, admis = []) {
 // - a file outside every component that nothing declares read replays nothing: with no other file,
 //   no suite (mode `aucun`, the guards alone).
 const VERROU = 'package-lock.json';
-export const DEPENDANCES_REFUSEES = "Les dépendances de la copie ne s'installent pas.";
+const DEPENDANCES_REFUSEES = "Les dépendances de la copie ne s'installent pas.";
 const nu = p => p.replace(/^\.\//, '').replace(/\/+$/, '');
 
 export function perimetre(fichiers, composants, consommateurs, lus = []) {
@@ -107,9 +109,23 @@ export function perimetre(fichiers, composants, consommateurs, lus = []) {
   return { mode: 'composants', composants: [...touches].sort() };
 }
 
+// The fingerprint of what `npm ci` reads in <copie>: the lock file at <verrou> and every
+// `package.json` git tracks (the root's and each workspace's, whatever pattern declares it: a
+// manifest too many costs one more `npm ci`, a manifest missed lets a disagreement pass).
+// `dansCopie` is git in the copy.
+function empreinteDesDependances(copie, verrou, dansCopie) {
+  const suivis = dansCopie('ls-files', '-z', '--', ':(glob)**/package.json')
+    .stdout.split('\0')
+    .filter(Boolean)
+    .sort();
+  const h = createHash('sha256').update(readFileSync(verrou));
+  for (const f of suivis) h.update(`\0${f}\0`).update(readFileSync(path.join(copie, f)));
+  return h.digest('hex');
+}
+
 // The copy <copie> ready on <ref>, or `{ refus }`. `tmp` is a folder for the failing-test lists;
 // `dire` writes a progress line. Returns the copy's tools: `dansCopie` (git in the copy), `npm`,
-// `monter` (the command line of a mounted command), `portee`, `suites`, `gardes`.
+// `monter` (the command line of a mounted command), `installer`, `portee`, `suites`, `gardes`.
 export function ouvrirCopie({ racine, copie, ref, tmp, dire }) {
   const git = (...args) => spawnSync('git', ['-C', racine, ...args], { encoding: 'utf8' });
   const dansCopie = (...args) => spawnSync('git', ['-C', copie, ...args], { encoding: 'utf8' });
@@ -163,14 +179,14 @@ export function ouvrirCopie({ racine, copie, ref, tmp, dire }) {
     return r;
   };
   const npm = (args, env = {}) => lancer('npm', args, env);
-  // The one point that makes the dependencies agree with the lock file of the moment: the key of
-  // node_modules is compared with the lock file, `npm ci` runs when they differ, the key is written
-  // again. Null when they agree, else the refusal.
+  // The one point that makes the dependencies agree with the lock file and the manifests of the
+  // moment: the key of node_modules is compared with their fingerprint, `npm ci` runs when they
+  // differ, the key is written again. Null when they agree, else the refusal.
   const accorder = () => {
     const verrouNpm = path.join(copie, VERROU);
     if (!existsSync(verrouNpm)) return null;
     const cle = path.join(copie, 'node_modules', '.integration-lock');
-    const empreinte = readFileSync(verrouNpm, 'utf8');
+    const empreinte = empreinteDesDependances(copie, verrouNpm, dansCopie);
     if (existsSync(cle) && readFileSync(cle, 'utf8') === empreinte) return null;
     if (npm(['ci', '--no-audit', '--no-fund', '--silent']).status !== 0)
       return DEPENDANCES_REFUSEES;
@@ -219,7 +235,6 @@ export function ouvrirCopie({ racine, copie, ref, tmp, dire }) {
   let construit = false;
   const construire = () => lancer('node', [CONSTRUCTIONS]).status === 0;
   const suites = (champ, nom) => {
-    if (accorder()) return [DEPENDANCES_REFUSEES];
     const rouges = path.join(tmp, nom);
     writeFileSync(rouges, '');
     const portee =
@@ -255,7 +270,6 @@ export function ouvrirCopie({ racine, copie, ref, tmp, dire }) {
   // The guards. A control that follows the build step of `grillhouse:gardes` reads the build: the
   // project is built first unless the suites of the lot did.
   const gardes = () => {
-    if (accorder()) return { status: 1, stdout: '', stderr: `${DEPENDANCES_REFUSEES}\n` };
     const scripts = lireJsonSiPresent(path.join(copie, 'package.json'))?.scripts;
     const lisent = etapesDesGardes(scripts)?.lisentLaConstruction ?? [];
     if (scripts?.['integration:gardes'] && lisent.length > 0 && !construit) {
@@ -264,5 +278,5 @@ export function ouvrirCopie({ racine, copie, ref, tmp, dire }) {
     }
     return npm(['run', '--silent', '--if-present', 'integration:gardes']);
   };
-  return { dansCopie, monter, npm, portee, suites, gardes, tete };
+  return { dansCopie, monter, npm, installer: accorder, portee, suites, gardes, tete };
 }

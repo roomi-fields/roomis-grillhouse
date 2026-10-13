@@ -10,7 +10,8 @@
 //   each « - <path> » line. A project's own files under a frame directory stay.
 // - `.claude/settings.json`: the frame's hooks, plugins, marketplaces and status line are added;
 //   one the previous version installed and the new one dropped is removed; the project's own
-//   settings stay.
+//   settings stay. The file is written only when its JSON value changes (the same value under
+//   another layout stays as it is), and the keys keep the file's order, the frame's new ones after.
 // - `package.json`, when there is one: the frame's npm scripts (`tableau`, `grillhouse:maj`), and
 //   `grillhouse:gardes`, the list of the frame's controls, and `api` (`npm run api`, which writes
 //   the API reports and the generated part of each `docs/INTERFACE.md`), each read as it is in the source's `package.json` (a source without one
@@ -52,6 +53,7 @@ import {
 } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 import { pathToFileURL } from 'node:url';
 import { poserCrochets } from './crochets.mjs';
 import { installerGreffons } from './greffons.mjs';
@@ -220,9 +222,12 @@ export function mettreAJour(projet, source, version) {
   }
   const fichierReglages = path.join(projet, '.claude/settings.json');
   const cadre = lireJson(path.join(source, '.claude/settings.json'), {});
-  const { reglages, installes } = fusionnerReglages(lireJson(fichierReglages, {}), cadre, avant);
-  mkdirSync(path.dirname(fichierReglages), { recursive: true });
-  writeFileSync(fichierReglages, `${JSON.stringify(reglages, null, 2)}\n`);
+  const presents = existsSync(fichierReglages) ? lireJson(fichierReglages, null) : null;
+  const { reglages, installes } = fusionnerReglages(presents ?? {}, cadre, avant);
+  if (!isDeepStrictEqual(presents, reglages)) {
+    mkdirSync(path.dirname(fichierReglages), { recursive: true });
+    writeFileSync(fichierReglages, `${JSON.stringify(reglages, null, 2)}\n`);
+  }
   const pkg = path.join(projet, 'package.json');
   if (existsSync(pkg)) {
     const p = lireJson(pkg, {});

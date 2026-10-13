@@ -153,3 +153,64 @@ describe('the command', () => {
     expect(spawnSync('node', [SCRIPT], { cwd: repo({}), encoding: 'utf8' }).status).toBe(0);
   });
 });
+
+// grillhouse-3uv.56 critère 20 (replaces critère 7, supervisor's decision): a component is known by
+// its name. Two directories of the same name under packages/ and src/ are refused by the check of
+// the consumers, which names both paths (the reference: npm workspaces, Nx and Cargo refuse two
+// projects of the same name).
+describe('grillhouse-3uv.56 critère 20 — two components of the same name are refused', () => {
+  const lancer = (dir: string) => spawnSync('node', [SCRIPT], { cwd: dir, encoding: 'utf8' });
+  it('critère 20: packages/a and src/a are refused, exit 1, both paths named', () => {
+    const dir = repo({
+      'packages/a/package.json': '{"name":"@demo/a"}',
+      'packages/a/src/index.ts': 'export const a = 1;\n',
+      'src/a/index.ts': 'export const a = 2;\n',
+    });
+    const r = lancer(dir);
+    expect(r.status, r.stderr).toBe(1);
+    const ligne = r.stderr.split('\n').find(l => l.includes('packages/a') && l.includes('src/a'));
+    expect(ligne, r.stderr).toBeDefined();
+  });
+  it('critère 20: another name (parser), among components that are otherwise in order, is refused the same way', () => {
+    const dir = repo({
+      'packages/parser/package.json': '{"name":"@demo/parser"}',
+      'packages/parser/src/index.ts': 'export const p = 1;\n',
+      'src/parser/index.ts': 'export const p = 2;\n',
+      'src/b/index.ts': 'export const duree = 1;\n',
+      'src/c/index.ts': "import { duree } from '../b';\nexport const c = duree;\n",
+      'src/b/docs/INTERFACE.md': INTERFACE_B('## Consommateurs\n\n- `c` : duree\n'),
+    });
+    const r = lancer(dir);
+    expect(r.status, r.stderr).toBe(1);
+    const ligne = r.stderr
+      .split('\n')
+      .find(l => l.includes('packages/parser') && l.includes('src/parser'));
+    expect(ligne, r.stderr).toBeDefined();
+    expect(
+      verifier(dir).refus.some(l => l.includes('packages/parser') && l.includes('src/parser'))
+    ).toBe(true);
+  });
+  // Arbitrage of the chef (comment « cas relevés par le testeur »): a name listed in
+  // docs/agents/hors-cadre.txt is not a component, and packages/A and src/a bear two names.
+  it('critère 20: two directories of a name listed in hors-cadre.txt, under packages/ and src/, are not refused', () => {
+    const dir = repo({
+      'docs/agents/hors-cadre.txt': 'outils\n',
+      'packages/outils/package.json': '{"name":"@demo/outils"}',
+      'packages/outils/src/index.ts': 'export const o = 1;\n',
+      'src/outils/index.ts': 'export const o = 2;\n',
+    });
+    const r = lancer(dir);
+    expect(r.status, r.stderr).toBe(0);
+    expect(verifier(dir).refus).toEqual([]);
+  });
+  it('critère 20: packages/A and src/a, names that differ by case, are not refused', () => {
+    const dir = repo({
+      'packages/A/package.json': '{"name":"@demo/A"}',
+      'packages/A/src/index.ts': 'export const a = 1;\n',
+      'src/a/index.ts': 'export const a = 2;\n',
+    });
+    const r = lancer(dir);
+    expect(r.status, r.stderr).toBe(0);
+    expect(verifier(dir).refus).toEqual([]);
+  });
+});

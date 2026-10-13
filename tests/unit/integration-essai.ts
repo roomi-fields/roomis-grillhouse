@@ -651,7 +651,16 @@ interface EtatDependances {
 // src/b, ext-lib 1.0.0, its lock file, its suites and guards reading the dependencies, committed
 // on main. npm runs offline, on a cache of its own. With `construction`, the root's `build` script
 // reads the dependencies too (CONSTRUCTION_DEPENDANCES), in every manifest of the project.
-export function chantierDependances(essais: string, { construction = false } = {}) {
+// `espaces` replaces the workspaces of the initial state (directory → package name); `motifs` is
+// the root's `workspaces` field, the patterns npm reads, by default the directories of the state.
+export function chantierDependances(
+  essais: string,
+  {
+    construction = false,
+    espaces: espacesInitiaux = { 'src/a': 'a', 'src/b': 'b' },
+    motifs,
+  }: { construction?: boolean; espaces?: Record<string, string>; motifs?: string[] } = {}
+) {
   const vendor = mkdtempSync(path.join(essais, 'vendor-'));
   const cache = mkdtempSync(path.join(essais, 'cache-npm-'));
   const npmCles = {
@@ -684,7 +693,7 @@ export function chantierDependances(essais: string, { construction = false } = {
       {
         name: 'essai',
         private: true,
-        workspaces: Object.keys(espaces),
+        workspaces: motifs ?? Object.keys(espaces),
         dependencies: { 'ext-lib': `file:vendor/ext-lib-${externe}.tgz` },
         scripts,
       },
@@ -713,7 +722,7 @@ export function chantierDependances(essais: string, { construction = false } = {
     out['package-lock.json'] = readFileSync(path.join(dir, 'package-lock.json'), 'utf8');
     return out;
   };
-  const initial: EtatDependances = { espaces: { 'src/a': 'a', 'src/b': 'b' }, externe: '1.0.0' };
+  const initial: EtatDependances = { espaces: espacesInitiaux, externe: '1.0.0' };
   execFileSync('cp', ['-r', vendor, path.join(m.repo, 'vendor')]);
   m.git('add', 'vendor');
   m.poser(

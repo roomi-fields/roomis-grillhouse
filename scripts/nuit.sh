@@ -170,15 +170,17 @@ jouer() {
 jouer >> "$journal" 2>&1
 verdict=$?
 
-# Opens the night ticket (subject « number — subject — parent »), or comments the open one; prints its id.
+# Opens the night ticket (subject « number — subject — parent », the number being the id without the
+# project's prefix as `bd config get issue_prefix` gives it), or comments the open one; prints its id.
 signaler() {
-  local sujet="$1" texte="$2" ouvert neuf=
+  local sujet="$1" texte="$2" ouvert neuf= prefixe
   ouvert="$(cd "$racine" && bd list --status open --label nuit --json 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const l=JSON.parse(s);process.stdout.write(l[0]?.id??"")}catch{}})')"
   if [ -n "$ouvert" ]; then
     (cd "$racine" && bd comments add "$ouvert" "$texte" >/dev/null)
   else
     neuf="$(cd "$racine" && bd create "$sujet" -t bug -p 1 -l nuit -d "$texte" --silent)"
-    [ -n "$neuf" ] && (cd "$racine" && bd update "$neuf" --title "${neuf#*-} — $sujet — parent" >/dev/null)
+    prefixe="$(cd "$racine" && bd config get issue_prefix 2>/dev/null)"
+    [ -n "$neuf" ] && (cd "$racine" && bd update "$neuf" --title "${neuf#"$prefixe"-} — $sujet — parent" >/dev/null)
   fi
   echo "${ouvert:-$neuf}"
 }

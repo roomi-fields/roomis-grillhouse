@@ -784,6 +784,43 @@ describe('an integration', () => {
     expect(r.stdout).toContain('tests/b.spec.ts');
     expect(m.etat().log[0]).toBe('pose tests/b.spec.ts');
   });
+  // grillhouse-3uv.56 critère 3: git writes a name outside ASCII quoted and escaped in a patch's
+  // « rename from » line (core.quotepath, on by default); the integration reads the origin of a
+  // rename as the file's own name. The lot is made as an agent makes it, git's defaults kept.
+  const lotRenommeParGit = (m: ReturnType<typeof monde>, nom: string, de: string, vers: string) => {
+    const git = (...a: string[]) => execFileSync('git', ['-C', m.repo, ...a], { encoding: 'utf8' });
+    mkdirSync(path.dirname(path.join(m.repo, vers)), { recursive: true });
+    git('mv', de, vers);
+    const diff = git('diff', '--cached', '-M');
+    expect(diff).toMatch(/^rename from "[^"]*\\[0-7]{3}/m);
+    git('reset', '-q', '--hard');
+    const patch = path.join(m.bin, nom);
+    writeFileSync(patch, diff);
+    return patch;
+  };
+  it('3uv.56 critère 3: refuses a code lot that renames an accented test file, naming its origin as it is', () => {
+    const m = monde(['ACCEPTÉ']);
+    m.poser('suites.mjs', enregistrer);
+    mkdirSync(path.join(m.repo, 'tests'));
+    m.poser('tests/café.spec.ts', 'test\n');
+    const patch = lotRenommeParGit(m, 'cafe.patch', 'tests/café.spec.ts', 'src/a/café.ts');
+    const r = m.lancer(['--code', patch], []);
+    expect(r.status, r.stdout).toBe(1);
+    expect(r.stdout).toMatch(/lot de code touche des fichiers du testeur/);
+    expect(r.stdout).toContain('tests/café.spec.ts');
+    expect(r.stdout).not.toMatch(/\\[0-7]{3}|"tests\//);
+  });
+  it('3uv.56 critère 3: hands the suites the component of an accented document moved outside every component', () => {
+    const m = monde(['ACCEPTÉ']);
+    m.poser('suites.mjs', enregistrer);
+    mkdirSync(path.join(m.repo, 'src/a/docs'));
+    m.poser('src/a/docs/été.md', 'une note\ndu composant\n');
+    const patch = lotRenommeParGit(m, 'ete.patch', 'src/a/docs/été.md', 'docs/été.md');
+    const r = m.lancer(['--code', patch], []);
+    expect(r.status, r.stdout).toBe(0);
+    expect(r.stdout).toMatch(/suites de : src\/a/);
+    expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('[src/a][src/a]');
+  });
   it('hands the suites the touched component and those that use it, nothing else', () => {
     const m = monde(['ACCEPTÉ']);
     m.poser(
@@ -1987,6 +2024,128 @@ describe('grillhouse-3uv.74 — the dependencies of the integration copy follow 
     },
     D
   );
+});
+
+// grillhouse-3uv.56 critère 12: a lot that changes a manifest (package.json) without changing
+// package-lock.json passes through the installation of the replay copy as a changed lock file does:
+// the continuous integration (actions/setup-node) runs `npm ci` at every pass, which refuses a
+// lock file in disagreement with its manifest.
+describe('grillhouse-3uv.56 critère 12 — a changed manifest is installed as a changed lock file', () => {
+  const D = 180_000;
+  it(
+    'critère 12: a lot whose package.json adds a workspace the unchanged lock file lacks is refused',
+    () => {
+      const m = chantierDependances(ESSAIS);
+      const neuf = m.fichiers({ ...m.initial, espaces: { ...m.initial.espaces, 'src/d': 'd' } });
+      m.ticket('demo-1', {
+        'package.json': neuf['package.json'],
+        'src/d/package.json': neuf['src/d/package.json'],
+      });
+      const r = m.integrer('demo-1');
+      expect(r.status, r.stdout + r.stderr).toBe(1);
+      expect(r.stdout).toContain("⛔ Les dépendances de la copie ne s'installent pas.");
+    },
+    D
+  );
+  it(
+    'critère 12: a lot whose package.json changes the version of an external dependency, the lock file unchanged, is refused',
+    () => {
+      const m = chantierDependances(ESSAIS);
+      const neuf = m.fichiers({ ...m.initial, externe: '2.0.0' });
+      m.ticket('demo-1', { 'package.json': neuf['package.json'] });
+      const r = m.integrer('demo-1');
+      expect(r.status, r.stdout + r.stderr).toBe(1);
+      expect(r.stdout).toContain("⛔ Les dépendances de la copie ne s'installent pas.");
+    },
+    D
+  );
+  it(
+    'critère 12: a lot whose workspace manifest adds an external dependency the unchanged lock file lacks is refused',
+    () => {
+      const m = chantierDependances(ESSAIS);
+      m.ticket('demo-1', {
+        'src/a/package.json': JSON.stringify(
+          {
+            name: 'a',
+            version: '1.0.0',
+            dependencies: { 'ext-lib': 'file:../../vendor/ext-lib-2.0.0.tgz' },
+          },
+          null,
+          2
+        ),
+      });
+      const r = m.integrer('demo-1');
+      expect(r.status, r.stdout + r.stderr).toBe(1);
+      expect(r.stdout).toContain("⛔ Les dépendances de la copie ne s'installent pas.");
+    },
+    D
+  );
+  it(
+    'critère 12: a lot whose package.json changes in agreement with the unchanged lock file runs npm ci, and is committed',
+    () => {
+      const m = chantierDependances(ESSAIS);
+      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
+      m.livrer('demo-1');
+      m.poserMarque('integration');
+      const pkg = JSON.parse(m.fichiers(m.initial)['package.json']!) as { description?: string };
+      pkg.description = 'un essai';
+      m.ticket('demo-2', { 'package.json': JSON.stringify(pkg, null, 2) });
+      const r = m.integrer('demo-2');
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(m.sujets('agent/demo-2')[0]).toBe('feat: lot (demo-2)');
+      expect(m.marquee('integration')).toBe(false);
+    },
+    D
+  );
+  // Arbitrage of the chef (comment « suite au RENDU du relecteur »): the fingerprint reads every
+  // package.json git tracks, whatever pattern of the root's `workspaces` declares it. Each form of
+  // pattern npm reads: `**` for zero folders or more, a brace list, `?` for one character.
+  for (const motifs of [['packages/**/*'], ['packages/{p1,q1}'], ['packages/p?', 'packages/q?']]) {
+    it(
+      `critère 12: a workspace declared by ${motifs.join(', ')} whose manifest adds an external dependency the unchanged lock file lacks is refused`,
+      () => {
+        const m = chantierDependances(ESSAIS, {
+          espaces: { 'packages/p1': 'p1', 'packages/q1': 'q1' },
+          motifs,
+        });
+        m.ticket('demo-1', {
+          'packages/p1/package.json': JSON.stringify(
+            {
+              name: 'p1',
+              version: '1.0.0',
+              dependencies: { 'ext-lib': 'file:../../vendor/ext-lib-2.0.0.tgz' },
+            },
+            null,
+            2
+          ),
+        });
+        const r = m.integrer('demo-1');
+        expect(r.status, r.stdout + r.stderr).toBe(1);
+        expect(r.stdout).toContain("⛔ Les dépendances de la copie ne s'installent pas.");
+      },
+      D
+    );
+  }
+});
+
+// grillhouse-3uv.56 critère 11: a failed installation comes up in one form, the refusals of the
+// replay module: guards that fail while writing the text of an installation refusal are guards
+// that refuse, not an installation that fails.
+describe('grillhouse-3uv.56 critère 11 — the integration judges the guards by their status', () => {
+  it('critère 11: red guards writing the text of an installation refusal refuse the lot as guards', () => {
+    const m = chantier(ESSAIS);
+    m.poser(
+      {
+        'gardes.mjs': `import fs from 'node:fs';\nprocess.stderr.write("Les dépendances de la copie ne s'installent pas.\\n");\nprocess.exit(fs.existsSync('GARDE_ROUGE') ? 1 : 0);\n`,
+      },
+      'gardes bavardes'
+    );
+    m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n', GARDE_ROUGE: '' });
+    const r = m.integrer('demo-1');
+    expect(r.status, r.stdout + r.stderr).toBe(1);
+    expect(r.stdout).toContain('⛔ Les gardes refusent');
+    expect(r.stdout).not.toContain("⛔ Les dépendances de la copie ne s'installent pas.");
+  }, 120_000);
 });
 
 // grillhouse-3uv.74 critère 7, kept by a reading of the source without its comments: the key of

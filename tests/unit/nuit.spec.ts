@@ -19,16 +19,24 @@ const ESSAIS = mkdtempSync(path.join(tmpdir(), 'nuit-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const NUIT = path.resolve(__dirname, '../../scripts/nuit.sh');
+// The header of nuit.sh: its comment lines after the shebang, up to the first line that is not one.
+const enteteDeNuit = () => {
+  const lignes = readFileSync(NUIT, 'utf8').split('\n').slice(1);
+  const fin = lignes.findIndex(l => !l.startsWith('#'));
+  return lignes.slice(0, fin < 0 ? lignes.length : fin).join('\n');
+};
 
-// A repository whose tests fail while ROUGE is committed, with a fake Beads that records its calls
-// and answers `list` with the open tickets written in OUVERTS.
-function monde() {
+// A repository whose tests fail while ROUGE is committed, with a fake Beads that records its calls,
+// answers `list` with the open tickets written in OUVERTS, `create` with the ticket <prefixe>-<numero>
+// and `config get issue_prefix` with the project's prefix, as the real bd does (the value, then a
+// newline).
+function monde({ prefixe = 'demo', numero = '12' } = {}) {
   const repo = mkdtempSync(path.join(ESSAIS, 'nuit-'));
   const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
   const appels = path.join(bin, 'appels');
   writeFileSync(
     path.join(bin, 'bd'),
-    `#!/bin/sh\necho "$@" >> ${appels}\ncase "$1" in list) cat ${bin}/OUVERTS 2>/dev/null || echo '[]';; create) echo demo-12;; esac\n`,
+    `#!/bin/sh\necho "$@" >> ${appels}\ncase "$1 $2 $3" in "config get issue_prefix") echo ${prefixe}; exit 0;; esac\ncase "$1" in list) cat ${bin}/OUVERTS 2>/dev/null || echo '[]';; create) echo ${prefixe}-${numero};; esac\n`,
     { mode: 0o755 }
   );
   const git = (...a: string[]) =>
@@ -83,6 +91,18 @@ describe('the night', () => {
     expect(appels).toMatch(/^update demo-12 --title 12 — La nuit est rouge depuis \w+ — parent$/m);
     expect(appels).toContain(`${vert}..${rouge}`);
     expect(appels).toMatch(/un test rouge/);
+  });
+  // grillhouse-3uv.56 critère 22: the night writes its ticket's title by the recipe of criterion 8
+  // (docs/agents/issue-tracker.md), the whole prefix of the project stripped.
+  it('3uv.56 critère 22: the night ticket of a project whose prefix holds a dash (bp-mono) is titled by its number alone', () => {
+    const m = monde({ prefixe: 'bp-mono', numero: 'vbwf.12' });
+    writeFileSync(path.join(m.repo, 'ROUGE'), '');
+    m.git('add', 'ROUGE');
+    m.git('commit', '-qm', 'casse');
+    expect(m.nuit().status).toBe(1);
+    expect(m.appels()).toMatch(
+      /^update bp-mono-vbwf\.12 --title vbwf\.12 — La nuit est rouge depuis \w+ — parent$/m
+    );
   });
   it('comments the open night ticket instead of opening another', () => {
     const m = monde();
@@ -340,11 +360,7 @@ describe('the night plays the project night script (grillhouse.nuit)', () => {
     expect(p.appels()).toBe('');
   });
   it('6, 10 — the header of nuit.sh describes the grillhouse.nuit key', () => {
-    const entete = readFileSync(NUIT, 'utf8')
-      .split('\n')
-      .slice(1)
-      .filter((l, i, t) => t.slice(0, i + 1).every(x => x.startsWith('#')))
-      .join('\n');
+    const entete = enteteDeNuit();
     expect(entete).toMatch(/grillhouse\.nuit/);
     expect(entete).toMatch(/npm pkg set grillhouse\.nuit=/);
     expect(entete).toMatch(/npm test/);
@@ -624,11 +640,7 @@ describe('the night pushes its green commit (grillhouse.poussee.nuit)', () => {
     expect(d.ref('main')).toBe(avec);
   });
   it('5 — the header of nuit.sh describes the grillhouse.poussee.nuit key', () => {
-    const entete = readFileSync(NUIT, 'utf8')
-      .split('\n')
-      .slice(1)
-      .filter((l, i, t) => t.slice(0, i + 1).every(x => x.startsWith('#')))
-      .join('\n');
+    const entete = enteteDeNuit();
     expect(entete).toMatch(/grillhouse\.poussee\.nuit/);
     expect(entete).toMatch(/git push origin/);
   });
@@ -983,4 +995,17 @@ describe('grillhouse-3uv.58 critère 6 — the night removes and recreates a cop
     },
     LONG
   );
+});
+
+// grillhouse-3uv.56 critère 15: STRUCTURE.md sums up nuit.sh with the project's night script
+// (grillhouse.nuit) and the push of the green (grillhouse.poussee.nuit).
+describe('grillhouse-3uv.56 critère 15 — STRUCTURE.md sums up the night with its two keys', () => {
+  it('critère 15: the line of nuit.sh in STRUCTURE.md names grillhouse.nuit and grillhouse.poussee.nuit', () => {
+    const ligne = readFileSync(path.resolve(__dirname, '../../STRUCTURE.md'), 'utf8')
+      .split('\n')
+      .find(l => /\bnuit\.sh\s+#/.test(l));
+    expect(ligne).toBeDefined();
+    expect(ligne).toMatch(/grillhouse\.nuit\b(?!\.)/);
+    expect(ligne).toMatch(/grillhouse\.poussee\.nuit/);
+  });
 });

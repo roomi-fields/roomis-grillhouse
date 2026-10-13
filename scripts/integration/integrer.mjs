@@ -20,7 +20,7 @@
 //     refuses, named (what an ignored folder such as node_modules holds is not work);
 //  4. a clean integration copy (`.claude/worktrees/integration`) on HEAD, made ready by the
 //     replay (scripts/integration/rejeu.mjs: submodules by scripts/sous-modules.sh, dependencies
-//     in agreement with the lock file, mounts); it builds nothing;
+//     in agreement with the lock file and the manifests, mounts); it builds nothing;
 //  5. the base: the project's suites (`npm run integration:suites -- <scope>`) on HEAD. Each suite
 //     keeps its verdict under the fingerprint of its content (scripts/integration/suites-vitest.mjs):
 //     a suite whose fingerprint has a trace is not replayed, so the base of a HEAD already
@@ -41,16 +41,17 @@
 //  6. the lots, applied in three ways in the copy, tests first; the files of the lot in the
 //     ticket's copy are compared with the copy's own base plus the lot, not with the integration
 //     copy;
-//  7. the suites again, with the lot (the dependencies first made to agree with the lock file the
-//     lot leaves, by the replay; an install that fails refuses the lot, « Les dépendances de la
-//     copie ne s'installent pas. », before any suite; the project built after the lots, as soon as a suite or a
+//     Once the lots are in the copy, the replay makes the dependencies agree with the lock file and
+//     the manifests the lot leaves (`npm ci`, as the continuous integration runs it); an install
+//     that fails refuses the lot, « Les dépendances de la copie ne s'installent pas. », before any
+//     suite or guard, whatever the scope of the suites;
+//  7. the suites again, with the lot (the project built after the lots, as soon as a suite or a
 //     guard reads the build; the lot's own content is built beside the base's, none overwrites the
 //     other); every command of the project run in the copy leaves its index up to date
 //     (rejeu.mjs);
-//  8. the project's guards (`npm run integration:gardes`, when present), the dependencies again in
-//     agreement with the lock file; every control plays. The
-//     project is built after the lots: by step 7 when a suite plays, else here when a control
-//     of `grillhouse:gardes` follows its build step (it reads the build);
+//  8. the project's guards (`npm run integration:gardes`, when present), judged by their exit code;
+//     every control plays. The project is built after the lots: by step 7 when a suite plays, else
+//     here when a control of `grillhouse:gardes` follows its build step (it reads the build);
 //  9. the comparison: a failing test that the base did not have and --admettre does not name
 //     refuses the lot, compared name by name;
 // 10. the commit in the copy, its hooks included, under GRILLHOUSE_INTEGRATION=1: a pre-commit
@@ -62,8 +63,11 @@
 //     `en-file` and the branch takes its place at the end of the queue
 //     (scripts/integration/file-attente.mjs). main does not move here.
 //
-// What the base and the suites read of a lot is its files: each file added, modified or
-// deleted, a rename counting its source and its destination, a copy its destination only.
+// What steps 2, 3, 5 and 6 read of a lot is its files: each file added, modified or deleted, a
+// rename counting its source and its destination (named as the file is, not as git quotes it in
+// the patch), a copy its destination only. Step 2 judges them against the testeur's files, step 3
+// against the main tree and the ticket's copy, step 5 hands them to the scope of the suites, and
+// step 6 compares them with the copy's own base plus the lot.
 //
 // The main tree is not touched. The suites command receives `--tous` for every suite, the
 // components' directories to replay (`packages/a src/parser`), `--racine`, or `--tests <files>`,
@@ -84,13 +88,33 @@ import { pathToFileURL } from 'node:url';
 import { isTesterFile } from '../verrous/verrou.mjs';
 import { lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
 import { dossierCommun, inscrireEntree } from './file-attente.mjs';
-import {
-  DEPENDANCES_REFUSEES,
-  lireJsonSiPresent,
-  nouveauxRouges,
-  ouvrirCopie,
-  RETIRER_COPIE,
-} from './rejeu.mjs';
+import { lireJsonSiPresent, nouveauxRouges, ouvrirCopie, RETIRER_COPIE } from './rejeu.mjs';
+
+// A file name as git writes it in a patch: a name with a character outside ASCII, a quote, a
+// backslash or a control character comes between quotes with C escapes (`\303\251` for `é`).
+// Returns the name itself.
+function nomDeGit(ecrit) {
+  if (!ecrit.startsWith('"')) return ecrit;
+  const octets = [];
+  const echappes = { n: 10, t: 9, r: 13, a: 7, b: 8, f: 12, v: 11 };
+  const corps = Buffer.from(ecrit.slice(1, -1), 'utf8');
+  for (let i = 0; i < corps.length; i++) {
+    if (corps[i] !== 0x5c) {
+      octets.push(corps[i]);
+      continue;
+    }
+    const suite = String.fromCharCode(corps[i + 1]);
+    const octal = /^[0-7]{3}/.exec(corps.subarray(i + 1, i + 4).toString('latin1'));
+    if (octal) {
+      octets.push(Number.parseInt(octal[0], 8));
+      i += 3;
+    } else {
+      octets.push(echappes[suite] ?? corps[i + 1]);
+      i += 1;
+    }
+  }
+  return Buffer.from(octets).toString('utf8');
+}
 
 // The refusal for the verdicts of one ticket, or null. `ticket` and `comments` are Beads' JSON.
 export function refusVerdicts(ticket, comments) {
@@ -250,7 +274,9 @@ function main(argv) {
         .filter(Boolean);
       // A rename names its source too (numstat names only the destination); a copy leaves its
       // source intact, so only its destination counts.
-      const sources = [...readFileSync(p, 'utf8').matchAll(/^rename from (.+)$/gm)].map(m => m[1]);
+      const sources = [...readFileSync(p, 'utf8').matchAll(/^rename from (.+)$/gm)].map(m =>
+        nomDeGit(m[1])
+      );
       return [...destinations, ...sources];
     };
     const tests = o.tests ? fichiersDe(absolu(o.tests)) : [];
@@ -291,11 +317,11 @@ function main(argv) {
     }
 
     // 4. The integration copy: detached on HEAD, without any untracked file; its dependencies
-    // are kept only while the lock file is the same (a CI cache keyed by the lock file).
+    // are kept only while the lock file and the manifests are the same (a CI cache keyed by them).
     const copie = path.join(racine, '.claude', 'worktrees', 'integration');
     const ouverte = ouvrirCopie({ racine, copie, ref: 'HEAD', tmp, dire });
     if (ouverte.refus) return refuser(ouverte.refus);
-    const { dansCopie, monter, portee, suites, gardes } = ouverte;
+    const { dansCopie, monter, installer, portee, suites, gardes } = ouverte;
     const { champ, message } = portee(fichiers);
     dire(message);
 
@@ -304,7 +330,6 @@ function main(argv) {
     if (champ.mode !== 'aucun') {
       dire('— les suites sur HEAD (la base)');
       base = suites(champ, 'base');
-      if (base.includes(DEPENDANCES_REFUSEES)) return refuser(DEPENDANCES_REFUSEES);
       if (base.some(n => n.startsWith('(les suites sortent'))) {
         return refuser(
           'La base ne se mesure pas : les suites échouent sur HEAD sans nommer de test.'
@@ -325,24 +350,18 @@ function main(argv) {
       );
     }
     dire('✓ lots appliqués');
+    const installation = installer();
+    if (installation) return refuser(installation);
 
     // 7. The suites with the lot (the build when a suite or a guard reads it).
     let apres = [];
     if (champ.mode !== 'aucun') {
       dire('— les suites avec le lot');
       apres = suites(champ, 'apres');
-      if (apres.includes(DEPENDANCES_REFUSEES)) return refuser(DEPENDANCES_REFUSEES);
     }
 
     // 8. The guards.
-    const g = gardes();
-    if (g.status !== 0) {
-      return refuser(
-        g.stderr.includes(DEPENDANCES_REFUSEES)
-          ? DEPENDANCES_REFUSEES
-          : 'Les gardes refusent (sortie ci-dessus).'
-      );
-    }
+    if (gardes().status !== 0) return refuser('Les gardes refusent (sortie ci-dessus).');
     dire('✓ gardes');
 
     // 9. The suites compared to the base.

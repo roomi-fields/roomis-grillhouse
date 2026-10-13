@@ -2,10 +2,13 @@
 // day, which `npm test` and the integration leave out. The night (scripts/nuit.sh) plays them with
 // this configuration, from the root of its copy (`vitest run --root <copy> --config <this file>`),
 // after a green `npm test` and before the project's night script. It stands alone: it reads no
-// day configuration of the project. It is also the one address of git's settings for the suite:
-// `test.env` sets git once for the tests by the environment (GIT_CONFIG_COUNT/KEY/VALUE,
-// git-config(1)), the automatic maintenance and garbage collection off (maintenance.auto=false,
-// gc.auto=0), and the day configuration (vitest.config.ts) reads it from here.
+// day configuration of the project, whether the project has one at its root or its suites read the
+// configurations of its packages. It is also the one address of
+// git's settings for the suite: `test.env` sets git once for the tests by the environment
+// (GIT_CONFIG_COUNT/KEY/VALUE, git-config(1)), the automatic maintenance and garbage collection off
+// (maintenance.auto=false, gc.auto=0). The configuration of the template's root (vitest.config.ts)
+// takes that setting from here; a day configuration other than that one (one per
+// package, say) does not take it.
 export default {
   test: {
     env: {

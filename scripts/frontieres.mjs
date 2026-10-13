@@ -3,7 +3,9 @@
 // (`.dependency-cruiser.cjs`) is generated from the components of the repository, like the index
 // of the interfaces; a project adds its own rules and options in `.dependency-cruiser.projet.cjs`
 // (`module.exports = { forbidden: [...], options: {...} }`), which the generated file reads when
-// dependency-cruiser loads it. Its `exclude` and `doNotFollow` patterns add to the frame's; any
+// dependency-cruiser loads it. The file brings every key of dependency-cruiser's configuration:
+// its `forbidden`, `allowed` and `required` rules add to the frame's; `allowedSeverity` and
+// `extends` pass as they are. Its `exclude` and `doNotFollow` patterns add to the frame's; any
 // other option replaces the frame's at its first level, as the `extends` of dependency-cruiser does.
 //
 //   node scripts/frontieres.mjs           refuses a stale configuration, then runs dependency-cruiser
@@ -26,14 +28,45 @@ export const RACINES = ['src', 'packages'];
 const TESTS = '(^|/)(test|tests|__tests__)/|[.](test|spec)[.][a-z]+$';
 const CODE = '^src/|^packages/[^/]+/src/';
 
-// The `exclude` pattern of the configuration: built files, and the directories under `src/` and
+// The `exclude` patterns of the configuration: built files, and the directories under `src/` and
 // `packages/` that the list out of the frame names.
 function exclus(racine) {
   const motifs = ['^(dist|build|coverage)/', '^packages/[^/]+/(dist|build|coverage)/'];
   for (const nom of [...horsCadre(racine)].sort()) {
     motifs.push(`^(packages|src)/${nom.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/`);
   }
-  return motifs.join('|');
+  return motifs;
+}
+
+// The width of a line of the generated configuration, the project's (`.prettierrc`).
+const LARGEUR = 100;
+
+// A rule as JavaScript lines at indent <retrait>, each within LARGEUR columns: one key per line,
+// a string too long for its line cut at a space, a `|` or the width into pieces joined by `+`.
+function ecrire(regle, retrait) {
+  const lignes = JSON.stringify(regle, null, 2).split('\n');
+  return lignes
+    .map(l => {
+      const ligne = retrait + l;
+      const m = /^(\s*(?:"[^"]*": )?)"(.*)"(,?)$/.exec(ligne);
+      if (ligne.length <= LARGEUR || !m) return ligne;
+      const [, tete, valeur, virgule] = m;
+      const pieces = [];
+      let reste = valeur;
+      const place = LARGEUR - tete.length - 6;
+      while (reste.length > place) {
+        const dans = reste.slice(0, place);
+        let coupe = Math.max(dans.lastIndexOf(' '), dans.lastIndexOf('|')) + 1;
+        if (coupe === 0) coupe = place;
+        while (reste[coupe - 1] === '\\') coupe -= 1;
+        pieces.push(reste.slice(0, coupe));
+        reste = reste.slice(coupe);
+      }
+      pieces.push(reste);
+      const pas = `${/^\s*/.exec(tete)[0]}  `;
+      return `${tete}"${pieces.join(`" +\n${pas}"`)}"${virgule}`;
+    })
+    .join('\n');
 }
 
 // The configuration text for the repository at <racine>.
@@ -110,7 +143,7 @@ const motifs = f => {
   if (Array.isArray(f)) return f;
   return f && typeof f === 'object' ? motifs(f.path) : [];
 };
-// A filter of the frame plus the project's: the patterns add up, the other keys come from the project.
+// A filter of the frame plus the project's: the patterns add up, the other keys are the project's.
 const ajoute = (cadre, propre) => {
   const ajouts = motifs(propre).filter(Boolean);
   const reste = propre && typeof propre === 'object' && !Array.isArray(propre) ? propre : {};
@@ -118,7 +151,13 @@ const ajoute = (cadre, propre) => {
 };
 const cadre = {
   doNotFollow: { path: 'node_modules' },
-  exclude: { path: '${exclus(racine).replace(/[\\']/g, '\\$&')}' },
+  exclude: {
+    path: [
+${exclus(racine)
+  .map(m => `      '${m.replace(/[\\']/g, '\\$&')}',`)
+  .join('\n')}
+    ].join('|'),
+  },
   tsPreCompilationDeps: true,
   preserveSymlinks: true,
 ${tsconfig ? "  tsConfig: { fileName: 'tsconfig.json' },\n" : ''}  enhancedResolveOptions: {
@@ -129,9 +168,13 @@ ${tsconfig ? "  tsConfig: { fileName: 'tsconfig.json' },\n" : ''}  enhancedResol
 
 module.exports = {
   forbidden: [
-${regles.map(r => `    ${JSON.stringify(r)},`).join('\n')}
+${regles.map(r => `${ecrire(r, '    ')},`).join('\n')}
     ...(projet.forbidden ?? []),
   ],
+  ...(projet.allowed ? { allowed: projet.allowed } : {}),
+  ...(projet.required ? { required: projet.required } : {}),
+  ...(projet.allowedSeverity ? { allowedSeverity: projet.allowedSeverity } : {}),
+  ...(projet.extends ? { extends: projet.extends } : {}),
   options: {
     ...cadre,
     ...projet.options,

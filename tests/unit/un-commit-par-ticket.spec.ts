@@ -44,8 +44,9 @@ describe('refusal', () => {
 // keeps its lines), and a fake `bd` answering the prefix `demo`. `check` runs the hook on a message.
 // A message given as a function receives the full shas of the commits before it; `check.shas` holds
 // the full sha of each commit, `check.short` its short form as `git log --format=%h` writes it.
-// `check.git` runs git in the repository, `check.commit` adds one more commit on the current branch
-// (its extra arguments go to `git commit`, or replace it with `git merge` when the first is `merge`).
+// `check.bin` is the folder of the fake `bd`. `check.git` runs git in the repository,
+// `check.commit` adds one more commit on the current branch (its extra arguments go to
+// `git commit`, or replace it with `git merge` when the first is `merge`).
 type Message = string | ((shas: string[]) => string);
 function history(messages: Message[]) {
   const repo = mkdtempSync(path.join(ESSAIS, 'commit-'));
@@ -77,7 +78,7 @@ function history(messages: Message[]) {
       env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
     });
   };
-  return Object.assign(check, { shas, short, git, commit });
+  return Object.assign(check, { shas, short, git, commit, bin });
 }
 
 describe('the hook on a real history', () => {
@@ -491,5 +492,43 @@ describe('the rule counts the branches, not the ticket branch nor a stash (grill
     check.git('branch', '-q', '-D', 'agent/demo-1');
     const r = check('feat: lot (demo-1)');
     expect(r.status, r.stderr).toBe(0);
+  });
+});
+
+// grillhouse-3uv.56 critère 6: a commit of git's stash (refs/stash: a copy's autostash,
+// « On agent/<ticket>: autostash », and its index commit) delivers nothing. Witness: the
+// integration of 3uv.64, refused by « déjà son commit (842c901, b75a3f1) », the stash left by an
+// advance of lancer.sh in conflict (`git merge --ff-only --autostash`).
+describe('grillhouse-3uv.56 critère 6 — the autostash of a copy delivers nothing', () => {
+  it('critère 6: after an advance in conflict leaves the autostash, the commit of the ticket passes, from the copy and from main', () => {
+    const check = history(['feat: the frame']);
+    const racine = String(check.git('rev-parse', '--show-toplevel')).trim();
+    writeFileSync(path.join(racine, 'a.txt'), 'base\n');
+    check.git('add', 'a.txt');
+    check.commit('chore: a');
+    const copie = `${racine}-copie`;
+    check.git('worktree', 'add', '-q', '-b', 'agent/demo-1', copie);
+    writeFileSync(path.join(copie, 'a.txt'), 'travail\n');
+    writeFileSync(path.join(racine, 'a.txt'), 'main\n');
+    check.git('commit', '-qam', 'feat: other (demo-2)');
+    spawnSync('git', ['-C', copie, 'merge', '-q', '--ff-only', '--autostash', 'main'], {
+      encoding: 'utf8',
+    });
+    expect(String(check.git('log', '-1', '--format=%s', 'refs/stash'))).toMatch(
+      /^On agent\/demo-1: autostash/
+    );
+    expect(String(check.git('log', '-1', '--format=%s', 'refs/stash^2'))).toMatch(
+      /^index on agent\/demo-1: /
+    );
+    const message = path.join(copie, 'MSG');
+    writeFileSync(message, 'feat: lot (demo-1)\n');
+    for (const cwd of [copie, racine]) {
+      const r = spawnSync('node', [SCRIPT, message], {
+        cwd,
+        encoding: 'utf8',
+        env: { ...process.env, PATH: `${check.bin}:${process.env.PATH}` },
+      });
+      expect(r.status, `${cwd}: ${r.stderr}`).toBe(0);
+    }
   });
 });

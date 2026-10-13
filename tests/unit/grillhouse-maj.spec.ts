@@ -1,5 +1,14 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -970,5 +979,105 @@ describe('grillhouse-3uv.65 critère 27 — the update replaces the frame’s ol
       scripts: { 'integration:gardes': ANCIEN },
     });
     expect(scripts['integration:gardes']).toBe(ANCIEN);
+  });
+});
+
+// grillhouse-3uv.56 critère 13: the update writes `.claude/settings.json` only when its content
+// changes, and keeps the order of the file's keys. Witness: BPScript (322.9), where a rewrite with
+// nothing to change moved statusLine after hooks and the integration refused the copy at step 3.
+describe('grillhouse-3uv.56 critère 13 — the settings are written only when their content changes', () => {
+  const REGLAGES = '.claude/settings.json';
+  const ANCIENNE = new Date('2001-01-01T00:00:00Z');
+  const cadreDuDepot = () =>
+    JSON.parse(readFileSync(path.join(DEPOT, REGLAGES), 'utf8')) as Record<string, unknown>;
+  // The settings file of <projet> dated in the past, so that a write shows in its time.
+  const dater = (projet: string) => utimesSync(path.join(projet, REGLAGES), ANCIENNE, ANCIENNE);
+  const date = (projet: string) => statSync(path.join(projet, REGLAGES)).mtime.getTime();
+
+  it('critère 13: a replayed update leaves .claude/settings.json unwritten, byte for byte', () => {
+    const { projet } = installe({ name: 'p' });
+    const premier = lire(projet, REGLAGES);
+    dater(projet);
+    mettreAJour(projet, DEPOT, 'essai');
+    expect(lire(projet, REGLAGES)).toBe(premier);
+    expect(date(projet)).toBe(ANCIENNE.getTime());
+  });
+
+  it('critère 13: settings holding the frame’s, keys in the project’s own order (statusLine first, hooks last), are not written', () => {
+    const { statusLine, hooks, ...reste } = cadreDuDepot();
+    const projet = mkdtempSync(path.join(ESSAIS, 'ordre-'));
+    const texte = `${JSON.stringify({ statusLine, ...reste, hooks }, null, 2)}\n`;
+    ecrire(projet, REGLAGES, texte);
+    dater(projet);
+    mettreAJour(projet, DEPOT, 'essai');
+    expect(lire(projet, REGLAGES)).toBe(texte);
+    expect(date(projet)).toBe(ANCIENNE.getTime());
+  });
+
+  // Arbitrage of the chef (comment « cas relevés par le testeur »): the content is the JSON value;
+  // the same value under another layout is not a change.
+  it.each([
+    ['on one line', (v: unknown) => `${JSON.stringify(v)}\n`],
+    ['indented by tabs, without a final newline', (v: unknown) => JSON.stringify(v, null, '\t')],
+    [
+      'with arrays on one line, as prettier writes them',
+      (v: unknown) => `${JSON.stringify(v, null, 2).replace(/\[\s*("[^"\n]*")\s*\]/g, '[$1]')}\n`,
+    ],
+  ])(
+    'critère 13: settings holding the frame’s value %s are not written, byte for byte',
+    (_cas, ecrit) => {
+      const projet = mkdtempSync(path.join(ESSAIS, 'forme-'));
+      const texte = ecrit(cadreDuDepot());
+      expect(texte).not.toBe(`${JSON.stringify(cadreDuDepot(), null, 2)}\n`);
+      ecrire(projet, REGLAGES, texte);
+      dater(projet);
+      mettreAJour(projet, DEPOT, 'essai');
+      expect(lire(projet, REGLAGES)).toBe(texte);
+      expect(date(projet)).toBe(ANCIENNE.getTime());
+    }
+  );
+
+  it('critère 13: an update that changes the settings keeps the order of their keys, the frame’s new ones after', () => {
+    const src = source({
+      '.claude/grillhouse/fichiers.txt': 'METACADRE.md\n',
+      'METACADRE.md': 'meta',
+      [REGLAGES]: JSON.stringify({
+        hooks: { SessionStart: [crochet('debut')], Stop: [crochet('fin')] },
+        statusLine: { type: 'command', command: 'ligne neuve' },
+        enabledPlugins: { 'g@h': true },
+        extraKnownMarketplaces: { h: { source: {} } },
+      }),
+    });
+    const projet = mkdtempSync(path.join(ESSAIS, 'ordre-'));
+    ecrire(
+      projet,
+      REGLAGES,
+      `${JSON.stringify(
+        {
+          statusLine: { type: 'command', command: 'ligne ancienne' },
+          extraKnownMarketplaces: { mien: { source: {} } },
+          permissions: { allow: ['Bash(ls)'] },
+          hooks: { Stop: [crochet('mon-arret')], PreToolUse: [crochet('mien', 'Bash')] },
+          enabledPlugins: { 'a@b': true },
+          model: 'opus',
+        },
+        null,
+        2
+      )}\n`
+    );
+    mettreAJour(projet, src, 'essai');
+    const r = json(projet, REGLAGES);
+    expect(Object.keys(r)).toEqual([
+      'statusLine',
+      'extraKnownMarketplaces',
+      'permissions',
+      'hooks',
+      'enabledPlugins',
+      'model',
+    ]);
+    expect(r.statusLine).toEqual({ type: 'command', command: 'ligne neuve' });
+    expect(Object.keys(r.hooks as object)).toEqual(['Stop', 'PreToolUse', 'SessionStart']);
+    expect(Object.keys(r.enabledPlugins as object)).toEqual(['a@b', 'g@h']);
+    expect(Object.keys(r.extraKnownMarketplaces as object)).toEqual(['mien', 'h']);
   });
 });
