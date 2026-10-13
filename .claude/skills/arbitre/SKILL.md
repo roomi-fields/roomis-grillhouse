@@ -89,9 +89,10 @@ remplies :
 ### Les options de l'agent
 ```
 
-**Le travail que le verdict demande** : le verdict le décrit, un morceau par composant ; tu ne crées
-aucun ticket, le superviseur crée ceux que le responsable valide. Ainsi chaque ticket tient dans une
-seule enveloppe, et le plan reste celui du responsable.
+**Le travail que le verdict demande** : un ticket par composant, que tu consignes fermé sous le
+ticket (étiquette `decouverte`, `docs/agents/issue-tracker.md`, « Numéros et titres ») ; le verdict
+les nomme par leur numéro, et le superviseur rouvre ceux que le responsable valide. Ainsi chaque
+ticket tient dans une seule enveloppe, et le plan reste celui du responsable.
 
 Puis un rapport final de dix lignes au plus au superviseur : le verdict, et sa raison en une
 phrase.

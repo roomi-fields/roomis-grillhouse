@@ -74,11 +74,11 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   3 testeur, 4 développeur, 5 relecteur, 6 intégrateur, dans l'ordre du flux. Sa consigne porte la
   ligne « TON TICKET : <id> » ; un contrôle refuse de lancer un agent de rôle sans elle. Ainsi le
   tableau rattache chaque agent, son temps et ses jetons à son ticket.
-- **Un ticket naît du mot du responsable** : je crée un ticket quand il le demande, ou pour un
-  besoin direct d'un projet qui utilise le cadre (un défaut qu'il rencontre), et je le lui propose.
-  Une remarque d'agent sur un cas que personne ne rencontre aujourd'hui reste dans sa passation ;
-  je ne la lui monte pas, et elle n'entre dans aucun lot. Ainsi le backlog reste son plan, à la
-  taille de l'usage réel.
+- **Un ticket ouvert naît du mot du responsable** : j'ouvre un ticket quand il le demande, ou pour
+  un besoin direct d'un projet qui utilise le cadre (un défaut qu'il rencontre), et je le lui
+  propose. Une découverte d'agent se consigne dans un ticket fermé, étiqueté `decouverte` ; je
+  monte au responsable celles qui touchent un usage réel, et je rouvre celles qu'il retient. Ainsi
+  chaque découverte est gardée, et le backlog reste son plan, à la taille de l'usage réel.
 - **Je ne lance que sur le mot du responsable** : un ticket part quand il dit de le lancer ; valider
   un ticket, trancher sa question ou remplir un lot ne le lance pas. Son mot pose l'étiquette
   `circuit`, que je retire d'un ticket arrêté ; seul un ticket `circuit` attend dans AGENTS. Ainsi

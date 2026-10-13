@@ -38,6 +38,8 @@ décide avant le code, et chaque réalisation part petite et testable.
 
 ## La fin
 
-Tu écris les tickets proposés dans ta passation au ticket (`bd comments add`), chacun avec sa
-section « Architecture », son composant et ses critères, puis tu préviens le superviseur. Tu ne crées
-aucun ticket : le superviseur crée ceux que le responsable valide.
+Tu consignes chaque ticket proposé, avec sa section « Architecture », son composant et ses
+critères, dans un ticket fermé sous le tien : `n=$(bd create "<sujet>" --parent <id> --no-inherit-labels -t task -l decouverte --body-file <fichier> --silent)`,
+`bd update "$n" --title "${n#"$(bd config get issue_prefix)"-} — <sujet> — <composant>"`, puis
+`bd close "$n" -r "découverte consignée"`. Tu écris ta passation au ticket (`bd comments add`), puis tu préviens le superviseur. Le
+superviseur rouvre ceux que le responsable valide.

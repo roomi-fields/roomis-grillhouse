@@ -56,10 +56,10 @@ de réalisation touche un composant, ou porte un geste transverse sur tout le d�
 livraison ; tout ticket se crée sous sa mère (`docs/agents/issue-tracker.md`). Ainsi l'avancement
 se lit ticket par ticket.
 
-**Un ticket naît du mot du responsable**, ou d'un besoin direct d'un projet qui utilise le cadre
-(un défaut qu'il rencontre). Une découverte d'agent reste une remarque de sa passation, jamais un
-ticket ni un critère ; le superviseur porte au responsable celles qui touchent un usage réel. Ainsi
-le backlog reste le plan du responsable.
+**Un ticket ouvert naît du mot du responsable**, ou d'un besoin direct d'un projet qui utilise le
+cadre (un défaut qu'il rencontre). Une découverte d'agent se consigne dans un ticket fermé, sous le
+ticket qui l'a trouvée, étiqueté `decouverte` ; elle se rouvre sur le mot du responsable. Ainsi
+chaque découverte est gardée, et le backlog reste le plan du responsable.
 
 ## Ce qui tient le dépôt droit
 

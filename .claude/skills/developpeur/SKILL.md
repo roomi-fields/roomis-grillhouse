@@ -88,10 +88,12 @@ seule livraison, sur ton seul composant. Un plan qui en demande plusieurs t'arr�
 découpage au superviseur, sans écrire de code. Ainsi un ticket reste petit, et son avancement se lit
 d'un mot : ouvert ou fermé.
 
-**Une découverte reste une remarque** : ce que tu découvres hors du comportement de ton ticket (un
-défaut, une question, un second morceau) va dans ta passation, avec son exemple et son adresse ; tu
-ne crées aucun ticket. Tu continues ton ticket sans elle. Ainsi le responsable décide seul de ce qui
-entre au plan.
+**Une découverte se consigne fermée** : ce que tu découvres hors du comportement de ton ticket (un
+défaut, une question, un second morceau) se consigne, avec son exemple et son adresse, dans un
+ticket fermé sous le tien : `n=$(bd create "<sujet>" --parent <id> --no-inherit-labels -t task -l decouverte -d "<…>" --silent)`,
+`bd update "$n" --title "${n#"$(bd config get issue_prefix)"-} — <sujet> — <composant>"`, puis
+`bd close "$n" -r "découverte consignée"`. Tu continues ton ticket sans elle. Ainsi la découverte
+est gardée, et le responsable décide seul de ce qui entre au plan.
 
 **Une découverte qui bloque t'arrête** : quand ton ticket ne peut pas finir sans elle, tu
 t'arrêtes sans rien livrer, et ta passation la nomme comme ce qui bloque. Avant de rendre la main, tu
@@ -187,7 +189,7 @@ et le code la suit.
 - **Le relecteur rouvre sur une règle écrite** : un lot rendu par le relecteur, constat et règle
   cités, rouvre ton travail. Ainsi la relecture applique le cadre, sans ouvrir de lot sans fin.
 - **Ton ticket s'arrête à son composant** : ce qui demande un autre composant est une découverte
-  (« Une découverte reste une remarque »). Ainsi le travail reste dans le plan validé.
+  (« Une découverte se consigne fermée »). Ainsi le travail reste dans le plan validé.
 
 ## La fin
 

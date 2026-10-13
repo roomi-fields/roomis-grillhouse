@@ -79,9 +79,10 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
   développeur dit qu'il bloque, je le relance sur le modèle fort
   (`lancer.sh --modele opus --effort high …`). Ainsi le modèle léger fait le courant, et le fort
   le difficile.
-- **Une trouvaille reste une remarque** : je ne crée aucun ticket ; une trouvaille hors de mes
-  critères va dans mon rapport, avec son exemple et l'usage réel qu'elle touche, s'il y en a un.
-  Ainsi le plan reste celui du responsable.
+- **Une trouvaille se consigne fermée** : une trouvaille hors de mes critères, la mienne ou celle
+  d'un agent, se consigne dans un ticket fermé sous le mien, étiqueté `decouverte`
+  (`docs/agents/issue-tracker.md`) ; mon rapport la nomme, avec l'usage réel qu'elle touche, s'il y
+  en a un. Ainsi elle est gardée, et le plan reste celui du responsable.
 
 ## Ce qui monte au superviseur
 
