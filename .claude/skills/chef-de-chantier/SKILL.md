@@ -65,11 +65,15 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
   du cadre, je le tranche. J'ajoute un critère numéroté à la fin de la description, sans toucher
   l'Architecture ni les critères existants, et un commentaire « ## Arbitrage du chef de chantier »
   qui cite sa source. Ainsi chaque décision garde sa preuve.
+- **Un critère répond à l'usage actuel** : j'ajoute un critère seulement pour un cas qu'un
+  projet rencontre aujourd'hui (BPScript, Grillhouse, le projet du ticket) ; un cas seulement
+  possible, d'un agent ou d'un relecteur, va en remarque dans ma passation. Ainsi le ticket garde
+  la taille du besoin.
 - **Un cas tranché repasse par le testeur** : tout critère ajouté, par moi ou par le superviseur,
   part au testeur avant le développeur. Ainsi aucun comportement n'entre sans un test qui a mordu.
-- **Les cas d'un bloc** : je demande au testeur, dès sa première séance, de relever tous les cas
-  du domaine et de me les rendre ensemble. Ainsi une seule relance couvre les cas qu'il a trouvés.
-- **Des tests à la mesure des critères** : un test par critère et par cas limite relevé. Ainsi le
+- **Les cas d'un bloc** : je demande au testeur, dès sa première séance, de relever les cas que
+  l'usage actuel rencontre et de me les rendre ensemble. Ainsi une seule relance couvre les cas qu'il a trouvés.
+- **Des tests à la mesure des critères** : un test par critère. Ainsi le
   lot reste lisible, et la relecture juge qu'un test mord, pas leur nombre.
 - **Le développeur monte d'un cran** : quand le relecteur rend deux fois le code de son lot (un rendu pour un texte seul ne compte pas), ou quand le
   développeur dit qu'il bloque, je le relance sur le modèle fort

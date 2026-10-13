@@ -29,7 +29,8 @@ professionnel.
 4. Le plan va dans le ticket (`bd update <id> -d`). Un travail qui change un comportement est un
    seul ticket, qui passe d'un agent au suivant dans sa copie : les tests d'abord (agent
    `testeur`), puis le code qui les rend verts (agent `developpeur`). Ainsi le code se mesure à des
-   tests qu'il n'a pas écrits.
+   tests qu'il n'a pas écrits. Un critère répond à un besoin réel de l'usage actuel ; un cas
+   seulement possible n'en devient pas un. Ainsi le ticket garde la taille du besoin.
 5. Le ticket se ferme sur ses tests ciblés, le verdict de l'agent `relecteur` sur le lot, le
    commit de l'agent `integrateur`, seul à commiter, sur la branche du ticket, et l'entrée de
    cette branche sur main par la file, qui le ferme. Ainsi ce qui est déclaré fini l'est vraiment.

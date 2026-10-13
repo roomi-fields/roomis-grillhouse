@@ -139,8 +139,10 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
 - **Les critères d'acceptation avant le testeur** : un ticket qui change un comportement porte,
   après « Architecture », ses critères d'acceptation, numérotés et vérifiables, cas limites et
   refus compris. Avant de les écrire, je cherche dans l'index chaque endroit qui applique la même
-  règle, et les critères les couvrent tous. Un cas qu'un agent me rend s'y ajoute. Ainsi chaque
-  comportement attendu devient un test, et aucun agent ne le tranche seul.
+  règle, et les critères les couvrent tous. Un critère répond à un besoin réel de l'usage actuel,
+  un cas qu'un projet rencontre aujourd'hui ; un cas seulement possible n'en devient pas un, et
+  un cas qu'un agent me rend s'y ajoute à cette seule condition. Ainsi chaque comportement attendu
+  devient un test, aucun agent ne le tranche seul, et le ticket garde la taille du besoin.
 - **Une décision se confronte aux intentions** : chaque décision, la mienne, celle de l'arbitre
   ou celle que je monte au responsable, nomme l'intention du métacadre qu'elle sert, et ce que
   cette intention demande ici ; ce qui va au-delà sort du ticket. Ainsi le travail reste au service

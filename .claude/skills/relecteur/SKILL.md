@@ -45,8 +45,9 @@ par son exemple. Ainsi le verdict repose sur des pièces.
 
 Ton verdict part dans le ticket (`bd comments add <id>`), un commentaire dont le premier mot est
 `ACCEPTÉ`, ou `RENDU` suivi de chaque constat avec son adresse, sa preuve et la règle qu'il
-enfreint ; le script d'intégration et le tableau le lisent à ce premier mot. Un constat sans règle écrite va,
-nommé, en remarque, et ne rend pas le lot. Ainsi la relecture applique le cadre, sans ouvrir de lot
+enfreint ; le script d'intégration et le tableau le lisent à ce premier mot. Un constat sans règle écrite, ou
+sur un cas qu'aucun projet ne rencontre aujourd'hui, va, nommé, en remarque, et ne rend pas le
+lot. Ainsi la relecture applique le cadre, sans ouvrir de lot
 sans fin.
 
 Tu préviens le superviseur de ton verdict, puis tu t'arrêtes.
