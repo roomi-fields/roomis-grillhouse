@@ -24,15 +24,12 @@ Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 
 Chaque point : ce qui se surveille, ce qui le fermera.
 
-- **GEL DE L'OUTILLAGE** (responsable, 2026-10-13) : aucune fonction nouvelle dans le cadre ; seul ce qui bloque BPScript se répare. Un critère n'entre que s'il répond au besoin réel de l'usage actuel. En attente sous le gel : 75.2, 75.3, 77.1, 78.1, 56.2, lot 76 (sauf `--help`, la réécriture de settings.json et la régénération de .dependency-cruiser.cjs, qui gênent BPScript). Plus tard (« 4 ok ») : peser notre file d'intégration locale contre la file d'attente de fusion de GitHub et son contrôle continu.
+- **Lot 3uv.76** (3 points qui gênent BPScript) : « je veux que tu lances les 3 », lancé le 2026-10-13. À sa livraison, prévenir BPScript.
+- **GEL DE L'OUTILLAGE** (responsable, 2026-10-13) : aucune fonction nouvelle dans le cadre ; seul ce qui bloque BPScript se répare. Un critère n'entre que s'il répond au besoin réel de l'usage actuel. Backlog ramené le 2026-10-13 aux tickets confirmés ou nés d'un besoin de BPScript (22 fermés) ; un ticket ne naît que de son mot ou d'un besoin direct d'un projet. Plus tard (« 4 ok ») : peser notre file d'intégration locale contre la file d'attente de fusion de GitHub et son contrôle continu.
 - **3uv.79** (circuit léger de l'outillage, « 3 oui ») : le verrou du développeur interdit les tests ; ticket ouvert, à lancer sur le mot du responsable après 3uv.75.1.
 
 - **3uv.56.2** (bissection par composant, nuit.sh) : « go » le 2026-10-13 ; part après le lot 3uv.56 et après 3uv.75.1 (commande unique).
-- **Lot 3uv.76** (petites corrections, 5 points) : 4 viennent du relecteur de BPScript (322.10), dont l'ordre de settings.json encore cassé par l'installation des greffons et `--help` qui lance la mise à jour. Touche grillhouse-maj.mjs (tenu par 3uv.75.1) et frontieres.mjs (tenu par 3uv.77) : à proposer au responsable à leur livraison.
-- **3uv.78.1** (a-valider, modèle commun et contrôle d'homogénéité) : passe après 3uv.75.1 et 3uv.77. À proposer à leur livraison.
 - **3uv.77.1** (usage non déclaré) : règle du responsable au ticket, critères écrits ; passe après 3uv.77. Attend son mot pour partir.
-- **3uv.75** (les tests relus quand rien n'a bougé) : 75.1 livré ; 75.2 (contrôles en cache) et 75.3 (refus du lancement direct) à valider, sous le gel. Remarques du chef de 75.1, sous le gel : `--tous` fait double emploi avec `npm test` (gardé, l'Architecture le nomme) ; un nom de fichier mal tapé dans `npm test -- <fichiers>` sort en code 0 ; la CI passe de 13 à 18 min.
-- **3uv.74.1** (a-valider, découverte du chef de 3uv.74) : la nuit et le lanceur des copies d'agent installent les dépendances par leurs propres mécanismes ; passer par la fonction commune `accorder` ? Décision de structure, pas urgente pour BPScript.
 
 
 - **Consigne du testeur** (remarque du chef de 3uv.72.1) : un test qui se construit un environnement neuf y remet le réglage git de la suite (`tests/config-git.ts`). Texte sous `.claude/`, à moi ; à proposer au responsable.
@@ -42,7 +39,6 @@ Chaque point : ce qui se surveille, ce qui le fermera.
   sa copie des traces, il déclare grillhouse.lusParLesSuites) ; FaustX (déclarer src/). Se ferme
   quand l'avis est passé, à la mise à jour du cadre chez eux.
 - **Avis aux projets après 3uv.67 et 3uv.67.1** : envoyé à BPScript le 2026-10-12 (séance BPScript) ; FaustX à envoyer sur le mot du responsable.
-- **3uv.67.1.1** (a-valider, nom ou chemin d'un composant) : aucun projet n'a deux composants de même nom ; proposé de le ranger, pas important pour BPScript.
 
 ## F — fermés
 
