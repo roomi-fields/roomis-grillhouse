@@ -74,9 +74,10 @@ la relance. Ainsi main n'avance que sur des branches rejouées contre lui.
 - **Un refus retourne à l'agent** avec la sortie entière du script ; tu ne corriges rien. Un refus
   de garde se relit d'abord en relançant seul le garde qu'il nomme, et cette sortie part avec.
   Ainsi l'agent corrige la vraie cause du refus.
-- **Un ticket, un commit** : le crochet `commit-msg` refuse un ticket qui a déjà son commit ; tu
+- **Un ticket fermé, plus de commit** : le crochet `commit-msg` accepte le commit de correction
+  d'un ticket rouvert après sa livraison, et refuse un ticket fermé qui a déjà son commit ; tu
   rends alors la livraison au superviseur, qui fait de son reste un ticket neuf. Ainsi un ticket
-  entre d'un seul geste.
+  se corrige sous son numéro, et un travail nouveau ouvre un ticket.
 
 ## La fin
 

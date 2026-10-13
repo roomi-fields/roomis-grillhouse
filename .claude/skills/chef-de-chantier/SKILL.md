@@ -30,7 +30,8 @@ garde au superviseur.
    la copie, puis lance la file (`scripts/integration/file.mjs`), qui amène la branche sur main,
    ferme le ticket et pousse main.
 4. **CI et fin** : le ticket fermé, je lis la CI de son commit sur main (`gh run list --limit 1`,
-   puis `gh run watch <id>` par tranches) ; une CI rouge sur mon commit rouvre mon circuit. Un
+   puis `gh run watch <id>` par tranches) ; une CI rouge sur mon commit rouvre mon circuit : je
+   rouvre le ticket (`bd reopen <id>`), et sa correction entre sous son numéro. Un
    ticket que la file a rouvert (il a perdu `en-file`, les fichiers ou les tests nommés au ticket)
    rouvre aussi mon circuit : le lanceur recrée la copie sur main avec le lot de la branche en
    travail local. Puis je rends mon rapport ; mes agents, lancés sans nom, ne restent pas listés.
