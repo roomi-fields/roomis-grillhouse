@@ -19,6 +19,10 @@ garde au superviseur.
    `bash scripts/enveloppe/lancer.sh <ticket> <testeur|developpeur> <composant> <consigne>`, en
    arrière-plan. La consigne s'écrit d'après `pitmaster/references/consigne-agent.md`, dans mon
    scratchpad. Un ticket sans code (un lot de tests seul) saute le développeur.
+   Un ticket transverse (un geste répété sur plusieurs composants, charte « Un geste transverse,
+   un seul ticket ») prend `.` pour composant : la copie montre tout le dépôt. Ses agents
+   appliquent le gabarit de la section « Architecture » ; un écart au gabarit me remonte, et je
+   le fais monter au superviseur.
 2. **Relecteur** : sous-agent neuf (`subagent_type: relecteur`), sans nom, hors enveloppe. Une nouvelle
    relecture repart au même relecteur, par message.
 3. **Intégrateur** : après `ACCEPTÉ`, sous-agent neuf (`subagent_type: integrateur`), sans nom, sur les lots

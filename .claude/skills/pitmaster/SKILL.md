@@ -93,6 +93,13 @@ cadre commun) et `references/erreurs.md` (les erreurs déjà payées). Un tour d
   composant consommateur voit alors dans son enveloppe. Les lots des enfants entrent ensemble, en
   un seul commit. Ainsi chaque agent tient dans une seule enveloppe, et un retrait reste
   indivisible.
+- **Un geste transverse, un seul ticket** : un même changement répété sur plusieurs composants
+  (migration, outillage) est un seul ticket, mené dans une copie qui montre tout le dépôt
+  (`lancer.sh <ticket> <rôle> . <consigne>`). Je valide son gabarit, écrit dans sa section
+  « Architecture », et chaque écart inscrit à la liste des écarts admis ; un écart qui touche
+  l'architecture d'un composant (son rôle, ses frontières) monte au responsable. Un geste
+  mécanique sur plus de cinq composants se fait par un script de migration gardé au dépôt.
+  Ainsi le geste reste le même partout, et l'outillage ne se réécrit pas dans chaque composant.
 - **Un comportement qui change est un seul ticket, qui passe d'agent en agent** : dans la copie du
   ticket, le testeur écrit les tests ; le développeur les y trouve et écrit le code ; le relecteur
   relit les deux lots et rend son verdict au même ticket ; l'intégrateur commite sur sa branche,

@@ -51,7 +51,8 @@ charte du projet nomme (« Ce qui monte au superviseur »). Ainsi chaque décisi
 près du travail, et le superviseur garde les siennes.
 
 Un objectif dont le découpage n'est pas connu commence par une exploration, sans code ; un ticket
-de réalisation touche un composant et fait une seule livraison ; tout ticket se crée sous sa mère, et une découverte sous le ticket
+de réalisation touche un composant, ou porte un geste transverse sur tout le dépôt, et fait une seule
+livraison ; tout ticket se crée sous sa mère, et une découverte sous le ticket
 qui l'a trouvée, à valider (`docs/agents/issue-tracker.md`). Ainsi l'avancement se lit ticket par ticket.
 
 ## Ce qui tient le dépôt droit
@@ -64,6 +65,16 @@ qui l'a trouvée, à valider (`docs/agents/issue-tracker.md`). Ainsi l'avancemen
   modules, interfaces, frontières se tranchent sur les objectifs, les consommateurs, les
   représentations de données et les axes de changement, quelle que soit la taille du code. Ainsi
   l'architecture décide de la structure, et le code la suit.
+- **Un geste transverse, un seul ticket** : un même changement répété sur plusieurs composants
+  (une migration, la configuration des tests ou de la construction, la déclaration des
+  dépendances, les scripts du `package.json`) se décide une fois, en gabarit dans la section
+  « Architecture » du ticket, et se mène dans une seule copie qui montre tout le dépôt ; un
+  comportement propre à un composant garde son ticket. Ainsi le geste reste le même partout, et
+  sa question se tranche une fois.
+- **Les composants suivent un modèle commun** : chaque composant étend les configurations de base
+  du cadre, et le contrôle des gardes nomme chaque écart ; un écart passe seulement inscrit, avec
+  sa raison, dans la liste du projet que le superviseur valide. Ainsi le cadre ne maintient
+  aucune spécificité par composant.
 - **Un remplacement supprime le remplacé** dans le même commit, avec ses consommateurs et ses
   gardes. Ainsi le produit garde une seule façon de faire chaque chose.
 - **Un commentaire dit ce que la chose est**, au présent. Ainsi il reste vrai tant que le code ne
