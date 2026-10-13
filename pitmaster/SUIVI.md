@@ -13,6 +13,8 @@ sort et sa réponse va dans son ticket.
 
 Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 
+- **Signalements des gardes** (proposé par BPScript, 2026-10-14, d'après « l'info qu'on a un mot du langage codé en dur doit remonter jusqu'a moi ») : un garde peut signaler sans refuser ; la passation du développeur recopie les signalements de ses gardes (ou « aucun »), le rapport du chef les recopie, le superviseur les porte au responsable à la fermeture. Textes seuls (compétences, consigne-agent.md). Recommandation : oui. Question posée au responsable.
+
 
 
 
