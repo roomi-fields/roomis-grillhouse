@@ -24,7 +24,7 @@ Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 
 Chaque point : ce qui se surveille, ce qui le fermera.
 
-- **3uv.80** (BPScript 322.11 : npm test inutilisable chez BP, lot éprouvé par BPScript joint) : a-valider, attend le mot du responsable.
+- **3uv.80** (BPScript 322.11 : npm test inutilisable chez BP, lot éprouvé par BPScript joint) : « oui », lancé le 2026-10-13. À sa livraison, notifier BPScript (demande du responsable).
 - **GEL DE L'OUTILLAGE** (responsable, 2026-10-13) : aucune fonction nouvelle dans le cadre ; seul ce qui bloque BPScript se répare. Un critère n'entre que s'il répond au besoin réel de l'usage actuel. Backlog ramené le 2026-10-13 aux tickets confirmés ou nés d'un besoin de BPScript (22 fermés) ; un ticket ne naît que de son mot ou d'un besoin direct d'un projet. Plus tard (« 4 ok ») : peser notre file d'intégration locale contre la file d'attente de fusion de GitHub et son contrôle continu.
 - **3uv.79** (circuit léger de l'outillage, « 3 oui ») : le verrou du développeur interdit les tests ; ticket ouvert, à lancer sur le mot du responsable après 3uv.75.1.
 
