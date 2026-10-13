@@ -39,12 +39,20 @@
 //   declare, for the project, by scripts/greffons.mjs (the mechanism scripts/setup.sh also calls;
 //   `mettreAJour` itself never calls claude). A plugin that cannot be installed has its line naming
 //   the command to type; the update has finished its files, and the exit code is non-zero.
+// - The generated files: after the files, each generator of the frame is run in the project for the
+//   file it writes when the project holds that file (`node scripts/frontieres.mjs --ecrire` for
+//   `.dependency-cruiser.cjs`, `node scripts/index-interfaces.mjs` for
+//   `docs/agents/index-des-interfaces.md`), so that the frame's checks accept them; a generator
+//   that fails has its line, and the exit code is non-zero. `interfaces-contre-code.mjs` is not
+//   run: it writes after a build.
+// - An option other than `--source <path>` and `--ecarts` is refused: the usage is shown (the
+//   exit code is non-zero) and nothing is updated, `--help` included.
 // - `.claude/grillhouse/empreintes.json` records the source's commit, each file's SHA-256 and the
 //   hooks, plugins and marketplaces installed. `--ecarts` compares the files with it: a frame file modified or missing in a
 //   project is drift, which goes back to Grillhouse as a proposal.
 // - The source: --source, else GRILLHOUSE_SOURCE, else Grillhouse's repository on GitHub, kept in
 //   ~/.cache/grillhouse/roomis-grillhouse and moved to its last commit.
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   copyFileSync,
@@ -335,6 +343,37 @@ export function ecarts(projet) {
   return { version: e.version, modifies, absents };
 }
 
+// The frame's generators and the file each writes: run in the project after the copy.
+const GENERATEURS = [
+  { script: 'scripts/frontieres.mjs', args: ['--ecrire'], sortie: '.dependency-cruiser.cjs' },
+  {
+    script: 'scripts/index-interfaces.mjs',
+    args: [],
+    sortie: 'docs/agents/index-des-interfaces.md',
+  },
+];
+
+// Runs each generator whose script and output the project holds; returns the lines of failure.
+export function regenerer(projet) {
+  const lignes = [];
+  for (const g of GENERATEURS) {
+    if (!existsSync(path.join(projet, g.script)) || !existsSync(path.join(projet, g.sortie))) {
+      continue;
+    }
+    const r = spawnSync(process.execPath, [g.script, ...g.args], { cwd: projet, encoding: 'utf8' });
+    if (r.status !== 0) {
+      lignes.push(
+        `${g.sortie} : \`node ${[g.script, ...g.args].join(' ')}\` échoue ; lance-le. ${(r.stderr ?? '').trim()}`.trim()
+      );
+    }
+  }
+  return lignes;
+}
+
+const USAGE =
+  'Usage : node scripts/grillhouse-maj.mjs [--source <dossier Grillhouse>]   met le cadre à jour\n' +
+  "        node scripts/grillhouse-maj.mjs --ecarts                         dit l'écart du cadre\n";
+
 // The source checkout: the one named, else Grillhouse's repository, cloned or moved forward.
 function source(arg) {
   const nommee = arg ?? process.env.GRILLHOUSE_SOURCE;
@@ -353,6 +392,14 @@ function source(arg) {
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const projet = process.cwd();
+  const args = process.argv.slice(2);
+  const valide = args.every(
+    (a, k) => a === '--ecarts' || a === '--source' || args[k - 1] === '--source'
+  );
+  if (!valide || args.at(-1) === '--source') {
+    process.stderr.write(USAGE);
+    process.exit(2);
+  }
   if (process.argv.includes('--ecarts')) {
     const e = ecarts(projet);
     if (e && (e.modifies.length || e.absents.length)) {
@@ -396,7 +443,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
       `Script test : \`${b.test.ancien}\` remplacé par le test du cadre \`${b.test.nouveau}\` (relit les fichiers de test dont rien n'a bougé).\n`
     );
   }
-  for (const l of installerGreffons(projet)) {
+  for (const l of [...regenerer(projet), ...installerGreffons(projet)]) {
     process.stderr.write(`${l}\n`);
     process.exitCode = 1;
   }

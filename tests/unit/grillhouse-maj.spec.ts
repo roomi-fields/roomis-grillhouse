@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   statSync,
@@ -18,6 +19,8 @@ import {
   lireListe,
   mettreAJour,
 } from '../../scripts/grillhouse-maj.mjs';
+import { CONFIGURATION as CONFIG_DES_FRONTIERES } from '../../scripts/frontieres.mjs';
+import { cheminSysteme, claudeSubstitut } from '../claude-substitut.js';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'grillhouse-maj-'));
@@ -1134,5 +1137,178 @@ describe('grillhouse-3uv.75.1 critère 12 — the update poses the frame’s tes
       TEST_DU_CADRE
     );
     expect(r.stdout).not.toContain(TEST_DU_CADRE);
+  });
+});
+
+// grillhouse-3uv.76: the update as a project runs it, `claude` stood in (tests/claude-substitut.ts),
+// git and node from the system: no test reaches the real claude nor the network.
+const lancerMajAvec = (projet: string, args: string[], bin: string, source?: string) =>
+  spawnSync(process.execPath, [SCRIPT_MAJ, ...args], {
+    cwd: projet,
+    encoding: 'utf8',
+    env: {
+      PATH: cheminSysteme(bin),
+      HOME: mkdtempSync(path.join(ESSAIS, 'maison-')),
+      ...(source ? { GRILLHOUSE_SOURCE: source } : {}),
+    },
+    timeout: 120_000,
+  });
+
+// Every file under <racine> with its content: what an update may have changed.
+function contenu(racine: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const parcourir = (rel: string) => {
+    for (const e of readdirSync(path.join(racine, rel), { withFileTypes: true })) {
+      const f = path.join(rel, e.name);
+      if (e.isDirectory()) {
+        parcourir(f);
+      } else {
+        out[f] = readFileSync(path.join(racine, f), 'utf8');
+      }
+    }
+  };
+  parcourir('.');
+  return out;
+}
+
+// Witness: BPScript (322.10), whose settings hold enabledPlugins before statusLine; the install of
+// the plugins (`claude plugin install … --scope project`) rewrote them in Claude Code's own order.
+describe('grillhouse-3uv.76 critère 1 — the update keeps the order of the settings’ keys after the plugins’ install', () => {
+  it('critère 1: after the install of the plugins, the settings keep the project’s key order, and a replayed update leaves them byte for byte', () => {
+    const PLUGIN = 'p@m';
+    const REGLAGES = '.claude/settings.json';
+    const src = source({
+      '.claude/grillhouse/fichiers.txt': 'METACADRE.md\n',
+      'METACADRE.md': 'meta',
+      [REGLAGES]: JSON.stringify({
+        hooks: { SessionStart: [crochet('debut')], Stop: [crochet('fin')] },
+        statusLine: { type: 'command', command: 'ligne' },
+        enabledPlugins: { [PLUGIN]: true },
+        extraKnownMarketplaces: { m: { source: { source: 'github', repo: 'x/m' } } },
+      }),
+    });
+    const projet = mkdtempSync(path.join(ESSAIS, 'greffons-ordre-'));
+    // The project's own order, not Claude Code's: enabledPlugins first, statusLine after.
+    const ordre = [
+      'enabledPlugins',
+      'hooks',
+      'extraKnownMarketplaces',
+      'permissions',
+      'statusLine',
+      'model',
+    ];
+    ecrire(
+      projet,
+      REGLAGES,
+      `${JSON.stringify(
+        {
+          enabledPlugins: { [PLUGIN]: true },
+          hooks: { SessionStart: [crochet('debut')] },
+          extraKnownMarketplaces: { m: { source: { source: 'github', repo: 'x/m' } } },
+          permissions: { allow: ['Bash(ls)'] },
+          statusLine: { type: 'command', command: 'ligne' },
+          model: 'opus',
+        },
+        null,
+        2
+      )}\n`
+    );
+    const installs = (c: ReturnType<typeof claudeSubstitut>) =>
+      c.appels().filter(a => a.argv[0] === 'plugin' && a.argv[1] === 'install');
+
+    // The update adds the frame's Stop hook (the content changes): the order stays the project's.
+    const premier = claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')), { marches: ['m'] });
+    const r1 = lancerMajAvec(projet, ['--source', src], premier.bin);
+    expect(r1.status, r1.stderr).toBe(0);
+    expect(installs(premier).length, 'the plugin is installed').toBe(1);
+    const apres = lire(projet, REGLAGES);
+    expect(Object.keys(JSON.parse(apres) as object)).toEqual(ordre);
+    expect((JSON.parse(apres) as { hooks: object }).hooks).toHaveProperty('Stop');
+
+    // Replayed (the content does not change), the plugin installed again: the file stays as it is.
+    const second = claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')), { marches: ['m'] });
+    const r2 = lancerMajAvec(projet, ['--source', src], second.bin);
+    expect(r2.status, r2.stderr).toBe(0);
+    expect(installs(second).length, 'the plugin is installed').toBe(1);
+    expect(lire(projet, REGLAGES)).toBe(apres);
+  });
+});
+
+// Witness: BPScript (322.10), brought to fc9fe55, whose .dependency-cruiser.cjs, written by the
+// previous scripts/frontieres.mjs, was refused as stale by the boundaries check. The generators the
+// update can run on the sources alone (arbitrage of the ticket): scripts/frontieres.mjs --ecrire
+// and scripts/index-interfaces.mjs, whose outputs grillhouse:gardes refuses when stale.
+describe('grillhouse-3uv.76 critère 2 — the update regenerates what a frame generator it replaces produces', () => {
+  it('critère 2: after the update, .dependency-cruiser.cjs and docs/agents/index-des-interfaces.md are what the installed generators write, and their checks accept them', () => {
+    const projet = mkdtempSync(path.join(ESSAIS, 'generateur-'));
+    ecrire(projet, 'package.json', `${JSON.stringify({ name: 'p' }, null, 2)}\n`);
+    ecrire(projet, 'packages/moteur/package.json', `${JSON.stringify({ name: 'moteur' })}\n`);
+    ecrire(projet, 'packages/moteur/src/index.ts', 'export const x = 1;\n');
+    ecrire(
+      projet,
+      'packages/moteur/docs/INTERFACE.md',
+      '# moteur\n\nLe moteur rend le son.\n\n## Consommateurs\n\n- aucun\n'
+    );
+    // What previous generators wrote.
+    const generes = {
+      [CONFIG_DES_FRONTIERES]: {
+        generateur: 'scripts/frontieres.mjs',
+        ecrire: ['--ecrire'],
+        verifier: [] as string[],
+        perime: '// Généré par une version précédente.\nmodule.exports = { forbidden: [] };\n',
+      },
+      'docs/agents/index-des-interfaces.md': {
+        generateur: 'scripts/index-interfaces.mjs',
+        ecrire: [] as string[],
+        verifier: ['--verifier'],
+        perime: '# Index des interfaces\n\nGénéré par une version précédente.\n',
+      },
+    };
+    for (const [fichier, g] of Object.entries(generes)) {
+      ecrire(projet, fichier, g.perime);
+    }
+    const claude = claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')), {
+      plugins: [],
+      marches: [],
+      echecsInstall: [],
+    });
+    lancerMajAvec(projet, ['--source', DEPOT], claude.bin);
+    const noeud = (args: string[]) =>
+      spawnSync(process.execPath, args, { cwd: projet, encoding: 'utf8' });
+    for (const [fichier, g] of Object.entries(generes)) {
+      expect(lire(projet, g.generateur), g.generateur).toBe(lire(DEPOT, g.generateur));
+      const ecrite = lire(projet, fichier);
+      expect(ecrite, fichier).not.toBe(g.perime);
+      // The guard of grillhouse:gardes accepts what the update left.
+      const v = noeud([g.generateur, ...g.verifier]);
+      expect(v.status, `${fichier}: ${v.stdout}${v.stderr}`).toBe(0);
+      // The installed generator, run in the project, writes the same text.
+      const e = noeud([g.generateur, ...g.ecrire]);
+      expect(e.status, e.stderr).toBe(0);
+      expect(ecrite, fichier).toBe(lire(projet, fichier));
+    }
+  });
+});
+
+describe('grillhouse-3uv.76 critère 3 — the update refuses an unknown option, --help included', () => {
+  it('critère 3: --help and another unknown option are refused, the usage shown, nothing updated', () => {
+    const src = source({
+      '.claude/grillhouse/fichiers.txt': 'METACADRE.md\n',
+      'METACADRE.md': 'meta',
+      '.claude/settings.json': JSON.stringify({ hooks: { SessionStart: [crochet('debut')] } }),
+    });
+    for (const option of ['--help', '--forcer']) {
+      const projet = mkdtempSync(path.join(ESSAIS, 'option-'));
+      ecrire(projet, 'package.json', `${JSON.stringify({ name: 'p' }, null, 2)}\n`);
+      ecrire(projet, '.claude/settings.json', `${JSON.stringify({ model: 'opus' }, null, 2)}\n`);
+      const avant = contenu(projet);
+      const claude = claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')));
+      // The source is named by the environment: an update that runs takes it, never the network.
+      const r = lancerMajAvec(projet, [option], claude.bin, src);
+      expect(r.status, `${option}: ${r.stdout}${r.stderr}`).not.toBe(0);
+      expect(`${r.stdout}${r.stderr}`, option).toContain('--source');
+      expect(contenu(projet), option).toEqual(avant);
+      expect(claude.appels(), option).toEqual([]);
+    }
   });
 });

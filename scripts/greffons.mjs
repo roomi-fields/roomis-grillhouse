@@ -14,7 +14,9 @@
 //   the project's settings stay untouched; the source is `repo` for github, `url` for git and url,
 //   `path` for directory and file, any other type is a failure); then each declared plugin not
 //   installed for the project is installed by `claude plugin install <id> --scope project`, run
-//   from the project's root.
+//   from the project's root. `claude` rewrites `.claude/settings.json` in its own key order; once
+//   the installs are done, the file holds the keys in the order it had before them (the keys
+//   claude added after), and its exact text when the JSON value is the same.
 // - A plugin is installed for the project when `claude plugin list --json` has an entry for it of
 //   scope user, or of scope project or local whose `projectPath` is the project's root (both paths
 //   resolved); the entry's state (enabled, errors) is not read.
@@ -25,8 +27,9 @@
 //   installed for the project, or `lecture <reason>` when the state cannot be read; each claude
 //   call stops after 5 s.
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 import { pathToFileURL } from 'node:url';
 
 const DELAI_LECTURE_MS = 5000;
@@ -114,6 +117,42 @@ function sourceDuMarche(entree) {
   return champ && typeof s[champ] === 'string' ? s[champ] : null;
 }
 
+// The value <nouveau> with the object keys of <ancien> first, in its order, the others after;
+// applied at each depth (arrays and scalars are kept as they are).
+function dansLOrdre(nouveau, ancien) {
+  const objet = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+  if (!objet(nouveau) || !objet(ancien)) {
+    return nouveau;
+  }
+  const cles = [
+    ...Object.keys(ancien).filter(k => k in nouveau),
+    ...Object.keys(nouveau).filter(k => !(k in ancien)),
+  ];
+  return Object.fromEntries(cles.map(k => [k, dansLOrdre(nouveau[k], ancien[k])]));
+}
+
+// Puts `.claude/settings.json` back in the key order (and text, for an equal value) it had in
+// <avant>, the text read before the installs; a file that is gone or unreadable stays as it is.
+function restaurerReglages(fichier, avant) {
+  if (avant === null) {
+    return;
+  }
+  try {
+    const apres = readFileSync(fichier, 'utf8');
+    if (apres === avant) {
+      return;
+    }
+    const ancien = JSON.parse(avant);
+    const range = dansLOrdre(JSON.parse(apres), ancien);
+    writeFileSync(
+      fichier,
+      isDeepStrictEqual(range, ancien) ? avant : `${JSON.stringify(range, null, 2)}\n`
+    );
+  } catch {
+    // unreadable: left as claude wrote it
+  }
+}
+
 const commandeGreffon = id => `claude plugin install ${id} --scope project`;
 const marcheDe = id => id.slice(id.indexOf('@') + 1);
 
@@ -122,6 +161,16 @@ const marcheDe = id => id.slice(id.indexOf('@') + 1);
  * (empty when everything stands).
  */
 export function installerGreffons(projet) {
+  const fichier = path.join(resolu(projet), '.claude', 'settings.json');
+  const avant = existsSync(fichier) ? readFileSync(fichier, 'utf8') : null;
+  try {
+    return installer(projet);
+  } finally {
+    restaurerReglages(fichier, avant);
+  }
+}
+
+function installer(projet) {
   const racine = resolu(projet);
   const d = declaration(racine);
   if (d.erreur) {

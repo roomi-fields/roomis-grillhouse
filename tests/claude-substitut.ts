@@ -11,6 +11,11 @@ import path from 'node:path';
 //   for the source (else the last segment of the source);
 // - `plugin install <plugin>@<marketplace> [--scope s]`: refused when the marketplace is unknown,
 //   else an entry of scope s (user by default), whose projectPath is the working directory.
+//   With --scope project and a known marketplace, it first rewrites `.claude/settings.json` of the
+//   working directory, as the real one does even when the install then fails (measured on
+//   2026-10-13, grillhouse-3uv.76): the plugin set to true in `enabledPlugins`, the keys in the
+//   order of Claude Code's schema (`ORDRE_DES_REGLAGES`, the others after, in their order), the
+//   text `JSON.stringify(value, null, 2)` and a newline, written even when the value is the same.
 // A list reading can be made to fail, or to answer unreadable JSON (`lectures`).
 // A list command without --json answers in text, as the real one does.
 
@@ -37,6 +42,20 @@ export interface AppelClaude {
   argv: string[];
   cwd: string;
 }
+
+// The order in which Claude Code 2.1.296 writes the keys of a settings file it rewrites, as measured
+// on 2026-10-13 (keys it does not know follow, in the file's order).
+const ORDRE_DES_REGLAGES = [
+  '$schema',
+  'env',
+  'permissions',
+  'model',
+  'enabledMcpjsonServers',
+  'hooks',
+  'statusLine',
+  'enabledPlugins',
+  'extraKnownMarketplaces',
+];
 
 const PROGRAMME = `
 const fs = require('fs');
@@ -82,6 +101,15 @@ if (k[0] === 'plugin' && k[1] === 'marketplace' && k[2] === 'add' && k[3]) {
 }
 if (k[0] === 'plugin' && (k[1] === 'install' || k[1] === 'i') && k[2]) {
   const [nom, marche] = k[2].split('@');
+  const reglages = process.cwd() + '/.claude/settings.json';
+  if ((scope ?? 'user') === 'project' && e.marches.includes(marche)) {
+    const r = fs.existsSync(reglages) ? JSON.parse(fs.readFileSync(reglages, 'utf8')) : {};
+    r.enabledPlugins = { ...(r.enabledPlugins ?? {}), [k[2]]: true };
+    const ordre = __ORDRE__;
+    const cles = [...ordre.filter(c => c in r), ...Object.keys(r).filter(c => !ordre.includes(c))];
+    fs.mkdirSync(process.cwd() + '/.claude', { recursive: true });
+    fs.writeFileSync(reglages, JSON.stringify(Object.fromEntries(cles.map(c => [c, r[c]])), null, 2) + '\\n');
+  }
   if ((e.echecsInstall ?? []).includes(k[2]) || !e.marches.includes(marche)) {
     process.stderr.write('Failed to install plugin "' + k[2] + '"\\n');
     process.exit(1);
@@ -107,7 +135,7 @@ export function claudeSubstitut(dossier: string, etat: EtatClaude = {}) {
   writeFileSync(path.join(dossier, 'etat.json'), JSON.stringify(etat));
   writeFileSync(
     path.join(bin, 'claude'),
-    `#!${process.execPath}\n${PROGRAMME.replace('__DOSSIER__', JSON.stringify(dossier))}`,
+    `#!${process.execPath}\n${PROGRAMME.replace('__DOSSIER__', JSON.stringify(dossier)).replace('__ORDRE__', JSON.stringify(ORDRE_DES_REGLAGES))}`,
     { mode: 0o755 }
   );
   if (!existsSync(path.join(bin, 'node'))) {
