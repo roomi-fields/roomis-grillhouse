@@ -27,8 +27,6 @@ Chaque point : ce qui se surveille, ce qui le fermera.
 - **GEL DE L'OUTILLAGE** (responsable, 2026-10-13) : aucune fonction nouvelle dans le cadre ; seul ce qui bloque BPScript se répare. Un critère n'entre que s'il répond au besoin réel de l'usage actuel. En attente sous le gel : 75.2, 75.3, 77.1, 78.1, 56.2, lot 76 (sauf `--help`, la réécriture de settings.json et la régénération de .dependency-cruiser.cjs, qui gênent BPScript). Plus tard (« 4 ok ») : peser notre file d'intégration locale contre la file d'attente de fusion de GitHub et son contrôle continu.
 - **3uv.79** (circuit léger de l'outillage, « 3 oui ») : le verrou du développeur interdit les tests ; ticket ouvert, à lancer sur le mot du responsable après 3uv.75.1.
 
-- **3uv.77** (devDependency dans le code publié, proposé par BPScript) : « oui lance-le », lancé le 2026-10-13. À sa livraison, prévenir BPScript.
-
 - **3uv.56.2** (bissection par composant, nuit.sh) : « go » le 2026-10-13 ; part après le lot 3uv.56 et après 3uv.75.1 (commande unique).
 - **Lot 3uv.76** (petites corrections, 5 points) : 4 viennent du relecteur de BPScript (322.10), dont l'ordre de settings.json encore cassé par l'installation des greffons et `--help` qui lance la mise à jour. Touche grillhouse-maj.mjs (tenu par 3uv.75.1) et frontieres.mjs (tenu par 3uv.77) : à proposer au responsable à leur livraison.
 - **3uv.78.1** (a-valider, modèle commun et contrôle d'homogénéité) : passe après 3uv.75.1 et 3uv.77. À proposer à leur livraison.
@@ -49,6 +47,8 @@ Chaque point : ce qui se surveille, ce qui le fermera.
 ## F — fermés
 
 Chaque point : ce qui l'a fermé, le ticket.
+
+- **3uv.77** : livré (daaca0d), contrôle continu vert ; BPScript prévenu le 2026-10-13 (17 imports refusés chez lui, dans 040, 070, 080, 090, 110, 140). Remarques du chef, sous le gel : lint hors de src et tests, intégration à 915 s.
 
 - **Geste transverse** (BPScript) : grill fait, « ok » à chaque tour ; décisions à 3uv.78 ; règles écrites dans la charte, pitmaster et chef-de-chantier.
 
