@@ -20,6 +20,8 @@ Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 
 
 
+- **Geste transverse, un seul ticket** (proposé par BPScript, mots du responsable cités : « tout ce qui touche au tooling devrait être lancé par des agents qui ont une action et vision transverse » ; « on doit s'assurer de l'homogénéité entre paquets et qu'ils utilisent les mêmes outils de cadre et qu'on a pas à maintenir des spécificités par paquet »). Cas : migration vers 990-corpus en onze tickets par paquet, conflits et écarts (dependencies contre devDependencies). Règles touchées : charte « un ticket de réalisation touche un composant », pitmaster « Un ticket, un composant ». Le principe est dit par le responsable ; la forme est à griller : comment un testeur et un développeur travaillent hors de l'enveloppe d'un composant (enveloppe « dépôt » ?), le gabarit unique, et un contrôle d'homogénéité des configurations des composants (package.json, tsconfig, tests), écart nommé. À poser après 3uv.77.
+
 ## S — à surveiller
 
 Chaque point : ce qui se surveille, ce qui le fermera.
