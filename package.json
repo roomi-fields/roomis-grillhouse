@@ -35,7 +35,7 @@
     "daemon:delete": "pm2 delete project-name",
     "interfaces": "node scripts/index-interfaces.mjs",
     "pretest": "npm run --silent grillhouse:gardes",
-    "grillhouse:gardes": "node scripts/index-interfaces.mjs --verifier && node scripts/consommateurs.mjs && node scripts/frontieres.mjs && npm run --silent --if-present build && node scripts/interfaces-contre-code.mjs && node scripts/code-mort.mjs",
+    "grillhouse:gardes": "node scripts/index-interfaces.mjs --verifier && node scripts/consommateurs.mjs && npm run --silent --if-present build && node scripts/frontieres.mjs && node scripts/interfaces-contre-code.mjs && node scripts/code-mort.mjs",
     "integration:gardes": "node scripts/integration/gardes.mjs",
     "frontieres": "node scripts/frontieres.mjs",
     "api": "node scripts/interfaces-contre-code.mjs --ecrire",
@@ -94,6 +94,7 @@
     "knip": "^6.41.0",
     "pm2": "^5.4.2",
     "prettier": "^3.2.0",
+    "semver": "^7.8.5",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3",
     "vitest": "^2.0.0"

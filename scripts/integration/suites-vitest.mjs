@@ -9,7 +9,9 @@
 //                                     component are not in it, even when they import it;
 //   npm test -- --racine              the test files outside every component;
 //   npm test -- --tous                every test file of the day, as `npm test` does.
-// The test files of the day are those Vitest lists for the project's configuration, without the time
+// The test files of the day are those Vitest lists (the Vitest of the project's root, at the version
+// the frame requires: its package.json declares it, and the update checks it) for the project's
+// configuration, without the time
 // budget benches (`*.budget.test.*`, `*.budget.spec.*`) and the night tests (`*.nuit.test.*`,
 // `*.nuit.spec.*`): their measures move with the day's load, or they are too long for the day; the
 // night (`scripts/nuit.sh`) plays them (scripts/vitest.nuit.config.mjs). A named file that is not a
@@ -79,22 +81,22 @@ for (const a of args.filter(x => !x.startsWith('--'))) {
 const exclusions = HORS_DU_JOUR.map(c => `--exclude=**/*.${c}.{test,spec}.?(c|m)[jt]s?(x)`);
 
 // The test files of the day, relative to the root: what Vitest lists for the project's
-// configuration.
+// configuration, read from its JSON listing (`vitest list --filesOnly --json`, the `file` of each
+// entry; a workspace prefixes each line of the text listing with its project's name).
 function fichiersDuJour() {
-  const r = spawnSync('npx', ['--no-install', 'vitest', 'list', '--filesOnly', ...exclusions], {
-    cwd: racine,
-    encoding: 'utf8',
-    maxBuffer: 1 << 28,
-  });
+  const r = spawnSync(
+    'npx',
+    ['--no-install', 'vitest', 'list', '--filesOnly', '--json', ...exclusions],
+    { cwd: racine, encoding: 'utf8', maxBuffer: 1 << 28 }
+  );
   if (r.status !== 0) {
     process.stderr.write(r.stderr || r.stdout);
     process.exit(r.status ?? 1);
   }
-  return r.stdout
-    .split('\n')
-    .map(l => l.trim())
-    .filter(l => l !== '' && existsSync(path.resolve(racine, l)))
-    .map(l => posix(path.relative(racine, path.resolve(racine, l))))
+  const debut = r.stdout.indexOf('[');
+  const liste = debut < 0 ? [] : JSON.parse(r.stdout.slice(debut));
+  return [...new Set(liste.map(x => posix(path.relative(racine, path.resolve(racine, x.file)))))]
+    .filter(f => existsSync(path.resolve(racine, f)))
     .sort();
 }
 

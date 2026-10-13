@@ -59,7 +59,7 @@ roomis-grillhouse/
 │   │                              #   the frame listed in docs/agents/hors-cadre.txt, "<package> <reason>"
 │   ├── crochets.mjs               # the frame's git hooks (commit-msg, pre-push): placed by setup.sh and grillhouse:maj, absent ones named by the session start
 │   ├── greffons.mjs               # the frame's plugins (those `.claude/settings.json` enables): installed for the project by setup.sh and grillhouse:maj, absent ones named by the session start
-│   ├── frontieres.mjs             # grillhouse:gardes: dependency-cruiser, rules generated in .dependency-cruiser.cjs
+│   ├── frontieres.mjs             # grillhouse:gardes: dependency-cruiser (after the build, which it reads), rules generated in .dependency-cruiser.cjs
 │   ├── interfaces-contre-code.mjs # grillhouse:gardes: the TSDoc contract of each export (rubrics, tsdoc.json) and the generated part
 │   │                              #   of INTERFACE.md between its two marks; npm run api writes the reports and the parts
 │   ├── nuit.sh                    # every suite, once a night (mode « impactes »), building once through constructions.mjs and reading no trace of the suites or stored build (FORCER=1), then the night tests, then the project's night script (`grillhouse.nuit`), and pushes the green commit (`grillhouse.poussee.nuit`)
@@ -82,7 +82,7 @@ roomis-grillhouse/
 │   │   ├── traces.mjs                # the fingerprints of the content, the store in git's common directory (traces of the test files, builds kept by fingerprint), its purge, the fingerprint of each test file (closure of its imports)
 │   │   ├── constructions.mjs         # the one entry point that builds: purges the store, restores the dist/ of an unchanged build or builds it and stores it (FORCER=1 builds all); called by rejeu.mjs (which refreshes the index of its copy after every command it runs), nuit.sh, enveloppe/lancer.sh and the root build of a project with packages
 │   │   ├── gardes.mjs                # npm run integration:gardes: the controls of grillhouse:gardes without its build step (the integration builds after the lots, through constructions.mjs, whenever a suite or a control reads the build)
-│   │   ├── suites-vitest.mjs         # npm test [-- --tous|--racine|<components>|<test files>]: the launcher of the tests for Vitest, failing tests by name
+│   │   ├── suites-vitest.mjs         # npm test [-- --tous|--racine|<components>|<test files>]: the launcher of the tests for Vitest (the Vitest of the project's root, at the version the frame's package.json requires, `^2.0.0`; the test files read from its JSON listing), failing tests by name
 │   │   │                             #   (budget benches and night tests left out); the verdict and output of each test file are kept under the
 │   │   │                             #   fingerprint of what it reads in git's common directory and a file unchanged is not replayed (FORCER=1 replays)
 │   │   └── rapporteur-vitest.mjs     # the Vitest reporter of the launcher: each test file reported apart, its output kept
@@ -226,33 +226,39 @@ serve long-running services. A library leaves them out.
 ## Features
 
 ### Configuration
+
 - TypeScript with strict mode
 - ESLint + Prettier for code quality
 - EditorConfig for consistent formatting
 - Environment variables with Zod validation
 
 ### CI/CD
+
 - GitHub Actions for CI (lint, test, build)
 - Automated releases on git tags
 - Multi-Node.js version testing
 
 ### Documentation
+
 - README with badges
 - CHANGELOG following Keep a Changelog
 - CONTRIBUTING guide
 - API documentation template
 
 ### Testing
+
 - Vitest for unit and integration tests (TS and JS)
 - Coverage reporting
 - Test setup file
 
 ### Deployment
+
 - PM2 daemon support
 - PowerShell deployment scripts
 - Troubleshooting guide
 
 ### Claude Code
+
 - Pre-configured permissions and a SessionStart hook
 - Initialisation grill on the first session
 - Workflow skills: supervision, development, measurement, writing, release
@@ -295,6 +301,7 @@ Create `.github/workflows/your-workflow.yml`
 ### Adding Test Files
 
 Place tests in:
+
 - `tests/unit/` for unit tests
 - `tests/integration/` for integration tests
 

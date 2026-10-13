@@ -29,8 +29,13 @@
 // - A project that runs Vitest (its `test` script names it, or `vitest` is in the `dependencies` or
 //   `devDependencies` of its root `package.json` or of one of its workspaces) has its `test` script
 //   become the source's `test` (the launcher with its cache, scripts/integration/suites-vitest.mjs);
-//   the report says so. A `test` that runs anything
-//   else stays.
+//   the report says so, when the Vitest of the project's root (`npx --no-install vitest`, the one the
+//   launcher calls) satisfies the range the source's package.json declares for `vitest`. Where the
+//   root resolves no Vitest or another version, the project's `test` stays (the frame's included) and
+//   the report names the version found and the range required. A `test` that runs anything else stays.
+// - The update's own script: when the source holds another scripts/grillhouse-maj.mjs than the one
+//   running, the new one is copied to the project and run in place of the old, with the same
+//   arguments; so one pass ends with the new script's work.
 // - The git hooks: both of the frame (commit-msg « a closed ticket refuses a second commit, a reopened ticket takes its corrections », pre-push night branch
 //   guard) are placed by scripts/crochets.mjs, the mechanism scripts/setup.sh also calls, in the
 //   hooks folder git reads for the project (`core.hooksPath`, else the default one; the
@@ -66,8 +71,9 @@ import {
 } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import { isDeepStrictEqual } from 'node:util';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { poserCrochets } from './crochets.mjs';
 import { installerGreffons } from './greffons.mjs';
 
@@ -115,6 +121,25 @@ const declareVitest = (dossier, p) => {
     }
     return dossiers.some(d => a(lireJson(path.join(dossier, d, 'package.json'), null)));
   });
+};
+// The version of the Vitest the project's root resolves, as the launcher calls it
+// (`npx --no-install vitest --version`); null when it answers none.
+const vitestDeLaRacine = projet => {
+  const r = spawnSync('npx', ['--no-install', 'vitest', '--version'], {
+    cwd: projet,
+    encoding: 'utf8',
+  });
+  return r.status === 0 ? (/vitest\/(\d+\.\d+\.\d+\S*)/.exec(r.stdout)?.[1] ?? null) : null;
+};
+// The `semver` library, resolved from the project (the update runs there), else from this script.
+const semverDuProjet = projet => {
+  try {
+    const require = createRequire(path.join(projet, 'package.json'));
+    return require('semver');
+  } catch {
+    const require = createRequire(import.meta.url);
+    return require('semver');
+  }
 };
 const lireJson = (f, defaut) => {
   try {
@@ -234,7 +259,7 @@ export function mettreAJour(projet, source, version) {
   const { garder, retirer } = lireListe(readFileSync(path.join(source, LISTE), 'utf8'));
   const avant = lireJson(path.join(projet, EMPREINTES), { fichiers: {}, crochets: [] });
   const fichiers = fichiersDuCadre(source, garder);
-  const bilan = { copies: [], retires: [], dependances: [], test: null };
+  const bilan = { copies: [], retires: [], dependances: [], test: null, vitest: null };
   const empreintes = {};
   for (const f of fichiers) {
     const dst = path.join(projet, f);
@@ -274,14 +299,23 @@ export function mettreAJour(projet, source, version) {
     // The frame's test (the launcher with its cache) replaces a project's own test that runs Vitest.
     const testDuCadre = pkgSource.scripts?.test;
     const testDuProjet = p.scripts.test;
-    if (
+    const vitestExige = pkgSource.devDependencies?.vitest ?? pkgSource.dependencies?.vitest;
+    const lanceVitest =
       typeof testDuCadre === 'string' &&
       typeof testDuProjet === 'string' &&
-      testDuProjet !== testDuCadre &&
-      (/\bvitest\b/.test(testDuProjet) || declareVitest(projet, p))
-    ) {
-      p.scripts.test = testDuCadre;
-      bilan.test = { ancien: testDuProjet, nouveau: testDuCadre };
+      (testDuProjet === testDuCadre || /\bvitest\b/.test(testDuProjet) || declareVitest(projet, p));
+    if (lanceVitest) {
+      // The root must resolve the Vitest the frame requires (the launcher calls it).
+      const trouvee = typeof vitestExige === 'string' ? vitestDeLaRacine(projet) : null;
+      const convient =
+        typeof vitestExige !== 'string' ||
+        (trouvee !== null && semverDuProjet(projet).satisfies(trouvee, vitestExige));
+      if (!convient) {
+        bilan.vitest = { trouvee, exigee: vitestExige };
+      } else if (testDuProjet !== testDuCadre) {
+        p.scripts.test = testDuCadre;
+        bilan.test = { ancien: testDuProjet, nouveau: testDuCadre };
+      }
     }
     for (const nom of OUTILS_DES_CONTROLES) {
       const version = pkgSource.devDependencies?.[nom];
@@ -423,6 +457,16 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   } catch {
     version = 'inconnue';
   }
+  const neuf = path.join(src, 'scripts/grillhouse-maj.mjs');
+  const copie = path.join(projet, 'scripts/grillhouse-maj.mjs');
+  const enCours = fileURLToPath(import.meta.url);
+  if (existsSync(neuf) && empreinte(neuf) !== empreinte(enCours)) {
+    // The running script is not the source's: the source's takes its place and finishes the update.
+    mkdirSync(path.dirname(copie), { recursive: true });
+    copyFileSync(neuf, copie);
+    const r = spawnSync(process.execPath, [copie, ...process.argv.slice(2)], { stdio: 'inherit' });
+    process.exit(r.status ?? 1);
+  }
   const b = mettreAJour(projet, src, version);
   process.stdout.write(
     `Cadre à la version ${version.slice(0, 7)} : ${b.copies.length} fichier(s) copié(s), ${b.retires.length} retiré(s).\n`
@@ -436,6 +480,11 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   if (b.dependances.length > 0) {
     process.stdout.write(
       `Dépendances de développement ajoutées : ${b.dependances.join(', ')}. \`npm install\` les installe.\n`
+    );
+  }
+  if (b.vitest) {
+    process.stdout.write(
+      `Vitest : la racine résout ${b.vitest.trouvee ?? 'aucune version'}, le cadre exige ${b.vitest.exigee} ; le script test du projet reste tel quel.\n`
     );
   }
   if (b.test) {

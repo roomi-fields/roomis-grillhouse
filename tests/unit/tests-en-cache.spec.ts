@@ -510,3 +510,43 @@ describe('the store of the traces (scripts/integration/traces.mjs): shared by th
     LONG
   );
 });
+
+// grillhouse-3uv.80 critère 1. Witness: BPScript, a project of workspaces (`vitest.workspace` at
+// the root, Vitest 2.1.9), where `vitest list --filesOnly` prefixes each line with the name of its
+// project (« [810-strudel] packages/… »). The trial project declares two projects of Vitest, the
+// test files under src/ in one, those under tests/ in the other.
+const ESPACES = `export default [
+  { test: { name: 'composants', include: ['src/**/*.spec.ts'], environment: 'node' } },
+  { test: { name: 'hors-composants', include: ['tests/**/*.spec.ts'], environment: 'node' } },
+];
+`;
+describe('grillhouse-3uv.80 critère 1 — in a project of workspaces, the launcher keeps each test file Vitest lists', () => {
+  it(
+    'critère 1: npm test plays every test file of the day of each project of the workspace, then reads them again',
+    () => {
+      const p = projetCache(ESSAIS, { enPlus: { 'vitest.workspace.ts': ESPACES } });
+      const r = p.npmTest();
+      expect(r.status, voir(r)).toBe(0);
+      expect(tries(r.joues), voir(r)).toEqual(tous);
+      expect(r.stdout, voir(r)).not.toContain('aucun fichier de test à jouer');
+      const t = p.npmTest();
+      expect(t.status, voir(t)).toBe(0);
+      expect(t.joues, voir(t)).toEqual([]);
+      expect(t.stdout, voir(t)).toMatch(RELU);
+    },
+    LONG
+  );
+  it(
+    'critère 1: npm test -- <file> and npm test -- <directory> play their files, in either project of the workspace',
+    () => {
+      const p = projetCache(ESSAIS, { enPlus: { 'vitest.workspace.ts': ESPACES } });
+      const f = p.npmTest([FICHIERS.libre]);
+      expect(f.status, voir(f)).toBe(0);
+      expect(f.joues, voir(f)).toEqual(['libre']);
+      const d = p.npmTest(['src/a']);
+      expect(d.status, voir(d)).toBe(0);
+      expect(tries(d.joues), voir(d)).toEqual(tries(['a', 'direct', 'ricochet']));
+    },
+    LONG
+  );
+});
