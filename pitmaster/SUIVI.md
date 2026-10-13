@@ -13,7 +13,6 @@ sort et sa réponse va dans son ticket.
 
 Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 
-- **3uv.74** (a-valider, P1, signalé par BPScript) : un lot qui ajoute un paquet est refusé, l'installation des dépendances ne suit pas le verrou après l'application du lot. Bloque à nouveau le lot A de 322.4. Recommandation : le lancer. Question : on le lance ?
 
 
 
@@ -22,6 +21,8 @@ Chaque point : contexte, exemple, règle, recommandation, question, ticket.
 ## S — à surveiller
 
 Chaque point : ce qui se surveille, ce qui le fermera.
+
+- **3uv.74** (dépendances de la copie après le lot, signalé par BPScript) : « lances le ticket », lancé le 2026-10-13. À sa livraison, prévenir BPScript (Romain lui a dit de reprendre à ce signal).
 
 
 - **Consigne du testeur** (remarque du chef de 3uv.72.1) : un test qui se construit un environnement neuf y remet le réglage git de la suite (`tests/config-git.ts`). Texte sous `.claude/`, à moi ; à proposer au responsable.
