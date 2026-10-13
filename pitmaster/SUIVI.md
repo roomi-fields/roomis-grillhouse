@@ -31,7 +31,7 @@ Chaque point : ce qui se surveille, ce qui le fermera.
 - **Lot 3uv.76** (petites corrections, 5 points) : 4 viennent du relecteur de BPScript (322.10), dont l'ordre de settings.json encore cassé par l'installation des greffons et `--help` qui lance la mise à jour. Touche grillhouse-maj.mjs (tenu par 3uv.75.1) et frontieres.mjs (tenu par 3uv.77) : à proposer au responsable à leur livraison.
 - **3uv.78.1** (a-valider, modèle commun et contrôle d'homogénéité) : passe après 3uv.75.1 et 3uv.77. À proposer à leur livraison.
 - **3uv.77.1** (usage non déclaré) : règle du responsable au ticket, critères écrits ; passe après 3uv.77. Attend son mot pour partir.
-- **3uv.75** (les tests relus quand rien n'a bougé) : grill fait, décisions à la mère ; 75.1 (cache par fichier, commande unique), 75.2 (contrôles en cache), 75.3 (refus du lancement direct), à valider. 75.1 : « oui », lancé le 2026-10-13 ; à sa livraison, mesurer le gain (temps et jetons des agents) et le dire au responsable.
+- **3uv.75** (les tests relus quand rien n'a bougé) : 75.1 livré ; 75.2 (contrôles en cache) et 75.3 (refus du lancement direct) à valider, sous le gel. Remarques du chef de 75.1, sous le gel : `--tous` fait double emploi avec `npm test` (gardé, l'Architecture le nomme) ; un nom de fichier mal tapé dans `npm test -- <fichiers>` sort en code 0 ; la CI passe de 13 à 18 min.
 - **3uv.74.1** (a-valider, découverte du chef de 3uv.74) : la nuit et le lanceur des copies d'agent installent les dépendances par leurs propres mécanismes ; passer par la fonction commune `accorder` ? Décision de structure, pas urgente pour BPScript.
 
 
@@ -47,6 +47,8 @@ Chaque point : ce qui se surveille, ce qui le fermera.
 ## F — fermés
 
 Chaque point : ce qui l'a fermé, le ticket.
+
+- **3uv.75.1** : livré (673a171), contrôle continu vert ; npm test sans changement 8,7 s contre 12 min ; BPScript prévenu le 2026-10-13 (son test remplacé).
 
 - **3uv.77** : livré (daaca0d), contrôle continu vert ; BPScript prévenu le 2026-10-13 (17 imports refusés chez lui, dans 040, 070, 080, 090, 110, 140). Remarques du chef, sous le gel : lint hors de src et tests, intégration à 915 s.
 
