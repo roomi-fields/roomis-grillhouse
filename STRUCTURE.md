@@ -87,7 +87,7 @@ roomis-grillhouse/
 │   │   │                             #   fingerprint of what it reads in git's common directory and a file unchanged is not replayed (FORCER=1 replays)
 │   │   └── rapporteur-vitest.mjs     # the Vitest reporter of the launcher: each test file reported apart, its output kept
 │   ├── index-interfaces.mjs       # npm run interfaces: docs/agents/index-des-interfaces.md from the generated parts, checked by grillhouse:gardes
-│   └── un-commit-par-ticket.mjs   # commit-msg hook (placed by crochets.mjs): one ticket, one commit
+│   └── un-commit-par-ticket.mjs   # commit-msg hook (placed by crochets.mjs): a closed ticket refuses a second commit, a reopened ticket takes its corrections
 │
 ├── mods/grillhouse/            # The Grillhouse mod (grillhouse@roomi-fields): the /grillhouse pane, the
 │                              #   lines of scripts/tableau.mjs; tests: npm run mod:test

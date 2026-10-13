@@ -31,7 +31,7 @@
 //   become the source's `test` (the launcher with its cache, scripts/integration/suites-vitest.mjs);
 //   the report says so. A `test` that runs anything
 //   else stays.
-// - The git hooks: both of the frame (commit-msg « un ticket, un commit », pre-push night branch
+// - The git hooks: both of the frame (commit-msg « a closed ticket refuses a second commit, a reopened ticket takes its corrections », pre-push night branch
 //   guard) are placed by scripts/crochets.mjs, the mechanism scripts/setup.sh also calls, in the
 //   hooks folder git reads for the project (`core.hooksPath`, else the default one; the
 //   configuration stays). A hook of the project keeps its lines, which still run.

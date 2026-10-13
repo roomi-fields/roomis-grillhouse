@@ -1,9 +1,13 @@
 #!/usr/bin/env node
-// One ticket, one commit: refuses a commit message whose title line names a ticket an earlier
-// commit already delivers. A second delivery for the same ticket is the sign of a ticket split into
-// lots; its rest becomes new tickets, created under it (`--parent`). Run as the commit-msg hook
-// (placed by `scripts/crochets.mjs`), with the message file as argument.
+// A closed ticket keeps its one delivery: refuses a commit message whose title line names a ticket
+// an earlier commit already delivers, unless that ticket is open in Beads. An open ticket that
+// already has its delivery is a ticket reopened for a fix (by the queue or the CI): the commit is a
+// correction and passes. A closed ticket is finished: new work opens a new ticket, created under it
+// (`--parent`). Run as the commit-msg hook (placed by `scripts/crochets.mjs`), with the message file
+// as argument.
 //
+// - A ticket is open when its Beads status (`bd show <id> --json`) is anything but `closed`; a
+//   status that cannot be read (unknown id, unreadable answer, no `status`) is not open.
 // - A commit delivers the tickets its title line names; a ticket named only in a body (a
 //   reference, a `Refs:` trailer) is not delivered.
 //   The title line of a message is its first line that is neither blank nor a comment (a line
@@ -56,15 +60,16 @@ function revertedBy(message) {
   return REVERTS_LINE.exec(message)?.[1] ?? null;
 }
 
-// The refusal for this message, or null. `commitsOf(id)` gives the earlier commits delivering the id.
-// A reverting message delivers nothing and passes.
-export function refusal(message, prefix, commitsOf) {
+// The refusal for this message, or null. `commitsOf(id)` gives the earlier commits delivering the id;
+// `isOpen(id)` says whether the ticket is open (absent: not open). A reverting message delivers
+// nothing and passes; a ticket that is open takes a correction commit and passes.
+export function refusal(message, prefix, commitsOf, isOpen = () => false) {
   if (revertedBy(message) !== null) {
     return null;
   }
   for (const id of tickets(message, prefix)) {
     const earlier = commitsOf(id);
-    if (earlier.length > 0) {
+    if (earlier.length > 0 && !isOpen(id)) {
       return `Le ticket ${id} a déjà son commit (${earlier.join(', ')}) : un ticket fait une seule livraison. Ce qui reste devient un ticket neuf sous ${id} (bd create --parent ${id}).`;
     }
   }
@@ -79,6 +84,18 @@ function prefixe() {
     }).trim();
   } catch {
     return '';
+  }
+}
+
+// Whether the ticket is open in Beads: its `status` is anything but `closed`. A status that cannot
+// be read is not open.
+function ticketIsOpen(id) {
+  try {
+    const out = execFileSync('bd', ['show', id, '--json'], { encoding: 'utf8', stdio: 'pipe' });
+    const status = JSON.parse(out)?.[0]?.status;
+    return typeof status === 'string' && status !== 'closed';
+  } catch {
+    return false;
   }
 }
 
@@ -178,7 +195,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     process.exit(0);
   }
   const message = readFileSync(process.argv[2], 'utf8');
-  const reason = refusal(message, prefix, id => commitsDelivering(id, prefix));
+  const reason = refusal(message, prefix, id => commitsDelivering(id, prefix), ticketIsOpen);
   if (reason) {
     process.stderr.write(`⛔ ${reason}\n`);
     process.exit(1);

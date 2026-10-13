@@ -5,7 +5,7 @@
 //   node scripts/crochets.mjs [<project>]            places both hooks (the current directory by default)
 //   node scripts/crochets.mjs --absents [<project>]  prints the name of each absent hook, one per line
 //
-// - commit-msg: « un ticket, un commit » (scripts/un-commit-par-ticket.mjs).
+// - commit-msg: « un ticket fermé garde sa livraison ; un ticket rouvert reçoit ses corrections » (scripts/un-commit-par-ticket.mjs).
 // - pre-push: the night branch guard (scripts/branche-de-nuit.mjs).
 // - A hook lives in the folder git reads for the project (`git rev-parse --git-path hooks`, which
 //   follows `core.hooksPath`); the configuration is never changed here.
@@ -26,7 +26,7 @@ export const CROCHETS = {
   'commit-msg': {
     marque: 'un-commit-par-ticket',
     lignes: [
-      '# One ticket, one commit (Grillhouse): a second commit for a ticket whose delivery stands is refused; a revert (Revert "…", Reapply "…") passes and withdraws the delivery it names.',
+      '# A closed ticket keeps its one delivery (Grillhouse): a second commit for a closed ticket whose delivery stands is refused, a commit for an open (reopened) ticket is a correction and passes; a revert (Revert "…", Reapply "…") passes and withdraws the delivery it names.',
       'node "$(git rev-parse --show-toplevel)/scripts/un-commit-par-ticket.mjs" "$1" || exit 1',
     ],
   },

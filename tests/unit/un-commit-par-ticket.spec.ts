@@ -532,3 +532,36 @@ describe('grillhouse-3uv.56 critère 6 — the autostash of a copy delivers noth
     }
   });
 });
+
+// grillhouse-3uv.81: a commit naming a delivered ticket passes while that ticket is open in Beads
+// (reopened after its delivery): it is a correction commit. A closed ticket is finished: the commit
+// stays refused, with the same message. The fake `bd` answers `demo` to `config`, and to
+// `bd show <id> --json` the JSON Beads 1.2.2 writes: an array of one object carrying its `status`.
+function answerState(bin: string, id: string, status: string) {
+  const out = JSON.stringify([{ id, title: 't', status }]);
+  writeFileSync(
+    path.join(bin, 'bd'),
+    `#!/bin/sh\ncase "$1" in config) echo demo; exit 0;; esac\nprintf '%s\\n' '${out}'\n`,
+    { mode: 0o755 }
+  );
+}
+
+describe('a correction commit on a reopened ticket (grillhouse-3uv.81)', () => {
+  const check = history(['feat: first delivery (demo-1)']);
+
+  it('criterion 1: a delivered ticket that is open, then in progress, lets its correction through', () => {
+    for (const status of ['open', 'in_progress']) {
+      answerState(check.bin, 'demo-1', status);
+      const r = check('fix: the CI is green again (demo-1)');
+      expect(r.status, `${status}: ${r.stderr}`).toBe(0);
+    }
+  });
+  it('criterion 2: a delivered ticket that is closed is refused with the current message', () => {
+    answerState(check.bin, 'demo-1', 'closed');
+    const r = check('fix: lot 2 (demo-1)');
+    expect(r.status).toBe(1);
+    expect(r.stderr).toBe(
+      `⛔ Le ticket demo-1 a déjà son commit (${check.short[0]}) : un ticket fait une seule livraison. Ce qui reste devient un ticket neuf sous demo-1 (bd create --parent demo-1).\n`
+    );
+  });
+});

@@ -375,7 +375,7 @@ function main(argv) {
 
     // 10. The commit, in the copy: the commit validated is the commit that enters.
     // The guards have just run: a pre-commit hook that plays them skips them under
-    // GRILLHOUSE_INTEGRATION=1; commit-msg (one ticket, one commit) runs as always.
+    // GRILLHOUSE_INTEGRATION=1; commit-msg (a closed ticket refuses a second commit, a reopened one takes its corrections) runs as always.
     const c = spawnSync(
       'bash',
       monter('git', '-C', copie, 'commit', '-q', '-F', absolu(o.message)),
