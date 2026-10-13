@@ -1,5 +1,13 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -619,5 +627,385 @@ describe('grillhouse-3uv.56 critère 17 — the project file brings every key of
     for (const cle of ['allowed', 'required', 'allowedSeverity', 'extends']) {
       expect(entete, cle).toMatch(new RegExp(`\\b${cle}\\b`));
     }
+  });
+});
+
+// grillhouse-3uv.77: the published code imports no development dependency, types and exported test
+// material included. The published code is every file reached from the entries of the `exports`
+// field of a package (its main entry and `./test-fixtures` included); the frame's rule
+// `pas-d-outil-de-developpement-dans-le-code` is the one that refuses it. The reference is the
+// rule of npm: what a package publishes depends only on its dependencies.
+//
+// A workspace: `packages/p`, whose dependencies are `dotenv` and whose development dependencies
+// are `vitest` and its sibling `b` (the BPScript witness: a corpus importing the types of the
+// packages it declares in devDependencies). Each package is linked in node_modules by its name.
+const REGLE = 'pas-d-outil-de-developpement-dans-le-code';
+function espace(files: Record<string, string>) {
+  const dir = mkdtempSync(path.join(ESSAIS, 'espace-'));
+  const tout: Record<string, string> = {
+    'package.json': '{"name":"r"}',
+    'packages/b/package.json': '{"name":"b","exports":{".":"./src/index.ts"}}',
+    'packages/b/src/index.ts': 'export type B = number;\nexport const b = 1;',
+    ...files,
+  };
+  for (const [rel, text] of Object.entries(tout)) {
+    mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
+    writeFileSync(path.join(dir, rel), text);
+  }
+  mkdirSync(path.join(dir, 'node_modules'));
+  for (const nom of readdirSync(MODULES)) {
+    symlinkSync(path.join(MODULES, nom), path.join(dir, 'node_modules', nom));
+  }
+  for (const nom of ['p', 'b']) {
+    symlinkSync(path.join(dir, 'packages', nom), path.join(dir, 'node_modules', nom));
+  }
+  const run = (...args: string[]) =>
+    spawnSync('node', [SCRIPT, ...args], { cwd: dir, encoding: 'utf8' });
+  run('--ecrire');
+  const r = run();
+  return { dir, status: r.status, sortie: r.stdout + r.stderr };
+}
+// The package.json of `p` with the given `exports` field.
+const paquet = (exports: unknown) =>
+  JSON.stringify({
+    name: 'p',
+    exports,
+    dependencies: { dotenv: '*' },
+    devDependencies: { vitest: '*', b: '*' },
+  });
+const EXPORTS = { '.': './src/index.ts', './test-fixtures': './test-fixtures/index.ts' };
+// The rules named by the errors of an output.
+const erreurs = (sortie: string) => [
+  ...new Set([...sortie.matchAll(/^\s*error ([^:\s]+):/gm)].map(m => m[1])),
+];
+// A refusal of the rule: the file, then the development dependency it reaches.
+const refus = (fichier: string, dependance: string) =>
+  new RegExp(`${REGLE}: ${fichier.replace(/[.]/g, '\\.')} → node_modules/${dependance}/`);
+
+describe('grillhouse-3uv.77 — the published code imports no development dependency', () => {
+  it('critère 1: a file published by an export, out of src, importing a development dependency is refused, naming the file, the dependency and the rule', () => {
+    const r = espace({
+      'packages/p/package.json': paquet({ '.': './lib/index.ts' }),
+      'packages/p/lib/index.ts': "export { expect } from 'vitest';",
+    });
+    expect(r.status, r.sortie).not.toBe(0);
+    expect(r.sortie).toMatch(refus('packages/p/lib/index.ts', 'vitest'));
+    expect(erreurs(r.sortie)).toEqual([REGLE]);
+  });
+  it('critère 1: a file reached indirectly from an exported entry is published too: refused', () => {
+    const r = espace({
+      'packages/p/package.json': paquet({ '.': './lib/index.ts' }),
+      'packages/p/lib/index.ts': "export { e } from './aide';",
+      'packages/p/lib/aide.ts': "import { expect } from 'vitest';\nexport const e = expect;",
+    });
+    expect(r.status, r.sortie).not.toBe(0);
+    expect(r.sortie).toMatch(refus('packages/p/lib/aide.ts', 'vitest'));
+    expect(erreurs(r.sortie)).toEqual([REGLE]);
+  });
+  it('critère 1: an exports field written as a single string publishes its file: refused', () => {
+    const r = espace({
+      'packages/p/package.json': paquet('./lib/index.ts'),
+      'packages/p/lib/index.ts': "export { expect } from 'vitest';",
+    });
+    expect(r.status, r.sortie).not.toBe(0);
+    expect(r.sortie).toMatch(refus('packages/p/lib/index.ts', 'vitest'));
+  });
+  it('critère 1: a conditional export publishes the file of its condition: refused', () => {
+    const r = espace({
+      'packages/p/package.json': paquet({ '.': { import: './lib/index.ts' } }),
+      'packages/p/lib/index.ts': "export { expect } from 'vitest';",
+    });
+    expect(r.status, r.sortie).not.toBe(0);
+    expect(r.sortie).toMatch(refus('packages/p/lib/index.ts', 'vitest'));
+  });
+  it('critère 2: an import of types only from a development dependency, in an exported entry, is refused', () => {
+    const r = espace({
+      'packages/p/package.json': paquet(EXPORTS),
+      'packages/p/src/index.ts': "import type { Mock } from 'vitest';\nexport type M = Mock;",
+      'packages/p/test-fixtures/index.ts': 'export const f = 1;',
+    });
+    expect(r.status, r.sortie).not.toBe(0);
+    expect(r.sortie).toMatch(refus('packages/p/src/index.ts', 'vitest'));
+    expect(erreurs(r.sortie)).toEqual([REGLE]);
+  });
+  it('critère 2: the types of a sibling package declared in devDependencies, in an exported entry, are refused', () => {
+    const r = espace({
+      'packages/p/package.json': paquet(EXPORTS),
+      'packages/p/src/index.ts': "import type { B } from 'b';\nexport type X = B;",
+      'packages/p/test-fixtures/index.ts': 'export const f = 1;',
+    });
+    expect(r.status, r.sortie).not.toBe(0);
+    expect(r.sortie).toMatch(refus('packages/p/src/index.ts', 'b'));
+  });
+  it('critère 3: the exported test material, out of src, importing a development dependency is refused', () => {
+    const r = espace({
+      'packages/p/package.json': paquet(EXPORTS),
+      'packages/p/src/index.ts': 'export const a = 1;',
+      'packages/p/test-fixtures/index.ts': "export { expect } from 'vitest';",
+    });
+    expect(r.status, r.sortie).not.toBe(0);
+    expect(r.sortie).toMatch(refus('packages/p/test-fixtures/index.ts', 'vitest'));
+    expect(erreurs(r.sortie)).toEqual([REGLE]);
+  });
+  it('critère 3: the witness — the exported test material importing the types of a sibling declared in devDependencies is refused', () => {
+    const r = espace({
+      'packages/p/package.json': paquet(EXPORTS),
+      'packages/p/src/index.ts': 'export const a = 1;',
+      'packages/p/test-fixtures/index.ts': "import type { B } from 'b';\nexport type X = B;",
+    });
+    expect(r.status, r.sortie).not.toBe(0);
+    expect(r.sortie).toMatch(refus('packages/p/test-fixtures/index.ts', 'b'));
+    expect(erreurs(r.sortie)).toEqual([REGLE]);
+  });
+  it('critère 3: the exported test material placed in a tests directory is published too: refused', () => {
+    const r = espace({
+      'packages/p/package.json': paquet({
+        '.': './src/index.ts',
+        './test-fixtures': './tests/fixtures/index.ts',
+      }),
+      'packages/p/src/index.ts': 'export const a = 1;',
+      'packages/p/tests/fixtures/index.ts': "export { expect } from 'vitest';",
+    });
+    expect(r.status, r.sortie).not.toBe(0);
+    expect(r.sortie).toMatch(refus('packages/p/tests/fixtures/index.ts', 'vitest'));
+  });
+  it('critère 4: a test file that no export reaches may import a development dependency, values and types', () => {
+    const r = espace({
+      'packages/p/package.json': paquet(EXPORTS),
+      'packages/p/src/index.ts': 'export const a = 1;',
+      'packages/p/test-fixtures/index.ts': 'export const f = 1;',
+      'packages/p/tests/a.spec.ts':
+        "import { expect } from 'vitest';\nimport type { B } from 'b';\nimport { f } from '../test-fixtures/index';\nexport type X = B;\nexport const e = [expect, f];",
+      'packages/p/src/a.test.ts':
+        "import type { Mock } from 'vitest';\nimport { a } from './index';\nexport type M = Mock;\nexport const x = a;",
+    });
+    expect(r.sortie).not.toMatch(new RegExp(REGLE));
+    expect(r.status, r.sortie).toBe(0);
+  });
+  it('critère 5: an import of a declared dependency passes from every published file, types included', () => {
+    const r = espace({
+      'packages/p/package.json': paquet(EXPORTS),
+      'packages/p/src/index.ts':
+        "import { config } from 'dotenv';\nimport type { DotenvConfigOptions } from 'dotenv';\nexport type O = DotenvConfigOptions;\nexport const c = config;",
+      'packages/p/test-fixtures/index.ts':
+        "import type { DotenvConfigOptions } from 'dotenv';\nexport type O = DotenvConfigOptions;",
+    });
+    expect(r.sortie).not.toMatch(new RegExp(REGLE));
+    expect(r.status, r.sortie).toBe(0);
+  });
+  it('critère 6: the repository without packages (Grillhouse itself) keeps its verdict: it passes', () => {
+    const racine = path.resolve(__dirname, '../..');
+    const r = spawnSync('node', [SCRIPT], { cwd: racine, encoding: 'utf8' });
+    expect(r.stdout + r.stderr).not.toMatch(new RegExp(REGLE));
+    expect(r.status, r.stdout + r.stderr).toBe(0);
+  });
+  it('critère 7: the generated configuration of the repository is rewritten with the rule', () => {
+    const racine = path.resolve(__dirname, '../..');
+    expect(readFileSync(path.join(racine, '.dependency-cruiser.cjs'), 'utf8')).toBe(
+      configuration(racine)
+    );
+  });
+  it('critère 7: one rule alone refuses a development dependency, the existing one extended', () => {
+    const { dir } = espace({
+      'packages/p/package.json': paquet(EXPORTS),
+      'packages/p/src/index.ts': 'export const a = 1;',
+      'packages/p/test-fixtures/index.ts': 'export const f = 1;',
+    });
+    const noms = (charge(dir).forbidden as { name: string }[])
+      .filter(r => JSON.stringify(r).includes('npm-dev'))
+      .map(r => r.name);
+    expect(noms).toEqual([REGLE]);
+  });
+  it('critère 7: the header of frontieres.mjs says the extended rule — the exports, the types', () => {
+    const entete = readFileSync(SCRIPT, 'utf8').split(/\nimport /)[0] ?? '';
+    const phrase =
+      entete
+        .replace(/\n\/\/ ?/g, ' ')
+        .split(/[.;]\s/)
+        .find(p => /development dependenc/.test(p)) ?? '';
+    expect(phrase).toMatch(/`?exports`?/);
+    expect(phrase).toMatch(/\btypes?\b/);
+  });
+});
+
+// grillhouse-3uv.77, critères 9 to 17: what an export publishes (both targets of types and
+// default), what stays judged without an export (src, a repository without packages), and the
+// entries that point to built files and come back to their sources by the TypeScript configuration
+// that builds them.
+//
+// The BPScript witness of critère 14, packages/040-checker: every export points to dist/; the
+// sources are built by tsconfig.build.json (src/) and tsconfig.fixtures.json (test/banc.ts), whose
+// emit options come from a configuration at the root of the repository (`${configDir}`).
+const CONSTRUCTION = `{
+  // The emit options of every package, relative to the configuration of the package.
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "rewriteRelativeImportExtensions": true,
+    "rootDir": "\${configDir}",
+    "outDir": "\${configDir}/dist",
+    "incremental": true,
+    "tsBuildInfoFile": "\${configDir}/dist/.tsbuildinfo"
+  }
+}
+`;
+// The configurations of a BPScript package: tsconfig.json, tsconfig.build.json (src/) and
+// tsconfig.fixtures.json, which builds the given bench into dist/test/.
+const configurations = (banc: string) => ({
+  'tsconfig.construction.json': CONSTRUCTION,
+  'packages/p/tsconfig.json': `{
+  // The sources and the benches typed, nothing emitted.
+  "compilerOptions": {
+    "noEmit": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
+    "strict": true
+  }
+}
+`,
+  'packages/p/tsconfig.build.json': `{
+  // src/ built into dist/src/, with the options of the root.
+  "extends": ["./tsconfig.json", "../../tsconfig.construction.json"],
+  "include": ["src"]
+}
+`,
+  'packages/p/tsconfig.fixtures.json': `{
+  // ${banc} built into dist/test/.
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "tsBuildInfoFile": "\${configDir}/dist/.tsbuildinfo-test-fixtures"
+  },
+  "include": [],
+  "files": ["${banc}"]
+}
+`,
+});
+const CHECKER = {
+  ...configurations('test/banc.ts'),
+  'packages/p/package.json': JSON.stringify({
+    name: 'p',
+    exports: {
+      '.': { types: './dist/src/index.d.ts', default: './dist/src/index.js' },
+      './test-fixtures': { types: './dist/test/banc.d.ts', default: './dist/test/banc.js' },
+    },
+    dependencies: { dotenv: '*' },
+    devDependencies: { vitest: '*', b: '*' },
+  }),
+  'packages/p/src/index.ts': 'export const a = 1;',
+};
+// The BPScript witness of critère 14, packages/990-corpus: no src/, a single export,
+// ./test-fixtures, built from test/fixtures.ts into dist/test/.
+const CORPUS = {
+  ...configurations('test/fixtures.ts'),
+  'packages/p/package.json': JSON.stringify({
+    name: 'p',
+    exports: {
+      './test-fixtures': {
+        types: './dist/test/fixtures.d.ts',
+        default: './dist/test/fixtures.js',
+      },
+    },
+    dependencies: { dotenv: '*' },
+    devDependencies: { vitest: '*', b: '*' },
+  }),
+};
+
+describe('grillhouse-3uv.77 — critères 9 to 17: the entries of a package and their sources', () => {
+  it('critère 9: both targets of an export { types, default } are published: each one importing a development dependency is refused', () => {
+    const r = espace({
+      'packages/p/package.json': paquet({
+        '.': { types: './lib/types.ts', default: './lib/index.ts' },
+      }),
+      'packages/p/lib/types.ts': "import type { Mock } from 'vitest';\nexport type M = Mock;",
+      'packages/p/lib/index.ts': "export { expect } from 'vitest';",
+    });
+    expect(r.status, r.sortie).not.toBe(0);
+    expect(r.sortie).toMatch(refus('packages/p/lib/types.ts', 'vitest'));
+    expect(r.sortie).toMatch(refus('packages/p/lib/index.ts', 'vitest'));
+    expect(erreurs(r.sortie)).toEqual([REGLE]);
+  });
+  it('critère 10: a file of src, out of the test files, that no export reaches stays under the rule', () => {
+    const r = espace({
+      'packages/p/package.json': paquet({ '.': './lib/index.ts' }),
+      'packages/p/lib/index.ts': 'export const a = 1;',
+      'packages/p/src/seul.ts': "export { expect } from 'vitest';",
+    });
+    expect(r.status, r.sortie).not.toBe(0);
+    expect(r.sortie).toMatch(refus('packages/p/src/seul.ts', 'vitest'));
+  });
+  it('critère 11: an import of types only from a development dependency, from src, is refused in a repository without packages', () => {
+    const r = verdict({
+      'package.json': '{"name":"r","devDependencies":{"vitest":"*"}}',
+      'src/index.ts': "import type { Mock } from 'vitest';\nexport type M = Mock;",
+    });
+    expect(r.status, r.sortie).not.toBe(0);
+    expect(r.sortie).toMatch(refus('src/index.ts', 'vitest'));
+  });
+  it('critère 12: a file neither published, nor under src, nor a test may import a development dependency', () => {
+    const r = espace({
+      'packages/p/package.json': paquet(EXPORTS),
+      'packages/p/src/index.ts': 'export const a = 1;',
+      'packages/p/test-fixtures/index.ts': 'export const f = 1;',
+      'packages/p/scripts/build.ts':
+        "import { expect } from 'vitest';\nimport type { B } from 'b';\nexport type X = B;\nexport const e = expect;",
+    });
+    expect(r.sortie).not.toMatch(new RegExp(REGLE));
+    expect(r.status, r.sortie).toBe(0);
+  });
+  it('critère 14: the BPScript case 040-checker — test/banc.ts, built by tsconfig.fixtures.json into the exported dist/test/banc.js, importing a development dependency is refused', () => {
+    const r = espace({
+      ...CHECKER,
+      'packages/p/test/banc.ts': "import type { B } from 'b';\nexport type X = B;",
+    });
+    expect(r.status, r.sortie).not.toBe(0);
+    expect(r.sortie).toMatch(refus('packages/p/test/banc.ts', 'b'));
+    expect(erreurs(r.sortie)).toEqual([REGLE]);
+  });
+  it('critère 14: the BPScript case 040-checker with clean sources passes, its built entries coming back to their sources', () => {
+    const r = espace({
+      ...CHECKER,
+      'packages/p/test/banc.ts':
+        "import type { DotenvConfigOptions } from 'dotenv';\nexport type O = DotenvConfigOptions;",
+    });
+    expect(r.status, r.sortie).toBe(0);
+  });
+  it('critère 14: the BPScript case 990-corpus — no src, a single export ./test-fixtures into dist, test/fixtures.ts importing the types of a sibling declared in devDependencies is refused', () => {
+    const r = espace({
+      ...CORPUS,
+      'packages/p/test/fixtures.ts': "import type { B } from 'b';\nexport type X = B;",
+    });
+    expect(r.status, r.sortie).not.toBe(0);
+    expect(r.sortie).toMatch(refus('packages/p/test/fixtures.ts', 'b'));
+    expect(erreurs(r.sortie)).toEqual([REGLE]);
+  });
+  it('critère 17: a built entry that no TypeScript configuration brings back to a source is refused, the check naming the entry', () => {
+    const r = espace({
+      'packages/p/package.json': paquet({ '.': './dist/index.js' }),
+      'packages/p/lib/index.ts': 'export const a = 1;',
+    });
+    expect(r.status, r.sortie).not.toBe(0);
+    expect(r.sortie).toMatch(/packages\/p\/dist\/index\.js|dist\/index\.js/);
+  });
+});
+
+// grillhouse-3uv.77, critère 23: the packages out of the frame.
+describe('grillhouse-3uv.77 — critère 23: the packages out of the frame', () => {
+  it('critère 23: a package out of the frame stays excluded, its exports included, while a package in the frame is judged', () => {
+    const r = espace({
+      'docs/agents/hors-cadre.txt': 'p\n',
+      'packages/p/package.json': paquet({ '.': './lib/index.ts' }),
+      'packages/p/lib/index.ts': "export { expect } from 'vitest';",
+      'packages/q/package.json': JSON.stringify({
+        name: 'q',
+        exports: { '.': './lib/index.ts' },
+        devDependencies: { vitest: '*' },
+      }),
+      'packages/q/lib/index.ts': "export { expect } from 'vitest';",
+    });
+    expect(r.status, r.sortie).not.toBe(0);
+    expect(r.sortie).toMatch(refus('packages/q/lib/index.ts', 'vitest'));
+    expect(r.sortie).not.toMatch(/packages\/p\//);
   });
 });

@@ -12,13 +12,25 @@
 //   node scripts/frontieres.mjs --ecrire  writes the configuration
 //
 // The rules: no cycle; a package reaches another by its name, never by a path into its tree; a
-// module of `src/` reaches another by its entry (`index`); production code imports no test and no
-// development dependency; every import resolves (a path a package does not export is refused);
-// an orphan file is reported, without refusing. Who uses which component is the consumers
-// check's (`scripts/consommateurs.mjs`). The files of a package out of the frame
+// module of `src/` reaches another by its entry (`index`); the code of `src/` imports no test; the
+// published code imports no development dependency, whether it imports values or only types: it
+// is the code of `src/` outside the test files, and every file that the `exports` of a package
+// reach (each target of a condition, the exported test material included) with the files these
+// import; every import resolves (a path a package does not export is refused); an orphan file is
+// reported, without refusing. Who uses which component is the consumers check's
+// (`scripts/consommateurs.mjs`). The files of a package out of the frame
 // (`docs/agents/hors-cadre.txt`) are excluded, and no module rule is written for it.
+//
+// The published code is found before dependency-cruiser runs: each package under `packages/`
+// names its entries, the targets of its `exports`; an entry is a TypeScript source, or a built
+// file that comes back to its sources by what TypeScript emits with the `tsconfig*.json` of the
+// package; an entry that is neither is refused, named. A first run of dependency-cruiser gives
+// the files these sources import; the second judges them, through the file that
+// `GRILLHOUSE_JUGES` names, which the generated configuration reads.
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { composants, horsCadre } from './consommateurs.mjs';
@@ -27,6 +39,9 @@ export const CONFIGURATION = '.dependency-cruiser.cjs';
 export const RACINES = ['src', 'packages'];
 const TESTS = '(^|/)(test|tests|__tests__)/|[.](test|spec)[.][a-z]+$';
 const CODE = '^src/|^packages/[^/]+/src/';
+const REGLE_OUTILS = 'pas-d-outil-de-developpement-dans-le-code';
+// The environment variable naming the file that holds the pattern of the published files.
+const JUGES = 'GRILLHOUSE_JUGES';
 
 // The `exclude` patterns of the configuration: built files, and the directories under `src/` and
 // `packages/` that the list out of the frame names.
@@ -95,11 +110,13 @@ export function configuration(racine) {
       to: { path: TESTS },
     },
     {
-      name: 'pas-d-outil-de-developpement-dans-le-code',
-      comment: "le code livré n'importe aucune dépendance de développement",
+      name: REGLE_OUTILS,
+      comment:
+        "le code livré (src et ce que les exports du paquet atteignent) n'importe aucune " +
+        'dépendance de développement, types compris',
       severity: 'error',
       from: { path: CODE, pathNot: TESTS },
-      to: { dependencyTypes: ['npm-dev'], dependencyTypesNot: ['type-only'] },
+      to: { dependencyTypes: ['npm-dev'] },
     },
     {
       name: 'tout-import-se-resout',
@@ -149,6 +166,14 @@ const ajoute = (cadre, propre) => {
   const reste = propre && typeof propre === 'object' && !Array.isArray(propre) ? propre : {};
   return { ...reste, path: [cadre.path, ...ajouts].join('|') };
 };
+// The published files that the script found (a pattern, in the file ${JUGES} names)
+// replace the default scope of the rule that refuses a development dependency.
+const fichierJuges = process.env.${JUGES};
+const juges = fichierJuges ? fs.readFileSync(fichierJuges, 'utf8') : null;
+const portee = regle =>
+  regle.name === '${REGLE_OUTILS}' && juges !== null
+    ? { ...regle, from: { path: juges } }
+    : regle;
 const cadre = {
   doNotFollow: { path: 'node_modules' },
   exclude: {
@@ -168,7 +193,9 @@ ${tsconfig ? "  tsConfig: { fileName: 'tsconfig.json' },\n" : ''}  enhancedResol
 
 module.exports = {
   forbidden: [
-${regles.map(r => `${ecrire(r, '    ')},`).join('\n')}
+    ...[
+${regles.map(r => `${ecrire(r, '      ')},`).join('\n')}
+    ].map(portee),
     ...(projet.forbidden ?? []),
   ],
   ...(projet.allowed ? { allowed: projet.allowed } : {}),
@@ -185,6 +212,125 @@ ${regles.map(r => `${ecrire(r, '    ')},`).join('\n')}
 `;
 }
 
+// ---- The published code -------------------------------------------------------------------------
+
+const requis = createRequire(import.meta.url);
+const posix = chemin => chemin.split(path.sep).join('/');
+const echappe = texte => texte.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const DECLARATION = /[.]d[.]ts$/;
+const SOURCE_TS = /[.]tsx?$/;
+
+// What the `tsconfig*.json` of the package at <dir> emit, as TypeScript reads them (their
+// `extends` included) and computes their output (`getOutputFileNames`): a Map from the absolute
+// path of an emitted file to the sources it comes from.
+function sorties(dir) {
+  const ts = requis('typescript');
+  const hote = { ...ts.sys, onUnRecoverableConfigFileDiagnostic: () => {} };
+  const table = new Map();
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    if (!e.isFile() || !/^tsconfig.*[.]json$/.test(e.name)) continue;
+    const analyse = ts.getParsedCommandLineOfConfigFile(path.join(dir, e.name), {}, hote);
+    if (!analyse || analyse.options.noEmit) continue;
+    for (const source of analyse.fileNames.map(f => path.resolve(f))) {
+      if (DECLARATION.test(source) || !existsSync(source)) continue;
+      const emises = ts.getOutputFileNames(analyse, source, ts.sys.useCaseSensitiveFileNames);
+      for (const sortie of emises) {
+        const chemin = path.resolve(sortie);
+        if (chemin !== source) table.set(chemin, new Set([...(table.get(chemin) ?? []), source]));
+      }
+    }
+  }
+  return table;
+}
+
+// The targets of an `exports` value: the string itself, or the targets of each value of an object
+// (its subpaths and its conditions).
+function cibles(valeur) {
+  if (typeof valeur === 'string') return [valeur];
+  return valeur && typeof valeur === 'object' ? Object.values(valeur).flatMap(cibles) : [];
+}
+
+// The source files published by the package at <dir>, and the entries without a source:
+// { sources: Set of absolute paths, refus: [message] }. An entry is its own source when it is a
+// TypeScript source that exists, else its sources are those TypeScript emits it from.
+function sourcesDuPaquet(racine, dir) {
+  const sources = new Set();
+  const refus = [];
+  const fichier = path.join(dir, 'package.json');
+  if (!existsSync(fichier)) return { sources, refus };
+  const entrees = cibles(JSON.parse(readFileSync(fichier, 'utf8')).exports);
+  if (entrees.length === 0) return { sources, refus };
+  const emis = sorties(dir);
+  for (const cible of entrees) {
+    const abs = path.resolve(dir, cible);
+    const source = SOURCE_TS.test(abs) && !DECLARATION.test(abs);
+    const trouvees = source ? [abs].filter(f => existsSync(f)) : [...(emis.get(abs) ?? [])];
+    if (trouvees.length === 0) {
+      refus.push(
+        `⛔ ${posix(path.relative(racine, fichier))} : l'entrée ${cible} n'a pas de source — ` +
+          'ni fichier source, ni configuration TypeScript du paquet qui la produise.'
+      );
+    }
+    for (const f of trouvees) sources.add(f);
+  }
+  return { sources, refus };
+}
+
+// The sources published by the packages of the repository at <racine>, as paths relative to
+// <racine>, with the entries refused: { sources: Set, refus: [message] }.
+export function publiees(racine) {
+  const sources = new Set();
+  const refus = [];
+  for (const { dir } of composants(racine)) {
+    const trouve = sourcesDuPaquet(racine, dir);
+    for (const f of trouve.sources) sources.add(posix(path.relative(racine, f)));
+    refus.push(...trouve.refus);
+  }
+  return { sources, refus };
+}
+
+// One run of dependency-cruiser over <racines>; `json` gives the graph on the standard output.
+function depcruise(racine, racines, type, environnement) {
+  const json = type === 'json';
+  return spawnSync(
+    'npx',
+    ['--no-install', 'depcruise', ...racines, '--config', CONFIGURATION, '--output-type', type],
+    {
+      cwd: racine,
+      env: environnement,
+      encoding: 'utf8',
+      stdio: json ? ['ignore', 'pipe', 'inherit'] : 'inherit',
+      maxBuffer: 1024 * 1024 * 512,
+    }
+  );
+}
+
+// The files the rule judges, from the graph that dependency-cruiser gives: the code of `src/`
+// outside the test files, and every file reached from a published source without crossing
+// node_modules.
+function aJuger(graphe, sources) {
+  const modules = new Map(graphe.modules.map(m => [m.source, m]));
+  const juges = new Set(
+    [...modules.keys()].filter(f => new RegExp(CODE).test(f) && !new RegExp(TESTS).test(f))
+  );
+  const atteints = new Set();
+  const pile = [...sources];
+  while (pile.length) {
+    const f = pile.pop();
+    if (atteints.has(f)) continue;
+    atteints.add(f);
+    juges.add(f);
+    for (const d of modules.get(f)?.dependencies ?? []) {
+      if (d.couldNotResolve || d.coreModule || /(^|\/)node_modules\//.test(d.resolved)) continue;
+      pile.push(d.resolved);
+    }
+  }
+  return juges;
+}
+
+// The pattern of the files to judge, as dependency-cruiser's `path` filter reads it.
+const motifDes = fichiers => `^(${[...fichiers].sort().map(echappe).join('|')})$`;
+
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const racine = process.cwd();
   const attendu = configuration(racine);
@@ -200,20 +346,29 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     );
     process.exit(1);
   }
+  // An entry without a source stops the check before dependency-cruiser runs.
+  const { sources, refus } = publiees(racine);
+  if (refus.length > 0) {
+    process.stderr.write(`${refus.join('\n')}\n`);
+    process.exit(1);
+  }
   const racines = RACINES.filter(r => existsSync(path.join(racine, r)));
   if (racines.length === 0) process.exit(0);
-  const r = spawnSync(
-    'npx',
-    [
-      '--no-install',
-      'depcruise',
-      ...racines,
-      '--config',
-      CONFIGURATION,
-      '--output-type',
-      'err-long',
-    ],
-    { cwd: racine, stdio: 'inherit' }
-  );
-  process.exit(r.status ?? 1);
+  const environnement = { ...process.env };
+  delete environnement[JUGES];
+  let dossier = null;
+  try {
+    if (sources.size > 0) {
+      const graphe = depcruise(racine, racines, 'json', environnement);
+      if (!graphe.stdout) process.exit(graphe.status || 1);
+      dossier = mkdtempSync(path.join(tmpdir(), 'frontieres-'));
+      const fichier = path.join(dossier, 'juges.txt');
+      writeFileSync(fichier, motifDes(aJuger(JSON.parse(graphe.stdout), sources)));
+      environnement[JUGES] = fichier;
+    }
+    const r = depcruise(racine, racines, 'err-long', environnement);
+    process.exitCode = r.status ?? 1;
+  } finally {
+    if (dossier) rmSync(dossier, { recursive: true, force: true });
+  }
 }
