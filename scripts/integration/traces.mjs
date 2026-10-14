@@ -22,7 +22,8 @@
 // A fingerprint hashes the content of the files git lists (tracked or not, not ignored), each by its
 // path and content, never by date; a submodule enters by its files. Test file: its path, the
 // content of the files its imports reach, directly or by ricochet (dependency-cruiser; a cycle
-// ends), the files that configure Vitest (`vitest.config.*`, `vitest.workspace.*`,
+// ends), the files of its component that are not modules (data, captures,
+// documents), the files that configure Vitest (`vitest.config.*`, `vitest.workspace.*`,
 // `vite.config.*`) and what they import, the lock file `package-lock.json` and the root paths the
 // project declares read (`grillhouse.lusParLesSuites` of package.json, files or folders). An
 // import of a component by its package name, and an import of a file git does not list (a
@@ -253,6 +254,8 @@ const estTrace = t =>
   Array.isArray(t.rouges) &&
   t.rouges.every(n => typeof n === 'string') &&
   typeof t.sortie === 'string';
+// A module: a file the import graph reads. The other files of a component are its data.
+const MODULE = /\.(?:[cm]?[jt]sx?|d\.[cm]?ts)$/;
 const CONFIGURATION =
   /^(vitest|vite)(\.workspace)?\.config\.[cm]?[jt]s$|^vitest\.workspace\.[cm]?[jt]s$/;
 
@@ -461,10 +464,20 @@ export function ouvrirTraces(racine, { extra = [], fichiers = null } = {}) {
         if (!listes.has(v) && !v.startsWith('manque:') && d !== '') composantsAtteints.add(d);
       }
       for (const d of composantsAtteints) dirs.add(d);
+      // The data of its component (every listed file that is not a module) count too.
+      const proprio = proprietaire(f);
+      const donnees =
+        proprio === ''
+          ? []
+          : tousLesFichiers
+              .filter(x => dedans(x, proprio) && !MODULE.test(x) && !fichiersVus.has(x))
+              .map(contenuDe);
       const empreinte = sha([
         'test',
         f,
         ...[...fichiersVus].sort().map(contenuDe),
+        'donnees',
+        ...donnees,
         ...[...composantsAtteints].sort().map(d => `${d}:${fermetureDe(d)}`),
         empreinteRacine,
         configuration,

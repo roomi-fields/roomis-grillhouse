@@ -19,7 +19,7 @@
 //
 // The launcher keeps, for each test file it plays, the verdict of Vitest (exit code, failing tests
 // by name) and its whole output, under the fingerprint of what the file reads
-// (scripts/integration/traces.mjs: its content, the closure of its imports, the paths the project
+// (scripts/integration/traces.mjs: its content, the closure of its imports, the files of its component that are not modules, the paths the project
 // declares read by its suites, the configuration of Vitest, the lock file). A file whose
 // fingerprint has a trace is not played: its kept output shows under the line « relu, code
 // inchangé depuis <date> », and its exit code and failing tests count as if it had run, red

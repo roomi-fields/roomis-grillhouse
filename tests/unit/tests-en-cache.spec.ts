@@ -11,11 +11,19 @@
 // Vitest (./tests-en-cache-essai.ts). A file « played » wrote its line to TRACE; a file « read
 // again » did not, and its kept output shows under the line « relu, code inchangé depuis … ».
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import {
+  DEPOT,
   essai,
   FICHIERS,
   JOUR,
@@ -549,4 +557,162 @@ describe('grillhouse-3uv.80 critère 1 — in a project of workspaces, the launc
     },
     LONG
   );
+});
+
+// grillhouse-3uv.82. Witness: BPScript, where removing packages/080-aligner/test/natif/bloc-deux-voix.json,
+// a datum natif.test.ts reads from the disk, left that file « relu » and green; so did a capture of
+// 070 and an INTERFACE.md a bench of 010 reads. The rule (the ticket's « Architecture », the inputs
+// of a package in Turborepo and Nx): the fingerprint of a test file also counts the files of its
+// component that are not modules (MODULE = /\.(?:[cm]?[jt]sx?|d\.[cm]?ts)$/: data, captures,
+// documents); a component imported by its name already counted them, by its closure.
+//
+// The trial adds three components under packages/, each reached by its package name, which is its
+// directory's (a link in node_modules/, as a workspace makes it): donnee, whose test file lit.spec.ts reads its datum
+// test/donnees.json (readFileSync of a new URL), whose test file autre.spec.ts reads none, and which
+// holds a capture (test/captures/sortie.txt) and its docs/INTERFACE.md; client, whose code imports
+// donnee by its name; voisin, linked to neither.
+const paquet = (nom: string) =>
+  `${JSON.stringify({ name: nom, private: true, type: 'module', exports: './src/index.ts' }, null, 2)}\n`;
+// A test file named <nom> that reads <donnee> (relative to the file) from the disk, when it is there.
+const lecteur = (nom: string, donnee: string) =>
+  `import { existsSync, readFileSync } from 'node:fs';\n` +
+  `const u = new URL('${donnee}', import.meta.url);\n` +
+  `export const lu = existsSync(u) ? readFileSync(u, 'utf8') : '';\n` +
+  essai(nom);
+const COMPOSANTS_NOMMES: Record<string, string> = {
+  'vitest.config.ts': readFileSync(path.join(DEPOT, 'vitest.config.ts'), 'utf8').replace(
+    "include: ['src/**/*.{test,spec}.{ts,js,mjs}',",
+    "include: ['packages/**/*.{test,spec}.{ts,js,mjs}', 'src/**/*.{test,spec}.{ts,js,mjs}',"
+  ),
+  'packages/donnee/package.json': paquet('donnee'),
+  'packages/donnee/src/index.ts': 'export const donnee = 1;\n',
+  'packages/donnee/test/donnees.json': '{ "voix": 2 }\n',
+  'packages/donnee/test/lit.spec.ts': lecteur('lit', './donnees.json'),
+  'packages/donnee/test/autre.spec.ts': essai('autre', { importe: ['../src/index'] }),
+  'packages/donnee/test/captures/sortie.txt': 'capture\n',
+  'packages/donnee/docs/INTERFACE.md': '# donnee\n\nLa donnée.\n',
+  'packages/client/package.json': paquet('client'),
+  'packages/client/src/index.ts':
+    "import { donnee } from 'donnee';\nexport const client = donnee;\n",
+  'packages/client/test/client.spec.ts': essai('client', { importe: ['../src/index'] }),
+  'packages/voisin/package.json': paquet('voisin'),
+  'packages/voisin/src/index.ts': 'export const voisin = 1;\n',
+  'packages/voisin/test/voisin.spec.ts': essai('voisin', { importe: ['../src/index'] }),
+};
+// The project of trial with the components of COMPOSANTS_NOMMES, each linked by its name.
+const projetNomme = () => {
+  const p = projetCache(ESSAIS, { enPlus: COMPOSANTS_NOMMES });
+  for (const nom of ['donnee', 'client', 'voisin']) {
+    symlinkSync(path.join(p.repo, 'packages', nom), path.join(p.repo, 'node_modules', nom));
+  }
+  return p;
+};
+const NOMMES = ['lit', 'autre', 'client', 'voisin'];
+// The files a change to a file of donnee replays: those of donnee, and those of client.
+const DE_DONNEE = tries(['lit', 'autre', 'client']);
+
+describe('grillhouse-3uv.82 critère 1 — a file of its component that is not a module enters the fingerprint of each test file of the component, and of the components that depend on it by its name', () => {
+  // The first run plays the files of the day and the files of the components; the second, nothing.
+  const amorcerNomme = (p: ProjetCache) => {
+    const r = p.npmTest();
+    expect(r.status, voir(r)).toBe(0);
+    expect(tries(r.joues), voir(r)).toEqual(tries([...JOUR, ...NOMMES]));
+    const t = p.npmTest();
+    expect(t.joues, `témoin : rien n'a changé\n${voir(t)}`).toEqual([]);
+  };
+  it(
+    'critère 1: a datum a test file reads from the disk (readFileSync of a new URL) changed, added or removed replays each test file of donnee and those of client, and no other',
+    () => {
+      const p = projetNomme();
+      amorcerNomme(p);
+      p.ecrire('packages/donnee/test/donnees.json', '{ "voix": 3 }\n');
+      const change = p.npmTest();
+      expect(change.status, voir(change)).toBe(0);
+      expect(tries(change.joues), `changée\n${voir(change)}`).toEqual(DE_DONNEE);
+      p.ecrire('packages/donnee/test/natif/bloc-deux-voix.json', '{ "voix": 2 }\n');
+      const ajout = p.npmTest();
+      expect(ajout.status, voir(ajout)).toBe(0);
+      expect(tries(ajout.joues), `ajoutée\n${voir(ajout)}`).toEqual(DE_DONNEE);
+      rmSync(path.join(p.repo, 'packages/donnee/test/donnees.json'));
+      const retrait = p.npmTest();
+      expect(retrait.status, voir(retrait)).toBe(0);
+      expect(tries(retrait.joues), `retirée\n${voir(retrait)}`).toEqual(DE_DONNEE);
+      const ensuite = p.npmTest();
+      expect(ensuite.joues, `rien de plus n'a changé\n${voir(ensuite)}`).toEqual([]);
+    },
+    LONG
+  );
+  it(
+    'critère 1: a capture and the INTERFACE.md of donnee changed each replay each test file of donnee and those of client, and no other',
+    () => {
+      const p = projetNomme();
+      amorcerNomme(p);
+      p.ecrire('packages/donnee/test/captures/sortie.txt', 'capture \n');
+      const capture = p.npmTest();
+      expect(capture.status, voir(capture)).toBe(0);
+      expect(tries(capture.joues), `capture\n${voir(capture)}`).toEqual(DE_DONNEE);
+      p.ecrire('packages/donnee/docs/INTERFACE.md', '# donnee\n\nLa donnée, changée.\n');
+      const document = p.npmTest();
+      expect(document.status, voir(document)).toBe(0);
+      expect(tries(document.joues), `document\n${voir(document)}`).toEqual(DE_DONNEE);
+    },
+    LONG
+  );
+  it(
+    'critère 1: a file that is not a module in client changes the files of client alone: donnee, which client depends on, and voisin stay read again',
+    () => {
+      const p = projetNomme();
+      amorcerNomme(p);
+      p.ecrire('packages/client/test/attendu.txt', 'attendu\n');
+      const r = p.npmTest();
+      expect(r.status, voir(r)).toBe(0);
+      expect(r.joues, voir(r)).toEqual(['client']);
+      expect(r.stdout, voir(r)).toMatch(RELU);
+    },
+    LONG
+  );
+});
+
+// The texts that describe the fingerprint say it (the charter: a change of behaviour corrects its
+// texts in the same commit).
+const NON_MODULE = /\bnot (?:a )?modules?\b|non-module/i;
+describe('grillhouse-3uv.82 critère 2 — the texts that describe the fingerprint say that the files of its component that are not modules enter it', () => {
+  it('critère 2: the head of traces.mjs, where it describes the fingerprint of a test file, names the files of its component that are not modules', () => {
+    const tete = readFileSync(path.join(DEPOT, 'scripts/integration/traces.mjs'), 'utf8')
+      .split('\n')
+      .filter(l => l.startsWith('//'))
+      .join('\n');
+    const empreinte = tete.slice(tete.indexOf('A fingerprint hashes'), tete.indexOf('A trace is'));
+    expect(empreinte).toMatch(/Test file:/);
+    expect(empreinte).toMatch(NON_MODULE);
+    expect(empreinte).toMatch(/its component/);
+  });
+  it('critère 2: the line of traces.mjs in STRUCTURE.md names the files of its component that are not modules', () => {
+    const ligne = readFileSync(path.join(DEPOT, 'STRUCTURE.md'), 'utf8')
+      .split('\n')
+      .find(l => l.includes('traces.mjs  '));
+    expect(ligne).toBeDefined();
+    expect(ligne).toMatch(NON_MODULE);
+    expect(ligne).toMatch(/its component/);
+  });
+});
+
+describe('grillhouse-3uv.82 critère 3 — the head of the launcher of the tests, which also describes what the fingerprint counts, says it', () => {
+  it('critère 3: the paragraph of the head of suites-vitest.mjs that describes the fingerprint of a test file names the files of its component that are not modules', () => {
+    const paragraphes = readFileSync(
+      path.join(DEPOT, 'scripts/integration/suites-vitest.mjs'),
+      'utf8'
+    )
+      .split('\n')
+      .filter(l => l.startsWith('//'))
+      .map(l => l.replace(/^\/\/ ?/, ''))
+      .join('\n')
+      .split(/\n\s*\n/);
+    const empreinte = paragraphes.find(
+      p => p.includes('traces.mjs') && /fingerprint of what the file reads/.test(p)
+    );
+    expect(empreinte).toBeDefined();
+    expect(empreinte).toMatch(NON_MODULE);
+    expect(empreinte).toMatch(/its component/);
+  });
 });
