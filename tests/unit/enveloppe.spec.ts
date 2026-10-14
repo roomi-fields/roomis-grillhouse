@@ -249,6 +249,27 @@ describe('the session mounts and the index', () => {
   });
 });
 
+describe('plan with the stores of the traces', () => {
+  const { args } = plan(
+    {
+      trees: ['/main', '/wt'],
+      copie: '/wt',
+      composant: 'scripts',
+      magasins: ['/main/.git/grillhouse/suites', '/main/.git/grillhouse/absent'],
+    },
+    fakeDisk({ '/wt': [{ name: 'scripts', dir: true }], '/wt/scripts': [] }, [
+      '/wt/.git',
+      '/main/.git/grillhouse/suites',
+    ])
+  );
+  it('mounts each existing store in writing, after the copy and its .git', () => {
+    const texte = args.join(' ');
+    expect(texte).toContain('--bind /main/.git/grillhouse/suites /main/.git/grillhouse/suites');
+    expect(texte).not.toContain('/main/.git/grillhouse/absent');
+    expect(args.indexOf('/main/.git/grillhouse/suites')).toBeGreaterThan(args.indexOf('/wt/.git'));
+  });
+});
+
 describe('plan for a folder of the root', () => {
   const { args, refus } = plan(
     { trees: ['/main', '/wt'], copie: '/wt', composant: 'scripts' },
@@ -405,6 +426,15 @@ describe.runIf(canWrap)('the envelope on disk', () => {
   it('lets the agent write the tickets base of the main tree', () => {
     expect(run(`touch ${repo}/.beads/ecrit`).status).toBe(0);
     expect(existsSync(path.join(repo, '.beads/ecrit'))).toBe(true);
+  });
+  // The store of the test traces and of the builds, in the git common directory, is the task cache
+  // the agent's own runs write, as the local cache of Turborepo or Nx is the task's.
+  it('lets the agent write the store of the test traces and of the builds, the rest of .git read-only', () => {
+    for (const d of ['suites', 'constructions']) {
+      expect(run(`touch ${repo}/.git/grillhouse/${d}/ecrit`).status, d).toBe(0);
+      expect(existsSync(path.join(repo, '.git/grillhouse', d, 'ecrit')), d).toBe(true);
+    }
+    expect(run(`touch ${repo}/.git/grillhouse/autre`).status).not.toBe(0);
   });
   it('refuses every write outside the copy: the main tree, its .git, another directory', () => {
     for (const f of [`${repo}/x`, `${repo}/.git/x`, `${home}/x`]) {

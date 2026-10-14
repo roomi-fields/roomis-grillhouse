@@ -12,6 +12,9 @@
 //   finds. Every `.git`, the
 //   copy's included, stays read-only: the agent reads the git state and delivers a patch
 //   (`git diff`, and `git diff --no-index /dev/null <file>` for a new file); it never commits.
+//   Only the stores of the test traces and of the builds (`<git common dir>/grillhouse/suites`
+//   and `constructions`) are written: the agent's runs keep their traces, as a task writes the
+//   local cache of Turborepo or Nx.
 // - The home and the session directories (`$XDG_RUNTIME_DIR`, `/run/user/<uid>`) show only what
 //   the envelope declares: each starts empty and sealed read-only, and the home gets back
 //   `~/.claude`, `~/.claude.json`, the npm cache, the paths of `MAISON_EN_LECTURE` (claude, node,
@@ -280,7 +283,10 @@ const inside = (child, parent) => {
 // (`matieres` of `scripts/consommateurs.mjs`); `role` is the agent's role, and only the `testeur` writes them.
 // `fs` gives `lister(dir)`, `existe(path)`, `liens(dir)` and `publies(dir)`, so the plan is
 // testable without disk.
-export function plan({ trees, copie, composant, role, matieres = [], montages = [] }, fs) {
+export function plan(
+  { trees, copie, composant, role, matieres = [], montages = [], magasins = [] },
+  fs
+) {
   // The worktrees start with the main tree: an envelope on it would let the agent write its root.
   if (trees.length > 0 && path.resolve(trees[0]) === path.resolve(copie)) {
     return {
@@ -332,6 +338,8 @@ export function plan({ trees, copie, composant, role, matieres = [], montages = 
   args.push('--bind', copie, copie);
   const gitDeLaCopie = path.join(copie, '.git');
   if (fs.existe(gitDeLaCopie)) args.push('--ro-bind', gitDeLaCopie, gitDeLaCopie);
+  // The stores of the test traces and of the builds are the task cache the agent's runs write.
+  for (const m of magasins) if (fs.existe(m)) args.push('--bind', m, m);
   const tickets = trees.length > 0 ? path.join(trees[0], '.beads') : null;
   if (tickets && fs.existe(tickets)) args.push('--bind', tickets, tickets);
   // Every index directory of every worktree, the copy's included, becomes an empty directory in
@@ -406,8 +414,17 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     lienSurDisque
   );
   const matieres = lesMatieres(copie).map(m => path.relative(copie, m.dir));
+  // The stores of the test traces and of the builds (scripts/integration/traces.mjs), created
+  // here so that bwrap mounts them in writing.
+  const commun = execFileSync(
+    'git',
+    ['-C', copie, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+    { encoding: 'utf8' }
+  ).trim();
+  const magasins = ['suites', 'constructions'].map(d => path.join(commun, 'grillhouse', d));
+  for (const m of magasins) mkdirSync(m, { recursive: true });
   const { args, refus } = plan(
-    { trees: worktrees(copie), copie, composant, role, matieres, montages },
+    { trees: worktrees(copie), copie, composant, role, matieres, montages, magasins },
     disque
   );
   let code;
