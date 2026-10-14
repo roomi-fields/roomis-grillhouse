@@ -1,9 +1,12 @@
 import { defineConfig } from 'vitest/config';
 import nuit from './scripts/vitest.nuit.config.mjs';
 
-// A night test (`*.nuit.test.*`, `*.nuit.spec.*`) is too long for the day: `npm test` and the
-// integration leave it out, and the night plays it (scripts/nuit.sh, scripts/vitest.nuit.config.mjs).
+// A night test (`*.nuit.test.*`, `*.nuit.spec.*`) is too long for the day, and the measures of a
+// time budget bench (`*.budget.test.*`, `*.budget.spec.*`) move with the load of the day: `npm test`
+// and the integration leave both out, and the night plays them (scripts/nuit.sh,
+// scripts/vitest.nuit.config.mjs).
 const NUIT = '**/*.nuit.{test,spec}.{ts,js,mjs}';
+const BUDGET = '**/*.budget.{test,spec}.{ts,js,mjs}';
 
 export default defineConfig({
   test: {
@@ -21,7 +24,7 @@ export default defineConfig({
     include: ['src/**/*.{test,spec}.{ts,js,mjs}', 'tests/**/*.{test,spec}.{ts,js,mjs}'],
 
     // Exclude patterns
-    exclude: ['node_modules', 'dist', NUIT],
+    exclude: ['node_modules', 'dist', NUIT, BUDGET],
 
     // Coverage configuration
     coverage: {

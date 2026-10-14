@@ -14,25 +14,20 @@
 //  - main is an ancestor of the branch (main has not moved since its base): main moves forward onto
 //    the branch (`merge --ff-only`), nothing replayed;
 //  - main has moved: the branch is replaced on main in the queue's own copy
-//    (`.claude/worktrees/file`, made ready by scripts/integration/rejeu.mjs), the suites that read
-//    what the branch touches (rule `grillhouse.integration`; a suite whose content was already
-//    measured is not replayed, `npm test`, scripts/integration/suites-vitest.mjs) and the project's guards are
-//    replayed there, the dependencies made to agree with the lock file and the manifests of the
-//    branch once replaced (rejeu.mjs installs before the build, the suites and the guards; an
-//    install that fails makes the branch leave the queue, « Les dépendances de la copie ne
-//    s'installent pas. », its suites not played; the guards are judged by their exit code, as
-//    integrer.mjs judges them), the project built after the lots, as soon as a suite or a guard reads the build
-//    (main is built only when one of its suites plays), through the one entry point that builds
-//    (scripts/integration/constructions.mjs: a build whose fingerprint is in the store is restored),
-//    every command of the project run in the copy leaving its index up to date, for the base and
-//    then for the branch replaced (scripts/integration/rejeu.mjs), and main moves forward onto the
-//    replaced branch when no failing test is new compared to main;
+//    (`.claude/worktrees/file`, made ready by scripts/integration/rejeu.mjs), its dependencies made
+//    to agree with the lock file and the manifests of the branch once replaced (an install that
+//    fails makes the branch leave the queue, « Les dépendances de la copie ne s'installent pas. »,
+//    its tests not played), and the same command as the integration's replays it there:
+//    `npm test` (Turborepo: the build, the guards, every test of the day, each task replayed from
+//    the cache of the main tree when its inputs are unchanged), every command of the project run
+//    in the copy leaving its index up to date (rejeu.mjs); main moves forward onto the replaced
+//    branch when `npm test` is green;
 //  - a branch with nothing ahead of main does not enter: it leaves the queue, its tickets lose
 //    `en-file` and take a comment, and stay as they are;
-//  - a branch that does not replace (the files in conflict), whose guards refuse or that adds a
-//    failing test leaves the queue: each ticket it carries loses `en-file`, reopens with a comment
-//    that names the files or the tests, and the branch stays where it is, for the relaunch of its
-//    ticket (scripts/enveloppe/lancer.sh);
+//  - a branch that does not replace (the files in conflict) or whose `npm test` is red once
+//    replaced leaves the queue: each ticket it carries loses `en-file`, reopens with a comment that
+//    names the files or ends with the output of the tests, and the branch stays where it is, for
+//    the relaunch of its ticket (scripts/enveloppe/lancer.sh);
 //  - a branch whose replay cannot be done (the copy does not get ready, main does not take the
 //    branch, the main tree holds a file of the lot) stays in the queue, the reason written to its
 //    tickets, and the queue goes on; the next queue takes it again.
@@ -42,14 +37,13 @@
 // `grillhouse.poussee.commit` of main's package.json (`main` without the key); a refused push is
 // written to the tickets and does not stop the queue.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { lireCommit } from '../poussee-cles.mjs';
 import { lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
 import { dossierCommun, lireEntrees, retirerEntree } from './file-attente.mjs';
-import { nouveauxRouges, ouvrirCopie } from './rejeu.mjs';
+import { ouvrirCopie } from './rejeu.mjs';
 
 const ESSAIS_PAR_BRANCHE = 5;
 
@@ -79,7 +73,6 @@ function main(argv) {
   const refPrincipale = `refs/heads/${principale}`;
   const copie = path.join(racine, '.claude', 'worktrees', 'file');
   const verrou = path.join(dossierCommun(racine), 'file-integration.lock');
-  const tmp = mkdtempSync(path.join(tmpdir(), 'file-integration-'));
 
   const commenter = (tickets, texte) => {
     for (const id of tickets) bd('comments', 'add', id, texte);
@@ -117,26 +110,11 @@ function main(argv) {
   // The branch replaced on main, replayed: { nouveau } (the commit to move main onto), or
   // { sortie: [titre, détail] } (it leaves the queue), or { garde } (it stays, the reason).
   const rejouer = (tip, tete) => {
-    const base = git('merge-base', tete, tip).stdout.trim();
-    const diff = git('diff', '--name-only', '--no-renames', '-z', base, tip);
-    if (diff.status !== 0) return { garde: `ses fichiers ne se lisent pas : ${diff.stderr}` };
-    const fichiers = diff.stdout.split('\0').filter(Boolean);
     if (existsSync(copie))
       spawnSync('git', ['-C', copie, 'rebase', '--abort'], { encoding: 'utf8' });
-    const ouverte = ouvrirCopie({ racine, copie, ref: tete, tmp, dire });
+    const ouverte = ouvrirCopie({ racine, copie, ref: tete, dire });
     if (ouverte.refus) return { garde: ouverte.refus };
-    const { dansCopie, installer, portee, suites, gardes } = ouverte;
-    const { champ, message } = portee(fichiers);
-    dire(message);
-    let avant = [];
-    if (champ.mode !== 'aucun') {
-      avant = suites(champ, 'base');
-      if (avant.some(n => n.startsWith('(les suites sortent'))) {
-        return {
-          garde: `la base ne se mesure pas : les suites échouent sur ${principale} sans nommer de test`,
-        };
-      }
-    }
+    const { dansCopie, installer, tester } = ouverte;
     if (dansCopie('checkout', '-q', '--detach', tip).status !== 0)
       return { garde: `la copie ne prend pas ${tip.slice(0, 7)}` };
     const rebase = dansCopie('rebase', tete);
@@ -158,22 +136,11 @@ function main(argv) {
     if (installation) {
       return { sortie: [installation, "Le verrou de la branche replacée ne s'installe pas."] };
     }
-    const apres = champ.mode !== 'aucun' ? suites(champ, 'apres') : [];
-    const g = gardes();
-    if (g.status !== 0) {
-      const fin = `${g.stdout}${g.stderr}`.trim().split('\n').slice(-40).join('\n');
-      return { sortie: ['les gardes refusent une fois la branche replacée.', fin] };
-    }
-    if (champ.mode !== 'aucun') {
-      const nouveaux = nouveauxRouges(avant, apres);
-      if (nouveaux.length) {
-        return {
-          sortie: [
-            'elle ajoute des tests rouges.',
-            `Rouges nouveaux :\n${nouveaux.map(n => `  ✗ ${n}`).join('\n')}`,
-          ],
-        };
-      }
+    dire('— npm test (construction, gardes, tests)');
+    const t = tester();
+    if (t.status !== 0) {
+      const fin = `${t.stdout}${t.stderr}`.trim().split('\n').slice(-40).join('\n');
+      return { sortie: ['ses tests sont rouges une fois la branche replacée.', fin] };
     }
     return { nouveau: dansCopie('rev-parse', 'HEAD').stdout.trim() };
   };
@@ -251,24 +218,20 @@ function main(argv) {
   };
 
   const vues = new Set();
-  try {
-    for (;;) {
-      if (!prendreVerrou(verrou, { attendre: false })) return 0;
-      try {
-        for (;;) {
-          const entree = lireEntrees(racine).find(e => !vues.has(e.fichier));
-          if (!entree) break;
-          vues.add(entree.fichier);
-          traiter(entree);
-        }
-      } finally {
-        lacherVerrou(verrou);
+  for (;;) {
+    if (!prendreVerrou(verrou, { attendre: false })) return 0;
+    try {
+      for (;;) {
+        const entree = lireEntrees(racine).find(e => !vues.has(e.fichier));
+        if (!entree) break;
+        vues.add(entree.fichier);
+        traiter(entree);
       }
-      // An entry written while the lock was let go has no queue running to take it.
-      if (!lireEntrees(racine).some(e => !vues.has(e.fichier))) return 0;
+    } finally {
+      lacherVerrou(verrou);
     }
-  } finally {
-    rmSync(tmp, { recursive: true, force: true });
+    // An entry written while the lock was let go has no queue running to take it.
+    if (!lireEntrees(racine).some(e => !vues.has(e.fichier))) return 0;
   }
 }
 

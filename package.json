@@ -18,7 +18,7 @@
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/integration/suites-vitest.mjs",
+    "test": "turbo run test:vitest --",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src tests --ext .ts,.js,.mjs",
@@ -34,26 +34,15 @@
     "daemon:status": "pm2 status",
     "daemon:delete": "pm2 delete project-name",
     "interfaces": "node scripts/index-interfaces.mjs",
-    "pretest": "npm run --silent grillhouse:gardes",
-    "grillhouse:gardes": "node scripts/index-interfaces.mjs --verifier && node scripts/consommateurs.mjs && npm run --silent --if-present build && node scripts/frontieres.mjs && node scripts/interfaces-contre-code.mjs && node scripts/code-mort.mjs",
-    "integration:gardes": "node scripts/integration/gardes.mjs",
+    "grillhouse:gardes": "node scripts/index-interfaces.mjs --verifier && node scripts/consommateurs.mjs && node scripts/frontieres.mjs && node scripts/interfaces-contre-code.mjs && node scripts/code-mort.mjs",
     "frontieres": "node scripts/frontieres.mjs",
     "api": "node scripts/interfaces-contre-code.mjs --ecrire",
     "tableau": "node scripts/tableau.mjs --texte",
     "mod:test": "claude plugin test mods/grillhouse",
     "grillhouse:maj": "node scripts/grillhouse-maj.mjs",
-    "code-mort": "node scripts/code-mort.mjs"
-  },
-  "grillhouse": {
-    "lusParLesSuites": [
-      "scripts",
-      ".claude/grillhouse/fichiers.txt",
-      ".beads/hooks",
-      "tsdoc.json",
-      "package.json",
-      "tsconfig.json",
-      "vitest.config.ts"
-    ]
+    "code-mort": "node scripts/code-mort.mjs",
+    "test:vitest": "vitest run",
+    "test:forcer": "turbo run test:vitest --force --"
   },
   "keywords": [
     "keyword1",
@@ -96,7 +85,9 @@
     "prettier": "^3.2.0",
     "semver": "^7.8.5",
     "tsx": "^4.7.0",
+    "turbo": "2.11.8",
     "typescript": "^5.3.3",
     "vitest": "^2.0.0"
-  }
+  },
+  "packageManager": "npm@10.9.8"
 }

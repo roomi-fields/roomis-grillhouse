@@ -78,6 +78,32 @@ describe('imports', () => {
   });
 });
 
+// A link of shared test material (an import of `<package>/test-fixtures`, from a test or from the
+// material itself) is no production use: the check neither refuses nor reports it (grillhouse-3uv.67.1).
+describe('a link of shared test material', () => {
+  const paquet = (nom: string, matiere: boolean) =>
+    JSON.stringify({
+      name: nom,
+      version: '1.0.0',
+      exports: matiere
+        ? { '.': './src/index.ts', './test-fixtures': './test/fixture.ts' }
+        : { '.': './src/index.ts' },
+    });
+  it('is neither refused nor reported by the check of the interfaces', () => {
+    const dir = repo({
+      'packages/b/package.json': paquet('@e/b', true),
+      'packages/b/src/index.ts': 'export const b = 1;\n',
+      'packages/b/test/fixture.ts': 'export const exemple = 1;\n',
+      'packages/b/docs/INTERFACE.md': '# b\n\nB.\n\n## Consommateurs\n',
+      'packages/a/package.json': paquet('@e/a', true),
+      'packages/a/src/index.ts': 'export const a = 1;\n',
+      'packages/a/test/a.spec.ts': "import { exemple } from '@e/b/test-fixtures';\n",
+      'packages/a/test/fixture.ts': "export * from '@e/b/test-fixtures';\n",
+    });
+    expect(verifier(dir)).toEqual({ refus: [], signaux: [] });
+  });
+});
+
 describe('verifier', () => {
   const base = {
     'packages/b/package.json': '{"name":"@demo/b"}',

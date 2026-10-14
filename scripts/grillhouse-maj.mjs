@@ -14,25 +14,30 @@
 //   another layout stays as it is), and the keys keep the file's order, the frame's new ones after.
 // - `package.json`, when there is one: the frame's npm scripts (`tableau`, `grillhouse:maj`), and
 //   `grillhouse:gardes`, the list of the frame's controls, and `api` (`npm run api`, which writes
-//   the API reports and the generated part of each `docs/INTERFACE.md`), each read as it is in the source's `package.json` (a source without one
-//   writes none). The project's `pretest` calls it: a project without a pretest receives
-//   `npm run --silent grillhouse:gardes`, one whose pretest does not call it receives it at the
-//   head (`… && <its pretest>`), one that calls it stays. A source without `grillhouse:gardes`
-//   writes neither it nor a pretest. An `integration:gardes` left at the frame's old wiring
-//   (`npm run --silent pretest`) receives the source's command; a wiring of the project's own stays.
-// - The controls' tools (API Extractor and its model, the TSDoc configuration reader,
-//   dependency-cruiser, knip) are added to the project's
+//   the API reports and the generated part of each `docs/INTERFACE.md`), each read as it is in the
+//   source's `package.json` (a source without one writes none). Turborepo plays `grillhouse:gardes`
+//   after the build and before the tests (`turbo.json`, a frame file): the frame's former wiring
+//   goes, a `pretest` that is the frame's call (`npm run --silent grillhouse:gardes`) removed or
+//   taken off the head of a longer one (`… && <its pretest>`, the rest kept), and an
+//   `integration:gardes` left at a former frame command (`npm run --silent pretest`,
+//   `node scripts/integration/gardes.mjs`) removed; a wiring of the project's own stays.
+// - The frame's tools (API Extractor and its model, the TSDoc configuration reader,
+//   dependency-cruiser, knip, Turborepo) are added to the project's
 //   `devDependencies` at the version the source's `devDependencies` give; a tool the project
 //   already declares in `dependencies`, `devDependencies` or `optionalDependencies` keeps its
 //   declaration, one a previous version added stays, and `devDependencies` are written sorted by
-//   name. The report names each tool added and `npm install`, which installs them.
+//   name. The report names each tool added and `npm install`, which installs them. A project
+//   without `packageManager` receives the source's (Turborepo requires it), and a `.gitignore`
+//   that does not ignore `.turbo/` (Turborepo's runs and cache) receives the line.
 // - A project that runs Vitest (its `test` script names it, or `vitest` is in the `dependencies` or
-//   `devDependencies` of its root `package.json` or of one of its workspaces) has its `test` script
-//   become the source's `test` (the launcher with its cache, scripts/integration/suites-vitest.mjs);
-//   the report says so, when the Vitest of the project's root (`npx --no-install vitest`, the one the
-//   launcher calls) satisfies the range the source's package.json declares for `vitest`. Where the
-//   root resolves no Vitest or another version, the project's `test` stays (the frame's included) and
-//   the report names the version found and the range required. A `test` that runs anything else stays.
+//   `devDependencies` of its root `package.json` or of one of its workspaces) has its root scripts
+//   `test`, `test:vitest` and `test:forcer` become the source's (`npm test`, Turborepo's tasks with
+//   its cache; `npm run test:forcer`, the same played for real); the report says so, when the
+//   Vitest of the project's root (`npx --no-install vitest`, the one `test:vitest` calls) satisfies
+//   the range the source's package.json declares for `vitest`. Where the root resolves no Vitest or
+//   another version, the project's scripts stay (the frame's included) and the report names the
+//   version found and the range required. A `test` that runs anything else stays. The scripts of
+//   the packages of a monorepo are not written.
 // - The update's own script: when the source holds another scripts/grillhouse-maj.mjs than the one
 //   running, the new one is copied to the project and run in place of the old, with the same
 //   arguments; so one pass ends with the new script's work.
@@ -85,20 +90,28 @@ const SCRIPTS = {
   'grillhouse:maj': 'node scripts/grillhouse-maj.mjs',
 };
 
-// The controls' tools: their names are the frame's, their versions are read in the source.
-const OUTILS_DES_CONTROLES = [
+// The frame's tools: their names are the frame's, their versions are read in the source.
+const OUTILS_DU_CADRE = [
   '@microsoft/api-extractor',
   '@microsoft/api-extractor-model',
   '@microsoft/tsdoc-config',
   'dependency-cruiser',
   'knip',
+  'turbo',
 ];
+// The root scripts of the tests, written together from the source.
+const SCRIPTS_DES_TESTS = ['test', 'test:vitest', 'test:forcer'];
 const CHAMPS_INSTALLES = ['dependencies', 'devDependencies', 'optionalDependencies'];
 
-const APPELLE =
-  /(?:^|[\s;&|(])npm\s+run(?:-script)?(?:\s+-{1,2}[\w-]+(?:=\S+)?)*\s+grillhouse:gardes(?=$|[\s;&|)])/;
+// The frame's former wiring of the guards: the call its `pretest` held, and the commands its
+// `integration:gardes` held.
 const APPEL_GARDES = 'npm run --silent grillhouse:gardes';
-const ANCIEN_CABLAGE_DES_GARDES = 'npm run --silent pretest';
+const ANCIENS_GARDES_D_INTEGRATION = [
+  'npm run --silent pretest',
+  'node scripts/integration/gardes.mjs',
+];
+// The line of `.gitignore` that keeps Turborepo's folder out of git.
+const TURBO_IGNORE = '.turbo/';
 
 const empreinte = f => createHash('sha256').update(readFileSync(f)).digest('hex');
 // Whether `vitest` is declared in the dependencies of the package.json <p> (read at <dossier>) or of
@@ -122,7 +135,7 @@ const declareVitest = (dossier, p) => {
     return dossiers.some(d => a(lireJson(path.join(dossier, d, 'package.json'), null)));
   });
 };
-// The version of the Vitest the project's root resolves, as the launcher calls it
+// The version of the Vitest the project's root resolves, as `test:vitest` calls it
 // (`npx --no-install vitest --version`); null when it answers none.
 const vitestDeLaRacine = projet => {
   const r = spawnSync('npx', ['--no-install', 'vitest', '--version'], {
@@ -254,6 +267,17 @@ export function fusionnerReglages(projet, cadre, avant = {}) {
   return { reglages: s, installes: { crochets: [...neufs], plugins, marches, ligneEtat } };
 }
 
+// Adds `.turbo/` to the `.gitignore` of the project at <projet> when no line ignores it.
+function ignorerTurbo(projet) {
+  const f = path.join(projet, '.gitignore');
+  const texte = existsSync(f) ? readFileSync(f, 'utf8') : '';
+  const lignes = texte.split('\n').map(l => l.trim());
+  if (lignes.some(l => l === '.turbo' || l === TURBO_IGNORE || l === '/.turbo' || l === '/.turbo/'))
+    return;
+  const fin = texte === '' || texte.endsWith('\n') ? '' : '\n';
+  writeFileSync(f, `${texte}${fin}${TURBO_IGNORE}\n`);
+}
+
 // Brings the project at `projet` to the frame at `source`. Returns what changed.
 export function mettreAJour(projet, source, version) {
   const { garder, retirer } = lireListe(readFileSync(path.join(source, LISTE), 'utf8'));
@@ -296,7 +320,7 @@ export function mettreAJour(projet, source, version) {
     if (typeof pkgSource.scripts?.api === 'string') {
       p.scripts.api = pkgSource.scripts.api;
     }
-    // The frame's test (the launcher with its cache) replaces a project's own test that runs Vitest.
+    // The frame's tests (Turborepo's tasks) replace a project's own test that runs Vitest.
     const testDuCadre = pkgSource.scripts?.test;
     const testDuProjet = p.scripts.test;
     const vitestExige = pkgSource.devDependencies?.vitest ?? pkgSource.dependencies?.vitest;
@@ -305,19 +329,22 @@ export function mettreAJour(projet, source, version) {
       typeof testDuProjet === 'string' &&
       (testDuProjet === testDuCadre || /\bvitest\b/.test(testDuProjet) || declareVitest(projet, p));
     if (lanceVitest) {
-      // The root must resolve the Vitest the frame requires (the launcher calls it).
+      // The root must resolve the Vitest the frame requires (`test:vitest` calls it).
       const trouvee = typeof vitestExige === 'string' ? vitestDeLaRacine(projet) : null;
       const convient =
         typeof vitestExige !== 'string' ||
         (trouvee !== null && semverDuProjet(projet).satisfies(trouvee, vitestExige));
       if (!convient) {
         bilan.vitest = { trouvee, exigee: vitestExige };
-      } else if (testDuProjet !== testDuCadre) {
-        p.scripts.test = testDuCadre;
-        bilan.test = { ancien: testDuProjet, nouveau: testDuCadre };
+      } else {
+        if (testDuProjet !== testDuCadre) bilan.test = { ancien: testDuProjet, nouveau: testDuCadre };
+        for (const nom of SCRIPTS_DES_TESTS) {
+          const script = pkgSource.scripts?.[nom];
+          if (typeof script === 'string') p.scripts[nom] = script;
+        }
       }
     }
-    for (const nom of OUTILS_DES_CONTROLES) {
+    for (const nom of OUTILS_DU_CADRE) {
       const version = pkgSource.devDependencies?.[nom];
       if (typeof version === 'string' && !CHAMPS_INSTALLES.some(c => p[c]?.[nom] !== undefined)) {
         p.devDependencies = { ...(p.devDependencies ?? {}), [nom]: version };
@@ -329,26 +356,23 @@ export function mettreAJour(projet, source, version) {
         Object.entries(p.devDependencies).sort(([a], [b]) => a.localeCompare(b, 'en'))
       );
     }
-    if (typeof gardes === 'string') {
-      p.scripts['grillhouse:gardes'] = gardes;
-      const pretest = typeof p.scripts.pretest === 'string' ? p.scripts.pretest.trim() : '';
-      if (!pretest) {
-        p.scripts.pretest = APPEL_GARDES;
-      } else if (!APPELLE.test(pretest)) {
-        p.scripts.pretest = `${APPEL_GARDES} && ${p.scripts.pretest}`;
-      }
+    if (typeof pkgSource.packageManager === 'string' && typeof p.packageManager !== 'string') {
+      p.packageManager = pkgSource.packageManager;
     }
-    // The guards of an integration: the frame's old wiring (`npm run --silent pretest`, which builds
-    // again) becomes the source's command; a wiring of the project's own stays.
-    const gardesIntegration = pkgSource.scripts?.['integration:gardes'];
-    if (
-      typeof gardesIntegration === 'string' &&
-      p.scripts['integration:gardes']?.trim() === ANCIEN_CABLAGE_DES_GARDES
-    ) {
-      p.scripts['integration:gardes'] = gardesIntegration;
+    if (typeof gardes === 'string') p.scripts['grillhouse:gardes'] = gardes;
+    // The frame's former wiring of the guards goes: Turborepo plays them (turbo.json).
+    const pretest = typeof p.scripts.pretest === 'string' ? p.scripts.pretest.trim() : null;
+    if (pretest === APPEL_GARDES) {
+      delete p.scripts.pretest;
+    } else if (pretest?.startsWith(`${APPEL_GARDES} && `)) {
+      p.scripts.pretest = pretest.slice(APPEL_GARDES.length + 4);
+    }
+    if (ANCIENS_GARDES_D_INTEGRATION.includes(p.scripts['integration:gardes']?.trim())) {
+      delete p.scripts['integration:gardes'];
     }
     writeFileSync(pkg, `${JSON.stringify(p, null, 2)}\n`);
   }
+  ignorerTurbo(projet);
   poserCrochets(projet);
   mkdirSync(path.dirname(path.join(projet, EMPREINTES)), { recursive: true });
   writeFileSync(
@@ -489,7 +513,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   }
   if (b.test) {
     process.stdout.write(
-      `Script test : \`${b.test.ancien}\` remplacé par le test du cadre \`${b.test.nouveau}\` (relit les fichiers de test dont rien n'a bougé).\n`
+      `Script test : \`${b.test.ancien}\` remplacé par le test du cadre \`${b.test.nouveau}\` (Turborepo : construction, gardes, tests ; une tâche dont rien n'a bougé est relue de son cache).\n`
     );
   }
   for (const l of [...regenerer(projet), ...installerGreffons(projet)]) {

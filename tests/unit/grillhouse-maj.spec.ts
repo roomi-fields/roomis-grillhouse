@@ -25,7 +25,6 @@ import {
 } from '../../scripts/grillhouse-maj.mjs';
 import { CONFIGURATION as CONFIG_DES_FRONTIERES } from '../../scripts/frontieres.mjs';
 import { cheminSysteme, claudeSubstitut } from '../claude-substitut.js';
-import { lierDependances } from './tests-en-cache-essai.js';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'grillhouse-maj-'));
@@ -163,27 +162,20 @@ describe('the update of a project', () => {
   });
 });
 
-// grillhouse-3uv.55: the update wires the frame's controls into the tests of the project it
-// installs. The frame is this repository: its package.json is the template, whose pretest calls
-// `grillhouse:gardes`, the one list of the controls.
+// grillhouse-3uv.55: the update writes the frame's controls, `grillhouse:gardes`, the one list of
+// them, into the project it installs. The frame is this repository: its package.json is the
+// template. Turborepo plays that list after the build and before the tests (turbo.json).
 const DEPOT = path.resolve(__dirname, '../..');
 const GARDES = 'npm run --silent grillhouse:gardes';
-// The controls of the frame, in the order of the template's pretest (critère 1). grillhouse-3uv.80
-// critère 4: the build comes before the boundaries, which resolve a package by its built entry.
+// The controls of the frame, in the order of the template's grillhouse:gardes (critère 1); the
+// build is not among them: Turborepo builds before them.
 const CONTROLES: [string, RegExp][] = [
   ['index des interfaces', /^node scripts\/index-interfaces\.mjs --verifier$/],
   ['consommateurs', /^node scripts\/consommateurs\.mjs$/],
-  ['construction', /^npm run .*\bbuild$/],
   ['frontières', /^node scripts\/frontieres\.mjs$/],
   ['interfaces contre code', /^node scripts\/interfaces-contre-code\.mjs$/],
   ['code mort', /^node scripts\/code-mort\.mjs$/],
 ];
-const FICHIERS_CONTROLES =
-  /index-interfaces\.mjs|consommateurs\.mjs|frontieres\.mjs|interfaces-contre-code\.mjs|code-mort\.mjs/;
-// « Calls grillhouse:gardes » (critère 7): an invocation npm run or npm run-script, with or
-// without options, of the whole name grillhouse:gardes.
-const APPELLE =
-  /(?:^|[\s;&|(])npm\s+run(?:-script)?(?:\s+-{1,2}[\w-]+(?:=\S+)?)*\s+grillhouse:gardes(?=$|[\s;&|)])/;
 
 const gabarit = () =>
   (
@@ -192,10 +184,10 @@ const gabarit = () =>
     }
   ).scripts;
 
-// grillhouse-3uv.80 critère 2: the launcher calls the Vitest of the project's root (`npx --no-install
-// vitest`). A Vitest at the root of <projet>: the frame's own (2.1.9, this repository's
-// node_modules) when <version> is absent, else a stand-in package of that version, whose command
-// answers `--version` as Vitest does (« vitest/<version> <platform>-<arch> node-<version> »).
+// grillhouse-3uv.80 critère 2: `test:vitest` calls the Vitest of the project's root. A Vitest at the
+// root of <projet>: the frame's own (2.1.9, this repository's node_modules) when <version> is
+// absent, else a stand-in package of that version, whose command answers `--version` as Vitest
+// does (« vitest/<version> <platform>-<arch> node-<version> »).
 function vitestALaRacine(projet: string, version?: string) {
   const nm = path.join(projet, 'node_modules');
   mkdirSync(path.join(nm, '.bin'), { recursive: true });
@@ -234,20 +226,20 @@ function installe(pkg: Record<string, unknown> | null, o: { vitest?: boolean } =
 }
 
 describe('grillhouse-3uv.55 critère 1 — the update writes grillhouse:gardes', () => {
-  it('critère 1: grillhouse:gardes plays the controls of the frame, in the order of the template', () => {
-    const g = installe({ name: 'p', scripts: { test: 'vitest run' } }).scripts()[
-      'grillhouse:gardes'
-    ];
-    expect(g).toBeTypeOf('string');
+  it('critère 1: grillhouse:gardes plays the controls of the frame, in the order of the template, without a build step', () => {
+    const g =
+      installe({ name: 'p', scripts: { test: 'vitest run' } }).scripts()['grillhouse:gardes'] ?? '';
+    expect(g).not.toBe('');
     const etapes = g.split('&&').map(x => x.trim());
     expect(etapes, g).toHaveLength(CONTROLES.length);
     CONTROLES.forEach(([nom, motif], i) => expect(etapes[i], nom).toMatch(motif));
+    expect(g).not.toMatch(/\bbuild\b/);
   });
   it('critère 1: each control grillhouse:gardes names is a file the update installs', () => {
     const { projet, scripts } = installe({ name: 'p', scripts: {} });
     const g = scripts()['grillhouse:gardes'] ?? '';
-    const noms = [...g.matchAll(/node (scripts\/\S+\.mjs)/g)].map(m => m[1]);
-    expect(noms, g).toHaveLength(CONTROLES.length - 1);
+    const noms = [...g.matchAll(/node (scripts\/\S+\.mjs)/g)].map(m => m[1] ?? '');
+    expect(noms, g).toHaveLength(CONTROLES.length);
     for (const f of noms) {
       expect(existsSync(path.join(projet, f)), f).toBe(true);
     }
@@ -264,48 +256,15 @@ describe('grillhouse-3uv.55 critère 1 — the update writes grillhouse:gardes',
     expect(s['grillhouse:maj']).toMatch(/grillhouse-maj\.mjs/);
     expect(s['grillhouse:gardes']).toBeTypeOf('string');
   });
-});
-
-describe('grillhouse-3uv.55 critère 2 — a project without pretest receives it', () => {
-  it('critère 2: a project whose scripts hold no pretest receives pretest = npm run --silent grillhouse:gardes', () => {
-    expect(installe({ name: 'p', scripts: { test: 'vitest run' } }).scripts().pretest).toBe(GARDES);
-  });
-  it('critère 2: a package.json without scripts receives the same pretest', () => {
-    expect(installe({ name: 'p' }).scripts().pretest).toBe(GARDES);
-  });
-  it('critère 2: a project without package.json gets none from the update', () => {
+  it('critère 1: a project without package.json gets none from the update', () => {
     const { projet } = installe(null);
     expect(existsSync(path.join(projet, 'package.json'))).toBe(false);
   });
 });
 
-describe('grillhouse-3uv.55 critère 3 — a pretest of the project gets the controls ahead', () => {
-  it('critère 3: a pretest that does not call grillhouse:gardes receives it at its head', () => {
-    const s = installe({ name: 'p', scripts: { pretest: 'node mien.mjs' } }).scripts();
-    expect(s.pretest).toBe(`${GARDES} && node mien.mjs`);
-  });
-  it('critère 3: a pretest of several steps receives it at its head, its steps kept in order', () => {
-    const avant = 'node a.mjs && npm run --silent build && node b.mjs --strict';
-    const s = installe({ name: 'p', scripts: { pretest: avant } }).scripts();
-    expect(s.pretest).toBe(`${GARDES} && ${avant}`);
-  });
-  it('critère 3: a pretest that already calls npm run --silent grillhouse:gardes stays as it is', () => {
-    const s = installe({ name: 'p', scripts: { pretest: GARDES } }).scripts();
-    expect(s.pretest).toBe(GARDES);
-  });
-  it('critère 3: a pretest that calls grillhouse:gardes in another form, mid-chain, stays as it is', () => {
-    const avant = 'node a.mjs && npm run grillhouse:gardes && node b.mjs';
-    const s = installe({ name: 'p', scripts: { pretest: avant } }).scripts();
-    expect(s.pretest).toBe(avant);
-  });
-});
-
-describe('grillhouse-3uv.55 critère 4 — the template calls grillhouse:gardes: one list', () => {
-  it('critère 4: the pretest of the template calls grillhouse:gardes', () => {
-    expect(gabarit().pretest).toMatch(APPELLE);
-  });
-  it('critère 4: the pretest of the template names no control itself', () => {
-    expect(gabarit().pretest).not.toMatch(FICHIERS_CONTROLES);
+describe('grillhouse-3uv.55 critère 4 — the template holds grillhouse:gardes: one list', () => {
+  it('critère 4: the template has no pretest: Turborepo plays the guards (turbo.json)', () => {
+    expect(gabarit()).not.toHaveProperty('pretest');
   });
   it('critère 4: grillhouse:gardes of the template plays the controls in the order of critère 1', () => {
     const g = gabarit()['grillhouse:gardes'] ?? '';
@@ -325,10 +284,7 @@ describe('grillhouse-3uv.55 critère 5 — a replayed update changes nothing', (
     ['without pretest', { name: 'p', scripts: { test: 'vitest run' } }],
     ['without scripts', { name: 'p' }],
     ['with a pretest of its own', { name: 'p', scripts: { pretest: 'node mien.mjs' } }],
-    [
-      'with a pretest already calling grillhouse:gardes',
-      { name: 'p', scripts: { pretest: `node a.mjs && npm run grillhouse:gardes` } },
-    ],
+    ['with the frame’s former pretest', { name: 'p', scripts: { pretest: GARDES } }],
   ];
   for (const [nom, pkg] of cas) {
     it(`critère 5: a project ${nom} keeps its package.json byte for byte on a second update`, () => {
@@ -336,8 +292,6 @@ describe('grillhouse-3uv.55 critère 5 — a replayed update changes nothing', (
       const premier = lire(projet, 'package.json');
       mettreAJour(projet, DEPOT, 'essai');
       expect(lire(projet, 'package.json')).toBe(premier);
-      const pretest = (JSON.parse(premier) as { scripts: Record<string, string> }).scripts.pretest;
-      expect(pretest.match(/grillhouse:gardes/g), pretest).toHaveLength(1);
     });
   }
 });
@@ -367,7 +321,7 @@ describe('grillhouse-3uv.55 critère 6 — the update reads grillhouse:gardes in
     const src = sourceAvec({ name: 'cadre', scripts: { 'grillhouse:gardes': autre } });
     const { scripts } = installeDepuis(src, { name: 'p', scripts: { test: 'vitest run' } });
     expect(scripts['grillhouse:gardes']).toBe(autre);
-    expect(scripts.pretest).toBe(GARDES);
+    expect(scripts).not.toHaveProperty('pretest');
   });
   it("critère 6: another source, one control only, has it written as it is over the project's own", () => {
     const src = sourceAvec({ scripts: { 'grillhouse:gardes': 'node seul.mjs' } });
@@ -376,18 +330,17 @@ describe('grillhouse-3uv.55 critère 6 — the update reads grillhouse:gardes in
       scripts: { 'grillhouse:gardes': 'echo à moi', pretest: 'node mien.mjs' },
     });
     expect(scripts['grillhouse:gardes']).toBe('node seul.mjs');
-    expect(scripts.pretest).toBe(`${GARDES} && node mien.mjs`);
+    expect(scripts.pretest).toBe('node mien.mjs');
   });
-  it('critère 6: a source without package.json writes neither grillhouse:gardes nor pretest', () => {
+  it('critère 6: a source without package.json writes no grillhouse:gardes', () => {
     const { scripts } = installeDepuis(sourceAvec(null), {
       name: 'p',
       scripts: { test: 'vitest run' },
     });
     expect(scripts).not.toHaveProperty('grillhouse:gardes');
-    expect(scripts).not.toHaveProperty('pretest');
     expect(scripts.tableau).toMatch(/tableau\.mjs/);
   });
-  it('critère 6: a source whose package.json holds no grillhouse:gardes writes neither', () => {
+  it('critère 6: a source whose package.json holds no grillhouse:gardes writes none', () => {
     const src = sourceAvec({
       name: 'cadre',
       scripts: { test: 'vitest run', pretest: 'node a.mjs' },
@@ -396,7 +349,7 @@ describe('grillhouse-3uv.55 critère 6 — the update reads grillhouse:gardes in
     expect(scripts).not.toHaveProperty('grillhouse:gardes');
     expect(scripts).not.toHaveProperty('pretest');
   });
-  it("critère 6: a source without grillhouse:gardes leaves the project's pretest and grillhouse:gardes as they are", () => {
+  it("critère 6: a source without grillhouse:gardes leaves the project's grillhouse:gardes as it is", () => {
     const { scripts } = installeDepuis(sourceAvec({ name: 'cadre' }), {
       name: 'p',
       scripts: { pretest: 'node mien.mjs', 'grillhouse:gardes': 'echo à moi' },
@@ -411,54 +364,110 @@ describe('grillhouse-3uv.55 critère 6 — the update reads grillhouse:gardes in
   });
 });
 
-describe('grillhouse-3uv.55 critère 7 — what calls grillhouse:gardes', () => {
-  const garde: [string, string][] = [
-    ['npm run -s', 'npm run -s grillhouse:gardes'],
-    ['npm run-script', 'npm run-script grillhouse:gardes'],
-    [
-      'npm run-script --silent, mid-chain',
-      'node a.mjs && npm run-script --silent grillhouse:gardes && node b.mjs',
-    ],
-    [
-      'npm run --if-present -s, at the end',
-      'node a.mjs && npm run --if-present -s grillhouse:gardes',
-    ],
-  ];
-  for (const [nom, pretest] of garde) {
-    it(`critère 7: a pretest that calls it by ${nom} stays as it is`, () => {
-      expect(pretest).toMatch(APPELLE);
-      const { scripts } = installe({ name: 'p', scripts: { pretest } });
-      expect(scripts().pretest).toBe(pretest);
-    });
-  }
-  const voisins: [string, string][] = [
-    ['a neighbouring name grillhouse:gardes-x', 'npm run grillhouse:gardes-x'],
-    ['a longer name grillhouse:gardes:vite', 'npm run -s grillhouse:gardes:vite'],
-    ['a mention outside npm run', 'echo grillhouse:gardes'],
-  ];
-  for (const [nom, pretest] of voisins) {
-    it(`critère 7: a pretest holding ${nom} does not call it, and receives it at its head`, () => {
-      expect(pretest).not.toMatch(APPELLE);
-      const { scripts } = installe({ name: 'p', scripts: { pretest } });
-      expect(scripts().pretest).toBe(`${GARDES} && ${pretest}`);
-    });
-  }
-  for (const [nom, pretest] of [
-    ['an empty', ''],
-    ['a blank', '  \t '],
-  ]) {
-    it(`critère 7: ${nom} pretest counts as absent and receives ${GARDES}`, () => {
-      const { scripts } = installe({ name: 'p', scripts: { pretest } });
-      expect(scripts().pretest).toBe(GARDES);
-    });
-  }
-  it('critère 7 and 5: a pretest calling it by npm run -s, or holding a neighbour, is stable on a second update', () => {
-    for (const pretest of ['npm run -s grillhouse:gardes', 'npm run grillhouse:gardes-x', '']) {
-      const { projet } = installe({ name: 'p', scripts: { pretest } });
-      const premier = lire(projet, 'package.json');
-      mettreAJour(projet, DEPOT, 'essai');
-      expect(lire(projet, 'package.json'), pretest).toBe(premier);
+// The frame's former wiring of the guards (a pretest calling grillhouse:gardes, an
+// integration:gardes script) goes: Turborepo plays the guards (turbo.json). A wiring of the
+// project's own stays.
+describe('the update removes the frame’s former wiring of the guards', () => {
+  it('a pretest that is the frame’s call is removed', () => {
+    expect(installe({ name: 'p', scripts: { pretest: GARDES } }).scripts()).not.toHaveProperty(
+      'pretest'
+    );
+  });
+  it('a pretest headed by the frame’s call loses that head, the rest kept', () => {
+    const avant = `${GARDES} && node a.mjs && node b.mjs --strict`;
+    const s = installe({ name: 'p', scripts: { pretest: avant } }).scripts();
+    expect(s.pretest).toBe('node a.mjs && node b.mjs --strict');
+  });
+  it.each([
+    ['a step of its own', 'node mien.mjs'],
+    ['another form of the call', 'npm run -s grillhouse:gardes'],
+    ['the call mid-chain', 'node a.mjs && npm run --silent grillhouse:gardes'],
+  ])('a pretest of the project (%s) stays as it is', (_nom, pretest) => {
+    expect(installe({ name: 'p', scripts: { pretest } }).scripts().pretest).toBe(pretest);
+  });
+  it('a project without pretest receives none', () => {
+    expect(installe({ name: 'p', scripts: { test: 'vitest run' } }).scripts()).not.toHaveProperty(
+      'pretest'
+    );
+    expect(installe({ name: 'p' }).scripts()).not.toHaveProperty('pretest');
+  });
+  it.each(['npm run --silent pretest', 'node scripts/integration/gardes.mjs'])(
+    'an integration:gardes left at the frame’s former command (%s) is removed',
+    ancien => {
+      const s = installe({ name: 'p', scripts: { 'integration:gardes': ancien } }).scripts();
+      expect(s).not.toHaveProperty('integration:gardes');
     }
+  );
+  it.each([
+    ['a script of its own', 'node scripts/mes-gardes.mjs'],
+    ['the old wiring with a step of its own', 'npm run --silent pretest && node scripts/mien.mjs'],
+  ])('an integration:gardes of the project’s own (%s) stays as it is', (_nom, propre) => {
+    const s = installe({ name: 'p', scripts: { 'integration:gardes': propre } }).scripts();
+    expect(s['integration:gardes']).toBe(propre);
+  });
+  it('the removal holds on a second update, byte for byte', () => {
+    const { projet } = installe({
+      name: 'p',
+      scripts: { pretest: `${GARDES} && node mien.mjs`, 'integration:gardes': GARDES },
+    });
+    const premier = lire(projet, 'package.json');
+    mettreAJour(projet, DEPOT, 'essai');
+    expect(lire(projet, 'package.json')).toBe(premier);
+  });
+});
+
+// The update brings Turborepo into the project: its devDependency, the packageManager it
+// requires, the frame's turbo.json, and `.turbo/` ignored by git.
+describe('the update installs Turborepo', () => {
+  it('turbo.json is a frame file: listed, and copied into the project', () => {
+    const { garder } = lireListe(lire(DEPOT, '.claude/grillhouse/fichiers.txt'));
+    expect(garder).toContain('turbo.json');
+    const { projet } = installe({ name: 'p' });
+    expect(lire(projet, 'turbo.json')).toBe(lire(DEPOT, 'turbo.json'));
+  });
+  it('a project receives turbo at the version of the frame', () => {
+    const { projet } = installe({ name: 'p' });
+    const pkg = json(projet, 'package.json') as { devDependencies?: Record<string, string> };
+    expect(pkg.devDependencies?.turbo).toBe(
+      (json(DEPOT, 'package.json').devDependencies as Record<string, string>).turbo
+    );
+  });
+  it('a project without packageManager receives the frame’s; one with its own keeps it', () => {
+    const cadre = json(DEPOT, 'package.json').packageManager;
+    expect(cadre).toBeTypeOf('string');
+    expect(json(installe({ name: 'p' }).projet, 'package.json').packageManager).toBe(cadre);
+    const propre = installe({ name: 'p', packageManager: 'npm@9.0.0' }).projet;
+    expect(json(propre, 'package.json').packageManager).toBe('npm@9.0.0');
+  });
+  it('a project without .gitignore receives one that ignores .turbo/', () => {
+    expect(lire(installe({ name: 'p' }).projet, '.gitignore')).toBe('.turbo/\n');
+  });
+  it('a .gitignore without .turbo receives the line once, its own lines kept, even without a final newline', () => {
+    const projet = mkdtempSync(path.join(ESSAIS, 'ignore-'));
+    ecrire(projet, 'package.json', '{"name":"p"}\n');
+    ecrire(projet, '.gitignore', 'node_modules\ndist');
+    mettreAJour(projet, DEPOT, 'essai');
+    expect(lire(projet, '.gitignore')).toBe('node_modules\ndist\n.turbo/\n');
+    mettreAJour(projet, DEPOT, 'essai');
+    expect(lire(projet, '.gitignore')).toBe('node_modules\ndist\n.turbo/\n');
+  });
+  it.each(['.turbo', '/.turbo/'])('a .gitignore that already ignores it (%s) stays as it is', l => {
+    const projet = mkdtempSync(path.join(ESSAIS, 'ignore-'));
+    ecrire(projet, '.gitignore', `node_modules\n${l}\n`);
+    mettreAJour(projet, DEPOT, 'essai');
+    expect(lire(projet, '.gitignore')).toBe(`node_modules\n${l}\n`);
+  });
+  it('a project that runs Vitest receives test, test:vitest and test:forcer of the frame, together', () => {
+    const s = installe({ name: 'p', scripts: { test: 'vitest run' } }, { vitest: true }).scripts();
+    for (const nom of ['test', 'test:vitest', 'test:forcer']) {
+      expect(s[nom], nom).toBe(gabarit()[nom]);
+    }
+  });
+  it('a project whose root resolves no Vitest receives none of the three', () => {
+    const s = installe({ name: 'p', scripts: { test: 'vitest run' } }).scripts();
+    expect(s.test).toBe('vitest run');
+    expect(s).not.toHaveProperty('test:vitest');
+    expect(s).not.toHaveProperty('test:forcer');
   });
 });
 
@@ -474,6 +483,7 @@ const DEPENDANCES = [
   '@microsoft/tsdoc-config',
   'dependency-cruiser',
   'knip',
+  'turbo',
 ];
 type Pkg = {
   scripts?: Record<string, string>;
@@ -515,6 +525,8 @@ describe('grillhouse-3uv.60 critère 1 — the update writes api and the depende
     });
     expect(pkg.scripts?.api).toBe(modele().scripts?.api);
     expect(pkg.scripts?.test).toBe(modele().scripts?.test);
+    expect(pkg.scripts?.['test:vitest']).toBe(modele().scripts?.['test:vitest']);
+    expect(pkg.scripts?.['test:forcer']).toBe(modele().scripts?.['test:forcer']);
   });
   it('critère 1: a project without dependencies receives the three, at the versions of the template', () => {
     const { pkg } = apresMaj({ name: 'p' });
@@ -548,6 +560,7 @@ describe('grillhouse-3uv.60 critère 1 — the update writes api and the depende
       '@microsoft/tsdoc-config': '~0.17.1',
       'dependency-cruiser': '^16.0.0',
       knip: '5.0.1',
+      turbo: '2.0.0',
     };
     const src = sourceRetouchee(p => {
       p.devDependencies = { ...p.devDependencies, ...versions };
@@ -610,6 +623,7 @@ describe('grillhouse-3uv.60 critère 4 — api is written as the frame’s other
       '@microsoft/api-extractor-model',
       '@microsoft/tsdoc-config',
       'dependency-cruiser',
+      'turbo',
     ]);
   });
   it('critère 4: a source that declares none of the three writes no devDependencies', () => {
@@ -663,6 +677,7 @@ describe('grillhouse-3uv.60 critère 5 — a declared dependency keeps its decla
       'dependency-cruiser',
       'eslint',
       'knip',
+      'turbo',
       'vitest',
     ]);
   });
@@ -682,6 +697,7 @@ describe('grillhouse-3uv.60 critère 5 — a declared dependency keeps its decla
       ['@microsoft/tsdoc-config', m.devDependencies?.['@microsoft/tsdoc-config']],
       ['dependency-cruiser', '2.0.0'],
       ['knip', '1.0.0'],
+      ['turbo', m.devDependencies?.turbo],
     ]);
   });
 });
@@ -818,6 +834,7 @@ describe('grillhouse-3uv.60 critère 8 — only the source’s devDependencies a
         '@microsoft/api-extractor-model',
         '@microsoft/tsdoc-config',
         'dependency-cruiser',
+        'turbo',
       ]);
     });
   }
@@ -918,6 +935,7 @@ describe('grillhouse-3uv.60 critère 9 — the report names each added dependenc
         '@microsoft/api-extractor': '3.0.0',
         '@microsoft/api-extractor-model': '4.0.0',
         '@microsoft/tsdoc-config': '0.1.0',
+        turbo: '2.0.0',
       },
     });
     const r = lancerMaj(projet, src);
@@ -975,57 +993,6 @@ describe('grillhouse-3uv.64 critère 25 — the update declares every tool of th
     const version = modele().devDependencies?.[nom];
     expect(version, `the frame declares ${nom}`).toBeTypeOf('string');
     expect(pkg.devDependencies?.[nom]).toBe(version);
-  });
-});
-
-// grillhouse-3uv.65 critère 27: the frame's wiring of the integration's guards was
-// `npm run --silent pretest`, which builds again; the update replaces it with the frame's command
-// (`integration:gardes` of the source), and leaves a wiring of the project's own as it is.
-describe('grillhouse-3uv.65 critère 27 — the update replaces the frame’s old wiring of integration:gardes', () => {
-  const ANCIEN = 'npm run --silent pretest';
-  it('critère 27: integration:gardes left at the frame’s old wiring receives the frame’s command', () => {
-    const { scripts } = installe({ name: 'p', scripts: { 'integration:gardes': ANCIEN } });
-    expect(scripts()['integration:gardes']).toBe(gabarit()['integration:gardes']);
-  });
-  it('critère 27: the command written is the one of the source, read there', () => {
-    const autre = 'node scripts/integration/autres-gardes.mjs';
-    const src = sourceAvec({ name: 'cadre', scripts: { 'integration:gardes': autre } });
-    const { scripts } = installeDepuis(src, {
-      name: 'p',
-      scripts: { 'integration:gardes': ANCIEN },
-    });
-    expect(scripts['integration:gardes']).toBe(autre);
-  });
-  it('critère 27: the replacement holds on a second update, byte for byte', () => {
-    const projet = mkdtempSync(path.join(ESSAIS, 'installe-'));
-    ecrire(
-      projet,
-      'package.json',
-      `${JSON.stringify({ name: 'p', scripts: { 'integration:gardes': ANCIEN } }, null, 2)}\n`
-    );
-    mettreAJour(projet, DEPOT, 'essai');
-    const premier = lire(projet, 'package.json');
-    mettreAJour(projet, DEPOT, 'essai');
-    expect(lire(projet, 'package.json')).toBe(premier);
-    expect(
-      (JSON.parse(premier) as { scripts: Record<string, string> }).scripts['integration:gardes']
-    ).toBe(gabarit()['integration:gardes']);
-  });
-  it.each([
-    ['a script of its own', 'node scripts/mes-gardes.mjs'],
-    ['the old wiring with a step of its own', `${ANCIEN} && node scripts/mien.mjs`],
-    ['another npm script', 'npm run --silent verifier'],
-  ])('critère 27 (garde): a wiring of the project’s own (%s) stays as it is', (_nom, propre) => {
-    const { scripts } = installe({ name: 'p', scripts: { 'integration:gardes': propre } });
-    expect(scripts()['integration:gardes']).toBe(propre);
-  });
-  it('critère 27 (garde): a source without integration:gardes leaves the old wiring as it is', () => {
-    const src = sourceAvec({ name: 'cadre', scripts: { 'grillhouse:gardes': 'node seul.mjs' } });
-    const { scripts } = installeDepuis(src, {
-      name: 'p',
-      scripts: { 'integration:gardes': ANCIEN },
-    });
-    expect(scripts['integration:gardes']).toBe(ANCIEN);
   });
 });
 
@@ -1129,13 +1096,13 @@ describe('grillhouse-3uv.56 critère 13 — the settings are written only when t
   });
 });
 
-// grillhouse-3uv.75.1 critère 12 (Q6): one command launches the tests, `npm test`, through the
-// frame's launcher; the update of the frame poses the frame's test in a project that has its own
-// (BPScript), and says so in its report. grillhouse-3uv.80 critère 2: the project's root resolves
-// the Vitest the frame requires (2.1.9 here, the frame's own), else it keeps its test.
-const TEST_DU_CADRE = 'node scripts/integration/suites-vitest.mjs';
+// grillhouse-3uv.75.1 critère 12 (Q6): one command launches the tests, `npm test`, Turborepo's
+// task; the update of the frame poses the frame's test in a project that has its own (BPScript),
+// and says so in its report. grillhouse-3uv.80 critère 2: the project's root resolves the Vitest
+// the frame requires (2.1.9 here, the frame's own), else it keeps its test.
+const TEST_DU_CADRE = 'turbo run test:vitest --';
 describe('grillhouse-3uv.75.1 critère 12 — the update poses the frame’s test in a project that has its own, and says so', () => {
-  it('critère 12: the test script of the template is the launcher', () => {
+  it('critère 12: the test script of the template is Turborepo’s task', () => {
     expect(gabarit().test).toBe(TEST_DU_CADRE);
   });
   it('critère 12: a project whose test is its own receives the frame’s test', () => {
@@ -1160,7 +1127,7 @@ describe('grillhouse-3uv.75.1 critère 12 — the update poses the frame’s tes
   // is in the dependencies or devDependencies of its root package.json or of one of its
   // workspaces; it then receives the frame's test, whatever the text of its own.
   it('critère 12: a project that declares vitest in a workspace alone (BPScript) receives the frame’s test, whatever the text of its own, and the report says so', () => {
-    const propre = 'FORCER=1 bash scripts/suites-des-paquets.sh';
+    const propre = 'bash scripts/suites-des-paquets.sh';
     const { projet, src } = projetEtSource(
       { name: 'p', private: true, workspaces: ['packages/*'], scripts: { test: propre } },
       () => {},
@@ -1384,7 +1351,7 @@ describe('grillhouse-3uv.76 critère 3 — the update refuses an unknown option,
 });
 
 // grillhouse-3uv.80 critère 2. Witness: BPScript, whose root resolves the hoisted Vitest 1.6.1 while
-// each package declares ^2: the frame's launcher calls the Vitest of the root (`npx --no-install
+// each package declares ^2: `test:vitest` calls the Vitest of the root (`npx --no-install
 // vitest`). The version the frame requires is the one its package.json declares, read in the source.
 const VITEST_EXIGE = '^2.0.0';
 describe('grillhouse-3uv.80 critère 2 — the update poses the frame’s test only where the root resolves the Vitest the frame requires', () => {
@@ -1394,7 +1361,7 @@ describe('grillhouse-3uv.80 critère 2 — the update poses the frame’s test o
     expect(modele().devDependencies?.vitest).toBe(VITEST_EXIGE);
   });
   it('critère 2: a project of workspaces whose root resolves Vitest 1.6.1, each package declaring ^2 (BPScript), keeps its test, and the update names 1.6.1 and ^2.0.0', () => {
-    const propre = 'FORCER=1 bash scripts/suites-des-paquets.sh';
+    const propre = 'bash scripts/suites-des-paquets.sh';
     const { projet, src } = projetEtSource({
       name: 'p',
       private: true,
@@ -1450,7 +1417,7 @@ describe('grillhouse-3uv.80 critère 2 — the update poses the frame’s test o
 });
 
 // grillhouse-3uv.80 critère 6. Witness: BPScript, copy 322.11, whose test is already the frame's
-// launcher while its root resolves the hoisted Vitest 1.6.1.
+// while its root resolves the hoisted Vitest 1.6.1.
 describe('grillhouse-3uv.80 critère 6 — a project whose test is already the frame’s keeps it where the root does not resolve the Vitest the frame requires, and the update says so', () => {
   it('critère 6: a project of workspaces whose test is the frame’s and whose root resolves Vitest 1.6.1 (BPScript 322.11) keeps that test, and the update names 1.6.1 and ^2.0.0', () => {
     const { projet, src } = projetEtSource({
@@ -1529,77 +1496,5 @@ describe('grillhouse-3uv.80 critère 3 — one pass of the update suffices, its 
     const apres = lire(projet, 'package.json');
     majDuProjet();
     expect(lire(projet, 'package.json')).toBe(apres);
-  });
-});
-
-// grillhouse-3uv.80 critère 4. Witness: BPScript, 886 false refusals of frontieres.mjs (imports of a
-// package by its name, unresolved) on a fresh copy without dist/, the pretest running frontieres.mjs
-// before the build. The trial project: two packages, `b` importing `a` by its name, `a` exporting
-// its built entry (dist/, written by `npm run build`), the frame installed by the update, its
-// generated files written; no build has run.
-describe('grillhouse-3uv.80 critère 4 — grillhouse:gardes builds before judging the boundaries', () => {
-  it('critère 4: on a fresh copy without dist/, the steps of the grillhouse:gardes the update poses, played in their order, refuse no import of a package by its name', () => {
-    const projet = mkdtempSync(path.join(ESSAIS, 'copie-neuve-'));
-    ecrire(
-      projet,
-      'package.json',
-      `${JSON.stringify({ name: 'p', private: true, type: 'module', workspaces: ['packages/*'], scripts: { build: 'tsc -b packages/a' } }, null, 2)}\n`
-    );
-    ecrire(
-      projet,
-      'packages/a/package.json',
-      `${JSON.stringify({ name: 'a', type: 'module', exports: { '.': { types: './dist/index.d.ts', default: './dist/index.js' } } }, null, 2)}\n`
-    );
-    ecrire(
-      projet,
-      'packages/a/tsconfig.json',
-      `${JSON.stringify({ compilerOptions: { rootDir: 'src', outDir: 'dist', declaration: true, composite: true, module: 'NodeNext', moduleResolution: 'NodeNext', target: 'ES2022' }, include: ['src'] }, null, 2)}\n`
-    );
-    ecrire(projet, 'packages/a/src/index.ts', 'export const a = 1;\n');
-    ecrire(
-      projet,
-      'packages/a/docs/INTERFACE.md',
-      '# a\n\nLe paquet a.\n\n## Consommateurs\n\n- `b` : a\n'
-    );
-    ecrire(
-      projet,
-      'packages/b/package.json',
-      `${JSON.stringify({ name: 'b', type: 'module', exports: { '.': './src/index.ts' }, dependencies: { a: '*' } }, null, 2)}\n`
-    );
-    ecrire(projet, 'packages/b/src/index.ts', "import { a } from 'a';\nexport const b = a + 1;\n");
-    ecrire(
-      projet,
-      'packages/b/docs/INTERFACE.md',
-      '# b\n\nLe paquet b.\n\n## Consommateurs\n\n- aucun\n'
-    );
-    mettreAJour(projet, DEPOT, 'essai');
-    // The installed workspaces, as npm install links them; the tools, this repository's.
-    lierDependances(projet);
-    symlinkSync('../packages/a', path.join(projet, 'node_modules', 'a'));
-    symlinkSync('../packages/b', path.join(projet, 'node_modules', 'b'));
-    const sh = (etape: string) =>
-      spawnSync('sh', ['-c', etape], { cwd: projet, encoding: 'utf8', timeout: 120_000 });
-    for (const generateur of [
-      'node scripts/index-interfaces.mjs',
-      'node scripts/frontieres.mjs --ecrire',
-    ]) {
-      const g = sh(generateur);
-      expect(g.status, `${generateur}: ${g.stdout}${g.stderr}`).toBe(0);
-    }
-    expect(existsSync(path.join(projet, 'packages/a/dist')), 'a fresh copy').toBe(false);
-    const etapes = (
-      (json(projet, 'package.json').scripts as Record<string, string>)['grillhouse:gardes'] ?? ''
-    )
-      .split('&&')
-      .map(e => e.trim());
-    const i = etapes.findIndex(e => /^node scripts\/frontieres\.mjs$/.test(e));
-    expect(i, etapes.join(' && ')).toBeGreaterThanOrEqual(0);
-    for (const etape of etapes.slice(0, i)) {
-      const r = sh(etape);
-      expect(r.status, `${etape}: ${r.stdout}${r.stderr}`).toBe(0);
-    }
-    const f = sh(etapes[i]);
-    expect(`${f.stdout}${f.stderr}`).not.toContain('tout-import-se-resout');
-    expect(f.status, `${f.stdout}${f.stderr}`).toBe(0);
   });
 });

@@ -1,8 +1,9 @@
 // The night tests of a project: the files `*.nuit.test.*` and `*.nuit.spec.*`, too long for the
 // day, and its time budget benches (`*.budget.test.*`, `*.budget.spec.*`), whose measures move with
-// the load of the day; `npm test` and the integration leave them out. The night (scripts/nuit.sh) plays them with
-// this configuration, from the root of its copy (`vitest run --root <copy> --config <this file>`),
-// after a green `npm test` and before the project's night script. It stands alone: it reads no
+// the load of the day; `npm test` and the integration leave them out (the day configuration,
+// vitest.config.ts, excludes both). The night (scripts/nuit.sh) plays them with this
+// configuration, from the root of its copy (`vitest run --root <copy> --config <this file>`),
+// after a green full pass (`npm run test:forcer`) and before the project's night script. It stands alone: it reads no
 // day configuration of the project, whether the project has one at its root or its suites read the
 // configurations of its packages. It is also the one address of
 // git's settings for the suite: `test.env` sets git once for the tests by the environment

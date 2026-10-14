@@ -249,24 +249,24 @@ describe('the session mounts and the index', () => {
   });
 });
 
-describe('plan with the stores of the traces', () => {
+describe('plan with the task cache', () => {
   const { args } = plan(
     {
       trees: ['/main', '/wt'],
       copie: '/wt',
       composant: 'scripts',
-      magasins: ['/main/.git/grillhouse/suites', '/main/.git/grillhouse/absent'],
+      magasins: ['/main/.turbo/cache', '/main/.absent/cache'],
     },
     fakeDisk({ '/wt': [{ name: 'scripts', dir: true }], '/wt/scripts': [] }, [
       '/wt/.git',
-      '/main/.git/grillhouse/suites',
+      '/main/.turbo/cache',
     ])
   );
-  it('mounts each existing store in writing, after the copy and its .git', () => {
+  it('mounts each existing cache in writing, after the copy and its .git', () => {
     const texte = args.join(' ');
-    expect(texte).toContain('--bind /main/.git/grillhouse/suites /main/.git/grillhouse/suites');
-    expect(texte).not.toContain('/main/.git/grillhouse/absent');
-    expect(args.indexOf('/main/.git/grillhouse/suites')).toBeGreaterThan(args.indexOf('/wt/.git'));
+    expect(texte).toContain('--bind /main/.turbo/cache /main/.turbo/cache');
+    expect(texte).not.toContain('/main/.absent/cache');
+    expect(args.indexOf('/main/.turbo/cache')).toBeGreaterThan(args.indexOf('/wt/.git'));
   });
 });
 
@@ -427,14 +427,13 @@ describe.runIf(canWrap)('the envelope on disk', () => {
     expect(run(`touch ${repo}/.beads/ecrit`).status).toBe(0);
     expect(existsSync(path.join(repo, '.beads/ecrit'))).toBe(true);
   });
-  // The store of the test traces and of the builds, in the git common directory, is the task cache
-  // the agent's own runs write, as the local cache of Turborepo or Nx is the task's.
-  it('lets the agent write the store of the test traces and of the builds, the rest of .git read-only', () => {
-    for (const d of ['suites', 'constructions']) {
-      expect(run(`touch ${repo}/.git/grillhouse/${d}/ecrit`).status, d).toBe(0);
-      expect(existsSync(path.join(repo, '.git/grillhouse', d, 'ecrit')), d).toBe(true);
-    }
-    expect(run(`touch ${repo}/.git/grillhouse/autre`).status).not.toBe(0);
+  // Turborepo's cache, in the main tree and shared by every copy, is written by the agent's own runs
+  // of `npm test`; the envelope creates it when it is missing, so that bwrap mounts it.
+  it('lets the agent write the cache of Turborepo of the main tree, created before the sandbox, the rest of the main tree read-only', () => {
+    expect(run(`touch ${repo}/.turbo/cache/ecrit`).status).toBe(0);
+    expect(existsSync(path.join(repo, '.turbo/cache/ecrit'))).toBe(true);
+    expect(run(`touch ${repo}/.turbo/autre`).status).not.toBe(0);
+    expect(run(`touch ${repo}/.git/ecrit`).status).not.toBe(0);
   });
   it('refuses every write outside the copy: the main tree, its .git, another directory', () => {
     for (const f of [`${repo}/x`, `${repo}/.git/x`, `${home}/x`]) {

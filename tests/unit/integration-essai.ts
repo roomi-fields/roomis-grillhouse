@@ -5,7 +5,14 @@ import {
   type ChildProcess,
   type SpawnSyncReturns,
 } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 import { inscrireEntree } from '../../scripts/integration/file-attente.mjs';
 
@@ -130,13 +137,14 @@ process.exit(0);
 
 // The suites of the trial project: each call appends « [<arguments>] » to <PRINCIPAL>.suites,
 // and fails the tests named by ROUGES_FORCES, plus, for each rule of REGLES.json
-// ([{ si: [<path>, …], rouge: <test name> }]), the test it names when every path it lists exists.
+// ([{ si: [<path>, …], rouge: <test name> }]), the test it names when every path it lists exists;
+// each failing test is written « ✗ <name> » on the output, and any one makes the exit code 1.
 const SUITES = `import fs from 'node:fs';
 fs.appendFileSync(process.env.PRINCIPAL + '.suites', '[' + process.argv.slice(2).join(' ') + ']');
 let r = fs.existsSync('ROUGES_FORCES') ? fs.readFileSync('ROUGES_FORCES', 'utf8') : '';
 const regles = fs.existsSync('REGLES.json') ? JSON.parse(fs.readFileSync('REGLES.json', 'utf8')) : [];
 for (const g of regles) if (g.si.every(p => fs.existsSync(p))) r += g.rouge + '\\n';
-fs.writeFileSync(process.env.ROUGES, r);
+for (const n of r.split('\\n').filter(Boolean)) console.log('✗ ' + n);
 process.exit(r ? 1 : 0);
 `;
 
@@ -146,6 +154,27 @@ const GARDES = `import fs from 'node:fs';
 fs.appendFileSync(process.env.PRINCIPAL + '.gardes', 'g');
 process.exit(fs.existsSync('GARDE_ROUGE') ? 1 : 0);
 `;
+
+// The tests of the trial project, as the frame's `npm test` plays them (Turborepo: the build, the
+// guards, then the tests): its `build` script when it has one, its guards, then its suites, one
+// exit code.
+const TEST = 'npm run --silent --if-present build && node gardes.mjs && node suites.mjs';
+
+// The trial's stand-in for Turborepo, the local package `outils/turbo` of the trial project (its
+// `turbo` binary, which `npm install` links into node_modules/.bin): `turbo run <task>` runs the
+// project's npm script <task> when it has one, as Turborepo skips a task without a script.
+const TURBO_FAUX = `#!/usr/bin/env node
+import { spawnSync } from 'node:child_process';
+const [commande, tache] = process.argv.slice(2);
+if (commande !== 'run' || !tache) process.exit(2);
+const r = spawnSync('npm', ['run', '--silent', '--if-present', tache], { stdio: 'inherit' });
+process.exit(r.status ?? 1);
+`;
+const TURBO_PAQUET = JSON.stringify({
+  name: 'turbo',
+  version: '0.0.0',
+  bin: { turbo: 'turbo.mjs' },
+});
 
 export interface Fichiers {
   [rel: string]: string | null;
@@ -203,10 +232,8 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
     JSON.stringify(
       {
         ...pkg,
-        scripts: {
-          test: 'node suites.mjs',
-          'integration:gardes': 'node gardes.mjs',
-        },
+        scripts: { test: TEST },
+        devDependencies: { turbo: 'file:outils/turbo' },
       },
       null,
       2
@@ -214,6 +241,10 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
   );
   ecrire(repo, 'suites.mjs', SUITES);
   ecrire(repo, 'gardes.mjs', GARDES);
+  ecrire(repo, 'outils/turbo/package.json', TURBO_PAQUET);
+  ecrire(repo, 'outils/turbo/turbo.mjs', TURBO_FAUX);
+  // Executable as npm leaves a linked binary, so an install changes nothing git tracks.
+  chmodSync(path.join(repo, 'outils/turbo/turbo.mjs'), 0o755);
   for (const c of ['a', 'b', 'c']) {
     ecrire(repo, `src/${c}/index.ts`, `export const ${c} = 0;\n`);
   }
@@ -585,7 +616,8 @@ export function suitesParLiens(m: Chantier) {
 // suites and guards read the dependencies (DEPENDANCES): for each package of package-lock.json,
 // they resolve it by its name from the root and compare its version with the lock's; a package not
 // found or at another version fails the suites (one failing test per package) and the guards. The
-// suites also fail the tests named by ROUGES_FORCES, as the trial's suites (SUITES) do. Each
+// suites also fail the tests named by ROUGES_FORCES, as the trial's suites (SUITES) do, each
+// failing test written « ✗ <name> » on the output. Each
 // call appends to <PRINCIPAL>.dependances one JSON line: the packages node_modules holds then, name
 // → version (null for a package without one).
 const DEPENDANCES = `import fs from 'node:fs';
@@ -624,7 +656,7 @@ import { desaccords } from './dependances.mjs';
 fs.appendFileSync(process.env.PRINCIPAL + '.suites', '[' + process.argv.slice(2).join(' ') + ']');
 let r = fs.existsSync('ROUGES_FORCES') ? fs.readFileSync('ROUGES_FORCES', 'utf8') : '';
 r += desaccords('suites').map(n => n + '\\n').join('');
-fs.writeFileSync(process.env.ROUGES, r);
+for (const n of r.split('\\n').filter(Boolean)) console.log('✗ ' + n);
 process.exit(r ? 1 : 0);
 `;
 const GARDES_DEPENDANCES = `import fs from 'node:fs';

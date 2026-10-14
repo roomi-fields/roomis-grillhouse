@@ -425,55 +425,78 @@ describe('the session start plays the check the project declares', () => {
   });
 });
 
-// Ticket grillhouse-3uv.65 critère 26: a project that chose the tests of its integration
-// (`grillhouse.integration`) declares the root paths its suites read (`grillhouse.lusParLesSuites`);
-// while it has not, the session start lists it among « Pas encore renseignés » (grill). An empty
-// list is a declaration.
-describe('grillhouse-3uv.65 critère 26 — the session start asks for grillhouse.lusParLesSuites', () => {
-  const bin = mkdtempSync(path.join(racine, 'bin-lus-'));
+// The integration runs `npm test` (Turborepo: build, guards, tests) and the night
+// `npm run test:forcer`: while a project's package.json lacks either script, the session start
+// asks to wire it (« À brancher »). Once the architecture is written, the night needs its line in
+// the crontab: while the crontab lacks it, the session start proposes it. The integration's mode
+// and the paths the suites read are no longer asked.
+describe('the session start asks for the scripts of the tests and the line of the night', () => {
+  const bin = mkdtempSync(path.join(racine, 'bin-tests-'));
   stub(bin, 'bd', 'echo "[]"');
   stub(bin, 'claude', 'echo "[]"');
-  stub(bin, 'crontab', 'exit 1');
   const PATH = `${bin}:${process.env.PATH ?? ''}`;
-  // The items of « Pas encore renseignés » for a project with its architecture written and
-  // <grillhouse> as the grillhouse section of its package.json.
-  const elements = (grillhouse: Record<string, unknown>) => {
-    const dir = mkdtempSync(path.join(racine, 'lus-'));
+  // The output for a project holding <scripts> and <grillhouse>, its architecture written when
+  // <architecture>; the crontab answers <table> (none when null).
+  const sortie = (
+    scripts: Record<string, string>,
+    o: { architecture?: boolean; table?: (dir: string) => string | null; grillhouse?: object } = {}
+  ) => {
+    const dir = mkdtempSync(path.join(racine, 'tests-'));
     mkdirSync(path.join(dir, 'node_modules'));
-    mkdirSync(path.join(dir, 'docs'));
-    writeFileSync(path.join(dir, 'docs/ARCHITECTURE.md'), '# Architecture\n');
+    if (o.architecture) {
+      mkdirSync(path.join(dir, 'docs'));
+      writeFileSync(path.join(dir, 'docs/ARCHITECTURE.md'), '# Architecture\n');
+    }
     writeFileSync(
       path.join(dir, 'package.json'),
-      JSON.stringify({ name: 'demo', version: '1.0.0', scripts: {}, grillhouse })
+      JSON.stringify({ name: 'demo', version: '1.0.0', scripts, grillhouse: o.grillhouse })
     );
+    const table = o.table?.(dir) ?? null;
+    stub(bin, 'crontab', table === null ? 'exit 1' : `echo '${table}'`);
     const r = spawnSync(BASH, [SCRIPT], {
       encoding: 'utf8',
       timeout: 30_000,
       env: { HOME: racine, PATH, CLAUDE_PROJECT_DIR: dir, ...configGit() },
     });
     expect(r.status, r.stderr).toBe(0);
-    const bloc = r.stdout.split('Pas encore renseignés :\n')[1] ?? '';
-    return bloc
-      .split('\n')
-      .filter(l => l.startsWith('- '))
-      .map(l => l.slice(2));
+    return { texte: r.stdout, dir };
   };
-  const demande = (liste: string[]) => liste.filter(l => /lusParLesSuites/.test(l));
-  it.each(['complet', 'impactes'])(
-    'critère 26: a project whose integration is « %s », without grillhouse.lusParLesSuites, has it listed',
-    mode => {
-      expect(demande(elements({ integration: mode }))).toHaveLength(1);
-    }
-  );
-  it('critère 26: an empty grillhouse.lusParLesSuites is a declaration: not listed', () => {
-    expect(demande(elements({ integration: 'complet', lusParLesSuites: [] }))).toEqual([]);
+  const aBrancher = (texte: string) => texte.split('\n').find(l => l.startsWith('À brancher'));
+  const TESTS = {
+    test: 'turbo run test:vitest --',
+    'test:forcer': 'turbo run test:vitest --force --',
+  };
+
+  it('a project without test nor test:forcer is asked to wire both', () => {
+    const ligne = aBrancher(sortie({}).texte);
+    expect(ligne).toBeDefined();
+    expect(ligne).toContain('test test:forcer');
   });
-  it('critère 26 (garde): a declared grillhouse.lusParLesSuites is not listed', () => {
-    expect(demande(elements({ integration: 'impactes', lusParLesSuites: ['src'] }))).toEqual([]);
+  it('a project with test alone is asked to wire test:forcer only', () => {
+    const ligne = aBrancher(sortie({ test: 'turbo run test:vitest --' }).texte) ?? '';
+    expect(ligne).toContain('test:forcer');
+    expect(ligne).not.toMatch(/À brancher : test\b(?!:)/);
   });
-  it('critère 26 (garde): a project that has not chosen its integration is asked for that choice, not for the declaration', () => {
-    const liste = elements({});
-    expect(liste.some(l => /intégration/.test(l))).toBe(true);
-    expect(demande(liste)).toEqual([]);
+  it('a project with both scripts is asked to wire nothing', () => {
+    expect(aBrancher(sortie(TESTS).texte)).toBeUndefined();
+  });
+  it('neither the integration mode nor the paths the suites read are asked', () => {
+    const { texte } = sortie(TESTS, { architecture: true });
+    expect(texte).not.toMatch(/lusParLesSuites|grillhouse\.integration|« complet »|impactes/);
+  });
+  it('the architecture written and the crontab without the night: the night line is proposed', () => {
+    const { texte, dir } = sortie(TESTS, { architecture: true });
+    expect(texte).toContain("La nuit n'est pas programmée");
+    expect(texte).toContain(`0 3 * * * bash ${dir}/scripts/nuit.sh`);
+  });
+  it('the crontab already holding the night: no proposal', () => {
+    const { texte } = sortie(TESTS, {
+      architecture: true,
+      table: dir => `0 3 * * * bash ${dir}/scripts/nuit.sh`,
+    });
+    expect(texte).not.toContain("La nuit n'est pas programmée");
+  });
+  it('without the architecture written, the night is not proposed yet', () => {
+    expect(sortie(TESTS).texte).not.toContain("La nuit n'est pas programmée");
   });
 });

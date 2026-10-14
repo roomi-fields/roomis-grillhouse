@@ -62,30 +62,23 @@ roomis-grillhouse/
 │   ├── frontieres.mjs             # grillhouse:gardes: dependency-cruiser (after the build, which it reads), rules generated in .dependency-cruiser.cjs
 │   ├── interfaces-contre-code.mjs # grillhouse:gardes: the TSDoc contract of each export (rubrics, tsdoc.json) and the generated part
 │   │                              #   of INTERFACE.md between its two marks; npm run api writes the reports and the parts
-│   ├── nuit.sh                    # every suite, once a night (mode « impactes »), building once through constructions.mjs and reading no trace of the suites or stored build (FORCER=1), then the night tests, then the project's night script (`grillhouse.nuit`), and pushes the green commit (`grillhouse.poussee.nuit`)
-│   │                              #   (*.nuit.test.*, *.nuit.spec.*); a red opens a ticket
+│   ├── nuit.sh                    # once a night, the full pass played for real (npm run test:forcer: Turborepo's build, guards and tests, no log replayed), then the night tests and budget benches, then the project's night script (`grillhouse.nuit`), and pushes the green commit (`grillhouse.poussee.nuit`)
+│   │                              #   (*.nuit.test.*, *.nuit.spec.*, *.budget.test.*, *.budget.spec.*); a red opens a ticket
 │   ├── vitest.nuit.config.mjs     # the Vitest configuration of the night tests, played by nuit.sh; the one address of git's settings for the suite (automatic maintenance off in the tests' environment), which the day configuration reads
 │   ├── sous-modules.sh            # the submodules of a working copy (integration, agent, night) at HEAD, or shared read-only (grillhouse.partage)
 │   ├── branche-de-nuit.mjs        # pre-push guard: only the night pushes the branch of grillhouse.poussee.nuit
 │   ├── poussee-cles.mjs           # reads the grillhouse.poussee, .nuit and .commit keys of package.json for nuit.sh, the guard and the queue
 │   ├── retirer-copie.sh           # removes a working copy, submodules included (local work already entered on main does not hold it) (agent, integration, night)
-│   ├── grillhouse-maj.mjs         # npm run grillhouse:maj: the frame brought to its last version (files, git hooks, the frame's plugins, scripts, the controls' devDependencies, then the generated `.dependency-cruiser.cjs` and interfaces index regenerated, a failing generator named); --ecarts; any other option refused
+│   ├── grillhouse-maj.mjs         # npm run grillhouse:maj: the frame brought to its last version (files, turbo.json included, git hooks, the frame's plugins, scripts — test, test:vitest, test:forcer —, the frame's devDependencies, Turborepo's among them, packageManager, .turbo/ ignored, then the generated `.dependency-cruiser.cjs` and interfaces index regenerated, a failing generator named); --ecarts; any other option refused
 │   ├── tableau.mjs                # npm run tableau: the board on three levels (project, agents, chantier)
 │   ├── ligne-etat/                # the status line: the person's own on the left, the chantier on the right
 │   ├── verrou-de-fichier.mjs      # the lock of a file shared between processes (judged by the owner's process or by age); taken by integrer.mjs, file.mjs and registre.mjs
 │   ├── registre.mjs               # hook: one line per finished agent (ticket, role, time, tokens)
-│   ├── integration/               # One delivery, in a clean copy: verdicts, lots, base, guards, suites, commit on agent/<ticket>; then the queue brings it onto main
+│   ├── integration/               # One delivery, in a clean copy: verdicts, lots, npm test green, commit on agent/<ticket>; then the queue brings it onto main
 │   │   ├── integrer.mjs              # run by the integrateur: commits the lot on agent/<ticket>, labels the ticket en-file (tests: tests/unit/integrer.spec.ts)
 │   │   ├── file.mjs                  # the queue: brings the branches onto main one at a time, replaced and replayed when main moved, pushes main (tests: tests/unit/file-integration.spec.ts)
-│   │   ├── rejeu.mjs                 # the replay shared by integrer.mjs and file.mjs: clean copy, scope of the tests, tests by name, guards
-│   │   ├── file-attente.mjs          # the queue's entries, in git's common directory, and the directory the integration's locks live in
-│   │   ├── traces.mjs                # the fingerprints of the content, the store in git's common directory (traces of the test files, builds kept by fingerprint), its purge, the fingerprint of each test file (closure of its imports, plus the files of its component that are not modules)
-│   │   ├── constructions.mjs         # the one entry point that builds: purges the store, restores the dist/ of an unchanged build or builds it and stores it (FORCER=1 builds all); called by rejeu.mjs (which refreshes the index of its copy after every command it runs), nuit.sh, enveloppe/lancer.sh and the root build of a project with packages
-│   │   ├── gardes.mjs                # npm run integration:gardes: the controls of grillhouse:gardes without its build step (the integration builds after the lots, through constructions.mjs, whenever a suite or a control reads the build)
-│   │   ├── suites-vitest.mjs         # npm test [-- --tous|--racine|<components>|<test files>]: the launcher of the tests for Vitest (the Vitest of the project's root, at the version the frame's package.json requires, `^2.0.0`; the test files read from its JSON listing), failing tests by name
-│   │   │                             #   (budget benches and night tests left out); the verdict and output of each test file are kept under the
-│   │   │                             #   fingerprint of what it reads in git's common directory and a file unchanged is not replayed (FORCER=1 replays)
-│   │   └── rapporteur-vitest.mjs     # the Vitest reporter of the launcher: each test file reported apart, its output kept
+│   │   ├── rejeu.mjs                 # the replay shared by integrer.mjs and file.mjs: clean copy, dependencies of its lock file, npm test (Turborepo: build, guards, tests)
+│   │   └── file-attente.mjs          # the queue's entries, in git's common directory, and the directory the integration's locks live in
 │   ├── index-interfaces.mjs       # npm run interfaces: docs/agents/index-des-interfaces.md from the generated parts, checked by grillhouse:gardes
 │   └── un-commit-par-ticket.mjs   # commit-msg hook (placed by crochets.mjs): a closed ticket refuses a second commit, a reopened ticket takes its corrections
 │
@@ -156,9 +149,10 @@ roomis-grillhouse/
 ├── ecosystem.config.cjs        # PM2 daemon configuration (services only)
 ├── package.json                # npm package manifest
 ├── tsdoc.json                  # TSDoc configuration of the frame (the @faute tag), read for every component
+├── turbo.json                  # Turborepo's tasks: build (dist/), grillhouse:gardes after it, test:vitest after them; npm test runs them, the cache in the main tree's .turbo/cache
 ├── tsconfig.json               # TypeScript configuration (allowJs: JS compiles as is)
 ├── tsconfig.eslint.json        # Lint scope: src/ + tests/
-└── vitest.config.ts            # Vitest test configuration of the day: npm test, night tests left out; git's settings read from vitest.nuit.config.mjs
+└── vitest.config.ts            # Vitest test configuration of the day: npm test, night tests and budget benches left out; git's settings read from vitest.nuit.config.mjs
 ```
 
 ## Quick Start

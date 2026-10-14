@@ -3,6 +3,7 @@
 # from a project: a file the frame no longer places there. The frame's own tests stay in Grillhouse.
 METACADRE.md
 tsdoc.json
+turbo.json
 .claude/grillhouse/
 .claude/agents/
 .claude/skills/arbitre/

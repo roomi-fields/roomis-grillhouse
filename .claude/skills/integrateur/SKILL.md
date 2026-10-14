@@ -27,9 +27,10 @@ un script.
 - **Un consommateur nouveau a son arbitrage** : une ligne ajoutée à une section « Consommateurs »
   entre avec le commentaire « Arbitrage » tranché qui la nomme. Ainsi chaque dépendance entre
   composants a été décidée.
-- **Une exception s'admet par écrit** : un rouge nouveau que tu admets passe au script
-  (`--admettre "<nom du test>"`), sa raison dans ta passation. Ainsi chaque exception a son auteur
-  et sa raison.
+- **Main reste vert** : le script n'admet aucun rouge. Un test connu rouge entre en quarantaine
+  dans le test lui-même (`it.skip` ou `it.fails`, avec le ticket qui le corrige), écrite par le
+  testeur ; un lot qui en pose une sans ce ticket retourne à son agent. Ainsi chaque rouge a son
+  ticket, et main ne porte aucun rouge.
 
 Un lot qui enfreint une règle retourne à son agent avec la règle citée, sans lancer le script.
 
@@ -39,19 +40,20 @@ Le jugement rendu, tu lances le script d'intégration :
 
 ```
 node scripts/integration/integrer.mjs --ticket <id> [--ticket <id>…] \
-  --tests <patch> --code <patch> --message <fichier> [--admettre "<test>"]…
+  --tests <patch> --code <patch> --message <fichier>
 ```
 
 `--ticket` nomme chaque ticket, qui porte le verdict du relecteur ; le premier donne sa branche
-`agent/<ticket>`. Le script vérifie les verdicts et la part de chaque agent, rejoue les suites et
-les gardes dans une copie propre, puis commite sur `agent/<ticket>` et étiquette le ticket
+`agent/<ticket>`. Le script vérifie les verdicts et la part de chaque agent, joue `npm test`
+(Turborepo : construction, gardes, tests, relus de son cache quand rien n'a bougé) dans une copie
+propre, exige le vert, puis commite sur `agent/<ticket>` et étiquette le ticket
 `en-file` ; main n'avance pas ici. Il tient sa propre attente et rend la main sur le commit ou sur
 le refus. Son en-tête dit chaque étape et ce qu'il rejoue : tu le lis quand une sortie t'étonne.
 
 **La file** : le commit fait, tu lances `node scripts/integration/file.mjs` depuis l'arbre
-principal. Elle amène les branches sur main une à une, rejoue les gardes et les suites quand main a
+principal. Elle amène les branches sur main une à une, rejoue le même `npm test` quand main a
 bougé, ferme chaque ticket « intégré : <commit> », efface sa branche et pousse main. Une branche
-qui ne passe pas (fichiers en conflit, garde refusé, test rouge neuf) sort de la file : son ticket
+qui ne passe pas (fichiers en conflit, `npm test` rouge) sort de la file : son ticket
 perd `en-file` et se rouvre avec les fichiers ou les tests nommés, et la branche reste en place pour
 la relance. Ainsi main n'avance que sur des branches rejouées contre lui.
 

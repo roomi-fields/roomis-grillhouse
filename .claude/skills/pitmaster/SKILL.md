@@ -117,8 +117,9 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   principal ; seule la file y avance main. Je commite mes propres fichiers quand je veux. Un ticket
   resté `en-file` sans file lancée se vide à la main : `node scripts/integration/file.mjs`. Ainsi un
   changement du cadre n'attend aucune livraison.
-- **La nuit se lit le matin** : en mode `impactes`, les suites complètes tournent une fois la nuit
-  (`scripts/nuit.sh`), suivies des tests de nuit (`*.nuit.test.*`) ; un rouge ouvre un ticket étiqueté `nuit`, avec les commits où chercher. Je
+- **La nuit se lit le matin** : la passe complète tourne pour de vrai une fois la nuit
+  (`scripts/nuit.sh`, `npm run test:forcer`), suivie des tests de nuit (`*.nuit.test.*`) et des
+  bancs de budget (`*.budget.test.*`) ; un rouge ouvre un ticket étiqueté `nuit`, avec les commits où chercher. Je
   le lis en ouvrant la séance, et il passe avant tout autre ticket. Ainsi un défaut que les
   intégrations du jour n'ont pas vu se corrige le lendemain.
 - **Un « en cours » est un processus vivant** : un « en cours » se vérifie par un processus vivant

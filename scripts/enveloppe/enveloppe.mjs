@@ -12,9 +12,8 @@
 //   finds. Every `.git`, the
 //   copy's included, stays read-only: the agent reads the git state and delivers a patch
 //   (`git diff`, and `git diff --no-index /dev/null <file>` for a new file); it never commits.
-//   Only the stores of the test traces and of the builds (`<git common dir>/grillhouse/suites`
-//   and `constructions`) are written: the agent's runs keep their traces, as a task writes the
-//   local cache of Turborepo or Nx.
+//   The cache of Turborepo (`<main tree>/.turbo/cache`, shared by every copy) is written: the
+//   agent's runs of `npm test` keep their tasks there, as every copy's runs do.
 // - The home and the session directories (`$XDG_RUNTIME_DIR`, `/run/user/<uid>`) show only what
 //   the envelope declares: each starts empty and sealed read-only, and the home gets back
 //   `~/.claude`, `~/.claude.json`, the npm cache, the paths of `MAISON_EN_LECTURE` (claude, node,
@@ -281,6 +280,8 @@ const inside = (child, parent) => {
 // once every mount inside it is made.
 // `matieres` lists the packages of the shared test material, relative to the copy
 // (`matieres` of `scripts/consommateurs.mjs`); `role` is the agent's role, and only the `testeur` writes them.
+// `magasins` lists the task caches written by every run, the agent's included (Turborepo's
+// `<main tree>/.turbo/cache`); one that does not exist is not mounted.
 // `fs` gives `lister(dir)`, `existe(path)`, `liens(dir)` and `publies(dir)`, so the plan is
 // testable without disk.
 export function plan(
@@ -338,7 +339,7 @@ export function plan(
   args.push('--bind', copie, copie);
   const gitDeLaCopie = path.join(copie, '.git');
   if (fs.existe(gitDeLaCopie)) args.push('--ro-bind', gitDeLaCopie, gitDeLaCopie);
-  // The stores of the test traces and of the builds are the task cache the agent's runs write.
+  // The task cache (Turborepo's) is written by the agent's runs, as by every copy's.
   for (const m of magasins) if (fs.existe(m)) args.push('--bind', m, m);
   const tickets = trees.length > 0 ? path.join(trees[0], '.beads') : null;
   if (tickets && fs.existe(tickets)) args.push('--bind', tickets, tickets);
@@ -414,14 +415,14 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     lienSurDisque
   );
   const matieres = lesMatieres(copie).map(m => path.relative(copie, m.dir));
-  // The stores of the test traces and of the builds (scripts/integration/traces.mjs), created
-  // here so that bwrap mounts them in writing.
+  // The cache of Turborepo, in the main tree (the folder of git's common directory), created here
+  // so that bwrap mounts it in writing.
   const commun = execFileSync(
     'git',
     ['-C', copie, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
     { encoding: 'utf8' }
   ).trim();
-  const magasins = ['suites', 'constructions'].map(d => path.join(commun, 'grillhouse', d));
+  const magasins = [path.join(path.dirname(commun), '.turbo', 'cache')];
   for (const m of magasins) mkdirSync(m, { recursive: true });
   const { args, refus } = plan(
     { trees: worktrees(copie), copie, composant, role, matieres, montages, magasins },

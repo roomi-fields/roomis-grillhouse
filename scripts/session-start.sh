@@ -125,26 +125,19 @@ if [ -n "$demarrage" ]; then
   fi
 fi
 
-# Once the architecture is written, the project chooses how an integration tests (grill, branch 9).
-if [ -f "$root/docs/ARCHITECTURE.md" ] && [ -f "$root/package.json" ]; then
-  mode="$(node -e 'process.stdout.write(require(process.argv[1]).grillhouse?.integration ?? "")' "$root/package.json" 2>/dev/null)"
-  [ -n "$mode" ] || pending+=("les tests d'une intégration : « complet » ou « impactes » avec la nuit (grill, branche 9)")
-  # The root paths the suites read (files or folders; an empty list is a declaration): a lot that
-  # touches one replays the suites, one that touches none replays nothing.
-  if [ -n "$mode" ]; then
-    node -e 'process.exit(Array.isArray(require(process.argv[1]).grillhouse?.lusParLesSuites)?0:1)' "$root/package.json" 2>/dev/null \
-      || pending+=("les chemins de la racine que les suites lisent (\`grillhouse.lusParLesSuites\` du package.json : fichiers ou dossiers, comme les globalDependencies de Turborepo ; une liste vide est une déclaration ; grill)")
-  fi
-fi
-# The integration script runs the project's own guards: one npm script to wire (its tests are `npm test`).
+# The integration script runs the project's tests and guards by `npm test` (Turborepo), and the
+# night by `npm run test:forcer`: two npm scripts to wire.
 wiring=()
-for s in integration:gardes; do
-  node -e 'const p=require(process.argv[1]);process.exit(p.scripts&&p.scripts[process.argv[2]]?0:1)' \
-    "$root/package.json" "$s" 2>/dev/null || wiring+=("$s")
-done
+if [ -f "$root/package.json" ]; then
+  for s in test test:forcer; do
+    node -e 'const p=require(process.argv[1]);process.exit(p.scripts&&p.scripts[process.argv[2]]?0:1)' \
+      "$root/package.json" "$s" 2>/dev/null || wiring+=("$s")
+  done
+fi
 
-# The « impactes » mode replays every suite once a night, which needs its line in the crontab.
-if [ "${mode:-}" = impactes ] && ! crontab -l 2>/dev/null | grep -qF "$root/scripts/nuit.sh"; then
+# Once the architecture is written, the night (the full pass played for real, the night tests and
+# the time budget benches) needs its line in the crontab.
+if [ -f "$root/docs/ARCHITECTURE.md" ] && ! crontab -l 2>/dev/null | grep -qF "$root/scripts/nuit.sh"; then
   nuit="0 3 * * * bash $root/scripts/nuit.sh"
 fi
 
@@ -166,10 +159,10 @@ if [ ${#pending[@]} -gt 0 ]; then
   echo "Dès ta première réponse, propose au responsable de les griller, chacun avec ce que tu recommandes pour ce projet (compétence \`grill\`). Il peut accepter, en choisir un, ou reporter ; tant qu'un élément reste vide, cette proposition revient à chaque séance."
 fi
 if [ ${#wiring[@]} -gt 0 ]; then
-  echo "À brancher : $(IFS=' '; echo "${wiring[*]}") dans le package.json de la racine. Le script d'intégration (\`scripts/integration/integrer.mjs\`, contrat en tête) en a besoin pour lancer les gardes du projet ; sans lui, il refuse chaque lot. Ses tests sont \`npm test -- <portée>\` (\`--tous\`, les dossiers des composants, \`--racine\`, des fichiers de test) : un projet testé par Vitest reprend \`node scripts/integration/suites-vitest.mjs\` pour \`test\` et \`node scripts/integration/gardes.mjs\` pour les gardes ; sinon, écris l'adaptateur de ses tests."
+  echo "À brancher : $(IFS=' '; echo "${wiring[*]}") dans le package.json de la racine. Le script d'intégration (\`scripts/integration/integrer.mjs\`, contrat en tête) lance \`npm test\` (Turborepo, \`turbo.json\` : construction, gardes, tests) et la nuit \`npm run test:forcer\` ; sans eux, il refuse chaque lot. Un projet testé par Vitest les reçoit de \`npm run grillhouse:maj\` ; sinon, écris-les pour ses tests."
 fi
 if [ -n "${nuit:-}" ]; then
-  echo "La nuit n'est pas programmée : le projet a choisi « impactes », et ses suites complètes tournent une fois la nuit (\`scripts/nuit.sh\`). Propose au responsable d'ajouter à la table des tâches du poste (\`crontab -e\`) : \`$nuit\`."
+  echo "La nuit n'est pas programmée : elle rejoue pour de vrai la passe complète, puis les tests de nuit et les bancs de budget, que le jour ne joue pas (\`scripts/nuit.sh\`). Propose au responsable d'ajouter à la table des tâches du poste (\`crontab -e\`) : \`$nuit\`."
 fi
 if [ -n "$epopees" ]; then
   echo "Épopées qui ont une mère : $epopees. Une épopée est un chantier, à la racine ; une mère sous un chantier est une tâche (\`bd update <id> -t task\`, docs/agents/issue-tracker.md, « Numéros et titres »)."

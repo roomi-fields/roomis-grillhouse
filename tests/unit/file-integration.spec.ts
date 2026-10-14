@@ -72,7 +72,7 @@ describe('grillhouse-3uv.63 — the queue brings the branches onto main', () => 
     LONG
   );
   it(
-    'critère 4: a branch whose base main left is replaced on main, its guards and the suites of its components replayed, and enters on green',
+    'critère 4: a branch whose base main left is replaced on main, its `npm test` (guards and suites) replayed there, and enters on green',
     () => {
       const m = chantier(ESSAIS);
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
@@ -86,41 +86,9 @@ describe('grillhouse-3uv.63 — the queue brings the branches onto main', () => 
       // demo-2 sits on demo-1, with both lots in main's tree.
       expect(m.git('show', 'main:src/a/index.ts')).toBe('export const a = 1;\n');
       expect(m.git('show', 'main:src/b/index.ts')).toBe('export const b = 2;\n');
-      // Replayed during the queue: the guards, and the suites of src/b alone.
-      const suites = m.suites().slice(avant.suites.length);
-      expect(suites).toMatch(/\[src\/b\]/);
-      expect(suites).not.toMatch(/--tous|src\/a|src\/c/);
-      expect(m.gardes().length).toBeGreaterThan(avant.gardes.length);
-    },
-    LONG
-  );
-  it(
-    'critère 4: a branch replaced on main follows the project rule « complet »: every suite',
-    () => {
-      const m = chantier(ESSAIS, { grillhouse: { integration: 'complet' } });
-      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
-      m.ticket('demo-2', { 'src/b/index.ts': 'export const b = 2;\n' });
-      m.livrer('demo-1');
-      m.livrer('demo-2');
-      const avant = m.suites();
-      expect(m.file().status).toBe(0);
-      expect(m.suites().slice(avant.length)).toMatch(/\[--tous\]/);
-      expect(m.sujets()[0]).toBe('feat: lot (demo-2)');
-    },
-    LONG
-  );
-  it(
-    'critère 4: a failure main already has is no new failure: the replaced branch enters',
-    () => {
-      const m = chantier(ESSAIS);
-      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
-      m.ticket('demo-2', { 'src/b/index.ts': 'export const b = 2;\n' });
-      m.livrer('demo-1');
-      m.livrer('demo-2');
-      m.poser({ ROUGES_FORCES: 'src/b/vieux.spec.ts > vieux\n' }, 'rouge ancien');
-      const r = m.file();
-      expect(r.status, r.stdout + r.stderr).toBe(0);
-      expect(m.sujets().slice(0, 2)).toEqual(['feat: lot (demo-2)', 'feat: lot (demo-1)']);
+      // Replayed during the queue: one `npm test`, its guards and its suites, without argument.
+      expect(m.suites().slice(avant.suites.length)).toBe('[]');
+      expect(m.gardes().slice(avant.gardes.length)).toBe('g');
     },
     LONG
   );
@@ -147,7 +115,7 @@ describe('grillhouse-3uv.63 — the queue brings the branches onto main', () => 
     LONG
   );
   it(
-    'critère 5: a branch that adds a failure once replaced leaves the queue, its ticket reopened naming the test, and the queue goes on',
+    'critère 5: a branch whose `npm test` is red once replaced leaves the queue, its ticket reopened with the output of its tests, and the queue goes on',
     () => {
       const m = chantier(ESSAIS);
       // Each lot alone is green; both together fail src/b/ab.spec.ts > ensemble.
@@ -171,12 +139,16 @@ describe('grillhouse-3uv.63 — the queue brings the branches onto main', () => 
       const t = m.bd('demo-2');
       expect(t.status).toBe('open');
       expect(t.labels).not.toContain('en-file');
-      expect(t.comments.at(-1).text).toContain('src/b/ab.spec.ts > ensemble');
+      expect(t.comments.at(-1).text).toContain(
+        'ses tests sont rouges une fois la branche replacée.'
+      );
+      expect(t.comments.at(-1).text).toContain('✗ src/b/ab.spec.ts > ensemble');
+      expect(m.bd('demo-3').status).toBe('closed');
     },
     LONG
   );
   it(
-    'critère 5: a branch whose guards refuse once replaced leaves the queue, its ticket reopened',
+    'critère 5: a branch whose guards refuse once replaced (its `npm test` red) leaves the queue, its ticket reopened',
     () => {
       const m = chantier(ESSAIS);
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
@@ -184,11 +156,14 @@ describe('grillhouse-3uv.63 — the queue brings the branches onto main', () => 
       m.livrer('demo-1');
       m.livrer('demo-2');
       m.poser({ GARDE_ROUGE: '' }, 'garde rouge');
+      const avant = m.suites();
       const r = m.file();
       expect(r.status, r.stdout + r.stderr).toBe(0);
       expect(m.sujets()[0]).toBe('garde rouge');
       expect(m.bd('demo-2').status).toBe('open');
       expect(m.bd('demo-2').labels).not.toContain('en-file');
+      // The guards come first in `npm test`: red, they stop it before the suites.
+      expect(m.suites()).toBe(avant);
     },
     LONG
   );
@@ -466,7 +441,7 @@ describe('grillhouse-3uv.63 — a copy still in place, several tickets in one br
     LONG
   );
   it(
-    'critère 20: a branch of several tickets that adds a failure once replaced: every ticket named loses en-file and reopens naming the failing test',
+    'critère 20: a branch of several tickets whose `npm test` is red once replaced: every ticket named loses en-file and reopens with the output of its tests',
     () => {
       const m = chantier(ESSAIS);
       m.poser(
@@ -863,13 +838,13 @@ describe('grillhouse-3uv.63 — the old way is gone, the texts say the new one',
   });
 });
 
-// grillhouse-3uv.73 critère 3: in the queue, the base built on main hard-links tracked files
-// (./integration-essai.ts, `construireParLiens`) before the branch is replaced on main; the index of
-// the queue's copy goes stale, and the branch still replaces and is replayed. The build arrives on
-// main after the branch's integration, so the queue alone builds with the links.
+// grillhouse-3uv.73 critère 3: in the queue, the build that `npm test` plays hard-links tracked
+// files (./integration-essai.ts, `construireParLiens`), which leaves the index of the queue's copy
+// stale; the branch still replaces, is replayed and enters. The build arrives on main after the
+// branch's integration, so the queue alone builds with the links.
 describe('grillhouse-3uv.73 — the queue after a build that hard-links tracked files', () => {
   it(
-    'critère 3: a branch that deletes a file the build of main hard-linked replaces on main, its suites replayed, and enters',
+    'critère 3: a branch that deletes a file the build of main hard-links replaces on main, its tests replayed, and enters',
     () => {
       const m = chantier(ESSAIS);
       poserLies(m);
@@ -889,7 +864,7 @@ describe('grillhouse-3uv.73 — the queue after a build that hard-links tracked 
     LONG
   );
   it(
-    'critère 3: a branch that modifies files the build of main hard-linked, in its tests and its code, replaces on main and enters',
+    'critère 3: a branch that modifies files the build of main hard-links, in its tests and its code, replaces on main and enters',
     () => {
       const m = chantier(ESSAIS);
       poserLies(m);
@@ -913,15 +888,15 @@ describe('grillhouse-3uv.73 — the queue after a build that hard-links tracked 
 });
 
 // grillhouse-3uv.74: the dependencies of the queue's copy follow its lock file of the moment: the
-// branch replaced on main is installed before its suites and its guards, through the one function
-// of the replay (scripts/integration/rejeu.mjs). The trial project's suites and guards read the
+// branch replaced on main is installed before its tests (`npm test`: its guards, then its suites),
+// through the one function of the replay (scripts/integration/rejeu.mjs). The trial project's suites and guards read the
 // dependencies (./integration-essai.ts, `chantierDependances`); npm runs offline. A branch that
 // changes the lock file waits in the queue in the place of its integration (`enFile`), so the
 // queue alone replays it.
 describe('grillhouse-3uv.74 — the dependencies of the queue copy follow its lock file', () => {
   const D = 180_000;
   it(
-    'critère 2: a branch that adds a workspace, replaced on a main that moved, is installed before its suites and its guards, and enters',
+    'critère 2: a branch that adds a workspace, replaced on a main that moved, is installed before its tests, and enters',
     () => {
       const m = chantierDependances(ESSAIS);
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
@@ -938,15 +913,14 @@ describe('grillhouse-3uv.74 — the dependencies of the queue copy follow its lo
       expect(m.bd('demo-2').status).toBe('closed');
       const lues = m.lectures().slice(avant);
       expect(lues.map(l => [l.qui, l.presents.d])).toEqual([
-        ['suites', undefined],
-        ['suites', '1.0.0'],
         ['gardes', '1.0.0'],
+        ['suites', '1.0.0'],
       ]);
     },
     D
   );
   it(
-    'critère 2: a branch that changes an external dependency, replaced on a main that moved, is installed before its suites and its guards',
+    'critère 2: a branch that changes an external dependency, replaced on a main that moved, is installed before its tests',
     () => {
       const m = chantierDependances(ESSAIS);
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
@@ -959,15 +933,14 @@ describe('grillhouse-3uv.74 — the dependencies of the queue copy follow its lo
       expect(m.sujets()[0]).toBe('feat: lot (demo-2)');
       const lues = m.lectures().slice(avant);
       expect(lues.map(l => [l.qui, l.presents['ext-lib']])).toEqual([
-        ['suites', '1.0.0'],
-        ['suites', '2.0.0'],
         ['gardes', '2.0.0'],
+        ['suites', '2.0.0'],
       ]);
     },
     D
   );
   it(
-    'critère 5: after a branch replaced that changed the lock file and left the queue, the next replay installs again and measures its base with the dependencies of main',
+    'critère 5: after a branch replaced that changed the lock file and left the queue, the next replay installs again and plays its tests with the dependencies of main',
     () => {
       const m = chantierDependances(ESSAIS);
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
@@ -988,9 +961,11 @@ describe('grillhouse-3uv.74 — the dependencies of the queue copy follow its lo
       expect(r.status, r.stdout + r.stderr).toBe(0);
       expect(m.sujets()[0]).toBe('feat: lot (demo-3)');
       expect(m.marquee('file')).toBe(false);
-      const base = m.lectures()[avant];
-      expect(base.qui).toBe('suites');
-      expect(base.presents['ext-lib']).toBe('1.0.0');
+      const lues = m.lectures().slice(avant);
+      expect(lues.map(l => [l.qui, l.presents['ext-lib']])).toEqual([
+        ['gardes', '1.0.0'],
+        ['suites', '1.0.0'],
+      ]);
     },
     D
   );
@@ -1032,7 +1007,7 @@ describe('grillhouse-3uv.74 — the dependencies of the queue copy follow its lo
       expect(t.status).toBe('open');
       expect(t.labels).not.toContain('en-file');
       expect(t.comments.at(-1)!.text).toContain("Les dépendances de la copie ne s'installent pas.");
-      expect(m.appelsSuites() - avant).toBe(1);
+      expect(m.appelsSuites() - avant).toBe(0);
       expect(m.file().stdout).not.toContain('agent/demo-2');
     },
     D
@@ -1040,15 +1015,15 @@ describe('grillhouse-3uv.74 — the dependencies of the queue copy follow its lo
 });
 
 // grillhouse-3uv.56 critères 11 and 21: a failed installation of the replay copy comes up in one
-// form, the refusals of the replay module; the queue judges the guards as integrer.mjs does, by
-// their exit code first. Guards that pass, whatever text they write, are green; guards that fail,
-// whatever text they write, are guards that refuse.
+// form, the refusals of the replay module; the queue judges `npm test`, the guards included, as
+// integrer.mjs does, by its exit code. Guards that pass, whatever text they write, are green;
+// guards that fail, whatever text they write, make the tests red.
 const GARDES_BAVARDES = `import fs from 'node:fs';
 fs.appendFileSync(process.env.PRINCIPAL + '.gardes', 'g');
 process.stderr.write("Les dépendances de la copie ne s'installent pas.\\n");
 process.exit(fs.existsSync('GARDE_ROUGE') ? 1 : 0);
 `;
-describe('grillhouse-3uv.56 critères 11 and 21 — the queue judges the guards by their status', () => {
+describe('grillhouse-3uv.56 critères 11 and 21 — the queue judges the tests by their status', () => {
   it(
     'critère 21: guards that pass (exit 0) while writing the text of an installation refusal let a replaced branch enter',
     () => {
@@ -1068,7 +1043,7 @@ describe('grillhouse-3uv.56 critères 11 and 21 — the queue judges the guards 
     LONG
   );
   it(
-    'critère 21: guards that fail while writing the text of an installation refusal take the branch out as guards that refuse',
+    'critère 21: guards that fail while writing the text of an installation refusal take the branch out as red tests',
     () => {
       const m = chantier(ESSAIS);
       m.poser({ 'gardes.mjs': GARDES_BAVARDES }, 'gardes bavardes');
@@ -1083,7 +1058,7 @@ describe('grillhouse-3uv.56 critères 11 and 21 — the queue judges the guards 
       const t = m.bd('demo-2');
       expect(t.status).toBe('open');
       const refus = t.comments.at(-1)!.text;
-      expect(refus).toContain('les gardes refusent une fois la branche replacée.');
+      expect(refus).toContain('ses tests sont rouges une fois la branche replacée.');
       expect(refus).not.toContain("Le verrou de la branche replacée ne s'installe pas.");
     },
     LONG

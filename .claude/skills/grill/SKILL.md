@@ -131,30 +131,21 @@ remplace jamais le grill. Les branches de l'arbre :
    modification d'un paquet peut changer le résultat, vivent dans un seul paquet qui exporte
    `./test-fixtures`, comme `tests/cases` de TypeScript ou `tests/ui` de rustc ; tous les rôles le
    lisent, le testeur seul l'écrit. Chaque
-   paquet construit porte un script `build` qui écrit son `dist/` ; le cadre les lance un à un par
-   son point d'entrée (`scripts/integration/constructions.mjs`), que le `build` de la racine
-   appelle, dans l'ordre de ce que chaque paquet importe vraiment, son code de production et la
-   matière de test partagée d'un voisin (`<paquet>/test-fixtures`), comme Turborepo suit le graphe
-   des paquets ; une construction inchangée se restaure du magasin. Aucune configuration ne lit
+   paquet construit porte un script `build` qui écrit son `dist/` ; Turborepo les lance
+   (`turbo.json`, tâche `build`), dans l'ordre du graphe des paquets que déclarent leurs
+   `package.json`, la matière de test partagée d'un voisin comprise ; une construction inchangée
+   se restaure de son cache. Aucune configuration ne lit
    celle d'un voisin, que l'enveloppe cache. Un test atteint son paquet
    par une seule route : les sources relatives pour un test unitaire, le nom du paquet pour un test
    de porte. Ainsi un agent enveloppé construit et teste son paquet avec ce que ses voisins
    publient.
 9. **Les interfaces** — pour chaque frontière : ce qui la traverse, qui offre, qui consomme, qui
    juge quelle faute, et le garde qui la tiendra.
-   **Une fois les composants décidés**, deux choix selon la taille du projet, que le responsable
-   tranche :
-   - **les tests d'une intégration** : `complet` (toutes les suites à chaque intégration, pour un
-     petit projet) ou `impactes` (les composants du lot et ceux qui en dépendent, et toutes les
-     suites une fois la nuit par `scripts/nuit.sh`, pour un grand projet). Il s'écrit par
-     `npm pkg set grillhouse.integration=<choix>` ; pour `impactes`, la ligne de la nuit entre dans
-     la table des tâches du poste (`crontab -e` : `0 3 * * * bash <racine>/scripts/nuit.sh`) ;
-   - **ce que lisent les suites** : les fichiers et dossiers hors de tout composant que les tests
-     lisent (des scripts, des réglages de test), déclarés par
-     `npm pkg set 'grillhouse.lusParLesSuites[]=<chemin>'`, une liste vide si aucun. Un chemin
-     déclaré qui change rejoue toutes les suites, comme le fichier de verrou ; un autre fichier hors
-     de tout composant, qui n'est ni un test ni une aide de test, n'en rejoue aucune. Un projet
-     créé ne reçoit pas les chemins de Grillhouse ;
+   **Une fois les composants décidés**, la nuit entre dans la table des tâches du poste
+   (`crontab -e` : `0 3 * * * bash <racine>/scripts/nuit.sh`) : elle rejoue pour de vrai la passe
+   complète, puis les tests de nuit et les bancs de budget, que le jour ne joue pas. Chaque
+   intégration joue `npm test` en entier, Turborepo relisant de son cache ce qui n'a pas bougé.
+   Restent des choix selon la taille du projet, que le responsable tranche :
    - **le contrôle de l'interface contre le code** (`scripts/interfaces-contre-code.mjs`) : une
      seule passe avant les tests (petit projet), ou un banc par composant qui appelle
      `verifierComposant`, rejoué seulement quand son composant l'est (grand projet).

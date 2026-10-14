@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# The night: once a day, the full suites, the only place they run. During the day an integration
-# replays the touched components and those that depend on them (scripts/integration/integrer.mjs).
+# The night: once a day, the full pass played for real, then what the day never plays: the night
+# tests and the time budget benches. During the day `npm test` (the integration's included) replays
+# from Turborepo's cache every task whose inputs are unchanged (scripts/integration/integrer.mjs).
 #
 #   bash scripts/nuit.sh        from the crontab of the machine, e.g. « 0 3 * * * bash <root>/scripts/nuit.sh »
 #
@@ -8,15 +9,9 @@
 #   file removed, its submodules set at the commit of HEAD (scripts/sous-modules.sh, a local
 #   modification overwritten; one that cannot be set turns the night red; a submodule the project
 #   shares, `grillhouse.partage`, is linked to the main repository's instead, not set),
-#   dependencies reinstalled (npm ci) when package-lock.json changes, built once by the one entry
-#   point that builds (scripts/integration/constructions.mjs), then the guards, then `npm test`
-#   (every test file of the day), under FORCER=1: it reads no trace of the
-#   test files (scripts/integration/suites-vitest.mjs) and no stored build, and writes them again. The
-#   guards are those of `integration:gardes` (the controls of `grillhouse:gardes` without its build
-#   step), played by the night itself, and `npm test` runs without its pretest: nothing builds behind
-#   the entry point. `npm test` skips its pretest only when the pretest is exactly the call of `grillhouse:gardes`
-#   (`npm run [flags] grillhouse:gardes`); a project whose pretest does anything more, or that has no
-#   `integration:gardes` script, plays `npm test` as it is, pretest included.
+#   dependencies reinstalled (npm ci) when package-lock.json changes, then `npm run test:forcer`:
+#   Turborepo's build, guards and every test of the day, each task played for real (`--force`,
+#   no log replayed from the cache), its result written to the cache again.
 #   An existing copy that does not get ready (its move onto HEAD, its cleaning or the setting of
 #   its submodules fails) is removed by `scripts/retirer-copie.sh --jetable` (local work does not
 #   hold it, a lock does) and created again, once; a copy that does not get ready the second time
@@ -26,10 +21,10 @@
 #   read-only, its working tree and its git repository (the list the preparation's pose printed,
 #   whatever a command rewrites afterwards): a write into it fails. With a shared submodule and no possible mount (bwrap absent
 #   or refused), the night turns red, the log saying so, before any command runs.
-# - The night tests: after a green `npm test`, the files `*.nuit.test.*`, `*.nuit.spec.*`,
+# - The night tests: after a green full pass, the files `*.nuit.test.*`, `*.nuit.spec.*`,
 #   `*.budget.test.*` and `*.budget.spec.*` of the copy (outside node_modules, dist and .git): the
-#   night tests and the time budget benches, which `npm test` and the integration leave out, run
-#   by Vitest with the frame's configuration (scripts/vitest.nuit.config.mjs of the copy), bench or
+#   night tests and the time budget benches, which `npm test` and the integration leave out
+#   (vitest.config.ts), run by Vitest with the frame's configuration (scripts/vitest.nuit.config.mjs of the copy), bench or
 #   night test alone as well. A red turns the night red, with a log line that says so, and the
 #   project's night script does not run. A copy with neither plays none.
 # - The project's night script: `grillhouse.nuit` in the package.json of the commit it plays names
@@ -142,18 +137,8 @@ jouer() {
     monter npm --prefix "$copie" ci --no-audit --no-fund --silent || return 1
     cp "$copie/package-lock.json" "$copie/node_modules/.nuit-lock"
   fi
-  # The night reads no trace and no stored build, and writes them again: FORCER=1.
-  (cd "$copie" && FORCER=1 monter node "$racine/scripts/integration/constructions.mjs") || return 1
-  if node -e '
-    const s = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).scripts ?? {};
-    const appel = /^npm\s+run(?:\s+-{1,2}[\w-]+(?:=\S+)?)*\s+grillhouse:gardes$/;
-    process.exit(appel.test((s.pretest ?? "").trim()) && s["integration:gardes"] ? 0 : 1);
-  ' "$copie/package.json"; then
-    monter npm --prefix "$copie" run --silent integration:gardes || return 1
-    FORCER=1 monter npm --prefix "$copie" test --ignore-scripts || return 1
-  else
-    FORCER=1 monter npm --prefix "$copie" test || return 1
-  fi
+  # The full pass, played for real: the night replays no log of the cache.
+  monter npm --prefix "$copie" run test:forcer || return 1
   if [ -n "$(find "$copie" \( -name node_modules -o -name dist -o -name .git \) -prune -o \
       -type f -regextype posix-extended -regex '.*\.(nuit|budget)\.(test|spec)\.(c|m)?[jt]sx?' -print -quit)" ]; then
     if ! (cd "$copie" && monter npx --no-install vitest run --root "$copie" \

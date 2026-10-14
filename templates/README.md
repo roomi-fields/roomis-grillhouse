@@ -116,7 +116,8 @@ npm test
 |--------|-------------|
 | `npm run build` | Compile TypeScript to JavaScript |
 | `npm run dev` | Run in development mode with watch |
-| `npm test` | Run tests |
+| `npm test` | Build, run the guards, then the tests (Turborepo; an unchanged task is replayed from its cache) |
+| `npm run test:forcer` | The same, every task run for real |
 | `npm run lint` | Run ESLint |
 | `npm run format` | Format code with Prettier |
 

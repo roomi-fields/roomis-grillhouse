@@ -1,10 +1,14 @@
 // grillhouse-3uv.34, critères 4 and 5: the night tests, a category beside the time budget benches
-// (`*.budget.test.*`). A night test is a file `*.nuit.test.*` or `*.nuit.spec.*`: `npm test` and
-// the integration of the day leave it out, the night (scripts/nuit.sh) plays it. The day keeps a
-// fast guard against a fixed path shared between sessions (critère 2), played by `npm test`.
+// (`*.budget.test.*`). A night test is a file `*.nuit.test.*` or `*.nuit.spec.*`: `npm test` (the
+// integration's included) leaves it out, the night (scripts/nuit.sh) plays it after its full pass
+// (`npm run test:forcer`). The day keeps a fast guard against a fixed path shared between sessions
+// (critère 2), played by `npm test`.
 //
 // Each case plays the real configuration of the repository (its package.json, its Vitest
-// configuration, its scripts) in a project of trial whose test files append their name to TRACE.
+// configuration, its turbo.json, its scripts, Turborepo itself through the linked dependencies) in
+// a project of trial whose test files append their name to a trace. Turborepo runs its tasks in its
+// strict environment, which does not pass TRACE: the test files read the path of the trace in the
+// file `.trace` at the root of the project of trial, committed with it.
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
   cpSync,
@@ -30,10 +34,10 @@ const DEPOT = path.resolve(__dirname, '../..');
 const NUIT_RE = /\.nuit\.(test|spec)\.(c|m)?[jt]sx?$/;
 const BUDGET_RE = /\.budget\.(test|spec)\.(c|m)?[jt]sx?$/;
 
-// A test file that appends its name to TRACE, and fails when `rouge`.
+// A test file that appends its name to the trace `.trace` names, and fails when `rouge`.
 const essai = (nom: string, rouge = false) =>
-  `import { appendFileSync } from 'node:fs';\nimport { test } from 'vitest';\n` +
-  `test('${nom}', () => {\n  appendFileSync(process.env.TRACE, '${nom}\\n');\n` +
+  `import { appendFileSync, readFileSync } from 'node:fs';\nimport { test } from 'vitest';\n` +
+  `test('${nom}', () => {\n  appendFileSync(readFileSync('.trace', 'utf8').trim(), '${nom}\\n');\n` +
   (rouge ? `  throw new Error('rouge');\n` : '') +
   `});\n`;
 
@@ -58,10 +62,12 @@ function lierDependances(repo: string) {
 }
 
 // A project of trial, its frame installed by the update of the frame (critère 9): by default the
-// package.json of the repository (its guards of pretest and its build, which check the repository
-// itself, left out, and its section `grillhouse` with them: the key `grillhouse.nuit` is the
-// project's, critère 8) and its day configuration of Vitest; `pkg` replaces that package.json and
-// `fichiers` adds or replaces files. `nuits: false` leaves the night tests out.
+// package.json of the repository (its build, which builds the repository itself, left out, and its
+// section `grillhouse` with it: the key `grillhouse.nuit` is the project's, critère 8) and its day
+// configuration of Vitest; `pkg` replaces that package.json and `fichiers` adds or replaces files.
+// `nuits: false` leaves the night tests out. The project of trial proves the night, not the
+// controls of the frame (grillhouse-3uv.55, critère 8): the update installs `grillhouse:gardes`,
+// which projet() takes away, and Turborepo skips a task without script.
 function projet(
   enPlus: Record<string, string> = {},
   o: {
@@ -78,7 +84,7 @@ function projet(
       scripts: Record<string, string>;
       grillhouse?: unknown;
     };
-    for (const s of ['pretest', 'build', 'prepare']) {
+    for (const s of ['build', 'prepare']) {
       delete depot.scripts[s];
     }
     delete depot.grillhouse;
@@ -92,24 +98,20 @@ function projet(
       }
     }
   }
-  // The project of trial proves the night, not the controls of the frame (grillhouse-3uv.55,
-  // critère 8): of its pretest it keeps after the update what it held before.
-  const pretest = (pkg.scripts as Record<string, string> | undefined)?.pretest;
+  // The dependencies are installed before the update, as in a project: the update reads the
+  // Vitest its root resolves.
+  if (o.dependances !== false) {
+    lierDependances(repo);
+  }
   mettreAJour(repo, DEPOT, 'essai');
   const installe = JSON.parse(readFileSync(path.join(repo, 'package.json'), 'utf8')) as {
     scripts?: Record<string, string>;
   };
   if (installe.scripts) {
-    if (pretest === undefined) {
-      delete installe.scripts.pretest;
-    } else {
-      installe.scripts.pretest = pretest;
-    }
+    delete installe.scripts['grillhouse:gardes'];
     writeFileSync(path.join(repo, 'package.json'), JSON.stringify(installe, null, 2));
   }
-  if (o.dependances !== false) {
-    lierDependances(repo);
-  }
+  writeFileSync(path.join(repo, '.gitignore'), 'node_modules\n.claude/worktrees/\n.turbo/\n');
   const fichiers: Record<string, string> = {};
   for (const f of [...JOUR, ...(o.nuits === false ? [] : NUITS)]) {
     fichiers[f] = essai(path.basename(f));
@@ -121,6 +123,7 @@ function projet(
   }
   const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
   const trace = path.join(bin, 'trace');
+  writeFileSync(path.join(repo, '.trace'), `${trace}\n`);
   const env = {
     ...Object.fromEntries(
       Object.entries(process.env).filter(([k]) => !k.startsWith('VITEST') && k !== 'NODE_OPTIONS')
@@ -142,13 +145,13 @@ const sortie = (r: { stdout: string; stderr: string }) => `${r.stdout}\n${r.stde
 describe('critère 4 — npm test leaves the night tests out', () => {
   it('critère 4: npm test plays the day tests and no night test, at any depth and in any form', () => {
     const p = projet();
-    const r = p.lancer('npm', ['run', 'test', '--ignore-scripts']);
+    const r = p.lancer('npm', ['test']);
     expect(r.status, sortie(r)).toBe(0);
     expect(p.joues()).toEqual(noms(JOUR));
   }, 120_000);
   it('critère 4: a red night test leaves npm test green', () => {
     const p = projet({ 'tests/e.nuit.test.ts': essai('e.nuit.test.ts', true) });
-    const r = p.lancer('npm', ['run', 'test', '--ignore-scripts']);
+    const r = p.lancer('npm', ['test']);
     expect(r.status, sortie(r)).toBe(0);
     expect(p.joues()).not.toContain('e.nuit.test.ts');
   }, 120_000);
@@ -157,41 +160,10 @@ describe('critère 4 — npm test leaves the night tests out', () => {
       'tests/nuit.spec.ts': essai('nuit.spec.ts'),
       'tests/la-nuit.test.ts': essai('la-nuit.test.ts'),
     });
-    const r = p.lancer('npm', ['run', 'test', '--ignore-scripts']);
+    const r = p.lancer('npm', ['test']);
     expect(r.status, sortie(r)).toBe(0);
     expect(p.joues()).toEqual(noms([...JOUR, 'nuit.spec.ts', 'la-nuit.test.ts']));
   }, 120_000);
-});
-
-// grillhouse-3uv.75.1: the integration of the day launches the tests by `npm test -- <scope>`.
-describe('critère 4 — the integration of the day leaves the night tests out', () => {
-  const npmTest = (...portee: string[]) => ['test', '--ignore-scripts', '--', ...portee];
-  it('critère 4: npm test -- --tous plays the day tests and no night test', () => {
-    const p = projet();
-    const r = p.lancer('npm', npmTest('--tous'));
-    expect(r.status, sortie(r)).toBe(0);
-    expect(p.joues()).toEqual(noms(JOUR));
-  }, 120_000);
-  it('critère 4: npm test -- --racine plays the day tests outside every component and none of the night tests', () => {
-    const p = projet();
-    const r = p.lancer('npm', npmTest('--racine'));
-    expect(r.status, sortie(r)).toBe(0);
-    expect(p.joues()).toEqual(noms(JOUR));
-  }, 120_000);
-  it('critère 4: a red night test leaves the integration of the day green, and unnamed in its reds', () => {
-    const p = projet({ 'tests/e.nuit.test.ts': essai('e.nuit.test.ts', true) });
-    const rouges = path.join(p.bin, 'rouges');
-    for (const portee of ['--tous', '--racine']) {
-      const r = spawnSync('npm', npmTest(portee), {
-        cwd: p.repo,
-        encoding: 'utf8',
-        env: { ...p.env, ROUGES: rouges },
-        timeout: 120_000,
-      });
-      expect(r.status, `${portee}\n${sortie(r)}`).toBe(0);
-      expect(existsSync(rouges) ? readFileSync(rouges, 'utf8') : '').not.toMatch(/nuit/);
-    }
-  }, 240_000);
 });
 
 // The night in a repository of trial, as tests/unit/nuit.spec.ts plays it: a fake Beads records
@@ -200,7 +172,6 @@ function nuitDe(p: ReturnType<typeof projet>) {
   writeFileSync(path.join(p.bin, 'bd'), `#!/bin/sh\necho "$@" >> ${p.bin}/appels\n`, {
     mode: 0o755,
   });
-  writeFileSync(path.join(p.repo, '.gitignore'), 'node_modules\n.claude/worktrees/\n');
   const git = (...a: string[]) =>
     execFileSync('git', ['-C', p.repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], {
       encoding: 'utf8',
@@ -252,7 +223,7 @@ function pkgDuDepot(grillhouse?: unknown, scripts: Record<string, string> = {}) 
     scripts: Record<string, string>;
     grillhouse?: unknown;
   };
-  for (const s of ['pretest', 'build', 'prepare']) {
+  for (const s of ['build', 'prepare']) {
     delete pkg.scripts[s];
   }
   delete pkg.grillhouse;
@@ -266,14 +237,15 @@ function pkgDuDepot(grillhouse?: unknown, scripts: Record<string, string> = {}) 
 // The positions of the names in the order of the trace.
 const rangs = (lignes: string[], noms_: string[]) => noms_.map(n => lignes.indexOf(n));
 
-// grillhouse-3uv.75.1 critères 11 and 17: the night launches `npm test` under FORCER=1, which plays
-// neither the time budget benches nor the night tests; the night plays its benches itself, after
-// `npm test`, even without a night test, and a red bench turns the night red.
+// grillhouse-3uv.75.1 critères 11 and 17: the night launches its full pass (`npm run test:forcer`),
+// which plays neither the time budget benches nor the night tests (the day configuration of Vitest
+// leaves them out); the night plays its benches itself, after the full pass, even without a night
+// test, and a red bench turns the night red.
 describe('3uv.75.1 critères 11 et 17 — the day leaves the time budget benches out, the night plays them itself', () => {
   const BANC = 'tests/temps.budget.test.ts';
-  it('critères 11 et 17: npm test plays no bench; the night of a project without night test plays its bench itself, once, after npm test, green', () => {
+  it('critères 11 et 17: npm test plays no bench; the night of a project without night test plays its bench itself, once, after its full pass, green', () => {
     const p = projet({ [BANC]: essai('temps.budget.test.ts') }, { nuits: false });
-    const jour = p.lancer('npm', ['run', 'test', '--ignore-scripts']);
+    const jour = p.lancer('npm', ['test']);
     expect(jour.status, sortie(jour)).toBe(0);
     expect(p.joues()).toEqual(noms(JOUR));
     const avant = p.lignes().length;
@@ -321,7 +293,7 @@ describe('critère 7 — scripts/nuit.sh plays the night tests itself', () => {
       ).toHaveLength(1);
     }
   }, 240_000);
-  it('critère 7: a red npm test turns the night red before any night test', () => {
+  it('critère 7: a red full pass (npm run test:forcer) turns the night red before any night test', () => {
     const p = projet({ 'tests/f.spec.ts': essai('f.spec.ts', true) });
     const n = nuitDe(p);
     expect(n.status, n.journal).toBe(1);
@@ -439,11 +411,13 @@ describe('critère 10 — a project without any night test keeps a green night',
     expect(n.dernierVert).toBe(n.tete);
     expect(p.joues()).toEqual(noms(JOUR));
   }, 240_000);
-  it('critère 10: a project without Vitest nor night test: green', () => {
+  // A project without Vitest keeps its own scripts (the update writes the frame's to a Vitest
+  // project only): it writes its full pass, `test:forcer`, itself.
+  it('critère 10: a project without Vitest nor night test, its own test:forcer: green', () => {
     const p = projet(
       { 't.mjs': "import fs from 'node:fs';\nfs.appendFileSync(process.env.TRACE, 'jour\\n');\n" },
       {
-        pkg: { name: 'sans-vitest', scripts: { test: 'node t.mjs' } },
+        pkg: { name: 'sans-vitest', scripts: { test: 'node t.mjs', 'test:forcer': 'node t.mjs' } },
         nuits: false,
         jourVitest: false,
         dependances: false,
@@ -532,7 +506,7 @@ describe('critère 5 — by day, a fast test keeps the trial directories off a f
       mkdirSync(path.dirname(cible), { recursive: true });
       writeFileSync(cible, essai(path.basename(f)));
     }
-    const r = p.lancer('npm', ['run', 'test', '--ignore-scripts']);
+    const r = p.lancer('npm', ['test']);
     expect(r.status, sortie(r)).toBe(0);
     for (const f of gardes()) {
       expect(p.joues()).toContain(path.basename(f));
@@ -540,6 +514,8 @@ describe('critère 5 — by day, a fast test keeps the trial directories off a f
   }, 120_000);
 });
 
+// The update gives no pretest: Turborepo plays the guards (turbo.json), and a project's own pretest
+// stays as it is.
 describe('grillhouse-3uv.55 critère 8 — the project of trial stays without the controls of the frame', () => {
   // The pretest a project of trial holds once projet() has brought it to the frame.
   const pretestDe = (p: { repo: string }) =>
@@ -548,7 +524,7 @@ describe('grillhouse-3uv.55 critère 8 — the project of trial stays without th
         scripts?: Record<string, string>;
       }
     ).scripts?.pretest;
-  it('critère 8: the package.json of the repository, its pretest left out, gets none back from the update', () => {
+  it('critère 8: the package.json of the repository gets no pretest from the update', () => {
     expect(pretestDe(projet({}, { nuits: false, dependances: false }))).toBeUndefined();
   });
   it('critère 8: a project of its own without pretest gets none from the update', () => {

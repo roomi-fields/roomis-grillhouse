@@ -69,6 +69,25 @@ const ENV_SCRIPTS: NodeJS.ProcessEnv = {
 const gitScripts = (dir: string, ...a: string[]) =>
   spawnSync('git', ['-C', dir, ...a], { encoding: 'utf8', env: ENV_SCRIPTS });
 
+// The tests of the trial repository, as the frame's `npm test` plays them (Turborepo: the build,
+// then the tests): its build, then its suites; `test:forcer`, the night's, plays the same.
+const TEST = 'npm run --silent build && node suites.mjs';
+// The trial's stand-in for Turborepo, the local package `outils/turbo` of the trial repository (its
+// `turbo` binary, which `npm install` links into node_modules/.bin, where the launcher's
+// `npx --no-install turbo run build` finds it): `turbo run <task>` runs the npm script <task>.
+const TURBO_FAUX = `#!/usr/bin/env node
+import { spawnSync } from 'node:child_process';
+const [commande, tache] = process.argv.slice(2);
+if (commande !== 'run' || !tache) process.exit(2);
+const r = spawnSync('npm', ['run', '--silent', '--if-present', tache], { stdio: 'inherit' });
+process.exit(r.status ?? 1);
+`;
+const TURBO_PAQUET = JSON.stringify({
+  name: 'turbo',
+  version: '0.0.0',
+  bin: { turbo: 'turbo.mjs' },
+});
+
 // A repository whose build succeeds only when its submodule vendor/natif is set, and records what
 // it saw; with a fake Beads (every ticket ACCEPTÉ, every list empty). The submodule has two
 // commits, `v1` then `v2`; the superproject references `v1`, the older one, so a copy that takes the
@@ -90,11 +109,8 @@ function monde(avecSousModule = true, adresse: Adresse = 'absolue', imbrique = f
     JSON.stringify({
       name: 't',
       private: true,
-      scripts: {
-        build: 'node build.mjs',
-        test: 'node suites.mjs',
-        'integration:gardes': 'true',
-      },
+      scripts: { build: 'node build.mjs', test: TEST, 'test:forcer': 'npm test' },
+      devDependencies: { turbo: 'file:outils/turbo' },
     })
   );
   // Without .gitmodules the build passes. The build says nothing on its own output, so a refusal that names the submodule comes from the
@@ -103,12 +119,11 @@ function monde(avecSousModule = true, adresse: Adresse = 'absolue', imbrique = f
     path.join(repo, 'build.mjs'),
     `import fs from 'node:fs';\nconst f = 'vendor/natif/natif.txt';\nconst v = fs.existsSync(f) ? fs.readFileSync(f, 'utf8').trim() : 'absent';\nfs.appendFileSync(${JSON.stringify(vu)}, v + '\\n');\nprocess.exit(v === 'absent' && fs.existsSync('.gitmodules') ? 1 : 0);\n`
   );
-  // The one test command (grillhouse-3uv.75.1): the integration's call names ROUGES and gets no
-  // failing test; any other call (the night's, the agent's) reads the submodule as the build does.
-  writeFileSync(
-    path.join(repo, 'suites.mjs'),
-    "import fs from 'node:fs';\nif (process.env.ROUGES) fs.writeFileSync(process.env.ROUGES, '');\nelse await import('./build.mjs');\n"
-  );
+  // The suites read the submodule as the build does.
+  writeFileSync(path.join(repo, 'suites.mjs'), "await import('./build.mjs');\n");
+  mkdirSync(path.join(repo, 'outils/turbo'), { recursive: true });
+  writeFileSync(path.join(repo, 'outils/turbo/package.json'), TURBO_PAQUET);
+  writeFileSync(path.join(repo, 'outils/turbo/turbo.mjs'), TURBO_FAUX, { mode: 0o755 });
   writeFileSync(path.join(repo, '.gitignore'), '.claude/worktrees/\nnode_modules\n');
   mkdirSync(path.join(repo, '.claude/agents'), { recursive: true });
   writeFileSync(path.join(repo, '.claude/agents/developpeur.md'), '---\nname: developpeur\n---\n');
@@ -154,7 +169,7 @@ function monde(avecSousModule = true, adresse: Adresse = 'absolue', imbrique = f
   }
   const env = { ...ENV_SCRIPTS, PATH: `${bin}:${process.env.PATH}` };
 
-  // A lot that adds a source to the component packages/a: its suite plays, so the copy builds.
+  // A lot that adds a source to the component packages/a; the integration's `npm test` builds the copy.
   let n = 0;
   const lot = () => {
     n += 1;
@@ -689,15 +704,15 @@ function mondePartage({
     writeFileSync(path.join(m.repo, 'dep/package.json'), '{"name":"dep","version":"1.0.0"}\n');
     pkg.version = '1.0.0';
     pkg.dependencies = { dep: 'file:dep' };
+    // `npm test` as the frame's: the build, the guards, then the tests.
     pkg.scripts = {
       postinstall: 'node ecrire.mjs installation',
       build: 'node build.mjs && node ecrire.mjs construction',
-      test: 'node ecrire.mjs tests && node suites.mjs',
-      'integration:gardes': 'node ecrire.mjs gardes',
+      test: 'npm run --silent build && node ecrire.mjs gardes && node ecrire.mjs tests && node suites.mjs',
+      'test:forcer': 'npm test',
       nocturne: 'node ecrire.mjs nuit',
     };
-    // `complet`: the integration replays its suites for a lot of documents too.
-    pkg.grillhouse = { ...pkg.grillhouse, nuit: 'nocturne', integration: 'complet' };
+    pkg.grillhouse = { ...pkg.grillhouse, nuit: 'nocturne' };
     writeFileSync(
       path.join(m.repo, 'package-lock.json'),
       JSON.stringify({
@@ -711,9 +726,12 @@ function mondePartage({
             version: '1.0.0',
             hasInstallScript: true,
             dependencies: { dep: 'file:dep' },
+            devDependencies: { turbo: 'file:outils/turbo' },
           },
           dep: { version: '1.0.0' },
           'node_modules/dep': { resolved: 'dep', link: true },
+          'outils/turbo': { version: '0.0.0', dev: true, bin: { turbo: 'turbo.mjs' } },
+          'node_modules/turbo': { resolved: 'outils/turbo', link: true },
         },
       })
     );
@@ -1454,11 +1472,11 @@ describe('grillhouse-3uv.58.1 critère 16 — the mount covers each shared submo
       const vues = m.ecrituresDe(m.copies.integration);
       expect(m.intrus(), r.stdout + r.stderr + vues.join('\n')).toEqual([]);
       if (r.status === 0) {
-        // Committed: every command, after the lot too, failed to write into the shared submodule.
+        // Committed: every command, after the lot, failed to write into the shared submodule.
         expect(
           vues.filter(l => l.startsWith('construction ')).length,
           vues.join('\n')
-        ).toBeGreaterThan(1);
+        ).toBeGreaterThan(0);
         expect(ecrituresFautives(vues), vues.join('\n')).toEqual([]);
       } else {
         expect(r.status, r.stdout + r.stderr).toBe(1);
@@ -1763,8 +1781,8 @@ describe('grillhouse-3uv.58.1 critère 20 — the mount reads nothing the copy c
         expect(existsSync(m.nonSuivi)).toBe(true);
         expect(git(m.principalNatif, 'rev-parse', 'HEAD')).toBe(commit);
         if (r.status === 0) {
-          // Committed: every command, after the lot too, failed to write into the shared submodule.
-          expect(vues.filter(l => l.startsWith('construction ')).length, dit).toBeGreaterThan(1);
+          // Committed: every command, after the lot, failed to write into the shared submodule.
+          expect(vues.filter(l => l.startsWith('construction ')).length, dit).toBeGreaterThan(0);
           expect(ecrituresFautives(vues), dit).toEqual([]);
         } else {
           expect(r.status, dit).toBe(1);

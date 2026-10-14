@@ -19,12 +19,7 @@ import {
   INTEGRER_SCRIPT,
   suitesParLiens,
 } from './integration-essai.js';
-import {
-  nouveauxRouges,
-  perimetre,
-  refusLots,
-  refusVerdicts,
-} from '../../scripts/integration/integrer.mjs';
+import { refusLots, refusVerdicts } from '../../scripts/integration/integrer.mjs';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'integrer-'));
@@ -148,193 +143,11 @@ describe('refusLots', () => {
   });
 });
 
-describe('nouveauxRouges', () => {
-  it('keeps the failures the base did not have and that are not admitted', () => {
-    expect(nouveauxRouges(['a', 'b'], ['b', 'c', 'd', 'd'], ['d'])).toEqual(['c']);
-  });
-});
-
-describe('perimetre', () => {
-  const comps = ['packages/a', 'packages/b', 'packages/c', 'src/d'];
-  // b uses a, c uses b: a change in a replays a, b and c.
-  const graphe = new Map([
-    ['packages/a', ['packages/b']],
-    ['packages/b', ['packages/c']],
-  ]);
-  it('replays the touched components and, transitively, those that depend on them', () => {
-    expect(perimetre(['packages/a/src/x.ts'], comps, graphe)).toEqual({
-      mode: 'composants',
-      composants: ['packages/a', 'packages/b', 'packages/c'],
-    });
-  });
-  it('replays a leaf alone', () => {
-    expect(perimetre(['packages/c/src/x.ts', 'packages/c/test/x.spec.ts'], comps, graphe)).toEqual({
-      mode: 'composants',
-      composants: ['packages/c'],
-    });
-  });
-  // grillhouse-3uv.22.1: every file of a component touches that component, whatever its kind
-  // (Nx affected, Bazel), so it replays the component and those that depend on it.
-  it('replays a component and its consumers for its package manifest', () => {
-    expect(perimetre(['packages/a/package.json'], comps, graphe)).toEqual({
-      mode: 'composants',
-      composants: ['packages/a', 'packages/b', 'packages/c'],
-    });
-  });
-  it('replays a component and its consumers for a document deep inside it', () => {
-    expect(perimetre(['packages/a/docs/INTERFACE.md'], comps, graphe)).toEqual({
-      mode: 'composants',
-      composants: ['packages/a', 'packages/b', 'packages/c'],
-    });
-  });
-  it('replays a leaf alone for a file of it that is not code, whatever its kind', () => {
-    for (const f of ['packages/c/README.md', 'packages/c/LICENSE', 'packages/c/data/t.json']) {
-      expect(perimetre([f], comps, graphe)).toEqual({
-        mode: 'composants',
-        composants: ['packages/c'],
-      });
-    }
-    expect(perimetre(['src/d/assets/logo.svg'], comps, graphe)).toEqual({
-      mode: 'composants',
-      composants: ['src/d'],
-    });
-  });
-  it('replays every component a lot of documents touches, and their consumers', () => {
-    expect(
-      perimetre(['packages/a/docs/INTERFACE.md', 'packages/b/README.md'], comps, graphe)
-    ).toEqual({ mode: 'composants', composants: ['packages/a', 'packages/b', 'packages/c'] });
-  });
-  it('counts a non-code file of a component alongside code of another one', () => {
-    expect(perimetre(['packages/c/src/x.ts', 'packages/a/package.json'], comps, graphe)).toEqual({
-      mode: 'composants',
-      composants: ['packages/a', 'packages/b', 'packages/c'],
-    });
-    expect(perimetre(['src/d/README.md', 'packages/c/src/x.ts'], comps, graphe)).toEqual({
-      mode: 'composants',
-      composants: ['packages/c', 'src/d'],
-    });
-  });
-  it('never replays nothing for a lot touching a component', () => {
-    for (const f of ['packages/b/CADRE.md', 'packages/b/.gitignore', 'src/d/tsconfig.json']) {
-      expect(perimetre([f], comps, graphe).mode).not.toBe('aucun');
-    }
-  });
-  it('does not take a sibling sharing a prefix for the component, for a document either', () => {
-    expect(perimetre(['packages/ab/README.md'], ['packages/a'], new Map())).toEqual({
-      mode: 'aucun',
-      composants: [],
-    });
-  });
-  // grillhouse-3uv.65 critère 17: a root file replays only the suites that declare it read
-  // (`grillhouse.lusParLesSuites`, given here to none); a file outside every component that no
-  // declaration names, code, setting or CI, replays no suite.
-  it('3uv.65 critère 17: replays no suite for a file outside every component that no declaration names, whatever its kind', () => {
-    for (const f of [
-      'scripts/y.mjs',
-      'scripts/verrous/lib/z.mjs',
-      'vitest.config.ts',
-      'tsconfig.json',
-      '.github/workflows/ci.yml',
-      '.gitignore',
-      'LICENSE',
-      'docs/schema.txt',
-    ]) {
-      expect(perimetre([f], comps, graphe).mode, f).toBe('aucun');
-    }
-  });
-  it('3uv.65 critère 17: a file outside every component that no declaration names adds nothing to the scope of a component next to it', () => {
-    expect(perimetre(['packages/c/src/x.ts', 'scripts/y.mjs'], comps, graphe)).toEqual(
-      perimetre(['packages/c/src/x.ts'], comps, graphe)
-    );
-    expect(perimetre(['scripts/y.mjs', 'packages/a/src/x.ts'], comps, graphe)).toEqual(
-      perimetre(['packages/a/src/x.ts'], comps, graphe)
-    );
-  });
-  it('3uv.65 critère 17: replays no suite for code in a project without any component, undeclared', () => {
-    expect(perimetre(['scripts/y.mjs'], [], new Map()).mode).toBe('aucun');
-  });
-  it('3uv.65 critère 16 (garde): the lock file of the dependencies replays suites, undeclared', () => {
-    expect(perimetre(['package-lock.json'], comps, graphe).mode).not.toBe('aucun');
-  });
-  // grillhouse-3uv.54: a lot made only of documents outside every component replays the guards
-  // and no suite (paths-ignore of a CI); a document is a *.md outside every component, or a file
-  // under .claude/ that is neither a script (.mjs .js .cjs .ts .sh .py) nor a setting (*.json,
-  // fichiers.txt).
-  const aucun = { mode: 'aucun', composants: [] };
-  it('3uv.54 critère 1: replays no suite for a document outside every component, at the root or deep', () => {
-    expect(perimetre(['README.md'], comps, graphe)).toEqual(aucun);
-    expect(perimetre(['docs/agents/x.md'], comps, graphe)).toEqual(aucun);
-    expect(perimetre(['scripts/integration/NOTES.md'], comps, graphe)).toEqual(aucun);
-  });
-  it('3uv.54 critère 1: replays no suite for a lot made only of several documents outside every component', () => {
-    expect(
-      perimetre(['CLAUDE.md', 'docs/a.md', '.claude/agents/testeur.md'], comps, graphe)
-    ).toEqual(aucun);
-  });
-  it('3uv.54 critère 1: replays no suite for a document in a project without any component', () => {
-    expect(perimetre(['README.md'], [], new Map())).toEqual(aucun);
-  });
-  it('3uv.54 critère 7: a file under .claude/ that is neither a script nor a setting is a document', () => {
-    for (const f of [
-      '.claude/skills/testeur/SKILL.md',
-      '.claude/template',
-      '.claude/skills/relecteur/references/LICENSE-MIT',
-      '.claude/skills/x/notes.txt',
-      '.claude/grillhouse/charte.md',
-    ]) {
-      expect(perimetre([f], comps, graphe)).toEqual(aucun);
-    }
-  });
-  it.each(['.mjs', '.js', '.cjs', '.ts', '.sh', '.py'])(
-    '3uv.65 critère 17: a script under .claude/ (%s), undeclared, replays no suite',
-    ext => {
-      expect(perimetre([`.claude/hooks/garde${ext}`], comps, graphe).mode).toBe('aucun');
-      expect(perimetre([`.claude/skills/x/scripts/a.md${ext}`], comps, graphe).mode).toBe('aucun');
-    }
-  );
-  it('3uv.65 critère 17: a setting under .claude/ (*.json, fichiers.txt), undeclared, replays no suite', () => {
-    for (const f of [
-      '.claude/settings.json',
-      '.claude/settings.local.json',
-      '.claude/skills/x/config.json',
-      '.claude/grillhouse/fichiers.txt',
-    ]) {
-      expect(perimetre([f], comps, graphe).mode, f).toBe('aucun');
-    }
-  });
-  it('3uv.65 critère 17: documents outside every component that come with another undeclared file replay no suite', () => {
-    expect(perimetre(['README.md', 'scripts/y.mjs'], comps, graphe).mode).toBe('aucun');
-    expect(perimetre(['.claude/agents/a.md', '.claude/settings.json'], comps, graphe).mode).toBe(
-      'aucun'
-    );
-  });
-  it('3uv.54 critères 3 et 5: a document outside every component next to code of a component replays that component and its consumers', () => {
-    expect(perimetre(['README.md', 'packages/a/src/x.ts'], comps, graphe)).toEqual({
-      mode: 'composants',
-      composants: ['packages/a', 'packages/b', 'packages/c'],
-    });
-    expect(perimetre(['packages/c/src/x.ts', '.claude/agents/a.md'], comps, graphe)).toEqual({
-      mode: 'composants',
-      composants: ['packages/c'],
-    });
-  });
-  it('3uv.54 critère 5: a component document and a root document replay that component and its consumers', () => {
-    expect(perimetre(['packages/a/docs/INTERFACE.md', 'README.md'], comps, graphe)).toEqual({
-      mode: 'composants',
-      composants: ['packages/a', 'packages/b', 'packages/c'],
-    });
-    expect(perimetre(['docs/x.md', 'src/d/README.md'], comps, graphe)).toEqual({
-      mode: 'composants',
-      composants: ['src/d'],
-    });
-  });
-  it('3uv.65 critère 17: does not take a sibling sharing a prefix for the component: it lies outside every one, undeclared', () => {
-    expect(perimetre(['packages/ab/x.ts'], ['packages/a'], new Map()).mode).toBe('aucun');
-  });
-});
-
-// A repository with a fake Beads, suites that fail the tests named in ROUGES_FORCES, and guards
-// that refuse while GARDE_ROUGE exists.
+// A repository with a fake Beads and the one test command of the frame: `npm test` plays the guards
+// (red while GARDE_ROUGE or RESTE exists), then the tests (suites.mjs: red while ROUGES_FORCES
+// exists), one exit code. Each run of the tests appends « [<its arguments>] » to <PRINCIPAL>.args.
+const SUITES_MONDE =
+  "import fs from 'node:fs';\nfs.appendFileSync(`${process.env.PRINCIPAL}.args`, `[${process.argv.slice(2).join(' ')}]`);\nprocess.exit(fs.existsSync('ROUGES_FORCES') ? 1 : 0);\n";
 function monde(commentaires: string[]) {
   const repo = mkdtempSync(path.join(ESSAIS, 'integrer-'));
   const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
@@ -351,16 +164,10 @@ function monde(commentaires: string[]) {
   writeFileSync(
     path.join(repo, 'package.json'),
     JSON.stringify({
-      scripts: {
-        test: 'node suites.mjs',
-        'integration:gardes': 'test ! -f GARDE_ROUGE && test ! -f RESTE',
-      },
+      scripts: { test: 'test ! -f GARDE_ROUGE && test ! -f RESTE && node suites.mjs' },
     })
   );
-  writeFileSync(
-    path.join(repo, 'suites.mjs'),
-    "import fs from 'node:fs';\nconst r = fs.existsSync('ROUGES_FORCES') ? fs.readFileSync('ROUGES_FORCES', 'utf8') : '';\nfs.writeFileSync(process.env.ROUGES, r);\nprocess.exit(r ? 1 : 0);\n"
-  );
+  writeFileSync(path.join(repo, 'suites.mjs'), SUITES_MONDE);
   mkdirSync(path.join(repo, 'src/a'), { recursive: true });
   writeFileSync(path.join(repo, 'src/a/index.ts'), 'export const a = 1;\n');
   writeFileSync(path.join(repo, '.gitignore'), '.claude/worktrees/\n');
@@ -435,100 +242,102 @@ function monde(commentaires: string[]) {
     git('add', f);
     git('commit', '-qm', `pose ${f}`);
   };
-  return { repo, run, lancer, etat, poser, bin };
+  // The runs of the tests so far, each with its arguments.
+  const appels = () => (existsSync(`${repo}.args`) ? readFileSync(`${repo}.args`, 'utf8') : '');
+  // The commit <ref> names, or '' when it names none.
+  const sha = (ref: string) =>
+    spawnSync('git', ['-C', repo, 'rev-parse', '--verify', '-q', `${ref}^{commit}`], {
+      encoding: 'utf8',
+    }).stdout.trim();
+  return { repo, run, lancer, etat, poser, bin, appels, sha };
 }
 
+// The refusal of the integration once `npm test` is red in its copy: no commit on the ticket's
+// branch, which stays where the copy was made, and the main tree as it was.
+const REFUS_TESTS = /⛔ Les tests refusent le lot \(sortie ci-dessus\)\./;
+
 describe('an integration', () => {
-  it('commits a reviewed lot whose suites stay green', () => {
+  it('commits a reviewed lot whose npm test is green, and writes its duration', () => {
     const m = monde(['ACCEPTÉ']);
     const r = m.run();
     expect(r.stdout).toMatch(/✓ commit/);
     expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/✓ tests/);
+    expect(r.stdout).toMatch(/^⏱ \d+(\.\d)? s$/m);
+    expect(r.stdout).not.toMatch(/budget/);
     const e = m.etat();
     expect(e.log[0]).toBe('feat: a (demo-1)');
     expect(e.status).toBe('');
+  });
+  it('plays npm test once in the copy, without any argument', () => {
+    const m = monde(['ACCEPTÉ']);
+    const r = m.run();
+    expect(r.status, r.stdout + r.stderr).toBe(0);
+    expect(m.appels()).toBe('[]');
   });
   it('refuses a lot without the ACCEPTÉ verdict, touching nothing', () => {
     const m = monde(['RENDU : R1']);
     expect(m.run().status).toBe(1);
     expect(m.etat()).toMatchObject({ log: ['base'], status: '', test: false });
+    expect(m.appels()).toBe('');
   });
-  it('refuses a lot whose guards refuse, and restores its files', () => {
+  it('refuses --admettre as a usage error, touching nothing', () => {
+    const m = monde(['ACCEPTÉ']);
+    const r = m.run('--admettre', 'tests/a.spec.ts > a');
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/^usage: integrer\.mjs/);
+    expect(r.stderr).not.toMatch(/admettre/);
+    expect(m.appels()).toBe('');
+    expect(m.etat()).toMatchObject({ log: ['base'], status: '' });
+  });
+  it('refuses a lot whose guards are red in npm test: no commit, no branch moved, the tree restored', () => {
     const m = monde(['ACCEPTÉ']);
     m.poser('GARDE_ROUGE', '');
     const r = m.run();
     expect(r.status).toBe(1);
-    expect(r.stdout).toMatch(/gardes refusent/);
+    expect(r.stdout).toMatch(REFUS_TESTS);
+    expect(r.stdout).not.toMatch(/✓ commit/);
     expect(m.etat()).toMatchObject({
+      log: ['pose GARDE_ROUGE', 'base'],
       status: '',
       a: 'export const a = 1;\n',
       test: false,
     });
   });
-  it('refuses a failure the base did not have, and admits one the integrateur names', () => {
+  it('refuses a lot whose tests are red with it: no commit, the branch where the copy was made', () => {
     const m = monde(['ACCEPTÉ']);
-    // The suites fail only once the lot's test file exists.
-    writeFileSync(
-      path.join(m.repo, 'suites.mjs'),
-      "import fs from 'node:fs';\nconst r = fs.existsSync('tests/a.spec.ts') ? 'tests/a.spec.ts > a\\n' : '';\nfs.writeFileSync(process.env.ROUGES, r);\nprocess.exit(r ? 1 : 0);\n"
+    // The tests fail only once the lot's test file exists.
+    m.poser(
+      'suites.mjs',
+      SUITES_MONDE.replace("fs.existsSync('ROUGES_FORCES')", "fs.existsSync('tests/a.spec.ts')")
     );
-    execFileSync('git', [
-      '-C',
-      m.repo,
-      '-c',
-      'user.name=t',
-      '-c',
-      'user.email=t@t',
-      'commit',
-      '-qam',
-      'suites',
-    ]);
     const r = m.run();
     expect(r.status).toBe(1);
-    expect(r.stdout).toMatch(/Rouges nouveaux :\n {2}✗ tests\/a\.spec\.ts > a/);
-    expect(m.etat()).toMatchObject({ status: '', test: false });
-    const r2 = m.run('--admettre', 'tests/a.spec.ts > a');
-    expect(r2.status).toBe(0);
-    expect(r2.stdout).toMatch(/admis par l'intégrateur : tests\/a\.spec\.ts > a/);
+    expect(r.stdout).toMatch(REFUS_TESTS);
+    expect(m.sha('agent/demo-1')).toBe(m.sha('main'));
+    expect(m.etat()).toMatchObject({ log: ['pose suites.mjs', 'base'], status: '', test: false });
   });
-  it('keeps a failure the base already had', () => {
+  // A red test is never admitted: one known red already on HEAD refuses the lot too (main stays
+  // green; a known red test is put in quarantine in the test itself).
+  it('refuses a lot whose tests are already red on HEAD: nothing is compared with a base', () => {
     const m = monde(['ACCEPTÉ']);
     m.poser('ROUGES_FORCES', 'vieux > rouge\n');
-    expect(m.run().status).toBe(0);
-  });
-  it('refuses suites that fail without naming a test, on the base or with the lot', () => {
-    const m = monde(['ACCEPTÉ']);
-    writeFileSync(path.join(m.repo, 'suites.mjs'), 'process.exit(3);\n');
-    execFileSync('git', [
-      '-C',
-      m.repo,
-      '-c',
-      'user.name=t',
-      '-c',
-      'user.email=t@t',
-      'commit',
-      '-qam',
-      'suites',
-    ]);
-    expect(m.run().stdout).toMatch(/La base ne se mesure pas/);
-    writeFileSync(
-      path.join(m.repo, 'suites.mjs'),
-      "import fs from 'node:fs';\nprocess.exit(fs.existsSync('tests/a.spec.ts') ? 3 : 0);\n"
-    );
-    execFileSync('git', [
-      '-C',
-      m.repo,
-      '-c',
-      'user.name=t',
-      '-c',
-      'user.email=t@t',
-      'commit',
-      '-qam',
-      'suites',
-    ]);
     const r = m.run();
     expect(r.status).toBe(1);
-    expect(r.stdout).toMatch(/Rouges nouveaux :\n {2}✗ \(les suites sortent en 3/);
+    expect(r.stdout).toMatch(REFUS_TESTS);
+    expect(r.stdout).not.toMatch(/base/);
+    expect(m.etat().log[0]).toBe('pose ROUGES_FORCES');
+  });
+  it('writes the output of the red npm test before its refusal', () => {
+    const m = monde(['ACCEPTÉ']);
+    m.poser(
+      'suites.mjs',
+      "process.stdout.write('sortie des tests : t > rouge\\n');\nprocess.exit(1);\n"
+    );
+    const r = m.run();
+    expect(r.status).toBe(1);
+    expect(r.stdout.indexOf('sortie des tests : t > rouge')).toBeGreaterThanOrEqual(0);
+    expect(r.stdout.indexOf('sortie des tests')).toBeLessThan(r.stdout.indexOf('⛔'));
   });
   it('refuses when a file of the lot is modified in the tree', () => {
     const m = monde(['ACCEPTÉ']);
@@ -538,7 +347,7 @@ describe('an integration', () => {
     expect(r.stdout).toMatch(/modifiés dans l'arbre/);
     expect(m.etat().a).toBe('export const a = 3;\n');
   });
-  it('runs the suites on a clean copy: an untracked file of the main tree does not count', () => {
+  it('runs the tests on a clean copy: an untracked file of the main tree does not count', () => {
     const m = monde(['ACCEPTÉ']);
     writeFileSync(path.join(m.repo, 'ROUGES_FORCES'), 'local > rouge\n');
     writeFileSync(path.join(m.repo, 'GARDE_ROUGE'), '');
@@ -574,10 +383,10 @@ describe('an integration', () => {
   // branch, and the queue brings it onto the main of the moment.
   it('3uv.63 critère 11: main moving during the integration refuses nothing, the lot committed on its branch', () => {
     const m = monde(['ACCEPTÉ']);
-    // The suites commit on main while they run, as a supervisor would.
+    // The tests commit on main while they run, as a supervisor would.
     m.poser(
       'suites.mjs',
-      "import fs from 'node:fs';\nimport { execSync } from 'node:child_process';\nif (fs.existsSync('tests/a.spec.ts')) execSync(`git -C ${process.env.PRINCIPAL} -c user.name=t -c user.email=t@t commit -q --allow-empty -m bouge`);\nfs.writeFileSync(process.env.ROUGES, '');\n"
+      "import { execSync } from 'node:child_process';\nexecSync(`git -C ${process.env.PRINCIPAL} -c user.name=t -c user.email=t@t commit -q --allow-empty -m bouge`);\n"
     );
     const r = m.run();
     expect(r.status, r.stdout + r.stderr).toBe(0);
@@ -588,136 +397,6 @@ describe('an integration', () => {
         encoding: 'utf8',
       }).trim()
     ).toBe('bouge');
-  });
-  it('hands the suites its component for a file of it that is not code', () => {
-    const m = monde(['ACCEPTÉ']);
-    m.poser(
-      'suites.mjs',
-      "import fs from 'node:fs';\nfs.writeFileSync(`${process.env.PRINCIPAL}.args`, `[${process.argv.slice(2).join(' ')}]`);\nfs.writeFileSync(process.env.ROUGES, '');\n"
-    );
-    writeFileSync(path.join(m.repo, 'src/a/NOTE.md'), 'une note\n');
-    const patch = path.join(m.bin, 'docs.patch');
-    const diff = spawnSync(
-      'git',
-      ['-C', m.repo, 'diff', '--no-index', '/dev/null', 'src/a/NOTE.md'],
-      {
-        encoding: 'utf8',
-      }
-    ).stdout;
-    writeFileSync(patch, diff);
-    rmSync(path.join(m.repo, 'src/a/NOTE.md'));
-    const r = m.lancer(['--code', patch], []);
-    expect(r.status).toBe(0);
-    expect(r.stdout).toMatch(/suites de : src\/a/);
-    expect(r.stdout).not.toMatch(/aucun code de composant/);
-    expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('[src/a]');
-  });
-  it('refuses a non-code file of a component that brings a new failure', () => {
-    const m = monde(['ACCEPTÉ']);
-    // The suites fail once the component's data changes: only a replay of src/a sees it.
-    m.poser('src/a/donnees.json', '{"v":1}\n');
-    m.poser(
-      'suites.mjs',
-      "import fs from 'node:fs';\nconst r = process.argv.includes('src/a') && fs.readFileSync('src/a/donnees.json', 'utf8').includes('2') ? 'src/a/a.spec.ts > donnees\\n' : '';\nfs.writeFileSync(process.env.ROUGES, r);\nprocess.exit(r ? 1 : 0);\n"
-    );
-    writeFileSync(path.join(m.repo, 'src/a/donnees.json'), '{"v":2}\n');
-    const patch = path.join(m.bin, 'donnees.patch');
-    writeFileSync(
-      patch,
-      spawnSync('git', ['-C', m.repo, 'diff', '--', 'src/a'], { encoding: 'utf8' }).stdout
-    );
-    spawnSync('git', ['-C', m.repo, 'checkout', '--', 'src/a']);
-    const r = m.lancer(['--code', patch], []);
-    expect(r.status).toBe(1);
-    expect(r.stdout).toMatch(/Rouges nouveaux :\n {2}✗ src\/a\/a\.spec\.ts > donnees/);
-    expect(m.etat().log[0]).toBe('pose suites.mjs');
-  });
-  // The suites run twice, on the base and with the lot: each call is recorded.
-  const enregistrer =
-    "import fs from 'node:fs';\nfs.appendFileSync(`${process.env.PRINCIPAL}.args`, `[${process.argv.slice(2).join(' ')}]`);\nfs.writeFileSync(process.env.ROUGES, '');\n";
-  // A lot that creates <fichiers> (relative path → content), as a code patch, the tree left as it was.
-  const lotNeuf = (m: ReturnType<typeof monde>, nom: string, fichiers: Record<string, string>) => {
-    let diff = '';
-    for (const [f, contenu] of Object.entries(fichiers)) {
-      mkdirSync(path.dirname(path.join(m.repo, f)), { recursive: true });
-      writeFileSync(path.join(m.repo, f), contenu);
-      diff += spawnSync('git', ['-C', m.repo, 'diff', '--no-index', '/dev/null', f], {
-        encoding: 'utf8',
-      }).stdout;
-      rmSync(path.join(m.repo, f));
-    }
-    const patch = path.join(m.bin, nom);
-    writeFileSync(patch, diff);
-    return patch;
-  };
-  it('3uv.54 critère 1: plays the guards and no suite, base or after, for a lot of documents outside every component', () => {
-    const m = monde(['ACCEPTÉ']);
-    m.poser('suites.mjs', enregistrer);
-    const patch = lotNeuf(m, 'docs.patch', {
-      'docs/note.md': 'une note\n',
-      '.claude/agents/role.md': 'un rôle\n',
-    });
-    const r = m.lancer(['--code', patch], []);
-    expect(r.status).toBe(0);
-    expect(r.stdout).toMatch(/✓ gardes/);
-    expect(r.stdout).toMatch(/aucune suite/);
-    expect(r.stdout).not.toMatch(/toutes les suites/);
-    expect(r.stdout).toMatch(/✓ commit/);
-    expect(existsSync(`${m.repo}.args`)).toBe(false);
-  });
-  it('3uv.54 critère 1: still refuses a lot of documents outside every component that the guards refuse', () => {
-    const m = monde(['ACCEPTÉ']);
-    m.poser('suites.mjs', enregistrer);
-    m.poser('GARDE_ROUGE', '');
-    const patch = lotNeuf(m, 'docs.patch', { 'docs/note.md': 'une note\n' });
-    const r = m.lancer(['--code', patch], []);
-    expect(r.status).toBe(1);
-    expect(r.stdout).toMatch(/gardes refusent/);
-    expect(m.etat().log[0]).toBe('pose GARDE_ROUGE');
-  });
-  it('3uv.65 critère 17: plays the guards and no suite for documents that come with a setting under .claude/ no declaration names', () => {
-    const m = monde(['ACCEPTÉ']);
-    m.poser('suites.mjs', enregistrer);
-    const patch = lotNeuf(m, 'reglage.patch', {
-      'docs/note.md': 'une note\n',
-      '.claude/settings.json': '{}\n',
-    });
-    const r = m.lancer(['--code', patch], []);
-    expect(r.status).toBe(0);
-    expect(r.stdout).toMatch(/✓ gardes/);
-    expect(r.stdout).not.toMatch(/toutes les suites/);
-    expect(existsSync(`${m.repo}.args`)).toBe(false);
-  });
-  it('3uv.54 critère 5: hands the suites the component alone for a document outside every component next to it', () => {
-    const m = monde(['ACCEPTÉ']);
-    m.poser('suites.mjs', enregistrer);
-    const patch = lotNeuf(m, 'mixte.patch', {
-      'docs/note.md': 'une note\n',
-      'src/a/NOTE.md': 'une note du composant\n',
-    });
-    const r = m.lancer(['--code', patch], []);
-    expect(r.status).toBe(0);
-    expect(r.stdout).toMatch(/suites de : src\/a/);
-    expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('[src/a][src/a]');
-  });
-  it('3uv.54 critère 6: hands the suites --tous for a lot of documents when the project chose « complet »', () => {
-    const m = monde(['ACCEPTÉ']);
-    m.poser(
-      'package.json',
-      JSON.stringify({
-        grillhouse: { integration: 'complet' },
-        scripts: {
-          test: 'node suites.mjs',
-          'integration:gardes': 'test ! -f GARDE_ROUGE && test ! -f RESTE',
-        },
-      })
-    );
-    m.poser('suites.mjs', enregistrer);
-    const patch = lotNeuf(m, 'docs.patch', { 'docs/note.md': 'une note\n' });
-    const r = m.lancer(['--code', patch], []);
-    expect(r.status).toBe(0);
-    expect(r.stdout).toMatch(/toutes les suites \(réglage « complet »\)/);
-    expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('[--tous][--tous]');
   });
   // A lot that renames <de> into <vers> (git mv, then <contenu> written when given), as a code
   // patch with its rename header, the tree left as it was.
@@ -742,39 +421,8 @@ describe('an integration', () => {
     writeFileSync(patch, diff);
     return patch;
   };
-  it('3uv.65 critère 17: plays no suite for a script outside every component no declaration names, renamed into a document', () => {
-    const m = monde(['ACCEPTÉ']);
-    m.poser('suites.mjs', enregistrer);
-    mkdirSync(path.join(m.repo, 'scripts'));
-    const corps = Array.from({ length: 10 }, (_, i) => `export const o${i} = ${i};\n`).join('');
-    m.poser('scripts/outil.mjs', corps);
-    const patch = lotRenomme(
-      m,
-      'renomme.patch',
-      'scripts/outil.mjs',
-      'docs-outil.md',
-      `${corps}// devenu document\n`
-    );
-    const r = m.lancer(['--code', patch], []);
-    expect(r.status).toBe(0);
-    expect(r.stdout).not.toMatch(/toutes les suites/);
-    expect(existsSync(`${m.repo}.args`)).toBe(false);
-  });
-  it('3uv.54 critère 5: hands the suites its component for a document of it moved outside every component', () => {
-    const m = monde(['ACCEPTÉ']);
-    m.poser('suites.mjs', enregistrer);
-    mkdirSync(path.join(m.repo, 'src/a/docs'));
-    m.poser('src/a/docs/NOTE.md', 'une note\ndu composant\n');
-    const patch = lotRenomme(m, 'deplace.patch', 'src/a/docs/NOTE.md', 'docs/NOTE.md');
-    const r = m.lancer(['--code', patch], []);
-    expect(r.status).toBe(0);
-    expect(r.stdout).toMatch(/suites de : src\/a/);
-    expect(r.stdout).not.toMatch(/aucune suite/);
-    expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('[src/a][src/a]');
-  });
   it('3uv.54 reprise du RENDU: refuses a code lot that renames a test file into a file outside the testeur', () => {
     const m = monde(['ACCEPTÉ']);
-    m.poser('suites.mjs', enregistrer);
     mkdirSync(path.join(m.repo, 'tests'));
     m.poser('tests/b.spec.ts', 'test\n');
     const patch = lotRenomme(m, 'test-renomme.patch', 'tests/b.spec.ts', 'src/a/b.ts');
@@ -783,6 +431,7 @@ describe('an integration', () => {
     expect(r.stdout).toMatch(/lot de code touche des fichiers du testeur/);
     expect(r.stdout).toContain('tests/b.spec.ts');
     expect(m.etat().log[0]).toBe('pose tests/b.spec.ts');
+    expect(m.appels()).toBe('');
   });
   // grillhouse-3uv.56 critère 3: git writes a name outside ASCII quoted and escaped in a patch's
   // « rename from » line (core.quotepath, on by default); the integration reads the origin of a
@@ -800,7 +449,6 @@ describe('an integration', () => {
   };
   it('3uv.56 critère 3: refuses a code lot that renames an accented test file, naming its origin as it is', () => {
     const m = monde(['ACCEPTÉ']);
-    m.poser('suites.mjs', enregistrer);
     mkdirSync(path.join(m.repo, 'tests'));
     m.poser('tests/café.spec.ts', 'test\n');
     const patch = lotRenommeParGit(m, 'cafe.patch', 'tests/café.spec.ts', 'src/a/café.ts');
@@ -810,123 +458,14 @@ describe('an integration', () => {
     expect(r.stdout).toContain('tests/café.spec.ts');
     expect(r.stdout).not.toMatch(/\\[0-7]{3}|"tests\//);
   });
-  it('3uv.56 critère 3: hands the suites the component of an accented document moved outside every component', () => {
+  it('3uv.56 critère 3: commits a lot that moves an accented document, its origin read as it is', () => {
     const m = monde(['ACCEPTÉ']);
-    m.poser('suites.mjs', enregistrer);
     mkdirSync(path.join(m.repo, 'src/a/docs'));
     m.poser('src/a/docs/été.md', 'une note\ndu composant\n');
     const patch = lotRenommeParGit(m, 'ete.patch', 'src/a/docs/été.md', 'docs/été.md');
     const r = m.lancer(['--code', patch], []);
     expect(r.status, r.stdout).toBe(0);
-    expect(r.stdout).toMatch(/suites de : src\/a/);
-    expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('[src/a][src/a]');
-  });
-  it('hands the suites the touched component and those that use it, nothing else', () => {
-    const m = monde(['ACCEPTÉ']);
-    m.poser(
-      'suites.mjs',
-      "import fs from 'node:fs';\nfs.writeFileSync(`${process.env.PRINCIPAL}.args`, process.argv.slice(2).join(' '));\nfs.writeFileSync(process.env.ROUGES, '');\n"
-    );
-    mkdirSync(path.join(m.repo, 'src/feuille'));
-    mkdirSync(path.join(m.repo, 'src/haut'));
-    mkdirSync(path.join(m.repo, 'src/seul'));
-    m.poser('src/feuille/index.ts', 'export const f = 1;\n');
-    m.poser('src/haut/index.ts', "import { f } from '../feuille';\nexport const h = f;\n");
-    m.poser('src/seul/index.ts', 'export const s = 1;\n');
-    writeFileSync(path.join(m.repo, 'src/feuille/index.ts'), 'export const f = 2;\n');
-    const patch = path.join(m.bin, 'feuille.patch');
-    writeFileSync(
-      patch,
-      spawnSync('git', ['-C', m.repo, 'diff', '--', 'src/feuille'], { encoding: 'utf8' }).stdout
-    );
-    spawnSync('git', ['-C', m.repo, 'checkout', '--', 'src/feuille']);
-    const r = m.lancer(['--code', patch], []);
-    expect(r.status).toBe(0);
-    expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('src/feuille src/haut');
-  });
-  // grillhouse-3uv.65: the project declares the root paths its suites read.
-  const declarer = (m: ReturnType<typeof monde>, lus: string[]) =>
-    m.poser(
-      'package.json',
-      JSON.stringify({
-        grillhouse: { lusParLesSuites: lus },
-        scripts: {
-          test: 'node suites.mjs',
-          'integration:gardes': 'test ! -f GARDE_ROUGE && test ! -f RESTE',
-        },
-      })
-    );
-  // A code lot that changes the root script scripts/outil.mjs, committed on main beforehand.
-  const lotOutil = (m: ReturnType<typeof monde>) => {
-    mkdirSync(path.join(m.repo, 'scripts'));
-    m.poser('scripts/outil.mjs', 'export const o = 1;\n');
-    writeFileSync(path.join(m.repo, 'scripts/outil.mjs'), 'export const o = 2;\n');
-    const patch = path.join(m.bin, 'scripts.patch');
-    writeFileSync(
-      patch,
-      spawnSync('git', ['-C', m.repo, 'diff', '--', 'scripts'], { encoding: 'utf8' }).stdout
-    );
-    spawnSync('git', ['-C', m.repo, 'checkout', '--', 'scripts']);
-    return patch;
-  };
-  it('3uv.65 critère 17: plays no suite for code outside every component no declaration names', () => {
-    const m = monde(['ACCEPTÉ']);
-    m.poser('suites.mjs', enregistrer);
-    const r = m.lancer(['--code', lotOutil(m)], []);
-    expect(r.status).toBe(0);
-    expect(r.stdout).not.toMatch(/toutes les suites/);
-    expect(existsSync(`${m.repo}.args`)).toBe(false);
-  });
-  it('3uv.65 critère 21 (garde): hands the suites a scope, never nothing, on the base and after, for code outside every component the project declares read', () => {
-    const m = monde(['ACCEPTÉ']);
-    declarer(m, ['scripts']);
-    m.poser('suites.mjs', enregistrer);
-    const r = m.lancer(['--code', lotOutil(m)], []);
-    expect(r.status).toBe(0);
-    expect(readFileSync(`${m.repo}.args`, 'utf8')).toMatch(/^\[[^\]]+\]\[[^\]]+\]$/);
-  });
-  it('3uv.65 critère 8 (garde): refuses a lot outside every component, declared read, that brings a new failure', () => {
-    const m = monde(['ACCEPTÉ']);
-    declarer(m, ['scripts']);
-    // The suites fail once the root script changes: only a replay of the suites that read it sees it.
-    m.poser(
-      'suites.mjs',
-      "import fs from 'node:fs';\nconst r = fs.readFileSync('scripts/outil.mjs', 'utf8').includes('2') ? 'tests/outil.spec.ts > outil\\n' : '';\nfs.writeFileSync(process.env.ROUGES, r);\nprocess.exit(r ? 1 : 0);\n"
-    );
-    const r = m.lancer(['--code', lotOutil(m)], []);
-    expect(r.status).toBe(1);
-    expect(r.stdout).toMatch(/Rouges nouveaux :\n {2}✗ tests\/outil\.spec\.ts > outil/);
-    expect(m.etat().log[0]).toBe('pose scripts/outil.mjs');
-  });
-  it('3uv.75.1 critères 1 et 9: hands npm test the test files of a lot made only of tests, named as they are, without --tests', () => {
-    const m = monde(['ACCEPTÉ']);
-    m.poser('suites.mjs', enregistrer);
-    const r = m.lancer(['--tests', path.join(m.bin, 'tests.patch')], []);
-    expect(r.status, r.stdout + r.stderr).toBe(0);
-    const appels = readFileSync(`${m.repo}.args`, 'utf8');
-    expect(appels).toMatch(/\[tests\/a\.spec\.ts\]$/);
-    expect(appels).not.toMatch(/--tests/);
-  });
-  it('critère 5: hands the suites --tous when the project chose « complet »', () => {
-    const m = monde(['ACCEPTÉ']);
-    m.poser(
-      'package.json',
-      JSON.stringify({
-        grillhouse: { integration: 'complet' },
-        scripts: {
-          test: 'node suites.mjs',
-          'integration:gardes': 'test ! -f GARDE_ROUGE && test ! -f RESTE',
-        },
-      })
-    );
-    m.poser(
-      'suites.mjs',
-      "import fs from 'node:fs';\nfs.appendFileSync(`${process.env.PRINCIPAL}.args`, `[${process.argv.slice(2).join(' ')}]`);\nfs.writeFileSync(process.env.ROUGES, '');\n"
-    );
-    const r = m.run();
-    expect(r.status).toBe(0);
-    expect(r.stdout).toMatch(/toutes les suites/);
-    expect(readFileSync(`${m.repo}.args`, 'utf8')).toBe('[--tous][--tous]');
+    expect(m.etat().log[0]).toBe('feat: a (demo-1)');
   });
   it('tells the pre-commit hook that the guards have just run', () => {
     const m = monde(['ACCEPTÉ']);
@@ -1462,7 +1001,7 @@ describe('grillhouse-3uv.63 — the integration commits on the ticket branch', (
     'critère 17: two integrations launched together run one after the other, and both commit',
     async () => {
       const m = chantier(ESSAIS);
-      // The suites mark their start « < » and their end « > », one second apart.
+      // The tests mark their start « < » and their end « > », one second apart.
       m.poser(
         {
           'suites.mjs':
@@ -1470,8 +1009,7 @@ describe('grillhouse-3uv.63 — the integration commits on the ticket branch', (
             "const t = process.env.PRINCIPAL + '.trace';\n" +
             "fs.appendFileSync(t, '<');\n" +
             'Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1000);\n' +
-            "fs.appendFileSync(t, '>');\n" +
-            "fs.writeFileSync(process.env.ROUGES, '');\n",
+            "fs.appendFileSync(t, '>');\n",
         },
         'suites lentes'
       );
@@ -1482,8 +1020,8 @@ describe('grillhouse-3uv.63 — the integration commits on the ticket branch', (
       expect(r2.status, r2.stdout + r2.stderr).toBe(0);
       expect(m.sujets('agent/demo-1')[0]).toBe('feat: lot (demo-1)');
       expect(m.sujets('agent/demo-2')[0]).toBe('feat: lot (demo-2)');
-      // Base and lot for each integration, never two suites at once.
-      expect(readFileSync(`${m.repo}.trace`, 'utf8')).toBe('<><><><>');
+      // One run of the tests for each integration, never two at once.
+      expect(readFileSync(`${m.repo}.trace`, 'utf8')).toBe('<><>');
     },
     LONG
   );
@@ -1491,14 +1029,13 @@ describe('grillhouse-3uv.63 — the integration commits on the ticket branch', (
     'critère 17: an integration killed midway leaves no lock that holds the next one',
     async () => {
       const m = chantier(ESSAIS);
-      // The suites mark their start, then take ten seconds.
+      // The tests mark their start, then take ten seconds.
       m.poser(
         {
           'suites.mjs':
             "import fs from 'node:fs';\n" +
             "fs.writeFileSync(process.env.PRINCIPAL + '.debut', '');\n" +
-            'Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10000);\n' +
-            "fs.writeFileSync(process.env.ROUGES, '');\n",
+            'Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10000);\n',
         },
         'suites lentes'
       );
@@ -1512,11 +1049,8 @@ describe('grillhouse-3uv.63 — the integration commits on the ticket branch', (
       expect(existsSync(debut)).toBe(true);
       premiere.p.kill('SIGKILL');
       await premiere.fin;
-      // The next integration's suites are quick again.
-      m.poser(
-        { 'suites.mjs': "import fs from 'node:fs';\nfs.writeFileSync(process.env.ROUGES, '');\n" },
-        'suites rapides'
-      );
+      // The next integration's tests are quick again.
+      m.poser({ 'suites.mjs': '' }, 'suites rapides');
       const r = await Promise.race([
         m.integrerEnFond('demo-2'),
         new Promise<null>(r => setTimeout(() => r(null), 45_000)),
@@ -1606,9 +1140,10 @@ describe('grillhouse-3uv.63 — the integration commits on the ticket branch', (
 // grillhouse-3uv.73: every command of the project in the copy of the replay passes through
 // `lancer` (scripts/integration/rejeu.mjs), which leaves the index of the copy up to date after it,
 // green or red, as git's own scripts refresh before they judge (`git update-index -q --refresh`,
-// require_clean_work_tree). The trial build (./integration-essai.ts, `construireParLiens`) and the
-// trial suites of critère 8 (`suitesParLiens`) hard-link tracked files: the link changes their
-// ctime after the copy wrote its index, and `git apply --index` then takes them for modified.
+// require_clean_work_tree). The trial build (./integration-essai.ts, `construireParLiens`), which
+// `npm test` plays before the guards and the tests as Turborepo does, and the trial suites of
+// critère 8 (`suitesParLiens`) hard-link tracked files: the link changes their ctime after the
+// copy wrote its index, and `git commit` or `git apply --index` would then take them for modified.
 describe('grillhouse-3uv.73 — every command of the project leaves the index of its copy up to date', () => {
   const LONG_73 = 120_000;
   const COPIE = (repo: string) => path.join(repo, '.claude/worktrees/integration');
@@ -1687,30 +1222,15 @@ describe('grillhouse-3uv.73 — every command of the project leaves the index of
     LONG_73
   );
   it(
-    'critère 5: a red build of the base refreshes the index of its copy before the refusal',
-    () => {
-      const m = chantier(ESSAIS);
-      const builds = construireParLiens(m);
-      m.poser({ CONSTRUCTION_ROUGE: '' }, 'construction rouge');
-      m.ticket('demo-1', { 'src/a/donnees.txt': 'un\nDEUX\ntrois\n' });
-      const r = m.integrer('demo-1');
-      expect(r.status, r.stdout + r.stderr).toBe(1);
-      expect(r.stdout).toMatch(/La base ne se mesure pas/);
-      expect(builds()).toContain('lien');
-      expect(perimes(m.repo)).toEqual([]);
-    },
-    LONG_73
-  );
-  it(
-    'critère 5: a red build of the lot refreshes the index of its copy before the refusal',
+    'critère 5: a red build of the lot, in npm test, refreshes the index of its copy before the refusal',
     () => {
       const m = chantier(ESSAIS);
       const builds = construireParLiens(m);
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n', CONSTRUCTION_ROUGE: '' });
       const r = m.integrer('demo-1');
       expect(r.status, r.stdout + r.stderr).toBe(1);
-      expect(r.stdout).toMatch(/Rouges nouveaux/);
-      expect(builds().filter(b => b === 'lien')).toHaveLength(2);
+      expect(r.stdout).toMatch(/⛔ Les tests refusent le lot/);
+      expect(builds()).toEqual(['lien']);
       expect(perimes(m.repo)).toEqual([]);
     },
     LONG_73
@@ -1748,7 +1268,7 @@ describe('grillhouse-3uv.73 — every command of the project leaves the index of
     LONG_73
   );
   it(
-    'critère 8: a lot that deletes a tracked file a suite of the base (not the build) hard-linked is committed',
+    'critère 8: a lot that deletes a tracked file the tests (not the build) hard-link is committed',
     () => {
       const m = chantier(ESSAIS);
       const liens = suitesParLiens(m);
@@ -1763,7 +1283,7 @@ describe('grillhouse-3uv.73 — every command of the project leaves the index of
     LONG_73
   );
   it(
-    'critère 8: a lot that modifies a tracked file a suite of the base (not the build) hard-linked is committed',
+    'critère 8: a lot that modifies a tracked file the tests (not the build) hard-link is committed',
     () => {
       const m = chantier(ESSAIS);
       const liens = suitesParLiens(m);
@@ -1792,15 +1312,15 @@ describe('grillhouse-3uv.73 — every command of the project leaves the index of
     LONG_73
   );
   it(
-    'critère 5: red suites of the lot that hard-link tracked files leave the index of the copy up to date before the refusal',
+    'critère 5: red tests of the lot that hard-link tracked files leave the index of the copy up to date before the refusal',
     () => {
       const m = chantier(ESSAIS);
       const liens = suitesParLiens(m);
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n', ROUGES_FORCES: 'a > t\n' });
       const r = m.integrer('demo-1');
       expect(r.status, r.stdout + r.stderr).toBe(1);
-      expect(r.stdout).toMatch(/Rouges nouveaux/);
-      expect(liens()).toHaveLength(2);
+      expect(r.stdout).toMatch(/⛔ Les tests refusent le lot/);
+      expect(liens()).toHaveLength(1);
       expect(perimes(m.repo)).toEqual([]);
     },
     LONG_73
@@ -1847,13 +1367,13 @@ describe('grillhouse-3uv.73 — every command of the project leaves the index of
 // grillhouse-3uv.74: the dependencies of the integration copy follow its lock file of the moment.
 // One function of the replay (scripts/integration/rejeu.mjs) compares the lock file with the key
 // of node_modules, runs `npm ci` when they differ and writes the key again; it runs at the opening
-// and before every command of the project that reads the dependencies (the build, the suites, the
-// guards). The trial project's suites and guards read the dependencies (./integration-essai.ts,
-// `chantierDependances`); npm runs offline.
+// and once the lot is applied, before `npm test` (the build, the guards, the tests), which reads
+// the dependencies. The trial project's build, guards and tests read the dependencies
+// (./integration-essai.ts, `chantierDependances`); npm runs offline.
 describe('grillhouse-3uv.74 — the dependencies of the integration copy follow its lock file', () => {
   const D = 180_000;
   it(
-    'critère 1: a lot that adds a workspace is committed: the suites with the lot find the new package by its name',
+    'critère 1: a lot that adds a workspace is committed: its tests find the new package by its name',
     () => {
       const m = chantierDependances(ESSAIS);
       m.ticket(
@@ -1864,9 +1384,11 @@ describe('grillhouse-3uv.74 — the dependencies of the integration copy follow 
       const r = m.integrer('demo-1');
       expect(r.status, r.stdout + r.stderr).toBe(0);
       expect(m.sujets('agent/demo-1')[0]).toBe('feat: lot (demo-1)');
-      const [base, apres] = m.lectures().slice(avant);
-      expect(base.presents.d).toBeUndefined();
-      expect(apres).toMatchObject({ qui: 'suites', presents: { d: '1.0.0' } });
+      const lues = m.lectures().slice(avant);
+      expect(lues.map(l => l.qui)).toContain('suites');
+      for (const l of lues) {
+        expect(l.presents.d, l.qui).toBe('1.0.0');
+      }
     },
     D
   );
@@ -1888,7 +1410,7 @@ describe('grillhouse-3uv.74 — the dependencies of the integration copy follow 
     D
   );
   it(
-    'critère 3: a lot that changes an external dependency in the lock file is installed before its suites',
+    'critère 3: a lot that changes an external dependency in the lock file is installed before its guards and tests',
     () => {
       const m = chantierDependances(ESSAIS);
       m.ticket('demo-1', m.fichiers({ ...m.initial, externe: '2.0.0' }));
@@ -1896,11 +1418,8 @@ describe('grillhouse-3uv.74 — the dependencies of the integration copy follow 
       const r = m.integrer('demo-1');
       expect(r.status, r.stdout + r.stderr).toBe(0);
       const lues = m.lectures().slice(avant);
-      expect(lues.map(l => [l.qui, l.presents['ext-lib']])).toEqual([
-        ['suites', '1.0.0'],
-        ['suites', '2.0.0'],
-        ['gardes', '2.0.0'],
-      ]);
+      expect(lues.map(l => l.qui).sort()).toEqual(['gardes', 'suites']);
+      expect(lues.map(l => l.presents['ext-lib'])).toEqual(['2.0.0', '2.0.0']);
     },
     D
   );
@@ -1918,7 +1437,7 @@ describe('grillhouse-3uv.74 — the dependencies of the integration copy follow 
     D
   );
   it(
-    'critère 5: after a lot that changed the lock file, the next integration installs again and measures its base with the dependencies of HEAD',
+    'critère 5: after a lot that changed the lock file, the next integration installs again and tests with the dependencies of HEAD and its lot',
     () => {
       const m = chantierDependances(ESSAIS);
       m.ticket(
@@ -1931,15 +1450,17 @@ describe('grillhouse-3uv.74 — the dependencies of the integration copy follow 
       const avant = m.lectures().length;
       m.livrer('demo-2');
       expect(m.marquee('integration')).toBe(false);
-      const base = m.lectures()[avant];
-      expect(base.qui).toBe('suites');
-      expect(base.presents.d).toBeUndefined();
-      expect(base.presents['ext-lib']).toBe('1.0.0');
+      const lues = m.lectures().slice(avant);
+      expect(lues.length).toBeGreaterThan(0);
+      for (const l of lues) {
+        expect(l.presents.d, l.qui).toBeUndefined();
+        expect(l.presents['ext-lib'], l.qui).toBe('1.0.0');
+      }
     },
     D
   );
   it(
-    'critère 5: after a lot whose installation failed, the next integration installs again and measures its base with the dependencies of HEAD',
+    'critère 5: after a lot whose installation failed, the next integration installs again and tests with the dependencies of HEAD and its lot',
     () => {
       const m = chantierDependances(ESSAIS);
       m.ticket('demo-1', m.introuvable());
@@ -1948,14 +1469,16 @@ describe('grillhouse-3uv.74 — the dependencies of the integration copy follow 
       const avant = m.lectures().length;
       const r = m.integrer('demo-2');
       expect(r.status, r.stdout + r.stderr).toBe(0);
-      const base = m.lectures()[avant];
-      expect(base.qui).toBe('suites');
-      expect(base.presents).toMatchObject({ a: '1.0.0', b: '1.0.0', 'ext-lib': '1.0.0' });
+      const lues = m.lectures().slice(avant);
+      expect(lues.map(l => l.qui)).toContain('suites');
+      for (const l of lues) {
+        expect(l.presents, l.qui).toMatchObject({ a: '1.0.0', b: '1.0.0', 'ext-lib': '1.0.0' });
+      }
     },
     D
   );
   it(
-    "critère 6: an installation that fails after the lot is applied refuses the lot with « Les dépendances de la copie ne s'installent pas. », without running the suites",
+    "critère 6: an installation that fails after the lot is applied refuses the lot with « Les dépendances de la copie ne s'installent pas. », without running npm test",
     () => {
       const m = chantierDependances(ESSAIS);
       m.ticket('demo-1', m.introuvable());
@@ -1963,7 +1486,7 @@ describe('grillhouse-3uv.74 — the dependencies of the integration copy follow 
       const r = m.integrer('demo-1');
       expect(r.status).toBe(1);
       expect(r.stdout).toContain("⛔ Les dépendances de la copie ne s'installent pas.");
-      expect(m.appelsSuites() - avant).toBe(1);
+      expect(m.appelsSuites() - avant).toBe(0);
       expect(m.existe('agent/demo-1') && m.sujets('agent/demo-1')[0]).not.toBe(
         'feat: lot (demo-1)'
       );
@@ -1971,7 +1494,7 @@ describe('grillhouse-3uv.74 — the dependencies of the integration copy follow 
     D
   );
   it(
-    'critère 6: a lot whose lock file disagrees with its package.json is refused the same way, without running the suites',
+    'critère 6: a lot whose lock file disagrees with its package.json is refused the same way, without running npm test',
     () => {
       const m = chantierDependances(ESSAIS);
       // package.json names the workspace src/d, which the lock file (ext-lib 2.0.0) lacks.
@@ -1986,7 +1509,7 @@ describe('grillhouse-3uv.74 — the dependencies of the integration copy follow 
       const r = m.integrer('demo-1');
       expect(r.status).toBe(1);
       expect(r.stdout).toContain("⛔ Les dépendances de la copie ne s'installent pas.");
-      expect(m.appelsSuites() - avant).toBe(1);
+      expect(m.appelsSuites() - avant).toBe(0);
     },
     D
   );
@@ -2003,18 +1526,16 @@ describe('grillhouse-3uv.74 — the dependencies of the integration copy follow 
       expect(r.status, r.stdout + r.stderr).toBe(0);
       expect(m.sujets('agent/demo-1')[0]).toBe('feat: lot (demo-1)');
       const lues = m.lectures().slice(avant);
-      expect(lues.map(l => [l.qui, l.presents.d])).toEqual([
-        ['construction', undefined],
-        ['suites', undefined],
-        ['construction', '1.0.0'],
-        ['suites', '1.0.0'],
-        ['gardes', '1.0.0'],
-      ]);
+      expect(lues[0].qui).toBe('construction');
+      expect(lues.map(l => l.qui)).toContain('suites');
+      for (const l of lues) {
+        expect(l.presents.d, l.qui).toBe('1.0.0');
+      }
     },
     D
   );
   it(
-    'critère 10: a lot that removes a workspace is committed: the suites with the lot no longer find that package',
+    'critère 10: a lot that removes a workspace is committed: its tests no longer find that package',
     () => {
       const m = chantierDependances(ESSAIS);
       m.ticket('demo-1', {
@@ -2025,11 +1546,11 @@ describe('grillhouse-3uv.74 — the dependencies of the integration copy follow 
       const r = m.integrer('demo-1');
       expect(r.status, r.stdout + r.stderr).toBe(0);
       expect(m.sujets('agent/demo-1')[0]).toBe('feat: lot (demo-1)');
-      const [base, apres, gardes] = m.lectures().slice(avant);
-      expect(base).toMatchObject({ qui: 'suites', presents: { a: '1.0.0', b: '1.0.0' } });
-      expect(apres.qui).toBe('suites');
-      expect(Object.keys(apres.presents).sort()).toEqual(['a', 'ext-lib']);
-      expect(Object.keys(gardes.presents).sort()).toEqual(['a', 'ext-lib']);
+      const lues = m.lectures().slice(avant);
+      expect(lues.map(l => l.qui).sort()).toEqual(['gardes', 'suites']);
+      for (const l of lues) {
+        expect(Object.keys(l.presents).sort(), l.qui).toEqual(['a', 'ext-lib']);
+      }
     },
     D
   );
@@ -2138,10 +1659,10 @@ describe('grillhouse-3uv.56 critère 12 — a changed manifest is installed as a
 });
 
 // grillhouse-3uv.56 critère 11: a failed installation comes up in one form, the refusals of the
-// replay module: guards that fail while writing the text of an installation refusal are guards
-// that refuse, not an installation that fails.
-describe('grillhouse-3uv.56 critère 11 — the integration judges the guards by their status', () => {
-  it('critère 11: red guards writing the text of an installation refusal refuse the lot as guards', () => {
+// replay module: guards that fail in `npm test` while writing the text of an installation refusal
+// are red tests, not an installation that fails.
+describe('grillhouse-3uv.56 critère 11 — the integration judges npm test by its status', () => {
+  it('critère 11: red guards writing the text of an installation refusal refuse the lot as red tests', () => {
     const m = chantier(ESSAIS);
     m.poser(
       {
@@ -2152,7 +1673,7 @@ describe('grillhouse-3uv.56 critère 11 — the integration judges the guards by
     m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n', GARDE_ROUGE: '' });
     const r = m.integrer('demo-1');
     expect(r.status, r.stdout + r.stderr).toBe(1);
-    expect(r.stdout).toContain('⛔ Les gardes refusent');
+    expect(r.stdout).toContain('⛔ Les tests refusent le lot');
     expect(r.stdout).not.toContain("⛔ Les dépendances de la copie ne s'installent pas.");
   }, 120_000);
 });

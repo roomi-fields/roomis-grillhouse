@@ -49,8 +49,13 @@ ses mesures ; la nuit le juge. Ainsi un rouge de jour dit un défaut, jamais une
 
 **Un test trop long pour le jour est un test de nuit** : il s'écrit dans un fichier
 `*.nuit.test.ts`. Ni `npm test` ni l'intégration ne le jouent ; la nuit le joue elle-même, après
-un `npm test` vert, avec la configuration du cadre (`scripts/vitest.nuit.config.mjs`). Ainsi le
-jour reste court, et la preuve longue tourne chaque nuit.
+une passe complète verte, avec la configuration du cadre (`scripts/vitest.nuit.config.mjs`).
+Ainsi le jour reste court, et la preuve longue tourne chaque nuit.
+
+**Un rouge connu se met en quarantaine dans son test** : un test qui reste rouge le temps d'un
+autre ticket s'écrit `it.skip` (ou `it.fails` quand il doit échouer) avec un commentaire qui nomme
+ce ticket. L'intégration exige un `npm test` vert et n'admet aucun rouge. Ainsi main reste vert, et
+chaque rouge connu a son ticket.
 
 ## La fin
 

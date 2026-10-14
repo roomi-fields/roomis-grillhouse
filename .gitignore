@@ -86,3 +86,6 @@ pids/
 
 # Agent copies (one worktree per ticket) and their session logs
 .claude/worktrees/
+
+# Turborepo: its local cache and its runs
+.turbo/

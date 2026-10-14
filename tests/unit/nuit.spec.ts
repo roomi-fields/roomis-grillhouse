@@ -26,7 +26,8 @@ const enteteDeNuit = () => {
   return lignes.slice(0, fin < 0 ? lignes.length : fin).join('\n');
 };
 
-// A repository whose tests fail while ROUGE is committed, with a fake Beads that records its calls,
+// A repository whose tests (`npm test`, and the full pass the night plays, `npm run test:forcer`)
+// fail while ROUGE is committed, with a fake Beads that records its calls,
 // answers `list` with the open tickets written in OUVERTS, `create` with the ticket <prefixe>-<numero>
 // and `config get issue_prefix` with the project's prefix, as the real bd does (the value, then a
 // newline).
@@ -47,7 +48,7 @@ function monde({ prefixe = 'demo', numero = '12' } = {}) {
   cpSync(path.dirname(NUIT), path.join(repo, 'scripts'), { recursive: true });
   writeFileSync(
     path.join(repo, 'package.json'),
-    JSON.stringify({ scripts: { test: 'node t.mjs' } })
+    JSON.stringify({ scripts: { test: 'node t.mjs', 'test:forcer': 'node t.mjs' } })
   );
   writeFileSync(
     path.join(repo, 't.mjs'),
@@ -151,7 +152,8 @@ describe('the night', () => {
 
 // The project's night script (grillhouse-3uv.30): `grillhouse.nuit` in the section `grillhouse` of
 // the project's package.json names an npm script; the night plays it in its copy, after a green
-// `npm test`. Each script below appends its name and working directory to a trace outside the
+// full pass (`npm run test:forcer`). `npm test` notes itself as `npm-test`, which the night never
+// plays. Each script below appends its name and working directory to a trace outside the
 // repository, so the order and the place of each run can be read.
 describe('the night plays the project night script (grillhouse.nuit)', () => {
   function projet(cle: unknown, scripts: Record<string, string> = {}, testRouge = false) {
@@ -161,7 +163,10 @@ describe('the night plays the project night script (grillhouse.nuit)', () => {
       `node -e "require('fs').appendFileSync('${trace}', '${nom} ' + process.cwd() + '\\n'); process.exit(${code})"`;
     const pkg: Record<string, unknown> = {
       scripts: {
-        test: testRouge ? noter('test', 1) : `${noter('test')} && node t.mjs`,
+        test: noter('npm-test'),
+        'test:forcer': testRouge
+          ? noter('test:forcer', 1)
+          : `${noter('test:forcer')} && node t.mjs`,
         ...Object.fromEntries(
           Object.entries(scripts).map(([nom, code]) => [
             nom,
@@ -195,11 +200,11 @@ describe('the night plays the project night script (grillhouse.nuit)', () => {
     return { ...m, copie, lignes, journal };
   }
 
-  it('1 — plays npm run <script> in its copy after a green npm test', () => {
+  it('1 — plays npm run <script> in its copy after a green npm run test:forcer', () => {
     const p = projet({ nuit: 'nuit-projet' }, { 'nuit-projet': 'vert' });
     const r = p.nuit();
     expect(r.status, p.journal()).toBe(0);
-    expect(p.lignes().map(l => l.nom)).toEqual(['test', 'nuit-projet']);
+    expect(p.lignes().map(l => l.nom)).toEqual(['test:forcer', 'nuit-projet']);
     expect(p.lignes()[1]?.dir).toBe(p.copie);
     expect(p.lire(path.join(p.commun, 'dernier-vert')).trim()).toBe(
       p.git('rev-parse', 'HEAD').trim()
@@ -212,18 +217,18 @@ describe('the night plays the project night script (grillhouse.nuit)', () => {
       { 'nuit:corpus': 'vert', autre: 'vert' }
     );
     expect(p.nuit().status, p.journal()).toBe(0);
-    expect(p.lignes().map(l => l.nom)).toEqual(['test', 'nuit:corpus']);
+    expect(p.lignes().map(l => l.nom)).toEqual(['test:forcer', 'nuit:corpus']);
   });
-  it('2 — a red npm test turns the night red without playing the project script', () => {
+  it('2 — a red npm run test:forcer turns the night red without playing the project script', () => {
     const p = projet({ nuit: 'nuit-projet' }, { 'nuit-projet': 'vert' }, true);
     expect(p.nuit().status).toBe(1);
-    expect(p.lignes().map(l => l.nom)).toEqual(['test']);
+    expect(p.lignes().map(l => l.nom)).toEqual(['test:forcer']);
     expect(p.appels()).toMatch(/^create La nuit est rouge depuis/m);
   });
   it('3 — a red project script turns the night red, on the night ticket, and the log names it', () => {
     const p = projet({ nuit: 'nuit-projet' }, { 'nuit-projet': 'rouge' });
     expect(p.nuit().status).toBe(1);
-    expect(p.lignes().map(l => l.nom)).toEqual(['test', 'nuit-projet']);
+    expect(p.lignes().map(l => l.nom)).toEqual(['test:forcer', 'nuit-projet']);
     expect(p.lire(path.join(p.commun, 'dernier-vert'))).toBe('');
     const journal = p.journal();
     expect(journal).toMatch(/✗ rouge : ticket/);
@@ -243,16 +248,16 @@ describe('the night plays the project night script (grillhouse.nuit)', () => {
     expect(p.appels()).not.toMatch(/^create/m);
     expect(p.appels()).toMatch(/nuit:corpus/);
   });
-  it('4 — without the key, the night plays npm test alone', () => {
+  it('4 — without the key, the night plays npm run test:forcer alone', () => {
     const p = projet(undefined, { 'nuit-projet': 'vert' });
     expect(p.nuit().status, p.journal()).toBe(0);
-    expect(p.lignes().map(l => l.nom)).toEqual(['test']);
+    expect(p.lignes().map(l => l.nom)).toEqual(['test:forcer']);
     expect(p.journal()).not.toMatch(/grillhouse\.nuit/);
   });
   it('4 — a section without the key leaves the night unchanged', () => {
     const p = projet({ integration: 'impactes', roles: {} }, { nuit: 'vert' });
     expect(p.nuit().status, p.journal()).toBe(0);
-    expect(p.lignes().map(l => l.nom)).toEqual(['test']);
+    expect(p.lignes().map(l => l.nom)).toEqual(['test:forcer']);
     expect(p.appels()).toBe('');
   });
   it('5 — a key naming a script absent from package.json turns the night red, naming it', () => {
@@ -268,10 +273,10 @@ describe('the night plays the project night script (grillhouse.nuit)', () => {
     expect(p.appels()).toMatch(/^create La nuit est rouge depuis/m);
     expect(p.appels()).toMatch(/nuit-absente/);
   });
-  it('7 — a null key is an absent key: the night plays npm test alone', () => {
+  it('7 — a null key is an absent key: the night plays npm run test:forcer alone', () => {
     const p = projet({ nuit: null }, { 'nuit-projet': 'vert', null: 'vert' });
     expect(p.nuit().status, p.journal()).toBe(0);
-    expect(p.lignes().map(l => l.nom)).toEqual(['test']);
+    expect(p.lignes().map(l => l.nom)).toEqual(['test:forcer']);
     expect(p.lire(path.join(p.commun, 'dernier-vert')).trim()).toBe(
       p.git('rev-parse', 'HEAD').trim()
     );
@@ -303,7 +308,7 @@ describe('the night plays the project night script (grillhouse.nuit)', () => {
       expect(p.appels()).toMatch(/grillhouse\.nuit/);
     });
   }
-  it('12 — an invalid key is caught before npm test: a red suite still reports the key', () => {
+  it('12 — an invalid key is caught before npm run test:forcer: a red suite still reports the key', () => {
     const p = projet({ nuit: '' }, { 'nuit-projet': 'vert' }, true);
     expect(p.nuit().status).toBe(1);
     expect(p.lignes()).toEqual([]);
@@ -336,10 +341,10 @@ describe('the night plays the project night script (grillhouse.nuit)', () => {
     const p = projet({ nuit: 'nuit-projet' }, { 'nuit-projet': 'vert' });
     writeFileSync(
       path.join(p.repo, 'package.json'),
-      JSON.stringify({ scripts: { test: 'node t.mjs' } })
+      JSON.stringify({ scripts: { test: 'node t.mjs', 'test:forcer': 'node t.mjs' } })
     );
     expect(p.nuit().status, p.journal()).toBe(0);
-    expect(p.lignes().map(l => l.nom)).toEqual(['test', 'nuit-projet']);
+    expect(p.lignes().map(l => l.nom)).toEqual(['test:forcer', 'nuit-projet']);
     expect(p.lignes()[1]?.dir).toBe(p.copie);
   });
   it('9 — a key only in the uncommitted package.json of the main tree is not read', () => {
@@ -348,7 +353,7 @@ describe('the night plays the project night script (grillhouse.nuit)', () => {
     pkg.grillhouse = { nuit: 'nuit-projet' };
     writeFileSync(path.join(p.repo, 'package.json'), JSON.stringify(pkg));
     expect(p.nuit().status, p.journal()).toBe(0);
-    expect(p.lignes().map(l => l.nom)).toEqual(['test']);
+    expect(p.lignes().map(l => l.nom)).toEqual(['test:forcer']);
     expect(p.appels()).toBe('');
   });
   it('9 — an invalid key only in the uncommitted package.json leaves the night green', () => {
@@ -363,7 +368,7 @@ describe('the night plays the project night script (grillhouse.nuit)', () => {
     const entete = enteteDeNuit();
     expect(entete).toMatch(/grillhouse\.nuit/);
     expect(entete).toMatch(/npm pkg set grillhouse\.nuit=/);
-    expect(entete).toMatch(/npm test/);
+    expect(entete).toMatch(/npm run test:forcer/);
   });
 });
 
@@ -386,7 +391,10 @@ describe('the night pushes its green commit (grillhouse.poussee.nuit)', () => {
       `node -e "require('fs').appendFileSync('${trace}', '${nom}\\n'); process.exit(${code})"`;
     const pkg: Record<string, unknown> = {
       scripts: {
-        test: opts.testRouge ? noter('test', 1) : `${noter('test')} && node t.mjs`,
+        test: noter('npm-test'),
+        'test:forcer': opts.testRouge
+          ? noter('test:forcer', 1)
+          : `${noter('test:forcer')} && node t.mjs`,
         ...Object.fromEntries(
           Object.entries(opts.scripts ?? {}).map(([nom, code]) => [
             nom,
@@ -486,11 +494,11 @@ describe('the night pushes its green commit (grillhouse.poussee.nuit)', () => {
       { scripts: { 'nuit-projet': 'vert' } }
     );
     expect(d.nuit().status, d.journal()).toBe(0);
-    expect(d.joues()).toEqual(['test', 'nuit-projet']);
+    expect(d.joues()).toEqual(['test:forcer', 'nuit-projet']);
     expect(d.ref('main')).toBe(d.tete);
   });
   // Each red night is followed by the green night of its fix, which pushes: the push waits for green.
-  it('1, 2 — a red npm test pushes nothing; the green night of its fix pushes', () => {
+  it('1, 2 — a red npm run test:forcer pushes nothing; the green night of its fix pushes', () => {
     const d = distant({ poussee: { nuit: 'main' } });
     const rouge = d.suivant(() => writeFileSync(path.join(d.repo, 'ROUGE'), ''));
     expect(d.nuit().status).toBe(1);
@@ -611,7 +619,7 @@ describe('the night pushes its green commit (grillhouse.poussee.nuit)', () => {
       expect(d.appels()).toMatch(/grillhouse\.poussee\.nuit/);
     });
   }
-  it('4 — an invalid poussee.nuit is caught before npm test: a red suite still reports the key', () => {
+  it('4 — an invalid poussee.nuit is caught before npm run test:forcer: a red suite still reports the key', () => {
     const d = distant({ poussee: { nuit: '' } }, { testRouge: true });
     expect(d.nuit().status).toBe(1);
     expect(d.joues()).toEqual([]);
@@ -621,7 +629,7 @@ describe('the night pushes its green commit (grillhouse.poussee.nuit)', () => {
     const d = distant({ poussee: { nuit: 'main' } });
     writeFileSync(
       path.join(d.repo, 'package.json'),
-      JSON.stringify({ scripts: { test: 'node t.mjs' } })
+      JSON.stringify({ scripts: { test: 'node t.mjs', 'test:forcer': 'node t.mjs' } })
     );
     expect(d.nuit().status, d.journal()).toBe(0);
     expect(d.ref('main')).toBe(d.tete);

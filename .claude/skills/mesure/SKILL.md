@@ -30,8 +30,9 @@ dans le compte rendu, et attend le responsable.
 6. **La source qui répond à la question** : tu lis la source qui correspond à ce que tu affirmes.
    Ce qui est publié se lit dans l'enregistré ; ce que la construction embarque ou ce qu'un script
    exécute se lit sur le disque ; ce que le dépôt exécute comme crochet se lit dans le chemin des
-   crochets configuré. Ainsi ta mesure porte sur ce que le produit fait, et non sur une copie
-   voisine.
+   crochets configuré ; la durée d'un test se lit sur un lancement réel (`npm run test:forcer`),
+   jamais sur une sortie relue du cache de Turborepo. Ainsi ta mesure porte sur ce que le produit
+   fait, et non sur une copie voisine.
 
 ## Pendant la mesure
 
