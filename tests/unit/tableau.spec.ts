@@ -437,7 +437,7 @@ describe('assembler', () => {
     }
   });
   it("shows each ticket's time and tokens in the states view, as the board does", () => {
-    const v = lignesEtats(t).map(x => x.texte);
+    const v = (lignesEtats(t) as { texte: string }[]).map(x => x.texte);
     expect(v).toContainEqual(expect.stringMatching(/^ {2}c\.3 {2}demo-c\.3 +1 min · 50$/));
     expect(v).toContainEqual(expect.stringMatching(/^ {2}c\.1\.1 {2}Écrit +\d+ min · [\d,]+ k$/));
     expect(v).toContain('  c.1.2  demo-c.1.2');
@@ -480,7 +480,7 @@ describe('assembler', () => {
       jour,
     });
     expect(u.global.compteurs.fermes).toBe(2);
-    expect(lignesEtats(u).map(x => x.texte)).toContainEqual(
+    expect((lignesEtats(u) as { texte: string }[]).map(x => x.texte)).toContainEqual(
       expect.stringMatching(/^ {2}d\.1 {2}Livré +1 min · 50$/)
     );
     expect(u.faitsDuJour.map(x => (x as { id: string }).id)).toContain('demo-d.1');
