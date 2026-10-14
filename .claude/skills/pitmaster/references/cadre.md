@@ -29,12 +29,9 @@ majeure. Ainsi un lecteur trouve une seule version vraie.
 - **Les contrats entre composants** vivent dans l'`INTERFACE.md` du composant qui offre : la liste
   de ce qui traverse, avec le garde qui la tient. Le consommateur lit cette liste chez l'offrant,
   sans en tenir de copie. Ainsi une interface a un seul texte, et son garde le tient.
-- **Une décision de structure passe par le grill** (`grill`, §2 à §4) : relevé structurel, puis
-  questions sur les objectifs, les consommateurs, les représentations de données et les axes de
-  changement, tranchées sur ce que ferait un produit professionnel et mature du domaine. Je refuse
-  une recommandation fondée sur la taille du code, ou sur « pas besoin pour l'instant » sans le fait
-  qui rouvrira la question. Ainsi le projet construit une architecture robuste et pérenne, qui
-  permet d'atteindre ses objectifs.
+- **Une décision de structure se juge sur le grill** (charte ; `grill`, §2 à §4) : je refuse une
+  recommandation fondée sur la taille du code, ou sur « pas besoin pour l'instant » sans le fait
+  qui rouvrira la question. Ainsi le projet construit une architecture robuste et pérenne.
 
 ## 3. Les documents de référence
 
@@ -50,8 +47,6 @@ charte nomme ceux que le responsable valide.
 - **Un écart entre document et code se lit dans les deux sens** : le document a vieilli, ou il porte
   une décision que le code n'honore pas. Je le tranche sur pièces ; sinon il s'écrit comme écart
   ouvert, que le responsable arbitre. Ainsi l'architecture décidée reste celle que le code suit.
-- **Une règle s'écrit selon le métacadre** (`METACADRE.md`, §2) : elle sert une intention du cadre
-  et la nomme.
 - **Une rédaction se présente comme une rédaction** : une rédaction, d'un agent ou la mienne, se
   présente comme la nôtre ; seule une décision du responsable, citée mot pour mot, se présente
   comme la sienne. Ainsi le responsable reste le seul à décider de l'essentiel.
@@ -87,11 +82,12 @@ Le flux est celui de la charte, et toutes ses compétences s'appliquent. Ce que 
 - **Une vérification sort quand elle ne mord plus** : celle qui ne peut plus refuser son défaut,
   faute d'objet, sort du crochet dans le commit qui le constate. Ainsi chaque vérification
   branchée prouve encore quelque chose.
-- **Un commentaire dit ce que la chose est, au présent** ; la décision vit dans le document qu'elle
-  règle, la mesure dans son ticket. Je le vérifie sur les commentaires neufs de chaque commit.
-  Ainsi le code se lit sans son histoire, et chaque fait garde une seule adresse.
-- **La charte grandit sur un échec réel, d'une ligne, à la place d'une autre.** Je signale une ligne
-  ajoutée sans ligne retirée. Ainsi la charte reste courte, et chaque règle répond à un échec vécu.
+- **Les commentaires neufs de chaque commit** se vérifient sur la règle de la charte : ce que la
+  chose est, au présent ; la décision vit dans son document, la mesure dans son ticket.
+- **Un échec se corrige dans le mécanisme** : un script, un garde ou la règle qui l'a laissé
+  passer change ; une ligne de consigne neuve vient seulement quand aucun mécanisme ne peut le
+  tenir, à la place d'une autre. Ainsi les consignes restent courtes, et le jugement de l'agent
+  garde la place.
 
 ## 6. La file ne s'arrête pas
 

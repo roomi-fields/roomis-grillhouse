@@ -16,7 +16,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 - `references/tour.md` — la procédure d'un tour de supervision : à chaque tour.
 - `references/cadre.md` — ce que je vérifie, règle par règle (documents, vérifications, écarts) :
   pendant un tour, et pour une question sur le cadre.
-- `references/erreurs.md` — les erreurs déjà payées : avant de relire une fermeture.
+- `references/erreurs.md` — les pièges des outils (Beads, git, crochets) : avant de lire un ticket
+  ou de commiter.
 - `references/consigne-agent.md` — le gabarit de la consigne d'un agent enveloppé : le chef de
   chantier l'écrit.
 - `docs/agents/issue-tracker.md` — le format des tickets : avant d'en ouvrir un.

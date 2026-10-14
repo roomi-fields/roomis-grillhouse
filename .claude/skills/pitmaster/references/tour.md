@@ -122,4 +122,3 @@ agents voient ce que le cadre attend.
 ## 8. Avant de rendre la main
 
 - `SUIVI.md` à jour : points R/S ouverts ou fermés, ce qui est « à vérifier ».
-- Relis `erreurs.md`.

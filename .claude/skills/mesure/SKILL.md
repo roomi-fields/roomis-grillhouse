@@ -8,11 +8,9 @@ description: >
 
 # Mesure — mesurer sans se mentir, et prouver qu'un garde mord
 
-Cette compétence sert l'intention 4 du métacadre (`METACADRE.md`), « La preuve avant
-l'affirmation » : chaque règle dit ce que sa preuve protège. Les commandes permises et les
-instruments du dépôt sont dans la charte (`CLAUDE.md`). Une mesure qui demande une commande que la
-charte interdit s'écrit dans le compte rendu, et attend le responsable. Ainsi le cadre reste
-intact, et la mesure manquante reste visible.
+Cette compétence sert l'intention 4 du métacadre, « La preuve avant l'affirmation » : chaque règle
+dit ce que sa preuve protège. Une mesure qui demande une commande que la charte interdit s'écrit
+dans le compte rendu, et attend le responsable.
 
 ## Avant de mesurer
 
@@ -27,8 +25,8 @@ intact, et la mesure manquante reste visible.
    même chose, puis tu compares les chiffres. Ainsi le désaccord porte sur les faits, et non sur
    les mots.
 5. **Une liste produite depuis sa source** : une liste se produit à partir de sa source, et tu
-   vérifies ce que cette source contient (la liste des fichiers suivis par git omet un fichier
-   neuf que le compilateur compile). Ainsi la liste couvre ce que le produit utilise vraiment.
+   vérifies ce que cette source contient. Ainsi la liste couvre ce que le produit utilise
+   vraiment.
 6. **La source qui répond à la question** : tu lis la source qui correspond à ce que tu affirmes.
    Ce qui est publié se lit dans l'enregistré ; ce que la construction embarque ou ce qu'un script
    exécute se lit sur le disque ; ce que le dépôt exécute comme crochet se lit dans le chemin des
@@ -66,34 +64,14 @@ intact, et la mesure manquante reste visible.
   `codegraph explore`) ; dans une enveloppe, qui n'en montre aucun, tu lis ton paquet en entier.
   Ainsi un nom écrit autrement, un chemin assemblé ou un appel indirect
   entrent dans le compte.
-- **Un zéro se vérifie par ses causes** : avant de croire un zéro, tu vérifies le périmètre, la
-  casse, le type de fichier, la forme du motif, les accents, la délégation à une autre fonction, le
-  balisage et les chemins assemblés par variables. Ainsi un zéro dit l'absence de la chose, et non
-  l'étroitesse de la recherche.
-- **Inventorier par les lecteurs** : un inventaire part des lecteurs dans le code, puis va aux
-  données. Ainsi il compte ce que le produit utilise.
-- **Un dossier ne couvre pas un composant** : les données d'un composant vivent aussi dans son
-  code (gabarits, chaînes, tableaux de lignes joints) ; un relevé fait sur un dossier le dit. Ainsi
-  un relevé ne prend pas une partie pour le tout.
-- **Un lecteur se compte par son usage** : le nombre de fichiers qui citent un chemin est un
-  maximum ; les lecteurs se comptent dans le code qui l'ouvre. Ainsi une citation dans un
-  commentaire ou un document ne passe pas pour un usage.
 - **Un zéro se prouve par trois appuis** : l'outil trouve ce qu'il cherche sur un autre cas ; la
   comparaison des deux listes ne laisse rien dehors (par différence des listes, et non par
   égalité des comptes) ; la forme que l'outil ne sait pas lire est sondée à part. Ainsi « rien »
   se démontre.
 - **Deux nombres égaux** : un relevé donne le nombre de lignes produites par l'outil et le nombre
   de lignes examinées, et les deux sont égaux. Ainsi une lecture tronquée se voit.
-- **Une graine fixe** : quand le produit tire au hasard, deux sorties se comparent à graine fixe.
-  Ainsi la différence mesurée vient du changement, et non du tirage.
-- **Une sortie identique se qualifie** : une sortie identique veut dire que rien n'a changé, ou que
-  rien n'a été regardé ; tu vérifies laquelle. Ainsi « identique » prouve la stabilité.
 - **Un compte se reprend à la source** : un compte recopié d'un document se recompte à sa source
   avant d'être cité. Ainsi un chiffre cité est un chiffre actuel.
-- **Un filtre se lit par ce qu'il écarte** : devant un compte qui baisse, tu lis ce que le filtre
-  écarte et tu nommes chaque cas écarté. Ainsi une baisse se distingue d'un dénominateur réduit en
-  silence.
-
 ## Conclure à une absence
 
 **Une absence se démontre** : avant d'écrire « il n'existe aucun document sur X », tu cherches où
@@ -112,38 +90,10 @@ signale comme un trou. Ainsi un défaut de ta recherche ne devient pas un fait d
 - **Une sonde accepte tout ce qui est valide** : elle accepte chaque valeur que l'interface peut
   légitimement rendre (« rien » pour un refus, un objet sans prototype). Ainsi un échec de la sonde
   accuse l'interface, et non l'observateur.
-- **Un objet porte plus que sa classe** : ses champs se relèvent sur l'objet construit, car le
-  constructeur pose des champs que la classe ne déclare pas. Ainsi le relevé décrit ce que l'objet
-  porte.
-- **Un filtre de chemin porte sur les fichiers** : il se pose sur les noms de fichiers, et non sur
-  des lignes qui ont perdu leur nom de fichier. Ainsi le filtre écarte vraiment ce qu'il vise.
-- **Un import se lit en entier** : un import écrit sur plusieurs lignes se lit comme un bloc. Ainsi
-  chaque nom importé compte, y compris ceux des lignes sans `from`.
-- **Un motif borné par ses délimiteurs** : un motif de recherche s'ancre sur les délimiteurs de ce
-  qu'il cherche. Ainsi il reste dans l'import visé et ne ramasse pas les noms de l'import voisin.
-- **Un test compte comme consommateur** : un test qui utilise une interface se compte comme un
-  consommateur, dans une colonne à part. Ainsi un retrait mesure tout ce qu'il casse.
 - **Un consommateur sans import** : une copie locale, un contrat recopié en texte ou un miroir de
   structure consomme une interface sans l'importer ; « personne n'importe » se vérifie contre ces
   formes avant de devenir « personne ne consomme ». Ainsi un retrait ne casse pas un consommateur
   qu'aucun compilateur ne signalera.
-- **Un garde se relance chez lui** : devant un échec qui dépend de l'endroit d'où tu lances, tu
-  compares les répertoires de lancement et tu relances chaque garde seul, depuis son répertoire.
-  Ainsi l'échec accuse le code, et non le répertoire courant.
-- **Un chemin temporaire : `git status` d'abord** : devant un échec qui nomme un chemin temporaire,
-  tu lances `git status`. Ainsi un fichier neuf non suivi, absent des copies, se repère avant
-  d'être pris pour un défaut d'import.
-
-## Agréger des états
-
-- **Une forme illisible se compte** : ce que l'agrégateur ne sait pas lire se compte et se dit, et
-  un composant dont aucun état n'est lisible fait refuser. Ainsi une colonne ne tombe pas à zéro
-  en silence.
-- **« Ne rend pas la main » est un état** : ni vert, ni rouge, ni partiel. Ainsi un blocage ne
-  passe pas pour un verdict.
-- **Un producteur se liste chez l'agrégateur** : chaque fiche d'état a son lecteur, et ce qui
-  manque au tableau se compte et se dit. Ainsi un tableau troué ne se lit pas comme complet.
-
 ## Prouver qu'un garde mord
 
 - **Un garde se prouve par une faute injectée** : tu injectes chez toi une faute réelle, et le
@@ -195,11 +145,6 @@ affirme.
   prochain lecteur ne la croit pas close.
 - **Le symbole avec la ligne** : une citation de code donne le nom du symbole en plus du numéro de
   ligne. Ainsi la citation reste juste quand les lignes bougent.
-- **Ce qui ne s'y confond pas** : une citation nomme aussi ce qui lui ressemble et ne s'y applique
-  pas. Ainsi le lecteur ne prend pas le voisin pour la pièce.
-- **Une copie se mesure contre son amont** : une donnée de test qui affirme copier une source se
-  compare à elle par du code ; une donnée réduite ne prétend rien copier. Ainsi une copie périmée
-  se voit.
 - **« Pas mesuré » est une réponse** : quand tu n'as pas mesuré, tu réponds « pas mesuré ». Ainsi
   une supposition ne passe pas pour une mesure.
 - **Ton propre travail se mesure aussi** : avant d'affirmer quelque chose sur ce que tu as fait, tu
@@ -211,26 +156,12 @@ affirme.
   n'engages ta parole que sur ce que tu as prouvé.
 - **La pièce d'origine** : tu lis le document, le code ou la sortie d'origine, et non le résumé
   qu'on t'en donne. Ainsi tu vérifies le fait, et non sa reformulation.
-- **Un écart est une information** : quand une mesure reçue contredit ce que tu as déjà mesuré, tu
-  rapportes l'écart. Ainsi la contradiction se résout sur pièces.
-- **Une source se lit en entier** : une source dont tu tires une règle se lit en entier. Ainsi la
-  règle tient compte de ce qui la limite.
-
 ## Quand tu corriges
 
 - **Ce qui tenait tient encore** : après une correction, tu revérifies les observations faites
   ailleurs qui en dépendent. Ainsi une correction juste ne rend pas aveugle un outil juste.
 - **Un indice se revalide** : quand la cause qu'un indice détectait est corrigée, tu vérifies
   qu'il discrimine encore. Ainsi un indice devenu muet ne passe pas pour un vert.
-- **Une exclusion se vérifie chez celui qu'elle protège** : quand une règle ou un garde exclut un
-  cas pour protéger un composant, tu vérifies l'exclusion dans ce composant, pas là où elle est
-  écrite. Ainsi elle protège vraiment ce composant.
 - **Corriger, c'est remplacer** : dans un document de référence, la phrase fausse se remplace par
   la juste ; dans un registre, l'entrée fausse se marque sur place, datée. Ainsi le lecteur ne
   trouve que la version juste.
-- **Une exécution se compte par ses appels** : tu comptes les lancements d'un programme, en
-  interposant un appelant qui les note, et non les lignes de sa sortie. Ainsi les sous-processus
-  comptent aussi.
-- **Un remplacement en masse se borne** : il exclut les documents que le responsable valide,
-  remplace le chemin entier, et son diff se relit avant le commit. Ainsi le responsable garde la
-  main sur ses documents, et aucun fragment de chemin ne casse un texte voisin.
