@@ -81,6 +81,11 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
   du cadre, et le contrôle des gardes nomme chaque écart ; un écart passe seulement inscrit, avec
   sa raison, dans la liste du projet que le superviseur valide. Ainsi le cadre ne maintient
   aucune spécificité par composant.
+- **Une dette connue s'inscrit et se gèle** : un projet qui adopte le cadre inscrit les constats
+  de ses gardes dans `grillhouse-dette.json` (`npm run grillhouse:dette:inscrire`) ; une garde
+  refuse tout constat neuf et signale ce qui est corrigé, que l'élagage retire
+  (`npm run grillhouse:dette:elaguer`) ; le compte ne remonte jamais. Ainsi le cadre s'adopte sans
+  attendre la fin de la dette, et la dette ne fait que baisser.
 - **Un remplacement supprime le remplacé** dans le même commit, avec ses consommateurs et ses
   gardes. Ainsi le produit garde une seule façon de faire chaque chose.
 - **Un commentaire dit ce que la chose est**, au présent. Ainsi il reste vrai tant que le code ne

@@ -244,6 +244,16 @@ describe('grillhouse-3uv.55 critère 1 — the update writes grillhouse:gardes',
       expect(existsSync(path.join(projet, f)), f).toBe(true);
     }
   });
+  it('the update writes the commands of the known debt of the guards, the frame’s own', () => {
+    const g = installe({
+      name: 'p',
+      scripts: { 'grillhouse:dette:inscrire': 'echo à moi' },
+    }).scripts();
+    for (const nom of ['grillhouse:dette:inscrire', 'grillhouse:dette:elaguer']) {
+      expect(g[nom], nom).toBe(gabarit()[nom]);
+      expect(g[nom], nom).toMatch(/GRILLHOUSE_DETTE=/);
+    }
+  });
   it("critère 1: a project's own grillhouse:gardes gives way to the frame's", () => {
     const g = installe({ name: 'p', scripts: { 'grillhouse:gardes': 'echo à moi' } }).scripts();
     expect(g['grillhouse:gardes']).toBe(gabarit()['grillhouse:gardes']);

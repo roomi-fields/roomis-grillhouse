@@ -54,6 +54,7 @@ roomis-grillhouse/
 │   │   ├── enveloppe.mjs             # bwrap sandbox for one component (tests: tests/unit/enveloppe.spec.ts)
 │   │   ├── codes.mjs                 # the exit codes of the envelope and its launcher
 │   │   └── lancer.sh                 # one ticket → one fresh role session in its envelope
+│   ├── dette.mjs                  # the known debt of the guards: grillhouse-dette.json (guard, file, rule → count); a guard passes within the counts, refuses a new finding or a count beyond, reports a count below
 │   ├── code-mort.mjs              # grillhouse:gardes: refuses dead code, measured by knip (knip.json); tests and benches count for dependency use only
 │   ├── consommateurs.mjs          # grillhouse:gardes: refuses an import that the provider's INTERFACE.md does not declare, and two components of the same name
 │   │                              #   composants(): the components for every check, minus the packages out of

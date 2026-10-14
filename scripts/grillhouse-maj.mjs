@@ -13,7 +13,8 @@
 //   settings stay. The file is written only when its JSON value changes (the same value under
 //   another layout stays as it is), and the keys keep the file's order, the frame's new ones after.
 // - `package.json`, when there is one: the frame's npm scripts (`tableau`, `grillhouse:maj`), and
-//   `grillhouse:gardes`, the list of the frame's controls, and `api` (`npm run api`, which writes
+//   `grillhouse:gardes`, the list of the frame's controls, `grillhouse:dette:inscrire` and
+//   `grillhouse:dette:elaguer` (the known debt of the guards, scripts/dette.mjs), and `api` (`npm run api`, which writes
 //   the API reports and the generated part of each `docs/INTERFACE.md`), each read as it is in the
 //   source's `package.json` (a source without one writes none). Turborepo plays `grillhouse:gardes`
 //   after the build, beside the tests (`turbo.json`, `npm run verifier`): the frame's former wiring
@@ -399,6 +400,11 @@ export function mettreAJour(projet, source, version) {
       p.packageManager = pkgSource.packageManager;
     }
     if (typeof gardes === 'string') p.scripts['grillhouse:gardes'] = gardes;
+    // The commands of the known debt of the guards (scripts/dette.mjs) are the frame's.
+    for (const nom of ['grillhouse:dette:inscrire', 'grillhouse:dette:elaguer']) {
+      const script = pkgSource.scripts?.[nom];
+      if (typeof script === 'string') p.scripts[nom] = script;
+    }
     // The frame's former wiring of the guards goes: Turborepo plays them (`npm run verifier`).
     const pretest = typeof p.scripts.pretest === 'string' ? p.scripts.pretest.trim() : null;
     if (pretest === APPEL_GARDES) {

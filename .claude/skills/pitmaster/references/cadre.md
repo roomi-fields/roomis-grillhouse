@@ -71,6 +71,9 @@ Le flux est celui de la charte, et toutes ses compétences s'appliquent. Ce que 
 - **Une vérification entre sur quatre critères** : elle refuse un défaut réel, dont l'échec
   d'origine est nommé dans son fichier ; elle se tait quand tout va bien ; son temps est borné ; elle
   seule mesure ce qu'elle mesure. Ainsi chaque vérification prouve quelque chose, sans bruit.
+- **Une garde passe sur sa dette inscrite** (`grillhouse-dette.json`) : un refus qui la nomme dit
+  un constat neuf, qui se corrige et ne s'inscrit jamais pour passer. L'inscription est un geste du
+  responsable, à l'adoption du cadre ; l'élagage suit chaque correction.
 - **Une vérification change par le responsable** : une vérification ajoutée, retirée ou élargie
   part avec son accord, écrit au ticket. Ainsi ce qui refuse un commit reste sa décision.
 - **Le code mort se refuse** : `scripts/code-mort.mjs` (knip, configuré dans `knip.json`) refuse un
