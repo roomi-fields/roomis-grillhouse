@@ -40,18 +40,10 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
 
 ## Attendre ce que je lance
 
-- **Une enveloppe s'attend au premier plan, par tranches** : sa fin ne me réveille pas. J'attends
-  son processus, visé par la copie du ticket :
-  `timeout 580 tail --pid=$(pgrep -f "[e]nveloppe.mjs [^ ]*/worktrees/<ticket> " | head -1) -f /dev/null; echo $?`.
-  124 : pas finie, une tranche de plus ; 0 : finie. Ainsi aucune attente ne dépasse la limite d'une
-  commande, et aucune ne se perd.
-- **Je ne termine jamais mon tour pendant qu'un de mes agents tourne** : mon tour fini, l'avis de
-  fin d'un relecteur ou d'un intégrateur ne m'arrive plus. J'attends son verdict au ticket, au
-  premier plan, par tranches : `n0=$(bd comments <id> | grep -cE '^\[.* at ')`, puis
-  `timeout 580 bash -c "while [ \$(bd comments <id> | grep -cE '^\[.* at ') -le $n0 ]; do sleep 20; done"; echo $?`
-  (124 : pas encore, une tranche de plus ; 0 : un commentaire neuf, je le lis). L'intégrateur s'attend
-  de même, sur un commentaire neuf ou le ticket fermé (`bd show <id>`). Une nouvelle
-  relecture part par message, et s'attend de même. Ainsi aucun verdict ne reste sans suite.
+- **J'attends au premier plan, par `scripts/attendre.sh`** : la fin d'une enveloppe, et le verdict
+  d'un relecteur ou d'un intégrateur, ne me réveillent pas. Je ne termine donc jamais mon tour
+  pendant qu'un de mes agents tourne ; le script dit son usage, et une tranche écoulée se relance.
+  Ainsi aucun verdict ne reste sans suite.
 - **Un agent par copie à la fois** : un message n'arrive à un agent qu'à sa prochaine action ;
   j'attends la fin d'un agent avant d'en lancer un autre dans la même copie. Ainsi deux agents
   n'écrivent jamais ensemble dans une copie.
