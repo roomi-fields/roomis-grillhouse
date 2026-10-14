@@ -88,7 +88,7 @@ function projet(grillhouse: unknown, { hooksPath = true, prePush = true } = {}) 
   const configApres = git('config', '--local', '--list');
   const pkg: Record<string, unknown> = {
     name: 'p',
-    scripts: { test: 'node t.mjs', 'test:forcer': 'node t.mjs' },
+    scripts: { test: 'node t.mjs', verifier: 'node t.mjs' },
   };
   if (grillhouse !== undefined) {
     pkg.grillhouse = grillhouse;

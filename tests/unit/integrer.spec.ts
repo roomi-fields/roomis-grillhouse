@@ -143,7 +143,7 @@ describe('refusLots', () => {
   });
 });
 
-// A repository with a fake Beads and the one test command of the frame: `npm test` plays the guards
+// A repository with a fake Beads and the one test command of the frame: `npm run verifier` plays the guards
 // (red while GARDE_ROUGE or RESTE exists), then the tests (suites.mjs: red while ROUGES_FORCES
 // exists), one exit code. Each run of the tests appends « [<its arguments>] » to <PRINCIPAL>.args.
 const SUITES_MONDE =
@@ -164,7 +164,7 @@ function monde(commentaires: string[]) {
   writeFileSync(
     path.join(repo, 'package.json'),
     JSON.stringify({
-      scripts: { test: 'test ! -f GARDE_ROUGE && test ! -f RESTE && node suites.mjs' },
+      scripts: { verifier: 'test ! -f GARDE_ROUGE && test ! -f RESTE && node suites.mjs' },
     })
   );
   writeFileSync(path.join(repo, 'suites.mjs'), SUITES_MONDE);
@@ -252,12 +252,12 @@ function monde(commentaires: string[]) {
   return { repo, run, lancer, etat, poser, bin, appels, sha };
 }
 
-// The refusal of the integration once `npm test` is red in its copy: no commit on the ticket's
+// The refusal of the integration once `npm run verifier` is red in its copy: no commit on the ticket's
 // branch, which stays where the copy was made, and the main tree as it was.
 const REFUS_TESTS = /⛔ Les tests refusent le lot \(sortie ci-dessus\)\./;
 
 describe('an integration', () => {
-  it('commits a reviewed lot whose npm test is green, and writes its duration', () => {
+  it('commits a reviewed lot whose npm run verifier is green, and writes its duration', () => {
     const m = monde(['ACCEPTÉ']);
     const r = m.run();
     expect(r.stdout).toMatch(/✓ commit/);
@@ -269,7 +269,7 @@ describe('an integration', () => {
     expect(e.log[0]).toBe('feat: a (demo-1)');
     expect(e.status).toBe('');
   });
-  it('plays npm test once in the copy, without any argument', () => {
+  it('plays npm run verifier once in the copy, without any argument', () => {
     const m = monde(['ACCEPTÉ']);
     const r = m.run();
     expect(r.status, r.stdout + r.stderr).toBe(0);
@@ -290,7 +290,7 @@ describe('an integration', () => {
     expect(m.appels()).toBe('');
     expect(m.etat()).toMatchObject({ log: ['base'], status: '' });
   });
-  it('refuses a lot whose guards are red in npm test: no commit, no branch moved, the tree restored', () => {
+  it('refuses a lot whose guards are red in npm run verifier: no commit, no branch moved, the tree restored', () => {
     const m = monde(['ACCEPTÉ']);
     m.poser('GARDE_ROUGE', '');
     const r = m.run();
@@ -328,7 +328,7 @@ describe('an integration', () => {
     expect(r.stdout).not.toMatch(/base/);
     expect(m.etat().log[0]).toBe('pose ROUGES_FORCES');
   });
-  it('writes the output of the red npm test before its refusal', () => {
+  it('writes the output of the red npm run verifier before its refusal', () => {
     const m = monde(['ACCEPTÉ']);
     m.poser(
       'suites.mjs',
@@ -1141,7 +1141,7 @@ describe('grillhouse-3uv.63 — the integration commits on the ticket branch', (
 // `lancer` (scripts/integration/rejeu.mjs), which leaves the index of the copy up to date after it,
 // green or red, as git's own scripts refresh before they judge (`git update-index -q --refresh`,
 // require_clean_work_tree). The trial build (./integration-essai.ts, `construireParLiens`), which
-// `npm test` plays before the guards and the tests as Turborepo does, and the trial suites of
+// `npm run verifier` plays before the guards and the tests as Turborepo does, and the trial suites of
 // critère 8 (`suitesParLiens`) hard-link tracked files: the link changes their ctime after the
 // copy wrote its index, and `git commit` or `git apply --index` would then take them for modified.
 describe('grillhouse-3uv.73 — every command of the project leaves the index of its copy up to date', () => {
@@ -1222,7 +1222,7 @@ describe('grillhouse-3uv.73 — every command of the project leaves the index of
     LONG_73
   );
   it(
-    'critère 5: a red build of the lot, in npm test, refreshes the index of its copy before the refusal',
+    'critère 5: a red build of the lot, in npm run verifier, refreshes the index of its copy before the refusal',
     () => {
       const m = chantier(ESSAIS);
       const builds = construireParLiens(m);
@@ -1367,7 +1367,7 @@ describe('grillhouse-3uv.73 — every command of the project leaves the index of
 // grillhouse-3uv.74: the dependencies of the integration copy follow its lock file of the moment.
 // One function of the replay (scripts/integration/rejeu.mjs) compares the lock file with the key
 // of node_modules, runs `npm ci` when they differ and writes the key again; it runs at the opening
-// and once the lot is applied, before `npm test` (the build, the guards, the tests), which reads
+// and once the lot is applied, before `npm run verifier` (the build, the guards, the tests), which reads
 // the dependencies. The trial project's build, guards and tests read the dependencies
 // (./integration-essai.ts, `chantierDependances`); npm runs offline.
 describe('grillhouse-3uv.74 — the dependencies of the integration copy follow its lock file', () => {
@@ -1478,7 +1478,7 @@ describe('grillhouse-3uv.74 — the dependencies of the integration copy follow 
     D
   );
   it(
-    "critère 6: an installation that fails after the lot is applied refuses the lot with « Les dépendances de la copie ne s'installent pas. », without running npm test",
+    "critère 6: an installation that fails after the lot is applied refuses the lot with « Les dépendances de la copie ne s'installent pas. », without running npm run verifier",
     () => {
       const m = chantierDependances(ESSAIS);
       m.ticket('demo-1', m.introuvable());
@@ -1494,7 +1494,7 @@ describe('grillhouse-3uv.74 — the dependencies of the integration copy follow 
     D
   );
   it(
-    'critère 6: a lot whose lock file disagrees with its package.json is refused the same way, without running npm test',
+    'critère 6: a lot whose lock file disagrees with its package.json is refused the same way, without running npm run verifier',
     () => {
       const m = chantierDependances(ESSAIS);
       // package.json names the workspace src/d, which the lock file (ext-lib 2.0.0) lacks.
@@ -1659,9 +1659,9 @@ describe('grillhouse-3uv.56 critère 12 — a changed manifest is installed as a
 });
 
 // grillhouse-3uv.56 critère 11: a failed installation comes up in one form, the refusals of the
-// replay module: guards that fail in `npm test` while writing the text of an installation refusal
+// replay module: guards that fail in `npm run verifier` while writing the text of an installation refusal
 // are red tests, not an installation that fails.
-describe('grillhouse-3uv.56 critère 11 — the integration judges npm test by its status', () => {
+describe('grillhouse-3uv.56 critère 11 — the integration judges npm run verifier by its status', () => {
   it('critère 11: red guards writing the text of an installation refusal refuse the lot as red tests', () => {
     const m = chantier(ESSAIS);
     m.poser(

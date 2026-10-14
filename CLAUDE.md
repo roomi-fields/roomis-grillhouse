@@ -35,7 +35,7 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
 
 ## Commandes
 
-- `npm test` (Turborepo : construction, gardes, tests ; une tâche dont rien n'a bougé est relue de son cache, `npm run test:forcer` rejoue) · `npm test -- <fichiers>` (un lancement ciblé) · `npm run typecheck` · `npm run lint` · `npm run format:check`.
+- `npm test` (Turborepo : construction, puis tests ; une tâche dont rien n'a bougé est relue de son cache, `npm run test:forcer` rejoue) · `npm test -- <fichiers>` (un lancement ciblé) · `npm run verifier` (les gardes et les tests, côte à côte : ce que jouent l'intégration, la file, la CI et la nuit) · `npm run typecheck` · `npm run lint` · `npm run format:check`.
 - Préfixe des tickets : `<prefixe>-`.
 - La politique de poussée : la clé `grillhouse.poussee` du `package.json` (`commit` : la branche où
   part chaque commit, main par défaut ; `nuit` : la branche où la nuit pousse son commit vert ;

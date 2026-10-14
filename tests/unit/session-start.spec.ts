@@ -222,8 +222,8 @@ describe('the session start plays the check the project declares', () => {
 
   it('critère 1 — each line of the declared script joins the list as an item to deal with', () => {
     const { sortie } = lancer(
-      { verifier: 'echo "le sous-module natif à vérifier"; echo "le corpus contre natif"' },
-      { demarrage: 'verifier' }
+      { controle: 'echo "le sous-module natif à vérifier"; echo "le corpus contre natif"' },
+      { demarrage: 'controle' }
     );
     const liste = elements(sortie);
     expect(liste).toContain('le sous-module natif à vérifier');
@@ -271,7 +271,7 @@ describe('the session start plays the check the project declares', () => {
     expect(elements(sortie)).toContain('docs/ARCHITECTURE.md');
   }, 40_000);
   it('critère 4 — without the key, the session start is unchanged', () => {
-    const scripts = { verifier: 'echo "le sous-module natif à vérifier"' };
+    const scripts = { controle: 'echo "le sous-module natif à vérifier"' };
     const sansCle = lancer(scripts).sortie;
     const sansScript = lancer({}).sortie;
     expect(sansCle).not.toContain('le sous-module natif à vérifier');
@@ -364,8 +364,8 @@ describe('the session start plays the check the project declares', () => {
       JSON.stringify({
         name: 'demo',
         version: '1.0.0',
-        scripts: { verifier: `touch "${marque}"; echo "contrôle du projet joué"` },
-        grillhouse: { demarrage: 'verifier' },
+        scripts: { controle: `touch "${marque}"; echo "contrôle du projet joué"` },
+        grillhouse: { demarrage: 'controle' },
       })
     );
     const git = (...a: string[]) =>
@@ -425,9 +425,9 @@ describe('the session start plays the check the project declares', () => {
   });
 });
 
-// The integration runs `npm test` (Turborepo: build, guards, tests) and the night
-// `npm run test:forcer`: while a project's package.json lacks either script, the session start
-// asks to wire it (« À brancher »). Once the architecture is written, the night needs its line in
+// The agents run `npm test` (Turborepo: build, tests), the integration, the queue and the night
+// `npm run verifier` (build, guards and tests): while a project's package.json lacks either
+// script, the session start asks to wire it (« À brancher »). Once the architecture is written, the night needs its line in
 // the crontab: while the crontab lacks it, the session start proposes it. The integration's mode
 // and the paths the suites read are no longer asked.
 describe('the session start asks for the scripts of the tests and the line of the night', () => {
@@ -464,17 +464,17 @@ describe('the session start asks for the scripts of the tests and the line of th
   const aBrancher = (texte: string) => texte.split('\n').find(l => l.startsWith('À brancher'));
   const TESTS = {
     test: 'turbo run test:vitest --',
-    'test:forcer': 'turbo run test:vitest --force --',
+    verifier: 'turbo run grillhouse:gardes test:vitest',
   };
 
-  it('a project without test nor test:forcer is asked to wire both', () => {
+  it('a project without test nor verifier is asked to wire both', () => {
     const ligne = aBrancher(sortie({}).texte);
     expect(ligne).toBeDefined();
-    expect(ligne).toContain('test test:forcer');
+    expect(ligne).toContain('test verifier');
   });
-  it('a project with test alone is asked to wire test:forcer only', () => {
+  it('a project with test alone is asked to wire verifier only', () => {
     const ligne = aBrancher(sortie({ test: 'turbo run test:vitest --' }).texte) ?? '';
-    expect(ligne).toContain('test:forcer');
+    expect(ligne).toContain('verifier');
     expect(ligne).not.toMatch(/À brancher : test\b(?!:)/);
   });
   it('a project with both scripts is asked to wire nothing', () => {

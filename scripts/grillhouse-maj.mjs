@@ -16,11 +16,17 @@
 //   `grillhouse:gardes`, the list of the frame's controls, and `api` (`npm run api`, which writes
 //   the API reports and the generated part of each `docs/INTERFACE.md`), each read as it is in the
 //   source's `package.json` (a source without one writes none). Turborepo plays `grillhouse:gardes`
-//   after the build and before the tests (`turbo.json`, a frame file): the frame's former wiring
+//   after the build, beside the tests (`turbo.json`, `npm run verifier`): the frame's former wiring
 //   goes, a `pretest` that is the frame's call (`npm run --silent grillhouse:gardes`) removed or
 //   taken off the head of a longer one (`… && <its pretest>`, the rest kept), and an
 //   `integration:gardes` left at a former frame command (`npm run --silent pretest`,
 //   `node scripts/integration/gardes.mjs`) removed; a wiring of the project's own stays.
+// - `turbo.json` is the project's own file, as every repository run by Turborepo writes its own. A
+//   project with a `package.json` and no `turbo.json` receives the frame's template of its form,
+//   read in the source: `templates/turbo/paquets.json` when its `package.json` declares
+//   `workspaces` (the tasks of each package, and the root's `//#grillhouse:gardes`; the tests live
+//   in the packages, the root has no `test:vitest`), else `templates/turbo/sans-paquets.json` (`build`, then the guards and the
+//   tests beside each other). A `turbo.json` present is never written again.
 // - The frame's tools (API Extractor and its model, the TSDoc configuration reader,
 //   dependency-cruiser, knip, Turborepo) are added to the project's
 //   `devDependencies` at the version the source's `devDependencies` give; a tool the project
@@ -31,8 +37,10 @@
 //   that does not ignore `.turbo/` (Turborepo's runs and cache) receives the line.
 // - A project that runs Vitest (its `test` script names it, or `vitest` is in the `dependencies` or
 //   `devDependencies` of its root `package.json` or of one of its workspaces) has its root scripts
-//   `test`, `test:vitest` and `test:forcer` become the source's (`npm test`, Turborepo's tasks with
-//   its cache; `npm run test:forcer`, the same played for real); the report says so, when the
+//   `test`, `test:vitest`, `test:forcer` and `verifier` become the source's (`npm test`, the tests
+//   as Turborepo's tasks with its cache; `npm run test:forcer`, the same played for real;
+//   `npm run verifier`, the guards and the tests beside each other, which the integration, the
+//   queue, the continuous integration and the night play); the report says so, when the
 //   Vitest of the project's root (`npx --no-install vitest`, the one `test:vitest` calls) satisfies
 //   the range the source's package.json declares for `vitest`. Where the root resolves no Vitest or
 //   another version, the project's scripts stay (the frame's included) and the report names the
@@ -100,7 +108,7 @@ const OUTILS_DU_CADRE = [
   'turbo',
 ];
 // The root scripts of the tests, written together from the source.
-const SCRIPTS_DES_TESTS = ['test', 'test:vitest', 'test:forcer'];
+const SCRIPTS_DES_TESTS = ['test', 'test:vitest', 'test:forcer', 'verifier'];
 const CHAMPS_INSTALLES = ['dependencies', 'devDependencies', 'optionalDependencies'];
 
 // The frame's former wiring of the guards: the call its `pretest` held, and the commands its
@@ -112,6 +120,9 @@ const ANCIENS_GARDES_D_INTEGRATION = [
 ];
 // The line of `.gitignore` that keeps Turborepo's folder out of git.
 const TURBO_IGNORE = '.turbo/';
+// The frame's templates of `turbo.json`, one per form of repository, read in the source.
+const TURBO_PAQUETS = 'templates/turbo/paquets.json';
+const TURBO_SANS_PAQUETS = 'templates/turbo/sans-paquets.json';
 
 const empreinte = f => createHash('sha256').update(readFileSync(f)).digest('hex');
 // Whether `vitest` is declared in the dependencies of the package.json <p> (read at <dossier>) or of
@@ -278,12 +289,32 @@ function ignorerTurbo(projet) {
   writeFileSync(f, `${texte}${fin}${TURBO_IGNORE}\n`);
 }
 
+// Writes the `turbo.json` of the project at <projet>, when it has a package.json and no turbo.json,
+// from the source's template of its form (`workspaces` declared: a repository of packages).
+// Returns the template written, or null.
+function poserTurbo(projet, source) {
+  const f = path.join(projet, 'turbo.json');
+  const pkg = path.join(projet, 'package.json');
+  if (existsSync(f) || !existsSync(pkg)) return null;
+  const gabarit = lireJson(pkg, {}).workspaces !== undefined ? TURBO_PAQUETS : TURBO_SANS_PAQUETS;
+  if (!existsSync(path.join(source, gabarit))) return null;
+  copyFileSync(path.join(source, gabarit), f);
+  return gabarit;
+}
+
 // Brings the project at `projet` to the frame at `source`. Returns what changed.
 export function mettreAJour(projet, source, version) {
   const { garder, retirer } = lireListe(readFileSync(path.join(source, LISTE), 'utf8'));
   const avant = lireJson(path.join(projet, EMPREINTES), { fichiers: {}, crochets: [] });
   const fichiers = fichiersDuCadre(source, garder);
-  const bilan = { copies: [], retires: [], dependances: [], test: null, vitest: null };
+  const bilan = {
+    copies: [],
+    retires: [],
+    dependances: [],
+    test: null,
+    vitest: null,
+    turbo: null,
+  };
   const empreintes = {};
   for (const f of fichiers) {
     const dst = path.join(projet, f);
@@ -337,10 +368,18 @@ export function mettreAJour(projet, source, version) {
       if (!convient) {
         bilan.vitest = { trouvee, exigee: vitestExige };
       } else {
-        if (testDuProjet !== testDuCadre) bilan.test = { ancien: testDuProjet, nouveau: testDuCadre };
+        if (testDuProjet !== testDuCadre)
+          bilan.test = { ancien: testDuProjet, nouveau: testDuCadre };
         for (const nom of SCRIPTS_DES_TESTS) {
           const script = pkgSource.scripts?.[nom];
-          if (typeof script === 'string') p.scripts[nom] = script;
+          if (typeof script !== 'string') continue;
+          // A repository of packages keeps its tests in its packages, as Turborepo does: its root
+          // gets no `test:vitest`, and the frame's own leaves.
+          if (p.workspaces !== undefined && nom === 'test:vitest') {
+            if (p.scripts[nom] === script) delete p.scripts[nom];
+            continue;
+          }
+          p.scripts[nom] = script;
         }
       }
     }
@@ -360,7 +399,7 @@ export function mettreAJour(projet, source, version) {
       p.packageManager = pkgSource.packageManager;
     }
     if (typeof gardes === 'string') p.scripts['grillhouse:gardes'] = gardes;
-    // The frame's former wiring of the guards goes: Turborepo plays them (turbo.json).
+    // The frame's former wiring of the guards goes: Turborepo plays them (`npm run verifier`).
     const pretest = typeof p.scripts.pretest === 'string' ? p.scripts.pretest.trim() : null;
     if (pretest === APPEL_GARDES) {
       delete p.scripts.pretest;
@@ -372,6 +411,7 @@ export function mettreAJour(projet, source, version) {
     }
     writeFileSync(pkg, `${JSON.stringify(p, null, 2)}\n`);
   }
+  bilan.turbo = poserTurbo(projet, source);
   ignorerTurbo(projet);
   poserCrochets(projet);
   mkdirSync(path.dirname(path.join(projet, EMPREINTES)), { recursive: true });
@@ -506,6 +546,11 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
       `Dépendances de développement ajoutées : ${b.dependances.join(', ')}. \`npm install\` les installe.\n`
     );
   }
+  if (b.turbo) {
+    process.stdout.write(
+      `turbo.json écrit depuis le gabarit du cadre ${b.turbo} ; il est au projet, la mise à jour n'y touche plus.\n`
+    );
+  }
   if (b.vitest) {
     process.stdout.write(
       `Vitest : la racine résout ${b.vitest.trouvee ?? 'aucune version'}, le cadre exige ${b.vitest.exigee} ; le script test du projet reste tel quel.\n`
@@ -513,7 +558,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   }
   if (b.test) {
     process.stdout.write(
-      `Script test : \`${b.test.ancien}\` remplacé par le test du cadre \`${b.test.nouveau}\` (Turborepo : construction, gardes, tests ; une tâche dont rien n'a bougé est relue de son cache).\n`
+      `Script test : \`${b.test.ancien}\` remplacé par le test du cadre \`${b.test.nouveau}\` (Turborepo : construction, puis tests ; une tâche dont rien n'a bougé est relue de son cache ; \`npm run verifier\` joue les gardes et les tests).\n`
     );
   }
   for (const l of [...regenerer(projet), ...installerGreffons(projet)]) {

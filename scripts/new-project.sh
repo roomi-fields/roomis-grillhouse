@@ -17,9 +17,12 @@ mkdir -p "$dest"
 tar -C "$template" --exclude=./node_modules --exclude=./.rtfm --exclude=./.codegraph \
   --exclude=./.beads --exclude=./.git --exclude=./dist --exclude=./coverage --exclude=./.turbo \
   --exclude=./.claude/settings.local.json --exclude=./.claude/template \
-  --exclude=./scripts/new-project.sh --exclude=./mods -cf - . | tar -C "$dest" -xf -
+  --exclude=./scripts/new-project.sh --exclude=./mods --exclude=./templates/turbo \
+  -cf - . | tar -C "$dest" -xf -
 
-# The project's README starts from templates/README.md; the template's own README describes Grillhouse
+# The project's README starts from templates/README.md; the template's own README describes Grillhouse.
+# The project's turbo.json is the template's own, the single-package form; templates/turbo/, which
+# the frame's update reads in Grillhouse, stays out.
 mv "$dest/templates/README.md" "$dest/README.md" && rmdir "$dest/templates"
 # `npm run new` belongs to the template only
 node -e 'const f=process.argv[1],p=JSON.parse(require("fs").readFileSync(f));delete p.scripts.new;require("fs").writeFileSync(f,JSON.stringify(p,null,2)+"\n")' "$dest/package.json"

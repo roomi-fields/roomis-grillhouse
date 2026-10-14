@@ -26,9 +26,9 @@
 //     copy. Once the lots are in the copy, the replay makes the dependencies agree with the lock
 //     file and the manifests the lot leaves (`npm ci`, as the continuous integration runs it); an
 //     install that fails refuses the lot, « Les dépendances de la copie ne s'installent pas. »;
-//  6. the tests: `npm test` in the copy, one command (Turborepo: the build, the guards, every test
-//     of the day, each task replayed from the cache of the main tree when its inputs are
-//     unchanged). Green is required: main stays green, and nothing is compared with a base. A test
+//  6. the tests: `npm run verifier` in the copy, one command (Turborepo: the build, then the
+//     guards and every test of the day beside each other, each task replayed from the cache of the
+//     main tree when its inputs are unchanged). Green is required: main stays green, and nothing is compared with a base. A test
 //     known red is put in quarantine in the test itself (`it.skip` or `it.fails`, with its
 //     ticket), as a mature continuous integration does; the integration admits none;
 //  7. the commit in the copy, its hooks included, under GRILLHOUSE_INTEGRATION=1: a pre-commit
@@ -299,12 +299,12 @@ function main(argv) {
     if (installation) return refuser(installation);
 
     // 6. The tests: the build, the guards and every test of the day, green required.
-    dire('— npm test (construction, gardes, tests)');
+    dire('— npm run verifier (construction, gardes, tests)');
     if (tester().status !== 0) return refuser('Les tests refusent le lot (sortie ci-dessus).');
     dire('✓ tests');
 
     // 7. The commit, in the copy: the commit validated is the commit that enters.
-    // The guards have just run (in `npm test`): a pre-commit hook that plays them skips them under
+    // The guards have just run (in `npm run verifier`): a pre-commit hook that plays them skips them under
     // GRILLHOUSE_INTEGRATION=1; commit-msg (a closed ticket refuses a second commit, a reopened one takes its corrections) runs as always.
     const c = spawnSync(
       'bash',

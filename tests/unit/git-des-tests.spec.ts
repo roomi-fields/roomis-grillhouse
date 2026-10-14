@@ -4,8 +4,9 @@
 // of a trial repository never crosses a maintenance git detached in the background. The setting
 // lives in the environment only: a test reads it from the command-line scope, a git outside the
 // suite does not read it, and no code or configuration file outside the tests carries it but the
-// night Vitest configuration, its one address, which the day configuration reads. No test reads a
-// configuration file the suite does not own (the user's, or the real repository's).
+// frame's base Vitest configuration, its one address, which the day and night configurations
+// read. No test reads a configuration file the suite does not own (the user's, or the real
+// repository's).
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
   mkdirSync,
@@ -207,14 +208,14 @@ describe('3uv.72.1 critères 3 et 6 : the setting lives in the environment of th
   // Every tracked code or configuration file outside the tests: scripts, hooks, the Vitest day
   // configuration, the continuous-integration workflows, the deployment scripts. Only prose (.md,
   // the licences) and the data of the ticket tracker (.beads/*.jsonl) stay out. The setting has one
-  // address, the night configuration, which the day configuration reads.
-  it('critère 3 : no code or configuration file outside the tests, the CI workflows included, carries the setting, but the night Vitest configuration, its one address', () => {
+  // address, the frame's base configuration, which the day and night configurations read.
+  it('critère 3 : no code or configuration file outside the tests, the CI workflows included, carries the setting, but the base Vitest configuration, its one address', () => {
     const suivis = execFileSync('git', ['-C', DEPOT, 'ls-files'], { encoding: 'utf8' })
       .split('\n')
       .filter(f => f !== '')
       .filter(f => !f.startsWith('tests/'))
       .filter(f => !/\.md$/.test(f) && !/(^|\/)LICENSE/.test(f) && !/^\.beads\/.*\.jsonl$/.test(f))
-      .filter(f => f !== 'scripts/vitest.nuit.config.mjs');
+      .filter(f => f !== 'scripts/vitest.base.config.mjs');
     const porteurs = suivis.filter(f => {
       let texte: string;
       try {

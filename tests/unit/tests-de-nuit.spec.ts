@@ -1,7 +1,7 @@
 // grillhouse-3uv.34, critères 4 and 5: the night tests, a category beside the time budget benches
 // (`*.budget.test.*`). A night test is a file `*.nuit.test.*` or `*.nuit.spec.*`: `npm test` (the
 // integration's included) leaves it out, the night (scripts/nuit.sh) plays it after its full pass
-// (`npm run test:forcer`). The day keeps a fast guard against a fixed path shared between sessions
+// (`npm run verifier -- --force`). The day keeps a fast guard against a fixed path shared between sessions
 // (critère 2), played by `npm test`.
 //
 // Each case plays the real configuration of the repository (its package.json, its Vitest
@@ -166,6 +166,65 @@ describe('critère 4 — npm test leaves the night tests out', () => {
   }, 120_000);
 });
 
+// The frame's base configuration of the day (scripts/vitest.base.config.mjs, a frame file) carries
+// the exclusions of the night tests and the time budget benches and the common environment; the
+// root of Grillhouse and each package of a project extend it (mergeConfig) without repeating them.
+describe('the base configuration of the day leaves the night out of every configuration that extends it', () => {
+  const BASE = path.join(DEPOT, 'scripts/vitest.base.config.mjs');
+  type Config = { test: { exclude: string[]; env: Record<string, string> } };
+  it('is a frame file, distributed by the list of the frame', () => {
+    const liste = readFileSync(path.join(DEPOT, '.claude/grillhouse/fichiers.txt'), 'utf8');
+    expect(liste.split('\n')).toContain('scripts/vitest.base.config.mjs');
+  });
+  it('the root configuration of Grillhouse extends it: its exclusions and its environment, its own include', async () => {
+    const base = ((await import(BASE)) as { default: Config }).default;
+    const racine = ((await import(path.join(DEPOT, 'vitest.config.ts'))) as { default: Config })
+      .default;
+    for (const e of base.test.exclude) {
+      expect(racine.test.exclude).toContain(e);
+    }
+    expect(racine.test.env).toEqual(base.test.env);
+    expect(readFileSync(path.join(DEPOT, 'vitest.config.ts'), 'utf8')).not.toMatch(
+      /\.(nuit|budget)\./
+    );
+  });
+  it('a package whose configuration extends it plays its day tests, and neither its night tests nor its benches', () => {
+    const repo = mkdtempSync(path.join(ESSAIS, 'paquets-'));
+    lierDependances(repo);
+    mkdirSync(path.join(repo, 'scripts'));
+    cpSync(BASE, path.join(repo, 'scripts/vitest.base.config.mjs'));
+    const paquet = path.join(repo, 'packages/a');
+    const trace = path.join(repo, 'trace');
+    const fichiers: Record<string, string> = {
+      'vitest.config.mjs':
+        "import { defineConfig, mergeConfig } from 'vitest/config';\n" +
+        "import base from '../../scripts/vitest.base.config.mjs';\n" +
+        'export default mergeConfig(base, defineConfig({ test: { include: ' +
+        "['tests/**/*.{test,spec}.{ts,mjs}'] } }));\n",
+      '.trace': `${trace}\n`,
+      'tests/jour.spec.ts': essai('jour.spec.ts'),
+      'tests/a.nuit.test.ts': essai('a.nuit.test.ts'),
+      'tests/b.budget.spec.ts': essai('b.budget.spec.ts'),
+      'tests/profond/c.nuit.spec.mjs': essai('c.nuit.spec.mjs'),
+    };
+    for (const [f, contenu] of Object.entries(fichiers)) {
+      mkdirSync(path.dirname(path.join(paquet, f)), { recursive: true });
+      writeFileSync(path.join(paquet, f), contenu);
+    }
+    const env = Object.fromEntries(
+      Object.entries(process.env).filter(([k]) => !k.startsWith('VITEST') && k !== 'NODE_OPTIONS')
+    );
+    const r = spawnSync(path.join(repo, 'node_modules/.bin/vitest'), ['run'], {
+      cwd: paquet,
+      encoding: 'utf8',
+      env,
+      timeout: 120_000,
+    });
+    expect(r.status, sortie(r)).toBe(0);
+    expect(readFileSync(trace, 'utf8').split('\n').filter(Boolean)).toEqual(['jour.spec.ts']);
+  }, 120_000);
+});
+
 // The night in a repository of trial, as tests/unit/nuit.spec.ts plays it: a fake Beads records
 // its calls.
 function nuitDe(p: ReturnType<typeof projet>) {
@@ -237,7 +296,7 @@ function pkgDuDepot(grillhouse?: unknown, scripts: Record<string, string> = {}) 
 // The positions of the names in the order of the trace.
 const rangs = (lignes: string[], noms_: string[]) => noms_.map(n => lignes.indexOf(n));
 
-// grillhouse-3uv.75.1 critères 11 and 17: the night launches its full pass (`npm run test:forcer`),
+// grillhouse-3uv.75.1 critères 11 and 17: the night launches its full pass (`npm run verifier -- --force`),
 // which plays neither the time budget benches nor the night tests (the day configuration of Vitest
 // leaves them out); the night plays its benches itself, after the full pass, even without a night
 // test, and a red bench turns the night red.
@@ -293,7 +352,7 @@ describe('critère 7 — scripts/nuit.sh plays the night tests itself', () => {
       ).toHaveLength(1);
     }
   }, 240_000);
-  it('critère 7: a red full pass (npm run test:forcer) turns the night red before any night test', () => {
+  it('critère 7: a red full pass (npm run verifier -- --force) turns the night red before any night test', () => {
     const p = projet({ 'tests/f.spec.ts': essai('f.spec.ts', true) });
     const n = nuitDe(p);
     expect(n.status, n.journal).toBe(1);
@@ -412,12 +471,12 @@ describe('critère 10 — a project without any night test keeps a green night',
     expect(p.joues()).toEqual(noms(JOUR));
   }, 240_000);
   // A project without Vitest keeps its own scripts (the update writes the frame's to a Vitest
-  // project only): it writes its full pass, `test:forcer`, itself.
-  it('critère 10: a project without Vitest nor night test, its own test:forcer: green', () => {
+  // project only): it writes its full pass, `verifier`, itself.
+  it('critère 10: a project without Vitest nor night test, its own verifier: green', () => {
     const p = projet(
       { 't.mjs': "import fs from 'node:fs';\nfs.appendFileSync(process.env.TRACE, 'jour\\n');\n" },
       {
-        pkg: { name: 'sans-vitest', scripts: { test: 'node t.mjs', 'test:forcer': 'node t.mjs' } },
+        pkg: { name: 'sans-vitest', scripts: { test: 'node t.mjs', verifier: 'node t.mjs' } },
         nuits: false,
         jourVitest: false,
         dependances: false,

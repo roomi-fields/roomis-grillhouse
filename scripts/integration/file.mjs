@@ -18,13 +18,13 @@
 //    to agree with the lock file and the manifests of the branch once replaced (an install that
 //    fails makes the branch leave the queue, « Les dépendances de la copie ne s'installent pas. »,
 //    its tests not played), and the same command as the integration's replays it there:
-//    `npm test` (Turborepo: the build, the guards, every test of the day, each task replayed from
-//    the cache of the main tree when its inputs are unchanged), every command of the project run
-//    in the copy leaving its index up to date (rejeu.mjs); main moves forward onto the replaced
-//    branch when `npm test` is green;
+//    `npm run verifier` (Turborepo: the build, then the guards and every test of the day beside
+//    each other, each task replayed from the cache of the main tree when its inputs are
+//    unchanged), every command of the project run in the copy leaving its index up to date
+//    (rejeu.mjs); main moves forward onto the replaced branch when `npm run verifier` is green;
 //  - a branch with nothing ahead of main does not enter: it leaves the queue, its tickets lose
 //    `en-file` and take a comment, and stay as they are;
-//  - a branch that does not replace (the files in conflict) or whose `npm test` is red once
+//  - a branch that does not replace (the files in conflict) or whose `npm run verifier` is red once
 //    replaced leaves the queue: each ticket it carries loses `en-file`, reopens with a comment that
 //    names the files or ends with the output of the tests, and the branch stays where it is, for
 //    the relaunch of its ticket (scripts/enveloppe/lancer.sh);
@@ -136,7 +136,7 @@ function main(argv) {
     if (installation) {
       return { sortie: [installation, "Le verrou de la branche replacée ne s'installe pas."] };
     }
-    dire('— npm test (construction, gardes, tests)');
+    dire('— npm run verifier (construction, gardes, tests)');
     const t = tester();
     if (t.status !== 0) {
       const fin = `${t.stdout}${t.stderr}`.trim().split('\n').slice(-40).join('\n');

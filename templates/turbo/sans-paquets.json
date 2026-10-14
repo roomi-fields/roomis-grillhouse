@@ -1,0 +1,17 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "ui": "stream",
+  "tasks": {
+    "build": {
+      "outputs": ["dist/**"]
+    },
+    "grillhouse:gardes": {
+      "dependsOn": ["build"],
+      "outputs": []
+    },
+    "test:vitest": {
+      "dependsOn": ["build"],
+      "outputs": []
+    }
+  }
+}

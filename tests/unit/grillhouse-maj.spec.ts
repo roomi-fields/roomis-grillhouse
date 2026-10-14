@@ -164,7 +164,7 @@ describe('the update of a project', () => {
 
 // grillhouse-3uv.55: the update writes the frame's controls, `grillhouse:gardes`, the one list of
 // them, into the project it installs. The frame is this repository: its package.json is the
-// template. Turborepo plays that list after the build and before the tests (turbo.json).
+// template. Turborepo plays that list after the build, beside the tests (turbo.json, npm run verifier).
 const DEPOT = path.resolve(__dirname, '../..');
 const GARDES = 'npm run --silent grillhouse:gardes';
 // The controls of the frame, in the order of the template's grillhouse:gardes (critère 1); the
@@ -417,13 +417,85 @@ describe('the update removes the frame’s former wiring of the guards', () => {
 });
 
 // The update brings Turborepo into the project: its devDependency, the packageManager it
-// requires, the frame's turbo.json, and `.turbo/` ignored by git.
+// requires, a turbo.json of the project's own written once from the frame's template of its form,
+// and `.turbo/` ignored by git.
+const SANS_PAQUETS = 'templates/turbo/sans-paquets.json';
+const PAQUETS = 'templates/turbo/paquets.json';
+type Taches = Record<string, { dependsOn?: string[]; outputs?: string[] }>;
+const taches = (racine: string, f: string) => (json(racine, f) as { tasks: Taches }).tasks;
 describe('the update installs Turborepo', () => {
-  it('turbo.json is a frame file: listed, and copied into the project', () => {
+  it('turbo.json is not a frame file: the list does not name it', () => {
     const { garder } = lireListe(lire(DEPOT, '.claude/grillhouse/fichiers.txt'));
-    expect(garder).toContain('turbo.json');
+    expect(garder).not.toContain('turbo.json');
+    expect(fichiersDuCadre(DEPOT, garder)).not.toContain('turbo.json');
+  });
+  it('the template without packages: the build, then the guards and the tests beside each other', () => {
+    expect(taches(DEPOT, SANS_PAQUETS)).toEqual({
+      build: { outputs: ['dist/**'] },
+      'grillhouse:gardes': { dependsOn: ['build'], outputs: [] },
+      'test:vitest': { dependsOn: ['build'], outputs: [] },
+    });
+  });
+  it('the template with packages: each package builds and tests after its dependencies, the root plays the guards and its tests', () => {
+    expect(taches(DEPOT, PAQUETS)).toEqual({
+      build: { dependsOn: ['^build'], outputs: ['dist/**'] },
+      'test:vitest': { dependsOn: ['^build'], outputs: [] },
+      '//#grillhouse:gardes': { outputs: [] },
+    });
+  });
+  it('Grillhouse’s own turbo.json follows the template without packages: its tests do not wait for its guards', () => {
+    expect(json(DEPOT, 'turbo.json')).toEqual(json(DEPOT, SANS_PAQUETS));
+  });
+  it('a project without workspaces and without turbo.json receives the template without packages', () => {
     const { projet } = installe({ name: 'p' });
-    expect(lire(projet, 'turbo.json')).toBe(lire(DEPOT, 'turbo.json'));
+    expect(lire(projet, 'turbo.json')).toBe(lire(DEPOT, SANS_PAQUETS));
+  });
+  it('a project that declares workspaces receives the template with packages', () => {
+    const { projet } = installe({ name: 'p', private: true, workspaces: ['packages/*'] });
+    expect(lire(projet, 'turbo.json')).toBe(lire(DEPOT, PAQUETS));
+  });
+  it('a turbo.json present is never written again, whatever the form of the project', () => {
+    const projet = mkdtempSync(path.join(ESSAIS, 'turbo-'));
+    const propre = '{ "tasks": { "build": {} } }\n';
+    ecrire(projet, 'package.json', '{"name":"p","workspaces":["packages/*"]}\n');
+    ecrire(projet, 'turbo.json', propre);
+    const b = mettreAJour(projet, DEPOT, 'essai');
+    expect(lire(projet, 'turbo.json')).toBe(propre);
+    expect(b.turbo).toBeNull();
+    mettreAJour(projet, DEPOT, 'essai');
+    expect(lire(projet, 'turbo.json')).toBe(propre);
+  });
+  it('the turbo.json a former version installed as a frame file gives way to the template of the form, then stays', () => {
+    const projet = mkdtempSync(path.join(ESSAIS, 'turbo-'));
+    ecrire(projet, 'package.json', '{"name":"p","workspaces":["packages/*"]}\n');
+    ecrire(projet, 'turbo.json', lire(DEPOT, SANS_PAQUETS));
+    ecrire(
+      projet,
+      '.claude/grillhouse/empreintes.json',
+      JSON.stringify({ version: 'ancienne', fichiers: { 'turbo.json': 'x' } })
+    );
+    const b = mettreAJour(projet, DEPOT, 'essai');
+    expect(b.turbo).toBe(PAQUETS);
+    expect(lire(projet, 'turbo.json')).toBe(lire(DEPOT, PAQUETS));
+    expect(
+      Object.keys(json(projet, '.claude/grillhouse/empreintes.json').fichiers as object)
+    ).not.toContain('turbo.json');
+  });
+  it('a project without package.json receives no turbo.json', () => {
+    expect(existsSync(path.join(installe(null).projet, 'turbo.json'))).toBe(false);
+  });
+  it('the report names the template written, once', () => {
+    const src = source({
+      '.claude/grillhouse/fichiers.txt': 'METACADRE.md\n',
+      'METACADRE.md': 'meta',
+      [SANS_PAQUETS]: lire(DEPOT, SANS_PAQUETS),
+    });
+    const projet = mkdtempSync(path.join(ESSAIS, 'turbo-'));
+    ecrire(projet, 'package.json', '{"name":"p"}\n');
+    const r = lancerMaj(projet, src);
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stdout).toContain(`turbo.json écrit depuis le gabarit du cadre ${SANS_PAQUETS}`);
+    expect(lancerMaj(projet, src).stdout).not.toContain('turbo.json écrit');
   });
   it('a project receives turbo at the version of the frame', () => {
     const { projet } = installe({ name: 'p' });
@@ -457,17 +529,21 @@ describe('the update installs Turborepo', () => {
     mettreAJour(projet, DEPOT, 'essai');
     expect(lire(projet, '.gitignore')).toBe(`node_modules\n${l}\n`);
   });
-  it('a project that runs Vitest receives test, test:vitest and test:forcer of the frame, together', () => {
+  it('a project that runs Vitest receives test, test:vitest, test:forcer and verifier of the frame, together', () => {
     const s = installe({ name: 'p', scripts: { test: 'vitest run' } }, { vitest: true }).scripts();
-    for (const nom of ['test', 'test:vitest', 'test:forcer']) {
+    for (const nom of ['test', 'test:vitest', 'test:forcer', 'verifier']) {
       expect(s[nom], nom).toBe(gabarit()[nom]);
     }
   });
-  it('a project whose root resolves no Vitest receives none of the three', () => {
+  it('verifier of the template plays the guards and the tests beside each other, in Turborepo', () => {
+    expect(gabarit().verifier).toBe('turbo run grillhouse:gardes test:vitest');
+  });
+  it('a project whose root resolves no Vitest receives none of the four', () => {
     const s = installe({ name: 'p', scripts: { test: 'vitest run' } }).scripts();
     expect(s.test).toBe('vitest run');
     expect(s).not.toHaveProperty('test:vitest');
     expect(s).not.toHaveProperty('test:forcer');
+    expect(s).not.toHaveProperty('verifier');
   });
 });
 
@@ -1144,6 +1220,36 @@ describe('grillhouse-3uv.75.1 critère 12 — the update poses the frame’s tes
       TEST_DU_CADRE
     );
     expect(r.stdout).toContain(TEST_DU_CADRE);
+    // Its tests live in its packages, as Turborepo keeps them: the root gets no test:vitest.
+    expect(json(projet, 'package.json').scripts).not.toHaveProperty('test:vitest');
+  });
+  it('a project of workspaces loses the frame’s root test:vitest and keeps one of its own', () => {
+    const cadre = (json(DEPOT, 'package.json').scripts as Record<string, string>)['test:vitest'];
+    for (const [racine, attendu] of [
+      [cadre, undefined],
+      ['vitest run --project racine', 'vitest run --project racine'],
+    ] as const) {
+      const { projet, src } = projetEtSource(
+        {
+          name: 'p',
+          private: true,
+          workspaces: ['packages/*'],
+          scripts: { test: TEST_DU_CADRE, 'test:vitest': racine },
+        },
+        () => {},
+        { vitest: true }
+      );
+      ecrire(
+        projet,
+        'packages/moteur/package.json',
+        `${JSON.stringify({ name: 'moteur', devDependencies: { vitest: '^2.0.0' } }, null, 2)}\n`
+      );
+      const r = lancerMaj(projet, src);
+      expect(r.status, r.stderr).toBe(0);
+      expect((json(projet, 'package.json').scripts as Record<string, string>)['test:vitest']).toBe(
+        attendu
+      );
+    }
   });
   it('critère 12: a project whose test is already the frame’s keeps it, and the report says nothing of it', () => {
     const { projet, src } = projetEtSource(

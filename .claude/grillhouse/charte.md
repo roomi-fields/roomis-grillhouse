@@ -100,13 +100,14 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
   lance plus rien. Un agent de rôle, lui, attend au premier plan ce qu'il lance, car sa séance
   finit avec son tour. Ainsi le responsable n'attend jamais une commande, et aucun travail ne se
   perd.
-- **Les tests se lancent par `npm test`** (Turborepo : la construction, les gardes, puis les
-  tests) : `npm test -- <fichiers>` pour un lancement ciblé, `npm run test:forcer -- <fichiers>`
-  pour rejouer pour de vrai un test soupçonné instable ; aucun agent ne lance l'outil de test
-  directement. Une tâche dont rien n'a bougé n'est pas rejouée : Turborepo relit sa sortie
-  consignée dans son cache (« cache hit, replaying logs »), et cette relecture vaut un lancement.
-  Ainsi un test ne tourne qu'une fois tant que rien ne change.
-- **Main reste vert** : l'intégration exige un `npm test` vert, sans rouge admis. Un test connu
+- **Les tests se lancent par `npm test`** (Turborepo : la construction, puis les tests) :
+  `npm test -- <fichiers>` pour un lancement ciblé, `npm run test:forcer -- <fichiers>` pour
+  rejouer pour de vrai un test soupçonné instable ; aucun agent ne lance l'outil de test
+  directement. `npm run verifier` joue tout : les gardes et les tests, côte à côte. Une tâche dont
+  rien n'a bougé n'est pas rejouée : Turborepo relit sa sortie consignée dans son cache (« cache
+  hit, replaying logs »), et cette relecture vaut un lancement. Ainsi un test ne tourne qu'une
+  fois tant que rien ne change.
+- **Main reste vert** : l'intégration exige un `npm run verifier` vert, sans rouge admis. Un test connu
   rouge se met en quarantaine dans le test lui-même (`it.skip` ou `it.fails`), avec le ticket qui
   le corrige, comme le fait une intégration continue mature. Ainsi chaque rouge a son ticket, et
   main ne porte aucun rouge.

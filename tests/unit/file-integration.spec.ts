@@ -72,7 +72,7 @@ describe('grillhouse-3uv.63 — the queue brings the branches onto main', () => 
     LONG
   );
   it(
-    'critère 4: a branch whose base main left is replaced on main, its `npm test` (guards and suites) replayed there, and enters on green',
+    'critère 4: a branch whose base main left is replaced on main, its `npm run verifier` (guards and suites) replayed there, and enters on green',
     () => {
       const m = chantier(ESSAIS);
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
@@ -86,7 +86,7 @@ describe('grillhouse-3uv.63 — the queue brings the branches onto main', () => 
       // demo-2 sits on demo-1, with both lots in main's tree.
       expect(m.git('show', 'main:src/a/index.ts')).toBe('export const a = 1;\n');
       expect(m.git('show', 'main:src/b/index.ts')).toBe('export const b = 2;\n');
-      // Replayed during the queue: one `npm test`, its guards and its suites, without argument.
+      // Replayed during the queue: one `npm run verifier`, its guards and its suites, without argument.
       expect(m.suites().slice(avant.suites.length)).toBe('[]');
       expect(m.gardes().slice(avant.gardes.length)).toBe('g');
     },
@@ -115,7 +115,7 @@ describe('grillhouse-3uv.63 — the queue brings the branches onto main', () => 
     LONG
   );
   it(
-    'critère 5: a branch whose `npm test` is red once replaced leaves the queue, its ticket reopened with the output of its tests, and the queue goes on',
+    'critère 5: a branch whose `npm run verifier` is red once replaced leaves the queue, its ticket reopened with the output of its tests, and the queue goes on',
     () => {
       const m = chantier(ESSAIS);
       // Each lot alone is green; both together fail src/b/ab.spec.ts > ensemble.
@@ -148,7 +148,7 @@ describe('grillhouse-3uv.63 — the queue brings the branches onto main', () => 
     LONG
   );
   it(
-    'critère 5: a branch whose guards refuse once replaced (its `npm test` red) leaves the queue, its ticket reopened',
+    'critère 5: a branch whose guards refuse once replaced (its `npm run verifier` red) leaves the queue, its ticket reopened',
     () => {
       const m = chantier(ESSAIS);
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
@@ -162,7 +162,7 @@ describe('grillhouse-3uv.63 — the queue brings the branches onto main', () => 
       expect(m.sujets()[0]).toBe('garde rouge');
       expect(m.bd('demo-2').status).toBe('open');
       expect(m.bd('demo-2').labels).not.toContain('en-file');
-      // The guards come first in `npm test`: red, they stop it before the suites.
+      // The guards come first in `npm run verifier`: red, they stop it before the suites.
       expect(m.suites()).toBe(avant);
     },
     LONG
@@ -441,7 +441,7 @@ describe('grillhouse-3uv.63 — a copy still in place, several tickets in one br
     LONG
   );
   it(
-    'critère 20: a branch of several tickets whose `npm test` is red once replaced: every ticket named loses en-file and reopens with the output of its tests',
+    'critère 20: a branch of several tickets whose `npm run verifier` is red once replaced: every ticket named loses en-file and reopens with the output of its tests',
     () => {
       const m = chantier(ESSAIS);
       m.poser(
@@ -838,7 +838,7 @@ describe('grillhouse-3uv.63 — the old way is gone, the texts say the new one',
   });
 });
 
-// grillhouse-3uv.73 critère 3: in the queue, the build that `npm test` plays hard-links tracked
+// grillhouse-3uv.73 critère 3: in the queue, the build that `npm run verifier` plays hard-links tracked
 // files (./integration-essai.ts, `construireParLiens`), which leaves the index of the queue's copy
 // stale; the branch still replaces, is replayed and enters. The build arrives on main after the
 // branch's integration, so the queue alone builds with the links.
@@ -888,7 +888,7 @@ describe('grillhouse-3uv.73 — the queue after a build that hard-links tracked 
 });
 
 // grillhouse-3uv.74: the dependencies of the queue's copy follow its lock file of the moment: the
-// branch replaced on main is installed before its tests (`npm test`: its guards, then its suites),
+// branch replaced on main is installed before its tests (`npm run verifier`: its guards, then its suites),
 // through the one function of the replay (scripts/integration/rejeu.mjs). The trial project's suites and guards read the
 // dependencies (./integration-essai.ts, `chantierDependances`); npm runs offline. A branch that
 // changes the lock file waits in the queue in the place of its integration (`enFile`), so the
@@ -1015,7 +1015,7 @@ describe('grillhouse-3uv.74 — the dependencies of the queue copy follow its lo
 });
 
 // grillhouse-3uv.56 critères 11 and 21: a failed installation of the replay copy comes up in one
-// form, the refusals of the replay module; the queue judges `npm test`, the guards included, as
+// form, the refusals of the replay module; the queue judges `npm run verifier`, the guards included, as
 // integrer.mjs does, by its exit code. Guards that pass, whatever text they write, are green;
 // guards that fail, whatever text they write, make the tests red.
 const GARDES_BAVARDES = `import fs from 'node:fs';

@@ -155,9 +155,9 @@ fs.appendFileSync(process.env.PRINCIPAL + '.gardes', 'g');
 process.exit(fs.existsSync('GARDE_ROUGE') ? 1 : 0);
 `;
 
-// The tests of the trial project, as the frame's `npm test` plays them (Turborepo: the build, the
-// guards, then the tests): its `build` script when it has one, its guards, then its suites, one
-// exit code.
+// The checks of the trial project, as the frame's `npm run verifier` plays them (Turborepo: the
+// build, then the guards and the tests): its `build` script when it has one, its guards, then its
+// suites, one exit code.
 const TEST = 'npm run --silent --if-present build && node gardes.mjs && node suites.mjs';
 
 // The trial's stand-in for Turborepo, the local package `outils/turbo` of the trial project (its
@@ -232,7 +232,7 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
     JSON.stringify(
       {
         ...pkg,
-        scripts: { test: TEST },
+        scripts: { verifier: TEST },
         devDependencies: { turbo: 'file:outils/turbo' },
       },
       null,

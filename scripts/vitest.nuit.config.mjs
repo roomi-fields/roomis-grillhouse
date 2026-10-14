@@ -1,26 +1,18 @@
 // The night tests of a project: the files `*.nuit.test.*` and `*.nuit.spec.*`, too long for the
 // day, and its time budget benches (`*.budget.test.*`, `*.budget.spec.*`), whose measures move with
-// the load of the day; `npm test` and the integration leave them out (the day configuration,
-// vitest.config.ts, excludes both). The night (scripts/nuit.sh) plays them with this
+// the load of the day; `npm test`, `npm run verifier` and the integration leave them out (the
+// frame's base configuration of the day, scripts/vitest.base.config.mjs, which every day
+// configuration extends, excludes both). The night (scripts/nuit.sh) plays them with this
 // configuration, from the root of its copy (`vitest run --root <copy> --config <this file>`),
-// after a green full pass (`npm run test:forcer`) and before the project's night script. It stands alone: it reads no
-// day configuration of the project, whether the project has one at its root or its suites read the
-// configurations of its packages. It is also the one address of
-// git's settings for the suite: `test.env` sets git once for the tests by the environment
-// (GIT_CONFIG_COUNT/KEY/VALUE, git-config(1)), the automatic maintenance and garbage collection off
-// (maintenance.auto=false, gc.auto=0). The configuration of the template's root (vitest.config.ts)
-// takes that setting from here; a day configuration other than that one (one per
-// package, say) does not take it.
+// after a green full pass (`npm run verifier -- --force`) and before the project's night script.
+// It reads no day configuration of the project, whether the project has one at its root or one
+// per package; it takes the common environment (git's settings) from the base configuration.
+import base from './vitest.base.config.mjs';
+
 export default {
   test: {
-    env: {
-      GIT_CONFIG_COUNT: '2',
-      GIT_CONFIG_KEY_0: 'maintenance.auto',
-      GIT_CONFIG_VALUE_0: 'false',
-      GIT_CONFIG_KEY_1: 'gc.auto',
-      GIT_CONFIG_VALUE_1: '0',
-    },
-    environment: 'node',
+    env: base.test.env,
+    environment: base.test.environment,
     include: ['**/*.{nuit,budget}.{test,spec}.?(c|m)[jt]s?(x)'],
     exclude: ['**/node_modules/**', '**/dist/**', '**/.git/**'],
     watch: false,

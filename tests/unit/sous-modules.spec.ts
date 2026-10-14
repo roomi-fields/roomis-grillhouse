@@ -70,7 +70,8 @@ const gitScripts = (dir: string, ...a: string[]) =>
   spawnSync('git', ['-C', dir, ...a], { encoding: 'utf8', env: ENV_SCRIPTS });
 
 // The tests of the trial repository, as the frame's `npm test` plays them (Turborepo: the build,
-// then the tests): its build, then its suites; `test:forcer`, the night's, plays the same.
+// then the tests): its build, then its suites; `verifier`, the integration's and the night's,
+// plays the same.
 const TEST = 'npm run --silent build && node suites.mjs';
 // The trial's stand-in for Turborepo, the local package `outils/turbo` of the trial repository (its
 // `turbo` binary, which `npm install` links into node_modules/.bin, where the launcher's
@@ -109,7 +110,7 @@ function monde(avecSousModule = true, adresse: Adresse = 'absolue', imbrique = f
     JSON.stringify({
       name: 't',
       private: true,
-      scripts: { build: 'node build.mjs', test: TEST, 'test:forcer': 'npm test' },
+      scripts: { build: 'node build.mjs', test: TEST, verifier: 'npm test' },
       devDependencies: { turbo: 'file:outils/turbo' },
     })
   );
@@ -169,7 +170,7 @@ function monde(avecSousModule = true, adresse: Adresse = 'absolue', imbrique = f
   }
   const env = { ...ENV_SCRIPTS, PATH: `${bin}:${process.env.PATH}` };
 
-  // A lot that adds a source to the component packages/a; the integration's `npm test` builds the copy.
+  // A lot that adds a source to the component packages/a; the integration's `npm run verifier` builds the copy.
   let n = 0;
   const lot = () => {
     n += 1;
@@ -704,12 +705,12 @@ function mondePartage({
     writeFileSync(path.join(m.repo, 'dep/package.json'), '{"name":"dep","version":"1.0.0"}\n');
     pkg.version = '1.0.0';
     pkg.dependencies = { dep: 'file:dep' };
-    // `npm test` as the frame's: the build, the guards, then the tests.
+    // `verifier` as the frame's: the build, the guards, then the tests.
     pkg.scripts = {
       postinstall: 'node ecrire.mjs installation',
       build: 'node build.mjs && node ecrire.mjs construction',
       test: 'npm run --silent build && node ecrire.mjs gardes && node ecrire.mjs tests && node suites.mjs',
-      'test:forcer': 'npm test',
+      verifier: 'npm test',
       nocturne: 'node ecrire.mjs nuit',
     };
     pkg.grillhouse = { ...pkg.grillhouse, nuit: 'nocturne' };

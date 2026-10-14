@@ -134,7 +134,12 @@ remplace jamais le grill. Les branches de l'arbre :
    paquet construit porte un script `build` qui écrit son `dist/` ; Turborepo les lance
    (`turbo.json`, tâche `build`), dans l'ordre du graphe des paquets que déclarent leurs
    `package.json`, la matière de test partagée d'un voisin comprise ; une construction inchangée
-   se restaure de son cache. Aucune configuration ne lit
+   se restaure de son cache. Le `turbo.json` est au projet : la mise à jour du cadre l'écrit une
+   fois, depuis le gabarit de sa forme (`templates/turbo/paquets.json` quand le `package.json`
+   déclare `workspaces`), puis n'y touche plus. Chaque paquet testé porte son script
+   `test:vitest` et sa configuration Vitest, qui étend la configuration de base du cadre
+   (`scripts/vitest.base.config.mjs`, par `mergeConfig`) : les exclusions du jour (tests de nuit,
+   bancs de budget) et l'environnement commun y sont, sans copie. Aucune configuration ne lit
    celle d'un voisin, que l'enveloppe cache. Un test atteint son paquet
    par une seule route : les sources relatives pour un test unitaire, le nom du paquet pour un test
    de porte. Ainsi un agent enveloppé construit et teste son paquet avec ce que ses voisins
@@ -144,7 +149,8 @@ remplace jamais le grill. Les branches de l'arbre :
    **Une fois les composants décidés**, la nuit entre dans la table des tâches du poste
    (`crontab -e` : `0 3 * * * bash <racine>/scripts/nuit.sh`) : elle rejoue pour de vrai la passe
    complète, puis les tests de nuit et les bancs de budget, que le jour ne joue pas. Chaque
-   intégration joue `npm test` en entier, Turborepo relisant de son cache ce qui n'a pas bougé.
+   intégration joue `npm run verifier` en entier (les gardes et les tests), Turborepo relisant de
+   son cache ce qui n'a pas bougé.
    Restent des choix selon la taille du projet, que le responsable tranche :
    - **le contrôle de l'interface contre le code** (`scripts/interfaces-contre-code.mjs`) : une
      seule passe avant les tests (petit projet), ou un banc par composant qui appelle

@@ -118,7 +118,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   resté `en-file` sans file lancée se vide à la main : `node scripts/integration/file.mjs`. Ainsi un
   changement du cadre n'attend aucune livraison.
 - **La nuit se lit le matin** : la passe complète tourne pour de vrai une fois la nuit
-  (`scripts/nuit.sh`, `npm run test:forcer`), suivie des tests de nuit (`*.nuit.test.*`) et des
+  (`scripts/nuit.sh`, `npm run verifier -- --force`), suivie des tests de nuit (`*.nuit.test.*`) et des
   bancs de budget (`*.budget.test.*`) ; un rouge ouvre un ticket étiqueté `nuit`, avec les commits où chercher. Je
   le lis en ouvrant la séance, et il passe avant tout autre ticket. Ainsi un défaut que les
   intégrations du jour n'ont pas vu se corrige le lendemain.

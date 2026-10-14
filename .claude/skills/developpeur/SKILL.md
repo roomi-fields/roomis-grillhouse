@@ -59,8 +59,9 @@ prime sur tout le reste.
   d'acceptation, et rien d'autre.
 
 Tu vois ton paquet en entier, et des autres composants leur interface et leur forme publiée. Les
-gardes du cadre (frontières, consommateurs, index des interfaces, rapports d'API) tournent avec les
-tests ; leur refus nomme la commande qui corrige.
+gardes du cadre (frontières, consommateurs, index des interfaces, rapports d'API) tournent à côté
+des tests, par `npm run verifier`, que l'intégration joue ; leur refus nomme la commande qui
+corrige.
 
 ## Ce qui t'arrête
 

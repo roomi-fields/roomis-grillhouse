@@ -44,16 +44,16 @@ node scripts/integration/integrer.mjs --ticket <id> [--ticket <id>…] \
 ```
 
 `--ticket` nomme chaque ticket, qui porte le verdict du relecteur ; le premier donne sa branche
-`agent/<ticket>`. Le script vérifie les verdicts et la part de chaque agent, joue `npm test`
-(Turborepo : construction, gardes, tests, relus de son cache quand rien n'a bougé) dans une copie
+`agent/<ticket>`. Le script vérifie les verdicts et la part de chaque agent, joue `npm run verifier`
+(Turborepo : construction, puis gardes et tests, relus de son cache quand rien n'a bougé) dans une copie
 propre, exige le vert, puis commite sur `agent/<ticket>` et étiquette le ticket
 `en-file` ; main n'avance pas ici. Il tient sa propre attente et rend la main sur le commit ou sur
 le refus. Son en-tête dit chaque étape et ce qu'il rejoue : tu le lis quand une sortie t'étonne.
 
 **La file** : le commit fait, tu lances `node scripts/integration/file.mjs` depuis l'arbre
-principal. Elle amène les branches sur main une à une, rejoue le même `npm test` quand main a
+principal. Elle amène les branches sur main une à une, rejoue le même `npm run verifier` quand main a
 bougé, ferme chaque ticket « intégré : <commit> », efface sa branche et pousse main. Une branche
-qui ne passe pas (fichiers en conflit, `npm test` rouge) sort de la file : son ticket
+qui ne passe pas (fichiers en conflit, `npm run verifier` rouge) sort de la file : son ticket
 perd `en-file` et se rouvre avec les fichiers ou les tests nommés, et la branche reste en place pour
 la relance. Ainsi main n'avance que sur des branches rejouées contre lui.
 

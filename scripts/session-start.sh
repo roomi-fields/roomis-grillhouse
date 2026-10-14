@@ -125,11 +125,11 @@ if [ -n "$demarrage" ]; then
   fi
 fi
 
-# The integration script runs the project's tests and guards by `npm test` (Turborepo), and the
-# night by `npm run test:forcer`: two npm scripts to wire.
+# The agents run the tests by `npm test`; the integration, the queue and the night run the guards
+# and the tests by `npm run verifier` (Turborepo): two npm scripts to wire.
 wiring=()
 if [ -f "$root/package.json" ]; then
-  for s in test test:forcer; do
+  for s in test verifier; do
     node -e 'const p=require(process.argv[1]);process.exit(p.scripts&&p.scripts[process.argv[2]]?0:1)' \
       "$root/package.json" "$s" 2>/dev/null || wiring+=("$s")
   done
@@ -159,7 +159,7 @@ if [ ${#pending[@]} -gt 0 ]; then
   echo "Dès ta première réponse, propose au responsable de les griller, chacun avec ce que tu recommandes pour ce projet (compétence \`grill\`). Il peut accepter, en choisir un, ou reporter ; tant qu'un élément reste vide, cette proposition revient à chaque séance."
 fi
 if [ ${#wiring[@]} -gt 0 ]; then
-  echo "À brancher : $(IFS=' '; echo "${wiring[*]}") dans le package.json de la racine. Le script d'intégration (\`scripts/integration/integrer.mjs\`, contrat en tête) lance \`npm test\` (Turborepo, \`turbo.json\` : construction, gardes, tests) et la nuit \`npm run test:forcer\` ; sans eux, il refuse chaque lot. Un projet testé par Vitest les reçoit de \`npm run grillhouse:maj\` ; sinon, écris-les pour ses tests."
+  echo "À brancher : $(IFS=' '; echo "${wiring[*]}") dans le package.json de la racine. Le script d'intégration (\`scripts/integration/integrer.mjs\`, contrat en tête) et la nuit lancent \`npm run verifier\` (Turborepo, \`turbo.json\` : construction, puis gardes et tests), les agents \`npm test\` ; sans eux, l'intégration refuse chaque lot. Un projet testé par Vitest les reçoit de \`npm run grillhouse:maj\` ; sinon, écris-les pour ses tests."
 fi
 if [ -n "${nuit:-}" ]; then
   echo "La nuit n'est pas programmée : elle rejoue pour de vrai la passe complète, puis les tests de nuit et les bancs de budget, que le jour ne joue pas (\`scripts/nuit.sh\`). Propose au responsable d'ajouter à la table des tâches du poste (\`crontab -e\`) : \`$nuit\`."

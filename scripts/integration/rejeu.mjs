@@ -22,10 +22,11 @@
 //   lot that changes the lock file or a manifest is installed as the continuous integration
 //   installs it (`npm ci` refuses a lock file in disagreement with its manifest). The tests run on
 //   dependencies in agreement, and they neither read the key nor install.
-// - `tester` plays `npm test` in the copy: Turborepo builds the project, plays its guards, then its
-//   tests (`turbo.json`), each task kept in the cache of the main tree (`.turbo/cache`, shared by
-//   every copy), so a task whose inputs an earlier run already played replays its log. It gives the
-//   command's result, green (status 0) or red, its output written as it comes.
+// - `tester` plays `npm run verifier` in the copy: Turborepo builds the project, then plays its
+//   guards and its tests beside each other (`turbo.json`), each task kept in the cache of the main
+//   tree (`.turbo/cache`, shared by every copy), so a task whose inputs an earlier run already
+//   played replays its log. It gives the command's result, green (status 0) or red, its output
+//   written as it comes.
 // - Every command of the project run in the copy (`lancer`: the install, the tests) leaves the
 //   index of its copy up to date, green or red: the consumers that apply a lot with `--index` (the
 //   integration, the queue) read an index that matches the files the command touched, and none
@@ -132,7 +133,7 @@ export function ouvrirCopie({ racine, copie, ref, dire }) {
   if (refusOuverture) return { refus: refusOuverture };
   dire(`✓ copie propre sur ${tete.slice(0, 7)}`);
 
-  // The tests of the copy: Turborepo builds, plays the guards, then the tests.
-  const tester = () => npm(['test']);
+  // The checks of the copy: Turborepo builds, then plays the guards and the tests.
+  const tester = () => npm(['run', 'verifier']);
   return { dansCopie, monter, installer: accorder, tester, tete };
 }

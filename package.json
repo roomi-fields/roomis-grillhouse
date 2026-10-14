@@ -26,7 +26,7 @@
     "format": "prettier --write \"src/**/*.{ts,js,mjs}\" \"tests/**/*.{ts,js,mjs}\"",
     "format:check": "prettier --check \"src/**/*.{ts,js,mjs}\" \"tests/**/*.{ts,js,mjs}\"",
     "prepare": "npm run build",
-    "prepublishOnly": "npm run lint && npm run typecheck && npm test && npm run build",
+    "prepublishOnly": "npm run lint && npm run typecheck && npm run verifier && npm run build",
     "daemon:start": "pm2 start ecosystem.config.cjs",
     "daemon:stop": "pm2 stop project-name",
     "daemon:restart": "pm2 restart project-name",
@@ -42,7 +42,8 @@
     "grillhouse:maj": "node scripts/grillhouse-maj.mjs",
     "code-mort": "node scripts/code-mort.mjs",
     "test:vitest": "vitest run",
-    "test:forcer": "turbo run test:vitest --force --"
+    "test:forcer": "turbo run test:vitest --force --",
+    "verifier": "turbo run grillhouse:gardes test:vitest"
   },
   "keywords": [
     "keyword1",
