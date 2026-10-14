@@ -132,11 +132,15 @@ remplace jamais le grill. Les branches de l'arbre :
    `./test-fixtures`, comme `tests/cases` de TypeScript ou `tests/ui` de rustc ; tous les rôles le
    lisent, le testeur seul l'écrit. Chaque
    paquet construit porte un script `build` qui écrit son `dist/` ; Turborepo les lance
-   (`turbo.json`, tâche `build`), dans l'ordre du graphe des paquets que déclarent leurs
-   `package.json`, la matière de test partagée d'un voisin comprise ; une construction inchangée
-   se restaure de son cache. Le `turbo.json` est au projet : la mise à jour du cadre l'écrit une
-   fois, depuis le gabarit de sa forme (`templates/turbo/paquets.json` quand le `package.json`
-   déclare `workspaces`), puis n'y touche plus. Chaque paquet testé porte son script
+   (`turbo.json`, tâche `build`) : une construction attend celle de ses seules dépendances
+   d'exécution (`dependencies`, `peerDependencies`, `optionalDependencies`), et un test celle de
+   tout ce qu'il importe, la matière de test partagée d'un voisin comprise ; une construction
+   inchangée se restaure de son cache. Le `turbo.json` de la racine est au projet : la mise à jour
+   du cadre l'écrit une fois, depuis le gabarit de sa forme (`templates/turbo/paquets.json` quand
+   le `package.json` déclare `workspaces`), puis n'y touche plus. Celui de chaque paquet est
+   généré depuis son `package.json` (`node scripts/turbo-des-paquets.mjs --ecrire`, que la mise à
+   jour lance) et `grillhouse:gardes` refuse un fichier absent ou périmé : une dépendance s'écrit
+   au `package.json` seul. Chaque paquet testé porte son script
    `test:vitest` et sa configuration Vitest, qui étend la configuration de base du cadre
    (`scripts/vitest.base.config.mjs`, par `mergeConfig`) : les exclusions du jour (tests de nuit,
    bancs de budget) et l'environnement commun y sont, sans copie. Aucune configuration ne lit

@@ -22,6 +22,7 @@ import {
   fusionnerReglages,
   lireListe,
   mettreAJour,
+  regenerer,
 } from '../../scripts/grillhouse-maj.mjs';
 import { CONFIGURATION as CONFIG_DES_FRONTIERES } from '../../scripts/frontieres.mjs';
 import { cheminSysteme, claudeSubstitut } from '../claude-substitut.js';
@@ -170,6 +171,7 @@ const GARDES = 'npm run --silent grillhouse:gardes';
 // The controls of the frame, in the order of the template's grillhouse:gardes (critère 1); the
 // build is not among them: Turborepo builds before them.
 const CONTROLES: [string, RegExp][] = [
+  ['turbo.json des paquets', /^node scripts\/turbo-des-paquets\.mjs$/],
   ['index des interfaces', /^node scripts\/index-interfaces\.mjs --verifier$/],
   ['consommateurs', /^node scripts\/consommateurs\.mjs$/],
   ['frontières', /^node scripts\/frontieres\.mjs$/],
@@ -462,6 +464,32 @@ describe('the update installs Turborepo', () => {
   });
   it('a project that declares workspaces receives the template with packages', () => {
     const { projet } = installe({ name: 'p', private: true, workspaces: ['packages/*'] });
+    expect(lire(projet, 'turbo.json')).toBe(lire(DEPOT, PAQUETS));
+  });
+  it('the update writes the turbo.json of each package, whose build waits for its runtime dependencies only (BPScript 322.12)', () => {
+    const { projet } = installe({ name: 'p', private: true, workspaces: ['packages/*'] });
+    ecrire(projet, 'packages/x/package.json', '{"name":"x","scripts":{"build":"tsc"}}\n');
+    ecrire(
+      projet,
+      'packages/y/package.json',
+      '{"name":"y","scripts":{"build":"tsc"},"dependencies":{"x":"*"},"devDependencies":{"z":"*"}}\n'
+    );
+    ecrire(
+      projet,
+      'packages/z/package.json',
+      '{"name":"z","scripts":{"build":"tsc"},"dependencies":{"y":"*"}}\n'
+    );
+    expect(regenerer(projet)).toEqual([]);
+    const build = (f: string) =>
+      (
+        JSON.parse(lire(projet, f).replace(/^\/\/.*\n/, '')) as {
+          tasks: { build: { dependsOn: string[] } };
+        }
+      ).tasks.build.dependsOn;
+    expect(build('packages/x/turbo.json')).toEqual([]);
+    expect(build('packages/y/turbo.json')).toEqual(['x#build']);
+    expect(build('packages/z/turbo.json')).toEqual(['y#build']);
+    // The root keeps the template: the tests wait for everything they import.
     expect(lire(projet, 'turbo.json')).toBe(lire(DEPOT, PAQUETS));
   });
   it('a turbo.json present is never written again, whatever the form of the project', () => {

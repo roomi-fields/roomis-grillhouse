@@ -41,7 +41,7 @@ roomis-grillhouse/
 ├── CLAUDE.md                   # The project's charter, filled by the initialisation grill; imports the common one
 ├── README.md                   # Describes Grillhouse itself (not copied to projects)
 ├── templates/README.md         # The README a new project starts from
-├── templates/turbo/            # The templates of a project's turbo.json, one per form (sans-paquets.json, paquets.json): grillhouse-maj writes the one of its form when the project has none
+├── templates/turbo/            # The templates of a project's turbo.json, one per form (sans-paquets.json, paquets.json): grillhouse-maj writes the one of its form when the project has none; in a repository of packages, each package's generated turbo.json (scripts/turbo-des-paquets.mjs) replaces the root's build dependencies with its runtime ones
 ├── pitmaster/SUIVI.md          # Pitmaster follow-up (open questions, last round)
 ├── scripts/
 │   ├── new-project.sh             # npm run new -- <dest> [prefix] (template only, not copied)
@@ -72,7 +72,8 @@ roomis-grillhouse/
 │   ├── branche-de-nuit.mjs        # pre-push guard: only the night pushes the branch of grillhouse.poussee.nuit
 │   ├── poussee-cles.mjs           # reads the grillhouse.poussee, .nuit and .commit keys of package.json for nuit.sh, the guard and the queue
 │   ├── retirer-copie.sh           # removes a working copy, submodules included (local work already entered on main does not hold it) (agent, integration, night)
-│   ├── grillhouse-maj.mjs         # npm run grillhouse:maj: the frame brought to its last version (files, git hooks, the frame's plugins, scripts — test, test:vitest, test:forcer, verifier —, turbo.json written from the template of its form when absent, the frame's devDependencies, Turborepo's among them, packageManager, .turbo/ ignored, then the generated `.dependency-cruiser.cjs` and interfaces index regenerated, a failing generator named); --ecarts; any other option refused
+│   ├── grillhouse-maj.mjs         # npm run grillhouse:maj: the frame brought to its last version (files, git hooks, the frame's plugins, scripts — test, test:vitest, test:forcer, verifier —, turbo.json written from the template of its form when absent, the frame's devDependencies, Turborepo's among them, packageManager, .turbo/ ignored, then the generated `.dependency-cruiser.cjs`, interfaces index and packages' turbo.json regenerated, a failing generator named); --ecarts; any other option refused
+│   ├── turbo-des-paquets.mjs      # grillhouse:gardes: refuses a package's turbo.json absent or stale; --ecrire writes it (extends the root's, its build waits for the build of its runtime dependencies only: dependencies, peerDependencies, optionalDependencies)
 │   ├── tableau.mjs                # npm run tableau: the board on three levels (project, agents, chantier)
 │   ├── ligne-etat/                # the status line: the person's own on the left, the chantier on the right
 │   ├── verrou-de-fichier.mjs      # the lock of a file shared between processes (judged by the owner's process or by age); taken by integrer.mjs, file.mjs and registre.mjs

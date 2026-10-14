@@ -26,7 +26,8 @@
 //   project with a `package.json` and no `turbo.json` receives the frame's template of its form,
 //   read in the source: `templates/turbo/paquets.json` when its `package.json` declares
 //   `workspaces` (the tasks of each package, and the root's `//#grillhouse:gardes`; the tests live
-//   in the packages, the root has no `test:vitest`), else `templates/turbo/sans-paquets.json` (`build`, then the guards and the
+//   in the packages, the root has no `test:vitest`; the `build` of each package is set by its own
+//   generated `turbo.json`, below), else `templates/turbo/sans-paquets.json` (`build`, then the guards and the
 //   tests beside each other). A `turbo.json` present is never written again.
 // - The frame's tools (API Extractor and its model, the TSDoc configuration reader,
 //   dependency-cruiser, knip, Turborepo) are added to the project's
@@ -61,7 +62,9 @@
 // - The generated files: after the files, each generator of the frame is run in the project for the
 //   file it writes when the project holds that file (`node scripts/frontieres.mjs --ecrire` for
 //   `.dependency-cruiser.cjs`, `node scripts/index-interfaces.mjs` for
-//   `docs/agents/index-des-interfaces.md`), so that the frame's checks accept them; a generator
+//   `docs/agents/index-des-interfaces.md`), and `node scripts/turbo-des-paquets.mjs --ecrire`
+//   always (the `turbo.json` of each package of a repository with `workspaces`, whose build waits
+//   for its runtime dependencies only), so that the frame's checks accept them; a generator
 //   that fails has its line, and the exit code is non-zero. `interfaces-contre-code.mjs` is not
 //   run: it writes after a build.
 // - An option other than `--source <path>` and `--ecarts` is refused: the usage is shown (the
@@ -447,7 +450,9 @@ export function ecarts(projet) {
   return { version: e.version, modifies, absents };
 }
 
-// The frame's generators and the file each writes: run in the project after the copy.
+// The frame's generators and the file each writes: run in the project after the copy. A
+// generator without `sortie` (the `turbo.json` of each package, none without `workspaces`) runs
+// in every project that holds its script.
 const GENERATEURS = [
   { script: 'scripts/frontieres.mjs', args: ['--ecrire'], sortie: '.dependency-cruiser.cjs' },
   {
@@ -455,19 +460,23 @@ const GENERATEURS = [
     args: [],
     sortie: 'docs/agents/index-des-interfaces.md',
   },
+  { script: 'scripts/turbo-des-paquets.mjs', args: ['--ecrire'], sortie: null },
 ];
 
 // Runs each generator whose script and output the project holds; returns the lines of failure.
 export function regenerer(projet) {
   const lignes = [];
   for (const g of GENERATEURS) {
-    if (!existsSync(path.join(projet, g.script)) || !existsSync(path.join(projet, g.sortie))) {
+    if (
+      !existsSync(path.join(projet, g.script)) ||
+      (g.sortie !== null && !existsSync(path.join(projet, g.sortie)))
+    ) {
       continue;
     }
     const r = spawnSync(process.execPath, [g.script, ...g.args], { cwd: projet, encoding: 'utf8' });
     if (r.status !== 0) {
       lignes.push(
-        `${g.sortie} : \`node ${[g.script, ...g.args].join(' ')}\` échoue ; lance-le. ${(r.stderr ?? '').trim()}`.trim()
+        `${g.sortie ?? g.script} : \`node ${[g.script, ...g.args].join(' ')}\` échoue ; lance-le. ${(r.stderr ?? '').trim()}`.trim()
       );
     }
   }
