@@ -123,7 +123,11 @@ describe('verifier', () => {
   it('refuses a use the provider does not declare', () => {
     const dir = repo({ ...base, 'packages/b/docs/INTERFACE.md': INTERFACE_B('') });
     expect(verifier(dir).refus).toEqual([
-      'a utilise « duree » de b, que packages/b/docs/INTERFACE.md ne déclare pas.',
+      {
+        fichier: 'packages/b/docs/INTERFACE.md',
+        regle: 'usage-non-declare',
+        message: 'a utilise « duree » de b, que packages/b/docs/INTERFACE.md ne déclare pas.',
+      },
     ]);
   });
   it('refuses a use of a provider without interface', () => {
@@ -213,7 +217,9 @@ describe('grillhouse-3uv.56 critère 20 — two components of the same name are 
       .find(l => l.includes('packages/parser') && l.includes('src/parser'));
     expect(ligne, r.stderr).toBeDefined();
     expect(
-      verifier(dir).refus.some(l => l.includes('packages/parser') && l.includes('src/parser'))
+      verifier(dir).refus.some(
+        l => l.message.includes('packages/parser') && l.message.includes('src/parser')
+      )
     ).toBe(true);
   });
   // Arbitrage of the chef (comment « cas relevés par le testeur »): a name listed in

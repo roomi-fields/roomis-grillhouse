@@ -21,6 +21,11 @@
 // (`scripts/consommateurs.mjs`). The files of a package out of the frame
 // (`docs/agents/hors-cadre.txt`) are excluded, and no module rule is written for it.
 //
+// An error of dependency-cruiser inscribed in the project's debt (`grillhouse-dette.json`, see
+// `dette.mjs`) passes, keyed by the file it starts from and the rule's name; the report, written by
+// dependency-cruiser's `err-long` reporter, ignores the errors the debt covers as known violations
+// (`--ignore-known`). A stale configuration and an entry without a source are never inscribed.
+//
 // The published code is found before dependency-cruiser runs: each package under `packages/`
 // names its entries, the targets of its `exports`; an entry is a TypeScript source, or a built
 // file that comes back to its sources by what TypeScript emits with the `tsconfig*.json` of the
@@ -34,6 +39,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { composants, horsCadre } from './consommateurs.mjs';
+import { trancher } from './dette.mjs';
 
 export const CONFIGURATION = '.dependency-cruiser.cjs';
 export const RACINES = ['src', 'packages'];
@@ -290,11 +296,23 @@ export function publiees(racine) {
 }
 
 // One run of dependency-cruiser over <racines>; `json` gives the graph on the standard output.
-function depcruise(racine, racines, type, environnement) {
+// <connues>, when given, names the file of the known violations dependency-cruiser ignores
+// (`--ignore-known`).
+function depcruise(racine, racines, type, environnement, connues = null) {
   const json = type === 'json';
+  const ignorees = connues ? ['--ignore-known', connues] : [];
   return spawnSync(
     'npx',
-    ['--no-install', 'depcruise', ...racines, '--config', CONFIGURATION, '--output-type', type],
+    [
+      '--no-install',
+      'depcruise',
+      ...racines,
+      '--config',
+      CONFIGURATION,
+      '--output-type',
+      type,
+      ...ignorees,
+    ],
     {
       cwd: racine,
       env: environnement,
@@ -326,6 +344,19 @@ function aJuger(graphe, sources) {
     }
   }
   return juges;
+}
+
+// The errors of a cruise result as findings the debt (`dette.mjs`) judges: keyed by the file a
+// violation starts from and its rule's name, the violation kept to be reported.
+export function constats(resultat) {
+  return resultat.summary.violations
+    .filter(v => v.rule.severity === 'error')
+    .map(v => ({
+      fichier: v.from,
+      regle: v.rule.name,
+      message: `${v.rule.name}: ${v.from} → ${v.to}`,
+      violation: v,
+    }));
 }
 
 // The pattern of the files to judge, as dependency-cruiser's `path` filter reads it.
@@ -366,8 +397,32 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
       writeFileSync(fichier, motifDes(aJuger(JSON.parse(graphe.stdout), sources)));
       environnement[JUGES] = fichier;
     }
-    const r = depcruise(racine, racines, 'err-long', environnement);
-    process.exitCode = r.status ?? 1;
+    const r = depcruise(racine, racines, 'json', environnement);
+    if (!r.stdout) process.exit(r.status || 1);
+    const resultat = JSON.parse(r.stdout);
+    const { refus, lignes } = trancher(racine, 'frontieres', constats(resultat));
+    // The report is dependency-cruiser's own (`err-long`): the result formatted as it is when the
+    // debt covers nothing, else a cruise that ignores the violations the debt covers, given as its
+    // known violations (`--ignore-known`).
+    const refusees = new Set(refus.map(c => c.violation));
+    const couvertes = resultat.summary.violations.filter(
+      v => v.rule.severity === 'error' && !refusees.has(v)
+    );
+    dossier ??= mkdtempSync(path.join(tmpdir(), 'frontieres-'));
+    if (couvertes.length) {
+      const connues = path.join(dossier, 'connues.json');
+      writeFileSync(connues, JSON.stringify(couvertes));
+      depcruise(racine, racines, 'err-long', environnement, connues);
+    } else {
+      const fichier = path.join(dossier, 'resultat.json');
+      writeFileSync(fichier, r.stdout);
+      spawnSync('npx', ['--no-install', 'depcruise-fmt', fichier, '--output-type', 'err-long'], {
+        cwd: racine,
+        stdio: 'inherit',
+      });
+    }
+    for (const l of lignes) process.stderr.write(`${l}\n`);
+    process.exitCode = refus.length ? 1 : 0;
   } finally {
     if (dossier) rmSync(dossier, { recursive: true, force: true });
   }

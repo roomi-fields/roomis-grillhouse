@@ -2,7 +2,9 @@
 // The dead-code guard: refuses a file, an export, a type or a dependency that nothing living
 // uses, measured by knip (configured in the project's `knip.json`). Run by `grillhouse:gardes`.
 //
-// - Each finding is named with its file; exit code 1 when there is one.
+// - Each finding is named with its file; exit code 1 when there is one. A finding inscribed in the
+//   project's debt (`grillhouse-dette.json`, see `dette.mjs`) passes, keyed by its file and knip's
+//   kind of issue (`files`, `exports`, `types`, `dependencies`…).
 // - A knip that measured nothing (it failed, or its output is not its report) refuses too: an
 //   empty green is the worst green.
 // - A finding that is not dead (a format's full table, a public name a consumer outside the
@@ -41,6 +43,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { horsCadre } from './consommateurs.mjs';
+import { trancher } from './dette.mjs';
 import { isTestFile } from './verrous/verrou.mjs';
 
 const GENRES = {
@@ -56,8 +59,9 @@ const GENRES = {
   duplicates: 'export en double',
 };
 
-// The findings of knip's JSON report, one line each, of the given kinds (all by default); null
-// when the report is not knip's.
+// The findings of knip's JSON report, of the given kinds (all by default), each
+// `{ fichier, regle, message }`: its file, knip's kind of issue (`exports`, `dependencies`…) and
+// its line; null when the report is not knip's.
 export function constats(texte, genres = Object.keys(GENRES)) {
   let r;
   try {
@@ -74,7 +78,11 @@ export function constats(texte, genres = Object.keys(GENRES)) {
       const nom = GENRES[genre];
       for (const x of i[genre] ?? []) {
         const n = Array.isArray(x) ? x.map(y => y.name).join(', ') : x.name;
-        out.push(genre === 'files' ? `${i.file} : ${nom}` : `${i.file} : ${nom} — ${n}`);
+        out.push({
+          fichier: i.file,
+          regle: genre,
+          message: genre === 'files' ? `${i.file} : ${nom}` : `${i.file} : ${nom} — ${n}`,
+        });
       }
     }
   }
@@ -328,9 +336,10 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const c2 = second ? constats(second.stdout ?? '', DEPS) : null;
   let c = null;
   if (c1 && (c2 || !second)) {
-    const deps = new Set(constats(premier.stdout, DEPS));
-    const lus = c2 ? new Set(c2) : deps;
-    c = c1.filter(l => !deps.has(l) || lus.has(l));
+    const messages = liste => new Set(liste.map(x => x.message));
+    const deps = messages(constats(premier.stdout, DEPS));
+    const lus = c2 ? messages(c2) : deps;
+    c = c1.filter(x => !deps.has(x.message) || lus.has(x.message));
   }
   if (c === null) {
     const r = c1 ? second : premier;
@@ -339,13 +348,19 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     );
     process.exit(1);
   }
-  if (c.length) {
+  const { refus, lignes } = trancher(racine, 'code-mort', c);
+  if (refus.length) {
     process.stderr.write(
-      `⛔ CODE MORT — ${c.length} constat(s) : chacun se supprime, ou sort par son nom dans knip.json avec sa raison.\n`
+      `⛔ CODE MORT — ${refus.length} constat(s) : chacun se supprime, ou sort par son nom dans knip.json avec sa raison.\n`
     );
-    for (const l of c) {
-      process.stderr.write(`  ${l}\n`);
+    for (const x of refus) {
+      process.stderr.write(`  ${x.message}\n`);
     }
+  }
+  for (const l of lignes) {
+    process.stderr.write(`${l}\n`);
+  }
+  if (refus.length) {
     process.exit(1);
   }
 }

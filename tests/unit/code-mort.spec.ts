@@ -11,12 +11,18 @@ describe('the dead-code guard', () => {
       { file: 'package.json', dependencies: [{ name: 'zod' }] },
       { file: 'src/c.ts', duplicates: [[{ name: 'x' }, { name: 'y' }]] },
     ]);
-    expect(constats(r)).toEqual([
+    expect(constats(r)?.map(c => c.message)).toEqual([
       'src/a.ts : fichier sans appelant',
       'src/b.ts : export sans appelant — mort',
       'src/b.ts : type exporté sans appelant — Vieux',
       'package.json : dépendance sans usage — zod',
       'src/c.ts : export en double — x, y',
+    ]);
+  });
+  it('keys each finding by its file and knip’s kind of issue', () => {
+    const r = rapport([{ file: 'src/b.ts', exports: [{ name: 'mort' }] }]);
+    expect(constats(r)).toEqual([
+      { fichier: 'src/b.ts', regle: 'exports', message: 'src/b.ts : export sans appelant — mort' },
     ]);
   });
   it('finds nothing in a clean report', () => {

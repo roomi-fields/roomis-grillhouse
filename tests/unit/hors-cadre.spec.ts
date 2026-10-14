@@ -131,7 +131,7 @@ describe('critère 2 — the consumers check reads nothing in a package out of t
       'packages/a/docs/INTERFACE.md': INTERFACE('a'),
       'src/m/index.ts': "import { duree } from '@demo/a';\nexport const m = duree;",
     });
-    expect(verifier(dir).refus).toEqual([
+    expect(verifier(dir).refus.map(r => r.message)).toEqual([
       'm utilise « duree » de a, que packages/a/docs/INTERFACE.md ne déclare pas.',
     ]);
   });

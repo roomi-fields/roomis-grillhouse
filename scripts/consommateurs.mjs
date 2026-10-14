@@ -10,7 +10,9 @@
 // This check reads what the production code of every component imports from every other, and
 // refuses (exit 1) a use that the provider's interface does not declare. A declared use that no
 // code makes is reported, without refusing. `*` stands for a namespace, default, re-export-all or
-// side-effect import.
+// side-effect import. A refusal inscribed in the project's debt (`grillhouse-dette.json`, see
+// `dette.mjs`) passes, keyed by the provider's interface and `usage-non-declare` (`homonyme` for
+// two components of one name, keyed by the first path).
 //
 //   node scripts/consommateurs.mjs        run from the repository root
 //
@@ -25,6 +27,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { trancher } from './dette.mjs';
 
 const SOURCE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|svelte|vue)$/;
 const TEST_DIR = new Set(['test', 'tests', '__tests__']);
@@ -218,7 +221,7 @@ export function utilise(racine, tous = composants(racine)) {
   return out;
 }
 
-// The refusals of the components that share a name: one line per name, both paths.
+// The refusals of the components that share a name: one finding per name, both paths.
 function homonymes(racine) {
   const parNom = new Map();
   for (const { nom, dir } of dossiers(racine)) {
@@ -226,11 +229,16 @@ function homonymes(racine) {
   }
   return [...parNom]
     .filter(([, dirs]) => dirs.length > 1)
-    .map(([nom, dirs]) => `${nom} : ${dirs.join(' et ')} portent le même nom de composant.`);
+    .map(([nom, dirs]) => ({
+      fichier: dirs[0],
+      regle: 'homonyme',
+      message: `${nom} : ${dirs.join(' et ')} portent le même nom de composant.`,
+    }));
 }
 
-// The refusals (uses no interface declares) and the reports (declared uses no code makes). A
-// declared consumer out of the frame is passed over: its code is not read.
+// The refusals (uses no interface declares), as findings `{ fichier, regle, message }` the debt
+// (`dette.mjs`) judges, and the reports (declared uses no code makes). A declared consumer out of
+// the frame is passed over: its code is not read.
 export function verifier(racine) {
   const tous = composants(racine);
   const hors = horsCadre(racine);
@@ -246,7 +254,11 @@ export function verifier(racine) {
       const permis = declare.get(consommateur) ?? new Set();
       for (const n of noms) {
         if (!permis.has(n))
-          refus.push(`${consommateur} utilise « ${n} » de ${p.nom}, que ${rel} ne déclare pas.`);
+          refus.push({
+            fichier: rel,
+            regle: 'usage-non-declare',
+            message: `${consommateur} utilise « ${n} » de ${p.nom}, que ${rel} ne déclare pas.`,
+          });
       }
     }
     for (const [consommateur, noms] of declare) {
@@ -264,10 +276,13 @@ export function verifier(racine) {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const { refus, signaux } = verifier(process.cwd());
-  for (const s of signaux) process.stderr.write(`⚠️  ${s}\n`);
+  const racine = process.cwd();
+  const verdict = verifier(racine);
+  const { refus, lignes } = trancher(racine, 'consommateurs', verdict.refus);
+  for (const s of verdict.signaux) process.stderr.write(`⚠️  ${s}\n`);
+  for (const r of refus) process.stderr.write(`⛔ ${r.message}\n`);
+  for (const l of lignes) process.stderr.write(`${l}\n`);
   if (refus.length) {
-    for (const r of refus) process.stderr.write(`⛔ ${r}\n`);
     process.stderr.write(
       "Une consommation nouvelle passe par l'arbitre, puis entre dans la section « Consommateurs » de l'interface du fournisseur.\n"
     );

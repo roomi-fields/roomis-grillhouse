@@ -35,6 +35,11 @@
 // command that writes it; API Extractor's own warning on that report is not relayed (the refusal
 // says what to do).
 //
+// A refusal inscribed in the project's debt (`grillhouse-dette.json`, see `dette.mjs`) passes, keyed
+// by the component's interface and the rubric (`resume`, `param`, `param-orphelin`, `returns`,
+// `faute-mal-formee`, `faute-hors-catalogue`, `faute-non-nommee`, `faute-non-produite`,
+// `faute-non-listee`), or by the declaration file and TSDoc's message id for a TSDoc message.
+//
 // A component without `docs/INTERFACE.md` is reported and skipped. A project that prefers a
 // bench per component calls `verifierComposant(racine, composant)` from its test.
 import { createRequire } from 'node:module';
@@ -43,6 +48,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { composants } from './consommateurs.mjs';
+import { trancher } from './dette.mjs';
 
 const require = createRequire(import.meta.url);
 const SOURCE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|svelte|vue)$/;
@@ -120,7 +126,7 @@ function rapportApi(racine, c, entreeDts, ecrire, tsdocConfigFile) {
   );
   const tmp = mkdtempSync(path.join(tmpdir(), 'api-'));
   const messages = [];
-  const tsdoc = new Set();
+  const tsdoc = new Map();
   try {
     const modele = path.join(tmp, 'modele.api.json');
     const config = ExtractorConfig.prepare({
@@ -150,10 +156,9 @@ function rapportApi(racine, c, entreeDts, ecrire, tsdocConfigFile) {
       messageCallback: m => {
         const duRapport = String(m.messageId).startsWith('console-api-report');
         if (m.category === 'TSDoc') {
-          const lieu = m.sourceFilePath
-            ? `${path.relative(racine, m.sourceFilePath)}:${m.sourceFileLine ?? 1}: `
-            : '';
-          tsdoc.add(`${lieu}${m.text}`);
+          const fichier = m.sourceFilePath ? path.relative(racine, m.sourceFilePath) : null;
+          const lieu = fichier ? `${fichier}:${m.sourceFileLine ?? 1}: ` : '';
+          tsdoc.set(`${lieu}${m.text}`, { fichier, regle: m.messageId });
           m.logLevel = 'none';
         } else if ((m.logLevel === 'error' || m.logLevel === 'warning') && (ecrire || !duRapport)) {
           messages.push(m.text);
@@ -165,7 +170,7 @@ function rapportApi(racine, c, entreeDts, ecrire, tsdocConfigFile) {
     return {
       ajour: resultat.succeeded && !resultat.apiReportChanged,
       messages,
-      tsdoc: [...tsdoc],
+      tsdoc: [...tsdoc].map(([texte, lieu]) => ({ texte, ...lieu })),
       exports: paquet.entryPoints.flatMap(e => [...e.members]),
     };
   } finally {
@@ -238,25 +243,32 @@ const codeDeFaute = texte => {
   return CODE_SEUL.test(mot) ? mot : null;
 };
 
-// The `@faute` texts <textes> of one element judged against the catalogue <fautes>: refusals are
-// pushed on <refus>, the codes named on <codes>.
+// The `@faute` texts <textes> of one element judged against the catalogue <fautes>: refusals
+// (`{ regle, texte }`) are pushed on <refus>, the codes named on <codes>.
 function fautesJugees(nom, textes, fautes, refus, codes) {
   for (const f of textes) {
     const code = codeDeFaute(f);
     if (!code) {
-      refus.push(`${nom} : un @faute est mal formé (il commence par un code, ex. @faute CODE).`);
+      refus.push({
+        regle: 'faute-mal-formee',
+        texte: `${nom} : un @faute est mal formé (il commence par un code, ex. @faute CODE).`,
+      });
     } else if (!fautes?.has(code)) {
-      refus.push(`${nom} : le @faute ${code} n'est pas au catalogue « ## Les fautes ».`);
+      refus.push({
+        regle: 'faute-hors-catalogue',
+        texte: `${nom} : le @faute ${code} n'est pas au catalogue « ## Les fautes ».`,
+      });
     } else codes.add(code);
   }
 }
 
-// The refusals for one export against its contract, with the fault codes it and its members name.
+// The refusals for one export against its contract (`{ regle, texte }`), with the fault codes it
+// and its members name.
 function jugerExport(item, fautes) {
   const refus = [];
   const nom = `\`${item.displayName}\``;
   const k = contratDe(item);
-  if (!k.resume) refus.push(`${nom} n'a pas de résumé TSDoc.`);
+  if (!k.resume) refus.push({ regle: 'resume', texte: `${nom} n'a pas de résumé TSDoc.` });
   const codes = new Set();
   if (estFonction(item)) {
     const noms = new Set(k.parametres.filter(p => !p.destructure).map(p => p.name));
@@ -264,18 +276,27 @@ function jugerExport(item, fautes) {
     k.parametres.forEach((p, i) => {
       const parNom = p.destructure ? -1 : k.params.findIndex(b => b.nom === p.name);
       if (parNom >= 0) prises.add(parNom);
-      else if (!p.destructure) refus.push(`${nom} : le paramètre « ${p.name} » n'a pas de @param.`);
+      else if (!p.destructure)
+        refus.push({
+          regle: 'param',
+          texte: `${nom} : le paramètre « ${p.name} » n'a pas de @param.`,
+        });
       else if (!k.params[i] || noms.has(k.params[i].nom))
-        refus.push(
-          `${nom} : le paramètre déstructuré en position ${i + 1} n'a pas son @param à cette position.`
-        );
+        refus.push({
+          regle: 'param',
+          texte: `${nom} : le paramètre déstructuré en position ${i + 1} n'a pas son @param à cette position.`,
+        });
       else prises.add(i);
     });
     k.params.forEach((b, i) => {
-      if (!prises.has(i)) refus.push(`${nom} : le @param « ${b.nom} » ne nomme aucun paramètre.`);
+      if (!prises.has(i))
+        refus.push({
+          regle: 'param-orphelin',
+          texte: `${nom} : le @param « ${b.nom} » ne nomme aucun paramètre.`,
+        });
     });
     if (k.rendUneValeur && k.retour === null)
-      refus.push(`${nom} rend une valeur mais n'a pas de @returns.`);
+      refus.push({ regle: 'returns', texte: `${nom} rend une valeur mais n'a pas de @returns.` });
   }
   fautesJugees(nom, k.fautes, fautes, refus, codes);
   for (const m of item.members ?? []) {
@@ -375,12 +396,22 @@ function avecPartie(m, texte, partie) {
   return `${avant}${m.debut ? '\n' : ''}${DEBUT}${partie}${FIN}\n${apres}`;
 }
 
-// The refusals and reports for one component.
+// The refusals and reports for one component. A refusal is a finding `{ fichier, regle, message }`
+// the debt (`dette.mjs`) judges, keyed by the component's interface (by the declaration file for a
+// TSDoc message, its rule TSDoc's message id); a refusal that a command or a build repairs (a
+// generated part, an API report, a built entry, the marks, the TSDoc configuration) has no key and
+// is never inscribed.
 export function verifierComposant(racine, c, { ecrire = false } = {}) {
   const refus = [];
   const signaux = [];
   const rel = path.relative(racine, c.dir);
   const iface = path.join(c.dir, 'docs', 'INTERFACE.md');
+  const relIface = path.relative(racine, iface);
+  // A refusal of the component: inscribable when <regle> is given, keyed by <fichier>.
+  const refuser = (texte, regle = null, fichier = relIface) =>
+    refus.push(
+      regle ? { fichier, regle, message: `${rel} : ${texte}` } : { message: `${rel} : ${texte}` }
+    );
   if (!existsSync(iface)) {
     signaux.push(`${rel} n'a pas d'interface (docs/INTERFACE.md) : rien n'est vérifié.`);
     return { refus, signaux };
@@ -389,51 +420,49 @@ export function verifierComposant(racine, c, { ecrire = false } = {}) {
   const { fautes } = declare(texte);
   const m = marques(texte);
   if (m.etat === 'invalides') {
-    refus.push(
-      `${rel} : docs/INTERFACE.md doit porter la marque « ${DEBUT} » puis la marque « ${FIN} », chacune une fois ; corrige les marques à la main (npm run api n'écrit rien).`
+    refuser(
+      `docs/INTERFACE.md doit porter la marque « ${DEBUT} » puis la marque « ${FIN} », chacune une fois ; corrige les marques à la main (npm run api n'écrit rien).`
     );
   }
   const fichierTsdoc = path.join(racine, 'tsdoc.json');
   const dts = entree(racine, c);
   if (!existsSync(fichierTsdoc)) {
-    refus.push(`${rel} : la configuration TSDoc du cadre (tsdoc.json à la racine) manque.`);
+    refuser('la configuration TSDoc du cadre (tsdoc.json à la racine) manque.');
   } else if (!dts || !existsSync(dts)) {
-    refus.push(
-      `${rel} : son entrée construite (${dts ?? 'types absent'}) manque ; construis d'abord.`
-    );
+    refuser(`son entrée construite (${dts ?? 'types absent'}) manque ; construis d'abord.`);
   } else {
     const { TSDocConfigFile } = require('@microsoft/tsdoc-config');
     const config = TSDocConfigFile.loadFile(fichierTsdoc);
     const api = rapportApi(racine, c, dts, ecrire, config);
     for (const msg of api.messages) signaux.push(`${rel} : ${msg}`);
-    for (const msg of api.tsdoc) refus.push(`${rel} : TSDoc : ${msg}`);
+    for (const t of api.tsdoc) refuser(`TSDoc : ${t.texte}`, t.regle, t.fichier ?? relIface);
     const manque = !ecrire && !existsSync(path.join(c.dir, 'docs', 'INTERFACE.api.md'));
     if (manque) {
-      refus.push(
-        `${rel} : son rapport docs/INTERFACE.api.md manque ; npm run api l'écrit, après la construction.`
+      refuser(
+        "son rapport docs/INTERFACE.api.md manque ; npm run api l'écrit, après la construction."
       );
     } else if (!api.ajour && !ecrire) {
-      refus.push(
-        `${rel} : l'API a changé sans son rapport docs/INTERFACE.api.md ; npm run api le régénère, après la construction.`
+      refuser(
+        "l'API a changé sans son rapport docs/INTERFACE.api.md ; npm run api le régénère, après la construction."
       );
     }
     const nommees = new Set();
     for (const item of api.exports) {
       const j = jugerExport(item, fautes);
-      for (const r of j.refus) refus.push(`${rel} : ${r}`);
+      for (const r of j.refus) refuser(r.texte, r.regle);
       for (const code of j.codes) nommees.add(code);
     }
     for (const f of fautes ?? []) {
       if (!nommees.has(f))
-        refus.push(`${rel} : la faute ${f} du catalogue n'est nommée par aucun @faute.`);
+        refuser(`la faute ${f} du catalogue n'est nommée par aucun @faute.`, 'faute-non-nommee');
     }
     if (m.etat !== 'invalides') {
       const attendu = avecPartie(m, texte, partieGeneree(api.exports));
       if (ecrire) {
         if (attendu !== texte) writeFileSync(iface, attendu);
       } else if (attendu !== texte) {
-        refus.push(
-          `${rel} : la part générée de docs/INTERFACE.md (entre ${DEBUT} et ${FIN}) n'est pas celle du code ; npm run api la refait.`
+        refuser(
+          `la part générée de docs/INTERFACE.md (entre ${DEBUT} et ${FIN}) n'est pas celle du code ; npm run api la refait.`
         );
       }
     }
@@ -443,11 +472,11 @@ export function verifierComposant(racine, c, { ecrire = false } = {}) {
     const dansLeCode = codesDuCode(c.dir, racine, prefixes);
     for (const f of fautes) {
       if (!dansLeCode.has(f))
-        refus.push(`${rel} : la faute ${f} est listée, mais le code ne la produit pas.`);
+        refuser(`la faute ${f} est listée, mais le code ne la produit pas.`, 'faute-non-produite');
     }
     for (const f of dansLeCode) {
       if (!fautes.has(f))
-        refus.push(`${rel} : le code produit ${f}, que « Les fautes » ne liste pas.`);
+        refuser(`le code produit ${f}, que « Les fautes » ne liste pas.`, 'faute-non-listee');
     }
   }
   return { refus, signaux };
@@ -456,12 +485,14 @@ export function verifierComposant(racine, c, { ecrire = false } = {}) {
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const racine = process.cwd();
   const ecrire = process.argv.includes('--ecrire');
-  let refuse = false;
+  const constats = [];
   for (const c of composants(racine)) {
     const { refus, signaux } = verifierComposant(racine, c, { ecrire });
     for (const s of signaux) process.stderr.write(`⚠️  ${s}\n`);
-    for (const r of refus) process.stderr.write(`⛔ ${r}\n`);
-    refuse ||= refus.length > 0;
+    constats.push(...refus);
   }
-  process.exit(refuse ? 1 : 0);
+  const { refus, lignes } = trancher(racine, 'interfaces-contre-code', constats);
+  for (const r of refus) process.stderr.write(`⛔ ${r.message}\n`);
+  for (const l of lignes) process.stderr.write(`${l}\n`);
+  process.exit(refus.length ? 1 : 0);
 }
