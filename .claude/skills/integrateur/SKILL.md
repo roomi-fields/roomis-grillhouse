@@ -6,8 +6,9 @@ description: L'intégrateur : intégrer un seul lot relu — juger son diff cont
 # Intégrateur — intégrer une livraison
 
 Tu intègres une seule livraison, celle que nomme ton message de lancement, puis tu t'arrêtes sur
-son commit ou sur son refus. Commence par lire `METACADRE.md` et la charte (`CLAUDE.md`, avec la charte commune qu'elle importe). Ainsi ton
-contexte est un seul lot, et la séance ne dépend jamais d'un intégrateur resté ouvert.
+son commit ou sur son refus. Ainsi ton contexte est un seul lot, et la séance ne dépend jamais
+d'un intégrateur resté ouvert. `METACADRE.md` dit les intentions du cadre : tu le lis quand un
+lot semble tenir la lettre d'une règle contre son but.
 
 Une livraison est un ticket : le lot de tests (testeur) et le lot de code (développeur) qui les
 rend verts, livrés dans la même copie, ou les lots des enfants d'un même parent. Chaque lot est un dossier du scratchpad d'un
@@ -42,27 +43,10 @@ node scripts/integration/integrer.mjs --ticket <id> [--ticket <id>…] \
 ```
 
 `--ticket` nomme chaque ticket, qui porte le verdict du relecteur ; le premier donne sa branche
-`agent/<ticket>` et sa copie. Le script vérifie
-`ACCEPTÉ` et les arbitrages, garde les tests au testeur et le code au développeur. Puis, dans une
-copie d'intégration propre (`.claude/worktrees/integration`, sur HEAD, sans fichier local), il
-mesure la base, applique les lots en trois voies, construit une fois, par le point d'entrée des
-constructions (`scripts/integration/constructions.mjs`), quand une suite ou une garde lit la
-construction (une construction inchangée se restaure du magasin), rejoue les suites et les gardes, compare les suites à la base nom par nom et commite avec les
-crochets sur `agent/<ticket>` ; main n'avance pas ici. Il étiquette chaque ticket `en-file`, place
-la branche dans la file et retire la copie du ticket. Les suites rejouées suivent le choix du
-projet : toutes (`complet`), ou les composants du lot et ceux qui en dépendent (`impactes`, toutes
-les suites tournant la nuit), toutes lancées par `npm test`. Chaque fichier de test garde son
-verdict et sa sortie sous l'empreinte de son contenu et des modules qu'il importe, et un fichier
-inchangé se relit sans se rejouer. Les tests hors de tout composant forment la
-suite de la racine : une aide de test changée y rejoue les seuls fichiers qui l'importent, un
-lot fait seulement de tests joue ces seuls tests, et un composant changé y joue les seuls tests
-qui l'importent. Le fichier de verrou ou un chemin que le projet
-déclare lu par ses suites (`grillhouse.lusParLesSuites`) rejoue toutes les suites ; un autre
-fichier hors de tout composant (un document, un crochet, un script du cadre) n'en rejoue aucune.
-La base de main se construit seulement quand un de ses fichiers de test va se jouer.
-Ainsi le commit validé est exactement celui qui entre. Il tient sa propre attente : il rend la main
-sur le commit ou sur le refus, avec toute sa sortie. Ainsi une attente est un processus vivant,
-jamais une phrase. Une intégration lancée pendant qu'une autre tourne attend la fin de la première.
+`agent/<ticket>`. Le script vérifie les verdicts et la part de chaque agent, rejoue les suites et
+les gardes dans une copie propre, puis commite sur `agent/<ticket>` et étiquette le ticket
+`en-file` ; main n'avance pas ici. Il tient sa propre attente et rend la main sur le commit ou sur
+le refus. Son en-tête dit chaque étape et ce qu'il rejoue : tu le lis quand une sortie t'étonne.
 
 **La file** : le commit fait, tu lances `node scripts/integration/file.mjs` depuis l'arbre
 principal. Elle amène les branches sur main une à une, rejoue les gardes et les suites quand main a

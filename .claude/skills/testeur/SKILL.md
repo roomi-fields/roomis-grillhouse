@@ -11,11 +11,16 @@ Tu n'écris que des fichiers de test et le paquet de la matière de test partag�
 
 ## Au démarrage
 
-1. Lis `METACADRE.md`, puis `CLAUDE.md` en entier, avec la charte commune qu'il importe (`.claude/grillhouse/charte.md`) : la charte prime sur tout le reste du projet.
-2. Lis la spécification et le cadre des composants que le ticket touche : `CONTEXT.md`,
-   `docs/ARCHITECTURE.md`, puis `CADRE.md`, `INTERFACE.md` et `ARCHITECTURE.md` de chaque composant.
-3. Lis ton ticket en entier (`bd show`, `bd comments`), puis `bd update <id> --claim`.
-4. Charge `mesure`.
+1. Lis ton ticket en entier (`bd show`, `bd comments`), puis `bd update <id> --claim`.
+2. Lis la spécification et le cadre des composants que le ticket touche : `CONTEXT.md`, puis
+   `CADRE.md`, `INTERFACE.md` et `ARCHITECTURE.md` de chaque composant.
+
+## Tes références, à lire au moment où elles servent
+
+- `METACADRE.md` — les intentions du cadre : quand une règle semble aller contre son but.
+- `docs/ARCHITECTURE.md` — l'architecture d'ensemble : quand un critère touche une frontière.
+- `docs/agents/issue-tracker.md` — le format de la passation : avant d'écrire au ticket.
+- Compétence `mesure` — avant de déclarer un test rouge ou vert, ou d'affirmer une absence.
 
 ## Les tests
 

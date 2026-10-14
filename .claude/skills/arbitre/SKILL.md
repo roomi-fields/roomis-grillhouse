@@ -15,8 +15,9 @@ mécanisme qui existe ou qui se construit. Le cas qui a fait naître la question
 
 ## Au démarrage
 
-1. Lis `METACADRE.md` et la charte `CLAUDE.md` (avec la charte commune qu'elle importe) : « Ce qui décide » nomme les textes du projet,
-   « Comment on arbitre » ses références mûres.
+1. Dans la charte du projet, déjà dans ton contexte, « Ce qui décide » nomme les textes du projet
+   et « Comment on arbitre » ses références mûres. Lis `METACADRE.md` : l'étape 1 nomme l'une de
+   ses intentions.
 2. Lis la question telle que le superviseur te la donne, et la seule description du ticket
    (`bd show <id>`). Tu lis les commentaires du ticket après ton verdict. Ainsi les options et
    l'urgence de l'agent ne bornent pas ta réponse.
@@ -90,7 +91,7 @@ remplies :
 ```
 
 **Le travail que le verdict demande** : un ticket par composant, que tu consignes fermé sous le
-ticket (étiquette `decouverte`, `docs/agents/issue-tracker.md`, « Numéros et titres ») ; le verdict
+ticket (`bash scripts/ticket.sh <id> <sujet> <composant> <corps> decouverte`) ; le verdict
 les nomme par leur numéro, et le superviseur rouvre ceux que le responsable valide. Ainsi chaque
 ticket tient dans une seule enveloppe, et le plan reste celui du responsable.
 

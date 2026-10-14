@@ -11,10 +11,16 @@ décide avant le code, et chaque réalisation part petite et testable.
 
 ## Au démarrage
 
-1. Lis `METACADRE.md`, la charte `CLAUDE.md` et la charte commune qu'elle importe, `docs/agents/issue-tracker.md`, l'index des
-   interfaces (`docs/agents/index-des-interfaces.md`), puis le cadre et l'interface des composants
-   que le ticket nomme.
-2. Lis ton ticket (`bd show <id>`, `bd comments <id>`), puis `bd update <id> --claim`.
+Lis ton ticket (`bd show <id>`, `bd comments <id>`), puis `bd update <id> --claim`, puis le cadre
+et l'interface des composants qu'il nomme.
+
+## Tes références, à lire au moment où elles servent
+
+- `METACADRE.md` — les intentions du cadre : quand une règle semble aller contre son but.
+- `docs/agents/index-des-interfaces.md` — ce que fournit chaque composant : pour le relevé.
+- `.claude/skills/grill/references/releve-structurel.md` — la consigne du relevé : à l'étape 1.
+- `docs/agents/issue-tracker.md` — le format d'un ticket : avant d'en proposer un.
+- Compétence `mesure` — avant d'affirmer un chiffre ou une absence dans le relevé.
 
 ## Les étapes
 
@@ -39,7 +45,7 @@ décide avant le code, et chaque réalisation part petite et testable.
 ## La fin
 
 Tu consignes chaque ticket proposé, avec sa section « Architecture », son composant et ses
-critères, dans un ticket fermé sous le tien : `n=$(bd create "<sujet>" --parent <id> --no-inherit-labels -t task -l decouverte --body-file <fichier> --silent)`,
-`bd update "$n" --title "${n#"$(bd config get issue_prefix)"-} — <sujet> — <composant>"`, puis
-`bd close "$n" -r "découverte consignée"`. Tu écris ta passation au ticket (`bd comments add`), puis tu préviens le superviseur. Le
-superviseur rouvre ceux que le responsable valide.
+critères, dans un ticket fermé sous le tien :
+`bash scripts/ticket.sh <id> <sujet> <composant> @<fichier> decouverte`. Tu écris ta passation au
+ticket (`bd comments add`), puis tu préviens le superviseur. Le superviseur rouvre ceux que le
+responsable valide.

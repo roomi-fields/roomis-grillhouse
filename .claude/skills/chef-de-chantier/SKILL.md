@@ -9,9 +9,9 @@ Je mène un seul ticket, de sa prise à son commit poussé. Le superviseur a éc
 responsable, sa section « Architecture » et ses critères ; je le fais passer d'agent en agent. Je
 n'écris ni code ni test. La charte (`CLAUDE.md`) prime sur cette compétence.
 
-Au premier geste, je lis le ticket, ses commentaires, la charte et la rubrique « Ce qui monte au
-superviseur » de la charte du projet. Ainsi je pars du ticket écrit et des sujets que le projet
-garde au superviseur.
+Au premier geste, je lis le ticket et ses commentaires ; la rubrique « Ce qui monte au
+superviseur » de la charte du projet, déjà dans mon contexte, dit les sujets que le projet garde au
+superviseur.
 
 ## Le circuit
 
@@ -73,8 +73,8 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
   (`lancer.sh --modele opus --effort high …`). Ainsi le modèle léger fait le courant, et le fort
   le difficile.
 - **Une trouvaille se consigne fermée** : une trouvaille hors de mes critères, la mienne ou celle
-  d'un agent, se consigne dans un ticket fermé sous le mien, étiqueté `decouverte`
-  (`docs/agents/issue-tracker.md`) ; mon rapport la nomme, avec l'usage réel qu'elle touche, s'il y
+  d'un agent, se consigne fermée sous le mien
+  (`bash scripts/ticket.sh <id> <sujet> <composant> <corps> decouverte`) ; mon rapport la nomme, avec l'usage réel qu'elle touche, s'il y
   en a un. Ainsi elle est gardée, et le plan reste celui du responsable.
 
 ## Ce qui monte au superviseur
@@ -90,11 +90,6 @@ n'est réveillé que par une question.
 
 ## Les commandes
 
-- **Sans invite** : aucune commande ne fait apparaître une invite au responsable. Pas de `rm` : une
-  suppression passe par un script Python (`os.remove`, `shutil.rmtree`) sur un chemin nommé, ou un
-  dossier neuf (`mktemp -d`) remplace l'ancien. Les outils se prennent dans le `node_modules` de la
-  copie du ticket. Je porte cette règle dans chaque consigne que j'écris. Ainsi le chantier avance
-  sans attendre personne.
 - **Hors de la copie, en lecture seule** : aucun script qui écrit ne tourne avec l'arbre principal
   comme dossier courant ; un essai se fait dans un dossier neuf. Ainsi l'arbre principal ne change
   que par l'intégration.

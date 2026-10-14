@@ -18,20 +18,13 @@ Issues for this repo live in Beads, a git-backed tracker: data under `.beads/`, 
 
 - A chantier is an `epic` at the root; under it, every subject has a mother ticket (a `task`), open while work remains under it. Every ticket is created under its mother, so Beads numbers it natively: `320.1`, `320.2`, `320.2.1`.
 - The title reads `<number> — <subject> — <component>`, the number being the id without the whole prefix of the project (`bd config get issue_prefix`, which may hold dashes: `bp-mono-`); a mother takes `parent` as its component: `320.2.1 — Publie l'objet de la scène — binder`.
-- Creating one:
-
-  ```bash
-  n=$(bd create "<subject>" --parent <mother> --no-inherit-labels -t task -l a-valider -d "<body>" --silent)
-  bd update "$n" --title "${n#"$(bd config get issue_prefix)"-} — <subject> — <component>"
-  # a discovery: -l decouverte instead of a-valider, then
-  bd close "$n" -r "découverte consignée"
-  ```
+- Creating one: `bash scripts/ticket.sh <mother> <subject> <component> <body> [label]` prints its id; the label is `a-valider` by default, and `decouverte` creates it closed (« découverte consignée »).
 
 - Each agent goes by the fixed number of its role, in the order of the flow: 0 `chef-de-chantier` (leads one ticket from claim to pushed commit), 1 `explorateur`, 2 `arbitre`, 3 `testeur`, 4 `developpeur`, 5 `relecteur`, 6 `integrateur`. One says « 320.2.1, agent 4 »; a relaunched agent keeps its number.
 
 ## When a skill says "publish to the issue tracker"
 
-`bd create "<title>" -t task -p <n> -d "<body>"` with `--parent <mother> --no-inherit-labels` (a child never inherits its mother's `circuit`) and the title of « Numéros et titres », `-l <label>` for labels.
+`bash scripts/ticket.sh` (« Numéros et titres »); a child never inherits its mother's `circuit`.
 
 ## When a skill says "fetch the relevant ticket"
 

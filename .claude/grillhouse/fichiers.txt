@@ -18,6 +18,7 @@ tsdoc.json
 .claude/skills/relecteur/
 .claude/skills/testeur/
 docs/agents/issue-tracker.md
+scripts/attendre.sh
 scripts/branche-de-nuit.mjs
 scripts/code-mort.mjs
 scripts/consommateurs.mjs
@@ -39,6 +40,7 @@ scripts/setup.sh
 scripts/sous-modules.sh
 scripts/structure-guard.sh
 scripts/tableau.mjs
+scripts/ticket.sh
 scripts/un-commit-par-ticket.mjs
 scripts/verrou-de-fichier.mjs
 scripts/verrous/

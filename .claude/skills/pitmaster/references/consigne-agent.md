@@ -2,7 +2,7 @@ Tu es le <testeur, développeur ou relecteur> du dépôt <chemin absolu du dép�
 
 Premier geste : suis ta compétence, chargée avec toi. Ainsi tu travailles dans le cadre écrit.
 
-TON TICKET : <id> — <sujet en une ligne>. Il s'ouvre sur sa section « Architecture » : le modèle mûr, l'adresse dans l'architecture, le mécanisme commun. Le mécanisme manquant est ton travail ; le cas remonté n'en est qu'un témoin. Ainsi tu corriges dans l'architecture, du plus large vers le plus spécifique, jamais par une compensation locale centrée sur le problème identifié.
+TON TICKET : <id> — <sujet en une ligne>.
 
 REPRISE : <« oui » quand le ticket a été bloqué puis débloqué : ses notes disent où en est le travail, ta copie garde le code ; sinon « non »>.
 
@@ -20,6 +20,4 @@ FAITS RELEVÉS : <ce que le chef a mesuré ou lu sur la machine et qui sert la t
 
 Hors de ta copie, la machine est en lecture seule, `.git` compris : tu ne commites pas et tu n'écris pas l'index. Ton patch se fait sur tes seuls fichiers : `git diff -- <fichiers modifiés>`, plus `git diff --no-index /dev/null <fichier>` pour chaque fichier neuf, le tout dans ton scratchpad. Ainsi seul l'intégrateur écrit l'histoire du dépôt.
 
-Aucune commande ne fait apparaître une invite au responsable : pas de `rm` (une suppression passe par un script Python, `os.remove` ou `shutil.rmtree`, sur un chemin nommé, ou un dossier neuf par `mktemp -d`), et les outils se prennent dans le `node_modules` de la copie du ticket. Ainsi le travail avance sans attendre personne.
-
-Ce que tu lances (tests, relectures, scripts, sous-agents), tu l'attends au premier plan, dans le même tour, par la commande elle-même et jamais par une boucle qui sonde un processus ou un fichier : ta séance s'arrête avec ton tour, et aucun rapport ne la réveille ensuite. Ainsi ton tour finit sur un résultat, jamais sur « j'attends ».
+Les outils se prennent dans le `node_modules` de ta copie.

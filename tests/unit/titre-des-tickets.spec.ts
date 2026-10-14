@@ -4,27 +4,16 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 
-// grillhouse-3uv.56 critère 8: the recipe of a ticket's title (docs/agents/issue-tracker.md,
-// « Numéros et titres ») strips the whole prefix of the project (`bd config get issue_prefix`),
-// not the text before the first dash: with the prefix bp-mono, the title of
-// bp-mono-vbwf.322.6.6.12 starts with « vbwf.322.6.6.12 — ». The skills that write a title
-// (explorateur, developpeur) carry the same recipe.
+// grillhouse-3uv.56 critère 8: scripts/ticket.sh titles a ticket by stripping the whole prefix of
+// the project (`bd config get issue_prefix`), not the text before the first dash: with the prefix
+// bp-mono, the title of bp-mono-vbwf.322.6.6.12 starts with « vbwf.322.6.6.12 — ».
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'titre-des-tickets-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const DEPOT = path.resolve(__dirname, '../..');
-const DOC = path.join(DEPOT, 'docs/agents/issue-tracker.md');
-const COMPETENCES = ['.claude/skills/explorateur/SKILL.md', '.claude/skills/developpeur/SKILL.md'];
+const SCRIPT = path.join(DEPOT, 'scripts/ticket.sh');
 
-// The bash block of « Numéros et titres », its placeholders (<subject>, <mother>…) filled in.
-const recette = () => {
-  const section = readFileSync(DOC, 'utf8').split('## Numéros et titres')[1] ?? '';
-  const bloc = /```bash\n([\s\S]*?)```/.exec(section)?.[1] ?? '';
-  expect(bloc).toMatch(/--title/);
-  return bloc.replace(/<mother>/g, 'parent-x').replace(/<(\w+)>/g, (_m, w: string) => `le ${w}`);
-};
-
-// The recipe run against a Beads that answers <prefixe> to the prefix and <id> to the creation;
+// The script run against a Beads that answers <prefixe> to the prefix and <id> to the creation;
 // returns the title it writes.
 function titre(prefixe: string, id: string) {
   const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
@@ -42,7 +31,7 @@ function titre(prefixe: string, id: string) {
     ].join('\n'),
     { mode: 0o755 }
   );
-  const r = spawnSync('bash', ['-c', recette()], {
+  const r = spawnSync('bash', [SCRIPT, 'parent-x', 'le subject', 'le component', 'le body'], {
     encoding: 'utf8',
     env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
   });
@@ -67,13 +56,5 @@ describe('grillhouse-3uv.56 critère 8 — the title strips the whole prefix of 
   });
   it('critère 8: a prefix without dash (demo) gives the number alone, as today', () => {
     expect(titre('demo', 'demo-320.2.1')).toBe('320.2.1 — le subject — le component');
-  });
-  it('critère 8: the skills explorateur and developpeur write the number by the same recipe as the document', () => {
-    const numero = (texte: string) => /--title "(.*?) — /.exec(texte)?.[1];
-    const reference = numero(readFileSync(DOC, 'utf8'));
-    expect(reference).toBeDefined();
-    for (const c of COMPETENCES) {
-      expect(numero(readFileSync(path.join(DEPOT, c), 'utf8')), c).toBe(reference);
-    }
   });
 });
