@@ -5,9 +5,9 @@ sort et sa réponse va dans son ticket.
 
 ## Dernier tour
 
-- Date : —
-- Agents lancés : —
-- À vérifier au prochain tour : —
+- Date : 2026-10-14
+- Agents lancés : chef de chantier de grillhouse-3uv.82 (scripts/integration/traces.mjs, circuit complet)
+- À vérifier au prochain tour : la nuit rouge (grillhouse-mer) ; la réponse de la séance RTFM sur ses crochets asynchrones
 
 ## R — à confirmer par le responsable
 
