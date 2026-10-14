@@ -436,6 +436,55 @@ describe('assembler', () => {
       expect([...x.texte].length).toBeLessThanOrEqual(LARGEUR);
     }
   });
+  it("shows each ticket's time and tokens in the states view, as the board does", () => {
+    const v = lignesEtats(t).map(x => x.texte);
+    expect(v).toContainEqual(expect.stringMatching(/^ {2}c\.3 {2}demo-c\.3 +1 min · 50$/));
+    expect(v).toContainEqual(expect.stringMatching(/^ {2}c\.1\.1 {2}Écrit +\d+ min · [\d,]+ k$/));
+    expect(v).toContain('  c.1.2  demo-c.1.2');
+  });
+  it('keeps a done ticket its agents worked, with its time and tokens, its discoveries notwithstanding', () => {
+    const u = plateau({
+      tous: [
+        T('demo-d', {
+          issue_type: 'epic',
+          title: 'd — Le chantier — parent',
+          status: 'in_progress',
+        }),
+        T('demo-d.1', {
+          parent: 'demo-d',
+          status: 'closed',
+          closed_at: '2026-10-10T09:00:00Z',
+          title: 'd.1 — Livré — scripts',
+        }),
+        T('demo-d.1.1', {
+          parent: 'demo-d.1',
+          status: 'closed',
+          closed_at: '2026-10-10T08:00:00Z',
+          labels: ['decouverte'],
+        }),
+        T('demo-d.2', { parent: 'demo-d' }),
+      ],
+      prefix: 'demo',
+      registre: [
+        {
+          agent: 'a',
+          ticket: 'demo-d.1',
+          role: 'developpeur',
+          fin: '2026-10-10T08:30:00Z',
+          travail: 60_000,
+          jetons: 50,
+        },
+      ],
+      vivants: [],
+      maintenant,
+      jour,
+    });
+    expect(u.global.compteurs.fermes).toBe(2);
+    expect(lignesEtats(u).map(x => x.texte)).toContainEqual(
+      expect.stringMatching(/^ {2}d\.1 {2}Livré +1 min · 50$/)
+    );
+    expect(u.faitsDuJour.map(x => (x as { id: string }).id)).toContain('demo-d.1');
+  });
   it('shows no time nor tokens on a ticket line at 0 min and 0 tokens', () => {
     const l = dessin(t).map(x => x.texte);
     expect(l).toContain('✓ c.1.2  demo-c.1.2');

@@ -612,11 +612,12 @@ export function assembler({
     l.sort(ordre);
   }
   const actifs = new Set(enCoursMesures.map(v => v.ticket).filter(Boolean));
-  // A ticket is work unless it is an epic or a mother; a ticket an agent holds stays work, its
-  // discoveries under it notwithstanding.
+  const travailles = new Set(registre.map(r => r.ticket).filter(Boolean));
+  // A ticket is work unless it is an epic or a mother; a ticket an agent holds or has worked stays
+  // work, done or not, its discoveries under it notwithstanding.
   const travail = t =>
     t.issue_type !== 'epic' &&
-    (!enfants.has(t.id) || t.status === 'in_progress' || actifs.has(t.id));
+    (!enfants.has(t.id) || t.status === 'in_progress' || actifs.has(t.id) || travailles.has(t.id));
   const pret = new Set(prets.map(t => t.id));
   const avalider = new Set(aValider.map(t => t.id));
   const bloquePar = t => blocages(t).map(d => numero(d.depends_on_id));
@@ -1104,7 +1105,8 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
 }
 
 // The states' view, `largeur` columns wide: each state, its meaning, then the tickets of the
-// chantiers in progress one per line, selectable as the board's are; section `etats`.
+// chantiers in progress one per line, each with its agents' time and tokens (a blocked one, what
+// it waits for), selectable as the board's are; section `etats`.
 export function lignesEtats(t, largeur = LARGEUR) {
   const out = [];
   for (const e of t.etats) {
@@ -1123,7 +1125,9 @@ export function lignesEtats(t, largeur = LARGEUR) {
       out.push({
         texte: couper(
           `  ${x.numero}  ${x.sujet}`,
-          e.cle === 'bloques' && x.bloquePar.length ? `attend ${x.bloquePar.join(', ')}` : '',
+          e.cle === 'bloques' && x.bloquePar.length
+            ? `attend ${x.bloquePar.join(', ')}`
+            : conso(t.parTicket[x.id]?.travail ?? 0, t.parTicket[x.id]?.jetons ?? 0),
           largeur
         ),
         ton: e.cle === 'fermes' ? 'discret' : undefined,
