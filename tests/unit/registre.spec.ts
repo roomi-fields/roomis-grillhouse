@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { aRattraper, ligne, source } from '../../scripts/registre.mjs';
+import { aRattraper, deLaCopie, ligne, source } from '../../scripts/registre.mjs';
 import { lireTranscription } from '../../scripts/tableau.mjs';
 import { attendre, lignes, repos } from './registre-essai.js';
 
@@ -145,5 +145,33 @@ describe('the catch-up of finished agents', () => {
     }[];
     expect(r.map(x => x.agent_id ?? x.session_id).sort()).toEqual(['a1', 'c1', 's1']);
     expect(aRattraper('/depot', home, new Set(), Date.now())).toEqual([]);
+  });
+});
+
+describe("the lines of an agent's copy, once its envelope has ended", () => {
+  it('finds the sessions of that copy the register lacks, finished even when they just moved', () => {
+    const home = mkdtempSync(path.join(ESSAIS, 'home-'));
+    const p = path.join(home, '.claude/projects');
+    const copie = path.join(p, '-depot--claude-worktrees-demo-3');
+    mkdirSync(copie, { recursive: true });
+    writeFileSync(path.join(copie, 'c1.jsonl'), '');
+    writeFileSync(path.join(copie, 'c2.jsonl'), '');
+    mkdirSync(path.join(p, '-depot--claude-worktrees-demo-4'), { recursive: true });
+    writeFileSync(path.join(p, '-depot--claude-worktrees-demo-4/d1.jsonl'), '');
+    const r = deLaCopie('/depot/.claude/worktrees/demo-3', home, new Set(['c2'])) as {
+      hook_event_name: string;
+      session_id: string;
+      transcript_path: string;
+      cwd: string;
+    }[];
+    expect(r).toEqual([
+      {
+        hook_event_name: 'SessionEnd',
+        session_id: 'c1',
+        transcript_path: path.join(copie, 'c1.jsonl'),
+        cwd: '/depot/.claude/worktrees/demo-3',
+      },
+    ]);
+    expect(deLaCopie('/depot/.claude/worktrees/demo-9', home, new Set())).toEqual([]);
   });
 });

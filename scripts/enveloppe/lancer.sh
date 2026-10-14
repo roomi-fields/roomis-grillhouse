@@ -42,7 +42,8 @@
 #   the prompt carries « TON TICKET : <ticket> », which the role's locks read. The envelope is the
 #   sandbox, so the session runs without permission prompts.
 # - Its output, and an envelope refusal (CODE_REFUS), go to .claude/worktrees/<ticket>.log; the
-#   agent writes its report in the ticket.
+#   agent writes its report in the ticket. Once the envelope has ended, the launcher writes the
+#   session's line to the register (scripts/registre.mjs --copie), then exits with the envelope's code.
 # - The exit codes are named in scripts/enveloppe/codes.mjs; a malformed call exits CODE_USAGE.
 # - CLAUDE_BIN replaces `claude` (the tests use it).
 set -euo pipefail
@@ -140,6 +141,10 @@ fi
   fi
 ) > "$journal" 2>&1 || { echo "⛔ La copie $copie n'a pas pu être préparée : voir $journal." >&2; exit "$CODE_COPIE"; }
 
-exec node "$racine/scripts/enveloppe/enveloppe.mjs" "$copie" "$composant" "$role" -- \
+node "$racine/scripts/enveloppe/enveloppe.mjs" "$copie" "$composant" "$role" -- \
   "${CLAUDE_BIN:-claude}" -p "$(cat "$consigne")" --agent "$role" \
   ${surcharge[@]+"${surcharge[@]}"} --permission-mode bypassPermissions < /dev/null >> "$journal" 2>&1
+code=$?
+# The envelope ended: the session's line goes to the register from outside it, whatever its end hook did.
+node "$racine/scripts/registre.mjs" --copie "$copie" >> "$journal" 2>&1 || true
+exit "$code"

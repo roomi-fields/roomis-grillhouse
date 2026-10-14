@@ -19,6 +19,10 @@
 //   lock's age, since a role agent's envelope and the outside do not share process numbers),
 //   and skips a line whose agent and end the register already holds. The hook and
 //   `--rattraper` write the same way.
+// - `node scripts/registre.mjs --copie <copie>` writes the lines of the sessions of an agent's copy
+//   the register does not hold yet, whatever their age: the launcher (scripts/enveloppe/lancer.sh)
+//   runs it once the envelope has ended, outside it, so a role agent's line no longer rests on its
+//   end hook alone.
 // - `node scripts/registre.mjs --rattraper` writes the lines of the project's finished agents the
 //   register does not hold yet: those that ended before the hook existed, read from their
 //   transcripts (the project's sessions and their sub-agents, the agents' copies). A transcript
@@ -199,6 +203,43 @@ function ecrireLaLigne(input, projet) {
   return l ? ecrire(l) : false;
 }
 
+// The sessions of an agent's copy (`copie`) the register does not hold yet (`connus`), as the end
+// hook would hand them: the launcher calls it once the envelope has ended, so every session of
+// the copy is finished, however recently its transcript moved.
+export function deLaCopie(copie, home, connus) {
+  const dir = path.join(home, '.claude', 'projects', enTirets(copie));
+  if (!existsSync(dir)) {
+    return [];
+  }
+  return readdirSync(dir)
+    .filter(n => n.endsWith('.jsonl'))
+    .map(n => n.replace(/\.jsonl$/, ''))
+    .filter(session => !connus.has(session))
+    .map(session => ({
+      hook_event_name: 'SessionEnd',
+      session_id: session,
+      transcript_path: path.join(dir, `${session}.jsonl`),
+      cwd: copie,
+    }));
+}
+
+// The agents the register holds.
+function connusDuRegistre() {
+  const deja = existsSync(REGISTRE) ? readFileSync(REGISTRE, 'utf8') : '';
+  return new Set(
+    deja
+      .split('\n')
+      .map(l => {
+        try {
+          return JSON.parse(l).agent;
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean)
+  );
+}
+
 // The fields of the hook input that `source` and `ligne` read: the detached process receives these
 // only, since an input also carries the agent's last message and an argument is bound to 128 KiB.
 const CHAMPS = [
@@ -214,21 +255,8 @@ const CHAMPS = [
 const direct = import.meta.url === pathToFileURL(process.argv[1] ?? '').href;
 if (direct && process.argv.includes('--rattraper')) {
   const racine = arbrePrincipal(process.cwd());
-  const deja = existsSync(REGISTRE) ? readFileSync(REGISTRE, 'utf8') : '';
-  const connus = new Set(
-    deja
-      .split('\n')
-      .map(l => {
-        try {
-          return JSON.parse(l).agent;
-        } catch {
-          return null;
-        }
-      })
-      .filter(Boolean)
-  );
   let n = 0;
-  for (const input of aRattraper(racine, os.homedir(), connus)) {
+  for (const input of aRattraper(racine, os.homedir(), connusDuRegistre())) {
     try {
       if (ecrireLaLigne(input, racine)) {
         n++;
@@ -238,6 +266,15 @@ if (direct && process.argv.includes('--rattraper')) {
     }
   }
   process.stdout.write(`${n} agent(s) fini(s) ajouté(s) au registre.\n`);
+} else if (direct && process.argv[2] === '--copie') {
+  const copie = path.resolve(process.argv[3] ?? '.');
+  for (const input of deLaCopie(copie, os.homedir(), connusDuRegistre())) {
+    try {
+      ecrireLaLigne(input, arbrePrincipal(copie));
+    } catch {
+      // A transcript it cannot read writes nothing.
+    }
+  }
 } else if (direct && process.argv[2] === '--ecrire') {
   try {
     const input = JSON.parse(process.argv[3]);

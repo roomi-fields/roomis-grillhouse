@@ -106,7 +106,8 @@ mother tickets with each one's work done over all; then the tickets closed today
 shows, and the wheel scrolls the pane. A ticket a site manager
 leads shows under the manager and under the agent the manager launched. A finished agent is read from the
 register its end writes (`scripts/registre.mjs`: the hook ends at once and a detached process
-reads the transcript in chunks and writes the line, once per stop; `--rattraper` adds the agents that ended
+reads the transcript in chunks and writes the line, once per stop; the launcher of a role agent writes its
+line again from outside the envelope once it ends, `--copie`; `--rattraper` adds the agents that ended
 before it), a running one from its transcript, those launched
 in a shell included. Without the mod, `npm run tableau` prints the same lines. The status line
 (`scripts/ligne-etat/`, the project's `statusLine`) keeps the person's own status line on the
