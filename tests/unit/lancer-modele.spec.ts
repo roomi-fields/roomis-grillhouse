@@ -332,3 +332,41 @@ describe.runIf(canWrap)('critère 7 — the form of the options', () => {
     }
   });
 });
+
+// The register line of an enveloped session is written by the launcher once the envelope has
+// ended (scripts/registre.mjs --copie), whatever the envelope's exit code.
+describe.runIf(canWrap)('the launcher and the register line of a session that fails', () => {
+  const REGISTRE = path.join(ESSAIS, 'registre.jsonl');
+  const ECHEC = path.join(REPO, 'faux-claude-echec.sh');
+  it('writes the line of a session whose envelope exits in error, and keeps its exit code', () => {
+    // registre.mjs and what it imports, as the test repository holds them.
+    for (const f of ['registre.mjs', 'tableau.mjs', 'verrou-de-fichier.mjs']) {
+      execFileSync('cp', [path.join(RACINE, 'scripts', f), path.join(REPO, 'scripts', f)]);
+    }
+    // A stand-in for claude that leaves a transcript in its project directory, then fails.
+    writeFileSync(
+      ECHEC,
+      [
+        '#!/bin/bash',
+        'd="$HOME/.claude/projects/$(pwd | sed "s/[^A-Za-z0-9]/-/g")"',
+        'mkdir -p "$d"',
+        'printf \'%s\\n\' \'{"type":"user","timestamp":"2026-10-14T10:00:00Z","message":{"content":"TON TICKET : demo-echec — x"}}\' \'{"type":"assistant","timestamp":"2026-10-14T10:01:00Z","message":{"id":"m","usage":{"input_tokens":5,"output_tokens":5}}}\' > "$d/s-echec.jsonl"',
+        'exit 3',
+        '',
+      ].join('\n'),
+      { mode: 0o755 }
+    );
+    const consigne = path.join(REPO, 'demo-echec.txt');
+    writeFileSync(consigne, 'TON TICKET : demo-echec — un sujet.');
+    const r = spawnSync('bash', [LAUNCHER, 'demo-echec', 'developpeur', 'packages/a', consigne], {
+      cwd: REPO,
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_BIN: ECHEC, HOME, GRILLHOUSE_REGISTRE: REGISTRE },
+    });
+    expect(r.status, r.stderr).toBe(3);
+    const lignes = existsSync(REGISTRE)
+      ? readFileSync(REGISTRE, 'utf8').trim().split('\n').filter(Boolean)
+      : [];
+    expect(lignes.map(l => (JSON.parse(l) as { agent: string }).agent)).toContain('s-echec');
+  }, 120_000);
+});

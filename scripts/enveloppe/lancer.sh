@@ -141,10 +141,11 @@ fi
   fi
 ) > "$journal" 2>&1 || { echo "⛔ La copie $copie n'a pas pu être préparée : voir $journal." >&2; exit "$CODE_COPIE"; }
 
+# An envelope in error does not stop the launcher (set -e): its code is kept for the exit.
+code=0
 node "$racine/scripts/enveloppe/enveloppe.mjs" "$copie" "$composant" "$role" -- \
   "${CLAUDE_BIN:-claude}" -p "$(cat "$consigne")" --agent "$role" \
-  ${surcharge[@]+"${surcharge[@]}"} --permission-mode bypassPermissions < /dev/null >> "$journal" 2>&1
-code=$?
+  ${surcharge[@]+"${surcharge[@]}"} --permission-mode bypassPermissions < /dev/null >> "$journal" 2>&1 || code=$?
 # The envelope ended: the session's line goes to the register from outside it, whatever its end hook did.
 node "$racine/scripts/registre.mjs" --copie "$copie" >> "$journal" 2>&1 || true
 exit "$code"
