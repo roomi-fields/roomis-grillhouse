@@ -1,6 +1,6 @@
 ---
 name: testeur
-description: Le testeur : écrire, depuis la spécification, les tests d'un ticket avant tout code. Chargé par l'agent testeur ; il n'écrit que des tests et la matière de test partagée.
+description: "Le testeur : écrire, depuis la spécification, les tests d'un ticket avant tout code. Chargé par l'agent testeur ; il n'écrit que des tests et la matière de test partagée."
 ---
 
 # Testeur — écrire les tests d'un ticket

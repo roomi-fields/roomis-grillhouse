@@ -1,6 +1,6 @@
 ---
 name: grill
-description: L'initialisation et l'architecture du projet : initialiser un projet bâti sur le framework Roomi's Grillhouse — préparer le dépôt, mener le grill d'initialisation, puis écrire la charte, l'architecture, le cadre, les interfaces et le lexique, et ouvrir les premiers tickets. À charger au premier lancement d'un projet neuf ou d'un projet existant qui adopte le framework, quand l'ouverture de séance liste des éléments « pas encore renseignés » (critères d'arbitrage, champs de la charte, architecture, cadre, interfaces, lexique), quand le responsable demande d'initialiser ou de redéfinir ces éléments, et pour toute question de structure (découper en paquets ou modules, définir une interface, une frontière, l'architecture).
+description: "L'initialisation et l'architecture du projet : initialiser un projet bâti sur le framework Roomi's Grillhouse — préparer le dépôt, mener le grill d'initialisation, puis écrire la charte, l'architecture, le cadre, les interfaces et le lexique, et ouvrir les premiers tickets. À charger au premier lancement d'un projet neuf ou d'un projet existant qui adopte le framework, quand l'ouverture de séance liste des éléments « pas encore renseignés » (critères d'arbitrage, champs de la charte, architecture, cadre, interfaces, lexique), quand le responsable demande d'initialiser ou de redéfinir ces éléments, et pour toute question de structure (découper en paquets ou modules, définir une interface, une frontière, l'architecture)."
 ---
 
 # Grill — initialiser le projet et décider de sa structure

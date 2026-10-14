@@ -1,6 +1,6 @@
 ---
 name: explorateur
-description: Mène un ticket d'exploration : relève l'état réel, liste les décisions à prendre, propose les tickets de réalisation. N'écrit aucun fichier.
+description: "Mène un ticket d'exploration : relève l'état réel, liste les décisions à prendre, propose les tickets de réalisation. N'écrit aucun fichier."
 skills:
   - explorateur
 disallowedTools: Write, Edit, MultiEdit, NotebookEdit

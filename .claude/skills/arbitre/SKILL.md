@@ -1,6 +1,6 @@
 ---
 name: arbitre
-description: L'arbitre : trancher une question de conception née d'un ticket par la référence mature, les textes du projet et le mécanisme commun, ou la faire monter au responsable. Chargé par l'agent arbitre.
+description: "L'arbitre : trancher une question de conception née d'un ticket par la référence mature, les textes du projet et le mécanisme commun, ou la faire monter au responsable. Chargé par l'agent arbitre."
 ---
 
 # Arbitre — trancher une question de conception

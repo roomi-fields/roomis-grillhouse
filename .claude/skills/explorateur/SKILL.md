@@ -1,6 +1,6 @@
 ---
 name: explorateur
-description: L'explorateur : mener un ticket d'exploration — relever l'état réel du code, lister les décisions à prendre, proposer les tickets de réalisation, petits et testables. Chargé par l'agent explorateur, que lance le superviseur ; n'écrit aucun code.
+description: "L'explorateur : mener un ticket d'exploration — relever l'état réel du code, lister les décisions à prendre, proposer les tickets de réalisation, petits et testables. Chargé par l'agent explorateur, que lance le superviseur ; n'écrit aucun code."
 ---
 
 # Explorateur — explorer avant de réaliser

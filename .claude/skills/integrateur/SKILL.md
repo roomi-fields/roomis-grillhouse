@@ -1,6 +1,6 @@
 ---
 name: integrateur
-description: L'intégrateur : intégrer un seul lot relu — juger son diff contre le cadre, puis lancer le script d'intégration qui le commite ou le refuse. Chargé par l'agent integrateur, que le superviseur lance pour chaque livraison.
+description: "L'intégrateur : intégrer un seul lot relu — juger son diff contre le cadre, puis lancer le script d'intégration qui le commite ou le refuse. Chargé par l'agent integrateur, que le superviseur lance pour chaque livraison."
 ---
 
 # Intégrateur — intégrer une livraison

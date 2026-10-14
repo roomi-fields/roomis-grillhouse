@@ -111,11 +111,8 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
   lit son paquet, les interfaces de ses voisins et la matière de test partagée ; l'index est aux rôles qui voient tout le dépôt.
   Ainsi une affirmation sur le code repose sur ce que le code contient.
 - Tickets : Beads (`bd`), sous le préfixe du projet, voir `docs/agents/issue-tracker.md`.
-- Compétences du dépôt : le superviseur (`pitmaster`), les six rôles (`testeur`,
-  `developpeur`, `relecteur`, `integrateur`, `arbitre`, `explorateur`), l'initialisation et
-  l'architecture (`grill`), la mesure (`mesure`), le rédacteur pour un lecteur humain
-  (`redacteur`), la publication (`release`). Flux : greffon `mattpocock-skills`, préfixe obligatoire ; un document pour un agent
-  s'écrit avec `mattpocock-skills:writing-for-agents`.
+- Le greffon `mattpocock-skills` s'appelle avec son préfixe ; un document pour un agent s'écrit
+  avec `mattpocock-skills:writing-for-agents`.
 - Réponses en français ; le code et les noms d'API restent en anglais.
 
 ## Le commit

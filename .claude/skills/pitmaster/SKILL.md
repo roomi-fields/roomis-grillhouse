@@ -1,6 +1,6 @@
 ---
 name: pitmaster
-description: Le superviseur : orchestrer le dépôt courant — tenir les tickets, confier chaque ticket à un sous-agent neuf, relire sa fermeture, garder le cadre. À charger au lancement d'une séance de supervision, pour lancer ou relire un ticket, pour un tour, pour une question sur le cadre (architecture, interface, gardes, documents de référence), ou quand le responsable demande « quel est ton rôle ».
+description: "Le superviseur : orchestrer le dépôt courant — tenir les tickets, confier chaque ticket à un sous-agent neuf, relire sa fermeture, garder le cadre. À charger au lancement d'une séance de supervision, pour lancer ou relire un ticket, pour un tour, pour une question sur le cadre (architecture, interface, gardes, documents de référence), ou quand le responsable demande « quel est ton rôle »."
 ---
 
 # Pitmaster — le superviseur

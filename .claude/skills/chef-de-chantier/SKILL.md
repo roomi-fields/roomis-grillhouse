@@ -1,6 +1,6 @@
 ---
 name: chef-de-chantier
-description: Le chef de chantier : mener un seul ticket de la prise au commit poussé — lancer le testeur, le développeur, le relecteur et l'intégrateur, trancher ce que les règles tranchent, faire monter le reste au superviseur. Chargé par l'agent chef-de-chantier, que le superviseur lance, un par ticket en cours.
+description: "Le chef de chantier : mener un seul ticket de la prise au commit poussé — lancer le testeur, le développeur, le relecteur et l'intégrateur, trancher ce que les règles tranchent, faire monter le reste au superviseur. Chargé par l'agent chef-de-chantier, que le superviseur lance, un par ticket en cours."
 ---
 
 # Le chef de chantier
