@@ -6,7 +6,7 @@ sort et sa réponse va dans son ticket.
 ## Dernier tour
 
 - Date : 2026-10-14
-- Agents lancés : chef de chantier de grillhouse-3uv.82 (scripts/integration/traces.mjs, circuit complet)
+- Agents lancés : chef de chantier de grillhouse-3uv.82, livré (57b8717) ; BPScript à prévenir (séance fermée)
 - À vérifier au prochain tour : la nuit rouge (grillhouse-mer) ; la réponse de la séance RTFM sur ses crochets asynchrones
 
 ## R — à confirmer par le responsable
