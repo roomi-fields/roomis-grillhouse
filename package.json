@@ -43,7 +43,7 @@
     "code-mort": "node scripts/code-mort.mjs",
     "test:vitest": "vitest run",
     "test:forcer": "node scripts/tests.mjs --force",
-    "verifier": "turbo run grillhouse:gardes gardes test:vitest",
+    "verifier": "turbo run grillhouse:gardes gardes test:vitest --continue=dependencies-successful",
     "grillhouse:dette:inscrire": "turbo run build && GRILLHOUSE_DETTE=inscrire npm run --silent grillhouse:gardes",
     "grillhouse:dette:elaguer": "turbo run build && GRILLHOUSE_DETTE=elaguer npm run --silent grillhouse:gardes"
   },

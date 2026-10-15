@@ -464,7 +464,7 @@ describe('the session start asks for the scripts of the tests and the line of th
   const aBrancher = (texte: string) => texte.split('\n').find(l => l.startsWith('À brancher'));
   const TESTS = {
     test: 'node scripts/tests.mjs',
-    verifier: 'turbo run grillhouse:gardes gardes test:vitest',
+    verifier: 'turbo run grillhouse:gardes gardes test:vitest --continue=dependencies-successful',
   };
 
   it('a project without test nor verifier is asked to wire both', () => {

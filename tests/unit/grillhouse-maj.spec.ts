@@ -625,7 +625,9 @@ describe('the update installs Turborepo', () => {
     }
   });
   it('verifier of the template plays the frame’s guards, the project’s own and the tests beside each other, in Turborepo', () => {
-    expect(gabarit().verifier).toBe('turbo run grillhouse:gardes gardes test:vitest');
+    expect(gabarit().verifier).toBe(
+      'turbo run grillhouse:gardes gardes test:vitest --continue=dependencies-successful'
+    );
   });
   it('test and test:forcer of the template play the files named from the root, each in its package', () => {
     expect(gabarit().test).toBe('node scripts/tests.mjs');
