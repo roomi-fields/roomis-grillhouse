@@ -55,7 +55,7 @@ roomis-grillhouse/
 │   │   ├── codes.mjs                 # the exit codes of the envelope and its launcher
 │   │   └── lancer.sh                 # one ticket → one fresh role session in its envelope
 │   ├── dette.mjs                  # the known debt of the guards: grillhouse-dette.json (guard, file, rule → count); a guard passes within the counts, refuses a new finding or a count beyond, reports a count below
-│   ├── code-mort.mjs              # grillhouse:gardes: refuses dead code, measured by knip (knip.json); tests and benches count for dependency use only
+│   ├── code-mort.mjs              # grillhouse:gardes: refuses dead code, measured by knip (knip.json); tests and benches count for dependency use only; the frame's scripts (fichiers.txt) are knip entries, judged in Grillhouse
 │   ├── consommateurs.mjs          # grillhouse:gardes: refuses an import that the provider's INTERFACE.md does not declare, and two components of the same name
 │   │                              #   composants(): the components for every check, minus the packages out of
 │   │                              #   the frame listed in docs/agents/hors-cadre.txt, "<package> <reason>"; such a package stays a
@@ -69,7 +69,7 @@ roomis-grillhouse/
 │   ├── nuit.sh                    # once a night, the full pass played for real (npm run verifier -- --force: Turborepo's build, guards and tests, no log replayed), then the night tests and budget benches, then the project's night script (`grillhouse.nuit`), and pushes the green commit (`grillhouse.poussee.nuit`)
 │   │                              #   (*.nuit.test.*, *.nuit.spec.*, *.budget.test.*, *.budget.spec.*); a red opens a ticket;
 │   │                              #   « à repasser » (75: benches played once more at rest, then still under load) opens nothing and keeps the last green
-│   ├── vitest-config/             # the package @grillhouse/vitest-config (private, `exports` to base.mjs and ./mesure): the frame's base Vitest configuration of the day, which every day configuration extends (mergeConfig): night tests and budget benches excluded, the common environment, the one address of git's settings for the suite (automatic maintenance off)
+│   ├── vitest-config/             # the package @grillhouse/vitest-config (private, `exports` to base.mjs and ./mesure, each typed by its .d.ts): the frame's base Vitest configuration of the day, which every day configuration extends (mergeConfig): night tests and budget benches excluded, the common environment, the one address of git's settings for the suite (automatic maintenance off)
 │   │                              #   the measure of time at rest: pression.mjs (the CPU pressure, /proc/pressure/cpu some avg10, threshold 25 %, code 75; `attendre`), mesure.setup.mjs (the pressure noted at the start and end of each test),
 │   │                              #   duree.reporter.mjs (75, « à repasser », when every failure depends on a duration and one took place under load), mesure.mjs (mesurerAuRepos, the mark of a measure of time)
 │   │                              #   a package of a project imports it by its name and declares it in its devDependencies; grillhouse-maj makes the directory a workspace; a repository without packages imports base.mjs by its path

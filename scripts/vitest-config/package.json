@@ -4,7 +4,13 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./base.mjs",
-    "./mesure": "./mesure.mjs"
+    ".": {
+      "types": "./base.d.ts",
+      "default": "./base.mjs"
+    },
+    "./mesure": {
+      "types": "./mesure.d.ts",
+      "default": "./mesure.mjs"
+    }
   }
 }

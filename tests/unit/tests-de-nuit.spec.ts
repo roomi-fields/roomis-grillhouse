@@ -185,13 +185,16 @@ describe('the base configuration of the day leaves the night out of every config
   const PAQUET = path.join(DEPOT, 'scripts/vitest-config');
   const BASE = path.join(PAQUET, 'base.mjs');
   type Config = { test: { exclude: string[]; env: Record<string, string> } };
-  it('is a private package, @grillhouse/vitest-config, that exports its configuration', () => {
+  it('is a private package, @grillhouse/vitest-config, that exports its configuration, typed', () => {
     expect(JSON.parse(readFileSync(path.join(PAQUET, 'package.json'), 'utf8'))).toEqual({
       name: '@grillhouse/vitest-config',
       version: '0.0.0',
       private: true,
       type: 'module',
-      exports: { '.': './base.mjs', './mesure': './mesure.mjs' },
+      exports: {
+        '.': { types: './base.d.ts', default: './base.mjs' },
+        './mesure': { types: './mesure.d.ts', default: './mesure.mjs' },
+      },
     });
   });
   it('is a frame directory, distributed by the list of the frame; the former file is gone', () => {
