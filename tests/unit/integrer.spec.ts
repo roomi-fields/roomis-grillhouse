@@ -51,6 +51,14 @@ describe('refusVerdicts', () => {
       ])
     ).toBeNull();
   });
+  it("passes the chef de chantier's arbitrage, settled by construction (BPScript 320.2.7)", () => {
+    expect(
+      refusVerdicts(arb, [
+        c('## Arbitrage du chef de chantier — critères 1 à 4\nSource : la lettre du critère 2.'),
+        c('ACCEPTÉ'),
+      ])
+    ).toBeNull();
+  });
   it('refuses an arbitrage still open, or missing', () => {
     expect(
       refusVerdicts(arb, [

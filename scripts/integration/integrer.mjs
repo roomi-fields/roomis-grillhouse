@@ -105,7 +105,11 @@ export function refusVerdicts(ticket, comments) {
     if (arbitrages.length === 0)
       return `${id} est étiqueté arbitrage sans commentaire « Arbitrage ».`;
     for (const a of arbitrages) {
-      const tranche = /^### Verdict\s*—\s*tranché/m.test(a.text);
+      // The chef de chantier's arbitrage is settled by construction: he writes one only for what
+      // the letter of a criterion, a written precedent or a rule of the frame settles.
+      const tranche =
+        /^\s*## Arbitrage du chef de chantier\b/.test(a.text) ||
+        /^### Verdict\s*—\s*tranché/m.test(a.text);
       const repondu = comments
         .slice(comments.indexOf(a) + 1)
         .some(c => /^\s*## Réponse du responsable\b/.test(c.text));
