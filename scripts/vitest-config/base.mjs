@@ -16,6 +16,9 @@
 //   the load of the day: `npm test`, `npm run verifier` and the integration leave both out, and
 //   the night plays them (scripts/nuit.sh, scripts/vitest.nuit.config.mjs). `mergeConfig` adds the
 //   exclusions of a configuration that extends this one to these.
+// - A run that plays no test fails, as Vitest's default has it (`passWithNoTests` unset): a
+//   targeted run (`npm test -- <paths>`, scripts/tests.mjs) plays each path in its package only,
+//   and a path that names no test is a mistake, never a green.
 // - The common environment: Node, no watch, and git's settings for the tests by the environment
 //   (GIT_CONFIG_COUNT/KEY/VALUE, git-config(1)), the automatic maintenance and garbage collection
 //   off (maintenance.auto=false, gc.auto=0). This file is the one address of these settings; the
@@ -35,7 +38,5 @@ export default {
     },
     exclude: ['**/node_modules/**', '**/dist/**', NUIT, BUDGET],
     watch: false,
-    // A targeted run (`npm test -- <files>`) reaches every package: one without such a file passes.
-    passWithNoTests: true,
   },
 };

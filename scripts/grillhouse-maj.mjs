@@ -17,20 +17,27 @@
 //   `grillhouse:dette:elaguer` (the known debt of the guards, scripts/dette.mjs), and `api` (`npm run api`, which writes
 //   the API reports and the generated part of each `docs/INTERFACE.md`), each read as it is in the
 //   source's `package.json` (a source without one writes none). Turborepo plays `grillhouse:gardes`
-//   after the build, beside the tests (`turbo.json`, `npm run verifier`): the frame's former wiring
-//   goes, a `pretest` that is the frame's call (`npm run --silent grillhouse:gardes`) removed or
-//   taken off the head of a longer one (`… && <its pretest>`, the rest kept), and an
-//   `integration:gardes` left at a former frame command (`npm run --silent pretest`,
-//   `node scripts/integration/gardes.mjs`) removed; a wiring of the project's own stays.
+//   and the project's own guards, the root script `gardes`, after the build, beside the tests
+//   (`turbo.json`, `npm run verifier`): the frame's former wiring goes, a `pretest` that is the
+//   frame's call (`npm run --silent grillhouse:gardes`) removed or taken off the head of a longer
+//   one (`… && <its pretest>`, the rest kept; a `pretest` of the project's own stays). An
+//   `integration:gardes`, the script the former integration played, loses each head that is a
+//   former frame command (that call, `npm run --silent pretest`,
+//   `node scripts/integration/gardes.mjs`); what remains is the project's own guards, which move to
+//   `gardes` when the project has none (the report says so), else stay where nothing plays them
+//   (the report names both); nothing remaining, the script goes.
 // - `turbo.json` is the project's own file, as every repository run by Turborepo writes its own. A
 //   project with a `package.json` and no `turbo.json` receives the frame's template of its form,
 //   read in the source: `templates/turbo/paquets.json` when its `package.json` declares
-//   `workspaces` (the tasks of each package, and the root's `//#grillhouse:gardes`; the tests live
-//   in the packages, the root has no `test:vitest`; the `build` of each package is set by its own
-//   generated `turbo.json`, below), else `templates/turbo/sans-paquets.json` (`build`, then the guards and the
-//   tests beside each other). A `turbo.json` present is never written again.
+//   `workspaces` (the tasks of each package, and the root's guards, `//#grillhouse:gardes` and
+//   `//#gardes`; the tests live in the packages, the root has no `test:vitest`; the `build` of each
+//   package is set by its own generated `turbo.json`, below), else
+//   `templates/turbo/sans-paquets.json` (`build`, then the guards and the tests beside each other).
+//   A `turbo.json` present is never written again by the update; only the generator of the
+//   packages' turbo.json (below) writes in it the `dependsOn` of the guard tasks, and adds one it
+//   lacks.
 // - The frame's tools (API Extractor and its model, the TSDoc configuration reader,
-//   dependency-cruiser, knip, Turborepo) are added to the project's
+//   dependency-cruiser, jsonc-parser, knip, Turborepo) are added to the project's
 //   `devDependencies` at the version the source's `devDependencies` give; a tool the project
 //   already declares in `dependencies`, `devDependencies` or `optionalDependencies` keeps its
 //   declaration, one a previous version added stays, and `devDependencies` are written sorted by
@@ -83,7 +90,9 @@
 //   `.dependency-cruiser.cjs`, `node scripts/index-interfaces.mjs` for
 //   `docs/agents/index-des-interfaces.md`), and `node scripts/turbo-des-paquets.mjs --ecrire`
 //   always (the `turbo.json` of each package of a repository with `workspaces`, whose build waits
-//   for its runtime dependencies only, and of which a package out of the frame plays no task), so that the frame's checks accept them; a generator
+//   for its runtime dependencies only, and of which a package out of the frame plays no task; the
+//   `dependsOn` of the guard tasks of the root's turbo.json, which wait for the builds; it reads
+//   with jsonc-parser, which `npm install` brings), so that the frame's checks accept them; a generator
 //   that fails has its line, and the exit code is non-zero. `interfaces-contre-code.mjs` is not
 //   run: it writes after a build.
 // - An option other than `--source <path>` and `--ecarts` is refused: the usage is shown (the
@@ -126,6 +135,7 @@ const OUTILS_DU_CADRE = [
   '@microsoft/api-extractor-model',
   '@microsoft/tsdoc-config',
   'dependency-cruiser',
+  'jsonc-parser',
   'knip',
   'turbo',
 ];
@@ -137,9 +147,14 @@ const CHAMPS_INSTALLES = ['dependencies', 'devDependencies', 'optionalDependenci
 // `integration:gardes` held.
 const APPEL_GARDES = 'npm run --silent grillhouse:gardes';
 const ANCIENS_GARDES_D_INTEGRATION = [
+  APPEL_GARDES,
   'npm run --silent pretest',
   'node scripts/integration/gardes.mjs',
 ];
+// The root script of the project's own guards, which `npm run verifier` plays (turbo.json), and
+// the one the former integration played.
+const GARDES_DU_PROJET = 'gardes';
+const ANCIEN_GARDES_DU_PROJET = 'integration:gardes';
 // The line of `.gitignore` that keeps Turborepo's folder out of git.
 const TURBO_IGNORE = '.turbo/';
 // The frame's templates of `turbo.json`, one per form of repository, read in the source.
@@ -366,6 +381,7 @@ export function mettreAJour(projet, source, version) {
     vitest: null,
     turbo: null,
     configVitest: null,
+    gardes: null,
   };
   const empreintes = {};
   for (const f of fichiers) {
@@ -463,8 +479,26 @@ export function mettreAJour(projet, source, version) {
     } else if (pretest?.startsWith(`${APPEL_GARDES} && `)) {
       p.scripts.pretest = pretest.slice(APPEL_GARDES.length + 4);
     }
-    if (ANCIENS_GARDES_D_INTEGRATION.includes(p.scripts['integration:gardes']?.trim())) {
-      delete p.scripts['integration:gardes'];
+    // The project's own guards, which the former integration played, move to `gardes`.
+    if (typeof p.scripts[ANCIEN_GARDES_DU_PROJET] === 'string') {
+      let reste = p.scripts[ANCIEN_GARDES_DU_PROJET].trim();
+      for (
+        let tete;
+        (tete = ANCIENS_GARDES_D_INTEGRATION.find(
+          c => reste === c || reste.startsWith(`${c} && `)
+        ));
+      ) {
+        reste = reste.slice(tete.length).replace(/^ && /, '');
+      }
+      if (reste === '') {
+        delete p.scripts[ANCIEN_GARDES_DU_PROJET];
+      } else if (typeof p.scripts[GARDES_DU_PROJET] !== 'string') {
+        delete p.scripts[ANCIEN_GARDES_DU_PROJET];
+        p.scripts[GARDES_DU_PROJET] = reste;
+        bilan.gardes = { deplace: true };
+      } else {
+        bilan.gardes = { deplace: false };
+      }
     }
     bilan.configVitest = poserConfigVitest(projet, source, p);
     writeFileSync(pkg, `${JSON.stringify(p, null, 2)}\n`);
@@ -633,6 +667,15 @@ if (ENTREE) {
   if (b.turbo) {
     process.stdout.write(
       `turbo.json écrit depuis le gabarit du cadre ${b.turbo} ; il est au projet, la mise à jour n'y touche plus.\n`
+    );
+  }
+  if (b.gardes?.deplace) {
+    process.stdout.write(
+      `Gardes du projet : le script integration:gardes devient gardes, que \`npm run verifier\` joue après la construction (turbo.json).\n`
+    );
+  } else if (b.gardes) {
+    process.stdout.write(
+      `Gardes du projet : integration:gardes et gardes coexistent ; rien ne joue plus integration:gardes, \`npm run verifier\` joue gardes. Verse l'un dans l'autre.\n`
     );
   }
   if (b.vitest) {

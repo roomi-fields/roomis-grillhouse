@@ -9,6 +9,10 @@
       "dependsOn": ["build"],
       "outputs": []
     },
+    "gardes": {
+      "dependsOn": ["build"],
+      "outputs": []
+    },
     "test:vitest": {
       "dependsOn": ["build"],
       "outputs": []

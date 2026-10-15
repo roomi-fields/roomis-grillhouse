@@ -17,7 +17,8 @@ prime sur tout le reste.
 2. Lis les documents des composants que ton ticket touche : `CADRE.md`, `INTERFACE.md`,
    `ARCHITECTURE.md` (`docs/`, ou `packages/<x>/docs/`), et le lexique `CONTEXT.md`. Ainsi ton
    code part de l'architecture écrite. Un document absent ne t'arrête pas.
-3. Lance les tests du testeur, déjà dans ta copie (`npm test -- <fichiers>`), et vois-les rouges.
+3. Lance les tests du testeur, déjà dans ta copie (`npm test -- <fichiers>`, chemins depuis la
+   racine du dépôt), et vois-les rouges.
    Ainsi ton code se mesure à des tests que tu n'as pas écrits.
 
 ## Tes références, à lire au moment où elles servent

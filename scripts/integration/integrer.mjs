@@ -27,7 +27,8 @@
 //     file and the manifests the lot leaves (`npm ci`, as the continuous integration runs it); an
 //     install that fails refuses the lot, « Les dépendances de la copie ne s'installent pas. »;
 //  6. the tests: `npm run verifier` in the copy, one command (Turborepo: the build, then the
-//     guards and every test of the day beside each other, each task replayed from the cache of the
+//     guards, the frame's and the project's own (its root script `gardes`), and every test of the
+//     day beside each other, each task replayed from the cache of the
 //     main tree when its inputs are unchanged). Green is required: main stays green, and nothing is compared with a base. A test
 //     known red is put in quarantine in the test itself (`it.skip` or `it.fails`, with its
 //     ticket), as a mature continuous integration does; the integration admits none;

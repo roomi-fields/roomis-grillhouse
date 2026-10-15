@@ -463,8 +463,8 @@ describe('the session start asks for the scripts of the tests and the line of th
   };
   const aBrancher = (texte: string) => texte.split('\n').find(l => l.startsWith('À brancher'));
   const TESTS = {
-    test: 'turbo run test:vitest --',
-    verifier: 'turbo run grillhouse:gardes test:vitest',
+    test: 'node scripts/tests.mjs',
+    verifier: 'turbo run grillhouse:gardes gardes test:vitest',
   };
 
   it('a project without test nor verifier is asked to wire both', () => {
@@ -473,7 +473,7 @@ describe('the session start asks for the scripts of the tests and the line of th
     expect(ligne).toContain('test verifier');
   });
   it('a project with test alone is asked to wire verifier only', () => {
-    const ligne = aBrancher(sortie({ test: 'turbo run test:vitest --' }).texte) ?? '';
+    const ligne = aBrancher(sortie({ test: 'node scripts/tests.mjs' }).texte) ?? '';
     expect(ligne).toContain('verifier');
     expect(ligne).not.toMatch(/À brancher : test\b(?!:)/);
   });

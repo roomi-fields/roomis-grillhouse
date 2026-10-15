@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 // The `turbo.json` of each package of a repository of packages, generated from its package.json,
-// the root's turbo.json and the list of the packages out of the frame.
+// the root's turbo.json and the list of the packages out of the frame; and the `dependsOn` of the
+// guard tasks of the root's turbo.json.
 //
-//   node scripts/turbo-des-paquets.mjs           refuses a package's turbo.json absent or stale
-//   node scripts/turbo-des-paquets.mjs --ecrire  writes the turbo.json of each package
+//   node scripts/turbo-des-paquets.mjs           refuses a turbo.json absent or stale
+//   node scripts/turbo-des-paquets.mjs --ecrire  writes the turbo.json of each package and the
+//                                                guards' dependsOn in the root's
 //
 // Turborepo's `^build` waits for the build of every internal package a package declares, its
 // devDependencies included; a package whose tests import a neighbour that depends on it (the
@@ -26,16 +28,31 @@
 // the `<name>#<task>` of each internal package it declares there, out of the frame left out,
 // sorted. The check refuses a configuration that is not so, which Turborepo would play.
 //
+// The guard tasks of the root: the frame's controls (`grillhouse:gardes`) and the project's own
+// guards (`gardes`, the root script the frame reserves for them; a root without it plays none),
+// which `npm run verifier` plays beside the tests. They read what the builds write (the API
+// reports and the code-mort check read the `dist/`; a project's guards may read its built form):
+// each waits for the build of each package of the frame that has a `build` script, sorted, a
+// package out of the frame left out (`//#grillhouse:gardes`, `//#gardes` in a repository of
+// packages), or for the root's build (`grillhouse:gardes`, `gardes`) in a repository without
+// packages. The generator writes their `dependsOn` in the root's turbo.json (or turbo.jsonc), and
+// adds a guard task the root lacks (`{ dependsOn, outputs: [] }`); the rest of that file is the
+// project's, its comments and its layout kept (jsonc-parser, the library of the JSON editing of
+// VS Code: each edit touches the value it sets). The check refuses a guard task absent or whose
+// `dependsOn` differs. A repository without a root turbo.json (or turbo.jsonc) has nothing written
+// or refused at its root.
+//
 // The packages are the directories holding a `package.json` that the `workspaces` of the root
 // `package.json` select (an array, or its `packages` key), mapped as npm maps them
 // (@npmcli/map-workspaces), read with Node's glob: a pattern « ! » takes out what the other
 // patterns select, unless a later pattern it matches puts it back; `node_modules` is never a
 // package. `paquets` is the frame's one list of the packages of a repository, each marked out of
 // the frame or not: the update of the frame (scripts/grillhouse-maj.mjs) reads it too. A
-// repository without `workspaces` has none: nothing is written, nothing is refused. The
+// repository without `workspaces` has none: no package turbo.json is written or refused. The
 // dependencies are written in the package.json only; this file is their only reader for the
 // tasks' order.
 import { existsSync, globSync, readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { horsCadre } from './consommateurs.mjs';
@@ -48,6 +65,23 @@ const EXECUTION = ['dependencies', 'peerDependencies', 'optionalDependencies'];
 const TOPOLOGIE = ['dependencies', 'devDependencies', 'optionalDependencies'];
 // The root configuration of Turborepo, in the order Turborepo reads it.
 const RACINES = ['turbo.json', 'turbo.jsonc'];
+// The guard tasks of the root: the frame's controls, and the project's own guards.
+export const GARDES = ['grillhouse:gardes', 'gardes'];
+// The layout of what the generator writes in the root's turbo.json.
+const MISE_EN_FORME = { formattingOptions: { insertSpaces: true, tabSize: 2, eol: '\n' } };
+
+// jsonc-parser, a tool of the frame, loaded when a turbo.json is read: the update of the frame
+// imports `paquets` from a source checkout that installs no dependency.
+// Missing, it is named with the command that installs it.
+const jsonc = () => {
+  try {
+    return createRequire(import.meta.url)('jsonc-parser');
+  } catch {
+    throw new Error(
+      "⛔ jsonc-parser manque : c'est un outil du cadre, que `npm install` installe (devDependencies)."
+    );
+  }
+};
 
 const lireJson = f => {
   try {
@@ -57,42 +91,22 @@ const lireJson = f => {
   }
 };
 
-// <texte> as JSON, its JSONC comments and trailing commas taken out, as Turborepo reads its
+// <texte> as JSON, its JSONC comments and trailing commas allowed, as Turborepo reads its
 // configuration; null when it is no JSON.
 const lireJsonc = texte => {
-  let out = '';
-  for (let i = 0; i < texte.length; i++) {
-    const c = texte[i];
-    if (c === '"') {
-      const fin = /"(?:[^"\\]|\\.)*"/y;
-      fin.lastIndex = i;
-      const m = fin.exec(texte);
-      if (!m) return null;
-      out += m[0];
-      i += m[0].length - 1;
-    } else if (c === '/' && texte[i + 1] === '/') {
-      while (i < texte.length && texte[i] !== '\n') i++;
-      out += '\n';
-    } else if (c === '/' && texte[i + 1] === '*') {
-      const fin = texte.indexOf('*/', i + 2);
-      if (fin < 0) return null;
-      i = fin + 1;
-    } else {
-      out += c;
-    }
-  }
-  try {
-    return JSON.parse(out.replace(/,(\s*[}\]])/g, '$1'));
-  } catch {
-    return null;
-  }
+  const erreurs = [];
+  const valeur = jsonc().parse(texte, erreurs, { allowTrailingComma: true });
+  return erreurs.length ? null : valeur;
 };
+
+// The root configuration of Turborepo at <racine>: its path relative to <racine>, or null.
+const fichierRacine = racine => RACINES.find(n => existsSync(path.join(racine, n))) ?? null;
 
 // The tasks of the root configuration of Turborepo at <racine>: Map<name, dependsOn>, the tasks
 // of the root package (`//#…`) and of one package (`<name>#…`) left out; empty without one.
 function tachesRacine(racine) {
-  const f = RACINES.map(n => path.join(racine, n)).find(existsSync);
-  const conf = f ? lireJsonc(readFileSync(f, 'utf8')) : null;
+  const f = fichierRacine(racine);
+  const conf = f ? lireJsonc(readFileSync(path.join(racine, f), 'utf8')) : null;
   const taches = new Map();
   for (const [nom, t] of Object.entries(conf?.tasks ?? {})) {
     if (!nom.includes('#')) taches.set(nom, Array.isArray(t?.dependsOn) ? t.dependsOn : []);
@@ -193,7 +207,39 @@ export function attendus(racine) {
   return out;
 }
 
-// Writes the turbo.json of each package of <racine>; returns the paths written.
+// The `dependsOn` each guard task of the root of <racine> must hold: Map<task key, dependsOn>.
+export function gardesAttendues(racine) {
+  const liste = paquets(racine);
+  if (liste.length === 0) return new Map(GARDES.map(g => [g, ['build']]));
+  const builds = liste
+    .filter(({ pkg, hors }) => !hors && typeof pkg.scripts?.build === 'string')
+    .map(({ pkg }) => `${pkg.name}#build`)
+    .sort();
+  return new Map(GARDES.map(g => [`//#${g}`, builds]));
+}
+
+// The guard tasks of the root's turbo.json at <racine> whose `dependsOn` differs from the one
+// expected: [{ cle, attendu, present }] (present: whether the task is in the file), with the file;
+// null without a root configuration, or when it is no JSON.
+function gardesEcartees(racine) {
+  const f = fichierRacine(racine);
+  if (f === null) return null;
+  const texte = readFileSync(path.join(racine, f), 'utf8');
+  const conf = lireJsonc(texte);
+  if (conf === null) return null;
+  const ecarts = [];
+  for (const [cle, attendu] of gardesAttendues(racine)) {
+    const tache = conf.tasks?.[cle];
+    const actuel = tache?.dependsOn;
+    if (!Array.isArray(actuel) || actuel.join('\n') !== attendu.join('\n')) {
+      ecarts.push({ cle, attendu, present: tache !== undefined });
+    }
+  }
+  return { f, texte, ecarts };
+}
+
+// Writes the turbo.json of each package of <racine> and the guards' dependsOn in its root's;
+// returns the paths written.
 export function ecrire(racine) {
   const ecrits = [];
   for (const [f, t] of attendus(racine)) {
@@ -202,12 +248,34 @@ export function ecrire(racine) {
     writeFileSync(abs, t);
     ecrits.push(f);
   }
+  const racineEcartee = gardesEcartees(racine);
+  if (racineEcartee?.ecarts.length) {
+    const { modify, applyEdits } = jsonc();
+    let texte = racineEcartee.texte;
+    for (const { cle, attendu, present } of racineEcartee.ecarts) {
+      const [chemin, valeur] = present
+        ? [['tasks', cle, 'dependsOn'], attendu]
+        : [['tasks', cle], { dependsOn: attendu, outputs: [] }];
+      texte = applyEdits(texte, modify(texte, chemin, valeur, MISE_EN_FORME));
+    }
+    writeFileSync(path.join(racine, racineEcartee.f), texte);
+    ecrits.push(racineEcartee.f);
+  }
   return ecrits;
 }
 
-// The refusals of <racine>: one line per package turbo.json absent or other than generated.
+// The refusals of <racine>: one line per package turbo.json absent or other than generated, one per
+// guard task of the root absent or whose dependsOn differs.
 export function verifier(racine) {
   const refus = [];
+  for (const { cle, attendu, present } of gardesEcartees(racine)?.ecarts ?? []) {
+    const f = fichierRacine(racine);
+    refus.push(
+      present
+        ? `⛔ ${f} : la tâche \`${cle}\` doit attendre ${attendu.join(', ') || 'aucune construction'} (la construction de chaque paquet du cadre) ; \`${COMMANDE}\` réécrit son dependsOn.`
+        : `⛔ ${f} : la tâche \`${cle}\` manque ; \`${COMMANDE}\` l'ajoute, après la construction de chaque paquet du cadre.`
+    );
+  }
   for (const [f, t] of attendus(racine)) {
     const abs = path.join(racine, f);
     if (!existsSync(abs)) {
@@ -228,15 +296,20 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const args = process.argv.slice(2);
   if (args.some(a => a !== '--ecrire')) {
     process.stderr.write(
-      'Usage : node scripts/turbo-des-paquets.mjs [--ecrire]   vérifie, ou écrit, le turbo.json de chaque paquet\n'
+      'Usage : node scripts/turbo-des-paquets.mjs [--ecrire]   vérifie, ou écrit, le turbo.json de chaque paquet et les dépendances des gardes de la racine\n'
     );
     process.exit(2);
   }
-  if (args.includes('--ecrire')) {
-    ecrire(racine);
-    process.exit(0);
+  try {
+    if (args.includes('--ecrire')) {
+      ecrire(racine);
+      process.exit(0);
+    }
+    const refus = verifier(racine);
+    for (const l of refus) process.stderr.write(`${l}\n`);
+    process.exitCode = refus.length ? 1 : 0;
+  } catch (e) {
+    process.stderr.write(`${e instanceof Error ? e.message : e}\n`);
+    process.exitCode = 1;
   }
-  const refus = verifier(racine);
-  for (const l of refus) process.stderr.write(`${l}\n`);
-  process.exitCode = refus.length ? 1 : 0;
 }

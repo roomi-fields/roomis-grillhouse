@@ -10,7 +10,8 @@
 #   modification overwritten; one that cannot be set turns the night red; a submodule the project
 #   shares, `grillhouse.partage`, is linked to the main repository's instead, not set),
 #   dependencies reinstalled (npm ci) when package-lock.json changes, then
-#   `npm run verifier -- --force`: Turborepo's build, guards and every test of the day, each task
+#   `npm run verifier -- --force`: Turborepo's build, guards (the frame's and the project's own,
+#   its root script `gardes`) and every test of the day, each task
 #   played for real (`--force`, no log replayed from the cache), its result written to the cache
 #   again.
 #   An existing copy that does not get ready (its move onto HEAD, its cleaning or the setting of

@@ -377,8 +377,10 @@ describe('grillhouse-3uv.55 critère 6 — the update reads grillhouse:gardes in
 });
 
 // The frame's former wiring of the guards (a pretest calling grillhouse:gardes, an
-// integration:gardes script) goes: Turborepo plays the guards (turbo.json). A wiring of the
-// project's own stays.
+// integration:gardes script) goes: Turborepo plays the guards (turbo.json). A pretest of the
+// project's own stays; its own guards, which the former integration played by
+// `integration:gardes`, move to `gardes`, the root script `npm run verifier` plays (BPScript: its 13
+// guards were played no more).
 describe('the update removes the frame’s former wiring of the guards', () => {
   it('a pretest that is the frame’s call is removed', () => {
     expect(installe({ name: 'p', scripts: { pretest: GARDES } }).scripts()).not.toHaveProperty(
@@ -403,19 +405,51 @@ describe('the update removes the frame’s former wiring of the guards', () => {
     );
     expect(installe({ name: 'p' }).scripts()).not.toHaveProperty('pretest');
   });
-  it.each(['npm run --silent pretest', 'node scripts/integration/gardes.mjs'])(
+  it.each(['npm run --silent pretest', 'node scripts/integration/gardes.mjs', GARDES])(
     'an integration:gardes left at the frame’s former command (%s) is removed',
     ancien => {
       const s = installe({ name: 'p', scripts: { 'integration:gardes': ancien } }).scripts();
       expect(s).not.toHaveProperty('integration:gardes');
+      expect(s).not.toHaveProperty('gardes');
     }
   );
   it.each([
-    ['a script of its own', 'node scripts/mes-gardes.mjs'],
-    ['the old wiring with a step of its own', 'npm run --silent pretest && node scripts/mien.mjs'],
-  ])('an integration:gardes of the project’s own (%s) stays as it is', (_nom, propre) => {
-    const s = installe({ name: 'p', scripts: { 'integration:gardes': propre } }).scripts();
-    expect(s['integration:gardes']).toBe(propre);
+    ['a script of its own', 'node scripts/mes-gardes.mjs', 'node scripts/mes-gardes.mjs'],
+    [
+      'the old wiring with a step of its own',
+      'npm run --silent pretest && node scripts/mien.mjs',
+      'node scripts/mien.mjs',
+    ],
+  ])(
+    'an integration:gardes of the project’s own (%s) becomes its gardes',
+    (_nom, propre, gardes) => {
+      const s = installe({ name: 'p', scripts: { 'integration:gardes': propre } }).scripts();
+      expect(s).not.toHaveProperty('integration:gardes');
+      expect(s.gardes).toBe(gardes);
+    }
+  );
+  it('an integration:gardes beside a gardes of the project stays, and the report names it', () => {
+    const { projet, scripts } = installe({
+      name: 'p',
+      scripts: { 'integration:gardes': 'node a.mjs', gardes: 'node b.mjs' },
+    });
+    expect(scripts()).toMatchObject({ 'integration:gardes': 'node a.mjs', gardes: 'node b.mjs' });
+    const b = mettreAJour(projet, DEPOT, 'essai');
+    expect(b.gardes).toEqual({ deplace: false });
+  });
+  it('the report says the move of integration:gardes to gardes, once', () => {
+    const projet = mkdtempSync(path.join(ESSAIS, 'gardes-'));
+    ecrire(projet, 'package.json', '{"name":"p","scripts":{"integration:gardes":"node a.mjs"}}\n');
+    expect(mettreAJour(projet, DEPOT, 'essai').gardes).toEqual({ deplace: true });
+    expect(mettreAJour(projet, DEPOT, 'essai').gardes).toBeNull();
+  });
+  it('an integration:gardes headed by the frame’s call loses that head, the rest becoming gardes', () => {
+    const s = installe({
+      name: 'p',
+      scripts: { 'integration:gardes': `${GARDES} && bash scripts/mes-gardes.sh` },
+    }).scripts();
+    expect(s).not.toHaveProperty('integration:gardes');
+    expect(s.gardes).toBe('bash scripts/mes-gardes.sh');
   });
   it('the removal holds on a second update, byte for byte', () => {
     const { projet } = installe({
@@ -445,14 +479,16 @@ describe('the update installs Turborepo', () => {
     expect(taches(DEPOT, SANS_PAQUETS)).toEqual({
       build: { outputs: ['dist/**'] },
       'grillhouse:gardes': { dependsOn: ['build'], outputs: [] },
+      gardes: { dependsOn: ['build'], outputs: [] },
       'test:vitest': { dependsOn: ['build'], outputs: [] },
     });
   });
-  it('the template with packages: each package builds and tests after its dependencies, the root plays the guards and its tests', () => {
+  it('the template with packages: each package builds and tests after its dependencies, the root plays the guards, whose dependsOn the generator writes', () => {
     expect(taches(DEPOT, PAQUETS)).toEqual({
       build: { dependsOn: ['^build'], outputs: ['dist/**'] },
       'test:vitest': { dependsOn: ['^build'], outputs: [] },
-      '//#grillhouse:gardes': { outputs: [] },
+      '//#grillhouse:gardes': { dependsOn: [], outputs: [] },
+      '//#gardes': { dependsOn: [], outputs: [] },
     });
   });
   it('Grillhouse’s own turbo.json follows the template without packages: its tests do not wait for its guards', () => {
@@ -468,6 +504,8 @@ describe('the update installs Turborepo', () => {
   });
   it('the update writes the turbo.json of each package, whose build waits for its runtime dependencies only (BPScript 322.12)', () => {
     const { projet } = installe({ name: 'p', private: true, workspaces: ['packages/*'] });
+    // The project has run `npm install`: the frame's tools (jsonc-parser) are installed.
+    symlinkSync(path.join(DEPOT, 'node_modules'), path.join(projet, 'node_modules'), 'dir');
     ecrire(projet, 'packages/x/package.json', '{"name":"x","scripts":{"build":"tsc"}}\n');
     ecrire(
       projet,
@@ -489,8 +527,21 @@ describe('the update installs Turborepo', () => {
     expect(build('packages/x/turbo.json')).toEqual([]);
     expect(build('packages/y/turbo.json')).toEqual(['x#build']);
     expect(build('packages/z/turbo.json')).toEqual(['y#build']);
-    // The root keeps the template: the tests wait for everything they import.
-    expect(lire(projet, 'turbo.json')).toBe(lire(DEPOT, PAQUETS));
+    // The root keeps the template, the tests waiting for everything they import; its guard tasks
+    // wait for every build of the frame (BPScript: a stale dist/ gave a cached green).
+    const racine = taches(projet, 'turbo.json');
+    expect(racine).toEqual({
+      ...taches(DEPOT, PAQUETS),
+      '//#grillhouse:gardes': { dependsOn: ['x#build', 'y#build', 'z#build'], outputs: [] },
+      '//#gardes': { dependsOn: ['x#build', 'y#build', 'z#build'], outputs: [] },
+    });
+  });
+  it('before `npm install`, the generator’s failure names jsonc-parser and npm install', () => {
+    const { projet } = installe({ name: 'p', private: true, workspaces: ['packages/*'] });
+    const [ligne, ...autres] = regenerer(projet);
+    expect(autres).toEqual([]);
+    expect(ligne).toContain('jsonc-parser');
+    expect(ligne).toContain('npm install');
   });
   it('a turbo.json present is never written again, whatever the form of the project', () => {
     const projet = mkdtempSync(path.join(ESSAIS, 'turbo-'));
@@ -573,8 +624,12 @@ describe('the update installs Turborepo', () => {
       expect(s[nom], nom).toBe(gabarit()[nom]);
     }
   });
-  it('verifier of the template plays the guards and the tests beside each other, in Turborepo', () => {
-    expect(gabarit().verifier).toBe('turbo run grillhouse:gardes test:vitest');
+  it('verifier of the template plays the frame’s guards, the project’s own and the tests beside each other, in Turborepo', () => {
+    expect(gabarit().verifier).toBe('turbo run grillhouse:gardes gardes test:vitest');
+  });
+  it('test and test:forcer of the template play the files named from the root, each in its package', () => {
+    expect(gabarit().test).toBe('node scripts/tests.mjs');
+    expect(gabarit()['test:forcer']).toBe('node scripts/tests.mjs --force');
   });
   it('a project whose root resolves no Vitest receives none of the four', () => {
     const s = installe({ name: 'p', scripts: { test: 'vitest run' } }).scripts();
@@ -596,6 +651,7 @@ const DEPENDANCES = [
   '@microsoft/api-extractor-model',
   '@microsoft/tsdoc-config',
   'dependency-cruiser',
+  'jsonc-parser',
   'knip',
   'turbo',
 ];
@@ -673,6 +729,7 @@ describe('grillhouse-3uv.60 critère 1 — the update writes api and the depende
       '@microsoft/api-extractor-model': '7.2.0',
       '@microsoft/tsdoc-config': '~0.17.1',
       'dependency-cruiser': '^16.0.0',
+      'jsonc-parser': '3.0.0',
       knip: '5.0.1',
       turbo: '2.0.0',
     };
@@ -737,6 +794,7 @@ describe('grillhouse-3uv.60 critère 4 — api is written as the frame’s other
       '@microsoft/api-extractor-model',
       '@microsoft/tsdoc-config',
       'dependency-cruiser',
+      'jsonc-parser',
       'turbo',
     ]);
   });
@@ -790,6 +848,7 @@ describe('grillhouse-3uv.60 critère 5 — a declared dependency keeps its decla
       '@types/node',
       'dependency-cruiser',
       'eslint',
+      'jsonc-parser',
       'knip',
       'turbo',
       'vitest',
@@ -810,6 +869,7 @@ describe('grillhouse-3uv.60 critère 5 — a declared dependency keeps its decla
       ['@microsoft/api-extractor-model', m.devDependencies?.['@microsoft/api-extractor-model']],
       ['@microsoft/tsdoc-config', m.devDependencies?.['@microsoft/tsdoc-config']],
       ['dependency-cruiser', '2.0.0'],
+      ['jsonc-parser', m.devDependencies?.['jsonc-parser']],
       ['knip', '1.0.0'],
       ['turbo', m.devDependencies?.turbo],
     ]);
@@ -948,6 +1008,7 @@ describe('grillhouse-3uv.60 critère 8 — only the source’s devDependencies a
         '@microsoft/api-extractor-model',
         '@microsoft/tsdoc-config',
         'dependency-cruiser',
+        'jsonc-parser',
         'turbo',
       ]);
     });
@@ -1049,6 +1110,7 @@ describe('grillhouse-3uv.60 critère 9 — the report names each added dependenc
         '@microsoft/api-extractor': '3.0.0',
         '@microsoft/api-extractor-model': '4.0.0',
         '@microsoft/tsdoc-config': '0.1.0',
+        'jsonc-parser': '3.0.0',
         turbo: '2.0.0',
       },
     });
@@ -1214,9 +1276,9 @@ describe('grillhouse-3uv.56 critère 13 — the settings are written only when t
 // task; the update of the frame poses the frame's test in a project that has its own (BPScript),
 // and says so in its report. grillhouse-3uv.80 critère 2: the project's root resolves the Vitest
 // the frame requires (2.1.9 here, the frame's own), else it keeps its test.
-const TEST_DU_CADRE = 'turbo run test:vitest --';
+const TEST_DU_CADRE = 'node scripts/tests.mjs';
 describe('grillhouse-3uv.75.1 critère 12 — the update poses the frame’s test in a project that has its own, and says so', () => {
-  it('critère 12: the test script of the template is Turborepo’s task', () => {
+  it('critère 12: the test script of the template plays Turborepo’s task (scripts/tests.mjs)', () => {
     expect(gabarit().test).toBe(TEST_DU_CADRE);
   });
   it('critère 12: a project whose test is its own receives the frame’s test', () => {
@@ -1827,6 +1889,7 @@ describe('the update runs the source’s script, whose modules are the source’
   ] as const) {
     it(`${cas}: one pass of the project’s update succeeds, and brings the module`, () => {
       const projet = projetAPaquets(['packages/*']);
+      symlinkSync(path.join(DEPOT, 'node_modules'), path.join(projet, 'node_modules'), 'dir');
       const bin = () =>
         claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')), {
           marches: ['claude-plugins-official', 'roomi-fields'],

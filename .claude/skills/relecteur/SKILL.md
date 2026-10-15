@@ -37,7 +37,7 @@ Chaque passe suit son fichier de `references/` à la lettre, dans cet ordre.
    autre ? Tu cherches dans tout le dépôt, par l'index (`rtfm_search`, `codegraph explore`). Ainsi le produit garde un seul calcul par notion.
 6. **Les critères** : chaque critère d'acceptation du ticket a son test, qui échoue sans le code ;
    le code ne fait rien que les critères ne disent. Tu lances les tests par `npm test --
-   <fichiers>` ; une sortie relue du cache de Turborepo (« cache hit, replaying logs ») vaut un
+   <fichiers>` (chemins depuis la racine du dépôt) ; une sortie relue du cache de Turborepo (« cache hit, replaying logs ») vaut un
    lancement, tu ne la rejoues pas pour la croire. Un test mis en quarantaine (`it.skip`,
    `it.fails`) nomme le ticket qui le corrige, sinon le lot est rendu. Ainsi le lot fait ce qui a été décidé, et
    seulement cela.

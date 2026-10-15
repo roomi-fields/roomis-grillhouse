@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { parse as parseJsonc } from 'jsonc-parser';
 import { afterAll, describe, expect, it } from 'vitest';
 import { attendus, COMMANDE, ecrire, paquets, verifier } from '../../scripts/turbo-des-paquets.mjs';
 
@@ -476,5 +477,182 @@ describe('a configuration package in devDependencies orders no build', () => {
     const r = turbo(racine, ['build']);
     expect(r.status, r.stderr).toBe(0);
     expect(taches(r.stdout)['a#build']).toEqual(['socle#build']);
+  });
+});
+
+// Witness: BPScript, whose guards (the frame's `grillhouse:gardes`, and its own, which read the
+// built form of its packages) ran beside the builds: a `dist/` the build had not yet rewritten
+// gave a green, which entered the cache. The guard tasks of the root wait for the build of each
+// package of the frame that has one: the generator writes their `dependsOn` in the root's
+// turbo.json, the rest of the file stays the project's.
+const GARDES_RACINE = ['//#grillhouse:gardes', '//#gardes'];
+const TOUS = ['a#build', 'b#build', 'c#build', 'socle#build'];
+type Racine = { tasks: Record<string, { dependsOn?: string[] } | undefined> };
+const lireRacine = (texte: string) => parseJsonc(texte, [], { allowTrailingComma: true }) as Racine;
+const dependances = (texte: string, tache: string) => lireRacine(texte).tasks[tache]?.dependsOn;
+// The repository of packages, its root holding the frame's guards (and, <propres>, its own).
+function depotAvecGardes(propres = false) {
+  const r = depotAPaquets();
+  const p = JSON.parse(lire(r, 'package.json')) as Record<string, unknown>;
+  const scripts = { 'grillhouse:gardes': 'true', ...(propres ? { gardes: 'true' } : {}) };
+  ecrireFichier(r, 'package.json', pkg({ ...p, scripts }));
+  return r;
+}
+
+describe('the guard tasks of the root wait for the build of each package of the frame', () => {
+  it('with the template alone, the guards run beside the builds', () => {
+    const racine = depotAvecGardes();
+    ecrire(racine);
+    ecrireFichier(racine, 'turbo.json', lire(DEPOT, 'templates/turbo/paquets.json'));
+    const r = turbo(racine, ['build', 'grillhouse:gardes']);
+    expect(r.status, r.stderr).toBe(0);
+    expect(taches(r.stdout)['//#grillhouse:gardes']).toEqual([]);
+  });
+
+  it('after generation, each guard task of the root waits for every build of the frame, sorted', () => {
+    const racine = depotAvecGardes();
+    expect(lancer(racine, ['--ecrire']).status).toBe(0);
+    const texte = lire(racine, 'turbo.json');
+    // corpus has no build script: there is none to wait for.
+    for (const tache of GARDES_RACINE) {
+      expect(dependances(texte, tache), tache).toEqual(TOUS);
+    }
+    const r = turbo(racine, ['build', 'grillhouse:gardes']);
+    expect(r.status, r.stderr).toBe(0);
+    expect(taches(r.stdout)['//#grillhouse:gardes']).toEqual(TOUS);
+  });
+
+  it('a package out of the frame is not waited for', () => {
+    const racine = depotHorsCadre();
+    expect(lancer(racine, ['--ecrire']).status).toBe(0);
+    for (const tache of GARDES_RACINE) {
+      expect(dependances(lire(racine, 'turbo.json'), tache), tache).toEqual([
+        'banc#build',
+        'lecteur#build',
+        'socle#build',
+      ]);
+    }
+  });
+
+  it('the project’s own guards wait for the builds too, and Turborepo passes a root without them', () => {
+    const racine = depotAvecGardes();
+    ecrire(racine);
+    // Without a `gardes` script at the root, the task is not played, and the run passes.
+    const sans = turbo(racine, ['grillhouse:gardes', 'gardes', 'test:vitest']);
+    expect(sans.status, sans.stderr).toBe(0);
+    const commandes = Object.fromEntries(
+      (JSON.parse(sans.stdout) as { tasks: { taskId: string; command: string }[] }).tasks.map(t => [
+        t.taskId,
+        t.command,
+      ])
+    );
+    expect(commandes['//#grillhouse:gardes']).toBe('true');
+    expect(commandes['//#gardes']).toBe('<NONEXISTENT>');
+    const avecPropres = depotAvecGardes(true);
+    ecrire(avecPropres);
+    const avec = turbo(avecPropres, ['grillhouse:gardes', 'gardes', 'test:vitest']);
+    expect(avec.status, avec.stderr).toBe(0);
+    expect(taches(avec.stdout)['//#gardes']).toEqual(TOUS);
+  });
+
+  it('the rest of the root’s turbo.json stays as the project wrote it, its comments included', () => {
+    const racine = depotAPaquets();
+    const propre = [
+      '// Le turbo.json du projet.',
+      '{',
+      '  "$schema": "https://turborepo.com/schema.json",',
+      '  "tasks": {',
+      '    // la construction de chaque paquet',
+      '    "build": { "dependsOn": ["^build"], "outputs": ["dist/**"] },',
+      '    "test:vitest": { "dependsOn": ["^build"], "outputs": [] },',
+      '    "lint": {},',
+      '    "//#grillhouse:gardes": {',
+      '      "dependsOn": ["vieux#build"], // périmé',
+      '      "outputs": []',
+      '    }',
+      '  }',
+      '}',
+      '',
+    ].join('\n');
+    ecrireFichier(racine, 'turbo.json', propre);
+    expect(lancer(racine, ['--ecrire']).status).toBe(0);
+    const texte = lire(racine, 'turbo.json');
+    expect(texte.startsWith('// Le turbo.json du projet.\n{\n')).toBe(true);
+    expect(texte).toContain('    // la construction de chaque paquet\n');
+    expect(texte).toContain('"build": { "dependsOn": ["^build"], "outputs": ["dist/**"] },\n');
+    expect(texte).toContain('"lint": {},\n');
+    expect(texte).toContain('// périmé');
+    expect(dependances(texte, '//#grillhouse:gardes')).toEqual(TOUS);
+    // A guard task the root lacks is added, without outputs.
+    expect(lireRacine(texte).tasks['//#gardes']).toEqual({ dependsOn: TOUS, outputs: [] });
+    // A second pass writes nothing.
+    expect(ecrire(racine)).toEqual([]);
+    expect(lire(racine, 'turbo.json')).toBe(texte);
+  });
+
+  it('the root may be a turbo.jsonc, written in place', () => {
+    const racine = depotAPaquets();
+    const texte = `// commenté\n${lire(racine, 'turbo.json')}`;
+    rmSync(path.join(racine, 'turbo.json'));
+    ecrireFichier(racine, 'turbo.jsonc', texte);
+    expect(lancer(racine, ['--ecrire']).status).toBe(0);
+    expect(readdirSync(racine)).not.toContain('turbo.json');
+    const ecrit = lire(racine, 'turbo.jsonc');
+    expect(ecrit.startsWith('// commenté\n')).toBe(true);
+    expect(dependances(ecrit, '//#gardes')).toEqual(TOUS);
+    expect(lancer(racine, []).status).toBe(0);
+  });
+
+  it('the check refuses a guard task stale or absent, naming it and the command', () => {
+    const racine = depotAPaquets();
+    ecrire(racine);
+    expect(lancer(racine, []).status).toBe(0);
+    // A package gains a build: the list is stale.
+    ecrireFichier(
+      racine,
+      'packages/corpus/package.json',
+      pkg({ name: 'corpus', scripts: { build: 'tsc' }, dependencies: { a: '*', b: '*', c: '*' } })
+    );
+    ecrireFichier(
+      racine,
+      'packages/corpus/turbo.json',
+      attendus(racine).get('packages/corpus/turbo.json') as string
+    );
+    const perime = lancer(racine, []);
+    expect(perime.status).toBe(1);
+    expect(perime.stderr).toContain('turbo.json');
+    expect(perime.stderr).toContain('//#grillhouse:gardes');
+    expect(perime.stderr).toContain(COMMANDE);
+    expect(lancer(racine, ['--ecrire']).status).toBe(0);
+    expect(lancer(racine, []).status).toBe(0);
+    // The task taken out of the root: refused.
+    const t = lireRacine(lire(racine, 'turbo.json'));
+    delete t.tasks['//#gardes'];
+    ecrireFichier(racine, 'turbo.json', JSON.stringify(t, null, 2));
+    const absente = lancer(racine, []);
+    expect(absente.status).toBe(1);
+    expect(absente.stderr).toContain('//#gardes');
+  });
+
+  it('without packages, the guard tasks wait for the root’s build: the template is a fixed point, Grillhouse’s turbo.json passes', () => {
+    const racine = mkdtempSync(path.join(ESSAIS, 'sans-paquets-'));
+    ecrireFichier(racine, 'package.json', pkg({ name: 'p', scripts: { build: 'tsc' } }));
+    ecrireFichier(racine, 'turbo.json', lire(DEPOT, 'templates/turbo/sans-paquets.json'));
+    expect(ecrire(racine)).toEqual([]);
+    for (const tache of ['grillhouse:gardes', 'gardes']) {
+      expect(dependances(lire(racine, 'turbo.json'), tache), tache).toEqual(['build']);
+    }
+    expect(verifier(DEPOT)).toEqual([]);
+    // A turbo.json without the project's guards receives them.
+    ecrireFichier(
+      racine,
+      'turbo.json',
+      '{\n  "tasks": {\n    "build": {},\n    "grillhouse:gardes": { "outputs": [] }\n  }\n}\n'
+    );
+    expect(lancer(racine, []).status).toBe(1);
+    expect(lancer(racine, ['--ecrire']).status).toBe(0);
+    expect(dependances(lire(racine, 'turbo.json'), 'gardes')).toEqual(['build']);
+    expect(dependances(lire(racine, 'turbo.json'), 'grillhouse:gardes')).toEqual(['build']);
+    expect(lancer(racine, []).status).toBe(0);
   });
 });

@@ -41,6 +41,7 @@ scripts/setup.sh
 scripts/sous-modules.sh
 scripts/structure-guard.sh
 scripts/tableau.mjs
+scripts/tests.mjs
 scripts/ticket.sh
 scripts/turbo-des-paquets.mjs
 scripts/un-commit-par-ticket.mjs
