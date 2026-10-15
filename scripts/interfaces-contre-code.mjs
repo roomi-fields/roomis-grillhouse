@@ -44,6 +44,11 @@
 // `faute-mal-formee`, `faute-hors-catalogue`, `faute-non-nommee`, `faute-non-produite`,
 // `faute-non-listee`), or by the declaration file and TSDoc's message id for a TSDoc message.
 //
+// In the envelope of a component (`GRILLHOUSE_ENVELOPPE`, scripts/enveloppe/composant.mjs), the
+// check and `npm run api` read and write that component alone: its neighbours' source is hidden,
+// their published parts read-only, and the integration checks every component on the whole
+// repository. The component's build comes first, as outside (`npm test -- <its files>` builds it).
+//
 // A component without `docs/INTERFACE.md` is reported and skipped. A project that prefers a
 // bench per component calls `verifierComposant(racine, composant)` from its test.
 import { createRequire } from 'node:module';
@@ -52,6 +57,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { composants } from './consommateurs.mjs';
+import { composantDeLEnveloppe } from './enveloppe/composant.mjs';
 import { trancher } from './dette.mjs';
 
 const require = createRequire(import.meta.url);
@@ -505,11 +511,20 @@ function codesContreCatalogue(c, racine, fautes, refuser) {
   }
 }
 
+// The components a run reads: every one of <racine>; in the envelope of a component, that one
+// alone, its neighbours read by their published form and never written.
+export function aVerifier(racine, env = process.env) {
+  const tous = composants(racine);
+  const propre = composantDeLEnveloppe(env);
+  const sien = propre && tous.filter(c => path.resolve(c.dir) === path.resolve(racine, propre));
+  return sien?.length ? sien : tous;
+}
+
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const racine = process.cwd();
   const ecrire = process.argv.includes('--ecrire');
   const constats = [];
-  for (const c of composants(racine)) {
+  for (const c of aVerifier(racine)) {
     const { refus, signaux } = verifierComposant(racine, c, { ecrire });
     for (const s of signaux) process.stderr.write(`⚠️  ${s}\n`);
     constats.push(...refus);

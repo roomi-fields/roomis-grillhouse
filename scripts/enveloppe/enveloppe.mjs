@@ -23,7 +23,8 @@
 //   sudo's env_reset and bwrap's --clearenv give it: the base of a login session, claude's own
 //   configuration and credentials (`ANTHROPIC_*`, `CLAUDE_CODE_OAUTH_TOKEN`) and the npm cache it mounts. bwrap
 //   starts with that environment alone, so no other variable of the machine (`GH_TOKEN`,
-//   `NPM_TOKEN`…) enters, by name or by argument. A declared variable that names a path
+//   `NPM_TOKEN`…) enters, by name or by argument. The session also gets `GRILLHOUSE_ENVELOPPE`, the
+//   component's path (`composant.mjs`): the frame's commands build and write that component only. A declared variable that names a path
 //   (`VARIABLES_DE_CHEMIN`) enters only when its path is in sight inside the envelope, tested there
 //   before the command runs. The session has its own process space: it reads the environment of
 //   no process of the machine.
@@ -34,14 +35,17 @@
 //   (`avecLiens`).
 // - A worktree of the repository under an emptied directory (the home, `/tmp`) comes back
 //   read-only, `.git` included; the copy and the tickets base are then written as above.
-// - An envelope on the main tree is refused.
+// - An envelope on the main tree is refused, and so is a component that does not exist; when it is
+//   the name of a package of the copy, the refusal gives its path.
 // - <copie> is the agent's git worktree; <composant> is the component's path inside it
 //   (`packages/a`, or `src/parser` in a one-package project); <rôle> is the agent's role
 //   (`testeur`, `developpeur`…).
 // - In every worktree of the repository, the component's parent directory (`packages/`, `src/`)
 //   is emptied. In <copie>, the component is mounted back in writing; every sibling component
-//   gets back, read-only, its published parts: `package.json`, `docs/INTERFACE.md`, `dist/`, and
-//   the paths that the `files` field of its `package.json` names, when they exist inside it.
+//   gets back, read-only, its published parts: `package.json`, `docs/INTERFACE.md`, `dist/`, its
+//   package configuration of Turborepo (`turbo.json`, `turbo.jsonc`), by which Turborepo reads in
+//   the envelope the task graph it reads outside, and the paths that the `files` field of its
+//   `package.json` names, when they exist inside it.
 //   The parent's own files (`src/index.ts`) come back read-only, and the emptied directories are
 //   then sealed read-only.
 // - A folder of the root (`scripts`) hides nothing: its scripts work on the whole repository. The
@@ -70,9 +74,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { matieres as lesMatieres } from '../consommateurs.mjs';
+import { paquets as lesPaquets } from '../paquets.mjs';
 import { CODE_REFUS, CODE_USAGE } from './codes.mjs';
+import { VARIABLE } from './composant.mjs';
 
-const PUBLISHED = ['package.json', 'docs/INTERFACE.md', 'dist'];
+const PUBLISHED = ['package.json', 'docs/INTERFACE.md', 'dist', 'turbo.json', 'turbo.jsonc'];
 // The role that writes the package of the shared test material.
 const ROLE_MATIERE = 'testeur';
 // The directories where codegraph and rtfm keep the index of a tree they index: the source of
@@ -145,15 +151,16 @@ const EPREUVE =
   'if [ -n "$p" ] && [ ! -e "$p" ]; then unset "$1"; fi; shift; done; shift; exec "$@"';
 
 // The environment of the session, from the environment <env> of the launch: the declared
-// variables and families that <env> holds, and `npm_config_cache` set to the npm cache that the
-// envelope mounts in writing. Nothing else of <env> enters.
-function environnementDeLaSeance(env, { cacheNpm }) {
+// variables and families that <env> holds, `npm_config_cache` set to the npm cache that the
+// envelope mounts in writing, and `GRILLHOUSE_ENVELOPPE` set to <composant>. Nothing else of <env>
+// enters.
+function environnementDeLaSeance(env, { cacheNpm, composant }) {
   const declare = nom =>
     ENVIRONNEMENT_DECLARE.includes(nom) ||
     VARIABLES_DE_CHEMIN.includes(nom) ||
     FAMILLES_DECLAREES.some(f => nom.startsWith(f));
   const garde = Object.entries(env).filter(([nom, v]) => v !== undefined && declare(nom));
-  return { ...Object.fromEntries(garde), npm_config_cache: cacheNpm };
+  return { ...Object.fromEntries(garde), npm_config_cache: cacheNpm, [VARIABLE]: composant };
 }
 
 // The command run inside the envelope: <commande>, behind the test of the variables that name a
@@ -282,10 +289,12 @@ const inside = (child, parent) => {
 // (`matieres` of `scripts/consommateurs.mjs`); `role` is the agent's role, and only the `testeur` writes them.
 // `magasins` lists the task caches written by every run, the agent's included (Turborepo's
 // `<main tree>/.turbo/cache`); one that does not exist is not mounted.
+// `paquets` lists the packages of the copy (`paquets` of `scripts/paquets.mjs`): a <composant>
+// that is the name of one of them is refused with its path.
 // `fs` gives `lister(dir)`, `existe(path)`, `liens(dir)` and `publies(dir)`, so the plan is
 // testable without disk.
 export function plan(
-  { trees, copie, composant, role, matieres = [], montages = [], magasins = [] },
+  { trees, copie, composant, role, matieres = [], montages = [], magasins = [], paquets = [] },
   fs
 ) {
   // The worktrees start with the main tree: an envelope on it would let the agent write its root.
@@ -299,7 +308,14 @@ export function plan(
   // A folder of the root (`scripts`) works on the whole repository: no neighbour to hide.
   const racine = parentRel === '.' || parentRel === '';
   const propre = path.join(copie, composant);
-  if (!fs.existe(propre)) return { refus: `Le composant ${propre} n'existe pas.` };
+  if (!fs.existe(propre)) {
+    // A launch that names the package instead of its path is told the path.
+    const nomme = paquets.find(p => p.pkg?.name === composant);
+    const chemin = nomme
+      ? ` « ${composant} » est le nom d'un paquet : l'enveloppe attend son chemin, ${nomme.dossier}.`
+      : '';
+    return { refus: `Le composant ${propre} n'existe pas.${chemin}` };
+  }
 
   const caches = racine ? [] : trees.map(t => path.join(t, parentRel));
   const matiere = matieres.map(m => path.join(copie, m));
@@ -425,7 +441,16 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const magasins = [path.join(path.dirname(commun), '.turbo', 'cache')];
   for (const m of magasins) mkdirSync(m, { recursive: true });
   const { args, refus } = plan(
-    { trees: worktrees(copie), copie, composant, role, matieres, montages, magasins },
+    {
+      trees: worktrees(copie),
+      copie,
+      composant,
+      role,
+      matieres,
+      montages,
+      magasins,
+      paquets: lesPaquets(copie),
+    },
     disque
   );
   let code;
@@ -435,7 +460,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   } else {
     const r = spawnSync('bwrap', [...args, ...commandeEprouvee(commande)], {
       stdio: 'inherit',
-      env: environnementDeLaSeance(process.env, { cacheNpm }),
+      env: environnementDeLaSeance(process.env, { cacheNpm, composant }),
     });
     if (r.error) process.stderr.write(`⛔ ENVELOPPE IMPOSSIBLE — ${r.error.message}\n`);
     code = r.error ? CODE_REFUS : (r.status ?? 1);

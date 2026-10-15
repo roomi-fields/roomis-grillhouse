@@ -62,7 +62,9 @@ prime sur tout le reste.
 - **Le comportement tient dans les critères** : ton code fait ce que disent les critères
   d'acceptation, et rien d'autre.
 
-Tu vois ton paquet en entier, et des autres composants leur interface et leur forme publiée. Les
+Tu vois ton paquet en entier, et des autres composants leur interface et leur forme publiée. Tes
+voisins arrivent construits : `npm test -- <fichiers>` construit ton seul paquet, et `npm run api`,
+après lui, écrit le rapport d'API et la part générée de ton seul composant. Les
 gardes du cadre (frontières, consommateurs, index des interfaces, rapports d'API) tournent à côté
 des tests, par `npm run verifier`, que l'intégration joue ; leur refus nomme la commande qui
 corrige. Un lancement qui sort en 75, « à repasser », n'a vu que des échecs de durée sous charge

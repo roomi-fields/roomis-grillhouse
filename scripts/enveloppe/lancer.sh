@@ -29,8 +29,16 @@
 #   project shares (`grillhouse.partage`), which the copy reads from the main repository. Its
 #   dependencies are installed when `node_modules` is absent or `package-lock.json` is newer than
 #   the last installation (`node_modules/.package-lock.json`, written by npm), and it is built there
-#   by Turborepo (`turbo run build`, which restores an unchanged build from its cache), outside the
-#   envelope, so the agent finds the published parts of its neighbours. The
+#   by Turborepo, which restores an unchanged build from its cache, outside the envelope, so the
+#   agent finds the published parts of its neighbours. As Bazel builds the dependencies of a target
+#   before the target: for a component that is a package of the frame, its providers are built
+#   first (the packages whose build its build waits for, read in Turborepo's graph,
+#   `turbo run build --filter=<paquet> --dry=json`), and a failure stops the launch, CODE_COPIE;
+#   then the package and what its tests read (`turbo run build --filter=<paquet>...`), whose failure
+#   does not stop it: the session opens, its instruction followed by a section « La construction de
+#   ton paquet échoue » with the end of that output, since repairing it is the session's work (a
+#   provider's lot that breaks its consumers). Its consumers are not built. Any other component,
+#   the whole repository (`.`) included, builds the copy whole (`turbo run build`). The
 #   installation and the build play through `scripts/sous-modules.sh monter`, each shared submodule
 #   of the main repository read-only, by the list the pose printed, whatever the installation
 #   rewrites afterwards; with a shared submodule and no possible mount (bwrap absent or
@@ -92,6 +100,8 @@ if node --input-type=module -e "import { lireEntrees } from '$ici/../integration
   echo "$refus" >&2
   exit "$CODE_COPIE"
 fi
+# The output of the session package's build, when it fails.
+echec=$(mktemp)
 (
   # Each step returns on failure: `set -e` does not act inside a subshell tested by `||`.
   if [ ! -d "$copie" ]; then
@@ -140,17 +150,42 @@ fi
     if [ ! -d "$copie/node_modules" ] || [ "$copie/package-lock.json" -nt "$installe" ]; then
       monter npm --prefix "$copie" install --no-save --no-audit --no-fund --silent || exit 1
     fi
-    (cd "$copie" && monter npx --no-install turbo run build) || exit 1
+    # The package of the session, when the component is a package of the frame: its name.
+    paquet=$(node --input-type=module -e "import path from 'node:path'; import { paquets } from '$ici/../paquets.mjs'; const [r, d] = process.argv.slice(1); const p = paquets(r).find(p => !p.hors && p.dossier === path.normalize(d).replace(/\/\$/, '')); process.stdout.write(p?.pkg.name ?? '');" "$copie" "$composant") || exit 1
+    if [ -z "$paquet" ]; then
+      (cd "$copie" && monter npx --no-install turbo run build) || exit 1
+    else
+      # Its providers: the packages whose build its own build waits for, as Turborepo reads them.
+      graphe=$(cd "$copie" && monter npx --no-install turbo run build "--filter=$paquet" --dry=json) || exit 1
+      fournisseurs=$(node -e 'const [g, p] = process.argv.slice(1); const t = JSON.parse(g).tasks.filter(t => t.taskId !== `${p}#build`); console.log([...new Set(t.map(t => `--filter=${t.package}`))].join("\n"));' "$graphe" "$paquet") || exit 1
+      if [ -n "$fournisseurs" ]; then
+        mapfile -t filtres <<<"$fournisseurs"
+        (cd "$copie" && monter npx --no-install turbo run build "${filtres[@]}") || exit 1
+      fi
+      # The package itself, and what its tests read (the shared test material), built after its
+      # providers: a failure does not stop the launch, it goes into the instruction.
+      if ! (cd "$copie" && monter npx --no-install turbo run build "--filter=$paquet...") > "$echec" 2>&1; then
+        cat "$echec"
+        echo "⚠️  La construction de $paquet échoue : la séance s'ouvre, la consigne porte l'erreur."
+      else
+        : > "$echec"
+      fi
+    fi
   fi
-) > "$journal" 2>&1 || { echo "⛔ La copie $copie n'a pas pu être préparée : voir $journal." >&2; exit "$CODE_COPIE"; }
+) > "$journal" 2>&1 || { rm -f "$echec"; echo "⛔ La copie $copie n'a pas pu être préparée : voir $journal." >&2; exit "$CODE_COPIE"; }
 # What the components before publish, read in the prepared copy, follows the instruction.
 publie=$(cd "$copie" && node "$ici/../index-interfaces.mjs" --publie "$composant" 2>> "$journal") \
-  || { echo "⛔ Ce que publient les composants d'avant n'a pas pu se lire : voir $journal." >&2; exit "$CODE_COPIE"; }
+  || { rm -f "$echec"; echo "⛔ Ce que publient les composants d'avant n'a pas pu se lire : voir $journal." >&2; exit "$CODE_COPIE"; }
+construction=
+if [ -s "$echec" ]; then
+  construction=$'\n\n'"## La construction de ton paquet échoue"$'\n\n'"Ses fournisseurs sont construits ; sa propre construction échoue, et la réparer fait partie de ta tâche. La fin de sa sortie :"$'\n\n```\n'"$(tail -n 100 "$echec")"$'\n```'
+fi
+rm -f "$echec"
 
 # An envelope in error does not stop the launcher (set -e): its code is kept for the exit.
 code=0
 node "$racine/scripts/enveloppe/enveloppe.mjs" "$copie" "$composant" "$role" -- \
-  "${CLAUDE_BIN:-claude}" -p "$(cat "$consigne")"$'\n\n'"$publie" --agent "$role" \
+  "${CLAUDE_BIN:-claude}" -p "$(cat "$consigne")"$'\n\n'"$publie$construction" --agent "$role" \
   ${surcharge[@]+"${surcharge[@]}"} --permission-mode bypassPermissions < /dev/null >> "$journal" 2>&1 || code=$?
 # The envelope ended: the session's line goes to the register from outside it, whatever its end hook did.
 node "$racine/scripts/registre.mjs" --copie "$copie" >> "$journal" 2>&1 || true

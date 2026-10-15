@@ -129,6 +129,17 @@ describe('plan and the files field of a sibling', () => {
     ]);
     expect(ro).toEqual(['/', '/wt/packages/b/package.json', '/wt/packages/b/dist']);
   });
+  // Witness: BPScript, whose tests of 030-binder stopped on a cycle of Turborepo in the envelope:
+  // without a neighbour's turbo.json, Turborepo gave its build the root's `^build`.
+  it("mounts a sibling's package configuration of Turborepo, turbo.json or turbo.jsonc", () => {
+    const ro = roBinds({}, [
+      '/wt/packages/b/package.json',
+      '/wt/packages/b/turbo.json',
+      '/wt/packages/c/turbo.jsonc',
+    ]);
+    expect(ro).toContain('/wt/packages/b/turbo.json');
+    expect(ro).toContain('/wt/packages/c/turbo.jsonc');
+  });
   it('mounts no path of files that the disk lacks', () => {
     const ro = roBinds({ '/wt/packages/b': ['lib', 'bin'] }, ['/wt/packages/b/lib']);
     expect(ro).toContain('/wt/packages/b/lib');
@@ -298,6 +309,24 @@ describe('plan refuses', () => {
       fakeDisk({ '/wt/packages': [] }, [])
     );
     expect(refus).toMatch(/n'existe pas/);
+  });
+  // Witness: BPScript, whose first launch named the package (`000-forms`), not its path.
+  it("a component named by its package's name, and gives the path", () => {
+    const { refus } = plan(
+      {
+        trees: ['/main', '/wt'],
+        copie: '/wt',
+        composant: '001-kernel',
+        paquets: [
+          { dossier: 'packages/000-forms', pkg: { name: '000-forms' }, hors: false },
+          { dossier: 'packages/001-kernel', pkg: { name: '001-kernel' }, hors: false },
+        ],
+      },
+      fakeDisk({ '/wt/packages': [] }, [])
+    );
+    expect(refus).toMatch(/n'existe pas/);
+    expect(refus).toContain('packages/001-kernel');
+    expect(refus).not.toContain('packages/000-forms');
   });
   it('a link that crosses into a hidden component', () => {
     const disk = fakeDisk({ '/wt/packages': [], '/wt/packages/a': [] }, [], {

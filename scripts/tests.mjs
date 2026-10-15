@@ -25,6 +25,9 @@
 //   again. A build that fails ends the run, and no test plays. `--force` plays the tests named for
 //   real, their builds replayed from the cache: a test suspected unstable is played again, and a
 //   build, which the same inputs give again, is not.
+// - In the envelope of an agent (`GRILLHOUSE_ENVELOPPE`, scripts/enveloppe/composant.mjs), the
+//   neighbours arrive built by the launcher and read-only, as in a sandbox of Bazel: the build is
+//   the named packages' alone (`turbo run build --only --filter=<name>`), never their dependencies.
 // - An argument that begins with « - » is an option of Vitest, written `--<name>=<value>`, passed to
 //   each run of the tests as it is.
 // - A run that plays no test fails: the frame's base configuration of Vitest keeps Vitest's
@@ -33,9 +36,11 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { composantDeLEnveloppe } from './enveloppe/composant.mjs';
 import { paquets } from './paquets.mjs';
 
 const racine = process.cwd();
+const enveloppe = composantDeLEnveloppe() !== null;
 const args = process.argv.slice(2);
 const force = args.includes('--force') ? ['--force'] : [];
 const options = args.filter(a => a.startsWith('-') && a !== '--force');
@@ -45,10 +50,12 @@ const chemins = args.filter(a => !a.startsWith('-'));
 const turbo = args =>
   spawnSync('turbo', ['run', ...args], { cwd: racine, stdio: 'inherit' }).status ?? 1;
 
-// The builds <filtres> select, then the tests <filtres> select alone, which receive <passes>;
+// The builds <filtres> select (in an envelope, the packages they name alone), then the tests <filtres> select alone, which receive <passes>;
 // exits with the first exit code that is not 0, else with the tests'.
 const cibles = (filtres, passes) => {
-  const construction = turbo(['build', ...filtres.map(f => `${f}...`)]);
+  const construction = turbo(
+    enveloppe ? ['build', '--only', ...filtres] : ['build', ...filtres.map(f => `${f}...`)]
+  );
   if (construction !== 0) process.exit(construction);
   process.exit(turbo(['test:vitest', '--only', ...force, ...filtres, '--', ...passes]));
 };

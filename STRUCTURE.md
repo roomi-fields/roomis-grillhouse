@@ -53,6 +53,7 @@ roomis-grillhouse/
 │   ├── enveloppe/                 # The envelope: an agent sees its component, the others' interfaces, the test material
 │   │   ├── enveloppe.mjs             # bwrap sandbox for one component (tests: tests/unit/enveloppe.spec.ts)
 │   │   ├── codes.mjs                 # the exit codes of the envelope and its launcher
+│   │   ├── composant.mjs             # GRILLHOUSE_ENVELOPPE, the component the envelope names: npm test and npm run api build and write it alone
 │   │   └── lancer.sh                 # one ticket → one fresh role session in its envelope, its instruction followed by what its providers publish
 │   ├── dette.mjs                  # the known debt of the guards: grillhouse-dette.json (guard, file, rule → count); a guard passes within the counts, refuses a new finding or a count beyond, reports a count below
 │   ├── code-mort.mjs              # grillhouse:gardes: refuses dead code, measured by knip (knip.json); tests and benches count for dependency use only; the frame's scripts (fichiers.txt) are knip entries, judged in Grillhouse
@@ -66,6 +67,7 @@ roomis-grillhouse/
 │   ├── interfaces-contre-code.mjs # grillhouse:gardes: the TSDoc contract of each export (rubrics, tsdoc.json) and the generated part
 │   │                              #   of INTERFACE.md between its two marks; npm run api writes the reports and the parts
 │   │                              #   (a package without a « . » export, the shared test material, has no API to check)
+│   │                              #   (in an envelope, its component alone: tests/unit/commandes-en-enveloppe.spec.ts)
 │   ├── nuit.sh                    # once a night, the full pass played for real (npm run verifier -- --force: Turborepo's build, guards and tests, no log replayed), then the night tests and budget benches, then the project's night script (`grillhouse.nuit`), and pushes the green commit (`grillhouse.poussee.nuit`)
 │   │                              #   (*.nuit.test.*, *.nuit.spec.*, *.budget.test.*, *.budget.spec.*); a red opens a ticket;
 │   │                              #   « à repasser » (75: benches played once more at rest, then still under load) opens nothing and keeps the last green
