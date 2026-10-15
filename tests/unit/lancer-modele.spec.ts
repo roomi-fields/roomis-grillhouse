@@ -44,13 +44,41 @@ mkdirSync(path.join(REPO, 'packages/a/src'), { recursive: true });
 mkdirSync(path.join(REPO, '.claude/agents'), { recursive: true });
 mkdirSync(HOME, { recursive: true });
 writeFileSync(path.join(REPO, 'packages/a/src/a.ts'), 'a');
+// b provides a: its interface, with its generated part, declares a as consumer.
+mkdirSync(path.join(REPO, 'packages/b/docs'), { recursive: true });
+writeFileSync(
+  path.join(REPO, 'packages/b/docs/INTERFACE.md'),
+  [
+    '# b',
+    '',
+    'B rend les durées.',
+    '',
+    '<!-- généré: début -->',
+    '',
+    '### `duree`',
+    '',
+    'Rend la durée d’un objet.',
+    '',
+    '<!-- généré: fin -->',
+    '',
+    '## Consommateurs',
+    '',
+    '- `a` : duree',
+    '',
+  ].join('\n')
+);
 writeFileSync(
   path.join(REPO, '.claude/agents/developpeur.md'),
   '---\nname: developpeur\nmodel: sonnet\neffort: medium\n---\n'
 );
 installerEnveloppe(REPO);
 const FAUX = path.join(REPO, 'faux-claude.sh');
-writeFileSync(FAUX, '#!/bin/bash\nprintf "%s\\0" "$@" > packages/a/args\n', { mode: 0o755 });
+// It writes in the component of the session, the one the envelope leaves writable.
+writeFileSync(
+  FAUX,
+  '#!/bin/bash\nfor c in a b; do printf "%s\\0" "$@" 2>/dev/null > packages/$c/args && break; done\n',
+  { mode: 0o755 }
+);
 execFileSync('git', ['init', '-q', REPO]);
 execFileSync('git', ['-C', REPO, 'add', '.']);
 execFileSync('git', [
@@ -68,13 +96,13 @@ execFileSync('git', [
 let numero = 0;
 // One launch, on a ticket of its own: the options come before the four arguments of today, and
 // `apres` after them.
-function lancer(options: string[], apres: string[] = []) {
+function lancer(options: string[], apres: string[] = [], composant = 'packages/a') {
   const ticket = `demo-${++numero}`;
   const consigne = path.join(REPO, `${ticket}.txt`);
   writeFileSync(consigne, `TON TICKET : ${ticket} — un sujet.`);
   const r = spawnSync(
     'bash',
-    [LAUNCHER, ...options, ticket, 'developpeur', 'packages/a', consigne, ...apres],
+    [LAUNCHER, ...options, ticket, 'developpeur', composant, consigne, ...apres],
     {
       cwd: REPO,
       encoding: 'utf8',
@@ -82,15 +110,29 @@ function lancer(options: string[], apres: string[] = []) {
     }
   );
   const copie = path.join(REPO, '.claude/worktrees', ticket);
-  const fichier = path.join(copie, 'packages/a/args');
+  const fichier = path.join(copie, composant, 'args');
   const args = existsSync(fichier) ? readFileSync(fichier, 'utf8').split('\0').slice(0, -1) : null;
   return { r, copie, args, ticket };
 }
 
+// The section the launcher writes after the instruction, for a: what b publishes.
+const PUBLIE_POUR_A = [
+  "## Ce que les composants d'avant publient",
+  '',
+  '`a` dépend de ces composants ; chaque élément publié se lit à son adresse.',
+  '',
+  '### b',
+  '',
+  'B rend les durées. (`packages/b/docs/INTERFACE.md`)',
+  'Déclaré pour `a` : duree.',
+  '',
+  '- `duree` — Rend la durée d’un objet. (`packages/b/docs/INTERFACE.md` § `duree`)',
+].join('\n');
+
 // What claude receives today, for a ticket.
 const AUJOURDHUI = (ticket: string) => [
   '-p',
-  `TON TICKET : ${ticket} — un sujet.`,
+  `TON TICKET : ${ticket} — un sujet.\n\n${PUBLIE_POUR_A}`,
   '--agent',
   'developpeur',
   '--permission-mode',
@@ -163,6 +205,26 @@ describe.runIf(canWrap)('the launcher and the model and level of a session', () 
     expect(valeurs(args ?? [], '--effort')).toEqual(['max']);
     expect(args).not.toContain('sonnet');
     expect(args).not.toContain('medium');
+  });
+});
+
+// The instruction of the session carries what the components its component depends on publish,
+// read in the copy from the `## Consommateurs` sections of their interfaces.
+describe.runIf(canWrap)('the launcher and what the components before publish', () => {
+  it('gives the session of a dependent component the elements of its provider, at their address', () => {
+    const { r, args, ticket } = lancer([]);
+    expect(r.status, r.stderr).toBe(0);
+    expect(valeurs(args ?? [], '-p')).toEqual([
+      `TON TICKET : ${ticket} — un sujet.\n\n${PUBLIE_POUR_A}`,
+    ]);
+  });
+  it('tells the session of a component without provider, in one line, that it depends on none', () => {
+    const { r, args, ticket } = lancer([], [], 'packages/b');
+    expect(r.status, r.stderr).toBe(0);
+    expect(valeurs(args ?? [], '-p')).toEqual([
+      `TON TICKET : ${ticket} — un sujet.\n\n## Ce que les composants d'avant publient\n\n` +
+        '`b` ne dépend d’aucun composant : aucune section « Consommateurs » ne le nomme.',
+    ]);
   });
 });
 

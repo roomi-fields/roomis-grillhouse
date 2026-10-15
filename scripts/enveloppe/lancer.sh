@@ -37,9 +37,12 @@
 #   refused), the launch stops, CODE_COPIE, before any command runs. In the envelope the main
 #   repository is read-only as a whole.
 # - The envelope receives the role: it decides who writes the package of the shared test material.
-# - The session runs `claude -p` with the role's agent and the instruction file as its prompt;
-#   the prompt carries « TON TICKET : <ticket> », which the role's locks read. The envelope is the
-#   sandbox, so the session runs without permission prompts.
+# - The session runs `claude -p` with the role's agent and, as its prompt, the instruction file
+#   followed by the section « Ce que les composants d'avant publient »: for each component whose
+#   `## Consommateurs` section names the component, the elements its interface publishes, each at
+#   its address (`scripts/index-interfaces.mjs --publie`, read in the prepared copy; a reading that
+#   fails stops the launch, CODE_COPIE). The prompt carries « TON TICKET : <ticket> », which the
+#   role's locks read. The envelope is the sandbox, so the session runs without permission prompts.
 # - Its output, and an envelope refusal (CODE_REFUS), go to .claude/worktrees/<ticket>.log; the
 #   agent writes its report in the ticket. Once the envelope has ended, the launcher writes the
 #   session's line to the register (scripts/registre.mjs --copie), then exits with the envelope's code.
@@ -139,11 +142,14 @@ fi
     (cd "$copie" && monter npx --no-install turbo run build) || exit 1
   fi
 ) > "$journal" 2>&1 || { echo "⛔ La copie $copie n'a pas pu être préparée : voir $journal." >&2; exit "$CODE_COPIE"; }
+# What the components before publish, read in the prepared copy, follows the instruction.
+publie=$(cd "$copie" && node "$ici/../index-interfaces.mjs" --publie "$composant" 2>> "$journal") \
+  || { echo "⛔ Ce que publient les composants d'avant n'a pas pu se lire : voir $journal." >&2; exit "$CODE_COPIE"; }
 
 # An envelope in error does not stop the launcher (set -e): its code is kept for the exit.
 code=0
 node "$racine/scripts/enveloppe/enveloppe.mjs" "$copie" "$composant" "$role" -- \
-  "${CLAUDE_BIN:-claude}" -p "$(cat "$consigne")" --agent "$role" \
+  "${CLAUDE_BIN:-claude}" -p "$(cat "$consigne")"$'\n\n'"$publie" --agent "$role" \
   ${surcharge[@]+"${surcharge[@]}"} --permission-mode bypassPermissions < /dev/null >> "$journal" 2>&1 || code=$?
 # The envelope ended: the session's line goes to the register from outside it, whatever its end hook did.
 node "$racine/scripts/registre.mjs" --copie "$copie" >> "$journal" 2>&1 || true

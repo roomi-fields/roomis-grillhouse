@@ -1,9 +1,9 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { entrees, index, interfaces } from '../../scripts/index-interfaces.mjs';
+import { entrees, index, interfaces, publie } from '../../scripts/index-interfaces.mjs';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'index-interfaces-'));
@@ -409,5 +409,74 @@ describe('entrees and the generated part (grillhouse-3uv.64)', () => {
     expect(lines[0]).toBe('## (racine) — Le projet');
     expect(lines).toContain('- **Consommateurs** — a (tempo)');
     expect(elements(lines)).toEqual(['- **`tempo`** — Rend le tempo du projet.']);
+  });
+});
+
+// What the components before publish: the launcher writes, in the instruction of the role agent,
+// the elements each provider of its component publishes, with their address. The providers are
+// the components whose `## Consommateurs` section names it.
+describe('publie: what the providers of a component publish', () => {
+  const dir = repo({
+    'packages/b/docs/INTERFACE.md': `${INTERFACE_B}\n\n## Consommateurs\n\n- \`a\` : duree\n`,
+    'packages/c/docs/INTERFACE.md': '# c\n\nC rend des tempos.\n\n## Consommateurs\n\n- `a` : *\n',
+    'packages/d/docs/INTERFACE.md': '# d\n\nD ne rend rien.\n\n## Consommateurs\n\n- `e` : x\n',
+    'packages/a/src/a.ts': 'a',
+    'src/seul/index.ts': 's',
+  });
+
+  it('gives each provider, what is declared for the component, and each element at its address', () => {
+    expect(publie(dir, 'packages/a')).toBe(
+      [
+        "## Ce que les composants d'avant publient",
+        '',
+        '`a` dépend de ces composants ; chaque élément publié se lit à son adresse.',
+        '',
+        '### b — l’interface',
+        '',
+        'Le composant b rend les durées. (`packages/b/docs/INTERFACE.md`)',
+        'Déclaré pour `a` : duree.',
+        '',
+        '- `duree` — Rend la durée d’un objet en battements. (`packages/b/docs/INTERFACE.md` § `duree`)',
+        '- `Objet` — Un objet lu. (`packages/b/docs/INTERFACE.md` § `Objet`)',
+        '- `garde` (`packages/b/docs/INTERFACE.md` § `garde`)',
+        '',
+        '### c',
+        '',
+        'C rend des tempos. (`packages/c/docs/INTERFACE.md`)',
+        'Déclaré pour `a` : *.',
+        '',
+        'Son interface n’a pas de part générée : elle dit elle-même ce qu’elle publie.',
+      ].join('\n')
+    );
+  });
+  it('says in one line that a component no interface names as consumer depends on none', () => {
+    expect(publie(dir, 'packages/b')).toBe(
+      [
+        "## Ce que les composants d'avant publient",
+        '',
+        '`b` ne dépend d’aucun composant : aucune section « Consommateurs » ne le nomme.',
+      ].join('\n')
+    );
+    expect(publie(dir, 'src/seul')).toContain('`seul` ne dépend d’aucun composant');
+  });
+  it('points a copy of the whole repository to the index of the interfaces', () => {
+    expect(publie(dir, '.')).toBe(
+      [
+        "## Ce que les composants d'avant publient",
+        '',
+        'Ta copie montre tout le dépôt : `docs/agents/index-des-interfaces.md` porte ce que publie chaque composant.',
+      ].join('\n')
+    );
+  });
+  it('prints the section by the command run from the repository root, and writes nothing', () => {
+    const r = spawnSync('node', [SCRIPT, '--publie', 'packages/a'], { cwd: dir, encoding: 'utf8' });
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stdout).toBe(`${publie(dir, 'packages/a')}\n`);
+    expect(existsSync(path.join(dir, 'docs/agents/index-des-interfaces.md'))).toBe(false);
+  });
+  it('refuses the command without its component', () => {
+    const r = spawnSync('node', [SCRIPT, '--publie'], { cwd: dir, encoding: 'utf8' });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/usage/);
   });
 });

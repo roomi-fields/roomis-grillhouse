@@ -1209,7 +1209,10 @@ describe.runIf(canWrap)('the launcher', () => {
     expect(launch(consigne).status).toBe(0);
     const args = execFileSync('cat', [path.join(copie, 'packages/a/args')], { encoding: 'utf8' });
     expect(args).toBe(
-      '-p|TON TICKET : demo-1 — un sujet.|--agent|developpeur|--permission-mode|bypassPermissions|'
+      '-p|TON TICKET : demo-1 — un sujet.\n\n' +
+        "## Ce que les composants d'avant publient\n\n" +
+        '`a` ne dépend d’aucun composant : aucune section « Consommateurs » ne le nomme.' +
+        '|--agent|developpeur|--permission-mode|bypassPermissions|'
     );
     const vu = execFileSync('cat', [path.join(copie, 'packages/a/vu')], { encoding: 'utf8' });
     expect(vu).not.toMatch(/secret/);

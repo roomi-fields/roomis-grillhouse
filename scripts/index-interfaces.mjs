@@ -5,6 +5,13 @@
 //
 //   node scripts/index-interfaces.mjs            writes docs/agents/index-des-interfaces.md
 //   node scripts/index-interfaces.mjs --verifier refuses (exit 1) when that file is out of date
+//   node scripts/index-interfaces.mjs --publie <composant>
+//                                                prints what the providers of <composant> publish
+//
+// The providers of a component are the components whose `## Consommateurs` section names it: the
+// frame's one written and checked record of who uses whom (scripts/consommateurs.mjs). The launcher
+// (scripts/enveloppe/lancer.sh) writes the section `--publie` prints after the instruction of a role
+// agent; the relecteur prints it by the same command.
 //
 // An interface is found at `packages/<x>/docs/INTERFACE.md` and `src/<x>/docs/INTERFACE.md` for
 // each component of `composants` (a package out of the frame has none), and at
@@ -50,8 +57,10 @@ const firstSentence = lines => {
   return m ? m[1] : text;
 };
 
-// The index lines of one interface: its component line, then one line per heading.
-export function entrees(rel, contenu) {
+// One interface read once: its component, its heading, its first sentence, and its parts in their
+// order, each an element of its generated part `{ titre, phrase }` or its declared consumers
+// `{ consommateurs }` (Map consumer → Set of element names).
+export function lire(rel, contenu) {
   const lignes = contenu.split('\n');
   const composant = rel === 'docs/INTERFACE.md' ? '(racine)' : rel.split('/')[1];
   const titre = (lignes.find(l => l.startsWith('# ')) ?? `# ${composant}`).slice(2).trim();
@@ -91,27 +100,99 @@ export function entrees(rel, contenu) {
   }
   fermer();
   const [tete, ...reste] = sections;
-  const out = [
-    `## ${tetiere(composant, tete.titre)}`,
-    '',
-    `${firstSentence(tete.corps)} (\`${rel}\`)`,
-    '',
-  ];
+  const parties = [];
   for (const s of reste) {
     if (s.ignoree) continue;
     if (s.niveau === 2 && s.titre === 'Consommateurs') {
-      const liste = [...declares(`## Consommateurs\n${s.corps.map(l => `- ${l}`).join('\n')}`)]
+      parties.push({
+        consommateurs: declares(`## Consommateurs\n${s.corps.map(l => `- ${l}`).join('\n')}`),
+      });
+    } else if (s.generee) {
+      parties.push({ titre: s.titre, phrase: firstSentence(s.corps) });
+    }
+  }
+  return {
+    rel,
+    composant,
+    tetiere: tetiere(composant, tete.titre),
+    phrase: firstSentence(tete.corps),
+    parties,
+  };
+}
+
+// The index lines of one interface: its component line, then one line per heading.
+export function entrees(rel, contenu) {
+  const { tetiere: t, phrase, parties } = lire(rel, contenu);
+  const out = [`## ${t}`, '', `${phrase} (\`${rel}\`)`, ''];
+  for (const p of parties) {
+    if (p.consommateurs) {
+      const liste = [...p.consommateurs]
         .map(([qui, noms]) => `${qui} (${[...noms].join(', ')})`)
         .join(' ; ');
       out.push(`- **Consommateurs** — ${liste || 'aucun'}`);
-      continue;
+    } else {
+      out.push(`- **${p.titre}**${p.phrase ? ` — ${p.phrase}` : ''}`);
     }
-    if (!s.generee) continue;
-    const phrase = firstSentence(s.corps);
-    out.push(`- **${s.titre}**${phrase ? ` — ${phrase}` : ''}`);
   }
   out.push('');
   return out;
+}
+
+const TITRE_PUBLIE = "## Ce que les composants d'avant publient";
+
+// What the components before <composant> publish, as the section the launcher writes after the
+// instruction of a role agent (scripts/enveloppe/lancer.sh). <composant> is the component's path
+// in the repository at <racine> (`packages/a`, `src/parser`), or `.` for a copy of the whole
+// repository. Its providers are the components whose `## Consommateurs` section names it; for
+// each, its first sentence, the elements declared for it, then each element of its generated
+// part with its address (`<interface> § <heading>`). Each interface is read once.
+export function publie(racine, composant) {
+  if (composant === '.') {
+    return [
+      TITRE_PUBLIE,
+      '',
+      `Ta copie montre tout le dépôt : \`${SORTIE}\` porte ce que publie chaque composant.`,
+    ].join('\n');
+  }
+  const nom = path.basename(composant);
+  const fournisseurs = interfaces(racine)
+    .map(rel => lire(rel, readFileSync(path.join(racine, rel), 'utf8')))
+    .flatMap(i => {
+      const declare = i.parties.find(p => p.consommateurs?.has(nom));
+      return declare && i.composant !== nom
+        ? [{ ...i, declare: declare.consommateurs.get(nom) }]
+        : [];
+    });
+  if (fournisseurs.length === 0) {
+    return [
+      TITRE_PUBLIE,
+      '',
+      `\`${nom}\` ne dépend d’aucun composant : aucune section « Consommateurs » ne le nomme.`,
+    ].join('\n');
+  }
+  const out = [
+    TITRE_PUBLIE,
+    '',
+    `\`${nom}\` dépend de ces composants ; chaque élément publié se lit à son adresse.`,
+  ];
+  for (const f of fournisseurs) {
+    const elements = f.parties.filter(p => !p.consommateurs);
+    out.push(
+      '',
+      `### ${f.tetiere}`,
+      '',
+      `${f.phrase} (\`${f.rel}\`)`,
+      `Déclaré pour \`${nom}\` : ${[...f.declare].join(', ')}.`,
+      ''
+    );
+    if (elements.length === 0) {
+      out.push('Son interface n’a pas de part générée : elle dit elle-même ce qu’elle publie.');
+    }
+    for (const e of elements) {
+      out.push(`- ${e.titre}${e.phrase ? ` — ${e.phrase}` : ''} (\`${f.rel}\` § ${e.titre})`);
+    }
+  }
+  return out.join('\n');
 }
 
 export function index(racine) {
@@ -130,6 +211,16 @@ export function index(racine) {
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const racine = process.cwd();
+  const i = process.argv.indexOf('--publie');
+  if (i >= 0) {
+    const composant = process.argv[i + 1];
+    if (!composant) {
+      process.stderr.write('usage: node scripts/index-interfaces.mjs --publie <composant>\n');
+      process.exit(2);
+    }
+    process.stdout.write(`${publie(racine, composant)}\n`);
+    process.exit(0);
+  }
   const attendu = index(racine);
   const cible = path.join(racine, SORTIE);
   if (process.argv.includes('--verifier')) {

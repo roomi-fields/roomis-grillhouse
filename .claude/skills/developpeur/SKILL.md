@@ -17,15 +17,16 @@ prime sur tout le reste.
 2. Lis les documents des composants que ton ticket touche : `CADRE.md`, `INTERFACE.md`,
    `ARCHITECTURE.md` (`docs/`, ou `packages/<x>/docs/`), et le lexique `CONTEXT.md`. Ainsi ton
    code part de l'architecture écrite. Un document absent ne t'arrête pas.
-3. Lance les tests du testeur, déjà dans ta copie (`npm test -- <fichiers>`, chemins depuis la
+3. Lis la section « Ce que les composants d'avant publient » de ta consigne : les faits que ton
+   composant reçoit de chaque composant dont il dépend, chacun avec son adresse. Ainsi tu sais ce
+   qui est déjà calculé, et où.
+4. Lance les tests du testeur, déjà dans ta copie (`npm test -- <fichiers>`, chemins depuis la
    racine du dépôt), et vois-les rouges.
    Ainsi ton code se mesure à des tests que tu n'as pas écrits.
 
 ## Tes références, à lire au moment où elles servent
 
 - `METACADRE.md` — les intentions du cadre : quand une règle semble aller contre son but.
-- `docs/agents/index-des-interfaces.md` — ce que fournit chaque composant : quand tu cherches une
-  donnée ou un calcul hors de ton paquet.
 - `docs/ARCHITECTURE.md` — l'architecture d'ensemble : quand ton ticket touche une frontière.
 - `docs/agents/issue-tracker.md` — le format du ticket, des notes et de la passation : avant
   d'écrire au ticket.
@@ -46,8 +47,10 @@ prime sur tout le reste.
 
 ## Le code
 
-- **Chaque calcul a un seul composant** : une donnée qui relève d'un autre composant se lit dans la
-  forme qu'il publie ; quand elle manque, il la publie, et aucun autre ne la recalcule.
+- **Ton composant reçoit les faits de ses fournisseurs** : ceux de la section « Ce que les
+  composants d'avant publient ». Tu lis chacun à son adresse, et ton code le prend tel que son
+  fournisseur le publie ; un calcul qui refait l'un d'eux se refuse. Ainsi chaque fait a un seul
+  calcul, comme une passe LLVM reçoit son analyse du gestionnaire.
 - **L'existant d'abord** : avant d'écrire un calcul ou d'inventer un nom, tu cherches celui qui
   existe (ton paquet, le lexique, les interfaces voisines) et tu vérifies ce qu'il fait.
 - **Une entrée ambiguë se refuse** : ce que le produit ne sait pas interpréter d'une seule façon
@@ -71,9 +74,10 @@ est un vrai rouge.
 - **Une question sans règle** : un cas que ni les critères ni une règle ne tranchent. Tu rends au
   superviseur les options, ce que chacune donne aujourd'hui et ta recommandation ; ton code suit
   ensuite le verdict « Arbitrage » au ticket.
-- **Une donnée ou un élément qu'un autre composant ne t'accorde pas** (absent de l'index, ou absent
-  de la section « Consommateurs » de son interface) : une découverte qui bloque, que le superviseur
-  porte à l'arbitre.
+- **Un fait que ton code prend chez un fournisseur hors de sa ligne « Déclaré pour »** (un élément
+  publié pas encore déclaré pour toi, ou un fait que ta section ne porte pas) : une découverte qui
+  bloque, que le superviseur porte à l'arbitre, et qui entre ensuite dans la section
+  « Consommateurs » du fournisseur.
 - **Une découverte qui bloque** : tu t'arrêtes sans rien livrer. Tu écris l'état du travail dans
   les notes du ticket (`bd update <id> --notes`) : ce qui est fait, ce qui reste, ce que tu attends
   et de quel composant ; ton code reste dans ta copie. Ainsi l'agent qui reprend repart de ton

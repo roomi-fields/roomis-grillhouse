@@ -14,6 +14,8 @@ Tu n'écris que des fichiers de test et le paquet de la matière de test partag�
 1. Lis ton ticket en entier (`bd show`, `bd comments`), puis `bd update <id> --claim`.
 2. Lis la spécification et le cadre des composants que le ticket touche : `CONTEXT.md`, puis
    `CADRE.md`, `INTERFACE.md` et `ARCHITECTURE.md` de chaque composant.
+3. Lis la section « Ce que les composants d'avant publient » de ta consigne : les faits que le
+   composant reçoit de chaque composant dont il dépend, chacun avec son adresse.
 
 ## Tes références, à lire au moment où elles servent
 
@@ -31,6 +33,11 @@ Ainsi le code qui les fait passer traite la règle, pas l'exemple.
 **Un critère, ses tests** : chaque critère d'acceptation du ticket reçoit au moins un test, dont
 le nom cite son numéro. Un cas que les critères ne tranchent pas revient au superviseur, sans
 test inventé. Ainsi le code se mesure à ce que le ticket attend, et rien d'autre.
+
+**Les faits reçus entrent tels que leur fournisseur les publie** : un test qui a besoin d'un fait
+de la section « Ce que les composants d'avant publient » le lit à son adresse et le donne au
+composant dans cette forme ; un test qui attend du composant qu'il refasse l'un d'eux se refuse.
+Ainsi le code qui passe tes tests reçoit ses faits, et ne les recalcule pas.
 
 **Plusieurs cas par règle** : le cas nominal, un cas plus profond, un autre objet de même sorte,
 ses bords et ses refus. Ainsi un code taillé pour l'exemple du ticket échoue.
