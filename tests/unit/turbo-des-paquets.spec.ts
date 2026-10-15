@@ -121,9 +121,10 @@ describe('the build of a package waits for its runtime dependencies only', () =>
     expect(t['a#build']).toEqual(['socle#build']);
     expect(t['b#build']).toEqual(['socle#build']);
     expect(t['c#build']).toEqual(['socle#build']);
-    // A test waits for everything it imports, devDependencies included (the root's ^build).
-    expect(t['a#test:vitest']).toEqual(['corpus#build', 'socle#build']);
-    expect(t['b#test:vitest']).toEqual(['c#build', 'corpus#build']);
+    // A test waits for its own package's build and for everything it imports, devDependencies
+    // included (the root's build and ^build): a package tests its built entry.
+    expect(t['a#test:vitest']).toEqual(['a#build', 'corpus#build', 'socle#build']);
+    expect(t['b#test:vitest']).toEqual(['b#build', 'c#build', 'corpus#build']);
     expect(t['corpus#build']).toEqual(['a#build', 'b#build', 'c#build']);
   });
 
@@ -361,11 +362,12 @@ describe('a package out of the frame stays a workspace, and Turborepo plays none
     ).toEqual([]);
     expect(ids).toContain('banc#test:vitest');
     expect(ids).toContain('banc#lint');
-    // The build waits for its runtime dependencies of the frame; a test for all it imports.
+    // The build waits for its runtime dependencies of the frame; a test for its own build and all
+    // it imports.
     expect(t['banc#build']).toEqual(['socle#build']);
-    expect(t['banc#test:vitest']).toEqual(['socle#build']);
+    expect(t['banc#test:vitest']).toEqual(['banc#build', 'socle#build']);
     expect(t['corpus#build']).toEqual(['banc#build']);
-    expect(t['lecteur#test:vitest']).toEqual(['corpus#build']);
+    expect(t['lecteur#test:vitest']).toEqual(['corpus#build', 'lecteur#build']);
   });
 
   it('a package out of the frame receives the exclusion of each task of the root', () => {
@@ -394,7 +396,7 @@ describe('a package out of the frame stays a workspace, and Turborepo plays none
       extends: ['//'],
       tasks: {
         build: { dependsOn: ['socle#build'] },
-        'test:vitest': { dependsOn: ['socle#build'] },
+        'test:vitest': { dependsOn: ['build', 'socle#build'] },
       },
     });
     // A package that declares none keeps the root's tests.

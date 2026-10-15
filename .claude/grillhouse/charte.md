@@ -110,8 +110,9 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
   et joué dans son paquet, `npm run test:forcer -- <chemins>` pour rejouer pour de vrai un test
   soupçonné instable ; un lancement qui ne joue aucun test échoue ; aucun agent ne lance l'outil
   de test directement. `npm run verifier` joue tout après la construction : les gardes du cadre,
-  celles du projet (son script racine `gardes`, un nom que le cadre réserve) et les tests, côte
-  à côte. Une tâche dont
+  celles du projet (son script racine `gardes`, un nom que le cadre réserve ; une garde juge les
+  fichiers de l'arbre de travail, que le cache de Turborepo compte, jamais l'index de git) et les
+  tests, côte à côte. Une tâche dont
   rien n'a bougé n'est pas rejouée : Turborepo relit sa sortie consignée dans son cache (« cache
   hit, replaying logs »), et cette relecture vaut un lancement. Ainsi un test ne tourne qu'une
   fois tant que rien ne change.

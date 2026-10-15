@@ -15,7 +15,8 @@
 // (https://turborepo.dev/docs/reference/package-configurations): `extends: ["//"]`, and a `build`
 // whose `dependsOn`, which replaces the root's, holds the `<name>#build` of each internal package
 // its `dependencies`, `peerDependencies` and `optionalDependencies` name that has a `build`
-// script, sorted. The tests keep the root's `^build`: a test waits for everything it imports.
+// script, sorted. The tests keep the root's `build` and `^build`: a test waits for its own package's build, whose
+// built entry it imports, and for everything it imports.
 //
 // A package out of the frame (`docs/agents/hors-cadre.txt`: a directory under `packages/` or
 // `src/`) stays a workspace, which a neighbour may import by its name, and Turborepo plays none

@@ -483,10 +483,10 @@ describe('the update installs Turborepo', () => {
       'test:vitest': { dependsOn: ['build'], outputs: [] },
     });
   });
-  it('the template with packages: each package builds and tests after its dependencies, the root plays the guards, whose dependsOn the generator writes', () => {
+  it('the template with packages: each package builds after its dependencies and tests after its own build and theirs, the root plays the guards, whose dependsOn the generator writes', () => {
     expect(taches(DEPOT, PAQUETS)).toEqual({
       build: { dependsOn: ['^build'], outputs: ['dist/**'] },
-      'test:vitest': { dependsOn: ['^build'], outputs: [] },
+      'test:vitest': { dependsOn: ['build', '^build'], outputs: [] },
       '//#grillhouse:gardes': { dependsOn: [], outputs: [] },
       '//#gardes': { dependsOn: [], outputs: [] },
     });

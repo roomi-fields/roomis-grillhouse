@@ -12,6 +12,7 @@
     },
     "test:vitest": {
       "dependsOn": [
+        "build",
         "^build"
       ],
       "outputs": []
