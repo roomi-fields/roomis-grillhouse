@@ -130,7 +130,15 @@ remplace jamais le grill. Les branches de l'arbre :
    **Le corpus du produit, un seul paquet** : les cas qui traversent toute la chaîne, et dont toute
    modification d'un paquet peut changer le résultat, vivent dans un seul paquet qui exporte
    `./test-fixtures`, comme `tests/cases` de TypeScript ou `tests/ui` de rustc ; tous les rôles le
-   lisent, le testeur seul l'écrit. Chaque
+   lisent, le testeur seul l'écrit. Ses données (scènes, paires) ne bougent que les tests qui
+   les lisent, comme le `data` de Bazel : chaque paquet déclare dans son `package.json`, depuis la
+   racine, les dossiers de données seules que ses tests lisent (`"grillhouse": { "lit": [...] }`) ;
+   son test les prend en entrée, et la construction du corpus les laisse hors des siennes. Une
+   trace qu'un étage produit (des grammaires encodées du corpus), comme une genrule de Bazel, vit
+   dans le paquet producteur, dans un dossier que git ignore, et se déclare avec ce qu'elle lit
+   (`"traces": { "trace:<nom>": { "lit": [...], "ecrit": "<dossier>" } }`, sa commande le script du
+   même nom, qui vide son dossier d'abord) ; un lecteur la déclare dans son `lit`. Ainsi un test
+   ne dépend que de son code, de ce qu'il importe et des dossiers qu'il déclare. Chaque
    paquet construit porte un script `build` qui écrit son `dist/` ; Turborepo les lance
    (`turbo.json`, tâche `build`) : une construction attend celle de ses seules dépendances
    d'exécution (`dependencies`, `peerDependencies`, `optionalDependencies`), et un test celle de

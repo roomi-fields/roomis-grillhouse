@@ -1,9 +1,11 @@
 #!/usr/bin/env node
-// The `turbo.json` of each package of a repository of packages, generated from its package.json,
-// the root's turbo.json and the list of the packages out of the frame; and the `dependsOn` of the
-// guard tasks of the root's turbo.json.
+// The `turbo.json` of each package of a repository of packages, generated from its package.json
+// (its dependencies, the data its tests read and the traces it writes), the root's turbo.json and
+// the list of the packages out of the frame; and the `dependsOn` of the guard tasks of the root's
+// turbo.json.
 //
-//   node scripts/turbo-des-paquets.mjs           refuses a turbo.json absent or stale
+//   node scripts/turbo-des-paquets.mjs           refuses a turbo.json absent or stale, and a
+//                                                declaration of data or trace refused (below)
 //   node scripts/turbo-des-paquets.mjs --ecrire  writes the turbo.json of each package and the
 //                                                guards' dependsOn in the root's
 //
@@ -28,6 +30,39 @@
 // the `<name>#<task>` of each internal package it declares there, out of the frame left out,
 // sorted. The check refuses a configuration that is not so, which Turborepo would play.
 //
+// The data a package's tests read, as Bazel's `data`, and the traces a stage writes, as Bazel's
+// genrule: the test task of a package depends on its code, on what it imports and on the
+// directories it declares only. A package declares in its package.json, each path from the root:
+//
+//   "grillhouse": {
+//     "lit": ["packages/990-corpus/test/060-encoder/paires-v1"],
+//     "traces": { "trace:grammaires": { "lit": ["…/paires-v1"], "ecrit": "packages/060-encoder/trace/grammaires-du-corpus" } }
+//   }
+//
+// - `lit`: the directories of data its tests read. Its `test:vitest` hashes them
+//   (`inputs`: the root's, `$TURBO_EXTENDS$`, or Turborepo's default, `$TURBO_DEFAULT$`, when the
+//   root's task sets none, since `$TURBO_EXTENDS$` then extends an empty list; then
+//   `$TURBO_ROOT$/<dir>/**` each) and waits, beside the root's `dependsOn`, for each trace whose
+//   output one of them overlaps (`<producer>#trace:<name>`); the producer declares nothing for it.
+// - `traces`: each trace the package produces, its command the package's script of the same name,
+//   `trace:<name>`. Its task waits for `build` and `^build`, and for the traces its `lit` overlaps;
+//   it hashes the package's files and its `lit`, its output left out, and Turborepo caches its
+//   output, `ecrit`, a directory inside the package that git ignores. A restore from the cache
+//   adds files and removes none: the command empties its directory before writing it.
+// - The package holding a declared directory (the shared test material) has its `build` leave it
+//   out (`inputs`: the root's, then `!<dir>/**` each): its data no longer moves its build, nor the
+//   tests of every package that waits for it. The builds a package's dependencies give stay as
+//   they are: a package reduces them in its package.json.
+//
+// The check refuses a declared directory absent that no trace writes, or holding code (a file a
+// build compiles: `.ts`, `.tsx`, `.mts`, `.cts`, `.d.ts` included, whose types tsc checks, `.js`,
+// `.jsx`, `.mjs`, `.cjs`; code is imported, its change seen through the build of its package); a
+// trace written out of its package, followed by git, or not ignored; a `trace:*` script without
+// declaration, a declaration without script or not named `trace:<name>`. In the root's
+// turbo.json, which is the project's, it refuses what the generator owns: a task of one package
+// (`<package>#<task>`, the root's own `//#…` kept), a `trace:*` task, an input (`inputs` under
+// `$TURBO_ROOT$/`, `globalDependencies`) naming a package directory.
+//
 // The guard tasks of the root: the frame's controls (`grillhouse:gardes`) and the project's own
 // guards (`gardes`, the root script the frame reserves for them; a root without it plays none),
 // which `npm run verifier` plays beside the tests. They read what the builds write (the API
@@ -46,7 +81,8 @@
 // a repository, each marked out of the frame or not). A repository without `workspaces` has none:
 // no package turbo.json is written or refused. The dependencies are written in the package.json
 // only; this file is their only reader for the tasks' order.
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { applyEdits, modify, parse } from 'jsonc-parser';
@@ -64,6 +100,12 @@ const RACINES = ['turbo.json', 'turbo.jsonc'];
 export const GARDES = ['grillhouse:gardes', 'gardes'];
 // The layout of what the generator writes in the root's turbo.json.
 const MISE_EN_FORME = { formattingOptions: { insertSpaces: true, tabSize: 2, eol: '\n' } };
+// The test task of a package, and the prefix of a trace task.
+const TESTS = 'test:vitest';
+const TRACE = 'trace:';
+// The files a build compiles: TypeScript's sources and declarations (tsc's default `include`
+// takes a `.d.ts` into the program, whose types the build checks) and JavaScript (`allowJs`).
+const CODE = /\.(?:[cm]?[jt]s|[jt]sx)$/;
 
 // <texte> as JSON, its JSONC comments and trailing commas allowed, as Turborepo reads its
 // configuration; null when it is no JSON.
@@ -76,16 +118,57 @@ const lireJsonc = texte => {
 // The root configuration of Turborepo at <racine>: its path relative to <racine>, or null.
 const fichierRacine = racine => RACINES.find(n => existsSync(path.join(racine, n))) ?? null;
 
-// The tasks of the root configuration of Turborepo at <racine>: Map<name, dependsOn>, the tasks
-// of the root package (`//#…`) and of one package (`<name>#…`) left out; empty without one.
-function tachesRacine(racine) {
+// The root configuration of Turborepo at <racine>, parsed, with its path: { f, conf }, or null.
+function confRacine(racine) {
   const f = fichierRacine(racine);
   const conf = f ? lireJsonc(readFileSync(path.join(racine, f), 'utf8')) : null;
+  return conf ? { f, conf } : null;
+}
+
+// The tasks of the root configuration of Turborepo at <racine>: Map<name, { dependsOn, inputs }>
+// (`inputs` null when the task has none), the tasks of the root package (`//#…`) and of one
+// package (`<name>#…`) left out; empty without one.
+function tachesRacine(racine) {
   const taches = new Map();
-  for (const [nom, t] of Object.entries(conf?.tasks ?? {})) {
-    if (!nom.includes('#')) taches.set(nom, Array.isArray(t?.dependsOn) ? t.dependsOn : []);
+  for (const [nom, t] of Object.entries(confRacine(racine)?.conf.tasks ?? {})) {
+    if (nom.includes('#')) continue;
+    taches.set(nom, {
+      dependsOn: Array.isArray(t?.dependsOn) ? t.dependsOn : [],
+      inputs: Array.isArray(t?.inputs) ? t.inputs : null,
+    });
   }
   return taches;
+}
+
+// A path from the root, without its trailing slashes.
+const net = d => String(d ?? '').replace(/\/+$/, '');
+// Whether <f> is <d> or under it.
+const sous = (f, d) => f === d || f.startsWith(`${d}/`);
+// Whether one of <a> and <b> holds the other.
+const recouvre = (a, b) => sous(a, b) || sous(b, a);
+
+// The data and traces each package of the frame declares in its package.json:
+// [{ dossier, pkg, lit, traces: [{ tache, id, lit, ecrit }] }], each path from the root.
+function declarations(liste) {
+  return liste
+    .filter(p => !p.hors)
+    .map(({ dossier, pkg }) => {
+      const g = pkg.grillhouse ?? {};
+      const chemins = l => [...new Set((Array.isArray(l) ? l : []).map(net))].sort();
+      return {
+        dossier,
+        pkg,
+        lit: chemins(g.lit),
+        traces: Object.entries(g.traces ?? {})
+          .map(([tache, t]) => ({
+            tache,
+            id: `${pkg.name}#${tache}`,
+            lit: chemins(t?.lit),
+            ecrit: net(t?.ecrit),
+          }))
+          .sort((a, b) => (a.tache < b.tache ? -1 : 1)),
+      };
+    });
 }
 
 // The text of a package's turbo.json, whose tasks are <taches>.
@@ -106,6 +189,7 @@ const internes = (pkg, champs, noms) =>
 export function attendus(racine) {
   const liste = paquets(racine);
   const racineTaches = [...tachesRacine(racine)].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  const deRacine = new Map(racineTaches);
   const hors = new Set(liste.filter(p => p.hors).map(({ pkg }) => pkg.name));
   const duCadre = new Set(liste.filter(p => !p.hors).map(({ pkg }) => pkg.name));
   const construits = new Set(
@@ -113,6 +197,21 @@ export function attendus(racine) {
       .filter(({ pkg, hors }) => !hors && typeof pkg.scripts?.build === 'string')
       .map(({ pkg }) => pkg.name)
   );
+  const decls = new Map(declarations(liste).map(d => [d.dossier, d]));
+  const traces = [...decls.values()].flatMap(d => d.traces);
+  // The trace tasks whose output one of <lit> overlaps, <soi> left out, sorted.
+  const jointes = (lit, soi) =>
+    traces
+      .filter(t => t.id !== soi && lit.some(l => recouvre(l, t.ecrit)))
+      .map(t => t.id)
+      .sort();
+  // The directories of data declared: the ones a trace writes left out, which git ignores.
+  const donnees = [
+    ...new Set([...decls.values()].flatMap(d => [...d.lit, ...d.traces.flatMap(t => t.lit)])),
+  ].filter(l => !traces.some(t => recouvre(l, t.ecrit)));
+  // The inputs of the root's <tache> a package's own extend: the root's, or Turborepo's default
+  // when the root sets none (`$TURBO_EXTENDS$` then extends an empty list).
+  const base = tache => (deRacine.get(tache)?.inputs ? '$TURBO_EXTENDS$' : '$TURBO_DEFAULT$');
   const out = new Map();
   for (const { dossier, pkg, hors: exclu } of liste) {
     const taches = {};
@@ -122,20 +221,44 @@ export function attendus(racine) {
       taches.build = {
         dependsOn: internes(pkg, EXECUTION, construits).map(n => `${n}#build`),
       };
-      if (TOPOLOGIE.some(c => Object.keys(pkg[c] ?? {}).some(n => hors.has(n)))) {
-        const voisins = internes(pkg, TOPOLOGIE, duCadre);
-        for (const [nom, dependances] of racineTaches) {
-          if (nom === 'build' || !dependances.some(d => d.startsWith('^'))) continue;
-          taches[nom] = {
-            dependsOn: [
+      const dedans = donnees
+        .filter(d => d !== dossier && sous(d, dossier))
+        .map(d => path.posix.relative(dossier, d))
+        .sort();
+      if (dedans.length) taches.build.inputs = [base('build'), ...dedans.map(d => `!${d}/**`)];
+      const horsVoisin = TOPOLOGIE.some(c => Object.keys(pkg[c] ?? {}).some(n => hors.has(n)));
+      const voisins = internes(pkg, TOPOLOGIE, duCadre);
+      // <dependances> with each `^<task>` written out when a neighbour is out of the frame.
+      const deplier = dependances =>
+        horsVoisin
+          ? [
               ...dependances.filter(d => !d.startsWith('^')),
               ...dependances
                 .filter(d => d.startsWith('^'))
                 .flatMap(d => voisins.map(n => `${n}#${d.slice(1)}`))
                 .sort(),
-            ],
-          };
+            ]
+          : dependances;
+      if (horsVoisin) {
+        for (const [nom, { dependsOn }] of racineTaches) {
+          if (nom === 'build' || !dependsOn.some(d => d.startsWith('^'))) continue;
+          taches[nom] = { dependsOn: deplier(dependsOn) };
         }
+      }
+      const decl = decls.get(dossier);
+      if (decl.lit.length) {
+        taches[TESTS] = {
+          dependsOn: [...deplier(deRacine.get(TESTS)?.dependsOn ?? []), ...jointes(decl.lit)],
+          inputs: [base(TESTS), ...decl.lit.map(l => `$TURBO_ROOT$/${l}/**`)],
+        };
+      }
+      for (const t of decl.traces) {
+        const ecrit = path.posix.relative(dossier, t.ecrit);
+        taches[t.tache] = {
+          dependsOn: [...deplier(['build', '^build']), ...jointes(t.lit, t.id)],
+          inputs: ['$TURBO_DEFAULT$', ...t.lit.map(l => `$TURBO_ROOT$/${l}/**`), `!${ecrit}/**`],
+          outputs: [`${ecrit}/**`],
+        };
       }
     }
     out.set(path.join(dossier, TURBO), texte(taches));
@@ -199,10 +322,137 @@ export function ecrire(racine) {
   return ecrits;
 }
 
-// The refusals of <racine>: one line per package turbo.json absent or other than generated, one per
-// guard task of the root absent or whose dependsOn differs.
-export function verifier(racine) {
+// The files of code under <chemin> of <racine> (a directory, or a file), each path from the root,
+// sorted; what lies under one of <exclus> left out.
+function codeSous(racine, chemin, exclus) {
+  const trouves = [];
+  const parcourir = rel => {
+    if (exclus.some(e => sous(rel, e))) return;
+    if (!statSync(path.join(racine, rel)).isDirectory()) {
+      if (CODE.test(rel)) trouves.push(rel);
+      return;
+    }
+    for (const n of readdirSync(path.join(racine, rel))) parcourir(`${rel}/${n}`);
+  };
+  parcourir(chemin);
+  return trouves.sort();
+}
+
+const gitSort = (racine, args) => spawnSync('git', args, { cwd: racine, encoding: 'utf8' });
+
+// The refusals of the data and traces the packages of <racine> declare: one line per declared
+// directory absent that no trace writes or holding code, per trace written out of its producer,
+// followed by git or not ignored, per trace script without declaration and declaration without
+// script.
+function declarationsRefusees(racine) {
+  const decls = declarations(paquets(racine));
+  const ecrits = decls.flatMap(d => d.traces.map(t => t.ecrit));
   const refus = [];
+  for (const { dossier, pkg, lit, traces } of decls) {
+    const ici = `${dossier}/package.json`;
+    const declarees = new Set(traces.map(t => t.tache));
+    for (const s of Object.keys(pkg.scripts ?? {}).filter(s => s.startsWith(TRACE))) {
+      if (!declarees.has(s)) {
+        refus.push(
+          `⛔ ${ici} : le script \`${s}\` n'a pas de déclaration dans \`grillhouse.traces\` (les dossiers qu'il lit, celui qu'il écrit).`
+        );
+      }
+    }
+    for (const t of traces) {
+      if (!t.tache.startsWith(TRACE)) {
+        refus.push(`⛔ ${ici} : la trace \`${t.tache}\` se nomme \`${TRACE}<nom>\`.`);
+      } else if (typeof pkg.scripts?.[t.tache] !== 'string') {
+        refus.push(
+          `⛔ ${ici} : la trace \`${t.tache}\` n'a pas de script du même nom, sa commande.`
+        );
+      }
+      if (t.ecrit === dossier || !sous(t.ecrit, dossier)) {
+        refus.push(
+          `⛔ ${ici} : la trace \`${t.tache}\` écrit \`${t.ecrit}\`, hors de son paquet ; une trace vit dans le paquet qui la produit.`
+        );
+      } else if (gitSort(racine, ['ls-files', '--', t.ecrit]).stdout.trim()) {
+        refus.push(
+          `⛔ ${ici} : git suit \`${t.ecrit}\`, que la trace \`${t.tache}\` écrit ; une trace se régénère, git l'ignore (\`git rm -r --cached\`).`
+        );
+      } else if (gitSort(racine, ['check-ignore', '-q', `${t.ecrit}/x`]).status !== 0) {
+        refus.push(
+          `⛔ ${ici} : \`${t.ecrit}\`, que la trace \`${t.tache}\` écrit, manque au .gitignore ; une trace se régénère, git l'ignore.`
+        );
+      }
+    }
+    for (const l of [...new Set([...lit, ...traces.flatMap(t => t.lit)])].sort()) {
+      const sortie = ecrits.some(e => recouvre(l, e));
+      if (!existsSync(path.join(racine, l))) {
+        if (!sortie) {
+          refus.push(
+            `⛔ ${ici} : le dossier lu \`${l}\` n'existe pas, et aucune trace ne l'écrit (\`grillhouse.traces\`).`
+          );
+        }
+        continue;
+      }
+      const code = codeSous(racine, l, ecrits);
+      if (code.length) {
+        const noms = code.length > 5 ? [...code.slice(0, 5), '…'] : code;
+        refus.push(
+          `⛔ ${ici} : le dossier lu \`${l}\` contient du code (${noms.join(', ')}) ; un dossier déclaré ne porte que des données, le code s'importe.`
+        );
+      }
+    }
+  }
+  return refus;
+}
+
+// Whether the pattern <motif> (from the root) can name a file of one of the <dossiers>: its fixed
+// part, before the first glob character, lies in one, or holds one under a glob.
+function visePaquet(motif, dossiers) {
+  const segments = motif.replace(/^\.\//, '').split('/');
+  const i = segments.findIndex(s => /[*?[\]{}]/.test(s));
+  const fixe = net((i < 0 ? segments : segments.slice(0, i)).join('/'));
+  return dossiers.some(d => sous(fixe, d) || (i >= 0 && (fixe === '' || sous(d, fixe))));
+}
+
+// The refusals of the root's turbo.json at <racine> that the generator owns: a task of one package
+// (`<package>#<task>`), a trace task, an input (`inputs` of a task, `globalDependencies`) naming a
+// package directory.
+function racineRefusee(racine) {
+  const r = confRacine(racine);
+  if (r === null) return [];
+  const { f, conf } = r;
+  const dossiers = paquets(racine).map(p => p.dossier);
+  const refus = [];
+  const entree = (e, ou) =>
+    refus.push(
+      `⛔ ${f} : ${ou} \`${e}\` vise un dossier de paquet ; un paquet déclare les dossiers que ses tests lisent dans son package.json (\`grillhouse.lit\`), et \`${COMMANDE}\` écrit son turbo.json.`
+    );
+  for (const [nom, t] of Object.entries(conf.tasks ?? {})) {
+    const diese = nom.indexOf('#');
+    if (diese >= 0 && nom.slice(0, diese) !== '//') {
+      refus.push(
+        `⛔ ${f} : la tâche \`${nom}\` configure un paquet à la main ; son turbo.json se génère depuis son package.json (\`${COMMANDE}\`).`
+      );
+    } else if (nom.slice(diese + 1).startsWith(TRACE)) {
+      refus.push(
+        `⛔ ${f} : la tâche \`${nom}\` est une trace ; elle se déclare au package.json du paquet qui la produit (\`grillhouse.traces\`).`
+      );
+    }
+    for (const e of Array.isArray(t?.inputs) ? t.inputs : []) {
+      const motif = String(e).replace(/^!/, '');
+      if (motif.startsWith('$TURBO_ROOT$/') && visePaquet(motif.slice(13), dossiers)) {
+        entree(e, `l'entrée de \`${nom}\``);
+      }
+    }
+  }
+  for (const e of Array.isArray(conf.globalDependencies) ? conf.globalDependencies : []) {
+    if (visePaquet(String(e).replace(/^!/, ''), dossiers)) entree(e, 'la dépendance globale');
+  }
+  return refus;
+}
+
+// The refusals of <racine>: one line per package turbo.json absent or other than generated, per
+// guard task of the root absent or whose dependsOn differs, per configuration of a package written
+// by hand in the root's turbo.json, and per declaration of data or trace refused.
+export function verifier(racine) {
+  const refus = [...racineRefusee(racine), ...declarationsRefusees(racine)];
   for (const { cle, attendu, present } of gardesEcartees(racine)?.ecarts ?? []) {
     const f = fichierRacine(racine);
     refus.push(
