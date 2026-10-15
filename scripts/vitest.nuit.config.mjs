@@ -6,13 +6,18 @@
 // configuration, from the root of its copy (`vitest run --root <copy> --config <this file>`),
 // after a green full pass (`npm run verifier -- --force`) and before the project's night script.
 // It reads no day configuration of the project, whether the project has one at its root or one
-// per package; it takes the common environment (git's settings) from the base configuration.
+// per package; it takes from the base configuration the common environment (git's settings) and
+// the measure of time: the setup file that notes the CPU pressure of each test and the duration
+// reporter, which gives 75, « à repasser », to a bench that fails under load
+// (scripts/vitest-config/duree.reporter.mjs).
 import base from './vitest-config/base.mjs';
 
 export default {
   test: {
     env: base.test.env,
     environment: base.test.environment,
+    reporters: base.test.reporters,
+    setupFiles: base.test.setupFiles,
     include: ['**/*.{nuit,budget}.{test,spec}.?(c|m)[jt]s?(x)'],
     exclude: ['**/node_modules/**', '**/dist/**', '**/.git/**'],
     watch: false,

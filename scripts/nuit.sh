@@ -14,6 +14,8 @@
 #   its root script `gardes`) and every test of the day, each task
 #   played for real (`--force`, no log replayed from the cache), its result written to the cache
 #   again.
+#   A full pass « à repasser » (75, scripts/verifier.mjs: a failure of duration under load, which
+#   found no rest in its bound) makes the night « à repasser », below.
 #   An existing copy that does not get ready (its move onto HEAD, its cleaning or the setting of
 #   its submodules fails) is removed by `scripts/retirer-copie.sh --jetable` (local work does not
 #   hold it, a lock does) and created again, once; a copy that does not get ready the second time
@@ -29,7 +31,13 @@
 #   (the package @grillhouse/vitest-config, scripts/vitest-config/, which every day configuration
 #   extends), run by Vitest with the frame's configuration (scripts/vitest.nuit.config.mjs of the
 #   copy), bench or night test alone as well. A red turns the night red, with a log line that says so, and the
-#   project's night script does not run. A copy with neither plays none.
+#   project's night script does not run. A copy with neither plays none. A run « à repasser » (75:
+#   every failure depended on a duration, one under load, scripts/vitest-config/duree.reporter.mjs)
+#   waits for rest (`node scripts/vitest-config/pression.mjs attendre`, bound 15 min) and plays
+#   once more; green then, the night goes on; à repasser again, or no rest in the bound, the night
+#   is « à repasser ».
+# - « À repasser » (exit 75): neither green nor red. The last green stays, no ticket opens, nothing
+#   is pushed, the log says so; the next night plays again.
 # - The project's night script: `grillhouse.nuit` in the package.json of the commit it plays names
 #   an npm script (`npm pkg set grillhouse.nuit=<script>`). After the night tests, the night plays
 #   `npm run <script>` in its copy; a red script turns the night red, with a log line that names it.
@@ -141,11 +149,34 @@ jouer() {
     cp "$copie/package-lock.json" "$copie/node_modules/.nuit-lock"
   fi
   # The full pass, played for real: the night replays no log of the cache.
-  monter npm --prefix "$copie" run verifier -- --force || return 1
+  local code
+  monter npm --prefix "$copie" run verifier -- --force
+  code=$?
+  if [ "$code" -eq 75 ]; then
+    echo "⏱ la passe complète est à repasser (code 75) : un échec de durée sous charge, sans repos dans la borne."
+    return 75
+  fi
+  [ "$code" -eq 0 ] || return 1
   if [ -n "$(find "$copie" \( -name node_modules -o -name dist -o -name .git \) -prune -o \
       -type f -regextype posix-extended -regex '.*\.(nuit|budget)\.(test|spec)\.(c|m)?[jt]sx?' -print -quit)" ]; then
-    if ! (cd "$copie" && monter npx --no-install vitest run --root "$copie" \
-        --config "$copie/scripts/vitest.nuit.config.mjs"); then
+    bancs() { (cd "$copie" && monter npx --no-install vitest run --root "$copie" \
+        --config "$copie/scripts/vitest.nuit.config.mjs"); }
+    bancs
+    code=$?
+    if [ "$code" -eq 75 ]; then
+      echo "⏱ les bancs de temps ou les tests de nuit sont à repasser (code 75) : attente du repos, puis une relance."
+      if ! node "$copie/scripts/vitest-config/pression.mjs" attendre; then
+        echo "⏱ à repasser : pas de repos dans la borne."
+        return 75
+      fi
+      bancs
+      code=$?
+      if [ "$code" -eq 75 ]; then
+        echo "⏱ à repasser : les bancs échouent encore sous charge après la relance."
+        return 75
+      fi
+    fi
+    if [ "$code" -ne 0 ]; then
       echo "✗ les bancs de temps ou les tests de nuit (*.budget.*, *.nuit.*) ont échoué."
       return 1
     fi
@@ -158,6 +189,11 @@ jouer() {
 }
 jouer >> "$journal" 2>&1
 verdict=$?
+
+if [ "$verdict" -eq 75 ]; then
+  echo "⏱ à repasser : ${tete:0:7} n'est ni vert ni rouge, la machine est restée chargée ; le dernier vert reste, aucun ticket, la nuit suivante rejoue." >> "$journal"
+  exit 75
+fi
 
 # Opens the night ticket (subject « number — subject — parent », the number being the id without the
 # project's prefix as `bd config get issue_prefix` gives it), or comments the open one; prints its id.

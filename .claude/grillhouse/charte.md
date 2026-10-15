@@ -121,6 +121,13 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
   rouge se met en quarantaine dans le test lui-même (`it.skip` ou `it.fails`), avec le ticket qui
   le corrige, comme le fait une intégration continue mature. Ainsi chaque rouge a son ticket, et
   main ne porte aucun rouge.
+- **Un témoin de temps se mesure CPU au repos** : un échec qui dépend d'une durée (un délai
+  dépassé, un banc `*.budget.test.*`, un test marqué `mesurerAuRepos`) survenu sous charge (la
+  pression CPU du noyau, `/proc/pressure/cpu`, à 25 % ou plus) est « à repasser » (code 75), ni
+  vert ni rouge : `npm run verifier` rejoue sa tâche seule une fois la machine au repos ; sans
+  repos en 15 min, la livraison reste en attente et se représente, comme Bazel classe un délai
+  dépassé et CTest le rejoue. Ainsi une machine occupée ne refuse aucun lot, et un rouge au repos
+  reste un rouge.
 - **L'index d'abord** : toute recherche commence par `rtfm_search` (mode `hybrid`) pour le quoi, et
   par `codegraph explore` (ou l'outil `codegraph_explore`) pour l'appel ; le shell lit un fichier
   déjà nommé. Une recherche vide se reformule dans les mots du code. Dans son enveloppe, un agent

@@ -147,6 +147,35 @@ describe('grillhouse-3uv.63 — the queue brings the branches onto main', () => 
     },
     LONG
   );
+  // « À repasser » (75, scripts/verifier.mjs): neither green nor red. The branch stays in the queue,
+  // its tickets written to, neither reopened nor closed, and the next queue takes it again.
+  it(
+    'a branch whose `npm run verifier` is à repasser (75) once replaced stays in the queue, and the next queue takes it',
+    () => {
+      const m = chantier(ESSAIS);
+      const suites = (code: number) =>
+        `import fs from 'node:fs';\nfs.appendFileSync(process.env.PRINCIPAL + '.suites', '[]');\nprocess.exit(fs.existsSync('src/a/A') && fs.existsSync('src/b/B') ? ${code} : 0);\n`;
+      m.poser({ 'suites.mjs': suites(75) }, 'repasser');
+      m.ticket('demo-1', { 'src/a/A': 'a\n' });
+      m.ticket('demo-2', { 'src/b/B': 'b\n' });
+      m.livrer('demo-1');
+      m.livrer('demo-2');
+      const r = m.file();
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(m.sujets()).toEqual(['feat: lot (demo-1)', 'repasser', 'base']);
+      const t = m.bd('demo-2');
+      expect(t.status).not.toBe('open');
+      expect(t.status).not.toBe('closed');
+      expect(t.labels).toContain('en-file');
+      expect(t.comments.at(-1).text).toContain('à repasser');
+      m.poser({ 'suites.mjs': suites(0) }, 'au repos');
+      const r2 = m.file();
+      expect(r2.status, r2.stdout + r2.stderr).toBe(0);
+      expect(m.sujets()[0]).toBe('feat: lot (demo-2)');
+      expect(m.bd('demo-2').status).toBe('closed');
+    },
+    LONG
+  );
   it(
     'critère 5: a branch whose guards refuse once replaced (its `npm run verifier` red) leaves the queue, its ticket reopened',
     () => {

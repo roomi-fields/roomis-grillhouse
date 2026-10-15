@@ -46,6 +46,7 @@ scripts/tests.mjs
 scripts/ticket.sh
 scripts/turbo-des-paquets.mjs
 scripts/un-commit-par-ticket.mjs
+scripts/verifier.mjs
 scripts/verrou-de-fichier.mjs
 scripts/verrous/
 scripts/vitest-config/

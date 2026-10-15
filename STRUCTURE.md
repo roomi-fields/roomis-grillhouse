@@ -67,10 +67,13 @@ roomis-grillhouse/
 │   │                              #   of INTERFACE.md between its two marks; npm run api writes the reports and the parts
 │   │                              #   (a package without a « . » export, the shared test material, has no API to check)
 │   ├── nuit.sh                    # once a night, the full pass played for real (npm run verifier -- --force: Turborepo's build, guards and tests, no log replayed), then the night tests and budget benches, then the project's night script (`grillhouse.nuit`), and pushes the green commit (`grillhouse.poussee.nuit`)
-│   │                              #   (*.nuit.test.*, *.nuit.spec.*, *.budget.test.*, *.budget.spec.*); a red opens a ticket
-│   ├── vitest-config/             # the package @grillhouse/vitest-config (private, `exports` to base.mjs): the frame's base Vitest configuration of the day, which every day configuration extends (mergeConfig): night tests and budget benches excluded, the common environment, the one address of git's settings for the suite (automatic maintenance off)
+│   │                              #   (*.nuit.test.*, *.nuit.spec.*, *.budget.test.*, *.budget.spec.*); a red opens a ticket;
+│   │                              #   « à repasser » (75: benches played once more at rest, then still under load) opens nothing and keeps the last green
+│   ├── vitest-config/             # the package @grillhouse/vitest-config (private, `exports` to base.mjs and ./mesure): the frame's base Vitest configuration of the day, which every day configuration extends (mergeConfig): night tests and budget benches excluded, the common environment, the one address of git's settings for the suite (automatic maintenance off)
+│   │                              #   the measure of time at rest: pression.mjs (the CPU pressure, /proc/pressure/cpu some avg10, threshold 25 %, code 75; `attendre`), mesure.setup.mjs (the pressure noted at the start and end of each test),
+│   │                              #   duree.reporter.mjs (75, « à repasser », when every failure depends on a duration and one took place under load), mesure.mjs (mesurerAuRepos, the mark of a measure of time)
 │   │                              #   a package of a project imports it by its name and declares it in its devDependencies; grillhouse-maj makes the directory a workspace; a repository without packages imports base.mjs by its path
-│   ├── vitest.nuit.config.mjs     # the Vitest configuration of the night tests, played by nuit.sh; git's settings read from vitest-config/base.mjs
+│   ├── vitest.nuit.config.mjs     # the Vitest configuration of the night tests, played by nuit.sh; git's settings, its setup file and its duration reporter read from vitest-config/base.mjs
 │   ├── sous-modules.sh            # the submodules of a working copy (integration, agent, night) at HEAD, or shared read-only (grillhouse.partage)
 │   ├── branche-de-nuit.mjs        # pre-push guard: only the night pushes the branch of grillhouse.poussee.nuit
 │   ├── poussee-cles.mjs           # reads the grillhouse.poussee, .nuit and .commit keys of package.json for nuit.sh, the guard and the queue
@@ -82,6 +85,8 @@ roomis-grillhouse/
 │   │                              #   read by grillhouse-maj, turbo-des-paquets and tests; Node alone, as the update runs it from a source that installs no dependency
 │   ├── tests.mjs                  # npm test, npm run test:forcer: turbo run test:vitest; each path named from the root plays in the package that holds it (--filter, the path made absolute), a path out of the frame's packages refused;
 │   │                              #   a run with paths builds first (turbo run build, without arguments: replayed from the cache), then plays the tests alone (--only), the paths after --; --force forces the tests only
+│   ├── verifier.mjs               # npm run verifier: turbo run grillhouse:gardes gardes test:vitest --continue=dependencies-successful --summarize; the code of each task read in the summary (removed after):
+│   │                              #   any code but 0 and 75 is red, named; a task at 75 waits for rest (15 min at most) and plays again alone (--filter --only); the bound reached, 75 « à repasser »
 │   ├── tableau.mjs                # npm run tableau: the board on three levels (project, agents, chantier)
 │   ├── ligne-etat/                # the status line: the person's own on the left, the chantier on the right
 │   ├── verrou-de-fichier.mjs      # the lock of a file shared between processes (judged by the owner's process or by age); taken by integrer.mjs, file.mjs and registre.mjs
@@ -89,7 +94,7 @@ roomis-grillhouse/
 │   ├── integration/               # One delivery, in a clean copy: verdicts, lots, npm run verifier green, commit on agent/<ticket>; then the queue brings it onto main
 │   │   ├── integrer.mjs              # run by the integrateur: commits the lot on agent/<ticket>, labels the ticket en-file (tests: tests/unit/integrer.spec.ts)
 │   │   ├── file.mjs                  # the queue: brings the branches onto main one at a time, replaced and replayed when main moved, pushes main (tests: tests/unit/file-integration.spec.ts)
-│   │   ├── rejeu.mjs                 # the replay shared by integrer.mjs and file.mjs: clean copy, dependencies of its lock file, npm run verifier (Turborepo: build, then guards and tests)
+│   │   ├── rejeu.mjs                 # the replay shared by integrer.mjs and file.mjs: clean copy, dependencies of its lock file, npm run verifier (Turborepo: build, then guards and tests); a 75 keeps the lot waiting
 │   │   └── file-attente.mjs          # the queue's entries, in git's common directory, and the directory the integration's locks live in
 │   ├── index-interfaces.mjs       # npm run interfaces: docs/agents/index-des-interfaces.md from the generated parts, checked by grillhouse:gardes
 │   └── un-commit-par-ticket.mjs   # commit-msg hook (placed by crochets.mjs): a closed ticket refuses a second commit, a reopened ticket takes its corrections

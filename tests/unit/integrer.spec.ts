@@ -339,6 +339,27 @@ describe('an integration', () => {
     expect(r.stdout.indexOf('sortie des tests : t > rouge')).toBeGreaterThanOrEqual(0);
     expect(r.stdout.indexOf('sortie des tests')).toBeLessThan(r.stdout.indexOf('⛔'));
   });
+  // « À repasser » (75): every failure of the tests depended on a duration under load, and the
+  // pass found no rest in its bound (scripts/verifier.mjs). Neither green nor red: nothing is
+  // committed, nothing is refused, the lot stays where it is for the same command again.
+  it('a npm run verifier à repasser (75) neither commits nor refuses: exit 75, the lot stays', () => {
+    const m = monde(['ACCEPTÉ']);
+    m.poser('suites.mjs', "process.stdout.write('⏱ à repasser\\n');\nprocess.exit(75);\n");
+    const r = m.run();
+    expect(r.status, r.stdout).toBe(75);
+    expect(r.stdout).toMatch(/à repasser/);
+    expect(r.stdout).not.toMatch(/⛔/);
+    expect(r.stdout).not.toMatch(/✓ commit/);
+    expect(m.sha('agent/demo-1')).toBe(m.sha('main'));
+    expect(m.etat()).toMatchObject({ log: ['pose suites.mjs', 'base'], status: '' });
+  });
+  it('a npm run verifier at another code than 0 and 75 is a refusal', () => {
+    const m = monde(['ACCEPTÉ']);
+    m.poser('suites.mjs', 'process.exit(3);\n');
+    const r = m.run();
+    expect(r.status).toBe(1);
+    expect(r.stdout).toMatch(REFUS_TESTS);
+  });
   it('refuses when a file of the lot is modified in the tree', () => {
     const m = monde(['ACCEPTÉ']);
     writeFileSync(path.join(m.repo, 'src/a/index.ts'), 'export const a = 3;\n');

@@ -46,7 +46,7 @@ node scripts/integration/integrer.mjs --ticket <id> [--ticket <id>…] \
 `--ticket` nomme chaque ticket, qui porte le verdict du relecteur ; le premier donne sa branche
 `agent/<ticket>`. Le script vérifie les verdicts et la part de chaque agent, joue `npm run verifier`
 (Turborepo : construction, puis gardes et tests, relus de son cache quand rien n'a bougé) dans une copie
-propre, exige le vert, puis commite sur `agent/<ticket>` et étiquette le ticket
+propre, exige le vert (0 ; 75 « à repasser », 1 rouge), puis commite sur `agent/<ticket>` et étiquette le ticket
 `en-file` ; main n'avance pas ici. Il tient sa propre attente et rend la main sur le commit ou sur
 le refus. Son en-tête dit chaque étape et ce qu'il rejoue : tu le lis quand une sortie t'étonne.
 
@@ -57,6 +57,12 @@ qui ne passe pas (fichiers en conflit, `npm run verifier` rouge) sort de la file
 perd `en-file` et se rouvre avec les fichiers ou les tests nommés, et la branche reste en place pour
 la relance. Ainsi main n'avance que sur des branches rejouées contre lui.
 
+- **« À repasser » n'est ni un commit ni un refus** : le script sort en 75 quand `npm run verifier`
+  n'a vu que des échecs de durée sous charge et n'a pas trouvé de repos en 15 min. Le lot reste
+  où il est, rien ne retourne à l'agent : tu relances une fois la même commande ; un second 75, tu
+  rends la livraison au superviseur « à repasser ». Une branche de la file à repasser reste en
+  file, son ticket commenté, et la file suivante la rejoue. Ainsi une machine occupée ne refuse
+  aucun lot.
 - **Un refus retourne à l'agent** avec la sortie entière du script ; tu ne corriges rien. Un refus
   de garde se relit d'abord en relançant seul le garde qu'il nomme, et cette sortie part avec.
   Ainsi l'agent corrige la vraie cause du refus.

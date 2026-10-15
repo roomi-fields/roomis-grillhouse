@@ -95,6 +95,22 @@ describe('the night', () => {
     expect(m.nuit().status).toBe(0);
     expect(m.lire(recu)).toBe('--force');
   });
+  // « À repasser » (75, scripts/verifier.mjs): the machine stayed loaded. Neither green nor red: the
+  // last green stays, no ticket opens, nothing is pushed, and the next night plays again.
+  it('a npm run verifier à repasser (75): exit 75, no last green, no ticket, the log says so', () => {
+    const m = monde();
+    writeFileSync(path.join(m.repo, 't.mjs'), 'process.exit(75);\n');
+    m.git('add', 't.mjs');
+    m.git('commit', '-qm', 'repasser');
+    expect(m.nuit().status).toBe(75);
+    expect(m.lire(path.join(m.commun, 'dernier-vert'))).toBe('');
+    expect(m.appels()).toBe('');
+    const journal = readdirSync(m.commun)
+      .filter(f => f.endsWith('.log'))
+      .map(f => m.lire(path.join(m.commun, f)))
+      .join('\n');
+    expect(journal).toMatch(/à repasser/);
+  });
   it('opens a ticket on red, with the commits since the last green', () => {
     const m = monde();
     m.nuit();

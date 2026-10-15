@@ -31,7 +31,11 @@
 //     day beside each other, each task replayed from the cache of the
 //     main tree when its inputs are unchanged). Green is required: main stays green, and nothing is compared with a base. A test
 //     known red is put in quarantine in the test itself (`it.skip` or `it.fails`, with its
-//     ticket), as a mature continuous integration does; the integration admits none;
+//     ticket), as a mature continuous integration does; the integration admits none. A
+//     `npm run verifier` « à repasser » (75: a failure of duration under load, which found no rest
+//     in its bound, scripts/verifier.mjs) is neither green nor red: the run stops there, exit 75,
+//     nothing committed and nothing refused, the lot where it was, for the same command again;
+//     any other code than 0 refuses;
 //  7. the commit in the copy, its hooks included, under GRILLHOUSE_INTEGRATION=1: a pre-commit
 //     hook that plays the guards skips them, as step 6 just played them; the commit validated is
 //     the commit that enters;
@@ -50,7 +54,7 @@
 // The main tree is not touched. The duration is written at the end.
 // One integration runs at a time (`.git/integration.lock`): another waits for the end of the
 // running one; a lock whose process is gone is taken over. Exit code: 0 committed, 1 refused,
-// 2 usage.
+// 2 usage, 75 à repasser.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -60,6 +64,7 @@ import { isTesterFile } from '../verrous/verrou.mjs';
 import { lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
 import { dossierCommun, inscrireEntree } from './file-attente.mjs';
 import { ouvrirCopie, RETIRER_COPIE } from './rejeu.mjs';
+import { A_REPASSER } from '../vitest-config/pression.mjs';
 
 // A file name as git writes it in a patch: a name with a character outside ASCII, a quote, a
 // backslash or a control character comes between quotes with C escapes (`\303\251` for `é`).
@@ -301,7 +306,14 @@ function main(argv) {
 
     // 6. The tests: the build, the guards and every test of the day, green required.
     dire('— npm run verifier (construction, gardes, tests)');
-    if (tester().status !== 0) return refuser('Les tests refusent le lot (sortie ci-dessus).');
+    const verdict = tester().status;
+    if (verdict === A_REPASSER) {
+      dire(
+        `⏱ À repasser (code ${A_REPASSER}) : un échec de durée sous charge, sans repos dans la borne. Le lot n'est ni commis ni refusé ; relance la même commande.`
+      );
+      return A_REPASSER;
+    }
+    if (verdict !== 0) return refuser('Les tests refusent le lot (sortie ci-dessus).');
     dire('✓ tests');
 
     // 7. The commit, in the copy: the commit validated is the commit that enters.

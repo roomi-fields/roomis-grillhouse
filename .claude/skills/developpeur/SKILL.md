@@ -62,7 +62,9 @@ prime sur tout le reste.
 Tu vois ton paquet en entier, et des autres composants leur interface et leur forme publiée. Les
 gardes du cadre (frontières, consommateurs, index des interfaces, rapports d'API) tournent à côté
 des tests, par `npm run verifier`, que l'intégration joue ; leur refus nomme la commande qui
-corrige.
+corrige. Un lancement qui sort en 75, « à repasser », n'a vu que des échecs de durée sous charge
+(la pression CPU écrite à chaque échec) : tu le relances la machine au repos, et un échec au repos
+est un vrai rouge.
 
 ## Ce qui t'arrête
 

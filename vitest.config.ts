@@ -31,9 +31,6 @@ export default mergeConfig(
       // Test timeout
       testTimeout: 10000,
 
-      // Reporter options
-      reporters: ['default'],
-
       // Pool options for parallel execution
       pool: 'threads',
       poolOptions: {

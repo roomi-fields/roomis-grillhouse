@@ -25,8 +25,8 @@
 // - `tester` plays `npm run verifier` in the copy: Turborepo builds the project, then plays its
 //   guards and its tests beside each other (`turbo.json`), each task kept in the cache of the main
 //   tree (`.turbo/cache`, shared by every copy), so a task whose inputs an earlier run already
-//   played replays its log. It gives the command's result, green (status 0) or red, its output
-//   written as it comes.
+//   played replays its log. It gives the command's result, green (status 0), « à repasser »
+//   (75, scripts/verifier.mjs) or red (any other), its output written as it comes.
 // - Every command of the project run in the copy (`lancer`: the install, the tests) leaves the
 //   index of its copy up to date, green or red: the consumers that apply a lot with `--index` (the
 //   integration, the queue) read an index that matches the files the command touched, and none

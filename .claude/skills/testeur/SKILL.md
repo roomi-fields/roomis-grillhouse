@@ -47,6 +47,13 @@ qu'il sait échouer.
 `*.budget.test.ts`. L'intégration de jour ne le joue pas, car la charge de la machine fait varier
 ses mesures ; la nuit le juge. Ainsi un rouge de jour dit un défaut, jamais une machine occupée.
 
+**Un témoin de temps se marque** : un test du jour dont le verdict dépend d'une durée (une attente
+bornée, un écart de temps comparé à un seuil) enveloppe sa mesure dans
+`mesurerAuRepos(ctx, () => …)`, importé de `@grillhouse/vitest-config/mesure`. Son échec sous
+charge, comme un délai dépassé ou l'échec d'un banc, est « à repasser » (code 75) : ni vert ni
+rouge, il se rejoue au repos. Un test qui ne mesure aucune durée ne se marque pas. Ainsi seul un
+témoin de temps profite de la relance, et un vrai défaut reste rouge.
+
 **Un test trop long pour le jour est un test de nuit** : il s'écrit dans un fichier
 `*.nuit.test.ts`. Ni `npm test` ni l'intégration ne le jouent ; la nuit le joue elle-même, après
 une passe complète verte, avec la configuration du cadre (`scripts/vitest.nuit.config.mjs`) ; la configuration de base du

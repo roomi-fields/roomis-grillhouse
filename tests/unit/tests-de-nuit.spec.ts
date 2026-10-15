@@ -41,6 +41,10 @@ const essai = (nom: string, rouge = false) =>
   (rouge ? `  throw new Error('rouge');\n` : '') +
   `});\n`;
 
+// The content of /proc/pressure/cpu for a pressure <some> (avg10, in %).
+const PRESSION = (some: number) =>
+  `some avg10=${some.toFixed(2)} avg60=0.00 avg300=0.00 total=1\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n`;
+
 // The files of trial: two day tests, night tests of each form and depth.
 const JOUR = ['tests/jour.spec.ts', 'tests/profond/jour.test.ts'];
 const NUITS = [
@@ -124,19 +128,24 @@ function projet(
   const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
   const trace = path.join(bin, 'trace');
   writeFileSync(path.join(repo, '.trace'), `${trace}\n`);
+  // The CPU pressure the measures of time read (scripts/vitest-config/pression.mjs): at rest, unless
+  // a case writes it.
+  const pression = path.join(bin, 'pression');
+  writeFileSync(pression, PRESSION(1));
   const env = {
     ...Object.fromEntries(
       Object.entries(process.env).filter(([k]) => !k.startsWith('VITEST') && k !== 'NODE_OPTIONS')
     ),
     TRACE: trace,
     PATH: `${bin}:${process.env.PATH}`,
+    GRILLHOUSE_PRESSION_CPU: pression,
   };
   const lancer = (cmd: string, args: string[]) =>
     spawnSync(cmd, args, { cwd: repo, encoding: 'utf8', env, timeout: 120_000 });
   const lignes = () =>
     existsSync(trace) ? readFileSync(trace, 'utf8').split('\n').filter(Boolean) : [];
   const joues = () => [...lignes()].sort();
-  return { repo, bin, env, lancer, lignes, joues };
+  return { repo, bin, env, lancer, lignes, joues, pression };
 }
 
 const noms = (fichiers: string[]) => fichiers.map(f => path.basename(f)).sort();
@@ -182,7 +191,7 @@ describe('the base configuration of the day leaves the night out of every config
       version: '0.0.0',
       private: true,
       type: 'module',
-      exports: { '.': './base.mjs' },
+      exports: { '.': './base.mjs', './mesure': './mesure.mjs' },
     });
   });
   it('is a frame directory, distributed by the list of the frame; the former file is gone', () => {
@@ -360,6 +369,45 @@ describe('3uv.75.1 critères 11 et 17 — the day leaves the time budget benches
       expect(p.lignes(), `nuits ${nuits}`).toContain('temps.budget.test.ts');
     }
   }, 480_000);
+});
+
+// A time witness is measured with the CPU at rest: a bench that fails under load is « à repasser »
+// (75, scripts/vitest-config/duree.reporter.mjs). The night waits for rest
+// (scripts/vitest-config/pression.mjs attendre) and plays its benches once more; à repasser again,
+// the night is à repasser: no last green, no ticket.
+describe('the night plays again at rest a bench à repasser', () => {
+  const BANC = 'tests/temps.budget.test.ts';
+  // A bench that writes its name to the trace and fails its measure; its first run ends with the
+  // pressure at rest; each later run (when <encore>) writes the pressure under load and fails
+  // again, else passes.
+  const banc = (encore: boolean) =>
+    "import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';\n" +
+    "import { test, expect } from 'vitest';\n" +
+    "test('banc', () => {\n  const trace = readFileSync('.trace', 'utf8').trim();\n" +
+    "  appendFileSync(trace, 'temps.budget.test.ts\\n');\n" +
+    '  const p = process.env.GRILLHOUSE_PRESSION_CPU;\n' +
+    `  if (!existsSync(trace + '.deja')) { writeFileSync(trace + '.deja', ''); writeFileSync(p, ${JSON.stringify(PRESSION(1))}); }\n` +
+    (encore
+      ? `  else writeFileSync(p, ${JSON.stringify(PRESSION(90))});\n  expect(50).toBeLessThan(10);\n`
+      : '  else return;\n  expect(50).toBeLessThan(10);\n') +
+    '});\n';
+  it('a bench that fails under load, then passes at rest: the night is green, the bench played twice', () => {
+    const p = projet({ [BANC]: banc(false) }, { nuits: false });
+    writeFileSync(p.pression, PRESSION(90));
+    const n = nuitDe(p);
+    expect(n.status, n.journal).toBe(0);
+    expect(p.lignes().filter(x => x === 'temps.budget.test.ts')).toHaveLength(2);
+    expect(n.journal).toMatch(/à repasser/);
+  }, 240_000);
+  it('a bench à repasser twice: the night is à repasser (75), without last green nor ticket', () => {
+    const p = projet({ [BANC]: banc(true) }, { nuits: false });
+    writeFileSync(p.pression, PRESSION(90));
+    const n = nuitDe(p);
+    expect(n.status, n.journal).toBe(75);
+    expect(n.dernierVert).toBe('');
+    expect(existsSync(path.join(p.bin, 'appels'))).toBe(false);
+    expect(p.lignes().filter(x => x === 'temps.budget.test.ts')).toHaveLength(2);
+  }, 240_000);
 });
 
 describe('critère 7 — scripts/nuit.sh plays the night tests itself', () => {

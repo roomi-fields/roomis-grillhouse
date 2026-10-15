@@ -23,6 +23,17 @@
 //   (GIT_CONFIG_COUNT/KEY/VALUE, git-config(1)), the automatic maintenance and garbage collection
 //   off (maintenance.auto=false, gc.auto=0). This file is the one address of these settings; the
 //   night configuration takes them from here.
+// - A time witness is measured with the CPU at rest: a setup file notes the CPU pressure at the
+//   start and at the end of each test (./mesure.setup.mjs), and the duration reporter, beside
+//   Vitest's default one, gives the exit code 75, « à repasser », when every failure depends on a
+//   duration and one took place under load (./duree.reporter.mjs; the signal and its threshold,
+//   ./pression.mjs). A test that measures time marks itself (`mesurerAuRepos`,
+//   `@grillhouse/vitest-config/mesure`). `mergeConfig` adds the reporters and the setup files of
+//   a configuration that extends this one to these; a reporter named on the command line
+//   (`--reporter`) replaces them, and Vitest's code then stands.
+import { fileURLToPath } from 'node:url';
+
+const ici = f => fileURLToPath(new URL(f, import.meta.url));
 const NUIT = '**/*.nuit.{test,spec}.?(c|m)[jt]s?(x)';
 const BUDGET = '**/*.budget.{test,spec}.?(c|m)[jt]s?(x)';
 
@@ -37,6 +48,8 @@ export default {
       GIT_CONFIG_VALUE_1: '0',
     },
     exclude: ['**/node_modules/**', '**/dist/**', NUIT, BUDGET],
+    reporters: ['default', ici('./duree.reporter.mjs')],
+    setupFiles: [ici('./mesure.setup.mjs')],
     watch: false,
   },
 };

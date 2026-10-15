@@ -29,8 +29,11 @@
 //    names the files or ends with the output of the tests, and the branch stays where it is, for
 //    the relaunch of its ticket (scripts/enveloppe/lancer.sh);
 //  - a branch whose replay cannot be done (the copy does not get ready, main does not take the
-//    branch, the main tree holds a file of the lot) stays in the queue, the reason written to its
-//    tickets, and the queue goes on; the next queue takes it again.
+//    branch, the main tree holds a file of the lot), or whose `npm run verifier` is « à repasser »
+//    once replaced (75: a failure of duration under load, which found no rest in its bound,
+//    scripts/verifier.mjs; neither green nor red), stays in the queue, the reason written to its
+//    tickets, which are neither reopened nor closed, and the queue goes on; the next queue takes it
+//    again. Any other code than 0 and 75 is red.
 // At its entry on main, every ticket the branch carries closes « intégré : <commit> », loses
 // `en-file`, and the branch is deleted; a branch git does not delete (its copy still in place) is
 // written to the tickets, which close all the same. Then main is pushed to origin, on the branch
@@ -44,6 +47,7 @@ import { lireCommit } from '../poussee-cles.mjs';
 import { lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
 import { dossierCommun, lireEntrees, retirerEntree } from './file-attente.mjs';
 import { ouvrirCopie } from './rejeu.mjs';
+import { A_REPASSER } from '../vitest-config/pression.mjs';
 
 const ESSAIS_PAR_BRANCHE = 5;
 
@@ -138,6 +142,11 @@ function main(argv) {
     }
     dire('— npm run verifier (construction, gardes, tests)');
     const t = tester();
+    if (t.status === A_REPASSER) {
+      return {
+        garde: `son \`npm run verifier\` est à repasser (code ${A_REPASSER}) une fois replacée : un échec de durée sous charge, sans repos dans la borne. Ni vert ni rouge ; la prochaine file la rejoue.`,
+      };
+    }
     if (t.status !== 0) {
       const fin = `${t.stdout}${t.stderr}`.trim().split('\n').slice(-40).join('\n');
       return { sortie: ['ses tests sont rouges une fois la branche replacée.', fin] };

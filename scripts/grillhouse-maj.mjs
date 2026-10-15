@@ -51,8 +51,8 @@
 //   (`docs/agents/hors-cadre.txt`), which Turborepo never tests, counts for nothing) has its root scripts
 //   `test`, `test:vitest`, `test:forcer` and `verifier` become the source's (`npm test`, the tests
 //   as Turborepo's tasks with its cache; `npm run test:forcer`, the same played for real;
-//   `npm run verifier`, the guards and the tests beside each other, which the integration, the
-//   queue, the continuous integration and the night play); the report says so, when the
+//   `npm run verifier`, scripts/verifier.mjs, the guards and the tests beside each other, which the
+//   integration, the queue, the continuous integration and the night play); the report says so, when the
 //   Vitest of the project's root (`npx --no-install vitest`, the one `test:vitest` calls) satisfies
 //   the range the source's package.json declares for `vitest`. Where the root resolves no Vitest or
 //   another version, the project's scripts stay (the frame's included) and the report names the
