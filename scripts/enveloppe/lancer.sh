@@ -39,10 +39,11 @@
 # - The envelope receives the role: it decides who writes the package of the shared test material.
 # - The session runs `claude -p` with the role's agent and, as its prompt, the instruction file
 #   followed by the section « Ce que les composants d'avant publient »: for each component whose
-#   `## Consommateurs` section names the component, the elements its interface publishes, each at
-#   its address (`scripts/index-interfaces.mjs --publie`, read in the prepared copy; a reading that
-#   fails stops the launch, CODE_COPIE). The prompt carries « TON TICKET : <ticket> », which the
-#   role's locks read. The envelope is the sandbox, so the session runs without permission prompts.
+#   `## Consommateurs` section names the component, the elements its interface publishes and the
+#   rubric « Rend » of its frame, each at its address (`scripts/index-interfaces.mjs --publie`,
+#   read in the prepared copy; a reading that fails stops the launch, CODE_COPIE). The prompt
+#   carries « TON TICKET : <ticket> », which the role's locks read. The envelope is the sandbox, so
+#   the session runs without permission prompts.
 # - Its output, and an envelope refusal (CODE_REFUS), go to .claude/worktrees/<ticket>.log; the
 #   agent writes its report in the ticket. Once the envelope has ended, the launcher writes the
 #   session's line to the register (scripts/registre.mjs --copie), then exits with the envelope's code.

@@ -15,7 +15,8 @@ Tu n'écris que des fichiers de test et le paquet de la matière de test partag�
 2. Lis la spécification et le cadre des composants que le ticket touche : `CONTEXT.md`, puis
    `CADRE.md`, `INTERFACE.md` et `ARCHITECTURE.md` de chaque composant.
 3. Lis la section « Ce que les composants d'avant publient » de ta consigne : les faits que le
-   composant reçoit de chaque composant dont il dépend, chacun avec son adresse.
+   composant reçoit de chaque composant dont il dépend, chacun avec son adresse, et la rubrique
+   « Rend » du cadre de chacun.
 
 ## Tes références, à lire au moment où elles servent
 

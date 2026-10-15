@@ -68,6 +68,10 @@ writeFileSync(
   ].join('\n')
 );
 writeFileSync(
+  path.join(REPO, 'packages/b/docs/CADRE.md'),
+  '# b — rendre les durées\n\n## 3. Rend\n\n- **R3.** La durée d’un objet.\n\n## 4. Connaît\n\n- **R4.** Le tempo.\n'
+);
+writeFileSync(
   path.join(REPO, '.claude/agents/developpeur.md'),
   '---\nname: developpeur\nmodel: sonnet\neffort: medium\n---\n'
 );
@@ -115,7 +119,8 @@ function lancer(options: string[], apres: string[] = [], composant = 'packages/a
   return { r, copie, args, ticket };
 }
 
-// The section the launcher writes after the instruction, for a: what b publishes.
+// The section the launcher writes after the instruction, for a: what b publishes, and its rubric
+// « Rend ».
 const PUBLIE_POUR_A = [
   "## Ce que les composants d'avant publient",
   '',
@@ -127,6 +132,10 @@ const PUBLIE_POUR_A = [
   'Déclaré pour `a` : duree.',
   '',
   '- `duree` — Rend la durée d’un objet. (`packages/b/docs/INTERFACE.md` § `duree`)',
+  '',
+  'Son cadre rend (`packages/b/docs/CADRE.md` § 3. Rend) :',
+  '',
+  '- **R3.** La durée d’un objet.',
 ].join('\n');
 
 // What claude receives today, for a ticket.

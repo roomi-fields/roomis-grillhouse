@@ -9,7 +9,8 @@
 //                                                prints what the providers of <composant> publish
 //
 // The providers of a component are the components whose `## Consommateurs` section names it: the
-// frame's one written and checked record of who uses whom (scripts/consommateurs.mjs). The launcher
+// frame's one written and checked record of who uses whom (scripts/consommateurs.mjs). For each,
+// `--publie` gives its elements and the rubric « Rend » of its `docs/CADRE.md`. The launcher
 // (scripts/enveloppe/lancer.sh) writes the section `--publie` prints after the instruction of a role
 // agent; the relecteur prints it by the same command.
 //
@@ -140,12 +141,43 @@ export function entrees(rel, contenu) {
 
 const TITRE_PUBLIE = "## Ce que les composants d'avant publient";
 
+// The rubric « Rend » of a component's frame (`docs/CADRE.md`, next to its interface), read once:
+// `{ titre, corps }` from its `## Rend` heading, numbered or not (`## 3. Rend`), to the next `#` or
+// `##` heading outside a code block; `{ absent: true }` without the file, null without the rubric.
+function rend(racine, rel) {
+  const fichier = path.join(racine, rel);
+  if (!existsSync(fichier)) return { absent: true };
+  let rubrique = null;
+  let cloture = null;
+  for (const l of readFileSync(fichier, 'utf8').split('\n')) {
+    const f = /^\s*(```|~~~)/.exec(l);
+    if (cloture) {
+      if (f && f[1] === cloture) cloture = null;
+    } else if (f) {
+      cloture = f[1];
+    } else if (/^#{1,2} /.test(l)) {
+      if (rubrique) break;
+      const m = /^## ((?:\d+\.\s*)?Rend)\s*$/.exec(l);
+      if (m) {
+        rubrique = { titre: m[1], corps: [] };
+        continue;
+      }
+    }
+    rubrique?.corps.push(l);
+  }
+  if (!rubrique) return null;
+  const corps = rubrique.corps.join('\n').replace(/^\n+|\s+$/g, '');
+  return { titre: rubrique.titre, corps };
+}
+
 // What the components before <composant> publish, as the section the launcher writes after the
 // instruction of a role agent (scripts/enveloppe/lancer.sh). <composant> is the component's path
 // in the repository at <racine> (`packages/a`, `src/parser`), or `.` for a copy of the whole
 // repository. Its providers are the components whose `## Consommateurs` section names it; for
-// each, its first sentence, the elements declared for it, then each element of its generated
-// part with its address (`<interface> § <heading>`). Each interface is read once.
+// each, its first sentence, the elements declared for it, each element of its generated part with
+// its address (`<interface> § <heading>`), then the rubric « Rend » of its frame with its address
+// (`<cadre> § <heading>`), or one line saying the frame or the rubric is missing. Each interface
+// and each frame is read once.
 export function publie(racine, composant) {
   if (composant === '.') {
     return [
@@ -191,6 +223,12 @@ export function publie(racine, composant) {
     for (const e of elements) {
       out.push(`- ${e.titre}${e.phrase ? ` — ${e.phrase}` : ''} (\`${f.rel}\` § ${e.titre})`);
     }
+    const cadre = path.join(path.dirname(f.rel), 'CADRE.md');
+    const r = rend(racine, cadre);
+    out.push('');
+    if (r?.absent) out.push(`Son cadre manque : \`${cadre}\` n’existe pas.`);
+    else if (!r) out.push(`Son cadre n’a pas de rubrique « Rend » (\`${cadre}\`).`);
+    else out.push(`Son cadre rend (\`${cadre}\` § ${r.titre}) :`, '', r.corps);
   }
   return out.join('\n');
 }

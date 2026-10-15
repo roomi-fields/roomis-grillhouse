@@ -413,18 +413,49 @@ describe('entrees and the generated part (grillhouse-3uv.64)', () => {
 });
 
 // What the components before publish: the launcher writes, in the instruction of the role agent,
-// the elements each provider of its component publishes, with their address. The providers are
-// the components whose `## Consommateurs` section names it.
+// the elements each provider of its component publishes, with their address, and the rubric
+// « Rend » of its `docs/CADRE.md`. The providers are the components whose `## Consommateurs`
+// section names it.
 describe('publie: what the providers of a component publish', () => {
   const dir = repo({
     'packages/b/docs/INTERFACE.md': `${INTERFACE_B}\n\n## Consommateurs\n\n- \`a\` : duree\n`,
+    // The rubric under its numbered title, as the redacteur's frame writes it; a heading inside a
+    // code block belongs to the rubric.
+    'packages/b/docs/CADRE.md': [
+      '# b — rendre les durées',
+      '',
+      '## 2. Reçoit',
+      '',
+      '- **R2.** Les objets lus.',
+      '',
+      '## 3. Rend',
+      '',
+      '- **R3.** La durée de chaque objet, en battements, que `a` reçoit.',
+      '',
+      '```md',
+      '## pas une rubrique',
+      '```',
+      '',
+      '### Les fautes rendues',
+      '',
+      '- **R4.** `B_SANS_TEMPO`.',
+      '',
+      '## 4. Connaît',
+      '',
+      '- **R5.** Le tempo.',
+      '',
+    ].join('\n'),
     'packages/c/docs/INTERFACE.md': '# c\n\nC rend des tempos.\n\n## Consommateurs\n\n- `a` : *\n',
+    'packages/f/docs/INTERFACE.md':
+      '# f\n\nF rend des notes.\n\n## Consommateurs\n\n- `a` : note\n',
+    'packages/f/docs/CADRE.md':
+      '# f — rendre des notes\n\n## 1. Rôle\n\n- **R1.** F rend des notes.\n',
     'packages/d/docs/INTERFACE.md': '# d\n\nD ne rend rien.\n\n## Consommateurs\n\n- `e` : x\n',
     'packages/a/src/a.ts': 'a',
     'src/seul/index.ts': 's',
   });
 
-  it('gives each provider, what is declared for the component, and each element at its address', () => {
+  it('gives each provider, what is declared for the component, each element at its address, and its rubric « Rend »', () => {
     expect(publie(dir, 'packages/a')).toBe(
       [
         "## Ce que les composants d'avant publient",
@@ -440,12 +471,35 @@ describe('publie: what the providers of a component publish', () => {
         '- `Objet` — Un objet lu. (`packages/b/docs/INTERFACE.md` § `Objet`)',
         '- `garde` (`packages/b/docs/INTERFACE.md` § `garde`)',
         '',
+        'Son cadre rend (`packages/b/docs/CADRE.md` § 3. Rend) :',
+        '',
+        '- **R3.** La durée de chaque objet, en battements, que `a` reçoit.',
+        '',
+        '```md',
+        '## pas une rubrique',
+        '```',
+        '',
+        '### Les fautes rendues',
+        '',
+        '- **R4.** `B_SANS_TEMPO`.',
+        '',
         '### c',
         '',
         'C rend des tempos. (`packages/c/docs/INTERFACE.md`)',
         'Déclaré pour `a` : *.',
         '',
         'Son interface n’a pas de part générée : elle dit elle-même ce qu’elle publie.',
+        '',
+        'Son cadre manque : `packages/c/docs/CADRE.md` n’existe pas.',
+        '',
+        '### f',
+        '',
+        'F rend des notes. (`packages/f/docs/INTERFACE.md`)',
+        'Déclaré pour `a` : note.',
+        '',
+        'Son interface n’a pas de part générée : elle dit elle-même ce qu’elle publie.',
+        '',
+        'Son cadre n’a pas de rubrique « Rend » (`packages/f/docs/CADRE.md`).',
       ].join('\n')
     );
   });

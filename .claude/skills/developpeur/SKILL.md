@@ -18,8 +18,8 @@ prime sur tout le reste.
    `ARCHITECTURE.md` (`docs/`, ou `packages/<x>/docs/`), et le lexique `CONTEXT.md`. Ainsi ton
    code part de l'architecture écrite. Un document absent ne t'arrête pas.
 3. Lis la section « Ce que les composants d'avant publient » de ta consigne : les faits que ton
-   composant reçoit de chaque composant dont il dépend, chacun avec son adresse. Ainsi tu sais ce
-   qui est déjà calculé, et où.
+   composant reçoit de chaque composant dont il dépend, chacun avec son adresse, et la rubrique
+   « Rend » du cadre de chacun. Ainsi tu sais ce qui est déjà calculé, et où.
 4. Lance les tests du testeur, déjà dans ta copie (`npm test -- <fichiers>`, chemins depuis la
    racine du dépôt), et vois-les rouges.
    Ainsi ton code se mesure à des tests que tu n'as pas écrits.
