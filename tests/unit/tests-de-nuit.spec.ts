@@ -166,15 +166,42 @@ describe('critère 4 — npm test leaves the night tests out', () => {
   }, 120_000);
 });
 
-// The frame's base configuration of the day (scripts/vitest.base.config.mjs, a frame file) carries
-// the exclusions of the night tests and the time budget benches and the common environment; the
-// root of Grillhouse and each package of a project extend it (mergeConfig) without repeating them.
+// The frame's base configuration of the day (the package @grillhouse/vitest-config, a frame
+// directory, scripts/vitest-config/) carries the exclusions of the night tests and the time budget
+// benches and the common environment; the root of Grillhouse and each package of a project extend
+// it (mergeConfig) without repeating them. A package of a project reaches it by its name, as the
+// examples of Turborepo reach their configuration packages (@repo/eslint-config); the root of a
+// repository without packages, the package that holds the file, by its path.
 describe('the base configuration of the day leaves the night out of every configuration that extends it', () => {
-  const BASE = path.join(DEPOT, 'scripts/vitest.base.config.mjs');
+  const PAQUET = path.join(DEPOT, 'scripts/vitest-config');
+  const BASE = path.join(PAQUET, 'base.mjs');
   type Config = { test: { exclude: string[]; env: Record<string, string> } };
-  it('is a frame file, distributed by the list of the frame', () => {
+  it('is a private package, @grillhouse/vitest-config, that exports its configuration', () => {
+    expect(JSON.parse(readFileSync(path.join(PAQUET, 'package.json'), 'utf8'))).toEqual({
+      name: '@grillhouse/vitest-config',
+      version: '0.0.0',
+      private: true,
+      type: 'module',
+      exports: { '.': './base.mjs' },
+    });
+  });
+  it('is a frame directory, distributed by the list of the frame; the former file is gone', () => {
     const liste = readFileSync(path.join(DEPOT, '.claude/grillhouse/fichiers.txt'), 'utf8');
-    expect(liste.split('\n')).toContain('scripts/vitest.base.config.mjs');
+    expect(liste.split('\n')).toContain('scripts/vitest-config/');
+    expect(liste).not.toContain('vitest.base.config.mjs');
+    expect(existsSync(path.join(DEPOT, 'scripts/vitest.base.config.mjs'))).toBe(false);
+  });
+  it('no file of the repository names the former file', () => {
+    const suivis = execFileSync('git', ['-C', DEPOT, 'ls-files'], { encoding: 'utf8' })
+      .split('\n')
+      .filter(
+        f => f !== '' && f !== 'CHANGELOG.md' && !f.startsWith('tests/') && !f.startsWith('.beads/')
+      )
+      .filter(f => existsSync(path.join(DEPOT, f)));
+    const porteurs = suivis.filter(f =>
+      readFileSync(path.join(DEPOT, f), 'utf8').includes('vitest.base.config')
+    );
+    expect(porteurs).toEqual([]);
   });
   it('the root configuration of Grillhouse extends it: its exclusions and its environment, its own include', async () => {
     const base = ((await import(BASE)) as { default: Config }).default;
@@ -188,17 +215,22 @@ describe('the base configuration of the day leaves the night out of every config
       /\.(nuit|budget)\./
     );
   });
-  it('a package whose configuration extends it plays its day tests, and neither its night tests nor its benches', () => {
+  it('a package whose configuration imports it by its name plays its day tests, and neither its night tests nor its benches', () => {
     const repo = mkdtempSync(path.join(ESSAIS, 'paquets-'));
     lierDependances(repo);
-    mkdirSync(path.join(repo, 'scripts'));
-    cpSync(BASE, path.join(repo, 'scripts/vitest.base.config.mjs'));
+    cpSync(PAQUET, path.join(repo, 'scripts/vitest-config'), { recursive: true });
+    // npm links each workspace into node_modules under its name.
+    mkdirSync(path.join(repo, 'node_modules/@grillhouse'));
+    symlinkSync(
+      path.join(repo, 'scripts/vitest-config'),
+      path.join(repo, 'node_modules/@grillhouse/vitest-config')
+    );
     const paquet = path.join(repo, 'packages/a');
     const trace = path.join(repo, 'trace');
     const fichiers: Record<string, string> = {
       'vitest.config.mjs':
         "import { defineConfig, mergeConfig } from 'vitest/config';\n" +
-        "import base from '../../scripts/vitest.base.config.mjs';\n" +
+        "import base from '@grillhouse/vitest-config';\n" +
         'export default mergeConfig(base, defineConfig({ test: { include: ' +
         "['tests/**/*.{test,spec}.{ts,mjs}'] } }));\n",
       '.trace': `${trace}\n`,

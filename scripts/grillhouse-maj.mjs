@@ -38,7 +38,9 @@
 //   without `packageManager` receives the source's (Turborepo requires it), and a `.gitignore`
 //   that does not ignore `.turbo/` (Turborepo's runs and cache) receives the line.
 // - A project that runs Vitest (its `test` script names it, or `vitest` is in the `dependencies` or
-//   `devDependencies` of its root `package.json` or of one of its workspaces) has its root scripts
+//   `devDependencies` of its root `package.json` or of one of its packages, the workspaces as npm
+//   maps them, read by `paquets` of scripts/turbo-des-paquets.mjs, the frame's one list of the
+//   packages: a package a negation takes out is none) has its root scripts
 //   `test`, `test:vitest`, `test:forcer` and `verifier` become the source's (`npm test`, the tests
 //   as Turborepo's tasks with its cache; `npm run test:forcer`, the same played for real;
 //   `npm run verifier`, the guards and the tests beside each other, which the integration, the
@@ -48,9 +50,25 @@
 //   another version, the project's scripts stay (the frame's included) and the report names the
 //   version found and the range required. A `test` that runs anything else stays. The scripts of
 //   the packages of a monorepo are not written.
-// - The update's own script: when the source holds another scripts/grillhouse-maj.mjs than the one
-//   running, the new one is copied to the project and run in place of the old, with the same
-//   arguments; so one pass ends with the new script's work.
+// - The frame's base configuration of Vitest is a package, @grillhouse/vitest-config
+//   (scripts/vitest-config/, a frame directory), that each package of a repository of packages
+//   imports by its name, as the examples of Turborepo reach @repo/eslint-config: a package is
+//   reached by its name, never by a relative path out of it. In a project with `workspaces` of
+//   which a package holds a `test:vitest` script, the update adds `scripts/vitest-config` to the
+//   `workspaces` (or to `workspaces.packages`) when they do not select it yet, and declares the
+//   package (`"*"`, the version of the workspace) in the `devDependencies` of each such package,
+//   a declaration it holds kept. The directory is added to the workspaces rather than placed
+//   under `packages/`: every directory there is a component of the project, which the frame's
+//   checks read, and the frame's files keep one address, the same in every project. The report
+//   names what it wrote, `npm install`, which links the package, and the import each package's
+//   Vitest configuration writes (`import base from '@grillhouse/vitest-config'`): the update writes
+//   no Vitest configuration. A project without `workspaces` imports the file by its path
+//   (`./scripts/vitest-config/base.mjs`), from the one package that holds it.
+// - The update's own script: a project's copy runs the source's scripts/grillhouse-maj.mjs in its
+//   place (`--source` the same source), and the frame's modules it calls (crochets.mjs, greffons.mjs,
+//   turbo-des-paquets.mjs) are loaded only then, beside the script that does the update: a former
+//   version that wrote the new script over itself leaves the former modules beside it, which the
+//   new script never reads. So one pass ends with the new script's work.
 // - The git hooks: both of the frame (commit-msg « a closed ticket refuses a second commit, a reopened ticket takes its corrections », pre-push night branch
 //   guard) are placed by scripts/crochets.mjs, the mechanism scripts/setup.sh also calls, in the
 //   hooks folder git reads for the project (`core.hooksPath`, else the default one; the
@@ -82,6 +100,7 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -91,8 +110,6 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { poserCrochets } from './crochets.mjs';
-import { installerGreffons } from './greffons.mjs';
 
 export const DEPOT = 'https://github.com/roomi-fields/roomis-grillhouse.git';
 const LISTE = '.claude/grillhouse/fichiers.txt';
@@ -127,28 +144,15 @@ const TURBO_IGNORE = '.turbo/';
 // The frame's templates of `turbo.json`, one per form of repository, read in the source.
 const TURBO_PAQUETS = 'templates/turbo/paquets.json';
 const TURBO_SANS_PAQUETS = 'templates/turbo/sans-paquets.json';
+// The directory of the frame's configuration package of Vitest, a frame directory.
+const CONFIG_VITEST = 'scripts/vitest-config';
 
 const empreinte = f => createHash('sha256').update(readFileSync(f)).digest('hex');
 // Whether `vitest` is declared in the dependencies of the package.json <p> (read at <dossier>) or of
-// one of its workspaces (the entries of `workspaces`, or of `workspaces.packages`; a trailing `/*`
-// lists the folders under it).
+// one of its packages (`paquets`: the workspaces as npm maps them).
 const declareVitest = (dossier, p) => {
   const a = pkg => Boolean(pkg?.dependencies?.vitest ?? pkg?.devDependencies?.vitest);
-  if (a(p)) return true;
-  const ws = Array.isArray(p?.workspaces) ? p.workspaces : (p?.workspaces?.packages ?? []);
-  return ws.some(w => {
-    const motif = String(w).replace(/\/$/, '');
-    const base = motif.endsWith('/*') ? motif.slice(0, -2) : null;
-    let dossiers = [motif];
-    if (base !== null) {
-      try {
-        dossiers = readdirSync(path.join(dossier, base)).map(d => `${base}/${d}`);
-      } catch {
-        dossiers = [];
-      }
-    }
-    return dossiers.some(d => a(lireJson(path.join(dossier, d, 'package.json'), null)));
-  });
+  return a(p) || paquets(dossier).some(({ pkg }) => a(pkg));
 };
 // The version of the Vitest the project's root resolves, as `test:vitest` calls it
 // (`npx --no-install vitest --version`); null when it answers none.
@@ -306,6 +310,47 @@ function poserTurbo(projet, source) {
   return gabarit;
 }
 
+// Makes the frame's configuration package of Vitest a workspace of the project of packages at
+// <projet>, whose root package.json <p> it changes, and declares the package, by its name read in
+// the source, in the devDependencies of each package whose scripts hold `test:vitest`, a
+// declaration the package holds kept. Returns { espace, nom, paquets } (espace: the directory added
+// to the workspaces, or null; paquets: the packages that received the declaration), or null when
+// nothing changes.
+function poserConfigVitest(projet, source, p) {
+  const nom = lireJson(path.join(source, CONFIG_VITEST, 'package.json'), {}).name;
+  if (p.workspaces === undefined || typeof nom !== 'string') return null;
+  const tous = paquets(projet);
+  const testes = tous.filter(
+    ({ dossier, pkg }) =>
+      dossier !== CONFIG_VITEST && typeof pkg.scripts?.['test:vitest'] === 'string'
+  );
+  if (testes.length === 0) return null;
+  let espace = null;
+  if (!tous.some(({ dossier }) => dossier === CONFIG_VITEST)) {
+    if (Array.isArray(p.workspaces)) {
+      p.workspaces = [...p.workspaces, CONFIG_VITEST];
+    } else {
+      p.workspaces = {
+        ...p.workspaces,
+        packages: [...(p.workspaces.packages ?? []), CONFIG_VITEST],
+      };
+    }
+    espace = CONFIG_VITEST;
+  }
+  const declarants = [];
+  for (const { dossier, pkg } of testes) {
+    if (CHAMPS_INSTALLES.some(c => pkg[c]?.[nom] !== undefined)) continue;
+    pkg.devDependencies = Object.fromEntries(
+      Object.entries({ ...(pkg.devDependencies ?? {}), [nom]: '*' }).sort(([a], [b]) =>
+        a.localeCompare(b, 'en')
+      )
+    );
+    writeFileSync(path.join(projet, dossier, 'package.json'), `${JSON.stringify(pkg, null, 2)}\n`);
+    declarants.push(dossier);
+  }
+  return espace !== null || declarants.length > 0 ? { espace, nom, paquets: declarants } : null;
+}
+
 // Brings the project at `projet` to the frame at `source`. Returns what changed.
 export function mettreAJour(projet, source, version) {
   const { garder, retirer } = lireListe(readFileSync(path.join(source, LISTE), 'utf8'));
@@ -318,6 +363,7 @@ export function mettreAJour(projet, source, version) {
     test: null,
     vitest: null,
     turbo: null,
+    configVitest: null,
   };
   const empreintes = {};
   for (const f of fichiers) {
@@ -418,6 +464,7 @@ export function mettreAJour(projet, source, version) {
     if (ANCIENS_GARDES_D_INTEGRATION.includes(p.scripts['integration:gardes']?.trim())) {
       delete p.scripts['integration:gardes'];
     }
+    bilan.configVitest = poserConfigVitest(projet, source, p);
     writeFileSync(pkg, `${JSON.stringify(p, null, 2)}\n`);
   }
   bilan.turbo = poserTurbo(projet, source);
@@ -503,8 +550,11 @@ function source(arg) {
   return cache;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const projet = process.cwd();
+const ENTREE = import.meta.url === pathToFileURL(process.argv[1] ?? '').href;
+const projetCourant = process.cwd();
+let src = null;
+let version = 'inconnue';
+if (ENTREE) {
   const args = process.argv.slice(2);
   const valide = args.every(
     (a, k) => a === '--ecarts' || a === '--source' || args[k - 1] === '--source'
@@ -514,7 +564,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     process.exit(2);
   }
   if (process.argv.includes('--ecarts')) {
-    const e = ecarts(projet);
+    const e = ecarts(projetCourant);
     if (e && (e.modifies.length || e.absents.length)) {
       const n = [
         e.modifies.length && `${e.modifies.length} modifié(s)`,
@@ -529,23 +579,29 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     process.exit(0);
   }
   const i = process.argv.indexOf('--source');
-  const src = source(i > 0 ? process.argv[i + 1] : undefined);
-  let version = 'inconnue';
+  src = source(i > 0 ? process.argv[i + 1] : undefined);
   try {
     version = execFileSync('git', ['-C', src, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
   } catch {
     version = 'inconnue';
   }
   const neuf = path.join(src, 'scripts/grillhouse-maj.mjs');
-  const copie = path.join(projet, 'scripts/grillhouse-maj.mjs');
-  const enCours = fileURLToPath(import.meta.url);
-  if (existsSync(neuf) && empreinte(neuf) !== empreinte(enCours)) {
-    // The running script is not the source's: the source's takes its place and finishes the update.
-    mkdirSync(path.dirname(copie), { recursive: true });
-    copyFileSync(neuf, copie);
-    const r = spawnSync(process.execPath, [copie, ...process.argv.slice(2)], { stdio: 'inherit' });
+  if (existsSync(neuf) && realpathSync(neuf) !== realpathSync(fileURLToPath(import.meta.url))) {
+    // The source's script does the update, the source's modules beside it.
+    const r = spawnSync(process.execPath, [neuf, '--source', src], { stdio: 'inherit' });
     process.exit(r.status ?? 1);
   }
+}
+
+// The frame's modules the update calls, loaded once the script running is the one that does the
+// update: a project's copy of this script, which a former version may have written over itself,
+// hands over to the source's before reading the former modules beside it.
+const { poserCrochets } = await import('./crochets.mjs');
+const { installerGreffons } = await import('./greffons.mjs');
+const { paquets } = await import('./turbo-des-paquets.mjs');
+
+if (ENTREE) {
+  const projet = projetCourant;
   const b = mettreAJour(projet, src, version);
   process.stdout.write(
     `Cadre à la version ${version.slice(0, 7)} : ${b.copies.length} fichier(s) copié(s), ${b.retires.length} retiré(s).\n`
@@ -559,6 +615,17 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   if (b.dependances.length > 0) {
     process.stdout.write(
       `Dépendances de développement ajoutées : ${b.dependances.join(', ')}. \`npm install\` les installe.\n`
+    );
+  }
+  if (b.configVitest) {
+    const { espace, nom, paquets: declarants } = b.configVitest;
+    const faits = [
+      espace && `${espace} ajouté aux workspaces`,
+      declarants.length > 0 &&
+        `${nom} déclaré dans les devDependencies de ${declarants.join(', ')}`,
+    ].filter(Boolean);
+    process.stdout.write(
+      `Configuration de base de Vitest : ${faits.join(' ; ')}. \`npm install\` relie le paquet. La configuration Vitest de chaque paquet l'importe par son nom : \`import base from '${nom}'\`.\n`
     );
   }
   if (b.turbo) {

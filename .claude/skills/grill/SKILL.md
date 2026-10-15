@@ -141,9 +141,16 @@ remplace jamais le grill. Les branches de l'arbre :
    généré depuis son `package.json` (`node scripts/turbo-des-paquets.mjs --ecrire`, que la mise à
    jour lance) et `grillhouse:gardes` refuse un fichier absent ou périmé : une dépendance s'écrit
    au `package.json` seul. Chaque paquet testé porte son script
-   `test:vitest` et sa configuration Vitest, qui étend la configuration de base du cadre
-   (`scripts/vitest.base.config.mjs`, par `mergeConfig`) : les exclusions du jour (tests de nuit,
-   bancs de budget) et l'environnement commun y sont, sans copie. Aucune configuration ne lit
+   `test:vitest` et sa configuration Vitest, qui étend la configuration de base du cadre, le
+   paquet `@grillhouse/vitest-config` (`scripts/vitest-config/`, par `mergeConfig`) : les
+   exclusions du jour (tests de nuit, bancs de budget) et l'environnement commun y sont, sans
+   copie. Le paquet l'importe par son nom (`import base from '@grillhouse/vitest-config'`) et le
+   déclare dans ses `devDependencies`, comme les exemples de Turborepo atteignent leurs paquets de
+   configuration ; la mise à jour du cadre fait de `scripts/vitest-config` un espace de travail et
+   écrit la déclaration. Un dépôt sans paquets l'importe par son chemin
+   (`./scripts/vitest-config/base.mjs`). Un paquet hors cadre (`docs/agents/hors-cadre.txt`) sort
+   des espaces de travail par une négation (`"!packages/<nom>"`) : npm et Turborepo l'ignorent, et
+   `grillhouse:gardes` refuse un paquet hors cadre que les espaces sélectionnent encore. Aucune configuration ne lit
    celle d'un voisin, que l'enveloppe cache. Un test atteint son paquet
    par une seule route : les sources relatives pour un test unitaire, le nom du paquet pour un test
    de porte. Ainsi un agent enveloppé construit et teste son paquet avec ce que ses voisins

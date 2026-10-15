@@ -1,8 +1,15 @@
-// The frame's base configuration of the day's tests: every Vitest configuration of a project
-// extends it (`mergeConfig(base, defineConfig({ … }))`), the root's of a single-package
-// repository (vitest.config.ts) as each package's of a monorepo (`import base from
-// '<root>/scripts/vitest.base.config.mjs'`), and adds its own `include`, coverage and options
-// without repeating what this file sets.
+// The frame's base configuration of the day's tests, the package @grillhouse/vitest-config: every
+// Vitest configuration of a project extends it (`mergeConfig(base, defineConfig({ … }))`) and adds
+// its own `include`, coverage and options without repeating what this file sets.
+//
+// - A package of a repository of packages imports it by its name (`import base from
+//   '@grillhouse/vitest-config'`) and declares it in its devDependencies, as the examples of
+//   Turborepo reach their configuration packages (@repo/eslint-config): a package is reached by its
+//   name, never by a relative path out of it. The update of the frame (scripts/grillhouse-maj.mjs)
+//   makes this directory a workspace of the project and writes the declaration.
+// - The root of a repository without packages (Grillhouse itself, vitest.config.ts) imports it by
+//   its path, `./scripts/vitest-config/base.mjs`: the file is inside the one package that imports
+//   it, which no name needs to reach.
 //
 // - The exclusions of the day: a night test (`*.nuit.test.*`, `*.nuit.spec.*`) is too long for the
 //   day, and the measures of a time budget bench (`*.budget.test.*`, `*.budget.spec.*`) move with

@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { attendus, COMMANDE, ecrire, verifier } from '../../scripts/turbo-des-paquets.mjs';
+import { attendus, COMMANDE, ecrire, paquets, verifier } from '../../scripts/turbo-des-paquets.mjs';
 
 // Witness: BPScript (322.12), whose stages declare the shared test material (990-corpus) and
 // sometimes each other in their devDependencies, while 990-corpus declares them in its
@@ -199,5 +199,138 @@ describe('a repository without packages', () => {
     expect(readdirSync(racine).sort()).toEqual(['package.json', 'packages']);
     expect(readdirSync(path.join(racine, 'packages/x'))).toEqual(['package.json']);
     expect(lancer(racine, []).status).toBe(0);
+  });
+});
+
+// Witness: BPScript, whose `docs/agents/hors-cadre.txt` lists its frozen v1 and kanopi; `turbo run
+// build` played them, kanopi red. The project writes a negation in its `workspaces`
+// (`"!packages/kanopi"`): npm (@npmcli/map-workspaces) and Turborepo then ignore the package, and
+// the frame lists the packages as npm does.
+function depotNie(workspaces: unknown) {
+  const r = mkdtempSync(path.join(ESSAIS, 'nie-'));
+  ecrireFichier(r, 'package.json', pkg({ name: 'essai', private: true, workspaces }));
+  for (const nom of ['a', 'b', 'kanopi']) {
+    ecrireFichier(r, `packages/${nom}/package.json`, pkg({ name: nom, scripts: { build: 'tsc' } }));
+  }
+  return r;
+}
+const dossiers = (racine: string): string[] =>
+  (paquets(racine) as { dossier: string }[]).map(p => p.dossier);
+// The workspaces npm maps for <racine>, as `npm pkg get name --workspaces` reads them.
+const selonNpm = (racine: string) => {
+  const r = spawnSync('npm', ['pkg', 'get', 'name', '--workspaces'], {
+    cwd: racine,
+    encoding: 'utf8',
+  });
+  expect(r.status, r.stderr).toBe(0);
+  return Object.keys(JSON.parse(r.stdout) as Record<string, string>)
+    .map(n => `packages/${n}`)
+    .sort();
+};
+
+describe('the packages of a repository are the workspaces npm maps, negations applied', () => {
+  for (const [cas, workspaces, attendu] of [
+    [
+      'a negation takes out what the patterns before it took',
+      ['packages/*', '!packages/kanopi'],
+      ['packages/a', 'packages/b'],
+    ],
+    [
+      'a negation before the pattern still takes the package out',
+      ['!packages/kanopi', 'packages/*'],
+      ['packages/a', 'packages/b'],
+    ],
+    [
+      'a later pattern the negation matches puts the package back',
+      ['packages/*', '!packages/kanopi', 'packages/kanopi'],
+      ['packages/a', 'packages/b', 'packages/kanopi'],
+    ],
+    [
+      'the `packages` key holds the same patterns',
+      { packages: ['packages/*', '!packages/kanopi/'] },
+      ['packages/a', 'packages/b'],
+    ],
+    [
+      'two « ! » cancel each other',
+      ['packages/a', '!!packages/kanopi'],
+      ['packages/a', 'packages/kanopi'],
+    ],
+  ] as const) {
+    it(`${cas}, as npm maps it`, () => {
+      const racine = depotNie(workspaces);
+      expect(dossiers(racine)).toEqual(attendu);
+      expect(selonNpm(racine)).toEqual(attendu);
+    });
+  }
+
+  it('a package taken out receives no turbo.json', () => {
+    const racine = depotNie(['packages/*', '!packages/kanopi']);
+    expect([...attendus(racine).keys()]).toEqual([
+      'packages/a/turbo.json',
+      'packages/b/turbo.json',
+    ]);
+  });
+});
+
+describe('a package out of the frame is out of the workspaces', () => {
+  const horsCadre = (racine: string) =>
+    ecrireFichier(racine, 'docs/agents/hors-cadre.txt', 'kanopi projet voisin, rouge\n');
+
+  it('a package hors-cadre.txt lists that the workspaces still select is refused, the negation to write named', () => {
+    const racine = depotNie(['packages/*']);
+    horsCadre(racine);
+    ecrire(racine);
+    const r = lancer(racine, []);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('packages/kanopi');
+    expect(r.stderr).toContain('docs/agents/hors-cadre.txt');
+    expect(r.stderr).toContain('"!packages/kanopi"');
+  });
+
+  it('the negation written, the check passes', () => {
+    const racine = depotNie(['packages/*', '!packages/kanopi']);
+    horsCadre(racine);
+    ecrire(racine);
+    expect(verifier(racine)).toEqual([]);
+  });
+
+  it('a repository without workspaces is not concerned', () => {
+    const racine = mkdtempSync(path.join(ESSAIS, 'sans-espaces-'));
+    ecrireFichier(racine, 'package.json', pkg({ name: 'p' }));
+    ecrireFichier(racine, 'packages/kanopi/package.json', pkg({ name: 'kanopi' }));
+    horsCadre(racine);
+    expect(verifier(racine)).toEqual([]);
+  });
+});
+
+// A configuration package (@grillhouse/vitest-config, as Turborepo's @repo/eslint-config) is
+// declared in the devDependencies of each package it configures: it orders no build.
+describe('a configuration package in devDependencies orders no build', () => {
+  it('a package that declares it in its devDependencies does not wait for its build, and no cycle forms', () => {
+    const racine = depotAPaquets();
+    ecrireFichier(
+      racine,
+      'packages/config/package.json',
+      pkg({
+        name: '@grillhouse/vitest-config',
+        private: true,
+        scripts: { build: 'true' },
+        dependencies: { a: '*' },
+      })
+    );
+    ecrireFichier(
+      racine,
+      'packages/a/package.json',
+      pkg({
+        name: 'a',
+        scripts: etage,
+        dependencies: { socle: '*' },
+        devDependencies: { '@grillhouse/vitest-config': '*', corpus: '*' },
+      })
+    );
+    expect(lancer(racine, ['--ecrire']).status).toBe(0);
+    const r = turbo(racine, ['build']);
+    expect(r.status, r.stderr).toBe(0);
+    expect(taches(r.stdout)['a#build']).toEqual(['socle#build']);
   });
 });

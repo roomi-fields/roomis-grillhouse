@@ -46,7 +46,7 @@ scripts/turbo-des-paquets.mjs
 scripts/un-commit-par-ticket.mjs
 scripts/verrou-de-fichier.mjs
 scripts/verrous/
-scripts/vitest.base.config.mjs
+scripts/vitest-config/
 scripts/vitest.nuit.config.mjs
 - tests/unit/consommateurs.spec.ts
 - tests/unit/enveloppe.spec.ts

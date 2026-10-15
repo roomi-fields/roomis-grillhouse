@@ -58,7 +58,8 @@ roomis-grillhouse/
 │   ├── code-mort.mjs              # grillhouse:gardes: refuses dead code, measured by knip (knip.json); tests and benches count for dependency use only
 │   ├── consommateurs.mjs          # grillhouse:gardes: refuses an import that the provider's INTERFACE.md does not declare, and two components of the same name
 │   │                              #   composants(): the components for every check, minus the packages out of
-│   │                              #   the frame listed in docs/agents/hors-cadre.txt, "<package> <reason>"
+│   │                              #   the frame listed in docs/agents/hors-cadre.txt, "<package> <reason>"; such a package is out of the
+│   │                              #   workspaces too, by a negation ("!packages/<package>"), which turbo-des-paquets.mjs checks
 │   ├── crochets.mjs               # the frame's git hooks (commit-msg, pre-push): placed by setup.sh and grillhouse:maj, absent ones named by the session start
 │   ├── greffons.mjs               # the frame's plugins (those `.claude/settings.json` enables): installed for the project by setup.sh and grillhouse:maj, absent ones named by the session start
 │   ├── frontieres.mjs             # grillhouse:gardes: dependency-cruiser (after the build, which it reads), rules generated in .dependency-cruiser.cjs
@@ -67,14 +68,17 @@ roomis-grillhouse/
 │   │                              #   (a package without a « . » export, the shared test material, has no API to check)
 │   ├── nuit.sh                    # once a night, the full pass played for real (npm run verifier -- --force: Turborepo's build, guards and tests, no log replayed), then the night tests and budget benches, then the project's night script (`grillhouse.nuit`), and pushes the green commit (`grillhouse.poussee.nuit`)
 │   │                              #   (*.nuit.test.*, *.nuit.spec.*, *.budget.test.*, *.budget.spec.*); a red opens a ticket
-│   ├── vitest.base.config.mjs     # the frame's base Vitest configuration of the day, which every day configuration extends (mergeConfig): night tests and budget benches excluded, the common environment, the one address of git's settings for the suite (automatic maintenance off)
-│   ├── vitest.nuit.config.mjs     # the Vitest configuration of the night tests, played by nuit.sh; git's settings read from vitest.base.config.mjs
+│   ├── vitest-config/             # the package @grillhouse/vitest-config (private, `exports` to base.mjs): the frame's base Vitest configuration of the day, which every day configuration extends (mergeConfig): night tests and budget benches excluded, the common environment, the one address of git's settings for the suite (automatic maintenance off)
+│   │                              #   a package of a project imports it by its name and declares it in its devDependencies; grillhouse-maj makes the directory a workspace; a repository without packages imports base.mjs by its path
+│   ├── vitest.nuit.config.mjs     # the Vitest configuration of the night tests, played by nuit.sh; git's settings read from vitest-config/base.mjs
 │   ├── sous-modules.sh            # the submodules of a working copy (integration, agent, night) at HEAD, or shared read-only (grillhouse.partage)
 │   ├── branche-de-nuit.mjs        # pre-push guard: only the night pushes the branch of grillhouse.poussee.nuit
 │   ├── poussee-cles.mjs           # reads the grillhouse.poussee, .nuit and .commit keys of package.json for nuit.sh, the guard and the queue
 │   ├── retirer-copie.sh           # removes a working copy, submodules included (local work already entered on main does not hold it) (agent, integration, night)
-│   ├── grillhouse-maj.mjs         # npm run grillhouse:maj: the frame brought to its last version (files, git hooks, the frame's plugins, scripts — test, test:vitest, test:forcer, verifier —, turbo.json written from the template of its form when absent, the frame's devDependencies, Turborepo's among them, packageManager, .turbo/ ignored, then the generated `.dependency-cruiser.cjs`, interfaces index and packages' turbo.json regenerated, a failing generator named); --ecarts; any other option refused
+│   ├── grillhouse-maj.mjs         # npm run grillhouse:maj: the frame brought to its last version (files, git hooks, the frame's plugins, scripts — test, test:vitest, test:forcer, verifier —, turbo.json written from the template of its form when absent, the frame's devDependencies, Turborepo's among them, packageManager, .turbo/ ignored, then the generated `.dependency-cruiser.cjs`, interfaces index and packages' turbo.json regenerated, a failing generator named; in a repository of packages, scripts/vitest-config made a workspace and @grillhouse/vitest-config declared in the devDependencies of each package with a test:vitest); the project's copy runs the source's script, whose modules are the source's; --ecarts; any other option refused
 │   ├── turbo-des-paquets.mjs      # grillhouse:gardes: refuses a package's turbo.json absent or stale; --ecrire writes it (extends the root's, its build waits for the build of its runtime dependencies only: dependencies, peerDependencies, optionalDependencies)
+│   │                              #   paquets(): the frame's one list of the packages, the workspaces mapped as npm maps them (a « ! » pattern takes out);
+│   │                              #   refuses a package of docs/agents/hors-cadre.txt the workspaces still select, naming the negation to write
 │   ├── tableau.mjs                # npm run tableau: the board on three levels (project, agents, chantier)
 │   ├── ligne-etat/                # the status line: the person's own on the left, the chantier on the right
 │   ├── verrou-de-fichier.mjs      # the lock of a file shared between processes (judged by the owner's process or by age); taken by integrer.mjs, file.mjs and registre.mjs
@@ -157,7 +161,7 @@ roomis-grillhouse/
 ├── turbo.json                  # the repository's own Turborepo tasks (templates/turbo/sans-paquets.json): build (dist/), grillhouse:gardes and test:vitest beside each other after it; npm test runs the tests, npm run verifier the guards and the tests, the cache in the main tree's .turbo/cache
 ├── tsconfig.json               # TypeScript configuration (allowJs: JS compiles as is)
 ├── tsconfig.eslint.json        # Lint scope: src/ + tests/
-└── vitest.config.ts            # Vitest test configuration of the day: npm test; extends scripts/vitest.base.config.mjs (night tests and budget benches left out, common environment)
+└── vitest.config.ts            # Vitest test configuration of the day: npm test; extends scripts/vitest-config/base.mjs by its path (night tests and budget benches left out, common environment)
 ```
 
 ## Quick Start

@@ -215,7 +215,7 @@ describe('3uv.72.1 critères 3 et 6 : the setting lives in the environment of th
       .filter(f => f !== '')
       .filter(f => !f.startsWith('tests/'))
       .filter(f => !/\.md$/.test(f) && !/(^|\/)LICENSE/.test(f) && !/^\.beads\/.*\.jsonl$/.test(f))
-      .filter(f => f !== 'scripts/vitest.base.config.mjs');
+      .filter(f => f !== 'scripts/vitest-config/base.mjs');
     const porteurs = suivis.filter(f => {
       let texte: string;
       try {

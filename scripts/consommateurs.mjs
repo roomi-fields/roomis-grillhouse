@@ -19,7 +19,9 @@
 // Components are the directories under `packages/` (reached by their package name or a relative
 // path) and under `src/` (reached by a relative path), except those listed out of the frame in
 // `docs/agents/hors-cadre.txt`: neither read nor checked, as provider or as consumer. Every check
-// of the frame enumerates the components through `composants`. For the check of the uses, test files,
+// of the frame enumerates the components through `composants`. In a repository of packages, such a
+// package is out of the `workspaces` too, by a negation (`"!packages/<name>"`), so that npm and
+// Turborepo ignore it: scripts/turbo-des-paquets.mjs refuses one the workspaces still select. For the check of the uses, test files,
 // `dist/`, `docs/` and `node_modules/` are not production code and are not read.
 // The identity of a component is its name: two directories of the same name, one under `packages/`
 // and one under `src/`, are refused, both paths named (the way npm workspaces, Nx and Cargo refuse

@@ -15,12 +15,22 @@
 // script, sorted. The tests keep the root's `^build`: a test waits for everything it imports.
 //
 // The packages are the directories holding a `package.json` that the `workspaces` of the root
-// `package.json` select (an array, or its `packages` key), read with Node's glob. A repository
-// without `workspaces` has none: nothing is written, nothing is refused. The dependencies are
-// written in the package.json only; this file is their only reader for the build's order.
+// `package.json` select (an array, or its `packages` key), mapped as npm maps them
+// (@npmcli/map-workspaces), read with Node's glob: a pattern « ! » takes out what the other
+// patterns select, unless a later pattern it matches puts it back; `node_modules` is never a
+// package. `paquets` is the frame's one list of the packages of a repository: the update of the
+// frame (scripts/grillhouse-maj.mjs) reads it too. A repository without `workspaces` has none:
+// nothing is written, nothing is refused. The dependencies are written in the package.json only;
+// this file is their only reader for the build's order.
+//
+// A package out of the frame (`docs/agents/hors-cadre.txt`, read by `horsCadre` of
+// scripts/consommateurs.mjs) is out of the workspaces: the check refuses one the workspaces still
+// select, and names the negation to write (`"!packages/<name>"`), by which npm and Turborepo
+// ignore it.
 import { existsSync, globSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { horsCadre } from './consommateurs.mjs';
 
 export const TURBO = 'turbo.json';
 export const COMMANDE = 'node scripts/turbo-des-paquets.mjs --ecrire';
@@ -36,13 +46,32 @@ const lireJson = f => {
 };
 
 // The packages of the repository at <racine>: [{ dossier, pkg }], sorted by directory.
-function paquets(racine) {
+export function paquets(racine) {
   const p = lireJson(path.join(racine, 'package.json'));
-  const motifs = Array.isArray(p?.workspaces) ? p.workspaces : (p?.workspaces?.packages ?? []);
+  const declares = Array.isArray(p?.workspaces) ? p.workspaces : (p?.workspaces?.packages ?? []);
+  const motifs = [];
+  let nies = [];
+  for (const brut of declares.map(String)) {
+    const excl = /^!+/.exec(brut)?.[0] ?? '';
+    const motif = brut
+      .slice(excl.length)
+      .replace(/^\.?\/+/, '')
+      .replace(/\/$/, '');
+    if (excl.length % 2 === 1) {
+      nies.push(motif);
+    } else {
+      // A pattern puts back what an earlier negation it matches took out.
+      nies = nies.filter(n => !path.matchesGlob(motif, n));
+      motifs.push(motif);
+    }
+  }
   const dossiers = new Set();
   for (const motif of motifs) {
-    for (const f of globSync(`${String(motif).replace(/\/$/, '')}/package.json`, { cwd: racine })) {
-      if (!f.split(path.sep).includes('node_modules')) dossiers.add(path.dirname(f));
+    for (const f of globSync(`${motif}/package.json`, { cwd: racine })) {
+      const dossier = path.dirname(f);
+      if (f.split(path.sep).includes('node_modules')) continue;
+      if (nies.some(n => path.matchesGlob(dossier, n))) continue;
+      dossiers.add(dossier);
     }
   }
   return [...dossiers]
@@ -92,9 +121,19 @@ export function ecrire(racine) {
   return ecrits;
 }
 
-// The refusals of <racine>: one line per package turbo.json absent or other than generated.
+// The refusals of <racine>: one line per package turbo.json absent or other than generated, and
+// one per package out of the frame that the workspaces select.
 export function verifier(racine) {
   const refus = [];
+  const hors = horsCadre(racine);
+  for (const { dossier } of paquets(racine)) {
+    const parent = path.dirname(dossier);
+    if ((parent === 'packages' || parent === 'src') && hors.has(path.basename(dossier))) {
+      refus.push(
+        `⛔ ${dossier} est hors cadre (docs/agents/hors-cadre.txt), et les workspaces du package.json le sélectionnent encore : écris-y la négation "!${dossier}", par laquelle npm et Turborepo l'ignorent.`
+      );
+    }
+  }
   for (const [f, t] of attendus(racine)) {
     const abs = path.join(racine, f);
     if (!existsSync(abs)) {

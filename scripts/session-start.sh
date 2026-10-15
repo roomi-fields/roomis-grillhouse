@@ -72,7 +72,8 @@ else
     || pending+=("les critères d'arbitrage (section « Comment on arbitre » de CLAUDE.md : la référence mature du domaine, l'existant à reprendre, les exigences du domaine)")
 fi
 # The packages out of the frame: docs/agents/hors-cadre.txt ("<package> <reason>", e.g. a frozen
-# version), read by scripts/consommateurs.mjs as every check reads it. Line 1: the names listed;
+# version), read by scripts/consommateurs.mjs as every check reads it, and out of the workspaces by
+# a negation (scripts/turbo-des-paquets.mjs checks it). Line 1: the names listed;
 # line 2: the names that no directory under packages/ or src/ bears.
 { read -r hors; read -r inconnus; } < <(node --input-type=module -e '
 const { pathToFileURL } = await import("node:url");

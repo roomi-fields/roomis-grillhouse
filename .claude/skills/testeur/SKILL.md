@@ -50,7 +50,7 @@ ses mesures ; la nuit le juge. Ainsi un rouge de jour dit un défaut, jamais une
 **Un test trop long pour le jour est un test de nuit** : il s'écrit dans un fichier
 `*.nuit.test.ts`. Ni `npm test` ni l'intégration ne le jouent ; la nuit le joue elle-même, après
 une passe complète verte, avec la configuration du cadre (`scripts/vitest.nuit.config.mjs`) ; la configuration de base du
-jour (`scripts/vitest.base.config.mjs`), que chaque configuration Vitest étend, l'exclut.
+jour (le paquet `@grillhouse/vitest-config`), que chaque configuration Vitest étend, l'exclut.
 Ainsi le jour reste court, et la preuve longue tourne chaque nuit.
 
 **Un rouge connu se met en quarantaine dans son test** : un test qui reste rouge le temps d'un

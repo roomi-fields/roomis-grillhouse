@@ -1642,3 +1642,198 @@ describe('grillhouse-3uv.80 critère 3 — one pass of the update suffices, its 
     expect(lire(projet, 'package.json')).toBe(apres);
   });
 });
+
+// The frame's base configuration of Vitest is a package, @grillhouse/vitest-config
+// (scripts/vitest-config/), that each package of a project reaches by its name, as the examples of
+// Turborepo reach @repo/eslint-config. Witness: BPScript, whose guard of access refuses a relative
+// path out of a package (`../../scripts/vitest.base.config.mjs`).
+const CONFIG_VITEST = 'scripts/vitest-config';
+const NOM_CONFIG = '@grillhouse/vitest-config';
+const pkgJson = (o: Record<string, unknown>) => `${JSON.stringify(o, null, 2)}\n`;
+// A project of packages: `teste` holds a test:vitest, `sans` none.
+function projetAPaquets(workspaces: unknown) {
+  const projet = mkdtempSync(path.join(ESSAIS, 'config-vitest-'));
+  ecrire(projet, 'package.json', pkgJson({ name: 'p', private: true, workspaces }));
+  ecrire(
+    projet,
+    'packages/teste/package.json',
+    pkgJson({ name: 'teste', scripts: { 'test:vitest': 'vitest run' } })
+  );
+  ecrire(
+    projet,
+    'packages/sans/package.json',
+    pkgJson({ name: 'sans', scripts: { build: 'tsc' } })
+  );
+  return projet;
+}
+const devDeps = (projet: string, f: string) =>
+  (json(projet, f).devDependencies ?? {}) as Record<string, string>;
+
+describe('the update makes the configuration package of Vitest a workspace of a project of packages', () => {
+  it('adds its directory to the workspaces, and each tested package declares it in its devDependencies', () => {
+    const projet = projetAPaquets(['packages/*']);
+    const b = mettreAJour(projet, DEPOT, 'essai');
+    expect(json(projet, 'package.json').workspaces).toEqual(['packages/*', CONFIG_VITEST]);
+    expect(json(projet, `${CONFIG_VITEST}/package.json`).name).toBe(NOM_CONFIG);
+    expect(devDeps(projet, 'packages/teste/package.json')).toEqual({ [NOM_CONFIG]: '*' });
+    expect(json(projet, 'packages/sans/package.json')).not.toHaveProperty('devDependencies');
+    expect(b.configVitest).toEqual({
+      espace: CONFIG_VITEST,
+      nom: NOM_CONFIG,
+      paquets: ['packages/teste'],
+    });
+  });
+  it('the `packages` key of the workspaces receives it the same way', () => {
+    const projet = projetAPaquets({ packages: ['packages/*'] });
+    mettreAJour(projet, DEPOT, 'essai');
+    expect(json(projet, 'package.json').workspaces).toEqual({
+      packages: ['packages/*', CONFIG_VITEST],
+    });
+  });
+  it('workspaces that already select it are left as they are', () => {
+    const projet = projetAPaquets(['packages/*', 'scripts/*']);
+    mettreAJour(projet, DEPOT, 'essai');
+    expect(json(projet, 'package.json').workspaces).toEqual(['packages/*', 'scripts/*']);
+    expect(devDeps(projet, 'packages/teste/package.json')).toEqual({ [NOM_CONFIG]: '*' });
+  });
+  it('a package the workspaces take out (hors-cadre.txt and its negation) is not touched', () => {
+    const projet = projetAPaquets(['packages/*', '!packages/kanopi']);
+    const kanopi = pkgJson({ name: 'kanopi', scripts: { 'test:vitest': 'vitest run' } });
+    ecrire(projet, 'packages/kanopi/package.json', kanopi);
+    mettreAJour(projet, DEPOT, 'essai');
+    expect(lire(projet, 'packages/kanopi/package.json')).toBe(kanopi);
+  });
+  it('a declaration the package already holds stays; its devDependencies are written sorted', () => {
+    const projet = projetAPaquets(['packages/*']);
+    const propre = pkgJson({
+      name: 'propre',
+      scripts: { 'test:vitest': 'vitest run' },
+      devDependencies: { [NOM_CONFIG]: '^0.0.0' },
+    });
+    ecrire(projet, 'packages/propre/package.json', propre);
+    ecrire(
+      projet,
+      'packages/teste/package.json',
+      pkgJson({
+        name: 'teste',
+        scripts: { 'test:vitest': 'vitest run' },
+        devDependencies: { zod: '*', vitest: '^2.0.0' },
+      })
+    );
+    mettreAJour(projet, DEPOT, 'essai');
+    expect(lire(projet, 'packages/propre/package.json')).toBe(propre);
+    expect(Object.keys(devDeps(projet, 'packages/teste/package.json'))).toEqual([
+      NOM_CONFIG,
+      'vitest',
+      'zod',
+    ]);
+  });
+  it('a replayed update changes no package.json', () => {
+    const projet = projetAPaquets(['packages/*']);
+    mettreAJour(projet, DEPOT, 'essai');
+    const fichiers = ['package.json', 'packages/teste/package.json', 'packages/sans/package.json'];
+    const avant = fichiers.map(f => lire(projet, f));
+    const b = mettreAJour(projet, DEPOT, 'essai');
+    expect(fichiers.map(f => lire(projet, f))).toEqual(avant);
+    expect(b.configVitest).toBeNull();
+  });
+  it('a project of packages none of which is tested receives neither', () => {
+    const projet = mkdtempSync(path.join(ESSAIS, 'config-vitest-'));
+    ecrire(projet, 'package.json', pkgJson({ name: 'p', workspaces: ['packages/*'] }));
+    ecrire(projet, 'packages/sans/package.json', pkgJson({ name: 'sans' }));
+    expect(mettreAJour(projet, DEPOT, 'essai').configVitest).toBeNull();
+    expect(json(projet, 'package.json').workspaces).toEqual(['packages/*']);
+  });
+  it('a project without workspaces, whose root holds the file, receives neither', () => {
+    const { projet } = installe({ name: 'p', scripts: { 'test:vitest': 'vitest run' } });
+    expect(json(projet, 'package.json')).not.toHaveProperty('workspaces');
+    expect(devDeps(projet, 'package.json')).not.toHaveProperty(NOM_CONFIG);
+    expect(existsSync(path.join(projet, CONFIG_VITEST, 'base.mjs'))).toBe(true);
+  });
+  it('the update removes the former base configuration the previous version installed', () => {
+    const projet = projetAPaquets(['packages/*']);
+    ecrire(projet, 'scripts/vitest.base.config.mjs', 'export default {};\n');
+    ecrire(
+      projet,
+      '.claude/grillhouse/empreintes.json',
+      JSON.stringify({ version: 'ancienne', fichiers: { 'scripts/vitest.base.config.mjs': 'x' } })
+    );
+    const b = mettreAJour(projet, DEPOT, 'essai');
+    expect(b.retires).toContain('scripts/vitest.base.config.mjs');
+    expect(existsSync(path.join(projet, 'scripts/vitest.base.config.mjs'))).toBe(false);
+  });
+  it('the report names the workspace added, the packages that declare it, the import to write and npm install', () => {
+    const projet = projetAPaquets(['packages/*']);
+    const bin = claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')), {
+      marches: ['claude-plugins-official', 'roomi-fields'],
+    }).bin;
+    const r = lancerMajAvec(projet, ['--source', DEPOT], bin);
+    expect(r.stdout).toContain(CONFIG_VITEST);
+    expect(r.stdout).toContain('packages/teste');
+    expect(r.stdout).toContain(`import base from '${NOM_CONFIG}'`);
+    expect(r.stdout).toMatch(/npm install/);
+  });
+});
+
+// The update reads the packages of a project as the frame's checks read them (`paquets` of
+// scripts/turbo-des-paquets.mjs): a package the workspaces take out is none.
+describe('the update knows a project to run Vitest by the packages its workspaces select', () => {
+  it('vitest declared only in a package the workspaces take out leaves the project’s test as it is', () => {
+    const propre = 'bash scripts/suites.sh';
+    const projet = mkdtempSync(path.join(ESSAIS, 'vitest-nie-'));
+    vitestALaRacine(projet);
+    ecrire(
+      projet,
+      'package.json',
+      pkgJson({
+        name: 'p',
+        private: true,
+        workspaces: ['packages/*', '!packages/kanopi'],
+        scripts: { test: propre },
+      })
+    );
+    ecrire(
+      projet,
+      'packages/kanopi/package.json',
+      pkgJson({ name: 'kanopi', devDependencies: { vitest: '^2.0.0' } })
+    );
+    mettreAJour(projet, DEPOT, 'essai');
+    expect((json(projet, 'package.json').scripts as Record<string, string>).test).toBe(propre);
+  });
+});
+
+// The update a project runs is its own copy of scripts/grillhouse-maj.mjs, which a former version
+// may have written over itself; the modules beside it are the former version's. The source's
+// script does the update, with the source's modules beside it.
+describe('the update runs the source’s script, whose modules are the source’s', () => {
+  for (const [cas, retouche] of [
+    [
+      'a module of the project lacks what the new script imports',
+      (projet: string) => ecrire(projet, 'scripts/turbo-des-paquets.mjs', 'export const x = 1;\n'),
+    ],
+    [
+      'a module of the project is absent',
+      (projet: string) => rmSync(path.join(projet, 'scripts/turbo-des-paquets.mjs')),
+    ],
+  ] as const) {
+    it(`${cas}: one pass of the project’s update succeeds, and brings the module`, () => {
+      const projet = projetAPaquets(['packages/*']);
+      const bin = () =>
+        claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')), {
+          marches: ['claude-plugins-official', 'roomi-fields'],
+        }).bin;
+      lancerMajAvec(projet, ['--source', DEPOT], bin());
+      retouche(projet);
+      const r = spawnSync(process.execPath, ['scripts/grillhouse-maj.mjs', '--source', DEPOT], {
+        cwd: projet,
+        encoding: 'utf8',
+        env: { PATH: cheminSysteme(bin()), HOME: mkdtempSync(path.join(ESSAIS, 'maison-')) },
+        timeout: 120_000,
+      });
+      expect(r.status, `${r.stdout}${r.stderr}`).toBe(0);
+      expect(lire(projet, 'scripts/turbo-des-paquets.mjs')).toBe(
+        lire(DEPOT, 'scripts/turbo-des-paquets.mjs')
+      );
+    });
+  }
+});

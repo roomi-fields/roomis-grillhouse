@@ -1,5 +1,5 @@
 import { defineConfig, mergeConfig } from 'vitest/config';
-import base from './scripts/vitest.base.config.mjs';
+import base from './scripts/vitest-config/base.mjs';
 
 // The day's tests of the repository: the frame's base configuration (its exclusions of the night
 // tests and the time budget benches, its common environment) extended with what is the root's own.
