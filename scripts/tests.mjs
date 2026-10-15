@@ -5,7 +5,7 @@
 //   node scripts/tests.mjs [--force] [<path>…] [--<option>=<value>…]
 //
 // - Without a path, every package plays its tests (`turbo run test:vitest`); `--force` plays each
-//   task for real (`npm run test:forcer`).
+//   task for real, the builds included (`npm run test:forcer`).
 // - A path is written from the root of the repository: a test file or a directory. In a repository
 //   of packages, each path plays in the package that holds it: Turborepo runs the `test:vitest` of
 //   those packages only (`--filter=<name>`), and their Vitest receives each path made absolute,
@@ -17,15 +17,23 @@
 //   (`docs/agents/hors-cadre.txt`), or in a package without a `test:vitest` script is refused,
 //   named, and nothing plays. In a repository without packages, the paths go to the root's Vitest
 //   as they are.
+// - A run with paths plays in two Turborepo runs: the builds first, without arguments
+//   (`turbo run build --filter=<name>...`: each package and its dependencies; the root's build in a
+//   repository without packages), then the tests alone (`turbo run test:vitest --only`), which
+//   receive the paths after `--`. Turborepo passes the arguments after `--` to every task of the
+//   run and counts them in each task's hash: in one run, naming another file would play each build
+//   again. A build that fails ends the run, and no test plays. `--force` plays the tests named for
+//   real, their builds replayed from the cache: a test suspected unstable is played again, and a
+//   build, which the same inputs give again, is not.
 // - An argument that begins with « - » is an option of Vitest, written `--<name>=<value>`, passed to
-//   each run as it is.
+//   each run of the tests as it is.
 // - A run that plays no test fails: the frame's base configuration of Vitest keeps Vitest's
 //   `passWithNoTests: false` (scripts/vitest-config/base.mjs).
 // The exit code is Turborepo's; 2 for a path refused.
 import { spawnSync } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { paquets } from './turbo-des-paquets.mjs';
+import { paquets } from './paquets.mjs';
 
 const racine = process.cwd();
 const args = process.argv.slice(2);
@@ -33,17 +41,23 @@ const force = args.includes('--force') ? ['--force'] : [];
 const options = args.filter(a => a.startsWith('-') && a !== '--force');
 const chemins = args.filter(a => !a.startsWith('-'));
 
-const turbo = (filtres, passes) => {
-  const r = spawnSync(
-    'turbo',
-    ['run', 'test:vitest', ...force, ...filtres, ...(passes.length ? ['--', ...passes] : [])],
-    { cwd: racine, stdio: 'inherit' }
-  );
-  process.exit(r.status ?? 1);
+// One Turborepo run of <args>; its exit code.
+const turbo = args =>
+  spawnSync('turbo', ['run', ...args], { cwd: racine, stdio: 'inherit' }).status ?? 1;
+
+// The builds <filtres> select, then the tests <filtres> select alone, which receive <passes>;
+// exits with the first exit code that is not 0, else with the tests'.
+const cibles = (filtres, passes) => {
+  const construction = turbo(['build', ...filtres.map(f => `${f}...`)]);
+  if (construction !== 0) process.exit(construction);
+  process.exit(turbo(['test:vitest', '--only', ...force, ...filtres, '--', ...passes]));
 };
 
 const liste = paquets(racine);
-if (chemins.length === 0 || liste.length === 0) turbo([], [...chemins, ...options]);
+if (chemins.length === 0) {
+  process.exit(turbo(['test:vitest', ...force, ...(options.length ? ['--', ...options] : [])]));
+}
+if (liste.length === 0) cibles([], [...chemins, ...options]);
 
 // The package of the frame that holds each path, the paths made absolute; the refusals.
 const refus = [];
@@ -76,7 +90,7 @@ if (refus.length) {
   for (const l of refus) process.stderr.write(`${l}\n`);
   process.exit(2);
 }
-turbo(
+cibles(
   [...noms].sort().map(n => `--filter=${n}`),
   [...absolus, ...options]
 );

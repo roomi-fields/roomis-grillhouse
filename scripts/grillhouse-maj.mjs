@@ -46,7 +46,7 @@
 //   that does not ignore `.turbo/` (Turborepo's runs and cache) receives the line.
 // - A project that runs Vitest (its `test` script names it, or `vitest` is in the `dependencies` or
 //   `devDependencies` of its root `package.json` or of one of its packages, the workspaces as npm
-//   maps them, read by `paquets` of scripts/turbo-des-paquets.mjs, the frame's one list of the
+//   maps them, read by `paquets` of scripts/paquets.mjs, the frame's one list of the
 //   packages: a package a negation takes out is none, and a package out of the frame
 //   (`docs/agents/hors-cadre.txt`), which Turborepo never tests, counts for nothing) has its root scripts
 //   `test`, `test:vitest`, `test:forcer` and `verifier` become the source's (`npm test`, the tests
@@ -74,9 +74,10 @@
 //   (`./scripts/vitest-config/base.mjs`), from the one package that holds it.
 // - The update's own script: a project's copy runs the source's scripts/grillhouse-maj.mjs in its
 //   place (`--source` the same source), and the frame's modules it calls (crochets.mjs, greffons.mjs,
-//   turbo-des-paquets.mjs) are loaded only then, beside the script that does the update: a former
+//   paquets.mjs) are loaded only then, beside the script that does the update: a former
 //   version that wrote the new script over itself leaves the former modules beside it, which the
-//   new script never reads. So one pass ends with the new script's work.
+//   new script never reads. So one pass ends with the new script's work. The script and these
+//   modules use Node alone: the source is a checkout that installs no dependency.
 // - The git hooks: both of the frame (commit-msg « a closed ticket refuses a second commit, a reopened ticket takes its corrections », pre-push night branch
 //   guard) are placed by scripts/crochets.mjs, the mechanism scripts/setup.sh also calls, in the
 //   hooks folder git reads for the project (`core.hooksPath`, else the default one; the
@@ -93,7 +94,8 @@
 //   for its runtime dependencies only, and of which a package out of the frame plays no task; the
 //   `dependsOn` of the guard tasks of the root's turbo.json, which wait for the builds; it reads
 //   with jsonc-parser, which `npm install` brings), so that the frame's checks accept them; a generator
-//   that fails has its line, and the exit code is non-zero. `interfaces-contre-code.mjs` is not
+//   that fails has its line, which says to run it after `npm install` (the frame's tools), and the
+//   exit code is non-zero. `interfaces-contre-code.mjs` is not
 //   run: it writes after a build.
 // - An option other than `--source <path>` and `--ecarts` is refused: the usage is shown (the
 //   exit code is non-zero) and nothing is updated, `--help` included.
@@ -559,7 +561,7 @@ export function regenerer(projet) {
     const r = spawnSync(process.execPath, [g.script, ...g.args], { cwd: projet, encoding: 'utf8' });
     if (r.status !== 0) {
       lignes.push(
-        `${g.sortie ?? g.script} : \`node ${[g.script, ...g.args].join(' ')}\` échoue ; lance-le. ${(r.stderr ?? '').trim()}`.trim()
+        `${g.sortie ?? g.script} : \`node ${[g.script, ...g.args].join(' ')}\` échoue ; lance-le après \`npm install\`, qui installe les outils du cadre. ${(r.stderr ?? '').trim()}`.trim()
       );
     }
   }
@@ -634,7 +636,7 @@ if (ENTREE) {
 // hands over to the source's before reading the former modules beside it.
 const { poserCrochets } = await import('./crochets.mjs');
 const { installerGreffons } = await import('./greffons.mjs');
-const { paquets } = await import('./turbo-des-paquets.mjs');
+const { paquets } = await import('./paquets.mjs');
 
 if (ENTREE) {
   const projet = projetCourant;

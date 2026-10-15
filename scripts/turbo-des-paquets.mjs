@@ -17,11 +17,10 @@
 // its `dependencies`, `peerDependencies` and `optionalDependencies` name that has a `build`
 // script, sorted. The tests keep the root's `^build`: a test waits for everything it imports.
 //
-// A package out of the frame (`docs/agents/hors-cadre.txt`, read by `horsCadre` of
-// scripts/consommateurs.mjs: a directory under `packages/` or `src/`) stays a workspace, which a
-// neighbour may import by its name, and Turborepo plays none of its tasks: its configuration
-// excludes each task of the root's turbo.json (or turbo.jsonc), `"extends": false`, by which the
-// task does not exist for it. A `^` dependency still reaches an excluded task, so no `dependsOn`
+// A package out of the frame (`docs/agents/hors-cadre.txt`: a directory under `packages/` or
+// `src/`) stays a workspace, which a neighbour may import by its name, and Turborepo plays none
+// of its tasks: its configuration excludes each task of the root's turbo.json (or turbo.jsonc),
+// `"extends": false`, by which the task does not exist for it. A `^` dependency still reaches an excluded task, so no `dependsOn`
 // written here names a package out of the frame, and a package of the frame that declares one
 // (in its `dependencies`, `devDependencies` or `optionalDependencies`, the fields `^` follows)
 // has each root task whose `dependsOn` holds a `^<task>` written out: its other entries kept, then
@@ -42,20 +41,15 @@
 // `dependsOn` differs. A repository without a root turbo.json (or turbo.jsonc) has nothing written
 // or refused at its root.
 //
-// The packages are the directories holding a `package.json` that the `workspaces` of the root
-// `package.json` select (an array, or its `packages` key), mapped as npm maps them
-// (@npmcli/map-workspaces), read with Node's glob: a pattern « ! » takes out what the other
-// patterns select, unless a later pattern it matches puts it back; `node_modules` is never a
-// package. `paquets` is the frame's one list of the packages of a repository, each marked out of
-// the frame or not: the update of the frame (scripts/grillhouse-maj.mjs) reads it too. A
-// repository without `workspaces` has none: no package turbo.json is written or refused. The
-// dependencies are written in the package.json only; this file is their only reader for the
-// tasks' order.
-import { existsSync, globSync, readFileSync, writeFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
+// The packages are those of `paquets` (scripts/paquets.mjs, the frame's one list of the packages of
+// a repository, each marked out of the frame or not). A repository without `workspaces` has none:
+// no package turbo.json is written or refused. The dependencies are written in the package.json
+// only; this file is their only reader for the tasks' order.
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { horsCadre } from './consommateurs.mjs';
+import { applyEdits, modify, parse } from 'jsonc-parser';
+import { paquets } from './paquets.mjs';
 
 export const TURBO = 'turbo.json';
 export const COMMANDE = 'node scripts/turbo-des-paquets.mjs --ecrire';
@@ -70,32 +64,11 @@ export const GARDES = ['grillhouse:gardes', 'gardes'];
 // The layout of what the generator writes in the root's turbo.json.
 const MISE_EN_FORME = { formattingOptions: { insertSpaces: true, tabSize: 2, eol: '\n' } };
 
-// jsonc-parser, a tool of the frame, loaded when a turbo.json is read: the update of the frame
-// imports `paquets` from a source checkout that installs no dependency.
-// Missing, it is named with the command that installs it.
-const jsonc = () => {
-  try {
-    return createRequire(import.meta.url)('jsonc-parser');
-  } catch {
-    throw new Error(
-      "⛔ jsonc-parser manque : c'est un outil du cadre, que `npm install` installe (devDependencies)."
-    );
-  }
-};
-
-const lireJson = f => {
-  try {
-    return JSON.parse(readFileSync(f, 'utf8'));
-  } catch {
-    return null;
-  }
-};
-
 // <texte> as JSON, its JSONC comments and trailing commas allowed, as Turborepo reads its
 // configuration; null when it is no JSON.
 const lireJsonc = texte => {
   const erreurs = [];
-  const valeur = jsonc().parse(texte, erreurs, { allowTrailingComma: true });
+  const valeur = parse(texte, erreurs, { allowTrailingComma: true });
   return erreurs.length ? null : valeur;
 };
 
@@ -112,44 +85,6 @@ function tachesRacine(racine) {
     if (!nom.includes('#')) taches.set(nom, Array.isArray(t?.dependsOn) ? t.dependsOn : []);
   }
   return taches;
-}
-
-// The packages of the repository at <racine>: [{ dossier, pkg, hors }], sorted by directory;
-// `hors` whether `docs/agents/hors-cadre.txt` lists it (a directory under `packages/` or `src/`).
-export function paquets(racine) {
-  const p = lireJson(path.join(racine, 'package.json'));
-  const declares = Array.isArray(p?.workspaces) ? p.workspaces : (p?.workspaces?.packages ?? []);
-  const motifs = [];
-  let nies = [];
-  for (const brut of declares.map(String)) {
-    const excl = /^!+/.exec(brut)?.[0] ?? '';
-    const motif = brut
-      .slice(excl.length)
-      .replace(/^\.?\/+/, '')
-      .replace(/\/$/, '');
-    if (excl.length % 2 === 1) {
-      nies.push(motif);
-    } else {
-      // A pattern puts back what an earlier negation it matches took out.
-      nies = nies.filter(n => !path.matchesGlob(motif, n));
-      motifs.push(motif);
-    }
-  }
-  const dossiers = new Set();
-  for (const motif of motifs) {
-    for (const f of globSync(`${motif}/package.json`, { cwd: racine })) {
-      const dossier = path.dirname(f);
-      if (f.split(path.sep).includes('node_modules')) continue;
-      if (nies.some(n => path.matchesGlob(dossier, n))) continue;
-      dossiers.add(dossier);
-    }
-  }
-  const listes = dossiers.size ? horsCadre(racine) : new Set();
-  return [...dossiers].sort().map(dossier => ({
-    dossier,
-    pkg: lireJson(path.join(racine, dossier, 'package.json')) ?? {},
-    hors: ['packages', 'src'].includes(path.dirname(dossier)) && listes.has(path.basename(dossier)),
-  }));
 }
 
 // The text of a package's turbo.json, whose tasks are <taches>.
@@ -250,7 +185,6 @@ export function ecrire(racine) {
   }
   const racineEcartee = gardesEcartees(racine);
   if (racineEcartee?.ecarts.length) {
-    const { modify, applyEdits } = jsonc();
     let texte = racineEcartee.texte;
     for (const { cle, attendu, present } of racineEcartee.ecarts) {
       const [chemin, valeur] = present

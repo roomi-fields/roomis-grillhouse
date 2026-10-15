@@ -33,6 +33,7 @@ scripts/integration/
 scripts/ligne-etat/
 scripts/interfaces-contre-code.mjs
 scripts/nuit.sh
+scripts/paquets.mjs
 scripts/poussee-cles.mjs
 scripts/registre.mjs
 scripts/retirer-copie.sh

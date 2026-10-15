@@ -117,7 +117,7 @@ npm test
 | `npm run build` | Compile TypeScript to JavaScript |
 | `npm run dev` | Run in development mode with watch |
 | `npm test` | Build, then run the tests (Turborepo; an unchanged task is replayed from its cache); `npm test -- <paths>` plays the paths written from the root, each in its package |
-| `npm run test:forcer` | The same, every task run for real |
+| `npm run test:forcer` | The same, every task run for real; with paths, the tests named run for real, their builds replayed from the cache |
 | `npm run verifier` | Build, then run the frame's guards, the project's own (`gardes`) and the tests beside each other (what the integration and the CI run) |
 | `npm run lint` | Run ESLint |
 | `npm run format` | Format code with Prettier |

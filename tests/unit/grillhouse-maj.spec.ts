@@ -1845,7 +1845,7 @@ describe('the update makes the configuration package of Vitest a workspace of a 
 });
 
 // The update reads the packages of a project as the frame's checks read them (`paquets` of
-// scripts/turbo-des-paquets.mjs): a package the workspaces take out is none, and a package out of
+// scripts/paquets.mjs): a package the workspaces take out is none, and a package out of
 // the frame, which Turborepo never tests, is not the frame's.
 describe('the update knows a project to run Vitest by the packages of the frame its workspaces select', () => {
   for (const [cas, workspaces] of [
@@ -1880,11 +1880,11 @@ describe('the update runs the source’s script, whose modules are the source’
   for (const [cas, retouche] of [
     [
       'a module of the project lacks what the new script imports',
-      (projet: string) => ecrire(projet, 'scripts/turbo-des-paquets.mjs', 'export const x = 1;\n'),
+      (projet: string) => ecrire(projet, 'scripts/paquets.mjs', 'export const x = 1;\n'),
     ],
     [
       'a module of the project is absent',
-      (projet: string) => rmSync(path.join(projet, 'scripts/turbo-des-paquets.mjs')),
+      (projet: string) => rmSync(path.join(projet, 'scripts/paquets.mjs')),
     ],
   ] as const) {
     it(`${cas}: one pass of the project’s update succeeds, and brings the module`, () => {
@@ -1903,9 +1903,33 @@ describe('the update runs the source’s script, whose modules are the source’
         timeout: 120_000,
       });
       expect(r.status, `${r.stdout}${r.stderr}`).toBe(0);
-      expect(lire(projet, 'scripts/turbo-des-paquets.mjs')).toBe(
-        lire(DEPOT, 'scripts/turbo-des-paquets.mjs')
-      );
+      expect(lire(projet, 'scripts/paquets.mjs')).toBe(lire(DEPOT, 'scripts/paquets.mjs'));
     });
   }
+});
+
+// The source of an update is a checkout of Grillhouse that installs no dependency (the cache
+// clone, ~/.cache/grillhouse): the update's script and the modules it imports run there with
+// node alone. The project, which has run `npm install`, holds the frame's tools its generators use.
+describe('the update runs from a source checkout that installs no dependency', () => {
+  it('a source without node_modules updates a project of packages, its generators included', () => {
+    const src = mkdtempSync(path.join(ESSAIS, 'source-nue-'));
+    const suivis = spawnSync('git', ['ls-files', '-co', '--exclude-standard', '-z'], {
+      cwd: DEPOT,
+      encoding: 'utf8',
+    }).stdout.split('\0');
+    for (const f of suivis.filter(f => f && existsSync(path.join(DEPOT, f)))) {
+      mkdirSync(path.dirname(path.join(src, f)), { recursive: true });
+      copyFileSync(path.join(DEPOT, f), path.join(src, f));
+    }
+    expect(existsSync(path.join(src, 'node_modules'))).toBe(false);
+    const projet = projetAPaquets(['packages/*']);
+    symlinkSync(path.join(DEPOT, 'node_modules'), path.join(projet, 'node_modules'), 'dir');
+    const { bin } = claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')), {
+      marches: ['claude-plugins-official', 'roomi-fields'],
+    });
+    const r = lancerMajAvec(projet, ['--source', src], bin);
+    expect(r.status, `${r.stdout}${r.stderr}`).toBe(0);
+    expect(existsSync(path.join(projet, 'packages/teste/turbo.json'))).toBe(true);
+  });
 });

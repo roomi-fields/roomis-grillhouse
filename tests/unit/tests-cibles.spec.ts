@@ -44,9 +44,15 @@ const fichierDeTest = (profondeur: number, marque: string) =>
 // The configuration of a package: the frame's base, by its path (the trial has no workspace for it).
 const configuration = `import base from ${JSON.stringify(BASE)};\nexport default base;\n`;
 
-// A repository of packages: `a` (two tests), `ab` (a name `a` prefixes), `b`, `gele` listed out of
-// the frame, `outil` without tests, and a test file at the root, out of every package.
-function depotAPaquets() {
+// A build script that writes <marque> to `construits.txt` at the root of the trial, <profondeur>
+// directories up; it fails when <echoue>.
+const construction = (profondeur: number, marque: string, echoue = false) =>
+  `node -e "require('node:fs').appendFileSync('${'../'.repeat(profondeur)}construits.txt', '${marque}\\n')"${echoue ? ' && exit 1' : ''}`;
+
+// A repository of packages: `a` (two tests), `ab` (a name `a` prefixes), `b`, which depends on
+// `socle` (a build, no tests), `gele` listed out of the frame, `outil` without tests, and a test
+// file at the root, out of every package. `socle`'s build fails when <socleEchoue>.
+function depotAPaquets({ socleEchoue = false } = {}) {
   const r = mkdtempSync(path.join(ESSAIS, 'paquets-'));
   symlinkSync(path.join(DEPOT, 'node_modules'), path.join(r, 'node_modules'), 'dir');
   ecrire(
@@ -70,7 +76,12 @@ function depotAPaquets() {
     ecrire(
       r,
       `packages/${nom}/package.json`,
-      json({ name: nom, type: 'module', scripts: { 'test:vitest': 'vitest run' } })
+      json({
+        name: nom,
+        type: 'module',
+        scripts: { 'test:vitest': 'vitest run' },
+        ...(nom === 'b' ? { dependencies: { socle: '*' } } : {}),
+      })
     );
     ecrire(r, `packages/${nom}/vitest.config.mjs`, configuration);
     for (const t of tests) {
@@ -78,9 +89,14 @@ function depotAPaquets() {
     }
   }
   ecrire(r, 'packages/outil/package.json', json({ name: 'outil', scripts: { build: 'true' } }));
+  ecrire(
+    r,
+    'packages/socle/package.json',
+    json({ name: 'socle', scripts: { build: construction(2, 'socle', socleEchoue) } })
+  );
   ecrire(r, 'packages/outil/test/x.test.mjs', fichierDeTest(3, 'outil/x'));
   ecrire(r, 'tests/x.test.mjs', fichierDeTest(1, 'racine/x'));
-  ecrire(r, '.gitignore', 'node_modules\n.turbo/\njoues.txt\n');
+  ecrire(r, '.gitignore', 'node_modules\n.turbo/\njoues.txt\nconstruits.txt\n');
   // The turbo.json of each package, as the update writes them: `gele` plays no task.
   ecrireTurbo(r);
   return r;
@@ -97,7 +113,7 @@ function depotSansPaquets() {
       name: 'essai',
       type: 'module',
       packageManager: 'npm@10.9.8',
-      scripts: { 'test:vitest': 'vitest run' },
+      scripts: { build: construction(0, 'racine'), 'test:vitest': 'vitest run' },
     })
   );
   ecrire(
@@ -108,7 +124,7 @@ function depotSansPaquets() {
   ecrire(r, 'vitest.config.mjs', configuration);
   ecrire(r, 'tests/x.test.mjs', fichierDeTest(1, 'racine/x'));
   ecrire(r, 'tests/y.test.mjs', fichierDeTest(1, 'racine/y'));
-  ecrire(r, '.gitignore', 'node_modules\n.turbo/\njoues.txt\n');
+  ecrire(r, '.gitignore', 'node_modules\n.turbo/\njoues.txt\nconstruits.txt\n');
   return r;
 }
 
@@ -129,6 +145,11 @@ const joues = (racine: string) =>
     ? readFileSync(path.join(racine, 'joues.txt'), 'utf8').split('\n').filter(Boolean).sort()
     : [];
 const sortie = (r: { stdout: string; stderr: string }) => `${r.stdout}\n${r.stderr}`;
+// The builds played since the trial began, in order.
+const construits = (racine: string) =>
+  existsSync(path.join(racine, 'construits.txt'))
+    ? readFileSync(path.join(racine, 'construits.txt'), 'utf8').split('\n').filter(Boolean)
+    : [];
 
 describe(
   'npm test -- <files>, in a repository of packages, plays the files named from the root',
@@ -211,6 +232,34 @@ describe(
       expect(r.status, sortie(r)).toBe(0);
       expect(joues(racine)).toEqual(['b/x', 'b/x']);
     });
+
+    // Witness: BPScript, whose targeted runs replayed the 12 builds a package depends on: Turborepo
+    // passes the arguments after `--` to every task of the graph and counts them in its hash.
+    it('the builds a targeted run waits for replay from the cache when another file is named', () => {
+      const racine = depotAPaquets();
+      const r1 = lancer(racine, ['packages/b/test/x.test.mjs']);
+      expect(r1.status, sortie(r1)).toBe(0);
+      const r2 = lancer(racine, ['packages/b']);
+      expect(r2.status, sortie(r2)).toBe(0);
+      expect(construits(racine)).toEqual(['socle']);
+      expect(joues(racine)).toEqual(['b/x', 'b/x']);
+    });
+
+    it('--force plays the named tests for real, and their builds from the cache', () => {
+      const racine = depotAPaquets();
+      expect(lancer(racine, ['packages/b/test/x.test.mjs']).status).toBe(0);
+      const r = lancer(racine, ['--force', 'packages/b/test/x.test.mjs']);
+      expect(r.status, sortie(r)).toBe(0);
+      expect(construits(racine)).toEqual(['socle']);
+      expect(joues(racine)).toEqual(['b/x', 'b/x']);
+    });
+
+    it('a build that fails fails the targeted run, and no test plays', () => {
+      const racine = depotAPaquets({ socleEchoue: true });
+      const r = lancer(racine, ['packages/b/test/x.test.mjs']);
+      expect(r.status).not.toBe(0);
+      expect(joues(racine)).toEqual([]);
+    });
   }
 );
 
@@ -227,6 +276,17 @@ describe('npm test -- <files>, in a repository without packages', { timeout: 60_
     const r = lancer(racine, ['tests/absent.test.mjs']);
     expect(r.status).not.toBe(0);
     expect(joues(racine)).toEqual([]);
+  });
+
+  it('the build replays from the cache when another file is named; --force replays the tests only', () => {
+    const racine = depotSansPaquets();
+    expect(lancer(racine, ['tests/x.test.mjs']).status).toBe(0);
+    const r2 = lancer(racine, ['tests/y.test.mjs']);
+    expect(r2.status, sortie(r2)).toBe(0);
+    const r3 = lancer(racine, ['--force', 'tests/y.test.mjs']);
+    expect(r3.status, sortie(r3)).toBe(0);
+    expect(construits(racine)).toEqual(['racine']);
+    expect(joues(racine)).toEqual(['racine/x', 'racine/y', 'racine/y']);
   });
 
   it('without a file, every test plays', () => {

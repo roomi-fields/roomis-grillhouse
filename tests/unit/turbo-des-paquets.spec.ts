@@ -1,10 +1,20 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { parse as parseJsonc } from 'jsonc-parser';
 import { afterAll, describe, expect, it } from 'vitest';
-import { attendus, COMMANDE, ecrire, paquets, verifier } from '../../scripts/turbo-des-paquets.mjs';
+import { codeMortEssai } from './code-mort-essai.js';
+import { paquets } from '../../scripts/paquets.mjs';
+import { attendus, COMMANDE, ecrire, verifier } from '../../scripts/turbo-des-paquets.mjs';
 
 // Witness: BPScript (322.12), whose stages declare the shared test material (990-corpus) and
 // sometimes each other in their devDependencies, while 990-corpus declares them in its
@@ -654,5 +664,31 @@ describe('the guard tasks of the root wait for the build of each package of the 
     expect(dependances(lire(racine, 'turbo.json'), 'gardes')).toEqual(['build']);
     expect(dependances(lire(racine, 'turbo.json'), 'grillhouse:gardes')).toEqual(['build']);
     expect(lancer(racine, []).status).toBe(0);
+  });
+});
+
+// Witness: BPScript, whose dead-code guard refused « jsonc-parser: devDependency without use »:
+// the generator loaded it by a `require` knip does not follow, and the frame's own tests, which
+// import it too, stay in Grillhouse. The generator imports it as any module does.
+describe('the generator’s use of jsonc-parser is one the dead-code guard sees', () => {
+  it('a project holding the frame’s scripts, jsonc-parser declared, has no finding on it', () => {
+    const scripts = ['turbo-des-paquets.mjs', 'paquets.mjs', 'consommateurs.mjs', 'dette.mjs'];
+    const r = codeMortEssai(ESSAIS, {
+      'package.json': pkg({
+        name: 'p',
+        private: true,
+        type: 'module',
+        devDependencies: { 'jsonc-parser': '3.3.1' },
+      }),
+      'knip.json': pkg({ entry: ['scripts/*.mjs'], project: ['scripts/*.mjs'] }),
+      ...Object.fromEntries(
+        scripts.map(f => {
+          const source = path.join(DEPOT, 'scripts', f);
+          return [`scripts/${f}`, existsSync(source) ? readFileSync(source, 'utf8') : null];
+        })
+      ),
+    });
+    expect(r.sortie).not.toContain('jsonc-parser');
+    expect(r.status, r.sortie).toBe(0);
   });
 });
