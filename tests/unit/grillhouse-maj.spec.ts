@@ -1696,13 +1696,20 @@ describe('the update makes the configuration package of Vitest a workspace of a 
     expect(json(projet, 'package.json').workspaces).toEqual(['packages/*', 'scripts/*']);
     expect(devDeps(projet, 'packages/teste/package.json')).toEqual({ [NOM_CONFIG]: '*' });
   });
-  it('a package the workspaces take out (hors-cadre.txt and its negation) is not touched', () => {
-    const projet = projetAPaquets(['packages/*', '!packages/kanopi']);
-    const kanopi = pkgJson({ name: 'kanopi', scripts: { 'test:vitest': 'vitest run' } });
-    ecrire(projet, 'packages/kanopi/package.json', kanopi);
-    mettreAJour(projet, DEPOT, 'essai');
-    expect(lire(projet, 'packages/kanopi/package.json')).toBe(kanopi);
-  });
+  for (const [cas, workspaces] of [
+    ['a package out of the frame (hors-cadre.txt), still a workspace,', ['packages/*']],
+    ['a package the workspaces take out (a negation)', ['packages/*', '!packages/kanopi']],
+  ] as const) {
+    it(`${cas} is not touched`, () => {
+      const projet = projetAPaquets(workspaces);
+      ecrire(projet, 'docs/agents/hors-cadre.txt', 'kanopi projet voisin\n');
+      const kanopi = pkgJson({ name: 'kanopi', scripts: { 'test:vitest': 'vitest run' } });
+      ecrire(projet, 'packages/kanopi/package.json', kanopi);
+      mettreAJour(projet, DEPOT, 'essai');
+      expect(lire(projet, 'packages/kanopi/package.json')).toBe(kanopi);
+      expect(devDeps(projet, 'packages/teste/package.json')).toEqual({ [NOM_CONFIG]: '*' });
+    });
+  }
   it('a declaration the package already holds stays; its devDependencies are written sorted', () => {
     const projet = projetAPaquets(['packages/*']);
     const propre = pkgJson({
@@ -1776,30 +1783,32 @@ describe('the update makes the configuration package of Vitest a workspace of a 
 });
 
 // The update reads the packages of a project as the frame's checks read them (`paquets` of
-// scripts/turbo-des-paquets.mjs): a package the workspaces take out is none.
-describe('the update knows a project to run Vitest by the packages its workspaces select', () => {
-  it('vitest declared only in a package the workspaces take out leaves the project’s test as it is', () => {
-    const propre = 'bash scripts/suites.sh';
-    const projet = mkdtempSync(path.join(ESSAIS, 'vitest-nie-'));
-    vitestALaRacine(projet);
-    ecrire(
-      projet,
-      'package.json',
-      pkgJson({
-        name: 'p',
-        private: true,
-        workspaces: ['packages/*', '!packages/kanopi'],
-        scripts: { test: propre },
-      })
-    );
-    ecrire(
-      projet,
-      'packages/kanopi/package.json',
-      pkgJson({ name: 'kanopi', devDependencies: { vitest: '^2.0.0' } })
-    );
-    mettreAJour(projet, DEPOT, 'essai');
-    expect((json(projet, 'package.json').scripts as Record<string, string>).test).toBe(propre);
-  });
+// scripts/turbo-des-paquets.mjs): a package the workspaces take out is none, and a package out of
+// the frame, which Turborepo never tests, is not the frame's.
+describe('the update knows a project to run Vitest by the packages of the frame its workspaces select', () => {
+  for (const [cas, workspaces] of [
+    ['a package the workspaces take out', ['packages/*', '!packages/kanopi']],
+    ['a package out of the frame (hors-cadre.txt)', ['packages/*']],
+  ] as const) {
+    it(`vitest declared only in ${cas} leaves the project’s test as it is`, () => {
+      const propre = 'bash scripts/suites.sh';
+      const projet = mkdtempSync(path.join(ESSAIS, 'vitest-nie-'));
+      vitestALaRacine(projet);
+      ecrire(
+        projet,
+        'package.json',
+        pkgJson({ name: 'p', private: true, workspaces, scripts: { test: propre } })
+      );
+      ecrire(projet, 'docs/agents/hors-cadre.txt', 'kanopi projet voisin\n');
+      ecrire(
+        projet,
+        'packages/kanopi/package.json',
+        pkgJson({ name: 'kanopi', devDependencies: { vitest: '^2.0.0' } })
+      );
+      mettreAJour(projet, DEPOT, 'essai');
+      expect((json(projet, 'package.json').scripts as Record<string, string>).test).toBe(propre);
+    });
+  }
 });
 
 // The update a project runs is its own copy of scripts/grillhouse-maj.mjs, which a former version

@@ -148,9 +148,9 @@ remplace jamais le grill. Les branches de l'arbre :
    déclare dans ses `devDependencies`, comme les exemples de Turborepo atteignent leurs paquets de
    configuration ; la mise à jour du cadre fait de `scripts/vitest-config` un espace de travail et
    écrit la déclaration. Un dépôt sans paquets l'importe par son chemin
-   (`./scripts/vitest-config/base.mjs`). Un paquet hors cadre (`docs/agents/hors-cadre.txt`) sort
-   des espaces de travail par une négation (`"!packages/<nom>"`) : npm et Turborepo l'ignorent, et
-   `grillhouse:gardes` refuse un paquet hors cadre que les espaces sélectionnent encore. Aucune configuration ne lit
+   (`./scripts/vitest-config/base.mjs`). Un paquet hors cadre (`docs/agents/hors-cadre.txt`) reste un
+   espace de travail, qu'un voisin importe par son nom, et Turborepo ne joue aucune de ses tâches :
+   son `turbo.json` généré les exclut, et aucune tâche d'un paquet du cadre ne l'attend. Aucune configuration ne lit
    celle d'un voisin, que l'enveloppe cache. Un test atteint son paquet
    par une seule route : les sources relatives pour un test unitaire, le nom du paquet pour un test
    de porte. Ainsi un agent enveloppé construit et teste son paquet avec ce que ses voisins

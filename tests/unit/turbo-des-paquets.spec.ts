@@ -202,10 +202,9 @@ describe('a repository without packages', () => {
   });
 });
 
-// Witness: BPScript, whose `docs/agents/hors-cadre.txt` lists its frozen v1 and kanopi; `turbo run
-// build` played them, kanopi red. The project writes a negation in its `workspaces`
-// (`"!packages/kanopi"`): npm (@npmcli/map-workspaces) and Turborepo then ignore the package, and
-// the frame lists the packages as npm does.
+// A project may write a negation in its `workspaces` (`"!packages/kanopi"`): npm
+// (@npmcli/map-workspaces) and Turborepo then ignore the package, and the frame lists the packages
+// as npm does.
 function depotNie(workspaces: unknown) {
   const r = mkdtempSync(path.join(ESSAIS, 'nie-'));
   ecrireFichier(r, 'package.json', pkg({ name: 'essai', private: true, workspaces }));
@@ -272,33 +271,178 @@ describe('the packages of a repository are the workspaces npm maps, negations ap
   });
 });
 
-describe('a package out of the frame is out of the workspaces', () => {
-  const horsCadre = (racine: string) =>
-    ecrireFichier(racine, 'docs/agents/hors-cadre.txt', 'kanopi projet voisin, rouge\n');
+// Witness: BPScript, whose `docs/agents/hors-cadre.txt` lists its frozen v1 (kronos, runtime-audio…)
+// and kanopi; `turbo run build` played them, kanopi red. Benches of its v2 import them by their
+// name (140-scheduler reads kronos), so they stay workspaces; Turborepo builds and tests none of
+// them: each receives a package configuration that excludes every task of the root
+// (`"extends": false`), and no task of the frame's packages waits for one of them.
+const HORS_CADRE = 'kronos v1 gelée\naudio v1 gelée\n';
+const avecLint = { ...etage, lint: 'eslint .' };
+function depotHorsCadre(turboRacine?: string) {
+  const r = mkdtempSync(path.join(ESSAIS, 'hors-cadre-'));
+  ecrireFichier(
+    r,
+    'package.json',
+    pkg({ name: 'essai', private: true, workspaces: ['packages/*'], packageManager: 'npm@10.9.8' })
+  );
+  const gabarit = JSON.parse(lire(DEPOT, 'templates/turbo/paquets.json')) as {
+    tasks: Record<string, unknown>;
+  };
+  ecrireFichier(
+    r,
+    'turbo.json',
+    turboRacine ??
+      `// Le turbo.json du projet, commenté.\n${JSON.stringify({ ...gabarit, tasks: { ...gabarit.tasks, lint: {} } }, null, 2)}\n`
+  );
+  ecrireFichier(r, 'docs/agents/hors-cadre.txt', HORS_CADRE);
+  ecrireFichier(r, 'packages/kronos/package.json', pkg({ name: 'kronos', scripts: avecLint }));
+  ecrireFichier(
+    r,
+    'packages/audio/package.json',
+    pkg({ name: 'audio', scripts: avecLint, dependencies: { kronos: '*' } })
+  );
+  ecrireFichier(r, 'packages/socle/package.json', pkg({ name: 'socle', scripts: avecLint }));
+  // The bench: a package of the frame that imports the frozen packages by their name.
+  ecrireFichier(
+    r,
+    'packages/banc/package.json',
+    pkg({
+      name: 'banc',
+      scripts: avecLint,
+      dependencies: { audio: '*', socle: '*' },
+      devDependencies: { kronos: '*', vitest: '^2.1.9' },
+    })
+  );
+  // A package of the frame without scripts (as 990-corpus) that depends on a frozen package.
+  ecrireFichier(
+    r,
+    'packages/corpus/package.json',
+    pkg({ name: 'corpus', dependencies: { kronos: '*', banc: '*' } })
+  );
+  ecrireFichier(
+    r,
+    'packages/lecteur/package.json',
+    pkg({ name: 'lecteur', scripts: etage, devDependencies: { corpus: '*' } })
+  );
+  return r;
+}
+const nonGenere = (texte: string) => JSON.parse(texte.replace(/^\/\/.*\n/, '')) as unknown;
 
-  it('a package hors-cadre.txt lists that the workspaces still select is refused, the negation to write named', () => {
-    const racine = depotNie(['packages/*']);
-    horsCadre(racine);
-    ecrire(racine);
-    const r = lancer(racine, []);
-    expect(r.status).toBe(1);
-    expect(r.stderr).toContain('packages/kanopi');
-    expect(r.stderr).toContain('docs/agents/hors-cadre.txt');
-    expect(r.stderr).toContain('"!packages/kanopi"');
+describe('a package out of the frame stays a workspace, and Turborepo plays none of its tasks', () => {
+  it('with the root configuration alone, Turborepo plays the packages out of the frame', () => {
+    const t = taches(turbo(depotHorsCadre(), ['build', 'test:vitest']).stdout);
+    expect(Object.keys(t)).toContain('kronos#test:vitest');
+    expect(t['banc#test:vitest']).toContain('kronos#build');
   });
 
-  it('the negation written, the check passes', () => {
-    const racine = depotNie(['packages/*', '!packages/kanopi']);
-    horsCadre(racine);
+  it('after generation, no task of a package out of the frame is played, none waited for', () => {
+    const racine = depotHorsCadre();
+    expect(lancer(racine, ['--ecrire']).status).toBe(0);
+    const r = turbo(racine, ['build', 'test:vitest', 'lint']);
+    expect(r.status, r.stderr).toBe(0);
+    const t = taches(r.stdout);
+    const ids = Object.keys(t);
+    expect(ids.filter(id => /^(kronos|audio)#/.test(id))).toEqual([]);
+    expect(
+      Object.values(t)
+        .flat()
+        .filter(d => /^(kronos|audio)#/.test(d))
+    ).toEqual([]);
+    expect(ids).toContain('banc#test:vitest');
+    expect(ids).toContain('banc#lint');
+    // The build waits for its runtime dependencies of the frame; a test for all it imports.
+    expect(t['banc#build']).toEqual(['socle#build']);
+    expect(t['banc#test:vitest']).toEqual(['socle#build']);
+    expect(t['corpus#build']).toEqual(['banc#build']);
+    expect(t['lecteur#test:vitest']).toEqual(['corpus#build']);
+  });
+
+  it('a package out of the frame receives the exclusion of each task of the root', () => {
+    const racine = depotHorsCadre();
     ecrire(racine);
-    expect(verifier(racine)).toEqual([]);
+    expect(nonGenere(lire(racine, 'packages/kronos/turbo.json'))).toEqual({
+      $schema: 'https://turborepo.com/schema.json',
+      extends: ['//'],
+      tasks: {
+        build: { extends: false },
+        lint: { extends: false },
+        'test:vitest': { extends: false },
+      },
+    });
+    expect(lire(racine, 'packages/audio/turbo.json')).toBe(
+      lire(racine, 'packages/kronos/turbo.json')
+    );
+    expect(lire(racine, 'packages/kronos/turbo.json')).toMatch(/^\/\/ Généré par /);
+  });
+
+  it('a package of the frame that declares one has each task waiting on « ^ » written out without it', () => {
+    const racine = depotHorsCadre();
+    ecrire(racine);
+    expect(nonGenere(lire(racine, 'packages/banc/turbo.json'))).toEqual({
+      $schema: 'https://turborepo.com/schema.json',
+      extends: ['//'],
+      tasks: {
+        build: { dependsOn: ['socle#build'] },
+        'test:vitest': { dependsOn: ['socle#build'] },
+      },
+    });
+    // A package that declares none keeps the root's tests.
+    expect(nonGenere(lire(racine, 'packages/lecteur/turbo.json'))).toEqual(
+      expect.objectContaining({ tasks: { build: { dependsOn: [] } } })
+    );
+  });
+
+  it('the root may be a turbo.jsonc', () => {
+    const racine = depotHorsCadre();
+    const texte = lire(racine, 'turbo.json');
+    rmSync(path.join(racine, 'turbo.json'));
+    ecrireFichier(racine, 'turbo.jsonc', texte);
+    expect(attendus(racine)).toEqual(attendus(depotHorsCadre()));
+  });
+
+  it('the check passes on what the generator wrote, a package out of the frame in the workspaces', () => {
+    const racine = depotHorsCadre();
+    ecrire(racine);
+    const r = lancer(racine, []);
+    expect(r.status, r.stderr).toBe(0);
+  });
+
+  it('refuses a package out of the frame that Turborepo would play: a task added to the root', () => {
+    const racine = depotHorsCadre();
+    ecrire(racine);
+    const gabarit = JSON.parse(lire(DEPOT, 'templates/turbo/paquets.json')) as {
+      tasks: Record<string, unknown>;
+    };
+    ecrireFichier(
+      racine,
+      'turbo.json',
+      JSON.stringify({ ...gabarit, tasks: { ...gabarit.tasks, lint: {}, typecheck: {} } })
+    );
+    const r = lancer(racine, []);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('packages/kronos/turbo.json');
+    expect(r.stderr).toContain(COMMANDE);
+  });
+
+  it('refuses a package newly listed out of the frame, until regenerated', () => {
+    const racine = depotHorsCadre();
+    ecrire(racine);
+    ecrireFichier(racine, 'docs/agents/hors-cadre.txt', `${HORS_CADRE}socle neuf\n`);
+    const r = lancer(racine, []);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('packages/socle/turbo.json');
+    expect(r.stderr).toContain(COMMANDE);
+    expect(lancer(racine, ['--ecrire']).status).toBe(0);
+    expect(lancer(racine, []).status).toBe(0);
+    const t = taches(turbo(racine, ['build', 'test:vitest']).stdout);
+    expect(Object.keys(t).filter(id => id.startsWith('socle#'))).toEqual([]);
   });
 
   it('a repository without workspaces is not concerned', () => {
     const racine = mkdtempSync(path.join(ESSAIS, 'sans-espaces-'));
     ecrireFichier(racine, 'package.json', pkg({ name: 'p' }));
     ecrireFichier(racine, 'packages/kanopi/package.json', pkg({ name: 'kanopi' }));
-    horsCadre(racine);
+    ecrireFichier(racine, 'docs/agents/hors-cadre.txt', 'kanopi projet voisin, rouge\n');
     expect(verifier(racine)).toEqual([]);
   });
 });

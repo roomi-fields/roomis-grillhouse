@@ -58,8 +58,8 @@ roomis-grillhouse/
 │   ├── code-mort.mjs              # grillhouse:gardes: refuses dead code, measured by knip (knip.json); tests and benches count for dependency use only
 │   ├── consommateurs.mjs          # grillhouse:gardes: refuses an import that the provider's INTERFACE.md does not declare, and two components of the same name
 │   │                              #   composants(): the components for every check, minus the packages out of
-│   │                              #   the frame listed in docs/agents/hors-cadre.txt, "<package> <reason>"; such a package is out of the
-│   │                              #   workspaces too, by a negation ("!packages/<package>"), which turbo-des-paquets.mjs checks
+│   │                              #   the frame listed in docs/agents/hors-cadre.txt, "<package> <reason>"; such a package stays a
+│   │                              #   workspace, and Turborepo plays none of its tasks (turbo-des-paquets.mjs)
 │   ├── crochets.mjs               # the frame's git hooks (commit-msg, pre-push): placed by setup.sh and grillhouse:maj, absent ones named by the session start
 │   ├── greffons.mjs               # the frame's plugins (those `.claude/settings.json` enables): installed for the project by setup.sh and grillhouse:maj, absent ones named by the session start
 │   ├── frontieres.mjs             # grillhouse:gardes: dependency-cruiser (after the build, which it reads), rules generated in .dependency-cruiser.cjs
@@ -75,10 +75,10 @@ roomis-grillhouse/
 │   ├── branche-de-nuit.mjs        # pre-push guard: only the night pushes the branch of grillhouse.poussee.nuit
 │   ├── poussee-cles.mjs           # reads the grillhouse.poussee, .nuit and .commit keys of package.json for nuit.sh, the guard and the queue
 │   ├── retirer-copie.sh           # removes a working copy, submodules included (local work already entered on main does not hold it) (agent, integration, night)
-│   ├── grillhouse-maj.mjs         # npm run grillhouse:maj: the frame brought to its last version (files, git hooks, the frame's plugins, scripts — test, test:vitest, test:forcer, verifier —, turbo.json written from the template of its form when absent, the frame's devDependencies, Turborepo's among them, packageManager, .turbo/ ignored, then the generated `.dependency-cruiser.cjs`, interfaces index and packages' turbo.json regenerated, a failing generator named; in a repository of packages, scripts/vitest-config made a workspace and @grillhouse/vitest-config declared in the devDependencies of each package with a test:vitest); the project's copy runs the source's script, whose modules are the source's; --ecarts; any other option refused
+│   ├── grillhouse-maj.mjs         # npm run grillhouse:maj: the frame brought to its last version (files, git hooks, the frame's plugins, scripts — test, test:vitest, test:forcer, verifier —, turbo.json written from the template of its form when absent, the frame's devDependencies, Turborepo's among them, packageManager, .turbo/ ignored, then the generated `.dependency-cruiser.cjs`, interfaces index and packages' turbo.json regenerated, a failing generator named; in a repository of packages, scripts/vitest-config made a workspace and @grillhouse/vitest-config declared in the devDependencies of each package of the frame with a test:vitest); the project's copy runs the source's script, whose modules are the source's; --ecarts; any other option refused
 │   ├── turbo-des-paquets.mjs      # grillhouse:gardes: refuses a package's turbo.json absent or stale; --ecrire writes it (extends the root's, its build waits for the build of its runtime dependencies only: dependencies, peerDependencies, optionalDependencies)
-│   │                              #   paquets(): the frame's one list of the packages, the workspaces mapped as npm maps them (a « ! » pattern takes out);
-│   │                              #   refuses a package of docs/agents/hors-cadre.txt the workspaces still select, naming the negation to write
+│   │                              #   paquets(): the frame's one list of the packages, the workspaces mapped as npm maps them (a « ! » pattern takes out), each marked out of the frame or not;
+│   │                              #   a package of docs/agents/hors-cadre.txt has each task of the root excluded ("extends": false), and no dependsOn written names it
 │   ├── tableau.mjs                # npm run tableau: the board on three levels (project, agents, chantier)
 │   ├── ligne-etat/                # the status line: the person's own on the left, the chantier on the right
 │   ├── verrou-de-fichier.mjs      # the lock of a file shared between processes (judged by the owner's process or by age); taken by integrer.mjs, file.mjs and registre.mjs

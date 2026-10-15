@@ -40,7 +40,8 @@
 // - A project that runs Vitest (its `test` script names it, or `vitest` is in the `dependencies` or
 //   `devDependencies` of its root `package.json` or of one of its packages, the workspaces as npm
 //   maps them, read by `paquets` of scripts/turbo-des-paquets.mjs, the frame's one list of the
-//   packages: a package a negation takes out is none) has its root scripts
+//   packages: a package a negation takes out is none, and a package out of the frame
+//   (`docs/agents/hors-cadre.txt`), which Turborepo never tests, counts for nothing) has its root scripts
 //   `test`, `test:vitest`, `test:forcer` and `verifier` become the source's (`npm test`, the tests
 //   as Turborepo's tasks with its cache; `npm run test:forcer`, the same played for real;
 //   `npm run verifier`, the guards and the tests beside each other, which the integration, the
@@ -54,10 +55,10 @@
 //   (scripts/vitest-config/, a frame directory), that each package of a repository of packages
 //   imports by its name, as the examples of Turborepo reach @repo/eslint-config: a package is
 //   reached by its name, never by a relative path out of it. In a project with `workspaces` of
-//   which a package holds a `test:vitest` script, the update adds `scripts/vitest-config` to the
+//   which a package of the frame holds a `test:vitest` script, the update adds `scripts/vitest-config` to the
 //   `workspaces` (or to `workspaces.packages`) when they do not select it yet, and declares the
 //   package (`"*"`, the version of the workspace) in the `devDependencies` of each such package,
-//   a declaration it holds kept. The directory is added to the workspaces rather than placed
+//   a declaration it holds kept; a package out of the frame is not touched. The directory is added to the workspaces rather than placed
 //   under `packages/`: every directory there is a component of the project, which the frame's
 //   checks read, and the frame's files keep one address, the same in every project. The report
 //   names what it wrote, `npm install`, which links the package, and the import each package's
@@ -82,7 +83,7 @@
 //   `.dependency-cruiser.cjs`, `node scripts/index-interfaces.mjs` for
 //   `docs/agents/index-des-interfaces.md`), and `node scripts/turbo-des-paquets.mjs --ecrire`
 //   always (the `turbo.json` of each package of a repository with `workspaces`, whose build waits
-//   for its runtime dependencies only), so that the frame's checks accept them; a generator
+//   for its runtime dependencies only, and of which a package out of the frame plays no task), so that the frame's checks accept them; a generator
 //   that fails has its line, and the exit code is non-zero. `interfaces-contre-code.mjs` is not
 //   run: it writes after a build.
 // - An option other than `--source <path>` and `--ecarts` is refused: the usage is shown (the
@@ -149,10 +150,11 @@ const CONFIG_VITEST = 'scripts/vitest-config';
 
 const empreinte = f => createHash('sha256').update(readFileSync(f)).digest('hex');
 // Whether `vitest` is declared in the dependencies of the package.json <p> (read at <dossier>) or of
-// one of its packages (`paquets`: the workspaces as npm maps them).
+// one of its packages of the frame (`paquets`: the workspaces as npm maps them, a package out of
+// the frame left out, which Turborepo never tests).
 const declareVitest = (dossier, p) => {
   const a = pkg => Boolean(pkg?.dependencies?.vitest ?? pkg?.devDependencies?.vitest);
-  return a(p) || paquets(dossier).some(({ pkg }) => a(pkg));
+  return a(p) || paquets(dossier).some(({ pkg, hors }) => !hors && a(pkg));
 };
 // The version of the Vitest the project's root resolves, as `test:vitest` calls it
 // (`npx --no-install vitest --version`); null when it answers none.
@@ -312,8 +314,8 @@ function poserTurbo(projet, source) {
 
 // Makes the frame's configuration package of Vitest a workspace of the project of packages at
 // <projet>, whose root package.json <p> it changes, and declares the package, by its name read in
-// the source, in the devDependencies of each package whose scripts hold `test:vitest`, a
-// declaration the package holds kept. Returns { espace, nom, paquets } (espace: the directory added
+// the source, in the devDependencies of each package of the frame whose scripts hold
+// `test:vitest`, a declaration the package holds kept; a package out of the frame is not touched. Returns { espace, nom, paquets } (espace: the directory added
 // to the workspaces, or null; paquets: the packages that received the declaration), or null when
 // nothing changes.
 function poserConfigVitest(projet, source, p) {
@@ -321,8 +323,8 @@ function poserConfigVitest(projet, source, p) {
   if (p.workspaces === undefined || typeof nom !== 'string') return null;
   const tous = paquets(projet);
   const testes = tous.filter(
-    ({ dossier, pkg }) =>
-      dossier !== CONFIG_VITEST && typeof pkg.scripts?.['test:vitest'] === 'string'
+    ({ dossier, pkg, hors }) =>
+      !hors && dossier !== CONFIG_VITEST && typeof pkg.scripts?.['test:vitest'] === 'string'
   );
   if (testes.length === 0) return null;
   let espace = null;
