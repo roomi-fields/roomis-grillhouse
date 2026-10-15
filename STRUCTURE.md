@@ -64,6 +64,7 @@ roomis-grillhouse/
 │   ├── frontieres.mjs             # grillhouse:gardes: dependency-cruiser (after the build, which it reads), rules generated in .dependency-cruiser.cjs
 │   ├── interfaces-contre-code.mjs # grillhouse:gardes: the TSDoc contract of each export (rubrics, tsdoc.json) and the generated part
 │   │                              #   of INTERFACE.md between its two marks; npm run api writes the reports and the parts
+│   │                              #   (a package without a « . » export, the shared test material, has no API to check)
 │   ├── nuit.sh                    # once a night, the full pass played for real (npm run verifier -- --force: Turborepo's build, guards and tests, no log replayed), then the night tests and budget benches, then the project's night script (`grillhouse.nuit`), and pushes the green commit (`grillhouse.poussee.nuit`)
 │   │                              #   (*.nuit.test.*, *.nuit.spec.*, *.budget.test.*, *.budget.spec.*); a red opens a ticket
 │   ├── vitest.base.config.mjs     # the frame's base Vitest configuration of the day, which every day configuration extends (mergeConfig): night tests and budget benches excluded, the common environment, the one address of git's settings for the suite (automatic maintenance off)

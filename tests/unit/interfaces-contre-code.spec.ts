@@ -195,6 +195,38 @@ describe('the check', () => {
     expect(r.status).toBe(0);
     expect(generee(p.lire('packages/b/docs/INTERFACE.md'))).not.toMatch(/\bcas\b/);
   });
+  // A package that exports only subpaths (the shared test material) has no public API: API
+  // Extractor reads one entry point, and this package has none.
+  const MATIERE = {
+    'packages/corpus/package.json': JSON.stringify({
+      name: 'corpus',
+      exports: { './test-fixtures': { types: './dist/fixtures.d.ts' } },
+    }),
+    'packages/corpus/tsconfig.json': TSCONFIG,
+    'packages/corpus/src/fixtures.ts': 'export const cas = 1;\n',
+    'packages/corpus/docs/INTERFACE.md': '# corpus\n\nLa matière de test partagée.\n',
+  };
+  it('passes a package without a « . » entry, unbuilt, and writes it no report nor part', () => {
+    const p = ecrit(MATIERE);
+    passe(p.run());
+    expect(p.lire('packages/corpus/docs/INTERFACE.md')).toBe(
+      MATIERE['packages/corpus/docs/INTERFACE.md']
+    );
+    expect(existsSync(path.join(p.dir, 'packages/corpus/docs/INTERFACE.api.md'))).toBe(false);
+  });
+  it('refuses a package with a « . » entry whose build is missing', () => {
+    const p = ecrit({
+      ...MATIERE,
+      'packages/corpus/package.json': JSON.stringify({
+        name: 'corpus',
+        exports: {
+          '.': { types: './dist/index.d.ts' },
+          './test-fixtures': { types: './dist/fixtures.d.ts' },
+        },
+      }),
+    });
+    refusNommant(p.run(), 'packages/corpus', /construis d'abord/);
+  });
 });
 
 // Critère 1 : each export carries a TSDoc comment with a summary, one @param per parameter,

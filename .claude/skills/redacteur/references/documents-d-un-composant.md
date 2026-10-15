@@ -37,7 +37,9 @@ avec le rapport de l'API qu'API Extractor tire du code construit (`docs/INTERFAC
 touche jamais la part écrite à la main. Le contrôle `scripts/interfaces-contre-code.mjs` refuse une
 part générée périmée ou sans ses marques, un export auquel une rubrique manque, une étiquette
 inconnue ou mal formée, un `@faute` hors du catalogue, et un code du catalogue qu'aucun `@faute` ne
-nomme. L'index des interfaces (`docs/agents/index-des-interfaces.md`, généré par
+nomme. Un paquet qui n'exporte que des sous-chemins, sans entrée `.` (la matière de test partagée,
+`./test-fixtures`), n'a pas d'API publique : son `INTERFACE.md` est tout entier écrit à la main, sans
+marques ni rapport, et le contrôle ne lui demande aucune construction. L'index des interfaces (`docs/agents/index-des-interfaces.md`, généré par
 `npm run interfaces`) se construit depuis la part générée. Ainsi l'interface que lit un agent
 voisin dit vrai.
 **Les fautes se listent** sous « ## Les fautes » : leurs codes sont exactement ceux que le code du

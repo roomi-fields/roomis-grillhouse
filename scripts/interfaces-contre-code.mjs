@@ -23,6 +23,10 @@
 //   of an interface that has none, writes the part even when a rubric is missing, and then
 //   returns the refusals of the check.
 // - The root interface `docs/INTERFACE.md` is not a component's: it needs no marks.
+// - A package whose `exports` has subpaths only (`./test-fixtures`, the shared test material) and
+//   no `.` entry has no public API: no built entry, no report, no generated part nor marks are
+//   asked of it, and nothing is reported; its « ## Les fautes », if any, is checked against its
+//   code.
 // - When the interface has a « ## Les fautes » section, its codes (`PARSE_EXPECTED`…) are exactly
 //   the codes with the same prefixes found in the component's production code, and each is named
 //   by an `@faute` of the component.
@@ -57,6 +61,17 @@ const isTest = rel =>
 const CODE = /\b[A-Z][A-Z0-9]*_[A-Z0-9_]*[A-Z0-9]\b/g;
 
 const lireJson = p => JSON.parse(readFileSync(p, 'utf8'));
+
+// Whether a component has no public API: its package exports subpaths only (`./test-fixtures`…),
+// no `.` entry. API Extractor reads one entry point; such a package has none.
+export function sansApi(c) {
+  const pj = path.join(c.dir, 'package.json');
+  if (!existsSync(pj)) return false;
+  const exp = lireJson(pj).exports;
+  if (!exp || typeof exp !== 'object' || Array.isArray(exp)) return false;
+  const cles = Object.keys(exp);
+  return cles.length > 0 && cles.every(k => k.startsWith('.')) && !cles.includes('.');
+}
 
 // The built entry of a component's public API, or null.
 export function entree(racine, c) {
@@ -419,6 +434,10 @@ export function verifierComposant(racine, c, { ecrire = false } = {}) {
   const texte = readFileSync(iface, 'utf8');
   const { fautes } = declare(texte);
   const m = marques(texte);
+  if (sansApi(c)) {
+    if (fautes) codesContreCatalogue(c, racine, fautes, refuser);
+    return { refus, signaux };
+  }
   if (m.etat === 'invalides') {
     refuser(
       `docs/INTERFACE.md doit porter la marque « ${DEBUT} » puis la marque « ${FIN} », chacune une fois ; corrige les marques à la main (npm run api n'écrit rien).`
@@ -467,19 +486,23 @@ export function verifierComposant(racine, c, { ecrire = false } = {}) {
       }
     }
   }
-  if (fautes) {
-    const prefixes = [...new Set([...fautes].map(f => f.slice(0, f.indexOf('_') + 1)))];
-    const dansLeCode = codesDuCode(c.dir, racine, prefixes);
-    for (const f of fautes) {
-      if (!dansLeCode.has(f))
-        refuser(`la faute ${f} est listée, mais le code ne la produit pas.`, 'faute-non-produite');
-    }
-    for (const f of dansLeCode) {
-      if (!fautes.has(f))
-        refuser(`le code produit ${f}, que « Les fautes » ne liste pas.`, 'faute-non-listee');
-    }
-  }
+  if (fautes) codesContreCatalogue(c, racine, fautes, refuser);
   return { refus, signaux };
+}
+
+// The catalogue <fautes> against the codes of the component's production code, refused through
+// <refuser>.
+function codesContreCatalogue(c, racine, fautes, refuser) {
+  const prefixes = [...new Set([...fautes].map(f => f.slice(0, f.indexOf('_') + 1)))];
+  const dansLeCode = codesDuCode(c.dir, racine, prefixes);
+  for (const f of fautes) {
+    if (!dansLeCode.has(f))
+      refuser(`la faute ${f} est listée, mais le code ne la produit pas.`, 'faute-non-produite');
+  }
+  for (const f of dansLeCode) {
+    if (!fautes.has(f))
+      refuser(`le code produit ${f}, que « Les fautes » ne liste pas.`, 'faute-non-listee');
+  }
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
