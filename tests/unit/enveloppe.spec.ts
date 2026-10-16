@@ -324,9 +324,41 @@ describe('plan refuses', () => {
       },
       fakeDisk({ '/wt/packages': [] }, [])
     );
-    expect(refus).toMatch(/n'existe pas/);
-    expect(refus).toContain('packages/001-kernel');
+    expect(refus).toContain(
+      "`001-kernel` n'est pas le chemin d'un composant ; écris `packages/001-kernel`"
+    );
     expect(refus).not.toContain('packages/000-forms');
+  });
+  // Witness: BPScript, whose chiefs named the folder of the package (`050-emitter`), not its path.
+  it("a component named by its package's folder, and gives the path", () => {
+    const { refus } = plan(
+      {
+        trees: ['/main', '/wt'],
+        copie: '/wt',
+        composant: '050-emitter',
+        paquets: [
+          { dossier: 'packages/000-forms', pkg: { name: '@bp/forms' }, hors: false },
+          { dossier: 'packages/050-emitter', pkg: { name: '@bp/emitter' }, hors: false },
+        ],
+      },
+      fakeDisk({ '/wt/packages': [] }, [])
+    );
+    expect(refus).toContain(
+      "`050-emitter` n'est pas le chemin d'un composant ; écris `packages/050-emitter`"
+    );
+    expect(refus).not.toContain('packages/000-forms');
+  });
+  it('a missing component that names no package, without a path to suggest', () => {
+    const { refus } = plan(
+      {
+        trees: ['/main', '/wt'],
+        copie: '/wt',
+        composant: 'packages/z',
+        paquets: [{ dossier: 'packages/a', pkg: { name: 'a' }, hors: false }],
+      },
+      fakeDisk({ '/wt/packages': [] }, [])
+    );
+    expect(refus).toBe("Le composant /wt/packages/z n'existe pas.");
   });
   it('a link that crosses into a hidden component', () => {
     const disk = fakeDisk({ '/wt/packages': [], '/wt/packages/a': [] }, [], {

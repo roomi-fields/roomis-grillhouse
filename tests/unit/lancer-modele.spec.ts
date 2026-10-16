@@ -508,3 +508,121 @@ describe.runIf(canWrap)('the launcher and the register line of a session that fa
     expect(lignes.map(l => (JSON.parse(l) as { agent: string }).agent)).toContain('s-echec');
   }, 120_000);
 });
+
+// Witness: BPScript, whose chiefs named the folder of a package (`050-emitter`) instead of its
+// path; the envelope refused it only after the whole copy was prepared and built, in the log. The
+// launcher judges the component in the main tree, as it judges the role and the instruction.
+describe('the launcher refuses a component that is not a path before preparing the copy', () => {
+  const DEPOT = path.join(ESSAIS, 'depot-paquets');
+  mkdirSync(path.join(DEPOT, 'packages/050-emitter/src'), { recursive: true });
+  mkdirSync(path.join(DEPOT, '.claude/agents'), { recursive: true });
+  writeFileSync(
+    path.join(DEPOT, 'package.json'),
+    JSON.stringify({ name: 'essai', private: true, workspaces: ['packages/*'] })
+  );
+  writeFileSync(
+    path.join(DEPOT, 'packages/050-emitter/package.json'),
+    JSON.stringify({ name: '050-emitter' })
+  );
+  writeFileSync(path.join(DEPOT, 'packages/050-emitter/src/e.ts'), 'e');
+  writeFileSync(path.join(DEPOT, '.claude/agents/developpeur.md'), '---\nname: developpeur\n---\n');
+  execFileSync('git', ['init', '-q', DEPOT]);
+  execFileSync('git', ['-C', DEPOT, 'add', '.']);
+  execFileSync('git', [
+    '-C',
+    DEPOT,
+    '-c',
+    'user.name=t',
+    '-c',
+    'user.email=t@t',
+    'commit',
+    '-qm',
+    'i',
+  ]);
+  const lancerSur = (ticket: string, composant: string) => {
+    const consigne = path.join(DEPOT, `${ticket}.txt`);
+    writeFileSync(consigne, `TON TICKET : ${ticket} — un sujet.`);
+    const r = spawnSync('bash', [LAUNCHER, ticket, 'developpeur', composant, consigne], {
+      cwd: DEPOT,
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_BIN: '/bin/false', HOME },
+    });
+    return { r, copie: path.join(DEPOT, '.claude/worktrees', ticket) };
+  };
+
+  it('names the path of a package named by its folder, exit CODE_USAGE, no copy', () => {
+    const { r, copie } = lancerSur('demo-dossier', '050-emitter');
+    expect(r.status, r.stderr).toBe(CODE_USAGE);
+    expect(r.stderr).toContain(
+      "`050-emitter` n'est pas le chemin d'un composant ; écris `packages/050-emitter`"
+    );
+    expect(existsSync(copie)).toBe(false);
+    expect(existsSync(`${copie}.log`)).toBe(false);
+  });
+  it('refuses a path that names nothing, exit CODE_USAGE, no copy', () => {
+    const { r, copie } = lancerSur('demo-absent', 'packages/z');
+    expect(r.status, r.stderr).toBe(CODE_USAGE);
+    expect(r.stderr).toContain("n'existe pas");
+    expect(existsSync(copie)).toBe(false);
+    expect(existsSync(`${copie}.log`)).toBe(false);
+  });
+  // A relaunch: the developpeur after a testeur that created the package in the ticket's copy.
+  it.runIf(canWrap)(
+    "judges the component in the ticket's copy when it exists, not in the main tree",
+    () => {
+      const ticket = 'demo-neuf';
+      const copie = path.join(REPO, '.claude/worktrees', ticket);
+      execFileSync('git', ['-C', REPO, 'worktree', 'add', '-q', '-b', `agent/${ticket}`, copie]);
+      mkdirSync(path.join(copie, 'packages/neuf/src'), { recursive: true });
+      writeFileSync(path.join(copie, 'packages/neuf/src/n.ts'), 'n');
+      expect(existsSync(path.join(REPO, 'packages/neuf'))).toBe(false);
+      const consigne = path.join(REPO, `${ticket}.txt`);
+      writeFileSync(consigne, `TON TICKET : ${ticket} — un sujet.`);
+      const r = spawnSync('bash', [LAUNCHER, ticket, 'developpeur', 'packages/neuf', consigne], {
+        cwd: REPO,
+        encoding: 'utf8',
+        env: { ...process.env, CLAUDE_BIN: FAUX, HOME },
+      });
+      expect(r.stderr).not.toContain("n'existe pas");
+      expect(r.status, r.stderr).toBe(0);
+    },
+    120_000
+  );
+  // A branch the queue sent back, without a copy: its lot created the package; main lacks it.
+  it.runIf(canWrap)(
+    "judges the component in the ticket's branch when it has no copy, not in the main tree",
+    () => {
+      const ticket = 'demo-renvoi';
+      const ailleurs = path.join(ESSAIS, 'copie-renvoi');
+      execFileSync('git', ['-C', REPO, 'worktree', 'add', '-q', '-b', `agent/${ticket}`, ailleurs]);
+      mkdirSync(path.join(ailleurs, 'packages/neuf/src'), { recursive: true });
+      writeFileSync(path.join(ailleurs, 'packages/neuf/src/n.ts'), 'n');
+      execFileSync('git', ['-C', ailleurs, 'add', '.']);
+      execFileSync('git', [
+        '-C',
+        ailleurs,
+        '-c',
+        'user.name=t',
+        '-c',
+        'user.email=t@t',
+        'commit',
+        '-qm',
+        'lot',
+      ]);
+      execFileSync('git', ['-C', REPO, 'worktree', 'remove', ailleurs]);
+      const copie = path.join(REPO, '.claude/worktrees', ticket);
+      expect(existsSync(copie)).toBe(false);
+      expect(existsSync(path.join(REPO, 'packages/neuf'))).toBe(false);
+      const consigne = path.join(REPO, `${ticket}.txt`);
+      writeFileSync(consigne, `TON TICKET : ${ticket} — un sujet.`);
+      const r = spawnSync('bash', [LAUNCHER, ticket, 'developpeur', 'packages/neuf', consigne], {
+        cwd: REPO,
+        encoding: 'utf8',
+        env: { ...process.env, CLAUDE_BIN: FAUX, HOME },
+      });
+      expect(r.stderr).not.toContain("n'existe pas");
+      expect(r.status, r.stderr).toBe(0);
+    },
+    120_000
+  );
+});

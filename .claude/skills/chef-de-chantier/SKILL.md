@@ -18,7 +18,9 @@ superviseur.
 1. **Testeur**, puis **développeur**, pour chaque composant du ticket dans l'ordre de son titre,
    le fournisseur d'abord : chacun en séance neuve dans l'enveloppe de son composant, dans la copie
    du ticket, `bash scripts/enveloppe/lancer.sh <ticket> <testeur|developpeur> <composant> <consigne>`, en
-   arrière-plan. La consigne s'écrit d'après `pitmaster/references/consigne-agent.md`, dans mon
+   arrière-plan ; `<composant>` est le chemin du composant depuis la racine (`packages/<nom>`, ou
+   `.` pour tout le dépôt), jamais le nom de son paquet. La consigne s'écrit d'après
+   `.claude/skills/pitmaster/references/consigne-agent.md`, dans mon
    scratchpad ; le lanceur lui ajoute la section « Ce que les composants d'avant publient » (l'index des éléments de chaque fournisseur), puis « Ton dossier de travail », qui nomme le dossier de ses fichiers temporaires. Un ticket sans code (un lot de tests seul) saute le développeur.
    Une donnée qui manque chez un fournisseur, dite dans la passation d'un agent, monte au
    superviseur, qui ajoute ce fournisseur en tête des composants du ticket ; je lance alors, dans

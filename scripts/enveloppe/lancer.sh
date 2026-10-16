@@ -4,6 +4,12 @@
 #
 #   bash scripts/enveloppe/lancer.sh [--modele <m>] [--effort <e>] <ticket> <rôle> <composant> <fichier de consigne>
 #
+# - <composant> is the component's path from the root (`packages/<nom>`, or `.` for the whole
+#   repository). It is judged before the copy is prepared, by the envelope's rule
+#   (`jugerComposant` of enveloppe.mjs), as the role and the instruction are, in the ticket's copy
+#   when it exists, else in the main tree or in the tree of the branch agent/<ticket> when it
+#   exists (`git cat-file -e`; `.` is always admitted): a path that names nothing there is refused on the standard error, CODE_USAGE, nothing prepared; when
+#   it is the name of a package or of its folder, the refusal names the path it means.
 # - --modele <m> and --effort <e> override, for this session only, the model and the thinking level
 #   of the role's definition (.claude/agents/<rôle>.md); they reach claude as --model and --effort.
 #   Each is optional and works alone; without them the role decides. The level is one of low,
@@ -98,6 +104,18 @@ ticket=$1 role=$2 composant=$3 consigne=$4
 racine=$(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd)
 [ -f "$racine/.claude/agents/$role.md" ] || { echo "⛔ Rôle inconnu : $role (.claude/agents/$role.md absent)." >&2; exit "$CODE_USAGE"; }
 [ -f "$consigne" ] || { echo "⛔ Consigne introuvable : $consigne" >&2; exit "$CODE_USAGE"; }
+# The component, judged by the envelope's rule before anything is prepared: in the ticket's copy
+# when it exists (a relaunch, whose package an earlier agent may have created), else in the main
+# tree or, when the branch agent/<ticket> exists (one the queue sent back), in its tree, whose lot
+# the copy made again carries.
+juge="$racine" branche=
+if [ -d "$racine/.claude/worktrees/$ticket" ]; then
+  juge="$racine/.claude/worktrees/$ticket"
+elif git -C "$racine" rev-parse --verify --quiet "refs/heads/agent/$ticket" > /dev/null; then
+  branche="agent/$ticket"
+fi
+refus_composant=$(node --input-type=module -e "import { spawnSync } from 'node:child_process'; import { existsSync } from 'node:fs'; import path from 'node:path'; import { jugerComposant } from '$ici/enveloppe.mjs'; import { paquets } from '$ici/../paquets.mjs'; const [depot, composant, branche] = process.argv.slice(1); const dansBranche = p => { const rel = path.relative(depot, p); return rel === '' || (!rel.startsWith('..') && spawnSync('git', ['-C', depot, 'cat-file', '-e', branche + ':' + rel]).status === 0); }; const existe = p => existsSync(p) || (branche !== '' && dansBranche(p)); process.stdout.write(jugerComposant({ depot, composant, paquets: paquets(depot) }, { existe }) ?? '');" "$juge" "$composant" "$branche") || exit "$CODE_USAGE"
+[ -z "$refus_composant" ] || { echo "⛔ $refus_composant" >&2; exit "$CODE_USAGE"; }
 # The ticket is matched whole: `demo-3160` is not `demo-316`, and its dots are dots.
 motif=$(printf '%s' "$ticket" | sed 's/[.[\*^$]/\\&/g')
 grep -qE "TON TICKET : ${motif}([^A-Za-z0-9_.-]|$)" "$consigne" || { echo "⛔ La consigne ne porte pas « TON TICKET : $ticket »." >&2; exit "$CODE_USAGE"; }

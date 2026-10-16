@@ -326,6 +326,24 @@ const inside = (child, parent) => {
   return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
 };
 
+// The refusal of <composant> in the repository at <depot>, or null when it is the path of a
+// directory there (`.`, the whole repository, included). A <composant> that is the name of a
+// package of `paquets` (`paquets` of `scripts/paquets.mjs`), or the name of its folder, is told
+// its path, as git says « did you mean ». `fs` gives `existe(path)`. The launcher judges the
+// component with it before preparing the copy, in the ticket's copy when it exists, else in the
+// main tree or in the tree of the ticket's branch, its `existe` accepting either; `plan` judges it
+// in the copy.
+export function jugerComposant({ depot, composant, paquets = [] }, fs) {
+  const propre = path.join(depot, composant);
+  if (fs.existe(propre)) return null;
+  const nomme =
+    paquets.find(p => p.pkg?.name === composant) ??
+    paquets.find(p => path.basename(p.dossier) === composant);
+  return nomme
+    ? `\`${composant}\` n'est pas le chemin d'un composant ; écris \`${nomme.dossier}\`.`
+    : `Le composant ${propre} n'existe pas.`;
+}
+
 // The bwrap arguments for this agent, or the refusal that stops its launch. `montages` lists, in
 // order, the paths outside the copy that are emptied, written, read back or made a symbolic link
 // (`lien`, its text) (`montagesDeLaSeance`); an emptied one marked `scelle` is sealed read-only
@@ -334,8 +352,7 @@ const inside = (child, parent) => {
 // (`matieres` of `scripts/consommateurs.mjs`); `role` is the agent's role, and only the `testeur` writes them.
 // `magasins` lists the task caches written by every run, the agent's included (Turborepo's
 // `<main tree>/.turbo/cache`); one that does not exist is not mounted.
-// `paquets` lists the packages of the copy (`paquets` of `scripts/paquets.mjs`): a <composant>
-// that is the name of one of them is refused with its path.
+// `paquets` lists the packages of the copy, which `jugerComposant` reads to judge <composant>.
 // `fs` gives `lister(dir)`, `existe(path)`, `liens(dir)` and `publies(dir, copie)`, so the plan is
 // testable without disk.
 export function plan(
@@ -353,14 +370,8 @@ export function plan(
   // A folder of the root (`scripts`) works on the whole repository: no neighbour to hide.
   const racine = parentRel === '.' || parentRel === '';
   const propre = path.join(copie, composant);
-  if (!fs.existe(propre)) {
-    // A launch that names the package instead of its path is told the path.
-    const nomme = paquets.find(p => p.pkg?.name === composant);
-    const chemin = nomme
-      ? ` « ${composant} » est le nom d'un paquet : l'enveloppe attend son chemin, ${nomme.dossier}.`
-      : '';
-    return { refus: `Le composant ${propre} n'existe pas.${chemin}` };
-  }
+  const refusDuComposant = jugerComposant({ depot: copie, composant, paquets }, fs);
+  if (refusDuComposant) return { refus: refusDuComposant };
 
   const caches = racine ? [] : trees.map(t => path.join(t, parentRel));
   const matiere = matieres.map(m => path.join(copie, m));
