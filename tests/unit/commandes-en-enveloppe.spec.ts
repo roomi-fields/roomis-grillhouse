@@ -41,6 +41,11 @@ const ecrire = (racine: string, f: string, texte: string) => {
   writeFileSync(path.join(racine, f), texte);
 };
 
+// Gives <dossier> this repository's dependencies as its own, Turborepo among them, as a project
+// holds them: `npx --no-install turbo` finds it there, or in a parent's, without the registry.
+const lierLesDependances = (dossier: string) =>
+  symlinkSync(path.join(DEPOT, 'node_modules'), path.join(dossier, 'node_modules'), 'dir');
+
 const DEBUT = '<!-- généré: début -->';
 const FIN = '<!-- généré: fin -->';
 // The declarations of a package, its contract in TSDoc.
@@ -167,7 +172,7 @@ function depot() {
   git('commit', '-qm', 'init');
   const copie = path.join(repo, '.claude/worktrees/demo-1');
   git('worktree', 'add', '-q', '-b', 'agent/demo-1', copie);
-  symlinkSync(path.join(DEPOT, 'node_modules'), path.join(copie, 'node_modules'), 'dir');
+  lierLesDependances(copie);
   // The frame's base, a workspace of a project, reached by its name from the material.
   const base = path.join(copie, 'packages/corpus/node_modules/@grillhouse');
   mkdirSync(base, { recursive: true });
@@ -371,6 +376,8 @@ describe.runIf(canWrap)(
     ecrire(repo, '.claude/agents/developpeur.md', '---\nname: developpeur\n---\n');
     ecrire(repo, '.gitignore', 'node_modules\n.turbo/\ndist/\n.claude/worktrees/\n');
     cpSync(path.join(DEPOT, 'scripts'), path.join(repo, 'scripts'), { recursive: true });
+    // The main tree's Turborepo, which the copy, under it, reaches as a project's copy does.
+    lierLesDependances(repo);
     // A stand-in for claude: it writes its arguments, one per NUL, and the prompt it reads on its
     // standard input, in the session's component.
     const faux = path.join(repo, 'faux-claude.sh');
@@ -544,6 +551,8 @@ describe.runIf(canWrap)(
     ecrire(repo, '.claude/agents/developpeur.md', '---\nname: developpeur\n---\n');
     ecrire(repo, '.gitignore', 'node_modules\n.turbo/\ndist/\n.claude/worktrees/\n');
     cpSync(path.join(DEPOT, 'scripts'), path.join(repo, 'scripts'), { recursive: true });
+    // The main tree's Turborepo, which the copy, under it, reaches as a project's copy does.
+    lierLesDependances(repo);
     // A stand-in for claude: it writes the prompt it reads on its standard input.
     const faux = path.join(repo, 'faux-claude.sh');
     ecrire(repo, 'faux-claude.sh', '#!/bin/bash\ncat > "$GRILLHOUSE_ENVELOPPE/prompt"\n');
@@ -644,6 +653,8 @@ describe.runIf(canWrap)(
       'node_modules\n.turbo/\ndist/\n.claude/worktrees/\npackages/prod/trace/\n'
     );
     cpSync(path.join(DEPOT, 'scripts'), path.join(repo, 'scripts'), { recursive: true });
+    // The main tree's Turborepo, which the copy, under it, reaches as a project's copy does.
+    lierLesDependances(repo);
     // A stand-in for claude: inside the envelope, it writes its arguments, one per NUL, the prompt
     // it reads on its standard input, and a copy of the trace, in the session's component.
     const faux = path.join(repo, 'faux-claude.sh');
