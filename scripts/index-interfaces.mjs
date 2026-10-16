@@ -21,7 +21,9 @@
 // blank or ending the title), else by `<component> — <title>`; the root interface is always
 // headed `(racine) — <title>`. Each `##` and `###` heading of the generated part (between the
 // marks `<!-- généré: début -->` and `<!-- généré: fin -->`, written by `npm run api`), with the
-// first sentence under it, gives an element's line; a heading outside the generated part gives
+// first sentence of its summary (the paragraph under it, before its signature and its rubrics
+// `**Paramètres**`, `**Retour**`, `**Fautes**`, `**Membres**`, which the index never carries),
+// gives an element's line; a heading outside the generated part gives
 // none, and an interface without marks (the root one) gives no element line. Code blocks (``` or
 // ~~~, indented or not) are skipped whole. The `## Consommateurs` section gives one line that
 // names each consumer with the elements it uses.
@@ -94,7 +96,13 @@ export function lire(rel, contenu) {
       if (m[1].length === 1) continue;
       fermer();
       courante = { niveau: m[1].length, titre: m[2].trim(), corps: [], generee };
-    } else if (l.trim() && !l.startsWith('|')) {
+    } else if (courante.generee && (courante.fermee || /^\*\*[^*]+\*\*/.test(l))) {
+      // An element of the generated part gives its summary only: its rubrics (`**Membres**`,
+      // `**Paramètres**`…) are read at its address.
+      courante.fermee = true;
+    } else if (!l.trim()) {
+      if (courante.generee && courante.corps.length) courante.fermee = true;
+    } else if (!l.startsWith('|')) {
       if (courante.corps.length < 6 || courante.titre === 'Consommateurs')
         courante.corps.push(l.replace(/^[-*]\s+/, ''));
     }
@@ -174,8 +182,10 @@ function rend(racine, rel) {
 // instruction of a role agent (scripts/enveloppe/lancer.sh). <composant> is the component's path
 // in the repository at <racine> (`packages/a`, `src/parser`), or `.` for a copy of the whole
 // repository. Its providers are the components whose `## Consommateurs` section names it; for
-// each, its first sentence, the elements declared for it, each element of its generated part with
-// its address (`<interface> § <heading>`), then the rubric « Rend » of its frame with its address
+// each, its first sentence, the elements declared for it, then the index of its generated part, as
+// the index of a Rust documentation: every element, declared for it or not, in one line, its name,
+// the first sentence of its summary and its address (`<interface> § <heading>`), never its
+// members, which are read at the address; then the rubric « Rend » of its frame with its address
 // (`<cadre> § <heading>`), or one line saying the frame or the rubric is missing. Each interface
 // and each frame is read once.
 export function publie(racine, composant) {
@@ -247,29 +257,32 @@ export function index(racine) {
   ].join('\n');
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const racine = process.cwd();
-  const i = process.argv.indexOf('--publie');
+// The command: its exit code. Its output is written before it returns, and Node drains it.
+function commande(racine, args) {
+  const i = args.indexOf('--publie');
   if (i >= 0) {
-    const composant = process.argv[i + 1];
+    const composant = args[i + 1];
     if (!composant) {
       process.stderr.write('usage: node scripts/index-interfaces.mjs --publie <composant>\n');
-      process.exit(2);
+      return 2;
     }
     process.stdout.write(`${publie(racine, composant)}\n`);
-    process.exit(0);
+    return 0;
   }
   const attendu = index(racine);
   const cible = path.join(racine, SORTIE);
-  if (process.argv.includes('--verifier')) {
-    const present = existsSync(cible) ? readFileSync(cible, 'utf8') : '';
-    if (present !== attendu) {
-      process.stderr.write(
-        `⛔ ${SORTIE} n'est pas à jour avec les interfaces : node scripts/index-interfaces.mjs le régénère.\n`
-      );
-      process.exit(1);
-    }
-  } else {
+  if (!args.includes('--verifier')) {
     writeFileSync(cible, attendu);
+    return 0;
   }
+  const present = existsSync(cible) ? readFileSync(cible, 'utf8') : '';
+  if (present === attendu) return 0;
+  process.stderr.write(
+    `⛔ ${SORTIE} n'est pas à jour avec les interfaces : node scripts/index-interfaces.mjs le régénère.\n`
+  );
+  return 1;
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  process.exitCode = commande(process.cwd(), process.argv.slice(2));
 }

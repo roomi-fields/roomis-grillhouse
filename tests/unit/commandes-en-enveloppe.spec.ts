@@ -371,9 +371,14 @@ describe.runIf(canWrap)(
     ecrire(repo, '.claude/agents/developpeur.md', '---\nname: developpeur\n---\n');
     ecrire(repo, '.gitignore', 'node_modules\n.turbo/\ndist/\n.claude/worktrees/\n');
     cpSync(path.join(DEPOT, 'scripts'), path.join(repo, 'scripts'), { recursive: true });
-    // A stand-in for claude: it writes its arguments, one per NUL, in the session's component.
+    // A stand-in for claude: it writes its arguments, one per NUL, and the prompt it reads on its
+    // standard input, in the session's component.
     const faux = path.join(repo, 'faux-claude.sh');
-    ecrire(repo, 'faux-claude.sh', '#!/bin/bash\nprintf "%s\\0" "$@" > packages/loader/args\n');
+    ecrire(
+      repo,
+      'faux-claude.sh',
+      '#!/bin/bash\nprintf "%s\\0" "$@" > packages/loader/args\ncat > packages/loader/prompt\n'
+    );
     chmodSync(faux, 0o755);
     ecrireTurbo(repo);
     const git = (...a: string[]) =>
@@ -385,9 +390,11 @@ describe.runIf(canWrap)(
     mkdirSync(path.join(home, '.claude'), { recursive: true });
     const copie = path.join(repo, '.claude/worktrees/demo-1');
     const args = path.join(copie, 'packages/loader/args');
+    const recu = path.join(copie, 'packages/loader/prompt');
 
     const lancer = () => {
       rmSync(args, { force: true });
+      rmSync(recu, { force: true });
       const consigne = path.join(ESSAIS, 'consigne.txt');
       writeFileSync(consigne, 'TON TICKET : demo-1 — suivre forms.');
       const r = spawnSync('bash', [LANCEUR, 'demo-1', 'developpeur', 'packages/loader', consigne], {
@@ -396,8 +403,7 @@ describe.runIf(canWrap)(
         env: { ...ENV, CLAUDE_BIN: faux, HOME: home },
       });
       const journal = existsSync(`${copie}.log`) ? readFileSync(`${copie}.log`, 'utf8') : '';
-      const recu = existsSync(args) ? readFileSync(args, 'utf8').split('\0') : null;
-      const prompt = recu ? recu[recu.indexOf('-p') + 1] : null;
+      const prompt = existsSync(recu) ? readFileSync(recu, 'utf8') : null;
       return { r, prompt, trace: `${r.stderr}\n${journal}` };
     };
 
@@ -475,7 +481,7 @@ describe.runIf(canWrap)(
         '--filter=loader --dry=json'
       );
       expect(r.status, `${r.stderr}\n${journal}`).toBe(0);
-      expect(readFileSync(path.join(gros, 'packages/loader/args'), 'utf8')).toContain(
+      expect(readFileSync(path.join(gros, 'packages/loader/prompt'), 'utf8')).toContain(
         'TON TICKET : demo-gros'
       );
     });
@@ -549,8 +555,8 @@ describe.runIf(canWrap)(
       'node_modules\n.turbo/\ndist/\n.claude/worktrees/\npackages/prod/trace/\n'
     );
     cpSync(path.join(DEPOT, 'scripts'), path.join(repo, 'scripts'), { recursive: true });
-    // A stand-in for claude: inside the envelope, it writes its arguments, one per NUL, and a copy
-    // of the trace, in the session's component.
+    // A stand-in for claude: inside the envelope, it writes its arguments, one per NUL, the prompt
+    // it reads on its standard input, and a copy of the trace, in the session's component.
     const faux = path.join(repo, 'faux-claude.sh');
     ecrire(
       repo,
@@ -558,6 +564,7 @@ describe.runIf(canWrap)(
       [
         '#!/bin/bash',
         'printf "%s\\0" "$@" > "$GRILLHOUSE_ENVELOPPE/args"',
+        'cat > "$GRILLHOUSE_ENVELOPPE/prompt"',
         'cat packages/prod/trace/g/x.txt > "$GRILLHOUSE_ENVELOPPE/vu" 2>&1 || true',
         '',
       ].join('\n')
@@ -578,8 +585,10 @@ describe.runIf(canWrap)(
       const copie = path.join(repo, '.claude/worktrees', ticket);
       const vu = path.join(copie, composant, 'vu');
       const args = path.join(copie, composant, 'args');
+      const recu = path.join(copie, composant, 'prompt');
       rmSync(vu, { force: true });
       rmSync(args, { force: true });
+      rmSync(recu, { force: true });
       const consigne = path.join(ESSAIS, 'consigne-traces.txt');
       writeFileSync(consigne, `TON TICKET : ${ticket} — lire la trace.`);
       const r = spawnSync('bash', [LANCEUR, ticket, 'developpeur', composant, consigne], {
@@ -588,11 +597,10 @@ describe.runIf(canWrap)(
         env: { ...ENV, CLAUDE_BIN: faux, HOME: home },
       });
       const journal = existsSync(`${copie}.log`) ? readFileSync(`${copie}.log`, 'utf8') : '';
-      const recu = existsSync(args) ? readFileSync(args, 'utf8').split('\0') : null;
       return {
         r,
         lu: existsSync(vu) ? readFileSync(vu, 'utf8') : null,
-        prompt: recu ? recu[recu.indexOf('-p') + 1] : null,
+        prompt: existsSync(args) && existsSync(recu) ? readFileSync(recu, 'utf8') : null,
         trace: `${r.stderr}\n${journal}`,
       };
     };

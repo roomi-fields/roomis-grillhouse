@@ -159,6 +159,6 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const reason = refusal(process.argv[2], input);
   if (reason) {
     process.stderr.write(reason + '\n');
-    process.exit(2);
+    process.exitCode = 2;
   }
 }

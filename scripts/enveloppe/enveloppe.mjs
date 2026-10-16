@@ -446,13 +446,14 @@ const disque = {
   publies: fichiersPublies,
 };
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const sep = process.argv.indexOf('--');
-  const [copieArg, composant, role] = process.argv.slice(2, sep < 0 ? undefined : sep);
-  const commande = sep < 0 ? [] : process.argv.slice(sep + 1);
+// The command: the session of <commande> in the envelope of <composant> in <copie>; its exit code.
+function envelopper(argv) {
+  const sep = argv.indexOf('--');
+  const [copieArg, composant, role] = argv.slice(0, sep < 0 ? undefined : sep);
+  const commande = sep < 0 ? [] : argv.slice(sep + 1);
   if (!copieArg || !composant || !role || commande.length === 0) {
     process.stderr.write('usage: enveloppe.mjs <copie> <composant> <rôle> -- <commande…>\n');
-    process.exit(CODE_USAGE);
+    return CODE_USAGE;
   }
   const copie = path.resolve(copieArg);
   const cacheNpm = execFileSync('npm', ['config', 'get', 'cache'], { encoding: 'utf8' }).trim();
@@ -526,5 +527,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     code = r.error ? CODE_REFUS : (r.status ?? 1);
   }
   rmSync(temporaire, { recursive: true, force: true });
-  process.exit(code);
+  return code;
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  process.exitCode = envelopper(process.argv.slice(2));
 }

@@ -528,9 +528,111 @@ describe('publie: what the providers of a component publish', () => {
     expect(r.stdout).toBe(`${publie(dir, 'packages/a')}\n`);
     expect(existsSync(path.join(dir, 'docs/agents/index-des-interfaces.md'))).toBe(false);
   });
+  // Witness: BPScript, a section of 149 340 bytes read through a pipe stopped at 65 536, the
+  // size of a pipe's buffer: the rest of the write was still queued when the script exited.
+  it('prints a section larger than a pipe holds whole, through a pipe', () => {
+    const elements = Array.from(
+      { length: 3000 },
+      (_, k) => `### \`e${k}\`\n\nRend l’élément ${k} du gros composant, en battements.\n`
+    );
+    const gros = repo({
+      'packages/g/docs/INTERFACE.md': `# g\n\nG rend beaucoup.\n\n${DEBUT}\n\n${elements.join('\n')}\n${FIN}\n\n## Consommateurs\n\n- \`h\` : *\n`,
+      'packages/h/src/h.ts': 'h',
+    });
+    const attendu = `${publie(gros, 'packages/h')}\n`;
+    expect(Buffer.byteLength(attendu)).toBeGreaterThan(128 * 1024);
+    const r = spawnSync('node', [SCRIPT, '--publie', 'packages/h'], {
+      cwd: gros,
+      encoding: 'utf8',
+      stdio: 'pipe',
+      maxBuffer: 16 * 1024 * 1024,
+    });
+    expect(r.status, r.stderr).toBe(0);
+    expect(Buffer.byteLength(r.stdout)).toBe(Buffer.byteLength(attendu));
+    expect(r.stdout).toBe(attendu);
+  });
   it('refuses the command without its component', () => {
     const r = spawnSync('node', [SCRIPT, '--publie'], { cwd: dir, encoding: 'utf8' });
     expect(r.status).toBe(2);
     expect(r.stderr).toMatch(/usage/);
+  });
+});
+
+// Witness: BPScript, a section of 127 KB per session, 149 KB at most: an element without summary
+// took its members as its role (« `Acknowledgement` — **Membres** `readonly accepted: boolean` … »).
+// The section is an index, as the index of a Rust documentation: one line per element, its name,
+// its role in one sentence of its summary, its address; its members, its parameters, its return
+// and its faults are read at the address.
+describe('publie and entrees: an element gives its summary, never its members', () => {
+  const INTERFACE_M = [
+    '# m',
+    '',
+    'M rend des notes.',
+    '',
+    DEBUT,
+    '',
+    '### `Accuse`',
+    '',
+    '```ts',
+    'export interface Accuse',
+    '```',
+    '',
+    '**Membres**',
+    '',
+    '- `readonly accepte: boolean`',
+    '- `readonly faute?: Faute` — La faute du refus.',
+    '',
+    '### `lier`',
+    '',
+    'Lie deux notes',
+    '',
+    '```ts',
+    'export declare function lier(a: Note, b: Note): Note;',
+    '```',
+    '',
+    '**Paramètres**',
+    '',
+    '- `a` — La première note.',
+    '',
+    '**Retour** — La note liée.',
+    '',
+    '### `Note`',
+    '',
+    'Une note jouée, sur deux lignes',
+    'de son résumé. Elle porte sa hauteur.',
+    '',
+    '```ts',
+    'export interface Note',
+    '```',
+    '',
+    '**Membres**',
+    '',
+    '- `hauteur: number` — La hauteur de la note.',
+    '',
+    FIN,
+    '',
+    '## Consommateurs',
+    '',
+    '- `n` : lier',
+    '',
+  ].join('\n');
+  const dir = repo({ 'packages/m/docs/INTERFACE.md': INTERFACE_M, 'packages/n/src/n.ts': 'n' });
+
+  it('gives the section one line per element, its summary its role, no member', () => {
+    const lignes = publie(dir, 'packages/n').split('\n');
+    expect(lignes.filter(l => l.startsWith('- '))).toEqual([
+      '- `Accuse` (`packages/m/docs/INTERFACE.md` § `Accuse`)',
+      '- `lier` — Lie deux notes (`packages/m/docs/INTERFACE.md` § `lier`)',
+      '- `Note` — Une note jouée, sur deux lignes de son résumé. (`packages/m/docs/INTERFACE.md` § `Note`)',
+    ]);
+    expect(lignes.join('\n')).not.toMatch(/Membres|Paramètres|Retour|accepte|hauteur|première/);
+  });
+  it('gives the index of the interfaces the same lines', () => {
+    const lignes = entrees('packages/m/docs/INTERFACE.md', INTERFACE_M);
+    expect(lignes.filter(l => l.startsWith('- **`'))).toEqual([
+      '- **`Accuse`**',
+      '- **`lier`** — Lie deux notes',
+      '- **`Note`** — Une note jouée, sur deux lignes de son résumé.',
+    ]);
   });
 });

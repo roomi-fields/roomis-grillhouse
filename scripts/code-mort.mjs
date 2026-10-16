@@ -361,8 +361,8 @@ function knip(config, include) {
   return r;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const racine = process.cwd();
+// The command on the repository at <racine>: its exit code.
+async function codeMort(racine) {
   const hors = reglages(racine);
   const fichierKnip = path.join(racine, 'knip.json');
   const config =
@@ -371,14 +371,14 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const { fichiers, dossiers, erreur } = fichiersTests(racine);
   if (erreur) {
     process.stderr.write(`⛔ CODE MORT — git n'a pas listé les fichiers de test :\n${erreur}\n`);
-    process.exit(1);
+    return 1;
   }
   const knipLu = await knipDuDepot(racine);
   if (!knipLu) {
     process.stderr.write(
       '⛔ CODE MORT — knip du dépôt illisible : son matcher (picomatch), son ordre des clés (byPathDepth) ou son schéma des espaces manque.\n'
     );
-    process.exit(1);
+    return 1;
   }
   const premier = knip(
     avecScriptsDuCadre(
@@ -415,7 +415,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     process.stderr.write(
       `⛔ CODE MORT — knip n'a rien mesuré :\n${(r.stderr || r.stdout || '').slice(0, 1000)}\n`
     );
-    process.exit(1);
+    return 1;
   }
   const { refus, lignes } = trancher(racine, 'code-mort', c);
   if (refus.length) {
@@ -429,7 +429,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   for (const l of lignes) {
     process.stderr.write(`${l}\n`);
   }
-  if (refus.length) {
-    process.exit(1);
-  }
+  return refus.length ? 1 : 0;
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  process.exitCode = await codeMort(process.cwd());
 }

@@ -143,5 +143,5 @@ export function verifier({
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  process.exit(verifier({ args: process.argv.slice(2) }));
+  process.exitCode = verifier({ args: process.argv.slice(2) });
 }

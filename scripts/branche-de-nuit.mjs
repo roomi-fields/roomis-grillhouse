@@ -55,5 +55,5 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   for (const l of lignes) {
     process.stderr.write(`${l}\n`);
   }
-  process.exit(lignes.length ? 1 : 0);
+  process.exitCode = lignes.length ? 1 : 0;
 }

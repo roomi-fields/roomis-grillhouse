@@ -1269,11 +1269,12 @@ describe.runIf(canWrap)('the launcher', () => {
     '-qm',
     'init',
   ]);
-  // A stand-in for claude: records its arguments and what it can see of the neighbour.
+  // A stand-in for claude: records its arguments, the prompt it reads on its standard input, and
+  // what it can see of the neighbour.
   const fake = path.join(repo, 'faux-claude.sh');
   writeFileSync(
     fake,
-    '#!/bin/bash\nprintf "%s|" "$@" > packages/a/args\ncat packages/b/src/b.ts > packages/a/vu 2>&1 || echo cache >> packages/a/vu\n',
+    '#!/bin/bash\nprintf "%s|" "$@" > packages/a/args\ncat > packages/a/prompt\ncat packages/b/src/b.ts > packages/a/vu 2>&1 || echo cache >> packages/a/vu\n',
     { mode: 0o755 }
   );
   const consigne = path.join(repo, 'consigne.txt');
@@ -1290,13 +1291,16 @@ describe.runIf(canWrap)('the launcher', () => {
   it('runs the role session in the envelope of its copy', () => {
     expect(launch(consigne).status).toBe(0);
     const args = execFileSync('cat', [path.join(copie, 'packages/a/args')], { encoding: 'utf8' });
-    expect(args).toBe(
-      '-p|TON TICKET : demo-1 — un sujet.\n\n' +
+    expect(args).toBe('-p|--agent|developpeur|--permission-mode|bypassPermissions|');
+    const prompt = execFileSync('cat', [path.join(copie, 'packages/a/prompt')], {
+      encoding: 'utf8',
+    });
+    expect(prompt).toBe(
+      'TON TICKET : demo-1 — un sujet.\n\n' +
         "## Ce que les composants d'avant publient\n\n" +
         '`a` ne dépend d’aucun composant : aucune section « Consommateurs » ne le nomme.\n\n' +
         '## Ton dossier de travail\n\n' +
-        `Tout fichier temporaire s'écrit dans \`${dossierDeTravail(copie)}\`, que \`$TMPDIR\` nomme aussi.` +
-        '|--agent|developpeur|--permission-mode|bypassPermissions|'
+        `Tout fichier temporaire s'écrit dans \`${dossierDeTravail(copie)}\`, que \`$TMPDIR\` nomme aussi.`
     );
     const vu = execFileSync('cat', [path.join(copie, 'packages/a/vu')], { encoding: 'utf8' });
     expect(vu).not.toMatch(/secret/);

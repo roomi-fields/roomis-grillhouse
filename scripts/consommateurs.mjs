@@ -288,6 +288,6 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     process.stderr.write(
       "Une consommation nouvelle passe par l'arbitre, puis entre dans la section « Consommateurs » de l'interface du fournisseur.\n"
     );
-    process.exit(1);
+    process.exitCode = 1;
   }
 }

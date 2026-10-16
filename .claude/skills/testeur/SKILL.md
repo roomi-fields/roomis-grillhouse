@@ -14,9 +14,9 @@ Tu n'écris que des fichiers de test et le paquet de la matière de test partag�
 1. Lis ton ticket en entier (`bd show`, `bd comments`), puis `bd update <id> --claim`.
 2. Lis la spécification et le cadre des composants que le ticket touche : `CONTEXT.md`, puis
    `CADRE.md`, `INTERFACE.md` et `ARCHITECTURE.md` de chaque composant.
-3. Lis la section « Ce que les composants d'avant publient » de ta consigne : les faits que le
-   composant reçoit de chaque composant dont il dépend, chacun avec son adresse, et la rubrique
-   « Rend » du cadre de chacun.
+3. Lis la section « Ce que les composants d'avant publient » de ta consigne : l'index des faits que
+   le composant reçoit de chaque composant dont il dépend, une ligne chacun avec son adresse, où
+   se lit son détail, et la rubrique « Rend » du cadre de chacun.
 
 ## Tes références, à lire au moment où elles servent
 

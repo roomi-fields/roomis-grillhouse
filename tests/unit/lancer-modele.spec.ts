@@ -5,6 +5,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
 import { CODE_USAGE } from '../../scripts/enveloppe/codes.mjs';
 import { dossierDeTravail } from '../../scripts/enveloppe/enveloppe.mjs';
+import { publie } from '../../scripts/index-interfaces.mjs';
 
 // Ticket grillhouse-3uv.46: the launcher takes a model and a reasoning level for one session
 // (--modele, --effort) and hands them to claude (--model, --effort); without them, the role's
@@ -38,13 +39,39 @@ function installerEnveloppe(repo: string) {
 }
 
 // A test repository whose developpeur's definition sets its own model and level, and a stand-in
-// for claude that records its arguments, one per NUL.
+// for claude that records its arguments, one per NUL, and the prompt it reads on its standard
+// input.
 const REPO = path.join(ESSAIS, 'depot');
 const HOME = path.join(ESSAIS, 'home');
 mkdirSync(path.join(REPO, 'packages/a/src'), { recursive: true });
 mkdirSync(path.join(REPO, '.claude/agents'), { recursive: true });
 mkdirSync(HOME, { recursive: true });
 writeFileSync(path.join(REPO, 'packages/a/src/a.ts'), 'a');
+// g provides d an interface larger than Linux allows one argument (MAX_ARG_STRLEN, 128 KiB).
+mkdirSync(path.join(REPO, 'packages/d/src'), { recursive: true });
+writeFileSync(path.join(REPO, 'packages/d/src/d.ts'), 'd');
+mkdirSync(path.join(REPO, 'packages/g/docs'), { recursive: true });
+writeFileSync(
+  path.join(REPO, 'packages/g/docs/INTERFACE.md'),
+  [
+    '# g',
+    '',
+    'G rend beaucoup.',
+    '',
+    '<!-- généré: début -->',
+    '',
+    ...Array.from(
+      { length: 3000 },
+      (_, k) => `### \`e${k}\`\n\nRend l’élément ${k} du gros composant, en battements.\n`
+    ),
+    '<!-- généré: fin -->',
+    '',
+    '## Consommateurs',
+    '',
+    '- `d` : *',
+    '',
+  ].join('\n')
+);
 // b provides a: its interface, with its generated part, declares a as consumer.
 mkdirSync(path.join(REPO, 'packages/b/docs'), { recursive: true });
 writeFileSync(
@@ -81,7 +108,7 @@ const FAUX = path.join(REPO, 'faux-claude.sh');
 // It writes in the component of the session, the one the envelope leaves writable.
 writeFileSync(
   FAUX,
-  '#!/bin/bash\nfor c in a b; do printf "%s\\0" "$@" 2>/dev/null > packages/$c/args && break; done\n',
+  '#!/bin/bash\nfor c in a b d; do\n  if printf "%s\\0" "$@" 2>/dev/null > packages/$c/args; then cat > packages/$c/prompt; break; fi\ndone\n',
   { mode: 0o755 }
 );
 execFileSync('git', ['init', '-q', REPO]);
@@ -117,7 +144,9 @@ function lancer(options: string[], apres: string[] = [], composant = 'packages/a
   const copie = path.join(REPO, '.claude/worktrees', ticket);
   const fichier = path.join(copie, composant, 'args');
   const args = existsSync(fichier) ? readFileSync(fichier, 'utf8').split('\0').slice(0, -1) : null;
-  return { r, copie, args, ticket };
+  const recu = path.join(copie, composant, 'prompt');
+  const prompt = existsSync(recu) ? readFileSync(recu, 'utf8') : null;
+  return { r, copie, args, prompt, ticket };
 }
 
 // The section the launcher writes after the instruction, for a: what b publishes, and its rubric
@@ -148,15 +177,12 @@ const TRAVAIL = (ticket: string) =>
     `Tout fichier temporaire s'écrit dans \`${dossierDeTravail(path.join(REPO, '.claude/worktrees', ticket))}\`, que \`$TMPDIR\` nomme aussi.`,
   ].join('\n');
 
-// What claude receives today, for a ticket.
-const AUJOURDHUI = (ticket: string) => [
-  '-p',
-  `TON TICKET : ${ticket} — un sujet.\n\n${PUBLIE_POUR_A}\n\n${TRAVAIL(ticket)}`,
-  '--agent',
-  'developpeur',
-  '--permission-mode',
-  'bypassPermissions',
-];
+// The prompt claude reads on its standard input, for a ticket.
+const PROMPT = (ticket: string) =>
+  `TON TICKET : ${ticket} — un sujet.\n\n${PUBLIE_POUR_A}\n\n${TRAVAIL(ticket)}`;
+
+// The arguments claude receives today: the instruction is not among them.
+const AUJOURDHUI = ['-p', '--agent', 'developpeur', '--permission-mode', 'bypassPermissions'];
 
 // The value that follows a flag, each time it appears.
 const valeurs = (args: string[], flag: string) =>
@@ -170,32 +196,36 @@ const sansSurcharge = (args: string[]) =>
 
 describe.runIf(canWrap)('the launcher and the model and level of a session', () => {
   it('critère 1 — --modele and --effort together launch the session with this model and this level', () => {
-    const { r, args, ticket } = lancer(['--modele', 'opus', '--effort', 'high']);
+    const { r, args, prompt, ticket } = lancer(['--modele', 'opus', '--effort', 'high']);
     expect(r.status, r.stderr).toBe(0);
     expect(valeurs(args ?? [], '--model')).toEqual(['opus']);
     expect(valeurs(args ?? [], '--effort')).toEqual(['high']);
-    expect(sansSurcharge(args ?? [])).toEqual(AUJOURDHUI(ticket));
+    expect(sansSurcharge(args ?? [])).toEqual(AUJOURDHUI);
+    expect(prompt).toBe(PROMPT(ticket));
   });
   it('critère 1 — the two options in the other order launch the same session', () => {
-    const { r, args, ticket } = lancer(['--effort', 'high', '--modele', 'opus']);
+    const { r, args, prompt, ticket } = lancer(['--effort', 'high', '--modele', 'opus']);
     expect(r.status, r.stderr).toBe(0);
     expect(valeurs(args ?? [], '--model')).toEqual(['opus']);
     expect(valeurs(args ?? [], '--effort')).toEqual(['high']);
-    expect(sansSurcharge(args ?? [])).toEqual(AUJOURDHUI(ticket));
+    expect(sansSurcharge(args ?? [])).toEqual(AUJOURDHUI);
+    expect(prompt).toBe(PROMPT(ticket));
   });
   it('critère 1 — --modele alone sets the model and leaves the level to the role', () => {
-    const { r, args, ticket } = lancer(['--modele', 'haiku']);
+    const { r, args, prompt, ticket } = lancer(['--modele', 'haiku']);
     expect(r.status, r.stderr).toBe(0);
     expect(valeurs(args ?? [], '--model')).toEqual(['haiku']);
     expect(args).not.toContain('--effort');
-    expect(sansSurcharge(args ?? [])).toEqual(AUJOURDHUI(ticket));
+    expect(sansSurcharge(args ?? [])).toEqual(AUJOURDHUI);
+    expect(prompt).toBe(PROMPT(ticket));
   });
   it('critère 1 — --effort alone sets the level and leaves the model to the role', () => {
-    const { r, args, ticket } = lancer(['--effort', 'low']);
+    const { r, args, prompt, ticket } = lancer(['--effort', 'low']);
     expect(r.status, r.stderr).toBe(0);
     expect(valeurs(args ?? [], '--effort')).toEqual(['low']);
     expect(args).not.toContain('--model');
-    expect(sansSurcharge(args ?? [])).toEqual(AUJOURDHUI(ticket));
+    expect(sansSurcharge(args ?? [])).toEqual(AUJOURDHUI);
+    expect(prompt).toBe(PROMPT(ticket));
   });
   it('critère 1 — a full model name goes to claude as written', () => {
     const { r, args } = lancer(['--modele', 'claude-sonnet-4-5']);
@@ -211,9 +241,10 @@ describe.runIf(canWrap)('the launcher and the model and level of a session', () 
   }
 
   it('critère 2 — without an option, claude receives the command of today: the role decides', () => {
-    const { r, args, ticket } = lancer([]);
+    const { r, args, prompt, ticket } = lancer([]);
     expect(r.status, r.stderr).toBe(0);
-    expect(args).toEqual(AUJOURDHUI(ticket));
+    expect(args).toEqual(AUJOURDHUI);
+    expect(prompt).toBe(PROMPT(ticket));
   });
 
   it("critère 3 — an override goes to claude over the model and level of the role's definition", () => {
@@ -231,29 +262,38 @@ describe.runIf(canWrap)('the launcher and the model and level of a session', () 
 // read in the copy from the `## Consommateurs` sections of their interfaces.
 describe.runIf(canWrap)('the launcher and what the components before publish', () => {
   it('gives the session of a dependent component the elements of its provider, at their address', () => {
-    const { r, args, ticket } = lancer([]);
+    const { r, prompt, ticket } = lancer([]);
     expect(r.status, r.stderr).toBe(0);
-    expect(valeurs(args ?? [], '-p')).toEqual([
-      `TON TICKET : ${ticket} — un sujet.\n\n${PUBLIE_POUR_A}\n\n${TRAVAIL(ticket)}`,
-    ]);
+    expect(prompt).toBe(PROMPT(ticket));
   });
   it('tells the session of a component without provider, in one line, that it depends on none', () => {
-    const { r, args, ticket } = lancer([], [], 'packages/b');
+    const { r, prompt, ticket } = lancer([], [], 'packages/b');
     expect(r.status, r.stderr).toBe(0);
-    expect(valeurs(args ?? [], '-p')).toEqual([
+    expect(prompt).toBe(
       `TON TICKET : ${ticket} — un sujet.\n\n## Ce que les composants d'avant publient\n\n` +
         '`b` ne dépend d’aucun composant : aucune section « Consommateurs » ne le nomme.\n\n' +
-        TRAVAIL(ticket),
-    ]);
+        TRAVAIL(ticket)
+    );
+  });
+  // Witness: BPScript, a ticket across ten components, whose section held 127 KB on its own:
+  // passed as one argument with the instruction, it went past the 128 KiB Linux allows one
+  // (MAX_ARG_STRLEN), « Liste d'arguments trop longue ». It reaches claude on its standard input.
+  it('gives the session an instruction larger than one argument allows, whole', () => {
+    const { r, args, prompt, copie, ticket } = lancer([], [], 'packages/d');
+    const journal = existsSync(`${copie}.log`) ? readFileSync(`${copie}.log`, 'utf8') : '';
+    expect(r.status, `${r.stderr}\n${journal}`).toBe(0);
+    expect(args).toEqual(AUJOURDHUI);
+    const section = publie(copie, 'packages/d');
+    expect(Buffer.byteLength(section)).toBeGreaterThan(128 * 1024);
+    expect(prompt).toBe(`TON TICKET : ${ticket} — un sujet.\n\n${section}\n\n${TRAVAIL(ticket)}`);
   });
 });
 
 // The instruction names the session's working directory, the one the envelope gives as TMPDIR.
 describe.runIf(canWrap)("the launcher and the session's working directory", () => {
   it('names the working directory of the copy after what the components before publish', () => {
-    const { r, args, copie } = lancer([]);
+    const { r, prompt, copie } = lancer([]);
     expect(r.status, r.stderr).toBe(0);
-    const [prompt] = valeurs(args ?? [], '-p');
     const travail = dossierDeTravail(copie);
     expect(prompt).toContain(
       `## Ton dossier de travail\n\nTout fichier temporaire s'écrit dans \`${travail}\``

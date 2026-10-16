@@ -76,7 +76,7 @@ const turbo = (args, tests) => {
 };
 
 // The trace tasks of the packages <noms> their tests wait for, read in Turborepo's plan of the
-// tests <filtres> select. A plan that fails exits with its code, its output written.
+// tests <filtres> select: `{ ids }`; a plan that fails gives `{ code }`, its output written.
 const traces = (filtres, noms) => {
   const plan = spawnSync('turbo', ['run', 'test:vitest', ...filtres, '--dry=json'], {
     cwd: racine,
@@ -85,27 +85,28 @@ const traces = (filtres, noms) => {
   });
   if (plan.status !== 0) {
     process.stderr.write(`${plan.stdout ?? ''}${plan.stderr ?? ''}`);
-    process.exit(plan.status ?? 1);
+    return { code: plan.status ?? 1 };
   }
-  return tracesDuPlan(JSON.parse(plan.stdout), t => noms.has(t.package));
+  return { ids: tracesDuPlan(JSON.parse(plan.stdout), t => noms.has(t.package)) };
 };
 
 // The tests <filtres> select, which receive <passes> in VARIABLE: one run with what they depend on;
 // in an envelope, the build of the packages they name with their own traces, then the tests alone.
-// Exits with the first exit code that is not 0, else with the tests'.
+// Its exit code: the first that is not 0, else the tests'.
 const cibles = (filtres, passes) => {
   const tests = { arguments: passes, ...(force ? { rejouer: new Date().toISOString() } : {}) };
-  if (!enveloppe) process.exit(turbo(['test:vitest', ...filtres], tests));
+  if (!enveloppe) return turbo(['test:vitest', ...filtres], tests);
   // A package the envelope shows read-only arrives built: only the packages it shows in writing
   // build, as the envelope mounts them (`inscriptible`).
   const construits = filtres.filter(f => inscriptible(dossiers.get(f.slice('--filter='.length))));
   if (filtres.length === 0 || construits.length > 0) {
     const noms = new Set(construits.map(f => f.slice('--filter='.length)));
-    const propres = construits.length ? traces(construits, noms) : [];
-    const construction = turbo(['build', ...propres, '--only', ...construits]);
-    if (construction !== 0) process.exit(construction);
+    const propres = construits.length ? traces(construits, noms) : { ids: [] };
+    if (propres.code !== undefined) return propres.code;
+    const construction = turbo(['build', ...propres.ids, '--only', ...construits]);
+    if (construction !== 0) return construction;
   }
-  process.exit(turbo(['test:vitest', '--only', ...filtres], tests));
+  return turbo(['test:vitest', '--only', ...filtres], tests);
 };
 
 // True when this process may write the directory <dir>: false under a read-only mount.
@@ -122,48 +123,51 @@ const liste = paquets(racine);
 // The directory of each package of the frame, by its name.
 const dossiers = new Map(liste.map(p => [p.pkg.name, path.join(racine, p.dossier)]));
 
-if (chemins.length === 0) {
-  process.exit(
-    turbo(
+// The run the command asks for: its exit code.
+const lancer = () => {
+  if (chemins.length === 0) {
+    return turbo(
       ['test:vitest', ...(force ? ['--force'] : [])],
       options.length ? { arguments: options } : undefined
-    )
-  );
-}
-if (liste.length === 0) cibles([], [...chemins, ...options]);
-
-// The package of the frame that holds each path, the paths made absolute; the refusals.
-const refus = [];
-const noms = new Set();
-const absolus = [];
-for (const chemin of chemins) {
-  const abs = path.resolve(racine, chemin);
-  const p = liste.find(({ dossier }) =>
-    `${abs}${path.sep}`.startsWith(path.join(racine, dossier, path.sep))
-  );
-  if (!p) {
-    refus.push(
-      `⛔ ${chemin} : hors de tout paquet ; un chemin de test s'écrit depuis la racine, dans un paquet.`
     );
-  } else if (p.hors) {
-    refus.push(
-      `⛔ ${chemin} : ${p.dossier} est hors cadre (docs/agents/hors-cadre.txt) ; Turborepo n'en joue aucune tâche.`
-    );
-  } else if (typeof p.pkg.scripts?.['test:vitest'] !== 'string') {
-    refus.push(`⛔ ${chemin} : ${p.dossier} n'a pas de script test:vitest.`);
-  } else {
-    noms.add(p.pkg.name);
-    // A directory ends with « / »: Vitest matches the start of a path, and packages/a is the start
-    // of packages/ab.
-    const dossier = existsSync(abs) && statSync(abs).isDirectory();
-    absolus.push(dossier ? `${abs}${path.sep}` : abs);
   }
-}
-if (refus.length) {
-  for (const l of refus) process.stderr.write(`${l}\n`);
-  process.exit(2);
-}
-cibles(
-  [...noms].sort().map(n => `--filter=${n}`),
-  [...absolus, ...options]
-);
+  if (liste.length === 0) return cibles([], [...chemins, ...options]);
+
+  // The package of the frame that holds each path, the paths made absolute; the refusals.
+  const refus = [];
+  const noms = new Set();
+  const absolus = [];
+  for (const chemin of chemins) {
+    const abs = path.resolve(racine, chemin);
+    const p = liste.find(({ dossier }) =>
+      `${abs}${path.sep}`.startsWith(path.join(racine, dossier, path.sep))
+    );
+    if (!p) {
+      refus.push(
+        `⛔ ${chemin} : hors de tout paquet ; un chemin de test s'écrit depuis la racine, dans un paquet.`
+      );
+    } else if (p.hors) {
+      refus.push(
+        `⛔ ${chemin} : ${p.dossier} est hors cadre (docs/agents/hors-cadre.txt) ; Turborepo n'en joue aucune tâche.`
+      );
+    } else if (typeof p.pkg.scripts?.['test:vitest'] !== 'string') {
+      refus.push(`⛔ ${chemin} : ${p.dossier} n'a pas de script test:vitest.`);
+    } else {
+      noms.add(p.pkg.name);
+      // A directory ends with « / »: Vitest matches the start of a path, and packages/a is the start
+      // of packages/ab.
+      const dossier = existsSync(abs) && statSync(abs).isDirectory();
+      absolus.push(dossier ? `${abs}${path.sep}` : abs);
+    }
+  }
+  if (refus.length) {
+    for (const l of refus) process.stderr.write(`${l}\n`);
+    return 2;
+  }
+  return cibles(
+    [...noms].sort().map(n => `--filter=${n}`),
+    [...absolus, ...options]
+  );
+};
+
+process.exitCode = lancer();

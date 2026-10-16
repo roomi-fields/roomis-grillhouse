@@ -190,13 +190,18 @@ function commitsDelivering(id, prefix) {
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const prefix = prefixe();
-  if (!prefix || prefix.includes(' ')) {
-    process.exit(0);
-  }
-  const message = readFileSync(process.argv[2], 'utf8');
-  const reason = refusal(message, prefix, id => commitsDelivering(id, prefix), ticketIsOpen);
+  // Without a prefix, or with one that is not yet filled in, every commit passes.
+  const reason =
+    prefix && !prefix.includes(' ')
+      ? refusal(
+          readFileSync(process.argv[2], 'utf8'),
+          prefix,
+          id => commitsDelivering(id, prefix),
+          ticketIsOpen
+        )
+      : null;
   if (reason) {
     process.stderr.write(`⛔ ${reason}\n`);
-    process.exit(1);
+    process.exitCode = 1;
   }
 }

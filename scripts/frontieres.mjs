@@ -378,43 +378,43 @@ export function constats(resultat) {
 // The pattern of the files to judge, as dependency-cruiser's `path` filter reads it.
 const motifDes = fichiers => `^(${[...fichiers].sort().map(echappe).join('|')})$`;
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const racine = process.cwd();
+// The command on the repository at <racine>, with <args>: its exit code.
+function frontieres(racine, args) {
   const attendu = configuration(racine);
   const cible = path.join(racine, CONFIGURATION);
-  if (process.argv.includes('--ecrire')) {
+  if (args.includes('--ecrire')) {
     writeFileSync(cible, attendu);
-    process.exit(0);
+    return 0;
   }
   const present = existsSync(cible) ? readFileSync(cible, 'utf8') : '';
   if (present !== attendu) {
     process.stderr.write(
       `⛔ ${CONFIGURATION} n'est pas à jour avec les composants : node scripts/frontieres.mjs --ecrire le régénère.\n`
     );
-    process.exit(1);
+    return 1;
   }
   // An entry without a source stops the check before dependency-cruiser runs.
   const { sources, refus } = publiees(racine);
   if (refus.length > 0) {
     process.stderr.write(`${refus.join('\n')}\n`);
-    process.exit(1);
+    return 1;
   }
   const racines = RACINES.filter(r => existsSync(path.join(racine, r)));
-  if (racines.length === 0) process.exit(0);
+  if (racines.length === 0) return 0;
   const environnement = { ...process.env };
   delete environnement[JUGES];
   let dossier = null;
   try {
     if (sources.size > 0) {
       const graphe = depcruise(racine, racines, 'json', environnement);
-      if (!graphe.stdout) process.exit(graphe.status || 1);
+      if (!graphe.stdout) return graphe.status || 1;
       dossier = mkdtempSync(path.join(tmpdir(), 'frontieres-'));
       const fichier = path.join(dossier, 'juges.txt');
       writeFileSync(fichier, motifDes(aJuger(JSON.parse(graphe.stdout), sources)));
       environnement[JUGES] = fichier;
     }
     const r = depcruise(racine, racines, 'json', environnement);
-    if (!r.stdout) process.exit(r.status || 1);
+    if (!r.stdout) return r.status || 1;
     const resultat = JSON.parse(r.stdout);
     const { refus, lignes } = trancher(racine, 'frontieres', constats(resultat));
     // The report is dependency-cruiser's own (`err-long`): the result formatted as it is when the
@@ -438,8 +438,12 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
       });
     }
     for (const l of lignes) process.stderr.write(`${l}\n`);
-    process.exitCode = refus.length ? 1 : 0;
+    return refus.length ? 1 : 0;
   } finally {
     if (dossier) rmSync(dossier, { recursive: true, force: true });
   }
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  process.exitCode = frontieres(process.cwd(), process.argv.slice(2));
 }

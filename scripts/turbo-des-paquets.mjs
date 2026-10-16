@@ -560,18 +560,19 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     process.stderr.write(
       'Usage : node scripts/turbo-des-paquets.mjs [--ecrire]   vérifie, ou écrit, le turbo.json de chaque paquet, et à la racine les dépendances des gardes et l’env des tests\n'
     );
-    process.exit(2);
-  }
-  try {
-    if (args.includes('--ecrire')) {
-      ecrire(racine);
-      process.exit(0);
+    process.exitCode = 2;
+  } else {
+    try {
+      if (args.includes('--ecrire')) {
+        ecrire(racine);
+      } else {
+        const refus = verifier(racine);
+        for (const l of refus) process.stderr.write(`${l}\n`);
+        process.exitCode = refus.length ? 1 : 0;
+      }
+    } catch (e) {
+      process.stderr.write(`${e instanceof Error ? e.message : e}\n`);
+      process.exitCode = 1;
     }
-    const refus = verifier(racine);
-    for (const l of refus) process.stderr.write(`${l}\n`);
-    process.exitCode = refus.length ? 1 : 0;
-  } catch (e) {
-    process.stderr.write(`${e instanceof Error ? e.message : e}\n`);
-    process.exitCode = 1;
   }
 }

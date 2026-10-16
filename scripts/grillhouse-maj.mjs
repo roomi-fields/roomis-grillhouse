@@ -592,6 +592,9 @@ const ENTREE = import.meta.url === pathToFileURL(process.argv[1] ?? '').href;
 const projetCourant = process.cwd();
 let src = null;
 let version = 'inconnue';
+// The exit code of a command that ends before the update: a usage refused, the gaps, the update
+// handed over to the source's script. Null while the update is still to do.
+let fin = null;
 if (ENTREE) {
   const args = process.argv.slice(2);
   const valide = args.every(
@@ -599,9 +602,8 @@ if (ENTREE) {
   );
   if (!valide || args.at(-1) === '--source') {
     process.stderr.write(USAGE);
-    process.exit(2);
-  }
-  if (process.argv.includes('--ecarts')) {
+    fin = 2;
+  } else if (process.argv.includes('--ecarts')) {
     const e = ecarts(projetCourant);
     if (e && (e.modifies.length || e.absents.length)) {
       const n = [
@@ -614,31 +616,36 @@ if (ENTREE) {
         `Le cadre diffère de sa version ${e.version.slice(0, 7)} : ${n} (${[...e.modifies, ...e.absents].slice(0, 5).join(', ')}). Un écart se propose à Grillhouse ; \`npm run grillhouse:maj\` remet le cadre.\n`
       );
     }
-    process.exit(0);
-  }
-  const i = process.argv.indexOf('--source');
-  src = source(i > 0 ? process.argv[i + 1] : undefined);
-  try {
-    version = execFileSync('git', ['-C', src, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-  } catch {
-    version = 'inconnue';
-  }
-  const neuf = path.join(src, 'scripts/grillhouse-maj.mjs');
-  if (existsSync(neuf) && realpathSync(neuf) !== realpathSync(fileURLToPath(import.meta.url))) {
-    // The source's script does the update, the source's modules beside it.
-    const r = spawnSync(process.execPath, [neuf, '--source', src], { stdio: 'inherit' });
-    process.exit(r.status ?? 1);
+    fin = 0;
+  } else {
+    const i = process.argv.indexOf('--source');
+    src = source(i > 0 ? process.argv[i + 1] : undefined);
+    try {
+      version = execFileSync('git', ['-C', src, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+    } catch {
+      version = 'inconnue';
+    }
+    const neuf = path.join(src, 'scripts/grillhouse-maj.mjs');
+    if (existsSync(neuf) && realpathSync(neuf) !== realpathSync(fileURLToPath(import.meta.url))) {
+      // The source's script does the update, the source's modules beside it.
+      const r = spawnSync(process.execPath, [neuf, '--source', src], { stdio: 'inherit' });
+      fin = r.status ?? 1;
+    }
   }
 }
+if (fin !== null) process.exitCode = fin;
 
 // The frame's modules the update calls, loaded once the script running is the one that does the
 // update: a project's copy of this script, which a former version may have written over itself,
-// hands over to the source's before reading the former modules beside it.
-const { poserCrochets } = await import('./crochets.mjs');
-const { installerGreffons } = await import('./greffons.mjs');
-const { paquets } = await import('./paquets.mjs');
+// hands over to the source's before reading the former modules beside it, and never reads them.
+let poserCrochets, installerGreffons, paquets;
+if (fin === null) {
+  ({ poserCrochets } = await import('./crochets.mjs'));
+  ({ installerGreffons } = await import('./greffons.mjs'));
+  ({ paquets } = await import('./paquets.mjs'));
+}
 
-if (ENTREE) {
+if (ENTREE && fin === null) {
   const projet = projetCourant;
   const b = mettreAJour(projet, src, version);
   process.stdout.write(

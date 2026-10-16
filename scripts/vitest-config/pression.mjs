@@ -80,10 +80,11 @@ export function attendreLeRepos({
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   if (process.argv[2] !== 'attendre') {
     process.stderr.write('usage: pression.mjs attendre\n');
-    process.exit(2);
+    process.exitCode = 2;
+  } else {
+    const dire = l => process.stdout.write(`${l}\n`);
+    const repos = attendreLeRepos({ limite: Date.now() + BORNE_ATTENTE_MS, dire });
+    if (!repos) dire(`⏳ pas de repos en ${BORNE_ATTENTE_MS / 60_000} min.`);
+    process.exitCode = repos ? 0 : A_REPASSER;
   }
-  const dire = l => process.stdout.write(`${l}\n`);
-  const repos = attendreLeRepos({ limite: Date.now() + BORNE_ATTENTE_MS, dire });
-  if (!repos) dire(`⏳ pas de repos en ${BORNE_ATTENTE_MS / 60_000} min.`);
-  process.exit(repos ? 0 : A_REPASSER);
 }

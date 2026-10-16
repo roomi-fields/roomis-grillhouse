@@ -26,6 +26,6 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const r = refusal(input, role => existsSync(path.join(agents, `${role}.md`)));
   if (r) {
     process.stderr.write(`⛔ ${r}\n`);
-    process.exit(2);
+    process.exitCode = 2;
   }
 }

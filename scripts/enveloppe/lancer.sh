@@ -49,9 +49,12 @@
 #   refused), the launch stops, CODE_COPIE, before any command runs. In the envelope the main
 #   repository is read-only as a whole.
 # - The envelope receives the role: it decides who writes the package of the shared test material.
-# - The session runs `claude -p` with the role's agent and, as its prompt, the instruction file
+# - The session runs `claude -p` with the role's agent and, as its prompt, read on its standard
+#   input from a temporary file the launcher writes and removes (an argument may not pass the
+#   128 KiB Linux allows one, MAX_ARG_STRLEN), the instruction file
 #   followed by the section « Ce que les composants d'avant publient »: for each component whose
-#   `## Consommateurs` section names the component, the elements its interface publishes and the
+#   `## Consommateurs` section names the component, the index of the elements its interface
+#   publishes, one line each, and the
 #   rubric « Rend » of its frame, each at its address (`scripts/index-interfaces.mjs --publie`,
 #   read in the prepared copy; a reading that fails stops the launch, CODE_COPIE), then the
 #   section « Ton dossier de travail », which names the session's working directory, where every
@@ -206,12 +209,17 @@ if [ -s "$echec" ]; then
   construction=$'\n\n'"## La construction de ton paquet échoue"$'\n\n'"Ses fournisseurs sont construits ; sa propre construction échoue, et la réparer fait partie de ta tâche. La fin de sa sortie :"$'\n\n```\n'"$(tail -n 100 "$echec")"$'\n```'
 fi
 rm -f "$echec"
+# The prompt, assembled in a file: claude reads it on its standard input, since as an argument it
+# may pass the size Linux allows one (MAX_ARG_STRLEN, 128 KiB).
+prompt=$(mktemp)
+printf '%s' "$(cat "$consigne")"$'\n\n'"$publie$dossier$construction" > "$prompt"
 
 # An envelope in error does not stop the launcher (set -e): its code is kept for the exit.
 code=0
 node "$racine/scripts/enveloppe/enveloppe.mjs" "$copie" "$composant" "$role" -- \
-  "${CLAUDE_BIN:-claude}" -p "$(cat "$consigne")"$'\n\n'"$publie$dossier$construction" --agent "$role" \
-  ${surcharge[@]+"${surcharge[@]}"} --permission-mode bypassPermissions < /dev/null >> "$journal" 2>&1 || code=$?
+  "${CLAUDE_BIN:-claude}" -p --agent "$role" \
+  ${surcharge[@]+"${surcharge[@]}"} --permission-mode bypassPermissions < "$prompt" >> "$journal" 2>&1 || code=$?
+rm -f "$prompt"
 # The envelope ended: the session's line goes to the register from outside it, whatever its end hook did.
 node "$racine/scripts/registre.mjs" --copie "$copie" >> "$journal" 2>&1 || true
 exit "$code"

@@ -537,5 +537,5 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const { refus, lignes } = trancher(racine, 'interfaces-contre-code', constats);
   for (const r of refus) process.stderr.write(`⛔ ${r.message}\n`);
   for (const l of lignes) process.stderr.write(`${l}\n`);
-  process.exit(refus.length ? 1 : 0);
+  process.exitCode = refus.length ? 1 : 0;
 }
