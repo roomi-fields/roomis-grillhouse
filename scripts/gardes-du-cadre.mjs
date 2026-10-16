@@ -19,6 +19,7 @@ export const GARDES_DU_CADRE = [
   ['scripts/consommateurs.mjs'],
   ['scripts/frontieres.mjs'],
   ['scripts/interfaces-contre-code.mjs'],
+  ['scripts/resumes.mjs'],
   ['scripts/code-mort.mjs'],
 ];
 

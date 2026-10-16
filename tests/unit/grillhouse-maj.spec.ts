@@ -180,6 +180,7 @@ const CONTROLES: [string, RegExp][] = [
   ['consommateurs', /^node scripts\/consommateurs\.mjs$/],
   ['frontières', /^node scripts\/frontieres\.mjs$/],
   ['interfaces contre code', /^node scripts\/interfaces-contre-code\.mjs$/],
+  ['résumés courts', /^node scripts\/resumes\.mjs$/],
   ['code mort', /^node scripts\/code-mort\.mjs$/],
 ];
 

@@ -29,6 +29,9 @@ frontière a une seule définition, tenue par son garde.
 `@param` par paramètre, `@returns` quand la fonction rend une valeur, un `@faute CODE` par faute
 qu'il rend. L'étiquette `@faute` est déclarée dans la configuration TSDoc du cadre (`tsdoc.json`).
 Ainsi le contrat change avec le code qu'il décrit.
+**La première phrase du résumé tient en 80 caractères**, style télégraphique admis ; le détail va
+dans les phrases suivantes. Le garde `scripts/resumes.mjs` la mesure comme l'index la reprend.
+Ainsi l'index des interfaces et la consigne d'un agent restent courts.
 **`INTERFACE.md` a deux parts** : la part écrite à la main porte la vue d'ensemble, les fautes et
 les consommateurs ; la part générée, entre `<!-- généré: début -->` et `<!-- généré: fin -->`,
 donne une entrée par export (son nom en code, sa signature, son résumé, ses paramètres, son retour,

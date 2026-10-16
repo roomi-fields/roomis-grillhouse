@@ -69,6 +69,7 @@ roomis-grillhouse/
 │   │                              #   of INTERFACE.md between its two marks; npm run api writes the reports and the parts
 │   │                              #   (a package without a « . » export, the shared test material, has no API to check)
 │   │                              #   (in an envelope, its component alone: tests/unit/commandes-en-enveloppe.spec.ts)
+│   ├── resumes.mjs                # grillhouse:gardes: the first sentence of each published element's summary holds in 80 characters, refused at its INTERFACE.md § element
 │   ├── nuit.sh                    # once a night, the full pass played for real (npm run verifier -- --force: Turborepo's build, guards and tests, no log replayed), then the night tests and budget benches, then the project's night script (`grillhouse.nuit`), and pushes the green commit (`grillhouse.poussee.nuit`)
 │   │                              #   (*.nuit.test.*, *.nuit.spec.*, *.budget.test.*, *.budget.spec.*); a red opens a ticket;
 │   │                              #   « à repasser » (75: benches played once more at rest, then still under load) opens nothing and keeps the last green

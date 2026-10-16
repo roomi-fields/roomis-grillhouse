@@ -37,6 +37,7 @@ scripts/nuit.sh
 scripts/paquets.mjs
 scripts/poussee-cles.mjs
 scripts/registre.mjs
+scripts/resumes.mjs
 scripts/retirer-copie.sh
 scripts/session-start.sh
 scripts/setup.sh
