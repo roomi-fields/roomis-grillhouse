@@ -119,6 +119,7 @@ npm test
 | `npm test` | Build, then run the tests (Turborepo; an unchanged task is replayed from its cache); `npm test -- <paths>` plays the paths written from the root, each in its package |
 | `npm run test:forcer` | The same, every task run for real; with paths, the tests named run for real, their builds replayed from the cache |
 | `npm run verifier` | Build, then run the frame's guards, the project's own (`gardes`) and the tests beside each other (what the integration and the CI run); 0 green, 1 red, 75 « à repasser » (a failure of duration under load, played again at rest) |
+| `npm run verifier -- --gardes` | The guards alone (the frame's and the project's), same verdict: what the reviewer runs on the ticket's copy |
 | `npm run lint` | Run ESLint |
 | `npm run format` | Format code with Prettier |
 

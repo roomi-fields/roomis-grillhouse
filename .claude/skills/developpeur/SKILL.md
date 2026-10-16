@@ -66,8 +66,8 @@ Tu vois ton paquet en entier, et des autres composants leur interface et leur fo
 voisins arrivent construits, et les traces que lisent tes tests produites : `npm test -- <fichiers>` construit ton seul paquet et régénère ses propres traces, et `npm run api`,
 après lui, écrit le rapport d'API et la part générée de ton seul composant. Les
 gardes du cadre (frontières, consommateurs, index des interfaces, rapports d'API) tournent à côté
-des tests, par `npm run verifier`, que l'intégration joue ; leur refus nomme la commande qui
-corrige. Un lancement qui sort en 75, « à repasser », n'a vu que des échecs de durée sous charge
+des tests, par `npm run verifier`, que l'intégration joue ; le relecteur les joue seules sur la
+copie (`npm run verifier -- --gardes`) ; leur refus nomme la commande qui corrige. Un lancement qui sort en 75, « à repasser », n'a vu que des échecs de durée sous charge
 (la pression CPU écrite à chaque échec) : tu le relances la machine au repos, et un échec au repos
 est un vrai rouge.
 

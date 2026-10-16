@@ -3,12 +3,15 @@
 // and the night play. Its verdict is green (0), red (1) or « à repasser » (75).
 //
 //   node scripts/verifier.mjs [<argument of Turborepo>…]      (npm run verifier -- --force)
+//   node scripts/verifier.mjs --gardes [<argument>…]           the guards alone (the reviewer)
 //
 // - Turborepo plays the build, then the guards (the frame's, `grillhouse:gardes`, and the
 //   project's own, its root script `gardes`) and the tests (`test:vitest`) beside each other:
 //   `turbo run grillhouse:gardes gardes test:vitest --continue=dependencies-successful
 //   --summarize`, each argument given after it. A red does not stop the pass: every task whose
 //   prerequisites passed plays, and each red is named.
+// - `--gardes` plays the two tasks of guards alone, `turbo run grillhouse:gardes gardes …`, with the
+//   same verdict: what the reviewer plays on the ticket's copy, the tests aside.
 // - The verdict reads the exit code of each task in the run's summary (`.turbo/runs/<id>.json`),
 //   since Turborepo exits with the greatest code of its tasks (a 75 would hide a 1). The summary
 //   this run writes is removed, and `.turbo/runs` with it when the run created it.
@@ -35,16 +38,17 @@ import {
   lirePression,
 } from './vitest-config/pression.mjs';
 
-const TACHES = ['grillhouse:gardes', 'gardes', 'test:vitest'];
+const GARDES = ['grillhouse:gardes', 'gardes'];
+const TACHES = [...GARDES, 'test:vitest'];
 
 const lister = dossier => (existsSync(dossier) ? readdirSync(dossier) : []);
 
-// The full pass in <racine>, its arguments <args>, under <env>; its verdict, 0, 1 or 75. `dire`
-// writes a line; `borneMs` and `pasMs` are the bound of the wait and the gap between two readings
-// of the pressure.
+// The full pass in <racine>, its arguments <args> (`--gardes` among them: the guards alone), under
+// <env>; its verdict, 0, 1 or 75. `dire` writes a line; `borneMs` and `pasMs` are the bound of
+// the wait and the gap between two readings of the pressure.
 export function verifier({
   racine = process.cwd(),
-  args = [],
+  args: demandes = [],
   env = process.env,
   borneMs = BORNE_ATTENTE_MS,
   pasMs = 2_000,
@@ -62,7 +66,9 @@ export function verifier({
   const runs = path.join(racine, '.turbo', 'runs');
   const existait = existsSync(runs);
   const avant = new Set(lister(runs));
-  const passe = turbo([...TACHES, '--continue=dependencies-successful', '--summarize', ...args]);
+  const taches = demandes.includes('--gardes') ? GARDES : TACHES;
+  const args = demandes.filter(a => a !== '--gardes');
+  const passe = turbo([...taches, '--continue=dependencies-successful', '--summarize', ...args]);
   const nouveaux = lister(runs).filter(f => !avant.has(f) && f.endsWith('.json'));
   let resume = null;
   if (nouveaux.length === 1) {

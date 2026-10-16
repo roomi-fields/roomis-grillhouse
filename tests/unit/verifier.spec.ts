@@ -53,8 +53,13 @@ const fichierDeTest = (racine: string, nom: string, sorte: Sorte) => {
 };
 
 // A repository of packages `a` and `b`, each with one test of the sort given, the pressure file
-// at <some>.
-function depot(a: Sorte, b: Sorte, some: number) {
+// at <some>; <gardes> gives a package its guard scripts (`grillhouse:gardes`, `gardes`).
+function depot(
+  a: Sorte,
+  b: Sorte,
+  some: number,
+  gardes: Partial<Record<'a' | 'b', Record<string, string>>> = {}
+) {
   const r = mkdtempSync(path.join(ESSAIS, 'depot-'));
   symlinkSync(path.join(DEPOT, 'node_modules'), path.join(r, 'node_modules'), 'dir');
   const ecrire = (f: string, t: string) => {
@@ -84,7 +89,11 @@ function depot(a: Sorte, b: Sorte, some: number) {
   ] as const) {
     ecrire(
       `packages/${nom}/package.json`,
-      json({ name: nom, type: 'module', scripts: { 'test:vitest': 'vitest run' } })
+      json({
+        name: nom,
+        type: 'module',
+        scripts: { 'test:vitest': 'vitest run', ...(gardes[nom] ?? {}) },
+      })
     );
     ecrire(
       `packages/${nom}/vitest.config.mjs`,
@@ -189,6 +198,31 @@ describe('npm run verifier', { timeout: 180_000 }, () => {
     expect(d.joues()).toHaveLength(2);
     expect((await lancer(d, ['--force'])).status).toBe(0);
     expect(d.joues()).toHaveLength(4);
+  });
+});
+
+describe('npm run verifier -- --gardes', { timeout: 180_000 }, () => {
+  const vert = 'node -e ""';
+  const rougeGarde = 'node -e "process.exit(1)"';
+  it('plays the guards alone: green, 0, and no test plays', async () => {
+    const d = depot('rouge', 'rouge', 1, {
+      a: { 'grillhouse:gardes': vert },
+      b: { gardes: vert },
+    });
+    const r = await lancer(d, ['--gardes']);
+    expect(r.status, r.sortie).toBe(0);
+    expect(d.joues()).toEqual([]);
+  });
+  it('a red guard is red, each red guard named, and no test plays', async () => {
+    const d = depot('vert', 'vert', 1, {
+      a: { 'grillhouse:gardes': rougeGarde },
+      b: { gardes: rougeGarde },
+    });
+    const r = await lancer(d, ['--gardes']);
+    expect(r.status, r.sortie).toBe(1);
+    expect(r.sortie).toContain('⛔ a#grillhouse:gardes');
+    expect(r.sortie).toContain('⛔ b#gardes');
+    expect(d.joues()).toEqual([]);
   });
 });
 

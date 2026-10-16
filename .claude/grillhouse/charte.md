@@ -118,7 +118,8 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
   celles du projet (son script racine `gardes`, un nom que le cadre réserve ; une garde juge les
   fichiers de l'arbre de travail, que le cache de Turborepo compte, jamais l'index de git) et les
   tests, côte à côte ; un rouge n'arrête pas la passe, qui joue tout ce que ses tâches
-  préalables permettent et nomme chaque rouge. Une tâche dont
+  préalables permettent et nomme chaque rouge ; `npm run verifier -- --gardes` joue les gardes
+  seules, ce que le relecteur joue sur la copie du ticket. Une tâche dont
   rien n'a bougé n'est pas rejouée : Turborepo relit sa sortie consignée dans son cache (« cache
   hit, replaying logs »), et cette relecture vaut un lancement. Ainsi un test ne tourne qu'une
   fois tant que rien ne change.

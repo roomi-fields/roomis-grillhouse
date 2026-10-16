@@ -41,8 +41,10 @@ Chaque passe suit son fichier de `references/` à la lettre, dans cet ordre.
    le code ne fait rien que les critères ne disent. Tu lances les tests par `npm test --
    <fichiers>` (chemins depuis la racine du dépôt) ; une sortie relue du cache de Turborepo (« cache hit, replaying logs ») vaut un
    lancement, tu ne la rejoues pas pour la croire. Un test mis en quarantaine (`it.skip`,
-   `it.fails`) nomme le ticket qui le corrige, sinon le lot est rendu. Ainsi le lot fait ce qui a été décidé, et
-   seulement cela.
+   `it.fails`) nomme le ticket qui le corrige, sinon le lot est rendu. Tu joues aussi toutes les
+   gardes sur la copie, par `npm run verifier -- --gardes` (celles du cadre et celles du projet) ;
+   une garde rouge rend le lot, sa sortie en preuve. Ainsi le lot fait ce qui a été décidé, et
+   seulement cela, et un refus des gardes se voit avant l'intégration.
 
 ## Le verdict
 
