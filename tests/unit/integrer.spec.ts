@@ -298,6 +298,15 @@ describe('an integration', () => {
     expect(m.appels()).toBe('');
     expect(m.etat()).toMatchObject({ log: ['base'], status: '' });
   });
+  it('refuses a second --ticket as a usage error, naming it, touching nothing', () => {
+    const m = monde(['ACCEPTÉ']);
+    const r = m.run('--ticket', 'demo-2');
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/demo-2/);
+    expect(r.stderr).toMatch(/usage: integrer\.mjs --ticket <id> \[/);
+    expect(m.appels()).toBe('');
+    expect(m.etat()).toMatchObject({ log: ['base'], status: '' });
+  });
   it('refuses a lot whose guards are red in npm run verifier: no commit, no branch moved, the tree restored', () => {
     const m = monde(['ACCEPTÉ']);
     m.poser('GARDE_ROUGE', '');
@@ -1100,67 +1109,6 @@ describe('grillhouse-3uv.63 — the integration commits on the ticket branch', (
       const r = m.integrer('demo-1');
       expect(r.status, r.stdout + r.stderr).toBe(0);
       expect(m.sujets('agent/demo-1')[0]).toBe('feat: lot (demo-1)');
-    },
-    LONG
-  );
-
-  // Critère 19: an integration of several tickets: the first ticket named gives its branch and
-  // its copy (critères 1, 14, 15); every ticket named is labelled en-file.
-  it(
-    'critère 19: the first ticket named gives its branch and its copy; each ticket named is labelled en-file and stays open',
-    () => {
-      const m = chantier(ESSAIS);
-      m.ticket(
-        'demo-1',
-        { 'src/a/index.ts': 'export const a = 1;\n' },
-        'feat: lot (demo-1, demo-2)'
-      );
-      m.inscrire('demo-2');
-      const r = m.integrer('demo-1', '--ticket', 'demo-2');
-      expect(r.status, r.stdout + r.stderr).toBe(0);
-      expect(m.sujets('agent/demo-1')).toEqual(['feat: lot (demo-1, demo-2)', 'base']);
-      expect(m.existe('refs/heads/agent/demo-2')).toBe(false);
-      expect(m.sujets('main')).toEqual(['base']);
-      propre(m, 'demo-1');
-      for (const id of ['demo-1', 'demo-2']) {
-        expect(m.bd(id).labels, id).toContain('en-file');
-        expect(m.bd(id).status, id).not.toBe('closed');
-      }
-    },
-    LONG
-  );
-  it(
-    'critère 19: named in the other order, the other ticket gives its branch and its copy',
-    () => {
-      const m = chantier(ESSAIS);
-      m.inscrire('demo-1');
-      m.ticket(
-        'demo-2',
-        { 'src/b/index.ts': 'export const b = 2;\n' },
-        'feat: lot (demo-2, demo-1)'
-      );
-      const r = m.integrer('demo-2', '--ticket', 'demo-1');
-      expect(r.status, r.stdout + r.stderr).toBe(0);
-      expect(m.sujets('agent/demo-2')[0]).toBe('feat: lot (demo-2, demo-1)');
-      expect(m.existe('refs/heads/agent/demo-1')).toBe(false);
-      propre(m, 'demo-2');
-      expect(m.bd('demo-1').labels).toContain('en-file');
-    },
-    LONG
-  );
-  it(
-    "critère 19 et 14: the first ticket's copy carrying a file outside the lot refuses, named",
-    () => {
-      const m = chantier(ESSAIS);
-      const copie = m.ticket(
-        'demo-1',
-        { 'src/a/index.ts': 'export const a = 1;\n' },
-        'feat: lot (demo-1, demo-2)'
-      );
-      m.inscrire('demo-2');
-      writeFileSync(path.join(copie, 'src/a/brouillon.ts'), 'brouillon\n');
-      refuseAvantCommit(m, m.integrer('demo-1', '--ticket', 'demo-2'), ['src/a/brouillon.ts']);
-      expect(m.bd('demo-2').labels).not.toContain('en-file');
     },
     LONG
   );

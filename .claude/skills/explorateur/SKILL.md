@@ -32,15 +32,15 @@ et l'interface des composants qu'il nomme.
    fait la référence mature du domaine et ta recommandation. Une décision de conception part à
    l'arbitre par le superviseur ; une décision qu'aucune règle ne tranche monte au responsable par le superviseur.
    *Fini quand* chaque décision est tranchée et écrite au ticket avec sa source.
-3. **Le découpage.** Tu proposes les tickets de réalisation. Chacun touche un seul composant, décrit
-   un seul comportement par ses tests, et fait une seule livraison. Un travail qui traverse
-   plusieurs composants devient un ticket parent, un enfant par composant, le fournisseur d'abord.
+3. **Le découpage.** Tu proposes les tickets de réalisation. Chacun décrit un seul comportement par
+   ses tests, fait une seule livraison, et nomme les composants qu'il touche, le fournisseur
+   d'abord, puis ses lecteurs (charte, « Un ticket de réalisation nomme ses composants »).
    Chaque critère de fin se confronte à la spécification et se mesure par une sonde avant d'être
    proposé, la sortie de la sonde au ticket. Un critère que la spécification contredit ou que la
    sonde dément se reformule, ou monte au superviseur. Ainsi aucun ticket ne vise un résultat que
    la spécification interdit.
-   *Fini quand* chaque ticket proposé a sa section « Architecture », son composant et son critère de
-   fin vérifiable, confronté et mesuré.
+   *Fini quand* chaque ticket proposé a sa section « Architecture », ses composants dans leur ordre
+   et son critère de fin vérifiable, confronté et mesuré.
 
 ## La fin
 

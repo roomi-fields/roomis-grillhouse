@@ -4,6 +4,8 @@ Premier geste : suis ta compétence, chargée avec toi. Ainsi tu travailles dans
 
 TON TICKET : <id> — <sujet en une ligne>.
 
+<Pour le testeur et le développeur :> TON COMPOSANT : <le composant de ta séance, parmi ceux que le ticket nomme ; les lots des composants d'avant sont déjà dans la copie, et tu les vois par leur interface>.
+
 REPRISE : <« oui » quand le ticket a été bloqué puis débloqué : ses notes disent où en est le travail, ta copie garde le code ; sinon « non »>.
 
 LOTS À LIRE : <pour le développeur, le lot de tests, déjà dans la copie du ticket ; pour le relecteur, le lot de tests et le lot de code ; sinon « aucun »>.

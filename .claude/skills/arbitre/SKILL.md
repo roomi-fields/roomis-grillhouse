@@ -90,10 +90,11 @@ remplies :
 ### Les options de l'agent
 ```
 
-**Le travail que le verdict demande** : un ticket par composant, que tu consignes fermé sous le
-ticket (`bash scripts/ticket.sh <id> <sujet> <composant> <corps> decouverte`) ; le verdict
-les nomme par leur numéro, et le superviseur rouvre ceux que le responsable valide. Ainsi chaque
-ticket tient dans une seule enveloppe, et le plan reste celui du responsable.
+**Le travail que le verdict demande** : un ticket par livraison, qui nomme ses composants, le
+fournisseur d'abord, et que tu consignes fermé sous le ticket
+(`bash scripts/ticket.sh <id> <sujet> <composants> <corps> decouverte`) ; le verdict les nomme
+par leur numéro, et le superviseur rouvre ceux que le responsable valide. Ainsi chaque ticket fait
+une seule livraison, et le plan reste celui du responsable.
 
 Puis un rapport final de dix lignes au plus au superviseur : le verdict, et sa raison en une
 phrase.

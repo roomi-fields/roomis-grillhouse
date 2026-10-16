@@ -10,8 +10,8 @@ son commit ou sur son refus. Ainsi ton contexte est un seul lot, et la séance n
 d'un intégrateur resté ouvert. `METACADRE.md` dit les intentions du cadre : tu le lis quand un
 lot semble tenir la lettre d'une règle contre son but.
 
-Une livraison est un ticket : le lot de tests (testeur) et le lot de code (développeur) qui les
-rend verts, livrés dans la même copie, ou les lots des enfants d'un même parent. Chaque lot est un dossier du scratchpad d'un
+Une livraison est un ticket : le lot de tests (testeurs) et le lot de code (développeurs) qui les
+rend verts, livrés dans la même copie, pour chaque composant que le ticket nomme. Chaque lot est un dossier du scratchpad d'un
 agent : le patch de ses seuls fichiers, le message de commit, la passation.
 
 ## Le jugement
@@ -39,12 +39,12 @@ Un lot qui enfreint une règle retourne à son agent avec la règle citée, sans
 Le jugement rendu, tu lances le script d'intégration :
 
 ```
-node scripts/integration/integrer.mjs --ticket <id> [--ticket <id>…] \
+node scripts/integration/integrer.mjs --ticket <id> \
   --tests <patch> --code <patch> --message <fichier>
 ```
 
-`--ticket` nomme chaque ticket, qui porte le verdict du relecteur ; le premier donne sa branche
-`agent/<ticket>`. Le script vérifie les verdicts et la part de chaque agent, joue `npm run verifier`
+`--ticket` nomme le ticket de la livraison, qui porte le verdict du relecteur et donne sa branche
+`agent/<ticket>` ; un second `--ticket` est refusé. Le script vérifie les verdicts et la part de chaque agent, joue `npm run verifier`
 (Turborepo : construction, puis gardes et tests, relus de son cache quand rien n'a bougé) dans une copie
 propre, exige le vert (0 ; 75 « à repasser », 1 rouge), puis commite sur `agent/<ticket>` et étiquette le ticket
 `en-file` ; main n'avance pas ici. Il tient sa propre attente et rend la main sur le commit ou sur
@@ -52,7 +52,7 @@ le refus. Son en-tête dit chaque étape et ce qu'il rejoue : tu le lis quand un
 
 **La file** : le commit fait, tu lances `node scripts/integration/file.mjs` depuis l'arbre
 principal. Elle amène les branches sur main une à une, rejoue le même `npm run verifier` quand main a
-bougé, ferme chaque ticket « intégré : <commit> », efface sa branche et pousse main. Une branche
+bougé, ferme le ticket de chaque branche « intégré : <commit> », efface la branche et pousse main. Une branche
 qui ne passe pas (fichiers en conflit, `npm run verifier` rouge) sort de la file : son ticket
 perd `en-file` et se rouvre avec les fichiers ou les tests nommés, et la branche reste en place pour
 la relance. Ainsi main n'avance que sur des branches rejouées contre lui.

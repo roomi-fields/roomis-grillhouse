@@ -13,6 +13,7 @@ import {
   type Chantier,
 } from './integration-essai.js';
 import { CODE_COPIE } from '../../scripts/enveloppe/codes.mjs';
+import { lireEntrees } from '../../scripts/integration/file-attente.mjs';
 
 // grillhouse-3uv.63: the integration commits a ticket's lot on its branch agent/<ticket>, and a
 // queue brings the branches onto main, one at a time, in their order of arrival (a merge queue:
@@ -356,9 +357,9 @@ if (!existsSync(${JSON.stringify(sorties)})) {
   });
 });
 
-// grillhouse-3uv.63 critères 15, 16 et 19: the queue and a branch whose copy is still in place,
-// and an integration of several tickets.
-describe('grillhouse-3uv.63 — a copy still in place, several tickets in one branch', () => {
+// grillhouse-3uv.63 critères 15 et 16: the queue and a branch whose copy is still in place; an
+// entry carries one ticket.
+describe('grillhouse-3uv.63 — a copy still in place, one ticket per entry', () => {
   const commentaires = (m: Chantier, id: string) =>
     m
       .bd(id)
@@ -414,82 +415,16 @@ describe('grillhouse-3uv.63 — a copy still in place, several tickets in one br
     LONG
   );
   it(
-    'critère 19: a branch carrying several tickets enters once, and every ticket named closes « intégré : »',
+    'an entry of the queue carries the branch and its one ticket',
     () => {
       const m = chantier(ESSAIS);
-      m.ticket(
-        'demo-1',
-        { 'src/a/index.ts': 'export const a = 1;\n' },
-        'feat: lot (demo-1, demo-2)'
-      );
-      m.inscrire('demo-2');
-      m.livrer('demo-1', '--ticket', 'demo-2');
-      const r = m.file();
+      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
+      const r = m.integrer('demo-1');
       expect(r.status, r.stdout + r.stderr).toBe(0);
-      expect(m.sujets()).toEqual(['feat: lot (demo-1, demo-2)', 'base']);
-      for (const id of ['demo-1', 'demo-2']) {
-        expect(m.bd(id).status, id).toBe('closed');
-        expect(m.bd(id).close_reason, id).toMatch(/^intégré : [0-9a-f]{7,40}\b/);
-      }
-      expect(m.existe('refs/heads/agent/demo-1')).toBe(false);
-    },
-    LONG
-  );
-  // grillhouse-3uv.63 critère 20: a branch of several tickets leaving the queue sends back every
-  // ticket named, each losing en-file and reopened with the comment of critère 5.
-  const renvoiCommun = (m: Chantier, raison: string) => {
-    for (const id of ['demo-1', 'demo-2']) {
-      const t = m.bd(id);
-      expect(t.status, id).toBe('open');
-      expect(t.labels, id).not.toContain('en-file');
-      expect(t.comments.at(-1)!.text, id).toContain(raison);
-    }
-  };
-  it(
-    'critère 20: a branch of several tickets that does not replace on main: every ticket named loses en-file and reopens naming the files in conflict',
-    () => {
-      const m = chantier(ESSAIS);
-      m.ticket('demo-0', { 'src/a/index.ts': 'export const a = 5;\n' });
-      m.ticket(
-        'demo-1',
-        { 'src/a/index.ts': 'export const a = 1;\n' },
-        'feat: lot (demo-1, demo-2)'
-      );
-      m.inscrire('demo-2');
-      m.ticket('demo-3', { 'src/c/index.ts': 'export const c = 3;\n' });
-      m.livrer('demo-0');
-      m.livrer('demo-1', '--ticket', 'demo-2');
-      m.livrer('demo-3');
-      const r = m.file();
-      expect(r.status, r.stdout + r.stderr).toBe(0);
-      expect(m.sujets()).toEqual(['feat: lot (demo-3)', 'feat: lot (demo-0)', 'base']);
-      renvoiCommun(m, 'src/a/index.ts');
-      expect(m.existe('refs/heads/agent/demo-1')).toBe(true);
-      expect(m.bd('demo-3').status).toBe('closed');
-    },
-    LONG
-  );
-  it(
-    'critère 20: a branch of several tickets whose `npm run verifier` is red once replaced: every ticket named loses en-file and reopens with the output of its tests',
-    () => {
-      const m = chantier(ESSAIS);
-      m.poser(
-        {
-          'REGLES.json': JSON.stringify([
-            { si: ['src/a/A', 'src/b/B'], rouge: 'src/b/ab.spec.ts > ensemble' },
-          ]),
-        },
-        'regles'
-      );
-      m.ticket('demo-0', { 'src/a/A': 'a\n' });
-      m.ticket('demo-1', { 'src/b/B': 'b\n' }, 'feat: lot (demo-1, demo-2)');
-      m.inscrire('demo-2');
-      m.livrer('demo-0');
-      m.livrer('demo-1', '--ticket', 'demo-2');
-      const r = m.file();
-      expect(r.status, r.stdout + r.stderr).toBe(0);
-      expect(m.sujets()).toEqual(['feat: lot (demo-0)', 'regles', 'base']);
-      renvoiCommun(m, 'src/b/ab.spec.ts > ensemble');
+      const entrees = lireEntrees(m.repo) as { fichier: string }[];
+      expect(entrees).toEqual([
+        { fichier: expect.any(String) as string, branche: 'agent/demo-1', ticket: 'demo-1' },
+      ]);
     },
     LONG
   );

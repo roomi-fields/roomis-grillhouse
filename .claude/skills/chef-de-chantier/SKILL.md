@@ -15,10 +15,15 @@ superviseur.
 
 ## Le circuit
 
-1. **Testeur**, puis **développeur** : chacun en séance neuve dans l'enveloppe de son composant,
-   `bash scripts/enveloppe/lancer.sh <ticket> <testeur|developpeur> <composant> <consigne>`, en
+1. **Testeur**, puis **développeur**, pour chaque composant du ticket dans l'ordre de son titre,
+   le fournisseur d'abord : chacun en séance neuve dans l'enveloppe de son composant, dans la copie
+   du ticket, `bash scripts/enveloppe/lancer.sh <ticket> <testeur|developpeur> <composant> <consigne>`, en
    arrière-plan. La consigne s'écrit d'après `pitmaster/references/consigne-agent.md`, dans mon
    scratchpad ; le lanceur lui ajoute la section « Ce que les composants d'avant publient ». Un ticket sans code (un lot de tests seul) saute le développeur.
+   Une donnée qui manque chez un fournisseur, dite dans la passation d'un agent, monte au
+   superviseur, qui ajoute ce fournisseur en tête des composants du ticket ; je lance alors, dans
+   la même copie, le testeur et le développeur du fournisseur, puis je relance le lecteur. Le tout
+   fait une seule livraison, en un seul commit.
    Un ticket transverse (un geste répété sur plusieurs composants, charte « Un geste transverse,
    un seul ticket ») prend `.` pour composant : la copie montre tout le dépôt. Ses agents
    appliquent le gabarit de la section « Architecture » ; un écart au gabarit me remonte, et je
@@ -75,7 +80,7 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
   le difficile.
 - **Une trouvaille se consigne fermée** : une trouvaille hors de mes critères, la mienne ou celle
   d'un agent, se consigne fermée sous le mien
-  (`bash scripts/ticket.sh <id> <sujet> <composant> <corps> decouverte`) ; mon rapport la nomme, avec l'usage réel qu'elle touche, s'il y
+  (`bash scripts/ticket.sh <id> <sujet> <composants> <corps> decouverte`) ; mon rapport la nomme, avec l'usage réel qu'elle touche, s'il y
   en a un. Ainsi elle est gardée, et le plan reste celui du responsable.
 
 ## Ce qui monte au superviseur

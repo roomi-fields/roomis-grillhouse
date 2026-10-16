@@ -4,13 +4,13 @@
 // step that refused. The branch then waits for the queue (scripts/integration/file.mjs), which
 // brings it onto main.
 //
-//   node scripts/integration/integrer.mjs --ticket <id> [--ticket <id>…]
+//   node scripts/integration/integrer.mjs --ticket <id>
 //        [--tests <patch>] [--code <patch>] --message <file>
 //
-// The first ticket named gives its branch `agent/<ticket>` and its copy
-// (`.claude/worktrees/<ticket>`, the one the lot was written in, when it exists); the other tickets
-// ride on that branch. In order, each step refusing stops the run:
-//  1. the verdicts: each --ticket has `ACCEPTÉ` as its last reviewer verdict (`ACCEPTÉ` or
+// One delivery is one ticket: the ticket gives its branch `agent/<ticket>` and its copy
+// (`.claude/worktrees/<ticket>`, the one the lot was written in, when it exists); a second
+// --ticket is a usage error, named. In order, each step refusing stops the run:
+//  1. the verdict: the ticket has `ACCEPTÉ` as its last reviewer verdict (`ACCEPTÉ` or
 //     `RENDU` at the start of a comment) and, when labelled `arbitrage`, each « ## Arbitrage »
 //     comment is `### Verdict — tranché`, or a « ## Réponse du responsable » comment follows it;
 //  2. the lots: the tests lot touches only what the testeur writes (`isTesterFile`: test files
@@ -41,7 +41,7 @@
 //     the commit that enters;
 //  8. the branch `agent/<ticket>` is set on that commit, the ticket's copy follows it and is
 //     removed by `scripts/retirer-copie.sh` (no `--jetable`): a refusal, a locked copy for
-//     example, is written to the first ticket, the commit stands. Every ticket named is labelled
+//     example, is written to the ticket, the commit stands. The ticket is labelled
 //     `en-file` and the branch takes its place at the end of the queue
 //     (scripts/integration/file-attente.mjs). main does not move here.
 //
@@ -134,13 +134,18 @@ export function refusLots(tests, code, racine) {
   return null;
 }
 
+// The options, or { faute } for a usage error.
 function lire(argv) {
-  const o = { tickets: [], tests: null, code: null, message: null };
+  const o = { ticket: null, tests: null, code: null, message: null };
   for (let i = 0; i < argv.length; i++) {
     const v = argv[i + 1];
     switch (argv[i]) {
       case '--ticket':
-        o.tickets.push(v);
+        if (o.ticket !== null)
+          return {
+            faute: `un seul --ticket : ${v} en est un second, et une livraison est un ticket.`,
+          };
+        o.ticket = v;
         i++;
         break;
       case '--tests':
@@ -156,10 +161,10 @@ function lire(argv) {
         i++;
         break;
       default:
-        return null;
+        return { faute: null };
     }
   }
-  if (!o.tickets.length || !o.message || !(o.tests || o.code)) return null;
+  if (!o.ticket || !o.message || !(o.tests || o.code)) return { faute: null };
   return o;
 }
 
@@ -197,9 +202,10 @@ function differents(copieTicket, lots, fichiers, tmp) {
 
 function main(argv) {
   const o = lire(argv);
-  if (!o) {
+  if ('faute' in o) {
     process.stderr.write(
-      'usage: integrer.mjs --ticket <id>… [--tests <patch>] [--code <patch>] --message <file>\n'
+      'usage: integrer.mjs --ticket <id> [--tests <patch>] [--code <patch>] --message <file>\n' +
+        (o.faute ? `⛔ ${o.faute}\n` : '')
     );
     return 2;
   }
@@ -222,15 +228,13 @@ function main(argv) {
   const debut = Date.now();
   const tmp = mkdtempSync(path.join(tmpdir(), 'integration-'));
   try {
-    // 1. The verdicts.
-    for (const id of o.tickets) {
-      const show = bd('show', id, '--json');
-      const comments = bd('comments', id, '--json');
-      if (show.status !== 0 || comments.status !== 0)
-        return refuser(`Ticket ${id} illisible : ${show.stderr}${comments.stderr}`);
-      const r = refusVerdicts(JSON.parse(show.stdout)[0], JSON.parse(comments.stdout || '[]'));
-      if (r) return refuser(r);
-    }
+    // 1. The verdict.
+    const show = bd('show', o.ticket, '--json');
+    const comments = bd('comments', o.ticket, '--json');
+    if (show.status !== 0 || comments.status !== 0)
+      return refuser(`Ticket ${o.ticket} illisible : ${show.stderr}${comments.stderr}`);
+    const r1 = refusVerdicts(JSON.parse(show.stdout)[0], JSON.parse(comments.stdout || '[]'));
+    if (r1) return refuser(r1);
     dire('✓ verdicts');
 
     // 2. The lots.
@@ -262,9 +266,8 @@ function main(argv) {
     const tenus = git('status', '--porcelain', '--', ...fichiers).stdout.trim();
     if (tenus) return refuser(`Des fichiers du lot sont modifiés dans l'arbre :\n${tenus}`);
     dire('✓ arbre principal libre');
-    const premier = o.tickets[0];
-    const branche = `agent/${premier}`;
-    const copieTicket = path.join(racine, '.claude', 'worktrees', premier);
+    const branche = `agent/${o.ticket}`;
+    const copieTicket = path.join(racine, '.claude', 'worktrees', o.ticket);
     // A ticket without a copy (none was made, or it is gone) has nothing to check nor to remove.
     const avecCopie = existsSync(copieTicket);
     if (avecCopie) {
@@ -335,7 +338,7 @@ function main(argv) {
     const commit = dansCopie('rev-parse', 'HEAD').stdout.trim();
 
     // 8. The branch of the ticket takes the commit; the ticket's copy follows it (it carried the
-    // lot, which the commit now holds) and is removed; the tickets wait in the queue.
+    // lot, which the commit now holds) and is removed; the ticket waits in the queue.
     const pose = git('update-ref', `refs/heads/${branche}`, commit);
     if (pose.status !== 0) {
       return refuser(`La branche ${branche} ne prend pas ${commit.slice(0, 7)} :\n${pose.stderr}`);
@@ -343,17 +346,17 @@ function main(argv) {
     if (avecCopie) {
       spawnSync('git', ['-C', copieTicket, 'reset', '-q', '--hard', commit], { encoding: 'utf8' });
     }
-    for (const id of o.tickets) bd('update', id, '--add-label', 'en-file');
+    bd('update', o.ticket, '--add-label', 'en-file');
     dire(`✓ commit ${commit.slice(0, 7)} sur ${branche}`);
     const retrait = avecCopie
       ? spawnSync('bash', [RETIRER_COPIE, copieTicket], { cwd: racine, encoding: 'utf8' })
       : { status: 0, stderr: '' };
     if (retrait.status !== 0) {
       const raison = `La copie ${copieTicket} n'est pas retirée après le commit de ${branche} : ${retrait.stderr.trim()}\nLa branche reste en file.`;
-      bd('comments', 'add', premier, raison);
+      bd('comments', 'add', o.ticket, raison);
       dire(`⚠ ${raison}`);
     }
-    inscrireEntree(racine, branche, o.tickets);
+    inscrireEntree(racine, branche, o.ticket);
     dire('✓ en file');
     const duree = Math.round((Date.now() - debut) / 100) / 10;
     dire(`⏱ ${duree} s`);

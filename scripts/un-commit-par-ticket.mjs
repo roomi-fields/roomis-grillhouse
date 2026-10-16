@@ -14,7 +14,6 @@
 //   starting with `#`); in the history it is the first line of the commit message.
 // - The tickets are the words `<prefix>-<id>` of the title line, the prefix read from Beads
 //   (`bd config get issue_prefix`).
-// - The children of one parent enter in one commit: that commit names them all once, and passes.
 // - A message that names no ticket passes (the supervisor's commits of the frame).
 // - A reverting commit delivers nothing and passes: it carries both marks git writes, a title line
 //   starting `Revert "` or `Reapply "` and a body line `This reverts commit <sha>` (the sha is the one

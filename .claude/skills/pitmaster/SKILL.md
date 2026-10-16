@@ -83,19 +83,17 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   enfants, à valider. Ainsi aucun ticket ne devient un « lot 2 ».
 - **Tout ticket se crée sous sa mère** : un sujet a un ticket mère, ouvert tant qu'il reste du
   travail dessous ; chaque ticket naît sous la sienne par `bash scripts/ticket.sh`, qui le titre
-  « numéro — sujet — composant ». Ainsi 320.2.1 se lit d'un coup d'œil.
+  « numéro — sujet — composant, composant ». Ainsi 320.2.1 se lit d'un coup d'œil.
 - **Les découvertes des agents** : je monte au responsable celles qui touchent un usage réel, et
   je rouvre celles qu'il retient.
 - **Je ne lance que sur le mot du responsable** : un ticket part quand il dit de le lancer ; valider
   un ticket, trancher sa question ou remplir un lot ne le lance pas. Son mot pose l'étiquette
   `circuit`, que je retire d'un ticket arrêté ; seul un ticket `circuit` attend dans AGENTS. Ainsi
   le responsable décide de ce qui tourne, et le panneau montre ce qu'il a lancé.
-- **Un ticket, un composant** : un travail qui traverse plusieurs composants est un ticket parent,
-  avec un ticket enfant par composant. Le composant qui fournit passe d'abord, et l'ordre suit les
-  dépendances des composants (`bd dep add`) ; son lot construit le nouvel export, que l'agent du
-  composant consommateur voit alors dans son enveloppe. Les lots des enfants entrent ensemble, en
-  un seul commit. Ainsi chaque agent tient dans une seule enveloppe, et un retrait reste
-  indivisible.
+- **Les composants d'un ticket** : un travail qui traverse plusieurs composants est un seul ticket
+  qui les nomme, le fournisseur d'abord (charte, « Un ticket de réalisation nomme ses
+  composants ») ; je valide cet ordre, qui suit les dépendances des composants. Ainsi un retrait
+  reste indivisible, et le lecteur voit le nouvel export dans son enveloppe.
 - **Un geste transverse, un seul ticket** : un même changement répété sur plusieurs composants
   (migration, outillage) est un seul ticket, mené dans une copie qui montre tout le dépôt
   (`lancer.sh <ticket> <rôle> . <consigne>`). Je valide son gabarit, écrit dans sa section
@@ -156,9 +154,13 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   sans mon avis. Je transmets le verdict tel quel, avec l'adresse de son commentaire « Arbitrage »
   ; s'il monte au responsable, la question monte comme il l'a rédigée. Ainsi une question de
   conception se tranche hors de l'urgence de débloquer l'agent.
-- **Une donnée manque, son fournisseur la publie** : la demande d'un agent ouvre un ticket chez le
-  composant qui fournit la donnée, et le ticket de l'agent en dépend ; quand aucun composant ne la
-  fournit, la question part à l'arbitre. Ainsi chaque donnée garde un seul composant qui la calcule.
+- **Une donnée manque, son fournisseur rejoint le ticket** : quand la passation d'un agent dit
+  qu'une donnée manque chez un fournisseur, j'ajoute ce fournisseur en tête des composants du
+  ticket, dans son titre et dans sa section « Architecture ». Un agent publie la donnée dans le
+  fournisseur, puis le lecteur reprend, et le tout fait une seule livraison, en un seul commit ;
+  quand aucun composant ne la fournit, la question part à l'arbitre. Ainsi chaque donnée garde un
+  seul composant qui la calcule, et elle entre avec son lecteur, comme dans une demande de fusion
+  de rustc.
 - **Une consommation nouvelle part à l'arbitre** : un élément qu'une interface n'accorde pas
   (section « Consommateurs ») est une question de conception, même publié.
 - **La réponse du responsable s'écrit au ticket** : sous le titre « ## Réponse du responsable —

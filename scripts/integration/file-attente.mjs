@@ -4,7 +4,7 @@
 // (scripts/integration/file.mjs) reads them in their order of arrival.
 //
 // - An entry is one JSON file `<arrival>-<process>.json` under `file-integration/` holding the
-//   branch and the tickets it carries; the name sorts in the order of arrival. One branch has one
+//   branch and its one ticket; the name sorts in the order of arrival. One branch has one
 //   entry: writing it again replaces the earlier one.
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -21,7 +21,7 @@ export function dossierCommun(racine) {
 
 const dossierEntrees = racine => path.join(dossierCommun(racine), 'file-integration');
 
-// The entries waiting, in their order of arrival: { fichier, branche, tickets }.
+// The entries waiting, in their order of arrival: { fichier, branche, ticket }.
 export function lireEntrees(racine) {
   const dossier = dossierEntrees(racine);
   let noms = [];
@@ -36,7 +36,7 @@ export function lireEntrees(racine) {
   for (const n of noms) {
     try {
       const e = JSON.parse(readFileSync(path.join(dossier, n), 'utf8'));
-      entrees.push({ fichier: path.join(dossier, n), branche: e.branche, tickets: e.tickets });
+      entrees.push({ fichier: path.join(dossier, n), branche: e.branche, ticket: e.ticket });
     } catch {
       // an entry being written is read at the next turn
     }
@@ -45,7 +45,7 @@ export function lireEntrees(racine) {
 }
 
 // Puts the branch at the end of the queue, replacing its earlier entry.
-export function inscrireEntree(racine, branche, tickets) {
+export function inscrireEntree(racine, branche, ticket) {
   for (const e of lireEntrees(racine)) {
     if (e.branche === branche) rmSync(e.fichier, { force: true });
   }
@@ -53,7 +53,7 @@ export function inscrireEntree(racine, branche, tickets) {
   mkdirSync(dossier, { recursive: true });
   const arrivee = String(Date.now()).padStart(15, '0');
   const fichier = path.join(dossier, `${arrivee}-${String(process.pid).padStart(8, '0')}.json`);
-  writeFileSync(fichier, JSON.stringify({ branche, tickets }), { flag: 'wx' });
+  writeFileSync(fichier, JSON.stringify({ branche, ticket }), { flag: 'wx' });
 }
 
 export function retirerEntree(entree) {

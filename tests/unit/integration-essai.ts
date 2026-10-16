@@ -276,8 +276,7 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
     JSON.parse(readFileSync(path.join(bin, 'etat.json'), 'utf8')) as Record<string, Ticket>;
   const ecrireEtat = (etat: Record<string, Ticket>) =>
     writeFileSync(path.join(bin, 'etat.json'), JSON.stringify(etat, null, 2));
-  // Opens <id> in Beads with the reviewer's ACCEPTÉ, without any copy: a ticket named second in
-  // an integration of several tickets (grillhouse-3uv.63 critère 19).
+  // Opens <id> in Beads with the reviewer's ACCEPTÉ, without any copy.
   const inscrire = (id: string) => {
     const etat = lireEtat();
     etat[id] = {
@@ -812,7 +811,7 @@ export function chantierDependances(
       throw new Error(`retirer ${id} : ${x.stderr}`);
     }
     execFileSync('bd', ['update', id, '--add-label', 'en-file'], { env: m.env });
-    inscrireEntree(m.repo, `agent/${id}`, [id]);
+    inscrireEntree(m.repo, `agent/${id}`, id);
   };
   return {
     ...m,

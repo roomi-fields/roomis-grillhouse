@@ -22,23 +22,23 @@
 //    each other, each task replayed from the cache of the main tree when its inputs are
 //    unchanged), every command of the project run in the copy leaving its index up to date
 //    (rejeu.mjs); main moves forward onto the replaced branch when `npm run verifier` is green;
-//  - a branch with nothing ahead of main does not enter: it leaves the queue, its tickets lose
-//    `en-file` and take a comment, and stay as they are;
+//  - a branch with nothing ahead of main does not enter: it leaves the queue, its ticket loses
+//    `en-file` and takes a comment, and stays as it is;
 //  - a branch that does not replace (the files in conflict) or whose `npm run verifier` is red once
-//    replaced leaves the queue: each ticket it carries loses `en-file`, reopens with a comment that
+//    replaced leaves the queue: its ticket loses `en-file`, reopens with a comment that
 //    names the files or ends with the output of the tests, and the branch stays where it is, for
 //    the relaunch of its ticket (scripts/enveloppe/lancer.sh);
 //  - a branch whose replay cannot be done (the copy does not get ready, main does not take the
 //    branch, the main tree holds a file of the lot), or whose `npm run verifier` is « à repasser »
 //    once replaced (75: a failure of duration under load, which found no rest in its bound,
 //    scripts/verifier.mjs; neither green nor red), stays in the queue, the reason written to its
-//    tickets, which are neither reopened nor closed, and the queue goes on; the next queue takes it
+//    ticket, which is neither reopened nor closed, and the queue goes on; the next queue takes it
 //    again. Any other code than 0 and 75 is red.
-// At its entry on main, every ticket the branch carries closes « intégré : <commit> », loses
-// `en-file`, and the branch is deleted; a branch git does not delete (its copy still in place) is
-// written to the tickets, which close all the same. Then main is pushed to origin, on the branch
+// At its entry on main, the branch's ticket closes « intégré : <commit> », loses `en-file`, and
+// the branch is deleted; a branch git does not delete (its copy still in place) is written to the
+// ticket, which closes all the same. Then main is pushed to origin, on the branch
 // `grillhouse.poussee.commit` of main's package.json (`main` without the key); a refused push is
-// written to the tickets and does not stop the queue.
+// written to the ticket and does not stop the queue.
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -78,34 +78,28 @@ function main(argv) {
   const copie = path.join(racine, '.claude', 'worktrees', 'file');
   const verrou = path.join(dossierCommun(racine), 'file-integration.lock');
 
-  const commenter = (tickets, texte) => {
-    for (const id of tickets) bd('comments', 'add', id, texte);
-  };
-  // The branch leaves the queue and stays in place; every ticket it carries reopens.
+  const commenter = (ticket, texte) => bd('comments', 'add', ticket, texte);
+  // The branch leaves the queue and stays in place; its ticket reopens.
   const sortir = (entree, titre, detail) => {
     const texte = `## Sortie de la file\n\nLa branche ${entree.branche} ne peut pas entrer sur ${principale} : ${titre}\n${detail}\n\nLa branche reste en place ; la relance du ticket remet son lot en travail local sur ${principale}.`;
-    for (const id of entree.tickets) {
-      bd('update', id, '--status', 'open', '--remove-label', 'en-file');
-      bd('comments', 'add', id, texte);
-    }
+    bd('update', entree.ticket, '--status', 'open', '--remove-label', 'en-file');
+    bd('comments', 'add', entree.ticket, texte);
     retirerEntree(entree);
     dire(`✗ ${entree.branche} sort de la file : ${titre}`);
   };
-  // The branch has nothing ahead of main: it leaves the queue, its tickets stay as they are and lose
+  // The branch has nothing ahead of main: it leaves the queue, its ticket stays as it is and loses
   // `en-file`.
   const ecarter = entree => {
     const texte = `## Sortie de la file\n\nLa branche ${entree.branche} n'a rien en avance sur ${principale} : elle n'entre pas, et le ticket reste ouvert.`;
-    for (const id of entree.tickets) {
-      bd('update', id, '--remove-label', 'en-file');
-      bd('comments', 'add', id, texte);
-    }
+    bd('update', entree.ticket, '--remove-label', 'en-file');
+    bd('comments', 'add', entree.ticket, texte);
     retirerEntree(entree);
     dire(`⚠ ${entree.branche} n'a rien en avance sur ${principale} : elle sort de la file`);
   };
-  // The branch stays in the queue, the reason written to its tickets.
+  // The branch stays in the queue, the reason written to its ticket.
   const garder = (entree, raison) => {
     commenter(
-      entree.tickets,
+      entree.ticket,
       `## La file garde la branche\n\nLa branche ${entree.branche} reste en file : ${raison}`
     );
     dire(`⚠ ${entree.branche} reste en file : ${raison}`);
@@ -154,19 +148,17 @@ function main(argv) {
     return { nouveau: dansCopie('rev-parse', 'HEAD').stdout.trim() };
   };
 
-  // Main is at <nouveau>: the tickets close, the branch is deleted, main is pushed.
+  // Main is at <nouveau>: the ticket closes, the branch is deleted, main is pushed.
   const entrer = (entree, nouveau) => {
     const court = nouveau.slice(0, 7);
-    for (const id of entree.tickets) {
-      bd('update', id, '--remove-label', 'en-file');
-      bd('close', id, '--reason', `intégré : ${court}`);
-    }
+    bd('update', entree.ticket, '--remove-label', 'en-file');
+    bd('close', entree.ticket, '--reason', `intégré : ${court}`);
     retirerEntree(entree);
     dire(`✓ ${entree.branche} entre sur ${principale} : ${court}`);
     const efface = git('branch', '-D', entree.branche);
     if (efface.status !== 0) {
       commenter(
-        entree.tickets,
+        entree.ticket,
         `La branche ${entree.branche} reste en place après son entrée sur ${principale} (${efface.stderr.trim()}) : sa copie est encore en place. Le ticket est fermé.`
       );
       dire(`⚠ ${entree.branche} n'est pas effacée`);
@@ -175,7 +167,7 @@ function main(argv) {
     const { commit, faute } = lireCommit(paquet.status === 0 ? JSON.parse(paquet.stdout) : null);
     if (faute) {
       commenter(
-        entree.tickets,
+        entree.ticket,
         `Poussée non faite : grillhouse.poussee.commit vaut ${faute}, pas un nom de branche.`
       );
       return;
@@ -187,7 +179,7 @@ function main(argv) {
     );
     if (pousse.status !== 0) {
       commenter(
-        entree.tickets,
+        entree.ticket,
         `La poussée de ${court} vers origin/${commit} (grillhouse.poussee.commit) est refusée :\n${pousse.stderr.trim()}`
       );
       dire(`⚠ poussée de ${court} refusée`);

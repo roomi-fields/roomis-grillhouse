@@ -41,9 +41,9 @@ prime sur tout le reste.
 - **Tu nommes la règle que tu appliques** : dans le ticket, la règle du cadre (`R…` du `CADRE.md`)
   et la règle d'architecture ou de spécification. Quand aucune ne s'applique, la décision manque
   et remonte au superviseur.
-- **Ton plan fait une seule livraison, sur ton seul composant** : il va au ticket avant le code. Un
-  plan qui demande plus t'arrête : tu rends ce découpage au superviseur. Ainsi un ticket reste
-  petit.
+- **Ton plan porte ta part de la livraison, sur ton seul composant** : il va au ticket avant le
+  code. Un plan qui demande plus t'arrête : tu rends ce découpage au superviseur. Ainsi un ticket
+  reste petit, et tu écris dans ton seul paquet.
 
 ## Le code
 
@@ -80,6 +80,10 @@ est un vrai rouge.
   publié pas encore déclaré pour toi, ou un fait que ta section ne porte pas) : une découverte qui
   bloque, que le superviseur porte à l'arbitre, et qui entre ensuite dans la section
   « Consommateurs » du fournisseur.
+- **Une donnée qui manque chez un fournisseur** : tu t'arrêtes, et ta passation nomme la donnée
+  et le fournisseur ; tu ne la calcules pas dans ton paquet. Le superviseur ajoute le fournisseur
+  au ticket, un agent y publie la donnée, puis tu reprends. Ainsi chaque donnée garde un seul
+  calcul.
 - **Une découverte qui bloque** : tu t'arrêtes sans rien livrer. Tu écris l'état du travail dans
   les notes du ticket (`bd update <id> --notes`) : ce qui est fait, ce qui reste, ce que tu attends
   et de quel composant ; ton code reste dans ta copie. Ainsi l'agent qui reprend repart de ton
@@ -88,7 +92,7 @@ est un vrai rouge.
   matière de test partagée sont au testeur.
 
 Une découverte qui ne bloque pas se consigne fermée sous ton ticket
-(`bash scripts/ticket.sh <id> <sujet> <composant> <corps> decouverte`), et tu continues.
+(`bash scripts/ticket.sh <id> <sujet> <composants> <corps> decouverte`), et tu continues.
 
 ## Vérifier et livrer
 

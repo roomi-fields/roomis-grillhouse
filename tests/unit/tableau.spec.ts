@@ -105,6 +105,21 @@ describe('lecture', () => {
       composant: '030-binder',
     });
   });
+  it('reads the components « a, b » of a ticket that touches several, in their order', () => {
+    expect(
+      lecture(
+        {
+          id: 'bp-mono-vbwf.320.5.2',
+          title: '320.5.2 — Publie la scène — 020-loader, 050-emitter',
+        },
+        'bp-mono'
+      )
+    ).toEqual({
+      numero: '320.5.2',
+      sujet: 'Publie la scène',
+      composant: '020-loader, 050-emitter',
+    });
+  });
   it('falls back on the id without its prefix and the whole title', () => {
     expect(lecture({ id: 'demo-a1.2', title: 'Un titre libre' }, 'demo')).toEqual({
       numero: 'a1.2',

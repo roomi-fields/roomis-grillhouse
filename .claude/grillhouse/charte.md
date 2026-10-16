@@ -52,9 +52,14 @@ charte du projet nomme (« Ce qui monte au superviseur »). Ainsi chaque décisi
 près du travail, et le superviseur garde les siennes.
 
 Un objectif dont le découpage n'est pas connu commence par une exploration, sans code ; un ticket
-de réalisation touche un composant, ou porte un geste transverse sur tout le dépôt, et fait une seule
-livraison ; tout ticket se crée sous sa mère (`docs/agents/issue-tracker.md`). Ainsi l'avancement
-se lit ticket par ticket.
+de réalisation fait une seule livraison, en un seul commit ; tout ticket se crée sous sa mère
+(`docs/agents/issue-tracker.md`). Ainsi l'avancement se lit ticket par ticket.
+
+**Un ticket de réalisation nomme ses composants** : sa section « Architecture » et son titre
+(« numéro — sujet — composant, composant ») les nomment, le fournisseur d'abord, puis ses lecteurs.
+Dans la copie du ticket, le chef de chantier lance un agent par composant, chacun enveloppé dans
+son paquet, dans cet ordre, et le relecteur relit l'ensemble. Ainsi un type change avec ses
+lecteurs, comme dans une demande de fusion de rustc, et chaque agent écrit dans son seul paquet.
 
 **Un ticket ouvert naît du mot du responsable**, ou d'un besoin direct d'un projet qui utilise le
 cadre (un défaut qu'il rencontre). Une découverte d'agent se consigne dans un ticket fermé, sous le
@@ -75,7 +80,7 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
   (une migration, la configuration des tests ou de la construction, la déclaration des
   dépendances, les scripts du `package.json`) se décide une fois, en gabarit dans la section
   « Architecture » du ticket, et se mène dans une seule copie qui montre tout le dépôt ; un
-  comportement propre à un composant garde son ticket. Ainsi le geste reste le même partout, et
+  comportement propre à un composant va dans un ticket de réalisation. Ainsi le geste reste le même partout, et
   sa question se tranche une fois.
 - **Les composants suivent un modèle commun** : chaque composant étend les configurations de base
   du cadre, et le contrôle des gardes nomme chaque écart ; un écart passe seulement inscrit, avec

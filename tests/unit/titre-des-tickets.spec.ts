@@ -15,7 +15,7 @@ const SCRIPT = path.join(DEPOT, 'scripts/ticket.sh');
 
 // The script run against a Beads that answers <prefixe> to the prefix and <id> to the creation;
 // returns the title it writes.
-function titre(prefixe: string, id: string) {
+function titre(prefixe: string, id: string, composants = 'le component') {
   const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
   const appels = path.join(bin, 'appels');
   writeFileSync(
@@ -31,7 +31,7 @@ function titre(prefixe: string, id: string) {
     ].join('\n'),
     { mode: 0o755 }
   );
-  const r = spawnSync('bash', [SCRIPT, 'parent-x', 'le subject', 'le component', 'le body'], {
+  const r = spawnSync('bash', [SCRIPT, 'parent-x', 'le subject', composants, 'le body'], {
     encoding: 'utf8',
     env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
   });
@@ -56,5 +56,13 @@ describe('grillhouse-3uv.56 critère 8 — the title strips the whole prefix of 
   });
   it('critère 8: a prefix without dash (demo) gives the number alone, as today', () => {
     expect(titre('demo', 'demo-320.2.1')).toBe('320.2.1 — le subject — le component');
+  });
+});
+
+describe('a ticket names its components, the provider first', () => {
+  it('the components given as « a, b » end the title as they are, in their order', () => {
+    expect(titre('demo', 'demo-320.5.2', '020-loader, 050-emitter')).toBe(
+      '320.5.2 — le subject — 020-loader, 050-emitter'
+    );
   });
 });

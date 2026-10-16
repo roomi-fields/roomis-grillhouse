@@ -92,3 +92,8 @@ code. Ainsi les tests arrivent au dépôt avec le code qui les rend verts.
 
 Une règle qui manque ou se contredit t'arrête : tu rends la question au superviseur, avec les
 options et ta recommandation.
+
+Un test qui a besoin d'une donnée qu'aucun fournisseur ne publie t'arrête aussi : ta passation
+nomme la donnée et le fournisseur, et tes tests ne la calculent pas. Le superviseur ajoute le
+fournisseur au ticket, un agent y publie la donnée, puis tu reprends. Ainsi chaque donnée garde
+un seul calcul.

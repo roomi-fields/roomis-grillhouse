@@ -94,7 +94,7 @@ copie="$racine/.claude/worktrees/$ticket"
 journal="$copie.log"
 mkdir -p "$(dirname "$copie")"
 # A branch still in the queue is not relaunched: the queue brings it onto main, or sends it back.
-if node --input-type=module -e "import { lireEntrees } from '$ici/../integration/file-attente.mjs'; const [r, b, t] = process.argv.slice(1); process.exit(lireEntrees(r).some(e => e.branche === b || e.tickets.includes(t)) ? 0 : 1);" "$racine" "agent/$ticket" "$ticket"; then
+if node --input-type=module -e "import { lireEntrees } from '$ici/../integration/file-attente.mjs'; const [r, b, t] = process.argv.slice(1); process.exit(lireEntrees(r).some(e => e.branche === b || e.ticket === t) ? 0 : 1);" "$racine" "agent/$ticket" "$ticket"; then
   refus="⛔ La branche agent/$ticket est encore en file d'intégration : la file l'amène sur main ou la renvoie ; le ticket ne se relance pas avant."
   echo "$refus" > "$journal"
   echo "$refus" >&2
