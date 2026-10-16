@@ -49,6 +49,11 @@
 //   it hashes the package's files and its `lit`, its output left out, and Turborepo caches its
 //   output, `ecrit`, a directory inside the package that git ignores. A restore from the cache
 //   adds files and removes none: the command empties its directory before writing it.
+//   The traces a package's tests wait for are read in Turborepo's plan of its tests
+//   (`tracesDuPlan`), by the targeted run (scripts/tests.mjs) and the launcher
+//   (scripts/enveloppe/lancer.sh), which produce them before the tests; the envelope shows the
+//   directory of a neighbour's trace read-only (scripts/enveloppe/enveloppe.mjs), and the targeted
+//   run inside it plays the traces of the agent's package only.
 // - The package holding a declared directory (the shared test material) has its `build` leave it
 //   out (`inputs`: the root's, then `!<dir>/**` each): its data no longer moves its build, nor the
 //   tests of every package that waits for it. The builds a package's dependencies give stay as
@@ -139,6 +144,14 @@ function tachesRacine(racine) {
   }
   return taches;
 }
+
+// The trace tasks of a plan of Turborepo (`turbo run … --dry=json`, parsed), its tasks that
+// <garder> keeps: their task ids (`<producer>#trace:<name>`), sorted.
+export const tracesDuPlan = (plan, garder = () => true) =>
+  plan.tasks
+    .filter(t => t.task.startsWith(TRACE) && garder(t))
+    .map(t => t.taskId)
+    .sort();
 
 // A path from the root, without its trailing slashes.
 const net = d => String(d ?? '').replace(/\/+$/, '');

@@ -54,7 +54,7 @@ roomis-grillhouse/
 │   │   ├── enveloppe.mjs             # bwrap sandbox for one component (tests: tests/unit/enveloppe.spec.ts)
 │   │   ├── codes.mjs                 # the exit codes of the envelope and its launcher
 │   │   ├── composant.mjs             # GRILLHOUSE_ENVELOPPE, the component the envelope names: npm test and npm run api build and write it alone
-│   │   └── lancer.sh                 # one ticket → one fresh role session in its envelope, its instruction followed by what its providers publish
+│   │   └── lancer.sh                 # one ticket → one fresh role session in its envelope, its providers and the traces its tests read produced first, its instruction followed by what its providers publish
 │   ├── dette.mjs                  # the known debt of the guards: grillhouse-dette.json (guard, file, rule → count); a guard passes within the counts, refuses a new finding or a count beyond, reports a count below
 │   ├── code-mort.mjs              # grillhouse:gardes: refuses dead code, measured by knip (knip.json); tests and benches count for dependency use only; the frame's scripts (fichiers.txt) are knip entries, judged in Grillhouse
 │   ├── consommateurs.mjs          # grillhouse:gardes: refuses an import that the provider's INTERFACE.md does not declare, and two components of the same name
@@ -86,7 +86,8 @@ roomis-grillhouse/
 │   ├── paquets.mjs                # paquets(): the frame's one list of the packages, the workspaces mapped as npm maps them (a « ! » pattern takes out), each marked out of the frame or not;
 │   │                              #   read by grillhouse-maj, turbo-des-paquets and tests; Node alone, as the update runs it from a source that installs no dependency
 │   ├── tests.mjs                  # npm test, npm run test:forcer: turbo run test:vitest; each path named from the root plays in the package that holds it (--filter, the path made absolute), a path out of the frame's packages refused;
-│   │                              #   a run with paths builds first (turbo run build, without arguments: replayed from the cache), then plays the tests alone (--only), the paths after --; --force forces the tests only
+│   │                              #   a run with paths builds first (turbo run build, without arguments: replayed from the cache), with the traces its tests wait for (read in turbo run test:vitest --dry=json; in an envelope, its own package's only, a neighbour's produced by the launcher),
+│   │                              #   then plays the tests alone (--only), the paths after --; --force forces the tests only
 │   ├── verifier.mjs               # npm run verifier: turbo run grillhouse:gardes gardes test:vitest --continue=dependencies-successful --summarize; the code of each task read in the summary (removed after):
 │   │                              #   any code but 0 and 75 is red, named; a task at 75 waits for rest (15 min at most) and plays again alone (--filter --only); the bound reached, 75 « à repasser »
 │   ├── tableau.mjs                # npm run tableau: the board on three levels (project, agents, chantier)

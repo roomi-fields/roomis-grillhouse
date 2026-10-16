@@ -44,8 +44,9 @@
 //   is emptied. In <copie>, the component is mounted back in writing; every sibling component
 //   gets back, read-only, its published parts: `package.json`, `docs/INTERFACE.md`, `dist/`, its
 //   package configuration of Turborepo (`turbo.json`, `turbo.jsonc`), by which Turborepo reads in
-//   the envelope the task graph it reads outside, and the paths that the `files` field of its
-//   `package.json` names, when they exist inside it.
+//   the envelope the task graph it reads outside, the paths that the `files` field of its
+//   `package.json` names, and the directory each trace it declares writes (`grillhouse.traces`,
+//   which the launcher produces before the session), when they exist inside it.
 //   The parent's own files (`src/index.ts`) come back read-only, and the emptied directories are
 //   then sealed read-only.
 // - A folder of the root (`scripts`) hides nothing: its scripts work on the whole repository. The
@@ -268,12 +269,17 @@ function liensSortants(dir) {
   return found;
 }
 
-// The paths that the `files` field of <dir>'s `package.json` names; none without that field.
-function fichiersPublies(dir) {
+// The paths, relative to <dir>, a package of <copie>, that its `package.json` publishes beyond the
+// parts every package publishes: what its `files` field names, and the directory each trace it
+// declares writes (`grillhouse.traces`, its `ecrit` from the root of <copie>); none without them.
+function fichiersPublies(dir, copie) {
   const manifeste = path.join(dir, 'package.json');
   if (!existsSync(manifeste)) return [];
-  const { files } = JSON.parse(readFileSync(manifeste, 'utf8'));
-  return Array.isArray(files) ? files : [];
+  const { files, grillhouse } = JSON.parse(readFileSync(manifeste, 'utf8'));
+  const traces = Object.values(grillhouse?.traces ?? {})
+    .filter(t => typeof t?.ecrit === 'string')
+    .map(t => path.relative(dir, path.join(copie, t.ecrit)));
+  return [...(Array.isArray(files) ? files : []), ...traces];
 }
 
 const inside = (child, parent) => {
@@ -291,7 +297,7 @@ const inside = (child, parent) => {
 // `<main tree>/.turbo/cache`); one that does not exist is not mounted.
 // `paquets` lists the packages of the copy (`paquets` of `scripts/paquets.mjs`): a <composant>
 // that is the name of one of them is refused with its path.
-// `fs` gives `lister(dir)`, `existe(path)`, `liens(dir)` and `publies(dir)`, so the plan is
+// `fs` gives `lister(dir)`, `existe(path)`, `liens(dir)` and `publies(dir, copie)`, so the plan is
 // testable without disk.
 export function plan(
   { trees, copie, composant, role, matieres = [], montages = [], magasins = [], paquets = [] },
@@ -372,7 +378,7 @@ export function plan(
     if (!e.dir) {
       args.push('--ro-bind', p, p);
     } else if (e.name !== nom && !matiere.includes(p)) {
-      for (const part of new Set([...PUBLISHED, ...fs.publies(p)])) {
+      for (const part of new Set([...PUBLISHED, ...fs.publies(p, copie)])) {
         const q = path.join(p, part);
         if (inside(q, p) && fs.existe(q)) args.push('--ro-bind', q, q);
       }

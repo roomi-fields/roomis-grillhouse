@@ -128,7 +128,7 @@ function depotSansPaquets() {
   return r;
 }
 
-const lancer = (racine: string, args: string[]) =>
+const lancer = (racine: string, args: string[], env: Record<string, string> = {}) =>
   spawnSync(process.execPath, [SCRIPT, ...args], {
     cwd: racine,
     encoding: 'utf8',
@@ -137,6 +137,7 @@ const lancer = (racine: string, args: string[]) =>
       PATH: `${path.join(DEPOT, 'node_modules/.bin')}${path.delimiter}${process.env.PATH ?? ''}`,
       TURBO_TELEMETRY_DISABLED: '1',
       DO_NOT_TRACK: '1',
+      ...env,
     },
   });
 // The tests played since the trial began, sorted.
@@ -294,5 +295,147 @@ describe('npm test -- <files>, in a repository without packages', { timeout: 60_
     const r = lancer(racine, []);
     expect(r.status, sortie(r)).toBe(0);
     expect(joues(racine)).toEqual(['racine/x', 'racine/y']);
+  });
+});
+
+// Witness: BPScript (320.6.6). A package whose tests read the trace of another
+// (`grillhouse.lit` over its `grillhouse.traces`) has its `test:vitest` wait for
+// `<producer>#trace:<name>`; the targeted run played the builds, then the tests alone (`--only`),
+// and on a copy without the trace the test failed, « trace absente ». As Bazel produces the inputs
+// of a test before it, the targeted run plays the traces the tests wait for with the builds.
+
+// A repository of packages: `prod` writes the trace `trace:g` in `trace/g` (each run counted in
+// `traces.txt` at the root), and `lect`, whose test reads it, declares it.
+function depotATrace() {
+  const r = mkdtempSync(path.join(ESSAIS, 'trace-'));
+  symlinkSync(path.join(DEPOT, 'node_modules'), path.join(r, 'node_modules'), 'dir');
+  ecrire(
+    r,
+    'package.json',
+    json({ name: 'essai', private: true, workspaces: ['packages/*'], packageManager: 'npm@10.9.8' })
+  );
+  ecrire(r, 'turbo.json', readFileSync(path.join(DEPOT, 'templates/turbo/paquets.json'), 'utf8'));
+  ecrire(r, 'docs/agents/hors-cadre.txt', '');
+  ecrire(
+    r,
+    'packages/prod/package.json',
+    json({
+      name: 'prod',
+      type: 'module',
+      scripts: { build: 'true', 'trace:g': 'node trace.mjs', 'test:vitest': 'vitest run' },
+      // Its tests read its own trace too, as BPScript's 060-encoder.
+      grillhouse: {
+        lit: ['packages/prod/trace/g'],
+        traces: { 'trace:g': { lit: [], ecrit: 'packages/prod/trace/g' } },
+      },
+    })
+  );
+  // The trace copies `source.txt` of its package.
+  ecrire(r, 'packages/prod/source.txt', 'v1');
+  ecrire(
+    r,
+    'packages/prod/trace.mjs',
+    [
+      "import { appendFileSync, copyFileSync, mkdirSync, rmSync } from 'node:fs';",
+      "rmSync('trace/g', { recursive: true, force: true });",
+      "mkdirSync('trace/g', { recursive: true });",
+      "copyFileSync('source.txt', 'trace/g/x.txt');",
+      "appendFileSync('../../traces.txt', 'g\\n');",
+      '',
+    ].join('\n')
+  );
+  ecrire(r, 'packages/prod/vitest.config.mjs', configuration);
+  ecrire(
+    r,
+    'packages/prod/test/x.test.mjs',
+    [
+      "import { appendFileSync, readFileSync } from 'node:fs';",
+      "import { it } from 'vitest';",
+      "it('prod/x', () => {",
+      "  const lu = readFileSync(new URL('../trace/g/x.txt', import.meta.url), 'utf8');",
+      "  appendFileSync(new URL('../../../joues.txt', import.meta.url), `prod/${lu}\\n`);",
+      '});',
+      '',
+    ].join('\n')
+  );
+  ecrire(
+    r,
+    'packages/lect/package.json',
+    json({
+      name: 'lect',
+      type: 'module',
+      scripts: { build: 'true', 'test:vitest': 'vitest run' },
+      grillhouse: { lit: ['packages/prod/trace/g'] },
+    })
+  );
+  ecrire(r, 'packages/lect/vitest.config.mjs', configuration);
+  ecrire(
+    r,
+    'packages/lect/test/x.test.mjs',
+    [
+      "import { appendFileSync, readFileSync } from 'node:fs';",
+      "import { it } from 'vitest';",
+      "it('lect/x', () => {",
+      "  readFileSync(new URL('../../prod/trace/g/x.txt', import.meta.url));",
+      "  appendFileSync(new URL('../../../joues.txt', import.meta.url), 'lect/x\\n');",
+      '});',
+      '',
+    ].join('\n')
+  );
+  ecrire(r, '.gitignore', 'node_modules\n.turbo/\njoues.txt\ntraces.txt\npackages/prod/trace/\n');
+  ecrireTurbo(r);
+  // A git repository: the inputs of the trace (`$TURBO_DEFAULT$`) leave out what git ignores, the
+  // logs of Turborepo included.
+  for (const a of [
+    ['init', '-q'],
+    ['add', '-A'],
+    ['commit', '-qm', 'init'],
+  ]) {
+    spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { cwd: r });
+  }
+  return r;
+}
+// The runs of the trace since the trial began.
+const traces = (racine: string) =>
+  existsSync(path.join(racine, 'traces.txt'))
+    ? readFileSync(path.join(racine, 'traces.txt'), 'utf8').split('\n').filter(Boolean)
+    : [];
+
+describe('npm test -- <files> plays the traces its tests wait for', { timeout: 60_000 }, () => {
+  it('on a copy without the trace, the targeted run produces it, then the test passes', () => {
+    const racine = depotATrace();
+    const r = lancer(racine, ['packages/lect/test/x.test.mjs']);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(traces(racine)).toEqual(['g']);
+    expect(joues(racine)).toEqual(['lect/x']);
+  });
+
+  it('a second run, the trace gone from the copy, serves it from the cache', () => {
+    const racine = depotATrace();
+    expect(lancer(racine, ['packages/lect/test/x.test.mjs']).status).toBe(0);
+    rmSync(path.join(racine, 'packages/prod/trace'), { recursive: true, force: true });
+    const r = lancer(racine, ['packages/lect/test/x.test.mjs']);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(traces(racine)).toEqual(['g']);
+    expect(existsSync(path.join(racine, 'packages/prod/trace/g/x.txt'))).toBe(true);
+  });
+
+  it("in an envelope, the run plays no neighbour's trace: the launcher produced them", () => {
+    const racine = depotATrace();
+    lancer(racine, ['packages/lect/test/x.test.mjs'], { GRILLHOUSE_ENVELOPPE: 'packages/lect' });
+    expect(traces(racine)).toEqual([]);
+  });
+
+  // The envelope writes the agent's package only, and its own trace lives in it.
+  it("in an envelope, the run regenerates the package's own trace, once what it reads changed", () => {
+    const racine = depotATrace();
+    const dedans = { GRILLHOUSE_ENVELOPPE: 'packages/prod' };
+    const r1 = lancer(racine, ['packages/prod/test/x.test.mjs'], dedans);
+    expect(r1.status, sortie(r1)).toBe(0);
+    writeFileSync(path.join(racine, 'packages/prod/source.txt'), 'v2');
+    const r2 = lancer(racine, ['packages/prod/test/x.test.mjs'], dedans);
+    expect(r2.status, sortie(r2)).toBe(0);
+    expect(joues(racine)).toEqual(['prod/v1', 'prod/v2']);
+    expect(traces(racine)).toEqual(['g', 'g']);
   });
 });

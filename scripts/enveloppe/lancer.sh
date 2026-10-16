@@ -34,7 +34,10 @@
 #   before the target: for a component that is a package of the frame, its providers are built
 #   first (the packages whose build its build waits for, read in Turborepo's graph,
 #   `turbo run build --filter=<paquet> --dry=json`), and a failure stops the launch, CODE_COPIE;
-#   then the package and what its tests read (`turbo run build --filter=<paquet>...`), whose failure
+#   then the traces of other packages its tests wait for (`grillhouse.traces`, read in Turborepo's
+#   plan of its tests, `turbo run test:vitest --filter=<paquet> --dry=json`), which the envelope
+#   shows read-only, and a failure stops the launch, CODE_COPIE; then the package, its own traces
+#   and what its tests read (`turbo run build <its traces> --filter=<paquet>...`), whose failure
 #   does not stop it: the session opens, its instruction followed by a section « La construction de
 #   ton paquet échoue » with the end of that output, since repairing it is the session's work (a
 #   provider's lot that breaks its consumers). Its consumers are not built. Any other component,
@@ -162,9 +165,22 @@ echec=$(mktemp)
         mapfile -t filtres <<<"$fournisseurs"
         (cd "$copie" && monter npx --no-install turbo run build "${filtres[@]}") || exit 1
       fi
-      # The package itself, and what its tests read (the shared test material), built after its
-      # providers: a failure does not stop the launch, it goes into the instruction.
-      if ! (cd "$copie" && monter npx --no-install turbo run build "--filter=$paquet...") > "$echec" 2>&1; then
+      # The traces its tests wait for, as Turborepo's plan of its tests reads them. Another
+      # package's trace is produced here, and a failure stops the launch, as a provider's; its own
+      # waits for its own build, and is produced with it below.
+      plan=$(cd "$copie" && monter npx --no-install turbo run test:vitest "--filter=$paquet" --dry=json) || exit 1
+      traces() { node --input-type=module -e "import { readFileSync } from 'node:fs'; import { tracesDuPlan } from '$ici/../turbo-des-paquets.mjs'; const [p, propres] = process.argv.slice(1); console.log(tracesDuPlan(JSON.parse(readFileSync(0, 'utf8')), t => (t.package === p) === (propres === 'oui')).join('\n'));" "$paquet" "$1" <<<"$plan"; }
+      autres=$(traces non) || exit 1
+      if [ -n "$autres" ]; then
+        mapfile -t ids <<<"$autres"
+        (cd "$copie" && monter npx --no-install turbo run "${ids[@]}") || exit 1
+      fi
+      propres=$(traces oui) || exit 1
+      ids=()
+      [ -z "$propres" ] || mapfile -t ids <<<"$propres"
+      # The package itself, its own traces, and what its tests read (the shared test material),
+      # built after its providers: a failure does not stop the launch, it goes into the instruction.
+      if ! (cd "$copie" && monter npx --no-install turbo run build ${ids[@]+"${ids[@]}"} "--filter=$paquet...") > "$echec" 2>&1; then
         cat "$echec"
         echo "⚠️  La construction de $paquet échoue : la séance s'ouvre, la consigne porte l'erreur."
       else

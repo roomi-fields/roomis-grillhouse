@@ -25,9 +25,18 @@
 //   again. A build that fails ends the run, and no test plays. `--force` plays the tests named for
 //   real, their builds replayed from the cache: a test suspected unstable is played again, and a
 //   build, which the same inputs give again, is not.
+// - The builds' run also plays the traces the tests of the named packages wait for (a package's
+//   `grillhouse.lit` over another's `grillhouse.traces`, scripts/turbo-des-paquets.mjs), as Bazel
+//   produces the inputs of a test before it: their task ids (`<producer>#trace:<name>`) read in
+//   Turborepo's plan of those tests (`turbo run test:vitest --filter=<name> --dry=json`), the graph
+//   Turborepo plays, the one the launcher reads; without arguments, so replayed from the cache. A
+//   trace that fails ends the run, as a build.
 // - In the envelope of an agent (`GRILLHOUSE_ENVELOPPE`, scripts/enveloppe/composant.mjs), the
-//   neighbours arrive built by the launcher and read-only, as in a sandbox of Bazel: the build is
-//   the named packages' alone (`turbo run build --only --filter=<name>`), never their dependencies.
+//   neighbours and their traces arrive built by the launcher and read-only, as in a sandbox of
+//   Bazel: the build is the named packages' alone, with the traces of those packages their tests
+//   wait for, which live in the package the agent writes (`turbo run build <name>#trace:<t>…
+//   --only --filter=<name>`, the build before the trace, replayed from the cache when nothing
+//   moved), never their dependencies nor a neighbour's trace.
 // - An argument that begins with « - » is an option of Vitest, written `--<name>=<value>`, passed to
 //   each run of the tests as it is.
 // - A run that plays no test fails: the frame's base configuration of Vitest keeps Vitest's
@@ -38,6 +47,7 @@ import { existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { composantDeLEnveloppe } from './enveloppe/composant.mjs';
 import { paquets } from './paquets.mjs';
+import { tracesDuPlan } from './turbo-des-paquets.mjs';
 
 const racine = process.cwd();
 const enveloppe = composantDeLEnveloppe() !== null;
@@ -50,11 +60,32 @@ const chemins = args.filter(a => !a.startsWith('-'));
 const turbo = args =>
   spawnSync('turbo', ['run', ...args], { cwd: racine, stdio: 'inherit' }).status ?? 1;
 
-// The builds <filtres> select (in an envelope, the packages they name alone), then the tests <filtres> select alone, which receive <passes>;
-// exits with the first exit code that is not 0, else with the tests'.
+// The trace tasks the tests <filtres> select wait for, read in Turborepo's plan of those tests, the
+// ones <garder> keeps; none without a filter. A plan that fails exits with its code, its output
+// written.
+const traces = (filtres, garder) => {
+  if (filtres.length === 0) return [];
+  const plan = spawnSync('turbo', ['run', 'test:vitest', ...filtres, '--dry=json'], {
+    cwd: racine,
+    encoding: 'utf8',
+    maxBuffer: 256 * 1024 * 1024,
+  });
+  if (plan.status !== 0) {
+    process.stderr.write(`${plan.stdout ?? ''}${plan.stderr ?? ''}`);
+    process.exit(plan.status ?? 1);
+  }
+  return tracesDuPlan(JSON.parse(plan.stdout), garder);
+};
+
+// The builds <filtres> select with the traces their tests wait for (in an envelope, the packages
+// they name alone, with their own traces), then the tests <filtres> select alone, which receive
+// <passes>; exits with the first exit code that is not 0, else with the tests'.
 const cibles = (filtres, passes) => {
+  const noms = new Set(filtres.map(f => f.slice('--filter='.length)));
   const construction = turbo(
-    enveloppe ? ['build', '--only', ...filtres] : ['build', ...filtres.map(f => `${f}...`)]
+    enveloppe
+      ? ['build', ...traces(filtres, t => noms.has(t.package)), '--only', ...filtres]
+      : ['build', ...traces(filtres), ...filtres.map(f => `${f}...`)]
   );
   if (construction !== 0) process.exit(construction);
   process.exit(turbo(['test:vitest', '--only', ...force, ...filtres, '--', ...passes]));

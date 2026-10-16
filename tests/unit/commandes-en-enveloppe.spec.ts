@@ -364,3 +364,148 @@ describe.runIf(canWrap)(
     });
   }
 );
+
+// Witness: BPScript (320.6.6). The tests of 070-deriver read the trace of 060-encoder
+// (`grillhouse.lit` over its `grillhouse.traces`); in the envelope, the build is the package's
+// alone, and the trace lives in the producer, read-only: the session's test failed, « trace
+// absente ». As in a sandbox of Bazel, the inputs of a test arrive ready: the launcher produces
+// the traces the session package's tests wait for, before the session.
+describe.runIf(canWrap)(
+  "the launcher produces the traces the session package's tests read",
+  { timeout: 300_000 },
+  () => {
+    const repo = path.join(ESSAIS, 'lanceur-traces');
+    ecrire(
+      repo,
+      'package.json',
+      json({
+        name: 'essai',
+        private: true,
+        workspaces: ['packages/*'],
+        packageManager: 'npm@10.9.8',
+      })
+    );
+    ecrire(
+      repo,
+      'turbo.json',
+      readFileSync(path.join(DEPOT, 'templates/turbo/paquets.json'), 'utf8')
+    );
+    // The trace of `prod` fails when its package holds `casse`.
+    ecrire(
+      repo,
+      'packages/prod/trace.mjs',
+      [
+        "import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';",
+        "if (existsSync('casse')) { console.error('trace cassée'); process.exit(1); }",
+        "rmSync('trace/g', { recursive: true, force: true });",
+        "mkdirSync('trace/g', { recursive: true });",
+        "writeFileSync('trace/g/x.txt', 'trace de prod');",
+        '',
+      ].join('\n')
+    );
+    ecrire(
+      repo,
+      'packages/prod/package.json',
+      json({
+        name: 'prod',
+        scripts: { build: 'true', 'trace:g': 'node trace.mjs', 'test:vitest': 'true' },
+        // Its tests read its own trace too, as BPScript's 060-encoder.
+        grillhouse: {
+          lit: ['packages/prod/trace/g'],
+          traces: { 'trace:g': { lit: [], ecrit: 'packages/prod/trace/g' } },
+        },
+      })
+    );
+    ecrire(
+      repo,
+      'packages/lect/package.json',
+      json({
+        name: 'lect',
+        scripts: { build: 'true', 'test:vitest': 'true' },
+        grillhouse: { lit: ['packages/prod/trace/g'] },
+      })
+    );
+    ecrire(repo, '.claude/agents/developpeur.md', '---\nname: developpeur\n---\n');
+    ecrire(
+      repo,
+      '.gitignore',
+      'node_modules\n.turbo/\ndist/\n.claude/worktrees/\npackages/prod/trace/\n'
+    );
+    cpSync(path.join(DEPOT, 'scripts'), path.join(repo, 'scripts'), { recursive: true });
+    // A stand-in for claude: inside the envelope, it writes its arguments, one per NUL, and a copy
+    // of the trace, in the session's component.
+    const faux = path.join(repo, 'faux-claude.sh');
+    ecrire(
+      repo,
+      'faux-claude.sh',
+      [
+        '#!/bin/bash',
+        'printf "%s\\0" "$@" > "$GRILLHOUSE_ENVELOPPE/args"',
+        'cat packages/prod/trace/g/x.txt > "$GRILLHOUSE_ENVELOPPE/vu" 2>&1 || true',
+        '',
+      ].join('\n')
+    );
+    chmodSync(faux, 0o755);
+    ecrireTurbo(repo);
+    const git = (...a: string[]) =>
+      execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
+    git('init', '-q');
+    git('add', '.');
+    git('commit', '-qm', 'init');
+    const home = path.join(ESSAIS, 'home-lanceur-traces');
+    mkdirSync(path.join(home, '.claude'), { recursive: true });
+
+    // Launches the session of <ticket> on <composant>: its code, what it read of the trace, its
+    // prompt (null when no session opened), its stderr and log.
+    const lancer = (ticket: string, composant: string) => {
+      const copie = path.join(repo, '.claude/worktrees', ticket);
+      const vu = path.join(copie, composant, 'vu');
+      const args = path.join(copie, composant, 'args');
+      rmSync(vu, { force: true });
+      rmSync(args, { force: true });
+      const consigne = path.join(ESSAIS, 'consigne-traces.txt');
+      writeFileSync(consigne, `TON TICKET : ${ticket} — lire la trace.`);
+      const r = spawnSync('bash', [LANCEUR, ticket, 'developpeur', composant, consigne], {
+        cwd: repo,
+        encoding: 'utf8',
+        env: { ...ENV, CLAUDE_BIN: faux, HOME: home },
+      });
+      const journal = existsSync(`${copie}.log`) ? readFileSync(`${copie}.log`, 'utf8') : '';
+      const recu = existsSync(args) ? readFileSync(args, 'utf8').split('\0') : null;
+      return {
+        r,
+        lu: existsSync(vu) ? readFileSync(vu, 'utf8') : null,
+        prompt: recu ? recu[recu.indexOf('-p') + 1] : null,
+        trace: `${r.stderr}\n${journal}`,
+      };
+    };
+
+    it("produces another package's trace before the session, which reads it in its envelope", () => {
+      const { r, lu, trace } = lancer('demo-1', 'packages/lect');
+      expect(r.status, trace).toBe(0);
+      expect(lu, trace).toBe('trace de prod');
+    });
+
+    it("stops the launch when another package's trace fails, as a provider that does not build", () => {
+      const copie = path.join(repo, '.claude/worktrees/demo-1');
+      rmSync(path.join(copie, 'packages/prod/trace'), { recursive: true, force: true });
+      writeFileSync(path.join(copie, 'packages/prod/casse'), '');
+      const { r, prompt } = lancer('demo-1', 'packages/lect');
+      expect(r.status).toBe(CODE_COPIE);
+      expect(prompt).toBeNull();
+    });
+
+    it("produces the package's own trace with its build, its failure in the instruction", () => {
+      const { r, lu, trace } = lancer('demo-2', 'packages/prod');
+      expect(r.status, trace).toBe(0);
+      expect(lu, trace).toBe('trace de prod');
+      const copie = path.join(repo, '.claude/worktrees/demo-2');
+      rmSync(path.join(copie, 'packages/prod/trace'), { recursive: true, force: true });
+      writeFileSync(path.join(copie, 'packages/prod/casse'), '');
+      const casse = lancer('demo-2', 'packages/prod');
+      expect(casse.r.status, casse.trace).toBe(0);
+      expect(casse.prompt).toContain('La construction de ton paquet échoue');
+      expect(casse.prompt).toContain('trace cassée');
+    });
+  }
+);

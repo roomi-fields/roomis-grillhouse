@@ -63,7 +63,7 @@ prime sur tout le reste.
   d'acceptation, et rien d'autre.
 
 Tu vois ton paquet en entier, et des autres composants leur interface et leur forme publiée. Tes
-voisins arrivent construits : `npm test -- <fichiers>` construit ton seul paquet, et `npm run api`,
+voisins arrivent construits, et les traces que lisent tes tests produites : `npm test -- <fichiers>` construit ton seul paquet et régénère ses propres traces, et `npm run api`,
 après lui, écrit le rapport d'API et la part générée de ton seul composant. Les
 gardes du cadre (frontières, consommateurs, index des interfaces, rapports d'API) tournent à côté
 des tests, par `npm run verifier`, que l'intégration joue ; leur refus nomme la commande qui
