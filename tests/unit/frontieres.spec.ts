@@ -66,6 +66,30 @@ describe('the boundaries', () => {
     expect(r.status).toBe(0);
     expect(r.sortie).toMatch(/pas-d-orphelin: src\/seul\.ts/);
   });
+  // Witness: BPScript. A package of tools declares its commands in `bin`, which nothing imports: a
+  // file that `bin` names is an entry, as knip takes it, and no orphan.
+  it.each([
+    ['an object', { 'bp-outil': './bin/outil.mjs', 'bp-autre': 'bin/autre.mjs' }],
+    ['a string', './bin/outil.mjs'],
+  ])(
+    'report no file that the bin field names (%s), a real orphan beside it reported',
+    (_f, bin) => {
+      const r = verdict({
+        'packages/outils/package.json': JSON.stringify({ name: 'outils', bin }),
+        'packages/outils/bin/outil.mjs': 'console.log(1);\n',
+        'packages/outils/bin/autre.mjs': 'console.log(2);\n',
+        'packages/outils/bin/seul.mjs': 'console.log(3);\n',
+      });
+      expect(r.status, r.sortie).toBe(0);
+      expect(r.sortie).not.toMatch(/pas-d-orphelin: packages\/outils\/bin\/outil\.mjs/);
+      expect(r.sortie).toMatch(/pas-d-orphelin: packages\/outils\/bin\/seul\.mjs/);
+      if (typeof bin === 'object') {
+        expect(r.sortie).not.toMatch(/pas-d-orphelin: packages\/outils\/bin\/autre\.mjs/);
+      } else {
+        expect(r.sortie).toMatch(/pas-d-orphelin: packages\/outils\/bin\/autre\.mjs/);
+      }
+    }
+  );
   it('refuse a cycle', () => {
     const r = verdict({
       'src/x.ts': "import { y } from './y';\nexport const x = y;",

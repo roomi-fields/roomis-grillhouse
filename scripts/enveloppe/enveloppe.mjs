@@ -55,7 +55,11 @@
 //   rest holds: the root read-only, the copy written, its `.git` read-only.
 // - The package of the shared test material is every component of <copie> whose `package.json`
 //   exports `./test-fixtures` (`matieres` of `scripts/consommateurs.mjs`). It comes back whole, after the agent's own component:
-//   written for the `testeur`, read-only for every other role, its own component included.
+//   written for the `testeur`, read-only for every other role, its own component included. For
+//   such a role, where a run of its tests writes in it (`sortiesDeTest`: Turborepo's task logs,
+//   Vite's cache) is an empty directory proper to the session, as Bazel writes a test's logs out
+//   of its source: what is written there leaves no trace. The envelope creates each of them on
+//   disk, empty, before the session, so that bwrap mounts over it inside the read-only package.
 // - The traversal guard refuses to launch when a symbolic link inside the component, or inside a
 //   package of the shared test material, points into a hidden directory: such a link would cross
 //   the envelope.
@@ -84,6 +88,13 @@ import { VARIABLE } from './composant.mjs';
 const PUBLISHED = ['package.json', 'docs/INTERFACE.md', 'dist', 'turbo.json', 'turbo.jsonc'];
 // The role that writes the package of the shared test material.
 const ROLE_MATIERE = 'testeur';
+// What a run of a package's tests writes in that package, relative to it: the logs of its tasks,
+// which Turborepo writes on every run, a task replayed from its cache included
+// (`.turbo/turbo-<task>.log`), and no option of Turborepo sends elsewhere; the cache of Vite, where
+// Vitest writes the results of the run (`node_modules/.vite/vitest/`), and whose failure fails it.
+const SORTIES_DE_TEST = ['.turbo', 'node_modules/.vite'];
+// The directories of <dir> where a run of its tests writes.
+const sortiesDeTest = dir => SORTIES_DE_TEST.map(s => path.join(dir, s));
 // The directories where codegraph and rtfm keep the index of a tree they index: the source of
 // every component, which the envelope hides.
 const INDEX = ['.codegraph', '.rtfm'];
@@ -406,7 +417,13 @@ export function plan(
     }
   }
   args.push('--bind', propre, propre);
-  for (const m of matiere) args.push(role === ROLE_MATIERE ? '--bind' : '--ro-bind', m, m);
+  for (const m of matiere) {
+    args.push(role === ROLE_MATIERE ? '--bind' : '--ro-bind', m, m);
+    // What a run of its tests writes goes, for a role that does not write it, to an empty
+    // directory proper to the session, as Bazel writes a test's logs out of its source.
+    if (role === ROLE_MATIERE) continue;
+    for (const s of sortiesDeTest(m)) if (fs.existe(s)) args.push('--tmpfs', s);
+  }
   // The emptied directories close behind the mounts: nothing new is written there.
   for (const c of caches) if (fs.existe(c)) args.push('--remount-ro', c);
   for (const { chemin } of montages.filter(m => m.scelle)) args.push('--remount-ro', chemin);
@@ -460,6 +477,13 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     lienSurDisque
   );
   const matieres = lesMatieres(copie).map(m => path.relative(copie, m.dir));
+  // For a role that does not write it, the directories where a run of the material's tests writes
+  // are created here, so that bwrap mounts an empty one over each inside the read-only package.
+  if (role !== ROLE_MATIERE) {
+    for (const m of matieres) {
+      for (const s of sortiesDeTest(path.join(copie, m))) mkdirSync(s, { recursive: true });
+    }
+  }
   // The cache of Turborepo, in the main tree (the folder of git's common directory), created here
   // so that bwrap mounts it in writing.
   const commun = execFileSync(

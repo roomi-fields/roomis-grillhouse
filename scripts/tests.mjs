@@ -39,16 +39,21 @@
 //   --only --filter=<name>`, their task ids read in Turborepo's plan of the tests,
 //   `turbo run test:vitest --filter=<name> --dry=json`), never their dependencies nor a
 //   neighbour's trace; then the tests alone (`turbo run test:vitest --only --filter=<name>`), the
-//   paths in the variable. There the hash of the tests sees neither the code of the neighbours nor
-//   their builds: the verdict that counts is the reviewer's and the integration's, out of the
-//   envelope.
+//   paths in the variable. A named package that the envelope shows read-only (the shared test
+//   material, for every role but the testeur) is not built, nor are its traces: it arrives built,
+//   as a read-only input of Bazel, and its tests play as it is; the frame knows it read-only by
+//   testing its directory for writing (`inscriptible`), where the envelope mounts it, and the logs
+//   of its tasks go to the envelope's directories proper to the session (`sortiesDeTest`,
+//   scripts/enveloppe/enveloppe.mjs), never into its source. There the hash of the tests sees
+//   neither the code of the neighbours nor their builds: the verdict that counts is the reviewer's
+//   and the integration's, out of the envelope.
 // - An argument that begins with « - » is an option of Vitest, written `--<name>=<value>`, carried
 //   in the variable beside the paths.
 // - A run that plays no test fails: the frame's base configuration of Vitest keeps Vitest's
 //   `passWithNoTests: false` (scripts/vitest-config/base.mjs).
 // The exit code is Turborepo's; 2 for a path refused.
 import { spawnSync } from 'node:child_process';
-import { existsSync, statSync } from 'node:fs';
+import { accessSync, constants, existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { composantDeLEnveloppe } from './enveloppe/composant.mjs';
 import { paquets } from './paquets.mjs';
@@ -91,14 +96,32 @@ const traces = (filtres, noms) => {
 const cibles = (filtres, passes) => {
   const tests = { arguments: passes, ...(force ? { rejouer: new Date().toISOString() } : {}) };
   if (!enveloppe) process.exit(turbo(['test:vitest', ...filtres], tests));
-  const noms = new Set(filtres.map(f => f.slice('--filter='.length)));
-  const propres = filtres.length ? traces(filtres, noms) : [];
-  const construction = turbo(['build', ...propres, '--only', ...filtres]);
-  if (construction !== 0) process.exit(construction);
+  // A package the envelope shows read-only arrives built: only the packages it shows in writing
+  // build, as the envelope mounts them (`inscriptible`).
+  const construits = filtres.filter(f => inscriptible(dossiers.get(f.slice('--filter='.length))));
+  if (filtres.length === 0 || construits.length > 0) {
+    const noms = new Set(construits.map(f => f.slice('--filter='.length)));
+    const propres = construits.length ? traces(construits, noms) : [];
+    const construction = turbo(['build', ...propres, '--only', ...construits]);
+    if (construction !== 0) process.exit(construction);
+  }
   process.exit(turbo(['test:vitest', '--only', ...filtres], tests));
 };
 
+// True when this process may write the directory <dir>: false under a read-only mount.
+const inscriptible = dir => {
+  try {
+    accessSync(dir, constants.W_OK);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const liste = paquets(racine);
+// The directory of each package of the frame, by its name.
+const dossiers = new Map(liste.map(p => [p.pkg.name, path.join(racine, p.dossier)]));
+
 if (chemins.length === 0) {
   process.exit(
     turbo(

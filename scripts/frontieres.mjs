@@ -17,7 +17,8 @@
 // is the code of `src/` outside the test files, and every file that the `exports` of a package
 // reach (each target of a condition, the exported test material included) with the files these
 // import; every import resolves (a path a package does not export is refused); an orphan file is
-// reported, without refusing. Who uses which component is the consumers check's
+// reported, without refusing, unless it is an entry: an index, a configuration, a declaration, a
+// test, or a file that the `bin` field of a package names (its commands, as knip takes them). Who uses which component is the consumers check's
 // (`scripts/consommateurs.mjs`). The files of a package out of the frame
 // (`docs/agents/hors-cadre.txt`) are excluded, and no module rule is written for it.
 //
@@ -90,9 +91,24 @@ function ecrire(regle, retrait) {
     .join('\n');
 }
 
+// The patterns of the files that the `bin` field of a package of <racine> names (a path, or an
+// object of paths), each from the root: entries of the package, as knip takes them.
+function entreesBin(racine) {
+  return composants(racine).flatMap(({ dir }) => {
+    const fichier = path.join(dir, 'package.json');
+    if (!existsSync(fichier)) return [];
+    const { bin } = JSON.parse(readFileSync(fichier, 'utf8'));
+    const cibles = typeof bin === 'string' ? [bin] : Object.values(bin ?? {});
+    return cibles
+      .filter(c => typeof c === 'string')
+      .map(c => `^${echappe(posix(path.relative(racine, path.resolve(dir, c))))}$`);
+  });
+}
+
 // The configuration text for the repository at <racine>.
 export function configuration(racine) {
   const modules = composants(racine).filter(c => path.relative(racine, c.dir).startsWith('src/'));
+  const bin = [...new Set(entreesBin(racine))].sort();
   const regles = [
     {
       name: 'pas-de-cycle',
@@ -137,7 +153,7 @@ export function configuration(racine) {
       severity: 'warn',
       from: {
         orphan: true,
-        pathNot: `${TESTS}|(^|/)index[.][a-z]+$|[.]d[.]ts$|[.]config[.][a-z]+$`,
+        pathNot: [`${TESTS}|(^|/)index[.][a-z]+$|[.]d[.]ts$|[.]config[.][a-z]+$`, ...bin].join('|'),
       },
       to: {},
     },

@@ -38,7 +38,8 @@ touche jamais la part écrite à la main. Le contrôle `scripts/interfaces-contr
 part générée périmée ou sans ses marques, un export auquel une rubrique manque, une étiquette
 inconnue ou mal formée, un `@faute` hors du catalogue, et un code du catalogue qu'aucun `@faute` ne
 nomme. Un paquet qui n'exporte que des sous-chemins, sans entrée `.` (la matière de test partagée,
-`./test-fixtures`), n'a pas d'API publique : son `INTERFACE.md` est tout entier écrit à la main, sans
+`./test-fixtures`), ou qui ne déclare ni `exports`, ni `main`, ni `types` (un paquet d'outils,
+ses commandes dans `bin`), n'a pas d'API publique : son `INTERFACE.md` est tout entier écrit à la main, sans
 marques ni rapport, et le contrôle ne lui demande aucune construction. L'index des interfaces (`docs/agents/index-des-interfaces.md`, généré par
 `npm run interfaces`) se construit depuis la part générée. Ainsi l'interface que lit un agent
 voisin dit vrai.

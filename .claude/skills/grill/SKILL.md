@@ -127,10 +127,19 @@ remplace jamais le grill. Les branches de l'arbre :
    service garde `deployment/`, le démon et `.env`), TypeScript ou JavaScript. **Plusieurs paquets,
    une forme publiée** : chaque paquet publie son entrée dans le champ `exports` de son
    `package.json`, construite dans `dist/` ; ses tests et leurs données restent dans le paquet.
+   **Les outils du projet, un paquet** : les scripts propres au projet (son typage, ses gardes, ses
+   traces) et leurs tests forment un paquet de l'espace de travail, comme `src/tools/` de rustc,
+   nommé selon la convention du projet ; il déclare ses commandes dans le champ `bin` de son
+   `package.json`, comme npm le prévoit pour un exécutable, et n'exporte aucun module. La racine
+   ne porte aucun test, et chaque test passe par `npm test`. Ainsi un outil se teste, se relit et
+   s'intègre comme un paquet.
    **Le corpus du produit, un seul paquet** : les cas qui traversent toute la chaîne, et dont toute
    modification d'un paquet peut changer le résultat, vivent dans un seul paquet qui exporte
    `./test-fixtures`, comme `tests/cases` de TypeScript ou `tests/ui` de rustc ; tous les rôles le
-   lisent, le testeur seul l'écrit. Ses données (scènes, paires) ne bougent que les tests qui
+   lisent, le testeur seul l'écrit. Sa configuration de Vitest s'écrit en CommonJS
+   (`vitest.config.cjs`, la base du cadre par `await import()`) : Vite écrit un fichier à côté
+   d'une configuration ESM pour la charger, et le corpus est en lecture seule chez les autres
+   rôles. Ses données (scènes, paires) ne bougent que les tests qui
    les lisent, comme le `data` de Bazel : chaque paquet déclare dans son `package.json`, depuis la
    racine, les dossiers de données seules que ses tests lisent (`"grillhouse": { "lit": [...] }`) ;
    son test les prend en entrée, et la construction du corpus les laisse hors des siennes. Une

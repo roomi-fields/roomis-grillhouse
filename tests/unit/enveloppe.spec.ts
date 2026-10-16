@@ -1680,6 +1680,22 @@ describe.runIf(canWrap)('the envelope and the package of the shared test materia
     expect(existsSync(path.join(copie, m, 'fixtures/racine'))).toBe(false);
     expect(run('testeur', `touch ${m}/fixtures/racine`, 'scripts').status).toBe(0);
   });
+  // Where a run of the material's tests writes in it, Turborepo's task logs and Vite's cache, every
+  // other role gets an empty directory proper to the session: nothing reaches the copy.
+  it('gives every other role an empty directory of its own where a run of its tests writes', () => {
+    const sorties = ['.turbo', 'node_modules/.vite'];
+    for (const role of AUTRES_ROLES) {
+      const ecrit = sorties.map(s => `touch ${m}/${s}/${role}`).join(' && ');
+      expect(run(role, ecrit).status, role).toBe(0);
+      for (const s of sorties) {
+        expect(existsSync(path.join(copie, m, s, role)), `${role} ${s}`).toBe(false);
+      }
+      expect(run(role, `touch ${m}/${role}`).status, role).not.toBe(0);
+    }
+    const r = run('testeur', `touch ${m}/.turbo/testeur`);
+    expect(r.status, r.stderr).toBe(0);
+    expect(existsSync(path.join(copie, m, '.turbo/testeur'))).toBe(true);
+  });
 });
 
 describe.runIf(canWrap)('the package of the shared test material, by any form of export', () => {

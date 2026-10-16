@@ -102,6 +102,7 @@ function depot() {
     corpus: {
       dependencies: { forms: '*', etage: '*', kernel: '*' },
       exports: { './test-fixtures': { types: './dist/index.d.ts' } },
+      scripts: { build: 'node ../../construire.mjs', 'test:vitest': 'vitest run' },
     },
   };
   for (const [nom, champs] of Object.entries(paquets)) {
@@ -124,23 +125,39 @@ function depot() {
     );
     ecrire(repo, `packages/${nom}/docs/INTERFACE.md`, `# ${nom}\n\n${DEBUT}\n${FIN}\n`);
   }
+  // A test writes its name to `joues.txt`; `corpus/echec` fails on its assertion.
+  const test = (nom: string, passe = true) =>
+    [
+      "import { appendFileSync } from 'node:fs';",
+      "import { expect, it } from 'vitest';",
+      `it('${nom}', () => {`,
+      `  appendFileSync(new URL('../../../joues.txt', import.meta.url), '${nom}\\n');`,
+      `  expect(${passe}).toBe(true);`,
+      '});',
+      '',
+    ].join('\n');
   ecrire(
     repo,
     'packages/kernel/vitest.config.mjs',
     `import base from ${JSON.stringify(BASE)};\nexport default base;\n`
   );
+  // The material's configuration is CommonJS, as the frame asks (scripts/turbo-des-paquets.mjs),
+  // and reaches the frame's base, ESM, by its name, as a project does: by a dynamic import, which
+  // Vite lets through where it refuses a `require` of an ESM package.
   ecrire(
     repo,
-    'packages/kernel/test/x.test.mjs',
+    'packages/corpus/vitest.config.cjs',
     [
-      "import { appendFileSync } from 'node:fs';",
-      "import { it } from 'vitest';",
-      "it('kernel/x', () => {",
-      "  appendFileSync(new URL('../../../joues.txt', import.meta.url), 'kernel/x\\n');",
-      '});',
+      "const { defineConfig, mergeConfig } = require('vitest/config');",
+      'module.exports = defineConfig(async () =>',
+      "  mergeConfig((await import('@grillhouse/vitest-config')).default, {})",
+      ');',
       '',
     ].join('\n')
   );
+  ecrire(repo, 'packages/kernel/test/x.test.mjs', test('kernel/x'));
+  ecrire(repo, 'packages/corpus/test/x.test.mjs', test('corpus/x'));
+  ecrire(repo, 'packages/corpus/echec/x.test.mjs', test('corpus/echec', false));
   ecrire(repo, '.gitignore', 'node_modules\n.turbo/\ndist/\njoues.txt\nconstruits.txt\n');
   ecrireTurbo(repo);
   const git = (...a: string[]) =>
@@ -151,6 +168,10 @@ function depot() {
   const copie = path.join(repo, '.claude/worktrees/demo-1');
   git('worktree', 'add', '-q', '-b', 'agent/demo-1', copie);
   symlinkSync(path.join(DEPOT, 'node_modules'), path.join(copie, 'node_modules'), 'dir');
+  // The frame's base, a workspace of a project, reached by its name from the material.
+  const base = path.join(copie, 'packages/corpus/node_modules/@grillhouse');
+  mkdirSync(base, { recursive: true });
+  symlinkSync(path.dirname(BASE), path.join(base, 'vitest-config'), 'dir');
   return { repo, copie };
 }
 
@@ -172,15 +193,12 @@ describe.runIf(canWrap)(
     const dehors = (shell: string) =>
       spawnSync('bash', ['-c', shell], { cwd: copie, encoding: 'utf8', env: ENV });
     const preparation = dehors('turbo run build');
-    const dedans = (shell: string) =>
-      spawnSync(
-        'node',
-        [ENVELOPPE, copie, 'packages/kernel', 'developpeur', '--', 'bash', '-c', shell],
-        {
-          encoding: 'utf8',
-          env: { ...ENV, HOME: home },
-        }
-      );
+    const dans = (role: string, shell: string) =>
+      spawnSync('node', [ENVELOPPE, copie, 'packages/kernel', role, '--', 'bash', '-c', shell], {
+        encoding: 'utf8',
+        env: { ...ENV, HOME: home },
+      });
+    const dedans = (shell: string) => dans('developpeur', shell);
     const sortie = (r: { stdout: string; stderr: string }) => `${r.stdout}\n${r.stderr}`;
     const lignes = (f: string) =>
       existsSync(path.join(copie, f))
@@ -226,6 +244,55 @@ describe.runIf(canWrap)(
       expect(r.status, sortie(r)).toBe(0);
       expect(lignes('joues.txt')).toContain('kernel/x');
       expect(lignes('construits.txt').filter(p => p !== 'kernel')).toEqual([]);
+    });
+
+    // Witness: BPScript (packages/990-corpus). The shared test material is read-only for every role
+    // but the testeur; a targeted run of one of its tests built it, and Turborepo wrote its task
+    // logs in it (`.turbo/turbo-<task>.log`): « Cannot write logs: Read-only file system », and the
+    // developer could not play a bench of the material. As in Bazel, a read-only input arrives
+    // built, and the logs of a test go to an output directory, never into the source.
+    describe('a test of the shared material, in the envelope of a role that does not write it', () => {
+      // Every path under the material, with its time of modification.
+      const etat = () =>
+        execFileSync('find', [path.join(copie, 'packages/corpus'), '-printf', '%p %T@\\n'], {
+          encoding: 'utf8',
+        });
+
+      it('plays without building the material or writing anything in it', () => {
+        rmSync(path.join(copie, 'construits.txt'), { force: true });
+        rmSync(path.join(copie, 'joues.txt'), { force: true });
+        // A first session makes the empty directories the envelope mounts its own over.
+        expect(dedans('true').status).toBe(0);
+        const avant = etat();
+        const r = dedans(`node ${TESTS} packages/corpus/test/x.test.mjs`);
+        expect(r.status, sortie(r)).toBe(0);
+        expect(lignes('joues.txt')).toEqual(['corpus/x']);
+        expect(lignes('construits.txt')).toEqual([]);
+        expect(etat()).toBe(avant);
+      });
+
+      it('gives its true verdict: a failing test fails on its assertion', () => {
+        rmSync(path.join(copie, 'joues.txt'), { force: true });
+        const r = dedans(`node ${TESTS} packages/corpus/echec/x.test.mjs`);
+        expect(r.status).not.toBe(0);
+        expect(lignes('joues.txt')).toEqual(['corpus/echec']);
+        expect(sortie(r)).not.toContain('Read-only file system');
+      });
+
+      it('in the envelope of the testeur, the material builds and writes as before', () => {
+        rmSync(path.join(copie, 'construits.txt'), { force: true });
+        const journal = path.join(copie, 'packages/corpus/.turbo/turbo-test$colon$vitest.log');
+        rmSync(journal, { force: true });
+        // A change to the material's source: its build misses the cache, and plays.
+        ecrire(copie, 'packages/corpus/src/index.d.ts', `${declarations('corpus')}// changé\n`);
+        const r = dans('testeur', `node ${TESTS} packages/corpus/test/x.test.mjs`);
+        expect(r.status, sortie(r)).toBe(0);
+        expect(lignes('construits.txt')).toEqual(['corpus']);
+        expect(readFileSync(path.join(copie, 'packages/corpus/dist/index.d.ts'), 'utf8')).toContain(
+          '// changé'
+        );
+        expect(existsSync(journal)).toBe(true);
+      });
     });
 
     it("npm run api writes the agent package's API report and generated part, its neighbours untouched", () => {

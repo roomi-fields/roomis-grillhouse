@@ -64,7 +64,9 @@ prime sur tout le reste.
 
 Tu vois ton paquet en entier, et des autres composants leur interface et leur forme publiée. Tes
 voisins arrivent construits, et les traces que lisent tes tests produites : `npm test -- <fichiers>` construit ton seul paquet et régénère ses propres traces, et `npm run api`,
-après lui, écrit le rapport d'API et la part générée de ton seul composant. Les
+après lui, écrit le rapport d'API et la part générée de ton seul composant. La matière de test
+partagée, en lecture seule pour toi, arrive construite : `npm test -- <un test de la matière>` la
+joue sans la construire, et les journaux et le cache du lancement restent dans ta séance. Les
 gardes du cadre (frontières, consommateurs, index des interfaces, rapports d'API) tournent à côté
 des tests, par `npm run verifier`, que l'intégration joue ; le relecteur les joue seules sur la
 copie (`npm run verifier -- --gardes`) ; leur refus nomme la commande qui corrige. Un lancement qui sort en 75, « à repasser », n'a vu que des échecs de durée sous charge

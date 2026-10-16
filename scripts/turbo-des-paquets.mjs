@@ -68,6 +68,13 @@
 // (`<package>#<task>`, the root's own `//#…` kept), a `trace:*` task, an input (`inputs` under
 // `$TURBO_ROOT$/`, `globalDependencies`) naming a package directory.
 //
+// The configuration of Vitest of the package of the shared test material (`matieres` of
+// scripts/consommateurs.mjs) is CommonJS (`vitest.config.cjs`): the envelope shows that package
+// read-only to every role but the testeur (scripts/enveloppe/enveloppe.mjs), and Vite 5 loads a
+// CommonJS configuration in memory, where it bundles an ESM one into a file beside it
+// (`vitest.config.mjs.timestamp-<n>.mjs`). The check refuses a `vitest.config.mjs` or `.mts` of
+// that package, and a `.js` or `.ts` when its `type` is `module`, as Vite tells ESM from CommonJS.
+//
 // The guard tasks of the root: the frame's controls (`grillhouse:gardes`) and the project's own
 // guards (`gardes`, the root script the frame reserves for them; a root without it plays none),
 // which `npm run verifier` plays beside the tests. They read what the builds write (the API
@@ -98,6 +105,7 @@ import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from '
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { applyEdits, modify, parse } from 'jsonc-parser';
+import { matieres } from './consommateurs.mjs';
 import { paquets } from './paquets.mjs';
 import { VARIABLE as TESTS_CIBLES } from './vitest-config/cibles.mjs';
 
@@ -442,6 +450,24 @@ function declarationsRefusees(racine) {
   return refus;
 }
 
+// The refusals of the configurations of Vitest that Vite loads as ESM in a package of the shared
+// test material of <racine>: one line per such file, as Vite judges it (`.mjs`, `.mts`, or `.js`,
+// `.ts` in a package of `"type": "module"`).
+function configsMatiereRefusees(racine) {
+  const refus = [];
+  for (const { dir } of matieres(racine)) {
+    const { type } = JSON.parse(readFileSync(path.join(dir, 'package.json'), 'utf8'));
+    for (const ext of ['mjs', 'mts', ...(type === 'module' ? ['js', 'ts'] : [])]) {
+      const f = path.relative(racine, path.join(dir, `vitest.config.${ext}`));
+      if (!existsSync(path.join(racine, f))) continue;
+      refus.push(
+        `⛔ ${f} : la configuration de Vitest du paquet de la matière s'écrit en CommonJS, \`vitest.config.cjs\` ; Vite écrit un fichier à côté d'une configuration ESM pour la charger, et la matière est en lecture seule chez tout rôle autre que le testeur.`
+      );
+    }
+  }
+  return refus;
+}
+
 // Whether the pattern <motif> (from the root) can name a file of one of the <dossiers>: its fixed
 // part, before the first glob character, lies in one, or holds one under a glob.
 function visePaquet(motif, dossiers) {
@@ -493,7 +519,11 @@ function racineRefusee(racine) {
 // lacks TESTS_CIBLES, per configuration of a package written
 // by hand in the root's turbo.json, and per declaration of data or trace refused.
 export function verifier(racine) {
-  const refus = [...racineRefusee(racine), ...declarationsRefusees(racine)];
+  const refus = [
+    ...racineRefusee(racine),
+    ...declarationsRefusees(racine),
+    ...configsMatiereRefusees(racine),
+  ];
   const tests = testsSansVariable(racine);
   if (tests) {
     refus.push(

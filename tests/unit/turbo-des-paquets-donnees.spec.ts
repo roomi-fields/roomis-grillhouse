@@ -475,6 +475,55 @@ describe('the check refuses a declaration the guarantee cannot hold on', () => {
   });
 });
 
+// Witness: BPScript (packages/990-corpus). The shared test material is read-only for every role
+// but the testeur, and Vite 5 bundles an ESM configuration into a file beside it before loading
+// it: a test of the material could not play in another role's envelope. Its configuration of
+// Vitest is CommonJS, which Vite loads in memory.
+describe('the check refuses an ESM configuration of Vitest in the shared test material', () => {
+  const matiere = (type?: string) =>
+    avec('990-corpus', p => {
+      p.exports = { './test-fixtures': './test/fixtures.ts' };
+      if (type) {
+        p.type = type;
+      }
+    });
+
+  it.each([
+    ['vitest.config.mts', undefined],
+    ['vitest.config.mjs', undefined],
+    ['vitest.config.ts', 'module'],
+    ['vitest.config.js', 'module'],
+  ])('%s (type %s), naming the file expected and the reason', (fichier, type) => {
+    const racine = depotBP(matiere(type));
+    ecrireFichier(racine, `${CORPUS}/${fichier}`, 'export default {};\n');
+    const refus = refusDe(racine);
+    expect(refus).toContain(`${CORPUS}/${fichier}`);
+    expect(refus).toContain('vitest.config.cjs');
+    expect(refus).toContain('lecture seule');
+  });
+
+  it.each([
+    ['vitest.config.cjs', 'module'],
+    ['vitest.config.cts', 'module'],
+    ['vitest.config.ts', undefined],
+    ['vitest.config.js', 'commonjs'],
+  ])('passes a CommonJS configuration: %s (type %s)', (fichier, type) => {
+    const racine = depotBP(matiere(type));
+    ecrireFichier(racine, `${CORPUS}/${fichier}`, 'module.exports = {};\n');
+    expect(refusDe(racine)).toBe('');
+  });
+
+  it('passes an ESM configuration of a package that is not the material', () => {
+    const racine = depotBP(
+      avec('010-parser', p => {
+        p.type = 'module';
+      })
+    );
+    ecrireFichier(racine, 'packages/010-parser/vitest.config.ts', 'export default {};\n');
+    expect(refusDe(racine)).toBe('');
+  });
+});
+
 // The root's turbo.json is the project's; what the generator owns there is refused by hand.
 describe('the check refuses a root turbo.json that configures a package by hand', () => {
   const racineAvec = (change: (t: Record<string, unknown>) => void) => {

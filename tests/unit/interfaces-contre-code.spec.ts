@@ -214,6 +214,35 @@ describe('the check', () => {
     );
     expect(existsSync(path.join(p.dir, 'packages/corpus/docs/INTERFACE.api.md'))).toBe(false);
   });
+  // Witness: BPScript. A package of tools only declares its commands in `bin`, and has neither
+  // `exports`, `main` nor `types`: it has no public API.
+  const OUTILS = {
+    'packages/outils/package.json': JSON.stringify({
+      name: 'outils',
+      bin: { 'bp-outil': './bin/outil.mjs' },
+    }),
+    'packages/outils/bin/outil.mjs': '#!/usr/bin/env node\nconsole.log(1);\n',
+    'packages/outils/docs/INTERFACE.md': '# outils\n\nLes outils du projet.\n',
+  };
+  it('passes a package of tools (bin only), and writes it no report nor part', () => {
+    const p = ecrit(OUTILS);
+    passe(p.run());
+    expect(p.lire('packages/outils/docs/INTERFACE.md')).toBe(
+      OUTILS['packages/outils/docs/INTERFACE.md']
+    );
+    expect(existsSync(path.join(p.dir, 'packages/outils/docs/INTERFACE.api.md'))).toBe(false);
+  });
+  it.each([
+    ['main', { main: './dist/index.js' }],
+    ['types', { types: './dist/index.d.ts' }],
+    ['typings', { typings: './dist/index.d.ts' }],
+  ])('refuses a package without exports but with %s, its build missing', (_champ, champs) => {
+    const p = ecrit({
+      ...OUTILS,
+      'packages/outils/package.json': JSON.stringify({ name: 'outils', bin: {}, ...champs }),
+    });
+    refusNommant(p.run(), 'packages/outils', /construis d'abord/);
+  });
   it('refuses a package with a « . » entry whose build is missing', () => {
     const p = ecrit({
       ...MATIERE,
