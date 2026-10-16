@@ -27,6 +27,7 @@ scripts/dette.mjs
 scripts/greffons.mjs
 scripts/enveloppe/
 scripts/frontieres.mjs
+scripts/gardes-du-cadre.mjs
 scripts/grillhouse-maj.mjs
 scripts/index-interfaces.mjs
 scripts/integration/

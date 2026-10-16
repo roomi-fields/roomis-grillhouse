@@ -23,7 +23,11 @@
 // - The session gets only the environment the envelope declares (`environnementDeLaSeance`), as
 //   sudo's env_reset and bwrap's --clearenv give it: the base of a login session, claude's own
 //   configuration and credentials (`ANTHROPIC_*`, `CLAUDE_CODE_OAUTH_TOKEN`), the npm cache it
-//   mounts, and `TMPDIR`, the session's working directory, where `mktemp` and `os.tmpdir()` write. bwrap
+//   mounts, `npm_config_ignore_scripts=true`, and `TMPDIR`, the session's working directory, where
+//   `mktemp` and `os.tmpdir()` write. With it npm runs no lifecycle script (`npm install` leaves the
+//   `prepare` that writes under the read-only `.git`; the launcher installs outside the session),
+//   while `npm test` and `npm run <script>` still run their script, without its `pre` or `post`
+//   (npm's `ignore-scripts`, docs/content/using-npm/config.md); no script of the frame has one. bwrap
 //   starts with that environment alone, so no other variable of the machine (`GH_TOKEN`,
 //   `NPM_TOKEN`…) enters, by name or by argument. The session also gets `GRILLHOUSE_ENVELOPPE`, the
 //   component's path (`composant.mjs`): the frame's commands build and write that component only. A declared variable that names a path
@@ -180,8 +184,10 @@ export function dossierDeTravail(copie) {
 
 // The environment of the session, from the environment <env> of the launch: the declared
 // variables and families that <env> holds, `npm_config_cache` set to the npm cache that the
-// envelope mounts in writing, `TMPDIR` set to the session's working directory <travail>, and
-// `GRILLHOUSE_ENVELOPPE` set to <composant>. Nothing else of <env> enters.
+// envelope mounts in writing, `npm_config_ignore_scripts` set to `true` (npm runs no lifecycle
+// script: a `prepare` that writes under the read-only `.git` would fail `npm install`; the
+// launcher installs outside the session), `TMPDIR` set to the session's working directory
+// <travail>, and `GRILLHOUSE_ENVELOPPE` set to <composant>. Nothing else of <env> enters.
 function environnementDeLaSeance(env, { cacheNpm, composant, travail }) {
   const declare = nom =>
     ENVIRONNEMENT_DECLARE.includes(nom) ||
@@ -191,6 +197,7 @@ function environnementDeLaSeance(env, { cacheNpm, composant, travail }) {
   return {
     ...Object.fromEntries(garde),
     npm_config_cache: cacheNpm,
+    npm_config_ignore_scripts: 'true',
     TMPDIR: travail,
     [VARIABLE]: composant,
   };

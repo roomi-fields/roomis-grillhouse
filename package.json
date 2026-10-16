@@ -34,7 +34,7 @@
     "daemon:status": "pm2 status",
     "daemon:delete": "pm2 delete project-name",
     "interfaces": "node scripts/index-interfaces.mjs",
-    "grillhouse:gardes": "node scripts/turbo-des-paquets.mjs && node scripts/index-interfaces.mjs --verifier && node scripts/consommateurs.mjs && node scripts/frontieres.mjs && node scripts/interfaces-contre-code.mjs && node scripts/code-mort.mjs",
+    "grillhouse:gardes": "node scripts/gardes-du-cadre.mjs",
     "frontieres": "node scripts/frontieres.mjs",
     "api": "node scripts/interfaces-contre-code.mjs --ecrire",
     "tableau": "node scripts/tableau.mjs --texte",

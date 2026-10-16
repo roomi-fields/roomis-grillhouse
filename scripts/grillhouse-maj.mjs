@@ -13,7 +13,7 @@
 //   settings stay. The file is written only when its JSON value changes (the same value under
 //   another layout stays as it is), and the keys keep the file's order, the frame's new ones after.
 // - `package.json`, when there is one: the frame's npm scripts (`tableau`, `grillhouse:maj`), and
-//   `grillhouse:gardes`, the list of the frame's controls, `grillhouse:dette:inscrire` and
+//   `grillhouse:gardes` (scripts/gardes-du-cadre.mjs, the frame's controls), `grillhouse:dette:inscrire` and
 //   `grillhouse:dette:elaguer` (the known debt of the guards, scripts/dette.mjs), and `api` (`npm run api`, which writes
 //   the API reports and the generated part of each `docs/INTERFACE.md`), each read as it is in the
 //   source's `package.json` (a source without one writes none). Turborepo plays `grillhouse:gardes`

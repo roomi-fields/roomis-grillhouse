@@ -25,6 +25,7 @@ import {
   regenerer,
 } from '../../scripts/grillhouse-maj.mjs';
 import { CONFIGURATION as CONFIG_DES_FRONTIERES } from '../../scripts/frontieres.mjs';
+import { GARDES_DU_CADRE } from '../../scripts/gardes-du-cadre.mjs';
 import { cheminSysteme, claudeSubstitut } from '../claude-substitut.js';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
@@ -168,8 +169,11 @@ describe('the update of a project', () => {
 // template. Turborepo plays that list after the build, beside the tests (turbo.json, npm run verifier).
 const DEPOT = path.resolve(__dirname, '../..');
 const GARDES = 'npm run --silent grillhouse:gardes';
-// The controls of the frame, in the order of the template's grillhouse:gardes (critère 1); the
-// build is not among them: Turborepo builds before them.
+// The controls of the frame, in the order of the list grillhouse:gardes plays
+// (scripts/gardes-du-cadre.mjs, critère 1); the build is not among them: Turborepo builds before
+// them.
+const APPEL_DES_GARDES = 'node scripts/gardes-du-cadre.mjs';
+const etapesDesGardes = () => GARDES_DU_CADRE.map(g => `node ${g.join(' ')}`);
 const CONTROLES: [string, RegExp][] = [
   ['turbo.json des paquets', /^node scripts\/turbo-des-paquets\.mjs$/],
   ['index des interfaces', /^node scripts\/index-interfaces\.mjs --verifier$/],
@@ -231,17 +235,16 @@ describe('grillhouse-3uv.55 critère 1 — the update writes grillhouse:gardes',
   it('critère 1: grillhouse:gardes plays the controls of the frame, in the order of the template, without a build step', () => {
     const g =
       installe({ name: 'p', scripts: { test: 'vitest run' } }).scripts()['grillhouse:gardes'] ?? '';
-    expect(g).not.toBe('');
-    const etapes = g.split('&&').map(x => x.trim());
-    expect(etapes, g).toHaveLength(CONTROLES.length);
+    expect(g).toBe(APPEL_DES_GARDES);
+    const etapes = etapesDesGardes();
+    expect(etapes).toHaveLength(CONTROLES.length);
     CONTROLES.forEach(([nom, motif], i) => expect(etapes[i], nom).toMatch(motif));
-    expect(g).not.toMatch(/\bbuild\b/);
+    expect(etapes.join(' ')).not.toMatch(/\bbuild\b/);
   });
   it('critère 1: each control grillhouse:gardes names is a file the update installs', () => {
-    const { projet, scripts } = installe({ name: 'p', scripts: {} });
-    const g = scripts()['grillhouse:gardes'] ?? '';
-    const noms = [...g.matchAll(/node (scripts\/\S+\.mjs)/g)].map(m => m[1] ?? '');
-    expect(noms, g).toHaveLength(CONTROLES.length);
+    const { projet } = installe({ name: 'p', scripts: {} });
+    const noms = ['scripts/gardes-du-cadre.mjs', ...GARDES_DU_CADRE.map(([f]) => f)];
+    expect(noms).toHaveLength(CONTROLES.length + 1);
     for (const f of noms) {
       expect(existsSync(path.join(projet, f)), f).toBe(true);
     }
@@ -279,9 +282,9 @@ describe('grillhouse-3uv.55 critère 4 — the template holds grillhouse:gardes:
     expect(gabarit()).not.toHaveProperty('pretest');
   });
   it('critère 4: grillhouse:gardes of the template plays the controls in the order of critère 1', () => {
-    const g = gabarit()['grillhouse:gardes'] ?? '';
-    const etapes = g.split('&&').map(x => x.trim());
-    expect(etapes, g).toHaveLength(CONTROLES.length);
+    expect(gabarit()['grillhouse:gardes']).toBe(APPEL_DES_GARDES);
+    const etapes = etapesDesGardes();
+    expect(etapes).toHaveLength(CONTROLES.length);
     CONTROLES.forEach(([nom, motif], i) => expect(etapes[i], nom).toMatch(motif));
   });
   it('critère 4: the update writes grillhouse:gardes exactly as the template holds it', () => {

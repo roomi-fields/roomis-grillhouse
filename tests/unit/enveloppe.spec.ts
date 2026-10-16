@@ -1024,6 +1024,39 @@ describe.runIf(canWrap && existsSync(CERTIFICATS))(
       expect(path.dirname(fichier ?? '')).toBe(travail);
       expect(existsSync(fichier ?? '')).toBe(true);
     });
+    // Witness: BPScript, whose `npm install` in the envelope failed: its `prepare` (the git hook)
+    // writes under `.git`, read-only there. The launcher installs outside the session.
+    it('tells npm to run no lifecycle script: npm_config_ignore_scripts, whatever the launch says', () => {
+      const r = run('printenv npm_config_ignore_scripts && npm config get ignore-scripts', {
+        npm_config_ignore_scripts: 'false',
+      });
+      expect(r.status, r.stderr).toBe(0);
+      expect(r.stdout).toBe('true\ntrue\n');
+    });
+    it('installs a package whose prepare writes under .git, and still runs a script by its name', () => {
+      const a = path.join(copie, 'packages/a');
+      const gitDir = execFileSync('git', ['-C', copie, 'rev-parse', '--absolute-git-dir'], {
+        encoding: 'utf8',
+      }).trim();
+      writeFileSync(
+        path.join(a, 'package.json'),
+        `${JSON.stringify({
+          name: 'a',
+          version: '0.0.0',
+          scripts: {
+            prepare: `touch ${path.join(gitDir, 'sonde')}`,
+            prebonjour: 'echo avant',
+            bonjour: 'echo bonjour',
+          },
+        })}\n`
+      );
+      const r = run(
+        `cd ${a} && npm install --no-audit --no-fund --silent && npm run --silent bonjour`
+      );
+      expect(r.status, r.stderr).toBe(0);
+      expect(r.stdout).toBe('bonjour\n');
+      expect(existsSync(path.join(gitDir, 'sonde'))).toBe(false);
+    });
   }
 );
 

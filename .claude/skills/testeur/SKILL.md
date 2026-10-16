@@ -51,13 +51,14 @@ change de forme.
 gardes la sortie de son échec. Un test vert d'emblée ne prouve rien ; tu le dis dans la passation. Ainsi chaque test prouve
 qu'il sait échouer.
 
-**Ce que tes tests lisent se déclare** : un test qui lit un dossier de données hors des imports
-(des scènes, des paires de la matière, la trace d'un autre étage) le fait déclarer dans le
-`package.json` de son paquet, chemin depuis la racine : `"grillhouse": { "lit": ["<dossier>"] }`.
-Le test n'est rejoué que si son code, ce qu'il importe ou un dossier déclaré change ; un dossier
-qu'un autre paquet déclare sort de la construction de la matière, et un lecteur qui l'omet garde
-un vert périmé. Un dossier déclaré ne porte que des données : le code s'importe. Le
-`package.json` revient au développeur : tu nommes les dossiers dans ta passation. Ainsi chaque
+**Ce que tes tests lisent se déclare** : un test qui lit des données hors des imports (des
+scènes, des paires de la matière, la trace d'un autre étage) fait déclarer leur chemin, dossier
+ou fichier, dans le `package.json` de son paquet, depuis la racine :
+`"grillhouse": { "lit": ["<chemin>"] }`. Le test n'est rejoué que si son code, ce qu'il importe ou
+un chemin déclaré change ; un chemin qu'un autre paquet déclare sort de la construction de la
+matière, et un lecteur qui l'omet garde un vert périmé. Un chemin déclaré ne porte que des
+données : le code s'importe. Le `package.json` revient au développeur : tu nommes les chemins
+dans ta passation. Ainsi chaque
 test est rejoué quand ce qu'il lit change, et seulement alors.
 
 **Un budget de temps vit dans son fichier** : un test qui mesure une durée s'écrit dans un fichier

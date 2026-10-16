@@ -524,6 +524,63 @@ describe('the check refuses an ESM configuration of Vitest in the shared test ma
   });
 });
 
+// A declared path is a directory or a file: BPScript declares three files. A file is hashed by its
+// reader's tests, left out of the build of the package holding it, and refused when absent or code.
+describe('a declared file is treated as a declared directory', () => {
+  const LEXIQUE = `${CORPUS}/test/040-checker/lexique.json`;
+  const depotAvecFichier = (fichier = LEXIQUE) => {
+    const racine = depotBP(
+      avec('040-checker', p => {
+        p.grillhouse = { lit: [SCENES_040, fichier] };
+      })
+    );
+    ecrireFichier(racine, LEXIQUE, '{"mot":1}\n');
+    return racine;
+  };
+
+  it('its reader’s tests hash it, and the build of the material leaves it out', () => {
+    const racine = depotAvecFichier();
+    expect(refusDe(racine)).toBe('');
+    const graphe = sec(racine, ['test:vitest']);
+    const lues = Object.keys(graphe.get('040-checker#test:vitest')!.inputs).map(f =>
+      path.posix.normalize(path.posix.join('packages/040-checker', f))
+    );
+    expect(lues).toContain(LEXIQUE);
+    const construites = Object.keys(graphe.get('990-corpus#build')!.inputs).map(f =>
+      path.posix.join(CORPUS, f)
+    );
+    expect(construites).not.toContain(LEXIQUE);
+    expect(construites).toContain(`${CORPUS}/test/autre/x.json`);
+  });
+
+  it('a change of it replays its reader’s tests, and leaves the material’s build as it is', () => {
+    const racine = depotAvecFichier();
+    ecrire(racine);
+    const empreintes = () =>
+      new Map([...sec(racine, ['test:vitest'])].map(([id, t]) => [id, t.hash]));
+    const avant = empreintes();
+    ecrireFichier(racine, LEXIQUE, '{"mot":2}\n');
+    const apres = empreintes();
+    expect(apres.get('040-checker#test:vitest')).not.toBe(avant.get('040-checker#test:vitest'));
+    expect(apres.get('990-corpus#build')).toBe(avant.get('990-corpus#build'));
+    expect(apres.get('060-encoder#test:vitest')).toBe(avant.get('060-encoder#test:vitest'));
+  });
+
+  it('a declared file absent that no trace writes is refused, named a path read', () => {
+    const absent = `${CORPUS}/test/040-checker/absent.json`;
+    const refus = refusDe(depotAvecFichier(absent));
+    expect(refus).toContain(`le chemin lu \`${absent}\` n'existe pas`);
+  });
+
+  it('a declared file of code is refused, named a path read', () => {
+    const code = `${CORPUS}/test/040-checker/aide.ts`;
+    const racine = depotAvecFichier(code);
+    ecrireFichier(racine, code, 'export {};\n');
+    const refus = refusDe(racine);
+    expect(refus).toContain(`le chemin lu \`${code}\` contient du code (${code})`);
+  });
+});
+
 // The root's turbo.json is the project's; what the generator owns there is refused by hand.
 describe('the check refuses a root turbo.json that configures a package by hand', () => {
   const racineAvec = (change: (t: Record<string, unknown>) => void) => {

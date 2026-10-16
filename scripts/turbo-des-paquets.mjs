@@ -39,7 +39,7 @@
 //     "traces": { "trace:grammaires": { "lit": ["…/paires-v1"], "ecrit": "packages/060-encoder/trace/grammaires-du-corpus" } }
 //   }
 //
-// - `lit`: the directories of data its tests read. Its `test:vitest` hashes them
+// - `lit`: the paths of data its tests read, directories or files. Its `test:vitest` hashes them
 //   (`inputs`: the root's, `$TURBO_EXTENDS$`, or Turborepo's default, `$TURBO_DEFAULT$`, when the
 //   root's task sets none, since `$TURBO_EXTENDS$` then extends an empty list; then
 //   `$TURBO_ROOT$/<dir>/**` each) and waits, beside the root's `dependsOn`, for each trace whose
@@ -433,7 +433,7 @@ function declarationsRefusees(racine) {
       if (!existsSync(path.join(racine, l))) {
         if (!sortie) {
           refus.push(
-            `⛔ ${ici} : le dossier lu \`${l}\` n'existe pas, et aucune trace ne l'écrit (\`grillhouse.traces\`).`
+            `⛔ ${ici} : le chemin lu \`${l}\` n'existe pas, et aucune trace ne l'écrit (\`grillhouse.traces\`).`
           );
         }
         continue;
@@ -442,7 +442,7 @@ function declarationsRefusees(racine) {
       if (code.length) {
         const noms = code.length > 5 ? [...code.slice(0, 5), '…'] : code;
         refus.push(
-          `⛔ ${ici} : le dossier lu \`${l}\` contient du code (${noms.join(', ')}) ; un dossier déclaré ne porte que des données, le code s'importe.`
+          `⛔ ${ici} : le chemin lu \`${l}\` contient du code (${noms.join(', ')}) ; un chemin déclaré ne porte que des données, le code s'importe.`
         );
       }
     }
