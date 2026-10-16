@@ -17,7 +17,7 @@ import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { canWrap, hasBd, racineSousLaMaison } from '../machine.js';
 import { CODE_COPIE, CODE_REFUS, CODE_USAGE } from '../../scripts/enveloppe/codes.mjs';
-import { montagesDeLaSeance, plan } from '../../scripts/enveloppe/enveloppe.mjs';
+import { dossierDeTravail, montagesDeLaSeance, plan } from '../../scripts/enveloppe/enveloppe.mjs';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS_TEMP = mkdtempSync(path.join(tmpdir(), 'enveloppe-'));
@@ -1004,6 +1004,28 @@ describe.runIf(canWrap && existsSync(CERTIFICATS))(
       expect(r.stdout.trim().split('\n').pop()).toBe(cacheAilleurs);
       expect(existsSync(path.join(cacheAilleurs, 'sonde'))).toBe(true);
     });
+    it('gives the session its working directory as TMPDIR, created and written', () => {
+      // The working directory lies in the copy's scratchpads, which the envelope mounts in writing.
+      const travail = dossierDeTravail(copie);
+      expect(travail).toBe(
+        path.join(
+          '/tmp',
+          `claude-${process.getuid?.()}`,
+          copie.replace(/[^A-Za-z0-9]/g, '-'),
+          'travail'
+        )
+      );
+      const r = run(
+        'printenv TMPDIR && node -p "require(\'node:os\').tmpdir()" && f=$(mktemp) && echo "$f"',
+        { TMPDIR: path.join(home, 'ailleurs') }
+      );
+      expect(r.status, r.stderr).toBe(0);
+      const [variable, deNode, fichier] = r.stdout.trim().split('\n');
+      expect(variable).toBe(travail);
+      expect(deNode).toBe(travail);
+      expect(path.dirname(fichier ?? '')).toBe(travail);
+      expect(existsSync(fichier ?? '')).toBe(true);
+    });
   }
 );
 
@@ -1240,7 +1262,9 @@ describe.runIf(canWrap)('the launcher', () => {
     expect(args).toBe(
       '-p|TON TICKET : demo-1 — un sujet.\n\n' +
         "## Ce que les composants d'avant publient\n\n" +
-        '`a` ne dépend d’aucun composant : aucune section « Consommateurs » ne le nomme.' +
+        '`a` ne dépend d’aucun composant : aucune section « Consommateurs » ne le nomme.\n\n' +
+        '## Ton dossier de travail\n\n' +
+        `Tout fichier temporaire s'écrit dans \`${dossierDeTravail(copie)}\`, que \`$TMPDIR\` nomme aussi.` +
         '|--agent|developpeur|--permission-mode|bypassPermissions|'
     );
     const vu = execFileSync('cat', [path.join(copie, 'packages/a/vu')], { encoding: 'utf8' });

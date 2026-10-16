@@ -33,12 +33,13 @@
 #   agent finds the published parts of its neighbours. As Bazel builds the dependencies of a target
 #   before the target: for a component that is a package of the frame, its providers are built
 #   first (the packages whose build its build waits for, read in Turborepo's graph,
-#   `turbo run build --filter=<paquet> --dry=json`), and a failure stops the launch, CODE_COPIE;
+#   `turbo run build --filter=<paquet> --dry=json`, which node reads on its standard input, whatever
+#   its size), and a failure stops the launch, CODE_COPIE;
 #   then the traces of other packages its tests wait for (`grillhouse.traces`, read in Turborepo's
 #   plan of its tests, `turbo run test:vitest --filter=<paquet> --dry=json`), which the envelope
 #   shows read-only, and a failure stops the launch, CODE_COPIE; then the package, its own traces
 #   and what its tests read (`turbo run build <its traces> --filter=<paquet>...`), whose failure
-#   does not stop it: the session opens, its instruction followed by a section « La construction de
+#   does not stop it: the session opens, its instruction ending with a section « La construction de
 #   ton paquet échoue » with the end of that output, since repairing it is the session's work (a
 #   provider's lot that breaks its consumers). Its consumers are not built. Any other component,
 #   the whole repository (`.`) included, builds the copy whole (`turbo run build`). The
@@ -52,7 +53,10 @@
 #   followed by the section « Ce que les composants d'avant publient »: for each component whose
 #   `## Consommateurs` section names the component, the elements its interface publishes and the
 #   rubric « Rend » of its frame, each at its address (`scripts/index-interfaces.mjs --publie`,
-#   read in the prepared copy; a reading that fails stops the launch, CODE_COPIE). The prompt
+#   read in the prepared copy; a reading that fails stops the launch, CODE_COPIE), then the
+#   section « Ton dossier de travail », which names the session's working directory, where every
+#   temporary file goes (`dossierDeTravail` of enveloppe.mjs, the envelope's TMPDIR), then the
+#   section « La construction de ton paquet échoue » when it fails. The prompt
 #   carries « TON TICKET : <ticket> », which the role's locks read. The envelope is the sandbox, so
 #   the session runs without permission prompts.
 # - Its output, and an envelope refusal (CODE_REFUS), go to .claude/worktrees/<ticket>.log; the
@@ -160,7 +164,8 @@ echec=$(mktemp)
     else
       # Its providers: the packages whose build its own build waits for, as Turborepo reads them.
       graphe=$(cd "$copie" && monter npx --no-install turbo run build "--filter=$paquet" --dry=json) || exit 1
-      fournisseurs=$(node -e 'const [g, p] = process.argv.slice(1); const t = JSON.parse(g).tasks.filter(t => t.taskId !== `${p}#build`); console.log([...new Set(t.map(t => `--filter=${t.package}`))].join("\n"));' "$graphe" "$paquet") || exit 1
+      # The graph comes on the standard input: as an argument, it may pass the size Linux allows one.
+      fournisseurs=$(node -e 'const [p] = process.argv.slice(1); const t = JSON.parse(require("node:fs").readFileSync(0, "utf8")).tasks.filter(t => t.taskId !== `${p}#build`); console.log([...new Set(t.map(t => `--filter=${t.package}`))].join("\n"));' "$paquet" <<<"$graphe") || exit 1
       if [ -n "$fournisseurs" ]; then
         mapfile -t filtres <<<"$fournisseurs"
         (cd "$copie" && monter npx --no-install turbo run build "${filtres[@]}") || exit 1
@@ -192,6 +197,10 @@ echec=$(mktemp)
 # What the components before publish, read in the prepared copy, follows the instruction.
 publie=$(cd "$copie" && node "$ici/../index-interfaces.mjs" --publie "$composant" 2>> "$journal") \
   || { rm -f "$echec"; echo "⛔ Ce que publient les composants d'avant n'a pas pu se lire : voir $journal." >&2; exit "$CODE_COPIE"; }
+# The session's working directory, the one the envelope gives as TMPDIR, follows them.
+travail=$(node --input-type=module -e "import { dossierDeTravail } from '$ici/enveloppe.mjs'; process.stdout.write(dossierDeTravail(process.argv[1]));" "$copie" 2>> "$journal") \
+  || { rm -f "$echec"; echo "⛔ Le dossier de travail de la séance n'a pas pu se lire : voir $journal." >&2; exit "$CODE_COPIE"; }
+dossier=$'\n\n'"## Ton dossier de travail"$'\n\n'"Tout fichier temporaire s'écrit dans \`$travail\`, que \`\$TMPDIR\` nomme aussi."
 construction=
 if [ -s "$echec" ]; then
   construction=$'\n\n'"## La construction de ton paquet échoue"$'\n\n'"Ses fournisseurs sont construits ; sa propre construction échoue, et la réparer fait partie de ta tâche. La fin de sa sortie :"$'\n\n```\n'"$(tail -n 100 "$echec")"$'\n```'
@@ -201,7 +210,7 @@ rm -f "$echec"
 # An envelope in error does not stop the launcher (set -e): its code is kept for the exit.
 code=0
 node "$racine/scripts/enveloppe/enveloppe.mjs" "$copie" "$composant" "$role" -- \
-  "${CLAUDE_BIN:-claude}" -p "$(cat "$consigne")"$'\n\n'"$publie$construction" --agent "$role" \
+  "${CLAUDE_BIN:-claude}" -p "$(cat "$consigne")"$'\n\n'"$publie$dossier$construction" --agent "$role" \
   ${surcharge[@]+"${surcharge[@]}"} --permission-mode bypassPermissions < /dev/null >> "$journal" 2>&1 || code=$?
 # The envelope ended: the session's line goes to the register from outside it, whatever its end hook did.
 node "$racine/scripts/registre.mjs" --copie "$copie" >> "$journal" 2>&1 || true

@@ -4,6 +4,7 @@ import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
 import { CODE_USAGE } from '../../scripts/enveloppe/codes.mjs';
+import { dossierDeTravail } from '../../scripts/enveloppe/enveloppe.mjs';
 
 // Ticket grillhouse-3uv.46: the launcher takes a model and a reasoning level for one session
 // (--modele, --effort) and hands them to claude (--model, --effort); without them, the role's
@@ -138,10 +139,19 @@ const PUBLIE_POUR_A = [
   '- **R3.** La durée d’un objet.',
 ].join('\n');
 
+// The section the launcher writes last: the session's working directory, in its copy's
+// scratchpads.
+const TRAVAIL = (ticket: string) =>
+  [
+    '## Ton dossier de travail',
+    '',
+    `Tout fichier temporaire s'écrit dans \`${dossierDeTravail(path.join(REPO, '.claude/worktrees', ticket))}\`, que \`$TMPDIR\` nomme aussi.`,
+  ].join('\n');
+
 // What claude receives today, for a ticket.
 const AUJOURDHUI = (ticket: string) => [
   '-p',
-  `TON TICKET : ${ticket} — un sujet.\n\n${PUBLIE_POUR_A}`,
+  `TON TICKET : ${ticket} — un sujet.\n\n${PUBLIE_POUR_A}\n\n${TRAVAIL(ticket)}`,
   '--agent',
   'developpeur',
   '--permission-mode',
@@ -224,7 +234,7 @@ describe.runIf(canWrap)('the launcher and what the components before publish', (
     const { r, args, ticket } = lancer([]);
     expect(r.status, r.stderr).toBe(0);
     expect(valeurs(args ?? [], '-p')).toEqual([
-      `TON TICKET : ${ticket} — un sujet.\n\n${PUBLIE_POUR_A}`,
+      `TON TICKET : ${ticket} — un sujet.\n\n${PUBLIE_POUR_A}\n\n${TRAVAIL(ticket)}`,
     ]);
   });
   it('tells the session of a component without provider, in one line, that it depends on none', () => {
@@ -232,8 +242,25 @@ describe.runIf(canWrap)('the launcher and what the components before publish', (
     expect(r.status, r.stderr).toBe(0);
     expect(valeurs(args ?? [], '-p')).toEqual([
       `TON TICKET : ${ticket} — un sujet.\n\n## Ce que les composants d'avant publient\n\n` +
-        '`b` ne dépend d’aucun composant : aucune section « Consommateurs » ne le nomme.',
+        '`b` ne dépend d’aucun composant : aucune section « Consommateurs » ne le nomme.\n\n' +
+        TRAVAIL(ticket),
     ]);
+  });
+});
+
+// The instruction names the session's working directory, the one the envelope gives as TMPDIR.
+describe.runIf(canWrap)("the launcher and the session's working directory", () => {
+  it('names the working directory of the copy after what the components before publish', () => {
+    const { r, args, copie } = lancer([]);
+    expect(r.status, r.stderr).toBe(0);
+    const [prompt] = valeurs(args ?? [], '-p');
+    const travail = dossierDeTravail(copie);
+    expect(prompt).toContain(
+      `## Ton dossier de travail\n\nTout fichier temporaire s'écrit dans \`${travail}\``
+    );
+    expect(prompt?.indexOf('## Ton dossier de travail')).toBeGreaterThan(
+      prompt?.indexOf("## Ce que les composants d'avant publient") ?? Infinity
+    );
   });
 });
 

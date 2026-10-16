@@ -350,6 +350,11 @@ describe.runIf(canWrap)(
       expect(r.status, trace).toBe(0);
       expect(prompt).toContain('La construction de ton paquet échoue');
       expect(prompt).toContain("Property 'name' does not exist");
+      expect(prompt).toContain('## Ton dossier de travail');
+      // The section of the build comes last, after the working directory.
+      expect(prompt?.indexOf('## La construction de ton paquet échoue')).toBeGreaterThan(
+        prompt?.indexOf('## Ton dossier de travail') ?? Infinity
+      );
       // The provider was built with its lot.
       expect(readFileSync(path.join(copie, 'packages/forms/dist/index.d.ts'), 'utf8')).toContain(
         'nom'
@@ -361,6 +366,51 @@ describe.runIf(canWrap)(
       const { r, prompt } = lancer();
       expect(r.status).toBe(CODE_COPIE);
       expect(prompt).toBeNull();
+    });
+
+    // Witness: a project whose graph of one package, `turbo run build --filter=<paquet>
+    // --dry=json`, held 216 948 bytes: passed as an argument, it went past the 128 KiB Linux
+    // allows one argument (MAX_ARG_STRLEN), « Liste d'arguments trop longue ». A stand-in for
+    // Turborepo, in the copy's own binaries, where `npx --no-install turbo` looks first, pads every
+    // plan it prints past that size.
+    it('reads a graph of Turborepo larger than one argument allows', () => {
+      const gros = path.join(repo, '.claude/worktrees/demo-gros');
+      const consigne = path.join(ESSAIS, 'consigne-gros.txt');
+      writeFileSync(consigne, 'TON TICKET : demo-gros — suivre forms.');
+      const lancerGros = () =>
+        spawnSync('bash', [LANCEUR, 'demo-gros', 'developpeur', 'packages/loader', consigne], {
+          cwd: repo,
+          encoding: 'utf8',
+          env: { ...ENV, CLAUDE_BIN: faux, HOME: home },
+        });
+      // A first launch makes the copy, with the real Turborepo.
+      expect(lancerGros().status).toBe(0);
+      const appels = path.join(ESSAIS, 'appels-turbo-gros');
+      const reel = JSON.stringify(path.join(BIN, 'turbo'));
+      ecrire(
+        gros,
+        'node_modules/.bin/turbo',
+        [
+          '#!/bin/bash',
+          'set -o pipefail',
+          `echo "$*" >> ${JSON.stringify(appels)}`,
+          'case " $* " in',
+          `  *" --dry=json "*) ${reel} "$@" | node -e 'const g = JSON.parse(require("node:fs").readFileSync(0, "utf8")); g.remplissage = "x".repeat(256 * 1024); process.stdout.write(JSON.stringify(g));' ;;`,
+          `  *) exec ${reel} "$@" ;;`,
+          'esac',
+          '',
+        ].join('\n')
+      );
+      chmodSync(path.join(gros, 'node_modules/.bin/turbo'), 0o755);
+      const r = lancerGros();
+      const journal = existsSync(`${gros}.log`) ? readFileSync(`${gros}.log`, 'utf8') : '';
+      expect(existsSync(appels) ? readFileSync(appels, 'utf8') : '').toContain(
+        '--filter=loader --dry=json'
+      );
+      expect(r.status, `${r.stderr}\n${journal}`).toBe(0);
+      expect(readFileSync(path.join(gros, 'packages/loader/args'), 'utf8')).toContain(
+        'TON TICKET : demo-gros'
+      );
     });
   }
 );

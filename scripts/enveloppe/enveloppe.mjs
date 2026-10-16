@@ -4,7 +4,8 @@
 // publishes. `node scripts/enveloppe/enveloppe.mjs <copie> <composant> <rôle> -- <commande…>`
 //
 // - The root `/` is read-only. Only these are written: the agent's copy; a `/tmp` empty and
-//   proper to the session, where only the scratchpad directory of the copy comes back; the npm
+//   proper to the session, where only the scratchpad directory of the copy comes back, the
+//   session's working directory inside it (`dossierDeTravail`); the npm
 //   cache; the Claude session state (`~/.claude` and the copy's project directory), whose
 //   configuration, skills, plugins and other projects stay read-only. `~/.claude.json` is a
 //   throwaway copy: the session writes it, the real file does not change. The tickets base (the
@@ -21,7 +22,8 @@
 //   the machine's credentials, only claude's own are in sight.
 // - The session gets only the environment the envelope declares (`environnementDeLaSeance`), as
 //   sudo's env_reset and bwrap's --clearenv give it: the base of a login session, claude's own
-//   configuration and credentials (`ANTHROPIC_*`, `CLAUDE_CODE_OAUTH_TOKEN`) and the npm cache it mounts. bwrap
+//   configuration and credentials (`ANTHROPIC_*`, `CLAUDE_CODE_OAUTH_TOKEN`), the npm cache it
+//   mounts, and `TMPDIR`, the session's working directory, where `mktemp` and `os.tmpdir()` write. bwrap
 //   starts with that environment alone, so no other variable of the machine (`GH_TOKEN`,
 //   `NPM_TOKEN`…) enters, by name or by argument. The session also gets `GRILLHOUSE_ENVELOPPE`, the
 //   component's path (`composant.mjs`): the frame's commands build and write that component only. A declared variable that names a path
@@ -151,17 +153,36 @@ const EPREUVE =
   'while [ "$1" != -- ]; do eval "p=\\${$1-}"; ' +
   'if [ -n "$p" ] && [ ! -e "$p" ]; then unset "$1"; fi; shift; done; shift; exec "$@"';
 
+// The directory of the scratchpads of <copie>: Claude keeps them under
+// `/tmp/claude-<uid>/<working directory in dashes>/`, every sign outside [A-Za-z0-9] a dash.
+function scratchpadsDe(copie) {
+  const enTirets = path.resolve(copie).replace(/[^A-Za-z0-9]/g, '-');
+  return path.join(TEMPORAIRE, `claude-${process.getuid()}`, enTirets);
+}
+
+// The working directory of a session in <copie>: `travail` in the copy's scratchpads, which the
+// envelope mounts in writing. The envelope creates it and names it in `TMPDIR`; the launcher names
+// it in the instruction.
+export function dossierDeTravail(copie) {
+  return path.join(scratchpadsDe(copie), 'travail');
+}
+
 // The environment of the session, from the environment <env> of the launch: the declared
 // variables and families that <env> holds, `npm_config_cache` set to the npm cache that the
-// envelope mounts in writing, and `GRILLHOUSE_ENVELOPPE` set to <composant>. Nothing else of <env>
-// enters.
-function environnementDeLaSeance(env, { cacheNpm, composant }) {
+// envelope mounts in writing, `TMPDIR` set to the session's working directory <travail>, and
+// `GRILLHOUSE_ENVELOPPE` set to <composant>. Nothing else of <env> enters.
+function environnementDeLaSeance(env, { cacheNpm, composant, travail }) {
   const declare = nom =>
     ENVIRONNEMENT_DECLARE.includes(nom) ||
     VARIABLES_DE_CHEMIN.includes(nom) ||
     FAMILLES_DECLAREES.some(f => nom.startsWith(f));
   const garde = Object.entries(env).filter(([nom, v]) => v !== undefined && declare(nom));
-  return { ...Object.fromEntries(garde), npm_config_cache: cacheNpm, [VARIABLE]: composant };
+  return {
+    ...Object.fromEntries(garde),
+    npm_config_cache: cacheNpm,
+    TMPDIR: travail,
+    [VARIABLE]: composant,
+  };
 }
 
 // The command run inside the envelope: <commande>, behind the test of the variables that name a
@@ -417,8 +438,10 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const enTirets = copie.replace(/[^A-Za-z0-9]/g, '-');
   const projet = path.join(claude, 'projects', enTirets);
   mkdirSync(projet, { recursive: true });
-  const scratchpads = path.join(TEMPORAIRE, `claude-${process.getuid()}`, enTirets);
-  mkdirSync(scratchpads, { recursive: true });
+  const scratchpads = scratchpadsDe(copie);
+  // The session's working directory, created here inside the scratchpads that bwrap mounts.
+  const travail = dossierDeTravail(copie);
+  mkdirSync(travail, { recursive: true });
   // `~/.claude.json` holds the permissions and servers of every project: it enters the session
   // as a throwaway copy, in a temporary directory removed on exit.
   const temporaire = mkdtempSync(path.join(os.tmpdir(), 'enveloppe-'));
@@ -466,7 +489,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   } else {
     const r = spawnSync('bwrap', [...args, ...commandeEprouvee(commande)], {
       stdio: 'inherit',
-      env: environnementDeLaSeance(process.env, { cacheNpm, composant }),
+      env: environnementDeLaSeance(process.env, { cacheNpm, composant, travail }),
     });
     if (r.error) process.stderr.write(`⛔ ENVELOPPE IMPOSSIBLE — ${r.error.message}\n`);
     code = r.error ? CODE_REFUS : (r.status ?? 1);
