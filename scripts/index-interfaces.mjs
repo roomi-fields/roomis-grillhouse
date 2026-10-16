@@ -182,12 +182,12 @@ function rend(racine, rel) {
 // instruction of a role agent (scripts/enveloppe/lancer.sh). <composant> is the component's path
 // in the repository at <racine> (`packages/a`, `src/parser`), or `.` for a copy of the whole
 // repository. Its providers are the components whose `## Consommateurs` section names it; for
-// each, its first sentence, the elements declared for it, then the index of its generated part, as
-// the index of a Rust documentation: every element, declared for it or not, in one line, its name,
-// the first sentence of its summary and its address (`<interface> § <heading>`), never its
-// members, which are read at the address; then the rubric « Rend » of its frame with its address
-// (`<cadre> § <heading>`), or one line saying the frame or the rubric is missing. Each interface
-// and each frame is read once.
+// each, its first sentence and, once, the address of its elements (`<interface> § <name>`), the
+// elements declared for it, then the index of its generated part, as the index of a Rust
+// documentation: every element, declared for it or not, in one line, its name and the first
+// sentence of its summary, never its members, which are read at the address; then the rubric
+// « Rend » of its frame with its address (`<cadre> § <heading>`), or one line saying the frame or
+// the rubric is missing. Each interface and each frame is read once.
 export function publie(racine, composant) {
   if (composant === '.') {
     return [
@@ -215,7 +215,7 @@ export function publie(racine, composant) {
   const out = [
     TITRE_PUBLIE,
     '',
-    `\`${nom}\` dépend de ces composants ; chaque élément publié se lit à son adresse.`,
+    `\`${nom}\` dépend de ces composants ; chaque élément publié se lit dans l’interface de son fournisseur.`,
   ];
   for (const f of fournisseurs) {
     const elements = f.parties.filter(p => !p.consommateurs);
@@ -223,7 +223,9 @@ export function publie(racine, composant) {
       '',
       `### ${f.tetiere}`,
       '',
-      `${f.phrase} (\`${f.rel}\`)`,
+      elements.length === 0
+        ? `${f.phrase} (\`${f.rel}\`)`
+        : `${f.phrase} Chaque élément se lit à \`${f.rel}\` § <son nom>.`,
       `Déclaré pour \`${nom}\` : ${[...f.declare].join(', ')}.`,
       ''
     );
@@ -231,7 +233,7 @@ export function publie(racine, composant) {
       out.push('Son interface n’a pas de part générée : elle dit elle-même ce qu’elle publie.');
     }
     for (const e of elements) {
-      out.push(`- ${e.titre}${e.phrase ? ` — ${e.phrase}` : ''} (\`${f.rel}\` § ${e.titre})`);
+      out.push(`- ${e.titre}${e.phrase ? ` — ${e.phrase}` : ''}`);
     }
     const cadre = path.join(path.dirname(f.rel), 'CADRE.md');
     const r = rend(racine, cadre);

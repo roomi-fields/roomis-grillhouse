@@ -455,21 +455,21 @@ describe('publie: what the providers of a component publish', () => {
     'src/seul/index.ts': 's',
   });
 
-  it('gives each provider, what is declared for the component, each element at its address, and its rubric « Rend »', () => {
+  it('gives each provider, the address of its elements once, what is declared for the component, each element, and its rubric « Rend »', () => {
     expect(publie(dir, 'packages/a')).toBe(
       [
         "## Ce que les composants d'avant publient",
         '',
-        '`a` dépend de ces composants ; chaque élément publié se lit à son adresse.',
+        '`a` dépend de ces composants ; chaque élément publié se lit dans l’interface de son fournisseur.',
         '',
         '### b — l’interface',
         '',
-        'Le composant b rend les durées. (`packages/b/docs/INTERFACE.md`)',
+        'Le composant b rend les durées. Chaque élément se lit à `packages/b/docs/INTERFACE.md` § <son nom>.',
         'Déclaré pour `a` : duree.',
         '',
-        '- `duree` — Rend la durée d’un objet en battements. (`packages/b/docs/INTERFACE.md` § `duree`)',
-        '- `Objet` — Un objet lu. (`packages/b/docs/INTERFACE.md` § `Objet`)',
-        '- `garde` (`packages/b/docs/INTERFACE.md` § `garde`)',
+        '- `duree` — Rend la durée d’un objet en battements.',
+        '- `Objet` — Un objet lu.',
+        '- `garde`',
         '',
         'Son cadre rend (`packages/b/docs/CADRE.md` § 3. Rend) :',
         '',
@@ -621,9 +621,9 @@ describe('publie and entrees: an element gives its summary, never its members', 
   it('gives the section one line per element, its summary its role, no member', () => {
     const lignes = publie(dir, 'packages/n').split('\n');
     expect(lignes.filter(l => l.startsWith('- '))).toEqual([
-      '- `Accuse` (`packages/m/docs/INTERFACE.md` § `Accuse`)',
-      '- `lier` — Lie deux notes (`packages/m/docs/INTERFACE.md` § `lier`)',
-      '- `Note` — Une note jouée, sur deux lignes de son résumé. (`packages/m/docs/INTERFACE.md` § `Note`)',
+      '- `Accuse`',
+      '- `lier` — Lie deux notes',
+      '- `Note` — Une note jouée, sur deux lignes de son résumé.',
     ]);
     expect(lignes.join('\n')).not.toMatch(/Membres|Paramètres|Retour|accepte|hauteur|première/);
   });
