@@ -472,3 +472,52 @@ describe('3uv.40 critère 6 : the board has one definition of a running agent, f
     expect(sansRien(p, 'demo-6')).toBe(false);
   });
 });
+
+// BPScript 320.5.2: a mother and its children per component, led one after the other in one copy.
+// While an agent runs on one ticket of the circuit, the others wait their turn: the circuit lives.
+describe('the alert « en cours sans rien qui tourne » names a whole silent circuit only', () => {
+  const vivant = (ticket: string) => ({
+    agent: `a-${ticket}`,
+    ticket,
+    role: 'developpeur',
+    ligne: false,
+    depuis: Date.now() - MIN,
+    entre: null,
+    jetons: 0,
+    travail: 0,
+    tours: [],
+  });
+  const circuit = (vivants: object[]) => {
+    const maintenant = Date.now();
+    return assembler({
+      tous: [
+        reclame('demo-9'),
+        { ...reclame('demo-9.1'), parent: 'demo-9' },
+        { ...reclame('demo-9.2'), parent: 'demo-9' },
+        reclame('demo-10'),
+      ],
+      prefix: 'demo',
+      registre: [],
+      vivants,
+      maintenant,
+      jour: maintenant - 24 * 60 * MIN,
+    }) as Panneau;
+  };
+
+  it('the children waiting while an agent runs on their mother raise no alert', () => {
+    const p = circuit([vivant('demo-9')]);
+    expect(sansRien(p, 'demo-9.1')).toBe(false);
+    expect(sansRien(p, 'demo-9.2')).toBe(false);
+  });
+  it('the mother and a sibling waiting while an agent runs on one child raise no alert', () => {
+    const p = circuit([vivant('demo-9.2')]);
+    expect(sansRien(p, 'demo-9')).toBe(false);
+    expect(sansRien(p, 'demo-9.1')).toBe(false);
+  });
+  it('a circuit where nothing runs raises the alert for each of its tickets, another circuit running notwithstanding', () => {
+    const p = circuit([vivant('demo-10')]);
+    expect(sansRien(p, 'demo-9')).toBe(true);
+    expect(sansRien(p, 'demo-9.1')).toBe(true);
+    expect(sansRien(p, 'demo-10')).toBe(false);
+  });
+});

@@ -850,11 +850,23 @@ export function assembler({
       }
     }
   }
+  // A ticket's circuit: from its highest mother still open (an epic is a chantier, not a circuit),
+  // that mother and every ticket under it. A circuit lives while an agent runs on one of its
+  // tickets: the others wait their turn in the same copy.
+  const racineDuCircuit = t => {
+    let r = t;
+    for (let m = parId.get(r.parent); m && m.issue_type !== 'epic' && m.status !== 'closed';) {
+      r = m;
+      m = parId.get(r.parent);
+    }
+    return r;
+  };
+  const vit = t => actifs.has(t.id) || (enfants.get(t.id) ?? []).some(vit);
   for (const t of tous) {
     if (
       travail(t) &&
       t.status === 'in_progress' &&
-      !actifs.has(t.id) &&
+      !vit(racineDuCircuit(t)) &&
       t.started_at &&
       maintenant - Date.parse(t.started_at) > SANS_AGENT
     ) {
