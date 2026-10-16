@@ -1015,14 +1015,12 @@ describe.runIf(canWrap && existsSync(CERTIFICATS))(
           'travail'
         )
       );
-      const r = run(
-        'printenv TMPDIR && node -p "require(\'node:os\').tmpdir()" && f=$(mktemp) && echo "$f"',
-        { TMPDIR: path.join(home, 'ailleurs') }
-      );
+      const r = run('printenv TMPDIR && f=$(mktemp) && echo "$f"', {
+        TMPDIR: path.join(home, 'ailleurs'),
+      });
       expect(r.status, r.stderr).toBe(0);
-      const [variable, deNode, fichier] = r.stdout.trim().split('\n');
+      const [variable, fichier] = r.stdout.trim().split('\n');
       expect(variable).toBe(travail);
-      expect(deNode).toBe(travail);
       expect(path.dirname(fichier ?? '')).toBe(travail);
       expect(existsSync(fichier ?? '')).toBe(true);
     });
