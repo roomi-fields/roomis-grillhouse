@@ -3,18 +3,12 @@
   "ui": "stream",
   "tasks": {
     "build": {
-      "dependsOn": [
-        "^build"
-      ],
-      "outputs": [
-        "dist/**"
-      ]
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
     },
     "test:vitest": {
-      "dependsOn": [
-        "build",
-        "^build"
-      ],
+      "dependsOn": ["build", "^build"],
+      "env": ["GRILLHOUSE_TESTS"],
       "outputs": []
     },
     "//#grillhouse:gardes": {

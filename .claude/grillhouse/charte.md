@@ -112,8 +112,10 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
   perd.
 - **Les tests se lancent par `npm test`** (Turborepo : la construction, puis les tests) :
   `npm test -- <chemins>` pour un lancement ciblé, chaque chemin écrit depuis la racine du dépôt
-  et joué dans son paquet, `npm run test:forcer -- <chemins>` pour rejouer pour de vrai un test
-  soupçonné instable ; un lancement qui ne joue aucun test échoue ; aucun agent ne lance l'outil
+  et joué dans son paquet avec ce dont ses tests dépendent (un autre jeu de chemins relit les
+  constructions du cache ; un changement de ce qu'ils importent les rejoue),
+  `npm run test:forcer -- <chemins>` pour rejouer pour de vrai un test soupçonné instable ; un
+  lancement qui ne joue aucun test échoue ; aucun agent ne lance l'outil
   de test directement. `npm run verifier` joue tout après la construction : les gardes du cadre,
   celles du projet (son script racine `gardes`, un nom que le cadre réserve ; une garde juge les
   fichiers de l'arbre de travail, que le cache de Turborepo compte, jamais l'index de git) et les

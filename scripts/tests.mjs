@@ -17,28 +17,33 @@
 //   (`docs/agents/hors-cadre.txt`), or in a package without a `test:vitest` script is refused,
 //   named, and nothing plays. In a repository without packages, the paths go to the root's Vitest
 //   as they are.
-// - A run with paths plays in two Turborepo runs: the builds first, without arguments
-//   (`turbo run build --filter=<name>...`: each package and its dependencies; the root's build in a
-//   repository without packages), then the tests alone (`turbo run test:vitest --only`), which
-//   receive the paths after `--`. Turborepo passes the arguments after `--` to every task of the
-//   run and counts them in each task's hash: in one run, naming another file would play each build
-//   again. A build that fails ends the run, and no test plays. `--force` plays the tests named for
-//   real, their builds replayed from the cache: a test suspected unstable is played again, and a
-//   build, which the same inputs give again, is not.
-// - The builds' run also plays the traces the tests of the named packages wait for (a package's
-//   `grillhouse.lit` over another's `grillhouse.traces`, scripts/turbo-des-paquets.mjs), as Bazel
-//   produces the inputs of a test before it: their task ids (`<producer>#trace:<name>`) read in
-//   Turborepo's plan of those tests (`turbo run test:vitest --filter=<name> --dry=json`), the graph
-//   Turborepo plays, the one the launcher reads; without arguments, so replayed from the cache. A
-//   trace that fails ends the run, as a build.
+// - The paths and the options reach Vitest in the variable `GRILLHOUSE_TESTS`
+//   (scripts/vitest-config/cibles.mjs), which the `env` of the task `test:vitest` names, never
+//   after `--`: Turborepo passes the arguments after `--` to the tasks the command names only, and
+//   counts them in the hash of every task of the run (its documentation, « Caching »: « including
+//   dependencies of `build` that did not receive `--arg=value` »), where a variable of a task's
+//   `env` enters that task's hash alone. So a run with paths is one Turborepo run of the tests with
+//   what they depend on (`turbo run test:vitest --filter=<name>`): the builds and the traces they
+//   wait for play first, from the cache when nothing moved, whatever paths are named, and the hash
+//   of the tests holds theirs, as Bazel's key of a target holds its transitive inputs; a change to
+//   a package the tests import, or to what they read, plays them again. A build that fails ends the
+//   run, and no test plays. Every other run of Turborepo plays with the variable unset.
+// - `--force` with paths plays the tests named for real, their builds replayed from the cache:
+//   Turborepo's `--force` re-executes every task of the run, so the variable carries the moment of
+//   the run instead (`rejouer`), a value no cached run of the tests has. A test suspected unstable
+//   is played again, and a build, which the same inputs give again, is not.
 // - In the envelope of an agent (`GRILLHOUSE_ENVELOPPE`, scripts/enveloppe/composant.mjs), the
 //   neighbours and their traces arrive built by the launcher and read-only, as in a sandbox of
 //   Bazel: the build is the named packages' alone, with the traces of those packages their tests
 //   wait for, which live in the package the agent writes (`turbo run build <name>#trace:<t>…
-//   --only --filter=<name>`, the build before the trace, replayed from the cache when nothing
-//   moved), never their dependencies nor a neighbour's trace.
-// - An argument that begins with « - » is an option of Vitest, written `--<name>=<value>`, passed to
-//   each run of the tests as it is.
+//   --only --filter=<name>`, their task ids read in Turborepo's plan of the tests,
+//   `turbo run test:vitest --filter=<name> --dry=json`), never their dependencies nor a
+//   neighbour's trace; then the tests alone (`turbo run test:vitest --only --filter=<name>`), the
+//   paths in the variable. There the hash of the tests sees neither the code of the neighbours nor
+//   their builds: the verdict that counts is the reviewer's and the integration's, out of the
+//   envelope.
+// - An argument that begins with « - » is an option of Vitest, written `--<name>=<value>`, carried
+//   in the variable beside the paths.
 // - A run that plays no test fails: the frame's base configuration of Vitest keeps Vitest's
 //   `passWithNoTests: false` (scripts/vitest-config/base.mjs).
 // The exit code is Turborepo's; 2 for a path refused.
@@ -48,23 +53,26 @@ import path from 'node:path';
 import { composantDeLEnveloppe } from './enveloppe/composant.mjs';
 import { paquets } from './paquets.mjs';
 import { tracesDuPlan } from './turbo-des-paquets.mjs';
+import { VARIABLE } from './vitest-config/cibles.mjs';
 
 const racine = process.cwd();
 const enveloppe = composantDeLEnveloppe() !== null;
 const args = process.argv.slice(2);
-const force = args.includes('--force') ? ['--force'] : [];
+const force = args.includes('--force');
 const options = args.filter(a => a.startsWith('-') && a !== '--force');
 const chemins = args.filter(a => !a.startsWith('-'));
 
-// One Turborepo run of <args>; its exit code.
-const turbo = args =>
-  spawnSync('turbo', ['run', ...args], { cwd: racine, stdio: 'inherit' }).status ?? 1;
+// One Turborepo run of <args>, VARIABLE set to <tests> (unset without); its exit code.
+const turbo = (args, tests) => {
+  const env = { ...process.env };
+  delete env[VARIABLE];
+  if (tests) env[VARIABLE] = JSON.stringify(tests);
+  return spawnSync('turbo', ['run', ...args], { cwd: racine, stdio: 'inherit', env }).status ?? 1;
+};
 
-// The trace tasks the tests <filtres> select wait for, read in Turborepo's plan of those tests, the
-// ones <garder> keeps; none without a filter. A plan that fails exits with its code, its output
-// written.
-const traces = (filtres, garder) => {
-  if (filtres.length === 0) return [];
+// The trace tasks of the packages <noms> their tests wait for, read in Turborepo's plan of the
+// tests <filtres> select. A plan that fails exits with its code, its output written.
+const traces = (filtres, noms) => {
   const plan = spawnSync('turbo', ['run', 'test:vitest', ...filtres, '--dry=json'], {
     cwd: racine,
     encoding: 'utf8',
@@ -74,26 +82,30 @@ const traces = (filtres, garder) => {
     process.stderr.write(`${plan.stdout ?? ''}${plan.stderr ?? ''}`);
     process.exit(plan.status ?? 1);
   }
-  return tracesDuPlan(JSON.parse(plan.stdout), garder);
+  return tracesDuPlan(JSON.parse(plan.stdout), t => noms.has(t.package));
 };
 
-// The builds <filtres> select with the traces their tests wait for (in an envelope, the packages
-// they name alone, with their own traces), then the tests <filtres> select alone, which receive
-// <passes>; exits with the first exit code that is not 0, else with the tests'.
+// The tests <filtres> select, which receive <passes> in VARIABLE: one run with what they depend on;
+// in an envelope, the build of the packages they name with their own traces, then the tests alone.
+// Exits with the first exit code that is not 0, else with the tests'.
 const cibles = (filtres, passes) => {
+  const tests = { arguments: passes, ...(force ? { rejouer: new Date().toISOString() } : {}) };
+  if (!enveloppe) process.exit(turbo(['test:vitest', ...filtres], tests));
   const noms = new Set(filtres.map(f => f.slice('--filter='.length)));
-  const construction = turbo(
-    enveloppe
-      ? ['build', ...traces(filtres, t => noms.has(t.package)), '--only', ...filtres]
-      : ['build', ...traces(filtres), ...filtres.map(f => `${f}...`)]
-  );
+  const propres = filtres.length ? traces(filtres, noms) : [];
+  const construction = turbo(['build', ...propres, '--only', ...filtres]);
   if (construction !== 0) process.exit(construction);
-  process.exit(turbo(['test:vitest', '--only', ...force, ...filtres, '--', ...passes]));
+  process.exit(turbo(['test:vitest', '--only', ...filtres], tests));
 };
 
 const liste = paquets(racine);
 if (chemins.length === 0) {
-  process.exit(turbo(['test:vitest', ...force, ...(options.length ? ['--', ...options] : [])]));
+  process.exit(
+    turbo(
+      ['test:vitest', ...(force ? ['--force'] : [])],
+      options.length ? { arguments: options } : undefined
+    )
+  );
 }
 if (liste.length === 0) cibles([], [...chemins, ...options]);
 

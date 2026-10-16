@@ -15,6 +15,7 @@
     },
     "test:vitest": {
       "dependsOn": ["build"],
+      "env": ["GRILLHOUSE_TESTS"],
       "outputs": []
     }
   }

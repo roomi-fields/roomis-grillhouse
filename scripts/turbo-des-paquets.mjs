@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // The `turbo.json` of each package of a repository of packages, generated from its package.json
 // (its dependencies, the data its tests read and the traces it writes), the root's turbo.json and
-// the list of the packages out of the frame; and the `dependsOn` of the guard tasks of the root's
-// turbo.json.
+// the list of the packages out of the frame; and, in the root's turbo.json, the `dependsOn` of the
+// guard tasks and the `env` of the tests.
 //
 //   node scripts/turbo-des-paquets.mjs           refuses a turbo.json absent or stale, and a
 //                                                declaration of data or trace refused (below)
-//   node scripts/turbo-des-paquets.mjs --ecrire  writes the turbo.json of each package and the
-//                                                guards' dependsOn in the root's
+//   node scripts/turbo-des-paquets.mjs --ecrire  writes the turbo.json of each package, and the
+//                                                guards' dependsOn and the tests' env in the root's
 //
 // Turborepo's `^build` waits for the build of every internal package a package declares, its
 // devDependencies included; a package whose tests import a neighbour that depends on it (the
@@ -82,6 +82,13 @@
 // `dependsOn` differs. A repository without a root turbo.json (or turbo.jsonc) has nothing written
 // or refused at its root.
 //
+// The tests of a targeted run: the paths reach Vitest in the variable `GRILLHOUSE_TESTS`
+// (scripts/vitest-config/cibles.mjs, scripts/tests.mjs), which the `env` of the root's
+// `test:vitest` names: it enters the hash of the tests alone, and reaches their process alone
+// (Turborepo's strict mode of the variables). A package's own `test:vitest` sets no `env`, and
+// inherits the root's. The generator adds the variable to the `env` of the root's `test:vitest`,
+// the project's entries kept, and the check refuses a `test:vitest` of the root without it.
+//
 // The packages are those of `paquets` (scripts/paquets.mjs, the frame's one list of the packages of
 // a repository, each marked out of the frame or not). A repository without `workspaces` has none:
 // no package turbo.json is written or refused. The dependencies are written in the package.json
@@ -92,6 +99,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { applyEdits, modify, parse } from 'jsonc-parser';
 import { paquets } from './paquets.mjs';
+import { VARIABLE as TESTS_CIBLES } from './vitest-config/cibles.mjs';
 
 export const TURBO = 'turbo.json';
 export const COMMANDE = 'node scripts/turbo-des-paquets.mjs --ecrire';
@@ -310,8 +318,19 @@ function gardesEcartees(racine) {
   return { f, texte, ecarts };
 }
 
-// Writes the turbo.json of each package of <racine> and the guards' dependsOn in its root's;
-// returns the paths written.
+// The `env` the `test:vitest` of the root's turbo.json at <racine> must hold, TESTS_CIBLES added
+// to the project's, when it lacks it: { f, attendu }; null when it holds it, without a root
+// configuration or a `test:vitest` in it, and when it is no JSON.
+function testsSansVariable(racine) {
+  const r = confRacine(racine);
+  const tache = r?.conf.tasks?.[TESTS];
+  if (!tache || typeof tache !== 'object') return null;
+  const actuel = Array.isArray(tache.env) ? tache.env : [];
+  return actuel.includes(TESTS_CIBLES) ? null : { f: r.f, attendu: [...actuel, TESTS_CIBLES] };
+}
+
+// Writes the turbo.json of each package of <racine>, and in its root's the guards' dependsOn and
+// the tests' env; returns the paths written.
 export function ecrire(racine) {
   const ecrits = [];
   for (const [f, t] of attendus(racine)) {
@@ -331,6 +350,14 @@ export function ecrire(racine) {
     }
     writeFileSync(path.join(racine, racineEcartee.f), texte);
     ecrits.push(racineEcartee.f);
+  }
+  const tests = testsSansVariable(racine);
+  if (tests) {
+    const abs = path.join(racine, tests.f);
+    const texte = readFileSync(abs, 'utf8');
+    const chemin = ['tasks', TESTS, 'env'];
+    writeFileSync(abs, applyEdits(texte, modify(texte, chemin, tests.attendu, MISE_EN_FORME)));
+    if (!ecrits.includes(tests.f)) ecrits.push(tests.f);
   }
   return ecrits;
 }
@@ -462,10 +489,17 @@ function racineRefusee(racine) {
 }
 
 // The refusals of <racine>: one line per package turbo.json absent or other than generated, per
-// guard task of the root absent or whose dependsOn differs, per configuration of a package written
+// guard task of the root absent or whose dependsOn differs, for a root `test:vitest` whose `env`
+// lacks TESTS_CIBLES, per configuration of a package written
 // by hand in the root's turbo.json, and per declaration of data or trace refused.
 export function verifier(racine) {
   const refus = [...racineRefusee(racine), ...declarationsRefusees(racine)];
+  const tests = testsSansVariable(racine);
+  if (tests) {
+    refus.push(
+      `⛔ ${tests.f} : l'\`env\` de \`${TESTS}\` doit nommer ${TESTS_CIBLES}, qui porte les chemins d'une passe ciblée dans le seul hachage des tests ; \`${COMMANDE}\` l'ajoute.`
+    );
+  }
   for (const { cle, attendu, present } of gardesEcartees(racine)?.ecarts ?? []) {
     const f = fichierRacine(racine);
     refus.push(
@@ -494,7 +528,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const args = process.argv.slice(2);
   if (args.some(a => a !== '--ecrire')) {
     process.stderr.write(
-      'Usage : node scripts/turbo-des-paquets.mjs [--ecrire]   vérifie, ou écrit, le turbo.json de chaque paquet et les dépendances des gardes de la racine\n'
+      'Usage : node scripts/turbo-des-paquets.mjs [--ecrire]   vérifie, ou écrit, le turbo.json de chaque paquet, et à la racine les dépendances des gardes et l’env des tests\n'
     );
     process.exit(2);
   }

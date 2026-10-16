@@ -21,12 +21,15 @@
 //   place under load, scripts/vitest-config/duree.reporter.mjs) is played again alone, once the CPU
 //   pressure is back under the threshold (scripts/vitest-config/pression.mjs; one line per 30 s at
 //   most while it waits, with the pressure), one task after the other:
-//   `turbo run <task> --filter=<package> --only`, the arguments given after it (its prerequisites
-//   passed in the pass, `--only` plays it alone). Green at rest, it is green; at any code other
+//   `turbo run <task> --filter=<package>`, the arguments given after it, with what it depends on,
+//   which passed in the pass and replays from the cache: its hash holds theirs, as in the pass.
+//   Green at rest, it is green; at any code other
 //   than 0 and 75, red; at 75 again (the load came back during the run), it waits and plays again.
 // - The wait is bounded: 15 min after the pass. The bound reached, the verdict is 75, « à
 //   repasser »: neither green nor red; whoever launched the pass presents it again later
 //   (scripts/integration/integrer.mjs, scripts/integration/file.mjs, scripts/nuit.sh).
+// - Every run plays without the variable of a targeted run's tests (`GRILLHOUSE_TESTS`,
+//   scripts/vitest-config/cibles.mjs): the pass plays every test.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, rmdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
@@ -37,6 +40,7 @@ import {
   BORNE_ATTENTE_MS,
   lirePression,
 } from './vitest-config/pression.mjs';
+import { VARIABLE as TESTS_CIBLES } from './vitest-config/cibles.mjs';
 
 const GARDES = ['grillhouse:gardes', 'gardes'];
 const TACHES = [...GARDES, 'test:vitest'];
@@ -54,7 +58,9 @@ export function verifier({
   pasMs = 2_000,
   dire = l => process.stdout.write(`${l}\n`),
 }) {
-  const turbo = a => spawnSync('turbo', ['run', ...a], { cwd: racine, env, stdio: 'inherit' });
+  const { [TESTS_CIBLES]: _, ...propre } = env;
+  const turbo = a =>
+    spawnSync('turbo', ['run', ...a], { cwd: racine, env: propre, stdio: 'inherit' });
   // Each red named, then the verdict 1.
   const rouge = liste => {
     for (const r of liste) dire(`⛔ ${r}`);
@@ -125,7 +131,7 @@ export function verifier({
         return A_REPASSER;
       }
       dire(`↻ ${t.taskId} : relance au repos.`);
-      const r = turbo([t.task, `--filter=${t.package}`, '--only', ...args]);
+      const r = turbo([t.task, `--filter=${t.package}`, ...args]);
       if (r.status === 0) dire(`✓ ${t.taskId} vert au repos.`);
       else if (r.status === A_REPASSER) suivants.push(t);
       else rouges.push(`${t.taskId} rouge au repos (code ${r.status ?? r.signal})`);

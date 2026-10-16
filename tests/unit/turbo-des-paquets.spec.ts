@@ -669,12 +669,59 @@ describe('the guard tasks of the root wait for the build of each package of the 
   });
 });
 
+// Witness: BPScript, whose reviewer measured it: the targeted run played its tests alone (`--only`),
+// whose hash left out the builds they wait for. The paths now reach Vitest in a variable the `env`
+// of the root's `test:vitest` names (scripts/tests.mjs), which the generator keeps there.
+describe('the env of the root’s test:vitest names the variable of the targeted runs', () => {
+  const env = (racine: string) =>
+    (
+      parseJsonc(lire(racine, 'turbo.json'), [], { allowTrailingComma: true }) as {
+        tasks: Record<string, { env?: string[] }>;
+      }
+    ).tasks['test:vitest']?.env;
+
+  it('both templates hold it, and the generator writes nothing for it', () => {
+    const racine = depotAPaquets();
+    expect(env(racine)).toEqual(['GRILLHOUSE_TESTS']);
+    ecrire(racine);
+    expect(env(racine)).toEqual(['GRILLHOUSE_TESTS']);
+    const sans = mkdtempSync(path.join(ESSAIS, 'sans-paquets-'));
+    ecrireFichier(sans, 'package.json', pkg({ name: 'p', scripts: { build: 'tsc' } }));
+    ecrireFichier(sans, 'turbo.json', lire(DEPOT, 'templates/turbo/sans-paquets.json'));
+    expect(ecrire(sans)).toEqual([]);
+    expect(env(sans)).toEqual(['GRILLHOUSE_TESTS']);
+  });
+
+  it('a root test:vitest without it: the check refuses it, naming the variable and the command; the generator adds it to the project’s', () => {
+    const racine = depotAPaquets();
+    ecrire(racine);
+    const t = JSON.parse(lire(racine, 'turbo.json')) as {
+      tasks: Record<string, Record<string, unknown>>;
+    };
+    t.tasks['test:vitest'] = { ...t.tasks['test:vitest'], env: ['CI'] };
+    ecrireFichier(racine, 'turbo.json', JSON.stringify(t, null, 2));
+    const r = lancer(racine, []);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('GRILLHOUSE_TESTS');
+    expect(r.stderr).toContain(COMMANDE);
+    expect(lancer(racine, ['--ecrire']).status).toBe(0);
+    expect(env(racine)).toEqual(['CI', 'GRILLHOUSE_TESTS']);
+    expect(lancer(racine, []).status).toBe(0);
+  });
+});
+
 // Witness: BPScript, whose dead-code guard refused « jsonc-parser: devDependency without use »:
 // the generator loaded it by a `require` knip does not follow, and the frame's own tests, which
 // import it too, stay in Grillhouse. The generator imports it as any module does.
 describe('the generator’s use of jsonc-parser is one the dead-code guard sees', () => {
   it('a project holding the frame’s scripts, jsonc-parser declared, has no finding on it', () => {
-    const scripts = ['turbo-des-paquets.mjs', 'paquets.mjs', 'consommateurs.mjs', 'dette.mjs'];
+    const scripts = [
+      'turbo-des-paquets.mjs',
+      'paquets.mjs',
+      'consommateurs.mjs',
+      'dette.mjs',
+      'vitest-config/cibles.mjs',
+    ];
     const r = codeMortEssai(ESSAIS, {
       'package.json': pkg({
         name: 'p',

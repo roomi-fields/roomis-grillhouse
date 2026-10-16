@@ -298,6 +298,164 @@ describe('npm test -- <files>, in a repository without packages', { timeout: 60_
   });
 });
 
+// Witness: BPScript, whose reviewer measured it. The targeted run played the tests alone
+// (`turbo run test:vitest --only`), whose hash then counts neither the builds nor the traces they
+// wait for: a change to a package they import replayed from the cache a green of the former code.
+// As Bazel's key of a target holds its transitive inputs, a targeted test replays from the cache
+// only while what it imports is unchanged.
+
+// A repository of packages: `a` builds `dist/v.txt` from `src/v.txt`, and `b`, which depends on
+// `a`, has a test that reads it and writes `b/<what it read>` to `joues.txt`.
+function depotAImport() {
+  const r = mkdtempSync(path.join(ESSAIS, 'import-'));
+  symlinkSync(path.join(DEPOT, 'node_modules'), path.join(r, 'node_modules'), 'dir');
+  ecrire(
+    r,
+    'package.json',
+    json({ name: 'essai', private: true, workspaces: ['packages/*'], packageManager: 'npm@10.9.8' })
+  );
+  ecrire(r, 'turbo.json', readFileSync(path.join(DEPOT, 'templates/turbo/paquets.json'), 'utf8'));
+  ecrire(r, 'docs/agents/hors-cadre.txt', '');
+  ecrire(
+    r,
+    'packages/a/package.json',
+    json({ name: 'a', type: 'module', scripts: { build: 'node construire.mjs' } })
+  );
+  ecrire(
+    r,
+    'packages/a/construire.mjs',
+    [
+      "import { copyFileSync, mkdirSync } from 'node:fs';",
+      "mkdirSync('dist', { recursive: true });",
+      "copyFileSync('src/v.txt', 'dist/v.txt');",
+      '',
+    ].join('\n')
+  );
+  ecrire(r, 'packages/a/src/v.txt', 'v1');
+  ecrire(
+    r,
+    'packages/b/package.json',
+    json({
+      name: 'b',
+      type: 'module',
+      dependencies: { a: '*' },
+      scripts: { build: 'true', 'test:vitest': 'vitest run' },
+    })
+  );
+  ecrire(r, 'packages/b/vitest.config.mjs', configuration);
+  ecrire(
+    r,
+    'packages/b/test/x.test.mjs',
+    [
+      "import { appendFileSync, readFileSync } from 'node:fs';",
+      "import { it } from 'vitest';",
+      "it('b/x', () => {",
+      "  const lu = readFileSync(new URL('../../a/dist/v.txt', import.meta.url), 'utf8');",
+      "  appendFileSync(new URL('../../../joues.txt', import.meta.url), `b/${lu}\\n`);",
+      '});',
+      '',
+    ].join('\n')
+  );
+  ecrire(r, '.gitignore', 'node_modules\n.turbo/\njoues.txt\ndist/\n');
+  ecrireTurbo(r);
+  for (const a of [
+    ['init', '-q'],
+    ['add', '-A'],
+    ['commit', '-qm', 'init'],
+  ]) {
+    spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { cwd: r });
+  }
+  return r;
+}
+
+describe(
+  'a targeted run replays its tests from the cache only while what they import is unchanged',
+  {
+    timeout: 60_000,
+  },
+  () => {
+    it('a package the tests import changed: the tests play again, over its new build', () => {
+      const racine = depotAImport();
+      const r1 = lancer(racine, ['packages/b/test/x.test.mjs']);
+      expect(r1.status, sortie(r1)).toBe(0);
+      writeFileSync(path.join(racine, 'packages/a/src/v.txt'), 'v2');
+      const r2 = lancer(racine, ['packages/b/test/x.test.mjs']);
+      expect(r2.status, sortie(r2)).toBe(0);
+      expect(joues(racine)).toEqual(['b/v1', 'b/v2']);
+    });
+
+    it('nothing changed: the tests replay from the cache', () => {
+      const racine = depotAImport();
+      expect(lancer(racine, ['packages/b/test/x.test.mjs']).status).toBe(0);
+      const r = lancer(racine, ['packages/b/test/x.test.mjs']);
+      expect(r.status, sortie(r)).toBe(0);
+      expect(r.stdout).toContain('cache hit');
+      expect(joues(racine)).toEqual(['b/v1']);
+    });
+
+    // In an envelope the tests play alone (`--only`): their hash holds the agent's package and the
+    // paths named, never the code of the neighbours (the header of scripts/tests.mjs).
+    it('in an envelope, a change to the agent’s package plays its tests again', () => {
+      const racine = depotAImport();
+      const dedans = { GRILLHOUSE_ENVELOPPE: 'packages/b' };
+      const construction = spawnSync('turbo', ['run', 'build', '--filter=a'], {
+        cwd: racine,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          PATH: `${path.join(DEPOT, 'node_modules/.bin')}${path.delimiter}${process.env.PATH ?? ''}`,
+          TURBO_TELEMETRY_DISABLED: '1',
+        },
+      });
+      expect(construction.status, sortie(construction)).toBe(0);
+      const r1 = lancer(racine, ['packages/b/test/x.test.mjs'], dedans);
+      expect(r1.status, sortie(r1)).toBe(0);
+      const test = path.join(racine, 'packages/b/test/x.test.mjs');
+      writeFileSync(test, `${readFileSync(test, 'utf8')}// changed\n`);
+      const r2 = lancer(racine, ['packages/b/test/x.test.mjs'], dedans);
+      expect(r2.status, sortie(r2)).toBe(0);
+      expect(joues(racine)).toEqual(['b/v1', 'b/v1']);
+    });
+
+    // Turborepo's strict mode of the variables: a variable of a task's `env` enters its hash, and
+    // reaches its process, alone.
+    it('the variable of the paths enters the hash of the tests alone, never a build’s', () => {
+      const racine = depotATrace();
+      const plan = (valeur: string) => {
+        const r = spawnSync('turbo', ['run', 'test:vitest', '--filter=lect', '--dry=json'], {
+          cwd: racine,
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            PATH: `${path.join(DEPOT, 'node_modules/.bin')}${path.delimiter}${process.env.PATH ?? ''}`,
+            TURBO_TELEMETRY_DISABLED: '1',
+            GRILLHOUSE_TESTS: valeur,
+          },
+        });
+        expect(r.status, sortie(r)).toBe(0);
+        return Object.fromEntries(
+          (JSON.parse(r.stdout) as { tasks: { taskId: string; hash: string }[] }).tasks.map(t => [
+            t.taskId,
+            t.hash,
+          ])
+        );
+      };
+      const un = plan('{"arguments":["/x"]}');
+      const deux = plan('{"arguments":["/y"]}');
+      expect(Object.keys(un).sort()).toEqual([
+        'lect#build',
+        'lect#test:vitest',
+        'prod#build',
+        'prod#trace:g',
+      ]);
+      for (const t of ['lect#build', 'prod#build', 'prod#trace:g']) {
+        expect(deux[t], t).toBe(un[t]);
+      }
+      expect(deux['lect#test:vitest']).not.toBe(un['lect#test:vitest']);
+    });
+  }
+);
+
 // Witness: BPScript (320.6.6). A package whose tests read the trace of another
 // (`grillhouse.lit` over its `grillhouse.traces`) has its `test:vitest` wait for
 // `<producer>#trace:<name>`; the targeted run played the builds, then the tests alone (`--only`),

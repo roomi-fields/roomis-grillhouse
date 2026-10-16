@@ -467,7 +467,7 @@ describe('the update removes the frame’s former wiring of the guards', () => {
 // and `.turbo/` ignored by git.
 const SANS_PAQUETS = 'templates/turbo/sans-paquets.json';
 const PAQUETS = 'templates/turbo/paquets.json';
-type Taches = Record<string, { dependsOn?: string[]; outputs?: string[] }>;
+type Taches = Record<string, { dependsOn?: string[]; env?: string[]; outputs?: string[] }>;
 const taches = (racine: string, f: string) => (json(racine, f) as { tasks: Taches }).tasks;
 describe('the update installs Turborepo', () => {
   it('turbo.json is not a frame file: the list does not name it', () => {
@@ -480,13 +480,13 @@ describe('the update installs Turborepo', () => {
       build: { outputs: ['dist/**'] },
       'grillhouse:gardes': { dependsOn: ['build'], outputs: [] },
       gardes: { dependsOn: ['build'], outputs: [] },
-      'test:vitest': { dependsOn: ['build'], outputs: [] },
+      'test:vitest': { dependsOn: ['build'], env: ['GRILLHOUSE_TESTS'], outputs: [] },
     });
   });
   it('the template with packages: each package builds after its dependencies and tests after its own build and theirs, the root plays the guards, whose dependsOn the generator writes', () => {
     expect(taches(DEPOT, PAQUETS)).toEqual({
       build: { dependsOn: ['^build'], outputs: ['dist/**'] },
-      'test:vitest': { dependsOn: ['build', '^build'], outputs: [] },
+      'test:vitest': { dependsOn: ['build', '^build'], env: ['GRILLHOUSE_TESTS'], outputs: [] },
       '//#grillhouse:gardes': { dependsOn: [], outputs: [] },
       '//#gardes': { dependsOn: [], outputs: [] },
     });
