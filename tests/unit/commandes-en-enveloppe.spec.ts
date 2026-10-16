@@ -488,6 +488,95 @@ describe.runIf(canWrap)(
   }
 );
 
+// Witness: BPScript. Between the testeur's lot and the developer's, the build of 030-binder failed;
+// Turborepo, by default (`--continue=never`), cancelled the build of 040-checker, which its tests
+// read and whose build does not wait for it: the copy kept a dist/ of 040-checker half rewritten,
+// read-only in the envelope, and every test of 030-binder crashed on loading. As Bazel's
+// `--keep_going`, a failure stops only what depends on it: what the tests read is built whole.
+describe.runIf(canWrap)(
+  "the launcher builds what the session package's tests read, whole, when its own build fails",
+  { timeout: 300_000 },
+  () => {
+    const repo = path.join(ESSAIS, 'lanceur-lus');
+    ecrire(
+      repo,
+      'package.json',
+      json({
+        name: 'essai',
+        private: true,
+        workspaces: ['packages/*'],
+        packageManager: 'npm@10.9.8',
+      })
+    );
+    ecrire(
+      repo,
+      'turbo.json',
+      readFileSync(path.join(DEPOT, 'templates/turbo/paquets.json'), 'utf8')
+    );
+    // `lent`, which the tests of `paq` read, writes the start of its dist/, waits, then its end.
+    ecrire(
+      repo,
+      'packages/lent/construire.mjs',
+      [
+        "import { mkdirSync, writeFileSync } from 'node:fs';",
+        "mkdirSync('dist', { recursive: true });",
+        "writeFileSync('dist/debut.txt', 'début');",
+        'await new Promise(r => setTimeout(r, 5000));',
+        "writeFileSync('dist/fin.txt', 'fin');",
+        '',
+      ].join('\n')
+    );
+    ecrire(
+      repo,
+      'packages/lent/package.json',
+      json({ name: 'lent', type: 'module', scripts: { build: 'node construire.mjs' } })
+    );
+    // `paq`'s build fails at once; it reads `lent` in its tests only.
+    ecrire(
+      repo,
+      'packages/paq/package.json',
+      json({
+        name: 'paq',
+        devDependencies: { lent: '*' },
+        scripts: { build: "echo 'construction cassée' >&2; exit 1" },
+      })
+    );
+    ecrire(repo, '.claude/agents/developpeur.md', '---\nname: developpeur\n---\n');
+    ecrire(repo, '.gitignore', 'node_modules\n.turbo/\ndist/\n.claude/worktrees/\n');
+    cpSync(path.join(DEPOT, 'scripts'), path.join(repo, 'scripts'), { recursive: true });
+    // A stand-in for claude: it writes the prompt it reads on its standard input.
+    const faux = path.join(repo, 'faux-claude.sh');
+    ecrire(repo, 'faux-claude.sh', '#!/bin/bash\ncat > "$GRILLHOUSE_ENVELOPPE/prompt"\n');
+    chmodSync(faux, 0o755);
+    ecrireTurbo(repo);
+    const git = (...a: string[]) =>
+      execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
+    git('init', '-q');
+    git('add', '.');
+    git('commit', '-qm', 'init');
+    const home = path.join(ESSAIS, 'home-lanceur-lus');
+    mkdirSync(path.join(home, '.claude'), { recursive: true });
+
+    it('opens the session, the error in its instruction, and what its tests read built whole', () => {
+      const copie = path.join(repo, '.claude/worktrees/demo-1');
+      const consigne = path.join(ESSAIS, 'consigne-lus.txt');
+      writeFileSync(consigne, 'TON TICKET : demo-1 — réparer paq.');
+      const r = spawnSync('bash', [LANCEUR, 'demo-1', 'developpeur', 'packages/paq', consigne], {
+        cwd: repo,
+        encoding: 'utf8',
+        env: { ...ENV, CLAUDE_BIN: faux, HOME: home },
+      });
+      const journal = existsSync(`${copie}.log`) ? readFileSync(`${copie}.log`, 'utf8') : '';
+      const trace = `${r.stderr}\n${journal}`;
+      expect(r.status, trace).toBe(0);
+      const prompt = readFileSync(path.join(copie, 'packages/paq/prompt'), 'utf8');
+      expect(prompt).toContain('La construction de ton paquet échoue');
+      expect(prompt).toContain('construction cassée');
+      expect(existsSync(path.join(copie, 'packages/lent/dist/fin.txt')), trace).toBe(true);
+    });
+  }
+);
+
 // Witness: BPScript (320.6.6). The tests of 070-deriver read the trace of 060-encoder
 // (`grillhouse.lit` over its `grillhouse.traces`); in the envelope, the build is the package's
 // alone, and the trace lives in the producer, read-only: the session's test failed, « trace

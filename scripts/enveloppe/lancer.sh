@@ -38,9 +38,11 @@
 #   then the traces of other packages its tests wait for (`grillhouse.traces`, read in Turborepo's
 #   plan of its tests, `turbo run test:vitest --filter=<paquet> --dry=json`), which the envelope
 #   shows read-only, and a failure stops the launch, CODE_COPIE; then the package, its own traces
-#   and what its tests read (`turbo run build <its traces> --filter=<paquet>...`), whose failure
-#   does not stop it: the session opens, its instruction ending with a section « La construction de
-#   ton paquet échoue » with the end of that output, since repairing it is the session's work (a
+#   and what its tests read (`turbo run build <its traces> --filter=<paquet>...
+#   --continue=dependencies-successful`), whose failure does not stop it: each task whose
+#   dependencies succeed goes to its end, so what its tests read without depending on it is built
+#   whole; the session opens, its instruction ending with a section « La construction de ton
+#   paquet échoue » with the end of that output, since repairing it is the session's work (a
 #   provider's lot that breaks its consumers). Its consumers are not built. Any other component,
 #   the whole repository (`.`) included, builds the copy whole (`turbo run build`). The
 #   installation and the build play through `scripts/sous-modules.sh monter`, each shared submodule
@@ -188,7 +190,10 @@ echec=$(mktemp)
       [ -z "$propres" ] || mapfile -t ids <<<"$propres"
       # The package itself, its own traces, and what its tests read (the shared test material),
       # built after its providers: a failure does not stop the launch, it goes into the instruction.
-      if ! (cd "$copie" && monter npx --no-install turbo run build ${ids[@]+"${ids[@]}"} "--filter=$paquet...") > "$echec" 2>&1; then
+      # Each task whose dependencies succeed goes to its end (--continue=dependencies-successful):
+      # the package's failure does not cancel the build of what its tests read without depending
+      # on it, which the envelope shows read-only.
+      if ! (cd "$copie" && monter npx --no-install turbo run build ${ids[@]+"${ids[@]}"} "--filter=$paquet..." --continue=dependencies-successful) > "$echec" 2>&1; then
         cat "$echec"
         echo "⚠️  La construction de $paquet échoue : la séance s'ouvre, la consigne porte l'erreur."
       else
@@ -206,7 +211,7 @@ travail=$(node --input-type=module -e "import { dossierDeTravail } from '$ici/en
 dossier=$'\n\n'"## Ton dossier de travail"$'\n\n'"Tout fichier temporaire s'écrit dans \`$travail\`, que \`\$TMPDIR\` nomme aussi."
 construction=
 if [ -s "$echec" ]; then
-  construction=$'\n\n'"## La construction de ton paquet échoue"$'\n\n'"Ses fournisseurs sont construits ; sa propre construction échoue, et la réparer fait partie de ta tâche. La fin de sa sortie :"$'\n\n```\n'"$(tail -n 100 "$echec")"$'\n```'
+  construction=$'\n\n'"## La construction de ton paquet échoue"$'\n\n'"Ses fournisseurs et ce que ses tests lisent sans dépendre de lui sont construits ; sa propre construction échoue, et la réparer fait partie de ta tâche. La fin de sa sortie :"$'\n\n```\n'"$(tail -n 100 "$echec")"$'\n```'
 fi
 rm -f "$echec"
 # The prompt, assembled in a file: claude reads it on its standard input, since as an argument it
