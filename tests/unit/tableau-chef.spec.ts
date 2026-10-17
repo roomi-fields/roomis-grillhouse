@@ -90,7 +90,8 @@ const agentShell = (home: string, session: string, role: string, ticket: string)
     path.join(copie, `${session}.jsonl`),
     [l({ type: 'agent-setting', agentSetting: role }), transcription(ticket, 1)].join('\n')
   );
-  return `  4242  300 claude -p TON TICKET : ${ticket} --agent ${role}\n`;
+  // lancer.sh hands the prompt on the standard input: the line names the copy and the role.
+  return `  4242  300 node ${RACINE}/scripts/enveloppe/enveloppe.mjs ${RACINE}/.claude/worktrees/${ticket} packages/demo ${role} -- claude -p --agent ${role} --permission-mode bypassPermissions\n`;
 };
 const vivants = (home: string, ps = '', cache: Record<string, unknown> = {}) =>
   lireVivant({ racine: RACINE, home, prefix: 'demo', maintenant: Date.now(), ps, cache });

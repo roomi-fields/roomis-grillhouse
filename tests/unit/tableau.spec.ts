@@ -212,7 +212,15 @@ describe('lireVivant', () => {
     ].join('\n')
   );
   writeFileSync(path.join(sous, 'agent-a9.meta.json'), ligne({ agentType: 'relecteur' }));
-  const ps = '  77  600 claude -p TON TICKET : demo-3.1 --agent developpeur\n  78 5 vim notes\n';
+  // The envelope's line, as lancer.sh starts it, its bwrap and the claude inside it, which name no ticket.
+  const ps = [
+    '  77  600 node /depot/scripts/enveloppe/enveloppe.mjs /depot/.claude/worktrees/demo-3.1 . developpeur -- claude -p --agent developpeur --permission-mode bypassPermissions',
+    '  79  600 bwrap --die-with-parent --chdir /depot/.claude/worktrees/demo-3.1 -- claude -p --agent developpeur --permission-mode bypassPermissions',
+    '  80  600 claude -p --agent developpeur --permission-mode bypassPermissions',
+    '  81  600 node /ailleurs/scripts/enveloppe/enveloppe.mjs /ailleurs/.claude/worktrees/demo-5 . testeur -- claude -p --agent testeur',
+    '  78 5 vim notes',
+    '',
+  ].join('\n');
   const v = lireVivant({ racine, home, prefix: 'demo', maintenant: Date.now(), ps });
   it('sees a shell agent by its process, measured on its copy transcript and marked', () => {
     expect(v.find(x => x.ticket === 'demo-3.1')).toMatchObject({
@@ -221,6 +229,9 @@ describe('lireVivant', () => {
       agent: 's1',
       jetons: 10,
     });
+  });
+  it('sees one line per shell agent, and none of another repository', () => {
+    expect(v.filter(x => x.ligne)).toEqual([expect.objectContaining({ ticket: 'demo-3.1' })]);
   });
   it('sees a recent sub-agent, its role from its meta file and its ticket from its prompt', () => {
     expect(v.find(x => x.agent === 'a9')).toMatchObject({

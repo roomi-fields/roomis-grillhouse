@@ -26,8 +26,9 @@
 //   line folds only lines of another state (the tree's « + 2 prêts ») or the chantiers not in
 //   progress.
 // - Measures: a finished agent from the register (`scripts/registre.mjs`), a running one from its
-//   transcript: a role agent launched in a shell (`TON TICKET` and `--agent` in its arguments)
-//   while its process runs, a sub-agent or a session whose transcript moved in the last 2 minutes.
+//   transcript: a role agent launched in a shell (its envelope's process, which names its copy
+//   and its role) while that process runs, a sub-agent or a session whose transcript moved in the
+//   last 2 minutes.
 //   With an end in the register, it runs only when an incoming message (of the person, another
 //   agent, a notification) follows its latest end strictly (a reviewer resumed by a message); the
 //   writings of its last turn after that end leave it finished, measured by that latest end.
@@ -428,31 +429,37 @@ export function ticketDuChef(f, depuis = -Infinity, lire = lecteur({})) {
 }
 
 // The agents running now, each with its measures so far. `ps` is the process list
-// (`pid etimes args` per line); `cache` keeps the readings of unchanged transcripts.
+// (`pid etimes args` per line); `cache` keeps the readings of unchanged transcripts. A role agent
+// launched in a shell shows by the envelope lancer.sh starts for it,
+// `enveloppe.mjs <racine>/.claude/worktrees/<ticket> <composant> <rôle> --`: its copy gives the
+// ticket, its third argument the role (the prompt goes on the standard input, absent from the line).
 export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} }) {
   const lire = lecteur(cache);
   const vivants = [];
   const limite = maintenant - SANS_AGENT;
   const projets = path.join(home, '.claude', 'projects');
-  const motif = new RegExp(`TON TICKET : (${prefix}-[A-Za-z0-9]+(?:\\.[0-9]+)*)`);
+  const copies = path.join(racine, '.claude', 'worktrees').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const motif = new RegExp(
+    `enveloppe\\.mjs ${copies}/(${prefix}-[A-Za-z0-9]+(?:\\.[0-9]+)*) \\S+ (\\S+) -- `
+  );
   const vus = new Set();
   for (const ligne of ps.split('\n')) {
     const m = /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(ligne);
-    const t = m && motif.exec(m[3]);
-    const role = m && /--agent[= ](\S+)/.exec(m[3]);
-    if (!t || !role || vus.has(t[1])) {
+    const e = m && motif.exec(m[3]);
+    if (!e || vus.has(e[1])) {
       continue;
     }
-    vus.add(t[1]);
-    const copie = path.join(racine, '.claude', 'worktrees', t[1]);
+    const [, ticket, role] = e;
+    vus.add(ticket);
+    const copie = path.join(racine, '.claude', 'worktrees', ticket);
     const dernier = fichiers(path.join(projets, enTirets(copie)), '.jsonl')
       .map(f => ({ f, mtime: statSync(f).mtimeMs }))
       .sort((a, b) => b.mtime - a.mtime)[0];
     const lu = dernier && dernier.mtime >= limite ? lire(dernier.f) : null;
     vivants.push({
       agent: dernier ? path.basename(dernier.f, '.jsonl') : `pid-${m[1]}`,
-      ticket: t[1],
-      role: role[1],
+      ticket,
+      role,
       ligne: true,
       depuis: maintenant - Number(m[2]) * 1000,
       silence: dernier ? maintenant - dernier.mtime : null,
