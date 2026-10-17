@@ -18,6 +18,7 @@ import {
   lireVivant,
   tableau,
 } from '../../scripts/tableau.mjs';
+import { ligneEnveloppe } from './tableau-essai.js';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tableau-chef-'));
@@ -90,8 +91,11 @@ const agentShell = (home: string, session: string, role: string, ticket: string)
     path.join(copie, `${session}.jsonl`),
     [l({ type: 'agent-setting', agentSetting: role }), transcription(ticket, 1)].join('\n')
   );
-  // lancer.sh hands the prompt on the standard input: the line names the copy and the role.
-  return `  4242  300 node ${RACINE}/scripts/enveloppe/enveloppe.mjs ${RACINE}/.claude/worktrees/${ticket} packages/demo ${role} -- claude -p --agent ${role} --permission-mode bypassPermissions\n`;
+  return ligneEnveloppe(RACINE, ticket, role, {
+    pid: 4242,
+    secondes: 300,
+    composant: 'packages/demo',
+  });
 };
 const vivants = (home: string, ps = '', cache: Record<string, unknown> = {}) =>
   lireVivant({ racine: RACINE, home, prefix: 'demo', maintenant: Date.now(), ps, cache });

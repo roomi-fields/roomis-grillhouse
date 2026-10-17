@@ -18,6 +18,7 @@ import {
   SILENCE,
   verdict,
 } from '../../scripts/tableau.mjs';
+import { ligneEnveloppe } from './tableau-essai.js';
 
 // The board's lines with each folded group unfolded in place: the lines the tests of the tree read.
 const lignes = (t: unknown, nom: string, largeur?: number) => {
@@ -214,10 +215,10 @@ describe('lireVivant', () => {
   writeFileSync(path.join(sous, 'agent-a9.meta.json'), ligne({ agentType: 'relecteur' }));
   // The envelope's line, as lancer.sh starts it, its bwrap and the claude inside it, which name no ticket.
   const ps = [
-    '  77  600 node /depot/scripts/enveloppe/enveloppe.mjs /depot/.claude/worktrees/demo-3.1 . developpeur -- claude -p --agent developpeur --permission-mode bypassPermissions',
+    ligneEnveloppe(racine, 'demo-3.1', 'developpeur').trimEnd(),
     '  79  600 bwrap --die-with-parent --chdir /depot/.claude/worktrees/demo-3.1 -- claude -p --agent developpeur --permission-mode bypassPermissions',
     '  80  600 claude -p --agent developpeur --permission-mode bypassPermissions',
-    '  81  600 node /ailleurs/scripts/enveloppe/enveloppe.mjs /ailleurs/.claude/worktrees/demo-5 . testeur -- claude -p --agent testeur',
+    ligneEnveloppe('/ailleurs', 'demo-5', 'testeur', { pid: 81 }).trimEnd(),
     '  78 5 vim notes',
     '',
   ].join('\n');

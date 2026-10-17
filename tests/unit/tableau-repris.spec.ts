@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { assembler, lireVivant, tableau } from '../../scripts/tableau.mjs';
+import { ligneEnveloppe } from './tableau-essai.js';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tableau-repris-'));
@@ -140,7 +141,7 @@ describe('3uv.40 critère 1 : an agent whose last end in the register is followe
 
   it('3uv.40 critère 1 : a role agent in a shell, resumed after its session ended, is in progress', () => {
     const home = avecAgentShell('s7', 'developpeur', 'demo-6', ['08:30', '>08:40', '08:50']);
-    const ps = '  77  600 claude -p TON TICKET : demo-6 --agent developpeur\n';
+    const ps = ligneEnveloppe(RACINE, 'demo-6', 'developpeur');
     const t = plateau(home, ['demo-6'], [fin('s7', 'demo-6', 'developpeur', '08:30', 1)], ps);
     expect(enCours(t, 'developpeur')).toEqual(['demo-6']);
     expect(partout(t, 'attend')).not.toContain('demo-6');

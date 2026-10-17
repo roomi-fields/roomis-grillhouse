@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { assembler, lignes, lireVivant } from '../../scripts/tableau.mjs';
+import { ligneEnveloppe } from './tableau-essai.js';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tableau-fin-inscrite-'));
@@ -110,7 +111,7 @@ const agentShell = (session: string, role: string, ticket: string, pas: Pas[]) =
   const copie = path.join(home, `.claude/projects/-depot--claude-worktrees-${ticket}`);
   mkdirSync(copie, { recursive: true });
   writeFileSync(path.join(copie, `${session}.jsonl`), texte(pas, role));
-  return { home, ps: `  77  600 claude -p TON TICKET : ${ticket} --agent ${role}\n` };
+  return { home, ps: ligneEnveloppe(RACINE, ticket, role) };
 };
 
 // The register's line of a stop at `fin`.
