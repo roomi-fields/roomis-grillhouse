@@ -104,8 +104,7 @@ agents' time and tokens of the day and in all, the alerts); the agents: first ea
 (`scripts/circuit.mjs`), read in its state file — one that runs with its step, attempt and component, one
 that stopped with its stop, its code and « arrêté : » the first line of its reason — then one block per role
 (the site manager's, numbered 0, heads them), where each ticket stands under the agent that runs on it, or
-waiting: for the next role of the flow, or for its site manager when one led it, a ticket with a circuit
-waiting in none; the chantier in progress, its tree of
+waiting for the next role of the flow, a ticket with a circuit waiting in none; the chantier in progress, its tree of
 mother tickets with each one's work done over all; then the tickets closed today. Every line of each list
 shows, and the wheel scrolls the pane; `g` fills the pane with the chosen ticket's whole text, which the
 arrows, the page keys and the wheel scroll, and `g` again brings the board back. A ticket a site manager

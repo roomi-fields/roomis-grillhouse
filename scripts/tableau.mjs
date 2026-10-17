@@ -14,10 +14,9 @@
 // - Agents: one block per role (`grillhouse.roles` in package.json replaces the default), for the
 //   whole project. The site manager's block heads them as 0 wherever the list declares it, the
 //   other roles are numbered from 1 in the order declared. A ticket stands under every agent that
-//   runs on it, or waits in one place. A ticket a site manager led (a passage of its role in the
-//   register) waits under block 0; any other waits for the next role, deduced from the roles that
+//   runs on it, or waits in one place: for the next role, deduced from the roles of the flow that
 //   ran on it and the reviewer's last verdict (`ACCEPTÉ` or `RENDU` at the start of a comment). A
-//   project whose roles leave the site manager out keeps the deduction for every ticket.
+//   site manager waits for nothing: he comes on a stop of the circuit, which its entry shows.
 // - Circuits: above the blocks, one entry per open ticket whose circuit (scripts/circuit.mjs) runs
 //   or stopped, read in its state `.claude/worktrees/<ticket>.circuit.json`: it runs while the
 //   process `node scripts/circuit.mjs <ticket>` runs, and shows its step, component and attempt;
@@ -850,8 +849,7 @@ export function assembler({
   }
   // A ticket waits in AGENTS only with the owner's go (`circuit`): ready, blocked, or claimed with
   // nothing running; a ticket without it stands in CHANTIER alone; a ticket with a circuit, running
-  // or stopped, stands in its circuit's entry, never waiting. A ticket a site manager led
-  // waits for the site manager, who settles a stop of its circuit; the flow's deduction serves the
+  // or stopped, stands in its circuit's entry, never waiting. The flow's deduction places the
   // others, and a ticket no agent took yet waits for the testeur, the circuit's first agent.
   for (const t of [...tous].sort(ordre)) {
     if (
@@ -868,7 +866,7 @@ export function assembler({
     if (p.length === 0 && t.status === 'in_progress') {
       continue;
     }
-    const r = avecChef && p.some(x => x.role === CHEF) ? CHEF : etape(p, verdicts[t.id] ?? null);
+    const r = etape(p, verdicts[t.id] ?? null);
     if (r && bloc(r)) {
       bloc(r).attend.push({
         id: t.id,

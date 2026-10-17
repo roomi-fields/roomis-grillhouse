@@ -26,6 +26,7 @@ interface Ligne {
   section?: string;
 }
 interface Board {
+  alertes: { texte: string }[];
   agents: { role: string; enCours: { id: string }[]; attend: { id: string }[] }[];
 }
 
@@ -225,5 +226,29 @@ describe('a circuit that stopped: « arrêté : » its reason, its stop and its 
     );
     expect(bloc(t, CHEF).enCours.map(x => x.id)).toEqual(['demo-13']);
     expect(agents(t)).toContain('  arrêté : Le test « tableau » reste rouge.');
+  });
+});
+
+// Decided by the owner on 2026-10-17 (grill, Q10): a chef comes only on a stop of the circuit,
+// which always has its state; a ticket in progress with neither a state nor a living agent falls
+// under the alert « en cours sans rien qui tourne ».
+describe('a ticket in progress with no circuit and no agent: the alert, no wait under the chef', () => {
+  const alerte = (t: Board) => t.alertes.map(x => x.texte);
+
+  it('led by a chef, without a state and with nothing running, it raises the alert', () => {
+    const t = plateau([T('demo-15')], [fin('c0', 'demo-15', CHEF, '09:00')], [], []);
+    expect(alerte(t)).toContain('15 en cours sans rien qui tourne');
+    expect(bloc(t, CHEF).attend).toEqual([]);
+  });
+
+  it('its circuit running, no alert', () => {
+    const racine = depot({ 'demo-15': { etape: 'preuve' } });
+    const t = plateau(
+      [T('demo-15')],
+      [fin('c0', 'demo-15', CHEF, '09:00')],
+      [],
+      circuits(racine, ligneCircuit('demo-15'))
+    );
+    expect(alerte(t)).not.toContain('15 en cours sans rien qui tourne');
   });
 });

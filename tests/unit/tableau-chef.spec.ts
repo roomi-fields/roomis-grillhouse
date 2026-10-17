@@ -428,77 +428,10 @@ function ligneFinie(home: string, id: string, session = 'sess') {
 // A manager's id as the tool writes it, and the parent id its sub-agents carry.
 const ID_CHEF = 'ademo-9-agent-0-4f3ac190df511767';
 
-describe('3uv.49 critère 5 : an open ticket a manager led, with nothing running, waits under block 0', () => {
-  it('3uv.49 critère 5 : after its manager and its tester finished, the ticket waits under 0, not for the developer', () => {
-    const t = plateau(
-      [T('demo-9')],
-      [fin('t1', 'demo-9', 'testeur', '09:00'), fin('c0', 'demo-9', CHEF, '11:00')],
-      []
-    );
-    expect(bloc(t, CHEF)!.attend.map(x => x.id)).toEqual(['demo-9']);
-    expect(attentes(t)).toEqual(['demo-9']);
-  });
-
-  it('3uv.49 critère 5 : a tester that ended after the manager does not take the ticket to the developer', () => {
-    const t = plateau(
-      [T('demo-9')],
-      [fin('c0', 'demo-9', CHEF, '09:00'), fin('t1', 'demo-9', 'testeur', '10:00')],
-      []
-    );
-    expect(bloc(t, CHEF)!.attend.map(x => x.id)).toEqual(['demo-9']);
-    expect(bloc(t, 'developpeur')!.attend).toEqual([]);
-  });
-
-  it('3uv.49 critère 5 : after an accepted review, the led ticket waits under 0', () => {
-    const t = plateau(
-      [T('demo-9')],
-      [
-        fin('t1', 'demo-9', 'testeur', '09:00'),
-        fin('d1', 'demo-9', 'developpeur', '10:00'),
-        fin('c0', 'demo-9', CHEF, '11:00'),
-      ],
-      [],
-      { verdicts: { 'demo-9': { verdict: 'ACCEPTÉ', date: Date.parse(at('10:30')) } } }
-    );
-    expect(attentes(t)).toEqual(['demo-9']);
-    expect(bloc(t, CHEF)!.attend.map(x => x.id)).toEqual(['demo-9']);
-  });
-
-  it('3uv.49 critère 5 : a ready open ticket whose only passage is its manager waits under 0, not for the tester', () => {
-    const t = plateau([T('demo-9', { status: 'open' })], [fin('c0', 'demo-9', CHEF, '09:00')], []);
-    expect(attentes(t)).toEqual(['demo-9']);
-    expect(bloc(t, CHEF)!.attend.map(x => x.id)).toEqual(['demo-9']);
-  });
-
-  it('3uv.49 critère 5 : the pane draws the led ticket once, as a waiting line under block 0', () => {
-    const t = plateau(
-      [T('demo-9', { title: '9 — Le panneau — tableau' })],
-      [fin('t1', 'demo-9', 'testeur', '09:00'), fin('c0', 'demo-9', CHEF, '11:00')],
-      []
-    );
-    const a = agentsTextes(t);
-    const titre = a.findIndex(x => /^0 /.test(x.texte));
-    expect(a[titre].ton).toBe('titre');
-    expect(a[titre + 1]).toMatchObject({ ton: 'discret', ticket: 'demo-9' });
-    expect(a[titre + 1].texte).toMatch(/^· 9 {2}Le panneau /);
-    expect(a.filter(x => x.ticket === 'demo-9')).toHaveLength(1);
-  });
-
-  it('3uv.49 critère 5 : another ticket without a manager still waits for the next role of the flow', () => {
-    const t = plateau(
-      [T('demo-9'), T('demo-10')],
-      [
-        fin('t1', 'demo-9', 'testeur', '09:00'),
-        fin('c0', 'demo-9', CHEF, '11:00'),
-        fin('t2', 'demo-10', 'testeur', '09:00'),
-      ],
-      []
-    );
-    expect(bloc(t, 'developpeur')!.attend.map(x => x.id)).toEqual(['demo-10']);
-    expect(bloc(t, CHEF)!.attend.map(x => x.id)).toEqual(['demo-9']);
-  });
-
-  it('3uv.49 critère 5 : a tester running on the led ticket holds it in progress, waiting nowhere', () => {
+// Decided by the owner on 2026-10-17 (grill, Q10): a chef de chantier comes only on a stop of the
+// circuit, which its state shows; a ticket a manager led waits under no block of its own.
+describe('a ticket a manager led: its running agents hold it, and it waits as any other', () => {
+  it('a tester running on the led ticket holds it in progress, waiting nowhere', () => {
     const t = plateau(
       [T('demo-9')],
       [fin('c0', 'demo-9', CHEF, '09:00')],
@@ -508,7 +441,7 @@ describe('3uv.49 critère 5 : an open ticket a manager led, with nothing running
     expect(attentes(t)).toEqual([]);
   });
 
-  it('3uv.49 critère 5 : a manager resumed by a message after its end stands in progress, not waiting', () => {
+  it('a manager resumed by a message after its end stands in progress, not waiting', () => {
     const t = plateau(
       [T('demo-9')],
       [fin('c0', 'demo-9', CHEF, '09:00')],
@@ -518,7 +451,17 @@ describe('3uv.49 critère 5 : an open ticket a manager led, with nothing running
     expect(attentes(t)).toEqual([]);
   });
 
-  it('3uv.49 critère 5 : a closed, deferred or to-validate ticket a manager led waits nowhere', () => {
+  it('after its manager and its tester finished, the led ticket waits for the developer, not under 0', () => {
+    const t = plateau(
+      [T('demo-9')],
+      [fin('t1', 'demo-9', 'testeur', '09:00'), fin('c0', 'demo-9', CHEF, '11:00')],
+      []
+    );
+    expect(bloc(t, CHEF)!.attend).toEqual([]);
+    expect(bloc(t, 'developpeur')!.attend.map(x => x.id)).toEqual(['demo-9']);
+  });
+
+  it('a closed, deferred or to-validate ticket a manager led waits nowhere', () => {
     const t = plateau(
       [
         T('demo-9', { status: 'closed', closed_at: at('11:30') }),
@@ -761,17 +704,7 @@ describe('3uv.49 critère 9 : without the manager in the list, a running manager
 const bloque = (id: string, par: string, o: object = {}) =>
   T(id, { status: 'open', dependencies: [{ type: 'blocks', depends_on_id: par }], ...o });
 
-describe('3uv.49 critère 10 : a blocked ticket a manager led waits under block 0 as a ready one', () => {
-  it('3uv.49 critère 10 : blocked, its only passage the manager, the ticket waits under 0', () => {
-    const t = plateau(
-      [bloque('demo-9', 'demo-8'), T('demo-8')],
-      [fin('c0', 'demo-9', CHEF, '09:00')],
-      []
-    );
-    expect(bloc(t, CHEF)!.attend.map(x => x.id)).toEqual(['demo-9']);
-    expect(bloc(t, 'testeur')!.attend.map(x => x.id)).not.toContain('demo-9');
-  });
-
+describe('3uv.49 critère 10 : a blocked ticket in the circuit waits for the next role of the flow', () => {
   // Decided by the owner on 2026-10-17 (grill, Q10): the supervisor launches the circuit, whose
   // first agent is the testeur; a chef de chantier comes only on a stop of the circuit.
   it('a blocked ticket in the circuit without any passage waits for the testeur, the circuit launching it first', () => {
@@ -792,13 +725,13 @@ describe('3uv.49 critère 10 : a blocked ticket a manager led waits under block 
 });
 
 describe('3uv.49 critère 11 : only an agent of a block puts a ticket in progress', () => {
-  it('3uv.49 critère 11 : an Explore running on a led ticket leaves it waiting under 0', () => {
+  it('3uv.49 critère 11 : an Explore running on a led ticket leaves it waiting for the testeur', () => {
     const t = plateau(
       [T('demo-9')],
       [fin('c0', 'demo-9', CHEF, '09:00')],
       [vivant('e1', 'demo-9', 'Explore', 30)]
     );
-    expect(bloc(t, CHEF)!.attend.map(x => x.id)).toEqual(['demo-9']);
+    expect(bloc(t, 'testeur')!.attend.map(x => x.id)).toEqual(['demo-9']);
     expect(t.agents.flatMap(b => b.enCours)).toEqual([]);
   });
 
