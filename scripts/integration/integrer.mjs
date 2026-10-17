@@ -1,8 +1,10 @@
 #!/usr/bin/env node
-// The mechanical steps of one integration, run by the integrateur agent once it has judged the
-// lot. It commits the lot on the branch of the ticket, or refuses it with the full output of the
-// step that refused. The branch then waits for the queue (scripts/integration/file.mjs), which
-// brings it onto main.
+// The mechanical steps of one integration, run by the circuit of the ticket (scripts/circuit.mjs)
+// once the reviewer has accepted the lot, which the circuit builds from the ticket's copy. It
+// commits the lot on the branch of the ticket, or refuses it with the full output of the step that
+// refused. The branch then waits for the queue (scripts/integration/file.mjs), which brings it onto
+// main. Run from any working tree of the repository, it works on the main tree, found from git's
+// common directory.
 //
 //   node scripts/integration/integrer.mjs --ticket <id>
 //        [--tests <patch>] [--code <patch>] --message <file>
@@ -60,6 +62,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { arbitrageTranche } from '../consommateurs-arbitres.mjs';
 import { isTesterFile } from '../verrous/verrou.mjs';
 import { lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
 import { dossierCommun, inscrireEntree } from './file-attente.mjs';
@@ -92,10 +95,13 @@ function nomDeGit(ecrit) {
   return Buffer.from(octets).toString('utf8');
 }
 
+// A reviewer's verdict: a comment whose first word is ACCEPTÉ or RENDU.
+export const VERDICT = /^\s*(ACCEPTÉ|RENDU)(?![\p{L}\d])/u;
+
 // The refusal for the verdicts of one ticket, or null. `ticket` and `comments` are Beads' JSON.
 export function refusVerdicts(ticket, comments) {
   const id = ticket.id;
-  const verdicts = comments.filter(c => /^\s*(ACCEPTÉ|RENDU)(?![\p{L}\d])/u.test(c.text));
+  const verdicts = comments.filter(c => VERDICT.test(c.text));
   const dernier = verdicts.at(-1);
   if (!dernier || !/^\s*ACCEPTÉ/.test(dernier.text)) {
     return `${id} n'a pas le verdict ACCEPTÉ du relecteur pour dernier verdict.`;
@@ -105,15 +111,7 @@ export function refusVerdicts(ticket, comments) {
     if (arbitrages.length === 0)
       return `${id} est étiqueté arbitrage sans commentaire « Arbitrage ».`;
     for (const a of arbitrages) {
-      // The chef de chantier's arbitrage is settled by construction: he writes one only for what
-      // the letter of a criterion, a written precedent or a rule of the frame settles.
-      const tranche =
-        /^\s*## Arbitrage du chef de chantier\b/.test(a.text) ||
-        /^### Verdict\s*—\s*tranché/m.test(a.text);
-      const repondu = comments
-        .slice(comments.indexOf(a) + 1)
-        .some(c => /^\s*## Réponse du responsable\b/.test(c.text));
-      if (!tranche && !repondu) {
+      if (!arbitrageTranche(comments, a)) {
         const titre = a.text.trim().split('\n')[0];
         return `${id} : « ${titre} » n'est ni tranché ni répondu par le responsable.`;
       }
@@ -209,9 +207,12 @@ function main(argv) {
     );
     return 2;
   }
-  const racine = spawnSync('git', ['rev-parse', '--show-toplevel'], {
-    encoding: 'utf8',
-  }).stdout.trim();
+  // The main tree, from git's common directory: run from a copy, the integration still works on it.
+  const racine = path.dirname(
+    spawnSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], {
+      encoding: 'utf8',
+    }).stdout.trim()
+  );
   const git = (...args) => spawnSync('git', ['-C', racine, ...args], { encoding: 'utf8' });
   const bd = (...a) => spawnSync('bd', a, { cwd: racine, encoding: 'utf8' });
   const dire = s => process.stdout.write(`${s}\n`);

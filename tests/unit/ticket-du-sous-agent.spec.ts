@@ -10,14 +10,14 @@ const ESSAIS = mkdtempSync(path.join(tmpdir(), 'ticket-du-sous-agent-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/verrous/ticket-du-sous-agent.mjs');
-const roles = (r: string) => ['arbitre', 'integrateur', 'relecteur'].includes(r);
+const roles = (r: string) => ['arbitre', 'explorateur', 'relecteur'].includes(r);
 const lancer = (subagent_type: string, prompt: string, tool_name = 'Agent') =>
   refusal({ tool_name, tool_input: { subagent_type, prompt } }, roles);
 
 describe('the ticket of a role agent', () => {
   it('refuses a role agent whose prompt does not name its ticket', () => {
     expect(lancer('arbitre', 'Tranche la question du préfixe.')).toMatch(/TON TICKET/);
-    expect(lancer('integrateur', 'TICKET : demo-3')).toMatch(/sans son ticket/);
+    expect(lancer('explorateur', 'TICKET : demo-3')).toMatch(/sans son ticket/);
   });
   it('lets a role agent with its ticket through', () => {
     expect(lancer('relecteur', 'Relis.\nTON TICKET : demo-3.2.1 — le lot')).toBeNull();

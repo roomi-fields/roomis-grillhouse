@@ -32,8 +32,9 @@ professionnel.
    tests qu'il n'a pas écrits. Un critère répond à un besoin réel de l'usage actuel ; un cas
    seulement possible n'en devient pas un. Ainsi le ticket garde la taille du besoin.
 5. Le ticket se ferme sur ses tests ciblés, le verdict de l'agent `relecteur` sur le lot, le
-   commit de l'agent `integrateur`, seul à commiter, sur la branche du ticket, et l'entrée de
-   cette branche sur main par la file, qui le ferme. Ainsi ce qui est déclaré fini l'est vraiment.
+   commit du circuit (`scripts/circuit.mjs`), seul à commiter, sur la branche du ticket, et
+   l'entrée de cette branche sur main par la file, qui le ferme. Ainsi ce qui est déclaré fini
+   l'est vraiment.
 6. Chaque agent laisse sa passation en commentaire au ticket (`bd comments add`,
    `docs/agents/issue-tracker.md`), avec ce qui n'est pas fait et pourquoi. Ainsi l'agent suivant
    la trouve par `bd show`.
@@ -42,7 +43,7 @@ Une séance de supervision charge le superviseur (`pitmaster`). Les rôles sont 
 (`.claude/agents/`), chacun désigné par le numéro de son rôle, dans l'ordre du flux :
 0 `chef-de-chantier`, qui mène un ticket de sa prise à son commit, 1 `explorateur`, qui mène une
 exploration, 2 `arbitre`, qui tranche une question de conception, 3 `testeur`, 4 `developpeur`,
-5 `relecteur`, 6 `integrateur`, chacun sous ses verrous. Ainsi chaque agent travaille dans son
+5 `relecteur`, chacun sous ses verrous. Ainsi chaque agent travaille dans son
 cadre, et son numéro dit son rôle.
 
 **Le superviseur intervient sur ce qui dépasse le ticket** : le chef de chantier tranche ce que la
@@ -148,6 +149,6 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
 
 ## Le commit
 
-Un intégrateur neuf par livraison fait chaque commit, par le script
-`scripts/integration/integrer.mjs` (`pitmaster`) : commits conventionnels, message par fichier
+Le circuit du ticket fait chaque commit après le verdict `ACCEPTÉ` du relecteur, par le script
+`scripts/integration/integrer.mjs` : commits conventionnels, message par fichier
 (`git commit -F`), trailer `Co-Authored-By: Claude`.

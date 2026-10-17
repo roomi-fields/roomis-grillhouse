@@ -195,14 +195,14 @@ const ENTRANTS: [string, Evenement][] = [
 ];
 
 describe('3uv.45 critère 1 : an agent followed after its end only by events of its last turn stays finished', () => {
-  it('3uv.45 critère 1 : the witness — an integrator whose final answer comes 5 s after its end is finished', () => {
-    const home = sousAgent('a76', 'integrateur', [
+  it('3uv.45 critère 1 : the witness — a reviewer whose final answer comes 5 s after its end is finished', () => {
+    const home = sousAgent('a76', 'relecteur', [
       [invite('demo-5'), quand(0)],
       [reponse, quand(10)],
       [reponse, quand(20, 42)],
       [reponse, quand(20, 47)],
     ]);
-    const t = plateau(home, [T('demo-5')], [arret('a76', 'demo-5', 'integrateur', quand(20, 42))]);
+    const t = plateau(home, [T('demo-5')], [arret('a76', 'demo-5', 'relecteur', quand(20, 42))]);
     expect(enCours(t)).not.toContain('demo-5');
     expect(attend(t)).toContain('demo-5');
   });
@@ -355,7 +355,7 @@ describe('3uv.45 critère 3 : a closed ticket has no agent running from writings
       [reponse, quand(5)],
       [reponse, quand(5, 4)],
     ]);
-    ajouter(home, 'i1', 'integrateur', [
+    ajouter(home, 'i1', 'relecteur', [
       [invite('demo-e.2'), quand(15)],
       [reponse, quand(20, 42)],
       [reponse, quand(20, 47)],
@@ -363,7 +363,7 @@ describe('3uv.45 critère 3 : a closed ticket has no agent running from writings
     ]);
     return plateau(home, TOUS, [
       arret('t1', 'demo-e.2', 'testeur', quand(5)),
-      arret('i1', 'demo-e.2', 'integrateur', quand(20, 42)),
+      arret('i1', 'demo-e.2', 'relecteur', quand(20, 42)),
     ]);
   };
 
@@ -532,16 +532,16 @@ describe('3uv.45 critère 7 : an agent of a closed ticket followed after its end
   ];
 
   it.each(ENTRANTS)(
-    '3uv.45 critère 7 : the integrator of the closed ticket, sent %s after its end, is in progress',
+    '3uv.45 critère 7 : the reviewer of the closed ticket, sent %s after its end, is in progress',
     (_, message) => {
-      const home = sousAgent('i2', 'integrateur', [
+      const home = sousAgent('i2', 'relecteur', [
         [invite('demo-e.2'), quand(15)],
         [reponse, quand(20, 42)],
         [message, quand(25)],
         [reponse, quand(25, 5)],
       ]);
-      const t = plateau(home, TOUS, [arret('i2', 'demo-e.2', 'integrateur', quand(20, 42))]);
-      expect(enCoursDe(t, 'integrateur')).toEqual(['demo-e.2']);
+      const t = plateau(home, TOUS, [arret('i2', 'demo-e.2', 'relecteur', quand(20, 42))]);
+      expect(enCoursDe(t, 'relecteur')).toEqual(['demo-e.2']);
     }
   );
 
@@ -551,7 +551,7 @@ describe('3uv.45 critère 7 : an agent of a closed ticket followed after its end
       [reponse, quand(5)],
       [reponse, quand(5, 4)],
     ]);
-    ajouter(home, 'i3', 'integrateur', [
+    ajouter(home, 'i3', 'relecteur', [
       [invite('demo-e.2'), quand(15)],
       [reponse, quand(20, 42)],
       [personne, quand(25)],
@@ -559,23 +559,23 @@ describe('3uv.45 critère 7 : an agent of a closed ticket followed after its end
     ]);
     const t = plateau(home, TOUS, [
       arret('t2', 'demo-e.2', 'testeur', quand(5)),
-      arret('i3', 'demo-e.2', 'integrateur', quand(20, 42)),
+      arret('i3', 'demo-e.2', 'relecteur', quand(20, 42)),
     ]);
-    expect(enCoursDe(t, 'integrateur')).toEqual(['demo-e.2']);
+    expect(enCoursDe(t, 'relecteur')).toEqual(['demo-e.2']);
     expect(enCoursDe(t, 'testeur')).toEqual([]);
   });
 });
 
 describe('3uv.45 critère 8 : a finished agent is measured by its latest end, without what was written after it', () => {
   it('3uv.45 critère 8 : the tokens and time of the waiting ticket are those of the register, not of the late answer', () => {
-    const home = sousAgent('a77', 'integrateur', [
+    const home = sousAgent('a77', 'relecteur', [
       [invite('demo-5'), quand(0)],
       [reponse, quand(10)],
       [reponse, quand(20, 42)],
       [reponse, quand(20, 47)],
       [reponse, quand(20, 50)],
     ]);
-    const fin = arret('a77', 'demo-5', 'integrateur', quand(20, 42));
+    const fin = arret('a77', 'demo-5', 'relecteur', quand(20, 42));
     const t = plateau(home, [T('demo-5')], [fin]);
     const x = t.agents.flatMap(b => b.attend).find(a => a.id === 'demo-5');
     expect(x).toMatchObject({ jetons: fin.jetons, travail: fin.travail });

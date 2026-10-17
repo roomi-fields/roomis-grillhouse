@@ -64,22 +64,13 @@ export const SANS_AGENT = 30 * MINUTE;
 const RECENT = 2 * MINUTE;
 export const LARGEUR = 52;
 const CHEF = 'chef-de-chantier';
-export const ROLES = [
-  CHEF,
-  'explorateur',
-  'arbitre',
-  'testeur',
-  'developpeur',
-  'relecteur',
-  'integrateur',
-];
+export const ROLES = [CHEF, 'explorateur', 'arbitre', 'testeur', 'developpeur', 'relecteur'];
 // A sub-agent's role from its meta file: the type it was spawned as; a named agent's `agentType`
 // is its name.
 export const roleDuMeta = m => m.spawnedAgentType ?? m.customAgentType ?? m.agentType ?? null;
 const NOMS = {
   [CHEF]: 'chef de chantier',
   developpeur: 'développeur',
-  integrateur: 'intégrateur',
 };
 // The states of a ticket, in the order the states' view lists them, with their meaning.
 export const ETATS = [
@@ -528,7 +519,8 @@ export function verdict(commentaires) {
 }
 
 // The role a ticket waits for, from the roles of the flow that ran on it (finished, oldest first)
-// and the reviewer's last verdict; null when it waits for none.
+// and the reviewer's last verdict; null when it waits for none: an accepted lot waits for no
+// agent, the circuit integrates it (scripts/circuit.mjs).
 export function etape(passages, v) {
   const faits = passages.filter(
     p => ROLES.includes(p.role) && p.role !== 'arbitre' && p.role !== CHEF
@@ -543,13 +535,10 @@ export function etape(passages, v) {
     return 'developpeur';
   }
   if (dernier.role === 'developpeur') {
-    return jugé === 'ACCEPTÉ' ? 'integrateur' : jugé === 'RENDU' ? 'developpeur' : 'relecteur';
+    return jugé === 'ACCEPTÉ' ? null : jugé === 'RENDU' ? 'developpeur' : 'relecteur';
   }
   if (dernier.role === 'relecteur') {
-    return v?.verdict === 'ACCEPTÉ' ? 'integrateur' : 'developpeur';
-  }
-  if (dernier.role === 'integrateur') {
-    return 'developpeur';
+    return v?.verdict === 'ACCEPTÉ' ? null : 'developpeur';
   }
   return null;
 }

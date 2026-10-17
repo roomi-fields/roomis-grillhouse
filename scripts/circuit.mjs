@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // The circuit of one ticket: for each component its title names, in order, the provider first, the
-// testeur, the proof of the red, the developpeur and the checks; then the state « relecture »,
-// where the chef de chantier launches the reviewer. The chef runs it in the background and wakes
-// at its end; he reads the state, and after a stop he settles (or refers upward) and resumes.
+// testeur, the proof of the red, the developpeur and the checks; then the reviewer, and on its
+// ACCEPTÉ the integration, which commits the lot on the ticket's branch and puts that branch in the
+// queue, where the circuit ends. The chef de chantier runs it in the background and wakes at its
+// end; he reads the state, and after a stop he settles (or refers upward) and resumes.
 //
 //   node scripts/circuit.mjs <ticket> [--reprendre] [--contexte <texte>]
 //   node scripts/circuit.mjs <ticket> --depuis <testeur|developpeur> <composant> --contexte <texte>
@@ -83,31 +84,65 @@
 //   for the whole final pass whatever the components its reds go to (the last component's
 //   sessions counted in it), so that two components sending a red to each other stop at
 //   « controles ».
+// - After the final pass, green, the reviewer: a session out of the envelope, which sees the whole
+//   repository with its index, claude itself (`claude -p --agent relecteur`, CLAUDE_BIN replaces
+//   claude) in the ticket's copy, on Opus, under the project's permissions and the frame's scripts
+//   (RELECTEUR), its instruction from the second template of consigne-agent.md: the ticket, its
+//   components, its criteria, the files of the lot (the testeur's by `isTesterFile`, then the
+//   others) and the circuit's reports at the ticket since the last verdict (its proofs and
+//   checks). Its output goes to the log under its header line, its line to the register
+//   (scripts/registre.mjs --copie), and it is watched as a session in the envelope is. Its
+//   handover is its verdict, a comment whose first word is ACCEPTÉ or RENDU: without one, it is
+//   launched once more, then the circuit stops at « sans-passation ».
+// - RENDU: each finding is a block that opens on a heading `Constat` and carries a line
+//   `Agent : <rôle> <composant>`, the role testeur or developpeur, the component one of the title
+//   (a path or a package name). The circuit plays again from the first component a finding
+//   names, the provider first: its testeur → preuve → developpeur → controles when a finding names
+//   its testeur, else its developpeur → controles, the findings as the report of the session
+//   (those for the developpeur after the proof's report). Each component after it plays the
+//   steps its findings name, or its checks alone, then the final pass and the reviewer again. A
+//   RENDU without findings, a finding without a valid recipient, or one that carries the line
+//   `Critère en cause : …` (the criterion itself is in question) stops at « relecture-arret »; so
+//   does the third RENDU since the ticket's last ACCEPTÉ. The chef de chantier settles.
+// - ACCEPTÉ: the integration. The circuit builds the lot from the copy, as the chef de chantier
+//   built it: the files the copy changes against its HEAD, the testeur's (`isTesterFile`: test
+//   files and the shared test material) in one patch, the others in another, each file against
+//   HEAD and a new one against nothing (`git diff --no-index /dev/null`), the copy's index
+//   untouched; the message `<type>(<composants>): <sujet> (<ticket>)`, the type read from the
+//   ticket's type (bug fix, chore, docs, else feat), with the trailer Co-Authored-By. It runs
+//   scripts/integration/integrer.mjs from the main tree, its output added to the log: 0 is the
+//   commit on agent/<ticket>, the copy removed, the branch in the queue, and the circuit ends at
+//   « en-file »; 75 (« à repasser ») plays it once more, then stops at « a-repasser »; any other
+//   code is its refusal, which stops at « integration ». The queue (scripts/integration/file.mjs)
+//   is not launched here.
 // - The state is `.claude/worktrees/<ticket>.circuit.json`, written again at each step and at the
 //   start and end of each session: `{ etape, composant, tentative, code, raison, rapport, dernier,
-//   finale, seance, journal }`; `etape` is testeur, preuve, developpeur, controles or relecture;
-//   `raison` names the stop; `dernier` is the last component of the run; `finale` whether the
-//   final pass has begun; `seance` the process group of the session that runs, null between two.
+//   finale, seance, renvois, journal }`; `etape` is testeur, preuve, developpeur, controles,
+//   relecture, integration, or en-file at the end; `raison` names the stop; `dernier` is the last
+//   component of the run; `finale` whether the final pass has begun; `seance` the process group of
+//   the session that runs, null between two; `renvois` the components a RENDU (or `--depuis`)
+//   plays again, each with its first step and its findings, null out of such a round.
 //   `--reprendre` starts again at the step and component of the state, its report given to the
 //   next session, and goes on to its `dernier`; after any stop, the death of the circuit with its
 //   caller included. A session the state names that still runs is waited for first, and stopped
 //   when it stands still as long as a motionless session.
-// - A lot the reviewer sends back passes again: `--depuis <testeur|developpeur> <composant>`
-//   starts at that step for that component (a path or a package name the title names), the text of
-//   `--contexte` (the findings of the verdict) as the report of its first session, plays the rest
-//   of that component's steps (developpeur → controles, or testeur → preuve → developpeur →
-//   controles, the checks a final pass), then stops at « relecture ». It goes with no
-//   `--reprendre`.
+// - After a stop, the chef de chantier may have the lot corrected by one component:
+//   `--depuis <testeur|developpeur> <composant>` (a path or a package name the title names) plays
+//   it as a RENDU whose one finding names that agent, the text of `--contexte` as its findings:
+//   that component's steps, the checks of the components after it, the final pass, the reviewer
+//   and the integration. It goes with no `--reprendre`.
 // - At each step, a short comment at the ticket: `Circuit · <composant> · <étape> : <résumé>`.
-// - The commands of the circuit (the proof, the checks) are added to the log of the ticket,
+// - The commands of the circuit (the proof, the checks, the integration) are added to the log of the ticket,
 //   `.claude/worktrees/<ticket>.log`, next to the sessions, each under its header line.
-// - Exit codes: 0 at « relecture »; 2 a malformed call; a stop, by its name (ARRETS):
+// - Exit codes: 0 at « en-file »; 2 a malformed call; a stop, by its name (ARRETS):
 //   10 lancement (lancer.sh stopped before the session), 11 bloqué (a motionless transcript),
 //   12 sans-passation (twice no handover), 13 preuve (the third proof fails), 14 controles (the
 //   third developpeur of a component's checks or of the final pass leaves a red check, or a red
 //   of the final pass no component of the title owns),
 //   15 sans-livraison (a developpeur session that changes no file of its component),
-//   75 a-repasser (a check still at 75 once played again).
+//   16 relecture-arret (a finding without a valid recipient, one on a criterion, the third RENDU),
+//   17 integration (the integration script refuses the lot),
+//   75 a-repasser (a check or the integration still at 75 once played again).
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
@@ -131,6 +166,7 @@ import { matieres, NOM_DE_TEST } from './consommateurs.mjs';
 import { VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/composant.mjs';
 import { paquets } from './paquets.mjs';
 import { transcriptionsDeLaCopie } from './registre.mjs';
+import { VERDICT } from './integration/integrer.mjs';
 import { isTesterFile } from './verrous/verrou.mjs';
 import { A_REPASSER } from './vitest-config/pression.mjs';
 
@@ -144,6 +180,8 @@ export const ARRETS = {
   preuve: 13,
   controles: 14,
   'sans-livraison': 15,
+  'relecture-arret': 16,
+  integration: 17,
   'a-repasser': A_REPASSER,
 };
 const CODE_USAGE = 2;
@@ -151,11 +189,29 @@ const CODE_USAGE = 2;
 // the last on the strong model.
 const RELANCES_TESTEUR = 2;
 const SEANCES_DEVELOPPEUR = 3;
+// The reviews of one ticket: the third RENDU stops the circuit.
+const RELECTURES = 3;
+// The roles a finding of the reviewer may name.
+const DESTINATAIRES = ['testeur', 'developpeur'];
+// The reviewer's session, out of the envelope, on Opus: the project's permissions
+// (`.claude/settings.json`), with the frame's scripts its skill runs; any other tool call is
+// refused without a prompt.
+const RELECTEUR = [
+  '--model',
+  'opus',
+  '--permission-mode',
+  'dontAsk',
+  '--allowedTools',
+  'Bash(node scripts/*)',
+  'Bash(bash scripts/*)',
+];
 const FORT = ['--modele', 'opus', '--effort', 'high'];
 const PREFIXE = 'Circuit · ';
 
 const ici = import.meta.dirname;
 const LANCEUR = path.join(ici, 'enveloppe', 'lancer.sh');
+const INTEGRER = path.join(ici, 'integration', 'integrer.mjs');
+const REGISTRE = path.join(ici, 'registre.mjs');
 const GABARIT = path.join(
   ici,
   '..',
@@ -268,6 +324,8 @@ function contexte(o) {
     racine,
     copie,
     bd,
+    resoudre,
+    type: String(t.issue_type ?? ''),
     sujet: parts.length > 2 ? parts.slice(1, -1).join(' — ') : parts[0],
     description: String(t.description ?? ''),
     composants,
@@ -281,14 +339,15 @@ function contexte(o) {
   };
 }
 
-// The comments of the agents at the ticket: every comment but the circuit's own.
-function passations(ctx) {
+// The texts of every comment at the ticket, in their order.
+function commentaires(ctx) {
   const r = ctx.bd('comments', ctx.ticket, '--json');
   if (r.status !== 0) return [];
-  return (JSON.parse(r.stdout || '[]') ?? [])
-    .map(c => String(c.text ?? ''))
-    .filter(t => !t.startsWith(PREFIXE));
+  return (JSON.parse(r.stdout || '[]') ?? []).map(c => String(c.text ?? ''));
 }
+
+// The comments of the agents at the ticket: every comment but the circuit's own.
+const passations = ctx => commentaires(ctx).filter(t => !t.startsWith(PREFIXE));
 
 // One line of the circuit's history at the ticket.
 function commenter(ctx, composant, etape, texte) {
@@ -299,7 +358,7 @@ function commenter(ctx, composant, etape, texte) {
 // The state of the run, written whole (`seance` null and `finale` false unless <etat> sets them),
 // kept as the run's current state.
 function ecrireEtat(ctx, etat) {
-  ctx.courant = { finale: false, seance: null, ...etat };
+  ctx.courant = { finale: false, seance: null, ...etat, renvois: ctx.renvois ?? null };
   const provisoire = `${ctx.etat}.${process.pid}`;
   writeFileSync(
     provisoire,
@@ -338,32 +397,71 @@ const mtime = f => {
 };
 
 // One launch of a session: `{ code, seance, bloque, erreur }`, `seance` the session's exit code
-// from lancer.sh's end file, null when the launch stopped before it.
-function lancer(ctx, role, composant, consigne, fort) {
+// (from lancer.sh's end file for a session in the envelope), null when the launch stopped before
+// it. A session <horsEnveloppe> (the reviewer's) is claude itself, in the ticket's copy, its
+// instruction on its standard input and its output added to the log under its header line, then
+// its line written to the register, as lancer.sh does.
+function lancer(ctx, role, composant, consigne, { fort, horsEnveloppe } = {}) {
   rmSync(ctx.fin, { force: true });
   const fichier = path.join(ctx.tmp, `consigne-${++ctx.numero}.md`);
   writeFileSync(fichier, consigne);
-  const args = [LANCEUR, ...(fort ? FORT : []), ctx.ticket, role, composant, fichier];
   // A file, not a pipe: a session whose circuit is dead writes its errors without breaking.
   const erreurs = path.join(ctx.tmp, `erreurs-${ctx.numero}.txt`);
-  const fd = openSync(erreurs, 'w');
-  return new Promise(resolve => {
-    const enfant = spawn('bash', args, {
+  let commande;
+  let fds;
+  if (horsEnveloppe) {
+    entete(ctx, role, composant);
+    const sortie = openSync(ctx.journal, 'a');
+    fds = [openSync(fichier, 'r'), sortie, sortie];
+    commande = {
+      cmd: process.env.CLAUDE_BIN || 'claude',
+      args: ['-p', '--agent', role, ...RELECTEUR],
+      cwd: ctx.copie,
+    };
+  } else {
+    fds = ['ignore', 'ignore', openSync(erreurs, 'w')];
+    commande = {
+      cmd: 'bash',
+      args: [LANCEUR, ...(fort ? FORT : []), ctx.ticket, role, composant, fichier],
       cwd: ctx.racine,
+    };
+  }
+  return new Promise(resolve => {
+    const enfant = spawn(commande.cmd, commande.args, {
+      cwd: commande.cwd,
       detached: true,
-      stdio: ['ignore', 'ignore', fd],
+      stdio: fds,
     });
-    closeSync(fd);
-    ecrireEtat(ctx, { ...ctx.courant, seance: enfant.pid });
+    for (const fd of new Set(fds.filter(f => typeof f === 'number'))) closeSync(fd);
+    let erreurDeLancement = null;
+    ecrireEtat(ctx, { ...ctx.courant, seance: enfant.pid ?? null });
     let bloque = false;
+    let fini = false;
     const veille = surveiller(ctx, enfant.pid, () => (bloque = true));
+    // A command that does not start (claude absent) ends with its error, whether or not its
+    // `close` follows.
+    enfant.on('error', e => {
+      erreurDeLancement = e.message;
+      if (!enfant.pid) enfant.emit('close', null);
+    });
     enfant.on('close', code => {
+      if (fini) return;
+      fini = true;
       clearInterval(veille);
       // What remains of the group goes with its launcher.
       if (bloque) signalerGroupe(enfant.pid, 'SIGKILL');
       ecrireEtat(ctx, { ...ctx.courant, seance: null });
-      const seance = existsSync(ctx.fin) ? Number(readFileSync(ctx.fin, 'utf8').trim()) : null;
-      resolve({ code, seance, bloque, erreur: lire(erreurs) });
+      let seance;
+      if (horsEnveloppe) {
+        seance = erreurDeLancement === null ? code : null;
+        spawnSync(process.execPath, [REGISTRE, '--copie', ctx.copie], {
+          cwd: ctx.racine,
+          stdio: ['ignore', 'ignore', 'ignore'],
+        });
+      } else {
+        seance = existsSync(ctx.fin) ? Number(readFileSync(ctx.fin, 'utf8').trim()) : null;
+      }
+      resolve({ code, seance, bloque, erreur: erreurDeLancement ?? lire(erreurs) });
     });
   });
 }
@@ -409,11 +507,12 @@ async function attendreLaSeance(ctx, groupe) {
   clearInterval(veille);
 }
 
-// The first template of the instruction, filled with <valeurs>.
-function consigne(valeurs) {
+// The template of the instruction at <rang> (0 the testeur's and the developpeur's, 1 the
+// reviewer's), filled with <valeurs>.
+function consigne(valeurs, rang = 0) {
   const texte = readFileSync(GABARIT, 'utf8');
-  const bloc = /```text\n([\s\S]*?)\n```/.exec(texte);
-  if (!bloc) throw new Error(`gabarit sans bloc de consigne : ${GABARIT}`);
+  const bloc = [...texte.matchAll(/```text\n([\s\S]*?)\n```/g)][rang];
+  if (!bloc) throw new Error(`gabarit sans bloc de consigne n° ${rang + 1} : ${GABARIT}`);
   return `${bloc[1].replace(/\{\{(\w+)\}\}/g, (m, k) => (k in valeurs ? valeurs[k] : m))}\n`;
 }
 
@@ -429,7 +528,7 @@ async function seance(ctx, role, composant, { tentative, rapport, fort }) {
     sujet: ctx.sujet,
     composant,
     reprise:
-      tentative > 1 || ctx.reprendre || ctx.depuis
+      tentative > 1 || ctx.reprendre || ctx.depuis || ctx.renvois
         ? "oui : une séance d'avant a travaillé ce composant ; ta copie garde son travail, le rapport ci-dessous dit ce qui reste"
         : 'non',
     lots: lots.length
@@ -440,9 +539,19 @@ async function seance(ctx, role, composant, { tentative, rapport, fort }) {
     rapport: rapport ?? 'aucun',
     passation: avant.at(-1) ?? 'aucune',
   };
-  let texte = consigne(valeurs);
+  await jusquALaPassation(ctx, role, composant, consigne(valeurs), { fort });
+}
+
+// The session of <role> on <composant> with the instruction <texte>, launched again once when it
+// leaves no comment <attendu> accepts (any comment of an agent, by default): the new comments of
+// the agents. Throws an Arret for a launch that stops before its session, a motionless session,
+// or twice no such comment.
+async function jusquALaPassation(ctx, role, composant, texte, options = {}) {
+  const attendu = options.attendu ?? (() => true);
+  const quoi = options.quoi ?? 'passation';
   for (let essai = 1; essai <= 2; essai++) {
-    const r = await lancer(ctx, role, composant, texte, fort);
+    const avant = passations(ctx);
+    const r = await lancer(ctx, role, composant, texte, options);
     if (r.bloque) {
       const minutes = Math.round(ctx.immobileMs / 60_000);
       throw new Arret(
@@ -456,19 +565,208 @@ async function seance(ctx, role, composant, { tentative, rapport, fort }) {
         `Le lanceur s'arrête avant la séance du ${role} (code ${r.code}).\n${r.erreur.trim()}\n\n${fin(lire(ctx.journal), 20)}`
       );
     }
-    if (passations(ctx).length > avant.length) return;
+    const neufs = passations(ctx).slice(avant.length);
+    if (neufs.some(attendu)) return neufs;
     if (essai === 1) {
-      commenter(ctx, composant, role, 'séance finie sans passation au ticket ; relancée une fois.');
-      texte = `${texte}\nRELANCE : ta séance d'avant a fini sans passation au ticket. Ta passation s'écrit par \`bd comments add ${ctx.ticket}\` avant la fin de ta séance.\n`;
+      commenter(ctx, composant, role, `séance finie sans ${quoi} au ticket ; relancée une fois.`);
+      texte = `${texte}\nRELANCE : ta séance d'avant a fini sans ${quoi} au ticket. Ta ${quoi} s'écrit par \`bd comments add ${ctx.ticket}\` avant la fin de ta séance.\n`;
     }
   }
   throw new Arret(
     'sans-passation',
-    `Deux séances du ${role} ont fini sans passation au ticket.\n\n${fin(lire(ctx.journal), 20)}`
+    `Deux séances du ${role} ont fini sans ${quoi} au ticket.\n\n${fin(lire(ctx.journal), 20)}`
   );
 }
 
 const lire = f => (existsSync(f) ? readFileSync(f, 'utf8') : '');
+
+// The circuit's reports at the ticket since the reviewer's last verdict: the comments of its proofs
+// and checks (the final pass among them).
+function rapportsDuCircuit(ctx) {
+  const tous = commentaires(ctx);
+  const depuis = tous.findLastIndex(t => VERDICT.test(t)) + 1;
+  const etape = new RegExp(`^${PREFIXE}\\S+ · (preuve|controles) :`);
+  return tous.slice(depuis).filter(t => etape.test(t));
+}
+
+// The files of the lot, as the copy holds them against its HEAD: `{ tests, code }`, the
+// testeur's files (`isTesterFile`: test files and the shared test material) and the others.
+function fichiersDuLot(ctx) {
+  const tests = [];
+  const code = [];
+  for (const { fichier } of changements(ctx)) {
+    (isTesterFile(fichier, ctx.copie) ? tests : code).push(fichier);
+  }
+  return { tests: tests.sort(), code: code.sort() };
+}
+
+// The review of the lot, the reviewer's session out of the envelope, from the second template:
+// `{ verdict, texte }`, the reviewer's last verdict among its new comments.
+async function relire(ctx, composant) {
+  const { tests, code } = fichiersDuLot(ctx);
+  const rapports = rapportsDuCircuit(ctx);
+  const precedents = passations(ctx).filter(t => VERDICT.test(t));
+  const valeurs = {
+    depot: ctx.racine,
+    ticket: ctx.ticket,
+    sujet: ctx.sujet,
+    composants: ctx.composants.join(', '),
+    reprise: precedents.length
+      ? `oui : ${precedents.length} relecture(s) d'avant ont rendu le lot, leurs verdicts sont au ticket, et le lot a repassé le circuit depuis`
+      : 'non',
+    lots: [
+      `le lot de tests : ${tests.join(', ') || 'aucun fichier'}`,
+      `le lot de code : ${code.join(', ') || 'aucun fichier'}`,
+    ].join(' ; '),
+    description: ctx.description.trim() || 'aucune',
+    rapports: rapports.join('\n\n') || 'aucun',
+  };
+  const neufs = await jusquALaPassation(ctx, 'relecteur', composant, consigne(valeurs, 1), {
+    horsEnveloppe: true,
+    attendu: t => VERDICT.test(t),
+    quoi: 'verdict',
+  });
+  const texte = neufs.filter(t => VERDICT.test(t)).at(-1);
+  return { verdict: VERDICT.exec(texte)[1], texte };
+}
+
+// The findings of the verdict RENDU <texte>, each a block that opens on a heading `Constat`
+// (`### Constat 1 — <adresse>`) and ends at the next heading: `{ titre, texte, role, composant,
+// critere }`, `role` and `composant` read from its line `Agent : <rôle> <composant>` (null
+// without one), `critere` true when it carries the line `Critère en cause : …`.
+export function constats(texte) {
+  const blocs = [];
+  let courant = null;
+  for (const ligne of String(texte).split('\n')) {
+    if (/^\s*#{1,6}\s*Constat\b/i.test(ligne)) {
+      courant = { titre: ligne.replace(/^\s*#+\s*/, '').trim(), lignes: [ligne] };
+      blocs.push(courant);
+    } else if (/^\s*#{1,6}\s/.test(ligne)) {
+      courant = null;
+    } else if (courant) {
+      courant.lignes.push(ligne);
+    }
+  }
+  return blocs.map(({ titre, lignes }) => {
+    const corps = lignes.join('\n').trim();
+    const agent = /^\s*(?:[-*]\s*)?\**Agent\**\s*:\s*\**\s*(\S+)\s+`?([^\s`*]+)/im.exec(corps);
+    return {
+      titre,
+      texte: corps,
+      role: agent ? agent[1] : null,
+      composant: agent ? agent[2].replace(/[,.;]+$/, '') : null,
+      critere: /^\s*(?:[-*]\s*)?\**Critère en cause\**\s*:/im.test(corps),
+    };
+  });
+}
+
+// The agents a verdict RENDU sends the lot back to: Map index of component → `{ etape,
+// testeur, developpeur }`, `etape` the first step that component plays again (testeur when a
+// finding names its testeur), `testeur` and `developpeur` the findings for each, or null. Throws
+// an Arret `relecture-arret` for a verdict without findings, a finding without a valid recipient
+// (a role other than testeur or developpeur, a component the title does not name) or one that
+// puts a criterion in question.
+function renvoisDuVerdict(ctx, texte) {
+  const liste = constats(texte);
+  const arret = raison =>
+    new Arret(
+      'relecture-arret',
+      `${raison} La décision revient au chef de chantier.\n\nLe verdict :\n\n${texte}`
+    );
+  if (liste.length === 0) {
+    throw arret(
+      'Le verdict RENDU ne porte aucun constat (`### Constat …`, avec sa ligne `Agent : <rôle> <composant>`).'
+    );
+  }
+  const renvois = new Map();
+  for (const c of liste) {
+    if (c.critere) throw arret(`Le constat « ${c.titre} » met en cause un critère du ticket.`);
+    let index = -1;
+    if (c.composant) {
+      try {
+        index = ctx.composants.indexOf(ctx.resoudre(c.composant));
+      } catch {
+        index = -1;
+      }
+    }
+    if (!DESTINATAIRES.includes(c.role) || index < 0) {
+      throw arret(
+        `Le constat « ${c.titre} » n'a pas de destinataire valide : sa ligne \`Agent : <rôle> <composant>\` nomme ${c.role ? `« ${c.role} ${c.composant} »` : 'personne'}, quand le rôle est testeur ou developpeur et le composant l'un du titre (${ctx.composants.join(', ')}).`
+      );
+    }
+    const r = renvois.get(index) ?? { etape: 'developpeur', testeur: [], developpeur: [] };
+    r[c.role].push(c.texte);
+    if (c.role === 'testeur') r.etape = 'testeur';
+    renvois.set(index, r);
+  }
+  const joindre = l => (l.length ? l.join('\n\n') : null);
+  return new Map(
+    [...renvois].map(([i, r]) => [
+      i,
+      { etape: r.etape, testeur: joindre(r.testeur), developpeur: joindre(r.developpeur) },
+    ])
+  );
+}
+
+// The integration of the lot: its two patches and its message, written from the copy, then
+// scripts/integration/integrer.mjs from the main tree, its output added to the log. A run « à
+// repasser » (75) plays once more. `{ code, sortie }`.
+function integrer(ctx) {
+  const { tests, code } = fichiersDuLot(ctx);
+  const dansCopie = (...a) =>
+    spawnSync('git', ['-C', ctx.copie, ...a], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+  // Each file against HEAD, a new one against nothing: the index of the copy is not written.
+  const patch = fichiers =>
+    fichiers
+      .map(f =>
+        dansCopie('cat-file', '-e', `HEAD:${f}`).status === 0
+          ? dansCopie('diff', '--binary', 'HEAD', '--', f).stdout
+          : dansCopie('diff', '--no-index', '--binary', '/dev/null', f).stdout
+      )
+      .join('');
+  const args = ['--ticket', ctx.ticket];
+  for (const [option, fichiers] of [
+    ['--tests', tests],
+    ['--code', code],
+  ]) {
+    if (!fichiers.length) continue;
+    const f = path.join(ctx.tmp, `${option.slice(2)}.patch`);
+    writeFileSync(f, patch(fichiers));
+    args.push(option, f);
+  }
+  const message = path.join(ctx.tmp, 'message');
+  writeFileSync(message, messageDeCommit(ctx));
+  args.push('--message', message);
+  let r;
+  for (let essai = 1; essai <= 2; essai++) {
+    entete(ctx, 'integration', ctx.composants.join(', '));
+    appendFileSync(ctx.journal, `$ node ${INTEGRER} ${args.join(' ')}\n`);
+    const x = spawnSync(process.execPath, [INTEGRER, ...args], {
+      cwd: ctx.racine,
+      encoding: 'utf8',
+      maxBuffer: 256 * 1024 * 1024,
+    });
+    r = { code: x.status ?? 1, sortie: `${x.stdout ?? ''}${x.stderr ?? ''}` };
+    appendFileSync(ctx.journal, r.sortie);
+    if (r.code !== A_REPASSER) break;
+  }
+  return r;
+}
+
+// The type of a conventional commit for the ticket's type in Beads; `feat` for any other.
+const TYPES_DE_COMMIT = { bug: 'fix', chore: 'chore', docs: 'docs' };
+
+// The commit message of the lot: `<type>(<composants>): <sujet> (<ticket>)`, the components by
+// their package name, then the trailer.
+function messageDeCommit(ctx) {
+  const liste = paquets(existsSync(ctx.copie) ? ctx.copie : ctx.racine);
+  const noms = ctx.composants
+    .filter(c => c !== '.')
+    .map(c => liste.find(p => p.dossier === c)?.pkg.name ?? path.basename(c));
+  const type = TYPES_DE_COMMIT[ctx.type] ?? 'feat';
+  const portee = noms.length ? `(${noms.join(',')})` : '';
+  return `${type}${portee}: ${ctx.sujet} (${ctx.ticket})\n\nCo-Authored-By: Claude <noreply@anthropic.com>\n`;
+}
 
 // The files the copy changes against its HEAD: [{ fichier, supprime }], relative to the copy.
 function changements(ctx) {
@@ -958,7 +1256,16 @@ const lireJson = f => {
   }
 };
 
-// The circuit from <depart> to « relecture ».
+// Where a component of a round of the reviewer's findings (or of `--depuis`) starts: the step and
+// the report its finding names, or its checks when no finding names it. Null out of a round.
+function entreeDuRenvoi(ctx, index) {
+  if (!ctx.renvois) return null;
+  const r = ctx.renvois[ctx.composants[index]];
+  if (!r) return { etape: 'controles', tentative: 0, rapport: null };
+  return { etape: r.etape, tentative: 1, rapport: r[r.etape] };
+}
+
+// The circuit from <depart> to the entry of the lot in the queue.
 async function derouler(ctx, depart) {
   let { index, etape, tentative, rapport, dernier, finale } = depart;
   for (;;) {
@@ -989,6 +1296,10 @@ async function derouler(ctx, depart) {
           commenter(ctx, composant, 'preuve', `${p.resume} ; ${suite}.\n\n${p.texte}`);
           etape = p.rouges ? 'developpeur' : 'controles';
           tentative = p.rouges ? 1 : 0;
+          // The reviewer's findings for this developpeur follow the proof.
+          const pourLui = ctx.renvois?.[composant]?.developpeur;
+          if (p.rouges && pourLui)
+            rapport = `${rapport}\n\nLES CONSTATS DU RELECTEUR :\n\n${pourLui}`;
         } else if (tentative <= RELANCES_TESTEUR) {
           commenter(
             ctx,
@@ -1057,22 +1368,64 @@ async function derouler(ctx, depart) {
           commenter(ctx, composant, 'controles', `${k.resume}.`);
           if (!passeFinale) {
             index++;
-            etape = 'testeur';
-            tentative = 1;
-            rapport = null;
+            ({ etape, tentative, rapport } = entreeDuRenvoi(ctx, index) ?? {
+              etape: 'testeur',
+              tentative: 1,
+              rapport: null,
+            });
           } else {
             etape = 'relecture';
           }
         }
       } else if (etape === 'relecture') {
-        ecrireEtat(ctx, { ...etat, code: 0 });
+        const v = await relire(ctx, composant);
+        if (v.verdict === 'ACCEPTÉ') {
+          commenter(ctx, composant, 'relecture', 'ACCEPTÉ ; le lot va à l’intégration.');
+          etape = 'integration';
+        } else {
+          // The reviews since the last ACCEPTÉ: a lot the queue sent back starts a new count.
+          const verdicts = passations(ctx).filter(t => VERDICT.test(t));
+          const depuis = verdicts.findLastIndex(t => VERDICT.exec(t)[1] === 'ACCEPTÉ') + 1;
+          const rendus = verdicts.length - depuis;
+          if (rendus >= RELECTURES) {
+            throw new Arret(
+              'relecture-arret',
+              `${rendus} relectures ont rendu le lot : le circuit s'arrête à la troisième. La décision revient au chef de chantier.\n\nLe dernier verdict :\n\n${v.texte}`
+            );
+          }
+          const renvois = renvoisDuVerdict(ctx, v.texte);
+          ctx.renvois = Object.fromEntries([...renvois].map(([i, r]) => [ctx.composants[i], r]));
+          index = Math.min(...renvois.keys());
+          ({ etape, tentative, rapport } = entreeDuRenvoi(ctx, index));
+          dernier = ctx.composants.length - 1;
+          finale = false;
+          const qui = [...renvois]
+            .sort(([a], [b]) => a - b)
+            .map(([i, r]) => `${r.etape} ${ctx.composants[i]}`)
+            .join(', ');
+          commenter(
+            ctx,
+            composant,
+            'relecture',
+            `RENDU (relecture ${rendus}) ; le circuit relance ${qui}, puis les composants d'après, la passe finale et le relecteur.`
+          );
+        }
+      } else if (etape === 'integration') {
+        const r = integrer(ctx);
+        if (r.code === A_REPASSER) throw new Arret('a-repasser', fin(r.sortie, 40));
+        if (r.code !== 0) {
+          throw new Arret(
+            'integration',
+            `Le script d'intégration refuse le lot (code ${r.code}) : la décision revient au chef de chantier.\n\n${fin(r.sortie, 60)}`
+          );
+        }
+        const commit = /✓ commit (\w+) sur (\S+)/.exec(r.sortie);
+        ecrireEtat(ctx, { ...etat, etape: 'en-file', code: 0 });
         commenter(
           ctx,
           composant,
-          'relecture',
-          ctx.depuis
-            ? `${composant} a repassé le circuit depuis ${ctx.depuis.etape} ; le lot va au relecteur.`
-            : `les ${ctx.composants.length} composant(s) ont passé le circuit ; le lot va au relecteur.`
+          'integration',
+          `${commit ? `commit ${commit[1]} sur ${commit[2]}` : 'lot commité'} ; la branche est en file.`
         );
         return 0;
       } else {
@@ -1101,23 +1454,27 @@ async function derouler(ctx, depart) {
 function depart(ctx, e) {
   const fin = ctx.composants.length - 1;
   if (ctx.depuis) {
-    const index = ctx.composants.indexOf(ctx.depuis.composant);
+    const { etape, composant } = ctx.depuis;
+    ctx.renvois = { [composant]: { etape, [etape]: ctx.contexte } };
     return {
-      index,
-      etape: ctx.depuis.etape,
+      index: ctx.composants.indexOf(composant),
+      etape,
       tentative: 1,
       rapport: ctx.contexte,
-      dernier: index,
+      dernier: fin,
       finale: false,
     };
   }
   if (!ctx.reprendre)
     return { index: 0, etape: 'testeur', tentative: 1, rapport: null, dernier: fin, finale: false };
   if (!e) throw new Usage(`rien à reprendre : ${ctx.etat} n'existe pas.`);
+  if (e.etape === 'en-file')
+    throw new Usage(`rien à reprendre : le lot de ${ctx.ticket} est en file.`);
   const index = ctx.composants.indexOf(e.composant);
   if (index < 0)
     throw new Usage(`le composant de l'état, ${e.composant}, n'est plus dans le titre.`);
   const dernier = ctx.composants.indexOf(e.dernier);
+  ctx.renvois = e.renvois ?? null;
   return {
     index,
     etape: e.etape,

@@ -10,7 +10,6 @@ tsdoc.json
 .claude/skills/developpeur/
 .claude/skills/explorateur/
 .claude/skills/grill/
-.claude/skills/integrateur/
 .claude/skills/mesure/
 .claude/skills/pitmaster/
 .claude/skills/redacteur/
@@ -23,6 +22,7 @@ scripts/branche-de-nuit.mjs
 scripts/circuit.mjs
 scripts/code-mort.mjs
 scripts/consommateurs.mjs
+scripts/consommateurs-arbitres.mjs
 scripts/crochets.mjs
 scripts/dette.mjs
 scripts/greffons.mjs

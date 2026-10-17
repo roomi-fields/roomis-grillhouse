@@ -431,7 +431,7 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
       ...extra,
     ];
   };
-  // The integration of <id>'s lots, as the integrateur runs it from the main tree.
+  // The integration of <id>'s lots, as the circuit runs it from the main tree.
   const integrer = (id: string, ...extra: string[]): SpawnSyncReturns<string> =>
     spawnSync('node', [INTEGRER, ...argsIntegrer(id, extra)], { cwd: repo, encoding: 'utf8', env });
   // The same, without waiting: two integrations run side by side.
@@ -472,7 +472,7 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
     }
     return r;
   };
-  // The queue, as the integrateur launches it from the main tree.
+  // The queue, as the chef de chantier launches it from the main tree.
   const file = (...args: string[]): SpawnSyncReturns<string> =>
     spawnSync('node', [FILE, ...args], { cwd: repo, encoding: 'utf8', env, timeout: 120_000 });
 

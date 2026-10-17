@@ -116,10 +116,10 @@ Une découverte qui ne bloque pas se consigne fermée sous ton ticket
 - **Tu retires ce que tu crées pour mesurer**, chemin par chemin, avant de rendre la main.
 - **Les documents du responsable** : une règle nouvelle pour un document que la charte lui réserve
   s'écrit d'abord dans le ticket (étiquette `attend-responsable`).
-- **Ton lot** : tu ne commites pas. Tu livres dans ton scratchpad le patch de tes seuls fichiers
-  (`code.patch`), le message de commit et la passation, puis tu préviens le superviseur, qui le
-  fait relire avant l'intégrateur. Un lot rendu par le relecteur ou l'intégrateur, avec la règle
-  qu'il enfreint, se corrige et se livre à nouveau.
+- **Ton lot** : tu ne commites pas. Ton lot est ton travail dans la copie, et ta passation au
+  ticket ; le circuit le fait relire, puis le commite. Un lot rendu par le relecteur, avec la règle
+  qu'il enfreint, te revient par le circuit, le constat pour rapport : il se corrige et se livre à
+  nouveau.
 
 ## La fin
 

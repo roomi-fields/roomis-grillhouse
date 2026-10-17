@@ -329,7 +329,7 @@ describe('3uv.42 critère 4 : each line carries its section', () => {
     expect(section(L0, x => x.texte === '1 explorateur  —')).toBe('agents');
     expect(section(L0, x => x.texte === '4 développeur')).toBe('agents');
     expect(section(L0, x => x.ticket === 'demo-e.1.4')).toBe('agents');
-    expect(section(L0, x => x.texte === '6 intégrateur  —')).toBe('agents');
+    expect(section(L0, x => x.texte === '2 arbitre  —')).toBe('agents');
   });
 
   it("3uv.42 critère 4 : the FAITS AUJOURD'HUI title and its tickets are in faits", () => {

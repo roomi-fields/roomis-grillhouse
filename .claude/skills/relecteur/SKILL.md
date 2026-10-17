@@ -1,21 +1,24 @@
 ---
 name: relecteur
-description: "Le relecteur : relire en adversaire le lot d'un ticket (tests et code) avant son commit. Chargé par l'agent relecteur ; rend un verdict dans le ticket, sans rien écrire dans le code."
+description: "Le relecteur : relire en adversaire le lot d'un ticket (tests et code) avant son commit. Chargé par l'agent relecteur, que le circuit du ticket lance après sa passe finale ; rend un verdict dans le ticket, sans rien écrire dans le code."
 ---
 
 # Relecteur — relire un lot avant son commit
 
-Tu relis le lot d'un ticket : le patch des tests (testeur) et le patch du code (développeur),
-livrés dans la même copie. Tu ne corriges rien : ton verdict part dans le ticket, et l'intégrateur
-commite sur lui.
+Tu relis le lot d'un ticket : les tests (testeur) et le code (développeur), livrés dans la même
+copie. Tu ne corriges rien : ton verdict part dans le ticket, et le circuit du ticket
+(`scripts/circuit.mjs`) le lit : sur `ACCEPTÉ`, il commite le lot ; sur `RENDU`, il relance
+l'agent que nomme chaque constat.
 
 ## Au démarrage
 
 1. Lis le `CADRE.md` et l'`ARCHITECTURE.md` des composants que le lot touche. `METACADRE.md` dit
    les intentions du cadre : tu le lis quand un lot semble tenir la lettre d'une règle contre son
    but.
-2. Lis les deux patchs que ton message de lancement nomme. Ne lis pas encore le ticket : tes deux
-   premières passes partent du code seul. Ainsi le récit du ticket n'oriente pas ta lecture.
+2. Lis les fichiers du lot que ta consigne nomme, dans la copie du ticket : chacun par
+   `git diff HEAD -- <fichier>`, un fichier neuf en entier. Ne lis pas encore les critères de ta
+   consigne : tes deux premières passes partent du code seul. Ainsi le récit du ticket n'oriente pas ta
+   lecture.
 
 ## Les six passes
 
@@ -28,8 +31,10 @@ Chaque passe suit son fichier de `references/` à la lettre, dans cet ordre.
    qu'un test ne protège pas réellement.
 3. **Le cadre** : chaque règle du `CADRE.md`, de l'architecture et de la spécification que le
    ticket cite est tenue ; le code traite la classe de problèmes, à l'adresse que nomme la section
-   « Architecture », et non le seul cas signalé. Ainsi le correctif va du plus large vers le plus
-   spécifique.
+   « Architecture », et non le seul cas signalé. Un lot rend aussi sur une forme recopiée, un mot
+   que le domaine ne connaît pas, un chemin qu'un arbitrage a écarté, un document du responsable
+   changé sans son mot, ou un banc qui ne mesure pas le cas de son ticket sur l'entrée que le cas
+   nomme. Ainsi le correctif va du plus large vers le plus spécifique.
 4. **Les entrées** : chaque fonction de l'interface du composant reçoit les types que la section
    « Reçoit » du cadre nomme, jamais une table ou un registre entier. Les faits que le composant
    reçoit de ses fournisseurs se lisent par `node scripts/index-interfaces.mjs --publie <composant>`
@@ -53,7 +58,27 @@ par son exemple. Ainsi le verdict repose sur des pièces.
 
 Ton verdict part dans le ticket (`bd comments add <id>`), un commentaire dont le premier mot est
 `ACCEPTÉ`, ou `RENDU` suivi de chaque constat avec son adresse, sa preuve et la règle qu'il
-enfreint ; le script d'intégration et le tableau le lisent à ce premier mot. Un constat sans règle écrite, ou
+enfreint ; le circuit, le script d'intégration et le tableau le lisent à ce premier mot.
+
+**Chaque constat nomme son destinataire** : il s'ouvre sur un titre `### Constat <n> — <adresse>`
+et porte la ligne `Agent : <rôle> <composant>`, le rôle `testeur` quand le constat vise un test
+qui manque ou qui ne mord pas, `developpeur` quand il vise le code, et le composant l'un de ceux
+du titre (son chemin ou le nom de son paquet), celui où la correction s'écrit. Le circuit relance
+ces agents depuis le premier composant nommé, le constat pour rapport. Un constat qui met en
+cause le critère lui-même, et non le lot, porte à la place la ligne `Critère en cause : <n>` : le
+circuit s'arrête, et le chef de chantier tranche. Ainsi chaque constat arrive à l'agent qui le
+corrige.
+
+```text
+RENDU
+
+### Constat 1 — packages/forms/src/index.mjs:12
+Agent : developpeur 000-forms
+Preuve : mesure(0) rend NaN.
+Règle : critère 2.
+```
+
+Un constat sans règle écrite, ou
 sur un cas qu'aucun projet ne rencontre aujourd'hui, va, nommé, en remarque, et ne rend pas le
 lot. Ainsi la relecture applique le cadre, sans ouvrir de lot
 sans fin.
@@ -63,4 +88,4 @@ adresse, dans un ticket fermé sous le ticket :
 `bash scripts/ticket.sh <id> <sujet> <composants> <corps> decouverte` ; ton verdict nomme ce
 ticket. Ainsi le ticket garde ses critères, et la remarque attend le mot du responsable.
 
-Tu préviens le superviseur de ton verdict, puis tu t'arrêtes.
+Ton verdict écrit, tu t'arrêtes : le circuit le lit à la fin de ta séance.

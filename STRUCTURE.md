@@ -15,7 +15,6 @@ roomis-grillhouse/
 │   │   ├── testeur.md                # Writes a ticket's tests from the spec; writes test files and the shared test material only
 │   │   ├── developpeur.md            # Writes the code; no test file, no code before the Architecture section
 │   │   ├── relecteur.md              # Reviews the lot adversarially; writes no file
-│   │   ├── integrateur.md            # One per delivery: judges the lot, runs the integration script; writes no file
 │   │   ├── arbitre.md                # Settles a design question, or sends it to the owner; writes no file
 │   │   └── explorateur.md            # Runs an exploration: survey, decisions, proposed tickets; writes no file
 │   └── skills/                    # Skills, ready from the first session
@@ -27,7 +26,6 @@ roomis-grillhouse/
 │       ├── developpeur/           # The developer's skill
 │       ├── relecteur/             # The reviewer's skill
 │       │   └── references/           # edge cases, verification gaps (from BMAD-METHOD, MIT)
-│       ├── integrateur/           # The integrator's skill
 │       ├── arbitre/               # The arbiter's skill
 │       ├── explorateur/           # The explorer's skill
 │       ├── mesure/                # Measurement: measures without lying, proves a guard bites
@@ -55,14 +53,15 @@ roomis-grillhouse/
 │   │   ├── codes.mjs                 # the exit codes of the envelope and its launcher
 │   │   ├── composant.mjs             # GRILLHOUSE_ENVELOPPE, the component the envelope names: npm test and npm run api build and write it alone
 │   │   └── lancer.sh                 # one ticket → one fresh role session in its envelope, its providers and the traces its tests read produced first, its instruction followed by what its providers publish; each session added to the ticket's log under its header line, its exit code in .claude/worktrees/<ticket>.fin
-│   ├── circuit.mjs                # the circuit of one ticket, component by component in the order of its title: testeur, proof of the red (the lot's tests played, a green justified by « vert attendu »), developpeur, checks (what is done up to the component, guards in its envelope; after the last one the final pass, a red sent to the developpeur of the component that owns it), then « relecture »; writes each instruction from consigne-agent.md, stops a session whose transcript stands still 20 min, relaunches a session without handover once; state in .claude/worktrees/<ticket>.circuit.json, one comment « Circuit · … » per step, --reprendre, and --depuis <testeur|developpeur> <component> for a lot the reviewer sends back
-│   ├── attendre.sh                # the chef de chantier's wait for a reviewer's or an integrator's verdict, by slices of 580 s
+│   ├── circuit.mjs                # the circuit of one ticket, component by component in the order of its title: testeur, proof of the red (the lot's tests played, a green justified by « vert attendu »), developpeur, checks (what is done up to the component, guards in its envelope; after the last one the final pass, a red sent to the developpeur of the component that owns it), then the reviewer out of the envelope (RENDU: the agent each finding names, « Agent : <rôle> <composant> », plays again, three reviews at most), then on ACCEPTÉ the integration (the lot built from the copy, integrer.mjs), which ends at the entry in the queue; writes each instruction from consigne-agent.md, stops a session whose transcript stands still 20 min, relaunches a session without handover once; state in .claude/worktrees/<ticket>.circuit.json, one comment « Circuit · … » per step, --reprendre, and --depuis <testeur|developpeur> <component> for a lot the chef has corrected after a stop
+│   ├── attendre.sh                # the wait for a new comment at a ticket (a verdict), by slices of 580 s
 │   ├── dette.mjs                  # the known debt of the guards: grillhouse-dette.json (guard, file, rule → count); a guard passes within the counts, refuses a new finding or a count beyond, reports a count below
 │   ├── code-mort.mjs              # grillhouse:gardes: refuses dead code, measured by knip (knip.json); tests and benches count for dependency use only; the frame's scripts (fichiers.txt) are knip entries, judged in Grillhouse
 │   ├── consommateurs.mjs          # grillhouse:gardes: refuses an import that the provider's INTERFACE.md does not declare, and two components of the same name
 │   │                              #   composants(): the components for every check, minus the packages out of
 │   │                              #   the frame listed in docs/agents/hors-cadre.txt, "<package> <reason>"; such a package stays a
 │   │                              #   workspace, and Turborepo plays none of its tasks (turbo-des-paquets.mjs)
+│   ├── consommateurs-arbitres.mjs # grillhouse:gardes: a Consommateurs line a lot changes enters with a settled arbitrage at its ticket naming the consumer
 │   ├── crochets.mjs               # the frame's git hooks (commit-msg, pre-push): placed by setup.sh and grillhouse:maj, absent ones named by the session start
 │   ├── greffons.mjs               # the frame's plugins (those `.claude/settings.json` enables): installed for the project by setup.sh and grillhouse:maj, absent ones named by the session start
 │   ├── gardes-du-cadre.mjs        # npm run grillhouse:gardes: the frame's guards, the one list of them (GARDES_DU_CADRE), each played whatever the verdict of the ones before; each red named, code 1 when one is red
@@ -99,7 +98,7 @@ roomis-grillhouse/
 │   ├── verrou-de-fichier.mjs      # the lock of a file shared between processes (judged by the owner's process or by age); taken by integrer.mjs, file.mjs and registre.mjs
 │   ├── registre.mjs               # hook: one line per finished agent (ticket, role, time, tokens)
 │   ├── integration/               # One delivery, in a clean copy: verdicts, lots, npm run verifier green, commit on agent/<ticket>; then the queue brings it onto main
-│   │   ├── integrer.mjs              # run by the integrateur: commits the lot on agent/<ticket>, labels the ticket en-file (tests: tests/unit/integrer.spec.ts)
+│   │   ├── integrer.mjs              # run by the circuit on ACCEPTÉ: commits the lot on agent/<ticket>, labels the ticket en-file, puts the branch in the queue (tests: tests/unit/integrer.spec.ts)
 │   │   ├── file.mjs                  # the queue: brings the branches onto main one at a time, replaced and replayed when main moved, pushes main (tests: tests/unit/file-integration.spec.ts)
 │   │   ├── rejeu.mjs                 # the replay shared by integrer.mjs and file.mjs: clean copy, dependencies of its lock file, npm run verifier (Turborepo: build, then guards and tests); a 75 keeps the lot waiting
 │   │   └── file-attente.mjs          # the queue's entries (a branch and its one ticket each), in git's common directory, and the directory the integration's locks live in
@@ -210,8 +209,9 @@ tickets. Once done, the hook stays silent.
 - A supervision session loads `pitmaster`: it keeps the tickets and hands each one to a fresh
   sub-agent.
 - The roles are project agents (`.claude/agents/`): `chef-de-chantier` leads one ticket from its
-  claim to its commit, `testeur` writes the tests, `developpeur` the code, `relecteur` reviews,
-  `integrateur` commits. Each loads its skill and works under its locks.
+  claim to its commit, `testeur` writes the tests, `developpeur` the code, `relecteur` reviews;
+  the circuit of the ticket (`scripts/circuit.mjs`) launches them and commits. Each loads its skill
+  and works under its locks.
 
 ### An existing project
 

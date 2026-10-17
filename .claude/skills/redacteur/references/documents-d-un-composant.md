@@ -51,7 +51,9 @@ composant produit.
 **Les consommateurs sont déclarés** : une section `## Consommateurs` liste chaque composant qui
 utilise l'interface, avec les éléments qu'il importe (`` - `parser` : jeton, position ``, `*` pour
 un import entier). Le garde `scripts/consommateurs.mjs` refuse un import qu'elle ne déclare pas, et
-signale une déclaration qu'aucun code n'emploie ; une ligne nouvelle entre avec son arbitrage.
+signale une déclaration qu'aucun code n'emploie ; une ligne nouvelle entre avec son arbitrage
+tranché au ticket, qui nomme le consommateur, et le garde `scripts/consommateurs-arbitres.mjs`
+refuse une ligne changée sans lui.
 Ainsi chaque dépendance entre composants est écrite et décidée.
 
 ## L'architecture (`ARCHITECTURE.md`)

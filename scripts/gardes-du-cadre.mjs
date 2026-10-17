@@ -17,6 +17,7 @@ export const GARDES_DU_CADRE = [
   ['scripts/turbo-des-paquets.mjs'],
   ['scripts/index-interfaces.mjs', '--verifier'],
   ['scripts/consommateurs.mjs'],
+  ['scripts/consommateurs-arbitres.mjs'],
   ['scripts/frontieres.mjs'],
   ['scripts/interfaces-contre-code.mjs'],
   ['scripts/resumes.mjs'],

@@ -40,7 +40,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   lance leur agent et je relis sa fermeture. Je ferme moi-même seulement un ticket sans code : une
   question tranchée, un ticket sans objet. Ainsi celui qui relit n'est jamais celui qui a fait.
 - **Les gestes de l'agent** : l'agent écrit le code, les tests, les documents et la passation, et
-  livre son lot ; l'intégrateur le commite sur la branche du ticket, et la file
+  livre son lot ; le circuit du ticket le commite sur la branche du ticket, et la file
   (`scripts/integration/file.mjs`) l'amène sur main et ferme le ticket. Ainsi chaque changement du dépôt
   porte un ticket et passe une relecture.
 - **Le dépôt appartient aux agents** : une réparation, même d'une ligne, part en ticket à un agent.
@@ -49,9 +49,9 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   du responsable, avec ses tests, dans un commit qui ne contient que lui. Ainsi l'interface se
   règle à la vitesse où le responsable l'essaie.
 - **Le cadre évolue par ticket, au circuit de sa matière** : un script du cadre passe la chaîne
-  complète (testeur, développeur, relecteur, intégrateur) ; une consigne en prose (charte,
-  métacadre, compétences, agents) passe à un développeur seul, puis au relecteur et à
-  l'intégrateur. Ainsi chaque changement du cadre est relu par un autre que son auteur, et un test
+  complète du circuit (testeur, développeur, relecteur, intégration) ; une consigne en prose
+  (charte, métacadre, compétences, agents) passe à un développeur seul, puis au relecteur et à
+  l'intégration. Ainsi chaque changement du cadre est relu par un autre que son auteur, et un test
   écrit d'avance garde seulement ce qui s'exécute.
 - **Mes fichiers** : `pitmaster/SUIVI.md` et ma mémoire. Je les commite seuls, dans un commit qui
   ne contient qu'eux.
@@ -66,7 +66,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   (`subagent_type: chef-de-chantier`, en arrière-plan, sans nom), la consigne réduite à « TON
   TICKET : <id> », le composant, le contexte du moment et son dossier dans mon scratchpad. Il
   lance le circuit du ticket (`scripts/circuit.mjs` : testeur, preuve du rouge, développeur,
-  contrôles), puis le relecteur et l'intégrateur, tranche ce que les règles tranchent, pousse le commit et arrête ses agents (compétence `chef-de-chantier`). Ainsi chaque
+  contrôles, relecteur, intégration, jusqu'à la file), puis la file, tranche ce que les règles
+  tranchent et lit la CI de son commit (compétence `chef-de-chantier`). Ainsi chaque
   ticket a un seul responsable de son circuit, et je garde la vue d'ensemble.
 - **J'interviens sur ce qui dépasse le ticket** : la fin du chef m'apporte soit son rapport, soit
   une question qu'aucune règle ne tranche ; je réponds par message à son identifiant, et il

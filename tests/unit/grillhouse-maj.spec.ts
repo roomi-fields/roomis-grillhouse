@@ -178,6 +178,7 @@ const CONTROLES: [string, RegExp][] = [
   ['turbo.json des paquets', /^node scripts\/turbo-des-paquets\.mjs$/],
   ['index des interfaces', /^node scripts\/index-interfaces\.mjs --verifier$/],
   ['consommateurs', /^node scripts\/consommateurs\.mjs$/],
+  ['consommateurs arbitrés', /^node scripts\/consommateurs-arbitres\.mjs$/],
   ['frontières', /^node scripts\/frontieres\.mjs$/],
   ['interfaces contre code', /^node scripts\/interfaces-contre-code\.mjs$/],
   ['résumés courts', /^node scripts\/resumes\.mjs$/],

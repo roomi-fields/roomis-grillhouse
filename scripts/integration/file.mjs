@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // The queue: brings the branches `agent/<ticket>` the integration committed onto main, one at a time,
 // in their order of arrival (scripts/integration/file-attente.mjs). Run from the main tree by the
-// integrateur, after its integration, and by the supervisor by hand.
+// chef de chantier, once the circuit of his ticket has put its branch in the queue, and by the
+// supervisor by hand.
 //
 //   node scripts/integration/file.mjs
 //

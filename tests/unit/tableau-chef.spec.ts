@@ -31,7 +31,7 @@ const SEC = 1000;
 const l = (o: object) => JSON.stringify(o);
 const at = (hm: string) => `2026-10-11T${hm}:00Z`;
 const ilYa = (ms: number) => new Date(Date.now() - ms).toISOString();
-const ANCIENS = ['explorateur', 'arbitre', 'testeur', 'developpeur', 'relecteur', 'integrateur'];
+const ANCIENS = ['explorateur', 'arbitre', 'testeur', 'developpeur', 'relecteur'];
 
 // A transcript: its prompt « TON TICKET : <ticket> » at 08:00, then `n` answers of 10 tokens.
 const transcription = (ticket: string, n: number) =>
@@ -196,7 +196,7 @@ const agentsTextes = (t: Board) => {
 const pane = (t: Board) => agentsTextes(t).map(x => x.texte);
 
 describe('3uv.49 critère 1 : the block of role 0, the site manager, heads the agents', () => {
-  it('3uv.49 critère 1 : by default the first block is the site manager, numbered 0, the others keep 1 to 6', () => {
+  it('3uv.49 critère 1 : by default the first block is the site manager, numbered 0, the others keep 1 to 5', () => {
     const t = plateau([], [], []);
     expect(t.agents.map(b => [b.numero, b.role])).toEqual([
       [0, CHEF],
@@ -205,7 +205,6 @@ describe('3uv.49 critère 1 : the block of role 0, the site manager, heads the a
       [3, 'testeur'],
       [4, 'developpeur'],
       [5, 'relecteur'],
-      [6, 'integrateur'],
     ]);
   });
 
@@ -282,13 +281,13 @@ describe('3uv.49 critère 2 : the agents a manager launches are tied to their ti
     });
   });
 
-  it('3uv.49 critère 2 : an integrator launched by a manager, finished, has its register line under its role', () => {
+  it('3uv.49 critère 2 : a reviewer launched by a manager, finished, has its register line under its role', () => {
     const home = nouveauHome();
-    sousAgent(home, 'i11', { agentType: 'integrateur', parentAgentId: 'c11' }, 'demo-9', 2);
-    expect(ligneFinie(home, 'i11')).toMatchObject({
-      agent: 'i11',
+    sousAgent(home, 'r11', { agentType: 'relecteur', parentAgentId: 'c11' }, 'demo-9', 2);
+    expect(ligneFinie(home, 'r11')).toMatchObject({
+      agent: 'r11',
       ticket: 'demo-9',
-      role: 'integrateur',
+      role: 'relecteur',
     });
   });
 
@@ -313,7 +312,7 @@ describe('3uv.49 critère 3 : a ticket a running manager leads waits for no role
     expect(enCours(t, CHEF)).toEqual(['demo-9']);
   });
 
-  it('3uv.49 critère 3 : after an accepted review, the ticket does not wait for the integrator while its manager runs', () => {
+  it('3uv.49 critère 3 : after an accepted review, the ticket waits for no role while its manager runs', () => {
     const t = plateau(
       [T('demo-9')],
       [fin('t1', 'demo-9', 'testeur', '09:00'), fin('d1', 'demo-9', 'developpeur', '10:00')],
@@ -352,7 +351,7 @@ describe('3uv.49 critère 3 : a ticket a running manager leads waits for no role
 });
 
 describe('3uv.49 critère 4 : a project whose roles leave the manager out keeps its board', () => {
-  it('3uv.49 critère 4 : its agents section draws exactly the lines of before, blocks 1 to 6', () => {
+  it('3uv.49 critère 4 : its agents section draws exactly the lines of before, blocks 1 to 5', () => {
     const a = pane(plateau([], [], [], { roles: ANCIENS }));
     expect(a).toEqual([
       '',
@@ -362,7 +361,6 @@ describe('3uv.49 critère 4 : a project whose roles leave the manager out keeps 
       '3 testeur  —',
       '4 développeur  —',
       '5 relecteur  —',
-      '6 intégrateur  —',
     ]);
   });
 
@@ -451,7 +449,7 @@ describe('3uv.49 critère 5 : an open ticket a manager led, with nothing running
     expect(bloc(t, 'developpeur')!.attend).toEqual([]);
   });
 
-  it('3uv.49 critère 5 : after an accepted review, the led ticket waits under 0, not for the integrator', () => {
+  it('3uv.49 critère 5 : after an accepted review, the led ticket waits under 0', () => {
     const t = plateau(
       [T('demo-9')],
       [
@@ -645,10 +643,10 @@ describe('3uv.49 critère 7 : the manager heads the blocks as 0 wherever the lis
   });
 
   it('3uv.49 critère 7 : the other roles keep the declared order, not the order of the flow', () => {
-    const t = plateau([], [], [], { roles: [CHEF, 'integrateur', 'testeur'] });
+    const t = plateau([], [], [], { roles: [CHEF, 'relecteur', 'testeur'] });
     expect(t.agents.map(b => [b.numero, b.role])).toEqual([
       [0, CHEF],
-      [1, 'integrateur'],
+      [1, 'relecteur'],
       [2, 'testeur'],
     ]);
   });
@@ -742,7 +740,7 @@ describe('3uv.49 critère 9 : without the manager in the list, a running manager
     expect(bloc(t, 'developpeur')!.attend.map(x => x.id)).toEqual(['demo-9']);
   });
 
-  it('3uv.49 critère 9 : a review accepted then a manager finished last, the board reads the verdict: the ticket waits for the integrator', () => {
+  it('3uv.49 critère 9 : a review accepted then a manager finished last, the board reads the verdict: the ticket waits for no agent, the circuit integrates it', () => {
     const racine = depotFactice(
       [T('demo-9')],
       [{ id: 1, issue_id: 'demo-9', text: 'ACCEPTÉ — le lot', created_at: at('10:45') }],
@@ -755,8 +753,7 @@ describe('3uv.49 critère 9 : without the manager in the list, a running manager
       ANCIENS
     );
     const t = tableau(racine, { home: nouveauHome() }) as unknown as Board;
-    expect(bloc(t, 'integrateur')!.attend.map(x => x.id)).toEqual(['demo-9']);
-    expect(bloc(t, 'developpeur')!.attend).toEqual([]);
+    expect(t.agents.flatMap(b => b.attend.map(x => x.id))).toEqual([]);
   });
 });
 
@@ -957,19 +954,19 @@ describe('3uv.49 critère 13 : a sub-agent, whatever its role, runs while its la
     expect(v.find(x => x.agent === 'c20')).toBeUndefined();
   });
 
-  it('3uv.49 critère 13 : the real case, a manager silent 5 minutes in the middle of a call and its integrator silent 3 minutes in the middle of a call, both run, the ticket shown under the integrator', () => {
+  it('3uv.49 critère 13 : the real case, a manager silent 5 minutes in the middle of a call and its reviewer silent 3 minutes in the middle of a call, both run, the ticket shown under the reviewer', () => {
     const home = nouveauHome();
     enAttente(home, ID_CHEF, { agentType: CHEF }, 'demo-9', 5 * MIN);
-    enAttente(home, 'i21', { agentType: 'integrateur', parentAgentId: ID_CHEF }, 'demo-9', 3 * MIN);
+    enAttente(home, 'r21', { agentType: 'relecteur', parentAgentId: ID_CHEF }, 'demo-9', 3 * MIN);
     const v = vivants(home);
     expect(v.find(x => x.agent === ID_CHEF)).toMatchObject({ role: CHEF, ticket: 'demo-9' });
-    expect(v.find(x => x.agent === 'i21')).toMatchObject({
-      role: 'integrateur',
+    expect(v.find(x => x.agent === 'r21')).toMatchObject({
+      role: 'relecteur',
       ticket: 'demo-9',
     });
     const t = plateauVivant(home, [T('demo-9')]);
     expect(enCours(t, CHEF)).toEqual([]);
-    expect(enCours(t, 'integrateur')).toEqual(['demo-9']);
+    expect(enCours(t, 'relecteur')).toEqual(['demo-9']);
   });
 
   it('3uv.49 critère 13 : a reviewer silent 5 minutes in the middle of a call, launched by no manager, runs', () => {

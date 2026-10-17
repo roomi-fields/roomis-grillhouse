@@ -153,9 +153,10 @@ describe('verdict and etape', () => {
       etape([p('testeur', '2026-10-10T10:00:00Z'), p('developpeur', '2026-10-10T11:00:00Z')], null)
     ).toBe('relecteur');
     const relu = [p('developpeur', '2026-10-10T11:00:00Z'), p('relecteur', '2026-10-10T12:00:00Z')];
-    expect(etape(relu, { verdict: 'ACCEPTÉ', date: Date.parse('2026-10-10T12:00:00Z') })).toBe(
-      'integrateur'
-    );
+    // An accepted lot waits for no agent: the circuit integrates it.
+    expect(
+      etape(relu, { verdict: 'ACCEPTÉ', date: Date.parse('2026-10-10T12:00:00Z') })
+    ).toBeNull();
     expect(etape(relu, { verdict: 'RENDU', date: Date.parse('2026-10-10T12:00:00Z') })).toBe(
       'developpeur'
     );

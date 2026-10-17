@@ -554,7 +554,7 @@ const sousAgentDe = (home: string, id: string, attend: boolean, silence: number)
   mkdirSync(sous, { recursive: true });
   const f = path.join(sous, `agent-${id}.jsonl`);
   writeFileSync(f, enAppel('demo-9', attend));
-  writeFileSync(path.join(sous, `agent-${id}.meta.json`), l({ agentType: 'integrateur' }));
+  writeFileSync(path.join(sous, `agent-${id}.meta.json`), l({ agentType: 'relecteur' }));
   bouge(f, silence);
 };
 const sessionDe = (home: string, id: string, attend: boolean, silence: number) =>

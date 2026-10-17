@@ -14,16 +14,21 @@ import { canWrap, racineSousLaMaison } from '../machine.js';
 import { ecrire as ecrireTurbo } from '../../scripts/turbo-des-paquets.mjs';
 
 // The circuit of a ticket (scripts/circuit.mjs): for each component of its title, the provider
-// first, the testeur, the proof of the red, the developpeur and the checks, then « relecture ».
+// first, the testeur, the proof of the red, the developpeur and the checks; then the reviewer,
+// and on ACCEPTÉ the integration, which puts the branch in the queue.
 // Decided by the owner on 2026-10-17 (grill): the chef de chantier launches it in the background
-// and wakes at its end, in place of launching and waiting for each session himself.
+// and wakes at its end, in place of launching and waiting for each session himself; the circuit
+// launches the reviewer (Q6) and integrates the lot itself, the role of the integrateur gone (Q7);
+// it ends at the entry of the lot in the queue (Q13).
 //
 // The trial repository holds two packages, `000-forms` (packages/forms) and `030-binder`
-// (packages/binder), whose `mesure` is wrong until the developpeur writes it. Each session is a
-// real launch (scripts/enveloppe/lancer.sh) in a real envelope; claude is a stand-in (CLAUDE_BIN)
+// (packages/binder), whose `mesure` is wrong until the developpeur writes it. Each session of the
+// testeur and the developpeur is a real launch (scripts/enveloppe/lancer.sh) in a real envelope;
+// the reviewer's is claude in the ticket's copy, out of the envelope; claude is a stand-in (CLAUDE_BIN)
 // that plays the scenario the test wrote for its role, and bd is a stand-in on the PATH whose
 // tickets and comments live in the main tree's `.beads/`, which the envelope leaves writable. The
-// proof and the checks are real runs of the frame's commands (npm test, npm run verifier).
+// proof and the checks are real runs of the frame's commands (npm test, npm run verifier), and the
+// integration the frame's script (scripts/integration/integrer.mjs).
 
 const RACINE = path.resolve(__dirname, '../..');
 const CIRCUIT = path.join(RACINE, 'scripts/circuit.mjs');
@@ -64,8 +69,9 @@ function installerEnveloppe() {
 }
 
 // The stand-in for claude, run in the envelope with the copy as working directory. It finds the
-// main tree from git, reads its ticket in the prompt, records the call (prompt, arguments, role
-// and component in `ordre`), leaves a line of transcript where Claude Code keeps the copy's, then
+// main tree from git, reads its ticket in the prompt, records the call (prompt, arguments, working
+// directory, role and component in `ordre`, the role alone out of the envelope), leaves a line of
+// transcript where Claude Code keeps the copy's, then
 // sources the scenario of its role: `<role>-<n>.sh` for its n-th session, else `<role>.sh`. A
 // scenario writes in the component (`$c`) and hands over with `passation <text>`.
 const FAUX_CLAUDE = `#!/bin/bash
@@ -80,7 +86,8 @@ n=$(( $(cat "$e/$role.n" 2>/dev/null || echo 0) + 1 ))
 echo "$n" > "$e/$role.n"
 printf '%s' "$prompt" > "$e/$role-$n.prompt"
 printf '%s\\0' "$@" > "$e/$role-$n.args"
-echo "$role $GRILLHOUSE_ENVELOPPE" >> "$e/ordre"
+pwd > "$e/$role-$n.pwd"
+echo "$role\${GRILLHOUSE_ENVELOPPE:+ $GRILLHOUSE_ENVELOPPE}" >> "$e/ordre"
 d="$HOME/.claude/projects/$(pwd | sed 's/[^A-Za-z0-9]/-/g')"
 mkdir -p "$d"
 echo '{"type":"user"}' >> "$d/$role-$n.jsonl"
@@ -207,9 +214,13 @@ function depot() {
   mkdirSync(path.join(HOME, '.claude/projects'), { recursive: true });
   const git = (...a: string[]) =>
     execFileSync('git', ['-C', REPO, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
-  git('init', '-q');
+  git('init', '-q', '-b', 'main');
   git('add', '.');
   git('commit', '-qm', 'init');
+  // The integration's copy made ahead, with this repository's dependencies, as a project holds them.
+  const integration = path.join(REPO, '.claude/worktrees/integration');
+  git('worktree', 'add', '-q', '--detach', integration);
+  symlinkSync(path.join(RACINE, 'node_modules'), path.join(integration, 'node_modules'), 'dir');
 }
 if (canWrap) {
   depot();
@@ -227,6 +238,7 @@ const DESCRIPTION = [
 
 // A ticket of the stand-in bd, whose title names <composants>; its copy made ahead, with this
 // repository's dependencies as its own (the launcher then installs nothing), as a project holds them.
+// Its reviewer accepts the lot unless the test writes it another scenario.
 function ticket(id: string, composants: string) {
   ecrire(
     path.join(BEADS, `${id}.json`),
@@ -235,6 +247,7 @@ function ticket(id: string, composants: string) {
   const copie = path.join(REPO, '.claude/worktrees', id);
   execFileSync('git', ['-C', REPO, 'worktree', 'add', '-q', '-b', `agent/${id}`, copie]);
   symlinkSync(path.join(RACINE, 'node_modules'), path.join(copie, 'node_modules'), 'dir');
+  scenario(id, 'relecteur', "passation 'ACCEPTÉ — le lot tient ses critères.'\n");
   return copie;
 }
 
@@ -275,6 +288,10 @@ const ENV = {
   PATH: `${BIN}${path.delimiter}${path.join(RACINE, 'node_modules/.bin')}${path.delimiter}${process.env.PATH ?? ''}`,
   CLAUDE_BIN: path.join(REPO, 'faux-claude.sh'),
   HOME,
+  GIT_AUTHOR_NAME: 't',
+  GIT_AUTHOR_EMAIL: 't@t',
+  GIT_COMMITTER_NAME: 't',
+  GIT_COMMITTER_EMAIL: 't@t',
   TURBO_TELEMETRY_DISABLED: '1',
   DO_NOT_TRACK: '1',
 };
@@ -303,7 +320,21 @@ const etat = (id: string) =>
     journal: string;
     finale: boolean;
     seance: number | null;
+    renvois: Record<string, { etape: string }> | null;
   } | null;
+const ordre = (id: string) => essai(id, 'ordre').trim().split('\n');
+// The entries of the integration's queue: the branches in their order of arrival.
+const enFile = () => {
+  const d = path.join(REPO, '.git/file-integration');
+  return existsSync(d)
+    ? readdirSync(d)
+        .sort()
+        .map(
+          f => (JSON.parse(readFileSync(path.join(d, f), 'utf8')) as { branche: string }).branche
+        )
+    : [];
+};
+const gitRepo = (...a: string[]) => execFileSync('git', ['-C', REPO, ...a], { encoding: 'utf8' });
 const commentaires = (id: string) =>
   lire(path.join(BEADS, `${id}.comments.jsonl`))
     .split('\n')
@@ -340,6 +371,8 @@ describe('the stops of the circuit and their codes', () => {
       'preuve',
       'controles',
       'sans-livraison',
+      'relecture-arret',
+      'integration',
       'a-repasser',
     ];
     expect(Object.keys(ARRETS).sort()).toEqual([...noms].sort());
@@ -348,6 +381,7 @@ describe('the stops of the circuit and their codes', () => {
     expect(codes).not.toContain(0);
     expect(codes).not.toContain(2);
     expect(ARRETS['a-repasser']).toBe(75);
+    expect(ARRETS['relecture-arret']).toBe(16);
   });
   it('waits 20 minutes of a motionless transcript before it stops a session', () => {
     expect(IMMOBILE_MS).toBe(20 * 60 * 1000);
@@ -369,17 +403,19 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
-    expect(essai(id, 'ordre').trim().split('\n')).toEqual([
+    expect(ordre(id)).toEqual([
       'testeur packages/forms',
       'developpeur packages/forms',
       'testeur packages/binder',
       'developpeur packages/binder',
+      'relecteur',
     ]);
     const etapes = ['testeur', 'preuve', 'developpeur', 'controles'];
     expect(historique(id)).toEqual([
       ...etapes.map(e => ['packages/forms', e]),
       ...etapes.map(e => ['packages/binder', e]),
       ['packages/binder', 'relecture'],
+      ['packages/binder', 'integration'],
     ]);
     // The proof is written at the ticket: the red tests.
     const preuve = commentaires(id).find(t => t.startsWith('Circuit · packages/forms · preuve'));
@@ -396,11 +432,12 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
         'journal',
         'raison',
         'rapport',
+        'renvois',
         'seance',
         'tentative',
       ].sort()
     );
-    expect(e?.etape).toBe('relecture');
+    expect(e?.etape).toBe('en-file');
     expect(e?.code).toBe(0);
     expect(e?.journal).toBe(path.join(REPO, '.claude/worktrees', `${id}.log`));
     // The instruction the circuit writes: its ticket, its component, the criteria, the proof of
@@ -506,7 +543,7 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
         'CONTEXTE : Le chef a tranché : le double.'
       );
       expect(args(id, 'developpeur', 4)).not.toContain('--model');
-      expect(etat(id)?.etape).toBe('relecture');
+      expect(etat(id)?.etape).toBe('en-file');
     });
   });
 
@@ -586,11 +623,12 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
-    expect(essai(id, 'ordre').trim().split('\n')).toEqual([
+    expect(ordre(id)).toEqual([
       'testeur packages/forms',
       'developpeur packages/forms',
       'testeur packages/binder',
       'developpeur packages/binder',
+      'relecteur',
     ]);
     // The checks of forms play its tests of the lot, not those of binder.
     const forms = commentaires(id).find(t => t.startsWith('Circuit · packages/forms · controles'));
@@ -625,24 +663,26 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
     );
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
-    expect(essai(id, 'ordre').trim().split('\n')).toEqual([
+    expect(ordre(id)).toEqual([
       'testeur packages/forms',
       'developpeur packages/forms',
       'testeur packages/binder',
       'developpeur packages/binder',
       'developpeur packages/forms',
+      'relecteur',
     ]);
-    expect(historique(id).slice(-4)).toEqual([
+    expect(historique(id).slice(-5)).toEqual([
       ['packages/binder', 'controles'],
       ['packages/forms', 'developpeur'],
       ['packages/forms', 'controles'],
       ['packages/forms', 'relecture'],
+      ['packages/forms', 'integration'],
     ]);
     // The developpeur of forms receives the red guard, which names its file.
     const consigne = essai(id, 'developpeur-3.prompt');
     expect(consigne).toContain('TON COMPOSANT : packages/forms');
     expect(consigne).toContain('packages/forms/src/index.mjs:1');
-    expect(etat(id)).toMatchObject({ etape: 'relecture', code: 0, finale: true });
+    expect(etat(id)).toMatchObject({ etape: 'en-file', code: 0, finale: true });
   });
 
   it('counts the developpeur sessions of the final pass together: three, then « controles »', () => {
@@ -663,7 +703,7 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(ARRETS.controles);
     // The final pass: binder's first session, forms', then binder's on the strong model.
-    expect(essai(id, 'ordre').trim().split('\n')).toEqual([
+    expect(ordre(id)).toEqual([
       'testeur packages/forms',
       'developpeur packages/forms',
       'testeur packages/binder',
@@ -709,11 +749,12 @@ if (existsSync('casse')) {
     scenario(id, 'developpeur-2', `${CODE_JUSTE}rm $c/casse\npassation 'Binder construit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
-    expect(essai(id, 'ordre').trim().split('\n')).toEqual([
+    expect(ordre(id)).toEqual([
       'testeur packages/forms',
       'developpeur packages/forms',
       'testeur packages/binder',
       'developpeur packages/binder',
+      'relecteur',
     ]);
     const preuve = commentaires(id).find(t => t.startsWith('Circuit · packages/binder · preuve'));
     expect(preuve).toContain('1 rouge(s)');
@@ -771,13 +812,14 @@ if (existsSync('casse')) {
     scenario(id, 'developpeur', `${CODE_JUSTE}rm -f $c/casse\npassation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
-    expect(essai(id, 'ordre').trim().split('\n')).toEqual([
+    expect(ordre(id)).toEqual([
       'testeur packages/forms',
       'developpeur packages/forms',
       'testeur packages/binder',
       'developpeur packages/binder',
       'testeur packages/checker',
       'developpeur packages/checker',
+      'relecteur',
     ]);
     const etape = (composant: string, nom: string) =>
       commentaires(id).find(t => t.startsWith(`Circuit · packages/${composant} · ${nom}`));
@@ -795,7 +837,7 @@ if (existsSync('casse')) {
     const controles = etape('binder', 'controles');
     expect(controles).toContain("laissés à la passe finale, rouges dans un composant d'après");
     expect(etape('checker', 'controles')).toContain('controles : verts : npm run verifier.');
-    expect(etat(id)).toMatchObject({ etape: 'relecture', code: 0 });
+    expect(etat(id)).toMatchObject({ etape: 'en-file', code: 0 });
   });
 
   it('leaves the files of a component broken when the build that fails lies out of it', () => {
@@ -817,92 +859,103 @@ if (existsSync('casse')) {
 
   // A reader of forms that HEAD already holds, green there: `lit` of binder renders the value
   // `mesure` of forms gives, and its test expects the value itself. The double of the forms lot
-  // turns it red; LECTEUR_JUSTE is binder's repair.
-  const lecteur = (copie: string) => {
+  // turns it red; LECTEUR_JUSTE is binder's repair. The reader is committed on the trial's main,
+  // where the integration applies the lot, for the time of <essai> alone: the tests after it start
+  // from the main without it.
+  const avecLecteur = (essai: () => void) => {
+    const avant = gitRepo('rev-parse', 'HEAD').trim();
     ecrire(
-      path.join(copie, 'packages/binder/src/lecteur.mjs'),
+      path.join(REPO, 'packages/binder/src/lecteur.mjs'),
       "import { mesure } from '../../forms/src/index.mjs';\nexport const lit = x => mesure(x);\n"
     );
     ecrire(
-      path.join(copie, 'packages/binder/test/lecteur.test.mjs'),
+      path.join(REPO, 'packages/binder/test/lecteur.test.mjs'),
       `import { expect, it } from 'vitest';
 import { lit } from '../src/lecteur.mjs';
 it('lecteur — lit rend sa valeur', () => { expect(lit(2)).toBe(2); });
 `
     );
     const git = (...a: string[]) =>
-      execFileSync('git', ['-C', copie, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
+      execFileSync('git', ['-C', REPO, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
     git('add', 'packages/binder/src/lecteur.mjs', 'packages/binder/test/lecteur.test.mjs');
     git('commit', '-qm', 'lecteur');
+    try {
+      essai();
+    } finally {
+      git('reset', '-q', '--hard', avant);
+    }
   };
   const LECTEUR_JUSTE = `printf "import { mesure } from '../../forms/src/index.mjs';\\nexport const lit = x => mesure(x) / 2;\\n" > $c/src/lecteur.mjs\n`;
 
   // Witness: BPScript (bp-mono-vbwf.320.2.2.1.5). The provider changes a type; tests the readers
   // already held, green at HEAD, turn red, and their testeur has no new test to write. The proof
   // saw no file of the lot and skipped their developpeur.
-  it('takes a test HEAD holds that the lot turns red for the proof of its component', () => {
-    const id = 'demo-rouge-existant';
-    lecteur(ticket(id, '000-forms, 030-binder'));
-    scenario(id, 'testeur-1', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
-    scenario(
-      id,
-      'testeur-2',
-      "passation 'Aucun test neuf à écrire : les rouges existants du lecteur suffisent.'\n"
-    );
-    scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code de forms écrit.'\n`);
-    scenario(id, 'developpeur-2', `${LECTEUR_JUSTE}passation 'Lecteur réparé.'\n`);
-    const r = circuit([id]);
-    expect(r.status, sortie(r)).toBe(0);
-    expect(essai(id, 'ordre').trim().split('\n')).toEqual([
-      'testeur packages/forms',
-      'developpeur packages/forms',
-      'testeur packages/binder',
-      'developpeur packages/binder',
-    ]);
-    const preuve = commentaires(id).find(t => t.startsWith('Circuit · packages/binder · preuve'));
-    expect(preuve).toContain('1 rouge(s)');
-    expect(preuve).toContain('au développeur');
-    expect(preuve).toContain(
-      'rouge existant : packages/binder/test/lecteur.test.mjs › lecteur — lit rend sa valeur —'
-    );
-    expect(preuve).not.toContain('Aucun fichier de test du lot');
-    expect(essai(id, 'developpeur-2.prompt')).toContain('rouge existant');
-    expect(etat(id)).toMatchObject({ etape: 'relecture', code: 0 });
-  });
+  it('takes a test HEAD holds that the lot turns red for the proof of its component', () =>
+    avecLecteur(() => {
+      const id = 'demo-rouge-existant';
+      ticket(id, '000-forms, 030-binder');
+      scenario(id, 'testeur-1', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+      scenario(
+        id,
+        'testeur-2',
+        "passation 'Aucun test neuf à écrire : les rouges existants du lecteur suffisent.'\n"
+      );
+      scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code de forms écrit.'\n`);
+      scenario(id, 'developpeur-2', `${LECTEUR_JUSTE}passation 'Lecteur réparé.'\n`);
+      const r = circuit([id]);
+      expect(r.status, sortie(r)).toBe(0);
+      expect(ordre(id)).toEqual([
+        'testeur packages/forms',
+        'developpeur packages/forms',
+        'testeur packages/binder',
+        'developpeur packages/binder',
+        'relecteur',
+      ]);
+      const preuve = commentaires(id).find(t => t.startsWith('Circuit · packages/binder · preuve'));
+      expect(preuve).toContain('1 rouge(s)');
+      expect(preuve).toContain('au développeur');
+      expect(preuve).toContain(
+        'rouge existant : packages/binder/test/lecteur.test.mjs › lecteur — lit rend sa valeur —'
+      );
+      expect(preuve).not.toContain('Aucun fichier de test du lot');
+      expect(essai(id, 'developpeur-2.prompt')).toContain('rouge existant');
+      expect(etat(id)).toMatchObject({ etape: 'en-file', code: 0 });
+    }));
 
-  it('plays at the final pass each package of the title, and sends its red to its developpeur', () => {
-    const id = 'demo-finale-intouche';
-    const copie = ticket(id, '000-forms, 030-binder');
-    lecteur(copie);
-    // The lot of forms is in the copy; binder, untouched, holds only what HEAD holds.
-    ecrire(
-      path.join(copie, 'packages/forms/test/mesure.test.mjs'),
-      `import { expect, it } from 'vitest';
+  it('plays at the final pass each package of the title, and sends its red to its developpeur', () =>
+    avecLecteur(() => {
+      const id = 'demo-finale-intouche';
+      const copie = ticket(id, '000-forms, 030-binder');
+      // The lot of forms is in the copy; binder, untouched, holds only what HEAD holds.
+      ecrire(
+        path.join(copie, 'packages/forms/test/mesure.test.mjs'),
+        `import { expect, it } from 'vitest';
 import { mesure } from '../src/index.mjs';
 it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); });
 `
-    );
-    scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code de forms écrit.'\n`);
-    scenario(id, 'developpeur-2', `${LECTEUR_JUSTE}passation 'Lecteur réparé.'\n`);
-    const r = circuit([
-      id,
-      '--depuis',
-      'developpeur',
-      '000-forms',
-      '--contexte',
-      'RENDU : le double.',
-    ]);
-    expect(r.status, sortie(r)).toBe(0);
-    expect(essai(id, 'ordre').trim().split('\n')).toEqual([
-      'developpeur packages/forms',
-      'developpeur packages/binder',
-    ]);
-    const consigne = essai(id, 'developpeur-2.prompt');
-    expect(consigne).toContain('TON COMPOSANT : packages/binder');
-    expect(consigne).toContain('$ npm run verifier\n');
-    expect(consigne).toContain('lit rend sa valeur');
-    expect(etat(id)).toMatchObject({ etape: 'relecture', code: 0, finale: true });
-  });
+      );
+      scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code de forms écrit.'\n`);
+      scenario(id, 'developpeur-2', `${LECTEUR_JUSTE}passation 'Lecteur réparé.'\n`);
+      const r = circuit([
+        id,
+        '--depuis',
+        'developpeur',
+        '000-forms',
+        '--contexte',
+        'RENDU : le double.',
+      ]);
+      expect(r.status, sortie(r)).toBe(0);
+      expect(ordre(id)).toEqual([
+        'developpeur packages/forms',
+        'developpeur packages/binder',
+        'relecteur',
+      ]);
+      const consigne = essai(id, 'developpeur-2.prompt');
+      expect(consigne).toContain('TON COMPOSANT : packages/binder');
+      expect(consigne).toContain('$ npm run verifier\n');
+      expect(consigne).toContain('lit rend sa valeur');
+      expect(etat(id)).toMatchObject({ etape: 'en-file', code: 0, finale: true });
+    }));
 
   // Witness: BPScript (bp-mono-vbwf.320.2.2.1.5). The lot adds a file to a directory of the root
   // that a reader out of the title reads (`grillhouse.lit`); its test turned red only at the
@@ -1014,16 +1067,11 @@ passation 'Test ajouté, rouge.'
     expect(preuve).toContain('1 rouge(s)');
     expect(preuve).toContain('0 vert(s) sans « vert attendu »');
     expect(preuve).not.toContain('› ancien — mesure rend un nombre');
-    // The version of HEAD it played leaves nothing in the copy.
-    const statut = execFileSync(
-      'git',
-      ['-C', copie, 'status', '--porcelain', '--untracked-files=all'],
-      {
-        encoding: 'utf8',
-      }
-    );
-    expect(statut.split('\n').filter(Boolean).sort()).toEqual(
-      [' M packages/forms/src/index.mjs', ' M packages/forms/test/ancien.test.mjs'].sort()
+    // The version of HEAD it played leaves nothing in the lot: the commit holds the two files.
+    expect(existsSync(copie)).toBe(false);
+    const commit = gitRepo('show', '--name-status', '--format=', `agent/${id}`);
+    expect(commit.split('\n').filter(Boolean).sort()).toEqual(
+      ['M\tpackages/forms/src/index.mjs', 'M\tpackages/forms/test/ancien.test.mjs'].sort()
     );
   });
 
@@ -1059,97 +1107,212 @@ passation 'Test ajouté, rouge.'
     expect(BigInt(essai(id, 'testeur-2.debut').trim())).toBeGreaterThan(
       BigInt(essai(id, 'testeur-1.fin').trim())
     );
-    expect(etat(id)).toMatchObject({ etape: 'relecture', code: 0, seance: null });
+    expect(etat(id)).toMatchObject({ etape: 'en-file', code: 0, seance: null });
   });
 });
 
-// A lot the reviewer sends back goes through the circuit again, from the step and for the
-// component the chef names (`--depuis <testeur|developpeur> <composant>`), the findings of the
-// verdict as the report of its first session; the circuit plays the rest of that component's
-// steps, then stops at « relecture ».
-describe.runIf(canWrap)(
-  'the circuit from a step, after a lot sent back',
-  { timeout: 300_000 },
-  () => {
-    const VERDICT = 'RENDU : mesure de 0 doit rendre 0, le relecteur le constate.';
+// After the final pass, the circuit launches the reviewer, out of the envelope, from the second
+// template (Q6). ACCEPTÉ: the circuit builds the lot from the copy and integrates it, which puts
+// the branch in the queue (Q7, Q13). RENDU: each finding names « Agent : <rôle> <composant> »; the
+// circuit relaunches those agents from the first component named, the components after it pass
+// again, then the final pass and the reviewer; a finding without a valid recipient stops at
+// « relecture-arret », and so does the third RENDU.
+describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, () => {
+  // A verdict RENDU whose one finding goes to <agent>.
+  const rendu = (agent: string, constat = 'mesure de 0 doit rendre 0.') =>
+    `passation 'RENDU
 
-    it('--depuis developpeur plays the developpeur and the checks of that component alone', () => {
-      const id = 'demo-depuis-dev';
-      ticket(id, '000-forms, 030-binder');
-      scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
-      scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-      expect(circuit([id]).status).toBe(0);
-      const avant = commentaires(id).length;
-      scenario(
-        id,
-        'developpeur-3',
-        `printf '// rendu\\n' >> $c/src/index.mjs\npassation 'Rendu traité.'\n`
-      );
-      const r = circuit([id, '--depuis', 'developpeur', '000-forms', '--contexte', VERDICT]);
-      expect(r.status, sortie(r)).toBe(0);
-      expect(sessions(id, 'testeur')).toBe(2);
-      expect(sessions(id, 'developpeur')).toBe(3);
-      expect(essai(id, 'ordre').trim().split('\n').at(-1)).toBe('developpeur packages/forms');
-      // The findings of the verdict reach the developpeur as the report of the step before.
-      const consigne = essai(id, 'developpeur-3.prompt');
-      expect(consigne).toMatch(/LE RAPPORT DE L'ÉTAPE D'AVANT[^\n]*\n\n[^\n]*RENDU : mesure de 0/);
-      expect(consigne).toContain('REPRISE : oui');
-      const neufs = commentaires(id)
-        .slice(avant)
-        .flatMap(t => {
-          const m = /^Circuit · (\S+) · (\S+) :/.exec(t);
-          return m ? [[m[1], m[2]]] : [];
-        });
-      expect(neufs).toEqual([
-        ['packages/forms', 'developpeur'],
-        ['packages/forms', 'controles'],
-        ['packages/forms', 'relecture'],
-      ]);
-      expect(etat(id)).toMatchObject({ etape: 'relecture', composant: 'packages/forms', code: 0 });
-    });
+### Constat 1 — packages/forms/src/index.mjs
+Agent : ${agent}
+${constat}
+Règle : critère 1.'
+`;
 
-    it('--depuis testeur plays the testeur, the proof, the developpeur and the checks', () => {
-      const id = 'demo-depuis-testeur';
-      ticket(id, '000-forms');
-      scenario(id, 'testeur-1', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
-      scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-      expect(circuit([id]).status).toBe(0);
-      // The testeur adds the case the reviewer found; the test already green is justified.
-      scenario(
-        id,
-        'testeur-2',
-        `cat > $c/test/echelle.test.mjs <<'EOF'
+  it('ACCEPTÉ leads to the integration: one commit on agent/<ticket>, the branch in the queue', () => {
+    const id = 'demo-accepte';
+    const copie = ticket(id, '000-forms');
+    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(ordre(id)).toEqual([
+      'testeur packages/forms',
+      'developpeur packages/forms',
+      'relecteur',
+    ]);
+    // The reviewer's session: claude in the ticket's copy, out of the envelope, on its role.
+    expect(essai(id, 'relecteur-1.pwd').trim()).toBe(copie);
+    const a = args(id, 'relecteur', 1);
+    expect(a[a.indexOf('--agent') + 1]).toBe('relecteur');
+    expect(a[a.indexOf('--model') + 1]).toBe('opus');
+    // Its instruction: the second template, the criteria, the lot and the circuit's reports.
+    const consigne = essai(id, 'relecteur-1.prompt');
+    expect(consigne).toContain(`Tu es le relecteur du dépôt ${REPO}.`);
+    expect(consigne).toContain(`TON TICKET : ${id} — La mesure`);
+    expect(consigne).toContain('1. `mesure` rend le double de sa valeur.');
+    expect(consigne).toContain('le lot de tests : packages/forms/test/mesure.test.mjs');
+    expect(consigne).toContain('le lot de code : packages/forms/src/index.mjs');
+    expect(consigne).toContain('Circuit · packages/forms · preuve');
+    expect(consigne).toContain('controles : verts : npm run verifier.');
+    expect(consigne).not.toContain('{{');
+    // The integration: the commit holds the testeur's lot and the developpeur's, under the
+    // message the circuit writes; the copy is gone; the branch waits in the queue.
+    const commit = gitRepo('show', '--name-only', '--format=%s', `agent/${id}`);
+    expect(commit.split('\n').filter(Boolean)).toEqual([
+      `feat(000-forms): La mesure (${id})`,
+      'packages/forms/src/index.mjs',
+      'packages/forms/test/mesure.test.mjs',
+    ]);
+    expect(gitRepo('log', '-1', '--format=%B', `agent/${id}`)).toContain('Co-Authored-By: Claude');
+    expect(existsSync(copie)).toBe(false);
+    expect(enFile()).toContain(`agent/${id}`);
+    expect(gitRepo('rev-parse', 'main')).not.toBe(gitRepo('rev-parse', `agent/${id}`));
+    expect(historique(id).slice(-2)).toEqual([
+      ['packages/forms', 'relecture'],
+      ['packages/forms', 'integration'],
+    ]);
+    expect(commentaires(id).at(-1)).toContain('en file');
+    expect(etat(id)).toMatchObject({ etape: 'en-file', code: 0 });
+  });
+
+  it('RENDU « Agent : developpeur <composant> » relaunches that developpeur, then the rest, to the queue', () => {
+    const id = 'demo-rendu-dev';
+    ticket(id, '000-forms, 030-binder');
+    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    scenario(
+      id,
+      'developpeur-3',
+      `printf '// rendu\\n' >> $c/src/index.mjs\npassation 'Rendu traité.'\n`
+    );
+    scenario(id, 'relecteur-1', rendu('developpeur 000-forms'));
+    scenario(id, 'relecteur-2', "passation 'ACCEPTÉ — le rendu est traité.'\n");
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    // Forms' developpeur again; binder, which no finding names, passes its checks again.
+    expect(ordre(id)).toEqual([
+      'testeur packages/forms',
+      'developpeur packages/forms',
+      'testeur packages/binder',
+      'developpeur packages/binder',
+      'relecteur',
+      'developpeur packages/forms',
+      'relecteur',
+    ]);
+    const consigne = essai(id, 'developpeur-3.prompt');
+    expect(consigne).toContain('TON COMPOSANT : packages/forms');
+    expect(consigne).toMatch(/LE RAPPORT DE L'ÉTAPE D'AVANT[^\n]*\n\n### Constat 1/);
+    expect(consigne).toContain('mesure de 0 doit rendre 0.');
+    expect(consigne).toContain('REPRISE : oui');
+    expect(essai(id, 'relecteur-2.prompt')).toContain('REPRISE : oui');
+    const rendus = historique(id).findIndex(([, e]) => e === 'relecture');
+    expect(historique(id).slice(rendus)).toEqual([
+      ['packages/binder', 'relecture'],
+      ['packages/forms', 'developpeur'],
+      ['packages/forms', 'controles'],
+      ['packages/binder', 'controles'],
+      ['packages/binder', 'relecture'],
+      ['packages/binder', 'integration'],
+    ]);
+    expect(gitRepo('show', `agent/${id}:packages/forms/src/index.mjs`)).toContain('// rendu');
+    expect(enFile()).toContain(`agent/${id}`);
+    expect(etat(id)).toMatchObject({ etape: 'en-file', code: 0 });
+  });
+
+  it('RENDU « Agent : testeur <composant> » relaunches the testeur, the proof, the developpeur, the checks', () => {
+    const id = 'demo-rendu-testeur';
+    ticket(id, '000-forms');
+    scenario(id, 'testeur-1', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
+    scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    // The testeur adds the case the reviewer found; the test already green is justified.
+    scenario(
+      id,
+      'testeur-2',
+      `cat > $c/test/echelle.test.mjs <<'EOF'
 import { expect, it } from 'vitest';
 import * as m from '../src/index.mjs';
 it('critère 2 — echelle rend le triple', () => { expect(m.echelle?.(2)).toBe(6); });
 EOF
 passation 'vert attendu : critère 1 — mesure rend le double — livré avant le rendu'
 `
-      );
-      scenario(
-        id,
-        'developpeur-2',
-        `printf 'export const echelle = x => 3 * x;\\n' >> $c/src/index.mjs\npassation 'Echelle écrite.'\n`
-      );
-      const r = circuit([id, '--depuis', 'testeur', 'packages/forms', '--contexte', VERDICT]);
-      expect(r.status, sortie(r)).toBe(0);
-      expect(sessions(id, 'testeur')).toBe(2);
-      expect(sessions(id, 'developpeur')).toBe(2);
-      expect(essai(id, 'testeur-2.prompt')).toContain(VERDICT);
-      expect(historique(id).slice(-5)).toEqual([
-        ['packages/forms', 'testeur'],
-        ['packages/forms', 'preuve'],
-        ['packages/forms', 'developpeur'],
-        ['packages/forms', 'controles'],
-        ['packages/forms', 'relecture'],
-      ]);
-      const preuve = commentaires(id).filter(t =>
-        t.startsWith('Circuit · packages/forms · preuve')
-      );
-      expect(preuve.at(-1)).toContain('critère 2 — echelle rend le triple');
-    });
-  }
-);
+    );
+    scenario(
+      id,
+      'developpeur-2',
+      `printf 'export const echelle = x => 3 * x;\\n' >> $c/src/index.mjs\npassation 'Echelle écrite.'\n`
+    );
+    scenario(id, 'relecteur-1', rendu('testeur packages/forms', 'echelle manque.'));
+    scenario(id, 'relecteur-2', "passation 'ACCEPTÉ'\n");
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(sessions(id, 'testeur')).toBe(2);
+    expect(sessions(id, 'developpeur')).toBe(2);
+    expect(essai(id, 'testeur-2.prompt')).toContain('echelle manque.');
+    expect(historique(id).slice(-7)).toEqual([
+      ['packages/forms', 'relecture'],
+      ['packages/forms', 'testeur'],
+      ['packages/forms', 'preuve'],
+      ['packages/forms', 'developpeur'],
+      ['packages/forms', 'controles'],
+      ['packages/forms', 'relecture'],
+      ['packages/forms', 'integration'],
+    ]);
+    const preuve = commentaires(id).filter(t => t.startsWith('Circuit · packages/forms · preuve'));
+    expect(preuve.at(-1)).toContain('critère 2 — echelle rend le triple');
+  });
+
+  it('stops at « relecture-arret » (16) on a finding without a valid recipient, or on a criterion', () => {
+    const id = 'demo-rendu-sans-destinataire';
+    ticket(id, '000-forms');
+    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    scenario(id, 'relecteur-1', rendu('chef packages/forms'));
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(16);
+    expect(ARRETS['relecture-arret']).toBe(16);
+    expect(sessions(id, 'developpeur')).toBe(1);
+    const e = etat(id);
+    expect(e).toMatchObject({ etape: 'relecture', raison: 'relecture-arret', code: 16 });
+    expect(e?.rapport).toContain("n'a pas de destinataire valide");
+    expect(e?.rapport).toContain('La décision revient au chef de chantier');
+    expect(enFile()).not.toContain(`agent/${id}`);
+    // Resumed, the reviewer puts a criterion itself in question: a stop again.
+    scenario(
+      id,
+      'relecteur-2',
+      rendu('developpeur packages/forms', 'Critère en cause : 1, le double contredit la spec.')
+    );
+    const r2 = circuit([id, '--reprendre']);
+    expect(r2.status, sortie(r2)).toBe(16);
+    expect(sessions(id, 'developpeur')).toBe(1);
+    expect(etat(id)?.rapport).toContain('met en cause un critère');
+  });
+
+  it('stops at « relecture-arret » at the third RENDU', () => {
+    const id = 'demo-trois-rendus';
+    ticket(id, '000-forms');
+    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
+    scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    scenario(
+      id,
+      'developpeur',
+      `echo $(( $(cat $c/tour 2>/dev/null || echo 0) + 1 )) > $c/tour\npassation 'Un tour.'\n`
+    );
+    scenario(id, 'relecteur', rendu('developpeur 000-forms'));
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(16);
+    expect(sessions(id, 'relecteur')).toBe(3);
+    expect(sessions(id, 'developpeur')).toBe(3);
+    // Each round is a first developpeur session: none on the strong model.
+    for (const n of [2, 3]) {
+      expect(args(id, 'developpeur', n)).not.toContain('--model');
+    }
+    const e = etat(id);
+    expect(e).toMatchObject({ etape: 'relecture', raison: 'relecture-arret', code: 16 });
+    expect(e?.rapport).toContain('3 relectures ont rendu le lot');
+    expect(enFile()).not.toContain(`agent/${id}`);
+  });
+});
 
 describe.runIf(canWrap)('the circuit refuses a malformed --depuis', () => {
   const id = 'demo-depuis-refus';
