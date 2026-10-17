@@ -2,7 +2,7 @@
 // 2026-10-17 (grill, Q10 and Q2): the supervisor launches the circuit in the background, its end
 // waking him; a fresh chef de chantier comes only on a stop (a code other than 0 and 75), settles
 // it, runs the circuit again in the background and ends with it. The wait by slices
-// (scripts/attendre.sh) is gone, with its callers: no session waits for a verdict at a ticket.
+// (the script `ATTENDRE` names) is gone, with its callers: no session waits for a verdict at a ticket.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
