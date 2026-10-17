@@ -639,6 +639,70 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
     expect(e?.rapport).toContain('les deux composants se renvoient la mesure');
   });
 
+  // A package whose build fails while its file `casse` exists, as tsc fails on a reader whose
+  // provider's type gained a field.
+  const casserLaConstruction = (copie: string, dossier: string) => {
+    const p = path.join(copie, 'packages', dossier);
+    const pkg = JSON.parse(readFileSync(path.join(p, 'package.json'), 'utf8'));
+    ecrire(
+      path.join(p, 'package.json'),
+      json({ ...pkg, scripts: { ...pkg.scripts, build: 'node build.mjs' } })
+    );
+    ecrire(
+      path.join(p, 'build.mjs'),
+      `import { existsSync } from 'node:fs';
+if (existsSync('casse')) {
+  console.log("src/x.ts(1,1): error TS2741: Property 'champ' is missing in type 'Forme'.");
+  process.exit(1);
+}
+`
+    );
+    ecrire(path.join(p, 'casse'), '');
+  };
+
+  it('takes the failed build of a package of the component for its red, its tests for the checks', () => {
+    const id = 'demo-construction';
+    const copie = ticket(id, '000-forms, 030-binder');
+    casserLaConstruction(copie, 'binder');
+    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code de forms écrit.'\n`);
+    scenario(id, 'developpeur-2', `${CODE_JUSTE}rm $c/casse\npassation 'Binder construit.'\n`);
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(essai(id, 'ordre').trim().split('\n')).toEqual([
+      'testeur packages/forms',
+      'developpeur packages/forms',
+      'testeur packages/binder',
+      'developpeur packages/binder',
+    ]);
+    const preuve = commentaires(id).find(t => t.startsWith('Circuit · packages/binder · preuve'));
+    expect(preuve).toContain('1 rouge(s)');
+    expect(preuve).toContain('0 fichier(s) qui ne se charge(nt) pas');
+    expect(preuve).toContain(
+      "construction de 030-binder — src/x.ts(1,1): error TS2741: Property 'champ' is missing"
+    );
+    expect(preuve).toContain(
+      'Les tests de 030-binder se jouent aux contrôles, après le développeur.'
+    );
+  });
+
+  it('leaves the files of a component broken when the build that fails lies out of it', () => {
+    const id = 'demo-construction-ailleurs';
+    const copie = ticket(id, '030-binder');
+    casserLaConstruction(copie, 'forms');
+    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(ARRETS.preuve);
+    expect(sessions(id, 'testeur')).toBe(3);
+    expect(sessions(id, 'developpeur')).toBe(0);
+    const relance = essai(id, 'testeur-3.prompt');
+    expect(relance).toContain('packages/binder/test/mesure.test.mjs — ne se charge pas');
+    expect(relance).not.toContain('construction de 000-forms');
+    expect(relance).not.toContain('Rouges (');
+    const arret = commentaires(id).at(-1);
+    expect(arret).toContain('1 fichier(s) qui ne se charge(nt) pas');
+  });
+
   it('proves only the tests the lot adds or changes, not those HEAD already holds', () => {
     const id = 'demo-anciens';
     const copie = ticket(id, '000-forms');

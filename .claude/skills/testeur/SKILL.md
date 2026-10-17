@@ -58,6 +58,12 @@ preuve se mesure hors de ta séance.
 test que HEAD tient déjà sous le même nom, vert, n'a rien à prouver. Un fichier qui ne se charge
 pas ne prouve rien. Ainsi un vert reste un choix écrit.
 
+**Ne pas construire, c'est échouer** : la construction en échec d'un paquet de ton composant (un
+lecteur que le type de son fournisseur a changé) est le rouge de la preuve, et les tests qu'elle
+empêche de charger se jouent aux contrôles, après le développeur ; celle d'un paquet hors de ton
+composant laisse tes fichiers « ne se charge pas ». Ainsi le développeur du lecteur, seul à pouvoir
+le réparer, est lancé.
+
 **Un critère se prouve sur ce que la chaîne publie** : le test donne au composant ce que son
 fournisseur publie (une scène compilée, la forme publiée d'un fournisseur) et lit ce que le
 composant rend. Exemple : en 320.2.6 de BPScript, des bancs sur des objets faits à la main

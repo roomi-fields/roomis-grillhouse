@@ -29,15 +29,18 @@
 // - The proof of the red: the test files the testeur's lot adds or changes in the component
 //   (git status of the copy, the testeur's files as the integration shares them, `isTesterFile`),
 //   played by `npm test -- <files> --reporter=default --reporter=json --outputFile=<f>` in the
-//   copy, one run per package. A file that does not load proves nothing; a green test passes only
-//   when a comment of an agent at the ticket carries the line `vert attendu : <name of the test> —
-//   <reason>`. A green test HEAD already holds has nothing to prove: the version of HEAD of each
-//   file plays in the same run, from a sibling file (`<nom>.circuit-avant.test.<ext>`, removed
-//   after it), and a green test whose full name HEAD's version holds, green there too, is set
-//   aside, counted; a body changed under the same name is not told apart. A failed proof
-//   relaunches the testeur with its report, twice at most. The report (reds, justified greens) is
-//   written at the ticket. A proof without a red skips the developpeur: the lot is a lot of tests
-//   alone.
+//   copy, one run per package. A file that does not load proves nothing; a failed build of a
+//   package of the component (Turborepo's line « Failed: » naming `<package>#build`) is a red, as
+//   not compiling is failing, and the files it keeps from loading play at the checks, after the
+//   developpeur; a failed build of a package out of the component leaves them broken. A green
+//   test passes only when a comment of an agent at the ticket carries the line `vert attendu :
+//   <name of the test> — <reason>`. A green test HEAD already holds has nothing to prove: the
+//   version of HEAD of each file plays in the same run, from a sibling file
+//   (`<nom>.circuit-avant.test.<ext>`, removed after it), and a green test whose full name HEAD's
+//   version holds, green there too, is set aside, counted; a body changed under the same name is
+//   not told apart. A failed proof relaunches the testeur with its report, twice at most. The
+//   report (reds, justified greens) is written at the ticket. A proof without a red skips the
+//   developpeur: the lot is a lot of tests alone.
 // - The checks after the developpeur of a component judge what is done, the components of the run
 //   up to it: `npm test -- <test files of the lot>` that lie in those components (and those of the
 //   shared test material whose package depends on none of the components after it), `npm test --
@@ -556,6 +559,8 @@ function preuve(ctx, composant) {
     groupes.set(p, [...(groupes.get(p) ?? []), f]);
   }
   let anciens = 0;
+  const index = ctx.composants.indexOf(composant);
+  const reportes = [];
   for (const [, groupe] of groupes) {
     const rapport = path.join(ctx.tmp, `preuve-${++ctx.numero}.json`);
     const avant = versionsDAvant(ctx, groupe);
@@ -579,6 +584,12 @@ function preuve(ctx, composant) {
     } catch {
       // No report: no file of the group played.
     }
+    // The builds of the component's packages that failed: each one a red, not compiling is failing.
+    const constructions = constructionsEchouees(ctx, liste, r.sortie, index);
+    for (const { nom, erreur } of constructions) {
+      rouges.push(`construction de ${nom} — ${erreur}`);
+      reportes.push(nom);
+    }
     for (const f of groupe) {
       const res = resultats.find(t => t.name === path.join(ctx.copie, f));
       const assertions = res?.assertionResults ?? [];
@@ -591,7 +602,9 @@ function preuve(ctx, composant) {
           .filter(a => a.status === 'passed')
           .map(a => a.fullName || a.title)
       );
-      if (!res) {
+      if (constructions.length && (!res || assertions.length === 0)) {
+        // It cannot load before the build: it plays at the checks.
+      } else if (!res) {
         casses.push(
           `${f} — ne se charge pas : non joué (code ${r.code}) ; ${premiereLigne(fin(r.sortie, 5))}`
         );
@@ -622,6 +635,9 @@ function preuve(ctx, composant) {
   const resume = `${rouges.length} rouge(s), ${justifies.length} vert(s) justifié(s), ${injustifies.length} vert(s) sans « vert attendu », ${casses.length} fichier(s) qui ne se charge(nt) pas, ${anciens} test(s) vert(s) que HEAD tient déjà, laissé(s) de côté`;
   const texte = [
     `Preuve du rouge sur ${composant} : ${resume}.`,
+    ...[...new Set(reportes)].map(
+      nom => `Les tests de ${nom} se jouent aux contrôles, après le développeur.`
+    ),
     '',
     ...(fichiers.length
       ? []
@@ -637,6 +653,32 @@ function preuve(ctx, composant) {
     .join('\n')
     .trim();
   return { ok, rouges: rouges.length, texte, resume };
+}
+
+// The builds that failed in <sortie> (Turborepo's line « Failed: », task `<package>#build`) of a
+// package of the component at <index>: `{ nom, erreur }`, `erreur` the first line of the build's
+// output (`<package>:build:`) that holds `error`, else the end of the output.
+function constructionsEchouees(ctx, liste, sortie, index) {
+  const texte = sansCouleurs(sortie);
+  const noms = new Set();
+  for (const m of texte.matchAll(/^\s*Failed:\s+(.+)$/gm)) {
+    for (const tache of m[1].split(/[,\s]+/).filter(Boolean)) {
+      const [nom, script] = tache.split('#');
+      const p = liste.find(x => x.pkg.name === nom);
+      if (script === 'build' && p && proprietaire(ctx, p.dossier) === index) noms.add(nom);
+    }
+  }
+  return [...noms].map(nom => {
+    const prefixe = `${nom}:build:`;
+    const ligne = texte
+      .split('\n')
+      .map(l => l.trim())
+      .find(l => l.startsWith(prefixe) && l.includes('error'));
+    return {
+      nom,
+      erreur: ligne ? premiereLigne(ligne.slice(prefixe.length)) : premiereLigne(fin(sortie, 5)),
+    };
+  });
 }
 
 // The checks after the developpeur of the component at <index>: what is done, or every check of
