@@ -29,8 +29,12 @@ superviseur.
    l'étape et du composant de l'état. Repris après une coupure, je relance de même
    `--reprendre` : le circuit attend la fin de la séance restée en vol, puis repart de l'état.
    La preuve d'un composant joue ses paquets en entier : un test que HEAD tient et que le lot
-   rougit est un « rouge existant », qui suffit à lancer son développeur, et la passe finale joue
-   chaque paquet de chaque composant du titre. Un développeur n'est lancé que sur un rouge : une
+   rougit est un « rouge existant », qui suffit à lancer son développeur. La passe finale, après
+   le dernier composant, joue `npm run verifier`, ce que joue l'intégration : un rouge dans un
+   paquet hors du titre (un lecteur d'une matière que le lot change) arrête le circuit à
+   `controles`, le paquet nommé ; je décide alors : ajouter ce composant au titre puis
+   `--reprendre`, le rouge allant à son développeur, ou faire corriger le lot par `--depuis`.
+   Un développeur n'est lancé que sur un rouge : une
    séance qui ne change aucun fichier de son composant arrête le circuit (code 15,
    `sans-livraison`) ; sa passation dit pourquoi, et je reprends par `--reprendre --contexte`
    ou par `--depuis`.

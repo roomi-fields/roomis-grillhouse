@@ -64,18 +64,25 @@
 //   envelope of the component (`GRILLHOUSE_ENVELOPPE=<composant> npm run grillhouse:gardes`, and
 //   `npm run gardes` when the project has it): a red guard that names only files of the
 //   components after it waits for the final pass.
-// - After the last component of the run, the final pass: `npm test -- <test files of the lot>`,
-//   `npm run verifier -- --gardes`, and `npm test -- <package>` for each package of each component
-//   of the title and each package the lot touches, deduplicated and sorted (`npm test` in a
-//   repository without packages). A red goes to the developpeur of the component
-//   that owns the red file: a package of a failed task (Turborepo's line « Failed: »), else the
-//   first component a path of the output names (notices ⚠️ and ℹ️ aside), the provider first; a
-//   red that no component owns stops at « controles ». From then on every check is the final pass.
-// - A check at 75 (« à repasser ») plays once more. A red relaunches the developpeur with the
-//   output, twice at most, the third session on the strong model (`lancer.sh --modele opus
-//   --effort high`): three sessions for a component's checks, and three for the whole final pass
-//   whatever the components its reds go to (the last component's sessions counted in it), so
-//   that two components sending a red to each other stop at « controles ».
+// - After the last component of the run, the final pass: `npm run verifier`, what the
+//   integration plays, as bors plays on a lot the very check of the merge. Turborepo's cache
+//   holds its cost: a task nothing moved replays from it, and what the lot reaches plays again,
+//   by the dependencies, the inputs of the tasks and `grillhouse.lit` (a reader out of the title
+//   whose tests read a directory the lot changes included). A red goes to the developpeur of the
+//   component that owns it: a package of a failed task (Turborepo's line « Failed: »), else,
+//   when no failed task is a package's (the guards, tasks of the root), the first component a
+//   path of the failed tasks' lines names (notices ⚠️ and ℹ️ aside), the provider first; its
+//   report holds the lines of the failed tasks. A red in a package no component of the title
+//   holds, or that no component owns, stops at « controles », the package named: the chef de
+//   chantier decides, who adds the component to the title then resumes, or has the lot
+//   corrected. From then on every check is the final pass.
+// - A check at 75 (« à repasser ») out of the final pass plays once more; verifier plays its
+//   tasks at 75 again itself, at rest, and its 75 is the final pass's. A red relaunches the
+//   developpeur with the output, twice at most, the third session on the strong model
+//   (`lancer.sh --modele opus --effort high`): three sessions for a component's checks, and three
+//   for the whole final pass whatever the components its reds go to (the last component's
+//   sessions counted in it), so that two components sending a red to each other stop at
+//   « controles ».
 // - The state is `.claude/worktrees/<ticket>.circuit.json`, written again at each step and at the
 //   start and end of each session: `{ etape, composant, tentative, code, raison, rapport, dernier,
 //   finale, seance, journal }`; `etape` is testeur, preuve, developpeur, controles or relecture;
@@ -98,7 +105,7 @@
 //   10 lancement (lancer.sh stopped before the session), 11 bloqué (a motionless transcript),
 //   12 sans-passation (twice no handover), 13 preuve (the third proof fails), 14 controles (the
 //   third developpeur of a component's checks or of the final pass leaves a red check, or a red
-//   of the final pass no component owns),
+//   of the final pass no component of the title owns),
 //   15 sans-livraison (a developpeur session that changes no file of its component),
 //   75 a-repasser (a check still at 75 once played again).
 import { spawn, spawnSync } from 'node:child_process';
@@ -725,47 +732,21 @@ function constructionsEchouees(ctx, liste, sortie, index) {
   });
 }
 
-// The checks after the developpeur of the component at <index>: what is done, or every check of
-// the lot when <finale>. `{ rouge, aRepasser, texte, resume, proprietaire }`, `proprietaire` the
-// index of the component that owns the red, -1 for none.
+// The checks after the developpeur of the component at <index>: what is done, or, when <finale>,
+// `npm run verifier`, what the integration plays. `{ rouge, aRepasser, texte, resume,
+// proprietaire, horsTitre }`, `proprietaire` the index of the component that owns the red, -1 for
+// none; `horsTitre` the packages out of the title whose task is red.
 function controles(ctx, index, finale) {
   const composant = ctx.composants[index];
-  const lot = changements(ctx);
   const liste = paquets(ctx.copie).filter(p => !p.hors);
-  const touches = liste.length
-    ? [...new Set(lot.map(c => paquetDe(liste, c.fichier)).filter(d => d !== '.'))].sort()
-    : ['.'];
-  // What is done: the components of the run up to <index>, or every one in the final pass.
-  const fait = chemin => {
-    const i = proprietaire(ctx, chemin);
-    return i >= 0 && i <= index;
-  };
-  const tests = finale
-    ? testsDuLot(ctx)
-    : testsDuLot(ctx).filter(f => fait(f) || matiereFaite(ctx, liste, f, index));
-  const scripts = lireJson(path.join(ctx.copie, 'package.json'))?.scripts ?? {};
-  const enveloppe = { [VARIABLE_ENVELOPPE]: composant };
-  const commandes = [
-    ...(tests.length ? [{ args: ['test', '--', ...tests] }] : []),
-    ...(finale ? [{ args: ['run', 'verifier', '--', '--gardes'] }] : []),
-    ...[
-      ...new Set([
-        ...touches.filter(d => finale || fait(d)),
-        ...paquetsDesComposants(ctx, liste, i => finale || i <= index),
-      ]),
-    ]
-      .sort()
-      .map(d => ({ args: d === '.' ? ['test'] : ['test', '--', d] })),
-    ...(finale
-      ? []
-      : ['grillhouse:gardes', 'gardes']
-          .filter(s => s in scripts)
-          .map(s => ({ args: ['run', s], env: enveloppe }))),
-  ];
+  const commandes = finale
+    ? [{ args: ['run', 'verifier'] }]
+    : commandesDuComposant(ctx, index, liste);
   const resultats = commandes.map(({ args, env }) => {
     let r = npm(ctx, 'controles', composant, args, env);
-    if (r.code === A_REPASSER) r = npm(ctx, 'controles', composant, args, env);
-    return { args, env, ...r, proprietaires: proprietaires(ctx, liste, r.sortie) };
+    // verifier plays a task at 75 again itself, at rest: its 75 is final.
+    if (r.code === A_REPASSER && !finale) r = npm(ctx, 'controles', composant, args, env);
+    return { args, env, ...r, ...proprietaires(ctx, liste, r.sortie) };
   });
   const echecs = resultats.filter(r => r.code !== 0 && r.code !== A_REPASSER);
   // Out of the final pass, a red that names only components after <index> waits for it.
@@ -793,7 +774,7 @@ function controles(ctx, index, finale) {
         }`;
   const texte = [
     `Contrôles sur ${composant}${finale ? ' (passe finale)' : ''} : ${resume}.`,
-    ...[...rouges, ...aRepasser].map(r => `\n$ ${ligne(r)}\n${fin(r.sortie, 60)}`),
+    ...[...rouges, ...aRepasser].map(r => `\n$ ${ligne(r)}\n${extrait(r)}`),
   ].join('\n');
   // The owner of the red: the first component, provider first, that a red names; -1 for none.
   const nommes = rouges.flatMap(r => r.proprietaires);
@@ -804,7 +785,55 @@ function controles(ctx, index, finale) {
     texte,
     resume,
     proprietaire: proprio,
+    horsTitre: [...new Set(rouges.flatMap(r => r.horsTitre))].sort(),
   };
+}
+
+// The checks of the components of the run up to <index>, out of the final pass: `npm test --
+// <test files of the lot>` that lie in them (or in the shared test material that reads only
+// them), `npm test -- <package>` for each of their packages and each of theirs the lot touches,
+// then the guards in the envelope of the component.
+function commandesDuComposant(ctx, index, liste) {
+  const lot = changements(ctx);
+  const touches = liste.length
+    ? [...new Set(lot.map(c => paquetDe(liste, c.fichier)).filter(d => d !== '.'))].sort()
+    : ['.'];
+  const fait = chemin => {
+    const i = proprietaire(ctx, chemin);
+    return i >= 0 && i <= index;
+  };
+  const tests = testsDuLot(ctx).filter(f => fait(f) || matiereFaite(ctx, liste, f, index));
+  const scripts = lireJson(path.join(ctx.copie, 'package.json'))?.scripts ?? {};
+  const enveloppe = { [VARIABLE_ENVELOPPE]: ctx.composants[index] };
+  return [
+    ...(tests.length ? [{ args: ['test', '--', ...tests] }] : []),
+    ...[...new Set([...touches.filter(fait), ...paquetsDesComposants(ctx, liste, i => i <= index)])]
+      .sort()
+      .map(d => ({ args: d === '.' ? ['test'] : ['test', '--', d] })),
+    ...['grillhouse:gardes', 'gardes']
+      .filter(s => s in scripts)
+      .map(s => ({ args: ['run', s], env: enveloppe })),
+  ];
+}
+
+// The lines of <texte> that Turborepo writes for the tasks <taches> (`<package>#<task>`): each
+// begins with `<package>:<task>: `, a task of the root (`//#<task>`) with `<task>: ` or
+// `//:<task>: `.
+function lignesDesTaches(texte, taches) {
+  const prefixes = taches.flatMap(t => {
+    const [nom, script] = t.split('#');
+    return nom === '//' ? [`${script}: `, `//:${script}: `] : [`${nom}:${script}: `];
+  });
+  return texte.split('\n').filter(l => prefixes.some(p => l.trimStart().startsWith(p)));
+}
+
+// The output of the red check <r> for its report: the lines of its failed tasks, the last 60,
+// then the end of the output; else the last 60 lines of the output.
+function extrait(r) {
+  const lignes = lignesDesTaches(sansCouleurs(r.sortie), r.taches);
+  return lignes.length
+    ? [...lignes.slice(-60), '…', fin(r.sortie, 12)].join('\n')
+    : fin(r.sortie, 60);
 }
 
 // The directories of the packages of <liste> that play tests (a script `test:vitest`) and whose
@@ -880,21 +909,31 @@ function matiereFaite(ctx, liste, fichier, index) {
   });
 }
 
-// The components a red output names, as indexes, sorted: the packages of its failed tasks
-// (Turborepo's line « Failed: »), else the components that hold a path its lines name, the lines
-// of a notice (⚠️, ℹ️) aside.
+// What a red output names. `proprietaires`: the components that own it, as indexes, sorted: the
+// packages of its failed tasks (Turborepo's line « Failed: »), else, when no failed task is a
+// package's (none named, or a task of the root such as the guards), the components that hold a
+// path its lines name, the lines of a notice (⚠️, ℹ️) aside. `horsTitre`: the packages of its
+// failed tasks that no component of the title holds. `taches`: its failed tasks.
 function proprietaires(ctx, liste, sortie) {
   const texte = sansCouleurs(sortie);
   const out = new Set();
+  const horsTitre = new Set();
+  const taches = new Set();
+  let deRacine = false;
   for (const m of texte.matchAll(/^\s*Failed:\s+(.+)$/gm)) {
     for (const tache of m[1].split(/[,\s]+/).filter(Boolean)) {
+      taches.add(tache);
       const p = liste.find(x => x.pkg.name === tache.split('#')[0]);
       const i = p ? proprietaire(ctx, p.dossier) : -1;
       if (i >= 0) out.add(i);
+      else if (p) horsTitre.add(p.pkg.name);
+      else deRacine = true;
     }
   }
-  if (out.size === 0) {
-    for (const l of texte.split('\n')) {
+  if (out.size === 0 && (deRacine || taches.size === 0)) {
+    // The lines of the failed tasks when Turborepo names them: those of the green ones aside.
+    const lignes = taches.size ? lignesDesTaches(texte, [...taches]) : texte.split('\n');
+    for (const l of lignes) {
       if (l.includes('⚠️') || l.includes('ℹ️')) continue;
       for (const [chemin] of l.matchAll(/\/?[\w@.-]+(?:\/[\w@.-]+)+/g)) {
         const rel = path.isAbsolute(chemin) ? path.relative(ctx.copie, chemin) : chemin;
@@ -904,7 +943,11 @@ function proprietaires(ctx, liste, sortie) {
       }
     }
   }
-  return [...out].sort((a, b) => a - b);
+  return {
+    proprietaires: [...out].sort((a, b) => a - b),
+    horsTitre: [...horsTitre].sort(),
+    taches: [...taches],
+  };
 }
 
 const lireJson = f => {
@@ -984,10 +1027,15 @@ async function derouler(ctx, depart) {
         // One count of sessions for the component's checks, and one for the whole final pass,
         // whichever component its red goes to.
         const suivante = tentative + 1;
-        if (k.rouge && vers < 0) {
+        if (k.rouge && passeFinale && k.horsTitre.length) {
           throw new Arret(
             'controles',
-            `${k.texte}\n\nAucun composant du ticket (${ctx.composants.join(', ')}) ne possède ce rouge de la passe finale.`
+            `La passe finale est rouge dans ${k.horsTitre.join(', ')}, hors des composants du ticket (${ctx.composants.join(', ')}) : aucun de leurs développeurs n'est relancé. La décision revient au chef de chantier : ajouter ce composant au titre du ticket puis reprendre le circuit (\`--reprendre\`), le rouge allant à son développeur ; ou faire corriger le lot par le composant qui le cause (\`--depuis developpeur <composant> --contexte <le rouge>\`).\n\n${k.texte}`
+          );
+        } else if (k.rouge && vers < 0) {
+          throw new Arret(
+            'controles',
+            `Aucun composant du ticket (${ctx.composants.join(', ')}) ne possède ce rouge de la passe finale : la décision revient au chef de chantier.\n\n${k.texte}`
           );
         } else if (k.rouge && suivante <= SEANCES_DEVELOPPEUR) {
           const qui = vers === index ? '' : ` de ${ctx.composants[vers]}`;

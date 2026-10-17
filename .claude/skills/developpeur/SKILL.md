@@ -102,9 +102,8 @@ Une découverte qui ne bloque pas se consigne fermée sous ton ticket
 
 - **Le circuit contrôle après toi** : ta séance finie, le circuit du ticket joue les tests du lot
   et de chaque paquet des composants jusqu'au tien, puis les gardes dans ton enveloppe ; après le
-  dernier composant, tout le lot, chaque paquet des composants du titre et
-  `npm run verifier -- --gardes`. Un rouge te relance avec sa sortie quand il est dans ton
-  composant. Tu es lancé sur un rouge (de la preuve, un `rouge existant` compris, ou des
+  dernier composant, la passe finale : `npm run verifier`, ce que joue l'intégration. Un rouge te
+  relance avec sa sortie quand il est dans ton composant. Tu es lancé sur un rouge (de la preuve, un `rouge existant` compris, ou des
   contrôles) : une séance qui ne change aucun fichier de ton composant arrête le circuit
   (`sans-livraison`), et ta passation dit pourquoi. Tes propres lancements pendant le travail restent les tiens. Ainsi ton
   lot arrive au relecteur vert.

@@ -34,7 +34,7 @@ LA DERNIÈRE PASSATION au ticket :
 
 {{passation}}
 
-Le circuit joue la preuve du rouge après le testeur, sur tous les tests de ton composant, et les contrôles après le développeur : les tests du lot, les gardes, les tests de chaque paquet des composants faits. Ta passation au ticket (`bd comments add`) lui dit que ta séance a fini.
+Le circuit joue la preuve du rouge après le testeur, sur tous les tests de ton composant, et les contrôles après le développeur : les tests du lot, les gardes, les tests de chaque paquet des composants faits ; après le dernier composant, la passe finale, `npm run verifier`. Ta passation au ticket (`bd comments add`) lui dit que ta séance a fini.
 
 Tu travailles dans ta copie (`.claude/worktrees/{{ticket}}`), dans l'enveloppe de ton composant : des autres composants, seules l'interface et la forme publiée existent, et le paquet de la matière de test partagée en entier, que seul le testeur écrit. `git status` montre les autres composants comme supprimés : c'est l'enveloppe, et non un changement ; leur forme publiée est à sa place (leur `package.json`, `docs/INTERFACE.md`, `dist/`, `turbo.json`, les fichiers de leur champ `files` et leurs traces). L'index (rtfm, codegraph) n'y est pas : tu lis ton paquet, les interfaces de tes voisins et la matière de test partagée. Ainsi tu modifies ta copie, et tes voisins par leurs interfaces seulement.
 

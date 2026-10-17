@@ -143,7 +143,8 @@ if (existsSync('packages/binder/ping-pong.txt')) {
 }
 `;
 
-// The test of forms that HEAD already holds, green before any ticket.
+// The test of each package that HEAD already holds, green before any ticket: the trial repository
+// is green on main, as `npm run verifier` plays it (a package without a test is red).
 const ANCIEN = `import { expect, it } from 'vitest';
 import { mesure } from '../src/index.mjs';
 it('ancien — mesure rend un nombre', () => { expect(typeof mesure(1)).toBe('number'); });
@@ -187,7 +188,9 @@ function depot() {
       `import base from ${JSON.stringify(BASE)};\nexport default base;\n`
     );
   }
-  ecrire(path.join(REPO, 'packages/forms/test/ancien.test.mjs'), ANCIEN);
+  for (const dossier of ['forms', 'binder']) {
+    ecrire(path.join(REPO, `packages/${dossier}/test/ancien.test.mjs`), ANCIEN);
+  }
   ecrire(path.join(REPO, 'garde.mjs'), GARDE);
   ecrireTurbo(REPO);
   for (const role of ['testeur', 'developpeur']) {
@@ -602,7 +605,7 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
     const finale = commentaires(id).find(t =>
       t.startsWith('Circuit · packages/binder · controles')
     );
-    expect(finale).toContain('npm run verifier -- --gardes');
+    expect(finale).toContain('controles : verts : npm run verifier.');
   });
 
   it('sends a red of the final pass to the developpeur of the component that owns its file', () => {
@@ -791,7 +794,7 @@ if (existsSync('casse')) {
     // Binder built, its tests wait for the build of checker: a red of the component after.
     const controles = etape('binder', 'controles');
     expect(controles).toContain("laissés à la passe finale, rouges dans un composant d'après");
-    expect(etape('checker', 'controles')).toContain('npm run verifier -- --gardes');
+    expect(etape('checker', 'controles')).toContain('controles : verts : npm run verifier.');
     expect(etat(id)).toMatchObject({ etape: 'relecture', code: 0 });
   });
 
@@ -896,9 +899,85 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
     ]);
     const consigne = essai(id, 'developpeur-2.prompt');
     expect(consigne).toContain('TON COMPOSANT : packages/binder');
-    expect(consigne).toContain('npm test -- packages/binder');
+    expect(consigne).toContain('$ npm run verifier\n');
     expect(consigne).toContain('lit rend sa valeur');
     expect(etat(id)).toMatchObject({ etape: 'relecture', code: 0, finale: true });
+  });
+
+  // Witness: BPScript (bp-mono-vbwf.320.2.2.1.5). The lot adds a file to a directory of the root
+  // that a reader out of the title reads (`grillhouse.lit`); its test turned red only at the
+  // integration's `npm run verifier`, the final pass playing the packages of the title alone.
+  it('plays npm run verifier at the final pass, and stops at « controles » on a red of a package out of the title', () => {
+    const id = 'demo-finale-hors-titre';
+    const copie = ticket(id, '000-forms');
+    // 020-loader reads `libraries/` at the root, whose files are all `.bp`; HEAD holds it green.
+    const loader = path.join(copie, 'packages/loader');
+    ecrire(
+      path.join(loader, 'package.json'),
+      json({
+        name: '020-loader',
+        type: 'module',
+        scripts: { 'test:vitest': 'vitest run' },
+        grillhouse: { lit: ['libraries'] },
+      })
+    );
+    ecrire(
+      path.join(loader, 'vitest.config.mjs'),
+      `import base from ${JSON.stringify(BASE)};\nexport default base;\n`
+    );
+    ecrire(
+      path.join(loader, 'test/bibliotheques.test.mjs'),
+      `import { readdirSync } from 'node:fs';
+import { expect, it } from 'vitest';
+it('bibliothèques — chaque fichier est une bibliothèque .bp', () => {
+  const noms = readdirSync(new URL('../../../libraries', import.meta.url));
+  expect(noms.filter(n => !n.endsWith('.bp'))).toEqual([]);
+});
+`
+    );
+    ecrire(path.join(copie, 'libraries/base.bp'), 'base\n');
+    ecrireTurbo(copie);
+    const git = (...a: string[]) =>
+      execFileSync('git', ['-C', copie, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
+    git('add', '-A');
+    git('commit', '-qm', 'loader');
+    // The lot: forms's test, and a file the loader refuses in `libraries/`.
+    ecrire(
+      path.join(copie, 'packages/forms/test/mesure.test.mjs'),
+      `import { expect, it } from 'vitest';
+import { mesure } from '../src/index.mjs';
+it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); });
+`
+    );
+    ecrire(path.join(copie, 'libraries/notes.txt'), 'notes\n');
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code de forms écrit.'\n`);
+    const r = circuit([
+      id,
+      '--depuis',
+      'developpeur',
+      '000-forms',
+      '--contexte',
+      'RENDU : le double.',
+    ]);
+    expect(r.status, sortie(r)).toBe(ARRETS.controles);
+    expect(sessions(id, 'developpeur')).toBe(1);
+    const e = etat(id);
+    expect(e).toMatchObject({
+      etape: 'controles',
+      composant: 'packages/forms',
+      raison: 'controles',
+      code: ARRETS.controles,
+    });
+    expect(e?.rapport).toContain('$ npm run verifier\n');
+    expect(e?.rapport).toContain('020-loader');
+    expect(e?.rapport).toContain('chaque fichier est une bibliothèque .bp');
+    expect(e?.rapport).toContain('hors des composants du ticket (packages/forms)');
+    expect(e?.rapport).toContain('La décision revient au chef de chantier');
+    // Stopped before the review, the package named in the comment of the stop.
+    expect(historique(id).map(([, etape]) => etape)).not.toContain('relecture');
+    const arret = commentaires(id).at(-1);
+    expect(arret).toContain('arrêt controles');
+    expect(arret).toContain('020-loader');
   });
 
   it('fails the proof without a file of the lot nor a red, the greens HEAD holds not counted', () => {
