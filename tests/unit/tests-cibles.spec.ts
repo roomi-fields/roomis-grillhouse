@@ -51,8 +51,9 @@ const construction = (profondeur: number, marque: string, echoue = false) =>
 
 // A repository of packages: `a` (two tests), `ab` (a name `a` prefixes), `b`, which depends on
 // `socle` (a build, no tests), `gele` listed out of the frame, `outil` without tests, and a test
-// file at the root, out of every package. `socle`'s build fails when <socleEchoue>.
-function depotAPaquets({ socleEchoue = false } = {}) {
+// file at the root, out of every package. `socle`'s build fails when <socleEchoue>; each package of
+// <casses> has a build of its own, which fails.
+function depotAPaquets({ socleEchoue = false, casses = [] as string[] } = {}) {
   const r = mkdtempSync(path.join(ESSAIS, 'paquets-'));
   symlinkSync(path.join(DEPOT, 'node_modules'), path.join(r, 'node_modules'), 'dir');
   ecrire(
@@ -79,7 +80,10 @@ function depotAPaquets({ socleEchoue = false } = {}) {
       json({
         name: nom,
         type: 'module',
-        scripts: { 'test:vitest': 'vitest run' },
+        scripts: {
+          'test:vitest': 'vitest run',
+          ...(casses.includes(nom) ? { build: construction(2, nom, true) } : {}),
+        },
         ...(nom === 'b' ? { dependencies: { socle: '*' } } : {}),
       })
     );
@@ -259,6 +263,24 @@ describe(
       const racine = depotAPaquets({ socleEchoue: true });
       const r = lancer(racine, ['packages/b/test/x.test.mjs']);
       expect(r.status).not.toBe(0);
+      expect(joues(racine)).toEqual([]);
+    });
+
+    // Witness: BPScript, whose run of 030-binder named only the failed build of 040-checker:
+    // Turborepo stopped at the first failure, and the build of 030-binder was never reported.
+    it('every build that fails is named, and no test it holds back plays', () => {
+      const racine = depotAPaquets({ casses: ['a', 'ab'] });
+      const r = lancer(racine, ['packages/a/test/x.test.mjs', 'packages/ab/test/x.test.mjs']);
+      expect(r.status).not.toBe(0);
+      const echecs = /^\s*Failed:\s+(.+)$/m.exec(sortie(r).replace(/\x1b\[[0-9;]*m/g, ''));
+      expect(
+        echecs?.[1]
+          .split(/[,\s]+/)
+          .filter(Boolean)
+          .sort(),
+        sortie(r)
+      ).toEqual(['a#build', 'ab#build']);
+      expect(construits(racine).sort()).toEqual(['a', 'ab']);
       expect(joues(racine)).toEqual([]);
     });
   }

@@ -686,6 +686,78 @@ if (existsSync('casse')) {
     );
   });
 
+  // Witness: BPScript (bp-mono-vbwf.320.2.2.1.5). 030-binder and 040-checker each hold the other
+  // in their devDependencies for their tests; the lot of 000-forms breaks both builds. The proof
+  // of 030-binder saw only the failed build of 040-checker, Turborepo having stopped at it, and
+  // counted 0 red and its files « ne se charge pas ».
+  it('counts the failed build of each of two components that test each other at its own proof', () => {
+    const id = 'demo-construction-croisee';
+    const copie = ticket(id, '000-forms, 030-binder, 040-checker');
+    const checker = path.join(copie, 'packages/checker');
+    ecrire(
+      path.join(checker, 'package.json'),
+      json({
+        name: '040-checker',
+        type: 'module',
+        scripts: { 'test:vitest': 'vitest run' },
+        dependencies: { '000-forms': '*' },
+        devDependencies: { '030-binder': '*' },
+      })
+    );
+    ecrire(path.join(checker, 'src/index.mjs'), 'export const mesure = x => x;\n');
+    ecrire(
+      path.join(checker, 'vitest.config.mjs'),
+      `import base from ${JSON.stringify(BASE)};\nexport default base;\n`
+    );
+    const binder = path.join(copie, 'packages/binder/package.json');
+    ecrire(
+      binder,
+      json({
+        ...JSON.parse(readFileSync(binder, 'utf8')),
+        devDependencies: { '040-checker': '*' },
+      })
+    );
+    casserLaConstruction(copie, 'binder');
+    casserLaConstruction(copie, 'checker');
+    // The build of binder fails after checker's, as in BPScript: a run that stops at the first
+    // failure cancels it unreported.
+    const construction = path.join(copie, 'packages/binder/build.mjs');
+    ecrire(
+      construction,
+      `await new Promise(r => setTimeout(r, 2000));\n${readFileSync(construction, 'utf8')}`
+    );
+    ecrireTurbo(copie);
+    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'developpeur', `${CODE_JUSTE}rm -f $c/casse\npassation 'Code écrit.'\n`);
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(essai(id, 'ordre').trim().split('\n')).toEqual([
+      'testeur packages/forms',
+      'developpeur packages/forms',
+      'testeur packages/binder',
+      'developpeur packages/binder',
+      'testeur packages/checker',
+      'developpeur packages/checker',
+    ]);
+    const etape = (composant: string, nom: string) =>
+      commentaires(id).find(t => t.startsWith(`Circuit · packages/${composant} · ${nom}`));
+    for (const [composant, nom] of [
+      ['binder', '030-binder'],
+      ['checker', '040-checker'],
+    ]) {
+      const preuve = etape(composant, 'preuve');
+      expect(preuve).toContain('1 rouge(s)');
+      expect(preuve).toContain('0 fichier(s) qui ne se charge(nt) pas');
+      expect(preuve).toContain(`construction de ${nom} — src/x.ts(1,1): error TS2741`);
+    }
+    expect(etape('binder', 'preuve')).not.toContain('construction de 040-checker');
+    // Binder built, its tests wait for the build of checker: a red of the component after.
+    const controles = etape('binder', 'controles');
+    expect(controles).toContain("laissés à la passe finale, rouges dans un composant d'après");
+    expect(etape('checker', 'controles')).toContain('npm run verifier -- --gardes');
+    expect(etat(id)).toMatchObject({ etape: 'relecture', code: 0 });
+  });
+
   it('leaves the files of a component broken when the build that fails lies out of it', () => {
     const id = 'demo-construction-ailleurs';
     const copie = ticket(id, '030-binder');

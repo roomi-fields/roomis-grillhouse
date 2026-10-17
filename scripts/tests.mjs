@@ -26,8 +26,13 @@
 //   what they depend on (`turbo run test:vitest --filter=<name>`): the builds and the traces they
 //   wait for play first, from the cache when nothing moved, whatever paths are named, and the hash
 //   of the tests holds theirs, as Bazel's key of a target holds its transitive inputs; a change to
-//   a package the tests import, or to what they read, plays them again. A build that fails ends the
-//   run, and no test plays. Every other run of Turborepo plays with the variable unset.
+//   a package the tests import, or to what they read, plays them again. Every other run of
+//   Turborepo plays with the variable unset.
+// - Each run of Turborepo plays every task whose dependencies succeed
+//   (`--continue=dependencies-successful`), as Bazel's `--keep_going` and `npm run verifier` do:
+//   each build that fails is named on Turborepo's line « Failed: », a test that waits for a failed
+//   build does not play, and the exit code stays red. A build that fails first does not hide another
+//   one, which the run would otherwise cancel unreported.
 // - `--force` with paths plays the tests named for real, their builds replayed from the cache:
 //   Turborepo's `--force` re-executes every task of the run, so the variable carries the moment of
 //   the run instead (`rejouer`), a value no cached run of the tests has. A test suspected unstable
@@ -67,12 +72,19 @@ const force = args.includes('--force');
 const options = args.filter(a => a.startsWith('-') && a !== '--force');
 const chemins = args.filter(a => !a.startsWith('-'));
 
-// One Turborepo run of <args>, VARIABLE set to <tests> (unset without); its exit code.
+// One Turborepo run of <args>, VARIABLE set to <tests> (unset without), each task whose
+// dependencies succeed played to its end; its exit code.
 const turbo = (args, tests) => {
   const env = { ...process.env };
   delete env[VARIABLE];
   if (tests) env[VARIABLE] = JSON.stringify(tests);
-  return spawnSync('turbo', ['run', ...args], { cwd: racine, stdio: 'inherit', env }).status ?? 1;
+  return (
+    spawnSync('turbo', ['run', ...args, '--continue=dependencies-successful'], {
+      cwd: racine,
+      stdio: 'inherit',
+      env,
+    }).status ?? 1
+  );
 };
 
 // The trace tasks of the packages <noms> their tests wait for, read in Turborepo's plan of the
