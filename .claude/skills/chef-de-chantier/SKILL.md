@@ -1,6 +1,6 @@
 ---
 name: chef-de-chantier
-description: "Le chef de chantier : mener un seul ticket de la prise au commit poussé — lancer le circuit du ticket (testeur, développeur, relecteur, intégration) puis la file, trancher ce que les règles tranchent, faire monter le reste au superviseur. Chargé par l'agent chef-de-chantier, que le superviseur lance, un par ticket en cours."
+description: "Le chef de chantier : mener un seul ticket de la prise au commit poussé — lancer le circuit du ticket (testeur, développeur, relecteur, intégration, file et CI), trancher ce que les règles tranchent, faire monter le reste au superviseur. Chargé par l'agent chef-de-chantier, que le superviseur lance, un par ticket en cours."
 ---
 
 # Le chef de chantier
@@ -16,15 +16,15 @@ superviseur.
 ## Le circuit
 
 1. **Le circuit** mène le testeur, la preuve du rouge, le développeur et les contrôles de chaque
-   composant du titre, le fournisseur d'abord, dans la copie du ticket, puis le relecteur et
-   l'intégration :
+   composant du titre, le fournisseur d'abord, dans la copie du ticket, puis le relecteur,
+   l'intégration et la file, qui amène la branche sur main, pousse et lit la CI :
    `node scripts/circuit.mjs <ticket>`, que je lance en arrière-plan (`run_in_background`) avant
    de terminer mon tour ; sa fin me réveille. Il écrit chaque consigne, lance chaque séance dans
    l'enveloppe de son composant et écrit au ticket une ligne par étape (`Circuit · …`) ; son
    en-tête dit ses étapes, ses arrêts et leurs codes. Ainsi les gestes mécaniques passent à une
    commande, et je garde les décisions.
-   À sa fin, je lis son état, `.claude/worktrees/<ticket>.circuit.json`. À `en-file`, le lot est
-   commité sur `agent/<ticket>` et sa branche attend en file. À un arrêt, son `rapport` et son
+   À sa fin, je lis son état, `.claude/worktrees/<ticket>.circuit.json`. À `integre`, le lot est
+   sur main et le ticket fermé. À un arrêt, son `rapport` et son
    `journal` disent ce qui bloque : je le
    tranche ou je le fais monter, puis je relance
    `node scripts/circuit.mjs <ticket> --reprendre --contexte "<ma décision>"`, qui repart de
@@ -48,8 +48,11 @@ superviseur.
    corriger le lot par `--depuis <testeur|developpeur> <composant> --contexte "<constats>"`,
    qui rejoue ce composant, les composants d'après, la passe finale, le relecteur et
    l'intégration. Sur `ACCEPTÉ`, le circuit construit le lot depuis la copie et lance le script
-   d'intégration ; un refus l'arrête à `integration` (code 17), sa sortie au `rapport`, et un
-   « à repasser » deux fois de suite à `a-repasser` : je relance alors `--reprendre`.
+   d'intégration, puis la file. Un refus du script, une branche que la file sort ou une CI rouge
+   (le ticket rouvert) l'arrêtent à `integration` (code 17), la raison au `rapport` ; je fais
+   corriger le lot par `--depuis`, le lanceur recréant la copie sur main avec le lot de la branche
+   en travail local. Un « à repasser » deux fois de suite, ou une branche que la file garde,
+   l'arrête à `a-repasser` : je relance alors `--reprendre`.
    Une donnée qui manque chez un fournisseur, dite dans la passation d'un agent, monte au
    superviseur, qui ajoute ce fournisseur en tête des composants du ticket ; je relance alors le
    circuit sans `--reprendre`, et il repart du fournisseur, dans la même copie. Le tout fait une
@@ -58,15 +61,8 @@ superviseur.
    un seul ticket ») prend `.` pour composant : la copie montre tout le dépôt. Ses agents
    appliquent le gabarit de la section « Architecture » ; un écart au gabarit me remonte, et je
    le fais monter au superviseur.
-2. **La file** : le circuit fini à `en-file`, je lance la file depuis l'arbre principal,
-   `node scripts/integration/file.mjs`, en arrière-plan ; elle amène la branche sur main, ferme le
-   ticket et pousse main. Une file déjà en cours prend la branche, et la mienne sort aussitôt.
-3. **CI et fin** : le ticket fermé, je lis la CI de son commit sur main (`gh run list --limit 1`,
-   puis `gh run watch <id>` par tranches) ; une CI rouge sur mon commit rouvre mon circuit : je
-   rouvre le ticket (`bd reopen <id>`), et sa correction entre sous son numéro. Un
-   ticket que la file a rouvert (il a perdu `en-file`, les fichiers ou les tests nommés au ticket)
-   rouvre aussi mon circuit : le lanceur recrée la copie sur main avec le lot de la branche en
-   travail local. Puis je rends mon rapport ; mes agents, lancés sans nom, ne restent pas listés.
+2. **La fin** : le circuit fini à `integre`, je rends mon rapport ; une CI que la file n'a pas pu
+   lire, nommée au ticket, y figure. Mes agents, lancés sans nom, ne restent pas listés.
 
 Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son auteur le relit.
 

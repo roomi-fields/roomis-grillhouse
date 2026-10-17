@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // The queue: brings the branches `agent/<ticket>` the integration committed onto main, one at a time,
 // in their order of arrival (scripts/integration/file-attente.mjs). Run from the main tree by the
-// chef de chantier, once the circuit of his ticket has put its branch in the queue, and by the
-// supervisor by hand.
+// circuit of a ticket (scripts/circuit.mjs), once it has put the ticket's branch in the queue, and
+// by the supervisor by hand.
 //
 //   node scripts/integration/file.mjs
 //
@@ -40,17 +40,33 @@
 // ticket, which closes all the same. Then main is pushed to origin, on the branch
 // `grillhouse.poussee.commit` of main's package.json (`main` without the key); a refused push is
 // written to the ticket and does not stop the queue.
+// Once pushed, the queue reads the CI of the commit pushed, as a merge queue waits for its checks:
+// it looks for its run (`gh run list --commit <sha> --json databaseId,status,conclusion`) for 2 min
+// at most (GRILLHOUSE_CI_RECHERCHE_MS replaces it, in milliseconds), the time the CI takes to
+// create it, then waits for it (`gh run watch <id> --exit-status`) for 30 min at most
+// (GRILLHOUSE_CI_ATTENTE_MS). A red CI reopens the ticket (`bd reopen`), its comment giving the
+// address of the run (`gh run view <id> --json url`) and the end of `gh run view <id>
+// --log-failed`. Without `gh`, without a run found, with `gh` refusing or past the 30 min, the
+// ticket is told that the CI was not read, and why, and stays closed.
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { lireCommit } from '../poussee-cles.mjs';
-import { lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
+import { attendreUnPeu, lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
 import { dossierCommun, lireEntrees, retirerEntree } from './file-attente.mjs';
 import { ouvrirCopie } from './rejeu.mjs';
 import { A_REPASSER } from '../vitest-config/pression.mjs';
 
 const ESSAIS_PAR_BRANCHE = 5;
+// How long the queue looks for the run of the CI, then waits for it.
+const RECHERCHE_CI_MS = 2 * 60 * 1000;
+const ATTENTE_CI_MS = 30 * 60 * 1000;
+
+const delai = (variable, defaut) => {
+  const v = Number(process.env[variable]);
+  return Number.isFinite(v) && process.env[variable] !== '' && v >= 0 ? v : defaut;
+};
 
 function main(argv) {
   if (argv.length) {
@@ -186,7 +202,72 @@ function main(argv) {
       dire(`⚠ poussée de ${court} refusée`);
     } else {
       dire(`✓ poussée : ${court} est sur origin/${commit}`);
+      lireCI(entree, nouveau);
     }
+  };
+
+  // The CI of the commit <sha> pushed: green, the ticket stays closed; red, it reopens; not read,
+  // the ticket is told why.
+  const lireCI = (entree, sha) => {
+    const court = sha.slice(0, 7);
+    const gh = (args, options = {}) =>
+      spawnSync('gh', args, {
+        cwd: racine,
+        encoding: 'utf8',
+        maxBuffer: 64 * 1024 * 1024,
+        ...options,
+      });
+    const nonLue = raison => {
+      commenter(entree.ticket, `## CI non lue\n\nLa CI de ${court} n'a pas été lue : ${raison}`);
+      dire(`⚠ CI de ${court} non lue : ${raison}`);
+    };
+    const recherche = delai('GRILLHOUSE_CI_RECHERCHE_MS', RECHERCHE_CI_MS);
+    const debut = Date.now();
+    let passage = null;
+    for (;;) {
+      const r = gh(['run', 'list', '--commit', sha, '--json', 'databaseId,status,conclusion']);
+      if (r.error) return nonLue(`gh ne se lance pas (${r.error.code ?? r.error.message}).`);
+      if (r.status !== 0) return nonLue(`gh run list refuse :\n${`${r.stderr}${r.stdout}`.trim()}`);
+      let passages = [];
+      try {
+        passages = JSON.parse(r.stdout || '[]');
+      } catch {
+        return nonLue(`gh run list rend une sortie illisible :\n${r.stdout.trim()}`);
+      }
+      passage = passages.find(x => x?.databaseId);
+      const reste = recherche - (Date.now() - debut);
+      if (passage || reste <= 0) break;
+      attendreUnPeu(Math.min(10_000, reste));
+    }
+    if (!passage) {
+      return nonLue(`aucun passage de la CI pour ce commit en ${Math.round(recherche / 1000)} s.`);
+    }
+    const id = String(passage.databaseId);
+    const attente = delai('GRILLHOUSE_CI_ATTENTE_MS', ATTENTE_CI_MS);
+    const w = gh(['run', 'watch', id, '--exit-status'], {
+      timeout: attente,
+      killSignal: 'SIGKILL',
+    });
+    if (w.error?.code === 'ETIMEDOUT' || w.signal) {
+      return nonLue(`le passage ${id} n'a pas fini en ${Math.round(attente / 60_000)} min.`);
+    }
+    if (w.error) return nonLue(`gh ne se lance pas (${w.error.code ?? w.error.message}).`);
+    if (w.status === 0) {
+      dire(`✓ CI de ${court} verte (passage ${id})`);
+      return;
+    }
+    const url = gh(['run', 'view', id, '--json', 'url', '--jq', '.url']).stdout?.trim() || id;
+    const journal = `${gh(['run', 'view', id, '--log-failed']).stdout ?? ''}`
+      .trim()
+      .split('\n')
+      .slice(-60)
+      .join('\n');
+    bd('reopen', entree.ticket);
+    commenter(
+      entree.ticket,
+      `## CI rouge\n\nLa CI de ${court} sur ${principale} est rouge : ${url}\n\nLa fin de gh run view ${id} --log-failed :\n\n${journal}\n\nLe ticket est rouvert : sa correction entre sous son numéro.`
+    );
+    dire(`✗ CI de ${court} rouge (passage ${id}) : ${entree.ticket} rouvert`);
   };
 
   // One branch of the queue, against the main of the moment.

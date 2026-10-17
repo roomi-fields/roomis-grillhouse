@@ -2,8 +2,9 @@
 // The circuit of one ticket: for each component its title names, in order, the provider first, the
 // testeur, the proof of the red, the developpeur and the checks; then the reviewer, and on its
 // ACCEPTÉ the integration, which commits the lot on the ticket's branch and puts that branch in the
-// queue, where the circuit ends. The chef de chantier runs it in the background and wakes at its
-// end; he reads the state, and after a stop he settles (or refers upward) and resumes.
+// queue; then the queue, which brings it onto main, pushes and reads the CI, and the circuit ends
+// on the state of the ticket the queue leaves. The chef de chantier runs it in the background and
+// wakes at its end; he reads the state, and after a stop he settles (or refers upward) and resumes.
 //
 //   node scripts/circuit.mjs <ticket> [--reprendre] [--contexte <texte>]
 //   node scripts/circuit.mjs <ticket> --depuis <testeur|developpeur> <composant> --contexte <texte>
@@ -111,14 +112,20 @@
 //   untouched; the message `<type>(<composants>): <sujet> (<ticket>)`, the type read from the
 //   ticket's type (bug fix, chore, docs, else feat), with the trailer Co-Authored-By. It runs
 //   scripts/integration/integrer.mjs from the main tree, its output added to the log: 0 is the
-//   commit on agent/<ticket>, the copy removed, the branch in the queue, and the circuit ends at
-//   « en-file »; 75 (« à repasser ») plays it once more, then stops at « a-repasser »; any other
-//   code is its refusal, which stops at « integration ». The queue (scripts/integration/file.mjs)
-//   is not launched here.
+//   commit on agent/<ticket>, the copy removed, the branch in the queue; 75 (« à repasser ») plays
+//   it once more, then stops at « a-repasser »; any other code is its refusal, which stops at
+//   « integration ».
+// - Then the queue: scripts/integration/file.mjs from the main tree, waited for, its output added
+//   to the log (it brings the branch onto main, pushes it and reads the CI of the commit pushed).
+//   A queue already running exits 0 at once: the circuit waits while the branch is in the queue
+//   and the queue's lock names a live process. Then the state of the ticket: closed, the circuit
+//   ends at « integre », exit 0 (a CI the queue could not read named in its comment); reopened
+//   (out of the queue, or a red CI), it stops at « integration », the queue's comment as its
+//   reason; still in the queue, it stops at « a-repasser », the queue's reason.
 // - The state is `.claude/worktrees/<ticket>.circuit.json`, written again at each step and at the
 //   start and end of each session: `{ etape, composant, tentative, code, raison, rapport, dernier,
 //   finale, seance, renvois, journal }`; `etape` is testeur, preuve, developpeur, controles,
-//   relecture, integration, or en-file at the end; `raison` names the stop; `dernier` is the last
+//   relecture, integration, file, or integre at the end; `raison` names the stop; `dernier` is the last
 //   component of the run; `finale` whether the final pass has begun; `seance` the process group of
 //   the session that runs, null between two; `renvois` the components a RENDU (or `--depuis`)
 //   plays again, each with its first step and its findings, null out of such a round.
@@ -134,15 +141,16 @@
 // - At each step, a short comment at the ticket: `Circuit · <composant> · <étape> : <résumé>`.
 // - The commands of the circuit (the proof, the checks, the integration) are added to the log of the ticket,
 //   `.claude/worktrees/<ticket>.log`, next to the sessions, each under its header line.
-// - Exit codes: 0 at « en-file »; 2 a malformed call; a stop, by its name (ARRETS):
+// - Exit codes: 0 at « integre »; 2 a malformed call; a stop, by its name (ARRETS):
 //   10 lancement (lancer.sh stopped before the session), 11 bloqué (a motionless transcript),
 //   12 sans-passation (twice no handover), 13 preuve (the third proof fails), 14 controles (the
 //   third developpeur of a component's checks or of the final pass leaves a red check, or a red
 //   of the final pass no component of the title owns),
 //   15 sans-livraison (a developpeur session that changes no file of its component),
 //   16 relecture-arret (a finding without a valid recipient, one on a criterion, the third RENDU),
-//   17 integration (the integration script refuses the lot),
-//   75 a-repasser (a check or the integration still at 75 once played again).
+//   17 integration (the integration script refuses the lot, or the queue reopens the ticket),
+//   75 a-repasser (a check or the integration still at 75 once played again, or the branch still
+//   in the queue).
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
@@ -166,7 +174,9 @@ import { matieres, NOM_DE_TEST } from './consommateurs.mjs';
 import { VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/composant.mjs';
 import { paquets } from './paquets.mjs';
 import { transcriptionsDeLaCopie } from './registre.mjs';
+import { dossierCommun, lireEntrees } from './integration/file-attente.mjs';
 import { VERDICT } from './integration/integrer.mjs';
+import { attendreUnPeu, vivant } from './verrou-de-fichier.mjs';
 import { isTesterFile } from './verrous/verrou.mjs';
 import { A_REPASSER } from './vitest-config/pression.mjs';
 
@@ -211,6 +221,7 @@ const PREFIXE = 'Circuit · ';
 const ici = import.meta.dirname;
 const LANCEUR = path.join(ici, 'enveloppe', 'lancer.sh');
 const INTEGRER = path.join(ici, 'integration', 'integrer.mjs');
+const FILE = path.join(ici, 'integration', 'file.mjs');
 const REGISTRE = path.join(ici, 'registre.mjs');
 const GABARIT = path.join(
   ici,
@@ -751,6 +762,50 @@ function integrer(ctx) {
     if (r.code !== A_REPASSER) break;
   }
   return r;
+}
+
+// The queue (scripts/integration/file.mjs), launched from the main tree and waited for, its output
+// added to the log; then the state it leaves to the ticket: `{ etat, raison }`, `etat` ferme (the
+// ticket closed, its branch on main and its CI read), en-file (the branch still in the queue, the
+// queue's reason) or rouvert (out of the queue, or a red CI, the queue's last comment). A queue
+// already running exits 0 at once: it takes the branch, and the state is read at its end too.
+function file(ctx) {
+  entete(ctx, 'file', ctx.composants.join(', '));
+  appendFileSync(ctx.journal, `$ node ${FILE}\n`);
+  const x = spawnSync(process.execPath, [FILE], {
+    cwd: ctx.racine,
+    encoding: 'utf8',
+    maxBuffer: 256 * 1024 * 1024,
+  });
+  appendFileSync(ctx.journal, `${x.stdout ?? ''}${x.stderr ?? ''}`);
+  const branche = `agent/${ctx.ticket}`;
+  // Another queue that runs takes the branch: the circuit waits for its end.
+  while (lireEntrees(ctx.racine).some(e => e.branche === branche) && fileEnCours(ctx)) {
+    attendreUnPeu(5_000);
+  }
+  const show = ctx.bd('show', ctx.ticket, '--json');
+  const t = show.status === 0 ? (JSON.parse(show.stdout)[0] ?? {}) : {};
+  const derniers = commentaires(ctx);
+  const derniere = motif => derniers.findLast(c => motif.test(c)) ?? 'aucun commentaire de la file';
+  if (lireEntrees(ctx.racine).some(e => e.branche === branche)) {
+    return { etat: 'en-file', raison: derniere(/^## La file garde la branche/) };
+  }
+  if (t.status === 'closed') {
+    // The CI the queue could not read is the queue's last word at the ticket.
+    const dernier = derniers.at(-1) ?? '';
+    const ci = /^## CI non lue/.test(dernier)
+      ? ` ; ${premiereLigne(dernier.split('\n').slice(2).join(' '))}`
+      : '';
+    return { etat: 'ferme', raison: `${t.close_reason || 'ticket fermé'}${ci}` };
+  }
+  return { etat: 'rouvert', raison: derniere(/^## (Sortie de la file|CI rouge)/) };
+}
+
+// True while a queue holds its lock (`.git/file-integration.lock`), its process alive.
+function fileEnCours(ctx) {
+  const verrou = path.join(dossierCommun(ctx.racine), 'file-integration.lock');
+  const pid = Number.parseInt(lire(verrou), 10);
+  return Number.isInteger(pid) && vivant(pid);
 }
 
 // The type of a conventional commit for the ticket's type in Beads; `feat` for any other.
@@ -1420,14 +1475,25 @@ async function derouler(ctx, depart) {
           );
         }
         const commit = /✓ commit (\w+) sur (\S+)/.exec(r.sortie);
-        ecrireEtat(ctx, { ...etat, etape: 'en-file', code: 0 });
         commenter(
           ctx,
           composant,
           'integration',
           `${commit ? `commit ${commit[1]} sur ${commit[2]}` : 'lot commité'} ; la branche est en file.`
         );
-        return 0;
+        etape = 'file';
+      } else if (etape === 'file') {
+        const f = file(ctx);
+        if (f.etat === 'ferme') {
+          ecrireEtat(ctx, { ...etat, etape: 'integre', code: 0 });
+          commenter(ctx, composant, 'file', `${f.raison}.`);
+          return 0;
+        }
+        if (f.etat === 'en-file') throw new Arret('a-repasser', f.raison);
+        throw new Arret(
+          'integration',
+          `La file rouvre le ticket : la décision revient au chef de chantier.\n\n${f.raison}`
+        );
       } else {
         throw new Usage(`étape inconnue dans l'état : ${etape}`);
       }
@@ -1468,8 +1534,8 @@ function depart(ctx, e) {
   if (!ctx.reprendre)
     return { index: 0, etape: 'testeur', tentative: 1, rapport: null, dernier: fin, finale: false };
   if (!e) throw new Usage(`rien à reprendre : ${ctx.etat} n'existe pas.`);
-  if (e.etape === 'en-file')
-    throw new Usage(`rien à reprendre : le lot de ${ctx.ticket} est en file.`);
+  if (e.etape === 'integre')
+    throw new Usage(`rien à reprendre : le lot de ${ctx.ticket} est intégré.`);
   const index = ctx.composants.indexOf(e.composant);
   if (index < 0)
     throw new Usage(`le composant de l'état, ${e.composant}, n'est plus dans le titre.`);

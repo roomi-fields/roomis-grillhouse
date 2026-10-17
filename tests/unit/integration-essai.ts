@@ -195,6 +195,24 @@ export interface Resultat {
   stderr: string;
 }
 
+// The fake GitHub CLI: its answers come from <bin>/gh.json ({ runs, watch, url, log }: the runs
+// `gh run list` gives, the exit code of `gh run watch`, the address and the failed log `gh run
+// view` gives), no run without the file; every call is appended to <bin>/gh-appels, one per line.
+const FAUX_GH = `#!/usr/bin/env node
+const fs = require('node:fs');
+const path = require('node:path');
+const ici = path.dirname(fs.realpathSync(process.argv[1]));
+const a = process.argv.slice(2);
+fs.appendFileSync(path.join(ici, 'gh-appels'), a.join(' ') + '\\n');
+const f = path.join(ici, 'gh.json');
+const s = fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : {};
+if (a[0] === 'run' && a[1] === 'list') process.stdout.write(JSON.stringify(s.runs ?? []));
+else if (a[0] === 'run' && a[1] === 'watch') process.exit(s.watch ?? 0);
+else if (a[0] === 'run' && a[1] === 'view' && a.includes('--log-failed')) process.stdout.write(s.log ?? '');
+else if (a[0] === 'run' && a[1] === 'view') process.stdout.write((s.url ?? '') + '\\n');
+else process.exit(1);
+`;
+
 // A project under <essais> whose components are src/a, src/b and src/c, its main pushed to a bare
 // remote `origin`. <pkg> is merged into its package.json (the `grillhouse` section, for example).
 export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
@@ -202,6 +220,7 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
   const bin = mkdtempSync(path.join(essais, 'bin-'));
   const distant = mkdtempSync(path.join(essais, 'distant-'));
   writeFileSync(path.join(bin, 'bd'), FAUX_BD, { mode: 0o755 });
+  writeFileSync(path.join(bin, 'gh'), FAUX_GH, { mode: 0o755 });
   writeFileSync(path.join(bin, 'etat.json'), '{}');
   writeFileSync(path.join(bin, 'appels'), '');
   // The environment of the scripts: this process's, without what Vitest set for itself, so that a
@@ -216,6 +235,8 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
     GIT_COMMITTER_NAME: 't',
     GIT_COMMITTER_EMAIL: 't@t',
     PRINCIPAL: repo,
+    // The queue looks for the run of the CI once: the fake gh answers at once.
+    GRILLHOUSE_CI_RECHERCHE_MS: '0',
   };
   const gitDans = (dir: string, ...a: string[]) =>
     execFileSync('git', ['-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], {

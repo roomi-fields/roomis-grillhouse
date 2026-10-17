@@ -785,11 +785,8 @@ describe('grillhouse-3uv.63 — the old way is gone, the texts say the new one',
   it('critère 12: STRUCTURE.md lists the queue next to the integration', () => {
     expect(lire('STRUCTURE.md')).toMatch(/file\.mjs/);
   });
-  it('critère 12: the chef de chantier and the supervisor name the queue', () => {
-    for (const f of [
-      '.claude/skills/chef-de-chantier/SKILL.md',
-      '.claude/skills/pitmaster/SKILL.md',
-    ]) {
+  it('critère 12: the circuit, which launches the queue, and the supervisor name the queue', () => {
+    for (const f of ['scripts/circuit.mjs', '.claude/skills/pitmaster/SKILL.md']) {
       expect(lire(f), f).toMatch(/file\.mjs|en-file/);
     }
   });
@@ -1017,6 +1014,79 @@ describe('grillhouse-3uv.56 critères 11 and 21 — the queue judges the tests b
       const refus = t.comments.at(-1)!.text;
       expect(refus).toContain('ses tests sont rouges une fois la branche replacée.');
       expect(refus).not.toContain("Le verrou de la branche replacée ne s'installe pas.");
+    },
+    LONG
+  );
+});
+
+// 2026-10-17 (grill, Q13): the queue reads the CI of the commit it pushes, as a merge queue waits
+// for its checks; a red CI reopens the ticket. The CI is the fake gh of ./integration-essai.ts.
+describe('the queue reads the CI of the commit it pushes', () => {
+  const ci = (m: Chantier, scenario: Record<string, unknown>) =>
+    writeFileSync(path.join(m.bin, 'gh.json'), JSON.stringify(scenario));
+  const appelsGh = (m: Chantier) => {
+    const f = path.join(m.bin, 'gh-appels');
+    return existsSync(f) ? readFileSync(f, 'utf8').trim().split('\n') : [];
+  };
+  const textes = (m: Chantier, id: string) => m.bd(id).comments.map(c => c.text);
+
+  it(
+    'a green CI leaves the ticket closed: the run of the pushed commit, then its watch',
+    () => {
+      const m = chantier(ESSAIS);
+      ci(m, { runs: [{ databaseId: 41, status: 'queued', conclusion: '' }], watch: 0 });
+      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
+      m.livrer('demo-1');
+      const r = m.file();
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(appelsGh(m)).toEqual([
+        `run list --commit ${m.sha('main')} --json databaseId,status,conclusion`,
+        'run watch 41 --exit-status',
+      ]);
+      expect(r.stdout).toContain('verte (passage 41)');
+      expect(m.bd('demo-1').status).toBe('closed');
+      expect(textes(m, 'demo-1').join('\n')).not.toMatch(/CI rouge|CI non lue/);
+    },
+    LONG
+  );
+
+  it(
+    'a red CI reopens the ticket, with the address of the run and the end of its failed log',
+    () => {
+      const m = chantier(ESSAIS);
+      ci(m, {
+        runs: [{ databaseId: 42, status: 'in_progress', conclusion: '' }],
+        watch: 1,
+        url: 'https://github.com/demo/demo/actions/runs/42',
+        log: 'test\tUNIT\t✗ critère 3 — rouge sur la CI',
+      });
+      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
+      m.livrer('demo-1');
+      const r = m.file();
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(m.bd('demo-1').status).toBe('open');
+      const rouge = textes(m, 'demo-1').at(-1);
+      expect(rouge).toContain('CI rouge');
+      expect(rouge).toContain('https://github.com/demo/demo/actions/runs/42');
+      expect(rouge).toContain('critère 3 — rouge sur la CI');
+      expect(appelsGh(m)).toContain('run view 42 --log-failed');
+    },
+    LONG
+  );
+
+  it(
+    'without a run found, the ticket is told the CI was not read, and stays closed',
+    () => {
+      const m = chantier(ESSAIS);
+      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
+      m.livrer('demo-1');
+      const r = m.file();
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(m.bd('demo-1').status).toBe('closed');
+      const texte = textes(m, 'demo-1').at(-1);
+      expect(texte).toContain('CI non lue');
+      expect(texte).toContain('aucun passage de la CI');
+      expect(appelsGh(m).filter(a => a.startsWith('run watch'))).toEqual([]);
     },
     LONG
   );

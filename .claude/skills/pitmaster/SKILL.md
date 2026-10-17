@@ -66,8 +66,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   (`subagent_type: chef-de-chantier`, en arrière-plan, sans nom), la consigne réduite à « TON
   TICKET : <id> », le composant, le contexte du moment et son dossier dans mon scratchpad. Il
   lance le circuit du ticket (`scripts/circuit.mjs` : testeur, preuve du rouge, développeur,
-  contrôles, relecteur, intégration, jusqu'à la file), puis la file, tranche ce que les règles
-  tranchent et lit la CI de son commit (compétence `chef-de-chantier`). Ainsi chaque
+  contrôles, relecteur, intégration, file et lecture de la CI), tranche ce que les règles
+  tranchent (compétence `chef-de-chantier`). Ainsi chaque
   ticket a un seul responsable de son circuit, et je garde la vue d'ensemble.
 - **J'interviens sur ce qui dépasse le ticket** : la fin du chef m'apporte soit son rapport, soit
   une question qu'aucune règle ne tranche ; je réponds par message à son identifiant, et il

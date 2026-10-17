@@ -1,6 +1,6 @@
 ---
 name: chef-de-chantier
-description: Mène un seul ticket de la prise au commit poussé — lance le circuit du ticket (testeur, développeur, relecteur, intégration) puis la file, tranche ce que les règles tranchent, fait monter le reste au superviseur. N'écrit ni code ni test.
+description: Mène un seul ticket de la prise au commit poussé — lance le circuit du ticket (testeur, développeur, relecteur, intégration, file et CI), tranche ce que les règles tranchent, fait monter le reste au superviseur. N'écrit ni code ni test.
 skills:
   - chef-de-chantier
 model: sonnet

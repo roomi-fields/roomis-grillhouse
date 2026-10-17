@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
 import { ecrire as ecrireTurbo } from '../../scripts/turbo-des-paquets.mjs';
 
@@ -102,7 +102,8 @@ exit 0
 `;
 
 // The stand-in for bd, run by the circuit from the main tree: a ticket is `.beads/<id>.json`, its
-// comments `.beads/<id>.comments.jsonl`.
+// comments `.beads/<id>.comments.jsonl`; `update` (--status, --add-label, --remove-label), `close`
+// (--reason) and `reopen` write its state, as the integration and the queue change it.
 const FAUX_BD = `#!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
@@ -117,6 +118,17 @@ if (cmd === 'show') {
   const f = commentaires(r[0]);
   const l = fs.existsSync(f) ? fs.readFileSync(f, 'utf8').split('\\n').filter(Boolean) : [];
   process.stdout.write(JSON.stringify(l.map(x => JSON.parse(x))));
+} else if (['update', 'close', 'reopen'].includes(cmd)) {
+  const f = path.join(b, r[0] + '.json');
+  const [t] = JSON.parse(fs.readFileSync(f, 'utf8'));
+  const v = o => (r.includes(o) ? r[r.indexOf(o) + 1] : null);
+  t.labels = t.labels ?? [];
+  if (cmd === 'close') Object.assign(t, { status: 'closed', close_reason: v('--reason') });
+  if (cmd === 'reopen') t.status = 'open';
+  if (v('--status')) t.status = v('--status');
+  if (v('--add-label')) t.labels.push(v('--add-label'));
+  if (v('--remove-label')) t.labels = t.labels.filter(x => x !== v('--remove-label'));
+  fs.writeFileSync(f, JSON.stringify([t]));
 } else {
   process.exit(1);
 }
@@ -225,6 +237,13 @@ function depot() {
 if (canWrap) {
   depot();
 }
+// The main of the trial as the repository holds it before any ticket: the queue brings each lot
+// accepted onto it, and every test starts again from it.
+const INITIAL = canWrap
+  ? execFileSync('git', ['-C', REPO, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
+  : '';
+const revenirAuDebut = () =>
+  execFileSync('git', ['-C', REPO, 'reset', '-q', '--hard', INITIAL], { encoding: 'utf8' });
 
 const DESCRIPTION = [
   '## Architecture',
@@ -335,6 +354,8 @@ const enFile = () => {
     : [];
 };
 const gitRepo = (...a: string[]) => execFileSync('git', ['-C', REPO, ...a], { encoding: 'utf8' });
+const ticketDe = (id: string) =>
+  (JSON.parse(lire(path.join(BEADS, `${id}.json`))) as { status?: string }[])[0];
 const commentaires = (id: string) =>
   lire(path.join(BEADS, `${id}.comments.jsonl`))
     .split('\n')
@@ -396,6 +417,7 @@ describe('the stops of the circuit and their codes', () => {
 });
 
 describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
+  afterEach(revenirAuDebut);
   it('passes each component of the title, provider first: testeur, proof, developpeur, checks', () => {
     const id = 'demo-ordre';
     ticket(id, '000-forms, 030-binder');
@@ -416,6 +438,7 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
       ...etapes.map(e => ['packages/binder', e]),
       ['packages/binder', 'relecture'],
       ['packages/binder', 'integration'],
+      ['packages/binder', 'file'],
     ]);
     // The proof is written at the ticket: the red tests.
     const preuve = commentaires(id).find(t => t.startsWith('Circuit · packages/forms · preuve'));
@@ -437,7 +460,7 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
         'tentative',
       ].sort()
     );
-    expect(e?.etape).toBe('en-file');
+    expect(e?.etape).toBe('integre');
     expect(e?.code).toBe(0);
     expect(e?.journal).toBe(path.join(REPO, '.claude/worktrees', `${id}.log`));
     // The instruction the circuit writes: its ticket, its component, the criteria, the proof of
@@ -543,7 +566,7 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
         'CONTEXTE : Le chef a tranché : le double.'
       );
       expect(args(id, 'developpeur', 4)).not.toContain('--model');
-      expect(etat(id)?.etape).toBe('en-file');
+      expect(etat(id)?.etape).toBe('integre');
     });
   });
 
@@ -671,18 +694,19 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
       'developpeur packages/forms',
       'relecteur',
     ]);
-    expect(historique(id).slice(-5)).toEqual([
+    expect(historique(id).slice(-6)).toEqual([
       ['packages/binder', 'controles'],
       ['packages/forms', 'developpeur'],
       ['packages/forms', 'controles'],
       ['packages/forms', 'relecture'],
       ['packages/forms', 'integration'],
+      ['packages/forms', 'file'],
     ]);
     // The developpeur of forms receives the red guard, which names its file.
     const consigne = essai(id, 'developpeur-3.prompt');
     expect(consigne).toContain('TON COMPOSANT : packages/forms');
     expect(consigne).toContain('packages/forms/src/index.mjs:1');
-    expect(etat(id)).toMatchObject({ etape: 'en-file', code: 0, finale: true });
+    expect(etat(id)).toMatchObject({ etape: 'integre', code: 0, finale: true });
   });
 
   it('counts the developpeur sessions of the final pass together: three, then « controles »', () => {
@@ -837,7 +861,7 @@ if (existsSync('casse')) {
     const controles = etape('binder', 'controles');
     expect(controles).toContain("laissés à la passe finale, rouges dans un composant d'après");
     expect(etape('checker', 'controles')).toContain('controles : verts : npm run verifier.');
-    expect(etat(id)).toMatchObject({ etape: 'en-file', code: 0 });
+    expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
   });
 
   it('leaves the files of a component broken when the build that fails lies out of it', () => {
@@ -919,7 +943,7 @@ it('lecteur — lit rend sa valeur', () => { expect(lit(2)).toBe(2); });
       );
       expect(preuve).not.toContain('Aucun fichier de test du lot');
       expect(essai(id, 'developpeur-2.prompt')).toContain('rouge existant');
-      expect(etat(id)).toMatchObject({ etape: 'en-file', code: 0 });
+      expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
     }));
 
   it('plays at the final pass each package of the title, and sends its red to its developpeur', () =>
@@ -954,7 +978,7 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
       expect(consigne).toContain('TON COMPOSANT : packages/binder');
       expect(consigne).toContain('$ npm run verifier\n');
       expect(consigne).toContain('lit rend sa valeur');
-      expect(etat(id)).toMatchObject({ etape: 'en-file', code: 0, finale: true });
+      expect(etat(id)).toMatchObject({ etape: 'integre', code: 0, finale: true });
     }));
 
   // Witness: BPScript (bp-mono-vbwf.320.2.2.1.5). The lot adds a file to a directory of the root
@@ -1069,7 +1093,7 @@ passation 'Test ajouté, rouge.'
     expect(preuve).not.toContain('› ancien — mesure rend un nombre');
     // The version of HEAD it played leaves nothing in the lot: the commit holds the two files.
     expect(existsSync(copie)).toBe(false);
-    const commit = gitRepo('show', '--name-status', '--format=', `agent/${id}`);
+    const commit = gitRepo('show', '--name-status', '--format=', 'main');
     expect(commit.split('\n').filter(Boolean).sort()).toEqual(
       ['M\tpackages/forms/src/index.mjs', 'M\tpackages/forms/test/ancien.test.mjs'].sort()
     );
@@ -1107,7 +1131,7 @@ passation 'Test ajouté, rouge.'
     expect(BigInt(essai(id, 'testeur-2.debut').trim())).toBeGreaterThan(
       BigInt(essai(id, 'testeur-1.fin').trim())
     );
-    expect(etat(id)).toMatchObject({ etape: 'en-file', code: 0, seance: null });
+    expect(etat(id)).toMatchObject({ etape: 'integre', code: 0, seance: null });
   });
 });
 
@@ -1118,6 +1142,7 @@ passation 'Test ajouté, rouge.'
 // again, then the final pass and the reviewer; a finding without a valid recipient stops at
 // « relecture-arret », and so does the third RENDU.
 describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, () => {
+  afterEach(revenirAuDebut);
   // A verdict RENDU whose one finding goes to <agent>.
   const rendu = (agent: string, constat = 'mesure de 0 doit rendre 0.') =>
     `passation 'RENDU
@@ -1156,23 +1181,32 @@ Règle : critère 1.'
     expect(consigne).toContain('controles : verts : npm run verifier.');
     expect(consigne).not.toContain('{{');
     // The integration: the commit holds the testeur's lot and the developpeur's, under the
-    // message the circuit writes; the copy is gone; the branch waits in the queue.
-    const commit = gitRepo('show', '--name-only', '--format=%s', `agent/${id}`);
+    // message the circuit writes; the copy is gone; the queue brings it onto main and closes the
+    // ticket.
+    const commit = gitRepo('show', '--name-only', '--format=%s', 'main');
     expect(commit.split('\n').filter(Boolean)).toEqual([
       `feat(000-forms): La mesure (${id})`,
       'packages/forms/src/index.mjs',
       'packages/forms/test/mesure.test.mjs',
     ]);
-    expect(gitRepo('log', '-1', '--format=%B', `agent/${id}`)).toContain('Co-Authored-By: Claude');
+    expect(gitRepo('log', '-1', '--format=%B', 'main')).toContain('Co-Authored-By: Claude');
     expect(existsSync(copie)).toBe(false);
-    expect(enFile()).toContain(`agent/${id}`);
-    expect(gitRepo('rev-parse', 'main')).not.toBe(gitRepo('rev-parse', `agent/${id}`));
-    expect(historique(id).slice(-2)).toEqual([
+    expect(enFile()).toEqual([]);
+    expect(gitRepo('branch', '--list', `agent/${id}`)).toBe('');
+    expect(historique(id).slice(-3)).toEqual([
       ['packages/forms', 'relecture'],
       ['packages/forms', 'integration'],
+      ['packages/forms', 'file'],
     ]);
-    expect(commentaires(id).at(-1)).toContain('en file');
-    expect(etat(id)).toMatchObject({ etape: 'en-file', code: 0 });
+    expect(commentaires(id)).toContainEqual(
+      expect.stringMatching(
+        /^Circuit · packages\/forms · integration : .*la branche est en file\.$/
+      )
+    );
+    // The ticket closed by the queue; the trial has no origin, so main is not pushed.
+    expect(ticketDe(id)).toMatchObject({ status: 'closed' });
+    expect(commentaires(id).at(-1)).toMatch(/^Circuit · packages\/forms · file : intégré : /);
+    expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
   });
 
   it('RENDU « Agent : developpeur <composant> » relaunches that developpeur, then the rest, to the queue', () => {
@@ -1213,10 +1247,11 @@ Règle : critère 1.'
       ['packages/binder', 'controles'],
       ['packages/binder', 'relecture'],
       ['packages/binder', 'integration'],
+      ['packages/binder', 'file'],
     ]);
-    expect(gitRepo('show', `agent/${id}:packages/forms/src/index.mjs`)).toContain('// rendu');
-    expect(enFile()).toContain(`agent/${id}`);
-    expect(etat(id)).toMatchObject({ etape: 'en-file', code: 0 });
+    expect(gitRepo('show', 'main:packages/forms/src/index.mjs')).toContain('// rendu');
+    expect(ticketDe(id)).toMatchObject({ status: 'closed' });
+    expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
   });
 
   it('RENDU « Agent : testeur <composant> » relaunches the testeur, the proof, the developpeur, the checks', () => {
@@ -1248,7 +1283,7 @@ passation 'vert attendu : critère 1 — mesure rend le double — livré avant 
     expect(sessions(id, 'testeur')).toBe(2);
     expect(sessions(id, 'developpeur')).toBe(2);
     expect(essai(id, 'testeur-2.prompt')).toContain('echelle manque.');
-    expect(historique(id).slice(-7)).toEqual([
+    expect(historique(id).slice(-8)).toEqual([
       ['packages/forms', 'relecture'],
       ['packages/forms', 'testeur'],
       ['packages/forms', 'preuve'],
@@ -1256,6 +1291,7 @@ passation 'vert attendu : critère 1 — mesure rend le double — livré avant 
       ['packages/forms', 'controles'],
       ['packages/forms', 'relecture'],
       ['packages/forms', 'integration'],
+      ['packages/forms', 'file'],
     ]);
     const preuve = commentaires(id).filter(t => t.startsWith('Circuit · packages/forms · preuve'));
     expect(preuve.at(-1)).toContain('critère 2 — echelle rend le triple');
