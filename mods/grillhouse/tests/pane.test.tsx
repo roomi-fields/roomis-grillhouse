@@ -144,11 +144,11 @@ async function monter($: never, on: never) {
 test('g makes the card show the whole text, and g again brings it back', async ($, on) => {
   const ui = await monter($ as never, on as never)
   await $.ui.press({ plugin: 'grillhouse', key: 'c.2:1' })
-  expect(JSON.stringify(await ui.drawn())).not.toContain('jusqu’à sa dernière ligne')
+  expect(JSON.stringify(await ui.drawn())).not.toContain('Le texte entier du ticket')
   await $.ui.press({ plugin: 'grillhouse', key: 'g' })
-  expect(JSON.stringify(await ui.drawn())).toContain('jusqu’à sa dernière ligne')
+  expect(JSON.stringify(await ui.drawn())).toContain('Le texte entier du ticket')
   await $.ui.press({ plugin: 'grillhouse', key: 'g' })
-  expect(JSON.stringify(await ui.drawn())).not.toContain('jusqu’à sa dernière ligne')
+  expect(JSON.stringify(await ui.drawn())).not.toContain('Le texte entier du ticket')
   await ui.unmount()
 })
 

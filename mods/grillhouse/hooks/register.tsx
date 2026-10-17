@@ -60,6 +60,44 @@ export function ficheLignes(f: Fiche | undefined): string[] {
   ].filter(Boolean)
 }
 
+// The rows a text takes in `largeur` columns: each of its lines wrapped at its spaces, its
+// indentation kept (up to half the width), a word longer than a row cut across rows; an empty line
+// stays an empty row.
+export function enLignes(texte: string, largeur: number): string[] {
+  const out: string[] = []
+  for (const para of texte.replace(/\t/g, '  ').split('\n')) {
+    const retrait = (/^ */.exec(para)?.[0] ?? '').slice(0, Math.floor(largeur / 2))
+    let ligne = retrait
+    let debut = true
+    for (let mot of para.trimStart().split(/ +/)) {
+      while (mot) {
+        const sep = debut ? '' : ' '
+        if ((ligne + sep + mot).length <= largeur) {
+          ligne += sep + mot
+          debut = false
+          mot = ''
+        } else if (debut) {
+          const place = largeur - ligne.length
+          out.push(ligne + mot.slice(0, place))
+          mot = mot.slice(place)
+          ligne = ''
+        } else {
+          out.push(ligne)
+          ligne = ''
+          debut = true
+        }
+      }
+    }
+    out.push(ligne)
+  }
+  return out
+}
+
+// The first row of the whole card's text to show: `avant` moved by `by` rows, within the text's
+// `n` rows shown `rangs` at a time.
+export const defiler = (avant: number, by: number, n: number, rangs: number) =>
+  Math.max(0, Math.min(avant + by, n - rangs))
+
 // A line the pane lists, the key of its Button and `i`, its index in the lines shown.
 export type Visible = { l: Ligne; cle: string | null; i: number }
 
@@ -129,6 +167,10 @@ let actif = false
 let fenetre = 0
 let suivi: string | null = null
 let cadre = { rangs: 1, focus: false }
+// The whole card's window: the first row of its text shown, and, while it is drawn, the text's
+// rows and the rows it shows them in.
+let ligneTexte = 0
+let texteDessine: { n: number; rangs: number } | null = null
 
 // The lines the window runs over, every line of the board, the window placed on them: when the
 // ring has moved to another line since the window last followed it, the window follows it
@@ -268,12 +310,15 @@ export const register: Register = on => {
   })
 
   // The pane draws its own rows: the wheel moves its window by `e.by` rows, within its lines, and
-  // draws it again. On the whole card, a scroll brings the card back to its size.
+  // draws it again. On the whole card, the wheel, the arrows and the page keys move its text by
+  // `e.by` rows, and the engine's window is held on the row under the card's spare top row, so an
+  // arrow up scrolls as an arrow down does, wherever the text stands.
   on('ui.scroll', async ($, e, next) => {
     if (e.requestId !== PANE) return next(e)
-    if ((await read($, etat)).grand) {
-      await update($, etat, s => ({ ...s, grand: false }))
-      return { deny: 'la fiche reprend sa taille' }
+    if (texteDessine) {
+      ligneTexte = defiler(ligneTexte, e.by, texteDessine.n, texteDessine.rangs)
+      $.ui.invalidate('ui.render')
+      return next({ ...e, offset: 1 })
     }
     const liste = placer(await read($, etat), cadre.rangs, cadre.focus)
     fenetre = Math.max(0, Math.min(fenetre + e.by, liste.length - cadre.rangs))
@@ -337,6 +382,7 @@ export const register: Register = on => {
               hotkey="g"
               onPress={() => {
                 if (!grand && montre) void lireTexte($, montre)
+                ligneTexte = 0
                 void update($, etat, s => ({ ...s, grand: !s.grand }))
               }}
             >
@@ -355,21 +401,35 @@ export const register: Register = on => {
       ) : (
         <Text dimColor>{'─'.repeat(colonnes)}</Text>
       )
+    texteDessine = null
     if (grand && e.props.isFocused && fiche) {
-      const [titre, etatDuTicket] = ficheLignes(fiche)
-      // One row more than the pane, so an arrow scrolls, which brings the card back.
+      const [titre = '', etatDuTicket] = ficheLignes(fiche)
+      const lignesDuTitre = enLignes(titre, colonnes)
+      const corps = enLignes((s.texte?.id === montre && s.texte.contenu) || fiche.resume, colonnes)
+      // The rule, the title and the state above the text; the text in the rows left.
+      const rangsTexte = Math.max(1, e.props.scroll.bodyRows - lignesDuTitre.length - 2)
+      ligneTexte = defiler(ligneTexte, 0, corps.length, rangsTexte)
+      texteDessine = { n: corps.length, rangs: rangsTexte }
+      const fin = Math.min(corps.length, ligneTexte + rangsTexte)
+      const position = corps.length > rangsTexte ? ` · ${ligneTexte + 1}-${fin}/${corps.length}` : ''
+      // Two spare rows, one above and one below the card, the engine's window held on the second
+      // row: an arrow up and an arrow down both have a row to scroll, and raise `ui.scroll`.
+      const haut = Math.min(1, e.props.scroll.offset ?? 0)
       return (
-        <Box flexDirection="column" height={e.props.scroll.bodyRows + 1}>
-          {regle('retour')}
-          <Text bold wrap="wrap">
-            {titre}
-          </Text>
+        <Box flexDirection="column" height={e.props.scroll.bodyRows + 2}>
+          {haut ? <Text> </Text> : null}
+          {regle(`retour${position}`)}
+          {lignesDuTitre.map(l => (
+            <Text bold wrap="truncate-end">
+              {l || ' '}
+            </Text>
+          ))}
           <Text dimColor wrap="truncate-end">
             {etatDuTicket}
           </Text>
-          <Box flexDirection="column" flexGrow={1} overflow="hidden">
-            <Text wrap="wrap">{(s.texte?.id === montre && s.texte.contenu) || fiche.resume}</Text>
-          </Box>
+          {corps.slice(ligneTexte, fin).map(l => (
+            <Text wrap="truncate-end">{l || ' '}</Text>
+          ))}
         </Box>
       )
     }

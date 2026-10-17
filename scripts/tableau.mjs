@@ -18,6 +18,12 @@
 //   register) waits under block 0; any other waits for the next role, deduced from the roles that
 //   ran on it and the reviewer's last verdict (`ACCEPTÉ` or `RENDU` at the start of a comment). A
 //   project whose roles leave the site manager out keeps the deduction for every ticket.
+// - Circuits: above the blocks, one entry per open ticket whose circuit (scripts/circuit.mjs) runs
+//   or stopped, read in its state `.claude/worktrees/<ticket>.circuit.json`: it runs while the
+//   process `node scripts/circuit.mjs <ticket>` runs, and shows its step, component and attempt;
+//   else it stopped, and shows the stop (its name and code) and the first line of its reason. A
+//   ticket with a circuit waits in no block: a stop awaits the chef de chantier the supervisor
+//   launches, who stands in block 0 while he runs.
 // - Chantier: a root epic with work in progress, its tree of mothers, each with its work tickets
 //   done over all; the tree shows the open work: a closed ticket, mother included, counts without
 //   a line, and a closed mother's open tickets take her place. The other chantiers, one line each.
@@ -504,6 +510,54 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
   return vivants;
 }
 
+// The circuits of the repository at <racine>: each state `.claude/worktrees/<ticket>.circuit.json`
+// scripts/circuit.mjs writes, but those at « integre », with `vivant` when `ps` (`pid etimes args`
+// per line) shows its process, `node …/circuit.mjs <ticket>`. A state that does not parse is left
+// out.
+export function lireCircuits({ racine, prefix, ps }) {
+  const dossier = path.join(racine, '.claude', 'worktrees');
+  const motif = new RegExp(`circuit\\.mjs (${prefix}-[A-Za-z0-9]+(?:\\.[0-9]+)*)(?:\\s|$)`);
+  const enVie = new Set();
+  for (const ligne of ps.split('\n')) {
+    const m = /^\s*\d+\s+\d+\s+(.*)$/.exec(ligne);
+    const e = m && motif.exec(m[1]);
+    if (e) {
+      enVie.add(e[1]);
+    }
+  }
+  const out = [];
+  for (const f of fichiers(dossier, '.circuit.json')) {
+    let e;
+    try {
+      e = JSON.parse(readFileSync(f, 'utf8'));
+    } catch {
+      continue;
+    }
+    if (!e || e.etape === 'integre') {
+      continue;
+    }
+    const ticket = path.basename(f, '.circuit.json');
+    out.push({
+      ticket,
+      etape: e.etape ?? null,
+      composant: e.composant ?? null,
+      tentative: e.tentative ?? null,
+      finale: e.finale === true,
+      code: e.code ?? null,
+      arret: e.raison ?? null,
+      raison: premiereLigne(e.rapport),
+      vivant: enVie.has(ticket),
+    });
+  }
+  return out;
+}
+// The first line of a report that is not blank, or null.
+const premiereLigne = r =>
+  String(r ?? '')
+    .split('\n')
+    .map(x => x.trim())
+    .find(Boolean) ?? null;
+
 // The reviewer's last verdict among a ticket's comments, or null.
 export function verdict(commentaires) {
   let v = null;
@@ -569,6 +623,7 @@ export function assembler({
   prefix = '',
   registre: lignesDuRegistre,
   vivants,
+  circuits = [],
   verdicts = {},
   roles = ROLES,
   maintenant,
@@ -607,7 +662,12 @@ export function assembler({
   for (const l of enfants.values()) {
     l.sort(ordre);
   }
-  const actifs = new Set(enCoursMesures.map(v => v.ticket).filter(Boolean));
+  // The circuits of the open tickets; a ticket whose circuit runs is in progress.
+  const parCircuit = new Map(circuits.filter(c => ouvert(c.ticket)).map(c => [c.ticket, c]));
+  const actifs = new Set([
+    ...enCoursMesures.map(v => v.ticket).filter(Boolean),
+    ...[...parCircuit.values()].filter(c => c.vivant).map(c => c.ticket),
+  ]);
   const travailles = new Set(registre.map(r => r.ticket).filter(Boolean));
   // A ticket is work unless it is an epic or a mother; a ticket an agent holds or has worked stays
   // work, done or not, its discoveries under it notwithstanding.
@@ -789,13 +849,15 @@ export function assembler({
     });
   }
   // A ticket waits in AGENTS only with the owner's go (`circuit`): ready, blocked, or claimed with
-  // nothing running; a ticket without it stands in CHANTIER alone. A ticket a site manager led
+  // nothing running; a ticket without it stands in CHANTIER alone; a ticket with a circuit, running
+  // or stopped, stands in its circuit's entry, never waiting. A ticket a site manager led
   // waits for the site manager, who settles a stop of its circuit; the flow's deduction serves the
   // others, and a ticket no agent took yet waits for the testeur, the circuit's first agent.
   for (const t of [...tous].sort(ordre)) {
     if (
       !travail(t) ||
       places.has(t.id) ||
+      parCircuit.has(t.id) ||
       ['fermes', 'reportes', 'aValider', 'sansGo'].includes(etat(t)) ||
       !circuit(t)
     ) {
@@ -871,7 +933,26 @@ export function assembler({
   const parTicket = Object.fromEntries(
     [...new Set(mesures.map(m => m.ticket).filter(Boolean))].map(id => [id, mesure(new Set([id]))])
   );
-  return { global, alertes, chantiers, autres, agents: blocs, faitsDuJour, etats, parTicket };
+  // The circuits, in the tickets' order.
+  const lesCircuits = [...parCircuit.values()]
+    .sort((a, b) => ordre({ id: a.ticket }, { id: b.ticket }))
+    .map(c => ({
+      ...c,
+      id: c.ticket,
+      numero: numero(c.ticket),
+      sujet: titre(parId.get(c.ticket)).sujet,
+    }));
+  return {
+    global,
+    alertes,
+    circuits: lesCircuits,
+    chantiers,
+    autres,
+    agents: blocs,
+    faitsDuJour,
+    etats,
+    parTicket,
+  };
 }
 
 export const k = n =>
@@ -949,6 +1030,30 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
 
   L('', undefined);
   L('AGENTS  ▶ en cours · en attente', 'titre');
+  // The circuits, each on its ticket's line, then the step, attempt and component where it runs
+  // or stopped: one that runs is marked « circuit »; one that stopped, by its stop's name and code
+  // (« interrompu » for a circuit dead without a stop written), and a line « arrêté : » the first
+  // line of its reason.
+  if (t.circuits?.length) {
+    L('circuits', 'titre');
+  }
+  for (const c of t.circuits ?? []) {
+    const ou = [
+      c.finale && c.etape === 'controles' ? 'passe finale' : c.etape,
+      c.tentative === null ? null : `tentative ${c.tentative}`,
+      c.composant,
+    ]
+      .filter(x => x !== null && x !== undefined)
+      .join(' · ');
+    if (c.vivant) {
+      L(cadre(`▶ ${c.numero}  ${c.sujet}`, 'circuit', largeur), 'actif', c.id);
+    } else {
+      const arret = c.code === null ? 'interrompu' : `${c.arret ?? 'arrêt'} (${c.code})`;
+      L(cadre(`■ ${c.numero}  ${c.sujet}`, arret, largeur), 'attention', c.id);
+      L(cadre(`  arrêté : ${c.raison ?? 'le circuit ne tourne plus'}`, '', largeur), 'attention');
+    }
+    L(cadre(`  ${ou}`, '', largeur), 'discret');
+  }
   for (const b of t.agents) {
     const vide = b.enCours.length === 0 && b.attend.length === 0;
     L(`${b.numero} ${b.nom}${vide ? '  —' : ''}`, vide ? 'discret' : 'titre');
@@ -969,7 +1074,10 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
 
   section = 'chantier';
   // The tickets the agents' blocks show: the chantier's tree does not show them a second time.
-  const dansAgents = new Set(t.agents.flatMap(b => [...b.enCours, ...b.attend].map(x => x.id)));
+  const dansAgents = new Set([
+    ...(t.circuits ?? []).map(c => c.id),
+    ...t.agents.flatMap(b => [...b.enCours, ...b.attend].map(x => x.id)),
+  ]);
   for (const ch of t.chantiers) {
     L('', undefined);
     poser({
@@ -1299,6 +1407,7 @@ export function tableau(racine, { home = os.homedir(), maintenant = Date.now() }
     ps,
     cache,
   });
+  const circuits = lireCircuits({ racine, prefix: prefix || '[A-Za-z0-9_]+', ps });
   try {
     if (fichierCache) {
       writeFileSync(
@@ -1316,6 +1425,7 @@ export function tableau(racine, { home = os.homedir(), maintenant = Date.now() }
     prefix,
     registre,
     vivants,
+    circuits,
     verdicts,
     roles: pkg.grillhouse?.roles ?? ROLES,
     maintenant,

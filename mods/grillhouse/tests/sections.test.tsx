@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { enLignes } from '../hooks/register'
+
 // The pane lists every line of the board, in the board's order — the head, AGENTS, CHANTIER, then
 // FAITS AUJOURD'HUI — and folds none to save rows: its window runs over them all, moved by the
 // wheel (ui.scroll, by `e.by` rows, focused or not) and following the ring the arrows move. The
@@ -88,14 +90,20 @@ type Monte = {
   defiler: (by: number, roue?: boolean) => Promise<{ deny?: string }>
   // The person's ring moving onto the element keyed `element`.
   viser: (element: string) => Promise<unknown>
-  // How many scrolls the pane let through to the engine's own window.
+  // How many scrolls the pane let through to the engine's own window, and where it put it.
   passes: () => number
+  decalages: number[]
   appels: string[][]
   // The board `scripts/tableau.mjs` gives from now on, at its next measure.
   changer: (t: object) => void
 }
 
-async function monter($: never, on: never, t: object, o: { bodyRows?: number; isFocused?: boolean } = {}): Promise<Monte> {
+async function monter(
+  $: never,
+  on: never,
+  t: object,
+  o: { bodyRows?: number; isFocused?: boolean; texte?: (id: string) => string } = {},
+): Promise<Monte> {
   const bodyRows = o.bodyRows ?? 30
   const h = on as (n: string, f: unknown) => void
   const s = $ as {
@@ -104,6 +112,7 @@ async function monter($: never, on: never, t: object, o: { bodyRows?: number; is
   }
   const appels: string[][] = []
   let passes = 0
+  const decalages: number[] = []
   let courant = t
   h('process.run', (_: unknown, e: { argv: string[] }) => {
     appels.push(e.argv)
@@ -112,15 +121,16 @@ async function monter($: never, on: never, t: object, o: { bodyRows?: number; is
       e.argv[0] === 'node'
         ? JSON.stringify(courant)
         : e.argv[0] === 'bd' && e.argv[1] === 'show'
-          ? JSON.stringify([{ id: e.argv[2], description: `Le texte entier de ${e.argv[2]}.` }])
+          ? JSON.stringify([{ id: e.argv[2], description: o.texte?.(e.argv[2] as string) ?? `Le texte entier de ${e.argv[2]}.` }])
           : ''
     return { value: { exitCode: 0, stdout, stderr: '' } }
   })
   h('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
   h('command.register', () => ({ value: undefined }))
   h('clock.every', () => ({ value: { cancel: () => undefined } }))
-  h('ui.scroll', () => {
+  h('ui.scroll', (_: unknown, e: { offset: number }) => {
     passes++
+    decalages.push(e.offset)
     return {}
   })
   h('ui.focus', () => ({}))
@@ -157,7 +167,7 @@ async function monter($: never, on: never, t: object, o: { bodyRows?: number; is
   const changer = (x: object) => {
     courant = x
   }
-  return { ui, defiler, viser, passes: () => passes, appels, changer }
+  return { ui, defiler, viser, passes: () => passes, decalages, appels, changer }
 }
 
 // The keys of the Buttons drawn in the list, in order (g and h sit on the rule, below it).
@@ -322,19 +332,76 @@ test('the card keeps its place below the list while the list scrolls', async ($,
   await m.ui.unmount()
 })
 
-test('g on a shown line fills the pane with the card, a scroll brings it back and leaves the list where it was', async ($, on) => {
+// A ticket's whole text of 80 lines, « ligne 1 » to « ligne 80 ».
+const long = () => Array.from({ length: 80 }, (_, i) => `ligne ${i + 1}`).join('\n')
+// The text rows the whole card shows: the « ligne <n> » rows drawn.
+const rangees = (arbre: unknown) => textes(arbre).filter(x => /^ligne \d+$/.test(x))
+
+test('g on a shown line fills the pane with the card, g again brings it back and leaves the list where it was', async ($, on) => {
   const b = tableau(30, 6, 3)
   const m = await monter($ as never, on as never, b.t)
+  const press = ($ as { ui: { press: (a: object) => Promise<unknown> } }).ui.press
   await m.defiler(1)
   const avant = liste(await m.ui.drawn())
-  await ($ as { ui: { press: (a: object) => Promise<unknown> } }).ui.press({ plugin: 'grillhouse', key: b.cle('a.2') })
-  await ($ as { ui: { press: (a: object) => Promise<unknown> } }).ui.press({ plugin: 'grillhouse', key: 'g' })
+  await press({ plugin: 'grillhouse', key: b.cle('a.2') })
+  await press({ plugin: 'grillhouse', key: 'g' })
   expect(textes(await m.ui.drawn()).join('\n')).toContain('Le texte entier de a.2.')
-  await m.defiler(1)
+  await press({ plugin: 'grillhouse', key: 'g' })
   const apres = await m.ui.drawn()
   expect(textes(apres).join('\n')).not.toContain('Le texte entier de a.2.')
   expect(liste(apres)).toEqual(avant)
   await m.ui.unmount()
+})
+
+test('the whole card scrolls its text: an arrow down or up a row, a page key a page, the wheel its rows', async ($, on) => {
+  const b = tableau(30, 6, 3)
+  const m = await monter($ as never, on as never, b.t, { texte: long })
+  const press = ($ as { ui: { press: (a: object) => Promise<unknown> } }).ui.press
+  await press({ plugin: 'grillhouse', key: b.cle('a.2') })
+  await press({ plugin: 'grillhouse', key: 'g' })
+  // 30 rows: the rule, the title, the state, then 27 rows of text.
+  expect(rangees(await m.ui.drawn())).toEqual(Array.from({ length: 27 }, (_, i) => `ligne ${i + 1}`))
+  // An arrow down: the scroll keys, one row.
+  await m.defiler(1, false)
+  expect(rangees(await m.ui.drawn())[0]).toBe('ligne 2')
+  // A page down: the page key, bodyRows rows.
+  await m.defiler(30, false)
+  expect(rangees(await m.ui.drawn())[0]).toBe('ligne 32')
+  // An arrow up.
+  await m.defiler(-1, false)
+  expect(rangees(await m.ui.drawn())[0]).toBe('ligne 31')
+  // The wheel, three rows up.
+  await m.defiler(-3)
+  expect(rangees(await m.ui.drawn())[0]).toBe('ligne 28')
+  // The end holds the last row in sight, the top the first.
+  await m.defiler(500, false)
+  const fin = rangees(await m.ui.drawn())
+  expect(fin.at(-1)).toBe('ligne 80')
+  expect(fin).toHaveLength(27)
+  await m.defiler(-500, false)
+  expect(rangees(await m.ui.drawn())[0]).toBe('ligne 1')
+  // The card stays whole all along, and the rule says where the text stands.
+  expect(textes(await m.ui.drawn()).join('')).toContain('g : retour · 1-27/80')
+  await m.ui.unmount()
+})
+
+test('the whole card holds the engine window on its second row, so the arrows scroll both ways', async ($, on) => {
+  const b = tableau(30, 6, 3)
+  const m = await monter($ as never, on as never, b.t, { texte: long })
+  const press = ($ as { ui: { press: (a: object) => Promise<unknown> } }).ui.press
+  await press({ plugin: 'grillhouse', key: b.cle('a.2') })
+  await press({ plugin: 'grillhouse', key: 'g' })
+  await m.defiler(1, false)
+  await m.defiler(-1, false)
+  expect(m.decalages).toEqual([1, 1])
+  await m.ui.unmount()
+})
+
+test('the rows of a text: wrapped at its spaces, indentation kept, a long word cut, an empty line kept', () => {
+  expect(enLignes('un deux trois quatre', 9)).toEqual(['un deux', 'trois', 'quatre'])
+  expect(enLignes('  - un deux trois', 10)).toEqual(['  - un', 'deux trois'])
+  expect(enLignes('abcdefghijkl', 5)).toEqual(['abcde', 'fghij', 'kl'])
+  expect(enLignes('a\n\nb', 5)).toEqual(['a', '', 'b'])
 })
 
 test('h on a chantier switches it', async ($, on) => {
