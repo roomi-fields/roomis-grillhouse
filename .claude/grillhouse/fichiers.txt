@@ -20,6 +20,7 @@ tsdoc.json
 docs/agents/issue-tracker.md
 scripts/attendre.sh
 scripts/branche-de-nuit.mjs
+scripts/circuit.mjs
 scripts/code-mort.mjs
 scripts/consommateurs.mjs
 scripts/crochets.mjs

@@ -18,8 +18,9 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   pendant un tour, et pour une question sur le cadre.
 - `references/erreurs.md` — les pièges des outils (Beads, git, crochets) : avant de lire un ticket
   ou de commiter.
-- `references/consigne-agent.md` — le gabarit de la consigne d'un agent enveloppé : le chef de
-  chantier l'écrit.
+- `references/consigne-agent.md` — les gabarits des consignes : le circuit du ticket
+  (`scripts/circuit.mjs`) remplit celle du testeur et du développeur, le chef de chantier écrit
+  celle du relecteur.
 - `docs/agents/issue-tracker.md` — le format des tickets : avant d'en ouvrir un.
 - `pitmaster/SUIVI.md` — le dernier tour, les agents lancés, les questions en attente : au
   lancement de la séance.
@@ -64,8 +65,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 - **Un chef de chantier par ticket** : un ticket tranché part à un chef de chantier neuf
   (`subagent_type: chef-de-chantier`, en arrière-plan, sans nom), la consigne réduite à « TON
   TICKET : <id> », le composant, le contexte du moment et son dossier dans mon scratchpad. Il
-  lance le testeur, le développeur, le relecteur et l'intégrateur, tranche ce que les règles
-  tranchent, pousse le commit et arrête ses agents (compétence `chef-de-chantier`). Ainsi chaque
+  lance le circuit du ticket (`scripts/circuit.mjs` : testeur, preuve du rouge, développeur,
+  contrôles), puis le relecteur et l'intégrateur, tranche ce que les règles tranchent, pousse le commit et arrête ses agents (compétence `chef-de-chantier`). Ainsi chaque
   ticket a un seul responsable de son circuit, et je garde la vue d'ensemble.
 - **J'interviens sur ce qui dépasse le ticket** : la fin du chef m'apporte soit son rapport, soit
   une question qu'aucune règle ne tranche ; je réponds par message à son identifiant, et il
@@ -96,7 +97,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   reste indivisible, et le lecteur voit le nouvel export dans son enveloppe.
 - **Un geste transverse, un seul ticket** : un même changement répété sur plusieurs composants
   (migration, outillage) est un seul ticket, mené dans une copie qui montre tout le dépôt
-  (`lancer.sh <ticket> <rôle> . <consigne>`). Je valide son gabarit, écrit dans sa section
+  (le composant `.` dans son titre, que le circuit lance). Je valide son gabarit, écrit dans sa section
   « Architecture », et chaque écart inscrit à la liste des écarts admis ; un écart qui touche
   l'architecture d'un composant (son rôle, ses frontières) monte au responsable. Un geste
   mécanique sur plus de cinq composants se fait par un script de migration gardé au dépôt.

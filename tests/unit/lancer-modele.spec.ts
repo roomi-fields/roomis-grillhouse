@@ -626,3 +626,48 @@ describe('the launcher refuses a component that is not a path before preparing t
     120_000
   );
 });
+
+// The circuit (scripts/circuit.mjs) launches every session of a ticket in its copy and reads each
+// end: the log of the ticket keeps every session, each under a header line (role, component,
+// time), and the session's exit code lands in `<copie>.fin`, apart from the launcher's own codes.
+describe.runIf(canWrap)('the launcher and the log and end of each session', () => {
+  const ENTETE = /^=== \S+ · developpeur · packages\/a ===$/gm;
+  const lancerSur = (ticket: string, claude: string) => {
+    const consigne = path.join(REPO, `${ticket}.txt`);
+    writeFileSync(consigne, `TON TICKET : ${ticket} — un sujet.`);
+    return spawnSync('bash', [LAUNCHER, ticket, 'developpeur', 'packages/a', consigne], {
+      cwd: REPO,
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_BIN: claude, HOME },
+    });
+  };
+  it('adds each session to the log of the ticket, under its header line', () => {
+    const ticket = 'demo-journal';
+    const parle = path.join(REPO, 'faux-claude-parle.sh');
+    writeFileSync(parle, '#!/bin/bash\necho "séance $$"\n', { mode: 0o755 });
+    expect(lancerSur(ticket, parle).status).toBe(0);
+    expect(lancerSur(ticket, parle).status).toBe(0);
+    const journal = readFileSync(path.join(REPO, '.claude/worktrees', `${ticket}.log`), 'utf8');
+    expect(journal.match(ENTETE)?.length, journal).toBe(2);
+    expect(journal.match(/^séance \d+$/gm)?.length, journal).toBe(2);
+  }, 120_000);
+  it("writes the session's exit code to <copie>.fin", () => {
+    const ticket = 'demo-fin';
+    const sort = path.join(REPO, 'faux-claude-sort.sh');
+    writeFileSync(sort, '#!/bin/bash\nexit 7\n', { mode: 0o755 });
+    const fin = path.join(REPO, '.claude/worktrees', `${ticket}.fin`);
+    expect(lancerSur(ticket, sort).status).toBe(7);
+    expect(readFileSync(fin, 'utf8').trim()).toBe('7');
+    expect(lancerSur(ticket, FAUX).status).toBe(0);
+    expect(readFileSync(fin, 'utf8').trim()).toBe('0');
+  }, 120_000);
+  it('leaves no <copie>.fin when the launcher refuses before the session', () => {
+    const ticket = 'demo-fin-refus';
+    const r = spawnSync('bash', [LAUNCHER, ticket, 'developpeur', 'packages/z', '/dev/null'], {
+      cwd: REPO,
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(CODE_USAGE);
+    expect(existsSync(path.join(REPO, '.claude/worktrees', `${ticket}.fin`))).toBe(false);
+  });
+});

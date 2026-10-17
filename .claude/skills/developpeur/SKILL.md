@@ -99,6 +99,10 @@ Une découverte qui ne bloque pas se consigne fermée sous ton ticket
 
 ## Vérifier et livrer
 
+- **Le circuit contrôle après toi** : ta séance finie, le circuit du ticket joue les tests du lot,
+  les gardes (`npm run verifier -- --gardes`) et les tests des paquets touchés ; un rouge te
+  relance avec sa sortie. Tes propres lancements pendant le travail restent les tiens. Ainsi ton
+  lot arrive au relecteur vert.
 - **Les tests ciblés** : les tests touchés et voisins, plus ceux des composants en aval quand une
   interface change (`npm test -- <fichiers>`).
 - **Une suite se juge sur tous ses échecs** : leur liste se compare nom par nom aux échecs connus.

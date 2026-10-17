@@ -70,9 +70,15 @@
 #   section « La construction de ton paquet échoue » when it fails. The prompt
 #   carries « TON TICKET : <ticket> », which the role's locks read. The envelope is the sandbox, so
 #   the session runs without permission prompts.
-# - Its output, and an envelope refusal (CODE_REFUS), go to .claude/worktrees/<ticket>.log; the
-#   agent writes its report in the ticket. Once the envelope has ended, the launcher writes the
-#   session's line to the register (scripts/registre.mjs --copie), then exits with the envelope's code.
+# - Its output, and an envelope refusal (CODE_REFUS), are added to .claude/worktrees/<ticket>.log,
+#   the log of the ticket, which keeps every session of the ticket: each launch past the checks of
+#   its call adds a header line, `=== <time> · <rôle> · <composant> ===`, then its preparation and
+#   its session. The agent writes its report in the ticket. Once the envelope has ended, the
+#   launcher writes the session's exit code to .claude/worktrees/<ticket>.fin, which a launch
+#   removes first: a launch that stops before its session leaves none, so the circuit
+#   (scripts/circuit.mjs) tells a code of the session from CODE_USAGE, CODE_REFUS and CODE_COPIE.
+#   It then writes the session's line to the register (scripts/registre.mjs --copie), and exits
+#   with the envelope's code.
 # - The exit codes are named in scripts/enveloppe/codes.mjs; a malformed call exits CODE_USAGE.
 # - CLAUDE_BIN replaces `claude` (the tests use it).
 set -euo pipefail
@@ -122,11 +128,14 @@ grep -qE "TON TICKET : ${motif}([^A-Za-z0-9_.-]|$)" "$consigne" || { echo "⛔ L
 
 copie="$racine/.claude/worktrees/$ticket"
 journal="$copie.log"
+fin="$copie.fin"
 mkdir -p "$(dirname "$copie")"
+rm -f "$fin"
+printf '=== %s · %s · %s ===\n' "$(date -Iseconds)" "$role" "$composant" >> "$journal"
 # A branch still in the queue is not relaunched: the queue brings it onto main, or sends it back.
 if node --input-type=module -e "import { lireEntrees } from '$ici/../integration/file-attente.mjs'; const [r, b, t] = process.argv.slice(1); process.exit(lireEntrees(r).some(e => e.branche === b || e.ticket === t) ? 0 : 1);" "$racine" "agent/$ticket" "$ticket"; then
   refus="⛔ La branche agent/$ticket est encore en file d'intégration : la file l'amène sur main ou la renvoie ; le ticket ne se relance pas avant."
-  echo "$refus" > "$journal"
+  echo "$refus" >> "$journal"
   echo "$refus" >&2
   exit "$CODE_COPIE"
 fi
@@ -219,7 +228,7 @@ echec=$(mktemp)
       fi
     fi
   fi
-) > "$journal" 2>&1 || { rm -f "$echec"; echo "⛔ La copie $copie n'a pas pu être préparée : voir $journal." >&2; exit "$CODE_COPIE"; }
+) >> "$journal" 2>&1 || { rm -f "$echec"; echo "⛔ La copie $copie n'a pas pu être préparée : voir $journal." >&2; exit "$CODE_COPIE"; }
 # What the components before publish, read in the prepared copy, follows the instruction.
 publie=$(cd "$copie" && node "$ici/../index-interfaces.mjs" --publie "$composant" 2>> "$journal") \
   || { rm -f "$echec"; echo "⛔ Ce que publient les composants d'avant n'a pas pu se lire : voir $journal." >&2; exit "$CODE_COPIE"; }
@@ -243,6 +252,7 @@ node "$racine/scripts/enveloppe/enveloppe.mjs" "$copie" "$composant" "$role" -- 
   "${CLAUDE_BIN:-claude}" -p --agent "$role" \
   ${surcharge[@]+"${surcharge[@]}"} --permission-mode bypassPermissions < "$prompt" >> "$journal" 2>&1 || code=$?
 rm -f "$prompt"
+echo "$code" > "$fin"
 # The envelope ended: the session's line goes to the register from outside it, whatever its end hook did.
 node "$racine/scripts/registre.mjs" --copie "$copie" >> "$journal" 2>&1 || true
 exit "$code"

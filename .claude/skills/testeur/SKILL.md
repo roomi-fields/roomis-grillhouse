@@ -47,9 +47,21 @@ ses bords et ses refus. Ainsi un code taillé pour l'exemple du ticket échoue.
 qu'il rend, sans simuler ce que le composant fait lui-même. Ainsi ils restent vrais quand le code
 change de forme.
 
-**Chaque test rougit d'abord** : tu le lances sur le code présent (`npm test -- <fichier>`, le chemin écrit depuis la racine du dépôt) et tu
-gardes la sortie de son échec. Un test vert d'emblée ne prouve rien ; tu le dis dans la passation. Ainsi chaque test prouve
-qu'il sait échouer.
+**Chaque test rougit d'abord** : pendant que tu l'écris, tu le lances sur le code présent
+(`npm test -- <fichier>`, le chemin écrit depuis la racine du dépôt) et tu vois qu'il échoue pour
+la bonne raison. Après ta séance, le circuit du ticket joue la preuve : il lance les tests de ton
+lot et écrit au ticket les rouges et les verts. Ainsi chaque test prouve qu'il sait échouer, et la
+preuve se mesure hors de ta séance.
+
+**Un test vert avant le code se justifie** : ta passation porte, pour lui, la ligne
+`vert attendu : <nom du test> — <raison>` ; sans elle, le circuit te relance avec son rapport. Un
+fichier qui ne se charge pas ne prouve rien. Ainsi un vert reste un choix écrit.
+
+**Un critère se prouve sur ce que la chaîne publie** : le test donne au composant ce que son
+fournisseur publie (une scène compilée, la forme publiée d'un fournisseur) et lit ce que le
+composant rend. Exemple : en 320.2.6 de BPScript, des bancs sur des objets faits à la main
+restaient verts alors que la chaîne restait fausse. Ainsi le test mord sur le produit tel qu'il
+tourne.
 
 **Ce que tes tests lisent se déclare** : un test qui lit des données hors des imports (des
 scènes, des paires de la matière, la trace d'un autre étage) fait déclarer leur chemin, dossier
@@ -85,8 +97,9 @@ chaque rouge connu a son ticket.
 
 ## La fin
 
-Tu livres ton lot dans ton scratchpad : le patch de tes seuls fichiers de test, la sortie rouge, la
-passation : le tableau critère → test → sortie rouge, ce qui n'est pas couvert et pourquoi. Tu le notes dans le ticket
+Tu livres ton lot dans ton dossier de travail : le patch de tes seuls fichiers de test, et la
+passation : le tableau critère → test, les lignes `vert attendu`, ce qui n'est pas couvert et
+pourquoi. Tu le notes dans le ticket
 (`bd comments add`) et tu préviens le superviseur. Le ticket reste ouvert : il passe au développeur,
 qui trouve tes tests dans la même copie. Tu ne commites pas : le lot de tests part avec celui du
 code. Ainsi les tests arrivent au dépôt avec le code qui les rend verts.

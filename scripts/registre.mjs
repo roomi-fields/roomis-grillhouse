@@ -203,11 +203,17 @@ function ecrireLaLigne(input, projet) {
   return l ? ecrire(l) : false;
 }
 
+// The directory where Claude Code keeps the transcripts of the sessions of an agent's copy
+// (`copie`), in the home <home>: its path in dashes under `~/.claude/projects`. The circuit
+// (scripts/circuit.mjs) watches it.
+export const transcriptionsDeLaCopie = (copie, home) =>
+  path.join(home, '.claude', 'projects', enTirets(copie));
+
 // The sessions of an agent's copy (`copie`) the register does not hold yet (`connus`), as the end
 // hook would hand them: the launcher calls it once the envelope has ended, so every session of
 // the copy is finished, however recently its transcript moved.
 export function deLaCopie(copie, home, connus) {
-  const dir = path.join(home, '.claude', 'projects', enTirets(copie));
+  const dir = transcriptionsDeLaCopie(copie, home);
   if (!existsSync(dir)) {
     return [];
   }
