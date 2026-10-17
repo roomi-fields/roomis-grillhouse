@@ -22,7 +22,8 @@ prime sur tout le reste.
    fournisseur, où se lit son détail, et la rubrique « Rend » du cadre de chacun. Ainsi tu sais ce
    qui est déjà calculé, et où.
 4. Lance les tests du testeur, déjà dans ta copie (`npm test -- <fichiers>`, chemins depuis la
-   racine du dépôt), et vois-les rouges.
+   racine du dépôt), et vois-les rouges ; sans test neuf, ce sont les rouges existants que le
+   rapport de la preuve nomme.
    Ainsi ton code se mesure à des tests que tu n'as pas écrits.
 
 ## Tes références, à lire au moment où elles servent
@@ -100,9 +101,12 @@ Une découverte qui ne bloque pas se consigne fermée sous ton ticket
 ## Vérifier et livrer
 
 - **Le circuit contrôle après toi** : ta séance finie, le circuit du ticket joue les tests du lot
-  et des paquets touchés jusqu'à ton composant, puis les gardes dans ton enveloppe ; après le
-  dernier composant, tout le lot et `npm run verifier -- --gardes`. Un rouge te relance avec sa
-  sortie quand il est dans ton composant. Tes propres lancements pendant le travail restent les tiens. Ainsi ton
+  et de chaque paquet des composants jusqu'au tien, puis les gardes dans ton enveloppe ; après le
+  dernier composant, tout le lot, chaque paquet des composants du titre et
+  `npm run verifier -- --gardes`. Un rouge te relance avec sa sortie quand il est dans ton
+  composant. Tu es lancé sur un rouge (de la preuve, un `rouge existant` compris, ou des
+  contrôles) : une séance qui ne change aucun fichier de ton composant arrête le circuit
+  (`sans-livraison`), et ta passation dit pourquoi. Tes propres lancements pendant le travail restent les tiens. Ainsi ton
   lot arrive au relecteur vert.
 - **Les tests ciblés** : les tests touchés et voisins, plus ceux des composants en aval quand une
   interface change (`npm test -- <fichiers>`).

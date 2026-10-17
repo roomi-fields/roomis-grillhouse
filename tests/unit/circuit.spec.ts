@@ -330,7 +330,15 @@ beforeAll(async () => {
 
 describe('the stops of the circuit and their codes', () => {
   it('names a distinct code, not 0 nor 2, for each stop', () => {
-    const noms = ['lancement', 'bloqué', 'sans-passation', 'preuve', 'controles', 'a-repasser'];
+    const noms = [
+      'lancement',
+      'bloqué',
+      'sans-passation',
+      'preuve',
+      'controles',
+      'sans-livraison',
+      'a-repasser',
+    ];
     expect(Object.keys(ARRETS).sort()).toEqual([...noms].sort());
     const codes = Object.values(ARRETS);
     expect(new Set(codes).size).toBe(codes.length);
@@ -460,7 +468,12 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     it('relaunches the developpeur, the third time on the strong model, then stops at « controles »', () => {
       ticket(id, '000-forms');
       scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
-      scenario(id, 'developpeur', "passation 'Rien écrit.'\n");
+      // Each session changes a file of forms, never the code that the test waits for.
+      scenario(
+        id,
+        'developpeur',
+        `echo $(( $(cat $c/tour 2>/dev/null || echo 0) + 1 )) > $c/tour\npassation 'Un essai.'\n`
+      );
       const r = circuit([id]);
       expect(r.status, sortie(r)).toBe(ARRETS.controles);
       expect(sessions(id, 'developpeur')).toBe(3);
@@ -492,6 +505,30 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
       expect(args(id, 'developpeur', 4)).not.toContain('--model');
       expect(etat(id)?.etape).toBe('relecture');
     });
+  });
+
+  it('stops at « sans-livraison » after a developpeur session that changes no file of its component', () => {
+    const id = 'demo-sans-livraison';
+    ticket(id, '000-forms, 030-binder');
+    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    // Its handover says it delivered; only the files of the component count.
+    scenario(id, 'developpeur', "passation 'Code écrit.'\n");
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(ARRETS['sans-livraison']);
+    expect(sessions(id, 'developpeur')).toBe(1);
+    expect(sessions(id, 'testeur')).toBe(1);
+    const e = etat(id);
+    expect(e).toMatchObject({
+      etape: 'developpeur',
+      composant: 'packages/forms',
+      raison: 'sans-livraison',
+      code: ARRETS['sans-livraison'],
+    });
+    expect(e?.rapport).toContain('packages/forms');
+    expect(e?.rapport).toContain('passation');
+    expect(historique(id).at(-1)).toEqual(['packages/forms', 'developpeur']);
+    expect(commentaires(id).at(-1)).toContain('sans-livraison');
+    expect(commentaires(id).at(-1)).toContain('packages/forms');
   });
 
   it('relaunches a session without handover once, then stops at « sans-passation »', () => {
@@ -775,6 +812,109 @@ if (existsSync('casse')) {
     expect(arret).toContain('1 fichier(s) qui ne se charge(nt) pas');
   });
 
+  // A reader of forms that HEAD already holds, green there: `lit` of binder renders the value
+  // `mesure` of forms gives, and its test expects the value itself. The double of the forms lot
+  // turns it red; LECTEUR_JUSTE is binder's repair.
+  const lecteur = (copie: string) => {
+    ecrire(
+      path.join(copie, 'packages/binder/src/lecteur.mjs'),
+      "import { mesure } from '../../forms/src/index.mjs';\nexport const lit = x => mesure(x);\n"
+    );
+    ecrire(
+      path.join(copie, 'packages/binder/test/lecteur.test.mjs'),
+      `import { expect, it } from 'vitest';
+import { lit } from '../src/lecteur.mjs';
+it('lecteur — lit rend sa valeur', () => { expect(lit(2)).toBe(2); });
+`
+    );
+    const git = (...a: string[]) =>
+      execFileSync('git', ['-C', copie, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
+    git('add', 'packages/binder/src/lecteur.mjs', 'packages/binder/test/lecteur.test.mjs');
+    git('commit', '-qm', 'lecteur');
+  };
+  const LECTEUR_JUSTE = `printf "import { mesure } from '../../forms/src/index.mjs';\\nexport const lit = x => mesure(x) / 2;\\n" > $c/src/lecteur.mjs\n`;
+
+  // Witness: BPScript (bp-mono-vbwf.320.2.2.1.5). The provider changes a type; tests the readers
+  // already held, green at HEAD, turn red, and their testeur has no new test to write. The proof
+  // saw no file of the lot and skipped their developpeur.
+  it('takes a test HEAD holds that the lot turns red for the proof of its component', () => {
+    const id = 'demo-rouge-existant';
+    lecteur(ticket(id, '000-forms, 030-binder'));
+    scenario(id, 'testeur-1', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(
+      id,
+      'testeur-2',
+      "passation 'Aucun test neuf à écrire : les rouges existants du lecteur suffisent.'\n"
+    );
+    scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code de forms écrit.'\n`);
+    scenario(id, 'developpeur-2', `${LECTEUR_JUSTE}passation 'Lecteur réparé.'\n`);
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(essai(id, 'ordre').trim().split('\n')).toEqual([
+      'testeur packages/forms',
+      'developpeur packages/forms',
+      'testeur packages/binder',
+      'developpeur packages/binder',
+    ]);
+    const preuve = commentaires(id).find(t => t.startsWith('Circuit · packages/binder · preuve'));
+    expect(preuve).toContain('1 rouge(s)');
+    expect(preuve).toContain('au développeur');
+    expect(preuve).toContain(
+      'rouge existant : packages/binder/test/lecteur.test.mjs › lecteur — lit rend sa valeur —'
+    );
+    expect(preuve).not.toContain('Aucun fichier de test du lot');
+    expect(essai(id, 'developpeur-2.prompt')).toContain('rouge existant');
+    expect(etat(id)).toMatchObject({ etape: 'relecture', code: 0 });
+  });
+
+  it('plays at the final pass each package of the title, and sends its red to its developpeur', () => {
+    const id = 'demo-finale-intouche';
+    const copie = ticket(id, '000-forms, 030-binder');
+    lecteur(copie);
+    // The lot of forms is in the copy; binder, untouched, holds only what HEAD holds.
+    ecrire(
+      path.join(copie, 'packages/forms/test/mesure.test.mjs'),
+      `import { expect, it } from 'vitest';
+import { mesure } from '../src/index.mjs';
+it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); });
+`
+    );
+    scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code de forms écrit.'\n`);
+    scenario(id, 'developpeur-2', `${LECTEUR_JUSTE}passation 'Lecteur réparé.'\n`);
+    const r = circuit([
+      id,
+      '--depuis',
+      'developpeur',
+      '000-forms',
+      '--contexte',
+      'RENDU : le double.',
+    ]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(essai(id, 'ordre').trim().split('\n')).toEqual([
+      'developpeur packages/forms',
+      'developpeur packages/binder',
+    ]);
+    const consigne = essai(id, 'developpeur-2.prompt');
+    expect(consigne).toContain('TON COMPOSANT : packages/binder');
+    expect(consigne).toContain('npm test -- packages/binder');
+    expect(consigne).toContain('lit rend sa valeur');
+    expect(etat(id)).toMatchObject({ etape: 'relecture', code: 0, finale: true });
+  });
+
+  it('fails the proof without a file of the lot nor a red, the greens HEAD holds not counted', () => {
+    const id = 'demo-rien';
+    ticket(id, '000-forms');
+    scenario(id, 'testeur', "passation 'Rien écrit.'\n");
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(ARRETS.preuve);
+    expect(sessions(id, 'testeur')).toBe(3);
+    expect(sessions(id, 'developpeur')).toBe(0);
+    const relance = essai(id, 'testeur-2.prompt');
+    expect(relance).toContain('Aucun fichier de test du lot dans packages/forms');
+    expect(relance).toContain('0 rouge(s)');
+    expect(relance).not.toContain('ancien — mesure rend un nombre');
+  });
+
   it('proves only the tests the lot adds or changes, not those HEAD already holds', () => {
     const id = 'demo-anciens';
     const copie = ticket(id, '000-forms');
@@ -861,6 +1001,11 @@ describe.runIf(canWrap)(
       scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
       expect(circuit([id]).status).toBe(0);
       const avant = commentaires(id).length;
+      scenario(
+        id,
+        'developpeur-3',
+        `printf '// rendu\\n' >> $c/src/index.mjs\npassation 'Rendu traité.'\n`
+      );
       const r = circuit([id, '--depuis', 'developpeur', '000-forms', '--contexte', VERDICT]);
       expect(r.status, sortie(r)).toBe(0);
       expect(sessions(id, 'testeur')).toBe(2);

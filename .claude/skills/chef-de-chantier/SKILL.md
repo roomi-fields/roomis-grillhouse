@@ -28,6 +28,12 @@ superviseur.
    `node scripts/circuit.mjs <ticket> --reprendre --contexte "<ma décision>"`, qui repart de
    l'étape et du composant de l'état. Repris après une coupure, je relance de même
    `--reprendre` : le circuit attend la fin de la séance restée en vol, puis repart de l'état.
+   La preuve d'un composant joue ses paquets en entier : un test que HEAD tient et que le lot
+   rougit est un « rouge existant », qui suffit à lancer son développeur, et la passe finale joue
+   chaque paquet de chaque composant du titre. Un développeur n'est lancé que sur un rouge : une
+   séance qui ne change aucun fichier de son composant arrête le circuit (code 15,
+   `sans-livraison`) ; sa passation dit pourquoi, et je reprends par `--reprendre --contexte`
+   ou par `--depuis`.
    Une donnée qui manque chez un fournisseur, dite dans la passation d'un agent, monte au
    superviseur, qui ajoute ce fournisseur en tête des composants du ticket ; je relance alors le
    circuit sans `--reprendre`, et il repart du fournisseur, dans la même copie. Le tout fait une
@@ -40,9 +46,9 @@ superviseur.
    consigne écrite d'après le second gabarit de
    `.claude/skills/pitmaster/references/consigne-agent.md`. Une nouvelle relecture repart au même
    relecteur, par message. Un lot rendu repart par le circuit, en arrière-plan :
-   `node scripts/circuit.mjs <ticket> --depuis <testeur|developpeur> <composant> --contexte
-   "<constats du verdict>"`, `testeur` quand le verdict vise les tests. Il rejoue la suite de ce
-   composant et s'arrête à `relecture`. Ainsi un lot rendu repasse par les mêmes contrôles.
+   `node scripts/circuit.mjs <ticket> --depuis <testeur|developpeur> <composant> --contexte "<constats du verdict>"`,
+   `testeur` quand le verdict vise les tests. Il rejoue la suite de ce composant et s'arrête à
+   `relecture`. Ainsi un lot rendu repasse par les mêmes contrôles.
 3. **Intégrateur** : après `ACCEPTÉ`, sous-agent neuf (`subagent_type: integrateur`), sans nom, sur les lots
    que je construis depuis la copie du ticket. Il commite le lot sur `agent/<ticket>`, ce qui retire
    la copie, puis lance la file (`scripts/integration/file.mjs`), qui amène la branche sur main,

@@ -26,10 +26,16 @@
 //   it, in milliseconds) is stopped: SIGTERM, then SIGKILL, to the launcher's group.
 // - After each session, a new comment of the agent is at the ticket: one that is not the circuit's
 //   own (« Circuit · … »). Without it, the session is launched once more, then the circuit stops.
-// - The proof of the red: the test files the testeur's lot adds or changes in the component
-//   (git status of the copy, the testeur's files as the integration shares them, `isTesterFile`),
-//   played by `npm test -- <files> --reporter=default --reporter=json --outputFile=<f>` in the
-//   copy, one run per package. A file that does not load proves nothing; a failed build of a
+// - The proof of the red plays the whole component, as the CI of bors plays the whole suite of
+//   the components a change touches: main is green, so a test HEAD holds that turns red in the
+//   copy is a regression of the lot. One run per package, `npm test -- <package> <files>
+//   --reporter=default --reporter=json --outputFile=<f>` in the copy: each package of the
+//   component that has a script `test:vitest`, played whole, and the test files the testeur's lot
+//   adds or changes in the component (git status of the copy, the testeur's files as the
+//   integration shares them, `isTesterFile`). A test of a file out of the lot that fails is a red,
+//   written `rouge existant : <file> › <name> — <message>`, and so is a file out of the lot that
+//   does not load while no build of the component fails (it loaded at HEAD); its greens do not
+//   count. A file of the lot that does not load proves nothing; a failed build of a
 //   package of the component (Turborepo's line « Failed: » naming `<package>#build`) is a red, as
 //   not compiling is failing, and the files it keeps from loading play at the checks, after the
 //   developpeur; a failed build of a package out of the component leaves them broken. A green
@@ -38,19 +44,30 @@
 //   version of HEAD of each file plays in the same run, from a sibling file
 //   (`<nom>.circuit-avant.test.<ext>`, removed after it), and a green test whose full name HEAD's
 //   version holds, green there too, is set aside, counted; a body changed under the same name is
-//   not told apart. A failed proof relaunches the testeur with its report, twice at most. The
-//   report (reds, justified greens) is written at the ticket. A proof without a red skips the
-//   developpeur: the lot is a lot of tests alone.
+//   not told apart. The proof passes with a red (of the lot, existing or of a build), even
+//   without a file of the lot in the component: a testeur with no new test to write says so in
+//   his handover, the existing reds are enough. It fails with neither a file of the lot nor a red,
+//   with a broken file of the lot, or with a green of the lot without its « vert attendu ». A
+//   failed proof relaunches the testeur with its report, twice at most. The report (reds,
+//   justified greens) is written at the ticket. A proof with a red launches the developpeur; one
+//   without a red skips him: the lot is a lot of tests alone.
+// - A developpeur is launched on a red alone, of a proof or of a check: a session that changes
+//   no file of its component (`git status --porcelain` of its directory and the content of each
+//   file it lists, taken before and after the session; the handover's text does not count) stops
+//   the circuit at « sans-livraison », its report naming the component and sending to the
+//   developpeur's handover.
 // - The checks after the developpeur of a component judge what is done, the components of the run
 //   up to it: `npm test -- <test files of the lot>` that lie in those components (and those of the
 //   shared test material whose package depends on none of the components after it), `npm test --
-//   <package>` for each package of those components the lot touches, then the guards in the
+//   <package>` for each package of those components, touched by the lot or not (a package without
+//   a script `test:vitest` plays only when the lot touches it), then the guards in the
 //   envelope of the component (`GRILLHOUSE_ENVELOPPE=<composant> npm run grillhouse:gardes`, and
 //   `npm run gardes` when the project has it): a red guard that names only files of the
 //   components after it waits for the final pass.
 // - After the last component of the run, the final pass: `npm test -- <test files of the lot>`,
-//   `npm run verifier -- --gardes`, and `npm test -- <package>` for each package the lot touches
-//   (`npm test` in a repository without packages). A red goes to the developpeur of the component
+//   `npm run verifier -- --gardes`, and `npm test -- <package>` for each package of each component
+//   of the title and each package the lot touches, deduplicated and sorted (`npm test` in a
+//   repository without packages). A red goes to the developpeur of the component
 //   that owns the red file: a package of a failed task (Turborepo's line « Failed: »), else the
 //   first component a path of the output names (notices ⚠️ and ℹ️ aside), the provider first; a
 //   red that no component owns stops at « controles ». From then on every check is the final pass.
@@ -82,8 +99,10 @@
 //   12 sans-passation (twice no handover), 13 preuve (the third proof fails), 14 controles (the
 //   third developpeur of a component's checks or of the final pass leaves a red check, or a red
 //   of the final pass no component owns),
+//   15 sans-livraison (a developpeur session that changes no file of its component),
 //   75 a-repasser (a check still at 75 once played again).
 import { spawn, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   closeSync,
   existsSync,
@@ -117,6 +136,7 @@ export const ARRETS = {
   'sans-passation': 12,
   preuve: 13,
   controles: 14,
+  'sans-livraison': 15,
   'a-repasser': A_REPASSER,
 };
 const CODE_USAGE = 2;
@@ -553,15 +573,18 @@ function preuve(ctx, composant) {
   const injustifies = [];
   const casses = [];
   const liste = paquets(ctx.copie).filter(p => !p.hors);
-  const groupes = new Map();
+  const index = ctx.composants.indexOf(composant);
+  // Each package of the component plays whole, beside the files of the lot.
+  const entiers = paquetsDesComposants(ctx, liste, i => i === index);
+  const groupes = new Map(entiers.map(d => [d, []]));
   for (const f of fichiers) {
     const p = paquetDe(liste, f);
     groupes.set(p, [...(groupes.get(p) ?? []), f]);
   }
   let anciens = 0;
-  const index = ctx.composants.indexOf(composant);
   const reportes = [];
-  for (const [, groupe] of groupes) {
+  for (const [dossier, groupe] of groupes) {
+    const entier = entiers.includes(dossier);
     const rapport = path.join(ctx.tmp, `preuve-${++ctx.numero}.json`);
     const avant = versionsDAvant(ctx, groupe);
     let r;
@@ -569,6 +592,7 @@ function preuve(ctx, composant) {
       r = npm(ctx, 'preuve', composant, [
         'test',
         '--',
+        ...(entier ? [dossier] : []),
         ...groupe,
         ...avant.values(),
         '--reporter=default',
@@ -587,8 +611,28 @@ function preuve(ctx, composant) {
     // The builds of the component's packages that failed: each one a red, not compiling is failing.
     const constructions = constructionsEchouees(ctx, liste, r.sortie, index);
     for (const { nom, erreur } of constructions) {
+      if (reportes.includes(nom)) continue;
       rouges.push(`construction de ${nom} — ${erreur}`);
       reportes.push(nom);
+    }
+    // The files out of the lot, which HEAD holds green: a red of theirs is a regression of the lot.
+    if (entier) {
+      const duLot = new Set(groupe.map(f => path.join(ctx.copie, f)));
+      for (const res of resultats) {
+        if (duLot.has(res.name) || /\.circuit-avant\.(test|spec)\./.test(res.name)) continue;
+        const f = path.relative(ctx.copie, res.name);
+        const assertions = res.assertionResults ?? [];
+        if (assertions.length === 0 && res.status === 'failed' && !constructions.length) {
+          rouges.push(
+            `rouge existant : ${f} — ne se charge pas : ${premiereLigne(res.message || res.status)}`
+          );
+        }
+        for (const a of assertions.filter(x => x.status === 'failed')) {
+          rouges.push(
+            `rouge existant : ${f} › ${a.fullName || a.title} — ${premiereLigne(a.failureMessages?.[0])}`
+          );
+        }
+      }
     }
     for (const f of groupe) {
       const res = resultats.find(t => t.name === path.join(ctx.copie, f));
@@ -628,7 +672,7 @@ function preuve(ctx, composant) {
   const section = (titre, l) =>
     l.length ? [`${titre} (${l.length}) :`, ...l.map(x => `- ${x}`), ''] : [];
   const ok =
-    fichiers.length > 0 &&
+    (fichiers.length > 0 || rouges.length > 0) &&
     casses.length === 0 &&
     injustifies.length === 0 &&
     rouges.length + justifies.length + anciens > 0;
@@ -639,7 +683,7 @@ function preuve(ctx, composant) {
       nom => `Les tests de ${nom} se jouent aux contrôles, après le développeur.`
     ),
     '',
-    ...(fichiers.length
+    ...(fichiers.length || rouges.length
       ? []
       : [`Aucun fichier de test du lot dans ${composant} : rien ne prouve le rouge.`, '']),
     ...section('Rouges', rouges),
@@ -704,8 +748,13 @@ function controles(ctx, index, finale) {
   const commandes = [
     ...(tests.length ? [{ args: ['test', '--', ...tests] }] : []),
     ...(finale ? [{ args: ['run', 'verifier', '--', '--gardes'] }] : []),
-    ...touches
-      .filter(d => finale || fait(d))
+    ...[
+      ...new Set([
+        ...touches.filter(d => finale || fait(d)),
+        ...paquetsDesComposants(ctx, liste, i => finale || i <= index),
+      ]),
+    ]
+      .sort()
       .map(d => ({ args: d === '.' ? ['test'] : ['test', '--', d] })),
     ...(finale
       ? []
@@ -756,6 +805,41 @@ function controles(ctx, index, finale) {
     resume,
     proprietaire: proprio,
   };
+}
+
+// The directories of the packages of <liste> that play tests (a script `test:vitest`) and whose
+// component, by its index, <garde> keeps; sorted.
+function paquetsDesComposants(ctx, liste, garde) {
+  return liste
+    .filter(p => p.pkg.scripts?.['test:vitest'])
+    .filter(p => {
+      const i = proprietaire(ctx, p.dossier);
+      return i >= 0 && garde(i);
+    })
+    .map(p => p.dossier)
+    .sort();
+}
+
+// The fingerprint of the files of <composant> in the copy: `git status --porcelain` of its
+// directory and the content of each file it lists.
+function empreinte(ctx, composant) {
+  const r = spawnSync(
+    'git',
+    ['-C', ctx.copie, 'status', '--porcelain', '-z', '--untracked-files=all', '--', composant],
+    { encoding: 'utf8' }
+  );
+  const statut = String(r.stdout ?? '');
+  const h = createHash('sha256').update(statut);
+  for (const e of statut.split('\0')) {
+    if (e.length < 4) continue;
+    const f = path.join(ctx.copie, e.slice(3));
+    try {
+      if (statSync(f).isFile()) h.update(e).update(readFileSync(f));
+    } catch {
+      // A file removed: its line in the status is its trace.
+    }
+  }
+  return h.digest('hex');
 }
 
 // The index of the component of the run that holds <chemin> (relative to the copy), the deepest
@@ -876,7 +960,14 @@ async function derouler(ctx, depart) {
         }
       } else if (etape === 'developpeur') {
         const fort = tentative >= SEANCES_DEVELOPPEUR;
+        const avant = empreinte(ctx, composant);
         await seance(ctx, 'developpeur', composant, { tentative, rapport, fort });
+        if (empreinte(ctx, composant) === avant) {
+          throw new Arret(
+            'sans-livraison',
+            `La séance ${tentative} du développeur de ${composant} ne change aucun fichier de ${composant} : un développeur n'est lancé que sur un rouge, et ce rouge reste. Sa passation au ticket dit pourquoi :\n\n${passations(ctx).at(-1) ?? 'aucune'}`
+          );
+        }
         commenter(
           ctx,
           composant,

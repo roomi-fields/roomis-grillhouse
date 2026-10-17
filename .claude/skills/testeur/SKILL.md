@@ -50,8 +50,14 @@ change de forme.
 **Chaque test rougit d'abord** : pendant que tu l'écris, tu le lances sur le code présent
 (`npm test -- <fichier>`, le chemin écrit depuis la racine du dépôt) et tu vois qu'il échoue pour
 la bonne raison. Après ta séance, le circuit du ticket joue la preuve : il lance les tests de ton
-lot et écrit au ticket les rouges et les verts. Ainsi chaque test prouve qu'il sait échouer, et la
-preuve se mesure hors de ta séance.
+lot avec tous ceux de ton composant, et écrit au ticket les rouges et les verts. Ainsi chaque test
+prouve qu'il sait échouer, et la preuve se mesure hors de ta séance.
+
+**Un rouge existant suffit** : un test que HEAD tient et que le lot rougit (un lecteur dont le
+fournisseur a changé un type) est un rouge de la preuve, `rouge existant`, qui lance le
+développeur. Quand ces rouges couvrent les critères de ton composant, tu n'écris aucun test neuf
+et ta passation le dit. Sans fichier de ton lot ni rouge, la preuve échoue. Ainsi le développeur
+du lecteur est lancé sur ce que le lot casse.
 
 **Un test vert avant le code se justifie** : ta passation porte, pour lui, la ligne
 `vert attendu : <nom du test> — <raison>` ; sans elle, le circuit te relance avec son rapport. Un
