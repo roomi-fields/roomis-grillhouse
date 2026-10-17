@@ -220,7 +220,8 @@ ensuite. Ainsi les documents écrivent des décisions prises.
 ## 6. Ouvrir le travail
 
 - **Les premiers tickets attendent son mot** : une épopée pour le premier chantier ; ses tickets
-  s'ouvrent sous l'étiquette `a-valider`, chacun avec les règles et les documents qu'il touche.
+  s'ouvrent sous l'étiquette `a-valider`, chacun avec les règles et les documents qu'il touche,
+  et chaque réalisation avec ses critères d'acceptation numérotés (`docs/agents/issue-tracker.md`).
   Ainsi le premier chantier part avec l'accord du responsable.
 - `pitmaster/SUIVI.md` : le premier tour, les questions restées ouvertes.
 - Un commit `docs: initialiser le projet` qui ne contient que ces éléments.

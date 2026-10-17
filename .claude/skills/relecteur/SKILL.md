@@ -58,4 +58,9 @@ sur un cas qu'aucun projet ne rencontre aujourd'hui, va, nommé, en remarque, et
 lot. Ainsi la relecture applique le cadre, sans ouvrir de lot
 sans fin.
 
+Une remarque qui sort des critères du ticket se consigne en découverte, avec son exemple et son
+adresse, dans un ticket fermé sous le ticket :
+`bash scripts/ticket.sh <id> <sujet> <composants> <corps> decouverte` ; ton verdict nomme ce
+ticket. Ainsi le ticket garde ses critères, et la remarque attend le mot du responsable.
+
 Tu préviens le superviseur de ton verdict, puis tu t'arrêtes.

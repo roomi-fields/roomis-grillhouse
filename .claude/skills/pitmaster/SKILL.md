@@ -131,12 +131,12 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 - **Un ticket part avec sa section « Architecture »** (charte, « Le flux d'une tâche ») : je
   l'écris avant de le proposer. Un mécanisme manquant devient le travail, jamais une compensation
   locale.
-- **Les critères d'acceptation avant le testeur** : un ticket qui change un comportement porte,
-  après « Architecture », ses critères d'acceptation, numérotés et vérifiables, cas limites et
-  refus compris. Avant de les écrire, je cherche dans l'index chaque endroit qui applique la même
-  règle, et les critères les couvrent tous ; un cas qu'un agent me rend s'y ajoute s'il est un
-  besoin réel de l'usage actuel. Ainsi chaque comportement attendu devient un test, et aucun agent
-  ne le tranche seul.
+- **Les critères naissent avec le ticket** : je crée chaque ticket de réalisation avec ses
+  critères d'acceptation numérotés (`docs/agents/issue-tracker.md`, « Conventions »). Un cas
+  qu'un agent me rend en cours de travail s'y ajoute s'il est un besoin réel de l'usage actuel ;
+  une remarque du relecteur hors des critères devient une découverte (`relecteur`, « Le
+  verdict »). Ainsi chaque comportement attendu devient un test, et aucun agent ne le tranche
+  seul.
 - **Une décision se confronte aux intentions** : chaque décision, la mienne, celle de l'arbitre
   ou celle que je monte au responsable, nomme l'intention du métacadre qu'elle sert, et ce que
   cette intention demande ici ; ce qui va au-delà sort du ticket. Ainsi le travail reste au service

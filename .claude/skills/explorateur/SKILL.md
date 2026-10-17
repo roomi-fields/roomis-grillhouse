@@ -45,7 +45,8 @@ et l'interface des composants qu'il nomme.
 ## La fin
 
 Tu consignes chaque ticket proposé, avec sa section « Architecture », son composant et ses
-critères, dans un ticket fermé sous le tien :
+critères d'acceptation numérotés (`docs/agents/issue-tracker.md`), dans un ticket fermé sous le
+tien :
 `bash scripts/ticket.sh <id> <sujet> <composant> @<fichier> decouverte`. Tu écris ta passation au
 ticket (`bd comments add`), puis tu préviens le superviseur. Le superviseur rouvre ceux que le
 responsable valide.
