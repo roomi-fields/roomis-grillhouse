@@ -789,8 +789,9 @@ export function assembler({
     });
   }
   // A ticket waits in AGENTS only with the owner's go (`circuit`): ready, blocked, or claimed with
-  // nothing running; a ticket without it stands in CHANTIER alone. A ticket no agent took yet, or a site manager led, waits
-  // for the site manager, who takes each ticket first; the flow's deduction serves the others.
+  // nothing running; a ticket without it stands in CHANTIER alone. A ticket a site manager led
+  // waits for the site manager, who settles a stop of its circuit; the flow's deduction serves the
+  // others, and a ticket no agent took yet waits for the testeur, the circuit's first agent.
   for (const t of [...tous].sort(ordre)) {
     if (
       !travail(t) ||
@@ -805,10 +806,7 @@ export function assembler({
     if (p.length === 0 && t.status === 'in_progress') {
       continue;
     }
-    const r =
-      avecChef && (p.length === 0 || p.some(x => x.role === CHEF))
-        ? CHEF
-        : etape(p, verdicts[t.id] ?? null);
+    const r = avecChef && p.some(x => x.role === CHEF) ? CHEF : etape(p, verdicts[t.id] ?? null);
     if (r && bloc(r)) {
       bloc(r).attend.push({
         id: t.id,

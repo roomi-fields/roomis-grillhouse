@@ -3,8 +3,14 @@
 // testeur, the proof of the red, the developpeur and the checks; then the reviewer, and on its
 // ACCEPTÉ the integration, which commits the lot on the ticket's branch and puts that branch in the
 // queue; then the queue, which brings it onto main, pushes and reads the CI, and the circuit ends
-// on the state of the ticket the queue leaves. The chef de chantier runs it in the background and
-// wakes at its end; he reads the state, and after a stop he settles (or refers upward) and resumes.
+// on the state of the ticket the queue leaves. The supervisor runs it in the background, and its
+// end wakes him: at 0 the ticket is closed; at 75 he runs `--reprendre` again once the machine is at
+// rest, no chef de chantier; at any other code he launches a fresh chef de chantier on the stop, its
+// state and its reason. The chef settles (or refers upward), runs `--reprendre` or `--depuis` in
+// the background and ends his turn; his session stays parked on that command, which wakes him at
+// its end; he reports its code and ends, and his end wakes the supervisor, who reads that code the
+// same way. The session that launches the circuit is the one its end wakes, as a session that ends
+// stops the commands it launched: one session waits on each run of the circuit, none polls.
 //
 //   node scripts/circuit.mjs <ticket> [--reprendre] [--contexte <texte>]
 //   node scripts/circuit.mjs <ticket> --depuis <testeur|developpeur> <composant> --contexte <texte>

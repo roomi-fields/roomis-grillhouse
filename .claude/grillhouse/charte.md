@@ -41,7 +41,7 @@ professionnel.
 
 Une séance de supervision charge le superviseur (`pitmaster`). Les rôles sont des agents du projet
 (`.claude/agents/`), chacun désigné par le numéro de son rôle, dans l'ordre du flux :
-0 `chef-de-chantier`, qui mène un ticket de sa prise à son commit, 1 `explorateur`, qui mène une
+0 `chef-de-chantier`, qui tranche un arrêt du circuit d'un ticket, 1 `explorateur`, qui mène une
 exploration, 2 `arbitre`, qui tranche une question de conception, 3 `testeur`, 4 `developpeur`,
 5 `relecteur`, chacun sous ses verrous. Ainsi chaque agent travaille dans son
 cadre, et son numéro dit son rôle.
@@ -58,8 +58,9 @@ de réalisation fait une seule livraison, en un seul commit ; tout ticket se cr�
 
 **Un ticket de réalisation nomme ses composants** : sa section « Architecture » et son titre
 (« numéro — sujet — composant, composant ») les nomment, le fournisseur d'abord, puis ses lecteurs.
-Dans la copie du ticket, le chef de chantier lance un agent par composant, chacun enveloppé dans
-son paquet, dans cet ordre, et le relecteur relit l'ensemble. Ainsi un type change avec ses
+Dans la copie du ticket, le circuit (`scripts/circuit.mjs`), que lance le superviseur, lance un
+agent par composant, chacun enveloppé dans son paquet, dans cet ordre, puis le relecteur, qui relit
+l'ensemble. Ainsi un type change avec ses
 lecteurs, comme dans une demande de fusion de rustc, et chaque agent écrit dans son seul paquet.
 
 **Un ticket ouvert naît du mot du responsable**, ou d'un besoin direct d'un projet qui utilise le

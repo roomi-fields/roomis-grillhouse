@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# The removal of a working copy, called by the three places that end one: the agent copy (by the
-# chef de chantier at the end of the circuit), the integration copy
-# (scripts/integration/integrer.mjs) and the night copy (scripts/nuit.sh), the last two when their
-# existing copy does not get ready.
+# The removal of a working copy, called by the three places that end one: the agent copy (by
+# scripts/integration/integrer.mjs once its lot is committed), the integration copy (by the same
+# script) and the night copy (scripts/nuit.sh), the last two when their existing copy does not get
+# ready.
 #
 #   bash scripts/retirer-copie.sh [--jetable] <copie>
 #
@@ -21,7 +21,7 @@
 #   nothing and does not hold the copy: each file of the work (its deletion, or its submodule at a
 #   commit with no work in it) holds the content and the mode that a commit of `main` after the
 #   copy's base gave that path; a content `main` held before the base is not work that entered. The
-#   refusal names the work that has not entered. The chef de chantier passes no option.
+#   refusal names the work that has not entered. The agent copy's removal passes no option.
 # - With `--jetable`, passed only by the integration and the night for their own copy, local work
 #   and an unreadable state do not hold the removal.
 # - A locked copy (`git worktree lock`) is refused in every case.

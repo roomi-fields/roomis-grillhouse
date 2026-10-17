@@ -517,7 +517,8 @@ describe('assembler', () => {
     const l = dessin(t).map(x => x.texte);
     expect(l).toContain('✓ c.1.2  demo-c.1.2');
   });
-  it('waits a blocked ticket in the circuit under the manager, naming the ticket it waits for', () => {
+  // Decided by the owner on 2026-10-17 (grill, Q10): the circuit's first agent is the testeur.
+  it('waits a blocked ticket in the circuit under the testeur, naming the ticket it waits for', () => {
     const b = plateau({
       tous: [
         T('demo-e', { issue_type: 'epic', status: 'in_progress', title: 'e — Bloqué' }),
@@ -535,7 +536,8 @@ describe('assembler', () => {
     });
     expect(b.global.compteurs).toMatchObject({ enAttente: 1, bloques: 1 });
     const l = dessin(b).map(x => x.texte);
-    const i = l.indexOf('0 chef de chantier');
+    const i = l.indexOf('3 testeur');
+    expect(i).toBeGreaterThan(-1);
     expect(l[i + 2]).toMatch(/^· e\.2 {2}demo-e\.2 +attend e\.1$/);
   });
 });

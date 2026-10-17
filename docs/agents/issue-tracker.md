@@ -20,7 +20,7 @@ Issues for this repo live in Beads, a git-backed tracker: data under `.beads/`, 
 - The title reads `<number> — <subject> — <components>`, the number being the id without the whole prefix of the project (`bd config get issue_prefix`, which may hold dashes: `bp-mono-`). The components are the ones the ticket touches, separated by commas, the provider first, then its readers (charte, « Un ticket de réalisation nomme ses composants »): `320.5.2 — Publie l'objet de la scène — 020-loader, 050-emitter`. A mother takes `parent` as its component.
 - Creating one: `bash scripts/ticket.sh <mother> <subject> <components> <body> [label]` prints its id; the label is `a-valider` by default, and `decouverte` creates it closed (« découverte consignée »).
 
-- Each agent goes by the fixed number of its role, in the order of the flow: 0 `chef-de-chantier` (leads one ticket from claim to pushed commit), 1 `explorateur`, 2 `arbitre`, 3 `testeur`, 4 `developpeur`, 5 `relecteur`. One says « 320.2.1, agent 4 »; a relaunched agent keeps its number.
+- Each agent goes by the fixed number of its role, in the order of the flow: 0 `chef-de-chantier` (settles a stop of a ticket's circuit), 1 `explorateur`, 2 `arbitre`, 3 `testeur`, 4 `developpeur`, 5 `relecteur`. One says « 320.2.1, agent 4 »; a relaunched agent keeps its number.
 
 ## When a skill says "publish to the issue tracker"
 

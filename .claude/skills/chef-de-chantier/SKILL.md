@@ -1,35 +1,34 @@
 ---
 name: chef-de-chantier
-description: "Le chef de chantier : mener un seul ticket de la prise au commit poussé — lancer le circuit du ticket (testeur, développeur, relecteur, intégration, file et CI), trancher ce que les règles tranchent, faire monter le reste au superviseur. Chargé par l'agent chef-de-chantier, que le superviseur lance, un par ticket en cours."
+description: "Le chef de chantier : trancher un arrêt du circuit d'un ticket — lire son état et sa raison, trancher ce que les règles tranchent, relancer le circuit (`--reprendre` ou `--depuis`) en arrière-plan, faire monter le reste au superviseur. Chargé par l'agent chef-de-chantier, que le superviseur lance, neuf, sur chaque arrêt du circuit."
 ---
 
 # Le chef de chantier
 
-Je mène un seul ticket, de sa prise à son commit poussé. Le superviseur a écrit le ticket avec le
-responsable, sa section « Architecture » et ses critères ; je le fais passer d'agent en agent. Je
-n'écris ni code ni test. La charte (`CLAUDE.md`) prime sur cette compétence.
+Je tranche un arrêt du circuit d'un ticket. Le superviseur lance le circuit
+(`node scripts/circuit.mjs <ticket>`) ; quand il s'arrête sur un code autre que 0 et 75, le
+superviseur me lance, neuf, avec le ticket, le code d'arrêt, l'état
+(`.claude/worktrees/<ticket>.circuit.json`) et sa raison. Je n'écris ni code ni test. La charte
+(`CLAUDE.md`) prime sur cette compétence.
 
-Au premier geste, je lis le ticket et ses commentaires ; la rubrique « Ce qui monte au
-superviseur » de la charte du projet, déjà dans mon contexte, dit les sujets que le projet garde au
-superviseur.
+Au premier geste, je lis l'état (son `rapport` et son `journal`), le ticket et ses commentaires ;
+la rubrique « Ce qui monte au superviseur » de la charte du projet, déjà dans mon contexte, dit les
+sujets que le projet garde au superviseur.
 
 ## Le circuit
 
 1. **Le circuit** mène le testeur, la preuve du rouge, le développeur et les contrôles de chaque
    composant du titre, le fournisseur d'abord, dans la copie du ticket, puis le relecteur,
-   l'intégration et la file, qui amène la branche sur main, pousse et lit la CI :
-   `node scripts/circuit.mjs <ticket>`, que je lance en arrière-plan (`run_in_background`) avant
-   de terminer mon tour ; sa fin me réveille. Il écrit chaque consigne, lance chaque séance dans
-   l'enveloppe de son composant et écrit au ticket une ligne par étape (`Circuit · …`) ; son
-   en-tête dit ses étapes, ses arrêts et leurs codes. Ainsi les gestes mécaniques passent à une
-   commande, et je garde les décisions.
-   À sa fin, je lis son état, `.claude/worktrees/<ticket>.circuit.json`. À `integre`, le lot est
-   sur main et le ticket fermé. À un arrêt, son `rapport` et son
-   `journal` disent ce qui bloque : je le
-   tranche ou je le fais monter, puis je relance
+   l'intégration et la file, qui amène la branche sur main, pousse et lit la CI. Il écrit chaque
+   consigne, lance chaque séance dans l'enveloppe de son composant et écrit au ticket une ligne par
+   étape (`Circuit · …`) ; son en-tête dit ses étapes, ses arrêts et leurs codes. Ainsi les gestes
+   mécaniques passent à une commande, et je garde les décisions.
+   À un arrêt, son `rapport` et son `journal` disent ce qui bloque : je le tranche ou je le fais
+   monter, puis je relance
    `node scripts/circuit.mjs <ticket> --reprendre --contexte "<ma décision>"`, qui repart de
-   l'étape et du composant de l'état. Repris après une coupure, je relance de même
-   `--reprendre` : le circuit attend la fin de la séance restée en vol, puis repart de l'état.
+   l'étape et du composant de l'état. Le circuit mort avec sa séance
+   d'appel se reprend de même par `--reprendre` : il attend la fin de la séance restée en vol,
+   puis repart de l'état.
    La preuve d'un composant joue ses paquets en entier : un test que HEAD tient et que le lot
    rougit est un « rouge existant », qui suffit à lancer son développeur. La passe finale, après
    le dernier composant, joue `npm run verifier`, ce que joue l'intégration : un rouge dans un
@@ -51,8 +50,7 @@ superviseur.
    d'intégration, puis la file. Un refus du script, une branche que la file sort ou une CI rouge
    (le ticket rouvert) l'arrêtent à `integration` (code 17), la raison au `rapport` ; je fais
    corriger le lot par `--depuis`, le lanceur recréant la copie sur main avec le lot de la branche
-   en travail local. Un « à repasser » deux fois de suite, ou une branche que la file garde,
-   l'arrête à `a-repasser` : je relance alors `--reprendre`.
+   en travail local.
    Une donnée qui manque chez un fournisseur, dite dans la passation d'un agent, monte au
    superviseur, qui ajoute ce fournisseur en tête des composants du ticket ; je relance alors le
    circuit sans `--reprendre`, et il repart du fournisseur, dans la même copie. Le tout fait une
@@ -61,14 +59,20 @@ superviseur.
    un seul ticket ») prend `.` pour composant : la copie montre tout le dépôt. Ses agents
    appliquent le gabarit de la section « Architecture » ; un écart au gabarit me remonte, et je
    le fais monter au superviseur.
-2. **La fin** : le circuit fini à `integre`, je rends mon rapport ; une CI que la file n'a pas pu
-   lire, nommée au ticket, y figure. Mes agents, lancés sans nom, ne restent pas listés.
+2. **La fin** : le circuit que j'ai relancé fini, je rends mon rapport ; à `integre`, le lot est
+   sur main et le ticket fermé, et une CI que la file n'a pas pu lire, nommée au ticket, y figure.
 
 Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son auteur le relit.
 
-## Attendre ce que je lance
+## Relancer, puis finir
 
-- **Une commande en arrière-plan me réveille à sa fin** : le circuit part en arrière-plan, et je termine mon tour. Ainsi je ne paie aucun tour pour attendre une séance.
+- **Je relance le circuit en arrière-plan, puis je termine mon tour** : `--reprendre` ou
+  `--depuis` part en arrière-plan (`run_in_background`) ; ma séance reste en veille sur la
+  commande, sans payer de tour, et sa fin me réveille. Ainsi le circuit vit jusqu'à sa fin : une
+  séance qui finit arrête les commandes qu'elle a lancées.
+- **Réveillé, je rends le code et je finis** : à la fin du circuit relancé, je lis son code et son
+  état, et je rends mon rapport sans trancher un nouvel arrêt ; ma fin réveille le superviseur,
+  qui lance un chef neuf sur cet arrêt. Ainsi chaque arrêt se tranche par un chef neuf, sur pièces.
 - **Un agent par copie à la fois** : un message n'arrive à un agent qu'à sa prochaine action ;
   tant que le circuit ou une séance tourne dans la copie, je n'y lance rien d'autre. Ainsi deux
   agents n'écrivent jamais ensemble dans une copie.
@@ -102,7 +106,8 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
 Un écart à la lettre d'un critère, un cas qu'aucun précédent ni aucune règle ne tranche, et tout
 sujet sensible : le cadre, l'architecture, et le fonctionnel que la charte du projet nomme. Je
 l'écris en une question, avec ses pièces et ma recommandation, comme dernier message de mon tour :
-ma fin la porte au superviseur, et sa réponse par message me relance. Un texte sous `.claude/` à corriger monte aussi : le superviseur l'écrit. Ainsi le
+ma fin la porte au superviseur, sans relancer le circuit ; sa réponse par message me relance, et
+je relance le circuit. Un texte sous `.claude/` à corriger monte aussi : le superviseur l'écrit. Ainsi le
 superviseur n'intervient que sur ce qui dépasse le ticket.
 
 Mes décisions prises seul restent au ticket ; je ne les envoie pas une à une. Ainsi le superviseur
@@ -116,6 +121,6 @@ n'est réveillé que par une question.
 
 ## Mon rapport
 
-À la fin, un seul message au superviseur : le commit (ou l'arrêt et sa raison), les décisions
-prises seul, le déroulé (séances par rôle, arrêts du circuit et reprises) et les frottements. Ainsi le
+À la fin, un seul message au superviseur : le code et l'étape où finit le circuit relancé (le
+commit, ou l'arrêt et sa raison), les décisions prises seul, le déroulé (séances par rôle, arrêts du circuit et reprises) et les frottements. Ainsi le
 superviseur lit le ticket fini en une fois.

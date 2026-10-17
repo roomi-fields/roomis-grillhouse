@@ -17,7 +17,6 @@ tsdoc.json
 .claude/skills/relecteur/
 .claude/skills/testeur/
 docs/agents/issue-tracker.md
-scripts/attendre.sh
 scripts/branche-de-nuit.mjs
 scripts/circuit.mjs
 scripts/code-mort.mjs
@@ -54,6 +53,7 @@ scripts/verrou-de-fichier.mjs
 scripts/verrous/
 scripts/vitest-config/
 scripts/vitest.nuit.config.mjs
+- scripts/attendre.sh
 - tests/unit/consommateurs.spec.ts
 - tests/unit/enveloppe.spec.ts
 - tests/unit/frontieres.spec.ts

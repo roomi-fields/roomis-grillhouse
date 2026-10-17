@@ -810,9 +810,11 @@ describe('a ticket waits in AGENTS only once the owner launched it (label circui
     expect(partieChantier(l).some(x => x.ticket === 'demo-k.1')).toBe(true);
   });
 
-  it('the same ticket in the circuit waits under the site manager, who takes it first', () => {
+  // Decided by the owner on 2026-10-17 (grill, Q10): the supervisor launches the circuit, whose
+  // first agent is the testeur; a chef de chantier comes only on a stop of the circuit.
+  it('the same ticket in the circuit waits for the testeur, the first agent of the circuit', () => {
     const { t, l } = circuit(['circuit']);
-    expect(attend(t)).toEqual(['chef-de-chantier demo-k.1']);
+    expect(attend(t)).toEqual(['testeur demo-k.1']);
     expect(partieAgents(l).some(x => x.ticket === 'demo-k.1')).toBe(true);
   });
 
