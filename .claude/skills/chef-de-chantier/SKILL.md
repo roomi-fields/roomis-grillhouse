@@ -26,7 +26,8 @@ superviseur.
    passe au relecteur. À un arrêt, son `rapport` et son `journal` disent ce qui bloque : je le
    tranche ou je le fais monter, puis je relance
    `node scripts/circuit.mjs <ticket> --reprendre --contexte "<ma décision>"`, qui repart de
-   l'étape et du composant de l'état.
+   l'étape et du composant de l'état. Repris après une coupure, je relance de même
+   `--reprendre` : le circuit attend la fin de la séance restée en vol, puis repart de l'état.
    Une donnée qui manque chez un fournisseur, dite dans la passation d'un agent, monte au
    superviseur, qui ajoute ce fournisseur en tête des composants du ticket ; je relance alors le
    circuit sans `--reprendre`, et il repart du fournisseur, dans la même copie. Le tout fait une

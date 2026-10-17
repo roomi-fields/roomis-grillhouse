@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -115,8 +115,42 @@ if (cmd === 'show') {
 }
 `;
 
+// The project's guard of the trial repository, run in a copy: it writes the envelope it runs in
+// (`GRILLHOUSE_ENVELOPPE`, empty outside) in `.beads/essai/<ticket>/gardes`, and judges a
+// neighbour: while `packages/binder/garde-rouge.txt` exists and the code of forms does not carry
+// `// accordé`, it is red and names the file of forms. While `packages/binder/ping-pong.txt`
+// exists, it is always red, and names the component whose `tour` (a count each one keeps in its
+// directory) is behind, forms on a tie: the two components send the red to each other.
+const GARDE = `import { execFileSync } from 'node:child_process';
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+const commun = execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], {
+  encoding: 'utf8',
+}).trim();
+const e = path.join(path.dirname(commun), '.beads', 'essai', path.basename(process.cwd()));
+mkdirSync(e, { recursive: true });
+appendFileSync(path.join(e, 'gardes'), (process.env.GRILLHOUSE_ENVELOPPE ?? '') + '\\n');
+const accorde = readFileSync('packages/forms/src/index.mjs', 'utf8').includes('// accordé');
+if (existsSync('packages/binder/garde-rouge.txt') && !accorde) {
+  console.log('⛔ packages/forms/src/index.mjs:1 — la mesure ne suit pas le classeur.');
+  process.exit(1);
+}
+const tour = d => (existsSync(d + '/tour') ? Number(readFileSync(d + '/tour', 'utf8')) : 0);
+if (existsSync('packages/binder/ping-pong.txt')) {
+  const qui = tour('packages/forms') <= tour('packages/binder') ? 'forms' : 'binder';
+  console.log('⛔ packages/' + qui + '/src/index.mjs:1 — les deux composants se renvoient la mesure.');
+  process.exit(1);
+}
+`;
+
+// The test of forms that HEAD already holds, green before any ticket.
+const ANCIEN = `import { expect, it } from 'vitest';
+import { mesure } from '../src/index.mjs';
+it('ancien — mesure rend un nombre', () => { expect(typeof mesure(1)).toBe('number'); });
+`;
+
 // The trial repository: two packages of the frame, each with its tests under Vitest, the frame's
-// test commands as its scripts, guards that pass.
+// test commands as its scripts, the frame's guards that pass and the project's guard (GARDE).
 function depot() {
   ecrire(
     path.join(REPO, 'package.json'),
@@ -130,7 +164,7 @@ function depot() {
         test: `node ${path.join(RACINE, 'scripts/tests.mjs')}`,
         verifier: `node ${path.join(RACINE, 'scripts/verifier.mjs')}`,
         'grillhouse:gardes': 'node -e 0',
-        gardes: 'node -e 0',
+        gardes: 'node garde.mjs',
       },
     })
   );
@@ -153,6 +187,8 @@ function depot() {
       `import base from ${JSON.stringify(BASE)};\nexport default base;\n`
     );
   }
+  ecrire(path.join(REPO, 'packages/forms/test/ancien.test.mjs'), ANCIEN);
+  ecrire(path.join(REPO, 'garde.mjs'), GARDE);
   ecrireTurbo(REPO);
   for (const role of ['testeur', 'developpeur']) {
     ecrire(path.join(REPO, `.claude/agents/${role}.md`), `---\nname: ${role}\n---\n`);
@@ -262,6 +298,8 @@ const etat = (id: string) =>
     raison: string | null;
     rapport: string | null;
     journal: string;
+    finale: boolean;
+    seance: number | null;
   } | null;
 const commentaires = (id: string) =>
   lire(path.join(BEADS, `${id}.comments.jsonl`))
@@ -338,7 +376,18 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     // The state: relecture, every field written.
     const e = etat(id);
     expect(Object.keys(e ?? {}).sort()).toEqual(
-      ['code', 'composant', 'dernier', 'etape', 'journal', 'raison', 'rapport', 'tentative'].sort()
+      [
+        'code',
+        'composant',
+        'dernier',
+        'etape',
+        'finale',
+        'journal',
+        'raison',
+        'rapport',
+        'seance',
+        'tentative',
+      ].sort()
     );
     expect(e?.etape).toBe('relecture');
     expect(e?.code).toBe(0);
@@ -480,6 +529,182 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
         }
       });
     expect(lignes.filter(l => l.startsWith('sleep 301'))).toEqual([]);
+  });
+
+  it('judges after a developpeur only the components done: a later red waits for its own', () => {
+    const id = 'demo-partiel';
+    const copie = ticket(id, '000-forms, 030-binder');
+    // The lot of binder is already in the copy, red until its developpeur writes the code.
+    ecrire(
+      path.join(copie, 'packages/binder/test/mesure.test.mjs'),
+      `import { expect, it } from 'vitest';
+import { mesure } from '../src/index.mjs';
+it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); });
+`
+    );
+    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(essai(id, 'ordre').trim().split('\n')).toEqual([
+      'testeur packages/forms',
+      'developpeur packages/forms',
+      'testeur packages/binder',
+      'developpeur packages/binder',
+    ]);
+    // The checks of forms play its tests of the lot, not those of binder.
+    const forms = commentaires(id).find(t => t.startsWith('Circuit · packages/forms · controles'));
+    expect(forms).toContain('packages/forms/test/mesure.test.mjs');
+    expect(forms).not.toContain('packages/binder/test/mesure.test.mjs');
+    // The guards of forms play in its envelope; the final pass, on the whole repository (when
+    // Turborepo plays it rather than replay a run of the same tree from its cache).
+    const gardes = essai(id, 'gardes').split('\n').slice(0, -1);
+    expect(gardes[0]).toBe('packages/forms');
+    expect(gardes.slice(1).every(g => g === '')).toBe(true);
+    expect(forms).toContain('GRILLHOUSE_ENVELOPPE=packages/forms npm run gardes');
+    const finale = commentaires(id).find(t =>
+      t.startsWith('Circuit · packages/binder · controles')
+    );
+    expect(finale).toContain('npm run verifier -- --gardes');
+  });
+
+  it('sends a red of the final pass to the developpeur of the component that owns its file', () => {
+    const id = 'demo-finale';
+    ticket(id, '000-forms, 030-binder');
+    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code de forms écrit.'\n`);
+    scenario(
+      id,
+      'developpeur-2',
+      `${CODE_JUSTE}echo rouge > $c/garde-rouge.txt\npassation 'Code de binder écrit.'\n`
+    );
+    scenario(
+      id,
+      'developpeur-3',
+      `printf '// accordé\\n' >> $c/src/index.mjs\npassation 'Forms accordé.'\n`
+    );
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(essai(id, 'ordre').trim().split('\n')).toEqual([
+      'testeur packages/forms',
+      'developpeur packages/forms',
+      'testeur packages/binder',
+      'developpeur packages/binder',
+      'developpeur packages/forms',
+    ]);
+    expect(historique(id).slice(-4)).toEqual([
+      ['packages/binder', 'controles'],
+      ['packages/forms', 'developpeur'],
+      ['packages/forms', 'controles'],
+      ['packages/forms', 'relecture'],
+    ]);
+    // The developpeur of forms receives the red guard, which names its file.
+    const consigne = essai(id, 'developpeur-3.prompt');
+    expect(consigne).toContain('TON COMPOSANT : packages/forms');
+    expect(consigne).toContain('packages/forms/src/index.mjs:1');
+    expect(etat(id)).toMatchObject({ etape: 'relecture', code: 0, finale: true });
+  });
+
+  it('counts the developpeur sessions of the final pass together: three, then « controles »', () => {
+    const id = 'demo-ping-pong';
+    ticket(id, '000-forms, 030-binder');
+    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code de forms écrit.'\n`);
+    scenario(
+      id,
+      'developpeur-2',
+      `${CODE_JUSTE}touch $c/ping-pong.txt\npassation 'Code de binder écrit.'\n`
+    );
+    scenario(
+      id,
+      'developpeur',
+      `echo $(( $(cat $c/tour 2>/dev/null || echo 0) + 1 )) > $c/tour\npassation 'Un tour.'\n`
+    );
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(ARRETS.controles);
+    // The final pass: binder's first session, forms', then binder's on the strong model.
+    expect(essai(id, 'ordre').trim().split('\n')).toEqual([
+      'testeur packages/forms',
+      'developpeur packages/forms',
+      'testeur packages/binder',
+      'developpeur packages/binder',
+      'developpeur packages/forms',
+      'developpeur packages/binder',
+    ]);
+    const fort = args(id, 'developpeur', 4);
+    expect(fort[fort.indexOf('--model') + 1]).toBe('opus');
+    expect(args(id, 'developpeur', 3)).not.toContain('--model');
+    const e = etat(id);
+    expect(e).toMatchObject({ etape: 'controles', raison: 'controles', finale: true });
+    expect(e?.rapport).toContain('les deux composants se renvoient la mesure');
+  });
+
+  it('proves only the tests the lot adds or changes, not those HEAD already holds', () => {
+    const id = 'demo-anciens';
+    const copie = ticket(id, '000-forms');
+    scenario(
+      id,
+      'testeur',
+      `cat >> $c/test/ancien.test.mjs <<'EOF'
+it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); });
+EOF
+passation 'Test ajouté, rouge.'
+`
+    );
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(sessions(id, 'testeur')).toBe(1);
+    const preuve = commentaires(id).find(t => t.startsWith('Circuit · packages/forms · preuve'));
+    expect(preuve).toContain('1 rouge(s)');
+    expect(preuve).toContain('0 vert(s) sans « vert attendu »');
+    expect(preuve).not.toContain('› ancien — mesure rend un nombre');
+    // The version of HEAD it played leaves nothing in the copy.
+    const statut = execFileSync(
+      'git',
+      ['-C', copie, 'status', '--porcelain', '--untracked-files=all'],
+      {
+        encoding: 'utf8',
+      }
+    );
+    expect(statut.split('\n').filter(Boolean).sort()).toEqual(
+      [' M packages/forms/src/index.mjs', ' M packages/forms/test/ancien.test.mjs'].sort()
+    );
+  });
+
+  it('resumes after the death of its caller, once the session it left has ended', async () => {
+    const id = 'demo-mort';
+    ticket(id, '000-forms');
+    scenario(
+      id,
+      'testeur-1',
+      `${ECRIT_ROUGE}sleep 8\npassation 'Tests écrits.'\ndate +%s%N > "$e/testeur-1.fin"\n`
+    );
+    scenario(id, 'testeur-2', `date +%s%N > "$e/testeur-2.debut"\npassation 'Reprise.'\n`);
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    // The caller and the circuit share a group, which the caller's death takes down at once.
+    const appelant = spawn('node', [CIRCUIT, id], {
+      cwd: REPO,
+      env: ENV,
+      detached: true,
+      stdio: 'ignore',
+    });
+    const attendre = (ms: number) => new Promise(r => setTimeout(r, ms));
+    for (let i = 0; i < 600 && sessions(id, 'testeur') < 1; i++) {
+      await attendre(100);
+    }
+    await attendre(1_000);
+    process.kill(-(appelant.pid as number), 'SIGKILL');
+    const laisse = etat(id);
+    expect(laisse).toMatchObject({ etape: 'testeur', composant: 'packages/forms', code: null });
+    expect(typeof laisse?.seance).toBe('number');
+    const r = circuit([id, '--reprendre']);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(sessions(id, 'testeur')).toBe(2);
+    expect(BigInt(essai(id, 'testeur-2.debut').trim())).toBeGreaterThan(
+      BigInt(essai(id, 'testeur-1.fin').trim())
+    );
+    expect(etat(id)).toMatchObject({ etape: 'relecture', code: 0, seance: null });
   });
 });
 

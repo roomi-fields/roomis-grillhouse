@@ -55,7 +55,8 @@ preuve se mesure hors de ta séance.
 
 **Un test vert avant le code se justifie** : ta passation porte, pour lui, la ligne
 `vert attendu : <nom du test> — <raison>` ; sans elle, le circuit te relance avec son rapport. Un
-fichier qui ne se charge pas ne prouve rien. Ainsi un vert reste un choix écrit.
+test que HEAD tient déjà sous le même nom, vert, n'a rien à prouver. Un fichier qui ne se charge
+pas ne prouve rien. Ainsi un vert reste un choix écrit.
 
 **Un critère se prouve sur ce que la chaîne publie** : le test donne au composant ce que son
 fournisseur publie (une scène compilée, la forme publiée d'un fournisseur) et lit ce que le

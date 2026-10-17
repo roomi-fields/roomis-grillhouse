@@ -12,7 +12,9 @@
 //   package, which becomes its directory (scripts/paquets.mjs), read in the ticket's copy when it
 //   exists, else in the main tree. A component that names neither stops the call, exit 2, named.
 // - Each session is a launch of scripts/enveloppe/lancer.sh, a child process the circuit waits
-//   for, in its own process group. The instruction is written from the first template of
+//   for, in its own process group, its errors written to a file: a session outlives the death of
+//   its circuit (its caller dead, the circuit with it), and the state names its group while it
+//   runs. The instruction is written from the first template of
 //   .claude/skills/pitmaster/references/consigne-agent.md, each `{{champ}}` filled: the ticket and
 //   its subject, the component, the ticket's description (its criteria), the report of the step
 //   before (the proof, the output of a red check), the last handover at the ticket, and the line
@@ -29,34 +31,60 @@
 //   played by `npm test -- <files> --reporter=default --reporter=json --outputFile=<f>` in the
 //   copy, one run per package. A file that does not load proves nothing; a green test passes only
 //   when a comment of an agent at the ticket carries the line `vert attendu : <name of the test> —
-//   <reason>`. A failed proof relaunches the testeur with its report, twice at most. The report
-//   (reds, justified greens) is written at the ticket. A proof without a red skips the
-//   developpeur: the lot is a lot of tests alone.
-// - The checks after the developpeur, in the copy: `npm test -- <test files of the lot>`,
+//   <reason>`. A green test HEAD already holds has nothing to prove: the version of HEAD of each
+//   file plays in the same run, from a sibling file (`<nom>.circuit-avant.test.<ext>`, removed
+//   after it), and a green test whose full name HEAD's version holds, green there too, is set
+//   aside, counted; a body changed under the same name is not told apart. A failed proof
+//   relaunches the testeur with its report, twice at most. The report (reds, justified greens) is
+//   written at the ticket. A proof without a red skips the developpeur: the lot is a lot of tests
+//   alone.
+// - The checks after the developpeur of a component judge what is done, the components of the run
+//   up to it: `npm test -- <test files of the lot>` that lie in those components (and those of the
+//   shared test material whose package depends on none of the components after it), `npm test --
+//   <package>` for each package of those components the lot touches, then the guards in the
+//   envelope of the component (`GRILLHOUSE_ENVELOPPE=<composant> npm run grillhouse:gardes`, and
+//   `npm run gardes` when the project has it): a red guard that names only files of the
+//   components after it waits for the final pass.
+// - After the last component of the run, the final pass: `npm test -- <test files of the lot>`,
 //   `npm run verifier -- --gardes`, and `npm test -- <package>` for each package the lot touches
-//   (`npm test` in a repository without packages). A check at 75 (« à repasser ») plays once more.
-//   A red relaunches the developpeur with the output, twice at most, the third session on the
-//   strong model (`lancer.sh --modele opus --effort high`).
-// - The state is `.claude/worktrees/<ticket>.circuit.json`, written again at each step:
-//   `{ etape, composant, tentative, code, raison, rapport, dernier, journal }`; `etape` is testeur,
-//   preuve, developpeur, controles or relecture; `raison` names the stop; `dernier` is the last
-//   component of the run. `--reprendre` starts again at the step and component of the state, its
-//   report given to the next session, and goes on to its `dernier`.
+//   (`npm test` in a repository without packages). A red goes to the developpeur of the component
+//   that owns the red file: a package of a failed task (Turborepo's line « Failed: »), else the
+//   first component a path of the output names (notices ⚠️ and ℹ️ aside), the provider first; a
+//   red that no component owns stops at « controles ». From then on every check is the final pass.
+// - A check at 75 (« à repasser ») plays once more. A red relaunches the developpeur with the
+//   output, twice at most, the third session on the strong model (`lancer.sh --modele opus
+//   --effort high`): three sessions for a component's checks, and three for the whole final pass
+//   whatever the components its reds go to (the last component's sessions counted in it), so
+//   that two components sending a red to each other stop at « controles ».
+// - The state is `.claude/worktrees/<ticket>.circuit.json`, written again at each step and at the
+//   start and end of each session: `{ etape, composant, tentative, code, raison, rapport, dernier,
+//   finale, seance, journal }`; `etape` is testeur, preuve, developpeur, controles or relecture;
+//   `raison` names the stop; `dernier` is the last component of the run; `finale` whether the
+//   final pass has begun; `seance` the process group of the session that runs, null between two.
+//   `--reprendre` starts again at the step and component of the state, its report given to the
+//   next session, and goes on to its `dernier`; after any stop, the death of the circuit with its
+//   caller included. A session the state names that still runs is waited for first, and stopped
+//   when it stands still as long as a motionless session.
 // - A lot the reviewer sends back passes again: `--depuis <testeur|developpeur> <composant>`
 //   starts at that step for that component (a path or a package name the title names), the text of
 //   `--contexte` (the findings of the verdict) as the report of its first session, plays the rest
 //   of that component's steps (developpeur → controles, or testeur → preuve → developpeur →
-//   controles), then stops at « relecture ». It goes with no `--reprendre`.
+//   controles, the checks a final pass), then stops at « relecture ». It goes with no
+//   `--reprendre`.
 // - At each step, a short comment at the ticket: `Circuit · <composant> · <étape> : <résumé>`.
 // - The commands of the circuit (the proof, the checks) are added to the log of the ticket,
 //   `.claude/worktrees/<ticket>.log`, next to the sessions, each under its header line.
 // - Exit codes: 0 at « relecture »; 2 a malformed call; a stop, by its name (ARRETS):
 //   10 lancement (lancer.sh stopped before the session), 11 bloqué (a motionless transcript),
 //   12 sans-passation (twice no handover), 13 preuve (the third proof fails), 14 controles (the
-//   third developpeur leaves a red check), 75 a-repasser (a check still at 75 once played again).
+//   third developpeur of a component's checks or of the final pass leaves a red check, or a red
+//   of the final pass no component owns),
+//   75 a-repasser (a check still at 75 once played again).
 import { spawn, spawnSync } from 'node:child_process';
 import {
+  closeSync,
   existsSync,
+  openSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -71,6 +99,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { matieres, NOM_DE_TEST } from './consommateurs.mjs';
+import { VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/composant.mjs';
 import { paquets } from './paquets.mjs';
 import { transcriptionsDeLaCopie } from './registre.mjs';
 import { isTesterFile } from './verrous/verrou.mjs';
@@ -237,9 +266,15 @@ function commenter(ctx, composant, etape, texte) {
   if (r.status !== 0) process.stderr.write(`⚠️  commentaire non écrit au ticket : ${r.stderr}\n`);
 }
 
+// The state of the run, written whole (`seance` null and `finale` false unless <etat> sets them),
+// kept as the run's current state.
 function ecrireEtat(ctx, etat) {
+  ctx.courant = { finale: false, seance: null, ...etat };
   const provisoire = `${ctx.etat}.${process.pid}`;
-  writeFileSync(provisoire, `${JSON.stringify({ ...etat, journal: ctx.journal }, null, 2)}\n`);
+  writeFileSync(
+    provisoire,
+    `${JSON.stringify({ ...ctx.courant, journal: ctx.journal }, null, 2)}\n`
+  );
   renameSync(provisoire, ctx.etat);
 }
 
@@ -279,40 +314,69 @@ function lancer(ctx, role, composant, consigne, fort) {
   const fichier = path.join(ctx.tmp, `consigne-${++ctx.numero}.md`);
   writeFileSync(fichier, consigne);
   const args = [LANCEUR, ...(fort ? FORT : []), ctx.ticket, role, composant, fichier];
+  // A file, not a pipe: a session whose circuit is dead writes its errors without breaking.
+  const erreurs = path.join(ctx.tmp, `erreurs-${ctx.numero}.txt`);
+  const fd = openSync(erreurs, 'w');
   return new Promise(resolve => {
     const enfant = spawn('bash', args, {
       cwd: ctx.racine,
       detached: true,
-      stdio: ['ignore', 'ignore', 'pipe'],
+      stdio: ['ignore', 'ignore', fd],
     });
-    let erreur = '';
-    enfant.stderr.on('data', d => (erreur += d));
-    let bouge = Date.now();
+    closeSync(fd);
+    ecrireEtat(ctx, { ...ctx.courant, seance: enfant.pid });
     let bloque = false;
-    const signal = s => {
-      try {
-        process.kill(-enfant.pid, s);
-      } catch {
-        // The group is gone.
-      }
-    };
-    const pas = Math.max(100, Math.min(30_000, Math.floor(ctx.immobileMs / 4)));
-    const veille = setInterval(() => {
-      bouge = Math.max(bouge, derniereTrace(ctx.transcriptions), mtime(ctx.journal));
-      if (!bloque && Date.now() - bouge >= ctx.immobileMs) {
-        bloque = true;
-        signal('SIGTERM');
-        setTimeout(() => signal('SIGKILL'), 5_000).unref();
-      }
-    }, pas);
+    const veille = surveiller(ctx, enfant.pid, () => (bloque = true));
     enfant.on('close', code => {
       clearInterval(veille);
       // What remains of the group goes with its launcher.
-      if (bloque) signal('SIGKILL');
+      if (bloque) signalerGroupe(enfant.pid, 'SIGKILL');
+      ecrireEtat(ctx, { ...ctx.courant, seance: null });
       const seance = existsSync(ctx.fin) ? Number(readFileSync(ctx.fin, 'utf8').trim()) : null;
-      resolve({ code, seance, bloque, erreur });
+      resolve({ code, seance, bloque, erreur: lire(erreurs) });
     });
   });
+}
+
+// <signal> to the process group <groupe>; false when the group is gone (or not the circuit's).
+function signalerGroupe(groupe, signal) {
+  try {
+    process.kill(-groupe, signal);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// The watch of the session whose launcher leads the group <groupe>: its transcripts and the log
+// standing still for the delay, SIGTERM, then SIGKILL, to the group, and <bloque> called. Its
+// interval, which the caller clears.
+function surveiller(ctx, groupe, bloque) {
+  let bouge = Date.now();
+  let arrete = false;
+  const pas = Math.max(100, Math.min(30_000, Math.floor(ctx.immobileMs / 4)));
+  return setInterval(() => {
+    bouge = Math.max(bouge, derniereTrace(ctx.transcriptions), mtime(ctx.journal));
+    if (!arrete && Date.now() - bouge >= ctx.immobileMs) {
+      arrete = true;
+      bloque();
+      signalerGroupe(groupe, 'SIGTERM');
+      setTimeout(() => signalerGroupe(groupe, 'SIGKILL'), 5_000).unref();
+    }
+  }, pas);
+}
+
+// The wait for the session of group <groupe> that a dead circuit left running, under the same
+// watch as a session: a resumption starts once it has ended, so that two sessions never write
+// together in the copy.
+async function attendreLaSeance(ctx, groupe) {
+  if (!groupe || !signalerGroupe(groupe, 0)) return;
+  process.stderr.write(
+    `… la séance du groupe ${groupe}, laissée par l'arrêt d'avant, tourne encore : le circuit attend sa fin.\n`
+  );
+  const veille = surveiller(ctx, groupe, () => {});
+  while (signalerGroupe(groupe, 0)) await new Promise(r => setTimeout(r, 500));
+  clearInterval(veille);
 }
 
 // The first template of the instruction, filled with <valeurs>.
@@ -428,13 +492,16 @@ function paquetDe(liste, fichier) {
   return p ? p.dossier : '.';
 }
 
-// One npm command in the copy, added to the log: `{ code, sortie }`.
-function npm(ctx, etape, composant, args) {
+// One npm command in the copy, under <env> added to the circuit's environment, added to the log:
+// `{ code, sortie }`.
+function npm(ctx, etape, composant, args, env = {}) {
   entete(ctx, etape, composant);
-  appendFileSync(ctx.journal, `$ npm ${args.join(' ')}\n`);
+  const prefixe = Object.entries(env).map(([k, v]) => `${k}=${v} `);
+  appendFileSync(ctx.journal, `$ ${prefixe.join('')}npm ${args.join(' ')}\n`);
   const r = spawnSync('npm', args, {
     cwd: ctx.copie,
     encoding: 'utf8',
+    env: { ...process.env, ...env },
     maxBuffer: 256 * 1024 * 1024,
   });
   const sortie = `${r.stdout ?? ''}${r.stderr ?? ''}`;
@@ -455,6 +522,25 @@ function justification(lignes, noms) {
   return null;
 }
 
+// HEAD's version of each file of <fichiers> that HEAD holds, written beside it in the copy under
+// the name `<nom>.circuit-avant.<test|spec>.<ext>`, which the same run plays: Map file → sibling,
+// both relative to the copy. The caller removes the siblings.
+function versionsDAvant(ctx, fichiers) {
+  const out = new Map();
+  for (const f of fichiers) {
+    const r = spawnSync('git', ['-C', ctx.copie, 'show', `HEAD:${f}`], {
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+    });
+    if (r.status !== 0) continue;
+    const soeur = f.replace(/\.(test|spec)(\.[cm]?[jt]sx?)$/, '.circuit-avant.$1$2');
+    if (soeur === f) continue;
+    writeFileSync(path.join(ctx.copie, soeur), r.stdout);
+    out.set(f, soeur);
+  }
+  return out;
+}
+
 // The proof of the red on <composant>: `{ ok, rouges, texte, resume }`.
 function preuve(ctx, composant) {
   const fichiers = testsDuComposant(ctx, composant);
@@ -469,16 +555,24 @@ function preuve(ctx, composant) {
     const p = paquetDe(liste, f);
     groupes.set(p, [...(groupes.get(p) ?? []), f]);
   }
+  let anciens = 0;
   for (const [, groupe] of groupes) {
     const rapport = path.join(ctx.tmp, `preuve-${++ctx.numero}.json`);
-    const r = npm(ctx, 'preuve', composant, [
-      'test',
-      '--',
-      ...groupe,
-      '--reporter=default',
-      '--reporter=json',
-      `--outputFile=${rapport}`,
-    ]);
+    const avant = versionsDAvant(ctx, groupe);
+    let r;
+    try {
+      r = npm(ctx, 'preuve', composant, [
+        'test',
+        '--',
+        ...groupe,
+        ...avant.values(),
+        '--reporter=default',
+        '--reporter=json',
+        `--outputFile=${rapport}`,
+      ]);
+    } finally {
+      for (const soeur of avant.values()) rmSync(path.join(ctx.copie, soeur), { force: true });
+    }
     let resultats = [];
     try {
       resultats = JSON.parse(readFileSync(rapport, 'utf8')).testResults ?? [];
@@ -488,6 +582,15 @@ function preuve(ctx, composant) {
     for (const f of groupe) {
       const res = resultats.find(t => t.name === path.join(ctx.copie, f));
       const assertions = res?.assertionResults ?? [];
+      // The green tests of HEAD's version of the file, by their full name.
+      const deHead = new Set(
+        (
+          resultats.find(t => avant.has(f) && t.name === path.join(ctx.copie, avant.get(f)))
+            ?.assertionResults ?? []
+        )
+          .filter(a => a.status === 'passed')
+          .map(a => a.fullName || a.title)
+      );
       if (!res) {
         casses.push(
           `${f} — ne se charge pas : non joué (code ${r.code}) ; ${premiereLigne(fin(r.sortie, 5))}`
@@ -499,6 +602,8 @@ function preuve(ctx, composant) {
         const nom = a.fullName || a.title;
         if (a.status === 'failed') {
           rouges.push(`${f} › ${nom} — ${premiereLigne(a.failureMessages?.[0])}`);
+        } else if (a.status === 'passed' && deHead.has(nom)) {
+          anciens++;
         } else if (a.status === 'passed') {
           const raison = justification(lignes, [a.title, a.fullName]);
           if (raison) justifies.push(`${f} › ${nom} — ${raison}`);
@@ -513,8 +618,8 @@ function preuve(ctx, composant) {
     fichiers.length > 0 &&
     casses.length === 0 &&
     injustifies.length === 0 &&
-    rouges.length + justifies.length > 0;
-  const resume = `${rouges.length} rouge(s), ${justifies.length} vert(s) justifié(s), ${injustifies.length} vert(s) sans « vert attendu », ${casses.length} fichier(s) qui ne se charge(nt) pas`;
+    rouges.length + justifies.length + anciens > 0;
+  const resume = `${rouges.length} rouge(s), ${justifies.length} vert(s) justifié(s), ${injustifies.length} vert(s) sans « vert attendu », ${casses.length} fichier(s) qui ne se charge(nt) pas, ${anciens} test(s) vert(s) que HEAD tient déjà, laissé(s) de côté`;
   const texte = [
     `Preuve du rouge sur ${composant} : ${resume}.`,
     '',
@@ -534,42 +639,159 @@ function preuve(ctx, composant) {
   return { ok, rouges: rouges.length, texte, resume };
 }
 
-// The checks after the developpeur: `{ rouge, aRepasser, texte, resume }`.
-function controles(ctx, composant) {
+// The checks after the developpeur of the component at <index>: what is done, or every check of
+// the lot when <finale>. `{ rouge, aRepasser, texte, resume, proprietaire }`, `proprietaire` the
+// index of the component that owns the red, -1 for none.
+function controles(ctx, index, finale) {
+  const composant = ctx.composants[index];
   const lot = changements(ctx);
-  const tests = testsDuLot(ctx);
   const liste = paquets(ctx.copie).filter(p => !p.hors);
   const touches = liste.length
     ? [...new Set(lot.map(c => paquetDe(liste, c.fichier)).filter(d => d !== '.'))].sort()
     : ['.'];
+  // What is done: the components of the run up to <index>, or every one in the final pass.
+  const fait = chemin => {
+    const i = proprietaire(ctx, chemin);
+    return i >= 0 && i <= index;
+  };
+  const tests = finale
+    ? testsDuLot(ctx)
+    : testsDuLot(ctx).filter(f => fait(f) || matiereFaite(ctx, liste, f, index));
+  const scripts = lireJson(path.join(ctx.copie, 'package.json'))?.scripts ?? {};
+  const enveloppe = { [VARIABLE_ENVELOPPE]: composant };
   const commandes = [
-    ...(tests.length ? [['test', '--', ...tests]] : []),
-    ['run', 'verifier', '--', '--gardes'],
-    ...touches.map(d => (d === '.' ? ['test'] : ['test', '--', d])),
+    ...(tests.length ? [{ args: ['test', '--', ...tests] }] : []),
+    ...(finale ? [{ args: ['run', 'verifier', '--', '--gardes'] }] : []),
+    ...touches
+      .filter(d => finale || fait(d))
+      .map(d => ({ args: d === '.' ? ['test'] : ['test', '--', d] })),
+    ...(finale
+      ? []
+      : ['grillhouse:gardes', 'gardes']
+          .filter(s => s in scripts)
+          .map(s => ({ args: ['run', s], env: enveloppe }))),
   ];
-  const resultats = commandes.map(args => {
-    let r = npm(ctx, 'controles', composant, args);
-    if (r.code === A_REPASSER) r = npm(ctx, 'controles', composant, args);
-    return { args, ...r };
+  const resultats = commandes.map(({ args, env }) => {
+    let r = npm(ctx, 'controles', composant, args, env);
+    if (r.code === A_REPASSER) r = npm(ctx, 'controles', composant, args, env);
+    return { args, env, ...r, proprietaires: proprietaires(ctx, liste, r.sortie) };
   });
-  const rouges = resultats.filter(r => r.code !== 0 && r.code !== A_REPASSER);
+  const echecs = resultats.filter(r => r.code !== 0 && r.code !== A_REPASSER);
+  // Out of the final pass, a red that names only components after <index> waits for it.
+  const attend = r =>
+    !finale && r.proprietaires.length > 0 && r.proprietaires.every(i => i > index);
+  const rouges = echecs.filter(r => !attend(r));
+  const reportes = echecs.filter(attend);
   const aRepasser = resultats.filter(r => r.code === A_REPASSER);
-  const nommer = r => `npm ${r.args.join(' ')} (code ${r.code})`;
+  const ligne = r =>
+    `${Object.entries(r.env ?? {})
+      .map(([k, v]) => `${k}=${v} `)
+      .join('')}npm ${r.args.join(' ')}`;
+  const nommer = r => `${ligne(r)} (code ${r.code})`;
   const resume = rouges.length
     ? `rouge : ${rouges.map(nommer).join(' ; ')}`
     : aRepasser.length
       ? `à repasser : ${aRepasser.map(nommer).join(' ; ')}`
-      : `verts : ${resultats.map(r => `npm ${r.args.join(' ')}`).join(' ; ')}`;
+      : `verts : ${resultats
+          .filter(r => !reportes.includes(r))
+          .map(ligne)
+          .join(' ; ')}${
+          reportes.length
+            ? ` ; laissés à la passe finale, rouges dans un composant d'après : ${reportes.map(nommer).join(' ; ')}`
+            : ''
+        }`;
   const texte = [
-    `Contrôles sur ${composant} : ${resume}.`,
-    ...[...rouges, ...aRepasser].map(r => `\n$ npm ${r.args.join(' ')}\n${fin(r.sortie, 60)}`),
+    `Contrôles sur ${composant}${finale ? ' (passe finale)' : ''} : ${resume}.`,
+    ...[...rouges, ...aRepasser].map(r => `\n$ ${ligne(r)}\n${fin(r.sortie, 60)}`),
   ].join('\n');
-  return { rouge: rouges.length > 0, aRepasser: aRepasser.length > 0, texte, resume };
+  // The owner of the red: the first component, provider first, that a red names; -1 for none.
+  const nommes = rouges.flatMap(r => r.proprietaires);
+  const proprio = rouges.length && nommes.length ? Math.min(...nommes) : -1;
+  return {
+    rouge: rouges.length > 0,
+    aRepasser: aRepasser.length > 0,
+    texte,
+    resume,
+    proprietaire: proprio,
+  };
 }
+
+// The index of the component of the run that holds <chemin> (relative to the copy), the deepest
+// one, `.` holding every path; -1 for none.
+function proprietaire(ctx, chemin) {
+  let trouve = -1;
+  let profondeur = -1;
+  ctx.composants.forEach((c, i) => {
+    const dedans = c === '.' || chemin === c || chemin.startsWith(`${c}/`);
+    const p = c === '.' ? 0 : c.split('/').length;
+    if (dedans && p > profondeur) {
+      trouve = i;
+      profondeur = p;
+    }
+  });
+  return trouve;
+}
+
+// True when <fichier> lies in a package of the shared test material that depends on no component
+// after <index>: a test it holds then reads only what is done.
+function matiereFaite(ctx, liste, fichier, index) {
+  const m = matieres(ctx.copie)
+    .map(x => path.relative(ctx.copie, x.dir))
+    .find(d => fichier.startsWith(`${d}/`));
+  if (!m) return false;
+  const pkg =
+    liste.find(p => p.dossier === m)?.pkg ??
+    lireJson(path.join(ctx.copie, m, 'package.json')) ??
+    {};
+  const noms = Object.keys({
+    ...pkg.dependencies,
+    ...pkg.devDependencies,
+    ...pkg.peerDependencies,
+  });
+  return noms.every(n => {
+    const p = liste.find(x => x.pkg.name === n);
+    return !p || proprietaire(ctx, p.dossier) <= index;
+  });
+}
+
+// The components a red output names, as indexes, sorted: the packages of its failed tasks
+// (Turborepo's line « Failed: »), else the components that hold a path its lines name, the lines
+// of a notice (⚠️, ℹ️) aside.
+function proprietaires(ctx, liste, sortie) {
+  const texte = sansCouleurs(sortie);
+  const out = new Set();
+  for (const m of texte.matchAll(/^\s*Failed:\s+(.+)$/gm)) {
+    for (const tache of m[1].split(/[,\s]+/).filter(Boolean)) {
+      const p = liste.find(x => x.pkg.name === tache.split('#')[0]);
+      const i = p ? proprietaire(ctx, p.dossier) : -1;
+      if (i >= 0) out.add(i);
+    }
+  }
+  if (out.size === 0) {
+    for (const l of texte.split('\n')) {
+      if (l.includes('⚠️') || l.includes('ℹ️')) continue;
+      for (const [chemin] of l.matchAll(/\/?[\w@.-]+(?:\/[\w@.-]+)+/g)) {
+        const rel = path.isAbsolute(chemin) ? path.relative(ctx.copie, chemin) : chemin;
+        if (rel.startsWith('..') || path.isAbsolute(rel)) continue;
+        const i = proprietaire(ctx, rel);
+        if (i >= 0) out.add(i);
+      }
+    }
+  }
+  return [...out].sort((a, b) => a - b);
+}
+
+const lireJson = f => {
+  try {
+    return JSON.parse(readFileSync(f, 'utf8'));
+  } catch {
+    return null;
+  }
+};
 
 // The circuit from <depart> to « relecture ».
 async function derouler(ctx, depart) {
-  let { index, etape, tentative, rapport, dernier } = depart;
+  let { index, etape, tentative, rapport, dernier, finale } = depart;
   for (;;) {
     const composant = ctx.composants[index];
     const etat = {
@@ -580,6 +802,7 @@ async function derouler(ctx, depart) {
       raison: null,
       rapport,
       dernier: ctx.composants[dernier],
+      finale,
     };
     ecrireEtat(ctx, etat);
     try {
@@ -620,24 +843,38 @@ async function derouler(ctx, depart) {
         );
         etape = 'controles';
       } else if (etape === 'controles') {
-        const k = controles(ctx, composant);
+        const passeFinale = finale || index === dernier;
+        const k = controles(ctx, index, passeFinale);
         rapport = k.texte;
-        if (k.rouge && tentative < SEANCES_DEVELOPPEUR) {
+        // The developpeur a red goes to: this component's, or in the final pass the owner's.
+        const vers = k.rouge && passeFinale ? k.proprietaire : index;
+        // One count of sessions for the component's checks, and one for the whole final pass,
+        // whichever component its red goes to.
+        const suivante = tentative + 1;
+        if (k.rouge && vers < 0) {
+          throw new Arret(
+            'controles',
+            `${k.texte}\n\nAucun composant du ticket (${ctx.composants.join(', ')}) ne possède ce rouge de la passe finale.`
+          );
+        } else if (k.rouge && suivante <= SEANCES_DEVELOPPEUR) {
+          const qui = vers === index ? '' : ` de ${ctx.composants[vers]}`;
           commenter(
             ctx,
             composant,
             'controles',
-            `${k.resume} ; développeur relancé (séance ${tentative + 1}).`
+            `${k.resume} ; développeur${qui} relancé (séance ${suivante}).`
           );
           etape = 'developpeur';
-          tentative++;
+          tentative = suivante;
+          index = vers;
+          finale = passeFinale;
         } else if (k.rouge) {
           throw new Arret('controles', k.texte);
         } else if (k.aRepasser) {
           throw new Arret('a-repasser', k.texte);
         } else {
           commenter(ctx, composant, 'controles', `${k.resume}.`);
-          if (index < dernier) {
+          if (!passeFinale) {
             index++;
             etape = 'testeur';
             tentative = 1;
@@ -678,17 +915,24 @@ async function derouler(ctx, depart) {
   }
 }
 
-// Where the run starts: the first component's testeur, or the step and component of the state.
-function depart(ctx) {
+// Where the run starts: the first component's testeur, or the step and component of the state
+// <e> (null without one).
+function depart(ctx, e) {
   const fin = ctx.composants.length - 1;
   if (ctx.depuis) {
     const index = ctx.composants.indexOf(ctx.depuis.composant);
-    return { index, etape: ctx.depuis.etape, tentative: 1, rapport: ctx.contexte, dernier: index };
+    return {
+      index,
+      etape: ctx.depuis.etape,
+      tentative: 1,
+      rapport: ctx.contexte,
+      dernier: index,
+      finale: false,
+    };
   }
   if (!ctx.reprendre)
-    return { index: 0, etape: 'testeur', tentative: 1, rapport: null, dernier: fin };
-  if (!existsSync(ctx.etat)) throw new Usage(`rien à reprendre : ${ctx.etat} n'existe pas.`);
-  const e = JSON.parse(readFileSync(ctx.etat, 'utf8'));
+    return { index: 0, etape: 'testeur', tentative: 1, rapport: null, dernier: fin, finale: false };
+  if (!e) throw new Usage(`rien à reprendre : ${ctx.etat} n'existe pas.`);
   const index = ctx.composants.indexOf(e.composant);
   if (index < 0)
     throw new Usage(`le composant de l'état, ${e.composant}, n'est plus dans le titre.`);
@@ -699,6 +943,7 @@ function depart(ctx) {
     tentative: e.etape === 'controles' ? 0 : 1,
     rapport: e.rapport,
     dernier: dernier < 0 ? fin : dernier,
+    finale: e.finale === true,
   };
 }
 
@@ -707,7 +952,11 @@ export async function main(argv) {
   try {
     ctx = contexte(lireArguments(argv));
     mkdirSync(path.dirname(ctx.copie), { recursive: true });
-    return await derouler(ctx, depart(ctx));
+    const e = existsSync(ctx.etat) ? JSON.parse(readFileSync(ctx.etat, 'utf8')) : null;
+    const d = depart(ctx, e);
+    // A session a dead circuit left running ends before this run launches its own.
+    await attendreLaSeance(ctx, e?.seance);
+    return await derouler(ctx, d);
   } catch (e) {
     if (!(e instanceof Usage)) throw e;
     process.stderr.write(
