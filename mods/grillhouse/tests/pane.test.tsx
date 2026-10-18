@@ -227,6 +227,8 @@ test('a board past what a process returns opens the pane on a message, not on a 
   await new Promise(r => setTimeout(r, 50))
   const r = await $.command.run({ command: 'grillhouse', presentation: { isFullscreen: true, columns: 200 } } as never)
   expect(JSON.stringify(r)).toContain('Tableau Grillhouse')
+  // The board is measured behind the command.
+  await new Promise(r => setTimeout(r, 50))
   const ui = await $.ui.mount({
     plugin: 'grillhouse',
     surface: 'terminal',
@@ -243,6 +245,29 @@ test('a board past what a process returns opens the pane on a message, not on a 
   })
   expect(JSON.stringify(await ui.drawn())).toContain('Tableau illisible')
   await ui.unmount()
+})
+
+test('the command answers and opens the pane before the board is read', async ($, on) => {
+  let lire = () => undefined as void
+  const lu = new Promise<void>(r => (lire = r))
+  let ouvert = false
+  on('process.run', async ($, e) => {
+    if (e.argv[0] === 'node') await lu
+    return { value: { exitCode: 0, stdout: e.argv[0] === 'test' ? '' : JSON.stringify(TABLEAU), stderr: '' } }
+  })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('command.register', () => ({ value: undefined }))
+  on('clock.every', () => ({ value: { cancel: () => undefined } }))
+  on('ui.open', () => {
+    ouvert = true
+    return { value: { isPlaced: true } }
+  })
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
+  const r = await $.command.run({ command: 'grillhouse', presentation: { isFullscreen: true, columns: 200 } } as never)
+  expect(JSON.stringify(r)).toContain('Tableau Grillhouse')
+  expect(ouvert).toBe(true)
+  lire()
+  await new Promise(r => setTimeout(r, 50))
 })
 
 test('refreshes asked while a board is read fold into one more, never one board each', async ($, on) => {
@@ -263,6 +288,8 @@ test('refreshes asked while a board is read fold into one more, never one board 
   const avant = tableaux
   const run = () => $.command.run({ command: 'grillhouse', presentation: { isFullscreen: true, columns: 200 } } as never)
   await Promise.all([run(), run(), run(), run(), run()])
+  // The boards are read behind the commands.
+  await new Promise(r => setTimeout(r, 200))
   expect(tableaux - avant).toBeLessThanOrEqual(2)
 })
 

@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.16.2] - 2026-10-18
+
+### Fixed
+
+- **`/grillhouse` answers at once on a large project**: the command waited for the board's measure, some seconds on a large project, twice when a refresh was running; past the 10 s a hook is given, Claude Code skipped it and printed « no command.run hook answered it ». The command now opens the pane and answers, and the board is measured behind it.
+
 ## [0.16.1] - 2026-10-18
 
 ### Fixed

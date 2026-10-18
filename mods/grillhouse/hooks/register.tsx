@@ -286,8 +286,10 @@ export const register: Register = on => {
     return started
   })
 
+  // The command answers at once and the board is measured behind it: a measure takes seconds on a
+  // large project, and a hook past its budget (10 s) is skipped, its command answered by the engine.
   on('command.run', { command: 'grillhouse' }, async ($, e) => {
-    await rafraichir($)
+    void rafraichir($)
     // A narrow column docked beside the transcript; a short block when seated above the prompt.
     await $.ui.open({ id: PANE, title: 'Grillhouse', columns: COLONNES, rows: 12 })
     return { text: placement(e.presentation) }
