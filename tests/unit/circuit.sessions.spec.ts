@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
-import { readdirSync, readFileSync, rmSync } from 'node:fs';
+import { appendFileSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
 import { sortie, CIRCUIT, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
@@ -15,6 +16,7 @@ const ESSAIS = racineSousLaMaison('grillhouse-essais-circuit-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 const {
   REPO,
+  BEADS,
   revenirAuDebut,
   ticket,
   scenario,
@@ -106,6 +108,20 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     expect(r.status, sortie(r)).toBe(ARRETS['sans-passation']);
     expect(sessions(id, 'testeur')).toBe(2);
     expect(etat(id)).toMatchObject({ etape: 'testeur', raison: 'sans-passation' });
+  });
+
+  it('reads the handover of a ticket whose comments pass 1 MiB', () => {
+    const id = 'demo-passation-longue';
+    ticket(id, '000-forms');
+    // The comments of a long ticket, past the default output of a child process.
+    appendFileSync(
+      path.join(BEADS, `${id}.comments.jsonl`),
+      `${JSON.stringify({ author: 'testeur', text: 'x'.repeat(1_200_000) })}\n`
+    );
+    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
+    const r = circuit([id]);
+    expect(sessions(id, 'testeur'), sortie(r)).toBe(1);
+    expect(etat(id)).toMatchObject({ etape: 'developpeur' });
   });
 
   it('stops a session whose transcript stands still past the delay, at « bloqué »', () => {

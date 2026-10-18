@@ -316,7 +316,9 @@ function arbrePrincipal() {
 function contexte(o) {
   const racine = arbrePrincipal();
   const copie = path.join(racine, '.claude', 'worktrees', o.ticket);
-  const bd = (...a) => spawnSync('bd', a, { cwd: racine, encoding: 'utf8' });
+  // The comments of a long ticket pass the 1 MiB that a child process returns by default.
+  const bd = (...a) =>
+    spawnSync('bd', a, { cwd: racine, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
   const show = bd('show', o.ticket, '--json');
   if (show.status !== 0) throw new Usage(`ticket ${o.ticket} illisible : ${show.stderr}`);
   const t = JSON.parse(show.stdout)[0];
@@ -374,10 +376,14 @@ function contexte(o) {
   };
 }
 
-// The texts of every comment at the ticket, in their order.
+// The texts of every comment at the ticket, in their order; a failed read throws.
 function commentaires(ctx) {
   const r = ctx.bd('comments', ctx.ticket, '--json');
-  if (r.status !== 0) return [];
+  if (r.status !== 0) {
+    throw new Error(
+      `commentaires de ${ctx.ticket} illisibles : ${r.error?.message ?? r.stderr ?? ''}`.trim()
+    );
+  }
   return (JSON.parse(r.stdout || '[]') ?? []).map(c => String(c.text ?? ''));
 }
 

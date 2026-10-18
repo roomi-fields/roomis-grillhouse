@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-10-18
+
+### Fixed
+
+- **The circuit reads the comments of a long ticket**: past 1 MiB, the read of the ticket's comments failed in silence, and the circuit saw no handover after a session that wrote one (« sans-passation »); it now reads up to 256 MiB, and a failed read stops the circuit with bd's message.
+
 ## [0.16.0] - 2026-10-18
 
 ### Added
