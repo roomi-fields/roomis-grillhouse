@@ -709,7 +709,8 @@ export function constats(texte) {
       titre,
       texte: corps,
       role: agent ? agent[1] : null,
-      composant: agent ? agent[2].replace(/[,.;]+$/, '') : null,
+      // The punctuation that ends the line, never the root `.` itself.
+      composant: agent ? agent[2].replace(/(?<=.)[,.;]+$/, '') : null,
       critere: /^\s*(?:[-*]\s*)?\**Critère en cause\**\s*:/im.test(corps),
     };
   });

@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.16.4] - 2026-10-18
+
+### Fixed
+
+- **A finding addressed to the root component reaches it**: the line `Agent : developpeur .` lost its `.` with the punctuation that ends the line, and the circuit stopped at « relecture-arret » on a finding with no recipient. The root `.` is now kept.
+
 ## [0.16.3] - 2026-10-18
 
 ### Fixed

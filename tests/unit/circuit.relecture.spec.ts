@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
+import { constats } from '../../scripts/circuit.mjs';
 import { lire, sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
 
 // The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): the review, its
@@ -49,6 +50,22 @@ const ticketDe = (id: string) =>
 // circuit relaunches those agents from the first component named, the components after it pass
 // again, then the final pass and the reviewer; a finding without a valid recipient stops at
 // « relecture-arret », and so does the third RENDU.
+describe('the findings of a verdict RENDU', () => {
+  it('read the component of their line Agent, the root « . » included', () => {
+    const verdict = [
+      'RENDU',
+      '### Constat 1 — scripts/garde.mjs',
+      'Agent : developpeur .',
+      '### Constat 2 — packages/forms/src/forms.ts',
+      '- **Agent** : testeur `packages/forms`.',
+    ].join('\n');
+    expect(constats(verdict).map(c => [c.role, c.composant])).toEqual([
+      ['developpeur', '.'],
+      ['testeur', 'packages/forms'],
+    ]);
+  });
+});
+
 describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, () => {
   afterEach(revenirAuDebut);
   // A verdict RENDU whose one finding goes to <agent>.
