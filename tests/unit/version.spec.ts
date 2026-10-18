@@ -138,6 +138,10 @@ describe('a release of Grillhouse tags its commit locally, never pushing', () =>
     const distant = mkdtempSync(path.join(ESSAIS, 'distant-'));
     git(distant, 'init', '-q', '--bare');
     git(r, 'init', '-q');
+    // Its own identity, which `etiqueter`, run in this process, reads: a machine without one, as
+    // the CI's, refuses an annotated tag.
+    git(r, 'config', 'user.name', 'Essai');
+    git(r, 'config', 'user.email', 'essai@example.invalid');
     git(r, 'remote', 'add', 'origin', distant);
     git(r, 'add', '-A');
     git(r, 'commit', '-q', '-m', 'chore(release): 0.16.0');
