@@ -642,7 +642,7 @@ const plateau = (tous: object[]) =>
     jour: MAINTENANT - 24 * 60 * MIN,
   }) as { alertes: Alerte[] };
 const rouges = (tous: object[]) => plateau(tous).alertes.filter(a => a.niveau === 'rouge');
-const ROUGE = nuit('demo-87', '87 — La nuit est rouge depuis abc1234 — parent');
+const ROUGE = nuit('demo-87', '87 — La nuit est rouge depuis la nuit du 2026-10-17 — parent');
 const REFUSEE = nuit('demo-88', '88 — La poussée de la nuit est refusée sur def5678 — parent');
 
 describe('3uv.44 critère 7 : each open night ticket raises its red alert, its subject followed by its number', () => {
@@ -651,7 +651,9 @@ describe('3uv.44 critère 7 : each open night ticket raises its red alert, its s
     expect(r).toHaveLength(2);
     const de = (numero: string) => r.filter(a => a.texte.endsWith(numero));
     expect(de('87')).toHaveLength(1);
-    expect(de('87')[0].texte.startsWith('La nuit est rouge depuis abc1234')).toBe(true);
+    expect(de('87')[0].texte.startsWith('La nuit est rouge depuis la nuit du 2026-10-17')).toBe(
+      true
+    );
     expect(de('88')).toHaveLength(1);
     expect(de('88')[0].texte.startsWith('La poussée de la nuit est refusée sur def5678')).toBe(
       true
@@ -672,7 +674,11 @@ describe('3uv.44 critère 7 : each open night ticket raises its red alert, its s
       { ...REFUSEE, status: 'closed' },
     ]);
     expect(
-      r.map(a => a.texte.startsWith('La nuit est rouge depuis abc1234') && a.texte.endsWith('87'))
+      r.map(
+        a =>
+          a.texte.startsWith('La nuit est rouge depuis la nuit du 2026-10-17') &&
+          a.texte.endsWith('87')
+      )
     ).toEqual([true]);
   });
 

@@ -239,6 +239,6 @@ Journal : $journal
 Fin du journal :
 $(tail -40 "$journal")"
 # A night ticket is the mother of its fixes.
-numero="$(signaler "La nuit est rouge depuis ${tete:0:7}" "$texte")"
+numero="$(signaler "La nuit est rouge depuis la nuit du $(date +%Y-%m-%d)" "$texte")"
 echo "✗ rouge : ticket ${numero:-neuf} (étiquette nuit)." >> "$journal"
 exit 1

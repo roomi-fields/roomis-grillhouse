@@ -123,7 +123,9 @@ describe('the night', () => {
     const appels = m.appels();
     expect(appels).toMatch(/^create La nuit est rouge depuis/m);
     expect(appels).toMatch(/-l nuit/);
-    expect(appels).toMatch(/^update demo-12 --title 12 — La nuit est rouge depuis \w+ — parent$/m);
+    expect(appels).toMatch(
+      /^update demo-12 --title 12 — La nuit est rouge depuis la nuit du \d{4}-\d{2}-\d{2} — parent$/m
+    );
     expect(appels).toContain(`${vert}..${rouge}`);
     expect(appels).toMatch(/un test rouge/);
   });
@@ -136,7 +138,7 @@ describe('the night', () => {
     m.git('commit', '-qm', 'casse');
     expect(m.nuit().status).toBe(1);
     expect(m.appels()).toMatch(
-      /^update bp-mono-vbwf\.12 --title vbwf\.12 — La nuit est rouge depuis \w+ — parent$/m
+      /^update bp-mono-vbwf\.12 --title vbwf\.12 — La nuit est rouge depuis la nuit du \d{4}-\d{2}-\d{2} — parent$/m
     );
   });
   it('comments the open night ticket instead of opening another', () => {
