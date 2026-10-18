@@ -148,6 +148,8 @@
 //   that component's steps, the checks of the components after it, the final pass, the reviewer
 //   and the integration. It goes with no `--reprendre`.
 // - At each step, a short comment at the ticket: `Circuit · <composant> · <étape> : <résumé>`.
+//   A proof writes there its reds and what refuses it; its whole report, the justified greens with
+//   their reasons, goes to `.claude/worktrees/<ticket>.preuve-<n>.md`, which the comment names.
 // - The commands of the circuit (the proof, the checks, the integration) are added to the log of the ticket,
 //   `.claude/worktrees/<ticket>.log`, next to the sessions, each under its header line.
 // - Exit codes: 0 at « integre »; 2 a malformed call; a stop, by its name (ARRETS):
@@ -965,7 +967,8 @@ function versionsDAvant(ctx, fichiers) {
   return out;
 }
 
-// The proof of the red on <composant>: `{ ok, rouges, texte, resume }`.
+// The proof of the red on <composant>: `{ ok, rouges, texte, resume }`, `texte` without the list
+// of the justified greens, which only the whole report, written to its file, holds.
 function preuve(ctx, composant) {
   const fichiers = testsDuComposant(ctx, composant);
   const lignes = passations(ctx).flatMap(t => t.split('\n'));
@@ -1078,25 +1081,34 @@ function preuve(ctx, composant) {
     injustifies.length === 0 &&
     rouges.length + justifies.length + anciens > 0;
   const resume = `${rouges.length} rouge(s), ${justifies.length} vert(s) justifié(s), ${injustifies.length} vert(s) sans « vert attendu », ${casses.length} fichier(s) qui ne se charge(nt) pas, ${anciens} test(s) vert(s) que HEAD tient déjà, laissé(s) de côté`;
-  const texte = [
-    `Preuve du rouge sur ${composant} : ${resume}.`,
-    ...[...new Set(reportes)].map(
-      nom => `Les tests de ${nom} se jouent aux contrôles, après le développeur.`
-    ),
-    '',
-    ...(fichiers.length || rouges.length
-      ? []
-      : [`Aucun fichier de test du lot dans ${composant} : rien ne prouve le rouge.`, '']),
-    ...section('Rouges', rouges),
-    ...section('Verts justifiés', justifies),
-    ...section(
-      'Verts sans « vert attendu » (un test vert avant le code passe seulement avec la ligne `vert attendu : <nom du test> — <raison>` dans la passation)',
-      injustifies
-    ),
-    ...section('Fichiers qui ne prouvent rien', casses),
-  ]
-    .join('\n')
-    .trim();
+  const ecrit = (...sections) =>
+    [
+      `Preuve du rouge sur ${composant} : ${resume}.`,
+      ...[...new Set(reportes)].map(
+        nom => `Les tests de ${nom} se jouent aux contrôles, après le développeur.`
+      ),
+      '',
+      ...(fichiers.length || rouges.length
+        ? []
+        : [`Aucun fichier de test du lot dans ${composant} : rien ne prouve le rouge.`, '']),
+      ...section('Rouges', rouges),
+      ...sections,
+      ...section(
+        'Verts sans « vert attendu » (un test vert avant le code passe seulement avec la ligne `vert attendu : <nom du test> — <raison>` dans la passation)',
+        injustifies
+      ),
+      ...section('Fichiers qui ne prouvent rien', casses),
+    ]
+      .join('\n')
+      .trim();
+  let n = 1;
+  while (existsSync(`${ctx.copie}.preuve-${n}.md`)) n++;
+  const complet = `${ctx.copie}.preuve-${n}.md`;
+  writeFileSync(complet, `${ecrit(...section('Verts justifiés', justifies))}\n`);
+  const texte = ecrit(
+    `Le rapport entier, avec les verts justifiés et leurs raisons : ${complet}`,
+    ''
+  );
   return { ok, rouges: rouges.length, texte, resume };
 }
 

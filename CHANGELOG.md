@@ -11,6 +11,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Fixed
 
 - **The circuit reads the comments of a long ticket**: past 1 MiB, the read of the ticket's comments failed in silence, and the circuit saw no handover after a session that wrote one (« sans-passation »); it now reads up to 256 MiB, and a failed read stops the circuit with bd's message.
+- **The proof's comment at the ticket stays short**: it holds the reds and what refuses the proof; the justified greens and their reasons, which made a comment of about 100 KB on a lot of 300 tests, go to the whole report, `.claude/worktrees/<ticket>.preuve-<n>.md`, which the comment names. The developpeur's instruction receives the same short text.
 
 ## [0.16.0] - 2026-10-18
 

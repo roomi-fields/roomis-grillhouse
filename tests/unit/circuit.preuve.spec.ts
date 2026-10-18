@@ -1,4 +1,4 @@
-import { rmSync } from 'node:fs';
+import { readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
@@ -114,9 +114,15 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     const relance = essai(id, 'testeur-2.prompt');
     expect(relance).toContain('critère 1 — mesure rend un nombre');
     expect(relance).toContain('vert attendu');
-    // The proof at the ticket holds the justified green and its reason.
+    // The proof at the ticket names its whole report, which holds the justified green and its
+    // reason; the ticket does not.
     const preuves = commentaires(id).filter(t => t.startsWith('Circuit · packages/forms · preuve'));
-    expect(preuves.at(-1)).toContain('la forme est déjà juste');
+    expect(preuves.at(-1)).not.toContain('la forme est déjà juste');
+    const complet = /Le rapport entier, avec les verts justifiés et leurs raisons : (\S+)/.exec(
+      preuves.at(-1) ?? ''
+    )?.[1];
+    expect(complet).toMatch(new RegExp(`/\\.claude/worktrees/${id}\\.preuve-\\d+\\.md$`));
+    expect(readFileSync(complet ?? '', 'utf8')).toContain('la forme est déjà juste');
   });
 
   it('relaunches the testeur twice at most, then stops at « preuve »', () => {
