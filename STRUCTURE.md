@@ -10,7 +10,7 @@ roomis-grillhouse/
 │   ├── settings.json              # Permissions, plugins, hooks
 │   ├── template                   # Marks the template itself (not copied)
 │   ├── grillhouse/charte.md       # The common charter: the frame's rules, the same in every project
-│   ├── grillhouse/fichiers.txt    # The frame's files, copied as they are by npm run grillhouse:maj
+│   ├── grillhouse/fichiers.txt    # The frame's files, copied as they are by npm run grillhouse:maj; its « - » lines (the frame's own tests among them): what a project never receives
 │   ├── agents/                    # The roles, each under its locks (scripts/verrous/)
 │   │   ├── testeur.md                # Writes a ticket's tests from the spec; writes test files and the shared test material only
 │   │   ├── developpeur.md            # Writes the code; no test file, no code before the Architecture section
@@ -149,11 +149,12 @@ roomis-grillhouse/
 │       └── logger.ts
 │
 ├── tests/                      # Test files
-│   ├── setup.ts                   # Test configuration
+│   ├── *.ts                       # The frame's test material (claude-substitut, config-git, machine): Grillhouse only, not copied
 │   ├── unit/                      # Unit tests
-│   │   ├── config.spec.ts
+│   │   ├── config.spec.ts            # the example's tests, copied with src/ to a new project
 │   │   ├── errors.spec.ts
-│   │   └── types.spec.ts
+│   │   ├── types.spec.ts
+│   │   └── …                         # the frame's own tests and their material (*-essai.ts): Grillhouse only, not copied
 │   └── integration/               # Integration tests
 │       └── .gitkeep
 │
@@ -185,8 +186,11 @@ roomis-grillhouse/
 npm run new -- ~/dev/my-new-project [ticket-prefix]
 ```
 
-Copies the template (without its caches and this marker), initialises git and the Beads ticket
-store, installs the dependencies, and makes the first commit.
+Copies the template (without its caches, this marker, nor the frame's own tests and their
+material: the « - » lines of `.claude/grillhouse/fichiers.txt`), initialises git and the Beads
+ticket store, installs the dependencies, and makes the first commit. The project keeps the example
+application (`src/`) and its tests (`tests/unit/config.spec.ts`, `errors.spec.ts`,
+`types.spec.ts`), which its `npm test` plays.
 
 Prerequisites: Node.js and Claude Code. Everything else installs by default: `setup` installs
 Beads (`bd`) when missing, and installs, for the project, the Claude Code plugins the project

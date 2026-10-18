@@ -1,6 +1,9 @@
 # The frame's files: `npm run grillhouse:maj` copies them, as they are, into a project. A line
 # ending with « / » covers every file under that directory. A line « - <path> » removes that path
-# from a project: a file the frame no longer places there. The frame's own tests stay in Grillhouse.
+# from a project, and `npm run new` leaves it out of a new one: a file the frame no longer places
+# there, or one that serves Grillhouse alone. The frame's own tests and their material stay in
+# Grillhouse, each named below; the example's tests (tests/unit/config.spec.ts, errors.spec.ts,
+# types.spec.ts) go with the example application to a new project.
 METACADRE.md
 tsdoc.json
 .claude/grillhouse/
@@ -54,15 +57,112 @@ scripts/verrous/
 scripts/vitest-config/
 scripts/vitest.nuit.config.mjs
 - scripts/attendre.sh
+- tests/claude-substitut.ts
+- tests/config-git.ts
+- tests/machine.ts
+- tests/unit/circuit-conduite.spec.ts
+- tests/unit/circuit-essai.ts
+- tests/unit/circuit.composants.spec.ts
+- tests/unit/circuit.construction.spec.ts
+- tests/unit/circuit.passe-finale.spec.ts
+- tests/unit/circuit.preuve.spec.ts
+- tests/unit/circuit.relecture.spec.ts
+- tests/unit/circuit.sessions.spec.ts
+- tests/unit/circuit.spec.ts
+- tests/unit/circuit.tests-de-head.spec.ts
+- tests/unit/code-mort-cadre.spec.ts
+- tests/unit/code-mort-espaces.spec.ts
+- tests/unit/code-mort-essai.ts
+- tests/unit/code-mort-hors-cadre.spec.ts
+- tests/unit/code-mort-knip.spec.ts
+- tests/unit/code-mort-tests-bancs-essai.ts
+- tests/unit/code-mort-tests-bancs.projet.spec.ts
+- tests/unit/code-mort-tests-bancs.spec.ts
+- tests/unit/code-mort.spec.ts
+- tests/unit/commandes-en-enveloppe.spec.ts
+- tests/unit/consommateurs-arbitres.spec.ts
 - tests/unit/consommateurs.spec.ts
+- tests/unit/crochets-du-cadre.spec.ts
+- tests/unit/dette.spec.ts
+- tests/unit/dossiers-d-essai.nuit.test.ts
+- tests/unit/dossiers-d-essai.spec.ts
+- tests/unit/enveloppe-essai.ts
+- tests/unit/enveloppe.lanceur.spec.ts
+- tests/unit/enveloppe.maison.spec.ts
+- tests/unit/enveloppe.matiere-de-test.spec.ts
 - tests/unit/enveloppe.spec.ts
+- tests/unit/fichiers-du-cadre.spec.ts
+- tests/unit/file-integration-essai.ts
+- tests/unit/file-integration.ci.spec.ts
+- tests/unit/file-integration.dependances.spec.ts
+- tests/unit/file-integration.renvois.spec.ts
+- tests/unit/file-integration.spec.ts
+- tests/unit/frontieres-essai.ts
+- tests/unit/frontieres.dependances-de-developpement.spec.ts
+- tests/unit/frontieres.entrees.spec.ts
+- tests/unit/frontieres.options.spec.ts
 - tests/unit/frontieres.spec.ts
+- tests/unit/gardes-du-cadre.spec.ts
+- tests/unit/git-des-tests.spec.ts
+- tests/unit/greffons-du-cadre.spec.ts
+- tests/unit/greffons-ouverture.budget.test.ts
+- tests/unit/grillhouse-maj.spec.ts
+- tests/unit/hors-cadre.spec.ts
 - tests/unit/index-interfaces.spec.ts
+- tests/unit/integration-essai.ts
+- tests/unit/integrer.commandes.spec.ts
+- tests/unit/integrer.dependances.spec.ts
 - tests/unit/integrer.spec.ts
+- tests/unit/interfaces-contre-code-essai.ts
+- tests/unit/interfaces-contre-code.index.spec.ts
+- tests/unit/interfaces-contre-code.membres-et-fautes.spec.ts
+- tests/unit/interfaces-contre-code.partie-generee.spec.ts
+- tests/unit/interfaces-contre-code.rapport.spec.ts
+- tests/unit/interfaces-contre-code.signatures.spec.ts
 - tests/unit/interfaces-contre-code.spec.ts
+- tests/unit/interfaces-contre-code.tsdoc.spec.ts
+- tests/unit/lancer-modele.nuit.test.ts
+- tests/unit/lancer-modele.spec.ts
+- tests/unit/ligne-etat.spec.ts
+- tests/unit/machine.spec.ts
+- tests/unit/nouveau-projet.spec.ts
 - tests/unit/nuit.spec.ts
+- tests/unit/pre-push-nuit.spec.ts
+- tests/unit/registre-essai.ts
+- tests/unit/registre-fin.nuit.test.ts
+- tests/unit/registre-fin.spec.ts
 - tests/unit/registre.spec.ts
+- tests/unit/resumes.spec.ts
+- tests/unit/retirer-copie.spec.ts
+- tests/unit/session-start.spec.ts
+- tests/unit/sortie-des-scripts.spec.ts
+- tests/unit/sous-modules-essai.ts
+- tests/unit/sous-modules.adresses.spec.ts
+- tests/unit/sous-modules.montage.spec.ts
+- tests/unit/sous-modules.partage.spec.ts
+- tests/unit/sous-modules.spec.ts
+- tests/unit/structure-guard.spec.ts
+- tests/unit/tableau-chef.spec.ts
+- tests/unit/tableau-circuit.spec.ts
+- tests/unit/tableau-corrections.spec.ts
+- tests/unit/tableau-essai.ts
+- tests/unit/tableau-fin-inscrite.spec.ts
+- tests/unit/tableau-lecture.budget.test.ts
+- tests/unit/tableau-repris.spec.ts
+- tests/unit/tableau-sections.spec.ts
 - tests/unit/tableau.spec.ts
+- tests/unit/temps-au-repos.spec.ts
+- tests/unit/temps-de-travail.spec.ts
+- tests/unit/tests-cibles.spec.ts
+- tests/unit/tests-de-nuit-essai.ts
+- tests/unit/tests-de-nuit.script-de-nuit.spec.ts
+- tests/unit/tests-de-nuit.spec.ts
 - tests/unit/ticket-du-sous-agent.spec.ts
+- tests/unit/titre-des-tickets.spec.ts
+- tests/unit/turbo-des-paquets-donnees.spec.ts
+- tests/unit/turbo-des-paquets.spec.ts
 - tests/unit/un-commit-par-ticket.spec.ts
+- tests/unit/verifier.spec.ts
+- tests/unit/verrou-de-fichier.spec.ts
 - tests/unit/verrous.spec.ts
+- tests/unit/vitest-config-types.spec.ts

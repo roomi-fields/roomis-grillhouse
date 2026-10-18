@@ -212,7 +212,9 @@ ensuite. Ainsi les documents écrivent des décisions prises.
   (`node scripts/frontieres.mjs --ecrire`). Ainsi chaque règle de structure décidée au grill est
   tenue par un test.
 - **Ce que la forme écarte se retire** dans le même commit (les parties de service d'une
-  bibliothèque, le code d'exemple du modèle). Ainsi le dépôt contient seulement ce que
+  bibliothèque, le code d'exemple du modèle, `src/` et ses tests `tests/unit/config.spec.ts`,
+  `errors.spec.ts`, `types.spec.ts` ; les tests du cadre restent à Grillhouse et n'arrivent pas
+  dans le projet). Ainsi le dépôt contient seulement ce que
   l'architecture décidée garde.
 - **Le responsable relit ses documents** : chaque document se relit au responsable avant son
   commit, puisqu'il les valide. Ainsi il tranche l'essentiel avant que le code ne s'y appuie.
