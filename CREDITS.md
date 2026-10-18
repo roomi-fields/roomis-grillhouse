@@ -1,41 +1,34 @@
 # Credits
 
-## Author
+This file names the author of Roomi's Grillhouse and the work the frame takes from others. A project created by `npm run new` receives its own credits, `templates/CREDITS.md`.
 
-**[Your Name]**
-- GitHub: [@your-username](https://github.com/your-username)
-- Email: your.email@example.com
+## 1. Author
 
-## Contributors
+**roomi-fields** (Roomi), who holds the copyright of the frame under the MIT licence (`LICENSE`) and publishes it at [roomi-fields/roomis-grillhouse](https://github.com/roomi-fields/roomis-grillhouse).
 
-Thanks to everyone who has contributed to this project!
+## 2. Material reproduced in the repository
 
-<!-- Add contributors here -->
-<!-- - [@contributor](https://github.com/contributor) - Description of contribution -->
+- **BMAD-METHOD** ([bmad-code-org/BMAD-METHOD](https://github.com/bmad-code-org/BMAD-METHOD), MIT, © 2025 BMad Code, LLC): the reviewer's passes `edge-case-hunter.md`, `deletion-check.md`, `claims-check.md` and `verification-gap.md` come from its `skills/bmad-build/`. `.claude/skills/relecteur/references/SOURCE.md` names the commit and the one change; `LICENSE-MIT`, beside it, reproduces the licence.
 
-## Acknowledgments
+## 3. Tools and plugins the frame uses
 
-This project was inspired by and/or uses code from:
+Each tool below is called by a file of the repository, named on its line. The role each one plays is described in the README, §3.
 
-- [Project/Library Name](link) - Description of how it helped
-- [Another Project](link) - Description
+- **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)**: skills, agents, hooks and plugins (`.claude/`).
+- **[mattpocock-skills](https://github.com/anthropics/claude-plugins-official)**: the flow skills the charter calls, `grilling` and `writing-for-agents` among them (`.claude/settings.json`, `.claude/grillhouse/charte.md`).
+- **[RTFM](https://github.com/roomi-fields/rtfm)**: the search index over code and documents (`.claude/settings.json`).
+- **[CodeGraph](https://github.com/colbymchenry/codegraph)**: the code knowledge graph (`.mcp.json`, `scripts/setup.sh`).
+- **[Beads](https://github.com/gastownhall/beads)** (`bd`): the ticket store (`scripts/setup.sh`, `docs/agents/issue-tracker.md`).
+- **[bubblewrap](https://github.com/containers/bubblewrap)** (`bwrap`): the envelope of each role agent (`scripts/enveloppe/enveloppe.mjs`).
+- **[Turborepo](https://turborepo.com/)**: the tasks of `npm test` and `npm run verifier` (`turbo.json`, `templates/turbo/`).
+- **[Vitest](https://vitest.dev/)** and `@vitest/coverage-v8`: the tests (`vitest.config.ts`, `scripts/vitest-config/`).
+- **[API Extractor](https://api-extractor.com/)** and **[TSDoc](https://tsdoc.org/)**: the API report checked against each written interface (`scripts/interfaces-contre-code.mjs`, `tsdoc.json`).
+- **[dependency-cruiser](https://github.com/sverweij/dependency-cruiser)**: the boundaries of the code (`scripts/frontieres.mjs`).
+- **[knip](https://knip.dev/)**: dead code and unused dependencies (`scripts/code-mort.mjs`).
+- **[jsonc-parser](https://github.com/microsoft/node-jsonc-parser)**: reads and writes the root's `turbo.json` with its comments (`scripts/grillhouse-maj.mjs`).
+- **[TypeScript](https://www.typescriptlang.org/)**, **[ESLint](https://eslint.org/)** with **[typescript-eslint](https://typescript-eslint.io/)**, **[Prettier](https://prettier.io/)**: type checking, lint and formatting (`package.json`).
 
-## Third-Party Libraries
+## 4. Models the documents follow
 
-This project uses the following open-source libraries:
-
-| Library | License | Purpose |
-|---------|---------|---------|
-| [TypeScript](https://www.typescriptlang.org/) | Apache-2.0 | Language |
-| [Vitest](https://vitest.dev/) | MIT | Testing |
-| [ESLint](https://eslint.org/) | MIT | Linting |
-| [Prettier](https://prettier.io/) | MIT | Formatting |
-
-## Special Thanks
-
-- The open-source community for amazing tools and libraries
-- Everyone who has reported bugs, suggested features, or provided feedback
-
----
-
-Want to be listed here? [Contribute to the project!](CONTRIBUTING.md)
+- **[arc42](https://arc42.org/)** and **[C4](https://c4model.com/)**: the model of a component's documents (`.claude/skills/redacteur/references/documents-d-un-composant.md`).
+- **[Conventional Commits](https://www.conventionalcommits.org/)**, **[Keep a Changelog](https://keepachangelog.com/)**, **[Semantic Versioning](https://semver.org/)**: commits, changelog, versions (`.claude/grillhouse/charte.md`, `.claude/skills/release/`).

@@ -38,9 +38,14 @@ roomis-grillhouse/
 ├── METACADRE.md                # The meta-frame: the framework's six intentions, how rules are written
 ├── CLAUDE.md                   # The project's charter, filled by the initialisation grill; imports the common one
 ├── README.md                   # Describes Grillhouse itself (not copied to projects)
-├── templates/README.md         # The README a new project starts from
+├── templates/                  # The models a new project receives in place of Grillhouse's own files, at the same path:
+│   ├── README.md                  # its README
+│   ├── CHANGELOG.md               # its changelog
+│   ├── CONTRIBUTING.md            # its contributing guide
+│   ├── CREDITS.md                 # its credits
+│   └── pitmaster/SUIVI.md         # its supervisor's follow-up, empty
 ├── templates/turbo/            # The templates of a project's turbo.json, one per form (sans-paquets.json, paquets.json): grillhouse-maj writes the one of its form when the project has none; in a repository of packages, each package's generated turbo.json (scripts/turbo-des-paquets.mjs) replaces the root's build dependencies with its runtime ones
-├── pitmaster/SUIVI.md          # Pitmaster follow-up (open questions, last round)
+├── pitmaster/SUIVI.md          # Grillhouse's pitmaster follow-up (open questions, last round; not copied to projects)
 ├── scripts/
 │   ├── new-project.sh             # npm run new -- <dest> [prefix] (template only, not copied)
 │   ├── setup.sh                   # npm run setup: git, Beads tickets, the frame's git hooks (crochets.mjs), the frame's plugins (greffons.mjs), dependencies
@@ -164,9 +169,9 @@ roomis-grillhouse/
 ├── .gitignore                  # Git ignore patterns
 ├── .npmignore                  # npm publish ignore
 ├── .prettierrc                 # Prettier configuration
-├── CHANGELOG.md                # Version history
-├── CONTRIBUTING.md             # Contribution guide
-├── CREDITS.md                  # Credits and acknowledgments
+├── CHANGELOG.md                # Grillhouse's version history (not copied to projects)
+├── CONTRIBUTING.md             # How a change reaches the frame (not copied to projects)
+├── CREDITS.md                  # Grillhouse's author and what the frame takes from others (not copied to projects)
 ├── LICENSE                     # MIT License
 ├── STRUCTURE.md                # This file
 ├── ecosystem.config.cjs        # PM2 daemon configuration (services only)

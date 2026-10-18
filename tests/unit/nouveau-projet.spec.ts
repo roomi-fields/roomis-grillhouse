@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -18,7 +19,8 @@ import { configGit } from '../config-git.js';
 // `npm run new -- <path> [prefix]` (scripts/new-project.sh) creates a project from the template.
 // The project receives the example application (src/) and its tests, and none of the frame's own
 // tests nor their material: these stay in Grillhouse (.claude/grillhouse/fichiers.txt). Its
-// `npm test` plays the example's tests and passes. The tools the preparation calls (Beads,
+// `npm test` plays the example's tests and passes. Each model under templates/ (templates/turbo/
+// aside) replaces Grillhouse's file of the same path, and no templates/ stays. The tools the preparation calls (Beads,
 // CodeGraph, npm) are stood in, and so is claude (tests/claude-substitut.ts); the project's
 // node_modules is a link to the template's, what its `npm install` gives.
 
@@ -111,6 +113,30 @@ describe('npm run new — the project receives the example, never the frame’s 
         readFileSync(path.join(DEPOT, f), 'utf8')
       );
     }
+  });
+
+  it('receives each model of templates/ at its own path, never Grillhouse’s file', () => {
+    const modeles = fichiers(path.join(DEPOT, 'templates'), '.').filter(
+      f => !f.startsWith('turbo/')
+    );
+    expect(modeles).toEqual(
+      expect.arrayContaining([
+        'CHANGELOG.md',
+        'CONTRIBUTING.md',
+        'CREDITS.md',
+        'README.md',
+        'pitmaster/SUIVI.md',
+      ])
+    );
+    for (const f of modeles) {
+      const recu = readFileSync(path.join(PROJET, f), 'utf8');
+      expect(recu, f).toBe(readFileSync(path.join(DEPOT, 'templates', f), 'utf8'));
+      expect(recu, f).not.toBe(readFileSync(path.join(DEPOT, f), 'utf8'));
+    }
+  });
+
+  it('keeps no templates/ directory', () => {
+    expect(existsSync(path.join(PROJET, 'templates'))).toBe(false);
   });
 
   it('plays the example’s tests with its npm test, green', () => {

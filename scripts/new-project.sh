@@ -4,6 +4,9 @@
 #
 # The project receives the template's files: the frame's, and the example application (src/) with
 # its tests (tests/unit/config.spec.ts, errors.spec.ts, types.spec.ts), which its `npm test` plays.
+# Each file under templates/ (templates/turbo/ aside) replaces the file of the same relative path:
+# the project's README.md, CHANGELOG.md, CONTRIBUTING.md, CREDITS.md and an empty
+# pitmaster/SUIVI.md, where Grillhouse keeps its own; the project keeps no templates/.
 # What stays in Grillhouse: its local state (dependencies, indexes, tickets, git, the agents'
 # copies), what serves the template alone (this script, .claude/template, mods/, templates/turbo/),
 # and each path the list of the frame's files retires from a project (« - <path> » in
@@ -34,10 +37,19 @@ tar -C "$template" --exclude=./node_modules --exclude=./.rtfm --exclude=./.codeg
   --exclude=./scripts/new-project.sh --exclude=./mods --exclude=./templates/turbo \
   "${retires[@]}" -cf - . | tar -C "$dest" -xf -
 
-# The project's README starts from templates/README.md; the template's own README describes Grillhouse.
-# The project's turbo.json is the template's own, the single-package form; templates/turbo/, which
-# the frame's update reads in Grillhouse, stays out.
-mv "$dest/templates/README.md" "$dest/README.md" && rmdir "$dest/templates"
+# Each model under templates/ replaces Grillhouse's file of the same relative path (its README,
+# changelog, credits, contributing guide and supervisor's follow-up describe Grillhouse), then
+# templates/ goes. The project's turbo.json is the template's own, the single-package form;
+# templates/turbo/, which the frame's update reads in Grillhouse, stays out.
+(cd "$dest/templates" && find . -type f -print0) | while IFS= read -r -d '' modele; do
+  mkdir -p "$(dirname "$dest/$modele")"
+  mv "$dest/templates/$modele" "$dest/$modele"
+done
+find "$dest/templates" -depth -type d -empty -delete
+if [ -e "$dest/templates" ]; then
+  echo "$dest/templates holds something other than files and directories" >&2
+  exit 1
+fi
 # `npm run new` belongs to the template only
 node -e 'const f=process.argv[1],p=JSON.parse(require("fs").readFileSync(f));delete p.scripts.new;require("fs").writeFileSync(f,JSON.stringify(p,null,2)+"\n")' "$dest/package.json"
 

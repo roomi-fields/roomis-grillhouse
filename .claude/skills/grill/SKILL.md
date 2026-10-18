@@ -204,8 +204,8 @@ ensuite. Ainsi les documents écrivent des décisions prises.
   « Les documents d'un composant ») ; la charte avec `mattpocock-skills:writing-for-agents`.
 - **Les champs de la charte** : chaque champ `<…>` de la charte modèle reçoit sa valeur. Ainsi la
   charte cadre les agents dès la séance suivante.
-- `package.json` (nom, description, auteur, dépôt), `README.md`, `LICENSE` et `CREDITS.md` prennent
-  l'identité du projet.
+- `package.json` (nom, description, auteur, dépôt), `README.md`, `LICENSE`, `CREDITS.md`,
+  `CHANGELOG.md` et `CONTRIBUTING.md` prennent l'identité du projet.
 - **Les règles de dépendance propres au projet** (un paquet qui n'importe rien, une couche qui ne
   lit qu'en type) et ses options de la carte (`exclude`, `doNotFollow`…) s'écrivent dans
   `.dependency-cruiser.projet.cjs` ; les règles communes sont générées
