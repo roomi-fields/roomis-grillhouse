@@ -101,10 +101,11 @@ is created under its mother (numbered `320.2.1`) and every agent goes by its rol
 in the `roomi-fields` marketplace as `grillhouse@roomi-fields`, enabled in
 each project's settings) shows, measured and never declared, in the `/grillhouse` pane, three levels: the project (its work tickets by state, the
 agents' time and tokens of the day and in all, the alerts); the agents: first each ticket's circuit
-(`scripts/circuit.mjs`), read in its state file — one that runs with its step, attempt and component, one
-that stopped with its stop, its code and « arrêté : » the first line of its reason — then one block per role
-(the site manager's, numbered 0, heads them), where each ticket stands under the agent that runs on it, or
-waiting for the next role of the flow, a ticket with a circuit waiting in none; the chantier in progress, its tree of
+(`scripts/circuit.mjs`), read in its state file, on one line and nowhere else in the agents — one that runs
+with its step, attempt and component, one that stopped with its stop, its code and « chef » while a site
+manager runs on it, its card opening on where it stopped and why — then one block per role (the site
+manager's, numbered 0, heads them), where each ticket without a circuit stands under the agent that runs on
+it, or waiting for the next role of the flow; the chantier in progress, its tree of
 mother tickets with each one's work done over all; then the tickets closed today. Every line of each list
 shows, and the wheel scrolls the pane; `g` fills the pane with the chosen ticket's whole text, which the
 arrows, the page keys and the wheel scroll, and `g` again brings the board back. A ticket a site manager

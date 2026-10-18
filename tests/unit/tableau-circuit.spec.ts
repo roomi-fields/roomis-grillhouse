@@ -1,14 +1,14 @@
 // The circuit of a ticket on the board (scripts/circuit.mjs): its state
 // `.claude/worktrees/<ticket>.circuit.json` and its process `node scripts/circuit.mjs <ticket>`.
-// A circuit that runs shows its step, component and attempt; one that stopped shows « arrêté : »
-// the first line of its reason, its stop's name and code. A ticket with a circuit waits in no
-// block: a stopped one is no longer drawn under the chef de chantier (role 0), and a chef running
-// on the stop stands in block 0 as before.
+// A circuit stands on one line, the only place of its ticket in AGENTS: one that runs shows its
+// step, attempt and component; one that stopped, its stop's name and code, and « chef » while a
+// chef de chantier runs on it; its card opens on where it stopped and the first line of its
+// reason. A ticket with a circuit waits in no block, and no block draws it.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { assembler, lignes, lireCircuits } from '../../scripts/tableau.mjs';
+import { assembler, fiches, lignes, lireCircuits } from '../../scripts/tableau.mjs';
 import { ligneCircuit } from './tableau-essai.js';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tableau-circuit-'));
@@ -92,6 +92,14 @@ const plateau = (tous: object[], registre: object[], vivants: object[], lus: obj
     maintenant: MAINTENANT,
     jour: MAINTENANT - 24 * 60 * MIN,
   }) as Board;
+// The text of the card of <id> on the board <t> of the tickets <tous>, as the pane receives it.
+const carte = (t: Board, tous: object[], id: string) =>
+  (
+    fiches(tous, lignes(t, 'depot'), '', {}, (t as { circuits?: object[] }).circuits) as Record<
+      string,
+      { resume: string }
+    >
+  )[id]?.resume ?? '';
 const lignesAgents = (t: Board) =>
   (lignes(t, 'depot') as Ligne[]).filter(x => x.section === 'agents');
 const agents = (t: Board) => lignesAgents(t).map(x => x.texte.trimEnd());
@@ -114,7 +122,7 @@ describe('a circuit that runs: its step, its component and its attempt', () => {
     ]);
   });
 
-  it('the board draws it under circuits, in progress, with its step, component and attempt', () => {
+  it('the board draws it under circuits on one line: its step, attempt and component', () => {
     const racine = depot({
       'demo-12': { etape: 'developpeur', composant: 'packages/demo', tentative: 2 },
     });
@@ -122,8 +130,8 @@ describe('a circuit that runs: its step, its component and its attempt', () => {
     const a = agents(t);
     const i = a.indexOf('circuits');
     expect(i).toBeGreaterThan(-1);
-    expect(a[i + 1]).toMatch(/^▶ 12 {2}Le sujet de demo-12 +circuit$/);
-    expect(a[i + 2]).toBe('  developpeur · tentative 2 · packages/demo');
+    expect(a[i + 1]).toMatch(/^▶ 12 {2}Le sujet de demo-12 +développeur 2 · demo$/);
+    expect(a[i + 2]).toBe('0 chef de chantier  —');
     expect(lignesAgents(t)[i + 1]).toMatchObject({ ton: 'actif', ticket: 'demo-12' });
     expect(attentes(t)).toEqual([]);
   });
@@ -133,7 +141,7 @@ describe('a circuit that runs: its step, its component and its attempt', () => {
       'demo-12': { etape: 'controles', composant: 'packages/demo', tentative: 1, finale: true },
     });
     const a = agents(plateau([T('demo-12')], [], [], circuits(racine, ligneCircuit('demo-12'))));
-    expect(a).toContain('  passe finale · tentative 1 · packages/demo');
+    expect(a.some(x => /passe finale 1 · demo$/.test(x))).toBe(true);
   });
 
   it("another ticket's circuit process does not make it run", () => {
@@ -147,7 +155,7 @@ describe('a circuit that runs: its step, its component and its attempt', () => {
   });
 });
 
-describe('a circuit that stopped: « arrêté : » its reason, its stop and its code', () => {
+describe('a circuit that stopped: its stop and its code, its reason on its card', () => {
   const ARRET = {
     etape: 'controles',
     composant: 'packages/demo',
@@ -170,24 +178,28 @@ describe('a circuit that stopped: « arrêté : » its reason, its stop and its 
     ]);
   });
 
-  it('the board draws its stop and code on its line, « arrêté : <raison> », then where it stopped', () => {
+  it('the board draws its stop and code on its line, and its card where it stopped and why', () => {
     const racine = depot({ 'demo-13': ARRET });
     const t = plateau([T('demo-13')], [], [], circuits(racine));
     const a = agents(t);
     const i = a.indexOf('circuits');
     expect(a[i + 1]).toMatch(/^■ 13 {2}Le sujet de demo-13 +controles \(14\)$/);
     expect(lignesAgents(t)[i + 1]).toMatchObject({ ton: 'attention', ticket: 'demo-13' });
-    expect(a[i + 2]).toBe('  arrêté : Le test « tableau » reste rouge.');
-    expect(a[i + 3]).toBe('  controles · tentative 3 · packages/demo');
+    expect(a[i + 2]).toBe('0 chef de chantier  —');
+    expect(carte(t, [T('demo-13')], 'demo-13')).toMatch(
+      /^Circuit arrêté en controles 3 · demo : Le test « tableau » reste rouge\./
+    );
   });
 
   it('a circuit dead without a stop written is drawn arrêté, interrupted', () => {
     const racine = depot({ 'demo-13': { etape: 'preuve', composant: '.', tentative: 1 } });
-    const a = agents(plateau([T('demo-13')], [], [], circuits(racine)));
+    const t = plateau([T('demo-13')], [], [], circuits(racine));
+    const a = agents(t);
     const i = a.indexOf('circuits');
-    expect(a[i + 2]).toBe('  arrêté : le circuit ne tourne plus');
     expect(a[i + 1]).toMatch(/^■ 13 {2}Le sujet de demo-13 +interrompu$/);
-    expect(a[i + 3]).toBe('  preuve · tentative 1 · .');
+    expect(carte(t, [T('demo-13')], 'demo-13')).toMatch(
+      /^Circuit arrêté en preuve 1 · \. : le circuit ne tourne plus/
+    );
   });
 
   it('a ticket stopped between two circuits, before a chef leaves, is no longer under the chef', () => {
@@ -205,7 +217,7 @@ describe('a circuit that stopped: « arrêté : » its reason, its stop and its 
     expect(a.filter(x => x.includes('Le sujet de demo-13'))).toHaveLength(1);
   });
 
-  it('a fresh chef running on the stop stands in block 0, the stop still drawn', () => {
+  it('a fresh chef running on the stop is named on the circuit line, never in block 0', () => {
     const racine = depot({ 'demo-13': ARRET });
     const chef = {
       agent: 'c1',
@@ -225,7 +237,11 @@ describe('a circuit that stopped: « arrêté : » its reason, its stop and its 
       circuits(racine)
     );
     expect(bloc(t, CHEF).enCours.map(x => x.id)).toEqual(['demo-13']);
-    expect(agents(t)).toContain('  arrêté : Le test « tableau » reste rouge.');
+    const a = agents(t);
+    expect(a.filter(x => x.includes('Le sujet de demo-13'))).toEqual([
+      expect.stringMatching(/controles \(14\) · chef$/),
+    ]);
+    expect(a).toContain('0 chef de chantier  —');
   });
 });
 

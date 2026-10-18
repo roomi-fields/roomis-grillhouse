@@ -1028,34 +1028,32 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
 
   L('', undefined);
   L('AGENTS  ▶ en cours · en attente', 'titre');
-  // The circuits, each on its ticket's line, then the step, attempt and component where it runs
-  // or stopped: one that runs is marked « circuit »; one that stopped, by its stop's name and code
-  // (« interrompu » for a circuit dead without a stop written), and a line « arrêté : » the first
-  // line of its reason.
+  // The circuits, each on one line, the only place its ticket stands in AGENTS: one that runs is
+  // marked by its step, attempt and component; one that stopped, by its stop's name and code
+  // (« interrompu » for a circuit dead without a stop written), and « chef » while a chef de
+  // chantier runs on it. Its card says where it stopped and why.
+  const enCircuit = new Set((t.circuits ?? []).map(c => c.id));
+  const chefs = new Set(
+    t.agents.filter(b => b.role === 'chef-de-chantier').flatMap(b => b.enCours.map(x => x.id))
+  );
   if (t.circuits?.length) {
     L('circuits', 'titre');
   }
   for (const c of t.circuits ?? []) {
-    const ou = [
-      c.finale && c.etape === 'controles' ? 'passe finale' : c.etape,
-      c.tentative === null ? null : `tentative ${c.tentative}`,
-      c.composant,
-    ]
-      .filter(x => x !== null && x !== undefined)
-      .join(' · ');
     if (c.vivant) {
-      L(cadre(`▶ ${c.numero}  ${c.sujet}`, 'circuit', largeur), 'actif', c.id);
+      L(cadre(`▶ ${c.numero}  ${c.sujet}`, ouEnEst(c), largeur), 'actif', c.id);
     } else {
       const arret = c.code === null ? 'interrompu' : `${c.arret ?? 'arrêt'} (${c.code})`;
-      L(cadre(`■ ${c.numero}  ${c.sujet}`, arret, largeur), 'attention', c.id);
-      L(cadre(`  arrêté : ${c.raison ?? 'le circuit ne tourne plus'}`, '', largeur), 'attention');
+      const qui = chefs.has(c.id) ? `${arret} · chef` : arret;
+      L(cadre(`■ ${c.numero}  ${c.sujet}`, qui, largeur), 'attention', c.id);
     }
-    L(cadre(`  ${ou}`, '', largeur), 'discret');
   }
   for (const b of t.agents) {
-    const vide = b.enCours.length === 0 && b.attend.length === 0;
+    const enCours = b.enCours.filter(x => !enCircuit.has(x.id));
+    const attend = b.attend.filter(x => !enCircuit.has(x.id));
+    const vide = enCours.length === 0 && attend.length === 0;
     L(`${b.numero} ${b.nom}${vide ? '  —' : ''}`, vide ? 'discret' : 'titre');
-    for (const x of b.enCours) {
+    for (const x of enCours) {
       L(cadre(`▶ ${x.numero}  ${x.sujet}`, conso(x.travail, x.jetons), largeur), 'actif', x.id);
     }
     const attente = x => ({
@@ -1067,7 +1065,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       ton: 'discret',
       ticket: x.id,
     });
-    poser(...b.attend.map(attente));
+    poser(...attend.map(attente));
   }
 
   section = 'chantier';
@@ -1251,10 +1249,26 @@ export function lignesEtats(t, largeur = LARGEUR) {
   return out;
 }
 
+// Where the circuit <c> is: its step (the final pass at the checks), its attempt, the last part of
+// its component's path (`.` for the root).
+const ouEnEst = c =>
+  [
+    c.finale && c.etape === 'controles'
+      ? 'passe finale'
+      : c.etape === 'developpeur'
+        ? 'développeur'
+        : c.etape,
+    c.tentative ?? null,
+  ]
+    .filter(x => x !== null && x !== undefined)
+    .join(' ') +
+  (c.composant ? ` · ${c.composant === '.' ? '.' : path.basename(c.composant)}` : '');
+
 // The card of each ticket a line names: its number, whole title, component, state, its agents'
 // working time and tokens (`mesures`: ticket → { travail, jetons }) and the start of its
 // description (`resume`). The pane reads the whole description from Beads when the card fills it.
-export function fiches(tous, lignesDuTableau, prefix = '', mesures = {}) {
+export function fiches(tous, lignesDuTableau, prefix = '', mesures = {}, circuits = []) {
+  const arretes = new Map(circuits.filter(c => !c.vivant).map(c => [c.ticket, c]));
   const ids = new Set(lignesDuTableau.map(l => l.ticket).filter(Boolean));
   const out = {};
   for (const t of tous) {
@@ -1266,6 +1280,12 @@ export function fiches(tous, lignesDuTableau, prefix = '', mesures = {}) {
       .map(x => x.trim())
       .filter(x => x && !x.startsWith('#'))
       .join(' ');
+    // A stopped circuit's card opens on where it stopped and why.
+    const a = arretes.get(t.id);
+    const tete = a
+      ? `Circuit arrêté en ${ouEnEst(a)} : ${a.raison ?? 'le circuit ne tourne plus'} `
+      : '';
+    const texte = `${tete}${resume}`;
     out[t.id] = {
       numero: lecture(t, prefix).numero,
       titre: lecture(t, prefix).sujet,
@@ -1273,7 +1293,7 @@ export function fiches(tous, lignesDuTableau, prefix = '', mesures = {}) {
       statut: t.status,
       travail: mesures[t.id]?.travail ?? 0,
       jetons: mesures[t.id]?.jetons ?? 0,
-      resume: resume.length > 400 ? `${resume.slice(0, 399)}…` : resume,
+      resume: texte.length > 400 ? `${texte.slice(0, 399)}…` : texte,
     };
   }
   return out;
@@ -1448,7 +1468,13 @@ export function tableau(racine, { home = os.homedir(), maintenant = Date.now() }
     lignes: l,
     vueEtats: vue,
     groupes,
-    fiches: fiches(tous, [...l, ...vue, ...Object.values(groupes).flat()], prefix, t.parTicket),
+    fiches: fiches(
+      tous,
+      [...l, ...vue, ...Object.values(groupes).flat()],
+      prefix,
+      t.parTicket,
+      t.circuits
+    ),
     dernier: dernierBouge(tous, l, vivants, maintenant),
     etat,
   };
