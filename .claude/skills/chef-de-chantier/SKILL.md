@@ -70,6 +70,9 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
   `--depuis` part en arrière-plan (`run_in_background`) ; ma séance reste en veille sur la
   commande, sans payer de tour, et sa fin me réveille. Ainsi le circuit vit jusqu'à sa fin : une
   séance qui finit arrête les commandes qu'elle a lancées.
+- **La commande part telle quelle** : `node scripts/circuit.mjs <ticket> …`, seule, sans
+  redirection ni `; echo`. Le circuit écrit lui-même son journal et son état, et le code de la
+  tâche est le sien. Ainsi un circuit qui ne démarre pas finit sur son propre code, jamais sur 0.
 - **Réveillé, je rends le code et je finis** : à la fin du circuit relancé, je lis son code et son
   état, et je rends mon rapport sans trancher un nouvel arrêt ; ma fin réveille le superviseur,
   qui lance un chef neuf sur cet arrêt. Ainsi chaque arrêt se tranche par un chef neuf, sur pièces.

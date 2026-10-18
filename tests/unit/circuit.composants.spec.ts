@@ -55,6 +55,23 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
     expect(finale).toContain('controles : verts : npm run verifier.');
   });
 
+  it('names in the report of a red check of a component that component and what its checks play', () => {
+    const id = 'demo-controles-composant';
+    ticket(id, '000-forms, 030-binder');
+    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    // The first session of forms changes a file of forms, never the code its test waits for.
+    scenario(id, 'developpeur-1', `touch $c/essai.txt\npassation 'Un essai.'\n`);
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    const consigne = essai(id, 'developpeur-2.prompt');
+    expect(consigne).toContain('TON COMPOSANT : packages/forms');
+    expect(consigne).toContain(
+      'Contrôles du composant packages/forms, ses tests et ses paquets, ses gardes dans son enveloppe'
+    );
+    expect(consigne).not.toContain('Contrôles de la passe finale');
+  });
+
   it('sends a red of the final pass to the developpeur of the component that owns its file', () => {
     const id = 'demo-finale';
     ticket(id, '000-forms, 030-binder');
@@ -92,6 +109,9 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
     const consigne = essai(id, 'developpeur-3.prompt');
     expect(consigne).toContain('TON COMPOSANT : packages/forms');
     expect(consigne).toContain('packages/forms/src/index.mjs:1');
+    expect(consigne).toContain(
+      'Contrôles de la passe finale, hors enveloppe, sur la copie entière'
+    );
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0, finale: true });
   });
 });

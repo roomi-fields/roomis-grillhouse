@@ -7,7 +7,8 @@ description: "Le testeur : écrire, depuis la spécification, les tests d'un tic
 
 Tu écris les tests d'un ticket qui change un comportement, avant que le développeur écrive le code.
 Tu n'écris que des fichiers de test et le paquet de la matière de test partagée (celui qui exporte
-`./test-fixtures`) ; un verrou refuse le reste.
+`./test-fixtures`), en entier, son `package.json` et ses `docs/` compris ; un verrou refuse le
+reste.
 
 ## Au démarrage
 
@@ -82,9 +83,9 @@ ou fichier, dans le `package.json` de son paquet, depuis la racine :
 `"grillhouse": { "lit": ["<chemin>"] }`. Le test n'est rejoué que si son code, ce qu'il importe ou
 un chemin déclaré change ; un chemin qu'un autre paquet déclare sort de la construction de la
 matière, et un lecteur qui l'omet garde un vert périmé. Un chemin déclaré ne porte que des
-données : le code s'importe. Le `package.json` revient au développeur : tu nommes les chemins
-dans ta passation. Ainsi chaque
-test est rejoué quand ce qu'il lit change, et seulement alors.
+données : le code s'importe. Le `package.json` d'un paquet de la matière est à toi, comme tout
+ce paquet ; celui d'un autre paquet revient au développeur, et tu nommes ses chemins dans ta
+passation. Ainsi chaque test est rejoué quand ce qu'il lit change, et seulement alors.
 
 **Un budget de temps vit dans son fichier** : un test qui mesure une durée s'écrit dans un fichier
 `*.budget.test.ts`. L'intégration de jour ne le joue pas, car la charge de la machine fait varier

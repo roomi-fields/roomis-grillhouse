@@ -35,3 +35,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Removed
 
 - **The integrator role**: the circuit launches the reviewer and integrates the lot.
+
+### Fixed
+
+- **The package.json of the shared test material is the tester's**: the tester's skill gave every `package.json` to the developer, whom the lock refuses in that package; it now says what the lock does, the material's package whole to the tester, another package's `package.json` to the developer.
+- **The report of the checks names where they played**: the final pass reads « hors enveloppe, sur la copie entière », a component's checks name their component and their scope, so a developer no longer takes a real red for an envelope's.
+- **The site manager runs the circuit as it is**: its skill prescribes the command alone, without redirection or chained `echo`, so the task ends on the circuit's own code.

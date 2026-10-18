@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -298,6 +298,26 @@ describe('isTesterFile, the one rule of what the testeur writes', () => {
     const vide = mkdtempSync(path.join(ESSAIS_VERROU, 'vide-'));
     expect(isTesterFile('tests/a.spec.ts', vide)).toBe(true);
     expect(isTesterFile('packages/matiere/fixtures/un.txt', vide)).toBe(false);
+  });
+});
+
+// The skill of the testeur says what the lock does: the package.json of a package of the shared
+// test material is the testeur's, like the whole package; another package's goes to the
+// developpeur. Witness: BPScript, a transverse ticket where no role could write the material's
+// package.json, the skill sending it to the developpeur whom the lock refuses.
+describe('the skill of the testeur and the package.json of the shared test material', () => {
+  const testeur = readFileSync(
+    path.resolve(__dirname, '../../.claude/skills/testeur/SKILL.md'),
+    'utf8'
+  ).replace(/\s+/g, ' ');
+
+  it('gives the testeur the whole package of the material, its package.json and docs/ included', () => {
+    expect(testeur).toMatch(/en entier, son `package\.json` et ses `docs\/` compris/);
+    expect(testeur).toMatch(/Le `package\.json` d'un paquet de la matière est à toi/);
+    expect(testeur).toMatch(/celui d'un autre paquet revient au développeur/);
+  });
+  it('never sends every package.json to the developpeur', () => {
+    expect(testeur).not.toMatch(/Le `package\.json` revient au développeur/);
   });
 });
 

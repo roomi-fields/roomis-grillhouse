@@ -140,6 +140,11 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
       code: ARRETS.controles,
     });
     expect(e?.rapport).toContain('$ npm run verifier\n');
+    // The report names where the final pass played: out of the envelope, on the whole copy.
+    expect(e?.rapport).toContain(
+      'Contrôles de la passe finale, hors enveloppe, sur la copie entière'
+    );
+    expect(e?.rapport).not.toContain('Contrôles du composant');
     expect(e?.rapport).toContain('020-loader');
     expect(e?.rapport).toContain('chaque fichier est une bibliothèque .bp');
     expect(e?.rapport).toContain('hors des composants du ticket (packages/forms)');

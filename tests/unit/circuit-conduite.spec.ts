@@ -75,6 +75,17 @@ describe('Q10 — the supervisor launches the circuit, a chef de chantier settle
     }
   });
 
+  it("the chef de chantier launches the circuit as it is, its code the task's", () => {
+    const chef = lire('.claude/skills/chef-de-chantier/SKILL.md').replace(/\s+/g, ' ');
+    expect(chef).toMatch(/\*\*La commande part telle quelle\*\*/);
+    expect(chef).toMatch(/sans redirection ni `; echo`/);
+    expect(chef).toMatch(/le code de la tâche est le sien/);
+    // Every circuit command the skill prescribes carries neither a redirection nor a chained echo.
+    for (const [commande] of chef.matchAll(/`node scripts\/circuit\.mjs[^`]*`/g)) {
+      expect(commande).not.toMatch(/\s\d?>|;\s*echo|&&/);
+    }
+  });
+
   it('the header of the circuit says who launches it and whom its end wakes', () => {
     const tete = lire('scripts/circuit.mjs')
       .split('\nimport ')[0]

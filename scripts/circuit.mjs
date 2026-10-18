@@ -1160,8 +1160,13 @@ function controles(ctx, index, finale) {
             ? ` ; laissés à la passe finale, rouges dans un composant d'après : ${reportes.map(nommer).join(' ; ')}`
             : ''
         }`;
+  // Where the checks played: the final pass out of the envelope, on the whole copy; a
+  // component's checks, its tests and packages, its guards in its envelope.
+  const ou = finale
+    ? `Contrôles de la passe finale, hors enveloppe, sur la copie entière (après ${composant})`
+    : `Contrôles du composant ${composant}, ses tests et ses paquets, ses gardes dans son enveloppe`;
   const texte = [
-    `Contrôles sur ${composant}${finale ? ' (passe finale)' : ''} : ${resume}.`,
+    `${ou} : ${resume}.`,
     ...[...rouges, ...aRepasser].map(r => `\n$ ${ligne(r)}\n${extrait(r)}`),
   ].join('\n');
   // The owner of the red: the first component, provider first, that a red names; -1 for none.
