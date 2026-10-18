@@ -11,6 +11,7 @@ roomis-grillhouse/
 │   ├── template                   # Marks the template itself (not copied)
 │   ├── grillhouse/charte.md       # The common charter: the frame's rules, the same in every project
 │   ├── grillhouse/fichiers.txt    # The frame's files, copied as they are by npm run grillhouse:maj; its « - » lines (the frame's own tests among them): what a project never receives
+│   ├── grillhouse/VERSION         # The version of the frame and its mod, one line, which every project receives; mods/grillhouse/.claude-plugin/plugin.json carries the same (tests/unit/version.spec.ts)
 │   ├── agents/                    # The roles, each under its locks (scripts/verrous/)
 │   │   ├── testeur.md                # Writes a ticket's tests from the spec; writes test files and the shared test material only
 │   │   ├── developpeur.md            # Writes the code; no test file, no code before the Architecture section
@@ -48,6 +49,7 @@ roomis-grillhouse/
 ├── pitmaster/SUIVI.md          # Grillhouse's pitmaster follow-up (open questions, last round; not copied to projects)
 ├── scripts/
 │   ├── new-project.sh             # npm run new -- <dest> [prefix] (template only, not copied)
+│   ├── sortie.mjs                 # Grillhouse's release (CONTRIBUTING.md, §5): VERSION and plugin.json raised, CHANGELOG.md dated, then the tag v<version> on the release commit, locally; never pushes (Grillhouse only, not copied)
 │   ├── setup.sh                   # npm run setup: git, Beads tickets, the frame's git hooks (crochets.mjs), the frame's plugins (greffons.mjs), dependencies
 │   ├── session-start.sh           # SessionStart hook: what is still empty (per package in the frame)
 │   ├── structure-guard.sh         # UserPromptSubmit hook: a structure decision goes to the grill
@@ -87,7 +89,7 @@ roomis-grillhouse/
 │   ├── branche-de-nuit.mjs        # pre-push guard: only the night pushes the branch of grillhouse.poussee.nuit
 │   ├── poussee-cles.mjs           # reads the grillhouse.poussee, .nuit and .commit keys of package.json for nuit.sh, the guard and the queue
 │   ├── retirer-copie.sh           # removes a working copy, submodules included (local work already entered on main does not hold it) (agent, integration, night)
-│   ├── grillhouse-maj.mjs         # npm run grillhouse:maj: the frame brought to its last version (files, git hooks, the frame's plugins, scripts — test, test:vitest, test:forcer, verifier —, turbo.json written from the template of its form when absent, the frame's devDependencies, Turborepo's among them, packageManager, .turbo/ ignored, then the generated `.dependency-cruiser.cjs`, interfaces index and packages' turbo.json regenerated, a failing generator named; in a repository of packages, scripts/vitest-config made a workspace and @grillhouse/vitest-config declared in the devDependencies of each package of the frame with a test:vitest); the project's copy runs the source's script, whose modules are the source's; --ecarts; any other option refused
+│   ├── grillhouse-maj.mjs         # npm run grillhouse:maj: the frame brought to the last commit of Grillhouse, its version (.claude/grillhouse/VERSION) named in the report (files, git hooks, the frame's plugins, scripts — test, test:vitest, test:forcer, verifier —, turbo.json written from the template of its form when absent, the frame's devDependencies, Turborepo's among them, packageManager, .turbo/ ignored, then the generated `.dependency-cruiser.cjs`, interfaces index and packages' turbo.json regenerated, a failing generator named; in a repository of packages, scripts/vitest-config made a workspace and @grillhouse/vitest-config declared in the devDependencies of each package of the frame with a test:vitest); the project's copy runs the source's script, whose modules are the source's; --ecarts; any other option refused
 │   ├── turbo-des-paquets.mjs      # grillhouse:gardes: refuses a package's turbo.json absent or stale, and a guard task of the root's turbo.json (grillhouse:gardes, gardes) absent or whose dependsOn is not the build of each package of the frame, and a root test:vitest whose env lacks GRILLHOUSE_TESTS (the variable of the targeted runs); --ecrire writes them (a package's extends the root's, its build waits for the build of its runtime dependencies only: dependencies, peerDependencies, optionalDependencies; its test:vitest hashes the paths of data (directories or files) its package.json declares, `grillhouse.lit`, and waits for the traces that write them; each trace it declares, `grillhouse.traces`, is a cached task writing a directory of the package git ignores; the build of the package holding declared data leaves them out; the root's guards' dependsOn by jsonc-parser, the rest of the file kept); it refuses a declared path absent or holding code, a trace out of its package, followed or not ignored by git, a trace script and its declaration apart, and in the root's turbo.json a task of one package, a trace task or an input naming a package directory
 │   │                              #   a package of docs/agents/hors-cadre.txt has each task of the root excluded ("extends": false), and no dependsOn written names it
 │   ├── paquets.mjs                # paquets(): the frame's one list of the packages, the workspaces mapped as npm maps them (a « ! » pattern takes out), each marked out of the frame or not;
@@ -357,6 +359,8 @@ Use the release skill or:
 npm version patch  # or minor, major
 git push origin main --tags
 ```
+
+Grillhouse itself releases with `scripts/sortie.mjs`, which no project receives: one version for the frame and its mod, in `.claude/grillhouse/VERSION` (`CONTRIBUTING.md`, §5).
 
 ## License
 

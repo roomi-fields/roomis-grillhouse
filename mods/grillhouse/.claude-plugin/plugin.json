@@ -1,9 +1,9 @@
 {
   "name": "grillhouse",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "description": "Roomi's Grillhouse : le tableau du projet sur trois niveaux — le projet, les agents, le chantier en cours",
   "types": "./types/index.d.ts",
   "author": {
-    "name": "Roomi"
+    "name": "Romain Peyrichou"
   }
 }

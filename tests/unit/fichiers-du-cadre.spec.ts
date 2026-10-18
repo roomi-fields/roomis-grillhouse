@@ -81,7 +81,9 @@ function manquants(racine: string): string[] {
   const { garder } = lireListe(readFileSync(path.join(racine, LISTE), 'utf8'));
   const couverts = new Set<string>(fichiersDuCadre(racine, garder) as string[]);
   const out: string[] = [];
-  for (const f of [...couverts].sort()) {
+  // The list names paths, never calls: its « - » lines name the files a project never receives,
+  // Grillhouse's own scripts among them.
+  for (const f of [...couverts].filter(f => f !== LISTE).sort()) {
     for (const a of appeles(racine, f).sort()) {
       if (!couverts.has(a)) {
         out.push(`${f} → ${a}`);

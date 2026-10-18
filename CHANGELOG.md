@@ -2,9 +2,11 @@
 
 This file lists the notable changes of Roomi's Grillhouse, the frame itself. A project created by `npm run new` receives its own changelog, `templates/CHANGELOG.md`.
 
-The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The frame has no tagged release yet: every change sits under « Unreleased ». The `version` of `package.json` (1.0.0) is the one a new project starts from, not a release of the frame. The Grillhouse mod (`mods/grillhouse`) carries its own version, 0.15.0, in `mods/grillhouse/.claude-plugin/plugin.json`.
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the versions follow [Semantic Versioning](https://semver.org/) in 0.x: a change that obliges a project to act raises the minor, a fix the patch. One version covers the frame and its mod: it lives in `.claude/grillhouse/VERSION`, which every project receives with the frame's update, and `mods/grillhouse/.claude-plugin/plugin.json` carries the same. A version is released per lot delivered to the projects, never per commit: its section is dated here and its commit tagged `v<version>` (`CONTRIBUTING.md`, §5). The `version` of `package.json` (1.0.0) is the one a new project starts from, not a version of the frame.
 
 ## [Unreleased]
+
+## [0.16.0] - 2026-10-18
 
 ### Added
 
@@ -23,6 +25,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The
 - **The frame's update**: `npm run grillhouse:maj` brings a project's frame files (`.claude/grillhouse/fichiers.txt`) to Grillhouse's last version, with its hooks, scripts, plugins and generated files.
 - **The board and the pane**: `npm run tableau` measures the project's state (chantiers, agents, tickets, working time); the Grillhouse mod shows it in a pane beside the transcript, and the status line shows the chantier in progress.
 - **Shared submodules**: a working copy reads a submodule of the main repository, read-only (`grillhouse.partage`).
+- **The version of the frame**: one version for the frame and its mod, in `.claude/grillhouse/VERSION`, which each project receives, so it knows the version it has; the mod's `plugin.json` carries the same, and a test refuses a gap. The report of `npm run grillhouse:maj` names it (« Cadre 0.16.0 (commit …) »). Grillhouse's release (`scripts/sortie.mjs`, Grillhouse's own) raises it, dates this changelog and tags the release commit locally.
 
 ### Changed
 

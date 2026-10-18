@@ -57,6 +57,7 @@ scripts/verrous/
 scripts/vitest-config/
 scripts/vitest.nuit.config.mjs
 - scripts/attendre.sh
+- scripts/sortie.mjs
 - tests/claude-substitut.ts
 - tests/config-git.ts
 - tests/machine.ts
@@ -165,4 +166,5 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/verifier.spec.ts
 - tests/unit/verrou-de-fichier.spec.ts
 - tests/unit/verrous.spec.ts
+- tests/unit/version.spec.ts
 - tests/unit/vitest-config-types.spec.ts

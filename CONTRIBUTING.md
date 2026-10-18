@@ -20,3 +20,16 @@ A rule serves an intention of the frame and names it; it is written as `METACADR
 ## 4. What a change must pass
 
 `npm run verifier` is green: the frame's controls, the project's own and every test, with no red admitted. A known red goes to quarantine in the test itself, with the ticket that fixes it. The common charter states the rule (« Outils », « Main reste vert »).
+
+## 5. How a version is released
+
+One version covers the frame and its mod. It lives in `.claude/grillhouse/VERSION`, one line, which every project receives with the frame's update, so each project knows the version it has; `mods/grillhouse/.claude-plugin/plugin.json` carries the same, and `tests/unit/version.spec.ts` refuses a gap. The root `package.json` never carries it: its `version` is the one a new project starts from.
+
+The versions follow semantic versioning in 0.x: a change that obliges a project to act raises the minor, a fix the patch. A version is released per lot delivered to the projects, never per commit:
+
+1. `node scripts/sortie.mjs <x.y.z>` writes the version in `VERSION` and `plugin.json`, and dates `CHANGELOG.md`: « [Unreleased] » becomes « [x.y.z] - <today> » and an empty « [Unreleased] » opens above it. It refuses a version not above the current one, and an empty « [Unreleased] ».
+2. The release commit carries these three files.
+3. `node scripts/sortie.mjs --etiqueter` creates the annotated tag `v<x.y.z>` on that commit, locally, and names the push. It pushes nothing: the owner validates the push of the tag, on which `.github/workflows/release.yml` publishes the GitHub release.
+4. The projects update to this version (`npm run grillhouse:maj`, whose report names it). The update installs the last commit of Grillhouse's default branch, not a tag.
+
+`scripts/sortie.mjs` is Grillhouse's own: a « - » line of `.claude/grillhouse/fichiers.txt` keeps it out of every project, and out of a new one.

@@ -102,8 +102,14 @@
 // - `.claude/grillhouse/empreintes.json` records the source's commit, each file's SHA-256 and the
 //   hooks, plugins and marketplaces installed. `--ecarts` compares the files with it: a frame file modified or missing in a
 //   project is drift, which goes back to Grillhouse as a proposal.
+// - The version of the frame: one for the frame and its mod, in `.claude/grillhouse/VERSION` of
+//   the source, a frame file the project receives (its directory is in the list), so each project
+//   knows the version it has. The report names it with the source's commit (« Cadre 0.16.0
+//   (commit abc1234) : … »); a source without one is named « sans version ».
 // - The source: --source, else GRILLHOUSE_SOURCE, else Grillhouse's repository on GitHub, kept in
-//   ~/.cache/grillhouse/roomis-grillhouse and moved to its last commit.
+//   ~/.cache/grillhouse/roomis-grillhouse and moved to the last commit of its default branch
+//   (`git pull --ff-only`, after a first shallow clone): the update installs that commit, whatever
+//   its version, never a tag chosen.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
@@ -126,6 +132,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 export const DEPOT = 'https://github.com/roomi-fields/roomis-grillhouse.git';
 const LISTE = '.claude/grillhouse/fichiers.txt';
 const EMPREINTES = '.claude/grillhouse/empreintes.json';
+const VERSION = '.claude/grillhouse/VERSION';
 const SCRIPTS = {
   tableau: 'node scripts/tableau.mjs --texte',
   'grillhouse:maj': 'node scripts/grillhouse-maj.mjs',
@@ -588,6 +595,13 @@ function source(arg) {
   return cache;
 }
 
+// The version of the frame at <racine>: its `.claude/grillhouse/VERSION`, one line, which the
+// project receives with the frame's files; « sans version » for a source that holds none.
+function versionDuCadre(racine) {
+  const f = path.join(racine, VERSION);
+  return existsSync(f) ? readFileSync(f, 'utf8').trim() : 'sans version';
+}
+
 const ENTREE = import.meta.url === pathToFileURL(process.argv[1] ?? '').href;
 const projetCourant = process.cwd();
 let src = null;
@@ -649,7 +663,7 @@ if (ENTREE && fin === null) {
   const projet = projetCourant;
   const b = mettreAJour(projet, src, version);
   process.stdout.write(
-    `Cadre à la version ${version.slice(0, 7)} : ${b.copies.length} fichier(s) copié(s), ${b.retires.length} retiré(s).\n`
+    `Cadre ${versionDuCadre(src)} (commit ${version.slice(0, 7)}) : ${b.copies.length} fichier(s) copié(s), ${b.retires.length} retiré(s).\n`
   );
   for (const f of b.copies) {
     process.stdout.write(`  + ${f}\n`);

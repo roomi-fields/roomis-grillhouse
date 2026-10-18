@@ -4,7 +4,7 @@ This file names the author of Roomi's Grillhouse and the work the frame takes fr
 
 ## 1. Author
 
-**roomi-fields** (Roomi), who holds the copyright of the frame under the MIT licence (`LICENSE`) and publishes it at [roomi-fields/roomis-grillhouse](https://github.com/roomi-fields/roomis-grillhouse).
+**Romain Peyrichou** (roomi-fields), who holds the copyright of the frame under the MIT licence (`LICENSE`) and publishes it at [roomi-fields/roomis-grillhouse](https://github.com/roomi-fields/roomis-grillhouse).
 
 ## 2. Material reproduced in the repository
 
