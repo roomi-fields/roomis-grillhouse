@@ -50,9 +50,13 @@ function depot(branche: string, neuves: string[], comments?: { text: string }[])
   git('init', '-q', '-b', 'main');
   git('add', '.');
   git('commit', '-qm', 'init');
-  if (branche !== 'main') git('checkout', '-q', '-b', branche);
+  if (branche !== 'main') {
+    git('checkout', '-q', '-b', branche);
+  }
   ecrire('packages/a/docs/INTERFACE.md', interfaceDe(['- `b` : duree', ...neuves]));
-  if (comments) ecrire('.beads/demo-1.comments.json', JSON.stringify(comments));
+  if (comments) {
+    ecrire('.beads/demo-1.comments.json', JSON.stringify(comments));
+  }
   return racine;
 }
 

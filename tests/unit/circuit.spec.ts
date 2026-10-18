@@ -747,7 +747,9 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
   // provider's type gained a field.
   const casserLaConstruction = (copie: string, dossier: string) => {
     const p = path.join(copie, 'packages', dossier);
-    const pkg = JSON.parse(readFileSync(path.join(p, 'package.json'), 'utf8'));
+    const pkg = JSON.parse(readFileSync(path.join(p, 'package.json'), 'utf8')) as {
+      scripts?: Record<string, string>;
+    };
     ecrire(
       path.join(p, 'package.json'),
       json({ ...pkg, scripts: { ...pkg.scripts, build: 'node build.mjs' } })

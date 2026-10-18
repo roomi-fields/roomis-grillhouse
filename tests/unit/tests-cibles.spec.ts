@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { stripVTControlCharacters } from 'node:util';
 import { afterAll, describe, expect, it } from 'vitest';
 import { ecrire as ecrireTurbo } from '../../scripts/turbo-des-paquets.mjs';
 
@@ -272,7 +273,7 @@ describe(
       const racine = depotAPaquets({ casses: ['a', 'ab'] });
       const r = lancer(racine, ['packages/a/test/x.test.mjs', 'packages/ab/test/x.test.mjs']);
       expect(r.status).not.toBe(0);
-      const echecs = /^\s*Failed:\s+(.+)$/m.exec(sortie(r).replace(/\x1b\[[0-9;]*m/g, ''));
+      const echecs = /^\s*Failed:\s+(.+)$/m.exec(stripVTControlCharacters(sortie(r)));
       expect(
         echecs?.[1]
           .split(/[,\s]+/)
