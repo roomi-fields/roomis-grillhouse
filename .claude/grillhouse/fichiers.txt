@@ -124,6 +124,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/interfaces-contre-code.tsdoc.spec.ts
 - tests/unit/lancer-modele.nuit.test.ts
 - tests/unit/lancer-modele.spec.ts
+- tests/unit/lectures-de-bd.spec.ts
 - tests/unit/ligne-etat.spec.ts
 - tests/unit/machine.spec.ts
 - tests/unit/nouveau-projet.spec.ts

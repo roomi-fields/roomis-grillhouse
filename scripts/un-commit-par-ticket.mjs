@@ -80,6 +80,7 @@ function prefixe() {
     return execFileSync('bd', ['config', 'get', 'issue_prefix'], {
       encoding: 'utf8',
       stdio: 'pipe',
+      maxBuffer: 256 * 1024 * 1024,
     }).trim();
   } catch {
     return '';
@@ -90,7 +91,11 @@ function prefixe() {
 // be read is not open.
 function ticketIsOpen(id) {
   try {
-    const out = execFileSync('bd', ['show', id, '--json'], { encoding: 'utf8', stdio: 'pipe' });
+    const out = execFileSync('bd', ['show', id, '--json'], {
+      encoding: 'utf8',
+      stdio: 'pipe',
+      maxBuffer: 256 * 1024 * 1024,
+    });
     const status = JSON.parse(out)?.[0]?.status;
     return typeof status === 'string' && status !== 'closed';
   } catch {

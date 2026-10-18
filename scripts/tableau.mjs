@@ -1326,7 +1326,7 @@ const bdJson = (racine, ...args) => {
         cwd: racine,
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'ignore'],
-        maxBuffer: 1 << 28,
+        maxBuffer: 256 * 1024 * 1024,
       })
     );
   } catch {
@@ -1341,6 +1341,7 @@ export function tableau(racine, { home = os.homedir(), maintenant = Date.now() }
     prefix = execFileSync('bd', ['config', 'get', 'issue_prefix'], {
       cwd: racine,
       encoding: 'utf8',
+      maxBuffer: 256 * 1024 * 1024,
     }).trim();
   } catch {
     prefix = '';

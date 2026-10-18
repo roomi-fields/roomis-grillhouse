@@ -9,6 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Fixed
 
 - **A resumed developpeur whose lot is delivered goes on to the checks**: after a stop at the developpeur's step, `--reprendre` launched it again, and a session that found its lot complete changed nothing and stopped the circuit at « sans-livraison ». The first session of a resumption, on a component that already holds changes, now goes on to the checks, which judge the lot.
+- **Every read of bd has room for a long ticket**: the circuit's reads were fixed in 0.16.1, but the guard of the arbitrated consumers, the queue, the integration, the write locks, the one-commit-per-ticket hook and the board still read bd within the 1 MiB a child process returns by default; past it, the guard of the arbitrated consumers failed in the final pass. Every call of bd now gives its output 256 MiB, and a test refuses one that does not.
 
 ## [0.16.2] - 2026-10-18
 

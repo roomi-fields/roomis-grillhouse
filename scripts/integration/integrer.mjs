@@ -214,7 +214,8 @@ function main(argv) {
     }).stdout.trim()
   );
   const git = (...args) => spawnSync('git', ['-C', racine, ...args], { encoding: 'utf8' });
-  const bd = (...a) => spawnSync('bd', a, { cwd: racine, encoding: 'utf8' });
+  const bd = (...a) =>
+    spawnSync('bd', a, { cwd: racine, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
   const dire = s => process.stdout.write(`${s}\n`);
   const refuser = s => {
     process.stdout.write(`⛔ ${s}\nLe lot retourne à son agent avec cette sortie.\n`);

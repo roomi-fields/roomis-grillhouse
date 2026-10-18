@@ -81,7 +81,7 @@ function main(argv) {
   );
   const git = (...args) => spawnSync('git', ['-C', racine, ...args], { encoding: 'utf8' });
   const bd = (...a) => {
-    const r = spawnSync('bd', a, { cwd: racine, encoding: 'utf8' });
+    const r = spawnSync('bd', a, { cwd: racine, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
     if (r.status !== 0) process.stderr.write(`bd ${a[0]} ${a[1] ?? ''} : ${r.stderr}`);
     return r;
   };

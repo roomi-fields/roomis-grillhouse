@@ -83,7 +83,11 @@ export function verifier(racine, env = process.env) {
   if (changees.length === 0) return [];
   const commun = git(racine, 'rev-parse', '--path-format=absolute', '--git-common-dir');
   const principal = path.dirname(commun.stdout.trim());
-  const r = spawnSync('bd', ['comments', ticket, '--json'], { cwd: principal, encoding: 'utf8' });
+  const r = spawnSync('bd', ['comments', ticket, '--json'], {
+    cwd: principal,
+    encoding: 'utf8',
+    maxBuffer: 256 * 1024 * 1024,
+  });
   let comments;
   try {
     if (r.status !== 0) throw new Error(r.stderr || r.error?.message || `code ${r.status}`);

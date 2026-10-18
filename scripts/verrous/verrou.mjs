@@ -103,6 +103,7 @@ function ticketDescription(id, cwd) {
       cwd,
       encoding: 'utf8',
       stdio: 'pipe',
+      maxBuffer: 256 * 1024 * 1024,
     });
     return JSON.parse(out)[0]?.description ?? null;
   } catch {
