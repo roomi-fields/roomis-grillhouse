@@ -289,7 +289,7 @@ describe('critère 1 (grillhouse-3uv.50.1) — on a machine without bd, no test 
   it.runIf(canWrap)(
     'critère 1 (grillhouse-3uv.50.1): the test that needs the real bd skips, those beside it pass',
     () => {
-      const r = jouer(['tests/unit/enveloppe.spec.ts'], filtreBase, {
+      const r = jouer(['tests/unit/enveloppe.maison.spec.ts'], filtreBase, {
         HOME: maisonNeuve(),
         PATH: cheminSans('bd'),
       });
@@ -312,7 +312,7 @@ describe.runIf(bdSurLeChemin)('critère 3 (grillhouse-3uv.50.1) — on a machine
   it.runIf(canWrap)(
     'critère 3 (grillhouse-3uv.50.1): the test that needs the real bd runs, with those beside it',
     () => {
-      const r = jouer(['tests/unit/enveloppe.spec.ts'], filtreBase, { HOME: maisonNeuve() });
+      const r = jouer(['tests/unit/enveloppe.maison.spec.ts'], filtreBase, { HOME: maisonNeuve() });
       for (const titre of [BASE_REELLE, ...SANS_BD]) {
         expect(statut(r, titre), titre).toBe('passed');
       }

@@ -49,7 +49,7 @@ roomis-grillhouse/
 │   ├── verrous/verrou.mjs         # The role agents' write locks (tests: tests/unit/verrous.spec.ts)
 │   ├── verrous/ticket-du-sous-agent.mjs # hook: a role agent launches with « TON TICKET : <id> »
 │   ├── enveloppe/                 # The envelope: an agent sees its component, the others' interfaces, the test material
-│   │   ├── enveloppe.mjs             # bwrap sandbox for one component (tests: tests/unit/enveloppe.spec.ts)
+│   │   ├── enveloppe.mjs             # bwrap sandbox for one component (tests: tests/unit/enveloppe*.spec.ts)
 │   │   ├── codes.mjs                 # the exit codes of the envelope and its launcher
 │   │   ├── composant.mjs             # GRILLHOUSE_ENVELOPPE, the component the envelope names: npm test and npm run api build and write it alone
 │   │   └── lancer.sh                 # one ticket → one fresh role session in its envelope, its providers and the traces its tests read produced first, its instruction followed by what its providers publish; each session added to the ticket's log under its header line, its exit code in .claude/worktrees/<ticket>.fin
@@ -97,8 +97,8 @@ roomis-grillhouse/
 │   ├── verrou-de-fichier.mjs      # the lock of a file shared between processes (judged by the owner's process or by age); taken by integrer.mjs, file.mjs and registre.mjs
 │   ├── registre.mjs               # hook: one line per finished agent (ticket, role, time, tokens)
 │   ├── integration/               # One delivery, in a clean copy: verdicts, lots, npm run verifier green, commit on agent/<ticket>; then the queue brings it onto main
-│   │   ├── integrer.mjs              # run by the circuit on ACCEPTÉ: commits the lot on agent/<ticket>, labels the ticket en-file, puts the branch in the queue (tests: tests/unit/integrer.spec.ts)
-│   │   ├── file.mjs                  # the queue: brings the branches onto main one at a time, replaced and replayed when main moved, pushes main, then reads the CI of the commit pushed (gh: a red CI reopens the ticket) (tests: tests/unit/file-integration.spec.ts)
+│   │   ├── integrer.mjs              # run by the circuit on ACCEPTÉ: commits the lot on agent/<ticket>, labels the ticket en-file, puts the branch in the queue (tests: tests/unit/integrer*.spec.ts)
+│   │   ├── file.mjs                  # the queue: brings the branches onto main one at a time, replaced and replayed when main moved, pushes main, then reads the CI of the commit pushed (gh: a red CI reopens the ticket) (tests: tests/unit/file-integration*.spec.ts)
 │   │   ├── rejeu.mjs                 # the replay shared by integrer.mjs and file.mjs: clean copy, dependencies of its lock file, npm run verifier (Turborepo: build, then guards and tests); a 75 keeps the lot waiting
 │   │   └── file-attente.mjs          # the queue's entries (a branch and its one ticket each), in git's common directory, and the directory the integration's locks live in
 │   ├── index-interfaces.mjs       # npm run interfaces: docs/agents/index-des-interfaces.md from the generated parts, checked by grillhouse:gardes; --publie <composant>: what its providers publish (the index of their interface elements, one line each, CADRE.md « Rend »), for the launcher

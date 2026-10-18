@@ -11,7 +11,13 @@ const DEPOT = path.resolve(__dirname, '../..');
 // Two runs of the tests of the envelope and of the locks at once, as an integration and a review
 // play them in two copies; the second starts a few seconds after the first, so that the first
 // ends while the second still works in its trial directories. Both pass.
-const SUITES = ['tests/unit/enveloppe.spec.ts', 'tests/unit/verrous.spec.ts'];
+const SUITES = [
+  'tests/unit/enveloppe.spec.ts',
+  'tests/unit/enveloppe.maison.spec.ts',
+  'tests/unit/enveloppe.lanceur.spec.ts',
+  'tests/unit/enveloppe.matiere-de-test.spec.ts',
+  'tests/unit/verrous.spec.ts',
+];
 const VITEST = path.join(DEPOT, 'node_modules/vitest/vitest.mjs');
 const ECART_MS = 8000;
 
