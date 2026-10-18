@@ -98,10 +98,12 @@
 //   ticket, its components, its criteria, the claims file (the ticket's description, written by
 //   the circuit in its working folder, which the session may read), the files of the lot (the
 //   testeur's by `isTesterFile`, then the others) and the circuit's reports at the ticket since
-//   the last verdict (its proofs and checks). Its output goes to the log under its header line, its line to the register
+//   the last verdict (its proofs and checks). Its errors go to the log under its header line, its line to the register
 //   (scripts/registre.mjs --copie), and it is watched as a session in the envelope is. Its
-//   handover is its verdict, a comment whose first word is ACCEPTÉ or RENDU: without one, it is
-//   launched once more, then the circuit stops at « sans-passation ».
+//   handover is its verdict, its final answer, whose first word is ACCEPTÉ or RENDU: the circuit
+//   adds it to the log and writes it at the ticket, whole, a comment on several lines with its
+//   findings' headings; an answer without one is launched once more, then the circuit stops at
+//   « sans-passation ».
 // - RENDU: each finding is a block that opens on a heading `Constat` and carries a line
 //   `Agent : <rôle> <composant>`, the role testeur or developpeur, the component one of the title
 //   (a path or a package name). The circuit plays again from the first component a finding
@@ -212,7 +214,7 @@ const RELECTURES = 3;
 const DESTINATAIRES = ['testeur', 'developpeur'];
 // The reviewer's session, out of the envelope, on Opus: the project's permissions
 // (`.claude/settings.json`), with every command its skill runs (the frame's scripts, the reads of
-// git and of the ticket, its verdict at the ticket, the targeted tests, the guards, the index);
+// git and of the ticket, the comparison of two files, the targeted tests, the guards, the index);
 // any other tool call is refused without a prompt.
 const RELECTEUR = [
   '--model',
@@ -228,6 +230,9 @@ const RELECTEUR = [
   'Bash(git status *)',
   'Bash(bd show *)',
   'Bash(bd comments *)',
+  'Bash(diff *)',
+  'Bash(cmp *)',
+  'Bash(sha256sum *)',
   'Bash(npm test *)',
   'Bash(npm run verifier *)',
   'Bash(codegraph *)',
@@ -439,10 +444,11 @@ function lancer(ctx, role, composant, consigne, { fort, horsEnveloppe } = {}) {
   const erreurs = path.join(ctx.tmp, `erreurs-${ctx.numero}.txt`);
   let commande;
   let fds;
+  // The reviewer's answer: its verdict, which the circuit writes at the ticket.
+  const reponse = path.join(ctx.tmp, `reponse-${ctx.numero}.txt`);
   if (horsEnveloppe) {
     entete(ctx, role, composant);
-    const sortie = openSync(ctx.journal, 'a');
-    fds = [openSync(fichier, 'r'), sortie, sortie];
+    fds = [openSync(fichier, 'r'), openSync(reponse, 'w'), openSync(ctx.journal, 'a')];
     commande = {
       cmd: process.env.CLAUDE_BIN || 'claude',
       args: ['-p', '--agent', role, ...RELECTEUR, '--add-dir', ctx.tmp],
@@ -484,6 +490,13 @@ function lancer(ctx, role, composant, consigne, { fort, horsEnveloppe } = {}) {
       let seance;
       if (horsEnveloppe) {
         seance = erreurDeLancement === null ? code : null;
+        const texte = lire(reponse).trim();
+        appendFileSync(ctx.journal, `${texte}\n`);
+        if (VERDICT.test(texte)) {
+          const r = ctx.bd('comments', 'add', ctx.ticket, texte);
+          if (r.status !== 0)
+            process.stderr.write(`⚠️  verdict non écrit au ticket : ${r.stderr}\n`);
+        }
         spawnSync(process.execPath, [REGISTRE, '--copie', ctx.copie], {
           cwd: ctx.racine,
           stdio: ['ignore', 'ignore', 'ignore'],

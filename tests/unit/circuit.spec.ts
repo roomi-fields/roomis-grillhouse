@@ -95,6 +95,8 @@ c=$GRILLHOUSE_ENVELOPPE
 passation() {
   node -e 'require("fs").appendFileSync(process.argv[1], JSON.stringify({ author: process.argv[3], text: process.argv[2] }) + "\\n")' "$racine/.beads/$ticket.comments.jsonl" "$1" "$role"
 }
+# The reviewer's verdict: its final answer, on its standard output.
+verdict() { printf '%s\n' "$1"; }
 s="$e/$role-$n.sh"
 [ -f "$s" ] || s="$e/$role.sh"
 [ -f "$s" ] && . "$s"
@@ -266,7 +268,7 @@ function ticket(id: string, composants: string) {
   const copie = path.join(REPO, '.claude/worktrees', id);
   execFileSync('git', ['-C', REPO, 'worktree', 'add', '-q', '-b', `agent/${id}`, copie]);
   symlinkSync(path.join(RACINE, 'node_modules'), path.join(copie, 'node_modules'), 'dir');
-  scenario(id, 'relecteur', "passation 'ACCEPTÉ — le lot tient ses critères.'\n");
+  scenario(id, 'relecteur', "verdict 'ACCEPTÉ — le lot tient ses critères.'\n");
   return copie;
 }
 
@@ -1147,7 +1149,7 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
   afterEach(revenirAuDebut);
   // A verdict RENDU whose one finding goes to <agent>.
   const rendu = (agent: string, constat = 'mesure de 0 doit rendre 0.') =>
-    `passation 'RENDU
+    `verdict 'RENDU
 
 ### Constat 1 — packages/forms/src/index.mjs
 Agent : ${agent}
@@ -1240,9 +1242,13 @@ Règle : critère 1.'
       `printf '// rendu\\n' >> $c/src/index.mjs\npassation 'Rendu traité.'\n`
     );
     scenario(id, 'relecteur-1', rendu('developpeur 000-forms'));
-    scenario(id, 'relecteur-2', "passation 'ACCEPTÉ — le rendu est traité.'\n");
+    scenario(id, 'relecteur-2', "verdict 'ACCEPTÉ — le rendu est traité.'\n");
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
+    // The verdict, the reviewer's final answer, is at the ticket whole, on several lines.
+    expect(commentaires(id)).toContainEqual(
+      expect.stringMatching(/^RENDU\n\n### Constat 1 — packages\/forms\/src\/index\.mjs\nAgent : /)
+    );
     // Forms' developpeur again; binder, which no finding names, passes its checks again.
     expect(ordre(id)).toEqual([
       'testeur packages/forms',
@@ -1297,7 +1303,7 @@ passation 'vert attendu : critère 1 — mesure rend le double — livré avant 
       `printf 'export const echelle = x => 3 * x;\\n' >> $c/src/index.mjs\npassation 'Echelle écrite.'\n`
     );
     scenario(id, 'relecteur-1', rendu('testeur packages/forms', 'echelle manque.'));
-    scenario(id, 'relecteur-2', "passation 'ACCEPTÉ'\n");
+    scenario(id, 'relecteur-2', "verdict 'ACCEPTÉ'\n");
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(sessions(id, 'testeur')).toBe(2);

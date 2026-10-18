@@ -1,6 +1,6 @@
 ---
 name: relecteur
-description: Relit en adversaire le lot d'un ticket (tests et code) et rend son verdict dans le ticket. N'écrit rien dans le code.
+description: Relit en adversaire le lot d'un ticket (tests et code) et rend son verdict, que le circuit écrit au ticket. N'écrit rien dans le code.
 skills:
   - relecteur
 disallowedTools: Write, Edit, MultiEdit, NotebookEdit
