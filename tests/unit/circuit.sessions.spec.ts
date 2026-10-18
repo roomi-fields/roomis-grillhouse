@@ -113,7 +113,9 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     ticket(id, '000-forms');
     scenario(id, 'testeur', `${ECRIT_ROUGE}echo 'le testeur réfléchit'\nsleep 301\n`);
     const debut = Date.now();
-    const r = circuit([id], { GRILLHOUSE_CIRCUIT_IMMOBILE_MS: '3000' });
+    // A delay well past what the session's preparation takes on a loaded machine, well short of
+    // the session's own sleep.
+    const r = circuit([id], { GRILLHOUSE_CIRCUIT_IMMOBILE_MS: '15000' });
     expect(r.status, sortie(r)).toBe(ARRETS['bloqué']);
     expect(Date.now() - debut).toBeLessThan(120_000);
     const e = etat(id);
