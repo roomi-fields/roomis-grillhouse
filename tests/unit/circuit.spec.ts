@@ -1172,6 +1172,20 @@ Règle : critère 1.'
     const a = args(id, 'relecteur', 1);
     expect(a[a.indexOf('--agent') + 1]).toBe('relecteur');
     expect(a[a.indexOf('--model') + 1]).toBe('opus');
+    // Without a prompt, it may run every command its skill runs: a refused one leaves no verdict.
+    expect(a[a.indexOf('--permission-mode') + 1]).toBe('dontAsk');
+    for (const regle of [
+      'Bash(git diff *)',
+      'Bash(bd show *)',
+      'Bash(bd comments *)',
+      'Bash(npm test *)',
+      'Bash(npm run verifier *)',
+      'Bash(node scripts/*)',
+      'Bash(codegraph *)',
+      'mcp__plugin_rtfm_rtfm__rtfm_search',
+    ]) {
+      expect(a).toContain(regle);
+    }
     // Its instruction: the second template, the criteria, the lot and the circuit's reports.
     const consigne = essai(id, 'relecteur-1.prompt');
     expect(consigne).toContain(`Tu es le relecteur du dépôt ${REPO}.`);
@@ -1182,6 +1196,10 @@ Règle : critère 1.'
     expect(consigne).toContain('Circuit · packages/forms · preuve');
     expect(consigne).toContain('controles : verts : npm run verifier.');
     expect(consigne).not.toContain('{{');
+    // The claims file: the description, in a folder the session may read.
+    const affirmations = /LE FICHIER D'AFFIRMATIONS, [^:]*: (\S+)/.exec(consigne)?.[1] ?? '';
+    expect(path.basename(affirmations)).toBe('affirmations.md');
+    expect(a[a.indexOf('--add-dir') + 1]).toBe(path.dirname(affirmations));
     // The integration: the commit holds the testeur's lot and the developpeur's, under the
     // message the circuit writes; the copy is gone; the queue brings it onto main and closes the
     // ticket.

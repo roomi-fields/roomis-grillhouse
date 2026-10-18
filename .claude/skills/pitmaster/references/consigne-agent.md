@@ -65,6 +65,8 @@ LE TICKET, sa description et ses critères :
 
 {{description}}
 
+LE FICHIER D'AFFIRMATIONS, cette description écrite par le circuit : {{affirmations}}
+
 LES RAPPORTS DU CIRCUIT, au ticket depuis le dernier verdict (preuves du rouge, contrôles, passe finale) :
 
 {{rapports}}

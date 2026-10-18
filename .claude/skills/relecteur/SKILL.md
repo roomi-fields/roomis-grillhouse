@@ -25,8 +25,8 @@ l'agent que nomme chaque constat.
 Chaque passe suit son fichier de `references/` à la lettre, dans cet ordre.
 
 1. **Les cas limites** (`references/edge-case-hunter.md`) : chaque chemin du diff qui manque de
-   traitement. Pour l'étape des affirmations, enregistre d'abord la description du ticket dans ton
-   scratchpad (`bd show <id> > <scratchpad>/ticket.md`) : c'est le fichier d'affirmations.
+   traitement. Pour l'étape des affirmations, le fichier d'affirmations est celui que ta consigne
+   nomme (« LE FICHIER D'AFFIRMATIONS »), la description du ticket que le circuit y a écrite.
 2. **Les trous de vérification** (`references/verification-gap.md`) : chaque comportement changé
    qu'un test ne protège pas réellement.
 3. **Le cadre** : chaque règle du `CADRE.md`, de l'architecture et de la spécification que le
@@ -44,7 +44,7 @@ Chaque passe suit son fichier de `references/` à la lettre, dans cet ordre.
    autre ? Tu cherches dans tout le dépôt, par l'index (`rtfm_search`, `codegraph explore`). Ainsi le produit garde un seul calcul par notion.
 6. **Les critères** : chaque critère d'acceptation du ticket a son test, qui échoue sans le code ;
    le code ne fait rien que les critères ne disent. Tu lances les tests par `npm test --
-   <fichiers>` (chemins depuis la racine du dépôt) ; une sortie relue du cache de Turborepo (« cache hit, replaying logs ») vaut un
+<fichiers>` (chemins depuis la racine du dépôt) ; une sortie relue du cache de Turborepo (« cache hit, replaying logs ») vaut un
    lancement, tu ne la rejoues pas pour la croire. Un test mis en quarantaine (`it.skip`,
    `it.fails`) nomme le ticket qui le corrige, sinon le lot est rendu. Tu joues aussi toutes les
    gardes sur la copie, par `npm run verifier -- --gardes` (celles du cadre et celles du projet) ;

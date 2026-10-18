@@ -93,11 +93,12 @@
 //   « controles ».
 // - After the final pass, green, the reviewer: a session out of the envelope, which sees the whole
 //   repository with its index, claude itself (`claude -p --agent relecteur`, CLAUDE_BIN replaces
-//   claude) in the ticket's copy, on Opus, under the project's permissions and the frame's scripts
-//   (RELECTEUR), its instruction from the second template of consigne-agent.md: the ticket, its
-//   components, its criteria, the files of the lot (the testeur's by `isTesterFile`, then the
-//   others) and the circuit's reports at the ticket since the last verdict (its proofs and
-//   checks). Its output goes to the log under its header line, its line to the register
+//   claude) in the ticket's copy, on Opus, under the project's permissions and every command its
+//   skill runs (RELECTEUR), its instruction from the second template of consigne-agent.md: the
+//   ticket, its components, its criteria, the claims file (the ticket's description, written by
+//   the circuit in its working folder, which the session may read), the files of the lot (the
+//   testeur's by `isTesterFile`, then the others) and the circuit's reports at the ticket since
+//   the last verdict (its proofs and checks). Its output goes to the log under its header line, its line to the register
 //   (scripts/registre.mjs --copie), and it is watched as a session in the envelope is. Its
 //   handover is its verdict, a comment whose first word is ACCEPTÉ or RENDU: without one, it is
 //   launched once more, then the circuit stops at « sans-passation ».
@@ -210,8 +211,9 @@ const RELECTURES = 3;
 // The roles a finding of the reviewer may name.
 const DESTINATAIRES = ['testeur', 'developpeur'];
 // The reviewer's session, out of the envelope, on Opus: the project's permissions
-// (`.claude/settings.json`), with the frame's scripts its skill runs; any other tool call is
-// refused without a prompt.
+// (`.claude/settings.json`), with every command its skill runs (the frame's scripts, the reads of
+// git and of the ticket, its verdict at the ticket, the targeted tests, the guards, the index);
+// any other tool call is refused without a prompt.
 const RELECTEUR = [
   '--model',
   'opus',
@@ -220,6 +222,17 @@ const RELECTEUR = [
   '--allowedTools',
   'Bash(node scripts/*)',
   'Bash(bash scripts/*)',
+  'Bash(git diff *)',
+  'Bash(git log *)',
+  'Bash(git show *)',
+  'Bash(git status *)',
+  'Bash(bd show *)',
+  'Bash(bd comments *)',
+  'Bash(npm test *)',
+  'Bash(npm run verifier *)',
+  'Bash(codegraph *)',
+  'mcp__plugin_rtfm_rtfm__rtfm_search',
+  'mcp__plugin_rtfm_rtfm__rtfm_expand',
 ];
 const FORT = ['--modele', 'opus', '--effort', 'high'];
 const PREFIXE = 'Circuit · ';
@@ -432,7 +445,7 @@ function lancer(ctx, role, composant, consigne, { fort, horsEnveloppe } = {}) {
     fds = [openSync(fichier, 'r'), sortie, sortie];
     commande = {
       cmd: process.env.CLAUDE_BIN || 'claude',
-      args: ['-p', '--agent', role, ...RELECTEUR],
+      args: ['-p', '--agent', role, ...RELECTEUR, '--add-dir', ctx.tmp],
       cwd: ctx.copie,
     };
   } else {
@@ -623,6 +636,8 @@ async function relire(ctx, composant) {
   const { tests, code } = fichiersDuLot(ctx);
   const rapports = rapportsDuCircuit(ctx);
   const precedents = passations(ctx).filter(t => VERDICT.test(t));
+  const affirmations = path.join(ctx.tmp, 'affirmations.md');
+  writeFileSync(affirmations, ctx.description);
   const valeurs = {
     depot: ctx.racine,
     ticket: ctx.ticket,
@@ -636,6 +651,7 @@ async function relire(ctx, composant) {
       `le lot de code : ${code.join(', ') || 'aucun fichier'}`,
     ].join(' ; '),
     description: ctx.description.trim() || 'aucune',
+    affirmations,
     rapports: rapports.join('\n\n') || 'aucun',
   };
   const neufs = await jusquALaPassation(ctx, 'relecteur', composant, consigne(valeurs, 1), {
