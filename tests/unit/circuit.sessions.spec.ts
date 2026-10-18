@@ -100,6 +100,22 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     expect(commentaires(id).at(-1)).toContain('packages/forms');
   });
 
+  it('sends a resumed developpeur that changes nothing of a delivered component to the checks', () => {
+    const id = 'demo-reprise-livree';
+    ticket(id, '000-forms');
+    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
+    // The code is written, the handover never: the circuit stops at « sans-passation ».
+    scenario(id, 'developpeur-1', CODE_JUSTE);
+    scenario(id, 'developpeur-2', '');
+    const r1 = circuit([id]);
+    expect(r1.status, sortie(r1)).toBe(ARRETS['sans-passation']);
+    // The resumed developpeur finds its lot delivered and changes nothing.
+    scenario(id, 'developpeur-3', "passation 'Le lot est complet.'\n");
+    const r2 = circuit([id, '--reprendre']);
+    expect(r2.status, sortie(r2)).toBe(0);
+    expect(historique(id)).toContainEqual(['packages/forms', 'controles']);
+  });
+
   it('relaunches a session without handover once, then stops at « sans-passation »', () => {
     const id = 'demo-passation';
     ticket(id, '000-forms');

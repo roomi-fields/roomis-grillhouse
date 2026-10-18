@@ -157,7 +157,8 @@
 //   12 sans-passation (twice no handover), 13 preuve (the third proof fails), 14 controles (the
 //   third developpeur of a component's checks or of the final pass leaves a red check, or a red
 //   of the final pass no component of the title owns),
-//   15 sans-livraison (a developpeur session that changes no file of its component),
+//   15 sans-livraison (a developpeur session that changes no file of its component; the first
+//   session of a `--reprendre` whose component already holds changes goes on to the checks),
 //   16 relecture-arret (a finding without a valid recipient, one on a criterion, the third RENDU),
 //   17 integration (the integration script refuses the lot, or the queue reopens the ticket),
 //   75 a-repasser (a check or the integration still at 75 once played again, or the branch still
@@ -1260,6 +1261,16 @@ function paquetsDesComposants(ctx, liste, garde) {
     .sort();
 }
 
+// Whether the copy holds a change of <composant> against its HEAD.
+function livre(ctx, composant) {
+  const r = spawnSync(
+    'git',
+    ['-C', ctx.copie, 'status', '--porcelain', '--untracked-files=all', '--', composant],
+    { encoding: 'utf8' }
+  );
+  return String(r.stdout ?? '').trim() !== '';
+}
+
 // The fingerprint of the files of <composant> in the copy: `git status --porcelain` of its
 // directory and the content of each file it lists.
 function empreinte(ctx, composant) {
@@ -1381,8 +1392,12 @@ function entreeDuRenvoi(ctx, index) {
 // The circuit from <depart> to the entry of the lot in the queue.
 async function derouler(ctx, depart) {
   let { index, etape, tentative, rapport, dernier, finale } = depart;
+  // The step a `--reprendre` starts at, the first of the loop.
+  let reprise = Boolean(ctx.reprendre);
   for (;;) {
     const composant = ctx.composants[index];
+    const reprend = reprise;
+    reprise = false;
     const etat = {
       etape,
       composant,
@@ -1429,7 +1444,15 @@ async function derouler(ctx, depart) {
         const fort = tentative >= SEANCES_DEVELOPPEUR;
         const avant = empreinte(ctx, composant);
         await seance(ctx, 'developpeur', composant, { tentative, rapport, fort });
-        if (empreinte(ctx, composant) === avant) {
+        if (empreinte(ctx, composant) === avant && reprend && livre(ctx, composant)) {
+          // A resumed developpeur that finds its lot delivered: the checks judge it.
+          commenter(
+            ctx,
+            composant,
+            'developpeur',
+            `séance ${tentative} reprise sans changement, le composant garde la livraison d'avant : aux contrôles.`
+          );
+        } else if (empreinte(ctx, composant) === avant) {
           throw new Arret(
             'sans-livraison',
             `La séance ${tentative} du développeur de ${composant} ne change aucun fichier de ${composant} : un développeur n'est lancé que sur un rouge, et ce rouge reste. Sa passation au ticket dit pourquoi :\n\n${passations(ctx).at(-1) ?? 'aucune'}`

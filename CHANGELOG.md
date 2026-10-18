@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **A resumed developpeur whose lot is delivered goes on to the checks**: after a stop at the developpeur's step, `--reprendre` launched it again, and a session that found its lot complete changed nothing and stopped the circuit at « sans-livraison ». The first session of a resumption, on a component that already holds changes, now goes on to the checks, which judge the lot.
+
 ## [0.16.2] - 2026-10-18
 
 ### Fixed
