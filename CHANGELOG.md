@@ -10,7 +10,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
-- **A circuit stands on one line of the board, and only there**: the ticket of a circuit was drawn on its circuit's line, a second line for its step, a third for a stop's reason, and again under the role that ran in it. Its one line now holds its step, attempt and component, or its stop, code and « chef » while a site manager runs on it; no role block draws it; the reason of a stop opens its card.
+- **A circuit's ticket stands on one line of the board, in its role's block**: it was drawn under « circuits » on its line, a second line for its step, a third for a stop's reason, and again under the role that ran in it. It now stands once, in the block of its step's role (the testeur's for the tests and their proof, the developer's for the code and the checks, the reviewer's for the review and the integration) with its step, attempt and component, or, stopped, in the site manager's with its stop and code; the reason of a stop opens its card.
 
 ## [0.16.4] - 2026-10-18
 

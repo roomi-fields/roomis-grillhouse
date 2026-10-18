@@ -1,9 +1,9 @@
 // The circuit of a ticket on the board (scripts/circuit.mjs): its state
 // `.claude/worktrees/<ticket>.circuit.json` and its process `node scripts/circuit.mjs <ticket>`.
-// A circuit stands on one line, the only place of its ticket in AGENTS: one that runs shows its
-// step, attempt and component; one that stopped, its stop's name and code, and « chef » while a
-// chef de chantier runs on it; its card opens on where it stopped and the first line of its
-// reason. A ticket with a circuit waits in no block, and no block draws it.
+// A circuit's ticket stands on one line, the only one of it in AGENTS, in the block of the role
+// its step belongs to: one that runs shows its step, attempt and component; one that stopped
+// stands in the chef de chantier's block with its stop's name and code, running while a chef runs
+// on it, and its card opens on where it stopped and the first line of its reason.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -122,18 +122,32 @@ describe('a circuit that runs: its step, its component and its attempt', () => {
     ]);
   });
 
-  it('the board draws it under circuits on one line: its step, attempt and component', () => {
+  it("the board draws it on one line in its step's block: its step, attempt and component", () => {
     const racine = depot({
       'demo-12': { etape: 'developpeur', composant: 'packages/demo', tentative: 2 },
     });
     const t = plateau([T('demo-12')], [], [], circuits(racine, ligneCircuit('demo-12')));
     const a = agents(t);
-    const i = a.indexOf('circuits');
+    expect(a).not.toContain('circuits');
+    const i = a.indexOf('4 développeur');
     expect(i).toBeGreaterThan(-1);
     expect(a[i + 1]).toMatch(/^▶ 12 {2}Le sujet de demo-12 +développeur 2 · demo$/);
-    expect(a[i + 2]).toBe('0 chef de chantier  —');
     expect(lignesAgents(t)[i + 1]).toMatchObject({ ton: 'actif', ticket: 'demo-12' });
+    expect(a.filter(x => x.includes('Le sujet de demo-12'))).toHaveLength(1);
     expect(attentes(t)).toEqual([]);
+  });
+
+  it("each step stands in its role's block: proof with the testeur's, checks with the developpeur's, integration with the reviewer's", () => {
+    const sous = (etape: string) => {
+      const racine = depot({ 'demo-12': { etape, composant: 'packages/demo' } });
+      const a = agents(plateau([T('demo-12')], [], [], circuits(racine, ligneCircuit('demo-12'))));
+      const i = a.findIndex(x => x.includes('Le sujet de demo-12'));
+      return [...a.slice(0, i)].reverse().find(x => /^\d /.test(x));
+    };
+    expect(sous('preuve')).toBe('3 testeur');
+    expect(sous('controles')).toBe('4 développeur');
+    expect(sous('relecture')).toBe('5 relecteur');
+    expect(sous('integration')).toBe('5 relecteur');
   });
 
   it('the final pass is named at the checks', () => {
@@ -182,10 +196,9 @@ describe('a circuit that stopped: its stop and its code, its reason on its card'
     const racine = depot({ 'demo-13': ARRET });
     const t = plateau([T('demo-13')], [], [], circuits(racine));
     const a = agents(t);
-    const i = a.indexOf('circuits');
+    const i = a.indexOf('0 chef de chantier');
     expect(a[i + 1]).toMatch(/^■ 13 {2}Le sujet de demo-13 +controles \(14\)$/);
     expect(lignesAgents(t)[i + 1]).toMatchObject({ ton: 'attention', ticket: 'demo-13' });
-    expect(a[i + 2]).toBe('0 chef de chantier  —');
     expect(carte(t, [T('demo-13')], 'demo-13')).toMatch(
       /^Circuit arrêté en controles 3 · demo : Le test « tableau » reste rouge\./
     );
@@ -195,14 +208,14 @@ describe('a circuit that stopped: its stop and its code, its reason on its card'
     const racine = depot({ 'demo-13': { etape: 'preuve', composant: '.', tentative: 1 } });
     const t = plateau([T('demo-13')], [], [], circuits(racine));
     const a = agents(t);
-    const i = a.indexOf('circuits');
+    const i = a.indexOf('0 chef de chantier');
     expect(a[i + 1]).toMatch(/^■ 13 {2}Le sujet de demo-13 +interrompu$/);
     expect(carte(t, [T('demo-13')], 'demo-13')).toMatch(
       /^Circuit arrêté en preuve 1 · \. : le circuit ne tourne plus/
     );
   });
 
-  it('a ticket stopped between two circuits, before a chef leaves, is no longer under the chef', () => {
+  it('a ticket stopped between two circuits, before a chef leaves, stands once, as a stop', () => {
     const racine = depot({ 'demo-13': ARRET });
     const t = plateau(
       [T('demo-13')],
@@ -213,11 +226,12 @@ describe('a circuit that stopped: its stop and its code, its reason on its card'
     expect(attentes(t)).toEqual([]);
     expect(bloc(t, CHEF).enCours).toEqual([]);
     const a = agents(t);
-    expect(a).toContain('0 chef de chantier  —');
-    expect(a.filter(x => x.includes('Le sujet de demo-13'))).toHaveLength(1);
+    expect(a.filter(x => x.includes('Le sujet de demo-13'))).toEqual([
+      expect.stringMatching(/^■ .*controles \(14\)$/),
+    ]);
   });
 
-  it('a fresh chef running on the stop is named on the circuit line, never in block 0', () => {
+  it('a fresh chef running on the stop runs on its one line in block 0', () => {
     const racine = depot({ 'demo-13': ARRET });
     const chef = {
       agent: 'c1',
@@ -239,9 +253,9 @@ describe('a circuit that stopped: its stop and its code, its reason on its card'
     expect(bloc(t, CHEF).enCours.map(x => x.id)).toEqual(['demo-13']);
     const a = agents(t);
     expect(a.filter(x => x.includes('Le sujet de demo-13'))).toEqual([
-      expect.stringMatching(/controles \(14\) · chef$/),
+      expect.stringMatching(/^▶ .*controles \(14\)$/),
     ]);
-    expect(a).toContain('0 chef de chantier  —');
+    expect(a[a.indexOf('0 chef de chantier') + 1]).toContain('Le sujet de demo-13');
   });
 });
 

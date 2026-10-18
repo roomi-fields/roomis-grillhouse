@@ -1028,31 +1028,42 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
 
   L('', undefined);
   L('AGENTS  ▶ en cours · en attente', 'titre');
-  // The circuits, each on one line, the only place its ticket stands in AGENTS: one that runs is
-  // marked by its step, attempt and component; one that stopped, by its stop's name and code
-  // (« interrompu » for a circuit dead without a stop written), and « chef » while a chef de
-  // chantier runs on it. Its card says where it stopped and why.
+  // A circuit's ticket stands on one line, in the block of the role its step belongs to, and
+  // nowhere else in AGENTS: the testeur's for its tests and their proof, the developpeur's for its
+  // code and the checks, the reviewer's for the review and the integration, with its step, attempt
+  // and component; a stopped circuit in the chef de chantier's block, with its stop's name and
+  // code (« interrompu » for a circuit dead without a stop written), running while a chef runs on
+  // it. Its card says where it stopped and why.
   const enCircuit = new Set((t.circuits ?? []).map(c => c.id));
   const chefs = new Set(
-    t.agents.filter(b => b.role === 'chef-de-chantier').flatMap(b => b.enCours.map(x => x.id))
+    t.agents.filter(b => b.role === CHEF).flatMap(b => b.enCours.map(x => x.id))
   );
-  if (t.circuits?.length) {
-    L('circuits', 'titre');
-  }
-  for (const c of t.circuits ?? []) {
+  const roleDuCircuit = c =>
+    !c.vivant
+      ? CHEF
+      : ['testeur', 'preuve'].includes(c.etape)
+        ? 'testeur'
+        : ['developpeur', 'controles'].includes(c.etape)
+          ? 'developpeur'
+          : 'relecteur';
+  const ligneDuCircuit = c => {
     if (c.vivant) {
-      L(cadre(`▶ ${c.numero}  ${c.sujet}`, ouEnEst(c), largeur), 'actif', c.id);
-    } else {
-      const arret = c.code === null ? 'interrompu' : `${c.arret ?? 'arrêt'} (${c.code})`;
-      const qui = chefs.has(c.id) ? `${arret} · chef` : arret;
-      L(cadre(`■ ${c.numero}  ${c.sujet}`, qui, largeur), 'attention', c.id);
+      return L(cadre(`▶ ${c.numero}  ${c.sujet}`, ouEnEst(c), largeur), 'actif', c.id);
     }
-  }
+    const arret = c.code === null ? 'interrompu' : `${c.arret ?? 'arrêt'} (${c.code})`;
+    return chefs.has(c.id)
+      ? L(cadre(`▶ ${c.numero}  ${c.sujet}`, arret, largeur), 'actif', c.id)
+      : L(cadre(`■ ${c.numero}  ${c.sujet}`, arret, largeur), 'attention', c.id);
+  };
   for (const b of t.agents) {
+    const circuits = (t.circuits ?? []).filter(c => roleDuCircuit(c) === b.role);
     const enCours = b.enCours.filter(x => !enCircuit.has(x.id));
     const attend = b.attend.filter(x => !enCircuit.has(x.id));
-    const vide = enCours.length === 0 && attend.length === 0;
+    const vide = circuits.length === 0 && enCours.length === 0 && attend.length === 0;
     L(`${b.numero} ${b.nom}${vide ? '  —' : ''}`, vide ? 'discret' : 'titre');
+    for (const c of circuits) {
+      ligneDuCircuit(c);
+    }
     for (const x of enCours) {
       L(cadre(`▶ ${x.numero}  ${x.sujet}`, conso(x.travail, x.jetons), largeur), 'actif', x.id);
     }
