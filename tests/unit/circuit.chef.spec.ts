@@ -225,24 +225,43 @@ describe.runIf(canWrap)(
       expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
     });
 
+    it("an answer in no form resumes the chef's session once, asking for its decision, which the circuit applies", () => {
+      const id = 'demo-chef-redemande';
+      ticket(id, '000-forms');
+      scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+      scenario(id, 'developpeur-1', RIEN);
+      scenario(id, 'developpeur-2', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+      scenario(id, `${CHEF}-1`, chef('Je relancerais bien le développeur.'));
+      scenario(id, `${CHEF}-2`, chef('RELANCE --reprendre\nCONTEXTE : Écris le double.'));
+      const r = circuit([id]);
+      expect(r.status, sortie(r)).toBe(0);
+      expect(sessions(id, CHEF)).toBe(2);
+      expect(valeur(args(id, CHEF, 2), '--resume')).toBe(valeur(args(id, CHEF, 1), '--session-id'));
+      expect(essai(id, `${CHEF}-2.prompt`)).toContain('ne suit aucune forme de décision');
+      expect(essai(id, 'developpeur-2.prompt')).toContain('CONTEXTE : Écris le double.');
+      expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
+    });
+
     it("critère 6 — an answer in no form, or a chef's session in error, ends on the original stop, the answer joined to its reason", () => {
       const id = 'demo-chef-illisible';
       ticket(id, '000-forms');
       scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
       scenario(id, 'developpeur', RIEN);
       scenario(id, `${CHEF}-1`, chef('Je relancerais bien le développeur.'));
+      scenario(id, `${CHEF}-2`, chef('Toujours sans décision.'));
       const r1 = circuit([id]);
       expect(r1.status, sortie(r1)).toBe(ARRETS['sans-livraison']);
       const e1 = etat(id);
       expect(e1).toMatchObject({ raison: 'sans-livraison', code: ARRETS['sans-livraison'] });
       expect(e1?.rapport).toContain('ne change aucun fichier de packages/forms');
-      expect(e1?.rapport).toContain('Je relancerais bien le développeur.');
+      expect(e1?.rapport).toContain('Toujours sans décision.');
       expect(sessions(id, 'developpeur')).toBe(1);
-      // A session that ends in error: the same original stop.
-      scenario(id, `${CHEF}-2`, "decision 'RELANCE --reprendre'\nexit 3\n");
+      expect(sessions(id, CHEF)).toBe(2);
+      // A session that ends in error: the same original stop, the chef not asked again.
+      scenario(id, `${CHEF}-3`, "decision 'RELANCE --reprendre'\nexit 3\n");
       const r2 = circuit([id, '--depuis', 'developpeur', '000-forms', '--contexte', 'Le double.']);
       expect(r2.status, sortie(r2)).toBe(ARRETS['sans-livraison']);
-      expect(sessions(id, CHEF)).toBe(2);
+      expect(sessions(id, CHEF)).toBe(3);
       expect(sessions(id, 'developpeur')).toBe(2);
       expect(etat(id)?.rapport).toContain('code 3');
     });

@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- **An answer of the chef de chantier in no form of decision is asked again once**: the circuit ended on its stop and woke the supervisor, who then did the chef's work. It now resumes the chef's session once, with its whole context, asking for its decision in one of its forms; only a second answer in no form ends the circuit on its stop. A session in error is not asked again.
+
 ## [0.17.2] - 2026-10-19
 
 ### Fixed

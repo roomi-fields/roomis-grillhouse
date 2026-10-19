@@ -120,3 +120,15 @@ LA RÉPONSE DU RESPONSABLE à ta question, mot pour mot :
 
 Tranche l'arrêt avec elle. Ta décision termine ta réponse finale, sous l'une des formes de ta consigne : RELANCE --reprendre, RELANCE --depuis <testeur|developpeur> <composant> (avec la ligne CONTEXTE : <texte> facultative), ou MONTE : <question>.
 ```
+
+## Chef de chantier, sur une réponse sans décision (rempli par le circuit)
+
+```text
+TON TICKET : {{ticket}} — {{sujet}}
+
+Ta réponse ne suit aucune forme de décision : le circuit ne peut pas l'appliquer. Rends ta décision, sans refaire ton examen : une ligne de l'une de ces formes, et rien après elle qu'une ligne CONTEXTE : <texte> facultative pour une RELANCE.
+
+RELANCE --reprendre
+RELANCE --depuis <testeur|developpeur> <composant>
+MONTE : <question>
+```

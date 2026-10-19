@@ -166,9 +166,10 @@
 //   circuit at « question », the question as its reason, the chef's session kept in the state.
 //   `--reponse <texte>` resumes that session (`claude -p --resume <id>`, the fourth template: the
 //   owner's answer) and applies the decision it gives the same way; without a session kept after
-//   a question, the call is refused. An answer in none of these forms, or a session that ends in
-//   error (a code other than 0, a launch that fails, a motionless session), ends the circuit on the
-//   stop it settled, the answer joined to its reason. The third RELANCE in a row on one stop (its
+//   a question, the call is refused. An answer in none of these forms resumes the chef's session
+//   once (the fifth template), asking for its decision; a second such answer, or a session that
+//   ends in error (a code other than 0, a launch that fails, a motionless session), ends the
+//   circuit on the stop it settled, the answer joined to its reason. The third RELANCE in a row on one stop (its
 //   name, step and component) is the last: when that stop comes again, the circuit ends on it, the
 //   three decisions in its reason, without a chef.
 // - At each step, a short comment at the ticket: `Circuit · <composant> · <étape> : <résumé>`.
@@ -1757,12 +1758,22 @@ async function trancher(ctx, a, reponse = null) {
     journal: ctx.journal,
     reponse,
   };
-  const r = await lancer(ctx, CHEF, composant, consigne(valeurs, reponse === null ? 2 : 3), {
-    horsEnveloppe: true,
-    droits: droitsDuChef(ctx),
-    session: reponse === null ? ['--session-id', seance] : ['--resume', seance],
-  });
-  const d = !r.bloque && r.seance === 0 ? lireDecision(ctx, r.reponse) : null;
+  const chef = (rang, session) =>
+    lancer(ctx, CHEF, composant, consigne(valeurs, rang), {
+      horsEnveloppe: true,
+      droits: droitsDuChef(ctx),
+      session,
+    });
+  let r = await chef(
+    reponse === null ? 2 : 3,
+    reponse === null ? ['--session-id', seance] : ['--resume', seance]
+  );
+  let d = !r.bloque && r.seance === 0 ? lireDecision(ctx, r.reponse) : null;
+  // An answer in no form of decision: its session resumed once, asked for its decision.
+  if (!d && !r.bloque && r.seance === 0) {
+    r = await chef(4, ['--resume', seance]);
+    d = !r.bloque && r.seance === 0 ? lireDecision(ctx, r.reponse) : null;
+  }
   if (!d) {
     const pourquoi = r.bloque
       ? `sa séance, immobile ${Math.round(ctx.immobileMs / 60_000)} min, est arrêtée`
@@ -1770,7 +1781,7 @@ async function trancher(ctx, a, reponse = null) {
         ? `sa séance ne démarre pas (code ${r.code}) : ${r.erreur.trim()}`
         : r.seance !== 0
           ? `sa séance finit en erreur (code ${r.seance})`
-          : 'sa réponse ne suit aucune forme de décision';
+          : 'sa réponse ne suit aucune forme de décision, deux fois';
     ecrireEtat(ctx, {
       ...arret,
       rapport: `${String(a.rapport ?? '').trim()}\n\nLE CHEF DE CHANTIER ne rend pas de décision : ${pourquoi}. Sa réponse :\n\n${r.reponse || 'aucune'}`,

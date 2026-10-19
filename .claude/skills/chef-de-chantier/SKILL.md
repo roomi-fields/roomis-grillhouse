@@ -78,9 +78,10 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
 - **Je ne lance rien** : ni le circuit, ni une séance, ni une commande qui écrit dans la copie ;
   le circuit attend ma réponse, et ma séance finit avec elle. Ainsi un seul processus mène la
   copie, et deux agents n'y écrivent jamais ensemble.
-- **Une réponse hors de ces formes rend l'arrêt au superviseur** : le circuit finit sur l'arrêt
-  que je tranchais, ma réponse jointe à sa raison. Ainsi une décision ambiguë n'est jamais
-  appliquée.
+- **Une réponse hors de ces formes se redemande une fois** : le circuit reprend ma séance et me
+  demande ma décision ; une seconde réponse hors de ces formes rend l'arrêt au superviseur, le
+  circuit finissant sur l'arrêt que je tranchais, ma réponse jointe à sa raison. Ainsi une
+  décision ambiguë n'est jamais appliquée, et le superviseur n'est réveillé que pour elle.
 - **Trois RELANCE d'affilée sur un même arrêt suffisent** : quand le même arrêt (même nom, même
   étape, même composant) revient après ma troisième RELANCE, le circuit finit sur lui, mes trois
   décisions dans sa raison, sans lancer de chef. Ainsi aucune boucle ne tourne sans le
