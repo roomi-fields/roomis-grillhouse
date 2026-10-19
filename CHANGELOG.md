@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.17.4] - 2026-10-19
+
 ### Fixed
 
 - **A circuit's line on the board shows its ticket's working time and tokens again**: since 0.16.5, a ticket in a circuit stands on one line, which showed only where the circuit is, or its stop; the time and tokens its agents spent, which its line under the running role carried before, were gone. The line now shows them after its step or its stop, as every other ticket's line does.
