@@ -615,6 +615,11 @@ describe.runIf(canWrap && existsSync(CERTIFICATS))(
         expect(r.stdout, nom).toBe(`${valeur}\n`);
       }
     });
+    it("keeps the author of the session's comments at the ticket: BEADS_ACTOR", () => {
+      const r = run('printenv BEADS_ACTOR', { BEADS_ACTOR: 'developpeur packages/a' });
+      expect(r.status).toBe(0);
+      expect(r.stdout).toBe('developpeur packages/a\n');
+    });
     it('keeps the base of the session: HOME, PATH, USER, LANG, TERM', () => {
       for (const [nom, valeur] of Object.entries(BASE)) {
         const r = run(`printenv ${nom}`);

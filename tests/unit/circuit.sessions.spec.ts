@@ -26,6 +26,7 @@ const {
   sessions,
   args,
   etat,
+  ordre,
   commentaires,
   historique,
 } = circuitEssai(ESSAIS);
@@ -98,6 +99,67 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     expect(historique(id).at(-1)).toEqual(['packages/forms', 'developpeur']);
     expect(commentaires(id).at(-1)).toContain('sans-livraison');
     expect(commentaires(id).at(-1)).toContain('packages/forms');
+  });
+
+  describe('a developpeur whose handover names « Agent : testeur <composant> »', () => {
+    // A red left in the tests of forms: its handover sends it to forms' testeur.
+    const renvoi = `printf '// essai\\n' >> $c/src/index.mjs
+passation 'Le rouge qui reste est dans les tests de forms : le test attend un autre type.
+Agent : testeur 000-forms'
+`;
+    it('plays that component again from its testeur, without relaunching the developpeur nor a chef', () => {
+      const id = 'demo-renvoi-testeur';
+      ticket(id, '000-forms');
+      scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+      scenario(id, 'developpeur-1', renvoi);
+      scenario(id, 'developpeur-2', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+      const r = circuit([id]);
+      expect(r.status, sortie(r)).toBe(0);
+      expect(ordre(id)).toEqual([
+        'testeur packages/forms',
+        'developpeur packages/forms',
+        'testeur packages/forms',
+        'developpeur packages/forms',
+        'relecteur',
+      ]);
+      // The testeur receives the developpeur's handover as its report.
+      expect(essai(id, 'testeur-2.prompt')).toContain(
+        'Le rouge qui reste est dans les tests de forms'
+      );
+      expect(essai(id, 'testeur-2.prompt')).toContain('REPRISE : oui');
+      expect(commentaires(id)).toContainEqual(
+        expect.stringMatching(
+          /^Circuit · packages\/forms · developpeur : .*testeur packages\/forms/
+        )
+      );
+      expect(historique(id).slice(0, 5)).toEqual([
+        ['packages/forms', 'testeur'],
+        ['packages/forms', 'preuve'],
+        ['packages/forms', 'developpeur'],
+        ['packages/forms', 'testeur'],
+        ['packages/forms', 'preuve'],
+      ]);
+      expect(etat(id)?.etape).toBe('integre');
+    });
+
+    it('stops at « sans-livraison » on the same renvoi twice in a row, without green checks between', () => {
+      const id = 'demo-renvoi-repete';
+      ticket(id, '000-forms');
+      scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+      scenario(id, 'developpeur', renvoi);
+      const r = circuit([id]);
+      expect(r.status, sortie(r)).toBe(ARRETS['sans-livraison']);
+      expect(sessions(id, 'testeur')).toBe(2);
+      expect(sessions(id, 'developpeur')).toBe(2);
+      const e = etat(id);
+      expect(e).toMatchObject({
+        etape: 'developpeur',
+        composant: 'packages/forms',
+        raison: 'sans-livraison',
+        code: ARRETS['sans-livraison'],
+      });
+      expect(e?.rapport).toContain('testeur packages/forms');
+    });
   });
 
   it('sends a resumed developpeur that changes nothing of a delivered component to the checks', () => {

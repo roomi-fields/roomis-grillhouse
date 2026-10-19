@@ -63,6 +63,7 @@ import {
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { verdictDe } from './integration/integrer.mjs';
 
 const MINUTE = 60_000;
 export const SILENCE = 10 * MINUTE;
@@ -561,15 +562,16 @@ const premiereLigne = r =>
     .map(x => x.trim())
     .find(Boolean) ?? null;
 
-// The reviewer's last verdict among a ticket's comments, or null.
+// The reviewer's last verdict among a ticket's comments (verdictDe: a comment of the reviewer's
+// author), or null.
 export function verdict(commentaires) {
   let v = null;
   for (const c of [...commentaires].sort(
     (a, b) => Date.parse(a.created_at) - Date.parse(b.created_at)
   )) {
-    const m = /^\s*(ACCEPTÉ|RENDU)/.exec(c.text ?? '');
-    if (m) {
-      v = { verdict: m[1], date: Date.parse(c.created_at) };
+    const lu = verdictDe(c);
+    if (lu) {
+      v = { verdict: lu, date: Date.parse(c.created_at) };
     }
   }
   return v;

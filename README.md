@@ -88,6 +88,10 @@ which the circuit applies in the same run, or `MONTE : <question>`, which ends t
 stop `question` (18), the site manager's session kept; the supervisor carries the question to the owner,
 and `circuit.mjs <ticket> --reponse "<answer>"` resumes that session with the answer. So the
 supervisor is woken only by a lot integrated, a question, or a stop the site manager could not settle.
+Each session writes at the ticket under its role as author (`BEADS_ACTOR`, which it may not change),
+the circuit's own lines under `circuit`, and the circuit reads a verdict only in a comment of the
+author `relecteur`. A developer who leaves a red in a component's tests sends it to that tester
+(`Agent : testeur <component>` in its handover), and a component without tests goes straight to its developer.
 The locks are hooks in each agent's definition (`scripts/verrous/`), so an agent cannot aim the
 code at its own tests; the integration sorts the lots by the same rule (the tests lot holds the
 tester's files, the code lot none of them). Each agent runs as a fresh session inside the **envelope** of its component

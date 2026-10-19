@@ -127,3 +127,35 @@ describe('Q10 — the supervisor launches the circuit, a chef de chantier, a ses
     expect(readme).toMatch(/--reponse/);
   });
 });
+
+// The texts of the agents the circuit launches, on what it reads of their handovers (2026-10-19,
+// from BPScript's runs): a test the testeur adapts carries its « vert attendu » in its first
+// handover; a developpeur sends a red left in the tests of a component to its testeur.
+describe('the handovers the circuit reads', () => {
+  const testeur = lire('.claude/skills/testeur/SKILL.md').replace(/\s+/g, ' ');
+  const developpeur = lire('.claude/skills/developpeur/SKILL.md').replace(/\s+/g, ' ');
+  // The first template, the testeur's and the developpeur's instruction.
+  const premier = /```text\n([\s\S]*?)\n```/
+    .exec(lire('.claude/skills/pitmaster/references/consigne-agent.md'))?.[1]
+    .replace(/\s+/g, ' ');
+
+  it('a test the testeur adapts to a changed name or type, green on the present code, carries its « vert attendu » in its first handover', () => {
+    for (const [nom, texte] of [
+      ['testeur', testeur],
+      ['consigne', premier ?? ''],
+    ]) {
+      expect(texte, nom).toMatch(/adaptes? à un nom ou un type changé/);
+      expect(texte, nom).toMatch(/première passation/);
+      expect(texte, nom).toContain('vert attendu : <test> — <raison>');
+    }
+  });
+
+  it('a developpeur whose remaining red lies in the tests of a component writes « Agent : testeur <composant> »', () => {
+    for (const [nom, texte] of [
+      ['developpeur', developpeur],
+      ['consigne', premier ?? ''],
+    ]) {
+      expect(texte, nom).toContain('Agent : testeur <composant>');
+    }
+  });
+});

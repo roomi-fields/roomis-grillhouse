@@ -114,4 +114,34 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
     );
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0, finale: true });
   });
+
+  it('launches the developpeur of a component without tests directly: no testeur, no proof', () => {
+    const id = 'demo-sans-tests';
+    const copie = ticket(id, '000-forms, spec');
+    // A component of documentation alone: no package, so no script test:vitest.
+    ecrire(path.join(copie, 'spec/mesure.md'), '# La mesure\n');
+    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    scenario(
+      id,
+      'developpeur-2',
+      `printf 'La mesure rend le double.\\n' >> $c/mesure.md\npassation 'Spécification écrite.'\n`
+    );
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(ordre(id)).toEqual([
+      'testeur packages/forms',
+      'developpeur packages/forms',
+      'developpeur spec',
+      'relecteur',
+    ]);
+    expect(historique(id).filter(([c]) => c === 'spec')[0]).toEqual(['spec', 'testeur']);
+    expect(historique(id)).not.toContainEqual(['spec', 'preuve']);
+    const ligne = commentaires(id).find(t => t.startsWith('Circuit · spec · testeur : '));
+    expect(ligne).toContain('aucun test');
+    // Its developpeur is told why it starts without a red.
+    expect(essai(id, 'developpeur-2.prompt')).toContain('TON COMPOSANT : spec');
+    expect(essai(id, 'developpeur-2.prompt')).toContain('ne porte aucun test');
+    expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
+  });
 });

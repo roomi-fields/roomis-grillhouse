@@ -69,7 +69,9 @@
 #   temporary file goes (`dossierDeTravail` of enveloppe.mjs, the envelope's TMPDIR), then the
 #   section « La construction de ton paquet échoue » when it fails. The prompt
 #   carries « TON TICKET : <ticket> », which the role's locks read. The envelope is the sandbox, so
-#   the session runs without permission prompts.
+#   the session runs without permission prompts, save the rules that refuse it the change of its
+#   author at the ticket (`--disallowedTools`, AUTEUR_FIXE of scripts/circuit.mjs): its comments
+#   carry the author the launch names in BEADS_ACTOR, which the envelope passes on.
 # - Its output, and an envelope refusal (CODE_REFUS), are added to .claude/worktrees/<ticket>.log,
 #   the log of the ticket, which keeps every session of the ticket: each launch past the checks of
 #   its call adds a header line, `=== <time> · <rôle> · <composant> ===`, then its preparation and
@@ -246,11 +248,18 @@ rm -f "$echec"
 prompt=$(mktemp)
 printf '%s' "$(cat "$consigne")"$'\n\n'"$publie$dossier$construction" > "$prompt"
 
+# The rules that refuse the session the change of its author at the ticket (AUTEUR_FIXE of the
+# circuit), one per line.
+auteur_fixe=$(node --input-type=module -e "import { AUTEUR_FIXE } from '$ici/../circuit.mjs'; console.log(AUTEUR_FIXE.join('\n'));" 2>> "$journal") \
+  || { rm -f "$prompt"; echo "⛔ Les règles de l'auteur de la séance n'ont pas pu se lire : voir $journal." >&2; exit "$CODE_COPIE"; }
+mapfile -t refus_auteur <<<"$auteur_fixe"
+
 # An envelope in error does not stop the launcher (set -e): its code is kept for the exit.
 code=0
 node "$racine/scripts/enveloppe/enveloppe.mjs" "$copie" "$composant" "$role" -- \
   "${CLAUDE_BIN:-claude}" -p --agent "$role" \
-  ${surcharge[@]+"${surcharge[@]}"} --permission-mode bypassPermissions < "$prompt" >> "$journal" 2>&1 || code=$?
+  ${surcharge[@]+"${surcharge[@]}"} --permission-mode bypassPermissions \
+  --disallowedTools "${refus_auteur[@]}" < "$prompt" >> "$journal" 2>&1 || code=$?
 rm -f "$prompt"
 echo "$code" > "$fin"
 # The envelope ended: the session's line goes to the register from outside it, whatever its end hook did.

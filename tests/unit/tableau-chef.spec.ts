@@ -686,7 +686,15 @@ describe('3uv.49 critère 9 : without the manager in the list, a running manager
   it('3uv.49 critère 9 : a review accepted then a manager finished last, the board reads the verdict: the ticket waits for no agent, the circuit integrates it', () => {
     const racine = depotFactice(
       [T('demo-9')],
-      [{ id: 1, issue_id: 'demo-9', text: 'ACCEPTÉ — le lot', created_at: at('10:45') }],
+      [
+        {
+          id: 1,
+          issue_id: 'demo-9',
+          author: 'relecteur',
+          text: 'ACCEPTÉ — le lot',
+          created_at: at('10:45'),
+        },
+      ],
       [
         fin('t1', 'demo-9', 'testeur', '09:00'),
         fin('d1', 'demo-9', 'developpeur', '10:00'),

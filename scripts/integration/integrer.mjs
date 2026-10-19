@@ -13,7 +13,7 @@
 // (`.claude/worktrees/<ticket>`, the one the lot was written in, when it exists); a second
 // --ticket is a usage error, named. In order, each step refusing stops the run:
 //  1. the verdict: the ticket has `ACCEPTÉ` as its last reviewer verdict (`ACCEPTÉ` or
-//     `RENDU` at the start of a comment) and, when labelled `arbitrage`, each « ## Arbitrage »
+//     `RENDU` at the start of a comment of the author `relecteur`; another author's is none) and, when labelled `arbitrage`, each « ## Arbitrage »
 //     comment is `### Verdict — tranché`, or a « ## Réponse du responsable » comment follows it;
 //  2. the lots: the tests lot touches only what the testeur writes (`isTesterFile`: test files
 //     and the shared test material), the code lot none of it;
@@ -95,15 +95,22 @@ function nomDeGit(ecrit) {
   return Buffer.from(octets).toString('utf8');
 }
 
-// A reviewer's verdict: a comment whose first word is ACCEPTÉ or RENDU.
+// The first word of a reviewer's verdict: ACCEPTÉ or RENDU.
 export const VERDICT = /^\s*(ACCEPTÉ|RENDU)(?![\p{L}\d])/u;
+// The author of the reviewer's verdicts at a ticket (Beads' `author`): the circuit writes the
+// reviewer's final answer under it (BEADS_ACTOR), and the reviewer's session runs under it.
+export const AUTEUR_DU_VERDICT = 'relecteur';
+
+// The verdict the comment <c> (Beads' JSON: `author`, `text`) carries: ACCEPTÉ or RENDU for a
+// comment of the author relecteur whose first word is one of them, else null.
+export const verdictDe = c =>
+  c?.author === AUTEUR_DU_VERDICT ? (VERDICT.exec(String(c.text ?? ''))?.[1] ?? null) : null;
 
 // The refusal for the verdicts of one ticket, or null. `ticket` and `comments` are Beads' JSON.
 export function refusVerdicts(ticket, comments) {
   const id = ticket.id;
-  const verdicts = comments.filter(c => VERDICT.test(c.text));
-  const dernier = verdicts.at(-1);
-  if (!dernier || !/^\s*ACCEPTÉ/.test(dernier.text)) {
+  const dernier = comments.filter(c => verdictDe(c)).at(-1);
+  if (verdictDe(dernier) !== 'ACCEPTÉ') {
     return `${id} n'a pas le verdict ACCEPTÉ du relecteur pour dernier verdict.`;
   }
   if ((ticket.labels ?? []).includes('arbitrage')) {

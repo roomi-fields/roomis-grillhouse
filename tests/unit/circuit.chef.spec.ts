@@ -96,6 +96,18 @@ describe.runIf(canWrap)(
       }
       // No right to write the code, nor to run the circuit or the tests.
       expect(a.filter(x => /^(Write|Edit)|node scripts|npm /.test(x))).toEqual([]);
+      // Its comments carry its role as their author, which it may not change.
+      expect(essai(id, `${CHEF}-1.acteur`)).toBe(CHEF);
+      const refus = a.slice(a.indexOf('--disallowedTools') + 1);
+      expect(a).toContain('--disallowedTools');
+      for (const regle of [
+        'Bash(bd *--actor*)',
+        'Bash(bd *--author*)',
+        'Bash(bd * -a*)',
+        'Bash(*BEADS_ACTOR*)',
+      ]) {
+        expect(refus).toContain(regle);
+      }
       // Its instruction: the ticket, the stop's name and code, its step, component and reason, and
       // the paths of the state and the log.
       const consigne = essai(id, `${CHEF}-1.prompt`);

@@ -104,9 +104,17 @@ Une découverte qui ne bloque pas se consigne fermée sous ton ticket
   et de chaque paquet des composants jusqu'au tien, puis les gardes dans ton enveloppe ; après le
   dernier composant, la passe finale : `npm run verifier`, ce que joue l'intégration. Un rouge te
   relance avec sa sortie quand il est dans ton composant. Tu es lancé sur un rouge (de la preuve, un `rouge existant` compris, ou des
-  contrôles) : une séance qui ne change aucun fichier de ton composant arrête le circuit
-  (`sans-livraison`), et ta passation dit pourquoi. Tes propres lancements pendant le travail restent les tiens. Ainsi ton
-  lot arrive au relecteur vert.
+  contrôles), ou directement dans un composant qui ne porte aucun test (aucun paquet avec un
+  script `test:vitest`), sans testeur ni preuve : une séance qui ne change aucun fichier de ton
+  composant arrête le circuit (`sans-livraison`), et ta passation dit pourquoi. Tes propres
+  lancements pendant le travail restent les tiens. Ainsi ton lot arrive au relecteur vert.
+- **Un rouge qui reste dans les tests va à leur testeur** : quand le rouge qui reste est dans les
+  tests d'un composant du titre, le tien ou un composant d'avant (un test existant que ton
+  changement de type casse), ta passation porte la ligne `Agent : testeur <composant>`, le
+  composant écrit comme le titre le nomme. Le circuit rejoue ce composant depuis son testeur, ta
+  passation pour rapport, puis les composants d'après, sans te relancer sur ce rouge ; le même
+  renvoi deux fois de suite, sans contrôles verts entre eux, l'arrête (`sans-livraison`). Ainsi
+  le rouge va à l'agent qui écrit les tests.
 - **Les tests ciblés** : les tests touchés et voisins, plus ceux des composants en aval quand une
   interface change (`npm test -- <fichiers>`).
 - **Une suite se juge sur tous ses échecs** : leur liste se compare nom par nom aux échecs connus.

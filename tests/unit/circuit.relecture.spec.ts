@@ -26,9 +26,28 @@ const {
   etat,
   ordre,
   gitRepo,
+  auteurs,
   commentaires,
   historique,
 } = circuitEssai(ESSAIS);
+
+// The rules that refuse an agent the change of its author at the ticket: bd's `--actor`,
+// `-a`/`--author`, and the variable BEADS_ACTOR.
+const AUTEUR_FIXE = [
+  'Bash(bd *--actor*)',
+  'Bash(bd *--author*)',
+  'Bash(bd * -a*)',
+  'Bash(*BEADS_ACTOR*)',
+];
+// The rules after `--disallowedTools` in the arguments <a> of a session, up to the next option.
+const refusees = (a: string[]) => {
+  const i = a.indexOf('--disallowedTools');
+  if (i < 0) {
+    return [];
+  }
+  const fin = a.findIndex((x, j) => j > i && x.startsWith('--'));
+  return a.slice(i + 1, fin < 0 ? undefined : fin);
+};
 
 // The entries of the integration's queue: the branches in their order of arrival.
 const enFile = () => {
@@ -150,6 +169,58 @@ Règle : critère 1.'
     expect(ticketDe(id)).toMatchObject({ status: 'closed' });
     expect(commentaires(id).at(-1)).toMatch(/^Circuit · packages\/forms · file : intégré : /);
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
+  });
+
+  it('each session writes at the ticket under its role (BEADS_ACTOR), the circuit under « circuit », the verdict under « relecteur », and none may change its author', () => {
+    const id = 'demo-auteurs';
+    ticket(id, '000-forms');
+    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    // Each session receives the author of its role, in the envelope and out of it.
+    expect(essai(id, 'testeur-1.acteur')).toBe('testeur packages/forms');
+    expect(essai(id, 'developpeur-1.acteur')).toBe('developpeur packages/forms');
+    expect(essai(id, 'relecteur-1.acteur')).toBe('relecteur');
+    // Its rights refuse bd's options of author and the variable.
+    for (const role of ['testeur', 'developpeur', 'relecteur']) {
+      expect(refusees(args(id, role, 1)), role).toEqual(expect.arrayContaining(AUTEUR_FIXE));
+    }
+    const liste = auteurs(id);
+    expect(liste.find(c => c.text === 'Tests écrits, rouges.')?.author).toBe(
+      'testeur packages/forms'
+    );
+    expect(liste.find(c => c.text === 'Code écrit.')?.author).toBe('developpeur packages/forms');
+    expect(liste.find(c => c.text.startsWith('ACCEPTÉ'))?.author).toBe('relecteur');
+    const duCircuit = liste.filter(c => c.text.startsWith('Circuit · '));
+    expect(duCircuit.length).toBeGreaterThan(0);
+    expect(duCircuit.filter(c => c.author !== 'circuit')).toEqual([]);
+  });
+
+  it("an agent's handover that opens on RENDU counts as no review: two RENDU, then ACCEPTÉ, to the queue", () => {
+    const id = 'demo-passation-rendu';
+    ticket(id, '000-forms');
+    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
+    // Each handover of the developpeur opens on the word RENDU, as in BPScript 320.2.4.5.1.
+    scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'RENDU 000-forms — code écrit.'\n`);
+    scenario(
+      id,
+      'developpeur',
+      `echo $(( $(cat $c/tour 2>/dev/null || echo 0) + 1 )) > $c/tour\npassation 'RENDU 000-forms — constat traité.'\n`
+    );
+    scenario(id, 'relecteur-1', rendu('developpeur 000-forms'));
+    scenario(id, 'relecteur-2', rendu('developpeur 000-forms'));
+    scenario(id, 'relecteur-3', "verdict 'ACCEPTÉ — les constats sont traités.'\n");
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(sessions(id, 'relecteur')).toBe(3);
+    expect(sessions(id, 'developpeur')).toBe(3);
+    const rendus = commentaires(id).filter(t =>
+      /^Circuit · packages\/forms · relecture : RENDU/.test(t)
+    );
+    expect(rendus.map(t => /\(relecture (\d+)\)/.exec(t)?.[1])).toEqual(['1', '2']);
+    expect(essai(id, 'relecteur-2.prompt')).toContain('REPRISE : oui : 1 relecture(s)');
+    expect(ticketDe(id)).toMatchObject({ status: 'closed' });
   });
 
   it('RENDU « Agent : developpeur <composant> » relaunches that developpeur, then the rest, to the queue', () => {

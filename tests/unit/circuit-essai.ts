@@ -32,10 +32,11 @@ export const ecrire = (f: string, texte: string, mode?: number) => {
 
 // The stand-in for claude, run in the envelope with the copy as working directory. It finds the
 // main tree from git, reads its ticket in the prompt, records the call (prompt, arguments, working
-// directory, role and component in `ordre`, the role alone out of the envelope), leaves a line of
-// transcript where Claude Code keeps the copy's, then
-// sources the scenario of its role: `<role>-<n>.sh` for its n-th session, else `<role>.sh`. A
-// scenario writes in the component (`$c`) and hands over with `passation <text>`.
+// directory, the author of its comments at the ticket, `BEADS_ACTOR`, in `<role>-<n>.acteur`, role
+// and component in `ordre`, the role alone out of the envelope), leaves a line of transcript where
+// Claude Code keeps the copy's, then sources the scenario of its role: `<role>-<n>.sh` for its n-th
+// session, else `<role>.sh`. A scenario writes in the component (`$c`) and hands over with
+// `passation <text>`, a comment under the session's author, as bd writes it.
 const FAUX_CLAUDE = `#!/bin/bash
 racine=$(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd)
 prompt=$(cat)
@@ -49,13 +50,14 @@ echo "$n" > "$e/$role.n"
 printf '%s' "$prompt" > "$e/$role-$n.prompt"
 printf '%s\\0' "$@" > "$e/$role-$n.args"
 pwd > "$e/$role-$n.pwd"
+printf '%s' "\${BEADS_ACTOR-}" > "$e/$role-$n.acteur"
 echo "$role\${GRILLHOUSE_ENVELOPPE:+ $GRILLHOUSE_ENVELOPPE}" >> "$e/ordre"
 d="$HOME/.claude/projects/$(pwd | sed 's/[^A-Za-z0-9]/-/g')"
 mkdir -p "$d"
 echo '{"type":"user"}' >> "$d/$role-$n.jsonl"
 c=$GRILLHOUSE_ENVELOPPE
 passation() {
-  node -e 'require("fs").appendFileSync(process.argv[1], JSON.stringify({ author: process.argv[3], text: process.argv[2] }) + "\\n")' "$racine/.beads/$ticket.comments.jsonl" "$1" "$role"
+  node -e 'require("fs").appendFileSync(process.argv[1], JSON.stringify({ author: process.argv[3], text: process.argv[2] }) + "\\n")' "$racine/.beads/$ticket.comments.jsonl" "$1" "\${BEADS_ACTOR-}"
 }
 # The reviewer's verdict and the chef de chantier's decision: its final answer, on its standard
 # output.
@@ -68,8 +70,9 @@ exit 0
 `;
 
 // The stand-in for bd, run by the circuit from the main tree: a ticket is `.beads/<id>.json`, its
-// comments `.beads/<id>.comments.jsonl`; `update` (--status, --add-label, --remove-label), `close`
-// (--reason) and `reopen` write its state, as the integration and the queue change it.
+// comments `.beads/<id>.comments.jsonl`, each under its author, `BEADS_ACTOR`, else git's user
+// (`t`), as bd writes it; `update` (--status, --add-label, --remove-label), `close` (--reason) and
+// `reopen` write its state, as the integration and the queue change it.
 const FAUX_BD = `#!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
@@ -79,7 +82,7 @@ const commentaires = id => path.join(b, id + '.comments.jsonl');
 if (cmd === 'show') {
   process.stdout.write(fs.readFileSync(path.join(b, r[0] + '.json'), 'utf8'));
 } else if (cmd === 'comments' && r[0] === 'add') {
-  fs.appendFileSync(commentaires(r[1]), JSON.stringify({ author: 'circuit', text: r[2] }) + '\\n');
+  fs.appendFileSync(commentaires(r[1]), JSON.stringify({ author: process.env.BEADS_ACTOR || 't', text: r[2] }) + '\\n');
 } else if (cmd === 'comments') {
   const f = commentaires(r[0]);
   const l = fs.existsSync(f) ? fs.readFileSync(f, 'utf8').split('\\n').filter(Boolean) : [];
@@ -337,11 +340,13 @@ export function circuitEssai(ESSAIS: string) {
     } | null;
   const ordre = (id: string) => essai(id, 'ordre').trim().split('\n');
   const gitRepo = (...a: string[]) => execFileSync('git', ['-C', REPO, ...a], { encoding: 'utf8' });
-  const commentaires = (id: string) =>
+  // The comments at the ticket, each with its author.
+  const auteurs = (id: string) =>
     lire(path.join(BEADS, `${id}.comments.jsonl`))
       .split('\n')
       .filter(Boolean)
-      .map(l => (JSON.parse(l) as { text: string }).text);
+      .map(l => JSON.parse(l) as { author: string; text: string });
+  const commentaires = (id: string) => auteurs(id).map(c => c.text);
   // The circuit's history at the ticket: [composant, étape] of each comment « Circuit · … ».
   const historique = (id: string) =>
     commentaires(id).flatMap(t => {
@@ -362,6 +367,7 @@ export function circuitEssai(ESSAIS: string) {
     etat,
     ordre,
     gitRepo,
+    auteurs,
     commentaires,
     historique,
   };

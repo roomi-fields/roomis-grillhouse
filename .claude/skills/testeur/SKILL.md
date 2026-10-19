@@ -65,6 +65,11 @@ du lecteur est lancé sur ce que le lot casse.
 test que HEAD tient déjà sous le même nom, vert, n'a rien à prouver. Un fichier qui ne se charge
 pas ne prouve rien. Ainsi un vert reste un choix écrit.
 
+**Un test adapté porte son vert attendu dès ta première passation** : un test existant que tu
+adaptes à un nom ou un type changé, et qui passe sur le code présent, porte sa ligne
+`vert attendu : <test> — <raison>` dans ta première passation. Ainsi la preuve passe du premier
+coup, sans une séance de plus pour écrire la ligne.
+
 **Ne pas construire, c'est échouer** : la construction en échec d'un paquet de ton composant (un
 lecteur que le type de son fournisseur a changé) est le rouge de la preuve, et les tests qu'elle
 empêche de charger se jouent aux contrôles, après le développeur ; celle d'un paquet hors de ton

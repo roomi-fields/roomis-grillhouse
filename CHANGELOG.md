@@ -6,6 +6,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **A verdict is the reviewer's comment, never an agent's handover that opens on RENDU**: the circuit and the integration took for a verdict any comment whose first word was ACCEPTÉ or RENDU; in BPScript 320.2.4.5.1 a developer's handovers began with « RENDU 000-forms … », the circuit counted four reviews instead of two and stopped at « relecture-arret ». Each comment at the ticket now carries its author: the circuit launches each session with `BEADS_ACTOR` naming its role (`testeur <composant>`, `developpeur <composant>`, `relecteur`, `chef-de-chantier`), which the envelope passes on, writes its own lines as `circuit` and the reviewer's verdict as `relecteur`; a verdict is a comment of the author `relecteur` whose first word is ACCEPTÉ or RENDU, in the circuit, the integration and the board. The rights of every session refuse bd's `--actor`, `-a`/`--author` and the variable `BEADS_ACTOR`, so that no agent changes its author.
+
+### Changed
+
+- **A red the developer leaves in a component's tests goes straight to its tester**: a change of type broke the existing tests of a component; the developer, who writes no test, was relaunched up to three times on that red, then the circuit stopped at « sans-livraison » and the chef de chantier relaunched the tester. The developer's handover may now carry the line `Agent : testeur <composant>`, a component of the title already played or its own: the circuit plays that component again from its tester, the handover as its report, then the components after it, as a chef's `RELANCE --depuis testeur <composant>`, without relaunching the developer nor stopping. The same sending twice in a row without green checks between them stops at « sans-livraison », for the chef.
+- **A test the tester adapts carries its « vert attendu » from its first session**: nine tester sessions only added the lines « vert attendu » for existing tests rewritten to a changed type, green by nature on the present code. The tester's skill and instruction now say that such a test carries its line `vert attendu : <test> — <raison>` in the first handover.
+- **A component without tests goes straight to its developer**: a component of documentation alone saw three tester sessions without a test, then a stop at « preuve » and a chef. A component no package with a script `test:vitest` lies in or holds (the rule by which `npm test -- <chemin>` refuses a path) now skips the tester and the proof: the circuit writes `Circuit · <composant> · testeur : aucun test …` at the ticket and launches its developer, then its checks.
+
 ## [0.17.4] - 2026-10-19
 
 ### Fixed

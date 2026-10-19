@@ -22,7 +22,8 @@
 //   the machine's credentials, only claude's own are in sight.
 // - The session gets only the environment the envelope declares (`environnementDeLaSeance`), as
 //   sudo's env_reset and bwrap's --clearenv give it: the base of a login session, claude's own
-//   configuration and credentials (`ANTHROPIC_*`, `CLAUDE_CODE_OAUTH_TOKEN`), the npm cache it
+//   configuration and credentials (`ANTHROPIC_*`, `CLAUDE_CODE_OAUTH_TOKEN`), the author of its
+//   comments at the ticket (`BEADS_ACTOR`, which bd reads), the npm cache it
 //   mounts, `npm_config_ignore_scripts=true`, and `TMPDIR`, the session's working directory, where
 //   `mktemp` and `os.tmpdir()` write. With it npm runs no lifecycle script (`npm install` leaves the
 //   `prepare` that writes under the read-only `.git`; the launcher installs outside the session),
@@ -136,8 +137,9 @@ const MAISON_EN_LECTURE = [
 ];
 
 // The variables of a login session that the envelope passes on, as sudo's env_reset keeps them,
-// claude's OAuth credential, and the prefixes of the families it passes on: the locale, and the
-// configuration and credentials of claude's API. The state of a launching claude session
+// claude's OAuth credential, the author of the session's comments at the ticket (`BEADS_ACTOR`,
+// which the circuit sets to the session's role), and the prefixes of the families it passes on:
+// the locale, and the configuration and credentials of claude's API. The state of a launching claude session
 // (`CLAUDE_CODE_SESSION_ID`, its messaging socket and token…) stays out.
 const ENVIRONNEMENT_DECLARE = [
   'HOME',
@@ -151,6 +153,7 @@ const ENVIRONNEMENT_DECLARE = [
   'TERM',
   'COLORTERM',
   'CLAUDE_CODE_OAUTH_TOKEN',
+  'BEADS_ACTOR',
 ];
 const FAMILLES_DECLAREES = ['LC_', 'ANTHROPIC_'];
 // The declared variables that name a path: each enters only when its path is in sight inside the

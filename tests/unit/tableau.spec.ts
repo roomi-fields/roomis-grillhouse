@@ -131,7 +131,7 @@ describe('lecture', () => {
 });
 
 describe('verdict and etape', () => {
-  const c = (text: string, at: string) => ({ text, created_at: at });
+  const c = (text: string, at: string, author = 'relecteur') => ({ text, author, created_at: at });
   it("keeps the reviewer's last verdict", () => {
     expect(
       verdict([
@@ -144,6 +144,18 @@ describe('verdict and etape', () => {
       date: Date.parse('2026-10-10T12:00:00Z'),
     });
     expect(verdict([c('Passation', '2026-10-10T11:00:00Z')])).toBeNull();
+  });
+  it("reads a verdict only from the reviewer's comments: another agent's « RENDU » is none", () => {
+    expect(
+      verdict([
+        c('ACCEPTÉ', '2026-10-10T10:00:00Z'),
+        c(
+          'RENDU 000-forms — rien de neuf',
+          '2026-10-10T11:00:00Z',
+          'developpeur packages/000-forms'
+        ),
+      ])
+    ).toEqual({ verdict: 'ACCEPTÉ', date: Date.parse('2026-10-10T10:00:00Z') });
   });
   const p = (role: string, fin: string) => ({ role, fin });
   it('passes a ticket from role to role, the verdict choosing after the review', () => {

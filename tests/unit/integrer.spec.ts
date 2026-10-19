@@ -26,7 +26,8 @@ afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/integration/integrer.mjs');
 const RETIRER = path.resolve(__dirname, '../../scripts/retirer-copie.sh');
-const c = (text: string) => ({ text });
+// A comment of Beads' JSON, under its author, the reviewer's by default.
+const c = (text: string, author = 'relecteur') => ({ text, author });
 
 describe('refusVerdicts', () => {
   const t = { id: 'demo-1', labels: [] as string[] };
@@ -36,6 +37,17 @@ describe('refusVerdicts', () => {
   it('refuses a ticket without verdict, or given back last', () => {
     expect(refusVerdicts(t, [c('lot livré')])).toMatch(/ACCEPTÉ/);
     expect(refusVerdicts(t, [c('ACCEPTÉ'), c('RENDU : R2')])).toMatch(/ACCEPTÉ/);
+  });
+  it('reads a verdict only in a comment of the author relecteur (BPScript 320.2.4.5.1)', () => {
+    // An ACCEPTÉ of another author is no verdict.
+    expect(refusVerdicts(t, [c('ACCEPTÉ', 'developpeur packages/forms')])).toMatch(/ACCEPTÉ/);
+    expect(refusVerdicts(t, [c('ACCEPTÉ', 'circuit')])).toMatch(/ACCEPTÉ/);
+    expect(refusVerdicts(t, [c('ACCEPTÉ', '')])).toMatch(/ACCEPTÉ/);
+    expect(refusVerdicts(t, [{ text: 'ACCEPTÉ' }])).toMatch(/ACCEPTÉ/);
+    // An agent's handover that opens on RENDU does not come after the reviewer's ACCEPTÉ.
+    expect(
+      refusVerdicts(t, [c('ACCEPTÉ'), c('RENDU 000-forms — code écrit.', 'developpeur x')])
+    ).toBeNull();
   });
   const arb = { id: 'demo-2', labels: ['arbitrage'] };
   it('passes an arbitrage settled, or answered by the responsable', () => {
@@ -158,7 +170,7 @@ const SUITES_MONDE =
 function monde(commentaires: string[]) {
   const repo = mkdtempSync(path.join(ESSAIS, 'integrer-'));
   const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
-  const comments = JSON.stringify(commentaires.map(text => ({ text })));
+  const comments = JSON.stringify(commentaires.map(text => c(text)));
   writeFileSync(
     path.join(bin, 'bd'),
     `#!/bin/sh\ncase "$1" in show) echo '[{"id":"demo-1","labels":[]}]';; comments) cat <<'J'\n${comments}\nJ\n;; esac\n`,

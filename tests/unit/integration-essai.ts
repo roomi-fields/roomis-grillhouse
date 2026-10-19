@@ -185,7 +185,7 @@ export interface Ticket {
   id: string;
   status: string;
   labels: string[];
-  comments: { text: string }[];
+  comments: { text: string; author?: string }[];
   close_reason: string | null;
 }
 
@@ -304,7 +304,7 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
       id,
       status: 'in_progress',
       labels: [],
-      comments: [{ text: 'ACCEPTÉ' }],
+      comments: [{ author: 'relecteur', text: 'ACCEPTÉ' }],
       close_reason: null,
     };
     ecrireEtat(etat);
@@ -312,7 +312,7 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
   // The reviewer's ACCEPTÉ again on <id>, as after a new review.
   const accepter = (id: string) => {
     const etat = lireEtat();
-    etat[id].comments.push({ text: 'ACCEPTÉ' });
+    etat[id].comments.push({ author: 'relecteur', text: 'ACCEPTÉ' });
     ecrireEtat(etat);
   };
   // True when <rel> goes to the tests lot: a test file, or any file under a test folder (the

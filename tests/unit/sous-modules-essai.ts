@@ -119,7 +119,7 @@ export function sousModulesEssai(ESSAIS: string) {
     const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
     writeFileSync(
       path.join(bin, 'bd'),
-      `#!/bin/sh\ncase "$1 $2 $3" in "config get issue_prefix") echo demo; exit 0;; esac\ncase "$1" in show) echo '[{"id":"demo-1","labels":[]}]';; comments) echo '[{"text":"ACCEPTÉ"}]';; list) echo '[]';; create) echo demo-12;; esac\n`,
+      `#!/bin/sh\ncase "$1 $2 $3" in "config get issue_prefix") echo demo; exit 0;; esac\ncase "$1" in show) echo '[{"id":"demo-1","labels":[]}]';; comments) echo '[{"author":"relecteur","text":"ACCEPTÉ"}]';; list) echo '[]';; create) echo demo-12;; esac\n`,
       { mode: 0o755 }
     );
     const vu = path.join(bin, 'vu');

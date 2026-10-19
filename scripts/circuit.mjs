@@ -34,8 +34,22 @@
 //   reads them) and log (its preparation writes there before the session opens) stand still for
 //   20 minutes (IMMOBILE_MS; GRILLHOUSE_CIRCUIT_IMMOBILE_MS replaces
 //   it, in milliseconds) is stopped: SIGTERM, then SIGKILL, to the launcher's group.
+// - Each comment at the ticket carries its author, which bd reads in BEADS_ACTOR (ACTEUR): each
+//   session runs with the author of its role (`testeur <composant>`, `developpeur <composant>`,
+//   `relecteur`, `chef-de-chantier`), which the envelope passes on; the circuit writes its own
+//   lines under `circuit` and the reviewer's verdict under `relecteur`. The rights of every
+//   session refuse bd's `--actor`, `-a`/`--author` and the variable itself (AUTEUR_FIXE: the
+//   reviewer's and the chef's lists, and lancer.sh's for a session in the envelope), so that no
+//   agent changes its author. A verdict is a comment of the author `relecteur` whose first word is
+//   ACCEPTÉ or RENDU (`verdictDe` of scripts/integration/integrer.mjs), wherever the circuit and
+//   the integration read one.
 // - After each session, a new comment of the agent is at the ticket: one that is not the circuit's
 //   own (« Circuit · … »). Without it, the session is launched once more, then the circuit stops.
+// - A component that carries no test (sansTests: in a repository of packages, no package with a
+//   script `test:vitest` lies in it or holds it, as `npm test -- <chemin>` refuses a path out of
+//   every package or in a package without that script) skips the testeur and the proof: the
+//   circuit writes `Circuit · <composant> · testeur : aucun test …` at the ticket and launches its
+//   developpeur, the reason as his report, then his checks.
 // - The proof of the red plays the whole component, as the CI of bors plays the whole suite of
 //   the components a change touches: main is green, so a test HEAD holds that turns red in the
 //   copy is a regression of the lot. One run per package, `npm test -- <package> <files>
@@ -61,11 +75,19 @@
 //   failed proof relaunches the testeur with its report, twice at most. The report (reds,
 //   justified greens) is written at the ticket. A proof with a red launches the developpeur; one
 //   without a red skips him: the lot is a lot of tests alone.
-// - A developpeur is launched on a red alone, of a proof or of a check: a session that changes
-//   no file of its component (`git status --porcelain` of its directory and the content of each
-//   file it lists, taken before and after the session; the handover's text does not count) stops
-//   the circuit at « sans-livraison », its report naming the component and sending to the
-//   developpeur's handover.
+// - A developpeur is launched on a red alone, of a proof or of a check, or in a component without
+//   tests: a session that changes no file of its component (`git status --porcelain` of its
+//   directory and the content of each file it lists, taken before and after the session; the
+//   handover's text does not count) stops the circuit at « sans-livraison », its report naming the
+//   component and sending to the developpeur's handover.
+// - A handover of the developpeur that carries a line `Agent : testeur <composant>` (the form of a
+//   finding's line, the component one of the title up to his own) says the red that remains lies in
+//   the tests of that component: the circuit plays it as a `RELANCE --depuis testeur <composant>`
+//   of the chef de chantier, the handover as its context, whether or not the session changed a
+//   file: that component's testeur, the handover as his report, then its steps, the components
+//   after it, the final pass and the reviewer. A line to another role, or to a component out of
+//   the title or after his own, is no such sending. The same sending twice in a row, with no
+//   green checks between them, stops at « sans-livraison ».
 // - The checks after the developpeur of a component judge what is done, the components of the run
 //   up to it: `npm test -- <test files of the lot>` that lie in those components (and those of the
 //   shared test material whose package depends on none of the components after it), `npm test --
@@ -103,8 +125,8 @@
 //   the last verdict (its proofs and checks). Its errors go to the log under its header line, its line to the register
 //   (scripts/registre.mjs --copie), and it is watched as a session in the envelope is. Its
 //   handover is its verdict, its final answer, whose first word is ACCEPTÉ or RENDU: the circuit
-//   adds it to the log and writes it at the ticket, whole, a comment on several lines with its
-//   findings' headings; an answer without one is launched once more, then the circuit stops at
+//   adds it to the log and writes it at the ticket, whole, under the author `relecteur`, a comment
+//   on several lines with its findings' headings; an answer without one is launched once more, then the circuit stops at
 //   « sans-passation ».
 // - RENDU: each finding is a block that opens on a heading `Constat` and carries a line
 //   `Agent : <rôle> <composant>`, the role testeur or developpeur, the component one of the title
@@ -183,7 +205,8 @@
 //   third developpeur of a component's checks or of the final pass leaves a red check, or a red
 //   of the final pass no component of the title owns),
 //   15 sans-livraison (a developpeur session that changes no file of its component; the first
-//   session of a `--reprendre` whose component already holds changes goes on to the checks),
+//   session of a `--reprendre` whose component already holds changes goes on to the checks; or
+//   the developpeur's same sending to a testeur twice in a row, no green checks between them),
 //   16 relecture-arret (a finding without a valid recipient, one on a criterion, the third RENDU),
 //   17 integration (the integration script refuses the lot, or the queue reopens the ticket),
 //   18 question (the chef de chantier's question for the owner, `--reponse` resumes it),
@@ -213,7 +236,7 @@ import { VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/composant.mjs';
 import { paquets } from './paquets.mjs';
 import { transcriptionsDeLaCopie } from './registre.mjs';
 import { dossierCommun, lireEntrees } from './integration/file-attente.mjs';
-import { VERDICT } from './integration/integrer.mjs';
+import { AUTEUR_DU_VERDICT, VERDICT, verdictDe } from './integration/integrer.mjs';
 import { attendreUnPeu, vivant } from './verrou-de-fichier.mjs';
 import { isTesterFile } from './verrous/verrou.mjs';
 import { A_REPASSER } from './vitest-config/pression.mjs';
@@ -242,10 +265,25 @@ const SEANCES_DEVELOPPEUR = 3;
 const RELECTURES = 3;
 // The roles a finding of the reviewer may name.
 const DESTINATAIRES = ['testeur', 'developpeur'];
+// The variable in which bd reads the author of a comment (`bd --help`: « default: $BEADS_ACTOR,
+// git user.name, $USER »); the author of the circuit's own lines; the author of a session of
+// <role> on <composant>: `testeur <composant>`, `developpeur <composant>`, else the role alone.
+const ACTEUR = 'BEADS_ACTOR';
+const AUTEUR_DU_CIRCUIT = 'circuit';
+const auteur = (role, composant) => (DESTINATAIRES.includes(role) ? `${role} ${composant}` : role);
+// The rules that refuse a session the change of its author at the ticket: bd's options `--actor`
+// and `-a`/`--author`, and the variable itself. The reviewer's and the chef's lists end on them,
+// and lancer.sh gives them to a session in the envelope.
+export const AUTEUR_FIXE = [
+  'Bash(bd *--actor*)',
+  'Bash(bd *--author*)',
+  'Bash(bd * -a*)',
+  `Bash(*${ACTEUR}*)`,
+];
 // The reviewer's session, out of the envelope, on Opus: the project's permissions
 // (`.claude/settings.json`), with every command its skill runs (the frame's scripts, the reads of
 // git and of the ticket, the comparison of two files, the targeted tests, the guards, the index);
-// any other tool call is refused without a prompt.
+// any other tool call is refused without a prompt, and so is a change of its author (AUTEUR_FIXE).
 const RELECTEUR = [
   '--model',
   'opus',
@@ -268,11 +306,14 @@ const RELECTEUR = [
   'Bash(codegraph *)',
   'mcp__plugin_rtfm_rtfm__rtfm_search',
   'mcp__plugin_rtfm_rtfm__rtfm_expand',
+  '--disallowedTools',
+  ...AUTEUR_FIXE,
 ];
 // The chef de chantier's session, out of the envelope, on Sonnet: every command its skill runs (the
 // reads of the ticket and the search of a precedent, a comment, a criterion added to the
 // description, a finding filed closed, the reads of git, the index) and the reads of the ticket's
-// state, log and proofs; any other tool call is refused without a prompt.
+// state, log and proofs; any other tool call is refused without a prompt, and so is a change of its
+// author (AUTEUR_FIXE).
 const CHEF = 'chef-de-chantier';
 const droitsDuChef = ctx => [
   '--model',
@@ -297,6 +338,8 @@ const droitsDuChef = ctx => [
   `Read(/${ctx.etat})`,
   `Read(/${ctx.journal})`,
   `Read(/${ctx.copie}.preuve-*.md)`,
+  '--disallowedTools',
+  ...AUTEUR_FIXE,
 ];
 // The third RELANCE in a row on one stop is the last.
 const RELANCES_DU_CHEF = 3;
@@ -382,9 +425,16 @@ function arbrePrincipal() {
 function contexte(o) {
   const racine = arbrePrincipal();
   const copie = path.join(racine, '.claude', 'worktrees', o.ticket);
-  // The comments of a long ticket pass the 1 MiB that a child process returns by default.
-  const bd = (...a) =>
-    spawnSync('bd', a, { cwd: racine, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+  // The comments of a long ticket pass the 1 MiB that a child process returns by default. bd runs
+  // under the author <qui>; `bd` under the circuit's.
+  const bdSous = (qui, ...a) =>
+    spawnSync('bd', a, {
+      cwd: racine,
+      encoding: 'utf8',
+      maxBuffer: 256 * 1024 * 1024,
+      env: { ...process.env, [ACTEUR]: qui },
+    });
+  const bd = (...a) => bdSous(AUTEUR_DU_CIRCUIT, ...a);
   const show = bd('show', o.ticket, '--json');
   if (show.status !== 0) throw new Usage(`ticket ${o.ticket} illisible : ${show.stderr}`);
   const t = JSON.parse(show.stdout)[0];
@@ -427,6 +477,7 @@ function contexte(o) {
     racine,
     copie,
     bd,
+    bdSous,
     resoudre,
     type: String(t.issue_type ?? ''),
     sujet: parts.length > 2 ? parts.slice(1, -1).join(' — ') : parts[0],
@@ -444,19 +495,27 @@ function contexte(o) {
   };
 }
 
-// The texts of every comment at the ticket, in their order; a failed read throws.
-function commentaires(ctx) {
+// Every comment at the ticket, in their order, `{ author, text }` as Beads gives them; a failed
+// read throws.
+function lesCommentaires(ctx) {
   const r = ctx.bd('comments', ctx.ticket, '--json');
   if (r.status !== 0) {
     throw new Error(
       `commentaires de ${ctx.ticket} illisibles : ${r.error?.message ?? r.stderr ?? ''}`.trim()
     );
   }
-  return (JSON.parse(r.stdout || '[]') ?? []).map(c => String(c.text ?? ''));
+  return (JSON.parse(r.stdout || '[]') ?? []).map(c => ({
+    author: String(c.author ?? ''),
+    text: String(c.text ?? ''),
+  }));
 }
 
-// The comments of the agents at the ticket: every comment but the circuit's own.
-const passations = ctx => commentaires(ctx).filter(t => !t.startsWith(PREFIXE));
+// The texts of every comment at the ticket, in their order.
+const commentaires = ctx => lesCommentaires(ctx).map(c => c.text);
+
+// The comments of the agents at the ticket, `{ author, text }`: every comment but the circuit's
+// own.
+const passations = ctx => lesCommentaires(ctx).filter(c => !c.text.startsWith(PREFIXE));
 
 // One line of the circuit's history at the ticket.
 function commenter(ctx, composant, etape, texte) {
@@ -507,7 +566,8 @@ const mtime = f => {
 
 // One launch of a session: `{ code, seance, bloque, erreur, reponse }`, `seance` the session's
 // exit code (from lancer.sh's end file for a session in the envelope), null when the launch
-// stopped before it. A session <horsEnveloppe> (the reviewer's, the chef de chantier's) is claude
+// stopped before it. Every session runs with the author of <role> on <composant> (BEADS_ACTOR).
+// A session <horsEnveloppe> (the reviewer's, the chef de chantier's) is claude
 // itself, in the ticket's copy (the main tree once the copy is gone), under <droits> (the
 // reviewer's by default) and the options <session> names, its instruction on its standard input
 // and its final answer (`reponse`) added to the log under its header line and given to
@@ -545,10 +605,12 @@ function lancer(
     };
   }
   return new Promise(resolve => {
+    // The session writes at the ticket under the author of its role.
     const enfant = spawn(commande.cmd, commande.args, {
       cwd: commande.cwd,
       detached: true,
       stdio: fds,
+      env: { ...process.env, [ACTEUR]: auteur(role, composant) },
     });
     for (const fd of new Set(fds.filter(f => typeof f === 'number'))) closeSync(fd);
     let erreurDeLancement = null;
@@ -639,8 +701,9 @@ function consigne(valeurs, rang = 0) {
   return `${bloc[1].replace(/\{\{(\w+)\}\}/g, (m, k) => (k in valeurs ? valeurs[k] : m))}\n`;
 }
 
-// One session of <role> on <composant>, launched again once when it leaves no handover. Throws an
-// Arret for a launch that stops before its session, a motionless session, or twice no handover.
+// One session of <role> on <composant>, launched again once when it leaves no handover: the new
+// comments of the agents, `{ author, text }`. Throws an Arret for a launch that stops before its
+// session, a motionless session, or twice no handover.
 async function seance(ctx, role, composant, { tentative, rapport, fort }) {
   const avant = passations(ctx);
   const lots = role === 'developpeur' ? testsDuLot(ctx) : testsDuComposant(ctx, composant);
@@ -660,14 +723,14 @@ async function seance(ctx, role, composant, { tentative, rapport, fort }) {
     contexte: (!ctx.depuis && ctx.contexte) || 'aucun',
     description: ctx.description.trim() || 'aucune',
     rapport: rapport ?? 'aucun',
-    passation: avant.at(-1) ?? 'aucune',
+    passation: avant.at(-1)?.text ?? 'aucune',
   };
-  await jusquALaPassation(ctx, role, composant, consigne(valeurs), { fort });
+  return await jusquALaPassation(ctx, role, composant, consigne(valeurs), { fort });
 }
 
 // The session of <role> on <composant> with the instruction <texte>, launched again once when it
 // leaves no comment <attendu> accepts (any comment of an agent, by default): the new comments of
-// the agents. Throws an Arret for a launch that stops before its session, a motionless session,
+// the agents, `{ author, text }`. Throws an Arret for a launch that stops before its session, a motionless session,
 // or twice no such comment.
 async function jusquALaPassation(ctx, role, composant, texte, options = {}) {
   const attendu = options.attendu ?? (() => true);
@@ -706,10 +769,13 @@ const lire = f => (existsSync(f) ? readFileSync(f, 'utf8') : '');
 // The circuit's reports at the ticket since the reviewer's last verdict: the comments of its proofs
 // and checks (the final pass among them).
 function rapportsDuCircuit(ctx) {
-  const tous = commentaires(ctx);
-  const depuis = tous.findLastIndex(t => VERDICT.test(t)) + 1;
+  const tous = lesCommentaires(ctx);
+  const depuis = tous.findLastIndex(c => verdictDe(c)) + 1;
   const etape = new RegExp(`^${PREFIXE}\\S+ · (preuve|controles) :`);
-  return tous.slice(depuis).filter(t => etape.test(t));
+  return tous
+    .slice(depuis)
+    .map(c => c.text)
+    .filter(t => etape.test(t));
 }
 
 // The files of the lot, as the copy holds them against its HEAD: `{ tests, code }`, the
@@ -728,7 +794,7 @@ function fichiersDuLot(ctx) {
 async function relire(ctx, composant) {
   const { tests, code } = fichiersDuLot(ctx);
   const rapports = rapportsDuCircuit(ctx);
-  const precedents = passations(ctx).filter(t => VERDICT.test(t));
+  const precedents = passations(ctx).filter(c => verdictDe(c));
   const affirmations = path.join(ctx.tmp, 'affirmations.md');
   writeFileSync(affirmations, ctx.description);
   const valeurs = {
@@ -749,17 +815,18 @@ async function relire(ctx, composant) {
   };
   const neufs = await jusquALaPassation(ctx, 'relecteur', composant, consigne(valeurs, 1), {
     horsEnveloppe: true,
-    // The verdict, whole, at the ticket: a comment on several lines with its findings' headings.
+    // The verdict, whole, at the ticket under the reviewer's author: a comment on several lines
+    // with its findings' headings.
     surReponse: texte => {
       if (!VERDICT.test(texte)) return;
-      const r = ctx.bd('comments', 'add', ctx.ticket, texte);
+      const r = ctx.bdSous(AUTEUR_DU_VERDICT, 'comments', 'add', ctx.ticket, texte);
       if (r.status !== 0) process.stderr.write(`⚠️  verdict non écrit au ticket : ${r.stderr}\n`);
     },
-    attendu: t => VERDICT.test(t),
+    attendu: c => verdictDe(c) !== null,
     quoi: 'verdict',
   });
-  const texte = neufs.filter(t => VERDICT.test(t)).at(-1);
-  return { verdict: VERDICT.exec(texte)[1], texte };
+  const dernier = neufs.filter(c => verdictDe(c)).at(-1);
+  return { verdict: verdictDe(dernier), texte: dernier.text };
 }
 
 // The findings of the verdict RENDU <texte>, each a block that opens on a heading `Constat`
@@ -781,16 +848,42 @@ export function constats(texte) {
   }
   return blocs.map(({ titre, lignes }) => {
     const corps = lignes.join('\n').trim();
-    const agent = /^\s*(?:[-*]\s*)?\**Agent\**\s*:\s*\**\s*(\S+)\s+`?([^\s`*]+)/im.exec(corps);
     return {
       titre,
       texte: corps,
-      role: agent ? agent[1] : null,
-      // The punctuation that ends the line, never the root `.` itself.
-      composant: agent ? agent[2].replace(/(?<=.)[,.;]+$/, '') : null,
+      ...ligneAgent(corps),
       critere: /^\s*(?:[-*]\s*)?\**Critère en cause\**\s*:/im.test(corps),
     };
   });
+}
+
+// The first line `Agent : <rôle> <composant>` of <texte>, a finding of the reviewer or a handover of
+// the developpeur: `{ role, composant }`, both null without one.
+function ligneAgent(texte) {
+  const agent = /^\s*(?:[-*]\s*)?\**Agent\**\s*:\s*\**\s*(\S+)\s+`?([^\s`*]+)/im.exec(texte);
+  return {
+    role: agent ? agent[1] : null,
+    // The punctuation that ends the line, never the root `.` itself.
+    composant: agent ? agent[2].replace(/(?<=.)[,.;]+$/, '') : null,
+  };
+}
+
+// The sending to a testeur in the new handovers <neufs> of the developpeur of the component at
+// <index>: `{ index, texte }`, the component its last line `Agent : testeur <composant>` names, one
+// of the title up to <index>, and that handover; null without such a line.
+function renvoiAuTesteur(ctx, neufs, index) {
+  for (const c of [...neufs].reverse()) {
+    const { role, composant } = ligneAgent(c.text);
+    if (role !== 'testeur' || !composant) continue;
+    let i = -1;
+    try {
+      i = ctx.composants.indexOf(ctx.resoudre(composant));
+    } catch {
+      i = -1;
+    }
+    return i >= 0 && i <= index ? { index: i, texte: c.text } : null;
+  }
+  return null;
 }
 
 // The agents a verdict RENDU sends the lot back to: Map index of component → `{ etape,
@@ -1050,7 +1143,7 @@ function versionsDAvant(ctx, fichiers) {
 // of the justified greens, which only the whole report, written to its file, holds.
 function preuve(ctx, composant) {
   const fichiers = testsDuComposant(ctx, composant);
-  const lignes = passations(ctx).flatMap(t => t.split('\n'));
+  const lignes = passations(ctx).flatMap(c => c.text.split('\n'));
   const rouges = [];
   const justifies = [];
   const injustifies = [];
@@ -1339,6 +1432,18 @@ function paquetsDesComposants(ctx, liste, garde) {
     .sort();
 }
 
+// Whether the component at <index> carries no test: in a repository of packages, no package of the
+// frame with a script `test:vitest` lies in it or holds it, as `npm test -- <chemin>`
+// (scripts/tests.mjs) refuses a path out of every package or in a package without that script. A
+// repository without packages plays its tests at its root: each component has them.
+function sansTests(ctx, index) {
+  const liste = paquets(existsSync(ctx.copie) ? ctx.copie : ctx.racine).filter(p => !p.hors);
+  if (liste.length === 0) return false;
+  const c = ctx.composants[index];
+  const touche = d => c === '.' || d === c || d.startsWith(`${c}/`) || c.startsWith(`${d}/`);
+  return !liste.some(p => typeof p.pkg.scripts?.['test:vitest'] === 'string' && touche(p.dossier));
+}
+
 // Whether the copy holds a change of <composant> against its HEAD.
 function livre(ctx, composant) {
   const r = spawnSync(
@@ -1467,9 +1572,9 @@ function entreeDuRenvoi(ctx, index) {
   return { etape: r.etape, tentative: 1, rapport: r[r.etape] };
 }
 
-// The circuit from <depart> to the entry of the lot in the queue.
-async function derouler(ctx, depart) {
-  let { index, etape, tentative, rapport, dernier, finale } = depart;
+// The circuit from <debut> (where `depart` starts it) to the entry of the lot in the queue.
+async function derouler(ctx, debut) {
+  let { index, etape, tentative, rapport, dernier, finale } = debut;
   // The step a `--reprendre` starts at, the first of the loop.
   let reprise = Boolean(ctx.reprendre);
   for (;;) {
@@ -1488,7 +1593,22 @@ async function derouler(ctx, depart) {
     };
     ecrireEtat(ctx, etat);
     try {
-      if (etape === 'testeur') {
+      if (etape === 'testeur' && sansTests(ctx, index)) {
+        commenter(
+          ctx,
+          composant,
+          'testeur',
+          'aucun test dans ce composant (aucun paquet avec un script test:vitest ne le tient) : ni testeur ni preuve, son développeur directement.'
+        );
+        rapport = [
+          `Le composant ${composant} ne porte aucun test (aucun paquet avec un script test:vitest ne le tient) : le circuit le lance sans testeur ni preuve. Tu écris sa part du ticket d'après ses critères ; les contrôles suivent ta séance.`,
+          rapport,
+        ]
+          .filter(Boolean)
+          .join('\n\n');
+        etape = 'developpeur';
+        tentative = 1;
+      } else if (etape === 'testeur') {
         await seance(ctx, 'testeur', composant, { tentative, rapport });
         commenter(ctx, composant, 'testeur', `séance ${tentative} finie, passation au ticket.`);
         etape = 'preuve';
@@ -1521,7 +1641,31 @@ async function derouler(ctx, depart) {
       } else if (etape === 'developpeur') {
         const fort = tentative >= SEANCES_DEVELOPPEUR;
         const avant = empreinte(ctx, composant);
-        await seance(ctx, 'developpeur', composant, { tentative, rapport, fort });
+        const neufs = await seance(ctx, 'developpeur', composant, { tentative, rapport, fort });
+        const renvoi = renvoiAuTesteur(ctx, neufs, index);
+        if (renvoi) {
+          // The red that remains lies in the tests of that component: its testeur, as a chef's
+          // `RELANCE --depuis testeur <composant>`, the handover as its context.
+          const cible = ctx.composants[renvoi.index];
+          if (ctx.renvoiAuTesteur === cible) {
+            throw new Arret(
+              'sans-livraison',
+              `La passation de la séance ${tentative} du développeur de ${composant} renvoie une deuxième fois de suite à \`testeur ${cible}\`, sans contrôles verts depuis le premier renvoi : le testeur n'a pas levé ce rouge. Sa passation :\n\n${renvoi.texte}`
+            );
+          }
+          ctx.renvoiAuTesteur = cible;
+          commenter(
+            ctx,
+            composant,
+            'developpeur',
+            `séance ${tentative}${fort ? ' (opus, effort high)' : ''} finie ; sa passation renvoie le rouge à \`testeur ${cible}\` : le circuit rejoue ${cible} depuis son testeur, puis les composants d'après.`
+          );
+          ctx.reprendre = false;
+          ctx.depuis = { etape: 'testeur', composant: cible };
+          ctx.contexte = renvoi.texte;
+          ({ index, etape, tentative, rapport, dernier, finale } = depart(ctx, null));
+          continue;
+        }
         if (empreinte(ctx, composant) === avant && reprend && livre(ctx, composant)) {
           // A resumed developpeur that finds its lot delivered: the checks judge it.
           commenter(
@@ -1533,7 +1677,7 @@ async function derouler(ctx, depart) {
         } else if (empreinte(ctx, composant) === avant) {
           throw new Arret(
             'sans-livraison',
-            `La séance ${tentative} du développeur de ${composant} ne change aucun fichier de ${composant} : un développeur n'est lancé que sur un rouge, et ce rouge reste. Sa passation au ticket dit pourquoi :\n\n${passations(ctx).at(-1) ?? 'aucune'}`
+            `La séance ${tentative} du développeur de ${composant} ne change aucun fichier de ${composant} : un développeur n'est lancé que sur un rouge, et ce rouge reste. Sa passation au ticket dit pourquoi :\n\n${passations(ctx).at(-1)?.text ?? 'aucune'}`
           );
         }
         commenter(
@@ -1580,6 +1724,8 @@ async function derouler(ctx, depart) {
           throw new Arret('a-repasser', k.texte);
         } else {
           commenter(ctx, composant, 'controles', `${k.resume}.`);
+          // Green checks: a sending of the developpeur to a testeur may come again.
+          ctx.renvoiAuTesteur = null;
           if (!passeFinale) {
             index++;
             ({ etape, tentative, rapport } = entreeDuRenvoi(ctx, index) ?? {
@@ -1598,8 +1744,8 @@ async function derouler(ctx, depart) {
           etape = 'integration';
         } else {
           // The reviews since the last ACCEPTÉ: a lot the queue sent back starts a new count.
-          const verdicts = passations(ctx).filter(t => VERDICT.test(t));
-          const depuis = verdicts.findLastIndex(t => VERDICT.exec(t)[1] === 'ACCEPTÉ') + 1;
+          const verdicts = passations(ctx).filter(c => verdictDe(c));
+          const depuis = verdicts.findLastIndex(c => verdictDe(c) === 'ACCEPTÉ') + 1;
           const rendus = verdicts.length - depuis;
           if (rendus >= RELECTURES) {
             throw new Arret(
