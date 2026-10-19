@@ -12,7 +12,8 @@ import { ecrire as ecrireTurbo } from '../../scripts/turbo-des-paquets.mjs';
 // The trial repository holds two packages, `000-forms` (packages/forms) and `030-binder`
 // (packages/binder), whose `mesure` is wrong until the developpeur writes it. Each session of the
 // testeur and the developpeur is a real launch (scripts/enveloppe/lancer.sh) in a real envelope;
-// the reviewer's is claude in the ticket's copy, out of the envelope; claude is a stand-in (CLAUDE_BIN)
+// the reviewer's and the chef de chantier's are claude in the ticket's copy, out of the envelope (a
+// chef without a scenario answers nothing: the stop goes to the supervisor); claude is a stand-in (CLAUDE_BIN)
 // that plays the scenario the test wrote for its role, and bd is a stand-in on the PATH whose
 // tickets and comments live in the main tree's `.beads/`, which the envelope leaves writable. The
 // proof and the checks are real runs of the frame's commands (npm test, npm run verifier), and the
@@ -56,8 +57,10 @@ c=$GRILLHOUSE_ENVELOPPE
 passation() {
   node -e 'require("fs").appendFileSync(process.argv[1], JSON.stringify({ author: process.argv[3], text: process.argv[2] }) + "\\n")' "$racine/.beads/$ticket.comments.jsonl" "$1" "$role"
 }
-# The reviewer's verdict: its final answer, on its standard output.
+# The reviewer's verdict and the chef de chantier's decision: its final answer, on its standard
+# output.
 verdict() { printf '%s\n' "$1"; }
+decision() { printf '%s\n' "$1"; }
 s="$e/$role-$n.sh"
 [ -f "$s" ] || s="$e/$role.sh"
 [ -f "$s" ] && . "$s"
@@ -330,6 +333,7 @@ export function circuitEssai(ESSAIS: string) {
       finale: boolean;
       seance: number | null;
       renvois: Record<string, { etape: string }> | null;
+      chef: { seance: string; arret: string; code: number; rapport: string | null } | null;
     } | null;
   const ordre = (id: string) => essai(id, 'ordre').trim().split('\n');
   const gitRepo = (...a: string[]) => execFileSync('git', ['-C', REPO, ...a], { encoding: 'utf8' });

@@ -1,6 +1,6 @@
 ---
 name: chef-de-chantier
-description: Tranche un arrêt du circuit d'un ticket — lit son état et sa raison, tranche ce que les règles tranchent, relance le circuit (--reprendre ou --depuis) en arrière-plan, fait monter le reste au superviseur. Lancé neuf par le superviseur sur chaque arrêt. N'écrit ni code ni test.
+description: Tranche un arrêt du circuit d'un ticket — lit son état et sa raison, tranche ce que les règles tranchent, rend sa décision en réponse finale (RELANCE, que le circuit applique, ou MONTE, la question au superviseur). Lancé neuf par le circuit sur chaque arrêt. N'écrit ni code ni test.
 skills:
   - chef-de-chantier
 model: sonnet

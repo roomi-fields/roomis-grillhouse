@@ -63,6 +63,8 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
       'developpeur packages/binder',
       'developpeur packages/forms',
       'developpeur packages/binder',
+      // The stop goes to a session of the chef de chantier, who answers nothing here.
+      'chef-de-chantier',
     ]);
     const fort = args(id, 'developpeur', 4);
     expect(fort[fort.indexOf('--model') + 1]).toBe('opus');

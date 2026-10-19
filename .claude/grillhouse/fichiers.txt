@@ -63,6 +63,7 @@ scripts/vitest.nuit.config.mjs
 - tests/machine.ts
 - tests/unit/circuit-conduite.spec.ts
 - tests/unit/circuit-essai.ts
+- tests/unit/circuit.chef.spec.ts
 - tests/unit/circuit.composants.spec.ts
 - tests/unit/circuit.construction.spec.ts
 - tests/unit/circuit.passe-finale.spec.ts

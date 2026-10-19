@@ -1,9 +1,10 @@
 // The circuit of a ticket on the board (scripts/circuit.mjs): its state
 // `.claude/worktrees/<ticket>.circuit.json` and its process `node scripts/circuit.mjs <ticket>`.
 // A circuit's ticket stands on one line, the only one of it in AGENTS, in the block of the role
-// its step belongs to: one that runs shows its step, attempt and component; one that stopped
-// stands in the chef de chantier's block with its stop's name and code, running while a chef runs
-// on it, and its card opens on where it stopped and the first line of its reason.
+// its step belongs to: one that runs shows its step, attempt and component; one that runs a
+// session of the chef de chantier on its stop stands in the chef's block, running, with its stop's
+// name and code; one that stopped stands there too, with its stop's name and code, and its card
+// opens on where it stopped and the first line of its reason, or on the chef's question.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -231,7 +232,47 @@ describe('a circuit that stopped: its stop and its code, its reason on its card'
     ]);
   });
 
-  it('a fresh chef running on the stop runs on its one line in block 0', () => {
+  // grillhouse-3uv.85, critère 9: the chef de chantier is a session of the circuit. A circuit in
+  // a chef's session runs on its ticket's line in block 0 (▶), with its stop; a circuit ended on
+  // « question » stands in the same block (■), the chef's question at the head of its card.
+  const SEANCE = { seance: '0b8e8c7e-1d2f-4a3b-9c4d-5e6f7a8b9c0d', arret: 'controles', code: 14 };
+
+  it('critère 9 — a circuit that runs a chef on its stop runs on its one line in block 0 (▶), its stop named', () => {
+    const racine = depot({ 'demo-13': { ...ARRET, chef: { ...SEANCE, rapport: ARRET.rapport } } });
+    const lus = circuits(racine, ligneCircuit('demo-13'));
+    expect(lus).toEqual([expect.objectContaining({ ticket: 'demo-13', vivant: true, chef: true })]);
+    const t = plateau([T('demo-13')], [], [], lus);
+    const a = agents(t);
+    const i = a.indexOf('0 chef de chantier');
+    expect(a[i + 1]).toMatch(/^▶ 13 {2}Le sujet de demo-13 +controles \(14\)$/);
+    expect(lignesAgents(t)[i + 1]).toMatchObject({ ton: 'actif', ticket: 'demo-13' });
+    expect(a.filter(x => x.includes('Le sujet de demo-13'))).toHaveLength(1);
+  });
+
+  it('critère 9 — a circuit ended on « question » stands in block 0 (■), the question at the head of its card', () => {
+    const racine = depot({
+      'demo-14': {
+        ...ARRET,
+        etape: 'developpeur',
+        code: 18,
+        raison: 'question',
+        rapport: 'La mesure rend-elle le double ou le triple ?\nLe critère 1 ne le dit pas.',
+        chef: { ...SEANCE, rapport: ARRET.rapport },
+      },
+    });
+    const lus = circuits(racine);
+    expect(lus).toEqual([expect.objectContaining({ ticket: 'demo-14', vivant: false })]);
+    const t = plateau([T('demo-14')], [], [], lus);
+    const a = agents(t);
+    const i = a.indexOf('0 chef de chantier');
+    expect(a[i + 1]).toMatch(/^■ 14 {2}Le sujet de demo-14 +question \(18\)$/);
+    expect(lignesAgents(t)[i + 1]).toMatchObject({ ton: 'attention', ticket: 'demo-14' });
+    expect(carte(t, [T('demo-14')], 'demo-14')).toMatch(
+      /^Question du chef de chantier : La mesure rend-elle le double ou le triple \? Le critère 1 ne le dit pas\./
+    );
+  });
+
+  it('a chef running as a sub-agent on a stopped circuit does not make it run: the chef is a session of the circuit', () => {
     const racine = depot({ 'demo-13': ARRET });
     const chef = {
       agent: 'c1',
@@ -244,18 +285,11 @@ describe('a circuit that stopped: its stop and its code, its reason on its card'
       travail: 5 * MIN,
       tours: [[MAINTENANT - 5 * MIN, MAINTENANT]],
     };
-    const t = plateau(
-      [T('demo-13')],
-      [fin('c0', 'demo-13', CHEF, '09:00')],
-      [chef],
-      circuits(racine)
-    );
-    expect(bloc(t, CHEF).enCours.map(x => x.id)).toEqual(['demo-13']);
+    const t = plateau([T('demo-13')], [], [chef], circuits(racine));
     const a = agents(t);
     expect(a.filter(x => x.includes('Le sujet de demo-13'))).toEqual([
-      expect.stringMatching(/^▶ .*controles \(14\)$/),
+      expect.stringMatching(/^■ .*controles \(14\)$/),
     ]);
-    expect(a[a.indexOf('0 chef de chantier') + 1]).toContain('Le sujet de demo-13');
   });
 });
 

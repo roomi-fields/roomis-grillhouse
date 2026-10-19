@@ -6,8 +6,8 @@ import { sortie, CIRCUIT, IMMOBILE_MS, ARRETS, circuitEssai } from './circuit-es
 // The circuit of a ticket (scripts/circuit.mjs): for each component of its title, the provider
 // first, the testeur, the proof of the red, the developpeur and the checks; then the reviewer,
 // and on ACCEPTÉ the integration, which puts the branch in the queue.
-// Decided by the owner on 2026-10-17 (grill): the chef de chantier launches it in the background
-// and wakes at its end, in place of launching and waiting for each session himself; the circuit
+// Decided by the owner on 2026-10-17 (grill): the circuit launches each session itself, in place
+// of a chef de chantier launching and waiting for each one; the circuit
 // launches the reviewer (Q6) and integrates the lot itself, the role of the integrateur gone (Q7);
 // it ends at the entry of the lot in the queue (Q13).
 //
@@ -15,8 +15,8 @@ import { sortie, CIRCUIT, IMMOBILE_MS, ARRETS, circuitEssai } from './circuit-es
 // ticket is tested in the files beside it: circuit.preuve (the testeur and the proof),
 // circuit.sessions (the sessions relaunched, stopped and resumed), circuit.composants (a red judged
 // by its component), circuit.passe-finale (the final pass), circuit.construction (a failed build),
-// circuit.tests-de-head (the tests HEAD holds) and circuit.relecture (the review and the
-// integration).
+// circuit.tests-de-head (the tests HEAD holds), circuit.relecture (the review and the
+// integration) and circuit.chef (the chef de chantier on a stop).
 // The trial repository and its stand-ins: ./circuit-essai.ts; each file of the circuit's tests
 // builds its own, in a trial directory of its own.
 
@@ -37,6 +37,7 @@ describe('the stops of the circuit and their codes', () => {
       'relecture-arret',
       'integration',
       'a-repasser',
+      'question',
     ];
     expect(Object.keys(ARRETS).sort()).toEqual([...noms].sort());
     const codes = Object.values(ARRETS);
@@ -45,6 +46,8 @@ describe('the stops of the circuit and their codes', () => {
     expect(codes).not.toContain(2);
     expect(ARRETS['a-repasser']).toBe(75);
     expect(ARRETS['relecture-arret']).toBe(16);
+    // grillhouse-3uv.85, critère 4: the stop on the chef's question.
+    expect(ARRETS.question).toBe(18);
   });
   it('waits 20 minutes of a motionless transcript before it stops a session', () => {
     expect(IMMOBILE_MS).toBe(20 * 60 * 1000);
@@ -58,7 +61,7 @@ describe('the stops of the circuit and their codes', () => {
   });
 });
 
-describe.runIf(canWrap)('the circuit refuses a malformed --depuis', () => {
+describe.runIf(canWrap)('the circuit refuses a malformed --depuis or --reponse', () => {
   const id = 'demo-depuis-refus';
   beforeAll(() => {
     ticket(id, '000-forms');
@@ -68,6 +71,8 @@ describe.runIf(canWrap)('the circuit refuses a malformed --depuis', () => {
     ['a component the title does not name', ['--depuis', 'testeur', 'packages/binder']],
     ['a component missing', ['--depuis', 'testeur']],
     ['--depuis with --reprendre', ['--depuis', 'testeur', 'packages/forms', '--reprendre']],
+    ['--reponse without its text', ['--reponse']],
+    ['--reponse with --reprendre', ['--reponse', 'Le double.', '--reprendre']],
   ] as const) {
     it(`${cas}, exit 2, nothing launched`, () => {
       const r = circuit([id, ...args]);

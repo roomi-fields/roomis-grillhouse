@@ -70,6 +70,7 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     const e = etat(id);
     expect(Object.keys(e ?? {}).sort()).toEqual(
       [
+        'chef',
         'code',
         'composant',
         'dernier',

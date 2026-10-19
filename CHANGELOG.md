@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- **The circuit settles its own stops with a chef de chantier session**: on a stop other than 0 and 75, the supervisor launched a chef de chantier subagent, which relaunched the circuit in the background and stayed parked until its end; each relaunch woke the supervisor with a notice that the chef waited on its own work. The circuit now launches the chef itself, as it launches the reviewer: the chef's final answer is its decision (`RELANCE --reprendre`, `RELANCE --depuis <testeur|developpeur> <composant>` with an optional `CONTEXTE :` line, or `MONTE : <question>`), which the circuit writes at the ticket and applies in the same process. A question ends the circuit on the new stop `question` (18), the chef's session kept; `circuit.mjs <ticket> --reponse "<texte>"` resumes that session with the owner's answer. An unreadable decision, or a chef session in error, ends on the original stop; the stop that comes back after three RELANCE in a row ends the circuit. The supervisor launches the circuit once and is woken only by the end of the lot, a question, or a stop the chef did not settle; the board shows the circuit in block 0 while the chef decides, and the question at the head of its card. A project updates its supervisor's habits: no chef subagent any more, `--reponse` after the owner's answer.
+
 ## [0.16.5] - 2026-10-18
 
 ### Changed

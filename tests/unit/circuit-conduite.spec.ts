@@ -1,7 +1,8 @@
 // The conduct around the circuit of a ticket (scripts/circuit.mjs), decided by the owner on
 // 2026-10-17 (grill, Q10 and Q2): the supervisor launches the circuit in the background, its end
-// waking him; a fresh chef de chantier comes only on a stop (a code other than 0 and 75), settles
-// it, runs the circuit again in the background and ends with it. The wait by slices
+// waking him; a chef de chantier comes only on a stop (a code other than 0 and 75). Since
+// grillhouse-3uv.85, the circuit launches the chef's session itself and applies its decision; the
+// supervisor relaunches it only with the owner's answer (`--reponse`). The wait by slices
 // (the script `ATTENDRE` names) is gone, with its callers: no session waits for a verdict at a ticket.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -39,7 +40,7 @@ describe('Q2 — the wait by slices is gone, with its callers', () => {
   });
 });
 
-describe('Q10 — the supervisor launches the circuit, a chef de chantier settles a stop', () => {
+describe('Q10 — the supervisor launches the circuit, a chef de chantier, a session of the circuit, settles a stop', () => {
   it('the charter names role 0 as the chef who settles a stop of the circuit', () => {
     const charte = lire('.claude/grillhouse/charte.md');
     expect(charte).toMatch(/0 `chef-de-chantier`, qui tranche un arrêt du circuit d'un ticket/);
@@ -54,13 +55,17 @@ describe('Q10 — the supervisor launches the circuit, a chef de chantier settle
     expect(charte).not.toMatch(/le chef de chantier lance un agent par composant/);
   });
 
-  it('the supervisor launches the circuit in the background, and a fresh chef only on a stop other than 0 and 75', () => {
+  it('critère 8 — the supervisor launches the circuit once, relaunches --reponse after the owner answers, and launches no chef sub-agent', () => {
     const pitmaster = lire('.claude/skills/pitmaster/SKILL.md').replace(/\s+/g, ' ');
     expect(pitmaster).toMatch(
-      /`node scripts\/circuit\.mjs <ticket>`, que je lance en arrière-plan/
+      /`node scripts\/circuit\.mjs <ticket>`, que je lance une fois, en arrière-plan/
     );
     expect(pitmaster).toMatch(/75 \(`a-repasser`[^)]*\) ne lance aucun chef/);
-    expect(pitmaster).toMatch(/Un arrêt part à un chef de chantier neuf/);
+    expect(pitmaster).toMatch(/`node scripts\/circuit\.mjs <ticket> --reponse "<sa réponse>"`/);
+    expect(pitmaster).toMatch(/`question`/);
+    expect(pitmaster).not.toMatch(/subagent_type: chef-de-chantier/);
+    expect(pitmaster).not.toMatch(/Un arrêt part à un chef de chantier neuf/);
+    expect(pitmaster).not.toMatch(/SendMessage|par message à son identifiant/);
     expect(pitmaster).not.toMatch(/Un chef de chantier par ticket/);
   });
 
@@ -75,24 +80,50 @@ describe('Q10 — the supervisor launches the circuit, a chef de chantier settle
     }
   });
 
-  it("the chef de chantier launches the circuit as it is, its code the task's", () => {
-    const chef = lire('.claude/skills/chef-de-chantier/SKILL.md').replace(/\s+/g, ' ');
-    expect(chef).toMatch(/\*\*La commande part telle quelle\*\*/);
-    expect(chef).toMatch(/sans redirection ni `; echo`/);
-    expect(chef).toMatch(/le code de la tâche est le sien/);
-    // Every circuit command the skill prescribes carries neither a redirection nor a chained echo.
-    for (const [commande] of chef.matchAll(/`node scripts\/circuit\.mjs[^`]*`/g)) {
-      expect(commande).not.toMatch(/\s\d?>|;\s*echo|&&/);
+  it('critère 8 — the chef de chantier renders its decision as its final answer and launches no circuit', () => {
+    const brut = lire('.claude/skills/chef-de-chantier/SKILL.md');
+    const chef = brut.replace(/\s+/g, ' ');
+    for (const forme of [
+      '`RELANCE --reprendre`',
+      '`RELANCE --depuis <testeur|developpeur> <composant>`',
+      '`CONTEXTE : <texte>`',
+      '`MONTE : <question>`',
+    ]) {
+      expect(chef).toContain(forme);
+    }
+    expect(chef).toMatch(/Ma décision est ma réponse finale/);
+    expect(chef).not.toMatch(/Relancer, puis finir/);
+    expect(chef).not.toMatch(/run_in_background|en veille|arrière-plan/);
+    // The skill prescribes no command of the circuit: the circuit applies the decision.
+    expect(brut).not.toMatch(/`node scripts\/circuit\.mjs/);
+    for (const f of [
+      '.claude/agents/chef-de-chantier.md',
+      '.claude/skills/chef-de-chantier/SKILL.md',
+    ]) {
+      expect(description(f), f).not.toMatch(/relance le circuit|relancer le circuit/);
     }
   });
 
-  it('the header of the circuit says who launches it and whom its end wakes', () => {
+  it('critère 8 — the header of the circuit says the circuit launches the chef, the code question and --reponse', () => {
     const tete = lire('scripts/circuit.mjs')
       .split('\nimport ')[0]
       .replace(/^\/\/ ?/gm, '')
       .replace(/\s+/g, ' ');
-    expect(tete).toMatch(/The supervisor runs it in the background, and its end wakes him/);
-    expect(tete).toMatch(/fresh chef de chantier on the stop/);
+    expect(tete).toMatch(/The supervisor runs it once, in the background, and its end wakes him/);
+    expect(tete).toMatch(/the circuit launches a session of the chef de chantier itself/);
+    expect(tete).toMatch(/question/);
+    expect(tete).toMatch(/--reponse/);
+    expect(tete).not.toMatch(/fresh chef de chantier on the stop/);
     expect(tete).not.toMatch(/The chef de chantier runs it in the background/);
+    expect(tete).not.toMatch(/his session stays parked/);
+  });
+
+  it('critère 8 — the README says the circuit launches the chef, the code question and --reponse', () => {
+    const readme = lire('README.md').replace(/\s+/g, ' ');
+    expect(readme).toMatch(
+      /the circuit itself opens a session of the site manager \(`chef-de-chantier`\)/
+    );
+    expect(readme).toMatch(/`question`/);
+    expect(readme).toMatch(/--reponse/);
   });
 });

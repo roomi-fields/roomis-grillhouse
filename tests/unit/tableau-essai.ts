@@ -14,7 +14,7 @@ export const ligneEnveloppe = (
   `${racine}/.claude/worktrees/${ticket} ${composant} ${role} -- ` +
   `claude -p --agent ${role} --permission-mode bypassPermissions\n`;
 
-// The line `ps -o pid,etimes,args` shows for the circuit of a ticket, which the supervisor or a
-// chef de chantier runs from the main tree: `node scripts/circuit.mjs <ticket>` and its options.
+// The line `ps -o pid,etimes,args` shows for the circuit of a ticket, which the supervisor runs
+// from the main tree: `node scripts/circuit.mjs <ticket>` and its options.
 export const ligneCircuit = (ticket: string, { pid = 88, secondes = 900, options = '' } = {}) =>
   `  ${pid}  ${secondes} node scripts/circuit.mjs ${ticket}${options ? ` ${options}` : ''}\n`;

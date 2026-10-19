@@ -19,7 +19,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 - `references/erreurs.md` — les pièges des outils (Beads, git, crochets) : avant de lire un ticket
   ou de commiter.
 - `references/consigne-agent.md` — les gabarits des consignes : le circuit du ticket
-  (`scripts/circuit.mjs`) remplit celle du testeur et du développeur, et celle du relecteur.
+  (`scripts/circuit.mjs`) remplit celle du testeur et du développeur, celle du relecteur et
+  celles du chef de chantier.
 - `docs/agents/issue-tracker.md` — le format des tickets : avant d'en ouvrir un.
 - `pitmaster/SUIVI.md` — le dernier tour, les agents lancés, les questions en attente : au
   lancement de la séance.
@@ -62,33 +63,34 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 ## Un agent, un ticket
 
 - **Je lance le circuit d'un ticket** : un ticket tranché part au circuit,
-  `node scripts/circuit.mjs <ticket>`, que je lance en arrière-plan (`run_in_background`) ; sa fin
-  me réveille. Le circuit mène testeur, preuve du rouge, développeur, contrôles, relecteur,
-  intégration, file et lecture de la CI ; son en-tête dit ses arrêts et leurs codes. Ainsi les
-  gestes mécaniques passent à une commande, et je garde la vue d'ensemble.
+  `node scripts/circuit.mjs <ticket>`, que je lance une fois, en arrière-plan
+  (`run_in_background`) ; sa fin me réveille. Le circuit mène testeur, preuve du rouge,
+  développeur, contrôles, relecteur, intégration, file et lecture de la CI, et le chef de chantier
+  sur chaque arrêt ; son en-tête dit ses arrêts et leurs codes. Ainsi les gestes mécaniques
+  passent à une commande, et je garde la vue d'ensemble.
 - **Le code de fin du circuit dit la suite** : 0, le lot est sur main et le ticket fermé ; je lis
   sa fermeture. 75 (`a-repasser` : un contrôle ou l'intégration encore « à repasser », ou la
   branche gardée en file) ne lance aucun chef : je relance `--reprendre` en arrière-plan, la
   machine au repos (`uptime`) ; repris à l'étape `file`, il relit ce qu'une autre file a fait de la
   branche, et finit à `integre` quand elle est entrée. Ainsi un « à repasser » se rejoue au repos,
   sans décision.
-- **Un arrêt part à un chef de chantier neuf** : sur tout autre code, je lance un chef neuf
-  (`subagent_type: chef-de-chantier`, Sonnet, en arrière-plan, sans nom), la consigne réduite à
-  « TON TICKET : <id> », le code d'arrêt, le chemin de l'état
-  (`.claude/worktrees/<ticket>.circuit.json`), sa raison et son dossier dans mon scratchpad. Il
-  tranche ce que les règles tranchent (compétence `chef-de-chantier`), relance `--reprendre` ou
-  `--depuis` en arrière-plan et termine son tour ; sa séance reste en veille sur cette commande, et
-  la fin du circuit le réveille. Il rend alors son rapport et finit, et sa fin me réveille : je
-  suis la même conduite sur le code qu'il rapporte. Ainsi chaque arrêt a son chef, et une seule
-  séance attend chaque circuit, sans sonder : une séance qui finit arrête les commandes qu'elle a
-  lancées, le chef ne finit donc qu'avec son circuit.
-- **J'interviens sur ce qui dépasse le ticket** : la fin du chef m'apporte soit son rapport, soit
-  une question qu'aucune règle ne tranche ; je réponds par message à son identifiant, et il
-  relance le circuit. J'arrête tout agent que j'ai lancé moi-même dès son rapport lu
-  (`TaskStop`). Ainsi ma séance ne porte pas le détail des tickets, et elle reste courte.
+- **Un arrêt se tranche dans le circuit** : sur un arrêt autre que 0 et 75, le circuit lance
+  lui-même une séance du chef de chantier (compétence `chef-de-chantier`, Sonnet), qui tranche ce
+  que les règles tranchent et rend sa décision en réponse finale ; le circuit l'écrit au ticket et
+  l'applique : il repart seul, ou finit sur la question du chef. Je ne lance aucun chef. Ainsi
+  ma séance n'est réveillée que par la fin du lot, une question pour le responsable, ou un arrêt
+  que le chef n'a pas su rendre.
+- **J'interviens sur ce qui dépasse le ticket** : 18 (`question`), la question du chef est la
+  raison de l'état ; je la monte au responsable, j'écris sa réponse au ticket, puis je lance
+  `node scripts/circuit.mjs <ticket> --reponse "<sa réponse>"` en arrière-plan, qui reprend la
+  séance du chef, avec son contexte, et applique sa décision. Tout autre code est un arrêt que le
+  chef n'a pas tranché (sa réponse jointe à la raison de l'état, ou trois relances d'affilée sur
+  le même arrêt) : je le tranche, `--reprendre` ou `--depuis`, ou je le monte. J'arrête tout agent
+  que j'ai lancé moi-même dès son rapport lu (`TaskStop`). Ainsi ma séance ne porte pas le détail
+  des tickets, et elle reste courte.
 - **Un ticket débloqué repart de son état** : l'état du travail est dans l'état du circuit, au
-  ticket et dans sa copie ; `--reprendre` repart de l'état, et un chef neuf les relit. Ainsi le
-  travail fait sert à la reprise.
+  ticket et dans sa copie ; `--reprendre` repart de l'état, et la séance du chef les relit. Ainsi
+  le travail fait sert à la reprise.
 - **L'exploration avant la réalisation** : un objectif dont le découpage n'est pas connu ouvre un
   ticket d'exploration, sans code, mené par l'agent explorateur (`subagent_type: explorateur`). Il
   se ferme sur les décisions et les tickets de réalisation proposés, que le responsable valide.

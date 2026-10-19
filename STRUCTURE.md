@@ -60,7 +60,7 @@ roomis-grillhouse/
 │   │   ├── codes.mjs                 # the exit codes of the envelope and its launcher
 │   │   ├── composant.mjs             # GRILLHOUSE_ENVELOPPE, the component the envelope names: npm test and npm run api build and write it alone
 │   │   └── lancer.sh                 # one ticket → one fresh role session in its envelope, its providers and the traces its tests read produced first, its instruction followed by what its providers publish; each session added to the ticket's log under its header line, its exit code in .claude/worktrees/<ticket>.fin
-│   ├── circuit.mjs                # the circuit of one ticket, component by component in the order of its title: testeur, proof of the red (the lot's tests played, a green justified by « vert attendu »), developpeur, checks (what is done up to the component, guards in its envelope; after the last one the final pass, a red sent to the developpeur of the component that owns it), then the reviewer out of the envelope (RENDU: the agent each finding names, « Agent : <rôle> <composant> », plays again, three reviews at most), then on ACCEPTÉ the integration (the lot built from the copy, integrer.mjs), then the queue, and ends on the state of the ticket it leaves; writes each instruction from consigne-agent.md, stops a session whose transcript stands still 20 min, relaunches a session without handover once; state in .claude/worktrees/<ticket>.circuit.json, one comment « Circuit · … » per step, --reprendre, and --depuis <testeur|developpeur> <component> for a lot the chef has corrected after a stop
+│   ├── circuit.mjs                # the circuit of one ticket, component by component in the order of its title: testeur, proof of the red (the lot's tests played, a green justified by « vert attendu »), developpeur, checks (what is done up to the component, guards in its envelope; after the last one the final pass, a red sent to the developpeur of the component that owns it), then the reviewer out of the envelope (RENDU: the agent each finding names, « Agent : <rôle> <composant> », plays again, three reviews at most), then on ACCEPTÉ the integration (the lot built from the copy, integrer.mjs), then the queue, and ends on the state of the ticket it leaves; writes each instruction from consigne-agent.md, stops a session whose transcript stands still 20 min, relaunches a session without handover once; state in .claude/worktrees/<ticket>.circuit.json, one comment « Circuit · … » per step, --reprendre, --depuis <testeur|developpeur> <component> for a lot corrected by one component; on a stop other than 0 and 75 it launches the chef de chantier's session itself and applies its decision (RELANCE, or MONTE: the stop « question », the session kept, --reponse resumes it)
 │   ├── dette.mjs                  # the known debt of the guards: grillhouse-dette.json (guard, file, rule → count); a guard passes within the counts, refuses a new finding or a count beyond, reports a count below
 │   ├── code-mort.mjs              # grillhouse:gardes: refuses dead code, measured by knip (knip.json); tests and benches count for dependency use only; the frame's scripts (fichiers.txt) are knip entries, judged in Grillhouse
 │   ├── consommateurs.mjs          # grillhouse:gardes: refuses an import that the provider's INTERFACE.md does not declare, and two components of the same name
@@ -220,8 +220,8 @@ tickets. Once done, the hook stays silent.
   one.
 - The roles are project agents (`.claude/agents/`): `testeur` writes the tests, `developpeur` the
   code, `relecteur` reviews; the circuit of the ticket (`scripts/circuit.mjs`), which the
-  supervisor launches, launches them and commits, and `chef-de-chantier` settles a stop of the
-  circuit. Each loads its skill
+  supervisor launches, launches them and commits, and on a stop launches `chef-de-chantier`,
+  which settles it in its final answer. Each loads its skill
   and works under its locks.
 
 ### An existing project

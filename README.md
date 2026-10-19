@@ -81,6 +81,13 @@ Three layers, each with one job:
 
 A change of behaviour is one ticket that passes from agent to agent in its copy: tests (tester) →
 code (developer) → review → commit on the ticket's branch → the queue brings it onto main, which closes it.
+The supervisor launches the ticket's circuit (`scripts/circuit.mjs`) once. On a stop other than
+0 and 75 (« à repasser »), the circuit itself opens a session of the site manager (`chef-de-chantier`),
+whose final answer is its decision: `RELANCE --reprendre` or `RELANCE --depuis <testeur|developpeur> <component>`,
+which the circuit applies in the same run, or `MONTE : <question>`, which ends the circuit on the
+stop `question` (18), the site manager's session kept; the supervisor carries the question to the owner,
+and `circuit.mjs <ticket> --reponse "<answer>"` resumes that session with the answer. So the
+supervisor is woken only by a lot integrated, a question, or a stop the site manager could not settle.
 The locks are hooks in each agent's definition (`scripts/verrous/`), so an agent cannot aim the
 code at its own tests; the integration sorts the lots by the same rule (the tests lot holds the
 tester's files, the code lot none of them). Each agent runs as a fresh session inside the **envelope** of its component
@@ -104,8 +111,9 @@ agents' time and tokens of the day and in all, the alerts); the agents: one bloc
 manager's, numbered 0, heads them), where each ticket stands on one line, once — a ticket with a circuit
 (`scripts/circuit.mjs`, read in its state file) in the block of its step's role (the testeur's for its tests
 and their proof, the developer's for its code and the checks, the reviewer's for the review and the
-integration) with its step, attempt and component, or, stopped, in the site manager's with its stop and code,
-its card opening on where it stopped and why; any other ticket under the agent that runs on it, or waiting
+integration) with its step, attempt and component, or, while the site manager's session settles its stop, or
+once stopped, in the site manager's with its stop and code, its card opening on where it stopped and why, or
+on the site manager's question; any other ticket under the agent that runs on it, or waiting
 for the next role of the flow; the chantier in progress, its tree of
 mother tickets with each one's work done over all; then the tickets closed today. Every line of each list
 shows, and the wheel scrolls the pane; `g` fills the pane with the chosen ticket's whole text, which the

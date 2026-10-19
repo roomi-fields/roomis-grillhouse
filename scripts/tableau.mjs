@@ -20,9 +20,10 @@
 // - Circuits: above the blocks, one entry per open ticket whose circuit (scripts/circuit.mjs) runs
 //   or stopped, read in its state `.claude/worktrees/<ticket>.circuit.json`: it runs while the
 //   process `node scripts/circuit.mjs <ticket>` runs, and shows its step, component and attempt;
-//   else it stopped, and shows the stop (its name and code) and the first line of its reason. A
-//   ticket with a circuit waits in no block: a stop awaits the chef de chantier the supervisor
-//   launches, who stands in block 0 while he runs.
+//   while it runs a session of the chef de chantier on a stop (its state names the chef's session,
+//   `chef`), it stands in block 0 and shows the stop; else it stopped, and shows the stop (its name
+//   and code) and the first line of its reason, or, ended on the chef's question (« question »),
+//   that question. A ticket with a circuit waits in no block.
 // - Chantier: a root epic with work in progress, its tree of mothers, each with its work tickets
 //   done over all; the tree shows the open work: a closed ticket, mother included, counts without
 //   a line, and a closed mother's open tickets take her place. The other chantiers, one line each.
@@ -511,8 +512,9 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
 
 // The circuits of the repository at <racine>: each state `.claude/worktrees/<ticket>.circuit.json`
 // scripts/circuit.mjs writes, but those at « integre », with `vivant` when `ps` (`pid etimes args`
-// per line) shows its process, `node …/circuit.mjs <ticket>`. A state that does not parse is left
-// out.
+// per line) shows its process, `node …/circuit.mjs <ticket>`, `chef` when the state names a session
+// of the chef de chantier, and `question` the chef's whole question for a circuit ended on it. A
+// state that does not parse is left out.
 export function lireCircuits({ racine, prefix, ps }) {
   const dossier = path.join(racine, '.claude', 'worktrees');
   const motif = new RegExp(`circuit\\.mjs (${prefix}-[A-Za-z0-9]+(?:\\.[0-9]+)*)(?:\\s|$)`);
@@ -545,6 +547,8 @@ export function lireCircuits({ racine, prefix, ps }) {
       code: e.code ?? null,
       arret: e.raison ?? null,
       raison: premiereLigne(e.rapport),
+      question: e.raison === 'question' ? String(e.rapport ?? '').trim() || null : null,
+      chef: Boolean(e.chef),
       vivant: enVie.has(ticket),
     });
   }
@@ -1031,15 +1035,13 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   // A circuit's ticket stands on one line, in the block of the role its step belongs to, and
   // nowhere else in AGENTS: the testeur's for its tests and their proof, the developpeur's for its
   // code and the checks, the reviewer's for the review and the integration, with its step, attempt
-  // and component; a stopped circuit in the chef de chantier's block, with its stop's name and
-  // code (« interrompu » for a circuit dead without a stop written), running while a chef runs on
-  // it. Its card says where it stopped and why.
+  // and component; a circuit that runs a session of the chef de chantier on its stop, or that
+  // stopped, in the chef de chantier's block, with its stop's name and code (« interrompu » for a
+  // circuit dead without a stop written), running while the chef's session runs. Its card says
+  // where it stopped and why, or the chef's question.
   const enCircuit = new Set((t.circuits ?? []).map(c => c.id));
-  const chefs = new Set(
-    t.agents.filter(b => b.role === CHEF).flatMap(b => b.enCours.map(x => x.id))
-  );
   const roleDuCircuit = c =>
-    !c.vivant
+    !c.vivant || c.chef
       ? CHEF
       : ['testeur', 'preuve'].includes(c.etape)
         ? 'testeur'
@@ -1047,13 +1049,15 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
           ? 'developpeur'
           : 'relecteur';
   const ligneDuCircuit = c => {
-    if (c.vivant) {
-      return L(cadre(`▶ ${c.numero}  ${c.sujet}`, ouEnEst(c), largeur), 'actif', c.id);
-    }
     const arret = c.code === null ? 'interrompu' : `${c.arret ?? 'arrêt'} (${c.code})`;
-    return chefs.has(c.id)
-      ? L(cadre(`▶ ${c.numero}  ${c.sujet}`, arret, largeur), 'actif', c.id)
-      : L(cadre(`■ ${c.numero}  ${c.sujet}`, arret, largeur), 'attention', c.id);
+    if (c.vivant) {
+      return L(
+        cadre(`▶ ${c.numero}  ${c.sujet}`, c.chef ? arret : ouEnEst(c), largeur),
+        'actif',
+        c.id
+      );
+    }
+    return L(cadre(`■ ${c.numero}  ${c.sujet}`, arret, largeur), 'attention', c.id);
   };
   for (const b of t.agents) {
     const circuits = (t.circuits ?? []).filter(c => roleDuCircuit(c) === b.role);
@@ -1291,11 +1295,13 @@ export function fiches(tous, lignesDuTableau, prefix = '', mesures = {}, circuit
       .map(x => x.trim())
       .filter(x => x && !x.startsWith('#'))
       .join(' ');
-    // A stopped circuit's card opens on where it stopped and why.
+    // A stopped circuit's card opens on the chef's question, or on where it stopped and why.
     const a = arretes.get(t.id);
-    const tete = a
-      ? `Circuit arrêté en ${ouEnEst(a)} : ${a.raison ?? 'le circuit ne tourne plus'} `
-      : '';
+    const tete = a?.question
+      ? `Question du chef de chantier : ${a.question.replace(/\s+/g, ' ')} `
+      : a
+        ? `Circuit arrêté en ${ouEnEst(a)} : ${a.raison ?? 'le circuit ne tourne plus'} `
+        : '';
     const texte = `${tete}${resume}`;
     out[t.id] = {
       numero: lecture(t, prefix).numero,
