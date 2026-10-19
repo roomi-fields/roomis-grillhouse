@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.18.1] - 2026-10-19
+
 ### Fixed
 
 - **A file that vanishes while a guard walks the repository no longer stops the guard**: `npm run verifier` plays the guards beside the tests, and Vite writes then removes `vitest.config.ts.timestamp-<n>-<hash>.mjs` beside a configuration of Vitest; in BPScript 320.2.4.5.1 the guard of the consumers listed that file, read it once it was gone, and stopped on ENOENT: the final pass was red without a fault, green again at the next one. The guards that walk the repository (the consumers, the faults of the interfaces, the data a package declares) now share one walk, `parcourir` of `scripts/consommateurs.mjs`, which passes over a file or a directory gone before it reaches it, reads a file listed tolerantly, and never lists Vite's temporary files.
