@@ -1037,8 +1037,9 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   // code and the checks, the reviewer's for the review and the integration, with its step, attempt
   // and component; a circuit that runs a session of the chef de chantier on its stop, or that
   // stopped, in the chef de chantier's block, with its stop's name and code (« interrompu » for a
-  // circuit dead without a stop written), running while the chef's session runs. Its card says
-  // where it stopped and why, or the chef's question.
+  // circuit dead without a stop written), running while the chef's session runs. Either is
+  // followed by its ticket's working time and tokens. Its card says where it stopped and why, or
+  // the chef's question.
   const enCircuit = new Set((t.circuits ?? []).map(c => c.id));
   const roleDuCircuit = c =>
     !c.vivant || c.chef
@@ -1050,14 +1051,19 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
           : 'relecteur';
   const ligneDuCircuit = c => {
     const arret = c.code === null ? 'interrompu' : `${c.arret ?? 'arrêt'} (${c.code})`;
+    // The ticket's working time and tokens so far follow where the circuit is.
+    const avec = ou =>
+      [ou, conso(t.parTicket?.[c.id]?.travail ?? 0, t.parTicket?.[c.id]?.jetons ?? 0)]
+        .filter(Boolean)
+        .join(' · ');
     if (c.vivant) {
       return L(
-        cadre(`▶ ${c.numero}  ${c.sujet}`, c.chef ? arret : ouEnEst(c), largeur),
+        cadre(`▶ ${c.numero}  ${c.sujet}`, avec(c.chef ? arret : ouEnEst(c)), largeur),
         'actif',
         c.id
       );
     }
-    return L(cadre(`■ ${c.numero}  ${c.sujet}`, arret, largeur), 'attention', c.id);
+    return L(cadre(`■ ${c.numero}  ${c.sujet}`, avec(arret), largeur), 'attention', c.id);
   };
   for (const b of t.agents) {
     const circuits = (t.circuits ?? []).filter(c => roleDuCircuit(c) === b.role);

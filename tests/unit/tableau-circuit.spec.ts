@@ -107,6 +107,31 @@ const agents = (t: Board) => lignesAgents(t).map(x => x.texte.trimEnd());
 const bloc = (t: Board, role: string) => t.agents.find(b => b.role === role)!;
 const attentes = (t: Board) => t.agents.flatMap(b => b.attend.map(x => x.id));
 
+describe("a circuit's line carries its ticket's working time and tokens", () => {
+  const registre = [fin('a1', 'demo-12', 'testeur', '09:00')];
+  it('a circuit that runs: its step, attempt and component, then the time and tokens so far', () => {
+    const racine = depot({
+      'demo-12': { etape: 'developpeur', composant: 'packages/demo', tentative: 2 },
+    });
+    const t = plateau([T('demo-12')], registre, [], circuits(racine, ligneCircuit('demo-12')));
+    const a = agents(t);
+    expect(a[a.indexOf('4 développeur') + 1]).toMatch(
+      /^▶ 12 {2}Le sujet .* développeur 2 · demo · 1 h 00 · 10$/
+    );
+  });
+
+  it('a circuit that stopped: its stop and code, then the time and tokens so far', () => {
+    const racine = depot({
+      'demo-12': { etape: 'controles', code: 14, raison: 'controles', rapport: 'Rouge.' },
+    });
+    const t = plateau([T('demo-12')], registre, [], circuits(racine));
+    const a = agents(t);
+    expect(a[a.indexOf('0 chef de chantier') + 1]).toMatch(
+      /^■ 12 {2}Le sujet .* controles \(14\) · 1 h 00 · 10$/
+    );
+  });
+});
+
 describe('a circuit that runs: its step, its component and its attempt', () => {
   it('its state and its process make it run, at the step, component and attempt of the state', () => {
     const racine = depot({
@@ -226,10 +251,11 @@ describe('a circuit that stopped: its stop and its code, its reason on its card'
     );
     expect(attentes(t)).toEqual([]);
     expect(bloc(t, CHEF).enCours).toEqual([]);
-    const a = agents(t);
-    expect(a.filter(x => x.includes('Le sujet de demo-13'))).toEqual([
-      expect.stringMatching(/^■ .*controles \(14\)$/),
-    ]);
+    expect(
+      lignesAgents(t)
+        .filter(x => x.ticket === 'demo-13')
+        .map(x => x.texte)
+    ).toEqual([expect.stringMatching(/^■ .*controles \(14\) · \d+ (min|h \d\d) · \d+$/)]);
   });
 
   // grillhouse-3uv.85, critère 9: the chef de chantier is a session of the circuit. A circuit in
@@ -286,10 +312,11 @@ describe('a circuit that stopped: its stop and its code, its reason on its card'
       tours: [[MAINTENANT - 5 * MIN, MAINTENANT]],
     };
     const t = plateau([T('demo-13')], [], [chef], circuits(racine));
-    const a = agents(t);
-    expect(a.filter(x => x.includes('Le sujet de demo-13'))).toEqual([
-      expect.stringMatching(/^■ .*controles \(14\)$/),
-    ]);
+    expect(
+      lignesAgents(t)
+        .filter(x => x.ticket === 'demo-13')
+        .map(x => x.texte)
+    ).toEqual([expect.stringMatching(/^■ .*controles \(14\) · \d+ (min|h \d\d) · \d+$/)]);
   });
 });
 
