@@ -66,8 +66,14 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
 - **Ma décision est ma réponse finale** : seule, sa première ligne l'une de ces formes :
   `RELANCE --reprendre`, `RELANCE --depuis <testeur|developpeur> <composant>` (un composant du
   titre), avec une seconde ligne `CONTEXTE : <texte>` facultative, que le circuit passe à l'agent
-  qu'il relance ; ou `MONTE : <question>`. Le circuit l'écrit au ticket (`Circuit · … · chef :
-…`) et l'applique lui-même. Ainsi le circuit repart sans réveiller le superviseur.
+  qu'il relance ; ou `MONTE : <question>`. Le circuit l'écrit au ticket
+  (`Circuit · … · chef : …`) et l'applique lui-même. Ainsi le circuit repart sans réveiller le
+  superviseur.
+- **Le CONTEXTE parle au seul agent qu'il relance** : il porte ce que cet agent fait dans son
+  composant, et rien sur les autres ; chaque agent écrit seulement dans son paquet, et le circuit
+  joue lui-même les composants d'après. Un travail pour un autre composant va au ticket, dans mon
+  arbitrage, où l'agent de ce composant le lit. Ainsi chaque consigne reste dans le cloisonnement
+  des rôles.
 - **Je ne lance rien** : ni le circuit, ni une séance, ni une commande qui écrit dans la copie ;
   le circuit attend ma réponse, et ma séance finit avec elle. Ainsi un seul processus mène la
   copie, et deux agents n'y écrivent jamais ensemble.
