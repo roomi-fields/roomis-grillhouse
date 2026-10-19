@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -240,6 +240,49 @@ describe('grillhouse-3uv.56 critère 20 — two components of the same name are 
       'packages/A/package.json': '{"name":"@demo/A"}',
       'packages/A/src/index.ts': 'export const a = 1;\n',
       'src/a/index.ts': 'export const a = 2;\n',
+    });
+    const r = lancer(dir);
+    expect(r.status, r.stderr).toBe(0);
+    expect(verifier(dir).refus).toEqual([]);
+  });
+});
+
+// Witness: BPScript (320.2.4.5.1), whose `npm run verifier` played the guards beside the tests:
+// Vite wrote then removed `vitest.config.ts.timestamp-<n>-<hash>.mjs` beside a configuration, the
+// check listed it, read it once it was gone, and stopped on ENOENT: the final pass was red without
+// a fault. A dangling link is a file listed that no longer exists when it is read.
+describe('a file that vanishes while the check walks the repository', () => {
+  const lancer = (dir: string) => spawnSync('node', [SCRIPT], { cwd: dir, encoding: 'utf8' });
+  const declare = {
+    'packages/b/package.json': '{"name":"@demo/b"}',
+    'packages/b/src/index.ts': 'export const duree = 1;\n',
+    'packages/b/docs/INTERFACE.md': INTERFACE_B('## Consommateurs\n\n- `a` : duree'),
+    'packages/a/package.json': '{"name":"@demo/a"}',
+    'packages/a/src/index.ts': "import { duree } from '@demo/b';\n",
+  };
+  it('gives its verdict when a file listed is gone before it is read', () => {
+    const dir = repo(declare);
+    symlinkSync(path.join(dir, 'absent.ts'), path.join(dir, 'packages/a/src/disparu.ts'));
+    const r = lancer(dir);
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stderr).not.toContain('ENOENT');
+    expect(verifier(dir)).toEqual({ refus: [], signaux: [] });
+  });
+  it('still refuses a use the provider does not declare beside a file gone', () => {
+    const dir = repo({
+      ...declare,
+      'packages/a/src/cache.ts': "import { cache } from '@demo/b';\n",
+    });
+    symlinkSync(path.join(dir, 'absent.ts'), path.join(dir, 'packages/a/src/disparu.ts'));
+    const r = lancer(dir);
+    expect(r.status, r.stderr).toBe(1);
+    expect(r.stderr).toContain('a utilise « cache » de b');
+  });
+  it("does not read Vite's temporary file beside a configuration of Vitest", () => {
+    const dir = repo({
+      ...declare,
+      'packages/a/src/vitest.config.ts.timestamp-1712345678901-4f2a9c.mjs':
+        "import { cache } from '@demo/b';\n",
     });
     const r = lancer(dir);
     expect(r.status, r.stderr).toBe(0);

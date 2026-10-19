@@ -142,6 +142,25 @@ Agent : testeur 000-forms'
       expect(etat(id)?.etape).toBe('integre');
     });
 
+    it('then plays in full the components after it that the circuit has not reached yet', () => {
+      const id = 'demo-renvoi-neufs';
+      ticket(id, '000-forms, 030-binder');
+      scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+      scenario(id, 'developpeur-1', renvoi);
+      scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+      const r = circuit([id]);
+      expect(r.status, sortie(r)).toBe(0);
+      expect(ordre(id)).toEqual([
+        'testeur packages/forms',
+        'developpeur packages/forms',
+        'testeur packages/forms',
+        'developpeur packages/forms',
+        'testeur packages/binder',
+        'developpeur packages/binder',
+        'relecteur',
+      ]);
+    });
+
     it('stops at « sans-livraison » on the same renvoi twice in a row, without green checks between', () => {
       const id = 'demo-renvoi-repete';
       ticket(id, '000-forms');

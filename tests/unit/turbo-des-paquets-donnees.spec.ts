@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -411,6 +411,16 @@ describe('the check refuses a declaration the guarantee cannot hold on', () => {
     const refus = refusDe(racine);
     expect(refus).toContain(`${PAIRES}/${fichier}`);
     expect(refus).toContain('packages/060-encoder');
+  });
+
+  // A file listed then gone before it is read (here a dangling link), as Vite's temporary file
+  // beside a configuration of Vitest, while the guards play beside the tests: the check gives its
+  // verdict; that temporary file is no code of the directory.
+  it('a declared directory whose file vanishes during the walk, or holding Vite’s temporary file, passes', () => {
+    const racine = depotBP();
+    symlinkSync(path.join(racine, 'absent.json'), path.join(racine, PAIRES, 'disparu.json'));
+    ecrireFichier(racine, `${PAIRES}/vitest.config.ts.timestamp-1712345678901-4f2a9c.mjs`, '');
+    expect(refusDe(racine)).toBe('');
   });
 
   it('a trace written out of its producer', () => {

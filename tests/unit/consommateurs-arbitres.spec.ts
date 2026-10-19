@@ -15,7 +15,8 @@ const ESSAIS = mkdtempSync(path.join(tmpdir(), 'consommateurs-arbitres-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 // The stand-in for bd: `bd comments <id> --json` prints `.beads/<id>.comments.json` of the
-// directory it runs in, and records each call in `.beads/appels`.
+// directory it runs in, `bd show <id> --json` its `.beads/<id>.json`, and each call is recorded in
+// `.beads/appels`.
 const FAUX_BD = `#!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
@@ -23,8 +24,8 @@ const b = path.join(process.cwd(), '.beads');
 fs.mkdirSync(b, { recursive: true });
 fs.appendFileSync(path.join(b, 'appels'), process.argv.slice(2).join(' ') + '\\n');
 const [cmd, id] = process.argv.slice(2);
-const f = path.join(b, id + '.comments.json');
-if (cmd !== 'comments' || !fs.existsSync(f)) process.exit(1);
+const f = path.join(b, id + (cmd === 'show' ? '.json' : '.comments.json'));
+if (!['comments', 'show'].includes(cmd) || !fs.existsSync(f)) process.exit(1);
 process.stdout.write(fs.readFileSync(f, 'utf8'));
 `;
 const BIN = path.join(ESSAIS, 'bin');
@@ -35,8 +36,9 @@ const interfaceDe = (lignes: string[]) =>
   ['# a', '', 'Le composant a.', '', '## Consommateurs', '', ...lignes, ''].join('\n');
 
 // A repository whose package `a` declares `b` as consumer at HEAD; then, on <branche>, the working
-// tree adds <neuves> to that section. The main tree holds the comments <comments> of demo-1.
-function depot(branche: string, neuves: string[], comments?: { text: string }[]) {
+// tree adds <neuves> to that section. The main tree holds demo-1, its <description> (none by
+// default), and its comments <comments>.
+function depot(branche: string, neuves: string[], comments?: { text: string }[], description = '') {
   const racine = mkdtempSync(path.join(ESSAIS, 'depot-'));
   const ecrire = (rel: string, texte: string) => {
     mkdirSync(path.dirname(path.join(racine, rel)), { recursive: true });
@@ -57,6 +59,7 @@ function depot(branche: string, neuves: string[], comments?: { text: string }[])
   if (comments) {
     ecrire('.beads/demo-1.comments.json', JSON.stringify(comments));
   }
+  ecrire('.beads/demo-1.json', JSON.stringify([{ id: 'demo-1', description }]));
   return racine;
 }
 
@@ -129,6 +132,60 @@ describe('consommateurs-arbitres — a changed Consommateurs line has its settle
     const r = jouer(depot('agent/demo-1', ['- `c` : duree']));
     expect(r.status).toBe(1);
     expect(r.stderr).toContain('ne se lisent pas');
+  });
+
+  // Witness: BPScript (320.2.4.5.1), a ticket born of the owner's word whose « ## Architecture »
+  // fixed the consumers and their names: the guard asked an arbitrage for each, two questions to
+  // the supervisor for nothing. The Architecture names the consumer and each name of the line,
+  // word for word.
+  const architecture = (texte: string) =>
+    ['## Architecture', '', texte, '', "## Critères d'acceptation", '', '1. `c` lit `tempo`.'].join(
+      '\n'
+    );
+
+  it('passes without arbitrage a line the ticket’s Architecture names, its consumer and each of its names', () => {
+    const r = jouer(
+      depot(
+        'agent/demo-1',
+        ['- `c` : duree, tempo'],
+        [],
+        architecture('Le composant `c` lit `duree` et tempo de `a`.')
+      )
+    );
+    expect(r.status, r.stderr).toBe(0);
+  });
+
+  it('refuses a line whose names the ticket’s Architecture does not all name', () => {
+    const r = jouer(
+      depot(
+        'agent/demo-1',
+        ['- `c` : duree, tempo'],
+        [],
+        architecture('Le composant `c` lit `duree` de `a`.')
+      )
+    );
+    expect(r.status, r.stderr).toBe(1);
+    expect(r.stderr).toContain('- `c` : duree, tempo');
+  });
+
+  it('refuses a line whose consumer the Architecture names only inside another word', () => {
+    const r = jouer(
+      depot(
+        'agent/demo-1',
+        ['- `c` : duree'],
+        [],
+        architecture('Le composant `cc` lit `duree` de `a`.')
+      )
+    );
+    expect(r.status, r.stderr).toBe(1);
+  });
+
+  it('refuses a line the ticket names only out of its Architecture', () => {
+    const r = jouer(
+      depot('agent/demo-1', ['- `c` : tempo'], [], architecture('Rien sur les consommateurs.'))
+    );
+    expect(r.status, r.stderr).toBe(1);
+    expect(r.stderr).toContain('change sans arbitrage tranché');
   });
 
   it('the guard is among the frame’s guards', () => {

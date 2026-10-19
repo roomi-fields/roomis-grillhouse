@@ -85,7 +85,8 @@ The supervisor launches the ticket's circuit (`scripts/circuit.mjs`) once. On a 
 0 and 75 (« à repasser »), the circuit itself opens a session of the site manager (`chef-de-chantier`),
 whose final answer is its decision: `RELANCE --reprendre` or `RELANCE --depuis <testeur|developpeur> <component>`,
 which the circuit applies in the same run, or `MONTE : <question>`, which ends the circuit on the
-stop `question` (18), the site manager's session kept; the supervisor carries the question to the owner,
+stop `question` (18), the site manager's session kept; the supervisor answers the question himself, or carries it to the owner
+when it is the owner's (the functional, what the charter keeps for him),
 and `circuit.mjs <ticket> --reponse "<answer>"` resumes that session with the answer. So the
 supervisor is woken only by a lot integrated, a question, or a stop the site manager could not settle.
 Each session writes at the ticket under its role as author (`BEADS_ACTOR`, which it may not change),

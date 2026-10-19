@@ -67,7 +67,8 @@ roomis-grillhouse/
 │   │                              #   composants(): the components for every check, minus the packages out of
 │   │                              #   the frame listed in docs/agents/hors-cadre.txt, "<package> <reason>"; such a package stays a
 │   │                              #   workspace, and Turborepo plays none of its tasks (turbo-des-paquets.mjs)
-│   ├── consommateurs-arbitres.mjs # grillhouse:gardes: a Consommateurs line a lot changes enters with a settled arbitrage at its ticket naming the consumer
+│   │                              #   parcourir(): the walk of every guard, Vite's temporary files left out, a file gone meanwhile passed over
+│   ├── consommateurs-arbitres.mjs # grillhouse:gardes: a Consommateurs line a lot changes enters with a settled arbitrage at its ticket naming the consumer, or named, consumer and names, by the ticket's Architecture
 │   ├── crochets.mjs               # the frame's git hooks (commit-msg, pre-push): placed by setup.sh and grillhouse:maj, absent ones named by the session start
 │   ├── greffons.mjs               # the frame's plugins (those `.claude/settings.json` enables): installed for the project by setup.sh and grillhouse:maj, absent ones named by the session start
 │   ├── gardes-du-cadre.mjs        # npm run grillhouse:gardes: the frame's guards, the one list of them (GARDES_DU_CADRE), each played whatever the verdict of the ones before; each red named, code 1 when one is red

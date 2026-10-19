@@ -52,8 +52,9 @@ composant produit.
 utilise l'interface, avec les éléments qu'il importe (`` - `parser` : jeton, position ``, `*` pour
 un import entier). Le garde `scripts/consommateurs.mjs` refuse un import qu'elle ne déclare pas, et
 signale une déclaration qu'aucun code n'emploie ; une ligne nouvelle entre avec son arbitrage
-tranché au ticket, qui nomme le consommateur, et le garde `scripts/consommateurs-arbitres.mjs`
-refuse une ligne changée sans lui.
+tranché au ticket, qui nomme le consommateur, ou avec la section « Architecture » du ticket, qui
+nomme mot pour mot le consommateur et chaque élément de la ligne, et le garde
+`scripts/consommateurs-arbitres.mjs` refuse une ligne changée sans l'un ni l'autre.
 Ainsi chaque dépendance entre composants est écrite et décidée.
 
 ## L'architecture (`ARCHITECTURE.md`)

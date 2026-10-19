@@ -2,7 +2,7 @@
 // 2026-10-17 (grill, Q10 and Q2): the supervisor launches the circuit in the background, its end
 // waking him; a chef de chantier comes only on a stop (a code other than 0 and 75). Since
 // grillhouse-3uv.85, the circuit launches the chef's session itself and applies its decision; the
-// supervisor relaunches it only with the owner's answer (`--reponse`). The wait by slices
+// supervisor relaunches it only with the answer to a question (`--reponse`). The wait by slices
 // (the script `ATTENDRE` names) is gone, with its callers: no session waits for a verdict at a ticket.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -157,5 +157,78 @@ describe('the handovers the circuit reads', () => {
     ]) {
       expect(texte, nom).toContain('Agent : testeur <composant>');
     }
+  });
+
+  // Witness: BPScript (320.2.4.5.1), a type changed in 000-forms broke the shared test material,
+  // which only the testeur writes: the developpeurs of the components after it ran on that red
+  // for nothing.
+  it('a testeur whose ticket changes a type or a name of his component migrates, in the same session, the shared test material and the tests of the title that read it', () => {
+    for (const [nom, texte] of [
+      ['testeur', testeur],
+      ['consigne', premier ?? ''],
+    ]) {
+      expect(texte, nom).toMatch(/change un type ou un nom de ton composant/);
+      expect(texte, nom).toMatch(
+        /tu migres aussi, dans la même séance, la matière de test partagée qui le lit/
+      );
+    }
+  });
+});
+
+// Witness: BPScript (320.2.4.5.1), the circuit wrote « question du chef de chantier au
+// responsable » on MONTE; both questions of that ticket were the supervisor's, who settles alone
+// what is his and carries to the owner only what is the owner's.
+describe('a question of the chef de chantier goes up to the supervisor, who answers it or carries it to the owner', () => {
+  const blocs = [
+    ...lire('.claude/skills/pitmaster/references/consigne-agent.md').matchAll(
+      /```text\n([\s\S]*?)\n```/g
+    ),
+  ].map(m => m[1].replace(/\s+/g, ' '));
+
+  it('the header of the circuit sends the question to the supervisor, who answers it or carries it to the owner', () => {
+    const tete = lire('scripts/circuit.mjs')
+      .split('\nimport ')[0]
+      .replace(/^\/\/ ?/gm, '')
+      .replace(/\s+/g, ' ');
+    expect(tete).toMatch(/at « question » \(18\) the chef de chantier's question goes to him/);
+    expect(tete).toMatch(/he answers it himself, or carries it to the owner/);
+    expect(tete).not.toMatch(/carries the chef de chantier's question to the owner/);
+    expect(tete).not.toMatch(/question for the owner/);
+  });
+
+  it('the stop of the circuit on MONTE names the supervisor, never the owner', () => {
+    const code = lire('scripts/circuit.mjs');
+    expect(code).toContain('question du chef de chantier au superviseur');
+    expect(code).not.toContain('question du chef de chantier au responsable');
+    expect(code).not.toContain('--reponse attend la réponse du responsable');
+  });
+
+  it('the README sends the question to the supervisor, who answers it or carries it to the owner', () => {
+    const readme = lire('README.md').replace(/\s+/g, ' ');
+    expect(readme).toMatch(
+      /the supervisor answers the question himself, or carries it to the owner/
+    );
+    expect(readme).not.toMatch(/the supervisor carries the question to the owner/);
+  });
+
+  it('the skills of the supervisor and of the chef say the same: the supervisor answers what is his, carries to the owner what is the owner’s', () => {
+    for (const f of [
+      '.claude/skills/pitmaster/SKILL.md',
+      '.claude/skills/chef-de-chantier/SKILL.md',
+    ]) {
+      const texte = lire(f).replace(/\s+/g, ' ');
+      expect(texte, f).toMatch(/le cadre du ticket, un arbitrage/);
+      expect(texte, f).toMatch(/le fonctionnel et ce que la charte lui garde/);
+    }
+    const chef = lire('.claude/skills/chef-de-chantier/SKILL.md').replace(/\s+/g, ' ');
+    expect(chef).not.toMatch(/Le superviseur porte la question au responsable, et sa réponse/);
+  });
+
+  it("the chef's instructions on a stop and on the answer speak of the supervisor's answer, which may carry the owner's", () => {
+    expect(blocs[2]).toMatch(/Une MONTE porte la question au superviseur/);
+    expect(blocs[2]).not.toMatch(/Une MONTE porte la question au responsable/);
+    expect(blocs[3]).toMatch(/LA RÉPONSE DU SUPERVISEUR à ta question/);
+    expect(blocs[3]).toMatch(/celle du responsable qu'il porte/);
+    expect(blocs[3]).not.toMatch(/RÉPONSE DU RESPONSABLE/);
   });
 });

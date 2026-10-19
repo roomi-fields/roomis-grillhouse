@@ -2,7 +2,7 @@ import { rmSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
-import { sortie, ecrire, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
+import { sortie, ecrire, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
 
 // The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): a red judged by the
 // component that owns it, after a developpeur and at the final pass.
@@ -113,6 +113,42 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
       'Contrôles de la passe finale, hors enveloppe, sur la copie entière'
     );
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0, finale: true });
+  });
+
+  // Witness: BPScript (320.2.4.5.1), whose circuit stopped at the proof of its first component;
+  // `RELANCE --depuis developpeur spec` played only the checks of the nine components after it,
+  // never worked, and the reviewer sent the lot back: a whole pass lost.
+  it('--depuis <étape> <composant> plays in full the components after it that the circuit has not reached yet', () => {
+    const id = 'demo-depuis-neufs';
+    ticket(id, '000-forms, 030-binder');
+    // The testeur of forms writes nothing, three times: the proof stops the circuit.
+    for (const n of [1, 2, 3]) {
+      scenario(id, `testeur-${n}`, "passation 'Rien écrit.'\n");
+    }
+    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    const r1 = circuit([id]);
+    expect(r1.status, sortie(r1)).toBe(ARRETS.preuve);
+    const r2 = circuit([
+      id,
+      '--depuis',
+      'developpeur',
+      '000-forms',
+      '--contexte',
+      'Le double, sans test neuf.',
+    ]);
+    expect(r2.status, sortie(r2)).toBe(0);
+    expect(ordre(id).filter(l => !l.startsWith('chef-de-chantier'))).toEqual([
+      'testeur packages/forms',
+      'testeur packages/forms',
+      'testeur packages/forms',
+      'developpeur packages/forms',
+      'testeur packages/binder',
+      'developpeur packages/binder',
+      'relecteur',
+    ]);
+    expect(historique(id)).toContainEqual(['packages/binder', 'preuve']);
+    expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
   });
 
   it('launches the developpeur of a component without tests directly: no testeur, no proof', () => {

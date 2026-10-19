@@ -6,6 +6,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **A file that vanishes while a guard walks the repository no longer stops the guard**: `npm run verifier` plays the guards beside the tests, and Vite writes then removes `vitest.config.ts.timestamp-<n>-<hash>.mjs` beside a configuration of Vitest; in BPScript 320.2.4.5.1 the guard of the consumers listed that file, read it once it was gone, and stopped on ENOENT: the final pass was red without a fault, green again at the next one. The guards that walk the repository (the consumers, the faults of the interfaces, the data a package declares) now share one walk, `parcourir` of `scripts/consommateurs.mjs`, which passes over a file or a directory gone before it reaches it, reads a file listed tolerantly, and never lists Vite's temporary files.
+- **`--depuis <étape> <composant>` plays in full the components after it that the circuit has not reached yet**: in BPScript 320.2.4.5.1 the proof of the first component stopped; `RELANCE --depuis developpeur spec` then played only the checks of the nine components after it, never worked, and the reviewer sent the lot back: a whole pass lost. The state now keeps `atteint`, the last component the circuit has carried to green checks; a component after the one `--depuis` names plays its checks when the circuit has reached it, else its whole circuit, testeur, proof, developer and checks. The same rule holds for a RENDU of the reviewer and for a developer's sending to a tester.
+
+### Changed
+
+- **A question of the chef de chantier goes up to the supervisor**: on `MONTE`, the circuit wrote « question du chef de chantier au responsable »; both questions of BPScript 320.2.4.5.1 were the supervisor's. The circuit, its header, the README, the skills of the supervisor and of the chef and the chef's instructions now say that the question goes to the supervisor, who answers himself what is his (the frame of the ticket, an arbitrage) and carries to the owner the functional and what the charter keeps for him; `--reponse` gives the chef the supervisor's answer, which may carry the owner's.
+- **A changed type migrates at once the shared test material that reads it**: in BPScript 320.2.4.5.1 a type changed in 000-forms broke the shared test material, which only the tester writes, and the developers of the components after it ran on that red for nothing. The tester's skill and first instruction now say that, when the ticket changes a type or a name of its component, the tester migrates in the same session the shared test material that reads it; the tests of the components after it, out of its envelope, go to their own tester.
+- **The ticket's Architecture settles the consumers it names**: the guard `scripts/consommateurs-arbitres.mjs` asked a settled « ## Arbitrage » comment for each new line of « ## Consommateurs », even for names the section « ## Architecture » of the ticket, born of the owner's word, already fixed: in BPScript 320.2.4.5.1 two questions went to the supervisor for nothing. A new line now passes too when the ticket's Architecture (its description, `bd show <ticket> --json`, from `## Architecture` to the next heading of its level) names its consumer and each name it declares, word for word, `*` between backquotes.
+
 ## [0.18.0] - 2026-10-19
 
 ### Fixed

@@ -336,6 +336,7 @@ export function circuitEssai(ESSAIS: string) {
       finale: boolean;
       seance: number | null;
       renvois: Record<string, { etape: string }> | null;
+      atteint: string | null;
       chef: { seance: string; arret: string; code: number; rapport: string | null } | null;
     } | null;
   const ordre = (id: string) => essai(id, 'ordre').trim().split('\n');

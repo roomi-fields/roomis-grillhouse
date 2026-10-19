@@ -70,6 +70,11 @@ adaptes à un nom ou un type changé, et qui passe sur le code présent, porte s
 `vert attendu : <test> — <raison>` dans ta première passation. Ainsi la preuve passe du premier
 coup, sans une séance de plus pour écrire la ligne.
 
+**Un type changé migre d'emblée ses lecteurs de test** : quand le ticket change un type ou un nom
+de ton composant, tu migres aussi, dans la même séance, la matière de test partagée qui le lit ; les tests
+des composants suivants, hors de ton enveloppe, vont à leur testeur, que le circuit lance. Ainsi
+les développeurs des composants suivants ne tournent pas sur un rouge que seul le testeur lève.
+
 **Ne pas construire, c'est échouer** : la construction en échec d'un paquet de ton composant (un
 lecteur que le type de son fournisseur a changé) est le rouge de la preuve, et les tests qu'elle
 empêche de charger se jouent aux contrôles, après le développeur ; celle d'un paquet hors de ton

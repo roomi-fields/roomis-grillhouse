@@ -9,7 +9,7 @@ import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit
 // the chef itself, out of the envelope, in the ticket's copy; the chef's final answer is its
 // decision, which the circuit writes at the ticket and applies: RELANCE starts the circuit again
 // in the same process, MONTE ends it on the stop « question », the chef's session kept in the
-// state, which `--reponse "<texte>"` resumes with the owner's answer.
+// state, which `--reponse "<texte>"` resumes with the supervisor's answer.
 // The trial repository and its stand-ins: ./circuit-essai.ts; each file of the circuit's tests
 // builds its own, in a trial directory of its own.
 
@@ -167,6 +167,8 @@ describe.runIf(canWrap)(
         const r = circuit([id]);
         expect(ARRETS.question).toBeDefined();
         expect(r.status, sortie(r)).toBe(ARRETS.question);
+        // The question goes to the supervisor, who answers it or carries it to the owner.
+        expect(r.stderr).toContain('question du chef de chantier au superviseur');
         const e = etat(id);
         expect(e).toMatchObject({
           etape: 'developpeur',
@@ -184,7 +186,7 @@ describe.runIf(canWrap)(
         expect(sessions(id, 'developpeur')).toBe(1);
       });
 
-      it("critère 5 — --reponse resumes the chef's session with the owner's answer and applies its decision", () => {
+      it("critère 5 — --reponse resumes the chef's session with the supervisor's answer and applies its decision", () => {
         const seance = etat(id)?.chef?.seance;
         scenario(
           id,
@@ -199,6 +201,7 @@ describe.runIf(canWrap)(
         expect(a).not.toContain('--session-id');
         expect(valeur(a, '--model')).toBe('sonnet');
         expect(essai(id, `${CHEF}-2.prompt`)).toContain('Le double.');
+        expect(essai(id, `${CHEF}-2.prompt`)).toContain('LA RÉPONSE DU SUPERVISEUR');
         expect(essai(id, 'developpeur-2.prompt')).toContain(
           'CONTEXTE : Le responsable dit : le double.'
         );

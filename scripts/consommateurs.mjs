@@ -22,11 +22,12 @@
 // of the frame enumerates the components through `composants`. In a repository of packages, such a
 // package stays a workspace, and Turborepo plays none of its tasks (scripts/turbo-des-paquets.mjs
 // writes its configuration). For the check of the uses, test files,
-// `dist/`, `docs/` and `node_modules/` are not production code and are not read.
+// `dist/`, `docs/` and `node_modules/` are not production code and are not read; nor are Vite's
+// temporary files, and a file gone between the walk and its read is passed over (`parcourir`).
 // The identity of a component is its name: two directories of the same name, one under `packages/`
 // and one under `src/`, are refused, both paths named (the way npm workspaces, Nx and Cargo refuse
 // two projects of one name). Names differing by case are two names.
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { trancher } from './dette.mjs';
@@ -174,20 +175,52 @@ export function imports(source) {
   return out;
 }
 
-// The production source files under <dir>: test folders and test files left out.
-function fichiers(dir) {
+// The temporary file Vite writes beside a configuration it bundles, then removes
+// (`vitest.config.ts.timestamp-<n>-<hash>.mjs`).
+const TEMPORAIRE_DE_VITE = /\.timestamp-[^/\\]*\.mjs$/;
+
+// <f> read by <lire>, or <absent> when it no longer exists (ENOENT).
+function siPresent(lire, f, absent) {
+  try {
+    return lire(f);
+  } catch (e) {
+    if (e?.code === 'ENOENT') return absent;
+    throw e;
+  }
+}
+
+// The files under <chemin> (a directory, or a file), each its absolute path: an entry below it
+// whose path <sauter> keeps out is neither entered nor listed, and Vite's temporary files are
+// never listed. The guards of the frame walk the repository while other processes write in it
+// (`npm run verifier` plays them beside the tests): a file or a directory gone before the walk
+// reaches it is passed over. The walk of every guard of the frame.
+export function parcourir(chemin, sauter = () => false) {
   const out = [];
-  const walk = d => {
-    for (const e of readdirSync(d, { withFileTypes: true })) {
-      if (SKIP.has(e.name) || e.name.startsWith('.')) continue;
-      if (TEST_DIR.has(e.name)) continue;
-      const p = path.join(d, e.name);
-      if (e.isDirectory()) walk(p);
-      else if (SOURCE.test(e.name) && !isTest(e.name)) out.push(p);
+  const walk = (p, dossier) => {
+    if (!dossier) {
+      if (!TEMPORAIRE_DE_VITE.test(p)) out.push(p);
+      return;
+    }
+    for (const e of siPresent(d => readdirSync(d, { withFileTypes: true }), p, [])) {
+      const q = path.join(p, e.name);
+      if (!sauter(q)) walk(q, e.isDirectory());
     }
   };
-  walk(dir);
+  const racine = siPresent(statSync, chemin, null);
+  if (racine) walk(chemin, racine.isDirectory());
   return out;
+}
+
+// The text of the file <f> a walk listed, or null when it is gone since.
+export const lireSiPresent = f => siPresent(x => readFileSync(x, 'utf8'), f, null);
+
+// The production source files under <dir>: test folders and test files left out.
+function fichiers(dir) {
+  const nom = p => path.basename(p);
+  return parcourir(
+    dir,
+    p => SKIP.has(nom(p)) || nom(p).startsWith('.') || TEST_DIR.has(nom(p))
+  ).filter(p => SOURCE.test(nom(p)) && !isTest(nom(p)));
 }
 
 // The component an import specifier reaches from <fichier>, other than <soi>, or null.
@@ -210,7 +243,7 @@ export function utilise(racine, tous = composants(racine)) {
   const out = new Map();
   for (const c of tous) {
     for (const f of fichiers(c.dir)) {
-      for (const { spec, noms } of imports(readFileSync(f, 'utf8'))) {
+      for (const { spec, noms } of imports(lireSiPresent(f) ?? '')) {
         const p = fournisseur(spec, f, tous, c);
         if (!p) continue;
         if (!out.has(p.nom)) out.set(p.nom, new Map());
@@ -286,7 +319,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   for (const l of lignes) process.stderr.write(`${l}\n`);
   if (refus.length) {
     process.stderr.write(
-      "Une consommation nouvelle passe par l'arbitre, puis entre dans la section « Consommateurs » de l'interface du fournisseur.\n"
+      "Une consommation nouvelle se décide (la section « Architecture » du ticket qui la nomme, sinon l'arbitre), puis entre dans la section « Consommateurs » de l'interface du fournisseur.\n"
     );
     process.exitCode = 1;
   }

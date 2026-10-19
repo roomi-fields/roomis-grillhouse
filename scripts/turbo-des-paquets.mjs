@@ -101,11 +101,11 @@
 // no package turbo.json is written or refused. The dependencies are written in the package.json
 // only; this file is their only reader for the tasks' order.
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { applyEdits, modify, parse } from 'jsonc-parser';
-import { matieres } from './consommateurs.mjs';
+import { matieres, parcourir } from './consommateurs.mjs';
 import { paquets } from './paquets.mjs';
 import { VARIABLE as TESTS_CIBLES } from './vitest-config/cibles.mjs';
 
@@ -371,19 +371,14 @@ export function ecrire(racine) {
 }
 
 // The files of code under <chemin> of <racine> (a directory, or a file), each path from the root,
-// sorted; what lies under one of <exclus> left out.
+// sorted; what lies under one of <exclus> left out, as `parcourir` walks it.
 function codeSous(racine, chemin, exclus) {
-  const trouves = [];
-  const parcourir = rel => {
-    if (exclus.some(e => sous(rel, e))) return;
-    if (!statSync(path.join(racine, rel)).isDirectory()) {
-      if (CODE.test(rel)) trouves.push(rel);
-      return;
-    }
-    for (const n of readdirSync(path.join(racine, rel))) parcourir(`${rel}/${n}`);
-  };
-  parcourir(chemin);
-  return trouves.sort();
+  if (exclus.some(e => sous(chemin, e))) return [];
+  const rel = p => path.relative(racine, p).split(path.sep).join('/');
+  return parcourir(path.join(racine, chemin), p => exclus.some(e => sous(rel(p), e)))
+    .map(rel)
+    .filter(f => CODE.test(f))
+    .sort();
 }
 
 const gitSort = (racine, args) => spawnSync('git', args, { cwd: racine, encoding: 'utf8' });

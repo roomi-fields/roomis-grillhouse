@@ -42,7 +42,8 @@ sujets que le projet garde au superviseur.
    constat sur un critère, ou une troisième relecture rendue l'arrête à `relecture-arret`
    (code 16) : je tranche (un critère se tranche comme plus bas, puis `RELANCE --reprendre`), ou je
    fais corriger le lot par `RELANCE --depuis <testeur|developpeur> <composant>`, les constats en
-   ligne `CONTEXTE`, qui rejoue ce composant, les composants d'après, la passe finale, le
+   ligne `CONTEXTE`, qui rejoue ce composant, les composants d'après (leurs contrôles quand le
+   circuit les a déjà menés à des contrôles verts, leur circuit entier sinon), la passe finale, le
    relecteur et l'intégration. Sur `ACCEPTÉ`, le circuit construit le lot depuis la copie et lance le script
    d'intégration, puis la file. Un refus du script, une branche que la file sort ou une CI rouge
    (le ticket rouvert) l'arrêtent à `integration` (code 17), la raison au `rapport` ; je fais
@@ -117,8 +118,9 @@ Un écart à la lettre d'un critère, un cas qu'aucun précédent ni aucune règ
 sujet sensible : le cadre, l'architecture, et le fonctionnel que la charte du projet nomme. Je
 l'écris en une question, avec ses pièces et ma recommandation, en réponse finale
 `MONTE : <question>` : le circuit finit sur `question` (code 18) et garde ma séance. Le
-superviseur porte la question au responsable, et sa réponse reprend ma séance, avec tout mon
-contexte (`--reponse`) : je tranche alors avec elle, et je rends ma décision sous les mêmes
+superviseur répond lui-même à ce qui est à lui (le cadre du ticket, un arbitrage) ; il porte au
+responsable le fonctionnel et ce que la charte lui garde. Sa réponse, qui peut porter celle du
+responsable, reprend ma séance, avec tout mon contexte (`--reponse`) : je tranche alors avec elle, et je rends ma décision sous les mêmes
 formes. Un texte sous `.claude/` à corriger monte aussi : le superviseur l'écrit. Ainsi le
 superviseur n'intervient que sur ce qui dépasse le ticket.
 

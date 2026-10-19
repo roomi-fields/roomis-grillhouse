@@ -78,10 +78,12 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   lui-même une séance du chef de chantier (compétence `chef-de-chantier`, Sonnet), qui tranche ce
   que les règles tranchent et rend sa décision en réponse finale ; le circuit l'écrit au ticket et
   l'applique : il repart seul, ou finit sur la question du chef. Je ne lance aucun chef. Ainsi
-  ma séance n'est réveillée que par la fin du lot, une question pour le responsable, ou un arrêt
-  que le chef n'a pas su rendre.
+  ma séance n'est réveillée que par la fin du lot, une question du chef, ou un arrêt que le chef
+  n'a pas su rendre.
 - **J'interviens sur ce qui dépasse le ticket** : 18 (`question`), la question du chef est la
-  raison de l'état ; je la monte au responsable, j'écris sa réponse au ticket, puis je lance
+  raison de l'état, et elle vient à moi. Je réponds moi-même à ce qui est à moi (le cadre du
+  ticket, un arbitrage) ; je porte au responsable le fonctionnel et ce que la charte lui garde.
+  J'écris la réponse au ticket, puis je lance
   `node scripts/circuit.mjs <ticket> --reponse "<sa réponse>"` en arrière-plan, qui reprend la
   séance du chef, avec son contexte, et applique sa décision. Tout autre code est un arrêt que le
   chef n'a pas tranché (sa réponse jointe à la raison de l'état, ou trois relances d'affilée sur
@@ -180,7 +182,10 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   seul composant qui la calcule, et elle entre avec son lecteur, comme dans une demande de fusion
   de rustc.
 - **Une consommation nouvelle part à l'arbitre** : un élément qu'une interface n'accorde pas
-  (section « Consommateurs ») est une question de conception, même publié.
+  (section « Consommateurs ») est une question de conception, même publié. La section
+  « Architecture » du ticket qui nomme le consommateur et chaque élément, mot pour mot, l'a déjà
+  tranchée : la ligne entre sans arbitrage. Ainsi une dépendance que le ticket fixe ne repasse pas
+  par une question.
 - **La réponse du responsable s'écrit au ticket** : sous le titre « ## Réponse du responsable —
   <la question> », dans ses mots, après le commentaire « Arbitrage » qu'elle tranche. Ainsi le
   script d'intégration la trouve, et le lot se commite sur sa branche.

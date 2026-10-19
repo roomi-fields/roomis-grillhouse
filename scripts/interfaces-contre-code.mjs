@@ -53,11 +53,11 @@
 // A component without `docs/INTERFACE.md` is reported and skipped. A project that prefers a
 // bench per component calls `verifierComposant(racine, composant)` from its test.
 import { createRequire } from 'node:module';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { composants } from './consommateurs.mjs';
+import { composants, lireSiPresent, parcourir } from './consommateurs.mjs';
 import { composantDeLEnveloppe } from './enveloppe/composant.mjs';
 import { trancher } from './dette.mjs';
 
@@ -119,22 +119,20 @@ export function declare(texte) {
   return { fautes };
 }
 
-// The codes with one of <prefixes> found in the production code under <dir>.
+// The codes with one of <prefixes> found in the production code under <dir>, as `parcourir`
+// walks it.
 function codesDuCode(dir, racine, prefixes) {
   const trouves = new Set();
-  const walk = d => {
-    for (const e of readdirSync(d, { withFileTypes: true })) {
-      if (['node_modules', 'dist', 'docs'].includes(e.name) || e.name.startsWith('.')) continue;
-      const p = path.join(d, e.name);
-      if (e.isDirectory()) walk(p);
-      else if (SOURCE.test(e.name) && !isTest(path.relative(racine, p))) {
-        for (const m of readFileSync(p, 'utf8').matchAll(CODE)) {
-          if (prefixes.some(pr => m[0].startsWith(pr))) trouves.add(m[0]);
-        }
-      }
+  const nom = p => path.basename(p);
+  const sources = parcourir(
+    dir,
+    p => ['node_modules', 'dist', 'docs'].includes(nom(p)) || nom(p).startsWith('.')
+  ).filter(p => SOURCE.test(nom(p)) && !isTest(path.relative(racine, p)));
+  for (const p of sources) {
+    for (const m of (lireSiPresent(p) ?? '').matchAll(CODE)) {
+      if (prefixes.some(pr => m[0].startsWith(pr))) trouves.add(m[0]);
     }
-  };
-  walk(dir);
+  }
   return trouves;
 }
 

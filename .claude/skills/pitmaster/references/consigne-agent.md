@@ -5,7 +5,7 @@ de lui : le premier pour chaque séance du testeur et du développeur, dans l'en
 composant, le lanceur ajoutant ses sections ; le second pour chaque séance du relecteur, hors
 enveloppe, après la passe finale verte ; le troisième pour la séance du chef de chantier, hors
 enveloppe, sur un arrêt du circuit ; le quatrième pour la reprise de cette séance sur la réponse
-du responsable (`--reponse`). Ainsi chaque agent reçoit la même consigne à chaque séance.
+du superviseur (`--reponse`), qui peut porter celle du responsable. Ainsi chaque agent reçoit la même consigne à chaque séance.
 
 ## Testeur et développeur (rempli par le circuit)
 
@@ -38,7 +38,7 @@ LA DERNIÈRE PASSATION au ticket :
 
 Le circuit joue la preuve du rouge après le testeur, sur tous les tests de ton composant, et les contrôles après le développeur : les tests du lot, les gardes, les tests de chaque paquet des composants faits ; après le dernier composant, la passe finale, `npm run verifier`. Ta passation au ticket (`bd comments add`) lui dit que ta séance a fini.
 
-Testeur : un test existant que tu adaptes à un nom ou un type changé, et qui passe sur le code présent, porte sa ligne `vert attendu : <test> — <raison>` dans ta première passation. Développeur : quand le rouge qui reste est dans les tests d'un composant du titre, le tien ou un composant d'avant, ta passation porte la ligne `Agent : testeur <composant>`, et le circuit rejoue ce composant depuis son testeur. Ainsi chaque rouge va à l'agent qui le lève.
+Testeur : un test existant que tu adaptes à un nom ou un type changé, et qui passe sur le code présent, porte sa ligne `vert attendu : <test> — <raison>` dans ta première passation ; quand le ticket change un type ou un nom de ton composant, tu migres aussi, dans la même séance, la matière de test partagée qui le lit. Développeur : quand le rouge qui reste est dans les tests d'un composant du titre, le tien ou un composant d'avant, ta passation porte la ligne `Agent : testeur <composant>`, et le circuit rejoue ce composant depuis son testeur. Ainsi chaque rouge va à l'agent qui le lève.
 
 Tu travailles dans ta copie (`.claude/worktrees/{{ticket}}`), dans l'enveloppe de ton composant : des autres composants, seules l'interface et la forme publiée existent, et le paquet de la matière de test partagée en entier, que seul le testeur écrit. `git status` montre les autres composants comme supprimés : c'est l'enveloppe, et non un changement ; leur forme publiée est à sa place (leur `package.json`, `docs/INTERFACE.md`, `dist/`, `turbo.json`, les fichiers de leur champ `files` et leurs traces). L'index (rtfm, codegraph) n'y est pas : tu lis ton paquet, les interfaces de tes voisins et la matière de test partagée. Ainsi tu modifies ta copie, et tes voisins par leurs interfaces seulement.
 
@@ -106,17 +106,17 @@ RELANCE --reprendre
 RELANCE --depuis <testeur|developpeur> <composant>
 MONTE : <question>
 
-Une RELANCE peut porter, juste après, une ligne `CONTEXTE : <texte>`, que le circuit passe à l'agent qu'il relance ; rien d'autre ne suit la décision. Une MONTE porte la question au responsable, avec ses pièces et ta recommandation ; sa réponse reprend ta séance.
+Une RELANCE peut porter, juste après, une ligne `CONTEXTE : <texte>`, que le circuit passe à l'agent qu'il relance ; rien d'autre ne suit la décision. Une MONTE porte la question au superviseur, avec ses pièces et ta recommandation : il y répond lui-même, ou la porte au responsable quand elle lui revient ; sa réponse reprend ta séance.
 
 Tu ne lances pas le circuit. Hors de tes commandes (lectures de bd et de git, commentaire au ticket, critère ajouté à sa description, découverte consignée, l'index), la machine est en lecture seule. Ainsi seul le circuit relance le travail.
 ```
 
-## Chef de chantier, sur la réponse du responsable (rempli par le circuit)
+## Chef de chantier, sur la réponse du superviseur (rempli par le circuit)
 
 ```text
 TON TICKET : {{ticket}} — {{sujet}}
 
-LA RÉPONSE DU RESPONSABLE à ta question, mot pour mot :
+LA RÉPONSE DU SUPERVISEUR à ta question, mot pour mot (la sienne, ou celle du responsable qu'il porte) :
 
 {{reponse}}
 
