@@ -236,7 +236,7 @@ import { VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/composant.mjs';
 import { paquets } from './paquets.mjs';
 import { transcriptionsDeLaCopie } from './registre.mjs';
 import { dossierCommun, lireEntrees } from './integration/file-attente.mjs';
-import { AUTEUR_DU_VERDICT, VERDICT, verdictDe } from './integration/integrer.mjs';
+import { AUTEUR_DU_VERDICT, VERDICT, verdictDe } from './integration/verdict.mjs';
 import { attendreUnPeu, vivant } from './verrou-de-fichier.mjs';
 import { isTesterFile } from './verrous/verrou.mjs';
 import { A_REPASSER } from './vitest-config/pression.mjs';

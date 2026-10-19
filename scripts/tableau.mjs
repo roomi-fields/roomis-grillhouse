@@ -63,7 +63,7 @@ import {
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { verdictDe } from './integration/integrer.mjs';
+import { verdictDe } from './integration/verdict.mjs';
 
 const MINUTE = 60_000;
 export const SILENCE = 10 * MINUTE;

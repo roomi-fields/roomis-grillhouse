@@ -67,6 +67,7 @@ import { isTesterFile } from '../verrous/verrou.mjs';
 import { lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
 import { dossierCommun, inscrireEntree } from './file-attente.mjs';
 import { ouvrirCopie, RETIRER_COPIE } from './rejeu.mjs';
+import { verdictDe } from './verdict.mjs';
 import { A_REPASSER } from '../vitest-config/pression.mjs';
 
 // A file name as git writes it in a patch: a name with a character outside ASCII, a quote, a
@@ -94,17 +95,6 @@ function nomDeGit(ecrit) {
   }
   return Buffer.from(octets).toString('utf8');
 }
-
-// The first word of a reviewer's verdict: ACCEPTÉ or RENDU.
-export const VERDICT = /^\s*(ACCEPTÉ|RENDU)(?![\p{L}\d])/u;
-// The author of the reviewer's verdicts at a ticket (Beads' `author`): the circuit writes the
-// reviewer's final answer under it (BEADS_ACTOR), and the reviewer's session runs under it.
-export const AUTEUR_DU_VERDICT = 'relecteur';
-
-// The verdict the comment <c> (Beads' JSON: `author`, `text`) carries: ACCEPTÉ or RENDU for a
-// comment of the author relecteur whose first word is one of them, else null.
-export const verdictDe = c =>
-  c?.author === AUTEUR_DU_VERDICT ? (VERDICT.exec(String(c.text ?? ''))?.[1] ?? null) : null;
 
 // The refusal for the verdicts of one ticket, or null. `ticket` and `comments` are Beads' JSON.
 export function refusVerdicts(ticket, comments) {

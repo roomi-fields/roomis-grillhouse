@@ -6,6 +6,7 @@ import { canWrap, racineSousLaMaison } from '../machine.js';
 import { CODE_USAGE } from '../../scripts/enveloppe/codes.mjs';
 import { dossierDeTravail } from '../../scripts/enveloppe/enveloppe.mjs';
 import { publie } from '../../scripts/index-interfaces.mjs';
+import { AUTEUR_FIXE } from '../../scripts/circuit.mjs';
 
 // Ticket grillhouse-3uv.46: the launcher takes a model and a reasoning level for one session
 // (--modele, --effort) and hands them to claude (--model, --effort); without them, the role's
@@ -181,8 +182,17 @@ const TRAVAIL = (ticket: string) =>
 const PROMPT = (ticket: string) =>
   `TON TICKET : ${ticket} — un sujet.\n\n${PUBLIE_POUR_A}\n\n${TRAVAIL(ticket)}`;
 
-// The arguments claude receives today: the instruction is not among them.
-const AUJOURDHUI = ['-p', '--agent', 'developpeur', '--permission-mode', 'bypassPermissions'];
+// The arguments claude receives today, the rules that refuse the session a change of its author
+// at the ticket last: the instruction is not among them.
+const AUJOURDHUI = [
+  '-p',
+  '--agent',
+  'developpeur',
+  '--permission-mode',
+  'bypassPermissions',
+  '--disallowedTools',
+  ...AUTEUR_FIXE,
+];
 
 // The value that follows a flag, each time it appears.
 const valeurs = (args: string[], flag: string) =>
@@ -478,7 +488,13 @@ describe.runIf(canWrap)('the launcher and the register line of a session that fa
   const ECHEC = path.join(REPO, 'faux-claude-echec.sh');
   it('writes the line of a session whose envelope exits in error, and keeps its exit code', () => {
     // registre.mjs and what it imports, as the test repository holds them.
-    for (const f of ['registre.mjs', 'tableau.mjs', 'verrou-de-fichier.mjs']) {
+    mkdirSync(path.join(REPO, 'scripts', 'integration'), { recursive: true });
+    for (const f of [
+      'registre.mjs',
+      'tableau.mjs',
+      'verrou-de-fichier.mjs',
+      'integration/verdict.mjs',
+    ]) {
       execFileSync('cp', [path.join(RACINE, 'scripts', f), path.join(REPO, 'scripts', f)]);
     }
     // A stand-in for claude that leaves a transcript in its project directory, then fails.

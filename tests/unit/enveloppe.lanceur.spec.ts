@@ -6,6 +6,7 @@ import { canWrap, racineSousLaMaison } from '../machine.js';
 import { CODE_COPIE, CODE_REFUS, CODE_USAGE } from '../../scripts/enveloppe/codes.mjs';
 import { dossierDeTravail } from '../../scripts/enveloppe/enveloppe.mjs';
 import { SCRIPT, enveloppeEssai } from './enveloppe-essai.js';
+import { AUTEUR_FIXE } from '../../scripts/circuit.mjs';
 
 // The launcher of an agent's session in its envelope (scripts/enveloppe/lancer.sh,
 // tests/unit/enveloppe.spec.ts): its exit codes, the dependencies and the work in progress of the
@@ -88,7 +89,9 @@ describe.runIf(canWrap)('the launcher', () => {
   it('runs the role session in the envelope of its copy', () => {
     expect(launch(consigne).status).toBe(0);
     const args = execFileSync('cat', [path.join(copie, 'packages/a/args')], { encoding: 'utf8' });
-    expect(args).toBe('-p|--agent|developpeur|--permission-mode|bypassPermissions|');
+    expect(args).toBe(
+      `-p|--agent|developpeur|--permission-mode|bypassPermissions|--disallowedTools|${AUTEUR_FIXE.join('|')}|`
+    );
     const prompt = execFileSync('cat', [path.join(copie, 'packages/a/prompt')], {
       encoding: 'utf8',
     });
