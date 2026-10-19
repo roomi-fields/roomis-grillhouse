@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.17.1] - 2026-10-19
+
 ### Changed
 
 - **The chef de chantier's CONTEXTE speaks to the one agent it relaunches**: a chef relaunched the developer of one package with a context that also planned the work of the next package, which that developer cannot write. The chef's skill now says that the context carries only what the relaunched agent does in its component; work for another component goes to the ticket, in the chef's arbitration, where that component's agent reads it.
