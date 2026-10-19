@@ -6,9 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-10-19
+
 ### Fixed
 
-- **A verdict is the reviewer's comment, never an agent's handover that opens on RENDU**: the circuit and the integration took for a verdict any comment whose first word was ACCEPTÉ or RENDU; in BPScript 320.2.4.5.1 a developer's handovers began with « RENDU 000-forms … », the circuit counted four reviews instead of two and stopped at « relecture-arret ». Each comment at the ticket now carries its author: the circuit launches each session with `BEADS_ACTOR` naming its role (`testeur <composant>`, `developpeur <composant>`, `relecteur`, `chef-de-chantier`), which the envelope passes on, writes its own lines as `circuit` and the reviewer's verdict as `relecteur`; a verdict is a comment of the author `relecteur` whose first word is ACCEPTÉ or RENDU, in the circuit, the integration and the board. The rights of every session refuse bd's `--actor`, `-a`/`--author` and the variable `BEADS_ACTOR`, so that no agent changes its author.
+- **A verdict is the reviewer's comment, never an agent's handover that opens on RENDU**: the circuit and the integration took for a verdict any comment whose first word was ACCEPTÉ or RENDU; in BPScript 320.2.4.5.1 a developer's handovers began with « RENDU 000-forms … », the circuit counted four reviews instead of two and stopped at « relecture-arret ». Each comment at the ticket now carries its author: the circuit launches each session with `BEADS_ACTOR` naming its role (`testeur <composant>`, `developpeur <composant>`, `relecteur`, `chef-de-chantier`), which the envelope passes on, writes its own lines as `circuit` and the reviewer's verdict as `relecteur`; a verdict is a comment of the author `relecteur` whose first word is ACCEPTÉ or RENDU, in the circuit, the integration and the board. The rights of every session refuse bd's `--actor`, `-a`/`--author` and the variable `BEADS_ACTOR`, so that no agent changes its author. A project installs this version between two tickets: the verdicts of a ticket in progress were written without the author `relecteur`.
 
 ### Changed
 
