@@ -157,9 +157,10 @@
 //   a finding filed closed, the reads of git, the index, and the reads of the state, the log and
 //   the proofs), its instruction from the third template of consigne-agent.md: the ticket, the
 //   stop's name and code, its step, component and reason, the paths of the state and the log. The
-//   state names its session (`chef`) while it runs. Its final answer is its decision, the first
-//   line one of `RELANCE --reprendre`, `RELANCE --depuis <testeur|developpeur> <composant>`, then
-//   an optional line `CONTEXTE : <texte>` (the rest of the answer); or `MONTE : <question>`. The
+//   state names its session (`chef`) while it runs. Its final answer is its decision, from its
+//   last line in one of the forms `RELANCE --reprendre`, `RELANCE --depuis <testeur|developpeur>
+//   <composant>`, then an optional line `CONTEXTE : <texte>` (the rest of the answer), or
+//   `MONTE : <question>`; the reasoning before that line is left out. The
 //   circuit writes it at the ticket (`Circuit · <composant> · chef : …`). RELANCE runs the circuit
 //   again in the same process, as the option it names, the context as `--contexte`; MONTE ends the
 //   circuit at « question », the question as its reason, the chef's session kept in the state.
@@ -1672,24 +1673,37 @@ async function derouler(ctx, depart) {
   }
 }
 
-// The decision in the chef de chantier's final answer <texte>, its first line one of its forms:
-// `{ ligne, reprendre: true, contexte }` or `{ ligne, depuis: { etape, composant }, contexte }`
-// for a RELANCE, `contexte` the text after `CONTEXTE :` (the rest of the answer) or null;
-// `{ ligne, question }` for a MONTE. Null for an answer in none of these forms, or a `--depuis`
+// The head of a decision, a line in one of its forms.
+const TETE_DE_DECISION =
+  /^(?:MONTE\s*:.*|RELANCE\s+--reprendre|RELANCE\s+--depuis\s+(?:testeur|developpeur)\s+\S+)$/;
+
+// The decision in the chef de chantier's final answer <texte>, from its last line in one of its
+// forms, the reasoning before it left out: `{ ligne, reprendre: true, contexte }` or
+// `{ ligne, depuis: { etape, composant }, contexte }` for a RELANCE, `contexte` the text after
+// `CONTEXTE :` (the rest of the answer) or null; `{ ligne, question }` for a MONTE. Null for an
+// answer with no such line, a RELANCE followed by anything but its CONTEXTE, or a `--depuis`
 // whose component the title does not name.
 function lireDecision(ctx, texte) {
-  const lignes = String(texte ?? '')
+  // A line the chef sets in code or in bold reads as the line itself.
+  const nue = l => l.trim().replace(/^[`*]+|[`*]+$/g, '');
+  const toutes = String(texte ?? '')
     .trim()
     .split('\n');
-  // A line the chef sets in code or in bold reads as the line itself.
-  const tete = (lignes[0] ?? '').trim().replace(/^[`*]+|[`*]+$/g, '');
+  const debut = toutes.findLastIndex(l => TETE_DE_DECISION.test(nue(l)));
+  if (debut < 0) return null;
+  const lignes = toutes.slice(debut);
+  const tete = nue(lignes[0]);
   const monte = /^MONTE\s*:\s*([\s\S]*)$/.exec(tete);
   if (monte) {
     const question = [monte[1], ...lignes.slice(1)].join('\n').trim();
     return question ? { ligne: `MONTE : ${question}`, question } : null;
   }
-  const reste = lignes.slice(1).join('\n').trim();
-  const c = /^CONTEXTE\s*:\s*([\s\S]*)$/.exec(reste);
+  const reste = lignes
+    .slice(1)
+    .join('\n')
+    .trim()
+    .replace(/^[`*]+/, '');
+  const c = /^CONTEXTE\s*:[`*]*\s*([\s\S]*)$/.exec(reste);
   if (reste && !c) return null;
   const contexte = c?.[1].trim() || null;
   const avec = l => (contexte ? `${l}\nCONTEXTE : ${contexte}` : l);

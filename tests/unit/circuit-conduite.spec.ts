@@ -91,7 +91,7 @@ describe('Q10 — the supervisor launches the circuit, a chef de chantier, a ses
     ]) {
       expect(chef).toContain(forme);
     }
-    expect(chef).toMatch(/Ma décision est ma réponse finale/);
+    expect(chef).toMatch(/Ma décision termine ma réponse finale/);
     expect(chef).not.toMatch(/Relancer, puis finir/);
     expect(chef).not.toMatch(/run_in_background|en veille|arrière-plan/);
     // The skill prescribes no command of the circuit: the circuit applies the decision.

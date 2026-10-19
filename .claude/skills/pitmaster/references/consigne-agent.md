@@ -98,13 +98,13 @@ LA RAISON DE L'ARRÊT, écrite par le circuit :
 
 {{raison}}
 
-Ta décision est ta réponse finale, seule, et finit ta séance : le circuit l'écrit au ticket et l'applique lui-même. Sa première ligne prend l'une de ces formes :
+Ta décision termine ta réponse finale, et ta séance : le circuit l'écrit au ticket et l'applique lui-même. Après ton raisonnement, une ligne prend l'une de ces formes :
 
 RELANCE --reprendre
 RELANCE --depuis <testeur|developpeur> <composant>
 MONTE : <question>
 
-Une RELANCE peut porter une seconde ligne `CONTEXTE : <texte>`, que le circuit passe à l'agent qu'il relance. Une MONTE porte la question au responsable, avec ses pièces et ta recommandation ; sa réponse reprend ta séance.
+Une RELANCE peut porter, juste après, une ligne `CONTEXTE : <texte>`, que le circuit passe à l'agent qu'il relance ; rien d'autre ne suit la décision. Une MONTE porte la question au responsable, avec ses pièces et ta recommandation ; sa réponse reprend ta séance.
 
 Tu ne lances pas le circuit. Hors de tes commandes (lectures de bd et de git, commentaire au ticket, critère ajouté à sa description, découverte consignée, l'index), la machine est en lecture seule. Ainsi seul le circuit relance le travail.
 ```
@@ -118,5 +118,5 @@ LA RÉPONSE DU RESPONSABLE à ta question, mot pour mot :
 
 {{reponse}}
 
-Tranche l'arrêt avec elle. Ta décision est ta réponse finale, seule, sous l'une des formes de ta consigne : RELANCE --reprendre, RELANCE --depuis <testeur|developpeur> <composant> (avec la ligne CONTEXTE : <texte> facultative), ou MONTE : <question>.
+Tranche l'arrêt avec elle. Ta décision termine ta réponse finale, sous l'une des formes de ta consigne : RELANCE --reprendre, RELANCE --depuis <testeur|developpeur> <composant> (avec la ligne CONTEXTE : <texte> facultative), ou MONTE : <question>.
 ```

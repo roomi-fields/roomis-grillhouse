@@ -203,6 +203,28 @@ describe.runIf(canWrap)(
       expect(sessions(id, CHEF)).toBe(0);
     });
 
+    it("critère 2 — a decision after the chef's reasoning is its decision, the reasoning left out", () => {
+      const id = 'demo-chef-raisonnement';
+      ticket(id, '000-forms');
+      scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+      scenario(id, 'developpeur-1', RIEN);
+      scenario(id, 'developpeur-2', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+      scenario(
+        id,
+        CHEF,
+        chef(
+          'Le développeur ne change rien.\n\nLa mesure rend la valeur, le critère dit le double.\n\n**RELANCE --reprendre**\nCONTEXTE : Écris le double.'
+        )
+      );
+      const r = circuit([id]);
+      expect(r.status, sortie(r)).toBe(0);
+      const decision = commentaires(id).find(t => t.includes(' · chef : '));
+      expect(decision).toMatch(/^Circuit · packages\/forms · chef : RELANCE --reprendre/);
+      expect(decision).not.toContain('Le développeur ne change rien.');
+      expect(essai(id, 'developpeur-2.prompt')).toContain('CONTEXTE : Écris le double.');
+      expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
+    });
+
     it("critère 6 — an answer in no form, or a chef's session in error, ends on the original stop, the answer joined to its reason", () => {
       const id = 'demo-chef-illisible';
       ticket(id, '000-forms');

@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **The chef de chantier's decision may follow its reasoning**: the circuit read the decision from the first line of the chef's answer only, and a chef that wrote its reasoning first, then `RELANCE --reprendre` and its `CONTEXTE`, ended the circuit on its stop, « sa réponse ne suit aucune forme de décision ». The circuit now reads the last line in a form of decision, with the `CONTEXTE` line after it, the reasoning before it left out; the chef's skill and instruction say the decision ends the answer.
+
 ## [0.17.1] - 2026-10-19
 
 ### Changed

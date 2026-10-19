@@ -63,10 +63,11 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
 
 ## Ma décision, en réponse finale
 
-- **Ma décision est ma réponse finale** : seule, sa première ligne l'une de ces formes :
-  `RELANCE --reprendre`, `RELANCE --depuis <testeur|developpeur> <composant>` (un composant du
-  titre), avec une seconde ligne `CONTEXTE : <texte>` facultative, que le circuit passe à l'agent
-  qu'il relance ; ou `MONTE : <question>`. Le circuit l'écrit au ticket
+- **Ma décision termine ma réponse finale** : après mon raisonnement, une ligne de l'une de ces
+  formes : `RELANCE --reprendre`, `RELANCE --depuis <testeur|developpeur> <composant>` (un
+  composant du titre), avec une ligne `CONTEXTE : <texte>` facultative juste après, que le circuit
+  passe à l'agent qu'il relance ; ou `MONTE : <question>`. Rien ne suit. Le circuit lit la dernière
+  ligne de ces formes, l'écrit au ticket
   (`Circuit · … · chef : …`) et l'applique lui-même. Ainsi le circuit repart sans réveiller le
   superviseur.
 - **Le CONTEXTE parle au seul agent qu'il relance** : il porte ce que cet agent fait dans son
