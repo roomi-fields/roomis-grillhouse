@@ -69,10 +69,10 @@
 #   input from a temporary file the launcher writes and removes (an argument may not pass the
 #   128 KiB Linux allows one, MAX_ARG_STRLEN), the instruction file
 #   followed by the section « Ce que les composants d'avant publient »: for each component whose
-#   `## Consommateurs` section names the component, the index of the elements its interface
-#   publishes, one line each, and the
-#   rubric « Rend » of its frame, each at its address (`scripts/index-interfaces.mjs --publie`,
-#   read in the prepared copy; a reading that fails stops the launch, CODE_COPIE), then the
+#   `## Consommateurs` section names the component, its line, the names of the elements declared
+#   for the component, and the address of the rubric « Rend » of its frame, the rest of its
+#   elements left to the index of the interfaces (`scripts/index-interfaces.mjs --publie`, read in
+#   the prepared copy; a reading that fails stops the launch, CODE_COPIE), then the
 #   section « Ton dossier de travail », which names the session's working directory, where every
 #   temporary file goes (`dossierDeTravail` of enveloppe.mjs, the envelope's TMPDIR), then the
 #   section « La construction de ton paquet échoue » when it fails. The prompt

@@ -109,7 +109,7 @@ roomis-grillhouse/
 │   │   ├── file.mjs                  # the queue: brings the branches onto main one at a time, replaced and replayed when main moved, pushes main, then reads the CI of the commit pushed (gh: a red CI reopens the ticket) (tests: tests/unit/file-integration*.spec.ts)
 │   │   ├── rejeu.mjs                 # the replay shared by integrer.mjs and file.mjs: clean copy, dependencies of its lock file, npm run verifier (Turborepo: build, then guards and tests); a 75 keeps the lot waiting
 │   │   └── file-attente.mjs          # the queue's entries (a branch and its one ticket each), in git's common directory, and the directory the integration's locks live in
-│   ├── index-interfaces.mjs       # npm run interfaces: docs/agents/index-des-interfaces.md from the generated parts, checked by grillhouse:gardes; --publie <composant>: what its providers publish (the index of their interface elements, one line each, CADRE.md « Rend »), for the launcher
+│   ├── index-interfaces.mjs       # npm run interfaces: docs/agents/index-des-interfaces.md from the generated parts, checked by grillhouse:gardes; --publie <composant>: what its providers publish (each provider's line, the names of the elements declared for it, the address of its CADRE.md « Rend »), for the launcher
 │   └── un-commit-par-ticket.mjs   # commit-msg hook (placed by crochets.mjs): a closed ticket refuses a second commit, a reopened ticket takes its corrections
 │
 ├── mods/grillhouse/            # The Grillhouse mod (grillhouse@roomi-fields): the /grillhouse pane, the

@@ -9,8 +9,12 @@
 //                                                prints what the providers of <composant> publish
 //
 // The providers of a component are the components whose `## Consommateurs` section names it: the
-// frame's one written and checked record of who uses whom (scripts/consommateurs.mjs). For each,
-// `--publie` gives its elements and the rubric « Rend » of its `docs/CADRE.md`. The launcher
+// frame's one written and checked record of who uses whom (scripts/consommateurs.mjs). `--publie`
+// is the first level of a progressive disclosure, as the skills of Claude Code, llms.txt or
+// Aider's repository map: for each provider, its line, the names of the elements declared for the
+// component (the only ones the check of the consumers lets it use) and the address of the rubric
+// « Rend » of its `docs/CADRE.md`; the index of the interfaces is the second level, every element
+// with its sentence; the interface is the third, the section of each element. The launcher
 // (scripts/enveloppe/lancer.sh) writes the section `--publie` prints after the instruction of a role
 // agent; the relecteur prints it by the same command.
 //
@@ -150,12 +154,11 @@ export function entrees(rel, contenu) {
 const TITRE_PUBLIE = "## Ce que les composants d'avant publient";
 
 // The rubric « Rend » of a component's frame (`docs/CADRE.md`, next to its interface), read once:
-// `{ titre, corps }` from its `## Rend` heading, numbered or not (`## 3. Rend`), to the next `#` or
-// `##` heading outside a code block; `{ absent: true }` without the file, null without the rubric.
+// `{ titre }`, its `## Rend` heading, numbered or not (`## 3. Rend`), outside a code block;
+// `{ absent: true }` without the file, null without the rubric.
 function rend(racine, rel) {
   const fichier = path.join(racine, rel);
   if (!existsSync(fichier)) return { absent: true };
-  let rubrique = null;
   let cloture = null;
   for (const l of readFileSync(fichier, 'utf8').split('\n')) {
     const f = /^\s*(```|~~~)/.exec(l);
@@ -163,31 +166,25 @@ function rend(racine, rel) {
       if (f && f[1] === cloture) cloture = null;
     } else if (f) {
       cloture = f[1];
-    } else if (/^#{1,2} /.test(l)) {
-      if (rubrique) break;
+    } else {
       const m = /^## ((?:\d+\.\s*)?Rend)\s*$/.exec(l);
-      if (m) {
-        rubrique = { titre: m[1], corps: [] };
-        continue;
-      }
+      if (m) return { titre: m[1] };
     }
-    rubrique?.corps.push(l);
   }
-  if (!rubrique) return null;
-  const corps = rubrique.corps.join('\n').replace(/^\n+|\s+$/g, '');
-  return { titre: rubrique.titre, corps };
+  return null;
 }
 
 // What the components before <composant> publish, as the section the launcher writes after the
 // instruction of a role agent (scripts/enveloppe/lancer.sh). <composant> is the component's path
 // in the repository at <racine> (`packages/a`, `src/parser`), or `.` for a copy of the whole
-// repository. Its providers are the components whose `## Consommateurs` section names it; for
-// each, its first sentence and, once, the address of its elements (`<interface> § <name>`), the
-// elements declared for it, then the index of its generated part, as the index of a Rust
-// documentation: every element, declared for it or not, in one line, its name and the first
-// sentence of its summary, never its members, which are read at the address; then the rubric
-// « Rend » of its frame with its address (`<cadre> § <heading>`), or one line saying the frame or
-// the rubric is missing. Each interface and each frame is read once.
+// repository, which the section points to the index of the interfaces. Its providers are the
+// components whose `## Consommateurs` section names it; for each, its line in the index of the
+// interfaces (its heading, its first sentence, its interface), the names of the elements its
+// `## Consommateurs` line declares for the component, never their sentence, which the index of the
+// interfaces holds, and the address of the rubric « Rend » of its frame (`<cadre> § <heading>`),
+// or one line saying the frame or the rubric is missing. A declaration of `*`, an import of the
+// whole component, names no element: its line says the elements are in the index. Each interface
+// and each frame is read once.
 export function publie(racine, composant) {
   if (composant === '.') {
     return [
@@ -215,32 +212,29 @@ export function publie(racine, composant) {
   const out = [
     TITRE_PUBLIE,
     '',
-    `\`${nom}\` dépend de ces composants ; chaque élément publié se lit dans l’interface de son fournisseur.`,
+    `\`${nom}\` dépend de ces composants, et n’utilise d’eux que les éléments déclarés pour lui. ` +
+      `Tous les éléments d’un composant, chacun avec sa phrase, sont dans \`${SORTIE}\` ; ` +
+      'un élément se lit en entier dans l’interface de son composant, à `<interface> § <son nom>`.',
   ];
+  const dansIndex = `ses éléments sont dans \`${SORTIE}\``;
   for (const f of fournisseurs) {
-    const elements = f.parties.filter(p => !p.consommateurs);
-    out.push(
-      '',
-      `### ${f.tetiere}`,
-      '',
-      elements.length === 0
-        ? `${f.phrase} (\`${f.rel}\`)`
-        : `${f.phrase} Chaque élément se lit à \`${f.rel}\` § <son nom>.`,
-      `Déclaré pour \`${nom}\` : ${[...f.declare].join(', ')}.`,
-      ''
-    );
-    if (elements.length === 0) {
-      out.push('Son interface n’a pas de part générée : elle dit elle-même ce qu’elle publie.');
+    const noms = [...f.declare].filter(n => n !== '*').join(', ');
+    let declare = `${noms}.`;
+    if (f.declare.has('*')) {
+      declare = noms
+        ? `${noms}, et \`*\`, un import de tout le composant : ${dansIndex}.`
+        : `\`*\`, un import de tout le composant, sans élément nommé : ${dansIndex}.`;
     }
-    for (const e of elements) {
-      out.push(`- ${e.titre}${e.phrase ? ` — ${e.phrase}` : ''}`);
+    out.push('', `### ${f.tetiere}`, '', `${f.phrase} (\`${f.rel}\`)`);
+    out.push(`Déclaré pour \`${nom}\` : ${declare}`);
+    if (!f.parties.some(p => !p.consommateurs)) {
+      out.push('Son interface n’a pas de part générée : elle dit elle-même ce qu’elle publie.');
     }
     const cadre = path.join(path.dirname(f.rel), 'CADRE.md');
     const r = rend(racine, cadre);
-    out.push('');
     if (r?.absent) out.push(`Son cadre manque : \`${cadre}\` n’existe pas.`);
     else if (!r) out.push(`Son cadre n’a pas de rubrique « Rend » (\`${cadre}\`).`);
-    else out.push(`Son cadre rend (\`${cadre}\` § ${r.titre}) :`, '', r.corps);
+    else out.push(`Son cadre rend : \`${cadre}\` § ${r.titre}.`);
   }
   return out.join('\n');
 }

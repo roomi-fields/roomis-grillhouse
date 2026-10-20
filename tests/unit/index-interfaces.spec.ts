@@ -413,9 +413,9 @@ describe('entrees and the generated part (grillhouse-3uv.64)', () => {
 });
 
 // What the components before publish: the launcher writes, in the instruction of the role agent,
-// the elements each provider of its component publishes, with their address, and the rubric
-// « Rend » of its `docs/CADRE.md`. The providers are the components whose `## Consommateurs`
-// section names it.
+// for each provider of its component, the provider's line, the names of the elements declared for
+// it, and the address of the rubric « Rend » of its `docs/CADRE.md`. The providers are the
+// components whose `## Consommateurs` section names it.
 describe('publie: what the providers of a component publish', () => {
   const dir = repo({
     'packages/b/docs/INTERFACE.md': `${INTERFACE_B}\n\n## Consommateurs\n\n- \`a\` : duree\n`,
@@ -455,50 +455,31 @@ describe('publie: what the providers of a component publish', () => {
     'src/seul/index.ts': 's',
   });
 
-  it('gives each provider, the address of its elements once, what is declared for the component, each element, and its rubric « Rend »', () => {
+  it('gives each provider its line, the names declared for the component, and the address of its rubric « Rend »', () => {
     expect(publie(dir, 'packages/a')).toBe(
       [
         "## Ce que les composants d'avant publient",
         '',
-        '`a` dépend de ces composants ; chaque élément publié se lit dans l’interface de son fournisseur.',
+        '`a` dépend de ces composants, et n’utilise d’eux que les éléments déclarés pour lui. Tous les éléments d’un composant, chacun avec sa phrase, sont dans `docs/agents/index-des-interfaces.md` ; un élément se lit en entier dans l’interface de son composant, à `<interface> § <son nom>`.',
         '',
         '### b — l’interface',
         '',
-        'Le composant b rend les durées. Chaque élément se lit à `packages/b/docs/INTERFACE.md` § <son nom>.',
+        'Le composant b rend les durées. (`packages/b/docs/INTERFACE.md`)',
         'Déclaré pour `a` : duree.',
-        '',
-        '- `duree` — Rend la durée d’un objet en battements.',
-        '- `Objet` — Un objet lu.',
-        '- `garde`',
-        '',
-        'Son cadre rend (`packages/b/docs/CADRE.md` § 3. Rend) :',
-        '',
-        '- **R3.** La durée de chaque objet, en battements, que `a` reçoit.',
-        '',
-        '```md',
-        '## pas une rubrique',
-        '```',
-        '',
-        '### Les fautes rendues',
-        '',
-        '- **R4.** `B_SANS_TEMPO`.',
+        'Son cadre rend : `packages/b/docs/CADRE.md` § 3. Rend.',
         '',
         '### c',
         '',
         'C rend des tempos. (`packages/c/docs/INTERFACE.md`)',
-        'Déclaré pour `a` : *.',
-        '',
+        'Déclaré pour `a` : `*`, un import de tout le composant, sans élément nommé : ses éléments sont dans `docs/agents/index-des-interfaces.md`.',
         'Son interface n’a pas de part générée : elle dit elle-même ce qu’elle publie.',
-        '',
         'Son cadre manque : `packages/c/docs/CADRE.md` n’existe pas.',
         '',
         '### f',
         '',
         'F rend des notes. (`packages/f/docs/INTERFACE.md`)',
         'Déclaré pour `a` : note.',
-        '',
         'Son interface n’a pas de part générée : elle dit elle-même ce qu’elle publie.',
-        '',
         'Son cadre n’a pas de rubrique « Rend » (`packages/f/docs/CADRE.md`).',
       ].join('\n')
     );
@@ -531,12 +512,10 @@ describe('publie: what the providers of a component publish', () => {
   // Witness: BPScript, a section of 149 340 bytes read through a pipe stopped at 65 536, the
   // size of a pipe's buffer: the rest of the write was still queued when the script exited.
   it('prints a section larger than a pipe holds whole, through a pipe', () => {
-    const elements = Array.from(
-      { length: 3000 },
-      (_, k) => `### \`e${k}\`\n\nRend l’élément ${k} du gros composant, en battements.\n`
-    );
+    const noms = Array.from({ length: 6000 }, (_, k) => `element_du_gros_composant_${k}`);
+    const elements = noms.map(n => `### \`${n}\`\n\nRend un élément du gros composant.\n`);
     const gros = repo({
-      'packages/g/docs/INTERFACE.md': `# g\n\nG rend beaucoup.\n\n${DEBUT}\n\n${elements.join('\n')}\n${FIN}\n\n## Consommateurs\n\n- \`h\` : *\n`,
+      'packages/g/docs/INTERFACE.md': `# g\n\nG rend beaucoup.\n\n${DEBUT}\n\n${elements.join('\n')}\n${FIN}\n\n## Consommateurs\n\n- \`h\` : ${noms.join(', ')}\n`,
       'packages/h/src/h.ts': 'h',
     });
     const attendu = `${publie(gros, 'packages/h')}\n`;
@@ -618,14 +597,10 @@ describe('publie and entrees: an element gives its summary, never its members', 
   ].join('\n');
   const dir = repo({ 'packages/m/docs/INTERFACE.md': INTERFACE_M, 'packages/n/src/n.ts': 'n' });
 
-  it('gives the section one line per element, its summary its role, no member', () => {
-    const lignes = publie(dir, 'packages/n').split('\n');
-    expect(lignes.filter(l => l.startsWith('- '))).toEqual([
-      '- `Accuse`',
-      '- `lier` — Lie deux notes',
-      '- `Note` — Une note jouée, sur deux lignes de son résumé.',
-    ]);
-    expect(lignes.join('\n')).not.toMatch(/Membres|Paramètres|Retour|accepte|hauteur|première/);
+  it('gives the section the names declared for the component, no member', () => {
+    const section = publie(dir, 'packages/n');
+    expect(section).toContain('Déclaré pour `n` : lier.');
+    expect(section).not.toMatch(/Membres|Paramètres|Retour|accepte|hauteur|première/);
   });
   it('gives the index of the interfaces the same lines', () => {
     const lignes = entrees('packages/m/docs/INTERFACE.md', INTERFACE_M);
@@ -634,5 +609,89 @@ describe('publie and entrees: an element gives its summary, never its members', 
       '- **`lier`** — Lie deux notes',
       '- **`Note`** — Une note jouée, sur deux lignes de son résumé.',
     ]);
+  });
+});
+
+// Witness: BPScript, 2026-10-20: the section weighed 36 to 46 KB as soon as a component had
+// providers (64 % of the instructions of vbwf.320.2.4.5.1, 89 % of those of si61.8); for
+// 030-binder it listed 692 elements of 000-forms, 94 of them declared for it. A component uses only
+// the elements its provider declares for it (scripts/consommateurs.mjs refuses the rest). The
+// section is the first level of a progressive disclosure, as the skills of Claude Code, llms.txt
+// or Aider's repository map: the provider's line and the names declared for the component; the
+// index of the interfaces holds every element with its sentence (level 2), the interface the
+// section of each (level 3).
+describe('publie: the names declared for the component, the rest at its address', () => {
+  const NOMS = [
+    'accord',
+    'basse',
+    'cadence',
+    'dominante',
+    'echelle',
+    'fugue',
+    'gamme',
+    'harmonie',
+    'intervalle',
+    'justesse',
+  ];
+  const DECLARES = ['cadence', 'gamme', 'justesse'];
+  const INTERFACE_P = [
+    '# p',
+    '',
+    'P rend la théorie musicale. Il ne lit rien du disque.',
+    '',
+    DEBUT,
+    '',
+    ...NOMS.flatMap(n => [
+      `### \`${n}\``,
+      '',
+      `Rend la valeur ${n.toUpperCase()} d’un morceau.`,
+      '',
+    ]),
+    FIN,
+    '',
+    '## Consommateurs',
+    '',
+    `- \`q\` : ${DECLARES.join(', ')}`,
+    '- `r` : *, basse',
+    '',
+  ].join('\n');
+  const dir = repo({
+    'packages/p/docs/INTERFACE.md': INTERFACE_P,
+    'packages/q/src/q.ts': 'q',
+    'packages/r/src/r.ts': 'r',
+  });
+
+  it('gives the provider its line from the index, then the 3 names declared for the component', () => {
+    const lignes = publie(dir, 'packages/q').split('\n');
+    expect(lignes).toContain('### p');
+    expect(lignes).toContain('P rend la théorie musicale. (`packages/p/docs/INTERFACE.md`)');
+    expect(lignes).toContain('Déclaré pour `q` : cadence, gamme, justesse.');
+  });
+  it('names none of the 7 elements not declared for it, nor any element sentence', () => {
+    const section = publie(dir, 'packages/q');
+    for (const n of NOMS.filter(n => !DECLARES.includes(n))) {
+      expect(section).not.toMatch(new RegExp(`\\b${n}\\b`));
+    }
+    expect(section).not.toMatch(/Rend la valeur/);
+  });
+  it('points to every element at level 2, the index, and to its section at level 3, the interface', () => {
+    const section = publie(dir, 'packages/q');
+    expect(section).toContain(
+      'Tous les éléments d’un composant, chacun avec sa phrase, sont dans `docs/agents/index-des-interfaces.md`'
+    );
+    expect(section).toContain(
+      'un élément se lit en entier dans l’interface de son composant, à `<interface> § <son nom>`'
+    );
+  });
+  it('gives a declaration of `*` beside names its names, and says the rest is in the index', () => {
+    expect(publie(dir, 'packages/r').split('\n')).toContain(
+      'Déclaré pour `r` : basse, et `*`, un import de tout le composant : ses éléments sont dans `docs/agents/index-des-interfaces.md`.'
+    );
+  });
+  it('keeps every element with its sentence in the index of the interfaces', () => {
+    const lignes = index(dir).split('\n');
+    for (const n of NOMS) {
+      expect(lignes).toContain(`- **\`${n}\`** — Rend la valeur ${n.toUpperCase()} d’un morceau.`);
+    }
   });
 });

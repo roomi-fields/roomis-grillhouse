@@ -48,7 +48,9 @@ mkdirSync(path.join(REPO, 'packages/a/src'), { recursive: true });
 mkdirSync(path.join(REPO, '.claude/agents'), { recursive: true });
 mkdirSync(HOME, { recursive: true });
 writeFileSync(path.join(REPO, 'packages/a/src/a.ts'), 'a');
-// g provides d an interface larger than Linux allows one argument (MAX_ARG_STRLEN, 128 KiB).
+// g provides d an interface, and declares for it names larger than Linux allows one argument
+// (MAX_ARG_STRLEN, 128 KiB).
+const NOMS_DE_G = Array.from({ length: 6000 }, (_, k) => `element_du_gros_composant_${k}`);
 mkdirSync(path.join(REPO, 'packages/d/src'), { recursive: true });
 writeFileSync(path.join(REPO, 'packages/d/src/d.ts'), 'd');
 mkdirSync(path.join(REPO, 'packages/g/docs'), { recursive: true });
@@ -61,15 +63,12 @@ writeFileSync(
     '',
     '<!-- généré: début -->',
     '',
-    ...Array.from(
-      { length: 3000 },
-      (_, k) => `### \`e${k}\`\n\nRend l’élément ${k} du gros composant, en battements.\n`
-    ),
+    ...NOMS_DE_G.map(n => `### \`${n}\`\n\nRend un élément du gros composant.\n`),
     '<!-- généré: fin -->',
     '',
     '## Consommateurs',
     '',
-    '- `d` : *',
+    `- \`d\` : ${NOMS_DE_G.join(', ')}`,
     '',
   ].join('\n')
 );
@@ -150,23 +149,18 @@ function lancer(options: string[], apres: string[] = [], composant = 'packages/a
   return { r, copie, args, prompt, ticket };
 }
 
-// The section the launcher writes after the instruction, for a: what b publishes, and its rubric
-// « Rend ».
+// The section the launcher writes after the instruction, for a: b's line, the names it declares
+// for a, and the address of its rubric « Rend ».
 const PUBLIE_POUR_A = [
   "## Ce que les composants d'avant publient",
   '',
-  '`a` dépend de ces composants ; chaque élément publié se lit dans l’interface de son fournisseur.',
+  '`a` dépend de ces composants, et n’utilise d’eux que les éléments déclarés pour lui. Tous les éléments d’un composant, chacun avec sa phrase, sont dans `docs/agents/index-des-interfaces.md` ; un élément se lit en entier dans l’interface de son composant, à `<interface> § <son nom>`.',
   '',
   '### b',
   '',
-  'B rend les durées. Chaque élément se lit à `packages/b/docs/INTERFACE.md` § <son nom>.',
+  'B rend les durées. (`packages/b/docs/INTERFACE.md`)',
   'Déclaré pour `a` : duree.',
-  '',
-  '- `duree` — Rend la durée d’un objet.',
-  '',
-  'Son cadre rend (`packages/b/docs/CADRE.md` § 3. Rend) :',
-  '',
-  '- **R3.** La durée d’un objet.',
+  'Son cadre rend : `packages/b/docs/CADRE.md` § 3. Rend.',
 ].join('\n');
 
 // The section the launcher writes last: the session's working directory, in its copy's
@@ -304,7 +298,7 @@ describe.runIf(canWrap)('the launcher and the session of a relaunch', () => {
 // The instruction of the session carries what the components its component depends on publish,
 // read in the copy from the `## Consommateurs` sections of their interfaces.
 describe.runIf(canWrap)('the launcher and what the components before publish', () => {
-  it('gives the session of a dependent component the elements of its provider, at their address', () => {
+  it('gives the session of a dependent component its provider, the names declared for it, and their addresses', () => {
     const { r, prompt, ticket } = lancer([]);
     expect(r.status, r.stderr).toBe(0);
     expect(prompt).toBe(PROMPT(ticket));
