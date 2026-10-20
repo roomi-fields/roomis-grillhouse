@@ -29,9 +29,9 @@ const OUVERTURE = path.join(RACINE, 'scripts/session-start.sh');
 const BASH = execFileSync('bash', ['-c', 'command -v bash'], { encoding: 'utf8' }).trim();
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'superviseur-'));
 const dormeur = spawn('sleep', ['600'], { stdio: 'ignore' });
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 afterAll(() => {
   dormeur.kill();
-  rmSync(ESSAIS, { recursive: true, force: true });
 });
 
 let n = 0;

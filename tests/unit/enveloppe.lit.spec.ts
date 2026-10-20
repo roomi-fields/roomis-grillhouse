@@ -117,9 +117,12 @@ describe('grillhouse-3uv.89 — cheminsLus : ce que le package.json d’un paque
   });
 });
 
+// The real envelope replaces /tmp with an empty directory: its repositories live outside it, in a
+// trial directory of this run alone.
+const ESSAIS = racineSousLaMaison('grillhouse-essais-enveloppe-lit-');
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+
 describe.runIf(canWrap)('grillhouse-3uv.89 — l’enveloppe sur le disque et grillhouse.lit', () => {
-  const ESSAIS = racineSousLaMaison('grillhouse-essais-enveloppe-lit-');
-  afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
   const { essai } = enveloppeEssai(ESSAIS);
   const repo = essai('enveloppe-');
   const ecrire = (f: string, t: string) => {
