@@ -92,12 +92,12 @@
 //   neither), which justifies each green test of that file and excuses no red; on a new file it
 //   justifies nothing, and the report says so for that file; the two forms combine. A green test
 //   HEAD already holds has nothing to prove: the version of HEAD of each file plays in the same
-//   run, from a sibling file (`<nom>.circuit-avant.test.<ext>`, removed after it), and a green test whose full name HEAD's
-//   version holds, green there too, is set aside, counted; a body changed under the same name is
-//   not told apart. The proof passes with a red (of the lot, existing or of a build), even
-//   without a file of the lot in the component: a testeur with no new test to write says so in
-//   his handover, the existing reds are enough. It fails with neither a file of the lot nor a red,
-//   with a broken file of the lot, or with a green of the lot without its « vert attendu ». A
+//   run, from a sibling file (`<nom>.circuit-avant.test.<ext>`, removed after it), and a green
+//   test whose full name HEAD's version holds, green there too, is set aside, counted; a body
+//   changed under the same name is not told apart. The proof passes with a red (of the lot,
+//   existing or of a build), even without a file of the lot in the component: a testeur with no
+//   new test to write says so in his handover, the existing reds are enough. It fails with
+//   neither a file of the lot nor a red, with a broken file of the lot, or with a green of the lot without its « vert attendu ». A
 //   failed proof relaunches the testeur with its report, twice at most. The report (reds,
 //   justified greens) is written at the ticket. A proof with a red launches the developpeur; one
 //   without a red skips him: the lot is a lot of tests alone.
