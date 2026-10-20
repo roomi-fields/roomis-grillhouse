@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.19.1] - 2026-10-20
+
 ### Fixed
 
 - **A ticket's whole card shows every row of its text while it scrolls**: the card drew a spare row above its rule only once the engine's window had moved, so each arrow shifted every row by one, a row came and went, and the last row of the text fell out of sight. The spare row is now always drawn, and the text takes one row fewer, so the window shows it whole on either of its rows.
