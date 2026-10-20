@@ -102,7 +102,7 @@ async function monter(
   $: never,
   on: never,
   t: object,
-  o: { bodyRows?: number; isFocused?: boolean; texte?: (id: string) => string } = {},
+  o: { bodyRows?: number; isFocused?: boolean; texte?: (id: string) => string; offset?: number } = {},
 ): Promise<Monte> {
   const bodyRows = o.bodyRows ?? 30
   const h = on as (n: string, f: unknown) => void
@@ -147,7 +147,7 @@ async function monter(
       isFocused: o.isFocused ?? true,
       bodyColumns: 50,
       placement: 'dock',
-      scroll: { bodyRows, offset: 0 } as never,
+      scroll: { bodyRows, offset: o.offset ?? 0 } as never,
       view: {} as never,
     },
   })) as Monte['ui']
@@ -359,8 +359,8 @@ test('the whole card scrolls its text: an arrow down or up a row, a page key a p
   const press = ($ as { ui: { press: (a: object) => Promise<unknown> } }).ui.press
   await press({ plugin: 'grillhouse', key: b.cle('a.2') })
   await press({ plugin: 'grillhouse', key: 'g' })
-  // 30 rows: the rule, the title, the state, then 27 rows of text.
-  expect(rangees(await m.ui.drawn())).toEqual(Array.from({ length: 27 }, (_, i) => `ligne ${i + 1}`))
+  // 30 rows: a spare row, the rule, the title, the state, then 26 rows of text.
+  expect(rangees(await m.ui.drawn())).toEqual(Array.from({ length: 26 }, (_, i) => `ligne ${i + 1}`))
   // An arrow down: the scroll keys, one row.
   await m.defiler(1, false)
   expect(rangees(await m.ui.drawn())[0]).toBe('ligne 2')
@@ -377,13 +377,29 @@ test('the whole card scrolls its text: an arrow down or up a row, a page key a p
   await m.defiler(500, false)
   const fin = rangees(await m.ui.drawn())
   expect(fin.at(-1)).toBe('ligne 80')
-  expect(fin).toHaveLength(27)
+  expect(fin).toHaveLength(26)
   await m.defiler(-500, false)
   expect(rangees(await m.ui.drawn())[0]).toBe('ligne 1')
   // The card stays whole all along, and the rule says where the text stands.
-  expect(textes(await m.ui.drawn()).join('')).toContain('g : retour · 1-27/80')
+  expect(textes(await m.ui.drawn()).join('')).toContain('g : retour · 1-26/80')
   await m.ui.unmount()
 })
+
+for (const offset of [0, 1]) {
+  test(`the whole card draws the same rows with the engine window on its row ${offset}, every text row in sight`, async ($, on) => {
+    const b = tableau(30, 6, 3)
+    const m = await monter($ as never, on as never, b.t, { texte: long, offset })
+    const press = ($ as { ui: { press: (a: object) => Promise<unknown> } }).ui.press
+    await press({ plugin: 'grillhouse', key: b.cle('a.2') })
+    await press({ plugin: 'grillhouse', key: 'g' })
+    const arbre = await m.ui.drawn()
+    // A spare row above the rule at either row of the window, so no row moves when the engine
+    // scrolls; then the rule, the title, the state, and 26 text rows, all within the window.
+    expect(textes(arbre)[0]).toBe(' ')
+    expect(rangees(arbre)).toEqual(Array.from({ length: 26 }, (_, i) => `ligne ${i + 1}`))
+    await m.ui.unmount()
+  })
+}
 
 test('the whole card holds the engine window on its second row, so the arrows scroll both ways', async ($, on) => {
   const b = tableau(30, 6, 3)

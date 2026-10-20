@@ -408,18 +408,19 @@ export const register: Register = on => {
       const [titre = '', etatDuTicket] = ficheLignes(fiche)
       const lignesDuTitre = enLignes(titre, colonnes)
       const corps = enLignes((s.texte?.id === montre && s.texte.contenu) || fiche.resume, colonnes)
-      // The rule, the title and the state above the text; the text in the rows left.
-      const rangsTexte = Math.max(1, e.props.scroll.bodyRows - lignesDuTitre.length - 2)
+      // A spare row, the rule, the title and the state above the text; the text in the rows left,
+      // less one, so the window shows it whole on either of its rows.
+      const rangsTexte = Math.max(1, e.props.scroll.bodyRows - lignesDuTitre.length - 3)
       ligneTexte = defiler(ligneTexte, 0, corps.length, rangsTexte)
       texteDessine = { n: corps.length, rangs: rangsTexte }
       const fin = Math.min(corps.length, ligneTexte + rangsTexte)
       const position = corps.length > rangsTexte ? ` · ${ligneTexte + 1}-${fin}/${corps.length}` : ''
       // Two spare rows, one above and one below the card, the engine's window held on the second
-      // row: an arrow up and an arrow down both have a row to scroll, and raise `ui.scroll`.
-      const haut = Math.min(1, e.props.scroll.offset ?? 0)
+      // row: an arrow up and an arrow down both have a row to scroll, and raise `ui.scroll`. The
+      // spare row above is always drawn, so no row moves when the window does.
       return (
         <Box flexDirection="column" height={e.props.scroll.bodyRows + 2}>
-          {haut ? <Text> </Text> : null}
+          <Text> </Text>
           {regle(`retour${position}`)}
           {lignesDuTitre.map(l => (
             <Text bold wrap="truncate-end">
