@@ -59,12 +59,16 @@
 //   a directory or a package named leaves them out.
 // - A run that plays no test fails: the frame's base configuration of Vitest keeps Vitest's
 //   `passWithNoTests: false` (scripts/vitest-config/base.mjs).
+// - While the environment names a results directory (`GRILLHOUSE_RESULTATS`,
+//   scripts/resultats.mjs), each run of Turborepo writes its summary (`--summarize`), moved there,
+//   and Vitest its JSON report there: what the circuit reads of a run.
 // The exit code is Turborepo's; 2 for a path refused.
 import { spawnSync } from 'node:child_process';
-import { accessSync, constants, existsSync, statSync } from 'node:fs';
+import { accessSync, constants, existsSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { composantDeLEnveloppe } from './enveloppe/composant.mjs';
 import { paquets } from './paquets.mjs';
+import { garderLesResumes, RESULTATS } from './resultats.mjs';
 import { tracesDuPlan } from './turbo-des-paquets.mjs';
 import { VARIABLE } from './vitest-config/cibles.mjs';
 
@@ -76,18 +80,23 @@ const options = args.filter(a => a.startsWith('-') && a !== '--force');
 const chemins = args.filter(a => !a.startsWith('-'));
 
 // One Turborepo run of <args>, VARIABLE set to <tests> (unset without), each task whose
-// dependencies succeed played to its end; its exit code.
+// dependencies succeed played to its end; its exit code. While the run names a results directory
+// (RESULTATS), Turborepo writes its summary, which goes there.
 const turbo = (args, tests) => {
   const env = { ...process.env };
   delete env[VARIABLE];
   if (tests) env[VARIABLE] = JSON.stringify(tests);
-  return (
-    spawnSync('turbo', ['run', ...args, '--continue=dependencies-successful'], {
+  const resume = env[RESULTATS] ? ['--summarize'] : [];
+  const runs = path.join(racine, '.turbo', 'runs');
+  const avant = new Set(existsSync(runs) ? readdirSync(runs) : []);
+  const code =
+    spawnSync('turbo', ['run', ...args, '--continue=dependencies-successful', ...resume], {
       cwd: racine,
       stdio: 'inherit',
       env,
-    }).status ?? 1
-  );
+    }).status ?? 1;
+  if (resume.length) garderLesResumes(racine, avant, env);
+  return code;
 };
 
 // The trace tasks of the packages <noms> their tests wait for, read in Turborepo's plan of the

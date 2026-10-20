@@ -86,7 +86,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   l'analyse d'un ticket se fait seule.
 - **Un arrêt se tranche dans le circuit** : sur un arrêt autre que 0 et 75, le circuit lance
   lui-même une séance du régulateur (compétence `regulateur`, Sonnet), qui tranche ce
-  que les règles tranchent et rend sa décision en réponse finale ; le circuit l'écrit au ticket et
+  que les règles tranchent et rend sa décision dans sa fiche ; le circuit l'écrit au ticket et
   l'applique : il repart seul, ou finit sur la question du régulateur. Je ne lance aucun régulateur. Ainsi
   ma séance n'est réveillée que par la fin du lot, une question du régulateur, ou un arrêt que le régulateur
   n'a pas su rendre.

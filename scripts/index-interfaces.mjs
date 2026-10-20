@@ -4,7 +4,8 @@
 // interface, then one of its sections, only when the index names it.
 //
 //   node scripts/index-interfaces.mjs            writes docs/agents/index-des-interfaces.md
-//   node scripts/index-interfaces.mjs --verifier refuses (exit 1) when that file is out of date
+//   node scripts/index-interfaces.mjs --verifier refuses (exit 1) when that file is out of date,
+//                                                its finding in SARIF too (scripts/resultats.mjs)
 //   node scripts/index-interfaces.mjs --publie <composant>
 //                                                prints what the providers of <composant> publish
 //
@@ -36,6 +37,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { composants, declares } from './consommateurs.mjs';
 import { DEBUT, FIN, marques } from './interfaces-contre-code.mjs';
+import { ecrireSarif } from './resultats.mjs';
 
 export const SORTIE = 'docs/agents/index-des-interfaces.md';
 
@@ -272,11 +274,18 @@ function commande(racine, args) {
     return 0;
   }
   const present = existsSync(cible) ? readFileSync(cible, 'utf8') : '';
-  if (present === attendu) return 0;
-  process.stderr.write(
-    `⛔ ${SORTIE} n'est pas à jour avec les interfaces : node scripts/index-interfaces.mjs le régénère.\n`
-  );
-  return 1;
+  const refus =
+    present === attendu
+      ? []
+      : [
+          {
+            fichier: SORTIE,
+            message: `${SORTIE} n'est pas à jour avec les interfaces : node scripts/index-interfaces.mjs le régénère.`,
+          },
+        ];
+  for (const r of refus) process.stderr.write(`⛔ ${r.message}\n`);
+  ecrireSarif({ garde: 'index-interfaces', racine, constats: refus });
+  return refus.length ? 1 : 0;
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

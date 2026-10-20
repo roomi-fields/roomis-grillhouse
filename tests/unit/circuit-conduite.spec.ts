@@ -79,18 +79,20 @@ describe('Q10 — the supervisor launches the circuit, a régulateur, a session 
     }
   });
 
-  it('critère 8 — the régulateur renders its decision as its final answer and launches no circuit', () => {
+  it('critère 8 — the régulateur renders its decision as its sheet and launches no circuit', () => {
     const brut = lire('.claude/skills/regulateur/SKILL.md');
     const regulateur = brut.replace(/\s+/g, ' ');
     for (const forme of [
       '`RELANCE --reprendre`',
-      '`RELANCE --depuis <testeur|developpeur> <composant>`',
-      '`CONTEXTE : <texte>`',
-      '`MONTE : <question>`',
+      '`RELANCE --depuis`',
+      '`depuis`',
+      '`contexte`',
+      '`MONTE`',
+      '`question`',
     ]) {
       expect(regulateur).toContain(forme);
     }
-    expect(regulateur).toMatch(/Ma décision termine ma réponse finale/);
+    expect(regulateur).toMatch(/Ma décision est ma fiche/);
     expect(regulateur).not.toMatch(/Relancer, puis finir/);
     expect(regulateur).not.toMatch(/run_in_background|en veille|arrière-plan/);
     // The skill prescribes no command of the circuit: the circuit applies the decision.
@@ -122,10 +124,10 @@ describe('Q10 — the supervisor launches the circuit, a régulateur, a session 
   });
 });
 
-// The texts of the agents the circuit launches, on what it reads of their handovers (2026-10-19,
-// from BPScript's runs): a test the testeur adapts carries its « vert attendu » in its first
-// handover; a developpeur sends a red left in the tests of a component to its testeur.
-describe('the handovers the circuit reads', () => {
+// The texts of the agents the circuit launches, on what it reads of their sheets (2026-10-19, from
+// BPScript's runs; grillhouse-3uv.89, L1): a test the testeur adapts carries its expected green in
+// its first sheet; a developpeur sends a red left in the tests of a component to its testeur.
+describe('the sheets the circuit reads', () => {
   const testeur = lire('.claude/skills/testeur/SKILL.md').replace(/\s+/g, ' ');
   const developpeur = lire('.claude/skills/developpeur/SKILL.md').replace(/\s+/g, ' ');
   // The first template, the testeur's and the developpeur's instruction.
@@ -133,55 +135,54 @@ describe('the handovers the circuit reads', () => {
     .exec(lire('.claude/skills/pitmaster/references/consigne-agent.md'))?.[1]
     .replace(/\s+/g, ' ');
 
-  it('a test the testeur adapts to a changed name or type, green on the present code, carries its « vert attendu » in its first handover', () => {
+  it('each green test before the code goes into `verts_attendus`: its file from the root, its full name, its reason', () => {
     for (const [nom, texte] of [
       ['testeur', testeur],
       ['consigne', premier ?? ''],
     ]) {
-      expect(texte, nom).toMatch(/adaptes? à un nom ou un type changé/);
-      expect(texte, nom).toMatch(/première passation/);
-      expect(texte, nom).toContain('vert attendu : <test> — <raison>');
+      expect(texte, nom).toContain('`verts_attendus`');
+      expect(texte, nom).toMatch(/son nom complet tel que le rapport de la preuve l'écrit/);
     }
+    expect(testeur).toMatch(/adaptes? à un nom ou un type changé/);
+    expect(testeur).toMatch(/première fiche/);
   });
 
   // Witness: BPScript (vbwf.320.2.4.5.1, 2026-10-20): up to 14 KB of « vert attendu » per handover,
   // one per test, most with the same reason; nine sessions of the testeur only added these lines.
-  it('a test file HEAD holds, adapted, all its tests green for one reason, takes one line « vert attendu » for the file', () => {
+  it('a test file HEAD holds, adapted, all its tests green for one reason, takes one expected green for the file', () => {
     for (const [nom, texte] of [
       ['testeur', testeur],
       ['consigne', premier ?? ''],
     ]) {
-      expect(texte, nom).toContain('vert attendu : <fichier> — <raison>');
       expect(texte, nom).toMatch(/fichier de tests que HEAD tient/);
       expect(texte, nom).toMatch(/fichier neuf/);
-      expect(texte, nom).toMatch(/n'excuse aucun rouge/);
+      expect(texte, nom).toMatch(/n'excuse(nt)? aucun rouge/);
     }
   });
 
-  it('a developpeur whose remaining red lies in the tests of a component writes « Agent : testeur <composant> »', () => {
+  it('a developpeur whose remaining red lies in the tests of a component sends it by `renvoi`', () => {
     for (const [nom, texte] of [
       ['developpeur', developpeur],
       ['consigne', premier ?? ''],
     ]) {
-      expect(texte, nom).toContain('Agent : testeur <composant>');
+      expect(texte, nom).toContain('`renvoi`');
+      expect(texte, nom).toContain('`ecarts`');
     }
   });
 
   // Witness: BPScript (320.2.4.5.1, si61.8), a developpeur relaunched up to three times on a red
-  // out of his reach: his handover ends on a status line the circuit reads.
-  it('the handover of the testeur and the developpeur ends on its status line, in one of three forms', () => {
+  // out of his reach: his sheet carries a status the circuit reads.
+  it('the sheet of the testeur and the developpeur carries its status, FAIT, BLOQUÉ with its reason, BESOIN with its question', () => {
     for (const [nom, texte] of [
       ['testeur', testeur],
       ['developpeur', developpeur],
       ['consigne', premier ?? ''],
     ]) {
-      for (const forme of [
-        '`STATUT : FAIT`',
-        '`STATUT : BLOQUÉ — <raison>`',
-        '`STATUT : BESOIN — <question>`',
-      ]) {
+      expect(texte, nom).toContain('`statut`');
+      for (const forme of ['FAIT', 'BLOQUÉ', '`raison`', 'BESOIN', '`question`']) {
         expect(texte, nom).toContain(forme);
       }
+      expect(texte, nom).not.toMatch(/STATUT :|Agent : testeur|vert attendu :/);
     }
     const regulateur = lire('.claude/skills/regulateur/SKILL.md').replace(/\s+/g, ' ');
     expect(regulateur).toMatch(/`hors-portee` \(code 19\)/);
@@ -264,16 +265,16 @@ describe('a question of the régulateur goes up to the supervisor, who answers i
 // Witness: BPScript (vbwf.320.2.4.5.1, si61.8, 2026-10-20): the developpeur's final report went to
 // the log alone, the circuit reading the ticket; the hours of a handover are the register's
 // (scripts/registre.mjs), which no agent declares; the testeur « warned the supervisor » with no
-// means to in the circuit.
+// means to in the circuit. Since grillhouse-3uv.89 (L1), the final answer is the sheet.
 describe('the texts ask no writing without a reader', () => {
   const plat = (rel: string) => lire(rel).replace(/\s+/g, ' ');
   const testeur = plat('.claude/skills/testeur/SKILL.md');
   const developpeur = plat('.claude/skills/developpeur/SKILL.md');
-  const premier = (
-    /```text\n([\s\S]*?)\n```/.exec(
-      lire('.claude/skills/pitmaster/references/consigne-agent.md')
-    )?.[1] ?? ''
-  ).replace(/\s+/g, ' ');
+  const blocs = [
+    ...lire('.claude/skills/pitmaster/references/consigne-agent.md').matchAll(
+      /```text\n([\s\S]*?)\n```/g
+    ),
+  ].map(m => m[1].replace(/\s+/g, ' '));
 
   it('no skill, nor the conventions of the tracker, asks for the hours of a handover or a final report', () => {
     for (const [nom, texte] of [
@@ -287,21 +288,45 @@ describe('the texts ask no writing without a reader', () => {
     }
   });
 
-  it('the final answer of the testeur and the developpeur is one line, « passation au ticket »', () => {
+  it('the session of each role the circuit leads ends on its sheet; no text asks the final answer « passation au ticket »', () => {
     for (const [nom, texte] of [
       ['testeur', testeur],
       ['developpeur', developpeur],
-      ['consigne', premier],
+      ['relecteur', plat('.claude/skills/relecteur/SKILL.md')],
+      ['regulateur', plat('.claude/skills/regulateur/SKILL.md')],
+      ['consigne 1', blocs[0]],
+      ['consigne 6', blocs[5]],
     ]) {
-      expect(texte, nom).toMatch(
-        /[Tt]a réponse finale tient en une ligne : « passation au ticket »/
-      );
+      expect(texte, nom).toMatch(/[Tt]a séance finit sur ta fiche|est ma fiche|est ta fiche/);
+    }
+    for (const [nom, texte] of [
+      ['testeur', testeur],
+      ['developpeur', developpeur],
+      ['issue-tracker', plat('docs/agents/issue-tracker.md')],
+      ...blocs.map((b, i) => [`consigne ${i + 1}`, b]),
+    ]) {
+      expect(texte, nom).not.toMatch(/réponse finale tient en une ligne|« passation au ticket »/);
     }
   });
 
-  it('the testeur asks his question by his status line, not by warning the supervisor', () => {
+  it('the testeur asks his question by his sheet, not by warning the supervisor', () => {
     expect(testeur).not.toMatch(/tu préviens le superviseur/);
     const fin = testeur.slice(testeur.indexOf('## La fin'));
-    expect(fin).toContain('`STATUT : BESOIN — <question>`');
+    expect(fin).toContain('BESOIN');
+    expect(fin).toContain('`question`');
+  });
+
+  it('each discovery of an agent the circuit leads goes into its sheet, which the circuit files', () => {
+    for (const [nom, texte] of [
+      ['testeur', testeur],
+      ['developpeur', developpeur],
+      ['relecteur', plat('.claude/skills/relecteur/SKILL.md')],
+      ['regulateur', plat('.claude/skills/regulateur/SKILL.md')],
+    ]) {
+      expect(texte, nom).toContain('`decouvertes`');
+      expect(texte, nom).not.toMatch(
+        /scripts\/ticket\.sh <id> <sujet> <composants> <corps> decouverte/
+      );
+    }
   });
 });

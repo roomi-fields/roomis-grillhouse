@@ -129,7 +129,8 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
       ]);
       const consigne = essai(id, 'developpeur-2.prompt');
       expect(consigne).toContain('TON COMPOSANT : packages/binder');
-      expect(consigne).toContain('$ npm run verifier\n');
+      expect(consigne).toContain('Contrôles de la passe finale');
+      expect(consigne).toContain('Tes rouges (');
       expect(consigne).toContain('lit rend sa valeur');
       expect(etat(id)).toMatchObject({ etape: 'integre', code: 0, finale: true });
     }));
@@ -169,7 +170,7 @@ passation 'Test ajouté, rouge.'
     expect(sessions(id, 'testeur')).toBe(1);
     const preuve = commentaires(id).find(t => t.startsWith('Circuit · packages/forms · preuve'));
     expect(preuve).toContain('1 rouge(s)');
-    expect(preuve).toContain('0 vert(s) sans « vert attendu »');
+    expect(preuve).toContain('0 vert(s) sans vert attendu');
     expect(preuve).not.toContain('› ancien — mesure rend un nombre');
     // The version of HEAD it played leaves nothing in the lot: the commit holds the two files.
     expect(existsSync(copie)).toBe(false);

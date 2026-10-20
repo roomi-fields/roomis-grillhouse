@@ -37,7 +37,10 @@ professionnel.
    l'est vraiment.
 6. Chaque agent laisse sa passation en commentaire au ticket (`bd comments add`,
    `docs/agents/issue-tracker.md`), avec ce qui n'est pas fait et pourquoi. Ainsi l'agent suivant
-   la trouve par `bd show`.
+   la trouve par `bd show`. Une séance que le circuit mène (testeur, développeur, relecteur,
+   régulateur) finit sur sa fiche, la sortie structurée que le schéma de son rôle décrit
+   (`scripts/resultats.mjs`) ; le circuit décide sur elle, jamais sur un texte libre. Ainsi la
+   passation sert l'humain, et la fiche le circuit.
 
 Une séance de supervision charge le superviseur (`pitmaster`) ; un projet a un seul superviseur,
 comme Zuul a un seul ordonnanceur : l'ouverture de séance prend le verrou du dépôt, et une seconde
@@ -126,8 +129,10 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
   jour) ; aucun agent ne lance l'outil de test directement. `npm run verifier` joue tout après la
   construction : les gardes du cadre,
   celles du projet (son script racine `gardes`, un nom que le cadre réserve ; une garde juge les
-  fichiers de l'arbre de travail, que le cache de Turborepo compte, jamais l'index de git) et les
-  tests, côte à côte ; un rouge n'arrête pas la passe, qui joue tout ce que ses tâches
+  fichiers de l'arbre de travail, que le cache de Turborepo compte, jamais l'index de git ; elle
+  écrit ses constats en SARIF, chacun avec son fichier et sa ligne, par `ecrireSarif` de
+  `scripts/resultats.mjs`, dans le dossier que nomme `GRILLHOUSE_RESULTATS`, et sans eux son rouge
+  ne revient à aucun composant) et les tests, côte à côte ; un rouge n'arrête pas la passe, qui joue tout ce que ses tâches
   préalables permettent et nomme chaque rouge ; `npm run verifier -- --gardes` joue les gardes
   seules, ce que le relecteur joue sur la copie du ticket. Une tâche dont
   rien n'a bougé n'est pas rejouée : Turborepo relit sa sortie consignée dans son cache (« cache

@@ -36,7 +36,7 @@ describe.runIf(canWrap)('the instruction of a session', { timeout: 300_000 }, ()
     scenario(
       id,
       'testeur-3',
-      "passation 'vert attendu : critère 1 — mesure rend le double — livré avant le rendu\nRendu de forms traité par son testeur.'\n"
+      `passation 'Rendu de forms traité par son testeur.'\nfiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/mesure.test.mjs","test":"critère 1 — mesure rend le double","raison":"livré avant le rendu"}]}'\n`
     );
     scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code de forms.'\n`);
     scenario(id, 'developpeur-2', `${CODE_JUSTE}passation 'Code de binder.'\n`);
@@ -48,18 +48,9 @@ describe.runIf(canWrap)('the instruction of a session', { timeout: 300_000 }, ()
     scenario(
       id,
       'relecteur-1',
-      `verdict 'RENDU
-
-### Constat 1 — packages/forms/test/mesure.test.mjs
-Agent : testeur 000-forms
-Constat adressé à forms.
-
-### Constat 2 — packages/binder/src/index.mjs
-Agent : developpeur 030-binder
-Constat adressé à binder.'
-`
+      `fiche '{"verdict":"RENDU","constats":[{"titre":"packages/forms/test/mesure.test.mjs","role":"testeur","composant":"000-forms","corps":"Constat adressé à forms."},{"titre":"packages/binder/src/index.mjs","role":"developpeur","composant":"030-binder","corps":"Constat adressé à binder."}]}'\n`
     );
-    scenario(id, 'relecteur-2', "verdict 'ACCEPTÉ — les constats sont traités.'\n");
+    scenario(id, 'relecteur-2', `fiche '{"verdict":"ACCEPTÉ"}'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(ordre(id)).toEqual([
@@ -102,7 +93,7 @@ Constat adressé à binder.'
       'relecteur',
       `f=$(printf '%s\\n' "$prompt" | sed -n "s/^LE FICHIER D'AFFIRMATIONS, [^:]*: \\(.*\\)$/\\1/p")
 cp "$f" "$e/affirmations-vues.md"
-verdict 'ACCEPTÉ — le lot tient ses critères.'
+fiche '{"verdict":"ACCEPTÉ"}'
 `
     );
     const r = circuit([id]);
@@ -122,7 +113,7 @@ verdict 'ACCEPTÉ — le lot tient ses critères.'
     scenario(
       id,
       'testeur-1',
-      "passation 'Le cas de zéro manque.\n\nSTATUT : BESOIN — que rend mesure de 0 ?'\n"
+      `passation 'Le cas de zéro manque.'\nfiche '{"statut":"BESOIN","question":"que rend mesure de 0 ?"}'\n`
     );
     scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
@@ -134,7 +125,7 @@ verdict 'ACCEPTÉ — le lot tient ses critères.'
 ${nouvelle}
 EOF
 (cd "$racine" && bd update "$ticket" -d "$(cat "$e/description.md")" --notes 'Fait : le double. Reste : le cas de zéro.')
-decision 'RELANCE --reprendre'
+fiche '{"decision":"RELANCE --reprendre"}'
 `
     );
     const r = circuit([id]);

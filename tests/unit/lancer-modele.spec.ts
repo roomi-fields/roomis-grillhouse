@@ -7,6 +7,7 @@ import { CODE_USAGE } from '../../scripts/enveloppe/codes.mjs';
 import { dossierDeTravail } from '../../scripts/enveloppe/enveloppe.mjs';
 import { publie } from '../../scripts/index-interfaces.mjs';
 import { AUTEUR_FIXE } from '../../scripts/circuit.mjs';
+import { schemaDeFiche } from '../../scripts/resultats.mjs';
 
 // Ticket grillhouse-3uv.46: the launcher takes a model and a reasoning level for one session
 // (--modele, --effort) and hands them to claude (--model, --effort); without them, the role's
@@ -176,12 +177,17 @@ const TRAVAIL = (ticket: string) =>
 const PROMPT = (ticket: string) =>
   `TON TICKET : ${ticket} — un sujet.\n\n${PUBLIE_POUR_A}\n\n${TRAVAIL(ticket)}`;
 
-// The arguments claude receives today, the rules that refuse the session a change of its author
-// at the ticket last: the instruction is not among them.
+// The arguments claude receives today: the schema of the role's sheet and claude's JSON output,
+// then the rules that refuse the session a change of its author at the ticket last; the
+// instruction is not among them.
 const AUJOURDHUI = [
   '-p',
   '--agent',
   'developpeur',
+  '--output-format',
+  'json',
+  '--json-schema',
+  JSON.stringify(schemaDeFiche('developpeur')),
   '--permission-mode',
   'bypassPermissions',
   '--disallowedTools',
@@ -519,6 +525,7 @@ describe.runIf(canWrap)('the launcher and the register line of a session that fa
     for (const f of [
       'registre.mjs',
       'tableau.mjs',
+      'bilan.mjs',
       'etapes.mjs',
       'verrou-de-fichier.mjs',
       'integration/verdict.mjs',

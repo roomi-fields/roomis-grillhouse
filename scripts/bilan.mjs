@@ -67,7 +67,7 @@ const PREFIXE = 'Circuit · ';
 const JEU = 2000;
 // The line of a final pass: its command, or its stop.
 const FINALE =
-  /^(?:verts|rouge|à repasser) : npm run verifier\b|^arrêt \S+ — (?:La passe finale|Contrôles de la passe finale|Aucun composant du ticket)/;
+  /^(?:verts|rouge|à repasser) : (?:\d+ rouge\(s\) — )?npm run verifier\b|^arrêt \S+ — (?:La passe finale|Contrôles de la passe finale|Aucun composant du ticket)/;
 const MINUTE = 60_000;
 
 // The categories, in the order the text lists them, with their names.
@@ -102,7 +102,7 @@ function lignesDuCircuit(commentaires) {
 // that is no proof's summary.
 function lirePreuve(texte) {
   const m =
-    /^(\d+) rouge\(s\), (\d+) vert\(s\) justifié\(s\), (\d+) vert\(s\) sans « vert attendu », (\d+) fichier\(s\) qui ne se charge\(nt\) pas, (\d+) test\(s\) vert\(s\) que HEAD/.exec(
+    /^(\d+) rouge\(s\), (\d+) vert\(s\) justifié\(s\), (\d+) vert\(s\) sans vert attendu, (\d+) fichier\(s\) qui ne se charge\(nt\) pas, (\d+) test\(s\) vert\(s\) que HEAD/.exec(
       texte
     );
   if (!m) return null;

@@ -6,7 +6,7 @@ import { canWrap, racineSousLaMaison } from '../machine.js';
 import { sortie, CIRCUIT, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
 
 // The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): the sessions of the
-// agents, relaunched, stopped (« controles », « sans-livraison », « sans-passation », « bloqué »)
+// agents, relaunched, stopped (« controles », « sans-livraison », « sans-fiche », « bloqué »)
 // and resumed.
 // The trial repository and its stand-ins: ./circuit-essai.ts; each file of the circuit's tests
 // builds its own, in a trial directory of its own.
@@ -97,15 +97,18 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     expect(e?.rapport).toContain('packages/forms');
     expect(e?.rapport).toContain('passation');
     expect(historique(id).at(-1)).toEqual(['packages/forms', 'developpeur']);
-    expect(commentaires(id).at(-1)).toContain('sans-livraison');
-    expect(commentaires(id).at(-1)).toContain('packages/forms');
+    const arret = commentaires(id)
+      .filter(t => t.includes(' : arrêt '))
+      .pop();
+    expect(arret).toContain('sans-livraison');
+    expect(arret).toContain('packages/forms');
   });
 
-  describe('a developpeur whose handover names « Agent : testeur <composant> »', () => {
-    // A red left in the tests of forms: its handover sends it to forms' testeur.
+  describe('a developpeur whose sheet sends the red to `testeur <composant>`', () => {
+    // A red left in the tests of forms: his sheet sends it to forms' testeur.
     const renvoi = `printf '// essai\\n' >> $c/src/index.mjs
-passation 'Le rouge qui reste est dans les tests de forms : le test attend un autre type.
-Agent : testeur 000-forms'
+passation 'Le rouge qui reste est dans les tests de forms : le test attend un autre type.'
+fiche '{"statut":"BLOQUÉ","raison":"le test attend un autre type.","renvoi":{"role":"testeur","composant":"000-forms"}}'
 `;
     it('plays that component again from its testeur, without relaunching the developpeur nor a regulateur', () => {
       const id = 'demo-renvoi-testeur';
@@ -185,11 +188,11 @@ Agent : testeur 000-forms'
     const id = 'demo-reprise-livree';
     ticket(id, '000-forms');
     scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
-    // The code is written, the handover never: the circuit stops at « sans-passation ».
-    scenario(id, 'developpeur-1', CODE_JUSTE);
-    scenario(id, 'developpeur-2', '');
+    // The code is written, the sheet never, even resumed: the circuit stops at « sans-fiche ».
+    scenario(id, 'developpeur-1', `${CODE_JUSTE}sans_fiche\n`);
+    scenario(id, 'developpeur-2', 'sans_fiche\n');
     const r1 = circuit([id]);
-    expect(r1.status, sortie(r1)).toBe(ARRETS['sans-passation']);
+    expect(r1.status, sortie(r1)).toBe(ARRETS['sans-fiche']);
     // The resumed developpeur finds its lot delivered and changes nothing.
     scenario(id, 'developpeur-3', "passation 'Le lot est complet.'\n");
     const r2 = circuit([id, '--reprendre']);
@@ -197,14 +200,14 @@ Agent : testeur 000-forms'
     expect(historique(id)).toContainEqual(['packages/forms', 'controles']);
   });
 
-  it('relaunches a session without handover once, then stops at « sans-passation »', () => {
+  it('resumes a session without a sheet once, then stops at « sans-fiche »', () => {
     const id = 'demo-passation';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', ECRIT_ROUGE);
+    scenario(id, 'testeur', `${ECRIT_ROUGE}sans_fiche\n`);
     const r = circuit([id]);
-    expect(r.status, sortie(r)).toBe(ARRETS['sans-passation']);
+    expect(r.status, sortie(r)).toBe(ARRETS['sans-fiche']);
     expect(sessions(id, 'testeur')).toBe(2);
-    expect(etat(id)).toMatchObject({ etape: 'testeur', raison: 'sans-passation' });
+    expect(etat(id)).toMatchObject({ etape: 'testeur', raison: 'sans-fiche' });
   });
 
   it('reads the handover of a ticket whose comments pass 1 MiB', () => {
@@ -236,7 +239,11 @@ Agent : testeur 000-forms'
     // The last lines of the log come with the stop.
     expect(e?.rapport).toContain('le testeur réfléchit');
     expect(historique(id).at(-1)).toEqual(['packages/forms', 'testeur']);
-    expect(commentaires(id).at(-1)).toContain(e?.journal);
+    expect(
+      commentaires(id)
+        .filter(t => t.includes(' : arrêt '))
+        .pop()
+    ).toContain(e?.journal);
     // The session is gone with its launcher's group.
     const lignes = readdirSync('/proc')
       .filter(p => /^\d+$/.test(p))

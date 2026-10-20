@@ -3,15 +3,15 @@ import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
 import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
 
-// The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): the status line that
-// ends a handover of the testeur and the developpeur, `STATUT : FAIT`, `STATUT : BLOQUÉ — <raison>`
-// or `STATUT : BESOIN — <question>`, which the circuit reads. Witness: BPScript (320.2.4.5.1,
+// The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): the status of the
+// sheet that ends a session of the testeur and the developpeur (`statut`: FAIT, BLOQUÉ with its
+// `raison`, BESOIN with its `question`), which the circuit reads. Witness: BPScript (320.2.4.5.1,
 // si61.8), where a developpeur was relaunched up to three times on a red he could not lift (in the
 // tests, the shared test material, a file out of his envelope, a decision out of his role), then
 // the circuit stopped at « sans-livraison » and a regulator had to find out why. A BLOQUÉ without a
-// recipient and a BESOIN stop the circuit at once, at « hors-portee » and « besoin », the regulator
-// launched on them; a BLOQUÉ with `Agent : testeur <composant>` is the sending to the testeur; FAIT
-// and no line keep the circuit of today.
+// sending and a BESOIN stop the circuit at once, at « hors-portee » and « besoin », the regulator
+// launched on them; a BLOQUÉ with its `renvoi` to `testeur <composant>` is the sending to the
+// testeur; FAIT keeps the circuit going.
 // The trial repository and its stand-ins: ./circuit-essai.ts; each file of the circuit's tests
 // builds its own, in a trial directory of its own.
 
@@ -33,7 +33,7 @@ const {
 
 const REGULATEUR = 'regulateur';
 
-describe.runIf(canWrap)('the status line of a handover', { timeout: 300_000 }, () => {
+describe.runIf(canWrap)('the status of a sheet', { timeout: 300_000 }, () => {
   afterEach(revenirAuDebut);
 
   it('a developpeur BLOQUÉ without a recipient stops the circuit at « hors-portee » after one session, its reason in the report, the regulateur launched on it', () => {
@@ -45,8 +45,8 @@ describe.runIf(canWrap)('the status line of a handover', { timeout: 300_000 }, (
       id,
       'developpeur',
       `printf '// essai\\n' >> $c/src/index.mjs
-passation 'Le rouge vient de la matière de test partagée, hors de mon enveloppe.
-STATUT : BLOQUÉ — la matière de test partagée attend un autre type.'
+passation 'Le rouge vient de la matière de test partagée, hors de mon enveloppe.'
+fiche '{"statut":"BLOQUÉ","raison":"la matière de test partagée attend un autre type."}'
 `
     );
     const r = circuit([id]);
@@ -76,14 +76,14 @@ STATUT : BLOQUÉ — la matière de test partagée attend un autre type.'
     );
   });
 
-  it('a developpeur BESOIN, in bold and code, stops the circuit at « besoin » after one session, its question in the report, the regulateur launched on it', () => {
+  it('a developpeur BESOIN stops the circuit at « besoin » after one session, its question in the report, the regulateur launched on it', () => {
     const id = 'demo-statut-besoin';
     ticket(id, '000-forms');
     scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(
       id,
       'developpeur',
-      "passation 'Le critère ne dit pas la valeur.\n\n**STATUT : `BESOIN` — la mesure rend-elle le double ou le triple ?**'\n"
+      `passation 'Le critère ne dit pas la valeur.'\nfiche '{"statut":"BESOIN","question":"la mesure rend-elle le double ou le triple ?"}'\n`
     );
     const r = circuit([id]);
     expect(ARRETS.besoin).toBeDefined();
@@ -105,7 +105,7 @@ STATUT : BLOQUÉ — la matière de test partagée attend un autre type.'
     scenario(
       id,
       'testeur',
-      "passation 'Aucun test écrit.\nSTATUT : BESOIN — le critère 1 vaut-il pour une valeur négative ?'\n"
+      `passation 'Aucun test écrit.'\nfiche '{"statut":"BESOIN","question":"le critère 1 vaut-il pour une valeur négative ?"}'\n`
     );
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(ARRETS.besoin);
@@ -116,19 +116,18 @@ STATUT : BLOQUÉ — la matière de test partagée attend un autre type.'
     expect(e?.rapport).toContain('le critère 1 vaut-il pour une valeur négative ?');
   });
 
-  it('a developpeur BLOQUÉ with « Agent : testeur <composant> » sends the red to that testeur, as today', () => {
+  it('a developpeur BLOQUÉ whose sheet sends the red to `testeur <composant>` sends it to that testeur', () => {
     const id = 'demo-statut-renvoi';
     ticket(id, '000-forms');
     scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(
       id,
       'developpeur-1',
-      `passation 'Le rouge qui reste est dans les tests de forms.
-Agent : testeur 000-forms
-STATUT : BLOQUÉ — le test attend un autre type.'
+      `passation 'Le rouge qui reste est dans les tests de forms.'
+fiche '{"statut":"BLOQUÉ","raison":"le test attend un autre type.","renvoi":{"role":"testeur","composant":"000-forms"}}'
 `
     );
-    scenario(id, 'developpeur-2', `${CODE_JUSTE}passation 'Code écrit.\nSTATUT : FAIT'\n`);
+    scenario(id, 'developpeur-2', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(ordre(id)).toEqual([
@@ -143,15 +142,19 @@ STATUT : BLOQUÉ — le test attend un autre type.'
     );
   });
 
-  it('FAIT keeps the circuit of today: a delivery goes to the checks, none stops at « sans-livraison »', () => {
+  it('FAIT keeps the circuit going: a delivery goes to the checks, none stops at « sans-livraison »', () => {
     const id = 'demo-statut-fait';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.\nSTATUT : FAIT'\n`);
-    scenario(id, 'developpeur-1', "passation 'Rien écrit.\nSTATUT : FAIT'\n");
+    scenario(
+      id,
+      'testeur',
+      `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\nfiche '{"statut":"FAIT"}'\n`
+    );
+    scenario(id, 'developpeur-1', `passation 'Rien écrit.'\nfiche '{"statut":"FAIT"}'\n`);
     const r1 = circuit([id]);
     expect(r1.status, sortie(r1)).toBe(ARRETS['sans-livraison']);
     expect(sessions(id, 'developpeur')).toBe(1);
-    scenario(id, 'developpeur-2', `${CODE_JUSTE}passation 'Code écrit.\nSTATUT : FAIT'\n`);
+    scenario(id, 'developpeur-2', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r2 = circuit([id, '--reprendre']);
     expect(r2.status, sortie(r2)).toBe(0);
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });

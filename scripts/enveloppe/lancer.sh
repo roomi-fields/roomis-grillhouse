@@ -80,10 +80,15 @@
 #   the session runs without permission prompts, save the rules that refuse it the change of its
 #   author at the ticket (`--disallowedTools`, AUTEUR_FIXE of scripts/circuit.mjs): its comments
 #   carry the author the launch names in BEADS_ACTOR, which the envelope passes on.
+# - A role that ends on a sheet (scripts/resultats.mjs: the testeur, the developpeur) runs with
+#   `--output-format json --json-schema <its schema>` (`node scripts/resultats.mjs --schema
+#   <rôle>`): claude's JSON result, its sheet in `structured_output`, goes to
+#   .claude/worktrees/<ticket>.resultat.json, which a launch removes first and the circuit reads,
+#   then to the log; its errors go to the log.
 # - Its output, and an envelope refusal (CODE_REFUS), are added to .claude/worktrees/<ticket>.log,
 #   the log of the ticket, which keeps every session of the ticket: each launch past the checks of
 #   its call adds a header line, `=== <time> · <rôle> · <composant> ===`, then its preparation and
-#   its session. The agent writes its report in the ticket. Once the envelope has ended, the
+#   its session. The agent writes its handover in the ticket. Once the envelope has ended, the
 #   launcher writes the session's exit code to .claude/worktrees/<ticket>.fin, which a launch
 #   removes first: a launch that stops before its session leaves none, so the circuit
 #   (scripts/circuit.mjs) tells a code of the session from CODE_USAGE, CODE_REFUS and CODE_COPIE.
@@ -146,8 +151,9 @@ grep -qE "TON TICKET : ${motif}([^A-Za-z0-9_.-]|$)" "$consigne" || { echo "⛔ L
 copie="$racine/.claude/worktrees/$ticket"
 journal="$copie.log"
 fin="$copie.fin"
+resultat="$copie.resultat.json"
 mkdir -p "$(dirname "$copie")"
-rm -f "$fin"
+rm -f "$fin" "$resultat"
 printf '=== %s · %s · %s ===\n' "$(date -Iseconds)" "$role" "$composant" >> "$journal"
 # A branch still in the queue is not relaunched: the queue brings it onto main, or sends it back.
 if node --input-type=module -e "import { lireEntrees } from '$ici/../integration/file-attente.mjs'; const [r, b, t] = process.argv.slice(1); process.exit(lireEntrees(r).some(e => e.branche === b || e.ticket === t) ? 0 : 1);" "$racine" "agent/$ticket" "$ticket"; then
@@ -274,12 +280,26 @@ auteur_fixe=$(node --input-type=module -e "import { AUTEUR_FIXE } from '$ici/../
   || { rm -f "$prompt"; echo "⛔ Les règles de l'auteur de la séance n'ont pas pu se lire : voir $journal." >&2; exit "$CODE_COPIE"; }
 mapfile -t refus_auteur <<<"$auteur_fixe"
 
+# The schema of the role's end-of-session sheet (scripts/resultats.mjs), for a role that has one:
+# the session ends on it, which claude writes in its JSON result, on the standard output.
+fiche=()
+schema=$(node "$ici/../resultats.mjs" --schema "$role" 2> /dev/null) || schema=
+[ -z "$schema" ] || fiche=(--output-format json --json-schema "$schema")
+
 # An envelope in error does not stop the launcher (set -e): its code is kept for the exit.
 code=0
-node "$racine/scripts/enveloppe/enveloppe.mjs" "$copie" "$composant" "$role" -- \
-  "${CLAUDE_BIN:-claude}" -p --agent "$role" \
-  ${surcharge[@]+"${surcharge[@]}"} --permission-mode bypassPermissions \
-  --disallowedTools "${refus_auteur[@]}" < "$prompt" >> "$journal" 2>&1 || code=$?
+lancer_claude() {
+  node "$racine/scripts/enveloppe/enveloppe.mjs" "$copie" "$composant" "$role" -- \
+    "${CLAUDE_BIN:-claude}" -p --agent "$role" \
+    ${surcharge[@]+"${surcharge[@]}"} ${fiche[@]+"${fiche[@]}"} --permission-mode bypassPermissions \
+    --disallowedTools "${refus_auteur[@]}" < "$prompt"
+}
+if [ -n "$schema" ]; then
+  lancer_claude > "$resultat" 2>> "$journal" || code=$?
+  { cat "$resultat"; echo; } >> "$journal"
+else
+  lancer_claude >> "$journal" 2>&1 || code=$?
+fi
 rm -f "$prompt"
 echo "$code" > "$fin"
 # The envelope ended: the session's line goes to the register from outside it, whatever its end hook did.

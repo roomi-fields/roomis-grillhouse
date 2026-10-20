@@ -145,7 +145,7 @@ const preuve = (
   suite: string,
   rouges: string[] = []
 ) =>
-  `${r} rouge(s), ${j} vert(s) justifié(s), ${sans} vert(s) sans « vert attendu », 0 fichier(s) qui ne se charge(nt) pas, ${head} test(s) vert(s) que HEAD tient déjà, laissé(s) de côté ; ${suite}.${
+  `${r} rouge(s), ${j} vert(s) justifié(s), ${sans} vert(s) sans vert attendu, 0 fichier(s) qui ne se charge(nt) pas, ${head} test(s) vert(s) que HEAD tient déjà, laissé(s) de côté ; ${suite}.${
     rouges.length ? `\n\nRouges (${rouges.length}) :\n${rouges.map(x => `- ${x}`).join('\n')}` : ''
   }`;
 const AU_DEV = 'au développeur';
@@ -284,7 +284,7 @@ describe('a relaunch without effect', () => {
       0,
       'packages/b',
       'controles',
-      'rouge : npm run verifier (code 1) ; développeur relancé (séance 2).'
+      'rouge : 1 rouge(s) — npm run verifier (code 1) ; développeur relancé (séance 2).'
     ),
     ligne(
       19,
@@ -298,7 +298,7 @@ describe('a relaunch without effect', () => {
       0,
       'packages/b',
       'controles',
-      'rouge : npm run verifier (code 1) ; développeur relancé (séance 2).'
+      'rouge : 1 rouge(s) — npm run verifier (code 1) ; développeur relancé (séance 2).'
     ),
     ligne(28, 0, 'packages/b', 'developpeur', 'séance 2 finie, passation au ticket.'),
     ligne(34, 0, 'packages/b', 'controles', 'verts : npm run verifier.'),
@@ -375,7 +375,7 @@ describe('a replay of steps already green', () => {
       0,
       'packages/b',
       'controles',
-      'rouge : npm test -- packages/b (code 1) ; développeur relancé (séance 2).'
+      'rouge : 1 rouge(s) — npm test -- packages/b (code 1) ; développeur relancé (séance 2).'
     ),
     ligne(12, 0, 'packages/c', 'testeur', 'séance 1 finie, passation au ticket.'),
     ligne(13, 0, 'packages/c', 'preuve', ok('c', 3)),

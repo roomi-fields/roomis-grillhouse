@@ -25,7 +25,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 // What tells the two templates apart: the whole instruction, the short one of a resumption.
 const ENTIERE = 'LE TICKET, sa description et ses critères';
 const COURTE = 'TA SÉANCE REPRISE';
-// A test green on the code of today, without its « vert attendu »: the proof refuses it.
+// A test green on the code of today, no expected green of a sheet naming it: the proof refuses it.
 const ECRIT_VERT = `cat > $c/test/forme.test.mjs <<'EOF'
 import { expect, it } from 'vitest';
 import { mesure } from '../src/index.mjs';
@@ -66,7 +66,7 @@ describe.runIf(canWrap)(
       expect(courte).toContain(`TON TICKET : ${id}`);
       expect(courte).toContain('TON COMPOSANT : packages/forms');
       expect(courte).toContain('critère 1 — mesure rend le double');
-      expect(courte).toContain('`STATUT : FAIT`');
+      expect(courte).toContain('Ta séance finit sur ta fiche');
       // The resumption carries no section the launcher adds to a whole instruction.
       expect(courte).not.toContain("## Ce que les composants d'avant publient");
       // The last, on the strong model: a fresh session, its instruction whole.

@@ -42,6 +42,7 @@ scripts/nuit.sh
 scripts/paquets.mjs
 scripts/poussee-cles.mjs
 scripts/registre.mjs
+scripts/resultats.mjs
 scripts/resumes.mjs
 scripts/retirer-copie.sh
 scripts/session-start.sh
@@ -71,10 +72,12 @@ scripts/vitest.nuit.config.mjs
 - tests/machine.ts
 - tests/unit/bilan.spec.ts
 - tests/unit/circuit-conduite.spec.ts
+- tests/unit/circuit-sans-texte-libre.spec.ts
 - tests/unit/circuit.bilan.spec.ts
 - tests/unit/circuit-essai.ts
 - tests/unit/circuit.composants.spec.ts
 - tests/unit/circuit.consigne.spec.ts
+- tests/unit/circuit.fiche.spec.ts
 - tests/unit/circuit.construction.spec.ts
 - tests/unit/circuit.machine.spec.ts
 - tests/unit/circuit.passe-finale.spec.ts
@@ -123,6 +126,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/frontieres.options.spec.ts
 - tests/unit/frontieres.spec.ts
 - tests/unit/gardes-du-cadre.spec.ts
+- tests/unit/gardes-sarif.spec.ts
 - tests/unit/git-des-tests.spec.ts
 - tests/unit/greffons-du-cadre.spec.ts
 - tests/unit/greffons-ouverture.budget.test.ts
@@ -153,6 +157,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/registre-fin.nuit.test.ts
 - tests/unit/registre-fin.spec.ts
 - tests/unit/registre.spec.ts
+- tests/unit/resultats.spec.ts
 - tests/unit/resumes.spec.ts
 - tests/unit/retirer-copie.spec.ts
 - tests/unit/session-start.spec.ts

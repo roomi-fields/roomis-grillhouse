@@ -7,15 +7,23 @@
 // its end wakes him: at 0 the ticket is closed; at 75 he runs `--reprendre` again once the machine
 // is at rest; at « question » (18) the regulator's question goes to him: he answers it
 // himself, or carries it to the owner when it is the owner's, then runs `--reponse "<texte>"` with
-// the answer; at any other code, the stop is one the regulator could not settle. On a stop other than 0 and 75, the circuit launches a session of the regulator
-// itself, as the scheduler of an integration (Zuul, bors) calls the judgement at a stop
-// and applies the decision it gets: the regulator settles, and its final answer is its decision, which
-// the circuit writes at the ticket and applies in the same process. So the supervisor is woken
-// only by the end of the lot, a question of the regulator, or a stop the regulator did not settle.
+// the answer; at any other code, the stop is one the regulator could not settle. On a stop other
+// than 0 and 75, the circuit launches a session of the regulator itself, as the scheduler of an
+// integration (Zuul, bors) calls the judgement at a stop and applies the decision it gets: the
+// regulator settles, and its sheet is its decision, which the circuit writes at the ticket and
+// applies in the same process. So the supervisor is woken only by the end of the lot, a question
+// of the regulator, or a stop the regulator did not settle.
 //
 //   node scripts/circuit.mjs <ticket> [--reprendre] [--contexte <texte>]
 //   node scripts/circuit.mjs <ticket> --depuis <testeur|developpeur> <composant> --contexte <texte>
 //   node scripts/circuit.mjs <ticket> --reponse <texte>
+//
+// The circuit decides on structured results only (scripts/resultats.mjs, the one module of their
+// formats), as Bazel's Build Event Protocol and the JUnit reports carry the outcome of a build:
+// the sheet that ends each session, the summaries of Turborepo, the JSON reports of Vitest and the
+// SARIF of the guards. It reads no comment, no answer and no log to decide (a guard holds it:
+// tests/unit/circuit-sans-texte-libre.spec.ts); the handovers at the ticket are for the human and
+// for the next session of their author, the log for the human and the regulator.
 //
 // - The components are read in the ticket's title (`bd show <ticket> --json`), after its last
 //   « — », separated by commas: each one a path (`packages/<nom>`, or `.`), or the name of a
@@ -28,22 +36,34 @@
 //   .claude/skills/pitmaster/references/consigne-agent.md, each `{{champ}}` filled: the ticket and
 //   its subject, the component, the ticket's description (its criteria) and its notes (a section
 //   absent without notes), both read with `bd show` at the session's launch, the report of the
-//   step before (the proof, the output of a red check), the last handover of the session's author
+//   step before (the proof, the reds of a check), the last handover of the session's author
 //   (`<rôle> <composant>`) at the ticket, for a developpeur without one yet the last of the
 //   testeur of his component, else « aucune » (no other component's handover, nor a verdict), and
 //   the line `CONTEXTE :` that `--contexte` gives. The session's own exit code is the one lancer.sh writes
 //   to `.claude/worktrees/<ticket>.fin`; a launch that leaves none stopped before its session.
+// - Each session of the testeur, the developpeur, the reviewer and the regulator ends on its sheet
+//   (« la fiche »): claude runs with `--output-format json --json-schema <the schema of its role>`
+//   (scripts/resultats.mjs), and its JSON result carries the sheet in `structured_output`, which
+//   the circuit reads (`lireFiche`): lancer.sh writes that result to
+//   `.claude/worktrees/<ticket>.resultat.json`, and a session out of the envelope prints it. Each
+//   sheet read is kept with the ticket's sheets, `.claude/worktrees/<ticket>.fiches.jsonl` (`{
+//   date, role, composant, fiche }`, beside the circuit's reports of its proofs and checks, which
+//   the reviewer receives), and each of its discoveries (`decouvertes`) filed closed under the
+//   ticket (scripts/ticket.sh, label `decouverte`). A session that ends without a sheet that
+//   conforms (none, one out of its schema, a code other than 0) is resumed once, the same
+//   session, with the fifth template, which names what lacks; a second one stops the circuit at
+//   « sans-fiche ». The handover at the ticket (`bd comments add`) stays, for the human.
 // - A fresh session of the testeur or the developpeur opens under a session id the circuit sets
 //   (`lancer.sh --seance <uuid>`, claude's `--session-id`), kept in the state (`reprise`, its
 //   author and id). A relaunch of that agent on its step and component (the testeur after a failed
 //   proof, the developpeur after red checks) resumes that session (`lancer.sh --reprise <id>`,
 //   claude's `--resume`, which finds its transcript in the copy's folder of transcripts, which
 //   the envelope mounts in writing over the real one) with the sixth template of consigne-agent.md
-//   (the ticket, the component, what changed, the new report, the handover and its status line),
-//   save the last attempt (the testeur's third session, the developpeur's on the strong model),
-//   a fresh and whole session. A resumption that ends with a code other than 0, or without a
-//   handover, writes so at the ticket and falls back on a fresh and whole session. A resumed
-//   session keeps its id, and so its one line in the register, its latest end.
+//   (the ticket, the component, what changed, the new report), save the last attempt (the
+//   testeur's third session, the developpeur's on the strong model), a fresh and whole session. A
+//   resumption that ends with a code other than 0, or without a sheet that conforms, writes so at
+//   the ticket and falls back on a fresh and whole session. A resumed session keeps its id, and so
+//   its one line in the register, its latest end.
 // - A session whose transcripts (`~/.claude/projects/<copy in dashes>/`, as scripts/registre.mjs
 //   reads them) and log (its preparation writes there before the session opens) stand still for
 //   20 minutes (IMMOBILE_MS; GRILLHOUSE_CIRCUIT_IMMOBILE_MS replaces
@@ -52,141 +72,142 @@
 //   session runs with the author of its role (`testeur <composant>`, `developpeur <composant>`,
 //   `relecteur`, `regulateur`), which the envelope passes on; the circuit writes its own
 //   lines under `circuit` and the reviewer's verdict under `relecteur`, and the queue writes under
-//   `file` (scripts/integration/file.mjs); the circuit reads the queue's comments by their heading. The rights of every
+//   `file` (scripts/integration/file.mjs), whose last word the circuit names. The rights of every
 //   session refuse bd's `--actor`, `-a`/`--author` and the variable itself (AUTEUR_FIXE: the
 //   reviewer's and the regulator's lists, and lancer.sh's for a session in the envelope), so that no
-//   agent changes its author. A verdict is a comment of the author `relecteur` whose first word is
-//   ACCEPTÉ or RENDU (`verdictDe` of scripts/integration/integrer.mjs), wherever the circuit and
-//   the integration read one.
-// - After each session, a new comment of the agent is at the ticket: one that is not the circuit's
-//   own (« Circuit · … »). Without it, the session is launched once more, then the circuit stops.
-// - The handover of the testeur and of the developpeur ends on its status line (`statutDe`), read
-//   as the line `Agent :` is, in bold or in code: `STATUT : FAIT`, `STATUT : BLOQUÉ — <raison>` or
-//   `STATUT : BESOIN — <question>`, the last such line of its last handover that carries one.
-//   FAIT, or no line, goes on as below. BESOIN stops the circuit at once at « besoin », the
-//   question and the handover as its report, with no session more; so does BLOQUÉ, at
-//   « hors-portee », save for a developpeur whose handover sends the red to a testeur (the line
-//   `Agent : testeur <composant>` below), which is that sending. The regulator settles
-//   either stop, as any other.
+//   agent changes its author.
+// - The sheet of the testeur and of the developpeur carries its status (`statut`): FAIT goes on as
+//   below; BESOIN (its `question`) stops the circuit at once at « besoin », the question and the
+//   handover as its report, with no session more; so does BLOQUÉ (its `raison`), at
+//   « hors-portee », save for a developpeur whose sheet sends the red to a testeur (`renvoi`,
+//   below), which is that sending. The regulator settles either stop, as any other.
 // - A component that carries no test (sansTests: in a repository of packages, no package with a
 //   script `test:vitest` lies in it or holds it, as `npm test -- <chemin>` refuses a path out of
 //   every package or in a package without that script) skips the testeur and the proof: the
 //   circuit writes `Circuit · <composant> · testeur : aucun test …` at the ticket and launches its
 //   developpeur, the reason as his report, then his checks.
+// - Each command of the proof and of the checks runs with its own results directory
+//   (`GRILLHOUSE_RESULTATS`), where Turborepo writes its summary (scripts/tests.mjs,
+//   scripts/verifier.mjs), Vitest its JSON report (scripts/vitest-config/resultats.mjs) and each
+//   guard its SARIF; its output goes to the log, for the human.
 // - The proof of the red plays the whole component, as the CI of bors plays the whole suite of
 //   the components a change touches: main is green, so a test HEAD holds that turns red in the
-//   copy is a regression of the lot. One run per package, `npm test -- <package> <files>
-//   --reporter=default --reporter=json --outputFile=<f>` in the copy: each package of the
-//   component that has a script `test:vitest`, played whole, and the test files the testeur's lot
-//   adds or changes in the component (git status of the copy, the testeur's files as the
-//   integration shares them, `isTesterFile`). A test of a file out of the lot that fails is a red,
-//   written `rouge existant : <file> › <name> — <message>`, and so is a file out of the lot that
-//   does not load while no build of the component fails (it loaded at HEAD); its greens do not
-//   count. A file of the lot that does not load proves nothing; a failed build of a
-//   package of the component (Turborepo's line « Failed: » naming `<package>#build`) is a red, as
-//   not compiling is failing, and the files it keeps from loading play at the checks, after the
-//   developpeur; a failed build of a package out of the component leaves them broken. A green
-//   test passes only when a comment of an agent at the ticket carries the line `vert attendu :
-//   <name of the test> — <reason>`, or, for a test file HEAD holds, the line `vert attendu :
-//   <file> — <reason>` (its path from the root, the label and the path in bold or in code or
-//   neither), which justifies each green test of that file and excuses no red; on a new file it
-//   justifies nothing, and the report says so for that file; the two forms combine. A green test
-//   HEAD already holds has nothing to prove: the version of HEAD of each file plays in the same
-//   run, from a sibling file (`<nom>.circuit-avant.test.<ext>`, removed after it), and a green
-//   test whose full name HEAD's version holds, green there too, is set aside, counted; a body
-//   changed under the same name is not told apart. The proof passes with a red (of the lot,
+//   copy is a regression of the lot. One run per package, `npm test -- <package> <files>` in the
+//   copy: each package of the component that has a script `test:vitest`, played whole, and the
+//   test files the testeur's lot adds or changes in the component (git status of the copy, the
+//   testeur's files as the integration shares them, `isTesterFile`). A test of a file out of the
+//   lot that fails is a red, written `rouge existant : <file> › <name> — <message>`, and so is a
+//   file out of the lot that does not load while no build of the component fails (it loaded at
+//   HEAD); its greens do not count. A file of the lot that does not load proves nothing; a failed
+//   build of a package of the component (a task `<package>#build` of the summary) is a red, as
+//   not compiling is failing, named with its log, and the files it keeps from loading play at the
+//   checks, after the developpeur; a failed build of a package out of the component leaves them
+//   broken. A green test passes only when a sheet of the testeur of the component names it in
+//   `verts_attendus`: its file from the root and its full name (or its title), with its reason;
+//   one without `test`, for a test file HEAD holds, justifies each green test of that file and
+//   excuses no red; on a new file it justifies nothing, and the report says so for that file. A
+//   green test HEAD already holds has nothing to prove: the version of HEAD of each file plays in
+//   the same run, from a sibling file (`<nom>.circuit-avant.test.<ext>`, removed after it), and a
+//   green test whose full name HEAD's version holds, green there too, is set aside, counted; a
+//   body changed under the same name is not told apart. The proof passes with a red (of the lot,
 //   existing or of a build), even without a file of the lot in the component: a testeur with no
 //   new test to write says so in his handover, the existing reds are enough. It fails with
-//   neither a file of the lot nor a red, with a broken file of the lot, or with a green of the
-//   lot without its « vert attendu ». A failed proof relaunches the testeur with its report,
-//   twice at most. The report (reds, justified greens) is written at the ticket. A proof with a
-//   red launches the developpeur; one without a red skips him: the lot is a lot of tests alone.
+//   neither a file of the lot nor a red, with a broken file of the lot, or with a green of the lot
+//   no expected green justifies. A failed proof relaunches the testeur with its report, twice at
+//   most. The report (reds, justified greens) is written at the ticket. A proof with a red
+//   launches the developpeur; one without a red skips him: the lot is a lot of tests alone.
 // - A developpeur is launched on a red alone, of a proof or of a check, or in a component without
 //   tests: a session that changes no file of its component (`git status --porcelain` of its
 //   directory and the content of each file it lists, taken before and after the session; the
-//   handover's text does not count) stops the circuit at « sans-livraison », its report naming the
-//   component and sending to the developpeur's handover.
-// - A handover of the developpeur that carries a line `Agent : testeur <composant>` (the form of a
-//   finding's line, the component one of the title up to his own) says the red that remains lies in
-//   the tests of that component: the circuit plays it as a `RELANCE --depuis testeur <composant>`
-//   of the regulator, the handover as its context, whether or not the session changed a
-//   file: that component's testeur, the handover as his report, then its steps, the components
-//   after it as `--depuis` plays them, the final pass and the reviewer. A line to another role, or to a component out of
-//   the title or after his own, is no such sending. The same sending twice in a row, with no
-//   green checks between them, stops at « sans-livraison ».
+//   sheet and the handover do not count) stops the circuit at « sans-livraison », its report
+//   naming the component and sending to the developpeur's handover.
+// - A sheet of the developpeur whose `renvoi` names `testeur <composant>` (a component of the title
+//   up to his own) says the red that remains lies in the tests of that component: the circuit
+//   plays it as a `RELANCE --depuis testeur <composant>` of the regulator, the sending and the
+//   handover as its context, whether or not the session changed a file: that component's testeur,
+//   the sending as his report, then its steps, the components after it as `--depuis` plays them,
+//   the final pass and the reviewer. A component out of the title or after his own is no such
+//   sending. The same sending twice in a row, with no green checks between them, stops at
+//   « sans-livraison ».
 // - The checks after the developpeur of a component judge what is done, the components of the run
 //   up to it: `npm test -- <test files of the lot>` that lie in those components (and those of the
 //   shared test material whose package depends on none of the components after it), `npm test --
 //   <package>` for each package of those components, touched by the lot or not (a package without
 //   a script `test:vitest` plays only when the lot touches it), then the guards in the
 //   envelope of the component (`GRILLHOUSE_ENVELOPPE=<composant> npm run grillhouse:gardes`, and
-//   `npm run gardes` when the project has it): a red guard that names only files of the
-//   components after it waits for the final pass.
+//   `npm run gardes` when the project has it). Each red is read in the results of its command: a
+//   failed test of the reports of Vitest, a finding of the guards' SARIF, a failed build or task of
+//   the summary; a red check none of them situates is one red of the command. Each red belongs to
+//   the component that holds its file (or its task's package), the deepest; one without a file
+//   (the root's, a project's guard without SARIF), or in a package no component of the title
+//   holds, belongs to none. Out of the final pass, the reds of the components up to it are its
+//   developpeur's; the others wait for the final pass.
 // - After the last component of the run, the final pass: `npm run verifier`, what the
 //   integration plays, as bors plays on a lot the very check of the merge. Turborepo's cache
 //   holds its cost: a task nothing moved replays from it, and what the lot reaches plays again,
 //   by the dependencies, the inputs of the tasks and `grillhouse.lit` (a reader out of the title
 //   whose tests read a directory the lot changes included). A red goes to the developpeur of the
-//   component that owns it: a package of a failed task (Turborepo's line « Failed: »), else,
-//   when no failed task is a package's (the guards, tasks of the root), the first component a
-//   path of the failed tasks' lines names (notices ⚠️ and ℹ️ aside), the provider first; its
-//   report holds the lines of the failed tasks. A red in a package no component of the title
-//   holds, or that no component owns, stops at « controles », the package named: the regulator
-//   decides, who refers the component's entry in the title upward, or has the lot
-//   corrected. From then on every check is the final pass.
+//   first component, the provider first, that owns one. A red in a package no component of the
+//   title holds, or that no component owns, stops at « controles »: the regulator decides, who
+//   refers the component's entry in the title upward, or has the lot corrected. A developpeur
+//   whose reds are all findings to settle (`a-arbitrer`) is not launched: the circuit stops at
+//   « controles ». From then on every check is the final pass.
 // - The proof, the checks and the final pass are heavy passes: each holds the lock of the machine
 //   (scripts/verrou-de-machine.mjs), shared by every repository of the machine, and waits, the
 //   wait written to the log, while another measure holds it.
+// - The report a developpeur receives names his own reds first, each on its line (test or
+//   finding, file and line, message, the beginning of a failed build's own log), then the count
+//   of the others and the path of the log; the report of a stop names every red with its
+//   component.
 // - A check at 75 (« à repasser ») out of the final pass plays once more; verifier plays its
 //   tasks at 75 again itself, at rest, and its 75 is the final pass's. A red relaunches the
-//   developpeur with the output, twice at most, the third session on the strong model
+//   developpeur with its report, twice at most, the third session on the strong model
 //   (`lancer.sh --modele opus --effort high`): three sessions for a component's checks, and three
 //   for the whole final pass whatever the components its reds go to (the last component's
 //   sessions counted in it), so that two components sending a red to each other stop at
 //   « controles ».
 // - After the final pass, green, the reviewer: a session out of the envelope, which sees the whole
-//   repository with its index, claude itself (`claude -p --agent relecteur`, CLAUDE_BIN replaces
-//   claude) in the ticket's copy, on Opus, under the project's permissions and every command its
-//   skill runs (RELECTEUR), its instruction from the second template of consigne-agent.md: the
-//   ticket, its components, the path of the claims file (the ticket's description as `bd show`
-//   gives it at the session's launch, written by the circuit in its working folder, which the
-//   session may read; the instruction carries no criteria, which the reviewer's skill reads only
-//   after its first passes), the files of the lot (the
-//   testeur's by `isTesterFile`, then the others) and the circuit's reports at the ticket since
-//   the last verdict (its proofs and checks). Its errors go to the log under its header line, its line to the register
-//   (scripts/registre.mjs --copie), and it is watched as a session in the envelope is. Its
-//   handover is its verdict, its final answer, whose first word is ACCEPTÉ or RENDU: the circuit
-//   adds it to the log and writes it at the ticket, whole, under the author `relecteur`, a comment
-//   on several lines with its findings' headings; an answer without one is launched once more, then the circuit stops at
-//   « sans-passation ».
-// - RENDU: each finding is a block that opens on a heading `Constat` and carries a line
-//   `Agent : <rôle> <composant>`, the role testeur or developpeur, the component one of the title
-//   (a path or a package name). The circuit plays again from the first component a finding
-//   names, the provider first: its testeur → preuve → developpeur → controles when a finding names
-//   its testeur, else its developpeur → controles, the findings as the report of the session
-//   (those for the developpeur after the proof's report). Each component after it plays the
-//   steps its findings name, or, as in `--depuis`, its checks alone (the final pass before the
-//   review carried every component to green checks), then the final pass and the reviewer again. A
-//   RENDU without findings, a finding without a valid recipient, or one that carries the line
-//   `Critère en cause : …` (the criterion itself is in question) stops at « relecture-arret »; so
-//   does the third RENDU since the ticket's last ACCEPTÉ. The regulator settles.
+//   repository with its index, claude itself (`claude -p --agent relecteur --session-id <uuid>`,
+//   CLAUDE_BIN replaces claude) in the ticket's copy, on Opus, under the project's permissions
+//   and every command its skill runs (RELECTEUR), its instruction from the second template of
+//   consigne-agent.md: the ticket, its components, the path of the claims file (the ticket's
+//   description as `bd show` gives it at the session's launch, written by the circuit in its
+//   working folder, which the session may read; the instruction carries no criteria, which the
+//   reviewer's skill reads only after its first passes), the files of the lot (the testeur's by
+//   `isTesterFile`, then the others) and the circuit's reports since its last sheet (its proofs and
+//   checks). Its errors go to the log under its header line, its line to the register
+//   (scripts/registre.mjs --copie), and it is watched as a session in the envelope is. Its sheet
+//   is its verdict (`verdict` ACCEPTÉ or RENDU, its `constats`, `remarques`, `ecarts`): the circuit
+//   writes it at the ticket for the human, under the author `relecteur`, its first word the
+//   verdict, each finding under its heading with its recipient (`texteDuVerdict`).
+// - RENDU: each finding names its recipient, `role` testeur or developpeur and `composant` one of
+//   the title (a path or a package name). The circuit plays again from the first component a
+//   finding names, the provider first: its testeur → preuve → developpeur → controles when a
+//   finding names its testeur, else its developpeur → controles, the findings as the report of the
+//   session (those for the developpeur after the proof's report). Each component after it plays
+//   the steps its findings name, or, as in `--depuis`, its checks alone (the final pass before the
+//   review carried every component to green checks), then the final pass and the reviewer again.
+//   A RENDU without findings, a finding without a valid recipient, or one that puts its criterion
+//   in question (`critere_en_cause`) stops at « relecture-arret »; so does the third RENDU since
+//   the ticket's last ACCEPTÉ. The regulator settles.
 // - ACCEPTÉ: the integration. The circuit builds the lot from the copy, as the regulator
 //   built it: the files the copy changes against its HEAD, the testeur's (`isTesterFile`: test
 //   files and the shared test material) in one patch, the others in another, each file against
 //   HEAD and a new one against nothing (`git diff --no-index /dev/null`), the copy's index
 //   untouched; the message `<type>(<composants>): <sujet> (<ticket>)`, the type read from the
-//   ticket's type (bug fix, chore, docs, else feat), with the trailer Co-Authored-By. It runs
+//   ticket's type (bug fix, chore, docs, else feat), its body the deviations the sheets of the
+//   developpeurs and of the reviewer name (`ecarts`), with the trailer Co-Authored-By. It runs
 //   scripts/integration/integrer.mjs from the main tree, its output added to the log: 0 is the
-//   commit on agent/<ticket>, the copy removed, the branch in the queue; 75 (« à repasser ») plays
-//   it once more, then stops at « a-repasser »; any other code is its refusal, which stops at
-//   « integration ».
+//   commit on agent/<ticket> (which the circuit names from git), the copy removed, the branch in
+//   the queue; 75 (« à repasser ») plays it once more, then stops at « a-repasser »; any other
+//   code is its refusal, which stops at « integration ».
 // - Then the queue: scripts/integration/file.mjs from the main tree, waited for, its output added
 //   to the log (it brings the branch onto main, pushes it and reads the CI of the commit pushed).
 //   A queue already running exits 0 at once: the circuit waits while the branch is in the queue
 //   and the queue's lock names a live process. Then the state of the ticket: closed, the circuit
-//   ends at « integre », exit 0 (a CI the queue could not read named in its comment); reopened
-//   (out of the queue, or a red CI), it stops at « integration », the queue's comment as its
-//   reason; still in the queue, it stops at « a-repasser », the queue's reason.
+//   ends at « integre », exit 0 (the queue's last word at the ticket named with it, a CI it could
+//   not read); reopened (out of the queue, or a red CI), it stops at « integration », the queue's
+//   last word as its reason; still in the queue, it stops at « a-repasser », the queue's reason.
 // - The state is `.claude/worktrees/<ticket>.circuit.json`, written again at each step and at the
 //   start and end of each session: `{ etape, composant, tentative, code, raison, rapport, dernier,
 //   finale, boucles, seance, regulateur, composants, renvois, atteint, mene, reprise, journal }`;
@@ -220,23 +241,22 @@
 // - On a stop other than 0 and 75, the regulator: a session out of the envelope, as the
 //   reviewer's, claude itself (`claude -p --agent regulateur --session-id <uuid>`) in the
 //   ticket's copy (the main tree once the integration removed it), on Sonnet, under the commands
-//   its skill runs (droitsDuRegulateur: the reads of bd, a comment, a criterion added to the description,
-//   a finding filed closed, the reads of git, the index, and the reads of the state, the log and
-//   the proofs), its instruction from the third template of consigne-agent.md: the ticket, the
-//   stop's name and code, its step, component and reason, the paths of the state and the log. The
-//   state names its session (`regulateur`) while it runs. Its final answer is its decision, from its
-//   last line in one of the forms `RELANCE --reprendre`, `RELANCE --depuis <testeur|developpeur>
-//   <composant>`, then an optional line `CONTEXTE : <texte>` (the rest of the answer), or
-//   `MONTE : <question>`; the reasoning before that line is left out. The
-//   circuit writes it at the ticket (`Circuit · <composant> · regulateur : …`). RELANCE runs the circuit
-//   again in the same process, as the option it names, the context as `--contexte`; MONTE ends the
-//   circuit at « question », the question as its reason, the regulator's session kept in the state.
-//   `--reponse <texte>` resumes that session (`claude -p --resume <id>`, the fourth template: the
-//   supervisor's answer, which may carry the owner's) and applies the decision it gives the same way; without a session kept after
-//   a question, the call is refused. An answer in none of these forms resumes the regulator's session
-//   once (the fifth template), asking for its decision; a second such answer, or a session that
-//   ends in error (a code other than 0, a launch that fails, a motionless session), ends the
-//   circuit on the stop it settled, the answer joined to its reason. The third RELANCE in a row on one stop (its
+//   its skill runs (droitsDuRegulateur: the reads of bd, a comment, a criterion added to the
+//   description, the reads of git, the index, and the reads of the state, the log and the proofs),
+//   its instruction from the third template of consigne-agent.md: the ticket, the stop's name and
+//   code, its step, component and reason, the paths of the state and the log. The state names its
+//   session (`regulateur`) while it runs. Its sheet is its decision (`decision`: « RELANCE
+//   --reprendre », « RELANCE --depuis » with the agent in `depuis`, or « MONTE » with its
+//   `question`; a `contexte` for a RELANCE). The circuit writes it at the ticket (`Circuit ·
+//   <composant> · regulateur : …`). RELANCE runs the circuit again in the same process, as the
+//   option it names, the context as `--contexte`; MONTE ends the circuit at « question », the
+//   question as its reason, the regulator's session kept in the state. `--reponse <texte>` resumes
+//   that session (`claude -p --resume <id>`, the fourth template: the supervisor's answer, which
+//   may carry the owner's) and applies the decision it gives the same way; without a session kept
+//   after a question, the call is refused. A session without a sheet that conforms is resumed
+//   once, as any session; a second one, a `--depuis` whose component the title does not name, or
+//   a session that cannot end (a launch that fails, a motionless session), ends the circuit on the
+//   stop it settled, the reason joined to its own. The third RELANCE in a row on one stop (its
 //   name, step and component) is the last: when that stop comes again, the circuit ends on it, the
 //   three decisions in its reason, without a regulator.
 // - At each step, a short comment at the ticket: `Circuit · <composant> · <étape> : <résumé>`.
@@ -256,17 +276,17 @@
 //   the project.
 // - Exit codes: 0 at « integre »; 2 a malformed call; a stop, by its name (ARRETS):
 //   10 lancement (lancer.sh stopped before the session), 11 bloqué (a motionless transcript),
-//   12 sans-passation (twice no handover), 13 preuve (the third proof fails), 14 controles (the
-//   third developpeur of a component's checks or of the final pass leaves a red check, or a red
-//   of the final pass no component of the title owns),
+//   12 sans-fiche (twice no sheet that conforms), 13 preuve (the third proof fails), 14 controles
+//   (the third developpeur of a component's checks or of the final pass leaves a red check, a red
+//   of the final pass no component of the title owns, or reds to settle),
 //   15 sans-livraison (a developpeur session that changes no file of its component; the first
 //   session of a `--reprendre` whose component already holds changes goes on to the checks; or
 //   the developpeur's same sending to a testeur twice in a row, no green checks between them),
 //   16 relecture-arret (a finding without a valid recipient, one on a criterion, the third RENDU),
 //   17 integration (the integration script refuses the lot, or the queue reopens the ticket),
 //   18 question (the regulator's question for the supervisor, `--reponse` resumes it),
-//   19 hors-portee (a testeur or developpeur whose status line says BLOQUÉ, without a sending to
-//   a testeur), 20 besoin (a testeur or developpeur whose status line says BESOIN),
+//   19 hors-portee (a testeur or developpeur whose sheet says BLOQUÉ, without a sending to a
+//   testeur), 20 besoin (a testeur or developpeur whose sheet says BESOIN),
 //   75 a-repasser (a check or the integration still at 75 once played again, or the branch still
 //   in the queue).
 import { spawn, spawnSync } from 'node:child_process';
@@ -288,16 +308,27 @@ import {
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { stripVTControlCharacters } from 'node:util';
 import { ecrireLeBilan } from './bilan.mjs';
 import { matieres, NOM_DE_TEST } from './consommateurs.mjs';
 import { VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/composant.mjs';
 import { ARBITRAGE, AUTOMATIQUE, ETAPES, etapeDuCircuit, libelle, REGULATEUR } from './etapes.mjs';
 import { paquets } from './paquets.mjs';
 import { ecrire as ecrireAuRegistre, ligneDEtape, transcriptionsDeLaCopie } from './registre.mjs';
+import {
+  lireFiche,
+  lireRapportsVitest,
+  lireResumes,
+  lireSarif,
+  RESULTATS,
+  schemaDeFiche,
+} from './resultats.mjs';
+import { AUTEUR_DE_LA_FILE } from './integration/file.mjs';
 import { dossierCommun, lireEntrees } from './integration/file-attente.mjs';
-import { AUTEUR_DU_VERDICT, VERDICT, verdictDe } from './integration/verdict.mjs';
+import { AUTEUR_DU_VERDICT } from './integration/verdict.mjs';
 import { attendreUnPeu, vivant } from './verrou-de-fichier.mjs';
 import { avecLaMachine } from './verrou-de-machine.mjs';
+import { NOMS_DES_GARDES } from './gardes-du-cadre.mjs';
 import { isTesterFile } from './verrous/verrou.mjs';
 import { A_REPASSER } from './vitest-config/pression.mjs';
 
@@ -307,7 +338,7 @@ export const IMMOBILE_MS = 20 * 60 * 1000;
 export const ARRETS = {
   lancement: 10,
   bloqué: 11,
-  'sans-passation': 12,
+  'sans-fiche': 12,
   preuve: 13,
   controles: 14,
   'sans-livraison': 15,
@@ -382,9 +413,9 @@ const RELECTEUR = [
 ];
 // The regulator's session, out of the envelope, on Sonnet: every command its skill runs (the
 // reads of the ticket and the search of a precedent, a comment, a criterion added to the
-// description, a finding filed closed, the reads of git, the index) and the reads of the ticket's
-// state, log and proofs; any other tool call is refused without a prompt, and so is a change of its
-// author (AUTEUR_FIXE).
+// description, the reads of git, the index) and the reads of the ticket's state, log and proofs
+// (its discoveries go in its sheet, which the circuit files); any other tool call is refused
+// without a prompt, and so is a change of its author (AUTEUR_FIXE).
 const droitsDuRegulateur = ctx => [
   '--model',
   'sonnet',
@@ -396,7 +427,6 @@ const droitsDuRegulateur = ctx => [
   'Bash(bd search *)',
   'Bash(bd list *)',
   'Bash(bd update * -d *)',
-  'Bash(bash scripts/ticket.sh * decouverte)',
   'Bash(git diff *)',
   'Bash(git log *)',
   'Bash(git show *)',
@@ -413,6 +443,7 @@ const droitsDuRegulateur = ctx => [
 ];
 const FORT = ['--modele', 'opus', '--effort', 'high'];
 const PREFIXE = 'Circuit · ';
+const TICKET_SH = path.join(import.meta.dirname, 'ticket.sh');
 // The steps the circuit leads itself, with no agent: each one counts in the ticket's working time.
 const MENEES = new Set(ETAPES.filter(e => e.qui.includes(AUTOMATIQUE)).map(e => e.etat));
 
@@ -443,13 +474,16 @@ class Arret extends Error {
 // A malformed call: its message.
 class Usage extends Error {}
 
-const sansCouleurs = t => t.replace(/\x1b\[[0-9;]*m/g, '');
-const premiereLigne = t =>
-  sansCouleurs(String(t ?? ''))
-    .trim()
-    .split('\n')[0]
-    .slice(0, 300);
+const sansCouleurs = t => stripVTControlCharacters(String(t ?? ''));
+const premiereLigne = t => sansCouleurs(t).trim().split('\n')[0].slice(0, 300);
 const fin = (t, n) => sansCouleurs(t).split('\n').slice(-n).join('\n');
+const enUneLigne = t =>
+  sansCouleurs(t)
+    .split('\n')
+    .map(l => l.trim())
+    .filter(Boolean)
+    .join(' ')
+    .slice(0, 300);
 
 // The options of the command line, or a Usage.
 function lireArguments(argv) {
@@ -514,7 +548,9 @@ function contexte(o) {
   const liste = paquets(base);
   const resoudre = nom => {
     if (nom === '.') return '.';
-    const norme = path.normalize(nom).replace(/\/$/, '');
+    const norme = path.normalize(nom).endsWith('/')
+      ? path.normalize(nom).slice(0, -1)
+      : path.normalize(nom);
     if (liste.some(p => p.dossier === norme)) return norme;
     const parNom = liste.find(p => p.pkg.name === nom);
     if (parNom) return parNom.dossier;
@@ -555,6 +591,8 @@ function contexte(o) {
     etat: `${copie}.circuit.json`,
     journal: `${copie}.log`,
     fin: `${copie}.fin`,
+    resultat: `${copie}.resultat.json`,
+    fiches: `${copie}.fiches.jsonl`,
     transcriptions: transcriptionsDeLaCopie(copie, os.homedir()),
     immobileMs: Number(process.env.GRILLHOUSE_CIRCUIT_IMMOBILE_MS) || IMMOBILE_MS,
     tmp: mkdtempSync(path.join(os.tmpdir(), 'circuit-')),
@@ -592,17 +630,58 @@ function leTicket(ctx) {
   return { description: String(t.description ?? ''), notes: String(t.notes ?? '') };
 }
 
-// The texts of every comment at the ticket, in their order.
-const commentaires = ctx => lesCommentaires(ctx).map(c => c.text);
-
 // The comments of the agents at the ticket, `{ author, text }`: every comment but the circuit's
-// own.
-const passations = ctx => lesCommentaires(ctx).filter(c => !c.text.startsWith(PREFIXE));
+// own. The circuit reads none of them: it hands an agent's last one to the next session of its
+// author, and names it in a stop.
+const passations = ctx => lesCommentaires(ctx).filter(c => c.author !== AUTEUR_DU_CIRCUIT);
+
+// The last handover at the ticket of the author <qui>, or null.
+const derniereDe = (ctx, qui) =>
+  passations(ctx)
+    .filter(c => c.author === qui)
+    .at(-1) ?? null;
+
+// The sheets of the ticket's sessions and the circuit's reports, in their order
+// (`<ticket>.fiches.jsonl`, beside the copy): `{ date, role, composant, fiche }` for the sheet of
+// a session, `{ date, role: 'circuit', etape, composant, rapport }` for the report of a proof or of
+// checks, which the reviewer receives.
+function lesFiches(ctx) {
+  return lire(ctx.fiches)
+    .split('\n')
+    .filter(Boolean)
+    .flatMap(l => {
+      try {
+        return [JSON.parse(l)];
+      } catch {
+        return [];
+      }
+    });
+}
+const inscrire = (ctx, entree) =>
+  appendFileSync(ctx.fiches, `${JSON.stringify({ date: new Date().toISOString(), ...entree })}\n`);
+
+// The sheets of <role> on <composant> (every component when null), in their order.
+const fichesDe = (ctx, role, composant = null) =>
+  lesFiches(ctx)
+    .filter(e => e.role === role && (composant === null || e.composant === composant))
+    .map(e => e.fiche);
 
 // One line of the circuit's history at the ticket.
 function commenter(ctx, composant, etape, texte) {
   const r = ctx.bd('comments', 'add', ctx.ticket, `${PREFIXE}${composant} · ${etape} : ${texte}`);
   if (r.status !== 0) process.stderr.write(`⚠️  commentaire non écrit au ticket : ${r.stderr}\n`);
+}
+
+// The report of a proof or of checks: its line at the ticket, and its report kept for the
+// reviewer, <rapport> when the comment carries only its summary.
+function ecrireRapport(ctx, composant, etape, texte, rapport = texte) {
+  commenter(ctx, composant, etape, texte);
+  inscrire(ctx, {
+    role: AUTEUR_DU_CIRCUIT,
+    etape,
+    composant,
+    rapport: `${PREFIXE}${composant} · ${etape} : ${rapport}`,
+  });
 }
 
 // The state of the run, written whole (`seance` and `regulateur` null and `finale` false unless <etat>
@@ -675,38 +754,41 @@ const mtime = f => {
   }
 };
 
-// One launch of a session: `{ code, seance, bloque, erreur, reponse }`, `seance` the session's
+// One launch of a session: `{ code, seance, bloque, erreur, sortie }`, `seance` the session's
 // exit code (from lancer.sh's end file for a session in the envelope), null when the launch
-// stopped before it. Every session runs with the author of <role> on <composant> (BEADS_ACTOR).
-// A session in the envelope opens under the id <ouvre> (lancer.sh --seance), or resumes the
-// session <reprend> (lancer.sh --reprise).
-// A session <horsEnveloppe> (the reviewer's, the regulator's) is claude
-// itself, in the ticket's copy (the main tree once the copy is gone), under <droits> (the
-// reviewer's by default) and the options <session> names, its instruction on its standard input
-// and its final answer (`reponse`) added to the log under its header line and given to
-// <surReponse>, then its line written to the register, as lancer.sh does.
+// stopped before it, `sortie` claude's JSON result, its sheet in `structured_output`. Every
+// session runs with the author of <role> on <composant> (BEADS_ACTOR). A session in the envelope
+// opens under the id <ouvre> (lancer.sh --seance), or resumes the session <reprend> (lancer.sh
+// --reprise); its result is the file lancer.sh writes (`<ticket>.resultat.json`).
+// A session <horsEnveloppe> (the reviewer's, the regulator's) is claude itself, in the ticket's
+// copy (the main tree once the copy is gone), under <droits> (the reviewer's by default), the
+// schema of its role's sheet and the options <session> names (its id, or the session it
+// resumes), its instruction on its standard input and its result on its standard output, added
+// to the log under its header line, then its line written to the register, as lancer.sh does.
 function lancer(
   ctx,
   role,
   composant,
   consigne,
-  { fort, horsEnveloppe, droits = RELECTEUR, session = [], surReponse, ouvre, reprend } = {}
+  { fort, horsEnveloppe, droits = RELECTEUR, session = [], ouvre, reprend } = {}
 ) {
   rmSync(ctx.fin, { force: true });
+  rmSync(ctx.resultat, { force: true });
   const fichier = path.join(ctx.tmp, `consigne-${++ctx.numero}.md`);
   writeFileSync(fichier, consigne);
   // A file, not a pipe: a session whose circuit is dead writes its errors without breaking.
   const erreurs = path.join(ctx.tmp, `erreurs-${ctx.numero}.txt`);
   let commande;
   let fds;
-  // The final answer of a session out of the envelope: the reviewer's verdict, the regulator's decision.
-  const reponse = path.join(ctx.tmp, `reponse-${ctx.numero}.txt`);
+  // The result of a session out of the envelope.
+  const reponse = path.join(ctx.tmp, `reponse-${ctx.numero}.json`);
   if (horsEnveloppe) {
     entete(ctx, role, composant);
     fds = [openSync(fichier, 'r'), openSync(reponse, 'w'), openSync(ctx.journal, 'a')];
+    const fiche = ['--output-format', 'json', '--json-schema', JSON.stringify(schemaDeFiche(role))];
     commande = {
       cmd: process.env.CLAUDE_BIN || 'claude',
-      args: ['-p', '--agent', role, ...droits, '--add-dir', ctx.tmp, ...session],
+      args: ['-p', '--agent', role, ...fiche, ...droits, '--add-dir', ctx.tmp, ...session],
       cwd: existsSync(ctx.copie) ? ctx.copie : ctx.racine,
     };
   } else {
@@ -754,20 +836,20 @@ function lancer(
       if (bloque) signalerGroupe(enfant.pid, 'SIGKILL');
       ecrireEtat(ctx, { ...ctx.courant, seance: null });
       let seance;
-      let texte = '';
+      let sortie;
       if (horsEnveloppe) {
         seance = erreurDeLancement === null ? code : null;
-        texte = lire(reponse).trim();
-        appendFileSync(ctx.journal, `${texte}\n`);
-        surReponse?.(texte);
+        sortie = lire(reponse).trim();
+        appendFileSync(ctx.journal, `${sortie}\n`);
         spawnSync(process.execPath, [REGISTRE, '--copie', ctx.copie], {
           cwd: ctx.racine,
           stdio: ['ignore', 'ignore', 'ignore'],
         });
       } else {
         seance = existsSync(ctx.fin) ? Number(readFileSync(ctx.fin, 'utf8').trim()) : null;
+        sortie = lire(ctx.resultat).trim();
       }
-      resolve({ code, seance, bloque, erreur: erreurDeLancement ?? lire(erreurs), reponse: texte });
+      resolve({ code, seance, bloque, erreur: erreurDeLancement ?? lire(erreurs), sortie });
     });
   });
 }
@@ -814,9 +896,9 @@ async function attendreLaSeance(ctx, groupe) {
 }
 
 // The template of the instruction at <rang> (0 the testeur's and the developpeur's, 1 the
-// reviewer's, 2 the regulator's on a stop, 3 the regulator's on the supervisor's answer, 4 the
-// regulator's on an answer without a decision, 5 the testeur's and the developpeur's on a resumption),
-// filled with <valeurs>.
+// reviewer's, 2 the regulator's on a stop, 3 the regulator's on the supervisor's answer, 4 any
+// session's on a sheet absent or out of its schema, 5 the testeur's and the developpeur's on a
+// resumption), filled with <valeurs>.
 function consigne(valeurs, rang = 0) {
   const texte = readFileSync(GABARIT, 'utf8');
   const bloc = [...texte.matchAll(/```text\n([\s\S]*?)\n```/g)][rang];
@@ -824,20 +906,21 @@ function consigne(valeurs, rang = 0) {
   return `${bloc[1].replace(/\{\{(\w+)\}\}/g, (m, k) => (k in valeurs ? valeurs[k] : m))}\n`;
 }
 
-// One session of <role> on <composant>, launched again once when it leaves no handover: the new
-// comments of the agents, `{ author, text }`. A relaunch on its step (<tentative> past 1) that is
-// not the last (<derniere>) resumes the agent's session the circuit keeps (`ctx.reprise`, its
-// author and id) with the short instruction (the sixth template); a resumption that fails (a code
-// other than 0, or no handover) falls back on a fresh and whole session, under a new id, which
-// the circuit keeps. A fresh session's instruction (the first template) carries the ticket's
-// description and notes as they are at its launch. Throws an Arret for a launch that stops before
-// its session, a motionless session, or twice no handover.
+const nomDuRole = role => (role === 'developpeur' ? 'développeur' : role);
+
+// One session of <role> on <composant>: its sheet. A relaunch on its step (<tentative> past 1)
+// that is not the last (<derniere>) resumes the agent's session the circuit keeps (`ctx.reprise`,
+// its author and id) with the short instruction (the sixth template); a resumption that fails (a
+// code other than 0, or no sheet that conforms) falls back on a fresh and whole session, under a
+// new id, which the circuit keeps. A fresh session's instruction (the first template) carries the
+// ticket's description and notes as they are at its launch, and the last handover of its author
+// at the ticket. Throws an Arret for a launch that stops before its session, a motionless
+// session, or a session that ends twice without a sheet that conforms.
 async function seance(ctx, role, composant, { tentative, rapport, fort, derniere }) {
   const agent = auteur(role, composant);
-  const nom = role === 'developpeur' ? 'développeur' : role;
+  const nom = nomDuRole(role);
   const reprise = tentative > 1 && !derniere && ctx.reprise?.agent === agent ? ctx.reprise : null;
   if (reprise) {
-    const avant = passations(ctx);
     const courte = {
       role: nom,
       ticket: ctx.ticket,
@@ -855,23 +938,22 @@ async function seance(ctx, role, composant, { tentative, rapport, fort, derniere
       reprend: reprise.seance,
     });
     seanceLancee(ctx, role, r);
-    const neufs = passations(ctx).slice(avant.length);
-    if (r.seance === 0 && neufs.length) return neufs;
+    const lu = r.seance === 0 ? lireFiche(role, r.sortie) : { erreur: `code ${r.seance}` };
+    if (lu.fiche) return garder(ctx, role, composant, lu.fiche);
     commenter(
       ctx,
       composant,
       role,
-      `reprise de la séance ${reprise.seance} sans passation (code ${r.seance}) : séance neuve et entière.`
+      `reprise de la séance ${reprise.seance} sans fiche conforme (${lu.erreur}) : séance neuve et entière.`
     );
   }
-  const avant = passations(ctx);
   const lots = role === 'developpeur' ? testsDuLot(ctx) : testsDuComposant(ctx, composant);
   const { description, notes } = leTicket(ctx);
   // The last handover of this agent on its component; for a developpeur without one yet, the last
   // of the testeur of his component.
-  const laDerniere = qui => avant.filter(c => c.author === qui).at(-1);
   const passation =
-    laDerniere(agent) ?? (role === 'developpeur' ? laDerniere(auteur('testeur', composant)) : null);
+    derniereDe(ctx, agent) ??
+    (role === 'developpeur' ? derniereDe(ctx, auteur('testeur', composant)) : null);
   const valeurs = {
     role: nom,
     depot: ctx.racine,
@@ -894,7 +976,7 @@ async function seance(ctx, role, composant, { tentative, rapport, fort, derniere
     rapport: rapport ?? 'aucun',
     passation: passation?.text ?? 'aucune',
   };
-  return await jusquALaPassation(ctx, role, composant, consigne(valeurs), { fort, neuve: agent });
+  return await jusquALaFiche(ctx, role, composant, consigne(valeurs), { fort, neuve: agent });
 }
 
 // The launch <r> of a session of <role>, or the Arret it is: a motionless session (« bloqué »),
@@ -915,48 +997,92 @@ function seanceLancee(ctx, role, r) {
   }
 }
 
-// The session of <role> on <composant> with the instruction <texte>, launched again once when it
-// leaves no comment <attendu> accepts (any comment of an agent, by default): the new comments of
-// the agents, `{ author, text }`. With <neuve> (the author of a testeur or a developpeur), each
-// launch opens a session under a new id, which the circuit keeps for that author (`ctx.reprise`).
-// Throws an Arret for a launch that stops before its session, a motionless session, or twice no
-// such comment.
-async function jusquALaPassation(ctx, role, composant, texte, options = {}) {
-  const attendu = options.attendu ?? (() => true);
-  const quoi = options.quoi ?? 'passation';
+// The session of <role> on <composant> with the instruction <texte>, its sheet read in its result
+// (scripts/resultats.mjs): the sheet, kept with the ticket's sheets, its discoveries filed. A
+// session that ends without a sheet that conforms (none, one out of its schema, a code other than
+// 0) is resumed once, the same session, with the short instruction that names what lacks (the
+// fifth template). The session opens under the id <id> (a new one by default), or resumes it with
+// <premiere> « reprend » (the regulator on the supervisor's answer); with <neuve> (the author of a
+// testeur or a developpeur), the circuit keeps that id for that author (`ctx.reprise`). Throws an
+// Arret for a launch that stops before its session, a motionless session, or twice no sheet
+// that conforms (« sans-fiche »).
+async function jusquALaFiche(ctx, role, composant, texte, options = {}) {
+  const { neuve, premiere = 'ouvre', id = randomUUID(), ...reste } = options;
+  if (neuve) ctx.reprise = { agent: neuve, seance: id };
+  const ouvrir = mode =>
+    reste.horsEnveloppe
+      ? { session: [mode === 'ouvre' ? '--session-id' : '--resume', id] }
+      : { [mode]: id };
+  let lu = null;
   for (let essai = 1; essai <= 2; essai++) {
-    const avant = passations(ctx);
-    if (options.neuve) ctx.reprise = { agent: options.neuve, seance: randomUUID() };
-    const r = await lancer(ctx, role, composant, texte, {
-      ...options,
-      ouvre: options.neuve ? ctx.reprise.seance : undefined,
+    const courte = () => consigne({ ticket: ctx.ticket, sujet: ctx.sujet, erreur: lu.erreur }, 4);
+    const r = await lancer(ctx, role, composant, essai === 1 ? texte : courte(), {
+      ...reste,
+      ...ouvrir(essai === 1 ? premiere : 'reprend'),
     });
     seanceLancee(ctx, role, r);
-    const neufs = passations(ctx).slice(avant.length);
-    if (neufs.some(attendu)) return neufs;
+    lu =
+      r.seance === 0
+        ? lireFiche(role, r.sortie)
+        : { erreur: `la séance finit en erreur (code ${r.seance})` };
+    if (lu.fiche) return garder(ctx, role, composant, lu.fiche);
     if (essai === 1) {
-      commenter(ctx, composant, role, `séance finie sans ${quoi} au ticket ; relancée une fois.`);
-      texte = `${texte}\nRELANCE : ta séance d'avant a fini sans ${quoi} au ticket. Ta ${quoi} s'écrit par \`bd comments add ${ctx.ticket}\` avant la fin de ta séance.\n`;
+      commenter(
+        ctx,
+        composant,
+        role,
+        `séance finie sans fiche conforme : ${lu.erreur} ; reprise une fois.`
+      );
     }
   }
   throw new Arret(
-    'sans-passation',
-    `Deux séances du ${role} ont fini sans ${quoi} au ticket.\n\n${fin(lire(ctx.journal), 20)}`
+    'sans-fiche',
+    `Deux fois, la séance du ${nomDuRole(role)} sur ${composant} finit sans fiche conforme : ${lu.erreur}. Le journal du ticket : ${ctx.journal}`
   );
+}
+
+// The name of <composant> as a title writes it: its package's name, or its path.
+function nomDe(ctx, composant) {
+  const liste = paquets(existsSync(ctx.copie) ? ctx.copie : ctx.racine);
+  return liste.find(p => p.dossier === composant)?.pkg.name ?? composant;
+}
+
+// The sheet <fiche> of <role> on <composant>, kept with the ticket's sheets, each of its
+// discoveries filed closed under the ticket (scripts/ticket.sh, label `decouverte`), its component
+// the session's, or the ticket's for the reviewer and the regulator; returns it.
+function garder(ctx, role, composant, fiche) {
+  inscrire(ctx, { role, composant, fiche });
+  const composants = DESTINATAIRES.includes(role)
+    ? nomDe(ctx, composant)
+    : ctx.composants.map(c => nomDe(ctx, c)).join(', ');
+  for (const d of fiche.decouvertes ?? []) {
+    const r = spawnSync(
+      'bash',
+      [TICKET_SH, ctx.ticket, d.sujet, composants, d.corps, 'decouverte'],
+      {
+        cwd: ctx.racine,
+        encoding: 'utf8',
+        env: { ...process.env, [ACTEUR]: AUTEUR_DU_CIRCUIT },
+      }
+    );
+    if (r.status !== 0) {
+      process.stderr.write(`⚠️  découverte « ${d.sujet} » non consignée : ${r.stderr}\n`);
+    }
+  }
+  return fiche;
 }
 
 const lire = f => (existsSync(f) ? readFileSync(f, 'utf8') : '');
 
-// The circuit's reports at the ticket since the reviewer's last verdict: the comments of its proofs
-// and checks (the final pass among them).
+// The circuit's reports since the reviewer's last sheet: those of its proofs and checks (the final
+// pass among them), as it wrote them at the ticket.
 function rapportsDuCircuit(ctx) {
-  const tous = lesCommentaires(ctx);
-  const depuis = tous.findLastIndex(c => verdictDe(c)) + 1;
-  const etape = new RegExp(`^${PREFIXE}\\S+ · (preuve|controles) :`);
+  const tous = lesFiches(ctx);
+  const depuis = tous.findLastIndex(e => e.role === 'relecteur') + 1;
   return tous
     .slice(depuis)
-    .map(c => c.text)
-    .filter(t => etape.test(t));
+    .filter(e => e.role === AUTEUR_DU_CIRCUIT)
+    .map(e => e.rapport);
 }
 
 // The files of the lot, as the copy holds them against its HEAD: `{ tests, code }`, the
@@ -970,12 +1096,36 @@ function fichiersDuLot(ctx) {
   return { tests: tests.sort(), code: code.sort() };
 }
 
+// The verdict the reviewer's sheet <fiche> carries, as the circuit writes it at the ticket for the
+// human, its first word ACCEPTÉ or RENDU: each finding under its heading, its recipient (or the
+// criterion in question) and its body, then the remarks and the deviations to name at the commit.
+export function texteDuVerdict(fiche) {
+  const section = (titre, l) => (l?.length ? [`## ${titre}`, '', ...l.map(x => `- ${x}`), ''] : []);
+  return [
+    fiche.verdict,
+    '',
+    ...(fiche.constats ?? []).flatMap((c, i) => [
+      `### Constat ${i + 1} — ${c.titre}`,
+      c.critere_en_cause
+        ? `Critère en cause : ${c.critere_en_cause}`
+        : `Agent : ${c.role ?? '?'} ${c.composant ?? '?'}`,
+      c.corps,
+      '',
+    ]),
+    ...section('Remarques', fiche.remarques),
+    ...section('Écarts à nommer au commit', fiche.ecarts),
+  ]
+    .join('\n')
+    .trim();
+}
+
 // The review of the lot, the reviewer's session out of the envelope, from the second template:
-// `{ verdict, texte }`, the reviewer's last verdict among its new comments.
+// `{ verdict, fiche, texte }`, its sheet and the verdict the circuit writes at the ticket from it,
+// under the reviewer's author.
 async function relire(ctx, composant) {
   const { tests, code } = fichiersDuLot(ctx);
   const rapports = rapportsDuCircuit(ctx);
-  const precedents = passations(ctx).filter(c => verdictDe(c));
+  const precedents = fichesDe(ctx, 'relecteur').length;
   const affirmations = path.join(ctx.tmp, 'affirmations.md');
   writeFileSync(affirmations, leTicket(ctx).description);
   const valeurs = {
@@ -983,8 +1133,8 @@ async function relire(ctx, composant) {
     ticket: ctx.ticket,
     sujet: ctx.sujet,
     composants: ctx.composants.join(', '),
-    reprise: precedents.length
-      ? `oui : ${precedents.length} relecture(s) d'avant ont rendu le lot, leurs verdicts sont au ticket, et le lot a repassé le circuit depuis`
+    reprise: precedents
+      ? `oui : ${precedents} relecture(s) d'avant ont rendu le lot, leurs verdicts sont au ticket, et le lot a repassé le circuit depuis`
       : 'non',
     lots: [
       `le lot de tests : ${tests.join(', ') || 'aucun fichier'}`,
@@ -993,157 +1143,82 @@ async function relire(ctx, composant) {
     affirmations,
     rapports: rapports.join('\n\n') || 'aucun',
   };
-  const neufs = await jusquALaPassation(ctx, 'relecteur', composant, consigne(valeurs, 1), {
+  const fiche = await jusquALaFiche(ctx, 'relecteur', composant, consigne(valeurs, 1), {
     horsEnveloppe: true,
-    // The verdict, whole, at the ticket under the reviewer's author: a comment on several lines
-    // with its findings' headings.
-    surReponse: texte => {
-      if (!VERDICT.test(texte)) return;
-      const r = ctx.bdSous(AUTEUR_DU_VERDICT, 'comments', 'add', ctx.ticket, texte);
-      if (r.status !== 0) process.stderr.write(`⚠️  verdict non écrit au ticket : ${r.stderr}\n`);
-    },
-    attendu: c => verdictDe(c) !== null,
-    quoi: 'verdict',
   });
-  const dernier = neufs.filter(c => verdictDe(c)).at(-1);
-  return { verdict: verdictDe(dernier), texte: dernier.text };
+  const texte = texteDuVerdict(fiche);
+  const r = ctx.bdSous(AUTEUR_DU_VERDICT, 'comments', 'add', ctx.ticket, texte);
+  if (r.status !== 0) process.stderr.write(`⚠️  verdict non écrit au ticket : ${r.stderr}\n`);
+  return { verdict: fiche.verdict, fiche, texte };
 }
 
-// The findings of the verdict RENDU <texte>, each a block that opens on a heading `Constat`
-// (`### Constat 1 — <adresse>`) and ends at the next heading: `{ titre, texte, role, composant,
-// critere }`, `role` and `composant` read from its line `Agent : <rôle> <composant>` (null
-// without one), `critere` true when it carries the line `Critère en cause : …`.
-export function constats(texte) {
-  const blocs = [];
-  let courant = null;
-  for (const ligne of String(texte).split('\n')) {
-    if (/^\s*#{1,6}\s*Constat\b/i.test(ligne)) {
-      courant = { titre: ligne.replace(/^\s*#+\s*/, '').trim(), lignes: [ligne] };
-      blocs.push(courant);
-    } else if (/^\s*#{1,6}\s/.test(ligne)) {
-      courant = null;
-    } else if (courant) {
-      courant.lignes.push(ligne);
-    }
-  }
-  return blocs.map(({ titre, lignes }) => {
-    const corps = lignes.join('\n').trim();
-    return {
-      titre,
-      texte: corps,
-      ...ligneAgent(corps),
-      critere: /^\s*(?:[-*]\s*)?\**Critère en cause\**\s*:/im.test(corps),
-    };
-  });
-}
-
-// The first line `Agent : <rôle> <composant>` of <texte>, a finding of the reviewer or a handover of
-// the developpeur: `{ role, composant }`, both null without one.
-function ligneAgent(texte) {
-  const agent = /^\s*(?:[-*]\s*)?\**Agent\**\s*:\s*\**\s*(\S+)\s+`?([^\s`*]+)/im.exec(texte);
-  return {
-    role: agent ? agent[1] : null,
-    // The punctuation that ends the line, never the root `.` itself.
-    composant: agent ? agent[2].replace(/(?<=.)[,.;]+$/, '') : null,
-  };
-}
-
-// The status line that ends a handover of the testeur or the developpeur, `STATUT : FAIT`,
-// `STATUT : BLOQUÉ — <raison>` or `STATUT : BESOIN — <question>`, read as the line `Agent :` is,
-// in bold or in code: `{ forme, texte, passation }`, forme FAIT, BLOQUÉ or BESOIN, texte its
-// reason or question (empty without one), passation the handover; the last such line of the last
-// handover of <neufs> that carries one; null for none.
-const LIGNE_DE_STATUT =
-  /^\s*(?:[-*]\s*)?([`*]*)STATUT[`*]*\s*:\s*[`*]*(FAIT|BLOQU[ÉEée]|BESOIN)(?![A-Za-z])[`*]*\s*(?:[—–:-]?\s*(.*?))?\s*$/i;
-export function statutDe(neufs) {
-  for (const c of [...neufs].reverse()) {
-    for (const l of String(c.text ?? '')
-      .split('\n')
-      .reverse()) {
-      const m = LIGNE_DE_STATUT.exec(l);
-      if (!m) continue;
-      const mot = m[2].toUpperCase();
-      const forme = mot.startsWith('BLOQU') ? 'BLOQUÉ' : mot;
-      // A line set in bold or in code closes as it opens.
-      const reste = (m[3] ?? '').trim();
-      const texte = m[1] ? reste.replace(/[`*]+$/, '').trim() : reste;
-      return { forme, texte, passation: c.text };
-    }
-  }
-  return null;
-}
-
-// The stop for the status <statut> of the session <tentative> of <role> on <composant>, BLOQUÉ
+// The stop for the sheet <fiche> of the session <tentative> of <role> on <composant>, BLOQUÉ
 // (« hors-portee ») or BESOIN (« besoin »): its reason or question first, then its handover.
-function arretDuStatut(role, composant, tentative, statut) {
-  const texte = statut.passation;
-  const qui = `Le ${role === 'developpeur' ? 'développeur' : role} de ${composant}`;
-  const quoi = statut.texte || 'sans raison écrite';
-  return statut.forme === 'BESOIN'
+function arretDuStatut(ctx, role, composant, tentative, fiche) {
+  const passation = derniereDe(ctx, auteur(role, composant))?.text ?? 'aucune';
+  const qui = `Le ${nomDuRole(role)} de ${composant}`;
+  return fiche.statut === 'BESOIN'
     ? new Arret(
         'besoin',
-        `${qui} attend une réponse (séance ${tentative}) : ${quoi}\n\nLa décision revient au régulateur. Sa passation :\n\n${texte}`
+        `${qui} attend une réponse (séance ${tentative}) : ${fiche.question}\n\nLa décision revient au régulateur. Sa passation :\n\n${passation}`
       )
     : new Arret(
         'hors-portee',
-        `${qui} se déclare bloqué (séance ${tentative}) : ${quoi}\n\nLe circuit ne le relance pas sur ce rouge : la décision revient au régulateur. Sa passation :\n\n${texte}`
+        `${qui} se déclare bloqué (séance ${tentative}) : ${fiche.raison}\n\nLe circuit ne le relance pas sur ce rouge : la décision revient au régulateur. Sa passation :\n\n${passation}`
       );
 }
 
-// The sending to a testeur in the new handovers <neufs> of the developpeur of the component at
-// <index>: `{ index, texte }`, the component its last line `Agent : testeur <composant>` names, one
-// of the title up to <index>, and that handover; null without such a line.
-function renvoiAuTesteur(ctx, neufs, index) {
-  for (const c of [...neufs].reverse()) {
-    const { role, composant } = ligneAgent(c.text);
-    if (role !== 'testeur' || !composant) continue;
-    let i = -1;
-    try {
-      i = ctx.composants.indexOf(ctx.resoudre(composant));
-    } catch {
-      i = -1;
-    }
-    return i >= 0 && i <= index ? { index: i, texte: c.text } : null;
+// The index in the title of the component <nom> (a path or a package name), or -1.
+function indexDe(ctx, nom) {
+  try {
+    return ctx.composants.indexOf(ctx.resoudre(nom));
+  } catch {
+    return -1;
   }
-  return null;
 }
 
-// The agents a verdict RENDU sends the lot back to: Map index of component → `{ etape,
-// testeur, developpeur }`, `etape` the first step that component plays again (testeur when a
-// finding names its testeur), `testeur` and `developpeur` the findings for each, or null. Throws
-// an Arret `relecture-arret` for a verdict without findings, a finding without a valid recipient
-// (a role other than testeur or developpeur, a component the title does not name) or one that
-// puts a criterion in question.
-function renvoisDuVerdict(ctx, texte) {
-  const liste = constats(texte);
+// The sending to a testeur in the sheet <fiche> of the developpeur of the component at <index>:
+// `{ index, texte }`, the component its `renvoi` names, one of the title up to <index>, and what
+// that testeur receives (the sending, then the developpeur's handover); null without a sending,
+// or for a component out of the title or after his own.
+function renvoiAuTesteur(ctx, fiche, index) {
+  if (!fiche.renvoi) return null;
+  const i = indexDe(ctx, fiche.renvoi.composant);
+  if (i < 0 || i > index) return null;
+  const composant = ctx.composants[index];
+  const passation = derniereDe(ctx, auteur('developpeur', composant))?.text ?? 'aucune';
+  const raison = fiche.raison ? ` : ${fiche.raison}` : '';
+  return {
+    index: i,
+    texte: `Le développeur de ${composant} renvoie le rouge qui reste aux tests de ${ctx.composants[i]}${raison}.\n\nSa passation :\n\n${passation}`,
+  };
+}
+
+// The agents the reviewer's sheet RENDU <fiche> sends the lot back to: Map index of component →
+// `{ etape, testeur, developpeur }`, `etape` the first step that component plays again (testeur
+// when a finding names its testeur), `testeur` and `developpeur` the findings for each, or null.
+// Throws an Arret `relecture-arret` for a verdict without findings, a finding without a valid
+// recipient (a component the title does not name) or one that puts a criterion in question.
+function renvoisDuVerdict(ctx, fiche, texte) {
+  const liste = fiche.constats ?? [];
   const arret = raison =>
     new Arret(
       'relecture-arret',
       `${raison} La décision revient au régulateur.\n\nLe verdict :\n\n${texte}`
     );
-  if (liste.length === 0) {
-    throw arret(
-      'Le verdict RENDU ne porte aucun constat (`### Constat …`, avec sa ligne `Agent : <rôle> <composant>`).'
-    );
-  }
+  if (liste.length === 0) throw arret('Le verdict RENDU ne porte aucun constat.');
   const renvois = new Map();
-  for (const c of liste) {
-    if (c.critere) throw arret(`Le constat « ${c.titre} » met en cause un critère du ticket.`);
-    let index = -1;
-    if (c.composant) {
-      try {
-        index = ctx.composants.indexOf(ctx.resoudre(c.composant));
-      } catch {
-        index = -1;
-      }
-    }
+  for (const [n, c] of liste.entries()) {
+    if (c.critere_en_cause)
+      throw arret(`Le constat « ${c.titre} » met en cause un critère du ticket.`);
+    const index = c.composant ? indexDe(ctx, c.composant) : -1;
     if (!DESTINATAIRES.includes(c.role) || index < 0) {
       throw arret(
-        `Le constat « ${c.titre} » n'a pas de destinataire valide : sa ligne \`Agent : <rôle> <composant>\` nomme ${c.role ? `« ${c.role} ${c.composant} »` : 'personne'}, quand le rôle est testeur ou developpeur et le composant l'un du titre (${ctx.composants.join(', ')}).`
+        `Le constat « ${c.titre} » n'a pas de destinataire valide : il nomme ${c.role ? `« ${c.role} ${c.composant ?? ''} »` : 'personne'}, quand le rôle est testeur ou developpeur et le composant l'un du titre (${ctx.composants.join(', ')}).`
       );
     }
     const r = renvois.get(index) ?? { etape: 'developpeur', testeur: [], developpeur: [] };
-    r[c.role].push(c.texte);
+    r[c.role].push(`### Constat ${n + 1} — ${c.titre}\n${c.corps}`);
     if (c.role === 'testeur') r.etape = 'testeur';
     renvois.set(index, r);
   }
@@ -1207,6 +1282,8 @@ function integrer(ctx) {
 // queue's reason) or rouvert (out of the queue, or a red CI, the queue's last comment). A queue
 // already running exits 0 at once: it takes the branch, and the state is read at its end too.
 function file(ctx) {
+  const motsDeLaFile = () => passations(ctx).filter(c => c.author === AUTEUR_DE_LA_FILE);
+  const avant = motsDeLaFile().length;
   entete(ctx, 'file', ctx.composants.join(', '));
   appendFileSync(ctx.journal, `$ node ${FILE}\n`);
   const x = spawnSync(process.execPath, [FILE], {
@@ -1222,20 +1299,16 @@ function file(ctx) {
   }
   const show = ctx.bd('show', ctx.ticket, '--json');
   const t = show.status === 0 ? (JSON.parse(show.stdout)[0] ?? {}) : {};
-  const derniers = commentaires(ctx);
-  const derniere = motif => derniers.findLast(c => motif.test(c)) ?? 'aucun commentaire de la file';
-  if (lireEntrees(ctx.racine).some(e => e.branche === branche)) {
-    return { etat: 'en-file', raison: derniere(/^## La file garde la branche/) };
-  }
+  // The queue's last word at the ticket, under its author, since this queue began.
+  const mot = motsDeLaFile().slice(avant).at(-1)?.text ?? null;
+  const raison = mot ?? 'aucun commentaire de la file';
+  if (lireEntrees(ctx.racine).some(e => e.branche === branche)) return { etat: 'en-file', raison };
   if (t.status === 'closed') {
-    // The CI the queue could not read is the queue's last word at the ticket.
-    const dernier = derniers.at(-1) ?? '';
-    const ci = /^## CI non lue/.test(dernier)
-      ? ` ; ${premiereLigne(dernier.split('\n').slice(2).join(' '))}`
-      : '';
-    return { etat: 'ferme', raison: `${t.close_reason || 'ticket fermé'}${ci}` };
+    // A CI the queue could not read is its last word at a ticket it closes.
+    const motif = t.close_reason || 'ticket fermé';
+    return { etat: 'ferme', raison: mot ? `${motif} ; ${enUneLigne(mot)}` : motif };
   }
-  return { etat: 'rouvert', raison: derniere(/^## (Sortie de la file|CI rouge)/) };
+  return { etat: 'rouvert', raison };
 }
 
 // True while a queue holds its lock (`.git/file-integration.lock`), its process alive.
@@ -1249,7 +1322,8 @@ function fileEnCours(ctx) {
 const TYPES_DE_COMMIT = { bug: 'fix', chore: 'chore', docs: 'docs' };
 
 // The commit message of the lot: `<type>(<composants>): <sujet> (<ticket>)`, the components by
-// their package name, then the trailer.
+// their package name; then the deviations the sheets of the developpeurs and of the reviewer name
+// (`ecarts`), each once; then the trailer.
 function messageDeCommit(ctx) {
   const liste = paquets(existsSync(ctx.copie) ? ctx.copie : ctx.racine);
   const noms = ctx.composants
@@ -1257,7 +1331,13 @@ function messageDeCommit(ctx) {
     .map(c => liste.find(p => p.dossier === c)?.pkg.name ?? path.basename(c));
   const type = TYPES_DE_COMMIT[ctx.type] ?? 'feat';
   const portee = noms.length ? `(${noms.join(',')})` : '';
-  return `${type}${portee}: ${ctx.sujet} (${ctx.ticket})\n\nCo-Authored-By: Claude <noreply@anthropic.com>\n`;
+  const ecarts = [
+    ...new Set(
+      [...fichesDe(ctx, 'developpeur'), ...fichesDe(ctx, 'relecteur')].flatMap(f => f.ecarts ?? [])
+    ),
+  ];
+  const corps = ecarts.length ? `${ecarts.map(e => `- ${e}`).join('\n')}\n\n` : '';
+  return `${type}${portee}: ${ctx.sujet} (${ctx.ticket})\n\n${corps}Co-Authored-By: Claude <noreply@anthropic.com>\n`;
 }
 
 // The files the copy changes against its HEAD: [{ fichier, supprime }], relative to the copy.
@@ -1276,7 +1356,7 @@ function changements(ctx) {
     const xy = e.slice(0, 2);
     out.push({ fichier: e.slice(3), supprime: xy.includes('D') });
     // A rename or a copy names its source next.
-    if (/[RC]/.test(xy)) i++;
+    if (xy.includes('R') || xy.includes('C')) i++;
   }
   return out;
 }
@@ -1312,56 +1392,33 @@ function paquetDe(liste, fichier) {
   return p ? p.dossier : '.';
 }
 
-// One npm command in the copy, under <env> added to the circuit's environment, added to the log:
-// `{ code, sortie }`. It is a heavy pass (the proof, the checks, the final pass): it holds the lock
-// of the machine (scripts/verrou-de-machine.mjs), its wait written to the log, and passes it to
-// the `npm run verifier` it runs.
+// One npm command in the copy, under <env> added to the circuit's environment, its results written
+// to a directory of its own (RESULTATS, scripts/resultats.mjs: the summaries of Turborepo, the
+// JSON reports of Vitest, the SARIF of the guards), its output added to the log for the human:
+// `{ code, dossier }`. The circuit reads its results, never its output. It is a heavy pass (the
+// proof, the checks, the final pass): it holds the lock of the machine
+// (scripts/verrou-de-machine.mjs), its wait written to the log, and passes it to the
+// `npm run verifier` it runs.
 function npm(ctx, etape, composant, args, env = {}) {
   entete(ctx, etape, composant);
+  const dossier = mkdtempSync(path.join(ctx.tmp, 'resultats-'));
   const prefixe = Object.entries(env).map(([k, v]) => `${k}=${v} `);
   appendFileSync(ctx.journal, `$ ${prefixe.join('')}npm ${args.join(' ')}\n`);
-  const r = avecLaMachine(
-    envMachine =>
-      spawnSync('npm', args, {
-        cwd: ctx.copie,
-        encoding: 'utf8',
-        env: { ...envMachine, ...env },
-        maxBuffer: 256 * 1024 * 1024,
-      }),
-    { dire: l => appendFileSync(ctx.journal, `${l}\n`) }
-  );
-  const sortie = `${r.stdout ?? ''}${r.stderr ?? ''}`;
-  appendFileSync(ctx.journal, sortie);
-  return { code: r.status ?? 1, sortie };
-}
-
-// A line « vert attendu » of the agents' comments, its label in bold or in code or neither: what
-// follows its colon, or null.
-const LIGNE_VERT_ATTENDU = /^\s*(?:[-*]\s*)?[`*]*vert attendu[`*]*\s*:\s*(.*)$/i;
-
-// The justification of the green test <noms> (its title and its full name) in the comments of
-// the agents: the reason of its line `vert attendu : <nom> — <raison>`, or null.
-function justification(lignes, noms) {
-  for (const l of lignes) {
-    const m = LIGNE_VERT_ATTENDU.exec(l);
-    if (!m) continue;
-    for (const nom of noms) {
-      if (nom && m[1].startsWith(`${nom} —`)) return m[1].slice(nom.length).replace(/^\s*—\s*/, '');
-    }
+  const fd = openSync(ctx.journal, 'a');
+  try {
+    const r = avecLaMachine(
+      envMachine =>
+        spawnSync('npm', args, {
+          cwd: ctx.copie,
+          stdio: ['ignore', fd, fd],
+          env: { ...envMachine, ...env, [RESULTATS]: dossier },
+        }),
+      { dire: l => appendFileSync(ctx.journal, `${l}\n`) }
+    );
+    return { code: r.status ?? 1, dossier };
+  } finally {
+    closeSync(fd);
   }
-  return null;
-}
-
-// The line of the agents' comments that covers the test file <fichier> (its path from the root of
-// the copy, as the proof names it), `vert attendu : <fichier> — <raison>`, the path in bold or in
-// code or neither: `{ raison }`, or null.
-function justificationDuFichier(lignes, fichier) {
-  for (const l of lignes) {
-    const m = LIGNE_VERT_ATTENDU.exec(l);
-    const f = m && /^[`*]*([^`*\s]+?)[`*]*\s+—\s*(.*?)\s*$/.exec(m[1]);
-    if (f && f[1] === fichier) return { raison: f[2] };
-  }
-  return null;
 }
 
 // HEAD's version of each file of <fichiers> that HEAD holds, written beside it in the copy under
@@ -1383,11 +1440,24 @@ function versionsDAvant(ctx, fichiers) {
   return out;
 }
 
+// The log of the task <t> of a summary of Turborepo, its file from the root of the copy: its path,
+// and its first lines, the task's own output.
+function journalDeTache(ctx, t) {
+  if (!t.journal) return { chemin: null, debut: '' };
+  const chemin = path.join(ctx.copie, t.journal);
+  return { chemin, debut: sansCouleurs(lire(chemin)).trim().split('\n').slice(0, 80).join('\n') };
+}
+
 // The proof of the red on <composant>: `{ ok, rouges, texte, resume }`, `texte` without the list
-// of the justified greens, which only the whole report, written to its file, holds.
+// of the justified greens, which only the whole report, written to its file, holds. A green test
+// passes by the expected greens of the sheets of the testeur of <composant> (`verts_attendus`).
 function preuve(ctx, composant) {
   const fichiers = testsDuComposant(ctx, composant);
-  const lignes = passations(ctx).flatMap(c => c.text.split('\n'));
+  const verts = fichesDe(ctx, 'testeur', composant).flatMap(f => f.verts_attendus ?? []);
+  const raisonDuTest = (f, a) =>
+    verts.find(v => v.fichier === f && v.test && (v.test === a.nom || v.test === a.titre))
+      ?.raison ?? null;
+  const duFichier = f => verts.find(v => v.fichier === f && !v.test) ?? null;
   const rouges = [];
   const justifies = [];
   const injustifies = [];
@@ -1406,7 +1476,6 @@ function preuve(ctx, composant) {
   const reportes = [];
   for (const [dossier, groupe] of groupes) {
     const entier = entiers.includes(dossier);
-    const rapport = path.join(ctx.tmp, `preuve-${++ctx.numero}.json`);
     const avant = versionsDAvant(ctx, groupe);
     let r;
     try {
@@ -1416,21 +1485,13 @@ function preuve(ctx, composant) {
         ...(entier ? [dossier] : []),
         ...groupe,
         ...avant.values(),
-        '--reporter=default',
-        '--reporter=json',
-        `--outputFile=${rapport}`,
       ]);
     } finally {
       for (const soeur of avant.values()) rmSync(path.join(ctx.copie, soeur), { force: true });
     }
-    let resultats = [];
-    try {
-      resultats = JSON.parse(readFileSync(rapport, 'utf8')).testResults ?? [];
-    } catch {
-      // No report: no file of the group played.
-    }
+    const resultats = lireRapportsVitest(r.dossier);
     // The builds of the component's packages that failed: each one a red, not compiling is failing.
-    const constructions = constructionsEchouees(ctx, liste, r.sortie, index);
+    const constructions = constructionsEchouees(ctx, liste, r.dossier, index);
     for (const { nom, erreur } of constructions) {
       if (reportes.includes(nom)) continue;
       rouges.push(`construction de ${nom} — ${erreur}`);
@@ -1440,65 +1501,59 @@ function preuve(ctx, composant) {
     if (entier) {
       const duLot = new Set(groupe.map(f => path.join(ctx.copie, f)));
       for (const res of resultats) {
-        if (duLot.has(res.name) || /\.circuit-avant\.(test|spec)\./.test(res.name)) continue;
-        const f = path.relative(ctx.copie, res.name);
-        const assertions = res.assertionResults ?? [];
-        if (assertions.length === 0 && res.status === 'failed' && !constructions.length) {
+        if (duLot.has(res.fichier) || res.fichier.includes('.circuit-avant.')) continue;
+        const f = path.relative(ctx.copie, res.fichier);
+        if (res.tests.length === 0 && res.etat === 'failed' && !constructions.length) {
           rouges.push(
-            `rouge existant : ${f} — ne se charge pas : ${premiereLigne(res.message || res.status)}`
+            `rouge existant : ${f} — ne se charge pas : ${premiereLigne(res.message || res.etat)}`
           );
         }
-        for (const a of assertions.filter(x => x.status === 'failed')) {
-          rouges.push(
-            `rouge existant : ${f} › ${a.fullName || a.title} — ${premiereLigne(a.failureMessages?.[0])}`
-          );
+        for (const a of res.tests.filter(x => x.etat === 'failed')) {
+          rouges.push(`rouge existant : ${f} › ${a.nom} — ${premiereLigne(a.message)}`);
         }
       }
     }
     for (const f of groupe) {
-      const res = resultats.find(t => t.name === path.join(ctx.copie, f));
-      const assertions = res?.assertionResults ?? [];
+      const res = resultats.find(t => t.fichier === path.join(ctx.copie, f));
+      const tests = res?.tests ?? [];
       // The green tests of HEAD's version of the file, by their full name.
       const deHead = new Set(
         (
-          resultats.find(t => avant.has(f) && t.name === path.join(ctx.copie, avant.get(f)))
-            ?.assertionResults ?? []
+          resultats.find(t => avant.has(f) && t.fichier === path.join(ctx.copie, avant.get(f)))
+            ?.tests ?? []
         )
-          .filter(a => a.status === 'passed')
-          .map(a => a.fullName || a.title)
+          .filter(a => a.etat === 'passed')
+          .map(a => a.nom)
       );
-      if (constructions.length && (!res || assertions.length === 0)) {
+      if (constructions.length && (!res || tests.length === 0)) {
         // It cannot load before the build: it plays at the checks.
       } else if (!res) {
         casses.push(
-          `${f} — ne se charge pas : non joué (code ${r.code}) ; ${premiereLigne(fin(r.sortie, 5))}`
+          `${f} — ne se charge pas : non joué (code ${r.code}) ; le journal du ticket : ${ctx.journal}`
         );
-      } else if (assertions.length === 0) {
-        casses.push(`${f} — ne se charge pas : ${premiereLigne(res.message || res.status)}`);
+      } else if (tests.length === 0) {
+        casses.push(`${f} — ne se charge pas : ${premiereLigne(res.message || res.etat)}`);
       }
-      // The line that covers the whole file justifies its greens only for a file HEAD holds.
-      const duFichier = justificationDuFichier(lignes, f);
-      if (duFichier && !avant.has(f)) {
+      // The expected green of the whole file justifies its greens only for a file HEAD holds.
+      const duF = duFichier(f);
+      if (duF && !avant.has(f)) {
         neufs.push(
-          `${f} — fichier neuf, que HEAD ne tient pas : sa ligne « vert attendu : ${f} » ne justifie aucun de ses verts`
+          `${f} — fichier neuf, que HEAD ne tient pas : son vert attendu sans test ne justifie aucun de ses verts`
         );
       }
-      for (const a of assertions) {
-        const nom = a.fullName || a.title;
-        if (a.status === 'failed') {
-          rouges.push(`${f} › ${nom} — ${premiereLigne(a.failureMessages?.[0])}`);
-        } else if (a.status === 'passed' && deHead.has(nom)) {
+      for (const a of tests) {
+        if (a.etat === 'failed') {
+          rouges.push(`${f} › ${a.nom} — ${premiereLigne(a.message)}`);
+        } else if (a.etat === 'passed' && deHead.has(a.nom)) {
           anciens++;
-        } else if (a.status === 'passed') {
-          const raison = justification(lignes, [a.title, a.fullName]);
+        } else if (a.etat === 'passed') {
+          const raison = raisonDuTest(f, a);
           if (raison) {
-            justifies.push(`${f} › ${nom} — ${raison}`);
-          } else if (duFichier && avant.has(f)) {
-            justifies.push(
-              `${f} › ${nom} — ${duFichier.raison} (par la ligne du fichier « vert attendu : ${f} »)`
-            );
+            justifies.push(`${f} › ${a.nom} — ${raison}`);
+          } else if (duF && avant.has(f)) {
+            justifies.push(`${f} › ${a.nom} — ${duF.raison} (par le vert attendu du fichier)`);
           } else {
-            injustifies.push(`${f} › ${nom}`);
+            injustifies.push(`${f} › ${a.nom}`);
           }
         }
       }
@@ -1511,7 +1566,7 @@ function preuve(ctx, composant) {
     casses.length === 0 &&
     injustifies.length === 0 &&
     rouges.length + justifies.length + anciens > 0;
-  const resume = `${rouges.length} rouge(s), ${justifies.length} vert(s) justifié(s), ${injustifies.length} vert(s) sans « vert attendu », ${casses.length} fichier(s) qui ne se charge(nt) pas, ${anciens} test(s) vert(s) que HEAD tient déjà, laissé(s) de côté`;
+  const resume = `${rouges.length} rouge(s), ${justifies.length} vert(s) justifié(s), ${injustifies.length} vert(s) sans vert attendu, ${casses.length} fichier(s) qui ne se charge(nt) pas, ${anciens} test(s) vert(s) que HEAD tient déjà, laissé(s) de côté`;
   const ecrit = (...sections) =>
     [
       `${etapeNumero(4).titre} sur ${composant} : ${resume}.`,
@@ -1525,11 +1580,11 @@ function preuve(ctx, composant) {
       ...section('Rouges', rouges),
       ...sections,
       ...section(
-        "Verts sans « vert attendu » (un test vert avant le code passe seulement avec la ligne `vert attendu : <nom du test> — <raison>` dans la passation, ou, pour tous les verts d'un fichier de tests que HEAD tient, `vert attendu : <fichier> — <raison>`)",
+        'Verts sans vert attendu (un test vert avant le code passe seulement quand ta fiche le nomme dans `verts_attendus` : `fichier` depuis la racine, `test` son nom complet tel que ce rapport l’écrit après « › », et `raison` ; tous les verts d’un fichier de tests que HEAD tient passent par `fichier` et `raison` seuls)',
         injustifies
       ),
       ...section(
-        'Lignes de fichier qui ne justifient rien (la ligne `vert attendu : <fichier> — <raison>` vaut seulement pour un fichier de tests que HEAD tient)',
+        'Verts attendus sans test qui ne justifient rien (ils valent seulement pour un fichier de tests que HEAD tient)',
         neufs
       ),
       ...section('Fichiers qui ne prouvent rien', casses),
@@ -1547,36 +1602,102 @@ function preuve(ctx, composant) {
   return { ok, rouges: rouges.length, texte, resume };
 }
 
-// The builds that failed in <sortie> (Turborepo's line « Failed: », task `<package>#build`) of a
-// package of the component at <index>: `{ nom, erreur }`, `erreur` the first line of the build's
-// output (`<package>:build:`) that holds `error`, else the end of the output.
-function constructionsEchouees(ctx, liste, sortie, index) {
-  const texte = sansCouleurs(sortie);
-  const noms = new Set();
-  for (const m of texte.matchAll(/^\s*Failed:\s+(.+)$/gm)) {
-    for (const tache of m[1].split(/[,\s]+/).filter(Boolean)) {
-      const [nom, script] = tache.split('#');
-      const p = liste.find(x => x.pkg.name === nom);
-      if (script === 'build' && p && proprietaire(ctx, p.dossier) === index) noms.add(nom);
-    }
-  }
-  return [...noms].map(nom => {
-    const prefixe = `${nom}:build:`;
-    const ligne = texte
-      .split('\n')
-      .map(l => l.trim())
-      .find(l => l.startsWith(prefixe) && l.includes('error'));
-    return {
-      nom,
-      erreur: ligne ? premiereLigne(ligne.slice(prefixe.length)) : premiereLigne(fin(sortie, 5)),
-    };
-  });
+// The builds that failed in the run whose results are under <dossier> (the summary of Turborepo,
+// task `<package>#build`) of a package of the component at <index>: `{ nom, erreur }`, `erreur`
+// its log file and the beginning of its own output.
+function constructionsEchouees(ctx, liste, dossier, index) {
+  return lireResumes(dossier)
+    .filter(t => t.script === 'build' && t.code !== null && t.code !== 0)
+    .flatMap(t => {
+      const p = liste.find(x => x.pkg.name === t.paquet);
+      if (!p || proprietaire(ctx, p.dossier) !== index) return [];
+      const j = journalDeTache(ctx, t);
+      return [{ nom: t.paquet, erreur: `son journal : ${j.chemin}\n\n${j.debut}\n` }];
+    });
 }
 
+// The component of the run that owns <chemin> (from the root of the copy): `{ proprietaire,
+// horsTitre }`, the index of that component or -1, and the name of the package of <liste> that
+// holds the path when no component of the title does.
+function situer(ctx, liste, chemin) {
+  const i = chemin ? proprietaire(ctx, chemin) : -1;
+  const p = i < 0 && chemin ? liste.find(x => chemin.startsWith(`${x.dossier}/`)) : null;
+  return { proprietaire: i, horsTitre: p ? p.pkg.name : null };
+}
+
+// The reds of the check <c> (`{ args, env, code, dossier }`), read in its results: each failed
+// test of the reports of Vitest, each finding of the guards' SARIF, each failed build, and each
+// failed task none of those situates; a red check with none of them is one red of the command.
+// Each red `{ texte, detail, proprietaire, horsTitre, arbitrer }`: the line that names it (test
+// or finding, file, message), the beginning of its task's log for a build, the index of the
+// component that owns it (-1 for none: the root, or a red without a file), the package out of the
+// title that holds it, and whether it is a finding to settle (`a-arbitrer`).
+function rougesDe(ctx, liste, c) {
+  if (c.code === 0 || c.code === A_REPASSER) return [];
+  const out = [];
+  const testes = new Set();
+  for (const res of lireRapportsVitest(c.dossier)) {
+    const f = path.relative(ctx.copie, res.fichier);
+    const lieu = situer(ctx, liste, f);
+    if (res.tests.length === 0 && res.etat === 'failed') {
+      out.push({ texte: `test ${f} — ne se charge pas : ${premiereLigne(res.message)}`, ...lieu });
+      testes.add(paquetDe(liste, f));
+    }
+    for (const a of res.tests.filter(x => x.etat === 'failed')) {
+      out.push({ texte: `test ${f} › ${a.nom} — ${premiereLigne(a.message)}`, ...lieu });
+      testes.add(paquetDe(liste, f));
+    }
+  }
+  const { constats } = lireSarif(c.dossier);
+  for (const k of constats) {
+    const ou = k.fichier ? ` ${k.fichier}${k.ligne ? `:${k.ligne}` : ''}` : '';
+    out.push({
+      texte: `constat ${k.garde}${ou} — ${k.message}${k.genre === 'a-arbitrer' ? ' (à arbitrer)' : ''}`,
+      ...situer(ctx, liste, k.fichier),
+      arbitrer: k.genre === 'a-arbitrer',
+    });
+  }
+  // The guards of the project wrote findings when one comes from a guard out of the frame's.
+  const duProjet = constats.some(k => !NOMS_DES_GARDES.includes(k.garde));
+  for (const t of lireResumes(c.dossier)) {
+    if (t.code === null || t.code === 0 || t.code === A_REPASSER) continue;
+    if (t.script === 'test:vitest' && testes.has(t.dossier)) continue;
+    if (t.script === 'grillhouse:gardes' && constats.length) continue;
+    if (t.script === 'gardes' && duProjet) continue;
+    const p = liste.find(x => x.pkg.name === t.paquet);
+    const lieu = p ? situer(ctx, liste, `${p.dossier}/`) : { proprietaire: -1, horsTitre: null };
+    if (p && lieu.proprietaire < 0) lieu.horsTitre = p.pkg.name;
+    const j = journalDeTache(ctx, t);
+    out.push({
+      texte:
+        t.script === 'build'
+          ? `construction de ${t.paquet} — son journal : ${j.chemin}`
+          : `tâche ${t.tache} rouge (code ${t.code}) — son journal : ${j.chemin}`,
+      detail: t.script === 'build' ? j.debut : '',
+      ...lieu,
+    });
+  }
+  if (out.length === 0) {
+    out.push({
+      texte: `${ligneDeCommande(c)} rouge (code ${c.code}), sans résultat qui situe son rouge — le journal du ticket : ${ctx.journal}`,
+      proprietaire: -1,
+      horsTitre: null,
+    });
+  }
+  return out;
+}
+
+const ligneDeCommande = c =>
+  `${Object.entries(c.env ?? {})
+    .map(([k, v]) => `${k}=${v} `)
+    .join('')}npm ${c.args.join(' ')}`;
+
 // The checks after the developpeur of the component at <index>: what is done, or, when <finale>,
-// `npm run verifier`, what the integration plays. `{ rouge, aRepasser, texte, resume,
-// proprietaire, horsTitre }`, `proprietaire` the index of the component that owns the red, -1 for
-// none; `horsTitre` the packages out of the title whose task is red.
+// `npm run verifier`, what the integration plays. `{ rouge, aRepasser, arbitrer, texte, complet,
+// resume, proprietaire, horsTitre }`: `texte` the report for the developpeur the red goes to, its
+// own reds first; `complet` every red, for a stop; `proprietaire` the index of the component that
+// owns the red, -1 for none; `horsTitre` the packages out of the title that hold a red; `arbitrer`
+// when every red of that developpeur is a finding to settle.
 function controles(ctx, index, finale) {
   const composant = ctx.composants[index];
   const liste = paquets(ctx.copie).filter(p => !p.hors);
@@ -1587,30 +1708,31 @@ function controles(ctx, index, finale) {
     let r = npm(ctx, 'controles', composant, args, env);
     // verifier plays a task at 75 again itself, at rest: its 75 is final.
     if (r.code === A_REPASSER && !finale) r = npm(ctx, 'controles', composant, args, env);
-    return { args, env, ...r, ...proprietaires(ctx, liste, r.sortie) };
+    const c = { args, env, ...r };
+    return { ...c, rouges: rougesDe(ctx, liste, c) };
   });
-  const echecs = resultats.filter(r => r.code !== 0 && r.code !== A_REPASSER);
-  // Out of the final pass, a red that names only components after <index> waits for it.
-  const attend = r =>
-    !finale && r.proprietaires.length > 0 && r.proprietaires.every(i => i > index);
-  const rouges = echecs.filter(r => !attend(r));
-  const reportes = echecs.filter(attend);
+  const tous = resultats.flatMap(r => r.rouges);
+  // Out of the final pass, the reds of the components up to <index> are this one's; the others (a
+  // component after it, the root, a red no file situates, a package out of the title) wait for it.
+  const siens = r => finale || (r.proprietaire >= 0 && r.proprietaire <= index);
+  const rouges = tous.filter(siens);
+  const laisses = tous.filter(r => !siens(r));
   const aRepasser = resultats.filter(r => r.code === A_REPASSER);
-  const ligne = r =>
-    `${Object.entries(r.env ?? {})
-      .map(([k, v]) => `${k}=${v} `)
-      .join('')}npm ${r.args.join(' ')}`;
-  const nommer = r => `${ligne(r)} (code ${r.code})`;
+  const nommer = r => `${ligneDeCommande(r)} (code ${r.code})`;
+  const enEchec = resultats.filter(r => r.code !== 0 && r.code !== A_REPASSER);
+  // The owner of the red: in the final pass the first component, provider first, that owns one;
+  // out of it, this one.
+  const nommes = rouges.map(r => r.proprietaire).filter(i => i >= 0);
+  const proprio = !rouges.length ? -1 : finale ? (nommes.length ? Math.min(...nommes) : -1) : index;
+  const a = finale ? rouges.filter(r => r.proprietaire === proprio && proprio >= 0) : rouges;
+  const autres = rouges.filter(r => !a.includes(r));
   const resume = rouges.length
-    ? `rouge : ${rouges.map(nommer).join(' ; ')}`
+    ? `rouge : ${rouges.length} rouge(s) — ${enEchec.map(nommer).join(' ; ')}`
     : aRepasser.length
       ? `à repasser : ${aRepasser.map(nommer).join(' ; ')}`
-      : `verts : ${resultats
-          .filter(r => !reportes.includes(r))
-          .map(ligne)
-          .join(' ; ')}${
-          reportes.length
-            ? ` ; laissés à la passe finale, rouges dans un composant d'après : ${reportes.map(nommer).join(' ; ')}`
+      : `verts : ${resultats.map(ligneDeCommande).join(' ; ')}${
+          laisses.length
+            ? ` ; laissés à la passe finale, ${laisses.length} rouge(s) hors de ${composant} et des composants d'avant`
             : ''
         }`;
   // Where the checks played: the final pass out of the envelope, on the whole copy; a
@@ -1618,20 +1740,46 @@ function controles(ctx, index, finale) {
   const ou = finale
     ? `Contrôles de la passe finale, hors enveloppe, sur la copie entière (après ${composant})`
     : `Contrôles du composant ${composant}, ses tests et ses paquets, ses gardes dans son enveloppe`;
+  const ligne = r => [`- ${r.texte}`, ...(r.detail ? ['', r.detail, ''] : [])];
+  const nomDuProprio = r =>
+    r.proprietaire >= 0 ? ctx.composants[r.proprietaire] : (r.horsTitre ?? 'hors des composants');
+  const journal = `Le journal du ticket, pour le détail des commandes : ${ctx.journal}`;
   const texte = [
     `${ou} : ${resume}.`,
-    ...[...rouges, ...aRepasser].map(r => `\n$ ${ligne(r)}\n${extrait(r)}`),
+    '',
+    ...(a.length ? [`Tes rouges (${a.length}) :`, ...a.flatMap(ligne), ''] : []),
+    ...(aRepasser.length && !rouges.length
+      ? [`À repasser (${aRepasser.length}) : ${aRepasser.map(nommer).join(' ; ')}`, '']
+      : []),
+    ...(autres.length
+      ? [`Les autres rouges (${autres.length}) vont aux agents de leurs composants.`, '']
+      : []),
+    ...(laisses.length && !finale
+      ? [`Laissés à la passe finale (${laisses.length}) :`, ...laisses.map(r => `- ${r.texte}`), '']
+      : []),
+    journal,
   ].join('\n');
-  // The owner of the red: the first component, provider first, that a red names; -1 for none.
-  const nommes = rouges.flatMap(r => r.proprietaires);
-  const proprio = rouges.length && nommes.length ? Math.min(...nommes) : -1;
+  const complet = [
+    `${ou} : ${resume}.`,
+    '',
+    ...(rouges.length
+      ? [
+          `Les rouges (${rouges.length}) :`,
+          ...rouges.flatMap(r => ligne({ ...r, texte: `${nomDuProprio(r)} : ${r.texte}` })),
+          '',
+        ]
+      : []),
+    journal,
+  ].join('\n');
   return {
     rouge: rouges.length > 0,
     aRepasser: aRepasser.length > 0,
+    arbitrer: a.length > 0 && a.every(r => r.arbitrer),
     texte,
+    complet,
     resume,
     proprietaire: proprio,
-    horsTitre: [...new Set(rouges.flatMap(r => r.horsTitre))].sort(),
+    horsTitre: [...new Set(rouges.map(r => r.horsTitre).filter(Boolean))].sort(),
   };
 }
 
@@ -1660,26 +1808,6 @@ function commandesDuComposant(ctx, index, liste) {
       .filter(s => s in scripts)
       .map(s => ({ args: ['run', s], env: enveloppe })),
   ];
-}
-
-// The lines of <texte> that Turborepo writes for the tasks <taches> (`<package>#<task>`): each
-// begins with `<package>:<task>: `, a task of the root (`//#<task>`) with `<task>: ` or
-// `//:<task>: `.
-function lignesDesTaches(texte, taches) {
-  const prefixes = taches.flatMap(t => {
-    const [nom, script] = t.split('#');
-    return nom === '//' ? [`${script}: `, `//:${script}: `] : [`${nom}:${script}: `];
-  });
-  return texte.split('\n').filter(l => prefixes.some(p => l.trimStart().startsWith(p)));
-}
-
-// The output of the red check <r> for its report: the lines of its failed tasks, the last 60,
-// then the end of the output; else the last 60 lines of the output.
-function extrait(r) {
-  const lignes = lignesDesTaches(sansCouleurs(r.sortie), r.taches);
-  return lignes.length
-    ? [...lignes.slice(-60), '…', fin(r.sortie, 12)].join('\n')
-    : fin(r.sortie, 60);
 }
 
 // The directories of the packages of <liste> that play tests (a script `test:vitest`) and whose
@@ -1777,47 +1905,6 @@ function matiereFaite(ctx, liste, fichier, index) {
   });
 }
 
-// What a red output names. `proprietaires`: the components that own it, as indexes, sorted: the
-// packages of its failed tasks (Turborepo's line « Failed: »), else, when no failed task is a
-// package's (none named, or a task of the root such as the guards), the components that hold a
-// path its lines name, the lines of a notice (⚠️, ℹ️) aside. `horsTitre`: the packages of its
-// failed tasks that no component of the title holds. `taches`: its failed tasks.
-function proprietaires(ctx, liste, sortie) {
-  const texte = sansCouleurs(sortie);
-  const out = new Set();
-  const horsTitre = new Set();
-  const taches = new Set();
-  let deRacine = false;
-  for (const m of texte.matchAll(/^\s*Failed:\s+(.+)$/gm)) {
-    for (const tache of m[1].split(/[,\s]+/).filter(Boolean)) {
-      taches.add(tache);
-      const p = liste.find(x => x.pkg.name === tache.split('#')[0]);
-      const i = p ? proprietaire(ctx, p.dossier) : -1;
-      if (i >= 0) out.add(i);
-      else if (p) horsTitre.add(p.pkg.name);
-      else deRacine = true;
-    }
-  }
-  if (out.size === 0 && (deRacine || taches.size === 0)) {
-    // The lines of the failed tasks when Turborepo names them: those of the green ones aside.
-    const lignes = taches.size ? lignesDesTaches(texte, [...taches]) : texte.split('\n');
-    for (const l of lignes) {
-      if (l.includes('⚠️') || l.includes('ℹ️')) continue;
-      for (const [chemin] of l.matchAll(/\/?[\w@.-]+(?:\/[\w@.-]+)+/g)) {
-        const rel = path.isAbsolute(chemin) ? path.relative(ctx.copie, chemin) : chemin;
-        if (rel.startsWith('..') || path.isAbsolute(rel)) continue;
-        const i = proprietaire(ctx, rel);
-        if (i >= 0) out.add(i);
-      }
-    }
-  }
-  return {
-    proprietaires: [...out].sort((a, b) => a - b),
-    horsTitre: [...horsTitre].sort(),
-    taches: [...taches],
-  };
-}
-
 const lireJson = f => {
   try {
     return JSON.parse(readFileSync(f, 'utf8'));
@@ -1845,8 +1932,8 @@ function atteindre(ctx, index) {
 
 // The RENDU verdicts since the ticket's last ACCEPTÉ: a lot the queue sent back starts a new count.
 function rendusDepuisAccepte(ctx) {
-  const verdicts = passations(ctx).filter(c => verdictDe(c));
-  return verdicts.length - (verdicts.findLastIndex(c => verdictDe(c) === 'ACCEPTÉ') + 1);
+  const verdicts = fichesDe(ctx, 'relecteur').map(f => f.verdict);
+  return verdicts.length - (verdicts.lastIndexOf('ACCEPTÉ') + 1);
 }
 
 // The count of the bounded loop of the step <etape> under way, by its number
@@ -1900,17 +1987,15 @@ async function derouler(ctx, debut) {
         etape = CODE;
         tentative = 1;
       } else if (etape === TESTS) {
-        const neufs = await seance(ctx, 'testeur', composant, {
+        const fiche = await seance(ctx, 'testeur', composant, {
           tentative,
           rapport,
           derniere: tentative > RELANCES_TESTEUR,
         });
         // A testeur who declares himself blocked or in need of an answer goes to the regulator.
-        const statut = statutDe(neufs);
-        if (statut && statut.forme !== 'FAIT') {
-          throw arretDuStatut('testeur', composant, tentative, statut);
-        }
-        commenter(ctx, composant, 'testeur', `séance ${tentative} finie, passation au ticket.`);
+        if (fiche.statut !== 'FAIT')
+          throw arretDuStatut(ctx, 'testeur', composant, tentative, fiche);
+        commenter(ctx, composant, 'testeur', `séance ${tentative} finie, sa fiche lue.`);
         etape = PREUVE;
       } else if (etape === PREUVE) {
         const p = preuve(ctx, composant);
@@ -1919,7 +2004,7 @@ async function derouler(ctx, debut) {
           const suite = p.rouges
             ? 'au développeur'
             : 'aucun rouge : un lot de tests seul, aux contrôles';
-          commenter(ctx, composant, 'preuve', `${p.resume} ; ${suite}.\n\n${p.texte}`);
+          ecrireRapport(ctx, composant, 'preuve', `${p.resume} ; ${suite}.\n\n${p.texte}`);
           etape = p.rouges ? 'developpeur' : 'controles';
           tentative = p.rouges ? 1 : 0;
           // The reviewer's findings for this developpeur follow the proof.
@@ -1927,7 +2012,7 @@ async function derouler(ctx, debut) {
           if (p.rouges && pourLui)
             rapport = `${rapport}\n\nLES CONSTATS DU RELECTEUR :\n\n${pourLui}`;
         } else if (tentative <= RELANCES_TESTEUR) {
-          commenter(
+          ecrireRapport(
             ctx,
             composant,
             'preuve',
@@ -1941,19 +2026,18 @@ async function derouler(ctx, debut) {
       } else if (etape === CODE) {
         const fort = tentative >= SEANCES_DEVELOPPEUR;
         const avant = empreinte(ctx, composant);
-        const neufs = await seance(ctx, 'developpeur', composant, {
+        const fiche = await seance(ctx, 'developpeur', composant, {
           tentative,
           rapport,
           fort,
           derniere: fort,
         });
-        // A question goes to the regulator; a red out of reach, to the testeur its line names, else to
-        // the regulator.
-        const statut = statutDe(neufs);
-        if (statut?.forme === 'BESOIN') {
-          throw arretDuStatut('developpeur', composant, tentative, statut);
+        // A question goes to the regulator; a red out of reach, to the testeur its sheet sends it
+        // to, else to the regulator.
+        if (fiche.statut === 'BESOIN') {
+          throw arretDuStatut(ctx, 'developpeur', composant, tentative, fiche);
         }
-        const renvoi = renvoiAuTesteur(ctx, neufs, index);
+        const renvoi = renvoiAuTesteur(ctx, fiche, index);
         if (renvoi) {
           // The red that remains lies in the tests of that component: its testeur, as a regulator's
           // `RELANCE --depuis testeur <composant>`, the handover as its context.
@@ -1961,7 +2045,7 @@ async function derouler(ctx, debut) {
           if (ctx.renvoiAuTesteur === cible) {
             throw new Arret(
               'sans-livraison',
-              `La passation de la séance ${tentative} du développeur de ${composant} renvoie une deuxième fois de suite à \`testeur ${cible}\`, sans contrôles verts depuis le premier renvoi : le testeur n'a pas levé ce rouge. Sa passation :\n\n${renvoi.texte}`
+              `La fiche de la séance ${tentative} du développeur de ${composant} renvoie une deuxième fois de suite à \`testeur ${cible}\`, sans contrôles verts depuis le premier renvoi : le testeur n'a pas levé ce rouge.\n\n${renvoi.texte}`
             );
           }
           ctx.renvoiAuTesteur = cible;
@@ -1969,7 +2053,7 @@ async function derouler(ctx, debut) {
             ctx,
             composant,
             'developpeur',
-            `séance ${tentative}${fort ? ' (opus, effort high)' : ''} finie ; sa passation renvoie le rouge à \`testeur ${cible}\` : le circuit rejoue ${cible} depuis son testeur, puis les composants d'après.`
+            `séance ${tentative}${fort ? ' (opus, effort high)' : ''} finie ; sa fiche renvoie le rouge à \`testeur ${cible}\` : le circuit rejoue ${cible} depuis son testeur, puis les composants d'après.`
           );
           ctx.reprendre = false;
           ctx.depuis = { etape: TESTS, composant: cible };
@@ -1977,8 +2061,8 @@ async function derouler(ctx, debut) {
           ({ index, etape, tentative, rapport, dernier, finale } = depart(ctx, null));
           continue;
         }
-        if (statut?.forme === 'BLOQUÉ') {
-          throw arretDuStatut('developpeur', composant, tentative, statut);
+        if (fiche.statut === 'BLOQUÉ') {
+          throw arretDuStatut(ctx, 'developpeur', composant, tentative, fiche);
         }
         if (empreinte(ctx, composant) === avant && reprend && livre(ctx, composant)) {
           // A resumed developpeur that finds its lot delivered: the checks judge it.
@@ -1998,7 +2082,7 @@ async function derouler(ctx, debut) {
           ctx,
           composant,
           'developpeur',
-          `séance ${tentative}${fort ? ' (opus, effort high)' : ''} finie, passation au ticket.`
+          `séance ${tentative}${fort ? ' (opus, effort high)' : ''} finie, sa fiche lue.`
         );
         etape = CONTROLES;
       } else if (etape === CONTROLES) {
@@ -2013,31 +2097,37 @@ async function derouler(ctx, debut) {
         if (k.rouge && passeFinale && k.horsTitre.length) {
           throw new Arret(
             'controles',
-            `La passe finale est rouge dans ${k.horsTitre.join(', ')}, hors des composants du ticket (${ctx.composants.join(', ')}) : aucun de leurs développeurs n'est relancé. La décision revient au régulateur : faire ajouter ce composant au titre du ticket par le superviseur (\`MONTE\`), le rouge allant ensuite à son développeur ; ou faire corriger le lot par le composant qui le cause (\`RELANCE --depuis developpeur <composant>\`, le rouge en \`CONTEXTE\`).\n\n${k.texte}`
+            `La passe finale est rouge dans ${k.horsTitre.join(', ')}, hors des composants du ticket (${ctx.composants.join(', ')}) : aucun de leurs développeurs n'est relancé. La décision revient au régulateur : faire ajouter ce composant au titre du ticket par le superviseur (\`MONTE\`), le rouge allant ensuite à son développeur ; ou faire corriger le lot par le composant qui le cause (\`RELANCE --depuis developpeur <composant>\`, le rouge en \`contexte\`).\n\n${k.complet}`
           );
         } else if (k.rouge && vers < 0) {
           throw new Arret(
             'controles',
-            `Aucun composant du ticket (${ctx.composants.join(', ')}) ne possède ce rouge de la passe finale : la décision revient au régulateur.\n\n${k.texte}`
+            `Aucun composant du ticket (${ctx.composants.join(', ')}) ne possède ce rouge de la passe finale (un rouge de la racine, ou que rien ne situe) : la décision revient au régulateur.\n\n${k.complet}`
+          );
+        } else if (k.rouge && k.arbitrer) {
+          throw new Arret(
+            'controles',
+            `Les rouges de ${ctx.composants[vers]} sont des constats à arbitrer : aucun développeur ne les tranche, la décision revient au régulateur.\n\n${k.complet}`
           );
         } else if (k.rouge && suivante <= SEANCES_DEVELOPPEUR) {
           const qui = vers === index ? '' : ` de ${ctx.composants[vers]}`;
-          commenter(
+          ecrireRapport(
             ctx,
             composant,
             'controles',
-            `${k.resume} ; développeur${qui} relancé (séance ${suivante}).`
+            `${k.resume} ; développeur${qui} relancé (séance ${suivante}).`,
+            k.texte
           );
           etape = CODE;
           tentative = suivante;
           index = vers;
           finale = passeFinale;
         } else if (k.rouge) {
-          throw new Arret('controles', k.texte);
+          throw new Arret('controles', k.complet);
         } else if (k.aRepasser) {
-          throw new Arret('a-repasser', k.texte);
+          throw new Arret('a-repasser', k.complet);
         } else {
-          commenter(ctx, composant, 'controles', `${k.resume}.`);
+          ecrireRapport(ctx, composant, 'controles', `${k.resume}.`);
           // Green checks: a sending of the developpeur to a testeur may come again.
           ctx.renvoiAuTesteur = null;
           // Green checks carry this component, or at the final pass every one, to their end.
@@ -2067,7 +2157,7 @@ async function derouler(ctx, debut) {
               `${rendus} relectures ont rendu le lot : le circuit s'arrête à la troisième. La décision revient au régulateur.\n\nLe dernier verdict :\n\n${v.texte}`
             );
           }
-          const renvois = renvoisDuVerdict(ctx, v.texte);
+          const renvois = renvoisDuVerdict(ctx, v.fiche, v.texte);
           ctx.renvois = Object.fromEntries([...renvois].map(([i, r]) => [ctx.composants[i], r]));
           index = Math.min(...renvois.keys());
           ({ etape, tentative, rapport } = entreeDuRenvoi(ctx, index));
@@ -2093,12 +2183,15 @@ async function derouler(ctx, debut) {
             `Le script d'intégration refuse le lot (code ${r.code}) : la décision revient au régulateur.\n\n${fin(r.sortie, 60)}`
           );
         }
-        const commit = /✓ commit (\w+) sur (\S+)/.exec(r.sortie);
+        const branche = `agent/${ctx.ticket}`;
+        const commit = spawnSync('git', ['-C', ctx.racine, 'rev-parse', '--short', branche], {
+          encoding: 'utf8',
+        }).stdout.trim();
         commenter(
           ctx,
           composant,
           'integration',
-          `${commit ? `commit ${commit[1]} sur ${commit[2]}` : 'lot commité'} ; la branche est en file.`
+          `${commit ? `commit ${commit} sur ${branche}` : 'lot commité'} ; la branche est en file.`
         );
         etape = EN_FILE;
       } else if (etape === EN_FILE) {
@@ -2136,55 +2229,25 @@ async function derouler(ctx, debut) {
   }
 }
 
-// The head of a decision, a line in one of its forms.
-const TETE_DE_DECISION =
-  /^(?:MONTE\s*:.*|RELANCE\s+--reprendre|RELANCE\s+--depuis\s+(?:testeur|developpeur)\s+\S+)$/;
-
-// The decision in the regulator's final answer <texte>, from its last line in one of its
-// forms, the reasoning before it left out: `{ ligne, reprendre: true, contexte }` or
-// `{ ligne, depuis: { etape, composant }, contexte }` for a RELANCE, `contexte` the text after
-// `CONTEXTE :` (the rest of the answer) or null; `{ ligne, question }` for a MONTE. Null for an
-// answer with no such line, a RELANCE followed by anything but its CONTEXTE, or a `--depuis`
-// whose component the title does not name.
-function lireDecision(ctx, texte) {
-  // A line the regulator sets in code or in bold reads as the line itself.
-  const nue = l => l.trim().replace(/^[`*]+|[`*]+$/g, '');
-  const toutes = String(texte ?? '')
-    .trim()
-    .split('\n');
-  const debut = toutes.findLastIndex(l => TETE_DE_DECISION.test(nue(l)));
-  if (debut < 0) return null;
-  const lignes = toutes.slice(debut);
-  const tete = nue(lignes[0]);
-  const monte = /^MONTE\s*:\s*([\s\S]*)$/.exec(tete);
-  if (monte) {
-    const question = [monte[1], ...lignes.slice(1)].join('\n').trim();
-    return question ? { ligne: `MONTE : ${question}`, question } : null;
+// The decision of the regulator's sheet <fiche>: `{ ligne, reprendre: true, contexte }` or
+// `{ ligne, depuis: { etape, composant }, contexte }` for a RELANCE, `contexte` its context or
+// null; `{ ligne, question }` for a MONTE; `ligne` the decision as the circuit writes it at the
+// ticket. Null for a `--depuis` whose component the title does not name.
+function decisionDe(ctx, fiche) {
+  if (fiche.decision === 'MONTE') {
+    return { ligne: `MONTE : ${fiche.question}`, question: fiche.question };
   }
-  const reste = lignes
-    .slice(1)
-    .join('\n')
-    .trim()
-    .replace(/^[`*]+/, '');
-  const c = /^CONTEXTE\s*:[`*]*\s*([\s\S]*)$/.exec(reste);
-  if (reste && !c) return null;
-  const contexte = c?.[1].trim() || null;
+  const contexte = fiche.contexte?.trim() || null;
   const avec = l => (contexte ? `${l}\nCONTEXTE : ${contexte}` : l);
-  if (/^RELANCE\s+--reprendre$/.test(tete)) {
+  if (fiche.decision === 'RELANCE --reprendre') {
     return { ligne: avec('RELANCE --reprendre'), reprendre: true, contexte };
   }
-  const d = /^RELANCE\s+--depuis\s+(testeur|developpeur)\s+(\S+)$/.exec(tete);
-  if (!d) return null;
-  let composant;
-  try {
-    composant = ctx.resoudre(d[2]);
-  } catch {
-    return null;
-  }
-  if (!ctx.composants.includes(composant)) return null;
+  const i = indexDe(ctx, fiche.depuis.composant);
+  if (i < 0) return null;
+  const composant = ctx.composants[i];
   return {
-    ligne: avec(`RELANCE --depuis ${d[1]} ${composant}`),
-    depuis: { etape: d[1], composant },
+    ligne: avec(`RELANCE --depuis ${fiche.depuis.role} ${composant}`),
+    depuis: { etape: fiche.depuis.role, composant },
     contexte,
   };
 }
@@ -2229,36 +2292,36 @@ async function trancher(ctx, a, reponse = null) {
     journal: ctx.journal,
     reponse,
   };
-  const regulateur = (rang, session) =>
-    lancer(ctx, REGULATEUR, composant, consigne(valeurs, rang), {
-      horsEnveloppe: true,
-      droits: droitsDuRegulateur(ctx),
-      session,
-    });
-  let r = await regulateur(
-    reponse === null ? 2 : 3,
-    reponse === null ? ['--session-id', seance] : ['--resume', seance]
-  );
-  let d = !r.bloque && r.seance === 0 ? lireDecision(ctx, r.reponse) : null;
-  // An answer in no form of decision: its session resumed once, asked for its decision.
-  if (!d && !r.bloque && r.seance === 0) {
-    r = await regulateur(4, ['--resume', seance]);
-    d = !r.bloque && r.seance === 0 ? lireDecision(ctx, r.reponse) : null;
+  // Its sheet, read as any session's: one that is absent or out of its schema resumes the session
+  // once, asking for it; twice none, or a session that cannot end, leaves no decision.
+  let d = null;
+  let pourquoi = null;
+  try {
+    const fiche = await jusquALaFiche(
+      ctx,
+      REGULATEUR,
+      composant,
+      consigne(valeurs, reponse === null ? 2 : 3),
+      {
+        horsEnveloppe: true,
+        droits: droitsDuRegulateur(ctx),
+        id: seance,
+        premiere: reponse === null ? 'ouvre' : 'reprend',
+      }
+    );
+    d = decisionDe(ctx, fiche);
+    if (!d) pourquoi = `sa décision nomme un composant hors du titre (${fiche.depuis?.composant})`;
+  } catch (e) {
+    if (!(e instanceof Arret)) throw e;
+    pourquoi = e.rapport;
   }
   if (!d) {
-    const pourquoi = r.bloque
-      ? `sa séance, immobile ${Math.round(ctx.immobileMs / 60_000)} min, est arrêtée`
-      : r.seance === null
-        ? `sa séance ne démarre pas (code ${r.code}) : ${r.erreur.trim()}`
-        : r.seance !== 0
-          ? `sa séance finit en erreur (code ${r.seance})`
-          : 'sa réponse ne suit aucune forme de décision, deux fois';
     ecrireEtat(ctx, {
       ...arret,
-      rapport: `${String(a.rapport ?? '').trim()}\n\nLE RÉGULATEUR ne rend pas de décision : ${pourquoi}. Sa réponse :\n\n${r.reponse || 'aucune'}`,
+      rapport: `${String(a.rapport ?? '').trim()}\n\nLE RÉGULATEUR ne rend pas de décision : ${pourquoi}`,
     });
     process.stderr.write(
-      `⛔ Circuit de ${ctx.ticket} arrêté : ${a.nom}  ; le régulateur ne rend pas de décision (${pourquoi}).\n`
+      `⛔ Circuit de ${ctx.ticket} arrêté : ${a.nom}  ; le régulateur ne rend pas de décision.\n`
     );
     return { code: a.code };
   }

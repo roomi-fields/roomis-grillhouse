@@ -3,9 +3,9 @@ import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
 import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
 
-// The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): the line « vert
-// attendu » that covers a whole test file, `vert attendu : <fichier> — <raison>`, in the proof of
-// the red.
+// The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): the expected green of
+// the testeur's sheet that covers a whole test file (`verts_attendus`, its `fichier` and `raison`
+// without `test`), in the proof of the red.
 // Witness: BPScript (vbwf.320.2.4.5.1, 2026-10-20): the testeur wrote one line per green test,
 // most with the same reason (an existing test file adapted to a changed type), up to 14 KB per
 // handover, and nine sessions of the testeur served only to add these lines.
@@ -49,13 +49,13 @@ const rapportEntier = (id: string) => {
 
 describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
   afterEach(revenirAuDebut);
-  it('justifies with one line, in bold and in code, every green test of a file HEAD holds', () => {
+  it('justifies with one expected green of the file every green test of a file HEAD holds', () => {
     const id = 'demo-fichier-adapte';
     ticket(id, '000-forms');
     scenario(
       id,
       'testeur-1',
-      `${ADAPTE_VERT()}passation 'Fichier adapté au type changé.\n**vert attendu : \`${ADAPTE}\`** — adapté au type changé, la forme est déjà juste'\n`
+      `${ADAPTE_VERT()}passation 'Fichier adapté au type changé.'\nfiche '{"statut":"FAIT","verts_attendus":[{"fichier":"${ADAPTE}","raison":"adapté au type changé, la forme est déjà juste"}]}'\n`
     );
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
@@ -63,12 +63,12 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     // A lot of tests alone: no red, so no developpeur; it goes to the checks.
     expect(sessions(id, 'developpeur')).toBe(0);
     const { preuve, entier } = rapportEntier(id);
-    expect(preuve).toContain('0 rouge(s), 2 vert(s) justifié(s), 0 vert(s) sans « vert attendu »');
+    expect(preuve).toContain('0 rouge(s), 2 vert(s) justifié(s), 0 vert(s) sans vert attendu');
     expect(preuve).toContain('aucun rouge : un lot de tests seul, aux contrôles');
-    // Each justified green names the line of its file.
+    // Each justified green names the expected green of its file.
     for (const nom of ['adapté — mesure rend un nombre', 'adapté — mesure rend un nombre fini']) {
       expect(entier).toContain(
-        `${ADAPTE} › ${nom} — adapté au type changé, la forme est déjà juste (par la ligne du fichier « vert attendu : ${ADAPTE} »)`
+        `${ADAPTE} › ${nom} — adapté au type changé, la forme est déjà juste (par le vert attendu du fichier)`
       );
     }
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
@@ -80,18 +80,18 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     scenario(
       id,
       'testeur',
-      `${ECRIT_ROUGE}${ECRIT_VERT}passation 'Tests écrits.\nvert attendu : packages/forms/test/forme.test.mjs — la forme est déjà juste'\n`
+      `${ECRIT_ROUGE}${ECRIT_VERT}passation 'Tests écrits.'\nfiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/forme.test.mjs","raison":"la forme est déjà juste"}]}'\n`
     );
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(ARRETS.preuve);
     expect(sessions(id, 'developpeur')).toBe(0);
     const relance = essai(id, 'testeur-2.prompt');
-    expect(relance).toContain('0 vert(s) justifié(s), 1 vert(s) sans « vert attendu »');
+    expect(relance).toContain('0 vert(s) justifié(s), 1 vert(s) sans vert attendu');
     expect(relance).toContain(
       '- packages/forms/test/forme.test.mjs › critère 1 — mesure rend un nombre'
     );
     expect(relance).toContain(
-      '- packages/forms/test/forme.test.mjs — fichier neuf, que HEAD ne tient pas : sa ligne « vert attendu : packages/forms/test/forme.test.mjs » ne justifie aucun de ses verts'
+      '- packages/forms/test/forme.test.mjs — fichier neuf, que HEAD ne tient pas : son vert attendu sans test ne justifie aucun de ses verts'
     );
   });
 
@@ -103,7 +103,7 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     scenario(
       id,
       'testeur-1',
-      `${ADAPTE_VERT(rouge)}passation 'Fichier adapté, un test neuf rouge.\nvert attendu : ${ADAPTE} — adapté au type changé'\n`
+      `${ADAPTE_VERT(rouge)}passation 'Fichier adapté, un test neuf rouge.'\nfiche '{"statut":"FAIT","verts_attendus":[{"fichier":"${ADAPTE}","raison":"adapté au type changé"}]}'\n`
     );
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);
@@ -111,18 +111,18 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     expect(sessions(id, 'testeur')).toBe(1);
     expect(sessions(id, 'developpeur')).toBe(1);
     const { preuve, entier } = rapportEntier(id);
-    expect(preuve).toContain('1 rouge(s), 2 vert(s) justifié(s), 0 vert(s) sans « vert attendu »');
+    expect(preuve).toContain('1 rouge(s), 2 vert(s) justifié(s), 0 vert(s) sans vert attendu');
     expect(preuve).toContain(`- ${ADAPTE} › critère 1 — mesure rend le double —`);
     expect(entier).not.toContain(`${ADAPTE} › critère 1 — mesure rend le double — adapté`);
   });
 
-  it('combines the line of a file with the lines of tests', () => {
+  it('combines the expected green of a file with those of tests', () => {
     const id = 'demo-fichier-melange';
     ticket(id, '000-forms');
     scenario(
       id,
       'testeur-1',
-      `${ECRIT_ROUGE}${ECRIT_VERT}${ADAPTE_VERT()}passation 'Tests écrits.\n- vert attendu : ${ADAPTE} — adapté au type changé\n- vert attendu : critère 1 — mesure rend un nombre — la forme est déjà juste'\n`
+      `${ECRIT_ROUGE}${ECRIT_VERT}${ADAPTE_VERT()}passation 'Tests écrits.'\nfiche '{"statut":"FAIT","verts_attendus":[{"fichier":"${ADAPTE}","raison":"adapté au type changé"},{"fichier":"packages/forms/test/forme.test.mjs","test":"critère 1 — mesure rend un nombre","raison":"la forme est déjà juste"}]}'\n`
     );
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);
@@ -130,9 +130,9 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     expect(sessions(id, 'testeur')).toBe(1);
     expect(sessions(id, 'developpeur')).toBe(1);
     const { preuve, entier } = rapportEntier(id);
-    expect(preuve).toContain('1 rouge(s), 3 vert(s) justifié(s), 0 vert(s) sans « vert attendu »');
+    expect(preuve).toContain('1 rouge(s), 3 vert(s) justifié(s), 0 vert(s) sans vert attendu');
     expect(entier).toContain(
-      `${ADAPTE} › adapté — mesure rend un nombre — adapté au type changé (par la ligne du fichier « vert attendu : ${ADAPTE} »)`
+      `${ADAPTE} › adapté — mesure rend un nombre — adapté au type changé (par le vert attendu du fichier)`
     );
     expect(entier).toContain(
       'packages/forms/test/forme.test.mjs › critère 1 — mesure rend un nombre — la forme est déjà juste'

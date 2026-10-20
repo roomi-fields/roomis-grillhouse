@@ -63,7 +63,7 @@ import { A_REPASSER } from '../vitest-config/pression.mjs';
 const ESSAIS_PAR_BRANCHE = 5;
 // The variable in which bd reads the author of a comment, and the queue's author.
 const ACTEUR = 'BEADS_ACTOR';
-const AUTEUR_DE_LA_FILE = 'file';
+export const AUTEUR_DE_LA_FILE = 'file';
 // How long the queue looks for the run of the CI, then waits for it.
 const RECHERCHE_CI_MS = 2 * 60 * 1000;
 const ATTENTE_CI_MS = 30 * 60 * 1000;

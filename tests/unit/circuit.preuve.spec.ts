@@ -111,14 +111,14 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     expect(essai(id, 'testeur-2.prompt')).toContain('TON COMPOSANT : packages/binder');
   });
 
-  it('sends a green test without its line « vert attendu » back to the testeur', () => {
+  it('sends a green test no expected green of the testeur’s sheet names back to the testeur', () => {
     const id = 'demo-vert';
     ticket(id, '000-forms');
     scenario(id, 'testeur-1', `${ECRIT_ROUGE}${ECRIT_VERT}passation 'Tests écrits.'\n`);
     scenario(
       id,
       'testeur-2',
-      "passation 'vert attendu : critère 1 — mesure rend un nombre — la forme est déjà juste'\n"
+      `passation 'Vert justifié.'\nfiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/forme.test.mjs","test":"critère 1 — mesure rend un nombre","raison":"la forme est déjà juste"}]}'\n`
     );
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);

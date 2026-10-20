@@ -182,7 +182,11 @@ function rapportApi(racine, c, entreeDts, ecrire, tsdocConfigFile) {
         if (m.category === 'TSDoc') {
           const fichier = m.sourceFilePath ? path.relative(racine, m.sourceFilePath) : null;
           const lieu = fichier ? `${fichier}:${m.sourceFileLine ?? 1}: ` : '';
-          tsdoc.set(`${lieu}${m.text}`, { fichier, regle: m.messageId });
+          tsdoc.set(`${lieu}${m.text}`, {
+            fichier,
+            ...(fichier ? { ligne: m.sourceFileLine ?? 1 } : {}),
+            regle: m.messageId,
+          });
           m.logLevel = 'none';
         } else if ((m.logLevel === 'error' || m.logLevel === 'warning') && (ecrire || !duRapport)) {
           messages.push(m.text);
@@ -432,9 +436,11 @@ export function verifierComposant(racine, c, { ecrire = false } = {}) {
   const iface = path.join(c.dir, 'docs', 'INTERFACE.md');
   const relIface = path.relative(racine, iface);
   // A refusal of the component: inscribable when <regle> is given, keyed by <fichier>.
-  const refuser = (texte, regle = null, fichier = relIface) =>
+  const refuser = (texte, regle = null, fichier = relIface, ligne = null) =>
     refus.push(
-      regle ? { fichier, regle, message: `${rel} : ${texte}` } : { message: `${rel} : ${texte}` }
+      regle
+        ? { fichier, ...(ligne ? { ligne } : {}), regle, message: `${rel} : ${texte}` }
+        : { message: `${rel} : ${texte}` }
     );
   if (!existsSync(iface)) {
     signaux.push(`${rel} n'a pas d'interface (docs/INTERFACE.md) : rien n'est vérifié.`);
@@ -463,7 +469,9 @@ export function verifierComposant(racine, c, { ecrire = false } = {}) {
     const config = TSDocConfigFile.loadFile(fichierTsdoc);
     const api = rapportApi(racine, c, dts, ecrire, config);
     for (const msg of api.messages) signaux.push(`${rel} : ${msg}`);
-    for (const t of api.tsdoc) refuser(`TSDoc : ${t.texte}`, t.regle, t.fichier ?? relIface);
+    for (const t of api.tsdoc) {
+      refuser(`TSDoc : ${t.texte}`, t.regle, t.fichier ?? relIface, t.ligne);
+    }
     const manque = !ecrire && !existsSync(path.join(c.dir, 'docs', 'INTERFACE.api.md'));
     if (manque) {
       refuser(

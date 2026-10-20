@@ -69,9 +69,9 @@ if (existsSync('casse')) {
     const preuve = commentaires(id).find(t => t.startsWith('Circuit · packages/binder · preuve'));
     expect(preuve).toContain('1 rouge(s)');
     expect(preuve).toContain('0 fichier(s) qui ne se charge(nt) pas');
-    expect(preuve).toContain(
-      "construction de 030-binder — src/x.ts(1,1): error TS2741: Property 'champ' is missing"
-    );
+    // The failed build named with its own log, whose beginning follows.
+    expect(preuve).toContain('construction de 030-binder — son journal : ');
+    expect(preuve).toContain("src/x.ts(1,1): error TS2741: Property 'champ' is missing");
     expect(preuve).toContain(
       'Les tests de 030-binder se jouent aux contrôles, après le développeur.'
     );
@@ -140,12 +140,13 @@ if (existsSync('casse')) {
       const preuve = etape(composant, 'preuve');
       expect(preuve).toContain('1 rouge(s)');
       expect(preuve).toContain('0 fichier(s) qui ne se charge(nt) pas');
-      expect(preuve).toContain(`construction de ${nom} — src/x.ts(1,1): error TS2741`);
+      expect(preuve).toContain(`construction de ${nom} — son journal : `);
+      expect(preuve).toContain('src/x.ts(1,1): error TS2741');
     }
     expect(etape('binder', 'preuve')).not.toContain('construction de 040-checker');
     // Binder built, its tests wait for the build of checker: a red of the component after.
     const controles = etape('binder', 'controles');
-    expect(controles).toContain("laissés à la passe finale, rouges dans un composant d'après");
+    expect(controles).toContain('laissés à la passe finale');
     expect(etape('checker', 'controles')).toContain('controles : verts : npm run verifier.');
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
   });
@@ -163,7 +164,9 @@ if (existsSync('casse')) {
     expect(relance).toContain('packages/binder/test/mesure.test.mjs — ne se charge pas');
     expect(relance).not.toContain('construction de 000-forms');
     expect(relance).not.toContain('Rouges (');
-    const arret = commentaires(id).at(-1);
+    const arret = commentaires(id)
+      .filter(t => t.includes(' · preuve : arrêt preuve'))
+      .pop();
     expect(arret).toContain('1 fichier(s) qui ne se charge(nt) pas');
   });
 });

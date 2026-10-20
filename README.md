@@ -83,22 +83,27 @@ A change of behaviour is one ticket that passes from agent to agent in its copy:
 code (developer) → review → commit on the ticket's branch → the queue brings it onto main, which closes it.
 The supervisor launches the ticket's circuit (`scripts/circuit.mjs`) once. On a stop other than
 0 and 75 (« à repasser »), the circuit itself opens a session of the regulator (`regulateur`),
-whose final answer is its decision: `RELANCE --reprendre` or `RELANCE --depuis <testeur|developpeur> <component>`,
-which the circuit applies in the same run, or `MONTE : <question>`, which ends the circuit on the
+whose sheet is its decision: `RELANCE --reprendre` or `RELANCE --depuis` (a tester or a developer, a component),
+which the circuit applies in the same run, or `MONTE` with its question, which ends the circuit on the
 stop `question` (18), the regulator's session kept; the supervisor answers the question himself, or carries it to the owner
 when it is the owner's (the functional, what the charter keeps for him),
 and `circuit.mjs <ticket> --reponse "<answer>"` resumes that session with the answer. So the
 supervisor is woken only by a lot integrated, a question, or a stop the regulator could not settle.
 Each session writes at the ticket under its role as author (`BEADS_ACTOR`, which it may not change),
-the circuit's own lines under `circuit`, the queue's under `file`, and the circuit reads a verdict
-only in a comment of the author `relecteur`. Each session's instruction carries the ticket's
+the circuit's own lines under `circuit`, the queue's under `file`, and the reviewer's verdict under
+`relecteur`, written by the circuit from the reviewer's sheet. Each session's instruction carries the ticket's
 description as it is at its launch, the ticket's notes when it has some, and the last handover of
 its own role on its component (for a developer who has none yet, that of the tester of his
-component); the reviewer's carries no criteria, only the path of the claims file that holds them. A developer who leaves a red in a component's tests sends it to that tester
-(`Agent : testeur <component>` in its handover), and a component without tests goes straight to its developer.
-The handover of a tester or a developer ends on its status line, `STATUT : FAIT`, `STATUT : BLOQUÉ — <reason>`
-or `STATUT : BESOIN — <question>`: a BESOIN, or a BLOQUÉ that sends the red to no tester, stops the circuit
-at once (`besoin`, `hors-portee`), and the regulator settles it, the agent not relaunched on that red.
+component); the reviewer's carries no criteria, only the path of the claims file that holds them.
+Each session of a tester, a developer, the reviewer and the regulator ends on its sheet, the structured
+output its role's schema describes (`claude -p --output-format json --json-schema`, `scripts/resultats.mjs`):
+the circuit decides on it, and on the summaries of Turborepo, the JSON reports of Vitest and the SARIF of
+the guards, never on free text; a session without a sheet that conforms is resumed once, then the circuit
+stops (`sans-fiche`). A developer who leaves a red in a component's tests sends it to that tester (`renvoi`
+in its sheet), and a component without tests goes straight to its developer. A sheet of a tester or a
+developer carries its status, FAIT, BLOQUÉ with its reason or BESOIN with its question: a BESOIN, or a
+BLOQUÉ that sends the red to no tester, stops the circuit at once (`besoin`, `hors-portee`), and the
+regulator settles it, the agent not relaunched on that red.
 A relaunch of a tester or a developer on its step (after a refused proof, after red checks) resumes its
 session (`claude --resume`) with a short instruction, the new report alone; the last attempt is a fresh
 and whole session, and so is a resumption that fails.

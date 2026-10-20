@@ -143,7 +143,11 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
       raison: 'controles',
       code: ARRETS.controles,
     });
-    expect(e?.rapport).toContain('$ npm run verifier\n');
+    // The red named from the reports, with its package, never the end of the log.
+    expect(e?.rapport).toContain(
+      '- 020-loader : test packages/loader/test/bibliotheques.test.mjs › '
+    );
+    expect(e?.rapport).not.toContain('$ npm run verifier\n');
     // The report names where the final pass played: out of the envelope, on the whole copy.
     expect(e?.rapport).toContain(
       'Contrôles de la passe finale, hors enveloppe, sur la copie entière'
@@ -155,7 +159,9 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
     expect(e?.rapport).toContain('La décision revient au régulateur');
     // Stopped before the review, the package named in the comment of the stop.
     expect(historique(id).map(([, etape]) => etape)).not.toContain('relecture');
-    const arret = commentaires(id).at(-1);
+    const arret = commentaires(id)
+      .filter(t => t.includes(' : arrêt '))
+      .pop();
     expect(arret).toContain('arrêt controles');
     expect(arret).toContain('020-loader');
   });

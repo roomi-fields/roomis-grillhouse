@@ -35,22 +35,32 @@ export const ecrire = (f: string, texte: string, mode?: number) => {
 // directory, the author of its comments at the ticket, `BEADS_ACTOR`, in `<role>-<n>.acteur`, role
 // and component in `ordre`, the role alone out of the envelope), leaves a line of transcript where
 // Claude Code keeps the copy's, then sources the scenario of its role: `<role>-<n>.sh` for its n-th
-// session, else `<role>.sh`. A scenario writes in the component (`$c`) and hands over with
-// `passation <text>`, a comment under the session's author, as bd writes it. As claude, a session
-// `--session-id <id>` keeps its transcript in `<id>.jsonl` (an id already in use fails, code 1),
-// and `--resume <id>` adds to that transcript, found in the folder of its working directory, or
-// fails, code 1, its scenario not played, when there is none.
+// session, else `<role>.sh`. A scenario writes in the component (`$c`), hands over with
+// `passation <text>`, a comment under the session's author, as bd writes it, and ends on its sheet
+// with `fiche '<json>'`. As claude with `--output-format json`, it prints on its standard output
+// its JSON result alone, whatever the scenario prints (on its standard error), the sheet in
+// `structured_output`: the scenario's, else `{"statut":"FAIT"}` for a testeur or a developpeur,
+// none for another role or after `sans_fiche`; a `--json-schema` that is not JSON fails, code 1,
+// as claude refuses it. As claude, a session `--session-id <id>` keeps its transcript in
+// `<id>.jsonl` (an id already in use fails, code 1), and `--resume <id>` adds to that transcript,
+// found in the folder of its working directory, or fails, code 1, its scenario not played, when
+// there is none.
 const FAUX_CLAUDE = `#!/bin/bash
 racine=$(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd)
 prompt=$(cat)
 ticket=$(printf '%s\\n' "$prompt" | sed -n 's/^TON TICKET : \\([^ ]*\\).*/\\1/p' | head -1)
-role= prec= sid= reprise=
+role= prec= sid= reprise= schema= format=
 for a in "$@"; do
   [ "$prec" = --agent ] && role=$a
   [ "$prec" = --session-id ] && sid=$a
   [ "$prec" = --resume ] && reprise=$a
+  [ "$prec" = --json-schema ] && schema=$a
+  [ "$prec" = --output-format ] && format=$a
   prec=$a
 done
+if [ -n "$schema" ]; then
+  node -e 'JSON.parse(process.argv[1])' "$schema" 2> /dev/null || { echo "Invalid --json-schema" >&2; exit 1; }
+fi
 e="$racine/.beads/essai/$ticket"
 mkdir -p "$e"
 n=$(( $(cat "$e/$role.n" 2>/dev/null || echo 0) + 1 ))
@@ -75,10 +85,18 @@ c=$GRILLHOUSE_ENVELOPPE
 passation() {
   node -e 'require("fs").appendFileSync(process.argv[1], JSON.stringify({ author: process.argv[3], text: process.argv[2], created_at: new Date().toISOString().slice(0, 19) + "Z" }) + "\\n")' "$racine/.beads/$ticket.comments.jsonl" "$1" "\${BEADS_ACTOR-}"
 }
-# The reviewer's verdict and the régulateur's decision: its final answer, on its standard
-# output.
-verdict() { printf '%s\n' "$1"; }
-decision() { printf '%s\n' "$1"; }
+# The sheet of the session, and none at all.
+la_fiche=
+case "$role" in testeur|developpeur) la_fiche='{"statut":"FAIT"}' ;; esac
+fiche() { la_fiche=$1; }
+sans_fiche() { la_fiche=; }
+# The result on the standard output, the scenario's own output on the standard error.
+exec 3>&1 1>&2
+resultat() {
+  [ "$format" = json ] || return 0
+  node -e 'const [s, f] = process.argv.slice(1); const r = { type: "result", subtype: "success", is_error: false, session_id: s, result: "fini" }; if (f) r.structured_output = JSON.parse(f); console.log(JSON.stringify(r));' "\${sid:-$reprise}" "$la_fiche" >&3
+}
+trap resultat EXIT
 s="$e/$role-$n.sh"
 [ -f "$s" ] || s="$e/$role.sh"
 [ -f "$s" ] && . "$s"
@@ -87,16 +105,28 @@ exit 0
 
 // The stand-in for bd, run by the circuit from the main tree: a ticket is `.beads/<id>.json`, its
 // comments `.beads/<id>.comments.jsonl`, each under its author, `BEADS_ACTOR`, else git's user
-// (`t`), with its time to the second, as bd writes it; `update` (--status, --add-label, --remove-label, -d/--description,
-// --notes), `close` (--reason) and `reopen` write its state, as the integration, the queue and the
-// regulator change it.
+// (`t`), with its time to the second, as bd writes it; `update` (--status, --add-label,
+// --remove-label, -d/--description, --notes, --title), `close` (--reason, -r) and `reopen` write
+// its state, as the integration, the queue and the regulator change it; `create` (--parent, -l,
+// -d) makes a child `<parent>.<n>`, and prints its id, and `config get issue_prefix` is `demo`,
+// as scripts/ticket.sh uses them.
 const FAUX_BD = `#!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
 const [cmd, ...r] = process.argv.slice(2);
 const b = path.join(process.cwd(), '.beads');
 const commentaires = id => path.join(b, id + '.comments.jsonl');
-if (cmd === 'show') {
+if (cmd === 'config') {
+  process.stdout.write('demo\\n');
+} else if (cmd === 'create') {
+  const v = o => (r.includes(o) ? r[r.indexOf(o) + 1] : null);
+  const parent = v('--parent');
+  let n = 1;
+  while (fs.existsSync(path.join(b, parent + '.' + n + '.json'))) n++;
+  const id = parent + '.' + n;
+  fs.writeFileSync(path.join(b, id + '.json'), JSON.stringify([{ id, title: r[0], parent, labels: [v('-l')], description: v('-d') ?? '', status: 'open' }]));
+  process.stdout.write(id + '\\n');
+} else if (cmd === 'show') {
   process.stdout.write(fs.readFileSync(path.join(b, r[0] + '.json'), 'utf8'));
 } else if (cmd === 'comments' && r[0] === 'add') {
   fs.appendFileSync(commentaires(r[1]), JSON.stringify({ author: process.env.BEADS_ACTOR || 't', text: r[2], created_at: new Date().toISOString().slice(0, 19) + 'Z' }) + '\\n');
@@ -109,7 +139,8 @@ if (cmd === 'show') {
   const [t] = JSON.parse(fs.readFileSync(f, 'utf8'));
   const v = o => (r.includes(o) ? r[r.indexOf(o) + 1] : null);
   t.labels = t.labels ?? [];
-  if (cmd === 'close') Object.assign(t, { status: 'closed', close_reason: v('--reason') });
+  if (cmd === 'close') Object.assign(t, { status: 'closed', close_reason: v('--reason') ?? v('-r') });
+  if (v('--title')) t.title = v('--title');
   if (cmd === 'reopen') t.status = 'open';
   if (v('--status')) t.status = v('--status');
   if (v('--add-label')) t.labels.push(v('--add-label'));
@@ -124,13 +155,17 @@ if (cmd === 'show') {
 
 // The project's guard of the trial repository, run in a copy: it writes the envelope it runs in
 // (`GRILLHOUSE_ENVELOPPE`, empty outside) in `.beads/essai/<ticket>/gardes`, and judges a
-// neighbour: while `packages/binder/garde-rouge.txt` exists and the code of forms does not carry
-// `// accordé`, it is red and names the file of forms. While `packages/binder/ping-pong.txt`
+// neighbour, its findings in SARIF by the frame's means (ecrireSarif of scripts/resultats.mjs),
+// beside its output: while `packages/binder/garde-rouge.txt` exists and the code of forms does not
+// carry `// accordé`, it is red and names the file of forms. While `packages/binder/ping-pong.txt`
 // exists, it is always red, and names the component whose `tour` (a count each one keeps in its
-// directory) is behind, forms on a tie: the two components send the red to each other.
+// directory) is behind, forms on a tie: the two components send the red to each other. While
+// `packages/forms/garde-globale.txt` exists, it is red without SARIF, its output naming a file of
+// forms: a red no finding situates.
 const GARDE = `import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { ecrireSarif } from ${JSON.stringify(path.resolve(__dirname, '../../scripts/resultats.mjs'))};
 const commun = execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], {
   encoding: 'utf8',
 }).trim();
@@ -138,16 +173,24 @@ const e = path.join(path.dirname(commun), '.beads', 'essai', path.basename(proce
 mkdirSync(e, { recursive: true });
 appendFileSync(path.join(e, 'gardes'), (process.env.GRILLHOUSE_ENVELOPPE ?? '') + '\\n');
 const accorde = readFileSync('packages/forms/src/index.mjs', 'utf8').includes('// accordé');
-if (existsSync('packages/binder/garde-rouge.txt') && !accorde) {
-  console.log('⛔ packages/forms/src/index.mjs:1 — la mesure ne suit pas le classeur.');
+const rouge = (fichier, message) => {
+  console.log('⛔ ' + fichier + ':1 — ' + message);
+  ecrireSarif({ garde: 'mesure', constats: [{ fichier, ligne: 1, message }] });
   process.exit(1);
+};
+if (existsSync('packages/forms/garde-globale.txt')) {
+  console.log('⛔ packages/forms/src/index.mjs:1 — une garde sans SARIF.');
+  process.exit(1);
+}
+if (existsSync('packages/binder/garde-rouge.txt') && !accorde) {
+  rouge('packages/forms/src/index.mjs', 'la mesure ne suit pas le classeur.');
 }
 const tour = d => (existsSync(d + '/tour') ? Number(readFileSync(d + '/tour', 'utf8')) : 0);
 if (existsSync('packages/binder/ping-pong.txt')) {
   const qui = tour('packages/forms') <= tour('packages/binder') ? 'forms' : 'binder';
-  console.log('⛔ packages/' + qui + '/src/index.mjs:1 — les deux composants se renvoient la mesure.');
-  process.exit(1);
+  rouge('packages/' + qui + '/src/index.mjs', 'les deux composants se renvoient la mesure.');
 }
+ecrireSarif({ garde: 'mesure', constats: [] });
 `;
 
 // The test of each package that HEAD already holds, green before any ticket: the trial repository
@@ -298,7 +341,7 @@ export function circuitEssai(ESSAIS: string) {
 
   // A ticket of the stand-in bd, whose title names <composants>; its copy made ahead, with this
   // repository's dependencies as its own (the launcher then installs nothing), as a project holds them.
-  // Its reviewer accepts the lot unless the test writes it another scenario.
+  // Its reviewer accepts the lot, by its sheet, unless the test writes it another scenario.
   function ticket(id: string, composants: string) {
     ecrire(
       path.join(BEADS, `${id}.json`),
@@ -307,7 +350,7 @@ export function circuitEssai(ESSAIS: string) {
     const copie = path.join(REPO, '.claude/worktrees', id);
     execFileSync('git', ['-C', REPO, 'worktree', 'add', '-q', '-b', `agent/${id}`, copie]);
     symlinkSync(path.join(RACINE, 'node_modules'), path.join(copie, 'node_modules'), 'dir');
-    scenario(id, 'relecteur', "verdict 'ACCEPTÉ — le lot tient ses critères.'\n");
+    scenario(id, 'relecteur', `fiche '{"verdict":"ACCEPTÉ"}'\n`);
     return copie;
   }
 
@@ -374,11 +417,12 @@ export function circuitEssai(ESSAIS: string) {
   // The comments at the ticket, each with its author, the bilan aside.
   const auteurs = (id: string) => tous(id).filter(c => !BILAN.test(c.text));
   const commentaires = (id: string) => auteurs(id).map(c => c.text);
-  // The circuit's history at the ticket: [composant, étape] of each comment « Circuit · … ».
+  // The circuit's history at the ticket: [composant, étape] of each comment « Circuit · … », the
+  // regulator's lines aside (tests/unit/circuit.regulateur.spec.ts reads them).
   const historique = (id: string) =>
     commentaires(id).flatMap(t => {
       const m = /^Circuit · (\S+) · (\S+) :/.exec(t);
-      return m ? [[m[1], m[2]]] : [];
+      return m && m[2] !== 'regulateur' ? [[m[1], m[2]]] : [];
     });
   return {
     REPO,

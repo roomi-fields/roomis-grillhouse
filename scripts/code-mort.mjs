@@ -88,6 +88,7 @@ export function constats(texte, genres = Object.keys(GENRES)) {
         const n = Array.isArray(x) ? x.map(y => y.name).join(', ') : x.name;
         out.push({
           fichier: i.file,
+          ...(Array.isArray(x) || !x.line ? {} : { ligne: x.line }),
           regle: genre,
           message: genre === 'files' ? `${i.file} : ${nom}` : `${i.file} : ${nom} — ${n}`,
         });

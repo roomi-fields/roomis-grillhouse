@@ -29,7 +29,8 @@
 // - The verdict reads the exit code of each task in the summary of each run
 //   (`.turbo/runs/<id>.json`), since Turborepo exits with the greatest code of its tasks (a 75
 //   would hide a 1). The summary each run writes is removed, and `.turbo/runs` with it when the
-//   run created it.
+//   run created it; while the pass names a results directory (`GRILLHOUSE_RESULTATS`,
+//   scripts/resultats.mjs), it goes there instead, where the circuit reads it.
 // - A task at 0 is green. A task at any other code than 0 and 75, a task at 75 that other tasks
 //   wait for, a summary that does not read while Turborepo failed: red, code 1, each task named, a
 //   task of the witnesses' pass with « (témoins de temps) ».
@@ -49,7 +50,7 @@
 //   (scripts/vitest-config/cibles.mjs) carries only the choice of the witnesses, and the pass plays
 //   every test.
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, rmdirSync, rmSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, rmdirSync } from 'node:fs';
 import { availableParallelism } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -61,6 +62,7 @@ import {
   BORNE_ATTENTE_MS,
   lirePression,
 } from './vitest-config/pression.mjs';
+import { garderLesResumes } from './resultats.mjs';
 import { fichiersTemoins, VARIABLE as TESTS_CIBLES } from './vitest-config/cibles.mjs';
 
 const GARDES = ['grillhouse:gardes', 'gardes'];
@@ -140,15 +142,14 @@ function passe({ racine, demandes, env, borneMs, pasMs, dire, coeurs }) {
     const nouveaux = lister(runs).filter(f => !avant.has(f) && f.endsWith('.json'));
     let resume = null;
     if (nouveaux.length === 1) {
-      const f = path.join(runs, nouveaux[0]);
       try {
-        resume = JSON.parse(readFileSync(f, 'utf8'));
+        resume = JSON.parse(readFileSync(path.join(runs, nouveaux[0]), 'utf8'));
       } catch {
         resume = null;
       }
-      rmSync(f, { force: true });
-      if (!existait && lister(runs).length === 0) rmdirSync(runs);
     }
+    garderLesResumes(racine, avant, e);
+    if (!existait && existsSync(runs) && lister(runs).length === 0) rmdirSync(runs);
     return { r, resume, env: e, libelle };
   };
 

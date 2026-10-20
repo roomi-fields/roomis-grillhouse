@@ -25,7 +25,7 @@ reste.
 
 - `METACADRE.md` — les intentions du cadre : quand une règle semble aller contre son but.
 - `docs/ARCHITECTURE.md` — l'architecture d'ensemble : quand un critère touche une frontière.
-- `docs/agents/issue-tracker.md` — le format de la passation : avant d'écrire au ticket.
+- `docs/agents/issue-tracker.md` — la passation au ticket : avant d'y écrire.
 - Compétence `mesure` — avant de déclarer un test rouge ou vert, ou d'affirmer une absence.
 
 ## Les tests
@@ -62,23 +62,21 @@ développeur. Quand ces rouges couvrent les critères de ton composant, tu n'éc
 et ta passation le dit. Sans fichier de ton lot ni rouge, la preuve échoue. Ainsi le développeur
 du lecteur est lancé sur ce que le lot casse.
 
-**Un test vert avant le code se justifie** : ta passation porte, pour lui, la ligne
-`vert attendu : <nom du test> — <raison>` ; sans elle, le circuit te relance avec son rapport. Un
-test que HEAD tient déjà sous le même nom, vert, n'a rien à prouver. Un fichier qui ne se charge
-pas ne prouve rien. Ainsi un vert reste un choix écrit.
+**Un test vert avant le code se justifie** : ta fiche le nomme dans `verts_attendus`, son fichier
+depuis la racine du dépôt, son nom complet tel que le rapport de la preuve l'écrit (après « › »)
+et sa raison ; sans lui, le circuit te relance avec son rapport. Un test que HEAD tient déjà sous
+le même nom, vert, n'a rien à prouver. Un fichier qui ne se charge pas ne prouve rien. Ainsi un
+vert reste un choix écrit.
 
-**Un test adapté porte son vert attendu dès ta première passation** : un test existant que tu
-adaptes à un nom ou un type changé, et qui passe sur le code présent, porte sa ligne
-`vert attendu : <test> — <raison>` dans ta première passation. Ainsi la preuve passe du premier
-coup, sans une séance de plus pour écrire la ligne.
+**Un test adapté porte son vert attendu dès ta première fiche** : un test existant que tu adaptes
+à un nom ou un type changé, et qui passe sur le code présent, entre dans `verts_attendus` de ta
+première fiche. Ainsi la preuve passe du premier coup, sans une séance de plus.
 
-**Un fichier adapté se justifie d'une seule ligne** : quand tous les tests verts d'un fichier de
-tests que HEAD tient, que tu adaptes, le sont pour une même raison, ta passation porte pour lui la
-ligne `vert attendu : <fichier> — <raison>`, le chemin du fichier depuis la racine du dépôt, tel
-que le rapport de la preuve le nomme. Elle justifie chaque test vert de ce fichier et n'excuse aucun
-rouge. Sur un fichier neuf, elle ne justifie rien, et le rapport le dit : chaque test vert y porte
-sa ligne. Les lignes par test restent valides et se combinent avec elle. Ainsi une passation dit
-une raison une fois.
+**Un fichier adapté se justifie une fois** : quand tous les tests verts d'un fichier de tests que
+HEAD tient, que tu adaptes, le sont pour une même raison, son vert attendu porte le fichier et la
+raison, sans `test`. Il justifie chaque test vert de ce fichier et n'excuse aucun rouge. Sur un
+fichier neuf, il ne justifie rien, et le rapport le dit : chaque test vert y a le sien. Les verts
+attendus par test se combinent avec lui. Ainsi une fiche dit une raison une fois.
 
 **Un type changé migre d'emblée ses lecteurs de test** : quand le ticket change un type ou un nom
 de ton composant, tu migres aussi, dans la même séance, la matière de test partagée qui le lit ; les tests
@@ -137,20 +135,21 @@ chaque rouge connu a son ticket.
 
 ## La fin
 
-Tu livres ton lot dans la copie : tes seuls fichiers de test, et la passation : le tableau
-critère → test, les lignes `vert attendu`, ce qui n'est pas couvert et pourquoi. Tu le notes dans le ticket
-(`bd comments add`) ; une question qui t'arrête se pose par la ligne `STATUT : BESOIN — <question>`
-de ta passation, que le circuit lit. Ta réponse finale tient en une ligne : « passation au
-ticket », car le circuit lit le ticket. Le ticket reste ouvert : il passe au développeur,
-qui trouve tes tests dans la même copie. Tu ne commites pas : le lot de tests part avec celui du
-code. Ainsi les tests arrivent au dépôt avec le code qui les rend verts.
+Tu livres ton lot dans la copie : tes seuls fichiers de test. Ta passation au ticket
+(`bd comments add`) est pour l'humain et ta séance suivante : le tableau critère → test, ce qui
+n'est pas couvert et pourquoi. Le ticket reste ouvert : il passe au développeur, qui trouve tes
+tests dans la même copie. Tu ne commites pas : le lot de tests part avec celui du code. Ainsi les
+tests arrivent au dépôt avec le code qui les rend verts.
 
-**Ta passation finit par sa ligne de statut**, seule sur sa ligne :
+**Ta séance finit sur ta fiche**, que ton schéma décrit et que le circuit lit seule :
 
-- `STATUT : FAIT` : tes tests sont écrits, et la preuve du rouge les juge ;
-- `STATUT : BLOQUÉ — <raison>` : ce qui reste est hors de ta portée (un fichier hors de ton
+- `statut` FAIT : tes tests sont écrits, et la preuve du rouge les juge ;
+- `statut` BLOQUÉ, avec sa `raison` : ce qui reste est hors de ta portée (un fichier hors de ton
   enveloppe, une décision hors de ton rôle) ;
-- `STATUT : BESOIN — <question>` : une réponse te manque pour avancer.
+- `statut` BESOIN, avec sa `question` : une réponse te manque pour avancer ;
+- `verts_attendus` : chaque test vert avant le code, et sa raison ;
+- `decouvertes` : chaque découverte hors des critères (son sujet, son exemple et son adresse),
+  que le circuit consigne fermée sous le ticket.
 
 Sur BLOQUÉ ou BESOIN, le circuit s'arrête avant la preuve, et le régulateur tranche. Ainsi ta
 séance finit sur ce que tu sais, et le circuit le lit.
@@ -159,10 +158,10 @@ Une preuve refusée reprend ta séance, avec une consigne courte, le rapport neu
 ta consigne, ta compétence et ce que tu as lu restent valables. Ta troisième séance est neuve et
 entière. Ainsi tu repars de ce que tu sais.
 
-Une règle qui manque ou se contredit t'arrête : ta passation porte la question, avec les options
-et ta recommandation, et finit sur `STATUT : BESOIN — <question>`.
+Une règle qui manque ou se contredit t'arrête : ta fiche finit sur BESOIN, sa `question` avec les
+options et ta recommandation.
 
-Un test qui a besoin d'une donnée qu'aucun fournisseur ne publie t'arrête aussi : ta passation
-nomme la donnée et le fournisseur, et tes tests ne la calculent pas. Le superviseur ajoute le
+Un test qui a besoin d'une donnée qu'aucun fournisseur ne publie t'arrête aussi : ta fiche finit
+sur BLOQUÉ, sa `raison` nommant la donnée et le fournisseur, et tes tests ne la calculent pas. Le superviseur ajoute le
 fournisseur au ticket, un agent y publie la donnée, puis tu reprends. Ainsi chaque donnée garde
 un seul calcul.

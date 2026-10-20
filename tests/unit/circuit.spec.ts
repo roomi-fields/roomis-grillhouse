@@ -30,7 +30,7 @@ describe('the stops of the circuit and their codes', () => {
     const noms = [
       'lancement',
       'bloqué',
-      'sans-passation',
+      'sans-fiche',
       'preuve',
       'controles',
       'sans-livraison',

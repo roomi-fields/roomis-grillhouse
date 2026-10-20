@@ -79,16 +79,15 @@ est un vrai rouge.
 
 ## Ce qui t'arrête
 
-- **Une question sans règle** : un cas que ni les critères ni une règle ne tranchent. Ta passation
-  porte les options, ce que chacune donne aujourd'hui et ta recommandation, et finit sur
-  `STATUT : BESOIN — <question>` ; ton code suit ensuite le verdict « Arbitrage » au ticket.
+- **Une question sans règle** : un cas que ni les critères ni une règle ne tranchent. Ta fiche
+  finit sur BESOIN, sa `question` portant les options, ce que chacune donne aujourd'hui et ta
+  recommandation ; ton code suit ensuite le verdict « Arbitrage » au ticket.
 - **Un fait que ton code prend chez un fournisseur hors de sa ligne « Déclaré pour »** (un élément
   publié pas encore déclaré pour toi, ou un fait que ta section ne porte pas) : une découverte qui
   bloque, que le superviseur porte au référent technique, et qui entre ensuite dans la section
   « Consommateurs » du fournisseur.
-- **Une donnée qui manque chez un fournisseur** : tu t'arrêtes, et ta passation nomme la donnée
-  et le fournisseur, et finit sur `STATUT : BLOQUÉ — <la donnée>` ; tu ne la calcules pas dans ton
-  paquet. Le superviseur ajoute le fournisseur
+- **Une donnée qui manque chez un fournisseur** : tu t'arrêtes, et ta fiche finit sur BLOQUÉ, sa
+  `raison` nommant la donnée et le fournisseur ; tu ne la calcules pas dans ton paquet. Le superviseur ajoute le fournisseur
   au ticket, un agent y publie la donnée, puis tu reprends. Ainsi chaque donnée garde un seul
   calcul.
 - **Une découverte qui bloque** : tu t'arrêtes sans rien livrer. Tu écris l'état du travail dans
@@ -98,8 +97,8 @@ est un vrai rouge.
 - **Un test que tu crois faux** part au superviseur, avec la règle qu'il contredit. Les tests et la
   matière de test partagée sont au testeur.
 
-Une découverte qui ne bloque pas se consigne fermée sous ton ticket
-(`bash scripts/ticket.sh <id> <sujet> <composants> <corps> decouverte`), et tu continues.
+Une découverte qui ne bloque pas entre dans `decouvertes` de ta fiche (son sujet, son exemple et
+son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
 
 ## Vérifier et livrer
 
@@ -113,19 +112,20 @@ Une découverte qui ne bloque pas se consigne fermée sous ton ticket
   lancements pendant le travail restent les tiens. Ainsi ton lot arrive au relecteur vert.
 - **Un rouge qui reste dans les tests va à leur testeur** : quand le rouge qui reste est dans les
   tests d'un composant du titre, le tien ou un composant d'avant (un test existant que ton
-  changement de type casse), ta passation porte la ligne `Agent : testeur <composant>`, le
-  composant écrit comme le titre le nomme. Le circuit rejoue ce composant depuis son testeur, ta
+  changement de type casse), ta fiche porte `renvoi` : le rôle testeur et ce composant, écrit
+  comme le titre le nomme. Le circuit rejoue ce composant depuis son testeur, ta `raison` et ta
   passation pour rapport, puis les composants d'après, sans te relancer sur ce rouge ; le même
   renvoi deux fois de suite, sans contrôles verts entre eux, l'arrête (`sans-livraison`). Ainsi
   le rouge va à l'agent qui écrit les tests.
-- **Ta passation finit par sa ligne de statut**, seule sur sa ligne :
-  - `STATUT : FAIT` : ton code est écrit, et les contrôles le jugent ;
-  - `STATUT : BLOQUÉ — <raison>` : ce qui reste est hors de ta portée (un test, la matière de test
-    partagée, un fichier hors de ton enveloppe, une décision hors de ton rôle) ; avec la ligne
-    `Agent : testeur <composant>` au-dessus, c'est le renvoi à ce testeur ; sans elle, le circuit
-    s'arrête (`hors-portee`) ;
-  - `STATUT : BESOIN — <question>` : une réponse te manque pour avancer ; le circuit s'arrête
-    (`besoin`).
+- **Ta séance finit sur ta fiche**, que ton schéma décrit et que le circuit lit seule :
+  - `statut` FAIT : ton code est écrit, et les contrôles le jugent ;
+  - `statut` BLOQUÉ, avec sa `raison` : ce qui reste est hors de ta portée (un test, la matière
+    de test partagée, un fichier hors de ton enveloppe, une décision hors de ton rôle) ; avec
+    `renvoi`, c'est le renvoi au testeur ; sans lui, le circuit s'arrête (`hors-portee`) ;
+  - `statut` BESOIN, avec sa `question` : une réponse te manque pour avancer ; le circuit
+    s'arrête (`besoin`) ;
+  - `ecarts` : ce que le message de commit nomme (un rouge de structure, un écart voulu) ;
+  - `decouvertes` : ce que le circuit consigne fermé sous le ticket.
     Sur un arrêt, le régulateur tranche, et le circuit ne te relance pas sur ce rouge. Ainsi
     tu ne tournes jamais sur un rouge que tu as dit hors de ta portée.
 - **Une relance reprend ta séance** : après des contrôles rouges, le circuit reprend ta séance avec
@@ -136,8 +136,9 @@ Une découverte qui ne bloque pas se consigne fermée sous ton ticket
   interface change (`npm test -- <fichiers>`).
 - **Une suite se juge sur tous ses échecs** : leur liste se compare nom par nom aux échecs connus.
   Ainsi « vert » veut dire que rien de neuf n'a cassé.
-- **Un rouge de structure se nomme** : un test que ton changement de structure fait rougir se
-  nomme dans le message de commit et la passation, avec sa cause et le ticket qui le referme.
+- **Un rouge de structure se nomme** : un test que ton changement de structure fait rougir entre
+  dans `ecarts` de ta fiche, avec sa cause et le ticket qui le referme : le circuit l'écrit dans le
+  message de commit.
 - **Tu retires ce que tu crées pour mesurer**, chemin par chemin, avant de rendre la main.
 - **Les documents du responsable** : une règle nouvelle pour un document que la charte lui réserve
   s'écrit d'abord dans le ticket (étiquette `attend-responsable`).
@@ -150,6 +151,6 @@ Une découverte qui ne bloque pas se consigne fermée sous ton ticket
 
 Ta passation au ticket (`bd comments add`), en mots simples, dit la cause, ce qui est juste et la
 règle citée, le test et sa morsure, les questions ; le ticket reste ouvert jusqu'à l'entrée de sa
-branche sur main. Ta réponse finale tient en une ligne : « passation au ticket ». Ainsi tout ce
-que tu écris a son lecteur : le circuit et l'agent suivant lisent le ticket, le registre mesure le
-temps de ta séance.
+branche sur main. Ta séance finit sur ta fiche. Ainsi tout ce que tu écris a son lecteur : le
+circuit lit ta fiche, l'humain et ta séance suivante ta passation, le registre mesure le temps de
+ta séance.

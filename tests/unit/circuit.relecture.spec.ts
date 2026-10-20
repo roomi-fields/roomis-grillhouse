@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
-import { constats } from '../../scripts/circuit.mjs';
+import { texteDuVerdict } from '../../scripts/circuit.mjs';
 import { lire, sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
 
 // The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): the review, its
@@ -65,37 +65,69 @@ const ticketDe = (id: string) =>
 
 // After the final pass, the circuit launches the reviewer, out of the envelope, from the second
 // template (Q6). ACCEPTÉ: the circuit builds the lot from the copy and integrates it, which puts
-// the branch in the queue (Q7, Q13). RENDU: each finding names « Agent : <rôle> <composant> »; the
-// circuit relaunches those agents from the first component named, the components after it pass
-// again, then the final pass and the reviewer; a finding without a valid recipient stops at
-// « relecture-arret », and so does the third RENDU.
-describe('the findings of a verdict RENDU', () => {
-  it('read the component of their line Agent, the root « . » included', () => {
-    const verdict = [
-      'RENDU',
-      '### Constat 1 — scripts/garde.mjs',
-      'Agent : developpeur .',
-      '### Constat 2 — packages/forms/src/forms.ts',
-      '- **Agent** : testeur `packages/forms`.',
-    ].join('\n');
-    expect(constats(verdict).map(c => [c.role, c.composant])).toEqual([
-      ['developpeur', '.'],
-      ['testeur', 'packages/forms'],
-    ]);
+// the branch in the queue (Q7, Q13). RENDU: the reviewer's sheet names the recipient of each
+// finding (`role`, `composant`); the circuit relaunches those agents from the first component
+// named, the components after it pass again, then the final pass and the reviewer; a finding
+// without a valid recipient stops at « relecture-arret », and so does the third RENDU. The circuit
+// writes the verdict at the ticket, for the human, from the sheet.
+describe('the verdict the circuit writes at the ticket from the reviewer’s sheet', () => {
+  it('opens on its word, each finding under its heading with its recipient or its criterion, then the remarks and the deviations', () => {
+    expect(
+      texteDuVerdict({
+        verdict: 'RENDU',
+        constats: [
+          { titre: 'scripts/garde.mjs', role: 'developpeur', composant: '.', corps: 'Preuve : x.' },
+          { titre: 'packages/forms/src/forms.ts', critere_en_cause: '2', corps: 'Règle : y.' },
+        ],
+        remarques: ['un nom à revoir'],
+        ecarts: ['un rouge de structure'],
+      })
+    ).toBe(
+      [
+        'RENDU',
+        '',
+        '### Constat 1 — scripts/garde.mjs',
+        'Agent : developpeur .',
+        'Preuve : x.',
+        '',
+        '### Constat 2 — packages/forms/src/forms.ts',
+        'Critère en cause : 2',
+        'Règle : y.',
+        '',
+        '## Remarques',
+        '',
+        '- un nom à revoir',
+        '',
+        '## Écarts à nommer au commit',
+        '',
+        '- un rouge de structure',
+      ].join('\n')
+    );
+    expect(texteDuVerdict({ verdict: 'ACCEPTÉ' })).toBe('ACCEPTÉ');
   });
 });
 
 describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, () => {
   afterEach(revenirAuDebut);
-  // A verdict RENDU whose one finding goes to <agent>.
-  const rendu = (agent: string, constat = 'mesure de 0 doit rendre 0.') =>
-    `verdict 'RENDU
-
-### Constat 1 — packages/forms/src/index.mjs
-Agent : ${agent}
-${constat}
-Règle : critère 1.'
-`;
+  // The reviewer's sheet RENDU whose one finding goes to <agent> (`<rôle> <composant>`), or puts
+  // the criterion <critere> in question.
+  const rendu = (agent: string, constat = 'mesure de 0 doit rendre 0.', critere?: string) => {
+    const [role, composant] = agent.split(' ');
+    const fiche = {
+      verdict: 'RENDU',
+      constats: [
+        {
+          titre: 'packages/forms/src/index.mjs',
+          role,
+          composant,
+          corps: `${constat}\nRègle : critère 1.`,
+          ...(critere ? { critere_en_cause: critere } : {}),
+        },
+      ],
+    };
+    return `fiche '${JSON.stringify(fiche)}'\n`;
+  };
+  const accepte = `fiche '{"verdict":"ACCEPTÉ"}'\n`;
 
   it('ACCEPTÉ leads to the integration: one commit on agent/<ticket>, the branch in the queue', () => {
     const id = 'demo-accepte';
@@ -211,7 +243,7 @@ Règle : critère 1.'
     );
     scenario(id, 'relecteur-1', rendu('developpeur 000-forms'));
     scenario(id, 'relecteur-2', rendu('developpeur 000-forms'));
-    scenario(id, 'relecteur-3', "verdict 'ACCEPTÉ — les constats sont traités.'\n");
+    scenario(id, 'relecteur-3', accepte);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(sessions(id, 'relecteur')).toBe(3);
@@ -224,7 +256,7 @@ Règle : critère 1.'
     expect(ticketDe(id)).toMatchObject({ status: 'closed' });
   });
 
-  it('RENDU « Agent : developpeur <composant> » relaunches that developpeur, then the rest, to the queue', () => {
+  it('RENDU, a finding for the developpeur of a component, relaunches that developpeur, then the rest, to the queue', () => {
     const id = 'demo-rendu-dev';
     ticket(id, '000-forms, 030-binder');
     scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
@@ -235,10 +267,11 @@ Règle : critère 1.'
       `printf '// rendu\\n' >> $c/src/index.mjs\npassation 'Rendu traité.'\n`
     );
     scenario(id, 'relecteur-1', rendu('developpeur 000-forms'));
-    scenario(id, 'relecteur-2', "verdict 'ACCEPTÉ — le rendu est traité.'\n");
+    scenario(id, 'relecteur-2', accepte);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
-    // The verdict, the reviewer's final answer, is at the ticket whole, on several lines.
+    // The verdict, written by the circuit from the reviewer's sheet, is at the ticket on several
+    // lines.
     expect(commentaires(id)).toContainEqual(
       expect.stringMatching(/^RENDU\n\n### Constat 1 — packages\/forms\/src\/index\.mjs\nAgent : /)
     );
@@ -273,7 +306,7 @@ Règle : critère 1.'
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
   });
 
-  it('RENDU « Agent : testeur <composant> » relaunches the testeur, the proof, the developpeur, the checks', () => {
+  it('RENDU, a finding for the testeur of a component, relaunches the testeur, the proof, the developpeur, the checks', () => {
     const id = 'demo-rendu-testeur';
     ticket(id, '000-forms');
     scenario(id, 'testeur-1', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
@@ -287,7 +320,8 @@ import { expect, it } from 'vitest';
 import * as m from '../src/index.mjs';
 it('critère 2 — echelle rend le triple', () => { expect(m.echelle?.(2)).toBe(6); });
 EOF
-passation 'vert attendu : critère 1 — mesure rend le double — livré avant le rendu'
+passation 'Echelle testée.'
+fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/mesure.test.mjs","test":"critère 1 — mesure rend le double","raison":"livré avant le rendu"}]}'
 `
     );
     scenario(
@@ -296,7 +330,7 @@ passation 'vert attendu : critère 1 — mesure rend le double — livré avant 
       `printf 'export const echelle = x => 3 * x;\\n' >> $c/src/index.mjs\npassation 'Echelle écrite.'\n`
     );
     scenario(id, 'relecteur-1', rendu('testeur packages/forms', 'echelle manque.'));
-    scenario(id, 'relecteur-2', "verdict 'ACCEPTÉ'\n");
+    scenario(id, 'relecteur-2', accepte);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(sessions(id, 'testeur')).toBe(2);
@@ -321,7 +355,7 @@ passation 'vert attendu : critère 1 — mesure rend le double — livré avant 
     ticket(id, '000-forms');
     scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-    scenario(id, 'relecteur-1', rendu('regulateur packages/forms'));
+    scenario(id, 'relecteur-1', rendu('developpeur packages/autre'));
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(16);
     expect(ARRETS['relecture-arret']).toBe(16);
@@ -335,7 +369,7 @@ passation 'vert attendu : critère 1 — mesure rend le double — livré avant 
     scenario(
       id,
       'relecteur-2',
-      rendu('developpeur packages/forms', 'Critère en cause : 1, le double contredit la spec.')
+      rendu('developpeur packages/forms', 'le double contredit la spec.', '1')
     );
     const r2 = circuit([id, '--reprendre']);
     expect(r2.status, sortie(r2)).toBe(16);

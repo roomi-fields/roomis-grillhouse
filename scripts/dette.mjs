@@ -10,8 +10,8 @@
 //     "consommateurs": { "packages/b/docs/INTERFACE.md": { "usage-non-declare": { "count": 1 } } }
 //   }
 //
-// A finding is `{ fichier, regle, message }`: its key is the guard, the file and the rule (never a
-// line number), its message what the guard prints. A finding without `fichier` or `regle` is never
+// A finding is `{ fichier, regle, message }`, and its `ligne` when the guard knows it: its key is
+// the guard, the file and the rule (never a line number), its message what the guard prints. A finding without `fichier` or `regle` is never
 // inscribed: the guard refuses it every time (a generated file out of date, a measure that failed).
 //
 // - A guard passes when, for every key, the findings are no more than the inscribed count. A key
@@ -25,6 +25,7 @@
 //   run every guard so.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { ecrireSarif } from './resultats.mjs';
 
 export const FICHIER = 'grillhouse-dette.json';
 // The environment variable that names the mode of a run: `inscrire` or `elaguer`.
@@ -126,8 +127,16 @@ export function juger(dette, garde, constats) {
 // `GRILLHOUSE_DETTE` by default): writes the file in mode `inscrire` or `elaguer`, then judges.
 // Returns `refus`, the findings to print as refusals, and `lignes`, the lines to print after them
 // (the keys beyond their count, the keys to prune, what the run wrote). An unknown mode, or a file
-// that is not JSON, refuses every finding, behind a refusal that says why.
-export function trancher(racine, garde, constats, mode = process.env[MODE] || undefined) {
+// that is not JSON, refuses every finding, behind a refusal that says why. The refusals are the
+// guard's findings in SARIF too, under the results directory <env> names (scripts/resultats.mjs),
+// each with its file, its line when the guard gives one, and its rule.
+export function trancher(racine, garde, constats, mode = process.env[MODE] || undefined, env) {
+  const { refus, lignes } = juge(racine, garde, constats, mode);
+  ecrireSarif({ garde, constats: refus, racine, env: env ?? process.env });
+  return { refus, lignes };
+}
+
+function juge(racine, garde, constats, mode) {
   let avant;
   try {
     if (mode !== undefined && !MODES.has(mode)) {

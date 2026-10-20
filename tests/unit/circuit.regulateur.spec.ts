@@ -6,7 +6,7 @@ import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit
 
 // The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): the regulator
 // on a stop (grillhouse-3uv.85). On a stop other than 0 and 75, the circuit launches a session of
-// the regulator itself, out of the envelope, in the ticket's copy; the regulator's final answer is its
+// the regulator itself, out of the envelope, in the ticket's copy; the regulator's sheet is its
 // decision, which the circuit writes at the ticket and applies: RELANCE starts the circuit again
 // in the same process, MONTE ends it on the stop « question », the regulator's session kept in the
 // state, which `--reponse "<texte>"` resumes with the supervisor's answer.
@@ -33,9 +33,13 @@ const {
 const REGULATEUR = 'regulateur';
 // A developpeur session that changes no file: the circuit stops at « sans-livraison ».
 const RIEN = "passation 'Rien à écrire.'\n";
-// A regulator's scenario: it keeps the state of the circuit as its session sees it, then answers.
-const regulateur = (reponse: string) =>
-  `cp "$racine/.claude/worktrees/$ticket.circuit.json" "$e/etat-regulateur-$n.json"\ndecision '${reponse}'\n`;
+// A regulator's scenario: it keeps the state of the circuit as its session sees it, then ends on
+// the sheet <decision>, or on none.
+const regulateur = (decision: Record<string, unknown> | null) =>
+  `cp "$racine/.claude/worktrees/$ticket.circuit.json" "$e/etat-regulateur-$n.json"\n${
+    decision ? `fiche '${JSON.stringify(decision)}'` : 'sans_fiche'
+  }\n`;
+const reprendre = (contexte: string) => ({ decision: 'RELANCE --reprendre', contexte });
 const etatVuParLeRegulateur = (id: string, n: number) =>
   JSON.parse(essai(id, `etat-regulateur-${n}.json`) || 'null') as {
     code: number | null;
@@ -56,7 +60,7 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
     scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur-1', RIEN);
     scenario(id, 'developpeur-2', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-    scenario(id, REGULATEUR, regulateur('RELANCE --reprendre\nCONTEXTE : Écris le double.'));
+    scenario(id, REGULATEUR, regulateur(reprendre('Écris le double.')));
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     // Critère 1: one session of the regulator, out of the envelope, between the stop and the relaunch.
@@ -144,7 +148,11 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
     scenario(
       id,
       REGULATEUR,
-      regulateur('RELANCE --depuis developpeur 000-forms\nCONTEXTE : La mesure rend le double.')
+      regulateur({
+        decision: 'RELANCE --depuis',
+        depuis: { role: 'developpeur', composant: '000-forms' },
+        contexte: 'La mesure rend le double.',
+      })
     );
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
@@ -170,7 +178,7 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
       scenario(
         id,
         `${REGULATEUR}-1`,
-        regulateur('MONTE : La mesure rend-elle le double ou le triple ?')
+        regulateur({ decision: 'MONTE', question: 'La mesure rend-elle le double ou le triple ?' })
       );
       const r = circuit([id]);
       expect(ARRETS.question).toBeDefined();
@@ -196,11 +204,7 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
 
     it("critère 5 — --reponse resumes the regulateur's session with the supervisor's answer and applies its decision", () => {
       const seance = etat(id)?.regulateur?.seance;
-      scenario(
-        id,
-        `${REGULATEUR}-2`,
-        regulateur('RELANCE --reprendre\nCONTEXTE : Le responsable dit : le double.')
-      );
+      scenario(id, `${REGULATEUR}-2`, regulateur(reprendre('Le responsable dit : le double.')));
       scenario(id, 'developpeur-2', `${CODE_JUSTE}passation 'Code écrit.'\n`);
       const r = circuit([id, '--reponse', 'Le double.']);
       expect(r.status, sortie(r)).toBe(0);
@@ -226,7 +230,7 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
     expect(sessions(id, REGULATEUR)).toBe(0);
   });
 
-  it("critère 2 — a decision after the regulateur's reasoning is its decision, the reasoning left out", () => {
+  it('critère 2 — the decision of its sheet is what the circuit writes at the ticket, its context with it, its answer in words left out', () => {
     const id = 'demo-regulateur-raisonnement';
     ticket(id, '000-forms');
     scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
@@ -235,58 +239,59 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
     scenario(
       id,
       REGULATEUR,
-      regulateur(
-        'Le développeur ne change rien.\n\nLa mesure rend la valeur, le critère dit le double.\n\n**RELANCE --reprendre**\nCONTEXTE : Écris le double.'
-      )
+      `echo 'Le développeur ne change rien. MONTE : rien de tel.'\n${regulateur(reprendre('Écris le double.'))}`
     );
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     const decision = commentaires(id).find(t => t.includes(' · regulateur : '));
-    expect(decision).toMatch(/^Circuit · packages\/forms · regulateur : RELANCE --reprendre/);
-    expect(decision).not.toContain('Le développeur ne change rien.');
+    expect(decision).toBe(
+      'Circuit · packages/forms · regulateur : RELANCE --reprendre\nCONTEXTE : Écris le double.'
+    );
     expect(essai(id, 'developpeur-2.prompt')).toContain('CONTEXTE : Écris le double.');
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
   });
 
-  it("an answer in no form resumes the regulateur's session once, asking for its decision, which the circuit applies", () => {
+  it("a session without a sheet resumes the regulateur's session once, asking for its sheet, whose decision the circuit applies", () => {
     const id = 'demo-regulateur-redemande';
     ticket(id, '000-forms');
     scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur-1', RIEN);
     scenario(id, 'developpeur-2', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-    scenario(id, `${REGULATEUR}-1`, regulateur('Je relancerais bien le développeur.'));
-    scenario(id, `${REGULATEUR}-2`, regulateur('RELANCE --reprendre\nCONTEXTE : Écris le double.'));
+    scenario(id, `${REGULATEUR}-1`, regulateur(null));
+    scenario(id, `${REGULATEUR}-2`, regulateur(reprendre('Écris le double.')));
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(sessions(id, REGULATEUR)).toBe(2);
     expect(valeur(args(id, REGULATEUR, 2), '--resume')).toBe(
       valeur(args(id, REGULATEUR, 1), '--session-id')
     );
-    expect(essai(id, `${REGULATEUR}-2.prompt`)).toContain('ne suit aucune forme de décision');
+    expect(essai(id, `${REGULATEUR}-2.prompt`)).toContain('sans fiche conforme');
     expect(essai(id, 'developpeur-2.prompt')).toContain('CONTEXTE : Écris le double.');
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
   });
 
-  it("critère 6 — an answer in no form, or a regulateur's session in error, ends on the original stop, the answer joined to its reason", () => {
+  it("critère 6 — twice no sheet, or a regulateur's session twice in error, ends on the original stop, why joined to its reason", () => {
     const id = 'demo-regulateur-illisible';
     ticket(id, '000-forms');
     scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', RIEN);
-    scenario(id, `${REGULATEUR}-1`, regulateur('Je relancerais bien le développeur.'));
-    scenario(id, `${REGULATEUR}-2`, regulateur('Toujours sans décision.'));
+    scenario(id, `${REGULATEUR}-1`, regulateur(null));
+    scenario(id, `${REGULATEUR}-2`, regulateur(null));
     const r1 = circuit([id]);
     expect(r1.status, sortie(r1)).toBe(ARRETS['sans-livraison']);
     const e1 = etat(id);
     expect(e1).toMatchObject({ raison: 'sans-livraison', code: ARRETS['sans-livraison'] });
     expect(e1?.rapport).toContain('ne change aucun fichier de packages/forms');
-    expect(e1?.rapport).toContain('Toujours sans décision.');
+    expect(e1?.rapport).toContain('LE RÉGULATEUR ne rend pas de décision');
+    expect(e1?.rapport).toContain('structured_output');
     expect(sessions(id, 'developpeur')).toBe(1);
     expect(sessions(id, REGULATEUR)).toBe(2);
-    // A session that ends in error: the same original stop, the regulator not asked again.
-    scenario(id, `${REGULATEUR}-3`, "decision 'RELANCE --reprendre'\nexit 3\n");
+    // A session that ends in error, resumed once, in error again: the same original stop; its
+    // sheet does not count.
+    scenario(id, REGULATEUR, `${regulateur(reprendre('Le double.'))}exit 3\n`);
     const r2 = circuit([id, '--depuis', 'developpeur', '000-forms', '--contexte', 'Le double.']);
     expect(r2.status, sortie(r2)).toBe(ARRETS['sans-livraison']);
-    expect(sessions(id, REGULATEUR)).toBe(3);
+    expect(sessions(id, REGULATEUR)).toBe(4);
     expect(sessions(id, 'developpeur')).toBe(2);
     expect(etat(id)?.rapport).toContain('code 3');
   });
@@ -300,7 +305,11 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
       scenario(
         id,
         `${REGULATEUR}-${n}`,
-        regulateur(`RELANCE --depuis developpeur packages/forms\nCONTEXTE : essai ${n}.`)
+        regulateur({
+          decision: 'RELANCE --depuis',
+          depuis: { role: 'developpeur', composant: 'packages/forms' },
+          contexte: `essai ${n}.`,
+        })
       );
     }
     const r = circuit([id]);
