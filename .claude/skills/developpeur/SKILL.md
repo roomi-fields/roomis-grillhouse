@@ -18,10 +18,11 @@ prime sur tout le reste.
 2. Lis les documents des composants que ton ticket touche : `CADRE.md`, `INTERFACE.md`,
    `ARCHITECTURE.md` (`docs/`, ou `packages/<x>/docs/`), et le lexique `CONTEXT.md`. Ainsi ton
    code part de l'architecture écrite. Un document absent ne t'arrête pas.
-3. Lis la section « Ce que les composants d'avant publient » de ta consigne : l'index des faits que
-   ton composant reçoit de chaque composant dont il dépend, une ligne chacun sous l'adresse de son
-   fournisseur, où se lit son détail, et la rubrique « Rend » du cadre de chacun. Ainsi tu sais ce
-   qui est déjà calculé, et où.
+3. Lis la section « Ce que les composants d'avant publient » de ta consigne : pour chaque
+   fournisseur, sa ligne, les noms déclarés pour ton composant et l'adresse de sa rubrique « Rend ».
+   Le reste se lit à deux renvois : tous les éléments avec leur phrase dans
+   `docs/agents/index-des-interfaces.md`, puis la section d'un élément dans l'interface du
+   fournisseur. Ainsi tu sais ce qui est déjà calculé, et où.
 4. Lance les tests du testeur, déjà dans ta copie (`npm test -- <fichiers>`, chemins depuis la
    racine du dépôt), et vois-les rouges ; sans test neuf, ce sont les rouges existants que le
    rapport de la preuve nomme.

@@ -150,6 +150,20 @@ describe('the handovers the circuit reads', () => {
     }
   });
 
+  // Witness: BPScript (vbwf.320.2.4.5.1, 2026-10-20): up to 14 KB of « vert attendu » per handover,
+  // one per test, most with the same reason; nine sessions of the testeur only added these lines.
+  it('a test file HEAD holds, adapted, all its tests green for one reason, takes one line « vert attendu » for the file', () => {
+    for (const [nom, texte] of [
+      ['testeur', testeur],
+      ['consigne', premier ?? ''],
+    ]) {
+      expect(texte, nom).toContain('vert attendu : <fichier> — <raison>');
+      expect(texte, nom).toMatch(/fichier de tests que HEAD tient/);
+      expect(texte, nom).toMatch(/fichier neuf/);
+      expect(texte, nom).toMatch(/n'excuse aucun rouge/);
+    }
+  });
+
   it('a developpeur whose remaining red lies in the tests of a component writes « Agent : testeur <composant> »', () => {
     for (const [nom, texte] of [
       ['developpeur', developpeur],

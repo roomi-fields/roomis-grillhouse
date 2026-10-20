@@ -76,6 +76,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/circuit.spec.ts
 - tests/unit/circuit.statut.spec.ts
 - tests/unit/circuit.tests-de-head.spec.ts
+- tests/unit/circuit.vert-par-fichier.spec.ts
 - tests/unit/code-mort-cadre.spec.ts
 - tests/unit/code-mort-espaces.spec.ts
 - tests/unit/code-mort-essai.ts

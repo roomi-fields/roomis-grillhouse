@@ -15,9 +15,11 @@ reste.
 1. Lis ton ticket en entier (`bd show`, `bd comments`), puis `bd update <id> --claim`.
 2. Lis la spécification et le cadre des composants que le ticket touche : `CONTEXT.md`, puis
    `CADRE.md`, `INTERFACE.md` et `ARCHITECTURE.md` de chaque composant.
-3. Lis la section « Ce que les composants d'avant publient » de ta consigne : l'index des faits que
-   le composant reçoit de chaque composant dont il dépend, une ligne chacun sous l'adresse de son
-   fournisseur, où se lit son détail, et la rubrique « Rend » du cadre de chacun.
+3. Lis la section « Ce que les composants d'avant publient » de ta consigne : pour chaque
+   fournisseur, sa ligne, les noms déclarés pour ton composant et l'adresse de sa rubrique « Rend ».
+   Le reste se lit à deux renvois : tous les éléments avec leur phrase dans
+   `docs/agents/index-des-interfaces.md`, puis la section d'un élément dans l'interface du
+   fournisseur.
 
 ## Tes références, à lire au moment où elles servent
 
@@ -69,6 +71,14 @@ pas ne prouve rien. Ainsi un vert reste un choix écrit.
 adaptes à un nom ou un type changé, et qui passe sur le code présent, porte sa ligne
 `vert attendu : <test> — <raison>` dans ta première passation. Ainsi la preuve passe du premier
 coup, sans une séance de plus pour écrire la ligne.
+
+**Un fichier adapté se justifie d'une seule ligne** : quand tous les tests verts d'un fichier de
+tests que HEAD tient, que tu adaptes, le sont pour une même raison, ta passation porte pour lui la
+ligne `vert attendu : <fichier> — <raison>`, le chemin du fichier depuis la racine du dépôt, tel
+que le rapport de la preuve le nomme. Elle justifie chaque test vert de ce fichier et n'excuse aucun
+rouge. Sur un fichier neuf, elle ne justifie rien, et le rapport le dit : chaque test vert y porte
+sa ligne. Les lignes par test restent valides et se combinent avec elle. Ainsi une passation dit
+une raison une fois.
 
 **Un type changé migre d'emblée ses lecteurs de test** : quand le ticket change un type ou un nom
 de ton composant, tu migres aussi, dans la même séance, la matière de test partagée qui le lit ; les tests

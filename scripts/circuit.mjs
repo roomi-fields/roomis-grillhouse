@@ -87,9 +87,12 @@
 //   not compiling is failing, and the files it keeps from loading play at the checks, after the
 //   developpeur; a failed build of a package out of the component leaves them broken. A green
 //   test passes only when a comment of an agent at the ticket carries the line `vert attendu :
-//   <name of the test> — <reason>`. A green test HEAD already holds has nothing to prove: the
-//   version of HEAD of each file plays in the same run, from a sibling file
-//   (`<nom>.circuit-avant.test.<ext>`, removed after it), and a green test whose full name HEAD's
+//   <name of the test> — <reason>`, or, for a test file HEAD holds, the line `vert attendu :
+//   <file> — <reason>` (its path from the root, the label and the path in bold or in code or
+//   neither), which justifies each green test of that file and excuses no red; on a new file it
+//   justifies nothing, and the report says so for that file; the two forms combine. A green test
+//   HEAD already holds has nothing to prove: the version of HEAD of each file plays in the same
+//   run, from a sibling file (`<nom>.circuit-avant.test.<ext>`, removed after it), and a green test whose full name HEAD's
 //   version holds, green there too, is set aside, counted; a body changed under the same name is
 //   not told apart. The proof passes with a red (of the lot, existing or of a build), even
 //   without a file of the lot in the component: a testeur with no new test to write says so in
@@ -1301,15 +1304,31 @@ function npm(ctx, etape, composant, args, env = {}) {
   return { code: r.status ?? 1, sortie };
 }
 
+// A line « vert attendu » of the agents' comments, its label in bold or in code or neither: what
+// follows its colon, or null.
+const LIGNE_VERT_ATTENDU = /^\s*(?:[-*]\s*)?[`*]*vert attendu[`*]*\s*:\s*(.*)$/i;
+
 // The justification of the green test <noms> (its title and its full name) in the comments of
 // the agents: the reason of its line `vert attendu : <nom> — <raison>`, or null.
 function justification(lignes, noms) {
   for (const l of lignes) {
-    const m = /^\s*(?:[-*]\s*)?vert attendu\s*:\s*(.*)$/i.exec(l);
+    const m = LIGNE_VERT_ATTENDU.exec(l);
     if (!m) continue;
     for (const nom of noms) {
       if (nom && m[1].startsWith(`${nom} —`)) return m[1].slice(nom.length).replace(/^\s*—\s*/, '');
     }
+  }
+  return null;
+}
+
+// The line of the agents' comments that covers the test file <fichier> (its path from the root of
+// the copy, as the proof names it), `vert attendu : <fichier> — <raison>`, the path in bold or in
+// code or neither: `{ raison }`, or null.
+function justificationDuFichier(lignes, fichier) {
+  for (const l of lignes) {
+    const m = LIGNE_VERT_ATTENDU.exec(l);
+    const f = m && /^[`*]*([^`*\s]+?)[`*]*\s+—\s*(.*?)\s*$/.exec(m[1]);
+    if (f && f[1] === fichier) return { raison: f[2] };
   }
   return null;
 }
@@ -1342,6 +1361,7 @@ function preuve(ctx, composant) {
   const justifies = [];
   const injustifies = [];
   const casses = [];
+  const neufs = [];
   const liste = paquets(ctx.copie).filter(p => !p.hors);
   const index = ctx.composants.indexOf(composant);
   // Each package of the component plays whole, beside the files of the lot.
@@ -1425,6 +1445,13 @@ function preuve(ctx, composant) {
       } else if (assertions.length === 0) {
         casses.push(`${f} — ne se charge pas : ${premiereLigne(res.message || res.status)}`);
       }
+      // The line that covers the whole file justifies its greens only for a file HEAD holds.
+      const duFichier = justificationDuFichier(lignes, f);
+      if (duFichier && !avant.has(f)) {
+        neufs.push(
+          `${f} — fichier neuf, que HEAD ne tient pas : sa ligne « vert attendu : ${f} » ne justifie aucun de ses verts`
+        );
+      }
       for (const a of assertions) {
         const nom = a.fullName || a.title;
         if (a.status === 'failed') {
@@ -1433,8 +1460,15 @@ function preuve(ctx, composant) {
           anciens++;
         } else if (a.status === 'passed') {
           const raison = justification(lignes, [a.title, a.fullName]);
-          if (raison) justifies.push(`${f} › ${nom} — ${raison}`);
-          else injustifies.push(`${f} › ${nom}`);
+          if (raison) {
+            justifies.push(`${f} › ${nom} — ${raison}`);
+          } else if (duFichier && avant.has(f)) {
+            justifies.push(
+              `${f} › ${nom} — ${duFichier.raison} (par la ligne du fichier « vert attendu : ${f} »)`
+            );
+          } else {
+            injustifies.push(`${f} › ${nom}`);
+          }
         }
       }
     }
@@ -1460,8 +1494,12 @@ function preuve(ctx, composant) {
       ...section('Rouges', rouges),
       ...sections,
       ...section(
-        'Verts sans « vert attendu » (un test vert avant le code passe seulement avec la ligne `vert attendu : <nom du test> — <raison>` dans la passation)',
+        "Verts sans « vert attendu » (un test vert avant le code passe seulement avec la ligne `vert attendu : <nom du test> — <raison>` dans la passation, ou, pour tous les verts d'un fichier de tests que HEAD tient, `vert attendu : <fichier> — <raison>`)",
         injustifies
+      ),
+      ...section(
+        'Lignes de fichier qui ne justifient rien (la ligne `vert attendu : <fichier> — <raison>` vaut seulement pour un fichier de tests que HEAD tient)',
+        neufs
       ),
       ...section('Fichiers qui ne prouvent rien', casses),
     ]
