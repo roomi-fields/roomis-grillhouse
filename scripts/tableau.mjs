@@ -896,14 +896,15 @@ export function assembler({
 
   // Alerts.
   const alertes = [];
-  // A red night says the night it turned red: the local date its ticket was opened, the night's
-  // date (scripts/nuit.sh), whatever its title names, a commit in older ones.
+  // A red night says the night it turned red, short enough to stand whole on its line: the local
+  // day and month its ticket was opened, the night's date (scripts/nuit.sh), whatever its title names, a
+  // commit in older ones.
   for (const t of nuit) {
     const { sujet: titreLu, numero: n } = titre(t);
     const ouvert = Date.parse(t.created_at ?? '');
     const sujet =
       /^La nuit est rouge\b/.test(titreLu) && !Number.isNaN(ouvert)
-        ? `La nuit est rouge depuis la nuit du ${dateLocale(ouvert)}`
+        ? `Nuit rouge depuis le ${jourEtMois(ouvert)}`
         : titreLu;
     alertes.push({ niveau: 'rouge', texte: `${sujet} ${n}`, sujet, numero: n });
   }
@@ -977,11 +978,11 @@ export const duree = ms => {
   return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}`;
 };
 
-// The local date of the instant <t>, « 2026-10-16 », as `date +%Y-%m-%d` writes it.
-const dateLocale = t => {
+// The local day and month of the instant <t>, « 16/10 ».
+const jourEtMois = t => {
   const d = new Date(t);
   const deux = x => String(x).padStart(2, '0');
-  return `${d.getFullYear()}-${deux(d.getMonth() + 1)}-${deux(d.getDate())}`;
+  return `${deux(d.getDate())}/${deux(d.getMonth() + 1)}`;
 };
 
 // A ticket's time and tokens, « 12 min · 310 k »; nothing when both are zero.

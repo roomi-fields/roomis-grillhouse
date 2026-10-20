@@ -653,9 +653,7 @@ describe('3uv.44 critère 7 : each open night ticket raises its red alert, its s
     expect(r).toHaveLength(2);
     const de = (numero: string) => r.filter(a => a.texte.endsWith(numero));
     expect(de('87')).toHaveLength(1);
-    expect(de('87')[0].texte.startsWith('La nuit est rouge depuis la nuit du 2026-10-17')).toBe(
-      true
-    );
+    expect(de('87')[0].texte.startsWith('Nuit rouge depuis le 17/10')).toBe(true);
     expect(de('88')).toHaveLength(1);
     expect(de('88')[0].texte.startsWith('La poussée de la nuit est refusée sur def5678')).toBe(
       true
@@ -676,11 +674,7 @@ describe('3uv.44 critère 7 : each open night ticket raises its red alert, its s
       { ...REFUSEE, status: 'closed' },
     ]);
     expect(
-      r.map(
-        a =>
-          a.texte.startsWith('La nuit est rouge depuis la nuit du 2026-10-17') &&
-          a.texte.endsWith('87')
-      )
+      r.map(a => a.texte.startsWith('Nuit rouge depuis le 17/10') && a.texte.endsWith('87'))
     ).toEqual([true]);
   });
 
@@ -698,7 +692,24 @@ describe('3uv.44 critère 7 : each open night ticket raises its red alert, its s
       }),
     ]);
     expect(r).toHaveLength(1);
-    expect(r[0].texte).toBe('La nuit est rouge depuis la nuit du 2026-10-16 91');
+    expect(r[0].texte).toBe('Nuit rouge depuis le 16/10 91');
+  });
+
+  it("a red night's line on the board keeps its whole date", () => {
+    const t = assembler({
+      tous: [
+        nuit('demo-si61', 'si61 — La nuit est rouge depuis 839dbb0 — parent', {
+          created_at: '2026-10-16T01:04:46Z',
+        }),
+      ],
+      prefix: 'demo',
+      registre: [],
+      vivants: [],
+      maintenant: MAINTENANT,
+      jour: MAINTENANT - 24 * 60 * MIN,
+    });
+    const l = (lignes(t, 'depot') as { texte: string }[]).map(x => x.texte);
+    expect(l).toContainEqual(expect.stringMatching(/^⚠ Nuit rouge depuis le 16\/10 +si61$/));
   });
 
   it('3uv.44 critère 7 : on the pane, a subject too long for the line is cut and its number stays whole', () => {

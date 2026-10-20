@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **A red night's alert stands whole on its line**: « La nuit est rouge depuis la nuit du 2026-10-16 » passed the 52 columns of the board, which cut its date. The alert now reads « Nuit rouge depuis le 16/10 ».
+
 ## [0.18.2] - 2026-10-20
 
 ### Fixed
