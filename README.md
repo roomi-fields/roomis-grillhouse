@@ -89,6 +89,12 @@ stop `question` (18), the regulator's session kept; the supervisor answers the q
 when it is the owner's (the functional, what the charter keeps for him),
 and `circuit.mjs <ticket> --reponse "<answer>"` resumes that session with the answer. So the
 supervisor is woken only by a lot integrated, a question, or a stop the regulator could not settle.
+Before the first tester, the circuit surveys the components the ticket's Architecture and criteria
+reach (`scripts/composants-affectes.mjs`: each element's provider and readers), as the explorer did
+for its title: a component it finds that the title misses, unless admitted out of it with its
+reason (`composants-affectes.mjs <ticket> --admettre`), stops the circuit at once, before any
+session (`composants-manquants`, 21); the supervisor adds it to the title, or answers why it stays
+out (`--reponse`).
 Each session writes at the ticket under its role as author (`BEADS_ACTOR`, which it may not change),
 the circuit's own lines under `circuit`, the queue's under `file`, and the reviewer's verdict under
 `relecteur`, written by the circuit from the reviewer's sheet. Each session's instruction carries the ticket's

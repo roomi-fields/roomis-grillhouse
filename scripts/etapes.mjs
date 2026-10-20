@@ -1,6 +1,7 @@
 // The steps of a ticket, numbered one by one, the automatic ones included, as a pipeline of
-// GitLab CI or Zuul numbers and names each of its stages: the one list, which the circuit
-// (scripts/circuit.mjs), the board (scripts/tableau.mjs) and the texts read.
+// GitLab CI or Zuul numbers and names each of its stages, and the stops of its circuit: the one
+// list, which the circuit (scripts/circuit.mjs), the board (scripts/tableau.mjs) and the texts
+// read.
 //
 // - A step: its number, its title, who works there (`qui`: the role agents, or AUTOMATIQUE for a
 //   step the circuit leads itself), whether it runs for each component of the ticket's title
@@ -14,6 +15,9 @@
 //   reviews, the same stop come back after a RELANCE of the regulator. The circuit stops each loop
 //   at its maximum and writes its count in its state (`boucles`, by step number); the board shows
 //   « <label> <n>/<max> » on the ticket's line from the second pass.
+// - The stops of the circuit, each by its name and its exit code (ARRETS): the circuit ends on one
+//   with its code, and its header says when.
+import { A_REPASSER } from './vitest-config/pression.mjs';
 
 // Who works at a step the circuit leads itself, with no agent.
 export const AUTOMATIQUE = 'automatique';
@@ -71,6 +75,23 @@ export const ETAPES = [
     etat: 'file',
   },
 ];
+
+// The exit code of each stop of the circuit.
+export const ARRETS = {
+  lancement: 10,
+  bloqué: 11,
+  'sans-fiche': 12,
+  preuve: 13,
+  controles: 14,
+  'sans-livraison': 15,
+  'relecture-arret': 16,
+  integration: 17,
+  question: 18,
+  'hors-portee': 19,
+  besoin: 20,
+  'composants-manquants': 21,
+  'a-repasser': A_REPASSER,
+};
 
 // The role that settles a stop of the circuit.
 export const REGULATEUR = 'regulateur';

@@ -7,6 +7,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  ARRETS,
   AUTOMATIQUE,
   ETAPES,
   etapeDuCircuit,
@@ -75,6 +76,32 @@ describe('the ten steps, decided by the owner on 2026-10-20', () => {
       'relecteur',
       'automatique',
     ]);
+  });
+});
+
+describe('the stops of the circuit, each with its exit code', () => {
+  // grillhouse-3uv.89, L6: the components the survey finds and the title misses stop the circuit
+  // before any session (scripts/composants-affectes.mjs).
+  it('lists every stop by its name and code, the components missing from the title among them', () => {
+    expect(ARRETS).toEqual({
+      lancement: 10,
+      bloqué: 11,
+      'sans-fiche': 12,
+      preuve: 13,
+      controles: 14,
+      'sans-livraison': 15,
+      'relecture-arret': 16,
+      integration: 17,
+      question: 18,
+      'hors-portee': 19,
+      besoin: 20,
+      'composants-manquants': 21,
+      'a-repasser': 75,
+    });
+  });
+
+  it('the circuit reads its stops in the list, none spelled again', () => {
+    expect(lire('scripts/circuit.mjs')).not.toMatch(/ARRETS = \{/);
   });
 });
 

@@ -24,6 +24,7 @@ scripts/bilan.mjs
 scripts/branche-de-nuit.mjs
 scripts/circuit.mjs
 scripts/code-mort.mjs
+scripts/composants-affectes.mjs
 scripts/consommateurs.mjs
 scripts/consommateurs-arbitres.mjs
 scripts/crochets.mjs
@@ -77,6 +78,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/circuit.bilan.spec.ts
 - tests/unit/circuit-essai.ts
 - tests/unit/circuit.composants.spec.ts
+- tests/unit/circuit.composants-affectes.spec.ts
 - tests/unit/circuit.consigne.spec.ts
 - tests/unit/circuit.fiche.spec.ts
 - tests/unit/circuit.construction.spec.ts
@@ -103,6 +105,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/code-mort-tests-bancs.spec.ts
 - tests/unit/code-mort.spec.ts
 - tests/unit/commandes-en-enveloppe.spec.ts
+- tests/unit/composants-affectes.spec.ts
 - tests/unit/consommateurs-arbitres.spec.ts
 - tests/unit/consommateurs.spec.ts
 - tests/unit/crochets-du-cadre.spec.ts

@@ -7,8 +7,9 @@
 // its end wakes him: at 0 the ticket is closed; at 75 he runs `--reprendre` again once the machine
 // is at rest; at « question » (18) the regulator's question goes to him: he answers it
 // himself, or carries it to the owner when it is the owner's, then runs `--reponse "<texte>"` with
-// the answer; at any other code, the stop is one the regulator could not settle. On a stop other
-// than 0 and 75, the circuit launches a session of the regulator itself, as the scheduler of an
+// the answer; at « composants-manquants » (21) he adds the components to the title or answers
+// why they stay out; at any other code, the stop is one the regulator could not settle. On a stop
+// other than 0, 21 and 75, the circuit launches a session of the regulator itself, as the scheduler of an
 // integration (Zuul, bors) calls the judgement at a stop and applies the decision it gets: the
 // regulator settles, and its sheet is its decision, which the circuit writes at the ticket and
 // applies in the same process. So the supervisor is woken only by the end of the lot, a question
@@ -29,6 +30,16 @@
 //   « — », separated by commas: each one a path (`packages/<nom>`, or `.`), or the name of a
 //   package, which becomes its directory (scripts/paquets.mjs), read in the ticket's copy when it
 //   exists, else in the main tree. A component that names neither stops the call, exit 2, named.
+// - Before the testeur of the first component (a run that starts there), the circuit surveys the
+//   components the ticket's Architecture and criteria reach (scripts/composants-affectes.mjs), as
+//   the « affected components » of a design document: a component the survey finds, the title
+//   does not name and no admission covers (`composants-affectes.mjs <ticket> --admettre`) stops it
+//   at once, before any session and without a regulator, at
+//   « composants-manquants », the missing components at the head of its report. The supervisor
+//   adds it to the title, the provider first, and runs the circuit again; or he answers why it
+//   stays out, `--reponse <texte>`, which the circuit writes at the ticket and keeps beside the
+//   copy (`.claude/worktrees/<ticket>.composants.json`): the components answered for pass from then
+//   on, and the run starts from the first component.
 // - Each session is a launch of scripts/enveloppe/lancer.sh, a child process the circuit waits
 //   for, in its own process group, its errors written to a file: a session outlives the death of
 //   its circuit (its caller dead, the circuit with it), and the state names its group while it
@@ -276,7 +287,7 @@
 //   question as its reason, the regulator's session kept in the state. `--reponse <texte>` resumes
 //   that session (`claude -p --resume <id>`, the fourth template: the supervisor's answer, which
 //   may carry the owner's) and applies the decision it gives the same way; without a session kept
-//   after a question, the call is refused. A session without a sheet that conforms is resumed
+//   after a question, nor a stop « composants-manquants » it answers, the call is refused. A session without a sheet that conforms is resumed
 //   once, as any session; a second one, a `--depuis` whose component the title does not name, or
 //   a session that cannot end (a launch that fails, a motionless session), ends the circuit on the
 //   stop it settled, the reason joined to its own. The third RELANCE in a row on one stop (its
@@ -310,6 +321,7 @@
 //   18 question (the regulator's question for the supervisor, `--reponse` resumes it),
 //   19 hors-portee (a testeur or developpeur whose sheet says BLOQUÉ, without a sending to a
 //   testeur), 20 besoin (a testeur or developpeur whose sheet says BESOIN),
+//   21 composants-manquants (a component the survey of the ticket finds and its title misses),
 //   75 a-repasser (a check or the integration still at 75 once played again, or the branch still
 //   in the queue).
 import { spawn, spawnSync } from 'node:child_process';
@@ -334,10 +346,19 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
 import { ecrireLeBilan } from './bilan.mjs';
+import { repondre, verifierLeTitre } from './composants-affectes.mjs';
 import { optionsDuRole } from './droits.mjs';
 import { matieres, NOM_DE_TEST } from './consommateurs.mjs';
 import { VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/composant.mjs';
-import { ARBITRAGE, AUTOMATIQUE, ETAPES, etapeDuCircuit, libelle, REGULATEUR } from './etapes.mjs';
+import {
+  ARBITRAGE,
+  ARRETS,
+  AUTOMATIQUE,
+  ETAPES,
+  etapeDuCircuit,
+  libelle,
+  REGULATEUR,
+} from './etapes.mjs';
 import { paquets } from './paquets.mjs';
 import { ecrire as ecrireAuRegistre, ligneDEtape, transcriptionsDeLaCopie } from './registre.mjs';
 import {
@@ -359,21 +380,8 @@ import { A_REPASSER } from './vitest-config/pression.mjs';
 
 // The time a session's transcripts may stand still before the circuit stops it.
 export const IMMOBILE_MS = 20 * 60 * 1000;
-// The exit code of each stop.
-export const ARRETS = {
-  lancement: 10,
-  bloqué: 11,
-  'sans-fiche': 12,
-  preuve: 13,
-  controles: 14,
-  'sans-livraison': 15,
-  'relecture-arret': 16,
-  integration: 17,
-  question: 18,
-  'hors-portee': 19,
-  besoin: 20,
-  'a-repasser': A_REPASSER,
-};
+// The exit code of each stop, from the list of the steps and stops.
+export { ARRETS };
 const CODE_USAGE = 2;
 // The bounded loops, each declared with its step (scripts/etapes.mjs, `boucle`): the testeur is
 // relaunched twice at most after a failed proof (three sessions); the developpeur has three
@@ -2638,12 +2646,47 @@ function aLaFin(ctx, code) {
   return code;
 }
 
+// The components the survey of the ticket finds and its title does not name
+// (scripts/composants-affectes.mjs), before the testeur of the first component: none, null; else
+// the stop « composants-manquants », its code, before any session and without a regulator.
+function composantsManquants(ctx) {
+  const { rapport } = verifierLeTitre({
+    racine: existsSync(ctx.copie) ? ctx.copie : ctx.racine,
+    ticket: ctx.ticket,
+    description: leTicket(ctx).description,
+    titre: ctx.composants,
+    fichier: `${ctx.copie}.composants.json`,
+  });
+  if (!rapport) return null;
+  const [composant] = ctx.composants;
+  const code = ARRETS['composants-manquants'];
+  ecrireEtat(ctx, {
+    etape: TESTS,
+    composant,
+    tentative: 1,
+    code,
+    raison: 'composants-manquants',
+    rapport,
+    dernier: ctx.composants.at(-1),
+  });
+  commenter(ctx, composant, 'composants', `arrêt composants-manquants — ${premiereLigne(rapport)}`);
+  process.stderr.write(`⛔ Circuit de ${ctx.ticket} arrêté : composants-manquants.\n${rapport}\n`);
+  return code;
+}
+
 export async function main(argv) {
   let ctx = null;
   try {
     ctx = contexte(lireArguments(argv));
     mkdirSync(path.dirname(ctx.copie), { recursive: true });
     const e = existsSync(ctx.etat) ? JSON.parse(readFileSync(ctx.etat, 'utf8')) : null;
+    // The supervisor's answer to the components the title misses lets them pass, from the start.
+    if (ctx.reponse !== null && e?.raison === 'composants-manquants') {
+      const hors = repondre(`${ctx.copie}.composants.json`, ctx.reponse);
+      const texte = `${hors.join(', ')} hors du titre, réponse du superviseur : ${ctx.reponse}`;
+      commenter(ctx, ctx.composants[0], 'composants', texte);
+      ctx.reponse = null;
+    }
     if (ctx.reponse !== null && (e?.raison !== 'question' || !e?.regulateur?.seance)) {
       throw new Usage(
         `--reponse : aucune séance du régulateur gardée dans ${ctx.etat} ; elle suit un arrêt « question ».`
@@ -2657,7 +2700,10 @@ export async function main(argv) {
     const d = ctx.reponse === null ? depart(ctx, e) : null;
     // A session a dead circuit left running ends before this run launches its own.
     await attendreLaSeance(ctx, e?.seance);
-    if (ctx.reponse === null) return aLaFin(ctx, await conduire(ctx, { depart: d }));
+    if (ctx.reponse === null) {
+      const manque = d.index === 0 && d.etape === TESTS ? composantsManquants(ctx) : null;
+      return aLaFin(ctx, manque ?? (await conduire(ctx, { depart: d })));
+    }
     // The supervisor's answer goes to the regulator's session kept on the stop it settles.
     ctx.renvois = e.renvois ?? null;
     const arret = {

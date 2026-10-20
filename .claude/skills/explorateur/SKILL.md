@@ -39,6 +39,15 @@ et l'interface des composants qu'il nomme.
    proposé, la sortie de la sonde au ticket. Un critère que la spécification contredit ou que la
    sonde dément se reformule, ou monte au superviseur. Ainsi aucun ticket ne vise un résultat que
    la spécification interdit.
+   Les composants d'un ticket se relèvent sur son brouillon :
+   `node scripts/composants-affectes.mjs --description <brouillon>` rend, pour chaque élément que
+   l'Architecture et les critères nomment entre accents graves, son fournisseur et ses lecteurs,
+   puis la liste du titre, le fournisseur d'abord. Le titre nomme les vrais lecteurs, ceux que le
+   ticket change, et la section « Architecture » reprend le relevé. Un composant relevé que le
+   ticket ne change pas s'admet hors du titre, avec sa raison, une fois le ticket créé :
+   `node scripts/composants-affectes.mjs <id> --admettre <composant> --raison "<raison>"`. Ainsi
+   le circuit, qui refait ce relevé avant le premier testeur, ne découvre aucun composant en route
+   et ne s'arrête sur aucun que tu as écarté.
    *Fini quand* chaque ticket proposé a sa section « Architecture », ses composants dans leur ordre
    et son critère de fin vérifiable, confronté et mesuré.
 

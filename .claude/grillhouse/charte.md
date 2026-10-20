@@ -66,7 +66,9 @@ de réalisation fait une seule livraison, en un seul commit ; tout ticket se cr�
 
 **Un ticket de réalisation nomme ses composants** : sa section « Architecture » et son titre
 (« numéro — sujet — composant, composant ») les nomment, le fournisseur d'abord, puis ses lecteurs.
-Dans la copie du ticket, le circuit (`scripts/circuit.mjs`), que lance le superviseur, lance un
+Le relevé des composants (`scripts/composants-affectes.mjs`) les trouve à la création du ticket, et
+le circuit le refait avant le premier testeur : un composant relevé que le titre ne nomme pas
+l'arrête d'emblée. Dans la copie du ticket, le circuit (`scripts/circuit.mjs`), que lance le superviseur, lance un
 agent par composant, chacun enveloppé dans son paquet, dans cet ordre, puis le relecteur, qui relit
 l'ensemble. Ainsi un type change avec ses
 lecteurs, comme dans une demande de fusion de rustc, et chaque agent écrit dans son seul paquet.
