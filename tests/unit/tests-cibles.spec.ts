@@ -287,6 +287,67 @@ describe(
   }
 );
 
+// Witness: BPScript si61.8, the threshold of a time budget bench raised. The day's configuration
+// left out every bench and night test, so `npm test -- <the bench>` played nothing (« No test
+// files found », code 1), the proof of the red counted the bench a file that does not load, and
+// the reviewer judged on the night's measure. As Bazel's `manual` target, out of every pattern and
+// played when named, a bench or a night test named itself plays, under the duration reporter; a
+// directory or a package named leaves them out, as the day does.
+describe(
+  'npm test -- <file> plays a time budget bench or a night test it names itself',
+  { timeout: 60_000 },
+  () => {
+    // The repository of packages, with in `a` a bench and a night test that write their mark, and
+    // a bench that fails.
+    const depotAvecBancs = () => {
+      const racine = depotAPaquets();
+      ecrire(racine, 'packages/a/test/z.budget.test.mjs', fichierDeTest(3, 'a/z.budget'));
+      ecrire(racine, 'packages/a/test/n.nuit.test.mjs', fichierDeTest(3, 'a/n.nuit'));
+      ecrire(
+        racine,
+        'packages/a/test/lent.budget.test.mjs',
+        "import { expect, it } from 'vitest';\nit('lent', () => { expect(12).toBeLessThan(10); });\n"
+      );
+      return racine;
+    };
+
+    it('a bench named plays, in its package', () => {
+      const racine = depotAvecBancs();
+      const r = lancer(racine, ['packages/a/test/z.budget.test.mjs']);
+      expect(r.status, sortie(r)).toBe(0);
+      expect(joues(racine)).toEqual(['a/z.budget']);
+    });
+
+    it('a night test named plays, in its package', () => {
+      const racine = depotAvecBancs();
+      const r = lancer(racine, ['packages/a/test/n.nuit.test.mjs']);
+      expect(r.status, sortie(r)).toBe(0);
+      expect(joues(racine)).toEqual(['a/n.nuit']);
+    });
+
+    it('its package named, the bench and the night test stay out, as the day has it', () => {
+      const racine = depotAvecBancs();
+      const r = lancer(racine, ['packages/a']);
+      expect(r.status, sortie(r)).toBe(0);
+      expect(joues(racine)).toEqual(['a/x', 'a/y']);
+    });
+
+    it('its package and the bench named, the bench plays and the night test stays out', () => {
+      const racine = depotAvecBancs();
+      const r = lancer(racine, ['packages/a', 'packages/a/test/z.budget.test.mjs']);
+      expect(r.status, sortie(r)).toBe(0);
+      expect(joues(racine)).toEqual(['a/x', 'a/y', 'a/z.budget']);
+    });
+
+    it('a bench named that fails is read by the duration reporter, as the night reads it', () => {
+      const racine = depotAvecBancs();
+      const r = lancer(racine, ['packages/a/test/lent.budget.test.mjs']);
+      expect(r.status, sortie(r)).not.toBe(0);
+      expect(stripVTControlCharacters(sortie(r))).toContain('lent : banc de temps, pression CPU');
+    });
+  }
+);
+
 describe('npm test -- <files>, in a repository without packages', { timeout: 60_000 }, () => {
   it('plays the files named from the root, and only those', () => {
     const racine = depotSansPaquets();

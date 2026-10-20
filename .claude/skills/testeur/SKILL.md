@@ -99,7 +99,9 @@ passation. Ainsi chaque test est rejoué quand ce qu'il lit change, et seulement
 
 **Un budget de temps vit dans son fichier** : un test qui mesure une durée s'écrit dans un fichier
 `*.budget.test.ts`. L'intégration de jour ne le joue pas, car la charge de la machine fait varier
-ses mesures ; la nuit le juge. Ainsi un rouge de jour dit un défaut, jamais une machine occupée.
+ses mesures ; la nuit le juge. Nommé lui-même (`npm test -- <son fichier>`), il se joue, et son
+échec sous charge est « à repasser » (code 75). Ainsi un rouge de jour dit un défaut, jamais une
+machine occupée.
 
 **Un témoin de temps se marque** : un test du jour dont le verdict dépend d'une durée (une attente
 bornée, un écart de temps comparé à un seuil) enveloppe sa mesure dans
@@ -109,7 +111,8 @@ rouge, il se rejoue au repos. Un test qui ne mesure aucune durée ne se marque p
 témoin de temps profite de la relance, et un vrai défaut reste rouge.
 
 **Un test trop long pour le jour est un test de nuit** : il s'écrit dans un fichier
-`*.nuit.test.ts`. Ni `npm test` ni l'intégration ne le jouent ; la nuit le joue elle-même, après
+`*.nuit.test.ts`. Ni `npm test` ni l'intégration ne le jouent, sauf nommé lui-même
+(`npm test -- <son fichier>`) ; la nuit le joue elle-même, après
 une passe complète verte, avec la configuration du cadre (`scripts/vitest.nuit.config.mjs`) ; la configuration de base du
 jour (le paquet `@grillhouse/vitest-config`), que chaque configuration Vitest étend, l'exclut.
 Ainsi le jour reste court, et la preuve longue tourne chaque nuit.

@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- **A time budget bench or a night test named in a targeted run plays**: in BPScript si61.8, the threshold of a bench raised, `npm test -- <the bench>` played nothing (« No test files found », code 1), since the day's configuration leaves out every `*.budget.test.*` and `*.nuit.test.*`; the proof of the red of the circuit counted the bench a file that does not load and stopped, and the reviewer, who may not run Vitest himself, judged on the night's measure. As Bazel's target tagged `manual`, out of every pattern and built when named, a bench or a night test whose own file `npm test -- <path>` names now plays in its package, under the duration reporter of the day's configuration: a failure of duration under load gives 75, « à repasser », which the circuit's checks play again as before. A directory or a package named still leaves them out, and `npm test` without a path, `npm run verifier` and the integration do not change. The patterns of the day's exclusions live in `scripts/vitest-config/cibles.mjs`, which the base configuration and the night's include read. The charter, the template's commands and the skills of the testeur and the reviewer say so.
+
 ## [0.18.3] - 2026-10-20
 
 ### Fixed

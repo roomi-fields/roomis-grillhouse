@@ -11,6 +11,7 @@
 // reporter, which gives 75, « à repasser », to a bench that fails under load
 // (scripts/vitest-config/duree.reporter.mjs).
 import base from './vitest-config/base.mjs';
+import { HORS_DU_JOUR } from './vitest-config/cibles.mjs';
 
 export default {
   test: {
@@ -18,7 +19,7 @@ export default {
     environment: base.test.environment,
     reporters: base.test.reporters,
     setupFiles: base.test.setupFiles,
-    include: ['**/*.{nuit,budget}.{test,spec}.?(c|m)[jt]s?(x)'],
+    include: HORS_DU_JOUR,
     exclude: ['**/node_modules/**', '**/dist/**', '**/.git/**'],
     watch: false,
   },

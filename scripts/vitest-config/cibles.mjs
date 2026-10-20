@@ -18,6 +18,12 @@
 //   A path of another package names none of its files. Each option enters the test configuration
 //   as Vitest merges its command line over it (`exclude` given on the command line is
 //   `cliExclude`, as Vitest's `normalizeCliOptions` names it).
+// - A night test or a time budget bench (HORS_DU_JOUR, the day's exclusions of ./base.mjs) plays
+//   when its own file is named, as Bazel's target tagged `manual` builds when named and never by a
+//   pattern: the day's exclusions of both lift for that run, the include of the configuration
+//   notwithstanding (the night's own include is HORS_DU_JOUR), and the measure of time of the base
+//   configuration applies, its duration reporter giving 75, « à repasser », to a bench that fails
+//   under load. A directory named leaves them out, as the day does.
 // - Without the variable, nothing changes. A run whose paths name no test file plays none, and
 //   fails: the base configuration keeps Vitest's `passWithNoTests: false`.
 //
@@ -26,6 +32,14 @@ import { readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 export const VARIABLE = 'GRILLHOUSE_TESTS';
+// The day's exclusions, which the base configuration (./base.mjs) sets and the night plays
+// (scripts/vitest.nuit.config.mjs): the night tests, too long for the day, and the time budget
+// benches, whose measures move with the load of the day.
+export const NUIT = '**/*.nuit.{test,spec}.?(c|m)[jt]s?(x)';
+export const BUDGET = '**/*.budget.{test,spec}.?(c|m)[jt]s?(x)';
+export const HORS_DU_JOUR = [NUIT, BUDGET];
+// Whether <r>, a path relative to the configuration's directory, is a night test or a bench.
+const horsDuJour = r => HORS_DU_JOUR.some(p => path.matchesGlob(r, p));
 // Vitest's default `include` (its configDefaults).
 const INCLUDE = ['**/*.{test,spec}.?(c|m)[jt]s?(x)'];
 // The directories a walk under a named directory leaves out, whose files no test configuration
@@ -43,7 +57,9 @@ function fichiers(chemin) {
   } catch {
     return [];
   }
-  if (!stat.isDirectory()) {return [chemin];}
+  if (!stat.isDirectory()) {
+    return [chemin];
+  }
   return readdirSync(chemin, { withFileTypes: true }).flatMap(e =>
     e.isDirectory() && SAUTES.has(e.name) ? [] : fichiers(path.join(chemin, e.name))
   );
@@ -64,7 +80,9 @@ export const ciblage = (env = process.env) => ({
   name: 'grillhouse:cibles',
   async config(config) {
     const texte = env[VARIABLE];
-    if (!texte) {return;}
+    if (!texte) {
+      return;
+    }
     delete env[VARIABLE];
     const { parseCLI } = await import('vitest/node');
     const { filter, options } = parseCLI(['vitest', ...JSON.parse(texte).arguments]);
@@ -72,12 +90,25 @@ export const ciblage = (env = process.env) => ({
     if (filter.length) {
       const dir = path.resolve(config.root ?? process.cwd(), test.dir ?? '');
       const include = test.include ?? INCLUDE;
-      const joues = [
-        ...new Set(filter.flatMap(f => fichiers(path.resolve(f.replace(/[\\/]+$/, ''))))),
-      ]
-        .map(f => path.relative(dir, f).split(path.sep).join('/'))
-        .filter(r => !r.startsWith('../') && include.some(p => path.matchesGlob(r, p)))
+      const nommes = filter.map(f => path.resolve(f.replace(/[\\/]+$/, '')));
+      // The files named themselves, not through a directory.
+      const seuls = new Set(nommes.filter(f => fichiers(f)[0] === f));
+      const relatif = f => path.relative(dir, f).split(path.sep).join('/');
+      const joues = [...new Set(nommes.flatMap(fichiers))]
+        .filter(f => {
+          const r = relatif(f);
+          if (r.startsWith('../')) {
+            return false;
+          }
+          return horsDuJour(r) ? seuls.has(f) : include.some(p => path.matchesGlob(r, p));
+        })
+        .map(relatif)
         .sort();
+      // A bench or a night test named itself plays: the day's exclusions of both lift, and the
+      // files under a directory named stay out by the filter above.
+      if (joues.some(horsDuJour) && Array.isArray(test.exclude)) {
+        test.exclude = test.exclude.filter(p => !HORS_DU_JOUR.includes(p));
+      }
       // No file named: a pattern that matches none, Vitest's « No test files found ».
       test.include = joues.length
         ? joues.map(r => r.replace(SPECIAUX, '\\$&'))
@@ -87,8 +118,12 @@ export const ciblage = (env = process.env) => ({
     // enters.
     const { '--': _, color: __, exclude, ...reste } = options;
     for (const [cle, valeur] of Object.entries(reste)) {
-      if (cle.length > 1 && !cle.includes('-')) {test[cle] = fusion(test[cle], valeur);}
+      if (cle.length > 1 && !cle.includes('-')) {
+        test[cle] = fusion(test[cle], valeur);
+      }
     }
-    if (exclude !== undefined) {test.cliExclude = [exclude].flat();}
+    if (exclude !== undefined) {
+      test.cliExclude = [exclude].flat();
+    }
   },
 });

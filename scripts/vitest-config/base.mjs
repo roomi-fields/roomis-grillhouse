@@ -14,8 +14,10 @@
 // - The exclusions of the day: a night test (`*.nuit.test.*`, `*.nuit.spec.*`) is too long for the
 //   day, and the measures of a time budget bench (`*.budget.test.*`, `*.budget.spec.*`) move with
 //   the load of the day: `npm test`, `npm run verifier` and the integration leave both out, and
-//   the night plays them (scripts/nuit.sh, scripts/vitest.nuit.config.mjs). `mergeConfig` adds the
-//   exclusions of a configuration that extends this one to these.
+//   the night plays them (scripts/nuit.sh, scripts/vitest.nuit.config.mjs); a targeted run that
+//   names the file of one itself plays it, under the measure of time below (./cibles.mjs, where
+//   the patterns live). `mergeConfig` adds the exclusions of a configuration that extends this one
+//   to these.
 // - A run that plays no test fails, as Vitest's default has it (`passWithNoTests` unset): a
 //   targeted run (`npm test -- <paths>`, scripts/tests.mjs) plays each path in its package only,
 //   and a path that names no test is a mistake, never a green.
@@ -36,11 +38,9 @@
 //   a configuration that extends this one to these; a reporter named on the command line
 //   (`--reporter`) replaces them, and Vitest's code then stands.
 import { fileURLToPath } from 'node:url';
-import { ciblage } from './cibles.mjs';
+import { ciblage, HORS_DU_JOUR } from './cibles.mjs';
 
 const ici = f => fileURLToPath(new URL(f, import.meta.url));
-const NUIT = '**/*.nuit.{test,spec}.?(c|m)[jt]s?(x)';
-const BUDGET = '**/*.budget.{test,spec}.?(c|m)[jt]s?(x)';
 
 export default {
   plugins: [ciblage()],
@@ -53,7 +53,7 @@ export default {
       GIT_CONFIG_KEY_1: 'gc.auto',
       GIT_CONFIG_VALUE_1: '0',
     },
-    exclude: ['**/node_modules/**', '**/dist/**', NUIT, BUDGET],
+    exclude: ['**/node_modules/**', '**/dist/**', ...HORS_DU_JOUR],
     reporters: ['default', ici('./duree.reporter.mjs')],
     setupFiles: [ici('./mesure.setup.mjs')],
     watch: false,

@@ -54,6 +54,9 @@
 //   and the integration's, out of the envelope.
 // - An argument that begins with « - » is an option of Vitest, written `--<name>=<value>`, carried
 //   in the variable beside the paths.
+// - A night test or a time budget bench, which the day leaves out, plays when a path names its own
+//   file, under the measure of time of the day's configuration (scripts/vitest-config/cibles.mjs);
+//   a directory or a package named leaves them out.
 // - A run that plays no test fails: the frame's base configuration of Vitest keeps Vitest's
 //   `passWithNoTests: false` (scripts/vitest-config/base.mjs).
 // The exit code is Turborepo's; 2 for a path refused.
