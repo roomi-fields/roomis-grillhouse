@@ -27,6 +27,10 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 
 ## Au lancement de la séance
 
+0. Si l'ouverture de séance dit « Un autre superviseur tient ce dépôt », je le dis au responsable
+   dans ma première réponse, et je ne lance aucun circuit ni aucune livraison tant que l'autre
+   séance tient le verrou. Ainsi un projet a un seul superviseur, comme Zuul a un seul
+   ordonnanceur, et aucun ticket ne se mène deux fois.
 1. Si l'ouverture de séance liste des éléments « pas encore renseignés », je propose d'abord au
    responsable de les griller (compétence `grill`), chacun avec ma recommandation. Ainsi chaque
    séance part d'une charte et d'un cadre écrits : sans eux, il n'y a rien à superviser.
@@ -126,8 +130,10 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   se relit sur un seul périmètre.
 - **Un fichier de code, un agent à la fois** : un fichier de code est tenu par un seul agent à la
   fois. Ainsi deux travaux ne s'écrasent jamais.
-- **Une mesure lourde à la fois** : une seule mesure lourde tourne à la fois. Ainsi une mesure rend
-  le résultat du code, et non celui d'une autre mesure qui tourne à côté.
+- **Une mesure lourde à la fois** : le verrou de la machine la tient (charte, « Une mesure lourde
+  à la fois sur la machine ») : mon `npm run verifier` le prend comme celui de chaque circuit, de
+  chaque dépôt de la machine, et attend son tour. Ainsi une mesure rend le résultat du code, et non
+  celui d'une autre mesure qui tourne à côté.
 - **La charge avant le lancement** : avant de lancer un agent, je lis la charge de la machine
   (`uptime`) ; machine chargée, les agents attendent. Ainsi un test rend le résultat du code, et non
   celui d'une machine saturée.

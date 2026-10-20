@@ -39,7 +39,9 @@ professionnel.
    `docs/agents/issue-tracker.md`), avec ce qui n'est pas fait et pourquoi. Ainsi l'agent suivant
    la trouve par `bd show`.
 
-Une séance de supervision charge le superviseur (`pitmaster`). Les rôles sont des agents du projet
+Une séance de supervision charge le superviseur (`pitmaster`) ; un projet a un seul superviseur,
+comme Zuul a un seul ordonnanceur : l'ouverture de séance prend le verrou du dépôt, et une seconde
+séance le dit au responsable et ne lance aucun circuit. Les rôles sont des agents du projet
 (`.claude/agents/`), chacun sous ses verrous. Un ticket passe par dix étapes numérotées, les
 automatiques comprises (`scripts/etapes.mjs`, la seule liste) : 1 Exploration, l'`explorateur` ;
 2 Arbitrage, le `referent-technique` (une question de conception) ou le `regulateur` (un arrêt du
@@ -135,17 +137,26 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
   rouge se met en quarantaine dans le test lui-même (`it.skip` ou `it.fails`), avec le ticket qui
   le corrige, comme le fait une intégration continue mature. Ainsi chaque rouge a son ticket, et
   main ne porte aucun rouge.
-- **Un témoin de temps se mesure CPU au repos** : un échec qui dépend d'une durée (un délai
-  dépassé, un banc `*.budget.test.*`, un test marqué `mesurerAuRepos`) survenu sous charge (la
-  pression CPU du noyau, `/proc/pressure/cpu`, à 25 % ou plus) est « à repasser » (code 75), ni
-  vert ni rouge : `npm run verifier` rejoue sa tâche seule une fois la machine au repos ; sans
-  repos en 15 min, la livraison reste en attente et se représente, comme Bazel classe un délai
-  dépassé et CTest le rejoue. Ainsi une machine occupée ne refuse aucun lot, et un rouge au repos
-  reste un rouge.
+- **Une mesure lourde à la fois sur la machine** : chaque `npm run verifier` et chaque passe
+  lourde du circuit (preuve du rouge, contrôles, passe finale) prennent le verrou de la machine,
+  partagé par tous ses dépôts (`~/.cache/grillhouse/mesure-lourde.lock`) ; une seconde mesure
+  attend la fin de la première et le dit, un verrou dont le processus est mort se reprend, comme
+  le serveur de tâches de GNU make. La passe borne ses tâches côte à côte à la moitié des cœurs.
+  Ainsi une mesure rend le résultat du code, et non celui d'une autre mesure à côté.
+- **Un témoin de temps joue seul** : un fichier de test qui importe `mesurerAuRepos` est un
+  témoin de temps ; `npm run verifier` joue tous les autres tests, puis les témoins dans une passe
+  à eux, une tâche après l'autre, comme Bazel joue un test `exclusive`. Un échec qui dépend d'une
+  durée (un délai dépassé, un banc `*.budget.test.*`, un test marqué `mesurerAuRepos`) survenu sous
+  charge (la pression CPU du noyau, `/proc/pressure/cpu`, à 25 % ou plus) est « à repasser » (code
+  75), ni vert ni rouge : `npm run verifier` rejoue sa tâche seule une fois la machine au repos ;
+  sans repos en 15 min, la livraison reste en attente et se représente, comme Bazel classe un
+  délai dépassé et CTest le rejoue. Ainsi un témoin ne se mesure jamais sous la charge de sa
+  propre passe, et un rouge au repos reste un rouge.
 - **L'index d'abord** : toute recherche commence par `rtfm_search` (mode `hybrid`) pour le quoi, et
   par `codegraph explore` (ou l'outil `codegraph_explore`) pour l'appel ; le shell lit un fichier
   déjà nommé. Une recherche vide se reformule dans les mots du code. Dans son enveloppe, un agent
-  lit son paquet, les interfaces de ses voisins et la matière de test partagée ; l'index est aux rôles qui voient tout le dépôt.
+  lit son paquet, les interfaces de ses voisins, la matière de test partagée et ce que ses tests
+  déclarent lire (`grillhouse.lit`) ; l'index est aux rôles qui voient tout le dépôt.
   Ainsi une affirmation sur le code repose sur ce que le code contient.
 - Tickets : Beads (`bd`), sous le préfixe du projet, voir `docs/agents/issue-tracker.md`.
 - Le greffon `mattpocock-skills` s'appelle avec son préfixe ; un document pour un agent s'écrit

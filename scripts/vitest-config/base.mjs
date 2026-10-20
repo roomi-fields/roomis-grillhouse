@@ -37,6 +37,11 @@
 //   `@grillhouse/vitest-config/mesure`). `mergeConfig` adds the reporters and the setup files of
 //   a configuration that extends this one to these; a reporter named on the command line
 //   (`--reporter`) replaces them, and Vitest's code then stands.
+// - The machine of a test file is its own: a setup file gives it a lock of the heavy measure of
+//   its own, so that a `npm run verifier` a test plays in a repository of trial neither waits for
+//   the lock of the machine nor holds it (./machine.setup.mjs, scripts/verrou-de-machine.mjs).
+// - The time witnesses play alone in `npm run verifier`: the plugin below leaves them out of its
+//   pass, then plays them in a pass of their own (./cibles.mjs, scripts/verifier.mjs).
 import { fileURLToPath } from 'node:url';
 import { ciblage, HORS_DU_JOUR } from './cibles.mjs';
 
@@ -55,7 +60,7 @@ export default {
     },
     exclude: ['**/node_modules/**', '**/dist/**', ...HORS_DU_JOUR],
     reporters: ['default', ici('./duree.reporter.mjs')],
-    setupFiles: [ici('./mesure.setup.mjs')],
+    setupFiles: [ici('./mesure.setup.mjs'), ici('./machine.setup.mjs')],
     watch: false,
   },
 };

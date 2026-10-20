@@ -102,7 +102,8 @@ scènes, des paires de la matière, la trace d'un autre étage) fait déclarer l
 ou fichier, dans le `package.json` de son paquet, depuis la racine :
 `"grillhouse": { "lit": ["<chemin>"] }`. Le test n'est rejoué que si son code, ce qu'il importe ou
 un chemin déclaré change ; un chemin qu'un autre paquet déclare sort de la construction de la
-matière, et un lecteur qui l'omet garde un vert périmé. Un chemin déclaré ne porte que des
+matière, et un lecteur qui l'omet garde un vert périmé. L'enveloppe de son composant le montre
+en lecture seule, même dans un voisin qu'elle cache. Un chemin déclaré ne porte que des
 données : le code s'importe. Le `package.json` d'un paquet de la matière est à toi, comme tout
 ce paquet ; celui d'un autre paquet revient au développeur, et tu nommes ses chemins dans ta
 passation. Ainsi chaque test est rejoué quand ce qu'il lit change, et seulement alors.
@@ -117,8 +118,10 @@ machine occupée.
 bornée, un écart de temps comparé à un seuil) enveloppe sa mesure dans
 `mesurerAuRepos(ctx, () => …)`, importé de `@grillhouse/vitest-config/mesure`. Son échec sous
 charge, comme un délai dépassé ou l'échec d'un banc, est « à repasser » (code 75) : ni vert ni
-rouge, il se rejoue au repos. Un test qui ne mesure aucune durée ne se marque pas. Ainsi seul un
-témoin de temps profite de la relance, et un vrai défaut reste rouge.
+rouge, il se rejoue au repos. Son fichier joue seul dans `npm run verifier`, après tous les autres
+tests : un témoin vit dans un fichier à lui, sans test ordinaire à côté. Un test qui ne mesure
+aucune durée ne se marque pas. Ainsi seul un témoin de temps profite de la relance, et un vrai
+défaut reste rouge.
 
 **Un test trop long pour le jour est un test de nuit** : il s'écrit dans un fichier
 `*.nuit.test.ts`. Ni `npm test` ni l'intégration ne le jouent, sauf nommé lui-même

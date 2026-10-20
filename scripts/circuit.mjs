@@ -134,6 +134,9 @@
 //   holds, or that no component owns, stops at « controles », the package named: the regulator
 //   decides, who refers the component's entry in the title upward, or has the lot
 //   corrected. From then on every check is the final pass.
+// - The proof, the checks and the final pass are heavy passes: each holds the lock of the machine
+//   (scripts/verrou-de-machine.mjs), shared by every repository of the machine, and waits, the
+//   wait written to the log, while another measure holds it.
 // - A check at 75 (« à repasser ») out of the final pass plays once more; verifier plays its
 //   tasks at 75 again itself, at rest, and its 75 is the final pass's. A red relaunches the
 //   developpeur with the output, twice at most, the third session on the strong model
@@ -288,6 +291,7 @@ import { ecrire as ecrireAuRegistre, ligneDEtape, transcriptionsDeLaCopie } from
 import { dossierCommun, lireEntrees } from './integration/file-attente.mjs';
 import { AUTEUR_DU_VERDICT, VERDICT, verdictDe } from './integration/verdict.mjs';
 import { attendreUnPeu, vivant } from './verrou-de-fichier.mjs';
+import { avecLaMachine } from './verrou-de-machine.mjs';
 import { isTesterFile } from './verrous/verrou.mjs';
 import { A_REPASSER } from './vitest-config/pression.mjs';
 
@@ -1303,17 +1307,23 @@ function paquetDe(liste, fichier) {
 }
 
 // One npm command in the copy, under <env> added to the circuit's environment, added to the log:
-// `{ code, sortie }`.
+// `{ code, sortie }`. It is a heavy pass (the proof, the checks, the final pass): it holds the lock
+// of the machine (scripts/verrou-de-machine.mjs), its wait written to the log, and passes it to
+// the `npm run verifier` it runs.
 function npm(ctx, etape, composant, args, env = {}) {
   entete(ctx, etape, composant);
   const prefixe = Object.entries(env).map(([k, v]) => `${k}=${v} `);
   appendFileSync(ctx.journal, `$ ${prefixe.join('')}npm ${args.join(' ')}\n`);
-  const r = spawnSync('npm', args, {
-    cwd: ctx.copie,
-    encoding: 'utf8',
-    env: { ...process.env, ...env },
-    maxBuffer: 256 * 1024 * 1024,
-  });
+  const r = avecLaMachine(
+    envMachine =>
+      spawnSync('npm', args, {
+        cwd: ctx.copie,
+        encoding: 'utf8',
+        env: { ...envMachine, ...env },
+        maxBuffer: 256 * 1024 * 1024,
+      }),
+    { dire: l => appendFileSync(ctx.journal, `${l}\n`) }
+  );
   const sortie = `${r.stdout ?? ''}${r.stderr ?? ''}`;
   appendFileSync(ctx.journal, sortie);
   return { code: r.status ?? 1, sortie };

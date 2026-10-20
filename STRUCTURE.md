@@ -53,11 +53,11 @@ roomis-grillhouse/
 │   ├── new-project.sh             # npm run new -- <dest> [prefix] (template only, not copied)
 │   ├── sortie.mjs                 # Grillhouse's release (CONTRIBUTING.md, §5): VERSION and plugin.json raised, CHANGELOG.md dated, then the tag v<version> on the release commit, locally; never pushes (Grillhouse only, not copied)
 │   ├── setup.sh                   # npm run setup: git, Beads tickets, the frame's git hooks (crochets.mjs), the frame's plugins (greffons.mjs), dependencies
-│   ├── session-start.sh           # SessionStart hook: what is still empty (per package in the frame)
+│   ├── session-start.sh           # SessionStart hook: what is still empty (per package in the frame); the lock of the supervisor (superviseur.mjs)
 │   ├── structure-guard.sh         # UserPromptSubmit hook: a structure decision goes to the grill
 │   ├── verrous/verrou.mjs         # The role agents' write locks (tests: tests/unit/verrous.spec.ts)
 │   ├── verrous/ticket-du-sous-agent.mjs # hook: a role agent launches with « TON TICKET : <id> »
-│   ├── enveloppe/                 # The envelope: an agent sees its component, the others' interfaces, the test material
+│   ├── enveloppe/                 # The envelope: an agent sees its component, the others' interfaces, the test material, what its tests declare they read
 │   │   ├── enveloppe.mjs             # bwrap sandbox for one component (tests: tests/unit/enveloppe*.spec.ts)
 │   │   ├── codes.mjs                 # the exit codes of the envelope and its launcher
 │   │   ├── composant.mjs             # GRILLHOUSE_ENVELOPPE, the component the envelope names: npm test and npm run api build and write it alone
@@ -86,7 +86,8 @@ roomis-grillhouse/
 │   │                              #   « à repasser » (75: benches played once more at rest, then still under load) opens nothing and keeps the last green
 │   ├── vitest-config/             # the package @grillhouse/vitest-config (private, `exports` to base.mjs and ./mesure, each typed by its .d.ts): the frame's base Vitest configuration of the day, which every day configuration extends (mergeConfig): night tests and budget benches excluded, the common environment, the one address of git's settings for the suite (automatic maintenance off), the plugin that restricts a run to the tests GRILLHOUSE_TESTS names (cibles.mjs)
 │   │                              #   the measure of time at rest: pression.mjs (the CPU pressure, /proc/pressure/cpu some avg10, threshold 25 %, code 75; `attendre`), mesure.setup.mjs (the pressure noted at the start and end of each test),
-│   │                              #   duree.reporter.mjs (75, « à repasser », when every failure depends on a duration and one took place under load), mesure.mjs (mesurerAuRepos, the mark of a measure of time)
+│   │                              #   duree.reporter.mjs (75, « à repasser », when every failure depends on a duration and one took place under load), mesure.mjs (mesurerAuRepos, the mark of a measure of time; a file that imports it is a time witness, which verifier plays alone),
+│   │                              #   machine.setup.mjs (each test file a lock of the heavy measure of its own)
 │   │                              #   a package of a project imports it by its name and declares it in its devDependencies; grillhouse-maj makes the directory a workspace; a repository without packages imports base.mjs by its path
 │   ├── vitest.nuit.config.mjs     # the Vitest configuration of the night tests, played by nuit.sh; git's settings, its setup file and its duration reporter read from vitest-config/base.mjs
 │   ├── sous-modules.sh            # the submodules of a working copy (integration, agent, night) at HEAD, or shared read-only (grillhouse.partage)
@@ -101,11 +102,14 @@ roomis-grillhouse/
 │   ├── tests.mjs                  # npm test, npm run test:forcer: turbo run test:vitest; each path named from the root plays in the package that holds it (--filter, the path made absolute), a path out of the frame's packages refused;
 │   │                              #   a run with paths is one run of the tests with what they depend on, the paths and options in GRILLHOUSE_TESTS (the env of test:vitest: in the hash of the tests alone), the builds and traces replayed from the cache;
 │   │                              #   --force puts the moment of the run in the variable (the tests alone played for real); in an envelope, its own package's build and traces (--only), then the tests alone (--only), whose hash sees no neighbour's code
-│   ├── verifier.mjs               # npm run verifier: turbo run grillhouse:gardes gardes test:vitest --continue=dependencies-successful --summarize; the code of each task read in the summary (removed after):
+│   ├── verifier.mjs               # npm run verifier, under the lock of the machine: turbo run grillhouse:gardes gardes test:vitest --continue=dependencies-successful --concurrency=<half the cores> --summarize, the time witnesses left out,
+│   │                              #   then the witnesses alone (--concurrency=1, one file at a time); the code of each task read in the summary (removed after):
 │   │                              #   any code but 0 and 75 is red, named; a task at 75 waits for rest (15 min at most) and plays again (--filter, its dependencies from the cache); the bound reached, 75 « à repasser »
+│   ├── verrou-de-machine.mjs      # the lock of the machine for the heavy measure (~/.cache/grillhouse/mesure-lourde.lock), shared by every repository: taken by verifier.mjs and the heavy passes of circuit.mjs
+│   ├── superviseur.mjs            # one supervisor per project: the session start takes the lock of the repository; a second session is told who holds it
 │   ├── tableau.mjs                # npm run tableau: the board on three levels (project, agents, chantier)
 │   ├── ligne-etat/                # the status line: the person's own on the left, the chantier on the right
-│   ├── verrou-de-fichier.mjs      # the lock of a file shared between processes (judged by the owner's process or by age); taken by integrer.mjs, file.mjs and registre.mjs
+│   ├── verrou-de-fichier.mjs      # the lock of a file shared between processes (judged by the owner's process or by age); taken by integrer.mjs, file.mjs, registre.mjs, verrou-de-machine.mjs and superviseur.mjs
 │   ├── registre.mjs               # hook: one line per finished agent (ticket, role, time, tokens)
 │   ├── integration/               # One delivery, in a clean copy: verdicts, lots, npm run verifier green, commit on agent/<ticket>; then the queue brings it onto main
 │   │   ├── integrer.mjs              # run by the circuit on ACCEPTÉ: commits the lot on agent/<ticket>, labels the ticket en-file, puts the branch in the queue (tests: tests/unit/integrer*.spec.ts)

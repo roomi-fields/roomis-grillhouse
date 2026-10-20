@@ -47,6 +47,7 @@ scripts/session-start.sh
 scripts/setup.sh
 scripts/sous-modules.sh
 scripts/structure-guard.sh
+scripts/superviseur.mjs
 scripts/tableau.mjs
 scripts/tests.mjs
 scripts/ticket.sh
@@ -54,6 +55,7 @@ scripts/turbo-des-paquets.mjs
 scripts/un-commit-par-ticket.mjs
 scripts/verifier.mjs
 scripts/verrou-de-fichier.mjs
+scripts/verrou-de-machine.mjs
 scripts/verrous/
 scripts/vitest-config/
 scripts/vitest.nuit.config.mjs
@@ -71,6 +73,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/circuit.composants.spec.ts
 - tests/unit/circuit.consigne.spec.ts
 - tests/unit/circuit.construction.spec.ts
+- tests/unit/circuit.machine.spec.ts
 - tests/unit/circuit.passe-finale.spec.ts
 - tests/unit/circuit.preuve.spec.ts
 - tests/unit/circuit.regulateur.spec.ts
@@ -99,6 +102,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/dossiers-d-essai.nuit.test.ts
 - tests/unit/dossiers-d-essai.spec.ts
 - tests/unit/enveloppe-essai.ts
+- tests/unit/enveloppe.lit.spec.ts
 - tests/unit/enveloppe.lanceur.spec.ts
 - tests/unit/enveloppe.maison.spec.ts
 - tests/unit/enveloppe.matiere-de-test.spec.ts
@@ -157,6 +161,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/sous-modules.partage.spec.ts
 - tests/unit/sous-modules.spec.ts
 - tests/unit/structure-guard.spec.ts
+- tests/unit/superviseur.spec.ts
 - tests/unit/tableau-circuit.spec.ts
 - tests/unit/tableau-corrections.spec.ts
 - tests/unit/tableau-essai.ts
@@ -179,7 +184,9 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/turbo-des-paquets.spec.ts
 - tests/unit/un-commit-par-ticket.spec.ts
 - tests/unit/verifier.spec.ts
+- tests/unit/verifier.temoins.spec.ts
 - tests/unit/verrou-de-fichier.spec.ts
+- tests/unit/verrou-de-machine.spec.ts
 - tests/unit/verrous.spec.ts
 - tests/unit/version.spec.ts
 - tests/unit/vitest-config-types.spec.ts

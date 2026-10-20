@@ -13,6 +13,9 @@
 // - A takeover moves the lock aside by renaming it (one taker wins), judges what it moved, and
 //   deletes it only if it is the abandoned one; a fresh lock moved by mistake is put back.
 // - A release removes the lock only when it still holds the mark of the taking being released.
+// - The owner is the taking process by default; `pid` names another, for a lock that outlives its
+//   taker (the supervisor's, taken by the session start for the session's own process,
+//   scripts/superviseur.mjs).
 import { randomUUID } from 'node:crypto';
 import {
   existsSync,
@@ -102,12 +105,13 @@ function reprendre(verrou, perime) {
  * Takes the lock file `verrou`. Returns true once taken; with `attendre` false, returns false
  * while another holds it.
  * @param {string} verrou the lock file
- * @param {{ attendre: boolean, perime?: number | null }} options `perime` (ms) judges an
- *   abandoned lock by its age instead of its owner's process
+ * @param {{ attendre: boolean, perime?: number | null, pid?: number }} options `perime` (ms)
+ *   judges an abandoned lock by its age instead of its owner's process; `pid` names the owner,
+ *   the taking process by default
  * @returns {boolean} whether the lock is taken
  */
-export function prendreVerrou(verrou, { attendre, perime = null }) {
-  const marque = `${process.pid}:${randomUUID()}`;
+export function prendreVerrou(verrou, { attendre, perime = null, pid = process.pid }) {
+  const marque = `${pid}:${randomUUID()}`;
   for (;;) {
     if (creer(verrou, marque)) {
       marques.set(verrou, marque);

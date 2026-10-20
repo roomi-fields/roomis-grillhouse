@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # SessionStart hook: tells the session what the project still lacks before work can start.
-# Silent once the project is set up and initialised. Read-only: it changes nothing.
+# Silent once the project is set up and initialised. It changes nothing, save the lock of the
+# supervisor below.
 #
 # The project's own check: `grillhouse.demarrage` in the package.json of the root names an npm
 # script (`npm pkg set grillhouse.demarrage=<script>`). The session start plays
@@ -15,6 +16,11 @@
 # the project joins « Manque » as « le greffon <id> », the missing claude command as « la commande
 # claude » (the line gives `bash scripts/setup.sh`, which installs them), and a reading that fails
 # or is stopped as « la lecture des greffons … ». An agent's copy does not read them.
+#
+# One supervisor per project (scripts/superviseur.mjs): the session takes the lock of its
+# repository; a second session, while the first one lives, receives first the section « Un autre
+# superviseur tient ce dépôt », which asks it to say so to the owner and to launch no circuit. An
+# agent's copy and a session of a role the circuit launches take nothing and receive nothing.
 set -uo pipefail
 
 root="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -23,6 +29,10 @@ if [ -f "$root/.claude/template" ]; then
   echo "Ce dossier est le gabarit du framework, pas un projet : il ne s'initialise pas. Un projet neuf se crée par \`npm run new -- <chemin> [préfixe]\` ; sa première séance propose le grill d'initialisation."
   exit 0
 fi
+
+# One supervisor per project: the lock of the repository, or the section that says who holds it.
+superviseur="$(node "$root/scripts/superviseur.mjs" "$root" 2>/dev/null)"
+[ -z "$superviseur" ] || echo "$superviseur"
 
 missing=()
 

@@ -56,6 +56,12 @@
 //   which the launcher produces before the session), when they exist inside it.
 //   The parent's own files (`src/index.ts`) come back read-only, and the emptied directories are
 //   then sealed read-only.
+// - What the component's tests declare they read comes back read-only, as Bazel gives a test the
+//   `data` it declares: each path of `grillhouse.lit` of its `package.json`, and of the `lit` of
+//   each trace it declares (`cheminsLus`, each path from the root of <copie>), that lies in a
+//   sibling component and exists, a directory or a file. A path the envelope already shows (the
+//   root, the component itself, the shared test material, whose mount the role decides) adds no
+//   mount.
 // - A folder of the root (`scripts`) hides nothing: its scripts work on the whole repository. The
 //   rest holds: the root read-only, the copy written, its `.git` read-only.
 // - The package of the shared test material is every component of <copie> whose `package.json`
@@ -324,6 +330,24 @@ function fichiersPublies(dir, copie) {
   return [...(Array.isArray(files) ? files : []), ...traces];
 }
 
+/**
+ * The paths that the tests of the package at <dir> declare they read: its `grillhouse.lit`, then
+ * the `lit` of each trace it declares (`grillhouse.traces`), each path from the root; none without
+ * a package.json or a declaration.
+ * @param {string} dir the directory of the package
+ * @returns {string[]}
+ */
+export function cheminsLus(dir) {
+  const manifeste = path.join(dir, 'package.json');
+  if (!existsSync(manifeste)) return [];
+  const { grillhouse } = JSON.parse(readFileSync(manifeste, 'utf8'));
+  const liste = v => (Array.isArray(v) ? v.filter(l => typeof l === 'string') : []);
+  return [
+    ...liste(grillhouse?.lit),
+    ...Object.values(grillhouse?.traces ?? {}).flatMap(t => liste(t?.lit)),
+  ];
+}
+
 const inside = (child, parent) => {
   const rel = path.relative(parent, child);
   return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
@@ -356,8 +380,9 @@ export function jugerComposant({ depot, composant, paquets = [] }, fs) {
 // `magasins` lists the task caches written by every run, the agent's included (Turborepo's
 // `<main tree>/.turbo/cache`); one that does not exist is not mounted.
 // `paquets` lists the packages of the copy, which `jugerComposant` reads to judge <composant>.
-// `fs` gives `lister(dir)`, `existe(path)`, `liens(dir)` and `publies(dir, copie)`, so the plan is
-// testable without disk.
+// `fs` gives `lister(dir)`, `existe(path)`, `liens(dir)`, `publies(dir, copie)` and `lus(dir)`
+// (what the tests of the package at <dir> declare they read, `cheminsLus`), so the plan is testable
+// without disk.
 export function plan(
   { trees, copie, composant, role, matieres = [], montages = [], magasins = [], paquets = [] },
   fs
@@ -437,6 +462,16 @@ export function plan(
       }
     }
   }
+  // What the component's tests declare they read, in a sibling the envelope hides.
+  if (!racine) {
+    for (const l of new Set(fs.lus?.(propre) ?? [])) {
+      const q = path.join(copie, l);
+      const visible = inside(q, propre) || matiere.some(m => inside(q, m));
+      if (inside(q, parent) && q !== parent && !visible && fs.existe(q)) {
+        args.push('--ro-bind', q, q);
+      }
+    }
+  }
   args.push('--bind', propre, propre);
   for (const m of matiere) {
     args.push(role === ROLE_MATIERE ? '--bind' : '--ro-bind', m, m);
@@ -458,6 +493,7 @@ const disque = {
   existe: existsSync,
   liens: d => (existsSync(d) && statSync(d).isDirectory() ? liensSortants(d) : []),
   publies: fichiersPublies,
+  lus: cheminsLus,
 };
 
 // The command: the session of <commande> in the envelope of <composant> in <copie>; its exit code.

@@ -8,7 +8,8 @@
 // - The value is JSON: `arguments`, Vitest's arguments (the paths, absolute, and the options
 //   written `--<name>=<value>`), which Vitest's own parser of its command line (`parseCLI`,
 //   vitest/node) reads; `rejouer`, the moment of a run that plays the tests for real (`--force`),
-//   which only moves the hash. The plugin takes the variable out of the environment once read: no
+//   which only moves the hash; `temoins`, the time witnesses of a pass of `npm run verifier`
+//   (below). The plugin takes the variable out of the environment once read: no
 //   process the tests start receives it.
 // - A plugin of the base configuration (./base.mjs) reads it once the configuration is merged (its
 //   `config` hook; Vitest reads the test options in `configResolved`, after every `config` hook):
@@ -26,9 +27,19 @@
 //   under load. A directory named leaves them out, as the day does.
 // - Without the variable, nothing changes. A run whose paths name no test file plays none, and
 //   fails: the base configuration keeps Vitest's `passWithNoTests: false`.
+// - The time witnesses play alone, as Bazel plays a test tagged `exclusive` after the others, with
+//   nothing beside it: a time witness is a test file that imports the mark of a measure of time
+//   (`import { mesurerAuRepos } from '@grillhouse/vitest-config/mesure'`, a line of its own,
+//   `estTemoin`). `npm run verifier` (scripts/verifier.mjs) plays its pass with `temoins: 'hors'`
+//   in the value, which leaves every witness of the configuration's `include` out, then a pass of
+//   its own with `temoins: 'seuls'`, which plays the witnesses alone, one file at a time
+//   (`fileParallelism: false`), and passes without one (`passWithNoTests`); a targeted run sets
+//   neither, and a witness named plays there as any test. The witnesses are found under the
+//   configuration's directory (`fichiersTemoins`), node_modules, dist, .git, .turbo and .claude
+//   left out.
 //
 // This module's top level uses Node alone: scripts/tests.mjs reads its VARIABLE.
-import { readdirSync, statSync } from 'node:fs';
+import { globSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 export const VARIABLE = 'GRILLHOUSE_TESTS';
@@ -42,6 +53,35 @@ export const HORS_DU_JOUR = [NUIT, BUDGET];
 const horsDuJour = r => HORS_DU_JOUR.some(p => path.matchesGlob(r, p));
 // Vitest's default `include` (its configDefaults).
 const INCLUDE = ['**/*.{test,spec}.?(c|m)[jt]s?(x)'];
+// The mark of a time witness: the import of `mesurerAuRepos`, on a line of its own, from the
+// package of the base configuration (by its name, or by the path of its file).
+const MARQUE_TEMOIN =
+  /^import\s*\{[^}]*\bmesurerAuRepos\b[^}]*\}\s*from\s*['"][^'"]*vitest-config\/mesure(?:\.mjs)?['"]/m;
+// Whether the text <texte> of a test file is that of a time witness.
+const estTemoin = texte => MARQUE_TEMOIN.test(texte);
+// The directories a search of the witnesses leaves out.
+const HORS_TEMOINS = new Set(['node_modules', 'dist', '.git', '.turbo', '.claude']);
+
+// The time witnesses under <dir>: the test files of <include> (Vitest's default without it), the
+// day's exclusions left out, that `estTemoin`; each path relative to <dir>, sorted.
+export function fichiersTemoins(dir, include = INCLUDE) {
+  const lire = f => {
+    try {
+      return readFileSync(path.join(dir, f), 'utf8');
+    } catch {
+      return '';
+    }
+  };
+  return [
+    ...new Set(
+      globSync(include, { cwd: dir, exclude: d => HORS_TEMOINS.has(path.basename(d)) }).map(f =>
+        f.split(path.sep).join('/')
+      )
+    ),
+  ]
+    .filter(f => !horsDuJour(f) && estTemoin(lire(f)))
+    .sort();
+}
 // The directories a walk under a named directory leaves out, whose files no test configuration
 // plays (the base excludes them).
 const SAUTES = new Set(['node_modules', '.git']);
@@ -85,8 +125,23 @@ export const ciblage = (env = process.env) => ({
     }
     delete env[VARIABLE];
     const { parseCLI } = await import('vitest/node');
-    const { filter, options } = parseCLI(['vitest', ...JSON.parse(texte).arguments]);
+    const valeur = JSON.parse(texte);
+    const { filter, options } = parseCLI(['vitest', ...(valeur.arguments ?? [])]);
     const test = (config.test ??= {});
+    // The time witnesses: left out of the pass, or played alone in their own.
+    if (valeur.temoins === 'hors' || valeur.temoins === 'seuls') {
+      const dir = path.resolve(config.root ?? process.cwd(), test.dir ?? '');
+      const temoins = fichiersTemoins(dir, test.include ?? INCLUDE).map(r =>
+        r.replace(SPECIAUX, '\\$&')
+      );
+      if (valeur.temoins === 'hors') {
+        test.exclude = [...(test.exclude ?? ['**/node_modules/**']), ...temoins];
+      } else {
+        test.include = temoins.length ? temoins : [`${VARIABLE}-sans-temoin`];
+        test.passWithNoTests = true;
+        test.fileParallelism = false;
+      }
+    }
     if (filter.length) {
       const dir = path.resolve(config.root ?? process.cwd(), test.dir ?? '');
       const include = test.include ?? INCLUDE;
