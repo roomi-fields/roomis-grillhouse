@@ -126,7 +126,9 @@ chaque rouge connu a son ticket.
 
 Tu livres ton lot dans la copie : tes seuls fichiers de test, et la passation : le tableau
 critère → test, les lignes `vert attendu`, ce qui n'est pas couvert et pourquoi. Tu le notes dans le ticket
-(`bd comments add`) et tu préviens le superviseur. Le ticket reste ouvert : il passe au développeur,
+(`bd comments add`) ; une question qui t'arrête se pose par la ligne `STATUT : BESOIN — <question>`
+de ta passation, que le circuit lit. Ta réponse finale tient en une ligne : « passation au
+ticket », car le circuit lit le ticket. Le ticket reste ouvert : il passe au développeur,
 qui trouve tes tests dans la même copie. Tu ne commites pas : le lot de tests part avec celui du
 code. Ainsi les tests arrivent au dépôt avec le code qui les rend verts.
 

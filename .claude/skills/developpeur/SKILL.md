@@ -12,7 +12,8 @@ prime sur tout le reste.
 ## Au démarrage
 
 1. Lis ton ticket en entier (`bd show`, `bd comments`), puis `bd update <id> --claim`. Des notes
-   au ticket disent qu'un agent s'est arrêté avant toi : tu reprends au point qu'elles nomment, sur
+   au ticket (ta consigne les porte, « LES NOTES DU TICKET ») disent qu'un agent s'est arrêté
+   avant toi : tu reprends au point qu'elles nomment, sur
    l'état de ta copie (`git -C <copie> status`, `git -C <copie> diff`).
 2. Lis les documents des composants que ton ticket touche : `CADRE.md`, `INTERFACE.md`,
    `ARCHITECTURE.md` (`docs/`, ou `packages/<x>/docs/`), et le lexique `CONTEXT.md`. Ainsi ton
@@ -146,6 +147,8 @@ Une découverte qui ne bloque pas se consigne fermée sous ton ticket
 
 ## La fin
 
-Passation au ticket avec les heures (`bd comments add`) ; le ticket reste ouvert jusqu'à
-l'entrée de sa branche sur main. Le rapport final, court et en mots simples : la cause, ce qui est
-juste et la règle citée, le test et sa morsure, les heures, les questions.
+Ta passation au ticket (`bd comments add`), en mots simples, dit la cause, ce qui est juste et la
+règle citée, le test et sa morsure, les questions ; le ticket reste ouvert jusqu'à l'entrée de sa
+branche sur main. Ta réponse finale tient en une ligne : « passation au ticket ». Ainsi tout ce
+que tu écris a son lecteur : le circuit et l'agent suivant lisent le ticket, le registre mesure le
+temps de ta séance.

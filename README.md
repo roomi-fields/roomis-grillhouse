@@ -90,8 +90,11 @@ when it is the owner's (the functional, what the charter keeps for him),
 and `circuit.mjs <ticket> --reponse "<answer>"` resumes that session with the answer. So the
 supervisor is woken only by a lot integrated, a question, or a stop the site manager could not settle.
 Each session writes at the ticket under its role as author (`BEADS_ACTOR`, which it may not change),
-the circuit's own lines under `circuit`, and the circuit reads a verdict only in a comment of the
-author `relecteur`. A developer who leaves a red in a component's tests sends it to that tester
+the circuit's own lines under `circuit`, the queue's under `file`, and the circuit reads a verdict
+only in a comment of the author `relecteur`. Each session's instruction carries the ticket's
+description as it is at its launch, the ticket's notes when it has some, and the last handover of
+its own role on its component (for a developer who has none yet, that of the tester of his
+component); the reviewer's carries no criteria, only the path of the claims file that holds them. A developer who leaves a red in a component's tests sends it to that tester
 (`Agent : testeur <component>` in its handover), and a component without tests goes straight to its developer.
 The handover of a tester or a developer ends on its status line, `STATUT : FAIT`, `STATUT : BLOQUÉ — <reason>`
 or `STATUT : BESOIN — <question>`: a BESOIN, or a BLOQUÉ that sends the red to no tester, stops the circuit

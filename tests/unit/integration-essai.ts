@@ -38,7 +38,8 @@ process.exit(r.status ?? 1);
 
 // The fake Beads: the tickets live in <bin>/etat.json ({ id: { id, status, labels, comments,
 // close_reason } }, in creation order); every call is appended to <bin>/appels, one per line.
-// It answers show, comments (and comments add), update (--add-label, --remove-label, --status,
+// It answers show, comments (and comments add, each under its author: BEADS_ACTOR, else git's
+// user `t`, as bd writes it), update (--add-label, --remove-label, --status,
 // --claim), label add/remove, close (--reason), reopen, list (--label, --status, --all) and
 // `config get issue_prefix` (demo); any other call succeeds silently.
 const FAUX_BD = `#!/usr/bin/env node
@@ -80,7 +81,7 @@ if (cmd === 'comments') {
     const fichier = opts.find(([k]) => k === '-f' || k === '--file');
     const t = ticket(pos[0]);
     const texte = fichier && typeof fichier[1] === 'string' ? fs.readFileSync(fichier[1], 'utf8') : pos.slice(1).join(' ');
-    t.comments.push({ text: texte });
+    t.comments.push({ author: process.env.BEADS_ACTOR || 't', text: texte });
     sauver(); process.exit(0);
   }
   const { pos } = lire(reste);

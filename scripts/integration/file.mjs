@@ -48,6 +48,8 @@
 // address of the run (`gh run view <id> --json url`) and the end of `gh run view <id>
 // --log-failed`. Without `gh`, without a run found, with `gh` refusing or past the 30 min, the
 // ticket is told that the CI was not read, and why, and stays closed.
+// Every comment and change of the queue at a ticket is written under the author `file`, which bd
+// reads in BEADS_ACTOR, as the circuit writes its own lines under `circuit`.
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -59,6 +61,9 @@ import { ouvrirCopie } from './rejeu.mjs';
 import { A_REPASSER } from '../vitest-config/pression.mjs';
 
 const ESSAIS_PAR_BRANCHE = 5;
+// The variable in which bd reads the author of a comment, and the queue's author.
+const ACTEUR = 'BEADS_ACTOR';
+const AUTEUR_DE_LA_FILE = 'file';
 // How long the queue looks for the run of the CI, then waits for it.
 const RECHERCHE_CI_MS = 2 * 60 * 1000;
 const ATTENTE_CI_MS = 30 * 60 * 1000;
@@ -80,8 +85,14 @@ function main(argv) {
     }).stdout.trim()
   );
   const git = (...args) => spawnSync('git', ['-C', racine, ...args], { encoding: 'utf8' });
+  // bd runs under the queue's author (BEADS_ACTOR), apart from the supervisor's and the owner's.
   const bd = (...a) => {
-    const r = spawnSync('bd', a, { cwd: racine, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+    const r = spawnSync('bd', a, {
+      cwd: racine,
+      encoding: 'utf8',
+      maxBuffer: 256 * 1024 * 1024,
+      env: { ...process.env, [ACTEUR]: AUTEUR_DE_LA_FILE },
+    });
     if (r.status !== 0) process.stderr.write(`bd ${a[0]} ${a[1] ?? ''} : ${r.stderr}`);
     return r;
   };

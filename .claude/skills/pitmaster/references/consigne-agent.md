@@ -8,8 +8,10 @@ enveloppe, sur un arrêt du circuit ; le quatrième pour la reprise de cette sé
 du superviseur (`--reponse`), qui peut porter celle du responsable ; le cinquième pour sa reprise
 sur une réponse sans décision ; le sixième pour la reprise de la séance du testeur ou du
 développeur, relancé sur son étape (le testeur après une preuve refusée, le développeur après des
-contrôles rouges), sauf la dernière tentative, une séance neuve sur le premier. Ainsi chaque agent
-reçoit la même consigne à chaque séance, et une reprise ne relit que ce qui a changé.
+contrôles rouges), sauf la dernière tentative, une séance neuve sur le premier. Le circuit lit la
+description et les notes du ticket au lancement de chaque séance ; `{{notes}}` porte la section
+des notes, vide quand le ticket n'en a pas. Ainsi chaque agent reçoit la même consigne à chaque
+séance, sur le ticket tel qu'il est, et une reprise ne relit que ce qui a changé.
 
 ## Testeur et développeur (rempli par le circuit)
 
@@ -28,19 +30,19 @@ LOTS À LIRE : {{lots}}
 
 CONTEXTE : {{contexte}}
 
-LE TICKET, sa description et ses critères :
+LE TICKET, sa description et ses critères, lus au lancement de ta séance :
 
 {{description}}
-
+{{notes}}
 LE RAPPORT DE L'ÉTAPE D'AVANT, mesuré par le circuit :
 
 {{rapport}}
 
-LA DERNIÈRE PASSATION au ticket :
+LA DERNIÈRE PASSATION de ton rôle sur ton composant (pour un développeur qui n'en a pas encore, celle du testeur de son composant) :
 
 {{passation}}
 
-Le circuit joue la preuve du rouge après le testeur, sur tous les tests de ton composant, et les contrôles après le développeur : les tests du lot, les gardes, les tests de chaque paquet des composants faits ; après le dernier composant, la passe finale, `npm run verifier`. Ta passation au ticket (`bd comments add`) lui dit que ta séance a fini.
+Le circuit joue la preuve du rouge après le testeur, sur tous les tests de ton composant, et les contrôles après le développeur : les tests du lot, les gardes, les tests de chaque paquet des composants faits ; après le dernier composant, la passe finale, `npm run verifier`. Ta passation au ticket (`bd comments add`) lui dit que ta séance a fini ; ta réponse finale tient en une ligne : « passation au ticket », car le circuit lit le ticket.
 
 Testeur : un test existant que tu adaptes à un nom ou un type changé, et qui passe sur le code présent, porte sa ligne `vert attendu : <test> — <raison>` dans ta première passation ; quand le ticket change un type ou un nom de ton composant, tu migres aussi, dans la même séance, la matière de test partagée qui le lit. Développeur : quand le rouge qui reste est dans les tests d'un composant du titre, le tien ou un composant d'avant, ta passation porte la ligne `Agent : testeur <composant>`, et le circuit rejoue ce composant depuis son testeur. Ainsi chaque rouge va à l'agent qui le lève.
 
@@ -70,11 +72,7 @@ REPRISE : {{reprise}}
 
 LOTS À LIRE : {{lots}}, dans la copie du ticket.
 
-LE TICKET, sa description et ses critères :
-
-{{description}}
-
-LE FICHIER D'AFFIRMATIONS, cette description écrite par le circuit : {{affirmations}}
+LE FICHIER D'AFFIRMATIONS, la description du ticket et ses critères écrits par le circuit, que tu lis au moment que fixe ta compétence, jamais avant : {{affirmations}}
 
 LES RAPPORTS DU CIRCUIT, au ticket depuis le dernier verdict (preuves du rouge, contrôles, passe finale) :
 

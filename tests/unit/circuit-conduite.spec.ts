@@ -253,3 +253,48 @@ describe('a question of the chef de chantier goes up to the supervisor, who answ
     expect(blocs[3]).not.toMatch(/RÉPONSE DU RESPONSABLE/);
   });
 });
+
+// Witness: BPScript (vbwf.320.2.4.5.1, si61.8, 2026-10-20): the developpeur's final report went to
+// the log alone, the circuit reading the ticket; the hours of a handover are the register's
+// (scripts/registre.mjs), which no agent declares; the testeur « warned the supervisor » with no
+// means to in the circuit.
+describe('the texts ask no writing without a reader', () => {
+  const plat = (rel: string) => lire(rel).replace(/\s+/g, ' ');
+  const testeur = plat('.claude/skills/testeur/SKILL.md');
+  const developpeur = plat('.claude/skills/developpeur/SKILL.md');
+  const premier = (
+    /```text\n([\s\S]*?)\n```/.exec(
+      lire('.claude/skills/pitmaster/references/consigne-agent.md')
+    )?.[1] ?? ''
+  ).replace(/\s+/g, ' ');
+
+  it('no skill, nor the conventions of the tracker, asks for the hours of a handover or a final report', () => {
+    for (const [nom, texte] of [
+      ['developpeur', developpeur],
+      ['testeur', testeur],
+      ['issue-tracker', plat('docs/agents/issue-tracker.md')],
+      ['pitmaster', plat('.claude/skills/pitmaster/SKILL.md')],
+      ['tour', plat('.claude/skills/pitmaster/references/tour.md')],
+    ]) {
+      expect(texte, nom).not.toMatch(/heures|clock time|rapport final/i);
+    }
+  });
+
+  it('the final answer of the testeur and the developpeur is one line, « passation au ticket »', () => {
+    for (const [nom, texte] of [
+      ['testeur', testeur],
+      ['developpeur', developpeur],
+      ['consigne', premier],
+    ]) {
+      expect(texte, nom).toMatch(
+        /[Tt]a réponse finale tient en une ligne : « passation au ticket »/
+      );
+    }
+  });
+
+  it('the testeur asks his question by his status line, not by warning the supervisor', () => {
+    expect(testeur).not.toMatch(/tu préviens le superviseur/);
+    const fin = testeur.slice(testeur.indexOf('## La fin'));
+    expect(fin).toContain('`STATUT : BESOIN — <question>`');
+  });
+});

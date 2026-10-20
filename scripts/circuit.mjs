@@ -26,9 +26,12 @@
 //   its circuit (its caller dead, the circuit with it), and the state names its group while it
 //   runs. The instruction is written from the first template of
 //   .claude/skills/pitmaster/references/consigne-agent.md, each `{{champ}}` filled: the ticket and
-//   its subject, the component, the ticket's description (its criteria), the report of the step
-//   before (the proof, the output of a red check), the last handover at the ticket, and the line
-//   `CONTEXTE :` that `--contexte` gives. The session's own exit code is the one lancer.sh writes
+//   its subject, the component, the ticket's description (its criteria) and its notes (a section
+//   absent without notes), both read with `bd show` at the session's launch, the report of the
+//   step before (the proof, the output of a red check), the last handover of the session's author
+//   (`<rôle> <composant>`) at the ticket, for a developpeur without one yet the last of the
+//   testeur of his component, else « aucune » (no other component's handover, nor a verdict), and
+//   the line `CONTEXTE :` that `--contexte` gives. The session's own exit code is the one lancer.sh writes
 //   to `.claude/worktrees/<ticket>.fin`; a launch that leaves none stopped before its session.
 // - A fresh session of the testeur or the developpeur opens under a session id the circuit sets
 //   (`lancer.sh --seance <uuid>`, claude's `--session-id`), kept in the state (`reprise`, its
@@ -48,7 +51,8 @@
 // - Each comment at the ticket carries its author, which bd reads in BEADS_ACTOR (ACTEUR): each
 //   session runs with the author of its role (`testeur <composant>`, `developpeur <composant>`,
 //   `relecteur`, `chef-de-chantier`), which the envelope passes on; the circuit writes its own
-//   lines under `circuit` and the reviewer's verdict under `relecteur`. The rights of every
+//   lines under `circuit` and the reviewer's verdict under `relecteur`, and the queue writes under
+//   `file` (scripts/integration/file.mjs); the circuit reads the queue's comments by their heading. The rights of every
 //   session refuse bd's `--actor`, `-a`/`--author` and the variable itself (AUTEUR_FIXE: the
 //   reviewer's and the chef's lists, and lancer.sh's for a session in the envelope), so that no
 //   agent changes its author. A verdict is a comment of the author `relecteur` whose first word is
@@ -138,8 +142,10 @@
 //   repository with its index, claude itself (`claude -p --agent relecteur`, CLAUDE_BIN replaces
 //   claude) in the ticket's copy, on Opus, under the project's permissions and every command its
 //   skill runs (RELECTEUR), its instruction from the second template of consigne-agent.md: the
-//   ticket, its components, its criteria, the claims file (the ticket's description, written by
-//   the circuit in its working folder, which the session may read), the files of the lot (the
+//   ticket, its components, the path of the claims file (the ticket's description as `bd show`
+//   gives it at the session's launch, written by the circuit in its working folder, which the
+//   session may read; the instruction carries no criteria, which the reviewer's skill reads only
+//   after its first passes), the files of the lot (the
 //   testeur's by `isTesterFile`, then the others) and the circuit's reports at the ticket since
 //   the last verdict (its proofs and checks). Its errors go to the log under its header line, its line to the register
 //   (scripts/registre.mjs --copie), and it is watched as a session in the envelope is. Its
@@ -518,7 +524,6 @@ function contexte(o) {
     resoudre,
     type: String(t.issue_type ?? ''),
     sujet: parts.length > 2 ? parts.slice(1, -1).join(' — ') : parts[0],
-    description: String(t.description ?? ''),
     composants,
     etat: `${copie}.circuit.json`,
     journal: `${copie}.log`,
@@ -545,6 +550,19 @@ function lesCommentaires(ctx) {
     author: String(c.author ?? ''),
     text: String(c.text ?? ''),
   }));
+}
+
+// The ticket's description (its criteria) and notes as Beads holds them at this moment, read at
+// the launch of each session: `{ description, notes }`; a failed read throws.
+function leTicket(ctx) {
+  const r = ctx.bd('show', ctx.ticket, '--json');
+  if (r.status !== 0) {
+    throw new Error(
+      `ticket ${ctx.ticket} illisible : ${r.error?.message ?? r.stderr ?? ''}`.trim()
+    );
+  }
+  const t = JSON.parse(r.stdout || '[]')[0] ?? {};
+  return { description: String(t.description ?? ''), notes: String(t.notes ?? '') };
 }
 
 // The texts of every comment at the ticket, in their order.
@@ -783,8 +801,9 @@ function consigne(valeurs, rang = 0) {
 // not the last (<derniere>) resumes the agent's session the circuit keeps (`ctx.reprise`, its
 // author and id) with the short instruction (the sixth template); a resumption that fails (a code
 // other than 0, or no handover) falls back on a fresh and whole session, under a new id, which
-// the circuit keeps. Throws an Arret for a launch that stops before its session, a motionless
-// session, or twice no handover.
+// the circuit keeps. A fresh session's instruction (the first template) carries the ticket's
+// description and notes as they are at its launch. Throws an Arret for a launch that stops before
+// its session, a motionless session, or twice no handover.
 async function seance(ctx, role, composant, { tentative, rapport, fort, derniere }) {
   const agent = auteur(role, composant);
   const nom = role === 'developpeur' ? 'développeur' : role;
@@ -819,6 +838,12 @@ async function seance(ctx, role, composant, { tentative, rapport, fort, derniere
   }
   const avant = passations(ctx);
   const lots = role === 'developpeur' ? testsDuLot(ctx) : testsDuComposant(ctx, composant);
+  const { description, notes } = leTicket(ctx);
+  // The last handover of this agent on its component; for a developpeur without one yet, the last
+  // of the testeur of his component.
+  const laDerniere = qui => avant.filter(c => c.author === qui).at(-1);
+  const passation =
+    laDerniere(agent) ?? (role === 'developpeur' ? laDerniere(auteur('testeur', composant)) : null);
   const valeurs = {
     role: nom,
     depot: ctx.racine,
@@ -833,9 +858,13 @@ async function seance(ctx, role, composant, { tentative, rapport, fort, derniere
       ? `${role === 'developpeur' ? 'le lot de tests' : 'tes tests'}, déjà dans la copie : ${lots.join(', ')}`
       : 'aucun',
     contexte: (!ctx.depuis && ctx.contexte) || 'aucun',
-    description: ctx.description.trim() || 'aucune',
+    description: description.trim() || 'aucune',
+    // The section of the ticket's notes, absent without notes.
+    notes: notes.trim()
+      ? `\nLES NOTES DU TICKET, l'état qu'un agent d'avant y a écrit :\n\n${notes.trim()}\n`
+      : '',
     rapport: rapport ?? 'aucun',
-    passation: avant.at(-1)?.text ?? 'aucune',
+    passation: passation?.text ?? 'aucune',
   };
   return await jusquALaPassation(ctx, role, composant, consigne(valeurs), { fort, neuve: agent });
 }
@@ -920,7 +949,7 @@ async function relire(ctx, composant) {
   const rapports = rapportsDuCircuit(ctx);
   const precedents = passations(ctx).filter(c => verdictDe(c));
   const affirmations = path.join(ctx.tmp, 'affirmations.md');
-  writeFileSync(affirmations, ctx.description);
+  writeFileSync(affirmations, leTicket(ctx).description);
   const valeurs = {
     depot: ctx.racine,
     ticket: ctx.ticket,
@@ -933,7 +962,6 @@ async function relire(ctx, composant) {
       `le lot de tests : ${tests.join(', ') || 'aucun fichier'}`,
       `le lot de code : ${code.join(', ') || 'aucun fichier'}`,
     ].join(' ; '),
-    description: ctx.description.trim() || 'aucune',
     affirmations,
     rapports: rapports.join('\n\n') || 'aucun',
   };

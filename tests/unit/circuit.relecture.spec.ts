@@ -128,11 +128,12 @@ Règle : critère 1.'
     ]) {
       expect(a).toContain(regle);
     }
-    // Its instruction: the second template, the criteria, the lot and the circuit's reports.
+    // Its instruction: the second template, the lot and the circuit's reports; the criteria are in
+    // the claims file alone (tests/unit/circuit.consigne.spec.ts).
     const consigne = essai(id, 'relecteur-1.prompt');
     expect(consigne).toContain(`Tu es le relecteur du dépôt ${REPO}.`);
     expect(consigne).toContain(`TON TICKET : ${id} — La mesure`);
-    expect(consigne).toContain('1. `mesure` rend le double de sa valeur.');
+    expect(consigne).not.toContain('1. `mesure` rend le double de sa valeur.');
     expect(consigne).toContain('le lot de tests : packages/forms/test/mesure.test.mjs');
     expect(consigne).toContain('le lot de code : packages/forms/src/index.mjs');
     expect(consigne).toContain('Circuit · packages/forms · preuve');

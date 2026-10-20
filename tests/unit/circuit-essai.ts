@@ -87,8 +87,9 @@ exit 0
 
 // The stand-in for bd, run by the circuit from the main tree: a ticket is `.beads/<id>.json`, its
 // comments `.beads/<id>.comments.jsonl`, each under its author, `BEADS_ACTOR`, else git's user
-// (`t`), as bd writes it; `update` (--status, --add-label, --remove-label), `close` (--reason) and
-// `reopen` write its state, as the integration and the queue change it.
+// (`t`), as bd writes it; `update` (--status, --add-label, --remove-label, -d/--description,
+// --notes), `close` (--reason) and `reopen` write its state, as the integration, the queue and the
+// chef de chantier change it.
 const FAUX_BD = `#!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
@@ -113,6 +114,8 @@ if (cmd === 'show') {
   if (v('--status')) t.status = v('--status');
   if (v('--add-label')) t.labels.push(v('--add-label'));
   if (v('--remove-label')) t.labels = t.labels.filter(x => x !== v('--remove-label'));
+  if (v('-d') ?? v('--description')) t.description = v('-d') ?? v('--description');
+  if (v('--notes')) t.notes = v('--notes');
   fs.writeFileSync(f, JSON.stringify([t]));
 } else {
   process.exit(1);
@@ -154,7 +157,8 @@ import { mesure } from '../src/index.mjs';
 it('ancien — mesure rend un nombre', () => { expect(typeof mesure(1)).toBe('number'); });
 `;
 
-const DESCRIPTION = [
+// The description of each trial ticket: its Architecture section and its one criterion.
+export const DESCRIPTION = [
   '## Architecture',
   '',
   'La mesure vit dans chaque composant.',

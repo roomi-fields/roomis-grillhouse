@@ -212,7 +212,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 
 **Une fermeture complète** porte le code, un test du testeur qui a mordu, le verdict `ACCEPTÉ` du
 relecteur, les documents que le ticket nommait (écrits avec `redacteur`),
-la passation avec ses heures relevées et le motif. Un aspect manquant se dit le jour même, dans le
+la passation et le motif. Un aspect manquant se dit le jour même, dans le
 ticket. Ainsi ce qui est déclaré fini l'est vraiment.
 
 **Le ticket contient tout ce que sa relecture finale demande** :

@@ -110,6 +110,24 @@ describe('grillhouse-3uv.63 — the queue brings the branches onto main', () => 
     },
     LONG
   );
+  // Witness: BPScript (si61.8, 2026-10-20), the queue wrote under git's user, the author of the
+  // supervisor and of the owner.
+  it(
+    'the queue writes at the ticket under its own author, `file`',
+    () => {
+      const m = chantier(ESSAIS);
+      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
+      m.ticket('demo-2', { 'src/a/index.ts': 'export const a = 2;\n' });
+      m.livrer('demo-1');
+      m.livrer('demo-2');
+      const r = m.file();
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      const c = m.bd('demo-2').comments.at(-1);
+      expect(c?.text).toMatch(/^## Sortie de la file/);
+      expect(c?.author).toBe('file');
+    },
+    LONG
+  );
   it(
     'critère 5: a branch whose `npm run verifier` is red once replaced leaves the queue, its ticket reopened with the output of its tests, and the queue goes on',
     () => {

@@ -16,8 +16,9 @@ l'agent que nomme chaque constat.
    les intentions du cadre : tu le lis quand un lot semble tenir la lettre d'une règle contre son
    but.
 2. Lis les fichiers du lot que ta consigne nomme, dans la copie du ticket : chacun par
-   `git diff HEAD -- <fichier>`, un fichier neuf en entier. Ne lis pas encore les critères de ta
-   consigne : tes deux premières passes partent du code seul. Ainsi le récit du ticket n'oriente pas ta
+   `git diff HEAD -- <fichier>`, un fichier neuf en entier. Ne lis pas encore les critères : ta
+   consigne n'en porte aucun, et le fichier d'affirmations qu'elle nomme attend l'étape des
+   affirmations ; tes deux premières passes partent du code seul. Ainsi le récit du ticket n'oriente pas ta
    lecture.
 
 ## Les six passes
