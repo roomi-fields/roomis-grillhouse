@@ -2,8 +2,9 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { parse as parseJsonc } from 'jsonc-parser';
 import { afterAll, describe, expect, it } from 'vitest';
-import { ecrire, verifier } from '../../scripts/turbo-des-paquets.mjs';
+import { COMMANDE, ecrire, verifier } from '../../scripts/turbo-des-paquets.mjs';
 
 // The data a package's tests read (Bazel's `data`) and the traces a stage writes (Bazel's
 // genrule), declared in its package.json (`grillhouse.lit`, `grillhouse.traces`).
@@ -638,5 +639,306 @@ describe('the check refuses a root turbo.json that configures a package by hand'
       t.globalDependencies = [`${CORPUS}/test/**`];
     });
     expect(refusDe(racine)).toContain(`${CORPUS}/test/**`);
+  });
+});
+
+// The inputs of a package's build are what its build reads: the files its tsconfig.build.json
+// includes, its configurations and its package.json, as Turborepo's `inputs` limit what
+// invalidates a task (https://turborepo.dev/docs/reference/configuration#inputs).
+// Witness: BPScript (si61.8), whose `030-binder#build` hashed every file of its package
+// (`$TURBO_DEFAULT$`) while its build compiles `src` only: one test file changed moved its build,
+// then the build of each package depending on it, and the whole descent replayed its tests
+// (~14 min of 33).
+describe('the build of a package hashes what its tsconfig.build.json reads', () => {
+  const BASE = { compilerOptions: { strict: true }, include: ['src', 'test'] };
+  // 010-parser and the material in BPScript's form: a tsconfig.build.json extending the package's
+  // tsconfig.json and the root's options; the material builds its test fixtures only, then again
+  // through tsconfig.fixtures.json.
+  const depotConstruit = () => {
+    const paquets = avec('990-corpus', p => {
+      p.scripts = { build: 'tsc -p tsconfig.build.json && tsc -p tsconfig.fixtures.json' };
+    });
+    paquets['010-parser'].scripts = { ...etage, build: 'tsc -p tsconfig.build.json' };
+    const racine = depotBP(paquets);
+    const parser = 'packages/010-parser';
+    ecrireFichier(racine, `${parser}/tsconfig.json`, json(BASE));
+    ecrireFichier(
+      racine,
+      `${parser}/tsconfig.build.json`,
+      `{\n  // The published code.\n  "extends": ["./tsconfig.json", "../../tsconfig.construction.json"],\n  "include": ["src"]\n}\n`
+    );
+    ecrireFichier(racine, `${parser}/test/parser.test.ts`, 'export const essai = 1;\n');
+    ecrireFichier(racine, `${CORPUS}/tsconfig.json`, json({ include: ['test'] }));
+    ecrireFichier(
+      racine,
+      `${CORPUS}/tsconfig.build.json`,
+      json({
+        extends: ['./tsconfig.json', '../../tsconfig.construction.json'],
+        include: [],
+        files: ['test/fixtures.ts'],
+      })
+    );
+    ecrireFichier(
+      racine,
+      `${CORPUS}/tsconfig.fixtures.json`,
+      json({ extends: './tsconfig.build.json', include: [], files: ['test/fixtures.ts'] })
+    );
+    ecrireFichier(racine, `${CORPUS}/test/sources.ts`, 'export const sources = [];\n');
+    git(racine, ['add', '-A']);
+    return racine;
+  };
+
+  it('a package building src hashes src, its configurations and its package.json, the root’s inputs kept', () => {
+    const racine = depotConstruit();
+    ecrire(racine);
+    expect(tachesDe(racine, 'packages/010-parser').build).toEqual({
+      dependsOn: ['000-forms#build'],
+      inputs: [
+        '$TURBO_ROOT$/tsconfig.construction.json',
+        'package.json',
+        'src/**',
+        'tsconfig.build.json',
+        'tsconfig.json',
+      ],
+    });
+    const entrees = Object.keys(sec(racine, ['build']).get('010-parser#build')!.inputs);
+    expect(entrees).toContain('src/index.ts');
+    expect(entrees).toContain('../../tsconfig.construction.json');
+    expect(entrees.filter(f => f.startsWith('test/'))).toEqual([]);
+  });
+
+  it('a package whose tsconfig.build.json includes a file under test/ hashes it, and the files beside it it imports', () => {
+    const racine = depotConstruit();
+    ecrire(racine);
+    expect(tachesDe(racine, CORPUS).build.inputs).toEqual([
+      '$TURBO_ROOT$/tsconfig.construction.json',
+      'package.json',
+      'test/**',
+      'tsconfig.build.json',
+      'tsconfig.fixtures.json',
+      'tsconfig.json',
+      '!test/040-checker/scenes/**',
+      '!test/060-encoder/paires-v1/**',
+      '!test/070-deriver/scenes/**',
+    ]);
+    const entrees = Object.keys(sec(racine, ['build']).get('990-corpus#build')!.inputs);
+    expect(entrees).toContain('test/fixtures.ts');
+    expect(entrees).toContain('test/sources.ts');
+    expect(entrees).toContain('tsconfig.fixtures.json');
+    expect(entrees.filter(f => f.startsWith('src/'))).toEqual([]);
+  });
+
+  it('witness: a test file changed leaves its package’s build and every build and test depending on it as they are', () => {
+    const racine = depotConstruit();
+    ecrire(racine);
+    expect(verifier(racine)).toEqual([]);
+    const empreintes = () =>
+      new Map([...sec(racine, ['test:vitest'])].map(([id, t]) => [id, t.hash]));
+    const avant = empreintes();
+    ecrireFichier(racine, 'packages/010-parser/test/parser.test.ts', 'export const essai = 2;\n');
+    const apres = empreintes();
+    expect(apres.get('010-parser#test:vitest')).not.toBe(avant.get('010-parser#test:vitest'));
+    for (const id of ['010-parser#build', '040-checker#build', '990-corpus#build']) {
+      expect(apres.get(id), id).toBe(avant.get(id));
+    }
+    expect(apres.get('040-checker#test:vitest')).toBe(avant.get('040-checker#test:vitest'));
+    // Its source changed moves its build, and what depends on it.
+    ecrireFichier(racine, 'packages/010-parser/src/index.ts', "export const nom = 'autre';\n");
+    const source = empreintes();
+    expect(source.get('010-parser#build')).not.toBe(apres.get('010-parser#build'));
+    expect(source.get('040-checker#build')).not.toBe(apres.get('040-checker#build'));
+  });
+
+  // A command whose reads are unknown never gives a stale cache: the build hashes every file.
+  it.each([
+    ['tsc -p tsconfig.build.json && node copier.mjs dist'],
+    ['vite build'],
+    ['tsc -p tsconfig.build.json; esbuild src/index.ts --outdir=dist'],
+    ['rm -rf dist || tsc -p tsconfig.build.json'],
+  ])(
+    'a build script running %s beside a tsconfig.build.json leaves the build on Turborepo’s default',
+    build => {
+      const racine = depotConstruit();
+      const parser = 'packages/010-parser';
+      ecrireFichier(
+        racine,
+        `${parser}/package.json`,
+        json({ ...PAQUETS['010-parser'], scripts: { ...etage, build } })
+      );
+      ecrireFichier(racine, `${parser}/copier.mjs`, 'console.log(1);\n');
+      ecrire(racine);
+      expect(tachesDe(racine, parser).build).toEqual({ dependsOn: ['000-forms#build'] });
+    }
+  );
+
+  it('a build script of tsc commands only gives what each compiles', () => {
+    const racine = depotConstruit();
+    const parser = 'packages/010-parser';
+    ecrireFichier(
+      racine,
+      `${parser}/package.json`,
+      json({
+        ...PAQUETS['010-parser'],
+        scripts: { ...etage, build: 'tsc -p tsconfig.build.json && npx tsc -p tsconfig.json' },
+      })
+    );
+    ecrire(racine);
+    expect(tachesDe(racine, parser).build.inputs).toEqual([
+      '$TURBO_ROOT$/tsconfig.construction.json',
+      'package.json',
+      'src/**',
+      'test/**',
+      'tsconfig.build.json',
+      'tsconfig.json',
+    ]);
+  });
+
+  it.each([
+    ['absent', null],
+    ['not JSON', '{ "include": ['],
+    ['extending a base that cannot be read', json({ extends: './absente.json', include: ['src'] })],
+    ['without include nor files, tsc’s default taking every file', json({ compilerOptions: {} })],
+    ['including a path out of the package', json({ include: ['../000-forms/src'] })],
+  ])('a tsconfig.build.json %s leaves the build on Turborepo’s default', (_cas, texte) => {
+    const racine = depotConstruit();
+    const f = path.join(racine, 'packages/010-parser/tsconfig.build.json');
+    if (texte === null) {
+      rmSync(f);
+    } else {
+      writeFileSync(f, texte);
+    }
+    ecrire(racine);
+    expect(tachesDe(racine, 'packages/010-parser').build).toEqual({
+      dependsOn: ['000-forms#build'],
+    });
+  });
+});
+
+// A submodule's `.git` is a pointer file naming the copy it was set in (a worktree): an input
+// covering the submodule without leaving it out changes every hash in each new copy. The update
+// of the frame writes the exclusion beside each such input.
+// Witness: BPScript (si61.8), whose root `test:vitest` hashed `$TURBO_ROOT$/vendor/bp3-engine/**`:
+// no copy ever replayed a test from the cache.
+describe('an input covering a submodule has its .git left out by the generator', () => {
+  const MOTEUR = 'vendor/moteur';
+  const GITMODULES = `[submodule "${MOTEUR}"]\n\tpath = ${MOTEUR}\n\turl = https://exemple.org/moteur.git\n`;
+  const exclusion = `!$TURBO_ROOT$/${MOTEUR}/.git`;
+  // The root's turbo.json of the project, a comment of its own heading it.
+  const depotAvecSousModule = (entrees: string[], paquets = PAQUETS, globales?: string[]) => {
+    const t = structuredClone(RACINE_BP) as typeof RACINE_BP & { globalDependencies?: string[] };
+    t.tasks['test:vitest'].inputs = [...t.tasks['test:vitest'].inputs, ...entrees];
+    if (globales) {
+      t.globalDependencies = globales;
+    }
+    const racine = depotBP(paquets, t);
+    ecrireFichier(racine, 'turbo.json', `// Le turbo.json du projet.\n${json(t)}`);
+    // The root's turbo.json as the update leaves it before the submodule is declared.
+    ecrire(racine);
+    ecrireFichier(racine, '.gitmodules', GITMODULES);
+    ecrireFichier(racine, `${MOTEUR}/moteur.json`, '{}\n');
+    return racine;
+  };
+  const racineLue = (racine: string) =>
+    parseJsonc(lire(racine, 'turbo.json')) as {
+      tasks: Record<string, { inputs?: string[] }>;
+      globalDependencies?: string[];
+    };
+
+  it.each([
+    [`$TURBO_ROOT$/${MOTEUR}/**`],
+    ['$TURBO_ROOT$/vendor/**'],
+    ['$TURBO_ROOT$/vendor/*/**'],
+  ])(
+    'an input %s of the root receives the exclusion beside it, the rest of the file as it was',
+    entree => {
+      const racine = depotAvecSousModule([entree]);
+      const avant = lire(racine, 'turbo.json');
+      // The check names the line to add and the command that adds it.
+      const refus = verifier(racine).join('\n');
+      expect(refus).toContain(entree);
+      expect(refus).toContain(exclusion);
+      expect(refus).toContain(COMMANDE);
+      expect(ecrire(racine)).toContain('turbo.json');
+      const apres = lire(racine, 'turbo.json');
+      expect(racineLue(racine).tasks['test:vitest'].inputs).toEqual([
+        '$TURBO_DEFAULT$',
+        '$TURBO_ROOT$/spec/**',
+        entree,
+        exclusion,
+      ]);
+      // Only the inputs of the task are rewritten.
+      const horsEntrees = (t: string) => t.replace(/"test:vitest": \{[\s\S]*?"outputs"/, '');
+      expect(horsEntrees(apres)).toBe(horsEntrees(avant));
+      expect(apres.startsWith('// Le turbo.json du projet.\n')).toBe(true);
+      expect(verifier(racine)).toEqual([]);
+      // A second update changes nothing.
+      expect(ecrire(racine)).toEqual([]);
+      expect(lire(racine, 'turbo.json')).toBe(apres);
+    }
+  );
+
+  it('an input with the exclusion, or inside the submodule where it cannot reach its .git, is left as it is', () => {
+    for (const entrees of [
+      [`$TURBO_ROOT$/${MOTEUR}/**`, exclusion],
+      [`$TURBO_ROOT$/${MOTEUR}/src/**`],
+    ]) {
+      const racine = depotAvecSousModule(entrees);
+      ecrire(racine);
+      const avant = lire(racine, 'turbo.json');
+      expect(verifier(racine)).toEqual([]);
+      expect(ecrire(racine)).toEqual([]);
+      expect(lire(racine, 'turbo.json')).toBe(avant);
+      expect(racineLue(racine).tasks['test:vitest'].inputs).toEqual([
+        '$TURBO_DEFAULT$',
+        '$TURBO_ROOT$/spec/**',
+        ...entrees,
+      ]);
+    }
+  });
+
+  it('a global dependency covering it receives the exclusion beside it', () => {
+    const racine = depotAvecSousModule([], PAQUETS, [`${MOTEUR}/**`, 'spec/**']);
+    ecrire(racine);
+    expect(racineLue(racine).globalDependencies).toEqual([
+      `${MOTEUR}/**`,
+      `!${MOTEUR}/.git`,
+      'spec/**',
+    ]);
+    expect(verifier(racine)).toEqual([]);
+  });
+
+  it('a package reading the submodule has the exclusion written in its turbo.json', () => {
+    const racine = depotAvecSousModule(
+      [],
+      avec('040-checker', p => {
+        p.grillhouse = { lit: [SCENES_040, MOTEUR] };
+      })
+    );
+    expect(refusDe(racine)).toBe('');
+    expect(tachesDe(racine, 'packages/040-checker')['test:vitest'].inputs).toEqual([
+      '$TURBO_EXTENDS$',
+      `$TURBO_ROOT$/${SCENES_040}/**`,
+      `$TURBO_ROOT$/${MOTEUR}/**`,
+      exclusion,
+    ]);
+  });
+
+  it('witness: after the update, a new copy’s pointer file leaves the tests’ hashes as they are', () => {
+    const copies = (racine: string) => {
+      const empreinte = () => sec(racine, ['test:vitest']).get('040-checker#test:vitest')!.hash;
+      writeFileSync(path.join(racine, MOTEUR, '.git'), 'gitdir: ../../.git/worktrees/copie-1\n');
+      const avant = empreinte();
+      writeFileSync(path.join(racine, MOTEUR, '.git'), 'gitdir: ../../.git/worktrees/copie-2\n');
+      return [avant, empreinte()];
+    };
+    // Without it, the pointer file of each copy moves the hash: the cache never serves.
+    const [sans1, sans2] = copies(depotAvecSousModule([`$TURBO_ROOT$/${MOTEUR}/**`]));
+    expect(sans2).not.toBe(sans1);
+    const racine = depotAvecSousModule([`$TURBO_ROOT$/${MOTEUR}/**`]);
+    ecrire(racine);
+    const [avec1, avec2] = copies(racine);
+    expect(avec2).toBe(avec1);
+    writeFileSync(path.join(racine, MOTEUR, 'moteur.json'), '{"v":2}\n');
+    expect(sec(racine, ['test:vitest']).get('040-checker#test:vitest')!.hash).not.toBe(avec1);
   });
 });

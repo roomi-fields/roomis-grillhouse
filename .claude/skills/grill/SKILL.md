@@ -152,9 +152,14 @@ remplace jamais le grill. Les branches de l'arbre :
    (`turbo.json`, tâche `build`) : une construction attend celle de ses seules dépendances
    d'exécution (`dependencies`, `peerDependencies`, `optionalDependencies`), et un test celle de
    son propre paquet, dont il importe l'entrée construite, et de tout ce qu'il importe, la matière de test partagée d'un voisin comprise ; une construction
-   inchangée se restaure de son cache. Le `turbo.json` de la racine est au projet : la mise à jour
+   inchangée se restaure de son cache. Une construction ne compte que ce qu'elle lit : le
+   `package.json`, le `tsconfig.build.json` du paquet, ce qu'il étend et les dossiers qu'il inclut
+   (un fichier listé, son dossier) ; un fichier de test changé ne rejoue ni elle ni ses dépendants.
+   Le `turbo.json` de la racine est au projet : la mise à jour
    du cadre l'écrit une fois, depuis le gabarit de sa forme (`templates/turbo/paquets.json` quand
-   le `package.json` déclare `workspaces`), puis n'y touche plus. Celui de chaque paquet est
+   le `package.json` déclare `workspaces`), puis n'y écrit que ce que le cadre en tient (les
+   dépendances des gardes, la variable des passes ciblées, l'exclusion `!$TURBO_ROOT$/<chemin>/.git`
+   à côté d'une entrée qui couvre un sous-module, dont le `.git` nomme la copie). Celui de chaque paquet est
    généré depuis son `package.json` (`node scripts/turbo-des-paquets.mjs --ecrire`, que la mise à
    jour lance) et `grillhouse:gardes` refuse un fichier absent ou périmé : une dépendance s'écrit
    au `package.json` seul. Chaque paquet testé porte son script

@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // The `turbo.json` of each package of a repository of packages, generated from its package.json
-// (its dependencies, the data its tests read and the traces it writes), the root's turbo.json and
-// the list of the packages out of the frame; and, in the root's turbo.json, the `dependsOn` of the
-// guard tasks and the `env` of the tests.
+// (its dependencies, its build, the data its tests read and the traces it writes), its
+// configurations of TypeScript, the root's turbo.json and the list of the packages out of the
+// frame; and, in the root's turbo.json, the `dependsOn` of the guard tasks, the `env` of the tests
+// and the exclusion of a submodule's `.git`.
 //
 //   node scripts/turbo-des-paquets.mjs           refuses a turbo.json absent or stale, and a
 //                                                declaration of data or trace refused (below)
@@ -19,6 +20,25 @@
 // its `dependencies`, `peerDependencies` and `optionalDependencies` name that has a `build`
 // script, sorted. The tests keep the root's `build` and `^build`: a test waits for its own package's build, whose
 // built entry it imports, and for everything it imports.
+//
+// A build hashes what it reads, as Turborepo's `inputs` limit what invalidates a task
+// (https://turborepo.dev/docs/reference/configuration#inputs): a test file changed leaves its
+// package's build as it is, and so the builds and tests of every package depending on it. A
+// package with a `tsconfig.build.json` has its `build` hash the root's build inputs, Turborepo's
+// default (`$TURBO_DEFAULT$`) left out, then, sorted: its package.json, its tsconfig.build.json and
+// each configuration it extends inside the package, `<dir>/**` per directory it includes (an
+// `include` entry, its fixed part before a glob; a `files` entry, its directory, since tsc compiles
+// what a listed file imports, its neighbours most often), the same for each configuration a `tsc`
+// of its `build` script compiles (`-p`, `--project`, `-b`, `--build`, else tsconfig.json). tsc's
+// own rules hold: a configuration's `include`
+// and `files` replace its bases', a later base of an `extends` list replacing an earlier one, each
+// path relative to the file that writes it (`${configDir}`, to the configuration compiled). What is
+// unknown leaves the build on Turborepo's default, every file of its package hashed, so that it
+// never gives a stale cache: a tsconfig.build.json absent or not JSON, a command of the `build`
+// script other than `tsc …` (`vite build`, `node copier.mjs`), a base that cannot be read, a
+// configuration setting
+// neither `include` nor `files` (tsc then takes every file), an included path out of the package
+// or at its root.
 //
 // A package out of the frame (`docs/agents/hors-cadre.txt`: a directory under `packages/` or
 // `src/`) stays a workspace, which a neighbour may import by its name, and Turborepo plays none
@@ -68,6 +88,14 @@
 // (`<package>#<task>`, the root's own `//#…` kept), a `trace:*` task, an input (`inputs` under
 // `$TURBO_ROOT$/`, `globalDependencies`) naming a package directory.
 //
+// A submodule's `.git`, in a copy (a worktree), is a file naming that copy: an input reaching it
+// changes the hash of its task in each new copy, and the cache never serves. Beside each input
+// that can reach the `.git` of a submodule the .gitmodules declares (a pattern of the root under
+// `$TURBO_ROOT$/`, of any task, or a global dependency, whose fixed part is the submodule or holds
+// it, then a glob), the generator writes its exclusion, `!$TURBO_ROOT$/<path>/.git`
+// (`!<path>/.git` for a global dependency), in the root's turbo.json, the rest of the file kept,
+// and in the inputs it writes in a package's turbo.json; the check refuses a root input lacking it.
+//
 // The configuration of Vitest of the package of the shared test material (`matieres` of
 // scripts/consommateurs.mjs) is CommonJS (`vitest.config.cjs`): the envelope shows that package
 // read-only to every role but the testeur (scripts/enveloppe/enveloppe.mjs), and Vite 5 loads a
@@ -101,7 +129,8 @@
 // no package turbo.json is written or refused. The dependencies are written in the package.json
 // only; this file is their only reader for the tasks' order.
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { applyEdits, modify, parse } from 'jsonc-parser';
@@ -127,6 +156,10 @@ const TRACE = 'trace:';
 // The files a build compiles: TypeScript's sources and declarations (tsc's default `include`
 // takes a `.d.ts` into the program, whose types the build checks) and JavaScript (`allowJs`).
 const CODE = /\.(?:[cm]?[jt]s|[jt]sx)$/;
+// The configuration of TypeScript a package's build compiles, and the token tsc reads in a path
+// of `include` or `files` for the directory of the configuration it compiles.
+const TSCONFIG_BUILD = 'tsconfig.build.json';
+const CONFIG_DIR = '${configDir}';
 
 // <texte> as JSON, its JSONC comments and trailing commas allowed, as Turborepo reads its
 // configuration; null when it is no JSON.
@@ -171,10 +204,183 @@ export const tracesDuPlan = (plan, garder = () => true) =>
 
 // A path from the root, without its trailing slashes.
 const net = d => String(d ?? '').replace(/\/+$/, '');
+// The fixed part of the pattern <motif>, its segments before the first holding a glob character,
+// and whether it has such a segment: { fixe, glob }.
+function partieFixe(motif) {
+  const segments = String(motif).replace(/^\.\//, '').split('/');
+  const i = segments.findIndex(s => /[*?[\]{}]/.test(s));
+  return { fixe: net((i < 0 ? segments : segments.slice(0, i)).join('/')), glob: i >= 0 };
+}
 // Whether <f> is <d> or under it.
 const sous = (f, d) => f === d || f.startsWith(`${d}/`);
 // Whether one of <a> and <b> holds the other.
 const recouvre = (a, b) => sous(a, b) || sous(b, a);
+
+// The paths of the submodules the .gitmodules of <racine> declares, sorted; none without one.
+function sousModules(racine) {
+  if (!existsSync(path.join(racine, '.gitmodules'))) return [];
+  const r = gitSort(racine, [
+    'config',
+    '-f',
+    '.gitmodules',
+    '--get-regexp',
+    '^submodule\\..*\\.path$',
+  ]);
+  return r.stdout
+    .split('\n')
+    .map(l => net(l.slice(l.indexOf(' ') + 1).trim()))
+    .filter(Boolean)
+    .sort();
+}
+
+// The exclusion of the `.git` of each submodule of <sm> one of the <chemins> (from the root)
+// holds, each `!<prefixe><path from <depuis>>/.git`: the `.git` of a submodule set in a copy is
+// a file naming that copy.
+const gitsExclus = (chemins, sm, prefixe = '$TURBO_ROOT$/', depuis = '') =>
+  sm
+    .filter(m => chemins.some(c => sous(m, c)))
+    .map(m => `!${prefixe}${depuis ? path.posix.relative(depuis, m) : m}/.git`);
+
+// The file of the base <base> that a configuration of TypeScript in <dir> extends, as tsc finds
+// it: a path, `.json` added when it lacks it, or a module resolved from <dir>; null without one.
+function baseTs(base, dir) {
+  if (base.startsWith('.') || path.isAbsolute(base)) {
+    const f = path.resolve(dir, base);
+    return [f, `${f}.json`].find(c => existsSync(c) && statSync(c).isFile()) ?? null;
+  }
+  const exiger = createRequire(path.join(dir, 'tsconfig.json'));
+  for (const c of [base, `${base}.json`, `${base}/tsconfig.json`]) {
+    try {
+      return exiger.resolve(c);
+    } catch {
+      // The next form tsc tries.
+    }
+  }
+  return null;
+}
+
+// The configuration of TypeScript at <f> (absolute) with its bases, as tsc reads them:
+// { configs, files, include }, `configs` the absolute path of each file read, `files` and
+// `include` the entries that win, [{ chemin, dir }] (the configuration's own, else those of its
+// last base that sets them, `dir` the directory of the file that writes them), undefined when no
+// file sets them; null when one of them cannot be read.
+function configTs(f, vus = []) {
+  if (vus.includes(f) || !existsSync(f)) return null;
+  const conf = lireJsonc(readFileSync(f, 'utf8'));
+  if (conf === null || typeof conf !== 'object' || Array.isArray(conf)) return null;
+  const dir = path.dirname(f);
+  const lu = { configs: [f], files: undefined, include: undefined };
+  for (const base of conf.extends === undefined ? [] : [conf.extends].flat()) {
+    const fb = typeof base === 'string' ? baseTs(base, dir) : null;
+    const r = fb === null ? null : configTs(fb, [...vus, f]);
+    if (r === null) return null;
+    lu.configs.push(...r.configs);
+    for (const cle of ['files', 'include']) if (r[cle] !== undefined) lu[cle] = r[cle];
+  }
+  for (const cle of ['files', 'include']) {
+    if (conf[cle] === undefined) continue;
+    if (!Array.isArray(conf[cle])) return null;
+    lu[cle] = conf[cle].map(chemin => ({ chemin: String(chemin), dir }));
+  }
+  return lu;
+}
+
+// What tsc reads in the package at <abs> compiling the configuration <projet> (absolute):
+// { fichiers, dossiers }, the configurations inside the package, and the directory of each
+// included path, each relative to the package; null when unknown: a configuration unread,
+// neither `files` nor `include` set (tsc then takes every file), an included path out of the
+// package or at its root. A listed file gives its directory: tsc compiles what it imports, its
+// neighbours most often.
+function luParTsc(abs, projet) {
+  const lu = configTs(projet);
+  if (lu === null || (lu.files === undefined && lu.include === undefined)) return null;
+  const dedans = p => {
+    const r = path.relative(abs, p).split(path.sep).join('/');
+    return r === '' || r === '..' || r.startsWith('../') || path.isAbsolute(r) ? null : r;
+  };
+  const fichiers = lu.configs.map(dedans).filter(r => r && !r.split('/').includes('node_modules'));
+  const dossiers = [];
+  for (const [cle, entrees] of [
+    ['files', lu.files ?? []],
+    ['include', lu.include ?? []],
+  ]) {
+    for (const { chemin, dir } of entrees) {
+      const f = chemin.startsWith(CONFIG_DIR)
+        ? path.join(path.dirname(projet), chemin.slice(CONFIG_DIR.length))
+        : path.resolve(dir, chemin);
+      const r = dedans(f);
+      if (r === null) return null;
+      const { fixe, glob } = partieFixe(r);
+      const fichier = cle === 'files' || (existsSync(f) && statSync(f).isFile());
+      const d = glob ? fixe : fichier ? path.posix.dirname(r) : r;
+      if (d === '' || d === '.') return null;
+      dossiers.push(d);
+    }
+  }
+  return { fichiers, dossiers };
+}
+
+// The inputs of the build of the package in <dossier> (from <racine>) whose package.json is
+// <pkg>: what its build reads, as Turborepo's `inputs` limit what invalidates a task
+// (https://turborepo.dev/docs/reference/configuration#inputs): its package.json, its
+// tsconfig.build.json and each configuration it extends inside the package, `<dir>/**` per
+// directory it includes, the same for each configuration a `tsc` of its `build` script compiles
+// (`-p`, `--project`, `-b`, `--build`, else tsconfig.json), sorted; then the exclusion of the
+// `.git` of each submodule of <sm> one of these directories holds. Null without a
+// tsconfig.build.json read, when a command of the `build` script (each one apart from the next by
+// `&&`, `||`, `;` or `|`) is not `tsc …` (`npx tsc …`), whose reads are unknown, or when what tsc
+// reads is unknown (`luParTsc`): the build then hashes every file of its package, Turborepo's
+// default, and a command unknown never gives a stale cache.
+function entreesBuild(racine, dossier, pkg, sm) {
+  const abs = path.join(racine, dossier);
+  const projets = [path.join(abs, TSCONFIG_BUILD)];
+  if (!existsSync(projets[0])) return null;
+  const fichiers = new Set(['package.json']);
+  const versProjet = m => {
+    const f = path.resolve(abs, m);
+    return existsSync(f) && statSync(f).isDirectory() ? path.join(f, 'tsconfig.json') : f;
+  };
+  for (const commande of String(pkg.scripts?.build ?? '').split(/&&|\|\||[;|]/)) {
+    const mots = commande
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map(m => m.replace(/^['"]|['"]$/g, ''));
+    if (mots.length === 0) continue;
+    const tsc = mots[0] === 'npx' ? 1 : 0;
+    if (mots[tsc] !== 'tsc') return null;
+    const options = mots.slice(tsc + 1);
+    const p = options.findIndex(m => m === '-p' || m === '--project');
+    const b = options.findIndex(m => m === '-b' || m === '--build');
+    if (p >= 0) {
+      projets.push(versProjet(options[p + 1] ?? '.'));
+    } else if (b >= 0) {
+      const suite = options.slice(b + 1);
+      const fin = suite.findIndex(m => m.startsWith('-'));
+      const noms = fin < 0 ? suite : suite.slice(0, fin);
+      projets.push(...(noms.length ? noms : ['.']).map(versProjet));
+    } else {
+      projets.push(versProjet('.'));
+    }
+  }
+  const dossiers = new Set();
+  for (const projet of new Set(projets)) {
+    const lu = luParTsc(abs, projet);
+    if (lu === null) return null;
+    for (const f of lu.fichiers) fichiers.add(f);
+    for (const d of lu.dossiers) dossiers.add(d);
+  }
+  const lus = [...dossiers];
+  return [
+    ...[...fichiers, ...lus.map(d => `${d}/**`)].sort(),
+    ...gitsExclus(
+      lus.map(d => `${dossier}/${d}`),
+      sm,
+      '',
+      dossier
+    ),
+  ];
+}
 
 // The data and traces each package of the frame declares in its package.json:
 // [{ dossier, pkg, lit, traces: [{ tache, id, lit, ecrit }] }], each path from the root.
@@ -241,6 +447,10 @@ export function attendus(racine) {
   // The inputs of the root's <tache> a package's own extend: the root's, or Turborepo's default
   // when the root sets none (`$TURBO_EXTENDS$` then extends an empty list).
   const base = tache => (deRacine.get(tache)?.inputs ? '$TURBO_EXTENDS$' : '$TURBO_DEFAULT$');
+  // The inputs of the root's build a package's build keeps when it names its own: Turborepo's
+  // default left out, which would hash every file of the package again.
+  const racineBuild = (deRacine.get('build')?.inputs ?? []).filter(e => e !== '$TURBO_DEFAULT$');
+  const sm = sousModules(racine);
   const out = new Map();
   for (const { dossier, pkg, hors: exclu } of liste) {
     const taches = {};
@@ -254,7 +464,10 @@ export function attendus(racine) {
         .filter(d => d !== dossier && sous(d, dossier))
         .map(d => path.posix.relative(dossier, d))
         .sort();
-      if (dedans.length) taches.build.inputs = [base('build'), ...dedans.map(d => `!${d}/**`)];
+      const propres = entreesBuild(racine, dossier, pkg, sm);
+      const sansDonnees = dedans.map(d => `!${d}/**`);
+      if (propres) taches.build.inputs = [...racineBuild, ...propres, ...sansDonnees];
+      else if (dedans.length) taches.build.inputs = [base('build'), ...sansDonnees];
       const horsVoisin = TOPOLOGIE.some(c => Object.keys(pkg[c] ?? {}).some(n => hors.has(n)));
       const voisins = internes(pkg, TOPOLOGIE, duCadre);
       // <dependances> with each `^<task>` written out when a neighbour is out of the frame.
@@ -278,14 +491,23 @@ export function attendus(racine) {
       if (decl.lit.length) {
         taches[TESTS] = {
           dependsOn: [...deplier(deRacine.get(TESTS)?.dependsOn ?? []), ...jointes(decl.lit)],
-          inputs: [base(TESTS), ...decl.lit.map(l => `$TURBO_ROOT$/${l}/**`)],
+          inputs: [
+            base(TESTS),
+            ...decl.lit.map(l => `$TURBO_ROOT$/${l}/**`),
+            ...gitsExclus(decl.lit, sm),
+          ],
         };
       }
       for (const t of decl.traces) {
         const ecrit = path.posix.relative(dossier, t.ecrit);
         taches[t.tache] = {
           dependsOn: [...deplier(['build', '^build']), ...jointes(t.lit, t.id)],
-          inputs: ['$TURBO_DEFAULT$', ...t.lit.map(l => `$TURBO_ROOT$/${l}/**`), `!${ecrit}/**`],
+          inputs: [
+            '$TURBO_DEFAULT$',
+            ...t.lit.map(l => `$TURBO_ROOT$/${l}/**`),
+            ...gitsExclus(t.lit, sm),
+            `!${ecrit}/**`,
+          ],
           outputs: [`${ecrit}/**`],
         };
       }
@@ -337,8 +559,43 @@ function testsSansVariable(racine) {
   return actuel.includes(TESTS_CIBLES) ? null : { f: r.f, attendu: [...actuel, TESTS_CIBLES] };
 }
 
-// Writes the turbo.json of each package of <racine>, and in its root's the guards' dependsOn and
-// the tests' env; returns the paths written.
+// The inputs of the root's turbo.json at <racine> that can reach the `.git` of a submodule its
+// .gitmodules declares (a pattern under `$TURBO_ROOT$/` of a task, or a global dependency, whose
+// fixed part is the submodule or holds it, then a glob) without its exclusion beside them:
+// { f, listes: [{ chemin, attendu, manques: [{ ou, e, m, ligne }] }] }, `attendu` the list with
+// each exclusion `!<path>/.git` added after the first pattern lacking it; null when none lacks it,
+// without a root configuration or a submodule.
+function gitsAbsents(racine) {
+  const r = confRacine(racine);
+  const sm = r === null ? [] : sousModules(racine);
+  if (sm.length === 0) return null;
+  const listes = [];
+  const examiner = (chemin, entrees, prefixe, ou) => {
+    if (!Array.isArray(entrees)) return;
+    const attendu = entrees.map(String);
+    const manques = [];
+    for (const e of entrees.map(String)) {
+      if (e.startsWith('!') || !e.startsWith(prefixe)) continue;
+      const { fixe, glob } = partieFixe(e.slice(prefixe.length));
+      for (const m of sm) {
+        const ligne = `!${prefixe}${m}/.git`;
+        if (!glob || !(fixe === '' || sous(m, fixe)) || attendu.includes(ligne)) continue;
+        attendu.splice(attendu.indexOf(e) + 1, 0, ligne);
+        manques.push({ ou, e, m, ligne });
+      }
+    }
+    if (manques.length) listes.push({ chemin, attendu, manques });
+  };
+  for (const [nom, t] of Object.entries(r.conf.tasks ?? {})) {
+    examiner(['tasks', nom, 'inputs'], t?.inputs, '$TURBO_ROOT$/', `l'entrée de \`${nom}\``);
+  }
+  examiner(['globalDependencies'], r.conf.globalDependencies, '', 'la dépendance globale');
+  return listes.length ? { f: r.f, listes } : null;
+}
+
+// Writes the turbo.json of each package of <racine>, and in its root's the guards' dependsOn, the
+// tests' env and the exclusion of a submodule's `.git` beside each input reaching it; returns the
+// paths written.
 export function ecrire(racine) {
   const ecrits = [];
   for (const [f, t] of attendus(racine)) {
@@ -366,6 +623,16 @@ export function ecrire(racine) {
     const chemin = ['tasks', TESTS, 'env'];
     writeFileSync(abs, applyEdits(texte, modify(texte, chemin, tests.attendu, MISE_EN_FORME)));
     if (!ecrits.includes(tests.f)) ecrits.push(tests.f);
+  }
+  const gits = gitsAbsents(racine);
+  if (gits) {
+    const abs = path.join(racine, gits.f);
+    let texte = readFileSync(abs, 'utf8');
+    for (const { chemin, attendu } of gits.listes) {
+      texte = applyEdits(texte, modify(texte, chemin, attendu, MISE_EN_FORME));
+    }
+    writeFileSync(abs, texte);
+    if (!ecrits.includes(gits.f)) ecrits.push(gits.f);
   }
   return ecrits;
 }
@@ -466,10 +733,8 @@ function configsMatiereRefusees(racine) {
 // Whether the pattern <motif> (from the root) can name a file of one of the <dossiers>: its fixed
 // part, before the first glob character, lies in one, or holds one under a glob.
 function visePaquet(motif, dossiers) {
-  const segments = motif.replace(/^\.\//, '').split('/');
-  const i = segments.findIndex(s => /[*?[\]{}]/.test(s));
-  const fixe = net((i < 0 ? segments : segments.slice(0, i)).join('/'));
-  return dossiers.some(d => sous(fixe, d) || (i >= 0 && (fixe === '' || sous(d, fixe))));
+  const { fixe, glob } = partieFixe(motif);
+  return dossiers.some(d => sous(fixe, d) || (glob && (fixe === '' || sous(d, fixe))));
 }
 
 // The refusals of the root's turbo.json at <racine> that the generator owns: a task of one package
@@ -519,6 +784,12 @@ export function verifier(racine) {
     ...declarationsRefusees(racine),
     ...configsMatiereRefusees(racine),
   ];
+  const gits = gitsAbsents(racine);
+  for (const { ou, e, m, ligne } of (gits?.listes ?? []).flatMap(l => l.manques)) {
+    refus.push(
+      `⛔ ${gits.f} : ${ou} \`${e}\` couvre le sous-module \`${m}\` sans exclure son \`.git\`, un fichier qui nomme la copie où il est posé : chaque copie neuve change l'empreinte, et le cache ne sert jamais ; \`${COMMANDE}\` ajoute \`${ligne}\` à côté.`
+    );
+  }
   const tests = testsSansVariable(racine);
   if (tests) {
     refus.push(
