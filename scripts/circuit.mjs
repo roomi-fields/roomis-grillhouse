@@ -200,9 +200,12 @@
 //   `isTesterFile`, then the others) and the circuit's reports since its last sheet (its proofs and
 //   checks). Its errors go to the log under its header line, its line to the register
 //   (scripts/registre.mjs --copie), and it is watched as a session in the envelope is. Its sheet
-//   is its verdict (`verdict` ACCEPTÉ or RENDU, its `constats`, `remarques`, `ecarts`): the circuit
-//   writes it at the ticket for the human, under the author `relecteur`, its first word the
-//   verdict, each finding under its heading with its recipient (`texteDuVerdict`).
+//   is its verdict (`verdict` ACCEPTÉ or RENDU, its `constats`, `remarques`, `question`, `ecarts`):
+//   the circuit writes it at the ticket for the human, under the author `relecteur`, its first
+//   word the verdict, each finding under its heading with its recipient (`texteDuVerdict`).
+// - A sheet of the reviewer with a `question` (what goes up to the owner, a real word of the
+//   language written in the code) stops the circuit at « besoin », whatever its verdict, before
+//   it commits or relaunches anyone, the question and the verdict as its report.
 // - RENDU: each finding names its recipient, `role` testeur or developpeur and `composant` one of
 //   the title (a path or a package name). The circuit plays again the components the findings
 //   name, the provider first, and those alone (`suivant`: the final pass before the review
@@ -320,7 +323,8 @@
 //   17 integration (the integration script refuses the lot, or the queue reopens the ticket),
 //   18 question (the regulator's question for the supervisor, `--reponse` resumes it),
 //   19 hors-portee (a testeur or developpeur whose sheet says BLOQUÉ, without a sending to a
-//   testeur), 20 besoin (a testeur or developpeur whose sheet says BESOIN),
+//   testeur), 20 besoin (a testeur or developpeur whose sheet says BESOIN, a reviewer whose sheet
+//   carries a `question`),
 //   21 composants-manquants (a component the survey of the ticket finds and its title misses),
 //   75 a-repasser (a check or the integration still at 75 once played again, or the branch still
 //   in the queue).
@@ -1108,7 +1112,8 @@ const lignesDesConstats = constats =>
 // The verdict the reviewer's sheet <fiche> carries, as the circuit writes it at the ticket for the
 // human, its first word ACCEPTÉ or RENDU: after a bounded review, each finding before it lifted or
 // not, with its proof; each finding under its heading, its recipient (or the criterion in
-// question) and its body; then the remarks and the deviations to name at the commit.
+// question) and its body; then the remarks, the question for the owner and the deviations to
+// name at the commit.
 export function texteDuVerdict(fiche) {
   const section = (titre, l) => (l?.length ? [`## ${titre}`, '', ...l.map(x => `- ${x}`), ''] : []);
   const suivi = (fiche.suivi ?? []).map(
@@ -1120,6 +1125,7 @@ export function texteDuVerdict(fiche) {
     ...section("Constats d'avant", suivi),
     ...lignesDesConstats(fiche.constats),
     ...section('Remarques', fiche.remarques),
+    ...section('Question au responsable', fiche.question ? [fiche.question] : []),
     ...section('Écarts à nommer au commit', fiche.ecarts),
   ]
     .join('\n')
@@ -1180,6 +1186,8 @@ async function relire(ctx, composant) {
     precedente,
     affirmations,
     rapports: rapports.join('\n\n') || 'aucun',
+    // The regulator's context of a relaunch, the answer to a question of the reviewer among them.
+    contexte: (!ctx.depuis && ctx.contexte) || 'aucun',
   };
   const fiche = await jusquALaFiche(ctx, 'relecteur', composant, consigne(valeurs, 1), {
     horsEnveloppe: true,
@@ -2334,6 +2342,13 @@ async function derouler(ctx, debut) {
         }
       } else if (etape === RELECTURE) {
         const v = await relire(ctx, composant);
+        // A question for the owner: nothing is committed nor relaunched before his answer.
+        if (v.fiche.question) {
+          throw new Arret(
+            'besoin',
+            `Le relecteur attend une réponse : ${v.fiche.question}\n\nLa décision revient au régulateur. Le verdict :\n\n${v.texte}`
+          );
+        }
         if (v.verdict === 'ACCEPTÉ' && (!v.arbre || ctx.verifie === v.arbre)) {
           commenter(ctx, composant, 'relecture', 'ACCEPTÉ ; le lot va à l’intégration.');
           etape = INTEGRATION;

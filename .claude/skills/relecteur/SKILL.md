@@ -110,9 +110,22 @@ dans `remarques`, et ne rend pas le lot. Ainsi la relecture applique le cadre, s
 sans fin.
 
 Une remarque qui sort des critères du ticket entre dans `decouvertes` (son sujet, son exemple et
-son adresse) : le circuit la consigne dans un ticket fermé sous le ticket. Un écart que le commit
-doit nommer (un rouge de structure, un écart voulu) entre dans `ecarts` : le circuit l'écrit dans
-le message de commit. Ainsi le ticket garde ses critères, et la remarque attend le mot du
-responsable.
+son adresse) : le circuit la consigne dans un ticket fermé sous le ticket. Tu ne cherches ni ne
+crées aucun ticket : ta fiche suffit. Ainsi le ticket garde ses critères, et la remarque attend le
+mot du responsable.
+
+Tu relis le message de commit comme le code : le circuit l'écrit du titre du ticket et des
+`ecarts` des fiches. Un écart que le commit doit nommer (un rouge de structure, un écart voulu)
+entre dans `ecarts`, avec sa cause ; pour un critère qui exige qu'un écart se nomme au commit,
+l'écart entre dans tes `ecarts`, jamais dans `remarques`. Ainsi le commit nomme chaque écart que
+le ticket exige.
+
+Tu ranges chaque mot qu'une garde de vocabulaire du projet signale sur une ligne que le lot touche,
+même un mot qui y était déjà. Un usage légitime (un champ homonyme, un nom de l'API) entre au
+registre des exceptions du projet, dans le lot, par un constat adressé à l'agent qui l'écrit ;
+seul un vrai mot du langage écrit en dur monte au responsable, par ta `question` (le mot, sa ligne,
+ta recommandation) : le circuit s'arrête avant le commit. Le `CONTEXTE` de ta consigne porte la
+réponse à une question d'avant. Ainsi chaque mot signalé se range dans le lot, et seul le
+responsable tranche le langage.
 
 Ta fiche rendue, tu t'arrêtes : le circuit la recueille à la fin de ta séance.

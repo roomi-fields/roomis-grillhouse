@@ -76,6 +76,8 @@ SES COMPOSANTS : {{composants}}, le fournisseur d'abord ; chaque constat de ton 
 
 REPRISE : {{reprise}}
 
+CONTEXTE : {{contexte}}
+
 LOTS À LIRE : {{lots}}, dans la copie du ticket.
 
 LA RELECTURE D'AVANT : {{precedente}}

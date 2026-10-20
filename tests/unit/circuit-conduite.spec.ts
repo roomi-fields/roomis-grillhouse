@@ -330,3 +330,32 @@ describe('the texts ask no writing without a reader', () => {
     }
   });
 });
+
+// grillhouse-3uv.89 L7, witnesses BPScript 320.3: the commit 106c32c named none of the deviations
+// its criterion 15 required, the reviewer having written them as « remarques » under an ACCEPTÉ;
+// a word the project's vocabulary guard flagged went up to the supervisor, then the owner, 2 h 30
+// late (the owner: « c'est l'agent qui inspecte les résultats des tests qui doit faire ça »); the
+// reviewer's session was refused the reading of the ticket's children it tried for its discovery.
+describe('L7 — the reviewer reviews the commit message and ranges the flagged words', () => {
+  const relecteur = lire('.claude/skills/relecteur/SKILL.md').replace(/\s+/g, ' ');
+
+  it('a deviation a criterion requires at the commit goes into `ecarts`, never into `remarques`', () => {
+    expect(relecteur).toMatch(/critère qui exige qu'un écart se nomme au commit/);
+    expect(relecteur).toMatch(/entre dans tes `ecarts`, jamais dans `remarques`/);
+  });
+
+  it('each word a vocabulary guard of the project flags is ranged by the reviewer: a legitimate use to the project’s register in the lot, only a real word of the language up, by `question`', () => {
+    expect(relecteur).toMatch(/une garde de vocabulaire du projet/);
+    expect(relecteur).toMatch(/registre des exceptions du projet, dans le lot/);
+    expect(relecteur).toMatch(/constat adressé à l'agent qui l'écrit/);
+    expect(relecteur).toMatch(/seul un vrai mot du langage écrit en dur monte au responsable/);
+    expect(relecteur).toContain('`question`');
+    // The guard and its register are the project's: the frame names neither.
+    expect(relecteur).not.toMatch(/BPScript|Cast\.types|mots-de-librairie/);
+  });
+
+  it('the reviewer neither looks for nor files a ticket: the circuit files the discoveries of its sheet', () => {
+    expect(relecteur).toMatch(/Tu ne cherches ni ne crées aucun ticket/);
+    expect(relecteur).not.toMatch(/`bd (children|list|create)/);
+  });
+});

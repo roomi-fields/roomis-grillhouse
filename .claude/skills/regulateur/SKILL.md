@@ -51,7 +51,9 @@ journal fait plusieurs Mo : je le lis par morceaux, `grep -n <motif> <journal>` 
    fais monter ce qui sort du ticket (un composant absent du titre, le cadre). Un agent qui
    demande une réponse arrête le circuit à `besoin` (code 20), sa question en tête du `rapport` :
    je la tranche comme plus bas, puis `RELANCE --reprendre`, la réponse en `contexte`, ou je la
-   fais monter. Un rouge de la passe finale qu'aucun composant ne possède (une garde de la racine,
+   fais monter. La `question` du relecteur (un vrai mot du langage écrit en dur) arrête aussi à
+   `besoin` : elle revient au responsable, et je la fais monter ; sa réponse revient au relecteur
+   par `RELANCE --reprendre`, en `contexte`. Un rouge de la passe finale qu'aucun composant ne possède (une garde de la racine,
    une garde du projet sans SARIF) ou des constats à arbitrer arrêtent aussi à `controles` : je
    tranche à qui il revient.
    Après la passe finale verte, le circuit lance le relecteur, hors enveloppe ; sur `RENDU`, il

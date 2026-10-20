@@ -25,6 +25,8 @@
 //   - `suivi` (`titre`, `etat` levé or non levé, `preuve`): after a review sent back, each finding
 //     before it judged on the difference of the lot, which the circuit writes at the ticket with
 //     the verdict, for the human (reviewer);
+//   - `question` (reviewer): what goes up to the owner, a real word of the language written in the
+//     code; the circuit stops at « besoin » before it commits or relaunches anyone;
 //   - `decision` (« RELANCE --reprendre », « RELANCE --depuis » with `depuis`, « MONTE » with
 //     `question`), `contexte`: what the circuit applies (regulator).
 //   `lireFiche` reads a session's output: the sheet and the session's id, or the error that
@@ -163,6 +165,9 @@ const FICHES = {
         'Relecture bornée : chaque constat de la relecture d’avant, levé ou non.'
       ),
       remarques: liste(texte('Une remarque, nommée, qui ne rend pas le lot.')),
+      question: texte(
+        'Ce qui revient au responsable (par exemple un vrai mot du langage écrit en dur) : la question, ses pièces et ta recommandation ; le circuit s’arrête avant de commiter ou de relancer.'
+      ),
       ...ECARTS,
       ...DECOUVERTES,
     },

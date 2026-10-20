@@ -659,6 +659,7 @@ const DEPENDANCES = [
   'jsonc-parser',
   'knip',
   'turbo',
+  'yaml',
 ];
 type Pkg = {
   scripts?: Record<string, string>;
@@ -737,6 +738,7 @@ describe('grillhouse-3uv.60 critère 1 — the update writes api and the depende
       'jsonc-parser': '3.0.0',
       knip: '5.0.1',
       turbo: '2.0.0',
+      yaml: '2.0.0',
     };
     const src = sourceRetouchee(p => {
       p.devDependencies = { ...p.devDependencies, ...versions };
@@ -801,6 +803,7 @@ describe('grillhouse-3uv.60 critère 4 — api is written as the frame’s other
       'dependency-cruiser',
       'jsonc-parser',
       'turbo',
+      'yaml',
     ]);
   });
   it('critère 4: a source that declares none of the three writes no devDependencies', () => {
@@ -857,6 +860,7 @@ describe('grillhouse-3uv.60 critère 5 — a declared dependency keeps its decla
       'knip',
       'turbo',
       'vitest',
+      'yaml',
     ]);
   });
   it('critère 5: a project already holding the three, unsorted, gets them sorted, versions kept', () => {
@@ -877,6 +881,7 @@ describe('grillhouse-3uv.60 critère 5 — a declared dependency keeps its decla
       ['jsonc-parser', m.devDependencies?.['jsonc-parser']],
       ['knip', '1.0.0'],
       ['turbo', m.devDependencies?.turbo],
+      ['yaml', m.devDependencies?.yaml],
     ]);
   });
 });
@@ -959,10 +964,9 @@ describe('grillhouse-3uv.60 critère 7 — a dependency a previous version wrote
   it('critère 7: all three stay when the new source declares none of them', () => {
     const { projet } = apresMaj({ name: 'p', devDependencies: { vitest: '^2.0.0' } });
     const premier = (json(projet, 'package.json') as Pkg).devDependencies;
-    expect(Object.keys(premier ?? {}).sort(), 'the first update wrote the three').toEqual([
-      ...DEPENDANCES,
-      'vitest',
-    ]);
+    expect(Object.keys(premier ?? {}).sort(), 'the first update wrote the three').toEqual(
+      [...DEPENDANCES, 'vitest'].sort()
+    );
     const src = sourceRetouchee(p => {
       for (const d of DEPENDANCES) {
         delete p.devDependencies?.[d];
@@ -1015,6 +1019,7 @@ describe('grillhouse-3uv.60 critère 8 — only the source’s devDependencies a
         'dependency-cruiser',
         'jsonc-parser',
         'turbo',
+        'yaml',
       ]);
     });
   }
@@ -1146,6 +1151,7 @@ describe('grillhouse-3uv.60 critère 9 — the report names each added dependenc
         '@microsoft/tsdoc-config': '0.1.0',
         'jsonc-parser': '3.0.0',
         turbo: '2.0.0',
+        yaml: '2.0.0',
       },
     });
     const r = lancerMaj(projet, src);

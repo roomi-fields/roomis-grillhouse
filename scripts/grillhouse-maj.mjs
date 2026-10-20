@@ -37,7 +37,7 @@
 //   packages' turbo.json (below) writes in it the `dependsOn` of the guard tasks, and adds one it
 //   lacks.
 // - The frame's tools (API Extractor and its model, the TSDoc configuration reader,
-//   dependency-cruiser, jsonc-parser, knip, Turborepo) are added to the project's
+//   dependency-cruiser, jsonc-parser, knip, Turborepo, yaml) are added to the project's
 //   `devDependencies` at the version the source's `devDependencies` give; a tool the project
 //   already declares in `dependencies`, `devDependencies` or `optionalDependencies` keeps its
 //   declaration, one a previous version added stays, and `devDependencies` are written sorted by
@@ -147,6 +147,7 @@ const OUTILS_DU_CADRE = [
   'jsonc-parser',
   'knip',
   'turbo',
+  'yaml',
 ];
 // The root scripts of the tests, written together from the source.
 const SCRIPTS_DES_TESTS = ['test', 'test:vitest', 'test:forcer', 'verifier'];

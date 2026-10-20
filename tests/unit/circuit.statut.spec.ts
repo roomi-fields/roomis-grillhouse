@@ -99,6 +99,56 @@ fiche '{"statut":"BLOQUÉ","raison":"la matière de test partagée attend un aut
     );
   });
 
+  // grillhouse-3uv.89 L7, witness BPScript 320.3: a word a project's vocabulary guard flagged went
+  // up to the supervisor, then the owner, 2 h 30 late; the owner: « c'est l'agent qui inspecte
+  // les résultats des tests qui doit faire ça », the reviewer. Only a real word of the language
+  // written in the code goes up, by the reviewer's `question`: the circuit stops before the commit.
+  it('a reviewer’s sheet with a `question` stops the circuit at « besoin » before the integration, its question in the report, the regulateur launched on it', () => {
+    const id = 'demo-statut-relecteur';
+    ticket(id, '000-forms');
+    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    scenario(
+      id,
+      'relecteur',
+      `fiche '{"verdict":"ACCEPTÉ","question":"le mot double, en dur dans src/index.mjs:1, est-il un mot du langage ?"}'\n`
+    );
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(ARRETS.besoin);
+    expect(sessions(id, 'relecteur')).toBe(1);
+    const e = etat(id);
+    expect(e).toMatchObject({ etape: 'relecture', raison: 'besoin', code: ARRETS.besoin });
+    expect(e?.rapport).toContain('le mot double, en dur dans src/index.mjs:1');
+    expect(historique(id).map(([, x]) => x)).not.toContain('integration');
+    expect(ordre(id).at(-1)).toBe(REGULATEUR);
+    expect(essai(id, `${REGULATEUR}-1.prompt`)).toContain('le mot double, en dur');
+  });
+
+  it('the answer to the reviewer’s question reaches the next reviewer, in its CONTEXTE', () => {
+    const id = 'demo-statut-relecteur-reponse';
+    ticket(id, '000-forms');
+    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    scenario(
+      id,
+      'relecteur-1',
+      `fiche '{"verdict":"ACCEPTÉ","question":"le mot double est-il un mot du langage ?"}'\n`
+    );
+    scenario(
+      id,
+      REGULATEUR,
+      `fiche '{"decision":"RELANCE --reprendre","contexte":"le responsable : double est un mot du domaine, il reste"}'\n`
+    );
+    scenario(id, 'relecteur-2', `fiche '{"verdict":"ACCEPTÉ"}'\n`);
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(essai(id, 'relecteur-1.prompt')).toContain('CONTEXTE : aucun');
+    expect(essai(id, 'relecteur-2.prompt')).toContain(
+      'CONTEXTE : le responsable : double est un mot du domaine, il reste'
+    );
+    expect(etat(id)).toMatchObject({ etape: 'integre' });
+  });
+
   it('a testeur BESOIN stops the circuit at « besoin » before its proof', () => {
     const id = 'demo-statut-testeur';
     ticket(id, '000-forms');

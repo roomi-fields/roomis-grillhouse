@@ -40,10 +40,16 @@
 // ticket, which closes all the same. Then main is pushed to origin, on the branch
 // `grillhouse.poussee.commit` of main's package.json (`main` without the key); a refused push is
 // written to the ticket and does not stop the queue.
-// Once pushed, the queue reads the CI of the commit pushed, as a merge queue waits for its checks:
-// it looks for its run (`gh run list --commit <sha> --json databaseId,status,conclusion`) for 2 min
-// at most (GRILLHOUSE_CI_RECHERCHE_MS replaces it, in milliseconds), the time the CI takes to
-// create it, then waits for it (`gh run watch <id> --exit-status`) for 30 min at most
+// Once pushed, the queue reads the CI of the commit pushed, as a merge queue waits for its checks.
+// As GitHub's required checks name what a merge waits for, a check that does not exist is not
+// waited for: the queue first reads, in the commit pushed, the workflows that run on a push to the
+// branch it pushes to (`fluxDeLaBranche`, the files `.github/workflows/*.yml` and `*.yaml`, their
+// `on` and its filters as GitHub reads them); with none, the ticket is told in one line that
+// there is no CI for that branch, and nothing is waited for. A workflow the queue cannot judge (a
+// file it cannot read, a filter on the paths) counts as one that runs. With one, it looks for its
+// run (`gh run list --commit <sha> --json databaseId,status,conclusion`) for 2 min at most
+// (GRILLHOUSE_CI_RECHERCHE_MS replaces it, in milliseconds), the time the CI takes to create it,
+// then waits for it (`gh run watch <id> --exit-status`) for 30 min at most
 // (GRILLHOUSE_CI_ATTENTE_MS). A red CI reopens the ticket (`bd reopen`), its comment giving the
 // address of the run (`gh run view <id> --json url`) and the end of `gh run view <id>
 // --log-failed`. Without `gh`, without a run found, with `gh` refusing or past the 30 min, the
@@ -52,6 +58,7 @@
 // reads in BEADS_ACTOR, as the circuit writes its own lines under `circuit`.
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { lireCommit } from '../poussee-cles.mjs';
@@ -72,6 +79,92 @@ const delai = (variable, defaut) => {
   const v = Number(process.env[variable]);
   return Number.isFinite(v) && process.env[variable] !== '' && v >= 0 ? v : defaut;
 };
+
+// The directory of the workflows GitHub reads, and the extensions it reads in it.
+const DOSSIER_DES_FLUX = '.github/workflows';
+const EXTENSIONS_DES_FLUX = /\.ya?ml$/;
+
+// The regular expression of a filter pattern of GitHub (« Filter pattern cheat sheet »): `*` any
+// characters but `/`, `**` any characters, `?` zero or one and `+` one or more of the preceding
+// character, `[…]` one character of the set, `\` escaping the next.
+function motifDeGitHub(motif) {
+  let re = '';
+  for (let i = 0; i < motif.length; i++) {
+    const c = motif[i];
+    if (c === '\\' && i + 1 < motif.length) {
+      re += motif[++i].replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+    } else if (c === '*') {
+      if (motif[i + 1] === '*') {
+        re += '.*';
+        i++;
+      } else {
+        re += '[^/]*';
+      }
+    } else if (c === '?' || c === '+') {
+      re += c;
+    } else if (c === '[') {
+      const fin = motif.indexOf(']', i + 1);
+      if (fin < 0) throw new Error(`motif sans fin : ${motif}`);
+      re += motif.slice(i, fin + 1);
+      i = fin;
+    } else {
+      re += c.replace(/[.^${}()|\]\\/]/g, '\\$&');
+    }
+  }
+  return new RegExp(`^${re}$`);
+}
+
+// Whether the `on.push` of a workflow <push> runs on a push to <branche>, as GitHub reads its
+// filters: none runs on every branch; `branches` in its order, a `!` pattern taking out what the
+// ones before took in, the last match deciding; `branches-ignore` takes out what it matches;
+// `tags` or `tags-ignore` alone run on no branch. A filter on the paths, or a form the queue does
+// not judge, counts as one that runs.
+function pousseeSurLaBranche(push, branche) {
+  if (push === null || push === undefined) return true;
+  if (typeof push !== 'object' || Array.isArray(push)) return true;
+  if (push.paths || push['paths-ignore']) return true;
+  const { branches, 'branches-ignore': ignorees } = push;
+  if (branches && ignorees) return true;
+  const motifs = l => (Array.isArray(l) ? l : [l]).map(String);
+  if (branches) {
+    let dedans = false;
+    for (const m of motifs(branches)) {
+      const negatif = m.startsWith('!');
+      if (motifDeGitHub(negatif ? m.slice(1) : m).test(branche)) dedans = !negatif;
+    }
+    return dedans;
+  }
+  if (ignorees) {
+    const l = motifs(ignorees);
+    if (l.some(m => m.startsWith('!'))) return true;
+    return !l.some(m => motifDeGitHub(m).test(branche));
+  }
+  return !(push.tags || push['tags-ignore']);
+}
+
+// The workflows of <fichiers> (`{ chemin, texte }`, `texte` null for a file git does not give)
+// that run on a push to <branche>: their paths. A file the queue cannot read or judge counts as
+// one that runs.
+export function fluxDeLaBranche(fichiers, branche) {
+  return fichiers
+    .filter(({ texte }) => {
+      if (texte === null) return true;
+      try {
+        // Loaded only for a workflow to read: a project without one, or before its `npm install`,
+        // runs its queue without the library (which, absent, counts the workflow as one that runs).
+        const require = createRequire(import.meta.url);
+        const on = require('yaml').parse(texte)?.on;
+        if (typeof on === 'string') return on === 'push';
+        if (Array.isArray(on)) return on.includes('push');
+        if (on && typeof on === 'object')
+          return 'push' in on && pousseeSurLaBranche(on.push, branche);
+        return false;
+      } catch {
+        return true;
+      }
+    })
+    .map(({ chemin }) => chemin);
+}
 
 function main(argv) {
   if (argv.length) {
@@ -213,14 +306,33 @@ function main(argv) {
       dire(`⚠ poussée de ${court} refusée`);
     } else {
       dire(`✓ poussée : ${court} est sur origin/${commit}`);
-      lireCI(entree, nouveau);
+      lireCI(entree, nouveau, commit);
     }
   };
 
-  // The CI of the commit <sha> pushed: green, the ticket stays closed; red, it reopens; not read,
-  // the ticket is told why.
-  const lireCI = (entree, sha) => {
+  // The workflows of the commit <sha> that run on a push to <branche>: their paths.
+  const fluxDuCommit = (sha, branche) => {
+    const l = git('ls-tree', '--name-only', `${sha}:${DOSSIER_DES_FLUX}`);
+    const noms =
+      l.status === 0 ? l.stdout.split('\n').filter(n => EXTENSIONS_DES_FLUX.test(n)) : [];
+    const fichiers = noms.map(n => {
+      const chemin = `${DOSSIER_DES_FLUX}/${n}`;
+      const f = git('show', `${sha}:${chemin}`);
+      return { chemin, texte: f.status === 0 ? f.stdout : null };
+    });
+    return fluxDeLaBranche(fichiers, branche);
+  };
+
+  // The CI of the commit <sha> pushed to <branche>: none, the ticket is told so in one line; green,
+  // the ticket stays closed; red, it reopens; not read, the ticket is told why.
+  const lireCI = (entree, sha, branche) => {
     const court = sha.slice(0, 7);
+    if (fluxDuCommit(sha, branche).length === 0) {
+      const texte = `Aucune CI pour origin/${branche} : aucun flux de ${DOSSIER_DES_FLUX} de ${court} ne se lance sur la branche ${branche}, la file n'en attend pas.`;
+      commenter(entree.ticket, texte);
+      dire(`✓ ${texte}`);
+      return;
+    }
     const gh = (args, options = {}) =>
       spawnSync('gh', args, {
         cwd: racine,
