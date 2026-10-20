@@ -36,13 +36,21 @@ export const ecrire = (f: string, texte: string, mode?: number) => {
 // and component in `ordre`, the role alone out of the envelope), leaves a line of transcript where
 // Claude Code keeps the copy's, then sources the scenario of its role: `<role>-<n>.sh` for its n-th
 // session, else `<role>.sh`. A scenario writes in the component (`$c`) and hands over with
-// `passation <text>`, a comment under the session's author, as bd writes it.
+// `passation <text>`, a comment under the session's author, as bd writes it. As claude, a session
+// `--session-id <id>` keeps its transcript in `<id>.jsonl` (an id already in use fails, code 1),
+// and `--resume <id>` adds to that transcript, found in the folder of its working directory, or
+// fails, code 1, its scenario not played, when there is none.
 const FAUX_CLAUDE = `#!/bin/bash
 racine=$(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd)
 prompt=$(cat)
 ticket=$(printf '%s\\n' "$prompt" | sed -n 's/^TON TICKET : \\([^ ]*\\).*/\\1/p' | head -1)
-role= prec=
-for a in "$@"; do [ "$prec" = --agent ] && role=$a; prec=$a; done
+role= prec= sid= reprise=
+for a in "$@"; do
+  [ "$prec" = --agent ] && role=$a
+  [ "$prec" = --session-id ] && sid=$a
+  [ "$prec" = --resume ] && reprise=$a
+  prec=$a
+done
 e="$racine/.beads/essai/$ticket"
 mkdir -p "$e"
 n=$(( $(cat "$e/$role.n" 2>/dev/null || echo 0) + 1 ))
@@ -54,7 +62,15 @@ printf '%s' "\${BEADS_ACTOR-}" > "$e/$role-$n.acteur"
 echo "$role\${GRILLHOUSE_ENVELOPPE:+ $GRILLHOUSE_ENVELOPPE}" >> "$e/ordre"
 d="$HOME/.claude/projects/$(pwd | sed 's/[^A-Za-z0-9]/-/g')"
 mkdir -p "$d"
-echo '{"type":"user"}' >> "$d/$role-$n.jsonl"
+if [ -n "$reprise" ]; then
+  [ -f "$d/$reprise.jsonl" ] || { echo "No conversation found with session ID: $reprise" >&2; exit 1; }
+  echo '{"type":"user"}' >> "$d/$reprise.jsonl"
+elif [ -n "$sid" ]; then
+  [ ! -f "$d/$sid.jsonl" ] || { echo "Session ID $sid is already in use." >&2; exit 1; }
+  echo '{"type":"user"}' >> "$d/$sid.jsonl"
+else
+  echo '{"type":"user"}' >> "$d/$role-$n.jsonl"
+fi
 c=$GRILLHOUSE_ENVELOPPE
 passation() {
   node -e 'require("fs").appendFileSync(process.argv[1], JSON.stringify({ author: process.argv[3], text: process.argv[2] }) + "\\n")' "$racine/.beads/$ticket.comments.jsonl" "$1" "\${BEADS_ACTOR-}"

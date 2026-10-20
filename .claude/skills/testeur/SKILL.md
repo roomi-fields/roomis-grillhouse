@@ -130,8 +130,22 @@ critère → test, les lignes `vert attendu`, ce qui n'est pas couvert et pourqu
 qui trouve tes tests dans la même copie. Tu ne commites pas : le lot de tests part avec celui du
 code. Ainsi les tests arrivent au dépôt avec le code qui les rend verts.
 
-Une règle qui manque ou se contredit t'arrête : tu rends la question au superviseur, avec les
-options et ta recommandation.
+**Ta passation finit par sa ligne de statut**, seule sur sa ligne :
+
+- `STATUT : FAIT` : tes tests sont écrits, et la preuve du rouge les juge ;
+- `STATUT : BLOQUÉ — <raison>` : ce qui reste est hors de ta portée (un fichier hors de ton
+  enveloppe, une décision hors de ton rôle) ;
+- `STATUT : BESOIN — <question>` : une réponse te manque pour avancer.
+
+Sur BLOQUÉ ou BESOIN, le circuit s'arrête avant la preuve, et le chef de chantier tranche. Ainsi ta
+séance finit sur ce que tu sais, et le circuit le lit.
+
+Une preuve refusée reprend ta séance, avec une consigne courte, le rapport neuf de la preuve seul ;
+ta consigne, ta compétence et ce que tu as lu restent valables. Ta troisième séance est neuve et
+entière. Ainsi tu repars de ce que tu sais.
+
+Une règle qui manque ou se contredit t'arrête : ta passation porte la question, avec les options
+et ta recommandation, et finit sur `STATUT : BESOIN — <question>`.
 
 Un test qui a besoin d'une donnée qu'aucun fournisseur ne publie t'arrête aussi : ta passation
 nomme la donnée et le fournisseur, et tes tests ne la calculent pas. Le superviseur ajoute le

@@ -38,6 +38,8 @@ describe('the stops of the circuit and their codes', () => {
       'integration',
       'a-repasser',
       'question',
+      'hors-portee',
+      'besoin',
     ];
     expect(Object.keys(ARRETS).sort()).toEqual([...noms].sort());
     const codes = Object.values(ARRETS);
@@ -48,6 +50,9 @@ describe('the stops of the circuit and their codes', () => {
     expect(ARRETS['relecture-arret']).toBe(16);
     // grillhouse-3uv.85, critère 4: the stop on the chef's question.
     expect(ARRETS.question).toBe(18);
+    // The stops on a status line: a BLOQUÉ without a recipient, a BESOIN.
+    expect(ARRETS['hors-portee']).toBe(19);
+    expect(ARRETS.besoin).toBe(20);
   });
   it('waits 20 minutes of a motionless transcript before it stops a session', () => {
     expect(IMMOBILE_MS).toBe(20 * 60 * 1000);

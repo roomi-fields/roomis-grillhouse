@@ -159,6 +159,27 @@ describe('the handovers the circuit reads', () => {
     }
   });
 
+  // Witness: BPScript (320.2.4.5.1, si61.8), a developpeur relaunched up to three times on a red
+  // out of his reach: his handover ends on a status line the circuit reads.
+  it('the handover of the testeur and the developpeur ends on its status line, in one of three forms', () => {
+    for (const [nom, texte] of [
+      ['testeur', testeur],
+      ['developpeur', developpeur],
+      ['consigne', premier ?? ''],
+    ]) {
+      for (const forme of [
+        '`STATUT : FAIT`',
+        '`STATUT : BLOQUÉ — <raison>`',
+        '`STATUT : BESOIN — <question>`',
+      ]) {
+        expect(texte, nom).toContain(forme);
+      }
+    }
+    const chef = lire('.claude/skills/chef-de-chantier/SKILL.md').replace(/\s+/g, ' ');
+    expect(chef).toMatch(/`hors-portee` \(code 19\)/);
+    expect(chef).toMatch(/`besoin` \(code 20\)/);
+  });
+
   // Witness: BPScript (320.2.4.5.1), a type changed in 000-forms broke the shared test material,
   // which only the testeur writes: the developpeurs of the components after it ran on that red
   // for nothing.

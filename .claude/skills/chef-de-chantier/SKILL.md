@@ -36,6 +36,16 @@ sujets que le projet garde au superviseur.
    séance qui ne change aucun fichier de son composant arrête le circuit (code 15,
    `sans-livraison`) ; sa passation dit pourquoi, et je rends `RELANCE --reprendre` avec sa
    ligne `CONTEXTE`, ou `RELANCE --depuis`.
+   La passation du testeur et du développeur finit par sa ligne de statut (`STATUT : FAIT`,
+   `STATUT : BLOQUÉ — <raison>`, `STATUT : BESOIN — <question>`). Un agent qui se déclare bloqué,
+   sans renvoi au testeur, arrête le circuit à `hors-portee` (code 19), sa raison en tête du
+   `rapport` : je lis où est le reste qu'il ne peut lever, et je l'envoie à l'agent qui le peut
+   (`RELANCE --depuis testeur <composant>` pour un test ou la matière de test partagée,
+   `RELANCE --depuis developpeur <composant>` pour le code d'un autre composant du titre), ou je
+   fais monter ce qui sort du ticket (un composant absent du titre, le cadre). Un agent qui
+   demande une réponse arrête le circuit à `besoin` (code 20), sa question en tête du `rapport` :
+   je la tranche comme plus bas, puis `RELANCE --reprendre`, la réponse en ligne `CONTEXTE`, ou
+   je la fais monter.
    Après la passe finale verte, le circuit lance le relecteur, hors enveloppe ; sur `RENDU`, il
    relance lui-même l'agent que nomme chaque constat (`Agent : <rôle> <composant>`), puis les
    composants d'après, la passe finale et le relecteur. Un constat sans destinataire valide, un

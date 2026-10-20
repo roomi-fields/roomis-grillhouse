@@ -268,6 +268,39 @@ describe.runIf(canWrap)('the launcher and the model and level of a session', () 
   });
 });
 
+// A relaunch of the circuit resumes the session of its agent: --seance <id> opens a session under
+// that id (claude's --session-id), --reprise <id> resumes it (--resume), its instruction alone,
+// since the session it resumes holds the sections the launcher adds.
+describe.runIf(canWrap)('the launcher and the session of a relaunch', () => {
+  const ID = '0b7c5f0e-6a1d-4c58-9d3e-2f4a8b9c1d2e';
+  it('--seance <id> opens the session under that id, its instruction whole', () => {
+    const { r, args, prompt, ticket } = lancer(['--seance', ID]);
+    expect(r.status, r.stderr).toBe(0);
+    expect(valeurs(args ?? [], '--session-id')).toEqual([ID]);
+    expect(args).not.toContain('--resume');
+    expect(prompt).toBe(PROMPT(ticket));
+  });
+  it('--reprise <id> resumes that session, its instruction alone', () => {
+    const { r, args, prompt, ticket } = lancer(['--reprise', ID, '--modele', 'opus']);
+    expect(r.status, r.stderr).toBe(0);
+    expect(valeurs(args ?? [], '--resume')).toEqual([ID]);
+    expect(valeurs(args ?? [], '--model')).toEqual(['opus']);
+    expect(args).not.toContain('--session-id');
+    expect(prompt).toBe(`TON TICKET : ${ticket} — un sujet.`);
+  });
+  it('refuses a session without its id, or both options together', () => {
+    for (const options of [
+      ['--seance', ''],
+      ['--reprise', '--modele', 'opus'],
+      ['--seance', ID, '--reprise', ID],
+    ]) {
+      const { r, copie } = lancer(options);
+      expect(r.status, options.join(' ')).toBe(CODE_USAGE);
+      expect(existsSync(copie), options.join(' ')).toBe(false);
+    }
+  });
+});
+
 // The instruction of the session carries what the components its component depends on publish,
 // read in the copy from the `## Consommateurs` sections of their interfaces.
 describe.runIf(canWrap)('the launcher and what the components before publish', () => {
@@ -389,7 +422,7 @@ describe('critère 5 — the header of the launcher', () => {
 
 // The usage line of the launcher, with its two options.
 const USAGE =
-  'usage: lancer.sh [--modele <m>] [--effort <e>] <ticket> <rôle> <composant> <fichier de consigne>';
+  'usage: lancer.sh [--modele <m>] [--effort <e>] [--seance <id> | --reprise <id>] <ticket> <rôle> <composant> <fichier de consigne>';
 
 describe('critère 6 — the usage message shows the two options', () => {
   it('critère 6 — the usage line of the header shows the two options', () => {

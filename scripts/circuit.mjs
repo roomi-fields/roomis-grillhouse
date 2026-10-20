@@ -30,6 +30,17 @@
 //   before (the proof, the output of a red check), the last handover at the ticket, and the line
 //   `CONTEXTE :` that `--contexte` gives. The session's own exit code is the one lancer.sh writes
 //   to `.claude/worktrees/<ticket>.fin`; a launch that leaves none stopped before its session.
+// - A fresh session of the testeur or the developpeur opens under a session id the circuit sets
+//   (`lancer.sh --seance <uuid>`, claude's `--session-id`), kept in the state (`reprise`, its
+//   author and id). A relaunch of that agent on its step and component (the testeur after a failed
+//   proof, the developpeur after red checks) resumes that session (`lancer.sh --reprise <id>`,
+//   claude's `--resume`, which finds its transcript in the copy's folder of transcripts, which
+//   the envelope mounts in writing over the real one) with the sixth template of consigne-agent.md
+//   (the ticket, the component, what changed, the new report, the handover and its status line),
+//   save the last attempt (the testeur's third session, the developpeur's on the strong model),
+//   a fresh and whole session. A resumption that ends with a code other than 0, or without a
+//   handover, writes so at the ticket and falls back on a fresh and whole session. A resumed
+//   session keeps its id, and so its one line in the register, its latest end.
 // - A session whose transcripts (`~/.claude/projects/<copy in dashes>/`, as scripts/registre.mjs
 //   reads them) and log (its preparation writes there before the session opens) stand still for
 //   20 minutes (IMMOBILE_MS; GRILLHOUSE_CIRCUIT_IMMOBILE_MS replaces
@@ -45,6 +56,14 @@
 //   the integration read one.
 // - After each session, a new comment of the agent is at the ticket: one that is not the circuit's
 //   own (« Circuit · … »). Without it, the session is launched once more, then the circuit stops.
+// - The handover of the testeur and of the developpeur ends on its status line (`statutDe`), read
+//   as the line `Agent :` is, in bold or in code: `STATUT : FAIT`, `STATUT : BLOQUÉ — <raison>` or
+//   `STATUT : BESOIN — <question>`, the last such line of its last handover that carries one.
+//   FAIT, or no line, goes on as below. BESOIN stops the circuit at once at « besoin », the
+//   question and the handover as its report, with no session more; so does BLOQUÉ, at
+//   « hors-portee », save for a developpeur whose handover sends the red to a testeur (the line
+//   `Agent : testeur <composant>` below), which is that sending. The chef de chantier settles
+//   either stop, as any other.
 // - A component that carries no test (sansTests: in a repository of packages, no package with a
 //   script `test:vitest` lies in it or holds it, as `npm test -- <chemin>` refuses a path out of
 //   every package or in a package without that script) skips the testeur and the proof: the
@@ -158,7 +177,7 @@
 //   reason; still in the queue, it stops at « a-repasser », the queue's reason.
 // - The state is `.claude/worktrees/<ticket>.circuit.json`, written again at each step and at the
 //   start and end of each session: `{ etape, composant, tentative, code, raison, rapport, dernier,
-//   finale, seance, chef, renvois, atteint, mene, journal }`; `etape` is testeur, preuve, developpeur, controles,
+//   finale, seance, chef, renvois, atteint, mene, reprise, journal }`; `etape` is testeur, preuve, developpeur, controles,
 //   relecture, integration, file, or integre at the end; `raison` names the stop; `dernier` is the last
 //   component of the run; `finale` whether the final pass has begun; `seance` the process group of
 //   the session that runs, null between two; `chef` the chef de chantier's session on the stop
@@ -168,7 +187,8 @@
 //   `atteint` the last component the circuit has carried to green checks (the last of the run
 //   once the final pass is green), kept from one run to the next, null before any and when a run
 //   starts over from the first component's testeur; `mene` the start (an ISO date) of the step the
-//   circuit leads itself while it runs, null otherwise. `--reprendre` starts again at the step and component of the state, its report given to the
+//   circuit leads itself while it runs, null otherwise; `reprise` the session of the testeur or
+//   developpeur its relaunches resume, `{ agent, seance }`, null before any. `--reprendre` starts again at the step and component of the state, its report given to the
 //   next session, and goes on to its `dernier`; after any stop, the death of the circuit with its
 //   caller included. A session the state names that still runs is waited for first, and stopped
 //   when it stands still as long as a motionless session.
@@ -221,6 +241,8 @@
 //   16 relecture-arret (a finding without a valid recipient, one on a criterion, the third RENDU),
 //   17 integration (the integration script refuses the lot, or the queue reopens the ticket),
 //   18 question (the chef de chantier's question for the supervisor, `--reponse` resumes it),
+//   19 hors-portee (a testeur or developpeur whose status line says BLOQUÉ, without a sending to
+//   a testeur), 20 besoin (a testeur or developpeur whose status line says BESOIN),
 //   75 a-repasser (a check or the integration still at 75 once played again, or the branch still
 //   in the queue).
 import { spawn, spawnSync } from 'node:child_process';
@@ -265,6 +287,8 @@ export const ARRETS = {
   'relecture-arret': 16,
   integration: 17,
   question: 18,
+  'hors-portee': 19,
+  besoin: 20,
   'a-repasser': A_REPASSER,
 };
 const CODE_USAGE = 2;
@@ -537,7 +561,7 @@ function commenter(ctx, composant, etape, texte) {
 }
 
 // The state of the run, written whole (`seance` and `chef` null and `finale` false unless <etat>
-// sets them, `renvois` and `atteint` the run's), kept as the run's current state.
+// sets them, `renvois`, `atteint` and `reprise` the run's), kept as the run's current state.
 function ecrireEtat(ctx, etat) {
   ctx.courant = {
     finale: false,
@@ -547,6 +571,7 @@ function ecrireEtat(ctx, etat) {
     ...etat,
     renvois: ctx.renvois ?? null,
     atteint: ctx.atteint ?? null,
+    reprise: ctx.reprise ?? null,
   };
   const provisoire = `${ctx.etat}.${process.pid}`;
   writeFileSync(
@@ -607,6 +632,8 @@ const mtime = f => {
 // One launch of a session: `{ code, seance, bloque, erreur, reponse }`, `seance` the session's
 // exit code (from lancer.sh's end file for a session in the envelope), null when the launch
 // stopped before it. Every session runs with the author of <role> on <composant> (BEADS_ACTOR).
+// A session in the envelope opens under the id <ouvre> (lancer.sh --seance), or resumes the
+// session <reprend> (lancer.sh --reprise).
 // A session <horsEnveloppe> (the reviewer's, the chef de chantier's) is claude
 // itself, in the ticket's copy (the main tree once the copy is gone), under <droits> (the
 // reviewer's by default) and the options <session> names, its instruction on its standard input
@@ -617,7 +644,7 @@ function lancer(
   role,
   composant,
   consigne,
-  { fort, horsEnveloppe, droits = RELECTEUR, session = [], surReponse } = {}
+  { fort, horsEnveloppe, droits = RELECTEUR, session = [], surReponse, ouvre, reprend } = {}
 ) {
   rmSync(ctx.fin, { force: true });
   const fichier = path.join(ctx.tmp, `consigne-${++ctx.numero}.md`);
@@ -640,7 +667,16 @@ function lancer(
     fds = ['ignore', 'ignore', openSync(erreurs, 'w')];
     commande = {
       cmd: 'bash',
-      args: [LANCEUR, ...(fort ? FORT : []), ctx.ticket, role, composant, fichier],
+      args: [
+        LANCEUR,
+        ...(fort ? FORT : []),
+        ...(ouvre ? ['--seance', ouvre] : []),
+        ...(reprend ? ['--reprise', reprend] : []),
+        ctx.ticket,
+        role,
+        composant,
+        fichier,
+      ],
       cwd: ctx.racine,
     };
   }
@@ -732,8 +768,9 @@ async function attendreLaSeance(ctx, groupe) {
 }
 
 // The template of the instruction at <rang> (0 the testeur's and the developpeur's, 1 the
-// reviewer's, 2 the chef de chantier's on a stop, 3 the chef's on the supervisor's answer), filled with
-// <valeurs>.
+// reviewer's, 2 the chef de chantier's on a stop, 3 the chef's on the supervisor's answer, 4 the
+// chef's on an answer without a decision, 5 the testeur's and the developpeur's on a resumption),
+// filled with <valeurs>.
 function consigne(valeurs, rang = 0) {
   const texte = readFileSync(GABARIT, 'utf8');
   const bloc = [...texte.matchAll(/```text\n([\s\S]*?)\n```/g)][rang];
@@ -742,13 +779,48 @@ function consigne(valeurs, rang = 0) {
 }
 
 // One session of <role> on <composant>, launched again once when it leaves no handover: the new
-// comments of the agents, `{ author, text }`. Throws an Arret for a launch that stops before its
-// session, a motionless session, or twice no handover.
-async function seance(ctx, role, composant, { tentative, rapport, fort }) {
+// comments of the agents, `{ author, text }`. A relaunch on its step (<tentative> past 1) that is
+// not the last (<derniere>) resumes the agent's session the circuit keeps (`ctx.reprise`, its
+// author and id) with the short instruction (the sixth template); a resumption that fails (a code
+// other than 0, or no handover) falls back on a fresh and whole session, under a new id, which
+// the circuit keeps. Throws an Arret for a launch that stops before its session, a motionless
+// session, or twice no handover.
+async function seance(ctx, role, composant, { tentative, rapport, fort, derniere }) {
+  const agent = auteur(role, composant);
+  const nom = role === 'developpeur' ? 'développeur' : role;
+  const reprise = tentative > 1 && !derniere && ctx.reprise?.agent === agent ? ctx.reprise : null;
+  if (reprise) {
+    const avant = passations(ctx);
+    const courte = {
+      role: nom,
+      ticket: ctx.ticket,
+      sujet: ctx.sujet,
+      composant,
+      tentative,
+      change:
+        role === 'testeur'
+          ? 'la preuve du rouge, jouée après ta séance, refuse ton lot'
+          : 'les contrôles, joués après ta séance, sont rouges',
+      rapport: rapport ?? 'aucun',
+    };
+    const r = await lancer(ctx, role, composant, consigne(courte, 5), {
+      fort,
+      reprend: reprise.seance,
+    });
+    seanceLancee(ctx, role, r);
+    const neufs = passations(ctx).slice(avant.length);
+    if (r.seance === 0 && neufs.length) return neufs;
+    commenter(
+      ctx,
+      composant,
+      role,
+      `reprise de la séance ${reprise.seance} sans passation (code ${r.seance}) : séance neuve et entière.`
+    );
+  }
   const avant = passations(ctx);
   const lots = role === 'developpeur' ? testsDuLot(ctx) : testsDuComposant(ctx, composant);
   const valeurs = {
-    role: role === 'developpeur' ? 'développeur' : role,
+    role: nom,
     depot: ctx.racine,
     ticket: ctx.ticket,
     sujet: ctx.sujet,
@@ -765,32 +837,44 @@ async function seance(ctx, role, composant, { tentative, rapport, fort }) {
     rapport: rapport ?? 'aucun',
     passation: avant.at(-1)?.text ?? 'aucune',
   };
-  return await jusquALaPassation(ctx, role, composant, consigne(valeurs), { fort });
+  return await jusquALaPassation(ctx, role, composant, consigne(valeurs), { fort, neuve: agent });
+}
+
+// The launch <r> of a session of <role>, or the Arret it is: a motionless session (« bloqué »),
+// a launch that stops before its session (« lancement »).
+function seanceLancee(ctx, role, r) {
+  if (r.bloque) {
+    const minutes = Math.round(ctx.immobileMs / 60_000);
+    throw new Arret(
+      'bloqué',
+      `La transcription de la séance du ${role} n'a pas bougé en ${minutes ? `${minutes} min` : `${ctx.immobileMs} ms`} : la séance est arrêtée. Les dernières lignes du journal :\n\n${fin(lire(ctx.journal), 40)}`
+    );
+  }
+  if (r.seance === null) {
+    throw new Arret(
+      'lancement',
+      `Le lanceur s'arrête avant la séance du ${role} (code ${r.code}).\n${r.erreur.trim()}\n\n${fin(lire(ctx.journal), 20)}`
+    );
+  }
 }
 
 // The session of <role> on <composant> with the instruction <texte>, launched again once when it
 // leaves no comment <attendu> accepts (any comment of an agent, by default): the new comments of
-// the agents, `{ author, text }`. Throws an Arret for a launch that stops before its session, a motionless session,
-// or twice no such comment.
+// the agents, `{ author, text }`. With <neuve> (the author of a testeur or a developpeur), each
+// launch opens a session under a new id, which the circuit keeps for that author (`ctx.reprise`).
+// Throws an Arret for a launch that stops before its session, a motionless session, or twice no
+// such comment.
 async function jusquALaPassation(ctx, role, composant, texte, options = {}) {
   const attendu = options.attendu ?? (() => true);
   const quoi = options.quoi ?? 'passation';
   for (let essai = 1; essai <= 2; essai++) {
     const avant = passations(ctx);
-    const r = await lancer(ctx, role, composant, texte, options);
-    if (r.bloque) {
-      const minutes = Math.round(ctx.immobileMs / 60_000);
-      throw new Arret(
-        'bloqué',
-        `La transcription de la séance du ${role} n'a pas bougé en ${minutes ? `${minutes} min` : `${ctx.immobileMs} ms`} : la séance est arrêtée. Les dernières lignes du journal :\n\n${fin(lire(ctx.journal), 40)}`
-      );
-    }
-    if (r.seance === null) {
-      throw new Arret(
-        'lancement',
-        `Le lanceur s'arrête avant la séance du ${role} (code ${r.code}).\n${r.erreur.trim()}\n\n${fin(lire(ctx.journal), 20)}`
-      );
-    }
+    if (options.neuve) ctx.reprise = { agent: options.neuve, seance: randomUUID() };
+    const r = await lancer(ctx, role, composant, texte, {
+      ...options,
+      ouvre: options.neuve ? ctx.reprise.seance : undefined,
+    });
+    seanceLancee(ctx, role, r);
     const neufs = passations(ctx).slice(avant.length);
     if (neufs.some(attendu)) return neufs;
     if (essai === 1) {
@@ -906,6 +990,48 @@ function ligneAgent(texte) {
     // The punctuation that ends the line, never the root `.` itself.
     composant: agent ? agent[2].replace(/(?<=.)[,.;]+$/, '') : null,
   };
+}
+
+// The status line that ends a handover of the testeur or the developpeur, `STATUT : FAIT`,
+// `STATUT : BLOQUÉ — <raison>` or `STATUT : BESOIN — <question>`, read as the line `Agent :` is,
+// in bold or in code: `{ forme, texte, passation }`, forme FAIT, BLOQUÉ or BESOIN, texte its
+// reason or question (empty without one), passation the handover; the last such line of the last
+// handover of <neufs> that carries one; null for none.
+const LIGNE_DE_STATUT =
+  /^\s*(?:[-*]\s*)?([`*]*)STATUT[`*]*\s*:\s*[`*]*(FAIT|BLOQU[ÉEée]|BESOIN)(?![A-Za-z])[`*]*\s*(?:[—–:-]?\s*(.*?))?\s*$/i;
+export function statutDe(neufs) {
+  for (const c of [...neufs].reverse()) {
+    for (const l of String(c.text ?? '')
+      .split('\n')
+      .reverse()) {
+      const m = LIGNE_DE_STATUT.exec(l);
+      if (!m) continue;
+      const mot = m[2].toUpperCase();
+      const forme = mot.startsWith('BLOQU') ? 'BLOQUÉ' : mot;
+      // A line set in bold or in code closes as it opens.
+      const reste = (m[3] ?? '').trim();
+      const texte = m[1] ? reste.replace(/[`*]+$/, '').trim() : reste;
+      return { forme, texte, passation: c.text };
+    }
+  }
+  return null;
+}
+
+// The stop for the status <statut> of the session <tentative> of <role> on <composant>, BLOQUÉ
+// (« hors-portee ») or BESOIN (« besoin »): its reason or question first, then its handover.
+function arretDuStatut(role, composant, tentative, statut) {
+  const texte = statut.passation;
+  const qui = `Le ${role === 'developpeur' ? 'développeur' : role} de ${composant}`;
+  const quoi = statut.texte || 'sans raison écrite';
+  return statut.forme === 'BESOIN'
+    ? new Arret(
+        'besoin',
+        `${qui} attend une réponse (séance ${tentative}) : ${quoi}\n\nLa décision revient au chef de chantier. Sa passation :\n\n${texte}`
+      )
+    : new Arret(
+        'hors-portee',
+        `${qui} se déclare bloqué (séance ${tentative}) : ${quoi}\n\nLe circuit ne le relance pas sur ce rouge : la décision revient au chef de chantier. Sa passation :\n\n${texte}`
+      );
 }
 
 // The sending to a testeur in the new handovers <neufs> of the developpeur of the component at
@@ -1660,7 +1786,16 @@ async function derouler(ctx, debut) {
         etape = 'developpeur';
         tentative = 1;
       } else if (etape === 'testeur') {
-        await seance(ctx, 'testeur', composant, { tentative, rapport });
+        const neufs = await seance(ctx, 'testeur', composant, {
+          tentative,
+          rapport,
+          derniere: tentative > RELANCES_TESTEUR,
+        });
+        // A testeur who declares himself blocked or in need of an answer goes to the chef.
+        const statut = statutDe(neufs);
+        if (statut && statut.forme !== 'FAIT') {
+          throw arretDuStatut('testeur', composant, tentative, statut);
+        }
         commenter(ctx, composant, 'testeur', `séance ${tentative} finie, passation au ticket.`);
         etape = 'preuve';
       } else if (etape === 'preuve') {
@@ -1692,7 +1827,18 @@ async function derouler(ctx, debut) {
       } else if (etape === 'developpeur') {
         const fort = tentative >= SEANCES_DEVELOPPEUR;
         const avant = empreinte(ctx, composant);
-        const neufs = await seance(ctx, 'developpeur', composant, { tentative, rapport, fort });
+        const neufs = await seance(ctx, 'developpeur', composant, {
+          tentative,
+          rapport,
+          fort,
+          derniere: fort,
+        });
+        // A question goes to the chef; a red out of reach, to the testeur its line names, else to
+        // the chef.
+        const statut = statutDe(neufs);
+        if (statut?.forme === 'BESOIN') {
+          throw arretDuStatut('developpeur', composant, tentative, statut);
+        }
         const renvoi = renvoiAuTesteur(ctx, neufs, index);
         if (renvoi) {
           // The red that remains lies in the tests of that component: its testeur, as a chef's
@@ -1716,6 +1862,9 @@ async function derouler(ctx, debut) {
           ctx.contexte = renvoi.texte;
           ({ index, etape, tentative, rapport, dernier, finale } = depart(ctx, null));
           continue;
+        }
+        if (statut?.forme === 'BLOQUÉ') {
+          throw arretDuStatut('developpeur', composant, tentative, statut);
         }
         if (empreinte(ctx, composant) === avant && reprend && livre(ctx, composant)) {
           // A resumed developpeur that finds its lot delivered: the checks judge it.
@@ -2094,8 +2243,9 @@ export async function main(argv) {
         `--reponse : aucune séance du chef gardée dans ${ctx.etat} ; elle suit un arrêt « question ».`
       );
     }
-    // The components the runs before carried to green checks.
+    // The components the runs before carried to green checks, and the session a relaunch resumes.
     ctx.atteint = e?.atteint ?? null;
+    ctx.reprise = e?.reprise ?? null;
     const d = ctx.reponse === null ? depart(ctx, e) : null;
     // A session a dead circuit left running ends before this run launches its own.
     await attendreLaSeance(ctx, e?.seance);

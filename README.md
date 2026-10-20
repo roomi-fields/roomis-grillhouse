@@ -93,6 +93,12 @@ Each session writes at the ticket under its role as author (`BEADS_ACTOR`, which
 the circuit's own lines under `circuit`, and the circuit reads a verdict only in a comment of the
 author `relecteur`. A developer who leaves a red in a component's tests sends it to that tester
 (`Agent : testeur <component>` in its handover), and a component without tests goes straight to its developer.
+The handover of a tester or a developer ends on its status line, `STATUT : FAIT`, `STATUT : BLOQUÉ — <reason>`
+or `STATUT : BESOIN — <question>`: a BESOIN, or a BLOQUÉ that sends the red to no tester, stops the circuit
+at once (`besoin`, `hors-portee`), and the site manager settles it, the agent not relaunched on that red.
+A relaunch of a tester or a developer on its step (after a refused proof, after red checks) resumes its
+session (`claude --resume`) with a short instruction, the new report alone; the last attempt is a fresh
+and whole session, and so is a resumption that fails.
 The locks are hooks in each agent's definition (`scripts/verrous/`), so an agent cannot aim the
 code at its own tests; the integration sorts the lots by the same rule (the tests lot holds the
 tester's files, the code lot none of them). Each agent runs as a fresh session inside the **envelope** of its component

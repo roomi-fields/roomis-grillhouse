@@ -77,15 +77,16 @@ est un vrai rouge.
 
 ## Ce qui t'arrête
 
-- **Une question sans règle** : un cas que ni les critères ni une règle ne tranchent. Tu rends au
-  superviseur les options, ce que chacune donne aujourd'hui et ta recommandation ; ton code suit
-  ensuite le verdict « Arbitrage » au ticket.
+- **Une question sans règle** : un cas que ni les critères ni une règle ne tranchent. Ta passation
+  porte les options, ce que chacune donne aujourd'hui et ta recommandation, et finit sur
+  `STATUT : BESOIN — <question>` ; ton code suit ensuite le verdict « Arbitrage » au ticket.
 - **Un fait que ton code prend chez un fournisseur hors de sa ligne « Déclaré pour »** (un élément
   publié pas encore déclaré pour toi, ou un fait que ta section ne porte pas) : une découverte qui
   bloque, que le superviseur porte à l'arbitre, et qui entre ensuite dans la section
   « Consommateurs » du fournisseur.
 - **Une donnée qui manque chez un fournisseur** : tu t'arrêtes, et ta passation nomme la donnée
-  et le fournisseur ; tu ne la calcules pas dans ton paquet. Le superviseur ajoute le fournisseur
+  et le fournisseur, et finit sur `STATUT : BLOQUÉ — <la donnée>` ; tu ne la calcules pas dans ton
+  paquet. Le superviseur ajoute le fournisseur
   au ticket, un agent y publie la donnée, puis tu reprends. Ainsi chaque donnée garde un seul
   calcul.
 - **Une découverte qui bloque** : tu t'arrêtes sans rien livrer. Tu écris l'état du travail dans
@@ -115,6 +116,20 @@ Une découverte qui ne bloque pas se consigne fermée sous ton ticket
   passation pour rapport, puis les composants d'après, sans te relancer sur ce rouge ; le même
   renvoi deux fois de suite, sans contrôles verts entre eux, l'arrête (`sans-livraison`). Ainsi
   le rouge va à l'agent qui écrit les tests.
+- **Ta passation finit par sa ligne de statut**, seule sur sa ligne :
+  - `STATUT : FAIT` : ton code est écrit, et les contrôles le jugent ;
+  - `STATUT : BLOQUÉ — <raison>` : ce qui reste est hors de ta portée (un test, la matière de test
+    partagée, un fichier hors de ton enveloppe, une décision hors de ton rôle) ; avec la ligne
+    `Agent : testeur <composant>` au-dessus, c'est le renvoi à ce testeur ; sans elle, le circuit
+    s'arrête (`hors-portee`) ;
+  - `STATUT : BESOIN — <question>` : une réponse te manque pour avancer ; le circuit s'arrête
+    (`besoin`).
+    Sur un arrêt, le chef de chantier tranche, et le circuit ne te relance pas sur ce rouge. Ainsi
+    tu ne tournes jamais sur un rouge que tu as dit hors de ta portée.
+- **Une relance reprend ta séance** : après des contrôles rouges, le circuit reprend ta séance avec
+  une consigne courte, le rapport neuf seul ; ta consigne, ta compétence et ce que tu as lu restent
+  valables. La dernière tentative, sur le modèle fort, est une séance neuve et entière. Ainsi tu
+  repars de ce que tu sais.
 - **Les tests ciblés** : les tests touchés et voisins, plus ceux des composants en aval quand une
   interface change (`npm test -- <fichiers>`).
 - **Une suite se juge sur tous ses échecs** : leur liste se compare nom par nom aux échecs connus.

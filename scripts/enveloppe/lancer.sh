@@ -2,7 +2,7 @@
 # Launches a role agent on one ticket, as its own Claude session inside the envelope of its
 # component. The supervisor runs it in the background and is told when the session ends.
 #
-#   bash scripts/enveloppe/lancer.sh [--modele <m>] [--effort <e>] <ticket> <rôle> <composant> <fichier de consigne>
+#   bash scripts/enveloppe/lancer.sh [--modele <m>] [--effort <e>] [--seance <id> | --reprise <id>] <ticket> <rôle> <composant> <fichier de consigne>
 #
 # - <composant> is the component's path from the root (`packages/<nom>`, or `.` for the whole
 #   repository). It is judged before the copy is prepared, by the envelope's rule
@@ -17,6 +17,14 @@
 #   first, each as two words (`--modele opus`); `--modele=opus`, `--`, a value starting with `--`,
 #   an unknown option or an option after the four arguments is refused, CODE_USAGE, before the copy
 #   is prepared. A repeated option keeps its last value; every level given is checked.
+# - --seance <id> opens the session under that id (claude's --session-id), and --reprise <id>
+#   resumes the session of that id (claude's --resume), which claude finds among the transcripts
+#   of the copy's working directory (`~/.claude/projects/<copy in dashes>/`, which the envelope
+#   mounts in writing over the real directory, so that a transcript outlives its session). The
+#   circuit gives them, so that a relaunch of an agent on its step resumes its session. The two
+#   together are refused, CODE_USAGE; each takes a value as --modele does.
+#   A resumed session receives its instruction alone: the session it resumes holds the sections
+#   the launcher adds below, save « La construction de ton paquet échoue », which it receives.
 # - The agent's copy is the worktree .claude/worktrees/<ticket> (branch agent/<ticket>), created
 #   from the main tree's HEAD when absent and moved forward to it otherwise. When the branch exists
 #   without a copy, it is brought back to the main tree's HEAD and the copy is made on it: the lot
@@ -86,15 +94,19 @@
 set -euo pipefail
 ici="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 eval "$(node "$ici/codes.mjs")"
-usage="usage: lancer.sh [--modele <m>] [--effort <e>] <ticket> <rôle> <composant> <fichier de consigne>"
+usage="usage: lancer.sh [--modele <m>] [--effort <e>] [--seance <id> | --reprise <id>] <ticket> <rôle> <composant> <fichier de consigne>"
 refus_usage() { echo "$usage" >&2; exit "$CODE_USAGE"; }
-modele="" effort="" surcharge=()
+modele="" effort="" seance="" reprise="" surcharge=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    --modele|--effort)
+    --modele|--effort|--seance|--reprise)
       [ $# -ge 2 ] && [ -n "$2" ] && [[ "$2" != --* ]] || refus_usage
       if [ "$1" = --modele ]; then
         modele=$2
+      elif [ "$1" = --seance ]; then
+        seance=$2
+      elif [ "$1" = --reprise ]; then
+        reprise=$2
       else
         case "$2" in low|medium|high|xhigh|max) effort=$2 ;; *) refus_usage ;; esac
       fi
@@ -105,6 +117,9 @@ while [ $# -gt 0 ]; do
 done
 [ -z "$modele" ] || surcharge+=(--model "$modele")
 [ -z "$effort" ] || surcharge+=(--effort "$effort")
+[ -z "$seance" ] || [ -z "$reprise" ] || refus_usage
+[ -z "$seance" ] || surcharge+=(--session-id "$seance")
+[ -z "$reprise" ] || surcharge+=(--resume "$reprise")
 [ $# -eq 4 ] || refus_usage
 ticket=$1 role=$2 composant=$3 consigne=$4
 # The main tree, from the common git directory: launched from an agent copy, the new copy still
@@ -245,8 +260,13 @@ fi
 rm -f "$echec"
 # The prompt, assembled in a file: claude reads it on its standard input, since as an argument it
 # may pass the size Linux allows one (MAX_ARG_STRLEN, 128 KiB).
+# A resumed session holds the sections of its first instruction: only a failed build is news.
 prompt=$(mktemp)
-printf '%s' "$(cat "$consigne")"$'\n\n'"$publie$dossier$construction" > "$prompt"
+if [ -n "$reprise" ]; then
+  printf '%s' "$(cat "$consigne")$construction" > "$prompt"
+else
+  printf '%s' "$(cat "$consigne")"$'\n\n'"$publie$dossier$construction" > "$prompt"
+fi
 
 # The rules that refuse the session the change of its author at the ticket (AUTEUR_FIXE of the
 # circuit), one per line.

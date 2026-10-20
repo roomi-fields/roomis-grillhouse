@@ -69,9 +69,11 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/circuit.passe-finale.spec.ts
 - tests/unit/circuit.preuve.spec.ts
 - tests/unit/circuit.registre.spec.ts
+- tests/unit/circuit.reprise.spec.ts
 - tests/unit/circuit.relecture.spec.ts
 - tests/unit/circuit.sessions.spec.ts
 - tests/unit/circuit.spec.ts
+- tests/unit/circuit.statut.spec.ts
 - tests/unit/circuit.tests-de-head.spec.ts
 - tests/unit/code-mort-cadre.spec.ts
 - tests/unit/code-mort-espaces.spec.ts
