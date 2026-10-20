@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.18.2] - 2026-10-20
+
 ### Fixed
 
 - **A red night's alert gives the night it turned red, never a commit**: since 0.16, the night names the night in the title of the ticket it opens, but a ticket opened before kept its title, « La nuit est rouge depuis 839dbb0 », and the board's alert showed that commit. The board now writes the alert of a red night from the date its ticket was opened, the night's date, whatever its title names.
