@@ -428,7 +428,7 @@ describe('grillhouse-3uv.63 — the old way is gone, the texts say the new one',
     for (const f of [
       'scripts/integration/integrer.mjs',
       'scripts/nuit.sh',
-      '.claude/skills/chef-de-chantier/SKILL.md',
+      '.claude/skills/regulateur/SKILL.md',
       '.claude/skills/pitmaster/SKILL.md',
     ]) {
       const texte = lire(f);
@@ -436,9 +436,9 @@ describe('grillhouse-3uv.63 — the old way is gone, the texts say the new one',
       expect(texte, f).not.toMatch(/main a bougé pendant l'intégration/);
     }
   });
-  it('critère 11: the chef de chantier no longer pushes main', () => {
-    const chef = lire('.claude/skills/chef-de-chantier/SKILL.md');
-    expect(chef).not.toMatch(/git push origin main/);
+  it('critère 11: the régulateur no longer pushes main', () => {
+    const regulateur = lire('.claude/skills/regulateur/SKILL.md');
+    expect(regulateur).not.toMatch(/git push origin main/);
   });
   it('critère 12: STRUCTURE.md lists the queue next to the integration', () => {
     expect(lire('STRUCTURE.md')).toMatch(/file\.mjs/);

@@ -324,12 +324,10 @@ describe('3uv.42 critère 4 : each line carries its section', () => {
     expect(section(L0, x => x.ticket === 'demo-z')).toBe('chantier');
   });
 
-  it('3uv.42 critère 4 : the agents title, each role and its tickets are in agents', () => {
+  it('3uv.42 critère 4 : the agents title, each step and its tickets are in agents', () => {
     expect(section(L0, x => x.texte.startsWith('AGENTS'))).toBe('agents');
-    expect(section(L0, x => x.texte === '1 explorateur  —')).toBe('agents');
-    expect(section(L0, x => x.texte === '4 développeur')).toBe('agents');
+    expect(section(L0, x => x.texte === '5 · Code · développeur')).toBe('agents');
     expect(section(L0, x => x.ticket === 'demo-e.1.4')).toBe('agents');
-    expect(section(L0, x => x.texte === '2 arbitre  —')).toBe('agents');
   });
 
   it("3uv.42 critère 4 : the FAITS AUJOURD'HUI title and its tickets are in faits", () => {
@@ -811,7 +809,7 @@ describe('a ticket waits in AGENTS only once the owner launched it (label circui
   });
 
   // Decided by the owner on 2026-10-17 (grill, Q10): the supervisor launches the circuit, whose
-  // first agent is the testeur; a chef de chantier comes only on a stop of the circuit.
+  // first agent is the testeur; a regulator comes only on a stop of the circuit.
   it('the same ticket in the circuit waits for the testeur, the first agent of the circuit', () => {
     const { t, l } = circuit(['circuit']);
     expect(attend(t)).toEqual(['testeur demo-k.1']);

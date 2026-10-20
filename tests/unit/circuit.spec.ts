@@ -7,7 +7,7 @@ import { sortie, CIRCUIT, IMMOBILE_MS, ARRETS, circuitEssai } from './circuit-es
 // first, the testeur, the proof of the red, the developpeur and the checks; then the reviewer,
 // and on ACCEPTÉ the integration, which puts the branch in the queue.
 // Decided by the owner on 2026-10-17 (grill): the circuit launches each session itself, in place
-// of a chef de chantier launching and waiting for each one; the circuit
+// of a regulator launching and waiting for each one; the circuit
 // launches the reviewer (Q6) and integrates the lot itself, the role of the integrateur gone (Q7);
 // it ends at the entry of the lot in the queue (Q13).
 //
@@ -16,7 +16,7 @@ import { sortie, CIRCUIT, IMMOBILE_MS, ARRETS, circuitEssai } from './circuit-es
 // circuit.sessions (the sessions relaunched, stopped and resumed), circuit.composants (a red judged
 // by its component), circuit.passe-finale (the final pass), circuit.construction (a failed build),
 // circuit.tests-de-head (the tests HEAD holds), circuit.relecture (the review and the
-// integration) and circuit.chef (the chef de chantier on a stop).
+// integration) and circuit.regulator (the regulator on a stop).
 // The trial repository and its stand-ins: ./circuit-essai.ts; each file of the circuit's tests
 // builds its own, in a trial directory of its own.
 
@@ -48,7 +48,7 @@ describe('the stops of the circuit and their codes', () => {
     expect(codes).not.toContain(2);
     expect(ARRETS['a-repasser']).toBe(75);
     expect(ARRETS['relecture-arret']).toBe(16);
-    // grillhouse-3uv.85, critère 4: the stop on the chef's question.
+    // grillhouse-3uv.85, critère 4: the stop on the regulator's question.
     expect(ARRETS.question).toBe(18);
     // The stops on a status line: a BLOQUÉ without a recipient, a BESOIN.
     expect(ARRETS['hors-portee']).toBe(19);

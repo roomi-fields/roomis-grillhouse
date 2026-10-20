@@ -149,7 +149,7 @@ code. Ainsi les tests arrivent au dépôt avec le code qui les rend verts.
   enveloppe, une décision hors de ton rôle) ;
 - `STATUT : BESOIN — <question>` : une réponse te manque pour avancer.
 
-Sur BLOQUÉ ou BESOIN, le circuit s'arrête avant la preuve, et le chef de chantier tranche. Ainsi ta
+Sur BLOQUÉ ou BESOIN, le circuit s'arrête avant la preuve, et le régulateur tranche. Ainsi ta
 séance finit sur ce que tu sais, et le circuit le lit.
 
 Une preuve refusée reprend ta séance, avec une consigne courte, le rapport neuf de la preuve seul ;

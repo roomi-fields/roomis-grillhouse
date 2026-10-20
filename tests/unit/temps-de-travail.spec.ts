@@ -944,7 +944,7 @@ describe("the circuit's own steps count in the ticket's working time", () => {
             arret: null,
             raison: null,
             question: null,
-            chef: false,
+            regulateur: false,
             vivant,
             mene: Date.parse(at('11:50')),
           },

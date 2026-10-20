@@ -63,14 +63,14 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
       });
       expect(historique(id).at(-1)).toEqual(['packages/forms', 'controles']);
     });
-    it("--reprendre starts again at the step and component of the state, with the chef's context", () => {
+    it("--reprendre starts again at the step and component of the state, with the regulateur's context", () => {
       scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-      const r = circuit([id, '--reprendre', '--contexte', 'Le chef a tranché : le double.']);
+      const r = circuit([id, '--reprendre', '--contexte', 'Le regulateur a tranché : le double.']);
       expect(r.status, sortie(r)).toBe(0);
       expect(sessions(id, 'testeur')).toBe(1);
       expect(sessions(id, 'developpeur')).toBe(4);
       expect(essai(id, 'developpeur-4.prompt')).toContain(
-        'CONTEXTE : Le chef a tranché : le double.'
+        'CONTEXTE : Le regulateur a tranché : le double.'
       );
       expect(args(id, 'developpeur', 4)).not.toContain('--model');
       expect(etat(id)?.etape).toBe('integre');
@@ -107,7 +107,7 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
 passation 'Le rouge qui reste est dans les tests de forms : le test attend un autre type.
 Agent : testeur 000-forms'
 `;
-    it('plays that component again from its testeur, without relaunching the developpeur nor a chef', () => {
+    it('plays that component again from its testeur, without relaunching the developpeur nor a regulateur', () => {
       const id = 'demo-renvoi-testeur';
       ticket(id, '000-forms');
       scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);

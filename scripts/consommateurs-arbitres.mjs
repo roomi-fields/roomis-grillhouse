@@ -35,13 +35,12 @@ import { aVerifier } from './interfaces-contre-code.mjs';
 const REGLE = 'consommateur-sans-arbitrage';
 
 // True when the « ## Arbitrage » comment <a> of <comments> (Beads' JSON, in their order) is
-// settled: the chef de chantier's arbitrage (he writes one only for what the letter of a
+// settled: the regulator's arbitrage (it writes one only for what the letter of a
 // criterion, a written precedent or a rule of the frame settles), a line `### Verdict — tranché`,
 // or a « ## Réponse du responsable » comment after it.
 export function arbitrageTranche(comments, a) {
   const tranche =
-    /^\s*## Arbitrage du chef de chantier\b/.test(a.text) ||
-    /^### Verdict\s*—\s*tranché/m.test(a.text);
+    /^\s*## Arbitrage du régulateur\b/.test(a.text) || /^### Verdict\s*—\s*tranché/m.test(a.text);
   return (
     tranche ||
     comments

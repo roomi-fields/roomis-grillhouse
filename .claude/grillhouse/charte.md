@@ -40,13 +40,15 @@ professionnel.
    la trouve par `bd show`.
 
 Une séance de supervision charge le superviseur (`pitmaster`). Les rôles sont des agents du projet
-(`.claude/agents/`), chacun désigné par le numéro de son rôle, dans l'ordre du flux :
-0 `chef-de-chantier`, qui tranche un arrêt du circuit d'un ticket, 1 `explorateur`, qui mène une
-exploration, 2 `arbitre`, qui tranche une question de conception, 3 `testeur`, 4 `developpeur`,
-5 `relecteur`, chacun sous ses verrous. Ainsi chaque agent travaille dans son
-cadre, et son numéro dit son rôle.
+(`.claude/agents/`), chacun sous ses verrous. Un ticket passe par dix étapes numérotées, les
+automatiques comprises (`scripts/etapes.mjs`, la seule liste) : 1 Exploration, l'`explorateur` ;
+2 Arbitrage, le `referent-technique` (une question de conception) ou le `regulateur` (un arrêt du
+circuit) ; puis, pour chaque composant, 3 Tests, le `testeur`, 4 Preuve du rouge, automatique,
+5 Code, le `developpeur`, et 6 Contrôles, automatiques ; enfin 7 Passe finale, automatique,
+8 Relecture, le `relecteur`, 9 Intégration et 10 File : main, poussée, CI, automatiques. Ainsi
+chaque agent travaille dans son cadre, et le numéro d'une étape dit où en est chaque ticket.
 
-**Le superviseur intervient sur ce qui dépasse le ticket** : le chef de chantier tranche ce que la
+**Le superviseur intervient sur ce qui dépasse le ticket** : le régulateur tranche ce que la
 lettre d'un critère, un précédent écrit ou une règle du cadre tranchent ; il fait monter au
 superviseur le reste, et tout sujet sensible : le cadre, l'architecture, et le fonctionnel que la
 charte du projet nomme (« Ce qui monte au superviseur »). Ainsi chaque décision se prend au plus

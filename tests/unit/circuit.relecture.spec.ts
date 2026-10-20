@@ -321,7 +321,7 @@ passation 'vert attendu : critère 1 — mesure rend le double — livré avant 
     ticket(id, '000-forms');
     scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-    scenario(id, 'relecteur-1', rendu('chef packages/forms'));
+    scenario(id, 'relecteur-1', rendu('regulateur packages/forms'));
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(16);
     expect(ARRETS['relecture-arret']).toBe(16);
@@ -329,7 +329,7 @@ passation 'vert attendu : critère 1 — mesure rend le double — livré avant 
     const e = etat(id);
     expect(e).toMatchObject({ etape: 'relecture', raison: 'relecture-arret', code: 16 });
     expect(e?.rapport).toContain("n'a pas de destinataire valide");
-    expect(e?.rapport).toContain('La décision revient au chef de chantier');
+    expect(e?.rapport).toContain('La décision revient au régulateur');
     expect(enFile()).not.toContain(`agent/${id}`);
     // Resumed, the reviewer puts a criterion itself in question: a stop again.
     scenario(

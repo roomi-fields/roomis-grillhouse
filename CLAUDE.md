@@ -30,7 +30,7 @@ d'abord », « une personne maintient le projet »…).
 
 ## Ce qui monte au superviseur
 
-Le fonctionnel que le chef de chantier ne tranche jamais seul : <le langage, le moteur audio, une
+Le fonctionnel que le régulateur ne tranche jamais seul : <le langage, le moteur audio, une
 interface publiée…>. Le cadre et l'architecture montent toujours (charte commune).
 
 ## Commandes

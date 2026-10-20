@@ -1238,7 +1238,7 @@ describe('grillhouse-3uv.56 critère 13 — the settings are written only when t
     expect(date(projet)).toBe(ANCIENNE.getTime());
   });
 
-  // Arbitrage of the chef (comment « cas relevés par le testeur »): the content is the JSON value;
+  // Arbitrage of the regulator (comment « cas relevés par le testeur »): the content is the JSON value;
   // the same value under another layout is not a change.
   it.each([
     ['on one line', (v: unknown) => `${JSON.stringify(v)}\n`],
@@ -1864,6 +1864,37 @@ describe('the update makes the configuration package of Vitest a workspace of a 
     const b = mettreAJour(projet, DEPOT, 'essai');
     expect(b.retires).toContain('scripts/vitest.base.config.mjs');
     expect(existsSync(path.join(projet, 'scripts/vitest.base.config.mjs'))).toBe(false);
+  });
+  // grillhouse-3uv.88: the former arbiter is now the technical referent, the former site manager
+  // the regulator; a project keeps no former agent nor skill, even one installed before the
+  // fingerprints.
+  it('the update removes the former agents of step 2 and their skills', () => {
+    const projet = projetAPaquets(['packages/*']);
+    const arbitre = 'arbitre';
+    const chef = 'chef-de-chantier';
+    const anciens = [
+      `.claude/agents/${arbitre}.md`,
+      `.claude/agents/${chef}.md`,
+      `.claude/skills/${arbitre}/SKILL.md`,
+      `.claude/skills/${chef}/SKILL.md`,
+    ];
+    for (const f of anciens) {
+      ecrire(projet, f, 'ancien\n');
+    }
+    mettreAJour(projet, DEPOT, 'essai');
+    for (const f of anciens) {
+      expect(existsSync(path.join(projet, f)), f).toBe(false);
+    }
+    expect(existsSync(path.join(projet, `.claude/skills/${arbitre}`))).toBe(false);
+    expect(existsSync(path.join(projet, `.claude/skills/${chef}`))).toBe(false);
+    for (const f of [
+      '.claude/agents/referent-technique.md',
+      '.claude/agents/regulateur.md',
+      '.claude/skills/referent-technique/SKILL.md',
+      '.claude/skills/regulateur/SKILL.md',
+    ]) {
+      expect(existsSync(path.join(projet, f)), f).toBe(true);
+    }
   });
   it('the report names the workspace added, the packages that declare it, the import to write and npm install', () => {
     const projet = projetAPaquets(['packages/*']);

@@ -30,7 +30,7 @@ et l'interface des composants qu'il nomme.
    *Fini quand* chaque composant touché a son état réel écrit, défauts compris.
 2. **Les décisions.** Tu listes ce qui reste à décider, chaque décision avec ses options, ce que
    fait la référence mature du domaine et ta recommandation. Une décision de conception part à
-   l'arbitre par le superviseur ; une décision qu'aucune règle ne tranche monte au responsable par le superviseur.
+   le référent technique par le superviseur ; une décision qu'aucune règle ne tranche monte au responsable par le superviseur.
    *Fini quand* chaque décision est tranchée et écrite au ticket avec sa source.
 3. **Le découpage.** Tu proposes les tickets de réalisation. Chacun décrit un seul comportement par
    ses tests, fait une seule livraison, et nomme les composants qu'il touche, le fournisseur

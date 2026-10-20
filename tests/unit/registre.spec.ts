@@ -58,11 +58,11 @@ describe('the register line', () => {
       hook_event_name: 'SubagentStop',
       transcript_path: '/p/s.jsonl',
       agent_id: 'a1',
-      agent_type: 'arbitre',
+      agent_type: 'referent-technique',
     });
     expect(s).toEqual({
       transcription: '/p/s/subagents/agent-a1.jsonl',
-      role: 'arbitre',
+      role: 'referent-technique',
       agent: 'a1',
     });
   });
@@ -71,7 +71,11 @@ describe('the register line', () => {
     mkdirSync(path.join(d, 's/subagents'), { recursive: true });
     writeFileSync(
       path.join(d, 's/subagents/agent-a2.meta.json'),
-      l({ agentType: 't-agent-2-liste', name: 't-agent-2-liste', spawnedAgentType: 'arbitre' })
+      l({
+        agentType: 't-agent-2-liste',
+        name: 't-agent-2-liste',
+        spawnedAgentType: 'referent-technique',
+      })
     );
     const s = source({
       hook_event_name: 'SubagentStop',
@@ -79,7 +83,7 @@ describe('the register line', () => {
       agent_id: 'a2',
       agent_type: 't-agent-2-liste',
     });
-    expect(s.role).toBe('arbitre');
+    expect(s.role).toBe('referent-technique');
   });
   it('writes nothing for a transcript without time', () => {
     expect(ligne({ hook_event_name: 'SessionEnd' }, lireTranscription(''), '/repo')).toBeNull();

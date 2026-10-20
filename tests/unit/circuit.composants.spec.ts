@@ -138,7 +138,7 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
       'Le double, sans test neuf.',
     ]);
     expect(r2.status, sortie(r2)).toBe(0);
-    expect(ordre(id).filter(l => !l.startsWith('chef-de-chantier'))).toEqual([
+    expect(ordre(id).filter(l => !l.startsWith('regulateur'))).toEqual([
       'testeur packages/forms',
       'testeur packages/forms',
       'testeur packages/forms',

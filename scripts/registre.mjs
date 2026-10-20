@@ -7,7 +7,7 @@
 // (`ligneDEtape`: its role `circuit`, its step and component, one turn, no tokens).
 //
 // - The line: the project (its main tree), the agent, its ticket (« TON TICKET : »; a sub-agent
-//   whose prompt names none takes that of the site manager that launched it), its role,
+//   whose prompt names none takes that of the regulator that launched it), its role,
 //   its start and end, its working time and the turns it sums (start and end in milliseconds, the
 //   waits for a message left out), its tokens, its cache reads and its cost when the session wrote
 //   one. All of it is read from the agent's transcript; the agent declares nothing.
@@ -35,7 +35,13 @@ import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { lireFichier, ROLE_DU_CIRCUIT, roleDuMeta, ticketDuChef, tourne } from './tableau.mjs';
+import {
+  lireFichier,
+  ROLE_DU_CIRCUIT,
+  roleDuMeta,
+  ticketDuRegulateur,
+  tourne,
+} from './tableau.mjs';
 import { lacherVerrou, prendreVerrou } from './verrou-de-fichier.mjs';
 
 const REGISTRE =
@@ -86,7 +92,7 @@ export function ligne(input, t, projet) {
   return {
     projet,
     agent,
-    ticket: t.ticket ?? (transcription ? ticketDuChef(transcription) : null),
+    ticket: t.ticket ?? (transcription ? ticketDuRegulateur(transcription) : null),
     role: role ?? t.role,
     debut: new Date(t.premier).toISOString(),
     fin: new Date(t.dernier).toISOString(),

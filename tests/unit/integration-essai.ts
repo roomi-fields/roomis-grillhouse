@@ -494,7 +494,7 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
     }
     return r;
   };
-  // The queue, as the chef de chantier launches it from the main tree.
+  // The queue, as the regulator launches it from the main tree.
   const file = (...args: string[]): SpawnSyncReturns<string> =>
     spawnSync('node', [FILE, ...args], { cwd: repo, encoding: 'utf8', env, timeout: 120_000 });
 

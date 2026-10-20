@@ -336,7 +336,7 @@ describe("the project's options — criteria 5 to 8", () => {
 
 // The empty forms of a pattern dependency-cruiser accepts: a string, a list, an object whose path
 // is an empty string or an empty list. Each excludes or leaves unfollowed nothing.
-// Arbitrage du chef de chantier (forme { path: '' }) : la lettre du critère 9 la couvre, une chaîne
+// Arbitrage du regulator (forme { path: '' }) : la lettre du critère 9 la couvre, une chaîne
 // vide sous path étant le même motif vide que la chaîne vide seule.
 const VIDES = ["''", '[]', "{ path: '' }", '{ path: [] }'];
 

@@ -71,7 +71,9 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     expect(Object.keys(e ?? {}).sort()).toEqual(
       [
         'atteint',
-        'chef',
+        'boucles',
+        'composants',
+        'regulateur',
         'code',
         'composant',
         'dernier',
@@ -89,6 +91,11 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     );
     expect(e?.etape).toBe('integre');
     expect(e?.code).toBe(0);
+    // The components of the title, in their order, which the board reads for the rank.
+    expect((e as { composants?: string[] } | null)?.composants).toEqual([
+      'packages/forms',
+      'packages/binder',
+    ]);
     // The final pass green carried every component to green checks.
     expect(e?.atteint).toBe('packages/binder');
     expect(e?.journal).toBe(path.join(REPO, '.claude/worktrees', `${id}.log`));

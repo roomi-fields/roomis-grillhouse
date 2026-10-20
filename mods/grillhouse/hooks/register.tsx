@@ -155,6 +155,12 @@ export const ouvrirGroupe = (s: Etat, groupe: string | undefined): Etat =>
       ? { ...s, vue: 'groupe', groupe, element: null, grand: false }
       : s
 
+// A line's text and its other text (`alterne`) take turns, ALTERNANCE ms each: the text shown at
+// the turn `tour` of the pane's clock (its other text at an odd turn), its text when it has no other.
+export const ALTERNANCE = 5_000
+export const texteDe = (l: Ligne, tour: number) =>
+  l.alterne !== undefined && tour % 2 === 1 ? l.alterne : l.texte
+
 // The colour of a line's tone.
 export const couleur = (ton: Ligne['ton']) =>
   ton === 'alerte' ? 'red' : ton === 'attention' ? 'yellow' : ton === 'actif' ? 'cyan' : undefined
@@ -162,6 +168,8 @@ export const couleur = (ton: Ligne['ton']) =>
 // The session's project, and whether the board applies to it.
 let cwd = ''
 let actif = false
+// The turns of the alternation of the lines' texts, one per ALTERNANCE.
+let tour = 0
 // The pane's window: its first line, the element it last followed, and the rows and focus it was
 // last drawn with. The wheel moves it; the ring moving to another line makes it follow.
 let fenetre = 0
@@ -283,6 +291,13 @@ export const register: Register = on => {
     })
     void rafraichir($)
     $.clock.every(PERIODE, () => void rafraichir($))
+    // A line with another text turns at each ALTERNANCE: the pane is drawn again, while one shows.
+    $.clock.every(ALTERNANCE, () => {
+      tour++
+      void read($, etat).then(s => {
+        if (lignesDe(s).some(l => l.alterne !== undefined)) $.ui.invalidate('ui.render')
+      })
+    })
     return started
   })
 
@@ -469,7 +484,7 @@ export const register: Register = on => {
           {liste.slice(premier, premier + rangs).map(({ l, cle }) => {
             const texte = (
               <Text bold={l.ton === 'titre'} dimColor={l.ton === 'discret'} color={couleur(l.ton)} wrap="truncate-end">
-                {l.texte || ' '}
+                {texteDe(l, tour) || ' '}
               </Text>
             )
             if (cle && l.groupe) {

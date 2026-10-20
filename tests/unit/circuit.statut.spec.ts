@@ -8,8 +8,8 @@ import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit
 // or `STATUT : BESOIN — <question>`, which the circuit reads. Witness: BPScript (320.2.4.5.1,
 // si61.8), where a developpeur was relaunched up to three times on a red he could not lift (in the
 // tests, the shared test material, a file out of his envelope, a decision out of his role), then
-// the circuit stopped at « sans-livraison » and a chef had to find out why. A BLOQUÉ without a
-// recipient and a BESOIN stop the circuit at once, at « hors-portee » and « besoin », the chef
+// the circuit stopped at « sans-livraison » and a regulator had to find out why. A BLOQUÉ without a
+// recipient and a BESOIN stop the circuit at once, at « hors-portee » and « besoin », the regulator
 // launched on them; a BLOQUÉ with `Agent : testeur <composant>` is the sending to the testeur; FAIT
 // and no line keep the circuit of today.
 // The trial repository and its stand-ins: ./circuit-essai.ts; each file of the circuit's tests
@@ -31,12 +31,12 @@ const {
   historique,
 } = circuitEssai(ESSAIS);
 
-const CHEF = 'chef-de-chantier';
+const REGULATEUR = 'regulateur';
 
 describe.runIf(canWrap)('the status line of a handover', { timeout: 300_000 }, () => {
   afterEach(revenirAuDebut);
 
-  it('a developpeur BLOQUÉ without a recipient stops the circuit at « hors-portee » after one session, its reason in the report, the chef launched on it', () => {
+  it('a developpeur BLOQUÉ without a recipient stops the circuit at « hors-portee » after one session, its reason in the report, the regulateur launched on it', () => {
     const id = 'demo-statut-bloque';
     ticket(id, '000-forms');
     scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
@@ -62,13 +62,13 @@ STATUT : BLOQUÉ — la matière de test partagée attend un autre type.'
     });
     expect(e?.rapport).toContain('la matière de test partagée attend un autre type.');
     expect(historique(id)).not.toContainEqual(['packages/forms', 'controles']);
-    // The chef is launched on the stop, its reason in its instruction.
+    // The regulator is launched on the stop, its reason in its instruction.
     expect(ordre(id).slice(0, 3)).toEqual([
       'testeur packages/forms',
       'developpeur packages/forms',
-      CHEF,
+      REGULATEUR,
     ]);
-    const consigne = essai(id, `${CHEF}-1.prompt`);
+    const consigne = essai(id, `${REGULATEUR}-1.prompt`);
     expect(consigne).toContain(`hors-portee (code ${ARRETS['hors-portee']})`);
     expect(consigne).toContain('la matière de test partagée attend un autre type.');
     expect(commentaires(id)).toContainEqual(
@@ -76,7 +76,7 @@ STATUT : BLOQUÉ — la matière de test partagée attend un autre type.'
     );
   });
 
-  it('a developpeur BESOIN, in bold and code, stops the circuit at « besoin » after one session, its question in the report, the chef launched on it', () => {
+  it('a developpeur BESOIN, in bold and code, stops the circuit at « besoin » after one session, its question in the report, the regulateur launched on it', () => {
     const id = 'demo-statut-besoin';
     ticket(id, '000-forms');
     scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
@@ -92,9 +92,11 @@ STATUT : BLOQUÉ — la matière de test partagée attend un autre type.'
     const e = etat(id);
     expect(e).toMatchObject({ etape: 'developpeur', raison: 'besoin', code: ARRETS.besoin });
     expect(e?.rapport).toContain('la mesure rend-elle le double ou le triple ?');
-    expect(ordre(id)[2]).toBe(CHEF);
-    expect(essai(id, `${CHEF}-1.prompt`)).toContain(`besoin (code ${ARRETS.besoin})`);
-    expect(essai(id, `${CHEF}-1.prompt`)).toContain('la mesure rend-elle le double ou le triple ?');
+    expect(ordre(id)[2]).toBe(REGULATEUR);
+    expect(essai(id, `${REGULATEUR}-1.prompt`)).toContain(`besoin (code ${ARRETS.besoin})`);
+    expect(essai(id, `${REGULATEUR}-1.prompt`)).toContain(
+      'la mesure rend-elle le double ou le triple ?'
+    );
   });
 
   it('a testeur BESOIN stops the circuit at « besoin » before its proof', () => {

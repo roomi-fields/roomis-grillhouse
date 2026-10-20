@@ -63,10 +63,10 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
       'developpeur packages/binder',
       'developpeur packages/forms',
       'developpeur packages/binder',
-      // The stop goes to a session of the chef de chantier, who answers nothing here, asked again
+      // The stop goes to a session of the regulator, who answers nothing here, asked again
       // once.
-      'chef-de-chantier',
-      'chef-de-chantier',
+      'regulateur',
+      'regulateur',
     ]);
     const fort = args(id, 'developpeur', 4);
     expect(fort[fort.indexOf('--model') + 1]).toBe('opus');
@@ -152,7 +152,7 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
     expect(e?.rapport).toContain('020-loader');
     expect(e?.rapport).toContain('chaque fichier est une bibliothèque .bp');
     expect(e?.rapport).toContain('hors des composants du ticket (packages/forms)');
-    expect(e?.rapport).toContain('La décision revient au chef de chantier');
+    expect(e?.rapport).toContain('La décision revient au régulateur');
     // Stopped before the review, the package named in the comment of the stop.
     expect(historique(id).map(([, etape]) => etape)).not.toContain('relecture');
     const arret = commentaires(id).at(-1);

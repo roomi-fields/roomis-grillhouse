@@ -21,7 +21,7 @@ intentions sort du cadre.
 5. **Des agents cadrés** : chaque ticket part à un agent neuf, dans le cadre écrit, et un autre que
    lui relit sa fermeture. Ainsi le travail des agents reste dans l'architecture ; sans cadre, ils
    font systématiquement le contraire.
-6. **Le responsable tranche l'essentiel** : ce qu'une règle écrite tranche, le chef de chantier ou
+6. **Le responsable tranche l'essentiel** : ce qu'une règle écrite tranche, le régulateur ou
    le superviseur le tranche. Le responsable reçoit les décisions qu'aucune règle ne couvre, avec leur contexte et une
    recommandation. Ainsi son temps va aux vraies décisions.
 

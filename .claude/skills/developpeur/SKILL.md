@@ -84,7 +84,7 @@ est un vrai rouge.
   `STATUT : BESOIN — <question>` ; ton code suit ensuite le verdict « Arbitrage » au ticket.
 - **Un fait que ton code prend chez un fournisseur hors de sa ligne « Déclaré pour »** (un élément
   publié pas encore déclaré pour toi, ou un fait que ta section ne porte pas) : une découverte qui
-  bloque, que le superviseur porte à l'arbitre, et qui entre ensuite dans la section
+  bloque, que le superviseur porte au référent technique, et qui entre ensuite dans la section
   « Consommateurs » du fournisseur.
 - **Une donnée qui manque chez un fournisseur** : tu t'arrêtes, et ta passation nomme la donnée
   et le fournisseur, et finit sur `STATUT : BLOQUÉ — <la donnée>` ; tu ne la calcules pas dans ton
@@ -126,7 +126,7 @@ Une découverte qui ne bloque pas se consigne fermée sous ton ticket
     s'arrête (`hors-portee`) ;
   - `STATUT : BESOIN — <question>` : une réponse te manque pour avancer ; le circuit s'arrête
     (`besoin`).
-    Sur un arrêt, le chef de chantier tranche, et le circuit ne te relance pas sur ce rouge. Ainsi
+    Sur un arrêt, le régulateur tranche, et le circuit ne te relance pas sur ce rouge. Ainsi
     tu ne tournes jamais sur un rouge que tu as dit hors de ta portée.
 - **Une relance reprend ta séance** : après des contrôles rouges, le circuit reprend ta séance avec
   une consigne courte, le rapport neuf seul ; ta consigne, ta compétence et ce que tu as lu restent

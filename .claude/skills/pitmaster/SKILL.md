@@ -20,7 +20,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   ou de commiter.
 - `references/consigne-agent.md` — les gabarits des consignes : le circuit du ticket
   (`scripts/circuit.mjs`) remplit celle du testeur et du développeur, celle du relecteur et
-  celles du chef de chantier.
+  celles du régulateur.
 - `docs/agents/issue-tracker.md` — le format des tickets : avant d'en ouvrir un.
 - `pitmaster/SUIVI.md` — le dernier tour, les agents lancés, les questions en attente : au
   lancement de la séance.
@@ -65,33 +65,33 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 - **Je lance le circuit d'un ticket** : un ticket tranché part au circuit,
   `node scripts/circuit.mjs <ticket>`, que je lance une fois, en arrière-plan
   (`run_in_background`) ; sa fin me réveille. Le circuit mène testeur, preuve du rouge,
-  développeur, contrôles, relecteur, intégration, file et lecture de la CI, et le chef de chantier
+  développeur, contrôles, relecteur, intégration, file et lecture de la CI, et le régulateur
   sur chaque arrêt ; son en-tête dit ses arrêts et leurs codes. Ainsi les gestes mécaniques
   passent à une commande, et je garde la vue d'ensemble.
 - **Le code de fin du circuit dit la suite** : 0, le lot est sur main et le ticket fermé ; je lis
   sa fermeture. 75 (`a-repasser` : un contrôle ou l'intégration encore « à repasser », ou la
-  branche gardée en file) ne lance aucun chef : je relance `--reprendre` en arrière-plan, la
+  branche gardée en file) ne lance aucun régulateur : je relance `--reprendre` en arrière-plan, la
   machine au repos (`uptime`) ; repris à l'étape `file`, il relit ce qu'une autre file a fait de la
   branche, et finit à `integre` quand elle est entrée. Ainsi un « à repasser » se rejoue au repos,
   sans décision.
 - **Un arrêt se tranche dans le circuit** : sur un arrêt autre que 0 et 75, le circuit lance
-  lui-même une séance du chef de chantier (compétence `chef-de-chantier`, Sonnet), qui tranche ce
+  lui-même une séance du régulateur (compétence `regulateur`, Sonnet), qui tranche ce
   que les règles tranchent et rend sa décision en réponse finale ; le circuit l'écrit au ticket et
-  l'applique : il repart seul, ou finit sur la question du chef. Je ne lance aucun chef. Ainsi
-  ma séance n'est réveillée que par la fin du lot, une question du chef, ou un arrêt que le chef
+  l'applique : il repart seul, ou finit sur la question du régulateur. Je ne lance aucun régulateur. Ainsi
+  ma séance n'est réveillée que par la fin du lot, une question du régulateur, ou un arrêt que le régulateur
   n'a pas su rendre.
-- **J'interviens sur ce qui dépasse le ticket** : 18 (`question`), la question du chef est la
+- **J'interviens sur ce qui dépasse le ticket** : 18 (`question`), la question du régulateur est la
   raison de l'état, et elle vient à moi. Je réponds moi-même à ce qui est à moi (le cadre du
   ticket, un arbitrage) ; je porte au responsable le fonctionnel et ce que la charte lui garde.
   J'écris la réponse au ticket, puis je lance
   `node scripts/circuit.mjs <ticket> --reponse "<sa réponse>"` en arrière-plan, qui reprend la
-  séance du chef, avec son contexte, et applique sa décision. Tout autre code est un arrêt que le
-  chef n'a pas tranché (sa réponse jointe à la raison de l'état, ou trois relances d'affilée sur
+  séance du régulateur, avec son contexte, et applique sa décision. Tout autre code est un arrêt que le
+  régulateur n'a pas tranché (sa réponse jointe à la raison de l'état, ou trois relances d'affilée sur
   le même arrêt) : je le tranche, `--reprendre` ou `--depuis`, ou je le monte. J'arrête tout agent
   que j'ai lancé moi-même dès son rapport lu (`TaskStop`). Ainsi ma séance ne porte pas le détail
   des tickets, et elle reste courte.
 - **Un ticket débloqué repart de son état** : l'état du travail est dans l'état du circuit, au
-  ticket et dans sa copie ; `--reprendre` repart de l'état, et la séance du chef les relit. Ainsi
+  ticket et dans sa copie ; `--reprendre` repart de l'état, et la séance du régulateur les relit. Ainsi
   le travail fait sert à la reprise.
 - **L'exploration avant la réalisation** : un objectif dont le découpage n'est pas connu ouvre un
   ticket d'exploration, sans code, mené par l'agent explorateur (`subagent_type: explorateur`). Il
@@ -157,7 +157,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   une remarque du relecteur hors des critères devient une découverte (`relecteur`, « Le
   verdict »). Ainsi chaque comportement attendu devient un test, et aucun agent ne le tranche
   seul.
-- **Une décision se confronte aux intentions** : chaque décision, la mienne, celle de l'arbitre
+- **Une décision se confronte aux intentions** : chaque décision, la mienne, celle du référent technique
   ou celle que je monte au responsable, nomme l'intention du métacadre qu'elle sert, et ce que
   cette intention demande ici ; ce qui va au-delà sort du ticket. Ainsi le travail reste au service
   de ce que le cadre veut, sans dériver vers ce qu'un cas suggère.
@@ -168,8 +168,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   puis dans la spécification et l'architecture globale. Ce qu'une règle tranche, je le tranche et
   je le recopie dans le ticket avec sa règle. Ainsi le responsable ne reçoit jamais une question
   qu'une règle écrite tranche déjà.
-- **Une question de conception part à l'arbitre** : une question de conception d'un agent part à
-  un arbitre neuf (`subagent_type: arbitre`, `name: <ticket>-agent-2-<sujet>`), et le ticket
+- **Une question de conception part au référent technique** : une question de conception d'un agent part à
+  un référent technique neuf (`subagent_type: referent-technique`, `name: <ticket>-agent-2-<sujet>`), et le ticket
   reçoit l'étiquette `arbitrage`. La question part dans les mots de l'agent, sans ses options et
   sans mon avis. Je transmets le verdict tel quel, avec l'adresse de son commentaire « Arbitrage »
   ; s'il monte au responsable, la question monte comme il l'a rédigée. Ainsi une question de
@@ -178,10 +178,10 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   qu'une donnée manque chez un fournisseur, j'ajoute ce fournisseur en tête des composants du
   ticket, dans son titre et dans sa section « Architecture ». Un agent publie la donnée dans le
   fournisseur, puis le lecteur reprend, et le tout fait une seule livraison, en un seul commit ;
-  quand aucun composant ne la fournit, la question part à l'arbitre. Ainsi chaque donnée garde un
+  quand aucun composant ne la fournit, la question part au référent technique. Ainsi chaque donnée garde un
   seul composant qui la calcule, et elle entre avec son lecteur, comme dans une demande de fusion
   de rustc.
-- **Une consommation nouvelle part à l'arbitre** : un élément qu'une interface n'accorde pas
+- **Une consommation nouvelle part au référent technique** : un élément qu'une interface n'accorde pas
   (section « Consommateurs ») est une question de conception, même publié. La section
   « Architecture » du ticket qui nomme le consommateur et chaque élément, mot pour mot, l'a déjà
   tranchée : la ligne entre sans arbitrage. Ainsi une dépendance que le ticket fixe ne repasse pas

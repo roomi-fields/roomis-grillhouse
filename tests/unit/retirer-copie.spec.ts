@@ -1,5 +1,5 @@
 // grillhouse-3uv.58: a working copy is removed by one script of the frame,
-// `scripts/retirer-copie.sh [--jetable] <copie>`, called by the chef de chantier (agent copy), the
+// `scripts/retirer-copie.sh [--jetable] <copie>`, called by the regulator (agent copy), the
 // integration and the night. git refuses `worktree remove` on a copy that carries a submodule; the
 // script removes such a copy too, touches nothing but the named copy, and keeps today's refusal of
 // a copy that carries local work or is locked; `--jetable` (the integration's and the night's own
@@ -837,7 +837,7 @@ describe('grillhouse-3uv.56 critère 5 — the submodules are read in a project 
 // grillhouse-3uv.56 critère 9: local work already entered on main (each file of the work holds, in
 // the copy, the content of the commit that entered) loses nothing; the copy is removed without
 // --jetable. Work of which a part has not entered is refused as before. Witness: BPScript, the
-// twelve copies of the children of 322.6.6, refused to the chef de chantier.
+// twelve copies of the children of 322.6.6, refused to the regulator.
 describe('grillhouse-3uv.56 critère 9 — a copy whose local work has entered main is removed without --jetable', () => {
   // In the copy <dir>: a.txt modified (staged), livre.txt added untracked.
   const travailler = (dir: string) => {
@@ -938,7 +938,7 @@ describe('grillhouse-3uv.56 critère 9 — a copy whose local work has entered m
     },
     LONG
   );
-  // Arbitrage of the chef (comment « cas relevés par le testeur »): « main » is the branch main,
+  // Arbitrage of the regulator (comment « cas relevés par le testeur »): « main » is the branch main,
   // not the head of the main tree.
   it(
     'critère 9: « main » is the branch main: work entered on main is removed while the main tree stands on another branch without it',
@@ -972,7 +972,7 @@ describe('grillhouse-3uv.56 critère 9 — a copy whose local work has entered m
       LONG
     );
   }
-  // Arbitrage of the chef (comment « suite au RENDU du relecteur »): the work has entered when it
+  // Arbitrage of the regulator (comment « suite au RENDU du relecteur »): the work has entered when it
   // is identical to the commit that entered, content and mode. A content main gave a path before
   // the copy was made is not a work that entered: the copy that puts it back undoes main's later
   // commit, and that work stands nowhere else.

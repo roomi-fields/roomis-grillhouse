@@ -494,9 +494,9 @@ describe('3uv.44 critère 5 : the board reads a transcript where it stopped, its
     const sous = path.join(propre(home), 'sess', 'subagents');
     mkdirSync(sous, { recursive: true });
     const prompt = invite('08:00', 'demo-9');
-    const chef = path.join(sous, 'agent-c1.jsonl');
-    writeFileSync(chef, `${transcription(prompt, reponse('08:05'))}\n`);
-    writeFileSync(path.join(sous, 'agent-c1.meta.json'), l({ agentType: 'chef-de-chantier' }));
+    const regulateur = path.join(sous, 'agent-c1.jsonl');
+    writeFileSync(regulateur, `${transcription(prompt, reponse('08:05'))}\n`);
+    writeFileSync(path.join(sous, 'agent-c1.meta.json'), l({ agentType: 'regulateur' }));
     const muet = path.join(sous, 'agent-e1.jsonl');
     writeFileSync(
       muet,
@@ -509,8 +509,8 @@ describe('3uv.44 critère 5 : the board reads a transcript where it stopped, its
     let cache: Record<string, unknown> = {};
     expect(vivants(home, cache).find(v => v.agent === 'e1')?.ticket).toBe('demo-9');
     cache = parFichier(cache);
-    effacer(chef, prompt);
-    appendFileSync(chef, `${reponse('08:20')}\n`);
+    effacer(regulateur, prompt);
+    appendFileSync(regulateur, `${reponse('08:20')}\n`);
     appendFileSync(muet, `${reponse('08:21')}\n`);
     expect(vivants(home, cache).find(v => v.agent === 'e1')?.ticket).toBe('demo-9');
   });

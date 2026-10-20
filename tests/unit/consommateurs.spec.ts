@@ -170,14 +170,14 @@ describe('verifier', () => {
 });
 
 describe('the command', () => {
-  it('exits 1 on a refusal and names the arbitre', () => {
+  it('exits 1 on a refusal and names the technical referent', () => {
     const dir = repo({
       'packages/b/package.json': '{"name":"@demo/b"}',
       'packages/a/src/index.ts': "import { duree } from '@demo/b';",
     });
     const r = spawnSync('node', [SCRIPT], { cwd: dir, encoding: 'utf8' });
     expect(r.status).toBe(1);
-    expect(r.stderr).toMatch(/arbitre/);
+    expect(r.stderr).toMatch(/référent technique/);
   });
   it('exits 0 on a repository without components', () => {
     expect(spawnSync('node', [SCRIPT], { cwd: repo({}), encoding: 'utf8' }).status).toBe(0);
@@ -222,7 +222,7 @@ describe('grillhouse-3uv.56 critère 20 — two components of the same name are 
       )
     ).toBe(true);
   });
-  // Arbitrage of the chef (comment « cas relevés par le testeur »): a name listed in
+  // Arbitrage of the regulator (comment « cas relevés par le testeur »): a name listed in
   // docs/agents/hors-cadre.txt is not a component, and packages/A and src/a bear two names.
   it('critère 20: two directories of a name listed in hors-cadre.txt, under packages/ and src/, are not refused', () => {
     const dir = repo({

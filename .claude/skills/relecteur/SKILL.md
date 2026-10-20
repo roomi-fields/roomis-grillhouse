@@ -70,7 +70,7 @@ qui manque ou qui ne mord pas, `developpeur` quand il vise le code, et le compos
 du titre (son chemin ou le nom de son paquet), celui où la correction s'écrit. Le circuit relance
 ces agents depuis le premier composant nommé, le constat pour rapport. Un constat qui met en
 cause le critère lui-même, et non le lot, porte à la place la ligne `Critère en cause : <n>` : le
-circuit s'arrête, et le chef de chantier tranche. Ainsi chaque constat arrive à l'agent qui le
+circuit s'arrête, et le régulateur tranche. Ainsi chaque constat arrive à l'agent qui le
 corrige.
 
 ```text

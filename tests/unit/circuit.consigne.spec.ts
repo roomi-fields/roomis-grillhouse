@@ -9,7 +9,7 @@ import { sortie, CODE_JUSTE, DESCRIPTION, ECRIT_ROUGE, circuitEssai } from './ci
 // last handover » 14 KB of « vert attendu » of the testeur of 030-binder, and after a RENDU each
 // agent the whole verdict, the findings of the other components included; the reviewer read the
 // criteria at the head of its instruction, which its skill keeps for after its first passes; a
-// criterion the chef added to the description never reached the session after its RELANCE, nor did
+// criterion the regulator added to the description never reached the session after its RELANCE, nor did
 // the ticket's notes.
 // The trial repository and its stand-ins: ./circuit-essai.ts; each file of the circuit's tests
 // builds its own, in a trial directory of its own.
@@ -117,7 +117,7 @@ verdict 'ACCEPTÉ — le lot tient ses critères.'
   it("carries the ticket's description as it is at the session's launch, and its notes when it has some", () => {
     const id = 'demo-consigne-description';
     ticket(id, '000-forms');
-    // The testeur needs an answer: the circuit stops at « besoin », and the chef adds the criterion
+    // The testeur needs an answer: the circuit stops at « besoin », and the regulator adds the criterion
     // and the notes to the ticket before its RELANCE, in the same run of the circuit.
     scenario(
       id,
@@ -129,7 +129,7 @@ verdict 'ACCEPTÉ — le lot tient ses critères.'
     const nouvelle = `${DESCRIPTION}\n2. \`mesure\` de 0 rend 0.`;
     scenario(
       id,
-      'chef-de-chantier',
+      'regulateur',
       `cat > "$e/description.md" <<'EOF'
 ${nouvelle}
 EOF
@@ -141,7 +141,7 @@ decision 'RELANCE --reprendre'
     expect(r.status, sortie(r)).toBe(0);
     expect(ordre(id)).toEqual([
       'testeur packages/forms',
-      'chef-de-chantier',
+      'regulateur',
       'testeur packages/forms',
       'developpeur packages/forms',
       'relecteur',

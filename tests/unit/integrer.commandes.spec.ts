@@ -319,7 +319,7 @@ describe('grillhouse-3uv.56 critère 12 — a changed manifest is installed as a
     },
     D
   );
-  // Arbitrage of the chef (comment « suite au RENDU du relecteur »): the fingerprint reads every
+  // Arbitrage of the regulator (comment « suite au RENDU du relecteur »): the fingerprint reads every
   // package.json git tracks, whatever pattern of the root's `workspaces` declares it. Each form of
   // pattern npm reads: `**` for zero folders or more, a brace list, `?` for one character.
   for (const motifs of [['packages/**/*'], ['packages/{p1,q1}'], ['packages/p?', 'packages/q?']]) {

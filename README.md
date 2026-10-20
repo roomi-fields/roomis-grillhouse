@@ -73,7 +73,7 @@ Three layers, each with one job:
 | Tester (agent)                | `testeur`     | Writes a ticket's tests from the spec, before the code; writes test files and the shared test material only.                           |
 | Developer (agent)             | `developpeur` | Makes those tests pass; touches no test nor the shared test material, writes no code before the ticket's Architecture section.         |
 | Reviewer (agent)              | `relecteur`   | Reviews the lot adversarially (edge cases, verification gaps, the frame); writes nothing.                                              |
-| Arbiter (agent)               | `arbitre`     | Settles a design question away from the rush: mature model, project texts, common mechanism; or sends it to the owner. Writes nothing. |
+| Technical referent (agent)    | `referent-technique` | Settles a design question away from the rush: mature model, project texts, common mechanism; or sends it to the owner. Writes nothing. |
 | Explorer (agent)              | `explorateur` | Runs an exploration ticket: surveys, lists the decisions, proposes small testable tickets. Writes no code.                             |
 | Measurement                   | `mesure`      | Measures without fooling itself; proves a guard bites before calling it green.                                                         |
 | Writer                        | `redacteur`   | Writes human-read documents (architecture on the arc42/C4 model, frame, interface).                                                    |
@@ -82,13 +82,13 @@ Three layers, each with one job:
 A change of behaviour is one ticket that passes from agent to agent in its copy: tests (tester) →
 code (developer) → review → commit on the ticket's branch → the queue brings it onto main, which closes it.
 The supervisor launches the ticket's circuit (`scripts/circuit.mjs`) once. On a stop other than
-0 and 75 (« à repasser »), the circuit itself opens a session of the site manager (`chef-de-chantier`),
+0 and 75 (« à repasser »), the circuit itself opens a session of the regulator (`regulateur`),
 whose final answer is its decision: `RELANCE --reprendre` or `RELANCE --depuis <testeur|developpeur> <component>`,
 which the circuit applies in the same run, or `MONTE : <question>`, which ends the circuit on the
-stop `question` (18), the site manager's session kept; the supervisor answers the question himself, or carries it to the owner
+stop `question` (18), the regulator's session kept; the supervisor answers the question himself, or carries it to the owner
 when it is the owner's (the functional, what the charter keeps for him),
 and `circuit.mjs <ticket> --reponse "<answer>"` resumes that session with the answer. So the
-supervisor is woken only by a lot integrated, a question, or a stop the site manager could not settle.
+supervisor is woken only by a lot integrated, a question, or a stop the regulator could not settle.
 Each session writes at the ticket under its role as author (`BEADS_ACTOR`, which it may not change),
 the circuit's own lines under `circuit`, the queue's under `file`, and the circuit reads a verdict
 only in a comment of the author `relecteur`. Each session's instruction carries the ticket's
@@ -98,7 +98,7 @@ component); the reviewer's carries no criteria, only the path of the claims file
 (`Agent : testeur <component>` in its handover), and a component without tests goes straight to its developer.
 The handover of a tester or a developer ends on its status line, `STATUT : FAIT`, `STATUT : BLOQUÉ — <reason>`
 or `STATUT : BESOIN — <question>`: a BESOIN, or a BLOQUÉ that sends the red to no tester, stops the circuit
-at once (`besoin`, `hors-portee`), and the site manager settles it, the agent not relaunched on that red.
+at once (`besoin`, `hors-portee`), and the regulator settles it, the agent not relaunched on that red.
 A relaunch of a tester or a developer on its step (after a refused proof, after red checks) resumes its
 session (`claude --resume`) with a short instruction, the new report alone; the last attempt is a fresh
 and whole session, and so is a resumption that fails.
@@ -116,23 +116,25 @@ claude's own are reachable (`~/.claude`, a throwaway copy of `~/.claude.json`, i
 token), and no socket of the session, no token held in a variable (`GH_TOKEN`…). A missing piece
 of data becomes a request to the component that provides it, not a local recomputation. One
 ticket makes one delivery: a goal of unknown size starts with an exploration ticket, every ticket
-is created under its mother (numbered `320.2.1`) and every agent goes by its role's number, and a hook refuses a second commit for a closed ticket (a reopened ticket takes correction commits).
+is created under its mother (numbered `320.2.1`) and every ticket stands at one of ten numbered steps (`scripts/etapes.mjs`: 1 Exploration, 2 Arbitrage, then for each component 3 Tests, 4 Preuve du rouge, 5 Code, 6 Contrôles, then 7 Passe finale, 8 Relecture, 9 Intégration, 10 File : main, poussée, CI), and a hook refuses a second commit for a closed ticket (a reopened ticket takes correction commits).
 
 **The board** — the `grillhouse` mod (a Claude Code plugin whose source lives in `mods/grillhouse`, published
 in the `roomi-fields` marketplace as `grillhouse@roomi-fields`, enabled in
 each project's settings) shows, measured and never declared, in the `/grillhouse` pane, three levels: the project (its work tickets by state, the
-agents' time and tokens of the day and in all, the alerts); the agents: one block per role (the site
-manager's, numbered 0, heads them), where each ticket stands on one line, once — a ticket with a circuit
-(`scripts/circuit.mjs`, read in its state file) in the block of its step's role (the testeur's for its tests
-and their proof, the developer's for its code and the checks, the reviewer's for the review and the
-integration) with its step, attempt and component, or, while the site manager's session settles its stop, or
-once stopped, in the site manager's with its stop and code, its card opening on where it stopped and why, or
-on the site manager's question, and its line ending on its ticket's time and tokens; any other ticket under the agent that runs on it, or waiting
-for the next role of the flow; the chantier in progress, its tree of
+agents' time and tokens of the day and in all, the alerts); the agents: one block per step of the process, its line
+« number · title · who » (the arbitrage names the technical referent or the regulator), a step without a
+ticket left out, where each ticket stands on one line, once — a ticket with a circuit
+(`scripts/circuit.mjs`, read in its state file) at the step of its state, its subject and, every other 5 s,
+its component under way with its rank among the title's (`030-binder 3/5`), the counter of its step's
+bounded loop from its second pass (`essai 2/3`, `tour 2/3`, `arrêt 2/3`), or, while the regulator's session
+settles its stop, or once stopped, at the arbitrage with the step it comes from (`· de 5 Code`), its card
+opening on where it stopped and why, or on the regulator's question, and its line ending on its ticket's
+time and tokens; any other ticket at the step of the agent that runs on it, or waiting at the step of the
+next role of the flow; the chantier in progress, its tree of
 mother tickets with each one's work done over all; then the tickets closed today. Every line of each list
 shows, and the wheel scrolls the pane; `g` fills the pane with the chosen ticket's whole text, which the
-arrows, the page keys and the wheel scroll, and `g` again brings the board back. A ticket a site manager
-leads shows under the manager and under the agent the manager launched. A finished agent is read from the
+arrows, the page keys and the wheel scroll, and `g` again brings the board back. A sub-agent a regulator
+launches without naming a ticket takes the regulator's. A finished agent is read from the
 register its end writes (`scripts/registre.mjs`: the hook ends at once and a detached process
 reads the transcript in chunks and writes the line, once per stop; the launcher of a role agent writes its
 line again from outside the envelope once it ends, `--copie`; `--rattraper` adds the agents that ended

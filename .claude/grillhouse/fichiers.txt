@@ -8,14 +8,14 @@ METACADRE.md
 tsdoc.json
 .claude/grillhouse/
 .claude/agents/
-.claude/skills/arbitre/
-.claude/skills/chef-de-chantier/
 .claude/skills/developpeur/
 .claude/skills/explorateur/
 .claude/skills/grill/
 .claude/skills/mesure/
 .claude/skills/pitmaster/
 .claude/skills/redacteur/
+.claude/skills/referent-technique/
+.claude/skills/regulateur/
 .claude/skills/release/
 .claude/skills/relecteur/
 .claude/skills/testeur/
@@ -27,6 +27,7 @@ scripts/consommateurs.mjs
 scripts/consommateurs-arbitres.mjs
 scripts/crochets.mjs
 scripts/dette.mjs
+scripts/etapes.mjs
 scripts/greffons.mjs
 scripts/enveloppe/
 scripts/frontieres.mjs
@@ -56,6 +57,10 @@ scripts/verrou-de-fichier.mjs
 scripts/verrous/
 scripts/vitest-config/
 scripts/vitest.nuit.config.mjs
+- .claude/agents/arbitre.md
+- .claude/agents/chef-de-chantier.md
+- .claude/skills/arbitre/
+- .claude/skills/chef-de-chantier/
 - scripts/attendre.sh
 - scripts/sortie.mjs
 - tests/claude-substitut.ts
@@ -63,12 +68,12 @@ scripts/vitest.nuit.config.mjs
 - tests/machine.ts
 - tests/unit/circuit-conduite.spec.ts
 - tests/unit/circuit-essai.ts
-- tests/unit/circuit.chef.spec.ts
 - tests/unit/circuit.composants.spec.ts
 - tests/unit/circuit.consigne.spec.ts
 - tests/unit/circuit.construction.spec.ts
 - tests/unit/circuit.passe-finale.spec.ts
 - tests/unit/circuit.preuve.spec.ts
+- tests/unit/circuit.regulateur.spec.ts
 - tests/unit/circuit.registre.spec.ts
 - tests/unit/circuit.reprise.spec.ts
 - tests/unit/circuit.relecture.spec.ts
@@ -98,6 +103,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/enveloppe.maison.spec.ts
 - tests/unit/enveloppe.matiere-de-test.spec.ts
 - tests/unit/enveloppe.spec.ts
+- tests/unit/etapes.spec.ts
 - tests/unit/fichiers-du-cadre.spec.ts
 - tests/unit/file-integration-essai.ts
 - tests/unit/file-integration.ci.spec.ts
@@ -143,6 +149,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/resumes.spec.ts
 - tests/unit/retirer-copie.spec.ts
 - tests/unit/session-start.spec.ts
+- tests/unit/roles-renommes.spec.ts
 - tests/unit/sortie-des-scripts.spec.ts
 - tests/unit/sous-modules-essai.ts
 - tests/unit/sous-modules.adresses.spec.ts
@@ -150,13 +157,14 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/sous-modules.partage.spec.ts
 - tests/unit/sous-modules.spec.ts
 - tests/unit/structure-guard.spec.ts
-- tests/unit/tableau-chef.spec.ts
 - tests/unit/tableau-circuit.spec.ts
 - tests/unit/tableau-corrections.spec.ts
 - tests/unit/tableau-essai.ts
+- tests/unit/tableau-etapes.spec.ts
 - tests/unit/tableau-fin-inscrite.spec.ts
 - tests/unit/tableau-lecture.budget.test.ts
 - tests/unit/tableau-repris.spec.ts
+- tests/unit/tableau-regulateur.spec.ts
 - tests/unit/tableau-sections.spec.ts
 - tests/unit/tableau.spec.ts
 - tests/unit/temps-au-repos.spec.ts

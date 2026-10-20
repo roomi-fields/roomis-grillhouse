@@ -183,7 +183,10 @@ describe('verdict and etape', () => {
   });
   it('resumes the role an arbiter interrupted', () => {
     expect(
-      etape([p('developpeur', '2026-10-10T11:00:00Z'), p('arbitre', '2026-10-10T11:30:00Z')], null)
+      etape(
+        [p('developpeur', '2026-10-10T11:00:00Z'), p('referent-technique', '2026-10-10T11:30:00Z')],
+        null
+      )
     ).toBe('relecteur');
   });
 });
@@ -370,13 +373,13 @@ describe('assembler', () => {
       { id: 'demo-z', numero: 'z', sujet: 'Un autre', faits: 1, total: 1 },
     ]);
   });
-  it('puts each ticket in one place: running under its role, else waiting for the next one', () => {
+  it('puts each ticket in one place: running at its step, else waiting at the next one', () => {
     const b = (n: number) => t.agents.find((x: { numero: number }) => x.numero === n)!;
-    expect(b(4).enCours).toEqual([
+    expect(b(5).enCours).toEqual([
       expect.objectContaining({ numero: 'c.1.1', composant: 'moteur', ligne: true }),
     ]);
     expect(b(3).enCours).toEqual([]);
-    expect(b(4).attend).toEqual([
+    expect(b(5).attend).toEqual([
       {
         id: 'demo-c.3',
         numero: 'c.3',
@@ -397,7 +400,7 @@ describe('assembler', () => {
   it('alerts on a silent shell agent and a ticket in progress without anything running, never on a decision awaited', () => {
     const textes = t.alertes.map((a: { texte: string }) => a.texte);
     expect(textes.some((x: string) => /décision/.test(x))).toBe(false);
-    expect(textes.some((x: string) => /c\.1\.1, agent 4 silencieux/.test(x))).toBe(true);
+    expect(textes.some((x: string) => /c\.1\.1, agent 5 silencieux/.test(x))).toBe(true);
     const seul = plateau({
       tous: [
         T('demo-x', {
@@ -430,11 +433,11 @@ describe('assembler', () => {
     expect(texte).toMatch(/\n {2}en cours +1\n {3}c\.1 {2}Une mère +1\/2 · 1 k\n/);
     // A ticket the agents' blocks show is not drawn again in the chantier's tree, nor counted.
     expect(texte.match(/c\.1\.1 {2}Écrit/g)).toHaveLength(1);
-    expect(texte.match(/c\.3 {2}demo-c\.3/g)).toHaveLength(1);
+    expect(texte.match(/c\.3 +demo-c\.3/g)).toHaveLength(1);
     expect(texte).toMatch(/\n {2}sans go +1\n {3}c\.2 {2}demo-c\.2\n/);
-    expect(texte).toMatch(/\n4 développeur\n▶ c\.1\.1 {2}Écrit/);
-    expect(texte).toMatch(/\n4 développeur[\s\S]*\n· c\.3 {2}demo-c\.3 +1 min · 50\n/);
-    expect(texte).toMatch(/\n1 explorateur {2}—\n/);
+    expect(texte).toMatch(/\n5 · Code · développeur\n▶ c\.1\.1 {2}Écrit/);
+    expect(texte).toMatch(/\n5 · Code · développeur[\s\S]*\n· c\.3 {4}demo-c\.3 +1 min · 50\n/);
+    expect(texte).not.toMatch(/\n1 · Exploration/);
     expect(texte).toMatch(/✓ c\.1\.2 {2}demo-c\.1\.2/);
     expect(texte).toMatch(/\nAUTRES CHANTIERS +1\nz {2}Un autre +1\/1\n/);
   });
@@ -548,7 +551,7 @@ describe('assembler', () => {
     });
     expect(b.global.compteurs).toMatchObject({ enAttente: 1, bloques: 1 });
     const l = dessin(b).map(x => x.texte);
-    const i = l.indexOf('3 testeur');
+    const i = l.indexOf('3 · Tests · testeur');
     expect(i).toBeGreaterThan(-1);
     expect(l[i + 2]).toMatch(/^· e\.2 {2}demo-e\.2 +attend e\.1$/);
   });
@@ -654,7 +657,7 @@ describe('a ticket in progress with children', () => {
     const texte = dessin(t)
       .map(x => x.texte)
       .join('\n');
-    expect(texte).toMatch(/\n4 développeur\n· m {2}La mère en cours/);
+    expect(texte).toMatch(/\n5 · Code · développeur\n· m {2}La mère en cours/);
     expect(texte).toMatch(/\n {2}en cours +1\n {3}m\.1 {2}L’enfant en cours/);
   });
 });
