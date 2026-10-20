@@ -70,6 +70,11 @@ Dans la copie du ticket, le circuit (`scripts/circuit.mjs`), que lance le superv
 agent par composant, chacun enveloppé dans son paquet, dans cet ordre, puis le relecteur, qui relit
 l'ensemble. Ainsi un type change avec ses
 lecteurs, comme dans une demande de fusion de rustc, et chaque agent écrit dans son seul paquet.
+Sur un lot rendu, le circuit rejoue les seuls composants que les constats nomment, puis la passe
+finale restreinte à ce que le correctif change et à ses dépendants, et le relecteur relit la
+différence depuis la relecture d'avant et ses constats ; la passe finale entière joue une fois
+avant l'intégration. Ainsi seul ce qui a changé se rejoue, comme Bazel ne joue que les cibles
+qu'un changement atteint.
 
 **Un ticket ouvert naît du mot du responsable**, ou d'un besoin direct d'un projet qui utilise le
 cadre (un défaut qu'il rencontre). Une découverte d'agent se consigne dans un ticket fermé, sous le

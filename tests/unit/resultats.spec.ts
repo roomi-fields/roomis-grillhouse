@@ -52,9 +52,9 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
       ['decouvertes', 'ecarts', 'question', 'raison', 'renvoi', 'statut'].sort()
     );
   });
-  it('the reviewer: its verdict, its findings, its remarks, the deviations, its discoveries', () => {
+  it('the reviewer: its verdict, its findings, the findings before it judged (a bounded review), its remarks, the deviations, its discoveries', () => {
     expect(champs('relecteur')).toEqual(
-      ['constats', 'decouvertes', 'ecarts', 'remarques', 'verdict'].sort()
+      ['constats', 'decouvertes', 'ecarts', 'remarques', 'suivi', 'verdict'].sort()
     );
     expect((schemaDeFiche('relecteur') as Schema).required).toEqual(['verdict']);
   });

@@ -10,7 +10,8 @@ import { ecrire as ecrireTurbo } from '../../scripts/turbo-des-paquets.mjs';
 // directory of the file that calls it.
 //
 // The trial repository holds two packages, `000-forms` (packages/forms) and `030-binder`
-// (packages/binder), whose `mesure` is wrong until the developpeur writes it. Each session of the
+// (packages/binder, which depends on forms), whose `mesure` is wrong until the developpeur writes
+// it; with `feuille`, a third, `060-sheet` (packages/sheet), which depends on none. Each session of the
 // testeur and the developpeur is a real launch (scripts/enveloppe/lancer.sh) in a real envelope;
 // the reviewer's and the regulator's are claude in the ticket's copy, out of the envelope (a
 // regulator without a scenario answers nothing: the stop goes to the supervisor); claude is a stand-in (CLAUDE_BIN)
@@ -238,8 +239,8 @@ try {
 }
 
 // The trial repository of one test file under <ESSAIS>, built when this machine can wrap an
-// envelope, and what reads and drives it.
-export function circuitEssai(ESSAIS: string) {
+// envelope, and what reads and drives it; <feuille> adds the third package.
+export function circuitEssai(ESSAIS: string, { feuille = false } = {}) {
   const REPO = path.join(ESSAIS, 'depot');
   const HOME = path.join(ESSAIS, 'home');
   const BIN = path.join(ESSAIS, 'bin');
@@ -286,10 +287,14 @@ export function circuitEssai(ESSAIS: string) {
       path.join(REPO, 'turbo.json'),
       readFileSync(path.join(RACINE, 'templates/turbo/paquets.json'), 'utf8')
     );
-    for (const [dossier, nom, champs] of [
+    // Each package: its directory, its name, the fields of its package.json.
+    type Paquet = [string, string, Record<string, unknown>];
+    const lesPaquets: Paquet[] = [
       ['forms', '000-forms', {}],
       ['binder', '030-binder', { dependencies: { '000-forms': '*' } }],
-    ] as const) {
+      ...(feuille ? [['sheet', '060-sheet', {}] as Paquet] : []),
+    ];
+    for (const [dossier, nom, champs] of lesPaquets) {
       const p = path.join(REPO, 'packages', dossier);
       ecrire(
         path.join(p, 'package.json'),
@@ -301,7 +306,7 @@ export function circuitEssai(ESSAIS: string) {
         `import base from ${JSON.stringify(BASE)};\nexport default base;\n`
       );
     }
-    for (const dossier of ['forms', 'binder']) {
+    for (const [dossier] of lesPaquets) {
       ecrire(path.join(REPO, `packages/${dossier}/test/ancien.test.mjs`), ANCIEN);
     }
     ecrire(path.join(REPO, 'garde.mjs'), GARDE);
@@ -399,10 +404,24 @@ export function circuitEssai(ESSAIS: string) {
       finale: boolean;
       seance: number | null;
       renvois: Record<string, { etape: string }> | null;
-      atteint: string | null;
+      atteints: string[];
+      verifie: string | null;
       regulateur: { seance: string; arret: string; code: number; rapport: string | null } | null;
     } | null;
   const ordre = (id: string) => essai(id, 'ordre').trim().split('\n');
+  // The log of the ticket, and the commands of the circuit it holds, in their order (`$ …`).
+  const journal = (id: string) => lire(path.join(REPO, '.claude/worktrees', `${id}.log`));
+  const commandes = (id: string) =>
+    journal(id)
+      .split('\n')
+      .filter(l => l.startsWith('$ '))
+      .map(l => l.slice(2));
+  // The entries of the ticket's sheets and of the circuit's results, in their order.
+  const entrees = (id: string) =>
+    lire(path.join(REPO, '.claude/worktrees', `${id}.fiches.jsonl`))
+      .split('\n')
+      .filter(Boolean)
+      .map(l => JSON.parse(l) as Record<string, unknown>);
   const gitRepo = (...a: string[]) => execFileSync('git', ['-C', REPO, ...a], { encoding: 'utf8' });
   // Every comment at the ticket, each with its author and its time.
   const tous = (id: string) =>
@@ -437,6 +456,9 @@ export function circuitEssai(ESSAIS: string) {
     args,
     etat,
     ordre,
+    journal,
+    commandes,
+    entrees,
     gitRepo,
     auteurs,
     commentaires,

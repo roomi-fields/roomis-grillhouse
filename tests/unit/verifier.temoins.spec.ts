@@ -119,14 +119,15 @@ function depot(temoins: Partial<Record<'a' | 'b', { uneFois?: boolean }>>, some:
   return { racine: r, env, joues, ecrirePression };
 }
 
-// The script run as `npm run verifier` runs it; <auPremierAttente> runs when its first wait line
-// comes out.
+// The script run as `npm run verifier -- <args>` runs it; <auPremierAttente> runs when its first
+// wait line comes out.
 function lancer(
   d: ReturnType<typeof depot>,
-  auPremierAttente?: () => void
+  auPremierAttente?: () => void,
+  args: string[] = []
 ): Promise<{ status: number | null; sortie: string }> {
   return new Promise(resolve => {
-    const p = spawn(process.execPath, [SCRIPT], { cwd: d.racine, env: d.env });
+    const p = spawn(process.execPath, [SCRIPT, ...args], { cwd: d.racine, env: d.env });
     let sortie = '';
     let vu = false;
     const lire = (b: Buffer) => {
@@ -175,6 +176,15 @@ describe('grillhouse-3uv.89 — les témoins de temps jouent seuls', { timeout: 
     expect(j.filter(l => l === 'a')).toEqual(['a']);
     expect(j.filter(l => l === 'b')).toEqual(['b']);
     expect(j.filter(l => l === 'a-temoin début')).toHaveLength(2);
+  });
+
+  // grillhouse-3uv.89, L3: the circuit restricts a final pass to what a fix touches
+  // (`--filter=...[<avant>...<après>]`); the witnesses' pass keeps that choice.
+  it('une passe restreinte par --filter ne joue que les témoins des paquets qu’elle choisit', async () => {
+    const d = depot({ a: {}, b: {} }, 1);
+    const r = await lancer(d, undefined, ['--filter=a']);
+    expect(r.status, r.sortie).toBe(0);
+    expect(d.joues()).toEqual(['a', 'a-temoin début', 'a-temoin fin']);
   });
 
   it('un dépôt sans témoin ne joue aucune passe de témoins', async () => {

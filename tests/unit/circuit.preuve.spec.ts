@@ -70,7 +70,7 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     const e = etat(id);
     expect(Object.keys(e ?? {}).sort()).toEqual(
       [
-        'atteint',
+        'atteints',
         'boucles',
         'composants',
         'regulateur',
@@ -87,6 +87,7 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
         'reprise',
         'seance',
         'tentative',
+        'verifie',
       ].sort()
     );
     expect(e?.etape).toBe('integre');
@@ -96,8 +97,10 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
       'packages/forms',
       'packages/binder',
     ]);
-    // The final pass green carried every component to green checks.
-    expect(e?.atteint).toBe('packages/binder');
+    // The final pass green carried every component to green checks, and the lot it played is
+    // the one the integration takes.
+    expect([...(e?.atteints ?? [])].sort()).toEqual(['packages/binder', 'packages/forms']);
+    expect(e?.verifie).toMatch(/^[0-9a-f]{40}$/);
     expect(e?.journal).toBe(path.join(REPO, '.claude/worktrees', `${id}.log`));
     // The instruction the circuit writes: its ticket, its component, the criteria, the proof of
     // the step before and the last handover.

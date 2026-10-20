@@ -3,7 +3,9 @@
 Six gabarits, que le circuit du ticket (`scripts/circuit.mjs`) remplit, chaque `{{champ}}` reçu
 de lui : le premier pour chaque séance neuve du testeur et du développeur, dans l'enveloppe de son
 composant, le lanceur ajoutant ses sections ; le second pour chaque séance du relecteur, hors
-enveloppe, après la passe finale verte ; le troisième pour la séance du régulateur, hors
+enveloppe, après la passe finale verte, qui après un `RENDU` porte la relecture d'avant (la
+commande de la différence entre le lot qu'elle a lu et celui d'aujourd'hui, ses fichiers, ses
+constats) et ne nomme que les fichiers que le lot change depuis elle ; le troisième pour la séance du régulateur, hors
 enveloppe, sur un arrêt du circuit ; le quatrième pour la reprise de cette séance sur la réponse
 du superviseur (`--reponse`), qui peut porter celle du responsable ; le cinquième pour la reprise
 de toute séance finie sans fiche conforme ; le sixième pour la reprise de la séance du testeur ou
@@ -46,7 +48,7 @@ LA DERNIÈRE PASSATION de ton rôle sur ton composant (pour un développeur qui 
 
 {{passation}}
 
-Le circuit joue la preuve du rouge après le testeur, sur tous les tests de ton composant, et les contrôles après le développeur : les tests du lot, les gardes, les tests de chaque paquet des composants faits ; après le dernier composant, la passe finale, `npm run verifier`. Ta séance finit sur ta fiche, que ton schéma décrit et que le circuit lit seule ; ta passation au ticket (`bd comments add`) reste, pour l'humain et la séance suivante de ton rôle : ce qui est fait, ce qui ne l'est pas et pourquoi.
+Le circuit joue la preuve du rouge après le testeur, sur tous les tests de ton composant, et les contrôles après le développeur : les tests du lot de ton composant, ses paquets, les gardes, dont seuls comptent les constats sur ses fichiers ; après le dernier composant, la passe finale, `npm run verifier`, qui juge le reste. Ta séance finit sur ta fiche, que ton schéma décrit et que le circuit lit seule ; ta passation au ticket (`bd comments add`) reste, pour l'humain et la séance suivante de ton rôle : ce qui est fait, ce qui ne l'est pas et pourquoi.
 
 Testeur : chaque test vert avant le code entre dans `verts_attendus` (son fichier depuis la racine, son nom complet tel que le rapport de la preuve l'écrit, sa raison) ; pour un fichier de tests que HEAD tient, adapté, dont tous les verts ont une même raison, le fichier et la raison seuls, qui n'excusent aucun rouge et ne valent rien sur un fichier neuf ; quand le ticket change un type ou un nom de ton composant, tu migres aussi, dans la même séance, la matière de test partagée qui le lit. Développeur : quand le rouge qui reste est dans les tests d'un composant du titre, le tien ou un d'avant, ta fiche porte `renvoi` (testeur, ce composant), et le circuit rejoue ce composant depuis son testeur ; un écart que le commit doit nommer va dans `ecarts`. Ainsi chaque rouge va à l'agent qui le lève.
 
@@ -75,6 +77,8 @@ SES COMPOSANTS : {{composants}}, le fournisseur d'abord ; chaque constat de ton 
 REPRISE : {{reprise}}
 
 LOTS À LIRE : {{lots}}, dans la copie du ticket.
+
+LA RELECTURE D'AVANT : {{precedente}}
 
 LE FICHIER D'AFFIRMATIONS, la description du ticket et ses critères écrits par le circuit, que tu lis au moment que fixe ta compétence, jamais avant : {{affirmations}}
 
@@ -108,7 +112,7 @@ LA RAISON DE L'ARRÊT, écrite par le circuit :
 
 {{raison}}
 
-LES ROUGES DE L'ARRÊT, lus dans les résultats structurés (rapports des tests, constats des gardes, résumé de Turborepo), chacun avec son composant : ceux de {{composant}} et des composants d'avant, ou à la passe finale tous :
+LES ROUGES DE L'ARRÊT, lus dans les résultats structurés (rapports des tests, constats des gardes, résumé de Turborepo), chacun avec son composant : ceux de {{composant}}, ou à la passe finale tous :
 
 {{rouges}}
 

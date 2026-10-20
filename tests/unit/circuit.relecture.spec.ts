@@ -106,6 +106,25 @@ describe('the verdict the circuit writes at the ticket from the reviewer’s she
     );
     expect(texteDuVerdict({ verdict: 'ACCEPTÉ' })).toBe('ACCEPTÉ');
   });
+
+  it('names, after a bounded review, each finding before it lifted or not, with its proof (grillhouse-3uv.89, L3)', () => {
+    expect(
+      texteDuVerdict({
+        verdict: 'ACCEPTÉ',
+        suivi: [
+          { titre: 'packages/forms/src/index.mjs', etat: 'levé', preuve: 'mesure(0) rend 0.' },
+        ],
+      })
+    ).toBe(
+      [
+        'ACCEPTÉ',
+        '',
+        "## Constats d'avant",
+        '',
+        '- packages/forms/src/index.mjs : levé — mesure(0) rend 0.',
+      ].join('\n')
+    );
+  });
 });
 
 describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, () => {
@@ -297,6 +316,8 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
     expect(consigne).toContain('mesure de 0 doit rendre 0.');
     expect(consigne).toContain('REPRISE : oui');
     expect(essai(id, 'relecteur-2.prompt')).toContain('REPRISE : oui');
+    // Then the final pass restricted to what the fix changes, the review, and the whole final
+    // pass once, on the lot accepted, before the integration.
     const rendus = historique(id).findIndex(([, e]) => e === 'relecture');
     expect(historique(id).slice(rendus)).toEqual([
       ['packages/binder', 'relecture'],
@@ -304,6 +325,7 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
       ['packages/forms', 'controles'],
       ['packages/binder', 'controles'],
       ['packages/binder', 'relecture'],
+      ['packages/binder', 'controles'],
       ['packages/binder', 'integration'],
       ['packages/binder', 'file'],
     ]);
@@ -342,13 +364,14 @@ fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/mesure
     expect(sessions(id, 'testeur')).toBe(2);
     expect(sessions(id, 'developpeur')).toBe(2);
     expect(essai(id, 'testeur-2.prompt')).toContain('echelle manque.');
-    expect(historique(id).slice(-8)).toEqual([
+    expect(historique(id).slice(-9)).toEqual([
       ['packages/forms', 'relecture'],
       ['packages/forms', 'testeur'],
       ['packages/forms', 'preuve'],
       ['packages/forms', 'developpeur'],
       ['packages/forms', 'controles'],
       ['packages/forms', 'relecture'],
+      ['packages/forms', 'controles'],
       ['packages/forms', 'integration'],
       ['packages/forms', 'file'],
     ]);

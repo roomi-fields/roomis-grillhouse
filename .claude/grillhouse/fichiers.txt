@@ -86,6 +86,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/circuit.regulateur.spec.ts
 - tests/unit/circuit.registre.spec.ts
 - tests/unit/circuit.reprise.spec.ts
+- tests/unit/circuit.rejeu.spec.ts
 - tests/unit/circuit.relecture.spec.ts
 - tests/unit/circuit.sessions.spec.ts
 - tests/unit/circuit.spec.ts

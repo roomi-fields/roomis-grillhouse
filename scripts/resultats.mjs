@@ -22,6 +22,9 @@
 //   - `verdict` (ACCEPTÉ, RENDU), `constats` (`titre`, `corps`, `role` and `composant` its
 //     recipient, or `critere_en_cause`), `remarques`: the circuit plays the findings and writes the
 //     verdict at the ticket for the human (reviewer);
+//   - `suivi` (`titre`, `etat` levé or non levé, `preuve`): after a review sent back, each finding
+//     before it judged on the difference of the lot, which the circuit writes at the ticket with
+//     the verdict, for the human (reviewer);
 //   - `decision` (« RELANCE --reprendre », « RELANCE --depuis » with `depuis`, « MONTE » with
 //     `question`), `contexte`: what the circuit applies (regulator).
 //   `lireFiche` reads a session's output: the sheet and the session's id, or the error that
@@ -147,6 +150,17 @@ const FICHES = {
           ['titre', 'corps']
         ),
         'Chaque constat d’un verdict RENDU.'
+      ),
+      suivi: liste(
+        objet(
+          {
+            titre: texte('Le titre du constat d’avant.'),
+            etat: { type: 'string', enum: ['levé', 'non levé'] },
+            preuve: texte('Ce que la différence du lot en montre.'),
+          },
+          ['titre', 'etat']
+        ),
+        'Relecture bornée : chaque constat de la relecture d’avant, levé ou non.'
       ),
       remarques: liste(texte('Une remarque, nommée, qui ne rend pas le lot.')),
       ...ECARTS,

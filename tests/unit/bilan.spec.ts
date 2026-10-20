@@ -1,7 +1,8 @@
 // The figures of a ticket (scripts/bilan.mjs, grillhouse-3uv.89, L8): computed from the register
-// of finished agents (the agents' sessions and the steps the circuit leads itself), the lines
-// `Circuit · <composant> · <étape> : …` of the ticket and the circuit's state, as the analysis of
-// BPScript 320.3 was made by hand: the wall time, the time of each category, the sessions by
+// of finished agents (the agents' sessions and the steps the circuit leads itself), the structured
+// results the circuit keeps (`<ticket>.fiches.jsonl`: each session's sheet, each proof's and
+// check's outcome, each stop, L3), the authors and times of the ticket's comments, and the
+// circuit's state, as the analysis of BPScript 320.3 was made by hand: the wall time, the time of each category, the sessions by
 // role, the stops by kind, the tokens, the cache and the cost, compared with the last bilan of the
 // project, or with nothing. The data here are trial data, never the real register.
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -32,6 +33,8 @@ const a = (m: number, s = 0) => T0 + m * MIN + s * S;
 const iso = (t: number) => new Date(t).toISOString();
 // bd gives a comment's time to the second.
 const isoBd = (t: number) => `${new Date(t).toISOString().slice(0, 19)}Z`;
+// The time of an entry of the circuit, to the millisecond; <ms> apart two entries of one second.
+const quand = (m: number, s: number, ms = 0) => iso(a(m, s) + ms);
 
 interface Ligne {
   projet: string;
@@ -52,6 +55,18 @@ interface Commentaire {
   author: string;
   text: string;
   created_at: string;
+}
+// An entry of `<ticket>.fiches.jsonl`, as the circuit writes it.
+interface Entree {
+  date: string;
+  role: string;
+  composant: string;
+  etape?: string;
+  fiche?: object;
+  resultat?: object;
+  arret?: string;
+  finale?: boolean;
+  inchange?: boolean;
 }
 interface Categorie {
   ms: number;
@@ -119,40 +134,81 @@ const etape = (nom: string, composant: string, d: number, f: number): Ligne => (
   cache: 0,
   cout: null,
 });
-// A line of the circuit at the ticket, <m> minutes and <s> seconds after T0.
-const ligne = (
+// The sheet of a session of <role> on <composant>, kept <m> minutes and <s> seconds after T0.
+const fiche = (
+  m: number,
+  s: number,
+  role: string,
+  composant: string,
+  f: object = { statut: 'FAIT' }
+): Entree => ({ date: quand(m, s), role, composant, fiche: f });
+// The outcome of a proof, as the circuit keeps it: its counts, whether it passed, whether its lot
+// holds no file.
+const preuve = (
   m: number,
   s: number,
   composant: string,
+  [rouges, justifies, sans, anciens]: number[],
+  ok: boolean,
+  vide = false
+): Entree => ({
+  date: quand(m, s),
+  role: 'circuit',
+  etape: 'preuve',
+  composant,
+  resultat: { ok, rouges, justifies, sans, casses: 0, anciens, vide },
+});
+// The outcome of checks, or of the final pass.
+const controles = (
+  m: number,
+  s: number,
+  composant: string,
+  issue: 'vert' | 'rouge' | 'a-repasser',
+  finale: boolean
+): Entree => ({
+  date: quand(m, s),
+  role: 'circuit',
+  etape: 'controles',
+  composant,
+  resultat: { issue, finale },
+});
+// A stop of the circuit at the step <etape>, <ms> after the second.
+const arret = (
+  m: number,
+  s: number,
+  composant: string,
+  etape: string,
   nom: string,
-  texte: string
-): Commentaire => ({
-  author: 'circuit',
-  text: `Circuit · ${composant} · ${nom} : ${texte}`,
-  created_at: isoBd(a(m, s)),
+  { finale = false, ms = 1 } = {}
+): Entree => ({
+  date: quand(m, s, ms),
+  role: 'circuit',
+  etape,
+  composant,
+  arret: nom,
+  ...(finale ? { finale } : {}),
+});
+// A developpeur resumed who finds his component delivered and changes nothing.
+const inchange = (m: number, s: number, composant: string): Entree => ({
+  date: quand(m, s, 1),
+  role: 'circuit',
+  etape: 'developpeur',
+  composant,
+  inchange: true,
 });
 const de = (author: string, m: number, s: number, text: string): Commentaire => ({
   author,
   text,
   created_at: isoBd(a(m, s)),
 });
-// The summary line of a proof, as the circuit writes it.
-const preuve = (
-  r: number,
-  j: number,
-  sans: number,
-  head: number,
-  suite: string,
-  rouges: string[] = []
-) =>
-  `${r} rouge(s), ${j} vert(s) justifié(s), ${sans} vert(s) sans vert attendu, 0 fichier(s) qui ne se charge(nt) pas, ${head} test(s) vert(s) que HEAD tient déjà, laissé(s) de côté ; ${suite}.${
-    rouges.length ? `\n\nRouges (${rouges.length}) :\n${rouges.map(x => `- ${x}`).join('\n')}` : ''
-  }`;
-const AU_DEV = 'au développeur';
-const RELANCE_T = 'testeur relancé (séance 2)';
+const MONTE = { decision: 'MONTE', question: 'Faut-il ajouter 020-loader au titre ?' };
 
-const calculer = (lignes: Ligne[], commentaires: Commentaire[], etat: object | null = null) =>
-  bilan({ ticket: TICKET, lignes, commentaires, etat }) as Bilan;
+const calculer = (
+  lignes: Ligne[],
+  entrees: Entree[],
+  etat: object | null = null,
+  commentaires: Commentaire[] = []
+) => bilan({ ticket: TICKET, lignes, entrees, commentaires, etat }) as Bilan;
 const min = (ms: number) => Math.round((ms / MIN) * 100) / 100;
 
 describe('the wall time and its categories', () => {
@@ -166,28 +222,14 @@ describe('the wall time and its categories', () => {
     etape('integration', 'packages/a', 35.25, 36),
     etape('file', 'packages/a', 36, 38),
   ];
-  const commentaires = [
-    ligne(10, 5, 'packages/a', 'testeur', 'séance 1 finie, passation au ticket.'),
-    ligne(
-      11,
-      0,
-      'packages/a',
-      'preuve',
-      preuve(1, 0, 0, 0, AU_DEV, ['packages/a/t.test.ts › c1 — x'])
-    ),
-    ligne(20, 5, 'packages/a', 'developpeur', 'séance 1 finie, passation au ticket.'),
-    ligne(30, 0, 'packages/a', 'controles', 'verts : npm run verifier.'),
-    ligne(35, 5, 'packages/a', 'relecture', 'ACCEPTÉ ; le lot va à l’intégration.'),
-    ligne(
-      36,
-      0,
-      'packages/a',
-      'integration',
-      'commit abc sur agent/demo-7 ; la branche est en file.'
-    ),
-    ligne(38, 0, 'packages/a', 'file', 'intégré : abc.'),
+  const entrees = [
+    fiche(10, 5, 'testeur', 'packages/a'),
+    preuve(11, 0, 'packages/a', [1, 0, 0, 0], true),
+    fiche(20, 5, 'developpeur', 'packages/a'),
+    controles(30, 0, 'packages/a', 'vert', true),
+    fiche(35, 5, 'relecteur', 'packages/a', { verdict: 'ACCEPTÉ' }),
   ];
-  const b = calculer(lignes, commentaires, { etape: 'integre', composant: 'packages/a' });
+  const b = calculer(lignes, entrees, { etape: 'integre', composant: 'packages/a' });
 
   it('runs from the start of the first session to the last line of the circuit', () => {
     expect(b.debut).toBe(iso(a(0)));
@@ -247,63 +289,24 @@ describe('a relaunch without effect', () => {
     seance('developpeur', 'd4', [[25, 28]]),
     etape('controles', 'packages/b', 28, 34),
   ];
-  const commentaires = [
-    ligne(5, 0, 'packages/b', 'testeur', 'séance 1 finie, passation au ticket.'),
-    ligne(
-      6,
-      0,
-      'packages/b',
-      'preuve',
-      preuve(1, 0, 2, 3, RELANCE_T, ['packages/b/t.test.ts › c1 — x'])
-    ),
-    ligne(7, 0, 'packages/b', 'testeur', 'séance 2 finie, passation au ticket.'),
-    ligne(
-      8,
-      0,
-      'packages/b',
-      'preuve',
-      preuve(1, 2, 0, 3, AU_DEV, ['packages/b/t.test.ts › c1 — x'])
-    ),
-    ligne(
-      10,
-      0,
-      'packages/b',
-      'developpeur',
-      'arrêt sans-livraison — La séance 1 du développeur de packages/b ne change aucun fichier de packages/b : …'
-    ),
-    ligne(11, 1, 'packages/b', 'regulateur', 'RELANCE --reprendre'),
-    ligne(
-      12,
-      0,
-      'packages/b',
-      'developpeur',
-      "séance 1 reprise sans changement, le composant garde la livraison d'avant : aux contrôles."
-    ),
-    ligne(
-      18,
-      0,
-      'packages/b',
-      'controles',
-      'rouge : 1 rouge(s) — npm run verifier (code 1) ; développeur relancé (séance 2).'
-    ),
-    ligne(
-      19,
-      0,
-      'packages/b',
-      'developpeur',
-      'arrêt sans-livraison — La séance 2 du développeur de packages/b ne change aucun fichier de packages/b : …'
-    ),
-    ligne(
-      25,
-      0,
-      'packages/b',
-      'controles',
-      'rouge : 1 rouge(s) — npm run verifier (code 1) ; développeur relancé (séance 2).'
-    ),
-    ligne(28, 0, 'packages/b', 'developpeur', 'séance 2 finie, passation au ticket.'),
-    ligne(34, 0, 'packages/b', 'controles', 'verts : npm run verifier.'),
+  const entrees = [
+    fiche(5, 0, 'testeur', 'packages/b'),
+    preuve(6, 0, 'packages/b', [1, 0, 2, 3], false),
+    fiche(7, 0, 'testeur', 'packages/b'),
+    preuve(8, 0, 'packages/b', [1, 2, 0, 3], true),
+    fiche(10, 0, 'developpeur', 'packages/b'),
+    arret(10, 0, 'packages/b', 'developpeur', 'sans-livraison'),
+    fiche(11, 1, 'regulateur', 'packages/b', { decision: 'RELANCE --reprendre' }),
+    fiche(12, 0, 'developpeur', 'packages/b'),
+    inchange(12, 0, 'packages/b'),
+    controles(18, 0, 'packages/b', 'rouge', true),
+    fiche(19, 0, 'developpeur', 'packages/b'),
+    arret(19, 0, 'packages/b', 'developpeur', 'sans-livraison'),
+    controles(25, 0, 'packages/b', 'rouge', true),
+    fiche(28, 0, 'developpeur', 'packages/b'),
+    controles(34, 0, 'packages/b', 'vert', true),
   ];
-  const b = calculer(lignes, commentaires);
+  const b = calculer(lignes, entrees);
 
   it('counts the developer who changes nothing, stopped or resumed unchanged, as without effect', () => {
     // d1, d2, d3 ; d4 delivers.
@@ -354,48 +357,29 @@ describe('a replay of steps already green', () => {
     etape('preuve', 'packages/c', 28, 29),
     etape('controles', 'packages/c', 29, 35),
   ];
-  const ok = (c: string, n: number) =>
-    preuve(1, 0, 0, n, AU_DEV, [`packages/${c}/t.test.ts › c1 — x`]);
-  const commentaires = [
-    ligne(2, 0, 'packages/a', 'testeur', 'séance 1 finie, passation au ticket.'),
-    ligne(3, 0, 'packages/a', 'preuve', ok('a', 1)),
-    ligne(4, 0, 'packages/a', 'developpeur', 'séance 1 finie, passation au ticket.'),
-    ligne(
-      5,
-      0,
-      'packages/a',
-      'controles',
-      "verts : npm test -- packages/a ; laissés à la passe finale, rouges dans un composant d'après : npm run gardes (code 1)."
-    ),
-    ligne(7, 0, 'packages/b', 'testeur', 'séance 1 finie, passation au ticket.'),
-    ligne(8, 0, 'packages/b', 'preuve', ok('b', 2)),
-    ligne(9, 0, 'packages/b', 'developpeur', 'séance 1 finie, passation au ticket.'),
-    ligne(
-      10,
-      0,
-      'packages/b',
-      'controles',
-      'rouge : 1 rouge(s) — npm test -- packages/b (code 1) ; développeur relancé (séance 2).'
-    ),
-    ligne(12, 0, 'packages/c', 'testeur', 'séance 1 finie, passation au ticket.'),
-    ligne(13, 0, 'packages/c', 'preuve', ok('c', 3)),
-    ligne(14, 0, 'packages/c', 'developpeur', 'séance 1 finie, passation au ticket.'),
-    ligne(20, 0, 'packages/c', 'controles', 'verts : npm run verifier.'),
-    ligne(
-      22,
-      1,
-      'packages/c',
-      'relecture',
-      'RENDU (relecture 1) ; le circuit relance developpeur packages/a, puis les composants d’après, la passe finale et le relecteur.'
-    ),
-    ligne(23, 0, 'packages/a', 'developpeur', 'séance 1 finie, passation au ticket.'),
-    ligne(24, 0, 'packages/a', 'controles', 'verts : npm test -- packages/a.'),
-    ligne(26, 0, 'packages/b', 'controles', 'verts : npm test -- packages/b.'),
-    ligne(28, 0, 'packages/c', 'testeur', 'séance 1 finie, passation au ticket.'),
-    ligne(29, 0, 'packages/c', 'preuve', ok('c', 3)),
-    ligne(35, 0, 'packages/c', 'controles', 'verts : npm run verifier.'),
+  const ok = (c: string, n: number, m: number) => preuve(m, 0, `packages/${c}`, [1, 0, 0, n], true);
+  const entrees = [
+    fiche(2, 0, 'testeur', 'packages/a'),
+    ok('a', 1, 3),
+    fiche(4, 0, 'developpeur', 'packages/a'),
+    controles(5, 0, 'packages/a', 'vert', false),
+    fiche(7, 0, 'testeur', 'packages/b'),
+    ok('b', 2, 8),
+    fiche(9, 0, 'developpeur', 'packages/b'),
+    controles(10, 0, 'packages/b', 'rouge', false),
+    fiche(12, 0, 'testeur', 'packages/c'),
+    ok('c', 3, 13),
+    fiche(14, 0, 'developpeur', 'packages/c'),
+    controles(20, 0, 'packages/c', 'vert', true),
+    fiche(22, 1, 'relecteur', 'packages/c', { verdict: 'RENDU' }),
+    fiche(23, 0, 'developpeur', 'packages/a'),
+    controles(24, 0, 'packages/a', 'vert', false),
+    controles(26, 0, 'packages/b', 'vert', false),
+    fiche(28, 0, 'testeur', 'packages/c'),
+    ok('c', 3, 29),
+    controles(35, 0, 'packages/c', 'vert', true),
   ];
-  const b = calculer(lignes, commentaires);
+  const b = calculer(lignes, entrees);
 
   it('counts the checks of a component green again with nothing of it delivered since as a replay', () => {
     // b's checks turned from red to green without its agents: they say something new, automatic.
@@ -423,14 +407,15 @@ describe('the wait for the supervisor', () => {
       seance('regulateur', 'g1', [[5, 12]]),
       seance('developpeur', 'd2', [[12, 15]]),
     ];
-    const commentaires = [
-      ligne(5, 0, 'packages/a', 'developpeur', 'arrêt sans-livraison — rien.'),
-      ligne(6, 0, 'packages/a', 'regulateur', 'MONTE : Faut-il ajouter 020-loader au titre ?'),
-      de('roomi-fields', 10, 0, 'Réponse du superviseur : oui.'),
-      ligne(12, 0, 'packages/a', 'regulateur', 'RELANCE --depuis developpeur packages/a'),
-      ligne(15, 0, 'packages/a', 'developpeur', 'séance 1 finie, passation au ticket.'),
+    const entrees = [
+      fiche(5, 0, 'developpeur', 'packages/a'),
+      arret(5, 0, 'packages/a', 'developpeur', 'sans-livraison'),
+      fiche(6, 0, 'regulateur', 'packages/a', MONTE),
+      fiche(12, 0, 'regulateur', 'packages/a', { decision: 'RELANCE --depuis' }),
+      fiche(15, 0, 'developpeur', 'packages/a'),
     ];
-    const b = calculer(lignes, commentaires);
+    const commentaires = [de('roomi-fields', 10, 0, 'Réponse du superviseur : oui.')];
+    const b = calculer(lignes, entrees, null, commentaires);
     expect(min(b.categories.attente.ms)).toBe(4);
     expect(min(b.categories.regulateur.ms)).toBe(3);
     expect(b.questions).toBe(1);
@@ -445,13 +430,14 @@ describe('the wait for the supervisor', () => {
       ]),
       seance('developpeur', 'd2', [[21, 25]]),
     ];
-    const commentaires = [
-      ligne(5, 0, 'packages/a', 'developpeur', 'arrêt sans-livraison — rien.'),
-      ligne(6, 2, 'packages/a', 'regulateur', 'MONTE : Faut-il ajouter 020-loader au titre ?'),
-      ligne(21, 2, 'packages/a', 'regulateur', 'RELANCE --reprendre'),
-      ligne(25, 0, 'packages/a', 'developpeur', 'séance 1 finie, passation au ticket.'),
+    const entrees = [
+      fiche(5, 0, 'developpeur', 'packages/a'),
+      arret(5, 0, 'packages/a', 'developpeur', 'sans-livraison'),
+      fiche(6, 2, 'regulateur', 'packages/a', MONTE),
+      fiche(21, 2, 'regulateur', 'packages/a', { decision: 'RELANCE --reprendre' }),
+      fiche(25, 0, 'developpeur', 'packages/a'),
     ];
-    const b = calculer(lignes, commentaires);
+    const b = calculer(lignes, entrees);
     expect(Math.round(b.categories.attente.ms / S)).toBe(14 * 60 - 2);
     expect(min(b.categories.regulateur.ms)).toBe(2);
     expect(b.seances.parRole).toEqual({ developpeur: 2, regulateur: 1 });
@@ -479,16 +465,17 @@ describe('what the bilan reads of the register', () => {
       etape('preuve', 'packages/a', 4, 6),
       etape('preuve', 'packages/a', 8, 9),
     ];
-    const commentaires = [
-      ligne(4, 0, 'packages/a', 'testeur', 'séance 1 finie, passation au ticket.'),
-      ligne(6, 0, 'packages/a', 'preuve', preuve(0, 0, 1, 0, RELANCE_T)),
-      ligne(8, 0, 'packages/a', 'testeur', 'séance 2 finie, passation au ticket.'),
-      ligne(9, 0, 'packages/a', 'preuve', preuve(0, 0, 1, 0, 'testeur relancé (séance 3)')),
-      ligne(11, 0, 'packages/a', 'developpeur', 'arrêt sans-livraison — rien.'),
-      ligne(11, 1, 'packages/a', 'developpeur', 'arrêt sans-livraison — rien.'),
-      ligne(11, 2, 'packages/a', 'controles', 'arrêt a-repasser — Contrôles de la passe finale…'),
+    const entrees = [
+      fiche(4, 0, 'testeur', 'packages/a'),
+      preuve(6, 0, 'packages/a', [0, 0, 1, 0], false),
+      fiche(8, 0, 'testeur', 'packages/a'),
+      preuve(9, 0, 'packages/a', [0, 0, 1, 0], false),
+      fiche(11, 0, 'developpeur', 'packages/a'),
+      arret(11, 0, 'packages/a', 'developpeur', 'sans-livraison'),
+      arret(11, 1, 'packages/a', 'developpeur', 'sans-livraison'),
+      arret(11, 2, 'packages/a', 'controles', 'a-repasser', { finale: true }),
     ];
-    const b = calculer(lignes, commentaires, {
+    const b = calculer(lignes, entrees, {
       etape: 'controles',
       raison: 'a-repasser',
       code: 75,
@@ -527,12 +514,13 @@ describe('the text of the bilan and its base', () => {
     seance('testeur', 't1', [[0, 10]], { jetons: 2_000_000, cache: 30_000_000, cout: 3.5 }),
     seance('developpeur', 'd1', [[10, 12]], { jetons: 500_000, cache: 0, cout: 1 }),
   ];
-  const commentaires = [
-    ligne(10, 0, 'packages/a', 'testeur', 'séance 1 finie, passation au ticket.'),
-    ligne(12, 0, 'packages/a', 'developpeur', 'arrêt sans-livraison — rien.'),
-    ligne(16, 0, 'packages/a', 'regulateur', 'MONTE : Une question ?'),
+  const entrees = [
+    fiche(10, 0, 'testeur', 'packages/a'),
+    fiche(12, 0, 'developpeur', 'packages/a'),
+    arret(12, 0, 'packages/a', 'developpeur', 'sans-livraison'),
+    fiche(16, 0, 'regulateur', 'packages/a', { decision: 'MONTE', question: 'Une question ?' }),
   ];
-  const b = calculer(lignes, commentaires, {
+  const b = calculer(lignes, entrees, {
     etape: 'developpeur',
     raison: 'question',
     code: 18,

@@ -8,6 +8,10 @@
 //
 // Each regular expression of the circuit is listed below with what it reads: none reads a comment,
 // an answer or a log. A new one fails this test until it is listed, with what it reads.
+//
+// The bilan of a ticket (scripts/bilan.mjs, L8) reads the same structured results the circuit
+// keeps (L3): the sheets and the outcomes of `<ticket>.fiches.jsonl`, the register, the authors and
+// times of the comments, never their text. It holds no regular expression.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
@@ -15,6 +19,8 @@ import { describe, expect, it } from 'vitest';
 
 const CIRCUIT = path.resolve(__dirname, '../../scripts/circuit.mjs');
 const source = readFileSync(CIRCUIT, 'utf8');
+const BILAN = path.resolve(__dirname, '../../scripts/bilan.mjs');
+const bilan = readFileSync(BILAN, 'utf8');
 
 // The regular expressions the circuit may hold, each with what it reads.
 const PERMISES: Record<string, string> = {
@@ -68,5 +74,15 @@ describe('the circuit decides on structured results, never on free text', () => 
         .filter(l => l.includes(forme));
       expect(lignes, forme).toEqual([]);
     }
+  });
+
+  it('the bilan holds no regular expression and reads no text of a comment, nor the lines « Circuit · … »', () => {
+    expect(expressions(bilan)).toEqual([]);
+    const code = bilan
+      .split('\n')
+      .filter(l => !l.trimStart().startsWith('//'))
+      .join('\n');
+    expect(code).not.toMatch(/\.text\b/);
+    expect(code).not.toContain('Circuit · ');
   });
 });

@@ -22,6 +22,25 @@ relance l'agent que nomme chaque constat.
    que ta séance n'ouvre pas : ta consigne et ce fichier le portent. Ainsi le récit du ticket n'oriente pas ta
    lecture.
 
+## La relecture bornée
+
+Quand ta consigne porte « LA RELECTURE D'AVANT » (un `RENDU` d'avant), tu relis la seule
+différence du lot depuis elle, comme Gerrit fait relire la différence entre deux jeux de
+correctifs : le circuit garde le lot que chaque relecture a lu, et ta consigne nomme la commande
+de la différence (`git diff <lot d'avant> <lot d'aujourd'hui>`, dans la copie), ses fichiers et
+les constats d'avant.
+
+1. Chaque constat d'avant se juge levé ou non, sa preuve tirée de la différence, dans `suivi`
+   (son titre, `levé` ou `non levé`, la preuve). Un constat non levé revient dans `constats`, au
+   même destinataire.
+2. Les six passes portent sur la différence : un constat neuf que le correctif crée, dans les
+   lignes qu'il change, rend le lot.
+3. Un défaut hors de la différence et des constats d'avant va, nommé, dans `remarques`, et ne
+   rend pas le lot. Ainsi la boucle des relectures ne s'étend jamais, et chaque tour converge.
+
+Tu joues toujours toutes les gardes sur la copie. Sans « LA RELECTURE D'AVANT », tu relis le lot
+entier.
+
 ## Les six passes
 
 Chaque passe suit son fichier de `references/` à la lettre, dans cet ordre.

@@ -55,15 +55,17 @@ journal fait plusieurs Mo : je le lis par morceaux, `grep -n <motif> <journal>` 
    une garde du projet sans SARIF) ou des constats à arbitrer arrêtent aussi à `controles` : je
    tranche à qui il revient.
    Après la passe finale verte, le circuit lance le relecteur, hors enveloppe ; sur `RENDU`, il
-   relance lui-même l'agent que nomme chaque constat de sa fiche (son rôle et son composant), puis les
-   composants d'après, la passe finale et le relecteur. Un constat sans destinataire valide, un
-   constat sur un critère, ou une troisième relecture rendue l'arrête à `relecture-arret`
+   relance lui-même l'agent que nomme chaque constat de sa fiche (son rôle et son composant), puis
+   la passe finale restreinte à ce que le correctif change et à ses dépendants, et le relecteur
+   sur la différence ; la passe finale entière joue une fois avant l'intégration. Un constat sans
+   destinataire valide, un constat sur un critère, ou une troisième relecture rendue l'arrête à
+   `relecture-arret`
    (code 16) : je tranche (un critère se tranche comme plus bas, puis `RELANCE --reprendre`), ou je
    fais corriger le lot par `RELANCE --depuis`, l'agent dans `depuis`, les constats en
-   `contexte`, qui rejoue ce composant, les composants d'après (leurs contrôles quand le
-   circuit les a déjà menés à des contrôles verts, leur circuit entier sinon), la passe finale, le
-   relecteur et l'intégration. Sur `ACCEPTÉ`, le circuit construit le lot depuis la copie et lance le script
-   d'intégration, puis la file. Un refus du script, une branche que la file sort ou une CI rouge
+   `contexte`, qui rejoue ce composant, puis les composants d'après que le circuit n'a pas encore
+   menés (leur circuit entier ; un composant déjà mené ne rejoue rien, la passe finale le juge), la
+   passe finale, le relecteur et l'intégration. Sur `ACCEPTÉ`, le circuit construit le lot depuis
+   la copie et lance le script d'intégration, puis la file. Un refus du script, une branche que la file sort ou une CI rouge
    (le ticket rouvert) l'arrêtent à `integration` (code 17), la raison au `rapport` ; je fais
    corriger le lot par `RELANCE --depuis`, le lanceur recréant la copie sur main avec le lot de la
    branche en travail local.

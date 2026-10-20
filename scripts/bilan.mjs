@@ -9,40 +9,47 @@
 // prints the bilan of <ticket>, read from the main tree of the current directory; `--garder` keeps
 // it too, as the circuit does, so the next ticket's bilan compares itself with it.
 //
-// - Its sources: the register of finished agents (`~/.claude/grillhouse/registre.jsonl`,
-//   GRILLHOUSE_REGISTRE replaces it), each agent's latest line on the ticket (its project the main
-//   tree, or a folder of it), its turns, its tokens,
-//   its cache reads and its cost, and the lines of the role `circuit` of the steps the circuit
-//   leads itself; the lines `Circuit · <composant> · <étape> : …` of the ticket (`bd comments
-//   --json`, each with its time); the circuit's state, `.claude/worktrees/<ticket>.circuit.json`,
-//   for where the circuit ended. Every agent declares nothing: the bilan measures.
+// - Its sources are structured results, never a text (tests/unit/circuit-sans-texte-libre.spec.ts):
+//   the register of finished agents (`~/.claude/grillhouse/registre.jsonl`, GRILLHOUSE_REGISTRE
+//   replaces it), each agent's latest line on the ticket (its project the main tree, or a folder
+//   of it), its turns, its tokens, its cache reads and its cost, and the lines of the role
+//   `circuit` of the steps the circuit leads itself; the results the circuit keeps,
+//   `.claude/worktrees/<ticket>.fiches.jsonl`, each with its time: the sheet of each session (`{
+//   role, composant, fiche }`), the outcome of each proof (`resultat`: `ok`, its counts, `vide`)
+//   and of each check (`resultat`: `issue` vert, rouge or a-repasser, `finale`), each stop
+//   (`arret`, its name, `finale`), each developpeur resumed who changed nothing (`inchange`); the
+//   authors and times of the ticket's comments (`bd comments --json`), never their text; the
+//   circuit's state, `.claude/worktrees/<ticket>.circuit.json`, for where the circuit ended. Every
+//   agent declares nothing: the bilan measures.
 // - The steps and the roles are those of scripts/etapes.mjs. Only the circuit's roles count: an
 //   exploration, before the circuit, is out of it.
-// - The window: from the first turn of a session or a step to the last line of the circuit or the
-//   last turn; its length is the wall time.
-// - Each turn of a session and each step finds its line at the ticket: a step, the line of its
-//   step and component written during it; a session, the first line of its role's step written
-//   after its turn, before the next turn of any other. A step `controles` whose line gives the
-//   outcome of `npm run verifier`, or a stop of the final pass, is the final pass.
+// - The window: from the first turn of a session or a step to the last result of the circuit or
+//   the last turn; its length is the wall time.
+// - Each turn of a session and each step finds its result: a step, the last outcome or stop of
+//   its step and component kept during it; a session, the first sheet of its role kept after its
+//   turn, before the next turn of any other, which names its component. A step `controles` whose
+//   outcome or stop is the final pass's (`finale`) is the final pass.
 // - The categories, each instant once:
 //   - travail resté au lot: a session that delivered, the reviewer's included;
-//   - relance sans effet: a developer whose line says « arrêt sans-livraison » or « reprise sans
-//     changement »; a tester whose next proof finds the lot of the proof before it (the same counts
-//     of reds, greens of the lot, broken files and greens of HEAD), after a refused proof, or no
-//     file of the lot (reds that exist already or of a build alone, no green of the lot); that
-//     proof; checks that play the same red again on a component none of its agents delivered to
-//     since its checks before (the final pass: none of any component's since the final pass before);
+//   - relance sans effet: a developer whose session the circuit follows with a stop
+//     « sans-livraison » or a resumption that changed nothing (`inchange`); a tester whose next
+//     proof finds the lot of the proof before it (the same counts of reds, greens of the lot,
+//     broken files and greens of HEAD), after a refused proof, or no file of the lot (`vide`:
+//     reds that exist already or of a build alone, no green of the lot); that proof; checks that
+//     play the same red again on a component none of its agents delivered to since its checks
+//     before (the final pass: none of any component's since the final pass before);
 //   - régulateur: a session of the arbitrage, out of the wait;
-//   - attente humaine: from a question of the regulator (`· regulateur : MONTE`) to the next line
-//     at the ticket that is not the circuit's, or to the next turn, the first of the two;
+//   - attente humaine: from a question of the regulator (its sheet's `decision` MONTE) to the next
+//     comment at the ticket whose author is not the circuit, or to the next turn, the first of
+//     the two;
 //   - étapes automatiques: the other steps the circuit leads, the final passes among them;
 //   - rejeu d'étapes déjà vertes: the same, on a lot unchanged since green: checks green again,
 //     a tester run again on a proven lot, its proof;
 //   - entre deux étapes: the rest of the window.
 //   What is lost is the wall time out of the work and the automatic steps.
-// - The bilan counts the sessions by role, the steps by their titles, the stops by kind (the
-//   lines `arrêt <nom> —`), the regulator's questions, the tokens, the cache reads and the cost
-//   (a session without a cost counts 0); a session's tokens go to its turns by their time.
+// - The bilan counts the sessions by role, the steps by their titles, the stops by kind (`arret`),
+//   the regulator's questions, the tokens, the cache reads and the cost (a session without a cost
+//   counts 0); a session's tokens go to its turns by their time.
 // - It is kept in the main tree, `.claude/worktrees/<ticket>.bilan.json`, and compares itself with
 //   the latest bilan kept for another ticket of the project, or with nothing: no figure of
 //   another project is written here.
@@ -60,14 +67,12 @@ import {
   REGULATEUR,
 } from './etapes.mjs';
 
-// The role of a register line that a step of the circuit writes, and the author of its lines.
+// The role of a register line that a step of the circuit writes, of its results, and the author
+// of its comments.
 const CIRCUIT = 'circuit';
-const PREFIXE = 'Circuit · ';
-// A comment's time is given to the second.
+// The gap allowed between a result and the turn or step it closes; a comment's time is given to
+// the second.
 const JEU = 2000;
-// The line of a final pass: its command, or its stop.
-const FINALE =
-  /^(?:verts|rouge|à repasser) : (?:\d+ rouge\(s\) — )?npm run verifier\b|^arrêt \S+ — (?:La passe finale|Contrôles de la passe finale|Aucun composant du ticket)/;
 const MINUTE = 60_000;
 
 // The categories, in the order the text lists them, with their names.
@@ -85,47 +90,23 @@ const GARDE = new Set(['travail', 'automatique']);
 // The roles of the circuit, by the steps they work at: every step but the exploration.
 const ROLES = new Set(ETAPES.filter(e => e.numero > 1).flatMap(e => e.qui));
 
-// The lines of the circuit at the ticket: `{ t, composant, etape, texte }`, in their order.
-function lignesDuCircuit(commentaires) {
-  const out = [];
-  for (const c of commentaires) {
-    const m = /^Circuit · (.+?) · ([^\s:]+) : ([\s\S]*)$/.exec(String(c.text ?? ''));
-    const t = Date.parse(c.created_at ?? '');
-    if (m && !Number.isNaN(t) && m[2] !== 'bilan') {
-      out.push({ t, composant: m[1], etape: m[2], texte: m[3] });
-    }
-  }
-  return out.sort((x, y) => x.t - y.t);
+// The results the circuit kept, `{ t, …entrée }`, in their order; an entry without a time counts
+// nothing.
+function resultats(entrees) {
+  return entrees
+    .map(e => ({ ...e, t: Date.parse(e.date ?? '') }))
+    .filter(e => !Number.isNaN(e.t))
+    .sort((x, y) => x.t - y.t);
 }
 
-// The counts a proof's line gives, its outcome, and whether its lot holds no file: null for a line
-// that is no proof's summary.
-function lirePreuve(texte) {
-  const m =
-    /^(\d+) rouge\(s\), (\d+) vert\(s\) justifié\(s\), (\d+) vert\(s\) sans vert attendu, (\d+) fichier\(s\) qui ne se charge\(nt\) pas, (\d+) test\(s\) vert\(s\) que HEAD/.exec(
-      texte
-    );
-  if (!m) return null;
-  const [rouges, justifies, sans, casses, head] = m.slice(1).map(Number);
-  const section = /\n\nRouges \(\d+\) :\n((?:- .*\n?)*)/.exec(texte)?.[1] ?? '';
-  const duLot = section
-    .split('\n')
-    .filter(l => l.startsWith('- '))
-    .filter(l => !/^- (?:rouge existant :|construction de )/.test(l)).length;
-  return {
-    signature: [rouges, justifies + sans, casses, head].join(','),
-    ok: /; (?:au développeur|aucun rouge)/.test(texte),
-    vide: duLot + justifies + sans + casses === 0,
-  };
-}
+// The signature of a proof's outcome <r>: the counts of its reds, greens of the lot, broken files
+// and greens of HEAD.
+const signature = r => [r.rouges, r.justifies + r.sans, r.casses, r.anciens].join(',');
 
-// The outcome of a check's line: green, « à repasser », or red.
-const issue = texte =>
-  /^verts\b/.test(texte)
-    ? 'vert'
-    : /^(?:à repasser|arrêt a-repasser)\b/.test(texte)
-      ? 'a-repasser'
-      : 'rouge';
+// The outcome of a step's result <e>: green, « à repasser », or red; a stop is red, save « à
+// repasser ».
+const issue = e =>
+  e.arret ? (e.arret === 'a-repasser' ? 'a-repasser' : 'rouge') : (e.resultat?.issue ?? 'rouge');
 
 // The length of the union of the intervals <l>.
 function longueur(l) {
@@ -142,9 +123,17 @@ function longueur(l) {
 const commun = ([d, f], l) =>
   longueur(l.map(([a, b]) => [Math.max(a, d), Math.min(b, f)]).filter(([a, b]) => b > a));
 
-// The bilan of <ticket> from the register's lines <lignes> (of its project), the comments of the
-// ticket <commentaires> (`{ author, text, created_at }`) and the circuit's state <etat> (or null).
-export function bilan({ ticket, lignes, commentaires, etat = null, maintenant = Date.now() }) {
+// The bilan of <ticket> from the register's lines <lignes> (of its project), the results the
+// circuit kept <entrees> (`<ticket>.fiches.jsonl`), the comments of the ticket <commentaires>
+// (`{ author, created_at }`, their text never read) and the circuit's state <etat> (or null).
+export function bilan({
+  ticket,
+  lignes,
+  entrees = [],
+  commentaires = [],
+  etat = null,
+  maintenant = Date.now(),
+}) {
   // Each agent's latest line on the ticket: it holds all its turns.
   const derniere = new Map();
   for (const l of lignes) {
@@ -167,54 +156,63 @@ export function bilan({ ticket, lignes, commentaires, etat = null, maintenant = 
     )
     .filter(s => s.f > s.d)
     .sort((x, y) => x.d - y.d);
-  const circuit = lignesDuCircuit(commentaires);
+  const gardes = resultats(entrees);
   const debut = Math.min(...segments.map(s => s.d), Infinity);
-  const fin = Math.max(...segments.map(s => s.f), ...circuit.map(c => c.t), -Infinity);
+  const fin = Math.max(...segments.map(s => s.f), ...gardes.map(e => e.t), -Infinity);
   const mur = Number.isFinite(debut) && fin > debut ? fin - debut : 0;
 
-  // Each segment and its line at the ticket.
+  // Each segment and its result: a step's outcome or stop, a session's sheet.
+  const duCircuit = gardes.filter(e => e.role === CIRCUIT);
   for (const s of segments) {
     if (s.role === CIRCUIT) {
-      s.ligne =
-        circuit.findLast(
-          c =>
-            c.etape === s.etape &&
-            c.composant === s.composant &&
-            c.t >= s.d - JEU &&
-            c.t <= s.f + JEU
+      s.entree =
+        duCircuit.findLast(
+          e =>
+            (e.resultat || e.arret) &&
+            e.etape === s.etape &&
+            e.composant === s.composant &&
+            e.t >= s.d - JEU &&
+            e.t <= s.f + JEU
         ) ?? null;
-      s.finale = s.etape === 'controles' && FINALE.test(s.ligne?.texte.split('\n')[0] ?? '');
+      s.finale = s.etape === 'controles' && Boolean(s.entree?.resultat?.finale ?? s.entree?.finale);
     } else {
-      const nom = etapeDuRole(s.role)?.etat ?? s.role;
-      const suivant = segments.find(x => x.d >= s.f && x.l !== s.l)?.d ?? Infinity;
-      s.ligne =
-        circuit.find(c => c.etape === nom && c.t >= s.f - JEU && c.t <= suivant + JEU) ?? null;
-      s.composant = s.ligne?.composant ?? null;
+      s.suivant = segments.find(x => x.d >= s.f && x.l !== s.l)?.d ?? Infinity;
+      s.entree =
+        gardes.find(e => e.role === s.role && e.t >= s.f - JEU && e.t <= s.suivant + JEU) ?? null;
+      s.composant = s.entree?.composant ?? null;
     }
   }
   const etapes = segments.filter(s => s.role === CIRCUIT);
   const preuves = etapes.filter(s => s.etape === 'preuve');
-  for (const p of preuves) p.preuve = lirePreuve(p.ligne?.texte ?? '');
+  for (const p of preuves) p.preuve = p.entree?.resultat ?? null;
   // A proof and the category it gives the tester before it: the lot unchanged since the proof
   // before, or none.
   const avantLa = p => preuves.findLast(x => x.composant === p.composant && x.f <= p.d);
   const parLaPreuve = p => {
     const avant = avantLa(p);
     if (!p.preuve) return null;
-    if (avant?.preuve && avant.preuve.signature === p.preuve.signature) {
+    if (avant?.preuve && signature(avant.preuve) === signature(p.preuve)) {
       return avant.preuve.ok ? 'rejeu' : 'sansEffet';
     }
     return null;
   };
+  // Whether the circuit followed the developer's session <s> with a stop « sans-livraison » or a
+  // resumption that changed nothing.
+  const sansLivraison = s =>
+    duCircuit.some(
+      e =>
+        e.etape === 'developpeur' &&
+        e.composant === s.composant &&
+        (e.arret === 'sans-livraison' || e.inchange) &&
+        e.t >= s.f - JEU &&
+        e.t <= s.suivant + JEU
+    );
 
   // The sessions first: the checks read what they delivered.
   for (const s of segments.filter(x => x.role !== CIRCUIT)) {
-    const texte = s.ligne?.texte ?? '';
     if (etapeDuRole(s.role) === ARBITRAGE) s.categorie = 'regulateur';
     else if (s.role === 'developpeur') {
-      s.categorie = /^arrêt sans-livraison|reprise sans changement/.test(texte)
-        ? 'sansEffet'
-        : 'travail';
+      s.categorie = sansLivraison(s) ? 'sansEffet' : 'travail';
     } else if (s.role === 'testeur') {
       const p = preuves.find(x => x.composant === s.composant && x.d >= s.f - JEU);
       s.categorie = p ? (parLaPreuve(p) ?? (p.preuve?.vide ? 'sansEffet' : 'travail')) : 'travail';
@@ -240,9 +238,9 @@ export function bilan({ ticket, lignes, commentaires, etat = null, maintenant = 
             x.f <= s.d + JEU &&
             (s.finale || x.composant === s.composant)
         );
-      const i = issue(s.ligne?.texte ?? '');
+      const i = s.entree ? issue(s.entree) : 'rouge';
       s.categorie =
-        change || !avant.ligne || issue(avant.ligne.texte) !== i
+        change || !avant.entree || issue(avant.entree) !== i
           ? 'automatique'
           : i === 'vert'
             ? 'rejeu'
@@ -253,12 +251,13 @@ export function bilan({ ticket, lignes, commentaires, etat = null, maintenant = 
   // The waits for the supervisor: from each question of the regulator to the answer.
   const attentes = [];
   let questions = 0;
-  for (const q of circuit.filter(c => c.etape === REGULATEUR && /^MONTE\b/.test(c.texte))) {
+  for (const q of gardes.filter(e => e.role === REGULATEUR && e.fiche?.decision === 'MONTE')) {
     questions++;
     const reponse = commentaires
-      .map(c => ({ c, t: Date.parse(c.created_at ?? '') }))
-      .filter(({ c, t }) => t > q.t && !String(c.text ?? '').startsWith(PREFIXE))
-      .reduce((m, { t }) => Math.min(m, t), Infinity);
+      .filter(c => c.author !== CIRCUIT)
+      .map(c => Date.parse(c.created_at ?? ''))
+      .filter(t => t > q.t)
+      .reduce((m, t) => Math.min(m, t), Infinity);
     const tour = segments.find(s => s.d > q.t)?.d ?? Infinity;
     const f = Math.min(reponse, tour, fin);
     if (f > q.t) attentes.push([q.t, f]);
@@ -308,10 +307,7 @@ export function bilan({ ticket, lignes, commentaires, etat = null, maintenant = 
     parEtape[titre] = (parEtape[titre] ?? 0) + 1;
   }
   const arrets = {};
-  for (const c of circuit) {
-    const m = /^arrêt (\S+) —/.exec(c.texte);
-    if (m) arrets[m[1]] = (arrets[m[1]] ?? 0) + 1;
-  }
+  for (const e of duCircuit.filter(x => x.arret)) arrets[e.arret] = (arrets[e.arret] ?? 0) + 1;
   const finales = etapes.filter(s => s.finale);
   const somme = k => sessions.reduce((m, l) => m + (l[k] ?? 0), 0);
   return {
@@ -437,8 +433,8 @@ export function lignesDuProjet(texte, racine) {
   });
 }
 
-// The bilan of <ticket> computed from the main tree <racine>: its register, its comments, its
-// circuit's state.
+// The bilan of <ticket> computed from the main tree <racine>: its register, the results its
+// circuit kept, the authors and times of its comments, its circuit's state.
 function calculer(racine, ticket) {
   const registre =
     process.env.GRILLHOUSE_REGISTRE ??
@@ -452,7 +448,21 @@ function calculer(racine, ticket) {
   if (r.status !== 0) {
     throw new Error(`commentaires de ${ticket} illisibles : ${r.stderr ?? ''}`.trim());
   }
-  const commentaires = JSON.parse(r.stdout || '[]') ?? [];
+  // Of each comment, its author and its time alone.
+  const commentaires = (JSON.parse(r.stdout || '[]') ?? []).map(c => ({
+    author: c.author,
+    created_at: c.created_at,
+  }));
+  const fiches = path.join(dossier(racine), `${ticket}.fiches.jsonl`);
+  const entrees = (existsSync(fiches) ? readFileSync(fiches, 'utf8') : '')
+    .split('\n')
+    .flatMap(l => {
+      try {
+        return l ? [JSON.parse(l)] : [];
+      } catch {
+        return [];
+      }
+    });
   const f = path.join(dossier(racine), `${ticket}.circuit.json`);
   let etat = null;
   try {
@@ -460,7 +470,7 @@ function calculer(racine, ticket) {
   } catch {
     etat = null;
   }
-  return bilan({ ticket, lignes, commentaires, etat });
+  return bilan({ ticket, lignes, entrees, commentaires, etat });
 }
 
 // The bilan of <ticket> computed, kept in the main tree <racine>, and its text, compared with the

@@ -108,10 +108,10 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
       );
       scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code de forms écrit.'\n`);
       scenario(id, 'developpeur-2', `${LECTEUR_JUSTE}passation 'Lecteur réparé.'\n`);
-      // A run before carried binder to green checks: `--depuis` plays only its checks.
+      // A run before carried binder to its end: `--depuis` leaves it to the final pass.
       ecrire(
         path.join(REPO, '.claude/worktrees', `${id}.circuit.json`),
-        `${JSON.stringify({ etape: 'relecture', composant: 'packages/binder', atteint: 'packages/binder' })}\n`
+        `${JSON.stringify({ etape: 'relecture', composant: 'packages/binder', atteints: ['packages/binder'] })}\n`
       );
       const r = circuit([
         id,

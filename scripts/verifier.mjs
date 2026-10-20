@@ -24,6 +24,11 @@
 //   choice in the variable of the tests, `GRILLHOUSE_TESTS`: `temoins: 'hors'`, then `'seuls'`).
 //   A repository without a witness plays no such pass. So a witness is measured under no load of
 //   its own pass: a load it meets comes from elsewhere on the machine.
+// - A pass restricted by filters of Turborepo among the arguments (`--filter`, `-F`: the circuit's
+//   final pass after a review sent back, `--filter=...[<avant>...<après>] --filter=//`,
+//   scripts/circuit.mjs) plays the witnesses of the packages those filters choose alone
+//   (`turbo ls <filtres> --output=json`): the pass of the witnesses carries no filter of its own
+//   beside theirs, which Turborepo would join to them.
 // - `--gardes` plays the two tasks of guards alone, `turbo run grillhouse:gardes gardes …`, with the
 //   same verdict: what the reviewer plays on the ticket's copy, the tests aside.
 // - The verdict reads the exit code of each task in the summary of each run
@@ -71,6 +76,35 @@ const TEMOINS = ' (témoins de temps)';
 const CONCURRENCE = /^--concurrency(?:=|$)/;
 
 const lister = dossier => (existsSync(dossier) ? readdirSync(dossier) : []);
+
+// The filters of Turborepo among <args> (`--filter=<f>`, `--filter <f>`, `-F <f>`) and the other
+// arguments: `{ filtres, autres }`, the filters each written `--filter=<f>`.
+function separerLesFiltres(args) {
+  const filtres = [];
+  const autres = [];
+  for (let i = 0; i < args.length; i++) {
+    if (args[i].startsWith('--filter=')) filtres.push(args[i]);
+    else if ((args[i] === '--filter' || args[i] === '-F') && i + 1 < args.length)
+      filtres.push(`--filter=${args[++i]}`);
+    else autres.push(args[i]);
+  }
+  return { filtres, autres };
+}
+
+// The names of the packages of <racine> the filters <filtres> choose, as Turborepo lists them.
+function paquetsChoisis(racine, filtres, env) {
+  const r = spawnSync('turbo', ['ls', ...filtres, '--output=json'], {
+    cwd: racine,
+    env,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  try {
+    return new Set(JSON.parse(r.stdout).packages.items.map(p => p.name));
+  } catch {
+    return null;
+  }
+}
 
 // The tasks a pass plays side by side on a machine of <coeurs> cores: half of them, one at least.
 const concurrence = (coeurs = availableParallelism()) => Math.max(1, Math.floor(coeurs / 2));
@@ -168,8 +202,14 @@ function passe({ racine, demandes, env, borneMs, pasMs, dire, coeurs }) {
       ''
     ),
   ];
-  // The time witnesses, alone.
-  const filtres = gardesSeules ? null : filtresDesTemoins(racine);
+  // The time witnesses, alone: in a pass restricted by filters, those of the packages they choose.
+  const { filtres: filtresDeLaPasse, autres } = separerLesFiltres(args);
+  let filtres = gardesSeules ? null : filtresDesTemoins(racine);
+  if (filtres?.length && filtresDeLaPasse.length) {
+    const choisis = paquetsChoisis(racine, filtresDeLaPasse, propre);
+    if (choisis) filtres = filtres.filter(f => choisis.has(f.slice('--filter='.length)));
+    if (filtres.length === 0) filtres = null;
+  }
   if (filtres) {
     const ou = filtres.map(f => f.slice('--filter='.length)).join(', ') || 'la racine';
     dire(`⏱ témoins de temps : ${ou} ; ils jouent seuls, une tâche après l'autre.`);
@@ -180,7 +220,7 @@ function passe({ racine, demandes, env, borneMs, pasMs, dire, coeurs }) {
           ...filtres,
           '--continue=dependencies-successful',
           '--concurrency=1',
-          ...sansConcurrence(args),
+          ...sansConcurrence(filtres.length || !filtresDeLaPasse.length ? autres : args),
         ],
         choix('seuls'),
         TEMOINS
