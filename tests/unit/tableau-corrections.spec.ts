@@ -642,7 +642,9 @@ const plateau = (tous: object[]) =>
     jour: MAINTENANT - 24 * 60 * MIN,
   }) as { alertes: Alerte[] };
 const rouges = (tous: object[]) => plateau(tous).alertes.filter(a => a.niveau === 'rouge');
-const ROUGE = nuit('demo-87', '87 — La nuit est rouge depuis la nuit du 2026-10-17 — parent');
+const ROUGE = nuit('demo-87', '87 — La nuit est rouge depuis la nuit du 2026-10-17 — parent', {
+  created_at: '2026-10-17T01:05:00Z',
+});
 const REFUSEE = nuit('demo-88', '88 — La poussée de la nuit est refusée sur def5678 — parent');
 
 describe('3uv.44 critère 7 : each open night ticket raises its red alert, its subject followed by its number', () => {
@@ -683,10 +685,20 @@ describe('3uv.44 critère 7 : each open night ticket raises its red alert, its s
   });
 
   it('3uv.44 critère 7 : a night ticket whose title is not « number — subject — component » shows its whole title, then its number', () => {
-    const r = rouges([nuit('demo-90', 'Nuit rouge sur 1a2b3c4')]);
+    const r = rouges([nuit('demo-90', 'Poussée de la nuit refusée sur 1a2b3c4')]);
     expect(r).toHaveLength(1);
-    expect(r[0].texte.startsWith('Nuit rouge sur 1a2b3c4')).toBe(true);
+    expect(r[0].texte.startsWith('Poussée de la nuit refusée sur 1a2b3c4')).toBe(true);
     expect(r[0].texte.endsWith('90')).toBe(true);
+  });
+
+  it('a red night gives the night it turned red, from its ticket, never a commit its title names', () => {
+    const r = rouges([
+      nuit('demo-91', '91 — La nuit est rouge depuis 839dbb0 — parent', {
+        created_at: '2026-10-16T01:04:46Z',
+      }),
+    ]);
+    expect(r).toHaveLength(1);
+    expect(r[0].texte).toBe('La nuit est rouge depuis la nuit du 2026-10-16 91');
   });
 
   it('3uv.44 critère 7 : on the pane, a subject too long for the line is cut and its number stays whole', () => {
