@@ -519,6 +519,7 @@ describe.runIf(canWrap)('the launcher and the register line of a session that fa
     for (const f of [
       'registre.mjs',
       'tableau.mjs',
+      'etapes.mjs',
       'verrou-de-fichier.mjs',
       'integration/verdict.mjs',
     ]) {
