@@ -128,7 +128,9 @@ register its end writes (`scripts/registre.mjs`: the hook ends at once and a det
 reads the transcript in chunks and writes the line, once per stop; the launcher of a role agent writes its
 line again from outside the envelope once it ends, `--copie`; `--rattraper` adds the agents that ended
 before it), a running one from its transcript, those launched
-in a shell included. Without the mod, `npm run tableau` prints the same lines. The status line
+in a shell included; a ticket's time adds the steps its circuit leads itself (the proof, the checks, the
+final pass, the integration, the queue), which the circuit writes to the same register, each instant once.
+Without the mod, `npm run tableau` prints the same lines. The status line
 (`scripts/ligne-etat/`, the project's `statusLine`) keeps the person's own status line on the
 left, or a default one (model, context, rate limits), and shows the chantier in progress on the
 right, as each measure writes it to `grillhouse-etat.txt` in the common git directory.

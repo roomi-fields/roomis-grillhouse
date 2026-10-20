@@ -189,6 +189,23 @@ describe('a circuit that runs: its step, its component and its attempt', () => {
     expect(circuits(racine, ligneCircuit('demo-120'))[0]?.vivant).toBe(false);
   });
 
+  it('the start of the step the circuit leads itself (`mene`) is read from its state, null between two', () => {
+    const racine = depot({
+      'demo-12': { etape: 'controles', mene: at('11:50') },
+      'demo-13': { etape: 'developpeur' },
+    });
+    const lus = circuits(racine, `${ligneCircuit('demo-12')}\n${ligneCircuit('demo-13')}`);
+    expect(lus.find(c => c.ticket === 'demo-12')).toMatchObject({
+      mene: Date.parse(at('11:50')),
+    });
+    expect(lus.find(c => c.ticket === 'demo-13')).toMatchObject({ mene: null });
+    // Running since 11:50, its step counts 10 min at noon on its ticket.
+    const t = plateau([T('demo-12')], [], [], lus) as Board & {
+      parTicket: Record<string, { travail: number }>;
+    };
+    expect(t.parTicket['demo-12']).toEqual({ travail: 10 * MIN, jetons: 0 });
+  });
+
   it('a circuit integrated (« integre ») is no circuit of the board', () => {
     const racine = depot({ 'demo-12': { etape: 'integre', code: 0 } });
     expect(circuits(racine)).toEqual([]);

@@ -526,6 +526,7 @@ const TICKETS = [
 const plateau = (o: {
   registre: object[];
   vivants?: object[];
+  circuits?: object[];
   maintenant: number;
   jour: number;
 }): Board => assembler({ tous: TICKETS, prefix: 'demo', vivants: [], ...o }) as Board;
@@ -847,5 +848,138 @@ describe('3uv.41 critère 9 : a register line written without its turns keeps th
     });
     expect(b.global.jour.travail).toBe((60 + 20) * MIN);
     expect(b.global.cumul.travail).toBe((60 + 50) * MIN);
+  });
+});
+
+// The steps the circuit leads itself (BPScript si61.8: 47 min from the go to the close, 8 min on
+// the board): the proof, the checks, the final pass, the integration and the queue. Each one ends
+// with a register line of the role `circuit` (scripts/circuit.mjs), its tokens 0; the step under
+// way is read from the circuit's state (`mene`, the start of the step). A ticket's working time is
+// the union of its agents' turns and its circuit's steps: an instant counts once.
+describe("the circuit's own steps count in the ticket's working time", () => {
+  const minuit = Date.parse(at('00:00'));
+  const midi = Date.parse(at('12:00'));
+  const etapeDuCircuit = (debut: string, fin: string, etape = 'controles') => ({
+    projet: RACINE,
+    agent: `circuit:demo-c.1:${debut}`,
+    ticket: 'demo-c.1',
+    role: 'circuit',
+    etape,
+    composant: 'packages/moteur',
+    debut,
+    fin,
+    travail: Date.parse(fin) - Date.parse(debut),
+    tours: [[Date.parse(debut), Date.parse(fin)]],
+    jetons: 0,
+    cache: 0,
+    cout: null,
+  });
+  const seance = (debut: string, fin: string, agent = 's1') =>
+    ligne(
+      { hook_event_name: 'SessionEnd', transcript_path: `/${agent}.jsonl`, session_id: agent },
+      lireTranscription(
+        transcription(
+          l({ type: 'agent-setting', agentSetting: 'testeur' }),
+          invite(debut, 'demo-c.1'),
+          reponse(fin, 30)
+        )
+      ),
+      RACINE
+    );
+  const parTicket = (b: Board) =>
+    (b as unknown as { parTicket: Record<string, Mesure> }).parTicket['demo-c.1'];
+
+  it('a session of 5 min and a step of checks of 10 min, apart, make 15 min on the ticket, its chantier, the day and in all', () => {
+    const b = plateau({
+      registre: [seance(at('09:00'), at('09:05')), etapeDuCircuit(at('09:10'), at('09:20'))],
+      maintenant: midi,
+      jour: minuit,
+    });
+    expect(ligneTicket(b)).toMatchObject({ travail: 15 * MIN, jetons: 30 });
+    expect(parTicket(b)).toEqual({ travail: 15 * MIN, jetons: 30 });
+    expect(b.chantiers[0]).toMatchObject({ id: 'demo-c', travail: 15 * MIN, jetons: 30 });
+    expect(b.global.jour).toEqual({ travail: 15 * MIN, jetons: 30 });
+    expect(b.global.cumul).toEqual({ travail: 15 * MIN, jetons: 30 });
+  });
+
+  it('a session during a step of the circuit adds nothing: the union, each instant once', () => {
+    const b = plateau({
+      registre: [seance(at('09:00'), at('09:10')), etapeDuCircuit(at('09:05'), at('09:20'))],
+      maintenant: midi,
+      jour: minuit,
+    });
+    expect(parTicket(b).travail).toBe(20 * MIN);
+    expect(b.global.cumul.travail).toBe(20 * MIN);
+    const dedans = plateau({
+      registre: [seance(at('09:05'), at('09:10')), etapeDuCircuit(at('09:00'), at('09:20'))],
+      maintenant: midi,
+      jour: minuit,
+    });
+    expect(parTicket(dedans).travail).toBe(20 * MIN);
+    expect(dedans.global.jour.travail).toBe(20 * MIN);
+  });
+
+  it('a step across midnight counts in the day its part after midnight, in all its whole', () => {
+    const b = plateau({
+      registre: [etapeDuCircuit(at('23:50', '2026-10-10'), at('00:10'))],
+      maintenant: midi,
+      jour: minuit,
+    });
+    expect(b.global.jour.travail).toBe(10 * MIN);
+    expect(b.global.cumul.travail).toBe(20 * MIN);
+  });
+
+  it('the step under way of a running circuit counts from its start to now; a dead one adds nothing', () => {
+    const avec = (vivant: boolean) =>
+      plateau({
+        registre: [seance(at('11:40'), at('11:45')), etapeDuCircuit(at('11:45'), at('11:50'))],
+        circuits: [
+          {
+            ticket: 'demo-c.1',
+            etape: 'controles',
+            composant: 'packages/moteur',
+            tentative: 1,
+            finale: true,
+            code: null,
+            arret: null,
+            raison: null,
+            question: null,
+            chef: false,
+            vivant,
+            mene: Date.parse(at('11:50')),
+          },
+        ],
+        maintenant: midi,
+        jour: minuit,
+      });
+    expect(parTicket(avec(true)).travail).toBe(20 * MIN);
+    expect(avec(true).global.jour.travail).toBe(20 * MIN);
+    expect(avec(true).chantiers[0].travail).toBe(20 * MIN);
+    expect(parTicket(avec(false)).travail).toBe(10 * MIN);
+  });
+
+  it("a circuit's line is no passage of a role: the ticket waits for the role after its last agent, and no block holds the circuit", () => {
+    const b = plateau({
+      registre: [
+        seance(at('09:00'), at('09:05')),
+        etapeDuCircuit(at('09:10'), at('09:20'), 'preuve'),
+      ],
+      maintenant: midi,
+      jour: minuit,
+    });
+    expect(b.agents.map(x => x.role)).not.toContain('circuit');
+    const ou = b.agents.filter(x => [...x.enCours, ...x.attend].some(y => y.id === 'demo-c.1'));
+    expect(ou.map(x => x.role)).toEqual(['developpeur']);
+    expect(ou[0].enCours).toEqual([]);
+  });
+
+  it("a circuit's line alone is no passage: the claimed ticket keeps its line in its chantier, waiting in no block", () => {
+    const b = plateau({
+      registre: [etapeDuCircuit(at('09:10'), at('09:20'), 'integration')],
+      maintenant: midi,
+      jour: minuit,
+    });
+    expect(b.agents.flatMap(x => [...x.enCours, ...x.attend]).map(x => x.id)).toEqual([]);
+    expect(parTicket(b).travail).toBe(10 * MIN);
   });
 });

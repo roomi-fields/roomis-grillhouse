@@ -45,7 +45,12 @@
 //   that launched it.
 // - Time: a transcript's working time is the union of its turns, each bounded by the earliest and
 //   the latest date of its events, whatever their order in the file; a transcript is read where the
-//   board stopped, its reading kept in the cache file.
+//   board stopped, its reading kept in the cache file. A ticket's working time adds the steps its
+//   circuit leads itself, with no agent (the proof, the checks, the final pass, the integration,
+//   the queue): the register's lines of the role `circuit`, which no block shows and no role of the
+//   flow counts as a passage, and the step under way of a running circuit (`mene` in its state) up
+//   to now; they count out of the turns of the ticket's agents, so the ticket's time is the union
+//   of both, each instant once, and they spend no tokens.
 // - Alerts: one red alert per open night ticket (its subject, then its number), tickets awaiting
 //   the responsable, a shell agent silent for 10 minutes, a ticket in progress without anything
 //   running for 30 minutes.
@@ -72,6 +77,9 @@ const RECENT = 2 * MINUTE;
 export const LARGEUR = 52;
 const CHEF = 'chef-de-chantier';
 export const ROLES = [CHEF, 'explorateur', 'arbitre', 'testeur', 'developpeur', 'relecteur'];
+// The role of a register line that a step of a circuit writes (scripts/circuit.mjs): no agent,
+// no role of the flow.
+export const ROLE_DU_CIRCUIT = 'circuit';
 // A sub-agent's role from its meta file: the type it was spawned as; a named agent's `agentType`
 // is its name.
 export const roleDuMeta = m => m.spawnedAgentType ?? m.customAgentType ?? m.agentType ?? null;
@@ -265,6 +273,30 @@ function parAgent(registre) {
     }
   }
   return [...derniere.values()];
+}
+
+// The intervals of <intervalles> (ordered, apart) out of those of <retires> (ordered, apart).
+function sauf(intervalles, retires) {
+  const out = [];
+  for (const [debut, fin] of intervalles) {
+    let d = debut;
+    for (const [rd, rf] of retires) {
+      if (rf <= d || rd >= fin) {
+        continue;
+      }
+      if (rd > d) {
+        out.push([d, rd]);
+      }
+      d = Math.max(d, rf);
+      if (d >= fin) {
+        break;
+      }
+    }
+    if (d < fin) {
+      out.push([d, fin]);
+    }
+  }
+  return out;
 }
 
 // The register's lines of this project, one per agent: its latest end.
@@ -550,6 +582,8 @@ export function lireCircuits({ racine, prefix, ps }) {
       raison: premiereLigne(e.rapport),
       question: e.raison === 'question' ? String(e.rapport ?? '').trim() || null : null,
       chef: Boolean(e.chef),
+      mene:
+        typeof e.mene === 'string' && !Number.isNaN(Date.parse(e.mene)) ? Date.parse(e.mene) : null,
       vivant: enVie.has(ticket),
     });
   }
@@ -634,7 +668,9 @@ export function assembler({
   maintenant,
   jour,
 }) {
-  const registre = parAgent(lignesDuRegistre);
+  // A circuit's lines are its steps, no agent's passage.
+  const etapesFinies = lignesDuRegistre.filter(r => r.role === ROLE_DU_CIRCUIT);
+  const registre = parAgent(lignesDuRegistre.filter(r => r.role !== ROLE_DU_CIRCUIT));
   // A living agent runs without an end in the register, or when an incoming message follows its
   // latest end strictly; the writings of its last turn after that end leave it finished. A running
   // agent's transcript holds its sessions already in the register.
@@ -740,10 +776,42 @@ export function assembler({
           bloquePar: bloquePar(t),
         })),
     }));
-  const mesures = [
+  const desAgents = [
     ...finis.map(r => ({ ...r, quand: Date.parse(r.fin) })),
     ...enCoursMesures.map(v => ({ ...v, quand: maintenant })),
   ];
+  // The steps a circuit leads itself: its register lines, and the step under way of a running
+  // circuit up to now. Each ticket's steps count out of its agents' turns, so a ticket's working
+  // time is the union of both, each instant once; they spend no tokens.
+  const etapes = new Map();
+  const etapeDe = (ticket, debut, fin) => {
+    if (ticket && Number.isFinite(debut) && Number.isFinite(fin) && fin > debut) {
+      (etapes.get(ticket) ?? etapes.set(ticket, []).get(ticket)).push([debut, fin]);
+    }
+  };
+  for (const r of etapesFinies) {
+    etapeDe(r.ticket, Date.parse(r.debut), Date.parse(r.fin));
+  }
+  for (const c of circuits) {
+    if (c.vivant && c.mene !== null && c.mene !== undefined) {
+      etapeDe(c.ticket, c.mene, maintenant);
+    }
+  }
+  const duCircuit = [...etapes].map(([ticket, l]) => {
+    const tours = sauf(
+      reunir(l),
+      reunir(desAgents.filter(m => m.ticket === ticket).flatMap(m => m.tours ?? []))
+    );
+    return {
+      ticket,
+      role: ROLE_DU_CIRCUIT,
+      travail: tours.reduce((s, [debut, fin]) => s + (fin - debut), 0),
+      jetons: 0,
+      tours,
+      quand: Math.max(-Infinity, ...tours.map(([, fin]) => fin)),
+    };
+  });
+  const mesures = [...desAgents, ...duCircuit];
   const somme = l => ({
     travail: l.reduce((s, x) => s + (x.travail ?? 0), 0),
     jetons: l.reduce((s, x) => s + (x.jetons ?? 0), 0),
@@ -1427,7 +1495,7 @@ export function tableau(racine, { home = os.homedir(), maintenant = Date.now() }
   // The reviewer's verdict matters once a developer or a reviewer ran: only those tickets are read.
   const dernier = {};
   for (const r of [...registre].sort((x, y) => Date.parse(x.fin) - Date.parse(y.fin))) {
-    if (r.ticket && r.role !== 'arbitre' && r.role !== CHEF) {
+    if (r.ticket && r.role !== 'arbitre' && r.role !== CHEF && r.role !== ROLE_DU_CIRCUIT) {
       dernier[r.ticket] = r.role;
     }
   }

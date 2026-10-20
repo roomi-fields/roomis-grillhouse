@@ -158,7 +158,7 @@
 //   reason; still in the queue, it stops at « a-repasser », the queue's reason.
 // - The state is `.claude/worktrees/<ticket>.circuit.json`, written again at each step and at the
 //   start and end of each session: `{ etape, composant, tentative, code, raison, rapport, dernier,
-//   finale, seance, chef, renvois, atteint, journal }`; `etape` is testeur, preuve, developpeur, controles,
+//   finale, seance, chef, renvois, atteint, mene, journal }`; `etape` is testeur, preuve, developpeur, controles,
 //   relecture, integration, file, or integre at the end; `raison` names the stop; `dernier` is the last
 //   component of the run; `finale` whether the final pass has begun; `seance` the process group of
 //   the session that runs, null between two; `chef` the chef de chantier's session on the stop
@@ -167,7 +167,8 @@
 //   `--depuis`) plays again, each with its first step and its findings, null out of such a round;
 //   `atteint` the last component the circuit has carried to green checks (the last of the run
 //   once the final pass is green), kept from one run to the next, null before any and when a run
-//   starts over from the first component's testeur. `--reprendre` starts again at the step and component of the state, its report given to the
+//   starts over from the first component's testeur; `mene` the start (an ISO date) of the step the
+//   circuit leads itself while it runs, null otherwise. `--reprendre` starts again at the step and component of the state, its report given to the
 //   next session, and goes on to its `dernier`; after any stop, the death of the circuit with its
 //   caller included. A session the state names that still runs is waited for first, and stopped
 //   when it stands still as long as a motionless session.
@@ -204,6 +205,11 @@
 //   their reasons, goes to `.claude/worktrees/<ticket>.preuve-<n>.md`, which the comment names.
 // - The commands of the circuit (the proof, the checks, the integration) are added to the log of the ticket,
 //   `.claude/worktrees/<ticket>.log`, next to the sessions, each under its header line.
+// - Each step the circuit leads itself, with no agent (the proof, the checks and the final pass,
+//   the integration, the queue), writes at its end, whatever its outcome, a line to the register
+//   of finished agents (scripts/registre.mjs, `ligneDEtape`): the role `circuit`, the ticket, the
+//   step and its component, its start and end, its working time, no tokens. The board counts it,
+//   and the step under way (`mene` in the state), in the ticket's working time.
 // - Exit codes: 0 at « integre »; 2 a malformed call; a stop, by its name (ARRETS):
 //   10 lancement (lancer.sh stopped before the session), 11 bloqué (a motionless transcript),
 //   12 sans-passation (twice no handover), 13 preuve (the third proof fails), 14 controles (the
@@ -239,7 +245,7 @@ import { pathToFileURL } from 'node:url';
 import { matieres, NOM_DE_TEST } from './consommateurs.mjs';
 import { VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/composant.mjs';
 import { paquets } from './paquets.mjs';
-import { transcriptionsDeLaCopie } from './registre.mjs';
+import { ecrire as ecrireAuRegistre, ligneDEtape, transcriptionsDeLaCopie } from './registre.mjs';
 import { dossierCommun, lireEntrees } from './integration/file-attente.mjs';
 import { AUTEUR_DU_VERDICT, VERDICT, verdictDe } from './integration/verdict.mjs';
 import { attendreUnPeu, vivant } from './verrou-de-fichier.mjs';
@@ -350,6 +356,8 @@ const droitsDuChef = ctx => [
 const RELANCES_DU_CHEF = 3;
 const FORT = ['--modele', 'opus', '--effort', 'high'];
 const PREFIXE = 'Circuit · ';
+// The steps the circuit leads itself, with no agent: each one counts in the ticket's working time.
+const MENEES = new Set(['preuve', 'controles', 'integration', 'file']);
 
 const ici = import.meta.dirname;
 const LANCEUR = path.join(ici, 'enveloppe', 'lancer.sh');
@@ -535,6 +543,7 @@ function ecrireEtat(ctx, etat) {
     finale: false,
     seance: null,
     chef: null,
+    mene: null,
     ...etat,
     renvois: ctx.renvois ?? null,
     atteint: ctx.atteint ?? null,
@@ -545,6 +554,25 @@ function ecrireEtat(ctx, etat) {
     `${JSON.stringify({ ...ctx.courant, journal: ctx.journal }, null, 2)}\n`
   );
   renameSync(provisoire, ctx.etat);
+}
+
+// The register's line of the step <etape> of <composant> the circuit led itself from <debut> (an
+// ISO date) to now; a register it cannot write leaves the circuit going.
+function inscrireEtape(ctx, { etape, composant, debut }) {
+  try {
+    ecrireAuRegistre(
+      ligneDEtape({
+        projet: ctx.racine,
+        ticket: ctx.ticket,
+        etape,
+        composant,
+        debut,
+        fin: new Date().toISOString(),
+      })
+    );
+  } catch (e) {
+    process.stderr.write(`⚠️  étape ${etape} non écrite au registre : ${e.message}\n`);
+  }
 }
 
 const entete = (ctx, etape, composant) =>
@@ -1611,7 +1639,10 @@ async function derouler(ctx, debut) {
       dernier: ctx.composants[dernier],
       finale,
     };
-    ecrireEtat(ctx, etat);
+    // A step the circuit leads itself names its start in the state while it runs, and writes its
+    // line to the register at its end, whatever its outcome.
+    const menee = MENEES.has(etape) ? { etape, composant, debut: new Date().toISOString() } : null;
+    ecrireEtat(ctx, { ...etat, mene: menee?.debut ?? null });
     try {
       if (etape === 'testeur' && sansTests(ctx, index)) {
         commenter(
@@ -1838,6 +1869,8 @@ async function derouler(ctx, debut) {
         `⛔ Circuit de ${ctx.ticket} arrêté : ${e.nom}, à l'étape ${etape} de ${composant}.\n`
       );
       return { code, nom: e.nom, rapport: e.rapport, etat };
+    } finally {
+      if (menee) inscrireEtape(ctx, menee);
     }
   }
 }

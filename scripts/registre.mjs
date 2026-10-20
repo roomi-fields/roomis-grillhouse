@@ -2,7 +2,9 @@
 // The register of finished agents: one JSON line per agent that ends, written by a hook
 // (`.claude/settings.json`: SubagentStop for a sub-agent, SessionEnd for a session, a role agent
 // launched in a shell included). An agent resumed by a message has one line per stop; the board
-// reads an agent's latest line, and the transcripts of running ones.
+// reads an agent's latest line, and the transcripts of running ones. The circuit of a ticket
+// (scripts/circuit.mjs) writes a line at the end of each step it leads itself, with no agent
+// (`ligneDEtape`: its role `circuit`, its step and component, one turn, no tokens).
 //
 // - The line: the project (its main tree), the agent, its ticket (« TON TICKET : »; a sub-agent
 //   whose prompt names none takes that of the site manager that launched it), its role,
@@ -33,7 +35,7 @@ import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { lireFichier, roleDuMeta, ticketDuChef, tourne } from './tableau.mjs';
+import { lireFichier, ROLE_DU_CIRCUIT, roleDuMeta, ticketDuChef, tourne } from './tableau.mjs';
 import { lacherVerrou, prendreVerrou } from './verrou-de-fichier.mjs';
 
 const REGISTRE =
@@ -93,6 +95,27 @@ export function ligne(input, t, projet) {
     jetons: t.jetons,
     cache: t.cache,
     cout: t.cout,
+  };
+}
+
+// The register's line of a step the circuit of <ticket> leads itself (scripts/circuit.mjs), from
+// <debut> to <fin> (ISO dates): one agent per step, its role `circuit`, one turn, no tokens.
+export function ligneDEtape({ projet, ticket, etape, composant, debut, fin }) {
+  const [d, f] = [Date.parse(debut), Date.parse(fin)];
+  return {
+    projet,
+    agent: `${ROLE_DU_CIRCUIT}:${ticket}:${debut}`,
+    ticket,
+    role: ROLE_DU_CIRCUIT,
+    etape,
+    composant,
+    debut,
+    fin,
+    travail: f - d,
+    tours: [[d, f]],
+    jetons: 0,
+    cache: 0,
+    cout: null,
   };
 }
 
@@ -170,7 +193,7 @@ const PERIME = 30_000;
 
 // Appends `l` to the register unless it already holds the line of this agent's end. Returns whether
 // it wrote. The check and the append happen under the register's lock.
-function ecrire(l) {
+export function ecrire(l) {
   mkdirSync(path.dirname(REGISTRE), { recursive: true });
   const verrou = `${REGISTRE}.verrou`;
   prendreVerrou(verrou, { attendre: true, perime: PERIME });
