@@ -97,10 +97,10 @@
 //   changed under the same name is not told apart. The proof passes with a red (of the lot,
 //   existing or of a build), even without a file of the lot in the component: a testeur with no
 //   new test to write says so in his handover, the existing reds are enough. It fails with
-//   neither a file of the lot nor a red, with a broken file of the lot, or with a green of the lot without its « vert attendu ». A
-//   failed proof relaunches the testeur with its report, twice at most. The report (reds,
-//   justified greens) is written at the ticket. A proof with a red launches the developpeur; one
-//   without a red skips him: the lot is a lot of tests alone.
+//   neither a file of the lot nor a red, with a broken file of the lot, or with a green of the
+//   lot without its « vert attendu ». A failed proof relaunches the testeur with its report,
+//   twice at most. The report (reds, justified greens) is written at the ticket. A proof with a
+//   red launches the developpeur; one without a red skips him: the lot is a lot of tests alone.
 // - A developpeur is launched on a red alone, of a proof or of a check, or in a component without
 //   tests: a session that changes no file of its component (`git status --porcelain` of its
 //   directory and the content of each file it lists, taken before and after the session; the
