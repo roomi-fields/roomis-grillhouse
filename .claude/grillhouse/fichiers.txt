@@ -20,6 +20,7 @@ tsdoc.json
 .claude/skills/relecteur/
 .claude/skills/testeur/
 docs/agents/issue-tracker.md
+scripts/bilan.mjs
 scripts/branche-de-nuit.mjs
 scripts/circuit.mjs
 scripts/code-mort.mjs
@@ -68,7 +69,9 @@ scripts/vitest.nuit.config.mjs
 - tests/claude-substitut.ts
 - tests/config-git.ts
 - tests/machine.ts
+- tests/unit/bilan.spec.ts
 - tests/unit/circuit-conduite.spec.ts
+- tests/unit/circuit.bilan.spec.ts
 - tests/unit/circuit-essai.ts
 - tests/unit/circuit.composants.spec.ts
 - tests/unit/circuit.consigne.spec.ts

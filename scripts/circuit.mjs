@@ -249,6 +249,11 @@
 //   of finished agents (scripts/registre.mjs, `ligneDEtape`): the role `circuit`, the ticket, the
 //   step and its component, its start and end, its working time, no tokens. The board counts it,
 //   and the step under way (`mene` in the state), in the ticket's working time.
+// - At each of its ends (« integre », or a stop it hands to the supervisor), the circuit writes the
+//   ticket's bilan (scripts/bilan.mjs): its figures, measured on the register, its lines at the
+//   ticket and its state, kept in `.claude/worktrees/<ticket>.bilan.json` and written at the ticket
+//   in one short comment, `Circuit · <composant> · bilan : …`, compared with the bilan before it in
+//   the project.
 // - Exit codes: 0 at « integre »; 2 a malformed call; a stop, by its name (ARRETS):
 //   10 lancement (lancer.sh stopped before the session), 11 bloqué (a motionless transcript),
 //   12 sans-passation (twice no handover), 13 preuve (the third proof fails), 14 controles (the
@@ -283,6 +288,7 @@ import {
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { ecrireLeBilan } from './bilan.mjs';
 import { matieres, NOM_DE_TEST } from './consommateurs.mjs';
 import { VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/composant.mjs';
 import { ARBITRAGE, AUTOMATIQUE, ETAPES, etapeDuCircuit, libelle, REGULATEUR } from './etapes.mjs';
@@ -2347,6 +2353,18 @@ function depart(ctx, e) {
   };
 }
 
+// The end of the run, its exit code <code>: the ticket's bilan at the ticket (scripts/bilan.mjs);
+// a bilan it cannot write leaves the code as it is.
+function aLaFin(ctx, code) {
+  try {
+    const texte = ecrireLeBilan(ctx.racine, ctx.ticket);
+    commenter(ctx, ctx.courant?.composant ?? ctx.composants.at(-1), 'bilan', texte);
+  } catch (e) {
+    process.stderr.write(`⚠️  bilan non écrit au ticket : ${e.message}\n`);
+  }
+  return code;
+}
+
 export async function main(argv) {
   let ctx = null;
   try {
@@ -2364,7 +2382,7 @@ export async function main(argv) {
     const d = ctx.reponse === null ? depart(ctx, e) : null;
     // A session a dead circuit left running ends before this run launches its own.
     await attendreLaSeance(ctx, e?.seance);
-    if (ctx.reponse === null) return await conduire(ctx, { depart: d });
+    if (ctx.reponse === null) return aLaFin(ctx, await conduire(ctx, { depart: d }));
     // The supervisor's answer goes to the regulator's session kept on the stop it settles.
     ctx.renvois = e.renvois ?? null;
     const arret = {
@@ -2383,7 +2401,7 @@ export async function main(argv) {
         finale: e.finale === true,
       },
     };
-    return await conduire(ctx, await trancher(ctx, arret, ctx.reponse));
+    return aLaFin(ctx, await conduire(ctx, await trancher(ctx, arret, ctx.reponse)));
   } catch (e) {
     if (!(e instanceof Usage)) throw e;
     process.stderr.write(

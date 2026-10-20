@@ -141,6 +141,8 @@ line again from outside the envelope once it ends, `--copie`; `--rattraper` adds
 before it), a running one from its transcript, those launched
 in a shell included; a ticket's time adds the steps its circuit leads itself (the proof, the checks, the
 final pass, the integration, the queue), which the circuit writes to the same register, each instant once.
+The card of a ticket whose circuit ended opens on the key figures of its bilan (`scripts/bilan.mjs`): wall
+time, share lost, sessions, cost.
 Without the mod, `npm run tableau` prints the same lines. The status line
 (`scripts/ligne-etat/`, the project's `statusLine`) keeps the person's own status line on the
 left, or a default one (model, context, rate limits), and shows the chantier in progress on the

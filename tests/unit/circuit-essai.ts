@@ -73,7 +73,7 @@ else
 fi
 c=$GRILLHOUSE_ENVELOPPE
 passation() {
-  node -e 'require("fs").appendFileSync(process.argv[1], JSON.stringify({ author: process.argv[3], text: process.argv[2] }) + "\\n")' "$racine/.beads/$ticket.comments.jsonl" "$1" "\${BEADS_ACTOR-}"
+  node -e 'require("fs").appendFileSync(process.argv[1], JSON.stringify({ author: process.argv[3], text: process.argv[2], created_at: new Date().toISOString().slice(0, 19) + "Z" }) + "\\n")' "$racine/.beads/$ticket.comments.jsonl" "$1" "\${BEADS_ACTOR-}"
 }
 # The reviewer's verdict and the régulateur's decision: its final answer, on its standard
 # output.
@@ -87,7 +87,7 @@ exit 0
 
 // The stand-in for bd, run by the circuit from the main tree: a ticket is `.beads/<id>.json`, its
 // comments `.beads/<id>.comments.jsonl`, each under its author, `BEADS_ACTOR`, else git's user
-// (`t`), as bd writes it; `update` (--status, --add-label, --remove-label, -d/--description,
+// (`t`), with its time to the second, as bd writes it; `update` (--status, --add-label, --remove-label, -d/--description,
 // --notes), `close` (--reason) and `reopen` write its state, as the integration, the queue and the
 // regulator change it.
 const FAUX_BD = `#!/usr/bin/env node
@@ -99,7 +99,7 @@ const commentaires = id => path.join(b, id + '.comments.jsonl');
 if (cmd === 'show') {
   process.stdout.write(fs.readFileSync(path.join(b, r[0] + '.json'), 'utf8'));
 } else if (cmd === 'comments' && r[0] === 'add') {
-  fs.appendFileSync(commentaires(r[1]), JSON.stringify({ author: process.env.BEADS_ACTOR || 't', text: r[2] }) + '\\n');
+  fs.appendFileSync(commentaires(r[1]), JSON.stringify({ author: process.env.BEADS_ACTOR || 't', text: r[2], created_at: new Date().toISOString().slice(0, 19) + 'Z' }) + '\\n');
 } else if (cmd === 'comments') {
   const f = commentaires(r[0]);
   const l = fs.existsSync(f) ? fs.readFileSync(f, 'utf8').split('\\n').filter(Boolean) : [];
@@ -361,12 +361,18 @@ export function circuitEssai(ESSAIS: string) {
     } | null;
   const ordre = (id: string) => essai(id, 'ordre').trim().split('\n');
   const gitRepo = (...a: string[]) => execFileSync('git', ['-C', REPO, ...a], { encoding: 'utf8' });
-  // The comments at the ticket, each with its author.
-  const auteurs = (id: string) =>
+  // Every comment at the ticket, each with its author and its time.
+  const tous = (id: string) =>
     lire(path.join(BEADS, `${id}.comments.jsonl`))
       .split('\n')
       .filter(Boolean)
-      .map(l => JSON.parse(l) as { author: string; text: string });
+      .map(l => JSON.parse(l) as { author: string; text: string; created_at: string });
+  // The bilan the circuit writes at each of its ends (scripts/bilan.mjs), a line `Circuit · … ·
+  // bilan : …`, read apart from its history.
+  const BILAN = /^Circuit · \S+ · bilan :/;
+  const bilans = (id: string) => tous(id).filter(c => BILAN.test(c.text));
+  // The comments at the ticket, each with its author, the bilan aside.
+  const auteurs = (id: string) => tous(id).filter(c => !BILAN.test(c.text));
   const commentaires = (id: string) => auteurs(id).map(c => c.text);
   // The circuit's history at the ticket: [composant, étape] of each comment « Circuit · … ».
   const historique = (id: string) =>
@@ -391,5 +397,6 @@ export function circuitEssai(ESSAIS: string) {
     auteurs,
     commentaires,
     historique,
+    bilans,
   };
 }

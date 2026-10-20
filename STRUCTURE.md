@@ -111,6 +111,7 @@ roomis-grillhouse/
 │   ├── ligne-etat/                # the status line: the person's own on the left, the chantier on the right
 │   ├── verrou-de-fichier.mjs      # the lock of a file shared between processes (judged by the owner's process or by age); taken by integrer.mjs, file.mjs, registre.mjs, verrou-de-machine.mjs and superviseur.mjs
 │   ├── registre.mjs               # hook: one line per finished agent (ticket, role, time, tokens)
+│   ├── bilan.mjs                  # the bilan of a ticket, written by the circuit at each end: wall time by category (work kept, relaunch without effect, regulator, wait, automatic steps, replay, between steps), sessions, stops, tokens, cost, against the project's bilan before
 │   ├── integration/               # One delivery, in a clean copy: verdicts, lots, npm run verifier green, commit on agent/<ticket>; then the queue brings it onto main
 │   │   ├── integrer.mjs              # run by the circuit on ACCEPTÉ: commits the lot on agent/<ticket>, labels the ticket en-file, puts the branch in the queue (tests: tests/unit/integrer*.spec.ts)
 │   │   ├── file.mjs                  # the queue: brings the branches onto main one at a time, replaced and replayed when main moved, pushes main, then reads the CI of the commit pushed (gh: a red CI reopens the ticket) (tests: tests/unit/file-integration*.spec.ts)

@@ -25,6 +25,9 @@
 //   stopped, it stands at the arbitrage, the regulator's, and recalls the step it comes from; its
 //   card gives the stop (its name and code) and the first line of its reason, or, ended on the
 //   regulator's question (« question »), that question. A ticket with a circuit waits in no block.
+// - Bilans: the card of a ticket whose circuit kept its bilan (scripts/bilan.mjs,
+//   `.claude/worktrees/<ticket>.bilan.json`) opens on its key figures: wall time, share lost,
+//   sessions, cost.
 // - Chantier: a root epic with work in progress, its tree of mothers, each with its work tickets
 //   done over all; the tree shows the open work: a closed ticket, mother included, counts without
 //   a line, and a closed mother's open tickets take her place. The other chantiers, one line each.
@@ -79,6 +82,7 @@ import {
   nomDuRole,
   REGULATEUR,
 } from './etapes.mjs';
+import { bilansGardes, enBref } from './bilan.mjs';
 import { verdictDe } from './integration/verdict.mjs';
 
 const MINUTE = 60_000;
@@ -1420,8 +1424,17 @@ const ouEnEst = c => {
 
 // The card of each ticket a line names: its number, whole title, component, state, its agents'
 // working time and tokens (`mesures`: ticket → { travail, jetons }) and the start of its
-// description (`resume`). The pane reads the whole description from Beads when the card fills it.
-export function fiches(tous, lignesDuTableau, prefix = '', mesures = {}, circuits = []) {
+// description (`resume`), after the key figures of its bilan when the circuit kept one (`bilans`:
+// ticket → its bilan, scripts/bilan.mjs). The pane reads the whole description from Beads when the
+// card fills it.
+export function fiches(
+  tous,
+  lignesDuTableau,
+  prefix = '',
+  mesures = {},
+  circuits = [],
+  bilans = {}
+) {
   const arretes = new Map(circuits.filter(c => !c.vivant).map(c => [c.ticket, c]));
   const ids = new Set(lignesDuTableau.map(l => l.ticket).filter(Boolean));
   const out = {};
@@ -1441,7 +1454,8 @@ export function fiches(tous, lignesDuTableau, prefix = '', mesures = {}, circuit
       : a
         ? `Circuit arrêté en ${ouEnEst(a)} : ${a.raison ?? 'le circuit ne tourne plus'} `
         : '';
-    const texte = `${tete}${resume}`;
+    const chiffres = bilans[t.id] ? `${enBref(bilans[t.id])} ` : '';
+    const texte = `${tete}${chiffres}${resume}`;
     out[t.id] = {
       numero: lecture(t, prefix).numero,
       titre: lecture(t, prefix).sujet,
@@ -1622,7 +1636,8 @@ export function tableau(racine, { home = os.homedir(), maintenant = Date.now() }
       [...l, ...vue, ...Object.values(groupes).flat()],
       prefix,
       t.parTicket,
-      t.circuits
+      t.circuits,
+      bilansGardes(racine)
     ),
     dernier: dernierBouge(tous, l, vivants, maintenant),
     etat,
