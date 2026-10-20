@@ -500,3 +500,38 @@ describe('the session start asks for the scripts of the tests and the line of th
     expect(sortie(TESTS).texte).not.toContain("La nuit n'est pas programmée");
   });
 });
+
+// grillhouse-3uv.89, L2: the session start speaks to the supervisor; a session of a role agent
+// (`claude --agent <rôle>`, whose input names the agent, `agent_type`) receives nothing from it.
+// Witness: BPScript 320.3, « pas encore renseignés » for the documents of the packages the
+// envelope hides, relayed by 4 agents in their final answer.
+describe('the session start and the sessions of a role', () => {
+  const avecRole = () => {
+    const dir = mkdtempSync(path.join(racine, 'role-'));
+    mkdirSync(path.join(dir, '.claude/agents'), { recursive: true });
+    writeFileSync(path.join(dir, '.claude/agents/testeur.md'), '---\nname: testeur\n---\n');
+    return dir;
+  };
+  const demarrerAvec = (dir: string, input: object) =>
+    spawnSync(BASH, [SCRIPT], {
+      encoding: 'utf8',
+      input: JSON.stringify(input),
+      env: { HOME: racine, PATH: avec, CLAUDE_PROJECT_DIR: dir, ...configGit() },
+    });
+  const DEBUT = { hook_event_name: 'SessionStart', source: 'startup' };
+
+  it('says nothing to a session of a role agent of the project, however much the project lacks', () => {
+    const r = demarrerAvec(avecRole(), { ...DEBUT, agent_type: 'testeur' });
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stdout).toBe('');
+  });
+
+  it('still speaks to the supervisor, and to a session of an agent the project does not define', () => {
+    const dir = avecRole();
+    for (const input of [DEBUT, { ...DEBUT, agent_type: 'Explore' }]) {
+      const r = demarrerAvec(dir, input);
+      expect(r.status, r.stderr).toBe(0);
+      expect(r.stdout).toContain('Pas encore renseignés');
+    }
+  });
+});

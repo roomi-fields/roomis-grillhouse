@@ -11,10 +11,12 @@ prime sur tout le reste.
 
 ## Au démarrage
 
-1. Lis ton ticket en entier (`bd show`, `bd comments`), puis `bd update <id> --claim`. Des notes
-   au ticket (ta consigne les porte, « LES NOTES DU TICKET ») disent qu'un agent s'est arrêté
-   avant toi : tu reprends au point qu'elles nomment, sur
-   l'état de ta copie (`git -C <copie> status`, `git -C <copie> diff`).
+1. Ta consigne porte ton ticket, lu au lancement de ta séance : sa description et ses critères,
+   ses notes, la dernière passation de ton rôle sur ton composant (celle du testeur, pour ta
+   première séance). Tu ne le relis pas par bd, qui le refuse à ta séance. Puis
+   `bd update <id> --claim`. Des notes au ticket disent qu'un agent s'est arrêté avant toi : tu
+   reprends au point qu'elles nomment, sur l'état de ta copie (`git -C <copie> status`,
+   `git -C <copie> diff`).
 2. Lis les documents des composants que ton ticket touche : `CADRE.md`, `INTERFACE.md`,
    `ARCHITECTURE.md` (`docs/`, ou `packages/<x>/docs/`), et le lexique `CONTEXT.md`. Ainsi ton
    code part de l'architecture écrite. Un document absent ne t'arrête pas.
@@ -72,10 +74,16 @@ après lui, écrit le rapport d'API et la part générée de ton seul composant.
 partagée, en lecture seule pour toi, arrive construite : `npm test -- <un test de la matière>` la
 joue sans la construire, et les journaux et le cache du lancement restent dans ta séance. Les
 gardes du cadre (frontières, consommateurs, index des interfaces, rapports d'API) tournent à côté
-des tests, par `npm run verifier`, que l'intégration joue ; le relecteur les joue seules sur la
-copie (`npm run verifier -- --gardes`) ; leur refus nomme la commande qui corrige. Un lancement qui sort en 75, « à repasser », n'a vu que des échecs de durée sous charge
+des tests, dans la passe complète que l'intégration joue ; le relecteur les joue seules sur la
+copie ; leur refus nomme la commande qui corrige. Un lancement qui sort en 75, « à repasser », n'a vu que des échecs de durée sous charge
 (la pression CPU écrite à chaque échec) : tu le relances la machine au repos, et un échec au repos
 est un vrai rouge.
+
+**Un fichier s'écrit par l'outil Write ou Edit**, que ton verrou juge : jamais par un script
+(python3, sed -i, perl -i) ni par une redirection du shell, que ta séance refuse ; un fichier
+temporaire va dans `$TMPDIR`. Les tests se lancent par `npm test -- <fichiers>`, jamais par l'outil
+de test directement. Ainsi chaque écriture passe par le verrou de ton rôle, et une substitution qui
+ne trouve pas son texte échoue au lieu de passer en silence.
 
 ## Ce qui t'arrête
 
@@ -104,7 +112,7 @@ son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
 
 - **Le circuit contrôle après toi** : ta séance finie, le circuit du ticket joue les tests du lot
   et de chaque paquet des composants jusqu'au tien, puis les gardes dans ton enveloppe ; après le
-  dernier composant, la passe finale : `npm run verifier`, ce que joue l'intégration. Un rouge te
+  dernier composant, la passe finale, la passe complète que joue l'intégration. Un rouge te
   relance avec sa sortie quand il est dans ton composant. Tu es lancé sur un rouge (de la preuve, un `rouge existant` compris, ou des
   contrôles), ou directement dans un composant qui ne porte aucun test (aucun paquet avec un
   script `test:vitest`), sans testeur ni preuve : une séance qui ne change aucun fichier de ton

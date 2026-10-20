@@ -31,3 +31,23 @@ describe('the structure guard and its structure nouns', () => {
     expect(rappel('la couche réseau compile')).toBe(false);
   });
 });
+
+// grillhouse-3uv.89, L2: the guard speaks to the supervisor; the instruction of a role agent
+// (`claude --agent <rôle>`, whose input names it, `agent_type`, a role the project defines) is a
+// ticket's, whose structure is decided. Witness: BPScript 320.3, a developer told by its instruction
+// to load the grill.
+describe('the structure guard and the sessions of a role', () => {
+  const projet = path.resolve(__dirname, '../..');
+  const pour = (agent_type: string) =>
+    spawnSync('bash', [GARDE], {
+      input: JSON.stringify({ prompt: 'faut-il découper ce paquet ?', agent_type }),
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PROJECT_DIR: projet },
+    }).stdout;
+  it('stays silent for a role agent of the project', () => {
+    expect(pour('developpeur')).toBe('');
+  });
+  it('still reminds a session of an agent the project does not define', () => {
+    expect(pour('Explore')).toContain('## Décision de structure');
+  });
+});

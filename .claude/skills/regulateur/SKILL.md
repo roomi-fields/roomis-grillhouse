@@ -8,13 +8,16 @@ description: "Le régulateur : trancher un arrêt du circuit d'un ticket — lir
 Je tranche un arrêt du circuit d'un ticket, à l'étape 2 Arbitrage. Le superviseur lance le
 circuit ; quand il s'arrête
 sur un code autre que 0 et 75, le circuit me lance lui-même, neuf, dans la copie du ticket, avec le
-ticket, l'arrêt et son code, son étape, son composant, sa raison, et les chemins de l'état
+ticket, l'arrêt et son code, son étape, son composant, sa raison, les rouges de l'arrêt lus dans
+les résultats structurés, chacun avec son composant, et les chemins de l'état
 (`.claude/worktrees/<ticket>.circuit.json`) et du journal. Il attend ma décision, puis
 l'applique. Je n'écris ni code ni test. La charte (`CLAUDE.md`) prime sur cette compétence.
 
-Au premier geste, je lis l'état (son `rapport` et son `journal`), le ticket et ses commentaires ;
-la rubrique « Ce qui monte au superviseur » de la charte du projet, déjà dans mon contexte, dit les
-sujets que le projet garde au superviseur.
+Au premier geste, je lis l'état (son `rapport` et son `journal`), le ticket et ses commentaires
+(`bd show <ticket>`, `bd comments <ticket>`) ; la rubrique « Ce qui monte au superviseur » de la
+charte du projet, déjà dans mon contexte, dit les sujets que le projet garde au superviseur. Le
+journal fait plusieurs Mo : je le lis par morceaux, `grep -n <motif> <journal>` pour trouver une
+étape ou un rouge, `tail -n <lignes> <journal>` pour sa fin, jamais en entier.
 
 ## Le circuit
 
@@ -31,7 +34,7 @@ sujets que le projet garde au superviseur.
    monter (`MONTE`).
    La preuve d'un composant joue ses paquets en entier : un test que HEAD tient et que le lot
    rougit est un « rouge existant », qui suffit à lancer son développeur. La passe finale, après
-   le dernier composant, joue `npm run verifier`, ce que joue l'intégration : un rouge dans un
+   le dernier composant, joue la passe complète, ce que joue l'intégration : un rouge dans un
    paquet hors du titre (un lecteur d'une matière que le lot change) arrête le circuit à
    `controles`, le paquet nommé ; je décide alors : faire monter l'ajout de ce composant au titre
    (le titre est au superviseur), ou faire corriger le lot par `RELANCE --depuis`.
@@ -106,9 +109,10 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
 
 - **La lettre d'un critère se tranche seule** : ce que couvre la lettre d'un critère, un précédent
   écrit (le commentaire « Arbitrage… » d'un ticket fermé, retrouvé par `bd search`) ou une règle
-  du cadre, je le tranche. J'ajoute un critère numéroté à la fin de la description, sans toucher
-  l'Architecture ni les critères existants, et un commentaire « ## Arbitrage du régulateur »
-  qui porte la ligne « ### Verdict — tranché — <sa source> ». Ainsi chaque décision garde sa
+  du cadre, je le tranche. J'ajoute un critère numéroté à la fin de la description
+  (`bd update <ticket> -d <description>`), sans toucher l'Architecture ni les critères existants,
+  et un commentaire « ## Arbitrage du régulateur » (`bd comments add <ticket> <texte>`) qui porte
+  la ligne « ### Verdict — tranché — <sa source> ». Ainsi chaque décision garde sa
   preuve, et l'intégration la compte comme tranchée.
 - **Un critère répond à l'usage actuel** : j'ajoute un critère seulement pour un cas qu'un
   projet rencontre aujourd'hui (BPScript, Grillhouse, le projet du ticket) ; un cas seulement

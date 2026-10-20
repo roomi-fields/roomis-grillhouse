@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// The write lock of a role agent: a PreToolUse hook declared in the agent's frontmatter
-// (`node scripts/verrous/verrou.mjs <role>`). It reads the hook's JSON on stdin and refuses a
+// The write lock of a role agent: a PreToolUse hook declared in the settings of its session
+// (scripts/droits.mjs: `node scripts/verrous/verrou.mjs <role>`). It reads the hook's JSON on stdin and refuses a
 // file write the role does not own, with exit code 2 and its reason on stderr.
 //
 // - A path under the system temp directory (the session scratchpad) is always writable.

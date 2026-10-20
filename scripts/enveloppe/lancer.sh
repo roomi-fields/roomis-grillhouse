@@ -77,9 +77,12 @@
 #   temporary file goes (`dossierDeTravail` of enveloppe.mjs, the envelope's TMPDIR), then the
 #   section « La construction de ton paquet échoue » when it fails. The prompt
 #   carries « TON TICKET : <ticket> », which the role's locks read. The envelope is the sandbox, so
-#   the session runs without permission prompts, save the rules that refuse it the change of its
-#   author at the ticket (`--disallowedTools`, AUTEUR_FIXE of scripts/circuit.mjs): its comments
-#   carry the author the launch names in BEADS_ACTOR, which the envelope passes on.
+#   the session runs without permission prompts, under the rights and the context of its role
+#   (scripts/droits.mjs, given the main tree, the copy and the ticket; a reading that fails stops
+#   the launch, CODE_COPIE): the user's own configuration left out, its settings on the command
+#   line (its refusals, among them the change of its author at the ticket, AUTEUR_FIXE: its
+#   comments carry the author the launch names in BEADS_ACTOR, which the envelope passes on; its
+#   locks), its tools and no server of the index.
 # - A role that ends on a sheet (scripts/resultats.mjs: the testeur, the developpeur) runs with
 #   `--output-format json --json-schema <its schema>` (`node scripts/resultats.mjs --schema
 #   <rôle>`): claude's JSON result, its sheet in `structured_output`, goes to
@@ -274,11 +277,10 @@ else
   printf '%s' "$(cat "$consigne")"$'\n\n'"$publie$dossier$construction" > "$prompt"
 fi
 
-# The rules that refuse the session the change of its author at the ticket (AUTEUR_FIXE of the
-# circuit), one per line.
-auteur_fixe=$(node --input-type=module -e "import { AUTEUR_FIXE } from '$ici/../circuit.mjs'; console.log(AUTEUR_FIXE.join('\n'));" 2>> "$journal") \
-  || { rm -f "$prompt"; echo "⛔ Les règles de l'auteur de la séance n'ont pas pu se lire : voir $journal." >&2; exit "$CODE_COPIE"; }
-mapfile -t refus_auteur <<<"$auteur_fixe"
+# The rights and the context of the role's session (scripts/droits.mjs), one option per line.
+droits=$(node "$ici/../droits.mjs" "$role" --racine "$racine" --copie "$copie" --ticket "$ticket" 2>> "$journal") \
+  || { rm -f "$prompt"; echo "⛔ Les droits de la séance n'ont pas pu se lire : voir $journal." >&2; exit "$CODE_COPIE"; }
+mapfile -t droits_du_role <<<"$droits"
 
 # The schema of the role's end-of-session sheet (scripts/resultats.mjs), for a role that has one:
 # the session ends on it, which claude writes in its JSON result, on the standard output.
@@ -292,7 +294,7 @@ lancer_claude() {
   node "$racine/scripts/enveloppe/enveloppe.mjs" "$copie" "$composant" "$role" -- \
     "${CLAUDE_BIN:-claude}" -p --agent "$role" \
     ${surcharge[@]+"${surcharge[@]}"} ${fiche[@]+"${fiche[@]}"} --permission-mode bypassPermissions \
-    --disallowedTools "${refus_auteur[@]}" < "$prompt"
+    "${droits_du_role[@]}" < "$prompt"
 }
 if [ -n "$schema" ]; then
   lancer_claude > "$resultat" 2>> "$journal" || code=$?

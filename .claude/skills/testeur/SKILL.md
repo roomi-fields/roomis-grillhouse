@@ -12,7 +12,9 @@ reste.
 
 ## Au démarrage
 
-1. Lis ton ticket en entier (`bd show`, `bd comments`), puis `bd update <id> --claim`.
+1. Ta consigne porte ton ticket, lu au lancement de ta séance : sa description et ses critères,
+   ses notes, la dernière passation de ton rôle sur ton composant. Tu ne le relis pas par bd, qui
+   le refuse à ta séance. Puis `bd update <id> --claim`.
 2. Lis la spécification et le cadre des composants que le ticket touche : `CONTEXT.md`, puis
    `CADRE.md`, `INTERFACE.md` et `ARCHITECTURE.md` de chaque composant.
 3. Lis la section « Ce que les composants d'avant publient » de ta consigne : pour chaque
@@ -27,6 +29,13 @@ reste.
 - `docs/ARCHITECTURE.md` — l'architecture d'ensemble : quand un critère touche une frontière.
 - `docs/agents/issue-tracker.md` — la passation au ticket : avant d'y écrire.
 - Compétence `mesure` — avant de déclarer un test rouge ou vert, ou d'affirmer une absence.
+
+## Tes outils
+
+**Un fichier s'écrit par l'outil Write ou Edit**, que ton verrou juge : jamais par un script
+(python3, sed -i, perl -i) ni par une redirection du shell, que ta séance refuse ; un fichier
+temporaire va dans `$TMPDIR`. Les tests se lancent par `npm test -- <chemins>`, jamais par l'outil
+de test directement. Ainsi chaque écriture passe par le verrou de ton rôle.
 
 ## Les tests
 
@@ -116,7 +125,7 @@ machine occupée.
 bornée, un écart de temps comparé à un seuil) enveloppe sa mesure dans
 `mesurerAuRepos(ctx, () => …)`, importé de `@grillhouse/vitest-config/mesure`. Son échec sous
 charge, comme un délai dépassé ou l'échec d'un banc, est « à repasser » (code 75) : ni vert ni
-rouge, il se rejoue au repos. Son fichier joue seul dans `npm run verifier`, après tous les autres
+rouge, il se rejoue au repos. Son fichier joue seul dans la passe complète, après tous les autres
 tests : un témoin vit dans un fichier à lui, sans test ordinaire à côté. Un test qui ne mesure
 aucune durée ne se marque pas. Ainsi seul un témoin de temps profite de la relance, et un vrai
 défaut reste rouge.
@@ -130,7 +139,7 @@ Ainsi le jour reste court, et la preuve longue tourne chaque nuit.
 
 **Un rouge connu se met en quarantaine dans son test** : un test qui reste rouge le temps d'un
 autre ticket s'écrit `it.skip` (ou `it.fails` quand il doit échouer) avec un commentaire qui nomme
-ce ticket. L'intégration exige un `npm run verifier` vert et n'admet aucun rouge. Ainsi main reste vert, et
+ce ticket. L'intégration exige une passe complète verte et n'admet aucun rouge. Ainsi main reste vert, et
 chaque rouge connu a son ticket.
 
 ## La fin

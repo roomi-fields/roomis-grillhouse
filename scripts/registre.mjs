@@ -6,7 +6,8 @@
 // (scripts/circuit.mjs) writes a line at the end of each step it leads itself, with no agent
 // (`ligneDEtape`: its role `circuit`, its step and component, one turn, no tokens).
 //
-// - The line: the project (its main tree), the agent, its ticket (« TON TICKET : »; a sub-agent
+// - The line: the project (the main tree of the directory the session opened in, which the hook
+//   reads in CLAUDE_PROJECT_DIR, else in its input's `cwd`), the agent, its ticket (« TON TICKET : »; a sub-agent
 //   whose prompt names none takes that of the regulator that launched it), its role,
 //   its start and end, its working time and the turns it sums (start and end in milliseconds, the
 //   waits for a message left out), its tokens, its cache reads and its cost when the session wrote
@@ -313,7 +314,7 @@ if (direct && process.argv.includes('--rattraper')) {
 } else if (direct && process.argv[2] === '--ecrire') {
   try {
     const input = JSON.parse(process.argv[3]);
-    ecrireLaLigne(input, arbrePrincipal(input.cwd ?? process.cwd()));
+    ecrireLaLigne(input, arbrePrincipal(input.projet_dir ?? input.cwd ?? process.cwd()));
   } catch {
     // A reading that fails writes nothing.
   }
@@ -321,6 +322,9 @@ if (direct && process.argv.includes('--rattraper')) {
   try {
     const input = JSON.parse(readFileSync(0, 'utf8'));
     const retenu = Object.fromEntries(CHAMPS.filter(c => input[c] != null).map(c => [c, input[c]]));
+    // The directory the session opened in: the last directory of its shell (`cwd`) may lie where
+    // git finds no repository, a mount of the envelope, where git stops at the boundary.
+    if (process.env.CLAUDE_PROJECT_DIR) retenu.projet_dir = process.env.CLAUDE_PROJECT_DIR;
     spawn(process.execPath, [process.argv[1], '--ecrire', JSON.stringify(retenu)], {
       detached: true,
       stdio: 'ignore',

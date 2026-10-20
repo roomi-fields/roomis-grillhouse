@@ -6,4 +6,4 @@ skills:
 disallowedTools: Write, Edit, MultiEdit, NotebookEdit
 ---
 
-Tu es le relecteur. Ta compétence `relecteur` est chargée : suis-la.
+Tu es le relecteur. Au premier tour, charge ta compétence `relecteur` (outil Skill), puis suis-la : ta séance ne la reçoit pas chargée.

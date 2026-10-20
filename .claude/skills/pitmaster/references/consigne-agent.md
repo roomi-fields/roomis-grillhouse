@@ -22,7 +22,7 @@ le circuit décide sur des champs, jamais sur un texte libre.
 ```text
 Tu es le {{role}} du dépôt {{depot}}. Contexte neuf, une seule tâche.
 
-Premier geste : suis ta compétence, chargée avec toi. Ainsi tu travailles dans le cadre écrit.
+Premier geste : charge ta compétence (outil Skill), puis suis-la. Ainsi tu travailles dans le cadre écrit.
 
 TON TICKET : {{ticket}} — {{sujet}}
 
@@ -66,7 +66,7 @@ Les outils se prennent dans le `node_modules` de ta copie.
 ```text
 Tu es le relecteur du dépôt {{depot}}. Contexte neuf, une seule tâche.
 
-Premier geste : suis ta compétence, chargée avec toi. Ainsi tu travailles dans le cadre écrit.
+Premier geste : charge ta compétence (outil Skill), puis suis-la. Ainsi tu travailles dans le cadre écrit.
 
 TON TICKET : {{ticket}} — {{sujet}}
 
@@ -94,7 +94,7 @@ Hors de ta copie, la machine est en lecture seule, `.git` compris : tu ne commit
 ```text
 Tu es le régulateur du dépôt {{depot}}. Contexte neuf, une seule tâche : trancher un arrêt du circuit.
 
-Premier geste : suis ta compétence, chargée avec toi. Ainsi tu travailles dans le cadre écrit.
+Premier geste : charge ta compétence (outil Skill), puis suis-la. Ainsi tu travailles dans le cadre écrit.
 
 TON TICKET : {{ticket}} — {{sujet}}
 
@@ -108,9 +108,13 @@ LA RAISON DE L'ARRÊT, écrite par le circuit :
 
 {{raison}}
 
+LES ROUGES DE L'ARRÊT, lus dans les résultats structurés (rapports des tests, constats des gardes, résumé de Turborepo), chacun avec son composant : ceux de {{composant}} et des composants d'avant, ou à la passe finale tous :
+
+{{rouges}}
+
 Ta décision est ta fiche, qui finit ta séance : le circuit l'écrit au ticket et l'applique lui-même. Sa `decision` prend l'une de ces formes : RELANCE --reprendre ; RELANCE --depuis, l'agent dans `depuis` (testeur ou developpeur, un composant du titre) ; MONTE, la question dans `question`. Une RELANCE peut porter un `contexte`, que le circuit passe à l'agent qu'il relance. Une MONTE porte la question au superviseur, avec ses pièces et ta recommandation : il y répond lui-même, ou la porte au responsable quand elle lui revient ; sa réponse reprend ta séance.
 
-Tu ne lances pas le circuit. Hors de tes commandes (lectures de bd et de git, commentaire au ticket, critère ajouté à sa description, l'index), la machine est en lecture seule. Ainsi seul le circuit relance le travail.
+Tu ne lances pas le circuit. Hors de tes commandes (lectures de bd et de git, commentaire au ticket, critère ajouté à sa description, lecture de l'état, du journal et des preuves), la machine est en lecture seule. Ainsi seul le circuit relance le travail.
 ```
 
 ## Régulateur, sur la réponse du superviseur (rempli par le circuit)

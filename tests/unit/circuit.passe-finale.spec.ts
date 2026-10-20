@@ -28,6 +28,7 @@ const {
   ticket,
   scenario,
   circuit,
+  essai,
   sessions,
   args,
   etat,
@@ -164,5 +165,16 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
       .pop();
     expect(arret).toContain('arrêt controles');
     expect(arret).toContain('020-loader');
+    // The regulator receives the stop's reds read in the structured results, each with its
+    // component, apart from the reason, which no longer repeats them.
+    const prompt = essai(id, 'regulateur-1.prompt');
+    expect(prompt).toContain("LES ROUGES DE L'ARRÊT");
+    expect(prompt).toContain('- 020-loader : test packages/loader/test/bibliotheques.test.mjs › ');
+    const raison = prompt.slice(
+      prompt.indexOf("LA RAISON DE L'ARRÊT"),
+      prompt.indexOf("LES ROUGES DE L'ARRÊT")
+    );
+    expect(raison).toContain('hors des composants du ticket (packages/forms)');
+    expect(raison).not.toContain('bibliotheques.test.mjs');
   });
 });

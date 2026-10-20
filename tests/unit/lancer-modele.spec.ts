@@ -6,7 +6,7 @@ import { canWrap, racineSousLaMaison } from '../machine.js';
 import { CODE_USAGE } from '../../scripts/enveloppe/codes.mjs';
 import { dossierDeTravail } from '../../scripts/enveloppe/enveloppe.mjs';
 import { publie } from '../../scripts/index-interfaces.mjs';
-import { AUTEUR_FIXE } from '../../scripts/circuit.mjs';
+import { optionsDuRole } from '../../scripts/droits.mjs';
 import { schemaDeFiche } from '../../scripts/resultats.mjs';
 
 // Ticket grillhouse-3uv.46: the launcher takes a model and a reasoning level for one session
@@ -177,10 +177,10 @@ const TRAVAIL = (ticket: string) =>
 const PROMPT = (ticket: string) =>
   `TON TICKET : ${ticket} — un sujet.\n\n${PUBLIE_POUR_A}\n\n${TRAVAIL(ticket)}`;
 
-// The arguments claude receives today: the schema of the role's sheet and claude's JSON output,
-// then the rules that refuse the session a change of its author at the ticket last; the
+// The arguments claude receives today for <ticket>: the schema of the role's sheet and claude's
+// JSON output, then the rights and the context of its role last (scripts/droits.mjs); the
 // instruction is not among them.
-const AUJOURDHUI = [
+const AUJOURDHUI = (ticket: string) => [
   '-p',
   '--agent',
   'developpeur',
@@ -190,8 +190,12 @@ const AUJOURDHUI = [
   JSON.stringify(schemaDeFiche('developpeur')),
   '--permission-mode',
   'bypassPermissions',
-  '--disallowedTools',
-  ...AUTEUR_FIXE,
+  ...optionsDuRole('developpeur', {
+    racine: REPO,
+    copie: path.join(REPO, '.claude/worktrees', ticket),
+    ticket,
+    home: HOME,
+  }),
 ];
 
 // The value that follows a flag, each time it appears.
@@ -210,7 +214,7 @@ describe.runIf(canWrap)('the launcher and the model and level of a session', () 
     expect(r.status, r.stderr).toBe(0);
     expect(valeurs(args ?? [], '--model')).toEqual(['opus']);
     expect(valeurs(args ?? [], '--effort')).toEqual(['high']);
-    expect(sansSurcharge(args ?? [])).toEqual(AUJOURDHUI);
+    expect(sansSurcharge(args ?? [])).toEqual(AUJOURDHUI(ticket));
     expect(prompt).toBe(PROMPT(ticket));
   });
   it('critère 1 — the two options in the other order launch the same session', () => {
@@ -218,7 +222,7 @@ describe.runIf(canWrap)('the launcher and the model and level of a session', () 
     expect(r.status, r.stderr).toBe(0);
     expect(valeurs(args ?? [], '--model')).toEqual(['opus']);
     expect(valeurs(args ?? [], '--effort')).toEqual(['high']);
-    expect(sansSurcharge(args ?? [])).toEqual(AUJOURDHUI);
+    expect(sansSurcharge(args ?? [])).toEqual(AUJOURDHUI(ticket));
     expect(prompt).toBe(PROMPT(ticket));
   });
   it('critère 1 — --modele alone sets the model and leaves the level to the role', () => {
@@ -226,7 +230,7 @@ describe.runIf(canWrap)('the launcher and the model and level of a session', () 
     expect(r.status, r.stderr).toBe(0);
     expect(valeurs(args ?? [], '--model')).toEqual(['haiku']);
     expect(args).not.toContain('--effort');
-    expect(sansSurcharge(args ?? [])).toEqual(AUJOURDHUI);
+    expect(sansSurcharge(args ?? [])).toEqual(AUJOURDHUI(ticket));
     expect(prompt).toBe(PROMPT(ticket));
   });
   it('critère 1 — --effort alone sets the level and leaves the model to the role', () => {
@@ -234,7 +238,7 @@ describe.runIf(canWrap)('the launcher and the model and level of a session', () 
     expect(r.status, r.stderr).toBe(0);
     expect(valeurs(args ?? [], '--effort')).toEqual(['low']);
     expect(args).not.toContain('--model');
-    expect(sansSurcharge(args ?? [])).toEqual(AUJOURDHUI);
+    expect(sansSurcharge(args ?? [])).toEqual(AUJOURDHUI(ticket));
     expect(prompt).toBe(PROMPT(ticket));
   });
   it('critère 1 — a full model name goes to claude as written', () => {
@@ -253,7 +257,7 @@ describe.runIf(canWrap)('the launcher and the model and level of a session', () 
   it('critère 2 — without an option, claude receives the command of today: the role decides', () => {
     const { r, args, prompt, ticket } = lancer([]);
     expect(r.status, r.stderr).toBe(0);
-    expect(args).toEqual(AUJOURDHUI);
+    expect(args).toEqual(AUJOURDHUI(ticket));
     expect(prompt).toBe(PROMPT(ticket));
   });
 
@@ -325,7 +329,7 @@ describe.runIf(canWrap)('the launcher and what the components before publish', (
     const { r, args, prompt, copie, ticket } = lancer([], [], 'packages/d');
     const journal = existsSync(`${copie}.log`) ? readFileSync(`${copie}.log`, 'utf8') : '';
     expect(r.status, `${r.stderr}\n${journal}`).toBe(0);
-    expect(args).toEqual(AUJOURDHUI);
+    expect(args).toEqual(AUJOURDHUI(ticket));
     const section = publie(copie, 'packages/d');
     expect(Buffer.byteLength(section)).toBeGreaterThan(128 * 1024);
     expect(prompt).toBe(`TON TICKET : ${ticket} — un sujet.\n\n${section}\n\n${TRAVAIL(ticket)}`);

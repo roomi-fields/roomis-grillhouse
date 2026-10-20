@@ -73,9 +73,9 @@
 //   `relecteur`, `regulateur`), which the envelope passes on; the circuit writes its own
 //   lines under `circuit` and the reviewer's verdict under `relecteur`, and the queue writes under
 //   `file` (scripts/integration/file.mjs), whose last word the circuit names. The rights of every
-//   session refuse bd's `--actor`, `-a`/`--author` and the variable itself (AUTEUR_FIXE: the
-//   reviewer's and the regulator's lists, and lancer.sh's for a session in the envelope), so that no
-//   agent changes its author.
+//   session refuse bd's `--actor`, `-a`/`--author` and the variable itself (AUTEUR_FIXE of
+//   scripts/droits.mjs, in the settings of every role's session), so that no agent changes its
+//   author.
 // - The sheet of the testeur and of the developpeur carries its status (`statut`): FAIT goes on as
 //   below; BESOIN (its `question`) stops the circuit at once at « besoin », the question and the
 //   handover as its report, with no session more; so does BLOQUÉ (its `raison`), at
@@ -168,8 +168,8 @@
 //   « controles ».
 // - After the final pass, green, the reviewer: a session out of the envelope, which sees the whole
 //   repository with its index, claude itself (`claude -p --agent relecteur --session-id <uuid>`,
-//   CLAUDE_BIN replaces claude) in the ticket's copy, on Opus, under the project's permissions
-//   and every command its skill runs (RELECTEUR), its instruction from the second template of
+//   CLAUDE_BIN replaces claude) in the ticket's copy, on Opus, under the rights and the
+//   context of its role (scripts/droits.mjs: the commands its skill names, its index), its instruction from the second template of
 //   consigne-agent.md: the ticket, its components, the path of the claims file (the ticket's
 //   description as `bd show` gives it at the session's launch, written by the circuit in its
 //   working folder, which the session may read; the instruction carries no criteria, which the
@@ -240,9 +240,10 @@
 //   the final pass, the reviewer and the integration. It goes with no `--reprendre`.
 // - On a stop other than 0 and 75, the regulator: a session out of the envelope, as the
 //   reviewer's, claude itself (`claude -p --agent regulateur --session-id <uuid>`) in the
-//   ticket's copy (the main tree once the integration removed it), on Sonnet, under the commands
-//   its skill runs (droitsDuRegulateur: the reads of bd, a comment, a criterion added to the
-//   description, the reads of git, the index, and the reads of the state, the log and the proofs),
+//   ticket's copy (the main tree once the integration removed it), on Sonnet, under the rights
+//   and the context of its role (scripts/droits.mjs: the commands its skill names, the reads of
+//   bd, a comment, a criterion added to the description, and the reads of the state, the log and
+//   the proofs, the log searched in pieces),
 //   its instruction from the third template of consigne-agent.md: the ticket, the stop's name and
 //   code, its step, component and reason, the paths of the state and the log. The state names its
 //   session (`regulateur`) while it runs. Its sheet is its decision (`decision`: « RELANCE
@@ -310,6 +311,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
 import { ecrireLeBilan } from './bilan.mjs';
+import { optionsDuRole } from './droits.mjs';
 import { matieres, NOM_DE_TEST } from './consommateurs.mjs';
 import { VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/composant.mjs';
 import { ARBITRAGE, AUTOMATIQUE, ETAPES, etapeDuCircuit, libelle, REGULATEUR } from './etapes.mjs';
@@ -373,73 +375,24 @@ const [TESTS, PREUVE, CODE, CONTROLES, RELECTURE, INTEGRATION, EN_FILE] = [
 const ACTEUR = 'BEADS_ACTOR';
 const AUTEUR_DU_CIRCUIT = 'circuit';
 const auteur = (role, composant) => (DESTINATAIRES.includes(role) ? `${role} ${composant}` : role);
-// The rules that refuse a session the change of its author at the ticket: bd's options `--actor`
-// and `-a`/`--author`, and the variable itself. The reviewer's and the regulator's lists end on them,
-// and lancer.sh gives them to a session in the envelope.
-export const AUTEUR_FIXE = [
-  'Bash(bd *--actor*)',
-  'Bash(bd *--author*)',
-  'Bash(bd * -a*)',
-  `Bash(*${ACTEUR}*)`,
-];
-// The reviewer's session, out of the envelope, on Opus: the project's permissions
-// (`.claude/settings.json`), with every command its skill runs (the frame's scripts, the reads of
-// git and of the ticket, the comparison of two files, the targeted tests, the guards, the index);
-// any other tool call is refused without a prompt, and so is a change of its author (AUTEUR_FIXE).
-const RELECTEUR = [
+// The sessions out of the envelope (the reviewer on Opus, the regulator on Sonnet), each in the
+// ticket's copy, the main tree once the integration removed it, under the rights and the context
+// of its role (scripts/droits.mjs: the commands its skill names, the regulator's reads of the
+// ticket's state, log and proofs, the refusal of a change of its author at the ticket), without a
+// prompt: any call its rights do not permit is refused.
+const horsDeLEnveloppe = (ctx, role, modele) => [
   '--model',
-  'opus',
+  modele,
   '--permission-mode',
   'dontAsk',
-  '--allowedTools',
-  'Bash(node scripts/*)',
-  'Bash(bash scripts/*)',
-  'Bash(git diff *)',
-  'Bash(git log *)',
-  'Bash(git show *)',
-  'Bash(git status *)',
-  'Bash(bd show *)',
-  'Bash(bd comments *)',
-  'Bash(diff *)',
-  'Bash(cmp *)',
-  'Bash(sha256sum *)',
-  'Bash(npm test *)',
-  'Bash(npm run verifier *)',
-  'Bash(codegraph *)',
-  'mcp__plugin_rtfm_rtfm__rtfm_search',
-  'mcp__plugin_rtfm_rtfm__rtfm_expand',
-  '--disallowedTools',
-  ...AUTEUR_FIXE,
-];
-// The regulator's session, out of the envelope, on Sonnet: every command its skill runs (the
-// reads of the ticket and the search of a precedent, a comment, a criterion added to the
-// description, the reads of git, the index) and the reads of the ticket's state, log and proofs
-// (its discoveries go in its sheet, which the circuit files); any other tool call is refused
-// without a prompt, and so is a change of its author (AUTEUR_FIXE).
-const droitsDuRegulateur = ctx => [
-  '--model',
-  'sonnet',
-  '--permission-mode',
-  'dontAsk',
-  '--allowedTools',
-  'Bash(bd show *)',
-  'Bash(bd comments *)',
-  'Bash(bd search *)',
-  'Bash(bd list *)',
-  'Bash(bd update * -d *)',
-  'Bash(git diff *)',
-  'Bash(git log *)',
-  'Bash(git show *)',
-  'Bash(git status *)',
-  'Bash(codegraph *)',
-  'mcp__plugin_rtfm_rtfm__rtfm_search',
-  'mcp__plugin_rtfm_rtfm__rtfm_expand',
-  // An absolute path of the machine opens on `//`.
-  `Read(/${ctx.etat})`,
-  `Read(/${ctx.journal})`,
-  `Read(/${ctx.copie}.preuve-*.md)`,
-  '--disallowedTools',
-  ...AUTEUR_FIXE,
+  ...optionsDuRole(role, {
+    racine: ctx.racine,
+    copie: existsSync(ctx.copie) ? ctx.copie : ctx.racine,
+    ticket: ctx.ticket,
+    etat: ctx.etat,
+    journal: ctx.journal,
+    preuves: `${ctx.copie}.preuve-*.md`,
+  }),
 ];
 const FORT = ['--modele', 'opus', '--effort', 'high'];
 const PREFIXE = 'Circuit · ';
@@ -462,12 +415,16 @@ const GABARIT = path.join(
   'consigne-agent.md'
 );
 
-// A stop of the circuit: its name (a key of ARRETS) and its report.
+// A stop of the circuit: its name (a key of ARRETS) and its report; for a stop of the checks, its
+// reds read in the structured results (`{ composant, texte, detail }`) and its motive, the report
+// without their list, which the regulator receives apart.
 class Arret extends Error {
-  constructor(nom, rapport) {
+  constructor(nom, rapport, { rouges = null, motif = null } = {}) {
     super(nom);
     this.nom = nom;
     this.rapport = rapport;
+    this.rouges = rouges;
+    this.motif = motif;
   }
 }
 
@@ -761,7 +718,7 @@ const mtime = f => {
 // opens under the id <ouvre> (lancer.sh --seance), or resumes the session <reprend> (lancer.sh
 // --reprise); its result is the file lancer.sh writes (`<ticket>.resultat.json`).
 // A session <horsEnveloppe> (the reviewer's, the regulator's) is claude itself, in the ticket's
-// copy (the main tree once the copy is gone), under <droits> (the reviewer's by default), the
+// copy (the main tree once the copy is gone), under <droits> (`horsDeLEnveloppe`), the
 // schema of its role's sheet and the options <session> names (its id, or the session it
 // resumes), its instruction on its standard input and its result on its standard output, added
 // to the log under its header line, then its line written to the register, as lancer.sh does.
@@ -770,7 +727,7 @@ function lancer(
   role,
   composant,
   consigne,
-  { fort, horsEnveloppe, droits = RELECTEUR, session = [], ouvre, reprend } = {}
+  { fort, horsEnveloppe, droits = [], session = [], ouvre, reprend } = {}
 ) {
   rmSync(ctx.fin, { force: true });
   rmSync(ctx.resultat, { force: true });
@@ -1145,6 +1102,7 @@ async function relire(ctx, composant) {
   };
   const fiche = await jusquALaFiche(ctx, 'relecteur', composant, consigne(valeurs, 1), {
     horsEnveloppe: true,
+    droits: horsDeLEnveloppe(ctx, 'relecteur', 'opus'),
   });
   const texte = texteDuVerdict(fiche);
   const r = ctx.bdSous(AUTEUR_DU_VERDICT, 'comments', 'add', ctx.ticket, texte);
@@ -1759,6 +1717,7 @@ function controles(ctx, index, finale) {
       : []),
     journal,
   ].join('\n');
+  const sansListe = [`${ou} : ${resume}.`, '', journal].join('\n');
   const complet = [
     `${ou} : ${resume}.`,
     '',
@@ -1777,6 +1736,10 @@ function controles(ctx, index, finale) {
     arbitrer: a.length > 0 && a.every(r => r.arbitrer),
     texte,
     complet,
+    sansListe,
+    // The reds of the stop, each with its component: this component's and those before it, or at
+    // the final pass all of them; never those left to the final pass.
+    rouges: rouges.map(r => ({ composant: nomDuProprio(r), texte: r.texte, detail: r.detail })),
     resume,
     proprietaire: proprio,
     horsTitre: [...new Set(rouges.map(r => r.horsTitre).filter(Boolean))].sort(),
@@ -2089,25 +2052,33 @@ async function derouler(ctx, debut) {
         const passeFinale = finale || index === dernier;
         const k = controles(ctx, index, passeFinale);
         rapport = k.texte;
+        // A stop of the checks: <phrase>, then the report, its reds also kept apart.
+        const arreter = (nom, phrase) => {
+          const avant = phrase ? `${phrase}\n\n` : '';
+          throw new Arret(nom, `${avant}${k.complet}`, {
+            rouges: k.rouges,
+            motif: `${avant}${k.sansListe}`,
+          });
+        };
         // The developpeur a red goes to: this component's, or in the final pass the owner's.
         const vers = k.rouge && passeFinale ? k.proprietaire : index;
         // One count of sessions for the component's checks, and one for the whole final pass,
         // whichever component its red goes to.
         const suivante = tentative + 1;
         if (k.rouge && passeFinale && k.horsTitre.length) {
-          throw new Arret(
+          arreter(
             'controles',
-            `La passe finale est rouge dans ${k.horsTitre.join(', ')}, hors des composants du ticket (${ctx.composants.join(', ')}) : aucun de leurs développeurs n'est relancé. La décision revient au régulateur : faire ajouter ce composant au titre du ticket par le superviseur (\`MONTE\`), le rouge allant ensuite à son développeur ; ou faire corriger le lot par le composant qui le cause (\`RELANCE --depuis developpeur <composant>\`, le rouge en \`contexte\`).\n\n${k.complet}`
+            `La passe finale est rouge dans ${k.horsTitre.join(', ')}, hors des composants du ticket (${ctx.composants.join(', ')}) : aucun de leurs développeurs n'est relancé. La décision revient au régulateur : faire ajouter ce composant au titre du ticket par le superviseur (\`MONTE\`), le rouge allant ensuite à son développeur ; ou faire corriger le lot par le composant qui le cause (\`RELANCE --depuis developpeur <composant>\`, le rouge en \`contexte\`).`
           );
         } else if (k.rouge && vers < 0) {
-          throw new Arret(
+          arreter(
             'controles',
-            `Aucun composant du ticket (${ctx.composants.join(', ')}) ne possède ce rouge de la passe finale (un rouge de la racine, ou que rien ne situe) : la décision revient au régulateur.\n\n${k.complet}`
+            `Aucun composant du ticket (${ctx.composants.join(', ')}) ne possède ce rouge de la passe finale (un rouge de la racine, ou que rien ne situe) : la décision revient au régulateur.`
           );
         } else if (k.rouge && k.arbitrer) {
-          throw new Arret(
+          arreter(
             'controles',
-            `Les rouges de ${ctx.composants[vers]} sont des constats à arbitrer : aucun développeur ne les tranche, la décision revient au régulateur.\n\n${k.complet}`
+            `Les rouges de ${ctx.composants[vers]} sont des constats à arbitrer : aucun développeur ne les tranche, la décision revient au régulateur.`
           );
         } else if (k.rouge && suivante <= SEANCES_DEVELOPPEUR) {
           const qui = vers === index ? '' : ` de ${ctx.composants[vers]}`;
@@ -2123,9 +2094,9 @@ async function derouler(ctx, debut) {
           index = vers;
           finale = passeFinale;
         } else if (k.rouge) {
-          throw new Arret('controles', k.complet);
+          arreter('controles', null);
         } else if (k.aRepasser) {
-          throw new Arret('a-repasser', k.complet);
+          arreter('a-repasser', null);
         } else {
           ecrireRapport(ctx, composant, 'controles', `${k.resume}.`);
           // Green checks: a sending of the developpeur to a testeur may come again.
@@ -2222,7 +2193,7 @@ async function derouler(ctx, debut) {
       process.stderr.write(
         `⛔ Circuit de ${ctx.ticket} arrêté : ${e.nom}, à l'étape ${etape} de ${composant}.\n`
       );
-      return { code, nom: e.nom, rapport: e.rapport, etat };
+      return { code, nom: e.nom, rapport: e.rapport, rouges: e.rouges, motif: e.motif, etat };
     } finally {
       if (menee) inscrireEtape(ctx, menee);
     }
@@ -2287,7 +2258,15 @@ async function trancher(ctx, a, reponse = null) {
     // The step by its number and title, « 5 Code ».
     etape: etapeDuCircuit(a.etat) ? libelle(etapeDuCircuit(a.etat)) : a.etat.etape,
     composant,
-    raison: String(a.rapport ?? '').trim() || 'aucune',
+    raison: String(a.motif ?? a.rapport ?? '').trim() || 'aucune',
+    // The reds of the stop, read in the structured results, each with its component.
+    rouges: a.rouges?.length
+      ? a.rouges
+          .map(r =>
+            [`- ${r.composant} : ${r.texte}`, ...(r.detail ? ['', r.detail, ''] : [])].join('\n')
+          )
+          .join('\n')
+      : 'aucun',
     etat: ctx.etat,
     journal: ctx.journal,
     reponse,
@@ -2304,7 +2283,7 @@ async function trancher(ctx, a, reponse = null) {
       consigne(valeurs, reponse === null ? 2 : 3),
       {
         horsEnveloppe: true,
-        droits: droitsDuRegulateur(ctx),
+        droits: horsDeLEnveloppe(ctx, REGULATEUR, 'sonnet'),
         id: seance,
         premiere: reponse === null ? 'ouvre' : 'reprend',
       }

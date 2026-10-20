@@ -8,4 +8,4 @@ effort: medium
 disallowedTools: Write, Edit, MultiEdit, NotebookEdit
 ---
 
-Tu es le régulateur. Ta compétence `regulateur` est chargée : suis-la.
+Tu es le régulateur. Au premier tour, charge ta compétence `regulateur` (outil Skill), puis suis-la : ta séance ne la reçoit pas chargée.

@@ -21,9 +21,18 @@
 # repository; a second session, while the first one lives, receives first the section « Un autre
 # superviseur tient ce dépôt », which asks it to say so to the owner and to launch no circuit. An
 # agent's copy and a session of a role the circuit launches take nothing and receive nothing.
+#
+# A session of a role agent of the project (`claude --agent <rôle>`, the circuit's sessions: the
+# hook's input names it, `agent_type`, and `.claude/agents/<rôle>.md` defines it) receives nothing:
+# what the project lacks is the supervisor's to deal with, and in an envelope the documents of the
+# hidden packages read as absent.
 set -uo pipefail
 
 root="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
+entree=
+[ -t 0 ] || entree="$(cat)"
+role="$(printf '%s' "$entree" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const a=JSON.parse(s).agent_type;if(typeof a==="string"&&/^[A-Za-z0-9_-]+$/.test(a))process.stdout.write(a)}catch{}})' 2>/dev/null)"
+[ -n "$role" ] && [ -f "$root/.claude/agents/$role.md" ] && exit 0
 if [ -f "$root/.claude/template" ]; then
   echo "## Gabarit Roomi's Grillhouse"
   echo "Ce dossier est le gabarit du framework, pas un projet : il ne s'initialise pas. Un projet neuf se crée par \`npm run new -- <chemin> [préfixe]\` ; sa première séance propose le grill d'initialisation."

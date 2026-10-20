@@ -66,18 +66,18 @@ Three layers, each with one job:
 
 **The brigade** — each skill named after its role first:
 
-| Role                          | Skill         | What it does                                                                                                                           |
-| ----------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Initialisation & architecture | `grill`       | Surveys the code, grills the owner, writes the charter and reference documents.                                                        |
-| Supervisor                    | `pitmaster`   | Keeps the tickets, hands each one to a fresh agent, reviews closures, keeps the frame.                                                 |
-| Tester (agent)                | `testeur`     | Writes a ticket's tests from the spec, before the code; writes test files and the shared test material only.                           |
-| Developer (agent)             | `developpeur` | Makes those tests pass; touches no test nor the shared test material, writes no code before the ticket's Architecture section.         |
-| Reviewer (agent)              | `relecteur`   | Reviews the lot adversarially (edge cases, verification gaps, the frame); writes nothing.                                              |
+| Role                          | Skill                | What it does                                                                                                                           |
+| ----------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Initialisation & architecture | `grill`              | Surveys the code, grills the owner, writes the charter and reference documents.                                                        |
+| Supervisor                    | `pitmaster`          | Keeps the tickets, hands each one to a fresh agent, reviews closures, keeps the frame.                                                 |
+| Tester (agent)                | `testeur`            | Writes a ticket's tests from the spec, before the code; writes test files and the shared test material only.                           |
+| Developer (agent)             | `developpeur`        | Makes those tests pass; touches no test nor the shared test material, writes no code before the ticket's Architecture section.         |
+| Reviewer (agent)              | `relecteur`          | Reviews the lot adversarially (edge cases, verification gaps, the frame); writes nothing.                                              |
 | Technical referent (agent)    | `referent-technique` | Settles a design question away from the rush: mature model, project texts, common mechanism; or sends it to the owner. Writes nothing. |
-| Explorer (agent)              | `explorateur` | Runs an exploration ticket: surveys, lists the decisions, proposes small testable tickets. Writes no code.                             |
-| Measurement                   | `mesure`      | Measures without fooling itself; proves a guard bites before calling it green.                                                         |
-| Writer                        | `redacteur`   | Writes human-read documents (architecture on the arc42/C4 model, frame, interface).                                                    |
-| Release                       | `release`     | Bumps the version, updates the changelog, tags, publishes.                                                                             |
+| Explorer (agent)              | `explorateur`        | Runs an exploration ticket: surveys, lists the decisions, proposes small testable tickets. Writes no code.                             |
+| Measurement                   | `mesure`             | Measures without fooling itself; proves a guard bites before calling it green.                                                         |
+| Writer                        | `redacteur`          | Writes human-read documents (architecture on the arc42/C4 model, frame, interface).                                                    |
+| Release                       | `release`            | Bumps the version, updates the changelog, tags, publishes.                                                                             |
 
 A change of behaviour is one ticket that passes from agent to agent in its copy: tests (tester) →
 code (developer) → review → commit on the ticket's branch → the queue brings it onto main, which closes it.
@@ -107,8 +107,9 @@ regulator settles it, the agent not relaunched on that red.
 A relaunch of a tester or a developer on its step (after a refused proof, after red checks) resumes its
 session (`claude --resume`) with a short instruction, the new report alone; the last attempt is a fresh
 and whole session, and so is a resumption that fails.
-The locks are hooks in each agent's definition (`scripts/verrous/`), so an agent cannot aim the
-code at its own tests; the integration sorts the lots by the same rule (the tests lot holds the
+The locks are hooks in the settings of each role's session (`scripts/verrous/`, given by
+`scripts/droits.mjs` with the rights its skill names, the user's own configuration left out), so
+an agent cannot aim the code at its own tests, nor edit a file by the shell; the integration sorts the lots by the same rule (the tests lot holds the
 tester's files, the code lot none of them). Each agent runs as a fresh session inside the **envelope** of its component
 (`scripts/enveloppe/`, a bubblewrap sandbox): it sees its own component, an index of every
 component's interface, of the others only their interface and built output, and the whole package

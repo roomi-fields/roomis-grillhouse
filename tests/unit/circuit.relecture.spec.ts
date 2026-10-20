@@ -39,15 +39,16 @@ const AUTEUR_FIXE = [
   'Bash(bd * -a*)',
   'Bash(*BEADS_ACTOR*)',
 ];
-// The rules after `--disallowedTools` in the arguments <a> of a session, up to the next option.
-const refusees = (a: string[]) => {
-  const i = a.indexOf('--disallowedTools');
-  if (i < 0) {
-    return [];
-  }
-  const fin = a.findIndex((x, j) => j > i && x.startsWith('--'));
-  return a.slice(i + 1, fin < 0 ? undefined : fin);
-};
+// The permissions of the settings the arguments <a> of a session carry (`--settings`,
+// scripts/droits.mjs).
+const permissions = (a: string[]) =>
+  (
+    JSON.parse(a[a.indexOf('--settings') + 1] ?? '{}') as {
+      permissions?: { allow: string[]; deny: string[] };
+    }
+  ).permissions ?? { allow: [], deny: [] };
+// The rules that refuse the session a call.
+const refusees = (a: string[]) => permissions(a).deny;
 
 // The entries of the integration's queue: the branches in their order of arrival.
 const enFile = () => {
@@ -148,18 +149,23 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
     expect(a[a.indexOf('--model') + 1]).toBe('opus');
     // Without a prompt, it may run every command its skill runs: a refused one leaves no verdict.
     expect(a[a.indexOf('--permission-mode') + 1]).toBe('dontAsk');
+    // Its rights are the commands its skill names (scripts/droits.mjs, tests/unit/droits.spec.ts):
+    // the reads of the lot, the targeted tests, the guards, the index; not the ticket, whose
+    // criteria it reads in the claims file at the step its skill sets.
+    const { allow } = permissions(a);
     for (const regle of [
-      'Bash(git diff *)',
-      'Bash(bd show *)',
-      'Bash(bd comments *)',
+      'Bash(git -C * diff *)',
       'Bash(npm test *)',
-      'Bash(npm run verifier *)',
-      'Bash(node scripts/*)',
-      'Bash(codegraph *)',
-      'mcp__plugin_rtfm_rtfm__rtfm_search',
+      'Bash(npm run verifier -- --gardes*)',
+      'Bash(node scripts/index-interfaces.mjs --publie *)',
+      'Bash(codegraph explore *)',
+      'mcp__rtfm__rtfm_search',
     ]) {
-      expect(a).toContain(regle);
+      expect(allow).toContain(regle);
     }
+    expect(allow.filter(r => /^Bash\(bd (show|comments)/.test(r))).toEqual([]);
+    expect(a[a.indexOf('--setting-sources') + 1]).toBe('project,local');
+    expect(a).toContain('--strict-mcp-config');
     // Its instruction: the second template, the lot and the circuit's reports; the criteria are in
     // the claims file alone (tests/unit/circuit.consigne.spec.ts).
     const consigne = essai(id, 'relecteur-1.prompt');

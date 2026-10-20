@@ -53,9 +53,11 @@ roomis-grillhouse/
 │   ├── new-project.sh             # npm run new -- <dest> [prefix] (template only, not copied)
 │   ├── sortie.mjs                 # Grillhouse's release (CONTRIBUTING.md, §5): VERSION and plugin.json raised, CHANGELOG.md dated, then the tag v<version> on the release commit, locally; never pushes (Grillhouse only, not copied)
 │   ├── setup.sh                   # npm run setup: git, Beads tickets, the frame's git hooks (crochets.mjs), the frame's plugins (greffons.mjs), dependencies
-│   ├── session-start.sh           # SessionStart hook: what is still empty (per package in the frame); the lock of the supervisor (superviseur.mjs)
-│   ├── structure-guard.sh         # UserPromptSubmit hook: a structure decision goes to the grill
+│   ├── session-start.sh           # SessionStart hook: what is still empty (per package in the frame); the lock of the supervisor (superviseur.mjs); silent to a session of a role agent
+│   ├── structure-guard.sh         # UserPromptSubmit hook: a structure decision goes to the grill; silent to a session of a role agent
+│   ├── droits.mjs                 # The rights and the context of each role session the circuit launches, drawn from the commands its skill names: settings on the command line, the user's configuration out, its skills, tools and index servers alone, its locks (tests: tests/unit/droits.spec.ts)
 │   ├── verrous/verrou.mjs         # The role agents' write locks (tests: tests/unit/verrous.spec.ts)
+│   ├── verrous/commande.mjs       # The lock of the commands of a role that writes: no file of the repository written by the shell (tests: tests/unit/verrou-commande.spec.ts)
 │   ├── verrous/ticket-du-sous-agent.mjs # hook: a role agent launches with « TON TICKET : <id> »
 │   ├── enveloppe/                 # The envelope: an agent sees its component, the others' interfaces, the test material, what its tests declare they read
 │   │   ├── enveloppe.mjs             # bwrap sandbox for one component (tests: tests/unit/enveloppe*.spec.ts)

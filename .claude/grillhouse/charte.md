@@ -45,7 +45,8 @@ professionnel.
 Une séance de supervision charge le superviseur (`pitmaster`) ; un projet a un seul superviseur,
 comme Zuul a un seul ordonnanceur : l'ouverture de séance prend le verrou du dépôt, et une seconde
 séance le dit au responsable et ne lance aucun circuit. Les rôles sont des agents du projet
-(`.claude/agents/`), chacun sous ses verrous. Un ticket passe par dix étapes numérotées, les
+(`.claude/agents/`), chacun sous ses verrous et les droits que nomment les commandes de sa
+compétence, sans la configuration propre de l'utilisateur (`scripts/droits.mjs`). Un ticket passe par dix étapes numérotées, les
 automatiques comprises (`scripts/etapes.mjs`, la seule liste) : 1 Exploration, l'`explorateur` ;
 2 Arbitrage, le `referent-technique` (une question de conception) ou le `regulateur` (un arrêt du
 circuit) ; puis, pour chaque composant, 3 Tests, le `testeur`, 4 Preuve du rouge, automatique,

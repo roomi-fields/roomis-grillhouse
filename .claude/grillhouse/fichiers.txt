@@ -28,6 +28,7 @@ scripts/consommateurs.mjs
 scripts/consommateurs-arbitres.mjs
 scripts/crochets.mjs
 scripts/dette.mjs
+scripts/droits.mjs
 scripts/etapes.mjs
 scripts/greffons.mjs
 scripts/enveloppe/
@@ -107,6 +108,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/dette.spec.ts
 - tests/unit/dossiers-d-essai.nuit.test.ts
 - tests/unit/dossiers-d-essai.spec.ts
+- tests/unit/droits.spec.ts
 - tests/unit/enveloppe-essai.ts
 - tests/unit/enveloppe.lit.spec.ts
 - tests/unit/enveloppe.lanceur.spec.ts
@@ -193,6 +195,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/un-commit-par-ticket.spec.ts
 - tests/unit/verifier.spec.ts
 - tests/unit/verifier.temoins.spec.ts
+- tests/unit/verrou-commande.spec.ts
 - tests/unit/verrou-de-fichier.spec.ts
 - tests/unit/verrou-de-machine.spec.ts
 - tests/unit/verrous.spec.ts

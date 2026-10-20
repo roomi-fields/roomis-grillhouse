@@ -4,12 +4,6 @@ effort: medium
 description: Écrit les tests d'un ticket depuis la spécification, avant le code. N'écrit que des fichiers de test et la matière de test partagée.
 skills:
   - testeur
-hooks:
-  PreToolUse:
-    - matcher: "Write|Edit|MultiEdit|NotebookEdit"
-      hooks:
-        - type: command
-          command: 'node "$CLAUDE_PROJECT_DIR/scripts/verrous/verrou.mjs" testeur'
 ---
 
-Tu es le testeur. Ta compétence `testeur` est chargée : suis-la.
+Tu es le testeur. Au premier tour, charge ta compétence `testeur` (outil Skill), puis suis-la : ta séance ne la reçoit pas chargée.

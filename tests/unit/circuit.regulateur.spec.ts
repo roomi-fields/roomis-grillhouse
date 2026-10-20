@@ -79,29 +79,31 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
     expect(valeur(a, '--session-id')).toMatch(UUID);
     expect(a).toContain('--add-dir');
     const e = etat(id);
+    // Its rights are the commands its skill names (scripts/droits.mjs, tests/unit/droits.spec.ts),
+    // and the reads of the circuit's state, the ticket's log and its proofs.
+    const { allow, deny } = (
+      JSON.parse(valeur(a, '--settings')) as { permissions: { allow: string[]; deny: string[] } }
+    ).permissions;
     for (const regle of [
       'Bash(bd show *)',
       'Bash(bd comments *)',
       'Bash(bd search *)',
       'Bash(bd update * -d *)',
-      'Bash(git diff *)',
-      'Bash(git log *)',
-      'Bash(git show *)',
-      'Bash(git status *)',
-      'Bash(codegraph *)',
-      'mcp__plugin_rtfm_rtfm__rtfm_search',
-      'mcp__plugin_rtfm_rtfm__rtfm_expand',
       `Read(/${path.join(REPO, '.claude/worktrees', `${id}.circuit.json`)})`,
       `Read(/${e?.journal})`,
     ]) {
-      expect(a).toContain(regle);
+      expect(allow).toContain(regle);
     }
-    // No right to write the code, nor to run the circuit or the tests.
-    expect(a.filter(x => /^(Write|Edit)|node scripts|npm /.test(x))).toEqual([]);
+    // No right to write the code, nor to run the circuit or the tests: its tools write nothing.
+    expect(allow.filter(x => /^(Write|Edit)|node scripts|npm /.test(x))).toEqual([]);
+    expect(
+      valeur(a, '--tools')
+        .split(',')
+        .filter(o => /Edit|Write/.test(o))
+    ).toEqual([]);
     // Its comments carry its role as their author, which it may not change.
     expect(essai(id, `${REGULATEUR}-1.acteur`)).toBe(REGULATEUR);
-    const refus = a.slice(a.indexOf('--disallowedTools') + 1);
-    expect(a).toContain('--disallowedTools');
+    const refus = deny;
     for (const regle of [
       'Bash(bd *--actor*)',
       'Bash(bd *--author*)',
