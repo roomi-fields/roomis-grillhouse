@@ -335,7 +335,11 @@ function admettreAuTicket(racine, ticket, nom, args) {
   const titre = nomAuTitre(racine, c);
   admettre(path.join(racine, '.claude', 'worktrees', `${ticket}.composants.json`), [titre], raison);
   const texte = `Composants · ${titre} admis hors du titre : ${raison}`;
-  const bd = spawnSync('bd', ['comments', 'add', ticket, texte], { cwd: racine, encoding: 'utf8' });
+  const bd = spawnSync('bd', ['comments', 'add', ticket, texte], {
+    cwd: racine,
+    encoding: 'utf8',
+    maxBuffer: 256 * 1024 * 1024,
+  });
   if (bd.status !== 0) process.stderr.write(`⚠️  ligne non écrite au ticket : ${bd.stderr}\n`);
   process.stdout.write(`${texte}\n`);
   return 0;
@@ -362,7 +366,11 @@ function commande(racine, args) {
     );
     return 2;
   }
-  const show = spawnSync('bd', ['show', ticket, '--json'], { cwd: racine, encoding: 'utf8' });
+  const show = spawnSync('bd', ['show', ticket, '--json'], {
+    cwd: racine,
+    encoding: 'utf8',
+    maxBuffer: 256 * 1024 * 1024,
+  });
   if (show.status !== 0) {
     process.stderr.write(`⛔ ticket ${ticket} illisible : ${show.stderr}\n`);
     return 2;

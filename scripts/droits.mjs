@@ -250,9 +250,9 @@ export function optionsDuRole(role, contexte) {
   ];
 }
 
-const direct = import.meta.url === pathToFileURL(process.argv[1] ?? '').href;
-if (direct) {
-  const [role, ...reste] = process.argv.slice(2);
+// The command's options for <argv>, written to stdout; its exit code.
+function commande(argv) {
+  const [role, ...reste] = argv;
   const o = {};
   for (let i = 0; i < reste.length; i += 2) {
     const cle = reste[i]?.replace(/^--/, '');
@@ -263,7 +263,7 @@ if (direct) {
       process.stderr.write(
         `usage : droits.mjs <rôle> --racine <r> --copie <c> --ticket <t> [--etat <f> --journal <f> --preuves <m>]\n`
       );
-      process.exit(2);
+      return 2;
     }
     o[cle] = reste[i + 1];
   }
@@ -271,7 +271,12 @@ if (direct) {
     process.stderr.write(
       `droits.mjs : rôle ${role ?? '(aucun)'} sans droits, ou racine et ticket absents.\n`
     );
-    process.exit(2);
+    return 2;
   }
   process.stdout.write(`${optionsDuRole(role, o).join('\n')}\n`);
+  return 0;
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  process.exitCode = commande(process.argv.slice(2));
 }

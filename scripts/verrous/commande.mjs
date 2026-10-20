@@ -175,6 +175,6 @@ if (direct) {
   }
   if (raison) {
     process.stderr.write(`${raison}\n`);
-    process.exit(2);
+    process.exitCode = 2;
   }
 }

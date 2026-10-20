@@ -526,11 +526,13 @@ describe.runIf(canWrap)('the launcher and the register line of a session that fa
   it('writes the line of a session whose envelope exits in error, and keeps its exit code', () => {
     // registre.mjs and what it imports, as the test repository holds them.
     mkdirSync(path.join(REPO, 'scripts', 'integration'), { recursive: true });
+    mkdirSync(path.join(REPO, 'scripts', 'vitest-config'), { recursive: true });
     for (const f of [
       'registre.mjs',
       'tableau.mjs',
       'bilan.mjs',
       'etapes.mjs',
+      'vitest-config/pression.mjs',
       'verrou-de-fichier.mjs',
       'integration/verdict.mjs',
     ]) {
