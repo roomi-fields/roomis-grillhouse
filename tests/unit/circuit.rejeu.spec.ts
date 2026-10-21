@@ -53,7 +53,7 @@ const rendu = (...constats: [string, string, string][]) =>
     verdict: 'RENDU',
     constats: constats.map(([agent, titre, corps]) => {
       const [role, composant] = agent.split(' ');
-      return { titre, role, composant, corps };
+      return { titre, genre: 'bloquant', regle: 'critère 1', role, composant, corps };
     }),
   })}'\n`;
 // The lot each review read, kept by the circuit: the commit of its sheet's entry.
@@ -196,7 +196,7 @@ describe.runIf(canWrap)('the circuit replays only what changed', { timeout: 300_
     expect(lots).not.toContain('packages/binder');
     // The findings of the review before, with their recipients, which it judges lifted or not.
     expect(consigne).toMatch(
-      /LA RELECTURE D'AVANT : [^\n]*\n[\s\S]*### Constat 1 — packages\/forms\/src\/index\.mjs\nAgent : developpeur 000-forms\nmesure de 0 doit rendre 0\./
+      /LA RELECTURE D'AVANT : [^\n]*\n[\s\S]*### Constat 1 — packages\/forms\/src\/index\.mjs\nBloquant : critère 1\nAgent : developpeur 000-forms\nmesure de 0 doit rendre 0\./
     );
     expect(consigne).not.toContain('{{');
     // Its verdict at the ticket names each finding before it, lifted or not.

@@ -52,11 +52,23 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
       ['decouvertes', 'ecarts', 'question', 'raison', 'renvoi', 'statut'].sort()
     );
   });
-  it('the reviewer: its verdict, its findings, the findings before it judged (a bounded review), its remarks, the deviations, its question for the owner, its discoveries', () => {
+  it('the reviewer: its verdict, its findings, the findings before it judged (a bounded review), the deviations, its question for the owner, its discoveries', () => {
     expect(champs('relecteur')).toEqual(
-      ['constats', 'decouvertes', 'ecarts', 'question', 'remarques', 'suivi', 'verdict'].sort()
+      ['constats', 'decouvertes', 'ecarts', 'question', 'suivi', 'verdict'].sort()
     );
     expect((schemaDeFiche('relecteur') as Schema).required).toEqual(['verdict']);
+  });
+  // grillhouse-3uv.91.2, witness BPScript 325: the reviewer sent the lot back on a case the owner
+  // ruled out (« non car la V1 ne change pas elle est gelée »), 18 min, ~38 with what followed.
+  it('each finding of the reviewer is blocking, with the criterion or the rule it holds, or a remark', () => {
+    const c = (schemaDeFiche('relecteur') as Schema).properties.constats as {
+      items: Schema & { properties: { genre: { enum: string[] } } };
+    };
+    expect(Object.keys(c.items.properties).sort()).toEqual(
+      ['composant', 'corps', 'critere_en_cause', 'genre', 'regle', 'role', 'titre'].sort()
+    );
+    expect(c.items.required).toEqual(['titre', 'corps', 'genre']);
+    expect(c.items.properties.genre.enum).toEqual(['bloquant', 'remarque']);
   });
   it('the regulator: its decision, the agent a RELANCE --depuis names, its context, its question, the facts the circuit checks, its discoveries', () => {
     expect(champs('regulateur')).toEqual(
@@ -138,6 +150,46 @@ describe('the facts of a regulator’s sheet', () => {
   });
 });
 
+// grillhouse-3uv.91.2: only a blocking finding sends the lot back, and it names what it holds.
+describe('the findings of a reviewer’s sheet', () => {
+  const bloquant = {
+    titre: 'packages/a/src/x.ts:3',
+    genre: 'bloquant',
+    regle: 'critère 2',
+    role: 'developpeur',
+    composant: 'packages/a',
+    corps: 'Preuve : x(0) rend NaN.',
+  };
+  const remarque = { titre: 'packages/a/src/x.ts:9', genre: 'remarque', corps: 'Un nom à revoir.' };
+  it('a blocking finding without the criterion or the rule it holds is refused', () => {
+    const { regle: _, ...sans } = bloquant;
+    expect(lireFiche('relecteur', sortie({ verdict: 'RENDU', constats: [sans] })).erreur).toMatch(
+      /constats\[0\]\.regle : manque/
+    );
+    expect(
+      lireFiche('relecteur', sortie({ verdict: 'RENDU', constats: [{ ...bloquant, regle: ' ' }] }))
+        .erreur
+    ).toMatch(/constats\[0\]\.regle : manque/);
+    expect(
+      lireFiche('relecteur', sortie({ verdict: 'RENDU', constats: [bloquant, remarque] })).erreur
+    ).toBeUndefined();
+  });
+  it('a verdict without a blocking finding is ACCEPTÉ, its remarks kept; RENDU needs one', () => {
+    expect(
+      lireFiche('relecteur', sortie({ verdict: 'ACCEPTÉ', constats: [remarque] })).erreur
+    ).toBeUndefined();
+    expect(
+      lireFiche('relecteur', sortie({ verdict: 'RENDU', constats: [remarque] })).erreur
+    ).toMatch(/verdict : RENDU sans constat bloquant/);
+    expect(lireFiche('relecteur', sortie({ verdict: 'RENDU' })).erreur).toMatch(
+      /verdict : RENDU sans constat bloquant/
+    );
+    expect(
+      lireFiche('relecteur', sortie({ verdict: 'ACCEPTÉ', constats: [bloquant] })).erreur
+    ).toMatch(/verdict : ACCEPTÉ avec un constat bloquant/);
+  });
+});
+
 describe('the sheets of the questioning (L9)', () => {
   it('questions need at least one question, a disagreement its text', () => {
     expect(
@@ -209,7 +261,9 @@ describe('the reading of a sheet in the output of a session', () => {
     ['testwriter', { statut: 'FAIT', verts_attendus: [{ fichier: 'a.test.ts' }] }, 'raison'],
     ['developpeur', { statut: 'FAIT', renvoi: { role: 'developpeur', composant: 'a' } }, 'role'],
     ['relecteur', { verdict: 'PEUT-ÊTRE' }, 'verdict'],
-    ['relecteur', { verdict: 'RENDU', constats: [{ titre: 't' }] }, 'corps'],
+    ['relecteur', { verdict: 'RENDU', constats: [{ titre: 't', genre: 'bloquant' }] }, 'corps'],
+    ['relecteur', { verdict: 'RENDU', constats: [{ titre: 't', corps: 'c' }] }, 'genre'],
+    ['relecteur', { verdict: 'ACCEPTÉ', remarques: ['un nom'] }, 'remarques'],
     ['regulateur', { decision: 'RELANCE --depuis' }, 'depuis'],
     ['regulateur', { decision: 'MONTE' }, 'question'],
     ['regulateur', { decision: 'RELANCE --reprendre', contexte: 3 }, 'contexte'],

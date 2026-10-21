@@ -353,9 +353,9 @@ describe('the texts ask no writing without a reader', () => {
 describe('L7 — the reviewer reviews the commit message and ranges the flagged words', () => {
   const relecteur = lire('.claude/skills/relecteur/SKILL.md').replace(/\s+/g, ' ');
 
-  it('a deviation a criterion requires at the commit goes into `ecarts`, never into `remarques`', () => {
+  it('a deviation a criterion requires at the commit goes into `ecarts`, never into a remark', () => {
     expect(relecteur).toMatch(/critère qui exige qu'un écart se nomme au commit/);
-    expect(relecteur).toMatch(/entre dans tes `ecarts`, jamais dans `remarques`/);
+    expect(relecteur).toMatch(/entre dans tes `ecarts`, jamais dans une remarque/);
   });
 
   it('each word a vocabulary guard of the project flags is ranged by the reviewer: a legitimate use to the project’s register in the lot, only a real word of the language up, by `question`', () => {
@@ -371,5 +371,32 @@ describe('L7 — the reviewer reviews the commit message and ranges the flagged 
   it('the reviewer neither looks for nor files a ticket: the circuit files the discoveries of its sheet', () => {
     expect(relecteur).toMatch(/Tu ne cherches ni ne crées aucun ticket/);
     expect(relecteur).not.toMatch(/`bd (children|list|create)/);
+  });
+});
+
+// grillhouse-3uv.91.2, witness BPScript 325: the reviewer required that the frozen v1 packages stay
+// dated dependencies with a bench; the owner: « non car la V1 ne change pas elle est gelée ».
+// 18 min lost, ~38 with what followed. As Conventional Comments mark a comment blocking or not,
+// and as Google's review guide asks for nothing the change does not need, a finding blocks only
+// on a criterion of the plan or a rule of the frame, and the rule of the real need applies to it.
+describe('3uv.91.2 — a finding of the reviewer blocks or remarks', () => {
+  const relecteur = lire('.claude/skills/relecteur/SKILL.md').replace(/\s+/g, ' ');
+
+  it('a blocking finding holds a criterion of the plan or a rule of the frame, which it names; any other is a remark', () => {
+    expect(relecteur).toMatch(
+      /Un constat bloquant tient un critère du plan ou une règle du cadre\*\*, que son champ `regle` nomme/
+    );
+    expect(relecteur).toMatch(/tout autre constat est une remarque \(`genre` `remarque`\)/);
+    expect(relecteur).toMatch(/Seuls les constats bloquants rendent le lot/);
+  });
+
+  it('the rule of the real need applies to the reviewer’s own findings', () => {
+    expect(relecteur).toMatch(
+      /Un constat répond à un besoin réel de l'usage actuel ; un cas seulement possible n'en devient pas un constat bloquant/
+    );
+  });
+
+  it('the skill no longer names the list of remarks the sheet dropped', () => {
+    expect(relecteur).not.toMatch(/`remarques`/);
   });
 });

@@ -170,13 +170,15 @@ describe.runIf(canWrap)('the sheet that ends a session', { timeout: 300_000 }, (
     scenario(
       id,
       'relecteur',
-      `fiche '{"verdict":"ACCEPTÉ","remarques":["le nom de la mesure pourrait dire le double"]}'\n`
+      `fiche '{"verdict":"ACCEPTÉ","constats":[{"titre":"packages/forms/src/index.mjs:1","genre":"remarque","corps":"le nom de la mesure pourrait dire le double"}]}'\n`
     );
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     const verdict = auteurs(id).find(c => c.author === 'relecteur');
     expect(verdict?.text).toMatch(/^ACCEPTÉ\n/);
-    expect(verdict?.text).toContain('- le nom de la mesure pourrait dire le double');
+    expect(verdict?.text).toContain(
+      '## Remarques\n\n- packages/forms/src/index.mjs:1 — le nom de la mesure pourrait dire le double'
+    );
   });
 });
 

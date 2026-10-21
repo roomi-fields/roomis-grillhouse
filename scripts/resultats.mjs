@@ -19,9 +19,12 @@
 //   - `ecarts`: the body of the commit message, written by the circuit (developpeur, reviewer);
 //   - `decouvertes` (`sujet`, `corps`): each one a ticket filed closed under the ticket, labelled
 //     `decouverte`, created by the circuit (every role);
-//   - `verdict` (ACCEPTÉ, RENDU), `constats` (`titre`, `corps`, `role` and `composant` its
-//     recipient, or `critere_en_cause`), `remarques`: the circuit plays the findings and writes the
-//     verdict at the ticket for the human (reviewer);
+//   - `verdict` (ACCEPTÉ, RENDU), `constats` (`titre`, `corps`, `genre` bloquant or remarque; a
+//     blocking one with `regle`, the criterion of the plan or the rule of the frame it holds, and
+//     `role` and `composant` its recipient, or `critere_en_cause`): as Conventional Comments mark
+//     a comment blocking or not, the circuit plays the blocking findings alone and writes the
+//     verdict at the ticket for the human, the remarks with it; a RENDU carries a blocking finding,
+//     an ACCEPTÉ none (reviewer);
 //   - `suivi` (`titre`, `etat` levé or non levé, `preuve`): after a review sent back, each finding
 //     before it judged on the difference of the lot, which the circuit writes at the ticket with
 //     the verdict, for the human (reviewer);
@@ -42,7 +45,7 @@
 //     ticket (`bd update`) (technical referent).
 //   `lireFiche` reads a session's output: the sheet and the session's id, or the error that
 //   names what lacks or does not conform (no `structured_output`, a field out of the schema, a
-//   status without its reason).
+//   status without its reason, a blocking finding without its criterion or rule).
 // - The findings of a guard, in SARIF 2.1.0 (OASIS), beside its output for the human: one run per
 //   guard, `tool.driver.name` the guard; each finding a result, `ruleId` the guard, `level`
 //   (error by default), `message.text`, its file and line as its location when it has them, and its
@@ -182,14 +185,23 @@ const FICHES = {
         objet(
           {
             titre: texte('Son adresse : fichier et ligne.'),
+            genre: {
+              type: 'string',
+              enum: ['bloquant', 'remarque'],
+              description:
+                'bloquant : il rend le lot ; remarque : écrite au ticket, elle ne rend pas le lot.',
+            },
+            regle: texte(
+              'Bloquant : le critère du plan (« critère 2 ») ou la règle du cadre (son document et sa règle) qu’il tient.'
+            ),
             role: { type: 'string', enum: ['testwriter', 'developpeur'] },
             composant: texte('Le composant du titre où la correction s’écrit.'),
-            corps: texte('Sa preuve et la règle qu’il enfreint.'),
+            corps: texte('Sa preuve : son exemple et ce qu’il montre.'),
             critere_en_cause: texte('Le critère lui-même en cause, au lieu d’un destinataire.'),
           },
-          ['titre', 'corps']
+          ['titre', 'corps', 'genre']
         ),
-        'Chaque constat d’un verdict RENDU.'
+        'Chaque constat, bloquant ou remarque ; un verdict RENDU en porte au moins un bloquant, un verdict ACCEPTÉ aucun.'
       ),
       suivi: liste(
         objet(
@@ -202,7 +214,6 @@ const FICHES = {
         ),
         'Relecture bornée : chaque constat de la relecture d’avant, levé ou non.'
       ),
-      remarques: liste(texte('Une remarque, nommée, qui ne rend pas le lot.')),
       question: texte(
         'Ce qui revient au responsable (par exemple un vrai mot du langage écrit en dur) : la question, ses pièces et ta recommandation ; le circuit s’arrête avant de commiter ou de relancer.'
       ),
@@ -303,7 +314,9 @@ function erreurs(schema, valeur, ou) {
 
 // What a sheet of <role> needs beyond its schema: the reason of a BLOQUÉ, the question of a
 // BESOIN or a MONTE, the agent of a RELANCE --depuis, the component of a fact, the questions of a
-// QUESTIONS, the text of a DÉSACCORD, the plan an answer CHANGE gives.
+// QUESTIONS, the text of a DÉSACCORD, the plan an answer CHANGE gives, the criterion or rule of a
+// blocking finding, and a reviewer's verdict that follows its findings (RENDU with a blocking
+// one, ACCEPTÉ without).
 function manques(role, f) {
   const out = [];
   const plein = k => typeof f[k] === 'string' && f[k].trim() !== '';
@@ -314,6 +327,21 @@ function manques(role, f) {
   }
   if (role === 'regulateur' && f.decision === 'RELANCE --depuis' && !f.depuis) {
     out.push('depuis : manque, pour RELANCE --depuis');
+  }
+  if (role === 'relecteur') {
+    const constats = f.constats ?? [];
+    for (const [i, c] of constats.entries()) {
+      if (c.genre === 'bloquant' && !(typeof c.regle === 'string' && c.regle.trim())) {
+        out.push(`constats[${i}].regle : manque, pour un constat bloquant`);
+      }
+    }
+    const bloque = constats.some(c => c.genre === 'bloquant');
+    if (f.verdict === 'RENDU' && !bloque) {
+      out.push('verdict : RENDU sans constat bloquant ; un lot sans constat bloquant est ACCEPTÉ');
+    }
+    if (f.verdict === 'ACCEPTÉ' && bloque) {
+      out.push('verdict : ACCEPTÉ avec un constat bloquant, qui rend le lot');
+    }
   }
   for (const [i, x] of (role === 'regulateur' ? (f.faits ?? []) : []).entries()) {
     if (x.sujet !== 'sous-charge' && !(typeof x.composant === 'string' && x.composant.trim())) {

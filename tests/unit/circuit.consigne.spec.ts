@@ -48,7 +48,7 @@ describe.runIf(canWrap)('the instruction of a session', { timeout: 300_000 }, ()
     scenario(
       id,
       'relecteur-1',
-      `fiche '{"verdict":"RENDU","constats":[{"titre":"packages/forms/test/mesure.test.mjs","role":"testwriter","composant":"000-forms","corps":"Constat adressé à forms."},{"titre":"packages/binder/src/index.mjs","role":"developpeur","composant":"030-binder","corps":"Constat adressé à binder."}]}'\n`
+      `fiche '{"verdict":"RENDU","constats":[{"titre":"packages/forms/test/mesure.test.mjs","genre":"bloquant","regle":"critère 1","role":"testwriter","composant":"000-forms","corps":"Constat adressé à forms."},{"titre":"packages/binder/src/index.mjs","genre":"bloquant","regle":"critère 1","role":"developpeur","composant":"030-binder","corps":"Constat adressé à binder."}]}'\n`
     );
     scenario(id, 'relecteur-2', `fiche '{"verdict":"ACCEPTÉ"}'\n`);
     const r = circuit([id]);

@@ -72,15 +72,28 @@ const ticketDe = (id: string) =>
 // without a valid recipient stops at « relecture-arret », and so does the third RENDU. The circuit
 // writes the verdict at the ticket, for the human, from the sheet.
 describe('the verdict the circuit writes at the ticket from the reviewer’s sheet', () => {
-  it('opens on its word, each finding under its heading with its recipient or its criterion, then the remarks and the deviations', () => {
+  it('opens on its word, each blocking finding under its heading with what it holds and its recipient or its criterion, then the remarks and the deviations', () => {
     expect(
       texteDuVerdict({
         verdict: 'RENDU',
         constats: [
-          { titre: 'scripts/garde.mjs', role: 'developpeur', composant: '.', corps: 'Preuve : x.' },
-          { titre: 'packages/forms/src/forms.ts', critere_en_cause: '2', corps: 'Règle : y.' },
+          {
+            titre: 'scripts/garde.mjs',
+            genre: 'bloquant',
+            regle: 'critère 1',
+            role: 'developpeur',
+            composant: '.',
+            corps: 'Preuve : x.',
+          },
+          { titre: 'packages/forms/src/x.mjs:9', genre: 'remarque', corps: 'un nom à revoir' },
+          {
+            titre: 'packages/forms/src/forms.ts',
+            genre: 'bloquant',
+            regle: 'critère 2',
+            critere_en_cause: '2',
+            corps: 'Preuve : y.',
+          },
         ],
-        remarques: ['un nom à revoir'],
         ecarts: ['un rouge de structure'],
       })
     ).toBe(
@@ -88,16 +101,18 @@ describe('the verdict the circuit writes at the ticket from the reviewer’s she
         'RENDU',
         '',
         '### Constat 1 — scripts/garde.mjs',
+        'Bloquant : critère 1',
         'Agent : developpeur .',
         'Preuve : x.',
         '',
         '### Constat 2 — packages/forms/src/forms.ts',
+        'Bloquant : critère 2',
         'Critère en cause : 2',
-        'Règle : y.',
+        'Preuve : y.',
         '',
         '## Remarques',
         '',
-        '- un nom à revoir',
+        '- packages/forms/src/x.mjs:9 — un nom à revoir',
         '',
         '## Écarts à nommer au commit',
         '',
@@ -138,9 +153,11 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
       constats: [
         {
           titre: 'packages/forms/src/index.mjs',
+          genre: 'bloquant',
+          regle: 'critère 1',
           role,
           composant,
-          corps: `${constat}\nRègle : critère 1.`,
+          corps: constat,
           ...(critere ? { critere_en_cause: critere } : {}),
         },
       ],
@@ -298,7 +315,9 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
     // The verdict, written by the circuit from the reviewer's sheet, is at the ticket on several
     // lines.
     expect(commentaires(id)).toContainEqual(
-      expect.stringMatching(/^RENDU\n\n### Constat 1 — packages\/forms\/src\/index\.mjs\nAgent : /)
+      expect.stringMatching(
+        /^RENDU\n\n### Constat 1 — packages\/forms\/src\/index\.mjs\nBloquant : critère 1\nAgent : /
+      )
     );
     // Forms' developpeur again; binder, which no finding names, passes its checks again.
     expect(ordre(id)).toEqual([
@@ -332,6 +351,59 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
     expect(gitRepo('show', 'main:packages/forms/src/index.mjs')).toContain('// rendu');
     expect(ticketDe(id)).toMatchObject({ status: 'closed' });
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
+  });
+
+  // grillhouse-3uv.91.2, witness BPScript 325: a finding on a case the owner ruled out sent the
+  // lot back to the testwriter, then the developpeur, 18 min (~38 with what followed).
+  it('RENDU sends back its blocking findings alone: a remark reaches no agent, only the ticket', () => {
+    const id = 'demo-rendu-remarque';
+    ticket(id, '000-forms');
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
+    scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    scenario(
+      id,
+      'developpeur-2',
+      `printf '// rendu\\n' >> $c/src/index.mjs\npassation 'Rendu traité.'\n`
+    );
+    const fiche = {
+      verdict: 'RENDU',
+      constats: [
+        {
+          titre: 'packages/forms/src/index.mjs:1',
+          genre: 'bloquant',
+          regle: 'critère 1',
+          role: 'developpeur',
+          composant: '000-forms',
+          corps: 'mesure de 0 doit rendre 0.',
+        },
+        {
+          titre: 'packages/forms/test/mesure.test.mjs:2',
+          genre: 'remarque',
+          role: 'testwriter',
+          composant: '000-forms',
+          corps: 'un paquet gelé pourrait changer un jour.',
+        },
+      ],
+    };
+    scenario(id, 'relecteur-1', `fiche '${JSON.stringify(fiche)}'\n`);
+    scenario(id, 'relecteur-2', accepte);
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    // The blocking finding relaunches its developpeur; the remark relaunches no testwriter.
+    expect(sessions(id, 'testwriter')).toBe(1);
+    expect(sessions(id, 'developpeur')).toBe(2);
+    const consigne = essai(id, 'developpeur-2.prompt');
+    expect(consigne).toContain('mesure de 0 doit rendre 0.');
+    expect(consigne).not.toContain('un paquet gelé pourrait changer un jour.');
+    // The next review follows the blocking finding alone.
+    expect(essai(id, 'relecteur-2.prompt')).not.toContain('un paquet gelé');
+    // The remark is written at the ticket, with the verdict.
+    expect(commentaires(id)).toContainEqual(
+      expect.stringMatching(
+        /^RENDU\n[\s\S]*## Remarques\n\n- packages\/forms\/test\/mesure\.test\.mjs:2 — un paquet gelé pourrait changer un jour\./
+      )
+    );
+    expect(ticketDe(id)).toMatchObject({ status: 'closed' });
   });
 
   it('RENDU, a finding for the testwriter of a component, relaunches the testwriter, the proof, the developpeur, the checks', () => {

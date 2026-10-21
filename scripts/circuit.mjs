@@ -243,13 +243,16 @@
 //   `isTesterFile`, then the others) and the circuit's reports since its last sheet (its proofs and
 //   checks). Its errors go to the log under its header line, its line to the register
 //   (scripts/registre.mjs --copie), and it is watched as a session in the envelope is. Its sheet
-//   is its verdict (`verdict` ACCEPTÉ or RENDU, its `constats`, `remarques`, `question`, `ecarts`):
-//   the circuit writes it at the ticket for the human, under the author `relecteur`, its first
-//   word the verdict, each finding under its heading with its recipient (`texteDuVerdict`).
+//   is its verdict (`verdict` ACCEPTÉ or RENDU, its `constats`, each `bloquant` with the criterion
+//   or rule it holds, or `remarque`, its `question`, `ecarts`): the circuit writes it at the ticket
+//   for the human, under the author `relecteur`, its first word the verdict, each blocking finding
+//   under its heading with its recipient, then the remarks (`texteDuVerdict`).
 // - A sheet of the reviewer with a `question` (what goes up to the owner, a real word of the
 //   language written in the code) stops the circuit at « besoin », whatever its verdict, before
 //   it commits or relaunches anyone, the question and the verdict as its report.
-// - RENDU: each finding names its recipient, `role` testwriter or developpeur and `composant` one of
+// - RENDU: the blocking findings alone send the lot back, a remark reaching only the ticket (a
+//   verdict without a blocking finding is ACCEPTÉ, the sheet's schema refusing any other). Each
+//   blocking finding names its recipient, `role` testwriter or developpeur and `composant` one of
 //   the title (a path or a package name). The circuit plays again the components the findings
 //   name, the provider first, and those alone (`suivant`: the final pass before the review
 //   carried every other one through): its testwriter → preuve → developpeur → controles when a
@@ -261,8 +264,8 @@
 //   lots, the files of the lot that changed since, and the findings before it, which it judges
 //   lifted or not (`suivi`); the rest of the lot it does not read again (its skill, « La
 //   relecture bornée »).
-//   A RENDU without findings, a finding without a valid recipient, or one that puts its criterion
-//   in question (`critere_en_cause`) stops at « relecture-arret »; so does the third RENDU since
+//   A blocking finding without a valid recipient, or one that puts its criterion in question
+//   (`critere_en_cause`), stops at « relecture-arret »; so does the third RENDU since
 //   the ticket's last ACCEPTÉ. The regulator settles.
 // - ACCEPTÉ: the integration, once the whole final pass has played on the lot accepted (its tree
 //   is `verifie`); else that pass first, once, its red going to its owner's developpeur and the
@@ -1217,11 +1220,15 @@ function fichiersDuLot(ctx) {
   return { tests: tests.sort(), code: code.sort() };
 }
 
-// The findings <constats> of a reviewer's sheet, each under its heading, its recipient (or the
-// criterion in question) and its body: lines.
-const lignesDesConstats = constats =>
-  (constats ?? []).flatMap((c, i) => [
+// The blocking findings of a reviewer's sheet <fiche>, the ones that send the lot back.
+const bloquants = fiche => (fiche.constats ?? []).filter(c => c.genre === 'bloquant');
+
+// The blocking findings of a reviewer's sheet <fiche>, each under its heading, the criterion or
+// rule it holds, its recipient (or the criterion in question) and its body: lines.
+const lignesDesConstats = fiche =>
+  bloquants(fiche).flatMap((c, i) => [
     `### Constat ${i + 1} — ${c.titre}`,
+    `Bloquant : ${c.regle}`,
     c.critere_en_cause
       ? `Critère en cause : ${c.critere_en_cause}`
       : `Agent : ${c.role ?? '?'} ${c.composant ?? '?'}`,
@@ -1231,9 +1238,9 @@ const lignesDesConstats = constats =>
 
 // The verdict the reviewer's sheet <fiche> carries, as the circuit writes it at the ticket for the
 // human, its first word ACCEPTÉ or RENDU: after a bounded review, each finding before it lifted or
-// not, with its proof; each finding under its heading, its recipient (or the criterion in
-// question) and its body; then the remarks, the question for the owner and the deviations to
-// name at the commit.
+// not, with its proof; each blocking finding under its heading, what it holds, its recipient (or
+// the criterion in question) and its body; then the remarks (its findings of `genre` remarque),
+// the question for the owner and the deviations to name at the commit.
 export function texteDuVerdict(fiche) {
   const section = (titre, l) => (l?.length ? [`## ${titre}`, '', ...l.map(x => `- ${x}`), ''] : []);
   const suivi = (fiche.suivi ?? []).map(
@@ -1243,8 +1250,11 @@ export function texteDuVerdict(fiche) {
     fiche.verdict,
     '',
     ...section("Constats d'avant", suivi),
-    ...lignesDesConstats(fiche.constats),
-    ...section('Remarques', fiche.remarques),
+    ...lignesDesConstats(fiche),
+    ...section(
+      'Remarques',
+      (fiche.constats ?? []).filter(c => c.genre === 'remarque').map(c => `${c.titre} — ${c.corps}`)
+    ),
     ...section('Question au responsable', fiche.question ? [fiche.question] : []),
     ...section('Écarts à nommer au commit', fiche.ecarts),
   ]
@@ -1281,9 +1291,9 @@ async function relire(ctx, composant) {
       `la relecture ${precedents}, ${avant.fiche.verdict} : tu relis la différence du lot depuis elle et ses constats, selon ta compétence (« La relecture bornée »).`,
       '',
       `- La différence : \`git diff ${avant.lot.commit} ${lot.commit}\`, dans la copie du ticket ; ses fichiers : ${changes.join(', ') || 'aucun'}.`,
-      '- Ses constats, chacun avec son destinataire :',
+      '- Ses constats bloquants, chacun avec son destinataire :',
       '',
-      ...lignesDesConstats(avant.fiche.constats),
+      ...lignesDesConstats(avant.fiche),
     ]
       .join('\n')
       .trim();
@@ -1447,19 +1457,20 @@ function renvoiAuTestwriter(ctx, fiche, index) {
   };
 }
 
-// The agents the reviewer's sheet RENDU <fiche> sends the lot back to: Map index of component →
-// `{ etape, testwriter, developpeur }`, `etape` the first step that component plays again (testwriter
-// when a finding names its testwriter), `testwriter` and `developpeur` the findings for each, or null.
-// Throws an Arret `relecture-arret` for a verdict without findings, a finding without a valid
-// recipient (a component the title does not name) or one that puts a criterion in question.
+// The agents the reviewer's sheet RENDU <fiche> sends the lot back to, by its blocking findings
+// alone (a remark reaches the ticket, no agent; the sheet's schema gives a RENDU at least one):
+// Map index of component → `{ etape, testwriter, developpeur }`, `etape` the first step that
+// component plays again (testwriter when a finding names its testwriter), `testwriter` and
+// `developpeur` the findings for each, or null. Throws an Arret `relecture-arret` for a finding
+// without a valid recipient (a component the title does not name) or one that puts a criterion in
+// question.
 function renvoisDuVerdict(ctx, fiche, texte) {
-  const liste = fiche.constats ?? [];
+  const liste = bloquants(fiche);
   const arret = raison =>
     new Arret(
       'relecture-arret',
       `${raison} La décision revient au régulateur.\n\nLe verdict :\n\n${texte}`
     );
-  if (liste.length === 0) throw arret('Le verdict RENDU ne porte aucun constat.');
   const renvois = new Map();
   for (const [n, c] of liste.entries()) {
     if (c.critere_en_cause)
