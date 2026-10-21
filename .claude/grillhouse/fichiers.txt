@@ -88,6 +88,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/circuit.composants.spec.ts
 - tests/unit/circuit.composants-affectes.spec.ts
 - tests/unit/circuit.consigne.spec.ts
+- tests/unit/circuit.decision.spec.ts
 - tests/unit/circuit.fiche.spec.ts
 - tests/unit/circuit.construction.spec.ts
 - tests/unit/circuit.machine.spec.ts

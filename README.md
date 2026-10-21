@@ -90,8 +90,10 @@ which the circuit applies in the same run, or `MONTE` with its question, which e
 stop `question` (18), the regulator's session kept; the supervisor answers the question himself, or carries it to the owner
 when it is the owner's (the functional, what the charter keeps for him),
 and `circuit.mjs <ticket> --reponse "<answer>"` first has the technical referent pour the answer into the
-ticket's plan, which every agent reads (a plan changed is questioned), then resumes that session on the plan. So the
-supervisor is woken only by a lot integrated, a question, or a stop the regulator could not settle.
+ticket's plan, which every agent reads (a plan changed is questioned), then resumes that session on the plan. A decision
+of the owner given out of any question takes the same path, `circuit.mjs <ticket> --decision "<decision>"`: a circuit
+running on the ticket stops first, then the circuit resumes where it was and plays again the components the plan changed
+reaches. So the supervisor is woken only by a lot integrated, a question, or a stop the regulator could not settle.
 The questioner (`questionneur`, at 1.2 Questionnement and at the arbitrage of a stop) asks its questions of the ticket's plan
 before the first testwriter, after the survey of its components, and of each decision of the
 regulator before it is checked and applied, as Amazon's bar raiser or a cockpit's challenge and

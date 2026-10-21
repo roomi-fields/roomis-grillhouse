@@ -107,8 +107,14 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   questionneur ; puis le circuit reprend la séance du régulateur, qui tranche sur le plan, et
   applique sa décision. Un composant que j'ajoute au titre avant de répondre repart de son
   testwriter, sans le régulateur. Le contexte d'une relance porte l'arrêt, jamais une décision du
-  responsable : une décision du responsable passe par `--reponse`, et le référent technique la
-  verse dans le plan. 21 (`composants-manquants`) :
+  responsable. Toute décision du responsable sur un ticket passe par le circuit, jamais par le
+  contexte d'une relance ni par un commentaire seul : sur un arrêt « question », `--reponse` ; hors
+  de toute question du circuit, même quand il tourne,
+  `node scripts/circuit.mjs <ticket> --decision "<sa décision>"` en arrière-plan. Le circuit en
+  cours s'arrête d'abord, sa séance avec lui, et sa fin me réveille sans rien me demander ; le référent technique la verse dans le plan, un plan
+  changé passe le questionneur, puis le circuit reprend là où il en était et rejoue les seuls
+  composants que le plan changé touche ; une décision sans effet sur le plan est dite au ticket, et
+  le circuit reprend tel quel. 21 (`composants-manquants`) :
   avant toute séance, le relevé des composants trouve un composant que le titre ne nomme pas, en
   tête du rapport de l'état. Je l'ajoute au titre, le fournisseur d'abord
   (`bd update <ticket> --title`), puis je relance le circuit ; ou je réponds pourquoi il reste

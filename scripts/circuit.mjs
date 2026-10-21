@@ -9,7 +9,8 @@
 // himself, or carries it to the owner when it is the owner's, then runs `--reponse "<texte>"` with
 // the answer, which enters the plan before the regulator resumes; at « composants-manquants »
 // (21) he adds the components to the title or answers why they stay out; at « questionnement »
-// (22) he changes the plan or keeps it, and answers; at
+// (22) he changes the plan or keeps it, and answers; a decision of the owner given out of any
+// such stop, the circuit running or not, he gives by `--decision "<texte>"`; at
 // any other code, the stop is one the regulator could not settle, or one the
 // table of the stops hands to him. On a stop other than 0 and 21, the circuit reads first the
 // table of the stops (scripts/etapes.mjs, TABLE_DES_ARRETS), its written policy, as Zuul and
@@ -24,6 +25,7 @@
 //   node scripts/circuit.mjs <ticket> [--reprendre] [--contexte <texte>]
 //   node scripts/circuit.mjs <ticket> --depuis <testwriter|developpeur> <composant> --contexte <texte>
 //   node scripts/circuit.mjs <ticket> --reponse <texte>
+//   node scripts/circuit.mjs <ticket> --decision <texte>
 //
 // The circuit decides on structured results only (scripts/resultats.mjs, the one module of their
 // formats), as Bazel's Build Event Protocol and the JUnit reports carry the outcome of a build:
@@ -297,8 +299,8 @@
 //   last word as its reason; still in the queue, it stops at « a-repasser », the queue's reason.
 // - The state is `.claude/worktrees/<ticket>.circuit.json`, written again at each step and at the
 //   start and end of each session: `{ etape, composant, tentative, code, raison, rapport, dernier,
-//   finale, boucles, seance, regulateur, questionnement, composants, renvois, atteints, verifie,
-//   mene, reprise, journal }`; `questionnement` the questioning under way (`{ objet, tour, seance
+//   finale, boucles, seance, regulateur, questionnement, processus, composants, renvois, atteints,
+//   verifie, mene, reprise, journal }`; `processus` the process of the circuit that writes it; `questionnement` the questioning under way (`{ objet, tour, seance
 //   }`: the plan or a decision, its round, the questionneur's session), null otherwise;
 //   `etape`
 //   is the state's name of a numbered step of the process (scripts/etapes.mjs: testwriter 2.1,
@@ -388,7 +390,25 @@
 //   call is refused. A session without a sheet that conforms is resumed
 //   once, as any session; a second one, or
 //   a session that cannot end (a launch that fails, a motionless session), ends the circuit on the
-//   stop it settled, the reason joined to its own. The third RELANCE in a row on one stop (its
+//   stop it settled, the reason joined to its own.
+// - `--decision <texte>`, a decision of the owner given in session, out of any stop « question »
+//   (at « question », « questionnement » or « composants-manquants » the call is refused: the
+//   stop waits for `--reponse`; so is it once the lot has reached the integration), takes the same
+//   path into the plan, as GitLab CI cancels a pipeline a new one makes redundant and Zuul the
+//   jobs of a change superseded: a circuit running on the ticket (the state's `processus`, alive)
+//   stops first, SIGTERM then SIGKILL, and so does the session it led (`seance`), said at the
+//   ticket (`Circuit · <composant> · decision : …`); then the technical referent pours the
+//   decision into the plan (the twelfth template, its question « aucune »), the circuit writes it,
+//   and a plan changed is surveyed again and questioned. The run resumes where the state left it,
+//   as `--reprendre`: each component the change reaches that it had passed (carried through,
+//   before its component, or all of them at the final pass and the review), and its own component
+//   past its testwriter when the change reaches it, plays again from its testwriter (`renvois`,
+//   the plan changed as its report, never the decision), the run starting at the first of them,
+//   its own component then resuming at its step; the components the change reaches are those the
+//   survey of the components (scripts/composants-affectes.mjs) finds in the lines it adds or
+//   removes, with each one the title gained, all of the title when the survey finds none. A
+//   decision that leaves the plan as it was is said at the ticket, and the run resumes as it was.
+//   Without a state, the run starts on the plan it leaves. The third RELANCE in a row on one stop (its
 //   name, step and component) is the last: when that stop comes again, the circuit ends on it, the
 //   three decisions in its reason, without a regulator.
 // - At each step, a short comment at the ticket: `Circuit · <composant> · <étape> : <résumé>`.
@@ -448,7 +468,7 @@ import { pathToFileURL } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
 import { ecrireLeBilan } from './bilan.mjs';
 import { DEPUIS_LE_VERT } from './dernier-vert.mjs';
-import { repondre, verifierLeTitre } from './composants-affectes.mjs';
+import { releve as releveDuTexte, repondre, verifierLeTitre } from './composants-affectes.mjs';
 import { optionsDuRole } from './droits.mjs';
 import { matieres, NOM_DE_TEST } from './consommateurs.mjs';
 import { VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/composant.mjs';
@@ -600,13 +620,23 @@ const enUneLigne = t =>
 
 // The options of the command line, or a Usage.
 function lireArguments(argv) {
-  const o = { ticket: null, reprendre: false, contexte: null, depuis: null, reponse: null };
+  const o = {
+    ticket: null,
+    reprendre: false,
+    contexte: null,
+    depuis: null,
+    reponse: null,
+    decision: null,
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--reprendre') o.reprendre = true;
     else if (a === '--reponse') {
       if (i + 1 >= argv.length) throw new Usage('--reponse attend la réponse du superviseur.');
       o.reponse = argv[++i];
+    } else if (a === '--decision') {
+      if (i + 1 >= argv.length) throw new Usage('--decision attend la décision du responsable.');
+      o.decision = argv[++i];
     } else if (a === '--depuis') {
       const [etape, composant] = argv.slice(i + 1, i + 3);
       if (!['testwriter', 'developpeur'].includes(etape))
@@ -626,6 +656,8 @@ function lireArguments(argv) {
   if (o.depuis && o.reprendre) throw new Usage('--depuis et --reprendre ne vont pas ensemble.');
   if (o.reponse !== null && (o.reprendre || o.depuis || o.contexte !== null))
     throw new Usage('--reponse va seule : le régulateur rend la décision.');
+  if (o.decision !== null && (o.reprendre || o.depuis || o.contexte !== null || o.reponse !== null))
+    throw new Usage('--decision va seule : le circuit reprend là où il en était.');
   return o;
 }
 
@@ -821,8 +853,8 @@ function ecrireRapport(ctx, composant, etape, texte, resultat, rapport = texte) 
 }
 
 // The state of the run, written whole (`seance` and `regulateur` null and `finale` false unless <etat>
-// sets them, `renvois`, `atteints`, `verifie` and `reprise` the run's), kept as the run's current
-// state.
+// sets them, `processus`, `renvois`, `atteints`, `verifie` and `reprise` the run's), kept as the
+// run's current state.
 function ecrireEtat(ctx, etat) {
   ctx.courant = {
     finale: false,
@@ -833,6 +865,7 @@ function ecrireEtat(ctx, etat) {
     avancement: null,
     releve: null,
     ...etat,
+    processus: process.pid,
     composants: ctx.composants,
     renvois: ctx.renvois ?? null,
     atteints: ctx.atteints ?? [],
@@ -1040,7 +1073,8 @@ async function attendreLaSeance(ctx, groupe) {
 // reviewer's, 2 the regulator's on a stop, 3 the regulator's on the supervisor's answer, 4 any
 // session's on a sheet absent or out of its schema, 5 the testwriter's and the developpeur's on a
 // resumption, 6 the regulator's on a decision the circuit refuses, 7 to 10 the questioning's, 11
-// the technical referent's on the supervisor's answer), filled with <valeurs>.
+// the technical referent's on the supervisor's answer or the owner's decision), filled with
+// <valeurs>.
 function consigne(valeurs, rang = 0) {
   const texte = readFileSync(GABARIT, 'utf8');
   const bloc = [...texte.matchAll(/```text\n([\s\S]*?)\n```/g)][rang];
@@ -2942,7 +2976,7 @@ async function trancher(ctx, a, reponse = null) {
     journal: ctx.journal,
     reponse,
     // The plan it judges on: the ticket's description, read now, and on the supervisor's answer
-    // what the answer made of it (verserLaReponse).
+    // what the answer made of it (verserAuPlan).
     description: leTicket(ctx).description.trim() || 'aucune',
     plan: ctx.plan ?? 'inchangé',
   };
@@ -3317,7 +3351,7 @@ function changerLePlan(ctx, fiche, composant) {
 }
 
 // The plan of the ticket questioned before the testwriter of the first component, after the survey
-// of its components (<releve>), or once the supervisor's answer changed it (verserLaReponse): the
+// of its components (<releve>), or once an answer or a decision changed it (verserAuPlan): the
 // technical referent answers for it, a fresh session that defends the plan with the index and the
 // mature references, resumed from its second answer, or, with <auteur>, the referent's session
 // that changed it, resumed from its first; its changes are written to the ticket by the circuit.
@@ -3560,22 +3594,48 @@ function composantsManquants(ctx) {
   return code;
 }
 
-// The supervisor's answer <ctx.reponse> to the regulator's question of the state <e> poured into
-// the plan, as an RFC amended or an ADR: the plan is what every agent reads, the exchange at the
+// What pours into the plan (verserAuPlan), by its kind: the supervisor's answer to the
+// regulator's question (`--reponse`), or a decision of the owner given in session, out of any stop
+// « question » (`--decision`). Each one's words in the technical referent's instruction (the
+// twelfth template: `objet`, `quoi`, `suite`), at the ticket (`nom`, `garde`) and on a session of
+// the referent that cannot end (`reste`).
+const VERSEMENTS = {
+  reponse: {
+    objet: 'la réponse du superviseur à la question du régulateur',
+    quoi: "LA RÉPONSE DU SUPERVISEUR, mot pour mot (la sienne, ou celle du responsable qu'il porte)",
+    suite: "puis le régulateur tranche l'arrêt sur le plan",
+    nom: 'la réponse du superviseur',
+    garde: 'le régulateur reprend sans questionnement',
+    reste: "l'arrêt « question » reste, pour une autre réponse",
+  },
+  decision: {
+    objet: 'une décision du responsable donnée en séance, hors de toute question du circuit',
+    quoi: 'LA DÉCISION DU RESPONSABLE, mot pour mot (que le superviseur porte)',
+    suite:
+      'puis le circuit reprend là où il en était, et rejoue les seuls composants que le plan changé touche',
+    nom: 'la décision du responsable',
+    garde: 'le circuit reprend tel quel',
+    reste: 'le circuit reste arrêté là où il en était, pour une autre décision',
+  },
+};
+
+// The text <texte> of the kind <genre> (VERSEMENTS), on the question <question>, poured into the
+// plan, as an RFC amended or an ADR: the plan is what every agent reads, the exchange at the
 // ticket its history. A fresh session of the technical referent, out of the envelope (the twelfth
-// template: the question, the answer, the plan), changes the plan (a criterion added, removed or
+// template: the question, the text, the plan), changes the plan (a criterion added, removed or
 // made precise, its title) or keeps it, and the circuit writes the plan its sheet gives
 // (changerLePlan). A plan changed is surveyed again, then questioned (questionnerLePlan, the
-// referent answering in its own session) before the regulator resumes; a plan the answer leaves
-// as it was is said at the ticket, and the regulator resumes with no questioning. `{ plan }`, the
-// plan in words for the regulator's resumed session; `{ code }` for the stop the run ends on: one
-// of the survey or of the questioning, or the stop of a session of the referent that cannot end,
-// the state left at « question » for another answer.
-async function verserLaReponse(ctx, e) {
-  const { composant } = e;
+// referent answering in its own session, in the state <e>, the first testwriter's without one);
+// a plan the text leaves as it was is said at the ticket, with no questioning. `{ plan, avant }`,
+// the plan in words for the regulator's resumed session and the ticket before the text; `{ code }`
+// for the stop the run ends on: one of the survey or of the questioning, or the stop of a session
+// of the referent that cannot end, the state left as it was.
+async function verserAuPlan(ctx, e, { genre, texte, question }) {
+  const v = VERSEMENTS[genre];
+  const composant = e?.composant ?? ctx.composants[0];
   const avant = leTicket(ctx);
   const seance = randomUUID();
-  const dire = texte => commenter(ctx, composant, 'questionnement', texte);
+  const dire = t => commenter(ctx, composant, 'questionnement', t);
   let f;
   try {
     f = await jusquALaFiche(
@@ -3587,10 +3647,13 @@ async function verserLaReponse(ctx, e) {
           depot: ctx.racine,
           ticket: ctx.ticket,
           sujet: ctx.sujet,
+          objet: v.objet,
           titre: avant.titre,
           description: avant.description.trim() || 'aucune',
-          question: String(e.rapport ?? '').trim() || 'aucune',
-          reponse: ctx.reponse,
+          question: String(question ?? '').trim() || 'aucune',
+          quoi: v.quoi,
+          reponse: texte,
+          suite: v.suite,
         },
         11
       ),
@@ -3603,30 +3666,164 @@ async function verserLaReponse(ctx, e) {
     );
   } catch (x) {
     if (!(x instanceof Arret)) throw x;
-    dire(
-      `arrêt ${x.nom} : la réponse du superviseur n'entre pas dans le plan — ${premiereLigne(x.rapport)}`
-    );
+    dire(`arrêt ${x.nom} : ${v.nom} n'entre pas dans le plan — ${premiereLigne(x.rapport)}`);
     process.stderr.write(
-      `⛔ Circuit de ${ctx.ticket} arrêté : ${x.nom}, la réponse du superviseur n'entre pas dans le plan ; l'arrêt « question » reste, pour une autre réponse.\n`
+      `⛔ Circuit de ${ctx.ticket} arrêté : ${x.nom}, ${v.nom} n'entre pas dans le plan ; ${v.reste}.\n`
     );
     return { code: ARRETS[x.nom] };
   }
   const faits = changerLePlan(ctx, f, composant);
   if (!faits.length) {
-    dire(
-      `la réponse du superviseur ne change pas le plan : ${lignesDesReponses(f.reponses)} ; le régulateur reprend sans questionnement.`
-    );
-    return { plan: 'inchangé, la réponse du superviseur ne change aucun critère' };
+    dire(`${v.nom} ne change pas le plan : ${lignesDesReponses(f.reponses)} ; ${v.garde}.`);
+    return { plan: `inchangé, ${v.nom} ne change aucun critère`, avant };
   }
   dire(
-    `la réponse du superviseur entre dans le plan, par le référent technique (${faits.join(', ')}) :\n${lignesDesReponses(f.reponses)}`
+    `${v.nom} entre dans le plan, par le référent technique (${faits.join(', ')}) :\n${lignesDesReponses(f.reponses)}`
   );
   const code =
     composantsManquants(ctx) ??
     (await questionnerLePlan(ctx, ctx.releve, { etat: e, auteur: seance }));
   if (code !== null) return { code };
+  return { plan: `changé par ${v.nom} (${faits.join(', ')}), puis questionné`, avant };
+}
+
+// The steps of a component's own circuit, testwriter to checks, out of the final pass.
+const DU_COMPOSANT = [TESTS, PREUVE, CODE, CONTROLES];
+// The stops whose answer is `--reponse`: a decision given there is that answer.
+const A_REPONDRE = ['question', 'questionnement', 'composants-manquants'];
+// The steps of the integration: a lot that has reached them takes no decision more.
+const INTEGREE = [INTEGRATION, EN_FILE, 'integre'];
+
+// The process <cible> (a process group as -<groupe>) stopped, as a cancelled job of GitLab CI:
+// SIGTERM, then SIGKILL when it still lives after ARRET_MS; true once it is gone.
+const ARRET_MS = 10_000;
+async function terminer(cible) {
+  const vit = () => {
+    try {
+      process.kill(cible, 0);
+      return true;
+    } catch (x) {
+      return x.code === 'EPERM';
+    }
+  };
+  for (const signal of ['SIGTERM', 'SIGKILL']) {
+    if (!vit()) return true;
+    try {
+      process.kill(cible, signal);
+    } catch {
+      return true;
+    }
+    const limite = Date.now() + ARRET_MS;
+    while (vit() && Date.now() < limite) await new Promise(r => setTimeout(r, 200));
+  }
+  return !vit();
+}
+
+// The circuit running on the ticket, the process its state <e> names (`processus`), stopped before
+// a decision of the owner enters the plan, as GitLab CI cancels a pipeline a new one makes
+// redundant and Zuul the jobs of a change superseded, said at the ticket; then the session it led
+// (`seance`, its process group), which outlives it. The state as the stopped circuit leaves it,
+// its session gone, or null without one.
+async function arreterLeCircuit(ctx, e) {
+  if (!e) return null;
+  const pid = e.processus;
+  if (Number.isInteger(pid) && pid !== process.pid && vivant(pid)) {
+    commenter(
+      ctx,
+      e.composant ?? ctx.composants[0],
+      'decision',
+      `le circuit en cours (processus ${pid}) s'arrête, sa séance avec lui : la décision du responsable entre dans le plan, puis le circuit reprend là où il en était.`
+    );
+    if (!(await terminer(pid))) {
+      throw new Error(`le circuit en cours (processus ${pid}) ne s'arrête pas.`);
+    }
+  }
+  const lu = existsSync(ctx.etat) ? JSON.parse(readFileSync(ctx.etat, 'utf8')) : e;
+  if (lu.seance && signalerGroupe(lu.seance, 0)) await terminer(-lu.seance);
+  return { ...lu, seance: null };
+}
+
+// The components of the title that the change of the plan from <avant> (the ticket before the
+// decision, the title's components then <composantsDAvant>) reaches, in the title's order: the
+// survey of the components (scripts/composants-affectes.mjs), as at the opening, of the lines the
+// change adds or removes, with each component the title gained. A change the survey situates in
+// no component reaches them all, as a pipeline runs whole on a change it cannot scope.
+function composantsDuChangement(ctx, avant, composantsDAvant) {
+  const lignes = t =>
+    String(t)
+      .split('\n')
+      .map(l => l.trim())
+      .filter(Boolean);
+  const maintenant = leTicket(ctx).description;
+  const a = new Set(lignes(avant.description));
+  const b = new Set(lignes(maintenant));
+  const change = [
+    ...lignes(maintenant).filter(l => !a.has(l)),
+    ...lignes(avant.description).filter(l => !b.has(l)),
+  ];
+  const gagnes = ctx.composants.filter(c => !composantsDAvant.includes(c));
+  if (!change.length) return gagnes;
+  const r = releveDuTexte(
+    existsSync(ctx.copie) ? ctx.copie : ctx.racine,
+    `## Critères\n\n${change.join('\n')}`
+  );
+  const nommes = new Set(
+    r.composants.flatMap(n => {
+      try {
+        return [ctx.resoudre(n)];
+      } catch {
+        return [];
+      }
+    })
+  );
+  if (!ctx.composants.some(c => nommes.has(c))) return [...ctx.composants];
+  return ctx.composants.filter(c => nommes.has(c) || gagnes.includes(c));
+}
+
+// The state <e> the run resumes from once a decision changed the plan: where it was, save the
+// components of <touches> it had passed (carried through, before its component, or all of them at
+// the final pass and after) and its own component past its testwriter when the change reaches it,
+// each played again from its testwriter (`renvois`, the plan changed as its report), the run
+// starting at the first of them; its own component, the change not reaching it, then resumes at
+// its step. With none, the state as it is.
+function etatApresLaDecision(ctx, e, touches) {
+  const i = ctx.composants.indexOf(e.composant);
+  const auComposant = DU_COMPOSANT.includes(e.etape) && e.finale !== true;
+  const passe = c => !auComposant || ctx.atteints.includes(c) || ctx.composants.indexOf(c) < i;
+  const rejouer = touches.filter(c => passe(c) || (c === e.composant && e.etape !== TESTS));
+  const dernier = ctx.composants.at(-1);
+  if (!rejouer.length) return { ...e, dernier };
+  const rapport =
+    "Le plan du ticket a changé depuis la séance d'avant de ce composant, par une décision du responsable que le référent technique y a versée : relis sa description et ses critères ; tes tests suivent le plan tel qu'il est.";
+  const renvois = { ...(e.renvois ?? {}) };
+  for (const c of rejouer) {
+    renvois[c] = {
+      etape: TESTS,
+      testwriter: rapport,
+      developpeur: null,
+      contexte: renvois[c]?.contexte ?? null,
+    };
+  }
+  const premier = Math.min(...rejouer.map(c => ctx.composants.indexOf(c)));
+  if (auComposant && !rejouer.includes(e.composant) && premier < i) {
+    renvois[e.composant] = {
+      testwriter: null,
+      developpeur: null,
+      contexte: null,
+      ...renvois[e.composant],
+      etape: e.etape,
+      [e.etape]: e.rapport ?? null,
+    };
+  }
   return {
-    plan: `changé par la réponse du superviseur (${faits.join(', ')}), puis questionné`,
+    ...e,
+    etape: TESTS,
+    composant: ctx.composants[premier],
+    tentative: 1,
+    rapport,
+    finale: false,
+    dernier,
+    renvois,
   };
 }
 
@@ -3635,7 +3832,38 @@ export async function main(argv) {
   try {
     ctx = contexte(lireArguments(argv));
     mkdirSync(path.dirname(ctx.copie), { recursive: true });
-    const e = existsSync(ctx.etat) ? JSON.parse(readFileSync(ctx.etat, 'utf8')) : null;
+    let e = existsSync(ctx.etat) ? JSON.parse(readFileSync(ctx.etat, 'utf8')) : null;
+    // A decision of the owner given in session, out of any stop « question »: the circuit running
+    // on the ticket stops, the decision enters the plan by the path of an answer, then the run
+    // resumes where it was, the components the plan changed reaches played again
+    // (etatApresLaDecision); without a state, the run starts on the plan it leaves.
+    if (ctx.decision !== null) {
+      const integree = x =>
+        INTEGREE.includes(x?.etape) &&
+        new Usage(
+          `--decision : le lot de ${ctx.ticket} est à l'intégration (${x.etape}) ; une décision neuve ouvre son ticket.`
+        );
+      if (A_REPONDRE.includes(e?.raison)) {
+        throw new Usage(
+          `--decision : l'arrêt « ${e.raison} » de ${ctx.ticket} attend sa réponse, --reponse "<texte>".`
+        );
+      }
+      if (integree(e)) throw integree(e);
+      e = await arreterLeCircuit(ctx, e);
+      if (integree(e)) throw integree(e);
+      ctx.atteints = [...(e?.atteints ?? [])];
+      ctx.verifie = e?.verifie ?? null;
+      ctx.reprise = e?.reprise ?? null;
+      ctx.renvois = e?.renvois ?? null;
+      const titre = [...ctx.composants];
+      const verse = await verserAuPlan(ctx, e, { genre: 'decision', texte: ctx.decision });
+      if (verse.code !== undefined) return aLaFin(ctx, verse.code);
+      if (e) {
+        e = etatApresLaDecision(ctx, e, composantsDuChangement(ctx, verse.avant, titre));
+        ctx.reprendre = true;
+      }
+      ctx.decision = null;
+    }
     // The supervisor's answer to the questioning of the plan lets the plan pass, from the start.
     if (ctx.reponse !== null && e?.raison === 'questionnement') {
       commenter(
@@ -3697,7 +3925,11 @@ export async function main(argv) {
     // The supervisor's answer enters the plan first; then it goes to the regulator's session kept
     // on the stop it settles, which judges on the plan.
     ctx.renvois = e.renvois ?? null;
-    const verse = await verserLaReponse(ctx, e);
+    const verse = await verserAuPlan(ctx, e, {
+      genre: 'reponse',
+      texte: ctx.reponse,
+      question: e.rapport,
+    });
     if (verse.code !== undefined) return aLaFin(ctx, verse.code);
     ctx.plan = verse.plan;
     const arret = {
@@ -3738,7 +3970,7 @@ export async function main(argv) {
   } catch (e) {
     if (!(e instanceof Usage)) throw e;
     process.stderr.write(
-      `usage: circuit.mjs <ticket> [--reprendre] [--depuis <testwriter|developpeur> <composant>] [--contexte <texte>] | --reponse <texte>\n⛔ ${e.message}\n`
+      `usage: circuit.mjs <ticket> [--reprendre] [--depuis <testwriter|developpeur> <composant>] [--contexte <texte>] | --reponse <texte> | --decision <texte>\n⛔ ${e.message}\n`
     );
     return CODE_USAGE;
   } finally {
