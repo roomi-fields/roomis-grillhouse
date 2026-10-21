@@ -128,8 +128,8 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
 ## Outils
 
 - ⛔ **Des commandes sans invite** : tout fichier temporaire dans le scratchpad de session ;
-  `env -C <dossier>` ou `git -C` à la place de `cd` ; une suppression passe par un script du
-  scratchpad (`os.remove`) sur un chemin nommé et lu ; un signal vise seulement un processus que la
+  `env -C <dossier>` ou `git -C` à la place de `cd` ; une suppression passe par un script node du
+  scratchpad (`rmSync` de `node:fs`) sur un chemin nommé et lu ; un signal vise seulement un processus que la
   séance a lancé. Une commande dont on doute s'écrit dans le compte rendu, sans se lancer. Ainsi
   la séance avance seule, sans geler jusqu'au passage du responsable.
 - ⛔ **Aucune commande ne fait attendre le responsable** : dans une séance où il attend, celle du

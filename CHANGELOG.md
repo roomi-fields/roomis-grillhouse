@@ -9,6 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Changed
 
 - **The agent of step 2.1 is the testwriter**: the owner chose an English name, shorter and clearer (2026-10-21). The agent and skill `testeur` are now `testwriter`, without an alias: the step, its stops (`renvoi-au-testwriter`), the sheets (`role` testwriter), the locks, the envelope, the rights, the board, the common charter and the skills name only `testwriter`, and the circuit writes its sessions under the author `testwriter <composant>` and reads the line `Agent : testwriter`. The update of a project removes the former agent `.claude/agents/testeur.md` and skill `.claude/skills/testeur/`.
+- **The testwriter removes a file of its tests by a gesture its rights permit**: in BPScript 325, at 14:29 the testwriter could not remove a test file, python3 refused three times as the common charter's `os.remove` asked, while the same removal had passed at 14:02 by node; 2.5 min and a stop that went up to the supervisor. As a role holds the rights of what its skill asks, the charter now names a node script of the scratchpad (`rmSync` of `node:fs`) on a path named and read, the testwriter's skill names it (`node $TMPDIR/<script>.mjs`), and its rights allow it (`scripts/droits.mjs`); python stays refused to a role that writes.
 
 ## [0.20.3] - 2026-10-21
 

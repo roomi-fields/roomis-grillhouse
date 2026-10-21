@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { AUTEUR_FIXE, optionsDuRole, ROLES } from '../../scripts/droits.mjs';
+import { refusDeCommande } from '../../scripts/verrous/commande.mjs';
 
 const RACINE = path.resolve(__dirname, '../..');
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'droits-'));
@@ -408,5 +409,50 @@ describe("L2 — the context of a role's session", () => {
     );
     expect(r.status, r.stderr).toBe(0);
     expect(r.stdout.split('\n').slice(0, -1)).toEqual(options('developpeur'));
+  });
+});
+
+// grillhouse-3uv.91.6: a role holds the rights of what its skill asks, and the written rule
+// prescribes no gesture its rights refuse. Witness: BPScript 325, at 14:29 the testwriter could not
+// remove a test file (python3 refused three times, as the charter's `os.remove` asked); the same
+// removal had passed at 14:02 by node. 2.5 min, a stop MONTE.
+describe('3uv.91.6 — the testwriter removes a file of its tests', () => {
+  const RETRAIT = 'node $TMPDIR/x.mjs';
+
+  it('criterion 1: its skill names the removal by a node script of its temporary directory, which its rights permit and neither its rules nor its command lock refuse', () => {
+    const competence = readFileSync(
+      path.join(RACINE, '.claude/skills/testwriter/SKILL.md'),
+      'utf8'
+    );
+    expect(demandees('testwriter')).toContain(RETRAIT);
+    expect(competence).toMatch(/`rmSync`/);
+    const { allow, deny } = reglagesDe(options('testwriter')).permissions;
+    expect(allow.some(r => couvre(r, RETRAIT))).toBe(true);
+    expect(deny.some(r => couvre(r, RETRAIT))).toBe(false);
+    expect(
+      refusDeCommande({
+        tool_name: 'Bash',
+        tool_input: { command: 'node $TMPDIR/retire.mjs' },
+        cwd: RACINE,
+      })
+    ).toBeNull();
+  });
+
+  it('criterion 2: the common charter names that gesture for a removal, and no gesture the rights of a role that writes refuse', () => {
+    const charte = readFileSync(path.join(RACINE, '.claude/grillhouse/charte.md'), 'utf8').replace(
+      /\s+/g,
+      ' '
+    );
+    const phrase = /une suppression passe par [^;]*;/.exec(charte)?.[0] ?? '';
+    expect(phrase).toMatch(/script node/);
+    expect(phrase).toMatch(/`rmSync`/);
+    expect(phrase).not.toMatch(/os\.remove|python/);
+    for (const role of ['testwriter', 'developpeur']) {
+      const { deny } = reglagesDe(options(role)).permissions;
+      expect(
+        deny.some(r => couvre(r, RETRAIT)),
+        role
+      ).toBe(false);
+    }
   });
 });

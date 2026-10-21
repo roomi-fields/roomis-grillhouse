@@ -99,7 +99,13 @@ export const ROLES = {
   testwriter: {
     ecrit: true,
     competences: ['testwriter', 'mesure'],
-    commandes: ['Bash(bd update * --claim)', 'Bash(bd comments add *)', 'Bash(npm test *)'],
+    commandes: [
+      'Bash(bd update * --claim)',
+      'Bash(bd comments add *)',
+      'Bash(npm test *)',
+      // The removal of a file of its tests, by a script of its temporary directory.
+      'Bash(node $TMPDIR/*)',
+    ],
   },
   developpeur: {
     ecrit: true,

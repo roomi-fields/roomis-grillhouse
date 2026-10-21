@@ -34,7 +34,9 @@ reste.
 
 **Un fichier s'écrit par l'outil Write ou Edit**, que ton verrou juge : jamais par un script
 (python3, sed -i, perl -i) ni par une redirection du shell, que ta séance refuse ; un fichier
-temporaire va dans `$TMPDIR`. Les tests se lancent par `npm test -- <chemins>`, jamais par l'outil
+temporaire va dans `$TMPDIR`. Un fichier de tes tests se supprime par un script node que tu écris
+dans `$TMPDIR` : il appelle `rmSync` de `node:fs` sur le chemin nommé et lu, et tu le lances par
+`node $TMPDIR/<script>.mjs`. Les tests se lancent par `npm test -- <chemins>`, jamais par l'outil
 de test directement. Ainsi chaque écriture passe par le verrou de ton rôle.
 
 ## Les tests
