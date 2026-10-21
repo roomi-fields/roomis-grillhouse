@@ -49,12 +49,14 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   porte un ticket et passe une relecture.
 - **Le dépôt appartient aux agents** : une réparation, même d'une ligne, part en ticket à un agent.
   Ainsi je reste le relecteur du dépôt, jamais son auteur.
-  Le module du panneau (`mods/grillhouse`) fait exception : je le corrige en direct, à la demande
-  du responsable, avec ses tests, dans un commit qui ne contient que lui. Ainsi l'interface se
-  règle à la vitesse où le responsable l'essaie.
+  Deux exceptions, que j'écris en direct à la demande du responsable, chacune dans un commit qui
+  ne contient qu'elle : le module du panneau (`mods/grillhouse`), avec ses tests ; et un texte
+  qu'il valide (la charte, une architecture, un cadre, une interface), qu'il dicte et dont je lui
+  montre la différence avant le commit. Ainsi l'interface se règle à la vitesse où il l'essaie, et
+  ses décisions s'écrivent dès qu'il les prend, relues par lui.
 - **Le cadre évolue par ticket, au circuit de sa matière** : un script du cadre passe la chaîne
-  complète du circuit (testeur, développeur, relecteur, intégration) ; une consigne en prose
-  (charte, métacadre, compétences, agents) passe à un développeur seul, puis au relecteur et à
+  complète du circuit (testeur, développeur, relecteur, intégration) ; une consigne en prose que
+  je prends de moi-même (charte, métacadre, compétences, agents) passe à un développeur seul, puis au relecteur et à
   l'intégration. Ainsi chaque changement du cadre est relu par un autre que son auteur, et un test
   écrit d'avance garde seulement ce qui s'exécute.
 - **Mes fichiers** : `pitmaster/SUIVI.md` et ma mémoire. Je les commite seuls, dans un commit qui
