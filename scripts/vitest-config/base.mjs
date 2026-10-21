@@ -45,7 +45,9 @@
 // - The time witnesses play alone in `npm run verifier`: the plugin below leaves them out of its
 //   pass, then plays them in a pass of their own (./cibles.mjs, scripts/verifier.mjs).
 // - While a run names its results directory (`GRILLHOUSE_RESULTATS`, ./resultats.mjs), the JSON
-//   reporter writes Vitest's report there too, which the circuit reads (scripts/resultats.mjs).
+//   reporter writes Vitest's report there too, which the circuit reads (scripts/resultats.mjs); a
+//   setup file gives each test file's processes a results directory of their own, so that a run a
+//   test plays in a repository of trial never writes in it (./resultats.setup.mjs).
 // - While a run names the progress directory of its pass (`GRILLHOUSE_AVANCEMENT`,
 //   ./avancement.mjs), the reporter of progress writes there the files done and planned of its
 //   task at each test file done, which the board reads (scripts/avancement.mjs,
@@ -70,7 +72,11 @@ export default {
     },
     exclude: ['**/node_modules/**', '**/dist/**', ...HORS_DU_JOUR],
     reporters: ['default', ici('./duree.reporter.mjs'), ...rapportJson(), ...rapportAvancement()],
-    setupFiles: [ici('./mesure.setup.mjs'), ici('./machine.setup.mjs')],
+    setupFiles: [
+      ici('./mesure.setup.mjs'),
+      ici('./machine.setup.mjs'),
+      ici('./resultats.setup.mjs'),
+    ],
     watch: false,
   },
 };
