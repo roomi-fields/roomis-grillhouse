@@ -65,7 +65,7 @@
 //   start; the queue (5.2), the steps of its CI. Past FIGEE without a sign,
 //   « ⚠ figée <durée> · faits/prévus », in the tone of an alert. A measure out of a ticket that
 //   holds the lock of the machine (a supervisor's or an integration's `npm run verifier`) stands
-//   at the head of AGENTS: « ⏳ Mesure · <dépôt> · <commande> · faits/prévus · il y a <durée> »,
+//   at the head of AGENTS: « ⏳ Mesure · <dépôt> · faits/prévus · <durée> »,
 //   « ⚠ Mesure figée <durée> · … » past FIGEE. Such a line is marked `avancement`, which the
 //   pane measures again more often.
 // - Alerts: one red alert per open night ticket (its subject, then its number), tickets awaiting
@@ -1125,7 +1125,9 @@ function temoinDe(c, etape, maintenant) {
   if (c.avancement) {
     age = maintenant - c.avancement.dernier;
     const { faits, prevus } = c.avancement;
-    if (faits || prevus) compte = `${faits}/${prevus}`;
+    if (faits || prevus) {
+      compte = `${faits}/${prevus}`;
+    }
   } else if (etape.releve && c.releve !== null && c.releve !== undefined) {
     age = maintenant - c.releve;
   } else {
@@ -1215,16 +1217,16 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   L('', undefined);
   L('AGENTS  ▶ en cours · en attente', 'titre');
   // A measure out of a ticket that holds the lock of the machine (scripts/avancement.mjs), at the
-  // head: « ⏳ Mesure · <dépôt> · <commande> · faits/prévus · il y a <durée> », or past FIGEE
-  // without a sign « ⚠ Mesure figée <durée> · <dépôt> · <commande> · faits/prévus », in the tone of
-  // an alert; the repository and the command are cut, never the figures.
+  // head: « ⏳ Mesure · <dépôt> · faits/prévus · <durée> », or past FIGEE without a sign
+  // « ⚠ Mesure figée <durée> · <dépôt> · faits/prévus », in the tone of an alert; the repository
+  // is cut, never the figures.
   const maintenant = t.maintenant ?? Date.now();
   if (t.horsTicket) {
     const m = t.horsTicket;
     const age = maintenant - m.dernier;
     const compte = m.faits || m.prevus ? `${m.faits}/${m.prevus}` : '';
     const fige = age > FIGEE;
-    const quoi = `${m.depot} · ${m.commande}`;
+    const quoi = m.depot;
     poser({
       texte: fige
         ? couperAvant(
@@ -1235,7 +1237,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
           )
         : couperAvant(
             `⏳ Mesure · ${quoi}`,
-            ` · ${compte ? `${compte} · ` : ''}il y a ${ilYa(age)}`,
+            ` · ${compte ? `${compte} · ` : ''}${ilYa(age)}`,
             '',
             largeur
           ),
@@ -1373,7 +1375,9 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     });
     poser(...attend.map(attente));
     if (arretes.length) {
-      if (retrait !== null) ligneDArbitrage(retrait);
+      if (retrait !== null) {
+        ligneDArbitrage(retrait);
+      }
       for (const c of arretes) {
         ligneDuCircuit(c);
       }

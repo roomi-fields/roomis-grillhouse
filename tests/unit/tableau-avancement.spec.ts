@@ -234,7 +234,7 @@ describe('a measure out of a ticket stands at the head of AGENTS', () => {
   const tete = (a: Ligne[]) => a[a.findIndex(x => x.texte.startsWith('AGENTS')) + 1];
   const racine = () => depot({ etape: 'relecture' });
 
-  it('« ⏳ Mesure · <dépôt> · <commande> · faits/prévus · il y a <durée> », the command cut, never the figures', () => {
+  it('« ⏳ Mesure · <dépôt> · faits/prévus · <durée> », the repository cut, never the figures', () => {
     const mesure = {
       depot: 'Grillhouse',
       commande: 'npm run verifier',
@@ -244,8 +244,7 @@ describe('a measure out of a ticket stands at the head of AGENTS', () => {
     };
     const l = tete(agents(racine(), { mesure }));
     expect(l.texte.length).toBeLessThanOrEqual(LARGEUR);
-    expect(l.texte).toMatch(/^⏳ Mesure · Grillhouse · npm r/);
-    expect(l.texte).toMatch(/ · 51\/123 · il y a 3 s$/);
+    expect(l.texte).toMatch(/^⏳ Mesure · Grillhouse · 51\/123 · 3 s$/);
     expect(l).toMatchObject({ ton: 'actif', avancement: true });
   });
 
@@ -259,8 +258,7 @@ describe('a measure out of a ticket stands at the head of AGENTS', () => {
     };
     const l = tete(agents(racine(), { mesure }));
     expect(l.texte.length).toBeLessThanOrEqual(LARGEUR);
-    expect(l.texte).toMatch(/^⚠ Mesure figée 12 min · Grillhouse · /);
-    expect(l.texte).toMatch(/ · 51\/123$/);
+    expect(l.texte).toMatch(/^⚠ Mesure figée 12 min · Grillhouse · 51\/123$/);
     expect(l.ton).toBe('alerte');
   });
 
