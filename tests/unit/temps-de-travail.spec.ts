@@ -967,9 +967,9 @@ describe("the circuit's own steps count in the ticket's working time", () => {
       maintenant: midi,
       jour: minuit,
     });
-    expect(b.agents.map(x => x.role)).not.toContain('circuit');
+    expect(b.agents.flatMap(x => x.roles)).not.toContain('circuit');
     const ou = b.agents.filter(x => [...x.enCours, ...x.attend].some(y => y.id === 'demo-c.1'));
-    expect(ou.map(x => x.role)).toEqual(['developpeur']);
+    expect(ou.map(x => x.roles)).toEqual([['developpeur']]);
     expect(ou[0].enCours).toEqual([]);
   });
 
