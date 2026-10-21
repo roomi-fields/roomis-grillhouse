@@ -99,6 +99,7 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
         'finale',
         'journal',
         'mene',
+        'processus',
         'questionnement',
         'raison',
         'rapport',

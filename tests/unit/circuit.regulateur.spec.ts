@@ -85,7 +85,6 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
       JSON.parse(valeur(a, '--settings')) as { permissions: { allow: string[]; deny: string[] } }
     ).permissions;
     for (const regle of [
-      'Bash(bd show *)',
       'Bash(bd comments *)',
       'Bash(bd search *)',
       'Bash(bd update * -d *)',
