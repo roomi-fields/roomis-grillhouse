@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-10-21
+
 ### Changed
 
 - **The context of a relaunch `--depuis` follows the whole chain of its component**: in BPScript 325, `--depuis testeur packages/995-tools --contexte …` gave its developpeur only the report of the proof, « CONTEXTE : aucun », and he kept what the owner had just set aside: 5 min lost, 23 min counting what followed. `depart` gave the context to the first step alone, as its report, and the line CONTEXTE said « aucun » under `--depuis`. As a retry of GitLab CI plays the jobs after it with the same variables, the context now stands in `renvois` (kept in the state) and on the line CONTEXTE of each agent of the component played again, its testwriter then its developpeur, no longer as the first step's report; a component after it does not receive it, and the developpeur still starts on a red of the proof. The gestures of the table that play a component again (a developpeur's sending to a testwriter, a component added before `--reponse`) carry their text the same way. The header of `scripts/circuit.mjs` and the regulator's instruction say so.
