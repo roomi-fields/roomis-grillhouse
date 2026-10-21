@@ -180,6 +180,10 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
   celui qui attend est un blocage : l'attente le dit tout de suite et s'arrête, rouge. La passe
   borne ses tâches côte à côte à la moitié des cœurs. Ainsi une mesure rend le résultat du code, et
   non celui d'une autre mesure à côté, et aucune passe ne reste figée sans le dire.
+- **Une passe automatique montre son avancement** : chaque passe automatique écrit ses fichiers
+  de tests faits sur prévus (la file, les étapes de sa CI), que le panneau affiche avec le temps
+  depuis son dernier signe, « ⚠ figée » au-delà de 5 min, comme le compteur d'actions de Bazel.
+  Ainsi une passe qui fige se voit.
 - **Un témoin de temps joue seul** : un fichier de test qui importe `mesurerAuRepos` est un
   témoin de temps ; `npm run verifier` joue tous les autres tests, puis les témoins dans une passe
   à eux, une tâche après l'autre, comme Bazel joue un test `exclusive`. Un échec qui dépend d'une

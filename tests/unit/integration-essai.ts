@@ -163,11 +163,16 @@ const TEST = 'npm run --silent --if-present build && node gardes.mjs && node sui
 
 // The trial's stand-in for Turborepo, the local package `outils/turbo` of the trial project (its
 // `turbo` binary, which `npm install` links into node_modules/.bin): `turbo run <task>` runs the
-// project's npm script <task> when it has one, as Turborepo skips a task without a script.
+// project's npm script <task> when it has one, as Turborepo skips a task without a script; its plan
+// (`--dry=json`) holds no task.
 const TURBO_FAUX = `#!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
 const [commande, tache] = process.argv.slice(2);
 if (commande !== 'run' || !tache) process.exit(2);
+if (process.argv.includes('--dry=json')) {
+  process.stdout.write('{"tasks":[]}');
+  process.exit(0);
+}
 const r = spawnSync('npm', ['run', '--silent', '--if-present', tache], { stdio: 'inherit' });
 process.exit(r.status ?? 1);
 `;
@@ -196,9 +201,12 @@ export interface Resultat {
   stderr: string;
 }
 
-// The fake GitHub CLI: its answers come from <bin>/gh.json ({ runs, watch, url, log }: the runs
-// `gh run list` gives, the exit code of `gh run watch`, the address and the failed log `gh run
-// view` gives), no run without the file; every call is appended to <bin>/gh-appels, one per line.
+// The fake GitHub CLI: its answers come from <bin>/gh.json ({ runs, vues, url, log, avancement }: the runs
+// `gh run list` gives, the successive views of the run `gh run view <id> --json
+// status,conclusion,jobs` gives, the last one repeated, the address and the failed log `gh run
+// view` gives), no run without the file; every call is appended to <bin>/gh-appels, one per line,
+// and, with a progress directory (`avancement`), the record of the CI it holds then to
+// <bin>/gh-avancement.
 const FAUX_GH = `#!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
@@ -207,8 +215,17 @@ const a = process.argv.slice(2);
 fs.appendFileSync(path.join(ici, 'gh-appels'), a.join(' ') + '\\n');
 const f = path.join(ici, 'gh.json');
 const s = fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : {};
+// Under a progress directory, the record of the CI it holds at each call, one per line.
+try {
+  const ci = path.join(s.avancement, 'taches', 'etapes-de-la-ci.json');
+  fs.appendFileSync(path.join(ici, 'gh-avancement'), fs.readFileSync(ci, 'utf8').trim() + '\\n');
+} catch {}
 if (a[0] === 'run' && a[1] === 'list') process.stdout.write(JSON.stringify(s.runs ?? []));
-else if (a[0] === 'run' && a[1] === 'watch') process.exit(s.watch ?? 0);
+else if (a[0] === 'run' && a[1] === 'view' && a.includes('status,conclusion,jobs')) {
+  const n = fs.readFileSync(path.join(ici, 'gh-appels'), 'utf8').split('\\n').filter(l => l.includes('status,conclusion,jobs')).length;
+  const vues = s.vues ?? [];
+  process.stdout.write(JSON.stringify(vues[Math.min(n, vues.length) - 1] ?? {}));
+}
 else if (a[0] === 'run' && a[1] === 'view' && a.includes('--log-failed')) process.stdout.write(s.log ?? '');
 else if (a[0] === 'run' && a[1] === 'view') process.stdout.write((s.url ?? '') + '\\n');
 else process.exit(1);
@@ -236,8 +253,10 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
     GIT_COMMITTER_NAME: 't',
     GIT_COMMITTER_EMAIL: 't@t',
     PRINCIPAL: repo,
-    // The queue looks for the run of the CI once: the fake gh answers at once.
+    // The queue looks for the run of the CI once, and reads it again at once: the fake gh answers
+    // at once.
     GRILLHOUSE_CI_RECHERCHE_MS: '0',
+    GRILLHOUSE_CI_PAS_MS: '0',
   };
   const gitDans = (dir: string, ...a: string[]) =>
     execFileSync('git', ['-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], {
@@ -495,8 +514,15 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
     return r;
   };
   // The queue, as the regulator launches it from the main tree.
-  const file = (...args: string[]): SpawnSyncReturns<string> =>
-    spawnSync('node', [FILE, ...args], { cwd: repo, encoding: 'utf8', env, timeout: 120_000 });
+  const file = (...args: string[]): SpawnSyncReturns<string> => fileSous({}, ...args);
+  // The same, <ajout> added to its environment.
+  const fileSous = (ajout: Record<string, string>, ...args: string[]): SpawnSyncReturns<string> =>
+    spawnSync('node', [FILE, ...args], {
+      cwd: repo,
+      encoding: 'utf8',
+      env: { ...env, ...ajout },
+      timeout: 120_000,
+    });
 
   const lireF = (f: string) => (existsSync(f) ? readFileSync(f, 'utf8') : '');
   const bd = (id: string): Ticket =>
@@ -538,6 +564,7 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
     retirer,
     livrer,
     file,
+    fileSous,
     bd,
     sujets,
     sha,

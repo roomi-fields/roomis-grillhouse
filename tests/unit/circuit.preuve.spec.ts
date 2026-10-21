@@ -71,9 +71,11 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     expect(Object.keys(e ?? {}).sort()).toEqual(
       [
         'atteints',
+        'avancement',
         'boucles',
         'composants',
         'regulateur',
+        'releve',
         'code',
         'composant',
         'dernier',

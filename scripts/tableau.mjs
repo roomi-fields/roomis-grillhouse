@@ -57,6 +57,17 @@
 //   flow counts as a passage, and the step under way of a running circuit (`mene` in its state) up
 //   to now; they count out of the turns of the ticket's agents, so the ticket's time is the union
 //   of both, each instant once, and they spend no tokens.
+// - Progress: the line of a ticket whose circuit runs an automatic step gives the progress of
+//   its pass, read in the progress directory its state names (scripts/avancement.mjs), in
+//   figures, as Bazel's counter of actions: « faits/prévus · il y a <durée> » since its last
+//   sign, after the counters of its loops, or in their place when room lacks (the subject or the
+//   component is cut, never the figures); the survey of the components (1.1), the time since its
+//   start; the queue (5.2), the steps of its CI. Past FIGEE without a sign,
+//   « ⚠ figée <durée> · faits/prévus », in the tone of an alert. A measure out of a ticket that
+//   holds the lock of the machine (a supervisor's or an integration's `npm run verifier`) stands
+//   at the head of AGENTS: « ⏳ Mesure · <dépôt> · <commande> · faits/prévus · il y a <durée> »,
+//   « ⚠ Mesure figée <durée> · … » past FIGEE. Such a line is marked `avancement`, which the
+//   pane measures again more often.
 // - Alerts: one red alert per open night ticket (its subject, then its number), tickets awaiting
 //   the responsable, a shell agent silent for 10 minutes, a ticket in progress without anything
 //   running for 30 minutes.
@@ -90,12 +101,19 @@ import {
 } from './etapes.mjs';
 import { bilansGardes, enBref } from './bilan.mjs';
 import { verdictDe } from './integration/verdict.mjs';
+import { lireAvancement, lireLaMesure } from './avancement.mjs';
 
 const MINUTE = 60_000;
 export const SILENCE = 10 * MINUTE;
 export const SANS_AGENT = 30 * MINUTE;
 const RECENT = 2 * MINUTE;
 export const LARGEUR = 52;
+// An automatic pass without a sign for this long is frozen: its line says so, in the tone of an
+// alert.
+export const FIGEE = 5 * MINUTE;
+// The room a circuit's line keeps for its subject or its component beside the counters of its
+// loops and the progress of its pass: below it, the progress takes the counters' place.
+const PLACE_DU_SUJET = 10;
 // The role of a register line that a step of a circuit writes (scripts/circuit.mjs): no agent,
 // no role of the flow.
 export const ROLE_DU_CIRCUIT = 'circuit';
@@ -565,8 +583,11 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
 // session of the regulator, `questionnement` the object of the questioning under way (`plan` or
 // `decision`), null without one, `question` the
 // regulator's whole question for a circuit ended on it,
-// the counters of its bounded loops (`boucles`, by their key), and the rank of its component among the title's (`rang`, from 1) and their number (`total`). A
-// state that does not parse is left out.
+// the counters of its bounded loops (`boucles`, by their key), and the rank of its component among the title's (`rang`, from 1) and their number (`total`),
+// the progress of the automatic pass under way (`avancement`, read in the directory its state
+// names, scripts/avancement.mjs: `{ faits, prevus, dernier }`, null without one) and the start of
+// the survey of the components under way (`releve`, ms, null without one). A state that does not
+// parse is left out.
 export function lireCircuits({ racine, prefix, ps }) {
   const dossier = path.join(racine, '.claude', 'worktrees');
   const motif = new RegExp(`circuit\\.mjs (${prefix}-[A-Za-z0-9]+(?:\\.[0-9]+)*)(?:\\s|$)`);
@@ -606,6 +627,12 @@ export function lireCircuits({ racine, prefix, ps }) {
       boucles: e.boucles && typeof e.boucles === 'object' ? e.boucles : {},
       mene:
         typeof e.mene === 'string' && !Number.isNaN(Date.parse(e.mene)) ? Date.parse(e.mene) : null,
+      avancement:
+        typeof e.avancement?.dossier === 'string' ? lireAvancement(e.avancement.dossier) : null,
+      releve:
+        typeof e.releve === 'string' && !Number.isNaN(Date.parse(e.releve))
+          ? Date.parse(e.releve)
+          : null,
       vivant: enVie.has(ticket),
     });
   }
@@ -693,6 +720,7 @@ export function assembler({
   verdicts = {},
   maintenant,
   jour,
+  horsTicket = null,
 }) {
   // A circuit's lines are its steps, no agent's passage.
   const etapesFinies = lignesDuRegistre.filter(r => r.role === ROLE_DU_CIRCUIT);
@@ -1058,6 +1086,8 @@ export function assembler({
     chantiers,
     autres,
     agents: blocs,
+    maintenant,
+    horsTicket,
     faitsDuJour,
     etats,
     parTicket,
@@ -1081,6 +1111,34 @@ const jourEtMois = t => {
   const deux = x => String(x).padStart(2, '0');
   return `${deux(d.getDate())}/${deux(d.getMonth() + 1)}`;
 };
+
+// A time since a sign, « 8 s » under a minute, else as `duree`.
+const ilYa = ms => (ms < MINUTE ? `${Math.max(0, Math.round(ms / 1000))} s` : duree(ms));
+
+// The witness of the automatic step <etape> of the running circuit <c> at <maintenant>: the
+// progress of its pass (` · faits/prévus · il y a <durée>`, the figures once a task wrote), or the
+// time since the start of its survey of the components (1.1); past FIGEE without a sign,
+// ` · ⚠ figée <durée> · faits/prévus`, `fige`. Null without either.
+function temoinDe(c, etape, maintenant) {
+  let age;
+  let compte = '';
+  if (c.avancement) {
+    age = maintenant - c.avancement.dernier;
+    const { faits, prevus } = c.avancement;
+    if (faits || prevus) compte = `${faits}/${prevus}`;
+  } else if (etape.releve && c.releve !== null && c.releve !== undefined) {
+    age = maintenant - c.releve;
+  } else {
+    return null;
+  }
+  const fige = age > FIGEE;
+  return {
+    fige,
+    texte: fige
+      ? ` · ⚠ figée ${ilYa(age)}${compte ? ` · ${compte}` : ''}`
+      : ` · ${compte ? `${compte} · ` : ''}il y a ${ilYa(age)}`,
+  };
+}
 
 // A ticket's time and tokens, « 12 min · 310 k »; nothing when both are zero.
 const conso = (ms, jetons) =>
@@ -1156,6 +1214,35 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
 
   L('', undefined);
   L('AGENTS  ▶ en cours · en attente', 'titre');
+  // A measure out of a ticket that holds the lock of the machine (scripts/avancement.mjs), at the
+  // head: « ⏳ Mesure · <dépôt> · <commande> · faits/prévus · il y a <durée> », or past FIGEE
+  // without a sign « ⚠ Mesure figée <durée> · <dépôt> · <commande> · faits/prévus », in the tone of
+  // an alert; the repository and the command are cut, never the figures.
+  const maintenant = t.maintenant ?? Date.now();
+  if (t.horsTicket) {
+    const m = t.horsTicket;
+    const age = maintenant - m.dernier;
+    const compte = m.faits || m.prevus ? `${m.faits}/${m.prevus}` : '';
+    const fige = age > FIGEE;
+    const quoi = `${m.depot} · ${m.commande}`;
+    poser({
+      texte: fige
+        ? couperAvant(
+            `⚠ Mesure figée ${ilYa(age)} · ${quoi}`,
+            compte ? ` · ${compte}` : '',
+            '',
+            largeur
+          )
+        : couperAvant(
+            `⏳ Mesure · ${quoi}`,
+            ` · ${compte ? `${compte} · ` : ''}il y a ${ilYa(age)}`,
+            '',
+            largeur
+          ),
+      ton: fige ? 'alerte' : 'actif',
+      avancement: true,
+    });
+  }
   // The tree of the steps (scripts/etapes.mjs), in its order, as a pipeline of GitLab CI shows its
   // stages and folds the jobs of a stage that has nothing: a step with sub-steps is folded
   // (« ▸ 1 · Ouverture ») while none of them holds a ticket, unfolded (« ▾ ») once one does, all
@@ -1214,20 +1301,31 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   const ligneDuCircuit = c => {
     const droite = conso(t.parTicket?.[c.id]?.travail ?? 0, t.parTicket?.[c.id]?.jetons ?? 0);
     const etape = aLArbitrage(c) ? ARBITRAGE : etapeDe(c);
-    const suite = (etape ? bouclesDe(etape) : [])
+    const boucles = (etape ? bouclesDe(etape) : [])
       .filter(b => b.max && c.boucles?.[b.cle] >= 2)
       .map(b => ` · ${b.libelle} ${c.boucles[b.cle]}/${b.max}`)
       .join('');
     const tete = `${c.vivant ? '▶' : '■'} ${numero(c.numero)}  `;
-    const texte = quoi => couperAvant(`${tete}${quoi}`, suite, droite, largeur);
     const composant = c.composant
       ? `${c.composant === '.' ? '.' : path.basename(c.composant)}${c.total > 1 ? ` ${c.rang}/${c.total}` : ''}`
       : null;
+    const temoin = c.vivant && etape?.qui.includes(AUTO) ? temoinDe(c, etape, maintenant) : null;
+    // The progress after the counters of the loops while the component (else the subject) keeps
+    // its room beside them, in their place otherwise.
+    const quoiCourt = composant ?? c.sujet;
+    const reste = avec => largeur - (droite ? droite.length + 1 : 0) - tete.length - avec.length;
+    const suite = !temoin
+      ? boucles
+      : reste(`${boucles}${temoin.texte}`) >= Math.min(PLACE_DU_SUJET, quoiCourt.length)
+        ? `${boucles}${temoin.texte}`
+        : temoin.texte;
+    const texte = quoi => couperAvant(`${tete}${quoi}`, suite, droite, largeur);
     poser({
       texte: texte(c.sujet),
       ...(composant ? { alterne: texte(composant) } : {}),
-      ton: c.vivant ? 'actif' : 'attention',
+      ton: temoin?.fige ? 'alerte' : c.vivant ? 'actif' : 'attention',
       ticket: c.id,
+      ...(temoin ? { avancement: true } : {}),
     });
   };
   const contenu = b => {
@@ -1705,6 +1803,7 @@ export function tableau(racine, { home = os.homedir(), maintenant = Date.now() }
     verdicts,
     maintenant,
     jour: minuit.getTime(),
+    horsTicket: lireLaMesure(process.env),
   });
   // The project is named by its repository's folder, as a shell prompt names it.
   const nom = path.basename(racine);

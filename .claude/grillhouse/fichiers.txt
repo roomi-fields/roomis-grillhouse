@@ -21,6 +21,7 @@ tsdoc.json
 .claude/skills/relecteur/
 .claude/skills/testeur/
 docs/agents/issue-tracker.md
+scripts/avancement.mjs
 scripts/bilan.mjs
 scripts/branche-de-nuit.mjs
 scripts/circuit.mjs
@@ -75,9 +76,11 @@ scripts/vitest.nuit.config.mjs
 - tests/claude-substitut.ts
 - tests/config-git.ts
 - tests/machine.ts
+- tests/unit/avancement.spec.ts
 - tests/unit/bilan.spec.ts
 - tests/unit/circuit-conduite.spec.ts
 - tests/unit/circuit-sans-texte-libre.spec.ts
+- tests/unit/circuit.avancement.spec.ts
 - tests/unit/circuit.bilan.spec.ts
 - tests/unit/circuit-essai.ts
 - tests/unit/circuit.composants.spec.ts
@@ -183,6 +186,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/sous-modules.spec.ts
 - tests/unit/structure-guard.spec.ts
 - tests/unit/superviseur.spec.ts
+- tests/unit/tableau-avancement.spec.ts
 - tests/unit/tableau-circuit.spec.ts
 - tests/unit/tableau-corrections.spec.ts
 - tests/unit/tableau-essai.ts

@@ -49,8 +49,12 @@
 // file it cannot read, a filter on the paths) counts as one that runs. With one, it looks for its
 // run (`gh run list --commit <sha> --json databaseId,status,conclusion`) for 2 min at most
 // (GRILLHOUSE_CI_RECHERCHE_MS replaces it, in milliseconds), the time the CI takes to create it,
-// then waits for it (`gh run watch <id> --exit-status`) for 30 min at most
-// (GRILLHOUSE_CI_ATTENTE_MS). A red CI reopens the ticket (`bd reopen`), its comment giving the
+// then reads it (`gh run view <id> --json status,conclusion,jobs`) every 10 s
+// (GRILLHOUSE_CI_PAS_MS), as `gh run watch` does, until it completes, for 30 min at most
+// (GRILLHOUSE_CI_ATTENTE_MS): green on the conclusion `success`, red on any other. Under the
+// circuit's progress directory (GRILLHOUSE_AVANCEMENT, scripts/avancement.mjs), each reading writes
+// there the steps of the run done over planned, which the board shows; the queue's own runs of
+// `npm run verifier` play out of it. A red CI reopens the ticket (`bd reopen`), its comment giving the
 // address of the run (`gh run view <id> --json url`) and the end of `gh run view <id>
 // --log-failed`. Without `gh`, without a run found, with `gh` refusing or past the 30 min, the
 // ticket is told that the CI was not read, and why, and stays closed.
@@ -66,6 +70,7 @@ import { attendreUnPeu, lacherVerrou, prendreVerrou } from '../verrou-de-fichier
 import { dossierCommun, lireEntrees, retirerEntree } from './file-attente.mjs';
 import { ouvrirCopie } from './rejeu.mjs';
 import { A_REPASSER } from '../vitest-config/pression.mjs';
+import { AVANCEMENT, ecrireTache } from '../vitest-config/avancement.mjs';
 
 const ESSAIS_PAR_BRANCHE = 5;
 // The variable in which bd reads the author of a comment, and the queue's author.
@@ -74,6 +79,24 @@ export const AUTEUR_DE_LA_FILE = 'file';
 // How long the queue looks for the run of the CI, then waits for it.
 const RECHERCHE_CI_MS = 2 * 60 * 1000;
 const ATTENTE_CI_MS = 30 * 60 * 1000;
+// The gap between two readings of the run, as `gh run watch` reads it again.
+const PAS_CI_MS = 10 * 1000;
+// The steps done over planned of the view <vue> of a run (`gh run view --json jobs`), written to
+// the progress directory <avancement> as the record `etapes-de-la-ci`; nothing without one.
+function ecrireLesEtapes(avancement, vue) {
+  if (!avancement) return;
+  const etapes = (Array.isArray(vue?.jobs) ? vue.jobs : []).flatMap(j =>
+    Array.isArray(j?.steps) ? j.steps : []
+  );
+  try {
+    ecrireTache(avancement, 'etapes-de-la-ci', {
+      faits: etapes.filter(e => e?.status === 'completed').length,
+      prevus: etapes.length,
+    });
+  } catch {
+    // A directory that does not write leaves the queue going, without its progress.
+  }
+}
 
 const delai = (variable, defaut) => {
   const v = Number(process.env[variable]);
@@ -171,6 +194,11 @@ function main(argv) {
     process.stderr.write('usage: file.mjs (sans argument)\n');
     return 2;
   }
+  // The progress directory of the circuit's step (scripts/avancement.mjs), where the queue writes
+  // the steps of the CI; its own runs of `npm run verifier` play out of it, as measures of their
+  // own.
+  const avancement = process.env[AVANCEMENT] || null;
+  delete process.env[AVANCEMENT];
   // The main tree, from git's common directory: launched from a copy, the queue still works on it.
   const racine = path.dirname(
     spawnSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], {
@@ -367,15 +395,30 @@ function main(argv) {
     }
     const id = String(passage.databaseId);
     const attente = delai('GRILLHOUSE_CI_ATTENTE_MS', ATTENTE_CI_MS);
-    const w = gh(['run', 'watch', id, '--exit-status'], {
-      timeout: attente,
-      killSignal: 'SIGKILL',
-    });
-    if (w.error?.code === 'ETIMEDOUT' || w.signal) {
-      return nonLue(`le passage ${id} n'a pas fini en ${Math.round(attente / 60_000)} min.`);
+    const pas = delai('GRILLHOUSE_CI_PAS_MS', PAS_CI_MS);
+    const limite = Date.now() + attente;
+    let vue = null;
+    for (;;) {
+      const v = gh(['run', 'view', id, '--json', 'status,conclusion,jobs'], {
+        timeout: 60_000,
+        killSignal: 'SIGKILL',
+      });
+      if (v.error) return nonLue(`gh ne se lance pas (${v.error.code ?? v.error.message}).`);
+      if (v.status !== 0) return nonLue(`gh run view refuse :\n${`${v.stderr}${v.stdout}`.trim()}`);
+      try {
+        vue = JSON.parse(v.stdout || '{}');
+      } catch {
+        return nonLue(`gh run view rend une sortie illisible :\n${v.stdout.trim()}`);
+      }
+      ecrireLesEtapes(avancement, vue);
+      if (vue?.status === 'completed') break;
+      const reste = limite - Date.now();
+      if (reste <= 0) {
+        return nonLue(`le passage ${id} n'a pas fini en ${Math.round(attente / 60_000)} min.`);
+      }
+      attendreUnPeu(Math.min(pas, reste));
     }
-    if (w.error) return nonLue(`gh ne se lance pas (${w.error.code ?? w.error.message}).`);
-    if (w.status === 0) {
+    if (vue.conclusion === 'success') {
       dire(`✓ CI de ${court} verte (passage ${id})`);
       return;
     }

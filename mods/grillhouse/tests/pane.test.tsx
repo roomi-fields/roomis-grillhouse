@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
-import { ALTERNANCE, texteDe } from '../hooks/register'
-import type { Ligne } from '../types'
+import { ALTERNANCE, AVANCEMENT, aMesurer, texteDe } from '../hooks/register'
+import type { Etat, Ligne } from '../types'
 
 const TABLEAU = {
   lignes: [
@@ -376,6 +376,24 @@ test('a line shows its text at the even turns of the clock, its other text at th
   expect(texteDe(l, 2)).toBe(l.texte)
   expect(texteDe(l, 3)).toBe(l.alterne)
   expect(ALTERNANCE).toBe(5_000)
+})
+
+// 2026-10-21 (Romain): a line of progress (`avancement`, scripts/tableau.mjs) says « il y a 8 s »:
+// while the board shows one, the pane measures it again every AVANCEMENT ms, not every 30 s.
+test('the board is measured again every AVANCEMENT ms while a line of progress shows, else not', () => {
+  expect(AVANCEMENT).toBe(10_000)
+  const avec = {
+    texte: '▶ 12  binder 3/5 · 87/123 · il y a 8 s',
+    ton: 'actif',
+    section: 'agents',
+    avancement: true,
+  } as Ligne
+  const sans = { texte: '▶ 12  binder 3/5', ton: 'actif', section: 'agents' } as Ligne
+  const etat = (l: Ligne) =>
+    ({ tableau: { lignes: [l], fiches: {} }, lu: 1_000, vue: 'tableau' }) as unknown as Etat
+  expect(aMesurer(etat(avec), 1_000 + AVANCEMENT)).toBe(true)
+  expect(aMesurer(etat(avec), 1_000 + AVANCEMENT - 1)).toBe(false)
+  expect(aMesurer(etat(sans), 1_000 + 10 * AVANCEMENT)).toBe(false)
 })
 
 test('a line without another text keeps its text', () => {

@@ -68,14 +68,19 @@
 // - While the environment names a results directory (`GRILLHOUSE_RESULTATS`,
 //   scripts/resultats.mjs), each run of Turborepo writes its summary (`--summarize`), moved there,
 //   and Vitest its JSON report there: what the circuit reads of a run.
+// - While the environment names the progress directory of a pass (`GRILLHOUSE_AVANCEMENT`,
+//   scripts/avancement.mjs: the circuit's proof and checks), each run of the tests plans its
+//   tasks first, and Vitest writes there the files done and planned of each.
 // The exit code is Turborepo's; 2 for a path refused.
 import { spawnSync } from 'node:child_process';
 import { accessSync, constants, existsSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { planifier } from './avancement.mjs';
 import { composantDeLEnveloppe } from './enveloppe/composant.mjs';
 import { paquets } from './paquets.mjs';
 import { garderLesResumes, RESULTATS } from './resultats.mjs';
 import { tracesDuPlan } from './turbo-des-paquets.mjs';
+import { AVANCEMENT } from './vitest-config/avancement.mjs';
 import { VARIABLE } from './vitest-config/cibles.mjs';
 import { CHANGEMENTS } from './vitest-config/changements.mjs';
 import { DEPUIS_LE_VERT, mesure } from './dernier-vert.mjs';
@@ -102,6 +107,14 @@ const turbo = (args, tests) => {
   const resume = env[RESULTATS] ? ['--summarize'] : [];
   const runs = path.join(racine, '.turbo', 'runs');
   const avant = new Set(existsSync(runs) ? readdirSync(runs) : []);
+  // A run of the tests under a progress directory plans its tasks (scripts/avancement.mjs).
+  if (args[0] === 'test:vitest') {
+    planifier(env[AVANCEMENT], {
+      racine,
+      args: [...args, '--continue=dependencies-successful'],
+      env,
+    });
+  }
   const code =
     spawnSync('turbo', ['run', ...args, '--continue=dependencies-successful', ...resume], {
       cwd: racine,

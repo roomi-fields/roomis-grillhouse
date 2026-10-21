@@ -134,6 +134,15 @@
 //   the tests that play are those Vitest relates to the files changed since the last green of the
 //   repository, the files named among them, as `npm run verifier` measures itself; a lot that
 //   changes one test plays that test, and those whose graph it reaches.
+// - Each automatic pass (each command of the proof and of the checks, the final pass, the
+//   integration and the queue) plays under a progress directory of its own
+//   (`GRILLHOUSE_AVANCEMENT`, scripts/avancement.mjs), which its state names while it plays
+//   (`avancement`: `{ dossier }`, null between two), as Bazel counts its actions: Vitest writes
+//   there the files done and planned of each task, the queue the steps of its CI; the board shows
+//   them on the ticket's line (scripts/tableau.mjs). Its total is kept at its end under its kind
+//   (the step, the component and the command), which the next pass of that kind takes while all
+//   its tasks have not started. The survey of the components names its start in the state while it
+//   runs (`releve`).
 // - The proof of the red plays the whole component, as the CI of bors plays the whole suite of
 //   the components a change touches: main is green, so a test HEAD holds that turns red in the
 //   copy is a regression of the lot. One run per package, `npm test -- <package> <files>` in the
@@ -450,6 +459,8 @@ import { dossierCommun, lireEntrees } from './integration/file-attente.mjs';
 import { AUTEUR_DU_VERDICT } from './integration/verdict.mjs';
 import { attendreUnPeu, vivant } from './verrou-de-fichier.mjs';
 import { AttenteDeLaMachine, avecLaMachine } from './verrou-de-machine.mjs';
+import { garderLeTotal, ouvrirAvancement } from './avancement.mjs';
+import { AVANCEMENT } from './vitest-config/avancement.mjs';
 import { NOMS_DES_GARDES } from './gardes-du-cadre.mjs';
 import { isTesterFile } from './verrous/verrou.mjs';
 import { A_REPASSER } from './vitest-config/pression.mjs';
@@ -797,6 +808,8 @@ function ecrireEtat(ctx, etat) {
     regulateur: null,
     questionnement: null,
     mene: null,
+    avancement: null,
+    releve: null,
     ...etat,
     composants: ctx.composants,
     renvois: ctx.renvois ?? null,
@@ -1504,11 +1517,14 @@ function integrer(ctx) {
   for (let essai = 1; essai <= 2; essai++) {
     entete(ctx, 'integration', ctx.composants.join(', '));
     appendFileSync(ctx.journal, `$ node ${INTEGRER} ${args.join(' ')}\n`);
-    const x = spawnSync(process.execPath, [INTEGRER, ...args], {
-      cwd: ctx.racine,
-      encoding: 'utf8',
-      maxBuffer: 256 * 1024 * 1024,
-    });
+    const x = avecAvancement(ctx, 'integration', avancement =>
+      spawnSync(process.execPath, [INTEGRER, ...args], {
+        cwd: ctx.racine,
+        encoding: 'utf8',
+        maxBuffer: 256 * 1024 * 1024,
+        env: { ...process.env, [AVANCEMENT]: avancement },
+      })
+    );
     r = { code: x.status ?? 1, sortie: `${x.stdout ?? ''}${x.stderr ?? ''}` };
     appendFileSync(ctx.journal, r.sortie);
     if (r.code !== A_REPASSER) break;
@@ -1526,11 +1542,14 @@ function file(ctx) {
   const avant = motsDeLaFile().length;
   entete(ctx, 'file', ctx.composants.join(', '));
   appendFileSync(ctx.journal, `$ node ${FILE}\n`);
-  const x = spawnSync(process.execPath, [FILE], {
-    cwd: ctx.racine,
-    encoding: 'utf8',
-    maxBuffer: 256 * 1024 * 1024,
-  });
+  const x = avecAvancement(ctx, null, avancement =>
+    spawnSync(process.execPath, [FILE], {
+      cwd: ctx.racine,
+      encoding: 'utf8',
+      maxBuffer: 256 * 1024 * 1024,
+      env: { ...process.env, [AVANCEMENT]: avancement },
+    })
+  );
   appendFileSync(ctx.journal, `${x.stdout ?? ''}${x.stderr ?? ''}`);
   const branche = `agent/${ctx.ticket}`;
   // Another queue that runs takes the branch: the circuit waits for its end.
@@ -1639,7 +1658,8 @@ function paquetDe(liste, fichier) {
 // proof, the checks, the final pass): it holds the lock of the machine
 // (scripts/verrou-de-machine.mjs), its wait written to the log, and passes it to the
 // `npm run verifier` it runs. A wait that stops (its bound, 75; a lock held by an ancestor, 1) is
-// the command's code, its message in the log.
+// the command's code, its message in the log. Once it holds the lock, the pass plays under a
+// progress directory of its own (`avancement`), of the kind `genreDeLaPasse` names.
 function npm(ctx, etape, composant, args, env = {}) {
   entete(ctx, etape, composant);
   const dossier = mkdtempSync(path.join(ctx.tmp, 'resultats-'));
@@ -1649,16 +1669,19 @@ function npm(ctx, etape, composant, args, env = {}) {
   try {
     const r = avecLaMachine(
       envMachine =>
-        spawnSync('npm', args, {
-          cwd: ctx.copie,
-          stdio: ['ignore', fd, fd],
-          env: {
-            ...envMachine,
-            ...env,
-            [RESULTATS]: dossier,
-            ...(args[0] === 'test' ? { [DEPUIS_LE_VERT]: '1' } : {}),
-          },
-        }),
+        avecAvancement(ctx, genreDeLaPasse(etape, composant, args), avancement =>
+          spawnSync('npm', args, {
+            cwd: ctx.copie,
+            stdio: ['ignore', fd, fd],
+            env: {
+              ...envMachine,
+              ...env,
+              [RESULTATS]: dossier,
+              [AVANCEMENT]: avancement,
+              ...(args[0] === 'test' ? { [DEPUIS_LE_VERT]: '1' } : {}),
+            },
+          })
+        ),
       { dire: l => appendFileSync(ctx.journal, `${l}\n`) }
     );
     return { code: r.status ?? 1, dossier };
@@ -1668,6 +1691,33 @@ function npm(ctx, etape, composant, args, env = {}) {
     return { code: e.code, dossier };
   } finally {
     closeSync(fd);
+  }
+}
+
+// The kind of an automatic pass, by which its total is kept from one pass to the next
+// (scripts/avancement.mjs): its step (the checks once final, the final pass), its component, and
+// its command without the test files and the filters, which move from one lot to the next.
+function genreDeLaPasse(etape, composant, args) {
+  const commande = args.filter(
+    a => !NOM_DE_TEST.test(path.basename(a)) && !a.startsWith('--filter=')
+  );
+  return etape === 'controles' && args[1] === 'verifier'
+    ? ['passe finale', ...commande].join(' ')
+    : [etape, composant, ...commande].join(' ');
+}
+
+// Runs <passe> under a progress directory of the kind <genre> (null: none kept), named in the
+// state while it plays (`avancement`), as the board reads it; then keeps its total, takes it out
+// of the state and removes it. Returns what <passe> returns.
+function avecAvancement(ctx, genre, passe) {
+  const avancement = ouvrirAvancement({ racine: ctx.copie, genre, dans: ctx.tmp });
+  if (ctx.courant) ecrireEtat(ctx, { ...ctx.courant, avancement: { dossier: avancement } });
+  try {
+    return passe(avancement);
+  } finally {
+    garderLeTotal(avancement, ctx.copie);
+    if (ctx.courant) ecrireEtat(ctx, { ...ctx.courant, avancement: null });
+    rmSync(avancement, { recursive: true, force: true });
   }
 }
 
@@ -2252,6 +2302,8 @@ async function derouler(ctx, debut) {
     const composant = ctx.composants[index];
     const reprend = reprise;
     reprise = false;
+    // The checks of the last component are the final pass: the state says so from its start.
+    const enFinale = finale || (etape === CONTROLES && index === dernier);
     const etat = {
       etape,
       composant,
@@ -2260,8 +2312,8 @@ async function derouler(ctx, debut) {
       raison: null,
       rapport,
       dernier: ctx.composants[dernier],
-      finale,
-      boucles: boucles(ctx, etape, tentative, finale),
+      finale: enFinale,
+      boucles: boucles(ctx, etape, tentative, enFinale),
     };
     // A step the circuit leads itself names its start in the state while it runs, and writes its
     // line to the register at its end, whatever its outcome.
@@ -2400,7 +2452,7 @@ async function derouler(ctx, debut) {
         );
         etape = CONTROLES;
       } else if (etape === CONTROLES) {
-        const passeFinale = finale || index === dernier;
+        const passeFinale = enFinale;
         // The final pass: whole, or restricted to what changed since the last review.
         const passe = passeFinale ? laPasseFinale(ctx) : { arbre: null, restreinte: null };
         const k = controles(ctx, index, passeFinale, passe.restreinte);
@@ -3472,7 +3524,20 @@ export async function main(argv) {
       // From the first testeur: the survey of the components, then the questioning of the plan,
       // which may change the title, and so where the run starts.
       if (d.index === 0 && d.etape === TESTS) {
-        const arret = composantsManquants(ctx) ?? (await questionnerLePlan(ctx, ctx.releve));
+        // The survey names its start in the state while it runs (`releve`), which the board reads.
+        ecrireEtat(ctx, {
+          etape: TESTS,
+          composant: ctx.composants[0],
+          tentative: 1,
+          code: null,
+          raison: null,
+          rapport: null,
+          dernier: ctx.composants.at(-1),
+          releve: new Date().toISOString(),
+        });
+        const manque = composantsManquants(ctx);
+        if (manque === null) ecrireEtat(ctx, { ...ctx.courant, releve: null });
+        const arret = manque ?? (await questionnerLePlan(ctx, ctx.releve));
         if (arret !== null) return aLaFin(ctx, arret);
         d = depart(ctx, e);
       }

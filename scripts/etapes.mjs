@@ -10,7 +10,7 @@
 //   sub-steps (`sous`), and the step of the circuit's state it is (`etat`: the `etape` of
 //   `.claude/worktrees/<ticket>.circuit.json`, the final pass being the checks once `finale`).
 //   The opening reads its sub-steps elsewhere in the state: the survey of the components by its
-//   stop (`arrets`), the questioning of the plan by the questioning under way (`questionnement`)
+//   start while it runs (`releve`) and by its stop (`arrets`), the questioning of the plan by the questioning under way (`questionnement`)
 //   and by its stop. SUITE is the tree in its order, each step before its sub-steps.
 // - A step carries as many bounded loops as it needs (`boucles`): each its key (`cle`, which
 //   keys its count in the state's `boucles`), its label, its maximum (`max`, the pass that stops
@@ -47,6 +47,7 @@ export const ETAPES = [
         titre: 'Relevé des composants',
         qui: [AUTO],
         etat: null,
+        releve: true,
         arrets: ['composants-manquants'],
       },
       {
@@ -169,13 +170,17 @@ export const quiDe = e => e.quiCourt ?? e.qui.map(nomDuRole).join(' ⇄ ');
 export const libelle = e => `${e.numero} ${e.titre}`;
 
 // The step of a circuit's state (`etape`, `finale`, its stop `raison`, its questioning under way
-// `questionnement`, an object or its `objet`), or null (« integre », an unknown step): the step
+// `questionnement`, an object or its `objet`, the start of its survey of the components under way
+// `releve`), or null (« integre », an unknown step): the step
 // whose stop or questioning it is, else the step of its `etape`.
-export const etapeDuCircuit = ({ etape, finale, raison, questionnement }) => {
+export const etapeDuCircuit = ({ etape, finale, raison, questionnement, releve }) => {
   const objet = questionnement?.objet ?? questionnement ?? null;
   return (
     SUITE.find(
-      e => (raison && e.arrets?.includes(raison)) || (objet && e.questionnement === objet)
+      e =>
+        (raison && e.arrets?.includes(raison)) ||
+        (objet && e.questionnement === objet) ||
+        (!raison && !objet && releve && e.releve)
     ) ??
     SUITE.find(
       e =>

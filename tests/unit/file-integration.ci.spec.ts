@@ -78,12 +78,21 @@ describe('the queue reads the CI of the commit it pushes', () => {
   const textes = (m: Chantier, id: string) => m.bd(id).comments.map(c => c.text);
   // A CI that runs on every push, so that the queue looks for its run.
   const avecCI = (m: Chantier) => m.poser({ '.github/workflows/ci.yml': 'on: push\n' }, 'ci');
+  // A view of a run completed with <conclusion>, its one job of two steps done.
+  const fini = (conclusion: string) => ({
+    status: 'completed',
+    conclusion,
+    jobs: [{ status: 'completed', steps: [{ status: 'completed' }, { status: 'completed' }] }],
+  });
 
   it(
-    'a green CI leaves the ticket closed: the run of the pushed commit, then its watch',
+    'a green CI leaves the ticket closed: the run of the pushed commit, then its reading until it completes',
     () => {
       const m = chantier(ESSAIS);
-      ci(m, { runs: [{ databaseId: 41, status: 'queued', conclusion: '' }], watch: 0 });
+      ci(m, {
+        runs: [{ databaseId: 41, status: 'queued', conclusion: '' }],
+        vues: [fini('success')],
+      });
       avecCI(m);
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
       m.livrer('demo-1');
@@ -91,7 +100,7 @@ describe('the queue reads the CI of the commit it pushes', () => {
       expect(r.status, r.stdout + r.stderr).toBe(0);
       expect(appelsGh(m)).toEqual([
         `run list --commit ${m.sha('main')} --json databaseId,status,conclusion`,
-        'run watch 41 --exit-status',
+        'run view 41 --json status,conclusion,jobs',
       ]);
       expect(r.stdout).toContain('verte (passage 41)');
       expect(m.bd('demo-1').status).toBe('closed');
@@ -106,7 +115,7 @@ describe('the queue reads the CI of the commit it pushes', () => {
       const m = chantier(ESSAIS);
       ci(m, {
         runs: [{ databaseId: 42, status: 'in_progress', conclusion: '' }],
-        watch: 1,
+        vues: [fini('failure')],
         url: 'https://github.com/demo/demo/actions/runs/42',
         log: 'test\tUNIT\t✗ critère 3 — rouge sur la CI',
       });
@@ -125,6 +134,67 @@ describe('the queue reads the CI of the commit it pushes', () => {
     LONG
   );
 
+  // 2026-10-21 (Romain): the queue of a circuit (5.2) writes the steps of the CI done over planned
+  // to the progress directory the circuit names (GRILLHOUSE_AVANCEMENT, scripts/avancement.mjs),
+  // which the board reads; it reads the run again until it completes, as `gh run watch` does.
+  it(
+    'while it waits for the CI, the steps done over planned of the run go to the progress directory',
+    () => {
+      const m = chantier(ESSAIS);
+      const etape = (status: string) => ({ status });
+      const dossier = mkdtempSync(path.join(ESSAIS, 'avancement-'));
+      ci(m, {
+        avancement: dossier,
+        runs: [{ databaseId: 43, status: 'queued', conclusion: '' }],
+        vues: [
+          { status: 'queued', conclusion: '', jobs: [] },
+          {
+            status: 'in_progress',
+            conclusion: '',
+            jobs: [
+              { status: 'completed', steps: [etape('completed'), etape('completed')] },
+              {
+                status: 'in_progress',
+                steps: [etape('completed'), etape('in_progress'), etape('queued')],
+              },
+            ],
+          },
+          {
+            status: 'completed',
+            conclusion: 'success',
+            jobs: [
+              { status: 'completed', steps: [etape('completed'), etape('completed')] },
+              {
+                status: 'completed',
+                steps: [etape('completed'), etape('completed'), etape('completed')],
+              },
+            ],
+          },
+        ],
+      });
+      avecCI(m);
+      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
+      m.livrer('demo-1');
+      const r = m.fileSous({ GRILLHOUSE_AVANCEMENT: dossier });
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(
+        appelsGh(m).filter(a => a === 'run view 43 --json status,conclusion,jobs')
+      ).toHaveLength(3);
+      // Read again while the run was in progress: 3 steps done of 5.
+      const vus = readFileSync(path.join(m.bin, 'gh-avancement'), 'utf8')
+        .trim()
+        .split('\n')
+        .map(l => JSON.parse(l) as { faits: number; prevus: number });
+      expect(vus).toContainEqual(expect.objectContaining({ faits: 3, prevus: 5 }));
+      const fin = JSON.parse(
+        readFileSync(path.join(dossier, 'taches', 'etapes-de-la-ci.json'), 'utf8')
+      ) as { faits: number; prevus: number };
+      expect(fin).toMatchObject({ faits: 5, prevus: 5 });
+      expect(m.bd('demo-1').status).toBe('closed');
+    },
+    LONG
+  );
+
   it(
     'without a run found, the ticket is told the CI was not read, and stays closed',
     () => {
@@ -138,7 +208,7 @@ describe('the queue reads the CI of the commit it pushes', () => {
       const texte = textes(m, 'demo-1').at(-1);
       expect(texte).toContain('CI non lue');
       expect(texte).toContain('aucun passage de la CI');
-      expect(appelsGh(m).filter(a => a.startsWith('run watch'))).toEqual([]);
+      expect(appelsGh(m).filter(a => a.includes('status,conclusion,jobs'))).toEqual([]);
     },
     LONG
   );

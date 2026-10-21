@@ -5,8 +5,8 @@ import type { Etat, Fiche, Ligne, Tableau } from '../types'
 
 // The board of a Grillhouse project, in the pane (/grillhouse) on its three levels. The project's
 // own `scripts/tableau.mjs` measures and lays out the lines, and writes the status line for the
-// person's status line command; this mod shows the lines, every 30 s and after each `bd` or `git`
-// command. It stays silent outside a Grillhouse project and inside an agent's copy
+// person's status line command; this mod shows the lines, every 30 s (every 10 s while a line of
+// progress shows) and after each `bd` or `git` command. It stays silent outside a Grillhouse project and inside an agent's copy
 // (`.claude/worktrees/`).
 const PANE = 'grillhouse'
 const PERIODE = 30_000
@@ -161,6 +161,13 @@ export const ALTERNANCE = 5_000
 export const texteDe = (l: Ligne, tour: number) =>
   l.alterne !== undefined && tour % 2 === 1 ? l.alterne : l.texte
 
+// While the board shows a line of progress (`avancement`: an automatic pass, « il y a 8 s »), it is
+// measured again every AVANCEMENT ms instead of every PERIODE: `aMesurer` says when, at the pane's
+// clock.
+export const AVANCEMENT = 10_000
+export const aMesurer = (s: Etat, maintenant: number) =>
+  maintenant - s.lu >= AVANCEMENT && lignesDe(s).some(l => l.avancement === true)
+
 // The colour of a line's tone.
 export const couleur = (ton: Ligne['ton']) =>
   ton === 'alerte' ? 'red' : ton === 'attention' ? 'yellow' : ton === 'actif' ? 'cyan' : undefined
@@ -296,6 +303,7 @@ export const register: Register = on => {
       tour++
       void read($, etat).then(s => {
         if (lignesDe(s).some(l => l.alterne !== undefined)) $.ui.invalidate('ui.render')
+        if (aMesurer(s, Date.now())) void rafraichir($)
       })
     })
     return started

@@ -46,8 +46,13 @@
 //   pass, then plays them in a pass of their own (./cibles.mjs, scripts/verifier.mjs).
 // - While a run names its results directory (`GRILLHOUSE_RESULTATS`, ./resultats.mjs), the JSON
 //   reporter writes Vitest's report there too, which the circuit reads (scripts/resultats.mjs).
+// - While a run names the progress directory of its pass (`GRILLHOUSE_AVANCEMENT`,
+//   ./avancement.mjs), the reporter of progress writes there the files done and planned of its
+//   task at each test file done, which the board reads (scripts/avancement.mjs,
+//   scripts/tableau.mjs).
 import { fileURLToPath } from 'node:url';
 import { ciblage, HORS_DU_JOUR } from './cibles.mjs';
+import { rapportAvancement } from './avancement.mjs';
 import { rapportJson } from './resultats.mjs';
 
 const ici = f => fileURLToPath(new URL(f, import.meta.url));
@@ -64,7 +69,7 @@ export default {
       GIT_CONFIG_VALUE_1: '0',
     },
     exclude: ['**/node_modules/**', '**/dist/**', ...HORS_DU_JOUR],
-    reporters: ['default', ici('./duree.reporter.mjs'), ...rapportJson()],
+    reporters: ['default', ici('./duree.reporter.mjs'), ...rapportJson(), ...rapportAvancement()],
     setupFiles: [ici('./mesure.setup.mjs'), ici('./machine.setup.mjs')],
     watch: false,
   },

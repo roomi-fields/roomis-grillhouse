@@ -126,14 +126,16 @@
 // inherits the root's. The generator adds the variable to the `env` of the root's `test:vitest`,
 // the project's entries kept, and the check refuses a `test:vitest` of the root without it.
 //
-// Two variables pass to every task without entering any hash: the root's `globalPassThroughEnv`
+// Three variables pass to every task without entering any hash: the root's `globalPassThroughEnv`
 // names them, Turborepo's strict mode of the variables keeping out of a task every variable its
 // configuration does not name. The results directory of a run (`GRILLHOUSE_RESULTATS`,
 // scripts/resultats.mjs), where the guards write their SARIF, Turborepo its summaries and Vitest
 // its JSON reports; the changes since the last green (`GRILLHOUSE_CHANGEMENTS`,
 // scripts/dernier-vert.mjs), by which the tests of a package Turborepo plays again are those
-// Vitest relates to them, while a package whose inputs did not move replays from the cache. The
-// generator adds each one the root lacks, the project's entries kept, and the check refuses a
+// Vitest relates to them, while a package whose inputs did not move replays from the cache; the
+// progress directory of a pass (`GRILLHOUSE_AVANCEMENT`, scripts/avancement.mjs), where Vitest
+// writes the files done and planned of each task, which the board reads. The generator adds each
+// one the root lacks, the project's entries kept, and the check refuses a
 // root without one.
 //
 // The packages are those of `paquets` (scripts/paquets.mjs, the frame's one list of the packages of
@@ -150,6 +152,7 @@ import { matieres, parcourir } from './consommateurs.mjs';
 import { paquets } from './paquets.mjs';
 import { ecrireSarif, RESULTATS } from './resultats.mjs';
 import { VARIABLE as TESTS_CIBLES } from './vitest-config/cibles.mjs';
+import { AVANCEMENT } from './vitest-config/avancement.mjs';
 import { CHANGEMENTS } from './vitest-config/changements.mjs';
 
 export const TURBO = 'turbo.json';
@@ -167,11 +170,13 @@ const MISE_EN_FORME = { formattingOptions: { insertSpaces: true, tabSize: 2, eol
 // The test task of a package, and the prefix of a trace task.
 const TESTS = 'test:vitest';
 // The variables the root's `globalPassThroughEnv` names, and why, as the check says it.
-const PASSAGES = [RESULTATS, CHANGEMENTS];
+const PASSAGES = [RESULTATS, CHANGEMENTS, AVANCEMENT];
 const POURQUOI = {
   [RESULTATS]: "où les gardes, Turborepo et Vitest écrivent les résultats qu'un circuit lit",
   [CHANGEMENTS]:
     'les fichiers changés depuis le dernier vert, auxquels Vitest relie les tests que rejoue un paquet',
+  [AVANCEMENT]:
+    "le dossier d'avancement d'une passe, où Vitest écrit ses fichiers faits et prévus que lit le tableau",
 };
 const TRACE = 'trace:';
 // The files a build compiles: TypeScript's sources and declarations (tsc's default `include`

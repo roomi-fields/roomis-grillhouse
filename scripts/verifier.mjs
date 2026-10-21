@@ -67,14 +67,22 @@
 // - The wait is bounded: 15 min after the pass. The bound reached, the verdict is 75, « à
 //   repasser »: neither green nor red; whoever launched the pass presents it again later
 //   (scripts/integration/integrer.mjs, scripts/integration/file.mjs, scripts/nuit.sh).
+// - The progress of the pass (scripts/avancement.mjs): the directory its caller names in
+//   GRILLHOUSE_AVANCEMENT (the circuit's), else one of its own, which it names beside the lock of
+//   the machine while it plays (its repository, its command), as a measure out of a ticket the
+//   board shows, and removes at its end, its total kept. Before its first run of Turborepo, the
+//   plan of each run that plays tests (`turbo run … --dry=json`) names their tasks and counts done
+//   the files of those Turborepo replays from its cache.
 // - Every run plays without the paths of a targeted run's tests: the variable `GRILLHOUSE_TESTS`
 //   (scripts/vitest-config/cibles.mjs) carries only the choice of the witnesses (and `rejouer` for
 //   a complete pass).
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, rmdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, rmdirSync, rmSync } from 'node:fs';
 import { availableParallelism } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { ecrireLaMesure, garderLeTotal, ouvrirAvancement, planifier } from './avancement.mjs';
+import { composantDeLEnveloppe } from './enveloppe/composant.mjs';
 import { paquets } from './paquets.mjs';
 import { AttenteDeLaMachine, avecLaMachine } from './verrou-de-machine.mjs';
 import {
@@ -85,6 +93,7 @@ import {
 } from './vitest-config/pression.mjs';
 import { garderLesResumes } from './resultats.mjs';
 import { fichiersTemoins, VARIABLE as TESTS_CIBLES } from './vitest-config/cibles.mjs';
+import { AVANCEMENT } from './vitest-config/avancement.mjs';
 import { CHANGEMENTS } from './vitest-config/changements.mjs';
 import { garderLeVert, mesure } from './dernier-vert.mjs';
 
@@ -165,7 +174,42 @@ export function verifier({
 }) {
   try {
     return avecLaMachine(
-      envMachine => passe({ racine, demandes, env: envMachine, borneMs, pasMs, dire, coeurs }),
+      envMachine => {
+        // The progress of the pass: the directory its caller names (the circuit's), else its own,
+        // named beside the lock of the machine while it plays.
+        const propre = !envMachine[AVANCEMENT];
+        const dossier =
+          envMachine[AVANCEMENT] || ouvrirAvancement({ racine, genre: 'verification' });
+        const effacer =
+          propre && !composantDeLEnveloppe(envMachine)
+            ? ecrireLaMesure({
+                env: envMachine,
+                depot: nomDuDepot(racine),
+                commande: [
+                  'npm run verifier',
+                  ...(demandes.length ? ['--', ...demandes] : []),
+                ].join(' '),
+                dossier,
+              })
+            : () => {};
+        try {
+          return passe({
+            racine,
+            demandes,
+            env: { ...envMachine, [AVANCEMENT]: dossier },
+            borneMs,
+            pasMs,
+            dire,
+            coeurs,
+          });
+        } finally {
+          effacer();
+          if (propre) {
+            garderLeTotal(dossier, racine);
+            rmSync(dossier, { recursive: true, force: true });
+          }
+        }
+      },
       { env, dire }
     );
   } catch (e) {
@@ -173,6 +217,34 @@ export function verifier({
     dire(e.message);
     return e.code;
   }
+}
+
+// The name of the repository at <racine>: the folder of its main tree, its copies included; the
+// folder of <racine> out of git.
+function nomDuDepot(racine) {
+  const r = spawnSync(
+    'git',
+    ['-C', racine, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+    {
+      encoding: 'utf8',
+    }
+  );
+  return path.basename(r.status === 0 ? path.dirname(r.stdout.trim()) : path.resolve(racine));
+}
+
+// Whether a package of <racine>, or its root, plays tests (a script `test:vitest`).
+function joueDesTests(racine) {
+  const liste = paquets(racine);
+  if (liste.length === 0) {
+    try {
+      return Boolean(
+        JSON.parse(readFileSync(path.join(racine, 'package.json'), 'utf8')).scripts?.['test:vitest']
+      );
+    } catch {
+      return false;
+    }
+  }
+  return liste.some(p => !p.hors && p.pkg.scripts?.['test:vitest']);
 }
 
 function passe({ racine, demandes, env, borneMs, pasMs, dire, coeurs }) {
@@ -257,17 +329,17 @@ function jouerLaPasse({
   };
 
   const borne = args.some(a => CONCURRENCE.test(a)) ? [] : [`--concurrency=${concurrence(coeurs)}`];
-  const passes = [
-    jouer(
-      [
+  const lancements = [
+    {
+      a: [
         ...(gardesSeules ? GARDES : TACHES),
         '--continue=dependencies-successful',
         ...borne,
         ...args,
       ],
-      gardesSeules ? propre : choix('hors'),
-      ''
-    ),
+      e: gardesSeules ? propre : choix('hors'),
+      libelle: '',
+    },
   ];
   // The time witnesses, alone: in a pass restricted by filters, those of the packages they choose.
   const { filtres: filtresDeLaPasse, autres } = separerLesFiltres(args);
@@ -278,21 +350,29 @@ function jouerLaPasse({
     if (filtres.length === 0) filtres = null;
   }
   if (filtres) {
-    const ou = filtres.map(f => f.slice('--filter='.length)).join(', ') || 'la racine';
-    dire(`⏱ témoins de temps : ${ou} ; ils jouent seuls, une tâche après l'autre.`);
-    passes.push(
-      jouer(
-        [
-          'test:vitest',
-          ...filtres,
-          '--continue=dependencies-successful',
-          '--concurrency=1',
-          ...sansConcurrence(filtres.length || !filtresDeLaPasse.length ? autres : args),
-        ],
-        choix('seuls'),
-        TEMOINS
-      )
-    );
+    lancements.push({
+      a: [
+        'test:vitest',
+        ...filtres,
+        '--continue=dependencies-successful',
+        '--concurrency=1',
+        ...sansConcurrence(filtres.length || !filtresDeLaPasse.length ? autres : args),
+      ],
+      e: choix('seuls'),
+      libelle: TEMOINS,
+    });
+  }
+  // The plan of each run that plays tests, before the first: the progress knows all its tasks.
+  if (!gardesSeules && joueDesTests(racine)) {
+    for (const { a, e } of lancements) planifier(env[AVANCEMENT], { racine, args: a, env: e });
+  }
+  const passes = [];
+  for (const { a, e, libelle } of lancements) {
+    if (libelle) {
+      const ou = filtres.map(f => f.slice('--filter='.length)).join(', ') || 'la racine';
+      dire(`⏱ témoins de temps : ${ou} ; ils jouent seuls, une tâche après l'autre.`);
+    }
+    passes.push(jouer(a, e, libelle));
   }
   if (passes.every(p => p.r.status === 0)) return 0;
 

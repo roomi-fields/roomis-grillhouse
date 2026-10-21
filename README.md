@@ -152,13 +152,19 @@ of GitLab CI shows its stages, each step on its line « number · title · who �
 dimmed, an empty step dimmed, where each ticket stands on one line, once — a ticket with a circuit
 (`scripts/circuit.mjs`, read in its state file) at the step of its state, its subject and, every other 5 s,
 its component under way with its rank among the title's (`030-binder 3/5`), the counters of its step's
-bounded loops from their second pass (`essai 2/3`, `tour 2/4`, `arrêt 2/3`), or, while the regulator's
+bounded loops from their second pass (`essai 2/3`, `tour 2/4`, `arrêt 2/3`), at an automatic step the
+progress of its pass in figures, as Bazel counts its actions (`87/123 · il y a 8 s`: the test files done over
+planned, a file replayed from Turborepo's cache counted done, and the time since the last sign;
+`⚠ figée 12 min · 87/123` in red past 5 min; at 1.1 the time alone, at 5.2 the steps of the CI;
+`scripts/avancement.mjs`), or, while the regulator's
 session settles its stop, or once stopped, under its step after a line « ⤷ Arbitrage de l'arrêt · régulateur
 ⇄ questionneur » (« ⤷ Arrêt · superviseur » for a stop the table of the stops sends to the supervisor with no
 regulator: the components missing from the title at 1.1, a questioning that does not converge at 1.2), its card
 opening on where it stopped and why, or on the regulator's question, and its line ending on its ticket's
 time and tokens; any other ticket at the step of the agent that runs on it, or waiting at the step of the
-next role of the flow; the chantier in progress, its tree of
+next role of the flow; at the head of AGENTS, a measure out of a ticket that holds the lock of the machine
+(`⏳ Mesure · Grillhouse · npm run verifier · 51/123 · il y a 3 s`, a supervisor's or an integration's);
+the chantier in progress, its tree of
 mother tickets with each one's work done over all; then the tickets closed today. Every line of each list
 shows, and the wheel scrolls the pane; `g` fills the pane with the chosen ticket's whole text, which the
 arrows, the page keys and the wheel scroll, and `g` again brings the board back. A sub-agent a regulator

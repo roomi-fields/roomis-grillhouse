@@ -64,8 +64,9 @@ export class AttenteDeLaMachine extends Error {
   }
 }
 
-// The lock file of the machine under <env>.
-function verrouDeMachine(env = process.env) {
+// The lock file of the machine under <env>, beside which a measure out of a ticket names its
+// progress (scripts/avancement.mjs).
+export function verrouDeMachine(env = process.env) {
   if (env[VARIABLE_VERROU]) return env[VARIABLE_VERROU];
   const cache = env.XDG_CACHE_HOME || path.join(env.HOME || homedir(), '.cache');
   return path.join(cache, 'grillhouse', 'mesure-lourde.lock');

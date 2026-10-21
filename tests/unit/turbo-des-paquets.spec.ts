@@ -725,12 +725,20 @@ describe('the globalPassThroughEnv of the root names the results and the changes
   it('both templates hold them, and the generator writes nothing for them', () => {
     const racine = depotAPaquets();
     ecrire(racine);
-    expect(passage(racine)).toEqual(['GRILLHOUSE_RESULTATS', 'GRILLHOUSE_CHANGEMENTS']);
+    expect(passage(racine)).toEqual([
+      'GRILLHOUSE_RESULTATS',
+      'GRILLHOUSE_CHANGEMENTS',
+      'GRILLHOUSE_AVANCEMENT',
+    ]);
     const sans = mkdtempSync(path.join(ESSAIS, 'sans-paquets-'));
     ecrireFichier(sans, 'package.json', pkg({ name: 'p', scripts: { build: 'tsc' } }));
     ecrireFichier(sans, 'turbo.json', lire(DEPOT, 'templates/turbo/sans-paquets.json'));
     expect(ecrire(sans)).toEqual([]);
-    expect(passage(sans)).toEqual(['GRILLHOUSE_RESULTATS', 'GRILLHOUSE_CHANGEMENTS']);
+    expect(passage(sans)).toEqual([
+      'GRILLHOUSE_RESULTATS',
+      'GRILLHOUSE_CHANGEMENTS',
+      'GRILLHOUSE_AVANCEMENT',
+    ]);
   });
 
   it('a root without the changes: the check refuses it, naming the variable and the command; the generator adds it to the project’s', () => {
@@ -744,7 +752,12 @@ describe('the globalPassThroughEnv of the root names the results and the changes
     expect(r.stderr).toContain('GRILLHOUSE_CHANGEMENTS');
     expect(r.stderr).toContain(COMMANDE);
     expect(lancer(racine, ['--ecrire']).status).toBe(0);
-    expect(passage(racine)).toEqual(['CI', 'GRILLHOUSE_RESULTATS', 'GRILLHOUSE_CHANGEMENTS']);
+    expect(passage(racine)).toEqual([
+      'CI',
+      'GRILLHOUSE_RESULTATS',
+      'GRILLHOUSE_CHANGEMENTS',
+      'GRILLHOUSE_AVANCEMENT',
+    ]);
     expect(lancer(racine, []).status).toBe(0);
   });
 });
@@ -760,6 +773,7 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
       'consommateurs.mjs',
       'dette.mjs',
       'resultats.mjs',
+      'vitest-config/avancement.mjs',
       'vitest-config/cibles.mjs',
       'vitest-config/changements.mjs',
       'vitest-config/resultats.mjs',

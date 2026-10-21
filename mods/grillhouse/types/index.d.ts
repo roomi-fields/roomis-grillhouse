@@ -12,6 +12,7 @@ export type Ligne = {
   chantier?: boolean
   section: Section
   groupe?: string
+  avancement?: boolean
 }
 export type Fiche = {
   numero: string
