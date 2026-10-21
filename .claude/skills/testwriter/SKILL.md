@@ -63,15 +63,17 @@ change de forme.
 
 **Chaque test rougit d'abord** : pendant que tu l'écris, tu le lances sur le code présent
 (`npm test -- <fichier>`, le chemin écrit depuis la racine du dépôt) et tu vois qu'il échoue pour
-la bonne raison. Après ta séance, le circuit du ticket joue la preuve : il lance les tests de ton
-lot avec tous ceux de ton composant, et écrit au ticket les rouges et les verts. Ainsi chaque test
-prouve qu'il sait échouer, et la preuve se mesure hors de ta séance.
+la bonne raison. Après ta séance, le circuit du ticket joue la preuve : il lance les seuls tests de
+ton lot dans ton composant, et écrit au ticket les rouges et les verts ; les autres tests de ton
+composant se jouent à ses contrôles. Ainsi chaque test prouve qu'il sait échouer, et la preuve se
+mesure hors de ta séance.
 
-**Un rouge existant suffit** : un test que HEAD tient et que le lot rougit (un lecteur dont le
-fournisseur a changé un type) est un rouge de la preuve, `rouge existant`, qui lance le
-développeur. Quand ces rouges couvrent les critères de ton composant, tu n'écris aucun test neuf
-et ta passation le dit. Sans fichier de ton lot ni rouge, la preuve échoue. Ainsi le développeur
-du lecteur est lancé sur ce que le lot casse.
+**Un rouge existant suffit** : sans fichier de ton lot dans ton composant, la preuve joue ses
+paquets en entier ; un test que HEAD tient et que le lot rougit (un lecteur dont le fournisseur a
+changé un type) est un rouge de la preuve, `rouge existant`, qui lance le développeur. Quand ces
+rouges couvrent les critères de ton composant, tu n'écris aucun test neuf et ta passation le dit.
+Sans fichier de ton lot ni rouge, la preuve échoue. Ainsi le développeur du lecteur est lancé sur
+ce que le lot casse.
 
 **Un test vert avant le code se justifie** : ta fiche le nomme dans `verts_attendus`, son fichier
 depuis la racine du dépôt, son nom complet tel que le rapport de la preuve l'écrit (après « › »)
@@ -167,7 +169,9 @@ séance finit sur ce que tu sais, et le circuit le lit.
 
 Une preuve refusée reprend ta séance, avec une consigne courte, le rapport neuf de la preuve seul ;
 ta consigne, ta compétence et ce que tu as lu restent valables. Ta troisième séance est neuve et
-entière. Ainsi tu repars de ce que tu sais.
+entière. Ainsi tu repars de ce que tu sais. Une séance qui ne change aucun fichier, ta fiche seule
+complétée (un vert attendu oublié), se juge sur les résultats de la preuve déjà jouée, sans la
+rejouer. Ainsi un oubli de fiche coûte une séance courte, pas une preuve de plus.
 
 Une règle qui manque ou se contredit t'arrête : ta fiche finit sur BESOIN, sa `question` avec les
 options et ta recommandation.

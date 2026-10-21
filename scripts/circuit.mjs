@@ -145,28 +145,34 @@
 //   (the step, the component and the command), which the next pass of that kind takes while all
 //   its tasks have not started. The survey of the components names its start in the state while it
 //   runs (`releve`).
-// - The proof of the red plays the whole component, as the CI of bors plays the whole suite of
-//   the components a change touches: main is green, so a test HEAD holds that turns red in the
-//   copy is a regression of the lot. One run per package, `npm test -- <package> <files>` in the
-//   copy: each package of the component that has a script `test:vitest`, played whole, and the
-//   test files the testwriter's lot adds or changes in the component (git status of the copy, the
-//   testwriter's files as the integration shares them, `isTesterFile`). A test of a file out of the
-//   lot that fails is a red, written `rouge existant : <file> › <name> — <message>`, and so is a
-//   file out of the lot that does not load while no build of the component fails (it loaded at
-//   HEAD); its greens do not count. A file of the lot that does not load proves nothing; a failed
-//   build of a package of the component (a task `<package>#build` of the summary) is a red, as
-//   not compiling is failing, named with its log, and the files it keeps from loading play at the
-//   checks, after the developpeur; a failed build of a package out of the component leaves them
-//   broken. A green test passes only when a sheet of the testwriter of the component names it in
-//   `verts_attendus`: its file from the root and its full name (or its title), with its reason;
-//   one without `test`, for a test file HEAD holds, justifies each green test of that file and
-//   excuses no red; on a new file it justifies nothing, and the report says so for that file. A
-//   green test HEAD already holds has nothing to prove: the version of HEAD of each file plays in
-//   the same run, from a sibling file (`<nom>.circuit-avant.test.<ext>`, removed after it), and a
-//   green test whose full name HEAD's version holds, green there too, is set aside, counted; a
-//   body changed under the same name is not told apart. The proof passes with a red (of the lot,
-//   existing or of a build), even without a file of the lot in the component: a testwriter with no
-//   new test to write says so in his handover, the existing reds are enough. It fails with
+// - The proof of the red plays the new tests alone, as test-driven development runs the test it
+//   has just written to see it red, not the whole suite: one run per package, `npm test -- --force
+//   <files>` in the copy, the test files the testwriter's lot adds or changes in the component (git
+//   status of the copy, the testwriter's files as the integration shares them, `isTesterFile`),
+//   played for real, since a run replayed from Turborepo's cache writes no report; the other
+//   tests of the component play at its checks and at the final pass. With no file of the lot in
+//   the component (a reader whose provider changed a type, no new test to write), each package of
+//   the component that has a script `test:vitest` plays whole, `npm test -- <package>`: main is
+//   green, so a test HEAD holds that turns red in the copy is a regression of the lot, a red,
+//   written `rouge existant : <file> › <name> — <message>`, and so is a file that does not load
+//   while no build of the component fails (it loaded at HEAD); its greens do not count. A measure
+//   on the same tree is not played again, as Turborepo replays a task whose inputs did not move: a
+//   testwriter relaunched who changes no file of the copy (an expected green added to his sheet
+//   alone) is judged on the results of the proof already played, his sheet read again. A file of
+//   the lot that does not load proves nothing; a failed build of a package of the component (a
+//   task `<package>#build` of the summary) is a red, as not compiling is failing, named with its
+//   log, and the files it keeps from loading play at the checks, after the developpeur; a failed
+//   build of a package out of the component leaves them broken. A green test passes only when a
+//   sheet of the testwriter of the component names it in `verts_attendus`: its file from the root
+//   and its full name (or its title), with its reason; one without `test`, for a test file HEAD
+//   holds, justifies each green test of that file and excuses no red; on a new file it justifies
+//   nothing, and the report says so for that file. A green test HEAD already holds has nothing to
+//   prove: the version of HEAD of each file plays in the same run, from a sibling file
+//   (`<nom>.circuit-avant.test.<ext>`, removed after it), and a green test whose full name HEAD's
+//   version holds, green there too, is set aside, counted; a body changed under the same name is
+//   not told apart. The proof passes with a red (of the lot, existing or of a build), even without
+//   a file of the lot in the component: a testwriter with no new test to write says so in his
+//   handover, the existing reds are enough. It fails with
 //   neither a file of the lot nor a red, with a broken file of the lot, or with a green of the lot
 //   no expected green justifies. A failed proof relaunches the testwriter with its report, twice at
 //   most. The report (reds, justified greens) is written at the ticket. A proof with a red
@@ -1781,9 +1787,59 @@ function journalDeTache(ctx, t) {
   return { chemin, debut: sansCouleurs(lire(chemin)).trim().split('\n').slice(0, 80).join('\n') };
 }
 
+// The measure of the proof of the red on <composant>: one run per package, `npm test -- --force
+// <files>` of the lot that lie in it, HEAD's version of each beside it, or, with no file of the lot in the
+// component, `npm test -- <package>` for each of its packages, played whole. Each run `{ groupe,
+// entier, avant, code, resultats, constructions }`. A measure on the same tree (the copy's
+// fingerprint, `empreinte`) is not played again, as Turborepo replays a task whose inputs did not
+// move: the last one is kept in `ctx.mesureDeLaPreuve`.
+function mesureDeLaPreuve(ctx, composant, liste, fichiers) {
+  const cle = `${composant}\0${empreinte(ctx, '.')}`;
+  if (ctx.mesureDeLaPreuve?.cle === cle) return ctx.mesureDeLaPreuve.runs;
+  const index = ctx.composants.indexOf(composant);
+  const entiers = fichiers.length ? [] : paquetsDesComposants(ctx, liste, i => i === index);
+  const groupes = new Map(entiers.map(d => [d, []]));
+  for (const f of fichiers) {
+    const p = paquetDe(liste, f);
+    groupes.set(p, [...(groupes.get(p) ?? []), f]);
+  }
+  const runs = [];
+  for (const [dossier, groupe] of groupes) {
+    const entier = entiers.includes(dossier);
+    const avant = versionsDAvant(ctx, groupe);
+    let r;
+    try {
+      // The files of the lot play for real (`--force`): a run replayed from Turborepo's cache, the
+      // checks' same command on the same inputs, writes no report of Vitest.
+      r = npm(ctx, 'preuve', composant, [
+        'test',
+        '--',
+        ...(entier ? [dossier] : ['--force']),
+        ...groupe,
+        ...avant.values(),
+      ]);
+    } finally {
+      for (const soeur of avant.values()) rmSync(path.join(ctx.copie, soeur), { force: true });
+    }
+    runs.push({
+      groupe,
+      entier,
+      avant,
+      code: r.code,
+      resultats: lireRapportsVitest(r.dossier),
+      // The builds of the component's packages that failed: each one a red, not compiling is
+      // failing.
+      constructions: constructionsEchouees(ctx, liste, r.dossier, index),
+    });
+  }
+  ctx.mesureDeLaPreuve = { cle, runs };
+  return runs;
+}
+
 // The proof of the red on <composant>: `{ ok, rouges, texte, resume }`, `texte` without the list
 // of the justified greens, which only the whole report, written to its file, holds. A green test
-// passes by the expected greens of the sheets of the testwriter of <composant> (`verts_attendus`).
+// passes by the expected greens of the sheets of the testwriter of <composant> (`verts_attendus`),
+// read at each proof; the measure plays again only when the copy changed (`mesureDeLaPreuve`).
 function preuve(ctx, composant) {
   const fichiers = testsDuComposant(ctx, composant);
   const verts = fichesDe(ctx, 'testwriter', composant).flatMap(f => f.verts_attendus ?? []);
@@ -1799,44 +1855,19 @@ function preuve(ctx, composant) {
   const casses = [];
   const neufs = [];
   const liste = paquets(ctx.copie).filter(p => !p.hors);
-  const index = ctx.composants.indexOf(composant);
-  // Each package of the component plays whole, beside the files of the lot.
-  const entiers = paquetsDesComposants(ctx, liste, i => i === index);
-  const groupes = new Map(entiers.map(d => [d, []]));
-  for (const f of fichiers) {
-    const p = paquetDe(liste, f);
-    groupes.set(p, [...(groupes.get(p) ?? []), f]);
-  }
   let anciens = 0;
   const reportes = [];
-  for (const [dossier, groupe] of groupes) {
-    const entier = entiers.includes(dossier);
-    const avant = versionsDAvant(ctx, groupe);
-    let r;
-    try {
-      r = npm(ctx, 'preuve', composant, [
-        'test',
-        '--',
-        ...(entier ? [dossier] : []),
-        ...groupe,
-        ...avant.values(),
-      ]);
-    } finally {
-      for (const soeur of avant.values()) rmSync(path.join(ctx.copie, soeur), { force: true });
-    }
-    const resultats = lireRapportsVitest(r.dossier);
-    // The builds of the component's packages that failed: each one a red, not compiling is failing.
-    const constructions = constructionsEchouees(ctx, liste, r.dossier, index);
+  const mesure = mesureDeLaPreuve(ctx, composant, liste, fichiers);
+  for (const { groupe, entier, avant, code, resultats, constructions } of mesure) {
     for (const { nom, erreur } of constructions) {
       if (reportes.includes(nom)) continue;
       rouges.push(`construction de ${nom} — ${erreur}`);
       reportes.push(nom);
     }
-    // The files out of the lot, which HEAD holds green: a red of theirs is a regression of the lot.
+    // The files of a package played whole, out of the lot, which HEAD holds green: a red of theirs
+    // is a regression of the lot.
     if (entier) {
-      const duLot = new Set(groupe.map(f => path.join(ctx.copie, f)));
       for (const res of resultats) {
-        if (duLot.has(res.fichier) || res.fichier.includes('.circuit-avant.')) continue;
         const f = path.relative(ctx.copie, res.fichier);
         if (res.tests.length === 0 && res.etat === 'failed' && !constructions.length) {
           rouges.push(
@@ -1864,7 +1895,7 @@ function preuve(ctx, composant) {
         // It cannot load before the build: it plays at the checks.
       } else if (!res) {
         casses.push(
-          `${f} — ne se charge pas : non joué (code ${r.code}) ; le journal du ticket : ${ctx.journal}`
+          `${f} — ne se charge pas : non joué (code ${code}) ; le journal du ticket : ${ctx.journal}`
         );
       } else if (tests.length === 0) {
         casses.push(`${f} — ne se charge pas : ${premiereLigne(res.message || res.etat)}`);

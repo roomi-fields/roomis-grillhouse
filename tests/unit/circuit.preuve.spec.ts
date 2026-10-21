@@ -24,7 +24,23 @@ const {
   ordre,
   commentaires,
   historique,
+  journal,
 } = circuitEssai(ESSAIS);
+
+// The commands the proof of <composant> ran, in their order: the lines `$ …` of the log under a
+// header of the step `preuve` of that component.
+const lancements = (id: string, composant: string) => {
+  let dans = false;
+  const out: string[] = [];
+  for (const l of journal(id).split('\n')) {
+    if (l.startsWith('=== ')) {
+      dans = l.includes(` · circuit · preuve · ${composant} ===`);
+    } else if (dans && l.startsWith('$ ')) {
+      out.push(l.slice(2));
+    }
+  }
+  return out;
+};
 
 const ECRIT_VERT = `cat > $c/test/forme.test.mjs <<'EOF'
 import { expect, it } from 'vitest';
@@ -117,6 +133,20 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     expect(essai(id, 'testwriter-2.prompt')).toContain('TON COMPOSANT : packages/binder');
   });
 
+  // Witness: BPScript (bp-mono-vbwf.325). The proof played every test of its package, 5.2 min,
+  // where the new tests of the lot alone had to be seen red.
+  it('plays at the proof the test files of the lot alone, not the packages of the component', () => {
+    const id = 'demo-preuve-du-lot';
+    ticket(id, '000-forms');
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(lancements(id, 'packages/forms')).toEqual([
+      'npm test -- --force packages/forms/test/mesure.test.mjs',
+    ]);
+  });
+
   it('sends a green test no expected green of the testwriter’s sheet names back to the testwriter', () => {
     const id = 'demo-vert';
     ticket(id, '000-forms');
@@ -133,6 +163,9 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     const relance = essai(id, 'testwriter-2.prompt');
     expect(relance).toContain('critère 1 — mesure rend un nombre');
     expect(relance).toContain('vert attendu');
+    // The second testwriter changes no file: his expected green is judged on the result of the
+    // proof already played, which does not play again (witness: BPScript, bp-mono-vbwf.325).
+    expect(lancements(id, 'packages/forms')).toHaveLength(1);
     // The proof at the ticket names its whole report, which holds the justified green and its
     // reason; the ticket does not.
     const preuves = commentaires(id).filter(t => t.startsWith('Circuit · packages/forms · preuve'));
@@ -172,5 +205,7 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     const relance = essai(id, 'testwriter-2.prompt');
     expect(relance).toContain('packages/forms/test/casse.test.mjs');
     expect(relance).toContain('ne se charge pas');
+    // The second testwriter changes the lot: the proof plays it again.
+    expect(lancements(id, 'packages/forms')).toHaveLength(2);
   });
 });

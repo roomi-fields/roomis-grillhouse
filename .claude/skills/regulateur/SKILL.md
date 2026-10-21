@@ -40,12 +40,14 @@ journal fait plusieurs Mo : je le lis par morceaux, `grep -n <motif> <journal>` 
    disent ce qui bloque : je le tranche, et ma décision `RELANCE --reprendre` le fait repartir de
    l'étape et du composant de l'état, mon `contexte` donné à l'agent qu'il relance ; ou je le fais
    monter (`MONTE`).
-   La preuve d'un composant joue ses paquets en entier : un test que HEAD tient et que le lot
-   rougit est un « rouge existant », qui suffit à lancer son développeur. La passe finale, après
-   le dernier composant, joue la passe complète, ce que joue l'intégration : un rouge dans un
-   paquet hors du titre (un lecteur d'une matière que le lot change) arrête le circuit à
-   `controles`, le paquet nommé ; je décide alors : faire monter l'ajout de ce composant au titre
-   (le titre est au superviseur), ou faire corriger le lot par `RELANCE --depuis`.
+   La preuve d'un composant joue les seuls tests de son lot ; les autres se jouent à ses
+   contrôles. Sans test du lot dans le composant, elle joue ses paquets en entier : un test que
+   HEAD tient et que le lot rougit est un « rouge existant », qui suffit à lancer son développeur.
+   La passe finale, après le dernier composant, joue la passe complète, ce que joue
+   l'intégration : un rouge dans un paquet hors du titre (un lecteur d'une matière que le lot
+   change) arrête le circuit à `controles`, le paquet nommé ; je décide alors : faire monter
+   l'ajout de ce composant au titre (le titre est au superviseur), ou faire corriger le lot par
+   `RELANCE --depuis`.
    Un développeur n'est lancé que sur un rouge : une
    séance qui ne change aucun fichier de son composant arrête le circuit (code 15,
    `sans-livraison`) ; sa passation dit pourquoi, et je rends `RELANCE --reprendre` avec son
