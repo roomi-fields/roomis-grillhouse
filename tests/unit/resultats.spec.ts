@@ -58,9 +58,9 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
     );
     expect((schemaDeFiche('relecteur') as Schema).required).toEqual(['verdict']);
   });
-  it('the regulator: its decision, the agent a RELANCE --depuis names, its context, its question, its discoveries', () => {
+  it('the regulator: its decision, the agent a RELANCE --depuis names, its context, its question, the facts the circuit checks, its discoveries', () => {
     expect(champs('regulateur')).toEqual(
-      ['contexte', 'decision', 'decouvertes', 'depuis', 'question'].sort()
+      ['contexte', 'decision', 'decouvertes', 'depuis', 'faits', 'question'].sort()
     );
     expect((schemaDeFiche('regulateur') as Schema).required).toEqual(['decision']);
   });
@@ -77,6 +77,35 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
       encoding: 'utf8',
     });
     expect(sans.status).toBe(1);
+  });
+});
+
+// grillhouse-3uv.89 (L4): the facts a regulator's decision rests on, in a form the circuit checks
+// on the state before it applies the decision. Witness: BPScript 320.3, where a MONTE rested on
+// « 995-tools hors du titre » (D11) while the title named it, and three relaunches on « la charge
+// CPU » (D14, D20, D21) while the red was a real one.
+describe('the facts of a regulator’s sheet', () => {
+  it('each fact names its subject from a closed list, and its component when the subject has one', () => {
+    const faits = (schemaDeFiche('regulateur') as Schema).properties.faits as {
+      items: { properties: { sujet: { enum: string[] } }; required: string[] };
+    };
+    expect(faits.items.properties.sujet.enum).toEqual([
+      'au-titre',
+      'hors-titre',
+      'rouge-de',
+      'sans-changement',
+      'sous-charge',
+    ]);
+    expect(faits.items.required).toEqual(['sujet']);
+    const lu = lireFiche(
+      'regulateur',
+      sortie({
+        decision: 'MONTE',
+        question: 'q',
+        faits: [{ sujet: 'hors-titre', composant: '995-tools' }, { sujet: 'sous-charge' }],
+      })
+    );
+    expect(lu.erreur).toBeUndefined();
   });
 });
 
@@ -118,6 +147,12 @@ describe('the reading of a sheet in the output of a session', () => {
     ['regulateur', { decision: 'RELANCE --depuis' }, 'depuis'],
     ['regulateur', { decision: 'MONTE' }, 'question'],
     ['regulateur', { decision: 'RELANCE --reprendre', contexte: 3 }, 'contexte'],
+    ['regulateur', { decision: 'RELANCE --reprendre', faits: [{ sujet: 'peut-etre' }] }, 'sujet'],
+    [
+      'regulateur',
+      { decision: 'MONTE', question: 'q', faits: [{ sujet: 'hors-titre' }] },
+      'composant',
+    ],
   ])(
     'a sheet of the %s that does not conform is refused, naming its field: %j',
     (role, f, champ) => {

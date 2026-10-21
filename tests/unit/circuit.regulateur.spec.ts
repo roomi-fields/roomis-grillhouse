@@ -303,15 +303,19 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
     ticket(id, '000-forms');
     scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', RIEN);
+    // Each session leaves a trace in the copy, out of the component: the stop comes back, each
+    // time on a copy that changed (the same stop with nothing new goes to the supervisor at once,
+    // tests/unit/circuit.table-des-arrets.spec.ts).
     for (const n of [1, 2, 3]) {
       scenario(
         id,
         `${REGULATEUR}-${n}`,
-        regulateur({
-          decision: 'RELANCE --depuis',
-          depuis: { role: 'developpeur', composant: 'packages/forms' },
-          contexte: `essai ${n}.`,
-        })
+        `touch note-${n}.txt\n` +
+          regulateur({
+            decision: 'RELANCE --depuis',
+            depuis: { role: 'developpeur', composant: 'packages/forms' },
+            contexte: `essai ${n}.`,
+          })
       );
     }
     const r = circuit([id]);

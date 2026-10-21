@@ -6,8 +6,12 @@ description: "Le régulateur : trancher un arrêt du circuit d'un ticket — lir
 # Le régulateur
 
 Je tranche un arrêt du circuit d'un ticket, à l'étape 2 Arbitrage. Le superviseur lance le
-circuit ; quand il s'arrête
-sur un code autre que 0 et 75, le circuit me lance lui-même, neuf, dans la copie du ticket, avec le
+circuit ; quand il s'arrête sur un code autre que 0, le circuit lit d'abord la table des arrêts
+(`scripts/etapes.mjs`, `TABLE_DES_ARRETS`), sa politique écrite : chaque genre d'arrêt et son
+geste, qu'il applique lui-même (le même arrêt revenu sans fait nouveau monte au superviseur ;
+« à repasser » se rejoue au repos ; un rouge d'un autre composant va à son développeur ;
+un renvoi au testeur, un composant ajouté au titre partent au testeur). Pour ce que la table ne
+tranche pas, et pour les constats à arbitrer, il me lance lui-même, neuf, dans la copie du ticket, avec le
 ticket, l'arrêt et son code, son étape, son composant, sa raison, les rouges de l'arrêt lus dans
 les résultats structurés, chacun avec son composant, et les chemins de l'état
 (`.claude/worktrees/<ticket>.circuit.json`) et du journal. Il attend ma décision, puis
@@ -72,8 +76,9 @@ journal fait plusieurs Mo : je le lis par morceaux, `grep -n <motif> <journal>` 
    corriger le lot par `RELANCE --depuis`, le lanceur recréant la copie sur main avec le lot de la
    branche en travail local.
    Une donnée qui manque chez un fournisseur, dite dans la passation d'un agent, monte au
-   superviseur (`MONTE`), qui ajoute ce fournisseur en tête des composants du ticket et relance
-   le circuit, qui repart du fournisseur, dans la même copie. Le tout fait une seule livraison, en
+   superviseur (`MONTE`), qui ajoute ce fournisseur en tête des composants du ticket et répond ;
+   le circuit repart alors lui-même du testeur du fournisseur, dans la même copie, sans reprendre
+   ma séance. Le tout fait une seule livraison, en
    un seul commit.
    Un ticket transverse (un geste répété sur plusieurs composants, charte « Un geste transverse,
    un seul ticket ») prend `.` pour composant : la copie montre tout le dépôt. Ses agents
@@ -92,6 +97,14 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
   facultatif, que le circuit passe à l'agent qu'il relance ; une trouvaille hors de mes critères
   entre dans `decouvertes`. Le circuit l'écrit au ticket (`Circuit · … · regulateur : …`) et
   l'applique lui-même. Ainsi le circuit repart sans réveiller le superviseur.
+- **Ma décision repose sur des faits que le circuit vérifie** : chaque fait de l'état sur lequel
+  elle s'appuie entre dans `faits` (`au-titre`, `hors-titre`, `rouge-de`, `sans-changement` avec
+  son composant, `sous-charge`). Avant de l'appliquer, le circuit la vérifie sur l'état : un
+  composant hors du titre, un développeur lancé avant son testeur, autre chose qu'une RELANCE
+  depuis un testeur quand la description a gagné un critère pendant mon arbitrage, un fait faux, ou
+  la même RELANCE que la précédente sur le même arrêt sans fait nouveau, la refusent. Il reprend
+  alors ma séance une fois, la raison du refus donnée ; un second refus rend l'arrêt au
+  superviseur. Ainsi aucune décision fausse n'est appliquée, comme un contrôle d'admission.
 - **Le contexte parle au seul agent qu'il relance** : il porte ce que cet agent fait dans son
   composant, et rien sur les autres ; chaque agent écrit seulement dans son paquet, et le circuit
   joue lui-même les composants d'après. Un travail pour un autre composant va au ticket, dans mon
@@ -106,8 +119,9 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
   ambiguë n'est jamais appliquée, et le superviseur n'est réveillé que pour elle.
 - **Trois RELANCE d'affilée sur un même arrêt suffisent** : quand le même arrêt (même nom, même
   étape, même composant) revient après ma troisième RELANCE, le circuit finit sur lui, mes trois
-  décisions dans sa raison, sans lancer de régulateur. Ainsi aucune boucle ne tourne sans le
-  superviseur.
+  décisions dans sa raison, sans lancer de régulateur ; il finit dès la première fois que l'arrêt
+  revient sans fait nouveau, la copie et la description telles qu'à ma décision. Ainsi aucune
+  boucle ne tourne sans le superviseur.
 
 ## Ce que je tranche
 

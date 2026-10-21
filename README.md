@@ -82,8 +82,9 @@ Three layers, each with one job:
 A change of behaviour is one ticket that passes from agent to agent in its copy: tests (tester) →
 code (developer) → review → commit on the ticket's branch → the queue brings it onto main, which closes it.
 The supervisor launches the ticket's circuit (`scripts/circuit.mjs`) once. On a stop other than
-0 and 75 (« à repasser »), the circuit itself opens a session of the regulator (`regulateur`),
-whose sheet is its decision: `RELANCE --reprendre` or `RELANCE --depuis` (a tester or a developer, a component),
+0 and 75 (« à repasser »), the circuit first applies the gesture that the table of the stops
+(`scripts/etapes.mjs`) writes for its kind; for the rest, the circuit itself opens a session of the regulator (`regulateur`),
+whose sheet is its decision, checked on the circuit's state before it is applied: `RELANCE --reprendre` or `RELANCE --depuis` (a tester or a developer, a component),
 which the circuit applies in the same run, or `MONTE` with its question, which ends the circuit on the
 stop `question` (18), the regulator's session kept; the supervisor answers the question himself, or carries it to the owner
 when it is the owner's (the functional, what the charter keeps for him),

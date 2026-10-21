@@ -84,10 +84,11 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   bilan d'avant du projet ; la fiche du ticket au panneau en montre les chiffres clés.
   `node scripts/bilan.mjs <ticket>` le recalcule, `--garder` le garde comme base. Ainsi
   l'analyse d'un ticket se fait seule.
-- **Un arrêt se tranche dans le circuit** : sur un arrêt autre que 0, 21 et 75, le circuit lance
-  lui-même une séance du régulateur (compétence `regulateur`, Sonnet), qui tranche ce
-  que les règles tranchent et rend sa décision dans sa fiche ; le circuit l'écrit au ticket et
-  l'applique : il repart seul, ou finit sur la question du régulateur. Je ne lance aucun régulateur. Ainsi
+- **Un arrêt se tranche dans le circuit** : sur un arrêt autre que 0, 21 et 75, le circuit applique
+  le geste que la table des arrêts (`scripts/etapes.mjs`) écrit pour son genre ; pour le reste, il
+  lance lui-même une séance du régulateur (compétence `regulateur`, Sonnet), qui tranche ce
+  que les règles tranchent et rend sa décision dans sa fiche ; le circuit la vérifie sur son état,
+  l'écrit au ticket et l'applique : il repart seul, ou finit sur la question du régulateur. Je ne lance aucun régulateur. Ainsi
   ma séance n'est réveillée que par la fin du lot, une question du régulateur, ou un arrêt que le régulateur
   n'a pas su rendre.
 - **J'interviens sur ce qui dépasse le ticket** : 18 (`question`), la question du régulateur est la
@@ -95,15 +96,16 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   ticket, un arbitrage) ; je porte au responsable le fonctionnel et ce que la charte lui garde.
   J'écris la réponse au ticket, puis je lance
   `node scripts/circuit.mjs <ticket> --reponse "<sa réponse>"` en arrière-plan, qui reprend la
-  séance du régulateur, avec son contexte, et applique sa décision. 21 (`composants-manquants`) :
+  séance du régulateur, avec son contexte, et applique sa décision ; un composant que j'ajoute au
+  titre avant de répondre repart de son testeur, sans le régulateur. 21 (`composants-manquants`) :
   avant toute séance, le relevé des composants trouve un composant que le titre ne nomme pas, en
   tête du rapport de l'état. Je l'ajoute au titre, le fournisseur d'abord
   (`bd update <ticket> --title`), puis je relance le circuit ; ou je réponds pourquoi il reste
   dehors, `--reponse "<raison>"`, que le circuit écrit au ticket avant de partir du premier
   testeur. Un composant que le ticket ne change pas s'admet avant le lancement,
   `node scripts/composants-affectes.mjs <ticket> --admettre <composant> --raison "<raison>"`. Tout autre code est un arrêt que le
-  régulateur n'a pas tranché (sa réponse jointe à la raison de l'état, ou trois relances d'affilée sur
-  le même arrêt) : je le tranche, `--reprendre` ou `--depuis`, ou je le monte. J'arrête tout agent
+  régulateur n'a pas tranché (sa réponse jointe à la raison de l'état, une décision refusée deux
+  fois, le même arrêt revenu sans fait nouveau, ou trois relances d'affilée sur le même arrêt) : je le tranche, `--reprendre` ou `--depuis`, ou je le monte. J'arrête tout agent
   que j'ai lancé moi-même dès son rapport lu (`TaskStop`). Ainsi ma séance ne porte pas le détail
   des tickets, et elle reste courte.
 - **Un ticket débloqué repart de son état** : l'état du travail est dans l'état du circuit, au

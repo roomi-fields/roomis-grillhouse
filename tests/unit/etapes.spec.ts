@@ -12,7 +12,10 @@ import {
   ETAPES,
   etapeDuCircuit,
   etapeDuRole,
+  GESTES,
+  gesteDe,
   nomDuRole,
+  TABLE_DES_ARRETS,
 } from '../../scripts/etapes.mjs';
 
 const RACINE = path.resolve(__dirname, '../..');
@@ -167,5 +170,43 @@ describe('one list, which the circuit, the board and the texts read', () => {
       expect(charte, `${e.numero} ${e.titre}`).toContain(`${e.numero} ${e.titre}`);
     }
     expect(charte).not.toMatch(/numéro de son rôle/);
+  });
+});
+
+// grillhouse-3uv.89 (L4): the written policy of the stops, as the bounded retries of Zuul and of
+// GitHub's merge queue are written in their configuration. Witness: BPScript 320.3 (2026-10-20),
+// 22 decisions of the regulator, 11 of them a mechanical rule would have taken, 5 relaunches
+// identical to the one before, 5 wrong on the substance.
+describe('the table of the stops and their gesture, in the list of the steps', () => {
+  it('names each kind of stop with its gesture, in the order the circuit tries them', () => {
+    expect(TABLE_DES_ARRETS.map(l => [l.genre, l.geste])).toEqual([
+      ['meme-arret-sans-fait-nouveau', 'superviseur'],
+      ['a-repasser', 'a-repasser'],
+      ['a-arbitrer', 'regulateur'],
+      ['rouge-d-un-autre-composant', 'developpeur-du-composant'],
+      ['renvoi-au-testeur', 'testeur'],
+      ['composant-ajoute', 'testeur'],
+      ['critere-neuf', 'testeur'],
+    ]);
+  });
+
+  it('each line carries a gesture of the vocabulary and the case of BPScript 320.3 it settles', () => {
+    for (const l of TABLE_DES_ARRETS) {
+      expect(GESTES, l.genre).toContain(l.geste);
+      // A stop (A1–A19) or a decision (D1–D22) of the analysis of 320.3.
+      expect(l.cas, l.genre).toMatch(/\b[AD]\d{1,2}\b/);
+    }
+    expect(new Set(TABLE_DES_ARRETS.map(l => l.genre)).size).toBe(TABLE_DES_ARRETS.length);
+  });
+
+  it('gives the line of a kind of stop, and none for a kind it does not hold', () => {
+    expect(gesteDe('a-arbitrer')?.geste).toBe('regulateur');
+    expect(gesteDe('relecture-arret')).toBeNull();
+  });
+
+  it('the circuit reads its gestures in the table', () => {
+    expect(lire('scripts/circuit.mjs')).toMatch(
+      /import \{[^}]*\bgesteDe\b[^}]*\} from '\.\/etapes\.mjs'/
+    );
   });
 });

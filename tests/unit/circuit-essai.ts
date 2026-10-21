@@ -158,7 +158,8 @@ if (cmd === 'config') {
 // (`GRILLHOUSE_ENVELOPPE`, empty outside) in `.beads/essai/<ticket>/gardes`, and judges a
 // neighbour, its findings in SARIF by the frame's means (ecrireSarif of scripts/resultats.mjs),
 // beside its output: while `packages/binder/garde-rouge.txt` exists and the code of forms does not
-// carry `// accordé`, it is red and names the file of forms. While `packages/binder/ping-pong.txt`
+// carry `// accordé`, it is red and names the file of forms; so, while `packages/binder/arbitrer.txt`
+// exists, with a finding to settle (`a-arbitrer`). While `packages/binder/ping-pong.txt`
 // exists, it is always red, and names the component whose `tour` (a count each one keeps in its
 // directory) is behind, forms on a tie: the two components send the red to each other. While
 // `packages/forms/garde-globale.txt` exists, it is red without SARIF, its output naming a file of
@@ -174,9 +175,9 @@ const e = path.join(path.dirname(commun), '.beads', 'essai', path.basename(proce
 mkdirSync(e, { recursive: true });
 appendFileSync(path.join(e, 'gardes'), (process.env.GRILLHOUSE_ENVELOPPE ?? '') + '\\n');
 const accorde = readFileSync('packages/forms/src/index.mjs', 'utf8').includes('// accordé');
-const rouge = (fichier, message) => {
+const rouge = (fichier, message, genre) => {
   console.log('⛔ ' + fichier + ':1 — ' + message);
-  ecrireSarif({ garde: 'mesure', constats: [{ fichier, ligne: 1, message }] });
+  ecrireSarif({ garde: 'mesure', constats: [{ fichier, ligne: 1, message, genre }] });
   process.exit(1);
 };
 if (existsSync('packages/forms/garde-globale.txt')) {
@@ -185,6 +186,9 @@ if (existsSync('packages/forms/garde-globale.txt')) {
 }
 if (existsSync('packages/binder/garde-rouge.txt') && !accorde) {
   rouge('packages/forms/src/index.mjs', 'la mesure ne suit pas le classeur.');
+}
+if (existsSync('packages/binder/arbitrer.txt') && !accorde) {
+  rouge('packages/forms/src/index.mjs', 'la mesure attend un arbitrage.', 'a-arbitrer');
 }
 const tour = d => (existsSync(d + '/tour') ? Number(readFileSync(d + '/tour', 'utf8')) : 0);
 if (existsSync('packages/binder/ping-pong.txt')) {
@@ -437,11 +441,13 @@ export function circuitEssai(ESSAIS: string, { feuille = false } = {}) {
   const auteurs = (id: string) => tous(id).filter(c => !BILAN.test(c.text));
   const commentaires = (id: string) => auteurs(id).map(c => c.text);
   // The circuit's history at the ticket: [composant, étape] of each comment « Circuit · … », the
-  // regulator's lines aside (tests/unit/circuit.regulateur.spec.ts reads them).
+  // lines of the arbitrage aside, the regulator's and the table's of the stops
+  // (tests/unit/circuit.regulateur.spec.ts and tests/unit/circuit.table-des-arrets.spec.ts read
+  // them).
   const historique = (id: string) =>
     commentaires(id).flatMap(t => {
       const m = /^Circuit · (\S+) · (\S+) :/.exec(t);
-      return m && m[2] !== 'regulateur' ? [[m[1], m[2]]] : [];
+      return m && m[2] !== 'regulateur' && m[2] !== 'arbitrage' ? [[m[1], m[2]]] : [];
     });
   return {
     REPO,

@@ -1,16 +1,17 @@
 # La consigne d'un agent
 
-Six gabarits, que le circuit du ticket (`scripts/circuit.mjs`) remplit, chaque `{{champ}}` reçu
+Sept gabarits, que le circuit du ticket (`scripts/circuit.mjs`) remplit, chaque `{{champ}}` reçu
 de lui : le premier pour chaque séance neuve du testeur et du développeur, dans l'enveloppe de son
 composant, le lanceur ajoutant ses sections ; le second pour chaque séance du relecteur, hors
 enveloppe, après la passe finale verte, qui après un `RENDU` porte la relecture d'avant (la
 commande de la différence entre le lot qu'elle a lu et celui d'aujourd'hui, ses fichiers, ses
 constats) et ne nomme que les fichiers que le lot change depuis elle ; le troisième pour la séance du régulateur, hors
-enveloppe, sur un arrêt du circuit ; le quatrième pour la reprise de cette séance sur la réponse
+enveloppe, sur un arrêt que la table des arrêts ne tranche pas ; le quatrième pour la reprise de cette séance sur la réponse
 du superviseur (`--reponse`), qui peut porter celle du responsable ; le cinquième pour la reprise
 de toute séance finie sans fiche conforme ; le sixième pour la reprise de la séance du testeur ou
 du développeur, relancé sur son étape (le testeur après une preuve refusée, le développeur après
-des contrôles rouges), sauf la dernière tentative, une séance neuve sur le premier. Le circuit lit
+des contrôles rouges), sauf la dernière tentative, une séance neuve sur le premier ; le septième pour la reprise de la
+séance du régulateur sur une décision que le circuit refuse. Le circuit lit
 la description et les notes du ticket au lancement de chaque séance ; `{{notes}}` porte la section
 des notes, vide quand le ticket n'en a pas. Ainsi chaque agent reçoit la même consigne à chaque
 séance, sur le ticket tel qu'il est, et une reprise ne relit que ce qui a changé.
@@ -118,7 +119,7 @@ LES ROUGES DE L'ARRÊT, lus dans les résultats structurés (rapports des tests,
 
 {{rouges}}
 
-Ta décision est ta fiche, qui finit ta séance : le circuit l'écrit au ticket et l'applique lui-même. Sa `decision` prend l'une de ces formes : RELANCE --reprendre ; RELANCE --depuis, l'agent dans `depuis` (testeur ou developpeur, un composant du titre) ; MONTE, la question dans `question`. Une RELANCE peut porter un `contexte`, que le circuit passe à l'agent qu'il relance. Une MONTE porte la question au superviseur, avec ses pièces et ta recommandation : il y répond lui-même, ou la porte au responsable quand elle lui revient ; sa réponse reprend ta séance.
+Ta décision est ta fiche, qui finit ta séance : le circuit la vérifie sur l'état, l'écrit au ticket et l'applique lui-même. Sa `decision` prend l'une de ces formes : RELANCE --reprendre ; RELANCE --depuis, l'agent dans `depuis` (testeur ou developpeur, un composant du titre) ; MONTE, la question dans `question`. Une RELANCE peut porter un `contexte`, que le circuit passe à l'agent qu'il relance. Une MONTE porte la question au superviseur, avec ses pièces et ta recommandation : il y répond lui-même, ou la porte au responsable quand elle lui revient ; sa réponse reprend ta séance. Chaque fait de l'état sur lequel ta décision s'appuie entre dans `faits` (au-titre, hors-titre, rouge-de, sans-changement, sous-charge, avec son composant) : le circuit refuse une décision qui s'appuie sur un fait faux, lance un développeur avant son testeur, ou répète la RELANCE d'avant sur le même arrêt sans fait nouveau.
 
 Tu ne lances pas le circuit. Hors de tes commandes (lectures de bd et de git, commentaire au ticket, critère ajouté à sa description, lecture de l'état, du journal et des preuves), la machine est en lecture seule. Ainsi seul le circuit relance le travail.
 ```
@@ -159,4 +160,14 @@ LE RAPPORT NEUF, mesuré par le circuit :
 {{rapport}}
 
 Lève ce que dit ce rapport, dans le cadre de ta consigne. Ta séance finit sur ta fiche, que le circuit lit : `statut` FAIT, BLOQUÉ avec sa `raison`, ou BESOIN avec sa `question`. Ainsi le circuit lit ta fin.
+```
+
+## Régulateur, sur une décision refusée (rempli par le circuit)
+
+```text
+TON TICKET : {{ticket}} — {{sujet}}
+
+LE CIRCUIT REFUSE TA DÉCISION, vérifiée sur l'état avant d'être appliquée : {{refus}}.
+
+Rends une autre fiche, sous l'une des formes de ta consigne : RELANCE --reprendre, RELANCE --depuis (avec `depuis`), ou MONTE (avec `question`) ; ses `faits` vrais sur l'état. Un second refus rend l'arrêt au superviseur.
 ```

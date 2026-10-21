@@ -28,7 +28,10 @@
 //   - `question` (reviewer): what goes up to the owner, a real word of the language written in the
 //     code; the circuit stops at « besoin » before it commits or relaunches anyone;
 //   - `decision` (« RELANCE --reprendre », « RELANCE --depuis » with `depuis`, « MONTE » with
-//     `question`), `contexte`: what the circuit applies (regulator).
+//     `question`), `contexte`: what the circuit applies (regulator);
+//   - `faits` (`sujet` of SUJETS_DES_FAITS, `composant`): the facts of the state the decision
+//     rests on, which the circuit checks before it applies the decision, and compares with the
+//     facts of the RELANCE before on the same stop (regulator).
 //   `lireFiche` reads a session's output: the sheet and the session's id, or the error that
 //   names what lacks or does not conform (no `structured_output`, a field out of the schema, a
 //   status without its reason).
@@ -71,6 +74,15 @@ const SARIF = 'sarif';
 const TURBO = 'turbo';
 // The kinds of a guard's finding: to fix (a developpeur's work), to settle (a person's decision).
 const GENRES = ['a-corriger', 'a-arbitrer'];
+// The subjects of the facts a regulator's decision rests on, which the circuit checks on its
+// state (scripts/circuit.mjs, `faitFaux`): all but sous-charge name their component.
+export const SUJETS_DES_FAITS = [
+  'au-titre',
+  'hors-titre',
+  'rouge-de',
+  'sans-changement',
+  'sous-charge',
+];
 
 const texte = description => ({ type: 'string', description });
 const liste = (items, description) => ({ type: 'array', description, items });
@@ -186,6 +198,16 @@ const FICHES = {
       ),
       contexte: texte('RELANCE : ce que l’agent relancé fait dans son composant.'),
       question: texte('MONTE : la question, ses pièces et ta recommandation.'),
+      faits: liste(
+        objet(
+          {
+            sujet: { type: 'string', enum: SUJETS_DES_FAITS },
+            composant: texte('Le composant ou le paquet du fait ; sans objet pour sous-charge.'),
+          },
+          ['sujet']
+        ),
+        'Chaque fait de l’état sur lequel ta décision s’appuie : au-titre et hors-titre (un composant au titre ou non), rouge-de (un rouge de l’arrêt dans ce composant ou ce paquet), sans-changement (la copie ne change rien de ce composant), sous-charge (une commande de l’arrêt à repasser, sous charge). Le circuit vérifie chacun sur l’état avant d’appliquer ta décision, et refuse une décision qui s’appuie sur un fait faux.'
+      ),
       ...DECOUVERTES,
     },
     ['decision']
@@ -225,7 +247,7 @@ function erreurs(schema, valeur, ou) {
 }
 
 // What a sheet of <role> needs beyond its schema: the reason of a BLOQUÉ, the question of a
-// BESOIN or a MONTE, the agent of a RELANCE --depuis.
+// BESOIN or a MONTE, the agent of a RELANCE --depuis, the component of a fact.
 function manques(role, f) {
   const out = [];
   const plein = k => typeof f[k] === 'string' && f[k].trim() !== '';
@@ -236,6 +258,11 @@ function manques(role, f) {
   }
   if (role === 'regulateur' && f.decision === 'RELANCE --depuis' && !f.depuis) {
     out.push('depuis : manque, pour RELANCE --depuis');
+  }
+  for (const [i, x] of (role === 'regulateur' ? (f.faits ?? []) : []).entries()) {
+    if (x.sujet !== 'sous-charge' && !(typeof x.composant === 'string' && x.composant.trim())) {
+      out.push(`faits[${i}].composant : manque, pour ${x.sujet}`);
+    }
   }
   return out;
 }

@@ -54,7 +54,9 @@ circuit) ; puis, pour chaque composant, 3 Tests, le `testeur`, 4 Preuve du rouge
 8 Relecture, le `relecteur`, 9 Intégration et 10 File : main, poussée, CI, automatiques. Ainsi
 chaque agent travaille dans son cadre, et le numéro d'une étape dit où en est chaque ticket.
 
-**Le superviseur intervient sur ce qui dépasse le ticket** : le régulateur tranche ce que la
+**Le superviseur intervient sur ce qui dépasse le ticket** : le circuit applique lui-même le
+geste que la table des arrêts (`scripts/etapes.mjs`) écrit pour un genre d'arrêt, et vérifie sur
+son état chaque décision du régulateur avant de l'appliquer ; le régulateur tranche le reste, ce que la
 lettre d'un critère, un précédent écrit ou une règle du cadre tranchent ; il fait monter au
 superviseur le reste, et tout sujet sensible : le cadre, l'architecture, et le fonctionnel que la
 charte du projet nomme (« Ce qui monte au superviseur »). Ainsi chaque décision se prend au plus
