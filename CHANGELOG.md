@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.20.2] - 2026-10-21
+
 ### Changed
 
 - **The board names 1.2 « Questionnement » and shows the stops that go to the supervisor as his**: the line of 1.2 was cut to the pane's 52 columns (`1.2 · Questionnement du plan · questionneur ⇄ réf…`), and a stop of the opening, which the circuit ends on for the supervisor with no regulator, stood under « ⤷ Arbitrage de l'arrêt · régulateur ⇄ questionneur » (Romain, 2026-10-21). The sub-step 1.2 is now « Questionnement », and a step of `scripts/etapes.mjs` may declare the short form of who works there on the board's line (`quiCourt`, read by `quiDe`): 1.2 shows `questionneur ⇄ référent`, the role keeping its whole name, « référent technique », everywhere else. The table of the stops gains its first two lines, `composants-manquants` (21) and `questionnement` (22), gesture `superviseur`; the board reads in it the stops that go to the supervisor and shows them under their step after « ⤷ Arrêt · superviseur », with the counters of their step (`tour 4/4`). The common charter, the skills of the regulator, the technical referent and the questioner, the README and the tracker's guide say « 1.2 Questionnement ».
