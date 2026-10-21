@@ -98,7 +98,9 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/circuit.registre.spec.ts
 - tests/unit/circuit.reprise.spec.ts
 - tests/unit/circuit.rejeu.spec.ts
+- tests/unit/circuit.relance.spec.ts
 - tests/unit/circuit.relecture.spec.ts
+- tests/unit/circuit.reponse.spec.ts
 - tests/unit/circuit.sessions.spec.ts
 - tests/unit/circuit.spec.ts
 - tests/unit/circuit.statut.spec.ts
@@ -176,6 +178,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/registre-fin.spec.ts
 - tests/unit/registre.spec.ts
 - tests/unit/resultats.spec.ts
+- tests/unit/resultats.essais-imbriques.spec.ts
 - tests/unit/resumes.spec.ts
 - tests/unit/retirer-copie.spec.ts
 - tests/unit/session-start.spec.ts

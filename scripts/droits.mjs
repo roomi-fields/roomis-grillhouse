@@ -138,7 +138,6 @@ export const ROLES = {
     lit: ['etat', 'journal', 'preuves'],
     competences: ['regulateur'],
     commandes: [
-      'Bash(bd show *)',
       'Bash(bd comments *)',
       'Bash(bd search *)',
       'Bash(bd update * -d *)',
