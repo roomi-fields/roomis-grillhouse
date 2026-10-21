@@ -9,6 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Changed
 
 - **A package's tests may declare they read a neighbour's code**: in BPScript 320.3, the tests of 995-tools read `packages/900-driver/test` (capture scripts) and `packages/000-forms/src/tables.ts`, which the envelope now shows read-only, but the check refused a declared path holding code. As Bazel's `data` takes any file, `grillhouse.lit` and a trace's `lit` now take a path of code: the reader's `test:vitest` hashes it, so it replays when the path changes, and the path stays an input of its own package's build; only a path of data alone is still left out of that build. The check no longer refuses a declared path holding code. The grill skill, the tester's skill, the common charter, the README and STRUCTURE say so.
+- **AGENTS shows every step of the process, empty ones included**: since 0.20.0 the board's AGENTS section showed only the steps that held a ticket, and the owner, seeing step 3 alone, could not read the flow. It now shows every step of `scripts/etapes.mjs` in its order, the ten steps and the sub-step 2.1 Questionnement, each on its line « number · title · who »: an empty step in the discreet tone, a step with a ticket as a title with its tickets under it. The arbitrage has one line per role when either role holds a ticket, else one line « 2 · Arbitrage · référent technique ou régulateur ».
 
 ## [0.20.0] - 2026-10-21
 

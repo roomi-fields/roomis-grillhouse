@@ -1150,17 +1150,19 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
 
   L('', undefined);
   L('AGENTS  ▶ en cours · en attente', 'titre');
-  // The steps of the process, each with a ticket: its line « number · title · who », then its
-  // tickets. A circuit's ticket stands on one line, at the step of its state, and nowhere else in
-  // AGENTS; at the arbitrage, the regulator's, while a session of the regulator runs on its stop or
-  // once it stopped, recalling the step it comes from (« · de 5 Code »), where it returns; at 2.1
-  // Questionnement, the questionneur's, while it questions the plan or a regulator's decision. Its line
-  // gives its subject (`texte`) and, in turn (`alterne`, which the pane shows every other 5 s), the
-  // component under way, with its rank among the title's components when they are several; then
-  // the counter of the bounded loop of its step from its second pass (`boucle` of the step,
-  // scripts/etapes.mjs, its count in the state's `boucles`), whole; then its ticket's working time
-  // and tokens. Its card says where it stopped and why, or the regulator's question. The tickets'
-  // numbers line up in one column.
+  // Every step of the process (scripts/etapes.mjs), in its order: its line « number · title · who »
+  // in the discreet tone, or, with a ticket, as a title, its tickets under it. The arbitrage has a
+  // line per role when either holds a ticket, else one line « référent technique ou régulateur ».
+  // A circuit's ticket stands on one line, at the step of its state, and nowhere else in AGENTS;
+  // at the arbitrage, the regulator's, while a session of the regulator runs on its stop or once it
+  // stopped, recalling the step it comes from (« · de 5 Code »), where it returns; at 2.1
+  // Questionnement, the questionneur's, while it questions the plan or a regulator's decision. Its
+  // line gives its subject (`texte`) and, in turn (`alterne`, which the pane shows every other
+  // 5 s), the component under way, with its rank among the title's components when they are
+  // several; then the counter of the bounded loop of its step from its second pass (`boucle` of
+  // the step, scripts/etapes.mjs, its count in the state's `boucles`), whole; then its ticket's
+  // working time and tokens. Its card says where it stopped and why, or the regulator's question.
+  // The tickets' numbers line up in one column.
   const enCircuit = new Set((t.circuits ?? []).map(c => c.id));
   const auQuestionneur = c => c.vivant && c.questionnement;
   const auRegulateur = c => !auQuestionneur(c) && (!c.vivant || c.regulateur);
@@ -1206,14 +1208,28 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       ticket: c.id,
     });
   };
-  for (const b of t.agents) {
+  const contenu = b => {
     const circuits = (t.circuits ?? []).filter(c => blocDuCircuit(c) === b);
     const enCours = b.enCours.filter(x => !enCircuit.has(x.id));
     const attend = b.attend.filter(x => !enCircuit.has(x.id));
-    if (circuits.length === 0 && enCours.length === 0 && attend.length === 0) {
+    return {
+      circuits,
+      enCours,
+      attend,
+      vide: !circuits.length && !enCours.length && !attend.length,
+    };
+  };
+  const contenus = new Map(t.agents.map(b => [b, contenu(b)]));
+  for (const b of t.agents) {
+    const { circuits, enCours, attend, vide } = contenus.get(b);
+    const memeEtape = t.agents.filter(x => x.numero === b.numero);
+    if (memeEtape.length > 1 && memeEtape.every(x => contenus.get(x).vide)) {
+      if (memeEtape[0] === b) {
+        L(`${b.numero} · ${b.titre} · ${memeEtape.map(x => x.qui).join(' ou ')}`, 'discret');
+      }
       continue;
     }
-    L(`${b.numero} · ${b.titre} · ${b.qui}`, 'titre');
+    L(`${b.numero} · ${b.titre} · ${b.qui}`, vide ? 'discret' : 'titre');
     for (const c of circuits) {
       ligneDuCircuit(c, b);
     }

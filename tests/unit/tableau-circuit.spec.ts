@@ -184,8 +184,9 @@ describe('a circuit that runs: its step, its component and its attempt', () => {
       'demo-12': { etape: 'controles', composant: 'packages/demo', tentative: 1, finale: true },
     });
     const a = agents(plateau([T('demo-12')], [], [], circuits(racine, ligneCircuit('demo-12'))));
-    expect(a).toContain('7 · Passe finale · automatique');
-    expect(a).not.toContain('6 · Contrôles · automatique');
+    const i = a.indexOf('7 · Passe finale · automatique');
+    expect(a[i + 1]).toMatch(/^▶ 12 /);
+    expect(a[a.indexOf('6 · Contrôles · automatique') + 1]).toBe('7 · Passe finale · automatique');
   });
 
   it("another ticket's circuit process does not make it run", () => {

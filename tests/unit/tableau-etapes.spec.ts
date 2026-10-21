@@ -11,8 +11,11 @@
 //           (5 s plus tard)
 //   ▶ 320.3  030-binder                   2 · 12 min · 340 k
 //
-// - A step's line carries its number, its title and who works there; for the arbitrage, the role
-//   that works on it (one line per role with a ticket). A step without a ticket is not shown.
+// - AGENTS shows every step of the list, in its order, each on its line « number · title · who »:
+//   the owner saw a single step and could not read the flow. A step without a ticket is in the
+//   discreet tone; a step with a ticket is a title, its tickets under it. The arbitrage has one
+//   line per role when either role holds a ticket, else one line « référent technique ou
+//   régulateur ».
 // - A ticket at the regulator recalls the step it comes from (« · de 5 Code »), where it returns.
 // - A ticket's line in a circuit alternates, every 5 s, its subject and its component under way
 //   (the board gives both texts, `texte` and `alterne`; the mod alternates), then its attempt,
@@ -126,8 +129,23 @@ const etapeDe = (t: Board, id: string) => {
 const ligneDe = (t: Board, id: string) => agents(t).find(x => x.ticket === id)!;
 
 describe("AGENTS lists the steps, each step's line its number, title and who works there", () => {
-  it('a board without a ticket at any step shows the title of AGENTS alone', () => {
-    expect(textes(plateau([]))).toEqual(['AGENTS  ▶ en cours · en attente']);
+  it('a board without a ticket at any step shows every step, in discreet tone, the arbitrage on one line', () => {
+    expect(agents(plateau([]))).toEqual([
+      expect.objectContaining({ texte: 'AGENTS  ▶ en cours · en attente', ton: 'titre' }),
+      ...[
+        '1 · Exploration · explorateur',
+        '2 · Arbitrage · référent technique ou régulateur',
+        '2.1 · Questionnement · questionneur',
+        '3 · Tests · testeur',
+        '4 · Preuve du rouge · automatique',
+        '5 · Code · développeur',
+        '6 · Contrôles · automatique',
+        '7 · Passe finale · automatique',
+        '8 · Relecture · relecteur',
+        '9 · Intégration · automatique',
+        '10 · File : main, poussée, CI · automatique',
+      ].map(texte => expect.objectContaining({ texte, ton: 'discret' })),
+    ]);
   });
 
   it('the data holds a block per step and role, in the order of the list', () => {
@@ -149,10 +167,11 @@ describe("AGENTS lists the steps, each step's line its number, title and who wor
 
   it('an explorer running on a ticket stands under « 1 · Exploration · explorateur »', () => {
     const t = plateau([T('demo-30')], { vivants: [vivant('e1', 'demo-30', 'explorateur')] });
-    expect(textes(t)).toEqual([
+    expect(textes(t).slice(0, 4)).toEqual([
       'AGENTS  ▶ en cours · en attente',
       '1 · Exploration · explorateur',
       expect.stringMatching(/^▶ 30 {2}Le sujet de demo-30 +20 min · 40$/),
+      '2 · Arbitrage · référent technique ou régulateur',
     ]);
     expect(agents(t)[1]).toMatchObject({ ton: 'titre' });
   });
@@ -162,7 +181,7 @@ describe("AGENTS lists the steps, each step's line its number, title and who wor
       vivants: [vivant('a1', 'demo-31', 'referent-technique')],
       circuits: [circuit('demo-32', { regulateur: true, code: 20, arret: 'besoin' })],
     });
-    expect(textes(t).filter(x => /^\d+ · /.test(x))).toEqual([
+    expect(textes(t).filter(x => /^2 · /.test(x))).toEqual([
       '2 · Arbitrage · référent technique',
       '2 · Arbitrage · régulateur',
     ]);
@@ -170,9 +189,38 @@ describe("AGENTS lists the steps, each step's line its number, title and who wor
     expect(etapeDe(t, 'demo-32')).toBe('2 · Arbitrage · régulateur');
   });
 
-  it('a step without a ticket is not shown', () => {
+  it('a ticket at one role of the arbitrage shows both roles, the empty one in discreet tone', () => {
+    const t = plateau([T('demo-48')], { vivants: [vivant('a2', 'demo-48', 'referent-technique')] });
+    const arbitrage = agents(t).filter(x => /^2 · /.test(x.texte));
+    expect(arbitrage).toEqual([
+      expect.objectContaining({ texte: '2 · Arbitrage · référent technique', ton: 'titre' }),
+      expect.objectContaining({ texte: '2 · Arbitrage · régulateur', ton: 'discret' }),
+    ]);
+  });
+
+  it('a ticket at step 5 shows every step, step 5 a title with its ticket under it, the others discreet', () => {
     const t = plateau([T('demo-33')], { circuits: [circuit('demo-33')] });
-    expect(textes(t).filter(x => /^\d+ · /.test(x))).toEqual(['5 · Code · développeur']);
+    const a = agents(t);
+    const etapes = a.filter(x => /^\d+(\.\d+)? · /.test(x.texte));
+    expect(etapes.map(x => x.texte)).toEqual([
+      '1 · Exploration · explorateur',
+      '2 · Arbitrage · référent technique ou régulateur',
+      '2.1 · Questionnement · questionneur',
+      '3 · Tests · testeur',
+      '4 · Preuve du rouge · automatique',
+      '5 · Code · développeur',
+      '6 · Contrôles · automatique',
+      '7 · Passe finale · automatique',
+      '8 · Relecture · relecteur',
+      '9 · Intégration · automatique',
+      '10 · File : main, poussée, CI · automatique',
+    ]);
+    expect(etapes.map(x => x.ton)).toEqual(
+      etapes.map(x => (x.texte.startsWith('5 ') ? 'titre' : 'discret'))
+    );
+    const i = a.findIndex(x => x.texte === '5 · Code · développeur');
+    expect(a[i + 1]).toMatchObject({ ticket: 'demo-33' });
+    expect(a[i + 2]!.texte).toBe('6 · Contrôles · automatique');
   });
 });
 
