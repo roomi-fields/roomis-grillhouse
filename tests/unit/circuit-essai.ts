@@ -41,7 +41,8 @@ export const ecrire = (f: string, texte: string, mode?: number) => {
 // with `fiche '<json>'`. As claude with `--output-format json`, it prints on its standard output
 // its JSON result alone, whatever the scenario prints (on its standard error), the sheet in
 // `structured_output`: the scenario's, else `{"statut":"FAIT"}` for a testeur or a developpeur,
-// none for another role or after `sans_fiche`; a `--json-schema` that is not JSON fails, code 1,
+// `{"issue":"AUCUNE"}` for the questionneur (a plan or a decision it has no question on), none for
+// another role or after `sans_fiche`; a `--json-schema` that is not JSON fails, code 1,
 // as claude refuses it. As claude, a session `--session-id <id>` keeps its transcript in
 // `<id>.jsonl` (an id already in use fails, code 1), and `--resume <id>` adds to that transcript,
 // found in the folder of its working directory, or fails, code 1, its scenario not played, when
@@ -88,7 +89,10 @@ passation() {
 }
 # The sheet of the session, and none at all.
 la_fiche=
-case "$role" in testeur|developpeur) la_fiche='{"statut":"FAIT"}' ;; esac
+case "$role" in
+  testeur|developpeur) la_fiche='{"statut":"FAIT"}' ;;
+  questionneur) la_fiche='{"issue":"AUCUNE"}' ;;
+esac
 fiche() { la_fiche=$1; }
 sans_fiche() { la_fiche=; }
 # The result on the standard output, the scenario's own output on the standard error.
@@ -205,6 +209,24 @@ import { mesure } from '../src/index.mjs';
 it('ancien — mesure rend un nombre', () => { expect(typeof mesure(1)).toBe('number'); });
 `;
 
+// The project's charter of the trial repository: its rubrics « Comment on arbitre » and « Ce qui
+// monte au superviseur », which the questionneur's instruction carries.
+const CHARTE = [
+  '# Essai',
+  '',
+  '## Comment on arbitre',
+  '',
+  '1. **Que fait la référence mature ?** Un tableur mûr calcule chaque mesure une fois.',
+  '',
+  '## Ce qui monte au superviseur',
+  '',
+  'Le format publié de la mesure.',
+  '',
+  '## Commandes',
+  '',
+  '- `npm test`.',
+].join('\n');
+
 // The description of each trial ticket: its Architecture section and its one criterion.
 export const DESCRIPTION = [
   '## Architecture',
@@ -314,6 +336,7 @@ export function circuitEssai(ESSAIS: string, { feuille = false } = {}) {
       ecrire(path.join(REPO, `packages/${dossier}/test/ancien.test.mjs`), ANCIEN);
     }
     ecrire(path.join(REPO, 'garde.mjs'), GARDE);
+    ecrire(path.join(REPO, 'CLAUDE.md'), CHARTE);
     ecrireTurbo(REPO);
     for (const role of ['testeur', 'developpeur']) {
       ecrire(path.join(REPO, `.claude/agents/${role}.md`), `---\nname: ${role}\n---\n`);
@@ -412,7 +435,14 @@ export function circuitEssai(ESSAIS: string, { feuille = false } = {}) {
       verifie: string | null;
       regulateur: { seance: string; arret: string; code: number; rapport: string | null } | null;
     } | null;
-  const ordre = (id: string) => essai(id, 'ordre').trim().split('\n');
+  // The order of the sessions of the lot and of its arbitrage; the questionneur's, which the
+  // default sheet of the stand-in ends at once on a plan or a decision (`AUCUNE`), aside unless
+  // <questionneur> asks for them (tests/unit/circuit.questionneur.spec.ts).
+  const ordre = (id: string, { questionneur = false } = {}) =>
+    essai(id, 'ordre')
+      .trim()
+      .split('\n')
+      .filter(l => questionneur || l !== 'questionneur');
   // The log of the ticket, and the commands of the circuit it holds, in their order (`$ …`).
   const journal = (id: string) => lire(path.join(REPO, '.claude/worktrees', `${id}.log`));
   const commandes = (id: string) =>
@@ -441,13 +471,15 @@ export function circuitEssai(ESSAIS: string, { feuille = false } = {}) {
   const auteurs = (id: string) => tous(id).filter(c => !BILAN.test(c.text));
   const commentaires = (id: string) => auteurs(id).map(c => c.text);
   // The circuit's history at the ticket: [composant, étape] of each comment « Circuit · … », the
-  // lines of the arbitrage aside, the regulator's and the table's of the stops
-  // (tests/unit/circuit.regulateur.spec.ts and tests/unit/circuit.table-des-arrets.spec.ts read
-  // them).
+  // lines of the arbitrage aside, the regulator's, the table's of the stops and the questioning's
+  // (tests/unit/circuit.regulateur.spec.ts, tests/unit/circuit.table-des-arrets.spec.ts and
+  // tests/unit/circuit.questionneur.spec.ts read them).
   const historique = (id: string) =>
     commentaires(id).flatMap(t => {
       const m = /^Circuit · (\S+) · (\S+) :/.exec(t);
-      return m && m[2] !== 'regulateur' && m[2] !== 'arbitrage' ? [[m[1], m[2]]] : [];
+      return m && !['regulateur', 'arbitrage', 'questionnement'].includes(m[2])
+        ? [[m[1], m[2]]]
+        : [];
     });
   return {
     REPO,

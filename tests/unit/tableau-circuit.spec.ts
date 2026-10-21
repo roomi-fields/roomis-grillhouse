@@ -349,6 +349,45 @@ describe('a circuit that stopped: at the arbitrage, its stop, its code and its r
 // Decided by the owner on 2026-10-17 (grill, Q10): a regulator comes only on a stop of the circuit,
 // which always has its state; a ticket in progress with neither a state nor a living agent falls
 // under the alert « en cours sans rien qui tourne ».
+// grillhouse-3uv.89.1 (L9): a circuit whose plan, or whose regulator's decision, the questionneur
+// questions stands at 2.1 Questionnement, the round of its bounded loop from the second.
+describe('a circuit at the questioning', () => {
+  const SEANCE = '0b8e8c7e-1d2f-4a3b-9c4d-5e6f7a8b9c0d';
+
+  it('runs on its one line at the questionneur’s block, its round from the second', () => {
+    const racine = depot({
+      'demo-12': {
+        questionnement: { objet: 'plan', tour: 2, seance: SEANCE },
+        boucles: { '2.1': 2 },
+      },
+      'demo-13': {
+        etape: 'developpeur',
+        code: 15,
+        raison: 'sans-livraison',
+        regulateur: { seance: SEANCE, arret: 'sans-livraison', code: 15, rapport: 'x' },
+        questionnement: { objet: 'decision', tour: 1, seance: SEANCE },
+        boucles: { '2.1': 1 },
+      },
+    });
+    const lus = circuits(racine, `${ligneCircuit('demo-12')}\n${ligneCircuit('demo-13')}`);
+    expect(lus).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ ticket: 'demo-12', questionnement: true }),
+        expect.objectContaining({ ticket: 'demo-13', questionnement: true }),
+      ])
+    );
+    const t = plateau([T('demo-12'), T('demo-13')], [], [], lus);
+    const a = agents(t);
+    const i = a.indexOf('2.1 · Questionnement · questionneur');
+    expect(i).toBeGreaterThan(-1);
+    expect(a.slice(i + 1, i + 3).sort()).toEqual([
+      '▶ 12  Le sujet de demo-12 · tour 2/4',
+      '▶ 13  Le sujet de demo-13',
+    ]);
+    expect(a.filter(x => x.includes('Le sujet de demo-13'))).toHaveLength(1);
+  });
+});
+
 describe('a ticket in progress with no circuit and no agent: the alert, no wait under the regulateur', () => {
   const alerte = (t: Board) => t.alertes.map(x => x.texte);
 

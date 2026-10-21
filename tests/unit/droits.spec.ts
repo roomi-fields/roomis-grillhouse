@@ -200,6 +200,33 @@ describe('L2 — what a role that writes may not run', () => {
   });
 });
 
+// grillhouse-3uv.89.1 (L9): the questionneur asks and decides nothing; it writes no file and
+// nothing at the ticket, which the circuit writes from its sheet.
+describe('L9 — the questionneur reads, and writes nothing', () => {
+  it('has no tool of writing, and every write at the ticket is refused', () => {
+    const a = options('questionneur');
+    const outils = valeur(a, '--tools').split(',');
+    for (const o of ['Edit', 'Write', 'MultiEdit', 'NotebookEdit']) {
+      expect(outils, o).not.toContain(o);
+    }
+    const { deny } = reglagesDe(a).permissions;
+    for (const c of [
+      'bd comments add demo-1 x',
+      'bd update demo-1 -d x',
+      'bd update demo-1 --title x',
+      'bd create x',
+      'bd close demo-1',
+      'bash scripts/ticket.sh demo-1 a b c decouverte',
+    ]) {
+      expect(
+        deny.some(r => couvre(r, c)),
+        c
+      ).toBe(true);
+    }
+    expect(reglagesDe(a).hooks).toBeUndefined();
+  });
+});
+
 describe("L2 — the context of a role's session", () => {
   it('leaves out the configuration of the user: only the project and its local settings are read, the automatic memory is off', () => {
     for (const role of Object.keys(ROLES)) {
@@ -237,11 +264,13 @@ describe("L2 — the context of a role's session", () => {
     }
   });
 
-  it('keeps the servers of the index for the reviewer alone, and no other server for any role', () => {
-    const r = options('relecteur');
-    expect(r).toContain('--strict-mcp-config');
-    expect(Object.keys(mcpDe(r).mcpServers).sort()).toEqual(['codegraph']);
-    expect(mcpDe(r).mcpServers.codegraph.command).toBe('codegraph');
+  it('keeps the servers of the index for the roles that read the whole repository (the reviewer, the questionneur, the référent technique), and no other server for any role', () => {
+    for (const role of ['relecteur', 'questionneur', 'referent-technique']) {
+      const r = options(role);
+      expect(r, role).toContain('--strict-mcp-config');
+      expect(Object.keys(mcpDe(r).mcpServers).sort(), role).toEqual(['codegraph']);
+      expect(mcpDe(r).mcpServers.codegraph.command, role).toBe('codegraph');
+    }
     for (const role of ['testeur', 'developpeur', 'regulateur']) {
       const a = options(role);
       expect(a, role).toContain('--strict-mcp-config');

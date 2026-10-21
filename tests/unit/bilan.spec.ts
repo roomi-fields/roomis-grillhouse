@@ -67,6 +67,7 @@ interface Entree {
   arret?: string;
   finale?: boolean;
   inchange?: boolean;
+  questionnement?: object;
 }
 interface Categorie {
   ms: number;
@@ -83,7 +84,14 @@ interface Bilan {
   statut: string;
   perdu: number;
   categories: Record<
-    'travail' | 'sansEffet' | 'regulateur' | 'attente' | 'automatique' | 'rejeu' | 'intervalles',
+    | 'travail'
+    | 'sansEffet'
+    | 'regulateur'
+    | 'questionnement'
+    | 'attente'
+    | 'automatique'
+    | 'rejeu'
+    | 'intervalles',
     Categorie
   > & { automatique: Categorie & { dontFinales: number } };
   passesFinales: { n: number; ms: number };
@@ -91,6 +99,7 @@ interface Bilan {
   etapes: Record<string, number>;
   arrets: Record<string, number>;
   questions: number;
+  questionnement: { tours: number; changees: number; montees: number };
   jetons: number;
   cache: number;
   cout: number;
@@ -331,6 +340,62 @@ describe('a relaunch without effect', () => {
     expect(b.categories.regulateur.cout).toBeCloseTo(0.2);
     expect(b.perdu).toBe(b.mur - b.categories.travail.ms - b.categories.automatique.ms);
     expect(b.arrets).toEqual({ 'sans-livraison': 2 });
+  });
+});
+
+// grillhouse-3uv.89.1 (L9): the questioning of the plan and of the regulator's decisions, its
+// rounds and the decisions it changed, counted from the results the circuit keeps.
+describe('the questioning', () => {
+  const lignes = [
+    seance('questionneur', 'q1', [
+      [0, 2],
+      [4, 5],
+    ]),
+    seance('referent-technique', 'rt1', [[2, 4]]),
+    seance('testeur', 't1', [[5, 10]]),
+    seance('questionneur', 'q2', [[12, 13]], { cout: 0.25 }),
+  ];
+  const fin = (
+    m: number,
+    objet: string,
+    tours: number,
+    change: boolean,
+    issue: string
+  ): Entree => ({
+    date: quand(m, 0, 1),
+    role: 'circuit',
+    composant: 'packages/a',
+    questionnement: { objet, tours, change, issue },
+  });
+  const entrees = [
+    fiche(2, 0, 'questionneur', 'packages/a', { issue: 'QUESTIONS', questions: [] }),
+    fiche(4, 0, 'referent-technique', 'packages/a', { reponses: [] }),
+    fiche(5, 0, 'questionneur', 'packages/a', { issue: 'AUCUNE' }),
+    fin(5, 'plan', 2, true, 'AUCUNE'),
+    fiche(10, 0, 'testeur', 'packages/a'),
+    fiche(13, 0, 'questionneur', 'packages/a', { issue: 'DÉSACCORD', desaccord: 'x' }),
+    fin(13, 'decision', 1, false, 'DÉSACCORD'),
+  ];
+  const b = calculer(lignes, entrees);
+
+  it('counts its rounds, the decisions it changed and those it sent up', () => {
+    expect(b.questionnement).toEqual({ tours: 3, changees: 1, montees: 1 });
+  });
+
+  it('counts the questionneur’s time apart, as kept, the author’s answer at the arbitrage', () => {
+    expect(min(b.categories.questionnement.ms)).toBe(4);
+    expect(b.categories.questionnement.cout).toBeCloseTo(0.75);
+    expect(min(b.categories.regulateur.ms)).toBe(2);
+    expect(b.perdu).toBe(
+      b.mur - b.categories.travail.ms - b.categories.automatique.ms - b.categories.questionnement.ms
+    );
+    expect(b.seances.parRole).toMatchObject({ questionneur: 2, 'referent-technique': 1 });
+  });
+
+  it('says its rounds and the decisions changed on its line', () => {
+    expect(texteDuBilan(b, null).split('\n')).toContain(
+      '- questionnement : 4 min, 0,75 $ (3 tours, 1 décision changée)'
+    );
   });
 });
 

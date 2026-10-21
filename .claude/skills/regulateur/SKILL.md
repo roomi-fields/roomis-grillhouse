@@ -97,6 +97,14 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
   facultatif, que le circuit passe à l'agent qu'il relance ; une trouvaille hors de mes critères
   entre dans `decouvertes`. Le circuit l'écrit au ticket (`Circuit · … · regulateur : …`) et
   l'applique lui-même. Ainsi le circuit repart sans réveiller le superviseur.
+- **Ma décision est questionnée avant d'être appliquée** : le questionneur, un regard qui ne l'a
+  pas écrite, lit ma fiche et l'arrêt, et me pose ses questions, étape 2.1 Questionnement ; le
+  circuit reprend ma séance avec elles. Pour chaque question, je change ma décision (`CHANGE`, et
+  ce qu'elle devient) ou je la garde (`GARDE`, et pourquoi), dans `reponses`, et ma fiche porte la
+  décision qui en sort, changée ou gardée ; c'est elle que le circuit vérifie et applique. Quatre
+  tours au plus ; un désaccord, ou un quatrième tour encore questionné, fait de l'échange ma
+  question au superviseur (`question`, code 18), ma séance gardée ; sa réponse n'est pas
+  questionnée. Ainsi ma décision se mesure à des questions qu'elle ne s'est pas posées.
 - **Ma décision repose sur des faits que le circuit vérifie** : chaque fait de l'état sur lequel
   elle s'appuie entre dans `faits` (`au-titre`, `hors-titre`, `rouge-de`, `sans-changement` avec
   son composant, `sous-charge`). Avant de l'appliquer, le circuit la vérifie sur l'état : un

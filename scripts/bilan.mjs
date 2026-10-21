@@ -17,7 +17,9 @@
 //   `.claude/worktrees/<ticket>.fiches.jsonl`, each with its time: the sheet of each session (`{
 //   role, composant, fiche }`), the outcome of each proof (`resultat`: `ok`, its counts, `vide`)
 //   and of each check (`resultat`: `issue` vert, rouge or a-repasser, `finale`), each stop
-//   (`arret`, its name, `finale`), each developpeur resumed who changed nothing (`inchange`); the
+//   (`arret`, its name, `finale`), each developpeur resumed who changed nothing (`inchange`), the
+//   end of each questioning (`questionnement`: its `objet`, plan or decision, its `tours`, whether
+//   it changed the proposal, `change`, and its `issue`, AUCUNE, DÉSACCORD or MONTE); the
 //   authors and times of the ticket's comments (`bd comments --json`), never their text; the
 //   circuit's state, `.claude/worktrees/<ticket>.circuit.json`, for where the circuit ended. Every
 //   agent declares nothing: the bilan measures.
@@ -38,7 +40,10 @@
 //     reds that exist already or of a build alone, no green of the lot); that proof; checks that
 //     play the same red again on a component none of its agents delivered to since its checks
 //     before (the final pass: none of any component's since the final pass before);
-//   - régulateur: a session of the arbitrage, out of the wait;
+//   - régulateur: a session of the arbitrage, out of the wait, the author's answers to the
+//     questionneur among them;
+//   - questionnement: a session of the questionneur (kept: a look that did not write the
+//     proposal, as a review);
 //   - attente humaine: from a question of the regulator (its sheet's `decision` MONTE) to the next
 //     comment at the ticket whose author is not the circuit, or to the next turn, the first of
 //     the two;
@@ -48,7 +53,8 @@
 //   - entre deux étapes: the rest of the window.
 //   What is lost is the wall time out of the work and the automatic steps.
 // - The bilan counts the sessions by role, the steps by their titles, the stops by kind (`arret`),
-//   the regulator's questions, the tokens, the cache reads and the cost (a session without a cost
+//   the regulator's questions, the rounds of questioning, the proposals they changed and those
+//   they sent up to the supervisor, the tokens, the cache reads and the cost (a session without a cost
 //   counts 0); a session's tokens go to its turns by their time.
 // - It is kept in the main tree, `.claude/worktrees/<ticket>.bilan.json`, and compares itself with
 //   the latest bilan kept for another ticket of the project, or with nothing: no figure of
@@ -64,6 +70,7 @@ import {
   etapeDuCircuit,
   etapeDuRole,
   nomDuRole,
+  QUESTIONNEUR,
   REGULATEUR,
 } from './etapes.mjs';
 
@@ -80,13 +87,14 @@ const CATEGORIES = [
   ['travail', 'travail resté au lot'],
   ['sansEffet', 'relance sans effet'],
   ['regulateur', 'régulateur'],
+  ['questionnement', 'questionnement'],
   ['attente', 'attente humaine'],
   ['automatique', 'étapes automatiques'],
   ['rejeu', "rejeu d'étapes déjà vertes"],
   ['intervalles', 'entre deux étapes'],
 ];
 // The categories of the time kept: the rest is lost.
-const GARDE = new Set(['travail', 'automatique']);
+const GARDE = new Set(['travail', 'automatique', 'questionnement']);
 // The roles of the circuit, by the steps they work at: every step but the exploration.
 const ROLES = new Set(ETAPES.filter(e => e.numero > 1).flatMap(e => e.qui));
 
@@ -210,7 +218,8 @@ export function bilan({
 
   // The sessions first: the checks read what they delivered.
   for (const s of segments.filter(x => x.role !== CIRCUIT)) {
-    if (etapeDuRole(s.role) === ARBITRAGE) s.categorie = 'regulateur';
+    if (s.role === QUESTIONNEUR) s.categorie = 'questionnement';
+    else if (etapeDuRole(s.role) === ARBITRAGE) s.categorie = 'regulateur';
     else if (s.role === 'developpeur') {
       s.categorie = sansLivraison(s) ? 'sansEffet' : 'travail';
     } else if (s.role === 'testeur') {
@@ -309,6 +318,13 @@ export function bilan({
   const arrets = {};
   for (const e of duCircuit.filter(x => x.arret)) arrets[e.arret] = (arrets[e.arret] ?? 0) + 1;
   const finales = etapes.filter(s => s.finale);
+  // The ends of the questionings: their rounds, the proposals they changed, those sent up.
+  const fins = duCircuit.map(e => e.questionnement).filter(Boolean);
+  const questionnement = {
+    tours: fins.reduce((m, q) => m + (q.tours ?? 0), 0),
+    changees: fins.filter(q => q.change).length,
+    montees: fins.filter(q => q.issue !== 'AUCUNE').length,
+  };
   const somme = k => sessions.reduce((m, l) => m + (l[k] ?? 0), 0);
   return {
     ticket,
@@ -324,6 +340,7 @@ export function bilan({
     etapes: parEtape,
     arrets,
     questions,
+    questionnement,
     jetons: somme('jetons'),
     cache: somme('cache'),
     cout: somme('cout'),
@@ -353,7 +370,9 @@ export function texteDuBilan(b, avant) {
     .map(([r, n]) => `${n} ${nomDuRole(r)}`)
     .join(', ');
   const tete = `${b.statut} en ${minutes(b.mur)} min ; ${minutes(b.perdu)} min perdues (${pourcent(b.perdu, b.mur)} %) ; ${b.seances.total} séances${roles ? ` (${roles})` : ''} ; ${dollars(b.cout)} $ ; ${millions(b.jetons)} M jetons, ${millions(b.cache)} M lus du cache.`;
-  const paye = new Set(['travail', 'sansEffet', 'regulateur']);
+  const paye = new Set(['travail', 'sansEffet', 'regulateur', 'questionnement']);
+  const q = b.questionnement ?? { tours: 0, changees: 0 };
+  const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
   const lignes = CATEGORIES.map(([k, nom]) => {
     const c = b.categories[k];
     const plus =
@@ -361,9 +380,11 @@ export function texteDuBilan(b, avant) {
         ? `, dont passes finales ${minutes(c.dontFinales)} min`
         : k === 'attente' && b.questions
           ? ` (${b.questions} question${b.questions > 1 ? 's' : ''})`
-          : paye.has(k)
-            ? `, ${dollars(c.cout)} $`
-            : '';
+          : k === 'questionnement'
+            ? `, ${dollars(c.cout)} $ (${pluriel(q.tours, 'tour')}, ${pluriel(q.changees, 'décision')} ${q.changees > 1 ? 'changées' : 'changée'})`
+            : paye.has(k)
+              ? `, ${dollars(c.cout)} $`
+              : '';
     return `- ${nom} : ${minutes(c.ms)} min${plus}`;
   });
   const arrets = Object.entries(b.arrets)

@@ -5,8 +5,8 @@
 //
 //   node scripts/resultats.mjs --schema <rôle>      prints the JSON schema of a role's sheet
 //
-// - The sheet of the end of a session (« la fiche ») of the testeur, the developpeur, the reviewer
-//   and the regulator: the schema of each role (FICHES), which the session receives
+// - The sheet of the end of a session (« la fiche ») of the testeur, the developpeur, the reviewer,
+//   the regulator, the questionneur and the technical referent: the schema of each role (FICHES), which the session receives
 //   (`claude -p --output-format json --json-schema <schéma>`) and fills as its last act; claude
 //   writes it in the field `structured_output` of its result (Claude Code, « headless »). A field
 //   exists only when a reader reads it:
@@ -31,7 +31,15 @@
 //     `question`), `contexte`: what the circuit applies (regulator);
 //   - `faits` (`sujet` of SUJETS_DES_FAITS, `composant`): the facts of the state the decision
 //     rests on, which the circuit checks before it applies the decision, and compares with the
-//     facts of the RELANCE before on the same stop (regulator).
+//     facts of the RELANCE before on the same stop (regulator);
+//   - `issue` (QUESTIONS with its `questions`, each with what it aims at, `vise`; AUCUNE; DÉSACCORD
+//     with its `desaccord`): the circuit hands the questions to the author, ends the questioning,
+//     or sends it up to the supervisor, and writes the exchange at the ticket (questionneur);
+//   - `reponses` (`question`, `choix` CHANGE or GARDE, `texte`: what the proposal becomes, or why
+//     it stays): the circuit hands them to the questionneur and writes them at the ticket (the
+//     regulator, the technical referent);
+//   - `titre`, `description`: the plan as an answer changes it, which the circuit writes to the
+//     ticket (`bd update`) (technical referent).
 //   `lireFiche` reads a session's output: the sheet and the session's id, or the error that
 //   names what lacks or does not conform (no `structured_output`, a field out of the schema, a
 //   status without its reason).
@@ -111,6 +119,21 @@ const ECARTS = {
   ecarts: liste(
     texte('Un écart, sa cause et le ticket qui le referme.'),
     'Ce que le message de commit nomme : un rouge de structure, un écart voulu.'
+  ),
+};
+
+// The answers of an author to the questions of the questionneur.
+const REPONSES = {
+  reponses: liste(
+    objet(
+      {
+        question: texte('La question, telle que le questionneur l’a posée.'),
+        choix: { type: 'string', enum: ['CHANGE', 'GARDE'] },
+        texte: texte('CHANGE : ce que ta proposition devient ; GARDE : pourquoi elle reste.'),
+      },
+      ['question', 'choix', 'texte']
+    ),
+    'Ta réponse à chaque question du questionneur.'
   ),
 };
 
@@ -208,9 +231,38 @@ const FICHES = {
         ),
         'Chaque fait de l’état sur lequel ta décision s’appuie : au-titre et hors-titre (un composant au titre ou non), rouge-de (un rouge de l’arrêt dans ce composant ou ce paquet), sans-changement (la copie ne change rien de ce composant), sous-charge (une commande de l’arrêt à repasser, sous charge). Le circuit vérifie chacun sur l’état avant d’appliquer ta décision, et refuse une décision qui s’appuie sur un fait faux.'
       ),
+      ...REPONSES,
       ...DECOUVERTES,
     },
     ['decision']
+  ),
+  questionneur: objet(
+    {
+      issue: { type: 'string', enum: ['QUESTIONS', 'AUCUNE', 'DÉSACCORD'] },
+      questions: liste(
+        objet(
+          {
+            question: texte('Ta question, dans les mots de la proposition.'),
+            vise: { type: 'string', enum: ['flou', 'intention', 'référence', 'règle', 'critère'] },
+          },
+          ['question', 'vise']
+        ),
+        'QUESTIONS : tes questions de ce tour.'
+      ),
+      desaccord: texte(
+        'DÉSACCORD : ce qui reste, que la réponse de l’auteur ne lève pas, et pourquoi.'
+      ),
+    },
+    ['issue']
+  ),
+  'referent-technique': objet(
+    {
+      ...REPONSES,
+      titre: texte('Le titre du ticket que ta réponse change, entier.'),
+      description: texte('La description du ticket que ta réponse change, entière.'),
+      ...DECOUVERTES,
+    },
+    ['reponses']
   ),
 };
 
@@ -247,7 +299,8 @@ function erreurs(schema, valeur, ou) {
 }
 
 // What a sheet of <role> needs beyond its schema: the reason of a BLOQUÉ, the question of a
-// BESOIN or a MONTE, the agent of a RELANCE --depuis, the component of a fact.
+// BESOIN or a MONTE, the agent of a RELANCE --depuis, the component of a fact, the questions of a
+// QUESTIONS, the text of a DÉSACCORD, the plan an answer CHANGE gives.
 function manques(role, f) {
   const out = [];
   const plein = k => typeof f[k] === 'string' && f[k].trim() !== '';
@@ -263,6 +316,20 @@ function manques(role, f) {
     if (x.sujet !== 'sous-charge' && !(typeof x.composant === 'string' && x.composant.trim())) {
       out.push(`faits[${i}].composant : manque, pour ${x.sujet}`);
     }
+  }
+  if (role === 'questionneur' && f.issue === 'QUESTIONS' && !(f.questions ?? []).length) {
+    out.push('questions : manque, pour QUESTIONS');
+  }
+  if (role === 'questionneur' && f.issue === 'DÉSACCORD' && !plein('desaccord')) {
+    out.push('desaccord : manque, pour DÉSACCORD');
+  }
+  if (
+    role === 'referent-technique' &&
+    (f.reponses ?? []).some(r => r.choix === 'CHANGE') &&
+    !plein('titre') &&
+    !plein('description')
+  ) {
+    out.push('titre ou description : manque, pour une réponse CHANGE');
   }
   return out;
 }

@@ -10,6 +10,11 @@
 //   null for a step out of the circuit.
 // - The arbitrage has two roles: the technical referent settles a design question, the regulator
 //   a stop of the circuit.
+// - The questioning (2.1), a sub-step of the arbitrage, numbers no step again: the questionneur
+//   asks its questions of the ticket's plan, before step 3, and of a decision of the regulator,
+//   inside step 2, as Amazon's bar raiser, the challenge and response of a cockpit and the devil's
+//   advocate of a design review; it decides nothing, and its rounds with the author are a bounded
+//   loop of their own (`tour n/4`), apart from the arbitrage's (`arrêt n/3`).
 // - A step that runs a bounded loop declares it (`boucle`: its label and its maximum, the pass
 //   that stops it): the testeur's sessions after a refused proof, the developpeur's sessions, the
 //   reviews, the same stop come back after a RELANCE of the regulator. The circuit stops each loop
@@ -32,6 +37,14 @@ export const ETAPES = [
     parComposant: false,
     etat: null,
     boucle: { libelle: 'arrêt', max: 3 },
+  },
+  {
+    numero: 2.1,
+    titre: 'Questionnement',
+    qui: ['questionneur'],
+    parComposant: false,
+    etat: null,
+    boucle: { libelle: 'tour', max: 4 },
   },
   {
     numero: 3,
@@ -91,6 +104,7 @@ export const ARRETS = {
   'hors-portee': 19,
   besoin: 20,
   'composants-manquants': 21,
+  questionnement: 22,
   'a-repasser': A_REPASSER,
 };
 
@@ -120,6 +134,14 @@ export const etapeDuRole = role =>
 
 // The step where the technical referent and the regulator work.
 export const ARBITRAGE = ETAPES.find(e => e.qui.includes(REGULATEUR));
+
+// The role that questions a plan or a decision, and its step.
+export const QUESTIONNEUR = 'questionneur';
+export const QUESTIONNEMENT = ETAPES.find(e => e.qui.includes(QUESTIONNEUR));
+
+// Whether the role agent <role> judges a plan or a stop (the arbitrage, the questioning), and so
+// delivers nothing to the lot.
+export const juge = role => [ARBITRAGE, QUESTIONNEMENT].includes(etapeDuRole(role));
 
 // The table of the stops and their gesture: the written policy of the circuit's stops, as Zuul
 // and GitHub's merge queue write their bounded retries and their failure policy, and as the

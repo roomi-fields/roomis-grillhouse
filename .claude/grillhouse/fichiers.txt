@@ -13,6 +13,7 @@ tsdoc.json
 .claude/skills/grill/
 .claude/skills/mesure/
 .claude/skills/pitmaster/
+.claude/skills/questionneur/
 .claude/skills/redacteur/
 .claude/skills/referent-technique/
 .claude/skills/regulateur/
@@ -85,6 +86,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/circuit.machine.spec.ts
 - tests/unit/circuit.passe-finale.spec.ts
 - tests/unit/circuit.preuve.spec.ts
+- tests/unit/circuit.questionneur.spec.ts
 - tests/unit/circuit.regulateur.spec.ts
 - tests/unit/circuit.registre.spec.ts
 - tests/unit/circuit.reprise.spec.ts
@@ -160,6 +162,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/nouveau-projet.spec.ts
 - tests/unit/nuit.spec.ts
 - tests/unit/pre-push-nuit.spec.ts
+- tests/unit/questionneur.spec.ts
 - tests/unit/registre-essai.ts
 - tests/unit/registre-fin.nuit.test.ts
 - tests/unit/registre-fin.spec.ts

@@ -8,7 +8,8 @@
 // is at rest; at « question » (18) the regulator's question goes to him: he answers it
 // himself, or carries it to the owner when it is the owner's, then runs `--reponse "<texte>"` with
 // the answer; at « composants-manquants » (21) he adds the components to the title or answers
-// why they stay out; at any other code, the stop is one the regulator could not settle, or one the
+// why they stay out; at « questionnement » (22) he changes the plan or keeps it, and answers; at
+// any other code, the stop is one the regulator could not settle, or one the
 // table of the stops hands to him. On a stop other than 0 and 21, the circuit reads first the
 // table of the stops (scripts/etapes.mjs, TABLE_DES_ARRETS), its written policy, as Zuul and
 // GitHub's merge queue write their bounded retries: a gesture the table names, it applies itself;
@@ -44,6 +45,27 @@
 //   stays out, `--reponse <texte>`, which the circuit writes at the ticket and keeps beside the
 //   copy (`.claude/worktrees/<ticket>.composants.json`): the components answered for pass from then
 //   on, and the run starts from the first component.
+// - Then, before any session of the lot, the questioning of the plan (step 2.1 Questionnement of
+//   scripts/etapes.mjs), as Amazon's bar raiser, a cockpit's challenge and response and the
+//   devil's advocate of a design review: a session of the questionneur out of the envelope, as the
+//   regulator's, read-only (no tool of writing, every write of bd refused, scripts/droits.mjs), its
+//   instruction from the eighth template (the proposal, the métacadre, the rubrics « Comment on
+//   arbitre » and « Ce qui monte au superviseur » of the project's CLAUDE.md, the ticket's
+//   description and the survey of its components; no list of questions), its sheet `issue`
+//   QUESTIONS (each question with what it aims at), AUCUNE or DÉSACCORD. On QUESTIONS the technical
+//   referent answers for the plan (`--agent referent-technique`, a fresh session, the eleventh
+//   template, then resumed with the tenth), its sheet `reponses` (CHANGE and what the plan becomes,
+//   or GARDE and why) and the `titre` or `description` the plan becomes, which the circuit writes
+//   to the ticket (`bd update --title`, `-d`; a title whose components the repository does not
+//   hold stays); the questionneur's session is resumed with the answers (the ninth template); four
+//   rounds at most (`boucles` of 2.1, `questionnement` in the state while it runs). Every question
+//   and answer is written at the ticket (`Circuit · <composant> · questionnement : …`) and the end
+//   kept with the circuit's results (`questionnement`: objet, tours, change, issue, the plan's
+//   fingerprint). AUCUNE goes on, the survey played again on a plan changed; a plan whose title
+//   and description passed a questioning, or the supervisor's answer, passes unquestioned. A
+//   DÉSACCORD, or a fourth round still questioned, stops at « questionnement », what remains at the
+//   head of its report; `--reponse <texte>` writes the answer at the ticket and lets the plan pass,
+//   from the first component.
 // - Each session is a launch of scripts/enveloppe/lancer.sh, a child process the circuit waits
 //   for, in its own process group, its errors written to a file: a session outlives the death of
 //   its circuit (its caller dead, the circuit with it), and the state names its group while it
@@ -56,7 +78,8 @@
 //   testeur of his component, else « aucune » (no other component's handover, nor a verdict), and
 //   the line `CONTEXTE :` that `--contexte` gives. The session's own exit code is the one lancer.sh writes
 //   to `.claude/worktrees/<ticket>.fin`; a launch that leaves none stopped before its session.
-// - Each session of the testeur, the developpeur, the reviewer and the regulator ends on its sheet
+// - Each session of the testeur, the developpeur, the reviewer, the regulator, the questionneur and
+//   the technical referent ends on its sheet
 //   (« la fiche »): claude runs with `--output-format json --json-schema <the schema of its role>`
 //   (scripts/resultats.mjs), and its JSON result carries the sheet in `structured_output`, which
 //   the circuit reads (`lireFiche`): lancer.sh writes that result to
@@ -247,8 +270,9 @@
 //   last word as its reason; still in the queue, it stops at « a-repasser », the queue's reason.
 // - The state is `.claude/worktrees/<ticket>.circuit.json`, written again at each step and at the
 //   start and end of each session: `{ etape, composant, tentative, code, raison, rapport, dernier,
-//   finale, boucles, seance, regulateur, composants, renvois, atteints, verifie, mene, reprise,
-//   journal }`;
+//   finale, boucles, seance, regulateur, questionnement, composants, renvois, atteints, verifie,
+//   mene, reprise, journal }`; `questionnement` the questioning under way (`{ objet, tour, seance
+//   }`: the plan or a decision, its round, the questionneur's session), null otherwise;
 //   `etape`
 //   is the state's name of a numbered step of the process (scripts/etapes.mjs: testeur 3,
 //   preuve 4, developpeur 5, controles 6, or 7 the final pass once `finale`, relecture 8,
@@ -301,7 +325,12 @@
 //   code, its step, component and reason, the paths of the state and the log. The state names its
 //   session (`regulateur`) while it runs. Its sheet is its decision (`decision`: « RELANCE
 //   --reprendre », « RELANCE --depuis » with the agent in `depuis`, or « MONTE » with its
-//   `question`; a `contexte` for a RELANCE; its `faits`, the facts of the state it rests on). The
+//   `question`; a `contexte` for a RELANCE; its `faits`, the facts of the state it rests on). A
+//   fresh session's decision is questioned first, as the plan is, the regulator answering in its
+//   own session, resumed with the tenth template (its `reponses`, and the decision it ends on,
+//   changed or kept, the one the circuit checks and applies); a DÉSACCORD, or a fourth round still
+//   questioned, makes of the exchange the regulator's question, the stop « question », its session
+//   kept; a decision on the supervisor's answer is not questioned. The
 //   circuit checks it on the state before it applies it, an admission control (refusDe): a
 //   component out of the title, a step the state does not hold, a developpeur whose testeur has not
 //   run, a decision other than a RELANCE from a testeur after the ticket's description changed (a
@@ -316,7 +345,8 @@
 //   question as its reason, the regulator's session kept in the state. `--reponse <texte>` resumes
 //   that session (`claude -p --resume <id>`, the fourth template: the supervisor's answer, which
 //   may carry the owner's) and applies the decision it gives the same way; without a session kept
-//   after a question, nor a stop « composants-manquants » it answers, the call is refused. A session without a sheet that conforms is resumed
+//   after a question, nor a stop « composants-manquants » or « questionnement » it answers, the
+//   call is refused. A session without a sheet that conforms is resumed
 //   once, as any session; a second one, or
 //   a session that cannot end (a launch that fails, a motionless session), ends the circuit on the
 //   stop it settled, the reason joined to its own. The third RELANCE in a row on one stop (its
@@ -352,6 +382,8 @@
 //   testeur), 20 besoin (a testeur or developpeur whose sheet says BESOIN, a reviewer whose sheet
 //   carries a `question`),
 //   21 composants-manquants (a component the survey of the ticket finds and its title misses),
+//   22 questionnement (the questioning of the plan ends on a disagreement, or its fourth round is
+//   still questioned),
 //   75 a-repasser (a check or the integration still at 75 once played again, or the branch still
 //   in the queue).
 import { spawn, spawnSync } from 'node:child_process';
@@ -388,6 +420,9 @@ import {
   etapeDuCircuit,
   gesteDe,
   libelle,
+  nomDuRole as enMots,
+  QUESTIONNEMENT,
+  QUESTIONNEUR,
   REGULATEUR,
   TABLE_DES_ARRETS,
 } from './etapes.mjs';
@@ -418,12 +453,16 @@ const CODE_USAGE = 2;
 // The bounded loops, each declared with its step (scripts/etapes.mjs, `boucle`): the testeur is
 // relaunched twice at most after a failed proof (three sessions); the developpeur has three
 // sessions, the last on the strong model; the third RENDU of one ticket stops the circuit; the
-// third RELANCE in a row on one stop is the last.
+// third RELANCE in a row on one stop is the last; the fourth round of questioning still questioned
+// goes up to the supervisor.
 const etapeNumero = n => ETAPES.find(e => e.numero === n);
 const RELANCES_TESTEUR = etapeNumero(3).boucle.max - 1;
 const SEANCES_DEVELOPPEUR = etapeNumero(5).boucle.max;
 const RELECTURES = etapeNumero(8).boucle.max;
 const RELANCES_DU_REGULATEUR = etapeNumero(2).boucle.max;
+const TOURS = QUESTIONNEMENT.boucle.max;
+// The author who answers for a ticket's plan to the questionneur.
+const REFERENT = 'referent-technique';
 // The roles a finding of the reviewer may name: the agents of the steps run for each component.
 const DESTINATAIRES = ETAPES.filter(e => e.parComposant)
   .flatMap(e => e.qui)
@@ -568,8 +607,6 @@ function contexte(o) {
   const show = bd('show', o.ticket, '--json');
   if (show.status !== 0) throw new Usage(`ticket ${o.ticket} illisible : ${show.stderr}`);
   const t = JSON.parse(show.stdout)[0];
-  const parts = String(t?.title ?? '').split(' — ');
-  if (parts.length < 2) throw new Usage(`le titre de ${o.ticket} ne nomme pas ses composants.`);
   const base = existsSync(copie) ? copie : racine;
   const liste = paquets(base);
   const resoudre = nom => {
@@ -585,12 +622,22 @@ function contexte(o) {
       `le composant « ${nom} » du titre ne nomme ni un paquet ni un chemin du dépôt.`
     );
   };
-  const composants = parts
-    .at(-1)
-    .split(',')
-    .map(c => c.trim())
-    .filter(Boolean)
-    .map(resoudre);
+  // The subject and the components of the title <titre>, « numéro — sujet — composants », or a
+  // Usage.
+  const duTitre = titre => {
+    const parts = String(titre ?? '').split(' — ');
+    if (parts.length < 2) throw new Usage(`le titre de ${o.ticket} ne nomme pas ses composants.`);
+    return {
+      sujet: parts.length > 2 ? parts.slice(1, -1).join(' — ') : parts[0],
+      composants: parts
+        .at(-1)
+        .split(',')
+        .map(c => c.trim())
+        .filter(Boolean)
+        .map(resoudre),
+    };
+  };
+  const { sujet, composants } = duTitre(t?.title);
   if (o.depuis) {
     const c = composants.includes(o.depuis.composant)
       ? o.depuis.composant
@@ -611,8 +658,9 @@ function contexte(o) {
     bd,
     bdSous,
     resoudre,
+    duTitre,
     type: String(t.issue_type ?? ''),
-    sujet: parts.length > 2 ? parts.slice(1, -1).join(' — ') : parts[0],
+    sujet,
     composants,
     etat: `${copie}.circuit.json`,
     journal: `${copie}.log`,
@@ -643,8 +691,8 @@ function lesCommentaires(ctx) {
   }));
 }
 
-// The ticket's description (its criteria) and notes as Beads holds them at this moment, read at
-// the launch of each session: `{ description, notes }`; a failed read throws.
+// The ticket's description (its criteria), notes and title as Beads holds them at this moment, read
+// at the launch of each session: `{ description, notes, titre }`; a failed read throws.
 function leTicket(ctx) {
   const r = ctx.bd('show', ctx.ticket, '--json');
   if (r.status !== 0) {
@@ -653,7 +701,11 @@ function leTicket(ctx) {
     );
   }
   const t = JSON.parse(r.stdout || '[]')[0] ?? {};
-  return { description: String(t.description ?? ''), notes: String(t.notes ?? '') };
+  return {
+    description: String(t.description ?? ''),
+    notes: String(t.notes ?? ''),
+    titre: String(t.title ?? ''),
+  };
 }
 
 // The comments of the agents at the ticket, `{ author, text }`: every comment but the circuit's
@@ -721,6 +773,7 @@ function ecrireEtat(ctx, etat) {
     finale: false,
     seance: null,
     regulateur: null,
+    questionnement: null,
     mene: null,
     ...etat,
     composants: ctx.composants,
@@ -2673,7 +2726,10 @@ function appliquer(ctx, a, d, etat, faits = []) {
 
 // The stop <a> (`{ code, nom, rapport, faits, etat }`, `etat` the state of the step it stopped)
 // settled by a session of the regulator: a fresh one, or, with <reponse> (the supervisor's answer
-// to its question), its session `a.seance` resumed. Its decision is checked on the state before it
+// to its question), its session `a.seance` resumed. A fresh session's decision is questioned first
+// (questionnerLaDecision): the regulator answers in its session, and the decision it gives at the
+// end is the one checked; a questioning that does not converge ends on « question », its
+// question for the supervisor. Its decision is checked on the state before it
 // is applied (refusDe); a decision refused asks the same session again once, the reason given, and
 // a second refusal ends the circuit on the stop. `{ code }` when the circuit ends: on « question »,
 // or on the stop itself for an answer in no form of decision, a decision refused twice or a session
@@ -2741,7 +2797,19 @@ async function trancher(ctx, a, reponse = null) {
       consigne(valeurs, reponse === null ? 2 : 3),
       { ...options, premiere: reponse === null ? 'ouvre' : 'reprend' }
     );
-    for (;;) {
+    // Its decision questioned before the admission control, save on the supervisor's answer.
+    const q =
+      reponse === null
+        ? await questionnerLaDecision(ctx, a, fiche, {
+            options,
+            etat: { ...arret, regulateur: garde },
+            valeurs,
+          })
+        : { fiche, question: null };
+    fiche = q.fiche;
+    // A questioning that does not converge goes up to the supervisor, as the regulator's question.
+    if (q.question) d = { ligne: `MONTE : ${q.question}`, question: q.question };
+    while (!d && !pourquoi) {
       d = decisionDe(ctx, fiche);
       const r = refusDe(ctx, a, fiche, d);
       if (!r) break;
@@ -2899,17 +2967,389 @@ function aLaFin(ctx, code) {
   return code;
 }
 
+// The questions <questions> of a questionneur's sheet, one per line, each with what it aims at.
+const lignesDesQuestions = questions =>
+  (questions ?? []).map((q, i) => `${i + 1}. (${q.vise}) ${q.question}`).join('\n');
+
+// The answers <reponses> of an author's sheet, one per line: CHANGE and what the proposal
+// becomes, or GARDE and why.
+const lignesDesReponses = reponses =>
+  (reponses ?? []).length
+    ? reponses.map((r, i) => `${i + 1}. ${r.choix} — ${r.question} — ${r.texte}`).join('\n')
+    : 'aucune réponse dans sa fiche';
+
+// The rubric « ## <titre> » of the project's charter (CLAUDE.md of the main tree), up to the next
+// `##` heading, or what stands in its place.
+function rubrique(ctx, titre) {
+  const lignes = lire(path.join(ctx.racine, 'CLAUDE.md')).split('\n');
+  const i = lignes.findIndex(l => l.trim() === `## ${titre}`);
+  if (i < 0) return 'absente de la charte du projet (CLAUDE.md)';
+  const fin = lignes.findIndex((l, j) => j > i && l.startsWith('## '));
+  return (
+    lignes
+      .slice(i + 1, fin < 0 ? undefined : fin)
+      .join('\n')
+      .trim() || 'vide'
+  );
+}
+
+const METACADRE = path.join(ici, '..', 'METACADRE.md');
+
+// The questioning of a proposal by the questionneur, in rounds with its author, never side by
+// side: the questionneur asks (its sheet, `questions`), the author answers by resuming its own
+// session (<q>.repondre: its answers, whether its proposal changed and what it becomes), the
+// questionneur reads the answer by resuming its own, TOURS rounds at most. <q>: `{ objet, nom,
+// composant, etat, auteur, proposition, description, releve, empreinte, repondre }`, <objet> plan
+// or decision, <nom> the proposal in words, <etat> the state the questioning runs in, which it
+// names (`questionnement`, its round in `boucles`) while it runs and leaves as it was at its end.
+// Each question and each answer is written at the ticket, and the end is kept with the circuit's
+// results (`questionnement`, which the bilan counts, with what <empreinte> gives). `{ issue,
+// tours, change, reste }`: AUCUNE, a sheet without question; DÉSACCORD, the questionneur's; MONTE,
+// the last round still questioned; <reste> what remains for the supervisor. Throws the Arret of a
+// session that cannot end.
+async function questionner(ctx, q) {
+  const seance = randomUUID();
+  const options = {
+    horsEnveloppe: true,
+    droits: horsDeLEnveloppe(ctx, QUESTIONNEUR, 'sonnet'),
+    id: seance,
+  };
+  const dire = texte => commenter(ctx, q.composant, 'questionnement', texte);
+  let change = false;
+  let reponses = null;
+  let proposition = q.proposition;
+  const fin = (issue, tours, reste = null) => {
+    ecrireEtat(ctx, q.etat);
+    inscrire(ctx, {
+      role: AUTEUR_DU_CIRCUIT,
+      composant: q.composant,
+      questionnement: { objet: q.objet, tours, change, issue, ...(q.empreinte?.() ?? {}) },
+    });
+    return { issue, tours, change, reste };
+  };
+  for (let tour = 1; ; tour++) {
+    ecrireEtat(ctx, {
+      ...q.etat,
+      questionnement: { objet: q.objet, tour, seance },
+      boucles: { [QUESTIONNEMENT.numero]: tour },
+    });
+    const ou = `${q.nom}, tour ${tour}/${TOURS}`;
+    const texte =
+      tour === 1
+        ? consigne(
+            {
+              depot: ctx.racine,
+              ticket: ctx.ticket,
+              sujet: ctx.sujet,
+              objet: q.nom,
+              auteur: enMots(q.auteur),
+              proposition,
+              max: TOURS,
+              metacadre: lire(METACADRE).trim(),
+              arbitrer: rubrique(ctx, 'Comment on arbitre'),
+              monte: rubrique(ctx, 'Ce qui monte au superviseur'),
+              description: q.description.trim() || 'aucune',
+              releve: q.releve || 'aucun',
+            },
+            7
+          )
+        : consigne(
+            {
+              ticket: ctx.ticket,
+              sujet: ctx.sujet,
+              tour,
+              max: TOURS,
+              auteur: enMots(q.auteur),
+              reponses,
+              proposition,
+            },
+            8
+          );
+    const fiche = await jusquALaFiche(ctx, QUESTIONNEUR, q.composant, texte, {
+      ...options,
+      premiere: tour === 1 ? 'ouvre' : 'reprend',
+    });
+    if (fiche.issue === 'AUCUNE') {
+      dire(
+        `${ou} — aucune question au tour ${tour}/${TOURS} ; ${change ? 'la proposition a changé' : 'la proposition reste telle quelle'}.`
+      );
+      return fin('AUCUNE', tour);
+    }
+    if (fiche.issue === 'DÉSACCORD') {
+      dire(`${ou} — désaccord du questionneur : ${fiche.desaccord}`);
+      return fin('DÉSACCORD', tour, `Le désaccord du questionneur : ${fiche.desaccord}`);
+    }
+    const questions = lignesDesQuestions(fiche.questions);
+    dire(`${ou} — les questions du questionneur :\n${questions}`);
+    if (tour >= TOURS) {
+      return fin(
+        'MONTE',
+        tour,
+        `Les questions du questionneur au tour ${tour}/${TOURS}, sans réponse :\n${questions}`
+      );
+    }
+    const r = await q.repondre(fiche.questions, tour);
+    reponses = lignesDesReponses(r.reponses);
+    dire(`${ou} — les réponses du ${enMots(q.auteur)} :\n${reponses}`);
+    change ||= r.change;
+    proposition = r.change ? r.proposition : 'inchangée depuis le tour d’avant';
+  }
+}
+
+// The fingerprint of a plan, its title and its description.
+const empreinteDuPlan = ({ titre, description }) =>
+  createHash('sha256').update(`${titre}\n${description}`).digest('hex');
+
+// Whether the plan of fingerprint <empreinte> has passed its questioning: a questioning that
+// ended without question on it, or the supervisor's answer to its stop.
+const planPasse = (ctx, empreinte) =>
+  lesFiches(ctx).some(
+    e =>
+      e.role === AUTEUR_DU_CIRCUIT &&
+      ((e.questionnement?.objet === 'plan' &&
+        e.questionnement.issue === 'AUCUNE' &&
+        e.questionnement.empreinte === empreinte) ||
+        e.plan?.empreinte === empreinte)
+  );
+
+// The plan as the technical referent's sheet <fiche> changes it, written to the ticket by the
+// circuit (`bd update --title`, `-d`), never by the session: the changes made, in words. A title
+// whose components the repository does not hold stays as it was, said at the ticket.
+function changerLePlan(ctx, fiche, composant) {
+  const avant = leTicket(ctx);
+  const faits = [];
+  const ecrire = (option, valeur, quoi) => {
+    const r = ctx.bd('update', ctx.ticket, option, valeur);
+    if (r.status === 0) faits.push(quoi);
+    else commenter(ctx, composant, 'questionnement', `${quoi} non écrit : ${r.stderr}`);
+    return r.status === 0;
+  };
+  const titre = fiche.titre?.trim();
+  if (titre && titre !== avant.titre.trim()) {
+    try {
+      const lu = ctx.duTitre(titre);
+      if (ecrire('--title', titre, `le titre : « ${titre} »`)) Object.assign(ctx, lu);
+    } catch (e) {
+      if (!(e instanceof Usage)) throw e;
+      commenter(
+        ctx,
+        composant,
+        'questionnement',
+        `titre neuf refusé, le titre reste : ${e.message}`
+      );
+    }
+  }
+  const description = fiche.description?.trim();
+  if (description && description !== avant.description.trim()) {
+    ecrire('-d', fiche.description, 'la description');
+  }
+  return faits;
+}
+
+// The plan of the ticket questioned before the testeur of the first component, after the survey
+// of its components (<releve>): the technical referent answers for it, a fresh session that
+// defends the plan with the index and the mature references, resumed from its second answer; its
+// changes are written to the ticket by the circuit. A plan that has passed its questioning, its
+// title and description unchanged since, passes. Null when the run goes on; else the exit code of
+// the stop it ends on: « questionnement », for the supervisor, or « composants-manquants » when
+// the plan changed and the survey of its new text finds a component its title misses.
+async function questionnerLePlan(ctx, releve) {
+  const t = leTicket(ctx);
+  if (planPasse(ctx, empreinteDuPlan(t))) return null;
+  const [composant] = ctx.composants;
+  const etat = {
+    etape: TESTS,
+    composant,
+    tentative: 1,
+    code: null,
+    raison: null,
+    rapport: null,
+    dernier: ctx.composants.at(-1),
+  };
+  const auteurDuPlan = randomUUID();
+  let r;
+  try {
+    r = await questionner(ctx, {
+      objet: 'plan',
+      nom: 'le plan',
+      composant,
+      etat,
+      auteur: REFERENT,
+      proposition: `le plan du ticket : son titre, « ${t.titre} », sa description (LE TICKET, ci-dessous) et les composants qu'elle touche (LE RELEVÉ DES COMPOSANTS).`,
+      description: t.description,
+      releve,
+      empreinte: () => ({ empreinte: empreinteDuPlan(leTicket(ctx)) }),
+      repondre: async (questions, tour) => {
+        const maintenant = leTicket(ctx);
+        const texte =
+          tour === 1
+            ? consigne(
+                {
+                  depot: ctx.racine,
+                  ticket: ctx.ticket,
+                  sujet: ctx.sujet,
+                  titre: maintenant.titre,
+                  description: maintenant.description.trim() || 'aucune',
+                  releve: releve || 'aucun',
+                  tour,
+                  max: TOURS,
+                  questions: lignesDesQuestions(questions),
+                },
+                10
+              )
+            : consigne(
+                {
+                  ticket: ctx.ticket,
+                  sujet: ctx.sujet,
+                  tour,
+                  max: TOURS,
+                  questions: lignesDesQuestions(questions),
+                  forme:
+                    'chaque réponse dans `reponses` ; quand une réponse CHANGE le plan, le titre ou la description qu’il devient, entiers, dans `titre` ou `description`',
+                },
+                9
+              );
+        const f = await jusquALaFiche(ctx, REFERENT, composant, texte, {
+          horsEnveloppe: true,
+          droits: horsDeLEnveloppe(ctx, REFERENT, 'sonnet'),
+          id: auteurDuPlan,
+          premiere: tour === 1 ? 'ouvre' : 'reprend',
+        });
+        const faits = changerLePlan(ctx, f, composant);
+        const neuf = leTicket(ctx);
+        return {
+          reponses: f.reponses,
+          change: faits.length > 0,
+          proposition: `le plan change (${faits.join(', ')}) ; son titre : « ${neuf.titre} » ; sa description :\n\n${neuf.description.trim()}`,
+        };
+      },
+    });
+  } catch (x) {
+    // A session of the questioning that cannot end stops the circuit on its stop, before any
+    // testeur.
+    if (!(x instanceof Arret)) throw x;
+    ecrireEtat(ctx, { ...etat, code: ARRETS[x.nom], raison: x.nom, rapport: x.rapport });
+    commenter(ctx, composant, 'questionnement', `arrêt ${x.nom} — ${premiereLigne(x.rapport)}`);
+    process.stderr.write(
+      `⛔ Circuit de ${ctx.ticket} arrêté : ${x.nom}, au questionnement du plan.\n`
+    );
+    return ARRETS[x.nom];
+  }
+  if (r.issue === 'AUCUNE') {
+    // A plan changed: its new text surveyed again, before any session.
+    return r.change ? composantsManquants(ctx) : null;
+  }
+  const code = ARRETS.questionnement;
+  const rapport = [
+    `Le questionnement du plan ${r.issue === 'DÉSACCORD' ? 'finit sur un désaccord' : `reste questionné au tour ${TOURS}/${TOURS}`} : la décision revient au superviseur.`,
+    '',
+    r.reste,
+    '',
+    `L'échange entier est au ticket (\`Circuit · … · questionnement\`). Le superviseur change le plan (\`bd update ${ctx.ticket} …\`) ou le garde, puis répond : \`node scripts/circuit.mjs ${ctx.ticket} --reponse "<texte>"\`, qui fait passer le plan.`,
+  ].join('\n');
+  ecrireEtat(ctx, {
+    ...etat,
+    code,
+    raison: 'questionnement',
+    rapport,
+    boucles: { [QUESTIONNEMENT.numero]: r.tours },
+  });
+  inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, etape: TESTS, composant, arret: 'questionnement' });
+  commenter(ctx, composant, 'questionnement', `arrêt questionnement — ${premiereLigne(rapport)}`);
+  process.stderr.write(`⛔ Circuit de ${ctx.ticket} arrêté : questionnement.\n${rapport}\n`);
+  return code;
+}
+
+// The decision of the regulator's sheet <fiche> as the circuit writes it, or its own words when it
+// names a component out of the title.
+const ligneDeLaDecision = (ctx, fiche) =>
+  decisionDe(ctx, fiche)?.ligne ??
+  `${fiche.decision} ${fiche.depuis?.role ?? ''} ${fiche.depuis?.composant ?? ''}`.trim();
+
+// The decision of the regulator's sheet <fiche> on the stop <a>, as the questionneur reads it: the
+// decision, its facts, then the stop it settles (<valeurs>: its step, component, reason and reds,
+// as the regulator received them).
+const laDecision = (ctx, a, fiche, valeurs) =>
+  [
+    `la décision du régulateur sur l'arrêt ${a.nom} (code ${a.code}), à l'étape ${valeurs.etape} du composant ${valeurs.composant} :`,
+    '',
+    ligneDeLaDecision(ctx, fiche),
+    ...((fiche.faits ?? []).length
+      ? [
+          '',
+          `Ses faits : ${fiche.faits.map(f => `${f.sujet}${f.composant ? ` ${f.composant}` : ''}`).join(', ')}.`,
+        ]
+      : []),
+    '',
+    `LA RAISON DE L'ARRÊT, écrite par le circuit :\n\n${valeurs.raison}`,
+    '',
+    `LES ROUGES DE L'ARRÊT :\n\n${valeurs.rouges}`,
+  ].join('\n');
+
+// The decision of the regulator's sheet <premiere> on the stop <a> questioned before the admission
+// control: the regulator answers in its own session, resumed (<options>), and may change its
+// decision; <etat> the state of the arbitrage, <valeurs> the regulator's instruction. `{ fiche,
+// question }`: the sheet of its last answer, and the question for the supervisor when the
+// questioning ends on a disagreement or on its last round still questioned, else null.
+async function questionnerLaDecision(ctx, a, premiere, { options, etat, valeurs }) {
+  let fiche = premiere;
+  const r = await questionner(ctx, {
+    objet: 'decision',
+    nom: 'la décision du régulateur',
+    composant: valeurs.composant,
+    etat,
+    auteur: REGULATEUR,
+    proposition: laDecision(ctx, a, fiche, valeurs),
+    description: leTicket(ctx).description,
+    releve: null,
+    repondre: async (questions, tour) => {
+      const avant = ligneDeLaDecision(ctx, fiche);
+      fiche = await jusquALaFiche(
+        ctx,
+        REGULATEUR,
+        valeurs.composant,
+        consigne(
+          {
+            ticket: ctx.ticket,
+            sujet: ctx.sujet,
+            tour,
+            max: TOURS,
+            questions: lignesDesQuestions(questions),
+            forme:
+              'chaque réponse dans `reponses`, et ta décision, changée ou gardée, sous l’une des formes de ta consigne, ses `faits` vrais sur l’état',
+          },
+          9
+        ),
+        { ...options, premiere: 'reprend' }
+      );
+      const apres = ligneDeLaDecision(ctx, fiche);
+      return {
+        reponses: fiche.reponses,
+        change: apres !== avant,
+        proposition: laDecision(ctx, a, fiche, valeurs),
+      };
+    },
+  });
+  if (r.issue === 'AUCUNE') return { fiche, question: null };
+  return {
+    fiche,
+    question: `Le questionnement de la décision du régulateur ${r.issue === 'DÉSACCORD' ? 'finit sur un désaccord' : `reste questionné au tour ${TOURS}/${TOURS}`} : la décision revient au superviseur.\n\nSa décision : ${ligneDeLaDecision(ctx, fiche)}\n\n${r.reste}\n\nL'échange entier est au ticket (\`Circuit · … · questionnement\`).`,
+  };
+}
+
 // The components the survey of the ticket finds and its title does not name
 // (scripts/composants-affectes.mjs), before the testeur of the first component: none, null; else
-// the stop « composants-manquants », its code, before any session and without a regulator.
+// the stop « composants-manquants », its code, before any session and without a regulator. The
+// survey's text is kept for the questioning of the plan (`ctx.releve`).
 function composantsManquants(ctx) {
-  const { rapport } = verifierLeTitre({
+  const { rapport, releve } = verifierLeTitre({
     racine: existsSync(ctx.copie) ? ctx.copie : ctx.racine,
     ticket: ctx.ticket,
     description: leTicket(ctx).description,
     titre: ctx.composants,
     fichier: `${ctx.copie}.composants.json`,
   });
+  ctx.releve = releve;
   if (!rapport) return null;
   const [composant] = ctx.composants;
   const code = ARRETS['composants-manquants'];
@@ -2933,6 +3373,21 @@ export async function main(argv) {
     ctx = contexte(lireArguments(argv));
     mkdirSync(path.dirname(ctx.copie), { recursive: true });
     const e = existsSync(ctx.etat) ? JSON.parse(readFileSync(ctx.etat, 'utf8')) : null;
+    // The supervisor's answer to the questioning of the plan lets the plan pass, from the start.
+    if (ctx.reponse !== null && e?.raison === 'questionnement') {
+      commenter(
+        ctx,
+        ctx.composants[0],
+        'questionnement',
+        `le plan, réponse du superviseur : ${ctx.reponse}`
+      );
+      inscrire(ctx, {
+        role: AUTEUR_DU_CIRCUIT,
+        composant: ctx.composants[0],
+        plan: { empreinte: empreinteDuPlan(leTicket(ctx)) },
+      });
+      ctx.reponse = null;
+    }
     // The supervisor's answer to the components the title misses lets them pass, from the start.
     if (ctx.reponse !== null && e?.raison === 'composants-manquants') {
       const hors = repondre(`${ctx.copie}.composants.json`, ctx.reponse);
@@ -2950,12 +3405,18 @@ export async function main(argv) {
     ctx.atteints = [...(e?.atteints ?? [])];
     ctx.verifie = e?.verifie ?? null;
     ctx.reprise = e?.reprise ?? null;
-    const d = ctx.reponse === null ? depart(ctx, e) : null;
+    let d = ctx.reponse === null ? depart(ctx, e) : null;
     // A session a dead circuit left running ends before this run launches its own.
     await attendreLaSeance(ctx, e?.seance);
     if (ctx.reponse === null) {
-      const manque = d.index === 0 && d.etape === TESTS ? composantsManquants(ctx) : null;
-      return aLaFin(ctx, manque ?? (await conduire(ctx, { depart: d })));
+      // From the first testeur: the survey of the components, then the questioning of the plan,
+      // which may change the title, and so where the run starts.
+      if (d.index === 0 && d.etape === TESTS) {
+        const arret = composantsManquants(ctx) ?? (await questionnerLePlan(ctx, ctx.releve));
+        if (arret !== null) return aLaFin(ctx, arret);
+        d = depart(ctx, e);
+      }
+      return aLaFin(ctx, await conduire(ctx, { depart: d }));
     }
     // The supervisor's answer goes to the regulator's session kept on the stop it settles.
     ctx.renvois = e.renvois ?? null;

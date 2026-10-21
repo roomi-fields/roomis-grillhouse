@@ -18,6 +18,7 @@ roomis-grillhouse/
 │   │   ├── relecteur.md              # Reviews the lot adversarially; writes no file
 │   │   ├── referent-technique.md     # Settles a design question, or sends it to the owner; writes no file
 │   │   ├── regulateur.md             # Settles a stop of a ticket's circuit in its final answer; writes no file
+│   │   ├── questionneur.md           # Questions a plan or a decision it did not write; decides nothing, writes nothing
 │   │   └── explorateur.md            # Runs an exploration: survey, decisions, proposed tickets; writes no file
 │   └── skills/                    # Skills, ready from the first session
 │       ├── grill/                 # Initialisation & architecture: the grill → charter, architecture, frame, interfaces
@@ -30,6 +31,7 @@ roomis-grillhouse/
 │       │   └── references/           # edge cases, verification gaps (from BMAD-METHOD, MIT)
 │       ├── referent-technique/    # The technical referent's skill
 │       ├── regulateur/            # The regulator's skill
+│       ├── questionneur/          # The questioner's skill
 │       ├── explorateur/           # The explorer's skill
 │       ├── mesure/                # Measurement: measures without lying, proves a guard bites
 │       ├── redacteur/             # The writer: human-read documents
@@ -64,8 +66,8 @@ roomis-grillhouse/
 │   │   ├── codes.mjs                 # the exit codes of the envelope and its launcher
 │   │   ├── composant.mjs             # GRILLHOUSE_ENVELOPPE, the component the envelope names: npm test and npm run api build and write it alone
 │   │   └── lancer.sh                 # one ticket → one fresh role session in its envelope, its providers and the traces its tests read produced first, its instruction followed by what its providers publish; each session added to the ticket's log under its header line, its exit code in .claude/worktrees/<ticket>.fin
-│   ├── circuit.mjs                # the circuit of one ticket, component by component in the order of its title: testeur, proof of the red (the lot's tests played, a green justified by an expected green of the testeur's sheet), developpeur, checks (what is done up to the component, guards in its envelope; after the last one the final pass, a red sent to the developpeur of the component that owns it), then the reviewer out of the envelope (RENDU: the agent each finding of its sheet names plays again, three reviews at most), then on ACCEPTÉ the integration (the lot built from the copy, integrer.mjs), then the queue, and ends on the state of the ticket it leaves; decides on structured results alone (scripts/resultats.mjs: each session's sheet, Turborepo's summaries, Vitest's JSON reports, the guards' SARIF); writes each instruction from consigne-agent.md, stops a session whose transcript stands still 20 min, resumes a session without a sheet once; state in .claude/worktrees/<ticket>.circuit.json, one comment « Circuit · … » per step, --reprendre, --depuis <testeur|developpeur> <component> for a lot corrected by one component; on a stop other than 0 and 75 it launches the regulator's session itself and applies its decision (RELANCE, or MONTE: the stop « question », the session kept, --reponse resumes it)
-│   ├── etapes.mjs                 # the ten numbered steps of a ticket, the automatic ones included: number, title, who works there, per component or once; the stops of the circuit and their codes; the circuit, the board and the tests read it
+│   ├── circuit.mjs                # the circuit of one ticket, component by component in the order of its title: testeur, proof of the red (the lot's tests played, a green justified by an expected green of the testeur's sheet), developpeur, checks (what is done up to the component, guards in its envelope; after the last one the final pass, a red sent to the developpeur of the component that owns it), then the reviewer out of the envelope (RENDU: the agent each finding of its sheet names plays again, three reviews at most), then on ACCEPTÉ the integration (the lot built from the copy, integrer.mjs), then the queue, and ends on the state of the ticket it leaves; decides on structured results alone (scripts/resultats.mjs: each session's sheet, Turborepo's summaries, Vitest's JSON reports, the guards' SARIF); writes each instruction from consigne-agent.md, stops a session whose transcript stands still 20 min, resumes a session without a sheet once; state in .claude/worktrees/<ticket>.circuit.json, one comment « Circuit · … » per step, --reprendre, --depuis <testeur|developpeur> <component> for a lot corrected by one component; on a stop other than 0 and 75 it launches the regulator's session itself and applies its decision (RELANCE, or MONTE: the stop « question », the session kept, --reponse resumes it); before the first testeur, and on each decision of the regulator before it applies, the questionneur's rounds with the author (the technical referent for the plan, its changes written to the ticket by the circuit; the regulator in its own session), four at most, the exchange at the ticket, the stop « questionnement » (22) for a plan that does not converge
+│   ├── etapes.mjs                 # the ten numbered steps of a ticket, the automatic ones included, and the sub-step 2.1 Questionnement: number, title, who works there, per component or once; the stops of the circuit and their codes; the circuit, the board and the tests read it
 │   ├── dette.mjs                  # the known debt of the guards: grillhouse-dette.json (guard, file, rule → count); a guard passes within the counts, refuses a new finding or a count beyond, reports a count below
 │   ├── composants-affectes.mjs    # the components a ticket touches: for each element its Architecture and criteria name, its provider (an INTERFACE.md) and readers (declared consumers, importers, other packages' tests naming it); the explorateur's survey, the circuit's check before the first testeur
 │   ├── code-mort.mjs              # grillhouse:gardes: refuses dead code, measured by knip (knip.json); tests and benches count for dependency use only; the frame's scripts (fichiers.txt) are knip entries, judged in Grillhouse
@@ -235,7 +237,9 @@ tickets. Once done, the hook stays silent.
 - The roles are project agents (`.claude/agents/`): `testeur` writes the tests, `developpeur` the
   code, `relecteur` reviews; the circuit of the ticket (`scripts/circuit.mjs`), which the
   supervisor launches, launches them and commits, and on a stop launches `regulateur`,
-  which settles it in its final answer. Each loads its skill
+  which settles it in its final answer; `questionneur` questions the ticket's plan before the
+  first tester and each decision of the regulator before it applies, its author answering in its
+  own session. Each loads its skill
   and works under its locks.
 
 ### An existing project

@@ -275,12 +275,13 @@ export function manquants(racine, r, titre, fichier = null) {
 
 // The check of the circuit before the testeur of the first component: the survey of
 // <description> in <racine> against the title's components <titre>, the missing ones kept in
-// <fichier>. `{ manquants, rapport }`, the report opening on the missing components.
+// <fichier>. `{ manquants, rapport, releve }`, the report opening on the missing components (null
+// without one), the survey as the section « Architecture » says it, which the questionneur reads.
 export function verifierLeTitre({ racine, ticket, description, titre, fichier }) {
   const r = releve(racine, description);
   const liste = manquants(racine, r, titre, fichier);
   ecrireGarde(fichier, { ...lireGarde(fichier), manquants: liste });
-  if (!liste.length) return { manquants: [], rapport: null };
+  if (!liste.length) return { manquants: [], rapport: null, releve: texteDuReleve(r) };
   const rapport = [
     `Composants manquants au titre : ${liste.join(', ')}.`,
     '',
@@ -288,7 +289,7 @@ export function verifierLeTitre({ racine, ticket, description, titre, fichier })
     '',
     `Le superviseur ajoute chacun au titre, le fournisseur d'abord (\`bd update ${ticket} --title "…"\`), puis relance le circuit ; ou il répond pourquoi il reste dehors : \`node scripts/circuit.mjs ${ticket} --reponse "<texte>"\`.`,
   ].join('\n');
-  return { manquants: liste, rapport };
+  return { manquants: liste, rapport, releve: texteDuReleve(r) };
 }
 
 // The supervisor's answer <reponse> to the missing components kept in <fichier>: they pass from

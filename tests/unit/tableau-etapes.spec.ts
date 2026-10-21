@@ -135,6 +135,7 @@ describe("AGENTS lists the steps, each step's line its number, title and who wor
       [1, 'Exploration', 'explorateur'],
       [2, 'Arbitrage', 'référent technique'],
       [2, 'Arbitrage', 'régulateur'],
+      [2.1, 'Questionnement', 'questionneur'],
       [3, 'Tests', 'testeur'],
       [4, 'Preuve du rouge', 'automatique'],
       [5, 'Code', 'développeur'],

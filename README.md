@@ -74,6 +74,7 @@ Three layers, each with one job:
 | Developer (agent)             | `developpeur`        | Makes those tests pass; touches no test nor the shared test material, writes no code before the ticket's Architecture section.         |
 | Reviewer (agent)              | `relecteur`          | Reviews the lot adversarially (edge cases, verification gaps, the frame); writes nothing.                                              |
 | Technical referent (agent)    | `referent-technique` | Settles a design question away from the rush: mature model, project texts, common mechanism; or sends it to the owner. Writes nothing. |
+| Questioner (agent)            | `questionneur`       | Questions a proposal it did not write (a plan, a regulator's decision), led by the frame, no set list; decides and writes nothing.     |
 | Explorer (agent)              | `explorateur`        | Runs an exploration ticket: surveys, lists the decisions, proposes small testable tickets. Writes no code.                             |
 | Measurement                   | `mesure`             | Measures without fooling itself; proves a guard bites before calling it green.                                                         |
 | Writer                        | `redacteur`          | Writes human-read documents (architecture on the arc42/C4 model, frame, interface).                                                    |
@@ -90,6 +91,16 @@ stop `question` (18), the regulator's session kept; the supervisor answers the q
 when it is the owner's (the functional, what the charter keeps for him),
 and `circuit.mjs <ticket> --reponse "<answer>"` resumes that session with the answer. So the
 supervisor is woken only by a lot integrated, a question, or a stop the regulator could not settle.
+The questioner (`questionneur`, step 2.1 Questionnement) asks its questions of the ticket's plan
+before the first tester, after the survey of its components, and of each decision of the
+regulator before it is checked and applied, as Amazon's bar raiser or a cockpit's challenge and
+response: the author (the technical referent for the plan, the regulator for its decision)
+answers by resuming its session, changing its proposal or keeping it with its reason, and the
+questioner reads the answer by resuming its own, four rounds at most; the circuit writes a changed
+plan to the ticket, and the whole exchange at the ticket. A disagreement, or a fourth round still
+questioned, goes up to the supervisor: for the plan, the stop `questionnement` (22), which
+`--reponse` lets pass; for a decision, the regulator's `question` (18). The supervisor has his own
+plan questioned by the same agent before he gives it to the owner.
 Before the first tester, the circuit surveys the components the ticket's Architecture and criteria
 reach (`scripts/composants-affectes.mjs`: each element's provider and readers), as the explorer did
 for its title: a component it finds that the title misses, unless admitted out of it with its

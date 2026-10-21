@@ -22,10 +22,14 @@ const RACINE = path.resolve(__dirname, '../..');
 const lire = (f: string) => readFileSync(path.join(RACINE, f), 'utf8');
 
 describe('the ten steps, decided by the owner on 2026-10-20', () => {
-  it('numbers each step from 1 to 10, with its title and who works there', () => {
+  // grillhouse-3uv.89.1 (L9): the questioning, a sub-step of the arbitrage, 2.1, which numbers no
+  // step again: it runs before step 3 on the plan, and inside step 2 on a decision of the
+  // regulator, with a bounded loop of its own (`tour n/4`).
+  it('numbers each step from 1 to 10, with its title and who works there, the questioning at 2.1', () => {
     expect(ETAPES.map(e => [e.numero, e.titre, e.qui])).toEqual([
       [1, 'Exploration', ['explorateur']],
       [2, 'Arbitrage', ['referent-technique', 'regulateur']],
+      [2.1, 'Questionnement', ['questionneur']],
       [3, 'Tests', ['testeur']],
       [4, 'Preuve du rouge', [AUTOMATIQUE]],
       [5, 'Code', ['developpeur']],
@@ -41,6 +45,7 @@ describe('the ten steps, decided by the owner on 2026-10-20', () => {
   it('declares each bounded loop with its step: its label and its maximum', () => {
     expect(ETAPES.filter(e => e.boucle).map(e => [e.numero, e.boucle])).toEqual([
       [2, { libelle: 'arrêt', max: 3 }],
+      [2.1, { libelle: 'tour', max: 4 }],
       [3, { libelle: 'essai', max: 3 }],
       [5, { libelle: 'essai', max: 3 }],
       [8, { libelle: 'tour', max: 3 }],
@@ -50,7 +55,7 @@ describe('the ten steps, decided by the owner on 2026-10-20', () => {
   it('the circuit reads the maxima of its loops in the list, none spelled again', () => {
     const c = lire('scripts/circuit.mjs');
     expect(c).not.toMatch(
-      /(RELANCES_TESTEUR|SEANCES_DEVELOPPEUR|RELECTURES|RELANCES_DU_REGULATEUR) = \d/
+      /(RELANCES_TESTEUR|SEANCES_DEVELOPPEUR|RELECTURES|RELANCES_DU_REGULATEUR|TOURS) = \d/
     );
     expect(c).toMatch(/\.boucle\.max/);
   });
@@ -65,6 +70,7 @@ describe('the ten steps, decided by the owner on 2026-10-20', () => {
         'explorateur',
         'referent-technique',
         'regulateur',
+        'questionneur',
         'testeur',
         'developpeur',
         'relecteur',
@@ -74,6 +80,7 @@ describe('the ten steps, decided by the owner on 2026-10-20', () => {
       'explorateur',
       'référent technique',
       'régulateur',
+      'questionneur',
       'testeur',
       'développeur',
       'relecteur',
@@ -99,6 +106,7 @@ describe('the stops of the circuit, each with its exit code', () => {
       'hors-portee': 19,
       besoin: 20,
       'composants-manquants': 21,
+      questionnement: 22,
       'a-repasser': 75,
     });
   });
@@ -133,11 +141,12 @@ describe("a circuit's state and a role agent are at one step", () => {
         'explorateur',
         'referent-technique',
         'regulateur',
+        'questionneur',
         'testeur',
         'developpeur',
         'relecteur',
       ].map(r => etapeDuRole(r)?.numero)
-    ).toEqual([1, 2, 2, 3, 5, 8]);
+    ).toEqual([1, 2, 2, 2.1, 3, 5, 8]);
     expect(etapeDuRole('Explore')).toBeNull();
     expect(etapeDuRole(AUTOMATIQUE)).toBeNull();
   });

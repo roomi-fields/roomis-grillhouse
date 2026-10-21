@@ -60,9 +60,38 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
   });
   it('the regulator: its decision, the agent a RELANCE --depuis names, its context, its question, the facts the circuit checks, its discoveries', () => {
     expect(champs('regulateur')).toEqual(
-      ['contexte', 'decision', 'decouvertes', 'depuis', 'faits', 'question'].sort()
+      ['contexte', 'decision', 'decouvertes', 'depuis', 'faits', 'question', 'reponses'].sort()
     );
     expect((schemaDeFiche('regulateur') as Schema).required).toEqual(['decision']);
+  });
+  // grillhouse-3uv.89.1 (L9): the questionneur asks, the author answers in its own session.
+  it('the questionneur: its issue (questions, none, a disagreement), its questions each with what it aims at, its disagreement', () => {
+    expect(champs('questionneur')).toEqual(['desaccord', 'issue', 'questions'].sort());
+    expect((schemaDeFiche('questionneur') as Schema).required).toEqual(['issue']);
+    const issue = (schemaDeFiche('questionneur') as Schema).properties.issue as { enum: string[] };
+    expect(issue.enum).toEqual(['QUESTIONS', 'AUCUNE', 'DÉSACCORD']);
+    const q = (schemaDeFiche('questionneur') as Schema).properties.questions as {
+      items: { properties: { vise: { enum: string[] } }; required: string[] };
+    };
+    expect(q.items.properties.vise.enum).toEqual([
+      'flou',
+      'intention',
+      'référence',
+      'règle',
+      'critère',
+    ]);
+    expect(q.items.required).toEqual(['question', 'vise']);
+  });
+  it('the référent technique, on the questions to a plan: its answer to each, the title or the description the plan becomes, its discoveries', () => {
+    expect(champs('referent-technique')).toEqual(
+      ['decouvertes', 'description', 'reponses', 'titre'].sort()
+    );
+    expect((schemaDeFiche('referent-technique') as Schema).required).toEqual(['reponses']);
+    const r = (schemaDeFiche('referent-technique') as Schema).properties.reponses as {
+      items: { properties: { choix: { enum: string[] } }; required: string[] };
+    };
+    expect(r.items.properties.choix.enum).toEqual(['CHANGE', 'GARDE']);
+    expect(r.items.required).toEqual(['question', 'choix', 'texte']);
   });
   it('a role the circuit does not lead has no sheet', () => {
     expect(schemaDeFiche('explorateur')).toBeNull();
@@ -106,6 +135,43 @@ describe('the facts of a regulator’s sheet', () => {
       })
     );
     expect(lu.erreur).toBeUndefined();
+  });
+});
+
+describe('the sheets of the questioning (L9)', () => {
+  it('questions need at least one question, a disagreement its text', () => {
+    expect(
+      lireFiche('questionneur', sortie({ issue: 'QUESTIONS', questions: [] })).erreur
+    ).toContain('questions');
+    expect(lireFiche('questionneur', sortie({ issue: 'DÉSACCORD' })).erreur).toContain('desaccord');
+    expect(lireFiche('questionneur', sortie({ issue: 'AUCUNE' })).erreur).toBeUndefined();
+    expect(
+      lireFiche(
+        'questionneur',
+        sortie({ issue: 'QUESTIONS', questions: [{ question: 'Pourquoi ?', vise: 'intention' }] })
+      ).erreur
+    ).toBeUndefined();
+    expect(
+      lireFiche(
+        'questionneur',
+        sortie({ issue: 'QUESTIONS', questions: [{ question: 'Pourquoi ?', vise: 'goût' }] })
+      ).erreur
+    ).toContain('vise');
+  });
+  it('an answer that changes the plan carries the title or the description it becomes', () => {
+    const change = { question: 'q', choix: 'CHANGE', texte: 'un critère de plus' };
+    expect(lireFiche('referent-technique', sortie({ reponses: [change] })).erreur).toContain(
+      'description'
+    );
+    expect(
+      lireFiche('referent-technique', sortie({ reponses: [change], description: 'd' })).erreur
+    ).toBeUndefined();
+    expect(
+      lireFiche(
+        'referent-technique',
+        sortie({ reponses: [{ question: 'q', choix: 'GARDE', texte: 'parce que' }] })
+      ).erreur
+    ).toBeUndefined();
   });
 });
 

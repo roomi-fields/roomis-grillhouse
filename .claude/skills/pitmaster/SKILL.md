@@ -20,7 +20,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   ou de commiter.
 - `references/consigne-agent.md` — les gabarits des consignes : le circuit du ticket
   (`scripts/circuit.mjs`) remplit celle du testeur et du développeur, celle du relecteur et
-  celles du régulateur.
+  celles du régulateur, et celles du questionnement.
 - `docs/agents/issue-tracker.md` — le format des tickets : avant d'en ouvrir un.
 - `pitmaster/SUIVI.md` — le dernier tour, les agents lancés, les questions en attente : au
   lancement de la séance.
@@ -68,9 +68,10 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 
 - **Je lance le circuit d'un ticket** : un ticket tranché part au circuit,
   `node scripts/circuit.mjs <ticket>`, que je lance une fois, en arrière-plan
-  (`run_in_background`) ; sa fin me réveille. Le circuit mène testeur, preuve du rouge,
+  (`run_in_background`) ; sa fin me réveille. Le circuit mène le questionnement du plan (le
+  questionneur, auquel le référent technique répond pour le plan), testeur, preuve du rouge,
   développeur, contrôles, relecteur, intégration, file et lecture de la CI, et le régulateur
-  sur chaque arrêt ; son en-tête dit ses arrêts et leurs codes. Ainsi les gestes mécaniques
+  sur chaque arrêt, sa décision questionnée avant d'être appliquée ; son en-tête dit ses arrêts et leurs codes. Ainsi les gestes mécaniques
   passent à une commande, et je garde la vue d'ensemble.
 - **Le code de fin du circuit dit la suite** : 0, le lot est sur main et le ticket fermé ; je lis
   sa fermeture. 75 (`a-repasser` : un contrôle ou l'intégration encore « à repasser », ou la
@@ -103,7 +104,13 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   (`bd update <ticket> --title`), puis je relance le circuit ; ou je réponds pourquoi il reste
   dehors, `--reponse "<raison>"`, que le circuit écrit au ticket avant de partir du premier
   testeur. Un composant que le ticket ne change pas s'admet avant le lancement,
-  `node scripts/composants-affectes.mjs <ticket> --admettre <composant> --raison "<raison>"`. Tout autre code est un arrêt que le
+  `node scripts/composants-affectes.mjs <ticket> --admettre <composant> --raison "<raison>"`.
+  22 (`questionnement`) : le questionnement du plan finit sur un désaccord, ou reste questionné
+  au quatrième tour ; l'échange est au ticket, ce qui reste en tête du rapport de l'état. Je change
+  le plan (`bd update <ticket>`) ou je le garde, puis je réponds, `--reponse "<texte>"`, que le
+  circuit écrit au ticket avant de partir du premier testeur ; ce qui revient au responsable lui
+  monte d'abord. Une décision du régulateur dont le questionnement ne converge pas me revient en
+  18 (`question`). Tout autre code est un arrêt que le
   régulateur n'a pas tranché (sa réponse jointe à la raison de l'état, une décision refusée deux
   fois, le même arrêt revenu sans fait nouveau, ou trois relances d'affilée sur le même arrêt) : je le tranche, `--reprendre` ou `--depuis`, ou je le monte. J'arrête tout agent
   que j'ai lancé moi-même dès son rapport lu (`TaskStop`). Ainsi ma séance ne porte pas le détail
@@ -218,6 +225,16 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   son attention.
 
 ## Les tickets restent dans le plan
+
+- **Mon plan questionné avant de le rendre au responsable** : un plan ou une recommandation que je
+  rends au responsable (un ticket à valider, un découpage, la réponse à une question qui lui
+  revient) passe d'abord par le sous-agent `questionneur` (`subagent_type: questionneur`) : je lui
+  donne ma proposition, le ticket et ce qu'elle touche, sans question à poser. Je réponds à ses
+  questions dans ma propre séance, question par question : je change ma proposition, et ce
+  qu'elle devient, ou je la garde, et pourquoi ; je lui rends ma réponse en reprenant le même
+  questionneur, sa conversation continuée, quatre tours au plus, jusqu'à ce qu'il n'ait plus de question. Un
+  désaccord qui reste part au responsable avec le plan, et l'échange l'accompagne. Ainsi le
+  responsable reçoit un plan qu'un regard qui ne l'a pas écrit a déjà questionné.
 
 - **Un ticket proposé attend son mot** : un ticket né d'un besoin direct d'un projet s'ouvre sous
   l'étiquette `a-valider` et monte au responsable avec son contexte, son exemple, sa règle et ma
