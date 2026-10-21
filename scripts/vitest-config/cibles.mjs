@@ -37,10 +37,14 @@
 //   neither, and a witness named plays there as any test. The witnesses are found under the
 //   configuration's directory (`fichiersTemoins`), node_modules, dist, .git, .turbo and .claude
 //   left out.
+// - The changes since the last green (`GRILLHOUSE_CHANGEMENTS`, ./changements.mjs) restrict the
+//   files played to those Vitest relates to them, the files named themselves kept, or leave every
+//   test when a change lies out of Vitest's graph.
 //
 // This module's top level uses Node alone: scripts/tests.mjs reads its VARIABLE.
 import { globSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { CHANGEMENTS, lireChangements, restreindre } from './changements.mjs';
 
 export const VARIABLE = 'GRILLHOUSE_TESTS';
 // The day's exclusions, which the base configuration (./base.mjs) sets and the night plays
@@ -116,69 +120,88 @@ const fusion = (cible, valeur) =>
     : valeur;
 
 // The plugin that restricts a run to the tests <env> names in VARIABLE.
-export const ciblage = (env = process.env) => ({
+export const ciblage = (env = process.env, dire = l => process.stdout.write(`${l}\n`)) => ({
   name: 'grillhouse:cibles',
   async config(config) {
     const texte = env[VARIABLE];
-    if (!texte) {
+    const changements = env[CHANGEMENTS];
+    delete env[VARIABLE];
+    delete env[CHANGEMENTS];
+    if (!texte && !changements) {
       return;
     }
-    delete env[VARIABLE];
-    const { parseCLI } = await import('vitest/node');
-    const valeur = JSON.parse(texte);
-    const { filter, options } = parseCLI(['vitest', ...(valeur.arguments ?? [])]);
     const test = (config.test ??= {});
-    // The time witnesses: left out of the pass, or played alone in their own.
-    if (valeur.temoins === 'hors' || valeur.temoins === 'seuls') {
-      const dir = path.resolve(config.root ?? process.cwd(), test.dir ?? '');
-      const temoins = fichiersTemoins(dir, test.include ?? INCLUDE).map(r =>
-        r.replace(SPECIAUX, '\\$&')
-      );
-      if (valeur.temoins === 'hors') {
-        test.exclude = [...(test.exclude ?? ['**/node_modules/**']), ...temoins];
-      } else {
-        test.include = temoins.length ? temoins : [`${VARIABLE}-sans-temoin`];
-        test.passWithNoTests = true;
-        test.fileParallelism = false;
-      }
+    // The files a targeted run names themselves, absolute.
+    let nommes = [];
+    if (texte) {
+      nommes = await cibler(config, test, JSON.parse(texte));
     }
-    if (filter.length) {
-      const dir = path.resolve(config.root ?? process.cwd(), test.dir ?? '');
-      const include = test.include ?? INCLUDE;
-      const nommes = filter.map(f => path.resolve(f.replace(/[\\/]+$/, '')));
-      // The files named themselves, not through a directory.
-      const seuls = new Set(nommes.filter(f => fichiers(f)[0] === f));
-      const relatif = f => path.relative(dir, f).split(path.sep).join('/');
-      const joues = [...new Set(nommes.flatMap(fichiers))]
-        .filter(f => {
-          const r = relatif(f);
-          if (r.startsWith('../')) {
-            return false;
-          }
-          return horsDuJour(r) ? seuls.has(f) : include.some(p => path.matchesGlob(r, p));
-        })
-        .map(relatif)
-        .sort();
-      // A bench or a night test named itself plays: the day's exclusions of both lift, and the
-      // files under a directory named stay out by the filter above.
-      if (joues.some(horsDuJour) && Array.isArray(test.exclude)) {
-        test.exclude = test.exclude.filter(p => !HORS_DU_JOUR.includes(p));
-      }
-      // No file named: a pattern that matches none, Vitest's « No test files found ».
-      test.include = joues.length
-        ? joues.map(r => r.replace(SPECIAUX, '\\$&'))
-        : [`${VARIABLE}-sans-fichier`];
-    }
-    // parseCLI gives each option under its aliases too (`t`, `test-name-pattern`): its name alone
-    // enters.
-    const { '--': _, color: __, exclude, ...reste } = options;
-    for (const [cle, valeur] of Object.entries(reste)) {
-      if (cle.length > 1 && !cle.includes('-')) {
-        test[cle] = fusion(test[cle], valeur);
-      }
-    }
-    if (exclude !== undefined) {
-      test.cliExclude = [exclude].flat();
+    const ch = changements ? lireChangements(changements) : null;
+    // A targeted run whose paths name no test file plays none, and fails, as without the changes.
+    if (ch && test.include?.[0] !== `${VARIABLE}-sans-fichier`) {
+      restreindre(test, path.resolve(config.root ?? process.cwd()), ch, nommes, dire);
     }
   },
 });
+
+// Applies the value <valeur> of VARIABLE to the configuration <config>, its test options <test>:
+// the files named themselves, absolute.
+async function cibler(config, test, valeur) {
+  const { parseCLI } = await import('vitest/node');
+  const { filter, options } = parseCLI(['vitest', ...(valeur.arguments ?? [])]);
+  let nommes = [];
+  // The time witnesses: left out of the pass, or played alone in their own.
+  if (valeur.temoins === 'hors' || valeur.temoins === 'seuls') {
+    const dir = path.resolve(config.root ?? process.cwd(), test.dir ?? '');
+    const temoins = fichiersTemoins(dir, test.include ?? INCLUDE).map(r =>
+      r.replace(SPECIAUX, '\\$&')
+    );
+    if (valeur.temoins === 'hors') {
+      test.exclude = [...(test.exclude ?? ['**/node_modules/**']), ...temoins];
+    } else {
+      test.include = temoins.length ? temoins : [`${VARIABLE}-sans-temoin`];
+      test.passWithNoTests = true;
+      test.fileParallelism = false;
+    }
+  }
+  if (filter.length) {
+    const dir = path.resolve(config.root ?? process.cwd(), test.dir ?? '');
+    const include = test.include ?? INCLUDE;
+    const chemins = filter.map(f => path.resolve(f.replace(/[\\/]+$/, '')));
+    // The files named themselves, not through a directory.
+    const seuls = new Set(chemins.filter(f => fichiers(f)[0] === f));
+    nommes = [...seuls];
+    const relatif = f => path.relative(dir, f).split(path.sep).join('/');
+    const joues = [...new Set(chemins.flatMap(fichiers))]
+      .filter(f => {
+        const r = relatif(f);
+        if (r.startsWith('../')) {
+          return false;
+        }
+        return horsDuJour(r) ? seuls.has(f) : include.some(p => path.matchesGlob(r, p));
+      })
+      .map(relatif)
+      .sort();
+    // A bench or a night test named itself plays: the day's exclusions of both lift, and the
+    // files under a directory named stay out by the filter above.
+    if (joues.some(horsDuJour) && Array.isArray(test.exclude)) {
+      test.exclude = test.exclude.filter(p => !HORS_DU_JOUR.includes(p));
+    }
+    // No file named: a pattern that matches none, Vitest's « No test files found ».
+    test.include = joues.length
+      ? joues.map(r => r.replace(SPECIAUX, '\\$&'))
+      : [`${VARIABLE}-sans-fichier`];
+  }
+  // parseCLI gives each option under its aliases too (`t`, `test-name-pattern`): its name alone
+  // enters.
+  const { '--': _, color: __, exclude, ...reste } = options;
+  for (const [cle, valeur] of Object.entries(reste)) {
+    if (cle.length > 1 && !cle.includes('-')) {
+      test[cle] = fusion(test[cle], valeur);
+    }
+  }
+  if (exclude !== undefined) {
+    test.cliExclude = [exclude].flat();
+  }
+  return nommes;
+}

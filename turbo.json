@@ -1,7 +1,7 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "ui": "stream",
-  "globalPassThroughEnv": ["GRILLHOUSE_RESULTATS"],
+  "globalPassThroughEnv": ["GRILLHOUSE_RESULTATS", "GRILLHOUSE_CHANGEMENTS"],
   "tasks": {
     "build": {
       "outputs": ["dist/**"]

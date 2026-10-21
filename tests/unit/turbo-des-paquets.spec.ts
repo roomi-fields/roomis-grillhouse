@@ -710,6 +710,45 @@ describe('the env of the root’s test:vitest names the variable of the targeted
   });
 });
 
+// The variables that pass to every task without entering any hash: the results directory of a
+// run (GRILLHOUSE_RESULTATS, scripts/resultats.mjs) and the changes since the last green
+// (GRILLHOUSE_CHANGEMENTS, scripts/dernier-vert.mjs), which the generator keeps in the root's
+// `globalPassThroughEnv`.
+describe('the globalPassThroughEnv of the root names the results and the changes since the last green', () => {
+  const passage = (racine: string) =>
+    (
+      parseJsonc(lire(racine, 'turbo.json'), [], { allowTrailingComma: true }) as {
+        globalPassThroughEnv?: string[];
+      }
+    ).globalPassThroughEnv;
+
+  it('both templates hold them, and the generator writes nothing for them', () => {
+    const racine = depotAPaquets();
+    ecrire(racine);
+    expect(passage(racine)).toEqual(['GRILLHOUSE_RESULTATS', 'GRILLHOUSE_CHANGEMENTS']);
+    const sans = mkdtempSync(path.join(ESSAIS, 'sans-paquets-'));
+    ecrireFichier(sans, 'package.json', pkg({ name: 'p', scripts: { build: 'tsc' } }));
+    ecrireFichier(sans, 'turbo.json', lire(DEPOT, 'templates/turbo/sans-paquets.json'));
+    expect(ecrire(sans)).toEqual([]);
+    expect(passage(sans)).toEqual(['GRILLHOUSE_RESULTATS', 'GRILLHOUSE_CHANGEMENTS']);
+  });
+
+  it('a root without the changes: the check refuses it, naming the variable and the command; the generator adds it to the project’s', () => {
+    const racine = depotAPaquets();
+    ecrire(racine);
+    const t = JSON.parse(lire(racine, 'turbo.json')) as Record<string, unknown>;
+    t.globalPassThroughEnv = ['CI', 'GRILLHOUSE_RESULTATS'];
+    ecrireFichier(racine, 'turbo.json', JSON.stringify(t, null, 2));
+    const r = lancer(racine, []);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('GRILLHOUSE_CHANGEMENTS');
+    expect(r.stderr).toContain(COMMANDE);
+    expect(lancer(racine, ['--ecrire']).status).toBe(0);
+    expect(passage(racine)).toEqual(['CI', 'GRILLHOUSE_RESULTATS', 'GRILLHOUSE_CHANGEMENTS']);
+    expect(lancer(racine, []).status).toBe(0);
+  });
+});
+
 // Witness: BPScript, whose dead-code guard refused « jsonc-parser: devDependency without use »:
 // the generator loaded it by a `require` knip does not follow, and the frame's own tests, which
 // import it too, stay in Grillhouse. The generator imports it as any module does.
@@ -722,6 +761,7 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
       'dette.mjs',
       'resultats.mjs',
       'vitest-config/cibles.mjs',
+      'vitest-config/changements.mjs',
       'vitest-config/resultats.mjs',
     ];
     const r = codeMortEssai(ESSAIS, {

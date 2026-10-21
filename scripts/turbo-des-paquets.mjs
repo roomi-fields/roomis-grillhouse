@@ -126,11 +126,15 @@
 // inherits the root's. The generator adds the variable to the `env` of the root's `test:vitest`,
 // the project's entries kept, and the check refuses a `test:vitest` of the root without it.
 //
-// The results directory of a run (`GRILLHOUSE_RESULTATS`, scripts/resultats.mjs), where the
-// guards write their SARIF, Turborepo its summaries and Vitest its JSON reports, passes to every
-// task without entering any hash: the root's `globalPassThroughEnv` names it, Turborepo's strict
-// mode of the variables keeping out of a task every variable its configuration does not name. The
-// generator adds it, the project's entries kept, and the check refuses a root without it.
+// Two variables pass to every task without entering any hash: the root's `globalPassThroughEnv`
+// names them, Turborepo's strict mode of the variables keeping out of a task every variable its
+// configuration does not name. The results directory of a run (`GRILLHOUSE_RESULTATS`,
+// scripts/resultats.mjs), where the guards write their SARIF, Turborepo its summaries and Vitest
+// its JSON reports; the changes since the last green (`GRILLHOUSE_CHANGEMENTS`,
+// scripts/dernier-vert.mjs), by which the tests of a package Turborepo plays again are those
+// Vitest relates to them, while a package whose inputs did not move replays from the cache. The
+// generator adds each one the root lacks, the project's entries kept, and the check refuses a
+// root without one.
 //
 // The packages are those of `paquets` (scripts/paquets.mjs, the frame's one list of the packages of
 // a repository, each marked out of the frame or not). A repository without `workspaces` has none:
@@ -146,6 +150,7 @@ import { matieres, parcourir } from './consommateurs.mjs';
 import { paquets } from './paquets.mjs';
 import { ecrireSarif, RESULTATS } from './resultats.mjs';
 import { VARIABLE as TESTS_CIBLES } from './vitest-config/cibles.mjs';
+import { CHANGEMENTS } from './vitest-config/changements.mjs';
 
 export const TURBO = 'turbo.json';
 export const COMMANDE = 'node scripts/turbo-des-paquets.mjs --ecrire';
@@ -161,6 +166,13 @@ export const GARDES = ['grillhouse:gardes', 'gardes'];
 const MISE_EN_FORME = { formattingOptions: { insertSpaces: true, tabSize: 2, eol: '\n' } };
 // The test task of a package, and the prefix of a trace task.
 const TESTS = 'test:vitest';
+// The variables the root's `globalPassThroughEnv` names, and why, as the check says it.
+const PASSAGES = [RESULTATS, CHANGEMENTS];
+const POURQUOI = {
+  [RESULTATS]: "où les gardes, Turborepo et Vitest écrivent les résultats qu'un circuit lit",
+  [CHANGEMENTS]:
+    'les fichiers changés depuis le dernier vert, auxquels Vitest relie les tests que rejoue un paquet',
+};
 const TRACE = 'trace:';
 // The files a build compiles: TypeScript's sources and declarations (tsc's default `include`
 // takes a `.d.ts` into the program, whose types the build checks) and JavaScript (`allowJs`).
@@ -570,14 +582,15 @@ function testsSansVariable(racine) {
   return actuel.includes(TESTS_CIBLES) ? null : { f: r.f, attendu: [...actuel, TESTS_CIBLES] };
 }
 
-// The `globalPassThroughEnv` the root's turbo.json at <racine> must hold, RESULTATS added to the
-// project's, when it lacks it: { f, attendu }; null when it holds it, without a root configuration,
-// and when it is no JSON.
-function resultatsSansPassage(racine) {
+// The `globalPassThroughEnv` the root's turbo.json at <racine> must hold, each of PASSAGES it
+// lacks added to the project's: { f, attendu, manques }; null when it holds them, without a root
+// configuration, and when it is no JSON.
+function passagesManquants(racine) {
   const r = confRacine(racine);
   if (!r) return null;
   const actuel = Array.isArray(r.conf.globalPassThroughEnv) ? r.conf.globalPassThroughEnv : [];
-  return actuel.includes(RESULTATS) ? null : { f: r.f, attendu: [...actuel, RESULTATS] };
+  const manques = PASSAGES.filter(v => !actuel.includes(v));
+  return manques.length ? { f: r.f, attendu: [...actuel, ...manques], manques } : null;
 }
 
 // The inputs of the root's turbo.json at <racine> that can reach the `.git` of a submodule its
@@ -645,7 +658,7 @@ export function ecrire(racine) {
     writeFileSync(abs, applyEdits(texte, modify(texte, chemin, tests.attendu, MISE_EN_FORME)));
     if (!ecrits.includes(tests.f)) ecrits.push(tests.f);
   }
-  const passage = resultatsSansPassage(racine);
+  const passage = passagesManquants(racine);
   if (passage) {
     const abs = path.join(racine, passage.f);
     const texte = readFileSync(abs, 'utf8');
@@ -794,7 +807,7 @@ function racineRefusee(racine) {
 
 // The refusals of <racine>: one line per package turbo.json absent or other than generated, per
 // guard task of the root absent or whose dependsOn differs, for a root `test:vitest` whose `env`
-// lacks TESTS_CIBLES, for a root whose `globalPassThroughEnv` lacks RESULTATS, per configuration
+// lacks TESTS_CIBLES, per variable of PASSAGES the root's `globalPassThroughEnv` lacks, per configuration
 // of a package written by hand in the root's turbo.json, and per declaration of data or trace
 // refused.
 export function verifier(racine) {
@@ -815,10 +828,10 @@ export function verifier(racine) {
       `⛔ ${tests.f} : l'\`env\` de \`${TESTS}\` doit nommer ${TESTS_CIBLES}, qui porte les chemins d'une passe ciblée dans le seul hachage des tests ; \`${COMMANDE}\` l'ajoute.`
     );
   }
-  const passage = resultatsSansPassage(racine);
-  if (passage) {
+  const passage = passagesManquants(racine);
+  for (const v of passage?.manques ?? []) {
     refus.push(
-      `⛔ ${passage.f} : \`globalPassThroughEnv\` doit nommer ${RESULTATS}, où les gardes, Turborepo et Vitest écrivent les résultats qu'un circuit lit ; \`${COMMANDE}\` l'ajoute.`
+      `⛔ ${passage.f} : \`globalPassThroughEnv\` doit nommer ${v}, ${POURQUOI[v]} ; \`${COMMANDE}\` l'ajoute.`
     );
   }
   for (const { cle, attendu, present } of gardesEcartees(racine)?.ecarts ?? []) {

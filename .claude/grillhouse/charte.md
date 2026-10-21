@@ -146,7 +146,7 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
   `npm run test:forcer -- <chemins>` pour rejouer pour de vrai un test soupçonné instable ; un
   lancement qui ne joue aucun test échoue ; un banc de temps ou un test de nuit se joue quand son
   propre fichier est nommé, au repos (un dossier ou un paquet nommé les laisse hors, comme le
-  jour) ; aucun agent ne lance l'outil de test directement. `npm run verifier` joue tout après la
+  jour) ; aucun agent ne lance l'outil de test directement. `npm run verifier` joue, après la
   construction : les gardes du cadre,
   celles du projet (son script racine `gardes`, un nom que le cadre réserve ; une garde juge les
   fichiers de l'arbre de travail, que le cache de Turborepo compte, jamais l'index de git ; elle
@@ -156,9 +156,16 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
   préalables permettent et nomme chaque rouge ; `npm run verifier -- --gardes` joue les gardes
   seules, ce que le relecteur joue sur la copie du ticket. Une tâche dont
   rien n'a bougé n'est pas rejouée : Turborepo relit sa sortie consignée dans son cache (« cache
-  hit, replaying logs »), et cette relecture vaut un lancement. Ainsi un test ne tourne qu'une
-  fois tant que rien ne change.
-- **Main reste vert** : l'intégration exige un `npm run verifier` vert, sans rouge admis. Un test connu
+  hit, replaying logs »), et cette relecture vaut un lancement. Une passe se mesure contre le
+  dernier vert, l'arbre de la dernière passe verte du dépôt, comme `vitest --changed` : un
+  paquet que Turborepo rejoue joue les seuls tests que Vitest relie aux fichiers changés depuis,
+  et tous ses tests quand un changement sort du graphe de Vitest (un fichier supprimé, une
+  configuration, un fichier qu'aucun module n'importe, le code d'un paquet dont il dépend, un
+  chemin que ses tests déclarent lire, `grillhouse.lit`) ; sans vert connu, la passe est
+  complète, et `npm run verifier -- --tout` la joue pour de vrai, comme la nuit. Ainsi un test ne
+  tourne qu'une fois tant que rien ne change, et corriger un test ne rejoue que lui.
+- **Main reste vert** : l'intégration exige un `npm run verifier` vert, sans rouge admis, mesuré
+  contre le dernier vert ; la nuit rejoue la passe complète. Un test connu
   rouge se met en quarantaine dans le test lui-même (`it.skip` ou `it.fails`), avec le ticket qui
   le corrige, comme le fait une intégration continue mature. Ainsi chaque rouge a son ticket, et
   main ne porte aucun rouge.

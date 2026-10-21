@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # The night: once a day, the full pass played for real, then what the day never plays: the night
 # tests and the time budget benches. During the day `npm run verifier` (the integration's) replays
-# from Turborepo's cache every task whose inputs are unchanged (scripts/integration/integrer.mjs).
+# from Turborepo's cache every task whose inputs are unchanged, and plays the tests Vitest relates
+# to the files changed since the last green (scripts/integration/integrer.mjs,
+# scripts/dernier-vert.mjs).
 #
 #   bash scripts/nuit.sh        from the crontab of the machine, e.g. « 0 3 * * * bash <root>/scripts/nuit.sh »
 #
@@ -12,8 +14,9 @@
 #   dependencies reinstalled (npm ci) when package-lock.json changes, then
 #   `npm run verifier -- --force`: Turborepo's build, guards (the frame's and the project's own,
 #   its root script `gardes`) and every test of the day, each task
-#   played for real (`--force`, no log replayed from the cache), its result written to the cache
-#   again.
+#   played for real (`--force`, no log replayed from the cache, no measure against the last
+#   green: the complete pass, scripts/verifier.mjs), its result written to the cache again; green,
+#   its tree becomes the last green of the day's passes.
 #   A full pass « à repasser » (75, scripts/verifier.mjs: a failure of duration under load, which
 #   found no rest in its bound) makes the night « à repasser », below.
 #   An existing copy that does not get ready (its move onto HEAD, its cleaning or the setting of

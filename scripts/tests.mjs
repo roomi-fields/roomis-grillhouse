@@ -59,6 +59,12 @@
 //   a directory or a package named leaves them out.
 // - A run that plays no test fails: the frame's base configuration of Vitest keeps Vitest's
 //   `passWithNoTests: false` (scripts/vitest-config/base.mjs).
+// - Under the circuit's mark (`GRILLHOUSE_DEPUIS_LE_VERT`, its proof and its checks,
+//   scripts/circuit.mjs), a run measures itself against the last green, as `npm run verifier`
+//   does (scripts/dernier-vert.mjs): in a package or a directory named, the tests Vitest relates to
+//   the files changed since it, every test when a change lies out of Vitest's graph; a file named
+//   itself plays, changed or not; `--force` plays them all. Without the mark, every test named
+//   plays.
 // - While the environment names a results directory (`GRILLHOUSE_RESULTATS`,
 //   scripts/resultats.mjs), each run of Turborepo writes its summary (`--summarize`), moved there,
 //   and Vitest its JSON report there: what the circuit reads of a run.
@@ -71,6 +77,8 @@ import { paquets } from './paquets.mjs';
 import { garderLesResumes, RESULTATS } from './resultats.mjs';
 import { tracesDuPlan } from './turbo-des-paquets.mjs';
 import { VARIABLE } from './vitest-config/cibles.mjs';
+import { CHANGEMENTS } from './vitest-config/changements.mjs';
+import { DEPUIS_LE_VERT, mesure } from './dernier-vert.mjs';
 
 const racine = process.cwd();
 const enveloppe = composantDeLEnveloppe() !== null;
@@ -78,6 +86,9 @@ const args = process.argv.slice(2);
 const force = args.includes('--force');
 const options = args.filter(a => a.startsWith('-') && a !== '--force');
 const chemins = args.filter(a => !a.startsWith('-'));
+// Under the circuit's mark, the tests measured against the last green; `--force` plays them all.
+const depuis = process.env[DEPUIS_LE_VERT] ? mesure(racine, { tout: force }) : null;
+if (depuis) process.stdout.write(`${depuis.ligne}\n`);
 
 // One Turborepo run of <args>, VARIABLE set to <tests> (unset without), each task whose
 // dependencies succeed played to its end; its exit code. While the run names a results directory
@@ -85,6 +96,8 @@ const chemins = args.filter(a => !a.startsWith('-'));
 const turbo = (args, tests) => {
   const env = { ...process.env };
   delete env[VARIABLE];
+  delete env[CHANGEMENTS];
+  Object.assign(env, depuis?.env ?? {});
   if (tests) env[VARIABLE] = JSON.stringify(tests);
   const resume = env[RESULTATS] ? ['--summarize'] : [];
   const runs = path.join(racine, '.turbo', 'runs');
@@ -194,4 +207,8 @@ const lancer = () => {
   );
 };
 
-process.exitCode = lancer();
+try {
+  process.exitCode = lancer();
+} finally {
+  depuis?.retirer();
+}

@@ -29,6 +29,7 @@ scripts/composants-affectes.mjs
 scripts/consommateurs.mjs
 scripts/consommateurs-arbitres.mjs
 scripts/crochets.mjs
+scripts/dernier-vert.mjs
 scripts/dette.mjs
 scripts/droits.mjs
 scripts/etapes.mjs
@@ -203,6 +204,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/turbo-des-paquets-donnees.spec.ts
 - tests/unit/turbo-des-paquets.spec.ts
 - tests/unit/un-commit-par-ticket.spec.ts
+- tests/unit/verifier.depuis-le-vert.spec.ts
 - tests/unit/verifier.spec.ts
 - tests/unit/verifier.temoins.spec.ts
 - tests/unit/verrou-commande.spec.ts

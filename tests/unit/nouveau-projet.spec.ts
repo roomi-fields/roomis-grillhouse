@@ -143,6 +143,13 @@ describe('npm run new — the project receives the example, never the frame’s 
     expect(existsSync(path.join(PROJET, 'scripts/sortie.mjs'))).toBe(false);
   });
 
+  it('receives none of the paths the frame’s own tests read (grillhouse.lit of its package.json)', () => {
+    const recu = JSON.parse(readFileSync(path.join(PROJET, 'package.json'), 'utf8')) as {
+      grillhouse?: { lit?: unknown };
+    };
+    expect(recu.grillhouse?.lit).toBeUndefined();
+  });
+
   it('keeps no templates/ directory', () => {
     expect(existsSync(path.join(PROJET, 'templates'))).toBe(false);
   });

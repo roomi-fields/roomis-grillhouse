@@ -50,8 +50,9 @@ if [ -e "$dest/templates" ]; then
   echo "$dest/templates holds something other than files and directories" >&2
   exit 1
 fi
-# `npm run new` belongs to the template only
-node -e 'const f=process.argv[1],p=JSON.parse(require("fs").readFileSync(f));delete p.scripts.new;require("fs").writeFileSync(f,JSON.stringify(p,null,2)+"\n")' "$dest/package.json"
+# `npm run new` belongs to the template only, and so do the paths the frame's own tests read
+# (`grillhouse.lit`, scripts/vitest-config/changements.mjs)
+node -e 'const f=process.argv[1],p=JSON.parse(require("fs").readFileSync(f));delete p.scripts.new;if(p.grillhouse){delete p.grillhouse.lit;if(!Object.keys(p.grillhouse).length)delete p.grillhouse}require("fs").writeFileSync(f,JSON.stringify(p,null,2)+"\n")' "$dest/package.json"
 
 bash "$dest/scripts/setup.sh" ${2:+"$2"}
 git -C "$dest" add -A

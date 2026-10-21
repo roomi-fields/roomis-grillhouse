@@ -3,8 +3,22 @@
 // and the night play. Its verdict is green (0), red (1) or « à repasser » (75).
 //
 //   node scripts/verifier.mjs [<argument of Turborepo>…]      (npm run verifier -- --force)
+//   node scripts/verifier.mjs --tout [<argument>…]             every test, played for real
 //   node scripts/verifier.mjs --gardes [<argument>…]           the guards alone (the reviewer)
 //
+// - A pass measures itself against the last green (scripts/dernier-vert.mjs), as
+//   `vitest --changed` and `jest --onlyChanged` do: the tree of the last pass green on every
+//   package, kept per repository. When it counts (its commit an ancestor of HEAD), each package
+//   Turborepo plays again plays the tests Vitest relates to the files changed since it, or all
+//   its tests when a change lies out of Vitest's graph (scripts/vitest-config/changements.mjs);
+//   a package whose inputs did not move replays from Turborepo's cache, the guards play whole,
+//   and so do the builds. The changes reach Vitest in a variable no hash counts
+//   (`GRILLHOUSE_CHANGEMENTS`). Without a last green that counts, the pass is complete. The
+//   line `↳` says which. A pass green, restricted by no filter, keeps its tree as the last green;
+//   a red one keeps the last green as it was.
+// - `--tout`, and `--force` (the night, scripts/nuit.sh), play the complete pass: no measure
+//   against the last green, and each task of tests played for real (the variable of the tests
+//   carries the moment of the pass, `rejouer`, which no cached run holds).
 // - The pass holds the lock of the machine for the heavy measure (scripts/verrou-de-machine.mjs),
 //   shared by every repository of the machine: a pass that finds it held waits for the end of the
 //   other measure, and says so.
@@ -52,8 +66,8 @@
 //   repasser »: neither green nor red; whoever launched the pass presents it again later
 //   (scripts/integration/integrer.mjs, scripts/integration/file.mjs, scripts/nuit.sh).
 // - Every run plays without the paths of a targeted run's tests: the variable `GRILLHOUSE_TESTS`
-//   (scripts/vitest-config/cibles.mjs) carries only the choice of the witnesses, and the pass plays
-//   every test.
+//   (scripts/vitest-config/cibles.mjs) carries only the choice of the witnesses (and `rejouer` for
+//   a complete pass).
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, rmdirSync } from 'node:fs';
 import { availableParallelism } from 'node:os';
@@ -69,6 +83,8 @@ import {
 } from './vitest-config/pression.mjs';
 import { garderLesResumes } from './resultats.mjs';
 import { fichiersTemoins, VARIABLE as TESTS_CIBLES } from './vitest-config/cibles.mjs';
+import { CHANGEMENTS } from './vitest-config/changements.mjs';
+import { garderLeVert, mesure } from './dernier-vert.mjs';
 
 const GARDES = ['grillhouse:gardes', 'gardes'];
 const TACHES = [...GARDES, 'test:vitest'];
@@ -151,12 +167,56 @@ export function verifier({
 }
 
 function passe({ racine, demandes, env, borneMs, pasMs, dire, coeurs }) {
-  const { [TESTS_CIBLES]: _, ...propre } = env;
+  const gardesSeules = demandes.includes('--gardes');
+  const tout = demandes.includes('--tout') || demandes.includes('--force');
+  const args = demandes.filter(a => a !== '--gardes' && a !== '--tout');
+  const { filtres: filtresDeLaPasse } = separerLesFiltres(args);
+  // The measure against the last green: the guards alone need none.
+  const m = gardesSeules ? null : mesure(racine, { tout });
+  if (m) dire(m.ligne);
+  try {
+    const code = jouerLaPasse({
+      racine,
+      gardesSeules,
+      args,
+      tout,
+      ajouts: m?.env ?? {},
+      env,
+      borneMs,
+      pasMs,
+      dire,
+      coeurs,
+    });
+    // A pass green on every package keeps its tree as the last green.
+    if (code === 0 && m?.etat && filtresDeLaPasse.length === 0) garderLeVert(m.etat);
+    return code;
+  } finally {
+    m?.retirer();
+  }
+}
+
+function jouerLaPasse({
+  racine,
+  gardesSeules,
+  args,
+  tout,
+  ajouts,
+  env,
+  borneMs,
+  pasMs,
+  dire,
+  coeurs,
+}) {
+  const { [TESTS_CIBLES]: _, [CHANGEMENTS]: __, ...propre } = env;
+  // The moment of a complete pass, which moves the hash of every task of tests: each plays for
+  // real.
+  const rejouer = tout ? { rejouer: new Date().toISOString() } : {};
   // The environment of a run whose tests leave the witnesses out (`hors`) or play them alone
-  // (`seuls`).
+  // (`seuls`), measured against the last green.
   const choix = temoins => ({
     ...propre,
-    [TESTS_CIBLES]: JSON.stringify({ arguments: [], temoins }),
+    ...ajouts,
+    [TESTS_CIBLES]: JSON.stringify({ arguments: [], temoins, ...rejouer }),
   });
   const turbo = (a, e) =>
     spawnSync('turbo', ['run', ...a], { cwd: racine, env: e, stdio: 'inherit' });
@@ -187,8 +247,6 @@ function passe({ racine, demandes, env, borneMs, pasMs, dire, coeurs }) {
     return { r, resume, env: e, libelle };
   };
 
-  const gardesSeules = demandes.includes('--gardes');
-  const args = demandes.filter(a => a !== '--gardes');
   const borne = args.some(a => CONCURRENCE.test(a)) ? [] : [`--concurrency=${concurrence(coeurs)}`];
   const passes = [
     jouer(

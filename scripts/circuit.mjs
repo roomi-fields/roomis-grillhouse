@@ -129,7 +129,11 @@
 // - Each command of the proof and of the checks runs with its own results directory
 //   (`GRILLHOUSE_RESULTATS`), where Turborepo writes its summary (scripts/tests.mjs,
 //   scripts/verifier.mjs), Vitest its JSON report (scripts/vitest-config/resultats.mjs) and each
-//   guard its SARIF; its output goes to the log, for the human.
+//   guard its SARIF; its output goes to the log, for the human. Each `npm test` of them carries
+//   the mark `GRILLHOUSE_DEPUIS_LE_VERT` (scripts/dernier-vert.mjs): in a package named whole,
+//   the tests that play are those Vitest relates to the files changed since the last green of the
+//   repository, the files named among them, as `npm run verifier` measures itself; a lot that
+//   changes one test plays that test, and those whose graph it reaches.
 // - The proof of the red plays the whole component, as the CI of bors plays the whole suite of
 //   the components a change touches: main is green, so a test HEAD holds that turns red in the
 //   copy is a regression of the lot. One run per package, `npm test -- <package> <files>` in the
@@ -187,7 +191,9 @@
 //   global guards': they play at the final pass alone.
 // - After the last component of the run, the final pass: `npm run verifier`, what the
 //   integration plays, as bors plays on a lot the very check of the merge. Turborepo's cache
-//   holds its cost: a task nothing moved replays from it, and what the lot reaches plays again,
+//   and the last green hold its cost: a task nothing moved replays from it, and in a package
+//   that plays again, the tests Vitest relates to the files changed since the last green
+//   (scripts/dernier-vert.mjs); what the lot reaches plays again,
 //   by the dependencies, the inputs of the tasks and `grillhouse.lit` (a reader out of the title
 //   whose tests read a directory the lot changes included). After a review, save on the lot it
 //   accepted, the final pass is restricted to what changed since the lot it read and to its
@@ -409,6 +415,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
 import { ecrireLeBilan } from './bilan.mjs';
+import { DEPUIS_LE_VERT } from './dernier-vert.mjs';
 import { repondre, verifierLeTitre } from './composants-affectes.mjs';
 import { optionsDuRole } from './droits.mjs';
 import { matieres, NOM_DE_TEST } from './consommateurs.mjs';
@@ -1643,7 +1650,12 @@ function npm(ctx, etape, composant, args, env = {}) {
         spawnSync('npm', args, {
           cwd: ctx.copie,
           stdio: ['ignore', fd, fd],
-          env: { ...envMachine, ...env, [RESULTATS]: dossier },
+          env: {
+            ...envMachine,
+            ...env,
+            [RESULTATS]: dossier,
+            ...(args[0] === 'test' ? { [DEPUIS_LE_VERT]: '1' } : {}),
+          },
         }),
       { dire: l => appendFileSync(ctx.journal, `${l}\n`) }
     );

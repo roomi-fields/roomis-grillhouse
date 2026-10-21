@@ -94,5 +94,20 @@
     "vitest": "^2.0.0",
     "yaml": "2.9.1"
   },
-  "packageManager": "npm@10.9.8"
+  "packageManager": "npm@10.9.8",
+  "grillhouse": {
+    "lit": [
+      ".beads",
+      ".claude",
+      ".dependency-cruiser.cjs",
+      ".eslintrc.cjs",
+      ".mcp.json",
+      "ecosystem.config.cjs",
+      "knip.json",
+      "mods",
+      "scripts",
+      "templates",
+      "tsdoc.json"
+    ]
+  }
 }

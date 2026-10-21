@@ -23,7 +23,9 @@
 //   and a path that names no test is a mistake, never a green.
 // - The tests a targeted run names arrive in the variable `GRILLHOUSE_TESTS`, which a plugin
 //   reads once the configuration is merged and turns into the files played (./cibles.mjs); without
-//   it, nothing changes. `mergeConfig` adds the plugins of a configuration that extends this one to
+//   it, nothing changes. The same plugin restricts a pass measured against the last green to the
+//   tests Vitest relates to the files changed since it (`GRILLHOUSE_CHANGEMENTS`,
+//   ./changements.mjs). `mergeConfig` adds the plugins of a configuration that extends this one to
 //   it.
 // - The common environment: Node, no watch, and git's settings for the tests by the environment
 //   (GIT_CONFIG_COUNT/KEY/VALUE, git-config(1)), the automatic maintenance and garbage collection
