@@ -54,15 +54,15 @@ if (existsSync('casse')) {
     const id = 'demo-construction';
     const copie = ticket(id, '000-forms, 030-binder');
     casserLaConstruction(copie, 'binder');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code de forms écrit.'\n`);
     scenario(id, 'developpeur-2', `${CODE_JUSTE}rm $c/casse\npassation 'Binder construit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(ordre(id)).toEqual([
-      'testeur packages/forms',
+      'testwriter packages/forms',
       'developpeur packages/forms',
-      'testeur packages/binder',
+      'testwriter packages/binder',
       'developpeur packages/binder',
       'relecteur',
     ]);
@@ -118,16 +118,16 @@ if (existsSync('casse')) {
       `await new Promise(r => setTimeout(r, 2000));\n${readFileSync(construction, 'utf8')}`
     );
     ecrireTurbo(copie);
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}rm -f $c/casse\npassation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(ordre(id)).toEqual([
-      'testeur packages/forms',
+      'testwriter packages/forms',
       'developpeur packages/forms',
-      'testeur packages/binder',
+      'testwriter packages/binder',
       'developpeur packages/binder',
-      'testeur packages/checker',
+      'testwriter packages/checker',
       'developpeur packages/checker',
       'relecteur',
     ]);
@@ -155,12 +155,12 @@ if (existsSync('casse')) {
     const id = 'demo-construction-ailleurs';
     const copie = ticket(id, '030-binder');
     casserLaConstruction(copie, 'forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(ARRETS.preuve);
-    expect(sessions(id, 'testeur')).toBe(3);
+    expect(sessions(id, 'testwriter')).toBe(3);
     expect(sessions(id, 'developpeur')).toBe(0);
-    const relance = essai(id, 'testeur-3.prompt');
+    const relance = essai(id, 'testwriter-3.prompt');
     expect(relance).toContain('packages/binder/test/mesure.test.mjs — ne se charge pas');
     expect(relance).not.toContain('construction de 000-forms');
     expect(relance).not.toContain('Rouges (');

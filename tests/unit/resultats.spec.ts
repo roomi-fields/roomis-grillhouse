@@ -3,9 +3,9 @@
 // `claude -p --output-format json --json-schema`, its field `structured_output`), the findings of a
 // guard in SARIF 2.1.0, the run summary of Turborepo (`--summarize`) and the JSON report of Vitest.
 // Witness: BPScript 320.3 (2026-10-20), where the circuit read free text: the line « Agent :
-// testeur » only at the start of a line, the notice ⚠ of a guard not set aside, the red of the
+// testwriter » only at the start of a line, the notice ⚠ of a guard not set aside, the red of the
 // guards given to the component under way, the last 60 lines of a log that hid the real red, and
-// 8 relaunches of a testeur for the form of a line « vert attendu ».
+// 8 relaunches of a testwriter for the form of a line « vert attendu ».
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -41,13 +41,13 @@ const sortie = (structured?: unknown) =>
   });
 
 describe('the sheet of each role holds only the fields a reader reads', () => {
-  it('the testeur: its status, its reason or question, its expected greens, its discoveries', () => {
-    expect(champs('testeur')).toEqual(
+  it('the testwriter: its status, its reason or question, its expected greens, its discoveries', () => {
+    expect(champs('testwriter')).toEqual(
       ['decouvertes', 'question', 'raison', 'statut', 'verts_attendus'].sort()
     );
-    expect((schemaDeFiche('testeur') as Schema).required).toEqual(['statut']);
+    expect((schemaDeFiche('testwriter') as Schema).required).toEqual(['statut']);
   });
-  it('the developpeur: its status, its sending to a testeur, the deviations to name at the commit, its discoveries', () => {
+  it('the developpeur: its status, its sending to a testwriter, the deviations to name at the commit, its discoveries', () => {
     expect(champs('developpeur')).toEqual(
       ['decouvertes', 'ecarts', 'question', 'raison', 'renvoi', 'statut'].sort()
     );
@@ -178,7 +178,7 @@ describe('the sheets of the questioning (L9)', () => {
 describe('the reading of a sheet in the output of a session', () => {
   it('a conforming sheet is read with the session that wrote it', () => {
     const lu = lireFiche(
-      'testeur',
+      'testwriter',
       sortie({
         statut: 'FAIT',
         verts_attendus: [{ fichier: 'packages/a/test/x.test.ts', raison: 'renommé' }],
@@ -193,20 +193,20 @@ describe('the reading of a sheet in the output of a session', () => {
     });
   });
   it('an output without structured_output has no sheet, and says so', () => {
-    const lu = lireFiche('testeur', sortie());
+    const lu = lireFiche('testwriter', sortie());
     expect(lu.fiche).toBeUndefined();
     expect(lu.erreur).toContain('structured_output');
   });
   it('an output that is no JSON, or empty, has no sheet', () => {
-    expect(lireFiche('testeur', 'passation au ticket').erreur).toBeTruthy();
-    expect(lireFiche('testeur', '').erreur).toBeTruthy();
+    expect(lireFiche('testwriter', 'passation au ticket').erreur).toBeTruthy();
+    expect(lireFiche('testwriter', '').erreur).toBeTruthy();
   });
   it.each([
-    ['testeur', { statut: 'PEUT-ÊTRE' }, 'statut'],
-    ['testeur', { statut: 'FAIT', note: 'x' }, 'note'],
-    ['testeur', { statut: 'BLOQUÉ' }, 'raison'],
+    ['testwriter', { statut: 'PEUT-ÊTRE' }, 'statut'],
+    ['testwriter', { statut: 'FAIT', note: 'x' }, 'note'],
+    ['testwriter', { statut: 'BLOQUÉ' }, 'raison'],
     ['developpeur', { statut: 'BESOIN' }, 'question'],
-    ['testeur', { statut: 'FAIT', verts_attendus: [{ fichier: 'a.test.ts' }] }, 'raison'],
+    ['testwriter', { statut: 'FAIT', verts_attendus: [{ fichier: 'a.test.ts' }] }, 'raison'],
     ['developpeur', { statut: 'FAIT', renvoi: { role: 'developpeur', composant: 'a' } }, 'role'],
     ['relecteur', { verdict: 'PEUT-ÊTRE' }, 'verdict'],
     ['relecteur', { verdict: 'RENDU', constats: [{ titre: 't' }] }, 'corps'],

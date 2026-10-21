@@ -12,7 +12,7 @@ import { ecrire as ecrireTurbo } from '../../scripts/turbo-des-paquets.mjs';
 // The trial repository holds two packages, `000-forms` (packages/forms) and `030-binder`
 // (packages/binder, which depends on forms), whose `mesure` is wrong until the developpeur writes
 // it; with `feuille`, a third, `060-sheet` (packages/sheet), which depends on none. Each session of the
-// testeur and the developpeur is a real launch (scripts/enveloppe/lancer.sh) in a real envelope;
+// testwriter and the developpeur is a real launch (scripts/enveloppe/lancer.sh) in a real envelope;
 // the reviewer's and the regulator's are claude in the ticket's copy, out of the envelope (a
 // regulator without a scenario answers nothing: the stop goes to the supervisor); claude is a stand-in (CLAUDE_BIN)
 // that plays the scenario the test wrote for its role, and bd is a stand-in on the PATH whose
@@ -40,7 +40,7 @@ export const ecrire = (f: string, texte: string, mode?: number) => {
 // `passation <text>`, a comment under the session's author, as bd writes it, and ends on its sheet
 // with `fiche '<json>'`. As claude with `--output-format json`, it prints on its standard output
 // its JSON result alone, whatever the scenario prints (on its standard error), the sheet in
-// `structured_output`: the scenario's, else `{"statut":"FAIT"}` for a testeur or a developpeur,
+// `structured_output`: the scenario's, else `{"statut":"FAIT"}` for a testwriter or a developpeur,
 // `{"issue":"AUCUNE"}` for the questionneur (a plan or a decision it has no question on), none for
 // another role or after `sans_fiche`; a `--json-schema` that is not JSON fails, code 1,
 // as claude refuses it. As claude, a session `--session-id <id>` keeps its transcript in
@@ -90,7 +90,7 @@ passation() {
 # The sheet of the session, and none at all.
 la_fiche=
 case "$role" in
-  testeur|developpeur) la_fiche='{"statut":"FAIT"}' ;;
+  testwriter|developpeur) la_fiche='{"statut":"FAIT"}' ;;
   questionneur) la_fiche='{"issue":"AUCUNE"}' ;;
 esac
 fiche() { la_fiche=$1; }
@@ -338,7 +338,7 @@ export function circuitEssai(ESSAIS: string, { feuille = false } = {}) {
     ecrire(path.join(REPO, 'garde.mjs'), GARDE);
     ecrire(path.join(REPO, 'CLAUDE.md'), CHARTE);
     ecrireTurbo(REPO);
-    for (const role of ['testeur', 'developpeur']) {
+    for (const role of ['testwriter', 'developpeur']) {
       ecrire(path.join(REPO, `.claude/agents/${role}.md`), `---\nname: ${role}\n---\n`);
     }
     ecrire(

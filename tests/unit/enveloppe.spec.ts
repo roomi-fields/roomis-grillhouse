@@ -380,7 +380,7 @@ describe('plan refuses', () => {
   });
   // grillhouse-2sq: the package of the shared test material comes back whole, so a link of it
   // that aims at a hidden component would cross the envelope, for every role.
-  it.each(['testeur', 'developpeur'])(
+  it.each(['testwriter', 'developpeur'])(
     'a link of the shared test material that crosses into a hidden component (%s)',
     role => {
       const disk = fakeDisk(

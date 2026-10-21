@@ -1244,7 +1244,7 @@ describe('grillhouse-3uv.56 critère 13 — the settings are written only when t
     expect(date(projet)).toBe(ANCIENNE.getTime());
   });
 
-  // Arbitrage of the regulator (comment « cas relevés par le testeur »): the content is the JSON value;
+  // Arbitrage of the regulator (comment « cas relevés par le testwriter »): the content is the JSON value;
   // the same value under another layout is not a change.
   it.each([
     ['on one line', (v: unknown) => `${JSON.stringify(v)}\n`],
@@ -1899,6 +1899,27 @@ describe('the update makes the configuration package of Vitest a workspace of a 
       '.claude/skills/referent-technique/SKILL.md',
       '.claude/skills/regulateur/SKILL.md',
     ]) {
+      expect(existsSync(path.join(projet, f)), f).toBe(true);
+    }
+  });
+  // The former tester is now the testwriter (Romain, 2026-10-21); a project keeps neither its
+  // agent nor its skill.
+  it('the update removes the former agent and skill of step 2.1', () => {
+    const projet = projetAPaquets(['packages/*']);
+    const ancien = 'testeur';
+    const anciens = [`.claude/agents/${ancien}.md`, `.claude/skills/${ancien}/SKILL.md`];
+    for (const f of anciens) {
+      ecrire(projet, f, 'ancien\n');
+    }
+    const b = mettreAJour(projet, DEPOT, 'essai');
+    for (const f of anciens) {
+      expect(existsSync(path.join(projet, f)), f).toBe(false);
+    }
+    expect(existsSync(path.join(projet, `.claude/skills/${ancien}`))).toBe(false);
+    expect(b.retires).toEqual(
+      expect.arrayContaining([`.claude/agents/${ancien}.md`, `.claude/skills/${ancien}/`])
+    );
+    for (const f of ['.claude/agents/testwriter.md', '.claude/skills/testwriter/SKILL.md']) {
       expect(existsSync(path.join(projet, f)), f).toBe(true);
     }
   });

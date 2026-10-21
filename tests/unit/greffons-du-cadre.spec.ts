@@ -142,7 +142,7 @@ function outilsDeLaPreparation() {
 function projetAPreparer(reglages: object = REGLAGES_DU_CADRE) {
   const p = projet(reglages);
   cpSync(path.join(DEPOT, 'scripts'), path.join(p, 'scripts'), { recursive: true });
-  mkdirSync(path.join(p, '.claude/skills/testeur'), { recursive: true });
+  mkdirSync(path.join(p, '.claude/skills/testwriter'), { recursive: true });
   writeFileSync(path.join(p, 'package.json'), '{"name":"p"}\n');
   return p;
 }

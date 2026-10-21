@@ -222,7 +222,7 @@ describe('grillhouse-3uv.56 critère 20 — two components of the same name are 
       )
     ).toBe(true);
   });
-  // Arbitrage of the regulator (comment « cas relevés par le testeur »): a name listed in
+  // Arbitrage of the regulator (comment « cas relevés par le testwriter »): a name listed in
   // docs/agents/hors-cadre.txt is not a component, and packages/A and src/a bear two names.
   it('critère 20: two directories of a name listed in hors-cadre.txt, under packages/ and src/, are not refused', () => {
     const dir = repo({

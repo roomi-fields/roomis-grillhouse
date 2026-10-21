@@ -146,7 +146,7 @@ function etat(repo: string) {
 function projet({ depot = true, hooksPath = false } = {}) {
   const repo = mkdtempSync(path.join(ESSAIS, 'projet-'));
   cpSync(path.join(DEPOT, 'scripts'), path.join(repo, 'scripts'), { recursive: true });
-  mkdirSync(path.join(repo, '.claude/skills/testeur'), { recursive: true });
+  mkdirSync(path.join(repo, '.claude/skills/testwriter'), { recursive: true });
   writeFileSync(
     path.join(repo, 'package.json'),
     `${JSON.stringify({ name: 'p', grillhouse: { poussee: { nuit: 'main' } } }, null, 2)}\n`

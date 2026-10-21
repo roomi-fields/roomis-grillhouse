@@ -113,7 +113,7 @@ function depotLots() {
 }
 
 // grillhouse-2sq.2: the lots follow the one rule of ownership of the locks (`isTesterFile`): the
-// tests lot holds what the testeur writes, test files and the shared test material; the code
+// tests lot holds what the testwriter writes, test files and the shared test material; the code
 // lot holds none of it.
 describe('refusLots', () => {
   const repo = depotLots();
@@ -470,14 +470,14 @@ describe('an integration', () => {
     writeFileSync(patch, diff);
     return patch;
   };
-  it('3uv.54 reprise du RENDU: refuses a code lot that renames a test file into a file outside the testeur', () => {
+  it('3uv.54 reprise du RENDU: refuses a code lot that renames a test file into a file outside the testwriter', () => {
     const m = monde(['ACCEPTÉ']);
     mkdirSync(path.join(m.repo, 'tests'));
     m.poser('tests/b.spec.ts', 'test\n');
     const patch = lotRenomme(m, 'test-renomme.patch', 'tests/b.spec.ts', 'src/a/b.ts');
     const r = m.lancer(['--code', patch], []);
     expect(r.status).toBe(1);
-    expect(r.stdout).toMatch(/lot de code touche des fichiers du testeur/);
+    expect(r.stdout).toMatch(/lot de code touche des fichiers du testwriter/);
     expect(r.stdout).toContain('tests/b.spec.ts');
     expect(m.etat().log[0]).toBe('pose tests/b.spec.ts');
     expect(m.appels()).toBe('');
@@ -503,7 +503,7 @@ describe('an integration', () => {
     const patch = lotRenommeParGit(m, 'cafe.patch', 'tests/café.spec.ts', 'src/a/café.ts');
     const r = m.lancer(['--code', patch], []);
     expect(r.status, r.stdout).toBe(1);
-    expect(r.stdout).toMatch(/lot de code touche des fichiers du testeur/);
+    expect(r.stdout).toMatch(/lot de code touche des fichiers du testwriter/);
     expect(r.stdout).toContain('tests/café.spec.ts');
     expect(r.stdout).not.toMatch(/\\[0-7]{3}|"tests\//);
   });

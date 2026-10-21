@@ -32,7 +32,7 @@ interface Ligne {
   jetons: number;
 }
 
-// The test the testeur writes, red until the developpeur's code: each time it loads (the proof,
+// The test the testwriter writes, red until the developpeur's code: each time it loads (the proof,
 // the checks, the final pass), it copies the state of its circuit to the trial's folder of the
 // ticket, so the test reads the state during a step the circuit leads.
 const ROUGE_QUI_LIT_L_ETAT = `${ECRIT_ROUGE}cat >> $c/test/mesure.test.mjs <<'EOF'
@@ -48,7 +48,7 @@ describe.runIf(canWrap)('the steps the circuit leads itself', { timeout: 300_000
   it('writes a register line for each: the proof, the checks, the integration and the queue', () => {
     const id = 'demo-registre';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ROUGE_QUI_LIT_L_ETAT}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ROUGE_QUI_LIT_L_ETAT}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const registre = path.join(ESSAIS, 'registre.jsonl');
     const r = circuit([id], { GRILLHOUSE_REGISTRE: registre });

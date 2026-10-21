@@ -350,7 +350,7 @@ describe('3uv.45 critère 3 : a closed ticket has no agent running from writings
     T('demo-e.2', { parent: 'demo-e', status: 'closed', closed_at: quand(22) }),
   ];
   const avecFinTardive = () => {
-    const home = sousAgent('t1', 'testeur', [
+    const home = sousAgent('t1', 'testwriter', [
       [invite('demo-e.2'), quand(0)],
       [reponse, quand(5)],
       [reponse, quand(5, 4)],
@@ -362,7 +362,7 @@ describe('3uv.45 critère 3 : a closed ticket has no agent running from writings
       [piece, quand(20, 48)],
     ]);
     return plateau(home, TOUS, [
-      arret('t1', 'demo-e.2', 'testeur', quand(5)),
+      arret('t1', 'demo-e.2', 'testwriter', quand(5)),
       arret('i1', 'demo-e.2', 'relecteur', quand(20, 42)),
     ]);
   };
@@ -477,7 +477,7 @@ describe('3uv.45 critère 6 : an agent without an end runs while its transcript 
       [invite('demo-9'), quand(0)],
       [reponse, quand(30)],
     ]);
-    const t = plateau(home, [T('demo-9')], [arret('autre', 'demo-9', 'testeur', quand(35))]);
+    const t = plateau(home, [T('demo-9')], [arret('autre', 'demo-9', 'testwriter', quand(35))]);
     expect(enCoursDe(t, 'relecteur')).toEqual(['demo-9']);
   });
 });
@@ -512,9 +512,9 @@ describe('3uv.45 critère 10 : a shell agent without an end runs while its proce
   );
 
   it('3uv.45 critère 10 : another role and ticket in a shell, still for 5 minutes, process running, is in progress', () => {
-    const { home, ps } = immobile('s21', 'testeur', 'demo-8', 5 * MIN);
+    const { home, ps } = immobile('s21', 'testwriter', 'demo-8', 5 * MIN);
     const t = plateau(home, [T('demo-8')], [], ps);
-    expect(enCoursDe(t, 'testeur')).toEqual(['demo-8']);
+    expect(enCoursDe(t, 'testwriter')).toEqual(['demo-8']);
   });
 
   it('3uv.45 critère 10 : the same shell agent, its process gone, is not in progress', () => {
@@ -546,7 +546,7 @@ describe('3uv.45 critère 7 : an agent of a closed ticket followed after its end
   );
 
   it('3uv.45 critère 7 : of two agents on the closed ticket, only the one sent a message runs', () => {
-    const home = sousAgent('t2', 'testeur', [
+    const home = sousAgent('t2', 'testwriter', [
       [invite('demo-e.2'), quand(0)],
       [reponse, quand(5)],
       [reponse, quand(5, 4)],
@@ -558,11 +558,11 @@ describe('3uv.45 critère 7 : an agent of a closed ticket followed after its end
       [reponse, quand(25, 5)],
     ]);
     const t = plateau(home, TOUS, [
-      arret('t2', 'demo-e.2', 'testeur', quand(5)),
+      arret('t2', 'demo-e.2', 'testwriter', quand(5)),
       arret('i3', 'demo-e.2', 'relecteur', quand(20, 42)),
     ]);
     expect(enCoursDe(t, 'relecteur')).toEqual(['demo-e.2']);
-    expect(enCoursDe(t, 'testeur')).toEqual([]);
+    expect(enCoursDe(t, 'testwriter')).toEqual([]);
   });
 });
 

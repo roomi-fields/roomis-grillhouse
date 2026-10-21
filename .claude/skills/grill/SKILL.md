@@ -136,7 +136,7 @@ remplace jamais le grill. Les branches de l'arbre :
    **Le corpus du produit, un seul paquet** : les cas qui traversent toute la chaîne, et dont toute
    modification d'un paquet peut changer le résultat, vivent dans un seul paquet qui exporte
    `./test-fixtures`, comme `tests/cases` de TypeScript ou `tests/ui` de rustc ; tous les rôles le
-   lisent, le testeur seul l'écrit. Sa configuration de Vitest s'écrit en CommonJS
+   lisent, le testwriter seul l'écrit. Sa configuration de Vitest s'écrit en CommonJS
    (`vitest.config.cjs`, la base du cadre par `await import()`) : Vite écrit un fichier à côté
    d'une configuration ESM pour la charger, et le corpus est en lecture seule chez les autres
    rôles. Ses données (scènes, paires) ne bougent que les tests qui

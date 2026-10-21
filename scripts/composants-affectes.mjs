@@ -3,7 +3,7 @@
 // components » of a design document (an RFC of Rust, a design doc of Chromium) and the dependents
 // of a package in Turborepo (`--filter=...<paquet>`). The explorateur runs it on the draft of a
 // ticket, whose title then names these components and whose section « Architecture » says the
-// survey; the circuit (scripts/circuit.mjs) runs it again before the testeur of the first
+// survey; the circuit (scripts/circuit.mjs) runs it again before the testwriter of the first
 // component, and stops on a component the title does not name.
 //
 //   node scripts/composants-affectes.mjs <ticket>                 the ticket `bd show` gives
@@ -368,7 +368,7 @@ export function manquants(racine, r, titre, fichier = null) {
   });
 }
 
-// The check of the circuit before the testeur of the first component: the survey of
+// The check of the circuit before the testwriter of the first component: the survey of
 // <description> in <racine> against the title's components <titre>, the missing ones kept in
 // <fichier>. `{ manquants, rapport, releve }`, the report opening on the missing components (null
 // without one), the survey as the section « Architecture » says it, which the questionneur reads.

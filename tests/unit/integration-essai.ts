@@ -337,7 +337,7 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
   };
   // True when <rel> goes to the tests lot: a test file, or any file under a test folder (the
   // frame's rule, scripts/verrous/verrou.mjs isTestFile).
-  const duTesteur = (rel: string) =>
+  const duTestwriter = (rel: string) =>
     /\.(spec|test)\.[cm]?[jt]s$/.test(rel) ||
     rel
       .split('/')
@@ -366,7 +366,7 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
         : contenu === null
           ? gitDans(copie, 'diff', '--cached', '--', rel)
           : gitDans(copie, 'diff', '--', rel);
-      if (duTesteur(rel)) {
+      if (duTestwriter(rel)) {
         tests += diff;
       } else {
         code += diff;
@@ -407,7 +407,7 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
         : spawnSync('git', ['-C', copie, 'diff', '--no-index', '/dev/null', rel], {
             encoding: 'utf8',
           }).stdout;
-      if (duTesteur(rel)) {
+      if (duTestwriter(rel)) {
         tests += diff;
       } else {
         code += diff;

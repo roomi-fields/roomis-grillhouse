@@ -5,16 +5,16 @@
 //
 //   node scripts/resultats.mjs --schema <rôle>      prints the JSON schema of a role's sheet
 //
-// - The sheet of the end of a session (« la fiche ») of the testeur, the developpeur, the reviewer,
+// - The sheet of the end of a session (« la fiche ») of the testwriter, the developpeur, the reviewer,
 //   the regulator, the questionneur and the technical referent: the schema of each role (FICHES), which the session receives
 //   (`claude -p --output-format json --json-schema <schéma>`) and fills as its last act; claude
 //   writes it in the field `structured_output` of its result (Claude Code, « headless »). A field
 //   exists only when a reader reads it:
 //   - `statut` (FAIT, BLOQUÉ, BESOIN), with `raison` for BLOQUÉ and `question` for BESOIN: the
-//     circuit goes on, or stops at « hors-portee » or « besoin » (testeur, developpeur);
+//     circuit goes on, or stops at « hors-portee » or « besoin » (testwriter, developpeur);
 //   - `verts_attendus` (`fichier` from the root, `test` its full name, or none for every green of a
-//     file HEAD holds, `raison`): the proof of the red (testeur);
-//   - `renvoi` (`role` testeur, `composant`): the circuit plays that component from its testeur
+//     file HEAD holds, `raison`): the proof of the red (testwriter);
+//   - `renvoi` (`role` testwriter, `composant`): the circuit plays that component from its testwriter
 //     (developpeur);
 //   - `ecarts`: the body of the commit message, written by the circuit (developpeur, reviewer);
 //   - `decouvertes` (`sujet`, `corps`): each one a ticket filed closed under the ticket, labelled
@@ -139,7 +139,7 @@ const REPONSES = {
 
 // The schema of the sheet of each role the circuit leads.
 const FICHES = {
-  testeur: objet(
+  testwriter: objet(
     {
       ...STATUT,
       verts_attendus: liste(
@@ -163,7 +163,10 @@ const FICHES = {
     {
       ...STATUT,
       renvoi: objet(
-        { role: { type: 'string', enum: ['testeur'] }, composant: texte('Un composant du titre.') },
+        {
+          role: { type: 'string', enum: ['testwriter'] },
+          composant: texte('Un composant du titre.'),
+        },
         ['role', 'composant'],
         'Le rouge qui reste est dans les tests de ce composant, le tien ou un d’avant.'
       ),
@@ -179,7 +182,7 @@ const FICHES = {
         objet(
           {
             titre: texte('Son adresse : fichier et ligne.'),
-            role: { type: 'string', enum: ['testeur', 'developpeur'] },
+            role: { type: 'string', enum: ['testwriter', 'developpeur'] },
             composant: texte('Le composant du titre où la correction s’écrit.'),
             corps: texte('Sa preuve et la règle qu’il enfreint.'),
             critere_en_cause: texte('Le critère lui-même en cause, au lieu d’un destinataire.'),
@@ -213,7 +216,7 @@ const FICHES = {
       decision: { type: 'string', enum: ['RELANCE --reprendre', 'RELANCE --depuis', 'MONTE'] },
       depuis: objet(
         {
-          role: { type: 'string', enum: ['testeur', 'developpeur'] },
+          role: { type: 'string', enum: ['testwriter', 'developpeur'] },
           composant: texte('Un composant du titre.'),
         },
         ['role', 'composant'],

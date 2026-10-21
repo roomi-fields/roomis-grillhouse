@@ -22,7 +22,7 @@ describe.runIf(canWrap)('the circuit of a ticket and the machine', { timeout: 30
   it('waits for the measure that holds the machine, then plays its heavy passes under its lock', async () => {
     const id = 'demo-machine';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     // Another measure holds the machine: a live process that is not one of the circuit's.
     const verrou = path.join(ESSAIS, 'mesure-lourde.lock');
@@ -55,7 +55,7 @@ describe.runIf(canWrap)('the circuit of a ticket and the machine', { timeout: 30
     }
     expect(await fin, lire().slice(-4000)).toBe(0);
     expect(ordre(id)).toEqual([
-      'testeur packages/forms',
+      'testwriter packages/forms',
       'developpeur packages/forms',
       'relecteur',
     ]);

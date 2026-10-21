@@ -152,12 +152,12 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
   it('ACCEPTÉ leads to the integration: one commit on agent/<ticket>, the branch in the queue', () => {
     const id = 'demo-accepte';
     const copie = ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(ordre(id)).toEqual([
-      'testeur packages/forms',
+      'testwriter packages/forms',
       'developpeur packages/forms',
       'relecteur',
     ]);
@@ -200,7 +200,7 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
     const affirmations = /LE FICHIER D'AFFIRMATIONS, [^:]*: (\S+)/.exec(consigne)?.[1] ?? '';
     expect(path.basename(affirmations)).toBe('affirmations.md');
     expect(a[a.indexOf('--add-dir') + 1]).toBe(path.dirname(affirmations));
-    // The integration: the commit holds the testeur's lot and the developpeur's, under the
+    // The integration: the commit holds the testwriter's lot and the developpeur's, under the
     // message the circuit writes; the copy is gone; the queue brings it onto main and closes the
     // ticket.
     const commit = gitRepo('show', '--name-only', '--format=%s', 'main');
@@ -232,21 +232,21 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
   it('each session writes at the ticket under its role (BEADS_ACTOR), the circuit under « circuit », the verdict under « relecteur », and none may change its author', () => {
     const id = 'demo-auteurs';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     // Each session receives the author of its role, in the envelope and out of it.
-    expect(essai(id, 'testeur-1.acteur')).toBe('testeur packages/forms');
+    expect(essai(id, 'testwriter-1.acteur')).toBe('testwriter packages/forms');
     expect(essai(id, 'developpeur-1.acteur')).toBe('developpeur packages/forms');
     expect(essai(id, 'relecteur-1.acteur')).toBe('relecteur');
     // Its rights refuse bd's options of author and the variable.
-    for (const role of ['testeur', 'developpeur', 'relecteur']) {
+    for (const role of ['testwriter', 'developpeur', 'relecteur']) {
       expect(refusees(args(id, role, 1)), role).toEqual(expect.arrayContaining(AUTEUR_FIXE));
     }
     const liste = auteurs(id);
     expect(liste.find(c => c.text === 'Tests écrits, rouges.')?.author).toBe(
-      'testeur packages/forms'
+      'testwriter packages/forms'
     );
     expect(liste.find(c => c.text === 'Code écrit.')?.author).toBe('developpeur packages/forms');
     expect(liste.find(c => c.text.startsWith('ACCEPTÉ'))?.author).toBe('relecteur');
@@ -258,7 +258,7 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
   it("an agent's handover that opens on RENDU counts as no review: two RENDU, then ACCEPTÉ, to the queue", () => {
     const id = 'demo-passation-rendu';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
     // Each handover of the developpeur opens on the word RENDU, as in BPScript 320.2.4.5.1.
     scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'RENDU 000-forms — code écrit.'\n`);
     scenario(
@@ -284,7 +284,7 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
   it('RENDU, a finding for the developpeur of a component, relaunches that developpeur, then the rest, to the queue', () => {
     const id = 'demo-rendu-dev';
     ticket(id, '000-forms, 030-binder');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     scenario(
       id,
@@ -302,9 +302,9 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
     );
     // Forms' developpeur again; binder, which no finding names, passes its checks again.
     expect(ordre(id)).toEqual([
-      'testeur packages/forms',
+      'testwriter packages/forms',
       'developpeur packages/forms',
-      'testeur packages/binder',
+      'testwriter packages/binder',
       'developpeur packages/binder',
       'relecteur',
       'developpeur packages/forms',
@@ -334,15 +334,15 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
   });
 
-  it('RENDU, a finding for the testeur of a component, relaunches the testeur, the proof, the developpeur, the checks', () => {
-    const id = 'demo-rendu-testeur';
+  it('RENDU, a finding for the testwriter of a component, relaunches the testwriter, the proof, the developpeur, the checks', () => {
+    const id = 'demo-rendu-testwriter';
     ticket(id, '000-forms');
-    scenario(id, 'testeur-1', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
+    scenario(id, 'testwriter-1', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
     scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-    // The testeur adds the case the reviewer found; the test already green is justified.
+    // The testwriter adds the case the reviewer found; the test already green is justified.
     scenario(
       id,
-      'testeur-2',
+      'testwriter-2',
       `cat > $c/test/echelle.test.mjs <<'EOF'
 import { expect, it } from 'vitest';
 import * as m from '../src/index.mjs';
@@ -357,16 +357,16 @@ fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/mesure
       'developpeur-2',
       `printf 'export const echelle = x => 3 * x;\\n' >> $c/src/index.mjs\npassation 'Echelle écrite.'\n`
     );
-    scenario(id, 'relecteur-1', rendu('testeur packages/forms', 'echelle manque.'));
+    scenario(id, 'relecteur-1', rendu('testwriter packages/forms', 'echelle manque.'));
     scenario(id, 'relecteur-2', accepte);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
-    expect(sessions(id, 'testeur')).toBe(2);
+    expect(sessions(id, 'testwriter')).toBe(2);
     expect(sessions(id, 'developpeur')).toBe(2);
-    expect(essai(id, 'testeur-2.prompt')).toContain('echelle manque.');
+    expect(essai(id, 'testwriter-2.prompt')).toContain('echelle manque.');
     expect(historique(id).slice(-9)).toEqual([
       ['packages/forms', 'relecture'],
-      ['packages/forms', 'testeur'],
+      ['packages/forms', 'testwriter'],
       ['packages/forms', 'preuve'],
       ['packages/forms', 'developpeur'],
       ['packages/forms', 'controles'],
@@ -382,7 +382,7 @@ fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/mesure
   it('stops at « relecture-arret » (16) on a finding without a valid recipient, or on a criterion', () => {
     const id = 'demo-rendu-sans-destinataire';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     scenario(id, 'relecteur-1', rendu('developpeur packages/autre'));
     const r = circuit([id]);
@@ -409,7 +409,7 @@ fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/mesure
   it('stops at « relecture-arret » at the third RENDU', () => {
     const id = 'demo-trois-rendus';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
     scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     scenario(
       id,

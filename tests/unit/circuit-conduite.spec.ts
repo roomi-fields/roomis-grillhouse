@@ -139,33 +139,33 @@ describe('Q10 — the supervisor launches the circuit, a régulateur, a session 
 });
 
 // The texts of the agents the circuit launches, on what it reads of their sheets (2026-10-19, from
-// BPScript's runs; grillhouse-3uv.89, L1): a test the testeur adapts carries its expected green in
-// its first sheet; a developpeur sends a red left in the tests of a component to its testeur.
+// BPScript's runs; grillhouse-3uv.89, L1): a test the testwriter adapts carries its expected green in
+// its first sheet; a developpeur sends a red left in the tests of a component to its testwriter.
 describe('the sheets the circuit reads', () => {
-  const testeur = lire('.claude/skills/testeur/SKILL.md').replace(/\s+/g, ' ');
+  const testwriter = lire('.claude/skills/testwriter/SKILL.md').replace(/\s+/g, ' ');
   const developpeur = lire('.claude/skills/developpeur/SKILL.md').replace(/\s+/g, ' ');
-  // The first template, the testeur's and the developpeur's instruction.
+  // The first template, the testwriter's and the developpeur's instruction.
   const premier = /```text\n([\s\S]*?)\n```/
     .exec(lire('.claude/skills/pitmaster/references/consigne-agent.md'))?.[1]
     .replace(/\s+/g, ' ');
 
   it('each green test before the code goes into `verts_attendus`: its file from the root, its full name, its reason', () => {
     for (const [nom, texte] of [
-      ['testeur', testeur],
+      ['testwriter', testwriter],
       ['consigne', premier ?? ''],
     ]) {
       expect(texte, nom).toContain('`verts_attendus`');
       expect(texte, nom).toMatch(/son nom complet tel que le rapport de la preuve l'écrit/);
     }
-    expect(testeur).toMatch(/adaptes? à un nom ou un type changé/);
-    expect(testeur).toMatch(/première fiche/);
+    expect(testwriter).toMatch(/adaptes? à un nom ou un type changé/);
+    expect(testwriter).toMatch(/première fiche/);
   });
 
   // Witness: BPScript (vbwf.320.2.4.5.1, 2026-10-20): up to 14 KB of « vert attendu » per handover,
-  // one per test, most with the same reason; nine sessions of the testeur only added these lines.
+  // one per test, most with the same reason; nine sessions of the testwriter only added these lines.
   it('a test file HEAD holds, adapted, all its tests green for one reason, takes one expected green for the file', () => {
     for (const [nom, texte] of [
-      ['testeur', testeur],
+      ['testwriter', testwriter],
       ['consigne', premier ?? ''],
     ]) {
       expect(texte, nom).toMatch(/fichier de tests que HEAD tient/);
@@ -186,9 +186,9 @@ describe('the sheets the circuit reads', () => {
 
   // Witness: BPScript (320.2.4.5.1, si61.8), a developpeur relaunched up to three times on a red
   // out of his reach: his sheet carries a status the circuit reads.
-  it('the sheet of the testeur and the developpeur carries its status, FAIT, BLOQUÉ with its reason, BESOIN with its question', () => {
+  it('the sheet of the testwriter and the developpeur carries its status, FAIT, BLOQUÉ with its reason, BESOIN with its question', () => {
     for (const [nom, texte] of [
-      ['testeur', testeur],
+      ['testwriter', testwriter],
       ['developpeur', developpeur],
       ['consigne', premier ?? ''],
     ]) {
@@ -196,7 +196,7 @@ describe('the sheets the circuit reads', () => {
       for (const forme of ['FAIT', 'BLOQUÉ', '`raison`', 'BESOIN', '`question`']) {
         expect(texte, nom).toContain(forme);
       }
-      expect(texte, nom).not.toMatch(/STATUT :|Agent : testeur|vert attendu :/);
+      expect(texte, nom).not.toMatch(/STATUT :|Agent : testwriter|vert attendu :/);
     }
     const regulateur = lire('.claude/skills/regulateur/SKILL.md').replace(/\s+/g, ' ');
     expect(regulateur).toMatch(/`hors-portee` \(code 19\)/);
@@ -204,11 +204,11 @@ describe('the sheets the circuit reads', () => {
   });
 
   // Witness: BPScript (320.2.4.5.1), a type changed in 000-forms broke the shared test material,
-  // which only the testeur writes: the developpeurs of the components after it ran on that red
+  // which only the testwriter writes: the developpeurs of the components after it ran on that red
   // for nothing.
-  it('a testeur whose ticket changes a type or a name of his component migrates, in the same session, the shared test material and the tests of the title that read it', () => {
+  it('a testwriter whose ticket changes a type or a name of his component migrates, in the same session, the shared test material and the tests of the title that read it', () => {
     for (const [nom, texte] of [
-      ['testeur', testeur],
+      ['testwriter', testwriter],
       ['consigne', premier ?? ''],
     ]) {
       expect(texte, nom).toMatch(/change un type ou un nom de ton composant/);
@@ -278,11 +278,11 @@ describe('a question of the régulateur goes up to the supervisor, who answers i
 
 // Witness: BPScript (vbwf.320.2.4.5.1, si61.8, 2026-10-20): the developpeur's final report went to
 // the log alone, the circuit reading the ticket; the hours of a handover are the register's
-// (scripts/registre.mjs), which no agent declares; the testeur « warned the supervisor » with no
+// (scripts/registre.mjs), which no agent declares; the testwriter « warned the supervisor » with no
 // means to in the circuit. Since grillhouse-3uv.89 (L1), the final answer is the sheet.
 describe('the texts ask no writing without a reader', () => {
   const plat = (rel: string) => lire(rel).replace(/\s+/g, ' ');
-  const testeur = plat('.claude/skills/testeur/SKILL.md');
+  const testwriter = plat('.claude/skills/testwriter/SKILL.md');
   const developpeur = plat('.claude/skills/developpeur/SKILL.md');
   const blocs = [
     ...lire('.claude/skills/pitmaster/references/consigne-agent.md').matchAll(
@@ -293,7 +293,7 @@ describe('the texts ask no writing without a reader', () => {
   it('no skill, nor the conventions of the tracker, asks for the hours of a handover or a final report', () => {
     for (const [nom, texte] of [
       ['developpeur', developpeur],
-      ['testeur', testeur],
+      ['testwriter', testwriter],
       ['issue-tracker', plat('docs/agents/issue-tracker.md')],
       ['pitmaster', plat('.claude/skills/pitmaster/SKILL.md')],
       ['tour', plat('.claude/skills/pitmaster/references/tour.md')],
@@ -304,7 +304,7 @@ describe('the texts ask no writing without a reader', () => {
 
   it('the session of each role the circuit leads ends on its sheet; no text asks the final answer « passation au ticket »', () => {
     for (const [nom, texte] of [
-      ['testeur', testeur],
+      ['testwriter', testwriter],
       ['developpeur', developpeur],
       ['relecteur', plat('.claude/skills/relecteur/SKILL.md')],
       ['regulateur', plat('.claude/skills/regulateur/SKILL.md')],
@@ -314,7 +314,7 @@ describe('the texts ask no writing without a reader', () => {
       expect(texte, nom).toMatch(/[Tt]a séance finit sur ta fiche|est ma fiche|est ta fiche/);
     }
     for (const [nom, texte] of [
-      ['testeur', testeur],
+      ['testwriter', testwriter],
       ['developpeur', developpeur],
       ['issue-tracker', plat('docs/agents/issue-tracker.md')],
       ...blocs.map((b, i) => [`consigne ${i + 1}`, b]),
@@ -323,16 +323,16 @@ describe('the texts ask no writing without a reader', () => {
     }
   });
 
-  it('the testeur asks his question by his sheet, not by warning the supervisor', () => {
-    expect(testeur).not.toMatch(/tu préviens le superviseur/);
-    const fin = testeur.slice(testeur.indexOf('## La fin'));
+  it('the testwriter asks his question by his sheet, not by warning the supervisor', () => {
+    expect(testwriter).not.toMatch(/tu préviens le superviseur/);
+    const fin = testwriter.slice(testwriter.indexOf('## La fin'));
     expect(fin).toContain('BESOIN');
     expect(fin).toContain('`question`');
   });
 
   it('each discovery of an agent the circuit leads goes into its sheet, which the circuit files', () => {
     for (const [nom, texte] of [
-      ['testeur', testeur],
+      ['testwriter', testwriter],
       ['developpeur', developpeur],
       ['relecteur', plat('.claude/skills/relecteur/SKILL.md')],
       ['regulateur', plat('.claude/skills/regulateur/SKILL.md')],

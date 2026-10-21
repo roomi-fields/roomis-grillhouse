@@ -45,7 +45,7 @@
 //   `turbo run test:vitest --filter=<name> --dry=json`), never their dependencies nor a
 //   neighbour's trace; then the tests alone (`turbo run test:vitest --only --filter=<name>`), the
 //   paths in the variable. A named package that the envelope shows read-only (the shared test
-//   material, for every role but the testeur) is not built, nor are its traces: it arrives built,
+//   material, for every role but the testwriter) is not built, nor are its traces: it arrives built,
 //   as a read-only input of Bazel, and its tests play as it is; the frame knows it read-only by
 //   testing its directory for writing (`inscriptible`), where the envelope mounts it, and the logs
 //   of its tasks go to the envelope's directories proper to the session (`sortiesDeTest`,

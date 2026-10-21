@@ -59,25 +59,25 @@ describe('isTestFile', () => {
   );
 });
 
-describe('testeur', () => {
+describe('testwriter', () => {
   it('writes a test file', () => {
-    expect(refusal('testeur', write('/repo/tests/a.spec.ts'), options(null))).toBeNull();
+    expect(refusal('testwriter', write('/repo/tests/a.spec.ts'), options(null))).toBeNull();
   });
   it('writes in the scratchpad', () => {
-    expect(refusal('testeur', write('/scratch/s/lot.patch'), options(null))).toBeNull();
+    expect(refusal('testwriter', write('/scratch/s/lot.patch'), options(null))).toBeNull();
   });
   it('does not write code', () => {
-    expect(refusal('testeur', write('/repo/src/a.ts'), options(null))).toMatch(
+    expect(refusal('testwriter', write('/repo/src/a.ts'), options(null))).toMatch(
       /seulement des fichiers de test/
     );
   });
   it('does not edit code', () => {
     const edit = { tool_name: 'Edit', tool_input: { file_path: '/repo/src/a.ts' }, cwd: ROOT };
-    expect(refusal('testeur', edit, options(null))).toMatch(/seulement des fichiers de test/);
+    expect(refusal('testwriter', edit, options(null))).toMatch(/seulement des fichiers de test/);
   });
   it('lets other tools through', () => {
     const read = { tool_name: 'Read', tool_input: { file_path: '/repo/src/a.ts' }, cwd: ROOT };
-    expect(refusal('testeur', read, options(null))).toBeNull();
+    expect(refusal('testwriter', read, options(null))).toBeNull();
   });
 });
 
@@ -97,7 +97,7 @@ describe('developpeur', () => {
   });
   it('does not write a test file', () => {
     expect(refusal('developpeur', write('/repo/tests/a.spec.ts', ready), withArchitecture)).toMatch(
-      /appartiennent au testeur/
+      /appartiennent au testwriter/
     );
   });
   it('does not write code while its ticket lacks the Architecture section', () => {
@@ -142,20 +142,20 @@ describe('the hook command', () => {
     spawnSync('node', [SCRIPT, role], { input: JSON.stringify(input), encoding: 'utf8' });
 
   it('refuses with exit code 2 and its reason on stderr', () => {
-    const r = run('testeur', write('/repo/src/a.ts'));
+    const r = run('testwriter', write('/repo/src/a.ts'));
     expect(r.status).toBe(2);
     expect(r.stderr).toMatch(/seulement des fichiers de test/);
   });
   it('allows with exit code 0', () => {
-    const r = run('testeur', write('/repo/tests/a.spec.ts'));
+    const r = run('testwriter', write('/repo/tests/a.spec.ts'));
     expect(r.status).toBe(0);
     expect(r.stderr).toBe('');
   });
 });
 
 // grillhouse-2sq: the package of the shared test material, the component whose package.json
-// exports `./test-fixtures`, is written by the testeur alone, every file of it; the rest of the
-// code stays refused to the testeur, and the developpeur's lock does not change. The repositories
+// exports `./test-fixtures`, is written by the testwriter alone, every file of it; the rest of the
+// code stays refused to the testwriter, and the developpeur's lock does not change. The repositories
 // live outside the system temp directory, which the hook command takes for the scratchpad, in a
 // trial directory of this run alone.
 const ESSAIS_VERROU = racineSousLaMaison('grillhouse-essais-verrou-');
@@ -199,7 +199,7 @@ function depotAvecMatiere() {
   return repo;
 }
 
-describe('testeur and the package of the shared test material', () => {
+describe('testwriter and the package of the shared test material', () => {
   const repo = depotAvecMatiere();
   const at = (rel: string, tool = 'Write') => ({
     tool_name: tool,
@@ -215,15 +215,15 @@ describe('testeur and the package of the shared test material', () => {
     'packages/corpus/scenes/x.bps',
     'packages/corpus/scenes/neuve.bps',
   ])('writes %s, a file of a package that exports ./test-fixtures', rel => {
-    expect(refusal('testeur', at(rel), options(null))).toBeNull();
+    expect(refusal('testwriter', at(rel), options(null))).toBeNull();
   });
   it('edits a file of the material', () => {
     const edit = at('packages/matiere/src/generer.ts', 'Edit');
-    expect(refusal('testeur', edit, options(null))).toBeNull();
+    expect(refusal('testwriter', edit, options(null))).toBeNull();
   });
   it('writes a file of the material named relative to its working directory', () => {
     const rel = { ...at('x'), tool_input: { file_path: 'packages/corpus/scenes/x.bps' } };
-    expect(refusal('testeur', rel, options(null))).toBeNull();
+    expect(refusal('testwriter', rel, options(null))).toBeNull();
   });
 
   it.each([
@@ -236,7 +236,7 @@ describe('testeur and the package of the shared test material', () => {
     'package.json',
     'scripts/a.mjs',
   ])('still does not write %s, code outside the material', rel => {
-    expect(refusal('testeur', at(rel), options(null))).toMatch(/seulement des fichiers de test/);
+    expect(refusal('testwriter', at(rel), options(null))).toMatch(/seulement des fichiers de test/);
   });
   it('does not take a root package.json that exports ./test-fixtures for the material', () => {
     const racine = depotAvecMatiere();
@@ -245,12 +245,12 @@ describe('testeur and the package of the shared test material', () => {
       JSON.stringify({ name: 'racine', exports: { './test-fixtures': './f.js' } })
     );
     const w = { ...write(path.join(racine, 'src/a.ts')), cwd: racine };
-    expect(refusal('testeur', w, options(null))).toMatch(/seulement des fichiers de test/);
+    expect(refusal('testwriter', w, options(null))).toMatch(/seulement des fichiers de test/);
   });
 
-  it('the hook command lets the testeur write the material, and refuses it the rest', () => {
+  it('the hook command lets the testwriter write the material, and refuses it the rest', () => {
     const run = (rel: string) =>
-      spawnSync('node', [SCRIPT, 'testeur'], {
+      spawnSync('node', [SCRIPT, 'testwriter'], {
         input: JSON.stringify(at(rel)),
         encoding: 'utf8',
       });
@@ -260,9 +260,9 @@ describe('testeur and the package of the shared test material', () => {
 });
 
 // grillhouse-2sq.2: one rule of ownership, read by every lock and by the integration. A file is
-// written by the testeur when it is a test file or a file of a package of the shared test
+// written by the testwriter when it is a test file or a file of a package of the shared test
 // material (`isTesterFile`); the developpeur writes none of them, whatever its ticket.
-describe('isTesterFile, the one rule of what the testeur writes', () => {
+describe('isTesterFile, the one rule of what the testwriter writes', () => {
   const repo = depotAvecMatiere();
 
   it.each([
@@ -274,7 +274,7 @@ describe('isTesterFile, the one rule of what the testeur writes', () => {
     'packages/matiere/src/generer.ts',
     'packages/matiere/fixtures/neuf/dossier/neuf.json',
     'packages/corpus/scenes/x.bps',
-  ])('%s is written by the testeur (relative to the root)', rel => {
+  ])('%s is written by the testwriter (relative to the root)', rel => {
     expect(isTesterFile(rel, repo)).toBe(true);
   });
   it('takes an absolute path as well', () => {
@@ -291,7 +291,7 @@ describe('isTesterFile, the one rule of what the testeur writes', () => {
     'package.json',
     'scripts/a.mjs',
     'README.md',
-  ])('%s is not written by the testeur', rel => {
+  ])('%s is not written by the testwriter', rel => {
     expect(isTesterFile(rel, repo)).toBe(false);
   });
   it('a project without the material keeps the test files alone', () => {
@@ -301,23 +301,23 @@ describe('isTesterFile, the one rule of what the testeur writes', () => {
   });
 });
 
-// The skill of the testeur says what the lock does: the package.json of a package of the shared
-// test material is the testeur's, like the whole package; another package's goes to the
+// The skill of the testwriter says what the lock does: the package.json of a package of the shared
+// test material is the testwriter's, like the whole package; another package's goes to the
 // developpeur. Witness: BPScript, a transverse ticket where no role could write the material's
 // package.json, the skill sending it to the developpeur whom the lock refuses.
-describe('the skill of the testeur and the package.json of the shared test material', () => {
-  const testeur = readFileSync(
-    path.resolve(__dirname, '../../.claude/skills/testeur/SKILL.md'),
+describe('the skill of the testwriter and the package.json of the shared test material', () => {
+  const testwriter = readFileSync(
+    path.resolve(__dirname, '../../.claude/skills/testwriter/SKILL.md'),
     'utf8'
   ).replace(/\s+/g, ' ');
 
-  it('gives the testeur the whole package of the material, its package.json and docs/ included', () => {
-    expect(testeur).toMatch(/en entier, son `package\.json` et ses `docs\/` compris/);
-    expect(testeur).toMatch(/Le `package\.json` d'un paquet de la matière est à toi/);
-    expect(testeur).toMatch(/celui d'un autre paquet revient au développeur/);
+  it('gives the testwriter the whole package of the material, its package.json and docs/ included', () => {
+    expect(testwriter).toMatch(/en entier, son `package\.json` et ses `docs\/` compris/);
+    expect(testwriter).toMatch(/Le `package\.json` d'un paquet de la matière est à toi/);
+    expect(testwriter).toMatch(/celui d'un autre paquet revient au développeur/);
   });
   it('never sends every package.json to the developpeur', () => {
-    expect(testeur).not.toMatch(/Le `package\.json` revient au développeur/);
+    expect(testwriter).not.toMatch(/Le `package\.json` revient au développeur/);
   });
 });
 
@@ -327,10 +327,10 @@ describe('developpeur and the package of the shared test material', () => {
   const at = (rel: string) => ({ ...write(path.join(repo, rel), ready), cwd: repo });
   const withArchitecture = options('## Architecture\n- Modèle mûr : X');
 
-  it('keeps its lock: a test file of the material stays the testeur’s', () => {
+  it('keeps its lock: a test file of the material stays the testwriter’s', () => {
     expect(
       refusal('developpeur', at('packages/matiere/tests/a.spec.ts'), withArchitecture)
-    ).toMatch(/appartiennent au testeur/);
+    ).toMatch(/appartiennent au testwriter/);
   });
   it.each([
     'packages/matiere/package.json',
@@ -341,16 +341,16 @@ describe('developpeur and the package of the shared test material', () => {
     'packages/corpus/scenes/neuve.bps',
   ])('does not write %s, the material, even with the Architecture section', rel => {
     const r = refusal('developpeur', at(rel), withArchitecture);
-    expect(r).toMatch(/testeur/);
+    expect(r).toMatch(/testwriter/);
     expect(r).toContain(rel);
   });
   it('does not write the material named relative to its working directory', () => {
     const rel = { ...at('x'), tool_input: { file_path: 'packages/corpus/scenes/x.bps' } };
-    expect(refusal('developpeur', rel, withArchitecture)).toMatch(/testeur/);
+    expect(refusal('developpeur', rel, withArchitecture)).toMatch(/testwriter/);
   });
   it('refuses the material for its owner before asking for the Architecture section', () => {
     const r = refusal('developpeur', at('packages/matiere/src/generer.ts'), options('## Travail'));
-    expect(r).toMatch(/testeur/);
+    expect(r).toMatch(/testwriter/);
     expect(r).not.toMatch(/section « ## Architecture »/);
   });
   it.each([
@@ -371,7 +371,7 @@ describe('developpeur and the package of the shared test material', () => {
       encoding: 'utf8',
     });
     expect(r.status).toBe(2);
-    expect(r.stderr).toMatch(/testeur/);
+    expect(r.stderr).toMatch(/testwriter/);
     expect(r.stderr).not.toMatch(/introuvable/);
   });
 });
@@ -404,7 +404,7 @@ describe('the lock and the working directory of the agent', () => {
       from(path.join(repo, cwd), path.join(repo, rel), ready),
       withArchitecture
     );
-    expect(r).toMatch(/testeur/);
+    expect(r).toMatch(/testwriter/);
   });
   it('a developpeur working in the material does not write it by a relative path', () => {
     const r = refusal(
@@ -412,31 +412,31 @@ describe('the lock and the working directory of the agent', () => {
       from(path.join(repo, 'packages/corpus'), 'cas/x.json', ready),
       withArchitecture
     );
-    expect(r).toMatch(/testeur/);
+    expect(r).toMatch(/testwriter/);
     const t = refusal(
       'developpeur',
       from(path.join(repo, 'tests'), 'fixtures/d.json', ready),
       withArchitecture
     );
-    expect(t).toMatch(/appartiennent au testeur/);
+    expect(t).toMatch(/appartiennent au testwriter/);
   });
   it.each([
     ['tests', 'tests/fixtures/d.json'],
     ['packages', 'packages/corpus/cas/x.json'],
     ['packages/corpus', 'packages/corpus/cas/x.json'],
     ['src', 'packages/matiere/fixtures/neuf/un.txt'],
-  ])('a testeur working in %s writes %s', (cwd, rel) => {
+  ])('a testwriter working in %s writes %s', (cwd, rel) => {
     expect(
-      refusal('testeur', from(path.join(repo, cwd), path.join(repo, rel)), options(null))
+      refusal('testwriter', from(path.join(repo, cwd), path.join(repo, rel)), options(null))
     ).toBeNull();
   });
   it.each([
     ['tests', 'src/a.ts'],
     ['packages', 'packages/autre/src/a.ts'],
     ['packages/autre', 'packages/autre/src/a.ts'],
-  ])('a testeur working in %s still does not write %s', (cwd, rel) => {
+  ])('a testwriter working in %s still does not write %s', (cwd, rel) => {
     expect(
-      refusal('testeur', from(path.join(repo, cwd), path.join(repo, rel)), options(null))
+      refusal('testwriter', from(path.join(repo, cwd), path.join(repo, rel)), options(null))
     ).toMatch(/seulement des fichiers de test/);
   });
   it('a developpeur working in tests still writes the code', () => {
@@ -451,8 +451,10 @@ describe('the lock and the working directory of the agent', () => {
   it('an agent working outside the repository keeps the ownership of its files', () => {
     const dehors = mkdtempSync(path.join(ESSAIS_VERROU, 'dehors-'));
     const mat = path.join(repo, 'packages/corpus/cas/x.json');
-    expect(refusal('developpeur', from(dehors, mat, ready), withArchitecture)).toMatch(/testeur/);
-    expect(refusal('testeur', from(dehors, mat), options(null))).toBeNull();
+    expect(refusal('developpeur', from(dehors, mat, ready), withArchitecture)).toMatch(
+      /testwriter/
+    );
+    expect(refusal('testwriter', from(dehors, mat), options(null))).toBeNull();
   });
   it('the hook command reads the root of the file, not the working directory', () => {
     const run = (role: string, cwd: string, rel: string) =>
@@ -460,11 +462,11 @@ describe('the lock and the working directory of the agent', () => {
         input: JSON.stringify(from(path.join(repo, cwd), path.join(repo, rel))),
         encoding: 'utf8',
       });
-    expect(run('testeur', 'packages', 'packages/corpus/cas/x.json').status).toBe(0);
-    expect(run('testeur', 'tests', 'src/a.ts').status).toBe(2);
+    expect(run('testwriter', 'packages', 'packages/corpus/cas/x.json').status).toBe(0);
+    expect(run('testwriter', 'tests', 'src/a.ts').status).toBe(2);
     const dev = run('developpeur', 'packages/corpus', 'packages/corpus/cas/x.json');
     expect(dev.status).toBe(2);
-    expect(dev.stderr).toMatch(/testeur/);
+    expect(dev.stderr).toMatch(/testwriter/);
     expect(dev.stderr).not.toMatch(/introuvable/);
   });
 
@@ -490,15 +492,17 @@ describe('the lock and the working directory of the agent', () => {
       'packages/corpus/scenes/neuve.bps',
       'packages/matiere/fixtures/cas/profond/un.txt',
       'tests/unit/a.spec.ts',
-    ])('the testeur writes %s in its copy', rel => {
-      expect(refusal('testeur', from(principal, path.join(copie, rel)), options(null))).toBeNull();
+    ])('the testwriter writes %s in its copy', rel => {
+      expect(
+        refusal('testwriter', from(principal, path.join(copie, rel)), options(null))
+      ).toBeNull();
     });
     it.each(['packages/autre/src/a.ts', 'src/a.ts', 'package.json'])(
-      'the testeur does not write %s in its copy',
+      'the testwriter does not write %s in its copy',
       rel => {
-        expect(refusal('testeur', from(principal, path.join(copie, rel)), options(null))).toMatch(
-          /seulement des fichiers de test/
-        );
+        expect(
+          refusal('testwriter', from(principal, path.join(copie, rel)), options(null))
+        ).toMatch(/seulement des fichiers de test/);
       }
     );
     it.each([
@@ -511,7 +515,7 @@ describe('the lock and the working directory of the agent', () => {
         from(principal, path.join(copie, rel), ready),
         withArchitecture
       );
-      expect(r).toMatch(/testeur/);
+      expect(r).toMatch(/testwriter/);
       expect(r).toContain(rel);
     });
     it.each(['packages/autre/src/a.ts', 'src/a.ts'])(
@@ -563,17 +567,19 @@ describe('an unreadable package.json', () => {
   it('keeps the material and the tests refused to the developpeur', () => {
     expect(
       refusal('developpeur', at('packages/corpus/scenes/x.bps', ready), withArchitecture)
-    ).toMatch(/La matière de test partagée appartient au testeur/);
+    ).toMatch(/La matière de test partagée appartient au testwriter/);
     expect(
       refusal('developpeur', at('packages/casse/tests/a.spec.ts', ready), withArchitecture)
-    ).toMatch(/appartiennent au testeur/);
+    ).toMatch(/appartiennent au testwriter/);
   });
-  it('lets the testeur write the material and the tests', () => {
-    expect(refusal('testeur', at('packages/matiere/fixtures/neuf.txt'), options(null))).toBeNull();
-    expect(refusal('testeur', at('packages/casse/tests/a.spec.ts'), options(null))).toBeNull();
+  it('lets the testwriter write the material and the tests', () => {
+    expect(
+      refusal('testwriter', at('packages/matiere/fixtures/neuf.txt'), options(null))
+    ).toBeNull();
+    expect(refusal('testwriter', at('packages/casse/tests/a.spec.ts'), options(null))).toBeNull();
   });
-  it('refuses the testeur the code of its component as code, not as an unreadable material', () => {
-    const r = refusal('testeur', at('packages/casse/src/a.ts'), options(null));
+  it('refuses the testwriter the code of its component as code, not as an unreadable material', () => {
+    const r = refusal('testwriter', at('packages/casse/src/a.ts'), options(null));
     expect(r).toMatch(/seulement des fichiers de test/);
     expect(r).not.toMatch(/illisible/);
   });

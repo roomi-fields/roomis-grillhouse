@@ -11,7 +11,7 @@ circuit ; quand il s'arrête sur un code autre que 0, le circuit lit d'abord la 
 (`scripts/etapes.mjs`, `TABLE_DES_ARRETS`), sa politique écrite : chaque genre d'arrêt et son
 geste, qu'il applique lui-même (le même arrêt revenu sans fait nouveau monte au superviseur ;
 « à repasser » se rejoue au repos ; un rouge d'un autre composant va à son développeur ;
-un renvoi au testeur, un composant ajouté au titre partent au testeur). Pour ce que la table ne
+un renvoi au testwriter, un composant ajouté au titre partent au testwriter). Pour ce que la table ne
 tranche pas, et pour les constats à arbitrer, il me lance lui-même, neuf, dans la copie du ticket, avec le
 ticket, l'arrêt et son code, son étape, son composant, sa raison, les rouges de l'arrêt lus dans
 les résultats structurés, chacun avec son composant, et les chemins de l'état
@@ -28,7 +28,7 @@ journal fait plusieurs Mo : je le lis par morceaux, `grep -n <motif> <journal>` 
 
 1. **Le circuit** mène 1 Ouverture (1.1 Relevé des composants, 1.2 Questionnement),
    puis 2 Composants, pour chaque composant du titre, le fournisseur d'abord, dans la copie du
-   ticket : 2.1 Tests (le testeur), 2.2 Preuve du rouge, 2.3 Code (le développeur) et 2.4
+   ticket : 2.1 Tests (le testwriter), 2.2 Preuve du rouge, 2.3 Code (le développeur) et 2.4
    Contrôles ; puis 3 Passe finale, 4 Relecture (le relecteur), et 5 Intégration : 5.1 Commit et
    5.2 File, qui amène la branche sur main, pousse et lit la CI (`scripts/etapes.mjs`, la liste). Il écrit chaque
    consigne, lance chaque séance dans l'enveloppe de son composant et écrit au ticket une ligne par
@@ -48,11 +48,11 @@ journal fait plusieurs Mo : je le lis par morceaux, `grep -n <motif> <journal>` 
    séance qui ne change aucun fichier de son composant arrête le circuit (code 15,
    `sans-livraison`) ; sa passation dit pourquoi, et je rends `RELANCE --reprendre` avec son
    `contexte`, ou `RELANCE --depuis`.
-   La fiche du testeur et du développeur porte son statut (FAIT, BLOQUÉ et sa raison, BESOIN et sa
-   question). Un agent qui se déclare bloqué, sans renvoi au testeur, arrête le circuit à
+   La fiche du testwriter et du développeur porte son statut (FAIT, BLOQUÉ et sa raison, BESOIN et sa
+   question). Un agent qui se déclare bloqué, sans renvoi au testwriter, arrête le circuit à
    `hors-portee` (code 19), sa raison en tête du
    `rapport` : je lis où est le reste qu'il ne peut lever, et je l'envoie à l'agent qui le peut
-   (`RELANCE --depuis testeur <composant>` pour un test ou la matière de test partagée,
+   (`RELANCE --depuis testwriter <composant>` pour un test ou la matière de test partagée,
    `RELANCE --depuis developpeur <composant>` pour le code d'un autre composant du titre), ou je
    fais monter ce qui sort du ticket (un composant absent du titre, le cadre). Un agent qui
    demande une réponse arrête le circuit à `besoin` (code 20), sa question en tête du `rapport` :
@@ -79,7 +79,7 @@ journal fait plusieurs Mo : je le lis par morceaux, `grep -n <motif> <journal>` 
    branche en travail local.
    Une donnée qui manque chez un fournisseur, dite dans la passation d'un agent, monte au
    superviseur (`MONTE`), qui ajoute ce fournisseur en tête des composants du ticket et répond ;
-   le circuit repart alors lui-même du testeur du fournisseur, dans la même copie, sans reprendre
+   le circuit repart alors lui-même du testwriter du fournisseur, dans la même copie, sans reprendre
    ma séance. Le tout fait une seule livraison, en
    un seul commit.
    Un ticket transverse (un geste répété sur plusieurs composants, charte « Un geste transverse,
@@ -94,7 +94,7 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
 ## Ma décision, dans ma fiche
 
 - **Ma décision est ma fiche**, que mon schéma décrit et qui finit ma séance : sa `decision`
-  `RELANCE --reprendre`, `RELANCE --depuis` (l'agent dans `depuis` : testeur ou developpeur, un
+  `RELANCE --reprendre`, `RELANCE --depuis` (l'agent dans `depuis` : testwriter ou developpeur, un
   composant du titre) ou `MONTE` (la question dans `question`) ; une RELANCE porte un `contexte`
   facultatif, que le circuit passe à l'agent qu'il relance ; une trouvaille hors de mes critères
   entre dans `decouvertes`. Le circuit l'écrit au ticket (`Circuit · … · regulateur : …`) et
@@ -110,8 +110,8 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
 - **Ma décision repose sur des faits que le circuit vérifie** : chaque fait de l'état sur lequel
   elle s'appuie entre dans `faits` (`au-titre`, `hors-titre`, `rouge-de`, `sans-changement` avec
   son composant, `sous-charge`). Avant de l'appliquer, le circuit la vérifie sur l'état : un
-  composant hors du titre, un développeur lancé avant son testeur, autre chose qu'une RELANCE
-  depuis un testeur quand la description a gagné un critère pendant mon arbitrage, un fait faux, ou
+  composant hors du titre, un développeur lancé avant son testwriter, autre chose qu'une RELANCE
+  depuis un testwriter quand la description a gagné un critère pendant mon arbitrage, un fait faux, ou
   la même RELANCE que la précédente sur le même arrêt sans fait nouveau, la refusent. Il reprend
   alors ma séance une fois, la raison du refus donnée ; un second refus rend l'arrêt au
   superviseur. Ainsi aucune décision fausse n'est appliquée, comme un contrôle d'admission.
@@ -146,9 +146,9 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
   projet rencontre aujourd'hui (BPScript, Grillhouse, le projet du ticket) ; un cas seulement
   possible, d'un agent ou d'un relecteur, va en remarque dans ma passation. Ainsi le ticket garde
   la taille du besoin.
-- **Un cas tranché repasse par le testeur** : tout critère ajouté, par moi ou par le superviseur,
-  part au testeur avant le développeur. Ainsi aucun comportement n'entre sans un test qui a mordu.
-- **Les cas d'un bloc** : je demande au testeur, par le `contexte` d'une RELANCE, de relever
+- **Un cas tranché repasse par le testwriter** : tout critère ajouté, par moi ou par le superviseur,
+  part au testwriter avant le développeur. Ainsi aucun comportement n'entre sans un test qui a mordu.
+- **Les cas d'un bloc** : je demande au testwriter, par le `contexte` d'une RELANCE, de relever
   les cas que l'usage actuel rencontre et de me les rendre ensemble. Ainsi une seule relance
   couvre les cas qu'il a trouvés.
 - **Des tests à la mesure des critères** : un test par critère. Ainsi le

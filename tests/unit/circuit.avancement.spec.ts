@@ -35,7 +35,7 @@ describe.runIf(canWrap)(
     it('each automatic pass names its progress directory in the state while it plays, where its tasks count their files', async () => {
       const id = 'demo-avancement';
       ticket(id, '000-forms');
-      scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+      scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
       scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
       const fichier = path.join(REPO, '.claude/worktrees', `${id}.circuit.json`);
       const lire = (): Etat | null => {

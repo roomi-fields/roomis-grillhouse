@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The lock of the commands of a role that writes (the testeur, the developpeur): a PreToolUse hook
+// The lock of the commands of a role that writes (the testwriter, the developpeur): a PreToolUse hook
 // on Bash, which the settings of its session declare (scripts/droits.mjs). It reads the hook's JSON
 // on stdin and refuses, exit code 2 and its reason on stderr, a command whose shell writes a file
 // out of the session's temporary directory: an output redirection (`>`, `>>`, `>|`, `&>`, `1>`…)

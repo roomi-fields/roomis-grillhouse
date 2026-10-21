@@ -282,7 +282,7 @@ describe('3uv.44 critère 9 : the start, the end and the last incoming message o
         {
           agent: 's9',
           ticket: 'demo-5',
-          role: 'testeur',
+          role: 'testwriter',
           ligne: false,
           depuis: ms('10:00'),
           entre: lu.entre,

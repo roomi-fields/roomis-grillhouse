@@ -32,7 +32,7 @@ describe.runIf(canWrap)('the bilan at the end of the circuit', { timeout: 300_00
   it('writes the bilan of an integrated lot, after the queue’s line, with no base before it', () => {
     const id = 'demo-bilan';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id], { GRILLHOUSE_REGISTRE: REGISTRE });
     expect(r.status, sortie(r)).toBe(0);
@@ -57,7 +57,7 @@ describe.runIf(canWrap)('the bilan at the end of the circuit', { timeout: 300_00
   it('writes the bilan of a stop handed to the supervisor, compared with the bilan before', () => {
     const id = 'demo-bilan-arret';
     ticket(id, '000-forms, 030-binder');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     // A developpeur who changes nothing; the regulator, without a scenario, answers nothing.
     scenario(id, 'developpeur', "passation 'Code écrit.'\n");
     const r = circuit([id], { GRILLHOUSE_REGISTRE: REGISTRE });

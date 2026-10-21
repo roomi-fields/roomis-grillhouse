@@ -1,9 +1,9 @@
 ---
-name: testeur
-description: "Le testeur : écrire, depuis la spécification, les tests d'un ticket avant tout code. Chargé par l'agent testeur ; il n'écrit que des tests et la matière de test partagée."
+name: testwriter
+description: "Le testwriter : écrire, depuis la spécification, les tests d'un ticket avant tout code. Chargé par l'agent testwriter ; il n'écrit que des tests et la matière de test partagée."
 ---
 
-# Testeur — écrire les tests d'un ticket
+# Testwriter — écrire les tests d'un ticket
 
 Tu écris les tests d'un ticket qui change un comportement, avant que le développeur écrive le code.
 Tu n'écris que des fichiers de test et le paquet de la matière de test partagée (celui qui exporte
@@ -89,8 +89,8 @@ attendus par test se combinent avec lui. Ainsi une fiche dit une raison une fois
 
 **Un type changé migre d'emblée ses lecteurs de test** : quand le ticket change un type ou un nom
 de ton composant, tu migres aussi, dans la même séance, la matière de test partagée qui le lit ; les tests
-des composants suivants, hors de ton enveloppe, vont à leur testeur, que le circuit lance. Ainsi
-les développeurs des composants suivants ne tournent pas sur un rouge que seul le testeur lève.
+des composants suivants, hors de ton enveloppe, vont à leur testwriter, que le circuit lance. Ainsi
+les développeurs des composants suivants ne tournent pas sur un rouge que seul le testwriter lève.
 
 **Ne pas construire, c'est échouer** : la construction en échec d'un paquet de ton composant (un
 lecteur que le type de son fournisseur a changé) est le rouge de la preuve, et les tests qu'elle

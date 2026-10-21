@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // The rights and the context of each role session the circuit launches, from one source (ROLES):
-// the testeur and the developpeur in the envelope of their component (scripts/enveloppe/lancer.sh),
+// the testwriter and the developpeur in the envelope of their component (scripts/enveloppe/lancer.sh),
 // the reviewer, the regulator, the questionneur and the technical referent out of it
 // (scripts/circuit.mjs). As a task of CI receives its
 // rights from its steps and runs on an image of its own, not on the workstation of its author
@@ -96,9 +96,9 @@ const ECRIRE = ['Edit', 'Write'];
 // loads (its own, and those its skill names, « Compétence `<nom>` »), and the commands its skill
 // names (`.claude/skills/<rôle>/`), as permission rules.
 export const ROLES = {
-  testeur: {
+  testwriter: {
     ecrit: true,
-    competences: ['testeur', 'mesure'],
+    competences: ['testwriter', 'mesure'],
     commandes: ['Bash(bd update * --claim)', 'Bash(bd comments add *)', 'Bash(npm test *)'],
   },
   developpeur: {

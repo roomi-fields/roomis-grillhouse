@@ -4,14 +4,14 @@ import { canWrap, racineSousLaMaison } from '../machine.js';
 import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
 
 // The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): the status of the
-// sheet that ends a session of the testeur and the developpeur (`statut`: FAIT, BLOQUÉ with its
+// sheet that ends a session of the testwriter and the developpeur (`statut`: FAIT, BLOQUÉ with its
 // `raison`, BESOIN with its `question`), which the circuit reads. Witness: BPScript (320.2.4.5.1,
 // si61.8), where a developpeur was relaunched up to three times on a red he could not lift (in the
 // tests, the shared test material, a file out of his envelope, a decision out of his role), then
 // the circuit stopped at « sans-livraison » and a regulator had to find out why. A BLOQUÉ without a
 // sending and a BESOIN stop the circuit at once, at « hors-portee » and « besoin », the regulator
-// launched on them; a BLOQUÉ with its `renvoi` to `testeur <composant>` is the sending to the
-// testeur; FAIT keeps the circuit going.
+// launched on them; a BLOQUÉ with its `renvoi` to `testwriter <composant>` is the sending to the
+// testwriter; FAIT keeps the circuit going.
 // The trial repository and its stand-ins: ./circuit-essai.ts; each file of the circuit's tests
 // builds its own, in a trial directory of its own.
 
@@ -39,7 +39,7 @@ describe.runIf(canWrap)('the status of a sheet', { timeout: 300_000 }, () => {
   it('a developpeur BLOQUÉ without a recipient stops the circuit at « hors-portee » after one session, its reason in the report, the regulateur launched on it', () => {
     const id = 'demo-statut-bloque';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     // The session changes a file of its component: the status, not the delivery, decides.
     scenario(
       id,
@@ -64,7 +64,7 @@ fiche '{"statut":"BLOQUÉ","raison":"la matière de test partagée attend un aut
     expect(historique(id)).not.toContainEqual(['packages/forms', 'controles']);
     // The regulator is launched on the stop, its reason in its instruction.
     expect(ordre(id).slice(0, 3)).toEqual([
-      'testeur packages/forms',
+      'testwriter packages/forms',
       'developpeur packages/forms',
       REGULATEUR,
     ]);
@@ -81,7 +81,7 @@ fiche '{"statut":"BLOQUÉ","raison":"la matière de test partagée attend un aut
   it('a developpeur BESOIN stops the circuit at « besoin » after one session, its question in the report, the regulateur launched on it', () => {
     const id = 'demo-statut-besoin';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(
       id,
       'developpeur',
@@ -108,7 +108,7 @@ fiche '{"statut":"BLOQUÉ","raison":"la matière de test partagée attend un aut
   it('a reviewer’s sheet with a `question` stops the circuit at « besoin » before the integration, its question in the report, the regulateur launched on it', () => {
     const id = 'demo-statut-relecteur';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     scenario(
       id,
@@ -129,7 +129,7 @@ fiche '{"statut":"BLOQUÉ","raison":"la matière de test partagée attend un aut
   it('the answer to the reviewer’s question reaches the next reviewer, in its CONTEXTE', () => {
     const id = 'demo-statut-relecteur-reponse';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     scenario(
       id,
@@ -151,45 +151,45 @@ fiche '{"statut":"BLOQUÉ","raison":"la matière de test partagée attend un aut
     expect(etat(id)).toMatchObject({ etape: 'integre' });
   });
 
-  it('a testeur BESOIN stops the circuit at « besoin » before its proof', () => {
-    const id = 'demo-statut-testeur';
+  it('a testwriter BESOIN stops the circuit at « besoin » before its proof', () => {
+    const id = 'demo-statut-testwriter';
     ticket(id, '000-forms');
     scenario(
       id,
-      'testeur',
+      'testwriter',
       `passation 'Aucun test écrit.'\nfiche '{"statut":"BESOIN","question":"le critère 1 vaut-il pour une valeur négative ?"}'\n`
     );
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(ARRETS.besoin);
-    expect(sessions(id, 'testeur')).toBe(1);
+    expect(sessions(id, 'testwriter')).toBe(1);
     expect(historique(id)).not.toContainEqual(['packages/forms', 'preuve']);
     const e = etat(id);
-    expect(e).toMatchObject({ etape: 'testeur', raison: 'besoin' });
+    expect(e).toMatchObject({ etape: 'testwriter', raison: 'besoin' });
     expect(e?.rapport).toContain('le critère 1 vaut-il pour une valeur négative ?');
   });
 
-  it('a developpeur BLOQUÉ whose sheet sends the red to `testeur <composant>` sends it to that testeur', () => {
+  it('a developpeur BLOQUÉ whose sheet sends the red to `testwriter <composant>` sends it to that testwriter', () => {
     const id = 'demo-statut-renvoi';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(
       id,
       'developpeur-1',
       `passation 'Le rouge qui reste est dans les tests de forms.'
-fiche '{"statut":"BLOQUÉ","raison":"le test attend un autre type.","renvoi":{"role":"testeur","composant":"000-forms"}}'
+fiche '{"statut":"BLOQUÉ","raison":"le test attend un autre type.","renvoi":{"role":"testwriter","composant":"000-forms"}}'
 `
     );
     scenario(id, 'developpeur-2', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(ordre(id)).toEqual([
-      'testeur packages/forms',
+      'testwriter packages/forms',
       'developpeur packages/forms',
-      'testeur packages/forms',
+      'testwriter packages/forms',
       'developpeur packages/forms',
       'relecteur',
     ]);
-    expect(essai(id, 'testeur-2.prompt')).toContain(
+    expect(essai(id, 'testwriter-2.prompt')).toContain(
       'Le rouge qui reste est dans les tests de forms'
     );
   });
@@ -199,7 +199,7 @@ fiche '{"statut":"BLOQUÉ","raison":"le test attend un autre type.","renvoi":{"r
     ticket(id, '000-forms');
     scenario(
       id,
-      'testeur',
+      'testwriter',
       `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\nfiche '{"statut":"FAIT"}'\n`
     );
     scenario(id, 'developpeur-1', `passation 'Rien écrit.'\nfiche '{"statut":"FAIT"}'\n`);

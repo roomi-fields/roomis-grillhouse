@@ -15,7 +15,7 @@
 //  1. the verdict: the ticket has `ACCEPTÉ` as its last reviewer verdict (`ACCEPTÉ` or
 //     `RENDU` at the start of a comment of the author `relecteur`; another author's is none) and, when labelled `arbitrage`, each « ## Arbitrage »
 //     comment is `### Verdict — tranché`, or a « ## Réponse du responsable » comment follows it;
-//  2. the lots: the tests lot touches only what the testeur writes (`isTesterFile`: test files
+//  2. the lots: the tests lot touches only what the testwriter writes (`isTesterFile`: test files
 //     and the shared test material), the code lot none of it;
 //  3. the main tree: every file of the lots is unmodified there; the ticket's copy is on its
 //     branch and carries the lot and nothing else: a modified or untracked file outside the lot
@@ -49,7 +49,7 @@
 //
 // What steps 2, 3 and 5 read of a lot is its files: each file added, modified or deleted, a
 // rename counting its source and its destination (named as the file is, not as git quotes it in
-// the patch), a copy its destination only. Step 2 judges them against the testeur's files, step 3
+// the patch), a copy its destination only. Step 2 judges them against the testwriter's files, step 3
 // against the main tree and the ticket's copy, and step 5 compares them with the copy's own base
 // plus the lot.
 //
@@ -118,14 +118,14 @@ export function refusVerdicts(ticket, comments) {
 }
 
 // The refusal for the files of the lots, or null. The files are relative to the repository root
-// <racine>; the tests lot holds only what the testeur writes, the code lot none of it.
+// <racine>; the tests lot holds only what the testwriter writes, the code lot none of it.
 export function refusLots(tests, code, racine) {
-  const testeur = f => isTesterFile(f, racine);
-  const horsTests = tests.filter(f => !testeur(f));
+  const testwriter = f => isTesterFile(f, racine);
+  const horsTests = tests.filter(f => !testwriter(f));
   if (horsTests.length) return `Le lot de tests touche du code : ${horsTests.join(', ')}.`;
-  const duTesteur = code.filter(testeur);
-  if (duTesteur.length)
-    return `Le lot de code touche des fichiers du testeur (tests ou matière de test partagée) : ${duTesteur.join(', ')}.`;
+  const duTestwriter = code.filter(testwriter);
+  if (duTestwriter.length)
+    return `Le lot de code touche des fichiers du testwriter (tests ou matière de test partagée) : ${duTestwriter.join(', ')}.`;
   return null;
 }
 

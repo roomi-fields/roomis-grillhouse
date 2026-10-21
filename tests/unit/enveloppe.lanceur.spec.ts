@@ -406,7 +406,7 @@ describe('the envelope without a role', () => {
   });
 });
 
-// The launcher passes its role on to the envelope: the testeur's session writes the package of the
+// The launcher passes its role on to the envelope: the testwriter's session writes the package of the
 // shared test material, the developpeur's does not.
 describe.runIf(canWrap)('the launcher and the role in the envelope', () => {
   const repo = essai('lancer-role-');
@@ -420,7 +420,7 @@ describe.runIf(canWrap)('the launcher and the role in the envelope', () => {
     JSON.stringify({ name: 'matiere', exports: { './test-fixtures': './fixtures/index.js' } })
   );
   ecrire('packages/matiere/fixtures/index.js', 'm');
-  for (const role of ['testeur', 'developpeur']) {
+  for (const role of ['testwriter', 'developpeur']) {
     ecrire(`.claude/agents/${role}.md`, `---\nname: ${role}\n---\n`);
   }
   mkdirSync(path.join(repo, 'scripts/enveloppe'), { recursive: true });
@@ -458,8 +458,8 @@ describe.runIf(canWrap)('the launcher and the role in the envelope', () => {
     return { r, copie };
   };
 
-  it("gives the testeur's session the package in writing", () => {
-    const { r, copie } = lancer('demo-t', 'testeur');
+  it("gives the testwriter's session the package in writing", () => {
+    const { r, copie } = lancer('demo-t', 'testwriter');
     expect(r.status, r.stderr).toBe(0);
     expect(readFileSync(path.join(copie, 'packages/a/ecrit'), 'utf8')).toBe('oui\n');
     expect(existsSync(path.join(copie, 'packages/matiere/fixtures/ecrit'))).toBe(true);

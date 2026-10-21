@@ -1,6 +1,6 @@
 // grillhouse-3uv.89, L2: a role that writes edits a file of the repository by its tools of writing
 // (Write, Edit), which its lock judges, never by a redirection of the shell. Witness: BPScript
-// 320.3, 36 edits by the shell for the developpeur and 25 for the testeur, against 2 Write and 1
+// 320.3, 36 edits by the shell for the developpeur and 25 for the testwriter, against 2 Write and 1
 // Edit, a substitution that does not find its text passing in silence. A rule of Claude Code does
 // not see a redirection (`Bash(* > *)` refuses nothing: Claude Code matches the command without
 // it), and a session in its envelope runs without the check of writes: the lock of the commands

@@ -28,14 +28,14 @@ import { mesure } from '../src/index.mjs';
 it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); });
 `
     );
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(ordre(id)).toEqual([
-      'testeur packages/forms',
+      'testwriter packages/forms',
       'developpeur packages/forms',
-      'testeur packages/binder',
+      'testwriter packages/binder',
       'developpeur packages/binder',
       'relecteur',
     ]);
@@ -58,7 +58,7 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
   it('names in the report of a red check of a component that component and what its checks play', () => {
     const id = 'demo-controles-composant';
     ticket(id, '000-forms, 030-binder');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     // The first session of forms changes a file of forms, never the code its test waits for.
     scenario(id, 'developpeur-1', `touch $c/essai.txt\npassation 'Un essai.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
@@ -75,7 +75,7 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
   it('sends a red of the final pass to the developpeur of the component that owns its file', () => {
     const id = 'demo-finale';
     ticket(id, '000-forms, 030-binder');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code de forms écrit.'\n`);
     scenario(
       id,
@@ -90,9 +90,9 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(ordre(id)).toEqual([
-      'testeur packages/forms',
+      'testwriter packages/forms',
       'developpeur packages/forms',
-      'testeur packages/binder',
+      'testwriter packages/binder',
       'developpeur packages/binder',
       'developpeur packages/forms',
       'relecteur',
@@ -121,11 +121,11 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
   it('--depuis <étape> <composant> plays in full the components after it that the circuit has not reached yet', () => {
     const id = 'demo-depuis-neufs';
     ticket(id, '000-forms, 030-binder');
-    // The testeur of forms writes nothing, three times: the proof stops the circuit.
+    // The testwriter of forms writes nothing, three times: the proof stops the circuit.
     for (const n of [1, 2, 3]) {
-      scenario(id, `testeur-${n}`, "passation 'Rien écrit.'\n");
+      scenario(id, `testwriter-${n}`, "passation 'Rien écrit.'\n");
     }
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r1 = circuit([id]);
     expect(r1.status, sortie(r1)).toBe(ARRETS.preuve);
@@ -139,11 +139,11 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
     ]);
     expect(r2.status, sortie(r2)).toBe(0);
     expect(ordre(id).filter(l => !l.startsWith('regulateur'))).toEqual([
-      'testeur packages/forms',
-      'testeur packages/forms',
-      'testeur packages/forms',
+      'testwriter packages/forms',
+      'testwriter packages/forms',
+      'testwriter packages/forms',
       'developpeur packages/forms',
-      'testeur packages/binder',
+      'testwriter packages/binder',
       'developpeur packages/binder',
       'relecteur',
     ]);
@@ -151,12 +151,12 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
   });
 
-  it('launches the developpeur of a component without tests directly: no testeur, no proof', () => {
+  it('launches the developpeur of a component without tests directly: no testwriter, no proof', () => {
     const id = 'demo-sans-tests';
     const copie = ticket(id, '000-forms, spec');
     // A component of documentation alone: no package, so no script test:vitest.
     ecrire(path.join(copie, 'spec/mesure.md'), '# La mesure\n');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     scenario(
       id,
@@ -166,14 +166,14 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(ordre(id)).toEqual([
-      'testeur packages/forms',
+      'testwriter packages/forms',
       'developpeur packages/forms',
       'developpeur spec',
       'relecteur',
     ]);
-    expect(historique(id).filter(([c]) => c === 'spec')[0]).toEqual(['spec', 'testeur']);
+    expect(historique(id).filter(([c]) => c === 'spec')[0]).toEqual(['spec', 'testwriter']);
     expect(historique(id)).not.toContainEqual(['spec', 'preuve']);
-    const ligne = commentaires(id).find(t => t.startsWith('Circuit · spec · testeur : '));
+    const ligne = commentaires(id).find(t => t.startsWith('Circuit · spec · testwriter : '));
     expect(ligne).toContain('aucun test');
     // Its developpeur is told why it starts without a red.
     expect(essai(id, 'developpeur-2.prompt')).toContain('TON COMPOSANT : spec');

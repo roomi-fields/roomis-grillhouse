@@ -628,7 +628,7 @@ describe('the launcher refuses a component that is not a path before preparing t
     expect(existsSync(copie)).toBe(false);
     expect(existsSync(`${copie}.log`)).toBe(false);
   });
-  // A relaunch: the developpeur after a testeur that created the package in the ticket's copy.
+  // A relaunch: the developpeur after a testwriter that created the package in the ticket's copy.
   it.runIf(canWrap)(
     "judges the component in the ticket's copy when it exists, not in the main tree",
     () => {

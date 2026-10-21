@@ -98,7 +98,7 @@ const fin = {
   projet: '/depot',
   agent: 'a1',
   ticket: 'demo-12',
-  role: 'testeur',
+  role: 'testwriter',
   debut: at('08:00'),
   fin: at('09:00'),
   travail: 60 * MIN,
@@ -193,11 +193,17 @@ describe('every automatic step carries its witness', () => {
   };
 
   it('1.1 the survey of the components: the time since its start, frozen past FIGEE', () => {
-    const racine = depot({ etape: 'testeur', releve: new Date(MAINTENANT - 8 * S).toISOString() });
+    const racine = depot({
+      etape: 'testwriter',
+      releve: new Date(MAINTENANT - 8 * S).toISOString(),
+    });
     const a = agents(racine);
     expect(sous(a)).toBe('  1.1 · Relevé des composants · auto');
     expect(duTicket(a).alterne).toBe('▶ 12  binder 3/5 · il y a 8 s');
-    const fige = depot({ etape: 'testeur', releve: new Date(MAINTENANT - 6 * MIN).toISOString() });
+    const fige = depot({
+      etape: 'testwriter',
+      releve: new Date(MAINTENANT - 6 * MIN).toISOString(),
+    });
     expect(duTicket(agents(fige))).toMatchObject({
       alterne: '▶ 12  binder 3/5 · ⚠ figée 6 min',
       ton: 'alerte',

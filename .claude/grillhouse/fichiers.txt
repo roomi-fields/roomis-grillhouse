@@ -19,7 +19,7 @@ tsdoc.json
 .claude/skills/regulateur/
 .claude/skills/release/
 .claude/skills/relecteur/
-.claude/skills/testeur/
+.claude/skills/testwriter/
 docs/agents/issue-tracker.md
 scripts/avancement.mjs
 scripts/bilan.mjs
@@ -69,8 +69,10 @@ scripts/vitest-config/
 scripts/vitest.nuit.config.mjs
 - .claude/agents/arbitre.md
 - .claude/agents/chef-de-chantier.md
+- .claude/agents/testeur.md
 - .claude/skills/arbitre/
 - .claude/skills/chef-de-chantier/
+- .claude/skills/testeur/
 - scripts/attendre.sh
 - scripts/sortie.mjs
 - tests/claude-substitut.ts

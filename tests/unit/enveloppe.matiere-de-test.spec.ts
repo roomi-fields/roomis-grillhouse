@@ -20,7 +20,7 @@ const { essai } = enveloppeEssai(ESSAIS);
 // grillhouse-2sq: like the *-test-utils packages of a monorepo, published by the subpath export
 // `./test-fixtures` and written by their owner, the package of the shared test material is the
 // package whose package.json exports `./test-fixtures`. In the envelope it comes back whole:
-// written for the testeur, read-only for every other role. A project without it does not change.
+// written for the testwriter, read-only for every other role. A project without it does not change.
 // The role is the envelope's third argument: `enveloppe.mjs <copie> <composant> <rôle> -- …`.
 type Manifeste = Record<string, unknown>;
 const MATIERE_FICHIERS = [
@@ -87,7 +87,7 @@ describe.runIf(canWrap)('the envelope and the package of the shared test materia
   const m = 'packages/matiere';
 
   it('shows every role the whole package, its deep files and its sources included', () => {
-    for (const role of ['testeur', ...AUTRES_ROLES]) {
+    for (const role of ['testwriter', ...AUTRES_ROLES]) {
       const r = run(role, `cd ${m} && find . -type f`);
       expect(r.status, role).toBe(0);
       expect(r.stdout.split('\n').filter(Boolean).sort(), role).toEqual(
@@ -98,9 +98,9 @@ describe.runIf(canWrap)('the envelope and the package of the shared test materia
       );
     }
   });
-  it('lets the testeur write it: a new file, a new directory, a changed file', () => {
+  it('lets the testwriter write it: a new file, a new directory, a changed file', () => {
     const r = run(
-      'testeur',
+      'testwriter',
       `echo n > ${m}/fixtures/cas/neuf.txt && mkdir -p ${m}/fixtures/nouveau/sous && ` +
         `touch ${m}/fixtures/nouveau/sous/x && echo change > ${m}/fixtures/cas/un.txt`
     );
@@ -119,15 +119,15 @@ describe.runIf(canWrap)('the envelope and the package of the shared test materia
       expect(existsSync(path.join(copie, m, 'README.md')), role).toBe(true);
     }
   });
-  it('gives the testeur its own component in writing and the other siblings hidden', () => {
-    expect(run('testeur', 'touch packages/a/src/neuf.ts').status).toBe(0);
+  it('gives the testwriter its own component in writing and the other siblings hidden', () => {
+    expect(run('testwriter', 'touch packages/a/src/neuf.ts').status).toBe(0);
     for (const s of ['b', 'c', 'd']) {
-      expect(run('testeur', `cat packages/${s}/src/${s}.ts`).status, s).not.toBe(0);
-      expect(run('testeur', `touch packages/${s}/x`).status, s).not.toBe(0);
+      expect(run('testwriter', `cat packages/${s}/src/${s}.ts`).status, s).not.toBe(0);
+      expect(run('testwriter', `touch packages/${s}/x`).status, s).not.toBe(0);
     }
   });
   it('lets no role write the package in the main tree', () => {
-    for (const role of ['testeur', ...AUTRES_ROLES]) {
+    for (const role of ['testwriter', ...AUTRES_ROLES]) {
       expect(run(role, `touch ${repo}/${m}/fixtures/${role}`).status, role).not.toBe(0);
       expect(existsSync(path.join(repo, m, 'fixtures', role)), role).toBe(false);
     }
@@ -136,7 +136,7 @@ describe.runIf(canWrap)('the envelope and the package of the shared test materia
     expect(run('developpeur', 'cat scripts/outil.mjs', 'scripts').stdout).toBe('outil');
     expect(run('developpeur', `touch ${m}/fixtures/racine`, 'scripts').status).not.toBe(0);
     expect(existsSync(path.join(copie, m, 'fixtures/racine'))).toBe(false);
-    expect(run('testeur', `touch ${m}/fixtures/racine`, 'scripts').status).toBe(0);
+    expect(run('testwriter', `touch ${m}/fixtures/racine`, 'scripts').status).toBe(0);
   });
   // Where a run of the material's tests writes in it, Turborepo's task logs and Vite's cache, every
   // other role gets an empty directory proper to the session: nothing reaches the copy.
@@ -150,9 +150,9 @@ describe.runIf(canWrap)('the envelope and the package of the shared test materia
       }
       expect(run(role, `touch ${m}/${role}`).status, role).not.toBe(0);
     }
-    const r = run('testeur', `touch ${m}/.turbo/testeur`);
+    const r = run('testwriter', `touch ${m}/.turbo/testwriter`);
     expect(r.status, r.stderr).toBe(0);
-    expect(existsSync(path.join(copie, m, '.turbo/testeur'))).toBe(true);
+    expect(existsSync(path.join(copie, m, '.turbo/testwriter'))).toBe(true);
   });
 });
 
@@ -170,7 +170,7 @@ describe.runIf(canWrap)('the package of the shared test material, by any form of
     const m = 'packages/outils-de-test';
     expect(run('developpeur', `cat ${m}/src/generer.ts`).stdout).toBe('matiere:src/generer.ts');
     expect(run('developpeur', `touch ${m}/fixtures/x`).status).not.toBe(0);
-    expect(run('testeur', `touch ${m}/fixtures/x`).status).toBe(0);
+    expect(run('testwriter', `touch ${m}/fixtures/x`).status).toBe(0);
     expect(existsSync(path.join(copie, m, 'fixtures/x'))).toBe(true);
   });
 });
@@ -178,7 +178,7 @@ describe.runIf(canWrap)('the package of the shared test material, by any form of
 describe.runIf(canWrap)('a project without the package of the shared test material', () => {
   const { run } = depotAvecMatiere();
   it('hides every sibling from every role, whatever subpaths it exports', () => {
-    for (const role of ['testeur', ...AUTRES_ROLES]) {
+    for (const role of ['testwriter', ...AUTRES_ROLES]) {
       for (const s of ['b', 'c', 'd']) {
         expect(run(role, `cat packages/${s}/src/${s}.ts`).status, `${role} ${s}`).not.toBe(0);
         expect(run(role, `cat packages/${s}/package.json`).status, `${role} ${s}`).toBe(0);
@@ -190,7 +190,7 @@ describe.runIf(canWrap)('a project without the package of the shared test materi
 });
 
 describe.runIf(canWrap)('the envelope and a link of the shared test material', () => {
-  it.each(['testeur', 'developpeur'])(
+  it.each(['testwriter', 'developpeur'])(
     'refuses to launch (%s) when the material links into a hidden component',
     role => {
       const { copie, run } = depotAvecMatiere({

@@ -4,11 +4,11 @@ import { canWrap, racineSousLaMaison } from '../machine.js';
 import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
 
 // The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): the expected green of
-// the testeur's sheet that covers a whole test file (`verts_attendus`, its `fichier` and `raison`
+// the testwriter's sheet that covers a whole test file (`verts_attendus`, its `fichier` and `raison`
 // without `test`), in the proof of the red.
-// Witness: BPScript (vbwf.320.2.4.5.1, 2026-10-20): the testeur wrote one line per green test,
+// Witness: BPScript (vbwf.320.2.4.5.1, 2026-10-20): the testwriter wrote one line per green test,
 // most with the same reason (an existing test file adapted to a changed type), up to 14 KB per
-// handover, and nine sessions of the testeur served only to add these lines.
+// handover, and nine sessions of the testwriter served only to add these lines.
 // The trial repository and its stand-ins: ./circuit-essai.ts; each file of the circuit's tests
 // builds its own, in a trial directory of its own.
 
@@ -54,12 +54,12 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     ticket(id, '000-forms');
     scenario(
       id,
-      'testeur-1',
+      'testwriter-1',
       `${ADAPTE_VERT()}passation 'Fichier adapté au type changé.'\nfiche '{"statut":"FAIT","verts_attendus":[{"fichier":"${ADAPTE}","raison":"adapté au type changé, la forme est déjà juste"}]}'\n`
     );
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
-    expect(sessions(id, 'testeur')).toBe(1);
+    expect(sessions(id, 'testwriter')).toBe(1);
     // A lot of tests alone: no red, so no developpeur; it goes to the checks.
     expect(sessions(id, 'developpeur')).toBe(0);
     const { preuve, entier } = rapportEntier(id);
@@ -79,13 +79,13 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     ticket(id, '000-forms');
     scenario(
       id,
-      'testeur',
+      'testwriter',
       `${ECRIT_ROUGE}${ECRIT_VERT}passation 'Tests écrits.'\nfiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/forme.test.mjs","raison":"la forme est déjà juste"}]}'\n`
     );
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(ARRETS.preuve);
     expect(sessions(id, 'developpeur')).toBe(0);
-    const relance = essai(id, 'testeur-2.prompt');
+    const relance = essai(id, 'testwriter-2.prompt');
     expect(relance).toContain('0 vert(s) justifié(s), 1 vert(s) sans vert attendu');
     expect(relance).toContain(
       '- packages/forms/test/forme.test.mjs › critère 1 — mesure rend un nombre'
@@ -102,13 +102,13 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
       "it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); });\n";
     scenario(
       id,
-      'testeur-1',
+      'testwriter-1',
       `${ADAPTE_VERT(rouge)}passation 'Fichier adapté, un test neuf rouge.'\nfiche '{"statut":"FAIT","verts_attendus":[{"fichier":"${ADAPTE}","raison":"adapté au type changé"}]}'\n`
     );
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
-    expect(sessions(id, 'testeur')).toBe(1);
+    expect(sessions(id, 'testwriter')).toBe(1);
     expect(sessions(id, 'developpeur')).toBe(1);
     const { preuve, entier } = rapportEntier(id);
     expect(preuve).toContain('1 rouge(s), 2 vert(s) justifié(s), 0 vert(s) sans vert attendu');
@@ -121,13 +121,13 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     ticket(id, '000-forms');
     scenario(
       id,
-      'testeur-1',
+      'testwriter-1',
       `${ECRIT_ROUGE}${ECRIT_VERT}${ADAPTE_VERT()}passation 'Tests écrits.'\nfiche '{"statut":"FAIT","verts_attendus":[{"fichier":"${ADAPTE}","raison":"adapté au type changé"},{"fichier":"packages/forms/test/forme.test.mjs","test":"critère 1 — mesure rend un nombre","raison":"la forme est déjà juste"}]}'\n`
     );
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
-    expect(sessions(id, 'testeur')).toBe(1);
+    expect(sessions(id, 'testwriter')).toBe(1);
     expect(sessions(id, 'developpeur')).toBe(1);
     const { preuve, entier } = rapportEntier(id);
     expect(preuve).toContain('1 rouge(s), 3 vert(s) justifié(s), 0 vert(s) sans vert attendu');

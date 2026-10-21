@@ -19,7 +19,7 @@ import {
 // sets, the votes kept. Witness: BPScript 320.3 (2026-10-20), whose three rounds of review played
 // every component again and the whole final pass each time (210 min), whose second review read
 // the whole lot again, whose finding for a developpeur was lost when the proof of its component
-// had no red, and whose components already proven played their testeur and proof again after a
+// had no red, and whose components already proven played their testwriter and proof again after a
 // component entered the title (29 min, 4,22 $).
 // The trial repository and its stand-ins: ./circuit-essai.ts, here with a third package,
 // `060-sheet`, which depends on no other (`030-binder` depends on `000-forms`).
@@ -81,7 +81,7 @@ describe.runIf(canWrap)('the circuit replays only what changed', { timeout: 300_
   it('after a RENDU, plays the components its findings name, then the final pass restricted to what the fix touches and its dependents, and the whole pass once before the integration', () => {
     const id = 'demo-rejeu-rendu';
     ticket(id, TROIS);
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     scenario(id, 'developpeur-4', `printf '// rendu\\n' >> $c/src/index.mjs\npassation 'Rendu.'\n`);
     scenario(
@@ -95,11 +95,11 @@ describe.runIf(canWrap)('the circuit replays only what changed', { timeout: 300_
     // Forms' developpeur again; binder, which no finding names, plays nothing: the final pass
     // judges it.
     expect(ordre(id)).toEqual([
-      'testeur packages/forms',
+      'testwriter packages/forms',
       'developpeur packages/forms',
-      'testeur packages/binder',
+      'testwriter packages/binder',
       'developpeur packages/binder',
-      'testeur packages/sheet',
+      'testwriter packages/sheet',
       'developpeur packages/sheet',
       'relecteur',
       'developpeur packages/forms',
@@ -162,7 +162,7 @@ describe.runIf(canWrap)('the circuit replays only what changed', { timeout: 300_
   it('has the next review read the difference of the lot since the review before, and its findings, never the whole lot', () => {
     const id = 'demo-rejeu-relecture';
     ticket(id, TROIS);
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     scenario(id, 'developpeur-4', `printf '// rendu\\n' >> $c/src/index.mjs\npassation 'Rendu.'\n`);
     scenario(
@@ -210,12 +210,12 @@ describe.runIf(canWrap)('the circuit replays only what changed', { timeout: 300_
   it('launches the developpeur a finding names even when the proof of its component has no red', () => {
     const id = 'demo-rejeu-constat';
     ticket(id, '000-forms');
-    scenario(id, 'testeur-1', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
+    scenario(id, 'testwriter-1', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
     scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-    // The testeur adds a case the code already holds: the proof has no red.
+    // The testwriter adds a case the code already holds: the proof has no red.
     scenario(
       id,
-      'testeur-2',
+      'testwriter-2',
       `cat > $c/test/zero.test.mjs <<'EOF'
 import { expect, it } from 'vitest';
 import { mesure } from '../src/index.mjs';
@@ -234,7 +234,7 @@ fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/zero.t
       id,
       'relecteur-1',
       rendu(
-        ['testeur 000-forms', 'packages/forms/test/mesure.test.mjs', 'Le cas 0 manque.'],
+        ['testwriter 000-forms', 'packages/forms/test/mesure.test.mjs', 'Le cas 0 manque.'],
         ['developpeur 000-forms', 'packages/forms/src/index.mjs:1', 'Le commentaire manque.']
       )
     );
@@ -245,7 +245,7 @@ fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/zero.t
     const rendus = historique(id).findIndex(([, e]) => e === 'relecture');
     expect(historique(id).slice(rendus, rendus + 5)).toEqual([
       ['packages/forms', 'relecture'],
-      ['packages/forms', 'testeur'],
+      ['packages/forms', 'testwriter'],
       ['packages/forms', 'preuve'],
       ['packages/forms', 'developpeur'],
       ['packages/forms', 'controles'],
@@ -253,15 +253,15 @@ fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/zero.t
     // Each agent receives the findings of its own role.
     expect(essai(id, 'developpeur-2.prompt')).toContain('Le commentaire manque.');
     expect(essai(id, 'developpeur-2.prompt')).not.toContain('Le cas 0 manque.');
-    expect(essai(id, 'testeur-2.prompt')).toContain('Le cas 0 manque.');
-    expect(essai(id, 'testeur-2.prompt')).not.toContain('Le commentaire manque.');
+    expect(essai(id, 'testwriter-2.prompt')).toContain('Le cas 0 manque.');
+    expect(essai(id, 'testwriter-2.prompt')).not.toContain('Le commentaire manque.');
     expect(gitRepo('show', 'main:packages/forms/src/index.mjs')).toContain('// mesure : le double');
   });
 
   it('plays only the checks of a component already proven when a component enters the title before it', () => {
     const id = 'demo-rejeu-titre';
     ticket(id, '030-binder');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     // Binder's code needs forms to follow it: the final pass is red in forms, out of the title.
     scenario(
       id,
@@ -276,7 +276,7 @@ fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/zero.t
     const r1 = circuit([id]);
     expect(r1.status, `${sortie(r1)}\n${etat(id)?.rapport ?? ''}`).toBe(ARRETS.controles);
     // The supervisor adds forms to the title, before binder; the regulator plays it from its
-    // testeur.
+    // testwriter.
     ecrire(
       path.join(BEADS, `${id}.json`),
       json([{ id, title: `${id} — La mesure — 000-forms, 030-binder`, description: DESCRIPTION }])
@@ -284,17 +284,17 @@ fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/zero.t
     const r2 = circuit([
       id,
       '--depuis',
-      'testeur',
+      'testwriter',
       '000-forms',
       '--contexte',
       'La mesure de forms suit le classeur.',
     ]);
     expect(r2.status, sortie(r2)).toBe(0);
-    // Binder, proven and delivered before, plays neither its testeur nor its proof again.
+    // Binder, proven and delivered before, plays neither its testwriter nor its proof again.
     expect(ordre(id).filter(l => !l.startsWith('regulateur'))).toEqual([
-      'testeur packages/binder',
+      'testwriter packages/binder',
       'developpeur packages/binder',
-      'testeur packages/forms',
+      'testwriter packages/forms',
       'developpeur packages/forms',
       'relecteur',
     ]);
@@ -308,7 +308,7 @@ fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/zero.t
   it('judges at the checks of a component only its packages and the findings on its files: a finding on another one waits for the final pass', () => {
     const id = 'demo-rejeu-gardes';
     ticket(id, TROIS);
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code de forms écrit.'\n`);
     // Binder's code makes the guard red on a file of forms.
     scenario(
@@ -325,11 +325,11 @@ fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/zero.t
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(ordre(id)).toEqual([
-      'testeur packages/forms',
+      'testwriter packages/forms',
       'developpeur packages/forms',
-      'testeur packages/binder',
+      'testwriter packages/binder',
       'developpeur packages/binder',
-      'testeur packages/sheet',
+      'testwriter packages/sheet',
       'developpeur packages/sheet',
       'developpeur packages/forms',
       'relecteur',

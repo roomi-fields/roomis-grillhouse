@@ -20,7 +20,7 @@ import {
 // applies a mechanical one itself, with no regulator, and launches the regulator only for what
 // the table does not settle. Witness: BPScript 320.3 (2026-10-20), 22 decisions of the regulator,
 // 11 that a mechanical rule would have taken, 5 relaunches identical to the one before, 5 wrong
-// on the substance (a developpeur before his testeur, a MONTE on a false fact).
+// on the substance (a developpeur before his testwriter, a MONTE on a false fact).
 // The trial repository and its stand-ins: ./circuit-essai.ts; each file of the circuit's tests
 // builds its own, in a trial directory of its own.
 
@@ -69,7 +69,7 @@ describe.runIf(canWrap)('the table of the stops', { timeout: 300_000 }, () => {
     const id = 'demo-table-autre';
     const copie = ticket(id, '000-forms, 030-binder, spec');
     ecrire(path.join(copie, 'spec/mesure.md'), '# La mesure\n');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code de forms écrit.'\n`);
     scenario(
       id,
@@ -90,9 +90,9 @@ describe.runIf(canWrap)('the table of the stops', { timeout: 300_000 }, () => {
     expect(r.status, sortie(r)).toBe(0);
     // No developpeur of binder nor of spec on the red of forms, and no regulateur.
     expect(ordre(id)).toEqual([
-      'testeur packages/forms',
+      'testwriter packages/forms',
       'developpeur packages/forms',
-      'testeur packages/binder',
+      'testwriter packages/binder',
       'developpeur packages/binder',
       'developpeur spec',
       'developpeur packages/forms',
@@ -111,7 +111,7 @@ describe.runIf(canWrap)('the table of the stops', { timeout: 300_000 }, () => {
     const id = 'demo-table-arbitrer';
     const copie = ticket(id, '000-forms, 030-binder, spec');
     ecrire(path.join(copie, 'spec/mesure.md'), '# La mesure\n');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code de forms écrit.'\n`);
     scenario(
       id,
@@ -136,7 +136,7 @@ describe.runIf(canWrap)('the table of the stops', { timeout: 300_000 }, () => {
   it('the same stop come back with nothing new, the copy and the ticket unchanged, ends the circuit on it, with no regulateur', () => {
     const id = 'demo-table-meme-arret';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', RIEN);
     scenario(id, REGULATEUR, regulateur(depuis('developpeur', '000-forms', 'Essai 1.')));
     const r = circuit([id]);
@@ -155,11 +155,11 @@ describe.runIf(canWrap)('the table of the stops', { timeout: 300_000 }, () => {
   });
 
   // A3 → D4 and A14 → D17 of 320.3: the supervisor put the provider in the title, and the
-  // regulator, resumed on his answer, relaunched its testeur.
-  it('on --reponse, a component the title gained since the question starts at its testeur, the answer as its report, with no regulateur resumed', () => {
+  // regulator, resumed on his answer, relaunched its testwriter.
+  it('on --reponse, a component the title gained since the question starts at its testwriter, the answer as its report, with no regulateur resumed', () => {
     const id = 'demo-table-composant-ajoute';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur-1', RIEN);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     scenario(
@@ -178,17 +178,17 @@ describe.runIf(canWrap)('the table of the stops', { timeout: 300_000 }, () => {
     expect(r2.status, sortie(r2)).toBe(0);
     expect(sessions(id, REGULATEUR)).toBe(1);
     expect(ordre(id).slice(0, 5)).toEqual([
-      'testeur packages/forms',
+      'testwriter packages/forms',
       'developpeur packages/forms',
       REGULATEUR,
-      'testeur packages/binder',
+      'testwriter packages/binder',
       'developpeur packages/binder',
     ]);
-    expect(essai(id, 'testeur-2.prompt')).toContain('TON COMPOSANT : packages/binder');
-    expect(essai(id, 'testeur-2.prompt')).toContain('Le classeur rejoint le titre.');
+    expect(essai(id, 'testwriter-2.prompt')).toContain('TON COMPOSANT : packages/binder');
+    expect(essai(id, 'testwriter-2.prompt')).toContain('Le classeur rejoint le titre.');
     expect(arbitrages(id)).toEqual([
       expect.stringMatching(
-        /^Circuit · packages\/forms · arbitrage : composant-ajoute → RELANCE --depuis testeur packages\/binder/
+        /^Circuit · packages\/forms · arbitrage : composant-ajoute → RELANCE --depuis testwriter packages\/binder/
       ),
     ]);
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
@@ -198,11 +198,11 @@ describe.runIf(canWrap)('the table of the stops', { timeout: 300_000 }, () => {
 describe.runIf(canWrap)('the admission of the regulateur’s decision', { timeout: 300_000 }, () => {
   afterEach(revenirAuDebut);
 
-  // D1, D5, D7 of 320.3: a developpeur launched before his testeur (A2, A5, A7).
-  it('refuses a developpeur whose testeur has not run, asks the same session again once with the reason, and applies the decision admitted', () => {
+  // D1, D5, D7 of 320.3: a developpeur launched before his testwriter (A2, A5, A7).
+  it('refuses a developpeur whose testwriter has not run, asks the same session again once with the reason, and applies the decision admitted', () => {
     const id = 'demo-admission-role';
     ticket(id, '000-forms, 030-binder');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur-1', RIEN);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     scenario(id, `${REGULATEUR}-1`, regulateur(depuis('developpeur', '030-binder', 'Le double.')));
@@ -214,12 +214,12 @@ describe.runIf(canWrap)('the admission of the regulateur’s decision', { timeou
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(ordre(id)).toEqual([
-      'testeur packages/forms',
+      'testwriter packages/forms',
       'developpeur packages/forms',
       REGULATEUR,
       REGULATEUR,
       'developpeur packages/forms',
-      'testeur packages/binder',
+      'testwriter packages/binder',
       'developpeur packages/binder',
       'relecteur',
     ]);
@@ -230,7 +230,7 @@ describe.runIf(canWrap)('the admission of the regulateur’s decision', { timeou
     const redemande = essai(id, `${REGULATEUR}-2.prompt`);
     expect(redemande).toContain('LE CIRCUIT REFUSE TA DÉCISION');
     expect(redemande).toContain('packages/binder');
-    expect(redemande).toContain('testeur');
+    expect(redemande).toContain('testwriter');
     expect(refus(id)).toEqual([
       expect.stringMatching(
         /^Circuit · packages\/forms · regulateur : décision refusée — .*binder/
@@ -245,7 +245,7 @@ describe.runIf(canWrap)('the admission of the regulateur’s decision', { timeou
   it('refuses a component out of the title and a fact the state proves false; refused twice, the stop goes to the supervisor', () => {
     const id = 'demo-admission-faits';
     ticket(id, '000-forms, 030-binder');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', RIEN);
     scenario(id, `${REGULATEUR}-1`, regulateur(depuis('developpeur', '999-absent', 'Le double.')));
     scenario(
@@ -269,10 +269,10 @@ describe.runIf(canWrap)('the admission of the regulateur’s decision', { timeou
     expect(commentaires(id).some(t => / · regulateur : MONTE/.test(t))).toBe(false);
   });
 
-  it('after a criterion added to the description, admits only a relaunch from a testeur', () => {
+  it('after a criterion added to the description, admits only a relaunch from a testwriter', () => {
     const id = 'demo-admission-critere';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur-1', RIEN);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     // The regulator adds a criterion, as its skill writes it (`bd update <id> -d`), then relaunches
@@ -292,20 +292,20 @@ FIN
     scenario(
       id,
       `${REGULATEUR}-2`,
-      regulateur(depuis('testeur', '000-forms', 'Le critère 2 : mesure(0) rend 0.'))
+      regulateur(depuis('testwriter', '000-forms', 'Le critère 2 : mesure(0) rend 0.'))
     );
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(sessions(id, REGULATEUR)).toBe(2);
-    expect(sessions(id, 'testeur')).toBe(2);
+    expect(sessions(id, 'testwriter')).toBe(2);
     expect(essai(id, `${REGULATEUR}-2.prompt`)).toContain('critère');
-    expect(essai(id, 'testeur-2.prompt')).toContain('Le critère 2 : mesure(0) rend 0.');
+    expect(essai(id, 'testwriter-2.prompt')).toContain('Le critère 2 : mesure(0) rend 0.');
     expect(ordre(id).slice(0, 5)).toEqual([
-      'testeur packages/forms',
+      'testwriter packages/forms',
       'developpeur packages/forms',
       REGULATEUR,
       REGULATEUR,
-      'testeur packages/forms',
+      'testwriter packages/forms',
     ]);
   });
 
@@ -313,7 +313,7 @@ FIN
   it('refuses a RELANCE identical to the one before on the same stop, without a new fact', () => {
     const id = 'demo-admission-identique';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', RIEN);
     scenario(id, 'developpeur-3', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     // The first session leaves a trace in the copy, out of the component: the stop that comes back

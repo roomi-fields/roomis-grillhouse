@@ -12,7 +12,7 @@ prime sur tout le reste.
 ## Au démarrage
 
 1. Ta consigne porte ton ticket, lu au lancement de ta séance : sa description et ses critères,
-   ses notes, la dernière passation de ton rôle sur ton composant (celle du testeur, pour ta
+   ses notes, la dernière passation de ton rôle sur ton composant (celle du testwriter, pour ta
    première séance). Tu ne le relis pas par bd, qui le refuse à ta séance. Puis
    `bd update <id> --claim`. Des notes au ticket disent qu'un agent s'est arrêté avant toi : tu
    reprends au point qu'elles nomment, sur l'état de ta copie (`git -C <copie> status`,
@@ -25,7 +25,7 @@ prime sur tout le reste.
    Le reste se lit à deux renvois : tous les éléments avec leur phrase dans
    `docs/agents/index-des-interfaces.md`, puis la section d'un élément dans l'interface du
    fournisseur. Ainsi tu sais ce qui est déjà calculé, et où.
-4. Lance les tests du testeur, déjà dans ta copie (`npm test -- <fichiers>`, chemins depuis la
+4. Lance les tests du testwriter, déjà dans ta copie (`npm test -- <fichiers>`, chemins depuis la
    racine du dépôt), et vois-les rouges ; sans test neuf, ce sont les rouges existants que le
    rapport de la preuve nomme.
    Ainsi ton code se mesure à des tests que tu n'as pas écrits.
@@ -103,7 +103,7 @@ ne trouve pas son texte échoue au lieu de passer en silence.
   et de quel composant ; ton code reste dans ta copie. Ainsi l'agent qui reprend repart de ton
   travail.
 - **Un test que tu crois faux** part au superviseur, avec la règle qu'il contredit. Les tests et la
-  matière de test partagée sont au testeur.
+  matière de test partagée sont au testwriter.
 
 Une découverte qui ne bloque pas entre dans `decouvertes` de ta fiche (son sujet, son exemple et
 son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
@@ -115,13 +115,13 @@ son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
   dernier composant, la passe finale, la passe complète que joue l'intégration. Un rouge te
   relance avec sa sortie quand il est dans ton composant. Tu es lancé sur un rouge (de la preuve, un `rouge existant` compris, ou des
   contrôles), ou directement dans un composant qui ne porte aucun test (aucun paquet avec un
-  script `test:vitest`), sans testeur ni preuve : une séance qui ne change aucun fichier de ton
+  script `test:vitest`), sans testwriter ni preuve : une séance qui ne change aucun fichier de ton
   composant arrête le circuit (`sans-livraison`), et ta passation dit pourquoi. Tes propres
   lancements pendant le travail restent les tiens. Ainsi ton lot arrive au relecteur vert.
-- **Un rouge qui reste dans les tests va à leur testeur** : quand le rouge qui reste est dans les
+- **Un rouge qui reste dans les tests va à leur testwriter** : quand le rouge qui reste est dans les
   tests d'un composant du titre, le tien ou un composant d'avant (un test existant que ton
-  changement de type casse), ta fiche porte `renvoi` : le rôle testeur et ce composant, écrit
-  comme le titre le nomme. Le circuit rejoue ce composant depuis son testeur, ta `raison` et ta
+  changement de type casse), ta fiche porte `renvoi` : le rôle testwriter et ce composant, écrit
+  comme le titre le nomme. Le circuit rejoue ce composant depuis son testwriter, ta `raison` et ta
   passation pour rapport, puis les composants d'après qu'il n'a pas encore menés et la passe
   finale, sans te relancer sur ce rouge ; le même renvoi deux fois de suite, sans contrôles verts
   entre eux, l'arrête (`sans-livraison`). Ainsi le rouge va à l'agent qui écrit les tests.
@@ -129,7 +129,7 @@ son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
   - `statut` FAIT : ton code est écrit, et les contrôles le jugent ;
   - `statut` BLOQUÉ, avec sa `raison` : ce qui reste est hors de ta portée (un test, la matière
     de test partagée, un fichier hors de ton enveloppe, une décision hors de ton rôle) ; avec
-    `renvoi`, c'est le renvoi au testeur ; sans lui, le circuit s'arrête (`hors-portee`) ;
+    `renvoi`, c'est le renvoi au testwriter ; sans lui, le circuit s'arrête (`hors-portee`) ;
   - `statut` BESOIN, avec sa `question` : une réponse te manque pour avancer ; le circuit
     s'arrête (`besoin`) ;
   - `ecarts` : ce que le message de commit nomme (un rouge de structure, un écart voulu) ;

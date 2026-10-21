@@ -13,7 +13,7 @@ import {
   sortie,
 } from './circuit-essai.js';
 
-// grillhouse-3uv.89, L6 — the components fixed at the opening. Before the testeur of its first
+// grillhouse-3uv.89, L6 — the components fixed at the opening. Before the testwriter of its first
 // component, the circuit surveys the components the ticket's Architecture and criteria reach
 // (scripts/composants-affectes.mjs): one the title does not name stops it at once, before any
 // session, at « composants-manquants », the missing components at the head of its report; the
@@ -52,13 +52,13 @@ describe.runIf(canWrap)('the components fixed at the opening', { timeout: 300_00
     const r = circuit([id]);
     expect(ARRETS['composants-manquants']).toBeDefined();
     expect(r.status, sortie(r)).toBe(ARRETS['composants-manquants']);
-    // No session ran: neither a testeur nor a regulator.
+    // No session ran: neither a testwriter nor a regulator.
     expect(essai(id, 'ordre')).toBe('');
     const e = etat(id);
     expect(e).toMatchObject({
       raison: 'composants-manquants',
       code: ARRETS['composants-manquants'],
-      etape: 'testeur',
+      etape: 'testwriter',
       composant: 'packages/forms',
     });
     expect(String(e?.rapport).split('\n')[0]).toBe('Composants manquants au titre : 030-binder.');
@@ -73,12 +73,12 @@ describe.runIf(canWrap)('the components fixed at the opening', { timeout: 300_00
     const id = 'demo-reponse';
     ticketSansBinder(id);
     expect(circuit([id]).status).toBe(ARRETS['composants-manquants']);
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id, '--reponse', 'binder lit la mesure sans changer.']);
     expect(r.status, sortie(r)).toBe(0);
     expect(ordre(id)).toEqual([
-      'testeur packages/forms',
+      'testwriter packages/forms',
       'developpeur packages/forms',
       'relecteur',
     ]);

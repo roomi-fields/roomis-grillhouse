@@ -46,7 +46,7 @@
 //   the name of a package of the copy, the refusal gives its path.
 // - <copie> is the agent's git worktree; <composant> is the component's path inside it
 //   (`packages/a`, or `src/parser` in a one-package project); <rôle> is the agent's role
-//   (`testeur`, `developpeur`…).
+//   (`testwriter`, `developpeur`…).
 // - In every worktree of the repository, the component's parent directory (`packages/`, `src/`)
 //   is emptied. In <copie>, the component is mounted back in writing; every sibling component
 //   gets back, read-only, its published parts: `package.json`, `docs/INTERFACE.md`, `dist/`, its
@@ -66,7 +66,7 @@
 //   rest holds: the root read-only, the copy written, its `.git` read-only.
 // - The package of the shared test material is every component of <copie> whose `package.json`
 //   exports `./test-fixtures` (`matieres` of `scripts/consommateurs.mjs`). It comes back whole, after the agent's own component:
-//   written for the `testeur`, read-only for every other role, its own component included. For
+//   written for the `testwriter`, read-only for every other role, its own component included. For
 //   such a role, where a run of its tests writes in it (`sortiesDeTest`: Turborepo's task logs,
 //   Vite's cache) is an empty directory proper to the session, as Bazel writes a test's logs out
 //   of its source: what is written there leaves no trace. The envelope creates each of them on
@@ -98,7 +98,7 @@ import { VARIABLE } from './composant.mjs';
 
 const PUBLISHED = ['package.json', 'docs/INTERFACE.md', 'dist', 'turbo.json', 'turbo.jsonc'];
 // The role that writes the package of the shared test material.
-const ROLE_MATIERE = 'testeur';
+const ROLE_MATIERE = 'testwriter';
 // What a run of a package's tests writes in that package, relative to it: the logs of its tasks,
 // which Turborepo writes on every run, a task replayed from its cache included
 // (`.turbo/turbo-<task>.log`), and no option of Turborepo sends elsewhere; the cache of Vite, where
@@ -376,7 +376,7 @@ export function jugerComposant({ depot, composant, paquets = [] }, fs) {
 // (`lien`, its text) (`montagesDeLaSeance`); an emptied one marked `scelle` is sealed read-only
 // once every mount inside it is made.
 // `matieres` lists the packages of the shared test material, relative to the copy
-// (`matieres` of `scripts/consommateurs.mjs`); `role` is the agent's role, and only the `testeur` writes them.
+// (`matieres` of `scripts/consommateurs.mjs`); `role` is the agent's role, and only the `testwriter` writes them.
 // `magasins` lists the task caches written by every run, the agent's included (Turborepo's
 // `<main tree>/.turbo/cache`); one that does not exist is not mounted.
 // `paquets` lists the packages of the copy, which `jugerComposant` reads to judge <composant>.

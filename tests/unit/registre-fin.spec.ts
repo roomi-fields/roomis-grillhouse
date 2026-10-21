@@ -166,7 +166,7 @@ describe('3uv.72 critère 1 — the end of a sub-agent', () => {
       transcript_path: path.join(d, 's11.jsonl'),
       agent_id: 'a11',
       agent_transcript_path: f,
-      agent_type: 'testeur',
+      agent_type: 'testwriter',
       cwd: d,
       last_assistant_message: 'x'.repeat(200_000),
     };

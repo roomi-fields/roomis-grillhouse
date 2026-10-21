@@ -6,7 +6,7 @@ import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit
 // The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): a relaunch of an
 // agent on its step resumes its session. The first session of an agent on a step carries a session
 // id the circuit sets (`--session-id`), kept in the state (`reprise`); its relaunches on the same
-// step and component (the testeur after a refused proof, the developpeur after red checks) resume
+// step and component (the testwriter after a refused proof, the developpeur after red checks) resume
 // it (`--resume`) with the short template of consigne-agent.md, save the last attempt, a fresh and
 // whole session. A resumption that fails falls back on a fresh and whole session.
 // The trial repository and its stand-ins: ./circuit-essai.ts (its claude keeps a session's
@@ -42,7 +42,7 @@ describe.runIf(canWrap)(
     it('the developpeur relaunched on red checks resumes its first session with the short template; the last attempt is fresh and whole', () => {
       const id = 'demo-reprise-dev';
       ticket(id, '000-forms');
-      scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
+      scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
       // Each session changes a file of forms, never the code that the test waits for.
       scenario(
         id,
@@ -82,7 +82,7 @@ describe.runIf(canWrap)(
     it('a resumption that fails falls back on a fresh and whole session', () => {
       const id = 'demo-reprise-ratee';
       ticket(id, '000-forms');
-      scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
+      scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
       // The first session's transcript is lost: claude does not find the session to resume.
       scenario(
         id,
@@ -110,19 +110,19 @@ describe.runIf(canWrap)(
       expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
     });
 
-    it('the testeur relaunched after a refused proof resumes its first session; its last attempt is fresh and whole', () => {
-      const id = 'demo-reprise-testeur';
+    it('the testwriter relaunched after a refused proof resumes its first session; its last attempt is fresh and whole', () => {
+      const id = 'demo-reprise-testwriter';
       ticket(id, '000-forms');
-      scenario(id, 'testeur', `${ECRIT_ROUGE}${ECRIT_VERT}passation 'Tests écrits.'\n`);
+      scenario(id, 'testwriter', `${ECRIT_ROUGE}${ECRIT_VERT}passation 'Tests écrits.'\n`);
       const r = circuit([id]);
       expect(r.status, sortie(r)).toBe(ARRETS.preuve);
-      expect(sessions(id, 'testeur')).toBe(3);
-      const [a1, a2, a3] = [1, 2, 3].map(n => args(id, 'testeur', n));
+      expect(sessions(id, 'testwriter')).toBe(3);
+      const [a1, a2, a3] = [1, 2, 3].map(n => args(id, 'testwriter', n));
       const premiere = valeur(a1, '--session-id');
       expect(premiere).toMatch(UUID);
       expect(valeur(a2, '--resume')).toBe(premiere);
       expect(a2).not.toContain('--session-id');
-      const courte = essai(id, 'testeur-2.prompt');
+      const courte = essai(id, 'testwriter-2.prompt');
       expect(courte).toContain(COURTE);
       expect(courte).not.toContain(ENTIERE);
       // The proof's report: the green test without its line.
@@ -132,7 +132,7 @@ describe.runIf(canWrap)(
       expect(derniere).toMatch(UUID);
       expect(derniere).not.toBe(premiere);
       expect(a3).not.toContain('--resume');
-      expect(essai(id, 'testeur-3.prompt')).toContain(ENTIERE);
+      expect(essai(id, 'testwriter-3.prompt')).toContain(ENTIERE);
     });
   }
 );

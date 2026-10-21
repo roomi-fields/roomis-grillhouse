@@ -4,7 +4,7 @@ import { canWrap, racineSousLaMaison } from '../machine.js';
 import { sortie, CIRCUIT, IMMOBILE_MS, ARRETS, circuitEssai } from './circuit-essai.js';
 
 // The circuit of a ticket (scripts/circuit.mjs): for each component of its title, the provider
-// first, the testeur, the proof of the red, the developpeur and the checks; then the reviewer,
+// first, the testwriter, the proof of the red, the developpeur and the checks; then the reviewer,
 // and on ACCEPTÉ the integration, which puts the branch in the queue.
 // Decided by the owner on 2026-10-17 (grill): the circuit launches each session itself, in place
 // of a regulator launching and waiting for each one; the circuit
@@ -12,7 +12,7 @@ import { sortie, CIRCUIT, IMMOBILE_MS, ARRETS, circuitEssai } from './circuit-es
 // it ends at the entry of the lot in the queue (Q13).
 //
 // This file: the stops of the circuit and their codes, and the calls it refuses. The circuit of a
-// ticket is tested in the files beside it: circuit.preuve (the testeur and the proof),
+// ticket is tested in the files beside it: circuit.preuve (the testwriter and the proof),
 // circuit.sessions (the sessions relaunched, stopped and resumed), circuit.composants (a red judged
 // by its component), circuit.passe-finale (the final pass), circuit.construction (a failed build),
 // circuit.tests-de-head (the tests HEAD holds), circuit.relecture (the review and the
@@ -76,17 +76,17 @@ describe.runIf(canWrap)('the circuit refuses a malformed --depuis or --reponse',
     ticket(id, '000-forms');
   });
   for (const [cas, args] of [
-    ['a step other than testeur or developpeur', ['--depuis', 'preuve', 'packages/forms']],
-    ['a component the title does not name', ['--depuis', 'testeur', 'packages/binder']],
-    ['a component missing', ['--depuis', 'testeur']],
-    ['--depuis with --reprendre', ['--depuis', 'testeur', 'packages/forms', '--reprendre']],
+    ['a step other than testwriter or developpeur', ['--depuis', 'preuve', 'packages/forms']],
+    ['a component the title does not name', ['--depuis', 'testwriter', 'packages/binder']],
+    ['a component missing', ['--depuis', 'testwriter']],
+    ['--depuis with --reprendre', ['--depuis', 'testwriter', 'packages/forms', '--reprendre']],
     ['--reponse without its text', ['--reponse']],
     ['--reponse with --reprendre', ['--reponse', 'Le double.', '--reprendre']],
   ] as const) {
     it(`${cas}, exit 2, nothing launched`, () => {
       const r = circuit([id, ...args]);
       expect(r.status, sortie(r)).toBe(2);
-      expect(sessions(id, 'testeur')).toBe(0);
+      expect(sessions(id, 'testwriter')).toBe(0);
     });
   }
 });
@@ -108,6 +108,6 @@ describe.runIf(canWrap)('the circuit refuses a malformed call', () => {
     const r = circuit([id]);
     expect(r.status).toBe(2);
     expect(r.stderr).toContain('999-absent');
-    expect(sessions(id, 'testeur')).toBe(0);
+    expect(sessions(id, 'testwriter')).toBe(0);
   });
 });

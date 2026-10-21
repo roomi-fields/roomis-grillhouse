@@ -28,7 +28,7 @@ professionnel.
    le ticket. Ainsi la décision est prise et écrite avant le code.
 4. Le plan va dans le ticket (`bd update <id> -d`). Un travail qui change un comportement est un
    seul ticket, qui passe d'un agent au suivant dans sa copie : les tests d'abord (agent
-   `testeur`), puis le code qui les rend verts (agent `developpeur`). Ainsi le code se mesure à des
+   `testwriter`), puis le code qui les rend verts (agent `developpeur`). Ainsi le code se mesure à des
    tests qu'il n'a pas écrits. Un critère répond à un besoin réel de l'usage actuel ; un cas
    seulement possible n'en devient pas un. Ainsi le ticket garde la taille du besoin.
 5. Le ticket se ferme sur ses tests ciblés, le verdict de l'agent `relecteur` sur le lot, le
@@ -37,7 +37,7 @@ professionnel.
    l'est vraiment.
 6. Chaque agent laisse sa passation en commentaire au ticket (`bd comments add`,
    `docs/agents/issue-tracker.md`), avec ce qui n'est pas fait et pourquoi. Ainsi l'agent suivant
-   la trouve par `bd show`. Une séance que le circuit mène (testeur, développeur, relecteur,
+   la trouve par `bd show`. Une séance que le circuit mène (testwriter, développeur, relecteur,
    régulateur) finit sur sa fiche, la sortie structurée que le schéma de son rôle décrit
    (`scripts/resultats.mjs`) ; le circuit décide sur elle, jamais sur un texte libre. Ainsi la
    passation sert l'humain, et la fiche le circuit.
@@ -51,7 +51,7 @@ parcourt l'arbre de son circuit, les étapes « auto » comprises (`scripts/etap
 liste), comme un pipeline de GitLab CI ses étapes et leurs travaux : 0 Exploration,
 l'`explorateur` ; 1 Ouverture : 1.1 Relevé des composants, auto, puis 1.2 Questionnement,
 le `questionneur` ⇄ le `referent-technique`, qui répond pour le plan, en tours, quatre au plus ;
-2 Composants, pour chaque composant du titre dans son ordre : 2.1 Tests, le `testeur`, 2.2 Preuve
+2 Composants, pour chaque composant du titre dans son ordre : 2.1 Tests, le `testwriter`, 2.2 Preuve
 du rouge, auto, trois essais au plus, puis 2.3 Code, le `developpeur`, 2.4 Contrôles, auto, trois
 essais au plus ; 3 Passe finale, auto ; 4 Relecture, le `relecteur`, trois tours au plus, un lot
 rendu revenant en 2 pour les composants nommés ; 5 Intégration : 5.1 Commit et 5.2 File : main,
@@ -79,7 +79,7 @@ de réalisation fait une seule livraison, en un seul commit ; tout ticket se cr�
 **Un ticket de réalisation nomme ses composants** : sa section « Architecture » et son titre
 (« numéro — sujet — composant, composant ») les nomment, le fournisseur d'abord, puis ses lecteurs.
 Le relevé des composants (`scripts/composants-affectes.mjs`) les trouve à la création du ticket, et
-le circuit le refait avant le premier testeur : un composant relevé que le titre ne nomme pas
+le circuit le refait avant le premier testwriter : un composant relevé que le titre ne nomme pas
 l'arrête d'emblée. Dans la copie du ticket, le circuit (`scripts/circuit.mjs`), que lance le superviseur, lance un
 agent par composant, chacun enveloppé dans son paquet, dans cet ordre, puis le relecteur, qui relit
 l'ensemble. Ainsi un type change avec ses

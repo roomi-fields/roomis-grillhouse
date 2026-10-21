@@ -42,7 +42,7 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
   it('counts the developpeur sessions of the final pass together: three, then « controles »', () => {
     const id = 'demo-ping-pong';
     ticket(id, '000-forms, 030-binder');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code de forms écrit.'\n`);
     scenario(
       id,
@@ -58,9 +58,9 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     expect(r.status, sortie(r)).toBe(ARRETS.controles);
     // The final pass: binder's first session, forms', then binder's on the strong model.
     expect(ordre(id)).toEqual([
-      'testeur packages/forms',
+      'testwriter packages/forms',
       'developpeur packages/forms',
-      'testeur packages/binder',
+      'testwriter packages/binder',
       'developpeur packages/binder',
       'developpeur packages/forms',
       'developpeur packages/binder',

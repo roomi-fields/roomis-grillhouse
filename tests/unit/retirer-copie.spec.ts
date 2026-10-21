@@ -938,7 +938,7 @@ describe('grillhouse-3uv.56 critère 9 — a copy whose local work has entered m
     },
     LONG
   );
-  // Arbitrage of the regulator (comment « cas relevés par le testeur »): « main » is the branch main,
+  // Arbitrage of the regulator (comment « cas relevés par le testwriter »): « main » is the branch main,
   // not the head of the main tree.
   it(
     'critère 9: « main » is the branch main: work entered on main is removed while the main tree stands on another branch without it',

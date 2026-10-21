@@ -9,7 +9,7 @@ import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit
 // (grillhouse-3uv.89, L1): each session ends on its sheet, which claude writes in its JSON result
 // (`--output-format json --json-schema`, `structured_output`), and the checks read the summaries
 // of Turborepo, the reports of Vitest and the SARIF of the guards, never their output.
-// Witness: BPScript 320.3 (2026-10-20): 8 relaunches of a testeur for the form of a line « vert
+// Witness: BPScript 320.3 (2026-10-20): 8 relaunches of a testwriter for the form of a line « vert
 // attendu », the red of a guard given to the component under way, and the last 60 lines of a log
 // that hid the real red from the agent who had to lift it.
 // The trial repository and its stand-ins: ./circuit-essai.ts; each file of the circuit's tests
@@ -46,11 +46,11 @@ describe.runIf(canWrap)('the sheet that ends a session', { timeout: 300_000 }, (
   it('each session receives the schema of its role’s sheet and claude’s JSON output', () => {
     const id = 'demo-fiche-schema';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
-    for (const role of ['testeur', 'developpeur', 'relecteur']) {
+    for (const role of ['testwriter', 'developpeur', 'relecteur']) {
       const a = args(id, role, 1);
       expect(valeur(a, '--output-format'), role).toBe('json');
       expect(JSON.parse(valeur(a, '--json-schema')), role).toEqual(schemaDeFiche(role));
@@ -60,21 +60,21 @@ describe.runIf(canWrap)('the sheet that ends a session', { timeout: 300_000 }, (
   it('a session that ends without a sheet is resumed once, the same session, the short instruction naming what lacks; then the circuit goes on', () => {
     const id = 'demo-fiche-reprise';
     ticket(id, '000-forms');
-    scenario(id, 'testeur-1', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\nsans_fiche\n`);
+    scenario(id, 'testwriter-1', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\nsans_fiche\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
-    expect(sessions(id, 'testeur')).toBe(2);
-    expect(valeur(args(id, 'testeur', 2), '--resume')).toBe(
-      valeur(args(id, 'testeur', 1), '--session-id')
+    expect(sessions(id, 'testwriter')).toBe(2);
+    expect(valeur(args(id, 'testwriter', 2), '--resume')).toBe(
+      valeur(args(id, 'testwriter', 1), '--session-id')
     );
-    const prompt = essai(id, 'testeur-2.prompt');
+    const prompt = essai(id, 'testwriter-2.prompt');
     expect(prompt).toContain('sans fiche conforme');
     expect(prompt).toContain('structured_output');
-    expect(prompt.length).toBeLessThan(essai(id, 'testeur-1.prompt').length / 2);
+    expect(prompt.length).toBeLessThan(essai(id, 'testwriter-1.prompt').length / 2);
     expect(commentaires(id)).toContainEqual(
       expect.stringMatching(
-        /^Circuit · packages\/forms · testeur : séance finie sans fiche conforme/
+        /^Circuit · packages\/forms · testwriter : séance finie sans fiche conforme/
       )
     );
   });
@@ -82,11 +82,11 @@ describe.runIf(canWrap)('the sheet that ends a session', { timeout: 300_000 }, (
   it('a sheet out of its schema is resumed once, its fault named', () => {
     const id = 'demo-fiche-non-conforme';
     ticket(id, '000-forms');
-    scenario(id, 'testeur-1', `${ECRIT_ROUGE}fiche '{"statut":"PEUT-ÊTRE"}'\n`);
+    scenario(id, 'testwriter-1', `${ECRIT_ROUGE}fiche '{"statut":"PEUT-ÊTRE"}'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
-    const prompt = essai(id, 'testeur-2.prompt');
+    const prompt = essai(id, 'testwriter-2.prompt');
     expect(prompt).toContain('statut');
     expect(prompt).toContain('PEUT-ÊTRE');
   });
@@ -94,12 +94,12 @@ describe.runIf(canWrap)('the sheet that ends a session', { timeout: 300_000 }, (
   it('twice without a sheet: the circuit stops at « sans-fiche », the regulateur launched on it', () => {
     const id = 'demo-sans-fiche';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits.'\nsans_fiche\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits.'\nsans_fiche\n`);
     const r = circuit([id]);
     expect(ARRETS['sans-fiche']).toBeDefined();
     expect(r.status, sortie(r)).toBe(ARRETS['sans-fiche']);
-    expect(sessions(id, 'testeur')).toBe(2);
-    expect(etat(id)).toMatchObject({ etape: 'testeur', raison: 'sans-fiche' });
+    expect(sessions(id, 'testwriter')).toBe(2);
+    expect(etat(id)).toMatchObject({ etape: 'testwriter', raison: 'sans-fiche' });
     expect(ordre(id)[2]).toBe('regulateur');
   });
 
@@ -108,7 +108,7 @@ describe.runIf(canWrap)('the sheet that ends a session', { timeout: 300_000 }, (
     ticket(id, '000-forms');
     scenario(
       id,
-      'testeur',
+      'testwriter',
       `${ECRIT_ROUGE}passation 'Tests écrits.\nSTATUT : BESOIN — une question écrite au ticket seulement.'\n`
     );
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
@@ -120,7 +120,7 @@ describe.runIf(canWrap)('the sheet that ends a session', { timeout: 300_000 }, (
   it('each discovery of a sheet is filed by the circuit, closed under the ticket, labelled decouverte', () => {
     const id = 'demo-fiche-decouverte';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(
       id,
       'developpeur',
@@ -144,7 +144,7 @@ describe.runIf(canWrap)('the sheet that ends a session', { timeout: 300_000 }, (
   it('the deviations of the developpeur’s and the reviewer’s sheets are named in the body of the commit', () => {
     const id = 'demo-fiche-ecarts';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(
       id,
       'developpeur',
@@ -165,7 +165,7 @@ describe.runIf(canWrap)('the sheet that ends a session', { timeout: 300_000 }, (
   it('the reviewer’s verdict is written at the ticket by the circuit, from its sheet, under the reviewer’s author', () => {
     const id = 'demo-fiche-verdict';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     scenario(
       id,
@@ -186,7 +186,7 @@ describe.runIf(canWrap)('the checks read the structured results', { timeout: 300
   it('the report a developpeur receives names its reds first, test, file and message, read from the reports, without the end of the log', () => {
     const id = 'demo-rapport-en-tete';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(
       id,
       'developpeur-1',
@@ -211,7 +211,7 @@ describe.runIf(canWrap)('the checks read the structured results', { timeout: 300
   it('a red guard of the project without SARIF at a component’s checks is not that component’s: it waits for the final pass, where no component owns it', () => {
     const id = 'demo-garde-globale';
     ticket(id, '000-forms, 030-binder');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     // Forms' code is right; its guard file makes the project's guard red, naming a file of forms
     // in its output only.
     scenario(
@@ -224,9 +224,9 @@ describe.runIf(canWrap)('the checks read the structured results', { timeout: 300
     expect(r.status, sortie(r)).toBe(ARRETS.controles);
     // Forms' developpeur is not relaunched on it: binder's circuit runs, then the final pass.
     expect(ordre(id).slice(0, 4)).toEqual([
-      'testeur packages/forms',
+      'testwriter packages/forms',
       'developpeur packages/forms',
-      'testeur packages/binder',
+      'testwriter packages/binder',
       'developpeur packages/binder',
     ]);
     expect(sessions(id, 'developpeur')).toBe(2);

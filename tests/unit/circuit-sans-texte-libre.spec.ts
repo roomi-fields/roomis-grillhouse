@@ -2,7 +2,7 @@
 // (scripts/circuit.mjs) decides on structured results only — the end-of-session sheet of each agent,
 // the summary of Turborepo, the JSON reports of Vitest, the SARIF of the guards — and never reads a
 // comment, an answer of an agent or a log by a regular expression. Witness: BPScript 320.3
-// (2026-10-20), where the line « Agent : testeur » read only at the start of a line, the notice ⚠
+// (2026-10-20), where the line « Agent : testwriter » read only at the start of a line, the notice ⚠
 // of a guard not set aside, the last 60 lines of a log and the form of « vert attendu » cost
 // relaunches and hid the real red.
 //

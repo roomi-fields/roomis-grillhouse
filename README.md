@@ -70,7 +70,7 @@ Three layers, each with one job:
 | ----------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | Initialisation & architecture | `grill`              | Surveys the code, grills the owner, writes the charter and reference documents.                                                        |
 | Supervisor                    | `pitmaster`          | Keeps the tickets, hands each one to a fresh agent, reviews closures, keeps the frame.                                                 |
-| Tester (agent)                | `testeur`            | Writes a ticket's tests from the spec, before the code; writes test files and the shared test material only.                           |
+| Tester (agent)                | `testwriter`         | Writes a ticket's tests from the spec, before the code; writes test files and the shared test material only.                           |
 | Developer (agent)             | `developpeur`        | Makes those tests pass; touches no test nor the shared test material, writes no code before the ticket's Architecture section.         |
 | Reviewer (agent)              | `relecteur`          | Reviews the lot adversarially (edge cases, verification gaps, the frame); writes nothing.                                              |
 | Technical referent (agent)    | `referent-technique` | Settles a design question away from the rush: mature model, project texts, common mechanism; or sends it to the owner. Writes nothing. |

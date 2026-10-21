@@ -223,7 +223,7 @@ const min = (ms: number) => Math.round((ms / MIN) * 100) / 100;
 describe('the wall time and its categories', () => {
   // One component, packages/a, whose checks are the final pass: each step does its work once.
   const lignes = [
-    seance('testeur', 't1', [[0, 10]], { jetons: 2000, cache: 30_000, cout: 1 }),
+    seance('testwriter', 't1', [[0, 10]], { jetons: 2000, cache: 30_000, cout: 1 }),
     etape('preuve', 'packages/a', 10.25, 11),
     seance('developpeur', 'd1', [[11.25, 20]], { jetons: 1000, cache: 20_000, cout: 0.25 }),
     etape('controles', 'packages/a', 20.25, 30),
@@ -232,7 +232,7 @@ describe('the wall time and its categories', () => {
     etape('file', 'packages/a', 36, 38),
   ];
   const entrees = [
-    fiche(10, 5, 'testeur', 'packages/a'),
+    fiche(10, 5, 'testwriter', 'packages/a'),
     preuve(11, 0, 'packages/a', [1, 0, 0, 0], true),
     fiche(20, 5, 'developpeur', 'packages/a'),
     controles(30, 0, 'packages/a', 'vert', true),
@@ -278,16 +278,19 @@ describe('the wall time and its categories', () => {
     expect(b.jetons).toBe(3500);
     expect(b.cache).toBe(55_000);
     expect(b.cout).toBeCloseTo(1.75);
-    expect(b.seances).toEqual({ total: 3, parRole: { testeur: 1, developpeur: 1, relecteur: 1 } });
+    expect(b.seances).toEqual({
+      total: 3,
+      parRole: { testwriter: 1, developpeur: 1, relecteur: 1 },
+    });
   });
 });
 
 describe('a relaunch without effect', () => {
   // packages/b, last of the title (its checks are the final pass).
   const lignes = [
-    seance('testeur', 't1', [[0, 5]]),
+    seance('testwriter', 't1', [[0, 5]]),
     etape('preuve', 'packages/b', 5, 6),
-    seance('testeur', 't2', [[6, 7]]),
+    seance('testwriter', 't2', [[6, 7]]),
     etape('preuve', 'packages/b', 7, 8),
     seance('developpeur', 'd1', [[8, 10]]),
     seance('regulateur', 'g1', [[10, 11]], { cout: 0.2 }),
@@ -299,9 +302,9 @@ describe('a relaunch without effect', () => {
     etape('controles', 'packages/b', 28, 34),
   ];
   const entrees = [
-    fiche(5, 0, 'testeur', 'packages/b'),
+    fiche(5, 0, 'testwriter', 'packages/b'),
     preuve(6, 0, 'packages/b', [1, 0, 2, 3], false),
-    fiche(7, 0, 'testeur', 'packages/b'),
+    fiche(7, 0, 'testwriter', 'packages/b'),
     preuve(8, 0, 'packages/b', [1, 2, 0, 3], true),
     fiche(10, 0, 'developpeur', 'packages/b'),
     arret(10, 0, 'packages/b', 'developpeur', 'sans-livraison'),
@@ -352,7 +355,7 @@ describe('the questioning', () => {
       [4, 5],
     ]),
     seance('referent-technique', 'rt1', [[2, 4]]),
-    seance('testeur', 't1', [[5, 10]]),
+    seance('testwriter', 't1', [[5, 10]]),
     seance('questionneur', 'q2', [[12, 13]], { cout: 0.25 }),
   ];
   const fin = (
@@ -372,7 +375,7 @@ describe('the questioning', () => {
     fiche(4, 0, 'referent-technique', 'packages/a', { reponses: [] }),
     fiche(5, 0, 'questionneur', 'packages/a', { issue: 'AUCUNE' }),
     fin(5, 'plan', 2, true, 'AUCUNE'),
-    fiche(10, 0, 'testeur', 'packages/a'),
+    fiche(10, 0, 'testwriter', 'packages/a'),
     fiche(13, 0, 'questionneur', 'packages/a', { issue: 'DÉSACCORD', desaccord: 'x' }),
     fin(13, 'decision', 1, false, 'DÉSACCORD'),
   ];
@@ -402,15 +405,15 @@ describe('the questioning', () => {
 describe('a replay of steps already green', () => {
   // Three components, a, b, c; c's checks are the final pass. A RENDU sends the developer of a.
   const lignes = [
-    seance('testeur', 'ta', [[0, 2]]),
+    seance('testwriter', 'ta', [[0, 2]]),
     etape('preuve', 'packages/a', 2, 3),
     seance('developpeur', 'da', [[3, 4]]),
     etape('controles', 'packages/a', 4, 5),
-    seance('testeur', 'tb', [[5, 7]]),
+    seance('testwriter', 'tb', [[5, 7]]),
     etape('preuve', 'packages/b', 7, 8),
     seance('developpeur', 'db', [[8, 9]]),
     etape('controles', 'packages/b', 9, 10),
-    seance('testeur', 'tc', [[10, 12]]),
+    seance('testwriter', 'tc', [[10, 12]]),
     etape('preuve', 'packages/c', 12, 13),
     seance('developpeur', 'dc', [[13, 14]]),
     etape('controles', 'packages/c', 14, 20),
@@ -418,21 +421,21 @@ describe('a replay of steps already green', () => {
     seance('developpeur', 'da2', [[22, 23]]),
     etape('controles', 'packages/a', 23, 24),
     etape('controles', 'packages/b', 24, 26),
-    seance('testeur', 'tc2', [[26, 28]]),
+    seance('testwriter', 'tc2', [[26, 28]]),
     etape('preuve', 'packages/c', 28, 29),
     etape('controles', 'packages/c', 29, 35),
   ];
   const ok = (c: string, n: number, m: number) => preuve(m, 0, `packages/${c}`, [1, 0, 0, n], true);
   const entrees = [
-    fiche(2, 0, 'testeur', 'packages/a'),
+    fiche(2, 0, 'testwriter', 'packages/a'),
     ok('a', 1, 3),
     fiche(4, 0, 'developpeur', 'packages/a'),
     controles(5, 0, 'packages/a', 'vert', false),
-    fiche(7, 0, 'testeur', 'packages/b'),
+    fiche(7, 0, 'testwriter', 'packages/b'),
     ok('b', 2, 8),
     fiche(9, 0, 'developpeur', 'packages/b'),
     controles(10, 0, 'packages/b', 'rouge', false),
-    fiche(12, 0, 'testeur', 'packages/c'),
+    fiche(12, 0, 'testwriter', 'packages/c'),
     ok('c', 3, 13),
     fiche(14, 0, 'developpeur', 'packages/c'),
     controles(20, 0, 'packages/c', 'vert', true),
@@ -440,7 +443,7 @@ describe('a replay of steps already green', () => {
     fiche(23, 0, 'developpeur', 'packages/a'),
     controles(24, 0, 'packages/a', 'vert', false),
     controles(26, 0, 'packages/b', 'vert', false),
-    fiche(28, 0, 'testeur', 'packages/c'),
+    fiche(28, 0, 'testwriter', 'packages/c'),
     ok('c', 3, 29),
     controles(35, 0, 'packages/c', 'vert', true),
   ];
@@ -513,11 +516,11 @@ describe('what the bilan reads of the register', () => {
   it('reads the latest line of each agent, the lines of the ticket only, out of the explorations before the circuit', () => {
     const lignes = [
       seance('explorateur', 'x1', [[-60, -30]], { cout: 3 }),
-      seance('testeur', 't1', [[0, 4]], { jetons: 100, cout: 0.5 }),
+      seance('testwriter', 't1', [[0, 4]], { jetons: 100, cout: 0.5 }),
       // A resumed session: its latest line holds its two turns and all its tokens.
-      seance('testeur', 't1', [[0, 4]], { jetons: 100, cout: 0.5 }),
+      seance('testwriter', 't1', [[0, 4]], { jetons: 100, cout: 0.5 }),
       seance(
-        'testeur',
+        'testwriter',
         't1',
         [
           [0, 4],
@@ -531,9 +534,9 @@ describe('what the bilan reads of the register', () => {
       etape('preuve', 'packages/a', 8, 9),
     ];
     const entrees = [
-      fiche(4, 0, 'testeur', 'packages/a'),
+      fiche(4, 0, 'testwriter', 'packages/a'),
       preuve(6, 0, 'packages/a', [0, 0, 1, 0], false),
-      fiche(8, 0, 'testeur', 'packages/a'),
+      fiche(8, 0, 'testwriter', 'packages/a'),
       preuve(9, 0, 'packages/a', [0, 0, 1, 0], false),
       fiche(11, 0, 'developpeur', 'packages/a'),
       arret(11, 0, 'packages/a', 'developpeur', 'sans-livraison'),
@@ -545,7 +548,7 @@ describe('what the bilan reads of the register', () => {
       raison: 'a-repasser',
       code: 75,
     });
-    expect(b.seances).toEqual({ total: 2, parRole: { testeur: 1, developpeur: 1 } });
+    expect(b.seances).toEqual({ total: 2, parRole: { testwriter: 1, developpeur: 1 } });
     expect(b.jetons).toBe(350);
     expect(b.cout).toBeCloseTo(1.5);
     expect(b.debut).toBe(iso(a(0)));
@@ -576,11 +579,11 @@ describe('the lines of the project in the register', () => {
 
 describe('the text of the bilan and its base', () => {
   const lignes = [
-    seance('testeur', 't1', [[0, 10]], { jetons: 2_000_000, cache: 30_000_000, cout: 3.5 }),
+    seance('testwriter', 't1', [[0, 10]], { jetons: 2_000_000, cache: 30_000_000, cout: 3.5 }),
     seance('developpeur', 'd1', [[10, 12]], { jetons: 500_000, cache: 0, cout: 1 }),
   ];
   const entrees = [
-    fiche(10, 0, 'testeur', 'packages/a'),
+    fiche(10, 0, 'testwriter', 'packages/a'),
     fiche(12, 0, 'developpeur', 'packages/a'),
     arret(12, 0, 'packages/a', 'developpeur', 'sans-livraison'),
     fiche(16, 0, 'regulateur', 'packages/a', { decision: 'MONTE', question: 'Une question ?' }),
@@ -595,7 +598,7 @@ describe('the text of the bilan and its base', () => {
     const t = texteDuBilan(b, null);
     const l = t.split('\n');
     expect(l[0]).toBe(
-      'arrêt question (18) en 16 min ; 6 min perdues (38 %) ; 2 séances (1 testeur, 1 développeur) ; 4,50 $ ; 2,50 M jetons, 30,00 M lus du cache.'
+      'arrêt question (18) en 16 min ; 6 min perdues (38 %) ; 2 séances (1 testwriter, 1 développeur) ; 4,50 $ ; 2,50 M jetons, 30,00 M lus du cache.'
     );
     expect(l).toContain('- travail resté au lot : 10 min, 3,50 $');
     expect(l).toContain('- relance sans effet : 2 min, 1,00 $');

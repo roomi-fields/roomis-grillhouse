@@ -674,11 +674,11 @@ export function etape(passages, v) {
   const faits = passages.filter(p => etapeDuRole(p.role) && !juge(p.role));
   const dernier = faits[faits.length - 1];
   if (!dernier) {
-    return 'testeur';
+    return 'testwriter';
   }
   const fin = Date.parse(dernier.fin);
   const jugé = v && v.date >= fin ? v.verdict : null;
-  if (dernier.role === 'testeur') {
+  if (dernier.role === 'testwriter') {
     return 'developpeur';
   }
   if (dernier.role === 'developpeur') {
@@ -981,7 +981,7 @@ export function assembler({
   // A ticket waits in AGENTS only with the owner's go (`circuit`): ready, blocked, or claimed with
   // nothing running; a ticket without it stands in CHANTIER alone; a ticket with a circuit, running
   // or stopped, stands in its circuit's entry, never waiting. The flow's deduction places the
-  // others, and a ticket no agent took yet waits for the testeur, the circuit's first agent.
+  // others, and a ticket no agent took yet waits for the testwriter, the circuit's first agent.
   for (const t of [...tous].sort(ordre)) {
     if (
       !travail(t) ||

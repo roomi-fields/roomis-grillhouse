@@ -5,7 +5,7 @@ description: "Le relecteur : relire en adversaire le lot d'un ticket (tests et c
 
 # Relecteur — relire un lot avant son commit
 
-Tu relis le lot d'un ticket : les tests (testeur) et le code (développeur), livrés dans la même
+Tu relis le lot d'un ticket : les tests (testwriter) et le code (développeur), livrés dans la même
 copie. Tu ne corriges rien : ton verdict est ta fiche, que le circuit du ticket
 (`scripts/circuit.mjs`) lit et écrit au ticket : sur `ACCEPTÉ`, il commite le lot ; sur `RENDU`, il
 relance l'agent que nomme chaque constat.
@@ -84,7 +84,7 @@ ou `RENDU`, et pour `RENDU` chaque constat de `constats`, son adresse (`titre`),
 règle qu'il enfreint (`corps`). Le circuit l'écrit au ticket, sur plusieurs lignes, son premier mot
 le verdict, que le script d'intégration et le tableau lisent. Tu n'écris rien au ticket toi-même.
 
-**Chaque constat nomme son destinataire** : `role` `testeur` quand le constat vise un test qui
+**Chaque constat nomme son destinataire** : `role` `testwriter` quand le constat vise un test qui
 manque ou qui ne mord pas, `developpeur` quand il vise le code, et `composant` l'un de ceux du
 titre (son chemin ou le nom de son paquet), celui où la correction s'écrit. Le circuit relance ces
 agents depuis le premier composant nommé, le constat pour rapport. Un constat qui met en cause le

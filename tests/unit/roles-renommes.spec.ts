@@ -1,7 +1,8 @@
 // grillhouse-3uv.88: the agent `arbitre` is now the `referent-technique` (« référent technique »),
 // the agent `chef-de-chantier` the `regulateur` (« régulateur »), the railway regulator or the
 // build sheriff of Chromium, without an alias of the former names. The frame installs neither
-// former agent nor skill, and the update of a project removes those it holds.
+// former agent nor skill, and the update of a project removes those it holds. The agent
+// `testeur` is now the `testwriter` (Romain, 2026-10-21), under the same rule.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -14,18 +15,22 @@ const ANCIENS = [
   '.claude/agents/chef-de-chantier.md',
   '.claude/skills/arbitre/',
   '.claude/skills/chef-de-chantier/',
+  '.claude/agents/testeur.md',
+  '.claude/skills/testeur/',
 ];
 const liste = () => lireListe(readFileSync(path.join(RACINE, LISTE), 'utf8'));
 const duCadre = () => fichiersDuCadre(RACINE, liste().garder) as string[];
 
-describe('the roles of step 2 under their new names', () => {
-  it('the frame installs the agents and skills referent-technique and regulateur', () => {
+describe('the renamed roles under their new names', () => {
+  it('the frame installs the agents and skills referent-technique, regulateur and testwriter', () => {
     expect(duCadre()).toEqual(
       expect.arrayContaining([
         '.claude/agents/referent-technique.md',
         '.claude/agents/regulateur.md',
         '.claude/skills/referent-technique/SKILL.md',
         '.claude/skills/regulateur/SKILL.md',
+        '.claude/agents/testwriter.md',
+        '.claude/skills/testwriter/SKILL.md',
       ])
     );
   });
@@ -49,6 +54,7 @@ describe('the roles of step 2 under their new names', () => {
           /\bl'arbitre\b/i,
           /'arbitre'/,
           /\bCHEF\b/,
+          /testeur/i,
         ]
           .filter(m => m.test(t))
           .map(m => `${f} : ${m}`);

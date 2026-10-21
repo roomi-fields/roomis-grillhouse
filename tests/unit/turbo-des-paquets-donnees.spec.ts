@@ -472,7 +472,7 @@ describe('the check refuses a declaration the guarantee cannot hold on', () => {
 });
 
 // Witness: BPScript (packages/990-corpus). The shared test material is read-only for every role
-// but the testeur, and Vite 5 bundles an ESM configuration into a file beside it before loading
+// but the testwriter, and Vite 5 bundles an ESM configuration into a file beside it before loading
 // it: a test of the material could not play in another role's envelope. Its configuration of
 // Vitest is CommonJS, which Vite loads in memory.
 describe('the check refuses an ESM configuration of Vitest in the shared test material', () => {

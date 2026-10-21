@@ -83,7 +83,7 @@
 #   line (its refusals, among them the change of its author at the ticket, AUTEUR_FIXE: its
 #   comments carry the author the launch names in BEADS_ACTOR, which the envelope passes on; its
 #   locks), its tools and no server of the index.
-# - A role that ends on a sheet (scripts/resultats.mjs: the testeur, the developpeur) runs with
+# - A role that ends on a sheet (scripts/resultats.mjs: the testwriter, the developpeur) runs with
 #   `--output-format json --json-schema <its schema>` (`node scripts/resultats.mjs --schema
 #   <rôle>`): claude's JSON result, its sheet in `structured_output`, goes to
 #   .claude/worktrees/<ticket>.resultat.json, which a launch removes first and the circuit reads,

@@ -290,9 +290,9 @@ describe('3uv.49 critère 2 : the agents a manager launches are tied to their ti
   it('3uv.49 critère 2 : the tester a manager launches in a shell runs under its role, the manager no longer listed', () => {
     const home = nouveauHome();
     sousAgent(home, 'c13', { agentType: REGULATEUR }, 'demo-9', 2);
-    const ps = agentShell(home, 's-t13', 'testeur', 'demo-9');
+    const ps = agentShell(home, 's-t13', 'testwriter', 'demo-9');
     const t = plateauVivant(home, [T('demo-9')], [], ps);
-    expect(enCours(t, 'testeur')).toEqual(['demo-9']);
+    expect(enCours(t, 'testwriter')).toEqual(['demo-9']);
     expect(enCours(t, REGULATEUR)).toEqual([]);
   });
 });
@@ -301,7 +301,7 @@ describe('3uv.49 critère 3 : a ticket a running manager leads waits for no role
   it('3uv.49 critère 3 : after its tester finished, the ticket is in progress under the manager, not waiting for the developer', () => {
     const t = plateau(
       [T('demo-9')],
-      [fin('t1', 'demo-9', 'testeur', '09:00')],
+      [fin('t1', 'demo-9', 'testwriter', '09:00')],
       [vivant('c0', 'demo-9', REGULATEUR)]
     );
     expect(attentes(t)).not.toContain('demo-9');
@@ -311,7 +311,7 @@ describe('3uv.49 critère 3 : a ticket a running manager leads waits for no role
   it('3uv.49 critère 3 : after an accepted review, the ticket waits for no role while its manager runs', () => {
     const t = plateau(
       [T('demo-9')],
-      [fin('t1', 'demo-9', 'testeur', '09:00'), fin('d1', 'demo-9', 'developpeur', '10:00')],
+      [fin('t1', 'demo-9', 'testwriter', '09:00'), fin('d1', 'demo-9', 'developpeur', '10:00')],
       [vivant('c0', 'demo-9', REGULATEUR)],
       { verdicts: { 'demo-9': { verdict: 'ACCEPTÉ', date: Date.parse(at('10:30')) } } }
     );
@@ -329,17 +329,20 @@ describe('3uv.49 critère 3 : a ticket a running manager leads waits for no role
     const t = plateau(
       [T('demo-9')],
       [],
-      [vivant('c0', 'demo-9', REGULATEUR), vivant('s1', 'demo-9', 'testeur', 10, { ligne: true })]
+      [
+        vivant('c0', 'demo-9', REGULATEUR),
+        vivant('s1', 'demo-9', 'testwriter', 10, { ligne: true }),
+      ]
     );
     expect(attentes(t)).not.toContain('demo-9');
-    expect(enCours(t, 'testeur')).toEqual(['demo-9']);
+    expect(enCours(t, 'testwriter')).toEqual(['demo-9']);
     expect(enCours(t, REGULATEUR)).toEqual([]);
   });
 
   it('3uv.49 critère 3 : a ticket without a manager still waits for the next role of the flow', () => {
     const t = plateau(
       [T('demo-9'), T('demo-10')],
-      [fin('t1', 'demo-9', 'testeur', '09:00'), fin('t2', 'demo-10', 'testeur', '09:00')],
+      [fin('t1', 'demo-9', 'testwriter', '09:00'), fin('t2', 'demo-10', 'testwriter', '09:00')],
       [vivant('c0', 'demo-9', REGULATEUR)]
     );
     expect(bloc(t, 'developpeur')!.attend.map(x => x.id)).toEqual(['demo-10']);
@@ -396,9 +399,9 @@ describe('a ticket a manager led: its running agents hold it, and it waits as an
     const t = plateau(
       [T('demo-9')],
       [fin('c0', 'demo-9', REGULATEUR, '09:00')],
-      [vivant('s1', 'demo-9', 'testeur', 10, { ligne: true })]
+      [vivant('s1', 'demo-9', 'testwriter', 10, { ligne: true })]
     );
-    expect(enCours(t, 'testeur')).toEqual(['demo-9']);
+    expect(enCours(t, 'testwriter')).toEqual(['demo-9']);
     expect(attentes(t)).toEqual([]);
   });
 
@@ -415,7 +418,7 @@ describe('a ticket a manager led: its running agents hold it, and it waits as an
   it('after its manager and its tester finished, the led ticket waits for the developer, not under 0', () => {
     const t = plateau(
       [T('demo-9')],
-      [fin('t1', 'demo-9', 'testeur', '09:00'), fin('c0', 'demo-9', REGULATEUR, '11:00')],
+      [fin('t1', 'demo-9', 'testwriter', '09:00'), fin('c0', 'demo-9', REGULATEUR, '11:00')],
       []
     );
     expect(bloc(t, REGULATEUR)!.attend).toEqual([]);
@@ -595,7 +598,7 @@ describe("3uv.49 critère 9 : a regulator's passage leaves the ticket to the flo
   it("3uv.49 critère 9 : a manager's finished passage leaves the ticket to the next role of the flow", () => {
     const t = plateau(
       [T('demo-9')],
-      [fin('t1', 'demo-9', 'testeur', '09:00'), fin('c0', 'demo-9', REGULATEUR, '11:00')],
+      [fin('t1', 'demo-9', 'testwriter', '09:00'), fin('c0', 'demo-9', REGULATEUR, '11:00')],
       []
     );
     expect(bloc(t, 'developpeur')!.attend.map(x => x.id)).toEqual(['demo-9']);
@@ -614,7 +617,7 @@ describe("3uv.49 critère 9 : a regulator's passage leaves the ticket to the flo
         },
       ],
       [
-        fin('t1', 'demo-9', 'testeur', '09:00'),
+        fin('t1', 'demo-9', 'testwriter', '09:00'),
         fin('d1', 'demo-9', 'developpeur', '10:00'),
         fin('r1', 'demo-9', 'relecteur', '10:40'),
         fin('c0', 'demo-9', REGULATEUR, '11:00'),
@@ -631,17 +634,17 @@ const bloque = (id: string, par: string, o: object = {}) =>
 
 describe('3uv.49 critère 10 : a blocked ticket in the circuit waits for the next role of the flow', () => {
   // Decided by the owner on 2026-10-17 (grill, Q10): the supervisor launches the circuit, whose
-  // first agent is the testeur; a regulator comes only on a stop of the circuit.
-  it('a blocked ticket in the circuit without any passage waits for the testeur, the circuit launching it first', () => {
+  // first agent is the testwriter; a regulator comes only on a stop of the circuit.
+  it('a blocked ticket in the circuit without any passage waits for the testwriter, the circuit launching it first', () => {
     const t = plateau([bloque('demo-9', 'demo-8'), T('demo-8')], [], []);
-    expect(bloc(t, 'testeur')!.attend.map(x => x.id)).toContain('demo-9');
+    expect(bloc(t, 'testwriter')!.attend.map(x => x.id)).toContain('demo-9');
     expect(bloc(t, REGULATEUR)!.attend.map(x => x.id)).not.toContain('demo-9');
   });
 
   it('3uv.49 critère 10 : a blocked ticket no manager led still waits for the next role of the flow', () => {
     const t = plateau(
       [bloque('demo-9', 'demo-8'), T('demo-8')],
-      [fin('t1', 'demo-9', 'testeur', '09:00')],
+      [fin('t1', 'demo-9', 'testwriter', '09:00')],
       []
     );
     expect(bloc(t, 'developpeur')!.attend.map(x => x.id)).toEqual(['demo-9']);
@@ -650,13 +653,13 @@ describe('3uv.49 critère 10 : a blocked ticket in the circuit waits for the nex
 });
 
 describe('3uv.49 critère 11 : only an agent of a block puts a ticket in progress', () => {
-  it('3uv.49 critère 11 : an Explore running on a led ticket leaves it waiting for the testeur', () => {
+  it('3uv.49 critère 11 : an Explore running on a led ticket leaves it waiting for the testwriter', () => {
     const t = plateau(
       [T('demo-9')],
       [fin('c0', 'demo-9', REGULATEUR, '09:00')],
       [vivant('e1', 'demo-9', 'Explore', 30)]
     );
-    expect(bloc(t, 'testeur')!.attend.map(x => x.id)).toEqual(['demo-9']);
+    expect(bloc(t, 'testwriter')!.attend.map(x => x.id)).toEqual(['demo-9']);
     expect(t.agents.flatMap(b => b.enCours)).toEqual([]);
   });
 
@@ -814,7 +817,7 @@ describe('3uv.49 critère 13 : a sub-agent, whatever its role, runs while its la
       5 * MIN
     );
     sousAgent(home, 'r20', { agentType: 'relecteur', parentAgentId: 'c20' }, 'demo-9', 1);
-    const ps = agentShell(home, 's-t20', 'testeur', 'demo-9');
+    const ps = agentShell(home, 's-t20', 'testwriter', 'demo-9');
     const v = vivants(home, ps);
     expect(v.find(x => x.agent === 'r20')).toMatchObject({ role: 'relecteur' });
     expect(v.find(x => x.agent === 'c20')).toBeUndefined();
@@ -994,14 +997,14 @@ describe('3uv.49 critère 16 : the 30-minute reading bound holds for every trans
 
   it('3uv.49 critère 16 : a shell agent whose transcript is 40 minutes old shows by its process, without the measures of its transcript', () => {
     const home = nouveauHome();
-    const ps = agentShell(home, 's-t41', 'testeur', 'demo-9');
+    const ps = agentShell(home, 's-t41', 'testwriter', 'demo-9');
     const f = path.join(home, '.claude/projects/-depot--claude-worktrees-demo-9/s-t41.jsonl');
     const quand = (Date.now() - 40 * MIN) / 1000;
     utimesSync(f, quand, quand);
     const cache: Record<string, unknown> = {};
     const v = vivants(home, ps, cache).find(x => x.ticket === 'demo-9');
     expect(v).toMatchObject({
-      role: 'testeur',
+      role: 'testwriter',
       ticket: 'demo-9',
       ligne: true,
       jetons: 0,
@@ -1012,7 +1015,7 @@ describe('3uv.49 critère 16 : the 30-minute reading bound holds for every trans
     expect(v!.silence).toBeGreaterThanOrEqual(40 * MIN - 5 * SEC);
     expect(Object.keys(cache)).not.toContain(f);
     const t = plateauVivant(home, [T('demo-9')], [], ps);
-    expect(enCours(t, 'testeur')).toEqual(['demo-9']);
+    expect(enCours(t, 'testwriter')).toEqual(['demo-9']);
   });
 });
 

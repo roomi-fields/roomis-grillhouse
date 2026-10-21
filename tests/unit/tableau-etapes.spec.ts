@@ -6,7 +6,7 @@
 //   0 · Exploration · explorateur
 //   ▸ 1 · Ouverture
 //   ▾ 2 · Composants
-//     2.1 · Tests · testeur
+//     2.1 · Tests · testwriter
 //     2.2 · Preuve du rouge · auto
 //     2.3 · Code · développeur
 //   ▶ 320.3  Le binder lit les portées · essai 2/3   12 min · 340 k
@@ -181,7 +181,7 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
       ['1.1', 'Relevé des composants', 'auto'],
       ['1.2', 'Questionnement', 'questionneur ⇄ référent'],
       ['2', 'Composants', ''],
-      ['2.1', 'Tests', 'testeur'],
+      ['2.1', 'Tests', 'testwriter'],
       ['2.2', 'Preuve du rouge', 'auto'],
       ['2.3', 'Code', 'développeur'],
       ['2.4', 'Contrôles', 'auto'],
@@ -201,7 +201,7 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
       ['  0 · Exploration · explorateur', 'discret'],
       ['▸ 1 · Ouverture', 'discret'],
       ['▾ 2 · Composants', 'titre'],
-      ['  2.1 · Tests · testeur', 'discret'],
+      ['  2.1 · Tests · testwriter', 'discret'],
       ['  2.2 · Preuve du rouge · auto', 'discret'],
       ['  2.3 · Code · développeur', 'titre'],
       ['▶', 'actif'],
@@ -248,7 +248,7 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
 
 describe("a circuit's ticket stands at the step of its state, at each instant", () => {
   it('each step of the state at its numbered step, the auto ones included', () => {
-    expect(sous({ etape: 'testeur' })).toBe('  2.1 · Tests · testeur');
+    expect(sous({ etape: 'testwriter' })).toBe('  2.1 · Tests · testwriter');
     expect(sous({ etape: 'preuve' })).toBe('  2.2 · Preuve du rouge · auto');
     expect(sous({ etape: 'developpeur' })).toBe('  2.3 · Code · développeur');
     expect(sous({ etape: 'controles' })).toBe('  2.4 · Contrôles · auto');
@@ -262,7 +262,7 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     const t = plateau([T('demo-35')], {
       circuits: [
         circuit('demo-35', {
-          etape: 'testeur',
+          etape: 'testwriter',
           questionnement: 'plan',
           boucles: { questionnement: 2 },
         }),
@@ -311,10 +311,10 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
   });
 
   it('the stops of the opening stand at their step: the survey at 1.1, the questioning at 1.2', () => {
-    expect(sous({ etape: 'testeur', vivant: false, code: 21, arret: 'composants-manquants' })).toBe(
-      '  1.1 · Relevé des composants · auto'
-    );
-    expect(sous({ etape: 'testeur', vivant: false, code: 22, arret: 'questionnement' })).toMatch(
+    expect(
+      sous({ etape: 'testwriter', vivant: false, code: 21, arret: 'composants-manquants' })
+    ).toBe('  1.1 · Relevé des composants · auto');
+    expect(sous({ etape: 'testwriter', vivant: false, code: 22, arret: 'questionnement' })).toMatch(
       /^ {2}1\.2 · Questionnement · /
     );
   });
@@ -323,7 +323,7 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     const t = plateau([T('demo-322')], {
       circuits: [
         circuit('demo-322', {
-          etape: 'testeur',
+          etape: 'testwriter',
           vivant: false,
           code: 21,
           arret: 'composants-manquants',
@@ -348,7 +348,7 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     const t = plateau([T('demo-323')], {
       circuits: [
         circuit('demo-323', {
-          etape: 'testeur',
+          etape: 'testwriter',
           vivant: false,
           code: 22,
           arret: 'questionnement',
@@ -370,7 +370,7 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     const t = plateau([T('demo-324'), T('demo-325')], {
       circuits: [
         circuit('demo-324', {
-          etape: 'testeur',
+          etape: 'testwriter',
           vivant: false,
           code: 21,
           arret: 'composants-manquants',
@@ -421,12 +421,12 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
   it('a waiting ticket waits under the step of the role it waits for', () => {
     const t = plateau([T('demo-41', { status: 'open' }), T('demo-42'), T('demo-43')], {
       registre: [
-        fin('t1', 'demo-42', 'testeur', '09:00'),
-        fin('t2', 'demo-43', 'testeur', '09:00'),
+        fin('t1', 'demo-42', 'testwriter', '09:00'),
+        fin('t2', 'demo-43', 'testwriter', '09:00'),
         fin('d2', 'demo-43', 'developpeur', '10:00'),
       ],
     });
-    expect(etapeDe(t, 'demo-41')).toBe('  2.1 · Tests · testeur');
+    expect(etapeDe(t, 'demo-41')).toBe('  2.1 · Tests · testwriter');
     expect(etapeDe(t, 'demo-42')).toBe('  2.3 · Code · développeur');
     expect(etapeDe(t, 'demo-43')).toBe('  4 · Relecture · relecteur');
     expect(ligneDe(t, 'demo-42').texte).toMatch(/^· 42 {2}Le sujet de demo-42/);
@@ -443,7 +443,7 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
 
 describe('the line of a ticket in a circuit: its subject and its component in turn, then time and tokens', () => {
   const t = plateau([T('demo-45')], {
-    registre: [fin('t1', 'demo-45', 'testeur', '08:12')],
+    registre: [fin('t1', 'demo-45', 'testwriter', '08:12')],
     circuits: [circuit('demo-45')],
   });
 
@@ -460,7 +460,7 @@ describe('the line of a ticket in a circuit: its subject and its component in tu
 
   it('the component carries its rank among the components of the title, « composant n/N », never « 1/1 »', () => {
     const r = plateau([T('demo-46')], {
-      registre: [fin('t1', 'demo-46', 'testeur', '08:12')],
+      registre: [fin('t1', 'demo-46', 'testwriter', '08:12')],
       circuits: [circuit('demo-46', { rang: 3, total: 5 })],
     });
     expect(ligneDe(r, 'demo-46').alterne).toMatch(/^▶ 46 {2}030-binder 3\/5 +12 min · 10$/);
@@ -484,7 +484,7 @@ describe('the line of a ticket in a circuit: its subject and its component in tu
 
   it('a stopped ticket stands under its step and names no step it comes from', () => {
     const r = plateau([T('demo-50')], {
-      registre: [fin('t1', 'demo-50', 'testeur', '08:41')],
+      registre: [fin('t1', 'demo-50', 'testwriter', '08:41')],
       circuits: [circuit('demo-50', { vivant: false, code: 20, arret: 'besoin' })],
     });
     expect(ligneDe(r, 'demo-50').texte).toMatch(/^■ 50 {2}Le sujet de demo-50 +41 min · 10$/);
@@ -507,7 +507,7 @@ describe('the counters of the bounded loops, from their second pass', () => {
   const ligne = (o: object) =>
     ligneDe(
       plateau([T('demo-51')], {
-        registre: [fin('t1', 'demo-51', 'testeur', '08:12')],
+        registre: [fin('t1', 'demo-51', 'testwriter', '08:12')],
         circuits: [circuit('demo-51', { rang: 3, total: 5, ...o })],
       }),
       'demo-51'
@@ -523,8 +523,8 @@ describe('the counters of the bounded loops, from their second pass', () => {
     expect(ligne({ etape: 'controles', boucles: { code: 3 } }).texte).toMatch(/· essai 3\/3 /);
   });
 
-  it("the testeur's sessions after a refused proof, at 2.1 and at its proof 2.2: « essai 3/3 »", () => {
-    expect(ligne({ etape: 'testeur', tentative: 3, boucles: { tests: 3 } }).texte).toMatch(
+  it("the testwriter's sessions after a refused proof, at 2.1 and at its proof 2.2: « essai 3/3 »", () => {
+    expect(ligne({ etape: 'testwriter', tentative: 3, boucles: { tests: 3 } }).texte).toMatch(
       /^▶ 51 {2}Le sujet de demo-51 · essai 3\/3 +12 min · 10$/
     );
     expect(ligne({ etape: 'preuve', boucles: { tests: 2 } }).texte).toMatch(/· essai 2\/3 /);

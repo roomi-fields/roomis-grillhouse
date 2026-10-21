@@ -196,7 +196,7 @@ describe('3uv.40 critère 3 : a resumed agent counts its sessions already in the
     const t = plateau(
       home,
       ['demo-5'],
-      [fin('t1', 'demo-5', 'testeur', '08:28', 1), fin('a9', 'demo-5', 'relecteur', '08:41', 2)]
+      [fin('t1', 'demo-5', 'testwriter', '08:28', 1), fin('a9', 'demo-5', 'relecteur', '08:41', 2)]
     );
     expect(t.global.cumul).toEqual({ travail: 69 * MIN, jetons: 30 });
   });
@@ -331,7 +331,7 @@ describe('3uv.40 critère 5 : an agent resumed then finished again counts each o
       [T('demo-1', { issue_type: 'epic' }), T('demo-5', { parent: 'demo-1' })],
       [
         fin('a9', 'demo-5', 'relecteur', '08:28', 1),
-        fin('t1', 'demo-5', 'testeur', '08:20', 3),
+        fin('t1', 'demo-5', 'testwriter', '08:20', 3),
         fin('a9', 'demo-5', 'relecteur', '08:41', 2),
       ]
     );

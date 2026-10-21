@@ -70,7 +70,7 @@ mécanisme qui existe ou qui se construit. Le cas qui a fait naître la question
 
 ## Les questions au plan
 
-Dans le circuit (`scripts/circuit.mjs`), avant le testeur du premier composant, le questionneur
+Dans le circuit (`scripts/circuit.mjs`), avant le testwriter du premier composant, le questionneur
 questionne le plan du ticket (son titre, son Architecture, ses critères, ses composants relevés),
 et je réponds pour lui, à 1.2 Questionnement, dans une séance neuve que le circuit reprend à
 chaque tour. Ma consigne porte le ticket, le relevé et les questions ; je ne relis pas le ticket.

@@ -19,7 +19,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 - `references/erreurs.md` — les pièges des outils (Beads, git, crochets) : avant de lire un ticket
   ou de commiter.
 - `references/consigne-agent.md` — les gabarits des consignes : le circuit du ticket
-  (`scripts/circuit.mjs`) remplit celle du testeur et du développeur, celle du relecteur et
+  (`scripts/circuit.mjs`) remplit celle du testwriter et du développeur, celle du relecteur et
   celles du régulateur, et celles du questionnement.
 - `docs/agents/issue-tracker.md` — le format des tickets : avant d'en ouvrir un.
 - `pitmaster/SUIVI.md` — le dernier tour, les agents lancés, les questions en attente : au
@@ -55,7 +55,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   montre la différence avant le commit. Ainsi l'interface se règle à la vitesse où il l'essaie, et
   ses décisions s'écrivent dès qu'il les prend, relues par lui.
 - **Le cadre évolue par ticket, au circuit de sa matière** : un script du cadre passe la chaîne
-  complète du circuit (testeur, développeur, relecteur, intégration) ; une consigne en prose que
+  complète du circuit (testwriter, développeur, relecteur, intégration) ; une consigne en prose que
   je prends de moi-même (charte, métacadre, compétences, agents) passe à un développeur seul, puis au relecteur et à
   l'intégration. Ainsi chaque changement du cadre est relu par un autre que son auteur, et un test
   écrit d'avance garde seulement ce qui s'exécute.
@@ -73,7 +73,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   (`run_in_background`) ; sa fin me réveille. Le circuit mène l'arbre de ses étapes
   (`scripts/etapes.mjs`) : 1 Ouverture (1.1 le relevé des composants, 1.2 le questionnement du
   plan, le questionneur, auquel le référent technique répond pour le plan), 2 Composants (2.1
-  testeur, 2.2 preuve du rouge, 2.3 développeur, 2.4 contrôles, pour chaque composant), 3 la passe
+  testwriter, 2.2 preuve du rouge, 2.3 développeur, 2.4 contrôles, pour chaque composant), 3 la passe
   finale, 4 le relecteur, 5 Intégration (5.1 le commit, 5.2 la file et la lecture de la CI) ; et,
   hors de la suite, sous l'étape arrêtée, l'arbitrage de chaque arrêt, le régulateur, sa décision
   questionnée avant d'être appliquée ; je dis où en est un ticket par son étape, « 2.3 Code » ; son en-tête dit ses arrêts et leurs codes. Ainsi les gestes mécaniques
@@ -103,17 +103,17 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   J'écris la réponse au ticket, puis je lance
   `node scripts/circuit.mjs <ticket> --reponse "<sa réponse>"` en arrière-plan, qui reprend la
   séance du régulateur, avec son contexte, et applique sa décision ; un composant que j'ajoute au
-  titre avant de répondre repart de son testeur, sans le régulateur. 21 (`composants-manquants`) :
+  titre avant de répondre repart de son testwriter, sans le régulateur. 21 (`composants-manquants`) :
   avant toute séance, le relevé des composants trouve un composant que le titre ne nomme pas, en
   tête du rapport de l'état. Je l'ajoute au titre, le fournisseur d'abord
   (`bd update <ticket> --title`), puis je relance le circuit ; ou je réponds pourquoi il reste
   dehors, `--reponse "<raison>"`, que le circuit écrit au ticket avant de partir du premier
-  testeur. Un composant que le ticket ne change pas s'admet avant le lancement,
+  testwriter. Un composant que le ticket ne change pas s'admet avant le lancement,
   `node scripts/composants-affectes.mjs <ticket> --admettre <composant> --raison "<raison>"`.
   22 (`questionnement`) : le questionnement du plan finit sur un désaccord, ou reste questionné
   au quatrième tour ; l'échange est au ticket, ce qui reste en tête du rapport de l'état. Je change
   le plan (`bd update <ticket>`) ou je le garde, puis je réponds, `--reponse "<texte>"`, que le
-  circuit écrit au ticket avant de partir du premier testeur ; ce qui revient au responsable lui
+  circuit écrit au ticket avant de partir du premier testwriter ; ce qui revient au responsable lui
   monte d'abord. Une décision du régulateur dont le questionnement ne converge pas me revient en
   18 (`question`). Tout autre code est un arrêt que le
   régulateur n'a pas tranché (sa réponse jointe à la raison de l'état, une décision refusée deux
@@ -252,7 +252,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 
 ## La fermeture, ma promesse
 
-**Une fermeture complète** porte le code, un test du testeur qui a mordu, le verdict `ACCEPTÉ` du
+**Une fermeture complète** porte le code, un test du testwriter qui a mordu, le verdict `ACCEPTÉ` du
 relecteur, les documents que le ticket nommait (écrits avec `redacteur`),
 la passation et le motif. Un aspect manquant se dit le jour même, dans le
 ticket. Ainsi ce qui est déclaré fini l'est vraiment.

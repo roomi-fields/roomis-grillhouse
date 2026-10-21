@@ -65,7 +65,7 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21', () => {
         'Composants',
         [],
         [
-          ['2.1', 'Tests', ['testeur']],
+          ['2.1', 'Tests', ['testwriter']],
           ['2.2', 'Preuve du rouge', [AUTO]],
           ['2.3', 'Code', ['developpeur']],
           ['2.4', 'Contrôles', [AUTO]],
@@ -166,7 +166,7 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21', () => {
   it('the circuit reads the maxima of its loops in the list, none spelled again', () => {
     const c = lire('scripts/circuit.mjs');
     expect(c).not.toMatch(
-      /(RELANCES_TESTEUR|SEANCES_DEVELOPPEUR|RELECTURES|RELANCES_DU_REGULATEUR|TOURS) = \d/
+      /(RELANCES_TESTWRITER|SEANCES_DEVELOPPEUR|RELECTURES|RELANCES_DU_REGULATEUR|TOURS) = \d/
     );
     for (const cle of ['tests', 'code', 'relecture', 'arret', 'questionnement']) {
       expect(c, cle).toContain(`boucle('${cle}').max`);
@@ -190,7 +190,7 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21', () => {
         'referent-technique',
         'regulateur',
         'questionneur',
-        'testeur',
+        'testwriter',
         'developpeur',
         'relecteur',
         AUTO,
@@ -200,7 +200,7 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21', () => {
       'référent technique',
       'régulateur',
       'questionneur',
-      'testeur',
+      'testwriter',
       'développeur',
       'relecteur',
       'auto',
@@ -256,7 +256,7 @@ describe("a circuit's state and a role agent are at one step", () => {
   const numero = (o: object) => etapeDuCircuit(o)?.numero ?? null;
 
   it("reads each step of the circuit's state, the final pass being the checks once `finale`", () => {
-    expect(numero({ etape: 'testeur' })).toBe('2.1');
+    expect(numero({ etape: 'testwriter' })).toBe('2.1');
     expect(numero({ etape: 'preuve' })).toBe('2.2');
     expect(numero({ etape: 'developpeur' })).toBe('2.3');
     expect(numero({ etape: 'controles' })).toBe('2.4');
@@ -268,9 +268,9 @@ describe("a circuit's state and a role agent are at one step", () => {
   });
 
   it('the opening: the stop of the survey at 1.1, the questioning of the plan and its stop at 1.2', () => {
-    expect(numero({ etape: 'testeur', raison: 'composants-manquants' })).toBe('1.1');
-    expect(numero({ etape: 'testeur', questionnement: { objet: 'plan', tour: 2 } })).toBe('1.2');
-    expect(numero({ etape: 'testeur', raison: 'questionnement' })).toBe('1.2');
+    expect(numero({ etape: 'testwriter', raison: 'composants-manquants' })).toBe('1.1');
+    expect(numero({ etape: 'testwriter', questionnement: { objet: 'plan', tour: 2 } })).toBe('1.2');
+    expect(numero({ etape: 'testwriter', raison: 'questionnement' })).toBe('1.2');
   });
 
   it('the questioning of a decision of the regulator stays at the stopped step', () => {
@@ -289,7 +289,7 @@ describe("a circuit's state and a role agent are at one step", () => {
         'explorateur',
         'referent-technique',
         'questionneur',
-        'testeur',
+        'testwriter',
         'developpeur',
         'relecteur',
       ].map(r => etapeDuRole(r)?.numero)
@@ -301,7 +301,7 @@ describe("a circuit's state and a role agent are at one step", () => {
 
   it('the roles that judge a plan or a stop deliver nothing to the lot', () => {
     expect(
-      ['questionneur', 'referent-technique', 'regulateur', 'testeur', 'developpeur'].map(juge)
+      ['questionneur', 'referent-technique', 'regulateur', 'testwriter', 'developpeur'].map(juge)
     ).toEqual([true, true, true, false, false]);
   });
 });
@@ -357,9 +357,9 @@ describe('the table of the stops and their gesture, in the list of the steps', (
       ['a-repasser', 'a-repasser'],
       ['a-arbitrer', 'regulateur'],
       ['rouge-d-un-autre-composant', 'developpeur-du-composant'],
-      ['renvoi-au-testeur', 'testeur'],
-      ['composant-ajoute', 'testeur'],
-      ['critere-neuf', 'testeur'],
+      ['renvoi-au-testwriter', 'testwriter'],
+      ['composant-ajoute', 'testwriter'],
+      ['critere-neuf', 'testwriter'],
     ]);
   });
 

@@ -96,7 +96,7 @@ const REGISTRE = [
   {
     agent: 'r1',
     ticket: 'demo-e.1.4',
-    role: 'testeur',
+    role: 'testwriter',
     fin: '2026-10-10T10:00:00Z',
     travail: 60_000,
     jetons: 10,
@@ -370,8 +370,8 @@ describe('3uv.42 critère 4 : each line carries its section', () => {
         {
           numero: '2.1',
           titre: 'Tests',
-          roles: ['testeur'],
-          qui: 'testeur',
+          roles: ['testwriter'],
+          qui: 'testwriter',
           enCours: [],
           attend: [1, 2, 3, 4, 5].map(x),
         },
@@ -581,8 +581,8 @@ describe('the board shows every line of each list, and AGENTS before CHANTIER', 
       {
         numero: '2.1',
         titre: 'Tests',
-        roles: ['testeur'],
-        qui: 'testeur',
+        roles: ['testwriter'],
+        qui: 'testwriter',
         enCours: [],
         attend: Array.from({ length: 20 }, (_, i) => x(i + 1)),
       },
@@ -804,7 +804,7 @@ describe('a ticket waits in AGENTS only once the owner launched it (label circui
   const passage = {
     agent: 'r1',
     ticket: 'demo-k.1',
-    role: 'testeur',
+    role: 'testwriter',
     fin: '2026-10-10T10:00:00Z',
     travail: 60_000,
     jetons: 10,
@@ -818,10 +818,10 @@ describe('a ticket waits in AGENTS only once the owner launched it (label circui
   });
 
   // Decided by the owner on 2026-10-17 (grill, Q10): the supervisor launches the circuit, whose
-  // first agent is the testeur; a regulator comes only on a stop of the circuit.
-  it('the same ticket in the circuit waits for the testeur, the first agent of the circuit', () => {
+  // first agent is the testwriter; a regulator comes only on a stop of the circuit.
+  it('the same ticket in the circuit waits for the testwriter, the first agent of the circuit', () => {
     const { t, l } = circuit(['circuit']);
-    expect(attend(t)).toEqual(['testeur demo-k.1']);
+    expect(attend(t)).toEqual(['testwriter demo-k.1']);
     expect(partieAgents(l).some(x => x.ticket === 'demo-k.1')).toBe(true);
   });
 

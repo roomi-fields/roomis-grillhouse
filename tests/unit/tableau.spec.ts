@@ -159,10 +159,13 @@ describe('verdict and etape', () => {
   });
   const p = (role: string, fin: string) => ({ role, fin });
   it('passes a ticket from role to role, the verdict choosing after the review', () => {
-    expect(etape([], null)).toBe('testeur');
-    expect(etape([p('testeur', '2026-10-10T10:00:00Z')], null)).toBe('developpeur');
+    expect(etape([], null)).toBe('testwriter');
+    expect(etape([p('testwriter', '2026-10-10T10:00:00Z')], null)).toBe('developpeur');
     expect(
-      etape([p('testeur', '2026-10-10T10:00:00Z'), p('developpeur', '2026-10-10T11:00:00Z')], null)
+      etape(
+        [p('testwriter', '2026-10-10T10:00:00Z'), p('developpeur', '2026-10-10T11:00:00Z')],
+        null
+      )
     ).toBe('relecteur');
     const relu = [p('developpeur', '2026-10-10T11:00:00Z'), p('relecteur', '2026-10-10T12:00:00Z')];
     // An accepted lot waits for no agent: the circuit integrates it.
@@ -234,7 +237,7 @@ describe('lireVivant', () => {
     ligneEnveloppe(racine, 'demo-3.1', 'developpeur').trimEnd(),
     '  79  600 bwrap --die-with-parent --chdir /depot/.claude/worktrees/demo-3.1 -- claude -p --agent developpeur --permission-mode bypassPermissions',
     '  80  600 claude -p --agent developpeur --permission-mode bypassPermissions',
-    ligneEnveloppe('/ailleurs', 'demo-5', 'testeur', { pid: 81 }).trimEnd(),
+    ligneEnveloppe('/ailleurs', 'demo-5', 'testwriter', { pid: 81 }).trimEnd(),
     '  78 5 vim notes',
     '',
   ].join('\n');
@@ -292,7 +295,7 @@ describe('assembler', () => {
     {
       agent: 'r1',
       ticket: 'demo-c.1.1',
-      role: 'testeur',
+      role: 'testwriter',
       fin: '2026-10-10T10:00:00Z',
       travail: 600_000,
       jetons: 1000,
@@ -300,7 +303,7 @@ describe('assembler', () => {
     {
       agent: 'r0',
       ticket: 'demo-c.3',
-      role: 'testeur',
+      role: 'testwriter',
       fin: '2026-10-09T10:00:00Z',
       travail: 60_000,
       jetons: 50,
@@ -320,7 +323,7 @@ describe('assembler', () => {
     {
       agent: 'r1',
       ticket: 'demo-c.1.1',
-      role: 'testeur',
+      role: 'testwriter',
       ligne: false,
       depuis: 0,
       jetons: 1000,
@@ -536,8 +539,8 @@ describe('assembler', () => {
     const l = dessin(t).map(x => x.texte);
     expect(l).toContain('✓ c.1.2  demo-c.1.2');
   });
-  // Decided by the owner on 2026-10-17 (grill, Q10): the circuit's first agent is the testeur.
-  it('waits a blocked ticket in the circuit under the testeur, naming the ticket it waits for', () => {
+  // Decided by the owner on 2026-10-17 (grill, Q10): the circuit's first agent is the testwriter.
+  it('waits a blocked ticket in the circuit under the testwriter, naming the ticket it waits for', () => {
     const b = plateau({
       tous: [
         T('demo-e', { issue_type: 'epic', status: 'in_progress', title: 'e — Bloqué' }),
@@ -555,7 +558,7 @@ describe('assembler', () => {
     });
     expect(b.global.compteurs).toMatchObject({ enAttente: 1, bloques: 1 });
     const l = dessin(b).map(x => x.texte);
-    const i = l.indexOf('  2.1 · Tests · testeur');
+    const i = l.indexOf('  2.1 · Tests · testwriter');
     expect(i).toBeGreaterThan(-1);
     expect(l[i + 2]).toMatch(/^· e\.2 {2}demo-e\.2 +attend e\.1$/);
   });
@@ -648,7 +651,7 @@ describe('a ticket in progress with children', () => {
         {
           agent: 'a',
           ticket: 'demo-m',
-          role: 'testeur',
+          role: 'testwriter',
           fin: '2026-10-10T10:00:00Z',
           travail: 1,
           jetons: 1,

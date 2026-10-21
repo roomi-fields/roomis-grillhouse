@@ -65,7 +65,7 @@ la transporte, son lecteur). Ainsi un lecteur qu'aucun nom ne trahit est trouvé
    ticket change, et la section « Architecture » reprend le relevé. Un composant relevé que le
    ticket ne change pas s'admet hors du titre, avec sa raison, une fois le ticket créé :
    `node scripts/composants-affectes.mjs <id> --admettre <composant> --raison "<raison>"`. Ainsi
-   le circuit, qui refait ce relevé avant le premier testeur, ne découvre aucun composant en route
+   le circuit, qui refait ce relevé avant le premier testwriter, ne découvre aucun composant en route
    et ne s'arrête sur aucun que tu as écarté.
    _Fini quand_ chaque ticket proposé a sa section « Architecture », ses composants dans leur ordre
    et son critère de fin vérifiable, confronté et mesuré.

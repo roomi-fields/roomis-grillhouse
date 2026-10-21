@@ -224,7 +224,7 @@ export function bilan({
     else if (juge(s.role)) s.categorie = 'regulateur';
     else if (s.role === 'developpeur') {
       s.categorie = sansLivraison(s) ? 'sansEffet' : 'travail';
-    } else if (s.role === 'testeur') {
+    } else if (s.role === 'testwriter') {
       const p = preuves.find(x => x.composant === s.composant && x.d >= s.f - JEU);
       s.categorie = p ? (parLaPreuve(p) ?? (p.preuve?.vide ? 'sansEffet' : 'travail')) : 'travail';
     } else s.categorie = 'travail';

@@ -86,9 +86,9 @@ describe('grillhouse-3uv.89 — l’enveloppe et ce que les tests du composant d
     expect(avec).toEqual(sans);
   });
 
-  it('laisse la matière de test partagée à son montage : le testeur l’écrit toujours', () => {
-    const sans = montages([], 'testeur');
-    const avec = montages(['packages/m/donnees'], 'testeur');
+  it('laisse la matière de test partagée à son montage : le testwriter l’écrit toujours', () => {
+    const sans = montages([], 'testwriter');
+    const avec = montages(['packages/m/donnees'], 'testwriter');
     expect(avec).toEqual(sans);
     expect(pairs(avec, '--bind')).toContain('/wt/packages/m');
   });

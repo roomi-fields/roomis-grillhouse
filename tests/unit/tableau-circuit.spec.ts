@@ -40,7 +40,7 @@ const depot = (etats: Record<string, object>) => {
   mkdirSync(dossier, { recursive: true });
   for (const [ticket, e] of Object.entries(etats)) {
     const etat = {
-      etape: 'testeur',
+      etape: 'testwriter',
       composant: '.',
       tentative: 1,
       code: null,
@@ -110,7 +110,7 @@ const ARBITRAGE = "  ⤷ Arbitrage de l'arrêt · régulateur ⇄ questionneur";
 const attentes = (t: Board) => t.agents.flatMap(b => b.attend.map(x => x.id));
 
 describe("a circuit's line carries its ticket's working time and tokens", () => {
-  const registre = [fin('a1', 'demo-12', 'testeur', '09:00')];
+  const registre = [fin('a1', 'demo-12', 'testwriter', '09:00')];
   it('a circuit that runs: at its step, then the time and tokens so far', () => {
     const racine = depot({
       'demo-12': { etape: 'developpeur', composant: 'packages/demo', tentative: 2 },
@@ -270,7 +270,7 @@ describe('a circuit that stopped: under its step, at the arbitrage, its stop, it
     const racine = depot({ 'demo-13': ARRET });
     const t = plateau(
       [T('demo-13')],
-      [fin('c0', 'demo-13', REGULATEUR, '09:00'), fin('t1', 'demo-13', 'testeur', '10:00')],
+      [fin('c0', 'demo-13', REGULATEUR, '09:00'), fin('t1', 'demo-13', 'testwriter', '10:00')],
       [],
       circuits(racine)
     );

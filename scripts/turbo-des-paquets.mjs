@@ -100,7 +100,7 @@
 //
 // The configuration of Vitest of the package of the shared test material (`matieres` of
 // scripts/consommateurs.mjs) is CommonJS (`vitest.config.cjs`): the envelope shows that package
-// read-only to every role but the testeur (scripts/enveloppe/enveloppe.mjs), and Vite 5 loads a
+// read-only to every role but the testwriter (scripts/enveloppe/enveloppe.mjs), and Vite 5 loads a
 // CommonJS configuration in memory, where it bundles an ESM one into a file beside it
 // (`vitest.config.mjs.timestamp-<n>.mjs`). The check refuses a `vitest.config.mjs` or `.mts` of
 // that package, and a `.js` or `.ts` when its `type` is `module`, as Vite tells ESM from CommonJS.
@@ -759,7 +759,7 @@ function configsMatiereRefusees(racine) {
       const f = path.relative(racine, path.join(dir, `vitest.config.${ext}`));
       if (!existsSync(path.join(racine, f))) continue;
       refus.push(
-        `⛔ ${f} : la configuration de Vitest du paquet de la matière s'écrit en CommonJS, \`vitest.config.cjs\` ; Vite écrit un fichier à côté d'une configuration ESM pour la charger, et la matière est en lecture seule chez tout rôle autre que le testeur.`
+        `⛔ ${f} : la configuration de Vitest du paquet de la matière s'écrit en CommonJS, \`vitest.config.cjs\` ; Vite écrit un fichier à côté d'une configuration ESM pour la charger, et la matière est en lecture seule chez tout rôle autre que le testwriter.`
       );
     }
   }

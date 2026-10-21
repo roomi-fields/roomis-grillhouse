@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- **The agent of step 2.1 is the testwriter**: the owner chose an English name, shorter and clearer (2026-10-21). The agent and skill `testeur` are now `testwriter`, without an alias: the step, its stops (`renvoi-au-testwriter`), the sheets (`role` testwriter), the locks, the envelope, the rights, the board, the common charter and the skills name only `testwriter`, and the circuit writes its sessions under the author `testwriter <composant>` and reads the line `Agent : testwriter`. The update of a project removes the former agent `.claude/agents/testeur.md` and skill `.claude/skills/testeur/`.
+
 ## [0.20.3] - 2026-10-21
 
 ### Changed

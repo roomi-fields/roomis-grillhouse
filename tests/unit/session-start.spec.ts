@@ -509,7 +509,7 @@ describe('the session start and the sessions of a role', () => {
   const avecRole = () => {
     const dir = mkdtempSync(path.join(racine, 'role-'));
     mkdirSync(path.join(dir, '.claude/agents'), { recursive: true });
-    writeFileSync(path.join(dir, '.claude/agents/testeur.md'), '---\nname: testeur\n---\n');
+    writeFileSync(path.join(dir, '.claude/agents/testwriter.md'), '---\nname: testwriter\n---\n');
     return dir;
   };
   const demarrerAvec = (dir: string, input: object) =>
@@ -521,7 +521,7 @@ describe('the session start and the sessions of a role', () => {
   const DEBUT = { hook_event_name: 'SessionStart', source: 'startup' };
 
   it('says nothing to a session of a role agent of the project, however much the project lacks', () => {
-    const r = demarrerAvec(avecRole(), { ...DEBUT, agent_type: 'testeur' });
+    const r = demarrerAvec(avecRole(), { ...DEBUT, agent_type: 'testwriter' });
     expect(r.status, r.stderr).toBe(0);
     expect(r.stdout).toBe('');
   });

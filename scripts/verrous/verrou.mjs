@@ -4,11 +4,11 @@
 // file write the role does not own, with exit code 2 and its reason on stderr.
 //
 // - A path under the system temp directory (the session scratchpad) is always writable.
-// - testeur writes the files it owns (`isTesterFile`): test files, and every file of a package
+// - testwriter writes the files it owns (`isTesterFile`): test files, and every file of a package
 //   of the shared test material.
 // - The repository root is that of the git repository holding the written file, whatever the
 //   agent's working directory; a file outside any repository is read against the working directory.
-// - developpeur writes none of the testeur's files, and no other file until its ticket's
+// - developpeur writes none of the testwriter's files, and no other file until its ticket's
 //   description holds a "## Architecture" section. The ticket is the "TON TICKET : <id>" line of the agent's
 //   launch prompt, read from its transcript.
 import { execFileSync } from 'node:child_process';
@@ -30,7 +30,7 @@ export function isTestFile(file) {
 }
 
 // True when <file>, absolute or relative to the repository root <racine>, is written by the
-// testeur: a test file, or a file of a package of the shared test material (a component of
+// testwriter: a test file, or a file of a package of the shared test material (a component of
 // <racine> whose package exports `./test-fixtures`, `matieres` of `scripts/consommateurs.mjs`).
 // The one rule of ownership, read by the locks of both roles and by the integration's lots.
 export function isTesterFile(file, racine) {
@@ -126,18 +126,18 @@ export function refusal(role, input, { tmp = tmpdir(), describe = ticketDescript
     return null;
   }
   const racine = racineDe(file) ?? cwd;
-  const testeur = isTesterFile(file, racine);
+  const testwriter = isTesterFile(file, racine);
 
-  if (role === 'testeur') {
-    return testeur
+  if (role === 'testwriter') {
+    return testwriter
       ? null
-      : `Le testeur écrit seulement des fichiers de test et la matière de test partagée ; ${raw} n'est ni l'un ni l'autre. Le code revient au développeur.`;
+      : `Le testwriter écrit seulement des fichiers de test et la matière de test partagée ; ${raw} n'est ni l'un ni l'autre. Le code revient au développeur.`;
   }
   if (role === 'developpeur') {
-    if (testeur) {
+    if (testwriter) {
       return isTestFile(path.relative(path.resolve(racine), file))
-        ? `Les tests appartiennent au testeur : ${raw} est un fichier de test. Un test faux se signale au superviseur.`
-        : `La matière de test partagée appartient au testeur : ${raw} en fait partie. Un besoin de matière se signale au superviseur.`;
+        ? `Les tests appartiennent au testwriter : ${raw} est un fichier de test. Un test faux se signale au superviseur.`
+        : `La matière de test partagée appartient au testwriter : ${raw} en fait partie. Un besoin de matière se signale au superviseur.`;
     }
     const id = ticketOf(input);
     if (!id) {

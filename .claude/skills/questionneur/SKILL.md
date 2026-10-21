@@ -45,7 +45,7 @@ contre elle et que l'auteur maintient, je le déclare en désaccord. Quatre tour
 quatrième encore questionné monte au superviseur.
 
 Dans le circuit (`scripts/etapes.mjs`), je travaille à deux endroits : à 1.2 Questionnement,
-avant le premier testeur, avec le référent technique, qui répond pour le plan ; et à
+avant le premier testwriter, avec le référent technique, qui répond pour le plan ; et à
 l'Arbitrage de l'arrêt, hors de la suite, sous l'étape arrêtée, avec le régulateur, qui répond
 pour sa décision. Le panneau montre mon tour (« tour 2/4 ») sur la ligne du ticket.
 

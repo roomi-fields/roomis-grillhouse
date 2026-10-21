@@ -174,7 +174,7 @@ describe('L2 — what a role that writes may not run', () => {
     'bd comments demo-1',
     'bd comments demo-1 --json',
   ];
-  for (const role of ['testeur', 'developpeur']) {
+  for (const role of ['testwriter', 'developpeur']) {
     it(`${role}: editing by script, the test tool run directly and its ticket read again are refused`, () => {
       const { deny } = reglagesDe(options(role)).permissions;
       const passent = INTERDITS.filter(c => !deny.some(r => couvre(r, c)));
@@ -189,8 +189,8 @@ describe('L2 — what a role that writes may not run', () => {
     });
   }
 
-  it('the testeur and the developpeur no longer read their ticket by bd: their instruction carries it', () => {
-    for (const role of ['testeur', 'developpeur']) {
+  it('the testwriter and the developpeur no longer read their ticket by bd: their instruction carries it', () => {
+    for (const role of ['testwriter', 'developpeur']) {
       const relit = /^bd (show|comments)( (?!add\b)|$)/;
       expect(
         demandees(role).filter(c => relit.test(c)),
@@ -271,7 +271,7 @@ describe("L2 — the context of a role's session", () => {
       expect(Object.keys(mcpDe(r).mcpServers).sort(), role).toEqual(['codegraph']);
       expect(mcpDe(r).mcpServers.codegraph.command, role).toBe('codegraph');
     }
-    for (const role of ['testeur', 'developpeur', 'regulateur']) {
+    for (const role of ['testwriter', 'developpeur', 'regulateur']) {
       const a = options(role);
       expect(a, role).toContain('--strict-mcp-config');
       expect(mcpDe(a).mcpServers, role).toEqual({});
@@ -327,7 +327,7 @@ describe("L2 — the context of a role's session", () => {
 
   it('offers each role the tools its work needs: the reviewer and the regulator write nothing', () => {
     const outils = (role: string) => valeur(options(role), '--tools').split(',');
-    for (const role of ['testeur', 'developpeur']) {
+    for (const role of ['testwriter', 'developpeur']) {
       expect(outils(role), role).toEqual(
         expect.arrayContaining(['Bash', 'Read', 'Edit', 'Write', 'Skill'])
       );
@@ -341,7 +341,7 @@ describe("L2 — the context of a role's session", () => {
     }
     // The tool search serves the servers of the index, whose tools Claude Code defers.
     expect(outils('relecteur')).toContain('ToolSearch');
-    for (const role of ['testeur', 'developpeur', 'regulateur']) {
+    for (const role of ['testwriter', 'developpeur', 'regulateur']) {
       expect(outils(role), role).not.toContain('ToolSearch');
     }
     for (const role of Object.keys(ROLES)) {
@@ -367,8 +367,8 @@ describe("L2 — the context of a role's session", () => {
     expect(demandes.some(c => /^tail /.test(c))).toBe(true);
   });
 
-  it("carries the write locks of the testeur and the developpeur in their settings, not in the agents' definitions", () => {
-    for (const role of ['testeur', 'developpeur']) {
+  it("carries the write locks of the testwriter and the developpeur in their settings, not in the agents' definitions", () => {
+    for (const role of ['testwriter', 'developpeur']) {
       const avant = reglagesDe(options(role)).hooks?.PreToolUse ?? [];
       const ecriture = avant.find(h => h.matcher === 'Write|Edit|MultiEdit|NotebookEdit');
       expect(

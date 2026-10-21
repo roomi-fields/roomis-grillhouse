@@ -57,7 +57,7 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
   it('critères 1, 2 et 3 — on a stop, the circuit launches the regulateur and applies its RELANCE --reprendre, CONTEXTE as --contexte, in the same process', () => {
     const id = 'demo-regulateur-reprendre';
     const copie = ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur-1', RIEN);
     scenario(id, 'developpeur-2', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     scenario(id, REGULATEUR, regulateur(reprendre('Écris le double.')));
@@ -65,7 +65,7 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
     expect(r.status, sortie(r)).toBe(0);
     // Critère 1: one session of the regulator, out of the envelope, between the stop and the relaunch.
     expect(ordre(id)).toEqual([
-      'testeur packages/forms',
+      'testwriter packages/forms',
       'developpeur packages/forms',
       REGULATEUR,
       'developpeur packages/forms',
@@ -144,7 +144,7 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
   it('critère 3 — RELANCE --depuis <étape> <composant> plays that component again from that step, the context as its report', () => {
     const id = 'demo-regulateur-depuis';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur-1', RIEN);
     scenario(id, 'developpeur-2', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     scenario(
@@ -159,7 +159,7 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(sessions(id, REGULATEUR)).toBe(1);
-    expect(sessions(id, 'testeur')).toBe(1);
+    expect(sessions(id, 'testwriter')).toBe(1);
     expect(sessions(id, 'developpeur')).toBe(2);
     expect(essai(id, 'developpeur-2.prompt')).toContain('La mesure rend le double.');
     expect(commentaires(id)).toContainEqual(
@@ -175,7 +175,7 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
 
     it('critère 4 — MONTE ends the circuit on the code question, the question in its reason and at the ticket, the session in the state', () => {
       ticket(id, '000-forms');
-      scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+      scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
       scenario(id, 'developpeur-1', RIEN);
       scenario(
         id,
@@ -235,7 +235,7 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
   it('critère 2 — the decision of its sheet is what the circuit writes at the ticket, its context with it, its answer in words left out', () => {
     const id = 'demo-regulateur-raisonnement';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur-1', RIEN);
     scenario(id, 'developpeur-2', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     scenario(
@@ -256,7 +256,7 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
   it("a session without a sheet resumes the regulateur's session once, asking for its sheet, whose decision the circuit applies", () => {
     const id = 'demo-regulateur-redemande';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur-1', RIEN);
     scenario(id, 'developpeur-2', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     scenario(id, `${REGULATEUR}-1`, regulateur(null));
@@ -275,7 +275,7 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
   it("critère 6 — twice no sheet, or a regulateur's session twice in error, ends on the original stop, why joined to its reason", () => {
     const id = 'demo-regulateur-illisible';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', RIEN);
     scenario(id, `${REGULATEUR}-1`, regulateur(null));
     scenario(id, `${REGULATEUR}-2`, regulateur(null));
@@ -301,7 +301,7 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
   it('critère 7 — three RELANCE in a row on the same stop end the circuit on it, the three decisions in its reason, no fourth relaunch', () => {
     const id = 'demo-regulateur-trois';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', RIEN);
     // Each session leaves a trace in the copy, out of the component: the stop comes back, each
     // time on a copy that changed (the same stop with nothing new goes to the supervisor at once,

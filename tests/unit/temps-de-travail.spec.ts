@@ -102,7 +102,7 @@ const competence = (t: number | string) =>
     sourceToolUseID: `u${n}`,
     message: {
       role: 'user',
-      content: [{ type: 'text', text: '# Testeur\n\nTu écris les tests.' }],
+      content: [{ type: 'text', text: '# Testwriter\n\nTu écris les tests.' }],
     },
   });
 // A message from the team lead: another agent, without origin.
@@ -487,7 +487,7 @@ describe('3uv.41 critère 3 : a transcript of one turn keeps its time, first to 
   });
 
   it('3uv.41 critère 3 : a transcript without any dated event works no time', () => {
-    expect(travailDe(l({ type: 'agent-setting', agentSetting: 'testeur' }))).toBe(0);
+    expect(travailDe(l({ type: 'agent-setting', agentSetting: 'testwriter' }))).toBe(0);
   });
 });
 
@@ -545,7 +545,7 @@ const avecSousAgent = (id: string, role: string, texte: string) => {
 
 const SESSION = { hook_event_name: 'SessionEnd', transcript_path: '/t.jsonl', session_id: 's1' };
 const DEUX_TOURS = transcription(
-  l({ type: 'agent-setting', agentSetting: 'testeur' }),
+  l({ type: 'agent-setting', agentSetting: 'testwriter' }),
   invite(at('08:00'), 'demo-c.1'),
   reponse(at('08:10'), 30),
   humain(at('11:00')),
@@ -647,7 +647,7 @@ describe('3uv.41 critère 5 : the lines already in the register are not rewritte
       projet: racine,
       agent: 's1',
       ticket: 'demo-c.1',
-      role: 'testeur',
+      role: 'testwriter',
       debut: '2026-10-11T08:00:00.000Z',
       fin: '2026-10-11T11:05:00.000Z',
       travail: 185 * MIN,
@@ -677,7 +677,7 @@ describe('3uv.41 critère 5 : the lines already in the register are not rewritte
       projet: RACINE,
       agent: 's9',
       ticket: 'demo-c.1',
-      role: 'testeur',
+      role: 'testwriter',
       debut: '2026-10-11T08:00:00.000Z',
       fin: '2026-10-11T11:05:00.000Z',
       travail: 185 * MIN,
@@ -799,7 +799,7 @@ describe('3uv.41 critère 9 : a register line written without its turns keeps th
     projet: RACINE,
     agent,
     ticket: 'demo-c.1',
-    role: 'testeur',
+    role: 'testwriter',
     debut,
     fin,
     travail: minutes * MIN,
@@ -879,7 +879,7 @@ describe("the circuit's own steps count in the ticket's working time", () => {
       { hook_event_name: 'SessionEnd', transcript_path: `/${agent}.jsonl`, session_id: agent },
       lireTranscription(
         transcription(
-          l({ type: 'agent-setting', agentSetting: 'testeur' }),
+          l({ type: 'agent-setting', agentSetting: 'testwriter' }),
           invite(debut, 'demo-c.1'),
           reponse(fin, 30)
         )

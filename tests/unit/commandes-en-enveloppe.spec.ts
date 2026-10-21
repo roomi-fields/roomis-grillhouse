@@ -252,7 +252,7 @@ describe.runIf(canWrap)(
     });
 
     // Witness: BPScript (packages/990-corpus). The shared test material is read-only for every role
-    // but the testeur; a targeted run of one of its tests built it, and Turborepo wrote its task
+    // but the testwriter; a targeted run of one of its tests built it, and Turborepo wrote its task
     // logs in it (`.turbo/turbo-<task>.log`): « Cannot write logs: Read-only file system », and the
     // developer could not play a bench of the material. As in Bazel, a read-only input arrives
     // built, and the logs of a test go to an output directory, never into the source.
@@ -284,13 +284,13 @@ describe.runIf(canWrap)(
         expect(sortie(r)).not.toContain('Read-only file system');
       });
 
-      it('in the envelope of the testeur, the material builds and writes as before', () => {
+      it('in the envelope of the testwriter, the material builds and writes as before', () => {
         rmSync(path.join(copie, 'construits.txt'), { force: true });
         const journal = path.join(copie, 'packages/corpus/.turbo/turbo-test$colon$vitest.log');
         rmSync(journal, { force: true });
         // A change to the material's source: its build misses the cache, and plays.
         ecrire(copie, 'packages/corpus/src/index.d.ts', `${declarations('corpus')}// changé\n`);
-        const r = dans('testeur', `node ${TESTS} packages/corpus/test/x.test.mjs`);
+        const r = dans('testwriter', `node ${TESTS} packages/corpus/test/x.test.mjs`);
         expect(r.status, sortie(r)).toBe(0);
         expect(lignes('construits.txt')).toEqual(['corpus']);
         expect(readFileSync(path.join(copie, 'packages/corpus/dist/index.d.ts'), 'utf8')).toContain(
@@ -495,7 +495,7 @@ describe.runIf(canWrap)(
   }
 );
 
-// Witness: BPScript. Between the testeur's lot and the developer's, the build of 030-binder failed;
+// Witness: BPScript. Between the testwriter's lot and the developer's, the build of 030-binder failed;
 // Turborepo, by default (`--continue=never`), cancelled the build of 040-checker, which its tests
 // read and whose build does not wait for it: the copy kept a dist/ of 040-checker half rewritten,
 // read-only in the envelope, and every test of 030-binder crashed on loading. As Bazel's

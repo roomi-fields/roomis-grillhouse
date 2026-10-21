@@ -60,16 +60,16 @@ it('lecteur — lit rend sa valeur', () => { expect(lit(2)).toBe(2); });
   const LECTEUR_JUSTE = `printf "import { mesure } from '../../forms/src/index.mjs';\\nexport const lit = x => mesure(x) / 2;\\n" > $c/src/lecteur.mjs\n`;
 
   // Witness: BPScript (bp-mono-vbwf.320.2.2.1.5). The provider changes a type; tests the readers
-  // already held, green at HEAD, turn red, and their testeur has no new test to write. The proof
+  // already held, green at HEAD, turn red, and their testwriter has no new test to write. The proof
   // saw no file of the lot and skipped their developpeur.
   it('takes a test HEAD holds that the lot turns red for the proof of its component', () =>
     avecLecteur(() => {
       const id = 'demo-rouge-existant';
       ticket(id, '000-forms, 030-binder');
-      scenario(id, 'testeur-1', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+      scenario(id, 'testwriter-1', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
       scenario(
         id,
-        'testeur-2',
+        'testwriter-2',
         "passation 'Aucun test neuf à écrire : les rouges existants du lecteur suffisent.'\n"
       );
       scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code de forms écrit.'\n`);
@@ -77,9 +77,9 @@ it('lecteur — lit rend sa valeur', () => { expect(lit(2)).toBe(2); });
       const r = circuit([id]);
       expect(r.status, sortie(r)).toBe(0);
       expect(ordre(id)).toEqual([
-        'testeur packages/forms',
+        'testwriter packages/forms',
         'developpeur packages/forms',
-        'testeur packages/binder',
+        'testwriter packages/binder',
         'developpeur packages/binder',
         'relecteur',
       ]);
@@ -141,12 +141,12 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
   it('fails the proof without a file of the lot nor a red, the greens HEAD holds not counted', () => {
     const id = 'demo-rien';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', "passation 'Rien écrit.'\n");
+    scenario(id, 'testwriter', "passation 'Rien écrit.'\n");
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(ARRETS.preuve);
-    expect(sessions(id, 'testeur')).toBe(3);
+    expect(sessions(id, 'testwriter')).toBe(3);
     expect(sessions(id, 'developpeur')).toBe(0);
-    const relance = essai(id, 'testeur-2.prompt');
+    const relance = essai(id, 'testwriter-2.prompt');
     expect(relance).toContain('Aucun fichier de test du lot dans packages/forms');
     expect(relance).toContain('0 rouge(s)');
     expect(relance).not.toContain('ancien — mesure rend un nombre');
@@ -157,7 +157,7 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     const copie = ticket(id, '000-forms');
     scenario(
       id,
-      'testeur',
+      'testwriter',
       `cat >> $c/test/ancien.test.mjs <<'EOF'
 it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); });
 EOF
@@ -167,7 +167,7 @@ passation 'Test ajouté, rouge.'
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
-    expect(sessions(id, 'testeur')).toBe(1);
+    expect(sessions(id, 'testwriter')).toBe(1);
     const preuve = commentaires(id).find(t => t.startsWith('Circuit · packages/forms · preuve'));
     expect(preuve).toContain('1 rouge(s)');
     expect(preuve).toContain('0 vert(s) sans vert attendu');

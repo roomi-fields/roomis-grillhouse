@@ -14,7 +14,7 @@ import {
 // The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): the questionneur
 // (grillhouse-3uv.89.1, L9), a look that did not write the proposal, as Amazon's bar raiser, the
 // challenge and response of a cockpit and the devil's advocate of a design review. It asks its
-// questions of the ticket's plan, before the first testeur and after the survey of the components,
+// questions of the ticket's plan, before the first testwriter and after the survey of the components,
 // and of each decision of the regulator, before the admission control; the author answers by
 // resuming its session, the questionneur reads the answer by resuming its own, 4 rounds at most;
 // the end is a sheet without question; the fourth round still questioned, or a disagreement,
@@ -71,7 +71,7 @@ describe.runIf(canWrap)(
   () => {
     afterEach(revenirAuDebut);
 
-    it('critère 1 — the plan is questioned before the first testeur; the référent technique answers, its change applied by the circuit, and the exchange is at the ticket', () => {
+    it('critère 1 — the plan is questioned before the first testwriter; the référent technique answers, its change applied by the circuit, and the exchange is at the ticket', () => {
       const id = 'demo-questions-plan';
       ticket(id, '000-forms');
       scenario(
@@ -104,16 +104,16 @@ describe.runIf(canWrap)(
           description: nouvelle,
         })
       );
-      scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+      scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
       scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
       const r = circuit([id]);
       expect(r.status, sortie(r)).toBe(0);
-      // Two rounds before the testeur: the questions, the answer, the questions read again.
+      // Two rounds before the testwriter: the questions, the answer, the questions read again.
       expect(ordre(id, { questionneur: true })).toEqual([
         QUESTIONNEUR,
         REFERENT,
         QUESTIONNEUR,
-        'testeur packages/forms',
+        'testwriter packages/forms',
         'developpeur packages/forms',
         'relecteur',
       ]);
@@ -128,9 +128,9 @@ describe.runIf(canWrap)(
       expect(essai(id, `${QUESTIONNEUR}-2.prompt`)).toContain(
         'Un critère 2 : `mesure` de 0 rend 0.'
       );
-      // The change, written by the circuit, reaches the testeur's instruction.
+      // The change, written by the circuit, reaches the testwriter's instruction.
       expect(description(id)).toBe(nouvelle);
-      expect(essai(id, 'testeur-1.prompt')).toContain('2. `mesure` de 0 rend 0.');
+      expect(essai(id, 'testwriter-1.prompt')).toContain('2. `mesure` de 0 rend 0.');
       // The exchange at the ticket: the questions, the answers, the end.
       const e = echange(id);
       expect(e.some(t => t.includes('tour 1/4') && t.includes('que rend `mesure` de 0 ?'))).toBe(
@@ -149,7 +149,7 @@ describe.runIf(canWrap)(
     it('critère 4 — its instruction carries the frame that orients it: the métacadre, « Comment on arbitre », « Ce qui monte au superviseur », the ticket and the survey', () => {
       const id = 'demo-questions-consigne';
       ticket(id, '000-forms');
-      scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+      scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
       scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
       const r = circuit([id]);
       expect(r.status, sortie(r)).toBe(0);
@@ -177,7 +177,7 @@ describe.runIf(canWrap)(
       );
     });
 
-    it('critère 1 — the fourth round still questioned goes up to the supervisor, before any testeur; his answer lets the plan pass, questioned no more', () => {
+    it('critère 1 — the fourth round still questioned goes up to the supervisor, before any testwriter; his answer lets the plan pass, questioned no more', () => {
       const id = 'demo-questions-quatre';
       ticket(id, '000-forms');
       scenario(id, QUESTIONNEUR, fiche(questions(['Illustre par un exemple ?', 'flou'])));
@@ -190,13 +190,13 @@ describe.runIf(canWrap)(
           ],
         })
       );
-      scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+      scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
       scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
       const r = circuit([id]);
       expect(r.status, sortie(r)).toBe(ARRETS.questionnement);
       expect(sessions(id, QUESTIONNEUR)).toBe(4);
       expect(sessions(id, REFERENT)).toBe(3);
-      expect(sessions(id, 'testeur')).toBe(0);
+      expect(sessions(id, 'testwriter')).toBe(0);
       // The author resumes its own session from its second answer.
       const a = valeur(args(id, REFERENT, 1), '--session-id');
       expect(valeur(args(id, REFERENT, 3), '--resume')).toBe(a);
@@ -209,11 +209,11 @@ describe.runIf(canWrap)(
       expect(e.rapport).toContain('Illustre par un exemple ?');
       expect(e.boucles).toEqual({ questionnement: 4 });
       expect(questionnements(id).at(-1)).toMatchObject({ objet: 'plan', tours: 4, issue: 'MONTE' });
-      // The supervisor's answer, written at the ticket, lets the plan pass, from the first testeur.
+      // The supervisor's answer, written at the ticket, lets the plan pass, from the first testwriter.
       const s = circuit([id, '--reponse', 'Le plan tient : mesure(2) = 4 suffit.']);
       expect(s.status, sortie(s)).toBe(0);
       expect(sessions(id, QUESTIONNEUR)).toBe(4);
-      expect(sessions(id, 'testeur')).toBe(1);
+      expect(sessions(id, 'testwriter')).toBe(1);
       expect(echange(id).some(t => t.includes('Le plan tient : mesure(2) = 4 suffit.'))).toBe(true);
     });
 
@@ -242,7 +242,7 @@ describe.runIf(canWrap)(
       const r = circuit([id]);
       expect(r.status, sortie(r)).toBe(ARRETS.questionnement);
       expect(sessions(id, QUESTIONNEUR)).toBe(2);
-      expect(sessions(id, 'testeur')).toBe(0);
+      expect(sessions(id, 'testwriter')).toBe(0);
       expect(etat(id)?.rapport).toContain('Le plan corrige le symptôme, la cause reste.');
       expect(questionnements(id).at(-1)).toMatchObject({ tours: 2, issue: 'DÉSACCORD' });
     });
@@ -250,7 +250,7 @@ describe.runIf(canWrap)(
     it('critère 2 — a decision of the regulateur is questioned before it is applied, the regulateur answering in its own session; a decision changed applies changed', () => {
       const id = 'demo-questions-decision';
       ticket(id, '000-forms');
-      scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+      scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
       scenario(id, 'developpeur-1', RIEN);
       scenario(id, 'developpeur-2', `${CODE_JUSTE}passation 'Code écrit.'\n`);
       scenario(
@@ -269,13 +269,13 @@ describe.runIf(canWrap)(
         `${REGULATEUR}-2`,
         fiche({
           decision: 'RELANCE --depuis',
-          depuis: { role: 'testeur', composant: 'packages/forms' },
+          depuis: { role: 'testwriter', composant: 'packages/forms' },
           contexte: 'Relis le test du critère 1.',
           reponses: [
             {
               question: 'Le test du critère 1 est-il juste ?',
               choix: 'CHANGE',
-              texte: 'Le testeur le relit d’abord.',
+              texte: 'Le testwriter le relit d’abord.',
             },
           ],
         })
@@ -284,13 +284,13 @@ describe.runIf(canWrap)(
       expect(r.status, sortie(r)).toBe(0);
       expect(ordre(id, { questionneur: true })).toEqual([
         QUESTIONNEUR,
-        'testeur packages/forms',
+        'testwriter packages/forms',
         'developpeur packages/forms',
         REGULATEUR,
         QUESTIONNEUR,
         REGULATEUR,
         QUESTIONNEUR,
-        'testeur packages/forms',
+        'testwriter packages/forms',
         'developpeur packages/forms',
         'relecteur',
       ]);
@@ -299,11 +299,11 @@ describe.runIf(canWrap)(
       expect(valeur(args(id, REGULATEUR, 2), '--resume')).toBe(seance);
       expect(essai(id, `${REGULATEUR}-2.prompt`)).toContain('Le test du critère 1 est-il juste ?');
       expect(essai(id, `${QUESTIONNEUR}-2.prompt`)).toContain('RELANCE --reprendre');
-      expect(essai(id, `${QUESTIONNEUR}-3.prompt`)).toContain('Le testeur le relit d’abord.');
+      expect(essai(id, `${QUESTIONNEUR}-3.prompt`)).toContain('Le testwriter le relit d’abord.');
       // The decision applied is the changed one, and only it is written as the regulateur's.
       const decisions = commentaires(id).filter(t => / · regulateur : RELANCE/.test(t));
       expect(decisions).toEqual([
-        expect.stringContaining('RELANCE --depuis testeur packages/forms'),
+        expect.stringContaining('RELANCE --depuis testwriter packages/forms'),
       ]);
       expect(questionnements(id).at(-1)).toMatchObject({
         objet: 'decision',
@@ -316,14 +316,14 @@ describe.runIf(canWrap)(
     it('critère 2 — a decision still questioned at the fourth round goes up to the supervisor as the regulateur’s question, its session kept; the answer is not questioned again', () => {
       const id = 'demo-questions-decision-monte';
       ticket(id, '000-forms');
-      scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+      scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
       scenario(id, 'developpeur', RIEN);
       scenario(id, REGULATEUR, fiche({ decision: 'RELANCE --reprendre', contexte: 'Écris-le.' }));
       for (const n of [2, 3, 4, 5]) {
         scenario(
           id,
           `${QUESTIONNEUR}-${n}`,
-          fiche(questions(['Pourquoi pas le testeur ?', 'règle']))
+          fiche(questions(['Pourquoi pas le testwriter ?', 'règle']))
         );
       }
       scenario(id, `${REGULATEUR}-5`, fiche({ decision: 'MONTE', question: 'Toujours ?' }));
@@ -337,9 +337,9 @@ describe.runIf(canWrap)(
         regulateur: { seance: string };
       };
       expect(e.raison).toBe('question');
-      expect(e.rapport).toContain('Pourquoi pas le testeur ?');
+      expect(e.rapport).toContain('Pourquoi pas le testwriter ?');
       expect(e.regulateur.seance).toBe(valeur(args(id, REGULATEUR, 1), '--session-id'));
-      const s = circuit([id, '--reponse', 'Relance le testeur.']);
+      const s = circuit([id, '--reponse', 'Relance le testwriter.']);
       expect(s.status, sortie(s)).toBe(ARRETS.question);
       expect(valeur(args(id, REGULATEUR, 5), '--resume')).toBe(e.regulateur.seance);
       expect(sessions(id, QUESTIONNEUR)).toBe(5);

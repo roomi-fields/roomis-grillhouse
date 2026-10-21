@@ -15,7 +15,7 @@
 // - A step carries as many bounded loops as it needs (`boucles`): each its key (`cle`, which
 //   keys its count in the state's `boucles`), its label, its maximum (`max`, the pass that stops
 //   it; null for the components, whose number is the title's) and the sub-steps it spans (`sur`;
-//   the step and all its sub-steps without it): the components of the title, the testeur's
+//   the step and all its sub-steps without it): the components of the title, the testwriter's
 //   sessions after a refused proof, the developpeur's sessions with their checks, the rounds of
 //   a questioning, the reviews, the same stop come back after a RELANCE of the regulator. The
 //   circuit stops each loop at its maximum and writes its count in its state; the board shows
@@ -74,7 +74,13 @@ export const ETAPES = [
       { cle: 'code', libelle: 'essai', max: 3, sur: ['2.3', '2.4'] },
     ],
     sous: [
-      { numero: '2.1', titre: 'Tests', qui: ['testeur'], parComposant: true, etat: 'testeur' },
+      {
+        numero: '2.1',
+        titre: 'Tests',
+        qui: ['testwriter'],
+        parComposant: true,
+        etat: 'testwriter',
+      },
       { numero: '2.2', titre: 'Preuve du rouge', qui: [AUTO], parComposant: true, etat: 'preuve' },
       {
         numero: '2.3',
@@ -221,13 +227,13 @@ export const juge = role =>
 // - `developpeur-du-composant`: the red goes to the developpeur of the component that owns it,
 //   never to the one under way: it waits for that component's checks, or, at the final pass, the
 //   circuit relaunches that developpeur (the checks of scripts/circuit.mjs);
-// - `testeur`: the circuit plays the component again from its testeur.
+// - `testwriter`: the circuit plays the component again from its testwriter.
 export const GESTES = [
   'superviseur',
   'a-repasser',
   'regulateur',
   'developpeur-du-composant',
-  'testeur',
+  'testwriter',
 ];
 
 export const TABLE_DES_ARRETS = [
@@ -273,24 +279,24 @@ export const TABLE_DES_ARRETS = [
     cas: 'A4, A6, A8–A10 : la garde des mots de 030-binder rendue aux développeurs de 050, 130 et 900 (D5, D7, D9–D11)',
   },
   {
-    // A developpeur's sheet whose `renvoi` names the testeur of a component of the title up to
+    // A developpeur's sheet whose `renvoi` names the testwriter of a component of the title up to
     // his own.
-    genre: 'renvoi-au-testeur',
-    geste: 'testeur',
-    cas: 'A5, A7 : « Agent : testeur » non lu, les tests périmés de 050 et de 130 (D6, D8) ; A2 (D2)',
+    genre: 'renvoi-au-testwriter',
+    geste: 'testwriter',
+    cas: 'A5, A7 : « Agent : testwriter » non lu, les tests périmés de 050 et de 130 (D6, D8) ; A2 (D2)',
   },
   {
     // On the supervisor's answer to a question, a component the title gained since the stop.
     genre: 'composant-ajoute',
-    geste: 'testeur',
-    cas: 'A3 : 020-loader mis au titre, puis RELANCE testeur 020-loader (D4) ; A14 : 040-checker, puis testeur 040-checker (D17)',
+    geste: 'testwriter',
+    cas: 'A3 : 020-loader mis au titre, puis RELANCE testwriter 020-loader (D4) ; A14 : 040-checker, puis testwriter 040-checker (D17)',
   },
   {
     // The ticket's description changed while the stop was settled, a criterion added: the circuit
-    // then admits only a RELANCE from a testeur.
+    // then admits only a RELANCE from a testwriter.
     genre: 'critere-neuf',
-    geste: 'testeur',
-    cas: 'D15 : une consigne neuve sur le fond donnée au développeur de 030-binder sans test (A14), rendue au testeur de 040-checker (D17)',
+    geste: 'testwriter',
+    cas: 'D15 : une consigne neuve sur le fond donnée au développeur de 030-binder sans test (A14), rendue au testwriter de 040-checker (D17)',
   },
 ];
 

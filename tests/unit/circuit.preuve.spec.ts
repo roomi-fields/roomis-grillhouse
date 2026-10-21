@@ -5,7 +5,7 @@ import { canWrap, racineSousLaMaison } from '../machine.js';
 import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
 
 // The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): the order of the
-// components and their steps, and the proof of the testeur's red.
+// components and their steps, and the proof of the testwriter's red.
 // The trial repository and its stand-ins: ./circuit-essai.ts; each file of the circuit's tests
 // builds its own, in a trial directory of its own.
 
@@ -41,21 +41,21 @@ EOF
 
 describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
   afterEach(revenirAuDebut);
-  it('passes each component of the title, provider first: testeur, proof, developpeur, checks', () => {
+  it('passes each component of the title, provider first: testwriter, proof, developpeur, checks', () => {
     const id = 'demo-ordre';
     ticket(id, '000-forms, 030-binder');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(ordre(id)).toEqual([
-      'testeur packages/forms',
+      'testwriter packages/forms',
       'developpeur packages/forms',
-      'testeur packages/binder',
+      'testwriter packages/binder',
       'developpeur packages/binder',
       'relecteur',
     ]);
-    const etapes = ['testeur', 'preuve', 'developpeur', 'controles'];
+    const etapes = ['testwriter', 'preuve', 'developpeur', 'controles'];
     expect(historique(id)).toEqual([
       ...etapes.map(e => ['packages/forms', e]),
       ...etapes.map(e => ['packages/binder', e]),
@@ -113,24 +113,24 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     expect(consigne).toContain('1. `mesure` rend le double de sa valeur.');
     expect(consigne).toContain('critère 1 — mesure rend le double');
     expect(consigne).toContain('Tests écrits, rouges.');
-    expect(essai(id, 'testeur-1.prompt')).toContain('TON COMPOSANT : packages/forms');
-    expect(essai(id, 'testeur-2.prompt')).toContain('TON COMPOSANT : packages/binder');
+    expect(essai(id, 'testwriter-1.prompt')).toContain('TON COMPOSANT : packages/forms');
+    expect(essai(id, 'testwriter-2.prompt')).toContain('TON COMPOSANT : packages/binder');
   });
 
-  it('sends a green test no expected green of the testeur’s sheet names back to the testeur', () => {
+  it('sends a green test no expected green of the testwriter’s sheet names back to the testwriter', () => {
     const id = 'demo-vert';
     ticket(id, '000-forms');
-    scenario(id, 'testeur-1', `${ECRIT_ROUGE}${ECRIT_VERT}passation 'Tests écrits.'\n`);
+    scenario(id, 'testwriter-1', `${ECRIT_ROUGE}${ECRIT_VERT}passation 'Tests écrits.'\n`);
     scenario(
       id,
-      'testeur-2',
+      'testwriter-2',
       `passation 'Vert justifié.'\nfiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/forme.test.mjs","test":"critère 1 — mesure rend un nombre","raison":"la forme est déjà juste"}]}'\n`
     );
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
-    expect(sessions(id, 'testeur')).toBe(2);
-    const relance = essai(id, 'testeur-2.prompt');
+    expect(sessions(id, 'testwriter')).toBe(2);
+    const relance = essai(id, 'testwriter-2.prompt');
     expect(relance).toContain('critère 1 — mesure rend un nombre');
     expect(relance).toContain('vert attendu');
     // The proof at the ticket names its whole report, which holds the justified green and its
@@ -144,13 +144,13 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     expect(readFileSync(complet ?? '', 'utf8')).toContain('la forme est déjà juste');
   });
 
-  it('relaunches the testeur twice at most, then stops at « preuve »', () => {
+  it('relaunches the testwriter twice at most, then stops at « preuve »', () => {
     const id = 'demo-preuve';
     ticket(id, '000-forms');
-    scenario(id, 'testeur', `${ECRIT_ROUGE}${ECRIT_VERT}passation 'Tests écrits.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}${ECRIT_VERT}passation 'Tests écrits.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(ARRETS.preuve);
-    expect(sessions(id, 'testeur')).toBe(3);
+    expect(sessions(id, 'testwriter')).toBe(3);
     expect(sessions(id, 'developpeur')).toBe(0);
     expect(etat(id)).toMatchObject({
       etape: 'preuve',
@@ -163,13 +163,13 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
   it('takes a test file that does not load for no proof', () => {
     const id = 'demo-casse';
     ticket(id, '000-forms');
-    scenario(id, 'testeur-1', `${ECRIT_ROUGE}${ECRIT_CASSE}passation 'Tests écrits.'\n`);
-    scenario(id, 'testeur-2', `rm $c/test/casse.test.mjs\npassation 'Fichier cassé retiré.'\n`);
+    scenario(id, 'testwriter-1', `${ECRIT_ROUGE}${ECRIT_CASSE}passation 'Tests écrits.'\n`);
+    scenario(id, 'testwriter-2', `rm $c/test/casse.test.mjs\npassation 'Fichier cassé retiré.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
-    expect(sessions(id, 'testeur')).toBe(2);
-    const relance = essai(id, 'testeur-2.prompt');
+    expect(sessions(id, 'testwriter')).toBe(2);
+    const relance = essai(id, 'testwriter-2.prompt');
     expect(relance).toContain('packages/forms/test/casse.test.mjs');
     expect(relance).toContain('ne se charge pas');
   });
