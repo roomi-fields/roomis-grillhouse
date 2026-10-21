@@ -41,8 +41,9 @@ export const ecrire = (f: string, texte: string, mode?: number) => {
 // with `fiche '<json>'`. As claude with `--output-format json`, it prints on its standard output
 // its JSON result alone, whatever the scenario prints (on its standard error), the sheet in
 // `structured_output`: the scenario's, else `{"statut":"FAIT"}` for a testwriter or a developpeur,
-// `{"issue":"AUCUNE"}` for the questionneur (a plan or a decision it has no question on), none for
-// another role or after `sans_fiche`; a `--json-schema` that is not JSON fails, code 1,
+// `{"issue":"AUCUNE"}` for the questionneur (a plan or a decision it has no question on),
+// `{"reponses":[]}` for the technical referent (a plan it leaves as it is), none for another role
+// or after `sans_fiche`; a `--json-schema` that is not JSON fails, code 1,
 // as claude refuses it. As claude, a session `--session-id <id>` keeps its transcript in
 // `<id>.jsonl` (an id already in use fails, code 1), and `--resume <id>` adds to that transcript,
 // found in the folder of its working directory, or fails, code 1, its scenario not played, when
@@ -92,6 +93,7 @@ la_fiche=
 case "$role" in
   testwriter|developpeur) la_fiche='{"statut":"FAIT"}' ;;
   questionneur) la_fiche='{"issue":"AUCUNE"}' ;;
+  referent-technique) la_fiche='{"reponses":[]}' ;;
 esac
 fiche() { la_fiche=$1; }
 sans_fiche() { la_fiche=; }

@@ -206,7 +206,7 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
 
     it("critère 5 — --reponse resumes the regulateur's session with the supervisor's answer and applies its decision", () => {
       const seance = etat(id)?.regulateur?.seance;
-      scenario(id, `${REGULATEUR}-2`, regulateur(reprendre('Le responsable dit : le double.')));
+      scenario(id, `${REGULATEUR}-2`, regulateur(reprendre('Écris le double.')));
       scenario(id, 'developpeur-2', `${CODE_JUSTE}passation 'Code écrit.'\n`);
       const r = circuit([id, '--reponse', 'Le double.']);
       expect(r.status, sortie(r)).toBe(0);
@@ -216,9 +216,7 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
       expect(valeur(a, '--model')).toBe('sonnet');
       expect(essai(id, `${REGULATEUR}-2.prompt`)).toContain('Le double.');
       expect(essai(id, `${REGULATEUR}-2.prompt`)).toContain('LA RÉPONSE DU SUPERVISEUR');
-      expect(essai(id, 'developpeur-2.prompt')).toContain(
-        'CONTEXTE : Le responsable dit : le double.'
-      );
+      expect(essai(id, 'developpeur-2.prompt')).toContain('CONTEXTE : Écris le double.');
       expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
     });
   });

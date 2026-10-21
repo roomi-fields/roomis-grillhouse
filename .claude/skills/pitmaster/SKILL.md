@@ -101,9 +101,14 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   raison de l'état, et elle vient à moi. Je réponds moi-même à ce qui est à moi (le cadre du
   ticket, un arbitrage) ; je porte au responsable le fonctionnel et ce que la charte lui garde.
   J'écris la réponse au ticket, puis je lance
-  `node scripts/circuit.mjs <ticket> --reponse "<sa réponse>"` en arrière-plan, qui reprend la
-  séance du régulateur, avec son contexte, et applique sa décision ; un composant que j'ajoute au
-  titre avant de répondre repart de son testwriter, sans le régulateur. 21 (`composants-manquants`) :
+  `node scripts/circuit.mjs <ticket> --reponse "<sa réponse>"` en arrière-plan : la réponse du
+  responsable entre dans le plan, que tous les agents lisent. Le référent technique la verse dans le
+  plan (un critère ajouté, retiré ou précisé), le circuit l'écrit, et un plan changé passe le
+  questionneur ; puis le circuit reprend la séance du régulateur, qui tranche sur le plan, et
+  applique sa décision. Un composant que j'ajoute au titre avant de répondre repart de son
+  testwriter, sans le régulateur. Le contexte d'une relance porte l'arrêt, jamais une décision du
+  responsable : une décision du responsable passe par `--reponse`, et le référent technique la
+  verse dans le plan. 21 (`composants-manquants`) :
   avant toute séance, le relevé des composants trouve un composant que le titre ne nomme pas, en
   tête du rapport de l'état. Je l'ajoute au titre, le fournisseur d'abord
   (`bd update <ticket> --title`), puis je relance le circuit ; ou je réponds pourquoi il reste

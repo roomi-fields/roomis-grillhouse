@@ -19,7 +19,9 @@ relance l'agent que nomme chaque constat bloquant.
    `git -C <copie> diff HEAD -- <fichier>`, un fichier neuf en entier. Ne lis pas encore les critères : ta
    consigne n'en porte aucun, et le fichier d'affirmations qu'elle nomme attend l'étape des
    affirmations ; tes deux premières passes partent du code seul. Le ticket ne se lit pas par bd,
-   que ta séance n'ouvre pas : ta consigne et ce fichier le portent. Ainsi le récit du ticket n'oriente pas ta
+   que ta séance n'ouvre pas : ta consigne et ce fichier le portent. Tu juges sur le plan, la
+   description que ce fichier porte, où une décision du responsable est versée ; tu ne cherches
+   aucune décision dans les commentaires. Ainsi le récit du ticket n'oriente pas ta
    lecture.
 
 ## La relecture bornée
@@ -53,7 +55,7 @@ Chaque passe suit son fichier de `references/` à la lettre, dans cet ordre.
 3. **Le cadre** : chaque règle du `CADRE.md`, de l'architecture et de la spécification que le
    ticket cite est tenue ; le code traite la classe de problèmes, à l'adresse que nomme la section
    « Architecture », et non le seul cas signalé. Un lot rend aussi sur une forme recopiée, un mot
-   que le domaine ne connaît pas, un chemin qu'un arbitrage a écarté, un document du responsable
+   que le domaine ne connaît pas, un chemin que le plan écarte, un document du responsable
    changé sans son mot, ou un banc qui ne mesure pas le cas de son ticket sur l'entrée que le cas
    nomme. Ainsi le correctif va du plus large vers le plus spécifique.
 4. **Les entrées** : chaque fonction de l'interface du composant reçoit les types que la section

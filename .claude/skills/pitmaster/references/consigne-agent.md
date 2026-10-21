@@ -1,20 +1,22 @@
 # La consigne d'un agent
 
-Onze gabarits, que le circuit du ticket (`scripts/circuit.mjs`) remplit, chaque `{{champ}}` reçu
+Douze gabarits, que le circuit du ticket (`scripts/circuit.mjs`) remplit, chaque `{{champ}}` reçu
 de lui : le premier pour chaque séance neuve du testwriter et du développeur, dans l'enveloppe de son
 composant, le lanceur ajoutant ses sections ; le second pour chaque séance du relecteur, hors
 enveloppe, après la passe finale verte, qui après un `RENDU` porte la relecture d'avant (la
 commande de la différence entre le lot qu'elle a lu et celui d'aujourd'hui, ses fichiers, ses
 constats) et ne nomme que les fichiers que le lot change depuis elle ; le troisième pour la séance du régulateur, hors
-enveloppe, sur un arrêt que la table des arrêts ne tranche pas ; le quatrième pour la reprise de cette séance sur la réponse
-du superviseur (`--reponse`), qui peut porter celle du responsable ; le cinquième pour la reprise
+enveloppe, sur un arrêt que la table des arrêts ne tranche pas, avec le plan du ticket ; le quatrième pour la reprise de cette séance sur la réponse
+du superviseur (`--reponse`), qui peut porter celle du responsable, une fois cette réponse versée dans le plan ; le cinquième pour la reprise
 de toute séance finie sans fiche conforme ; le sixième pour la reprise de la séance du testwriter ou
 du développeur, relancé sur son étape (le testwriter après une preuve refusée, le développeur après
 des contrôles rouges), sauf la dernière tentative, une séance neuve sur le premier ; le septième pour la reprise de la
-séance du régulateur sur une décision que le circuit refuse ; les quatre derniers pour le
+séance du régulateur sur une décision que le circuit refuse ; les quatre suivants pour le
 questionnement (le questionneur sur une proposition, le plan du ticket ou une décision du
 régulateur, puis sur chaque réponse, sa séance reprise ; l'auteur sur ses questions, sa séance
-reprise ; le référent technique, séance neuve, qui répond pour le plan à ses premières questions).
+reprise ; le référent technique, séance neuve, qui répond pour le plan à ses premières questions) ;
+le douzième pour le référent technique, séance neuve, qui verse dans le plan la réponse du
+superviseur à la question du régulateur, avant que le régulateur ne reprenne.
 La consigne du questionneur porte la proposition et le cadre qui l'oriente, jamais une liste de
 questions. Le circuit lit
 la description et les notes du ticket au lancement de chaque séance ; `{{notes}}` porte la section
@@ -124,6 +126,10 @@ LES ROUGES DE L'ARRÊT, lus dans les résultats structurés (rapports des tests,
 
 {{rouges}}
 
+LE PLAN DU TICKET, sa description et ses critères, lus au lancement de ta séance ; une décision du responsable y est versée, et tu juges sur lui :
+
+{{description}}
+
 Ta décision est ta fiche, qui finit ta séance : le circuit la vérifie sur l'état, l'écrit au ticket et l'applique lui-même. Sa `decision` prend l'une de ces formes : RELANCE --reprendre ; RELANCE --depuis, l'agent dans `depuis` (testwriter ou developpeur, un composant du titre) ; MONTE, la question dans `question`. Une RELANCE peut porter un `contexte`, que le circuit écrit sur la ligne CONTEXTE de chaque agent qu'il relance ; sous `--depuis`, celle du testwriter puis du développeur du composant rejoué. Une MONTE porte la question au superviseur, avec ses pièces et ta recommandation : il y répond lui-même, ou la porte au responsable quand elle lui revient ; sa réponse reprend ta séance. Chaque fait de l'état sur lequel ta décision s'appuie entre dans `faits` (au-titre, hors-titre, rouge-de, sans-changement, sous-charge, avec son composant) : le circuit refuse une décision qui s'appuie sur un fait faux, lance un développeur avant son testwriter, ou répète la RELANCE d'avant sur le même arrêt sans fait nouveau.
 
 Tu ne lances pas le circuit. Hors de tes commandes (lectures de bd et de git, commentaire au ticket, critère ajouté à sa description, lecture de l'état, du journal et des preuves), la machine est en lecture seule. Ainsi seul le circuit relance le travail.
@@ -138,7 +144,11 @@ LA RÉPONSE DU SUPERVISEUR à ta question, mot pour mot (la sienne, ou celle du 
 
 {{reponse}}
 
-Tranche l'arrêt avec elle. Ta décision est ta fiche, sous l'une des formes de ta consigne : RELANCE --reprendre, RELANCE --depuis (avec `depuis`), ou MONTE (avec `question`).
+LE PLAN DU TICKET, où le référent technique a versé cette réponse : {{plan}}. Sa description et ses critères, lus maintenant :
+
+{{description}}
+
+Tranche l'arrêt sur ce plan. Ta décision est ta fiche, sous l'une des formes de ta consigne : RELANCE --reprendre, RELANCE --depuis (avec `depuis`), ou MONTE (avec `question`).
 ```
 
 ## Toute séance, sur une fiche absente ou non conforme (rempli par le circuit)
@@ -265,6 +275,34 @@ LES QUESTIONS DU QUESTIONNEUR, tour {{tour}}/{{max}} :
 {{questions}}
 
 Pour chaque question, tu changes le plan (CHANGE, et ce qu'il devient) ou tu le gardes (GARDE, et pourquoi), par la référence mûre, les textes du projet et le mécanisme commun. Ta fiche finit ta séance : chaque réponse dans `reponses` ; quand une réponse change le plan, le titre ou la description qu'il devient, entiers, dans `titre` ou `description`, que le circuit écrit au ticket. Le questionneur relit ta réponse ; sa question suivante reprend ta séance.
+
+Hors de tes commandes, la machine est en lecture seule : le circuit écrit le plan et l'échange au ticket.
+```
+
+## Référent technique, sur la réponse du superviseur (rempli par le circuit)
+
+```text
+Tu es le référent technique du dépôt {{depot}}. Contexte neuf, une seule tâche : verser dans le plan d'un ticket la réponse du superviseur à la question du régulateur.
+
+Premier geste : charge ta compétence (outil Skill), puis suis sa section « La réponse au plan ». Ainsi tu réponds dans le cadre écrit.
+
+TON TICKET : {{ticket}} — {{sujet}}
+
+SON TITRE : {{titre}}
+
+SA DESCRIPTION, son Architecture et ses critères :
+
+{{description}}
+
+LA QUESTION DU RÉGULATEUR au superviseur :
+
+{{question}}
+
+LA RÉPONSE DU SUPERVISEUR, mot pour mot (la sienne, ou celle du responsable qu'il porte) :
+
+{{reponse}}
+
+La réponse décide du plan, que lisent tous les agents. Tu la verses dans le plan (CHANGE : un critère ajouté, retiré ou précisé, le titre qu'elle change), ou tu dis pourquoi elle ne change aucun critère (GARDE). Ta fiche finit ta séance : ta réponse dans `reponses`, une seule, sa `question` celle du régulateur ; quand le plan change, le titre ou la description qu'il devient, entiers, dans `titre` ou `description`, que le circuit écrit au ticket. Un plan changé passe le questionneur, dont les questions reprennent ta séance ; puis le régulateur tranche l'arrêt sur le plan.
 
 Hors de tes commandes, la machine est en lecture seule : le circuit écrit le plan et l'échange au ticket.
 ```

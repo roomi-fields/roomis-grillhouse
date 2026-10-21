@@ -7,8 +7,9 @@
 // its end wakes him: at 0 the ticket is closed; at 75 he runs `--reprendre` again once the machine
 // is at rest; at « question » (18) the regulator's question goes to him: he answers it
 // himself, or carries it to the owner when it is the owner's, then runs `--reponse "<texte>"` with
-// the answer; at « composants-manquants » (21) he adds the components to the title or answers
-// why they stay out; at « questionnement » (22) he changes the plan or keeps it, and answers; at
+// the answer, which enters the plan before the regulator resumes; at « composants-manquants »
+// (21) he adds the components to the title or answers why they stay out; at « questionnement »
+// (22) he changes the plan or keeps it, and answers; at
 // any other code, the stop is one the regulator could not settle, or one the
 // table of the stops hands to him. On a stop other than 0 and 21, the circuit reads first the
 // table of the stops (scripts/etapes.mjs, TABLE_DES_ARRETS), its written policy, as Zuul and
@@ -335,9 +336,9 @@
 //   a red of another component waits for its checks, or at the final pass goes to its developpeur
 //   (above); a developpeur's sending plays its testwriter (above);
 //   on `--reponse`, a component the title gained since the question plays from its testwriter, the
-//   answer as its context, with no regulator resumed. Each gesture the circuit applies itself is
-//   written at the ticket, `Circuit · <composant> · arbitrage : <genre> → <geste>`, and counts as a
-//   RELANCE on its stop.
+//   stop as its context (the answer is in the plan), with no regulator resumed. Each gesture the
+//   circuit applies itself is written at the ticket, `Circuit · <composant> · arbitrage : <genre>
+//   → <geste>`, and counts as a RELANCE on its stop.
 // - On a stop the table does not settle, the regulator: a session out of the envelope, as the
 //   reviewer's, claude itself (`claude -p --agent regulateur --session-id <uuid>`) in the
 //   ticket's copy (the main tree once the integration removed it), on Sonnet, under the rights
@@ -345,9 +346,10 @@
 //   bd, a comment, a criterion added to the description, and the reads of the state, the log and
 //   the proofs, the log searched in pieces),
 //   its instruction from the third template of consigne-agent.md: the ticket, the stop's name and
-//   code, its step, component and reason, the paths of the state and the log. The state names its
-//   session (`regulateur`) while it runs. Its sheet is its decision (`decision`: « RELANCE
-//   --reprendre », « RELANCE --depuis » with the agent in `depuis`, or « MONTE » with its
+//   code, its step, component and reason, the paths of the state and the log, and the plan it
+//   judges on, the ticket's description, where a decision of the owner is poured. The state
+//   names its session (`regulateur`) while it runs. Its sheet is its decision (`decision`:
+//   « RELANCE --reprendre », « RELANCE --depuis » with the agent in `depuis`, or « MONTE » with its
 //   `question`; a `contexte` for a RELANCE; its `faits`, the facts of the state it rests on). A
 //   fresh session's decision is questioned first, as the plan is, the regulator answering in its
 //   own session, resumed with the tenth template (its `reponses`, and the decision it ends on,
@@ -365,9 +367,17 @@
 //   both reasons joined to its own. The circuit writes a decision admitted at the ticket
 //   (`Circuit · <composant> · regulateur : …`). RELANCE runs the circuit again in the same process, as the
 //   option it names, the context as `--contexte`; MONTE ends the circuit at « question », the
-//   question as its reason, the regulator's session kept in the state. `--reponse <texte>` resumes
-//   that session (`claude -p --resume <id>`, the fourth template: the supervisor's answer, which
-//   may carry the owner's) and applies the decision it gives the same way; without a session kept
+//   question as its reason, the regulator's session kept in the state. `--reponse <texte>` first
+//   pours the answer into the plan, as an RFC amended or an ADR, the plan being what every agent
+//   reads and the exchange its history: a fresh session of the technical referent, out of the
+//   envelope (the twelfth template: the question, the answer, the plan), changes the plan (a
+//   criterion added, removed or made precise, its title) or keeps it; the circuit writes the plan
+//   (`bd update`) and, the plan changed, surveys it again and has it questioned, as at 1.2, the
+//   referent answering in its own session, before anything else; a plan the answer leaves as it
+//   was is said at the ticket, with no questioning. Then it resumes the regulator's session
+//   (`claude -p --resume <id>`, the fourth template: the supervisor's answer, which may carry the
+//   owner's, and the plan as it leaves it) and applies the decision it gives the same way; without
+//   a session kept
 //   after a question, nor a stop « composants-manquants » or « questionnement » it answers, the
 //   call is refused. A session without a sheet that conforms is resumed
 //   once, as any session; a second one, or
@@ -1023,7 +1033,8 @@ async function attendreLaSeance(ctx, groupe) {
 // The template of the instruction at <rang> (0 the testwriter's and the developpeur's, 1 the
 // reviewer's, 2 the regulator's on a stop, 3 the regulator's on the supervisor's answer, 4 any
 // session's on a sheet absent or out of its schema, 5 the testwriter's and the developpeur's on a
-// resumption, 6 the regulator's on a decision the circuit refuses), filled with <valeurs>.
+// resumption, 6 the regulator's on a decision the circuit refuses, 7 to 10 the questioning's, 11
+// the technical referent's on the supervisor's answer), filled with <valeurs>.
 function consigne(valeurs, rang = 0) {
   const texte = readFileSync(GABARIT, 'utf8');
   const bloc = [...texte.matchAll(/```text\n([\s\S]*?)\n```/g)][rang];
@@ -2899,6 +2910,10 @@ async function trancher(ctx, a, reponse = null) {
     etat: ctx.etat,
     journal: ctx.journal,
     reponse,
+    // The plan it judges on: the ticket's description, read now, and on the supervisor's answer
+    // what the answer made of it (verserLaReponse).
+    description: leTicket(ctx).description.trim() || 'aucune',
+    plan: ctx.plan ?? 'inchangé',
   };
   const options = {
     horsEnveloppe: true,
@@ -3271,17 +3286,20 @@ function changerLePlan(ctx, fiche, composant) {
 }
 
 // The plan of the ticket questioned before the testwriter of the first component, after the survey
-// of its components (<releve>): the technical referent answers for it, a fresh session that
-// defends the plan with the index and the mature references, resumed from its second answer; its
-// changes are written to the ticket by the circuit. A plan that has passed its questioning, its
-// title and description unchanged since, passes. Null when the run goes on; else the exit code of
-// the stop it ends on: « questionnement », for the supervisor, or « composants-manquants » when
-// the plan changed and the survey of its new text finds a component its title misses.
-async function questionnerLePlan(ctx, releve) {
+// of its components (<releve>), or once the supervisor's answer changed it (verserLaReponse): the
+// technical referent answers for it, a fresh session that defends the plan with the index and the
+// mature references, resumed from its second answer, or, with <auteur>, the referent's session
+// that changed it, resumed from its first; its changes are written to the ticket by the circuit.
+// <etat> the state the questioning runs in, the first testwriter's by default. A plan that has
+// passed its questioning, its title and description unchanged since, passes. Null when the run
+// goes on; else the exit code of the stop it ends on: « questionnement », for the supervisor, or
+// « composants-manquants » when the plan changed and the survey of its new text finds a component
+// its title misses.
+async function questionnerLePlan(ctx, releve, { etat: dans = null, auteur = null } = {}) {
   const t = leTicket(ctx);
   if (planPasse(ctx, empreinteDuPlan(t))) return null;
-  const [composant] = ctx.composants;
-  const etat = {
+  const composant = dans?.composant ?? ctx.composants[0];
+  const etat = dans ?? {
     etape: TESTS,
     composant,
     tentative: 1,
@@ -3290,7 +3308,7 @@ async function questionnerLePlan(ctx, releve) {
     rapport: null,
     dernier: ctx.composants.at(-1),
   };
-  const auteurDuPlan = randomUUID();
+  const auteurDuPlan = auteur ?? randomUUID();
   let r;
   try {
     r = await questionner(ctx, {
@@ -3305,39 +3323,39 @@ async function questionnerLePlan(ctx, releve) {
       empreinte: () => ({ empreinte: empreinteDuPlan(leTicket(ctx)) }),
       repondre: async (questions, tour) => {
         const maintenant = leTicket(ctx);
-        const texte =
-          tour === 1
-            ? consigne(
-                {
-                  depot: ctx.racine,
-                  ticket: ctx.ticket,
-                  sujet: ctx.sujet,
-                  titre: maintenant.titre,
-                  description: maintenant.description.trim() || 'aucune',
-                  releve: releve || 'aucun',
-                  tour,
-                  max: TOURS,
-                  questions: lignesDesQuestions(questions),
-                },
-                10
-              )
-            : consigne(
-                {
-                  ticket: ctx.ticket,
-                  sujet: ctx.sujet,
-                  tour,
-                  max: TOURS,
-                  questions: lignesDesQuestions(questions),
-                  forme:
-                    'chaque réponse dans `reponses` ; quand une réponse CHANGE le plan, le titre ou la description qu’il devient, entiers, dans `titre` ou `description`',
-                },
-                9
-              );
+        const ouvre = tour === 1 && !auteur;
+        const texte = ouvre
+          ? consigne(
+              {
+                depot: ctx.racine,
+                ticket: ctx.ticket,
+                sujet: ctx.sujet,
+                titre: maintenant.titre,
+                description: maintenant.description.trim() || 'aucune',
+                releve: releve || 'aucun',
+                tour,
+                max: TOURS,
+                questions: lignesDesQuestions(questions),
+              },
+              10
+            )
+          : consigne(
+              {
+                ticket: ctx.ticket,
+                sujet: ctx.sujet,
+                tour,
+                max: TOURS,
+                questions: lignesDesQuestions(questions),
+                forme:
+                  'chaque réponse dans `reponses` ; quand une réponse CHANGE le plan, le titre ou la description qu’il devient, entiers, dans `titre` ou `description`',
+              },
+              9
+            );
         const f = await jusquALaFiche(ctx, REFERENT, composant, texte, {
           horsEnveloppe: true,
           droits: horsDeLEnveloppe(ctx, REFERENT, 'sonnet'),
           id: auteurDuPlan,
-          premiere: tour === 1 ? 'ouvre' : 'reprend',
+          premiere: ouvre ? 'ouvre' : 'reprend',
         });
         const faits = changerLePlan(ctx, f, composant);
         const neuf = leTicket(ctx);
@@ -3511,6 +3529,76 @@ function composantsManquants(ctx) {
   return code;
 }
 
+// The supervisor's answer <ctx.reponse> to the regulator's question of the state <e> poured into
+// the plan, as an RFC amended or an ADR: the plan is what every agent reads, the exchange at the
+// ticket its history. A fresh session of the technical referent, out of the envelope (the twelfth
+// template: the question, the answer, the plan), changes the plan (a criterion added, removed or
+// made precise, its title) or keeps it, and the circuit writes the plan its sheet gives
+// (changerLePlan). A plan changed is surveyed again, then questioned (questionnerLePlan, the
+// referent answering in its own session) before the regulator resumes; a plan the answer leaves
+// as it was is said at the ticket, and the regulator resumes with no questioning. `{ plan }`, the
+// plan in words for the regulator's resumed session; `{ code }` for the stop the run ends on: one
+// of the survey or of the questioning, or the stop of a session of the referent that cannot end,
+// the state left at « question » for another answer.
+async function verserLaReponse(ctx, e) {
+  const { composant } = e;
+  const avant = leTicket(ctx);
+  const seance = randomUUID();
+  const dire = texte => commenter(ctx, composant, 'questionnement', texte);
+  let f;
+  try {
+    f = await jusquALaFiche(
+      ctx,
+      REFERENT,
+      composant,
+      consigne(
+        {
+          depot: ctx.racine,
+          ticket: ctx.ticket,
+          sujet: ctx.sujet,
+          titre: avant.titre,
+          description: avant.description.trim() || 'aucune',
+          question: String(e.rapport ?? '').trim() || 'aucune',
+          reponse: ctx.reponse,
+        },
+        11
+      ),
+      {
+        horsEnveloppe: true,
+        droits: horsDeLEnveloppe(ctx, REFERENT, 'sonnet'),
+        id: seance,
+        premiere: 'ouvre',
+      }
+    );
+  } catch (x) {
+    if (!(x instanceof Arret)) throw x;
+    dire(
+      `arrêt ${x.nom} : la réponse du superviseur n'entre pas dans le plan — ${premiereLigne(x.rapport)}`
+    );
+    process.stderr.write(
+      `⛔ Circuit de ${ctx.ticket} arrêté : ${x.nom}, la réponse du superviseur n'entre pas dans le plan ; l'arrêt « question » reste, pour une autre réponse.\n`
+    );
+    return { code: ARRETS[x.nom] };
+  }
+  const faits = changerLePlan(ctx, f, composant);
+  if (!faits.length) {
+    dire(
+      `la réponse du superviseur ne change pas le plan : ${lignesDesReponses(f.reponses)} ; le régulateur reprend sans questionnement.`
+    );
+    return { plan: 'inchangé, la réponse du superviseur ne change aucun critère' };
+  }
+  dire(
+    `la réponse du superviseur entre dans le plan, par le référent technique (${faits.join(', ')}) :\n${lignesDesReponses(f.reponses)}`
+  );
+  const code =
+    composantsManquants(ctx) ??
+    (await questionnerLePlan(ctx, ctx.releve, { etat: e, auteur: seance }));
+  if (code !== null) return { code };
+  return {
+    plan: `changé par la réponse du superviseur (${faits.join(', ')}), puis questionné`,
+  };
+}
+
 export async function main(argv) {
   let ctx = null;
   try {
@@ -3575,8 +3663,12 @@ export async function main(argv) {
       }
       return aLaFin(ctx, await conduire(ctx, { depart: d }));
     }
-    // The supervisor's answer goes to the regulator's session kept on the stop it settles.
+    // The supervisor's answer enters the plan first; then it goes to the regulator's session kept
+    // on the stop it settles, which judges on the plan.
     ctx.renvois = e.renvois ?? null;
+    const verse = await verserLaReponse(ctx, e);
+    if (verse.code !== undefined) return aLaFin(ctx, verse.code);
+    ctx.plan = verse.plan;
     const arret = {
       code: e.regulateur.code,
       nom: e.regulateur.arret,
@@ -3597,12 +3689,12 @@ export async function main(argv) {
       },
     };
     // A component the title gained since the question: the gesture of the table, its testwriter, the
-    // answer as its context, with no regulator resumed.
+    // stop as its context (the answer is in the plan), with no regulator resumed.
     const ajoute = ctx.composants.find(c => !(e.composants ?? ctx.composants).includes(c));
     if (ajoute) {
       const ligne = gesteDe('composant-ajoute');
       const i = ctx.composants.indexOf(ajoute);
-      const decision = decisionDuGeste(ctx, ligne, i, ctx.reponse);
+      const decision = decisionDuGeste(ctx, ligne, i, e.rapport);
       commenter(
         ctx,
         e.composant,

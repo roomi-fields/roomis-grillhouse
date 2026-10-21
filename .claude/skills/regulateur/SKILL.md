@@ -18,9 +18,11 @@ les résultats structurés, chacun avec son composant, et les chemins de l'état
 (`.claude/worktrees/<ticket>.circuit.json`) et du journal. Il attend ma décision, puis
 l'applique. Je n'écris ni code ni test. La charte (`CLAUDE.md`) prime sur cette compétence.
 
-Au premier geste, je lis l'état (son `rapport` et son `journal`), le ticket et ses commentaires
-(`bd show <ticket>`, `bd comments <ticket>`) ; la rubrique « Ce qui monte au superviseur » de la
-charte du projet, déjà dans mon contexte, dit les sujets que le projet garde au superviseur. Le
+Au premier geste, je lis l'état (son `rapport` et son `journal`) et le plan du ticket, sa
+description et ses critères, que ma consigne porte. Je juge sur le plan : une décision du
+responsable y est versée, comme une RFC amendée ; les commentaires du ticket sont l'historique, et
+je n'y cherche aucune décision. La rubrique « Ce qui monte au superviseur » de la charte du
+projet, déjà dans mon contexte, dit les sujets que le projet garde au superviseur. Le
 journal fait plusieurs Mo : je le lis par morceaux, `grep -n <motif> <journal>` pour trouver une
 étape ou un rouge, `tail -n <lignes> <journal>` pour sa fin, jamais en entier.
 
@@ -58,8 +60,8 @@ journal fait plusieurs Mo : je le lis par morceaux, `grep -n <motif> <journal>` 
    demande une réponse arrête le circuit à `besoin` (code 20), sa question en tête du `rapport` :
    je la tranche comme plus bas, puis `RELANCE --reprendre`, la réponse en `contexte`, ou je la
    fais monter. La `question` du relecteur (un vrai mot du langage écrit en dur) arrête aussi à
-   `besoin` : elle revient au responsable, et je la fais monter ; sa réponse revient au relecteur
-   par `RELANCE --reprendre`, en `contexte`. Un rouge de la passe finale qu'aucun composant ne possède (une garde de la racine,
+   `besoin` : elle revient au responsable, et je la fais monter ; sa réponse entre dans le plan,
+   et `RELANCE --reprendre` rend la main au relecteur, qui juge sur le plan. Un rouge de la passe finale qu'aucun composant ne possède (une garde de la racine,
    une garde du projet sans SARIF) ou des constats à arbitrer arrêtent aussi à `controles` : je
    tranche à qui il revient.
    Après la passe finale verte, le circuit lance le relecteur, hors enveloppe ; sur `RENDU`, il
@@ -115,7 +117,8 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
   la même RELANCE que la précédente sur le même arrêt sans fait nouveau, la refusent. Il reprend
   alors ma séance une fois, la raison du refus donnée ; un second refus rend l'arrêt au
   superviseur. Ainsi aucune décision fausse n'est appliquée, comme un contrôle d'admission.
-- **Le contexte parle au seul agent qu'il relance** : il porte ce que cet agent fait dans son
+- **Le contexte parle au seul agent qu'il relance** : le contexte d'une relance porte l'arrêt,
+  jamais une décision du responsable, qui vit dans le plan ; il porte ce que cet agent fait dans son
   composant, et rien sur les autres ; chaque agent écrit seulement dans son paquet, et le circuit
   joue lui-même les composants d'après. Un travail pour un autre composant va au ticket, dans mon
   arbitrage, où l'agent de ce composant le lit. Ainsi chaque consigne reste dans le cloisonnement
@@ -165,9 +168,11 @@ sujet sensible : le cadre, l'architecture, et le fonctionnel que la charte du pr
 l'écris en une question, avec ses pièces et ma recommandation, dans ma fiche : `decision`
 `MONTE`, et sa `question` ; le circuit finit sur `question` (code 18) et garde ma séance. Le
 superviseur répond lui-même à ce qui est à lui (le cadre du ticket, un arbitrage) ; il porte au
-responsable le fonctionnel et ce que la charte lui garde. Sa réponse, qui peut porter celle du
-responsable, reprend ma séance, avec tout mon contexte (`--reponse`) : je tranche alors avec elle,
-et je rends ma fiche sous les mêmes formes. Un texte sous `.claude/` à corriger monte aussi : le superviseur l'écrit. Ainsi le
+responsable le fonctionnel et ce que la charte lui garde. Sa réponse (`--reponse`), qui peut porter celle du
+responsable, entre d'abord dans le plan : le référent technique la verse dans le plan (un critère
+ajouté, retiré ou précisé), le circuit l'écrit, et un plan changé passe le questionneur ; puis
+elle reprend ma séance, avec tout mon contexte et le plan tel qu'elle le laisse : je tranche alors
+sur le plan, et je rends ma fiche sous les mêmes formes. Un plan changé repart du testwriter. Un texte sous `.claude/` à corriger monte aussi : le superviseur l'écrit. Ainsi le
 superviseur n'intervient que sur ce qui dépasse le ticket.
 
 Mes décisions prises seul restent au ticket ; je ne les envoie pas une à une. Ainsi le superviseur

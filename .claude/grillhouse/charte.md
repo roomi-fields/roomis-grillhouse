@@ -70,7 +70,11 @@ son état chaque décision du régulateur avant de l'appliquer ; le régulateur 
 lettre d'un critère, un précédent écrit ou une règle du cadre tranchent ; il fait monter au
 superviseur le reste, et tout sujet sensible : le cadre, l'architecture, et le fonctionnel que la
 charte du projet nomme (« Ce qui monte au superviseur »). Ainsi chaque décision se prend au plus
-près du travail, et le superviseur garde les siennes.
+près du travail, et le superviseur garde les siennes. La réponse du responsable entre dans le plan
+du ticket, comme une RFC amendée : le référent technique la verse dans la description, le circuit
+l'écrit, et un plan changé passe le questionneur avant que le régulateur ne reprenne ; tous les
+agents jugent sur le plan, les commentaires restent l'historique, et le contexte d'une relance porte
+l'arrêt, jamais une décision du responsable. Ainsi chaque agent lit la même décision.
 
 Un objectif dont le découpage n'est pas connu commence par une exploration, sans code ; un ticket
 de réalisation fait une seule livraison, en un seul commit ; tout ticket se crée sous sa mère

@@ -155,8 +155,9 @@ describe.runIf(canWrap)('the table of the stops', { timeout: 300_000 }, () => {
   });
 
   // A3 → D4 and A14 → D17 of 320.3: the supervisor put the provider in the title, and the
-  // regulator, resumed on his answer, relaunched its testwriter.
-  it('on --reponse, a component the title gained since the question starts at its testwriter, the answer as its report, with no regulateur resumed', () => {
+  // regulator, resumed on his answer, relaunched its testwriter. The answer goes into the plan
+  // (tests/unit/circuit.reponse.spec.ts); the testwriter's report is the stop.
+  it('on --reponse, a component the title gained since the question starts at its testwriter, the stop as its report, with no regulateur resumed', () => {
     const id = 'demo-table-composant-ajoute';
     ticket(id, '000-forms');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
@@ -177,15 +178,18 @@ describe.runIf(canWrap)('the table of the stops', { timeout: 300_000 }, () => {
     const r2 = circuit([id, '--reponse', 'Le classeur rejoint le titre.']);
     expect(r2.status, sortie(r2)).toBe(0);
     expect(sessions(id, REGULATEUR)).toBe(1);
-    expect(ordre(id).slice(0, 5)).toEqual([
+    // The technical referent pours the answer into the plan first, which it leaves as it is.
+    expect(ordre(id).slice(0, 6)).toEqual([
       'testwriter packages/forms',
       'developpeur packages/forms',
       REGULATEUR,
+      'referent-technique',
       'testwriter packages/binder',
       'developpeur packages/binder',
     ]);
     expect(essai(id, 'testwriter-2.prompt')).toContain('TON COMPOSANT : packages/binder');
-    expect(essai(id, 'testwriter-2.prompt')).toContain('Le classeur rejoint le titre.');
+    expect(essai(id, 'testwriter-2.prompt')).toContain('Le classeur manque au titre.');
+    expect(essai(id, 'testwriter-2.prompt')).not.toContain('Le classeur rejoint le titre.');
     expect(arbitrages(id)).toEqual([
       expect.stringMatching(
         /^Circuit · packages\/forms · arbitrage : composant-ajoute → RELANCE --depuis testwriter packages\/binder/

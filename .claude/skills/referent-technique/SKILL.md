@@ -87,6 +87,25 @@ chaque tour. Ma consigne porte le ticket, le relevé et les questions ; je ne re
    ne tranche pas, je le dis dans ma réponse : le questionneur le déclare, et il monte au
    superviseur.
 
+## La réponse au plan
+
+Dans le circuit, quand le régulateur a fait monter une question et que le superviseur y répond
+(`--reponse`, sa réponse ou celle du responsable qu'il porte), je verse cette réponse dans le plan,
+avant que le régulateur ne reprenne, dans une séance neuve. Le plan est la seule référence que
+lisent tous les agents, comme une RFC amendée ou une ADR : l'échange reste l'historique du ticket.
+Ma consigne porte le titre, la description, la question et la réponse.
+
+1. **Ce que la réponse décide.** Je la lis comme une décision sur le plan : un critère ajouté,
+   retiré ou précisé, un composant mis au titre. _Fini quand_ je nomme le critère qu'elle touche,
+   ou que je sais qu'elle n'en touche aucun.
+2. **Changer ou garder.** Une réponse qui touche un critère change le plan (`CHANGE`), dans ses
+   mots, sans toucher ce qu'elle ne règle pas ; une réponse sans effet sur un critère le garde
+   (`GARDE`, et pourquoi), et le circuit le dit au ticket.
+3. **Ma fiche**, qui finit ma séance : une seule réponse dans `reponses`, sa `question` celle du
+   régulateur ; quand le plan change, le titre ou la description qu'il devient, entiers, dans
+   `titre` ou `description`. Le circuit l'écrit au ticket ; un plan changé passe le questionneur,
+   dont les questions reprennent ma séance, comme à « Les questions au plan ».
+
 ## Une consommation nouvelle
 
 Une question peut être une consommation nouvelle : un composant demande un élément d'un autre que
