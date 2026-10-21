@@ -164,11 +164,11 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
     expect(agents(plateau([])).map(x => [x.texte.trimEnd(), x.ton])).toEqual([
       ['AGENTS  ▶ en cours · en attente', 'titre'],
       ...[
-        '0 · Exploration · explorateur',
+        '  0 · Exploration · explorateur',
         '▸ 1 · Ouverture',
         '▸ 2 · Composants',
-        '3 · Passe finale · auto',
-        '4 · Relecture · relecteur',
+        '  3 · Passe finale · auto',
+        '  4 · Relecture · relecteur',
         '▸ 5 · Intégration',
       ].map(texte => [texte, 'discret']),
     ]);
@@ -198,7 +198,7 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
     const t = plateau([T('demo-33')], { circuits: [circuit('demo-33')] });
     expect(agents(t).map(x => [x.texte.trimEnd().replace(/^▶ .*/, '▶'), x.ton])).toEqual([
       ['AGENTS  ▶ en cours · en attente', 'titre'],
-      ['0 · Exploration · explorateur', 'discret'],
+      ['  0 · Exploration · explorateur', 'discret'],
       ['▸ 1 · Ouverture', 'discret'],
       ['▾ 2 · Composants', 'titre'],
       ['  2.1 · Tests · testeur', 'discret'],
@@ -206,8 +206,8 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
       ['  2.3 · Code · développeur', 'titre'],
       ['▶', 'actif'],
       ['  2.4 · Contrôles · auto', 'discret'],
-      ['3 · Passe finale · auto', 'discret'],
-      ['4 · Relecture · relecteur', 'discret'],
+      ['  3 · Passe finale · auto', 'discret'],
+      ['  4 · Relecture · relecteur', 'discret'],
       ['▸ 5 · Intégration', 'discret'],
     ]);
   });
@@ -216,7 +216,7 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
     const t = plateau([T('demo-30')], { vivants: [vivant('e1', 'demo-30', 'explorateur')] });
     expect(textes(t).slice(0, 4)).toEqual([
       'AGENTS  ▶ en cours · en attente',
-      '0 · Exploration · explorateur',
+      '  0 · Exploration · explorateur',
       expect.stringMatching(/^▶ 30 {2}Le sujet de demo-30 +20 min · 40$/),
       '▸ 1 · Ouverture',
     ]);
@@ -252,8 +252,8 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     expect(sous({ etape: 'preuve' })).toBe('  2.2 · Preuve du rouge · auto');
     expect(sous({ etape: 'developpeur' })).toBe('  2.3 · Code · développeur');
     expect(sous({ etape: 'controles' })).toBe('  2.4 · Contrôles · auto');
-    expect(sous({ etape: 'controles', finale: true })).toBe('3 · Passe finale · auto');
-    expect(sous({ etape: 'relecture' })).toBe('4 · Relecture · relecteur');
+    expect(sous({ etape: 'controles', finale: true })).toBe('  3 · Passe finale · auto');
+    expect(sous({ etape: 'relecture' })).toBe('  4 · Relecture · relecteur');
     expect(sous({ etape: 'integration' })).toBe('  5.1 · Commit · auto');
     expect(sous({ etape: 'file' })).toBe('  5.2 · File : main, poussée, CI · auto');
   });
@@ -294,17 +294,17 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     });
   });
 
-  it('a stop at a step without sub-steps: the arbitrage under it, at the margin', () => {
+  it('a stop at a step without sub-steps: the arbitrage under it, at its number', () => {
     const t = plateau([T('demo-37')], {
       circuits: [
         circuit('demo-37', { etape: 'controles', finale: true, regulateur: true, code: 14 }),
       ],
     });
     const a = textes(t);
-    const i = a.indexOf('3 · Passe finale · auto');
+    const i = a.indexOf('  3 · Passe finale · auto');
     expect(a.slice(i, i + 3)).toEqual([
-      '3 · Passe finale · auto',
-      ARBITRAGE,
+      '  3 · Passe finale · auto',
+      `  ${ARBITRAGE}`,
       expect.stringMatching(/^▶ 37 {2}Le sujet de demo-37/),
     ]);
     expect(ligneDe(t, 'demo-37')).toMatchObject({ ton: 'actif' });
@@ -428,7 +428,7 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     });
     expect(etapeDe(t, 'demo-41')).toBe('  2.1 · Tests · testeur');
     expect(etapeDe(t, 'demo-42')).toBe('  2.3 · Code · développeur');
-    expect(etapeDe(t, 'demo-43')).toBe('4 · Relecture · relecteur');
+    expect(etapeDe(t, 'demo-43')).toBe('  4 · Relecture · relecteur');
     expect(ligneDe(t, 'demo-42').texte).toMatch(/^· 42 {2}Le sujet de demo-42/);
   });
 

@@ -1295,8 +1295,9 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   for (const e of ETAPES) {
     const b = blocDe(e);
     if (!e.sous) {
-      ligneDEtape(b, '');
-      tickets(b, '');
+      // Its number stands under those of the steps a fold mark opens.
+      ligneDEtape(b, '  ');
+      tickets(b, '  ');
       continue;
     }
     const sous = e.sous.map(blocDe);

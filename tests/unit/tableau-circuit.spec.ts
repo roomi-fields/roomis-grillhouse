@@ -175,7 +175,7 @@ describe('a circuit that runs: its step, its component and its attempt', () => {
     };
     expect(sous('preuve')).toBe('  2.2 · Preuve du rouge · auto');
     expect(sous('controles')).toBe('  2.4 · Contrôles · auto');
-    expect(sous('relecture')).toBe('4 · Relecture · relecteur');
+    expect(sous('relecture')).toBe('  4 · Relecture · relecteur');
     expect(sous('integration')).toBe('  5.1 · Commit · auto');
     expect(sous('file')).toBe('  5.2 · File : main, poussée, CI · auto');
   });
@@ -185,7 +185,7 @@ describe('a circuit that runs: its step, its component and its attempt', () => {
       'demo-12': { etape: 'controles', composant: 'packages/demo', tentative: 1, finale: true },
     });
     const a = agents(plateau([T('demo-12')], [], [], circuits(racine, ligneCircuit('demo-12'))));
-    const i = a.indexOf('3 · Passe finale · auto');
+    const i = a.indexOf('  3 · Passe finale · auto');
     expect(a[i + 1]).toMatch(/^▶ 12 /);
     expect(a[i - 1]).toBe('▸ 2 · Composants');
   });
