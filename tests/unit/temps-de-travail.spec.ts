@@ -514,7 +514,7 @@ interface Board {
   global: { jour: Mesure; cumul: Mesure };
   chantiers: Noeud[];
   agents: {
-    role: string;
+    roles: string[];
     enCours: (Mesure & { id: string })[];
     attend: (Mesure & { id: string })[];
   }[];
