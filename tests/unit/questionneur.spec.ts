@@ -82,8 +82,9 @@ describe('the questionneur, a role agent', () => {
     expect(p).toMatch(/avant de le rendre au responsable/);
   });
 
-  it('the common charter names the questionneur at its step, 2.1 Questionnement', () => {
+  it('the common charter names the questionneur at its steps, 1.2 and the arbitrage of a stop', () => {
     const c = lire('.claude/grillhouse/charte.md').replace(/\s+/g, ' ');
-    expect(c).toContain('2.1 Questionnement, le `questionneur`');
+    expect(c).toContain('1.2 Questionnement du plan, le `questionneur`');
+    expect(c).toContain('le `questionneur` questionne sa décision');
   });
 });

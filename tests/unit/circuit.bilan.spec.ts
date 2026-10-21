@@ -50,7 +50,7 @@ describe.runIf(canWrap)('the bilan at the end of the circuit', { timeout: 300_00
       ticket: id,
       statut: 'intégré',
       passesFinales: { n: 1 },
-      etapes: { 'Preuve du rouge': 1, 'Passe finale': 1, Intégration: 1 },
+      etapes: { 'Preuve du rouge': 1, 'Passe finale': 1, Commit: 1 },
     });
   });
 

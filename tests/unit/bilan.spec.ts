@@ -269,7 +269,7 @@ describe('the wall time and its categories', () => {
     expect(b.etapes).toEqual({
       'Preuve du rouge': 1,
       'Passe finale': 1,
-      Intégration: 1,
+      Commit: 1,
       'File : main, poussée, CI': 1,
     });
   });

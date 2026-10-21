@@ -91,7 +91,7 @@ stop `question` (18), the regulator's session kept; the supervisor answers the q
 when it is the owner's (the functional, what the charter keeps for him),
 and `circuit.mjs <ticket> --reponse "<answer>"` resumes that session with the answer. So the
 supervisor is woken only by a lot integrated, a question, or a stop the regulator could not settle.
-The questioner (`questionneur`, step 2.1 Questionnement) asks its questions of the ticket's plan
+The questioner (`questionneur`, at 1.2 Questionnement du plan and at the arbitrage of a stop) asks its questions of the ticket's plan
 before the first tester, after the survey of its components, and of each decision of the
 regulator before it is checked and applied, as Amazon's bar raiser or a cockpit's challenge and
 response: the author (the technical referent for the plan, the regulator for its decision)
@@ -141,18 +141,20 @@ claude's own are reachable (`~/.claude`, a throwaway copy of `~/.claude.json`, i
 token), and no socket of the session, no token held in a variable (`GH_TOKEN`…). A missing piece
 of data becomes a request to the component that provides it, not a local recomputation. One
 ticket makes one delivery: a goal of unknown size starts with an exploration ticket, every ticket
-is created under its mother (numbered `320.2.1`) and every ticket stands at one of ten numbered steps (`scripts/etapes.mjs`: 1 Exploration, 2 Arbitrage, then for each component 3 Tests, 4 Preuve du rouge, 5 Code, 6 Contrôles, then 7 Passe finale, 8 Relecture, 9 Intégration, 10 File : main, poussée, CI), and a hook refuses a second commit for a closed ticket (a reopened ticket takes correction commits).
+is created under its mother (numbered `320.2.1`) and every ticket stands at one step of the tree of its circuit (`scripts/etapes.mjs`: 0 Exploration; 1 Ouverture, its sub-steps 1.1 Relevé des composants and 1.2 Questionnement du plan; 2 Composants, for each component 2.1 Tests, 2.2 Preuve du rouge, 2.3 Code, 2.4 Contrôles; 3 Passe finale; 4 Relecture; 5 Intégration, its sub-steps 5.1 Commit and 5.2 File : main, poussée, CI; and, out of the sequence, under the stopped step, the arbitrage of a stop), each step carrying its bounded loops (`essai 2/3`, `tour 2/4`, `arrêt 2/3`), and a hook refuses a second commit for a closed ticket (a reopened ticket takes correction commits).
 
 **The board** — the `grillhouse` mod (a Claude Code plugin whose source lives in `mods/grillhouse`, published
 in the `roomi-fields` marketplace as `grillhouse@roomi-fields`, enabled in
 each project's settings) shows, measured and never declared, in the `/grillhouse` pane, three levels: the project (its work tickets by state, the
-agents' time and tokens of the day and in all, the alerts); the agents: one block per step of the process, its line
-« number · title · who » (the arbitrage names the technical referent or the regulator), a step without a
-ticket left out, where each ticket stands on one line, once — a ticket with a circuit
+agents' time and tokens of the day and in all, the alerts); the agents: the tree of the steps, as a pipeline
+of GitLab CI shows its stages, each step on its line « number · title · who », a step with sub-steps folded
+(`▸ 1 · Ouverture`) while none of them holds a ticket and unfolded (`▾`) once one does, its empty sub-steps
+dimmed, an empty step dimmed, where each ticket stands on one line, once — a ticket with a circuit
 (`scripts/circuit.mjs`, read in its state file) at the step of its state, its subject and, every other 5 s,
-its component under way with its rank among the title's (`030-binder 3/5`), the counter of its step's
-bounded loop from its second pass (`essai 2/3`, `tour 2/3`, `arrêt 2/3`), or, while the regulator's session
-settles its stop, or once stopped, at the arbitrage with the step it comes from (`· de 5 Code`), its card
+its component under way with its rank among the title's (`030-binder 3/5`), the counters of its step's
+bounded loops from their second pass (`essai 2/3`, `tour 2/4`, `arrêt 2/3`), or, while the regulator's
+session settles its stop, or once stopped, under its step after a line « ⤷ Arbitrage de l'arrêt · régulateur
+⇄ questionneur », its card
 opening on where it stopped and why, or on the regulator's question, and its line ending on its ticket's
 time and tokens; any other ticket at the step of the agent that runs on it, or waiting at the step of the
 next role of the flow; the chantier in progress, its tree of

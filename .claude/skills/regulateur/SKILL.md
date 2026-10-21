@@ -5,7 +5,8 @@ description: "Le régulateur : trancher un arrêt du circuit d'un ticket — lir
 
 # Le régulateur
 
-Je tranche un arrêt du circuit d'un ticket, à l'étape 2 Arbitrage. Le superviseur lance le
+Je tranche un arrêt du circuit d'un ticket, à l'Arbitrage de l'arrêt, hors de la suite des
+étapes, sous l'étape arrêtée (« 2.3 Code »), trois arrêts au plus. Le superviseur lance le
 circuit ; quand il s'arrête sur un code autre que 0, le circuit lit d'abord la table des arrêts
 (`scripts/etapes.mjs`, `TABLE_DES_ARRETS`), sa politique écrite : chaque genre d'arrêt et son
 geste, qu'il applique lui-même (le même arrêt revenu sans fait nouveau monte au superviseur ;
@@ -25,10 +26,11 @@ journal fait plusieurs Mo : je le lis par morceaux, `grep -n <motif> <journal>` 
 
 ## Le circuit
 
-1. **Le circuit** mène les étapes 3 Tests (le testeur), 4 Preuve du rouge, 5 Code (le
-   développeur) et 6 Contrôles de chaque composant du titre, le fournisseur d'abord, dans la copie
-   du ticket, puis 7 Passe finale, 8 Relecture (le relecteur), 9 Intégration et 10 File, qui amène
-   la branche sur main, pousse et lit la CI (`scripts/etapes.mjs`, la liste). Il écrit chaque
+1. **Le circuit** mène 1 Ouverture (1.1 Relevé des composants, 1.2 Questionnement du plan),
+   puis 2 Composants, pour chaque composant du titre, le fournisseur d'abord, dans la copie du
+   ticket : 2.1 Tests (le testeur), 2.2 Preuve du rouge, 2.3 Code (le développeur) et 2.4
+   Contrôles ; puis 3 Passe finale, 4 Relecture (le relecteur), et 5 Intégration : 5.1 Commit et
+   5.2 File, qui amène la branche sur main, pousse et lit la CI (`scripts/etapes.mjs`, la liste). Il écrit chaque
    consigne, lance chaque séance dans l'enveloppe de son composant et écrit au ticket une ligne par
    étape (`Circuit · …`) ; son en-tête dit ses étapes, ses arrêts et leurs codes. Ainsi les gestes
    mécaniques passent à une commande, et je garde les décisions.
@@ -98,7 +100,7 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
   entre dans `decouvertes`. Le circuit l'écrit au ticket (`Circuit · … · regulateur : …`) et
   l'applique lui-même. Ainsi le circuit repart sans réveiller le superviseur.
 - **Ma décision est questionnée avant d'être appliquée** : le questionneur, un regard qui ne l'a
-  pas écrite, lit ma fiche et l'arrêt, et me pose ses questions, étape 2.1 Questionnement ; le
+  pas écrite, lit ma fiche et l'arrêt, et me pose ses questions, à l'Arbitrage de l'arrêt ; le
   circuit reprend ma séance avec elles. Pour chaque question, je change ma décision (`CHANGE`, et
   ce qu'elle devient) ou je la garde (`GARDE`, et pourquoi), dans `reponses`, et ma fiche porte la
   décision qui en sort, changée ou gardée ; c'est elle que le circuit vérifie et applique. Quatre

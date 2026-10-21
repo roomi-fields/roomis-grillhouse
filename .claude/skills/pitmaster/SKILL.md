@@ -68,10 +68,13 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 
 - **Je lance le circuit d'un ticket** : un ticket tranché part au circuit,
   `node scripts/circuit.mjs <ticket>`, que je lance une fois, en arrière-plan
-  (`run_in_background`) ; sa fin me réveille. Le circuit mène le questionnement du plan (le
-  questionneur, auquel le référent technique répond pour le plan), testeur, preuve du rouge,
-  développeur, contrôles, relecteur, intégration, file et lecture de la CI, et le régulateur
-  sur chaque arrêt, sa décision questionnée avant d'être appliquée ; son en-tête dit ses arrêts et leurs codes. Ainsi les gestes mécaniques
+  (`run_in_background`) ; sa fin me réveille. Le circuit mène l'arbre de ses étapes
+  (`scripts/etapes.mjs`) : 1 Ouverture (1.1 le relevé des composants, 1.2 le questionnement du
+  plan, le questionneur, auquel le référent technique répond pour le plan), 2 Composants (2.1
+  testeur, 2.2 preuve du rouge, 2.3 développeur, 2.4 contrôles, pour chaque composant), 3 la passe
+  finale, 4 le relecteur, 5 Intégration (5.1 le commit, 5.2 la file et la lecture de la CI) ; et,
+  hors de la suite, sous l'étape arrêtée, l'arbitrage de chaque arrêt, le régulateur, sa décision
+  questionnée avant d'être appliquée ; je dis où en est un ticket par son étape, « 2.3 Code » ; son en-tête dit ses arrêts et leurs codes. Ainsi les gestes mécaniques
   passent à une commande, et je garde la vue d'ensemble.
 - **Le code de fin du circuit dit la suite** : 0, le lot est sur main et le ticket fermé ; je lis
   sa fermeture. 75 (`a-repasser` : un contrôle ou l'intégration encore « à repasser », ou la

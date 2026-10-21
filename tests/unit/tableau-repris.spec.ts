@@ -91,7 +91,7 @@ const T = (id: string, o: object = {}) => ({
 });
 
 interface Bloc {
-  role: string;
+  roles: string[];
   enCours: { id: string; jetons: number; travail: number }[];
   attend: { id: string }[];
 }
@@ -113,7 +113,7 @@ const plateau = (home: string, tickets: string[], registre: object[], ps = ''): 
   }) as Board;
 };
 const enCours = (t: Board, role: string) =>
-  t.agents.find(b => b.role === role)!.enCours.map(x => x.id);
+  t.agents.find(b => b.roles.includes(role))!.enCours.map(x => x.id);
 const partout = (t: Board, cle: 'enCours' | 'attend') =>
   t.agents.flatMap(b => b[cle].map(x => x.id));
 
@@ -187,7 +187,7 @@ describe('3uv.40 critère 3 : a resumed agent counts its sessions already in the
     );
     // Its turns: 08:00 → 08:41, then 08:43 → 08:50; the wait for the message left out.
     expect(t.global.cumul).toEqual({ travail: 48 * MIN, jetons: 40 });
-    const ligneTicket = t.agents.find(b => b.role === 'relecteur')!.enCours[0];
+    const ligneTicket = t.agents.find(b => b.roles.includes('relecteur'))!.enCours[0];
     expect(ligneTicket).toMatchObject({ travail: 48 * MIN, jetons: 40 });
   });
 

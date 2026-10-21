@@ -41,11 +41,9 @@ describe('Q2 — the wait by slices is gone, with its callers', () => {
 });
 
 describe('Q10 — the supervisor launches the circuit, a régulateur, a session of the circuit, settles a stop', () => {
-  it('the charter names the regulateur, at step 2, who settles a stop of the circuit', () => {
+  it('the charter names the regulateur, at the arbitrage of a stop, who settles a stop of the circuit', () => {
     const charte = lire('.claude/grillhouse/charte.md').replace(/\s+/g, ' ');
-    expect(charte).toMatch(
-      /2 Arbitrage, le `referent-technique` \([^)]*\) ou le `regulateur` \(un arrêt du circuit\)/
-    );
+    expect(charte).toMatch(/l'Arbitrage de l'arrêt : le `regulateur` tranche l'arrêt/);
     expect(charte).not.toMatch(/qui mène un ticket de sa prise à son commit/);
   });
 

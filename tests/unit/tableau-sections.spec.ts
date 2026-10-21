@@ -326,7 +326,7 @@ describe('3uv.42 critère 4 : each line carries its section', () => {
 
   it('3uv.42 critère 4 : the agents title, each step and its tickets are in agents', () => {
     expect(section(L0, x => x.texte.startsWith('AGENTS'))).toBe('agents');
-    expect(section(L0, x => x.texte === '5 · Code · développeur')).toBe('agents');
+    expect(section(L0, x => x.texte === '  2.3 · Code · développeur')).toBe('agents');
     expect(section(L0, x => x.ticket === 'demo-e.1.4')).toBe('agents');
   });
 
@@ -367,7 +367,14 @@ describe('3uv.42 critère 4 : each line carries its section', () => {
       chantiers: [],
       autres: [],
       agents: [
-        { numero: 3, role: 'testeur', nom: 'testeur', enCours: [], attend: [1, 2, 3, 4, 5].map(x) },
+        {
+          numero: '2.1',
+          titre: 'Tests',
+          roles: ['testeur'],
+          qui: 'testeur',
+          enCours: [],
+          attend: [1, 2, 3, 4, 5].map(x),
+        },
       ],
       faitsDuJour: [1, 2, 3, 4, 5, 6, 7].map(x),
     };
@@ -572,9 +579,10 @@ describe('the board shows every line of each list, and AGENTS before CHANTIER', 
     autres: [],
     agents: [
       {
-        numero: 3,
-        role: 'testeur',
-        nom: 'testeur',
+        numero: '2.1',
+        titre: 'Tests',
+        roles: ['testeur'],
+        qui: 'testeur',
         enCours: [],
         attend: Array.from({ length: 20 }, (_, i) => x(i + 1)),
       },
@@ -773,7 +781,7 @@ describe('3uv.42 critère 10 : the open ticket of a closed mother keeps its line
 
 describe('a ticket waits in AGENTS only once the owner launched it (label circuit)', () => {
   interface Agents {
-    agents: { role: string; enCours: { id: string }[]; attend: { id: string }[] }[];
+    agents: { roles: string[]; enCours: { id: string }[]; attend: { id: string }[] }[];
   }
   // A chantier in progress, its ticket k.1 ready and open, with the labels, passages and running
   // agents given.
@@ -791,7 +799,8 @@ describe('a ticket waits in AGENTS only once the owner launched it (label circui
     }) as Board & Agents;
     return { t, l: lignes(t, 'demo') as Ligne[] };
   };
-  const attend = (t: Agents) => t.agents.flatMap(b => b.attend.map(x => `${b.role} ${x.id}`));
+  const attend = (t: Agents) =>
+    t.agents.flatMap(b => b.attend.map(x => `${b.roles.join(' ')} ${x.id}`));
   const passage = {
     agent: 'r1',
     ticket: 'demo-k.1',
@@ -836,7 +845,7 @@ describe('a ticket waits in AGENTS only once the owner launched it (label circui
       tours: [[MAINTENANT - 20 * 60_000, MAINTENANT]],
     };
     const { t } = circuit([], [passage], [vivant]);
-    expect(t.agents.find(b => b.role === 'developpeur')?.enCours.map(x => x.id)).toEqual([
+    expect(t.agents.find(b => b.roles.includes('developpeur'))?.enCours.map(x => x.id)).toEqual([
       'demo-k.1',
     ]);
     expect(attend(t)).toEqual([]);

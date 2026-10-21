@@ -11,9 +11,9 @@
 //
 // - Global: the work tickets of the project (a ticket without children; a mother is a grouping)
 //   by state, the agents' working time and tokens of the day and in all, the alerts.
-// - Agents: the steps of the process (scripts/etapes.mjs), one block per step and role who works
-//   there (the arbitrage has two, the technical referent's and the regulator's), for the whole
-//   project. A ticket stands at the step of every agent that runs on it, or waits in one place: at
+// - Agents: the tree of the steps of the process (scripts/etapes.mjs), one block per step and
+//   sub-step, with who works there, then the arbitrage of a stop, for the whole project. A ticket
+//   stands at the step of every agent that runs on it, or waits in one place: at
 //   the step of the next role, deduced from the roles of the flow that ran on it and the
 //   reviewer's last verdict (`ACCEPTÉ` or `RENDU` at the start of a comment). A regulator waits for
 //   nothing: it comes on a stop of the circuit, which its entry shows.
@@ -21,10 +21,10 @@
 //   in its state `.claude/worktrees/<ticket>.circuit.json`: it runs while the process
 //   `node scripts/circuit.mjs <ticket>` runs, and stands at the step of its state, with its
 //   component, its rank among the title's components and its attempt; while it runs a session of
-//   the regulator on a stop (its state names the regulator's session, `regulateur`), or once it
-//   stopped, it stands at the arbitrage, the regulator's, and recalls the step it comes from; while
-//   the questionneur questions its plan or a decision of its regulator (its state names the
-//   questioning, `questionnement`), it stands at 2.1 Questionnement, the questionneur's; its
+//   the regulator on a stop (its state names the regulator's session, `regulateur`), while the
+//   questionneur questions a decision of its regulator, or once it stopped, it stands at the
+//   arbitrage of the stopped step; while the questionneur questions its plan (its state names the
+//   questioning, `questionnement`, of the plan), it stands at the questioning of the plan; its
 //   card gives the stop (its name and code) and the first line of its reason, or, ended on the
 //   regulator's question (« question »), that question. A ticket with a circuit waits in no block.
 // - Bilans: the card of a ticket whose circuit kept its bilan (scripts/bilan.mjs,
@@ -75,15 +75,17 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
-  AUTOMATIQUE,
+  ARBITRAGE,
+  AUTO,
+  bouclesDe,
   ETAPES,
   etapeDuCircuit,
   etapeDuRole,
   juge,
   libelle,
   nomDuRole,
-  QUESTIONNEUR,
   REGULATEUR,
+  SUITE,
 } from './etapes.mjs';
 import { bilansGardes, enBref } from './bilan.mjs';
 import { verdictDe } from './integration/verdict.mjs';
@@ -559,9 +561,10 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
 // The circuits of the repository at <racine>: each state `.claude/worktrees/<ticket>.circuit.json`
 // scripts/circuit.mjs writes, but those at « integre », with `vivant` when `ps` (`pid etimes args`
 // per line) shows its process, `node …/circuit.mjs <ticket>`, `regulateur` when the state names a
-// session of the regulator, `questionnement` when it names a questioning under way, `question` the
+// session of the regulator, `questionnement` the object of the questioning under way (`plan` or
+// `decision`), null without one, `question` the
 // regulator's whole question for a circuit ended on it,
-// the counters of its bounded loops (`boucles`, by step number), and the rank of its component among the title's (`rang`, from 1) and their number (`total`). A
+// the counters of its bounded loops (`boucles`, by their key), and the rank of its component among the title's (`rang`, from 1) and their number (`total`). A
 // state that does not parse is left out.
 export function lireCircuits({ racine, prefix, ps }) {
   const dossier = path.join(racine, '.claude', 'worktrees');
@@ -597,7 +600,7 @@ export function lireCircuits({ racine, prefix, ps }) {
       raison: premiereLigne(e.rapport),
       question: e.raison === 'question' ? String(e.rapport ?? '').trim() || null : null,
       regulateur: Boolean(e.regulateur),
-      questionnement: Boolean(e.questionnement),
+      questionnement: e.questionnement?.objet ?? null,
       ...rangDe(e),
       boucles: e.boucles && typeof e.boucles === 'object' ? e.boucles : {},
       mene:
@@ -909,18 +912,20 @@ export function assembler({
       (passages.get(r.ticket) ?? passages.set(r.ticket, []).get(r.ticket)).push(r);
     }
   }
-  // One block per step and role who works there, in the order of the steps.
-  const blocs = ETAPES.flatMap(e =>
-    e.qui.map(role => ({
-      numero: e.numero,
-      titre: e.titre,
-      role,
-      qui: nomDuRole(role),
-      enCours: [],
-      attend: [],
-    }))
-  );
-  const bloc = role => (role === AUTOMATIQUE ? undefined : blocs.find(b => b.role === role));
+  // One block per step and sub-step, in the order of the steps, with who works there, then the
+  // arbitrage's.
+  const blocs = [...SUITE, ARBITRAGE].map(e => ({
+    numero: e.numero,
+    titre: e.titre,
+    roles: e.qui.filter(r => r !== AUTO),
+    qui: e.qui.map(nomDuRole).join(' ⇄ '),
+    enCours: [],
+    attend: [],
+  }));
+  const bloc = role => {
+    const e = etapeDuRole(role);
+    return e ? blocs.find(b => b.numero === e.numero) : undefined;
+  };
   const places = new Set();
   // One line per ticket: a ticket on which a role agent runs stands at its step, and at the
   // regulator's only while none of its other agents runs.
@@ -1150,31 +1155,43 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
 
   L('', undefined);
   L('AGENTS  ▶ en cours · en attente', 'titre');
-  // Every step of the process (scripts/etapes.mjs), in its order: its line « number · title · who »
-  // in the discreet tone, or, with a ticket, as a title, its tickets under it. The arbitrage has a
-  // line per role when either holds a ticket, else one line « référent technique ou régulateur ».
-  // A circuit's ticket stands on one line, at the step of its state, and nowhere else in AGENTS;
-  // at the arbitrage, the regulator's, while a session of the regulator runs on its stop or once it
-  // stopped, recalling the step it comes from (« · de 5 Code »), where it returns; at 2.1
-  // Questionnement, the questionneur's, while it questions the plan or a regulator's decision. Its
-  // line gives its subject (`texte`) and, in turn (`alterne`, which the pane shows every other
-  // 5 s), the component under way, with its rank among the title's components when they are
-  // several; then the counter of the bounded loop of its step from its second pass (`boucle` of
-  // the step, scripts/etapes.mjs, its count in the state's `boucles`), whole; then its ticket's
-  // working time and tokens. Its card says where it stopped and why, or the regulator's question.
-  // The tickets' numbers line up in one column.
+  // The tree of the steps (scripts/etapes.mjs), in its order, as a pipeline of GitLab CI shows its
+  // stages and folds the jobs of a stage that has nothing: a step with sub-steps is folded
+  // (« ▸ 1 · Ouverture ») while none of them holds a ticket, unfolded (« ▾ ») once one does, all
+  // its sub-steps then shown, indented, the empty ones in the discreet tone; a step without
+  // sub-steps stands on one line « number · title · who », discreet when empty, a title with its
+  // tickets under it. A circuit's ticket stands on one line, at the step of its state, and nowhere
+  // else in AGENTS: the questioning of the plan at its step; stopped, or while a session of the
+  // regulator runs on its stop or the questionneur questions his decision, under its step after a
+  // line « ⤷ <the arbitrage> · régulateur ⇄ questionneur », which unfolds the step: the
+  // arbitrage is out of the sequence, tied to the stopped step. A regulator out of any circuit
+  // stands under that line after the steps. A circuit's line gives its subject (`texte`) and, in
+  // turn (`alterne`, which the pane shows every other 5 s), the component under way, with its rank
+  // among the title's components when they are several; then the counters of the bounded loops of
+  // its step from their second pass (`boucles` of the step, scripts/etapes.mjs, their counts in
+  // the state's `boucles`), whole; then its ticket's working time and tokens. Its card says where
+  // it stopped and why, or the regulator's question. The tickets' numbers line up in one column.
   const enCircuit = new Set((t.circuits ?? []).map(c => c.id));
-  const auQuestionneur = c => c.vivant && c.questionnement;
-  const auRegulateur = c => !auQuestionneur(c) && (!c.vivant || c.regulateur);
+  // The block of the step <e>, an empty one when the board holds none.
+  const vides = new Map();
+  const blocDe = e =>
+    t.agents.find(b => b.numero === e.numero) ??
+    vides.get(e.numero) ??
+    vides
+      .set(e.numero, {
+        numero: e.numero,
+        titre: e.titre,
+        qui: e.qui.map(nomDuRole).join(' ⇄ '),
+        enCours: [],
+        attend: [],
+      })
+      .get(e.numero);
+  const arbitrage = blocDe(ARBITRAGE);
+  const etapeDe = c => etapeDuCircuit({ ...c, raison: c.arret });
+  const aLArbitrage = c => !c.vivant || c.regulateur || c.questionnement === 'decision';
   const blocDuCircuit = c => {
-    if (auQuestionneur(c)) {
-      return t.agents.find(b => b.role === QUESTIONNEUR);
-    }
-    if (auRegulateur(c)) {
-      return t.agents.find(b => b.role === REGULATEUR);
-    }
-    const e = etapeDuCircuit(c);
-    return e ? t.agents.find(b => b.numero === e.numero) : undefined;
+    const e = etapeDe(c);
+    return e ? blocDe(e) : aLArbitrage(c) ? arbitrage : undefined;
   };
   const montres = t.agents.flatMap(b =>
     [...b.enCours, ...b.attend].filter(x => !enCircuit.has(x.id))
@@ -1184,17 +1201,12 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     ...[...(t.circuits ?? []), ...montres].map(x => String(x.numero).length)
   );
   const numero = n => String(n).padEnd(colonne);
-  const ligneDuCircuit = (c, b) => {
+  const ligneDuCircuit = c => {
     const droite = conso(t.parTicket?.[c.id]?.travail ?? 0, t.parTicket?.[c.id]?.jetons ?? 0);
-    const origine = auRegulateur(c) ? etapeDuCircuit(c) : null;
-    const etape = ETAPES.find(e => e.numero === b.numero);
-    const compte = c.boucles?.[b.numero];
-    const suite = [
-      origine ? `de ${libelle(origine)}` : null,
-      etape?.boucle && compte >= 2 ? `${etape.boucle.libelle} ${compte}/${etape.boucle.max}` : null,
-    ]
-      .filter(Boolean)
-      .map(x => ` · ${x}`)
+    const etape = aLArbitrage(c) ? ARBITRAGE : etapeDe(c);
+    const suite = (etape ? bouclesDe(etape) : [])
+      .filter(b => b.max && c.boucles?.[b.cle] >= 2)
+      .map(b => ` · ${b.libelle} ${c.boucles[b.cle]}/${b.max}`)
       .join('');
     const tete = `${c.vivant ? '▶' : '■'} ${numero(c.numero)}  `;
     const texte = quoi => couperAvant(`${tete}${quoi}`, suite, droite, largeur);
@@ -1209,29 +1221,28 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     });
   };
   const contenu = b => {
-    const circuits = (t.circuits ?? []).filter(c => blocDuCircuit(c) === b);
+    const tous = (t.circuits ?? []).filter(c => blocDuCircuit(c) === b);
+    const circuits = tous.filter(c => !aLArbitrage(c));
+    const arretes = tous.filter(aLArbitrage);
     const enCours = b.enCours.filter(x => !enCircuit.has(x.id));
     const attend = b.attend.filter(x => !enCircuit.has(x.id));
     return {
       circuits,
+      arretes,
       enCours,
       attend,
-      vide: !circuits.length && !enCours.length && !attend.length,
+      vide: !tous.length && !enCours.length && !attend.length,
     };
   };
-  const contenus = new Map(t.agents.map(b => [b, contenu(b)]));
-  for (const b of t.agents) {
-    const { circuits, enCours, attend, vide } = contenus.get(b);
-    const memeEtape = t.agents.filter(x => x.numero === b.numero);
-    if (memeEtape.length > 1 && memeEtape.every(x => contenus.get(x).vide)) {
-      if (memeEtape[0] === b) {
-        L(`${b.numero} · ${b.titre} · ${memeEtape.map(x => x.qui).join(' ou ')}`, 'discret');
-      }
-      continue;
-    }
-    L(`${b.numero} · ${b.titre} · ${b.qui}`, vide ? 'discret' : 'titre');
+  const contenus = new Map([...SUITE, ARBITRAGE].map(blocDe).map(b => [b, contenu(b)]));
+  const ligneDArbitrage = retrait =>
+    L(cadre(`${retrait}⤷ ${arbitrage.titre} · ${arbitrage.qui}`, '', largeur), 'titre');
+  // The tickets of the block <b>: its circuits that run, its agents, its waits, then the line of
+  // the arbitrage, indented by <retrait> (none when <retrait> is null), and its stopped circuits.
+  const tickets = (b, retrait) => {
+    const { circuits, arretes, enCours, attend } = contenus.get(b);
     for (const c of circuits) {
-      ligneDuCircuit(c, b);
+      ligneDuCircuit(c);
     }
     for (const x of enCours) {
       L(
@@ -1250,6 +1261,42 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       ticket: x.id,
     });
     poser(...attend.map(attente));
+    if (arretes.length) {
+      if (retrait !== null) ligneDArbitrage(retrait);
+      for (const c of arretes) {
+        ligneDuCircuit(c);
+      }
+    }
+  };
+  const ligneDEtape = (b, retrait, plein = !contenus.get(b).vide) =>
+    L(
+      cadre(`${retrait}${b.numero} · ${b.titre}${b.qui ? ` · ${b.qui}` : ''}`, '', largeur),
+      plein ? 'titre' : 'discret'
+    );
+  for (const e of ETAPES) {
+    const b = blocDe(e);
+    if (!e.sous) {
+      ligneDEtape(b, '');
+      tickets(b, '');
+      continue;
+    }
+    const sous = e.sous.map(blocDe);
+    const ouverte = [b, ...sous].some(x => !contenus.get(x).vide);
+    ligneDEtape(b, ouverte ? '▾ ' : '▸ ', ouverte);
+    if (!ouverte) {
+      continue;
+    }
+    tickets(b, '');
+    for (const x of sous) {
+      ligneDEtape(x, '  ');
+      tickets(x, '  ');
+    }
+  }
+  // A regulator out of any circuit, or a stopped circuit at no step of the list: under the line of
+  // the arbitrage, after the steps.
+  if (!contenus.get(arbitrage).vide) {
+    ligneDArbitrage('');
+    tickets(arbitrage, null);
   }
 
   section = 'chantier';
@@ -1437,7 +1484,7 @@ export function lignesEtats(t, largeur = LARGEUR) {
 // component's path (`.` for the root), and its stop (« interrompu » for a circuit dead without a
 // stop written).
 const ouEnEst = c => {
-  const e = etapeDuCircuit(c);
+  const e = etapeDuCircuit({ ...c, raison: c.arret });
   const ou = [e ? libelle(e) : c.etape, c.tentative ?? null]
     .filter(x => x !== null && x !== undefined)
     .join(' ');

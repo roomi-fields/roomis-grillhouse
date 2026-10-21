@@ -66,12 +66,13 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
   ARBITRAGE,
-  ETAPES,
   etapeDuCircuit,
   etapeDuRole,
+  juge,
   nomDuRole,
   QUESTIONNEUR,
   REGULATEUR,
+  SUITE,
 } from './etapes.mjs';
 
 // The role of a register line that a step of the circuit writes, of its results, and the author
@@ -95,8 +96,9 @@ const CATEGORIES = [
 ];
 // The categories of the time kept: the rest is lost.
 const GARDE = new Set(['travail', 'automatique', 'questionnement']);
-// The roles of the circuit, by the steps they work at: every step but the exploration.
-const ROLES = new Set(ETAPES.filter(e => e.numero > 1).flatMap(e => e.qui));
+// The roles of the circuit, by the steps they work at: every step but the exploration, and the
+// arbitrage.
+const ROLES = new Set([...SUITE, ARBITRAGE].filter(e => e.numero !== '0').flatMap(e => e.qui));
 
 // The results the circuit kept, `{ t, …entrée }`, in their order; an entry without a time counts
 // nothing.
@@ -219,7 +221,7 @@ export function bilan({
   // The sessions first: the checks read what they delivered.
   for (const s of segments.filter(x => x.role !== CIRCUIT)) {
     if (s.role === QUESTIONNEUR) s.categorie = 'questionnement';
-    else if (etapeDuRole(s.role) === ARBITRAGE) s.categorie = 'regulateur';
+    else if (juge(s.role)) s.categorie = 'regulateur';
     else if (s.role === 'developpeur') {
       s.categorie = sansLivraison(s) ? 'sansEffet' : 'travail';
     } else if (s.role === 'testeur') {
@@ -305,7 +307,7 @@ export function bilan({
 
   const sessions = agents.filter(l => l.role !== CIRCUIT);
   const parRole = {};
-  for (const role of ETAPES.flatMap(e => e.qui)) {
+  for (const role of new Set([...SUITE, ARBITRAGE].flatMap(e => e.qui))) {
     const n = sessions.filter(l => l.role === role).length;
     if (n) parRole[role] = n;
   }

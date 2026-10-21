@@ -36,7 +36,7 @@
 //   package, which becomes its directory (scripts/paquets.mjs), read in the ticket's copy when it
 //   exists, else in the main tree. A component that names neither stops the call, exit 2, named.
 // - Before the testeur of the first component (a run that starts there), the circuit surveys the
-//   components the ticket's Architecture and criteria reach (scripts/composants-affectes.mjs), as
+//   components (step 1.1 of scripts/etapes.mjs) the ticket's Architecture and criteria reach (scripts/composants-affectes.mjs), as
 //   the « affected components » of a design document: a component the survey finds, the title
 //   does not name and no admission covers (`composants-affectes.mjs <ticket> --admettre`) stops it
 //   at once, before any session and without a regulator, at
@@ -45,7 +45,7 @@
 //   stays out, `--reponse <texte>`, which the circuit writes at the ticket and keeps beside the
 //   copy (`.claude/worktrees/<ticket>.composants.json`): the components answered for pass from then
 //   on, and the run starts from the first component.
-// - Then, before any session of the lot, the questioning of the plan (step 2.1 Questionnement of
+// - Then, before any session of the lot, the questioning of the plan (step 1.2 of
 //   scripts/etapes.mjs), as Amazon's bar raiser, a cockpit's challenge and response and the
 //   devil's advocate of a design review: a session of the questionneur out of the envelope, as the
 //   regulator's, read-only (no tool of writing, every write of bd refused, scripts/droits.mjs), its
@@ -58,7 +58,7 @@
 //   or GARDE and why) and the `titre` or `description` the plan becomes, which the circuit writes
 //   to the ticket (`bd update --title`, `-d`; a title whose components the repository does not
 //   hold stays); the questionneur's session is resumed with the answers (the ninth template); four
-//   rounds at most (`boucles` of 2.1, `questionnement` in the state while it runs). Every question
+//   rounds at most (the loop `questionnement` of 1.2, `questionnement` in the state while it runs). Every question
 //   and answer is written at the ticket (`Circuit · <composant> · questionnement : …`) and the end
 //   kept with the circuit's results (`questionnement`: objet, tours, change, issue, the plan's
 //   fingerprint). AUCUNE goes on, the survey played again on a plan changed; a plan whose title
@@ -274,13 +274,14 @@
 //   mene, reprise, journal }`; `questionnement` the questioning under way (`{ objet, tour, seance
 //   }`: the plan or a decision, its round, the questionneur's session), null otherwise;
 //   `etape`
-//   is the state's name of a numbered step of the process (scripts/etapes.mjs: testeur 3,
-//   preuve 4, developpeur 5, controles 6, or 7 the final pass once `finale`, relecture 8,
-//   integration 9, file 10), or integre at the end; `raison` names the stop; `composants` the
+//   is the state's name of a numbered step of the process (scripts/etapes.mjs: testeur 2.1,
+//   preuve 2.2, developpeur 2.3, controles 2.4, or 3 the final pass once `finale`, relecture 4,
+//   integration 5.1, file 5.2), or integre at the end; `raison` names the stop; `composants` the
 //   components of the title, in their order, which the board reads for the rank of `composant`;
-//   `boucles` the count of the bounded loop of the step under way, by its number (the testeur's
-//   or developpeur's session, the review, the pass of the same stop at the regulator), null at a
-//   step without one;
+//   `boucles` the counts of the bounded loops of the step under way, by their key (`tests`, the
+//   testeur's sessions with their proofs; `code`, the developpeur's with their checks;
+//   `relecture`, the reviews; `arret`, the pass of the same stop at the arbitrage;
+//   `questionnement`, the round of a questioning), null at a step without one;
 //   `dernier` is the last component of the run; `finale` whether the final pass has begun; `seance` the process group of
 //   the session that runs, null between two; `regulateur` the regulator's session on the stop
 //   (`{ seance, arret, code, rapport, faits, ticket, signature }`: its id, the stop it settles,
@@ -413,17 +414,17 @@ import { optionsDuRole } from './droits.mjs';
 import { matieres, NOM_DE_TEST } from './consommateurs.mjs';
 import { VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/composant.mjs';
 import {
-  ARBITRAGE,
   ARRETS,
-  AUTOMATIQUE,
-  ETAPES,
+  AUTO,
+  boucle,
+  bouclesDe,
   etapeDuCircuit,
   gesteDe,
   libelle,
   nomDuRole as enMots,
-  QUESTIONNEMENT,
   QUESTIONNEUR,
   REGULATEUR,
+  SUITE,
   TABLE_DES_ARRETS,
 } from './etapes.mjs';
 import { paquets } from './paquets.mjs';
@@ -450,27 +451,33 @@ export const IMMOBILE_MS = 20 * 60 * 1000;
 // The exit code of each stop, from the list of the steps and stops.
 export { ARRETS };
 const CODE_USAGE = 2;
-// The bounded loops, each declared with its step (scripts/etapes.mjs, `boucle`): the testeur is
+// The bounded loops, each declared with its step (scripts/etapes.mjs, `boucles`): the testeur is
 // relaunched twice at most after a failed proof (three sessions); the developpeur has three
 // sessions, the last on the strong model; the third RENDU of one ticket stops the circuit; the
 // third RELANCE in a row on one stop is the last; the fourth round of questioning still questioned
 // goes up to the supervisor.
-const etapeNumero = n => ETAPES.find(e => e.numero === n);
-const RELANCES_TESTEUR = etapeNumero(3).boucle.max - 1;
-const SEANCES_DEVELOPPEUR = etapeNumero(5).boucle.max;
-const RELECTURES = etapeNumero(8).boucle.max;
-const RELANCES_DU_REGULATEUR = etapeNumero(2).boucle.max;
-const TOURS = QUESTIONNEMENT.boucle.max;
+const RELANCES_TESTEUR = boucle('tests').max - 1;
+const SEANCES_DEVELOPPEUR = boucle('code').max;
+const RELECTURES = boucle('relecture').max;
+const RELANCES_DU_REGULATEUR = boucle('arret').max;
+const TOURS = boucle('questionnement').max;
 // The author who answers for a ticket's plan to the questionneur.
 const REFERENT = 'referent-technique';
 // The roles a finding of the reviewer may name: the agents of the steps run for each component.
-const DESTINATAIRES = ETAPES.filter(e => e.parComposant)
+const DESTINATAIRES = SUITE.filter(e => e.parComposant)
   .flatMap(e => e.qui)
-  .filter(q => q !== AUTOMATIQUE);
+  .filter(q => q !== AUTO);
 // The steps of the circuit's state, read from the list of the steps.
+const etatDe = n => SUITE.find(e => e.numero === n).etat;
 const [TESTS, PREUVE, CODE, CONTROLES, RELECTURE, INTEGRATION, EN_FILE] = [
-  3, 4, 5, 6, 8, 9, 10,
-].map(n => etapeNumero(n).etat);
+  '2.1',
+  '2.2',
+  '2.3',
+  '2.4',
+  '4',
+  '5.1',
+  '5.2',
+].map(etatDe);
 // The variable in which bd reads the author of a comment (`bd --help`: « default: $BEADS_ACTOR,
 // git user.name, $USER »); the author of the circuit's own lines; the author of a session of
 // <role> on <composant>: `testeur <composant>`, `developpeur <composant>`, else the role alone.
@@ -500,7 +507,7 @@ const FORT = ['--modele', 'opus', '--effort', 'high'];
 const PREFIXE = 'Circuit · ';
 const TICKET_SH = path.join(import.meta.dirname, 'ticket.sh');
 // The steps the circuit leads itself, with no agent: each one counts in the ticket's working time.
-const MENEES = new Set(ETAPES.filter(e => e.qui.includes(AUTOMATIQUE)).map(e => e.etat));
+const MENEES = new Set(SUITE.filter(e => e.qui.includes(AUTO) && e.etat).map(e => e.etat));
 
 const ici = import.meta.dirname;
 const LANCEUR = path.join(ici, 'enveloppe', 'lancer.sh');
@@ -743,6 +750,13 @@ const fichesDe = (ctx, role, composant = null) =>
   lesFiches(ctx)
     .filter(e => e.role === role && (composant === null || e.composant === composant))
     .map(e => e.fiche);
+
+// The step of the circuit's state <etat> in words, « 2.3 Code » (scripts/etapes.mjs), or its
+// `etape` when the list holds none.
+const ouDansLeCircuit = etat => {
+  const e = etapeDuCircuit(etat);
+  return e ? libelle(e) : etat.etape;
+};
 
 // One line of the circuit's history at the ticket.
 function commenter(ctx, composant, etape, texte) {
@@ -1790,7 +1804,7 @@ function preuve(ctx, composant) {
   const resume = `${rouges.length} rouge(s), ${justifies.length} vert(s) justifié(s), ${injustifies.length} vert(s) sans vert attendu, ${casses.length} fichier(s) qui ne se charge(nt) pas, ${anciens} test(s) vert(s) que HEAD tient déjà, laissé(s) de côté`;
   const ecrit = (...sections) =>
     [
-      `${etapeNumero(4).titre} sur ${composant} : ${resume}.`,
+      `${SUITE.find(e => e.etat === PREUVE).titre} sur ${composant} : ${resume}.`,
       ...[...new Set(reportes)].map(
         nom => `Les tests de ${nom} se jouent aux contrôles, après le développeur.`
       ),
@@ -2197,14 +2211,18 @@ function rendusDepuisAccepte(ctx) {
   return verdicts.length - (verdicts.lastIndexOf('ACCEPTÉ') + 1);
 }
 
-// The count of the bounded loop of the step <etape> under way, by its number
-// (scripts/etapes.mjs, `boucle`): the session of the testeur or of the developpeur, the review;
-// null at a step without a loop.
-function boucles(ctx, etape, tentative) {
-  const numero = etapeDuCircuit({ etape })?.numero;
-  if (etape === TESTS || etape === CODE) return { [numero]: tentative };
-  if (etape === RELECTURE) return { [numero]: rendusDepuisAccepte(ctx) + 1 };
-  return null;
+// The counts of the bounded loops that run at the step <etape> under way, by their key
+// (scripts/etapes.mjs, `boucles`): the session of the testeur at its tests and its proof, of the
+// developpeur at its code and its checks, the review; null at a step without one.
+function boucles(ctx, etape, tentative, finale) {
+  const compte = {
+    tests: () => tentative,
+    code: () => tentative,
+    relecture: () => rendusDepuisAccepte(ctx) + 1,
+  };
+  const e = etapeDuCircuit({ etape, finale });
+  const l = e ? bouclesDe(e).filter(b => compte[b.cle]) : [];
+  return l.length ? Object.fromEntries(l.map(b => [b.cle, compte[b.cle]()])) : null;
 }
 
 // The circuit from <debut> (where `depart` starts it) to the entry of the lot in the queue.
@@ -2225,7 +2243,7 @@ async function derouler(ctx, debut) {
       rapport,
       dernier: ctx.composants[dernier],
       finale,
-      boucles: boucles(ctx, etape, tentative),
+      boucles: boucles(ctx, etape, tentative, finale),
     };
     // A step the circuit leads itself names its start in the state while it runs, and writes its
     // line to the register at its end, whatever its outcome.
@@ -2539,14 +2557,18 @@ async function derouler(ctx, debut) {
         ...(etape === CONTROLES && (finale || index === dernier) ? { finale: true } : {}),
         ...(e.resultat ? { resultat: e.resultat } : {}),
       });
+      const ou = ouDansLeCircuit({
+        etape,
+        finale: finale || (etape === CONTROLES && index === dernier),
+      });
       commenter(
         ctx,
         composant,
         etape,
-        `arrêt ${e.nom} — ${premiereLigne(e.rapport)} — journal ${ctx.journal}`
+        `arrêt ${e.nom} à ${ou} — ${premiereLigne(e.rapport)} — journal ${ctx.journal}`
       );
       process.stderr.write(
-        `⛔ Circuit de ${ctx.ticket} arrêté : ${e.nom}, à l'étape ${etape} de ${composant}.\n`
+        `⛔ Circuit de ${ctx.ticket} arrêté : ${e.nom}, à ${ou} de ${composant}.\n`
       );
       return {
         code,
@@ -2753,7 +2775,7 @@ async function trancher(ctx, a, reponse = null) {
     code: a.code,
     raison: a.nom,
     rapport: a.rapport,
-    boucles: { [ARBITRAGE.numero]: passe },
+    boucles: { arret: passe },
   };
   ecrireEtat(ctx, { ...arret, regulateur: garde });
   const valeurs = {
@@ -2762,8 +2784,8 @@ async function trancher(ctx, a, reponse = null) {
     sujet: ctx.sujet,
     arret: a.nom,
     code: a.code,
-    // The step by its number and title, « 5 Code ».
-    etape: etapeDuCircuit(a.etat) ? libelle(etapeDuCircuit(a.etat)) : a.etat.etape,
+    // The step by its number and title, « 2.3 Code ».
+    etape: ouDansLeCircuit(a.etat),
     composant,
     raison: String(a.motif ?? a.rapport ?? '').trim() || 'aucune',
     // The reds of the stop, read in the structured results, each with its component.
@@ -3031,7 +3053,7 @@ async function questionner(ctx, q) {
     ecrireEtat(ctx, {
       ...q.etat,
       questionnement: { objet: q.objet, tour, seance },
-      boucles: { [QUESTIONNEMENT.numero]: tour },
+      boucles: { ...q.etat.boucles, questionnement: tour },
     });
     const ou = `${q.nom}, tour ${tour}/${TOURS}`;
     const texte =
@@ -3229,10 +3251,14 @@ async function questionnerLePlan(ctx, releve) {
     // testeur.
     if (!(x instanceof Arret)) throw x;
     ecrireEtat(ctx, { ...etat, code: ARRETS[x.nom], raison: x.nom, rapport: x.rapport });
-    commenter(ctx, composant, 'questionnement', `arrêt ${x.nom} — ${premiereLigne(x.rapport)}`);
-    process.stderr.write(
-      `⛔ Circuit de ${ctx.ticket} arrêté : ${x.nom}, au questionnement du plan.\n`
+    const ou = ouDansLeCircuit({ ...etat, questionnement: 'plan' });
+    commenter(
+      ctx,
+      composant,
+      'questionnement',
+      `arrêt ${x.nom} à ${ou} — ${premiereLigne(x.rapport)}`
     );
+    process.stderr.write(`⛔ Circuit de ${ctx.ticket} arrêté : ${x.nom}, à ${ou}.\n`);
     return ARRETS[x.nom];
   }
   if (r.issue === 'AUCUNE') {
@@ -3252,11 +3278,19 @@ async function questionnerLePlan(ctx, releve) {
     code,
     raison: 'questionnement',
     rapport,
-    boucles: { [QUESTIONNEMENT.numero]: r.tours },
+    boucles: { questionnement: r.tours },
   });
   inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, etape: TESTS, composant, arret: 'questionnement' });
-  commenter(ctx, composant, 'questionnement', `arrêt questionnement — ${premiereLigne(rapport)}`);
-  process.stderr.write(`⛔ Circuit de ${ctx.ticket} arrêté : questionnement.\n${rapport}\n`);
+  const ou = ouDansLeCircuit({ ...etat, raison: 'questionnement' });
+  commenter(
+    ctx,
+    composant,
+    'questionnement',
+    `arrêt questionnement à ${ou} — ${premiereLigne(rapport)}`
+  );
+  process.stderr.write(
+    `⛔ Circuit de ${ctx.ticket} arrêté : questionnement, à ${ou}.\n${rapport}\n`
+  );
   return code;
 }
 
@@ -3362,8 +3396,16 @@ function composantsManquants(ctx) {
     rapport,
     dernier: ctx.composants.at(-1),
   });
-  commenter(ctx, composant, 'composants', `arrêt composants-manquants — ${premiereLigne(rapport)}`);
-  process.stderr.write(`⛔ Circuit de ${ctx.ticket} arrêté : composants-manquants.\n${rapport}\n`);
+  const ou = ouDansLeCircuit({ etape: TESTS, raison: 'composants-manquants' });
+  commenter(
+    ctx,
+    composant,
+    'composants',
+    `arrêt composants-manquants à ${ou} — ${premiereLigne(rapport)}`
+  );
+  process.stderr.write(
+    `⛔ Circuit de ${ctx.ticket} arrêté : composants-manquants, à ${ou}.\n${rapport}\n`
+  );
   return code;
 }
 

@@ -72,7 +72,9 @@ fiche '{"statut":"BLOQUÉ","raison":"la matière de test partagée attend un aut
     expect(consigne).toContain(`hors-portee (code ${ARRETS['hors-portee']})`);
     expect(consigne).toContain('la matière de test partagée attend un autre type.');
     expect(commentaires(id)).toContainEqual(
-      expect.stringMatching(/^Circuit · packages\/forms · developpeur : arrêt hors-portee — /)
+      expect.stringMatching(
+        /^Circuit · packages\/forms · developpeur : arrêt hors-portee à 2\.3 Code — /
+      )
     );
   });
 

@@ -1,5 +1,5 @@
-// The regulator on the board (grillhouse-3uv.49, its block at the arbitrage, step 2, since
-// grillhouse-3uv.88): a regulator running on a ticket stands in its block with its time and
+// The regulator on the board (grillhouse-3uv.49, its block at the arbitrage of a stop, out of the
+// sequence of the steps, since grillhouse-3uv.90): a regulator running on a ticket stands in its block with its time and
 // tokens, the agents it launches are tied to their ticket and role as the supervisor's are, and a
 // ticket it leads waits for no role of the flow. A sub-agent, whatever its role, runs when its transcript moved in the last 2
 // minutes, or while its last tool call awaits its answer, its transcript moved in the last 30
@@ -128,8 +128,10 @@ interface Entree {
   travail: number;
 }
 interface Bloc {
-  numero: number;
-  role: string;
+  numero: string | null;
+  titre: string;
+  qui: string;
+  roles: string[];
   enCours: Entree[];
   attend: { id: string }[];
 }
@@ -182,7 +184,7 @@ const plateauVivant = (home: string, tous: object[], registre: object[] = [], ps
     jour: maintenant - 24 * 60 * MIN,
   }) as Board;
 };
-const bloc = (t: Board, role: string) => t.agents.find(b => b.role === role);
+const bloc = (t: Board, role: string) => t.agents.find(b => b.roles.includes(role));
 const enCours = (t: Board, role: string) => (bloc(t, role)?.enCours ?? []).map(x => x.id);
 const attentes = (t: Board) => t.agents.flatMap(b => b.attend.map(x => x.id));
 // The lines of AGENTS: the lines of section agents from the blank line above its title, the head
@@ -192,12 +194,11 @@ const agentsTextes = (t: Board) => {
   return out.slice(out.findIndex(x => x.texte.startsWith('AGENTS')) - 1);
 };
 
-describe('3uv.49 critère 1 : the block of the regulator stands at the arbitrage, step 2', () => {
-  it('3uv.49 critère 1 : the arbitrage holds the technical referent, then the regulator', () => {
+describe('3uv.49 critère 1 : the block of the regulator stands at the arbitrage of a stop', () => {
+  it('3uv.49 critère 1 : the arbitrage, out of the sequence, holds the regulator, then the questionneur', () => {
     const t = plateau([], [], []);
-    expect(t.agents.filter(b => b.numero === 2).map(b => b.role)).toEqual([
-      'referent-technique',
-      REGULATEUR,
+    expect(t.agents.filter(b => b.numero === null).map(b => b.roles)).toEqual([
+      [REGULATEUR, 'questionneur'],
     ]);
   });
 
@@ -211,7 +212,7 @@ describe('3uv.49 critère 1 : the block of the regulator stands at the arbitrage
       { id: 'demo-9', jetons: 40, travail: 20 * MIN },
     ]);
     const a = agentsTextes(t);
-    const i = a.findIndex(x => x.texte === '2 · Arbitrage · régulateur');
+    const i = a.findIndex(x => x.texte === "⤷ Arbitrage de l'arrêt · régulateur ⇄ questionneur");
     expect(a[i].ton).toBe('titre');
     expect(a[i + 1]).toMatchObject({ ton: 'actif', ticket: 'demo-9' });
     expect(a[i + 1].texte).toMatch(/^▶ 9 {2}Le panneau +20 min · 40$/);
@@ -536,10 +537,16 @@ describe("3uv.49 critère 6 : a sub-agent of a manager's session naming no ticke
 });
 
 describe('3uv.49 critère 8 : the block of the regulator is shown as « régulateur »', () => {
-  it('3uv.49 critère 8 : its block is named régulateur, at step 2, and the pane draws it so', () => {
+  it('3uv.49 critère 8 : its block names the régulateur, at the arbitrage, and the pane draws it so', () => {
     const t = plateau([T('demo-9')], [], [vivant('c0', 'demo-9', REGULATEUR)]);
-    expect(bloc(t, REGULATEUR)).toMatchObject({ numero: 2, titre: 'Arbitrage', qui: 'régulateur' });
-    expect(agentsTextes(t).map(x => x.texte)).toContain('2 · Arbitrage · régulateur');
+    expect(bloc(t, REGULATEUR)).toMatchObject({
+      numero: null,
+      titre: "Arbitrage de l'arrêt",
+      qui: 'régulateur ⇄ questionneur',
+    });
+    expect(agentsTextes(t).map(x => x.texte)).toContain(
+      "⤷ Arbitrage de l'arrêt · régulateur ⇄ questionneur"
+    );
   });
 });
 

@@ -1,55 +1,164 @@
-// grillhouse-3uv.88: the steps of a ticket are numbered one by one, the automatic ones included,
-// as a pipeline of GitLab CI or Zuul numbers and names each of its stages. One list
-// (scripts/etapes.mjs) holds them: its number, its title, who works there (a role agent, or
-// « automatique »), and whether it runs for each component or once. The circuit, the board and the
-// texts read it; no other script spells it.
+// grillhouse-3uv.90: the steps of a ticket are the tree of its circuit, as a pipeline of GitLab CI
+// shows its stages and their jobs: 0 to 5, the sub-steps 1.1, 1.2, 2.1–2.4, 5.1 and 5.2, « auto »
+// for a step the circuit leads itself. A step carries as many bounded loops as it needs, and the
+// arbitrage of a stop stands out of the sequence, under the stopped step. One list
+// (scripts/etapes.mjs) holds them; the circuit, the board and the texts read it; no other script
+// spells it.
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import * as etapes from '../../scripts/etapes.mjs';
 import {
+  ARBITRAGE,
   ARRETS,
-  AUTOMATIQUE,
+  AUTO,
+  boucle,
+  bouclesDe,
   ETAPES,
   etapeDuCircuit,
   etapeDuRole,
   GESTES,
   gesteDe,
+  juge,
+  libelle,
   nomDuRole,
+  SUITE,
   TABLE_DES_ARRETS,
 } from '../../scripts/etapes.mjs';
 
 const RACINE = path.resolve(__dirname, '../..');
 const lire = (f: string) => readFileSync(path.join(RACINE, f), 'utf8');
 
-describe('the ten steps, decided by the owner on 2026-10-20', () => {
-  // grillhouse-3uv.89.1 (L9): the questioning, a sub-step of the arbitrage, 2.1, which numbers no
-  // step again: it runs before step 3 on the plan, and inside step 2 on a decision of the
-  // regulator, with a bounded loop of its own (`tour n/4`).
-  it('numbers each step from 1 to 10, with its title and who works there, the questioning at 2.1', () => {
-    expect(ETAPES.map(e => [e.numero, e.titre, e.qui])).toEqual([
-      [1, 'Exploration', ['explorateur']],
-      [2, 'Arbitrage', ['referent-technique', 'regulateur']],
-      [2.1, 'Questionnement', ['questionneur']],
-      [3, 'Tests', ['testeur']],
-      [4, 'Preuve du rouge', [AUTOMATIQUE]],
-      [5, 'Code', ['developpeur']],
-      [6, 'Contrôles', [AUTOMATIQUE]],
-      [7, 'Passe finale', [AUTOMATIQUE]],
-      [8, 'Relecture', ['relecteur']],
-      [9, 'Intégration', [AUTOMATIQUE]],
-      [10, 'File : main, poussée, CI', [AUTOMATIQUE]],
+interface Etape {
+  numero: string | null;
+  titre: string;
+  qui: string[];
+  parComposant?: boolean;
+  boucles?: object[];
+  sous?: Etape[];
+}
+const suite = SUITE as Etape[];
+const a = (numero: string) => suite.find(e => e.numero === numero)!;
+
+describe('the tree of a ticket, decided by the owner on 2026-10-21', () => {
+  it('numbers each step from 0 to 5, its sub-steps under it, with its title and who works there', () => {
+    const arbre = (e: Etape): unknown => [
+      e.numero,
+      e.titre,
+      e.qui,
+      ...(e.sous ? [e.sous.map(arbre)] : []),
+    ];
+    expect((ETAPES as Etape[]).map(arbre)).toEqual([
+      ['0', 'Exploration', ['explorateur']],
+      [
+        '1',
+        'Ouverture',
+        [],
+        [
+          ['1.1', 'Relevé des composants', [AUTO]],
+          ['1.2', 'Questionnement du plan', ['questionneur', 'referent-technique']],
+        ],
+      ],
+      [
+        '2',
+        'Composants',
+        [],
+        [
+          ['2.1', 'Tests', ['testeur']],
+          ['2.2', 'Preuve du rouge', [AUTO]],
+          ['2.3', 'Code', ['developpeur']],
+          ['2.4', 'Contrôles', [AUTO]],
+        ],
+      ],
+      ['3', 'Passe finale', [AUTO]],
+      ['4', 'Relecture', ['relecteur']],
+      [
+        '5',
+        'Intégration',
+        [],
+        [
+          ['5.1', 'Commit', [AUTO]],
+          ['5.2', 'File : main, poussée, CI', [AUTO]],
+        ],
+      ],
     ]);
-    expect(AUTOMATIQUE).toBe('automatique');
+    expect(AUTO).toBe('auto');
   });
 
-  it('declares each bounded loop with its step: its label and its maximum', () => {
-    expect(ETAPES.filter(e => e.boucle).map(e => [e.numero, e.boucle])).toEqual([
-      [2, { libelle: 'arrêt', max: 3 }],
-      [2.1, { libelle: 'tour', max: 4 }],
-      [3, { libelle: 'essai', max: 3 }],
-      [5, { libelle: 'essai', max: 3 }],
-      [8, { libelle: 'tour', max: 3 }],
+  it('the sequence lists every step and sub-step in its order', () => {
+    expect(suite.map(e => e.numero)).toEqual([
+      '0',
+      '1',
+      '1.1',
+      '1.2',
+      '2',
+      '2.1',
+      '2.2',
+      '2.3',
+      '2.4',
+      '3',
+      '4',
+      '5',
+      '5.1',
+      '5.2',
     ]);
+    expect(libelle(a('2.3'))).toBe('2.3 Code');
+  });
+
+  it('the arbitrage of a stop stands out of the sequence, the regulator with the questionneur', () => {
+    expect(ARBITRAGE).toMatchObject({
+      numero: null,
+      titre: "Arbitrage de l'arrêt",
+      qui: ['regulateur', 'questionneur'],
+    });
+    expect(suite).not.toContain(ARBITRAGE);
+  });
+
+  it('the questioning numbers no step of its own any more, nor the numbering before it', () => {
+    expect(suite.map(e => e.titre)).not.toContain('Questionnement');
+    expect(suite.map(e => e.titre)).not.toContain('Arbitrage');
+    expect(etapes).not.toHaveProperty('AUTOMATIQUE');
+    expect(etapes).not.toHaveProperty('QUESTIONNEMENT');
+    expect(lire('scripts/etapes.mjs')).not.toMatch(/numero: \d/);
+  });
+
+  it('declares each bounded loop with the step that carries it, as many as it needs', () => {
+    const porte = [...suite, ARBITRAGE as Etape]
+      .filter(e => e.boucles)
+      .map(e => [e.numero, e.boucles]);
+    expect(porte).toEqual([
+      ['1.2', [{ cle: 'questionnement', libelle: 'tour', max: 4 }]],
+      [
+        '2',
+        [
+          { cle: 'composant', libelle: 'composant', max: null },
+          { cle: 'tests', libelle: 'essai', max: 3, sur: ['2.1', '2.2'] },
+          { cle: 'code', libelle: 'essai', max: 3, sur: ['2.3', '2.4'] },
+        ],
+      ],
+      ['4', [{ cle: 'relecture', libelle: 'tour', max: 3 }]],
+      [
+        null,
+        [
+          { cle: 'arret', libelle: 'arrêt', max: 3 },
+          { cle: 'questionnement', libelle: 'tour', max: 4 },
+        ],
+      ],
+    ]);
+  });
+
+  it('gives a loop by its key, and the loops that run at a step', () => {
+    expect(boucle('code')).toEqual({ cle: 'code', libelle: 'essai', max: 3, sur: ['2.3', '2.4'] });
+    const cles = (e: unknown) => (bouclesDe(e) as { cle: string }[]).map(b => b.cle);
+    expect(cles(a('2.1'))).toEqual(['composant', 'tests']);
+    expect(cles(a('2.2'))).toEqual(['composant', 'tests']);
+    expect(cles(a('2.3'))).toEqual(['composant', 'code']);
+    expect(cles(a('2.4'))).toEqual(['composant', 'code']);
+    expect(cles(a('2'))).toEqual(['composant']);
+    expect(cles(a('1.2'))).toEqual(['questionnement']);
+    expect(cles(a('4'))).toEqual(['relecture']);
+    expect(cles(a('3'))).toEqual([]);
+    expect(cles(ARBITRAGE)).toEqual(['arret', 'questionnement']);
   });
 
   it('the circuit reads the maxima of its loops in the list, none spelled again', () => {
@@ -57,11 +166,19 @@ describe('the ten steps, decided by the owner on 2026-10-20', () => {
     expect(c).not.toMatch(
       /(RELANCES_TESTEUR|SEANCES_DEVELOPPEUR|RELECTURES|RELANCES_DU_REGULATEUR|TOURS) = \d/
     );
-    expect(c).toMatch(/\.boucle\.max/);
+    for (const cle of ['tests', 'code', 'relecture', 'arret', 'questionnement']) {
+      expect(c, cle).toContain(`boucle('${cle}').max`);
+    }
   });
 
-  it('runs steps 3 to 6 for each component, the others once', () => {
-    expect(ETAPES.filter(e => e.parComposant).map(e => e.numero)).toEqual([3, 4, 5, 6]);
+  it('runs step 2 and its sub-steps for each component, the others once', () => {
+    expect(suite.filter(e => e.parComposant).map(e => e.numero)).toEqual([
+      '2',
+      '2.1',
+      '2.2',
+      '2.3',
+      '2.4',
+    ]);
   });
 
   it('shows each role by its name in words', () => {
@@ -74,7 +191,7 @@ describe('the ten steps, decided by the owner on 2026-10-20', () => {
         'testeur',
         'developpeur',
         'relecteur',
-        AUTOMATIQUE,
+        AUTO,
       ].map(nomDuRole)
     ).toEqual([
       'explorateur',
@@ -84,7 +201,7 @@ describe('the ten steps, decided by the owner on 2026-10-20', () => {
       'testeur',
       'développeur',
       'relecteur',
-      'automatique',
+      'auto',
     ]);
   });
 });
@@ -117,38 +234,56 @@ describe('the stops of the circuit, each with its exit code', () => {
 });
 
 describe("a circuit's state and a role agent are at one step", () => {
+  const numero = (o: object) => etapeDuCircuit(o)?.numero ?? null;
+
   it("reads each step of the circuit's state, the final pass being the checks once `finale`", () => {
-    const numero = (etape: string, finale = false) =>
-      etapeDuCircuit({ etape, finale })?.numero ?? null;
-    expect(numero('testeur')).toBe(3);
-    expect(numero('preuve')).toBe(4);
-    expect(numero('developpeur')).toBe(5);
-    expect(numero('controles')).toBe(6);
-    expect(numero('controles', true)).toBe(7);
-    expect(numero('relecture')).toBe(8);
-    expect(numero('integration')).toBe(9);
-    expect(numero('file')).toBe(10);
-    expect(numero('integre')).toBeNull();
+    expect(numero({ etape: 'testeur' })).toBe('2.1');
+    expect(numero({ etape: 'preuve' })).toBe('2.2');
+    expect(numero({ etape: 'developpeur' })).toBe('2.3');
+    expect(numero({ etape: 'controles' })).toBe('2.4');
+    expect(numero({ etape: 'controles', finale: true })).toBe('3');
+    expect(numero({ etape: 'relecture' })).toBe('4');
+    expect(numero({ etape: 'integration' })).toBe('5.1');
+    expect(numero({ etape: 'file' })).toBe('5.2');
+    expect(numero({ etape: 'integre' })).toBeNull();
   });
 
-  it('a developpeur relaunched by the final pass is at step 5, its checks at step 7', () => {
-    expect(etapeDuCircuit({ etape: 'developpeur', finale: true })?.numero).toBe(5);
+  it('the opening: the stop of the survey at 1.1, the questioning of the plan and its stop at 1.2', () => {
+    expect(numero({ etape: 'testeur', raison: 'composants-manquants' })).toBe('1.1');
+    expect(numero({ etape: 'testeur', questionnement: { objet: 'plan', tour: 2 } })).toBe('1.2');
+    expect(numero({ etape: 'testeur', raison: 'questionnement' })).toBe('1.2');
   });
 
-  it('places each role agent at its step, any other agent nowhere', () => {
+  it('the questioning of a decision of the regulator stays at the stopped step', () => {
+    expect(
+      numero({ etape: 'controles', raison: 'controles', questionnement: { objet: 'decision' } })
+    ).toBe('2.4');
+  });
+
+  it('a developpeur relaunched by the final pass is at 2.3, its checks at 3', () => {
+    expect(numero({ etape: 'developpeur', finale: true })).toBe('2.3');
+  });
+
+  it('places each role agent at its step, the regulator at the arbitrage, any other agent nowhere', () => {
     expect(
       [
         'explorateur',
         'referent-technique',
-        'regulateur',
         'questionneur',
         'testeur',
         'developpeur',
         'relecteur',
       ].map(r => etapeDuRole(r)?.numero)
-    ).toEqual([1, 2, 2, 2.1, 3, 5, 8]);
+    ).toEqual(['0', '1.2', '1.2', '2.1', '2.3', '4']);
+    expect(etapeDuRole('regulateur')).toBe(ARBITRAGE);
     expect(etapeDuRole('Explore')).toBeNull();
-    expect(etapeDuRole(AUTOMATIQUE)).toBeNull();
+    expect(etapeDuRole(AUTO)).toBeNull();
+  });
+
+  it('the roles that judge a plan or a stop deliver nothing to the lot', () => {
+    expect(
+      ['questionneur', 'referent-technique', 'regulateur', 'testeur', 'developpeur'].map(juge)
+    ).toEqual([true, true, true, false, false]);
   });
 });
 
@@ -166,19 +301,27 @@ describe('one list, which the circuit, the board and the texts read', () => {
         .map(f => path.join('scripts', f)),
       'mods/grillhouse/hooks/register.tsx',
     ];
-    const titres = ['Preuve du rouge', 'Passe finale', 'File : main, poussée, CI'];
+    const titres = [
+      'Relevé des composants',
+      'Questionnement du plan',
+      'Preuve du rouge',
+      'Passe finale',
+      'File : main, poussée, CI',
+      "Arbitrage de l'arrêt",
+    ];
     const copies = fichiers.flatMap(f =>
       titres.filter(t => lire(f).includes(t)).map(t => `${f} : ${t}`)
     );
     expect(copies).toEqual([]);
   });
 
-  it('the common charter cites each step by its number and title', () => {
+  it('the common charter cites each step by its number and title, and the arbitrage', () => {
     const charte = lire('.claude/grillhouse/charte.md').replace(/\s+/g, ' ');
-    for (const e of ETAPES) {
+    for (const e of suite) {
       expect(charte, `${e.numero} ${e.titre}`).toContain(`${e.numero} ${e.titre}`);
     }
-    expect(charte).not.toMatch(/numéro de son rôle/);
+    expect(charte).toContain(ARBITRAGE.titre);
+    expect(charte).not.toMatch(/2\.1 Questionnement|10 File|dix étapes/);
   });
 });
 

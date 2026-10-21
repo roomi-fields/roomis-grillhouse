@@ -374,12 +374,12 @@ describe('assembler', () => {
     ]);
   });
   it('puts each ticket in one place: running at its step, else waiting at the next one', () => {
-    const b = (n: number) => t.agents.find((x: { numero: number }) => x.numero === n)!;
-    expect(b(5).enCours).toEqual([
+    const b = (n: string) => t.agents.find((x: { numero: string }) => x.numero === n)!;
+    expect(b('2.3').enCours).toEqual([
       expect.objectContaining({ numero: 'c.1.1', composant: 'moteur', ligne: true }),
     ]);
-    expect(b(3).enCours).toEqual([]);
-    expect(b(5).attend).toEqual([
+    expect(b('2.1').enCours).toEqual([]);
+    expect(b('2.3').attend).toEqual([
       {
         id: 'demo-c.3',
         numero: 'c.3',
@@ -389,7 +389,7 @@ describe('assembler', () => {
         jetons: 50,
       },
     ]);
-    expect(b(3).attend).toEqual([]);
+    expect(b('2.1').attend).toEqual([]);
     expect(t.agents.flatMap(x => x.attend.map(y => y.numero))).not.toContain('c.4');
   });
   it('lists the tickets closed today', () => {
@@ -400,7 +400,7 @@ describe('assembler', () => {
   it('alerts on a silent shell agent and a ticket in progress without anything running, never on a decision awaited', () => {
     const textes = t.alertes.map((a: { texte: string }) => a.texte);
     expect(textes.some((x: string) => /décision/.test(x))).toBe(false);
-    expect(textes.some((x: string) => /c\.1\.1, agent 5 silencieux/.test(x))).toBe(true);
+    expect(textes.some((x: string) => /c\.1\.1, agent 2\.3 silencieux/.test(x))).toBe(true);
     const seul = plateau({
       tous: [
         T('demo-x', {
@@ -435,9 +435,11 @@ describe('assembler', () => {
     expect(texte.match(/c\.1\.1 {2}Écrit/g)).toHaveLength(1);
     expect(texte.match(/c\.3 +demo-c\.3/g)).toHaveLength(1);
     expect(texte).toMatch(/\n {2}sans go +1\n {3}c\.2 {2}demo-c\.2\n/);
-    expect(texte).toMatch(/\n5 · Code · développeur\n▶ c\.1\.1 {2}Écrit/);
-    expect(texte).toMatch(/\n5 · Code · développeur[\s\S]*\n· c\.3 {4}demo-c\.3 +1 min · 50\n/);
-    expect(texte).toMatch(/\n1 · Exploration · explorateur\n2 · Arbitrage · /);
+    expect(texte).toMatch(/\n {2}2\.3 · Code · développeur\n▶ c\.1\.1 {2}Écrit/);
+    expect(texte).toMatch(
+      /\n {2}2\.3 · Code · développeur[\s\S]*\n· c\.3 {4}demo-c\.3 +1 min · 50\n/
+    );
+    expect(texte).toMatch(/\n0 · Exploration · explorateur\n▸ 1 · Ouverture\n▾ 2 · Composants\n/);
     expect(texte).toMatch(/✓ c\.1\.2 {2}demo-c\.1\.2/);
     expect(texte).toMatch(/\nAUTRES CHANTIERS +1\nz {2}Un autre +1\/1\n/);
   });
@@ -551,7 +553,7 @@ describe('assembler', () => {
     });
     expect(b.global.compteurs).toMatchObject({ enAttente: 1, bloques: 1 });
     const l = dessin(b).map(x => x.texte);
-    const i = l.indexOf('3 · Tests · testeur');
+    const i = l.indexOf('  2.1 · Tests · testeur');
     expect(i).toBeGreaterThan(-1);
     expect(l[i + 2]).toMatch(/^· e\.2 {2}demo-e\.2 +attend e\.1$/);
   });
@@ -657,7 +659,7 @@ describe('a ticket in progress with children', () => {
     const texte = dessin(t)
       .map(x => x.texte)
       .join('\n');
-    expect(texte).toMatch(/\n5 · Code · développeur\n· m {2}La mère en cours/);
+    expect(texte).toMatch(/\n {2}2\.3 · Code · développeur\n· m {2}La mère en cours/);
     expect(texte).toMatch(/\n {2}en cours +1\n {3}m\.1 {2}L’enfant en cours/);
   });
 });

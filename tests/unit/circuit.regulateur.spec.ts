@@ -118,7 +118,7 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
     expect(consigne).toContain(`TON TICKET : ${id} — La mesure`);
     expect(consigne).toContain('sans-livraison');
     expect(consigne).toContain(`code ${ARRETS['sans-livraison']}`);
-    expect(consigne).toContain("l'étape 5 Code du composant packages/forms");
+    expect(consigne).toContain("l'étape 2.3 Code du composant packages/forms");
     expect(consigne).toContain('packages/forms');
     expect(consigne).toContain('ne change aucun fichier de packages/forms');
     expect(consigne).toContain(path.join(REPO, '.claude/worktrees', `${id}.circuit.json`));
@@ -127,8 +127,8 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
     const vu = etatVuParLeRegulateur(id, 1);
     expect(vu).toMatchObject({ code: ARRETS['sans-livraison'], raison: 'sans-livraison' });
     expect(vu?.regulateur?.seance).toBe(valeur(a, '--session-id'));
-    // The first pass of this stop at the arbitrage, step 2: the counter of its loop.
-    expect(vu?.boucles).toEqual({ 2: 1 });
+    // The first pass of this stop at the arbitrage: the counter of its loop.
+    expect(vu?.boucles).toEqual({ arret: 1 });
     // Critère 2: the decision at the ticket.
     expect(commentaires(id)).toContainEqual(
       expect.stringMatching(/^Circuit · packages\/forms · regulateur : RELANCE --reprendre/)

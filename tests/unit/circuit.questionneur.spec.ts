@@ -207,7 +207,7 @@ describe.runIf(canWrap)(
       };
       expect(e.raison).toBe('questionnement');
       expect(e.rapport).toContain('Illustre par un exemple ?');
-      expect(e.boucles).toEqual({ '2.1': 4 });
+      expect(e.boucles).toEqual({ questionnement: 4 });
       expect(questionnements(id).at(-1)).toMatchObject({ objet: 'plan', tours: 4, issue: 'MONTE' });
       // The supervisor's answer, written at the ticket, lets the plan pass, from the first testeur.
       const s = circuit([id, '--reponse', 'Le plan tient : mesure(2) = 4 suffit.']);

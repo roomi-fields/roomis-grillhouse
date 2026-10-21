@@ -1,10 +1,10 @@
 // The circuit of a ticket on the board (scripts/circuit.mjs): its state
 // `.claude/worktrees/<ticket>.circuit.json` and its process `node scripts/circuit.mjs <ticket>`.
 // A circuit's ticket stands on one line, the only one of it in AGENTS, at the step of its state
-// (scripts/etapes.mjs); one that runs a session of the regulator on its stop stands at the
-// arbitrage, the regulator's, running, recalling the step it comes from; one that stopped stands
-// there too, and its card opens on where it stopped, its stop's name and code and the first line of
-// its reason, or on the regulator's question.
+// (scripts/etapes.mjs); one that runs a session of the regulator on its stop stands under its
+// step, after the line of the arbitrage of the stop, running; one that stopped stands there too,
+// and its card opens on where it stopped, its stop's name and code and the first line of its
+// reason, or on the regulator's question.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -29,7 +29,7 @@ interface Ligne {
 }
 interface Board {
   alertes: { texte: string }[];
-  agents: { role: string; enCours: { id: string }[]; attend: { id: string }[] }[];
+  agents: { roles: string[]; enCours: { id: string }[]; attend: { id: string }[] }[];
 }
 
 // A repository with the state of each circuit `etats` names, written as scripts/circuit.mjs
@@ -105,7 +105,8 @@ const carte = (t: Board, tous: object[], id: string) =>
 const lignesAgents = (t: Board) =>
   (lignes(t, 'depot') as Ligne[]).filter(x => x.section === 'agents');
 const agents = (t: Board) => lignesAgents(t).map(x => x.texte.trimEnd());
-const bloc = (t: Board, role: string) => t.agents.find(b => b.role === role)!;
+const bloc = (t: Board, role: string) => t.agents.find(b => b.roles.includes(role))!;
+const ARBITRAGE = "  ⤷ Arbitrage de l'arrêt · régulateur ⇄ questionneur";
 const attentes = (t: Board) => t.agents.flatMap(b => b.attend.map(x => x.id));
 
 describe("a circuit's line carries its ticket's working time and tokens", () => {
@@ -116,20 +117,20 @@ describe("a circuit's line carries its ticket's working time and tokens", () => 
     });
     const t = plateau([T('demo-12')], registre, [], circuits(racine, ligneCircuit('demo-12')));
     const a = agents(t);
-    expect(a[a.indexOf('5 · Code · développeur') + 1]).toMatch(
+    expect(a[a.indexOf('  2.3 · Code · développeur') + 1]).toMatch(
       /^▶ 12 {2}Le sujet de demo-12 +1 h 00 · 10$/
     );
   });
 
-  it('a circuit that stopped: the step it comes from, then the time and tokens so far', () => {
+  it('a circuit that stopped: under its step, then the time and tokens so far', () => {
     const racine = depot({
       'demo-12': { etape: 'controles', code: 14, raison: 'controles', rapport: 'Rouge.' },
     });
     const t = plateau([T('demo-12')], registre, [], circuits(racine));
     const a = agents(t);
-    expect(a[a.indexOf('2 · Arbitrage · régulateur') + 1]).toMatch(
-      /^■ 12 {2}Le sujet de demo… · de 6 Contrôles 1 h 00 · 10$/
-    );
+    const i = a.indexOf('  2.4 · Contrôles · auto');
+    expect(a[i + 1]).toBe(ARBITRAGE);
+    expect(a[i + 2]).toMatch(/^■ 12 {2}Le sujet de demo-12 +1 h 00 · 10$/);
   });
 });
 
@@ -156,7 +157,7 @@ describe('a circuit that runs: its step, its component and its attempt', () => {
     const t = plateau([T('demo-12')], [], [], circuits(racine, ligneCircuit('demo-12')));
     const a = agents(t);
     expect(a).not.toContain('circuits');
-    const i = a.indexOf('5 · Code · développeur');
+    const i = a.indexOf('  2.3 · Code · développeur');
     expect(i).toBeGreaterThan(-1);
     expect(a[i + 1]).toBe('▶ 12  Le sujet de demo-12');
     expect(lignesAgents(t)[i + 1]?.alterne).toBe('▶ 12  demo');
@@ -170,23 +171,23 @@ describe('a circuit that runs: its step, its component and its attempt', () => {
       const racine = depot({ 'demo-12': { etape, composant: 'packages/demo' } });
       const a = agents(plateau([T('demo-12')], [], [], circuits(racine, ligneCircuit('demo-12'))));
       const i = a.findIndex(x => x.includes('Le sujet de demo-12'));
-      return [...a.slice(0, i)].reverse().find(x => /^\d+ · /.test(x));
+      return [...a.slice(0, i)].reverse().find(x => /^ *\d+(\.\d+)? · /.test(x));
     };
-    expect(sous('preuve')).toBe('4 · Preuve du rouge · automatique');
-    expect(sous('controles')).toBe('6 · Contrôles · automatique');
-    expect(sous('relecture')).toBe('8 · Relecture · relecteur');
-    expect(sous('integration')).toBe('9 · Intégration · automatique');
-    expect(sous('file')).toBe('10 · File : main, poussée, CI · automatique');
+    expect(sous('preuve')).toBe('  2.2 · Preuve du rouge · auto');
+    expect(sous('controles')).toBe('  2.4 · Contrôles · auto');
+    expect(sous('relecture')).toBe('4 · Relecture · relecteur');
+    expect(sous('integration')).toBe('  5.1 · Commit · auto');
+    expect(sous('file')).toBe('  5.2 · File : main, poussée, CI · auto');
   });
 
-  it('the checks once `finale` are the final pass, step 7', () => {
+  it('the checks once `finale` are the final pass, step 3', () => {
     const racine = depot({
       'demo-12': { etape: 'controles', composant: 'packages/demo', tentative: 1, finale: true },
     });
     const a = agents(plateau([T('demo-12')], [], [], circuits(racine, ligneCircuit('demo-12'))));
-    const i = a.indexOf('7 · Passe finale · automatique');
+    const i = a.indexOf('3 · Passe finale · auto');
     expect(a[i + 1]).toMatch(/^▶ 12 /);
-    expect(a[a.indexOf('6 · Contrôles · automatique') + 1]).toBe('7 · Passe finale · automatique');
+    expect(a[i - 1]).toBe('▸ 2 · Composants');
   });
 
   it("another ticket's circuit process does not make it run", () => {
@@ -217,7 +218,7 @@ describe('a circuit that runs: its step, its component and its attempt', () => {
   });
 });
 
-describe('a circuit that stopped: at the arbitrage, its stop, its code and its reason on its card', () => {
+describe('a circuit that stopped: under its step, at the arbitrage, its stop, its code and its reason on its card', () => {
   const ARRET = {
     etape: 'controles',
     composant: 'packages/demo',
@@ -240,15 +241,16 @@ describe('a circuit that stopped: at the arbitrage, its stop, its code and its r
     ]);
   });
 
-  it('the board draws it at the arbitrage with the step it comes from, and its card where it stopped and why', () => {
+  it('the board draws it under its step after the line of the arbitrage, and its card where it stopped and why', () => {
     const racine = depot({ 'demo-13': ARRET });
     const t = plateau([T('demo-13')], [], [], circuits(racine));
     const a = agents(t);
-    const i = a.indexOf('2 · Arbitrage · régulateur');
-    expect(a[i + 1]).toBe('■ 13  Le sujet de demo-13 · de 6 Contrôles');
+    const i = a.indexOf(ARBITRAGE);
+    expect(a[i - 1]).toBe('  2.4 · Contrôles · auto');
+    expect(a[i + 1]).toBe('■ 13  Le sujet de demo-13');
     expect(lignesAgents(t)[i + 1]).toMatchObject({ ton: 'attention', ticket: 'demo-13' });
     expect(carte(t, [T('demo-13')], 'demo-13')).toMatch(
-      /^Circuit arrêté en 6 Contrôles 3 · demo, arrêt controles \(14\) : Le test « tableau » reste rouge\./
+      /^Circuit arrêté en 2\.4 Contrôles 3 · demo, arrêt controles \(14\) : Le test « tableau » reste rouge\./
     );
   });
 
@@ -256,10 +258,11 @@ describe('a circuit that stopped: at the arbitrage, its stop, its code and its r
     const racine = depot({ 'demo-13': { etape: 'preuve', composant: '.', tentative: 1 } });
     const t = plateau([T('demo-13')], [], [], circuits(racine));
     const a = agents(t);
-    const i = a.indexOf('2 · Arbitrage · régulateur');
-    expect(a[i + 1]).toBe('■ 13  Le sujet de demo-13 · de 4 Preuve du rouge');
+    const i = a.indexOf(ARBITRAGE);
+    expect(a[i - 1]).toBe('  2.2 · Preuve du rouge · auto');
+    expect(a[i + 1]).toBe('■ 13  Le sujet de demo-13');
     expect(carte(t, [T('demo-13')], 'demo-13')).toMatch(
-      /^Circuit arrêté en 4 Preuve du rouge 1 · \., interrompu : le circuit ne tourne plus/
+      /^Circuit arrêté en 2\.2 Preuve du rouge 1 · \., interrompu : le circuit ne tourne plus/
     );
   });
 
@@ -277,16 +280,16 @@ describe('a circuit that stopped: at the arbitrage, its stop, its code and its r
       lignesAgents(t)
         .filter(x => x.ticket === 'demo-13')
         .map(x => x.texte)
-    ).toEqual([expect.stringMatching(/^■ .* · de 6 Contrôles +\d+ (min|h \d\d) · \d+$/)]);
+    ).toEqual([expect.stringMatching(/^■ 13 {2}Le sujet de demo-13 +\d+ (min|h \d\d) · \d+$/)]);
   });
 
   // grillhouse-3uv.85, critère 9: the regulator is a session of the circuit. A circuit in a
-  // regulator's session runs on its ticket's line at the arbitrage (▶), with the step it comes
-  // from; a circuit ended on « question » stands in the same block (■), the regulator's question
-  // at the head of its card.
+  // regulator's session runs on its ticket's line at the arbitrage of its stopped step (▶); a
+  // circuit ended on « question » stands there too (■), the regulator's question at the head of
+  // its card.
   const SEANCE = { seance: '0b8e8c7e-1d2f-4a3b-9c4d-5e6f7a8b9c0d', arret: 'controles', code: 14 };
 
-  it('critère 9 — a circuit that runs a regulateur on its stop runs on its one line at the arbitrage (▶), the step it comes from named', () => {
+  it('critère 9 — a circuit that runs a regulateur on its stop runs on its one line at the arbitrage of its step (▶)', () => {
     const racine = depot({
       'demo-13': { ...ARRET, regulateur: { ...SEANCE, rapport: ARRET.rapport } },
     });
@@ -296,8 +299,9 @@ describe('a circuit that stopped: at the arbitrage, its stop, its code and its r
     ]);
     const t = plateau([T('demo-13')], [], [], lus);
     const a = agents(t);
-    const i = a.indexOf('2 · Arbitrage · régulateur');
-    expect(a[i + 1]).toBe('▶ 13  Le sujet de demo-13 · de 6 Contrôles');
+    const i = a.indexOf(ARBITRAGE);
+    expect(a[i - 1]).toBe('  2.4 · Contrôles · auto');
+    expect(a[i + 1]).toBe('▶ 13  Le sujet de demo-13');
     expect(lignesAgents(t)[i + 1]).toMatchObject({ ton: 'actif', ticket: 'demo-13' });
     expect(a.filter(x => x.includes('Le sujet de demo-13'))).toHaveLength(1);
   });
@@ -317,8 +321,9 @@ describe('a circuit that stopped: at the arbitrage, its stop, its code and its r
     expect(lus).toEqual([expect.objectContaining({ ticket: 'demo-14', vivant: false })]);
     const t = plateau([T('demo-14')], [], [], lus);
     const a = agents(t);
-    const i = a.indexOf('2 · Arbitrage · régulateur');
-    expect(a[i + 1]).toBe('■ 14  Le sujet de demo-14 · de 5 Code');
+    const i = a.indexOf(ARBITRAGE);
+    expect(a[i - 1]).toBe('  2.3 · Code · développeur');
+    expect(a[i + 1]).toBe('■ 14  Le sujet de demo-14');
     expect(lignesAgents(t)[i + 1]).toMatchObject({ ton: 'attention', ticket: 'demo-14' });
     expect(carte(t, [T('demo-14')], 'demo-14')).toMatch(
       /^Question du régulateur : La mesure rend-elle le double ou le triple \? Le critère 1 ne le dit pas\./
@@ -343,23 +348,24 @@ describe('a circuit that stopped: at the arbitrage, its stop, its code and its r
       lignesAgents(t)
         .filter(x => x.ticket === 'demo-13')
         .map(x => x.texte)
-    ).toEqual([expect.stringMatching(/^■ .* · de 6 Contrôles +\d+ (min|h \d\d) · \d+$/)]);
+    ).toEqual([expect.stringMatching(/^■ 13 {2}Le sujet de demo-13 +\d+ (min|h \d\d) · \d+$/)]);
   });
 });
 
 // Decided by the owner on 2026-10-17 (grill, Q10): a regulator comes only on a stop of the circuit,
 // which always has its state; a ticket in progress with neither a state nor a living agent falls
 // under the alert « en cours sans rien qui tourne ».
-// grillhouse-3uv.89.1 (L9): a circuit whose plan, or whose regulator's decision, the questionneur
-// questions stands at 2.1 Questionnement, the round of its bounded loop from the second.
+// grillhouse-3uv.90: a circuit whose plan the questionneur questions stands at 1.2 Questionnement
+// du plan; one whose regulator's decision it questions stands at the arbitrage of its stopped step;
+// each shows the round of its bounded loop from the second.
 describe('a circuit at the questioning', () => {
   const SEANCE = '0b8e8c7e-1d2f-4a3b-9c4d-5e6f7a8b9c0d';
 
-  it('runs on its one line at the questionneur’s block, its round from the second', () => {
+  it('runs on its one line, at 1.2 for the plan, at the arbitrage for a decision, its round from the second', () => {
     const racine = depot({
       'demo-12': {
         questionnement: { objet: 'plan', tour: 2, seance: SEANCE },
-        boucles: { '2.1': 2 },
+        boucles: { questionnement: 2 },
       },
       'demo-13': {
         etape: 'developpeur',
@@ -367,24 +373,24 @@ describe('a circuit at the questioning', () => {
         raison: 'sans-livraison',
         regulateur: { seance: SEANCE, arret: 'sans-livraison', code: 15, rapport: 'x' },
         questionnement: { objet: 'decision', tour: 1, seance: SEANCE },
-        boucles: { '2.1': 1 },
+        boucles: { arret: 1, questionnement: 1 },
       },
     });
     const lus = circuits(racine, `${ligneCircuit('demo-12')}\n${ligneCircuit('demo-13')}`);
     expect(lus).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ ticket: 'demo-12', questionnement: true }),
-        expect.objectContaining({ ticket: 'demo-13', questionnement: true }),
+        expect.objectContaining({ ticket: 'demo-12', questionnement: 'plan' }),
+        expect.objectContaining({ ticket: 'demo-13', questionnement: 'decision' }),
       ])
     );
     const t = plateau([T('demo-12'), T('demo-13')], [], [], lus);
     const a = agents(t);
-    const i = a.indexOf('2.1 · Questionnement · questionneur');
+    const i = a.findIndex(x => x.startsWith('  1.2 · Questionnement du plan'));
     expect(i).toBeGreaterThan(-1);
-    expect(a.slice(i + 1, i + 3).sort()).toEqual([
-      '▶ 12  Le sujet de demo-12 · tour 2/4',
-      '▶ 13  Le sujet de demo-13',
-    ]);
+    expect(a[i + 1]).toBe('▶ 12  Le sujet de demo-12 · tour 2/4');
+    const j = a.indexOf(ARBITRAGE);
+    expect(a[j - 1]).toBe('  2.3 · Code · développeur');
+    expect(a[j + 1]).toBe('▶ 13  Le sujet de demo-13');
     expect(a.filter(x => x.includes('Le sujet de demo-13'))).toHaveLength(1);
   });
 });

@@ -141,7 +141,7 @@ const T = (id: string, o: object = {}) => ({
 });
 
 interface Bloc {
-  role: string;
+  roles: string[];
   enCours: { id: string }[];
   attend: ({ id: string } & Mesure)[];
 }
@@ -174,7 +174,7 @@ const plateau = (home: string, tous: object[], registre: object[], ps = ''): Boa
 };
 const enCours = (t: Board) => t.agents.flatMap(b => b.enCours.map(x => x.id));
 const enCoursDe = (t: Board, role: string) =>
-  t.agents.find(b => b.role === role)!.enCours.map(x => x.id);
+  t.agents.find(b => b.roles.includes(role))!.enCours.map(x => x.id);
 const attend = (t: Board) => t.agents.flatMap(b => b.attend.map(x => x.id));
 
 // The events after the end that belong to the last turn, and the incoming messages.

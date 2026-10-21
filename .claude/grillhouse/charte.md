@@ -46,18 +46,23 @@ Une séance de supervision charge le superviseur (`pitmaster`) ; un projet a un 
 comme Zuul a un seul ordonnanceur : l'ouverture de séance prend le verrou du dépôt, et une seconde
 séance le dit au responsable et ne lance aucun circuit. Les rôles sont des agents du projet
 (`.claude/agents/`), chacun sous ses verrous et les droits que nomment les commandes de sa
-compétence, sans la configuration propre de l'utilisateur (`scripts/droits.mjs`). Un ticket passe par dix étapes numérotées, les
-automatiques comprises (`scripts/etapes.mjs`, la seule liste) : 1 Exploration, l'`explorateur` ;
-2 Arbitrage, le `referent-technique` (une question de conception) ou le `regulateur` (un arrêt du
-circuit) ; 2.1 Questionnement, le `questionneur`, sous-étape qui questionne le plan du ticket
-avant le premier testeur et chaque décision du régulateur avant qu'elle s'applique, en tours avec
-leur auteur (le référent technique pour le plan), quatre au plus, sans rien décider, l'échange au
-ticket ; puis, pour chaque composant, 3 Tests, le `testeur`, 4 Preuve du rouge, automatique,
-5 Code, le `developpeur`, et 6 Contrôles, automatiques ; enfin 7 Passe finale, automatique,
-8 Relecture, le `relecteur`, 9 Intégration et 10 File : main, poussée, CI, automatiques. Ainsi
-chaque agent travaille dans son cadre, et le numéro d'une étape dit où en est chaque ticket. Un plan
-que le superviseur rend au responsable passe aussi par le questionneur. Ainsi une décision se
-mesure à des questions qu'elle ne s'est pas posées, comme le code à des tests qu'il n'a pas écrits.
+compétence, sans la configuration propre de l'utilisateur (`scripts/droits.mjs`). Un ticket
+parcourt l'arbre de son circuit, les étapes « auto » comprises (`scripts/etapes.mjs`, la seule
+liste), comme un pipeline de GitLab CI ses étapes et leurs travaux : 0 Exploration,
+l'`explorateur` ; 1 Ouverture : 1.1 Relevé des composants, auto, puis 1.2 Questionnement du plan,
+le `questionneur` ⇄ le `referent-technique`, qui répond pour le plan, en tours, quatre au plus ;
+2 Composants, pour chaque composant du titre dans son ordre : 2.1 Tests, le `testeur`, 2.2 Preuve
+du rouge, auto, trois essais au plus, puis 2.3 Code, le `developpeur`, 2.4 Contrôles, auto, trois
+essais au plus ; 3 Passe finale, auto ; 4 Relecture, le `relecteur`, trois tours au plus, un lot
+rendu revenant en 2 pour les composants nommés ; 5 Intégration : 5.1 Commit et 5.2 File : main,
+poussée, CI, auto. Hors de la suite, sous l'étape arrêtée, l'Arbitrage de l'arrêt : le
+`regulateur` tranche l'arrêt ⇄ le `questionneur` questionne sa décision avant qu'elle
+s'applique, trois arrêts au plus. Le questionneur ne décide rien, et l'échange va au ticket ; le
+référent technique tranche aussi une question de conception née d'un ticket, que le superviseur
+lui pose. Ainsi chaque agent travaille dans son cadre, et le numéro d'une étape dit où en est
+chaque ticket. Un plan que le superviseur rend au responsable passe aussi par le questionneur.
+Ainsi une décision se mesure à des questions qu'elle ne s'est pas posées, comme le code à des
+tests qu'il n'a pas écrits.
 
 **Le superviseur intervient sur ce qui dépasse le ticket** : le circuit applique lui-même le
 geste que la table des arrêts (`scripts/etapes.mjs`) écrit pour un genre d'arrêt, et vérifie sur

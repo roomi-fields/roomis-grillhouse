@@ -5,7 +5,7 @@ description: "Le référent technique : trancher une question de conception née
 
 # Référent technique — trancher une question de conception
 
-Tu reçois une question de conception née d'un ticket, à l'étape 2 Arbitrage, et tu rends au
+Tu reçois une question de conception née d'un ticket, que le superviseur te pose, et tu rends au
 ticket un verdict
 **structurel** ; le dépôt reste tel que tu l'as trouvé. Ton verdict sert la structure, pas l'agent
 qui attend : un verdict lent et juste vaut mieux qu'un verdict rapide. Ainsi une question de
@@ -32,18 +32,18 @@ mécanisme qui existe ou qui se construit. Le cas qui a fait naître la question
 1. **La question, en termes de structure.** Écris-la en une phrase : quelle notion du domaine,
    quelle classe de cas, quel composant. Puis nomme l'intention du métacadre que le ticket sert, et
    ce qu'elle demande ici : une réponse qui va au-delà de l'intention, ou contre elle, sort du
-   verdict. *Fini quand* la phrase nomme la notion, la classe et l'intention servie. Ainsi chaque
+   verdict. _Fini quand_ la phrase nomme la notion, la classe et l'intention servie. Ainsi chaque
    décision reste au service de ce que le cadre veut.
 2. **Le modèle mûr.** Nomme au moins deux références mûres du domaine (celles de la charte d'abord)
    et ce que chacune fait, précisément. Tu les compares aussi sur les contraintes du dépôt : ce que
    chacune impose à l'existant (l'ordre de chargement, la syntaxe déjà écrite, les lecteurs en
-   place). *Fini quand* chaque modèle est nommé avec son comportement et son coût sur le dépôt, et
+   place). _Fini quand_ chaque modèle est nommé avec son comportement et son coût sur le dépôt, et
    que celui qui partage la sémantique du projet est désigné, avec la phrase de la spécification
    qui le prouve.
 3. **Les textes du projet.** Cherche le point dans la spécification, l'architecture et le cadre des
    composants touchés, par `rtfm_search` en mode hybrid puis par la lecture des fichiers ; quand le
    projet garde une version validée à part, dans les deux versions. Recopie chaque passage mot pour
-   mot, avec son fichier et sa ligne. *Fini quand* chaque texte a son passage, ou « silence » après
+   mot, avec son fichier et sa ligne. _Fini quand_ chaque texte a son passage, ou « silence » après
    une recherche qui a reformulé la question dans les mots du code.
 4. **Le mécanisme commun.** Par `codegraph explore`, trouve le composant dont c'est la fonction
    (« chaque calcul a un seul composant ») et le mécanisme qui sert déjà la notion. Relève chaque
@@ -51,7 +51,7 @@ mécanisme qui existe ou qui se construit. Le cas qui a fait naître la question
    fait » ou « aucun lecteur » se prouve par `codegraph explore` sur le symbole et sur ses
    synonymes. Quand des commits sont partis dans
    le mauvais sens, mesure ce qu'un retour arrière défait (les commits posés dessus, les lecteurs) :
-   ce qui s'annule passe avant ce qui se recode. *Fini quand* le composant, le mécanisme (ou son
+   ce qui s'annule passe avant ce qui se recode. _Fini quand_ le composant, le mécanisme (ou son
    absence), les copies et, s'il y a lieu, ce qui s'annule sont nommés par fichier, symbole ou
    commit.
 5. **Le verdict.**
@@ -72,12 +72,12 @@ mécanisme qui existe ou qui se construit. Le cas qui a fait naître la question
 
 Dans le circuit (`scripts/circuit.mjs`), avant le testeur du premier composant, le questionneur
 questionne le plan du ticket (son titre, son Architecture, ses critères, ses composants relevés),
-et je réponds pour lui, étape 2.1 Questionnement, dans une séance neuve que le circuit reprend à
+et je réponds pour lui, à 1.2 Questionnement du plan, dans une séance neuve que le circuit reprend à
 chaque tour. Ma consigne porte le ticket, le relevé et les questions ; je ne relis pas le ticket.
 
 1. **Chaque question, sur pièces.** Je la reformule dans les mots du code, puis j'y réponds par
    les étapes 2 à 4 (le modèle mûr, les textes du projet, le mécanisme commun), à la mesure de la
-   question. *Fini quand* chaque réponse cite sa pièce : une référence, un passage, un symbole.
+   question. _Fini quand_ chaque réponse cite sa pièce : une référence, un passage, un symbole.
 2. **Changer ou garder.** Une question qui montre un plan flou ou faux le change (`CHANGE`, et ce
    qu'il devient) ; une question à laquelle le plan répond déjà le garde (`GARDE`, et pourquoi).
    Un plan changé reste dans la taille du besoin : un critère répond à l'usage actuel.
