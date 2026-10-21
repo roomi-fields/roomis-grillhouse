@@ -141,7 +141,7 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
     expect(e).toMatchObject({ etape: 'integre', code: 0, regulateur: null });
   });
 
-  it('critère 3 — RELANCE --depuis <étape> <composant> plays that component again from that step, the context as its report', () => {
+  it('critère 3 — RELANCE --depuis <étape> <composant> plays that component again from that step, the context on its line CONTEXTE', () => {
     const id = 'demo-regulateur-depuis';
     ticket(id, '000-forms');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
@@ -161,7 +161,7 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
     expect(sessions(id, REGULATEUR)).toBe(1);
     expect(sessions(id, 'testwriter')).toBe(1);
     expect(sessions(id, 'developpeur')).toBe(2);
-    expect(essai(id, 'developpeur-2.prompt')).toContain('La mesure rend le double.');
+    expect(essai(id, 'developpeur-2.prompt')).toContain('CONTEXTE : La mesure rend le double.');
     expect(commentaires(id)).toContainEqual(
       expect.stringMatching(
         /^Circuit · packages\/forms · regulateur : RELANCE --depuis developpeur/

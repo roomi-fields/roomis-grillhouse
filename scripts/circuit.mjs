@@ -76,8 +76,9 @@
 //   step before (the proof, the reds of a check), the last handover of the session's author
 //   (`<rôle> <composant>`) at the ticket, for a developpeur without one yet the last of the
 //   testwriter of his component, else « aucune » (no other component's handover, nor a verdict), and
-//   the line `CONTEXTE :` that `--contexte` gives. The session's own exit code is the one lancer.sh writes
-//   to `.claude/worktrees/<ticket>.fin`; a launch that leaves none stopped before its session.
+//   the line `CONTEXTE :`: the text of `--contexte`, for each agent of a run without `--depuis`,
+//   for each agent of the component it plays again under `--depuis`. The session's own exit code
+//   is the one lancer.sh writes to `.claude/worktrees/<ticket>.fin`; a launch that leaves none stopped before its session.
 // - Each session of the testwriter, the developpeur, the reviewer, the regulator, the questionneur and
 //   the technical referent ends on its sheet
 //   (« la fiche »): claude runs with `--output-format json --json-schema <the schema of its role>`
@@ -179,8 +180,8 @@
 //   up to his own) says the red that remains lies in the tests of that component: the circuit
 //   plays it as a `RELANCE --depuis testwriter <composant>` of the regulator, the sending and the
 //   handover as its context, whether or not the session changed a file: that component's testwriter,
-//   the sending as his report, then its steps, the components after it as `--depuis` plays them,
-//   the final pass and the reviewer. A component out of the title or after his own is no such
+//   the sending on his line CONTEXTE, then its steps, the components after it as `--depuis` plays
+//   them, the final pass and the reviewer. A component out of the title or after his own is no such
 //   sending. The same sending twice in a row, with no green checks between them, stops at
 //   « sans-livraison ».
 // - The checks after the developpeur of a component judge that component, as Bazel plays the
@@ -307,7 +308,7 @@
 //   its code and its reason, the stop's facts, the fingerprints of the description and of the
 //   stop), while it runs and after its question, null otherwise; `renvois` the components a
 //   RENDU, `--depuis` or a gesture of the table plays again, each with its first step and its
-//   findings, null out of such a round;
+//   findings, and under `--depuis` its context (`contexte`), null out of such a round;
 //   `atteints` the components the circuit has carried through, each on its own (its proof without a
 //   red for its developpeur, its developpeur's delivery, its green checks, every one once the final
 //   pass is green), whatever the title gains before it, kept from one run to the next, empty when a
@@ -319,8 +320,10 @@
 //   caller included. A session the state names that still runs is waited for first, and stopped
 //   when it stands still as long as a motionless session.
 // - `--depuis <testwriter|developpeur> <composant>` (a path or a package name the title names) has
-//   the lot corrected by one component: it plays it as a RENDU whose one finding names that agent,
-//   the text of `--contexte` as its findings: that component's steps; then each component after
+//   the lot corrected by one component: it plays it from that agent, the text of `--contexte` on
+//   the line CONTEXTE of each agent of that component, its testwriter then its developpeur, as a
+//   retry of GitLab CI plays the jobs after it with the same variables: that component's steps,
+//   its developpeur launched by a red of its proof as without `--depuis`; then each component after
 //   it that the circuit has not carried through yet (`atteints`), its whole circuit, testwriter,
 //   proof, developpeur and checks; one it has carried through plays nothing, the final pass judges
 //   it; then the final pass, the reviewer and the integration. It goes with no `--reprendre`.
@@ -332,7 +335,7 @@
 //   a red of another component waits for its checks, or at the final pass goes to its developpeur
 //   (above); a developpeur's sending plays its testwriter (above);
 //   on `--reponse`, a component the title gained since the question plays from its testwriter, the
-//   answer as its report, with no regulator resumed. Each gesture the circuit applies itself is
+//   answer as its context, with no regulator resumed. Each gesture the circuit applies itself is
 //   written at the ticket, `Circuit · <composant> · arbitrage : <genre> → <geste>`, and counts as a
 //   RELANCE on its stop.
 // - On a stop the table does not settle, the regulator: a session out of the envelope, as the
@@ -1089,7 +1092,7 @@ async function seance(ctx, role, composant, { tentative, rapport, fort, derniere
     lots: lots.length
       ? `${role === 'developpeur' ? 'le lot de tests' : 'tes tests'}, déjà dans la copie : ${lots.join(', ')}`
       : 'aucun',
-    contexte: (!ctx.depuis && ctx.contexte) || 'aucun',
+    contexte: contexteDe(ctx, composant),
     description: description.trim() || 'aucune',
     // The section of the ticket's notes, absent without notes.
     notes: notes.trim()
@@ -1099,6 +1102,14 @@ async function seance(ctx, role, composant, { tentative, rapport, fort, derniere
     passation: passation?.text ?? 'aucune',
   };
   return await jusquALaFiche(ctx, role, composant, consigne(valeurs), { fort, neuve: agent });
+}
+
+// The line CONTEXTE of a session on <composant>: the context of the relaunch --depuis that plays
+// it again (`renvois`, kept in the state), with the context of a run without --depuis, which every
+// agent receives; « aucun » without either.
+function contexteDe(ctx, composant) {
+  const textes = [ctx.renvois?.[composant]?.contexte, !ctx.depuis && ctx.contexte];
+  return [...new Set(textes.filter(Boolean))].join('\n\n') || 'aucun';
 }
 
 // The launch <r> of a session of <role>, or the Arret it is: a motionless session (« bloqué »),
@@ -3032,12 +3043,14 @@ function depart(ctx, e) {
   const fin = ctx.composants.length - 1;
   if (ctx.depuis) {
     const { etape, composant } = ctx.depuis;
-    ctx.renvois = { [composant]: { etape, [etape]: ctx.contexte } };
+    ctx.renvois = {
+      [composant]: { etape, testwriter: null, developpeur: null, contexte: ctx.contexte ?? null },
+    };
     return {
       index: ctx.composants.indexOf(composant),
       etape,
       tentative: 1,
-      rapport: ctx.contexte,
+      rapport: null,
       dernier: fin,
       finale: false,
     };
@@ -3584,7 +3597,7 @@ export async function main(argv) {
       },
     };
     // A component the title gained since the question: the gesture of the table, its testwriter, the
-    // answer as its report, with no regulator resumed.
+    // answer as its context, with no regulator resumed.
     const ajoute = ctx.composants.find(c => !(e.composants ?? ctx.composants).includes(c));
     if (ajoute) {
       const ligne = gesteDe('composant-ajoute');
