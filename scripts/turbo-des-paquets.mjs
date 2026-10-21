@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // The `turbo.json` of each package of a repository of packages, generated from its package.json
-// (its dependencies, its build, the data its tests read and the traces it writes), its
+// (its dependencies, its build, the paths its tests read and the traces it writes), its
 // configurations of TypeScript, the root's turbo.json and the list of the packages out of the
 // frame; and, in the root's turbo.json, the `dependsOn` of the guard tasks, the `env` of the tests,
 // the variable of the results directory and the exclusion of a submodule's `.git`.
 //
 //   node scripts/turbo-des-paquets.mjs           refuses a turbo.json absent or stale, and a
-//                                                declaration of data or trace refused (below)
+//                                                declaration of a path read or trace refused (below)
 //   node scripts/turbo-des-paquets.mjs --ecrire  writes the turbo.json of each package, and the
 //                                                guards' dependsOn and the tests' env in the root's
 //
@@ -50,16 +50,17 @@
 // the `<name>#<task>` of each internal package it declares there, out of the frame left out,
 // sorted. The check refuses a configuration that is not so, which Turborepo would play.
 //
-// The data a package's tests read, as Bazel's `data`, and the traces a stage writes, as Bazel's
-// genrule: the test task of a package depends on its code, on what it imports and on the
-// directories it declares only. A package declares in its package.json, each path from the root:
+// What a package's tests read, as Bazel's `data`, and the traces a stage writes, as Bazel's
+// genrule: the test task of a package depends on its code, on what it imports and on the paths it
+// declares only. A package declares in its package.json, each path from the root:
 //
 //   "grillhouse": {
 //     "lit": ["packages/990-corpus/test/060-encoder/paires-v1"],
 //     "traces": { "trace:grammaires": { "lit": ["…/paires-v1"], "ecrit": "packages/060-encoder/trace/grammaires-du-corpus" } }
 //   }
 //
-// - `lit`: the paths of data its tests read, directories or files. Its `test:vitest` hashes them
+// - `lit`: the paths its tests read, directories or files, data or code, a neighbour's scripts and
+//   sources included, as Bazel's `data` takes any file. Its `test:vitest` hashes them
 //   (`inputs`: the root's, `$TURBO_EXTENDS$`, or Turborepo's default, `$TURBO_DEFAULT$`, when the
 //   root's task sets none, since `$TURBO_EXTENDS$` then extends an empty list; then
 //   `$TURBO_ROOT$/<dir>/**` each) and waits, beside the root's `dependsOn`, for each trace whose
@@ -74,15 +75,16 @@
 //   (scripts/enveloppe/lancer.sh), which produce them before the tests; the envelope shows the
 //   directory of a neighbour's trace read-only (scripts/enveloppe/enveloppe.mjs), and the targeted
 //   run inside it plays the traces of the agent's package only.
-// - The package holding a declared directory (the shared test material) has its `build` leave it
-//   out (`inputs`: the root's, then `!<dir>/**` each): its data no longer moves its build, nor the
-//   tests of every package that waits for it. The builds a package's dependencies give stay as
-//   they are: a package reduces them in its package.json.
+// - The package holding a declared path of data alone (the shared test material) has its `build`
+//   leave it out (`inputs`: the root's, then `!<dir>/**` each): its data no longer moves its build,
+//   nor the tests of every package that waits for it. A declared path holding code (a file a build
+//   compiles: `.ts`, `.tsx`, `.mts`, `.cts`, `.d.ts` included, whose types tsc checks, `.js`,
+//   `.jsx`, `.mjs`, `.cjs`) stays an input of its package's build, as Bazel's `data` leaves a file
+//   in the rule that builds it; what a trace writes is no code of it. The builds a package's
+//   dependencies give stay as they are: a package reduces them in its package.json.
 //
-// The check refuses a declared directory absent that no trace writes, or holding code (a file a
-// build compiles: `.ts`, `.tsx`, `.mts`, `.cts`, `.d.ts` included, whose types tsc checks, `.js`,
-// `.jsx`, `.mjs`, `.cjs`; code is imported, its change seen through the build of its package); a
-// trace written out of its package, followed by git, or not ignored; a `trace:*` script without
+// The check refuses a declared path absent that no trace writes; a trace written out of its
+// package, followed by git, or not ignored; a `trace:*` script without
 // declaration, a declaration without script or not named `trace:<name>`. In the root's
 // turbo.json, which is the project's, it refuses what the generator owns: a task of one package
 // (`<package>#<task>`, the root's own `//#…` kept), a `trace:*` task, an input (`inputs` under
@@ -447,10 +449,12 @@ export function attendus(racine) {
       .filter(t => t.id !== soi && lit.some(l => recouvre(l, t.ecrit)))
       .map(t => t.id)
       .sort();
-  // The directories of data declared: the ones a trace writes left out, which git ignores.
+  // The paths of data alone declared: the ones a trace writes left out, which git ignores, and the
+  // ones holding code, which stay inputs of the build of their package.
+  const ecrits = traces.map(t => t.ecrit);
   const donnees = [
     ...new Set([...decls.values()].flatMap(d => [...d.lit, ...d.traces.flatMap(t => t.lit)])),
-  ].filter(l => !traces.some(t => recouvre(l, t.ecrit)));
+  ].filter(l => !ecrits.some(e => recouvre(l, e)) && !contientCode(racine, l, ecrits));
   // The inputs of the root's <tache> a package's own extend: the root's, or Turborepo's default
   // when the root sets none (`$TURBO_EXTENDS$` then extends an empty list).
   const base = tache => (deRacine.get(tache)?.inputs ? '$TURBO_EXTENDS$' : '$TURBO_DEFAULT$');
@@ -662,21 +666,20 @@ export function ecrire(racine) {
   return ecrits;
 }
 
-// The files of code under <chemin> of <racine> (a directory, or a file), each path from the root,
-// sorted; what lies under one of <exclus> left out, as `parcourir` walks it.
-function codeSous(racine, chemin, exclus) {
-  if (exclus.some(e => sous(chemin, e))) return [];
+// Whether <chemin> of <racine> (a directory, or a file, from the root) holds a file of code; what
+// lies under one of <exclus> left out, as `parcourir` walks it.
+function contientCode(racine, chemin, exclus) {
+  if (exclus.some(e => sous(chemin, e))) return false;
   const rel = p => path.relative(racine, p).split(path.sep).join('/');
-  return parcourir(path.join(racine, chemin), p => exclus.some(e => sous(rel(p), e)))
-    .map(rel)
-    .filter(f => CODE.test(f))
-    .sort();
+  return parcourir(path.join(racine, chemin), p => exclus.some(e => sous(rel(p), e))).some(f =>
+    CODE.test(f)
+  );
 }
 
 const gitSort = (racine, args) => spawnSync('git', args, { cwd: racine, encoding: 'utf8' });
 
 // The refusals of the data and traces the packages of <racine> declare: one line per declared
-// directory absent that no trace writes or holding code, per trace written out of its producer,
+// path absent that no trace writes, per trace written out of its producer,
 // followed by git or not ignored, per trace script without declaration and declaration without
 // script.
 function declarationsRefusees(racine) {
@@ -717,19 +720,9 @@ function declarationsRefusees(racine) {
     }
     for (const l of [...new Set([...lit, ...traces.flatMap(t => t.lit)])].sort()) {
       const sortie = ecrits.some(e => recouvre(l, e));
-      if (!existsSync(path.join(racine, l))) {
-        if (!sortie) {
-          refus.push(
-            `⛔ ${ici} : le chemin lu \`${l}\` n'existe pas, et aucune trace ne l'écrit (\`grillhouse.traces\`).`
-          );
-        }
-        continue;
-      }
-      const code = codeSous(racine, l, ecrits);
-      if (code.length) {
-        const noms = code.length > 5 ? [...code.slice(0, 5), '…'] : code;
+      if (!sortie && !existsSync(path.join(racine, l))) {
         refus.push(
-          `⛔ ${ici} : le chemin lu \`${l}\` contient du code (${noms.join(', ')}) ; un chemin déclaré ne porte que des données, le code s'importe.`
+          `⛔ ${ici} : le chemin lu \`${l}\` n'existe pas, et aucune trace ne l'écrit (\`grillhouse.traces\`).`
         );
       }
     }

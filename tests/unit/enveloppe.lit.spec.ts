@@ -131,11 +131,15 @@ describe.runIf(canWrap)('grillhouse-3uv.89 — l’enveloppe sur le disque et gr
   };
   ecrire(
     'packages/a/package.json',
-    JSON.stringify({ name: 'a', grillhouse: { lit: ['packages/b/test'] } })
+    JSON.stringify({
+      name: 'a',
+      grillhouse: { lit: ['packages/b/test', 'packages/b/src/tables.ts'] },
+    })
   );
   ecrire('packages/a/src/a.ts', 'a');
   ecrire('packages/b/package.json', JSON.stringify({ name: 'b' }));
   ecrire('packages/b/src/b.ts', 'secret');
+  ecrire('packages/b/src/tables.ts', 'tables');
   ecrire('packages/b/test/capture.mjs', 'capture');
   mkdirSync(path.join(repo, '.beads'));
   writeFileSync(path.join(repo, '.beads/config.yaml'), '');
@@ -160,6 +164,13 @@ describe.runIf(canWrap)('grillhouse-3uv.89 — l’enveloppe sur le disque et gr
     const r = run('cat packages/b/test/capture.mjs');
     expect(r.stdout, r.stderr).toBe('capture');
     expect(run('touch packages/b/test/x').status).not.toBe(0);
+    expect(run('cat packages/b/src/b.ts').status).not.toBe(0);
+  });
+
+  it('montre en lecture seule un fichier de code qu’ils déclarent lire, le reste de son dossier caché', () => {
+    const r = run('cat packages/b/src/tables.ts');
+    expect(r.stdout, r.stderr).toBe('tables');
+    expect(run('echo x > packages/b/src/tables.ts').status).not.toBe(0);
     expect(run('cat packages/b/src/b.ts').status).not.toBe(0);
   });
 });

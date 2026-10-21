@@ -399,21 +399,6 @@ describe('the check refuses a declaration the guarantee cannot hold on', () => {
     expect(refus).toContain(`${CORPUS}/test/040-checker/absentes`);
   });
 
-  it.each([
-    ['index.ts'],
-    ['profonde/aide.mjs'],
-    ['types.d.ts'],
-    ['vue.tsx'],
-    ['outil.cjs'],
-    ['outil.js'],
-  ])('a declared directory holding code: %s', fichier => {
-    const racine = depotBP();
-    ecrireFichier(racine, `${PAIRES}/${fichier}`, 'export {};\n');
-    const refus = refusDe(racine);
-    expect(refus).toContain(`${PAIRES}/${fichier}`);
-    expect(refus).toContain('packages/060-encoder');
-  });
-
   // A file listed then gone before it is read (here a dangling link), as Vite's temporary file
   // beside a configuration of Vitest, while the guards play beside the tests: the check gives its
   // verdict; that temporary file is no code of the directory.
@@ -536,7 +521,7 @@ describe('the check refuses an ESM configuration of Vitest in the shared test ma
 });
 
 // A declared path is a directory or a file: BPScript declares three files. A file is hashed by its
-// reader's tests, left out of the build of the package holding it, and refused when absent or code.
+// reader's tests, left out of the build of the package holding it, and refused when absent.
 describe('a declared file is treated as a declared directory', () => {
   const LEXIQUE = `${CORPUS}/test/040-checker/lexique.json`;
   const depotAvecFichier = (fichier = LEXIQUE) => {
@@ -582,13 +567,100 @@ describe('a declared file is treated as a declared directory', () => {
     const refus = refusDe(depotAvecFichier(absent));
     expect(refus).toContain(`le chemin lu \`${absent}\` n'existe pas`);
   });
+});
 
-  it('a declared file of code is refused, named a path read', () => {
-    const code = `${CORPUS}/test/040-checker/aide.ts`;
-    const racine = depotAvecFichier(code);
-    ecrireFichier(racine, code, 'export {};\n');
-    const refus = refusDe(racine);
-    expect(refus).toContain(`le chemin lu \`${code}\` contient du code (${code})`);
+// A declared path may hold code, as Bazel's `data` takes any file. Witness: BPScript 320.3, whose
+// 995-tools reads `packages/900-driver/test` (capture scripts) and
+// `packages/000-forms/src/tables.ts`. Such a path stays an input of its own package's build, data
+// alone being left out, and its reader's tests hash it.
+describe('a declared path holding code, a neighbour’s', () => {
+  const CAPTURES = 'packages/060-encoder/test';
+  const TABLES = 'packages/000-forms/src/tables.ts';
+  const depotAvecCode = (lit: string[]) => {
+    const racine = depotBP(
+      avec('040-checker', p => {
+        p.grillhouse = { lit: [SCENES_040, ...lit] };
+      })
+    );
+    ecrireFichier(racine, `${CAPTURES}/capture.mjs`, 'console.log(1);\n');
+    ecrireFichier(racine, TABLES, 'export const tables = [];\n');
+    return racine;
+  };
+
+  it.each([
+    ['index.ts'],
+    ['profonde/aide.mjs'],
+    ['types.d.ts'],
+    ['vue.tsx'],
+    ['outil.cjs'],
+    ['outil.js'],
+  ])('a declared directory holding code passes, and its package’s build keeps it: %s', fichier => {
+    const racine = depotBP();
+    ecrireFichier(racine, `${PAIRES}/${fichier}`, 'export {};\n');
+    expect(refusDe(racine)).toBe('');
+    expect(tachesDe(racine, CORPUS).build.inputs).toEqual([
+      '$TURBO_EXTENDS$',
+      '!test/040-checker/scenes/**',
+      '!test/070-deriver/scenes/**',
+    ]);
+  });
+
+  it('a neighbour’s directory of scripts and file of source pass the check', () => {
+    expect(refusDe(depotAvecCode([CAPTURES, TABLES]))).toBe('');
+  });
+
+  it('its reader’s tests hash it; its own package’s build keeps it in its inputs', () => {
+    const racine = depotAvecCode([CAPTURES, TABLES]);
+    ecrire(racine);
+    expect(tachesDe(racine, 'packages/040-checker')['test:vitest'].inputs).toEqual([
+      '$TURBO_EXTENDS$',
+      `$TURBO_ROOT$/${TABLES}/**`,
+      `$TURBO_ROOT$/${CAPTURES}/**`,
+      `$TURBO_ROOT$/${SCENES_040}/**`,
+    ]);
+    expect(tachesDe(racine, 'packages/000-forms').build).toEqual({ dependsOn: [] });
+    expect(tachesDe(racine, 'packages/060-encoder').build).toEqual({
+      dependsOn: ['000-forms#build'],
+    });
+    const graphe = sec(racine, ['test:vitest']);
+    const lues = Object.keys(graphe.get('040-checker#test:vitest')!.inputs).map(f =>
+      path.posix.normalize(path.posix.join('packages/040-checker', f))
+    );
+    expect(lues).toContain(TABLES);
+    expect(lues).toContain(`${CAPTURES}/capture.mjs`);
+    expect(Object.keys(graphe.get('000-forms#build')!.inputs)).toContain('src/tables.ts');
+    expect(Object.keys(graphe.get('060-encoder#build')!.inputs)).toContain('test/capture.mjs');
+  });
+
+  it('a change of it replays its reader’s tests', () => {
+    const racine = depotAvecCode([CAPTURES, TABLES]);
+    ecrire(racine);
+    const empreintes = () =>
+      new Map([...sec(racine, ['test:vitest'])].map(([id, t]) => [id, t.hash]));
+    const avant = empreintes();
+    ecrireFichier(racine, `${CAPTURES}/capture.mjs`, 'console.log(2);\n');
+    const apresCaptures = empreintes();
+    expect(apresCaptures.get('040-checker#test:vitest')).not.toBe(
+      avant.get('040-checker#test:vitest')
+    );
+    expect(apresCaptures.get('060-encoder#build')).not.toBe(avant.get('060-encoder#build'));
+    ecrireFichier(racine, TABLES, 'export const tables = [1];\n');
+    const apresTables = empreintes();
+    expect(apresTables.get('040-checker#test:vitest')).not.toBe(
+      apresCaptures.get('040-checker#test:vitest')
+    );
+    expect(apresTables.get('000-forms#build')).not.toBe(apresCaptures.get('000-forms#build'));
+  });
+
+  it('the data declared inside it stay left out of its package’s build, the path itself kept', () => {
+    const racine = depotAvecCode([`${CORPUS}/test`]);
+    expect(refusDe(racine)).toBe('');
+    expect(tachesDe(racine, CORPUS).build.inputs).toEqual([
+      '$TURBO_EXTENDS$',
+      '!test/040-checker/scenes/**',
+      '!test/060-encoder/paires-v1/**',
+      '!test/070-deriver/scenes/**',
+    ]);
   });
 });
 

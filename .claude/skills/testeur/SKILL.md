@@ -104,14 +104,14 @@ composant rend. Exemple : en 320.2.6 de BPScript, des bancs sur des objets faits
 restaient verts alors que la chaîne restait fausse. Ainsi le test mord sur le produit tel qu'il
 tourne.
 
-**Ce que tes tests lisent se déclare** : un test qui lit des données hors des imports (des
-scènes, des paires de la matière, la trace d'un autre étage) fait déclarer leur chemin, dossier
-ou fichier, dans le `package.json` de son paquet, depuis la racine :
-`"grillhouse": { "lit": ["<chemin>"] }`. Le test n'est rejoué que si son code, ce qu'il importe ou
-un chemin déclaré change ; un chemin qu'un autre paquet déclare sort de la construction de la
-matière, et un lecteur qui l'omet garde un vert périmé. L'enveloppe de son composant le montre
-en lecture seule, même dans un voisin qu'elle cache. Un chemin déclaré ne porte que des
-données : le code s'importe. Le `package.json` d'un paquet de la matière est à toi, comme tout
+**Ce que tes tests lisent se déclare** : un test qui lit un fichier hors des imports (des
+scènes, des paires de la matière, la trace d'un autre étage, les scripts ou un source d'un voisin
+qu'il lit ou lance) fait déclarer son chemin, dossier ou fichier, dans le `package.json` de son
+paquet, depuis la racine : `"grillhouse": { "lit": ["<chemin>"] }`. Le test n'est rejoué que si
+son code, ce qu'il importe ou un chemin déclaré change ; un chemin de données seules qu'un autre
+paquet déclare sort de la construction de son paquet, un chemin qui contient du code y reste, et
+un lecteur qui l'omet garde un vert périmé. L'enveloppe de son composant le montre en lecture
+seule, même dans un voisin qu'elle cache. Le `package.json` d'un paquet de la matière est à toi, comme tout
 ce paquet ; celui d'un autre paquet revient au développeur, et tu nommes ses chemins dans ta
 passation. Ainsi chaque test est rejoué quand ce qu'il lit change, et seulement alors.
 

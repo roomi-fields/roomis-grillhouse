@@ -141,8 +141,11 @@ remplace jamais le grill. Les branches de l'arbre :
    d'une configuration ESM pour la charger, et le corpus est en lecture seule chez les autres
    rôles. Ses données (scènes, paires) ne bougent que les tests qui
    les lisent, comme le `data` de Bazel : chaque paquet déclare dans son `package.json`, depuis la
-   racine, les chemins (dossiers ou fichiers) de données seules que ses tests lisent (`"grillhouse": { "lit": [...] }`) ;
-   son test les prend en entrée, et la construction du corpus les laisse hors des siennes. Une
+   racine, les chemins (dossiers ou fichiers) que ses tests lisent (`"grillhouse": { "lit": [...] }`),
+   données ou code d'un voisin (ses scripts de capture, un fichier de ses sources), comme le `data`
+   de Bazel prend tout fichier ; son test les prend en entrée, et la construction du paquet qui
+   porte un chemin de données seules le laisse hors des siennes, tandis qu'un chemin qui contient
+   du code reste dans la construction de son paquet. Une
    trace qu'un étage produit (des grammaires encodées du corpus), comme une genrule de Bazel, vit
    dans le paquet producteur, dans un dossier que git ignore, et se déclare avec ce qu'elle lit
    (`"traces": { "trace:<nom>": { "lit": [...], "ecrit": "<dossier>" } }`, sa commande le script du

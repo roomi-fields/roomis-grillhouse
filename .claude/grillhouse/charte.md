@@ -176,7 +176,8 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
   par `codegraph explore` (ou l'outil `codegraph_explore`) pour l'appel ; le shell lit un fichier
   déjà nommé. Une recherche vide se reformule dans les mots du code. Dans son enveloppe, un agent
   lit son paquet, les interfaces de ses voisins, la matière de test partagée et ce que ses tests
-  déclarent lire (`grillhouse.lit`) ; l'index est aux rôles qui voient tout le dépôt.
+  déclarent lire (`grillhouse.lit`), données ou code d'un voisin ; l'index est aux rôles qui voient
+  tout le dépôt.
   Ainsi une affirmation sur le code repose sur ce que le code contient.
 - Tickets : Beads (`bd`), sous le préfixe du projet, voir `docs/agents/issue-tracker.md`.
 - Le greffon `mattpocock-skills` s'appelle avec son préfixe ; un document pour un agent s'écrit
