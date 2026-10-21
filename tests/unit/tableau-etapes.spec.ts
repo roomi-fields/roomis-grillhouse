@@ -19,12 +19,23 @@
 //   4 · Relecture · relecteur
 //   ▸ 5 · Intégration
 //
+// A stop of the opening, which the circuit ends on for the supervisor with no regulator (the
+// owner, 2026-10-21):
+//
+//   ▾ 1 · Ouverture
+//     1.1 · Relevé des composants · auto
+//     ⤷ Arrêt · superviseur
+//   ■ 322    Le parser garde…
+//     1.2 · Questionnement · questionneur ⇄ référent
+//
 // - Every step stands in its order. A step with sub-steps is folded (▸) while none of them holds
 //   a ticket, unfolded (▾) once one does, all its sub-steps then shown, the empty ones in the
 //   discreet tone; a step without sub-steps stands on one line, discreet when empty.
 // - A stopped ticket stands under its step, on a line « ⤷ Arbitrage de l'arrêt · régulateur ⇄
 //   questionneur » then its own line, which unfolds its step: the arbitrage is out of the
-//   sequence, tied to the stopped step.
+//   sequence, tied to the stopped step. A stop whose kind the table of the stops sends to the
+//   supervisor (scripts/etapes.mjs) stands under a line « ⤷ Arrêt · superviseur » instead.
+// - The line of 1.2 names its roles « questionneur ⇄ référent », to hold in 52 columns.
 // - A ticket's line in a circuit alternates, every 5 s, its subject and its component under way
 //   (the board gives both texts, `texte` and `alterne`; the mod alternates), with its rank among
 //   the title's components, then the counters of its loops, its time and its tokens.
@@ -168,7 +179,7 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
       ['0', 'Exploration', 'explorateur'],
       ['1', 'Ouverture', ''],
       ['1.1', 'Relevé des composants', 'auto'],
-      ['1.2', 'Questionnement du plan', 'questionneur ⇄ référent technique'],
+      ['1.2', 'Questionnement', 'questionneur ⇄ référent'],
       ['2', 'Composants', ''],
       ['2.1', 'Tests', 'testeur'],
       ['2.2', 'Preuve du rouge', 'auto'],
@@ -212,13 +223,13 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
     expect(agents(t)[1]).toMatchObject({ ton: 'titre' });
   });
 
-  it('a technical referent on a ticket stands at 1.2, which unfolds the opening, its line cut to the width', () => {
+  it('a technical referent on a ticket stands at 1.2, which unfolds the opening, its line whole in the width', () => {
     const t = plateau([T('demo-31')], { vivants: [vivant('a1', 'demo-31', 'referent-technique')] });
     const a = agents(t);
     expect(a.slice(2, 5).map(x => [x.texte.trimEnd(), x.ton])).toEqual([
       ['▾ 1 · Ouverture', 'titre'],
       ['  1.1 · Relevé des composants · auto', 'discret'],
-      ['  1.2 · Questionnement du plan · questionneur ⇄ réf…', 'titre'],
+      ['  1.2 · Questionnement · questionneur ⇄ référent', 'titre'],
     ]);
     expect(a[5]).toMatchObject({ ticket: 'demo-31' });
     expect(a.every(x => x.texte.length <= LARGEUR)).toBe(true);
@@ -257,7 +268,7 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
         }),
       ],
     });
-    expect(etapeDe(t, 'demo-35')).toMatch(/^ {2}1\.2 · Questionnement du plan/);
+    expect(etapeDe(t, 'demo-35')).toMatch(/^ {2}1\.2 · Questionnement · /);
     expect(arbitreDe(t, 'demo-35')).toBe(false);
     expect(ligneDe(t, 'demo-35').texte).toMatch(/^▶ 35 {2}Le sujet de demo-35 · tour 2\/4( |$)/);
   });
@@ -304,8 +315,73 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
       '  1.1 · Relevé des composants · auto'
     );
     expect(sous({ etape: 'testeur', vivant: false, code: 22, arret: 'questionnement' })).toMatch(
-      /^ {2}1\.2 · Questionnement du plan/
+      /^ {2}1\.2 · Questionnement · /
     );
+  });
+
+  it('a stop of the survey at 1.1 stands under « ⤷ Arrêt · superviseur », which unfolds the opening', () => {
+    const t = plateau([T('demo-322')], {
+      circuits: [
+        circuit('demo-322', {
+          etape: 'testeur',
+          vivant: false,
+          code: 21,
+          arret: 'composants-manquants',
+        }),
+      ],
+    });
+    const a = textes(t);
+    const i = a.indexOf('▾ 1 · Ouverture');
+    expect(a.slice(i, i + 5)).toEqual([
+      '▾ 1 · Ouverture',
+      '  1.1 · Relevé des composants · auto',
+      '  ⤷ Arrêt · superviseur',
+      expect.stringMatching(/^■ 322 {2}Le sujet de demo-322/),
+      '  1.2 · Questionnement · questionneur ⇄ référent',
+    ]);
+    expect(a).not.toContain(`  ${ARBITRAGE}`);
+    expect(agents(t)[i + 2]).toMatchObject({ ton: 'titre' });
+    expect(ligneDe(t, 'demo-322')).toMatchObject({ ton: 'attention' });
+  });
+
+  it('a questioning of the plan that does not converge stands at 1.2 under « ⤷ Arrêt · superviseur », its rounds shown', () => {
+    const t = plateau([T('demo-323')], {
+      circuits: [
+        circuit('demo-323', {
+          etape: 'testeur',
+          vivant: false,
+          code: 22,
+          arret: 'questionnement',
+          boucles: { questionnement: 4 },
+        }),
+      ],
+    });
+    const a = textes(t);
+    const i = a.indexOf('  1.2 · Questionnement · questionneur ⇄ référent');
+    expect(a.slice(i, i + 3)).toEqual([
+      '  1.2 · Questionnement · questionneur ⇄ référent',
+      '  ⤷ Arrêt · superviseur',
+      expect.stringMatching(/^■ 323 {2}Le sujet de demo-323 · tour 4\/4( |$)/),
+    ]);
+    expect(a).not.toContain(`  ${ARBITRAGE}`);
+  });
+
+  it('a stop the regulator settles keeps the line of the arbitrage beside a stop for the supervisor', () => {
+    const t = plateau([T('demo-324'), T('demo-325')], {
+      circuits: [
+        circuit('demo-324', {
+          etape: 'testeur',
+          vivant: false,
+          code: 21,
+          arret: 'composants-manquants',
+        }),
+        circuit('demo-325', { vivant: false, code: 20, arret: 'besoin' }),
+      ],
+    });
+    expect(arbitreDe(t, 'demo-324')).toBe(true);
+    const a = textes(t);
+    expect(a[a.findIndex(x => x.startsWith('■ 324')) - 1]).toBe('  ⤷ Arrêt · superviseur');
+    expect(a[a.findIndex(x => x.startsWith('■ 325')) - 1]).toBe(`  ${ARBITRAGE}`);
   });
 
   it('the questioning of a decision of the regulator stands at the arbitrage of the stopped step', () => {

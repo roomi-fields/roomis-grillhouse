@@ -355,8 +355,8 @@ describe('a circuit that stopped: under its step, at the arbitrage, its stop, it
 // Decided by the owner on 2026-10-17 (grill, Q10): a regulator comes only on a stop of the circuit,
 // which always has its state; a ticket in progress with neither a state nor a living agent falls
 // under the alert « en cours sans rien qui tourne ».
-// grillhouse-3uv.90: a circuit whose plan the questionneur questions stands at 1.2 Questionnement
-// du plan; one whose regulator's decision it questions stands at the arbitrage of its stopped step;
+// grillhouse-3uv.90: a circuit whose plan the questionneur questions stands at 1.2 Questionnement;
+// one whose regulator's decision it questions stands at the arbitrage of its stopped step;
 // each shows the round of its bounded loop from the second.
 describe('a circuit at the questioning', () => {
   const SEANCE = '0b8e8c7e-1d2f-4a3b-9c4d-5e6f7a8b9c0d';
@@ -385,7 +385,7 @@ describe('a circuit at the questioning', () => {
     );
     const t = plateau([T('demo-12'), T('demo-13')], [], [], lus);
     const a = agents(t);
-    const i = a.findIndex(x => x.startsWith('  1.2 · Questionnement du plan'));
+    const i = a.findIndex(x => x.startsWith('  1.2 · Questionnement · '));
     expect(i).toBeGreaterThan(-1);
     expect(a[i + 1]).toBe('▶ 12  Le sujet de demo-12 · tour 2/4');
     const j = a.indexOf(ARBITRAGE);

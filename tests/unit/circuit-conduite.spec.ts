@@ -41,6 +41,22 @@ describe('Q2 — the wait by slices is gone, with its callers', () => {
 });
 
 describe('Q10 — the supervisor launches the circuit, a régulateur, a session of the circuit, settles a stop', () => {
+  // Romain, 2026-10-21: the sub-step 1.2 is « Questionnement », in every text that names it.
+  it('the texts name the sub-step 1.2 « 1.2 Questionnement »', () => {
+    for (const f of [
+      '.claude/grillhouse/charte.md',
+      '.claude/skills/regulateur/SKILL.md',
+      '.claude/skills/referent-technique/SKILL.md',
+      '.claude/skills/questionneur/SKILL.md',
+      'README.md',
+      'docs/agents/issue-tracker.md',
+    ]) {
+      const texte = lire(f).replace(/\s+/g, ' ');
+      expect(texte, f).toContain('1.2 Questionnement');
+      expect(texte, f).not.toContain('Questionnement du plan');
+    }
+  });
+
   it('the charter names the regulateur, at the arbitrage of a stop, who settles a stop of the circuit', () => {
     const charte = lire('.claude/grillhouse/charte.md').replace(/\s+/g, ' ');
     expect(charte).toMatch(/l'Arbitrage de l'arrêt : le `regulateur` tranche l'arrêt/);

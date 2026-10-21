@@ -550,6 +550,23 @@ describe('3uv.49 critère 8 : the block of the regulator is shown as « régulat
   });
 });
 
+// Romain, 2026-10-21: the line of 1.2 names its roles short, to hold in 52 columns; the
+// arbitrage keeps « régulateur ».
+describe('the block of 1.2 names « questionneur ⇄ référent », the regulator its whole name', () => {
+  it('the block of the technical referent at 1.2 is shown « questionneur ⇄ référent », whole in the width', () => {
+    const t = plateau([T('demo-9')], [], [vivant('c0', 'demo-9', 'referent-technique')]);
+    expect(bloc(t, 'referent-technique')).toMatchObject({
+      numero: '1.2',
+      titre: 'Questionnement',
+      qui: 'questionneur ⇄ référent',
+    });
+    expect(agentsTextes(t).map(x => x.texte.trimEnd())).toContain(
+      '  1.2 · Questionnement · questionneur ⇄ référent'
+    );
+    expect(bloc(t, REGULATEUR)).toMatchObject({ qui: 'régulateur ⇄ questionneur' });
+  });
+});
+
 // A repository whose Beads answers from files: a fake `bd` on the PATH (its tickets, and the
 // comments of `demo-9`), its package.json, the register in a file.
 const depotFactice = (tickets: object[], commentaires: object[], registre: object[]) => {

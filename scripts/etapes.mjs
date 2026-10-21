@@ -5,7 +5,8 @@
 //
 // - A step (ETAPES): its number (« 2 », « 2.3 »), its title, who works there (`qui`: the role
 //   agents, or AUTO for a step the circuit leads itself; none for a step that only holds its
-//   sub-steps), whether it runs for each component of the ticket's title (`parComposant`), its
+//   sub-steps), its short form on the board's line where the roles' names do not hold in its
+//   width (`quiCourt`, the roles keeping their whole name everywhere else), whether it runs for each component of the ticket's title (`parComposant`), its
 //   sub-steps (`sous`), and the step of the circuit's state it is (`etat`: the `etape` of
 //   `.claude/worktrees/<ticket>.circuit.json`, the final pass being the checks once `finale`).
 //   The opening reads its sub-steps elsewhere in the state: the survey of the components by its
@@ -50,8 +51,9 @@ export const ETAPES = [
       },
       {
         numero: '1.2',
-        titre: 'Questionnement du plan',
+        titre: 'Questionnement',
         qui: ['questionneur', 'referent-technique'],
+        quiCourt: 'questionneur ⇄ référent',
         etat: null,
         questionnement: 'plan',
         arrets: ['questionnement'],
@@ -159,6 +161,10 @@ const NOMS = {
 };
 export const nomDuRole = role => NOMS[role] ?? role;
 
+// Who works at the step <e>, in words, « questionneur ⇄ référent »: its short form, else its
+// roles' names.
+export const quiDe = e => e.quiCourt ?? e.qui.map(nomDuRole).join(' ⇄ ');
+
 // The step <e> in words, « 2.3 Code ».
 export const libelle = e => `${e.numero} ${e.titre}`;
 
@@ -203,7 +209,8 @@ export const juge = role =>
 // kind of stop as the circuit reads it in its structured results and its state; `geste`, what
 // follows; `cas`, the case of BPScript 320.3 (2026-10-20) it would have settled, by its stop (A)
 // or its decision (D) in the analysis of that ticket. The gestures (GESTES):
-// - `superviseur`: the circuit ends on the stop, its reason saying why, for the supervisor;
+// - `superviseur`: the circuit ends on the stop, its reason saying why, for the supervisor, with
+//   no regulator, and the board shows it under its step after « ⤷ Arrêt · superviseur »;
 // - `a-repasser`: the circuit ends at 75, which the supervisor plays again at rest;
 // - `regulateur`: a session of the regulator settles the stop;
 // - `developpeur-du-composant`: the red goes to the developpeur of the component that owns it,
@@ -219,6 +226,20 @@ export const GESTES = [
 ];
 
 export const TABLE_DES_ARRETS = [
+  {
+    // A component the survey of the ticket finds and its title misses (21): the circuit ends on
+    // it at 1.1, before any session.
+    genre: 'composants-manquants',
+    geste: 'superviseur',
+    cas: 'A3 : 020-loader mis au titre en cours de route ; A14 : 040-checker, nommé au critère 13 et absent du titre, rouge à la première passe finale',
+  },
+  {
+    // A questioning of the plan that does not converge at 1.2 (22), a disagreement or a fourth
+    // round still questioned.
+    genre: 'questionnement',
+    geste: 'superviseur',
+    cas: 'A14 : 040-checker nommé au critère 13 et absent du titre, que le plan questionné aurait relevé ; D15 : une consigne neuve sur le fond, hors du plan',
+  },
   {
     // The same stop (its name, step and component) after a RELANCE, the copy and the ticket's
     // description unchanged since that decision.

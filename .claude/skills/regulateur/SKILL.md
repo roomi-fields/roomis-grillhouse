@@ -26,7 +26,7 @@ journal fait plusieurs Mo : je le lis par morceaux, `grep -n <motif> <journal>` 
 
 ## Le circuit
 
-1. **Le circuit** mène 1 Ouverture (1.1 Relevé des composants, 1.2 Questionnement du plan),
+1. **Le circuit** mène 1 Ouverture (1.1 Relevé des composants, 1.2 Questionnement),
    puis 2 Composants, pour chaque composant du titre, le fournisseur d'abord, dans la copie du
    ticket : 2.1 Tests (le testeur), 2.2 Preuve du rouge, 2.3 Code (le développeur) et 2.4
    Contrôles ; puis 3 Passe finale, 4 Relecture (le relecteur), et 5 Intégration : 5.1 Commit et

@@ -91,7 +91,7 @@ stop `question` (18), the regulator's session kept; the supervisor answers the q
 when it is the owner's (the functional, what the charter keeps for him),
 and `circuit.mjs <ticket> --reponse "<answer>"` resumes that session with the answer. So the
 supervisor is woken only by a lot integrated, a question, or a stop the regulator could not settle.
-The questioner (`questionneur`, at 1.2 Questionnement du plan and at the arbitrage of a stop) asks its questions of the ticket's plan
+The questioner (`questionneur`, at 1.2 Questionnement and at the arbitrage of a stop) asks its questions of the ticket's plan
 before the first tester, after the survey of its components, and of each decision of the
 regulator before it is checked and applied, as Amazon's bar raiser or a cockpit's challenge and
 response: the author (the technical referent for the plan, the regulator for its decision)
@@ -141,7 +141,7 @@ claude's own are reachable (`~/.claude`, a throwaway copy of `~/.claude.json`, i
 token), and no socket of the session, no token held in a variable (`GH_TOKEN`…). A missing piece
 of data becomes a request to the component that provides it, not a local recomputation. One
 ticket makes one delivery: a goal of unknown size starts with an exploration ticket, every ticket
-is created under its mother (numbered `320.2.1`) and every ticket stands at one step of the tree of its circuit (`scripts/etapes.mjs`: 0 Exploration; 1 Ouverture, its sub-steps 1.1 Relevé des composants and 1.2 Questionnement du plan; 2 Composants, for each component 2.1 Tests, 2.2 Preuve du rouge, 2.3 Code, 2.4 Contrôles; 3 Passe finale; 4 Relecture; 5 Intégration, its sub-steps 5.1 Commit and 5.2 File : main, poussée, CI; and, out of the sequence, under the stopped step, the arbitrage of a stop), each step carrying its bounded loops (`essai 2/3`, `tour 2/4`, `arrêt 2/3`), and a hook refuses a second commit for a closed ticket (a reopened ticket takes correction commits).
+is created under its mother (numbered `320.2.1`) and every ticket stands at one step of the tree of its circuit (`scripts/etapes.mjs`: 0 Exploration; 1 Ouverture, its sub-steps 1.1 Relevé des composants and 1.2 Questionnement; 2 Composants, for each component 2.1 Tests, 2.2 Preuve du rouge, 2.3 Code, 2.4 Contrôles; 3 Passe finale; 4 Relecture; 5 Intégration, its sub-steps 5.1 Commit and 5.2 File : main, poussée, CI; and, out of the sequence, under the stopped step, the arbitrage of a stop), each step carrying its bounded loops (`essai 2/3`, `tour 2/4`, `arrêt 2/3`), and a hook refuses a second commit for a closed ticket (a reopened ticket takes correction commits).
 
 **The board** — the `grillhouse` mod (a Claude Code plugin whose source lives in `mods/grillhouse`, published
 in the `roomi-fields` marketplace as `grillhouse@roomi-fields`, enabled in
@@ -154,7 +154,8 @@ dimmed, an empty step dimmed, where each ticket stands on one line, once — a t
 its component under way with its rank among the title's (`030-binder 3/5`), the counters of its step's
 bounded loops from their second pass (`essai 2/3`, `tour 2/4`, `arrêt 2/3`), or, while the regulator's
 session settles its stop, or once stopped, under its step after a line « ⤷ Arbitrage de l'arrêt · régulateur
-⇄ questionneur », its card
+⇄ questionneur » (« ⤷ Arrêt · superviseur » for a stop the table of the stops sends to the supervisor with no
+regulator: the components missing from the title at 1.1, a questioning that does not converge at 1.2), its card
 opening on where it stopped and why, or on the regulator's question, and its line ending on its ticket's
 time and tokens; any other ticket at the step of the agent that runs on it, or waiting at the step of the
 next role of the flow; the chantier in progress, its tree of

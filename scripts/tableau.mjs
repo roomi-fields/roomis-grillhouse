@@ -81,9 +81,10 @@ import {
   ETAPES,
   etapeDuCircuit,
   etapeDuRole,
+  gesteDe,
   juge,
   libelle,
-  nomDuRole,
+  quiDe,
   REGULATEUR,
   SUITE,
 } from './etapes.mjs';
@@ -918,7 +919,7 @@ export function assembler({
     numero: e.numero,
     titre: e.titre,
     roles: e.qui.filter(r => r !== AUTO),
-    qui: e.qui.map(nomDuRole).join(' ⇄ '),
+    qui: quiDe(e),
     enCours: [],
     attend: [],
   }));
@@ -1164,7 +1165,10 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   // else in AGENTS: the questioning of the plan at its step; stopped, or while a session of the
   // regulator runs on its stop or the questionneur questions his decision, under its step after a
   // line « ⤷ <the arbitrage> · régulateur ⇄ questionneur », which unfolds the step: the
-  // arbitrage is out of the sequence, tied to the stopped step. A regulator out of any circuit
+  // arbitrage is out of the sequence, tied to the stopped step; a stop whose kind the table of the
+  // stops sends to the supervisor (gesture `superviseur`, scripts/etapes.mjs), which no regulator
+  // settles, stands there after a line « ⤷ Arrêt · superviseur » instead, its counters those of
+  // its step. A regulator out of any circuit
   // stands under that line after the steps. A circuit's line gives its subject (`texte`) and, in
   // turn (`alterne`, which the pane shows every other 5 s), the component under way, with its rank
   // among the title's components when they are several; then the counters of the bounded loops of
@@ -1181,14 +1185,20 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       .set(e.numero, {
         numero: e.numero,
         titre: e.titre,
-        qui: e.qui.map(nomDuRole).join(' ⇄ '),
+        qui: quiDe(e),
         enCours: [],
         attend: [],
       })
       .get(e.numero);
   const arbitrage = blocDe(ARBITRAGE);
   const etapeDe = c => etapeDuCircuit({ ...c, raison: c.arret });
-  const aLArbitrage = c => !c.vivant || c.regulateur || c.questionnement === 'decision';
+  const auSuperviseur = c =>
+    !c.vivant &&
+    !c.regulateur &&
+    c.questionnement !== 'decision' &&
+    gesteDe(c.arret)?.geste === 'superviseur';
+  const aLArbitrage = c =>
+    !auSuperviseur(c) && (!c.vivant || c.regulateur || c.questionnement === 'decision');
   const blocDuCircuit = c => {
     const e = etapeDe(c);
     return e ? blocDe(e) : aLArbitrage(c) ? arbitrage : undefined;
@@ -1222,13 +1232,15 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   };
   const contenu = b => {
     const tous = (t.circuits ?? []).filter(c => blocDuCircuit(c) === b);
-    const circuits = tous.filter(c => !aLArbitrage(c));
+    const circuits = tous.filter(c => !aLArbitrage(c) && !auSuperviseur(c));
     const arretes = tous.filter(aLArbitrage);
+    const auxSuperviseur = tous.filter(auSuperviseur);
     const enCours = b.enCours.filter(x => !enCircuit.has(x.id));
     const attend = b.attend.filter(x => !enCircuit.has(x.id));
     return {
       circuits,
       arretes,
+      auxSuperviseur,
       enCours,
       attend,
       vide: !tous.length && !enCours.length && !attend.length,
@@ -1238,9 +1250,10 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   const ligneDArbitrage = retrait =>
     L(cadre(`${retrait}⤷ ${arbitrage.titre} · ${arbitrage.qui}`, '', largeur), 'titre');
   // The tickets of the block <b>: its circuits that run, its agents, its waits, then the line of
-  // the arbitrage, indented by <retrait> (none when <retrait> is null), and its stopped circuits.
+  // the arbitrage, indented by <retrait> (none when <retrait> is null), and its stopped circuits,
+  // then the line of the stops for the supervisor and theirs.
   const tickets = (b, retrait) => {
-    const { circuits, arretes, enCours, attend } = contenus.get(b);
+    const { circuits, arretes, auxSuperviseur, enCours, attend } = contenus.get(b);
     for (const c of circuits) {
       ligneDuCircuit(c);
     }
@@ -1264,6 +1277,12 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     if (arretes.length) {
       if (retrait !== null) ligneDArbitrage(retrait);
       for (const c of arretes) {
+        ligneDuCircuit(c);
+      }
+    }
+    if (auxSuperviseur.length) {
+      L(cadre(`${retrait ?? ''}⤷ Arrêt · superviseur`, '', largeur), 'titre');
+      for (const c of auxSuperviseur) {
         ligneDuCircuit(c);
       }
     }

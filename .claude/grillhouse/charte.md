@@ -49,7 +49,7 @@ séance le dit au responsable et ne lance aucun circuit. Les rôles sont des age
 compétence, sans la configuration propre de l'utilisateur (`scripts/droits.mjs`). Un ticket
 parcourt l'arbre de son circuit, les étapes « auto » comprises (`scripts/etapes.mjs`, la seule
 liste), comme un pipeline de GitLab CI ses étapes et leurs travaux : 0 Exploration,
-l'`explorateur` ; 1 Ouverture : 1.1 Relevé des composants, auto, puis 1.2 Questionnement du plan,
+l'`explorateur` ; 1 Ouverture : 1.1 Relevé des composants, auto, puis 1.2 Questionnement,
 le `questionneur` ⇄ le `referent-technique`, qui répond pour le plan, en tours, quatre au plus ;
 2 Composants, pour chaque composant du titre dans son ordre : 2.1 Tests, le `testeur`, 2.2 Preuve
 du rouge, auto, trois essais au plus, puis 2.3 Code, le `developpeur`, 2.4 Contrôles, auto, trois

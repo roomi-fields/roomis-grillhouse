@@ -22,6 +22,7 @@ import {
   juge,
   libelle,
   nomDuRole,
+  quiDe,
   SUITE,
   TABLE_DES_ARRETS,
 } from '../../scripts/etapes.mjs';
@@ -56,7 +57,7 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21', () => {
         [],
         [
           ['1.1', 'Relevé des composants', [AUTO]],
-          ['1.2', 'Questionnement du plan', ['questionneur', 'referent-technique']],
+          ['1.2', 'Questionnement', ['questionneur', 'referent-technique']],
         ],
       ],
       [
@@ -115,7 +116,8 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21', () => {
   });
 
   it('the questioning numbers no step of its own any more, nor the numbering before it', () => {
-    expect(suite.map(e => e.titre)).not.toContain('Questionnement');
+    // Its one step is 1.2, a sub-step of the opening (Romain, 2026-10-21: « Questionnement »).
+    expect(suite.filter(e => e.titre === 'Questionnement').map(e => e.numero)).toEqual(['1.2']);
     expect(suite.map(e => e.titre)).not.toContain('Arbitrage');
     expect(etapes).not.toHaveProperty('AUTOMATIQUE');
     expect(etapes).not.toHaveProperty('QUESTIONNEMENT');
@@ -203,6 +205,23 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21', () => {
       'relecteur',
       'auto',
     ]);
+  });
+});
+
+// Romain, 2026-10-21: the line of 1.2 on the board holds in 52 columns, « questionneur ⇄
+// référent », the role keeping its whole name everywhere else.
+describe('who works at a step, in words', () => {
+  it('joins the names of its roles, a step that declares its short form showing that', () => {
+    expect(quiDe(a('2.3'))).toBe('développeur');
+    expect(quiDe(a('1.1'))).toBe('auto');
+    expect(quiDe(a('1'))).toBe('');
+    expect(quiDe(ARBITRAGE)).toBe('régulateur ⇄ questionneur');
+    expect(quiDe(a('1.2'))).toBe('questionneur ⇄ référent');
+  });
+
+  it('the short form of 1.2 abbreviates no role: the role keeps its whole name', () => {
+    expect(a('1.2').qui).toEqual(['questionneur', 'referent-technique']);
+    expect(nomDuRole('referent-technique')).toBe('référent technique');
   });
 });
 
@@ -303,7 +322,7 @@ describe('one list, which the circuit, the board and the texts read', () => {
     ];
     const titres = [
       'Relevé des composants',
-      'Questionnement du plan',
+      'Questionnement',
       'Preuve du rouge',
       'Passe finale',
       'File : main, poussée, CI',
@@ -332,6 +351,8 @@ describe('one list, which the circuit, the board and the texts read', () => {
 describe('the table of the stops and their gesture, in the list of the steps', () => {
   it('names each kind of stop with its gesture, in the order the circuit tries them', () => {
     expect(TABLE_DES_ARRETS.map(l => [l.genre, l.geste])).toEqual([
+      ['composants-manquants', 'superviseur'],
+      ['questionnement', 'superviseur'],
       ['meme-arret-sans-fait-nouveau', 'superviseur'],
       ['a-repasser', 'a-repasser'],
       ['a-arbitrer', 'regulateur'],
@@ -354,6 +375,17 @@ describe('the table of the stops and their gesture, in the list of the steps', (
   it('gives the line of a kind of stop, and none for a kind it does not hold', () => {
     expect(gesteDe('a-arbitrer')?.geste).toBe('regulateur');
     expect(gesteDe('relecture-arret')).toBeNull();
+  });
+
+  // Romain, 2026-10-21: the stops of the opening go to the supervisor with no regulator, which
+  // the board reads in the table, never in a list of its own.
+  it('the stops of the opening, at 1.1 and 1.2, go to the supervisor', () => {
+    const ouverture = ['1.1', '1.2'].flatMap(n => (a(n) as { arrets?: string[] }).arrets ?? []);
+    expect(ouverture).toEqual(['composants-manquants', 'questionnement']);
+    for (const arret of ouverture) {
+      expect(ARRETS, arret).toHaveProperty([arret]);
+      expect(gesteDe(arret)?.geste, arret).toBe('superviseur');
+    }
   });
 
   it('the circuit reads its gestures in the table', () => {
