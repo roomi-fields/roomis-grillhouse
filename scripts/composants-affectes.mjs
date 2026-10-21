@@ -31,6 +31,16 @@
 //   declares for it, or for `*` (`consommateurs`); import it, or the whole provider, in their
 //   production code (`import`, the uses of scripts/consommateurs.mjs); hold a test file that names
 //   it, as a whole word, and imports the provider (the test file's path).
+// - By the types (scripts/references-par-les-types.mjs): each element, a member of a type or a
+//   function internal to a package included, resolved by TypeScript's language service over the
+//   components' `tsconfig.json`; its declaring components and the readers its references and its
+//   carriers' types reach (`types`), with the consumers the declaring component's interface
+//   writes for a carrier. A survey by the types that cannot run says why, and the survey stands
+//   on the names; a name the types resolve is no longer set apart.
+// - By the architecture: the items of the « Reçoit » and « Rend » of the `docs/CADRE.md` of each
+//   component that declares an element (by its interface or by the types), each component they
+//   name (`architecture`), as a value goes from its producer to its reader through the package
+//   that carries it.
 // - The components of the survey go in the title's order, the provider first: each one after
 //   every component it reads among them (its imports, the providers of the elements it reads), in
 //   the order of their names otherwise.
@@ -52,6 +62,7 @@ import {
   utilise,
 } from './consommateurs.mjs';
 import { lire } from './index-interfaces.mjs';
+import { elementsEcrits, parLesTypes } from './references-par-les-types.mjs';
 
 const DOSSIERS_DE_TEST = new Set(['test', 'tests', '__tests__']);
 const SAUTES = new Set(['node_modules', 'dist', 'build', 'coverage']);
@@ -151,7 +162,9 @@ function ordonner(liste, lit, nom) {
 
 // The survey of the description <description> in the repository at <racine>:
 // `{ nommes, elements: [{ nom, fournisseur, lecteurs: [{ composant, par }] }], sansFournisseur,
-// composants }`, each component by its title's name, `composants` in the title's order.
+// types: { etat, raison, elements: [{ nom, declarations: [{ composant, publie, porteurs }],
+// lecteurs }] }, architecture: [{ composant, par }], composants }`, each component by its
+// title's name, `composants` in the title's order.
 export function releve(racine, description) {
   const texte = lesSections(description);
   const tous = lesComposants(racine);
@@ -199,6 +212,47 @@ export function releve(racine, description) {
       elements.push({ nom, p, lecteurs });
     }
   }
+  // By the types: each element resolved by the language service, its declaring components and
+  // their readers, with the consumers the declaring component's interface writes for a carrier.
+  const types = parLesTypes(racine, tous, elementsEcrits(texte), {
+    fichiers: new Set(
+      [...texte.matchAll(/[\w.-]+\.[cm]?[jt]sx?\b/g)].map(m => path.basename(m[0]))
+    ),
+    composants: new Set(nommes(racine, tous, texte)),
+  });
+  const resolus = new Set(types.elements.map(e => e.ecrit));
+  for (const e of types.elements) {
+    for (const d of e.declarations) {
+      trouves.add(d.c);
+      const declares = ifaces.get(d.c)?.consommateurs;
+      for (const porteur of d.porteurs) {
+        for (const c of tous) {
+          const noms = declares?.get(c.nom) ?? declares?.get(c.paquet);
+          if (c === d.c || !noms || !(noms.has(porteur) || noms.has('*'))) continue;
+          if (!e.lecteurs.has(c)) e.lecteurs.set(c, new Set());
+          e.lecteurs.get(c).add(`consommateurs de ${porteur}`);
+        }
+      }
+    }
+    for (const c of e.lecteurs.keys()) trouves.add(c);
+  }
+  // By the architecture: the Reçoit and Rend of the CADRE.md of each component that declares an
+  // element.
+  const declarants = new Set([
+    ...elements.map(e => e.p),
+    ...types.elements.flatMap(e => e.declarations.map(d => d.c)),
+  ]);
+  const architecture = new Map();
+  for (const p of declarants) {
+    for (const { rubrique, regle, texte: ligne } of echanges(p)) {
+      for (const c of nommes(racine, tous, ligne)) {
+        if (c === p) continue;
+        if (!architecture.has(c)) architecture.set(c, new Set());
+        architecture.get(c).add(`CADRE de ${nomAuTitre(racine, p)}, ${rubrique} ${regle}`);
+        trouves.add(c);
+      }
+    }
+  }
   // What each component reads: its imports, and the providers of the elements it reads.
   const lit = new Map(tous.map(c => [c, new Set()]));
   for (const p of tous) {
@@ -209,6 +263,10 @@ export function releve(racine, description) {
   for (const e of elements) for (const l of e.lecteurs) lit.get(l.c).add(e.p);
   const titre = c => nomAuTitre(racine, c);
   const parNom = (a, b) => titre(a).localeCompare(titre(b));
+  const lecteursDe = m =>
+    [...m]
+      .sort(([a], [b]) => parNom(a, b))
+      .map(([c, par]) => ({ composant: titre(c), par: [...par] }));
   return {
     nommes: [...nommes(racine, tous, texte)].sort(parNom).map(titre),
     elements: elements.map(e => ({
@@ -218,9 +276,46 @@ export function releve(racine, description) {
         .sort((a, b) => parNom(a.c, b.c))
         .map(l => ({ composant: titre(l.c), par: l.par })),
     })),
-    sansFournisseur,
+    sansFournisseur: sansFournisseur.filter(n => !resolus.has(n)),
+    types: {
+      etat: types.etat,
+      raison: types.raison,
+      elements: types.elements.map(e => ({
+        nom: e.nom,
+        declarations: e.declarations.map(d => ({
+          composant: titre(d.c),
+          publie: d.publie,
+          porteurs: d.porteurs,
+        })),
+        lecteurs: lecteursDe(e.lecteurs),
+      })),
+    },
+    architecture: lecteursDe(architecture),
     composants: ordonner([...trouves], lit, titre).map(titre),
   };
+}
+
+// The exchanges the CADRE.md of the component <c> writes: each item of its rubrics « Reçoit » and
+// « Rend » (a `##` heading that ends with that word), its rule (`**R3.**`, else its line), its
+// continuation lines included.
+function echanges(c) {
+  const texte = lireSiPresent(path.join(c.dir, 'docs', 'CADRE.md'));
+  if (!texte) return [];
+  const out = [];
+  let rubrique = null;
+  for (const [i, l] of texte.split('\n').entries()) {
+    const h = /^## (.+)$/.exec(l);
+    if (h) {
+      rubrique = /(Reçoit|Rend)\s*$/.exec(h[1].trim())?.[1] ?? null;
+      continue;
+    }
+    if (!rubrique) continue;
+    if (/^[-*] /.test(l)) {
+      const regle = /^[-*] \*\*(R\d+)\.?\*\*/.exec(l)?.[1] ?? `l.${i + 1}`;
+      out.push({ rubrique, regle, texte: l });
+    } else if (/^\s+\S/.test(l) && out.length) out.at(-1).texte += ` ${l.trim()}`;
+  }
+  return out;
 }
 
 // The record of a ticket's survey beside its copy (<fichier>): `{ manquants, admis, reponses }`,
@@ -308,6 +403,40 @@ export function texteDuReleve(r) {
   for (const e of r.elements) {
     const lus = e.lecteurs.map(l => `${l.composant} (${l.par.join(', ')})`).join(', ');
     out.push(`- \`${e.nom}\` : fourni par ${e.fournisseur} ; lu par ${lus || 'aucun autre'}.`);
+  }
+  if (r.types.etat !== 'fait') {
+    out.push(`- Par les types : impossible (${r.types.raison}) ; le relevé s'en tient aux noms.`);
+  } else if (!r.types.elements.length) {
+    out.push('- Par les types : aucun élément résolu.');
+  } else {
+    out.push('- Par les types (service de langage de TypeScript) :');
+    // The elements of one provenance and the same readers on one line; each reader by its first
+    // reason, the count of the others after it.
+    const lignes = new Map();
+    for (const e of r.types.elements) {
+      const ou = [
+        ...new Set(
+          e.declarations.map(d =>
+            d.publie
+              ? `publié par ${d.composant}`
+              : `interne à ${d.composant}, porté par ${d.porteurs.map(p => `\`${p}\``).join(', ') || 'aucun export'}`
+          )
+        ),
+      ].join(' ; ');
+      const lus = e.lecteurs
+        .map(
+          l =>
+            `${l.composant} (${l.par[0]}${l.par.length > 1 ? ` ; ${l.par.length - 1} de plus` : ''})`
+        )
+        .join(', ');
+      const cle = `${ou} ; lu par ${lus || 'aucun autre'}.`;
+      lignes.set(cle, [...(lignes.get(cle) ?? []), `\`${e.nom}\``]);
+    }
+    for (const [cle, noms] of lignes) out.push(`  - ${noms.join(', ')} : ${cle}`);
+  }
+  if (r.architecture.length) {
+    const lus = r.architecture.map(l => `${l.composant} (${l.par.join(' ; ')})`).join(', ');
+    out.push(`- Par l'architecture : ${lus}.`);
   }
   if (r.nommes.length) out.push(`- Nommés au ticket : ${r.nommes.join(', ')}.`);
   if (r.sansFournisseur.length) {

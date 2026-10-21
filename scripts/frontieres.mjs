@@ -245,7 +245,7 @@ const SOURCE_TS = /[.]tsx?$/;
 // What the `tsconfig*.json` of the package at <dir> emit, as TypeScript reads them (their
 // `extends` included) and computes their output (`getOutputFileNames`): a Map from the absolute
 // path of an emitted file to the sources it comes from.
-function sorties(dir) {
+export function sorties(dir) {
   const ts = requis('typescript');
   const hote = { ...ts.sys, onUnRecoverableConfigFileDiagnostic: () => {} };
   const table = new Map();
