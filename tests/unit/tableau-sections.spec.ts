@@ -91,7 +91,7 @@ const TOUS = [
   T('demo-z.1', { parent: 'demo-z', ...ferme(AVANT) }),
 ];
 const FERMES = TOUS.filter(t => t.status === 'closed').map(t => t.id);
-// A tester finished on e.1.4: it waits for the developer, in the agents' blocks.
+// A testwriter finished on e.1.4: it waits for the developer, in the agents' blocks.
 const REGISTRE = [
   {
     agent: 'r1',
@@ -491,7 +491,7 @@ describe('3uv.42 critère 6 : the unused module-level liste is gone', () => {
 });
 
 // A long board: a tree of 31 tickets in progress, then a line folding by state the open tickets
-// no agent block shows (« + 1 sans go » carries its ticket), 6 tickets waiting for the tester,
+// no agent block shows (« + 1 sans go » carries its ticket), 6 tickets waiting for the testwriter,
 // 7 tickets closed today, and « + 1 autre chantier ».
 const PLIS = [
   T('demo-e', { issue_type: 'epic', title: 'e — Le chantier' }),

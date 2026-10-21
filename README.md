@@ -70,7 +70,7 @@ Three layers, each with one job:
 | ----------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | Initialisation & architecture | `grill`              | Surveys the code, grills the owner, writes the charter and reference documents.                                                        |
 | Supervisor                    | `pitmaster`          | Keeps the tickets, hands each one to a fresh agent, reviews closures, keeps the frame.                                                 |
-| Tester (agent)                | `testwriter`         | Writes a ticket's tests from the spec, before the code; writes test files and the shared test material only.                           |
+| Testwriter (agent)            | `testwriter`         | Writes a ticket's tests from the spec, before the code; writes test files and the shared test material only.                           |
 | Developer (agent)             | `developpeur`        | Makes those tests pass; touches no test nor the shared test material, writes no code before the ticket's Architecture section.         |
 | Reviewer (agent)              | `relecteur`          | Reviews the lot adversarially (edge cases, verification gaps, the frame); writes nothing.                                              |
 | Technical referent (agent)    | `referent-technique` | Settles a design question away from the rush: mature model, project texts, common mechanism; or sends it to the owner. Writes nothing. |
@@ -80,19 +80,19 @@ Three layers, each with one job:
 | Writer                        | `redacteur`          | Writes human-read documents (architecture on the arc42/C4 model, frame, interface).                                                    |
 | Release                       | `release`            | Bumps the version, updates the changelog, tags, publishes.                                                                             |
 
-A change of behaviour is one ticket that passes from agent to agent in its copy: tests (tester) →
+A change of behaviour is one ticket that passes from agent to agent in its copy: tests (testwriter) →
 code (developer) → review → commit on the ticket's branch → the queue brings it onto main, which closes it.
 The supervisor launches the ticket's circuit (`scripts/circuit.mjs`) once. On a stop other than
 0 and 75 (« à repasser »), the circuit first applies the gesture that the table of the stops
 (`scripts/etapes.mjs`) writes for its kind; for the rest, the circuit itself opens a session of the regulator (`regulateur`),
-whose sheet is its decision, checked on the circuit's state before it is applied: `RELANCE --reprendre` or `RELANCE --depuis` (a tester or a developer, a component),
+whose sheet is its decision, checked on the circuit's state before it is applied: `RELANCE --reprendre` or `RELANCE --depuis` (a testwriter or a developer, a component),
 which the circuit applies in the same run, or `MONTE` with its question, which ends the circuit on the
 stop `question` (18), the regulator's session kept; the supervisor answers the question himself, or carries it to the owner
 when it is the owner's (the functional, what the charter keeps for him),
 and `circuit.mjs <ticket> --reponse "<answer>"` resumes that session with the answer. So the
 supervisor is woken only by a lot integrated, a question, or a stop the regulator could not settle.
 The questioner (`questionneur`, at 1.2 Questionnement and at the arbitrage of a stop) asks its questions of the ticket's plan
-before the first tester, after the survey of its components, and of each decision of the
+before the first testwriter, after the survey of its components, and of each decision of the
 regulator before it is checked and applied, as Amazon's bar raiser or a cockpit's challenge and
 response: the author (the technical referent for the plan, the regulator for its decision)
 answers by resuming its session, changing its proposal or keeping it with its reason, and the
@@ -101,7 +101,7 @@ plan to the ticket, and the whole exchange at the ticket. A disagreement, or a f
 questioned, goes up to the supervisor: for the plan, the stop `questionnement` (22), which
 `--reponse` lets pass; for a decision, the regulator's `question` (18). The supervisor has his own
 plan questioned by the same agent before he gives it to the owner.
-Before the first tester, the circuit surveys the components the ticket's Architecture and criteria
+Before the first testwriter, the circuit surveys the components the ticket's Architecture and criteria
 reach (`scripts/composants-affectes.mjs`: each element's provider and readers, by the names, by
 TypeScript's language service and by the Reçoit and Rend of the components' CADRE.md), as the explorer did
 for its title: a component it finds that the title misses, unless admitted out of it with its
@@ -112,27 +112,27 @@ Each session writes at the ticket under its role as author (`BEADS_ACTOR`, which
 the circuit's own lines under `circuit`, the queue's under `file`, and the reviewer's verdict under
 `relecteur`, written by the circuit from the reviewer's sheet. Each session's instruction carries the ticket's
 description as it is at its launch, the ticket's notes when it has some, and the last handover of
-its own role on its component (for a developer who has none yet, that of the tester of his
+its own role on its component (for a developer who has none yet, that of the testwriter of his
 component); the reviewer's carries no criteria, only the path of the claims file that holds them.
-Each session of a tester, a developer, the reviewer and the regulator ends on its sheet, the structured
+Each session of a testwriter, a developer, the reviewer and the regulator ends on its sheet, the structured
 output its role's schema describes (`claude -p --output-format json --json-schema`, `scripts/resultats.mjs`):
 the circuit decides on it, and on the summaries of Turborepo, the JSON reports of Vitest and the SARIF of
 the guards, never on free text; a session without a sheet that conforms is resumed once, then the circuit
-stops (`sans-fiche`). A developer who leaves a red in a component's tests sends it to that tester (`renvoi`
-in its sheet), and a component without tests goes straight to its developer. A sheet of a tester or a
+stops (`sans-fiche`). A developer who leaves a red in a component's tests sends it to that testwriter (`renvoi`
+in its sheet), and a component without tests goes straight to its developer. A sheet of a testwriter or a
 developer carries its status, FAIT, BLOQUÉ with its reason or BESOIN with its question: a BESOIN, or a
-BLOQUÉ that sends the red to no tester, stops the circuit at once (`besoin`, `hors-portee`), and the
+BLOQUÉ that sends the red to no testwriter, stops the circuit at once (`besoin`, `hors-portee`), and the
 regulator settles it, the agent not relaunched on that red.
-A relaunch of a tester or a developer on its step (after a refused proof, after red checks) resumes its
+A relaunch of a testwriter or a developer on its step (after a refused proof, after red checks) resumes its
 session (`claude --resume`) with a short instruction, the new report alone; the last attempt is a fresh
 and whole session, and so is a resumption that fails.
 The locks are hooks in the settings of each role's session (`scripts/verrous/`, given by
 `scripts/droits.mjs` with the rights its skill names, the user's own configuration left out), so
 an agent cannot aim the code at its own tests, nor edit a file by the shell; the integration sorts the lots by the same rule (the tests lot holds the
-tester's files, the code lot none of them). Each agent runs as a fresh session inside the **envelope** of its component
+testwriter's files, the code lot none of them). Each agent runs as a fresh session inside the **envelope** of its component
 (`scripts/enveloppe/`, a bubblewrap sandbox): it sees its own component, an index of every
 component's interface, of the others only their interface and built output, and the whole package
-of the shared test material (the component that exports `./test-fixtures`), which the tester alone
+of the shared test material (the component that exports `./test-fixtures`), which the testwriter alone
 writes. Of the home and
 the session directory it shows only what it declares (claude, node, git, the session's tools and
 the repository), and of the environment only what it declares (the base of a login session and

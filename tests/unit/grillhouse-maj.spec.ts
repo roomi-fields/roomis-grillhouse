@@ -1902,7 +1902,7 @@ describe('the update makes the configuration package of Vitest a workspace of a 
       expect(existsSync(path.join(projet, f)), f).toBe(true);
     }
   });
-  // The former tester is now the testwriter (Romain, 2026-10-21); a project keeps neither its
+  // The former testeur is now the testwriter (Romain, 2026-10-21); a project keeps neither its
   // agent nor its skill.
   it('the update removes the former agent and skill of step 2.1', () => {
     const projet = projetAPaquets(['packages/*']);

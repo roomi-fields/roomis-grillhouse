@@ -287,7 +287,7 @@ describe('3uv.49 critère 2 : the agents a manager launches are tied to their ti
     });
   });
 
-  it('3uv.49 critère 2 : the tester a manager launches in a shell runs under its role, the manager no longer listed', () => {
+  it('3uv.49 critère 2 : the testwriter a manager launches in a shell runs under its role, the manager no longer listed', () => {
     const home = nouveauHome();
     sousAgent(home, 'c13', { agentType: REGULATEUR }, 'demo-9', 2);
     const ps = agentShell(home, 's-t13', 'testwriter', 'demo-9');
@@ -298,7 +298,7 @@ describe('3uv.49 critère 2 : the agents a manager launches are tied to their ti
 });
 
 describe('3uv.49 critère 3 : a ticket a running manager leads waits for no role', () => {
-  it('3uv.49 critère 3 : after its tester finished, the ticket is in progress under the manager, not waiting for the developer', () => {
+  it('3uv.49 critère 3 : after its testwriter finished, the ticket is in progress under the manager, not waiting for the developer', () => {
     const t = plateau(
       [T('demo-9')],
       [fin('t1', 'demo-9', 'testwriter', '09:00')],
@@ -319,13 +319,13 @@ describe('3uv.49 critère 3 : a ticket a running manager leads waits for no role
     expect(enCours(t, REGULATEUR)).toEqual(['demo-9']);
   });
 
-  it('3uv.49 critère 3 : an open ticket with no passage does not wait for the tester while its manager runs', () => {
+  it('3uv.49 critère 3 : an open ticket with no passage does not wait for the testwriter while its manager runs', () => {
     const t = plateau([T('demo-9', { status: 'open' })], [], [vivant('c0', 'demo-9', REGULATEUR)]);
     expect(attentes(t)).not.toContain('demo-9');
     expect(enCours(t, REGULATEUR)).toEqual(['demo-9']);
   });
 
-  it('with its tester running too, the ticket is in progress under the tester alone, waiting nowhere', () => {
+  it('with its testwriter running too, the ticket is in progress under the testwriter alone, waiting nowhere', () => {
     const t = plateau(
       [T('demo-9')],
       [],
@@ -395,7 +395,7 @@ const ID_REGULATEUR = 'ademo-9-agent-0-4f3ac190df511767';
 // Decided by the owner on 2026-10-17 (grill, Q10): a regulator comes only on a stop of the
 // circuit, which its state shows; a ticket a manager led waits under no block of its own.
 describe('a ticket a manager led: its running agents hold it, and it waits as any other', () => {
-  it('a tester running on the led ticket holds it in progress, waiting nowhere', () => {
+  it('a testwriter running on the led ticket holds it in progress, waiting nowhere', () => {
     const t = plateau(
       [T('demo-9')],
       [fin('c0', 'demo-9', REGULATEUR, '09:00')],
@@ -415,7 +415,7 @@ describe('a ticket a manager led: its running agents hold it, and it waits as an
     expect(attentes(t)).toEqual([]);
   });
 
-  it('after its manager and its tester finished, the led ticket waits for the developer, not under 0', () => {
+  it('after its manager and its testwriter finished, the led ticket waits for the developer, not under 0', () => {
     const t = plateau(
       [T('demo-9')],
       [fin('t1', 'demo-9', 'testwriter', '09:00'), fin('c0', 'demo-9', REGULATEUR, '11:00')],

@@ -326,7 +326,7 @@ describe('a relaunch without effect', () => {
     expect(min(b.categories.travail.ms)).toBe(5 + 3);
   });
 
-  it('counts the tester relaunched for its « vert attendu » alone, and the proof it replays, as without effect', () => {
+  it('counts the testwriter relaunched for its « vert attendu » alone, and the proof it replays, as without effect', () => {
     // t2 (1 min), the second proof (1 min), d1 (2), d2 (1), d3 (1), the second final pass (6).
     expect(min(b.categories.sansEffet.ms)).toBe(1 + 1 + 2 + 1 + 1 + 6);
     expect(b.categories.sansEffet.n).toBe(6);
@@ -451,7 +451,7 @@ describe('a replay of steps already green', () => {
 
   it('counts the checks of a component green again with nothing of it delivered since as a replay', () => {
     // b's checks turned from red to green without its agents: they say something new, automatic.
-    // The tester of c run again on its proven lot, and the proof that finds the same lot: replays.
+    // The testwriter of c run again on its proven lot, and the proof that finds the same lot: replays.
     expect(min(b.categories.rejeu.ms)).toBe(2 + 1);
     expect(b.categories.rejeu.n).toBe(2);
   });
@@ -554,7 +554,7 @@ describe('what the bilan reads of the register', () => {
     expect(b.debut).toBe(iso(a(0)));
     expect(b.arrets).toEqual({ 'sans-livraison': 2, 'a-repasser': 1 });
     expect(b.statut).toBe('arrêt a-repasser (75)');
-    // The tester's tokens go to its turns by their time: 4 min of work, 2 without effect.
+    // The testwriter's tokens go to its turns by their time: 4 min of work, 2 without effect.
     expect(b.categories.travail.jetons + b.categories.sansEffet.jetons).toBe(350);
     expect(b.categories.travail.jetons).toBe(200);
   });

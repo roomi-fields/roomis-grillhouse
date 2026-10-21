@@ -34,7 +34,7 @@
 // - The categories, each instant once:
 //   - travail resté au lot: a session that delivered, the reviewer's included;
 //   - relance sans effet: a developer whose session the circuit follows with a stop
-//     « sans-livraison » or a resumption that changed nothing (`inchange`); a tester whose next
+//     « sans-livraison » or a resumption that changed nothing (`inchange`); a testwriter whose next
 //     proof finds the lot of the proof before it (the same counts of reds, greens of the lot,
 //     broken files and greens of HEAD), after a refused proof, or no file of the lot (`vide`:
 //     reds that exist already or of a build alone, no green of the lot); that proof; checks that
@@ -49,7 +49,7 @@
 //     the two;
 //   - étapes automatiques: the other steps the circuit leads, the final passes among them;
 //   - rejeu d'étapes déjà vertes: the same, on a lot unchanged since green: checks green again,
-//     a tester run again on a proven lot, its proof;
+//     a testwriter run again on a proven lot, its proof;
 //   - entre deux étapes: the rest of the window.
 //   What is lost is the wall time out of the work and the automatic steps.
 // - The bilan counts the sessions by role, the steps by their titles, the stops by kind (`arret`),
@@ -195,7 +195,7 @@ export function bilan({
   const etapes = segments.filter(s => s.role === CIRCUIT);
   const preuves = etapes.filter(s => s.etape === 'preuve');
   for (const p of preuves) p.preuve = p.entree?.resultat ?? null;
-  // A proof and the category it gives the tester before it: the lot unchanged since the proof
+  // A proof and the category it gives the testwriter before it: the lot unchanged since the proof
   // before, or none.
   const avantLa = p => preuves.findLast(x => x.composant === p.composant && x.f <= p.d);
   const parLaPreuve = p => {

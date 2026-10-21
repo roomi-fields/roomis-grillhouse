@@ -25,7 +25,7 @@ roomis-grillhouse/
 │       │   └── references/           # releve-structurel (the structural survey brief)
 │       ├── pitmaster/             # The supervisor: tickets, role agents, closures, the frame
 │       │   └── references/           # cadre, tour, erreurs, consigne-agent
-│       ├── testwriter/            # The tester's skill
+│       ├── testwriter/            # The testwriter's skill
 │       ├── developpeur/           # The developer's skill
 │       ├── relecteur/             # The reviewer's skill
 │       │   └── references/           # edge cases, verification gaps (from BMAD-METHOD, MIT)
@@ -245,7 +245,7 @@ tickets. Once done, the hook stays silent.
   code, `relecteur` reviews; the circuit of the ticket (`scripts/circuit.mjs`), which the
   supervisor launches, launches them and commits, and on a stop launches `regulateur`,
   which settles it in its final answer; `questionneur` questions the ticket's plan before the
-  first tester and each decision of the regulator before it applies, its author answering in its
+  first testwriter and each decision of the regulator before it applies, its author answering in its
   own session. Each loads its skill
   and works under its locks.
 
