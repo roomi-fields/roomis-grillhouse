@@ -210,7 +210,8 @@
 //   « controles ». From then on every check is the final pass.
 // - The proof, the checks and the final pass are heavy passes: each holds the lock of the machine
 //   (scripts/verrou-de-machine.mjs), shared by every repository of the machine, and waits, the
-//   wait written to the log, while another measure holds it.
+//   wait written to the log, while another measure holds it; the wait bounded, the pass is at 75,
+//   « à repasser ».
 // - The report a developpeur receives names his own reds first, each on its line (test or
 //   finding, file and line, message, the beginning of a failed build's own log), then the count
 //   of the others and the path of the log; the report of a stop names every red with its
@@ -448,7 +449,7 @@ import { AUTEUR_DE_LA_FILE } from './integration/file.mjs';
 import { dossierCommun, lireEntrees } from './integration/file-attente.mjs';
 import { AUTEUR_DU_VERDICT } from './integration/verdict.mjs';
 import { attendreUnPeu, vivant } from './verrou-de-fichier.mjs';
-import { avecLaMachine } from './verrou-de-machine.mjs';
+import { AttenteDeLaMachine, avecLaMachine } from './verrou-de-machine.mjs';
 import { NOMS_DES_GARDES } from './gardes-du-cadre.mjs';
 import { isTesterFile } from './verrous/verrou.mjs';
 import { A_REPASSER } from './vitest-config/pression.mjs';
@@ -1637,7 +1638,8 @@ function paquetDe(liste, fichier) {
 // `{ code, dossier }`. The circuit reads its results, never its output. It is a heavy pass (the
 // proof, the checks, the final pass): it holds the lock of the machine
 // (scripts/verrou-de-machine.mjs), its wait written to the log, and passes it to the
-// `npm run verifier` it runs.
+// `npm run verifier` it runs. A wait that stops (its bound, 75; a lock held by an ancestor, 1) is
+// the command's code, its message in the log.
 function npm(ctx, etape, composant, args, env = {}) {
   entete(ctx, etape, composant);
   const dossier = mkdtempSync(path.join(ctx.tmp, 'resultats-'));
@@ -1660,6 +1662,10 @@ function npm(ctx, etape, composant, args, env = {}) {
       { dire: l => appendFileSync(ctx.journal, `${l}\n`) }
     );
     return { code: r.status ?? 1, dossier };
+  } catch (e) {
+    if (!(e instanceof AttenteDeLaMachine)) throw e;
+    appendFileSync(ctx.journal, `${e.message}\n`);
+    return { code: e.code, dossier };
   } finally {
     closeSync(fd);
   }

@@ -21,7 +21,9 @@
 //   carries the moment of the pass, `rejouer`, which no cached run holds).
 // - The pass holds the lock of the machine for the heavy measure (scripts/verrou-de-machine.mjs),
 //   shared by every repository of the machine: a pass that finds it held waits for the end of the
-//   other measure, and says so.
+//   other measure, and says so every 30 s with who holds it. The wait bounded (60 min), the pass
+//   ends at 75, « à repasser »; a lock held by an ancestor of the pass ends it at once, red (1);
+//   either way without playing, the holder named.
 // - Turborepo plays the build, then the guards (the frame's, `grillhouse:gardes`, and the
 //   project's own, its root script `gardes`) and the tests (`test:vitest`) beside each other:
 //   `turbo run grillhouse:gardes gardes test:vitest --continue=dependencies-successful
@@ -74,7 +76,7 @@ import { availableParallelism } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { paquets } from './paquets.mjs';
-import { avecLaMachine } from './verrou-de-machine.mjs';
+import { AttenteDeLaMachine, avecLaMachine } from './verrou-de-machine.mjs';
 import {
   A_REPASSER,
   attendreLeRepos,
@@ -148,7 +150,8 @@ function filtresDesTemoins(racine) {
 }
 
 // The full pass in <racine>, its arguments <args> (`--gardes` among them: the guards alone), under
-// <env> and the lock of the machine; its verdict, 0, 1 or 75. `dire` writes a line; `borneMs` and
+// <env> and the lock of the machine; its verdict, 0, 1 or 75 (the stop of the wait for the lock
+// included). `dire` writes a line; `borneMs` and
 // `pasMs` are the bound of the wait and the gap between two readings of the pressure; `coeurs`,
 // the cores of the machine.
 export function verifier({
@@ -160,10 +163,16 @@ export function verifier({
   dire = l => process.stdout.write(`${l}\n`),
   coeurs = availableParallelism(),
 }) {
-  return avecLaMachine(
-    envMachine => passe({ racine, demandes, env: envMachine, borneMs, pasMs, dire, coeurs }),
-    { env, dire }
-  );
+  try {
+    return avecLaMachine(
+      envMachine => passe({ racine, demandes, env: envMachine, borneMs, pasMs, dire, coeurs }),
+      { env, dire }
+    );
+  } catch (e) {
+    if (!(e instanceof AttenteDeLaMachine)) throw e;
+    dire(e.message);
+    return e.code;
+  }
 }
 
 function passe({ racine, demandes, env, borneMs, pasMs, dire, coeurs }) {

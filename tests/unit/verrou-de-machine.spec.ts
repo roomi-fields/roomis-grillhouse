@@ -65,17 +65,25 @@ const environnement = (ajouts: Record<string, string | undefined>) => {
   return env;
 };
 
-// A child that takes the lock (`avecLaMachine`), writes « <nom> début » to <trace>, runs <corps>
-// (JavaScript, `envEnfant` in scope), then writes « <nom> fin ».
-const preneur = (nom: string, trace: string, corps = '') => `
+// A child that takes the lock (`avecLaMachine`, its options <options>, JavaScript), writes
+// « <nom> début » to <trace>, runs <corps> (JavaScript, `envEnfant` in scope), then writes
+// « <nom> fin ». A wait that stops (an error named `AttenteDeLaMachine`) writes its message and
+// exits with its code.
+const preneur = (nom: string, trace: string, corps = '', options = '{}') => `
   import { appendFileSync, existsSync } from 'node:fs';
   import { spawnSync } from 'node:child_process';
   import { avecLaMachine } from ${JSON.stringify(MODULE)};
-  avecLaMachine(envEnfant => {
-    appendFileSync(${JSON.stringify(trace)}, ${JSON.stringify(`${nom} début\n`)});
-    ${corps}
-    appendFileSync(${JSON.stringify(trace)}, ${JSON.stringify(`${nom} fin\n`)});
-  });
+  try {
+    avecLaMachine(envEnfant => {
+      appendFileSync(${JSON.stringify(trace)}, ${JSON.stringify(`${nom} début\n`)});
+      ${corps}
+      appendFileSync(${JSON.stringify(trace)}, ${JSON.stringify(`${nom} fin\n`)});
+    }, ${options});
+  } catch (e) {
+    if (e?.name !== 'AttenteDeLaMachine') throw e;
+    console.log(e.message);
+    process.exitCode = e.code;
+  }
 `;
 const lancer = (code: string, env: Record<string, string>): ChildProcess =>
   spawn(process.execPath, ['--input-type=module', '-e', code], { env, stdio: 'pipe' });
@@ -199,6 +207,116 @@ describe(
       }
     });
 
+    // Romain, 2026-10-21: a full pass hung 40 min, the machine at rest, a test's nested verifier
+    // waiting for the lock the pass that played it held. As `flock -w` and a database's lock
+    // timeout, the wait is bounded, and it names who holds the lock.
+    it('au-delà de sa borne, l’attente s’arrête à 75 et nomme le détenteur : processus, dossier, commande, depuis quand', async () => {
+      const d = unDossier();
+      const verrou = path.join(d, 'mesure.lock');
+      const trace = path.join(d, 'trace');
+      const libere = path.join(d, 'libere');
+      // The holder's command names its script, as `node scripts/verifier.mjs` does.
+      const script = path.join(d, 'marque-du-detenteur.mjs');
+      writeFileSync(script, preneur('A', trace, tenir(libere)));
+      const detenteur = spawn(process.execPath, [script], {
+        env: environnement({ GRILLHOUSE_VERROU_MACHINE: verrou }),
+        cwd: d,
+        stdio: 'pipe',
+      });
+      const finDetenteur = fin(detenteur);
+      try {
+        await jusqua(() => lignes(trace).includes('A début'));
+        const marque = readFileSync(verrou, 'utf8');
+        const debut = Date.now();
+        const b = await fin(
+          lancer(
+            preneur('B', trace),
+            environnement({
+              GRILLHOUSE_VERROU_MACHINE: verrou,
+              GRILLHOUSE_ATTENTE_MACHINE_MS: '1500',
+            })
+          )
+        );
+        expect(b.code, b.sortie).toBe(75);
+        expect(Date.now() - debut).toBeGreaterThanOrEqual(1_500);
+        expect(Date.now() - debut).toBeLessThan(10_000);
+        expect(lignes(trace)).toEqual(['A début']);
+        expect(b.sortie).toContain(String(detenteur.pid));
+        expect(b.sortie).toContain(d);
+        expect(b.sortie).toContain('marque-du-detenteur');
+        expect(b.sortie).toMatch(/depuis \d\d:\d\d:\d\d/);
+        expect(b.sortie).toContain('GRILLHOUSE_ATTENTE_MACHINE_MS');
+        expect(readFileSync(verrou, 'utf8')).toBe(marque);
+      } finally {
+        writeFileSync(libere, '');
+        await finDetenteur;
+      }
+    });
+
+    it('sans borne dite, l’attente dure jusqu’à 60 min, plus longue que la plus longue passe complète mesurée', async () => {
+      const { ATTENTE_MACHINE_MS } = (await import(MODULE)) as { ATTENTE_MACHINE_MS: number };
+      expect(ATTENTE_MACHINE_MS).toBe(60 * 60_000);
+    });
+
+    it('l’attente dit à intervalle régulier qu’elle attend, depuis combien de temps et qui', async () => {
+      const d = unDossier();
+      const verrou = path.join(d, 'mesure.lock');
+      const trace = path.join(d, 'trace');
+      const libere = path.join(d, 'libere');
+      const env = environnement({ GRILLHOUSE_VERROU_MACHINE: verrou });
+      const detenteur = lancer(preneur('A', trace, tenir(libere)), env);
+      const finDetenteur = fin(detenteur);
+      try {
+        await jusqua(() => lignes(trace).includes('A début'));
+        const b = await fin(
+          lancer(preneur('B', trace, '', '{ borneMs: 2_600, rappelMs: 500 }'), env)
+        );
+        expect(b.code, b.sortie).toBe(75);
+        const attentes = b.sortie.split('\n').filter(l => l.startsWith('⏳'));
+        expect(attentes.length, b.sortie).toBeGreaterThanOrEqual(4);
+        for (const l of attentes) {
+          expect(l).toContain(String(detenteur.pid));
+        }
+        expect(attentes.at(-1)).toMatch(/depuis [12] s/);
+      } finally {
+        writeFileSync(libere, '');
+        await finDetenteur;
+      }
+    });
+
+    // The case of the 40 min: a measure that waits for a lock its own ancestor holds would wait for
+    // ever, each waiting for the other. It says so at once and stops, red.
+    it('un verrou tenu par un ancêtre (ici le parent du parent) se dit tout de suite, et la mesure s’arrête rouge', async () => {
+      const d = unDossier();
+      const verrou = path.join(d, 'mesure.lock');
+      const trace = path.join(d, 'trace');
+      const enfant = preneur('enfant', trace);
+      // The child's environment loses the mark of the taking, as a test's own environment does.
+      const corps = `
+      const env = { ...envEnfant };
+      delete env.GRILLHOUSE_MESURE_TENUE;
+      const debut = Date.now();
+      const r = spawnSync('sh', ['-c', '"$0" --input-type=module -e "$1"; exit $?', process.execPath, ${JSON.stringify(enfant)}], { env, timeout: 20_000, encoding: 'utf8' });
+      appendFileSync(${JSON.stringify(trace)}, 'enfant code ' + r.status + ' en ' + (Date.now() - debut) + ' ms\\n' + r.stdout);
+    `;
+      const parent = lancer(
+        preneur('parent', trace, corps),
+        environnement({ GRILLHOUSE_VERROU_MACHINE: verrou })
+      );
+      const r = await fin(parent);
+      expect(r.code, r.sortie).toBe(0);
+      const t = lignes(trace);
+      expect(t[0]).toBe('parent début');
+      expect(t).not.toContain('enfant début');
+      const [, ms] = /^enfant code 1 en (\d+) ms$/.exec(t[1]) ?? [];
+      expect(ms, t.join('\n')).toBeDefined();
+      expect(Number(ms)).toBeLessThan(5_000);
+      const message = t.slice(2).join('\n');
+      expect(message).toContain(String(parent.pid));
+      expect(message).toContain('ancêtre');
+      expect(t.at(-1)).toBe('parent fin');
+    });
+
     it('le verrou se lâche quand la mesure échoue', async () => {
       const d = unDossier();
       const verrou = path.join(d, 'mesure.lock');
@@ -255,6 +373,31 @@ describe('grillhouse-3uv.89 — npm run verifier et la machine', { timeout: 60_0
     expect(v.code, v.sortie).toBe(0);
     expect(v.sortie).toContain('⏳');
     expect(appels(d)).toHaveLength(1);
+  });
+
+  it('au-delà de la borne de l’attente, la passe rend 75 sans jouer et nomme qui tient le verrou', async () => {
+    const d = unDossier();
+    const bin = fauxTurbo(d);
+    const verrou = path.join(d, 'mesure.lock');
+    const libere = path.join(d, 'libere');
+    const trace = path.join(d, 'trace');
+    const env = environnement({
+      GRILLHOUSE_VERROU_MACHINE: verrou,
+      GRILLHOUSE_ATTENTE_MACHINE_MS: '1000',
+      PATH: `${bin}${path.delimiter}${process.env.PATH ?? ''}`,
+    });
+    const autre = lancer(preneur('autre', trace, tenir(libere)), env);
+    const finAutre = fin(autre);
+    try {
+      await jusqua(() => lignes(trace).includes('autre début'));
+      const v = await fin(spawn(process.execPath, [VERIFIER], { cwd: d, env, stdio: 'pipe' }));
+      expect(v.code, v.sortie).toBe(75);
+      expect(v.sortie).toContain(String(autre.pid));
+      expect(appels(d)).toEqual([]);
+    } finally {
+      writeFileSync(libere, '');
+      await finAutre;
+    }
   });
 
   it('borne ses tâches côte à côte par le nombre de cœurs de la machine', async () => {

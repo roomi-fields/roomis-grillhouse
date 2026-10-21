@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- **The wait for the lock of the machine is bounded, names its holder, and stops at once on a deadlock**: a full pass hung 40 min, the machine at rest, because a test ran a `npm run verifier` that waited for the lock of the machine held by the very pass that played it, each waiting for the other without a word (Romain, 2026-10-21). As `flock -w` and a database's lock timeout, the wait now has a bound, 60 min (`ATTENTE_MACHINE_MS` of `scripts/verrou-de-machine.mjs`, longer than the longest full pass measured: 21 min for the frame's, 35.5 min for a final pass of BPScript 320.3, a wait for rest included; `GRILLHOUSE_ATTENTE_MACHINE_MS` names another, in ms); the bound reached, the measure stops at « à repasser » (75), the holder named: its process, working directory, command, and since when it holds the lock. A lock held by an ancestor of the waiting process (its parent, its parent's parent…) is a deadlock: the wait says so at once and stops, red (1), since the descendant lost the mark of the taking (`GRILLHOUSE_MESURE_TENUE`), a defect to correct, which playing under the ancestor's lock would hide. The wait says it waits, and whom for, when it begins and then every 30 s, so that a log shows the pass is not frozen. `npm run verifier` ends on the stop's code and the circuit's heavy passes read it as theirs. The common charter and the module's header say so.
+
 ## [0.20.2] - 2026-10-21
 
 ### Changed

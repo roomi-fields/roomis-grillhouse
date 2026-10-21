@@ -172,9 +172,14 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
 - **Une mesure lourde à la fois sur la machine** : chaque `npm run verifier` et chaque passe
   lourde du circuit (preuve du rouge, contrôles, passe finale) prennent le verrou de la machine,
   partagé par tous ses dépôts (`~/.cache/grillhouse/mesure-lourde.lock`) ; une seconde mesure
-  attend la fin de la première et le dit, un verrou dont le processus est mort se reprend, comme
-  le serveur de tâches de GNU make. La passe borne ses tâches côte à côte à la moitié des cœurs.
-  Ainsi une mesure rend le résultat du code, et non celui d'une autre mesure à côté.
+  attend la fin de la première et le redit toutes les 30 s, en nommant qui tient le verrou (le
+  processus, son dossier, sa commande, depuis quand) ; un verrou dont le processus est mort se
+  reprend, comme le serveur de tâches de GNU make. L'attente a une borne, 60 min
+  (`GRILLHOUSE_ATTENTE_MACHINE_MS`), plus longue que la plus longue passe complète mesurée : au-delà,
+  la mesure s'arrête « à repasser » (code 75), comme `flock -w`. Un verrou tenu par un ancêtre de
+  celui qui attend est un blocage : l'attente le dit tout de suite et s'arrête, rouge. La passe
+  borne ses tâches côte à côte à la moitié des cœurs. Ainsi une mesure rend le résultat du code, et
+  non celui d'une autre mesure à côté, et aucune passe ne reste figée sans le dire.
 - **Un témoin de temps joue seul** : un fichier de test qui importe `mesurerAuRepos` est un
   témoin de temps ; `npm run verifier` joue tous les autres tests, puis les témoins dans une passe
   à eux, une tâche après l'autre, comme Bazel joue un test `exclusive`. Un échec qui dépend d'une

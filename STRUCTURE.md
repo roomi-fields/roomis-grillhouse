@@ -117,6 +117,7 @@ roomis-grillhouse/
 │   │                              #   any code but 0 and 75 is red, named; a task at 75 waits for rest (15 min at most) and plays again (--filter, its dependencies from the cache); the bound reached, 75 « à repasser »
 │   │                              #   measured against the last green (dernier-vert.mjs); --tout and --force the complete pass, every test for real
 │   ├── verrou-de-machine.mjs      # the lock of the machine for the heavy measure (~/.cache/grillhouse/mesure-lourde.lock), shared by every repository: taken by verifier.mjs and the heavy passes of circuit.mjs
+│   │                              #   the wait said every 30 s with its holder, bounded at 60 min (75); a lock held by an ancestor stops at once, red
 │   ├── superviseur.mjs            # one supervisor per project: the session start takes the lock of the repository; a second session is told who holds it
 │   ├── tableau.mjs                # npm run tableau: the board on three levels (project, agents, chantier)
 │   ├── ligne-etat/                # the status line: the person's own on the left, the chantier on the right
