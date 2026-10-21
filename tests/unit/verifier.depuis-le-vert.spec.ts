@@ -106,7 +106,7 @@ function depot({ dependant = false } = {}) {
     symlinkSync('../../a', path.join(r, 'packages/b/node_modules/a'), 'dir');
     ecrire('packages/b/test/b.test.mjs', fichierDeTest(trace, 'b'));
   }
-  ecrire('.gitignore', 'node_modules\n.turbo/\njoues.txt\n');
+  ecrire('.gitignore', 'node_modules\n.turbo/\njoues.txt\nmesure.lock\n');
   const env: Record<string, string | undefined> = {
     ...Object.fromEntries(
       Object.entries(process.env).filter(
@@ -116,6 +116,9 @@ function depot({ dependant = false } = {}) {
     PATH: `${path.join(DEPOT, 'node_modules/.bin')}${path.delimiter}${process.env.PATH ?? ''}`,
     TURBO_TELEMETRY_DISABLED: '1',
     DO_NOT_TRACK: '1',
+    // The trial repository's own lock of the heavy measure: the machine's is held by the pass this
+    // test plays in.
+    GRILLHOUSE_VERROU_MACHINE: path.join(r, 'mesure.lock'),
     GIT_AUTHOR_NAME: 'essai',
     GIT_AUTHOR_EMAIL: 'essai@essai.invalid',
     GIT_COMMITTER_NAME: 'essai',
