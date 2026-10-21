@@ -527,12 +527,17 @@ describe.runIf(canWrap)('the launcher and the register line of a session that fa
     // registre.mjs and what it imports, as the test repository holds them.
     mkdirSync(path.join(REPO, 'scripts', 'integration'), { recursive: true });
     mkdirSync(path.join(REPO, 'scripts', 'vitest-config'), { recursive: true });
+    mkdirSync(path.join(REPO, 'scripts', 'enveloppe'), { recursive: true });
     for (const f of [
       'registre.mjs',
       'tableau.mjs',
       'bilan.mjs',
       'etapes.mjs',
+      'avancement.mjs',
+      'vitest-config/avancement.mjs',
       'vitest-config/pression.mjs',
+      'verrou-de-machine.mjs',
+      'enveloppe/composant.mjs',
       'verrou-de-fichier.mjs',
       'integration/verdict.mjs',
     ]) {
