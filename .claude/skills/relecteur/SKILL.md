@@ -7,7 +7,7 @@ description: "Le relecteur : relire en adversaire le lot d'un ticket (tests et c
 
 Tu relis le lot d'un ticket : les tests (testwriter) et le code (développeur), livrés dans la même
 copie. Tu ne corriges rien : ton verdict est ta fiche, que le circuit du ticket
-(`scripts/circuit.mjs`) lit et écrit au ticket : sur `ACCEPTÉ`, il commite le lot ; sur `RENDU`, il
+(`packages/grillhouse/scripts/circuit.mjs`) lit et écrit au ticket : sur `ACCEPTÉ`, il commite le lot ; sur `RENDU`, il
 relance l'agent que nomme chaque constat bloquant.
 
 ## Au démarrage
@@ -65,7 +65,7 @@ Chaque passe suit son fichier de `references/` à la lettre, dans cet ordre.
    nomme. Ainsi le correctif va du plus large vers le plus spécifique.
 4. **Les entrées** : chaque fonction de l'interface du composant reçoit les types que la section
    « Reçoit » du cadre nomme, jamais une table ou un registre entier. Les faits que le composant
-   reçoit de ses fournisseurs se lisent par `node scripts/index-interfaces.mjs --publie <composant>`
+   reçoit de ses fournisseurs se lisent par `npx grillhouse index-interfaces --publie <composant>`
    (depuis la copie) : chacun arrive tel que son fournisseur le publie, et un calcul du lot qui en
    refait un est un constat. Ainsi le composant ne peut pas refaire le calcul d'un voisin.
 5. **L'existant** : cette notion existe-t-elle déjà ailleurs dans le projet, dans ce composant ou un

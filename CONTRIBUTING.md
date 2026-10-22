@@ -1,6 +1,6 @@
 # Contributing
 
-This file says how a change reaches the frame of Roomi's Grillhouse. The rules it points to live in the repository's texts; this file names them and their address. A project created by `npm run new` receives its own contributing guide, `templates/CONTRIBUTING.md`.
+This file says how a change reaches the frame of Roomi's Grillhouse. The rules it points to live in the repository's texts; this file names them and their address. A project created by `npm run new` receives its own contributing guide, `templates/projet/CONTRIBUTING.md`.
 
 ## 1. Where a change comes from
 
@@ -14,7 +14,7 @@ A rule serves an intention of the frame and names it; it is written as `METACADR
 ## 3. How a change is made
 
 - **Tickets**: Beads (`bd`) holds them; their format, numbering and handoff are in `docs/agents/issue-tracker.md`.
-- **The flow**: claim, architecture, tests first, then code, review, commit by the circuit (`scripts/circuit.mjs`), entry on main by the queue. The common charter describes each step (« Le flux d'une tâche », « Le commit »).
+- **The flow**: claim, architecture, tests first, then code, review, commit by the circuit (`packages/grillhouse/scripts/circuit.mjs`), entry on main by the queue. The common charter describes each step (« Le flux d'une tâche », « Le commit »).
 - **The commands**: `npm test`, `npm run verifier`, `npm run lint`, `npm run typecheck`, `npm run format:check`, described in `CLAUDE.md` (« Commandes ») and the README.
 
 ## 4. What a change must pass
@@ -23,13 +23,13 @@ A rule serves an intention of the frame and names it; it is written as `METACADR
 
 ## 5. How a version is released
 
-One version covers the frame and its mod. It lives in `.claude/grillhouse/VERSION`, one line, which every project receives with the frame's update, so each project knows the version it has; `mods/grillhouse/.claude-plugin/plugin.json` carries the same, and `tests/unit/version.spec.ts` refuses a gap. The root `package.json` never carries it: its `version` is the one a new project starts from.
+One version covers the frame and its mod. It lives in `.claude/grillhouse/VERSION`, one line, which every project receives with the frame's update, so each project knows the version it has; `mods/grillhouse/.claude-plugin/plugin.json` carries the same, and `packages/grillhouse/tests/unit/version.spec.ts` refuses a gap. The root `package.json` never carries it: its `version` is the one a new project starts from.
 
 The versions follow semantic versioning in 0.x: a change that obliges a project to act raises the minor, a fix the patch. A version is released per lot delivered to the projects, never per commit:
 
-1. `node scripts/sortie.mjs <x.y.z>` writes the version in `VERSION` and `plugin.json`, and dates `CHANGELOG.md`: « [Unreleased] » becomes « [x.y.z] - <today> » and an empty « [Unreleased] » opens above it. It refuses a version not above the current one, and an empty « [Unreleased] ».
+1. `npx grillhouse sortie <x.y.z>` writes the version in `VERSION` and `plugin.json`, and dates `CHANGELOG.md`: « [Unreleased] » becomes « [x.y.z] - <today> » and an empty « [Unreleased] » opens above it. It refuses a version not above the current one, and an empty « [Unreleased] ».
 2. The release commit carries these three files.
-3. `node scripts/sortie.mjs --etiqueter` creates the annotated tag `v<x.y.z>` on that commit, locally, and names the push. It pushes nothing: the owner validates the push of the tag, on which `.github/workflows/release.yml` publishes the GitHub release.
+3. `npx grillhouse sortie --etiqueter` creates the annotated tag `v<x.y.z>` on that commit, locally, and names the push. It pushes nothing: the owner validates the push of the tag, on which `.github/workflows/release.yml` publishes the GitHub release.
 4. The projects update to this version (`npm run grillhouse:maj`, whose report names it). The update installs the last commit of Grillhouse's default branch, not a tag.
 
-`scripts/sortie.mjs` is Grillhouse's own: a « - » line of `.claude/grillhouse/fichiers.txt` keeps it out of every project, and out of a new one.
+`packages/grillhouse/scripts/sortie.mjs` is Grillhouse's own: a « - » line of `.claude/grillhouse/fichiers.txt` keeps it out of every project, and out of a new one.

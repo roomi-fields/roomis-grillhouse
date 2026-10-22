@@ -378,7 +378,7 @@ test('a line shows its text at the even turns of the clock, its other text at th
   expect(ALTERNANCE).toBe(5_000)
 })
 
-// 2026-10-21 (Romain): a line of progress (`avancement`, scripts/tableau.mjs) says « il y a 8 s »:
+// 2026-10-21 (Romain): a line of progress (`avancement`, `grillhouse tableau`) says « il y a 8 s »:
 // while the board shows one, the pane measures it again every AVANCEMENT ms, not every 30 s.
 test('the board is measured again every AVANCEMENT ms while a line of progress shows, else not', () => {
   expect(AVANCEMENT).toBe(10_000)

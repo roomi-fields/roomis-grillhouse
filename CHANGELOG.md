@@ -1,10 +1,14 @@
 # Changelog
 
-This file lists the notable changes of Roomi's Grillhouse, the frame itself. A project created by `npm run new` receives its own changelog, `templates/CHANGELOG.md`.
+This file lists the notable changes of Roomi's Grillhouse, the frame itself. A project created by `npm run new` receives its own changelog, `templates/projet/CHANGELOG.md`.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the versions follow [Semantic Versioning](https://semver.org/) in 0.x: a change that obliges a project to act raises the minor, a fix the patch. One version covers the frame and its mod: it lives in `.claude/grillhouse/VERSION`, which every project receives with the frame's update, and `mods/grillhouse/.claude-plugin/plugin.json` carries the same. A version is released per lot delivered to the projects, never per commit: its section is dated here and its commit tagged `v<version>` (`CONTRIBUTING.md`, §5). The `version` of `package.json` (1.0.0) is the one a new project starts from, not a version of the frame.
 
 ## [Unreleased]
+
+### Changed
+
+- **The frame is a package with one command, `grillhouse <sous-commande>`, in a repository of three directories** (grillhouse-3uv.84.1): the frame reached each project as copies at `scripts/…`, called by their path from eight kinds of callers (npm scripts, hooks of Claude Code and of git, skills, rights, the night, the mod, the guards), so it could not move a file without rewriting every project (decided by Romain, grill of grillhouse-3uv.84, rounds 1 and 2). As Turborepo's repository holds `packages/turbo` and its examples apart, the repository now holds `packages/grillhouse/` (the package `@roomi-fields/grillhouse`, a workspace: its scripts and its tests, which Turborepo plays as a package's task), `mods/grillhouse/` and `templates/projet/` (the example application, its `package.json`, configurations and tests, its README and models, which `npm run new` places at the root of a new project); the root is the frame's private repository, its workspaces `packages/*` and `packages/grillhouse/scripts/vitest-config`. The package's `bin` is `grillhouse` (`bin/grillhouse.mjs`): one subcommand per script a caller launches, named after it (`maj` for `grillhouse-maj.mjs`), run in the working directory, the project's; an unknown one exits 2 with the list. The npm scripts (`npm run verifier` is `grillhouse verifier`, `npm test` is `grillhouse tests`), the skills, the rights of the roles, the hooks of the roles, the guards, the mod and the messages (`npx grillhouse turbo-des-paquets --ecrire`…) name the subcommand; a script finds its neighbours by its own directory, and the project by the working directory. The night's line of the crontab becomes `cd <root> && node_modules/.bin/grillhouse nuit`. The update by copies (`fichiers.txt`, the fingerprints, `grillhouse:maj`) stays, its files at their new path, until grillhouse-3uv.84.2 and 84.4 replace it; the hooks of Claude Code of `.claude/settings.json` and the git hooks keep naming a script's path until 84.2 and 84.5 move them.
 
 ## [0.22.3] - 2026-10-22
 

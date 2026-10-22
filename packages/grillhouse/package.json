@@ -1,0 +1,34 @@
+{
+  "name": "@roomi-fields/grillhouse",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Roomi's Grillhouse: the frame's scripts, called by one command, grillhouse <sous-commande>",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "grillhouse": "bin/grillhouse.mjs"
+  },
+  "scripts": {
+    "test:vitest": "vitest run"
+  },
+  "devDependencies": {
+    "@grillhouse/vitest-config": "*"
+  },
+  "grillhouse": {
+    "lit": [
+      ".beads",
+      ".claude",
+      ".dependency-cruiser.cjs",
+      ".eslintrc.cjs",
+      ".mcp.json",
+      "CHANGELOG.md",
+      "knip.json",
+      "mods",
+      "package.json",
+      "packages/grillhouse/bin",
+      "packages/grillhouse/scripts",
+      "templates",
+      "tsdoc.json"
+    ]
+  }
+}

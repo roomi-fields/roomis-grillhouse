@@ -30,14 +30,14 @@ frontière a une seule définition, tenue par son garde.
 qu'il rend. L'étiquette `@faute` est déclarée dans la configuration TSDoc du cadre (`tsdoc.json`).
 Ainsi le contrat change avec le code qu'il décrit.
 **La première phrase du résumé tient en 80 caractères**, style télégraphique admis ; le détail va
-dans les phrases suivantes. Le garde `scripts/resumes.mjs` la mesure comme l'index la reprend.
+dans les phrases suivantes. Le garde `packages/grillhouse/scripts/resumes.mjs` la mesure comme l'index la reprend.
 Ainsi l'index des interfaces et la consigne d'un agent restent courts.
 **`INTERFACE.md` a deux parts** : la part écrite à la main porte la vue d'ensemble, les fautes et
 les consommateurs ; la part générée, entre `<!-- généré: début -->` et `<!-- généré: fin -->`,
 donne une entrée par export (son nom en code, sa signature, son résumé, ses paramètres, son retour,
 ses fautes, et le résumé de ses membres), tirée des commentaires TSDoc. `npm run api` la refait,
 avec le rapport de l'API qu'API Extractor tire du code construit (`docs/INTERFACE.api.md`), et ne
-touche jamais la part écrite à la main. Le contrôle `scripts/interfaces-contre-code.mjs` refuse une
+touche jamais la part écrite à la main. Le contrôle `packages/grillhouse/scripts/interfaces-contre-code.mjs` refuse une
 part générée périmée ou sans ses marques, un export auquel une rubrique manque, une étiquette
 inconnue ou mal formée, un `@faute` hors du catalogue, et un code du catalogue qu'aucun `@faute` ne
 nomme. Un paquet qui n'exporte que des sous-chemins, sans entrée `.` (la matière de test partagée,
@@ -50,11 +50,11 @@ voisin dit vrai.
 composant produit.
 **Les consommateurs sont déclarés** : une section `## Consommateurs` liste chaque composant qui
 utilise l'interface, avec les éléments qu'il importe (`` - `parser` : jeton, position ``, `*` pour
-un import entier). Le garde `scripts/consommateurs.mjs` refuse un import qu'elle ne déclare pas, et
+un import entier). Le garde `packages/grillhouse/scripts/consommateurs.mjs` refuse un import qu'elle ne déclare pas, et
 signale une déclaration qu'aucun code n'emploie ; une ligne nouvelle entre avec son arbitrage
 tranché au ticket, qui nomme le consommateur, ou avec la section « Architecture » du ticket, qui
 nomme mot pour mot le consommateur et chaque élément de la ligne, et le garde
-`scripts/consommateurs-arbitres.mjs` refuse une ligne changée sans l'un ni l'autre.
+`packages/grillhouse/scripts/consommateurs-arbitres.mjs` refuse une ligne changée sans l'un ni l'autre.
 Ainsi chaque dépendance entre composants est écrite et décidée.
 
 ## L'architecture (`ARCHITECTURE.md`)

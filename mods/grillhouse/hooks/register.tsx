@@ -3,14 +3,17 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { Etat, Fiche, Ligne, Tableau } from '../types'
 
-// The board of a Grillhouse project, in the pane (/grillhouse) on its three levels. The project's
-// own `scripts/tableau.mjs` measures and lays out the lines, and writes the status line for the
+// The board of a Grillhouse project, in the pane (/grillhouse) on its three levels. The frame's
+// command of the project (`node_modules/.bin/grillhouse tableau`, the package
+// @roomi-fields/grillhouse) measures and lays out the lines, and writes the status line for the
 // person's status line command; this mod shows the lines, every 30 s (every 10 s while a line of
 // progress shows) and after each `bd` or `git` command. It stays silent outside a Grillhouse project and inside an agent's copy
 // (`.claude/worktrees/`).
 const PANE = 'grillhouse'
+// The frame's command, which the project's `npm install` links.
+const GRILLHOUSE = 'node_modules/.bin/grillhouse'
 const PERIODE = 30_000
-// The width of the lines `scripts/tableau.mjs` lays out (its LARGEUR).
+// The width of the lines `grillhouse tableau` lays out (its LARGEUR).
 const COLONNES = 52
 const DOCK = 110
 
@@ -243,7 +246,7 @@ async function bientot($: EngineInterface) {
 
 async function mesurer($: EngineInterface) {
   if (!actif) return
-  const r = await $.process.run(['node', 'scripts/tableau.mjs'], { cwd, timeoutMs: 20_000 })
+  const r = await $.process.run([GRILLHOUSE, 'tableau'], { cwd, timeoutMs: 20_000 })
   if (r.exitCode !== 0) {
     await update($, etat, s => ({ ...s, erreur: r.stderr.slice(0, 300) }))
     return
@@ -251,7 +254,7 @@ async function mesurer($: EngineInterface) {
   // A board past what a process returns (4 MiB) or that does not parse is said, never thrown.
   let tableau: Tableau
   try {
-    if (r.isStdoutTruncated) throw new Error('la sortie de scripts/tableau.mjs dépasse 4 Mio')
+    if (r.isStdoutTruncated) throw new Error('la sortie de grillhouse tableau dépasse 4 Mio')
     tableau = JSON.parse(r.stdout) as Tableau
   } catch (err) {
     await update($, etat, s => ({ ...s, erreur: `Tableau illisible : ${(err as Error).message}`.slice(0, 300) }))
@@ -289,7 +292,7 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const started = await next(e)
     cwd = e.cwd
-    const projet = await $.process.run(['test', '-f', 'scripts/tableau.mjs'], { cwd })
+    const projet = await $.process.run(['test', '-x', GRILLHOUSE], { cwd })
     actif = e.isInteractive && projet.exitCode === 0 && !cwd.includes('/.claude/worktrees/')
     if (!actif) return started
     await $.command.register({

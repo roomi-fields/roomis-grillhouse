@@ -37,7 +37,7 @@ le responsable corrige une proposition et garde son temps pour les vraies décis
 
 ## 1. Préparer le dépôt
 
-`bash scripts/setup.sh <préfixe>` s'il manque les tickets, les dépendances ou un greffon : sans
+`npx grillhouse setup <préfixe>` s'il manque les tickets, les dépendances ou un greffon : sans
 invite, idempotent. Il installe pour le projet chaque greffon que `.claude/settings.json` déclare
 (`enabledPlugins`), après son marketplace ; l'ouverture de séance signale sous « Manque » chaque
 greffon absent, avec cette commande. Le préfixe des tickets vient du nom du projet ; il se confirme
@@ -163,15 +163,15 @@ remplace jamais le grill. Les branches de l'arbre :
    le `package.json` déclare `workspaces`), puis n'y écrit que ce que le cadre en tient (les
    dépendances des gardes, la variable des passes ciblées, l'exclusion `!$TURBO_ROOT$/<chemin>/.git`
    à côté d'une entrée qui couvre un sous-module, dont le `.git` nomme la copie). Celui de chaque paquet est
-   généré depuis son `package.json` (`node scripts/turbo-des-paquets.mjs --ecrire`, que la mise à
+   généré depuis son `package.json` (`npx grillhouse turbo-des-paquets --ecrire`, que la mise à
    jour lance) et `grillhouse:gardes` refuse un fichier absent ou périmé : une dépendance s'écrit
    au `package.json` seul. Chaque paquet testé porte son script
    `test:vitest` et sa configuration Vitest, qui étend la configuration de base du cadre, le
-   paquet `@grillhouse/vitest-config` (`scripts/vitest-config/`, par `mergeConfig`) : les
+   paquet `@grillhouse/vitest-config` (`packages/grillhouse/scripts/vitest-config/`, par `mergeConfig`) : les
    exclusions du jour (tests de nuit, bancs de budget) et l'environnement commun y sont, sans
    copie. Le paquet l'importe par son nom (`import base from '@grillhouse/vitest-config'`) et le
    déclare dans ses `devDependencies`, comme les exemples de Turborepo atteignent leurs paquets de
-   configuration ; la mise à jour du cadre fait de `scripts/vitest-config` un espace de travail et
+   configuration ; la mise à jour du cadre fait de `packages/grillhouse/scripts/vitest-config` un espace de travail et
    écrit la déclaration. Un dépôt sans paquets l'importe par son chemin
    (`./scripts/vitest-config/base.mjs`). Un paquet hors cadre (`docs/agents/hors-cadre.txt`) reste un
    espace de travail, qu'un voisin importe par son nom, et Turborepo ne joue aucune de ses tâches :
@@ -188,13 +188,13 @@ remplace jamais le grill. Les branches de l'arbre :
    intégration joue `npm run verifier` en entier (les gardes et les tests), Turborepo relisant de
    son cache ce qui n'a pas bougé.
    Restent des choix selon la taille du projet, que le responsable tranche :
-   - **le contrôle de l'interface contre le code** (`scripts/interfaces-contre-code.mjs`) : une
+   - **le contrôle de l'interface contre le code** (`packages/grillhouse/scripts/interfaces-contre-code.mjs`) : une
      seule passe avant les tests (petit projet), ou un banc par composant qui appelle
      `verifierComposant`, rejoué seulement quand son composant l'est (grand projet).
    - **les sous-modules partagés** : un sous-module qu'aucun ticket n'écrit (un moteur de
      référence, une dépendance externe) se déclare partagé, `npm pkg set 'grillhouse.partage[0]=<chemin>'` ;
      chaque copie le lit alors dans le dépôt principal, en lecture seule
-     (`scripts/sous-modules.sh`).
+     (`packages/grillhouse/scripts/sous-modules.sh`).
 10. **L'architecture** — les trois ou quatre choix qui commandent le reste, chacun avec sa raison et
    l'objectif qu'il sert ; les données centrales ; où le code tourne.
 11. **Le lexique** — les mots du domaine dont la définition change du code
@@ -217,7 +217,7 @@ ensuite. Ainsi les documents écrivent des décisions prises.
 - **Les règles de dépendance propres au projet** (un paquet qui n'importe rien, une couche qui ne
   lit qu'en type) et ses options de la carte (`exclude`, `doNotFollow`…) s'écrivent dans
   `.dependency-cruiser.projet.cjs` ; les règles communes sont générées
-  (`node scripts/frontieres.mjs --ecrire`). Ainsi chaque règle de structure décidée au grill est
+  (`npx grillhouse frontieres --ecrire`). Ainsi chaque règle de structure décidée au grill est
   tenue par un test.
 - **Ce que la forme écarte se retire** dans le même commit (les parties de service d'une
   bibliothèque, le code d'exemple du modèle, `src/` et ses tests `tests/unit/config.spec.ts`,

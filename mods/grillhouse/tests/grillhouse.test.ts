@@ -31,7 +31,7 @@ test('in a Grillhouse project, the session start measures the board', async ($, 
   on('command.register', () => ({ value: undefined }))
   on('clock.every', () => ({ value: { cancel: () => undefined } }))
   await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
-  expect(await mesure).toBe('node scripts/tableau.mjs')
+  expect(await mesure).toBe('node_modules/.bin/grillhouse tableau')
   await new Promise(r => setTimeout(r, 50))
 })
 
@@ -51,7 +51,7 @@ for (const [cas, cwd, estProjet, isInteractive] of [
     on('command.register', () => ({ value: undefined }))
     on('clock.every', () => ({ value: { cancel: () => undefined } }))
     await $.session.start({ cwd, surface: isInteractive ? 'terminal' : null, isInteractive })
-    expect(lances).not.toContain('node scripts/tableau.mjs')
+    expect(lances).not.toContain('node_modules/.bin/grillhouse tableau')
   })
 }
 

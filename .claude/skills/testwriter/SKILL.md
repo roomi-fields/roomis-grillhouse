@@ -140,7 +140,7 @@ défaut reste rouge.
 **Un test trop long pour le jour est un test de nuit** : il s'écrit dans un fichier
 `*.nuit.test.ts`. Ni `npm test` ni l'intégration ne le jouent, sauf nommé lui-même
 (`npm test -- <son fichier>`) ; la nuit le joue elle-même, après
-une passe complète verte, avec la configuration du cadre (`scripts/vitest.nuit.config.mjs`) ; la configuration de base du
+une passe complète verte, avec la configuration du cadre (`packages/grillhouse/scripts/vitest.nuit.config.mjs`) ; la configuration de base du
 jour (le paquet `@grillhouse/vitest-config`), que chaque configuration Vitest étend, l'exclut.
 Ainsi le jour reste court, et la preuve longue tourne chaque nuit.
 

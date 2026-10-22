@@ -1,9 +1,15 @@
 {
-  "extends": "./tsconfig.json",
+  "extends": "./templates/projet/tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
     "rootDir": "."
   },
-  "include": ["src/**/*", "tests/**/*", "*.ts"],
+  "include": [
+    "templates/projet/src/**/*",
+    "templates/projet/tests/**/*",
+    "templates/projet/*.ts",
+    "packages/grillhouse/tests/**/*",
+    "packages/grillhouse/*.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }

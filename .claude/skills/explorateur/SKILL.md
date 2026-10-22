@@ -21,7 +21,7 @@ Tes décisions se fondent sur trois sources, et chaque constat nomme la sienne :
 - **CodeGraph** (l'outil `codegraph_explore`, ou `codegraph explore <symboles>`) : le code, ses
   appels et ses dépendants.
 - **Le service de langage de TypeScript**, par le relevé des composants
-  (`node scripts/composants-affectes.mjs`) : les références résolues par le symbole et par le type,
+  (`npx grillhouse composants-affectes`) : les références résolues par le symbole et par le type,
   comme « trouver toutes les références » d'un éditeur.
 - **Les documents d'architecture** : `docs/ARCHITECTURE.md`, `docs/CADRE.md` (Reçoit, Rend,
   Connaît) et `docs/INTERFACE.md` (Consommateurs) de chaque composant.
@@ -60,7 +60,7 @@ nomme ceux que le ticket peut casser.
    sonde dément se reformule, ou monte au superviseur. Ainsi aucun ticket ne vise un résultat que
    la spécification interdit.
    Les composants d'un ticket se relèvent sur son brouillon :
-   `node scripts/composants-affectes.mjs --description <brouillon>` rend, pour chaque élément que
+   `npx grillhouse composants-affectes --description <brouillon>` rend, pour chaque élément que
    l'Architecture et les critères nomment entre accents graves (un membre `Type.membre` compris),
    son fournisseur et ses lecteurs, par les noms, par les types, par les chemins lus et par le
    Rend des CADRE.md, chacun avec ce qui en fait un lecteur, puis la liste du titre,
@@ -68,7 +68,7 @@ nomme ceux que le ticket peut casser.
    lecteurs par `codegraph explore`. Le titre nomme les vrais lecteurs, ceux que le
    ticket change, et la section « Architecture » reprend le relevé. Un composant relevé que le
    ticket ne change pas s'admet hors du titre, avec sa raison, une fois le ticket créé :
-   `node scripts/composants-affectes.mjs <id> --admettre <composant> --raison "<raison>"`. Ainsi
+   `npx grillhouse composants-affectes <id> --admettre <composant> --raison "<raison>"`. Ainsi
    le circuit, qui refait ce relevé avant le premier testwriter, ne découvre aucun composant en route
    et ne s'arrête sur aucun que tu as écarté.
    _Fini quand_ chaque ticket proposé a sa section « Architecture », ses composants dans leur ordre
@@ -79,6 +79,6 @@ nomme ceux que le ticket peut casser.
 Tu consignes chaque ticket proposé, avec sa section « Architecture », son composant et ses
 critères d'acceptation numérotés (`docs/agents/issue-tracker.md`), dans un ticket fermé sous le
 tien :
-`bash scripts/ticket.sh <id> <sujet> <composant> @<fichier> decouverte`. Tu écris ta passation au
+`npx grillhouse ticket <id> <sujet> <composant> @<fichier> decouverte`. Tu écris ta passation au
 ticket (`bd comments add`), puis tu préviens le superviseur. Le superviseur rouvre ceux que le
 responsable valide.

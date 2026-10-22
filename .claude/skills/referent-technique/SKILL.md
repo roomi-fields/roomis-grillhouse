@@ -73,7 +73,7 @@ avec ta fiche. Ainsi le circuit reprend dès ta fiche rendue.
 
 ## Les questions au plan
 
-Dans le circuit (`scripts/circuit.mjs`), avant le testwriter du premier composant, le questionneur
+Dans le circuit (`packages/grillhouse/scripts/circuit.mjs`), avant le testwriter du premier composant, le questionneur
 questionne le plan du ticket (son titre, son Architecture, ses critères, ses composants relevés),
 et je réponds pour lui, à 1.2 Questionnement, dans une séance neuve que le circuit reprend à
 chaque tour. Ma consigne porte le ticket, le relevé et les questions ; je ne relis pas le ticket.
@@ -137,7 +137,7 @@ remplies :
 
 **Le travail que le verdict demande** : un ticket par livraison, qui nomme ses composants, le
 fournisseur d'abord, et que tu consignes fermé sous le ticket
-(`bash scripts/ticket.sh <id> <sujet> <composants> <corps> decouverte`) ; le verdict les nomme
+(`npx grillhouse ticket <id> <sujet> <composants> <corps> decouverte`) ; le verdict les nomme
 par leur numéro, et le superviseur rouvre ceux que le responsable valide. Ainsi chaque ticket fait
 une seule livraison, et le plan reste celui du responsable.
 

@@ -1,0 +1,96 @@
+{
+  "name": "@your-scope/project-name",
+  "version": "1.0.0",
+  "description": "A brief description of your project",
+  "author": "Your Name <your.email@example.com>",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "project-name": "dist/index.js"
+  },
+  "scripts": {
+    "setup": "grillhouse setup",
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "grillhouse tests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src tests --ext .ts,.js,.mjs",
+    "lint:fix": "eslint src tests --ext .ts,.js,.mjs --fix",
+    "format": "prettier --write \"src/**/*.{ts,js,mjs}\" \"tests/**/*.{ts,js,mjs}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,js,mjs}\" \"tests/**/*.{ts,js,mjs}\"",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run lint && npm run typecheck && npm run verifier && npm run build",
+    "daemon:start": "pm2 start ecosystem.config.cjs",
+    "daemon:stop": "pm2 stop project-name",
+    "daemon:restart": "pm2 restart project-name",
+    "daemon:logs": "pm2 logs project-name",
+    "daemon:status": "pm2 status",
+    "daemon:delete": "pm2 delete project-name",
+    "interfaces": "grillhouse index-interfaces",
+    "grillhouse:gardes": "grillhouse gardes-du-cadre",
+    "frontieres": "grillhouse frontieres",
+    "api": "grillhouse interfaces-contre-code --ecrire",
+    "tableau": "grillhouse tableau --texte",
+    "grillhouse:maj": "grillhouse maj",
+    "code-mort": "grillhouse code-mort",
+    "test:vitest": "vitest run",
+    "test:forcer": "grillhouse tests --force",
+    "verifier": "grillhouse verifier",
+    "grillhouse:dette:inscrire": "turbo run build && GRILLHOUSE_DETTE=inscrire npm run --silent grillhouse:gardes",
+    "grillhouse:dette:elaguer": "turbo run build && GRILLHOUSE_DETTE=elaguer npm run --silent grillhouse:gardes"
+  },
+  "keywords": [
+    "keyword1",
+    "keyword2",
+    "keyword3"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-username/project-name.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/project-name/issues"
+  },
+  "homepage": "https://github.com/your-username/project-name#readme",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "docs"
+  ],
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@microsoft/api-extractor": "7.59.2",
+    "@microsoft/api-extractor-model": "7.33.13",
+    "@microsoft/tsdoc-config": "0.18.3",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "@vitest/coverage-v8": "^2.1.9",
+    "dependency-cruiser": "18.4.0",
+    "eslint": "^8.57.0",
+    "jsonc-parser": "3.3.1",
+    "knip": "^6.41.0",
+    "pm2": "^5.4.2",
+    "prettier": "^3.2.0",
+    "semver": "^7.8.5",
+    "tsx": "^4.7.0",
+    "turbo": "2.11.8",
+    "typescript": "^5.3.3",
+    "vitest": "^2.0.0",
+    "yaml": "2.9.1"
+  },
+  "packageManager": "npm@10.9.8"
+}

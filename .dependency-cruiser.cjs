@@ -1,4 +1,4 @@
-// Généré par `node scripts/frontieres.mjs --ecrire` ; ne pas éditer. Les règles et les options
+// Généré par `npx grillhouse frontieres --ecrire` ; ne pas éditer. Les règles et les options
 // propres au projet vivent dans .dependency-cruiser.projet.cjs, lu au chargement.
 const fs = require('node:fs');
 const projet = fs.existsSync(`${__dirname}/.dependency-cruiser.projet.cjs`)
@@ -35,7 +35,6 @@ const cadre = {
   },
   tsPreCompilationDeps: true,
   preserveSymlinks: true,
-  tsConfig: { fileName: 'tsconfig.json' },
   enhancedResolveOptions: {
     exportsFields: ['exports'],
     conditionNames: ['import', 'require', 'default', 'types'],
@@ -64,19 +63,6 @@ module.exports = {
         "to": {
           "path": "^packages/([^/]+)/",
           "pathNot": "^packages/$1/"
-        }
-      },
-      {
-        "name": "un-module-par-son-entree",
-        "comment": "un module de src en importe un autre par son entrée (index), jamais par " +
-          "l'intérieur",
-        "severity": "error",
-        "from": {
-          "path": "^src/([^/]+)/"
-        },
-        "to": {
-          "path": "^src/([^/]+)/",
-          "pathNot": "^src/$1/|^src/[^/]+/index[.][a-z]+$"
         }
       },
       {
@@ -122,7 +108,8 @@ module.exports = {
         "from": {
           "orphan": true,
           "pathNot": "(^|/)(test|tests|__tests__)/|[.](test|spec)[.][a-z]+$|(^|" +
-            "/)index[.][a-z]+$|[.]d[.]ts$|[.]config[.][a-z]+$"
+            "/)index[.][a-z]+$|[.]d[.]ts$|[.]config[.][a-z]+$|" +
+            "^packages/grillhouse/bin/grillhouse\\.mjs$"
         },
         "to": {}
       },

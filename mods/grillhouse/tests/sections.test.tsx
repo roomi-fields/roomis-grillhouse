@@ -12,7 +12,7 @@ import { enLignes } from '../hooks/register'
 
 type L = { texte: string; ton?: string; ticket?: string; chantier?: boolean; section: string }
 
-// A board laid out as `scripts/tableau.mjs` lays it: the head and AGENTS with `m` agents' lines
+// A board laid out as `grillhouse tableau` lays it: the head and AGENTS with `m` agents' lines
 // (section agents), one chantier with `n` tree lines (section chantier), FAITS AUJOURD'HUI with `p`
 // lines (section faits, absent when `p` is 0). A blank line belongs to the section after it.
 function tableau(n: number, m: number, p: number) {
@@ -94,7 +94,7 @@ type Monte = {
   passes: () => number
   decalages: number[]
   appels: string[][]
-  // The board `scripts/tableau.mjs` gives from now on, at its next measure.
+  // The board `grillhouse tableau` gives from now on, at its next measure.
   changer: (t: object) => void
 }
 
@@ -116,7 +116,7 @@ async function monter(
   let courant = t
   h('process.run', (_: unknown, e: { argv: string[] }) => {
     appels.push(e.argv)
-    // The board from scripts/tableau.mjs; a ticket's whole text from Beads (`bd show <id> --json`).
+    // The board from `grillhouse tableau`; a ticket's whole text from Beads (`bd show <id> --json`).
     const stdout =
       e.argv[0] === 'node'
         ? JSON.stringify(courant)

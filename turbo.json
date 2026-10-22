@@ -8,19 +8,20 @@
   ],
   "tasks": {
     "build": {
+      "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
-    "grillhouse:gardes": {
-      "dependsOn": ["build"],
-      "outputs": []
-    },
-    "gardes": {
-      "dependsOn": ["build"],
-      "outputs": []
-    },
     "test:vitest": {
-      "dependsOn": ["build"],
+      "dependsOn": ["build", "^build"],
       "env": ["GRILLHOUSE_TESTS"],
+      "outputs": []
+    },
+    "//#grillhouse:gardes": {
+      "dependsOn": [],
+      "outputs": []
+    },
+    "//#gardes": {
+      "dependsOn": [],
       "outputs": []
     }
   }

@@ -23,7 +23,7 @@ export type Fiche = {
   jetons: number
   resume: string
 }
-// What the mod reads of `scripts/tableau.mjs`: the board's lines, laid out there, the states' view
+// What the mod reads of `grillhouse tableau`: the board's lines, laid out there, the states' view
 // (`vueEtats`: each state, its meaning, its tickets), each folded group whole (`groupes`), their
 // cards, and the ticket that moved last.
 export type Tableau = {

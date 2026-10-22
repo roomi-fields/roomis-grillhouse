@@ -1,8 +1,43 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": ["scripts/**/*.mjs", ".claude/skills/*/scripts/*.cjs"],
-  "project": ["src/**/*.ts", "scripts/**/*.mjs", "tests/**/*.ts"],
-  "ignore": ["mods/**"],
-  "ignoreBinaries": ["bd", "bwrap", "claude", "codegraph", "mkfifo", "pm2"],
-  "ignoreUnresolved": ["./.dependency-cruiser.projet.cjs"]
+  "workspaces": {
+    ".": {
+      "entry": [
+        ".claude/skills/*/scripts/*.cjs"
+      ],
+      "project": [
+        ".claude/skills/*/scripts/*.cjs"
+      ],
+      "ignoreDependencies": [
+        "dotenv",
+        "zod"
+      ]
+    },
+    "packages/grillhouse": {
+      "entry": [
+        "bin/*.mjs",
+        "scripts/**/*.mjs"
+      ],
+      "project": [
+        "bin/*.mjs",
+        "scripts/**/*.mjs",
+        "tests/**/*.ts"
+      ]
+    }
+  },
+  "ignore": [
+    "mods/**",
+    "templates/**"
+  ],
+  "ignoreBinaries": [
+    "bd",
+    "bwrap",
+    "claude",
+    "codegraph",
+    "mkfifo",
+    "pm2"
+  ],
+  "ignoreUnresolved": [
+    "./.dependency-cruiser.projet.cjs"
+  ]
 }

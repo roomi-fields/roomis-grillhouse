@@ -8,7 +8,7 @@ description: "Le régulateur : trancher un arrêt du circuit d'un ticket — lir
 Je tranche un arrêt du circuit d'un ticket, à l'Arbitrage de l'arrêt, hors de la suite des
 étapes, sous l'étape arrêtée (« 2.3 Code »), trois arrêts au plus. Le superviseur lance le
 circuit ; quand il s'arrête sur un code autre que 0, le circuit lit d'abord la table des arrêts
-(`scripts/etapes.mjs`, `TABLE_DES_ARRETS`), sa politique écrite : chaque genre d'arrêt et son
+(`packages/grillhouse/scripts/etapes.mjs`, `TABLE_DES_ARRETS`), sa politique écrite : chaque genre d'arrêt et son
 geste, qu'il applique lui-même (le même arrêt revenu sans fait nouveau monte au superviseur ;
 « à repasser » se rejoue au repos ; un rouge d'un autre composant va à son développeur ;
 un renvoi au testwriter, un composant ajouté au titre partent au testwriter). Pour ce que la table ne
@@ -18,7 +18,7 @@ les résultats structurés, chacun avec son composant, et les chemins de l'état
 (`.claude/worktrees/<ticket>.circuit.json`) et du journal. Il attend ma décision, puis
 l'applique. Je n'écris ni code ni test. La charte (`CLAUDE.md`) prime sur cette compétence.
 
-Au premier geste, je lis l'état par sa commande, `node scripts/etat-du-circuit.mjs <etat>`, un
+Au premier geste, je lis l'état par sa commande, `npx grillhouse etat-du-circuit <etat>`, un
 résumé borné (son étape, son composant, son arrêt, ses derniers rouges et ses fichiers), jamais le
 fichier brut, et le plan du ticket, sa description et ses critères, que ma consigne porte. Ainsi
 l'état se lit en une commande, quelle que soit sa taille. Je juge sur le plan : une décision du
@@ -34,7 +34,7 @@ journal fait plusieurs Mo : je le lis par morceaux, `grep -n <motif> <journal>` 
    puis 2 Composants, pour chaque composant du titre, le fournisseur d'abord, dans la copie du
    ticket : 2.1 Tests (le testwriter), 2.2 Preuve du rouge, 2.3 Code (le développeur) et 2.4
    Contrôles ; puis 3 Passe finale, 4 Relecture (le relecteur), et 5 Intégration : 5.1 Commit et
-   5.2 File, qui amène la branche sur main, pousse et lit la CI (`scripts/etapes.mjs`, la liste). Il écrit chaque
+   5.2 File, qui amène la branche sur main, pousse et lit la CI (`packages/grillhouse/scripts/etapes.mjs`, la liste). Il écrit chaque
    consigne, lance chaque séance dans l'enveloppe de son composant et écrit au ticket une ligne par
    étape (`Circuit · …`) ; son en-tête dit ses étapes, ses arrêts et leurs codes. Ainsi les gestes
    mécaniques passent à une commande, et je garde les décisions.
@@ -205,7 +205,7 @@ n'est réveillé que par une question.
 ## Les commandes
 
 - **Mes lectures, sous leur forme écrite** : chaque commande seule, depuis la copie, sans `cd`
-  ni variable dans un chemin. L'état : `node scripts/etat-du-circuit.mjs <etat>`. Le journal et
+  ni variable dans un chemin. L'état : `npx grillhouse etat-du-circuit <etat>`. Le journal et
   les preuves : `grep -n <motif> <journal>`, `tail -n <lignes> <journal>`. La copie, par git :
   `git -C <copie> status --short`, `git -C <copie> diff HEAD -- <chemin>`,
   `git -C <copie> log --oneline -n <n>`, `git -C <copie> ls-files <chemin>`,

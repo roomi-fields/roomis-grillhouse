@@ -1,6 +1,6 @@
 # La consigne d'un agent
 
-Douze gabarits, que le circuit du ticket (`scripts/circuit.mjs`) remplit, chaque `{{champ}}` reçu
+Douze gabarits, que le circuit du ticket (`packages/grillhouse/scripts/circuit.mjs`) remplit, chaque `{{champ}}` reçu
 de lui : le premier pour chaque séance neuve du testwriter et du développeur, dans l'enveloppe de son
 composant, le lanceur ajoutant ses sections ; le second pour chaque séance du relecteur, hors
 enveloppe, après la passe finale verte, qui après un `RENDU` porte la relecture d'avant (la
@@ -24,7 +24,7 @@ des notes, vide quand le ticket n'en a pas. Ainsi chaque agent reçoit la même 
 séance, sur le ticket tel qu'il est, et une reprise ne relit que ce qui a changé.
 
 Chaque séance finit sur sa fiche : la sortie structurée que le schéma de son rôle décrit
-(`scripts/resultats.mjs`, que claude reçoit par `--json-schema`), seule lue par le circuit. Ainsi
+(`packages/grillhouse/scripts/resultats.mjs`, que claude reçoit par `--json-schema`), seule lue par le circuit. Ainsi
 le circuit décide sur des champs, jamais sur un texte libre.
 
 ## Testwriter et développeur (rempli par le circuit)
@@ -114,7 +114,7 @@ TON TICKET : {{ticket}} — {{sujet}}
 
 L'ARRÊT : {{arret}} (code {{code}}), à l'étape {{etape}} du composant {{composant}}.
 
-L'ÉTAT DU CIRCUIT : {{etat}}, qui se lit par `node scripts/etat-du-circuit.mjs {{etat}}`, un résumé borné (étape, composant, arrêt, derniers rouges, fichiers), jamais le fichier brut.
+L'ÉTAT DU CIRCUIT : {{etat}}, qui se lit par `npx grillhouse etat-du-circuit {{etat}}`, un résumé borné (étape, composant, arrêt, derniers rouges, fichiers), jamais le fichier brut.
 
 LE JOURNAL DU TICKET : {{journal}}
 

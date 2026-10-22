@@ -32,22 +32,22 @@ professionnel.
    tests qu'il n'a pas écrits. Un critère répond à un besoin réel de l'usage actuel ; un cas
    seulement possible n'en devient pas un. Ainsi le ticket garde la taille du besoin.
 5. Le ticket se ferme sur ses tests ciblés, le verdict de l'agent `relecteur` sur le lot, le
-   commit du circuit (`scripts/circuit.mjs`), seul à commiter, sur la branche du ticket, et
+   commit du circuit (`packages/grillhouse/scripts/circuit.mjs`), seul à commiter, sur la branche du ticket, et
    l'entrée de cette branche sur main par la file, qui le ferme. Ainsi ce qui est déclaré fini
    l'est vraiment.
 6. Chaque agent laisse sa passation en commentaire au ticket (`bd comments add`,
    `docs/agents/issue-tracker.md`), avec ce qui n'est pas fait et pourquoi. Ainsi l'agent suivant
    la trouve par `bd show`. Une séance que le circuit mène (testwriter, développeur, relecteur,
    régulateur) finit sur sa fiche, la sortie structurée que le schéma de son rôle décrit
-   (`scripts/resultats.mjs`) ; le circuit décide sur elle, jamais sur un texte libre. Ainsi la
+   (`packages/grillhouse/scripts/resultats.mjs`) ; le circuit décide sur elle, jamais sur un texte libre. Ainsi la
    passation sert l'humain, et la fiche le circuit.
 
 Une séance de supervision charge le superviseur (`pitmaster`) ; un projet a un seul superviseur,
 comme Zuul a un seul ordonnanceur : l'ouverture de séance prend le verrou du dépôt, et une seconde
 séance le dit au responsable et ne lance aucun circuit. Les rôles sont des agents du projet
 (`.claude/agents/`), chacun sous ses verrous et les droits que nomment les commandes de sa
-compétence, sans la configuration propre de l'utilisateur (`scripts/droits.mjs`). Un ticket
-parcourt l'arbre de son circuit, les étapes « auto » comprises (`scripts/etapes.mjs`, la seule
+compétence, sans la configuration propre de l'utilisateur (`packages/grillhouse/scripts/droits.mjs`). Un ticket
+parcourt l'arbre de son circuit, les étapes « auto » comprises (`packages/grillhouse/scripts/etapes.mjs`, la seule
 liste), comme un pipeline de GitLab CI ses étapes et leurs travaux : 0 Exploration,
 l'`explorateur` ; 1 Ouverture : 1.1 Relevé des composants, auto, puis 1.2 Questionnement,
 le `questionneur` ⇄ le `referent-technique`, qui répond pour le plan, en tours, quatre au plus ;
@@ -74,7 +74,7 @@ Ainsi une décision se mesure à des questions qu'elle ne s'est pas posées, com
 tests qu'il n'a pas écrits.
 
 **Le superviseur intervient sur ce qui dépasse le ticket** : le circuit applique lui-même le
-geste que la table des arrêts (`scripts/etapes.mjs`) écrit pour un genre d'arrêt, et vérifie sur
+geste que la table des arrêts (`packages/grillhouse/scripts/etapes.mjs`) écrit pour un genre d'arrêt, et vérifie sur
 son état chaque décision du régulateur avant de l'appliquer ; le régulateur tranche le reste, ce que la
 lettre d'un critère, un précédent écrit ou une règle du cadre tranchent ; il fait monter au
 superviseur le reste, et tout sujet sensible : le cadre, l'architecture, et le fonctionnel que la
@@ -93,9 +93,9 @@ de réalisation fait une seule livraison, en un seul commit ; tout ticket se cr�
 
 **Un ticket de réalisation nomme ses composants** : sa section « Architecture » et son titre
 (« numéro — sujet — composant, composant ») les nomment, le fournisseur d'abord, puis ses lecteurs.
-Le relevé des composants (`scripts/composants-affectes.mjs`) les trouve à la création du ticket, et
+Le relevé des composants (`packages/grillhouse/scripts/composants-affectes.mjs`) les trouve à la création du ticket, et
 le circuit le refait avant le premier testwriter : un composant relevé que le titre ne nomme pas
-l'arrête d'emblée. Dans la copie du ticket, le circuit (`scripts/circuit.mjs`), que lance le superviseur, lance un
+l'arrête d'emblée. Dans la copie du ticket, le circuit (`packages/grillhouse/scripts/circuit.mjs`), que lance le superviseur, lance un
 agent par composant, chacun enveloppé dans son paquet, dans cet ordre, puis le relecteur, qui relit
 l'ensemble. Ainsi un type change avec ses
 lecteurs, comme dans une demande de fusion de rustc, et chaque agent écrit dans son seul paquet.
@@ -152,7 +152,7 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
   réveille la séance ; aucune boucle d'attente, aucun long délai au premier plan. Ce que la séance
   annonce de sa façon de faire vaut dès la commande suivante ; quand le responsable arrête, elle ne
   lance plus rien. Un agent de rôle, lui, attend au premier plan ce qu'il lance, car sa séance
-  finit avec son tour : ses réglages lui ôtent les tâches de fond (`scripts/droits.mjs`). Ainsi le responsable n'attend jamais une commande, et aucun travail ne se
+  finit avec son tour : ses réglages lui ôtent les tâches de fond (`packages/grillhouse/scripts/droits.mjs`). Ainsi le responsable n'attend jamais une commande, et aucun travail ne se
   perd.
 - **Les tests se lancent par `npm test`** (Turborepo : la construction, puis les tests) :
   `npm test -- <chemins>` pour un lancement ciblé, chaque chemin écrit depuis la racine du dépôt
@@ -166,7 +166,7 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
   celles du projet (son script racine `gardes`, un nom que le cadre réserve ; une garde juge les
   fichiers de l'arbre de travail, que le cache de Turborepo compte, jamais l'index de git ; elle
   écrit ses constats en SARIF, chacun avec son fichier et sa ligne, par `ecrireSarif` de
-  `scripts/resultats.mjs`, dans le dossier que nomme `GRILLHOUSE_RESULTATS`, et sans eux son rouge
+  `packages/grillhouse/scripts/resultats.mjs`, dans le dossier que nomme `GRILLHOUSE_RESULTATS`, et sans eux son rouge
   ne revient à aucun composant) et les tests, côte à côte ; un rouge n'arrête pas la passe, qui joue tout ce que ses tâches
   préalables permettent et nomme chaque rouge ; `npm run verifier -- --gardes` joue les gardes
   seules, ce que le relecteur joue sur la copie du ticket. Une tâche dont
@@ -223,5 +223,5 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
 ## Le commit
 
 Le circuit du ticket fait chaque commit après le verdict `ACCEPTÉ` du relecteur, par le script
-`scripts/integration/integrer.mjs` : commits conventionnels, message par fichier
+`packages/grillhouse/scripts/integration/integrer.mjs` : commits conventionnels, message par fichier
 (`git commit -F`), trailer `Co-Authored-By: Claude`.

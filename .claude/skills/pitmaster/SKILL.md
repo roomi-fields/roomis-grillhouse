@@ -19,7 +19,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 - `references/erreurs.md` — les pièges des outils (Beads, git, crochets) : avant de lire un ticket
   ou de commiter.
 - `references/consigne-agent.md` — les gabarits des consignes : le circuit du ticket
-  (`scripts/circuit.mjs`) remplit celle du testwriter et du développeur, celle du relecteur et
+  (`packages/grillhouse/scripts/circuit.mjs`) remplit celle du testwriter et du développeur, celle du relecteur et
   celles du régulateur, et celles du questionnement.
 - `docs/agents/issue-tracker.md` — le format des tickets : avant d'en ouvrir un.
 - `pitmaster/SUIVI.md` — le dernier tour, les agents lancés, les questions en attente : au
@@ -45,7 +45,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   question tranchée, un ticket sans objet. Ainsi celui qui relit n'est jamais celui qui a fait.
 - **Les gestes de l'agent** : l'agent écrit le code, les tests, les documents et la passation, et
   livre son lot ; le circuit du ticket le commite sur la branche du ticket, et la file
-  (`scripts/integration/file.mjs`) l'amène sur main et ferme le ticket. Ainsi chaque changement du dépôt
+  (`packages/grillhouse/scripts/integration/file.mjs`) l'amène sur main et ferme le ticket. Ainsi chaque changement du dépôt
   porte un ticket et passe une relecture.
 - **Le dépôt appartient aux agents** : une réparation, même d'une ligne, part en ticket à un agent.
   Ainsi je reste le relecteur du dépôt, jamais son auteur.
@@ -63,15 +63,15 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   ne contient qu'eux.
 - **Le ménage de la séance** : je retire les copies de travail et les sondes que les agents
   laissent, chacune par son chemin nommé et lu, une copie par
-  `bash scripts/retirer-copie.sh <copie>`. Ainsi le dépôt garde seulement le travail commité,
+  `npx grillhouse retirer-copie <copie>`. Ainsi le dépôt garde seulement le travail commité,
   et rien ne se supprime sans avoir été lu.
 
 ## Un agent, un ticket
 
 - **Je lance le circuit d'un ticket** : un ticket tranché part au circuit,
-  `node scripts/circuit.mjs <ticket>`, que je lance une fois, en arrière-plan
+  `npx grillhouse circuit <ticket>`, que je lance une fois, en arrière-plan
   (`run_in_background`) ; sa fin me réveille. Le circuit mène l'arbre de ses étapes
-  (`scripts/etapes.mjs`) : 1 Ouverture (1.1 le relevé des composants, 1.2 le questionnement du
+  (`packages/grillhouse/scripts/etapes.mjs`) : 1 Ouverture (1.1 le relevé des composants, 1.2 le questionnement du
   plan, le questionneur, auquel le référent technique répond pour le plan), 2 Composants (2.1
   testwriter, 2.2 preuve du rouge, 2.3 développeur, 2.4 contrôles, pour chaque composant), 3 la passe
   finale (3.1 la régénération des références que le projet déclare, `grillhouse.references` de son
@@ -94,10 +94,10 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   revient, le circuit écrit au ticket son bilan (`Circuit · … · bilan`) : le temps mur et sa part
   perdue, le temps par catégorie, les séances par rôle (celles que le circuit lance ; les miennes à
   part), les arrêts, les jetons et le coût, face au bilan d'avant du projet ; la fiche du ticket au panneau en montre les chiffres clés.
-  `node scripts/bilan.mjs <ticket>` le recalcule, `--garder` le garde comme base. Ainsi
+  `npx grillhouse bilan <ticket>` le recalcule, `--garder` le garde comme base. Ainsi
   l'analyse d'un ticket se fait seule.
 - **Un arrêt se tranche dans le circuit** : sur un arrêt autre que 0, 21 et 75, le circuit applique
-  le geste que la table des arrêts (`scripts/etapes.mjs`) écrit pour son genre ; pour le reste, il
+  le geste que la table des arrêts (`packages/grillhouse/scripts/etapes.mjs`) écrit pour son genre ; pour le reste, il
   lance lui-même une séance du régulateur (compétence `regulateur`, Sonnet), qui tranche ce
   que les règles tranchent et rend sa décision dans sa fiche ; le circuit la vérifie sur son état,
   l'écrit au ticket et l'applique : il repart seul, ou finit sur la question du régulateur. Je ne lance aucun régulateur. Ainsi
@@ -107,7 +107,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   raison de l'état, et elle vient à moi. Je réponds moi-même à ce qui est à moi (le cadre du
   ticket, un arbitrage) ; je porte au responsable le fonctionnel et ce que la charte lui garde.
   J'écris la réponse au ticket, puis je lance
-  `node scripts/circuit.mjs <ticket> --reponse "<sa réponse>"` en arrière-plan : la réponse du
+  `npx grillhouse circuit <ticket> --reponse "<sa réponse>"` en arrière-plan : la réponse du
   responsable entre dans le plan, que tous les agents lisent. Le référent technique la verse dans le
   plan (un critère ajouté, retiré ou précisé), le circuit l'écrit, et un plan changé passe le
   questionneur ; puis le circuit reprend la séance du régulateur, qui tranche sur le plan, et
@@ -116,7 +116,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   responsable. Toute décision du responsable sur un ticket passe par le circuit, jamais par le
   contexte d'une relance ni par un commentaire seul : sur un arrêt « question », `--reponse` ; hors
   de toute question du circuit, même quand il tourne,
-  `node scripts/circuit.mjs <ticket> --decision "<sa décision>"` en arrière-plan. Le circuit en
+  `npx grillhouse circuit <ticket> --decision "<sa décision>"` en arrière-plan. Le circuit en
   cours s'arrête d'abord, sa séance avec lui, et sa fin me réveille sans rien me demander ; le référent technique la verse dans le plan, un plan
   changé passe le questionneur, puis le circuit reprend là où il en était et rejoue les seuls
   composants que le plan changé touche ; une décision sans effet sur le plan est dite au ticket, et
@@ -126,7 +126,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   (`bd update <ticket> --title`), puis je relance le circuit ; ou je réponds pourquoi il reste
   dehors, `--reponse "<raison>"`, que le circuit écrit au ticket avant de partir du premier
   testwriter. Un composant que le ticket ne change pas s'admet avant le lancement,
-  `node scripts/composants-affectes.mjs <ticket> --admettre <composant> --raison "<raison>"`.
+  `npx grillhouse composants-affectes <ticket> --admettre <composant> --raison "<raison>"`.
   22 (`questionnement`) : le questionnement du plan finit sur un désaccord, ou reste questionné
   au quatrième tour ; l'échange est au ticket, ce qui reste en tête du rapport de l'état. Je change
   le plan (`bd update <ticket>`) ou je le garde, puis je réponds, `--reponse "<texte>"`, que le
@@ -149,7 +149,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   livraison en cours si elle est complète et verte, puis ferme ; son reste devient des tickets
   enfants, à valider. Ainsi aucun ticket ne devient un « lot 2 ».
 - **Tout ticket se crée sous sa mère** : un sujet a un ticket mère, ouvert tant qu'il reste du
-  travail dessous ; chaque ticket naît sous la sienne par `bash scripts/ticket.sh`, qui le titre
+  travail dessous ; chaque ticket naît sous la sienne par `npx grillhouse ticket`, qui le titre
   « numéro — sujet — composant, composant ». Ainsi 320.2.1 se lit d'un coup d'œil.
 - **Les découvertes des agents** : je monte au responsable celles qui touchent un usage réel, et
   je rouvre celles qu'il retient.
@@ -182,10 +182,10 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   celui d'une machine saturée.
 - **Mes commits** : l'intégration travaille dans sa propre copie et ne touche pas l'arbre
   principal ; seule la file y avance main. Je commite mes propres fichiers quand je veux. Un ticket
-  resté `en-file` sans file lancée se vide à la main : `node scripts/integration/file.mjs`. Ainsi un
+  resté `en-file` sans file lancée se vide à la main : `npx grillhouse file`. Ainsi un
   changement du cadre n'attend aucune livraison.
 - **La nuit se lit le matin** : la passe complète tourne pour de vrai une fois la nuit
-  (`scripts/nuit.sh`, `npm run verifier -- --force`), suivie des tests de nuit (`*.nuit.test.*`) et des
+  (`packages/grillhouse/scripts/nuit.sh`, `npm run verifier -- --force`), suivie des tests de nuit (`*.nuit.test.*`) et des
   bancs de budget (`*.budget.test.*`) ; un rouge ouvre un ticket étiqueté `nuit`, avec les commits où chercher ;
   une nuit « à repasser » (code 75 : des échecs de durée sous charge, sans repos) n'ouvre rien et
   garde le dernier vert, la nuit suivante rejoue. Je
