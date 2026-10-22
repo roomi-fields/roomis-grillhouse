@@ -30,6 +30,10 @@ const PERMISES: Record<string, string> = {
   '/\\.circuit-avant\\.(test|spec)\\./': 'le nom d’un fichier de test, la version de HEAD',
   '/^(\\d+)\\.\\s/gm':
     'les lignes numérotées de la description, pour numéroter le critère de la fiche du régulateur',
+  '/^##\\s+(.*)$/': 'les titres de section de la description, pour le message de commit',
+  '/^Critères\\b/':
+    'le titre de la section des critères de la description, pour le message de commit',
+  '/\\s+/g': 'les blancs du sujet d’un écart d’une fiche, pour le reconnaître une seule fois',
 };
 
 // Every regular expression of <texte>: its literals, and each `RegExp(…)` construction.
