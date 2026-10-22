@@ -163,8 +163,8 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
   seules, ce que le relecteur joue sur la copie du ticket. Une tâche dont
   rien n'a bougé n'est pas rejouée : Turborepo relit sa sortie consignée dans son cache (« cache
   hit, replaying logs »), et cette relecture vaut un lancement. Une passe se mesure contre le
-  dernier vert, l'arbre de la dernière passe verte du dépôt, comme `vitest --changed` : un
-  paquet que Turborepo rejoue joue les seuls tests que Vitest relie aux fichiers changés depuis,
+  dernier vert, l'arbre de la dernière passe verte de sa branche, celle de main pour une copie
+  qui n'en a pas encore, comme `vitest --changed` : un paquet que Turborepo rejoue joue les seuls tests que Vitest relie aux fichiers changés depuis,
   et tous ses tests quand un changement sort du graphe de Vitest (un fichier supprimé, une
   configuration, un fichier qu'aucun module n'importe, le code d'un paquet dont il dépend, un
   chemin que ses tests déclarent lire, `grillhouse.lit`) ; sans vert connu, la passe est

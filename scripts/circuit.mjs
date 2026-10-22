@@ -136,7 +136,7 @@
 //   guard its SARIF; its output goes to the log, for the human. Each `npm test` of them carries
 //   the mark `GRILLHOUSE_DEPUIS_LE_VERT` (scripts/dernier-vert.mjs): in a package named whole,
 //   the tests that play are those Vitest relates to the files changed since the last green of the
-//   repository, the files named among them, as `npm run verifier` measures itself; a lot that
+//   copy's branch (main's while the copy has none), the files named among them, as `npm run verifier` measures itself; a lot that
 //   changes one test plays that test, and those whose graph it reaches.
 // - Each automatic pass (each command of the proof and of the checks, the final pass, the
 //   integration and the queue) plays under a progress directory of its own
@@ -211,8 +211,8 @@
 // - After the last component of the run, the final pass: `npm run verifier`, what the
 //   integration plays, as bors plays on a lot the very check of the merge. Turborepo's cache
 //   and the last green hold its cost: a task nothing moved replays from it, and in a package
-//   that plays again, the tests Vitest relates to the files changed since the last green
-//   (scripts/dernier-vert.mjs); what the lot reaches plays again,
+//   that plays again, the tests Vitest relates to the files changed since the last green of the
+//   copy (scripts/dernier-vert.mjs, main's while the copy has none); what the lot reaches plays again,
 //   by the dependencies, the inputs of the tasks and `grillhouse.lit` (a reader out of the title
 //   whose tests read a directory the lot changes included). After a review, save on the lot it
 //   accepted, the final pass is restricted to what changed since the lot it read and to its

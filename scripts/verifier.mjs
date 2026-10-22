@@ -8,7 +8,7 @@
 //
 // - A pass measures itself against the last green (scripts/dernier-vert.mjs), as
 //   `vitest --changed` and `jest --onlyChanged` do: the tree of the last pass green on every
-//   package, kept per repository. When it counts (its commit an ancestor of HEAD), each package
+//   package, kept per branch (main's for a copy that has none yet). When it counts (its commit an ancestor of HEAD), each package
 //   Turborepo plays again plays the tests Vitest relates to the files changed since it, or all
 //   its tests when a change lies out of Vitest's graph (scripts/vitest-config/changements.mjs);
 //   a package whose inputs did not move replays from Turborepo's cache, the guards play whole,

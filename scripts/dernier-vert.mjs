@@ -1,15 +1,21 @@
-// The last green of a repository: the tree of the last pass of `npm run verifier` green on every
+// The last green of a branch: the tree of the last pass of `npm run verifier` green on every
 // package (scripts/verifier.mjs), against which the next pass measures itself, as
 // `vitest --changed <ref>` and `jest --onlyChanged` play the tests a change reaches, and Bazel
 // keeps by target the result of a test whose inputs did not move.
 //
-// - It lives in `<git common dir>/grillhouse/dernier-vert.json`, one per repository, its copies
-//   (worktrees) included: `{ commit, arbre }`, HEAD at the start of that pass and the tree of the
-//   working tree then, the files git ignores left out, HEAD and the index untouched (a copy of the
-//   index, every file added to it, `git add -A`, written as a tree, as the circuit keeps a lot).
-//   A pass on a copy whose lot is not committed thus keeps what it played.
-// - It counts when its commit is an ancestor of HEAD (or HEAD) and its tree is still in the
-//   repository. Then the changes are the files that differ between its tree and the tree of the
+// - It lives in `<git common dir>/grillhouse/dernier-vert/<branche>.json`, one per branch, so that
+//   each copy (worktree) of a ticket keeps its own and no copy replaces another's or main's:
+//   `{ commit, arbre }`, HEAD at the start of that pass and the tree of the working tree then, the
+//   files git ignores left out, HEAD and the index untouched (a copy of the index, every file added
+//   to it, `git add -A`, written as a tree, as the circuit keeps a lot). A pass on a copy whose lot
+//   is not committed thus keeps what it played.
+// - A pass measures itself against the last green of its branch when it counts, else against
+//   main's, the branch of the main tree (HEAD of git's common directory), as `vitest --changed
+//   <ref>` and Bazel measure against the last green build of the same branch: the final pass of a
+//   ticket relaunched plays what changed since the copy's last green, not since main's. A HEAD
+//   detached (the queue's replay onto main, scripts/integration/file.mjs) reads and keeps main's.
+// - A last green counts when its commit is an ancestor of HEAD (or HEAD) and its tree is still in
+//   the repository. Then the changes are the files that differ between its tree and the tree of the
 //   working tree now (`git diff --raw --no-renames`): the files changed or added, and those
 //   removed. Any two trees compare: the ancestry keeps the measure to the history it belongs to.
 // - No last green counts without git, before the first commit, and while a submodule differs
@@ -50,10 +56,20 @@ const sortie = (racine, args, env) => {
   return r.status === 0 ? r.stdout.trim() : null;
 };
 
-// The file of the last green of the repository at <racine>, null out of git.
-function fichierDuVert(racine) {
+// The file of the last green of the branch <branche> of the repository at <racine>, null out of
+// git.
+function fichierDuVert(racine, branche) {
   const commun = sortie(racine, ['rev-parse', '--path-format=absolute', '--git-common-dir']);
-  return commun ? path.join(commun, 'grillhouse', 'dernier-vert.json') : null;
+  return commun ? path.join(commun, 'grillhouse', 'dernier-vert', `${branche}.json`) : null;
+}
+
+// Main, the branch of the main tree of the repository at <racine> (HEAD of git's common
+// directory); null when that tree is detached.
+function brancheDeMain(racine) {
+  const commun = sortie(racine, ['rev-parse', '--path-format=absolute', '--git-common-dir']);
+  return commun
+    ? sortie(racine, [`--git-dir=${commun}`, 'symbolic-ref', '--short', '-q', 'HEAD'])
+    : null;
 }
 
 // Whether a submodule of the repository at <racine> differs from the commit its parent records.
@@ -65,8 +81,9 @@ function sousModuleModifie(racine) {
   return r.stdout.split('\0').some(e => /^[12] \S+ S/.test(e));
 }
 
-// The state of the repository at <racine> as it stands: `{ racine, commit, arbre }`, its top (its
-// real path), HEAD and the tree of its working tree; `{ raison }` when no last green can count.
+// The state of the repository at <racine> as it stands: `{ racine, commit, arbre, branche, main }`,
+// its top (its real path), HEAD, the tree of its working tree, the branch of HEAD (null when
+// detached) and main (brancheDeMain); `{ raison }` when no last green can count.
 function etatDuDepot(racine) {
   const haut = sortie(racine, ['rev-parse', '--show-toplevel']);
   if (!haut) return { raison: 'hors de git' };
@@ -83,16 +100,31 @@ function etatDuDepot(racine) {
     else if (git(top, ['read-tree', 'HEAD'], env).status !== 0) return { raison: 'git échoue' };
     if (git(top, ['add', '-A'], env).status !== 0) return { raison: 'git échoue' };
     const arbre = sortie(top, ['write-tree'], env);
-    return arbre ? { racine: top, commit, arbre } : { raison: 'git échoue' };
+    if (!arbre) return { raison: 'git échoue' };
+    const branche = sortie(top, ['symbolic-ref', '--short', '-q', 'HEAD']);
+    return { racine: top, commit, arbre, branche, main: brancheDeMain(top) };
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 }
 
-// The last green of the repository whose state is <etat> (etatDuDepot), when it counts:
-// `{ commit, arbre }`; `{ raison }` otherwise.
+// The last green that a pass in the state <etat> (etatDuDepot) measures itself against: its
+// branch's when it counts, else main's; `{ commit, arbre, branche }`, `{ raison }` when neither
+// counts (main's reason, or the branch's without main).
 function lireLeVert(etat) {
-  const f = fichierDuVert(etat.racine);
+  const branches = [...new Set([etat.branche, etat.main].filter(Boolean))];
+  let vert = { raison: 'aucun vert connu' };
+  for (const branche of branches) {
+    vert = lireLeVertDe(etat, branche);
+    if (!vert.raison) return vert;
+  }
+  return vert;
+}
+
+// The last green of the branch <branche>, when it counts for a pass in the state <etat>:
+// `{ commit, arbre, branche }`; `{ raison }` otherwise.
+function lireLeVertDe(etat, branche) {
+  const f = fichierDuVert(etat.racine, branche);
   let v = null;
   try {
     v = JSON.parse(readFileSync(f, 'utf8'));
@@ -108,12 +140,13 @@ function lireLeVert(etat) {
   if (git(etat.racine, ['merge-base', '--is-ancestor', v.commit, etat.commit]).status !== 0) {
     return { raison: 'le dernier vert n’est pas un ancêtre de HEAD' };
   }
-  return { commit: v.commit, arbre: v.arbre };
+  return { commit: v.commit, arbre: v.arbre, branche };
 }
 
-// Keeps <etat> (etatDuDepot) as the last green of its repository.
+// Keeps <etat> (etatDuDepot) as the last green of its branch, of main when HEAD is detached.
 export function garderLeVert(etat) {
-  const f = fichierDuVert(etat.racine);
+  const branche = etat.branche ?? etat.main;
+  const f = branche ? fichierDuVert(etat.racine, branche) : null;
   if (!f) return;
   mkdirSync(path.dirname(f), { recursive: true });
   writeFileSync(f, `${JSON.stringify({ commit: etat.commit, arbre: etat.arbre }, null, 2)}\n`);
@@ -167,7 +200,7 @@ export function mesure(racine, { tout = false } = {}) {
   return {
     etat,
     env: { [CHANGEMENTS]: fichier },
-    ligne: `↳ depuis le dernier vert (${vert.commit.slice(0, 12)}, arbre ${vert.arbre.slice(0, 12)}) : ${n} fichier(s) changé(s) ; chaque paquet que Turborepo rejoue joue les tests que Vitest y relie.`,
+    ligne: `↳ depuis le dernier vert de ${vert.branche} (${vert.commit.slice(0, 12)}, arbre ${vert.arbre.slice(0, 12)}) : ${n} fichier(s) changé(s) ; chaque paquet que Turborepo rejoue joue les tests que Vitest y relie.`,
     retirer: () => rmSync(dir, { recursive: true, force: true }),
   };
 }

@@ -123,6 +123,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/consommateurs-arbitres.spec.ts
 - tests/unit/consommateurs.spec.ts
 - tests/unit/crochets-du-cadre.spec.ts
+- tests/unit/dernier-vert.spec.ts
 - tests/unit/dette.spec.ts
 - tests/unit/dossiers-d-essai.nuit.test.ts
 - tests/unit/dossiers-d-essai.spec.ts
