@@ -1,10 +1,21 @@
 {
   "name": "@roomi-fields/grillhouse",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.22.6",
   "description": "Roomi's Grillhouse: the frame's scripts, called by one command, grillhouse <sous-commande>",
   "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/roomi-fields/roomis-grillhouse.git",
+    "directory": "packages/grillhouse"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "bin",
+    "scripts"
+  ],
   "bin": {
     "grillhouse": "bin/grillhouse.mjs"
   },
@@ -20,6 +31,7 @@
       ".claude",
       ".dependency-cruiser.cjs",
       ".eslintrc.cjs",
+      ".github",
       ".mcp.json",
       "CHANGELOG.md",
       "knip.json",

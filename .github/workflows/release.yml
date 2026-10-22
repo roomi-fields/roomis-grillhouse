@@ -1,3 +1,6 @@
+# The release of a tag v<x.y.z> (npx grillhouse sortie --etiqueter, then its push): the CI on the
+# tagged commit, then, once it is green, the package @roomi-fields/grillhouse published on the npm
+# registry (the repository's secret NPM_TOKEN) and the release on GitHub.
 name: Release
 
 on:
@@ -7,9 +10,14 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
   release:
+    needs: ci
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -26,11 +34,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
-        run: npm run build --if-present
+      - name: Check the tag names the version of the package and the mod
+        run: npx grillhouse sortie --verifier-etiquette "$GITHUB_REF_NAME"
 
-      - name: Run tests
-        run: npm test
+      - name: Publish the package to npm
+        run: npm publish --workspace @roomi-fields/grillhouse --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Generate Release Notes
         id: release_notes
@@ -93,9 +103,3 @@ jobs:
           generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Uncomment to enable automatic npm publishing
-      # - name: Publish to npm
-      #   run: npm publish --access public
-      #   env:
-      #     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

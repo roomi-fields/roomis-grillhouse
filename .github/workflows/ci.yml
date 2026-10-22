@@ -5,6 +5,8 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
+  # The release (release.yml) plays the CI on the tagged commit before it publishes.
+  workflow_call:
 
 jobs:
   test:
@@ -41,7 +43,6 @@ jobs:
 
       - name: Guards and tests
         run: npm run verifier
-
 
   build:
     runs-on: ubuntu-latest

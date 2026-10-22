@@ -19,6 +19,7 @@
         "$TURBO_ROOT$/.claude/**",
         "$TURBO_ROOT$/.dependency-cruiser.cjs/**",
         "$TURBO_ROOT$/.eslintrc.cjs/**",
+        "$TURBO_ROOT$/.github/**",
         "$TURBO_ROOT$/.mcp.json/**",
         "$TURBO_ROOT$/CHANGELOG.md/**",
         "$TURBO_ROOT$/knip.json/**",

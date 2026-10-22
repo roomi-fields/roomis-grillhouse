@@ -25,7 +25,14 @@
 //   code is 1. A state reading that fails installs nothing. Without `claude`, each plugin has its line.
 // - `--absents` prints `claude` (the command is missing), `greffon <id>` per declared plugin not
 //   installed for the project, or `lecture <reason>` when the state cannot be read; each claude
-//   call stops after 5 s.
+//   call stops after 5 s. It also prints `ecart <id> <mod's version> <package's version>
+//   <command>` when the frame's mod (`grillhouse@…`), installed for the project, carries another
+//   version than the package `@roomi-fields/grillhouse` this script belongs to: both are released
+//   by the same commit under one version (Grillhouse's release). The entry read is the project's at
+//   scope local, else project, else user; the command aligns the one behind (`claude plugin update
+//   <id> --scope <its scope>`, or `npm install -D @roomi-fields/grillhouse@<mod's version>`). A
+//   script without its package's package.json beside it (a frame copied into a project) compares
+//   nothing.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -233,7 +240,8 @@ function installer(projet) {
 
 /**
  * What the project lacks of its declared plugins: `claude`, `greffon <id>` or `lecture <reason>`
- * lines. Reads only; each claude call stops after 5 s.
+ * lines, and the `ecart …` line of a mod and a package of different versions. Reads only; each
+ * claude call stops after 5 s.
  */
 export function greffonsAbsents(projet) {
   const racine = resolu(projet);
@@ -251,9 +259,59 @@ export function greffonsAbsents(projet) {
   if (lecture.erreur) {
     return [`lecture ${lecture.erreur}`];
   }
-  return d.plugins
-    .filter(id => !installePourLeProjet(lecture.liste, id, racine))
-    .map(id => `greffon ${id}`);
+  const absents = d.plugins.filter(id => !installePourLeProjet(lecture.liste, id, racine));
+  const ecart = ecartDeVersions(lecture.liste, d.plugins, racine);
+  return [...absents.map(id => `greffon ${id}`), ...(ecart ? [ecart] : [])];
+}
+
+// The frame's mod and its package: released by the same commit, under one version, the `version`
+// of the package.json beside this script's directory (the package's, wherever it is installed).
+const GREFFON_DU_CADRE = 'grillhouse';
+const NOM_DU_PAQUET = '@roomi-fields/grillhouse';
+function versionDuPaquet() {
+  try {
+    const p = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+    return p.name === NOM_DU_PAQUET && typeof p.version === 'string' ? p.version : null;
+  } catch {
+    return null;
+  }
+}
+
+// The line `ecart <id> <mod's version> <package's version> <command>` when the frame's mod,
+// declared and installed for the project (its entry of scope local, else project, else user, as
+// Claude Code applies them), carries another version than the package; null otherwise. The command
+// aligns the one behind: the mod's update at its scope, or the package's install at the mod's
+// version.
+function ecartDeVersions(entrees, declares, racine) {
+  const paquet = versionDuPaquet();
+  const id = declares.find(x => x.slice(0, x.indexOf('@')) === GREFFON_DU_CADRE);
+  if (!paquet || !id) {
+    return null;
+  }
+  const pourLeProjet = entrees.filter(e => installePourLeProjet([e], id, racine));
+  const entree = ['local', 'project', 'user']
+    .map(s => pourLeProjet.find(e => e.scope === s))
+    .find(Boolean);
+  const greffon = entree?.version;
+  if (typeof greffon !== 'string' || greffon === paquet) {
+    return null;
+  }
+  const commande = plusAncienne(greffon, paquet)
+    ? `claude plugin update ${id} --scope ${entree.scope}`
+    : `npm install -D ${NOM_DU_PAQUET}@${greffon}`;
+  return `ecart ${id} ${greffon} ${paquet} ${commande}`;
+}
+
+// True when version <a> comes before version <b> (x.y.z, numbers compared in order).
+function plusAncienne(a, b) {
+  const x = a.split('.').map(Number);
+  const y = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((x[i] ?? 0) !== (y[i] ?? 0)) {
+      return (x[i] ?? 0) < (y[i] ?? 0);
+    }
+  }
+  return false;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolu(process.argv[1])).href) {

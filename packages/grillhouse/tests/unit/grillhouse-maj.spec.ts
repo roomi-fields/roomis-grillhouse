@@ -1060,21 +1060,22 @@ const SCRIPT_MAJ = path.join(DEPOT, 'packages/grillhouse/scripts/grillhouse-maj.
 const lancerMaj = (projet: string, src: string) =>
   spawnSync('node', [SCRIPT_MAJ, '--source', src], { cwd: projet, encoding: 'utf8' });
 
-// The version of the frame: `.claude/grillhouse/VERSION` of the source, which the project
-// receives with the frame's files and which the report names.
+// The version of the frame: the `version` of the source's package, packages/grillhouse/package.json,
+// which the report names; the project receives no file of version.
 describe('the update names the version of the frame it installs', () => {
-  it('the report names the version read in the source’s VERSION', () => {
+  it('the report names the version of the source’s package', () => {
     const src = source({
       '.claude/grillhouse/fichiers.txt': '.claude/grillhouse/\n',
-      '.claude/grillhouse/VERSION': '0.16.0\n',
+      'packages/grillhouse/package.json':
+        '{ "name": "@roomi-fields/grillhouse", "version": "0.16.0" }\n',
     });
     const projet = mkdtempSync(path.join(ESSAIS, 'version-'));
     const r = lancerMaj(projet, src);
     expect(r.status, r.stderr).toBe(0);
-    expect(r.stdout).toMatch(/^Cadre 0\.16\.0 \(commit [^)]+\) : 2 fichier\(s\) copié\(s\)/);
-    expect(lire(projet, '.claude/grillhouse/VERSION')).toBe('0.16.0\n');
+    expect(r.stdout).toMatch(/^Cadre 0\.16\.0 \(commit [^)]+\) : 1 fichier\(s\) copié\(s\)/);
+    expect(existsSync(path.join(projet, 'packages/grillhouse/package.json'))).toBe(false);
   });
-  it('a source without VERSION is named without a version', () => {
+  it('a source without the package’s package.json is named without a version', () => {
     const src = source({
       '.claude/grillhouse/fichiers.txt': 'METACADRE.md\n',
       'METACADRE.md': 'm',
@@ -1082,10 +1083,6 @@ describe('the update names the version of the frame it installs', () => {
     const r = lancerMaj(mkdtempSync(path.join(ESSAIS, 'version-')), src);
     expect(r.status, r.stderr).toBe(0);
     expect(r.stdout).toMatch(/^Cadre sans version \(commit [^)]+\) : /);
-  });
-  it('this repository’s list sends VERSION to every project', () => {
-    const { garder } = lireListe(lire(DEPOT, '.claude/grillhouse/fichiers.txt'));
-    expect(fichiersDuCadre(DEPOT, garder)).toContain('.claude/grillhouse/VERSION');
   });
 });
 // A trial project with `pkg` as its package.json, and a one-file source with the template's

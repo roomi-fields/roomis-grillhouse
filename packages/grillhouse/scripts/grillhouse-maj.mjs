@@ -105,10 +105,9 @@
 // - `.claude/grillhouse/empreintes.json` records the source's commit, each file's SHA-256 and the
 //   hooks, plugins and marketplaces installed. `--ecarts` compares the files with it: a frame file modified or missing in a
 //   project is drift, which goes back to Grillhouse as a proposal.
-// - The version of the frame: one for the frame and its mod, in `.claude/grillhouse/VERSION` of
-//   the source, a frame file the project receives (its directory is in the list), so each project
-//   knows the version it has. The report names it with the source's commit (« Cadre 0.16.0
-//   (commit abc1234) : … »); a source without one is named « sans version ».
+// - The version of the frame: one for the package and its mod, the `version` of the source's
+//   `packages/grillhouse/package.json`. The report names it with the source's commit (« Cadre
+//   0.16.0 (commit abc1234) : … »); a source without it is named « sans version ».
 // - The source: --source, else GRILLHOUSE_SOURCE, else Grillhouse's repository on GitHub, kept in
 //   ~/.cache/grillhouse/roomis-grillhouse and moved to the last commit of its default branch
 //   (`git pull --ff-only`, after a first shallow clone): the update installs that commit, whatever
@@ -135,7 +134,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 export const DEPOT = 'https://github.com/roomi-fields/roomis-grillhouse.git';
 const LISTE = '.claude/grillhouse/fichiers.txt';
 const EMPREINTES = '.claude/grillhouse/empreintes.json';
-const VERSION = '.claude/grillhouse/VERSION';
+const PAQUET = 'packages/grillhouse/package.json';
 const SCRIPTS = {
   tableau: 'grillhouse tableau --texte',
   'grillhouse:maj': 'grillhouse maj',
@@ -603,11 +602,15 @@ function source(arg) {
   return cache;
 }
 
-// The version of the frame at <racine>: its `.claude/grillhouse/VERSION`, one line, which the
-// project receives with the frame's files; « sans version » for a source that holds none.
+// The version of the frame at <racine>: the `version` of its package's package.json; « sans
+// version » for a source that holds none.
 function versionDuCadre(racine) {
-  const f = path.join(racine, VERSION);
-  return existsSync(f) ? readFileSync(f, 'utf8').trim() : 'sans version';
+  try {
+    const v = JSON.parse(readFileSync(path.join(racine, PAQUET), 'utf8')).version;
+    return typeof v === 'string' && v !== '' ? v : 'sans version';
+  } catch {
+    return 'sans version';
+  }
 }
 
 const ENTREE = import.meta.url === pathToFileURL(process.argv[1] ?? '').href;

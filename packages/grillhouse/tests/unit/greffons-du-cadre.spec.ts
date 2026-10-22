@@ -901,3 +901,58 @@ describe('grillhouse-3uv.71 critère 11, cas 11 — the root is compared by its 
     expect(installes(r.claude.appels())).toEqual([MATT]);
   });
 });
+
+// grillhouse-3uv.84.3, critère 3: the package and the mod are released by the same commit, under
+// one version; the session start names a mod installed for the project at another version than
+// the package's (the `version` of its package.json), with the command that aligns them: the mod's
+// update when it is behind, the package's install at the mod's version when the package is.
+describe('grillhouse-3uv.84.3 critère 3 — the session start names a package and a mod of different versions', () => {
+  const PAQUET = (
+    JSON.parse(readFileSync(path.join(DEPOT, 'packages/grillhouse/package.json'), 'utf8')) as {
+      version: string;
+    }
+  ).version;
+  const DERRIERE = '0.0.1';
+  const DEVANT = `${Number(PAQUET.split('.')[0]) + 1}.0.0`;
+  const ligneEcart = (sortie: string) =>
+    sortie.split('\n').find(l => l.includes(GRILL) && l.includes('@roomi-fields/grillhouse'));
+  const etat = (p: string, version: string, scope = 'local', racine = p): EtatClaude => ({
+    marches: ['claude-plugins-official', 'roomi-fields'],
+    plugins: [
+      { id: RTFM, scope: 'user', enabled: true, version: '9.9.9' },
+      { id: GRILL, scope, enabled: true, projectPath: racine, version },
+      { id: GRILL, scope: 'user', enabled: true, version: PAQUET },
+      { id: MATT, scope: 'project', enabled: true, projectPath: p, version: '1.0.0' },
+    ],
+  });
+
+  it('critère 3: the mod behind the package: both versions, and the update of the mod for the project', () => {
+    const p = projetOuvert();
+    const { sortie } = ouvrir(p, etat(p, DERRIERE));
+    const l = ligneEcart(sortie);
+    expect(l, sortie).toBeDefined();
+    expect(l, sortie).toContain(DERRIERE);
+    expect(l, sortie).toContain(PAQUET);
+    expect(l, sortie).toContain(`\`claude plugin update ${GRILL} --scope local\``);
+  });
+  it('critère 3: the package behind the mod: the install of the package at the mod’s version', () => {
+    const p = projetOuvert();
+    const { sortie } = ouvrir(p, etat(p, DEVANT, 'project'));
+    const l = ligneEcart(sortie);
+    expect(l, sortie).toBeDefined();
+    expect(l, sortie).toContain(DEVANT);
+    expect(l, sortie).toContain(PAQUET);
+    expect(l, sortie).toContain(`\`npm install -D @roomi-fields/grillhouse@${DEVANT}\``);
+  });
+  it('critère 3: the same version, other plugins at other versions: nothing is said', () => {
+    const p = projetOuvert();
+    const { sortie } = ouvrir(p, etat(p, PAQUET));
+    expect(ligneEcart(sortie), sortie).toBeUndefined();
+    expect(sortie).not.toMatch(/claude plugin update|npm install -D/);
+  });
+  it('critère 3: the mod at another version for another project only is not compared', () => {
+    const p = projetOuvert();
+    const { sortie } = ouvrir(p, etat(p, DERRIERE, 'local', '/home/quelquun/autre-projet'));
+    expect(ligneEcart(sortie), sortie).toBeUndefined();
+  });
+});

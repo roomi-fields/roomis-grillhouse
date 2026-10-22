@@ -158,11 +158,8 @@ describe('npm run new — the project receives the example, never the frame’s 
     );
   });
 
-  it('receives the version of the frame, never Grillhouse’s release script', () => {
-    const v = '.claude/grillhouse/VERSION';
-    expect(readFileSync(path.join(PROJET, v), 'utf8')).toBe(
-      readFileSync(path.join(DEPOT, v), 'utf8')
-    );
+  it('receives neither a file of version nor Grillhouse’s release script', () => {
+    expect(existsSync(path.join(PROJET, '.claude/grillhouse/VERSION'))).toBe(false);
     expect(existsSync(path.join(PROJET, 'packages/grillhouse/scripts/sortie.mjs'))).toBe(false);
   });
 
