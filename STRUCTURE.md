@@ -97,6 +97,7 @@ roomis-grillhouse/
 │   │                              #   the measure of time at rest: pression.mjs (the CPU pressure, /proc/pressure/cpu some avg10, threshold 25 %, code 75; `attendre`), mesure.setup.mjs (the pressure noted at the start and end of each test),
 │   │                              #   duree.reporter.mjs (75, « à repasser », when every failure depends on a duration and one took place under load), mesure.mjs (mesurerAuRepos, the mark of a measure of time; a file that imports it is a time witness, which verifier plays alone),
 │   │                              #   machine.setup.mjs (each test file a lock of the heavy measure of its own),
+│   │                              #   base-de-passe.mjs (the base of a pass, `grillhouse-<genre>-XXXXXX/t` named in TMPDIR, removed at its end, the orphans of a killed pass swept: each run of Vitest by its plugin, npm test, npm run verifier, a circuit, an integration, an envelope),
 │   │                              #   resultats.setup.mjs (each test file's processes a results directory of their own, under GRILLHOUSE_RESULTATS/essais/, which no reader reads),
 │   │                              #   resultats.mjs (the JSON report of Vitest written under GRILLHOUSE_RESULTATS, which scripts/resultats.mjs reads)
 │   │                              #   changements.mjs (the changes since the last green, GRILLHOUSE_CHANGEMENTS: the tests Vitest relates to them, or the whole package when one lies out of Vitest's graph, the reason written)

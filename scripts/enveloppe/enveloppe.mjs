@@ -6,7 +6,9 @@
 // - The root `/` is read-only. Only these are written: the agent's copy (for a component that is a
 //   package, that package alone, below); a `/tmp` empty and
 //   proper to the session, where only the scratchpad directory of the copy comes back, the
-//   session's working directory inside it (`dossierDeTravail`); the npm
+//   session's working directory inside it (`dossierDeTravail`; Claude Code's scratchpads root,
+//   `CLAUDE_CODE_TMPDIR` else the launch's temporary directory, so that under a pass it lies in
+//   the base of the pass and goes with it); the npm
 //   cache; the Claude session state (`~/.claude` and the copy's project directory), whose
 //   configuration, skills, plugins and other projects stay read-only. `~/.claude.json` is a
 //   throwaway copy: the session writes it, the real file does not change. The tickets base (the
@@ -94,11 +96,9 @@ import {
   existsSync,
   mkdirSync,
   lstatSync,
-  mkdtempSync,
   readdirSync,
   readFileSync,
   readlinkSync,
-  rmSync,
   statSync,
 } from 'node:fs';
 import os from 'node:os';
@@ -108,6 +108,7 @@ import { matieres as lesMatieres } from '../consommateurs.mjs';
 import { paquets as lesPaquets } from '../paquets.mjs';
 import { CODE_REFUS, CODE_USAGE } from './codes.mjs';
 import { VARIABLE } from './composant.mjs';
+import { ouvrirBase } from '../vitest-config/base-de-passe.mjs';
 
 const PUBLISHED = ['package.json', 'docs/INTERFACE.md', 'dist', 'turbo.json', 'turbo.jsonc'];
 // The role that writes the package of the shared test material.
@@ -131,8 +132,7 @@ const estUnPaquet = (copie, composant, paquets) =>
 // The directories where codegraph and rtfm keep the index of a tree they index: the source of
 // every component, which the envelope hides.
 const INDEX = ['.codegraph', '.rtfm'];
-// The machine's temporary directory: an empty one, proper to the session, replaces it. Claude
-// keeps its scratchpads there, under `claude-<uid>/<working directory in dashes>/`.
+// The machine's temporary directory: an empty one, proper to the session, replaces it.
 const TEMPORAIRE = '/tmp';
 // What stays read-only inside `~/.claude`: the configuration and what it loads.
 const CLAUDE_EN_LECTURE = [
@@ -199,18 +199,22 @@ const EPREUVE =
   'while [ "$1" != -- ]; do eval "p=\\${$1-}"; ' +
   'if [ -n "$p" ] && [ ! -e "$p" ]; then unset "$1"; fi; shift; done; shift; exec "$@"';
 
-// The directory of the scratchpads of <copie>: Claude keeps them under
-// `/tmp/claude-<uid>/<working directory in dashes>/`, every sign outside [A-Za-z0-9] a dash.
-function scratchpadsDe(copie) {
+// The directory of the scratchpads of <copie> under the environment <env> of the launch: Claude
+// Code keeps them under `<temporary>/claude-<uid>/<working directory in dashes>/`, every sign
+// outside [A-Za-z0-9] a dash, <temporary> its `CLAUDE_CODE_TMPDIR`, else the system's temporary
+// directory as `os.tmpdir()` reads it (TMPDIR, TMP, TEMP, else /tmp): under a pass, the base of
+// the pass (scripts/vitest-config/base-de-passe.mjs), removed with it.
+function scratchpadsDe(copie, env = process.env) {
   const enTirets = path.resolve(copie).replace(/[^A-Za-z0-9]/g, '-');
-  return path.join(TEMPORAIRE, `claude-${process.getuid()}`, enTirets);
+  const temporaire = env.CLAUDE_CODE_TMPDIR || env.TMPDIR || env.TMP || env.TEMP || TEMPORAIRE;
+  return path.join(path.resolve(temporaire), `claude-${process.getuid()}`, enTirets);
 }
 
-// The working directory of a session in <copie>: `travail` in the copy's scratchpads, which the
-// envelope mounts in writing. The envelope creates it and names it in `TMPDIR`; the launcher names
-// it in the instruction.
-export function dossierDeTravail(copie) {
-  return path.join(scratchpadsDe(copie), 'travail');
+// The working directory of a session in <copie> under the environment <env> of the launch:
+// `travail` in the copy's scratchpads, which the envelope mounts in writing. The envelope creates
+// it and names it in `TMPDIR`; the launcher names it in the instruction.
+export function dossierDeTravail(copie, env = process.env) {
+  return path.join(scratchpadsDe(copie, env), 'travail');
 }
 
 // The environment of the session, from the environment <env> of the launch: the declared
@@ -546,9 +550,10 @@ function envelopper(argv) {
   const travail = dossierDeTravail(copie);
   mkdirSync(travail, { recursive: true });
   // `~/.claude.json` holds the permissions and servers of every project: it enters the session
-  // as a throwaway copy, in a temporary directory removed on exit.
-  const temporaire = mkdtempSync(path.join(os.tmpdir(), 'enveloppe-'));
-  const etatJetable = path.join(temporaire, 'claude.json');
+  // as a throwaway copy, in a base of its own removed on exit and swept when the envelope is
+  // killed (../vitest-config/base-de-passe.mjs).
+  const temporaire = ouvrirBase('enveloppe');
+  const etatJetable = path.join(temporaire.dossier, 'claude.json');
   if (existsSync(`${claude}.json`)) copyFileSync(`${claude}.json`, etatJetable);
   // The session directories of this user that exist: the XDG one and the systemd one.
   const sessions = [
@@ -610,7 +615,7 @@ function envelopper(argv) {
     if (r.error) process.stderr.write(`⛔ ENVELOPPE IMPOSSIBLE — ${r.error.message}\n`);
     code = r.error ? CODE_REFUS : (r.status ?? 1);
   }
-  rmSync(temporaire, { recursive: true, force: true });
+  temporaire.fermer();
   return code;
 }
 

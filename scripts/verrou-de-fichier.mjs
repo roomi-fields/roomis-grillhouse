@@ -26,19 +26,10 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
+import { vivant } from './vitest-config/base-de-passe.mjs';
 
 /** Blocks the process for `ms` milliseconds. */
 export const attendreUnPeu = ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
-
-/** Whether the process `pid` exists. */
-export function vivant(pid) {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (e) {
-    return e.code === 'EPERM';
-  }
-}
 
 // The marks of the locks this process holds, by lock path.
 const marques = new Map();

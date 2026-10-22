@@ -349,17 +349,19 @@ function knip(config, include) {
     args.push('--include', include);
   }
   let tmp = null;
-  if (config) {
-    tmp = mkdtempSync(path.join(tmpdir(), 'code-mort-'));
-    const f = path.join(tmp, 'knip.json');
-    writeFileSync(f, JSON.stringify(config));
-    args.push('--config', f);
+  try {
+    if (config) {
+      tmp = mkdtempSync(path.join(tmpdir(), 'code-mort-'));
+      const f = path.join(tmp, 'knip.json');
+      writeFileSync(f, JSON.stringify(config));
+      args.push('--config', f);
+    }
+    return spawnSync('npx', args, { encoding: 'utf8' });
+  } finally {
+    if (tmp) {
+      rmSync(tmp, { recursive: true, force: true });
+    }
   }
-  const r = spawnSync('npx', args, { encoding: 'utf8' });
-  if (tmp) {
-    rmSync(tmp, { recursive: true, force: true });
-  }
-  return r;
 }
 
 // The command on the repository at <racine>: its exit code.

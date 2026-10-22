@@ -79,12 +79,16 @@
 //   none of them, nor a task that did not play (its prerequisite red is). Green or à repasser, the
 //   file is empty. The night reads it for its bisect commands (scripts/nuit.sh), with no second
 //   reading of the summaries.
+// - The pass has a base of its own (scripts/vitest-config/base-de-passe.mjs), in the temporary
+//   directory of its environment, which it sweeps first of the bases a killed pass left: every
+//   run of Turborepo gets it in TMPDIR, which the root's `globalPassThroughEnv` passes on to every
+//   task (scripts/turbo-des-paquets.mjs), and the pass removes it at its end, green or red.
 // - Every run plays without the paths of a targeted run's tests: the variable `GRILLHOUSE_TESTS`
 //   (scripts/vitest-config/cibles.mjs) carries only the choice of the witnesses (and `rejouer` for
 //   a complete pass).
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, rmdirSync, rmSync, writeFileSync } from 'node:fs';
-import { availableParallelism } from 'node:os';
+import { availableParallelism, tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ecrireLaMesure, garderLeTotal, ouvrirAvancement, planifier } from './avancement.mjs';
@@ -102,6 +106,7 @@ import { fichiersTemoins, VARIABLE as TESTS_CIBLES } from './vitest-config/cible
 import { AVANCEMENT } from './vitest-config/avancement.mjs';
 import { CHANGEMENTS } from './vitest-config/changements.mjs';
 import { garderLeVert, mesure } from './dernier-vert.mjs';
+import { ouvrirBase } from './vitest-config/base-de-passe.mjs';
 
 const GARDES = ['grillhouse:gardes', 'gardes'];
 const TACHES = [...GARDES, 'test:vitest'];
@@ -180,6 +185,9 @@ export function verifier({
   dire = l => process.stdout.write(`${l}\n`),
   coeurs = availableParallelism(),
 }) {
+  // The base of the pass, in the temporary directory of <env>: every task writes in it (TMPDIR,
+  // which Turborepo passes on), and it goes at the end of the pass.
+  const base = ouvrirBase('verification', { dans: env.TMPDIR || tmpdir() });
   try {
     return avecLaMachine(
       envMachine => {
@@ -204,7 +212,7 @@ export function verifier({
           return passe({
             racine,
             demandes,
-            env: { ...envMachine, [AVANCEMENT]: dossier },
+            env: { ...envMachine, [AVANCEMENT]: dossier, TMPDIR: base.dossier },
             borneMs,
             pasMs,
             dire,
@@ -224,6 +232,8 @@ export function verifier({
     if (!(e instanceof AttenteDeLaMachine)) throw e;
     dire(e.message);
     return e.code;
+  } finally {
+    base.fermer();
   }
 }
 

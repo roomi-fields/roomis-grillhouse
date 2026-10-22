@@ -80,6 +80,8 @@ scripts/vitest.nuit.config.mjs
 - tests/config-git.ts
 - tests/machine.ts
 - tests/unit/avancement.spec.ts
+- tests/unit/base-de-passe.essai.mjs
+- tests/unit/base-de-passe.spec.ts
 - tests/unit/bilan.spec.ts
 - tests/unit/circuit-conduite.spec.ts
 - tests/unit/circuit-sans-texte-libre.spec.ts

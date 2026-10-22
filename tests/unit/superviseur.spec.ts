@@ -160,8 +160,12 @@ describe('grillhouse-3uv.89 — l’ouverture de séance du cadre dit le supervi
   it('une seconde séance reçoit la section qui le dit, et la première rien de tel', () => {
     const p = projet();
     // The frame's scripts the check reads, as a project holds them.
-    mkdirSync(path.join(p.racine, 'scripts'));
-    for (const f of ['superviseur.mjs', 'verrou-de-fichier.mjs']) {
+    mkdirSync(path.join(p.racine, 'scripts/vitest-config'), { recursive: true });
+    for (const f of [
+      'superviseur.mjs',
+      'verrou-de-fichier.mjs',
+      'vitest-config/base-de-passe.mjs',
+    ]) {
       copyFileSync(path.join(RACINE, 'scripts', f), path.join(p.racine, 'scripts', f));
     }
     const demarrer = () =>

@@ -541,13 +541,14 @@ import {
 import { AUTEUR_DE_LA_FILE } from './integration/file.mjs';
 import { dossierCommun, lireEntrees } from './integration/file-attente.mjs';
 import { AUTEUR_DU_VERDICT } from './integration/verdict.mjs';
-import { attendreUnPeu, vivant } from './verrou-de-fichier.mjs';
+import { attendreUnPeu } from './verrou-de-fichier.mjs';
 import { AttenteDeLaMachine, avecLaMachine } from './verrou-de-machine.mjs';
 import { garderLeTotal, ouvrirAvancement } from './avancement.mjs';
 import { AVANCEMENT } from './vitest-config/avancement.mjs';
 import { NOMS_DES_GARDES } from './gardes-du-cadre.mjs';
 import { isTesterFile } from './verrous/verrou.mjs';
 import { A_REPASSER } from './vitest-config/pression.mjs';
+import { ouvrirBase, vivant } from './vitest-config/base-de-passe.mjs';
 
 // The time a session's transcripts may stand still before the circuit stops it.
 export const IMMOBILE_MS = 20 * 60 * 1000;
@@ -773,6 +774,9 @@ function contexte(o) {
     if (!c) throw new Usage(`--depuis : ${o.depuis.composant} n'est pas un composant du titre.`);
     o.depuis.composant = c;
   }
+  // The working directory of the circuit: a base of its own (scripts/vitest-config/base-de-passe.mjs),
+  // removed at its end, swept by the next one to open a base when the circuit is killed.
+  const travail = ouvrirBase('circuit');
   return {
     ...o,
     // The components a relaunch --depuis plays again, each with its step and its context.
@@ -793,7 +797,8 @@ function contexte(o) {
     fiches: `${copie}.fiches.jsonl`,
     transcriptions: transcriptionsDeLaCopie(copie, os.homedir()),
     immobileMs: Number(process.env.GRILLHOUSE_CIRCUIT_IMMOBILE_MS) || IMMOBILE_MS,
-    tmp: mkdtempSync(path.join(os.tmpdir(), 'circuit-')),
+    travail,
+    tmp: travail.dossier,
     numero: 0,
     // The regulator's RELANCE decisions in a row on one stop.
     relances: [],
@@ -4346,7 +4351,7 @@ export async function main(argv) {
     );
     return CODE_USAGE;
   } finally {
-    if (ctx) rmSync(ctx.tmp, { recursive: true, force: true });
+    ctx?.travail.fermer();
   }
 }
 

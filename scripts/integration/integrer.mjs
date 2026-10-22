@@ -60,8 +60,7 @@
 // running one; a lock whose process is gone is taken over. Exit code: 0 committed, 1 refused,
 // 2 usage, 75 à repasser.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { arbitrageTranche, estArbitrage } from '../consommateurs-arbitres.mjs';
@@ -71,6 +70,7 @@ import { dossierCommun, inscrireEntree } from './file-attente.mjs';
 import { ouvrirCopie, RETIRER_COPIE } from './rejeu.mjs';
 import { verdictDe } from './verdict.mjs';
 import { A_REPASSER } from '../vitest-config/pression.mjs';
+import { ouvrirBase } from '../vitest-config/base-de-passe.mjs';
 
 // A file name as git writes it in a patch: a name with a character outside ASCII, a quote, a
 // backslash or a control character comes between quotes with C escapes (`\303\251` for `é`).
@@ -227,7 +227,10 @@ function main(argv) {
   const verrou = path.join(dossierCommun(racine), 'integration.lock');
   prendreVerrou(verrou, { attendre: true });
   const debut = Date.now();
-  const tmp = mkdtempSync(path.join(tmpdir(), 'integration-'));
+  // The working directory of the integration: a base of its own, removed at its end, swept by the
+  // next one to open a base when the integration is killed (../vitest-config/base-de-passe.mjs).
+  const base = ouvrirBase('integration');
+  const tmp = base.dossier;
   try {
     // 1. The verdict.
     const show = bd('show', o.ticket, '--json');
@@ -363,7 +366,7 @@ function main(argv) {
     dire(`⏱ ${duree} s`);
     return 0;
   } finally {
-    rmSync(tmp, { recursive: true, force: true });
+    base.fermer();
     lacherVerrou(verrou);
   }
 }

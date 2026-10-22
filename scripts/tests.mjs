@@ -71,6 +71,9 @@
 // - While the environment names the progress directory of a pass (`GRILLHOUSE_AVANCEMENT`,
 //   scripts/avancement.mjs: the circuit's proof and checks), each run of the tests plans its
 //   tasks first, and Vitest writes there the files done and planned of each.
+// - The run has a base of its own (scripts/vitest-config/base-de-passe.mjs), which it sweeps first
+//   of the bases a killed run left: it names it in TMPDIR to every run of Turborepo, which the
+//   root's `globalPassThroughEnv` passes on to every task, and removes it at its end.
 // The exit code is Turborepo's; 2 for a path refused.
 import { spawnSync } from 'node:child_process';
 import { accessSync, constants, existsSync, readdirSync, statSync } from 'node:fs';
@@ -84,8 +87,13 @@ import { AVANCEMENT } from './vitest-config/avancement.mjs';
 import { VARIABLE } from './vitest-config/cibles.mjs';
 import { CHANGEMENTS } from './vitest-config/changements.mjs';
 import { DEPUIS_LE_VERT, mesure } from './dernier-vert.mjs';
+import { ouvrirBase } from './vitest-config/base-de-passe.mjs';
 
 const racine = process.cwd();
+// The base of the run (scripts/vitest-config/base-de-passe.mjs): this process and every run of
+// Turborepo write in it (TMPDIR), and it goes at the end of the run.
+const base = ouvrirBase('tests');
+process.env.TMPDIR = base.dossier;
 const enveloppe = composantDeLEnveloppe() !== null;
 const args = process.argv.slice(2);
 const force = args.includes('--force');
@@ -224,4 +232,5 @@ try {
   process.exitCode = lancer();
 } finally {
   depuis?.retirer();
+  base.fermer();
 }

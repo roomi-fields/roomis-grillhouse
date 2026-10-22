@@ -729,6 +729,7 @@ describe('the globalPassThroughEnv of the root names the results and the changes
       'GRILLHOUSE_RESULTATS',
       'GRILLHOUSE_CHANGEMENTS',
       'GRILLHOUSE_AVANCEMENT',
+      'TMPDIR',
     ]);
     const sans = mkdtempSync(path.join(ESSAIS, 'sans-paquets-'));
     ecrireFichier(sans, 'package.json', pkg({ name: 'p', scripts: { build: 'tsc' } }));
@@ -738,6 +739,7 @@ describe('the globalPassThroughEnv of the root names the results and the changes
       'GRILLHOUSE_RESULTATS',
       'GRILLHOUSE_CHANGEMENTS',
       'GRILLHOUSE_AVANCEMENT',
+      'TMPDIR',
     ]);
   });
 
@@ -757,6 +759,7 @@ describe('the globalPassThroughEnv of the root names the results and the changes
       'GRILLHOUSE_RESULTATS',
       'GRILLHOUSE_CHANGEMENTS',
       'GRILLHOUSE_AVANCEMENT',
+      'TMPDIR',
     ]);
     expect(lancer(racine, []).status).toBe(0);
   });
