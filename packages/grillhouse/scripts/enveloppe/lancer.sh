@@ -11,7 +11,8 @@
 #   exists (`git cat-file -e`; `.` is always admitted): a path that names nothing there is refused on the standard error, CODE_USAGE, nothing prepared; when
 #   it is the name of a package or of its folder, the refusal names the path it means.
 # - --modele <m> and --effort <e> override, for this session only, the model and the thinking level
-#   of the role's definition (.claude/agents/<rôle>.md); they reach claude as --model and --effort.
+#   of the role's definition (its agent in the frame's plugin, agents/<rôle>.md); they reach claude
+#   as --model and --effort.
 #   Each is optional and works alone; without them the role decides. The level is one of low,
 #   medium, high, xhigh, max; the model is any non-empty text, passed to claude as given. They come
 #   first, each as two words (`--modele opus`); `--modele=opus`, `--`, a value starting with `--`,
@@ -133,7 +134,8 @@ ticket=$1 role=$2 composant=$3 consigne=$4
 # The main tree, from the common git directory: launched from an agent copy, the new copy still
 # lands next to the others, never inside one.
 racine=$(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd)
-[ -f "$racine/.claude/agents/$role.md" ] || { echo "⛔ Rôle inconnu : $role (.claude/agents/$role.md absent)." >&2; exit "$CODE_USAGE"; }
+# A role is one of the circuit's, whose rights scripts/droits.mjs gives (ROLES).
+node --input-type=module -e "import { ROLES } from '$ici/../droits.mjs'; process.exit(Object.hasOwn(ROLES, process.argv[1]) ? 0 : 1);" "$role" || { echo "⛔ Rôle inconnu : $role (aucun rôle du circuit, scripts/droits.mjs)." >&2; exit "$CODE_USAGE"; }
 [ -f "$consigne" ] || { echo "⛔ Consigne introuvable : $consigne" >&2; exit "$CODE_USAGE"; }
 # The component, judged by the envelope's rule before anything is prepared: in the ticket's copy
 # when it exists (a relaunch, whose package an earlier agent may have created), else in the main

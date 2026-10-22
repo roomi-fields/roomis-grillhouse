@@ -461,8 +461,8 @@ describe('grillhouse-3uv.63 — the old way is gone, the texts say the new one',
     for (const f of [
       'packages/grillhouse/scripts/integration/integrer.mjs',
       'packages/grillhouse/scripts/nuit.sh',
-      '.claude/skills/regulateur/SKILL.md',
-      '.claude/skills/pitmaster/SKILL.md',
+      'mods/grillhouse/skills/regulateur/SKILL.md',
+      'mods/grillhouse/skills/pitmaster/SKILL.md',
     ]) {
       const texte = lire(f);
       expect(texte, f).not.toMatch(/Une intégration tourne/);
@@ -470,7 +470,7 @@ describe('grillhouse-3uv.63 — the old way is gone, the texts say the new one',
     }
   });
   it('critère 11: the régulateur no longer pushes main', () => {
-    const regulateur = lire('.claude/skills/regulateur/SKILL.md');
+    const regulateur = lire('mods/grillhouse/skills/regulateur/SKILL.md');
     expect(regulateur).not.toMatch(/git push origin main/);
   });
   it('critère 12: STRUCTURE.md lists the queue next to the integration', () => {
@@ -479,7 +479,7 @@ describe('grillhouse-3uv.63 — the old way is gone, the texts say the new one',
   it('critère 12: the circuit, which launches the queue, and the supervisor name the queue', () => {
     for (const f of [
       'packages/grillhouse/scripts/circuit.mjs',
-      '.claude/skills/pitmaster/SKILL.md',
+      'mods/grillhouse/skills/pitmaster/SKILL.md',
     ]) {
       expect(lire(f), f).toMatch(/file\.mjs|en-file/);
     }

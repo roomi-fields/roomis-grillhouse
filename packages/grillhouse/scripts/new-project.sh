@@ -11,9 +11,10 @@
 # the project keeps no templates/.
 # What stays in Grillhouse: its local state (dependencies, the lock of its workspaces, indexes,
 # tickets, git, the agents' copies), what serves Grillhouse alone (this script, .claude/template,
-# mods/, templates/), and each path the list of the frame's files retires from a project
-# (« - <path> » in .claude/grillhouse/fichiers.txt): the frame's own tests and their material
-# among them.
+# the release script packages/grillhouse/scripts/sortie.mjs, mods/, templates/), and the frame's
+# own tests and their material (packages/grillhouse/tests/). The skills, the agents, the hooks of
+# Claude Code and the common charter reach the project by the frame's plugin, which its settings
+# enable.
 #
 # Usage: npx grillhouse new-project <destination> [ticket-prefix]   (npm run new -- …)
 set -euo pipefail
@@ -28,20 +29,14 @@ if [ -e "$dest" ] && [ -n "$(ls -A "$dest" 2>/dev/null)" ]; then
   exit 1
 fi
 
-# The paths the list of the frame's files retires from a project (« - <path> »), each excluded:
-# the frame's own tests and their material, which stay in Grillhouse, are among them.
-retires=()
-while read -r signe chemin; do
-  [ "$signe" = "-" ] && [ -n "$chemin" ] && retires+=("--exclude=./${chemin%/}")
-done <"$template/.claude/grillhouse/fichiers.txt"
-
 mkdir -p "$dest"
 tar -C "$template" --exclude=./node_modules --exclude=./.rtfm --exclude=./.codegraph \
   --exclude=./.beads --exclude=./.git --exclude=./dist --exclude=./coverage --exclude=./.turbo \
   --exclude=./.claude/settings.local.json --exclude=./.claude/template --exclude=./.claude/worktrees \
   --exclude=./package-lock.json --exclude=./packages/grillhouse/scripts/new-project.sh \
   --exclude=./mods --exclude=./templates --exclude='*/node_modules' \
-  "${retires[@]}" -cf - . | tar -C "$dest" -xf -
+  --exclude=./packages/grillhouse/tests --exclude=./packages/grillhouse/scripts/sortie.mjs \
+  -cf - . | tar -C "$dest" -xf -
 
 # The template of a project replaces Grillhouse's files of the same relative path (its
 # package.json, its README, changelog, credits, contributing guide and supervisor's follow-up

@@ -38,14 +38,14 @@ nomme ceux que le ticket peut casser.
 
 - `METACADRE.md` — les intentions du cadre : quand une règle semble aller contre son but.
 - `docs/agents/index-des-interfaces.md` — ce que fournit chaque composant : pour le relevé.
-- `.claude/skills/grill/references/releve-structurel.md` — la consigne du relevé : à l'étape 1.
+- `${CLAUDE_PLUGIN_ROOT}/skills/grill/references/releve-structurel.md` — la consigne du relevé : à l'étape 1.
 - `docs/agents/issue-tracker.md` — le format d'un ticket : avant d'en proposer un.
 - Compétence `mesure` — avant d'affirmer un chiffre ou une absence dans le relevé.
 
 ## Les étapes
 
 1. **Le relevé.** Tu décris la construction réelle de ce que le ticket touche, avec la consigne du
-   relevé structurel (`.claude/skills/grill/references/releve-structurel.md`), restreinte à ce
+   relevé structurel (`${CLAUDE_PLUGIN_ROOT}/skills/grill/references/releve-structurel.md`), restreinte à ce
    périmètre. Chaque constat porte son fichier et son symbole (`codegraph explore`, `rtfm_search`).
    _Fini quand_ chaque composant touché a son état réel écrit, défauts compris.
 2. **Les décisions.** Tu listes ce qui reste à décider, chaque décision avec ses options, ce que

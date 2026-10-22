@@ -2,7 +2,7 @@
 name: referent-technique
 description: Tranche une question de conception née d'un ticket, ou la fait monter au responsable ; dans le circuit, répond pour le plan d'un ticket aux questions du questionneur. N'écrit aucun fichier.
 skills:
-  - referent-technique
+  - grillhouse:referent-technique
 disallowedTools: Write, Edit, MultiEdit, NotebookEdit
 ---
 

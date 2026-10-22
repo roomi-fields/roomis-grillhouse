@@ -143,7 +143,7 @@ describe('the frame’s guards that judge the root write their refusals in SARIF
 
 describe('a project’s guards write their SARIF by the same means, as the charter says', () => {
   it('the charter names the function and the variable', () => {
-    const charte = readFileSync(path.join(DEPOT, '.claude/grillhouse/charte.md'), 'utf8');
+    const charte = readFileSync(path.join(DEPOT, 'mods/grillhouse/charte.md'), 'utf8');
     expect(charte).toContain('ecrireSarif');
     expect(charte).toContain(RESULTATS);
   });

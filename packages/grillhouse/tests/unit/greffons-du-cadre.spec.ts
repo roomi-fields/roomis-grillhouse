@@ -138,13 +138,12 @@ function outilsDeLaPreparation() {
   return bin;
 }
 
-// A project ready for scripts/setup.sh: the frame's scripts, its skills folder, a package.json.
+// A project ready for scripts/setup.sh: the frame's scripts, a package.json.
 function projetAPreparer(reglages: object = REGLAGES_DU_CADRE) {
   const p = projet(reglages);
   cpSync(path.join(DEPOT, 'packages/grillhouse/scripts'), path.join(p, 'scripts'), {
     recursive: true,
   });
-  mkdirSync(path.join(p, '.claude/skills/testwriter'), { recursive: true });
   writeFileSync(path.join(p, 'package.json'), '{"name":"p"}\n');
   return p;
 }
@@ -160,14 +159,8 @@ function preparer(p: string, binClaude: string) {
   return { ...r, sortie: `${r.stdout}\n${r.stderr}` };
 }
 
-// A source of the frame: one file to copy and the given settings.
-function source(reglages: object = REGLAGES_DU_CADRE) {
-  const s = dossier('cadre');
-  ecrire(s, '.claude/grillhouse/fichiers.txt', 'METACADRE.md\n');
-  ecrire(s, 'METACADRE.md', 'le métacadre\n');
-  ecrireReglages(s, reglages);
-  return s;
-}
+// A source of the frame, empty: the update reads the plugins in the project's own settings.
+const source = () => dossier('cadre');
 
 // npm run grillhouse:maj in the project, from the source, with the given bin.
 function mettreAJourProjet(p: string, src: string, binClaude: string) {
@@ -246,10 +239,10 @@ describe('grillhouse-3uv.71 critère 1 — one mechanism installs the declared p
     expect(installes(appels)).toEqual([GRILL, MATT, RTFM].sort());
     expect(installs(appels).every(a => portee(a) === 'project' && a.cwd === p)).toBe(true);
   });
-  it('critère 1: the update of the frame (npm run grillhouse:maj) installs the plugins of the source for the project', () => {
-    const p = projet(null);
+  it('critère 1: the update of the frame (npm run grillhouse:maj) installs the plugins the project declares, for the project', () => {
+    const p = projet(AUTRES_REGLAGES);
     const claude = claudeSubstitut(dossier('claude'), { noms: AUTRES_NOMS });
-    const r = mettreAJourProjet(p, source(AUTRES_REGLAGES), claude.bin);
+    const r = mettreAJourProjet(p, source(), claude.bin);
     expect(r.status, r.sortie).toBe(0);
     const appels = claude.appels();
     expect(installes(appels)).toEqual([ALPHA, BETA].sort());
@@ -342,12 +335,11 @@ describe('grillhouse-3uv.71 critère 4 — without claude, or on a failed instal
     expect(r.status, r.sortie).not.toBe(0);
     expect(ligneQuiNomme(r.sortie, RTFM), r.sortie).toBeDefined();
   });
-  it('critère 4: the update without the claude command finishes its files, then exits non-zero naming each plugin with its command', () => {
-    const p = projet(null);
-    const r = mettreAJourProjet(p, source(AUTRES_REGLAGES), sansClaude(dossier('sans-claude')));
+  it('critère 4: the update without the claude command finishes its work, then exits non-zero naming each plugin with its command', () => {
+    const p = projet(AUTRES_REGLAGES);
+    const r = mettreAJourProjet(p, source(), sansClaude(dossier('sans-claude')));
     expect(r.status, r.sortie).not.toBe(0);
-    expect(readFileSync(path.join(p, 'METACADRE.md'), 'utf8')).toBe('le métacadre\n');
-    expect(existsSync(path.join(p, '.claude/grillhouse/empreintes.json')), r.sortie).toBe(true);
+    expect(r.sortie).toMatch(/^Cadre /);
     const reglages = JSON.parse(readFileSync(path.join(p, '.claude/settings.json'), 'utf8')) as {
       enabledPlugins?: Record<string, boolean>;
     };
@@ -356,13 +348,12 @@ describe('grillhouse-3uv.71 critère 4 — without claude, or on a failed instal
       expect(ligneQuiNomme(r.sortie, id), `${id}\n${r.sortie}`).toBeDefined();
     }
   });
-  it('critère 4: the update whose install of one plugin fails finishes its files, then exits non-zero naming it with its command', () => {
-    const p = projet(null);
+  it('critère 4: the update whose install of one plugin fails finishes its work, then exits non-zero naming it with its command', () => {
+    const p = projet(AUTRES_REGLAGES);
     const claude = claudeSubstitut(dossier('claude'), { noms: AUTRES_NOMS, echecsInstall: [BETA] });
-    const r = mettreAJourProjet(p, source(AUTRES_REGLAGES), claude.bin);
+    const r = mettreAJourProjet(p, source(), claude.bin);
     expect(r.status, r.sortie).not.toBe(0);
-    expect(readFileSync(path.join(p, 'METACADRE.md'), 'utf8')).toBe('le métacadre\n');
-    expect(existsSync(path.join(p, '.claude/grillhouse/empreintes.json')), r.sortie).toBe(true);
+    expect(r.sortie).toMatch(/^Cadre /);
     expect(ligneQuiNomme(r.sortie, BETA), r.sortie).toBeDefined();
   });
 });
@@ -529,7 +520,7 @@ describe('grillhouse-3uv.71 critère 6 — the update of the files launches no c
   it('critère 6: mettreAJour, which the suites call in their own process, calls no claude', () => {
     const p = projet(null);
     const claude = claudeSubstitut(dossier('claude'), { noms: NOMS });
-    const programme = `import(${JSON.stringify(MAJ)}).then(m => m.mettreAJour(${JSON.stringify(p)}, ${JSON.stringify(source())}, 'essai'))`;
+    const programme = `import(${JSON.stringify(MAJ)}).then(m => m.mettreAJour(${JSON.stringify(p)}, ${JSON.stringify(source())}))`;
     const r = spawnSync(process.execPath, ['-e', programme], {
       cwd: p,
       encoding: 'utf8',
@@ -537,7 +528,6 @@ describe('grillhouse-3uv.71 critère 6 — the update of the files launches no c
       timeout: 60_000,
     });
     expect(r.status, r.stderr).toBe(0);
-    expect(existsSync(path.join(p, 'METACADRE.md'))).toBe(true);
     expect(claude.appels()).toEqual([]);
   });
 });

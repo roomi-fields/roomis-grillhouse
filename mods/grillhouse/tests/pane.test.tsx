@@ -2,6 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 import { ALTERNANCE, AVANCEMENT, aMesurer, texteDe } from '../hooks/register'
 import type { Etat, Ligne } from '../types'
+import { projetGrillhouse } from './projet'
 
 const TABLEAU = {
   lignes: [
@@ -34,9 +35,10 @@ const TABLEAU = {
 
 test('the pane draws each ticket line as a button, and a hidden card per ticket on a blank', async ($, on) => {
   on('process.run', ($, e) => ({
-    value: { exitCode: 0, stdout: e.argv[0] === 'test' ? '' : JSON.stringify(TABLEAU), stderr: '' },
+    value: { exitCode: 0, stdout: JSON.stringify(TABLEAU), stderr: '' },
   }))
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  projetGrillhouse(on)
   on('command.register', () => ({ value: undefined }))
   on('clock.every', () => ({ value: { cancel: () => undefined } }))
   await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
@@ -62,9 +64,10 @@ test('the pane draws each ticket line as a button, and a hidden card per ticket 
 
 test('unfocused, the card shows the ticket that moved last', async ($, on) => {
   on('process.run', ($, e) => ({
-    value: { exitCode: 0, stdout: e.argv[0] === 'test' ? '' : JSON.stringify(TABLEAU), stderr: '' },
+    value: { exitCode: 0, stdout: JSON.stringify(TABLEAU), stderr: '' },
   }))
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  projetGrillhouse(on)
   on('command.register', () => ({ value: undefined }))
   on('clock.every', () => ({ value: { cancel: () => undefined } }))
   await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
@@ -111,15 +114,14 @@ async function monter($: never, on: never) {
     value: {
       exitCode: 0,
       stdout:
-        e.argv[0] === 'test'
-          ? ''
-          : e.argv[0] === 'bd'
+        e.argv[0] === 'bd'
             ? JSON.stringify([{ id: e.argv[2], description: 'Le texte entier du ticket, jusqu’à sa dernière ligne.' }])
             : JSON.stringify(ENTIER),
       stderr: '',
     },
   }))
   o('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
+  projetGrillhouse(o)
   o('command.register', () => ({ value: undefined }))
   o('clock.every', () => ({ value: { cancel: () => undefined } }))
   await s.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
@@ -176,6 +178,7 @@ async function monterChantiers($: never, on: never, appels: string[][]) {
     return { value: { exitCode: 0, stdout: e.argv[0] === 'node' ? JSON.stringify(CHANTIERS) : '', stderr: '' } }
   })
   o('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
+  projetGrillhouse(o)
   o('command.register', () => ({ value: undefined }))
   o('clock.every', () => ({ value: { cancel: () => undefined } }))
   await s.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
@@ -217,12 +220,13 @@ test('a board past what a process returns opens the pane on a message, not on a 
   on('process.run', ($, e) => ({
     value: {
       exitCode: 0,
-      stdout: e.argv[0] === 'test' ? '' : JSON.stringify(TABLEAU).slice(0, 40),
+      stdout: JSON.stringify(TABLEAU).slice(0, 40),
       stderr: '',
-      isStdoutTruncated: e.argv[0] !== 'test',
+      isStdoutTruncated: true,
     },
   }))
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  projetGrillhouse(on)
   on('command.register', () => ({ value: undefined }))
   on('clock.every', () => ({ value: { cancel: () => undefined } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
@@ -256,9 +260,10 @@ test('the command answers and opens the pane before the board is read', async ($
   let ouvert = false
   on('process.run', async ($, e) => {
     if (e.argv[0] === 'node') await lu
-    return { value: { exitCode: 0, stdout: e.argv[0] === 'test' ? '' : JSON.stringify(TABLEAU), stderr: '' } }
+    return { value: { exitCode: 0, stdout: JSON.stringify(TABLEAU), stderr: '' } }
   })
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  projetGrillhouse(on)
   on('command.register', () => ({ value: undefined }))
   on('clock.every', () => ({ value: { cancel: () => undefined } }))
   on('ui.open', () => {
@@ -280,9 +285,10 @@ test('refreshes asked while a board is read fold into one more, never one board 
       tableaux++
       await new Promise(r => setTimeout(r, 30))
     }
-    return { value: { exitCode: 0, stdout: e.argv[0] === 'test' ? '' : JSON.stringify(TABLEAU), stderr: '' } }
+    return { value: { exitCode: 0, stdout: JSON.stringify(TABLEAU), stderr: '' } }
   })
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  projetGrillhouse(on)
   on('command.register', () => ({ value: undefined }))
   on('clock.every', () => ({ value: { cancel: () => undefined } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
@@ -315,9 +321,10 @@ const REPLIE = {
 
 test('o on a folded group opens it alone and whole, and o again comes back to the board', async ($, on) => {
   on('process.run', ($, e) => ({
-    value: { exitCode: 0, stdout: e.argv[0] === 'test' ? '' : JSON.stringify(REPLIE), stderr: '' },
+    value: { exitCode: 0, stdout: JSON.stringify(REPLIE), stderr: '' },
   }))
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  projetGrillhouse(on)
   on('command.register', () => ({ value: undefined }))
   on('clock.every', () => ({ value: { cancel: () => undefined } }))
   await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
@@ -411,9 +418,10 @@ for (const [tours, montre, cache] of [
     const periodes: number[] = []
     let donnes = 0
     on('process.run', ($, e) => ({
-      value: { exitCode: 0, stdout: e.argv[0] === 'test' ? '' : JSON.stringify(ALTERNE), stderr: '' },
+      value: { exitCode: 0, stdout: JSON.stringify(ALTERNE), stderr: '' },
     }))
     on('session.start', ($, e) => ({ cwd: e.cwd }))
+    projetGrillhouse(on)
     on('command.register', () => ({ value: undefined }))
     on('clock.every', ($, e) => {
       periodes.push(e.ms)

@@ -20,6 +20,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { SOUS_COMMANDES } from '../../bin/grillhouse.mjs';
 import { A_REPASSER } from '../../scripts/vitest-config/pression.mjs';
 import { verifier } from '../../scripts/verifier.mjs';
 
@@ -273,9 +274,8 @@ describe('the root script verifier', () => {
     };
     expect(pkg.scripts.verifier).toBe('grillhouse verifier');
   });
-  it('is a frame file, distributed by the list of the frame', () => {
-    const liste = readFileSync(path.join(DEPOT, '.claude/grillhouse/fichiers.txt'), 'utf8');
-    expect(liste.split('\n')).toContain('packages/grillhouse/scripts/verifier.mjs');
+  it('is a subcommand of the package, grillhouse verifier', () => {
+    expect(SOUS_COMMANDES.verifier).toBe('verifier.mjs');
   });
   it('npm passes its code through: 75 stays 75', () => {
     const r = mkdtempSync(path.join(ESSAIS, 'npm-'));

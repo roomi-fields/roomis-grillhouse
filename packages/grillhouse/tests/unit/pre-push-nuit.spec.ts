@@ -82,9 +82,9 @@ function projet(grillhouse: unknown, { hooksPath = true, prePush = true } = {}) 
     writeFileSync(path.join(repo, '.git/hooks/pre-push'), PRE_PUSH_BEADS, { mode: 0o755 });
   }
   // The night runs from the project's own scripts, as in a project the frame installed.
-  cpSync(path.dirname(NUIT), path.join(repo, 'scripts'), { recursive: true });
+  cpSync(path.dirname(NUIT), path.join(repo, 'packages/grillhouse/scripts'), { recursive: true });
   const configAvant = git('config', '--local', '--list');
-  mettreAJour(repo, DEPOT, 'essai');
+  mettreAJour(repo, DEPOT);
   const configApres = git('config', '--local', '--list');
   const pkg: Record<string, unknown> = {
     name: 'p',
@@ -119,7 +119,11 @@ function projet(grillhouse: unknown, { hooksPath = true, prePush = true } = {}) 
   const pousser = (...refspecs: string[]) => pousserVers('origin', ...refspecs);
   const lire = (f: string) => (existsSync(f) ? readFileSync(f, 'utf8') : '');
   const nuit = () =>
-    spawnSync('bash', [path.join(repo, 'scripts/nuit.sh')], { cwd: repo, encoding: 'utf8', env });
+    spawnSync('bash', [path.join(repo, 'packages/grillhouse/scripts/nuit.sh')], {
+      cwd: repo,
+      encoding: 'utf8',
+      env,
+    });
   const journal = () => {
     const dossier = path.join(repo, '.git', 'nuit');
     const f = existsSync(dossier) ? readdirSync(dossier).find(x => x.endsWith('.log')) : undefined;
@@ -299,8 +303,8 @@ describe('grillhouse-3uv.59 critère 8 — a replayed update changes nothing', (
     const p = projet({ poussee: { nuit: 'main' } });
     const crochet = path.join(p.repo, '.beads/hooks/pre-push');
     const premier = readFileSync(crochet, 'utf8');
-    mettreAJour(p.repo, DEPOT, 'essai');
-    mettreAJour(p.repo, DEPOT, 'essai');
+    mettreAJour(p.repo, DEPOT);
+    mettreAJour(p.repo, DEPOT);
     const texte = readFileSync(crochet, 'utf8');
     expect(texte).toBe(premier);
     // Outside the Beads section, no line of the frame appears twice.

@@ -100,13 +100,13 @@ describe('critère 2 — the regulator reads the state by a command of the circu
 
   it("the regulator's instruction names the command on its state, its skill names it, and its rights hold it in place of the read of the raw file", () => {
     const consigne = readFileSync(
-      path.join(RACINE, '.claude/skills/pitmaster/references/consigne-agent.md'),
+      path.join(RACINE, 'mods/grillhouse/skills/pitmaster/references/consigne-agent.md'),
       'utf8'
     );
     const gabarit = /## Régulateur, sur un arrêt[\s\S]*?```text\n([\s\S]*?)```/.exec(consigne)?.[1];
     expect(gabarit).toContain('`npx grillhouse etat-du-circuit {{etat}}`');
     const competence = readFileSync(
-      path.join(RACINE, '.claude/skills/regulateur/SKILL.md'),
+      path.join(RACINE, 'mods/grillhouse/skills/regulateur/SKILL.md'),
       'utf8'
     );
     expect(competence).toContain('`npx grillhouse etat-du-circuit <etat>`');

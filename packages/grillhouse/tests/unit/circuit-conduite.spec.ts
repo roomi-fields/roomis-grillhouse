@@ -21,7 +21,7 @@ describe('Q2 — the wait by slices is gone, with its callers', () => {
     expect(existsSync(path.join(RACINE, 'packages/grillhouse/scripts', ATTENDRE))).toBe(false);
   });
 
-  it('no file of the repository calls it or describes it; the list of the frame only removes it', () => {
+  it('no file of the repository calls it or describes it', () => {
     const r = spawnSync('git', ['-C', RACINE, 'ls-files', '-z'], { encoding: 'utf8' });
     expect(r.status, r.stderr).toBe(0);
     const citent = r.stdout
@@ -30,13 +30,9 @@ describe('Q2 — the wait by slices is gone, with its callers', () => {
       .filter(f => existsSync(path.join(RACINE, f)))
       .filter(f => {
         const lignes = lire(f).split('\n');
-        return lignes.some(
-          l =>
-            l.includes(ATTENDRE) && !(f === '.claude/grillhouse/fichiers.txt' && l.startsWith('- '))
-        );
+        return lignes.some(l => l.includes(ATTENDRE));
       });
     expect(citent).toEqual([]);
-    expect(lire('.claude/grillhouse/fichiers.txt').split('\n')).toContain(`- scripts/${ATTENDRE}`);
   });
 });
 
@@ -44,10 +40,10 @@ describe('Q10 — the supervisor launches the circuit, a régulateur, a session 
   // Romain, 2026-10-21: the sub-step 1.2 is « Questionnement », in every text that names it.
   it('the texts name the sub-step 1.2 « 1.2 Questionnement »', () => {
     for (const f of [
-      '.claude/grillhouse/charte.md',
-      '.claude/skills/regulateur/SKILL.md',
-      '.claude/skills/referent-technique/SKILL.md',
-      '.claude/skills/questionneur/SKILL.md',
+      'mods/grillhouse/charte.md',
+      'mods/grillhouse/skills/regulateur/SKILL.md',
+      'mods/grillhouse/skills/referent-technique/SKILL.md',
+      'mods/grillhouse/skills/questionneur/SKILL.md',
       'README.md',
       'docs/agents/issue-tracker.md',
     ]) {
@@ -58,13 +54,13 @@ describe('Q10 — the supervisor launches the circuit, a régulateur, a session 
   });
 
   it('the charter names the regulateur, at the arbitrage of a stop, who settles a stop of the circuit', () => {
-    const charte = lire('.claude/grillhouse/charte.md').replace(/\s+/g, ' ');
+    const charte = lire('mods/grillhouse/charte.md').replace(/\s+/g, ' ');
     expect(charte).toMatch(/l'Arbitrage de l'arrêt : le `regulateur` tranche l'arrêt/);
     expect(charte).not.toMatch(/qui mène un ticket de sa prise à son commit/);
   });
 
   it('the charter says the circuit, launched by the supervisor, launches one agent per component', () => {
-    const charte = lire('.claude/grillhouse/charte.md').replace(/\s+/g, ' ');
+    const charte = lire('mods/grillhouse/charte.md').replace(/\s+/g, ' ');
     expect(charte).toMatch(
       /le circuit \(`packages\/grillhouse\/scripts\/circuit\.mjs`\), que lance le superviseur, lance un agent par composant/
     );
@@ -72,7 +68,7 @@ describe('Q10 — the supervisor launches the circuit, a régulateur, a session 
   });
 
   it('critère 8 — the supervisor launches the circuit once, relaunches --reponse after the owner answers, and launches no regulateur sub-agent', () => {
-    const pitmaster = lire('.claude/skills/pitmaster/SKILL.md').replace(/\s+/g, ' ');
+    const pitmaster = lire('mods/grillhouse/skills/pitmaster/SKILL.md').replace(/\s+/g, ' ');
     expect(pitmaster).toMatch(
       /`npx grillhouse circuit <ticket>`, que je lance une fois, en arrière-plan/
     );
@@ -86,7 +82,10 @@ describe('Q10 — the supervisor launches the circuit, a régulateur, a session 
   });
 
   it('the agent and the skill of the régulateur describe his new role', () => {
-    for (const f of ['.claude/agents/regulateur.md', '.claude/skills/regulateur/SKILL.md']) {
+    for (const f of [
+      'mods/grillhouse/agents/regulateur.md',
+      'mods/grillhouse/skills/regulateur/SKILL.md',
+    ]) {
       const d = description(f);
       expect(d, f).toMatch(/arrêt du circuit/);
       expect(d, f).not.toMatch(/de la prise au commit/);
@@ -94,7 +93,7 @@ describe('Q10 — the supervisor launches the circuit, a régulateur, a session 
   });
 
   it('critère 8 — the régulateur renders its decision as its sheet and launches no circuit', () => {
-    const brut = lire('.claude/skills/regulateur/SKILL.md');
+    const brut = lire('mods/grillhouse/skills/regulateur/SKILL.md');
     const regulateur = brut.replace(/\s+/g, ' ');
     for (const forme of [
       '`RELANCE --reprendre`',
@@ -111,7 +110,10 @@ describe('Q10 — the supervisor launches the circuit, a régulateur, a session 
     expect(regulateur).not.toMatch(/run_in_background|en veille|arrière-plan/);
     // The skill prescribes no command of the circuit: the circuit applies the decision.
     expect(brut).not.toMatch(/`npx grillhouse circuit/);
-    for (const f of ['.claude/agents/regulateur.md', '.claude/skills/regulateur/SKILL.md']) {
+    for (const f of [
+      'mods/grillhouse/agents/regulateur.md',
+      'mods/grillhouse/skills/regulateur/SKILL.md',
+    ]) {
       expect(description(f), f).not.toMatch(/relance le circuit|relancer le circuit/);
     }
   });
@@ -142,11 +144,11 @@ describe('Q10 — the supervisor launches the circuit, a régulateur, a session 
 // BPScript's runs; grillhouse-3uv.89, L1): a test the testwriter adapts carries its expected green in
 // its first sheet; a developpeur sends a red left in the tests of a component to its testwriter.
 describe('the sheets the circuit reads', () => {
-  const testwriter = lire('.claude/skills/testwriter/SKILL.md').replace(/\s+/g, ' ');
-  const developpeur = lire('.claude/skills/developpeur/SKILL.md').replace(/\s+/g, ' ');
+  const testwriter = lire('mods/grillhouse/skills/testwriter/SKILL.md').replace(/\s+/g, ' ');
+  const developpeur = lire('mods/grillhouse/skills/developpeur/SKILL.md').replace(/\s+/g, ' ');
   // The first template, the testwriter's and the developpeur's instruction.
   const premier = /```text\n([\s\S]*?)\n```/
-    .exec(lire('.claude/skills/pitmaster/references/consigne-agent.md'))?.[1]
+    .exec(lire('mods/grillhouse/skills/pitmaster/references/consigne-agent.md'))?.[1]
     .replace(/\s+/g, ' ');
 
   it('each green test before the code goes into `verts_attendus`: its file from the root, its full name, its reason', () => {
@@ -198,7 +200,7 @@ describe('the sheets the circuit reads', () => {
       }
       expect(texte, nom).not.toMatch(/STATUT :|Agent : testwriter|vert attendu :/);
     }
-    const regulateur = lire('.claude/skills/regulateur/SKILL.md').replace(/\s+/g, ' ');
+    const regulateur = lire('mods/grillhouse/skills/regulateur/SKILL.md').replace(/\s+/g, ' ');
     expect(regulateur).toMatch(/`hors-portee` \(code 19\)/);
     expect(regulateur).toMatch(/`besoin` \(code 20\)/);
   });
@@ -224,7 +226,7 @@ describe('the sheets the circuit reads', () => {
 // what is his and carries to the owner only what is the owner's.
 describe('a question of the régulateur goes up to the supervisor, who answers it or carries it to the owner', () => {
   const blocs = [
-    ...lire('.claude/skills/pitmaster/references/consigne-agent.md').matchAll(
+    ...lire('mods/grillhouse/skills/pitmaster/references/consigne-agent.md').matchAll(
       /```text\n([\s\S]*?)\n```/g
     ),
   ].map(m => m[1].replace(/\s+/g, ' '));
@@ -256,12 +258,15 @@ describe('a question of the régulateur goes up to the supervisor, who answers i
   });
 
   it('the skills of the supervisor and of the regulateur say the same: the supervisor answers what is his, carries to the owner what is the owner’s', () => {
-    for (const f of ['.claude/skills/pitmaster/SKILL.md', '.claude/skills/regulateur/SKILL.md']) {
+    for (const f of [
+      'mods/grillhouse/skills/pitmaster/SKILL.md',
+      'mods/grillhouse/skills/regulateur/SKILL.md',
+    ]) {
       const texte = lire(f).replace(/\s+/g, ' ');
       expect(texte, f).toMatch(/le cadre du ticket, un arbitrage/);
       expect(texte, f).toMatch(/le fonctionnel et ce que la charte lui garde/);
     }
-    const regulateur = lire('.claude/skills/regulateur/SKILL.md').replace(/\s+/g, ' ');
+    const regulateur = lire('mods/grillhouse/skills/regulateur/SKILL.md').replace(/\s+/g, ' ');
     expect(regulateur).not.toMatch(
       /Le superviseur porte la question au responsable, et sa réponse/
     );
@@ -282,10 +287,10 @@ describe('a question of the régulateur goes up to the supervisor, who answers i
 // means to in the circuit. Since grillhouse-3uv.89 (L1), the final answer is the sheet.
 describe('the texts ask no writing without a reader', () => {
   const plat = (rel: string) => lire(rel).replace(/\s+/g, ' ');
-  const testwriter = plat('.claude/skills/testwriter/SKILL.md');
-  const developpeur = plat('.claude/skills/developpeur/SKILL.md');
+  const testwriter = plat('mods/grillhouse/skills/testwriter/SKILL.md');
+  const developpeur = plat('mods/grillhouse/skills/developpeur/SKILL.md');
   const blocs = [
-    ...lire('.claude/skills/pitmaster/references/consigne-agent.md').matchAll(
+    ...lire('mods/grillhouse/skills/pitmaster/references/consigne-agent.md').matchAll(
       /```text\n([\s\S]*?)\n```/g
     ),
   ].map(m => m[1].replace(/\s+/g, ' '));
@@ -295,8 +300,8 @@ describe('the texts ask no writing without a reader', () => {
       ['developpeur', developpeur],
       ['testwriter', testwriter],
       ['issue-tracker', plat('docs/agents/issue-tracker.md')],
-      ['pitmaster', plat('.claude/skills/pitmaster/SKILL.md')],
-      ['tour', plat('.claude/skills/pitmaster/references/tour.md')],
+      ['pitmaster', plat('mods/grillhouse/skills/pitmaster/SKILL.md')],
+      ['tour', plat('mods/grillhouse/skills/pitmaster/references/tour.md')],
     ]) {
       expect(texte, nom).not.toMatch(/heures|clock time|rapport final/i);
     }
@@ -306,8 +311,8 @@ describe('the texts ask no writing without a reader', () => {
     for (const [nom, texte] of [
       ['testwriter', testwriter],
       ['developpeur', developpeur],
-      ['relecteur', plat('.claude/skills/relecteur/SKILL.md')],
-      ['regulateur', plat('.claude/skills/regulateur/SKILL.md')],
+      ['relecteur', plat('mods/grillhouse/skills/relecteur/SKILL.md')],
+      ['regulateur', plat('mods/grillhouse/skills/regulateur/SKILL.md')],
       ['consigne 1', blocs[0]],
       ['consigne 6', blocs[5]],
     ]) {
@@ -334,8 +339,8 @@ describe('the texts ask no writing without a reader', () => {
     for (const [nom, texte] of [
       ['testwriter', testwriter],
       ['developpeur', developpeur],
-      ['relecteur', plat('.claude/skills/relecteur/SKILL.md')],
-      ['regulateur', plat('.claude/skills/regulateur/SKILL.md')],
+      ['relecteur', plat('mods/grillhouse/skills/relecteur/SKILL.md')],
+      ['regulateur', plat('mods/grillhouse/skills/regulateur/SKILL.md')],
     ]) {
       expect(texte, nom).toContain('`decouvertes`');
       expect(texte, nom).not.toMatch(
@@ -351,7 +356,7 @@ describe('the texts ask no writing without a reader', () => {
 // late (the owner: « c'est l'agent qui inspecte les résultats des tests qui doit faire ça »); the
 // reviewer's session was refused the reading of the ticket's children it tried for its discovery.
 describe('L7 — the reviewer reviews the commit message and ranges the flagged words', () => {
-  const relecteur = lire('.claude/skills/relecteur/SKILL.md').replace(/\s+/g, ' ');
+  const relecteur = lire('mods/grillhouse/skills/relecteur/SKILL.md').replace(/\s+/g, ' ');
 
   it('a deviation a criterion requires at the commit goes into `ecarts`, never into a remark', () => {
     expect(relecteur).toMatch(/critère qui exige qu'un écart se nomme au commit/);
@@ -380,7 +385,7 @@ describe('L7 — the reviewer reviews the commit message and ranges the flagged 
 // and as Google's review guide asks for nothing the change does not need, a finding blocks only
 // on a criterion of the plan or a rule of the frame, and the rule of the real need applies to it.
 describe('3uv.91.2 — a finding of the reviewer blocks or remarks', () => {
-  const relecteur = lire('.claude/skills/relecteur/SKILL.md').replace(/\s+/g, ' ');
+  const relecteur = lire('mods/grillhouse/skills/relecteur/SKILL.md').replace(/\s+/g, ' ');
 
   it('a blocking finding holds a criterion of the plan or a rule of the frame, which it names; any other is a remark', () => {
     expect(relecteur).toMatch(

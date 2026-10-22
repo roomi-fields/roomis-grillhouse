@@ -96,10 +96,10 @@ describe('the base configuration of the day leaves the night out of every config
       },
     });
   });
-  it('is a frame directory, distributed by the list of the frame; the former file is gone', () => {
-    const liste = readFileSync(path.join(DEPOT, '.claude/grillhouse/fichiers.txt'), 'utf8');
-    expect(liste.split('\n')).toContain('packages/grillhouse/scripts/vitest-config/');
-    expect(liste).not.toContain('vitest.base.config.mjs');
+  it('is a directory of the package; the former file is gone', () => {
+    expect(existsSync(path.join(DEPOT, 'packages/grillhouse/scripts/vitest-config/base.mjs'))).toBe(
+      true
+    );
     expect(existsSync(path.join(DEPOT, 'packages/grillhouse/scripts/vitest.base.config.mjs'))).toBe(
       false
     );

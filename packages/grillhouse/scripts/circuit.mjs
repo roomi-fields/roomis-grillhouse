@@ -75,7 +75,7 @@
 //   for, in its own process group, its errors written to a file: a session outlives the death of
 //   its circuit (its caller dead, the circuit with it), and the state names its group while it
 //   runs. The instruction is written from the first template of
-//   .claude/skills/pitmaster/references/consigne-agent.md, each `{{champ}}` filled: the ticket and
+//   mods/grillhouse/skills/pitmaster/references/consigne-agent.md, each `{{champ}}` filled: the ticket and
 //   its subject, the component, the ticket's description (its criteria) and its notes (a section
 //   absent without notes), both read with `bd show` at the session's launch, the report of the
 //   step before (the proof, the reds of a check), the last handover of the session's author
@@ -624,11 +624,14 @@ const LANCEUR = path.join(ici, 'enveloppe', 'lancer.sh');
 const INTEGRER = path.join(ici, 'integration', 'integrer.mjs');
 const FILE = path.join(ici, 'integration', 'file.mjs');
 const REGISTRE = path.join(ici, 'registre.mjs');
-// The frame's files beside its package (packages/grillhouse/), at the root of its repository.
+// The frame's files beside its package (packages/grillhouse/), at the root of its repository; the
+// templates of the instructions in the skill of the supervisor, which the frame's plugin carries
+// (mods/grillhouse/).
 const CADRE = path.join(ici, '..', '..', '..');
 const GABARIT = path.join(
   CADRE,
-  '.claude',
+  'mods',
+  'grillhouse',
   'skills',
   'pitmaster',
   'references',

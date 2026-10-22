@@ -120,9 +120,14 @@ const PLACE_DU_SUJET = 10;
 // The role of a register line that a step of a circuit writes (scripts/circuit.mjs): no agent,
 // no role of the flow.
 export const ROLE_DU_CIRCUIT = 'circuit';
+// A role by its agent's name: an agent of the frame's plugin is named bare or scoped by the
+// plugin (`grillhouse:<rôle>`), as Claude Code names a plugin's agents.
+export const roleDeLAgent = nom =>
+  typeof nom === 'string' ? nom.replace(/^grillhouse:/, '') : null;
 // A sub-agent's role from its meta file: the type it was spawned as; a named agent's `agentType`
 // is its name.
-export const roleDuMeta = m => m.spawnedAgentType ?? m.customAgentType ?? m.agentType ?? null;
+export const roleDuMeta = m =>
+  roleDeLAgent(m.spawnedAgentType ?? m.customAgentType ?? m.agentType ?? null);
 // The states of a ticket, in the order the states' view lists them, with their meaning.
 export const ETATS = [
   { cle: 'enCours', nom: 'en cours', sens: 'un agent y travaille' },

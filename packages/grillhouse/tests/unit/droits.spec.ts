@@ -70,7 +70,7 @@ const COMPLETER: Record<string, string> = {
   texte: '"Ce qui est fait.\n\nCe qui reste."',
 };
 function demandees(role: string): string[] {
-  const dossier = path.join(RACINE, '.claude/skills', role);
+  const dossier = path.join(RACINE, 'mods/grillhouse/skills', role);
   const refs = path.join(dossier, 'references');
   const fichiers = [
     path.join(dossier, 'SKILL.md'),
@@ -329,7 +329,7 @@ describe('3uv.92.7 — the regulator and the reviewer read git in the copy', () 
 
   it("the regulator's instruction promises the reads its rights hold, and no write at the ticket", () => {
     const consigne = readFileSync(
-      path.join(RACINE, '.claude/skills/pitmaster/references/consigne-agent.md'),
+      path.join(RACINE, 'mods/grillhouse/skills/pitmaster/references/consigne-agent.md'),
       'utf8'
     );
     const gabarit =
@@ -424,30 +424,46 @@ describe("L2 — the context of a role's session", () => {
     }
   });
 
-  it("lists the role's skills alone, its own and those its skill names: every other skill of the project is off", () => {
-    const skills = readdirSync(path.join(RACINE, '.claude/skills'));
+  // grillhouse-3uv.84.2: the skills of the frame are its plugin's, which Claude Code's
+  // `skillOverrides` does not reach; the role's agent preloads its own.
+  it("turns off the project's own skills and the built-in ones Claude Code keeps, for every role", () => {
+    const projet = mkdtempSync(path.join(ESSAIS, 'propres-'));
+    mkdirSync(path.join(projet, '.claude/skills/propre'), { recursive: true });
+    writeFileSync(path.join(projet, '.claude/skills/propre/SKILL.md'), '---\nname: propre\n---\n');
     for (const role of Object.keys(ROLES)) {
-      const texte = readFileSync(path.join(RACINE, '.claude/skills', role, 'SKILL.md'), 'utf8');
-      const nommees = [...texte.matchAll(/[Cc]ompétence `([a-z-]+)`/g)].map(m => m[1]);
-      const siennes = new Set([role, ...nommees]);
-      const { skillOverrides } = reglagesDe(options(role));
-      for (const s of skills) {
-        expect(skillOverrides[s], `${role} : ${s}`).toBe(siennes.has(s) ? undefined : 'off');
-      }
+      const { skillOverrides } = reglagesDe(options(role, projet));
+      expect(skillOverrides, role).toEqual({
+        design: 'off',
+        doctor: 'off',
+        'plugin-authoring': 'off',
+        propre: 'off',
+      });
     }
   });
 
-  it("turns off every plugin the project enables: their skills, hooks and servers are not the role's", () => {
+  it("turns off every plugin the project enables but the frame's, which carries the role's agent, its skills and the hooks of the frame", () => {
     const projet = (
       JSON.parse(readFileSync(path.join(RACINE, '.claude/settings.json'), 'utf8')) as {
         enabledPlugins: Record<string, boolean>;
       }
     ).enabledPlugins;
+    expect(Object.keys(projet)).toContain('grillhouse@roomi-fields');
     for (const role of Object.keys(ROLES)) {
       const { enabledPlugins } = reglagesDe(options(role));
-      for (const p of Object.keys(projet)) {
+      expect(enabledPlugins, role).not.toHaveProperty('grillhouse@roomi-fields');
+      for (const p of Object.keys(projet).filter(p => p !== 'grillhouse@roomi-fields')) {
         expect(enabledPlugins[p], `${role} : ${p}`).toBe(false);
       }
+    }
+  });
+
+  it("finds each role's agent in the frame's plugin, which preloads its skill", () => {
+    for (const role of Object.keys(ROLES)) {
+      const definition = readFileSync(
+        path.join(RACINE, `mods/grillhouse/agents/${role}.md`),
+        'utf8'
+      );
+      expect(definition, role).toMatch(new RegExp(`^skills:\\n  - grillhouse:${role}$`, 'm'));
     }
   });
 
@@ -577,7 +593,10 @@ describe("L2 — the context of a role's session", () => {
       ).toEqual(['"$CLAUDE_PROJECT_DIR/node_modules/.bin/grillhouse" commande']);
       // The definition no longer holds the lock: a project's copy is a folder Claude Code has
       // not trusted, where the hooks of an agent's definition do not run.
-      const definition = readFileSync(path.join(RACINE, `.claude/agents/${role}.md`), 'utf8');
+      const definition = readFileSync(
+        path.join(RACINE, `mods/grillhouse/agents/${role}.md`),
+        'utf8'
+      );
       expect(definition, role).not.toMatch(/verrou\.mjs|hooks:/);
     }
     for (const role of ['relecteur', 'regulateur']) {
@@ -615,7 +634,7 @@ describe('3uv.91.6 — the testwriter removes a file of its tests', () => {
 
   it('criterion 1: its skill names the removal by a node script of its temporary directory, which its rights permit and neither its rules nor its command lock refuse', () => {
     const competence = readFileSync(
-      path.join(RACINE, '.claude/skills/testwriter/SKILL.md'),
+      path.join(RACINE, 'mods/grillhouse/skills/testwriter/SKILL.md'),
       'utf8'
     );
     expect(demandees('testwriter')).toContain(RETRAIT);
@@ -633,7 +652,7 @@ describe('3uv.91.6 — the testwriter removes a file of its tests', () => {
   });
 
   it('criterion 2: the common charter names that gesture for a removal, and no gesture the rights of a role that writes refuse', () => {
-    const charte = readFileSync(path.join(RACINE, '.claude/grillhouse/charte.md'), 'utf8').replace(
+    const charte = readFileSync(path.join(RACINE, 'mods/grillhouse/charte.md'), 'utf8').replace(
       /\s+/g,
       ' '
     );
@@ -668,7 +687,7 @@ describe('3uv.92.6 — a role session ends with its sheet, without a background 
   it('criterion 2: the skill of every role of the circuit says it waits in the foreground for what it launches', () => {
     for (const role of Object.keys(ROLES)) {
       const competence = readFileSync(
-        path.join(RACINE, '.claude/skills', role, 'SKILL.md'),
+        path.join(RACINE, 'mods/grillhouse/skills', role, 'SKILL.md'),
         'utf8'
       ).replace(/\s+/g, ' ');
       expect(competence, role).toMatch(

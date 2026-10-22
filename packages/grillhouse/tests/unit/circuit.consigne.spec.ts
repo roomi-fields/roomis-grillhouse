@@ -4,7 +4,7 @@ import { canWrap, racineSousLaMaison } from '../machine.js';
 import { sortie, CODE_JUSTE, DESCRIPTION, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
 
 // The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): what the instruction
-// of each session carries (.claude/skills/pitmaster/references/consigne-agent.md). Witness:
+// of each session carries (mods/grillhouse/skills/pitmaster/references/consigne-agent.md). Witness:
 // BPScript (vbwf.320.2.4.5.1, si61.8, 2026-10-20), a developpeur of 050-emitter received as « the
 // last handover » 14 KB of « vert attendu » of the testwriter of 030-binder, and after a RENDU each
 // agent the whole verdict, the findings of the other components included; the reviewer read the

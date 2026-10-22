@@ -7,11 +7,23 @@ import type { Etat, Fiche, Ligne, Tableau } from '../types'
 // command of the project (`node_modules/.bin/grillhouse tableau`, the package
 // @roomi-fields/grillhouse) measures and lays out the lines, and writes the status line for the
 // person's status line command; this mod shows the lines, every 30 s (every 10 s while a line of
-// progress shows) and after each `bd` or `git` command. It stays silent outside a Grillhouse project and inside an agent's copy
-// (`.claude/worktrees/`).
+// progress shows) and after each `bd` or `git` command. A Grillhouse project is one whose
+// package.json declares the package (`dependencies` or `devDependencies`); the mod stays silent
+// outside one and inside an agent's copy (`.claude/worktrees/`).
 const PANE = 'grillhouse'
-// The frame's command, which the project's `npm install` links.
+// The frame's command, which the project's `npm install` links, and its package.
 const GRILLHOUSE = 'node_modules/.bin/grillhouse'
+const PAQUET = '@roomi-fields/grillhouse'
+
+// Whether a package.json's text declares the frame's package.
+export function declareLePaquet(texte: string | null): boolean {
+  try {
+    const p = JSON.parse(texte ?? '') as { dependencies?: object; devDependencies?: object }
+    return Object.hasOwn(p.dependencies ?? {}, PAQUET) || Object.hasOwn(p.devDependencies ?? {}, PAQUET)
+  } catch {
+    return false
+  }
+}
 const PERIODE = 30_000
 // The width of the lines `grillhouse tableau` lays out (its LARGEUR).
 const COLONNES = 52
@@ -292,8 +304,9 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const started = await next(e)
     cwd = e.cwd
-    const projet = await $.process.run(['test', '-x', GRILLHOUSE], { cwd })
-    actif = e.isInteractive && projet.exitCode === 0 && !cwd.includes('/.claude/worktrees/')
+    const pkg = `${cwd}/package.json`
+    const texte = (await $.fs.exists(pkg)) ? String(await $.fs.read(pkg)) : null
+    actif = e.isInteractive && declareLePaquet(texte) && !cwd.includes('/.claude/worktrees/')
     if (!actif) return started
     await $.command.register({
       name: 'grillhouse',

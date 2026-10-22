@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 
 const RACINE = path.resolve(__dirname, '../../../..');
 const lire = (f: string) => readFileSync(path.join(RACINE, f), 'utf8');
-const GABARIT = '.claude/skills/pitmaster/references/consigne-agent.md';
+const GABARIT = 'mods/grillhouse/skills/pitmaster/references/consigne-agent.md';
 // The blocks of instruction of the template, in their order, with the heading above each.
 const blocs = () => {
   const texte = lire(GABARIT);
@@ -57,33 +57,34 @@ describe('the questionneur’s instruction', () => {
 
 describe('the questionneur, a role agent', () => {
   it('critère 3 — its definition writes nothing and loads its skill on its first turn', () => {
-    const d = lire('.claude/agents/questionneur.md');
+    const d = lire('mods/grillhouse/agents/questionneur.md');
     expect(d).toMatch(/^name: questionneur$/m);
     expect(d).toMatch(/^disallowedTools: Write, Edit, MultiEdit, NotebookEdit$/m);
     expect(d).toMatch(/charge ta compétence `questionneur`/);
   });
 
   it('its skill sets no list of questions either', () => {
-    const c = lire('.claude/skills/questionneur/SKILL.md');
+    const c = lire('mods/grillhouse/skills/questionneur/SKILL.md');
     expect(c).toMatch(/^name: questionneur$/m);
     expect(c).not.toMatch(QUESTION_IMPOSEE);
   });
 
-  it('the frame’s files carry its agent and skill to a project, its tests staying in Grillhouse', () => {
-    const f = lire('.claude/grillhouse/fichiers.txt').split('\n');
-    expect(f).toContain('.claude/skills/questionneur/');
-    expect(f).toContain('- packages/grillhouse/tests/');
+  it('the frame’s plugin carries its agent and skill to a project, its tests staying in Grillhouse', () => {
+    expect(existsSync(path.join(RACINE, 'mods/grillhouse/agents/questionneur.md'))).toBe(true);
+    expect(existsSync(path.join(RACINE, 'mods/grillhouse/skills/questionneur/SKILL.md'))).toBe(
+      true
+    );
     expect(existsSync(path.resolve(__dirname, 'circuit.questionneur.spec.ts'))).toBe(true);
   });
 
   it('critère 6 — the supervisor has his plan questioned before he gives it to the owner, and answers in his own session', () => {
-    const p = lire('.claude/skills/pitmaster/SKILL.md').replace(/\s+/g, ' ');
+    const p = lire('mods/grillhouse/skills/pitmaster/SKILL.md').replace(/\s+/g, ' ');
     expect(p).toMatch(/sous-agent `questionneur`/);
     expect(p).toMatch(/avant de le rendre au responsable/);
   });
 
   it('the common charter names the questionneur at its steps, 1.2 and the arbitrage of a stop', () => {
-    const c = lire('.claude/grillhouse/charte.md').replace(/\s+/g, ' ');
+    const c = lire('mods/grillhouse/charte.md').replace(/\s+/g, ' ');
     expect(c).toContain('1.2 Questionnement, le `questionneur`');
     expect(c).toContain('le `questionneur` questionne sa décision');
   });

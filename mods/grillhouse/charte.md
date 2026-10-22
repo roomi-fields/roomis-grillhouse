@@ -1,9 +1,10 @@
 # La charte commune de Roomi's Grillhouse
 
-Les règles du cadre, identiques dans chaque projet qui l'a installé. La charte du projet
-(`CLAUDE.md`) l'importe et porte ce qui lui est propre : son nom, son responsable, ce qui décide
-chez lui, ses critères d'arbitrage, ses commandes. Ce fichier vient du cadre et ne se modifie pas
-dans un projet : un écart se propose à Grillhouse. Ainsi les projets suivent un seul cadre.
+Les règles du cadre, identiques dans chaque projet qui l'a installé. Le greffon du cadre
+(`grillhouse@roomi-fields`) la donne à chaque séance par son crochet d'ouverture ; la charte du
+projet (`CLAUDE.md`) porte ce qui lui est propre : son nom, son responsable, ce qui décide chez
+lui, ses critères d'arbitrage, ses commandes. Ce fichier vient du greffon et ne se modifie pas dans
+un projet : un écart se propose à Grillhouse. Ainsi les projets suivent un seul cadre.
 
 ## Ce qui décide
 
@@ -44,8 +45,8 @@ professionnel.
 
 Une séance de supervision charge le superviseur (`pitmaster`) ; un projet a un seul superviseur,
 comme Zuul a un seul ordonnanceur : l'ouverture de séance prend le verrou du dépôt, et une seconde
-séance le dit au responsable et ne lance aucun circuit. Les rôles sont des agents du projet
-(`.claude/agents/`), chacun sous ses verrous et les droits que nomment les commandes de sa
+séance le dit au responsable et ne lance aucun circuit. Les rôles sont des agents du greffon du
+cadre (ses `agents/`, leurs compétences dans ses `skills/`), chacun sous ses verrous et les droits que nomment les commandes de sa
 compétence, sans la configuration propre de l'utilisateur (`packages/grillhouse/scripts/droits.mjs`). Un ticket
 parcourt l'arbre de son circuit, les étapes « auto » comprises (`packages/grillhouse/scripts/etapes.mjs`, la seule
 liste), comme un pipeline de GitLab CI ses étapes et leurs travaux : 0 Exploration,
@@ -226,6 +227,13 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
   déclarent lire (`grillhouse.lit`), données ou code d'un voisin ; l'index est aux rôles qui voient
   tout le dépôt.
   Ainsi une affirmation sur le code repose sur ce que le code contient.
+- **Le cadre arrive par son paquet et son greffon** : le paquet npm `@roomi-fields/grillhouse`
+  porte les scripts, appelés par `npx grillhouse <sous-commande>` ; le greffon
+  `grillhouse@roomi-fields` porte les compétences, les agents, les crochets de Claude Code et
+  cette charte, et se met à jour par sa place de marché. Un projet n'en garde aucune copie ; sans le
+  paquet installé, l'ouverture de séance dit « lance `npm install` », et les autres crochets
+  sortent sans effet. Ainsi chaque projet suit la version du cadre qu'il installe, sans fichier à
+  recopier.
 - Tickets : Beads (`bd`), sous le préfixe du projet, voir `docs/agents/issue-tracker.md`.
 - Le greffon `mattpocock-skills` s'appelle avec son préfixe ; un document pour un agent s'écrit
   avec `mattpocock-skills:writing-for-agents`.

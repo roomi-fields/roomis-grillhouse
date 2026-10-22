@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // A release of Grillhouse, the package and its mod together: Grillhouse's own script, which no
-// project receives (a « - » line of .claude/grillhouse/fichiers.txt).
+// project receives (`npm run new` leaves it out, scripts/new-project.sh).
 //
 //   npx grillhouse sortie <x.y.z>                    the release's files: the package's package.json, plugin.json, CHANGELOG.md
 //   npx grillhouse sortie --etiqueter                the annotated tag v<version> on HEAD, the release commit

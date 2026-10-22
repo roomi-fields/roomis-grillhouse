@@ -1,7 +1,8 @@
 import { expect, test } from 'claude-code/testing'
 
-import { bascule, couleur, debut, ficheLignes, placement } from '../hooks/register'
+import { bascule, couleur, debut, declareLePaquet, ficheLignes, placement } from '../hooks/register'
 import type { Tableau } from '../types'
+import { projetGrillhouse } from './projet'
 
 const TABLEAU: Tableau = {
   lignes: [
@@ -24,10 +25,11 @@ test('in a Grillhouse project, the session start measures the board', async ($, 
   let lance: (argv: string) => void = () => undefined
   const mesure = new Promise<string>(r => (lance = r))
   on('process.run', ($, e) => {
-    if (e.argv[0] !== 'test') lance(e.argv.join(' '))
+    lance(e.argv.join(' '))
     return { value: { exitCode: 0, stdout: JSON.stringify(TABLEAU), stderr: '' } }
   })
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  projetGrillhouse(on)
   on('command.register', () => ({ value: undefined }))
   on('clock.every', () => ({ value: { cancel: () => undefined } }))
   await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
@@ -35,19 +37,29 @@ test('in a Grillhouse project, the session start measures the board', async ($, 
   await new Promise(r => setTimeout(r, 50))
 })
 
-for (const [cas, cwd, estProjet, isInteractive] of [
-  ["in an agent's copy", '/p/.claude/worktrees/demo-1', true, true],
-  ['outside a Grillhouse project', '/hors', false, true],
-  ['in a session without screen', '/p', true, false],
+// grillhouse-3uv.84.2 critère 5: a Grillhouse project is known by its dependency on the package.
+test('a package.json declares the package in its dependencies or devDependencies', () => {
+  expect(declareLePaquet('{"devDependencies":{"@roomi-fields/grillhouse":"*"}}')).toBe(true)
+  expect(declareLePaquet('{"dependencies":{"@roomi-fields/grillhouse":"^0.23.0"}}')).toBe(true)
+  expect(declareLePaquet('{"devDependencies":{"vitest":"*"}}')).toBe(false)
+  expect(declareLePaquet('pas du JSON')).toBe(false)
+  expect(declareLePaquet(null)).toBe(false)
+})
+
+for (const [cas, cwd, pkg, isInteractive] of [
+  ["in an agent's copy", '/p/.claude/worktrees/demo-1', undefined, true],
+  ['outside a Grillhouse project (no package.json)', '/hors', null, true],
+  ['in a project that does not declare the package', '/hors', '{"devDependencies":{"vitest":"*"}}', true],
+  ['in a session without screen', '/p', undefined, false],
 ] as const) {
   test(`${cas}, the mod measures nothing`, async ($, on) => {
     const lances: string[] = []
     on('process.run', ($, e) => {
       lances.push(e.argv.join(' '))
-      const code = e.argv[0] === 'test' && !estProjet ? 1 : 0
-      return { value: { exitCode: code, stdout: JSON.stringify(TABLEAU), stderr: '' } }
+      return { value: { exitCode: 0, stdout: JSON.stringify(TABLEAU), stderr: '' } }
     })
     on('session.start', ($, e) => ({ cwd: e.cwd }))
+    projetGrillhouse(on, pkg)
     on('command.register', () => ({ value: undefined }))
     on('clock.every', () => ({ value: { cancel: () => undefined } }))
     await $.session.start({ cwd, surface: isInteractive ? 'terminal' : null, isInteractive })

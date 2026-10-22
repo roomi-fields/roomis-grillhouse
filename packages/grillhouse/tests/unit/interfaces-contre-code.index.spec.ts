@@ -32,7 +32,7 @@ const { iface, projet, ecrit, apres } = interfacesEssai(ESSAIS);
 
 const REFERENCE = path.join(
   RACINE,
-  '.claude/skills/redacteur/references/documents-d-un-composant.md'
+  'mods/grillhouse/skills/redacteur/references/documents-d-un-composant.md'
 );
 
 // Critère 6 : the index of the interfaces is built from the generated part.

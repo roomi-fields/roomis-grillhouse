@@ -580,7 +580,6 @@ describe.runIf(canWrap)('the launcher and the register line of a session that fa
 describe('the launcher refuses a component that is not a path before preparing the copy', () => {
   const DEPOT = path.join(ESSAIS, 'depot-paquets');
   mkdirSync(path.join(DEPOT, 'packages/050-emitter/src'), { recursive: true });
-  mkdirSync(path.join(DEPOT, '.claude/agents'), { recursive: true });
   writeFileSync(
     path.join(DEPOT, 'package.json'),
     JSON.stringify({ name: 'essai', private: true, workspaces: ['packages/*'] })
@@ -590,7 +589,6 @@ describe('the launcher refuses a component that is not a path before preparing t
     JSON.stringify({ name: '050-emitter' })
   );
   writeFileSync(path.join(DEPOT, 'packages/050-emitter/src/e.ts'), 'e');
-  writeFileSync(path.join(DEPOT, '.claude/agents/developpeur.md'), '---\nname: developpeur\n---\n');
   execFileSync('git', ['init', '-q', DEPOT]);
   execFileSync('git', ['-C', DEPOT, 'add', '.']);
   execFileSync('git', [

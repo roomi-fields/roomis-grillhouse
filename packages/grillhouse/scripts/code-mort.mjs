@@ -9,13 +9,6 @@
 //   empty green is the worst green.
 // - A finding that is not dead (a format's full table, a public name a consumer outside the
 //   repository reads) leaves by its name in `knip.json`, with its reason, never by a wide pattern.
-// - The frame's scripts are judged in Grillhouse, not in the project: the `.mjs`, `.cjs` and `.js`
-//   files of the frame's list (`.claude/grillhouse/fichiers.txt`, its directories unrolled, read
-//   by `lireListe` and `fichiersDuCadre` of `grillhouse-maj.mjs`) are entries of the first run,
-//   each in the place that holds it (the deepest workspace whose directory holds it, as
-//   `scripts/vitest-config` in a repository of packages; the root otherwise), beside the entries
-//   knip gives that place (its defaults when the settings name none). The project's `knip.json`
-//   names none of them.
 // - The packages listed out of the frame (`docs/agents/hors-cadre.txt`, read by `horsCadre` of
 //   `paquets.mjs`) are skipped: knip neither reads nor reports them, so a use they make
 //   keeps nothing alive. knip then runs on the project's `knip.json` (knip's defaults without
@@ -51,7 +44,6 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { horsCadre } from './paquets.mjs';
 import { trancher } from './dette.mjs';
-import { fichiersDuCadre, lireListe } from './grillhouse-maj.mjs';
 import { isTestFile } from './verrous/verrou.mjs';
 
 const GENRES = {
@@ -183,10 +175,8 @@ function fichiersTests(racine) {
 // The parts of the repository's `knip` the guard follows, loaded from its own files:
 // `picomatch`, its glob matcher; `byPathDepth` (util/workspace.js), its order of workspace keys;
 // `reglagesEspace`, the settings its schema admits in a workspace key
-// (`workspaceConfigurationSchema`, schema/configuration.js); `entreesParDefaut`, the entries it
-// gives a place whose settings name none (`getDefaultWorkspaceConfig` of ConfigurationChief.js,
-// built on `DEFAULT_EXTENSIONS`, constants.js). null when knip is not installed there or lacks
-// one of them (the guard then refuses).
+// (`workspaceConfigurationSchema`, schema/configuration.js). null when knip is not installed there
+// or lacks one of them (the guard then refuses).
 async function knipDuDepot(racine) {
   try {
     const entree = createRequire(path.join(racine, 'noeud.js')).resolve('knip');
@@ -194,13 +184,10 @@ async function knipDuDepot(racine) {
     const module = f => import(pathToFileURL(path.join(dist, f)).href);
     const { byPathDepth } = await module('util/workspace.js');
     const { workspaceConfigurationSchema } = await module('schema/configuration.js');
-    const { DEFAULT_EXTENSIONS } = await module('constants.js');
     const reglagesEspace = new Set(Object.keys(workspaceConfigurationSchema.shape));
     const picomatch = createRequire(entree)('picomatch');
-    const ext = [...DEFAULT_EXTENSIONS].map(e => e.slice(1)).join(',');
-    const entreesParDefaut = [`{index,cli,main}.{${ext}}!`, `src/{index,cli,main}.{${ext}}!`];
-    return typeof byPathDepth === 'function' && reglagesEspace.has('entry') && ext
-      ? { picomatch, byPathDepth, reglagesEspace, entreesParDefaut }
+    return typeof byPathDepth === 'function' && reglagesEspace.has('entry')
+      ? { picomatch, byPathDepth, reglagesEspace }
       : null;
   } catch {
     return null;
@@ -293,54 +280,6 @@ function reglagesDependances(knipLu, racine, config, fichiers, paquets) {
   return { ...r, entry: entryRacine, workspaces: espaces };
 }
 
-// The frame's scripts installed in the repository at <racine>: the `.mjs`, `.cjs` and `.js` files
-// its list (`.claude/grillhouse/fichiers.txt`, read by `lireListe` and `fichiersDuCadre` of
-// grillhouse-maj.mjs) covers, its directories unrolled, relative to <racine> with `/`
-// separators; none without the list.
-function scriptsDuCadre(racine) {
-  const liste = path.join(racine, '.claude/grillhouse/fichiers.txt');
-  if (!existsSync(liste)) {
-    return [];
-  }
-  const { garder } = lireListe(readFileSync(liste, 'utf8'));
-  return fichiersDuCadre(racine, garder)
-    .map(f => f.split(path.sep).join('/'))
-    .filter(f => /\.[cm]?js$/.test(f));
-}
-
-// The settings of the first run: <config> (knip's defaults when null) with the frame's <scripts>
-// added to the entries of the place that holds each one, by absolute path: the deepest package
-// of <paquets> holding it, the root otherwise. A place keeps the entries knip gives it
-// (`reglagesDeEspace`, <knipLu> the parts of knip it follows; knip's default entries when they
-// name none); a package receiving scripts gets an exact key, the only key knip then finds for it.
-// <config> as it is when there is no script.
-function avecScriptsDuCadre(knipLu, racine, config, scripts, paquets) {
-  if (!scripts.length) {
-    return config;
-  }
-  const r = config ?? {};
-  const proprio = f =>
-    paquets.filter(p => f.startsWith(`${p}/`)).sort((a, b) => b.length - a.length)[0] ?? '.';
-  const parPlace = new Map();
-  for (const f of scripts) {
-    const p = proprio(f);
-    parPlace.set(p, [...(parPlace.get(p) ?? []), path.posix.join(racine, f)]);
-  }
-  const entrees = (reglages, fichiers) => [
-    ...(reglages.entry === undefined ? knipLu.entreesParDefaut : liste(reglages.entry)),
-    ...fichiers,
-  ];
-  if (!paquets.length && !r.workspaces) {
-    return { ...r, entry: entrees(r, parPlace.get('.')) };
-  }
-  const espaces = { ...(r.workspaces ?? {}) };
-  for (const [place, fichiers] of parPlace) {
-    const reglages = reglagesDeEspace(knipLu, r, place);
-    espaces[place] = { ...reglages, entry: entrees(reglages, fichiers) };
-  }
-  return { ...r, workspaces: espaces };
-}
-
 // Runs knip on <config> (knip's defaults when null), restricted to <include> when given; the
 // spawn result.
 function knip(config, include) {
@@ -383,15 +322,7 @@ async function codeMort(racine) {
     );
     return 1;
   }
-  const premier = knip(
-    avecScriptsDuCadre(
-      knipLu,
-      racine,
-      hors ?? config,
-      scriptsDuCadre(racine),
-      paquets(knipLu, racine, dossiers, hors ?? config)
-    )
-  );
+  const premier = knip(hors ?? config);
   const c1 = constats(premier.stdout ?? '');
   const second = fichiers.length
     ? knip(

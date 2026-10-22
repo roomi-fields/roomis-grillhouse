@@ -188,10 +188,10 @@ describe.runIf(canWrap)(
       expect(essai(id, `${REGULATEUR}-1.prompt`)).toContain(
         '`mesure` rend le double de sa valeur.'
       );
-      const regulateur = lire('.claude/skills/regulateur/SKILL.md');
+      const regulateur = lire('mods/grillhouse/skills/regulateur/SKILL.md');
       expect(regulateur).not.toMatch(/`bd comments <ticket>`\)/);
       expect(regulateur).toMatch(/je juge sur le plan/i);
-      const relecteur = lire('.claude/skills/relecteur/SKILL.md');
+      const relecteur = lire('mods/grillhouse/skills/relecteur/SKILL.md');
       expect(relecteur).not.toMatch(/un chemin qu'un arbitrage a écarté/);
       expect(relecteur).toMatch(/tu juges sur le plan/i);
     });
@@ -222,19 +222,19 @@ describe.runIf(canWrap)(
     });
 
     it('critères 4 et 5 — the skills of the regulateur, the référent technique and the superviseur, and the common charter, say the path of an answer', () => {
-      const charte = lire('.claude/grillhouse/charte.md');
+      const charte = lire('mods/grillhouse/charte.md');
       expect(charte).toMatch(/réponse du responsable entre dans le plan/);
       expect(charte).toMatch(
         /le contexte d'une relance porte l'arrêt, jamais une décision du responsable/
       );
-      const pitmaster = lire('.claude/skills/pitmaster/SKILL.md');
+      const pitmaster = lire('mods/grillhouse/skills/pitmaster/SKILL.md');
       expect(pitmaster).toMatch(/le référent technique la verse dans le plan/);
       expect(pitmaster).toMatch(
         /le contexte d.une relance porte l.arrêt, jamais une décision du responsable/i
       );
-      const referent = lire('.claude/skills/referent-technique/SKILL.md');
+      const referent = lire('mods/grillhouse/skills/referent-technique/SKILL.md');
       expect(referent).toMatch(/## La réponse au plan/);
-      const regulateur = lire('.claude/skills/regulateur/SKILL.md');
+      const regulateur = lire('mods/grillhouse/skills/regulateur/SKILL.md');
       expect(regulateur).toMatch(/le référent technique la verse dans le plan/);
       expect(regulateur).toMatch(
         /le contexte d'une relance porte l'arrêt, jamais une décision du responsable/

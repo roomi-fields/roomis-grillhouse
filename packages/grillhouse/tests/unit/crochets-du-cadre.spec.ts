@@ -152,7 +152,6 @@ function projet({ depot = true, hooksPath = false } = {}) {
       recursive: true,
     }
   );
-  mkdirSync(path.join(repo, '.claude/skills/testwriter'), { recursive: true });
   writeFileSync(
     path.join(repo, 'package.json'),
     `${JSON.stringify({ name: 'p', grillhouse: { poussee: { nuit: 'main' } } }, null, 2)}\n`
@@ -179,7 +178,7 @@ const installer = (repo: string) => {
   expect(r.status, `${r.stdout}\n${r.stderr}`).toBe(0);
   return r;
 };
-const mettreAJourProjet = (repo: string) => mettreAJour(repo, DEPOT, 'essai');
+const mettreAJourProjet = (repo: string) => mettreAJour(repo, DEPOT);
 
 // The commit-msg hook of the frame at work: a first delivery of demo-1 passes, a second is refused.
 function verifierUnCommitParTicket(repo: string) {

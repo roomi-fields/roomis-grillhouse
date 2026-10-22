@@ -48,12 +48,11 @@ function installerEnveloppe(repo: string) {
 
 describe.runIf(canWrap)('the launcher', () => {
   const repo = essai('lancer-');
-  for (const d of ['packages/a/src', 'packages/b/src', '.claude/agents', 'scripts/enveloppe']) {
+  for (const d of ['packages/a/src', 'packages/b/src', 'scripts/enveloppe']) {
     mkdirSync(path.join(repo, d), { recursive: true });
   }
   writeFileSync(path.join(repo, 'packages/a/src/a.ts'), 'a');
   writeFileSync(path.join(repo, 'packages/b/src/b.ts'), 'secret');
-  writeFileSync(path.join(repo, '.claude/agents/developpeur.md'), '---\nname: developpeur\n---\n');
   installerEnveloppe(repo);
   execFileSync('git', ['init', '-q', repo]);
   execFileSync('git', ['-C', repo, 'add', '.']);
@@ -178,11 +177,10 @@ describe('the exit codes', () => {
 // writes the installation mark that npm writes. The installation does not depend on bwrap.
 describe('the launcher and the dependencies of the copy', () => {
   const repo = essai('installer-');
-  for (const d of ['packages/a/src', '.claude/agents', 'scripts/enveloppe', 'bin']) {
+  for (const d of ['packages/a/src', 'scripts/enveloppe', 'bin']) {
     mkdirSync(path.join(repo, d), { recursive: true });
   }
   writeFileSync(path.join(repo, 'packages/a/src/a.ts'), 'a');
-  writeFileSync(path.join(repo, '.claude/agents/developpeur.md'), '---\nname: developpeur\n---\n');
   writeFileSync(path.join(repo, 'package.json'), '{"name":"t","private":true}\n');
   writeFileSync(path.join(repo, 'package-lock.json'), '{"lockfileVersion":3}\n');
   writeFileSync(path.join(repo, '.gitignore'), 'node_modules\nbin\nappels\nconsigne.txt\n');
@@ -266,15 +264,11 @@ describe('the launcher and the work in progress of the copy', () => {
   // A repository with one launch behind it: its copy exists, at the main tree's HEAD.
   const depot = () => {
     const repo = essai('encours-');
-    for (const d of ['packages/a/src', '.claude/agents', 'scripts/enveloppe']) {
+    for (const d of ['packages/a/src', 'scripts/enveloppe']) {
       mkdirSync(path.join(repo, d), { recursive: true });
     }
     writeFileSync(path.join(repo, 'packages/a/src/a.ts'), lignes('l2'));
     writeFileSync(path.join(repo, 'packages/a/src/b.ts'), 'b\n');
-    writeFileSync(
-      path.join(repo, '.claude/agents/developpeur.md'),
-      '---\nname: developpeur\n---\n'
-    );
     writeFileSync(path.join(repo, '.gitignore'), 'consigne.txt\n');
     installerEnveloppe(repo);
     const consigne = path.join(repo, 'consigne.txt');
@@ -420,9 +414,6 @@ describe.runIf(canWrap)('the launcher and the role in the envelope', () => {
     JSON.stringify({ name: 'matiere', exports: { './test-fixtures': './fixtures/index.js' } })
   );
   ecrire('packages/matiere/fixtures/index.js', 'm');
-  for (const role of ['testwriter', 'developpeur']) {
-    ecrire(`.claude/agents/${role}.md`, `---\nname: ${role}\n---\n`);
-  }
   mkdirSync(path.join(repo, 'scripts/enveloppe'), { recursive: true });
   installerEnveloppe(repo);
   // A stand-in for claude: tries to write the package, and records whether it could.

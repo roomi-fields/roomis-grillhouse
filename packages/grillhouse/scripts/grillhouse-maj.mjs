@@ -1,17 +1,12 @@
 #!/usr/bin/env node
-// The frame's update: brings a project's frame files to a Grillhouse version, and says how far a
-// project has drifted from the version it installed.
+// The frame's update: brings what the frame writes in a project to a Grillhouse version.
 //
 //   npx grillhouse maj [--source <Grillhouse checkout>]   update (npm run grillhouse:maj)
-//   npx grillhouse maj --ecarts                           the drift, one line, or nothing
 //
-// - The frame's files are listed in `.claude/grillhouse/fichiers.txt` of the source: each copied as
-//   it is; a file the previous version installed and the new one no longer lists is removed, as is
-//   each « - <path> » line. A project's own files under a frame directory stay.
-// - `.claude/settings.json`: the frame's hooks, plugins, marketplaces and status line are added;
-//   one the previous version installed and the new one dropped is removed; the project's own
-//   settings stay. The file is written only when its JSON value changes (the same value under
-//   another layout stays as it is), and the keys keep the file's order, the frame's new ones after.
+// - The frame copies no file into a project: its scripts are the package's
+//   (@roomi-fields/grillhouse, `npx grillhouse <sous-commande>`), its skills, agents, hooks of
+//   Claude Code and common charter the plugin's (grillhouse@roomi-fields), which Claude Code updates
+//   by its marketplace. The update never writes `.claude/settings.json`.
 // - `package.json`, when there is one: the frame's npm scripts (`tableau`, `grillhouse:maj`), and
 //   `grillhouse:gardes` (scripts/gardes-du-cadre.mjs, the frame's controls), `grillhouse:dette:inscrire` and
 //   `grillhouse:dette:elaguer` (the known debt of the guards, scripts/dette.mjs), and `api` (`npm run api`, which writes
@@ -74,13 +69,11 @@
 //   Vitest configuration writes (`import base from '@grillhouse/vitest-config'`): the update writes
 //   no Vitest configuration. A project without `workspaces` imports the file by its path
 //   (`./packages/grillhouse/scripts/vitest-config/base.mjs`), from the one package that holds it.
-// - The update's own script: a project's copy runs the source's
-//   packages/grillhouse/scripts/grillhouse-maj.mjs in its
-//   place (`--source` the same source), and the frame's modules it calls (crochets.mjs, greffons.mjs,
-//   paquets.mjs) are loaded only then, beside the script that does the update: a former
-//   version that wrote the new script over itself leaves the former modules beside it, which the
-//   new script never reads. So one pass ends with the new script's work. The script and these
-//   modules use Node alone: the source is a checkout that installs no dependency.
+// - The update's own script: the package's runs the source's
+//   packages/grillhouse/scripts/grillhouse-maj.mjs in its place (`--source` the same source), and
+//   the frame's modules it calls (crochets.mjs, greffons.mjs, paquets.mjs) are loaded only then,
+//   beside the script that does the update. So one pass ends with the source's work. The script and
+//   these modules use Node alone: the source is a checkout that installs no dependency.
 // - The git hooks: both of the frame (commit-msg « a closed ticket refuses a second commit, a reopened ticket takes its corrections », pre-push night branch
 //   guard) are placed by scripts/crochets.mjs, the mechanism scripts/setup.sh also calls, in the
 //   hooks folder git reads for the project (`core.hooksPath`, else the default one; the
@@ -89,51 +82,42 @@
 //   declare, for the project, by scripts/greffons.mjs (the mechanism scripts/setup.sh also calls;
 //   `mettreAJour` itself never calls claude). A plugin that cannot be installed has its line naming
 //   the command to type; the update has finished its files, and the exit code is non-zero.
-// - The generated files: after the files, each generator of the frame is run in the project for the
-//   file it writes when the project holds that file (its copy of `frontieres.mjs --ecrire` for
-//   `.dependency-cruiser.cjs`, of `index-interfaces.mjs` for
-//   `docs/agents/index-des-interfaces.md`), and of `turbo-des-paquets.mjs --ecrire`
-//   always (the `turbo.json` of each package of a repository with `workspaces`, whose build waits
+// - The generated files: after the package.json, each generator of the frame is run in the project
+//   by the project's command (`node_modules/.bin/grillhouse`, its installed package) for the file
+//   it writes when the project holds that file (`grillhouse frontieres --ecrire` for
+//   `.dependency-cruiser.cjs`, `grillhouse index-interfaces` for
+//   `docs/agents/index-des-interfaces.md`), and `grillhouse turbo-des-paquets --ecrire`
+//   in a repository with `workspaces` (the `turbo.json` of each of its packages, whose build waits
 //   for its runtime dependencies only, and of which a package out of the frame plays no task; the
 //   `dependsOn` of the guard tasks of the root's turbo.json, which wait for the builds; it reads
 //   with jsonc-parser, which `npm install` brings), so that the frame's checks accept them; a generator
-//   that fails has its line, which says to run it after `npm install` (the frame's tools), and the
-//   exit code is non-zero. `interfaces-contre-code.mjs` is not
+//   that fails, or a project without its command, has its line, which says to run it after
+//   `npm install` (the frame's package and tools), and the exit code is non-zero. `interfaces-contre-code.mjs` is not
 //   run: it writes after a build.
-// - An option other than `--source <path>` and `--ecarts` is refused: the usage is shown (the
-//   exit code is non-zero) and nothing is updated, `--help` included.
-// - `.claude/grillhouse/empreintes.json` records the source's commit, each file's SHA-256 and the
-//   hooks, plugins and marketplaces installed. `--ecarts` compares the files with it: a frame file modified or missing in a
-//   project is drift, which goes back to Grillhouse as a proposal.
+// - An option other than `--source <path>` is refused: the usage is shown (the exit code is
+//   non-zero) and nothing is updated, `--help` included.
 // - The version of the frame: one for the package and its mod, the `version` of the source's
 //   `packages/grillhouse/package.json`. The report names it with the source's commit (« Cadre
-//   0.16.0 (commit abc1234) : … »); a source without it is named « sans version ».
+//   0.16.0 (commit abc1234). »); a source without it is named « sans version ».
 // - The source: --source, else GRILLHOUSE_SOURCE, else Grillhouse's repository on GitHub, kept in
 //   ~/.cache/grillhouse/roomis-grillhouse and moved to the last commit of its default branch
 //   (`git pull --ff-only`, after a first shallow clone): the update installs that commit, whatever
 //   its version, never a tag chosen.
 import { execFileSync, spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import {
   copyFileSync,
   existsSync,
   mkdirSync,
-  readdirSync,
   readFileSync,
   realpathSync,
-  rmSync,
-  statSync,
   writeFileSync,
 } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export const DEPOT = 'https://github.com/roomi-fields/roomis-grillhouse.git';
-const LISTE = '.claude/grillhouse/fichiers.txt';
-const EMPREINTES = '.claude/grillhouse/empreintes.json';
 const PAQUET = 'packages/grillhouse/package.json';
 const SCRIPTS = {
   tableau: 'grillhouse tableau --texte',
@@ -175,7 +159,6 @@ const TURBO_SANS_PAQUETS = 'templates/turbo/sans-paquets.json';
 // The directory of the frame's configuration package of Vitest, a frame directory.
 const CONFIG_VITEST = 'packages/grillhouse/scripts/vitest-config';
 
-const empreinte = f => createHash('sha256').update(readFileSync(f)).digest('hex');
 // Whether `vitest` is declared in the dependencies of the package.json <p> (read at <dossier>) or of
 // one of its packages of the frame (`paquets`: the workspaces as npm maps them, a package out of
 // the frame left out, which Turborepo never tests).
@@ -209,111 +192,6 @@ const lireJson = (f, defaut) => {
     return defaut;
   }
 };
-
-// The list's paths to install and to remove.
-export function lireListe(texte) {
-  const garder = [];
-  const retirer = [];
-  for (const l of texte.split('\n').map(x => x.trim())) {
-    if (!l || l.startsWith('#')) {
-      continue;
-    }
-    if (l.startsWith('- ')) {
-      retirer.push(l.slice(2).trim());
-    } else {
-      garder.push(l);
-    }
-  }
-  return { garder, retirer };
-}
-
-// Every file the list covers in the source, as paths relative to it.
-export function fichiersDuCadre(source, garder) {
-  const out = [];
-  const parcourir = rel => {
-    const abs = path.join(source, rel);
-    if (!existsSync(abs)) {
-      return;
-    }
-    if (statSync(abs).isDirectory()) {
-      for (const n of readdirSync(abs).sort()) {
-        parcourir(path.join(rel, n));
-      }
-    } else {
-      out.push(rel);
-    }
-  };
-  for (const g of garder) {
-    parcourir(g.replace(/\/$/, ''));
-  }
-  return [...new Set(out)].filter(f => f !== EMPREINTES);
-}
-
-// The hooks of a settings file, as « event matcher command » keys.
-const crochets = s =>
-  Object.entries(s.hooks ?? {}).flatMap(([ev, groupes]) =>
-    groupes.flatMap(g =>
-      (g.hooks ?? []).map(h => ({ ev, matcher: g.matcher ?? '', command: h.command }))
-    )
-  );
-const cle = h => `${h.ev}\u0000${h.matcher}\u0000${h.command}`;
-
-// The project's settings with the frame's added (hooks, plugins, marketplaces, the status line),
-// and what the previous version installed (`avant`) and this one dropped removed.
-export function fusionnerReglages(projet, cadre, avant = {}) {
-  const s = structuredClone(projet);
-  const neufs = new Set(crochets(cadre).map(cle));
-  const retires = new Set((avant.crochets ?? []).filter(k => !neufs.has(k)));
-  s.hooks ??= {};
-  for (const ev of Object.keys(s.hooks)) {
-    s.hooks[ev] = s.hooks[ev]
-      .map(g => ({
-        ...g,
-        hooks: (g.hooks ?? []).filter(
-          h => !retires.has(cle({ ev, matcher: g.matcher ?? '', command: h.command }))
-        ),
-      }))
-      .filter(g => g.hooks.length > 0);
-    if (s.hooks[ev].length === 0) {
-      delete s.hooks[ev];
-    }
-  }
-  const presents = new Set(crochets(s).map(cle));
-  for (const h of crochets(cadre)) {
-    if (presents.has(cle(h))) {
-      continue;
-    }
-    const groupes = (s.hooks[h.ev] ??= []);
-    let g = groupes.find(x => (x.matcher ?? '') === h.matcher);
-    if (!g) {
-      g = h.matcher ? { matcher: h.matcher, hooks: [] } : { hooks: [] };
-      groupes.push(g);
-    }
-    g.hooks.push({ type: 'command', command: h.command });
-  }
-  const plugins = Object.keys(cadre.enabledPlugins ?? {});
-  const marches = Object.keys(cadre.extraKnownMarketplaces ?? {});
-  const sans = (objet, garder, anciens = []) =>
-    Object.fromEntries(
-      Object.entries(objet ?? {}).filter(([k]) => garder.includes(k) || !anciens.includes(k))
-    );
-  s.enabledPlugins = {
-    ...sans(s.enabledPlugins, plugins, avant.plugins),
-    ...(cadre.enabledPlugins ?? {}),
-  };
-  s.extraKnownMarketplaces = {
-    ...sans(s.extraKnownMarketplaces, marches, avant.marches),
-    ...(cadre.extraKnownMarketplaces ?? {}),
-  };
-  // The status line is the frame's: set from it, removed when the frame no longer sets it.
-  if (cadre.statusLine) {
-    s.statusLine = cadre.statusLine;
-  } else if (avant.ligneEtat) {
-    delete s.statusLine;
-  }
-  const ligneEtat = Boolean(cadre.statusLine);
-  return { reglages: s, installes: { crochets: [...neufs], plugins, marches, ligneEtat } };
-}
 
 // Adds `.turbo/` to the `.gitignore` of the project at <projet> when no line ignores it.
 function ignorerTurbo(projet) {
@@ -381,13 +259,8 @@ function poserConfigVitest(projet, source, p) {
 }
 
 // Brings the project at `projet` to the frame at `source`. Returns what changed.
-export function mettreAJour(projet, source, version) {
-  const { garder, retirer } = lireListe(readFileSync(path.join(source, LISTE), 'utf8'));
-  const avant = lireJson(path.join(projet, EMPREINTES), { fichiers: {}, crochets: [] });
-  const fichiers = fichiersDuCadre(source, garder);
+export function mettreAJour(projet, source) {
   const bilan = {
-    copies: [],
-    retires: [],
     dependances: [],
     test: null,
     vitest: null,
@@ -395,33 +268,6 @@ export function mettreAJour(projet, source, version) {
     configVitest: null,
     gardes: null,
   };
-  const empreintes = {};
-  for (const f of fichiers) {
-    const dst = path.join(projet, f);
-    const e = empreinte(path.join(source, f));
-    if (!existsSync(dst) || empreinte(dst) !== e) {
-      mkdirSync(path.dirname(dst), { recursive: true });
-      copyFileSync(path.join(source, f), dst);
-      bilan.copies.push(f);
-    }
-    empreintes[f] = e;
-  }
-  const garde = new Set(fichiers);
-  for (const f of [...Object.keys(avant.fichiers).filter(x => !garde.has(x)), ...retirer]) {
-    const p = path.join(projet, f);
-    if (existsSync(p)) {
-      rmSync(p, { recursive: true, force: true });
-      bilan.retires.push(f);
-    }
-  }
-  const fichierReglages = path.join(projet, '.claude/settings.json');
-  const cadre = lireJson(path.join(source, '.claude/settings.json'), {});
-  const presents = existsSync(fichierReglages) ? lireJson(fichierReglages, null) : null;
-  const { reglages, installes } = fusionnerReglages(presents ?? {}, cadre, avant);
-  if (!isDeepStrictEqual(presents, reglages)) {
-    mkdirSync(path.dirname(fichierReglages), { recursive: true });
-    writeFileSync(fichierReglages, `${JSON.stringify(reglages, null, 2)}\n`);
-  }
   const pkg = path.join(projet, 'package.json');
   if (existsSync(pkg)) {
     const p = lireJson(pkg, {});
@@ -518,73 +364,38 @@ export function mettreAJour(projet, source, version) {
   bilan.turbo = poserTurbo(projet, source);
   ignorerTurbo(projet);
   poserCrochets(projet);
-  mkdirSync(path.dirname(path.join(projet, EMPREINTES)), { recursive: true });
-  writeFileSync(
-    path.join(projet, EMPREINTES),
-    `${JSON.stringify({ version, fichiers: empreintes, ...installes }, null, 2)}\n`
-  );
   return bilan;
 }
 
-// The project's drift from the version it installed: frame files modified or missing.
-export function ecarts(projet) {
-  const e = lireJson(path.join(projet, EMPREINTES), null);
-  if (!e) {
-    return null;
-  }
-  const modifies = [];
-  const absents = [];
-  for (const [f, h] of Object.entries(e.fichiers)) {
-    const p = path.join(projet, f);
-    if (!existsSync(p)) {
-      absents.push(f);
-    } else if (empreinte(p) !== h) {
-      modifies.push(f);
-    }
-  }
-  return { version: e.version, modifies, absents };
-}
-
-// The frame's generators and the file each writes: run in the project after the copy. A
-// generator without `sortie` (the `turbo.json` of each package, none without `workspaces`) runs
-// in every project that holds its script.
+// The frame's generators, subcommands of the project's command, and the file each writes: run in
+// the project after its package.json. A generator without `sortie` (the `turbo.json` of each
+// package) runs in every project whose package.json declares `workspaces`.
 const GENERATEURS = [
-  {
-    script: 'packages/grillhouse/scripts/frontieres.mjs',
-    args: ['--ecrire'],
-    sortie: '.dependency-cruiser.cjs',
-  },
-  {
-    script: 'packages/grillhouse/scripts/index-interfaces.mjs',
-    args: [],
-    sortie: 'docs/agents/index-des-interfaces.md',
-  },
-  { script: 'packages/grillhouse/scripts/turbo-des-paquets.mjs', args: ['--ecrire'], sortie: null },
+  { commande: 'frontieres', args: ['--ecrire'], sortie: '.dependency-cruiser.cjs' },
+  { commande: 'index-interfaces', args: [], sortie: 'docs/agents/index-des-interfaces.md' },
+  { commande: 'turbo-des-paquets', args: ['--ecrire'], sortie: null },
 ];
 
-// Runs each generator whose script and output the project holds; returns the lines of failure.
+// Runs each generator whose output the project holds; returns the lines of failure.
 export function regenerer(projet) {
   const lignes = [];
+  const grillhouse = path.join(projet, 'node_modules', '.bin', 'grillhouse');
+  const aPaquets = lireJson(path.join(projet, 'package.json'), {})?.workspaces !== undefined;
   for (const g of GENERATEURS) {
-    if (
-      !existsSync(path.join(projet, g.script)) ||
-      (g.sortie !== null && !existsSync(path.join(projet, g.sortie)))
-    ) {
+    if (g.sortie === null ? !aPaquets : !existsSync(path.join(projet, g.sortie))) {
       continue;
     }
-    const r = spawnSync(process.execPath, [g.script, ...g.args], { cwd: projet, encoding: 'utf8' });
+    const r = spawnSync(grillhouse, [g.commande, ...g.args], { cwd: projet, encoding: 'utf8' });
     if (r.status !== 0) {
       lignes.push(
-        `${g.sortie ?? g.script} : \`node ${[g.script, ...g.args].join(' ')}\` échoue ; lance-le après \`npm install\`, qui installe les outils du cadre. ${(r.stderr ?? '').trim()}`.trim()
+        `${g.sortie ?? g.commande} : \`npx grillhouse ${[g.commande, ...g.args].join(' ')}\` échoue ; lance-le après \`npm install\`, qui installe les outils du cadre. ${(r.stderr ?? '').trim()}`.trim()
       );
     }
   }
   return lignes;
 }
 
-const USAGE =
-  'Usage : npx grillhouse maj [--source <dossier Grillhouse>]   met le cadre à jour\n' +
-  "        npx grillhouse maj --ecarts                         dit l'écart du cadre\n";
+const USAGE = 'Usage : npx grillhouse maj [--source <dossier Grillhouse>]   met le cadre à jour\n';
 
 // The source checkout: the one named, else Grillhouse's repository, cloned or moved forward.
 function source(arg) {
@@ -617,31 +428,15 @@ const ENTREE = import.meta.url === pathToFileURL(process.argv[1] ?? '').href;
 const projetCourant = process.cwd();
 let src = null;
 let version = 'inconnue';
-// The exit code of a command that ends before the update: a usage refused, the gaps, the update
-// handed over to the source's script. Null while the update is still to do.
+// The exit code of a command that ends before the update: a usage refused, the update handed over
+// to the source's script. Null while the update is still to do.
 let fin = null;
 if (ENTREE) {
   const args = process.argv.slice(2);
-  const valide = args.every(
-    (a, k) => a === '--ecarts' || a === '--source' || args[k - 1] === '--source'
-  );
+  const valide = args.every((a, k) => a === '--source' || args[k - 1] === '--source');
   if (!valide || args.at(-1) === '--source') {
     process.stderr.write(USAGE);
     fin = 2;
-  } else if (process.argv.includes('--ecarts')) {
-    const e = ecarts(projetCourant);
-    if (e && (e.modifies.length || e.absents.length)) {
-      const n = [
-        e.modifies.length && `${e.modifies.length} modifié(s)`,
-        e.absents.length && `${e.absents.length} absent(s)`,
-      ]
-        .filter(Boolean)
-        .join(', ');
-      process.stdout.write(
-        `Le cadre diffère de sa version ${e.version.slice(0, 7)} : ${n} (${[...e.modifies, ...e.absents].slice(0, 5).join(', ')}). Un écart se propose à Grillhouse ; \`npm run grillhouse:maj\` remet le cadre.\n`
-      );
-    }
-    fin = 0;
   } else {
     const i = process.argv.indexOf('--source');
     src = source(i > 0 ? process.argv[i + 1] : undefined);
@@ -661,8 +456,7 @@ if (ENTREE) {
 if (fin !== null) process.exitCode = fin;
 
 // The frame's modules the update calls, loaded once the script running is the one that does the
-// update: a project's copy of this script, which a former version may have written over itself,
-// hands over to the source's before reading the former modules beside it, and never reads them.
+// update: the package's script hands over to the source's before reading the modules beside it.
 let poserCrochets, installerGreffons, paquets;
 if (fin === null) {
   ({ poserCrochets } = await import('./crochets.mjs'));
@@ -672,16 +466,8 @@ if (fin === null) {
 
 if (ENTREE && fin === null) {
   const projet = projetCourant;
-  const b = mettreAJour(projet, src, version);
-  process.stdout.write(
-    `Cadre ${versionDuCadre(src)} (commit ${version.slice(0, 7)}) : ${b.copies.length} fichier(s) copié(s), ${b.retires.length} retiré(s).\n`
-  );
-  for (const f of b.copies) {
-    process.stdout.write(`  + ${f}\n`);
-  }
-  for (const f of b.retires) {
-    process.stdout.write(`  - ${f}\n`);
-  }
+  const b = mettreAJour(projet, src);
+  process.stdout.write(`Cadre ${versionDuCadre(src)} (commit ${version.slice(0, 7)}).\n`);
   if (b.dependances.length > 0) {
     process.stdout.write(
       `Dépendances de développement ajoutées : ${b.dependances.join(', ')}. \`npm install\` les installe.\n`

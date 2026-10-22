@@ -378,7 +378,6 @@ describe.runIf(canWrap)(
       })
     );
     ecrire(repo, 'packages/loader/src/index.d.ts', 'export declare const charge: string;\n');
-    ecrire(repo, '.claude/agents/developpeur.md', '---\nname: developpeur\n---\n');
     ecrire(repo, '.gitignore', 'node_modules\n.turbo/\ndist/\n.claude/worktrees/\n');
     cpSync(path.join(DEPOT, 'packages/grillhouse/scripts'), path.join(repo, 'scripts'), {
       recursive: true,
@@ -555,7 +554,6 @@ describe.runIf(canWrap)(
         scripts: { build: "echo 'construction cassée' >&2; exit 1" },
       })
     );
-    ecrire(repo, '.claude/agents/developpeur.md', '---\nname: developpeur\n---\n');
     ecrire(repo, '.gitignore', 'node_modules\n.turbo/\ndist/\n.claude/worktrees/\n');
     cpSync(path.join(DEPOT, 'packages/grillhouse/scripts'), path.join(repo, 'scripts'), {
       recursive: true,
@@ -655,7 +653,6 @@ describe.runIf(canWrap)(
         grillhouse: { lit: ['packages/prod/trace/g'] },
       })
     );
-    ecrire(repo, '.claude/agents/developpeur.md', '---\nname: developpeur\n---\n');
     ecrire(
       repo,
       '.gitignore',

@@ -351,7 +351,7 @@ describe('one list, which the circuit, the board and the texts read', () => {
   });
 
   it('the common charter cites each step by its number and title, and the arbitrage', () => {
-    const charte = lire('.claude/grillhouse/charte.md').replace(/\s+/g, ' ');
+    const charte = lire('mods/grillhouse/charte.md').replace(/\s+/g, ' ');
     for (const e of suite) {
       expect(charte, `${e.numero} ${e.titre}`).toContain(`${e.numero} ${e.titre}`);
     }

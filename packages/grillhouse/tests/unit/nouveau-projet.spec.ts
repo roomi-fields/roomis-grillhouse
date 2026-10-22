@@ -20,7 +20,7 @@ import { configGit } from '../config-git.js';
 // repository. The project receives the frame's files, then the template of a project
 // (templates/projet/: the example application, src/, its tests, its package.json and its models),
 // each at the same path in place of Grillhouse's own, and none of the frame's own tests nor their
-// material: these stay in Grillhouse (.claude/grillhouse/fichiers.txt). Its `npm test` plays the
+// material: these stay in Grillhouse (packages/grillhouse/tests/). Its `npm test` plays the
 // example's tests and passes, and no templates/ stays. The tools the preparation calls (Beads,
 // CodeGraph, npm) are stood in, and so is claude (tests/claude-substitut.ts); the project's
 // node_modules is a link to the template's, what its `npm install` gives.

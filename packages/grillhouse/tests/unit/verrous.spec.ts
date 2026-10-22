@@ -307,7 +307,7 @@ describe('isTesterFile, the one rule of what the testwriter writes', () => {
 // package.json, the skill sending it to the developpeur whom the lock refuses.
 describe('the skill of the testwriter and the package.json of the shared test material', () => {
   const testwriter = readFileSync(
-    path.resolve(__dirname, '../../../../.claude/skills/testwriter/SKILL.md'),
+    path.resolve(__dirname, '../../../../mods/grillhouse/skills/testwriter/SKILL.md'),
     'utf8'
   ).replace(/\s+/g, ' ');
 

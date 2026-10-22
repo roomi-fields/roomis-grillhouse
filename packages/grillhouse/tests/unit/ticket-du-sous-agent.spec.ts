@@ -29,20 +29,25 @@ describe('the ticket of a role agent', () => {
   it('reads the Task tool as the Agent tool', () => {
     expect(lancer('referent-technique', 'sans ticket', 'Task')).toMatch(/TON TICKET/);
   });
-  it('refuses on disk with exit code 2, from the project agents', () => {
-    const projet = mkdtempSync(path.join(ESSAIS, 'projet-'));
-    mkdirSync(path.join(projet, '.claude/agents'), { recursive: true });
-    writeFileSync(path.join(projet, '.claude/agents/referent-technique.md'), '');
+  // grillhouse-3uv.84.2: the role agents are the frame's plugin's, which the hook's environment
+  // names (CLAUDE_PLUGIN_ROOT); Claude Code names one bare or scoped by its plugin.
+  it('refuses on disk with exit code 2, from the agents of the frame’s plugin', () => {
+    const greffon = mkdtempSync(path.join(ESSAIS, 'greffon-'));
+    mkdirSync(path.join(greffon, 'agents'), { recursive: true });
+    writeFileSync(path.join(greffon, 'agents/referent-technique.md'), '');
     const run = (subagent_type: string, prompt: string) =>
       spawnSync('node', [SCRIPT], {
         input: JSON.stringify({ tool_name: 'Agent', tool_input: { subagent_type, prompt } }),
         encoding: 'utf8',
-        env: { ...process.env, CLAUDE_PROJECT_DIR: projet },
+        env: { ...process.env, CLAUDE_PLUGIN_ROOT: greffon },
       });
-    const r = run('referent-technique', 'sans ticket');
-    expect(r.status).toBe(2);
-    expect(r.stderr).toMatch(/TON TICKET/);
-    expect(run('referent-technique', 'TON TICKET : demo-1').status).toBe(0);
+    for (const role of ['referent-technique', 'grillhouse:referent-technique']) {
+      const r = run(role, 'sans ticket');
+      expect(r.status, role).toBe(2);
+      expect(r.stderr).toMatch(/TON TICKET/);
+      expect(run(role, 'TON TICKET : demo-1').status, role).toBe(0);
+    }
     expect(run('Explore', 'sans ticket').status).toBe(0);
+    expect(run('autre:referent-technique', 'sans ticket').status).toBe(0);
   });
 });

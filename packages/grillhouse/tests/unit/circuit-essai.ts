@@ -340,9 +340,6 @@ export function circuitEssai(ESSAIS: string, { feuille = false } = {}) {
     ecrire(path.join(REPO, 'garde.mjs'), GARDE);
     ecrire(path.join(REPO, 'CLAUDE.md'), CHARTE);
     ecrireTurbo(REPO);
-    for (const role of ['testwriter', 'developpeur']) {
-      ecrire(path.join(REPO, `.claude/agents/${role}.md`), `---\nname: ${role}\n---\n`);
-    }
     ecrire(
       path.join(REPO, '.gitignore'),
       'node_modules\n.turbo/\ndist/\n.beads/\n.claude/worktrees/\n'

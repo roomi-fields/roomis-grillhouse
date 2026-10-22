@@ -75,14 +75,10 @@ describe('grillhouse:gardes — one list of the guards', () => {
     };
     expect(pkg.scripts['grillhouse:gardes']).toBe('grillhouse gardes-du-cadre');
   });
-  it('each guard of the list is a script of the frame, which the update installs', () => {
-    const liste = readFileSync(path.join(DEPOT, '.claude/grillhouse/fichiers.txt'), 'utf8')
-      .split('\n')
-      .map(l => l.trim());
-    expect(liste).toContain('packages/grillhouse/scripts/gardes-du-cadre.mjs');
+  it('each guard of the list is a script of the package', () => {
     for (const [f] of GARDES_DU_CADRE) {
       expect(existsSync(f), f).toBe(true);
-      expect(liste, f).toContain(path.relative(DEPOT, f));
+      expect(path.relative(DEPOT, f), f).toMatch(/^packages\/grillhouse\/scripts\//);
     }
   });
 });

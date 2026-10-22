@@ -96,9 +96,9 @@ const NOMMEE = /(?:^|[\s`'"(])(?:npx |node_modules\/\.bin\/)?grillhouse (?!<)([a
 const APPELANTS = [
   'package.json',
   'templates/projet/package.json',
-  ...sous(path.join(DEPOT, '.claude/skills')).map(f => path.relative(DEPOT, f)),
-  ...sous(path.join(DEPOT, '.claude/agents')).map(f => path.relative(DEPOT, f)),
-  '.claude/grillhouse/charte.md',
+  ...sous(path.join(DEPOT, 'mods/grillhouse/skills')).map(f => path.relative(DEPOT, f)),
+  ...sous(path.join(DEPOT, 'mods/grillhouse/agents')).map(f => path.relative(DEPOT, f)),
+  'mods/grillhouse/charte.md',
   ...sous(path.join(DEPOT, 'docs/agents')).map(f => path.relative(DEPOT, f)),
   'mods/grillhouse/hooks/register.tsx',
   'README.md',

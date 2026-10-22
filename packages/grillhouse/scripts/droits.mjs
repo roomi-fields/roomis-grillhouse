@@ -14,7 +14,8 @@
 //
 // - `--setting-sources project,local`: the user's own configuration stays out (their CLAUDE.md,
 //   their hooks, the skills of their account, their servers, their environment); the project's
-//   agents, skills, charter and hooks stay in.
+//   settings and charter, and the frame's plugin it enables (agents, skills, common charter,
+//   hooks), stay in.
 // - `--settings <json>` (the settings of the role, on the command line: no file the session could
 //   change): its permissions (`allow`, the commands its skill names; `deny`, the change of its
 //   author at the ticket, AUTEUR_FIXE, for a role that writes the editing by script, the test
@@ -22,8 +23,11 @@
 //   that writes nothing at the ticket, the questionneur and the regulator, every write of bd,
 //   ECRIRE_AU_TICKET); the
 //   automatic memory off; the skills of Claude Code off (`disableBundledSkills`, and the few it keeps,
-//   INTEGREES), every skill of the project but the role's off (`skillOverrides`), every plugin
-//   the project enables off (`enabledPlugins`: their skills, hooks and servers are not the role's);
+//   INTEGREES), and the project's own skills (`.claude/skills/` of the copy) off
+//   (`skillOverrides`); every plugin the project enables off (`enabledPlugins`: their skills,
+//   hooks and servers are not the role's), save the frame's (`grillhouse@…`), which carries the
+//   role's agent, its skills and the frame's hooks: Claude Code applies no `skillOverrides` to the
+//   skills of a plugin, and the role's agent preloads its own (`skills` of its definition);
 //   the background tasks off (`env`, SANS_TACHE_DE_FOND: a role waits in the foreground for what
 //   it launches, and its session ends with its sheet); for a role that writes, its locks as hooks (PreToolUse: verrous/verrou.mjs on the tools of
 //   writing, verrous/commande.mjs on Bash), since the hooks of an agent's definition do not run in
@@ -101,6 +105,8 @@ const TEST_DIRECT = [
 // The skills Claude Code keeps listed when its own are off (`disableBundledSkills`), measured on
 // Claude Code 2.1.305.
 const INTEGREES = ['design', 'doctor', 'plugin-authoring'];
+// The frame's plugin, by the start of its identifier (`grillhouse@<place de marché>`).
+const GREFFON_DU_CADRE = 'grillhouse@';
 // The servers of the index (charter, « L'index d'abord »).
 const INDEX = ['codegraph', 'rtfm'];
 // The tools of every role, and of a role that writes.
@@ -108,13 +114,11 @@ const LIRE = ['Bash', 'Read', 'Skill'];
 const ECRIRE = ['Edit', 'Write'];
 
 // Each role the circuit launches: whether it writes (files, `ecrit`; the ticket, unless
-// `ecritAuTicket` is false), whether it uses the index, the skills it
-// loads (its own, and those its skill names, « Compétence `<nom>` »), and the commands its skill
-// names (`.claude/skills/<rôle>/`), as permission rules.
+// `ecritAuTicket` is false), whether it uses the index, and the commands its skill names (the
+// frame's plugin, `mods/grillhouse/skills/<rôle>/`), as permission rules.
 export const ROLES = {
   testwriter: {
     ecrit: true,
-    competences: ['testwriter', 'mesure'],
     commandes: [
       'Bash(bd update * --claim)',
       'Bash(bd comments add *)',
@@ -125,7 +129,6 @@ export const ROLES = {
   },
   developpeur: {
     ecrit: true,
-    competences: ['developpeur', 'mesure', 'redacteur'],
     commandes: [
       'Bash(bd update * --claim)',
       'Bash(bd update * --notes*)',
@@ -138,7 +141,6 @@ export const ROLES = {
   },
   relecteur: {
     index: true,
-    competences: ['relecteur'],
     commandes: [
       ...LIRE_GIT,
       'Bash(npx grillhouse index-interfaces --publie *)',
@@ -155,7 +157,6 @@ export const ROLES = {
   regulateur: {
     lit: ['journal', 'preuves'],
     ecritAuTicket: false,
-    competences: ['regulateur'],
     commandes: [
       'Bash(npx grillhouse etat-du-circuit *)',
       'Bash(bd search *)',
@@ -168,7 +169,6 @@ export const ROLES = {
   questionneur: {
     index: true,
     ecritAuTicket: false,
-    competences: ['questionneur'],
     commandes: [
       'Bash(codegraph explore *)',
       'mcp__codegraph__codegraph_explore',
@@ -179,7 +179,6 @@ export const ROLES = {
   // ticket and its answers at the ticket.
   'referent-technique': {
     index: true,
-    competences: ['referent-technique'],
     commandes: [
       'Bash(bd show *)',
       'Bash(bd comments add *)',
@@ -239,8 +238,8 @@ function serveursDeLIndex(racine, home) {
   return out;
 }
 
-// The settings of the session of <role>, for the ticket <ticket>, its copy <copie> (where its
-// skills are read) and the main tree <racine>; `lit` names the files the regulator reads.
+// The settings of the session of <role>, for the ticket <ticket>, its copy <copie> (where the
+// project's own skills are read) and the main tree <racine>; `lit` names the files the regulator reads.
 function reglagesDuRole(role, { racine, copie = racine, ticket, journal, preuves }) {
   const r = ROLES[role];
   if (!r) throw new Error(`rôle sans droits : ${role}`);
@@ -255,21 +254,25 @@ function reglagesDuRole(role, { racine, copie = racine, ticket, journal, preuves
       deny.push(`Bash(bd ${lecture} ${ticket})`, `Bash(bd ${lecture} ${ticket} *)`);
     }
   }
-  const competences = path.join(copie, '.claude', 'skills');
+  const propres = path.join(copie, '.claude', 'skills');
   const autres = [
     ...INTEGREES,
-    ...(existsSync(competences)
-      ? readdirSync(competences, { withFileTypes: true })
+    ...(existsSync(propres)
+      ? readdirSync(propres, { withFileTypes: true })
           .filter(d => d.isDirectory())
           .map(d => d.name)
       : []),
-  ].filter(s => !r.competences.includes(s));
+  ];
   const reglages = {
     permissions: { allow: [...r.commandes, ...lectures], deny },
     autoMemoryEnabled: false,
     disableBundledSkills: true,
     skillOverrides: Object.fromEntries(autres.map(s => [s, 'off'])),
-    enabledPlugins: Object.fromEntries(greffonsDuProjet(racine).map(g => [g, false])),
+    enabledPlugins: Object.fromEntries(
+      greffonsDuProjet(racine)
+        .filter(g => !g.startsWith(GREFFON_DU_CADRE))
+        .map(g => [g, false])
+    ),
     env: SANS_TACHE_DE_FOND,
   };
   if (r.ecrit) {

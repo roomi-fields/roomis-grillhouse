@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// The register of finished agents: one JSON line per agent that ends, written by a hook
-// (`.claude/settings.json`: SubagentStop for a sub-agent, SessionEnd for a session, a role agent
-// launched in a shell included). An agent resumed by a message has one line per stop; the board
+// The register of finished agents: one JSON line per agent that ends, written by a hook of the
+// frame's plugin (`grillhouse registre`: SubagentStop for a sub-agent, SessionEnd for a session, a
+// role agent launched in a shell included). An agent resumed by a message has one line per stop; the board
 // reads an agent's latest line, and the transcripts of running ones. The circuit of a ticket
 // (scripts/circuit.mjs) writes a line at the end of each step it leads itself, with no agent
 // (`ligneDEtape`: its role `circuit`, its step and component, one turn, no tokens).
@@ -39,6 +39,7 @@ import { pathToFileURL } from 'node:url';
 import {
   lireFichier,
   ROLE_DU_CIRCUIT,
+  roleDeLAgent,
   roleDuMeta,
   ticketDuRegulateur,
   tourne,
@@ -73,7 +74,7 @@ export function source(input) {
         // A sub-agent without its meta file takes the input's type.
       }
     }
-    role ??= input.agent_type ?? null;
+    role ??= roleDeLAgent(input.agent_type ?? null);
     return { transcription, role, agent: input.agent_id ?? null };
   }
   return {

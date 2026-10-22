@@ -4,7 +4,7 @@ This file says how a change reaches the frame of Roomi's Grillhouse. The rules i
 
 ## 1. Where a change comes from
 
-- **A project proposes a gap to Grillhouse**: a project that uses the frame never edits a frame file in place (the files `.claude/grillhouse/fichiers.txt` lists); it proposes the change to Grillhouse, and `npm run grillhouse:maj` brings it back to every project. Each session start names a frame file a project changed. The common charter states the rule (`.claude/grillhouse/charte.md`, introduction).
+- **A project proposes a gap to Grillhouse**: a project that uses the frame holds no copy of it, its scripts being the package's (`@roomi-fields/grillhouse`) and its skills, agents, hooks of Claude Code and common charter the plugin's (`grillhouse@roomi-fields`); it proposes a change to Grillhouse, and the next version brings it back to every project. The common charter states the rule (`mods/grillhouse/charte.md`, introduction).
 - **A ticket is born of the owner's word, or of a direct need of a project that uses the frame** (a defect it meets). A discovery of an agent is recorded in a closed ticket labelled `decouverte`. The common charter states the rule (« Le flux d'une tâche »).
 
 ## 2. How a rule is written
@@ -33,4 +33,4 @@ The versions follow semantic versioning in 0.x: a change that obliges a project 
 4. On the tag, `.github/workflows/release.yml` plays the CI on the tagged commit; once it is green, it checks that the tag names the version (`npx grillhouse sortie --verifier-etiquette <tag>`), publishes the package on the npm registry with the repository's secret `NPM_TOKEN`, and publishes the GitHub release.
 5. The projects update to this version (`npm run grillhouse:maj`, whose report names it). The update installs the last commit of Grillhouse's default branch, not a tag.
 
-`packages/grillhouse/scripts/sortie.mjs` is Grillhouse's own: a « - » line of `.claude/grillhouse/fichiers.txt` keeps it out of every project, and out of a new one.
+`packages/grillhouse/scripts/sortie.mjs` is Grillhouse's own: `npm run new` leaves it out of a new project (`packages/grillhouse/scripts/new-project.sh`).

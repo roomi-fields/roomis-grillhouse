@@ -10,7 +10,6 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
-import { lireListe } from '../../scripts/grillhouse-maj.mjs';
 import { etiqueter, preparerSortie, verifierEtiquette } from '../../scripts/sortie.mjs';
 import { configGit } from '../config-git.js';
 
@@ -98,9 +97,10 @@ describe('the version of Grillhouse', () => {
     const pkg = JSON.parse(lire(DEPOT, 'templates/projet/package.json')) as { version: string };
     expect(pkg.version).toBe('1.0.0');
   });
-  it('the release script goes to no project', () => {
-    const { retirer } = lireListe(lire(DEPOT, '.claude/grillhouse/fichiers.txt'));
-    expect(retirer).toContain('packages/grillhouse/scripts/sortie.mjs');
+  it('the release script goes to no project: npm run new leaves it out', () => {
+    expect(lire(DEPOT, 'packages/grillhouse/scripts/new-project.sh')).toContain(
+      '--exclude=./packages/grillhouse/scripts/sortie.mjs'
+    );
   });
 });
 

@@ -100,7 +100,18 @@ export function testsDeNuitEssai(ESSAIS: string) {
     if (o.dependances !== false) {
       lierDependances(repo);
     }
-    mettreAJour(repo, DEPOT, 'essai');
+    mettreAJour(repo, DEPOT);
+    // The frame's package where `npm run new` places it, whose scripts the night and the day
+    // configuration of Vitest name by their path (grillhouse-3uv.84.2: the update copies none).
+    for (const f of ['package.json', 'bin', 'scripts']) {
+      cpSync(
+        path.join(DEPOT, 'packages/grillhouse', f),
+        path.join(repo, 'packages/grillhouse', f),
+        {
+          recursive: true,
+        }
+      );
+    }
     const installe = JSON.parse(readFileSync(path.join(repo, 'package.json'), 'utf8')) as {
       scripts?: Record<string, string>;
     };

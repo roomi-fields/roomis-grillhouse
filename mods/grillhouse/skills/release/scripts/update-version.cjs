@@ -5,7 +5,7 @@
  * Reads the version from package.json and updates all configured files.
  *
  * Usage:
- *   node .claude/skills/release/scripts/update-version.cjs
+ *   node <the plugin grillhouse>/skills/release/scripts/update-version.cjs
  *
  * Customize the FILES_TO_UPDATE array for your project structure.
  */

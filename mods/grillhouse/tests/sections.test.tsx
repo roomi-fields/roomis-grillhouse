@@ -1,6 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import { enLignes } from '../hooks/register'
+import { projetGrillhouse } from './projet'
 
 // The pane lists every line of the board, in the board's order — the head, AGENTS, CHANTIER, then
 // FAITS AUJOURD'HUI — and folds none to save rows: its window runs over them all, moved by the
@@ -126,6 +127,7 @@ async function monter(
     return { value: { exitCode: 0, stdout, stderr: '' } }
   })
   h('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
+  projetGrillhouse(h)
   h('command.register', () => ({ value: undefined }))
   h('clock.every', () => ({ value: { cancel: () => undefined } }))
   h('ui.scroll', (_: unknown, e: { offset: number }) => {

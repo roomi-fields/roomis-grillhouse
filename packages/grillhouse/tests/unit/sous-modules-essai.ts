@@ -144,11 +144,6 @@ export function sousModulesEssai(ESSAIS: string) {
     writeFileSync(path.join(repo, 'outils/turbo/package.json'), TURBO_PAQUET);
     writeFileSync(path.join(repo, 'outils/turbo/turbo.mjs'), TURBO_FAUX, { mode: 0o755 });
     writeFileSync(path.join(repo, '.gitignore'), '.claude/worktrees/\nnode_modules\n');
-    mkdirSync(path.join(repo, '.claude/agents'), { recursive: true });
-    writeFileSync(
-      path.join(repo, '.claude/agents/developpeur.md'),
-      '---\nname: developpeur\n---\n'
-    );
     mkdirSync(path.join(repo, 'packages/a/src'), { recursive: true });
     writeFileSync(path.join(repo, 'packages/a/src/a.ts'), 'export const a = 1;\n');
     // The night runs from the repository's own scripts: they are copied whole, so the preparation

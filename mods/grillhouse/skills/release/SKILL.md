@@ -130,5 +130,5 @@ gh release create vX.Y.Z --title "vX.Y.Z" --notes-from-tag
 Use this script to automatically update version references across the project:
 
 ```bash
-node .claude/skills/release/scripts/update-version.cjs
+node "${CLAUDE_PLUGIN_ROOT}/skills/release/scripts/update-version.cjs"
 ```

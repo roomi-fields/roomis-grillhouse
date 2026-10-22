@@ -24,8 +24,9 @@
 # superviseur tient ce dépôt », which asks it to say so to the owner and to launch no circuit. An
 # agent's copy and a session of a role the circuit launches take nothing and receive nothing.
 #
-# A session of a role agent of the project (`claude --agent <rôle>`, the circuit's sessions: the
-# hook's input names it, `agent_type`, and `.claude/agents/<rôle>.md` defines it) receives nothing:
+# A session of a role agent of the frame (`claude --agent <rôle>`, the circuit's sessions: the
+# hook's input names it, `agent_type`, bare or as `grillhouse:<rôle>`, and the frame's plugin
+# defines it, `$CLAUDE_PLUGIN_ROOT/agents/<rôle>.md`, the plugin whose hook runs this script) receives nothing:
 # what the project lacks is the supervisor's to deal with, and in an envelope the documents of the
 # hidden packages read as absent.
 set -uo pipefail
@@ -36,8 +37,9 @@ root="${CLAUDE_PROJECT_DIR:-$PWD}"
 ici="$(cd "$(dirname "$0")" && pwd)"
 entree=
 [ -t 0 ] || entree="$(cat)"
-role="$(printf '%s' "$entree" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const a=JSON.parse(s).agent_type;if(typeof a==="string"&&/^[A-Za-z0-9_-]+$/.test(a))process.stdout.write(a)}catch{}})' 2>/dev/null)"
-[ -n "$role" ] && [ -f "$root/.claude/agents/$role.md" ] && exit 0
+role="$(printf '%s' "$entree" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const a=JSON.parse(s).agent_type;if(typeof a==="string"&&/^[A-Za-z0-9_:-]+$/.test(a))process.stdout.write(a)}catch{}})' 2>/dev/null)"
+role="${role#grillhouse:}"
+[ -n "$role" ] && [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -f "$CLAUDE_PLUGIN_ROOT/agents/$role.md" ] && exit 0
 if [ -f "$root/.claude/template" ]; then
   echo "## Gabarit Roomi's Grillhouse"
   echo "Ce dossier est le gabarit du framework, pas un projet : il ne s'initialise pas. Un projet neuf se crée par \`npm run new -- <chemin> [préfixe]\` ; sa première séance propose le grill d'initialisation."
@@ -174,10 +176,7 @@ fi
 # An epic is a chantier, at the root: one with a mother is a mother ticket typed by mistake.
 epopees="$(cd "$root" && bd list --type epic --all --json --limit 0 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.stdout.write(JSON.parse(s).filter(t=>t.parent).map(t=>t.id).join(" "))}catch{}})')"
 
-# The frame's files as the project installed them (scripts/grillhouse-maj.mjs).
-ecarts="$(cd "$root" && node "$ici/grillhouse-maj.mjs" --ecarts 2>/dev/null)"
-
-[ ${#missing[@]} -eq 0 ] && [ ${#pending[@]} -eq 0 ] && [ ${#wiring[@]} -eq 0 ] && [ -z "${nuit:-}" ] && [ -z "$epopees" ] && [ -z "$ecarts" ] && [ -z "${inconnus:-}" ] && [ -z "${ecart_versions:-}" ] && exit 0
+[ ${#missing[@]} -eq 0 ] && [ ${#pending[@]} -eq 0 ] && [ ${#wiring[@]} -eq 0 ] && [ -z "${nuit:-}" ] && [ -z "$epopees" ] && [ -z "${inconnus:-}" ] && [ -z "${ecart_versions:-}" ] && exit 0
 
 echo "## Éléments du projet à définir (Roomi's Grillhouse)"
 if [ ${#missing[@]} -gt 0 ]; then
@@ -201,5 +200,4 @@ if [ -n "${inconnus:-}" ]; then
   echo "docs/agents/hors-cadre.txt nomme un dossier absent de packages/ et de src/ : $inconnus. Corrige la ligne (faute de frappe) ou retire-la : un nom sans dossier n'écarte rien."
 fi
 [ -n "${ecart_versions:-}" ] && echo "$ecart_versions"
-[ -n "$ecarts" ] && echo "$ecarts"
 exit 0

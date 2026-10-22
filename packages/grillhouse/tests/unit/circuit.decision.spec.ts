@@ -240,7 +240,7 @@ ${fiche({
     });
 
     it('critère 4 — the supervisor’s skill says every decision of the owner on a ticket goes by the circuit’s command, never by a relaunch’s context nor a comment alone', () => {
-      const pitmaster = lire('.claude/skills/pitmaster/SKILL.md');
+      const pitmaster = lire('mods/grillhouse/skills/pitmaster/SKILL.md');
       expect(pitmaster).toMatch(
         /toute décision du responsable sur un ticket passe par le circuit/i
       );

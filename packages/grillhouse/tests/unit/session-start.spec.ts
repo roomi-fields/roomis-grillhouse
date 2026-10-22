@@ -506,29 +506,42 @@ describe('the session start asks for the scripts of the tests and the line of th
 // Witness: BPScript 320.3, « pas encore renseignés » for the documents of the packages the
 // envelope hides, relayed by 4 agents in their final answer.
 describe('the session start and the sessions of a role', () => {
+  // A project, and the frame's plugin that defines the role testwriter (grillhouse-3uv.84.2).
   const avecRole = () => {
     const dir = mkdtempSync(path.join(racine, 'role-'));
-    mkdirSync(path.join(dir, '.claude/agents'), { recursive: true });
-    writeFileSync(path.join(dir, '.claude/agents/testwriter.md'), '---\nname: testwriter\n---\n');
+    mkdirSync(path.join(dir, 'greffon/agents'), { recursive: true });
+    writeFileSync(path.join(dir, 'greffon/agents/testwriter.md'), '---\nname: testwriter\n---\n');
     return dir;
   };
   const demarrerAvec = (dir: string, input: object) =>
     spawnSync(BASH, [SCRIPT], {
       encoding: 'utf8',
       input: JSON.stringify(input),
-      env: { HOME: racine, PATH: avec, CLAUDE_PROJECT_DIR: dir, ...configGit() },
+      env: {
+        HOME: racine,
+        PATH: avec,
+        CLAUDE_PROJECT_DIR: dir,
+        CLAUDE_PLUGIN_ROOT: path.join(dir, 'greffon'),
+        ...configGit(),
+      },
     });
   const DEBUT = { hook_event_name: 'SessionStart', source: 'startup' };
 
-  it('says nothing to a session of a role agent of the project, however much the project lacks', () => {
-    const r = demarrerAvec(avecRole(), { ...DEBUT, agent_type: 'testwriter' });
-    expect(r.status, r.stderr).toBe(0);
-    expect(r.stdout).toBe('');
+  it('says nothing to a session of a role agent of the frame, named bare or by its plugin, however much the project lacks', () => {
+    for (const agent_type of ['testwriter', 'grillhouse:testwriter']) {
+      const r = demarrerAvec(avecRole(), { ...DEBUT, agent_type });
+      expect(r.status, r.stderr).toBe(0);
+      expect(r.stdout, agent_type).toBe('');
+    }
   });
 
-  it('still speaks to the supervisor, and to a session of an agent the project does not define', () => {
+  it('still speaks to the supervisor, and to a session of an agent the frame does not define', () => {
     const dir = avecRole();
-    for (const input of [DEBUT, { ...DEBUT, agent_type: 'Explore' }]) {
+    for (const input of [
+      DEBUT,
+      { ...DEBUT, agent_type: 'Explore' },
+      { ...DEBUT, agent_type: 'developpeur' },
+    ]) {
       const r = demarrerAvec(dir, input);
       expect(r.status, r.stderr).toBe(0);
       expect(r.stdout).toContain('Pas encore renseignés');

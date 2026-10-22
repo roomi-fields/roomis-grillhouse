@@ -46,5 +46,5 @@ node "$ici/greffons.mjs" "$root" || greffons=1
 
 [ -f "$root/package.json" ] && npm --prefix "$root" install
 
-echo "Ready: tickets '$prefix-*' (bd ready), skills: $(ls "$root/.claude/skills" | tr '\n' ' ')"
+echo "Ready: tickets '$prefix-*' (bd ready), skills and agents: those of the frame's plugin, grillhouse@roomi-fields"
 exit "$greffons"

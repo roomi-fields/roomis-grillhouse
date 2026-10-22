@@ -7,40 +7,11 @@ This is a complete project template for TypeScript and JavaScript (Node.js) deve
 ```
 roomis-grillhouse/
 ├── .claude/                    # Claude Code integrations
-│   ├── settings.json              # Permissions, plugins, hooks
+│   ├── settings.json              # Permissions, plugins (the frame's among them)
 │   ├── template                   # Marks the template itself (not copied)
-│   ├── grillhouse/charte.md       # The common charter: the frame's rules, the same in every project
-│   ├── grillhouse/fichiers.txt    # The frame's files, copied as they are by npm run grillhouse:maj; its « - » lines (the frame's own tests among them): what a project never receives
-│   ├── agents/                    # The roles, each under its locks (packages/grillhouse/scripts/verrous/)
-│   │   ├── testwriter.md             # Writes a ticket's tests from the spec; writes test files and the shared test material only
-│   │   ├── developpeur.md            # Writes the code; no test file, no code before the Architecture section
-│   │   ├── relecteur.md              # Reviews the lot adversarially; writes no file
-│   │   ├── referent-technique.md     # Settles a design question, or sends it to the owner; writes no file
-│   │   ├── regulateur.md             # Settles a stop of a ticket's circuit in its final answer; writes no file
-│   │   ├── questionneur.md           # Questions a plan or a decision it did not write; decides nothing, writes nothing
-│   │   └── explorateur.md            # Runs an exploration: survey, decisions, proposed tickets; writes no file
-│   └── skills/                    # Skills, ready from the first session
-│       ├── grill/                 # Initialisation & architecture: the grill → charter, architecture, frame, interfaces
-│       │   └── references/           # releve-structurel (the structural survey brief)
-│       ├── pitmaster/             # The supervisor: tickets, role agents, closures, the frame
-│       │   └── references/           # cadre, tour, erreurs, consigne-agent
-│       ├── testwriter/            # The testwriter's skill
-│       ├── developpeur/           # The developer's skill
-│       ├── relecteur/             # The reviewer's skill
-│       │   └── references/           # edge cases, verification gaps (from BMAD-METHOD, MIT)
-│       ├── referent-technique/    # The technical referent's skill
-│       ├── regulateur/            # The regulator's skill
-│       ├── questionneur/          # The questioner's skill
-│       ├── explorateur/           # The explorer's skill
-│       ├── mesure/                # Measurement: measures without lying, proves a guard bites
-│       ├── redacteur/             # The writer: human-read documents
-│       │   └── references/           # documents-d-un-composant
-│       └── release/               # Release automation
-│           ├── SKILL.md
-│           └── scripts/update-version.cjs
 │
 ├── METACADRE.md                # The meta-frame: the framework's six intentions, how rules are written
-├── CLAUDE.md                   # The project's charter, filled by the initialisation grill; imports the common one
+├── CLAUDE.md                   # The project's charter, filled by the initialisation grill; the common one comes from the frame's plugin
 ├── README.md                   # Describes Grillhouse itself (not copied to projects)
 ├── packages/grillhouse/         # The package @roomi-fields/grillhouse, a workspace: the frame's command, its scripts and its tests
 │   ├── bin/grillhouse.mjs         # `grillhouse <sous-commande>` (`npx grillhouse` in a shell, `grillhouse` in an npm script): one subcommand per script a caller launches, named after it (`maj` for grillhouse-maj.mjs); an unknown one exits 2 with the list
@@ -69,7 +40,7 @@ roomis-grillhouse/
 │   │   ├── dette.mjs                  # the known debt of the guards: grillhouse-dette.json (guard, file, rule → count); a guard passes within the counts, refuses a new finding or a count beyond, reports a count below
 │   │   ├── composants-affectes.mjs    # the components a ticket touches: for each element its Architecture and criteria name, its provider (an INTERFACE.md) and readers (declared consumers, importers, other packages' tests naming it), its readers by the types (references-par-les-types.mjs), the packages whose grillhouse.lit covers a path the ticket changes, and the Rend of the CADRE.md of the packages that publish the elements, a package that carries a type never a reader; the explorateur's survey, the circuit's check before the first testwriter
 │   │   ├── references-par-les-types.mjs # the references of a ticket's elements by TypeScript's language service: a symbol or a member resolved, the references of one its package's entry exports in the other packages; an internal one has no readers out of its package
-│   │   ├── code-mort.mjs              # grillhouse:gardes: refuses dead code, measured by knip (knip.json); tests and benches count for dependency use only; the frame's scripts (fichiers.txt) are knip entries, judged in Grillhouse
+│   │   ├── code-mort.mjs              # grillhouse:gardes: refuses dead code, measured by knip (knip.json); tests and benches count for dependency use only
 │   │   ├── consommateurs.mjs          # grillhouse:gardes: refuses an import that the provider's INTERFACE.md does not declare, and two components of the same name
 │   │   │                              #   composants(): the components for every check, minus the packages out of
 │   │   │                              #   the frame listed in docs/agents/hors-cadre.txt, "<package> <reason>"; such a package stays a
@@ -104,7 +75,7 @@ roomis-grillhouse/
 │   │   ├── branche-de-nuit.mjs        # pre-push guard: only the night pushes the branch of grillhouse.poussee.nuit
 │   │   ├── poussee-cles.mjs           # reads the grillhouse.poussee, .nuit and .commit keys of package.json for nuit.sh, the guard and the queue
 │   │   ├── retirer-copie.sh           # removes a working copy, submodules included (local work already entered on main does not hold it), with the working directory of its ticket's circuit, <copie>.travail (--garder-travail: the integration's, which the queue removes at the closure) (agent, integration, night)
-│   │   ├── grillhouse-maj.mjs         # npm run grillhouse:maj: the frame brought to the last commit of Grillhouse, its version (the `version` of its packages/grillhouse/package.json) named in the report (files, git hooks, the frame's plugins, scripts — test, test:vitest, test:forcer, verifier —, turbo.json written from the template of its form when absent, the frame's devDependencies, Turborepo's among them, packageManager, .turbo/ ignored, then the generated `.dependency-cruiser.cjs`, interfaces index and packages' turbo.json regenerated, a failing generator named; in a repository of packages, scripts/vitest-config made a workspace and @grillhouse/vitest-config declared in the devDependencies of each package of the frame with a test:vitest); the project's copy runs the source's script, whose modules are the source's; --ecarts; any other option refused
+│   │   ├── grillhouse-maj.mjs         # npm run grillhouse:maj: the frame brought to the last commit of Grillhouse, its version (the `version` of its packages/grillhouse/package.json) named in the report (git hooks, the frame's plugins, scripts — test, test:vitest, test:forcer, verifier —, turbo.json written from the template of its form when absent, the frame's devDependencies, Turborepo's among them, packageManager, .turbo/ ignored, then the generated `.dependency-cruiser.cjs`, interfaces index and packages' turbo.json regenerated, a failing generator named; in a repository of packages, scripts/vitest-config made a workspace and @grillhouse/vitest-config declared in the devDependencies of each package of the frame with a test:vitest); the package's script runs the source's, whose modules are the source's; no file copied, .claude/settings.json never written; the generators run by the project's command; any other option refused
 │   │   ├── turbo-des-paquets.mjs      # grillhouse:gardes: refuses a package's turbo.json absent or stale, and a guard task of the root's turbo.json (grillhouse:gardes, gardes) absent or whose dependsOn is not the build of each package of the frame, and a root test:vitest whose env lacks GRILLHOUSE_TESTS (the variable of the targeted runs); --ecrire writes them (a package's extends the root's, its build waits for the build of its runtime dependencies only: dependencies, peerDependencies, optionalDependencies; its test:vitest hashes the paths (directories or files, data or a neighbour's code) its package.json declares, `grillhouse.lit`, and waits for the traces that write them; each trace it declares, `grillhouse.traces`, is a cached task writing a directory of the package git ignores; the build of the package holding a declared path of data alone leaves it out, a path holding code stays in; a build with a tsconfig.build.json hashes what it reads, its package.json, its configurations and the directories they include, when its build script runs tsc alone, else every file of its package; beside each input reaching the `.git` of a submodule of .gitmodules, in the root's turbo.json and a package's, its exclusion `!<path>/.git`; the root's guards' dependsOn by jsonc-parser, the rest of the file kept); it refuses a declared path absent that no trace writes, a trace out of its package, followed or not ignored by git, a trace script and its declaration apart, and in the root's turbo.json a task of one package, a trace task or an input naming a package directory
 │   │   │                              #   a package of docs/agents/hors-cadre.txt has each task of the root excluded ("extends": false), and no dependsOn written names it
 │   │   ├── paquets.mjs                # paquets(): the frame's one list of the packages, the workspaces mapped as npm maps them (a « ! » pattern takes out), each marked out of the frame or not (horsCadre(): the names docs/agents/hors-cadre.txt lists, which every check reads);
@@ -168,8 +139,40 @@ roomis-grillhouse/
 ├── templates/turbo/            # The templates of a project's turbo.json, one per form (sans-paquets.json, paquets.json): grillhouse-maj writes the one of its form when the project has none, `npm run new` the one without packages; in a repository of packages, each package's generated turbo.json (packages/grillhouse/scripts/turbo-des-paquets.mjs) replaces the root's build dependencies with its runtime ones
 ├── pitmaster/SUIVI.md          # Grillhouse's pitmaster follow-up (open questions, last round; not copied to projects)
 │
-├── mods/grillhouse/            # The Grillhouse mod (grillhouse@roomi-fields): the /grillhouse pane, the
-│                              #   lines of `grillhouse tableau`; tests: npm run mod:test
+├── mods/grillhouse/            # The frame's plugin, grillhouse@roomi-fields, a mod: the frame's agents, skills, hooks of Claude
+│                              #   Code and common charter, and the /grillhouse pane; a project holds no copy of them; tests: npm run mod:test
+│   ├── agents/                    # The roles, each under its locks (packages/grillhouse/scripts/verrous/); Claude Code names them bare or grillhouse:<rôle>
+│   │   ├── testwriter.md             # Writes a ticket's tests from the spec; writes test files and the shared test material only
+│   │   ├── developpeur.md            # Writes the code; no test file, no code before the Architecture section
+│   │   ├── relecteur.md              # Reviews the lot adversarially; writes no file
+│   │   ├── referent-technique.md     # Settles a design question, or sends it to the owner; writes no file
+│   │   ├── regulateur.md             # Settles a stop of a ticket's circuit in its final answer; writes no file
+│   │   ├── questionneur.md           # Questions a plan or a decision it did not write; decides nothing, writes nothing
+│   │   └── explorateur.md            # Runs an exploration: survey, decisions, proposed tickets; writes no file
+│   ├── skills/                    # The frame's skills, ready from the first session (/grillhouse:<nom>)
+│   │   ├── grill/                 # Initialisation & architecture: the grill → charter, architecture, frame, interfaces
+│   │   │   └── references/           # releve-structurel (the structural survey brief)
+│   │   ├── pitmaster/             # The supervisor: tickets, role agents, closures, the frame
+│   │   │   └── references/           # cadre, tour, erreurs, consigne-agent
+│   │   ├── testwriter/            # The testwriter's skill
+│   │   ├── developpeur/           # The developer's skill
+│   │   ├── relecteur/             # The reviewer's skill
+│   │   │   └── references/           # edge cases, verification gaps (from BMAD-METHOD, MIT)
+│   │   ├── referent-technique/    # The technical referent's skill
+│   │   ├── regulateur/            # The regulator's skill
+│   │   ├── questionneur/          # The questioner's skill
+│   │   ├── explorateur/           # The explorer's skill
+│   │   ├── mesure/                # Measurement: measures without lying, proves a guard bites
+│   │   ├── redacteur/             # The writer: human-read documents
+│   │   │   └── references/           # documents-d-un-composant
+│   │   └── release/               # Release automation
+│   │       ├── SKILL.md
+│   │       └── scripts/update-version.cjs
+│   ├── charte.md                  # The common charter: the frame's rules, the same in every project, given to each session by the hook of its start
+│   └── hooks/
+│       ├── hooks.json             # The mod's module and the hooks of Claude Code, each `node crochet.mjs <sous-commande>`
+│       ├── crochet.mjs            # Runs `grillhouse <sous-commande>` of the project (node_modules/.bin), Node alone; the session start writes the charter first, and « lance npm install » without the package
+│       └── register.tsx           # The /grillhouse pane: the lines of `grillhouse tableau`, in a project whose package.json declares @roomi-fields/grillhouse
 ├── .github/                    # GitHub integrations
 │   ├── workflows/                 # CI/CD workflows
 │   │   ├── ci.yml                    # Continuous Integration
@@ -210,8 +213,8 @@ roomis-grillhouse/
 npm run new -- ~/dev/my-new-project [ticket-prefix]
 ```
 
-Copies the frame's files (without its caches, this marker, nor the frame's own tests and their
-material: the « - » lines of `.claude/grillhouse/fichiers.txt`), then the template of a project
+Copies the frame's repository (without its caches, this marker, its plugin, its release script,
+nor the frame's own tests and their material, `packages/grillhouse/tests/`), then the template of a project
 (`templates/projet/`), initialises git and the Beads ticket store, installs the dependencies, and
 makes the first commit. The project keeps the example application (`src/`) and its tests
 (`tests/unit/config.spec.ts`, `errors.spec.ts`, `types.spec.ts`), which its `npm test` plays.
@@ -219,7 +222,7 @@ makes the first commit. The project keeps the example application (`src/`) and i
 Prerequisites: Node.js and Claude Code. Everything else installs by default: `setup` installs
 Beads (`bd`) when missing, and installs, for the project, the Claude Code plugins the project
 settings enable: `mattpocock-skills` (grill, TDD, code review, handoff), `rtfm` (search index) and
-`grillhouse` (the board). `grillhouse:maj` installs them too, and a session start names under
+`grillhouse` (the frame's skills, agents, hooks and common charter, and the board). `grillhouse:maj` installs them too, and a session start names under
 « Manque » each one still missing.
 
 ### 2. Open Claude Code in it
@@ -235,7 +238,7 @@ tickets. Once done, the hook stays silent.
 
 - A supervision session loads `pitmaster`: it keeps the tickets and launches the circuit of each
   one.
-- The roles are project agents (`.claude/agents/`): `testwriter` writes the tests, `developpeur` the
+- The roles are agents of the frame's plugin (`mods/grillhouse/agents/`): `testwriter` writes the tests, `developpeur` the
   code, `relecteur` reviews; the circuit of the ticket (`npx grillhouse circuit`), which the
   supervisor launches, launches them and commits, and on a stop launches `regulateur`,
   which settles it in its final answer; `questionneur` questions the ticket's plan before the
@@ -341,6 +344,8 @@ Edit `package.json`:
 Create `.github/workflows/your-workflow.yml`
 
 ### Adding Claude Skills
+
+A skill of the frame goes to its plugin, `mods/grillhouse/skills/`; a skill of the project alone:
 
 1. Create `.claude/skills/skill-name/SKILL.md`
 2. Add YAML frontmatter with name and description

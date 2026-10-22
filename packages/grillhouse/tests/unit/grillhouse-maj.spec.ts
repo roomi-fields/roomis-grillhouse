@@ -8,22 +8,13 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
-  statSync,
   symlinkSync,
-  utimesSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import {
-  ecarts,
-  fichiersDuCadre,
-  fusionnerReglages,
-  lireListe,
-  mettreAJour,
-  regenerer,
-} from '../../scripts/grillhouse-maj.mjs';
+import { mettreAJour, regenerer } from '../../scripts/grillhouse-maj.mjs';
 import { CONFIGURATION as CONFIG_DES_FRONTIERES } from '../../scripts/frontieres.mjs';
 import { GARDES_DU_CADRE } from '../../scripts/gardes-du-cadre.mjs';
 import { cheminSysteme, claudeSubstitut } from '../claude-substitut.js';
@@ -50,119 +41,6 @@ function source(fichiers: Record<string, string>) {
   }
   return s;
 }
-
-describe('the list of the frame', () => {
-  it('reads the paths to install and those to remove, without comments', () => {
-    expect(lireListe('# x\nMETACADRE.md\nscripts/verrous/\n- tests/unit/a.spec.ts\n')).toEqual({
-      garder: ['METACADRE.md', 'scripts/verrous/'],
-      retirer: ['tests/unit/a.spec.ts'],
-    });
-  });
-});
-
-describe('the settings of the frame', () => {
-  it("adds the frame's hooks and plugins, keeps the project's, removes what the frame dropped", () => {
-    const projet = {
-      permissions: { allow: ['Bash(ls)'] },
-      hooks: { SessionStart: [crochet('mon-crochet'), crochet('vieux-cadre')] },
-      enabledPlugins: { 'a@b': true, 'vieux@ancien': true },
-      extraKnownMarketplaces: { ancien: { source: {} }, mien: { source: {} } },
-    };
-    const cadre = {
-      hooks: { PreToolUse: [crochet('verrou', 'Agent|Task')] },
-      enabledPlugins: { 'g@h': true },
-    };
-    const avant = {
-      crochets: ['SessionStart\u0000\u0000vieux-cadre'],
-      plugins: ['vieux@ancien'],
-      marches: ['ancien'],
-    };
-    const { reglages, installes } = fusionnerReglages(projet, cadre, avant) as {
-      reglages: object;
-      installes: { crochets: string[]; plugins: string[]; marches: string[]; ligneEtat: boolean };
-    };
-    expect(reglages).toEqual({
-      permissions: { allow: ['Bash(ls)'] },
-      hooks: {
-        SessionStart: [crochet('mon-crochet')],
-        PreToolUse: [crochet('verrou', 'Agent|Task')],
-      },
-      enabledPlugins: { 'a@b': true, 'g@h': true },
-      extraKnownMarketplaces: { mien: { source: {} } },
-    });
-    expect(installes).toEqual({
-      crochets: ['PreToolUse\u0000Agent|Task\u0000verrou'],
-      plugins: ['g@h'],
-      marches: [],
-      ligneEtat: false,
-    });
-    expect(fusionnerReglages(reglages, cadre, installes).reglages).toEqual(reglages);
-  });
-
-  it("sets the frame's status line, and removes it once the frame drops it", () => {
-    const ligne = { type: 'command', command: 'node ligne-etat.mjs' };
-    const pose = fusionnerReglages(
-      { statusLine: { type: 'command', command: 'mien' } },
-      { statusLine: ligne }
-    );
-    expect(pose.reglages).toMatchObject({ statusLine: ligne });
-    expect(pose.installes).toMatchObject({ ligneEtat: true });
-    const retire = fusionnerReglages(pose.reglages, {}, pose.installes);
-    expect(retire.reglages).not.toHaveProperty('statusLine');
-  });
-});
-
-describe('the update of a project', () => {
-  const v1 = source({
-    '.claude/grillhouse/fichiers.txt':
-      'METACADRE.md\nscripts/verrous/\n- tests/unit/vieux.spec.ts\n',
-    'METACADRE.md': 'meta 1',
-    'scripts/verrous/a.mjs': 'a 1',
-    'scripts/verrous/b.mjs': 'b 1',
-    '.claude/settings.json': JSON.stringify({ hooks: { SessionStart: [crochet('debut')] } }),
-  });
-  const projet = mkdtempSync(path.join(ESSAIS, 'projet-'));
-  ecrire(projet, 'scripts/verrous/mien.mjs', 'à moi');
-  ecrire(projet, 'tests/unit/vieux.spec.ts', 'copie ancienne');
-  ecrire(projet, 'package.json', JSON.stringify({ name: 'p', scripts: { test: 'vitest' } }));
-  const b1 = mettreAJour(projet, v1, 'v1');
-
-  it("copies the frame's files and removes the paths it retires, the project's own files kept", () => {
-    expect(b1.copies.sort()).toEqual([
-      'METACADRE.md',
-      'scripts/verrous/a.mjs',
-      'scripts/verrous/b.mjs',
-    ]);
-    expect(b1.retires).toEqual(['tests/unit/vieux.spec.ts']);
-    expect(lire(projet, 'scripts/verrous/mien.mjs')).toBe('à moi');
-    const scripts = json(projet, 'package.json').scripts as Record<string, string>;
-    expect(scripts.test).toBe('vitest');
-    expect(scripts.tableau).toBe('grillhouse tableau --texte');
-    expect(scripts['grillhouse:maj']).toBe('grillhouse maj');
-    expect(json(projet, '.claude/settings.json').hooks).toEqual({
-      SessionStart: [crochet('debut')],
-    });
-  });
-  it('says nothing while the frame files are as installed, and names a drift', () => {
-    expect(ecarts(projet)).toEqual({ version: 'v1', modifies: [], absents: [] });
-    ecrire(projet, 'METACADRE.md', 'retouché');
-    expect(ecarts(projet)?.modifies).toEqual(['METACADRE.md']);
-  });
-  it('brings a drifted project back, and removes a file the next version drops', () => {
-    const v2 = source({
-      '.claude/grillhouse/fichiers.txt': 'METACADRE.md\nscripts/verrous/\n',
-      'METACADRE.md': 'meta 2',
-      'scripts/verrous/a.mjs': 'a 1',
-      '.claude/settings.json': JSON.stringify({ hooks: {} }),
-    });
-    const b2 = mettreAJour(projet, v2, 'v2');
-    expect(b2.copies).toEqual(['METACADRE.md']);
-    expect(b2.retires).toEqual(['scripts/verrous/b.mjs']);
-    expect(existsSync(path.join(projet, 'scripts/verrous/mien.mjs'))).toBe(true);
-    expect(json(projet, '.claude/settings.json').hooks).toEqual({});
-    expect(ecarts(projet)).toEqual({ version: 'v2', modifies: [], absents: [] });
-  });
-});
 
 // grillhouse-3uv.55: the update writes the frame's controls, `grillhouse:gardes`, the one list of
 // them, into the project it installs. The frame is this repository: its package.json is the
@@ -198,10 +76,15 @@ const gabarit = () =>
 // grillhouse-3uv.80 critère 2: `test:vitest` calls the Vitest of the project's root. A Vitest at the
 // root of <projet>: the frame's own (2.1.9, this repository's node_modules) when <version> is
 // absent, else a stand-in package of that version, whose command answers `--version` as Vitest
-// does (« vitest/<version> <platform>-<arch> node-<version> »).
+// does (« vitest/<version> <platform>-<arch> node-<version> »). The project has run `npm install`:
+// its command is the frame's package's, which runs the generators.
 function vitestALaRacine(projet: string, version?: string) {
   const nm = path.join(projet, 'node_modules');
   mkdirSync(path.join(nm, '.bin'), { recursive: true });
+  symlinkSync(
+    path.join(DEPOT, 'packages/grillhouse/bin/grillhouse.mjs'),
+    path.join(nm, '.bin', 'grillhouse')
+  );
   if (version === undefined) {
     symlinkSync(path.join(DEPOT, 'node_modules', 'vitest'), path.join(nm, 'vitest'), 'dir');
   } else {
@@ -231,7 +114,7 @@ function installe(pkg: Record<string, unknown> | null, o: { vitest?: boolean } =
   if (pkg) {
     ecrire(projet, 'package.json', `${JSON.stringify(pkg, null, 2)}\n`);
   }
-  mettreAJour(projet, DEPOT, 'essai');
+  mettreAJour(projet, DEPOT);
   const scripts = () => (json(projet, 'package.json').scripts ?? {}) as Record<string, string>;
   return { projet, scripts };
 }
@@ -245,17 +128,6 @@ describe('grillhouse-3uv.55 critère 1 — the update writes grillhouse:gardes',
     expect(etapes).toHaveLength(CONTROLES.length);
     CONTROLES.forEach(([nom, motif], i) => expect(etapes[i], nom).toMatch(motif));
     expect(etapes.join(' ')).not.toMatch(/\bbuild\b/);
-  });
-  it('critère 1: each control grillhouse:gardes names is a file the update installs', () => {
-    const { projet } = installe({ name: 'p', scripts: {} });
-    const noms = [
-      'packages/grillhouse/scripts/gardes-du-cadre.mjs',
-      ...GARDES_DU_CADRE.map(([f]) => path.relative(DEPOT, f)),
-    ];
-    expect(noms).toHaveLength(CONTROLES.length + 1);
-    for (const f of noms) {
-      expect(existsSync(path.join(projet, f)), f).toBe(true);
-    }
   });
   it('the update writes the commands of the known debt of the guards, the frame’s own', () => {
     const g = installe({
@@ -313,7 +185,7 @@ describe('grillhouse-3uv.55 critère 5 — a replayed update changes nothing', (
     it(`critère 5: a project ${nom} keeps its package.json byte for byte on a second update`, () => {
       const { projet } = installe(pkg);
       const premier = lire(projet, 'package.json');
-      mettreAJour(projet, DEPOT, 'essai');
+      mettreAJour(projet, DEPOT);
       expect(lire(projet, 'package.json')).toBe(premier);
     });
   }
@@ -322,7 +194,6 @@ describe('grillhouse-3uv.55 critère 5 — a replayed update changes nothing', (
 // A source of the frame of one file, whose package.json is `pkg` (none when null).
 function sourceAvec(pkg: Record<string, unknown> | null) {
   return source({
-    '.claude/grillhouse/fichiers.txt': 'METACADRE.md\n',
     'METACADRE.md': 'meta',
     ...(pkg ? { 'package.json': JSON.stringify(pkg, null, 2) } : {}),
   });
@@ -331,7 +202,7 @@ function sourceAvec(pkg: Record<string, unknown> | null) {
 function installeDepuis(src: string, pkg: Record<string, unknown>) {
   const projet = mkdtempSync(path.join(ESSAIS, 'installe-'));
   ecrire(projet, 'package.json', `${JSON.stringify(pkg, null, 2)}\n`);
-  mettreAJour(projet, src, 'essai');
+  mettreAJour(projet, src);
   return {
     projet,
     scripts: (json(projet, 'package.json').scripts ?? {}) as Record<string, string>,
@@ -445,14 +316,14 @@ describe('the update removes the frame’s former wiring of the guards', () => {
       scripts: { 'integration:gardes': 'node a.mjs', gardes: 'node b.mjs' },
     });
     expect(scripts()).toMatchObject({ 'integration:gardes': 'node a.mjs', gardes: 'node b.mjs' });
-    const b = mettreAJour(projet, DEPOT, 'essai');
+    const b = mettreAJour(projet, DEPOT);
     expect(b.gardes).toEqual({ deplace: false });
   });
   it('the report says the move of integration:gardes to gardes, once', () => {
     const projet = mkdtempSync(path.join(ESSAIS, 'gardes-'));
     ecrire(projet, 'package.json', '{"name":"p","scripts":{"integration:gardes":"node a.mjs"}}\n');
-    expect(mettreAJour(projet, DEPOT, 'essai').gardes).toEqual({ deplace: true });
-    expect(mettreAJour(projet, DEPOT, 'essai').gardes).toBeNull();
+    expect(mettreAJour(projet, DEPOT).gardes).toEqual({ deplace: true });
+    expect(mettreAJour(projet, DEPOT).gardes).toBeNull();
   });
   it('an integration:gardes headed by the frame’s call loses that head, the rest becoming gardes', () => {
     const s = installe({
@@ -468,7 +339,7 @@ describe('the update removes the frame’s former wiring of the guards', () => {
       scripts: { pretest: `${GARDES} && node mien.mjs`, 'integration:gardes': GARDES },
     });
     const premier = lire(projet, 'package.json');
-    mettreAJour(projet, DEPOT, 'essai');
+    mettreAJour(projet, DEPOT);
     expect(lire(projet, 'package.json')).toBe(premier);
   });
 });
@@ -481,11 +352,6 @@ const PAQUETS = 'templates/turbo/paquets.json';
 type Taches = Record<string, { dependsOn?: string[]; env?: string[]; outputs?: string[] }>;
 const taches = (racine: string, f: string) => (json(racine, f) as { tasks: Taches }).tasks;
 describe('the update installs Turborepo', () => {
-  it('turbo.json is not a frame file: the list does not name it', () => {
-    const { garder } = lireListe(lire(DEPOT, '.claude/grillhouse/fichiers.txt'));
-    expect(garder).not.toContain('turbo.json');
-    expect(fichiersDuCadre(DEPOT, garder)).not.toContain('turbo.json');
-  });
   it('the template without packages: the build, then the guards and the tests beside each other', () => {
     expect(taches(DEPOT, SANS_PAQUETS)).toEqual({
       build: { outputs: ['dist/**'] },
@@ -547,11 +413,11 @@ describe('the update installs Turborepo', () => {
       '//#gardes': { dependsOn: ['x#build', 'y#build', 'z#build'], outputs: [] },
     });
   });
-  it('before `npm install`, the generator’s failure names jsonc-parser and npm install', () => {
+  it('before `npm install`, the project has no command: the generator’s failure names npm install', () => {
     const { projet } = installe({ name: 'p', private: true, workspaces: ['packages/*'] });
     const [ligne, ...autres] = regenerer(projet);
     expect(autres).toEqual([]);
-    expect(ligne).toContain('jsonc-parser');
+    expect(ligne).toContain('npx grillhouse turbo-des-paquets --ecrire');
     expect(ligne).toContain('npm install');
   });
   it('a turbo.json present is never written again, whatever the form of the project', () => {
@@ -559,34 +425,17 @@ describe('the update installs Turborepo', () => {
     const propre = '{ "tasks": { "build": {} } }\n';
     ecrire(projet, 'package.json', '{"name":"p","workspaces":["packages/*"]}\n');
     ecrire(projet, 'turbo.json', propre);
-    const b = mettreAJour(projet, DEPOT, 'essai');
+    const b = mettreAJour(projet, DEPOT);
     expect(lire(projet, 'turbo.json')).toBe(propre);
     expect(b.turbo).toBeNull();
-    mettreAJour(projet, DEPOT, 'essai');
+    mettreAJour(projet, DEPOT);
     expect(lire(projet, 'turbo.json')).toBe(propre);
-  });
-  it('the turbo.json a former version installed as a frame file gives way to the template of the form, then stays', () => {
-    const projet = mkdtempSync(path.join(ESSAIS, 'turbo-'));
-    ecrire(projet, 'package.json', '{"name":"p","workspaces":["packages/*"]}\n');
-    ecrire(projet, 'turbo.json', lire(DEPOT, SANS_PAQUETS));
-    ecrire(
-      projet,
-      '.claude/grillhouse/empreintes.json',
-      JSON.stringify({ version: 'ancienne', fichiers: { 'turbo.json': 'x' } })
-    );
-    const b = mettreAJour(projet, DEPOT, 'essai');
-    expect(b.turbo).toBe(PAQUETS);
-    expect(lire(projet, 'turbo.json')).toBe(lire(DEPOT, PAQUETS));
-    expect(
-      Object.keys(json(projet, '.claude/grillhouse/empreintes.json').fichiers as object)
-    ).not.toContain('turbo.json');
   });
   it('a project without package.json receives no turbo.json', () => {
     expect(existsSync(path.join(installe(null).projet, 'turbo.json'))).toBe(false);
   });
   it('the report names the template written, once', () => {
     const src = source({
-      '.claude/grillhouse/fichiers.txt': 'METACADRE.md\n',
       'METACADRE.md': 'meta',
       [SANS_PAQUETS]: lire(DEPOT, SANS_PAQUETS),
     });
@@ -618,15 +467,15 @@ describe('the update installs Turborepo', () => {
     const projet = mkdtempSync(path.join(ESSAIS, 'ignore-'));
     ecrire(projet, 'package.json', '{"name":"p"}\n');
     ecrire(projet, '.gitignore', 'node_modules\ndist');
-    mettreAJour(projet, DEPOT, 'essai');
+    mettreAJour(projet, DEPOT);
     expect(lire(projet, '.gitignore')).toBe('node_modules\ndist\n.turbo/\n');
-    mettreAJour(projet, DEPOT, 'essai');
+    mettreAJour(projet, DEPOT);
     expect(lire(projet, '.gitignore')).toBe('node_modules\ndist\n.turbo/\n');
   });
   it.each(['.turbo', '/.turbo/'])('a .gitignore that already ignores it (%s) stays as it is', l => {
     const projet = mkdtempSync(path.join(ESSAIS, 'ignore-'));
     ecrire(projet, '.gitignore', `node_modules\n${l}\n`);
-    mettreAJour(projet, DEPOT, 'essai');
+    mettreAJour(projet, DEPOT);
     expect(lire(projet, '.gitignore')).toBe(`node_modules\n${l}\n`);
   });
   it('a project that runs Vitest receives test, test:vitest, test:forcer and verifier of the frame, together', () => {
@@ -688,7 +537,7 @@ function apresMaj(pkg: Record<string, unknown>, src: string = DEPOT, o: { vitest
     vitestALaRacine(projet);
   }
   ecrire(projet, 'package.json', `${JSON.stringify(pkg, null, 2)}\n`);
-  mettreAJour(projet, src, 'essai');
+  mettreAJour(projet, src);
   return { projet, pkg: json(projet, 'package.json') as Pkg };
 }
 
@@ -761,7 +610,7 @@ describe('grillhouse-3uv.60 critère 1 — the update writes api and the depende
   });
   it('critère 1: a project without package.json gets none for the dependencies', () => {
     const projet = mkdtempSync(path.join(ESSAIS, 'deps-'));
-    mettreAJour(projet, DEPOT, 'essai');
+    mettreAJour(projet, DEPOT);
     expect(existsSync(path.join(projet, 'package.json'))).toBe(false);
   });
 });
@@ -934,7 +783,7 @@ describe('grillhouse-3uv.60 critère 3 — a replayed update changes nothing', (
     it(`critère 3: a project ${nom} keeps its package.json byte for byte on a second update`, () => {
       const { projet } = apresMaj(pkg);
       const premier = lire(projet, 'package.json');
-      mettreAJour(projet, DEPOT, 'essai');
+      mettreAJour(projet, DEPOT);
       expect(lire(projet, 'package.json')).toBe(premier);
       const p = JSON.parse(premier) as Pkg;
       expect(p.scripts?.api, 'the first update wrote api').toBe(modele().scripts?.api);
@@ -946,7 +795,7 @@ describe('grillhouse-3uv.60 critère 3 — a replayed update changes nothing', (
     });
     const { projet } = apresMaj({ name: 'p', devDependencies: { eslint: '^8.0.0' } }, src);
     const premier = lire(projet, 'package.json');
-    mettreAJour(projet, src, 'essai');
+    mettreAJour(projet, src);
     expect(lire(projet, 'package.json')).toBe(premier);
     expect((JSON.parse(premier) as Pkg).devDependencies?.knip).toBe('5.0.1');
   });
@@ -960,7 +809,7 @@ describe('grillhouse-3uv.60 critère 7 — a dependency a previous version wrote
     const src = sourceRetouchee(p => {
       delete p.devDependencies?.knip;
     });
-    mettreAJour(projet, src, 'essai');
+    mettreAJour(projet, src);
     const pkg = json(projet, 'package.json') as Pkg;
     expect(pkg.devDependencies?.knip).toBe(avant);
     expect(pkg.devDependencies?.['dependency-cruiser']).toBe(
@@ -978,7 +827,7 @@ describe('grillhouse-3uv.60 critère 7 — a dependency a previous version wrote
         delete p.devDependencies?.[d];
       }
     });
-    mettreAJour(projet, src, 'essai');
+    mettreAJour(projet, src);
     expect((json(projet, 'package.json') as Pkg).devDependencies).toEqual(premier);
   });
   it('critère 7: they stay when the new source has no package.json', () => {
@@ -987,7 +836,7 @@ describe('grillhouse-3uv.60 critère 7 — a dependency a previous version wrote
     expect(Object.keys(premier ?? {}).sort(), 'the first update wrote the three').toEqual(
       DEPENDANCES
     );
-    mettreAJour(projet, sourceAvec(null), 'essai');
+    mettreAJour(projet, sourceAvec(null));
     expect((json(projet, 'package.json') as Pkg).devDependencies).toEqual(premier);
   });
   it('critère 7: a dependency written from another source stays, at its version, when the next drops it', () => {
@@ -999,7 +848,7 @@ describe('grillhouse-3uv.60 critère 7 — a dependency a previous version wrote
     const suivante = sourceRetouchee(p => {
       delete p.devDependencies?.knip;
     });
-    mettreAJour(projet, suivante, 'essai');
+    mettreAJour(projet, suivante);
     expect((json(projet, 'package.json') as Pkg).devDependencies?.knip).toBe('5.0.1');
   });
 });
@@ -1061,28 +910,26 @@ const lancerMaj = (projet: string, src: string) =>
   spawnSync('node', [SCRIPT_MAJ, '--source', src], { cwd: projet, encoding: 'utf8' });
 
 // The version of the frame: the `version` of the source's package, packages/grillhouse/package.json,
-// which the report names; the project receives no file of version.
+// which the report names; the project receives no file of the frame (grillhouse-3uv.84.2).
 describe('the update names the version of the frame it installs', () => {
   it('the report names the version of the source’s package', () => {
     const src = source({
-      '.claude/grillhouse/fichiers.txt': '.claude/grillhouse/\n',
       'packages/grillhouse/package.json':
         '{ "name": "@roomi-fields/grillhouse", "version": "0.16.0" }\n',
     });
     const projet = mkdtempSync(path.join(ESSAIS, 'version-'));
     const r = lancerMaj(projet, src);
     expect(r.status, r.stderr).toBe(0);
-    expect(r.stdout).toMatch(/^Cadre 0\.16\.0 \(commit [^)]+\) : 1 fichier\(s\) copié\(s\)/);
+    expect(r.stdout).toMatch(/^Cadre 0\.16\.0 \(commit [^)]+\)\.\n/);
     expect(existsSync(path.join(projet, 'packages/grillhouse/package.json'))).toBe(false);
   });
   it('a source without the package’s package.json is named without a version', () => {
     const src = source({
-      '.claude/grillhouse/fichiers.txt': 'METACADRE.md\n',
       'METACADRE.md': 'm',
     });
     const r = lancerMaj(mkdtempSync(path.join(ESSAIS, 'version-')), src);
     expect(r.status, r.stderr).toBe(0);
-    expect(r.stdout).toMatch(/^Cadre sans version \(commit [^)]+\) : /);
+    expect(r.stdout).toMatch(/^Cadre sans version \(commit [^)]+\)\./);
   });
 });
 // A trial project with `pkg` as its package.json, and a one-file source with the template's
@@ -1212,106 +1059,6 @@ describe('grillhouse-3uv.64 critère 25 — the update declares every tool of th
     const version = modele().devDependencies?.[nom];
     expect(version, `the frame declares ${nom}`).toBeTypeOf('string');
     expect(pkg.devDependencies?.[nom]).toBe(version);
-  });
-});
-
-// grillhouse-3uv.56 critère 13: the update writes `.claude/settings.json` only when its content
-// changes, and keeps the order of the file's keys. Witness: BPScript (322.9), where a rewrite with
-// nothing to change moved statusLine after hooks and the integration refused the copy at step 3.
-describe('grillhouse-3uv.56 critère 13 — the settings are written only when their content changes', () => {
-  const REGLAGES = '.claude/settings.json';
-  const ANCIENNE = new Date('2001-01-01T00:00:00Z');
-  const cadreDuDepot = () =>
-    JSON.parse(readFileSync(path.join(DEPOT, REGLAGES), 'utf8')) as Record<string, unknown>;
-  // The settings file of <projet> dated in the past, so that a write shows in its time.
-  const dater = (projet: string) => utimesSync(path.join(projet, REGLAGES), ANCIENNE, ANCIENNE);
-  const date = (projet: string) => statSync(path.join(projet, REGLAGES)).mtime.getTime();
-
-  it('critère 13: a replayed update leaves .claude/settings.json unwritten, byte for byte', () => {
-    const { projet } = installe({ name: 'p' });
-    const premier = lire(projet, REGLAGES);
-    dater(projet);
-    mettreAJour(projet, DEPOT, 'essai');
-    expect(lire(projet, REGLAGES)).toBe(premier);
-    expect(date(projet)).toBe(ANCIENNE.getTime());
-  });
-
-  it('critère 13: settings holding the frame’s, keys in the project’s own order (statusLine first, hooks last), are not written', () => {
-    const { statusLine, hooks, ...reste } = cadreDuDepot();
-    const projet = mkdtempSync(path.join(ESSAIS, 'ordre-'));
-    const texte = `${JSON.stringify({ statusLine, ...reste, hooks }, null, 2)}\n`;
-    ecrire(projet, REGLAGES, texte);
-    dater(projet);
-    mettreAJour(projet, DEPOT, 'essai');
-    expect(lire(projet, REGLAGES)).toBe(texte);
-    expect(date(projet)).toBe(ANCIENNE.getTime());
-  });
-
-  // Arbitrage of the regulator (comment « cas relevés par le testwriter »): the content is the JSON value;
-  // the same value under another layout is not a change.
-  it.each([
-    ['on one line', (v: unknown) => `${JSON.stringify(v)}\n`],
-    ['indented by tabs, without a final newline', (v: unknown) => JSON.stringify(v, null, '\t')],
-    [
-      'with arrays on one line, as prettier writes them',
-      (v: unknown) => `${JSON.stringify(v, null, 2).replace(/\[\s*("[^"\n]*")\s*\]/g, '[$1]')}\n`,
-    ],
-  ])(
-    'critère 13: settings holding the frame’s value %s are not written, byte for byte',
-    (_cas, ecrit) => {
-      const projet = mkdtempSync(path.join(ESSAIS, 'forme-'));
-      const texte = ecrit(cadreDuDepot());
-      expect(texte).not.toBe(`${JSON.stringify(cadreDuDepot(), null, 2)}\n`);
-      ecrire(projet, REGLAGES, texte);
-      dater(projet);
-      mettreAJour(projet, DEPOT, 'essai');
-      expect(lire(projet, REGLAGES)).toBe(texte);
-      expect(date(projet)).toBe(ANCIENNE.getTime());
-    }
-  );
-
-  it('critère 13: an update that changes the settings keeps the order of their keys, the frame’s new ones after', () => {
-    const src = source({
-      '.claude/grillhouse/fichiers.txt': 'METACADRE.md\n',
-      'METACADRE.md': 'meta',
-      [REGLAGES]: JSON.stringify({
-        hooks: { SessionStart: [crochet('debut')], Stop: [crochet('fin')] },
-        statusLine: { type: 'command', command: 'ligne neuve' },
-        enabledPlugins: { 'g@h': true },
-        extraKnownMarketplaces: { h: { source: {} } },
-      }),
-    });
-    const projet = mkdtempSync(path.join(ESSAIS, 'ordre-'));
-    ecrire(
-      projet,
-      REGLAGES,
-      `${JSON.stringify(
-        {
-          statusLine: { type: 'command', command: 'ligne ancienne' },
-          extraKnownMarketplaces: { mien: { source: {} } },
-          permissions: { allow: ['Bash(ls)'] },
-          hooks: { Stop: [crochet('mon-arret')], PreToolUse: [crochet('mien', 'Bash')] },
-          enabledPlugins: { 'a@b': true },
-          model: 'opus',
-        },
-        null,
-        2
-      )}\n`
-    );
-    mettreAJour(projet, src, 'essai');
-    const r = json(projet, REGLAGES);
-    expect(Object.keys(r)).toEqual([
-      'statusLine',
-      'extraKnownMarketplaces',
-      'permissions',
-      'hooks',
-      'enabledPlugins',
-      'model',
-    ]);
-    expect(r.statusLine).toEqual({ type: 'command', command: 'ligne neuve' });
-    expect(Object.keys(r.hooks as object)).toEqual(['Stop', 'PreToolUse', 'SessionStart']);
-    expect(Object.keys(r.enabledPlugins as object)).toEqual(['a@b', 'g@h']);
-    expect(Object.keys(r.extraKnownMarketplaces as object)).toEqual(['mien', 'h']);
   });
 });
 
@@ -1447,16 +1194,7 @@ describe('grillhouse-3uv.76 critère 1 — the update keeps the order of the set
   it('critère 1: after the install of the plugins, the settings keep the project’s key order, and a replayed update leaves them byte for byte', () => {
     const PLUGIN = 'p@m';
     const REGLAGES = '.claude/settings.json';
-    const src = source({
-      '.claude/grillhouse/fichiers.txt': 'METACADRE.md\n',
-      'METACADRE.md': 'meta',
-      [REGLAGES]: JSON.stringify({
-        hooks: { SessionStart: [crochet('debut')], Stop: [crochet('fin')] },
-        statusLine: { type: 'command', command: 'ligne' },
-        enabledPlugins: { [PLUGIN]: true },
-        extraKnownMarketplaces: { m: { source: { source: 'github', repo: 'x/m' } } },
-      }),
-    });
+    const src = source({ 'METACADRE.md': 'meta' });
     const projet = mkdtempSync(path.join(ESSAIS, 'greffons-ordre-'));
     // The project's own order, not Claude Code's: enabledPlugins first, statusLine after.
     const ordre = [
@@ -1486,14 +1224,13 @@ describe('grillhouse-3uv.76 critère 1 — the update keeps the order of the set
     const installs = (c: ReturnType<typeof claudeSubstitut>) =>
       c.appels().filter(a => a.argv[0] === 'plugin' && a.argv[1] === 'install');
 
-    // The update adds the frame's Stop hook (the content changes): the order stays the project's.
+    // The install of the plugin rewrites the settings in Claude Code's order: the project's stays.
     const premier = claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')), { marches: ['m'] });
     const r1 = lancerMajAvec(projet, ['--source', src], premier.bin);
     expect(r1.status, r1.stderr).toBe(0);
     expect(installs(premier).length, 'the plugin is installed').toBe(1);
     const apres = lire(projet, REGLAGES);
     expect(Object.keys(JSON.parse(apres) as object)).toEqual(ordre);
-    expect((JSON.parse(apres) as { hooks: object }).hooks).toHaveProperty('Stop');
 
     // Replayed (the content does not change), the plugin installed again: the file stays as it is.
     const second = claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')), { marches: ['m'] });
@@ -1509,7 +1246,7 @@ describe('grillhouse-3uv.76 critère 1 — the update keeps the order of the set
 // update can run on the sources alone (arbitrage of the ticket): scripts/frontieres.mjs --ecrire
 // and scripts/index-interfaces.mjs, whose outputs grillhouse:gardes refuses when stale.
 describe('grillhouse-3uv.76 critère 2 — the update regenerates what a frame generator it replaces produces', () => {
-  it('critère 2: after the update, .dependency-cruiser.cjs and docs/agents/index-des-interfaces.md are what the installed generators write, and their checks accept them', () => {
+  it('critère 2: after the update, .dependency-cruiser.cjs and docs/agents/index-des-interfaces.md are what the package’s generators write, and their checks accept them', () => {
     const projet = mkdtempSync(path.join(ESSAIS, 'generateur-'));
     ecrire(projet, 'package.json', `${JSON.stringify({ name: 'p' }, null, 2)}\n`);
     ecrire(projet, 'packages/moteur/package.json', `${JSON.stringify({ name: 'moteur' })}\n`);
@@ -1522,13 +1259,13 @@ describe('grillhouse-3uv.76 critère 2 — the update regenerates what a frame g
     // What previous generators wrote.
     const generes = {
       [CONFIG_DES_FRONTIERES]: {
-        generateur: 'packages/grillhouse/scripts/frontieres.mjs',
+        generateur: path.join(DEPOT, 'packages/grillhouse/scripts/frontieres.mjs'),
         ecrire: ['--ecrire'],
         verifier: [] as string[],
         perime: '// Généré par une version précédente.\nmodule.exports = { forbidden: [] };\n',
       },
       'docs/agents/index-des-interfaces.md': {
-        generateur: 'packages/grillhouse/scripts/index-interfaces.mjs',
+        generateur: path.join(DEPOT, 'packages/grillhouse/scripts/index-interfaces.mjs'),
         ecrire: [] as string[],
         verifier: ['--verifier'],
         perime: '# Index des interfaces\n\nGénéré par une version précédente.\n',
@@ -1542,12 +1279,13 @@ describe('grillhouse-3uv.76 critère 2 — the update regenerates what a frame g
       marches: [],
       echecsInstall: [],
     });
-    lancerMajAvec(projet, ['--source', DEPOT], claude.bin);
     // The project's tools are its installed devDependencies (the update declares dependency-cruiser
-    // there): the frame's node_modules stands for them. The checks run with node and npx alone on
-    // the PATH and an empty global prefix (npx --no-install also takes the global packages), so no
-    // tool installed on the machine stands in for the project's.
+    // there) and its package, whose command runs the generators: the frame's node_modules stands
+    // for them. The checks run with node and npx alone on the PATH and an empty global prefix (npx
+    // --no-install also takes the global packages), so no tool installed on the machine stands in
+    // for the project's.
     symlinkSync(path.join(DEPOT, 'node_modules'), path.join(projet, 'node_modules'), 'dir');
+    lancerMajAvec(projet, ['--source', DEPOT], claude.bin);
     const noeudSeul = mkdtempSync(path.join(ESSAIS, 'noeud-'));
     symlinkSync(process.execPath, path.join(noeudSeul, 'node'));
     symlinkSync(path.join(path.dirname(process.execPath), 'npx'), path.join(noeudSeul, 'npx'));
@@ -1562,13 +1300,12 @@ describe('grillhouse-3uv.76 critère 2 — the update regenerates what a frame g
         },
       });
     for (const [fichier, g] of Object.entries(generes)) {
-      expect(lire(projet, g.generateur), g.generateur).toBe(lire(DEPOT, g.generateur));
       const ecrite = lire(projet, fichier);
       expect(ecrite, fichier).not.toBe(g.perime);
       // The guard of grillhouse:gardes accepts what the update left.
       const v = noeud([g.generateur, ...g.verifier]);
       expect(v.status, `${fichier}: ${v.stdout}${v.stderr}`).toBe(0);
-      // The installed generator, run in the project, writes the same text.
+      // The package's generator, run in the project, writes the same text.
       const e = noeud([g.generateur, ...g.ecrire]);
       expect(e.status, e.stderr).toBe(0);
       expect(ecrite, fichier).toBe(lire(projet, fichier));
@@ -1579,7 +1316,6 @@ describe('grillhouse-3uv.76 critère 2 — the update regenerates what a frame g
 describe('grillhouse-3uv.76 critère 3 — the update refuses an unknown option, --help included', () => {
   it('critère 3: --help and another unknown option are refused, the usage shown, nothing updated', () => {
     const src = source({
-      '.claude/grillhouse/fichiers.txt': 'METACADRE.md\n',
       'METACADRE.md': 'meta',
       '.claude/settings.json': JSON.stringify({ hooks: { SessionStart: [crochet('debut')] } }),
     });
@@ -1692,14 +1428,17 @@ describe('grillhouse-3uv.80 critère 6 — a project whose test is already the f
 
 // grillhouse-3uv.80 critère 3. Witness: BPScript, where the update that ran was the project's copy of
 // scripts/grillhouse-maj.mjs: it copied the new version over itself, then went on with its old logic
-// (a second pass was needed for `npm test` to be replaced). The new frame of the trial is this
-// repository's, its update script changed so that it writes another `tableau` script.
+// (a second pass was needed for `npm test` to be replaced). The package's script hands over to the
+// source's. The new frame of the trial is this repository's, its update script changed so that it
+// writes another `tableau` script.
 const TABLEAU_NEUF = 'grillhouse tableau --texte --neuf';
 function cadreNeuf() {
   const s = mkdtempSync(path.join(ESSAIS, 'cadre-neuf-'));
-  const { garder } = lireListe(lire(DEPOT, '.claude/grillhouse/fichiers.txt'));
-  const cadre = fichiersDuCadre(DEPOT, garder) as string[];
-  for (const f of [...cadre, 'package.json', '.claude/settings.json']) {
+  const suivis = spawnSync('git', ['ls-files', '-co', '--exclude-standard', '-z'], {
+    cwd: DEPOT,
+    encoding: 'utf8',
+  }).stdout.split('\0');
+  for (const f of suivis.filter(f => f && existsSync(path.join(DEPOT, f)))) {
     mkdirSync(path.dirname(path.join(s, f)), { recursive: true });
     copyFileSync(path.join(DEPOT, f), path.join(s, f));
   }
@@ -1713,24 +1452,20 @@ function cadreNeuf() {
   return s;
 }
 describe('grillhouse-3uv.80 critère 3 — one pass of the update suffices, its own script changed', () => {
-  it('critère 3: the project’s update, run once toward a frame whose update script changed, ends with the new script’s work, and a second pass changes nothing', () => {
+  it('critère 3: the package’s update, run once toward a frame whose update script changed, ends with the new script’s work, and a second pass changes nothing', () => {
     const projet = mkdtempSync(path.join(ESSAIS, 'une-passe-'));
     ecrire(projet, 'package.json', `${JSON.stringify({ name: 'p' }, null, 2)}\n`);
     const claude = () =>
       claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')), {
         marches: ['claude-plugins-official', 'roomi-fields'],
       }).bin;
-    // The frame of this repository, installed: the project holds its update script.
     lancerMajAvec(projet, ['--source', DEPOT], claude());
-    expect(lire(projet, 'packages/grillhouse/scripts/grillhouse-maj.mjs')).toBe(
-      lire(DEPOT, 'packages/grillhouse/scripts/grillhouse-maj.mjs')
-    );
     const src = cadreNeuf();
-    // The project's own update script, as `npm run grillhouse:maj` runs it.
+    // The package's update script, as `npm run grillhouse:maj` runs it.
     const majDuProjet = () =>
       spawnSync(
         process.execPath,
-        ['packages/grillhouse/scripts/grillhouse-maj.mjs', '--source', src],
+        [path.join(DEPOT, 'packages/grillhouse/scripts/grillhouse-maj.mjs'), '--source', src],
         {
           cwd: projet,
           encoding: 'utf8',
@@ -1739,9 +1474,6 @@ describe('grillhouse-3uv.80 critère 3 — one pass of the update suffices, its 
         }
       );
     const r = majDuProjet();
-    expect(lire(projet, 'packages/grillhouse/scripts/grillhouse-maj.mjs')).toBe(
-      lire(src, 'packages/grillhouse/scripts/grillhouse-maj.mjs')
-    );
     expect(
       (json(projet, 'package.json').scripts as Record<string, string>).tableau,
       `${r.stdout}${r.stderr}`
@@ -1759,10 +1491,12 @@ describe('grillhouse-3uv.80 critère 3 — one pass of the update suffices, its 
 const CONFIG_VITEST = 'packages/grillhouse/scripts/vitest-config';
 const NOM_CONFIG = '@grillhouse/vitest-config';
 const pkgJson = (o: Record<string, unknown>) => `${JSON.stringify(o, null, 2)}\n`;
-// A project of packages: `teste` holds a test:vitest, `sans` none.
+// A project of packages: `teste` holds a test:vitest, `sans` none; the frame's configuration
+// package of Vitest sits where `npm run new` places it.
 function projetAPaquets(workspaces: unknown) {
   const projet = mkdtempSync(path.join(ESSAIS, 'config-vitest-'));
   ecrire(projet, 'package.json', pkgJson({ name: 'p', private: true, workspaces }));
+  ecrire(projet, `${CONFIG_VITEST}/package.json`, lire(DEPOT, `${CONFIG_VITEST}/package.json`));
   ecrire(
     projet,
     'packages/teste/package.json',
@@ -1781,7 +1515,7 @@ const devDeps = (projet: string, f: string) =>
 describe('the update makes the configuration package of Vitest a workspace of a project of packages', () => {
   it('adds its directory to the workspaces, and each tested package declares it in its devDependencies', () => {
     const projet = projetAPaquets(['packages/*']);
-    const b = mettreAJour(projet, DEPOT, 'essai');
+    const b = mettreAJour(projet, DEPOT);
     expect(json(projet, 'package.json').workspaces).toEqual(['packages/*', CONFIG_VITEST]);
     expect(json(projet, `${CONFIG_VITEST}/package.json`).name).toBe(NOM_CONFIG);
     expect(devDeps(projet, 'packages/teste/package.json')).toEqual({ [NOM_CONFIG]: '*' });
@@ -1794,14 +1528,14 @@ describe('the update makes the configuration package of Vitest a workspace of a 
   });
   it('the `packages` key of the workspaces receives it the same way', () => {
     const projet = projetAPaquets({ packages: ['packages/*'] });
-    mettreAJour(projet, DEPOT, 'essai');
+    mettreAJour(projet, DEPOT);
     expect(json(projet, 'package.json').workspaces).toEqual({
       packages: ['packages/*', CONFIG_VITEST],
     });
   });
   it('workspaces that already select it are left as they are', () => {
     const projet = projetAPaquets(['packages/*', 'packages/grillhouse/scripts/*']);
-    mettreAJour(projet, DEPOT, 'essai');
+    mettreAJour(projet, DEPOT);
     expect(json(projet, 'package.json').workspaces).toEqual([
       'packages/*',
       'packages/grillhouse/scripts/*',
@@ -1817,7 +1551,7 @@ describe('the update makes the configuration package of Vitest a workspace of a 
       ecrire(projet, 'docs/agents/hors-cadre.txt', 'kanopi projet voisin\n');
       const kanopi = pkgJson({ name: 'kanopi', scripts: { 'test:vitest': 'vitest run' } });
       ecrire(projet, 'packages/kanopi/package.json', kanopi);
-      mettreAJour(projet, DEPOT, 'essai');
+      mettreAJour(projet, DEPOT);
       expect(lire(projet, 'packages/kanopi/package.json')).toBe(kanopi);
       expect(devDeps(projet, 'packages/teste/package.json')).toEqual({ [NOM_CONFIG]: '*' });
     });
@@ -1839,7 +1573,7 @@ describe('the update makes the configuration package of Vitest a workspace of a 
         devDependencies: { zod: '*', vitest: '^2.0.0' },
       })
     );
-    mettreAJour(projet, DEPOT, 'essai');
+    mettreAJour(projet, DEPOT);
     expect(lire(projet, 'packages/propre/package.json')).toBe(propre);
     expect(Object.keys(devDeps(projet, 'packages/teste/package.json'))).toEqual([
       NOM_CONFIG,
@@ -1849,10 +1583,10 @@ describe('the update makes the configuration package of Vitest a workspace of a 
   });
   it('a replayed update changes no package.json', () => {
     const projet = projetAPaquets(['packages/*']);
-    mettreAJour(projet, DEPOT, 'essai');
+    mettreAJour(projet, DEPOT);
     const fichiers = ['package.json', 'packages/teste/package.json', 'packages/sans/package.json'];
     const avant = fichiers.map(f => lire(projet, f));
-    const b = mettreAJour(projet, DEPOT, 'essai');
+    const b = mettreAJour(projet, DEPOT);
     expect(fichiers.map(f => lire(projet, f))).toEqual(avant);
     expect(b.configVitest).toBeNull();
   });
@@ -1860,78 +1594,13 @@ describe('the update makes the configuration package of Vitest a workspace of a 
     const projet = mkdtempSync(path.join(ESSAIS, 'config-vitest-'));
     ecrire(projet, 'package.json', pkgJson({ name: 'p', workspaces: ['packages/*'] }));
     ecrire(projet, 'packages/sans/package.json', pkgJson({ name: 'sans' }));
-    expect(mettreAJour(projet, DEPOT, 'essai').configVitest).toBeNull();
+    expect(mettreAJour(projet, DEPOT).configVitest).toBeNull();
     expect(json(projet, 'package.json').workspaces).toEqual(['packages/*']);
   });
-  it('a project without workspaces, whose root holds the file, receives neither', () => {
+  it('a project without workspaces receives neither', () => {
     const { projet } = installe({ name: 'p', scripts: { 'test:vitest': 'vitest run' } });
     expect(json(projet, 'package.json')).not.toHaveProperty('workspaces');
     expect(devDeps(projet, 'package.json')).not.toHaveProperty(NOM_CONFIG);
-    expect(existsSync(path.join(projet, CONFIG_VITEST, 'base.mjs'))).toBe(true);
-  });
-  it('the update removes the former base configuration the previous version installed', () => {
-    const projet = projetAPaquets(['packages/*']);
-    ecrire(projet, 'scripts/vitest.base.config.mjs', 'export default {};\n');
-    ecrire(
-      projet,
-      '.claude/grillhouse/empreintes.json',
-      JSON.stringify({ version: 'ancienne', fichiers: { 'scripts/vitest.base.config.mjs': 'x' } })
-    );
-    const b = mettreAJour(projet, DEPOT, 'essai');
-    expect(b.retires).toContain('scripts/vitest.base.config.mjs');
-    expect(existsSync(path.join(projet, 'scripts/vitest.base.config.mjs'))).toBe(false);
-  });
-  // grillhouse-3uv.88: the former arbiter is now the technical referent, the former site manager
-  // the regulator; a project keeps no former agent nor skill, even one installed before the
-  // fingerprints.
-  it('the update removes the former agents of step 2 and their skills', () => {
-    const projet = projetAPaquets(['packages/*']);
-    const arbitre = 'arbitre';
-    const chef = 'chef-de-chantier';
-    const anciens = [
-      `.claude/agents/${arbitre}.md`,
-      `.claude/agents/${chef}.md`,
-      `.claude/skills/${arbitre}/SKILL.md`,
-      `.claude/skills/${chef}/SKILL.md`,
-    ];
-    for (const f of anciens) {
-      ecrire(projet, f, 'ancien\n');
-    }
-    mettreAJour(projet, DEPOT, 'essai');
-    for (const f of anciens) {
-      expect(existsSync(path.join(projet, f)), f).toBe(false);
-    }
-    expect(existsSync(path.join(projet, `.claude/skills/${arbitre}`))).toBe(false);
-    expect(existsSync(path.join(projet, `.claude/skills/${chef}`))).toBe(false);
-    for (const f of [
-      '.claude/agents/referent-technique.md',
-      '.claude/agents/regulateur.md',
-      '.claude/skills/referent-technique/SKILL.md',
-      '.claude/skills/regulateur/SKILL.md',
-    ]) {
-      expect(existsSync(path.join(projet, f)), f).toBe(true);
-    }
-  });
-  // The former testeur is now the testwriter (Romain, 2026-10-21); a project keeps neither its
-  // agent nor its skill.
-  it('the update removes the former agent and skill of step 2.1', () => {
-    const projet = projetAPaquets(['packages/*']);
-    const ancien = 'testeur';
-    const anciens = [`.claude/agents/${ancien}.md`, `.claude/skills/${ancien}/SKILL.md`];
-    for (const f of anciens) {
-      ecrire(projet, f, 'ancien\n');
-    }
-    const b = mettreAJour(projet, DEPOT, 'essai');
-    for (const f of anciens) {
-      expect(existsSync(path.join(projet, f)), f).toBe(false);
-    }
-    expect(existsSync(path.join(projet, `.claude/skills/${ancien}`))).toBe(false);
-    expect(b.retires).toEqual(
-      expect.arrayContaining([`.claude/agents/${ancien}.md`, `.claude/skills/${ancien}/`])
-    );
-    for (const f of ['.claude/agents/testwriter.md', '.claude/skills/testwriter/SKILL.md']) {
-      expect(existsSync(path.join(projet, f)), f).toBe(true);
-    }
   });
   it('the report names the workspace added, the packages that declare it, the import to write and npm install', () => {
     const projet = projetAPaquets(['packages/*']);
@@ -1969,50 +1638,8 @@ describe('the update knows a project to run Vitest by the packages of the frame 
         'packages/kanopi/package.json',
         pkgJson({ name: 'kanopi', devDependencies: { vitest: '^2.0.0' } })
       );
-      mettreAJour(projet, DEPOT, 'essai');
+      mettreAJour(projet, DEPOT);
       expect((json(projet, 'package.json').scripts as Record<string, string>).test).toBe(propre);
-    });
-  }
-});
-
-// The update a project runs is its own copy of scripts/grillhouse-maj.mjs, which a former version
-// may have written over itself; the modules beside it are the former version's. The source's
-// script does the update, with the source's modules beside it.
-describe('the update runs the source’s script, whose modules are the source’s', () => {
-  for (const [cas, retouche] of [
-    [
-      'a module of the project lacks what the new script imports',
-      (projet: string) =>
-        ecrire(projet, 'packages/grillhouse/scripts/paquets.mjs', 'export const x = 1;\n'),
-    ],
-    [
-      'a module of the project is absent',
-      (projet: string) => rmSync(path.join(projet, 'packages/grillhouse/scripts/paquets.mjs')),
-    ],
-  ] as const) {
-    it(`${cas}: one pass of the project’s update succeeds, and brings the module`, () => {
-      const projet = projetAPaquets(['packages/*']);
-      symlinkSync(path.join(DEPOT, 'node_modules'), path.join(projet, 'node_modules'), 'dir');
-      const bin = () =>
-        claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')), {
-          marches: ['claude-plugins-official', 'roomi-fields'],
-        }).bin;
-      lancerMajAvec(projet, ['--source', DEPOT], bin());
-      retouche(projet);
-      const r = spawnSync(
-        process.execPath,
-        ['packages/grillhouse/scripts/grillhouse-maj.mjs', '--source', DEPOT],
-        {
-          cwd: projet,
-          encoding: 'utf8',
-          env: { PATH: cheminSysteme(bin()), HOME: mkdtempSync(path.join(ESSAIS, 'maison-')) },
-          timeout: 120_000,
-        }
-      );
-      expect(r.status, `${r.stdout}${r.stderr}`).toBe(0);
-      expect(lire(projet, 'packages/grillhouse/scripts/paquets.mjs')).toBe(
-        lire(DEPOT, 'packages/grillhouse/scripts/paquets.mjs')
-      );
     });
   }
 });

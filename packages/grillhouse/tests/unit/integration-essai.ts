@@ -444,9 +444,7 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
   // finds its envelope) and claude by a script that records the session in <bin>/sessions.
   const lanceur = path.join(bin, 'scripts/enveloppe/lancer.sh');
   const lancer = (id: string): SpawnSyncReturns<string> => {
-    const role = path.join(repo, '.claude/agents/developpeur.md');
-    if (!existsSync(role)) {
-      ecrire(repo, '.claude/agents/developpeur.md', '---\nname: developpeur\n---\n');
+    if (!existsSync(lanceur)) {
       cpSync(path.dirname(path.dirname(LANCER)), path.join(bin, 'scripts'), { recursive: true });
       writeFileSync(path.join(bin, 'scripts/enveloppe/enveloppe.mjs'), ENVELOPPE_NUE);
       writeFileSync(

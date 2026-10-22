@@ -2,12 +2,6 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "workspaces": {
     ".": {
-      "entry": [
-        ".claude/skills/*/scripts/*.cjs"
-      ],
-      "project": [
-        ".claude/skills/*/scripts/*.cjs"
-      ],
       "ignoreDependencies": [
         "dotenv",
         "zod"
@@ -22,6 +16,14 @@
         "bin/*.mjs",
         "scripts/**/*.mjs",
         "tests/**/*.ts"
+      ]
+    },
+    "packages/grillhouse/scripts/vitest-config": {
+      "entry": [
+        "*.mjs"
+      ],
+      "project": [
+        "*.mjs"
       ]
     }
   },
