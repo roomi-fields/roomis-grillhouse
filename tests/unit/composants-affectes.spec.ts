@@ -135,11 +135,71 @@ describe('the survey of the components a ticket touches', () => {
     expect(r.composants).toEqual(['030-binder', '040-checker', '050-emitter']);
   });
 
-  it('sets apart a name no interface publishes', () => {
-    const r = releve(depot(DEPOT), description('`actors` dit qui joue.', '1. `members` reste.'));
+  it('sets apart a symbol of the repository no interface publishes', () => {
+    const r = releve(depot(DEPOT), description('`b` dit qui lie.', '1. `c` reste.'));
     expect(r.elements).toEqual([]);
-    expect(r.sansFournisseur).toEqual(['actors', 'members']);
+    expect(r.sansFournisseur).toEqual(['b', 'c']);
     expect(r.composants).toEqual([]);
+  });
+
+  // grillhouse-3uv.92.8, criterion 3 — in BPScript 320.4, `zx`, `v`, `a`, the new faults
+  // `CHECK_MEMBER_RETYPED` and `CHECK_RANGE_WIDENED` were listed « sans interface qui les
+  // publie » beside real names: words of the ticket (an example of a scene, a fault to create),
+  // which name no symbol of the repository and no path of it.
+  it('leaves out a word of the ticket that names no symbol nor path of the repository', () => {
+    const r = releve(
+      depot({ ...DEPOT, 'libraries/alphabets.bpsl': 'sound piano\n' }),
+      description(
+        '`def zx(integer? v)` puis `zx`, `v`, `CHECK_MEMBER_RETYPED` ; `b` reste ; `libraries`.',
+        '1. `actors` et `members` se refusent.'
+      )
+    );
+    expect(r.sansFournisseur).toEqual(['b', 'libraries']);
+    expect(texteDuReleve(r)).toContain('- Sans interface qui les publie : `b`, `libraries`.');
+  });
+
+  // grillhouse-3uv.92.8, criterion 1 — in BPScript 320.4, 995-tools, whose `grillhouse.lit`
+  // declares `libraries`, was not found while the ticket changed `libraries/alphabets.bpsl`. As
+  // the `data` of Bazel, a package that declares it reads a path is a reader of that path.
+  it('finds as a reader a package whose grillhouse.lit covers a path the ticket changes', () => {
+    const racine = depot({
+      ...DEPOT,
+      'libraries/alphabets.bpsl': 'sound piano\n',
+      'libraries/autres.bpsl': 'x\n',
+      'spec/LANGUAGE.md': '# Langage\n',
+      'packages/tools/package.json': JSON.stringify({
+        name: '995-tools',
+        type: 'module',
+        grillhouse: { lit: ['package.json', 'libraries'] },
+      }),
+      // corpus reads a folder of forms the ticket names by its component.
+      'packages/corpus/package.json': JSON.stringify({
+        name: '990-corpus',
+        type: 'module',
+        grillhouse: { lit: ['packages/forms/trace'] },
+      }),
+      // ranker reads a path the ticket does not change.
+      'packages/ranker/package.json': JSON.stringify({
+        name: '090-ranker',
+        type: 'module',
+        grillhouse: { lit: ['spec/autre'] },
+      }),
+    });
+    const r = releve(
+      racine,
+      description(
+        'Documents touchés : libraries/alphabets.bpsl:46-49, spec/LANGUAGE.md ; `fusion.ts:14`.',
+        '1. 000-forms garde ses formes.'
+      )
+    );
+    expect(r.lit).toEqual([
+      { composant: '990-corpus', par: ['lit packages/forms/trace (packages/forms)'] },
+      { composant: '995-tools', par: ['lit libraries (libraries/alphabets.bpsl)'] },
+    ]);
+    expect(r.composants).toEqual(['000-forms', '990-corpus', '995-tools']);
+    expect(texteDuReleve(r)).toContain(
+      '- Par les chemins lus (`grillhouse.lit`) : 990-corpus (lit packages/forms/trace (packages/forms)), 995-tools (lit libraries (libraries/alphabets.bpsl)).'
+    );
   });
 
   it('puts the provider before its readers, by the imports between them', () => {
@@ -179,7 +239,7 @@ describe('the survey of the components a ticket touches', () => {
   it('writes the survey for the Architecture section: the title list, then each element and its readers', () => {
     const r = releve(
       depot(DEPOT),
-      description('`duree` sort ; `actors` aussi.', '1. 040-checker garde sa lecture.')
+      description('`duree` sort ; `b` aussi.', '1. 040-checker garde sa lecture.')
     );
     const t = texteDuReleve(r);
     expect(t.split('\n')[0]).toBe(
@@ -189,7 +249,7 @@ describe('the survey of the components a ticket touches', () => {
       '- `duree` : fourni par 000-forms ; lu par 030-binder (import), 040-checker (consommateurs), 050-emitter (packages/emitter/test/duree.test.ts).'
     );
     expect(t).toContain('- Nommés au ticket : 040-checker.');
-    expect(t).toContain('- Sans interface qui les publie : `actors`.');
+    expect(t).toContain('- Sans interface qui les publie : `b`.');
   });
 
   it('runs as a command on a draft description, its survey on the standard output', () => {

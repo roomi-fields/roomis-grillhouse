@@ -18,9 +18,12 @@
 //   « référence à » otherwise.
 // - An internal declaration is carried by the published declarations of its package that reach
 //   it, through the references of its package (its type for a member). Each carrier's readers
-//   are those of a published declaration, and the components its types reach: a function of
-//   another component that returns a type the carrier receives, or receives a type the carrier
-//   returns (« type X rendu par f, reçu par g »). A type returned holds the types of its
+//   are those of a published declaration, and the components that read what it returns: a
+//   function of another component that receives a type the carrier returns, in a component whose
+//   production code reads that type's content (a property access, an element access, a
+//   destructuring) (« type X rendu par f, reçu par g »). A component that hands the type on
+//   without reading it, or produces a type the carrier receives, carries it and reads nothing of
+//   the carrier, as in a graph of declared dependencies. A type returned holds the types of its
 //   properties, one level deep; a type is read through its unions, its arrays and its type
 //   arguments, and counts when a component declares it, under a name. A value goes from one
 //   function to the other when the component of one references the other, or through the
@@ -466,6 +469,37 @@ function releveParLesTypes(racine, tous, ecrits, { fichiers = new Set(), composa
       .sort();
     return par.length ? `, transporté par ${par.join(', ')}` : null;
   };
+  // The named types whose content the production code of the component <c> reads: the object of
+  // a property access, an element access or a destructuring.
+  const contenus = new Map();
+  const contenusLus = c => {
+    if (!contenus.has(c)) {
+      const out = new Map();
+      const visiter = n => {
+        const objet =
+          ts.isPropertyAccessExpression(n) || ts.isElementAccessExpression(n)
+            ? n.expression
+            : ts.isObjectBindingPattern(n)
+              ? n
+              : null;
+        if (objet) {
+          typesDe(checker.getTypeAtLocation(objet), 0, out);
+        }
+        ts.forEachChild(n, visiter);
+      };
+      for (const sf of programme.getSourceFiles()) {
+        if (
+          composantDe(sf.fileName) === c &&
+          !estTest(c, sf.fileName) &&
+          !DECLARATION.test(sf.fileName)
+        ) {
+          visiter(sf);
+        }
+      }
+      contenus.set(c, out);
+    }
+    return contenus.get(c);
+  };
   // The functions a component publishes: [{ nom, noeud, recoit: Map, rend: Map }], the types they
   // receive (their parameters') and return (their properties' too, one level).
   const fonctions = new Map();
@@ -599,17 +633,8 @@ function releveParLesTypes(racine, tous, ecrits, { fichiers = new Set(), composa
             continue;
           }
           for (const f of fonctionsDe(c)) {
-            for (const [t, n] of forme.recoit) {
-              if (!f.rend.has(t)) {
-                continue;
-              }
-              const v = passage(f.noeud, c, p.noeud, d.c);
-              if (v !== null) {
-                lire(c, `type ${n} rendu par ${f.nom}, reçu par ${p.nom}${v}`);
-              }
-            }
             for (const [t, n] of forme.rend) {
-              if (!f.recoit.has(t)) {
+              if (!f.recoit.has(t) || !contenusLus(c).has(t)) {
                 continue;
               }
               const v = passage(p.noeud, d.c, f.noeud, c);

@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { releve, texteDuReleve } from '../../scripts/composants-affectes.mjs';
+import { manquants, releve, texteDuReleve } from '../../scripts/composants-affectes.mjs';
 
 // The survey of a ticket's components by the types and by the architecture (Romain, 2026-10-21:
 // « l'agent analyste initial doit utiliser codegraph, le service de langage typescript et les
@@ -12,11 +12,18 @@ import { releve, texteDuReleve } from '../../scripts/composants-affectes.mjs';
 // and of TypeScript's language service, an element of the ticket is resolved as a symbol, a member
 // of a type or a function internal to a package included, and its references are found through
 // the types, not through the text: an internal symbol leads to the published export that carries
-// it, and that export's types to the packages that produce or receive them. The Reçoit and Rend
-// of the CADRE.md of the packages that declare the elements follow a value through a package that
-// carries it. Witness: BPScript 320.3, where the survey by the names found 040-checker and missed
+// it, and that export's types to the packages that receive them and read their content. The Rend
+// of the CADRE.md of the packages that declare the elements names the readers of what they
+// return. Witness: BPScript 320.3, where the survey by the names found 040-checker and missed
 // 020-loader, whose `sceneWritten` (internal) writes the object of the scene into the `Registry`
 // that `load` returns, which 900-driver carries to 030-binder.
+//
+// grillhouse-3uv.92.8 — as a graph of declared dependencies (the `deps` and `data` of Bazel, the
+// `implicitDependencies` of Nx), a reader is a package that reads: carrying a type is not reading
+// it. In BPScript 320.4, 13 of the 15 components missing from the title were carriers (« type
+// ReadTree rendu par parse, reçu par bind, transporté par 900-driver ») or producers named by a
+// « Reçoit » of a CADRE.md; the supervisor set the 15 aside at once, 050-emitter and 900-driver
+// with them, and 995-tools, whose `grillhouse.lit` declares `libraries`, was not found.
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'composants-affectes-types-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
@@ -208,23 +215,54 @@ describe('the survey by the types', () => {
     expect(r.composants).not.toContain('050-alone');
   });
 
-  it('follows an internal function of a reader up to the producers of the type it receives', () => {
+  it('follows an internal function of a reader to the readers of what it returns, never to the producers of what it receives', () => {
     const r = releve(depot(DEPOT), description('`castOf` change.', '1. Rien.'));
     const e = parLesTypes(r, 'castOf');
     expect(e.declarations).toEqual([
       { composant: '030-binder', publie: false, porteurs: ['bind'] },
     ]);
+    // loader produces the registry bind receives: it reads nothing bind returns.
     expect(e.lecteurs).toEqual([
-      {
-        composant: '020-loader',
-        par: ['type Registry rendu par load, reçu par bind, transporté par 900-driver'],
-      },
       {
         composant: '040-checker',
         par: ['type Bound rendu par bind, reçu par check, transporté par 900-driver'],
       },
       { composant: '900-driver', par: ['appel de bind'] },
     ]);
+  });
+
+  // grillhouse-3uv.92.8, criterion 2.
+  it('leaves out a package that receives a type the carrier returns without reading its content', () => {
+    const racine = depot({
+      ...DEPOT,
+      // relay receives what bind returns and hands it on, without reading it.
+      ...ts('060-relay', 'relay'),
+      'packages/relay/src/index.ts': [
+        "import type { Bound } from '000-forms';",
+        '',
+        'export function relay(bound: Bound): Bound[] {',
+        '  return [bound];',
+        '}',
+        '',
+      ].join('\n'),
+      'packages/driver/src/index.ts': [
+        "import { load } from '020-loader';",
+        "import { bind } from '030-binder';",
+        "import { check } from '040-checker';",
+        "import { relay } from '060-relay';",
+        '',
+        'export function compile(origin: number): number {',
+        '  return relay(bind(load(origin).registry)).map(check).length;',
+        '}',
+        '',
+      ].join('\n'),
+    });
+    const r = releve(racine, description('`castOf` change.', '1. Rien.'));
+    expect(parLesTypes(r, 'castOf').lecteurs.map(l => l.composant)).toEqual([
+      '040-checker',
+      '900-driver',
+    ]);
+    expect(r.composants).not.toContain('060-relay');
   });
 
   it('keeps, among homonyms, the declaration in a file the ticket names', () => {
@@ -260,16 +298,16 @@ describe('the survey by the types', () => {
 });
 
 describe('the survey by the architecture', () => {
-  it('reads the Reçoit and Rend of the CADRE.md of a package that declares an element', () => {
+  it('reads the Rend of the CADRE.md of a package that declares an element, never its Reçoit', () => {
     const r = releve(depot(DEPOT), description('`castOf` change.', '1. Rien.'));
     expect(r.architecture).toEqual([
-      { composant: '020-loader', par: ['CADRE de 030-binder, Reçoit R3'] },
       { composant: '040-checker', par: ['CADRE de 030-binder, Rend R4'] },
-      { composant: '900-driver', par: ['CADRE de 030-binder, Reçoit R3'] },
     ]);
-    // Connaît names a package that is no producer nor reader.
+    // Reçoit names the producers, which read nothing the package returns; Connaît names a
+    // package that is no producer nor reader.
+    expect(r.composants).not.toContain('020-loader');
     expect(r.composants).not.toContain('050-alone');
-    expect(r.composants).toEqual(['020-loader', '030-binder', '040-checker', '900-driver']);
+    expect(r.composants).toEqual(['030-binder', '040-checker', '900-driver']);
   });
 
   it('writes each reader by the types and by the architecture in the survey, with what makes it one', () => {
@@ -280,9 +318,7 @@ describe('the survey by the architecture', () => {
     expect(t).toContain(
       '  - `sceneWritten` : interne à 020-loader, porté par `load` ; lu par 030-binder (type Registry rendu par load, reçu par bind, transporté par 900-driver), 900-driver (appel de load).'
     );
-    expect(t).toContain(
-      "- Par l'architecture : 020-loader (CADRE de 030-binder, Reçoit R3), 040-checker (CADRE de 030-binder, Rend R4), 900-driver (CADRE de 030-binder, Reçoit R3)."
-    );
+    expect(t).toContain("- Par l'architecture : 040-checker (CADRE de 030-binder, Rend R4).");
   });
 
   it('runs as a command on a draft, the readers by the types in its output', () => {
@@ -297,5 +333,157 @@ describe('the survey by the architecture', () => {
     });
     expect(r.status, r.stderr).toBe(0);
     expect(r.stdout).toContain('**Composants relevés** : 020-loader, 030-binder, 900-driver.');
+  });
+});
+
+// grillhouse-3uv.92.8, criterion 4 — the survey of BPScript 320.4 (2026-10-21, 17:35:48), reduced:
+// 030-binder merges the members (`membersOver`, internal, carried by `bind`) and publishes
+// `BoundObject.memberSources`; 040-checker reads them (`memberNamed`, internal, carried by
+// `check`); 900-driver carries the tree of 010-parser and the registry of 020-loader to `bind`,
+// and what `bind` returns to 040-checker, 050-emitter and 060-encoder; 050-emitter reads it,
+// 060-encoder hands it on; the CADRE.md of 030-binder receives from 010-parser and 020-loader;
+// 995-tools declares it reads `libraries`, which the ticket changes. Of the title « 000-forms,
+// 030-binder, 040-checker », the survey misses 050-emitter, 900-driver and 995-tools, and only
+// them.
+const DEPOT_320_4 = {
+  'package.json': JSON.stringify({ name: 'bpscript', private: true, workspaces: ['packages/*'] }),
+  'libraries/alphabets.bpsl': 'sound piano(midi(key:60), vel:80)\n',
+  ...ts('000-forms', '000-forms'),
+  'packages/000-forms/src/index.ts': [
+    'export type MemberSource = { readonly owner: string };',
+    'export type BoundObject = { readonly memberSources: readonly MemberSource[] };',
+    'export type ReadTree = { readonly items: readonly string[] };',
+    'export type Registry = { readonly names: readonly string[] };',
+    'export type Binding = { readonly objects: readonly BoundObject[] };',
+    '',
+  ].join('\n'),
+  'packages/000-forms/docs/INTERFACE.md': [
+    '# 000-forms',
+    '',
+    '<!-- généré: début -->',
+    '### `BoundObject`',
+    '',
+    'Un objet lié.',
+    '<!-- généré: fin -->',
+    '',
+  ].join('\n'),
+  ...ts('010-parser', '010-parser'),
+  'packages/010-parser/src/index.ts': [
+    "import type { ReadTree } from '000-forms';",
+    '',
+    'export function parse(text: string): ReadTree {',
+    "  return { items: text.split(' ') };",
+    '}',
+    '',
+  ].join('\n'),
+  ...ts('020-loader', '020-loader'),
+  'packages/020-loader/src/index.ts': [
+    "import type { Registry } from '000-forms';",
+    '',
+    'export function load(names: string[]): Registry {',
+    '  return { names };',
+    '}',
+    '',
+  ].join('\n'),
+  ...ts('030-binder', '030-binder'),
+  'packages/030-binder/src/index.ts': "export { bind } from './fusion.ts';\n",
+  'packages/030-binder/src/fusion.ts': [
+    "import type { Binding, MemberSource, ReadTree, Registry } from '000-forms';",
+    '',
+    'function membersOver(tree: ReadTree, registry: Registry): MemberSource[] {',
+    '  return [...tree.items, ...registry.names].map(owner => ({ owner }));',
+    '}',
+    '',
+    'export function bind(tree: ReadTree, registry: Registry): Binding {',
+    '  return { objects: [{ memberSources: membersOver(tree, registry) }] };',
+    '}',
+    '',
+  ].join('\n'),
+  'packages/030-binder/docs/CADRE.md': [
+    '# Cadre de 030-binder',
+    '',
+    '## 3. Reçoit',
+    '',
+    '- **R3.** De `900-driver`, l’arbre de `010-parser` et le registre de `020-loader`.',
+    '',
+  ].join('\n'),
+  ...ts('040-checker', '040-checker'),
+  'packages/040-checker/src/index.ts': [
+    "import type { Binding } from '000-forms';",
+    '',
+    'function memberNamed(binding: Binding, name: string): boolean {',
+    '  return binding.objects.some(o => o.memberSources.some(m => m.owner === name));',
+    '}',
+    '',
+    'export function check(binding: Binding): string[] {',
+    "  return memberNamed(binding, 'v') ? [] : ['CHECK_MEMBER_RETYPED_BY_EXEMPLAR'];",
+    '}',
+    '',
+  ].join('\n'),
+  ...ts('050-emitter', '050-emitter'),
+  'packages/050-emitter/src/index.ts': [
+    "import type { Binding } from '000-forms';",
+    '',
+    'export function emit(binding: Binding): number[] {',
+    '  return binding.objects.map(o => o.memberSources.length);',
+    '}',
+    '',
+  ].join('\n'),
+  ...ts('060-encoder', '060-encoder'),
+  'packages/060-encoder/src/index.ts': [
+    "import type { Binding } from '000-forms';",
+    '',
+    'export function encode(binding: Binding): readonly Binding[] {',
+    '  return [binding];',
+    '}',
+    '',
+  ].join('\n'),
+  ...ts('900-driver', '900-driver'),
+  'packages/900-driver/src/index.ts': [
+    "import { parse } from '010-parser';",
+    "import { load } from '020-loader';",
+    "import { bind } from '030-binder';",
+    "import { check } from '040-checker';",
+    "import { emit } from '050-emitter';",
+    "import { encode } from '060-encoder';",
+    '',
+    'export function compile(text: string): number {',
+    '  const binding = bind(parse(text), load([]));',
+    '  return check(binding).length + emit(binding).length + encode(binding).length;',
+    '}',
+    '',
+  ].join('\n'),
+  'packages/995-tools/package.json': JSON.stringify({
+    name: '995-tools',
+    type: 'module',
+    grillhouse: { lit: ['package.json', 'libraries'] },
+  }),
+};
+
+const TICKET_320_4 = description(
+  [
+    '- **Mécanisme commun, existant** : 030-binder fusionne par `membersOver` (fusion.ts:14-23)',
+    '  et publie `BoundObject.memberSources` ; 040-checker la lit par `memberNamed`. `T?` peut',
+    '  devenir `T`.',
+    '- **Documents touchés** : libraries/alphabets.bpsl:46-49.',
+  ].join('\n'),
+  [
+    '1. `def zx(integer? v)` puis `def zx(string? v)` se refuse, par la faute',
+    '   `CHECK_MEMBER_RETYPED`, qui nomme `zx`, `v` et `a`.',
+  ].join('\n')
+);
+
+describe('the survey of BPScript 320.4, reduced', () => {
+  it('finds 050-emitter, 900-driver and 995-tools, and leaves out the carriers and the producers', () => {
+    const racine = depot(DEPOT_320_4);
+    const r = releve(racine, TICKET_320_4);
+    expect(r.types.etat).toBe('fait');
+    expect(manquants(racine, r, ['000-forms', '030-binder', '040-checker'])).toEqual([
+      '050-emitter',
+      '900-driver',
+      '995-tools',
+    ]);
+    expect(r.sansFournisseur).toEqual([]);
+    expect(texteDuReleve(r)).not.toContain('Sans interface');
   });
 });

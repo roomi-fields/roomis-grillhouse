@@ -106,8 +106,9 @@ questioned, goes up to the supervisor: for the plan, the stop `questionnement` (
 plan questioned by the same agent before he gives it to the owner.
 Before the first testwriter, the circuit surveys the components the ticket's Architecture and criteria
 reach (`scripts/composants-affectes.mjs`: each element's provider and readers, by the names, by
-TypeScript's language service and by the Reçoit and Rend of the components' CADRE.md), as the explorer did
-for its title: a component it finds that the title misses, unless admitted out of it with its
+TypeScript's language service, by the paths their tests declare they read (`grillhouse.lit`) and
+by the Rend of the components' CADRE.md; a package that carries a type without reading it is no
+reader), as the explorer did for its title: a component it finds that the title misses, unless admitted out of it with its
 reason (`composants-affectes.mjs <ticket> --admettre`), stops the circuit at once, before any
 session (`composants-manquants`, 21); the supervisor adds it to the title, or answers why it stays
 out (`--reponse`).

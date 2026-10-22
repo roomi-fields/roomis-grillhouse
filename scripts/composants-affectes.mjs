@@ -26,7 +26,12 @@
 // - An element is a name between backquotes that begins with an identifier: a call (`f()`) or a
 //   member (`A.b`) is read by its head. Its provider is the component whose interface
 //   (`docs/INTERFACE.md`) publishes it: a heading of its generated part
-//   (scripts/index-interfaces.mjs). A name no interface publishes is set apart (`sansFournisseur`).
+//   (scripts/index-interfaces.mjs). A name no interface publishes, that names a symbol of the
+//   repository (a declaration at the top of a component's source) or a path of it, is set apart
+//   (`sansFournisseur`); a word that names neither (an example of the ticket, a fault to create)
+//   is left out.
+// - A reader is a component that reads, never one that carries a type, as in a graph of declared
+//   dependencies (the `deps` and `data` of Bazel, the `implicitDependencies` of Nx).
 // - The readers of an element are the other components that: its provider's `## Consommateurs`
 //   declares for it, or for `*` (`consommateurs`); import it, or the whole provider, in their
 //   production code (`import`, the uses of scripts/consommateurs.mjs); hold a test file that names
@@ -37,10 +42,14 @@
 //   carriers' types reach (`types`), with the consumers the declaring component's interface
 //   writes for a carrier. A survey by the types that cannot run says why, and the survey stands
 //   on the names; a name the types resolve is no longer set apart.
-// - By the architecture: the items of the « Reçoit » and « Rend » of the `docs/CADRE.md` of each
-//   component that declares an element (by its interface or by the types), each component they
-//   name (`architecture`), as a value goes from its producer to its reader through the package
-//   that carries it.
+// - By the paths read (`lit`): each component whose tests declare they read a path
+//   (`grillhouse.lit` of its package.json, `cheminsLus` of scripts/enveloppe/enveloppe.mjs) that a
+//   path the ticket changes holds or lies in: a path of the repository the sections write (its
+//   `:<line>` left out), or the folder of a component they name.
+// - By the architecture: the items of the « Rend » of the `docs/CADRE.md` of each component that
+//   declares an element (by its interface or by the types), each component they name
+//   (`architecture`), the readers of what it returns; its « Reçoit » names its producers, which
+//   read nothing of it.
 // - The components of the survey go in the title's order, the provider first: each one after
 //   every component it reads among them (its imports, the providers of the elements it reads), in
 //   the order of their names otherwise.
@@ -61,6 +70,7 @@ import {
   parcourir,
   utilise,
 } from './consommateurs.mjs';
+import { cheminsLus } from './enveloppe/enveloppe.mjs';
 import { lire } from './index-interfaces.mjs';
 import { elementsEcrits, parLesTypes } from './references-par-les-types.mjs';
 
@@ -107,6 +117,61 @@ function elementsNommes(texte) {
     if (m) vus.add(m[1]);
   }
   return [...vus];
+}
+
+// The paths of the repository at <racine> that <texte> writes, each once, from the root, its
+// `:<line>` left out: a word with a `/` or an extension that names a file or a folder there.
+function cheminsEcrits(racine, texte) {
+  const out = new Set();
+  for (const [brut] of texte.matchAll(/[\w.@-]+(?:\/[\w.@-]+)*/g)) {
+    const p = brut.replace(/\.+$/, '');
+    if (!p.includes('/') && !/\.\w+$/.test(p)) continue;
+    const net = path.normalize(p);
+    if (net.startsWith('..') || path.isAbsolute(net)) continue;
+    if (existsSync(path.join(racine, net))) out.add(net.split(path.sep).join('/'));
+  }
+  return [...out];
+}
+
+// Whether the path <a> holds the path <b> or lies in it, both from the root.
+const recouvre = (a, b) => a === b || b.startsWith(`${a}/`) || a.startsWith(`${b}/`);
+
+// The components of <tous> whose tests declare they read a path that one of <changes> holds or
+// lies in, out of their own folder: Map component → Set of « lit <path read> (<paths changed>) ».
+function lecteursDesChemins(racine, tous, changes) {
+  const out = new Map();
+  for (const c of tous) {
+    const propre = path.relative(racine, c.dir).split(path.sep).join('/');
+    const par = new Set();
+    for (const brut of new Set(cheminsLus(c.dir))) {
+      const lu = brut.replace(/^\.\//, '').replace(/\/+$/, '');
+      const atteints = changes.filter(ch => !recouvre(propre, ch) && recouvre(lu, ch)).sort();
+      if (atteints.length) par.add(`lit ${lu} (${atteints.join(', ')})`);
+    }
+    if (par.size) out.set(c, par);
+  }
+  return out;
+}
+
+// A declaration of <nom> at the top of a source, exported or not.
+const DECLARATION_EN_TETE = nom =>
+  new RegExp(
+    `^(?:export\\s+)?(?:default\\s+)?(?:declare\\s+)?(?:abstract\\s+)?(?:async\\s+)?(?:function\\*?|class|interface|type|enum|const|let|var)\\s+${echapper(nom)}(?![\\w$])`,
+    'm'
+  );
+// The texts of the production sources of the components <tous>, their tests left out.
+function sourcesDe(tous) {
+  return tous.flatMap(c =>
+    parcourir(c.dir, p => SAUTES.has(path.basename(p)))
+      .filter(f => {
+        if (!SOURCE.test(f) || NOM_DE_TEST.test(path.basename(f))) return false;
+        return !path
+          .relative(c.dir, f)
+          .split(path.sep)
+          .some(d => DOSSIERS_DE_TEST.has(d));
+      })
+      .map(f => lireSiPresent(f) ?? '')
+  );
 }
 
 // Each component's published elements and declared consumers, read in its interface.
@@ -163,7 +228,8 @@ function ordonner(liste, lit, nom) {
 // The survey of the description <description> in the repository at <racine>:
 // `{ nommes, elements: [{ nom, fournisseur, lecteurs: [{ composant, par }] }], sansFournisseur,
 // types: { etat, raison, elements: [{ nom, declarations: [{ composant, publie, porteurs }],
-// lecteurs }] }, architecture: [{ composant, par }], composants }`, each component by its
+// lecteurs }] }, lit: [{ composant, par }], architecture: [{ composant, par }], composants }`,
+// each component by its
 // title's name, `composants` in the title's order.
 export function releve(racine, description) {
   const texte = lesSections(description);
@@ -236,19 +302,24 @@ export function releve(racine, description) {
     }
     for (const c of e.lecteurs.keys()) trouves.add(c);
   }
-  // By the architecture: the Reçoit and Rend of the CADRE.md of each component that declares an
-  // element.
+  // By the paths read: the components whose tests declare they read a path the ticket changes.
+  const parChemins = lecteursDesChemins(racine, tous, [
+    ...cheminsEcrits(racine, texte),
+    ...nommes(racine, tous, texte).map(c => path.relative(racine, c.dir).split(path.sep).join('/')),
+  ]);
+  for (const c of parChemins.keys()) trouves.add(c);
+  // By the architecture: the Rend of the CADRE.md of each component that declares an element.
   const declarants = new Set([
     ...elements.map(e => e.p),
     ...types.elements.flatMap(e => e.declarations.map(d => d.c)),
   ]);
   const architecture = new Map();
   for (const p of declarants) {
-    for (const { rubrique, regle, texte: ligne } of echanges(p)) {
+    for (const { regle, texte: ligne } of rendus(p)) {
       for (const c of nommes(racine, tous, ligne)) {
         if (c === p) continue;
         if (!architecture.has(c)) architecture.set(c, new Set());
-        architecture.get(c).add(`CADRE de ${nomAuTitre(racine, p)}, ${rubrique} ${regle}`);
+        architecture.get(c).add(`CADRE de ${nomAuTitre(racine, p)}, Rend ${regle}`);
         trouves.add(c);
       }
     }
@@ -263,6 +334,7 @@ export function releve(racine, description) {
   for (const e of elements) for (const l of e.lecteurs) lit.get(l.c).add(e.p);
   const titre = c => nomAuTitre(racine, c);
   const parNom = (a, b) => titre(a).localeCompare(titre(b));
+  let sources = null;
   const lecteursDe = m =>
     [...m]
       .sort(([a], [b]) => parNom(a, b))
@@ -276,7 +348,12 @@ export function releve(racine, description) {
         .sort((a, b) => parNom(a.c, b.c))
         .map(l => ({ composant: titre(l.c), par: l.par })),
     })),
-    sansFournisseur: sansFournisseur.filter(n => !resolus.has(n)),
+    sansFournisseur: sansFournisseur.filter(
+      n =>
+        !resolus.has(n) &&
+        (existsSync(path.join(racine, n)) ||
+          (sources ??= sourcesDe(tous)).some(s => DECLARATION_EN_TETE(n).test(s)))
+    ),
     types: {
       etat: types.etat,
       raison: types.raison,
@@ -290,29 +367,30 @@ export function releve(racine, description) {
         lecteurs: lecteursDe(e.lecteurs),
       })),
     },
+    lit: lecteursDe(parChemins),
     architecture: lecteursDe(architecture),
     composants: ordonner([...trouves], lit, titre).map(titre),
   };
 }
 
-// The exchanges the CADRE.md of the component <c> writes: each item of its rubrics « Reçoit » and
-// « Rend » (a `##` heading that ends with that word), its rule (`**R3.**`, else its line), its
-// continuation lines included.
-function echanges(c) {
+// What the CADRE.md of the component <c> says it returns: each item of its rubric « Rend » (a
+// `##` heading that ends with that word), its rule (`**R4.**`, else its line), its continuation
+// lines included.
+function rendus(c) {
   const texte = lireSiPresent(path.join(c.dir, 'docs', 'CADRE.md'));
   if (!texte) return [];
   const out = [];
-  let rubrique = null;
+  let dedans = false;
   for (const [i, l] of texte.split('\n').entries()) {
     const h = /^## (.+)$/.exec(l);
     if (h) {
-      rubrique = /(Reçoit|Rend)\s*$/.exec(h[1].trim())?.[1] ?? null;
+      dedans = /Rend\s*$/.test(h[1].trim());
       continue;
     }
-    if (!rubrique) continue;
+    if (!dedans) continue;
     if (/^[-*] /.test(l)) {
       const regle = /^[-*] \*\*(R\d+)\.?\*\*/.exec(l)?.[1] ?? `l.${i + 1}`;
-      out.push({ rubrique, regle, texte: l });
+      out.push({ regle, texte: l });
     } else if (/^\s+\S/.test(l) && out.length) out.at(-1).texte += ` ${l.trim()}`;
   }
   return out;
@@ -433,6 +511,10 @@ export function texteDuReleve(r) {
       lignes.set(cle, [...(lignes.get(cle) ?? []), `\`${e.nom}\``]);
     }
     for (const [cle, noms] of lignes) out.push(`  - ${noms.join(', ')} : ${cle}`);
+  }
+  if (r.lit.length) {
+    const lus = r.lit.map(l => `${l.composant} (${l.par.join(' ; ')})`).join(', ');
+    out.push(`- Par les chemins lus (\`grillhouse.lit\`) : ${lus}.`);
   }
   if (r.architecture.length) {
     const lus = r.architecture.map(l => `${l.composant} (${l.par.join(' ; ')})`).join(', ');

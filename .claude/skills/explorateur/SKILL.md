@@ -28,7 +28,10 @@ Tes décisions se fondent sur trois sources, et chaque constat nomme la sienne :
 
 Tu cherches les références d'un élément par les types (son symbole, le type publié qui le porte,
 les paquets que ce type atteint) et par l'architecture (le producteur d'une donnée, le paquet qui
-la transporte, son lecteur). Ainsi un lecteur qu'aucun nom ne trahit est trouvé.
+la transporte, son lecteur). Ainsi un lecteur qu'aucun nom ne trahit est trouvé. Un lecteur lit :
+un paquet qui transporte un type sans en lire le contenu n'en est pas un, un paquet dont
+`grillhouse.lit` couvre un chemin que le ticket change en est un. Ainsi le titre nomme ceux que
+le ticket peut casser.
 
 ## Tes références, à lire au moment où elles servent
 
