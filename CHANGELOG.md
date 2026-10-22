@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.22.6] - 2026-10-22
+
+### Fixed
+
+- **The CI of 0.22.5 is green again**: the numbering of the files of the circuit's working directory (3uv.94) reads a file name by a regular expression the guard of free text did not list; it is listed, as reading a file name, never a comment or a log.
+
 ## [0.22.5] - 2026-10-22
 
 ### Fixed
