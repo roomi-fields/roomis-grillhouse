@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Prepares a fresh copy of the template for its first session: dependencies, and the Beads
-# ticket store the `pitmaster` and `developpeur` skills work from, the frame's git hooks
-# (scripts/crochets.mjs) and the frame's plugins (scripts/greffons.mjs), both mechanisms that
-# npm run grillhouse:maj also calls. Idempotent. The project is the working directory.
+# ticket store the `pitmaster` and `developpeur` skills work from, and the frame's plugins
+# (scripts/greffons.mjs), the mechanism npm run grillhouse:maj also calls. Idempotent. The project
+# is the working directory.
 #
 # The plugins are the ones `.claude/settings.json` declares at true in `enabledPlugins`, installed
 # for the project (`--scope project`) after their absent marketplaces are added. A plugin that
@@ -37,9 +37,9 @@ fi
 
 (cd "$root" && bd init --init-if-missing --non-interactive --skip-agents --quiet --prefix "$prefix")
 git -C "$root" config beads.role maintainer
-# The frame's git hooks (commit-msg, pre-push), in the folder git reads: the hooks path first
+# The hooks folder git reads, Beads' when none is set; the frame's git hooks come by the
+# project's `prepare` (grillhouse hooks), which the npm install below runs.
 [ -n "$(git -C "$root" config core.hooksPath)" ] || git -C "$root" config core.hooksPath .beads/hooks
-node "$ici/crochets.mjs" "$root"
 # The frame's plugins, for the project: a failure is reported at the end, after the other steps.
 greffons=0
 node "$ici/greffons.mjs" "$root" || greffons=1

@@ -21,7 +21,7 @@ roomis-grillhouse/
 │   ├── scripts/
 │   │   ├── new-project.sh             # npm run new -- <dest> [prefix]: the frame's files, then templates/projet/ (Grillhouse only, not copied)
 │   │   ├── sortie.mjs                 # Grillhouse's release (CONTRIBUTING.md, §5): the package's package.json and plugin.json raised by the same number, CHANGELOG.md dated, then the tag v<version> on the release commit, locally, never pushed; --verifier-etiquette, which release.yml plays before publishing (Grillhouse only, not copied)
-│   │   ├── setup.sh                   # npm run setup: git, Beads tickets, the frame's git hooks (crochets.mjs), the frame's plugins (greffons.mjs), dependencies
+│   │   ├── setup.sh                   # npm run setup: git, Beads tickets, the frame's plugins (greffons.mjs), dependencies (whose prepare places the git hooks)
 │   │   ├── session-start.sh           # SessionStart hook: what is still empty (per package in the frame); the lock of the supervisor (superviseur.mjs); silent to a session of a role agent
 │   │   ├── structure-guard.sh         # UserPromptSubmit hook: a structure decision goes to the grill; silent to a session of a role agent
 │   │   ├── droits.mjs                 # The rights and the context of each role session the circuit launches, drawn from the commands its skill names: settings on the command line, the user's configuration out, its skills, tools and index servers alone, its locks (tests: tests/unit/droits.spec.ts)
@@ -47,7 +47,8 @@ roomis-grillhouse/
 │   │   │                              #   workspace, and Turborepo plays none of its tasks (turbo-des-paquets.mjs)
 │   │   │                              #   parcourir(): the walk of every guard, Vite's temporary files left out, a file gone meanwhile passed over
 │   │   ├── consommateurs-arbitres.mjs # grillhouse:gardes: a Consommateurs line a lot changes enters with a settled arbitrage at its ticket naming the consumer, or named, consumer and names, by the ticket's Architecture
-│   │   ├── crochets.mjs               # the frame's git hooks (commit-msg, pre-push): placed by setup.sh and grillhouse:maj, absent ones named by the session start
+│   │   ├── crochet.mjs                # grillhouse hook <nom>: the guard of one frame git hook, which the hook calls (nothing without the package)
+│   │   ├── crochets.mjs               # grillhouse hooks: the frame's git hooks (commit-msg, pre-push), Husky's model: placed by the project's prepare and grillhouse:maj beside Beads' sections, a former version's lines rewritten, absent ones named by the session start
 │   │   ├── greffons.mjs               # the frame's plugins (those `.claude/settings.json` enables): installed for the project by setup.sh and grillhouse:maj, absent ones named by the session start, and the frame's mod at another version than its package, with the command that aligns them
 │   │   ├── gardes-du-cadre.mjs        # npm run grillhouse:gardes: the frame's guards, the one list of them (GARDES_DU_CADRE), each played whatever the verdict of the ones before; each red named, code 1 when one is red
 │   │   ├── frontieres.mjs             # grillhouse:gardes: dependency-cruiser (after the build, which it reads), rules generated in .dependency-cruiser.cjs
@@ -101,7 +102,7 @@ roomis-grillhouse/
 │   │   │   ├── rejeu.mjs                 # the replay shared by integrer.mjs and file.mjs: clean copy, dependencies of its lock file, npm run verifier (Turborepo: build, then guards and tests); a 75 keeps the lot waiting
 │   │   │   └── file-attente.mjs          # the queue's entries (a branch and its one ticket each), in git's common directory, and the directory the integration's locks live in
 │   │   ├── index-interfaces.mjs       # npm run interfaces: docs/agents/index-des-interfaces.md from the generated parts, checked by grillhouse:gardes; --publie <composant>: what its providers publish (each provider's line, the names of the elements declared for it, the address of its CADRE.md « Rend »), for the launcher
-│   │   └── un-commit-par-ticket.mjs   # commit-msg hook (placed by crochets.mjs): a closed ticket refuses a second commit, a reopened ticket takes its corrections
+│   │   └── un-commit-par-ticket.mjs   # commit-msg hook (grillhouse hook commit-msg, crochets.mjs): a closed ticket refuses a second commit, a reopened ticket takes its corrections
 │   └── tests/                     # The frame's tests (unit/) and their material (claude-substitut, config-git, machine, unit/*-essai.ts): Grillhouse only, not copied
 │
 ├── templates/projet/           # The template of a project: `npm run new` places each of its files at the root of the new project, in place of Grillhouse's own

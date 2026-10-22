@@ -10,7 +10,9 @@
 //   runs by bash, its standard streams this process's, its exit code this command's, and a script
 //   ended by a signal gives 128 plus the signal's number, as a shell gives it.
 // - A subcommand is named after its script, without directory nor extension (`verifier`,
-//   `circuit`, `tableau`); `maj` runs `grillhouse-maj.mjs`, whose name already says the frame's.
+//   `circuit`, `tableau`); `maj` runs `grillhouse-maj.mjs`, whose name already says the frame's;
+//   `hooks` (`crochets.mjs`, which places the git hooks) and `hook` (`crochet.mjs`, which runs one)
+//   take Husky's names, which a project's `prepare` and its git hooks call.
 // - A subcommand missing or unknown writes the usage and the list of the subcommands on the error
 //   stream, and the exit code is 2.
 // - A script finds its neighbours by its own directory, and the project by the working directory
@@ -26,14 +28,12 @@ const SCRIPTS = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 's
 // Each subcommand and its script, under `scripts/`.
 export const SOUS_COMMANDES = {
   bilan: 'bilan.mjs',
-  'branche-de-nuit': 'branche-de-nuit.mjs',
   circuit: 'circuit.mjs',
   'code-mort': 'code-mort.mjs',
   commande: 'verrous/commande.mjs',
   'composants-affectes': 'composants-affectes.mjs',
   consommateurs: 'consommateurs.mjs',
   'consommateurs-arbitres': 'consommateurs-arbitres.mjs',
-  crochets: 'crochets.mjs',
   droits: 'droits.mjs',
   enveloppe: 'enveloppe/enveloppe.mjs',
   'etat-du-circuit': 'etat-du-circuit.mjs',
@@ -41,6 +41,8 @@ export const SOUS_COMMANDES = {
   frontieres: 'frontieres.mjs',
   'gardes-du-cadre': 'gardes-du-cadre.mjs',
   greffons: 'greffons.mjs',
+  hook: 'crochet.mjs',
+  hooks: 'crochets.mjs',
   'index-interfaces': 'index-interfaces.mjs',
   integrer: 'integration/integrer.mjs',
   'interfaces-contre-code': 'interfaces-contre-code.mjs',
@@ -65,7 +67,6 @@ export const SOUS_COMMANDES = {
   ticket: 'ticket.sh',
   'ticket-du-sous-agent': 'verrous/ticket-du-sous-agent.mjs',
   'turbo-des-paquets': 'turbo-des-paquets.mjs',
-  'un-commit-par-ticket': 'un-commit-par-ticket.mjs',
   verifier: 'verifier.mjs',
   verrou: 'verrous/verrou.mjs',
 };

@@ -8,6 +8,7 @@ import {
   readFileSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -83,6 +84,18 @@ function projet(grillhouse: unknown, { hooksPath = true, prePush = true } = {}) 
   }
   // The night runs from the project's own scripts, as in a project the frame installed.
   cpSync(path.dirname(NUIT), path.join(repo, 'packages/grillhouse/scripts'), { recursive: true });
+  // The frame's package installed, as npm links it: the hook calls its `grillhouse hook pre-push`
+  // (grillhouse-3uv.84.5).
+  mkdirSync(path.join(repo, 'node_modules/@roomi-fields'), { recursive: true });
+  mkdirSync(path.join(repo, 'node_modules/.bin'), { recursive: true });
+  symlinkSync(
+    path.join(DEPOT, 'packages/grillhouse'),
+    path.join(repo, 'node_modules/@roomi-fields/grillhouse')
+  );
+  symlinkSync(
+    '../@roomi-fields/grillhouse/bin/grillhouse.mjs',
+    path.join(repo, 'node_modules/.bin/grillhouse')
+  );
   const configAvant = git('config', '--local', '--list');
   mettreAJour(repo, DEPOT);
   const configApres = git('config', '--local', '--list');

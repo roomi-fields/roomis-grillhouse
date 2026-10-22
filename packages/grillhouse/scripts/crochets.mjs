@@ -1,45 +1,59 @@
 #!/usr/bin/env node
-// The frame's git hooks, placed by one mechanism: `scripts/setup.sh` (installation) and
-// `scripts/grillhouse-maj.mjs` (update) both call it, and the session start asks it which are absent.
+// The frame's git hooks, on Husky's model: the project's `prepare`, which npm runs at its install,
+// places them, and each calls the project's command, `grillhouse hook <nom>`.
 //
-//   npx grillhouse crochets [<project>]            places both hooks (the current directory by default)
-//   npx grillhouse crochets --absents [<project>]  prints the name of each absent hook, one per line
+//   npx grillhouse hooks [<project>]            places both hooks (the current directory by default)
+//   npx grillhouse hooks --absents [<project>]  prints the name of each absent hook, one per line
 //
 // - commit-msg: « un ticket fermé garde sa livraison ; un ticket rouvert reçoit ses corrections » (scripts/un-commit-par-ticket.mjs).
 // - pre-push: the night branch guard (scripts/branche-de-nuit.mjs).
 // - A hook lives in the folder git reads for the project (`git rev-parse --git-path hooks`, which
-//   follows `core.hooksPath`); the configuration is never changed here.
-// - A hook that does not exist is created (shebang, the frame's lines), executable; one that lacks
-//   the frame's mark receives the lines right after its shebang, before the project's own lines;
-//   one that has the mark stays as it is. The frame's lines never end the hook early (no `exec`),
-//   so the lines of the project that follow still run.
-// - A hook is absent when it is missing from that folder or lacks the frame's mark.
+//   follows `core.hooksPath`, Beads' `.beads/hooks` included); the configuration is never changed
+//   here. The update of the frame (scripts/grillhouse-maj.mjs) places them by the same function.
+// - The frame's lines run `node_modules/.bin/grillhouse` of the project, the package installed;
+//   without it they do nothing and let the hook go on, as Husky's lines do without Husky.
+// - A hook that does not exist is created (shebang, the frame's lines), executable. In one that
+//   exists, the frame's lines of any version (a comment « … (Grillhouse): », a line that names a
+//   guard's script or the frame's shell variables `_gh_…`) give way to the current ones, written
+//   where the first stood, else right after the shebang; the project's lines and Beads' sections
+//   stay as they are. The frame's lines never end the hook early (no `exec` of a command), so the
+//   lines that follow still run.
+// - A hook is absent when it is missing from that folder or lacks the current lines of the frame.
 import { execFileSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-// The frame's hooks: name, mark (a word of its command, which tells it is placed) and lines. The
-// pre-push guard reads git's standard input, which is kept in a file and given back to the lines
-// that follow (Beads' section).
+// The project's command, which the frame's lines run.
+const COMMANDE = '_gh_commande="$(git rev-parse --show-toplevel)/node_modules/.bin/grillhouse"';
+
+// The frame's hooks: name, guard (the script `grillhouse hook <nom>` runs) and lines. The pre-push
+// guard reads git's standard input, which is kept in a file and given back to the lines that
+// follow (Beads' section).
 export const CROCHETS = {
   'commit-msg': {
-    marque: 'un-commit-par-ticket',
+    garde: 'un-commit-par-ticket.mjs',
     lignes: [
-      '# A closed ticket keeps its one delivery (Grillhouse): a second commit for a closed ticket whose delivery stands is refused, a commit for an open (reopened) ticket is a correction and passes; a revert (Revert "…", Reapply "…") passes and withdraws the delivery it names.',
-      'node "$(git rev-parse --show-toplevel)/packages/grillhouse/scripts/un-commit-par-ticket.mjs" "$1" || exit 1',
+      '# A closed ticket keeps its one delivery (Grillhouse): a second commit for a closed ticket whose delivery stands is refused, a commit for an open (reopened) ticket is a correction and passes; a revert (Revert "…", Reapply "…") passes and withdraws the delivery it names. Without the package @roomi-fields/grillhouse installed, nothing.',
+      COMMANDE,
+      'if [ -x "$_gh_commande" ]; then "$_gh_commande" hook commit-msg "$@" || exit 1; fi',
     ],
   },
   'pre-push': {
-    marque: 'branche-de-nuit',
+    garde: 'branche-de-nuit.mjs',
     lignes: [
-      '# Night branch guard (Grillhouse): only the night pushes the branch of grillhouse.poussee.nuit, after its green.',
-      '_gh_entree=$(mktemp) && cat > "$_gh_entree" && node "$(git rev-parse --show-toplevel)/packages/grillhouse/scripts/branche-de-nuit.mjs" "$@" < "$_gh_entree" || { rm -f "$_gh_entree"; exit 1; }',
-      'exec < "$_gh_entree"',
-      'rm -f "$_gh_entree"',
+      '# Night branch guard (Grillhouse): only the night pushes the branch of grillhouse.poussee.nuit, after its green. Without the package @roomi-fields/grillhouse installed, nothing.',
+      COMMANDE,
+      'if [ -x "$_gh_commande" ]; then _gh_entree=$(mktemp) && cat > "$_gh_entree" && "$_gh_commande" hook pre-push "$@" < "$_gh_entree" || { rm -f "$_gh_entree"; exit 1; }; exec < "$_gh_entree"; rm -f "$_gh_entree"; fi',
     ],
   },
 };
+
+// A line of the frame, of this version or of a former one (see the header).
+const ligneDuCadre = ligne =>
+  /^# .*\(Grillhouse\):/.test(ligne) ||
+  ligne.includes('_gh_') ||
+  Object.values(CROCHETS).some(({ garde }) => ligne.includes(garde));
 
 // The folder git reads the hooks of `projet` from, or null when it is not a git repository.
 function dossierDesCrochets(projet) {
@@ -56,31 +70,36 @@ function dossierDesCrochets(projet) {
   }
 }
 
+// The text of the hook `nom` once the frame's current lines are placed in `actuel` (null: none).
+function texteDuCrochet(nom, actuel) {
+  const { lignes } = CROCHETS[nom];
+  if (actuel === null) {
+    return `#!/usr/bin/env sh\n${lignes.join('\n')}\n`;
+  }
+  const avant = actuel.split('\n');
+  const premiere = avant.findIndex(ligneDuCadre);
+  const reste = avant.filter(l => !ligneDuCadre(l));
+  const ou = premiere >= 0 ? premiere : avant[0]?.startsWith('#!') ? 1 : 0;
+  reste.splice(ou, 0, ...lignes);
+  return reste.join('\n');
+}
+
 // Places the frame's hook `nom` in the project (see the header). Returns its path when written.
 function poserCrochet(projet, nom) {
   const dossier = dossierDesCrochets(projet);
   if (!dossier) {
     return null;
   }
-  const { marque, lignes } = CROCHETS[nom];
   const f = path.join(dossier, nom);
-  const bloc = `${lignes.join('\n')}\n`;
-  let texte;
-  if (!existsSync(f)) {
-    texte = `#!/usr/bin/env sh\n${bloc}`;
-  } else {
-    const actuel = readFileSync(f, 'utf8');
-    if (actuel.includes(marque)) {
-      chmodSync(f, statSync(f).mode | 0o111);
-      return null;
-    }
-    const i = actuel.startsWith('#!') ? actuel.indexOf('\n') + 1 : 0;
-    texte = `${actuel.slice(0, i)}${bloc}${actuel.slice(i)}`;
+  const actuel = existsSync(f) ? readFileSync(f, 'utf8') : null;
+  const texte = texteDuCrochet(nom, actuel);
+  const ecrit = texte !== actuel;
+  if (ecrit) {
+    mkdirSync(dossier, { recursive: true });
+    writeFileSync(f, texte);
   }
-  mkdirSync(dossier, { recursive: true });
-  writeFileSync(f, texte);
   chmodSync(f, statSync(f).mode | 0o111);
-  return f;
+  return ecrit ? f : null;
 }
 
 /** Places both frame hooks in the project; returns the paths written. */
@@ -94,9 +113,9 @@ export function poserCrochets(projet) {
 export function crochetsAbsents(projet) {
   const dossier = dossierDesCrochets(projet);
   return Object.entries(CROCHETS)
-    .filter(([nom, { marque }]) => {
+    .filter(([nom, { lignes }]) => {
       const f = dossier && path.join(dossier, nom);
-      return !f || !existsSync(f) || !readFileSync(f, 'utf8').includes(marque);
+      return !f || !existsSync(f) || !readFileSync(f, 'utf8').includes(`${lignes.join('\n')}\n`);
     })
     .map(([nom]) => nom);
 }

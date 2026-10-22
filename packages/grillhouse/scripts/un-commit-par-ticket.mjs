@@ -3,8 +3,8 @@
 // an earlier commit already delivers, unless that ticket is open in Beads. An open ticket that
 // already has its delivery is a ticket reopened for a fix (by the queue or the CI): the commit is a
 // correction and passes. A closed ticket is finished: new work opens a new ticket, created under it
-// (`--parent`). Run as the commit-msg hook (placed by `scripts/crochets.mjs`), with the message file
-// as argument.
+// (`--parent`). Run by the commit-msg hook (`grillhouse hook commit-msg`, scripts/crochets.mjs), with
+// the message file as argument.
 //
 // - A ticket is open when its Beads status (`bd show <id> --json`) is anything but `closed`; a
 //   status that cannot be read (unknown id, unreadable answer, no `status`) is not open.

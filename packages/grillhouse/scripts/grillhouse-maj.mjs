@@ -7,7 +7,9 @@
 //   (@roomi-fields/grillhouse, `npx grillhouse <sous-commande>`), its skills, agents, hooks of
 //   Claude Code and common charter the plugin's (grillhouse@roomi-fields), which Claude Code updates
 //   by its marketplace. The update never writes `.claude/settings.json`.
-// - `package.json`, when there is one: the frame's npm scripts (`tableau`, `grillhouse:maj`), and
+// - `package.json`, when there is one: the frame's npm scripts (`tableau`, `grillhouse:maj`), its
+//   `prepare` beginning with `grillhouse hooks` (the frame's git hooks at each `npm install`, as
+//   Husky's `prepare`; a `prepare` of the project's own follows it, `grillhouse hooks && …`), and
 //   `grillhouse:gardes` (scripts/gardes-du-cadre.mjs, the frame's controls), `grillhouse:dette:inscrire` and
 //   `grillhouse:dette:elaguer` (the known debt of the guards, scripts/dette.mjs), and `api` (`npm run api`, which writes
 //   the API reports and the generated part of each `docs/INTERFACE.md`), each read as it is in the
@@ -75,9 +77,10 @@
 //   beside the script that does the update. So one pass ends with the source's work. The script and
 //   these modules use Node alone: the source is a checkout that installs no dependency.
 // - The git hooks: both of the frame (commit-msg « a closed ticket refuses a second commit, a reopened ticket takes its corrections », pre-push night branch
-//   guard) are placed by scripts/crochets.mjs, the mechanism scripts/setup.sh also calls, in the
-//   hooks folder git reads for the project (`core.hooksPath`, else the default one; the
-//   configuration stays). A hook of the project keeps its lines, which still run.
+//   guard) are placed by scripts/crochets.mjs, the mechanism `grillhouse hooks` (the project's
+//   `prepare`) also runs, in the hooks folder git reads for the project (`core.hooksPath`, else the
+//   default one; the configuration stays). A hook of the project keeps its lines, which still run;
+//   the frame's lines of a former version give way to the current ones.
 // - The plugins: after the files, the command line installs the plugins the project's settings
 //   declare, for the project, by scripts/greffons.mjs (the mechanism scripts/setup.sh also calls;
 //   `mettreAJour` itself never calls claude). A plugin that cannot be installed has its line naming
@@ -123,6 +126,8 @@ const SCRIPTS = {
   tableau: 'grillhouse tableau --texte',
   'grillhouse:maj': 'grillhouse maj',
 };
+// The command of the project's `prepare` that places the frame's git hooks (Husky's model).
+const PREPARE = 'grillhouse hooks';
 
 // The frame's tools: their names are the frame's, their versions are read in the source.
 const OUTILS_DU_CADRE = [
@@ -274,6 +279,11 @@ export function mettreAJour(projet, source) {
     const pkgSource = lireJson(path.join(source, 'package.json'), {});
     const gardes = pkgSource.scripts?.['grillhouse:gardes'];
     p.scripts = { ...(p.scripts ?? {}), ...SCRIPTS };
+    // The project's `prepare`, which npm runs at its install, places the frame's git hooks first.
+    const prepare = typeof p.scripts.prepare === 'string' ? p.scripts.prepare.trim() : '';
+    if (!prepare.split(/\s*&&\s*/).includes(PREPARE)) {
+      p.scripts.prepare = prepare === '' ? PREPARE : `${PREPARE} && ${prepare}`;
+    }
     if (typeof pkgSource.scripts?.api === 'string') {
       p.scripts.api = pkgSource.scripts.api;
     }

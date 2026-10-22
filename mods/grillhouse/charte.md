@@ -232,7 +232,9 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
   `grillhouse@roomi-fields` porte les compétences, les agents, les crochets de Claude Code et
   cette charte, et se met à jour par sa place de marché. Un projet n'en garde aucune copie ; sans le
   paquet installé, l'ouverture de séance dit « lance `npm install` », et les autres crochets
-  sortent sans effet. Ainsi chaque projet suit la version du cadre qu'il installe, sans fichier à
+  sortent sans effet. Les crochets git du cadre suivent le modèle de Husky : le `prepare` du
+  projet lance `grillhouse hooks`, qui les pose à côté des sections de Beads, et chacun appelle
+  `grillhouse hook <nom>`, sans effet sans le paquet. Ainsi chaque projet suit la version du cadre qu'il installe, sans fichier à
   recopier.
 - Tickets : Beads (`bd`), sous le préfixe du projet, voir `docs/agents/issue-tracker.md`.
 - Le greffon `mattpocock-skills` s'appelle avec son préfixe ; un document pour un agent s'écrit

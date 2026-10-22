@@ -251,10 +251,10 @@ describe('grillhouse-3uv.55 critère 6 — the update reads grillhouse:gardes in
     expect(scripts.pretest).toBe('node mien.mjs');
     expect(scripts['grillhouse:gardes']).toBe('echo à moi');
   });
-  it('critère 6: a source without package.json adds tableau and grillhouse:maj, nothing else', () => {
+  it('critère 6: a source without package.json adds tableau, grillhouse:maj and the prepare of the git hooks (grillhouse-3uv.84.5), nothing else', () => {
     const v = sourceAvec(null);
     const { scripts } = installeDepuis(v, { name: 'p', scripts: { test: 'vitest' } });
-    expect(Object.keys(scripts).sort()).toEqual(['grillhouse:maj', 'tableau', 'test']);
+    expect(Object.keys(scripts).sort()).toEqual(['grillhouse:maj', 'prepare', 'tableau', 'test']);
   });
 });
 
