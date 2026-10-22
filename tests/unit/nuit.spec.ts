@@ -186,6 +186,51 @@ describe('the night', () => {
   });
 });
 
+// grillhouse-3uv.56.2: the red night's ticket gives, for each red task of the full pass, the
+// command that looks for the culprit commit over the interval, `git bisect run` with that task
+// alone. The fake `npm run verifier` writes the red tasks committed in ROUGE (one Turborepo task id
+// per line) to the file GRILLHOUSE_ROUGES names, as scripts/verifier.mjs does, and fails.
+describe('the bisect commands of the red night (grillhouse-3uv.56.2)', () => {
+  function rougeSur(taches: string[]) {
+    const m = monde();
+    writeFileSync(
+      path.join(m.repo, 't.mjs'),
+      "import fs from 'node:fs';\nif (fs.existsSync('ROUGE')) {\n" +
+        "  if (process.env.GRILLHOUSE_ROUGES) fs.copyFileSync('ROUGE', process.env.GRILLHOUSE_ROUGES);\n" +
+        "  console.log('✗ un test rouge'); process.exit(1);\n}\n"
+    );
+    m.git('add', 't.mjs');
+    m.git('commit', '-qm', 'verifier');
+    expect(m.nuit().status).toBe(0);
+    const vert = m.git('rev-parse', '--short=7', 'HEAD').trim();
+    writeFileSync(path.join(m.repo, 'ROUGE'), taches.map(t => `${t}\n`).join(''));
+    m.git('add', 'ROUGE');
+    m.git('commit', '-qm', 'casse');
+    const rouge = m.git('rev-parse', '--short=7', 'HEAD').trim();
+    expect(m.nuit().status).toBe(1);
+    const bisect = (tache: string, paquet: string) =>
+      `git bisect start ${rouge} ${vert} && git bisect run npx turbo run ${tache} --filter=${paquet}`;
+    return { appels: m.appels(), vert, rouge, bisect };
+  }
+
+  it('1 — a red task of a package: the ticket gives the interval and its bisect command', () => {
+    const r = rougeSur(['a#test:vitest']);
+    expect(r.appels).toContain(`${r.vert}..${r.rouge}`);
+    expect(r.appels).toContain(`a#test:vitest : ${r.bisect('test:vitest', 'a')}`);
+  });
+  it('2 — two red tasks: two commands, one per task, the root filtered by //', () => {
+    const r = rougeSur(['@x/b#test:vitest', '//#gardes']);
+    expect(r.appels).toContain(`@x/b#test:vitest : ${r.bisect('test:vitest', '@x/b')}`);
+    expect(r.appels).toContain(`//#gardes : ${r.bisect('gardes', '//')}`);
+    expect(r.appels.match(/git bisect run/g)).toHaveLength(2);
+  });
+  it('3 — a red with no red task named (à repasser beside, or another step): no command', () => {
+    const r = rougeSur([]);
+    expect(r.appels).toContain(`${r.vert}..${r.rouge}`);
+    expect(r.appels).not.toContain('git bisect run');
+  });
+});
+
 // The project's night script (grillhouse-3uv.30): `grillhouse.nuit` in the section `grillhouse` of
 // the project's package.json names an npm script; the night plays it in its copy, after a green
 // full pass (`npm run verifier -- --force`). `npm test` notes itself as `npm-test`, which the night never

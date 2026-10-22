@@ -171,6 +171,33 @@ describe('npm run verifier', { timeout: 180_000 }, () => {
     expect(r.sortie).toContain('↻ a#test:vitest');
     expect(r.sortie).toContain('⛔ a#test:vitest');
   });
+  // grillhouse-3uv.56.2: the red tasks, one Turborepo task id per line, go to the file
+  // GRILLHOUSE_ROUGES names, where the night reads them for its bisect commands; a task at 75 is
+  // none of them.
+  it('3uv.56.2: the file GRILLHOUSE_ROUGES names holds the red task, not the task at 75', async () => {
+    const d = depot('delai', 'rouge', 90);
+    const fichier = path.join(d.racine, 'rouges');
+    const r = await lancer({ ...d, env: { ...d.env, GRILLHOUSE_ROUGES: fichier } });
+    expect(r.status, r.sortie).toBe(1);
+    expect(readFileSync(fichier, 'utf8')).toBe('b#test:vitest\n');
+  });
+  it('3uv.56.2: a task red at rest is in the file GRILLHOUSE_ROUGES names', async () => {
+    const d = depot('delai', 'vert', 90);
+    const fichier = path.join(d.racine, 'rouges');
+    const r = await lancer({ ...d, env: { ...d.env, GRILLHOUSE_ROUGES: fichier } }, [], () =>
+      d.ecrirePression(1)
+    );
+    expect(r.status, r.sortie).toBe(1);
+    expect(readFileSync(fichier, 'utf8')).toBe('a#test:vitest\n');
+  });
+  it('3uv.56.2: a green pass leaves the file GRILLHOUSE_ROUGES names empty', async () => {
+    const d = depot('vert', 'vert', 1);
+    const fichier = path.join(d.racine, 'rouges');
+    writeFileSync(fichier, 'a#test:vitest\n');
+    const r = await lancer({ ...d, env: { ...d.env, GRILLHOUSE_ROUGES: fichier } });
+    expect(r.status, r.sortie).toBe(0);
+    expect(readFileSync(fichier, 'utf8')).toBe('');
+  });
   it('the bound reached without rest gives 75, neither green nor red', () => {
     const d = depot('delai', 'vert', 90);
     const lignes: string[] = [];
@@ -223,6 +250,19 @@ describe('npm run verifier -- --gardes', { timeout: 180_000 }, () => {
     expect(r.sortie).toContain('⛔ a#grillhouse:gardes');
     expect(r.sortie).toContain('⛔ b#gardes');
     expect(d.joues()).toEqual([]);
+  });
+  it('3uv.56.2: two red tasks, two lines in the file GRILLHOUSE_ROUGES names', async () => {
+    const d = depot('vert', 'vert', 1, {
+      a: { 'grillhouse:gardes': rougeGarde },
+      b: { gardes: rougeGarde },
+    });
+    const fichier = path.join(d.racine, 'rouges');
+    const r = await lancer({ ...d, env: { ...d.env, GRILLHOUSE_ROUGES: fichier } }, ['--gardes']);
+    expect(r.status, r.sortie).toBe(1);
+    expect(readFileSync(fichier, 'utf8').split('\n').filter(Boolean).sort()).toEqual([
+      'a#grillhouse:gardes',
+      'b#gardes',
+    ]);
   });
 });
 

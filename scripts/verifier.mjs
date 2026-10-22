@@ -73,11 +73,17 @@
 //   board shows, and removes at its end, its total kept. Before its first run of Turborepo, the
 //   plan of each run that plays tests (`turbo run … --dry=json`) names their tasks and counts done
 //   the files of those Turborepo replays from its cache.
+// - The red tasks: while the variable `GRILLHOUSE_ROUGES` (`ROUGES`) names a file, the pass writes
+//   there, one Turborepo task id per line (`<package>#<task>`, `//#<task>` for the root), each task
+//   red on its own exit code, a task red at rest included, once each; a task à repasser (75) is
+//   none of them, nor a task that did not play (its prerequisite red is). Green or à repasser, the
+//   file is empty. The night reads it for its bisect commands (scripts/nuit.sh), with no second
+//   reading of the summaries.
 // - Every run plays without the paths of a targeted run's tests: the variable `GRILLHOUSE_TESTS`
 //   (scripts/vitest-config/cibles.mjs) carries only the choice of the witnesses (and `rejouer` for
 //   a complete pass).
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, rmdirSync, rmSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, rmdirSync, rmSync, writeFileSync } from 'node:fs';
 import { availableParallelism } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -101,6 +107,8 @@ const GARDES = ['grillhouse:gardes', 'gardes'];
 const TACHES = [...GARDES, 'test:vitest'];
 const TEMOINS = ' (témoins de temps)';
 const CONCURRENCE = /^--concurrency(?:=|$)/;
+// The variable that names the file of the red tasks, which the night reads.
+const ROUGES = 'GRILLHOUSE_ROUGES';
 
 const lister = dossier => (existsSync(dossier) ? readdirSync(dossier) : []);
 
@@ -255,6 +263,7 @@ function passe({ racine, demandes, env, borneMs, pasMs, dire, coeurs }) {
   // The measure against the last green: the guards alone need none.
   const m = gardesSeules ? null : mesure(racine, { tout });
   if (m) dire(m.ligne);
+  const taches = new Set();
   try {
     const code = jouerLaPasse({
       racine,
@@ -267,7 +276,9 @@ function passe({ racine, demandes, env, borneMs, pasMs, dire, coeurs }) {
       pasMs,
       dire,
       coeurs,
+      taches,
     });
+    if (env[ROUGES]) writeFileSync(env[ROUGES], [...taches].map(t => `${t}\n`).join(''));
     // A pass green on every package keeps its tree as the last green.
     if (code === 0 && m?.etat && filtresDeLaPasse.length === 0) garderLeVert(m.etat);
     return code;
@@ -287,6 +298,7 @@ function jouerLaPasse({
   pasMs,
   dire,
   coeurs,
+  taches,
 }) {
   const { [TESTS_CIBLES]: _, [CHANGEMENTS]: __, ...propre } = env;
   // The moment of a complete pass, which moves the hash of every task of tests: each plays for
@@ -397,7 +409,10 @@ function jouerLaPasse({
         aRepasser.push({ ...t, nom, env: e });
       else if (code === A_REPASSER)
         rouges.push(`${nom} à repasser, mais ${t.dependents.join(', ')} l'attendent`);
-      else rouges.push(`${nom} (code ${code ?? 'absent'})`);
+      else {
+        rouges.push(`${nom} (code ${code ?? 'absent'})`);
+        if (typeof code === 'number') taches.add(t.taskId);
+      }
     }
     if (echecs === 0)
       rouges.push(`Turborepo sort en ${r.status ?? r.signal}${libelle} sans tâche en échec`);
@@ -428,7 +443,10 @@ function jouerLaPasse({
       const r = turbo([t.task, `--filter=${t.package}`, ...args], t.env);
       if (r.status === 0) dire(`✓ ${t.nom} vert au repos.`);
       else if (r.status === A_REPASSER) suivants.push(t);
-      else rouges.push(`${t.nom} rouge au repos (code ${r.status ?? r.signal})`);
+      else {
+        rouges.push(`${t.nom} rouge au repos (code ${r.status ?? r.signal})`);
+        taches.add(t.taskId);
+      }
     }
     restants = suivants;
   }
