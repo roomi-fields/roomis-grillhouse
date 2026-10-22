@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.22.1] - 2026-10-22
+
+### Fixed
+
+- **An automatic pass shows its time since its start, and a frozen one the time since its last sign**: the owner read `⏳ Mesure · BPScript · 52/160 · 25 s` after 20 min of a pass, the time since the last test file done, which falls back to 0 at each file (Romain, 2026-10-22). As Bazel's counter of actions, the line of a measure and the line of a ticket at an automatic step now give the time since the start of the pass (`scripts/avancement.mjs` reads it from the pass); `⚠ figée <durée>` past 5 min without a sign keeps the time since the last sign.
+
 ## [0.22.0] - 2026-10-22
 
 ### Fixed
