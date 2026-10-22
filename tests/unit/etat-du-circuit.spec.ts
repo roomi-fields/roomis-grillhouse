@@ -5,16 +5,16 @@
 // 33 k tokens past the 25 k of Read, Read refused 10 times, python3 13 times, two MONTE on
 // suppositions.
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { BORNE } from '../../scripts/etat-du-circuit.mjs';
 import { optionsDuRole } from '../../scripts/droits.mjs';
-import { racineSousLaMaison } from '../machine.js';
 
 const RACINE = path.resolve(__dirname, '../..');
 const SCRIPT = path.join(RACINE, 'scripts/etat-du-circuit.mjs');
-const ESSAIS = racineSousLaMaison('grillhouse-essais-etat-du-circuit-');
+const ESSAIS = mkdtempSync(path.join(tmpdir(), 'etat-du-circuit-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 // The limit of Read, 25 000 tokens, at its lowest count of characters per token.

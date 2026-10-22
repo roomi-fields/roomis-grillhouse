@@ -190,7 +190,7 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
     // criteria it reads in the claims file at the step its skill sets.
     const { allow } = permissions(a);
     for (const regle of [
-      'Bash(git -C * diff *)',
+      'Bash(git -C * diff*)',
       'Bash(npm test *)',
       'Bash(npm run verifier -- --gardes*)',
       'Bash(node scripts/index-interfaces.mjs --publie *)',
