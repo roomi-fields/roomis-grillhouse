@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-10-22
+
 ### Fixed
 
 - **A final pass of a copy measures itself against the copy's last green**: in BPScript 320.4 (n° 15), the final passes of the copies measured themselves against main's last green (28 to 296 files changed) and played 46 packages, since 000-forms changed; a copy's green, kept in the one file of the repository, was replaced by the next copy's or main's: 11 passes, 94 min. As `vitest --changed <ref>` and Bazel measure against the last green build of the same branch, the last green is now kept per branch (`<git common dir>/grillhouse/dernier-vert/<branche>.json`, `scripts/dernier-vert.mjs`): a pass measures itself against its branch's last green when it counts, else against main's (the branch of the main tree), and a final pass relaunched plays what changed since the copy's green alone; a detached HEAD (the queue's replay onto main) reads and keeps main's. The line of the pass names the branch whose green it measures against. The whole final pass before the integration is unchanged. The former `dernier-vert.json` is no longer read: main's first pass after the update is complete, and so is a copy's while neither it nor main has a green. The common charter, STRUCTURE.md and the headers say so. (grillhouse-3uv.92.9)
