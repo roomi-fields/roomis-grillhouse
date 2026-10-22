@@ -36,18 +36,19 @@
 //   declares for it, or for `*` (`consommateurs`); import it, or the whole provider, in their
 //   production code (`import`, the uses of scripts/consommateurs.mjs); hold a test file that names
 //   it, as a whole word, and imports the provider (the test file's path).
-// - By the types (scripts/references-par-les-types.mjs): each element, a member of a type or a
-//   function internal to a package included, resolved by TypeScript's language service over the
-//   components' `tsconfig.json`; its declaring components and the readers its references and its
-//   carriers' types reach (`types`), with the consumers the declaring component's interface
-//   writes for a carrier. A survey by the types that cannot run says why, and the survey stands
-//   on the names; a name the types resolve is no longer set apart.
+// - By the types (scripts/references-par-les-types.mjs): each element, a member of a type
+//   included, resolved by TypeScript's language service over the components' `tsconfig.json`;
+//   the components whose entry exports it, and the readers its references reach (`types`). An
+//   element that only names a symbol internal to a package leads to no component, its package
+//   included, as « find all references » starts from a published symbol: the ticket names the
+//   package it changes. A survey by the types that cannot run says why, and the survey stands on
+//   the names; a name the types resolve is no longer set apart.
 // - By the paths read (`lit`): each component whose tests declare they read a path
 //   (`grillhouse.lit` of its package.json, `cheminsLus` of scripts/enveloppe/enveloppe.mjs) that a
 //   path the ticket changes holds or lies in: a path of the repository the sections write (its
 //   `:<line>` left out), or the folder of a component they name.
 // - By the architecture: the items of the « Rend » of the `docs/CADRE.md` of each component that
-//   declares an element (by its interface or by the types), each component they name
+//   publishes an element (by its interface or by the types), each component they name
 //   (`architecture`), the readers of what it returns; its « Reçoit » names its producers, which
 //   read nothing of it.
 // - The components of the survey go in the title's order, the provider first: each one after
@@ -227,10 +228,9 @@ function ordonner(liste, lit, nom) {
 
 // The survey of the description <description> in the repository at <racine>:
 // `{ nommes, elements: [{ nom, fournisseur, lecteurs: [{ composant, par }] }], sansFournisseur,
-// types: { etat, raison, elements: [{ nom, declarations: [{ composant, publie, porteurs }],
-// lecteurs }] }, lit: [{ composant, par }], architecture: [{ composant, par }], composants }`,
-// each component by its
-// title's name, `composants` in the title's order.
+// types: { etat, raison, elements: [{ nom, declarations: [{ composant, publie }], lecteurs }] },
+// lit: [{ composant, par }], architecture: [{ composant, par }], composants }`, each component by
+// its title's name, `composants` in the title's order.
 export function releve(racine, description) {
   const texte = lesSections(description);
   const tous = lesComposants(racine);
@@ -278,8 +278,8 @@ export function releve(racine, description) {
       elements.push({ nom, p, lecteurs });
     }
   }
-  // By the types: each element resolved by the language service, its declaring components and
-  // their readers, with the consumers the declaring component's interface writes for a carrier.
+  // By the types: each element resolved by the language service, the components that publish it
+  // and their readers.
   const types = parLesTypes(racine, tous, elementsEcrits(texte), {
     fichiers: new Set(
       [...texte.matchAll(/[\w.-]+\.[cm]?[jt]sx?\b/g)].map(m => path.basename(m[0]))
@@ -288,18 +288,7 @@ export function releve(racine, description) {
   });
   const resolus = new Set(types.elements.map(e => e.ecrit));
   for (const e of types.elements) {
-    for (const d of e.declarations) {
-      trouves.add(d.c);
-      const declares = ifaces.get(d.c)?.consommateurs;
-      for (const porteur of d.porteurs) {
-        for (const c of tous) {
-          const noms = declares?.get(c.nom) ?? declares?.get(c.paquet);
-          if (c === d.c || !noms || !(noms.has(porteur) || noms.has('*'))) continue;
-          if (!e.lecteurs.has(c)) e.lecteurs.set(c, new Set());
-          e.lecteurs.get(c).add(`consommateurs de ${porteur}`);
-        }
-      }
-    }
+    for (const d of e.declarations) if (d.publie) trouves.add(d.c);
     for (const c of e.lecteurs.keys()) trouves.add(c);
   }
   // By the paths read: the components whose tests declare they read a path the ticket changes.
@@ -308,10 +297,10 @@ export function releve(racine, description) {
     ...nommes(racine, tous, texte).map(c => path.relative(racine, c.dir).split(path.sep).join('/')),
   ]);
   for (const c of parChemins.keys()) trouves.add(c);
-  // By the architecture: the Rend of the CADRE.md of each component that declares an element.
+  // By the architecture: the Rend of the CADRE.md of each component that publishes an element.
   const declarants = new Set([
     ...elements.map(e => e.p),
-    ...types.elements.flatMap(e => e.declarations.map(d => d.c)),
+    ...types.elements.flatMap(e => e.declarations.filter(d => d.publie).map(d => d.c)),
   ]);
   const architecture = new Map();
   for (const p of declarants) {
@@ -362,7 +351,6 @@ export function releve(racine, description) {
         declarations: e.declarations.map(d => ({
           composant: titre(d.c),
           publie: d.publie,
-          porteurs: d.porteurs,
         })),
         lecteurs: lecteursDe(e.lecteurs),
       })),
@@ -495,9 +483,7 @@ export function texteDuReleve(r) {
       const ou = [
         ...new Set(
           e.declarations.map(d =>
-            d.publie
-              ? `publié par ${d.composant}`
-              : `interne à ${d.composant}, porté par ${d.porteurs.map(p => `\`${p}\``).join(', ') || 'aucun export'}`
+            d.publie ? `publié par ${d.composant}` : `interne à ${d.composant}`
           )
         ),
       ].join(' ; ');

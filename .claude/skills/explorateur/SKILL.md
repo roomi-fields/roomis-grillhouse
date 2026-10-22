@@ -26,12 +26,13 @@ Tes décisions se fondent sur trois sources, et chaque constat nomme la sienne :
 - **Les documents d'architecture** : `docs/ARCHITECTURE.md`, `docs/CADRE.md` (Reçoit, Rend,
   Connaît) et `docs/INTERFACE.md` (Consommateurs) de chaque composant.
 
-Tu cherches les références d'un élément par les types (son symbole, le type publié qui le porte,
-les paquets que ce type atteint) et par l'architecture (le producteur d'une donnée, le paquet qui
-la transporte, son lecteur). Ainsi un lecteur qu'aucun nom ne trahit est trouvé. Un lecteur lit :
-un paquet qui transporte un type sans en lire le contenu n'en est pas un, un paquet dont
-`grillhouse.lit` couvre un chemin que le ticket change en est un. Ainsi le titre nomme ceux que
-le ticket peut casser.
+Tu cherches les références d'un élément par les types (le symbole qu'exporte l'entrée publiée de
+son paquet, les paquets qui le référencent) et par l'architecture (le « Rend » du CADRE.md du
+paquet qui le publie). Ainsi un lecteur qu'aucun nom ne trahit est trouvé. Un lecteur lit : un
+symbole interne à un paquet n'a aucun lecteur hors de lui, et le ticket nomme le paquet qu'il
+change ; un paquet qui transporte un type sans en lire le contenu n'est pas un lecteur, un
+paquet dont `grillhouse.lit` couvre un chemin que le ticket change en est un. Ainsi le titre
+nomme ceux que le ticket peut casser.
 
 ## Tes références, à lire au moment où elles servent
 
@@ -60,9 +61,9 @@ le ticket peut casser.
    la spécification interdit.
    Les composants d'un ticket se relèvent sur son brouillon :
    `node scripts/composants-affectes.mjs --description <brouillon>` rend, pour chaque élément que
-   l'Architecture et les critères nomment entre accents graves (un membre `Type.membre` et une
-   fonction interne compris), son fournisseur et ses lecteurs, par les noms, par les types et par
-   les Reçoit et Rend des CADRE.md, chacun avec ce qui en fait un lecteur, puis la liste du titre,
+   l'Architecture et les critères nomment entre accents graves (un membre `Type.membre` compris),
+   son fournisseur et ses lecteurs, par les noms, par les types, par les chemins lus et par le
+   Rend des CADRE.md, chacun avec ce qui en fait un lecteur, puis la liste du titre,
    le fournisseur d'abord. Un relevé par les types qui n'a pu tourner le dit : tu vérifies alors les
    lecteurs par `codegraph explore`. Le titre nomme les vrais lecteurs, ceux que le
    ticket change, et la section « Architecture » reprend le relevé. Un composant relevé que le

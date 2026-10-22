@@ -10,13 +10,9 @@ import { manquants, releve, texteDuReleve } from '../../scripts/composants-affec
 // documents d'architecture comme base de connaissance pour prendre ses décisions et cherche les
 // références par les types et par l'architecture »). As « find all references » of rust-analyzer
 // and of TypeScript's language service, an element of the ticket is resolved as a symbol, a member
-// of a type or a function internal to a package included, and its references are found through
-// the types, not through the text: an internal symbol leads to the published export that carries
-// it, and that export's types to the packages that receive them and read their content. The Rend
-// of the CADRE.md of the packages that declare the elements names the readers of what they
-// return. Witness: BPScript 320.3, where the survey by the names found 040-checker and missed
-// 020-loader, whose `sceneWritten` (internal) writes the object of the scene into the `Registry`
-// that `load` returns, which 900-driver carries to 030-binder.
+// of a type included, and its references are found through the types, not through the text. The
+// Rend of the CADRE.md of the packages that publish the elements names the readers of what they
+// return.
 //
 // grillhouse-3uv.92.8 — as a graph of declared dependencies (the `deps` and `data` of Bazel, the
 // `implicitDependencies` of Nx), a reader is a package that reads: carrying a type is not reading
@@ -24,6 +20,11 @@ import { manquants, releve, texteDuReleve } from '../../scripts/composants-affec
 // ReadTree rendu par parse, reçu par bind, transporté par 900-driver ») or producers named by a
 // « Reçoit » of a CADRE.md; the supervisor set the 15 aside at once, 050-emitter and 900-driver
 // with them, and 995-tools, whose `grillhouse.lit` declares `libraries`, was not found.
+//
+// grillhouse-3uv.92.11 — « find all references » starts from a symbol the published interface of
+// a package exports: an internal symbol has no readers out of its package. In BPScript 320.4 the
+// survey still found 19 components: `place`, a word of the language the ticket writes, resolved to
+// an internal symbol of 070-deriver, whose CADRE.md « Rend » brought 7 packages.
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'composants-affectes-types-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
@@ -177,37 +178,26 @@ const description = (architecture: string, criteres: string) =>
 type Lecteur = { composant: string; par: string[] };
 type ParLesTypes = {
   nom: string;
-  declarations: { composant: string; publie: boolean; porteurs: string[] }[];
+  declarations: { composant: string; publie: boolean }[];
   lecteurs: Lecteur[];
 };
 const parLesTypes = (r: ReturnType<typeof releve>, nom: string): ParLesTypes =>
   (r.types.elements as ParLesTypes[]).find(e => e.nom === nom)!;
 
 describe('the survey by the types', () => {
-  it('leads an internal function to the export that carries it, and the export to its readers through its types', () => {
-    const r = releve(depot(DEPOT), description('`sceneWritten` pose son origine.', '1. Rien.'));
+  // grillhouse-3uv.92.11, criterion 1.
+  it('leads a symbol the entry of its package exports to the packages that reference it', () => {
+    const r = releve(depot(DEPOT), description('`bind` change.', '1. Rien.'));
     expect(r.types.etat).toBe('fait');
-    const e = parLesTypes(r, 'sceneWritten');
-    expect(e.declarations).toEqual([
-      { composant: '020-loader', publie: false, porteurs: ['load'] },
-    ]);
-    expect(e.lecteurs).toEqual([
-      {
-        composant: '030-binder',
-        par: ['type Registry rendu par load, reçu par bind, transporté par 900-driver'],
-      },
-      { composant: '900-driver', par: ['appel de load'] },
-    ]);
-    // checker reads what binder returns, not what loader returns; alone receives a registry that
-    // nothing carries to it.
-    expect(r.composants).toEqual(['020-loader', '030-binder', '900-driver']);
-    expect(r.sansFournisseur).toEqual([]);
+    const e = parLesTypes(r, 'bind');
+    expect(e.declarations).toEqual([{ composant: '030-binder', publie: true }]);
+    expect(e.lecteurs).toEqual([{ composant: '900-driver', par: ['appel de bind'] }]);
   });
 
   it('finds the references of a member of a published type, its writers included', () => {
     const r = releve(depot(DEPOT), description('`Registry.objects` change.', '1. Rien.'));
     const e = parLesTypes(r, 'Registry.objects');
-    expect(e.declarations).toEqual([{ composant: '000-forms', publie: true, porteurs: [] }]);
+    expect(e.declarations).toEqual([{ composant: '000-forms', publie: true }]);
     expect(e.lecteurs).toEqual([
       { composant: '020-loader', par: ['référence à Registry.objects'] },
       { composant: '030-binder', par: ['référence à Registry.objects'] },
@@ -215,54 +205,27 @@ describe('the survey by the types', () => {
     expect(r.composants).not.toContain('050-alone');
   });
 
-  it('follows an internal function of a reader to the readers of what it returns, never to the producers of what it receives', () => {
-    const r = releve(depot(DEPOT), description('`castOf` change.', '1. Rien.'));
-    const e = parLesTypes(r, 'castOf');
-    expect(e.declarations).toEqual([
-      { composant: '030-binder', publie: false, porteurs: ['bind'] },
-    ]);
-    // loader produces the registry bind receives: it reads nothing bind returns.
-    expect(e.lecteurs).toEqual([
-      {
-        composant: '040-checker',
-        par: ['type Bound rendu par bind, reçu par check, transporté par 900-driver'],
-      },
-      { composant: '900-driver', par: ['appel de bind'] },
-    ]);
-  });
-
-  // grillhouse-3uv.92.8, criterion 2.
-  it('leaves out a package that receives a type the carrier returns without reading its content', () => {
-    const racine = depot({
-      ...DEPOT,
-      // relay receives what bind returns and hands it on, without reading it.
-      ...ts('060-relay', 'relay'),
-      'packages/relay/src/index.ts': [
-        "import type { Bound } from '000-forms';",
-        '',
-        'export function relay(bound: Bound): Bound[] {',
-        '  return [bound];',
-        '}',
-        '',
-      ].join('\n'),
-      'packages/driver/src/index.ts': [
-        "import { load } from '020-loader';",
-        "import { bind } from '030-binder';",
-        "import { check } from '040-checker';",
-        "import { relay } from '060-relay';",
-        '',
-        'export function compile(origin: number): number {',
-        '  return relay(bind(load(origin).registry)).map(check).length;',
-        '}',
-        '',
-      ].join('\n'),
+  // grillhouse-3uv.92.11, criteria 1 and 2.
+  it('leads a symbol internal to a package to no reader, by the types nor by the Rend of its CADRE.md', () => {
+    // sceneWritten is internal to loader, castOf to binder, whose CADRE.md « Rend » names checker;
+    // the exports that reach them (load, bind) and their readers are left out.
+    const r = releve(
+      depot(DEPOT),
+      description('`sceneWritten` pose son origine ; `castOf` change.', '1. Rien.')
+    );
+    expect(parLesTypes(r, 'sceneWritten')).toEqual({
+      nom: 'sceneWritten',
+      declarations: [{ composant: '020-loader', publie: false }],
+      lecteurs: [],
     });
-    const r = releve(racine, description('`castOf` change.', '1. Rien.'));
-    expect(parLesTypes(r, 'castOf').lecteurs.map(l => l.composant)).toEqual([
-      '040-checker',
-      '900-driver',
-    ]);
-    expect(r.composants).not.toContain('060-relay');
+    expect(parLesTypes(r, 'castOf')).toEqual({
+      nom: 'castOf',
+      declarations: [{ composant: '030-binder', publie: false }],
+      lecteurs: [],
+    });
+    expect(r.architecture).toEqual([]);
+    expect(r.composants).toEqual([]);
+    expect(r.sansFournisseur).toEqual([]);
   });
 
   it('keeps, among homonyms, the declaration in a file the ticket names', () => {
@@ -298,8 +261,8 @@ describe('the survey by the types', () => {
 });
 
 describe('the survey by the architecture', () => {
-  it('reads the Rend of the CADRE.md of a package that declares an element, never its Reçoit', () => {
-    const r = releve(depot(DEPOT), description('`castOf` change.', '1. Rien.'));
+  it('reads the Rend of the CADRE.md of a package that publishes an element, never its Reçoit', () => {
+    const r = releve(depot(DEPOT), description('`bind` change.', '1. Rien.'));
     expect(r.architecture).toEqual([
       { composant: '040-checker', par: ['CADRE de 030-binder, Rend R4'] },
     ]);
@@ -312,39 +275,40 @@ describe('the survey by the architecture', () => {
 
   it('writes each reader by the types and by the architecture in the survey, with what makes it one', () => {
     const t = texteDuReleve(
-      releve(depot(DEPOT), description('`sceneWritten` et `castOf` changent.', '1. Rien.'))
+      releve(depot(DEPOT), description('`sceneWritten` et `bind` changent.', '1. Rien.'))
     );
     expect(t).toContain('- Par les types (service de langage de TypeScript) :');
-    expect(t).toContain(
-      '  - `sceneWritten` : interne à 020-loader, porté par `load` ; lu par 030-binder (type Registry rendu par load, reçu par bind, transporté par 900-driver), 900-driver (appel de load).'
-    );
+    expect(t).toContain('  - `sceneWritten` : interne à 020-loader ; lu par aucun autre.');
+    expect(t).toContain('  - `bind` : publié par 030-binder ; lu par 900-driver (appel de bind).');
     expect(t).toContain("- Par l'architecture : 040-checker (CADRE de 030-binder, Rend R4).");
   });
 
   it('runs as a command on a draft, the readers by the types in its output', () => {
     const racine = depot(DEPOT);
-    writeFileSync(
-      path.join(racine, 'brouillon.md'),
-      description('`sceneWritten` pose son origine.', '1. Rien.')
-    );
+    writeFileSync(path.join(racine, 'brouillon.md'), description('`bind` change.', '1. Rien.'));
     const r = spawnSync('node', [SCRIPT, '--description', 'brouillon.md'], {
       cwd: racine,
       encoding: 'utf8',
     });
     expect(r.status, r.stderr).toBe(0);
-    expect(r.stdout).toContain('**Composants relevés** : 020-loader, 030-binder, 900-driver.');
+    expect(r.stdout).toContain('**Composants relevés** : 030-binder, 040-checker, 900-driver.');
   });
 });
 
 // grillhouse-3uv.92.8, criterion 4 — the survey of BPScript 320.4 (2026-10-21, 17:35:48), reduced:
-// 030-binder merges the members (`membersOver`, internal, carried by `bind`) and publishes
-// `BoundObject.memberSources`; 040-checker reads them (`memberNamed`, internal, carried by
-// `check`); 900-driver carries the tree of 010-parser and the registry of 020-loader to `bind`,
-// and what `bind` returns to 040-checker, 050-emitter and 060-encoder; 050-emitter reads it,
-// 060-encoder hands it on; the CADRE.md of 030-binder receives from 010-parser and 020-loader;
-// 995-tools declares it reads `libraries`, which the ticket changes. Of the title « 000-forms,
-// 030-binder, 040-checker », the survey misses 050-emitter, 900-driver and 995-tools, and only
-// them.
+// 030-binder merges the members (`membersOver`, internal) and publishes
+// `BoundObject.memberSources`; 040-checker reads them (`memberNamed`, internal); 900-driver
+// carries the tree of 010-parser and the registry of 020-loader to `bind`, and what `bind`
+// returns to 040-checker, 050-emitter and 060-encoder; 050-emitter reads it, 060-encoder hands it
+// on; the CADRE.md of 030-binder receives from 010-parser and 020-loader; 995-tools declares it
+// reads `libraries`, which the ticket changes.
+// grillhouse-3uv.92.11, criteria 3 and 4 — 010-parser reads `BASE_FORMS`, the tests of 020-loader
+// `BoundObject`, 150-renderer-osc `range`, all three exported by 000-forms: real readers (the
+// owner, 2026-10-22). `place`, a word of the language, is also the name of a function internal to
+// 070-deriver, which `analyze` carries; 080-aligner reads what `analyze` returns, and the « Rend »
+// of the CADRE.md of 070-deriver names 080-aligner and 110-timer. Of the title « 000-forms,
+// 030-binder, 040-checker », the survey misses 010-parser, 020-loader, 050-emitter,
+// 150-renderer-osc, 900-driver and 995-tools, and only them.
 const DEPOT_320_4 = {
   'package.json': JSON.stringify({ name: 'bpscript', private: true, workspaces: ['packages/*'] }),
   'libraries/alphabets.bpsl': 'sound piano(midi(key:60), vel:80)\n',
@@ -355,6 +319,11 @@ const DEPOT_320_4 = {
     'export type ReadTree = { readonly items: readonly string[] };',
     'export type Registry = { readonly names: readonly string[] };',
     'export type Binding = { readonly objects: readonly BoundObject[] };',
+    'export type Derivation = { readonly tokens: readonly string[] };',
+    "export const BASE_FORMS: readonly string[] = ['integer', 'float'];",
+    'export function range(low: number, high: number): readonly number[] {',
+    '  return [low, high];',
+    '}',
     '',
   ].join('\n'),
   'packages/000-forms/docs/INTERFACE.md': [
@@ -369,10 +338,10 @@ const DEPOT_320_4 = {
   ].join('\n'),
   ...ts('010-parser', '010-parser'),
   'packages/010-parser/src/index.ts': [
-    "import type { ReadTree } from '000-forms';",
+    "import { BASE_FORMS, type ReadTree } from '000-forms';",
     '',
     'export function parse(text: string): ReadTree {',
-    "  return { items: text.split(' ') };",
+    "  return { items: text.split(' ').filter(w => !BASE_FORMS.includes(w)) };",
     '}',
     '',
   ].join('\n'),
@@ -383,6 +352,12 @@ const DEPOT_320_4 = {
     'export function load(names: string[]): Registry {',
     '  return { names };',
     '}',
+    '',
+  ].join('\n'),
+  'packages/020-loader/test/checked.test.ts': [
+    "import type { BoundObject } from '000-forms';",
+    '',
+    'export const sans: BoundObject = { memberSources: [] };',
     '',
   ].join('\n'),
   ...ts('030-binder', '030-binder'),
@@ -438,6 +413,48 @@ const DEPOT_320_4 = {
     '}',
     '',
   ].join('\n'),
+  ...ts('070-deriver', '070-deriver'),
+  'packages/070-deriver/src/index.ts': "export { analyze } from './resume.ts';\n",
+  'packages/070-deriver/src/resume.ts': [
+    "import type { Derivation } from '000-forms';",
+    '',
+    'function place(token: string): string {',
+    '  return token.trim();',
+    '}',
+    '',
+    'export function analyze(tokens: string[]): Derivation {',
+    '  return { tokens: tokens.map(place) };',
+    '}',
+    '',
+  ].join('\n'),
+  'packages/070-deriver/docs/CADRE.md': [
+    '# Cadre de 070-deriver',
+    '',
+    '## 4. Rend',
+    '',
+    '- **R4.** La dérivation, que lisent `080-aligner` et `110-timer`.',
+    '',
+  ].join('\n'),
+  ...ts('080-aligner', '080-aligner'),
+  'packages/080-aligner/src/index.ts': [
+    "import type { Derivation } from '000-forms';",
+    '',
+    'export function align(derivation: Derivation): number {',
+    '  return derivation.tokens.length;',
+    '}',
+    '',
+  ].join('\n'),
+  ...ts('110-timer', '110-timer'),
+  'packages/110-timer/src/index.ts': 'export function time(): number {\n  return 0;\n}\n',
+  ...ts('150-renderer-osc', '150-renderer-osc'),
+  'packages/150-renderer-osc/src/index.ts': [
+    "import { range } from '000-forms';",
+    '',
+    'export function scale(): readonly number[] {',
+    '  return range(0, 127);',
+    '}',
+    '',
+  ].join('\n'),
   ...ts('900-driver', '900-driver'),
   'packages/900-driver/src/index.ts': [
     "import { parse } from '010-parser';",
@@ -446,10 +463,13 @@ const DEPOT_320_4 = {
     "import { check } from '040-checker';",
     "import { emit } from '050-emitter';",
     "import { encode } from '060-encoder';",
+    "import { analyze } from '070-deriver';",
+    "import { align } from '080-aligner';",
     '',
     'export function compile(text: string): number {',
     '  const binding = bind(parse(text), load([]));',
-    '  return check(binding).length + emit(binding).length + encode(binding).length;',
+    '  const lines = align(analyze(text.split(/\\s+/)));',
+    '  return check(binding).length + emit(binding).length + encode(binding).length + lines;',
     '}',
     '',
   ].join('\n'),
@@ -465,24 +485,40 @@ const TICKET_320_4 = description(
     '- **Mécanisme commun, existant** : 030-binder fusionne par `membersOver` (fusion.ts:14-23)',
     '  et publie `BoundObject.memberSources` ; 040-checker la lit par `memberNamed`. `T?` peut',
     '  devenir `T`.',
+    '- **Mécanisme manquant** : la relation « integer sous float », à côté de `BASE_FORMS`',
+    '  (tables.ts:381).',
     '- **Documents touchés** : libraries/alphabets.bpsl:46-49.',
   ].join('\n'),
   [
     '1. `def zx(integer? v)` puis `def zx(string? v)` se refuse, par la faute',
     '   `CHECK_MEMBER_RETYPED`, qui nomme `zx`, `v` et `a`.',
+    '2. Une plage élargie par un def (`range(0, 10)` redéclarée `range(0, 20)`) se refuse.',
+    '3. `place` ne déclare plus `admits` ; aucune faute.',
+    '4. Le banc 900-driver cascade.test.ts passe sans retouche, et ceux de 050-emitter.',
   ].join('\n')
 );
 
 describe('the survey of BPScript 320.4, reduced', () => {
-  it('finds 050-emitter, 900-driver and 995-tools, and leaves out the carriers and the producers', () => {
+  it('finds the readers of the exported symbols it names, and leaves out the carriers, the producers and an internal homonym', () => {
     const racine = depot(DEPOT_320_4);
     const r = releve(racine, TICKET_320_4);
     expect(r.types.etat).toBe('fait');
     expect(manquants(racine, r, ['000-forms', '030-binder', '040-checker'])).toEqual([
+      '010-parser',
+      '020-loader',
       '050-emitter',
+      '150-renderer-osc',
       '900-driver',
       '995-tools',
     ]);
+    // `place`, internal to 070-deriver, brings nobody: not its package, not the reader of what
+    // `analyze` returns, not the packages the « Rend » of its CADRE.md names.
+    expect(parLesTypes(r, 'place')).toEqual({
+      nom: 'place',
+      declarations: [{ composant: '070-deriver', publie: false }],
+      lecteurs: [],
+    });
+    expect(r.architecture).toEqual([]);
     expect(r.sansFournisseur).toEqual([]);
     expect(texteDuReleve(r)).not.toContain('Sans interface');
   });

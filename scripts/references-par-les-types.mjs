@@ -14,25 +14,14 @@
 //   declaration of that name at the top of a component's source, else to the members of that
 //   name. The test files declare nothing.
 // - A declaration is published when its package's entry exports it (a member, when its type is);
-//   its readers are the other components that hold a reference to it: « appel de » for a call,
-//   « référence à » otherwise.
-// - An internal declaration is carried by the published declarations of its package that reach
-//   it, through the references of its package (its type for a member). Each carrier's readers
-//   are those of a published declaration, and the components that read what it returns: a
-//   function of another component that receives a type the carrier returns, in a component whose
-//   production code reads that type's content (a property access, an element access, a
-//   destructuring) (« type X rendu par f, reçu par g »). A component that hands the type on
-//   without reading it, or produces a type the carrier receives, carries it and reads nothing of
-//   the carrier, as in a graph of declared dependencies. A type returned holds the types of its
-//   properties, one level deep; a type is read through its unions, its arrays and its type
-//   arguments, and counts when a component declares it, under a name. A value goes from one
-//   function to the other when the component of one references the other, or through the
-//   components that reference both (« transporté par »): else it does not go.
+//   its readers are the other components that hold a reference to it, in their production code
+//   or their tests: « appel de » for a call, « référence à » otherwise.
+// - An internal declaration has no readers out of its package, as « find all references » starts
+//   from a symbol the published interface exports: a word of the ticket that only names it (a word
+//   of the language homonym of a private function) leads to no reader.
 // - An element that resolves to several declarations keeps those of the files and the components
 //   the ticket names, when it has some, else those of its components. A bare name that only the
 //   members of types out of these components bear resolves to none: it names no type.
-// - The carriers of an internal declaration, and the passage of a value, are read in the
-//   production code; the references to a published declaration, in the tests too.
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -43,8 +32,6 @@ const requis = createRequire(import.meta.url);
 const DOSSIERS_DE_TEST = new Set(['test', 'tests', '__tests__']);
 const SOURCE_TS = /\.[cm]?tsx?$/;
 const DECLARATION = /\.d\.[cm]?ts$/;
-// The depth of the search of the published declarations that carry an internal one.
-const PROFONDEUR = 4;
 
 // The elements <texte> names between backquotes: [{ ecrit, noms }], `ecrit` its first name,
 // `noms` its names without their calls, in their order, once each.
@@ -225,9 +212,9 @@ function service(ts, racine, tous) {
 // The survey by the types of the elements <ecrits> (`elementsEcrits`) in the components <tous> of
 // <racine>, an element that resolves to several declarations kept to those of the files and the
 // components the ticket names (<contexte>: `{ fichiers, composants }`, Sets of file names and of
-// components), when it has some: `{ etat: 'fait', raison: null, elements: [{ nom, ecrit, declarations: [{ c, publie,
-// porteurs }], lecteurs: Map component → Set of « par » }] }`, or `{ etat: 'impossible', raison,
-// elements: [] }` when it cannot run.
+// components), when it has some: `{ etat: 'fait', raison: null, elements: [{ nom, ecrit,
+// declarations: [{ c, publie }], lecteurs: Map component → Set of « par » }] }`, or
+// `{ etat: 'impossible', raison, elements: [] }` when it cannot run.
 export function parLesTypes(racine, tous, ecrits, contexte = {}) {
   try {
     return releveParLesTypes(racine, tous, ecrits, contexte);
@@ -248,7 +235,6 @@ function releveParLesTypes(racine, tous, ecrits, { fichiers = new Set(), composa
   // The declarations of the components' sources, at their top and as members of their types.
   const hauts = [];
   const membres = [];
-  const parHaut = new Map();
   const nomDe = n => (n?.name && ts.isIdentifier(n.name) ? n.name.text : null);
   const ajouterMembres = (haut, liste) => {
     for (const m of liste ?? []) {
@@ -272,9 +258,8 @@ function releveParLesTypes(racine, tous, ecrits, { fichiers = new Set(), composa
         if (!nom) {
           continue;
         }
-        const haut = { nom, conteneur: null, noeud: d.name, c, st };
+        const haut = { nom, conteneur: null, noeud: d.name, c };
         hauts.push(haut);
-        parHaut.set(st, [...(parHaut.get(st) ?? []), haut]);
         if (ts.isClassDeclaration(d) || ts.isInterfaceDeclaration(d)) {
           ajouterMembres(haut, d.members);
         }
@@ -313,8 +298,7 @@ function releveParLesTypes(racine, tous, ecrits, { fichiers = new Set(), composa
     return Boolean(sym) && exportsDe(h.c).some(x => x.sym === sym);
   };
 
-  // The references of the declaration <d>: [{ c, n, appel, production }], its own declarations
-  // left out, `production` false in a test file.
+  // The references of the declaration <d>: [{ c, appel }], its own declarations left out.
   const noeudA = (sf, pos) => {
     let trouve = null;
     const visiter = n => {
@@ -354,199 +338,11 @@ function releveParLesTypes(racine, tous, ecrits, { fichiers = new Set(), composa
         }
         const rsf = programme.getSourceFile(ref.fileName);
         const n = rsf ? noeudA(rsf, ref.textSpan.start) : null;
-        out.push({ c, n, appel: estAppel(n), production: !estTest(c, ref.fileName) });
+        out.push({ c, appel: estAppel(n) });
       }
     }
     return out;
   };
-  // The top declaration that holds the node <n>, or null (an import, a re-export).
-  const hautDe = n => {
-    let x = n;
-    while (x?.parent && !ts.isSourceFile(x.parent)) {
-      x = x.parent;
-    }
-    const liste = x ? parHaut.get(x) : null;
-    if (!liste) {
-      return null;
-    }
-    return liste.length === 1
-      ? liste[0]
-      : (liste.find(h => n.pos >= h.noeud.parent.pos && n.end <= h.noeud.parent.end) ?? liste[0]);
-  };
-
-  // The published declarations of its package that carry the internal declaration <d>.
-  const porteursDe = d => {
-    const out = new Set();
-    const vus = new Set();
-    let file = [d, ...(d.haut ? [d.haut] : [])];
-    for (let i = 0; i < PROFONDEUR && file.length; i++) {
-      const suivante = [];
-      for (const x of file) {
-        if (vus.has(x)) {
-          continue;
-        }
-        vus.add(x);
-        for (const r of references(x)) {
-          if (r.c !== d.c || !r.n || !r.production) {
-            continue;
-          }
-          const h = hautDe(r.n);
-          if (!h || h === x || vus.has(h)) {
-            continue;
-          }
-          if (publie(h)) {
-            out.add(h);
-          } else {
-            suivante.push(h);
-          }
-        }
-      }
-      file = suivante;
-    }
-    return [...out];
-  };
-
-  // The named types a type holds, declared in a component: through its unions and intersections,
-  // its arrays and type arguments, and, <niveaux> deep, its properties.
-  const typesDe = (t, niveaux, out = new Map(), vus = new Set()) => {
-    if (!t || vus.has(t)) {
-      return out;
-    }
-    vus.add(t);
-    if (t.isUnionOrIntersection()) {
-      for (const u of t.types) {
-        typesDe(u, niveaux, out, vus);
-      }
-    }
-    const sym = t.aliasSymbol ?? t.getSymbol();
-    const declare = sym?.declarations?.some(x => composantDe(x.getSourceFile().fileName));
-    if (declare && !sym.name.startsWith('__') && !(sym.flags & ts.SymbolFlags.TypeParameter)) {
-      out.set(sym, sym.name);
-    }
-    const args = [
-      ...(t.aliasTypeArguments ?? []),
-      ...(t.objectFlags & ts.ObjectFlags.Reference ? checker.getTypeArguments(t) : []),
-    ];
-    for (const a of args) {
-      typesDe(a, niveaux, out, vus);
-    }
-    if (declare && niveaux > 0) {
-      for (const p of checker.getPropertiesOfType(t)) {
-        const decl = p.valueDeclaration ?? p.declarations?.[0];
-        if (decl) {
-          typesDe(checker.getTypeOfSymbolAtLocation(p, decl), niveaux - 1, out, vus);
-        }
-      }
-    }
-    return out;
-  };
-  // The other components that reference the declaration named by the node <noeud>.
-  const referents = new Map();
-  const referentsDe = (noeud, c) => {
-    if (!referents.has(noeud)) {
-      const out = new Set(
-        references({ noeud })
-          .filter(r => r.production)
-          .map(r => r.c)
-      );
-      out.delete(c);
-      referents.set(noeud, out);
-    }
-    return referents.get(noeud);
-  };
-  // How a value goes from the function <f> of the component <cf> to the function <g> of <cg>: ''
-  // when one's component references the other, the components that reference both (« transporté
-  // par »), or null.
-  const passage = (f, cf, g, cg) => {
-    const rf = referentsDe(f, cf);
-    const rg = referentsDe(g, cg);
-    if (rg.has(cf) || rf.has(cg)) {
-      return '';
-    }
-    const par = [...rf]
-      .filter(x => rg.has(x))
-      .map(x => x.paquet ?? x.nom)
-      .sort();
-    return par.length ? `, transporté par ${par.join(', ')}` : null;
-  };
-  // The named types whose content the production code of the component <c> reads: the object of
-  // a property access, an element access or a destructuring.
-  const contenus = new Map();
-  const contenusLus = c => {
-    if (!contenus.has(c)) {
-      const out = new Map();
-      const visiter = n => {
-        const objet =
-          ts.isPropertyAccessExpression(n) || ts.isElementAccessExpression(n)
-            ? n.expression
-            : ts.isObjectBindingPattern(n)
-              ? n
-              : null;
-        if (objet) {
-          typesDe(checker.getTypeAtLocation(objet), 0, out);
-        }
-        ts.forEachChild(n, visiter);
-      };
-      for (const sf of programme.getSourceFiles()) {
-        if (
-          composantDe(sf.fileName) === c &&
-          !estTest(c, sf.fileName) &&
-          !DECLARATION.test(sf.fileName)
-        ) {
-          visiter(sf);
-        }
-      }
-      contenus.set(c, out);
-    }
-    return contenus.get(c);
-  };
-  // The functions a component publishes: [{ nom, noeud, recoit: Map, rend: Map }], the types they
-  // receive (their parameters') and return (their properties' too, one level).
-  const fonctions = new Map();
-  const lieu = sym => sym.valueDeclaration ?? sym.declarations?.[0];
-  const signatures = sym => {
-    const decl = lieu(sym);
-    if (
-      !decl ||
-      !(sym.flags & (ts.SymbolFlags.Function | ts.SymbolFlags.Variable | ts.SymbolFlags.Method))
-    ) {
-      return [];
-    }
-    return checker.getTypeOfSymbolAtLocation(sym, decl).getCallSignatures();
-  };
-  const formes = (nom, sym) => {
-    const recoit = new Map();
-    const rend = new Map();
-    for (const sig of signatures(sym)) {
-      for (const p of sig.getParameters()) {
-        typesDe(checker.getTypeOfSymbolAtLocation(p, lieu(p) ?? lieu(sym)), 0, recoit);
-      }
-      typesDe(sig.getReturnType(), 1, rend);
-    }
-    if (
-      sym.flags &
-      (ts.SymbolFlags.Interface |
-        ts.SymbolFlags.TypeAlias |
-        ts.SymbolFlags.Class |
-        ts.SymbolFlags.Enum)
-    ) {
-      recoit.set(sym, sym.name);
-      rend.set(sym, sym.name);
-    }
-    return { nom, noeud: lieu(sym)?.name ?? lieu(sym), recoit, rend };
-  };
-  const fonctionsDe = c => {
-    if (!fonctions.has(c)) {
-      fonctions.set(
-        c,
-        exportsDe(c)
-          .filter(x => x.sym && signatures(x.sym).length)
-          .map(x => formes(x.nom, x.sym))
-      );
-    }
-    return fonctions.get(c);
-  };
-
   // The declarations an element resolves to: in the files and the components the ticket names,
   // else in its components, else anywhere; at the top before the members. <hors>: for each list,
   // the level at which its declarations resolve to none.
@@ -601,49 +397,21 @@ function releveParLesTypes(racine, tous, ecrits, { fichiers = new Set(), composa
       }
       lecteurs.get(c).add(par);
     };
-    const lirePar = (d, nomAffiche, production = false) => {
-      const parComposant = new Map();
-      for (const r of references(d)) {
-        if (r.c === d.c || (production && !r.production)) {
-          continue;
-        }
-        parComposant.set(r.c, parComposant.get(r.c) || r.appel);
-      }
-      for (const [c, appel] of parComposant) {
-        lire(c, `${appel ? 'appel de' : 'référence à'} ${nomAffiche}`);
-      }
-    };
     const declarations = [];
     for (const d of decls) {
       const estPublie = publie(d);
-      const porteurs = estPublie ? [] : porteursDe(d);
-      declarations.push({ c: d.c, publie: estPublie, porteurs: porteurs.map(p => p.nom) });
-      if (estPublie) {
-        lirePar(d, nom);
+      declarations.push({ c: d.c, publie: estPublie });
+      if (!estPublie) {
+        continue;
       }
-      for (const p of porteurs) {
-        lirePar(p, p.nom, true);
-        const sym = symDe(p);
-        if (!sym) {
-          continue;
+      const parComposant = new Map();
+      for (const r of references(d)) {
+        if (r.c !== d.c) {
+          parComposant.set(r.c, parComposant.get(r.c) || r.appel);
         }
-        const forme = formes(p.nom, sym);
-        for (const c of tous) {
-          if (c === d.c) {
-            continue;
-          }
-          for (const f of fonctionsDe(c)) {
-            for (const [t, n] of forme.rend) {
-              if (!f.recoit.has(t) || !contenusLus(c).has(t)) {
-                continue;
-              }
-              const v = passage(p.noeud, d.c, f.noeud, c);
-              if (v !== null) {
-                lire(c, `type ${n} rendu par ${p.nom}, reçu par ${f.nom}${v}`);
-              }
-            }
-          }
-        }
+      }
+      for (const [c, appel] of parComposant) {
+        lire(c, `${appel ? 'appel de' : 'référence à'} ${nom}`);
       }
     }
     elements.push({ nom, ecrit: e.ecrit, declarations, lecteurs });
