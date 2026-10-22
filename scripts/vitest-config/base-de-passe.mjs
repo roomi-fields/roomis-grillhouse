@@ -10,9 +10,10 @@
 // - The genres: `vitest`, each run of Vitest (`baseDeVitest`, a plugin of the base configuration,
 //   ./base.mjs), which holds Vitest's own temporary directory too; `tests`, `npm test` (scripts/tests.mjs); `verification`,
 //   `npm run verifier` (scripts/verifier.mjs), whose base Turborepo passes to its tasks
-//   (`globalPassThroughEnv`, scripts/turbo-des-paquets.mjs); `circuit`, the working directory of
-//   a circuit (scripts/circuit.mjs); `integration`, that of an integration
-//   (scripts/integration/integrer.mjs); `enveloppe`, the throwaway state of a session's envelope
+//   (`globalPassThroughEnv`, scripts/turbo-des-paquets.mjs); `circuit`, the results and progress
+//   of the passes of a circuit's run (scripts/circuit.mjs; its working directory is the ticket's,
+//   beside its copy, which no sweep touches); `integration`, the working directory of an
+//   integration (scripts/integration/integrer.mjs); `enveloppe`, the throwaway state of a session's envelope
 //   (scripts/enveloppe/enveloppe.mjs).
 // - The base is removed at the end of the pass, green or red (`fermer`).
 // - Opening a base first sweeps `<dans>`: every base there whose owner is gone is removed, whatever

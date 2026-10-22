@@ -24,7 +24,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { dossierDeTravail } from '../../scripts/enveloppe/enveloppe.mjs';
 import { ouvrirBase } from '../../scripts/vitest-config/base-de-passe.mjs';
 import { canWrap, racineSousLaMaison } from '../machine.js';
-import { circuitEssai } from './circuit-essai.js';
+import { CIRCUIT, circuitEssai } from './circuit-essai.js';
 
 const DEPOT = path.resolve(__dirname, '../..');
 const MODULE = path.join(DEPOT, 'scripts/vitest-config/base-de-passe.mjs');
@@ -261,7 +261,7 @@ describe('critère 4 — the working directory of an integration and of a circui
   );
 
   describe.runIf(canWrap)('the circuit', () => {
-    const { ticket, circuit } = circuitEssai(ESSAIS_CIRCUIT);
+    const { REPO, ENV, ticket, circuit, scenario, etat, sessions } = circuitEssai(ESSAIS_CIRCUIT);
     it(
       'critère 4: a circuit sweeps the orphan bases, leaves a living one, and removes its own at its end',
       () => {
@@ -279,6 +279,71 @@ describe('critère 4 — the working directory of an integration and of a circui
         vivante.fermer();
       },
       LONG
+    );
+
+    // grillhouse-3uv.94: the working directory of the circuit lives as long as its ticket, as the
+    // workspace of a pipeline of Jenkins or GitLab, cleaned at the end of the pipeline, never by a
+    // neighbour. Witness (BP 325, 2026-10-22): a reviewer's session, out of the envelope, outlived
+    // its killed circuit and lost the circuit's working directory when another pass swept it.
+    it(
+      'grillhouse-3uv.94 critères 1, 2, 4 et 5: a killed circuit, then a sweep, leave the working directory of the ticket, named after it; the circuit relaunched takes it up again, and the base of each run is swept',
+      async () => {
+        const dans = mkdtempSync(path.join(ESSAIS_CIRCUIT, 'tmp-'));
+        const id = 'demo-travail';
+        const copie = ticket(id, '000-forms');
+        const travail = `${copie}.travail`;
+        scenario(id, 'testwriter', 'sleep 120\n');
+        const consignes = () =>
+          (existsSync(travail) ? readdirSync(travail) : [])
+            .map(n => /^consigne-(\d+)\.md$/.exec(n)?.[1])
+            .filter((n): n is string => n !== undefined)
+            .map(Number)
+            .sort((a, b) => a - b);
+        // A run of the circuit killed once its <n>-th testwriter's session runs, with that session.
+        const tuer = async (n: number) => {
+          const p = spawn('node', [CIRCUIT, id], {
+            cwd: REPO,
+            env: { ...ENV, TMPDIR: dans },
+            stdio: 'ignore',
+          });
+          const fin = new Promise(ok => p.on('close', ok));
+          let groupe = 0;
+          for (let i = 0; i < 900 && !groupe; i++) {
+            await new Promise(ok => setTimeout(ok, 200));
+            const e = etat(id);
+            if (e?.etape === 'testwriter' && e.seance && sessions(id, 'testwriter') === n) {
+              groupe = e.seance;
+            }
+          }
+          expect(groupe, `la séance du testwriter ${n} tourne`).toBeGreaterThan(0);
+          p.kill('SIGKILL');
+          await fin;
+          try {
+            process.kill(-groupe, 'SIGKILL');
+          } catch {
+            // The session already ended.
+          }
+        };
+
+        await tuer(1);
+        const premiers = consignes();
+        expect(premiers.length).toBeGreaterThan(0);
+        // Another pass opens its base: it sweeps the killed run's base, never the ticket's directory.
+        ouvrirBase('balai', { dans }).fermer();
+        expect(noms(dans, 'grillhouse-circuit-')).toEqual([]);
+        expect(existsSync(travail)).toBe(true);
+        expect(consignes()).toEqual(premiers);
+
+        // The circuit relaunched writes in the same directory, after what the killed run left.
+        await tuer(2);
+        const ensuite = consignes();
+        expect(ensuite).toEqual(expect.arrayContaining(premiers));
+        expect(Math.max(...ensuite)).toBeGreaterThan(Math.max(...premiers));
+        ouvrirBase('balai', { dans }).fermer();
+        expect(noms(dans, 'grillhouse-circuit-')).toEqual([]);
+        expect(existsSync(travail)).toBe(true);
+      },
+      LONG * 3
     );
   });
 });
@@ -306,7 +371,8 @@ function creations(): { fichier: string; nom: string; source: string }[] {
 
 // The directories a script makes without removing them itself, each with its reason: the base,
 // which `fermer` removes; the progress directory, which its caller removes (scripts/verifier.mjs)
-// or which lives in the circuit's base; the results of a pass of the circuit, in its base.
+// or which lives in the base of the circuit's run; the results of a pass of the circuit, in that
+// base.
 const HORS_DU_SCRIPT = new Set([
   'scripts/vitest-config/base-de-passe.mjs: base',
   'scripts/avancement.mjs: dossier',
@@ -324,10 +390,12 @@ describe('critère 9 — a script of the frame that makes a temporary directory 
       )
       .map(({ fichier, nom }) => `${fichier}: ${nom}`);
     expect(restent).toEqual([]);
-    // The circuit's results and progress live in its base, which it removes at its end.
+    // The results and progress of the circuit's passes live in the base of its run, which it
+    // removes at its end (grillhouse-3uv.94: its working directory is the ticket's).
     const circuit = readFileSync(path.join(DEPOT, 'scripts/circuit.mjs'), 'utf8');
-    expect(circuit).toContain("mkdtempSync(path.join(ctx.tmp, 'resultats-'))");
-    expect(circuit).toContain('ctx?.travail.fermer();');
+    expect(circuit).toContain("mkdtempSync(path.join(ctx.base.dossier, 'resultats-'))");
+    expect(circuit).toContain('dans: ctx.base.dossier');
+    expect(circuit).toContain('ctx?.base.fermer();');
     // The progress directory of a pass of its own goes at the end of the pass.
     expect(readFileSync(path.join(DEPOT, 'scripts/verifier.mjs'), 'utf8')).toContain(
       'rmSync(dossier, { recursive: true, force: true })'

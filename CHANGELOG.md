@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **The working directory of the circuit lives as long as its ticket**: during BP 325 (2026-10-22), a reviewer's session, launched out of the envelope, outlived its killed circuit, and lost the circuit's working directory (its instruction, its statements, the file of its result) as soon as another pass swept it as an orphan base, its owner gone. As the workspace of a pipeline of Jenkins or GitLab, cleaned at the end of the pipeline and never by a neighbour, the circuit's working directory is now the ticket's, `.claude/worktrees/<ticket>.travail` beside its copy: no sweep touches it, a circuit relaunched on the ticket takes it up again (its files numbered after those it finds), the queue removes it at the ticket's closure, and `scripts/retirer-copie.sh` removes it with the copy, so that a ticket closed without integration (a final stop, an abandon) loses both by one command; the integration removes the copy with `--garder-travail`, since the circuit still runs. The results and the progress of the circuit's passes stay in the base of its run, removed at its end and swept when orphan. The common charter, the supervisor's skill, the headers of the modules and STRUCTURE.md say so. (grillhouse-3uv.94)
+
 ## [0.22.4] - 2026-10-22
 
 ### Fixed

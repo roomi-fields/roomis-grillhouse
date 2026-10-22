@@ -186,6 +186,10 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
   la balaie, comme Bazel donne à chaque test son `TEST_TMPDIR` et nettoie ses bacs à sable
   (`scripts/vitest-config/base-de-passe.mjs`). Ainsi un essai oublié ne remplit jamais le dossier
   temporaire de la machine.
+- **Le dossier du circuit appartient au ticket** : `.claude/worktrees/<ticket>.travail` vit autant
+  que le ticket, comme l'espace de travail d'un pipeline ; aucun balayage n'y touche, la file
+  l'efface à la clôture, `scripts/retirer-copie.sh` avec la copie d'un ticket fermé sans
+  intégration. Ainsi une séance qui survit à son circuit garde ce qu'il lui a remis.
 - **Main reste vert** : l'intégration exige un `npm run verifier` vert, sans rouge admis, mesuré
   contre le dernier vert ; la nuit rejoue la passe complète. Un test connu
   rouge se met en quarantaine dans le test lui-même (`it.skip` ou `it.fails`), avec le ticket qui

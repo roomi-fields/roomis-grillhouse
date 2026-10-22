@@ -35,8 +35,9 @@
 //    scripts/verifier.mjs; neither green nor red), stays in the queue, the reason written to its
 //    ticket, which is neither reopened nor closed, and the queue goes on; the next queue takes it
 //    again. Any other code than 0 and 75 is red.
-// At its entry on main, the branch's ticket closes « intégré : <commit> », loses `en-file`, and
-// the branch is deleted; a branch git does not delete (its copy still in place) is written to the
+// At its entry on main, the branch's ticket closes « intégré : <commit> », loses `en-file`, the
+// working directory of its circuit (`.claude/worktrees/<ticket>.travail`, scripts/circuit.mjs),
+// which lives as long as the ticket, is removed, and the branch is deleted; a branch git does not delete (its copy still in place) is written to the
 // ticket, which closes all the same. Then main is pushed to origin, on the branch
 // `grillhouse.poussee.commit` of main's package.json (`main` without the key); a refused push is
 // written to the ticket and does not stop the queue.
@@ -61,7 +62,7 @@
 // Every comment and change of the queue at a ticket is written under the author `file`, which bd
 // reads in BEADS_ACTOR, as the circuit writes its own lines under `circuit`.
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -302,6 +303,10 @@ function main(argv) {
     const court = nouveau.slice(0, 7);
     bd('update', entree.ticket, '--remove-label', 'en-file');
     bd('close', entree.ticket, '--reason', `intégré : ${court}`);
+    rmSync(path.join(racine, '.claude', 'worktrees', `${entree.ticket}.travail`), {
+      recursive: true,
+      force: true,
+    });
     retirerEntree(entree);
     dire(`✓ ${entree.branche} entre sur ${principale} : ${court}`);
     const efface = git('branch', '-D', entree.branche);

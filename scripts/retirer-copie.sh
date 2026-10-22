@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # The removal of a working copy, called by the three places that end one: the agent copy (by
-# scripts/integration/integrer.mjs once its lot is committed), the integration copy (by the same
-# script) and the night copy (scripts/nuit.sh), the last two when their existing copy does not get
-# ready.
+# scripts/integration/integrer.mjs once its lot is committed, and by the supervisor for a ticket
+# closed without integration), the integration copy (by the same script) and the night copy
+# (scripts/nuit.sh), the last two when their existing copy does not get ready.
 #
-#   bash scripts/retirer-copie.sh [--jetable] <copie>
+#   bash scripts/retirer-copie.sh [--jetable] [--garder-travail] <copie>
 #
 # - The copy is a path read from the current directory, as git reads it, and must be a copy that
 #   `git worktree list` names for the repository of the current directory: the main working tree,
@@ -25,13 +25,27 @@
 # - With `--jetable`, passed only by the integration and the night for their own copy, local work
 #   and an unreadable state do not hold the removal.
 # - A locked copy (`git worktree lock`) is refused in every case.
+# - The copy removed, the working directory of its ticket's circuit, `<copie>.travail` beside it
+#   (scripts/circuit.mjs), goes with it, as the workspace of a pipeline goes at its end: a ticket
+#   closed without integration (a final stop, an abandon) loses both by this one command. With
+#   `--garder-travail`, passed only by the integration, it stays: the circuit still runs, and the
+#   queue removes it at the ticket's closure (scripts/integration/file.mjs). A copy refused keeps
+#   it.
 # - Exit 0 removed, 1 refused (the first line on stderr names the copy and what holds it), 2 a
 #   malformed call (the usage on stderr).
 set -uo pipefail
 jetable=0
-if [ "${1:-}" = --jetable ]; then jetable=1; shift; fi
+garder=0
+while [ $# -gt 0 ]; do
+  case $1 in
+    --jetable) jetable=1 ;;
+    --garder-travail) garder=1 ;;
+    *) break ;;
+  esac
+  shift
+done
 [ $# -eq 1 ] && [ "${1#-}" = "$1" ] || {
-  echo "usage: retirer-copie.sh [--jetable] <copie>" >&2
+  echo "usage: retirer-copie.sh [--jetable] [--garder-travail] <copie>" >&2
   exit 2
 }
 copie=$1
@@ -110,3 +124,4 @@ fi
 
 sortie=$(git worktree remove --force "$chemin" 2>&1) ||
   refuser "la copie $copie ne se retire pas :" "$sortie"
+[ "$garder" -eq 1 ] || rm -rf -- "$chemin.travail"

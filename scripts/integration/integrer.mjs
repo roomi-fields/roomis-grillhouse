@@ -44,7 +44,9 @@
 //     hook that plays the guards skips them, as step 6 just played them; the commit validated is
 //     the commit that enters;
 //  8. the branch `agent/<ticket>` is set on that commit, the ticket's copy follows it and is
-//     removed by `scripts/retirer-copie.sh` (no `--jetable`): a refusal, a locked copy for
+//     removed by `scripts/retirer-copie.sh` (no `--jetable`; `--garder-travail`: the working
+//     directory of the ticket's circuit, `<copie>.travail`, stays for the circuit that still runs,
+//     and the queue removes it at the ticket's closure): a refusal, a locked copy for
 //     example, is written to the ticket, the commit stands. The ticket is labelled
 //     `en-file` and the branch takes its place at the end of the queue
 //     (scripts/integration/file-attente.mjs). main does not move here.
@@ -353,7 +355,10 @@ function main(argv) {
     bd('update', o.ticket, '--add-label', 'en-file');
     dire(`✓ commit ${commit.slice(0, 7)} sur ${branche}`);
     const retrait = avecCopie
-      ? spawnSync('bash', [RETIRER_COPIE, copieTicket], { cwd: racine, encoding: 'utf8' })
+      ? spawnSync('bash', [RETIRER_COPIE, '--garder-travail', copieTicket], {
+          cwd: racine,
+          encoding: 'utf8',
+        })
       : { status: 0, stderr: '' };
     if (retrait.status !== 0) {
       const raison = `La copie ${copieTicket} n'est pas retirée après le commit de ${branche} : ${retrait.stderr.trim()}\nLa branche reste en file.`;
