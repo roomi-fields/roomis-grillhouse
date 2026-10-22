@@ -9,6 +9,8 @@
 //   width (`quiCourt`, the roles keeping their whole name everywhere else), whether it runs for each component of the ticket's title (`parComposant`), its
 //   sub-steps (`sous`), and the step of the circuit's state it is (`etat`: the `etape` of
 //   `.claude/worktrees/<ticket>.circuit.json`, the final pass being the checks once `finale`).
+//   A step that runs only for a project that declares it names the key of that declaration under
+//   `grillhouse` of the project's package.json (`declaration`): the board shows it only there.
 //   The opening reads its sub-steps elsewhere in the state: the survey of the components by its
 //   start while it runs (`releve`) and by its stop (`arrets`), the questioning of the plan by the questioning under way (`questionnement`)
 //   and by its stop. SUITE is the tree in its order, each step before its sub-steps.
@@ -92,7 +94,23 @@ export const ETAPES = [
       { numero: '2.4', titre: 'Contrôles', qui: [AUTO], parComposant: true, etat: 'controles' },
     ],
   },
-  { numero: '3', titre: 'Passe finale', qui: [AUTO], etat: 'controles', finale: true },
+  {
+    numero: '3',
+    titre: 'Passe finale',
+    qui: [AUTO],
+    etat: 'controles',
+    finale: true,
+    sous: [
+      {
+        numero: '3.1',
+        titre: 'Régénération des références',
+        qui: [AUTO],
+        etat: 'references',
+        declaration: 'references',
+        arrets: ['references'],
+      },
+    ],
+  },
   {
     numero: '4',
     titre: 'Relecture',
@@ -153,6 +171,7 @@ export const ARRETS = {
   besoin: 20,
   'composants-manquants': 21,
   questionnement: 22,
+  references: 23,
   'a-repasser': A_REPASSER,
 };
 

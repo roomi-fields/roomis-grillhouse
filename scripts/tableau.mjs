@@ -12,7 +12,9 @@
 // - Global: the work tickets of the project (a ticket without children; a mother is a grouping)
 //   by state, the agents' working time and tokens of the day and in all, the alerts.
 // - Agents: the tree of the steps of the process (scripts/etapes.mjs), one block per step and
-//   sub-step, with who works there, then the arbitrage of a stop, for the whole project. A ticket
+//   sub-step, with who works there, then the arbitrage of a stop, for the whole project; a step
+//   that names a declaration (the regeneration of the references, 3.1) has its line only when the
+//   project's package.json declares it (`grillhouse.references`). A ticket
 //   stands at the step of every agent that runs on it, or waits in one place: at
 //   the step of the next role, deduced from the roles of the flow that ran on it and the
 //   reviewer's last verdict (`ACCEPTÉ` or `RENDU` at the start of a comment). A regulator waits for
@@ -721,6 +723,7 @@ export function assembler({
   maintenant,
   jour,
   horsTicket = null,
+  declarations: lesDeclarations = [],
 }) {
   // A circuit's lines are its steps, no agent's passage.
   const etapesFinies = lignesDuRegistre.filter(r => r.role === ROLE_DU_CIRCUIT);
@@ -1091,8 +1094,17 @@ export function assembler({
     faitsDuJour,
     etats,
     parTicket,
+    declarations: lesDeclarations,
   };
 }
+
+// The declarations of a project, the keys of `grillhouse` of its package.json <pkg> that hold
+// something (a non-empty list, a value): a step that names one (`declaration`, scripts/etapes.mjs)
+// shows only on a board that holds it.
+export const declarations = pkg =>
+  Object.entries(pkg?.grillhouse ?? {})
+    .filter(([, v]) => (Array.isArray(v) ? v.length > 0 : Boolean(v)))
+    .map(([cle]) => cle);
 
 export const k = n =>
   n >= 1e6
@@ -1394,15 +1406,18 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       cadre(`${retrait}${b.numero} · ${b.titre}${b.qui ? ` · ${b.qui}` : ''}`, '', largeur),
       plein ? 'titre' : 'discret'
     );
+  // A sub-step that names a declaration the project does not hold has no line.
+  const declare = e => !e.declaration || (t.declarations ?? []).includes(e.declaration);
   for (const e of ETAPES) {
     const b = blocDe(e);
-    if (!e.sous) {
+    const lesSous = (e.sous ?? []).filter(declare);
+    if (!lesSous.length) {
       // Its number stands under those of the steps a fold mark opens.
       ligneDEtape(b, '  ');
       tickets(b, '  ');
       continue;
     }
-    const sous = e.sous.map(blocDe);
+    const sous = lesSous.map(blocDe);
     const ouverte = [b, ...sous].some(x => !contenus.get(x).vide);
     ligneDEtape(b, ouverte ? '▾ ' : '▸ ', ouverte);
     if (!ouverte) {
@@ -1719,6 +1734,15 @@ const bdJson = (racine, ...args) => {
   }
 };
 
+// The package.json at the root of <racine>, or null.
+const lirePaquet = racine => {
+  try {
+    return JSON.parse(readFileSync(path.join(racine, 'package.json'), 'utf8'));
+  } catch {
+    return null;
+  }
+};
+
 // The board of the repository at <racine>.
 export function tableau(racine, { home = os.homedir(), maintenant = Date.now() } = {}) {
   let prefix = '';
@@ -1808,6 +1832,7 @@ export function tableau(racine, { home = os.homedir(), maintenant = Date.now() }
     maintenant,
     jour: minuit.getTime(),
     horsTicket: lireLaMesure(process.env),
+    declarations: declarations(lirePaquet(racine)),
   });
   // The project is named by its repository's folder, as a shell prompt names it.
   const nom = path.basename(racine);

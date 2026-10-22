@@ -40,7 +40,7 @@
 //   (the board gives both texts, `texte` and `alterne`; the mod alternates), with its rank among
 //   the title's components, then the counters of its loops, its time and its tokens.
 import { describe, expect, it } from 'vitest';
-import { assembler, fiches, LARGEUR, lignes } from '../../scripts/tableau.mjs';
+import { assembler, declarations, fiches, LARGEUR, lignes } from '../../scripts/tableau.mjs';
 
 const MIN = 60_000;
 const at = (hm: string) => `2026-10-20T${hm}:00Z`;
@@ -121,7 +121,12 @@ const circuit = (ticket: string, o: object = {}) => ({
 });
 const plateau = (
   tous: object[],
-  o: { registre?: object[]; vivants?: object[]; circuits?: object[] } = {}
+  o: {
+    registre?: object[];
+    vivants?: object[];
+    circuits?: object[];
+    declarations?: string[];
+  } = {}
 ): Board =>
   assembler({
     tous,
@@ -129,6 +134,7 @@ const plateau = (
     registre: o.registre ?? [],
     vivants: o.vivants ?? [],
     circuits: o.circuits ?? [],
+    declarations: o.declarations ?? [],
     maintenant: MAINTENANT,
     jour: MAINTENANT - 24 * 60 * MIN,
   }) as Board;
@@ -186,6 +192,7 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
       ['2.3', 'Code', 'développeur'],
       ['2.4', 'Contrôles', 'auto'],
       ['3', 'Passe finale', 'auto'],
+      ['3.1', 'Régénération des références', 'auto'],
       ['4', 'Relecture', 'relecteur'],
       ['5', 'Intégration', ''],
       ['5.1', 'Commit', 'auto'],
@@ -577,5 +584,66 @@ describe('the card of a stopped ticket says its step by number and title', () =>
     expect(carte).toMatch(
       /^Circuit arrêté en 2\.4 Contrôles 3 · 030-binder, arrêt controles \(14\) : Le test « tableau » reste rouge\./
     );
+  });
+});
+
+// grillhouse-3uv.92.1: the regeneration of the references (3.1) has its line in the tree only for
+// a project that declares them (`grillhouse.references` of its package.json), as a job of GitLab
+// CI shows only in a pipeline whose rules hold it.
+describe('the line of 3.1, for a project that declares its references', () => {
+  it('a project without the declaration keeps 3 on one line, a ticket at the final pass under it', () => {
+    const t = plateau([T('demo-35')], {
+      circuits: [circuit('demo-35', { etape: 'controles', finale: true })],
+    });
+    expect(textes(t).filter(x => ETAPE.test(x))).not.toContain(
+      '  3.1 · Régénération des références · auto'
+    );
+    expect(etapeDe(t, 'demo-35')).toBe('  3 · Passe finale · auto');
+  });
+
+  it('a project that declares them folds 3 while nothing stands there', () => {
+    expect(textes(plateau([], { declarations: ['references'] }))).toContain(
+      '▸ 3 · Passe finale · auto'
+    );
+  });
+
+  it('a ticket at the regeneration unfolds 3, under « 3.1 · Régénération des références · auto »', () => {
+    const t = plateau([T('demo-36')], {
+      declarations: ['references'],
+      circuits: [circuit('demo-36', { etape: 'references', finale: true })],
+    });
+    const l = textes(t);
+    const i = l.indexOf('▾ 3 · Passe finale · auto');
+    expect(i).toBeGreaterThan(0);
+    expect(l[i + 1]).toBe('  3.1 · Régénération des références · auto');
+    expect(etapeDe(t, 'demo-36')).toBe('  3.1 · Régénération des références · auto');
+    expect(agents(t).every(x => x.texte.length <= LARGEUR)).toBe(true);
+  });
+
+  it('a ticket stopped at the regeneration stands at the arbitrage of 3.1', () => {
+    const t = plateau([T('demo-37')], {
+      declarations: ['references'],
+      circuits: [
+        circuit('demo-37', {
+          etape: 'references',
+          finale: true,
+          code: 23,
+          arret: 'references',
+          raison: 'references',
+          vivant: false,
+        }),
+      ],
+    });
+    expect(etapeDe(t, 'demo-37')).toBe('  3.1 · Régénération des références · auto');
+    expect(arbitreDe(t, 'demo-37')).toBe(true);
+  });
+
+  it("reads the declarations of the project's package.json: a key of grillhouse that holds something", () => {
+    expect(declarations({ grillhouse: { references: [{ nom: 'x' }], lit: [] } })).toEqual([
+      'references',
+    ]);
+    expect(declarations({ grillhouse: { references: [] } })).toEqual([]);
+    expect(declarations({})).toEqual([]);
+    expect(declarations(null)).toEqual([]);
   });
 });

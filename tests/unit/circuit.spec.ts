@@ -42,6 +42,7 @@ describe('the stops of the circuit and their codes', () => {
       'besoin',
       'composants-manquants',
       'questionnement',
+      'references',
     ];
     expect(Object.keys(ARRETS).sort()).toEqual([...noms].sort());
     const codes = Object.values(ARRETS);
@@ -57,6 +58,8 @@ describe('the stops of the circuit and their codes', () => {
     expect(ARRETS.besoin).toBe(20);
     // grillhouse-3uv.89.1: the questioning of the plan that does not converge.
     expect(ARRETS.questionnement).toBe(22);
+    // grillhouse-3uv.92.1: a reference regenerated that the plan does not name.
+    expect(ARRETS.references).toBe(23);
   });
   it('waits 20 minutes of a motionless transcript before it stops a session', () => {
     expect(IMMOBILE_MS).toBe(20 * 60 * 1000);

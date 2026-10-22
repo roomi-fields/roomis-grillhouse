@@ -98,6 +98,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/circuit.passe-finale.spec.ts
 - tests/unit/circuit.preuve.spec.ts
 - tests/unit/circuit.questionneur.spec.ts
+- tests/unit/circuit.references.spec.ts
 - tests/unit/circuit.regulateur.spec.ts
 - tests/unit/circuit.registre.spec.ts
 - tests/unit/circuit.reprise.spec.ts
