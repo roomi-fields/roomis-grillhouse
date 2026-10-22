@@ -1,6 +1,6 @@
 // A time witness is measured with the CPU at rest. Witness: BPScript, where under load tests ran
 // past Vitest's delay (5 s) with nothing wrong and `npm run verifier` refused lots at random. The
-// frame's base configuration of Vitest (@grillhouse/vitest-config) notes the kernel's CPU pressure
+// frame's base configuration of Vitest (@roomi-fields/grillhouse/vitest-config) notes the kernel's CPU pressure
 // (/proc/pressure/cpu, line `some`, `avg10`) at the start and at the end of each test, and its
 // duration reporter gives the exit code 75, « à repasser », when every failure depends on a
 // duration (a delay past, a time budget bench, a test marked by `mesurerAuRepos`) and at least one

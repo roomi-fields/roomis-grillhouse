@@ -7,7 +7,6 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
-  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -74,27 +73,28 @@ describe('critère 4 — npm test leaves the night tests out', () => {
   }, 120_000);
 });
 
-// The frame's base configuration of the day (the package @grillhouse/vitest-config, a frame
-// directory, scripts/vitest-config/) carries the exclusions of the night tests and the time budget
-// benches and the common environment; the root of Grillhouse and each package of a project extend
-// it (mergeConfig) without repeating them. A package of a project reaches it by its name, as the
-// examples of Turborepo reach their configuration packages (@repo/eslint-config); the root of a
-// repository without packages, the package that holds the file, by its path.
+// The frame's base configuration of the day (`@roomi-fields/grillhouse/vitest-config`, the
+// package's scripts/vitest-config/) carries the exclusions of the night tests and the time budget
+// benches and the common environment; the frame's tests and each configuration of a project extend
+// it (mergeConfig) without repeating them, and reach it by its name, as the examples of Turborepo
+// reach their configuration packages (@repo/eslint-config).
 describe('the base configuration of the day leaves the night out of every configuration that extends it', () => {
   const PAQUET = path.join(DEPOT, 'packages/grillhouse/scripts/vitest-config');
   const BASE = path.join(PAQUET, 'base.mjs');
   type Config = { test: { exclude: string[]; env: Record<string, string> } };
-  it('is a private package, @grillhouse/vitest-config, that exports its configuration, typed', () => {
-    expect(JSON.parse(readFileSync(path.join(PAQUET, 'package.json'), 'utf8'))).toEqual({
-      name: '@grillhouse/vitest-config',
-      version: '0.0.0',
-      private: true,
-      type: 'module',
-      exports: {
-        '.': { types: './base.d.ts', default: './base.mjs' },
-        './mesure': { types: './mesure.d.ts', default: './mesure.mjs' },
-      },
+  it('is exported by the frame’s package, typed, and no package of its own', () => {
+    const paquet = JSON.parse(
+      readFileSync(path.join(DEPOT, 'packages/grillhouse/package.json'), 'utf8')
+    ) as { exports: Record<string, unknown> };
+    expect(paquet.exports['./vitest-config']).toEqual({
+      types: './scripts/vitest-config/base.d.ts',
+      default: './scripts/vitest-config/base.mjs',
     });
+    expect(paquet.exports['./vitest-config/mesure']).toEqual({
+      types: './scripts/vitest-config/mesure.d.ts',
+      default: './scripts/vitest-config/mesure.mjs',
+    });
+    expect(existsSync(path.join(PAQUET, 'package.json'))).toBe(false);
   });
   it('is a directory of the package; the former file is gone', () => {
     expect(existsSync(path.join(DEPOT, 'packages/grillhouse/scripts/vitest-config/base.mjs'))).toBe(
@@ -138,21 +138,21 @@ describe('the base configuration of the day leaves the night out of every config
   it('a package whose configuration imports it by its name plays its day tests, and neither its night tests nor its benches', () => {
     const repo = mkdtempSync(path.join(ESSAIS, 'paquets-'));
     lierDependances(repo);
-    cpSync(PAQUET, path.join(repo, 'scripts/vitest-config'), { recursive: true });
-    // npm links each workspace into node_modules under its name: the project's own, in place of
-    // the link to the repository's.
-    rmSync(path.join(repo, 'node_modules/@grillhouse'), { force: true });
-    mkdirSync(path.join(repo, 'node_modules/@grillhouse'));
-    symlinkSync(
-      path.join(repo, 'scripts/vitest-config'),
-      path.join(repo, 'node_modules/@grillhouse/vitest-config')
+    // The frame's package as npm installs it: its package.json and its base configuration, in
+    // place of the link to the repository's.
+    const installe = path.join(repo, 'node_modules/@roomi-fields/grillhouse');
+    rmSync(path.join(repo, 'node_modules/@roomi-fields'), { force: true });
+    cpSync(PAQUET, path.join(installe, 'scripts/vitest-config'), { recursive: true });
+    cpSync(
+      path.join(DEPOT, 'packages/grillhouse/package.json'),
+      path.join(installe, 'package.json')
     );
     const paquet = path.join(repo, 'packages/a');
     const trace = path.join(repo, 'trace');
     const fichiers: Record<string, string> = {
       'vitest.config.mjs':
         "import { defineConfig, mergeConfig } from 'vitest/config';\n" +
-        "import base from '@grillhouse/vitest-config';\n" +
+        "import base from '@roomi-fields/grillhouse/vitest-config';\n" +
         'export default mergeConfig(base, defineConfig({ test: { include: ' +
         "['tests/**/*.{test,spec}.{ts,mjs}'] } }));\n",
       '.trace': `${trace}\n`,

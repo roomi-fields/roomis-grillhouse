@@ -1,16 +1,14 @@
-// The frame's base configuration of the day's tests, the package @grillhouse/vitest-config: every
-// Vitest configuration of a project extends it (`mergeConfig(base, defineConfig({ … }))`) and adds
-// its own `include`, coverage and options without repeating what this file sets.
+// The frame's base configuration of the day's tests, exported by the frame's package as
+// `@roomi-fields/grillhouse/vitest-config`: every Vitest configuration of a project extends it
+// (`mergeConfig(base, defineConfig({ … }))`) and adds its own `include`, coverage and options
+// without repeating what this file sets.
 //
-// - A package of a repository of packages imports it by its name (`import base from
-//   '@grillhouse/vitest-config'`) and declares it in its devDependencies, as the examples of
-//   Turborepo reach their configuration packages (@repo/eslint-config): a package is reached by its
-//   name, never by a relative path out of it. The update of the frame (scripts/grillhouse-maj.mjs)
-//   makes this directory a workspace of the project and writes the declaration.
-// - The root of a repository without packages (a project of the template, its vitest.config.ts)
-//   imports it by its path, `./packages/grillhouse/scripts/vitest-config/base.mjs`: the file is
-//   inside the one package that imports it, which no name needs to reach. Grillhouse's package
-//   imports it by its name.
+// - Every configuration imports it by its name (`import base from
+//   '@roomi-fields/grillhouse/vitest-config'`), the root's of a project as each package's, as the
+//   examples of Turborepo reach their configuration packages (@repo/eslint-config): a package is
+//   reached by its name, never by a path into it. In a repository of packages, each tested
+//   package declares the frame's package in its devDependencies, which the update of the frame
+//   writes (scripts/grillhouse-maj.mjs). Grillhouse's package imports it by its own name.
 //
 // - The exclusions of the day: a night test (`*.nuit.test.*`, `*.nuit.spec.*`) is too long for the
 //   day, and the measures of a time budget bench (`*.budget.test.*`, `*.budget.spec.*`) move with
@@ -37,7 +35,7 @@
 //   Vitest's default one, gives the exit code 75, « à repasser », when every failure depends on a
 //   duration and one took place under load (./duree.reporter.mjs; the signal and its threshold,
 //   ./pression.mjs). A test that measures time marks itself (`mesurerAuRepos`,
-//   `@grillhouse/vitest-config/mesure`). `mergeConfig` adds the reporters and the setup files of
+//   `@roomi-fields/grillhouse/vitest-config/mesure`). `mergeConfig` adds the reporters and the setup files of
 //   a configuration that extends this one to these; a reporter named on the command line
 //   (`--reporter`) replaces them, and Vitest's code then stands.
 // - The machine of a test file is its own: a setup file gives it a lock of the heavy measure of

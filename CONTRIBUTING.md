@@ -1,6 +1,6 @@
 # Contributing
 
-This file says how a change reaches the frame of Roomi's Grillhouse. The rules it points to live in the repository's texts; this file names them and their address. A project created by `npm run new` receives its own contributing guide, `templates/projet/CONTRIBUTING.md`.
+This file says how a change reaches the frame of Roomi's Grillhouse. The rules it points to live in the repository's texts; this file names them and their address. A project created by `grillhouse init` receives its own contributing guide, `templates/projet/CONTRIBUTING.md`.
 
 ## 1. Where a change comes from
 
@@ -33,4 +33,4 @@ The versions follow semantic versioning in 0.x: a change that obliges a project 
 4. On the tag, `.github/workflows/release.yml` plays the CI on the tagged commit; once it is green, it checks that the tag names the version (`npx grillhouse sortie --verifier-etiquette <tag>`), publishes the package on the npm registry with the repository's secret `NPM_TOKEN`, and publishes the GitHub release.
 5. The projects update to this version (`npm run grillhouse:maj`, whose report names it). The update installs the last commit of Grillhouse's default branch, not a tag.
 
-`packages/grillhouse/scripts/sortie.mjs` is Grillhouse's own: `npm run new` leaves it out of a new project (`packages/grillhouse/scripts/new-project.sh`).
+`packages/grillhouse/scripts/sortie.mjs` is Grillhouse's own: a project runs none of it, and `grillhouse init` installs the template of a project alone (`templates/projet/`).

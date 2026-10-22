@@ -28,9 +28,11 @@
 // (`--ignore-known`). A stale configuration and an entry without a source are never inscribed.
 //
 // The published code is found before dependency-cruiser runs: each package under `packages/`
-// names its entries, the targets of its `exports`; an entry is a TypeScript source, or a built
-// file that comes back to its sources by what TypeScript emits with the `tsconfig*.json` of the
-// package; an entry that is neither is refused, named. A first run of dependency-cruiser gives
+// names its entries, the targets of its `exports`; an entry is a TypeScript source, a JavaScript
+// source that no `tsconfig*.json` of the package emits (a package written in JavaScript, the
+// frame's own), or a built file that comes back to its sources by what TypeScript emits with the
+// `tsconfig*.json` of the package; a declaration (`.d.ts`) or a JSON file carries no code and is
+// no entry; an entry that is none of these is refused, named. A first run of dependency-cruiser gives
 // the files these sources import; the second judges them, through the file that
 // `GRILLHOUSE_JUGES` names, which the generated configuration reads.
 import { spawnSync } from 'node:child_process';
@@ -242,6 +244,7 @@ const posix = chemin => chemin.split(path.sep).join('/');
 const echappe = texte => texte.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const DECLARATION = /[.]d[.]ts$/;
 const SOURCE_TS = /[.]tsx?$/;
+const SOURCE_JS = /[.][mc]?js$/;
 
 // What the `tsconfig*.json` of the package at <dir> emit, as TypeScript reads them (their
 // `extends` included) and computes their output (`getOutputFileNames`): a Map from the absolute
@@ -275,7 +278,8 @@ function cibles(valeur) {
 
 // The source files published by the package at <dir>, and the entries without a source:
 // { sources: Set of absolute paths, refus: [message] }. An entry is its own source when it is a
-// TypeScript source that exists, else its sources are those TypeScript emits it from.
+// TypeScript source that exists, or a JavaScript source that exists and TypeScript does not emit,
+// else its sources are those TypeScript emits it from; a declaration or a JSON file is skipped.
 function sourcesDuPaquet(racine, dir) {
   const sources = new Set();
   const refus = [];
@@ -286,7 +290,9 @@ function sourcesDuPaquet(racine, dir) {
   const emis = sorties(dir);
   for (const cible of entrees) {
     const abs = path.resolve(dir, cible);
-    const source = SOURCE_TS.test(abs) && !DECLARATION.test(abs);
+    if (DECLARATION.test(abs) || abs.endsWith('.json')) continue;
+    const source =
+      SOURCE_TS.test(abs) || (SOURCE_JS.test(abs) && !emis.has(abs) && existsSync(abs));
     const trouvees = source ? [abs].filter(f => existsSync(f)) : [...(emis.get(abs) ?? [])];
     if (trouvees.length === 0) {
       refus.push(

@@ -11,7 +11,6 @@
     "project-name": "dist/index.js"
   },
   "scripts": {
-    "setup": "grillhouse setup",
     "build": "tsc",
     "watch": "tsc --watch",
     "dev": "tsx watch src/index.ts",
@@ -73,24 +72,19 @@
   },
   "devDependencies": {
     "@microsoft/api-extractor": "7.59.2",
-    "@microsoft/api-extractor-model": "7.33.13",
-    "@microsoft/tsdoc-config": "0.18.3",
     "@types/node": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "@vitest/coverage-v8": "^2.1.9",
     "dependency-cruiser": "18.4.0",
     "eslint": "^8.57.0",
-    "jsonc-parser": "3.3.1",
     "knip": "^6.41.0",
     "pm2": "^5.4.2",
     "prettier": "^3.2.0",
-    "semver": "^7.8.5",
     "tsx": "^4.7.0",
     "turbo": "2.11.8",
     "typescript": "^5.3.3",
-    "vitest": "^2.0.0",
-    "yaml": "2.9.1"
+    "vitest": "^2.0.0"
   },
   "packageManager": "npm@10.9.8"
 }

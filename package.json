@@ -5,12 +5,9 @@
   "license": "MIT",
   "type": "module",
   "workspaces": [
-    "packages/*",
-    "packages/grillhouse/scripts/vitest-config"
+    "packages/*"
   ],
   "scripts": {
-    "new": "grillhouse new-project",
-    "setup": "grillhouse setup",
     "typecheck": "tsc --noEmit -p templates/projet",
     "test": "grillhouse tests",
     "test:vitest": "vitest run",
@@ -35,9 +32,6 @@
     "node": ">=22.0.0"
   },
   "devDependencies": {
-    "@microsoft/api-extractor": "7.59.2",
-    "@microsoft/api-extractor-model": "7.33.13",
-    "@microsoft/tsdoc-config": "0.18.3",
     "@roomi-fields/grillhouse": "*",
     "@types/node": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
@@ -45,14 +39,11 @@
     "dependency-cruiser": "18.4.0",
     "dotenv": "^16.4.0",
     "eslint": "^8.57.0",
-    "jsonc-parser": "3.3.1",
     "knip": "^6.41.0",
     "prettier": "^3.2.0",
-    "semver": "^7.8.5",
     "turbo": "2.11.8",
     "typescript": "^5.3.3",
     "vitest": "^2.0.0",
-    "yaml": "2.9.1",
     "zod": "^3.22.0"
   },
   "packageManager": "npm@10.9.8"

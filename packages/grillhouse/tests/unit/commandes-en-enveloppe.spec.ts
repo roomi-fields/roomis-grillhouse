@@ -161,7 +161,7 @@ function depot() {
     [
       "const { defineConfig, mergeConfig } = require('vitest/config');",
       'module.exports = defineConfig(async () =>',
-      "  mergeConfig((await import('@grillhouse/vitest-config')).default, {})",
+      "  mergeConfig((await import('@roomi-fields/grillhouse/vitest-config')).default, {})",
       ');',
       '',
     ].join('\n')

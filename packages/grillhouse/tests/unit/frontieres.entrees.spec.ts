@@ -173,6 +173,26 @@ describe('grillhouse-3uv.77 — critères 9 to 17: the entries of a package and 
     expect(r.status, r.sortie).not.toBe(0);
     expect(r.sortie).toMatch(/packages\/p\/dist\/index\.js|dist\/index\.js/);
   });
+  // grillhouse-3uv.84.4: a package written in JavaScript (the frame's own, which exports its base
+  // configuration of Vitest) publishes its JavaScript sources; a declaration or its package.json
+  // carries no code.
+  it('a JavaScript source exported is its own source, judged; a declaration and the package.json are no entry', () => {
+    const propre = espace({
+      'packages/p/package.json': paquet({
+        './package.json': './package.json',
+        './c': { types: './lib/c.d.ts', default: './lib/c.mjs' },
+      }),
+      'packages/p/lib/c.mjs': 'export const c = 1;',
+      'packages/p/lib/c.d.ts': 'export declare const c: number;',
+    });
+    expect(propre.status, propre.sortie).toBe(0);
+    const fautif = espace({
+      'packages/p/package.json': paquet({ './c': './lib/c.mjs' }),
+      'packages/p/lib/c.mjs': "export { expect } from 'vitest';",
+    });
+    expect(fautif.status, fautif.sortie).not.toBe(0);
+    expect(fautif.sortie).toMatch(refus('packages/p/lib/c.mjs', 'vitest'));
+  });
 });
 
 // grillhouse-3uv.77, critère 23: the packages out of the frame.

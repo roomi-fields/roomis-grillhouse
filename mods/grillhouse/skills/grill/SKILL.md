@@ -37,11 +37,11 @@ le responsable corrige une proposition et garde son temps pour les vraies décis
 
 ## 1. Préparer le dépôt
 
-`npx grillhouse setup <préfixe>` s'il manque les tickets, les dépendances ou un greffon : sans
-invite, idempotent. Il installe pour le projet chaque greffon que `.claude/settings.json` déclare
-(`enabledPlugins`), après son marketplace ; l'ouverture de séance signale sous « Manque » chaque
-greffon absent, avec cette commande. Le préfixe des tickets vient du nom du projet ; il se confirme
-au premier tour du grill.
+Un projet neuf naît de `npx @roomi-fields/grillhouse init <dossier> [préfixe]` : le gabarit, les
+tickets, l'index, les greffons et les crochets. S'il manque ensuite un élément, l'ouverture de séance
+le signale sous « Manque », chacun avec sa commande, sans invite : `npx grillhouse maj` installe pour
+le projet chaque greffon que `.claude/settings.json` déclare (`enabledPlugins`), après son
+marketplace. Le préfixe des tickets vient du nom du projet ; il se confirme au premier tour du grill.
 
 ## 2. La règle de l'architecture
 
@@ -167,13 +167,12 @@ remplace jamais le grill. Les branches de l'arbre :
    jour lance) et `grillhouse:gardes` refuse un fichier absent ou périmé : une dépendance s'écrit
    au `package.json` seul. Chaque paquet testé porte son script
    `test:vitest` et sa configuration Vitest, qui étend la configuration de base du cadre, le
-   paquet `@grillhouse/vitest-config` (`packages/grillhouse/scripts/vitest-config/`, par `mergeConfig`) : les
+   `@roomi-fields/grillhouse/vitest-config`, que le paquet du cadre exporte (par `mergeConfig`) : les
    exclusions du jour (tests de nuit, bancs de budget) et l'environnement commun y sont, sans
-   copie. Le paquet l'importe par son nom (`import base from '@grillhouse/vitest-config'`) et le
-   déclare dans ses `devDependencies`, comme les exemples de Turborepo atteignent leurs paquets de
-   configuration ; la mise à jour du cadre fait de `packages/grillhouse/scripts/vitest-config` un espace de travail et
-   écrit la déclaration. Un dépôt sans paquets l'importe par son chemin
-   (`./scripts/vitest-config/base.mjs`). Un paquet hors cadre (`docs/agents/hors-cadre.txt`) reste un
+   copie. Le paquet l'importe par son nom (`import base from '@roomi-fields/grillhouse/vitest-config'`) et le
+   déclare (`@roomi-fields/grillhouse`) dans ses `devDependencies`, comme les exemples de
+   Turborepo atteignent leurs paquets de configuration ; la mise à jour du cadre écrit la
+   déclaration. La racine d'un dépôt sans paquets l'importe par le même nom. Un paquet hors cadre (`docs/agents/hors-cadre.txt`) reste un
    espace de travail, qu'un voisin importe par son nom, et Turborepo ne joue aucune de ses tâches :
    son `turbo.json` généré les exclut, et aucune tâche d'un paquet du cadre ne l'attend. Aucune configuration ne lit
    celle d'un voisin, que l'enveloppe cache. Un test atteint son paquet

@@ -1,8 +1,8 @@
 import { defineConfig, mergeConfig } from 'vitest/config';
-import base from './packages/grillhouse/scripts/vitest-config/base.mjs';
+import base from '@roomi-fields/grillhouse/vitest-config';
 
 // The day's tests of the project: the frame's base configuration (its exclusions of the night
-// tests and the time budget benches, its common environment), by its path in the frame's package,
+// tests and the time budget benches, its common environment), by its name, the frame's package's,
 // extended with what is the root's own.
 export default mergeConfig(
   base,

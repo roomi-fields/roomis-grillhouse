@@ -130,7 +130,7 @@ machine occupée.
 
 **Un témoin de temps se marque** : un test du jour dont le verdict dépend d'une durée (une attente
 bornée, un écart de temps comparé à un seuil) enveloppe sa mesure dans
-`mesurerAuRepos(ctx, () => …)`, importé de `@grillhouse/vitest-config/mesure`. Son échec sous
+`mesurerAuRepos(ctx, () => …)`, importé de `@roomi-fields/grillhouse/vitest-config/mesure`. Son échec sous
 charge, comme un délai dépassé ou l'échec d'un banc, est « à repasser » (code 75) : ni vert ni
 rouge, il se rejoue au repos. Son fichier joue seul dans la passe complète, après tous les autres
 tests : un témoin vit dans un fichier à lui, sans test ordinaire à côté. Un test qui ne mesure
@@ -141,7 +141,7 @@ défaut reste rouge.
 `*.nuit.test.ts`. Ni `npm test` ni l'intégration ne le jouent, sauf nommé lui-même
 (`npm test -- <son fichier>`) ; la nuit le joue elle-même, après
 une passe complète verte, avec la configuration du cadre (`packages/grillhouse/scripts/vitest.nuit.config.mjs`) ; la configuration de base du
-jour (le paquet `@grillhouse/vitest-config`), que chaque configuration Vitest étend, l'exclut.
+jour (le paquet `@roomi-fields/grillhouse/vitest-config`), que chaque configuration Vitest étend, l'exclut.
 Ainsi le jour reste court, et la preuve longue tourne chaque nuit.
 
 **Un rouge connu se met en quarantaine dans son test** : un test qui reste rouge le temps d'un

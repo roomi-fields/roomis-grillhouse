@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 // The frame's repository in three directories: packages/grillhouse/ (the package npm, its scripts
 // and its tests), mods/grillhouse/ (the mod) and templates/projet/ (the template of a project, the
 // example application with its tests); the root is the frame's repository, private, whose
-// workspaces hold the package and the frame's base configuration of Vitest.
+// workspaces hold the package, which carries the frame's base configuration of Vitest.
 
 const PAQUET = path.resolve(__dirname, '../..');
 const DEPOT = path.resolve(PAQUET, '../..');
@@ -21,10 +21,10 @@ describe('the repository in three directories', () => {
     expect(existsSync(path.join(PAQUET, 'tests/unit/circuit.spec.ts'))).toBe(true);
   });
 
-  it('is private, its workspaces the packages and the base configuration of Vitest', () => {
+  it('is private, its workspaces the packages', () => {
     const p = lire('package.json');
     expect(p.private).toBe(true);
-    expect(p.workspaces).toEqual(['packages/*', 'packages/grillhouse/scripts/vitest-config']);
+    expect(p.workspaces).toEqual(['packages/*']);
   });
 
   it('gives the example application, its package.json and its tests to the template', () => {

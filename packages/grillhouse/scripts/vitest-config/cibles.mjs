@@ -29,7 +29,7 @@
 //   fails: the base configuration keeps Vitest's `passWithNoTests: false`.
 // - The time witnesses play alone, as Bazel plays a test tagged `exclusive` after the others, with
 //   nothing beside it: a time witness is a test file that imports the mark of a measure of time
-//   (`import { mesurerAuRepos } from '@grillhouse/vitest-config/mesure'`, a line of its own,
+//   (`import { mesurerAuRepos } from '@roomi-fields/grillhouse/vitest-config/mesure'`, a line of its own,
 //   `estTemoin`). `npm run verifier` (scripts/verifier.mjs) plays its pass with `temoins: 'hors'`
 //   in the value, which leaves every witness of the configuration's `include` out, then a pass of
 //   its own with `temoins: 'seuls'`, which plays the witnesses alone, one file at a time

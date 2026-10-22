@@ -14,16 +14,39 @@
   },
   "files": [
     "bin",
+    "cadre",
     "scripts"
   ],
   "bin": {
     "grillhouse": "bin/grillhouse.mjs"
   },
+  "exports": {
+    "./package.json": "./package.json",
+    "./vitest-config": {
+      "types": "./scripts/vitest-config/base.d.ts",
+      "default": "./scripts/vitest-config/base.mjs"
+    },
+    "./vitest-config/mesure": {
+      "types": "./scripts/vitest-config/mesure.d.ts",
+      "default": "./scripts/vitest-config/mesure.mjs"
+    }
+  },
   "scripts": {
+    "prepack": "node scripts/cadre.mjs --empaqueter",
+    "postpack": "node scripts/cadre.mjs --nettoyer",
     "test:vitest": "vitest run"
   },
-  "devDependencies": {
-    "@grillhouse/vitest-config": "*"
+  "dependencies": {
+    "@microsoft/api-extractor": "7.59.2",
+    "@microsoft/api-extractor-model": "7.33.13",
+    "@microsoft/tsdoc-config": "0.18.3",
+    "jsonc-parser": "3.3.1",
+    "semver": "^7.8.5",
+    "yaml": "2.9.1"
+  },
+  "peerDependencies": {
+    "typescript": "^5.3.3",
+    "vitest": "^2.0.0"
   },
   "grillhouse": {
     "lit": [
@@ -34,6 +57,7 @@
       ".github",
       ".mcp.json",
       "CHANGELOG.md",
+      "METACADRE.md",
       "knip.json",
       "mods",
       "package.json",

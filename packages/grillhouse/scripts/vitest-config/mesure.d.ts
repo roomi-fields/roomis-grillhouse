@@ -1,5 +1,5 @@
 // The types of ./mesure.mjs, for a strict TypeScript test that imports
-// `@grillhouse/vitest-config/mesure`.
+// `@roomi-fields/grillhouse/vitest-config/mesure`.
 import type { TestContext } from 'vitest';
 
 // Marks the test of <ctx> as a measure of time and gives back what <fn> returns.

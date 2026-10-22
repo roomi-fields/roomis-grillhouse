@@ -1,6 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
-  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -12,6 +11,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
 import {
   type AppelClaude,
@@ -26,7 +26,8 @@ import { configGit } from '../config-git.js';
 // `enabledPlugins` (and `extraKnownMarketplaces`) of the project's `.claude/settings.json`. One
 // mechanism, scripts/greffons.mjs, installs them for the project — `node scripts/greffons.mjs
 // [<project>]`, the current directory by default — after adding each absent marketplace; the
-// preparation (scripts/setup.sh) and the update of the frame (scripts/grillhouse-maj.mjs) call it;
+// preparation (scripts/preparation.mjs, which `grillhouse init` runs) and the update of the frame
+// (scripts/grillhouse-maj.mjs) call it;
 // the session start (scripts/session-start.sh) names under « Manque » each declared plugin not
 // installed for the project. No test launches the real claude (critère 6): a stand-in
 // on the PATH records each call (tests/claude-substitut.ts).
@@ -127,7 +128,7 @@ function installer(p: string, etat: EtatClaude = { noms: NOMS }) {
   return { ...r, sortie: `${r.stdout}\n${r.stderr}`, claude };
 }
 
-// The tools scripts/setup.sh calls, stood in: Beads, CodeGraph, npm. None installs anything.
+// The tools the preparation calls, stood in: Beads, CodeGraph, npm. None installs anything.
 function outilsDeLaPreparation() {
   const bin = dossier('outils');
   const outil = (nom: string, corps: string) =>
@@ -138,33 +139,39 @@ function outilsDeLaPreparation() {
   return bin;
 }
 
-// A project ready for scripts/setup.sh: the frame's scripts, a package.json.
+// A project ready for the preparation: a package.json.
 function projetAPreparer(reglages: object = REGLAGES_DU_CADRE) {
   const p = projet(reglages);
-  cpSync(path.join(DEPOT, 'packages/grillhouse/scripts'), path.join(p, 'scripts'), {
-    recursive: true,
-  });
   writeFileSync(path.join(p, 'package.json'), '{"name":"p"}\n');
   return p;
 }
 
-// scripts/setup.sh run on the project; `claude`: the stand-in's bin, or a bin without claude.
+// The preparation of a project (scripts/preparation.mjs, which `grillhouse init` runs), run in
+// <cwd> with <env>: its lines of failure on the error output, the exit code 1 when there are some.
+const PREPARATION = path.join(DEPOT, 'packages/grillhouse/scripts/preparation.mjs');
+const lancerLaPreparation = (cwd: string, env: NodeJS.ProcessEnv) =>
+  spawnSync(
+    process.execPath,
+    [
+      '--input-type=module',
+      '-e',
+      `import { preparer } from ${JSON.stringify(pathToFileURL(PREPARATION).href)};
+const l = preparer(process.cwd());
+for (const x of l) console.error(x);
+if (l.length > 0) process.exitCode = 1;`,
+    ],
+    { cwd, encoding: 'utf8', env, timeout: 120_000 }
+  );
+
+// The preparation run on the project; `claude`: the stand-in's bin, or a bin without claude.
 function preparer(p: string, binClaude: string) {
-  const r = spawnSync('bash', [path.join(p, 'scripts/setup.sh')], {
-    cwd: p,
-    encoding: 'utf8',
-    env: env(outilsDeLaPreparation(), binClaude),
-    timeout: 120_000,
-  });
+  const r = lancerLaPreparation(p, env(outilsDeLaPreparation(), binClaude));
   return { ...r, sortie: `${r.stdout}\n${r.stderr}` };
 }
 
-// A source of the frame, empty: the update reads the plugins in the project's own settings.
-const source = () => dossier('cadre');
-
-// npm run grillhouse:maj in the project, from the source, with the given bin.
-function mettreAJourProjet(p: string, src: string, binClaude: string) {
-  const r = spawnSync(process.execPath, [MAJ, '--source', src], {
+// npm run grillhouse:maj in the project, with the given bin.
+function mettreAJourProjet(p: string, binClaude: string) {
+  const r = spawnSync(process.execPath, [MAJ], {
     cwd: p,
     encoding: 'utf8',
     env: env(binClaude),
@@ -230,7 +237,7 @@ describe('grillhouse-3uv.71 critère 1 — one mechanism installs the declared p
       expect(i, `${id}\n${JSON.stringify(appels)}`).toBeGreaterThan(ajout);
     }
   });
-  it('critère 1: the preparation (scripts/setup.sh) installs the declared plugins for the project', () => {
+  it('critère 1: the preparation (scripts/preparation.mjs) installs the declared plugins for the project', () => {
     const p = projetAPreparer();
     const claude = claudeSubstitut(dossier('claude'), { noms: NOMS });
     const r = preparer(p, claude.bin);
@@ -242,7 +249,7 @@ describe('grillhouse-3uv.71 critère 1 — one mechanism installs the declared p
   it('critère 1: the update of the frame (npm run grillhouse:maj) installs the plugins the project declares, for the project', () => {
     const p = projet(AUTRES_REGLAGES);
     const claude = claudeSubstitut(dossier('claude'), { noms: AUTRES_NOMS });
-    const r = mettreAJourProjet(p, source(), claude.bin);
+    const r = mettreAJourProjet(p, claude.bin);
     expect(r.status, r.sortie).toBe(0);
     const appels = claude.appels();
     expect(installes(appels)).toEqual([ALPHA, BETA].sort());
@@ -337,7 +344,7 @@ describe('grillhouse-3uv.71 critère 4 — without claude, or on a failed instal
   });
   it('critère 4: the update without the claude command finishes its work, then exits non-zero naming each plugin with its command', () => {
     const p = projet(AUTRES_REGLAGES);
-    const r = mettreAJourProjet(p, source(), sansClaude(dossier('sans-claude')));
+    const r = mettreAJourProjet(p, sansClaude(dossier('sans-claude')));
     expect(r.status, r.sortie).not.toBe(0);
     expect(r.sortie).toMatch(/^Cadre /);
     const reglages = JSON.parse(readFileSync(path.join(p, '.claude/settings.json'), 'utf8')) as {
@@ -351,7 +358,7 @@ describe('grillhouse-3uv.71 critère 4 — without claude, or on a failed instal
   it('critère 4: the update whose install of one plugin fails finishes its work, then exits non-zero naming it with its command', () => {
     const p = projet(AUTRES_REGLAGES);
     const claude = claudeSubstitut(dossier('claude'), { noms: AUTRES_NOMS, echecsInstall: [BETA] });
-    const r = mettreAJourProjet(p, source(), claude.bin);
+    const r = mettreAJourProjet(p, claude.bin);
     expect(r.status, r.sortie).not.toBe(0);
     expect(r.sortie).toMatch(/^Cadre /);
     expect(ligneQuiNomme(r.sortie, BETA), r.sortie).toBeDefined();
@@ -392,14 +399,14 @@ const elements = (sortie: string) =>
     .filter(l => l.startsWith('- '))
     .map(l => l.slice(2));
 const nomme = (sortie: string, id: string) => sortie.includes(id);
-// The line « Manque : … », which gives the command `npx grillhouse setup`.
+// The line « Manque : … », which gives the command `npx grillhouse maj`.
 const ligneManque = (sortie: string) => sortie.split('\n').find(l => l.startsWith('Manque : '));
-// The plugin is named under « Manque », whose line gives `npx grillhouse setup`.
+// The plugin is named under « Manque », whose line gives `npx grillhouse maj`.
 function manqueLeGreffon(sortie: string, id: string) {
   const l = ligneManque(sortie);
   expect(l, `${id}\n${sortie}`).toBeDefined();
   expect(l, sortie).toContain(`le greffon ${id}`);
-  expect(l, sortie).toContain('npx grillhouse setup');
+  expect(l, sortie).toContain('npx grillhouse maj');
   expect(
     elements(sortie).filter(e => e.includes(id)),
     sortie
@@ -410,10 +417,10 @@ const nommeCommeManquant = (sortie: string, id: string) =>
 
 // Critère 5 as the supervisor rewrote it (ticket comment « Arbitrage du superviseur — critère 5 »):
 // each declared plugin not installed for the project goes under « Manque » (« le greffon <id> »),
-// whose line gives `npx grillhouse setup`; without claude, « la commande claude »; « Pas encore
+// whose line gives `npx grillhouse maj`; without claude, « la commande claude »; « Pas encore
 // renseignés » names no plugin.
 describe('grillhouse-3uv.71 critère 5 — the session start names under « Manque » each declared plugin not installed for the project', () => {
-  it('critère 5: one plugin installed for another project only is « le greffon <id> » under « Manque », with npx grillhouse setup; the installed ones are not named', () => {
+  it('critère 5: one plugin installed for another project only is « le greffon <id> » under « Manque », with npx grillhouse maj; the installed ones are not named', () => {
     const p = projetOuvert();
     const { sortie } = ouvrir(p, {
       marches: ['claude-plugins-official', 'roomi-fields'],
@@ -472,13 +479,13 @@ describe('grillhouse-3uv.71 critère 5 — the session start names under « Manq
     expect(nomme(sortie, MATT), sortie).toBe(false);
     manqueLeGreffon(sortie, RTFM);
   });
-  it('critère 5: without the claude command, « Manque » names « la commande claude », with npx grillhouse setup', () => {
+  it('critère 5: without the claude command, « Manque » names « la commande claude », with npx grillhouse maj', () => {
     const p = projetOuvert();
     const sortie = ouvrirAvec(p, sansClaude(dossier('sans-claude')));
     const l = ligneManque(sortie);
     expect(l, sortie).toBeDefined();
     expect(l, sortie).toContain('la commande claude');
-    expect(l, sortie).toContain('npx grillhouse setup');
+    expect(l, sortie).toContain('npx grillhouse maj');
     expect(
       elements(sortie).filter(
         e =>
@@ -520,7 +527,7 @@ describe('grillhouse-3uv.71 critère 6 — the update of the files launches no c
   it('critère 6: mettreAJour, which the suites call in their own process, calls no claude', () => {
     const p = projet(null);
     const claude = claudeSubstitut(dossier('claude'), { noms: NOMS });
-    const programme = `import(${JSON.stringify(MAJ)}).then(m => m.mettreAJour(${JSON.stringify(p)}, ${JSON.stringify(source())}))`;
+    const programme = `import(${JSON.stringify(MAJ)}).then(m => m.mettreAJour(${JSON.stringify(p)}, ${JSON.stringify(dossier('cadre'))}))`;
     const r = spawnSync(process.execPath, ['-e', programme], {
       cwd: p,
       encoding: 'utf8',

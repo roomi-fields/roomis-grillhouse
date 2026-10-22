@@ -17,14 +17,6 @@
         "scripts/**/*.mjs",
         "tests/**/*.ts"
       ]
-    },
-    "packages/grillhouse/scripts/vitest-config": {
-      "entry": [
-        "*.mjs"
-      ],
-      "project": [
-        "*.mjs"
-      ]
     }
   },
   "ignore": [

@@ -1,7 +1,7 @@
 // A test that measures time marks itself, so that its failure under load is « à repasser », not a
 // red (./duree.reporter.mjs):
 //
-//   import { mesurerAuRepos } from '@grillhouse/vitest-config/mesure';
+//   import { mesurerAuRepos } from '@roomi-fields/grillhouse/vitest-config/mesure';
 //   it('rend en moins de 50 ms', ctx => mesurerAuRepos(ctx, () => { … expect(ms).toBeLessThan(50); }));
 //
 // `mesurerAuRepos(ctx, fn)` marks the test of the context <ctx> as a measure of time and gives back

@@ -1,6 +1,6 @@
 # Issue tracker: Beads (`bd`)
 
-Issues for this repo live in Beads, a git-backed tracker: data under `.beads/`, commands via the `bd` CLI, ids `<prefix>-xxx` (the prefix is set by `npm run setup`). No remote service. The project owner opens the work; agents take tickets, never invent them.
+Issues for this repo live in Beads, a git-backed tracker: data under `.beads/`, commands via the `bd` CLI, ids `<prefix>-xxx` (the prefix is set by `grillhouse init`). No remote service. The project owner opens the work; agents take tickets, never invent them.
 
 ## Conventions
 

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/schemas/settings.schema.json",
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npm test*)",
+      "Bash(npm install*)",
+      "Bash(git *)",
+      "Bash(gh *)",
+      "Bash(bd *)",
+      "mcp__codegraph__*",
+      "mcp__plugin_rtfm_rtfm__*"
+    ],
+    "deny": []
+  },
+  "enabledPlugins": {
+    "mattpocock-skills@claude-plugins-official": true,
+    "rtfm@roomi-fields": true,
+    "grillhouse@roomi-fields": true
+  },
+  "extraKnownMarketplaces": {
+    "roomi-fields": {
+      "source": {
+        "source": "github",
+        "repo": "roomi-fields/claude-plugins"
+      }
+    }
+  },
+  "enabledMcpjsonServers": [
+    "codegraph"
+  ]
+}

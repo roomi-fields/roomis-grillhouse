@@ -101,8 +101,8 @@ export function testsDeNuitEssai(ESSAIS: string) {
       lierDependances(repo);
     }
     mettreAJour(repo, DEPOT);
-    // The frame's package where `npm run new` places it, whose scripts the night and the day
-    // configuration of Vitest name by their path (grillhouse-3uv.84.2: the update copies none).
+    // The frame's package at packages/grillhouse/, whose scripts the night names by their path
+    // (grillhouse-3uv.84.2: the update copies none).
     for (const f of ['package.json', 'bin', 'scripts']) {
       cpSync(
         path.join(DEPOT, 'packages/grillhouse', f),

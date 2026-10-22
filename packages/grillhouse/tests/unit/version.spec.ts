@@ -97,10 +97,9 @@ describe('the version of Grillhouse', () => {
     const pkg = JSON.parse(lire(DEPOT, 'templates/projet/package.json')) as { version: string };
     expect(pkg.version).toBe('1.0.0');
   });
-  it('the release script goes to no project: npm run new leaves it out', () => {
-    expect(lire(DEPOT, 'packages/grillhouse/scripts/new-project.sh')).toContain(
-      '--exclude=./packages/grillhouse/scripts/sortie.mjs'
-    );
+  it('the release script goes to no project: grillhouse init installs the template of a project, which holds no script of the frame', () => {
+    expect(existsSync(path.join(DEPOT, 'templates/projet/packages'))).toBe(false);
+    expect(existsSync(path.join(DEPOT, 'templates/projet/scripts'))).toBe(false);
   });
 });
 

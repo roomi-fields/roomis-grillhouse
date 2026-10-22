@@ -32,7 +32,7 @@
 # - The night tests: after a green full pass, the files `*.nuit.test.*`, `*.nuit.spec.*`,
 #   `*.budget.test.*` and `*.budget.spec.*` of the copy (outside node_modules, dist and .git): the
 #   night tests and the time budget benches, which `npm test` and the integration leave out
-#   (the package @grillhouse/vitest-config, scripts/vitest-config/, which every day configuration
+#   (the package @roomi-fields/grillhouse/vitest-config, scripts/vitest-config/, which every day configuration
 #   extends), run by Vitest with the frame's configuration (scripts/vitest.nuit.config.mjs, beside
 #   this script), bench or night test alone as well. A red turns the night red, with a log line that says so, and the
 #   project's night script does not run. A copy with neither plays none. A run « à repasser » (75:

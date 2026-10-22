@@ -5,7 +5,7 @@
 // waiting and of tasks replayed whole.
 //
 // A time witness is a test file that marks its tests as measures of time (`mesurerAuRepos`, imported
-// from `@grillhouse/vitest-config/mesure`). `npm run verifier` plays every other test first, then the
+// from `@roomi-fields/grillhouse/vitest-config/mesure`). `npm run verifier` plays every other test first, then the
 // witnesses in a pass of their own, one task at a time, one file at a time.
 //
 // Each case plays the real Turborepo and the real Vitest of the repository in a repository of trial

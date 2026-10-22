@@ -89,3 +89,6 @@ pids/
 
 # Turborepo: its local cache and its runs
 .turbo/
+
+# The frame's files the package carries when packed (scripts/cadre.mjs --empaqueter)
+packages/grillhouse/cadre/

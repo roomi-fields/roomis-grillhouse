@@ -14,7 +14,7 @@
 # The frame's plugins: scripts/greffons.mjs --absents reads `.claude/settings.json` and
 # `claude plugin list --json` (each call stopped after 5 s). Each declared plugin not installed for
 # the project joins « Manque » as « le greffon <id> », the missing claude command as « la commande
-# claude » (the line gives `npx grillhouse setup`, which installs them), and a reading that fails
+# claude » (the line gives `npx grillhouse maj`, which installs them), and a reading that fails
 # or is stopped as « la lecture des greffons … ». The same reading names the frame's mod installed
 # for the project at another version than the package @roomi-fields/grillhouse, both released under
 # one version, with the command that aligns the one behind. An agent's copy does not read them.
@@ -42,7 +42,7 @@ role="${role#grillhouse:}"
 [ -n "$role" ] && [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -f "$CLAUDE_PLUGIN_ROOT/agents/$role.md" ] && exit 0
 if [ -f "$root/.claude/template" ]; then
   echo "## Gabarit Roomi's Grillhouse"
-  echo "Ce dossier est le gabarit du framework, pas un projet : il ne s'initialise pas. Un projet neuf se crée par \`npm run new -- <chemin> [préfixe]\` ; sa première séance propose le grill d'initialisation."
+  echo "Ce dossier est le gabarit du framework, pas un projet : il ne s'initialise pas. Un projet neuf se crée par \`npx @roomi-fields/grillhouse init <chemin> [préfixe]\` ; sa première séance propose le grill d'initialisation."
   exit 0
 fi
 
@@ -52,8 +52,8 @@ superviseur="$(node "$ici/superviseur.mjs" "$root" 2>/dev/null)"
 
 missing=()
 
-command -v bd >/dev/null || missing+=("l'outil de tickets bd (Beads)")
-[ -d "$root/.beads" ] || missing+=("le magasin de tickets (Beads)")
+command -v bd >/dev/null || missing+=("l'outil de tickets bd (Beads : \`npm install -g @beads/bd\`)")
+[ -d "$root/.beads" ] || missing+=("le magasin de tickets (Beads : \`bd init\`)")
 # The index of CodeGraph is for the roles that see the whole repository: an agent's copy (a git
 # worktree under .claude/worktrees/) is asked for neither the tool nor the index.
 copie_agent=
@@ -63,10 +63,10 @@ case "$root" in
     ;;
 esac
 if [ -z "$copie_agent" ]; then
-  command -v codegraph >/dev/null || missing+=("l'outil CodeGraph")
-  [ -d "$root/.codegraph" ] || missing+=("l'index CodeGraph du code")
+  command -v codegraph >/dev/null || missing+=("l'outil CodeGraph (\`npm install -g @colbymchenry/codegraph\`)")
+  [ -d "$root/.codegraph" ] || missing+=("l'index CodeGraph du code (\`codegraph init .\`)")
 fi
-[ ! -f "$root/package.json" ] || [ -d "$root/node_modules" ] || missing+=("les dépendances npm")
+[ ! -f "$root/package.json" ] || [ -d "$root/node_modules" ] || missing+=("les dépendances npm (\`npm install\`)")
 # The frame's plugins not installed for the project (scripts/greffons.mjs): the plugins are the
 # machine's installation for the project, so an agent's copy does not read them.
 if [ -z "$copie_agent" ]; then
@@ -180,7 +180,7 @@ epopees="$(cd "$root" && bd list --type epic --all --json --limit 0 2>/dev/null 
 
 echo "## Éléments du projet à définir (Roomi's Grillhouse)"
 if [ ${#missing[@]} -gt 0 ]; then
-  echo "Manque : $(IFS=';'; echo "${missing[*]}" | sed "s/;/, /g"). Lance \`npx grillhouse setup\` toi-même avant tout autre geste : il est sans invite et idempotent."
+  echo "Manque : $(IFS=';'; echo "${missing[*]}" | sed "s/;/, /g"). Installe-les toi-même avant tout autre geste, sans invite, chacun par la commande qu'il nomme ; \`npx grillhouse maj\` installe les greffons et les crochets git du cadre."
 fi
 if [ ${#pending[@]} -gt 0 ]; then
   echo "Pas encore renseignés :"

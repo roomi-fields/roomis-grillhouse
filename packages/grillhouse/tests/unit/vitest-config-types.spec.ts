@@ -1,13 +1,13 @@
-// The package @grillhouse/vitest-config carries its types: a strict TypeScript file of a package
-// that imports `@grillhouse/vitest-config/mesure` (a test marking a measure of time) or
-// `@grillhouse/vitest-config` (a Vitest configuration written in TypeScript) type-checks without
-// error (no TS7016, « could not find a declaration file »). Witness: BPScript, a repository of
-// packages, whose strict tests importing `mesurerAuRepos` failed `tsc --noEmit`.
+// The frame's base configuration of Vitest carries its types: a strict TypeScript file of a package
+// that imports `@roomi-fields/grillhouse/vitest-config/mesure` (a test marking a measure of time)
+// or `@roomi-fields/grillhouse/vitest-config` (a Vitest configuration written in TypeScript)
+// type-checks without error (no TS7016, « could not find a declaration file »). Witness: BPScript, a
+// repository of packages, whose strict tests importing `mesurerAuRepos` failed `tsc --noEmit`.
 //
-// Each case builds a repository of packages in a fresh directory: the frame's package copied to
-// `scripts/vitest-config/` and reached by its name (`node_modules/@grillhouse/vitest-config`, as a
-// workspace is linked), a package `packages/a` that imports it, and the repository's TypeScript
-// and Vitest; then `tsc --noEmit` on the package, under each module resolution of a project.
+// Each case builds a repository of packages in a fresh directory: the frame's package (its
+// package.json and its base configuration) under `node_modules/@roomi-fields/grillhouse`, as npm
+// installs it, a package `packages/a` that imports it, and the repository's TypeScript and Vitest;
+// then `tsc --noEmit` on the package, under each module resolution of a project.
 import { spawnSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -34,20 +34,15 @@ function verifier(fichiers: Record<string, string>, resolution: (typeof RESOLUTI
     mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true });
     writeFileSync(path.join(repo, rel), texte);
   };
-  ecrire(
-    'package.json',
-    json({ name: 'r', private: true, workspaces: ['packages/*', 'scripts/vitest-config'] })
-  );
+  ecrire('package.json', json({ name: 'r', private: true, workspaces: ['packages/*'] }));
+  const nm = path.join(repo, 'node_modules');
+  const installe = path.join(nm, '@roomi-fields/grillhouse');
   cpSync(
     path.join(DEPOT, 'packages/grillhouse/scripts/vitest-config'),
-    path.join(repo, 'scripts/vitest-config'),
-    {
-      recursive: true,
-    }
+    path.join(installe, 'scripts/vitest-config'),
+    { recursive: true }
   );
-  const nm = path.join(repo, 'node_modules');
-  mkdirSync(path.join(nm, '@grillhouse'), { recursive: true });
-  symlinkSync(path.join(repo, 'scripts/vitest-config'), path.join(nm, '@grillhouse/vitest-config'));
+  cpSync(path.join(DEPOT, 'packages/grillhouse/package.json'), path.join(installe, 'package.json'));
   for (const p of ['vitest', '@vitest', 'vite', '@types', 'typescript']) {
     symlinkSync(path.join(MODULES, p), path.join(nm, p));
   }
@@ -56,7 +51,7 @@ function verifier(fichiers: Record<string, string>, resolution: (typeof RESOLUTI
     json({
       name: '@r/a',
       type: 'module',
-      devDependencies: { '@grillhouse/vitest-config': '*', vitest: '*' },
+      devDependencies: { '@roomi-fields/grillhouse': '*', vitest: '*' },
     })
   );
   ecrire(
@@ -86,74 +81,77 @@ function verifier(fichiers: Record<string, string>, resolution: (typeof RESOLUTI
 
 const T = 60_000;
 
-describe.each(RESOLUTIONS)('@grillhouse/vitest-config typed ($moduleResolution)', resolution => {
-  it(
-    'a strict test importing mesurerAuRepos type-checks, its return type kept',
-    () => {
-      const r = verifier(
-        {
-          'tests/a.test.ts': [
-            "import { expect, it } from 'vitest';",
-            "import { mesurerAuRepos } from '@grillhouse/vitest-config/mesure';",
-            "it('mesure', ctx => {",
-            '  const n: number = mesurerAuRepos(ctx, () => 42);',
-            "  const p: Promise<string> = mesurerAuRepos(ctx, async () => 'x');",
-            '  expect(n).toBe(42);',
-            '  return p;',
-            '});',
-            '',
-          ].join('\n'),
-        },
-        resolution
-      );
-      expect(r.sortie).toBe('');
-      expect(r.status).toBe(0);
-    },
-    T
-  );
+describe.each(RESOLUTIONS)(
+  '@roomi-fields/grillhouse/vitest-config typed ($moduleResolution)',
+  resolution => {
+    it(
+      'a strict test importing mesurerAuRepos type-checks, its return type kept',
+      () => {
+        const r = verifier(
+          {
+            'tests/a.test.ts': [
+              "import { expect, it } from 'vitest';",
+              "import { mesurerAuRepos } from '@roomi-fields/grillhouse/vitest-config/mesure';",
+              "it('mesure', ctx => {",
+              '  const n: number = mesurerAuRepos(ctx, () => 42);',
+              "  const p: Promise<string> = mesurerAuRepos(ctx, async () => 'x');",
+              '  expect(n).toBe(42);',
+              '  return p;',
+              '});',
+              '',
+            ].join('\n'),
+          },
+          resolution
+        );
+        expect(r.sortie).toBe('');
+        expect(r.status).toBe(0);
+      },
+      T
+    );
 
-  it(
-    'a wrong use of mesurerAuRepos is refused: the types are read, not any',
-    () => {
-      const r = verifier(
-        {
-          'tests/a.test.ts': [
-            "import { it } from 'vitest';",
-            "import { mesurerAuRepos } from '@grillhouse/vitest-config/mesure';",
-            "it('mesure', ctx => {",
-            "  const n: number = mesurerAuRepos(ctx, () => 'x');",
-            '  void n;',
-            '});',
-            '',
-          ].join('\n'),
-        },
-        resolution
-      );
-      expect(r.status).not.toBe(0);
-      expect(r.sortie).toMatch(/TS2322/);
-      expect(r.sortie).not.toMatch(/TS7016/);
-    },
-    T
-  );
+    it(
+      'a wrong use of mesurerAuRepos is refused: the types are read, not any',
+      () => {
+        const r = verifier(
+          {
+            'tests/a.test.ts': [
+              "import { it } from 'vitest';",
+              "import { mesurerAuRepos } from '@roomi-fields/grillhouse/vitest-config/mesure';",
+              "it('mesure', ctx => {",
+              "  const n: number = mesurerAuRepos(ctx, () => 'x');",
+              '  void n;',
+              '});',
+              '',
+            ].join('\n'),
+          },
+          resolution
+        );
+        expect(r.status).not.toBe(0);
+        expect(r.sortie).toMatch(/TS2322/);
+        expect(r.sortie).not.toMatch(/TS7016/);
+      },
+      T
+    );
 
-  it(
-    'a Vitest configuration in TypeScript extending the base type-checks',
-    () => {
-      const r = verifier(
-        {
-          'vitest.config.ts': [
-            "import { defineConfig, mergeConfig } from 'vitest/config';",
-            "import base from '@grillhouse/vitest-config';",
-            '',
-            "export default mergeConfig(base, defineConfig({ test: { include: ['tests/**/*.test.ts'] } }));",
-            '',
-          ].join('\n'),
-        },
-        resolution
-      );
-      expect(r.sortie).toBe('');
-      expect(r.status).toBe(0);
-    },
-    T
-  );
-});
+    it(
+      'a Vitest configuration in TypeScript extending the base type-checks',
+      () => {
+        const r = verifier(
+          {
+            'vitest.config.ts': [
+              "import { defineConfig, mergeConfig } from 'vitest/config';",
+              "import base from '@roomi-fields/grillhouse/vitest-config';",
+              '',
+              "export default mergeConfig(base, defineConfig({ test: { include: ['tests/**/*.test.ts'] } }));",
+              '',
+            ].join('\n'),
+          },
+          resolution
+        );
+        expect(r.sortie).toBe('');
+        expect(r.status).toBe(0);
+      },
+      T
+    );
+  }
+);

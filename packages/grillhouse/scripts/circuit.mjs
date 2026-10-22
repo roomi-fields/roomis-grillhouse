@@ -555,6 +555,7 @@ import { NOMS_DES_GARDES } from './gardes-du-cadre.mjs';
 import { isTesterFile } from './verrous/verrou.mjs';
 import { A_REPASSER } from './vitest-config/pression.mjs';
 import { ouvrirBase, vivant } from './vitest-config/base-de-passe.mjs';
+import { CADRE } from './cadre.mjs';
 
 // The time a session's transcripts may stand still before the circuit stops it.
 export const IMMOBILE_MS = 20 * 60 * 1000;
@@ -624,10 +625,8 @@ const LANCEUR = path.join(ici, 'enveloppe', 'lancer.sh');
 const INTEGRER = path.join(ici, 'integration', 'integrer.mjs');
 const FILE = path.join(ici, 'integration', 'file.mjs');
 const REGISTRE = path.join(ici, 'registre.mjs');
-// The frame's files beside its package (packages/grillhouse/), at the root of its repository; the
-// templates of the instructions in the skill of the supervisor, which the frame's plugin carries
-// (mods/grillhouse/).
-const CADRE = path.join(ici, '..', '..', '..');
+// The templates of the instructions, in the skill of the supervisor, which the frame's plugin
+// carries (mods/grillhouse/), read among the frame's files the package reads (scripts/cadre.mjs).
 const GABARIT = path.join(
   CADRE,
   'mods',
@@ -3597,6 +3596,7 @@ function rubrique(ctx, titre) {
   );
 }
 
+// The meta-frame, among the frame's files the package reads (scripts/cadre.mjs).
 const METACADRE = path.join(CADRE, 'METACADRE.md');
 
 // The questioning of a proposal by the questionneur, in rounds with its author, never side by

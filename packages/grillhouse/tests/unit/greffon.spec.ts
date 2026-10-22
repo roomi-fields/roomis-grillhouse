@@ -244,13 +244,15 @@ describe('critère 4 — the copy of the files, its list, its fingerprints and t
     }
   });
 
-  it('the update copies no file, writes no fingerprints, and leaves the settings of Claude Code as they are', () => {
+  it('the update copies no file, writes no fingerprints, and writes in the settings of Claude Code the status line alone (grillhouse-3uv.84.4 critère 6)', () => {
     const p = mkdtempSync(path.join(ESSAIS, 'maj-'));
     ecrire(p, 'package.json', `${JSON.stringify({ name: 'p' }, null, 2)}\n`);
-    const reglages = `${JSON.stringify({ model: 'opus' })}\n`;
-    ecrire(p, '.claude/settings.json', reglages);
+    ecrire(p, '.claude/settings.json', `${JSON.stringify({ model: 'opus' })}\n`);
     maj.mettreAJour(p, DEPOT);
-    expect(readFileSync(path.join(p, '.claude/settings.json'), 'utf8')).toBe(reglages);
+    expect(JSON.parse(readFileSync(path.join(p, '.claude/settings.json'), 'utf8'))).toEqual({
+      model: 'opus',
+      statusLine: { type: 'command', command: maj.LIGNE_ETAT },
+    });
     for (const f of [
       '.claude/grillhouse',
       '.claude/skills',

@@ -418,10 +418,10 @@ describe('grillhouse-3uv.84.5 critère 1 — grillhouse hooks places the frame�
     expect(porteurs('un-commit-par-ticket.mjs')).toEqual(['scripts/crochets.mjs']);
     expect(porteurs('branche-de-nuit.mjs')).toEqual(['scripts/crochets.mjs']);
   });
-  it('critère 1: scripts/setup.sh places no hook', () => {
-    const texte = readFileSync(path.join(PAQUET, 'scripts/setup.sh'), 'utf8');
+  it('critère 1: the preparation of grillhouse init (scripts/preparation.mjs) places no hook: its npm install runs prepare', () => {
+    const texte = readFileSync(path.join(PAQUET, 'scripts/preparation.mjs'), 'utf8');
     for (const cible of ['crochets', 'grillhouse hooks', 'commit-msg', 'pre-push']) {
-      expect(nomme(texte, cible), `scripts/setup.sh still names ${cible}`).toBe(false);
+      expect(nomme(texte, cible), `scripts/preparation.mjs still names ${cible}`).toBe(false);
     }
   });
 });
