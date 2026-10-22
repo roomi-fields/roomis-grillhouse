@@ -159,6 +159,60 @@ describe.runIf(canWrap)('the circuit replays only what changed', { timeout: 300_
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
   });
 
+  // BPScript 325 (BP 320.4, n° 12): on a RENDU naming 000, 030, 040 and 995, 000's developpeur sent
+  // his red to his testwriter, and the findings of 030, 040 and 995 were skipped.
+  it('keeps, at a developpeur sending to a testwriter during a RENDU, the findings of the other components, each played after it', () => {
+    const id = 'demo-rejeu-renvoi';
+    ticket(id, TROIS);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    scenario(
+      id,
+      'relecteur-1',
+      rendu(
+        ['developpeur 000-forms', 'packages/forms/src/index.mjs', 'mesure de 0 doit rendre 0.'],
+        ['developpeur 060-sheet', 'packages/sheet/src/index.mjs', 'mesure de 1 doit rendre 2.']
+      )
+    );
+    // Forms' developpeur sends his red to forms' testwriter, whose tests the code already passes.
+    scenario(
+      id,
+      'developpeur-4',
+      `printf '// essai\\n' >> $c/src/index.mjs
+passation 'Le rouge qui reste est dans les tests de forms.'
+fiche '{"statut":"BLOQUÉ","raison":"le test attend un autre type.","renvoi":{"role":"testwriter","composant":"000-forms"}}'
+`
+    );
+    scenario(
+      id,
+      'testwriter-4',
+      `cat > $c/test/zero.test.mjs <<'EOF'
+import { expect, it } from 'vitest';
+import { mesure } from '../src/index.mjs';
+it('critère 1 — mesure de 0 rend 0', () => { expect(mesure(0)).toBe(0); });
+EOF
+passation 'Le cas 0 testé.'
+fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/zero.test.mjs","test":"critère 1 — mesure de 0 rend 0","raison":"le code livré le tient"},{"fichier":"packages/forms/test/mesure.test.mjs","test":"critère 1 — mesure rend le double","raison":"livré avant le rendu"}]}'
+`
+    );
+    scenario(id, 'developpeur-5', `printf '// rendu\\n' >> $c/src/index.mjs\npassation 'Rendu.'\n`);
+    scenario(id, 'developpeur-6', `printf '// rendu\\n' >> $c/src/index.mjs\npassation 'Rendu.'\n`);
+    scenario(id, 'relecteur-2', accepte);
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(ordre(id).slice(7)).toEqual([
+      'developpeur packages/forms',
+      'testwriter packages/forms',
+      'developpeur packages/forms',
+      'developpeur packages/sheet',
+      'relecteur',
+    ]);
+    // Each developpeur receives the finding that names him.
+    expect(essai(id, 'developpeur-5.prompt')).toContain('mesure de 0 doit rendre 0.');
+    expect(essai(id, 'developpeur-6.prompt')).toContain('mesure de 1 doit rendre 2.');
+    expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
+  });
+
   it('has the next review read the difference of the lot since the review before, and its findings, never the whole lot', () => {
     const id = 'demo-rejeu-relecture';
     ticket(id, TROIS);

@@ -191,8 +191,10 @@
 //   plays it as a `RELANCE --depuis testwriter <composant>` of the regulator, the sending and the
 //   handover as its context, whether or not the session changed a file: that component's testwriter,
 //   the sending on his line CONTEXTE, then its steps, the components after it as `--depuis` plays
-//   them, the final pass and the reviewer. A component out of the title or after his own is no such
-//   sending. The same sending twice in a row, with no green checks between them, stops at
+//   them, the final pass and the reviewer; in a round of `renvois` (a RENDU, a `--depuis`), the
+//   renvois of his component and of the components after it stay pending, each played after it with
+//   its findings, as a queue of jobs grows and is never replaced. A component out of the title or
+//   after his own is no such sending. The same sending twice in a row, with no green checks between them, stops at
 //   « sans-livraison ».
 // - The checks after the developpeur of a component judge that component, as Bazel plays the
 //   targets of a change: `npm test -- <test files of the lot>` that lie in it (and those of the
@@ -2578,7 +2580,7 @@ async function derouler(ctx, debut) {
           ctx.reprendre = false;
           ctx.depuis = d.depuis;
           ctx.contexte = null;
-          ({ index, etape, tentative, rapport, dernier, finale } = depart(ctx, null));
+          ({ index, etape, tentative, rapport, dernier, finale } = depart(ctx, null, index));
           continue;
         }
         if (fiche.statut === 'BLOQUÉ') {
@@ -3191,15 +3193,32 @@ async function conduire(ctx, suite) {
 
 // Where the run starts: the first component's testwriter, the first component of a --depuis in the
 // order of the title, at its step, or the step and component of the state <e> (null without one).
-function depart(ctx, e) {
+// With <enCours>, the index of the component whose run sends it there, the renvois of that component
+// and of the components after it stay pending, as a queue of jobs grows and is never replaced: each
+// plays after it, its findings kept.
+function depart(ctx, e, enCours = null) {
   const fin = ctx.composants.length - 1;
   if (ctx.depuis) {
-    ctx.renvois = Object.fromEntries(
-      ctx.depuis.map(({ etape, composant, contexte }) => [
-        composant,
-        { etape, testwriter: null, developpeur: null, contexte: contexte ?? null },
-      ])
+    const attente = Object.fromEntries(
+      Object.entries(enCours === null ? {} : (ctx.renvois ?? {})).filter(
+        ([c]) => ctx.composants.indexOf(c) >= enCours
+      )
     );
+    ctx.renvois = {
+      ...attente,
+      ...Object.fromEntries(
+        ctx.depuis.map(({ etape, composant, contexte }) => [
+          composant,
+          {
+            developpeur: null,
+            ...attente[composant],
+            etape,
+            testwriter: null,
+            contexte: contexte ?? null,
+          },
+        ])
+      ),
+    };
     const [{ etape, composant }] = [...ctx.depuis].sort(
       (a, b) => ctx.composants.indexOf(a.composant) - ctx.composants.indexOf(b.composant)
     );

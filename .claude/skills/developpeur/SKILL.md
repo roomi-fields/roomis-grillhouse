@@ -129,7 +129,8 @@ son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
   changement de type casse), ta fiche porte `renvoi` : le rôle testwriter et ce composant, écrit
   comme le titre le nomme. Le circuit rejoue ce composant depuis son testwriter, ta `raison` et ta
   passation pour rapport, puis les composants d'après qu'il n'a pas encore menés et la passe
-  finale, sans te relancer sur ce rouge ; le même renvoi deux fois de suite, sans contrôles verts
+  finale, sans te relancer sur ce rouge ; dans la reprise d'un `RENDU`, les constats de ton
+  composant et des composants d'après restent, chacun rejoué ensuite ; le même renvoi deux fois de suite, sans contrôles verts
   entre eux, l'arrête (`sans-livraison`). Ainsi le rouge va à l'agent qui écrit les tests.
 - **Ta séance finit sur ta fiche**, que ton schéma décrit et que le circuit lit seule :
   - `statut` FAIT : ton code est écrit, et les contrôles le jugent ;
