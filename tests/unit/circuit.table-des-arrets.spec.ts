@@ -49,8 +49,7 @@ const regulateur = (decision: Record<string, unknown>, avant = '') =>
   `${avant}fiche '${JSON.stringify(decision)}'\n`;
 const depuis = (role: string, composant: string, contexte: string) => ({
   decision: 'RELANCE --depuis',
-  depuis: { role, composant },
-  contexte,
+  depuis: [{ role, composant, contexte }],
 });
 const valeur = (a: string[], option: string) =>
   a.includes(option) ? a[a.indexOf(option) + 1] : undefined;

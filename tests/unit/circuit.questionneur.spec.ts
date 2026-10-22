@@ -269,8 +269,13 @@ describe.runIf(canWrap)(
         `${REGULATEUR}-2`,
         fiche({
           decision: 'RELANCE --depuis',
-          depuis: { role: 'testwriter', composant: 'packages/forms' },
-          contexte: 'Relis le test du critère 1.',
+          depuis: [
+            {
+              role: 'testwriter',
+              composant: 'packages/forms',
+              contexte: 'Relis le test du critère 1.',
+            },
+          ],
           reponses: [
             {
               question: 'Le test du critère 1 est-il juste ?',

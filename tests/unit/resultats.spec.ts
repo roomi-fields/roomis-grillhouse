@@ -78,11 +78,35 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
     expect(c.items.required).toEqual(['titre', 'corps', 'genre']);
     expect(c.items.properties.genre.enum).toEqual(['bloquant', 'remarque']);
   });
-  it('the regulator: its decision, the agent a RELANCE --depuis names, its context, its question, the facts the circuit checks, its discoveries', () => {
+  it('the regulator: its decision, the agents a RELANCE --depuis names, its context, its question, the facts the circuit checks, its discoveries', () => {
     expect(champs('regulateur')).toEqual(
       ['contexte', 'decision', 'decouvertes', 'depuis', 'faits', 'question', 'reponses'].sort()
     );
     expect((schemaDeFiche('regulateur') as Schema).required).toEqual(['decision']);
+  });
+  // grillhouse-3uv.92.2, witness BPScript 320.4 (n° 11, 20 min): the red of the ceiling of 040,
+  // visible from the first final pass, was relaunched only after the third, the sheet carrying a
+  // single `depuis`.
+  it('critère 1 — a RELANCE --depuis names one or more components of the title, each with its step and its context', () => {
+    const depuis = (schemaDeFiche('regulateur') as Schema).properties.depuis as {
+      type: string;
+      items: Schema & { properties: { role: { enum: string[] } } };
+    };
+    expect(depuis.type).toBe('array');
+    expect(Object.keys(depuis.items.properties).sort()).toEqual(['composant', 'contexte', 'role']);
+    expect(depuis.items.required).toEqual(['role', 'composant', 'contexte']);
+    expect(depuis.items.properties.role.enum).toEqual(['testwriter', 'developpeur']);
+    const lu = lireFiche(
+      'regulateur',
+      sortie({
+        decision: 'RELANCE --depuis',
+        depuis: [
+          { role: 'developpeur', composant: 'packages/a', contexte: 'Le plafond.' },
+          { role: 'testwriter', composant: 'packages/b', contexte: 'Le test du critère 2.' },
+        ],
+      })
+    );
+    expect(lu.erreur).toBeUndefined();
   });
   // grillhouse-3uv.89.1 (L9): the questionneur asks, the author answers in its own session.
   it('the questionneur: its issue (questions, none, a disagreement), its questions each with what it aims at, its disagreement', () => {
@@ -273,6 +297,29 @@ describe('the reading of a sheet in the output of a session', () => {
     ['relecteur', { verdict: 'RENDU', constats: [{ titre: 't', corps: 'c' }] }, 'genre'],
     ['relecteur', { verdict: 'ACCEPTÉ', remarques: ['un nom'] }, 'remarques'],
     ['regulateur', { decision: 'RELANCE --depuis' }, 'depuis'],
+    ['regulateur', { decision: 'RELANCE --depuis', depuis: [] }, 'depuis'],
+    [
+      'regulateur',
+      {
+        decision: 'RELANCE --depuis',
+        depuis: { role: 'testwriter', composant: 'a', contexte: 'c' },
+      },
+      'depuis',
+    ],
+    [
+      'regulateur',
+      { decision: 'RELANCE --depuis', depuis: [{ role: 'testwriter', composant: 'a' }] },
+      'contexte',
+    ],
+    [
+      'regulateur',
+      {
+        decision: 'RELANCE --depuis',
+        depuis: [{ role: 'testwriter', composant: 'a', contexte: 'c' }],
+        contexte: 'c',
+      },
+      'contexte',
+    ],
     ['regulateur', { decision: 'MONTE' }, 'question'],
     ['regulateur', { decision: 'RELANCE --reprendre', contexte: 3 }, 'contexte'],
     ['regulateur', { decision: 'RELANCE --reprendre', faits: [{ sujet: 'peut-etre' }] }, 'sujet'],

@@ -73,10 +73,10 @@ journal fait plusieurs Mo : je le lis par morceaux, `grep -n <motif> <journal>` 
    destinataire valide, un constat sur un critère, ou une troisième relecture rendue l'arrête à
    `relecture-arret`
    (code 16) : je tranche (un critère se tranche comme plus bas, puis `RELANCE --reprendre`), ou je
-   fais corriger le lot par `RELANCE --depuis`, l'agent dans `depuis`, les constats en
-   `contexte`, qui rejoue ce composant, puis les composants d'après que le circuit n'a pas encore
-   menés (leur circuit entier ; un composant déjà mené ne rejoue rien, la passe finale le juge), la
-   passe finale, le relecteur et l'intégration. Sur `ACCEPTÉ`, le circuit construit le lot depuis
+   fais corriger le lot par `RELANCE --depuis`, chaque composant à corriger dans `depuis` avec son
+   agent et ses constats en `contexte`, qui rejoue ces composants dans l'ordre du titre, puis les
+   composants d'après que le circuit n'a pas encore menés (leur circuit entier ; un composant déjà
+   mené ne rejoue rien, la passe finale le juge), la passe finale, le relecteur et l'intégration. Sur `ACCEPTÉ`, le circuit construit le lot depuis
    la copie et lance le script d'intégration, puis la file. Un refus du script, une branche que la file sort ou une CI rouge
    (le ticket rouvert) l'arrêtent à `integration` (code 17), la raison au `rapport` ; je fais
    corriger le lot par `RELANCE --depuis`, le lanceur recréant la copie sur main avec le lot de la
@@ -98,11 +98,17 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
 ## Ma décision, dans ma fiche
 
 - **Ma décision est ma fiche**, que mon schéma décrit et qui finit ma séance : sa `decision`
-  `RELANCE --reprendre`, `RELANCE --depuis` (l'agent dans `depuis` : testwriter ou developpeur, un
-  composant du titre) ou `MONTE` (la question dans `question`) ; une RELANCE porte un `contexte`
-  facultatif, que le circuit passe à l'agent qu'il relance ; une trouvaille hors de mes critères
-  entre dans `decouvertes`. Le circuit l'écrit au ticket (`Circuit · … · regulateur : …`) et
+  `RELANCE --reprendre` (son `contexte` facultatif, que le circuit passe à l'agent qu'il reprend),
+  `RELANCE --depuis` (dans `depuis`, un ou plusieurs composants du titre, chacun avec son agent,
+  testwriter ou developpeur, et son `contexte`) ou `MONTE` (la question dans `question`) ; une
+  trouvaille hors de mes critères entre dans `decouvertes`. Le circuit l'écrit au ticket (`Circuit · … · regulateur : …`) et
   l'applique lui-même. Ainsi le circuit repart sans réveiller le superviseur.
+- **Une décision relance chaque composant à corriger** : les rouges de l'arrêt dans plusieurs
+  composants du titre vont tous dans le même `depuis`, comme GitLab relance en une fois les
+  travaux en échec ; le circuit les rejoue dans l'ordre du titre, puis une seule passe finale, et
+  refuse la décision entière si l'un d'eux est hors du titre, nommé deux fois, ou un développeur
+  avant son testwriter. Ainsi un rouge vu dès la première passe se corrige dès la première
+  relance.
 - **Ma décision est questionnée avant d'être appliquée** : le questionneur, un regard qui ne l'a
   pas écrite, lit ma fiche et l'arrêt, et me pose ses questions, à l'Arbitrage de l'arrêt ; le
   circuit reprend ma séance avec elles. Pour chaque question, je change ma décision (`CHANGE`, et

@@ -360,16 +360,17 @@
 //   code, its step, component and reason, the paths of the state and the log, and the plan it
 //   judges on, the ticket's description, where a decision of the owner is poured. The state
 //   names its session (`regulateur`) while it runs. Its sheet is its decision (`decision`:
-//   « RELANCE --reprendre », « RELANCE --depuis » with the agent in `depuis`, or « MONTE » with its
-//   `question`; a `contexte` for a RELANCE; its `faits`, the facts of the state it rests on). A
+//   « RELANCE --reprendre » with its `contexte`, « RELANCE --depuis » with in `depuis` one or more
+//   components of the title, each with its agent and its `contexte`, or « MONTE » with its
+//   `question`; its `faits`, the facts of the state it rests on). A
 //   fresh session's decision is questioned first, as the plan is, the regulator answering in its
 //   own session, resumed with the tenth template (its `reponses`, and the decision it ends on,
 //   changed or kept, the one the circuit checks and applies); a DÉSACCORD, or a fourth round still
 //   questioned, makes of the exchange the regulator's question, the stop « question », its session
 //   kept; a decision on the supervisor's answer is not questioned. The
-//   circuit checks it on the state before it applies it, an admission control (refusDe): a
-//   component out of the title, a step the state does not hold, a developpeur whose testwriter has not
-//   run, a decision other than a RELANCE from a testwriter after the ticket's description changed (a
+//   circuit checks it on the state before it applies it, an admission control (refusDe), each
+//   component of a --depuis judged: a component out of the title or named twice, a step the state
+//   does not hold, a developpeur whose testwriter has not run, a decision other than a RELANCE from a testwriter after the ticket's description changed (a
 //   criterion added: the table's `critere-neuf`), a fact the state proves false (au-titre,
 //   hors-titre, rouge-de, sans-changement, sous-charge), or the same RELANCE as the one before on
 //   the same stop with no fact the one before did not have, is refused: written at the ticket
@@ -377,8 +378,12 @@
 //   once with the reason (the seventh template); a second refusal ends the circuit on the stop,
 //   both reasons joined to its own. The circuit writes a decision admitted at the ticket
 //   (`Circuit · <composant> · regulateur : …`). RELANCE runs the circuit again in the same process, as the
-//   option it names, the context as `--contexte`; MONTE ends the circuit at « question », the
-//   question as its reason, the regulator's session kept in the state. `--reponse <texte>` first
+//   option it names, the context as `--contexte`, a --depuis of several components as one of each
+//   in a single run: each played again in the order of the title, from its agent with its context
+//   (`renvois`), then the components after them the circuit has not carried through, then one final
+//   pass, as GitLab's « Retry failed jobs » retries every failed job in one go; MONTE ends the
+//   circuit at « question », the question as its reason, the regulator's session kept in the
+//   state. `--reponse <texte>` first
 //   pours the answer into the plan, as an RFC amended or an ADR, the plan being what every agent
 //   reads and the exchange its history: a fresh session of the technical referent, out of the
 //   envelope (the twelfth template: the question, the answer, the plan), changes the plan (a
@@ -736,6 +741,8 @@ function contexte(o) {
   }
   return {
     ...o,
+    // The components a relaunch --depuis plays again, each with its step and its context.
+    depuis: o.depuis ? [{ ...o.depuis, contexte: o.contexte }] : null,
     racine,
     copie,
     bd,
@@ -2570,7 +2577,7 @@ async function derouler(ctx, debut) {
           );
           ctx.reprendre = false;
           ctx.depuis = d.depuis;
-          ctx.contexte = d.contexte;
+          ctx.contexte = null;
           ({ index, etape, tentative, rapport, dernier, finale } = depart(ctx, null));
           continue;
         }
@@ -2805,25 +2812,36 @@ async function derouler(ctx, debut) {
 }
 
 // The decision of the regulator's sheet <fiche>: `{ ligne, reprendre: true, contexte }` or
-// `{ ligne, depuis: { etape, composant }, contexte }` for a RELANCE, `contexte` its context or
-// null; `{ ligne, question }` for a MONTE; `ligne` the decision as the circuit writes it at the
-// ticket. Null for a `--depuis` whose component the title does not name.
+// The decision of the regulator's sheet <fiche>: `{ ligne, reprendre, contexte }` for a RELANCE
+// --reprendre, `contexte` its context or null; `{ ligne, depuis }` for a RELANCE --depuis,
+// `depuis` each component it plays again in the order of the title, `{ etape, composant,
+// contexte }`, as GitLab's « Retry failed jobs » retries every job in one go; `{ ligne, question }`
+// for a MONTE; `ligne` the decision as the circuit writes it at the ticket. Null for a `--depuis`
+// that names a component the title does not.
 function decisionDe(ctx, fiche) {
   if (fiche.decision === 'MONTE') {
     return { ligne: `MONTE : ${fiche.question}`, question: fiche.question };
   }
-  const contexte = fiche.contexte?.trim() || null;
-  const avec = l => (contexte ? `${l}\nCONTEXTE : ${contexte}` : l);
   if (fiche.decision === 'RELANCE --reprendre') {
-    return { ligne: avec('RELANCE --reprendre'), reprendre: true, contexte };
+    const contexte = fiche.contexte?.trim() || null;
+    const ligne = `RELANCE --reprendre${contexte ? `\nCONTEXTE : ${contexte}` : ''}`;
+    return { ligne, reprendre: true, contexte };
   }
-  const i = indexDe(ctx, fiche.depuis.composant);
-  if (i < 0) return null;
-  const composant = ctx.composants[i];
+  const indices = fiche.depuis.map(x => indexDe(ctx, x.composant));
+  if (indices.some(i => i < 0)) return null;
+  const depuis = fiche.depuis
+    .map((x, n) => ({
+      etape: x.role,
+      composant: ctx.composants[indices[n]],
+      contexte: x.contexte?.trim() || null,
+    }))
+    .sort((a, b) => ctx.composants.indexOf(a.composant) - ctx.composants.indexOf(b.composant));
   return {
-    ligne: avec(`RELANCE --depuis ${fiche.depuis.role} ${composant}`),
-    depuis: { etape: fiche.depuis.role, composant },
-    contexte,
+    ligne: [
+      `RELANCE --depuis ${depuis.map(x => `${x.etape} ${x.composant}`).join(', ')}`,
+      ...depuis.filter(x => x.contexte).map(x => `CONTEXTE ${x.composant} : ${x.contexte}`),
+    ].join('\n'),
+    depuis,
   };
 }
 
@@ -2888,8 +2906,7 @@ function decisionDuGeste(ctx, ligne, i, contexte) {
   const etape = ligne.geste === 'testwriter' ? TESTS : null;
   return {
     ligne: `RELANCE --depuis ${etape} ${composant}`,
-    depuis: { etape, composant },
-    contexte,
+    depuis: [{ etape, composant, contexte }],
   };
 }
 
@@ -2923,13 +2940,21 @@ function faitFaux(ctx, a, f) {
 }
 
 // Why the circuit refuses the decision <d> of the regulator's sheet <fiche> on the stop <a>,
-// checked on the state before it is applied (an admission control), or null when it admits it: a
-// component out of the title, a step the state does not hold, a developpeur before his testwriter, a
-// criterion added and no testwriter first (the table's `critere-neuf`), a fact of its sheet the state
-// proves false, the same RELANCE as the one before on the same stop with no new fact.
+// checked on the state before it is applied (an admission control), or null when it admits it,
+// each component of a RELANCE --depuis judged: a component out of the title, or named twice, a
+// step the state does not hold, a developpeur before his testwriter, a criterion added and no
+// testwriter first (the table's `critere-neuf`), a fact of its sheet the state proves false, the
+// same RELANCE as the one before on the same stop with no new fact.
 function refusDe(ctx, a, fiche, d) {
   if (!d) {
-    return `sa décision nomme ${fiche.depuis?.composant}, qui n'est pas un composant du titre (${ctx.composants.join(', ')})`;
+    const hors = fiche.depuis.filter(x => indexDe(ctx, x.composant) < 0).map(x => x.composant);
+    return `sa décision nomme ${hors.join(', ')}, qui n'${hors.length > 1 ? 'en sont' : 'est'} pas un composant du titre (${ctx.composants.join(', ')})`;
+  }
+  const deuxFois = (d.depuis ?? []).find(
+    (x, n, l) => l.findIndex(y => y.composant === x.composant) < n
+  );
+  if (deuxFois) {
+    return `sa décision nomme ${deuxFois.composant} deux fois : un composant se relance depuis une seule étape`;
   }
   const faux = (fiche.faits ?? []).map(f => faitFaux(ctx, a, f)).find(Boolean);
   if (faux) return faux;
@@ -2937,14 +2962,15 @@ function refusDe(ctx, a, fiche, d) {
   if (d.reprendre && !etapeDuCircuit(a.etat)) {
     return `RELANCE --reprendre reprend l'état à l'étape ${a.etat.etape}, qui n'est pas une étape du circuit : la décision nomme son agent (RELANCE --depuis)`;
   }
-  const { composant } = d.depuis ?? {};
-  if (
-    d.depuis?.etape === CODE &&
-    !testwriterPasse(ctx, a.etat, ctx.composants.indexOf(composant))
-  ) {
+  const avantSesTests = (d.depuis ?? []).find(
+    x => x.etape === CODE && !testwriterPasse(ctx, a.etat, ctx.composants.indexOf(x.composant))
+  );
+  if (avantSesTests) {
+    const { composant } = avantSesTests;
     return `RELANCE --depuis developpeur ${composant} lance le développeur de ${composant} avant son testwriter, dont les tests ne sont pas écrits : un composant commence par son testwriter (RELANCE --depuis testwriter ${composant})`;
   }
-  const testwriter = d.depuis?.etape === TESTS || (d.reprendre && a.etat.etape === TESTS);
+  // The run starts at the first component of a --depuis, in the order of the title.
+  const testwriter = d.depuis?.[0].etape === TESTS || (d.reprendre && a.etat.etape === TESTS);
   if (a.ticket && !testwriter && a.ticket !== empreinteDuTicket(ctx)) {
     return `la description du ticket a changé pendant l'arbitrage : un critère neuf part au testwriter avant le développeur (table des arrêts, ${gesteDe('critere-neuf').genre}), par RELANCE --depuis testwriter <composant>`;
   }
@@ -2964,7 +2990,7 @@ function appliquer(ctx, a, d, etat, faits = []) {
   ctx.relances = memeArret(ctx.relances[0], a) ? [...ctx.relances, entree] : [entree];
   ctx.reprendre = Boolean(d.reprendre);
   ctx.depuis = d.depuis ?? null;
-  ctx.contexte = d.contexte;
+  ctx.contexte = d.contexte ?? null;
   return { depart: depart(ctx, { ...etat, renvois: ctx.renvois }) };
 }
 
@@ -3163,15 +3189,20 @@ async function conduire(ctx, suite) {
   }
 }
 
-// Where the run starts: the first component's testwriter, or the step and component of the state
-// <e> (null without one).
+// Where the run starts: the first component's testwriter, the first component of a --depuis in the
+// order of the title, at its step, or the step and component of the state <e> (null without one).
 function depart(ctx, e) {
   const fin = ctx.composants.length - 1;
   if (ctx.depuis) {
-    const { etape, composant } = ctx.depuis;
-    ctx.renvois = {
-      [composant]: { etape, testwriter: null, developpeur: null, contexte: ctx.contexte ?? null },
-    };
+    ctx.renvois = Object.fromEntries(
+      ctx.depuis.map(({ etape, composant, contexte }) => [
+        composant,
+        { etape, testwriter: null, developpeur: null, contexte: contexte ?? null },
+      ])
+    );
+    const [{ etape, composant }] = [...ctx.depuis].sort(
+      (a, b) => ctx.composants.indexOf(a.composant) - ctx.composants.indexOf(b.composant)
+    );
     return {
       index: ctx.composants.indexOf(composant),
       etape,
@@ -3538,7 +3569,7 @@ async function questionnerLePlan(ctx, releve, { etat: dans = null, auteur = null
 // names a component out of the title.
 const ligneDeLaDecision = (ctx, fiche) =>
   decisionDe(ctx, fiche)?.ligne ??
-  `${fiche.decision} ${fiche.depuis?.role ?? ''} ${fiche.depuis?.composant ?? ''}`.trim();
+  `${fiche.decision} ${(fiche.depuis ?? []).map(x => `${x.role} ${x.composant}`).join(', ')}`.trim();
 
 // The decision of the regulator's sheet <fiche> on the stop <a>, as the questionneur reads it: the
 // decision, its facts, then the stop it settles (<valeurs>: its step, component, reason and reds,

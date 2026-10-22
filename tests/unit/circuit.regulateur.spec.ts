@@ -27,6 +27,7 @@ const {
   args,
   etat,
   ordre,
+  commandes,
   commentaires,
 } = circuitEssai(ESSAIS);
 
@@ -151,8 +152,9 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
       REGULATEUR,
       regulateur({
         decision: 'RELANCE --depuis',
-        depuis: { role: 'developpeur', composant: '000-forms' },
-        contexte: 'La mesure rend le double.',
+        depuis: [
+          { role: 'developpeur', composant: '000-forms', contexte: 'La mesure rend le double.' },
+        ],
       })
     );
     const r = circuit([id]);
@@ -167,6 +169,88 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
       )
     );
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
+  });
+
+  // grillhouse-3uv.92.2, witness BPScript 320.4 (n° 11, 20 min): the red of the ceiling of 040,
+  // visible from the first final pass, was relaunched only after the third, the regulator's sheet
+  // carrying a single `depuis`; as GitLab's « Retry failed jobs », one decision relaunches each.
+  it('critères 1 et 2 — one RELANCE --depuis relaunches several components, each from its step with its context, in the order of the title, then one final pass', () => {
+    const id = 'demo-regulateur-depuis-plusieurs';
+    ticket(id, '000-forms, 030-binder');
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'developpeur-1', RIEN);
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    // The sheet names binder before forms: the circuit plays them in the order of the title.
+    scenario(
+      id,
+      REGULATEUR,
+      regulateur({
+        decision: 'RELANCE --depuis',
+        depuis: [
+          { role: 'testwriter', composant: '030-binder', contexte: 'Le classeur rend le double.' },
+          { role: 'developpeur', composant: '000-forms', contexte: 'La mesure rend le double.' },
+        ],
+      })
+    );
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(ordre(id)).toEqual([
+      'testwriter packages/forms',
+      'developpeur packages/forms',
+      REGULATEUR,
+      'developpeur packages/forms',
+      'testwriter packages/binder',
+      'developpeur packages/binder',
+      'relecteur',
+    ]);
+    // Each agent of a component relaunched has its own context, and only its own.
+    expect(essai(id, 'developpeur-2.prompt')).toContain('CONTEXTE : La mesure rend le double.');
+    expect(essai(id, 'developpeur-2.prompt')).not.toContain('Le classeur rend le double.');
+    for (const f of ['testwriter-2.prompt', 'developpeur-3.prompt']) {
+      expect(essai(id, f)).toContain('CONTEXTE : Le classeur rend le double.');
+      expect(essai(id, f)).not.toContain('La mesure rend le double.');
+    }
+    expect(commentaires(id)).toContainEqual(
+      expect.stringMatching(
+        /^Circuit · packages\/forms · regulateur : RELANCE --depuis developpeur packages\/forms, testwriter packages\/binder/
+      )
+    );
+    // One final pass, after both.
+    expect(commandes(id).filter(c => /npm run verifier/.test(c))).toHaveLength(1);
+    expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
+  });
+
+  it('critère 3 — the admission judges each component of the decision: one out of the title, or a developpeur before his testwriter, refuses it whole', () => {
+    const id = 'demo-regulateur-depuis-admission';
+    ticket(id, '000-forms, 030-binder');
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'developpeur', RIEN);
+    const forms = { role: 'developpeur', composant: '000-forms', contexte: 'Le double.' };
+    scenario(
+      id,
+      `${REGULATEUR}-1`,
+      regulateur({
+        decision: 'RELANCE --depuis',
+        depuis: [forms, { role: 'testwriter', composant: '999-absent', contexte: 'Le double.' }],
+      })
+    );
+    scenario(
+      id,
+      `${REGULATEUR}-2`,
+      regulateur({
+        decision: 'RELANCE --depuis',
+        depuis: [forms, { role: 'developpeur', composant: '030-binder', contexte: 'Le double.' }],
+      })
+    );
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(ARRETS['sans-livraison']);
+    expect(sessions(id, REGULATEUR)).toBe(2);
+    expect(sessions(id, 'developpeur')).toBe(1);
+    const refus = commentaires(id).filter(t => / · regulateur : décision refusée — /.test(t));
+    expect(refus).toHaveLength(2);
+    expect(refus[0]).toContain('999-absent');
+    expect(refus[1]).toContain('developpeur packages/binder');
+    expect(refus[1]).toContain('testwriter');
   });
 
   describe('critères 4 et 5 — MONTE ends on « question », --reponse resumes the same session', () => {
@@ -310,8 +394,7 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
         `touch note-${n}.txt\n` +
           regulateur({
             decision: 'RELANCE --depuis',
-            depuis: { role: 'developpeur', composant: 'packages/forms' },
-            contexte: `essai ${n}.`,
+            depuis: [{ role: 'developpeur', composant: 'packages/forms', contexte: `essai ${n}.` }],
           })
       );
     }

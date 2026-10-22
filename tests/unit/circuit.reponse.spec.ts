@@ -95,7 +95,9 @@ describe.runIf(canWrap)(
         `${REGULATEUR}-2`,
         fiche({
           decision: 'RELANCE --depuis',
-          depuis: { role: 'testwriter', composant: 'packages/forms' },
+          depuis: [
+            { role: 'testwriter', composant: 'packages/forms', contexte: 'Le rouge de la mesure.' },
+          ],
         })
       );
       const r = circuit([id, '--reponse', REPONSE]);
@@ -151,7 +153,13 @@ describe.runIf(canWrap)(
         `${REGULATEUR}-2`,
         fiche({
           decision: 'RELANCE --depuis',
-          depuis: { role: 'developpeur', composant: 'packages/forms' },
+          depuis: [
+            {
+              role: 'developpeur',
+              composant: 'packages/forms',
+              contexte: 'Le rouge de la mesure.',
+            },
+          ],
         })
       );
       const r = circuit([id, '--reponse', REPONSE]);

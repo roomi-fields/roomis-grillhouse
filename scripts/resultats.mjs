@@ -31,8 +31,9 @@
 //     the verdict, for the human (reviewer);
 //   - `question` (reviewer): what goes up to the owner, a real word of the language written in the
 //     code; the circuit stops at « besoin » before it commits or relaunches anyone;
-//   - `decision` (« RELANCE --reprendre », « RELANCE --depuis » with `depuis`, « MONTE » with
-//     `question`), `contexte`: what the circuit applies (regulator);
+//   - `decision` (« RELANCE --reprendre » with its `contexte`, « RELANCE --depuis » with `depuis`,
+//     one or more components of the title, each with its `role` and its `contexte`, « MONTE »
+//     with `question`): what the circuit applies (regulator);
 //   - `faits` (`sujet` of SUJETS_DES_FAITS, `composant`): the facts of the state the decision
 //     rests on, which the circuit checks before it applies the decision, and compares with the
 //     facts of the RELANCE before on the same stop (regulator);
@@ -234,15 +235,18 @@ const FICHES = {
   regulateur: objet(
     {
       decision: { type: 'string', enum: ['RELANCE --reprendre', 'RELANCE --depuis', 'MONTE'] },
-      depuis: objet(
-        {
-          role: { type: 'string', enum: ['testwriter', 'developpeur'] },
-          composant: texte('Un composant du titre.'),
-        },
-        ['role', 'composant'],
-        'RELANCE --depuis : l’agent qui reprend le lot.'
+      depuis: liste(
+        objet(
+          {
+            role: { type: 'string', enum: ['testwriter', 'developpeur'] },
+            composant: texte('Un composant du titre.'),
+            contexte: texte('Ce que l’agent relancé fait dans ce composant.'),
+          },
+          ['role', 'composant', 'contexte']
+        ),
+        'RELANCE --depuis : chaque composant que le lot reprend, avec l’agent qui le reprend et son contexte ; le circuit les rejoue dans l’ordre du titre, puis une seule passe finale.'
       ),
-      contexte: texte('RELANCE : ce que l’agent relancé fait dans son composant.'),
+      contexte: texte('RELANCE --reprendre : ce que l’agent repris fait dans son composant.'),
       question: texte('MONTE : la question, ses pièces et ta recommandation.'),
       faits: liste(
         objet(
@@ -322,10 +326,10 @@ function erreurs(schema, valeur, ou) {
 }
 
 // What a sheet of <role> needs beyond its schema: the reason of a BLOQUÉ, the question of a
-// BESOIN or a MONTE, the agent of a RELANCE --depuis, the component of a fact, the questions of a
-// QUESTIONS, the text of a DÉSACCORD, the plan an answer CHANGE gives, the criterion or rule of a
-// blocking finding, and a reviewer's verdict that follows its findings (RENDU with a blocking
-// one, ACCEPTÉ without).
+// BESOIN or a MONTE, the agents of a RELANCE --depuis, each with its own context and none beside
+// them, the component of a fact, the questions of a QUESTIONS, the text of a DÉSACCORD, the plan
+// an answer CHANGE gives, the criterion or rule of a blocking finding, and a reviewer's verdict
+// that follows its findings (RENDU with a blocking one, ACCEPTÉ without).
 function manques(role, f) {
   const out = [];
   const plein = k => typeof f[k] === 'string' && f[k].trim() !== '';
@@ -334,8 +338,11 @@ function manques(role, f) {
   if (role === 'regulateur' && f.decision === 'MONTE' && !plein('question')) {
     out.push('question : manque, pour MONTE');
   }
-  if (role === 'regulateur' && f.decision === 'RELANCE --depuis' && !f.depuis) {
+  if (role === 'regulateur' && f.decision === 'RELANCE --depuis' && !f.depuis?.length) {
     out.push('depuis : manque, pour RELANCE --depuis');
+  }
+  if (role === 'regulateur' && f.decision === 'RELANCE --depuis' && 'contexte' in f) {
+    out.push('contexte : sous RELANCE --depuis, chaque composant de depuis porte le sien');
   }
   if (role === 'relecteur') {
     const constats = f.constats ?? [];
