@@ -76,6 +76,9 @@ Chaque passe suit son fichier de `references/` à la lettre, dans cet ordre.
    une garde rouge rend le lot, sa sortie en preuve. Ainsi le lot fait ce qui a été décidé, et
    seulement cela, et un refus des gardes se voit avant l'intégration.
 
+**Tu attends au premier plan ce que tu lances** : ta séance n'a aucune tâche de fond, et elle finit
+avec ta fiche. Ainsi le circuit reprend dès ta fiche rendue.
+
 ## Le verdict
 
 Une passe en trouve, tu cherches une entrée voisine qui casse le correctif : un constat se prouve

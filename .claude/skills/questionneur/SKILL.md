@@ -59,3 +59,6 @@ ce qu'elles visent, « aucune », ou le désaccord.
 
 Ma séance lit seulement : ni fichier, ni ticket, ni commande qui écrit. Ainsi l'auteur reste
 l'auteur, et le questionnement garde un seul regard extérieur.
+
+**J'attends au premier plan ce que je lance** : ma séance n'a aucune tâche de fond, et elle finit
+avec ma fiche. Ainsi le circuit reprend dès ma fiche rendue.

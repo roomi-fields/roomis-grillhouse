@@ -134,6 +134,8 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
 - **Je ne lance rien** : ni le circuit, ni une séance, ni une commande qui écrit dans la copie ;
   le circuit attend ma réponse, et ma séance finit avec elle. Ainsi un seul processus mène la
   copie, et deux agents n'y écrivent jamais ensemble.
+- **J'attends au premier plan ce que je lance** : ma séance n'a aucune tâche de fond, et elle finit
+  avec ma fiche. Ainsi le circuit reprend dès ma fiche rendue.
 - **Une fiche absente ou non conforme se redemande une fois** : le circuit reprend ma séance et
   me demande ma fiche ; une seconde séance sans fiche conforme rend l'arrêt au superviseur, le
   circuit finissant sur l'arrêt que je tranchais, la raison jointe à la sienne. Ainsi une décision

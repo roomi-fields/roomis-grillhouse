@@ -23,7 +23,8 @@
 //   automatic memory off; the skills of Claude Code off (`disableBundledSkills`, and the few it keeps,
 //   INTEGREES), every skill of the project but the role's off (`skillOverrides`), every plugin
 //   the project enables off (`enabledPlugins`: their skills, hooks and servers are not the role's);
-//   for a role that writes, its locks as hooks (PreToolUse: verrous/verrou.mjs on the tools of
+//   the background tasks off (`env`, SANS_TACHE_DE_FOND: a role waits in the foreground for what
+//   it launches, and its session ends with its sheet); for a role that writes, its locks as hooks (PreToolUse: verrous/verrou.mjs on the tools of
 //   writing, verrous/commande.mjs on Bash), since the hooks of an agent's definition do not run in
 //   a folder Claude Code has not trusted, as the copy of a ticket.
 // - `--tools <list>`: the tools its work uses; Edit and Write for a role that writes alone, the
@@ -74,6 +75,10 @@ const ECRIRE_AU_TICKET = [
   'Bash(bd delete*)',
   'Bash(bash scripts/ticket.sh*)',
 ];
+// The variable that turns off the background tasks of Claude Code (the Bash tool's
+// `run_in_background`, the background agents): `claude -p` waits for them before it ends, so a
+// session ends with its sheet only without them.
+const SANS_TACHE_DE_FOND = { CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1' };
 const TEST_DIRECT = [
   'Bash(vitest*)',
   'Bash(npx vitest*)',
@@ -250,6 +255,7 @@ function reglagesDuRole(role, { racine, copie = racine, ticket, etat, journal, p
     disableBundledSkills: true,
     skillOverrides: Object.fromEntries(autres.map(s => [s, 'off'])),
     enabledPlugins: Object.fromEntries(greffonsDuProjet(racine).map(g => [g, false])),
+    env: SANS_TACHE_DE_FOND,
   };
   if (r.ecrit) {
     reglages.hooks = {

@@ -85,6 +85,9 @@ temporaire va dans `$TMPDIR`. Les tests se lancent par `npm test -- <fichiers>`,
 de test directement. Ainsi chaque écriture passe par le verrou de ton rôle, et une substitution qui
 ne trouve pas son texte échoue au lieu de passer en silence.
 
+**Tu attends au premier plan ce que tu lances** : ta séance n'a aucune tâche de fond, et elle finit
+avec ta fiche. Ainsi le circuit reprend dès ta fiche rendue.
+
 ## Ce qui t'arrête
 
 - **Une question sans règle** : un cas que ni les critères ni une règle ne tranchent. Ta fiche

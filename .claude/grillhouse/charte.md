@@ -143,7 +143,7 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
   réveille la séance ; aucune boucle d'attente, aucun long délai au premier plan. Ce que la séance
   annonce de sa façon de faire vaut dès la commande suivante ; quand le responsable arrête, elle ne
   lance plus rien. Un agent de rôle, lui, attend au premier plan ce qu'il lance, car sa séance
-  finit avec son tour. Ainsi le responsable n'attend jamais une commande, et aucun travail ne se
+  finit avec son tour : ses réglages lui ôtent les tâches de fond (`scripts/droits.mjs`). Ainsi le responsable n'attend jamais une commande, et aucun travail ne se
   perd.
 - **Les tests se lancent par `npm test`** (Turborepo : la construction, puis les tests) :
   `npm test -- <chemins>` pour un lancement ciblé, chaque chemin écrit depuis la racine du dépôt

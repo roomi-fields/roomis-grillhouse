@@ -22,6 +22,7 @@ type Reglages = {
   disableBundledSkills: boolean;
   skillOverrides: Record<string, string>;
   enabledPlugins: Record<string, boolean>;
+  env?: Record<string, string>;
   hooks?: { PreToolUse?: { matcher: string; hooks: { command: string }[] }[] };
 };
 
@@ -453,6 +454,33 @@ describe('3uv.91.6 — the testwriter removes a file of its tests', () => {
         deny.some(r => couvre(r, RETRAIT)),
         role
       ).toBe(false);
+    }
+  });
+});
+
+// grillhouse-3uv.92.6: a role's session ends with its sheet; it launches nothing in the
+// background, which would hold it alive past its sheet (`claude -p` waits for its background
+// tasks), as a job of GitLab ends with its main command. Witness: BPScript 320.4, a session's
+// `until … sleep 5` launched in the background; its sheet given at 21:37:14, the session ended at
+// 21:46:43, when the task reached its limit. 9.3 min.
+describe('3uv.92.6 — a role session ends with its sheet, without a background task', () => {
+  it("criterion 1: every role's settings turn off Claude Code's background tasks", () => {
+    for (const role of Object.keys(ROLES)) {
+      expect(reglagesDe(options(role)).env, role).toEqual({
+        CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1',
+      });
+    }
+  });
+
+  it('criterion 2: the skill of every role of the circuit says it waits in the foreground for what it launches', () => {
+    for (const role of Object.keys(ROLES)) {
+      const competence = readFileSync(
+        path.join(RACINE, '.claude/skills', role, 'SKILL.md'),
+        'utf8'
+      ).replace(/\s+/g, ' ');
+      expect(competence, role).toMatch(
+        /\*\*(Tu attends au premier plan ce que tu lances|J'attends au premier plan ce que je lance)\*\*/
+      );
     }
   });
 });

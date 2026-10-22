@@ -27,6 +27,9 @@ mécanisme qui existe ou qui se construit. Le cas qui a fait naître la question
    code : tu le vérifies (`codegraph explore`, une exécution) avant de t'y appuyer. Ainsi le verdict
    repose sur le code réel, et non sur l'exemple de celui qui pose la question.
 
+**Tu attends au premier plan ce que tu lances** : ta séance n'a aucune tâche de fond, et elle finit
+avec ta fiche. Ainsi le circuit reprend dès ta fiche rendue.
+
 ## Les étapes
 
 1. **La question, en termes de structure.** Écris-la en une phrase : quelle notion du domaine,

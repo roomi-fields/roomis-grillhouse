@@ -39,6 +39,9 @@ dans `$TMPDIR` : il appelle `rmSync` de `node:fs` sur le chemin nommé et lu, et
 `node $TMPDIR/<script>.mjs`. Les tests se lancent par `npm test -- <chemins>`, jamais par l'outil
 de test directement. Ainsi chaque écriture passe par le verrou de ton rôle.
 
+**Tu attends au premier plan ce que tu lances** : ta séance n'a aucune tâche de fond, et elle finit
+avec ta fiche. Ainsi le circuit reprend dès ta fiche rendue.
+
 ## Les tests
 
 **Les tests partent de la spécification** : chaque test vérifie une règle écrite (spécification,
