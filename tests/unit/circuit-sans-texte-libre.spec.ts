@@ -33,6 +33,7 @@ const PERMISES: Record<string, string> = {
   '/^##\\s+(.*)$/': 'les titres de section de la description, pour le message de commit',
   '/^Critères\\b/':
     'le titre de la section des critères de la description, pour le message de commit',
+  '/\\/+$/': 'la barre finale d’un dossier que déclare une référence du projet',
   '/\\s+/g': 'les blancs du sujet d’un écart d’une fiche, pour le reconnaître une seule fois',
 };
 
