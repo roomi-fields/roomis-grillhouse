@@ -86,8 +86,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   sans décision.
 - **Le bilan chiffré de chaque ticket** : à chacune de ses fins, `integre` ou un arrêt qui me
   revient, le circuit écrit au ticket son bilan (`Circuit · … · bilan`) : le temps mur et sa part
-  perdue, le temps par catégorie, les séances par rôle, les arrêts, les jetons et le coût, face au
-  bilan d'avant du projet ; la fiche du ticket au panneau en montre les chiffres clés.
+  perdue, le temps par catégorie, les séances par rôle (celles que le circuit lance ; les miennes à
+  part), les arrêts, les jetons et le coût, face au bilan d'avant du projet ; la fiche du ticket au panneau en montre les chiffres clés.
   `node scripts/bilan.mjs <ticket>` le recalcule, `--garder` le garde comme base. Ainsi
   l'analyse d'un ticket se fait seule.
 - **Un arrêt se tranche dans le circuit** : sur un arrêt autre que 0, 21 et 75, le circuit applique

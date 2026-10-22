@@ -8,20 +8,21 @@ import { ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai, sortie } from './circuit
 // (grillhouse-3uv.89, L8): at « integre », and on a stop it hands to the supervisor, one short line
 // of figures at the ticket, `Circuit · <composant> · bilan : …` (scripts/bilan.mjs), and the bilan
 // kept in the main tree, `.claude/worktrees/<ticket>.bilan.json`, which the next ticket's bilan
-// compares itself with.
+// compares itself with. The circuit keeps with its results the launch of each session it opens
+// (`lancement`, its role and its session id) and each end of a run on a stop (`montee`), which the
+// bilan reads (grillhouse-3uv.92.10).
 // The trial repository and its stand-ins: ./circuit-essai.ts.
 
 // The trial lives out of /tmp, which the envelope replaces with an empty directory.
 const ESSAIS = racineSousLaMaison('grillhouse-essais-circuit-bilan-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-const { REPO, revenirAuDebut, ticket, scenario, circuit, bilans, commentaires } =
+const { REPO, revenirAuDebut, ticket, scenario, circuit, bilans, commentaires, entrees } =
   circuitEssai(ESSAIS);
 const REGISTRE = path.join(ESSAIS, 'registre.jsonl');
 const garde = (id: string) =>
   JSON.parse(readFileSync(path.join(REPO, '.claude/worktrees', `${id}.bilan.json`), 'utf8')) as {
     ticket: string;
     statut: string;
-    passesFinales: { n: number };
     etapes: Record<string, number>;
   };
 
@@ -49,9 +50,20 @@ describe.runIf(canWrap)('the bilan at the end of the circuit', { timeout: 300_00
     expect(garde(id)).toMatchObject({
       ticket: id,
       statut: 'intégré',
-      passesFinales: { n: 1 },
       etapes: { 'Preuve du rouge': 1, 'Passe finale': 1, Commit: 1 },
     });
+    // Each session opened under the id the circuit set; no end on a stop.
+    const e = entrees(id);
+    const lancees = e.flatMap(x =>
+      x.lancement ? [x.lancement as { role: string; seance: string }] : []
+    );
+    expect(lancees.map(x => x.role)).toEqual(
+      expect.arrayContaining(['testwriter', 'developpeur', 'relecteur'])
+    );
+    for (const l of lancees) {
+      expect(l.seance).toMatch(/^[0-9a-f-]{36}$/);
+    }
+    expect(e.some(x => x.montee)).toBe(false);
   });
 
   it('writes the bilan of a stop handed to the supervisor, compared with the bilan before', () => {
@@ -72,5 +84,12 @@ describe.runIf(canWrap)('the bilan at the end of the circuit', { timeout: 300_00
     expect(b[0].text).toMatch(/^Arrêts : 1 sans-livraison\.$/m);
     expect(b[0].text).toMatch(/^Face au bilan de demo-bilan : mur \d+ → \d+ min, /m);
     expect(garde(id).statut).toBe(`arrêt sans-livraison (${ARRETS['sans-livraison']})`);
+    // The end of the run on its stop, kept before the bilan that reads it.
+    expect(entrees(id).filter(x => x.montee)).toEqual([
+      expect.objectContaining({
+        role: 'circuit',
+        montee: { code: ARRETS['sans-livraison'], raison: 'sans-livraison' },
+      }),
+    ]);
   });
 });

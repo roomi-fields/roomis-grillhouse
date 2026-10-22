@@ -1,7 +1,7 @@
 // The figures of a ticket (scripts/bilan.mjs, grillhouse-3uv.89, L8): computed from the register
 // of finished agents (the agents' sessions and the steps the circuit leads itself), the structured
-// results the circuit keeps (`<ticket>.fiches.jsonl`: each session's sheet, each proof's and
-// check's outcome, each stop, L3), the authors and times of the ticket's comments, and the
+// results the circuit keeps (`<ticket>.fiches.jsonl`: each session it launches, each session's
+// sheet, each proof's and check's outcome, each stop, each end of a run on a stop, L3), and the
 // circuit's state, as the analysis of BPScript 320.3 was made by hand: the wall time, the time of each category, the sessions by
 // role, the stops by kind, the tokens, the cache and the cost, compared with the last bilan of the
 // project, or with nothing. The data here are trial data, never the real register.
@@ -31,8 +31,6 @@ const T0 = Date.parse('2026-10-20T10:00:00Z');
 // The instant <m> minutes (and <s> seconds) after T0.
 const a = (m: number, s = 0) => T0 + m * MIN + s * S;
 const iso = (t: number) => new Date(t).toISOString();
-// bd gives a comment's time to the second.
-const isoBd = (t: number) => `${new Date(t).toISOString().slice(0, 19)}Z`;
 // The time of an entry of the circuit, to the millisecond; <ms> apart two entries of one second.
 const quand = (m: number, s: number, ms = 0) => iso(a(m, s) + ms);
 
@@ -51,11 +49,6 @@ interface Ligne {
   cache: number;
   cout: number | null;
 }
-interface Commentaire {
-  author: string;
-  text: string;
-  created_at: string;
-}
 // An entry of `<ticket>.fiches.jsonl`, as the circuit writes it.
 interface Entree {
   date: string;
@@ -68,6 +61,8 @@ interface Entree {
   finale?: boolean;
   inchange?: boolean;
   questionnement?: object;
+  lancement?: { role: string; seance: string };
+  montee?: { code: number; raison: string | null };
 }
 interface Categorie {
   ms: number;
@@ -86,19 +81,21 @@ interface Bilan {
   categories: Record<
     | 'travail'
     | 'sansEffet'
-    | 'regulateur'
     | 'questionnement'
     | 'attente'
     | 'automatique'
+    | 'finales'
     | 'rejeu'
     | 'intervalles',
     Categorie
-  > & { automatique: Categorie & { dontFinales: number } };
-  passesFinales: { n: number; ms: number };
-  seances: { total: number; parRole: Record<string, number> };
+  >;
+  seances: {
+    total: number;
+    parRole: Record<string, number>;
+    horsCircuit: { total: number; parRole: Record<string, number>; cout: number };
+  };
   etapes: Record<string, number>;
   arrets: Record<string, number>;
-  questions: number;
   questionnement: { tours: number; changees: number; montees: number };
   jetons: number;
   cache: number;
@@ -205,19 +202,35 @@ const inchange = (m: number, s: number, composant: string): Entree => ({
   composant,
   inchange: true,
 });
-const de = (author: string, m: number, s: number, text: string): Commentaire => ({
-  author,
-  text,
-  created_at: isoBd(a(m, s)),
+// The end of a run of the circuit on a stop it hands to the supervisor (code <code>), <ms> after
+// the second.
+const montee = (m: number, s: number, code: number, raison: string, ms = 2): Entree => ({
+  date: quand(m, s, ms),
+  role: 'circuit',
+  composant: 'packages/a',
+  montee: { code, raison },
 });
 const MONTE = { decision: 'MONTE', question: 'Faut-il ajouter 020-loader au titre ?' };
 
+// The bilan of the lines <lignes> and the entries <entrees>: the circuit kept the launch of each
+// session at its first turn (`lancement`, its role and its session id), save the agents
+// <superviseur> launched.
 const calculer = (
   lignes: Ligne[],
   entrees: Entree[],
   etat: object | null = null,
-  commentaires: Commentaire[] = []
-) => bilan({ ticket: TICKET, lignes, entrees, commentaires, etat }) as Bilan;
+  { superviseur = [] as string[] } = {}
+) => {
+  const lancees = lignes
+    .filter(l => l.role !== 'circuit' && !superviseur.includes(l.agent))
+    .map(l => ({
+      date: iso(l.tours[0][0]),
+      role: 'circuit',
+      composant: 'packages/a',
+      lancement: { role: l.role, seance: l.agent },
+    }));
+  return bilan({ ticket: TICKET, lignes, entrees: [...lancees, ...entrees], etat }) as Bilan;
+};
 const min = (ms: number) => Math.round((ms / MIN) * 100) / 100;
 
 describe('the wall time and its categories', () => {
@@ -253,11 +266,12 @@ describe('the wall time and its categories', () => {
     expect(b.categories.travail.cout).toBeCloseTo(1.75);
   });
 
-  it('counts the steps the circuit leads as automatic, the final pass among them', () => {
-    expect(min(b.categories.automatique.ms)).toBe(0.75 + 9.75 + 0.75 + 2);
-    expect(min(b.categories.automatique.dontFinales)).toBe(9.75);
-    expect(b.passesFinales).toEqual({ n: 1, ms: 9.75 * MIN });
+  it('counts the steps the circuit leads as automatic, the final pass apart, at its own line', () => {
+    expect(min(b.categories.automatique.ms)).toBe(0.75 + 0.75 + 2);
     expect(b.categories.automatique.jetons).toBe(0);
+    expect(min(b.categories.finales.ms)).toBe(9.75);
+    expect(b.categories.finales.n).toBe(1);
+    expect(texteDuBilan(b, null).split('\n')).toContain('- passes finales : 10 min');
   });
 
   it('counts what no session nor step covers as the time between two steps', () => {
@@ -281,6 +295,7 @@ describe('the wall time and its categories', () => {
     expect(b.seances).toEqual({
       total: 3,
       parRole: { testwriter: 1, developpeur: 1, relecteur: 1 },
+      horsCircuit: { total: 0, parRole: {}, cout: 0 },
     });
   });
 });
@@ -327,21 +342,23 @@ describe('a relaunch without effect', () => {
   });
 
   it('counts the testwriter relaunched for its « vert attendu » alone, and the proof it replays, as without effect', () => {
-    // t2 (1 min), the second proof (1 min), d1 (2), d2 (1), d3 (1), the second final pass (6).
-    expect(min(b.categories.sansEffet.ms)).toBe(1 + 1 + 2 + 1 + 1 + 6);
-    expect(b.categories.sansEffet.n).toBe(6);
+    // t2 (1 min), the second proof (1 min), d1 (2), g1 (1), d2 (1), d3 (1), the second final pass (6).
+    expect(min(b.categories.sansEffet.ms)).toBe(1 + 1 + 2 + 1 + 1 + 1 + 6);
+    expect(b.categories.sansEffet.n).toBe(7);
   });
 
   it('counts a final pass that plays the same red on a lot nothing delivered to as without effect', () => {
-    expect(b.passesFinales).toEqual({ n: 3, ms: 18 * MIN });
-    expect(min(b.categories.automatique.dontFinales)).toBe(12);
-    expect(min(b.categories.automatique.ms)).toBe(1 + 12);
+    expect(b.etapes['Passe finale']).toBe(3);
+    expect(min(b.categories.finales.ms)).toBe(12);
+    expect(min(b.categories.automatique.ms)).toBe(1);
   });
 
-  it('counts the regulator apart, and every category outside the work and the automatic steps as lost', () => {
-    expect(min(b.categories.regulateur.ms)).toBe(1);
-    expect(b.categories.regulateur.cout).toBeCloseTo(0.2);
-    expect(b.perdu).toBe(b.mur - b.categories.travail.ms - b.categories.automatique.ms);
+  it('counts the regulator whose relaunch delivers nothing as without effect, and every category outside the work, the automatic steps and the final passes as lost', () => {
+    expect(Object.keys(b.categories)).not.toContain('regulateur');
+    expect(b.categories.sansEffet.cout).toBeCloseTo(4 * 0.5 + 0.2);
+    expect(b.perdu).toBe(
+      b.mur - b.categories.travail.ms - b.categories.automatique.ms - b.categories.finales.ms
+    );
     expect(b.arrets).toEqual({ 'sans-livraison': 2 });
   });
 });
@@ -385,10 +402,9 @@ describe('the questioning', () => {
     expect(b.questionnement).toEqual({ tours: 3, changees: 1, montees: 1 });
   });
 
-  it('counts the questionneur’s time apart, as kept, the author’s answer at the arbitrage', () => {
-    expect(min(b.categories.questionnement.ms)).toBe(4);
-    expect(b.categories.questionnement.cout).toBeCloseTo(0.75);
-    expect(min(b.categories.regulateur.ms)).toBe(2);
+  it('counts the questionneur’s time apart, as kept, the referent’s answers for the plan with it', () => {
+    expect(min(b.categories.questionnement.ms)).toBe(4 + 2);
+    expect(b.categories.questionnement.cout).toBeCloseTo(1.25);
     expect(b.perdu).toBe(
       b.mur - b.categories.travail.ms - b.categories.automatique.ms - b.categories.questionnement.ms
     );
@@ -397,7 +413,7 @@ describe('the questioning', () => {
 
   it('says its rounds and the decisions changed on its line', () => {
     expect(texteDuBilan(b, null).split('\n')).toContain(
-      '- questionnement : 4 min, 0,75 $ (3 tours, 1 décision changée)'
+      '- questionnement : 6 min, 1,25 $ (3 tours, 1 décision changée)'
     );
   });
 });
@@ -461,54 +477,87 @@ describe('a replay of steps already green', () => {
   });
 
   it('counts the checks of a component its own developer delivered to as automatic', () => {
-    // The first round (three proofs, a's and b's checks, the final pass), then a's checks after da2
-    // (1), b's checks red → green (2), the final pass after the RENDU (6).
-    expect(min(b.categories.automatique.ms)).toBe(1 + 1 + 1 + 1 + 1 + 6 + 1 + 2 + 6);
+    // The first round (three proofs, a's and b's checks), then a's checks after da2 (1), b's checks
+    // red → green (2); the final passes, before and after the RENDU (6 each), at their own line.
+    expect(min(b.categories.automatique.ms)).toBe(1 + 1 + 1 + 1 + 1 + 1 + 2);
+    expect(min(b.categories.finales.ms)).toBe(6 + 6);
   });
 });
 
-describe('the wait for the supervisor', () => {
-  it('runs from the regulator’s question to the answer, out of the regulator’s time', () => {
-    const lignes = [
-      seance('developpeur', 'd1', [[0, 5]]),
-      // The regulator of an older circuit waits in its turn for the answer.
-      seance('regulateur', 'g1', [[5, 12]]),
-      seance('developpeur', 'd2', [[12, 15]]),
-    ];
-    const entrees = [
-      fiche(5, 0, 'developpeur', 'packages/a'),
-      arret(5, 0, 'packages/a', 'developpeur', 'sans-livraison'),
-      fiche(6, 0, 'regulateur', 'packages/a', MONTE),
-      fiche(12, 0, 'regulateur', 'packages/a', { decision: 'RELANCE --depuis' }),
-      fiche(15, 0, 'developpeur', 'packages/a'),
-    ];
-    const commentaires = [de('roomi-fields', 10, 0, 'Réponse du superviseur : oui.')];
-    const b = calculer(lignes, entrees, null, commentaires);
-    expect(min(b.categories.attente.ms)).toBe(4);
-    expect(min(b.categories.regulateur.ms)).toBe(3);
-    expect(b.questions).toBe(1);
+// grillhouse-3uv.92.10 (BPScript 320.4, n° 16): the bilan counted 69 sessions (68 launched by the
+// circuit), 1.7 min of wait (23.8 measured) and all the regulator's time as lost.
+describe('the wait for the supervisor and the sessions the circuit launches', () => {
+  // The regulator sends up, the questionneur questions it, it sends up again, the circuit ends on
+  // the question; the supervisor launches a referent of its own, then answers 21 min after.
+  const lignes = [
+    seance('developpeur', 'd1', [[0, 5]]),
+    seance('regulateur', 'g1', [
+      [5, 6],
+      [7, 8],
+      [30, 31],
+    ]),
+    seance('questionneur', 'q1', [
+      [6, 7],
+      [8, 9],
+    ]),
+    seance('referent-technique', 'rt9', [[10, 14]], { cout: 1.64 }),
+    seance('developpeur', 'd2', [[31, 35]]),
+  ];
+  const entrees = [
+    fiche(5, 0, 'developpeur', 'packages/a'),
+    arret(5, 0, 'packages/a', 'developpeur', 'sans-livraison'),
+    fiche(6, 0, 'regulateur', 'packages/a', MONTE),
+    fiche(7, 0, 'questionneur', 'packages/a', { issue: 'QUESTIONS', questions: [] }),
+    fiche(8, 0, 'regulateur', 'packages/a', MONTE),
+    fiche(9, 0, 'questionneur', 'packages/a', { issue: 'AUCUNE' }),
+    {
+      date: quand(9, 0, 1),
+      role: 'circuit',
+      composant: 'packages/a',
+      questionnement: { objet: 'decision', tours: 2, change: false, issue: 'AUCUNE' },
+    },
+    montee(9, 0, 18, 'question'),
+    fiche(31, 0, 'regulateur', 'packages/a', { decision: 'RELANCE --reprendre' }),
+    fiche(35, 0, 'developpeur', 'packages/a'),
+  ];
+  const b = calculer(lignes, entrees, null, { superviseur: ['rt9'] });
+
+  it('runs from the circuit’s end on the stop to the first session of the run that answers it', () => {
+    expect(min(b.categories.attente.ms)).toBe(21);
+    expect(b.categories.attente.n).toBe(1);
+    expect(texteDuBilan(b, null).split('\n')).toContain('- attente humaine : 21 min (1 montée)');
   });
 
-  it('runs up to the regulator’s session resumed by the answer when no one writes it at the ticket', () => {
-    const lignes = [
-      seance('developpeur', 'd1', [[0, 5]]),
+  it('counts a stop the window ends on, still unanswered, as no wait', () => {
+    const avant = [
+      lignes[0],
       seance('regulateur', 'g1', [
         [5, 6],
-        [20, 21],
+        [7, 8],
       ]),
-      seance('developpeur', 'd2', [[21, 25]]),
+      lignes[2],
     ];
-    const entrees = [
-      fiche(5, 0, 'developpeur', 'packages/a'),
-      arret(5, 0, 'packages/a', 'developpeur', 'sans-livraison'),
-      fiche(6, 2, 'regulateur', 'packages/a', MONTE),
-      fiche(21, 2, 'regulateur', 'packages/a', { decision: 'RELANCE --reprendre' }),
-      fiche(25, 0, 'developpeur', 'packages/a'),
-    ];
-    const b = calculer(lignes, entrees);
-    expect(Math.round(b.categories.attente.ms / S)).toBe(14 * 60 - 2);
-    expect(min(b.categories.regulateur.ms)).toBe(2);
-    expect(b.seances.parRole).toEqual({ developpeur: 2, regulateur: 1 });
+    const fin = calculer(avant, entrees.slice(0, 8));
+    expect(fin.categories.attente).toMatchObject({ ms: 0, n: 0 });
+  });
+
+  it('counts the sessions the circuit launched, and those of the supervisor apart, out of the categories and the cost', () => {
+    expect(b.seances).toEqual({
+      total: 4,
+      parRole: { questionneur: 1, developpeur: 2, regulateur: 1 },
+      horsCircuit: { total: 1, parRole: { 'referent-technique': 1 }, cout: 1.64 },
+    });
+    expect(b.cout).toBeCloseTo(2);
+    expect(texteDuBilan(b, null).split('\n')[0]).toContain(
+      '4 séances (1 questionneur, 2 développeur, 1 régulateur) ; 1 séance hors circuit, lancée par le superviseur (1 référent technique), 1,64 $ ;'
+    );
+  });
+
+  it('counts the regulator whose relaunch delivers as work kept in the lot', () => {
+    // g1's three turns (3 min), d2 (4 min); d1 delivered nothing.
+    expect(min(b.categories.travail.ms)).toBe(3 + 4);
+    expect(min(b.categories.sansEffet.ms)).toBe(5);
+    expect(min(b.categories.questionnement.ms)).toBe(2);
   });
 });
 
@@ -548,7 +597,11 @@ describe('what the bilan reads of the register', () => {
       raison: 'a-repasser',
       code: 75,
     });
-    expect(b.seances).toEqual({ total: 2, parRole: { testwriter: 1, developpeur: 1 } });
+    expect(b.seances).toEqual({
+      total: 2,
+      parRole: { testwriter: 1, developpeur: 1 },
+      horsCircuit: { total: 0, parRole: {}, cout: 0 },
+    });
     expect(b.jetons).toBe(350);
     expect(b.cout).toBeCloseTo(1.5);
     expect(b.debut).toBe(iso(a(0)));
@@ -603,7 +656,7 @@ describe('the text of the bilan and its base', () => {
     expect(l).toContain('- travail resté au lot : 10 min, 3,50 $');
     expect(l).toContain('- relance sans effet : 2 min, 1,00 $');
     expect(l).toContain('- entre deux étapes : 4 min');
-    expect(l).toContain('Passes finales : 0.');
+    expect(l).toContain('- passes finales : 0 min');
     expect(t).toMatch(/^Arrêts : 1 sans-livraison\.$/m);
     expect(t).toMatch(/^Aucun bilan d'avant dans ce projet : pas de base\.$/m);
     expect(l.length).toBeLessThanOrEqual(12);
@@ -611,7 +664,7 @@ describe('the text of the bilan and its base', () => {
 
   it('compares itself with the bilan before, ticket named, each key figure before and now', () => {
     const avant = { ...b, ticket: 'demo-6', mur: 460 * MIN, perdu: 194 * MIN, cout: 54.93 };
-    avant.seances = { total: 84, parRole: {} };
+    avant.seances = { total: 84, parRole: {}, horsCircuit: { total: 0, parRole: {}, cout: 0 } };
     expect(texteDuBilan(b, avant)).toMatch(
       /^Face au bilan de demo-6 : mur 460 → 16 min, perte 42 → 38 %, séances 84 → 2, coût 54,93 → 4,50 \$\.$/m
     );

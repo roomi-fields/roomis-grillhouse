@@ -92,7 +92,8 @@
 //   date, role, composant, fiche }`, the lot a review read joined to its sheet, `lot`), beside the
 //   circuit's own results: the report of each proof and check, which the reviewer receives, with
 //   its outcome (`resultat`), each stop (`arret`), each developpeur resumed who changed nothing
-//   (`inchange`), which the bilan reads; and each of its discoveries (`decouvertes`) filed closed
+//   (`inchange`), each session launched (`lancement`, its role and its session id), each end of a
+//   run on a stop (`montee`), which the bilan reads; and each of its discoveries (`decouvertes`) filed closed
 //   under the ticket (scripts/ticket.sh, label `decouverte`). A session that ends without a sheet
 //   that conforms (none, one out of its schema, a code other than 0) is resumed once, the same
 //   session, with the fifth template, which names what lacks; a second one stops the circuit at
@@ -424,8 +425,8 @@
 //   step and its component, its start and end, its working time, no tokens. The board counts it,
 //   and the step under way (`mene` in the state), in the ticket's working time.
 // - At each of its ends (« integre », or a stop it hands to the supervisor), the circuit writes the
-//   ticket's bilan (scripts/bilan.mjs): its figures, measured on the register, its lines at the
-//   ticket and its state, kept in `.claude/worktrees/<ticket>.bilan.json` and written at the ticket
+//   ticket's bilan (scripts/bilan.mjs): its figures, measured on the register, its results and its
+//   state, kept in `.claude/worktrees/<ticket>.bilan.json` and written at the ticket
 //   in one short comment, `Circuit · <composant> · bilan : …`, compared with the bilan before it in
 //   the project.
 // - Exit codes: 0 at « integre »; 2 a malformed call; a stop, by its name (ARRETS):
@@ -941,6 +942,8 @@ const mtime = f => {
 // schema of its role's sheet and the options <session> names (its id, or the session it
 // resumes), its instruction on its standard input and its result on its standard output, added
 // to the log under its header line, then its line written to the register, as lancer.sh does.
+// Its launch is kept with the circuit's results (`lancement`: its role and its session id), which
+// the bilan reads to count the sessions the circuit launched (scripts/bilan.mjs).
 function lancer(
   ctx,
   role,
@@ -950,6 +953,10 @@ function lancer(
 ) {
   rmSync(ctx.fin, { force: true });
   rmSync(ctx.resultat, { force: true });
+  const id = ouvre ?? reprend ?? session[1] ?? null;
+  if (id) {
+    inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, composant, lancement: { role, seance: id } });
+  }
   const fichier = path.join(ctx.tmp, `consigne-${++ctx.numero}.md`);
   writeFileSync(fichier, consigne);
   // A file, not a pipe: a session whose circuit is dead writes its errors without breaking.
@@ -3198,10 +3205,19 @@ function depart(ctx, e) {
   };
 }
 
-// The end of the run, its exit code <code>: the ticket's bilan at the ticket (scripts/bilan.mjs);
-// a bilan it cannot write leaves the code as it is.
+// The end of the run, its exit code <code>: an end on a stop kept with the circuit's results
+// (`montee`: its code and its stop), from which the bilan measures the supervisor's wait to the run
+// that answers it, then the ticket's bilan at the ticket (scripts/bilan.mjs); a bilan it cannot
+// write leaves the code as it is.
 function aLaFin(ctx, code) {
   try {
+    if (code !== 0) {
+      inscrire(ctx, {
+        role: AUTEUR_DU_CIRCUIT,
+        composant: ctx.courant?.composant ?? ctx.composants.at(-1),
+        montee: { code, raison: ctx.courant?.raison ?? null },
+      });
+    }
     const texte = ecrireLeBilan(ctx.racine, ctx.ticket);
     commenter(ctx, ctx.courant?.composant ?? ctx.composants.at(-1), 'bilan', texte);
   } catch (e) {

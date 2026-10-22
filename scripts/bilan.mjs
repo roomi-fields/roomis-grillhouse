@@ -14,17 +14,21 @@
 //   replaces it), each agent's latest line on the ticket (its project the main tree, or a folder
 //   of it), its turns, its tokens, its cache reads and its cost, and the lines of the role
 //   `circuit` of the steps the circuit leads itself; the results the circuit keeps,
-//   `.claude/worktrees/<ticket>.fiches.jsonl`, each with its time: the sheet of each session (`{
-//   role, composant, fiche }`), the outcome of each proof (`resultat`: `ok`, its counts, `vide`)
-//   and of each check (`resultat`: `issue` vert, rouge or a-repasser, `finale`), each stop
+//   `.claude/worktrees/<ticket>.fiches.jsonl`, each with its time: the launch of each session the
+//   circuit opens or resumes (`lancement`: its role and its session id, the register line's
+//   `agent`), the sheet of each session (`{ role, composant, fiche }`), the outcome of each proof
+//   (`resultat`: `ok`, its counts, `vide`) and of each check (`resultat`: `issue` vert, rouge or a-repasser, `finale`), each stop
 //   (`arret`, its name, `finale`), each developpeur resumed who changed nothing (`inchange`), the
 //   end of each questioning (`questionnement`: its `objet`, plan or decision, its `tours`, whether
-//   it changed the proposal, `change`, and its `issue`, AUCUNE, DÉSACCORD or MONTE); the
-//   authors and times of the ticket's comments (`bd comments --json`), never their text; the
-//   circuit's state, `.claude/worktrees/<ticket>.circuit.json`, for where the circuit ended. Every
+//   it changed the proposal, `change`, and its `issue`, AUCUNE, DÉSACCORD or MONTE), each end of a
+//   run on a stop it hands to the supervisor (`montee`: its code and its stop); the circuit's
+//   state, `.claude/worktrees/<ticket>.circuit.json`, for where the circuit ended. Every
 //   agent declares nothing: the bilan measures.
 // - The steps and the roles are those of scripts/etapes.mjs. Only the circuit's roles count: an
-//   exploration, before the circuit, is out of it.
+//   exploration, before the circuit, is out of it. Only the sessions the circuit launched count in
+//   the window, the categories, the tokens and the cost; a session of a circuit's role on the
+//   ticket the circuit did not launch, the supervisor's, counts apart (`seances.horsCircuit`: its
+//   number, by role, its cost).
 // - The window: from the first turn of a session or a step to the last result of the circuit or
 //   the last turn; its length is the wall time.
 // - Each turn of a session and each step finds its result: a step, the last outcome or stop of
@@ -40,20 +44,23 @@
 //     reds that exist already or of a build alone, no green of the lot); that proof; checks that
 //     play the same red again on a component none of its agents delivered to since its checks
 //     before (the final pass: none of any component's since the final pass before);
-//   - régulateur: a session of the arbitrage, out of the wait, the author's answers to the
-//     questionneur among them;
-//   - questionnement: a session of the questionneur (kept: a look that did not write the
-//     proposal, as a review);
-//   - attente humaine: from a question of the regulator (its sheet's `decision` MONTE) to the next
-//     comment at the ticket whose author is not the circuit, or to the next turn, the first of
-//     the two;
-//   - étapes automatiques: the other steps the circuit leads, the final passes among them;
+//   - a session of the regulator, its answers to the questionneur among them, takes the category of
+//     what its decision gives, as a developer's: relance sans effet when the first session or step
+//     after its arbitrage, before the circuit ends, is without effect or a replay; travail resté au
+//     lot otherwise, a question sent up to the supervisor included;
+//   - questionnement: a session of the questionneur, and of the referent who answers it for the
+//     plan (kept: a look that did not write the proposal, as a review);
+//   - attente humaine: from each end of a run on a stop (`montee`) to the first turn of a session or
+//     step after it, or the next result of the circuit, the first of the two;
+//   - étapes automatiques: the other steps the circuit leads, but the final passes;
+//   - passes finales: the final passes, but those without effect or replayed;
 //   - rejeu d'étapes déjà vertes: the same, on a lot unchanged since green: checks green again,
 //     a testwriter run again on a proven lot, its proof;
 //   - entre deux étapes: the rest of the window.
-//   What is lost is the wall time out of the work and the automatic steps.
+//   What is lost is the wall time out of the work, the questioning, the automatic steps and the
+//   final passes.
 // - The bilan counts the sessions by role, the steps by their titles, the stops by kind (`arret`),
-//   the regulator's questions, the rounds of questioning, the proposals they changed and those
+//   the ends on a stop (the waits), the rounds of questioning, the proposals they changed and those
 //   they sent up to the supervisor, the tokens, the cache reads and the cost (a session without a cost
 //   counts 0); a session's tokens go to its turns by their time.
 // - It is kept in the main tree, `.claude/worktrees/<ticket>.bilan.json`, and compares itself with
@@ -75,11 +82,9 @@ import {
   SUITE,
 } from './etapes.mjs';
 
-// The role of a register line that a step of the circuit writes, of its results, and the author
-// of its comments.
+// The role of a register line that a step of the circuit writes, and of its results.
 const CIRCUIT = 'circuit';
-// The gap allowed between a result and the turn or step it closes; a comment's time is given to
-// the second.
+// The gap allowed between a result and the turn or step it closes.
 const JEU = 2000;
 const MINUTE = 60_000;
 
@@ -87,15 +92,15 @@ const MINUTE = 60_000;
 const CATEGORIES = [
   ['travail', 'travail resté au lot'],
   ['sansEffet', 'relance sans effet'],
-  ['regulateur', 'régulateur'],
   ['questionnement', 'questionnement'],
   ['attente', 'attente humaine'],
   ['automatique', 'étapes automatiques'],
+  ['finales', 'passes finales'],
   ['rejeu', "rejeu d'étapes déjà vertes"],
   ['intervalles', 'entre deux étapes'],
 ];
 // The categories of the time kept: the rest is lost.
-const GARDE = new Set(['travail', 'automatique', 'questionnement']);
+const GARDE = new Set(['travail', 'automatique', 'finales', 'questionnement']);
 // The roles of the circuit, by the steps they work at: every step but the exploration, and the
 // arbitrage.
 const ROLES = new Set([...SUITE, ARBITRAGE].filter(e => e.numero !== '0').flatMap(e => e.qui));
@@ -134,16 +139,12 @@ const commun = ([d, f], l) =>
   longueur(l.map(([a, b]) => [Math.max(a, d), Math.min(b, f)]).filter(([a, b]) => b > a));
 
 // The bilan of <ticket> from the register's lines <lignes> (of its project), the results the
-// circuit kept <entrees> (`<ticket>.fiches.jsonl`), the comments of the ticket <commentaires>
-// (`{ author, created_at }`, their text never read) and the circuit's state <etat> (or null).
-export function bilan({
-  ticket,
-  lignes,
-  entrees = [],
-  commentaires = [],
-  etat = null,
-  maintenant = Date.now(),
-}) {
+// circuit kept <entrees> (`<ticket>.fiches.jsonl`) and the circuit's state <etat> (or null).
+export function bilan({ ticket, lignes, entrees = [], etat = null, maintenant = Date.now() }) {
+  // The sessions the circuit launched, by their id.
+  const lancees = new Set(
+    entrees.filter(e => e.role === CIRCUIT && e.lancement).map(e => e.lancement.seance)
+  );
   // Each agent's latest line on the ticket: it holds all its turns.
   const derniere = new Map();
   for (const l of lignes) {
@@ -151,7 +152,8 @@ export function bilan({
     const avant = derniere.get(l.agent);
     if (!avant || Date.parse(l.fin) > Date.parse(avant.fin)) derniere.set(l.agent, l);
   }
-  const agents = [...derniere.values()];
+  const hors = [...derniere.values()].filter(l => l.role !== CIRCUIT && !lancees.has(l.agent));
+  const agents = [...derniere.values()].filter(l => !hors.includes(l));
   // One segment per turn of a session, one per step.
   const segments = agents
     .flatMap(l =>
@@ -219,9 +221,8 @@ export function bilan({
     );
 
   // The sessions first: the checks read what they delivered.
-  for (const s of segments.filter(x => x.role !== CIRCUIT)) {
-    if (s.role === QUESTIONNEUR) s.categorie = 'questionnement';
-    else if (juge(s.role)) s.categorie = 'regulateur';
+  for (const s of segments.filter(x => x.role !== CIRCUIT && x.role !== REGULATEUR)) {
+    if (juge(s.role)) s.categorie = 'questionnement';
     else if (s.role === 'developpeur') {
       s.categorie = sansLivraison(s) ? 'sansEffet' : 'travail';
     } else if (s.role === 'testwriter') {
@@ -252,31 +253,40 @@ export function bilan({
       const i = s.entree ? issue(s.entree) : 'rouge';
       s.categorie =
         change || !avant.entree || issue(avant.entree) !== i
-          ? 'automatique'
+          ? s.finale
+            ? 'finales'
+            : 'automatique'
           : i === 'vert'
             ? 'rejeu'
             : 'sansEffet';
     } else s.categorie = 'automatique';
   }
 
-  // The waits for the supervisor: from each question of the regulator to the answer.
+  // The ends of the runs on a stop, each the start of a wait for the supervisor.
+  const montees = duCircuit.filter(e => e.montee).map(e => e.t);
+  // The regulator's sessions last: each takes the category of the first session or step after its
+  // arbitrage, before the run ends.
+  const arbitrage = x => x.role === REGULATEUR || x.role === QUESTIONNEUR;
+  for (const s of segments.filter(x => x.role === REGULATEUR)) {
+    const suite = segments.find(x => x.d >= s.f - JEU && !arbitrage(x));
+    const coupe = suite && montees.some(t => t >= s.f - JEU && t <= suite.d);
+    s.categorie =
+      suite && !coupe && (suite.categorie === 'sansEffet' || suite.categorie === 'rejeu')
+        ? 'sansEffet'
+        : 'travail';
+  }
+
+  // The waits for the supervisor: from each end of a run on a stop to the answer, the run after.
   const attentes = [];
-  let questions = 0;
-  for (const q of gardes.filter(e => e.role === REGULATEUR && e.fiche?.decision === 'MONTE')) {
-    questions++;
-    const reponse = commentaires
-      .filter(c => c.author !== CIRCUIT)
-      .map(c => Date.parse(c.created_at ?? ''))
-      .filter(t => t > q.t)
-      .reduce((m, t) => Math.min(m, t), Infinity);
-    const tour = segments.find(s => s.d > q.t)?.d ?? Infinity;
-    const f = Math.min(reponse, tour, fin);
-    if (f > q.t) attentes.push([q.t, f]);
+  for (const t of montees) {
+    const tour = segments.find(s => s.d > t)?.d ?? Infinity;
+    const suivant = gardes.find(e => e.t > t)?.t ?? Infinity;
+    const f = Math.min(tour, suivant, fin);
+    if (f > t) attentes.push([t, f]);
   }
 
   const vide = () => ({ ms: 0, n: 0, jetons: 0, cache: 0, cout: 0 });
   const categories = Object.fromEntries(CATEGORIES.map(([k]) => [k, vide()]));
-  categories.automatique.dontFinales = 0;
   categories.attente = { ...vide(), ms: longueur(attentes), n: attentes.length };
   const fenetre = s => [Math.max(s.d, debut), Math.min(s.f, fin)];
   for (const s of segments) {
@@ -286,7 +296,6 @@ export function bilan({
     const c = categories[s.categorie];
     c.ms += ms;
     c.n++;
-    if (s.categorie === 'automatique' && s.finale) c.dontFinales += ms;
     if (s.role !== CIRCUIT) {
       // The tokens of a session go to its turns by their time.
       const tout = (s.l.tours ?? [[s.d, s.f]]).reduce((m, [a, b]) => m + b - a, 0) || 1;
@@ -306,11 +315,15 @@ export function bilan({
   }
 
   const sessions = agents.filter(l => l.role !== CIRCUIT);
-  const parRole = {};
-  for (const role of new Set([...SUITE, ARBITRAGE].flatMap(e => e.qui))) {
-    const n = sessions.filter(l => l.role === role).length;
-    if (n) parRole[role] = n;
-  }
+  // The sessions <l> by role, in the order of the steps.
+  const parRoleDe = l => {
+    const out = {};
+    for (const role of new Set([...SUITE, ARBITRAGE].flatMap(e => e.qui))) {
+      const n = l.filter(x => x.role === role).length;
+      if (n) out[role] = n;
+    }
+    return out;
+  };
   const parEtape = {};
   for (const s of etapes) {
     const e = etapeDuCircuit({ etape: s.etape, finale: s.finale });
@@ -319,7 +332,6 @@ export function bilan({
   }
   const arrets = {};
   for (const e of duCircuit.filter(x => x.arret)) arrets[e.arret] = (arrets[e.arret] ?? 0) + 1;
-  const finales = etapes.filter(s => s.finale);
   // The ends of the questionings: their rounds, the proposals they changed, those sent up.
   const fins = duCircuit.map(e => e.questionnement).filter(Boolean);
   const questionnement = {
@@ -337,11 +349,17 @@ export function bilan({
     statut: statutDe(etat),
     perdu: CATEGORIES.filter(([k]) => !GARDE.has(k)).reduce((m, [k]) => m + categories[k].ms, 0),
     categories,
-    passesFinales: { n: finales.length, ms: finales.reduce((m, s) => m + s.f - s.d, 0) },
-    seances: { total: sessions.length, parRole },
+    seances: {
+      total: sessions.length,
+      parRole: parRoleDe(sessions),
+      horsCircuit: {
+        total: hors.length,
+        parRole: parRoleDe(hors),
+        cout: hors.reduce((m, l) => m + (l.cout ?? 0), 0),
+      },
+    },
     etapes: parEtape,
     arrets,
-    questions,
     questionnement,
     jetons: somme('jetons'),
     cache: somme('cache'),
@@ -368,25 +386,29 @@ export const enBref = b =>
 // The text of the bilan <b> at the ticket, short and in figures, compared with the bilan
 // <avant> (another ticket's, or null).
 export function texteDuBilan(b, avant) {
-  const roles = Object.entries(b.seances.parRole)
-    .map(([r, n]) => `${n} ${nomDuRole(r)}`)
-    .join(', ');
-  const tete = `${b.statut} en ${minutes(b.mur)} min ; ${minutes(b.perdu)} min perdues (${pourcent(b.perdu, b.mur)} %) ; ${b.seances.total} séances${roles ? ` (${roles})` : ''} ; ${dollars(b.cout)} $ ; ${millions(b.jetons)} M jetons, ${millions(b.cache)} M lus du cache.`;
-  const paye = new Set(['travail', 'sansEffet', 'regulateur', 'questionnement']);
+  const lesRoles = parRole =>
+    Object.entries(parRole)
+      .map(([r, n]) => `${n} ${nomDuRole(r)}`)
+      .join(', ');
+  const roles = lesRoles(b.seances.parRole);
+  const h = b.seances.horsCircuit;
+  const horsCircuit = h.total
+    ? ` ; ${h.total} séance${h.total > 1 ? 's' : ''} hors circuit, lancée${h.total > 1 ? 's' : ''} par le superviseur (${lesRoles(h.parRole)}), ${dollars(h.cout)} $`
+    : '';
+  const tete = `${b.statut} en ${minutes(b.mur)} min ; ${minutes(b.perdu)} min perdues (${pourcent(b.perdu, b.mur)} %) ; ${b.seances.total} séances${roles ? ` (${roles})` : ''}${horsCircuit} ; ${dollars(b.cout)} $ ; ${millions(b.jetons)} M jetons, ${millions(b.cache)} M lus du cache.`;
+  const paye = new Set(['travail', 'sansEffet', 'questionnement']);
   const q = b.questionnement ?? { tours: 0, changees: 0 };
   const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
   const lignes = CATEGORIES.map(([k, nom]) => {
     const c = b.categories[k];
     const plus =
-      k === 'automatique'
-        ? `, dont passes finales ${minutes(c.dontFinales)} min`
-        : k === 'attente' && b.questions
-          ? ` (${b.questions} question${b.questions > 1 ? 's' : ''})`
-          : k === 'questionnement'
-            ? `, ${dollars(c.cout)} $ (${pluriel(q.tours, 'tour')}, ${pluriel(q.changees, 'décision')} ${q.changees > 1 ? 'changées' : 'changée'})`
-            : paye.has(k)
-              ? `, ${dollars(c.cout)} $`
-              : '';
+      k === 'attente' && c.n
+        ? ` (${pluriel(c.n, 'montée')})`
+        : k === 'questionnement'
+          ? `, ${dollars(c.cout)} $ (${pluriel(q.tours, 'tour')}, ${pluriel(q.changees, 'décision')} ${q.changees > 1 ? 'changées' : 'changée'})`
+          : paye.has(k)
+            ? `, ${dollars(c.cout)} $`
+            : '';
     return `- ${nom} : ${minutes(c.ms)} min${plus}`;
   });
   const arrets = Object.entries(b.arrets)
@@ -396,15 +418,7 @@ export function texteDuBilan(b, avant) {
   const base = avant
     ? `Face au bilan de ${avant.ticket} : mur ${minutes(avant.mur)} → ${minutes(b.mur)} min, perte ${pourcent(avant.perdu, avant.mur)} → ${pourcent(b.perdu, b.mur)} %, séances ${avant.seances.total} → ${b.seances.total}, coût ${dollars(avant.cout)} → ${dollars(b.cout)} $.`
     : "Aucun bilan d'avant dans ce projet : pas de base.";
-  return [
-    tete,
-    ...lignes,
-    b.passesFinales.n
-      ? `Passes finales : ${b.passesFinales.n}, ${minutes(b.passesFinales.ms)} min.`
-      : 'Passes finales : 0.',
-    `Arrêts : ${arrets || 'aucun'}.`,
-    base,
-  ].join('\n');
+  return [tete, ...lignes, `Arrêts : ${arrets || 'aucun'}.`, base].join('\n');
 }
 
 const dossier = racine => path.join(racine, '.claude', 'worktrees');
@@ -457,25 +471,12 @@ export function lignesDuProjet(texte, racine) {
 }
 
 // The bilan of <ticket> computed from the main tree <racine>: its register, the results its
-// circuit kept, the authors and times of its comments, its circuit's state.
+// circuit kept, its circuit's state.
 function calculer(racine, ticket) {
   const registre =
     process.env.GRILLHOUSE_REGISTRE ??
     path.join(os.homedir(), '.claude', 'grillhouse', 'registre.jsonl');
   const lignes = lignesDuProjet(existsSync(registre) ? readFileSync(registre, 'utf8') : '', racine);
-  const r = spawnSync('bd', ['comments', ticket, '--json'], {
-    cwd: racine,
-    encoding: 'utf8',
-    maxBuffer: 256 * 1024 * 1024,
-  });
-  if (r.status !== 0) {
-    throw new Error(`commentaires de ${ticket} illisibles : ${r.stderr ?? ''}`.trim());
-  }
-  // Of each comment, its author and its time alone.
-  const commentaires = (JSON.parse(r.stdout || '[]') ?? []).map(c => ({
-    author: c.author,
-    created_at: c.created_at,
-  }));
   const fiches = path.join(dossier(racine), `${ticket}.fiches.jsonl`);
   const entrees = (existsSync(fiches) ? readFileSync(fiches, 'utf8') : '')
     .split('\n')
@@ -493,7 +494,7 @@ function calculer(racine, ticket) {
   } catch {
     etat = null;
   }
-  return bilan({ ticket, lignes, entrees, commentaires, etat });
+  return bilan({ ticket, lignes, entrees, etat });
 }
 
 // The bilan of <ticket> computed, kept in the main tree <racine>, and its text, compared with the
