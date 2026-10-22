@@ -81,21 +81,29 @@ describe.runIf(canWrap)('the régulateur, a session of the circuit', { timeout: 
     expect(a).toContain('--add-dir');
     const e = etat(id);
     // Its rights are the commands its skill names (scripts/droits.mjs, tests/unit/droits.spec.ts),
-    // and the reads of the circuit's state, the ticket's log and its proofs.
+    // the summary of the circuit's state by its command, and the reads of the ticket's log and its
+    // proofs (grillhouse-3uv.92.7).
     const { allow, deny } = (
       JSON.parse(valeur(a, '--settings')) as { permissions: { allow: string[]; deny: string[] } }
     ).permissions;
     for (const regle of [
       'Bash(bd comments *)',
       'Bash(bd search *)',
-      'Bash(bd update * -d *)',
-      `Read(/${path.join(REPO, '.claude/worktrees', `${id}.circuit.json`)})`,
+      'Bash(node scripts/etat-du-circuit.mjs *)',
       `Read(/${e?.journal})`,
     ]) {
       expect(allow).toContain(regle);
     }
-    // No right to write the code, nor to run the circuit or the tests: its tools write nothing.
-    expect(allow.filter(x => /^(Write|Edit)|node scripts|npm /.test(x))).toEqual([]);
+    expect(allow).not.toContain(
+      `Read(/${path.join(REPO, '.claude/worktrees', `${id}.circuit.json`)})`
+    );
+    // No right to write the code, nor to run the circuit or the tests: its tools write nothing; its
+    // one script reads the state.
+    expect(
+      allow.filter(
+        x => /^(Write|Edit)|node scripts|npm /.test(x) && !x.includes('etat-du-circuit.mjs')
+      )
+    ).toEqual([]);
     expect(
       valeur(a, '--tools')
         .split(',')

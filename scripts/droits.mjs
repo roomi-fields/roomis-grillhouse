@@ -8,7 +8,7 @@
 // rights the commands of its skill name, and the context its work reads.
 //
 //   node scripts/droits.mjs <rôle> --racine <arbre principal> --copie <copie> --ticket <ticket>
-//                           [--etat <fichier> --journal <fichier> --preuves <motif>]
+//                           [--journal <fichier> --preuves <motif>]
 //
 // prints the options of claude for that session, one per line (`optionsDuRole`):
 //
@@ -19,7 +19,8 @@
 //   change): its permissions (`allow`, the commands its skill names; `deny`, the change of its
 //   author at the ticket, AUTEUR_FIXE, for a role that writes the editing by script, the test
 //   tool run directly and the reading again of the ticket its instruction carries, and for a role
-//   that writes nothing at the ticket, the questionneur, every write of bd, ECRIRE_AU_TICKET); the
+//   that writes nothing at the ticket, the questionneur and the regulator, every write of bd,
+//   ECRIRE_AU_TICKET); the
 //   automatic memory off; the skills of Claude Code off (`disableBundledSkills`, and the few it keeps,
 //   INTEGREES), every skill of the project but the role's off (`skillOverrides`), every plugin
 //   the project enables off (`enabledPlugins`: their skills, hooks and servers are not the role's);
@@ -79,6 +80,16 @@ const ECRIRE_AU_TICKET = [
 // `run_in_background`, the background agents): `claude -p` waits for them before it ends, so a
 // session ends with its sheet only without them.
 const SANS_TACHE_DE_FOND = { CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1' };
+
+// The reads of git in the copy, by its path (`git -C <copie> …`), which Claude Code does not let
+// through without a rule, as it does `git status` in the working directory.
+const LIRE_GIT = [
+  'Bash(git -C * status*)',
+  'Bash(git -C * diff*)',
+  'Bash(git -C * log*)',
+  'Bash(git -C * ls-files*)',
+  'Bash(git -C * grep*)',
+];
 const TEST_DIRECT = [
   'Bash(vitest*)',
   'Bash(npx vitest*)',
@@ -129,7 +140,7 @@ export const ROLES = {
     index: true,
     competences: ['relecteur'],
     commandes: [
-      'Bash(git -C * diff *)',
+      ...LIRE_GIT,
       'Bash(node scripts/index-interfaces.mjs --publie *)',
       'Bash(npm test *)',
       'Bash(npm run verifier -- --gardes*)',
@@ -138,14 +149,18 @@ export const ROLES = {
       'mcp__rtfm__rtfm_search',
     ],
   },
+  // It writes nothing at the ticket: the circuit writes its decision, its arbitrage and the
+  // criterion it adds, from its sheet. It reads the circuit's state by its command, the ticket's
+  // log and its proofs by their paths, a precedent by bd, the copy by git.
   regulateur: {
-    // The files its instruction names: the circuit's state, the ticket's log, its proofs.
-    lit: ['etat', 'journal', 'preuves'],
+    lit: ['journal', 'preuves'],
+    ecritAuTicket: false,
     competences: ['regulateur'],
     commandes: [
-      'Bash(bd comments *)',
+      'Bash(node scripts/etat-du-circuit.mjs *)',
       'Bash(bd search *)',
-      'Bash(bd update * -d *)',
+      'Bash(bd comments *)',
+      ...LIRE_GIT,
     ],
   },
   // It asks, and decides nothing: it reads the proposal its instruction carries and the code by
@@ -226,10 +241,10 @@ function serveursDeLIndex(racine, home) {
 
 // The settings of the session of <role>, for the ticket <ticket>, its copy <copie> (where its
 // skills are read) and the main tree <racine>; `lit` names the files the regulator reads.
-function reglagesDuRole(role, { racine, copie = racine, ticket, etat, journal, preuves }) {
+function reglagesDuRole(role, { racine, copie = racine, ticket, journal, preuves }) {
   const r = ROLES[role];
   if (!r) throw new Error(`rôle sans droits : ${role}`);
-  const fichiers = { etat, journal, preuves };
+  const fichiers = { journal, preuves };
   // An absolute path of the machine opens on `//`.
   const lectures = (r.lit ?? []).filter(k => fichiers[k]).map(k => `Read(/${fichiers[k]})`);
   const deny = [...AUTEUR_FIXE, ...(r.ecritAuTicket === false ? ECRIRE_AU_TICKET : [])];
@@ -308,11 +323,11 @@ function commande(argv) {
   for (let i = 0; i < reste.length; i += 2) {
     const cle = reste[i]?.replace(/^--/, '');
     if (
-      !['racine', 'copie', 'ticket', 'etat', 'journal', 'preuves'].includes(cle) ||
+      !['racine', 'copie', 'ticket', 'journal', 'preuves'].includes(cle) ||
       i + 1 >= reste.length
     ) {
       process.stderr.write(
-        `usage : droits.mjs <rôle> --racine <r> --copie <c> --ticket <t> [--etat <f> --journal <f> --preuves <m>]\n`
+        `usage : droits.mjs <rôle> --racine <r> --copie <c> --ticket <t> [--journal <f> --preuves <m>]\n`
       );
       return 2;
     }

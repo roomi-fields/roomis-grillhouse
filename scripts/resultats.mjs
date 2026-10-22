@@ -248,6 +248,12 @@ const FICHES = {
       ),
       contexte: texte('RELANCE --reprendre : ce que l’agent repris fait dans son composant.'),
       question: texte('MONTE : la question, ses pièces et ta recommandation.'),
+      arbitrage: texte(
+        'RELANCE : ce que tu tranches seul et sa source (la lettre d’un critère, un précédent écrit, une règle du cadre), en nommant chaque consommateur qu’il fixe ; le circuit l’écrit au ticket, tranché.'
+      ),
+      critere: texte(
+        'RELANCE --depuis, son premier composant repris par son testwriter : le critère que tu ajoutes, sans son numéro ; le circuit l’écrit, numéroté, à la fin de la description.'
+      ),
       faits: liste(
         objet(
           {

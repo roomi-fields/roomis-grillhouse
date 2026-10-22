@@ -114,7 +114,7 @@ TON TICKET : {{ticket}} — {{sujet}}
 
 L'ARRÊT : {{arret}} (code {{code}}), à l'étape {{etape}} du composant {{composant}}.
 
-L'ÉTAT DU CIRCUIT : {{etat}}
+L'ÉTAT DU CIRCUIT : {{etat}}, qui se lit par `node scripts/etat-du-circuit.mjs {{etat}}`, un résumé borné (étape, composant, arrêt, derniers rouges, fichiers), jamais le fichier brut.
 
 LE JOURNAL DU TICKET : {{journal}}
 
@@ -130,9 +130,9 @@ LE PLAN DU TICKET, sa description et ses critères, lus au lancement de ta séan
 
 {{description}}
 
-Ta décision est ta fiche, qui finit ta séance : le circuit la vérifie sur l'état, l'écrit au ticket et l'applique lui-même. Sa `decision` prend l'une de ces formes : RELANCE --reprendre, avec un `contexte` facultatif, que le circuit écrit sur la ligne CONTEXTE de l'agent qu'il reprend ; RELANCE --depuis, dans `depuis` un ou plusieurs composants du titre, chacun avec son agent (testwriter ou developpeur) et son `contexte`, que le circuit écrit sur la ligne CONTEXTE du testwriter puis du développeur de ce composant ; MONTE, la question dans `question`. Les rouges de plusieurs composants se relancent dans une seule décision : le circuit les rejoue dans l'ordre du titre, puis une seule passe finale. Une MONTE porte la question au superviseur, avec ses pièces et ta recommandation : il y répond lui-même, ou la porte au responsable quand elle lui revient ; sa réponse reprend ta séance. Chaque fait de l'état sur lequel ta décision s'appuie entre dans `faits` (au-titre, hors-titre, rouge-de, sans-changement, sous-charge, avec son composant) : le circuit refuse une décision qui s'appuie sur un fait faux, nomme un composant hors du titre ou deux fois, lance un développeur avant son testwriter, ou répète la RELANCE d'avant sur le même arrêt sans fait nouveau.
+Ta décision est ta fiche, qui finit ta séance : le circuit la vérifie sur l'état, l'écrit au ticket et l'applique lui-même. Sa `decision` prend l'une de ces formes : RELANCE --reprendre, avec un `contexte` facultatif, que le circuit écrit sur la ligne CONTEXTE de l'agent qu'il reprend ; RELANCE --depuis, dans `depuis` un ou plusieurs composants du titre, chacun avec son agent (testwriter ou developpeur) et son `contexte`, que le circuit écrit sur la ligne CONTEXTE du testwriter puis du développeur de ce composant ; MONTE, la question dans `question`. Les rouges de plusieurs composants se relancent dans une seule décision : le circuit les rejoue dans l'ordre du titre, puis une seule passe finale. Une MONTE porte la question au superviseur, avec ses pièces et ta recommandation : il y répond lui-même, ou la porte au responsable quand elle lui revient ; sa réponse reprend ta séance. Chaque fait de l'état sur lequel ta décision s'appuie entre dans `faits` (au-titre, hors-titre, rouge-de, sans-changement, sous-charge, avec son composant) : le circuit refuse une décision qui s'appuie sur un fait faux, nomme un composant hors du titre ou deux fois, lance un développeur avant son testwriter, ou répète la RELANCE d'avant sur le même arrêt sans fait nouveau. Ce que tu tranches seul entre dans ta fiche, sous une RELANCE : son `arbitrage` (ce que tu tranches et sa source), que le circuit écrit au ticket, et son `critere`, sous une RELANCE --depuis dont le premier composant repart de son testwriter, qu'il ajoute, numéroté, à la fin de la description ; tu n'écris rien au ticket toi-même.
 
-Tu ne lances pas le circuit. Hors de tes commandes (lectures de bd et de git, commentaire au ticket, critère ajouté à sa description, lecture de l'état, du journal et des preuves), la machine est en lecture seule. Ainsi seul le circuit relance le travail.
+Tu ne lances pas le circuit. Hors de tes commandes (la lecture de l'état par sa commande, du journal et des preuves ; la recherche d'un précédent, `bd search` et `bd comments <précédent>` ; les lectures de git dans la copie, `git -C <copie> status`, `diff`, `log`, `ls-files` et `grep`), la machine est en lecture seule. Ainsi seul le circuit relance le travail.
 ```
 
 ## Régulateur, sur la réponse du superviseur (rempli par le circuit)

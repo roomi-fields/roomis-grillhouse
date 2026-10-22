@@ -34,6 +34,7 @@ scripts/dernier-vert.mjs
 scripts/dette.mjs
 scripts/droits.mjs
 scripts/etapes.mjs
+scripts/etat-du-circuit.mjs
 scripts/greffons.mjs
 scripts/enveloppe/
 scripts/frontieres.mjs
@@ -82,6 +83,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/bilan.spec.ts
 - tests/unit/circuit-conduite.spec.ts
 - tests/unit/circuit-sans-texte-libre.spec.ts
+- tests/unit/circuit.arbitrage.spec.ts
 - tests/unit/circuit.avancement.spec.ts
 - tests/unit/circuit.bilan.spec.ts
 - tests/unit/circuit-essai.ts
@@ -137,6 +139,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/enveloppe.paquet.spec.ts
 - tests/unit/enveloppe.spec.ts
 - tests/unit/etapes.spec.ts
+- tests/unit/etat-du-circuit.spec.ts
 - tests/unit/fichiers-du-cadre.spec.ts
 - tests/unit/file-integration-essai.ts
 - tests/unit/file-integration.ci.spec.ts

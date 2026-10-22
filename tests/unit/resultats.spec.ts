@@ -78,9 +78,21 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
     expect(c.items.required).toEqual(['titre', 'corps', 'genre']);
     expect(c.items.properties.genre.enum).toEqual(['bloquant', 'remarque']);
   });
-  it('the regulator: its decision, the agents a RELANCE --depuis names, its context, its question, the facts the circuit checks, its discoveries', () => {
+  // grillhouse-3uv.92.7, critère 1: its arbitrage and the criterion it adds, which the circuit
+  // writes at the ticket.
+  it('the regulator: its decision, the agents a RELANCE --depuis names, its context, its question, the facts the circuit checks, its arbitrage and its criterion, its discoveries', () => {
     expect(champs('regulateur')).toEqual(
-      ['contexte', 'decision', 'decouvertes', 'depuis', 'faits', 'question', 'reponses'].sort()
+      [
+        'arbitrage',
+        'contexte',
+        'critere',
+        'decision',
+        'decouvertes',
+        'depuis',
+        'faits',
+        'question',
+        'reponses',
+      ].sort()
     );
     expect((schemaDeFiche('regulateur') as Schema).required).toEqual(['decision']);
   });

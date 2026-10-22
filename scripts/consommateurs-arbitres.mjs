@@ -14,7 +14,8 @@
 //   judged.
 // - With a changed line, the comments of the ticket are read (`bd comments <ticket> --json`, run
 //   from the main tree, the parent of git's common directory). A changed line passes when an
-//   « ## Arbitrage… » comment that is settled (`arbitrageTranche`) names its consumer, the first
+//   arbitrage that is settled (`arbitrageTranche`: a « ## Arbitrage… » comment, or the regulator's,
+//   that the circuit writes from its sheet, `estArbitrage`) names its consumer, the first
 //   name between backquotes of the line, found as it is in the comment's text. Without a changed
 //   line, bd is not called.
 // - A changed line no arbitrage settles passes too when the section « Architecture » of the
@@ -34,13 +35,21 @@ import { aVerifier } from './interfaces-contre-code.mjs';
 
 const REGLE = 'consommateur-sans-arbitrage';
 
-// True when the « ## Arbitrage » comment <a> of <comments> (Beads' JSON, in their order) is
-// settled: the regulator's arbitrage (it writes one only for what the letter of a
-// criterion, a written precedent or a rule of the frame settles), a line `### Verdict — tranché`,
-// or a « ## Réponse du responsable » comment after it.
+// The regulator's arbitrage as the circuit writes it at the ticket, from the `arbitrage` of its
+// sheet (scripts/circuit.mjs): `Circuit · <composant> · regulateur : arbitrage — <texte>`.
+const DU_REGULATEUR = /^Circuit · [^\n]* · regulateur : arbitrage — /;
+
+// True when the text <text> of a comment is an arbitrage: a « ## Arbitrage… » comment, or the
+// regulator's, as the circuit writes it.
+export const estArbitrage = text =>
+  /^\s*## Arbitrage\b/.test(String(text ?? '')) || DU_REGULATEUR.test(String(text ?? ''));
+
+// True when the arbitrage <a> of <comments> (Beads' JSON, in their order) is settled: the
+// regulator's (it settles only what the letter of a criterion, a written precedent or a rule of
+// the frame settles), a line `### Verdict — tranché`, or a « ## Réponse du responsable » comment
+// after it.
 export function arbitrageTranche(comments, a) {
-  const tranche =
-    /^\s*## Arbitrage du régulateur\b/.test(a.text) || /^### Verdict\s*—\s*tranché/m.test(a.text);
+  const tranche = DU_REGULATEUR.test(a.text) || /^### Verdict\s*—\s*tranché/m.test(a.text);
   return (
     tranche ||
     comments
@@ -136,9 +145,7 @@ export function verifier(racine, env = process.env) {
       },
     ];
   }
-  const arbitrages = comments.filter(
-    a => /^\s*## Arbitrage\b/.test(a.text) && arbitrageTranche(comments, a)
-  );
+  const arbitrages = comments.filter(a => estArbitrage(a.text) && arbitrageTranche(comments, a));
   const consommateurDe = ligne => /`([^`]+)`/.exec(ligne)?.[1] ?? ligne.replace(/^-\s+/, '');
   const restantes = changees.filter(
     ({ ligne }) => !arbitrages.some(a => a.text.includes(consommateurDe(ligne)))

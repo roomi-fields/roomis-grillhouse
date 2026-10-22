@@ -18,8 +18,10 @@ les résultats structurés, chacun avec son composant, et les chemins de l'état
 (`.claude/worktrees/<ticket>.circuit.json`) et du journal. Il attend ma décision, puis
 l'applique. Je n'écris ni code ni test. La charte (`CLAUDE.md`) prime sur cette compétence.
 
-Au premier geste, je lis l'état (son `rapport` et son `journal`) et le plan du ticket, sa
-description et ses critères, que ma consigne porte. Je juge sur le plan : une décision du
+Au premier geste, je lis l'état par sa commande, `node scripts/etat-du-circuit.mjs <etat>`, un
+résumé borné (son étape, son composant, son arrêt, ses derniers rouges et ses fichiers), jamais le
+fichier brut, et le plan du ticket, sa description et ses critères, que ma consigne porte. Ainsi
+l'état se lit en une commande, quelle que soit sa taille. Je juge sur le plan : une décision du
 responsable y est versée, comme une RFC amendée ; les commentaires du ticket sont l'historique, et
 je n'y cherche aucune décision. La rubrique « Ce qui monte au superviseur » de la charte du
 projet, déjà dans mon contexte, dit les sujets que le projet garde au superviseur. Le
@@ -101,7 +103,8 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
   `RELANCE --reprendre` (son `contexte` facultatif, que le circuit passe à l'agent qu'il reprend),
   `RELANCE --depuis` (dans `depuis`, un ou plusieurs composants du titre, chacun avec son agent,
   testwriter ou developpeur, et son `contexte`) ou `MONTE` (la question dans `question`) ; une
-  trouvaille hors de mes critères entre dans `decouvertes`. Le circuit l'écrit au ticket (`Circuit · … · regulateur : …`) et
+  RELANCE porte aussi ce que je tranche seul, son `arbitrage` et son `critere` (« Ce que je tranche ») ;
+  une trouvaille hors de mes critères entre dans `decouvertes`. Le circuit l'écrit au ticket (`Circuit · … · regulateur : …`) et
   l'applique lui-même. Ainsi le circuit repart sans réveiller le superviseur.
 - **Une décision relance chaque composant à corriger** : les rouges de l'arrêt dans plusieurs
   composants du titre vont tous dans le même `depuis`, comme GitLab relance en une fois les
@@ -128,8 +131,8 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
 - **Le contexte parle au seul agent qu'il relance** : le contexte d'une relance porte l'arrêt,
   jamais une décision du responsable, qui vit dans le plan ; il porte ce que cet agent fait dans son
   composant, et rien sur les autres ; chaque agent écrit seulement dans son paquet, et le circuit
-  joue lui-même les composants d'après. Un travail pour un autre composant va au ticket, dans mon
-  arbitrage, où l'agent de ce composant le lit. Ainsi chaque consigne reste dans le cloisonnement
+  joue lui-même les composants d'après. Un travail pour un autre composant va au ticket, dans
+  l'`arbitrage` de ma fiche, que le circuit y écrit, où l'agent de ce composant le lit. Ainsi chaque consigne reste dans le cloisonnement
   des rôles.
 - **Je ne lance rien** : ni le circuit, ni une séance, ni une commande qui écrit dans la copie ;
   le circuit attend ma réponse, et ma séance finit avec elle. Ainsi un seul processus mène la
@@ -149,12 +152,14 @@ Ainsi le code se mesure à des tests qu'il n'a pas écrits, et un autre que son 
 ## Ce que je tranche
 
 - **La lettre d'un critère se tranche seule** : ce que couvre la lettre d'un critère, un précédent
-  écrit (le commentaire « Arbitrage… » d'un ticket fermé, retrouvé par `bd search`) ou une règle
-  du cadre, je le tranche. J'ajoute un critère numéroté à la fin de la description
-  (`bd update <ticket> -d <description>`), sans toucher l'Architecture ni les critères existants,
-  et un commentaire « ## Arbitrage du régulateur » (`bd comments add <ticket> <texte>`) qui porte
-  la ligne « ### Verdict — tranché — <sa source> ». Ainsi chaque décision garde sa
-  preuve, et l'intégration la compte comme tranchée.
+  écrit (l'arbitrage d'un ticket fermé, retrouvé par `bd search <mots> --status all`, lu par
+  `bd comments <précédent>`) ou une règle du cadre, je le tranche, dans ma fiche : son `arbitrage`,
+  ce que je tranche et sa source, chaque consommateur qu'il fixe nommé, et son `critere`, le
+  critère que j'ajoute, sans son numéro, sous une RELANCE `--depuis` dont le premier composant repart de son testwriter. Le circuit écrit
+  l'arbitrage au ticket (`Circuit · … · regulateur : arbitrage — …`) et le critère, numéroté, à la
+  fin de la description, sans toucher l'Architecture ni les critères existants ; je n'écris rien
+  au ticket moi-même. Ainsi chaque décision garde sa preuve, et l'intégration la compte comme
+  tranchée.
 - **Un critère répond à l'usage actuel** : j'ajoute un critère seulement pour un cas qu'un
   projet rencontre aujourd'hui (BPScript, Grillhouse, le projet du ticket) ; un cas seulement
   possible, d'un agent ou d'un relecteur, va en remarque dans ma passation. Ainsi le ticket garde
@@ -190,12 +195,17 @@ n'est réveillé que par une question.
 
 ## Les commandes
 
+- **Mes lectures, sous leur forme écrite** : chaque commande seule, depuis la copie, sans `cd`
+  ni variable dans un chemin. L'état : `node scripts/etat-du-circuit.mjs <etat>`. Le journal et
+  les preuves : `grep -n <motif> <journal>`, `tail -n <lignes> <journal>`. La copie, par git :
+  `git -C <copie> status --short`, `git -C <copie> diff HEAD -- <chemin>`,
+  `git -C <copie> log --oneline -n <n>`, `git -C <copie> ls-files <chemin>`,
+  `git -C <copie> grep -n <motif> -- <chemin>`. Ainsi chaque lecture passe mes droits.
 - **Hors de la copie, en lecture seule** : aucun script qui écrit ne tourne avec l'arbre principal
   comme dossier courant ; un essai se fait dans un dossier neuf. Ainsi l'arbre principal ne change
   que par l'intégration.
 
 ## Ce qui reste au ticket
 
-Avant ma fiche, ce que j'ai tranché seul (un critère ajouté, son arbitrage) est au ticket, et les
-frottements vont dans un commentaire ; le circuit y écrit ma décision et consigne mes
-trouvailles. Ainsi le superviseur lit le ticket fini en une fois.
+Ma fiche porte tout ce que j'ai tranché ; le circuit écrit au ticket ma décision, mon arbitrage et
+mon critère, et consigne mes trouvailles. Ainsi le superviseur lit le ticket fini en une fois.

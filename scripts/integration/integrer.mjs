@@ -13,8 +13,10 @@
 // (`.claude/worktrees/<ticket>`, the one the lot was written in, when it exists); a second
 // --ticket is a usage error, named. In order, each step refusing stops the run:
 //  1. the verdict: the ticket has `ACCEPTÉ` as its last reviewer verdict (`ACCEPTÉ` or
-//     `RENDU` at the start of a comment of the author `relecteur`; another author's is none) and, when labelled `arbitrage`, each « ## Arbitrage »
-//     comment is `### Verdict — tranché`, or a « ## Réponse du responsable » comment follows it;
+//     `RENDU` at the start of a comment of the author `relecteur`; another author's is none) and, when labelled `arbitrage`, each arbitrage
+//     (`estArbitrage`: a « ## Arbitrage » comment, or the regulator's the circuit writes) is settled
+//     (`arbitrageTranche`: the regulator's, `### Verdict — tranché`, or a « ## Réponse du
+//     responsable » comment after it);
 //  2. the lots: the tests lot touches only what the testwriter writes (`isTesterFile`: test files
 //     and the shared test material), the code lot none of it;
 //  3. the main tree: every file of the lots is unmodified there; the ticket's copy is on its
@@ -62,7 +64,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { arbitrageTranche } from '../consommateurs-arbitres.mjs';
+import { arbitrageTranche, estArbitrage } from '../consommateurs-arbitres.mjs';
 import { isTesterFile } from '../verrous/verrou.mjs';
 import { lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
 import { dossierCommun, inscrireEntree } from './file-attente.mjs';
@@ -104,7 +106,7 @@ export function refusVerdicts(ticket, comments) {
     return `${id} n'a pas le verdict ACCEPTÉ du relecteur pour dernier verdict.`;
   }
   if ((ticket.labels ?? []).includes('arbitrage')) {
-    const arbitrages = comments.filter(c => /^\s*## Arbitrage\b/.test(c.text));
+    const arbitrages = comments.filter(c => estArbitrage(c.text));
     if (arbitrages.length === 0)
       return `${id} est étiqueté arbitrage sans commentaire « Arbitrage ».`;
     for (const a of arbitrages) {

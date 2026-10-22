@@ -62,10 +62,13 @@ describe('refusVerdicts', () => {
       ])
     ).toBeNull();
   });
-  it("passes the régulateur's arbitrage, settled by construction (BPScript 320.2.7)", () => {
+  it("passes the régulateur's arbitrage the circuit writes from its sheet, settled by construction (BPScript 320.2.7, grillhouse-3uv.92.7)", () => {
     expect(
       refusVerdicts(arb, [
-        c('## Arbitrage du régulateur — critères 1 à 4\nSource : la lettre du critère 2.'),
+        c(
+          'Circuit · packages/forms · regulateur : arbitrage — critères 1 à 4 : la lettre du critère 2.',
+          'circuit'
+        ),
         c('ACCEPTÉ'),
       ])
     ).toBeNull();

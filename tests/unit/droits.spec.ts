@@ -40,21 +40,34 @@ const options = (role: string, racine = RACINE) =>
     racine,
     copie: racine,
     ticket: 'demo-1',
-    etat: ETAT,
     journal: JOURNAL,
     preuves: '/depot/.claude/worktrees/demo-1.preuve-*.md',
     // A home without plugins: the servers come from the project alone.
     home: path.join(ESSAIS, 'vide'),
   });
 
-// The commands a skill names: each span of code, or line of a block of code, that opens on a
-// command of the shell, or names a tool of the index. A placeholder `<…>` stands for one word.
+// The commands a skill names, in their written form (grillhouse-3uv.92.7, critère 4): each span of
+// code, or line of a block of code, that opens on a command of the shell, or names a tool of the
+// index. A placeholder `<…>` takes the value a session gives it (COMPLETER): the copy, the ticket,
+// the files of the circuit by their absolute paths, a text of several lines; any other, one word.
 const COMMANDE =
   /^(bd|npm|npx|git|node|bash|codegraph|grep|tail|head|sed|cat|python3?|perl|vitest)( |$)/;
 const OUTILS_DE_L_INDEX: Record<string, string> = {
   rtfm_search: 'mcp__rtfm__rtfm_search',
   rtfm_expand: 'mcp__rtfm__rtfm_expand',
   codegraph_explore: 'mcp__codegraph__codegraph_explore',
+};
+// The copy of the ticket demo-1, where the session runs.
+const COPIE = '/depot/.claude/worktrees/demo-1';
+const COMPLETER: Record<string, string> = {
+  copie: COPIE,
+  ticket: 'demo-1',
+  etat: ETAT,
+  journal: JOURNAL,
+  motif: '"FAIL"',
+  lignes: '40',
+  n: '5',
+  texte: '"Ce qui est fait.\n\nCe qui reste."',
 };
 function demandees(role: string): string[] {
   const dossier = path.join(RACINE, '.claude/skills', role);
@@ -79,9 +92,9 @@ function demandees(role: string): string[] {
     const spans = [...sansBlocs.matchAll(/`([^`]+)`/g)].map(m => m[1]);
     for (const brut of [...spans, ...blocs]) {
       const c = brut
-        .replace(/<[^<>]*>/g, 'x')
         .replace(/\s+/g, ' ')
-        .trim();
+        .trim()
+        .replace(/<([^<>]*)>/g, (_, nom: string) => COMPLETER[nom.trim()] ?? 'x');
       if (OUTILS_DE_L_INDEX[c]) {
         out.add(OUTILS_DE_L_INDEX[c]);
       } else if (COMMANDE.test(c)) {
@@ -105,28 +118,122 @@ function couvre(regle: string, appel: string): boolean {
     .split('*')
     .map(s => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
     .join('.*');
-  return new RegExp(`^${corps}${final ? '( .*)?' : ''}$`).test(appel);
+  return new RegExp(`^${corps}${final ? '( .*)?' : ''}$`, 's').test(appel);
 }
 // The calls a command of the skill makes: the command, and for `codegraph explore` the tool of the
 // index too.
 const appels = (c: string) =>
   c.startsWith('codegraph explore') ? [c, 'mcp__codegraph__codegraph_explore'] : [c];
-// A read the session makes without a rule: a command that only reads, in its working directory or
-// a file its rules let it read (Claude Code lets a read-only command through).
-const LECTURE = /^(grep|tail|head|cat|sed -n|git (diff|log|show|status))( |$)/;
+
+// The simple commands of <c>: split where the shell chains them (`;`, `&&`, `||`, `|`, a new
+// line), out of quotes.
+function simples(c: string): string[] {
+  const out: string[] = [];
+  let courant = '';
+  let quote: string | null = null;
+  for (let i = 0; i < c.length; i++) {
+    const ch = c[i];
+    if (quote) {
+      if (ch === quote) {
+        quote = null;
+      }
+      courant += ch;
+    } else if (ch === "'" || ch === '"') {
+      quote = ch;
+      courant += ch;
+    } else if (ch === ';' || ch === '\n' || ch === '|' || (ch === '&' && c[i + 1] === '&')) {
+      if (c[i + 1] === ch) {
+        i++;
+      }
+      out.push(courant.trim());
+      courant = '';
+    } else {
+      courant += ch;
+    }
+  }
+  out.push(courant.trim());
+  return out.filter(Boolean);
+}
+// A command Claude Code lets through without a rule: one that only reads, in the working directory
+// or in a file a rule `Read(…)` permits. `git -C <dossier> …` is none: in BPScript 320.4,
+// `git -C <copie> status` is refused without a rule, and `git status` passes.
+const LECTURE = /^(grep|tail|head|cat|cut|wc|sed -n|git (diff|log|show|status|ls-files|grep))( |$)/;
+// Whether the absolute path <p> lies in the directory <dossier>.
+const dans = (p: string, dossier: string) => p === dossier || p.startsWith(`${dossier}/`);
+const echapper = (s: string) => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+// The refusal Claude Code gives the command <c>, run in <cwd> under the settings <reglages> in the
+// mode `dontAsk` (the circuit's), or null when it lets it through. Its rules are those BPScript
+// 320.4 measured on the refused calls of its sessions (the analysis of 320.4, refus.py): each
+// simple command of a chain is judged alone; an argument in quotes with a line that opens on `#`,
+// or an escaped backquote, asks for an approval, refused (`bd comments add` 2 times in 3); a `cd`
+// out of the working directory (2 times); a read whose path holds a variable (`$L`, 2 times), or
+// a path out of the working directory that no `Read(…)` permits; a command neither permitted nor
+// a read.
+function refusReel(c: string, reglages: Reglages, cwd = COPIE): string | null {
+  const { allow, deny } = reglages.permissions;
+  const lectures = allow
+    .map(r => /^Read\(\/(\/.*)\)$/.exec(r)?.[1])
+    .filter((g): g is string => Boolean(g))
+    .map(g => new RegExp(`^${g.split('*').map(echapper).join('[^/]*')}$`));
+  const citations = [...c.matchAll(/"((?:[^"\\]|\\.)*)"|'([^']*)'/g)].map(m => m[1] ?? m[2]);
+  if (citations.some(q => /\n\s*#/.test(q))) {
+    return `${c} : une ligne en # dans un argument`;
+  }
+  if (citations.some(q => q.includes('\\`'))) {
+    return `${c} : un accent grave échappé`;
+  }
+  for (const s of simples(c)) {
+    if (deny.some(r => couvre(r, s))) {
+      return `${s} : refusée par une règle`;
+    }
+    if (/^cd( |$)/.test(s)) {
+      if (!dans(path.resolve(cwd, s.slice(3).trim() || '/'), cwd)) {
+        return `${s} : cd hors du dossier de travail`;
+      }
+      continue;
+    }
+    if (allow.some(r => couvre(r, s))) {
+      continue;
+    }
+    if (!LECTURE.test(s)) {
+      return `${s} : sans règle`;
+    }
+    const chemins = s
+      .split(' ')
+      .slice(1)
+      .filter(m => !m.startsWith('-') && !/^["']/.test(m) && /[/$]/.test(m));
+    for (const m of chemins) {
+      if (m.includes('$')) {
+        return `${s} : une variable dans le chemin`;
+      }
+      const p = path.resolve(cwd, m);
+      if (!dans(p, cwd) && !lectures.some(g => g.test(p))) {
+        return `${s} : ${p} hors du dossier de travail, sans Read`;
+      }
+    }
+  }
+  return null;
+}
 
 describe('L2 — the rights of each role are drawn from its skill', () => {
   for (const role of Object.keys(ROLES)) {
-    it(`${role}: each command its skill names is permitted, and refused by none of its rules`, () => {
-      const { allow, deny } = reglagesDe(options(role)).permissions;
+    it(`${role}: each command its skill names passes its real rights in its written form (critère 4)`, () => {
+      const reglages = reglagesDe(options(role));
       const demandes = demandees(role);
       expect(demandes.length, role).toBeGreaterThan(0);
-      const sansRegle = demandes.filter(
-        c => !LECTURE.test(c) && !appels(c).every(a => allow.some(r => couvre(r, a)))
-      );
-      expect(sansRegle, `${role} : commandes nommées, sans droit`).toEqual([]);
-      const refusees = demandes.filter(c => appels(c).some(a => deny.some(r => couvre(r, a))));
+      const refusees = demandes.flatMap(c => {
+        const pourquoi = c.startsWith('mcp__')
+          ? reglages.permissions.allow.includes(c)
+            ? null
+            : `${c} : sans règle`
+          : refusReel(c, reglages);
+        return pourquoi ? [pourquoi] : [];
+      });
       expect(refusees, `${role} : commandes nommées et refusées`).toEqual([]);
+      const index = demandes
+        .filter(c => c.startsWith('codegraph explore'))
+        .filter(() => !reglages.permissions.allow.includes('mcp__codegraph__codegraph_explore'));
+      expect(index, `${role} : codegraph explore sans son outil`).toEqual([]);
     });
 
     it(`${role}: each permission it holds answers a command its skill names`, () => {
@@ -152,6 +259,84 @@ describe('L2 — the rights of each role are drawn from its skill', () => {
       'Bash(bd * -a*)',
       'Bash(*BEADS_ACTOR*)',
     ]);
+  });
+});
+
+// grillhouse-3uv.92.7, critère 4: the judgement of the real rights, measured on the forms that
+// BPScript 320.4 saw refused and passed, each time on the same rights.
+describe('3uv.92.7 — the real rights refuse and pass the forms BPScript 320.4 measured', () => {
+  it('refuses the forms refused in 320.4', () => {
+    const testwriter = reglagesDe(options('testwriter'));
+    const regulateur = reglagesDe(options('regulateur'));
+    const questionneur = reglagesDe(options('questionneur'));
+    // A multi-line comment with a line in `#`, under a rule that permits `bd comments add`.
+    expect(
+      refusReel(
+        'bd comments add demo-1 "## Arbitrage du régulateur\n\nLa ligne.\n### Verdict — tranché"',
+        testwriter
+      )
+    ).toMatch(/ligne en #/);
+    expect(refusReel('bd comments add demo-1 "Le champ \\`a\\`."', testwriter)).toMatch(
+      /accent grave/
+    );
+    // git -C without a rule; a cd out of the copy; a variable in the path of a read.
+    expect(refusReel(`git -C ${COPIE} status --short`, questionneur)).toMatch(/sans règle/);
+    expect(refusReel('cd /depot/.claude/worktrees; grep -n FAIL demo-1.log', regulateur)).toMatch(
+      /cd hors/
+    );
+    expect(refusReel(`L=${JOURNAL}; grep -n FAIL $L`, regulateur)).not.toBeNull();
+    expect(refusReel('grep -n FAIL /depot/.claude/worktrees/autre.log', regulateur)).toMatch(
+      /hors du dossier/
+    );
+  });
+
+  it('passes the forms passed in 320.4', () => {
+    const regulateur = reglagesDe(options('regulateur'));
+    const relecteur = reglagesDe(options('relecteur'));
+    const testwriter = reglagesDe(options('testwriter'));
+    expect(refusReel(`tail -n 25 ${JOURNAL} | cut -c1-400`, regulateur)).toBeNull();
+    expect(refusReel(`grep -n "FAIL" ${JOURNAL} | tail -n 30`, regulateur)).toBeNull();
+    expect(refusReel('git status --short | head -30', regulateur)).toBeNull();
+    expect(refusReel(`git -C ${COPIE} diff HEAD -- packages/a/src/x.ts`, relecteur)).toBeNull();
+    expect(refusReel('bd comments add demo-1 "Testwriter : tests écrits."', testwriter)).toBeNull();
+  });
+});
+
+// grillhouse-3uv.92.7, critère 3: the reads of git the regulator and the reviewer need, in the copy
+// (BPScript 320.4: 6 refusals for the regulator, `git -C … status` for the reviewer), are in their
+// rights, and their skills name them.
+describe('3uv.92.7 — the regulator and the reviewer read git in the copy', () => {
+  const LECTURES_GIT = [
+    `git -C ${COPIE} status --short`,
+    `git -C ${COPIE} diff HEAD -- packages/a`,
+    `git -C ${COPIE} log --oneline -n 5`,
+    `git -C ${COPIE} ls-files packages/a`,
+    `git -C ${COPIE} grep -n FAIL -- packages`,
+  ];
+  for (const role of ['regulateur', 'relecteur']) {
+    it(`${role}: git -C <copie> status, diff, log, ls-files and grep pass its real rights, and its skill names each`, () => {
+      const reglages = reglagesDe(options(role));
+      expect(LECTURES_GIT.map(c => refusReel(c, reglages)).filter(Boolean), role).toEqual([]);
+      const nommees = demandees(role);
+      for (const verbe of ['status', 'diff', 'log', 'ls-files', 'grep']) {
+        expect(
+          nommees.some(c => c.startsWith(`git -C ${COPIE} ${verbe}`)),
+          `${role} : git -C <copie> ${verbe}`
+        ).toBe(true);
+      }
+    });
+  }
+
+  it("the regulator's instruction promises the reads its rights hold, and no write at the ticket", () => {
+    const consigne = readFileSync(
+      path.join(RACINE, '.claude/skills/pitmaster/references/consigne-agent.md'),
+      'utf8'
+    );
+    const gabarit =
+      /## Régulateur, sur un arrêt[\s\S]*?```text\n([\s\S]*?)```/.exec(consigne)?.[1] ?? '';
+    const promesse = /Hors de tes commandes \(([^)]*)\)/.exec(gabarit)?.[1] ?? '';
+    expect(promesse).toMatch(/`git -C <copie>/);
+    expect(promesse).not.toMatch(/commentaire au ticket|critère ajouté/);
   });
 });
 
@@ -354,15 +539,23 @@ describe("L2 — the context of a role's session", () => {
     }
   });
 
-  it("lets the regulator read the circuit's state, the ticket's log and its proofs, by their absolute paths", () => {
-    const { allow } = reglagesDe(options('regulateur')).permissions;
+  it("lets the regulator read the ticket's log and its proofs, by their absolute paths, and the circuit's state by its command alone", () => {
+    const { allow, deny } = reglagesDe(options('regulateur')).permissions;
     expect(allow).toEqual(
       expect.arrayContaining([
-        `Read(/${ETAT})`,
         `Read(/${JOURNAL})`,
         'Read(//depot/.claude/worktrees/demo-1.preuve-*.md)',
       ])
     );
+    expect(allow).not.toContain(`Read(/${ETAT})`);
+    // It writes nothing at the ticket: the circuit writes its arbitrage and its criterion, from its
+    // sheet (critère 1).
+    for (const c of ['bd comments add demo-1 x', 'bd update demo-1 -d x']) {
+      expect(
+        deny.some(r => couvre(r, c)),
+        c
+      ).toBe(true);
+    }
     // Its skill reads the log in pieces, never whole.
     const demandes = demandees('regulateur');
     expect(demandes.some(c => /^grep /.test(c))).toBe(true);

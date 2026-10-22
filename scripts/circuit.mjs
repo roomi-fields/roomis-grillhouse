@@ -355,16 +355,18 @@
 // - On a stop the table does not settle, the regulator: a session out of the envelope, as the
 //   reviewer's, claude itself (`claude -p --agent regulateur --session-id <uuid>`) in the
 //   ticket's copy (the main tree once the integration removed it), on Sonnet, under the rights
-//   and the context of its role (scripts/droits.mjs: the commands its skill names, the reads of
-//   bd, a comment, a criterion added to the description, and the reads of the state, the log and
-//   the proofs, the log searched in pieces),
+//   and the context of its role (scripts/droits.mjs: the commands its skill names, the summary of
+//   the state by scripts/etat-du-circuit.mjs, the reads of a precedent by bd and of the copy by
+//   git, the reads of the log and the proofs, the log searched in pieces; no write at the ticket),
 //   its instruction from the third template of consigne-agent.md: the ticket, the stop's name and
 //   code, its step, component and reason, the paths of the state and the log, and the plan it
 //   judges on, the ticket's description, where a decision of the owner is poured. The state
 //   names its session (`regulateur`) while it runs. Its sheet is its decision (`decision`:
 //   « RELANCE --reprendre » with its `contexte`, « RELANCE --depuis » with in `depuis` one or more
 //   components of the title, each with its agent and its `contexte`, or « MONTE » with its
-//   `question`; its `faits`, the facts of the state it rests on). A
+//   `question`; its `faits`, the facts of the state it rests on; for a RELANCE,
+//   its `arbitrage`, what it settled alone with its source, and its `critere`, the criterion it
+//   adds). A
 //   fresh session's decision is questioned first, as the plan is, the regulator answering in its
 //   own session, resumed with the tenth template (its `reponses`, and the decision it ends on,
 //   changed or kept, the one the circuit checks and applies); a DÉSACCORD, or a fourth round still
@@ -375,11 +377,15 @@
 //   does not hold, a developpeur whose testwriter has not run, a decision other than a RELANCE from a testwriter after the ticket's description changed (a
 //   criterion added: the table's `critere-neuf`), a fact the state proves false (au-titre,
 //   hors-titre, rouge-de, sans-changement, sous-charge), or the same RELANCE as the one before on
-//   the same stop with no fact the one before did not have, is refused: written at the ticket
+//   the same stop with no fact the one before did not have, an `arbitrage` or a `critere` on a
+//   MONTE, or a `critere` that does not go to a testwriter first, is refused: written at the ticket
 //   (`Circuit · <composant> · regulateur : décision refusée — <raison>`), the same session resumed
 //   once with the reason (the seventh template); a second refusal ends the circuit on the stop,
 //   both reasons joined to its own. The circuit writes a decision admitted at the ticket
-//   (`Circuit · <composant> · regulateur : …`). RELANCE runs the circuit again in the same process, as the
+//   (`Circuit · <composant> · regulateur : …`), then its arbitrage (`Circuit · <composant> ·
+//   regulateur : arbitrage — <texte>`, which scripts/consommateurs-arbitres.mjs and the
+//   integration read as settled) and its criterion, numbered after the last one at the end of the
+//   description (`bd update -d`). RELANCE runs the circuit again in the same process, as the
 //   option it names, the context as `--contexte`, a --depuis of several components as one of each
 //   in a single run: each played again in the order of the title, from its agent with its context
 //   (`renvois`), then the components after them the circuit has not carried through, then one final
@@ -558,7 +564,7 @@ const auteur = (role, composant) => (DESTINATAIRES.includes(role) ? `${role} ${c
 // The sessions out of the envelope (the reviewer on Opus, the regulator on Sonnet), each in the
 // ticket's copy, the main tree once the integration removed it, under the rights and the context
 // of its role (scripts/droits.mjs: the commands its skill names, the regulator's reads of the
-// ticket's state, log and proofs, the refusal of a change of its author at the ticket), without a
+// ticket's log and proofs, the refusal of a change of its author at the ticket), without a
 // prompt: any call its rights do not permit is refused.
 const horsDeLEnveloppe = (ctx, role, modele) => [
   '--model',
@@ -569,7 +575,6 @@ const horsDeLEnveloppe = (ctx, role, modele) => [
     racine: ctx.racine,
     copie: existsSync(ctx.copie) ? ctx.copie : ctx.racine,
     ticket: ctx.ticket,
-    etat: ctx.etat,
     journal: ctx.journal,
     preuves: `${ctx.copie}.preuve-*.md`,
   }),
@@ -2960,6 +2965,14 @@ function refusDe(ctx, a, fiche, d) {
   }
   const faux = (fiche.faits ?? []).map(f => faitFaux(ctx, a, f)).find(Boolean);
   if (faux) return faux;
+  const plein = k => Boolean(String(fiche[k] ?? '').trim());
+  if (d.question && (plein('arbitrage') || plein('critere'))) {
+    return `une MONTE laisse la décision au superviseur : son arbitrage et son critère vont dans sa question`;
+  }
+  // The run starts at the first component of a --depuis, in the order of the title.
+  if (plein('critere') && d.depuis?.[0].etape !== TESTS) {
+    return `un critère ajouté part au testwriter avant le développeur (table des arrêts, ${gesteDe('critere-neuf').genre}), par RELANCE --depuis testwriter <composant>`;
+  }
   if (d.question) return null;
   if (d.reprendre && !etapeDuCircuit(a.etat)) {
     return `RELANCE --reprendre reprend l'état à l'étape ${a.etat.etape}, qui n'est pas une étape du circuit : la décision nomme son agent (RELANCE --depuis)`;
@@ -3133,7 +3146,25 @@ async function trancher(ctx, a, reponse = null) {
     );
     return { code: ARRETS.question };
   }
+  ecrireLArbitrage(ctx, composant, fiche);
   return appliquer(ctx, a, d, arret, fiche.faits ?? []);
+}
+
+// What the regulator's sheet <fiche> settled alone, written by the circuit: its `arbitrage` at the
+// ticket (`Circuit · <composant> · regulateur : arbitrage — <texte>`, which
+// scripts/consommateurs-arbitres.mjs reads), and its `critere` at the end of the description, the
+// criteria's place, numbered after its last numbered line.
+function ecrireLArbitrage(ctx, composant, fiche) {
+  const arbitrage = String(fiche.arbitrage ?? '').trim();
+  if (arbitrage) commenter(ctx, composant, REGULATEUR, `arbitrage — ${arbitrage}`);
+  const critere = String(fiche.critere ?? '').trim();
+  if (!critere) return;
+  const description = leTicket(ctx).description.trimEnd();
+  const n = Number([...description.matchAll(/^(\d+)\.\s/gm)].at(-1)?.[1] ?? 0) + 1;
+  const r = ctx.bd('update', ctx.ticket, '-d', `${description}\n${n}. ${critere}\n`);
+  if (r.status !== 0) {
+    commenter(ctx, composant, REGULATEUR, `critère ${n} non écrit : ${r.stderr}`);
+  }
 }
 
 // The stop <a> ended for the supervisor by the line <ligne> of the table: the same stop come back
