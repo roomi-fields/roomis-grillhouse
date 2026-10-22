@@ -141,25 +141,28 @@ describe.runIf(canWrap)('the sheet that ends a session', { timeout: 300_000 }, (
     expect(t.description).toContain('mesure(0) rend 0');
   });
 
-  it('the deviations of the developpeur’s and the reviewer’s sheets are named in the body of the commit', () => {
+  it('the body of the commit names the criteria of the plan, then each deviation of the sheets once, with its last value', () => {
     const id = 'demo-fiche-ecarts';
     ticket(id, '000-forms');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(
       id,
       'developpeur',
-      `${CODE_JUSTE}passation 'Code écrit.'\nfiche '{"statut":"FAIT","ecarts":["ancien.test.mjs rougit : la mesure double, demo-suite le referme"]}'\n`
+      `${CODE_JUSTE}passation 'Code écrit.'\nfiche '{"statut":"FAIT","ecarts":[{"sujet":"La mesure des négatifs","texte":"bornée à zéro"},{"sujet":"ancien.test.mjs","texte":"en quarantaine, demo-suite le referme"}]}'\n`
     );
     scenario(
       id,
       'relecteur',
-      `fiche '{"verdict":"ACCEPTÉ","ecarts":["la mesure ne borne pas les négatifs, voulu par le critère 1"]}'\n`
+      `fiche '{"verdict":"ACCEPTÉ","ecarts":[{"sujet":"La mesure des négatifs","texte":"non bornée, voulu par le critère 1"}]}'\n`
     );
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     const message = gitRepo('log', '-1', '--format=%B', 'main');
-    expect(message).toContain('- ancien.test.mjs rougit : la mesure double, demo-suite le referme');
-    expect(message).toContain('- la mesure ne borne pas les négatifs, voulu par le critère 1');
+    expect(message).toContain('1. `mesure` rend le double de sa valeur.');
+    expect(message).toContain(
+      'La mesure des négatifs : non bornée, voulu par le critère 1\n\nancien.test.mjs : en quarantaine, demo-suite le referme'
+    );
+    expect(message).not.toContain('bornée à zéro');
   });
 
   it('the reviewer’s verdict is written at the ticket by the circuit, from its sheet, under the reviewer’s author', () => {

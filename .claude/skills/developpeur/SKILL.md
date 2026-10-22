@@ -132,7 +132,8 @@ son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
     `renvoi`, c'est le renvoi au testwriter ; sans lui, le circuit s'arrête (`hors-portee`) ;
   - `statut` BESOIN, avec sa `question` : une réponse te manque pour avancer ; le circuit
     s'arrête (`besoin`) ;
-  - `ecarts` : ce que le message de commit nomme (un rouge de structure, un écart voulu) ;
+  - `ecarts` : ce que le message de commit nomme, chacun sous son `sujet` (ce qui s'écarte :
+    une référence, un test, un plafond), avec son `texte` ;
   - `decouvertes` : ce que le circuit consigne fermé sous le ticket.
     Sur un arrêt, le régulateur tranche, et le circuit ne te relance pas sur ce rouge. Ainsi
     tu ne tournes jamais sur un rouge que tu as dit hors de ta portée.
@@ -144,9 +145,12 @@ son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
   interface change (`npm test -- <fichiers>`).
 - **Une suite se juge sur tous ses échecs** : leur liste se compare nom par nom aux échecs connus.
   Ainsi « vert » veut dire que rien de neuf n'a cassé.
-- **Un rouge de structure se nomme** : un test que ton changement de structure fait rougir entre
-  dans `ecarts` de ta fiche, avec sa cause et le ticket qui le referme : le circuit l'écrit dans le
-  message de commit.
+- **Un écart dit l'état que le lot laisse au commit** : un écart voulu, une référence changée, un
+  test mis en quarantaine avec le ticket qui le referme entrent dans `ecarts` de ta fiche, avec leur
+  cause ; un test qu'un composant d'après du ticket referme se dit dans ta passation, car la passe
+  finale est verte avant le commit. Un sujet qu'une fiche d'avant nomme se reprend tel quel, et ta
+  valeur remplace la sienne : le circuit écrit chaque sujet une fois, de la dernière fiche qui le
+  porte. Ainsi le message de commit ne se répète ni ne se contredit.
 - **Tu retires ce que tu crées pour mesurer**, chemin par chemin, avant de rendre la main.
 - **Les documents du responsable** : une règle nouvelle pour un document que la charte lui réserve
   s'écrit d'abord dans le ticket (étiquette `attend-responsable`).

@@ -58,6 +58,14 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
     );
     expect((schemaDeFiche('relecteur') as Schema).required).toEqual(['verdict']);
   });
+  // grillhouse-3uv.92.5, witness BPScript 320.4: eight lines of one commit on the same fingerprint.
+  it('each deviation names its subject, which a later sheet names again to give its last value', () => {
+    for (const role of ['developpeur', 'relecteur']) {
+      const e = (schemaDeFiche(role) as Schema).properties.ecarts as { items: Schema };
+      expect(Object.keys(e.items.properties).sort(), role).toEqual(['sujet', 'texte']);
+      expect(e.items.required, role).toEqual(['sujet', 'texte']);
+    }
+  });
   // grillhouse-3uv.91.2, witness BPScript 325: the reviewer sent the lot back on a case the owner
   // ruled out (« non car la V1 ne change pas elle est gelée »), 18 min, ~38 with what followed.
   it('each finding of the reviewer is blocking, with the criterion or the rule it holds, or a remark', () => {

@@ -284,8 +284,10 @@
 //   files and the shared test material) in one patch, the others in another, each file against
 //   HEAD and a new one against nothing (`git diff --no-index /dev/null`), the copy's index
 //   untouched; the message `<type>(<composants>): <sujet> (<ticket>)`, the type read from the
-//   ticket's type (bug fix, chore, docs, else feat), its body the deviations the sheets of the
-//   developpeurs and of the reviewer name (`ecarts`), with the trailer Co-Authored-By. It runs
+//   ticket's type (bug fix, chore, docs, else feat), its body written once from the final state:
+//   the criteria of the plan, then each deviation the sheets of the developpeurs and of the
+//   reviewer name (`ecarts`), once by its subject, from the last sheet that carries it, with the
+//   trailer Co-Authored-By. It runs
 //   scripts/integration/integrer.mjs from the main tree, its output added to the log: 0 is the
 //   commit on agent/<ticket> (which the circuit names from git), the copy removed, the branch in
 //   the queue; 75 (« à repasser ») plays it once more, then stops at « a-repasser »; any other
@@ -1318,7 +1320,10 @@ export function texteDuVerdict(fiche) {
       (fiche.constats ?? []).filter(c => c.genre === 'remarque').map(c => `${c.titre} — ${c.corps}`)
     ),
     ...section('Question au responsable', fiche.question ? [fiche.question] : []),
-    ...section('Écarts à nommer au commit', fiche.ecarts),
+    ...section(
+      'Écarts à nommer au commit',
+      fiche.ecarts?.map(e => `${e.sujet} : ${e.texte}`)
+    ),
   ]
     .join('\n')
     .trim();
@@ -1654,8 +1659,8 @@ function fileEnCours(ctx) {
 const TYPES_DE_COMMIT = { bug: 'fix', chore: 'chore', docs: 'docs' };
 
 // The commit message of the lot: `<type>(<composants>): <sujet> (<ticket>)`, the components by
-// their package name; then the deviations the sheets of the developpeurs and of the reviewer name
-// (`ecarts`), each once; then the trailer.
+// their package name; then the message the sheets of the developpeurs and of the reviewer give,
+// in their order, written once from the final state (`messageDuLot`).
 function messageDeCommit(ctx) {
   const liste = paquets(existsSync(ctx.copie) ? ctx.copie : ctx.racine);
   const noms = ctx.composants
@@ -1663,13 +1668,47 @@ function messageDeCommit(ctx) {
     .map(c => liste.find(p => p.dossier === c)?.pkg.name ?? path.basename(c));
   const type = TYPES_DE_COMMIT[ctx.type] ?? 'feat';
   const portee = noms.length ? `(${noms.join(',')})` : '';
-  const ecarts = [
-    ...new Set(
-      [...fichesDe(ctx, 'developpeur'), ...fichesDe(ctx, 'relecteur')].flatMap(f => f.ecarts ?? [])
-    ),
-  ];
-  const corps = ecarts.length ? `${ecarts.map(e => `- ${e}`).join('\n')}\n\n` : '';
-  return `${type}${portee}: ${ctx.sujet} (${ctx.ticket})\n\n${corps}Co-Authored-By: Claude <noreply@anthropic.com>\n`;
+  return messageDuLot({
+    entete: `${type}${portee}: ${ctx.sujet} (${ctx.ticket})`,
+    description: leTicket(ctx).description,
+    fiches: lesFiches(ctx)
+      .filter(e => e.role === 'developpeur' || e.role === 'relecteur')
+      .map(e => e.fiche),
+  });
+}
+
+// The commit message of a lot, written once from its final state, as a change merged on Gerrit
+// carries the one description of its last patch set: <entete>, the title of the ticket; the
+// section of the criteria of the plan <description> (its heading begins with « Critères »), what
+// the lot changes; a paragraph per deviation the sheets <fiches> carry (`ecarts`), each subject
+// once, in the order it first appears, with the value of the last sheet that carries it (a
+// subject known again whatever its case and spacing); then the trailer.
+export function messageDuLot({ entete, description, fiches }) {
+  const criteres = [];
+  let dedans = false;
+  for (const ligne of String(description ?? '').split('\n')) {
+    const m = /^##\s+(.*)$/.exec(ligne);
+    if (m) {
+      dedans = /^Critères\b/.test(m[1].trim());
+    } else if (dedans) {
+      criteres.push(ligne);
+    }
+  }
+  const cle = sujet => sujet.toLocaleLowerCase('fr').replace(/\s+/g, ' ').trim();
+  const ecarts = new Map();
+  for (const e of fiches.flatMap(f => f.ecarts ?? [])) {
+    const sujet = ecarts.get(cle(e.sujet))?.sujet ?? e.sujet.trim();
+    ecarts.set(cle(e.sujet), { sujet, texte: e.texte.trim() });
+  }
+  return [
+    entete,
+    criteres.join('\n').trim(),
+    ...[...ecarts.values()].map(e => `${e.sujet} : ${e.texte}`),
+    'Co-Authored-By: Claude <noreply@anthropic.com>',
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+    .concat('\n');
 }
 
 // The files the copy changes against its HEAD: [{ fichier, supprime }], relative to the copy.

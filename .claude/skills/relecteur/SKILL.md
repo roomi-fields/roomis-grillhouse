@@ -124,9 +124,12 @@ son adresse) : le circuit la consigne dans un ticket fermé sous le ticket. Tu n
 crées aucun ticket : ta fiche suffit. Ainsi le ticket garde ses critères, et la remarque attend le
 mot du responsable.
 
-Tu relis le message de commit comme le code : le circuit l'écrit du titre du ticket et des
-`ecarts` des fiches. Un écart que le commit doit nommer (un rouge de structure, un écart voulu)
-entre dans `ecarts`, avec sa cause ; pour un critère qui exige qu'un écart se nomme au commit,
+Tu relis le message de commit comme le code : le circuit l'écrit une fois, depuis l'état final,
+du titre du ticket, des critères du plan et des `ecarts` des fiches, chaque `sujet` une fois, de la
+dernière fiche qui le porte. Un écart que le commit doit nommer (un écart voulu, une référence
+changée) entre dans `ecarts`, sous son sujet, avec sa cause ; un sujet qu'une fiche d'avant porte
+se reprend tel quel, et ta valeur, mesurée sur l'état final, remplace la sienne ; pour un critère
+qui exige qu'un écart se nomme au commit,
 l'écart entre dans tes `ecarts`, jamais dans une remarque. Ainsi le commit nomme chaque écart que
 le ticket exige.
 

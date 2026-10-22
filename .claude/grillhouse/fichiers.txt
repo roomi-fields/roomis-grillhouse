@@ -92,6 +92,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/circuit.fiche.spec.ts
 - tests/unit/circuit.construction.spec.ts
 - tests/unit/circuit.machine.spec.ts
+- tests/unit/circuit.message.spec.ts
 - tests/unit/circuit.passe-finale.spec.ts
 - tests/unit/circuit.preuve.spec.ts
 - tests/unit/circuit.questionneur.spec.ts

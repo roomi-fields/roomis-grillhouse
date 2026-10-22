@@ -16,7 +16,8 @@
 //     file HEAD holds, `raison`): the proof of the red (testwriter);
 //   - `renvoi` (`role` testwriter, `composant`): the circuit plays that component from its testwriter
 //     (developpeur);
-//   - `ecarts`: the body of the commit message, written by the circuit (developpeur, reviewer);
+//   - `ecarts` (`sujet`, `texte`): the body of the commit message, written by the circuit, each
+//     subject once, its value from the last sheet that carries it (developpeur, reviewer);
 //   - `decouvertes` (`sujet`, `corps`): each one a ticket filed closed under the ticket, labelled
 //     `decouverte`, created by the circuit (every role);
 //   - `verdict` (ACCEPTÉ, RENDU), `constats` (`titre`, `corps`, `genre` bloquant or remarque; a
@@ -120,8 +121,16 @@ const DECOUVERTES = {
 };
 const ECARTS = {
   ecarts: liste(
-    texte('Un écart, sa cause et le ticket qui le referme.'),
-    'Ce que le message de commit nomme : un rouge de structure, un écart voulu.'
+    objet(
+      {
+        sujet: texte(
+          'Ce qui s’écarte (une référence, un test, un plafond), nommé comme une fiche d’avant le nomme.'
+        ),
+        texte: texte('L’écart tel que le lot le laisse, sa cause et le ticket qui le referme.'),
+      },
+      ['sujet', 'texte']
+    ),
+    'Ce que le message de commit nomme, une fois par sujet, de la dernière fiche qui le porte.'
   ),
 };
 

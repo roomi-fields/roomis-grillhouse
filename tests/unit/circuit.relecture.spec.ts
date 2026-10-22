@@ -94,7 +94,7 @@ describe('the verdict the circuit writes at the ticket from the reviewer’s she
             corps: 'Preuve : y.',
           },
         ],
-        ecarts: ['un rouge de structure'],
+        ecarts: [{ sujet: 'ancien.test.mjs', texte: 'en quarantaine, demo-suite le referme' }],
       })
     ).toBe(
       [
@@ -116,7 +116,7 @@ describe('the verdict the circuit writes at the ticket from the reviewer’s she
         '',
         '## Écarts à nommer au commit',
         '',
-        '- un rouge de structure',
+        '- ancien.test.mjs : en quarantaine, demo-suite le referme',
       ].join('\n')
     );
     expect(texteDuVerdict({ verdict: 'ACCEPTÉ' })).toBe('ACCEPTÉ');
