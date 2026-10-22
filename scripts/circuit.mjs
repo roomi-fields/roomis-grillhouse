@@ -235,12 +235,14 @@
 // - The regeneration of the references (step 3.1 of scripts/etapes.mjs), as `rustc --bless`,
 //   `jest -u` and `cargo insta accept`: a project declares in its package.json the references it
 //   derives from the whole copy, which no envelope shows (a fingerprint of its output, a ceiling
-//   of a count), `grillhouse.references`: each `{ nom, commande, fichiers, tests }`, its name, the
-//   shell command that writes it again from the root of the copy, the files it writes (paths,
-//   directories or glob patterns, `*` and `**`, from the root, as the inputs of Turborepo), and
-//   the test files that judge it, as `rustc --bless` ties a test to its expected outputs. A final
-//   pass whose every red is one of the references declared (a failed test of one of their test
-//   files, or a failed test or a finding on a file they cover) sends no developpeur: the circuit
+//   of a count), `grillhouse.references`: each `{ nom, commande, fichiers, tests, gardes }`, its
+//   name, the shell command that writes it again from the root of the copy, the files it writes
+//   (paths, directories or glob patterns, `*` and `**`, from the root, as the inputs of
+//   Turborepo), the test files that judge it, as `rustc --bless` ties a test to its expected
+//   outputs, and the guards of the project that judge it, by the name their SARIF finding carries
+//   (its guard or its rule). A final pass whose every red is one of the references declared (a
+//   failed test of one of their test files, a finding of one of their guards, whatever file it
+//   aims at, or a failed test or a finding on a file they cover) sends no developpeur: the circuit
 //   keeps the copy as a lot, runs each command on
 //   the whole copy, out of the envelope, under the lock of the machine, its output added to the
 //   log, keeps the copy again on that lot, then plays the final pass restricted to what the
@@ -1529,8 +1531,8 @@ function laPasseFinale(ctx) {
 }
 
 // The references the project declares in the package.json of the copy (`grillhouse.references`):
-// each `{ nom, commande, fichiers, tests }` with a name, a command and files, `tests` an array
-// when given, empty when not; none without them.
+// each `{ nom, commande, fichiers, tests, gardes }` with a name, a command and files, `tests` and
+// `gardes` arrays when given, empty when not; none without them.
 function lesReferences(ctx) {
   const l = lireJson(path.join(ctx.copie, 'package.json'))?.grillhouse?.references;
   return (Array.isArray(l) ? l : [])
@@ -1540,9 +1542,10 @@ function lesReferences(ctx) {
         typeof r.commande === 'string' &&
         Array.isArray(r.fichiers) &&
         r.fichiers.length > 0 &&
-        (r.tests === undefined || Array.isArray(r.tests))
+        (r.tests === undefined || Array.isArray(r.tests)) &&
+        (r.gardes === undefined || Array.isArray(r.gardes))
     )
-    .map(r => ({ ...r, tests: r.tests ?? [] }));
+    .map(r => ({ ...r, tests: r.tests ?? [], gardes: r.gardes ?? [] }));
 }
 
 // Whether one of <motifs> covers the file <fichier>, both from the root of the copy, as the
@@ -1555,13 +1558,18 @@ export function couvertPar(motifs, fichier) {
   });
 }
 
-// The references the project declares, when every red of a final pass, by its file of
-// <fichiers>, is one of theirs: a file of their `tests`, or a file their `fichiers` cover; none
-// otherwise.
-function referencesDesRouges(ctx, fichiers) {
+// The references the project declares, when every red of a final pass, by its place of <lieux>
+// (`{ fichier, gardes }`, the names its finding carries), is one of theirs: a finding of one of
+// their `gardes`, a file of their `tests`, or a file their `fichiers` cover; none otherwise.
+function referencesDesRouges(ctx, lieux) {
   const refs = lesReferences(ctx);
-  const leur = f => refs.some(r => r.tests.includes(f) || couvertPar(r.fichiers, f));
-  return refs.length && fichiers.length && fichiers.every(f => f && leur(f)) ? refs : [];
+  const leur = ({ fichier: f, gardes }) =>
+    refs.some(
+      r =>
+        gardes.some(g => r.gardes.includes(g)) ||
+        (f && (r.tests.includes(f) || couvertPar(r.fichiers, f)))
+    );
+  return refs.length && lieux.length && lieux.every(leur) ? refs : [];
 }
 
 // The regeneration of the references the project declares (3.1): the copy kept as a lot on the
@@ -2273,8 +2281,9 @@ function situer(ctx, liste, chemin) {
 // The reds of the check <c> (`{ args, env, code, dossier }`), read in its results: each failed
 // test of the reports of Vitest, each finding of the guards' SARIF, each failed build, and each
 // failed task none of those situates; a red check with none of them is one red of the command.
-// Each red `{ texte, fichier, detail, proprietaire, horsTitre, arbitrer }`: the line that names
-// it (test or finding, file, message), its file (null for a red of a task), the beginning of its
+// Each red `{ texte, fichier, gardes, detail, proprietaire, horsTitre, arbitrer }`: the line that
+// names it (test or finding, file, message), its file (null for a red of a task), the names its
+// finding carries (its guard and its rule), the beginning of its
 // task's log for a build, the index of the
 // component that owns it (-1 for none: the root, or a red without a file), the package out of the
 // title that holds it, and whether it is a finding to settle (`a-arbitrer`).
@@ -2308,6 +2317,7 @@ function rougesDe(ctx, liste, c) {
     out.push({
       texte: `constat ${k.garde}${ou} — ${k.message}${k.genre === 'a-arbitrer' ? ' (à arbitrer)' : ''}`,
       fichier: k.fichier ?? null,
+      gardes: [k.garde, k.regle].filter(Boolean),
       ...situer(ctx, liste, k.fichier),
       arbitrer: k.genre === 'a-arbitrer',
     });
@@ -2351,11 +2361,12 @@ const ligneDeCommande = c =>
 // run verifier`, what the integration plays, restricted by <restreinte> (`{ avant, apres }`, two
 // lots kept) to the packages that changed from one to the other and their dependents, with the
 // root's tasks, the guards (`--filter=...[<avant>...<apres>] --filter=//`). `{ rouge, aRepasser,
-// arbitrer, texte, complet, resume, proprietaire, horsTitre, fichiers, faits }`: `texte` the report for the
+// arbitrer, texte, complet, resume, proprietaire, horsTitre, lieux, faits }`: `texte` the report for the
 // developpeur the red goes to, its own reds first; `complet` every red, for a stop; `proprietaire`
 // the index of the component that owns the red, -1 for none; `horsTitre` the packages out of the
 // title that hold a red; `arbitrer` when every red of that developpeur is a finding to settle;
-// `fichiers` the file of each red (null for a red without one); `faits` the facts of a stop on
+// `lieux` the place of each red, `{ fichier, gardes }`, its file (null for a red without one) and
+// the names its finding carries (none for a test or a task); `faits` the facts of a stop on
 // these checks.
 function controles(ctx, index, finale, restreinte = null) {
   const composant = ctx.composants[index];
@@ -2451,7 +2462,7 @@ function controles(ctx, index, finale, restreinte = null) {
     resume,
     proprietaire: proprio,
     horsTitre: [...new Set(rouges.map(r => r.horsTitre).filter(Boolean))].sort(),
-    fichiers: rouges.map(r => r.fichier ?? null),
+    lieux: rouges.map(r => ({ fichier: r.fichier ?? null, gardes: r.gardes ?? [] })),
     faits: {
       rouges: [...new Set(rouges.map(nomDuProprio))].sort(),
       aRepasser: aRepasser.length > 0,
@@ -2826,7 +2837,7 @@ async function derouler(ctx, debut) {
         // whichever component its red goes to.
         const suivante = tentative + 1;
         // A final pass red on the references the project declares alone: their regeneration.
-        const aRegenerer = k.rouge && passeFinale ? referencesDesRouges(ctx, k.fichiers) : [];
+        const aRegenerer = k.rouge && passeFinale ? referencesDesRouges(ctx, k.lieux) : [];
         const noms = aRegenerer.map(r => r.nom).join(', ');
         if (aRegenerer.length && regeneration) {
           arreter(
