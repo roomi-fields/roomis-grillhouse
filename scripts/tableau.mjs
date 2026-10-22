@@ -61,13 +61,14 @@
 //   of both, each instant once, and they spend no tokens.
 // - Progress: the line of a ticket whose circuit runs an automatic step gives the progress of
 //   its pass, read in the progress directory its state names (scripts/avancement.mjs), in
-//   figures, as Bazel's counter of actions: « faits/prévus · il y a <durée> » since its last
-//   sign, after the counters of its loops, or in their place when room lacks (the subject or the
+//   figures, as Bazel's counter of actions: « faits/prévus · <durée> » since the start of the
+//   pass, after the counters of its loops, or in their place when room lacks (the subject or the
 //   component is cut, never the figures); the survey of the components (1.1), the time since its
 //   start; the queue (5.2), the steps of its CI. Past FIGEE without a sign,
-//   « ⚠ figée <durée> · faits/prévus », in the tone of an alert. A measure out of a ticket that
-//   holds the lock of the machine (a supervisor's or an integration's `npm run verifier`) stands
-//   at the head of AGENTS: « ⏳ Mesure · <dépôt> · faits/prévus · <durée> »,
+//   « ⚠ figée <durée> · faits/prévus », the time since its last sign, in the tone of an alert.
+//   A measure out of a ticket that holds the lock of the machine (a supervisor's or an
+//   integration's `npm run verifier`) stands at the head of AGENTS:
+//   « ⏳ Mesure · <dépôt> · faits/prévus · <durée> », since its start,
 //   « ⚠ Mesure figée <durée> · … » past FIGEE. Such a line is marked `avancement`, which the
 //   pane measures again more often.
 // - Alerts: one red alert per open night ticket (its subject, then its number), tickets awaiting
@@ -1128,20 +1129,24 @@ const jourEtMois = t => {
 const ilYa = ms => (ms < MINUTE ? `${Math.max(0, Math.round(ms / 1000))} s` : duree(ms));
 
 // The witness of the automatic step <etape> of the running circuit <c> at <maintenant>: the
-// progress of its pass (` · faits/prévus · il y a <durée>`, the figures once a task wrote), or the
-// time since the start of its survey of the components (1.1); past FIGEE without a sign,
-// ` · ⚠ figée <durée> · faits/prévus`, `fige`. Null without either.
+// progress of its pass (` · faits/prévus · <durée>`, the figures once a task wrote, the time since
+// the start of the pass, as Bazel's counter), or the time since the start of its survey of the
+// components (1.1); past FIGEE without a sign, ` · ⚠ figée <durée> · faits/prévus`, the time since
+// the last sign, `fige`. Null without either.
 function temoinDe(c, etape, maintenant) {
   let age;
+  let ecoule;
   let compte = '';
   if (c.avancement) {
     age = maintenant - c.avancement.dernier;
+    ecoule = maintenant - (c.avancement.debut || c.avancement.dernier);
     const { faits, prevus } = c.avancement;
     if (faits || prevus) {
       compte = `${faits}/${prevus}`;
     }
   } else if (etape.releve && c.releve !== null && c.releve !== undefined) {
     age = maintenant - c.releve;
+    ecoule = age;
   } else {
     return null;
   }
@@ -1150,7 +1155,7 @@ function temoinDe(c, etape, maintenant) {
     fige,
     texte: fige
       ? ` · ⚠ figée ${ilYa(age)}${compte ? ` · ${compte}` : ''}`
-      : ` · ${compte ? `${compte} · ` : ''}il y a ${ilYa(age)}`,
+      : ` · ${compte ? `${compte} · ` : ''}${ilYa(ecoule)}`,
   };
 }
 
@@ -1249,7 +1254,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
           )
         : couperAvant(
             `⏳ Mesure · ${quoi}`,
-            ` · ${compte ? `${compte} · ` : ''}${ilYa(age)}`,
+            ` · ${compte ? `${compte} · ` : ''}${ilYa(maintenant - (m.debut || m.dernier))}`,
             '',
             largeur
           ),

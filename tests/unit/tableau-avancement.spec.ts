@@ -1,6 +1,6 @@
 // The progress of an automatic pass on the board (scripts/tableau.mjs), in figures, as Bazel's
 // counter of actions « [1 234 / 2 000] » and the steps of a CI: the line of a ticket whose circuit
-// runs an automatic step gives `faits/prévus · il y a <durée>` since the last sign of its pass
+// runs an automatic step gives `faits/prévus · <durée>` since the last sign of its pass
 // (scripts/avancement.mjs), after the counters of its loops, or in their place when room lacks;
 // past FIGEE without a sign, `⚠ figée <durée> · faits/prévus`, in the tone of an alert. The survey
 // of the components (1.1) gives only the time since its start; the queue (5.2), the steps of its
@@ -133,7 +133,7 @@ const agents = (
 const duTicket = (l: Ligne[]) => l.find(x => x.ticket === 'demo-12')!;
 
 describe('the line of a ticket at an automatic step gives the progress of its pass', () => {
-  it('done/planned and the time since the last sign, after its component, on both of its texts', () => {
+  it('done/planned and the time since the start of its pass, after its component, on both of its texts', () => {
     const racine = depot({
       avancement: avancement([
         [80, 100, 8 * S],
@@ -141,8 +141,8 @@ describe('the line of a ticket at an automatic step gives the progress of its pa
       ]),
     });
     const l = duTicket(agents(racine));
-    expect(l.alterne).toBe('▶ 12  binder 3/5 · 87/123 · il y a 8 s');
-    expect(l.texte).toBe('▶ 12  Le sujet de demo-12 · 87/123 · il y a 8 s');
+    expect(l.alterne).toBe('▶ 12  binder 3/5 · 87/123 · 20 min');
+    expect(l.texte).toBe('▶ 12  Le sujet de demo-12 · 87/123 · 20 min');
     expect(l).toMatchObject({ ton: 'actif', avancement: true });
   });
 
@@ -153,7 +153,7 @@ describe('the line of a ticket at an automatic step gives the progress of its pa
     expect(l.alterne).toBe('▶ 12  binder 3/5 · ⚠ figée 12 min · 87/123');
     expect(l.ton).toBe('alerte');
     const juste = depot({ avancement: avancement([[87, 123, 4 * MIN]]) });
-    expect(duTicket(agents(juste)).alterne).toBe('▶ 12  binder 3/5 · 87/123 · il y a 4 min');
+    expect(duTicket(agents(juste)).alterne).toBe('▶ 12  binder 3/5 · 87/123 · 20 min');
   });
 
   it('after the counters of the loops while they hold, in their place when room lacks; the subject is cut, never the figures', () => {
@@ -164,11 +164,11 @@ describe('the line of a ticket at an automatic step gives the progress of its pa
       avancement: avancement([[87, 123, 8 * S]]),
     };
     const large = duTicket(agents(depot(etat)));
-    expect(large.alterne).toBe('▶ 12  binder 3/5 · essai 2/3 · 87/123 · il y a 8 s');
+    expect(large.alterne).toBe('▶ 12  binder 3/5 · essai 2/3 · 87/123 · 20 min');
     const serre = duTicket(agents(depot(etat), { registre: [fin] }));
     for (const t of [serre.texte, serre.alterne!]) {
       expect(t.length).toBeLessThanOrEqual(LARGEUR);
-      expect(t).toMatch(/ · 87\/123 · il y a 8 s +1 h 00 · 10$/);
+      expect(t).toMatch(/ · 87\/123 · 20 min +1 h 00 · 10$/);
       expect(t).not.toContain('essai 2/3');
     }
   });
@@ -199,7 +199,7 @@ describe('every automatic step carries its witness', () => {
     });
     const a = agents(racine);
     expect(sous(a)).toBe('  1.1 · Relevé des composants · auto');
-    expect(duTicket(a).alterne).toBe('▶ 12  binder 3/5 · il y a 8 s');
+    expect(duTicket(a).alterne).toBe('▶ 12  binder 3/5 · 8 s');
     const fige = depot({
       etape: 'testwriter',
       releve: new Date(MAINTENANT - 6 * MIN).toISOString(),
@@ -215,24 +215,24 @@ describe('every automatic step carries its witness', () => {
       depot({ etape: 'controles', avancement: avancement([[3, 9, 2 * S]]) })
     );
     expect(sous(controles)).toBe('  2.4 · Contrôles · auto');
-    expect(duTicket(controles).alterne).toBe('▶ 12  binder 3/5 · 3/9 · il y a 2 s');
+    expect(duTicket(controles).alterne).toBe('▶ 12  binder 3/5 · 3/9 · 20 min');
     const finale = agents(
       depot({ etape: 'controles', finale: true, avancement: avancement([[40, 200, 2 * S]]) })
     );
     expect(sous(finale)).toBe('  3 · Passe finale · auto');
-    expect(duTicket(finale).alterne).toBe('▶ 12  binder 3/5 · 40/200 · il y a 2 s');
+    expect(duTicket(finale).alterne).toBe('▶ 12  binder 3/5 · 40/200 · 20 min');
   });
 
   it('5.1 the commit: the verification of the integration, in the same figures', () => {
     const a = agents(depot({ etape: 'integration', avancement: avancement([[40, 123, 3 * S]]) }));
     expect(sous(a)).toBe('  5.1 · Commit · auto');
-    expect(duTicket(a).alterne).toBe('▶ 12  binder 3/5 · 40/123 · il y a 3 s');
+    expect(duTicket(a).alterne).toBe('▶ 12  binder 3/5 · 40/123 · 20 min');
   });
 
   it('5.2 the queue: the steps of its CI done over planned', () => {
     const a = agents(depot({ etape: 'file', avancement: avancement([], [3, 7, 10 * S]) }));
     expect(sous(a)).toBe('  5.2 · File : main, poussée, CI · auto');
-    expect(duTicket(a).alterne).toBe('▶ 12  binder 3/5 · 3/7 · il y a 10 s');
+    expect(duTicket(a).alterne).toBe('▶ 12  binder 3/5 · 3/7 · 20 min');
   });
 });
 
@@ -246,11 +246,12 @@ describe('a measure out of a ticket stands at the head of AGENTS', () => {
       commande: 'npm run verifier',
       faits: 51,
       prevus: 123,
+      debut: MAINTENANT - 20 * MIN,
       dernier: MAINTENANT - 3 * S,
     };
     const l = tete(agents(racine(), { mesure }));
     expect(l.texte.length).toBeLessThanOrEqual(LARGEUR);
-    expect(l.texte).toMatch(/^⏳ Mesure · Grillhouse · 51\/123 · 3 s$/);
+    expect(l.texte).toMatch(/^⏳ Mesure · Grillhouse · 51\/123 · 20 min$/);
     expect(l).toMatchObject({ ton: 'actif', avancement: true });
   });
 

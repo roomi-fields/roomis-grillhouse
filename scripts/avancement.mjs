@@ -163,8 +163,9 @@ export function lireAvancement(dossier) {
   const vus = new Set(liste.map(e => e.hash).filter(Boolean));
   const tous = planifies.size > 0 && [...planifies].every(h => vus.has(h));
   const prevus = tous ? demarres : Math.max(demarres, passe.precedent ?? 0);
-  const dernier = Math.max(Number(passe.debut) || 0, ...liste.map(e => Number(e.a) || 0));
-  return { faits, prevus, dernier };
+  const debut = Number(passe.debut) || 0;
+  const dernier = Math.max(debut, ...liste.map(e => Number(e.a) || 0));
+  return { faits, prevus, debut, dernier };
 }
 
 /**
