@@ -44,7 +44,9 @@
 //     hook that plays the guards skips them, as step 6 just played them; the commit validated is
 //     the commit that enters;
 //  8. the branch `agent/<ticket>` is set on that commit, the ticket's copy follows it and is
-//     removed by `scripts/retirer-copie.sh` (no `--jetable`): a refusal, a locked copy for
+//     removed by `scripts/retirer-copie.sh` (no `--jetable`; `--garder-travail`: the working
+//     directory of the ticket's circuit, `<copie>.travail`, stays for the circuit that still runs,
+//     and the queue removes it at the ticket's closure): a refusal, a locked copy for
 //     example, is written to the ticket, the commit stands. The ticket is labelled
 //     `en-file` and the branch takes its place at the end of the queue
 //     (scripts/integration/file-attente.mjs). main does not move here.
@@ -60,8 +62,7 @@
 // running one; a lock whose process is gone is taken over. Exit code: 0 committed, 1 refused,
 // 2 usage, 75 à repasser.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { arbitrageTranche, estArbitrage } from '../consommateurs-arbitres.mjs';
@@ -71,6 +72,7 @@ import { dossierCommun, inscrireEntree } from './file-attente.mjs';
 import { ouvrirCopie, RETIRER_COPIE } from './rejeu.mjs';
 import { verdictDe } from './verdict.mjs';
 import { A_REPASSER } from '../vitest-config/pression.mjs';
+import { ouvrirBase } from '../vitest-config/base-de-passe.mjs';
 
 // A file name as git writes it in a patch: a name with a character outside ASCII, a quote, a
 // backslash or a control character comes between quotes with C escapes (`\303\251` for `é`).
@@ -227,7 +229,10 @@ function main(argv) {
   const verrou = path.join(dossierCommun(racine), 'integration.lock');
   prendreVerrou(verrou, { attendre: true });
   const debut = Date.now();
-  const tmp = mkdtempSync(path.join(tmpdir(), 'integration-'));
+  // The working directory of the integration: a base of its own, removed at its end, swept by the
+  // next one to open a base when the integration is killed (../vitest-config/base-de-passe.mjs).
+  const base = ouvrirBase('integration');
+  const tmp = base.dossier;
   try {
     // 1. The verdict.
     const show = bd('show', o.ticket, '--json');
@@ -350,7 +355,10 @@ function main(argv) {
     bd('update', o.ticket, '--add-label', 'en-file');
     dire(`✓ commit ${commit.slice(0, 7)} sur ${branche}`);
     const retrait = avecCopie
-      ? spawnSync('bash', [RETIRER_COPIE, copieTicket], { cwd: racine, encoding: 'utf8' })
+      ? spawnSync('bash', [RETIRER_COPIE, '--garder-travail', copieTicket], {
+          cwd: racine,
+          encoding: 'utf8',
+        })
       : { status: 0, stderr: '' };
     if (retrait.status !== 0) {
       const raison = `La copie ${copieTicket} n'est pas retirée après le commit de ${branche} : ${retrait.stderr.trim()}\nLa branche reste en file.`;
@@ -363,7 +371,7 @@ function main(argv) {
     dire(`⏱ ${duree} s`);
     return 0;
   } finally {
-    rmSync(tmp, { recursive: true, force: true });
+    base.fermer();
     lacherVerrou(verrou);
   }
 }

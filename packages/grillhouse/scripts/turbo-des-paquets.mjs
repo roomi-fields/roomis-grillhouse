@@ -126,7 +126,7 @@
 // inherits the root's. The generator adds the variable to the `env` of the root's `test:vitest`,
 // the project's entries kept, and the check refuses a `test:vitest` of the root without it.
 //
-// Three variables pass to every task without entering any hash: the root's `globalPassThroughEnv`
+// Four variables pass to every task without entering any hash: the root's `globalPassThroughEnv`
 // names them, Turborepo's strict mode of the variables keeping out of a task every variable its
 // configuration does not name. The results directory of a run (`GRILLHOUSE_RESULTATS`,
 // scripts/resultats.mjs), where the guards write their SARIF, Turborepo its summaries and Vitest
@@ -134,7 +134,9 @@
 // scripts/dernier-vert.mjs), by which the tests of a package Turborepo plays again are those
 // Vitest relates to them, while a package whose inputs did not move replays from the cache; the
 // progress directory of a pass (`GRILLHOUSE_AVANCEMENT`, scripts/avancement.mjs), where Vitest
-// writes the files done and planned of each task, which the board reads. The generator adds each
+// writes the files done and planned of each task, which the board reads; the temporary directory
+// (`TMPDIR`), the base of a pass (scripts/vitest-config/base-de-passe.mjs), where every task writes
+// its temporary files and which goes at the end of the pass. The generator adds each
 // one the root lacks, the project's entries kept, and the check refuses a
 // root without one.
 //
@@ -169,14 +171,18 @@ export const GARDES = ['grillhouse:gardes', 'gardes'];
 const MISE_EN_FORME = { formattingOptions: { insertSpaces: true, tabSize: 2, eol: '\n' } };
 // The test task of a package, and the prefix of a trace task.
 const TESTS = 'test:vitest';
+// The temporary directory of a process, which names the base of its pass.
+const TEMPORAIRE = 'TMPDIR';
 // The variables the root's `globalPassThroughEnv` names, and why, as the check says it.
-const PASSAGES = [RESULTATS, CHANGEMENTS, AVANCEMENT];
+const PASSAGES = [RESULTATS, CHANGEMENTS, AVANCEMENT, TEMPORAIRE];
 const POURQUOI = {
   [RESULTATS]: "où les gardes, Turborepo et Vitest écrivent les résultats qu'un circuit lit",
   [CHANGEMENTS]:
     'les fichiers changés depuis le dernier vert, auxquels Vitest relie les tests que rejoue un paquet',
   [AVANCEMENT]:
     "le dossier d'avancement d'une passe, où Vitest écrit ses fichiers faits et prévus que lit le tableau",
+  [TEMPORAIRE]:
+    'la base de la passe, où chaque tâche écrit ses fichiers temporaires, effacée à sa fin',
 };
 const TRACE = 'trace:';
 // The files a build compiles: TypeScript's sources and declarations (tsc's default `include`

@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -236,6 +236,39 @@ describe('grillhouse-3uv.63 — the queue brings the branches onto main', () => 
         expect(sur(sujet).startsWith(court)).toBe(true);
         expect(m.existe(`refs/heads/agent/${id}`)).toBe(false);
       }
+    },
+    LONG
+  );
+  // grillhouse-3uv.94: the working directory of a ticket's circuit (`<copie>.travail`) lives as
+  // long as the ticket, as the workspace of a pipeline, cleaned at the end of the pipeline.
+  it(
+    'grillhouse-3uv.94 critère 3: the integration removes the copy and keeps the working directory of the ticket; the queue removes it at the closure, and a ticket sent back keeps its own',
+    () => {
+      const m = chantier(ESSAIS);
+      const travail = (id: string, copie: string) => {
+        const t = `${copie}.travail`;
+        mkdirSync(t);
+        writeFileSync(path.join(t, 'consigne-1.md'), `TON TICKET : ${id}\n`);
+        return t;
+      };
+      const t1 = travail(
+        'demo-1',
+        m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' })
+      );
+      const t2 = travail(
+        'demo-2',
+        m.ticket('demo-2', { 'src/a/index.ts': 'export const a = 2;\n' })
+      );
+      m.livrer('demo-1');
+      m.livrer('demo-2');
+      expect(existsSync(t1)).toBe(true);
+      expect(existsSync(t2)).toBe(true);
+      const r = m.file();
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(m.bd('demo-1').status).toBe('closed');
+      expect(existsSync(t1)).toBe(false);
+      expect(m.bd('demo-2').status).toBe('open');
+      expect(readFileSync(path.join(t2, 'consigne-1.md'), 'utf8')).toBe('TON TICKET : demo-2\n');
     },
     LONG
   );

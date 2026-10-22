@@ -1079,6 +1079,89 @@ describe('grillhouse-3uv.56 critère 9 — a copy whose local work has entered m
 
 // grillhouse-3uv.56 critère 19: the comments of the script hold in 100 columns, the width of the
 // project (.prettierrc).
+// grillhouse-3uv.94: the working directory of a ticket's circuit, `<copie>.travail` beside its copy,
+// lives as long as the ticket; a ticket closed without integration (a final stop, an abandon) loses
+// it by the command that removes its copy. The integration removes the copy and keeps it
+// (`--garder-travail`): the queue removes it at the ticket's closure.
+describe('grillhouse-3uv.94 critère 3 — the removal of a copy removes the working directory of its ticket', () => {
+  // The working directory of the circuit of the copy <dir>, with a file in it.
+  const travail = (dir: string) => {
+    mkdirSync(`${dir}.travail`);
+    writeFileSync(path.join(`${dir}.travail`, 'consigne-1.md'), 'TON TICKET\n');
+    return `${dir}.travail`;
+  };
+  it(
+    'critère 3: a copy removed takes its working directory with it; a neighbour keeps its own',
+    () => {
+      const m = monde({ sousModule: false });
+      const dir = m.copie('demo-940');
+      const autre = m.copie('demo-941');
+      const t = travail(dir);
+      const t2 = travail(autre);
+      const r = m.retirer(dir);
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(existsSync(dir)).toBe(false);
+      expect(existsSync(t)).toBe(false);
+      expect(existsSync(t2)).toBe(true);
+      expect(m.listees()).toContain(autre);
+    },
+    LONG
+  );
+  it(
+    'critère 3: with --jetable too, and from a path relative to the main repository',
+    () => {
+      const m = monde({ sousModule: false });
+      const dir = m.copie('demo-942');
+      const t = travail(dir);
+      const r = m.lancer(['--jetable', '.claude/worktrees/demo-942']);
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(existsSync(t)).toBe(false);
+    },
+    LONG
+  );
+  it(
+    'critère 3: with --garder-travail (the integration), the copy goes and its working directory stays',
+    () => {
+      const m = monde({ sousModule: false });
+      const dir = m.copie('demo-943');
+      const t = travail(dir);
+      const r = m.lancer(['--garder-travail', dir]);
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(existsSync(dir)).toBe(false);
+      expect(readFileSync(path.join(t, 'consigne-1.md'), 'utf8')).toBe('TON TICKET\n');
+    },
+    LONG
+  );
+  it(
+    'critère 3: a copy refused (local work) keeps its working directory',
+    () => {
+      const m = monde({ sousModule: false });
+      const dir = m.copie('demo-944');
+      const t = travail(dir);
+      writeFileSync(path.join(dir, 'a.txt'), 'changé\n');
+      const r = m.retirer(dir);
+      expect(r.status, r.stdout + r.stderr).toBe(1);
+      expect(existsSync(dir)).toBe(true);
+      expect(existsSync(t)).toBe(true);
+    },
+    LONG
+  );
+  it(
+    'critère 3: a malformed call with --garder-travail (no path) exits 2 and removes nothing',
+    () => {
+      const m = monde({ sousModule: false });
+      const dir = m.copie('demo-945');
+      const t = travail(dir);
+      const r = m.lancer(['--garder-travail']);
+      expect(r.status, r.stdout + r.stderr).toBe(2);
+      expect(r.stderr).toMatch(/usage/i);
+      expect(existsSync(dir)).toBe(true);
+      expect(existsSync(t)).toBe(true);
+    },
+    LONG
+  );
+});
+
 describe('grillhouse-3uv.56 critère 19 — the comments of the script hold in 100 columns', () => {
   it('critère 19: every comment line of scripts/retirer-copie.sh holds in 100 columns', () => {
     const longues = readFileSync(RETIRER, 'utf8')

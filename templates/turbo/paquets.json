@@ -4,7 +4,8 @@
   "globalPassThroughEnv": [
     "GRILLHOUSE_RESULTATS",
     "GRILLHOUSE_CHANGEMENTS",
-    "GRILLHOUSE_AVANCEMENT"
+    "GRILLHOUSE_AVANCEMENT",
+    "TMPDIR"
   ],
   "tasks": {
     "build": {

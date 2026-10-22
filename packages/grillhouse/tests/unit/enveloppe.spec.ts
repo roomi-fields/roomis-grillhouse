@@ -661,19 +661,20 @@ describe.runIf(canWrap && existsSync(CERTIFICATS))(
       expect(existsSync(path.join(cacheAilleurs, 'sonde'))).toBe(true);
     });
     it('gives the session its working directory as TMPDIR, created and written', () => {
-      // The working directory lies in the copy's scratchpads, which the envelope mounts in writing.
-      const travail = dossierDeTravail(copie);
+      // The working directory lies in the copy's scratchpads, which the envelope mounts in writing,
+      // where Claude Code keeps them: under the temporary directory of the launch
+      // (grillhouse-3uv.93, the base of the pass).
+      const ailleurs = path.join(home, 'ailleurs');
+      const travail = dossierDeTravail(copie, { TMPDIR: ailleurs });
       expect(travail).toBe(
         path.join(
-          '/tmp',
+          ailleurs,
           `claude-${process.getuid?.()}`,
           copie.replace(/[^A-Za-z0-9]/g, '-'),
           'travail'
         )
       );
-      const r = run('printenv TMPDIR && f=$(mktemp) && echo "$f"', {
-        TMPDIR: path.join(home, 'ailleurs'),
-      });
+      const r = run('printenv TMPDIR && f=$(mktemp) && echo "$f"', { TMPDIR: ailleurs });
       expect(r.status, r.stderr).toBe(0);
       const [variable, fichier] = r.stdout.trim().split('\n');
       expect(variable).toBe(travail);

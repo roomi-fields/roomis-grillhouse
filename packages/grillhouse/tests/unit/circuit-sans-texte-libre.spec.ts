@@ -34,6 +34,8 @@ const PERMISES: Record<string, string> = {
   '/^Critères\\b/':
     'le titre de la section des critères de la description, pour le message de commit',
   '/\\/+$/': 'la barre finale d’un dossier que déclare une référence du projet',
+  '/-(\\d+)(?:\\.[a-z]+)?$/':
+    'le numéro d’un fichier du dossier de travail du circuit, pour numéroter après lui',
   '/\\s+/g': 'les blancs du sujet d’un écart d’une fiche, pour le reconnaître une seule fois',
 };
 

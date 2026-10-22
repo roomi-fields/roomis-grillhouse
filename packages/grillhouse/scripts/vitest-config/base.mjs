@@ -49,11 +49,17 @@
 //   reporter writes Vitest's report there too, which the circuit reads (scripts/resultats.mjs); a
 //   setup file gives each test file's processes a results directory of their own, so that a run a
 //   test plays in a repository of trial never writes in it (./resultats.setup.mjs).
+// - A run of Vitest has a base of its own, as Bazel gives each test its TEST_TMPDIR: a plugin opens
+//   it while the configuration resolves, sweeping the orphan bases a killed run left, and names
+//   it in TMPDIR, so that Vitest's own temporary directory, each test process and everything they
+//   start write there; the base is removed when the run exits, green or red
+//   (./base-de-passe.mjs).
 // - While a run names the progress directory of its pass (`GRILLHOUSE_AVANCEMENT`,
 //   ./avancement.mjs), the reporter of progress writes there the files done and planned of its
 //   task at each test file done, which the board reads (scripts/avancement.mjs,
 //   scripts/tableau.mjs).
 import { fileURLToPath } from 'node:url';
+import { baseDeVitest } from './base-de-passe.mjs';
 import { ciblage, HORS_DU_JOUR } from './cibles.mjs';
 import { rapportAvancement } from './avancement.mjs';
 import { rapportJson } from './resultats.mjs';
@@ -61,7 +67,7 @@ import { rapportJson } from './resultats.mjs';
 const ici = f => fileURLToPath(new URL(f, import.meta.url));
 
 export default {
-  plugins: [ciblage()],
+  plugins: [baseDeVitest(), ciblage()],
   test: {
     environment: 'node',
     env: {

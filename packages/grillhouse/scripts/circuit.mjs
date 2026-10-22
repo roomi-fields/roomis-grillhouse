@@ -327,6 +327,12 @@
 //   ends at « integre », exit 0 (the queue's last word at the ticket named with it, a CI it could
 //   not read); reopened (out of the queue, or a red CI), it stops at « integration », the queue's
 //   last word as its reason; still in the queue, it stops at « a-repasser », the queue's reason.
+// - The working directory is the ticket's, `.claude/worktrees/<ticket>.travail`: the instructions,
+//   results and errors of the sessions, the patches and message of the integration. It lives as
+//   long as the ticket, as the workspace of a pipeline: a circuit relaunched takes it up again, no
+//   sweep touches it, the queue removes it at the ticket's closure, and scripts/retirer-copie.sh
+//   with the copy of a ticket closed without integration. The results and progress of the passes
+//   live in the base of the run (scripts/vitest-config/base-de-passe.mjs), removed at its end.
 // - The state is `.claude/worktrees/<ticket>.circuit.json`, written again at each step and at the
 //   start and end of each session: `{ etape, composant, tentative, code, raison, rapport, dernier,
 //   finale, boucles, seance, regulateur, questionnement, processus, composants, renvois, atteints,
@@ -541,13 +547,14 @@ import {
 import { AUTEUR_DE_LA_FILE } from './integration/file.mjs';
 import { dossierCommun, lireEntrees } from './integration/file-attente.mjs';
 import { AUTEUR_DU_VERDICT } from './integration/verdict.mjs';
-import { attendreUnPeu, vivant } from './verrou-de-fichier.mjs';
+import { attendreUnPeu } from './verrou-de-fichier.mjs';
 import { AttenteDeLaMachine, avecLaMachine } from './verrou-de-machine.mjs';
 import { garderLeTotal, ouvrirAvancement } from './avancement.mjs';
 import { AVANCEMENT } from './vitest-config/avancement.mjs';
 import { NOMS_DES_GARDES } from './gardes-du-cadre.mjs';
 import { isTesterFile } from './verrous/verrou.mjs';
 import { A_REPASSER } from './vitest-config/pression.mjs';
+import { ouvrirBase, vivant } from './vitest-config/base-de-passe.mjs';
 
 // The time a session's transcripts may stand still before the circuit stops it.
 export const IMMOBILE_MS = 20 * 60 * 1000;
@@ -774,6 +781,22 @@ function contexte(o) {
     if (!c) throw new Usage(`--depuis : ${o.depuis.composant} n'est pas un composant du titre.`);
     o.depuis.composant = c;
   }
+  // The working directory of the circuit is the ticket's, `<copie>.travail` beside its copy: what
+  // the circuit hands its sessions (their instructions, results and errors, the reviewer's
+  // statements, the integration's patches and message), which a session out of the envelope reads
+  // even when its circuit is killed. As the workspace of a pipeline (Jenkins, GitLab), it lives as
+  // long as the ticket: no sweep touches it, a circuit relaunched takes it up again, numbering its
+  // files after those it finds, and the queue removes it at the ticket's closure, or the removal of
+  // the copy of a ticket closed without integration (scripts/retirer-copie.sh). The results and
+  // the progress of the circuit's passes live in the base of its run
+  // (scripts/vitest-config/base-de-passe.mjs), removed at its end, swept when the run is killed.
+  const tmp = `${copie}.travail`;
+  mkdirSync(tmp, { recursive: true });
+  const numero = Math.max(
+    0,
+    ...readdirSync(tmp).map(n => Number(/-(\d+)(?:\.[a-z]+)?$/.exec(n)?.[1] ?? 0))
+  );
+  const baseDuRun = ouvrirBase('circuit');
   return {
     ...o,
     // The components a relaunch --depuis plays again, each with its step and its context.
@@ -794,8 +817,9 @@ function contexte(o) {
     fiches: `${copie}.fiches.jsonl`,
     transcriptions: transcriptionsDeLaCopie(copie, os.homedir()),
     immobileMs: Number(process.env.GRILLHOUSE_CIRCUIT_IMMOBILE_MS) || IMMOBILE_MS,
-    tmp: mkdtempSync(path.join(os.tmpdir(), 'circuit-')),
-    numero: 0,
+    base: baseDuRun,
+    tmp,
+    numero,
     // The regulator's RELANCE decisions in a row on one stop.
     relances: [],
   };
@@ -1974,7 +1998,7 @@ function paquetDe(liste, fichier) {
 // progress directory of its own (`avancement`), of the kind `genreDeLaPasse` names.
 function npm(ctx, etape, composant, args, env = {}) {
   entete(ctx, etape, composant);
-  const dossier = mkdtempSync(path.join(ctx.tmp, 'resultats-'));
+  const dossier = mkdtempSync(path.join(ctx.base.dossier, 'resultats-'));
   const prefixe = Object.entries(env).map(([k, v]) => `${k}=${v} `);
   appendFileSync(ctx.journal, `$ ${prefixe.join('')}npm ${args.join(' ')}\n`);
   const fd = openSync(ctx.journal, 'a');
@@ -2022,7 +2046,7 @@ function genreDeLaPasse(etape, composant, args) {
 // state while it plays (`avancement`), as the board reads it; then keeps its total, takes it out
 // of the state and removes it. Returns what <passe> returns.
 function avecAvancement(ctx, genre, passe) {
-  const avancement = ouvrirAvancement({ racine: ctx.copie, genre, dans: ctx.tmp });
+  const avancement = ouvrirAvancement({ racine: ctx.copie, genre, dans: ctx.base.dossier });
   if (ctx.courant) ecrireEtat(ctx, { ...ctx.courant, avancement: { dossier: avancement } });
   try {
     return passe(avancement);
@@ -4347,7 +4371,7 @@ export async function main(argv) {
     );
     return CODE_USAGE;
   } finally {
-    if (ctx) rmSync(ctx.tmp, { recursive: true, force: true });
+    ctx?.base.fermer();
   }
 }
 

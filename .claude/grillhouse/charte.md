@@ -179,6 +179,17 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
   chemin que ses tests déclarent lire, `grillhouse.lit`) ; sans vert connu, la passe est
   complète, et `npm run verifier -- --tout` la joue pour de vrai, comme la nuit. Ainsi un test ne
   tourne qu'une fois tant que rien ne change, et corriger un test ne rejoue que lui.
+- **Une passe écrit sous sa base** : chaque lancement de Vitest, `npm test`, `npm run verifier`,
+  un circuit, une intégration et une enveloppe ouvrent leur base dans le dossier temporaire, la
+  nomment dans `TMPDIR` à ce qu'ils lancent (les dossiers d'essai des tests, celui de Vitest, celui
+  de Claude Code) et l'effacent à leur fin, verte ou rouge ; la base d'une passe tuée, la suivante
+  la balaie, comme Bazel donne à chaque test son `TEST_TMPDIR` et nettoie ses bacs à sable
+  (`packages/grillhouse/scripts/vitest-config/base-de-passe.mjs`). Ainsi un essai oublié ne remplit jamais le dossier
+  temporaire de la machine.
+- **Le dossier du circuit appartient au ticket** : `.claude/worktrees/<ticket>.travail` vit autant
+  que le ticket, comme l'espace de travail d'un pipeline ; aucun balayage n'y touche, la file
+  l'efface à la clôture, `npx grillhouse retirer-copie` avec la copie d'un ticket fermé sans
+  intégration. Ainsi une séance qui survit à son circuit garde ce qu'il lui a remis.
 - **Main reste vert** : l'intégration exige un `npm run verifier` vert, sans rouge admis, mesuré
   contre le dernier vert ; la nuit rejoue la passe complète. Un test connu
   rouge se met en quarantaine dans le test lui-même (`it.skip` ou `it.fails`), avec le ticket qui

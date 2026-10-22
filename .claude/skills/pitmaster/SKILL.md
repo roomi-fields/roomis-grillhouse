@@ -63,8 +63,9 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   ne contient qu'eux.
 - **Le ménage de la séance** : je retire les copies de travail et les sondes que les agents
   laissent, chacune par son chemin nommé et lu, une copie par
-  `npx grillhouse retirer-copie <copie>`. Ainsi le dépôt garde seulement le travail commité,
-  et rien ne se supprime sans avoir été lu.
+  `npx grillhouse retirer-copie <copie>`, qui retire avec elle le dossier de travail de son
+  circuit (`<copie>.travail`). Ainsi le dépôt garde seulement le travail commité, et rien ne se
+  supprime sans avoir été lu.
 
 ## Un agent, un ticket
 
