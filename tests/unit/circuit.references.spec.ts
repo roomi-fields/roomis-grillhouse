@@ -29,6 +29,7 @@ import {
 // `node regenerer.mjs` writes it again. The ticket doubles the measure: the reference is red at
 // the final pass alone.
 
+// The trial lives out of /tmp, which the envelope replaces with an empty directory.
 const ESSAIS = racineSousLaMaison('grillhouse-essais-circuit-references-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 const {
