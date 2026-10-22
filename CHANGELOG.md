@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- **A reference is declared by patterns and by the tests that judge it**: in BPScript 320.4 (BP 325), the fingerprint of the v2 is a directory of 617 files (`packages/995-tools/src/empreinte-v2/<scène>.json`), whose list changes with each scene added, 262 of them changed by 320.4; `fichiers` compared only exact paths, and the red of the final pass came from the test file that judges it (`packages/995-tools/test/empreinte-v2.test.ts`), which the declaration could not name. As the inputs of Turborepo and `rustc --bless`, which ties a test to its expected outputs, a reference of `grillhouse.references` is now `{ nom, commande, fichiers, tests }`: `fichiers` holds paths, directories or glob patterns (`*`, `**`, read by `path.matchesGlob` of Node), `tests` the test files that judge it; a red of the final pass in one of its tests, or on a file its `fichiers` cover, goes to the regeneration of 3.1, and each file the regeneration changes must be covered by a reference, else the stop « references » as before. The common charter, the skills of the supervisor and the regulator and the header of `scripts/circuit.mjs` say so. (grillhouse-3uv.92.12)
+
 ## [0.22.1] - 2026-10-22
 
 ### Fixed

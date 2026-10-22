@@ -55,7 +55,10 @@ le `questionneur` ⇄ le `referent-technique`, qui répond pour le plan, en tour
 du rouge, auto, trois essais au plus, puis 2.3 Code, le `developpeur`, 2.4 Contrôles, auto, trois
 essais au plus ; 3 Passe finale, auto, puis 3.1 Régénération des références, auto, pour un projet
 qui déclare les références qu'il tire de la copie entière (`grillhouse.references` de son
-`package.json`), comme `rustc --bless` : une passe finale rouge sur elles seules les régénère, la
+`package.json`, chacune `{ nom, commande, fichiers, tests }` : `fichiers`, des chemins, des
+dossiers ou des motifs `*` et `**`, comme les entrées de Turborepo ; `tests`, les fichiers de
+test qui la jugent), comme `rustc --bless` : une passe finale rouge sur elles seules (un de
+leurs tests, ou un fichier qu'elles couvrent) les régénère, la
 différence va au lot et au relecteur, et un changement que le plan ne nomme pas arrête le circuit
 (`references`) ; 4 Relecture, le `relecteur`, trois tours au plus, un lot
 rendu revenant en 2 pour les composants nommés ; 5 Intégration : 5.1 Commit et 5.2 File : main,

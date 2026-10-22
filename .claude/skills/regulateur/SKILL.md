@@ -68,8 +68,10 @@ journal fait plusieurs Mo : je le lis par morceaux, `grep -n <motif> <journal>` 
    et `RELANCE --reprendre` rend la main au relecteur, qui juge sur le plan. Un rouge de la passe finale qu'aucun composant ne possède (une garde de la racine,
    une garde du projet sans SARIF) ou des constats à arbitrer arrêtent aussi à `controles` : je
    tranche à qui il revient. Une passe finale rouge sur les seules références que le projet
-   déclare (`grillhouse.references`) passe à 3.1, qui les régénère sur la copie entière. Une
-   référence changée que le plan ne nomme pas, un fichier changé qu'aucune référence ne déclare,
+   déclare (`grillhouse.references`, chacune `{ nom, commande, fichiers, tests }` : un rouge
+   d'un de ses `tests`, ou d'un fichier que ses `fichiers` couvrent, chemins, dossiers ou motifs
+   `*` et `**`) passe à 3.1, qui les régénère sur la copie entière. Une
+   référence changée que le plan ne nomme pas, un fichier changé qu'aucune référence ne couvre,
    une commande en échec ou une passe encore rouge sur elles arrêtent à `references` (code 23), la
    copie rendue telle qu'avant, chaque écart nommé : un changement à admettre se nomme au plan,
    que le superviseur tient, et je le fais monter (`MONTE`) ; un lot qui cause l'écart se corrige

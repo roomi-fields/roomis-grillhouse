@@ -75,7 +75,9 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   plan, le questionneur, auquel le référent technique répond pour le plan), 2 Composants (2.1
   testwriter, 2.2 preuve du rouge, 2.3 développeur, 2.4 contrôles, pour chaque composant), 3 la passe
   finale (3.1 la régénération des références que le projet déclare, `grillhouse.references` de son
-  `package.json`, sur la copie entière, quand elles sont ses seuls rouges : je ne les régénère
+  `package.json`, chacune `{ nom, commande, fichiers, tests }`, ses fichiers en chemins, dossiers
+  ou motifs `*` et `**`, ses tests les fichiers de test qui la jugent, sur la copie entière, quand
+  elles sont ses seuls rouges : je ne les régénère
   jamais à la main ; un changement que le plan ne nomme pas arrête à `references`, code 23, et
   s'il me monte, je le fais nommer au plan ou corriger), 4 le relecteur, 5 Intégration (5.1 le commit, 5.2 la file et la lecture de la CI) ; et,
   hors de la suite, sous l'étape arrêtée, l'arbitrage de chaque arrêt, le régulateur, sa décision

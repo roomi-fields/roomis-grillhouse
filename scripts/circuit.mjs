@@ -235,17 +235,20 @@
 // - The regeneration of the references (step 3.1 of scripts/etapes.mjs), as `rustc --bless`,
 //   `jest -u` and `cargo insta accept`: a project declares in its package.json the references it
 //   derives from the whole copy, which no envelope shows (a fingerprint of its output, a ceiling
-//   of a count), `grillhouse.references`: each `{ nom, commande, fichiers }`, its name, the shell
-//   command that writes it again from the root of the copy, and the files it writes. A final pass
-//   whose every red lies in the files of the references declared (a failed test or a finding on
-//   one of them) sends no developpeur: the circuit keeps the copy as a lot, runs each command on
+//   of a count), `grillhouse.references`: each `{ nom, commande, fichiers, tests }`, its name, the
+//   shell command that writes it again from the root of the copy, the files it writes (paths,
+//   directories or glob patterns, `*` and `**`, from the root, as the inputs of Turborepo), and
+//   the test files that judge it, as `rustc --bless` ties a test to its expected outputs. A final
+//   pass whose every red is one of the references declared (a failed test of one of their test
+//   files, or a failed test or a finding on a file they cover) sends no developpeur: the circuit
+//   keeps the copy as a lot, runs each command on
 //   the whole copy, out of the envelope, under the lock of the machine, its output added to the
 //   log, keeps the copy again on that lot, then plays the final pass restricted to what the
 //   regeneration changed and its dependents (`--filter=...[<avant>...<après>] --filter=//`); that
 //   pass green after a whole one keeps its tree as verified. The files regenerated stay in the
 //   copy: the lot carries them, and the reviewer reads them with the rest of the lot, the step's
 //   report among the circuit's. A reference changed that the ticket's description names neither
-//   by its name nor by one of its files, a file changed that no reference declares, a command at
+//   by its name nor by one of its files, a file changed that the files of no reference cover, a command at
 //   a code other than 0, a regeneration that changes nothing, or a pass after it red again on the
 //   references, stops at « references » (23), the copy restored as it was before the
 //   regeneration, each reference and file named: the regulator decides. Without the declaration,
@@ -1526,23 +1529,38 @@ function laPasseFinale(ctx) {
 }
 
 // The references the project declares in the package.json of the copy (`grillhouse.references`):
-// each `{ nom, commande, fichiers }` with a name, a command and files; none without them.
+// each `{ nom, commande, fichiers, tests }` with a name, a command and files, `tests` an array
+// when given, empty when not; none without them.
 function lesReferences(ctx) {
   const l = lireJson(path.join(ctx.copie, 'package.json'))?.grillhouse?.references;
-  return (Array.isArray(l) ? l : []).filter(
-    r =>
-      typeof r?.nom === 'string' &&
-      typeof r.commande === 'string' &&
-      Array.isArray(r.fichiers) &&
-      r.fichiers.length > 0
-  );
+  return (Array.isArray(l) ? l : [])
+    .filter(
+      r =>
+        typeof r?.nom === 'string' &&
+        typeof r.commande === 'string' &&
+        Array.isArray(r.fichiers) &&
+        r.fichiers.length > 0 &&
+        (r.tests === undefined || Array.isArray(r.tests))
+    )
+    .map(r => ({ ...r, tests: r.tests ?? [] }));
+}
+
+// Whether one of <motifs> covers the file <fichier>, both from the root of the copy, as the
+// inputs of Turborepo read them: a path names that file, a directory every file under it, a glob
+// pattern (`*`, `**`) the files it matches (`path.matchesGlob` of Node).
+export function couvertPar(motifs, fichier) {
+  return motifs.some(m => {
+    const dossier = m.replace(/\/+$/, '');
+    return fichier === dossier || fichier.startsWith(`${dossier}/`) || path.matchesGlob(fichier, m);
+  });
 }
 
 // The references the project declares, when every red of a final pass, by its file of
-// <fichiers>, lies in the files they write; none otherwise.
+// <fichiers>, is one of theirs: a file of their `tests`, or a file their `fichiers` cover; none
+// otherwise.
 function referencesDesRouges(ctx, fichiers) {
   const refs = lesReferences(ctx);
-  const leur = f => refs.some(r => r.fichiers.includes(f));
+  const leur = f => refs.some(r => r.tests.includes(f) || couvertPar(r.fichiers, f));
   return refs.length && fichiers.length && fichiers.every(f => f && leur(f)) ? refs : [];
 }
 
@@ -1569,10 +1587,10 @@ function regenerer(ctx, composant) {
   const apres = garderLeLot(ctx, avant.commit);
   const fichiers = apres ? differenceDesLots(ctx, avant.commit, apres.commit) : [];
   const description = leTicket(ctx).description;
-  const siens = r => r.fichiers.filter(f => fichiers.includes(f));
+  const siens = r => fichiers.filter(f => couvertPar(r.fichiers, f));
   const regenerees = refs.filter(r => siens(r).length);
   const nommee = r => [r.nom, ...r.fichiers].some(x => description.includes(x));
-  const horsDeclaration = fichiers.filter(f => !refs.some(r => r.fichiers.includes(f)));
+  const horsDeclaration = fichiers.filter(f => !refs.some(r => couvertPar(r.fichiers, f)));
   const ecarts = [
     ...echecs,
     ...(!apres ? ['- Le circuit ne garde pas la copie après la régénération (git échoue).'] : []),

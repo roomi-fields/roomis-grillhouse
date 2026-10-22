@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
+import { couvertPar } from '../../scripts/circuit.mjs';
 import { canWrap, racineSousLaMaison } from '../machine.js';
 import {
   ARRETS,
@@ -28,6 +29,12 @@ import {
 // judges it (its finding on `reference.txt`, a file no component of the title holds), and
 // `node regenerer.mjs` writes it again. The ticket doubles the measure: the reference is red at
 // the final pass alone.
+
+// grillhouse-3uv.92.12 — a reference is declared `{ nom, commande, fichiers, tests }`, as the inputs
+// of Turborepo and `rustc --bless`: `fichiers` holds paths, directories or glob patterns, `tests`
+// the test files that judge it. Witness: BPScript 320.4: the fingerprint of the v2 is a directory
+// of 617 files (packages/995-tools/src/empreinte-v2/<scène>.json), 262 of them changed, judged by
+// packages/995-tools/test/empreinte-v2.test.ts, which the declaration could not name.
 
 // The trial lives out of /tmp, which the envelope replaces with an empty directory.
 const ESSAIS = racineSousLaMaison('grillhouse-essais-circuit-references-');
@@ -118,6 +125,24 @@ const lancer = (id: string) =>
 // The plan that names the reference, by its file.
 const NOMMEE = `${DESCRIPTION}\n2. La référence de la mesure (\`reference.txt\`) suit le double.\n`;
 
+describe('grillhouse-3uv.92.12 — the files of a reference', () => {
+  it('critère 1 — a path, a directory or a glob pattern (*, **) covers a file, read as the inputs of Turborepo', () => {
+    expect(couvertPar(['reference.txt'], 'reference.txt')).toBe(true);
+    expect(couvertPar(['reference.txt'], 'autre/reference.txt')).toBe(false);
+    expect(couvertPar(['src/empreinte'], 'src/empreinte/a/une.json')).toBe(true);
+    expect(couvertPar(['src/empreinte/'], 'src/empreinte/une.json')).toBe(true);
+    expect(couvertPar(['src/empreinte'], 'src/empreinte-v2/une.json')).toBe(false);
+    expect(couvertPar(['src/empreinte/*.json'], 'src/empreinte/une.json')).toBe(true);
+    expect(couvertPar(['src/empreinte/*.json'], 'src/empreinte/a/une.json')).toBe(false);
+    expect(couvertPar(['src/empreinte/*.json'], 'src/empreinte/une.txt')).toBe(false);
+    expect(couvertPar(['packages/**/empreinte/**'], 'packages/tools/src/empreinte/a/b.json')).toBe(
+      true
+    );
+    expect(couvertPar(['a.txt', 'src/**/*.json'], 'src/x/y.json')).toBe(true);
+    expect(couvertPar([], 'reference.txt')).toBe(false);
+  });
+});
+
 describe.runIf(canWrap)(
   'grillhouse-3uv.92.1 — the regeneration of the references',
   { timeout: 300_000 },
@@ -186,6 +211,71 @@ describe.runIf(canWrap)(
       expect(commandes(id)).not.toContain(REGENERER);
       expect(entrees(id).some(x => x.etape === 'references')).toBe(false);
       expect(etat(id)?.rapport).toContain('reference.txt');
+    });
+
+    it('critère 2, 3 et 4 — a fingerprint by scene, a directory under a pattern judged by its test file, regenerated in part: the red of its test goes to the step, each file changed covered by the pattern', () => {
+      const id = 'demo-references-empreinte';
+      const EMPREINTE = "l'empreinte des scènes";
+      const SCENES = { zero: 0, un: 1, deux: 2 };
+      const pkg = JSON.parse(lire(path.join(REPO, 'package.json'))) as { grillhouse?: object };
+      pkg.grillhouse = {
+        references: [
+          {
+            nom: EMPREINTE,
+            commande: 'node empreinte.mjs',
+            fichiers: ['packages/binder/empreinte/*.json'],
+            tests: ['packages/binder/test/empreinte.test.mjs'],
+          },
+        ],
+      };
+      ecrire(path.join(REPO, 'package.json'), json(pkg));
+      for (const [scene, n] of Object.entries(SCENES)) {
+        ecrire(path.join(REPO, `packages/binder/empreinte/${scene}.json`), json({ mesure: n }));
+      }
+      ecrire(
+        path.join(REPO, 'empreinte.mjs'),
+        `import { writeFileSync } from 'node:fs';
+import { mesure } from './packages/forms/src/index.mjs';
+for (const [scene, n] of Object.entries(${JSON.stringify(SCENES)})) {
+  writeFileSync('packages/binder/empreinte/' + scene + '.json', JSON.stringify({ mesure: mesure(n) }, null, 2) + '\\n');
+}
+`
+      );
+      ecrire(
+        path.join(REPO, 'packages/binder/test/empreinte.test.mjs'),
+        `import { readFileSync } from 'node:fs';
+import { expect, it } from 'vitest';
+import { mesure } from '../../forms/src/index.mjs';
+it("l'empreinte de chaque scène suit la mesure", () => {
+  for (const [scene, n] of Object.entries(${JSON.stringify(SCENES)})) {
+    const lu = JSON.parse(readFileSync(new URL('../empreinte/' + scene + '.json', import.meta.url), 'utf8'));
+    expect(lu.mesure, scene).toBe(mesure(n));
+  }
+});
+`
+      );
+      const git = (...a: string[]) =>
+        execFileSync('git', ['-C', REPO, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
+      git('add', '-A');
+      git('commit', '-qm', "l'empreinte");
+      leTicket(id, `${DESCRIPTION}\n2. ${EMPREINTE} suit le double.\n`);
+      const r = lancer(id);
+      expect(r.status, sortie(r)).toBe(0);
+      // The red of the test that judges the reference, in a package out of the title, goes to no
+      // developpeur: the step regenerates it.
+      expect(ordre(id)).toEqual(['developpeur packages/forms', 'relecteur']);
+      expect(commandes(id)).toContain('node empreinte.mjs');
+      const e = entrees(id).find(x => x.etape === 'references') as
+        { resultat?: { regenerees?: string[]; fichiers?: string[] } } | undefined;
+      expect(e?.resultat?.regenerees).toEqual([EMPREINTE]);
+      // A part of the scenes changes, each file changed covered by the pattern.
+      expect([...(e?.resultat?.fichiers ?? [])].sort()).toEqual([
+        'packages/binder/empreinte/deux.json',
+        'packages/binder/empreinte/un.json',
+      ]);
+      expect(JSON.parse(gitRepo('show', 'main:packages/binder/empreinte/deux.json'))).toEqual({
+        mesure: 4,
+      });
     });
   }
 );
