@@ -172,8 +172,10 @@ function difference(racine, avant, apres) {
 // What a pass in <racine> measures itself against: `{ etat, env, ligne, retirer }`, the state to
 // keep once green (null when none can count), the variables to add to the pass's environment (the
 // changes since the last green, none for a complete pass), the line that says which, and the
-// function that removes the file of the changes. <tout> asks for the complete pass.
-export function mesure(racine, { tout = false } = {}) {
+// function that removes the file of the changes. <tout> asks for the complete pass; the file lies
+// in <dans>, the base of the pass (scripts/vitest-config/base-de-passe.mjs), which a killed pass
+// leaves to the next one to sweep.
+export function mesure(racine, { tout = false, dans = os.tmpdir() } = {}) {
   const etat = etatDuDepot(racine);
   const complete = raison => ({
     etat: etat.raison ? null : etat,
@@ -190,7 +192,7 @@ export function mesure(racine, { tout = false } = {}) {
   if (ch.sousModules.length) {
     return { ...complete(`un sous-module a changé (${ch.sousModules[0]})`), etat: null };
   }
-  const dir = mkdtempSync(path.join(os.tmpdir(), 'grillhouse-changements-'));
+  const dir = mkdtempSync(path.join(dans, 'grillhouse-changements-'));
   const fichier = path.join(dir, 'changements.json');
   writeFileSync(
     fichier,

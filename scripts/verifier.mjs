@@ -271,7 +271,7 @@ function passe({ racine, demandes, env, borneMs, pasMs, dire, coeurs }) {
   const args = demandes.filter(a => a !== '--gardes' && a !== '--tout');
   const { filtres: filtresDeLaPasse } = separerLesFiltres(args);
   // The measure against the last green: the guards alone need none.
-  const m = gardesSeules ? null : mesure(racine, { tout });
+  const m = gardesSeules ? null : mesure(racine, { tout, dans: env.TMPDIR });
   if (m) dire(m.ligne);
   const taches = new Set();
   try {

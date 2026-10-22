@@ -7,7 +7,7 @@
 // Each case plays the real git in a repository of trial: main (the main tree, three files) and
 // the copies (worktrees) of tickets on branches `agent/<ticket>`.
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -132,5 +132,21 @@ describe('the last green per branch', () => {
     expect(mesurer(r).fichiers).toEqual(['a.txt']);
     const c = copie(r, 'agent/t');
     expect(mesurer(c).fichiers).toEqual(['a.txt']);
+  });
+});
+
+// grillhouse-3uv.93: the file of the changes of a pass lies in the base of that pass, which a
+// killed pass leaves to the next one to sweep, never straight in the machine's temp directory.
+describe('grillhouse-3uv.93 — the file of the changes lies in the directory the pass names', () => {
+  it('critère 9: in <dans>, the base of the pass, and removed by its function', () => {
+    const r = depot();
+    vert(r);
+    writeFileSync(path.join(r, 'a.txt'), 'changé\n');
+    const dans = mkdtempSync(path.join(ESSAIS, 'base-'));
+    const m = mesure(r, { dans }) as { env: Record<string, string>; retirer: () => void };
+    const f = m.env.GRILLHOUSE_CHANGEMENTS ?? '';
+    expect(path.dirname(path.dirname(f))).toBe(dans);
+    m.retirer();
+    expect(readdirSync(dans)).toEqual([]);
   });
 });

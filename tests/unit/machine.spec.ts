@@ -172,10 +172,9 @@ describe('critère 1 — on a machine without ~/.cache, no test file fails to lo
       expect(nonCharges(r)).toEqual([]);
       expect(r.numFailedTestSuites).toBe(0);
       expect(existsSync(path.join(maison, '.cache'))).toBe(true);
-      // The roots of trial of the files, made at load, stay in the temp directory of the child.
-      expect(readdirSync(r.temp)).toEqual(
-        expect.arrayContaining([expect.stringMatching(/^verrous-/)])
-      );
+      // The roots of trial of the files, made at load and left by the tests that did not run, go
+      // with the base of the child's run, in its temp directory (grillhouse-3uv.93): nothing stays.
+      expect(readdirSync(r.temp)).toEqual([]);
     },
     LONG
   );
