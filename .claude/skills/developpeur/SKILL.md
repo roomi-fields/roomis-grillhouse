@@ -68,7 +68,10 @@ prime sur tout le reste.
 - **Le comportement tient dans les critères** : ton code fait ce que disent les critères
   d'acceptation, et rien d'autre.
 
-Tu vois ton paquet en entier, et des autres composants leur interface et leur forme publiée. Tes
+Tu vois ton paquet en entier, et des autres composants leur interface et leur forme publiée. Tu
+écris ton seul paquet : le reste de la copie est en lecture seule, et une écriture hors de lui
+échoue (« Read-only file system ») ; un dossier hors des paquets (des données comme `libraries/`)
+s'écrit par le composant qui le possède, que ta `raison` nomme. Tes
 voisins arrivent construits, et les traces que lisent tes tests produites : `npm test -- <fichiers>` construit ton seul paquet et régénère ses propres traces, et `npm run api`,
 après lui, écrit le rapport d'API et la part générée de ton seul composant. La matière de test
 partagée, en lecture seule pour toi, arrive construite : `npm test -- <un test de la matière>` la

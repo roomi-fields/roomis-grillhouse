@@ -3,7 +3,8 @@
 // sandbox that shows the agent its own component, and of every other component only what it
 // publishes. `node scripts/enveloppe/enveloppe.mjs <copie> <composant> <rôle> -- <commande…>`
 //
-// - The root `/` is read-only. Only these are written: the agent's copy; a `/tmp` empty and
+// - The root `/` is read-only. Only these are written: the agent's copy (for a component that is a
+//   package, that package alone, below); a `/tmp` empty and
 //   proper to the session, where only the scratchpad directory of the copy comes back, the
 //   session's working directory inside it (`dossierDeTravail`); the npm
 //   cache; the Claude session state (`~/.claude` and the copy's project directory), whose
@@ -62,8 +63,20 @@
 //   sibling component and exists, a directory or a file. A path the envelope already shows (the
 //   root, the component itself, the shared test material, whose mount the role decides) adds no
 //   mount.
-// - A folder of the root (`scripts`) hides nothing: its scripts work on the whole repository. The
-//   rest holds: the root read-only, the copy written, its `.git` read-only.
+// - For a component that is a package of the copy (`paquets` of `scripts/paquets.mjs`), the agent
+//   writes that package and nothing else of the copy, as a sandbox of Bazel or of Nix opens in
+//   writing only what the action declares: the copy is read-only, the folders of its root that no
+//   package holds (`libraries/`, `spec/`) included, and a write there fails on « Read-only file
+//   system », which the agent sees. Such a folder is written by the component that owns it, never
+//   by a right the envelope adds: what the tests declare they read stays read-only. The package
+//   of the shared test material, for the `testwriter`, the session's files and the mounts outside
+//   the copy keep their rights; where a run of Turborepo writes at the root of the copy
+//   (`sortiesDeLaRacine`, its `.turbo`) is an empty directory proper to the session, created on
+//   disk before it.
+// - A component that is no package (a folder of the root, `scripts`; `src/parser` in a one-package
+//   project) writes the package that holds it, the root: the copy stays written. A folder of the
+//   root hides nothing: its scripts work on the whole repository. The rest holds: the root
+//   read-only, the copy written, its `.git` read-only.
 // - The package of the shared test material is every component of <copie> whose `package.json`
 //   exports `./test-fixtures` (`matieres` of `scripts/consommateurs.mjs`). It comes back whole, after the agent's own component:
 //   written for the `testwriter`, read-only for every other role, its own component included. For
@@ -106,6 +119,15 @@ const ROLE_MATIERE = 'testwriter';
 const SORTIES_DE_TEST = ['.turbo', 'node_modules/.vite'];
 // The directories of <dir> where a run of its tests writes.
 const sortiesDeTest = dir => SORTIES_DE_TEST.map(s => path.join(dir, s));
+// What a run of Turborepo writes at the root of the repository, relative to it: its run summaries
+// and the state of its daemon (`.turbo`), its cache living in the main tree (`magasins`).
+const SORTIES_DE_LA_RACINE = ['.turbo'];
+// The directories of the copy <copie> where a run of Turborepo writes.
+const sortiesDeLaRacine = copie => SORTIES_DE_LA_RACINE.map(s => path.join(copie, s));
+// True when <composant> of <copie> is a package of the copy (`paquets`, the directory of each
+// relative to it): its envelope then writes that package alone.
+const estUnPaquet = (copie, composant, paquets) =>
+  paquets.some(p => path.resolve(copie, p.dossier) === path.resolve(copie, composant));
 // The directories where codegraph and rtfm keep the index of a tree they index: the source of
 // every component, which the envelope hides.
 const INDEX = ['.codegraph', '.rtfm'];
@@ -379,7 +401,8 @@ export function jugerComposant({ depot, composant, paquets = [] }, fs) {
 // (`matieres` of `scripts/consommateurs.mjs`); `role` is the agent's role, and only the `testwriter` writes them.
 // `magasins` lists the task caches written by every run, the agent's included (Turborepo's
 // `<main tree>/.turbo/cache`); one that does not exist is not mounted.
-// `paquets` lists the packages of the copy, which `jugerComposant` reads to judge <composant>.
+// `paquets` lists the packages of the copy, which `jugerComposant` reads to judge <composant>;
+// a <composant> among them writes itself alone of the copy.
 // `fs` gives `lister(dir)`, `existe(path)`, `liens(dir)`, `publies(dir, copie)` and `lus(dir)`
 // (what the tests of the package at <dir> declare they read, `cheminsLus`), so the plan is testable
 // without disk.
@@ -436,7 +459,12 @@ export function plan(
     if (videes.some(v => inside(t, v)) && fs.existe(t)) args.push('--ro-bind', t, t);
   }
   // The copy is mounted after them: an emptied /tmp does not hide it. Its .git stays read-only.
-  args.push('--bind', copie, copie);
+  // For a component that is a package, the copy is read-only and its package alone comes back in
+  // writing below, as a sandbox of Bazel opens only what the action declares; where a run of
+  // Turborepo writes at the root is an empty directory proper to the session.
+  const paquet = !racine && estUnPaquet(copie, composant, paquets);
+  args.push(paquet ? '--ro-bind' : '--bind', copie, copie);
+  if (paquet) for (const s of sortiesDeLaRacine(copie)) if (fs.existe(s)) args.push('--tmpfs', s);
   const gitDeLaCopie = path.join(copie, '.git');
   if (fs.existe(gitDeLaCopie)) args.push('--ro-bind', gitDeLaCopie, gitDeLaCopie);
   // The task cache (Turborepo's) is written by the agent's runs, as by every copy's.
@@ -542,6 +570,12 @@ function envelopper(argv) {
       for (const s of sortiesDeTest(path.join(copie, m))) mkdirSync(s, { recursive: true });
     }
   }
+  // For a component that is a package, where a run of Turborepo writes at the root of the copy is
+  // created here, so that bwrap mounts an empty one over it inside the read-only copy.
+  const paquets = lesPaquets(copie);
+  if (estUnPaquet(copie, composant, paquets)) {
+    for (const s of sortiesDeLaRacine(copie)) mkdirSync(s, { recursive: true });
+  }
   // The cache of Turborepo, in the main tree (the folder of git's common directory), created here
   // so that bwrap mounts it in writing.
   const commun = execFileSync(
@@ -560,7 +594,7 @@ function envelopper(argv) {
       matieres,
       montages,
       magasins,
-      paquets: lesPaquets(copie),
+      paquets,
     },
     disque
   );

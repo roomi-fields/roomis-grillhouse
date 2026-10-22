@@ -161,7 +161,9 @@ tests arrivent au dépôt avec le code qui les rend verts.
 
 - `statut` FAIT : tes tests sont écrits, et la preuve du rouge les juge ;
 - `statut` BLOQUÉ, avec sa `raison` : ce qui reste est hors de ta portée (un fichier hors de ton
-  enveloppe, une décision hors de ton rôle) ;
+  enveloppe, une décision hors de ton rôle) ; hors de ton paquet et de la matière de test
+  partagée, la copie est en lecture seule, et ta `raison` nomme le composant qui possède le
+  fichier ;
 - `statut` BESOIN, avec sa `question` : une réponse te manque pour avancer ;
 - `verts_attendus` : chaque test vert avant le code, et sa raison ;
 - `decouvertes` : chaque découverte hors des critères (son sujet, son exemple et son adresse),

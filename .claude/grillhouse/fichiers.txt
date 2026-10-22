@@ -134,6 +134,7 @@ scripts/vitest.nuit.config.mjs
 - tests/unit/enveloppe.lanceur.spec.ts
 - tests/unit/enveloppe.maison.spec.ts
 - tests/unit/enveloppe.matiere-de-test.spec.ts
+- tests/unit/enveloppe.paquet.spec.ts
 - tests/unit/enveloppe.spec.ts
 - tests/unit/etapes.spec.ts
 - tests/unit/fichiers-du-cadre.spec.ts

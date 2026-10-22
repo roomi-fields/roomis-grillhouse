@@ -14,6 +14,7 @@ import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
 import { CODE_COPIE } from '../../scripts/enveloppe/codes.mjs';
+import { dossierDeTravail } from '../../scripts/enveloppe/enveloppe.mjs';
 import { ecrire as ecrireTurbo } from '../../scripts/turbo-des-paquets.mjs';
 
 // Witness: BPScript (Turborepo 2.11.8), four regulators on one day. Inside the envelope of
@@ -64,9 +65,14 @@ const declarations = (nom: string) =>
 // stages that depend on it and test themselves with the shared test material of `corpus` (a
 // devDependency); `corpus`, which exports `./test-fixtures`, depends on the stages. Each package's
 // turbo.json is the generated one, and its tsconfig.json its own: a build waits for the runtime dependencies only. Each build
-// copies its declarations into dist/ and writes its package's name to `construits.txt`.
+// copies its declarations into dist/ and writes its package's name to `construits.txt`. The
+// witnesses (`construits.txt`, `joues.txt`) live in the session's working directory, which the
+// envelope of a package writes, the rest of the copy read-only (grillhouse-3uv.92.4).
 function depot() {
   const repo = path.join(ESSAIS, 'depot');
+  const copie = path.join(repo, '.claude/worktrees/demo-1');
+  const temoins = dossierDeTravail(copie);
+  mkdirSync(temoins, { recursive: true });
   ecrire(
     repo,
     'package.json',
@@ -92,7 +98,7 @@ function depot() {
       "import path from 'node:path';",
       "mkdirSync('dist', { recursive: true });",
       "copyFileSync('src/index.d.ts', 'dist/index.d.ts');",
-      "appendFileSync(path.join(import.meta.dirname, 'construits.txt'), `${path.basename(process.cwd())}\\n`);",
+      `appendFileSync(${JSON.stringify(path.join(temoins, 'construits.txt'))}, \`\${path.basename(process.cwd())}\\n\`);`,
       '',
     ].join('\n')
   );
@@ -136,7 +142,7 @@ function depot() {
       "import { appendFileSync } from 'node:fs';",
       "import { expect, it } from 'vitest';",
       `it('${nom}', () => {`,
-      `  appendFileSync(new URL('../../../joues.txt', import.meta.url), '${nom}\\n');`,
+      `  appendFileSync(${JSON.stringify(path.join(temoins, 'joues.txt'))}, '${nom}\\n');`,
       `  expect(${passe}).toBe(true);`,
       '});',
       '',
@@ -163,21 +169,20 @@ function depot() {
   ecrire(repo, 'packages/kernel/test/x.test.mjs', test('kernel/x'));
   ecrire(repo, 'packages/corpus/test/x.test.mjs', test('corpus/x'));
   ecrire(repo, 'packages/corpus/echec/x.test.mjs', test('corpus/echec', false));
-  ecrire(repo, '.gitignore', 'node_modules\n.turbo/\ndist/\njoues.txt\nconstruits.txt\n');
+  ecrire(repo, '.gitignore', 'node_modules\n.turbo/\ndist/\n');
   ecrireTurbo(repo);
   const git = (...a: string[]) =>
     execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
   git('init', '-q');
   git('add', '.');
   git('commit', '-qm', 'init');
-  const copie = path.join(repo, '.claude/worktrees/demo-1');
   git('worktree', 'add', '-q', '-b', 'agent/demo-1', copie);
   lierLesDependances(copie);
   // The frame's base, a workspace of a project, reached by its name from the material.
   const base = path.join(copie, 'packages/corpus/node_modules/@grillhouse');
   mkdirSync(base, { recursive: true });
   symlinkSync(path.dirname(BASE), path.join(base, 'vitest-config'), 'dir');
-  return { repo, copie };
+  return { repo, copie, temoins };
 }
 
 const ENV = {
@@ -191,7 +196,7 @@ describe.runIf(canWrap)(
   "the frame's commands in the envelope of one package",
   { timeout: 120_000 },
   () => {
-    const { copie } = depot();
+    const { copie, temoins } = depot();
     const home = path.join(ESSAIS, 'home');
     mkdirSync(path.join(home, '.claude'), { recursive: true });
     // The launcher builds the copy outside the envelope: the neighbours arrive built.
@@ -206,8 +211,8 @@ describe.runIf(canWrap)(
     const dedans = (shell: string) => dans('developpeur', shell);
     const sortie = (r: { stdout: string; stderr: string }) => `${r.stdout}\n${r.stderr}`;
     const lignes = (f: string) =>
-      existsSync(path.join(copie, f))
-        ? readFileSync(path.join(copie, f), 'utf8').split('\n').filter(Boolean)
+      existsSync(path.join(temoins, f))
+        ? readFileSync(path.join(temoins, f), 'utf8').split('\n').filter(Boolean)
         : [];
     // The tasks of a dry run of Turborepo, sorted.
     const taches = (r: { stdout: string }) =>
@@ -244,7 +249,7 @@ describe.runIf(canWrap)(
     });
 
     it('npm test -- <files> builds the agent package only, and plays its tests', () => {
-      rmSync(path.join(copie, 'construits.txt'), { force: true });
+      rmSync(path.join(temoins, 'construits.txt'), { force: true });
       const r = dedans(`node ${TESTS} --force packages/kernel/test/x.test.mjs`);
       expect(r.status, sortie(r)).toBe(0);
       expect(lignes('joues.txt')).toContain('kernel/x');
@@ -264,8 +269,8 @@ describe.runIf(canWrap)(
         });
 
       it('plays without building the material or writing anything in it', () => {
-        rmSync(path.join(copie, 'construits.txt'), { force: true });
-        rmSync(path.join(copie, 'joues.txt'), { force: true });
+        rmSync(path.join(temoins, 'construits.txt'), { force: true });
+        rmSync(path.join(temoins, 'joues.txt'), { force: true });
         // A first session makes the empty directories the envelope mounts its own over.
         expect(dedans('true').status).toBe(0);
         const avant = etat();
@@ -277,7 +282,7 @@ describe.runIf(canWrap)(
       });
 
       it('gives its true verdict: a failing test fails on its assertion', () => {
-        rmSync(path.join(copie, 'joues.txt'), { force: true });
+        rmSync(path.join(temoins, 'joues.txt'), { force: true });
         const r = dedans(`node ${TESTS} packages/corpus/echec/x.test.mjs`);
         expect(r.status).not.toBe(0);
         expect(lignes('joues.txt')).toEqual(['corpus/echec']);
@@ -285,7 +290,7 @@ describe.runIf(canWrap)(
       });
 
       it('in the envelope of the testwriter, the material builds and writes as before', () => {
-        rmSync(path.join(copie, 'construits.txt'), { force: true });
+        rmSync(path.join(temoins, 'construits.txt'), { force: true });
         const journal = path.join(copie, 'packages/corpus/.turbo/turbo-test$colon$vitest.log');
         rmSync(journal, { force: true });
         // A change to the material's source: its build misses the cache, and plays.
