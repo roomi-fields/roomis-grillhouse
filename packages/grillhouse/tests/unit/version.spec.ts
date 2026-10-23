@@ -199,7 +199,7 @@ describe('the tag of a release names the version it publishes (sortie --verifier
 });
 
 // The publication: the push of a tag v<x> publishes the package on the npm registry, with the
-// repository's secret NPM_TOKEN, once the CI of its commit is green; as Changesets and the tools'
+// trusted publishing (OIDC, no token stored), once the CI of its commit is green; as Changesets and the tools'
 // repositories, the publishing job of the workflow waits for the CI's jobs, played on the tagged
 // commit (a reusable workflow).
 interface Etape {
@@ -239,12 +239,14 @@ describe('the push of a tag v<x> publishes the package on npm, after the green C
     const [nomCi] = travaux.find(([, t]) => t.uses === './.github/workflows/ci.yml') ?? [];
     expect([publication?.needs].flat()).toContain(nomCi);
   });
-  it('publishes the package @roomi-fields/grillhouse, public, with the secret NPM_TOKEN', () => {
+  it('publishes the package @roomi-fields/grillhouse by trusted publishing, without a token', () => {
     const etape = (publication?.steps ?? []).find(e => /\bnpm publish\b/.test(e.run ?? ''));
     expect(etape?.run).toMatch(/--workspace[ =]@roomi-fields\/grillhouse\b/);
-    expect(etape?.env?.NODE_AUTH_TOKEN).toBe('${{ secrets.NPM_TOKEN }}');
+    expect(etape?.env?.NODE_AUTH_TOKEN).toBeUndefined();
+    expect(sortie.permissions?.['id-token']).toBe('write');
     const node = (publication?.steps ?? []).find(e => e.uses?.startsWith('actions/setup-node'));
     expect(node?.with?.['registry-url']).toBe('https://registry.npmjs.org');
+    expect(Number(String(node?.with?.['node-version']).split('.')[0])).toBeGreaterThanOrEqual(24);
   });
   it('checks, before publishing, that the tag names the version of the package', () => {
     const etapes = publication?.steps ?? [];

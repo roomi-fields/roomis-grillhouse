@@ -181,7 +181,7 @@ roomis-grillhouse/
 ├── .github/                    # GitHub integrations
 │   ├── workflows/                 # CI/CD workflows
 │   │   ├── ci.yml                    # Continuous Integration
-│   │   └── release.yml               # On a tag v<x.y.z>: the CI on its commit, then the package published on npm (secret NPM_TOKEN) and the GitHub release
+│   │   └── release.yml               # On a tag v<x.y.z>: the CI on its commit, then the package published on npm (trusted publishing) and the GitHub release
 │   ├── ISSUE_TEMPLATE/            # Issue templates
 │   │   ├── bug_report.md
 │   │   └── feature_request.md

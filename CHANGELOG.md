@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **The release publishes by trusted publishing, without a token** (grillhouse-3uv.84.3.2): the release of v0.23.0 failed at its publication, `ENEEDAUTH`: the repository's secret `NPM_TOKEN`, from 2026-05-27, no longer authenticated anyone, as the owner's other packages had left it on 2026-09-04 for trusted publishing. As `@roomi-fields/notebooklm-mcp` publishes: the runner proves its identity to npm by OIDC (`id-token: write`), under Node 24, whose npm (11.5.1 or later) speaks OIDC, so no token is stored; the package's trusted publisher on npmjs.com names this repository and `release.yml`. CONTRIBUTING.md, STRUCTURE.md and the header of `sortie.mjs` say so.
+
 ## [0.23.0] - 2026-10-23
 
 ### Changed

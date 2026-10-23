@@ -19,7 +19,7 @@
 //   the working tree holds no change. Nothing is pushed: the owner validates the push, whose
 //   command the script names; `.github/workflows/release.yml` then plays the CI on the tagged
 //   commit and, once it is green, checks the tag (`--verifier-etiquette`), publishes the package
-//   on the npm registry (the repository's secret NPM_TOKEN) and the release on GitHub.
+//   on the npm registry (trusted publishing, no token stored) and the release on GitHub.
 // - The marketplace roomi-fields (GitHub, roomi-fields/claude-plugins, a repository of its own)
 //   lists the plugin by its source npm, ENTREE_DU_MARCHE: the package, without a subdirectory (a
 //   source npm has none: the package's root is the plugin's) and without a version, so the machine

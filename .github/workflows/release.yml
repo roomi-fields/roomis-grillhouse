@@ -1,6 +1,6 @@
 # The release of a tag v<x.y.z> (npx grillhouse sortie --etiqueter, then its push): the CI on the
 # tagged commit, then, once it is green, the package @roomi-fields/grillhouse published on the npm
-# registry (the repository's secret NPM_TOKEN) and the release on GitHub.
+# registry by trusted publishing (no token stored) and the release on GitHub.
 name: Release
 
 on:
@@ -25,10 +25,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Node 24 for npm >= 11.5.1, which speaks OIDC to the registry: npm 10 of Node 22 looks for
+      # a token instead, and fails with ENEEDAUTH.
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: '22'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
@@ -37,10 +39,10 @@ jobs:
       - name: Check the tag names the version of the package
         run: npx grillhouse sortie --verifier-etiquette "$GITHUB_REF_NAME"
 
-      - name: Publish the package to npm
-        run: npm publish --workspace @roomi-fields/grillhouse --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # Trusted publishing: the runner proves its identity to npm with a short-lived OIDC token
+      # (id-token: write, above), so no token is stored, leaks or expires; npm adds the provenance.
+      - name: Publish the package to npm (trusted publishing, no token)
+        run: npm publish --workspace @roomi-fields/grillhouse
 
       - name: Generate Release Notes
         id: release_notes
