@@ -12,6 +12,9 @@
 //
 // This module and the ones it imports use Node alone: the update runs them from a source checkout
 // of the frame that installs no dependency.
+//
+// A project's guard imports `horsCadre` by the package's entry `@roomi-fields/grillhouse/paquets`,
+// its types in ./paquets.d.ts (docs/ARCHITECTURE.md, the package's named entries).
 import { existsSync, globSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 

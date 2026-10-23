@@ -89,3 +89,15 @@ sortent sans effet. Les crochets git du cadre suivent le modèle de Husky : le `
 projet lance `grillhouse hooks`, qui les pose à côté des sections de Beads, et chacun appelle
 `grillhouse hook <nom>`, sans effet sans le paquet. Ainsi chaque projet suit la version du cadre qu'il installe, sans fichier à
 recopier.
+
+**Le paquet publie ses entrées nommées, son interface** : un projet importe le paquet par son
+nom et l'une de ses entrées (le champ `exports`), jamais par l'adresse d'un fichier, comme
+`eslint/use-at-your-own-risk` publie les outils d'ESLint. Chaque entrée sort du module qui porte
+la fonction, sans réexport, avec sa déclaration de types à côté (`scripts/<module>.d.ts`) :
+`@roomi-fields/grillhouse/dette` (`trancher`, la dette connue d'une garde du projet),
+`@roomi-fields/grillhouse/consommateurs` (`matieres`, les paquets de la matière de test
+partagée), `@roomi-fields/grillhouse/paquets` (`horsCadre`, les paquets hors cadre), et la
+configuration de base de Vitest, `@roomi-fields/grillhouse/vitest-config` et
+`@roomi-fields/grillhouse/vitest-config/mesure`. Une entrée s'ajoute ou se retire avec ce
+paragraphe, que `tests/unit/paquet-publie.spec.ts` confronte au champ `exports`. Ainsi une
+version du paquet dit ce qu'un projet peut importer, et ce qu'elle lui retire.

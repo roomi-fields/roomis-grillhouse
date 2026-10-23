@@ -27,6 +27,10 @@
 // The identity of a component is its name: two directories of the same name, one under `packages/`
 // and one under `src/`, are refused, both paths named (the way npm workspaces, Nx and Cargo refuse
 // two projects of one name). Names differing by case are two names.
+//
+// A project's guard imports `matieres` by the package's entry
+// `@roomi-fields/grillhouse/consommateurs`, its types in ./consommateurs.d.ts (docs/ARCHITECTURE.md,
+// the package's named entries).
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';

@@ -23,6 +23,9 @@
 //   drops the keys at zero, never raising a count nor adding a key. Each guard then judges against
 //   the file it wrote. The npm scripts `grillhouse:dette:inscrire` and `grillhouse:dette:elaguer`
 //   run every guard so.
+//
+// A project's guard imports `trancher` by the package's entry `@roomi-fields/grillhouse/dette`,
+// its types in ./dette.d.ts (docs/ARCHITECTURE.md, the package's named entries).
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { ecrireSarif } from './resultats.mjs';

@@ -30,6 +30,18 @@
   },
   "exports": {
     "./package.json": "./package.json",
+    "./consommateurs": {
+      "types": "./scripts/consommateurs.d.ts",
+      "default": "./scripts/consommateurs.mjs"
+    },
+    "./dette": {
+      "types": "./scripts/dette.d.ts",
+      "default": "./scripts/dette.mjs"
+    },
+    "./paquets": {
+      "types": "./scripts/paquets.d.ts",
+      "default": "./scripts/paquets.mjs"
+    },
     "./vitest-config": {
       "types": "./scripts/vitest-config/base.d.ts",
       "default": "./scripts/vitest-config/base.mjs"

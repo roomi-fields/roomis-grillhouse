@@ -7,8 +7,9 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  writeFileSync,
 } from 'node:fs';
-import { builtinModules } from 'node:module';
+import { builtinModules, createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -207,6 +208,133 @@ describe('grillhouse-3uv.84.4 critère 7 — what the frame reads resolves from 
   it('init and the update read the template under CADRE', () => {
     for (const f of ['scripts/init.mjs', 'scripts/grillhouse-maj.mjs']) {
       expect(readFileSync(path.join(PAQUET, f), 'utf8'), f).toContain("from './cadre.mjs'");
+    }
+  });
+});
+
+// grillhouse-3uv.95.1: the package publishes the functions a project's guards import, each by a
+// named entry pointing at the module that carries it, with its declaration of types, as
+// `eslint/use-at-your-own-risk` publishes its tools. The archive is packed without its prepack
+// (the entries live under scripts/, which the prepack does not write) and unpacked where npm
+// installs a package, in a project of trial that imports each entry by the package's name.
+const ENTREES_DES_GARDES = [
+  { entree: './dette', module: 'dette', fonction: 'trancher' },
+  { entree: './consommateurs', module: 'consommateurs', fonction: 'matieres' },
+  { entree: './paquets', module: 'paquets', fonction: 'horsCadre' },
+] as const;
+
+describe('grillhouse-3uv.95.1 — the named entries of the package for a project’s guards', () => {
+  it('critère 1: each entry points at the module carrying its function, with a declaration of types that declares it', () => {
+    for (const { entree, module, fonction } of ENTREES_DES_GARDES) {
+      expect(pkg.exports[entree], entree).toEqual({
+        types: `./scripts/${module}.d.ts`,
+        default: `./scripts/${module}.mjs`,
+      });
+      const types = path.join(PAQUET, `scripts/${module}.d.ts`);
+      expect(existsSync(types), types).toBe(true);
+      expect(readFileSync(types, 'utf8')).toMatch(new RegExp(`export function ${fonction}\\b`));
+    }
+  });
+
+  it('critère 2: a project of trial that installs the packed package imports each entry by its name, calls it, and its types check', () => {
+    const archives = mkdtempSync(path.join(ESSAIS, 'archives-'));
+    const pack = spawnSync(
+      'npm',
+      ['pack', '--ignore-scripts', '--silent', '--pack-destination', archives],
+      { cwd: PAQUET, encoding: 'utf8' }
+    );
+    expect(pack.status, pack.stderr).toBe(0);
+    const [archive] = readdirSync(archives).filter(f => f.endsWith('.tgz'));
+    expect(archive, 'npm pack wrote an archive').toBeDefined();
+    const projet = mkdtempSync(path.join(ESSAIS, 'projet-'));
+    const installe = path.join(projet, 'node_modules/@roomi-fields/grillhouse');
+    mkdirSync(installe, { recursive: true });
+    const tar = spawnSync(
+      'tar',
+      ['-xzf', path.join(archives, archive as string), '-C', installe, '--strip-components=1'],
+      { encoding: 'utf8' }
+    );
+    expect(tar.status, tar.stderr).toBe(0);
+    const ecrire = (f: string, texte: string) => {
+      mkdirSync(path.dirname(path.join(projet, f)), { recursive: true });
+      writeFileSync(path.join(projet, f), texte);
+    };
+    ecrire('package.json', '{ "name": "essai", "private": true, "type": "module" }\n');
+    ecrire('docs/agents/hors-cadre.txt', '# hors cadre\nancien gelé\n');
+    ecrire(
+      'packages/matiere/package.json',
+      '{ "name": "@essai/matiere", "exports": { "./test-fixtures": "./f.mjs" } }\n'
+    );
+    const imports = [
+      "import { trancher } from '@roomi-fields/grillhouse/dette';",
+      "import { matieres } from '@roomi-fields/grillhouse/consommateurs';",
+      "import { horsCadre } from '@roomi-fields/grillhouse/paquets';",
+    ].join('\n');
+    ecrire(
+      'essai.mjs',
+      `${imports}
+const racine = process.cwd();
+const { refus } = trancher(racine, 'essai', [{ fichier: 'a.mjs', regle: 'r', message: 'm' }], undefined, {});
+console.log(JSON.stringify({
+  refus: refus.map(c => c.message),
+  matieres: matieres(racine).map(m => m.paquet),
+  horsCadre: [...horsCadre(racine)],
+}));
+`
+    );
+    const r = spawnSync(process.execPath, ['essai.mjs'], { cwd: projet, encoding: 'utf8' });
+    expect(r.status, r.stderr).toBe(0);
+    expect(JSON.parse(r.stdout)).toEqual({
+      refus: ['m'],
+      matieres: ['@essai/matiere'],
+      horsCadre: ['ancien'],
+    });
+    // The same calls in TypeScript, checked against the declarations the entries publish: an
+    // entry without its types is an implicit any, which strict refuses.
+    ecrire(
+      'essai.mts',
+      `${imports}
+const racine = 'ici';
+const n: number = matieres(racine).length;
+const s: Set<string> = horsCadre(racine);
+const { refus, lignes }: { refus: { message: string }[]; lignes: string[] } = trancher(racine, 'essai', [
+  { fichier: 'a.mjs', regle: 'r', message: 'm', ligne: 3 },
+]);
+export { n, s, refus, lignes };
+`
+    );
+    ecrire(
+      'tsconfig.json',
+      `${JSON.stringify({
+        compilerOptions: {
+          strict: true,
+          noEmit: true,
+          module: 'nodenext',
+          moduleResolution: 'nodenext',
+          types: [],
+        },
+        files: ['essai.mts'],
+      })}\n`
+    );
+    const tsc = spawnSync(
+      process.execPath,
+      [createRequire(import.meta.url).resolve('typescript/bin/tsc'), '-p', '.'],
+      { cwd: projet, encoding: 'utf8' }
+    );
+    expect(tsc.status, `${tsc.stdout}${tsc.stderr}`).toBe(0);
+  }, 120_000);
+
+  it('critère 3: the architecture of the package names each entry it publishes, and names no entry it does not', () => {
+    const texte = readFileSync(path.join(PAQUET, 'docs/ARCHITECTURE.md'), 'utf8');
+    const nommees = new Set(
+      [...texte.matchAll(/`@roomi-fields\/grillhouse\/([a-z][a-z0-9/-]*)`/g)].map(
+        m => `./${m[1] as string}`
+      )
+    );
+    const publiees = Object.keys(pkg.exports).filter(e => e !== './package.json');
+    expect([...nommees].sort()).toEqual([...publiees].sort());
+    for (const { entree } of ENTREES_DES_GARDES) {
+      expect(publiees).toContain(entree);
     }
   });
 });
