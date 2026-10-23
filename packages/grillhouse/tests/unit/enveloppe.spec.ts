@@ -8,7 +8,6 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
-  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir, userInfo } from 'node:os';
@@ -35,148 +34,37 @@ const ESSAIS = racineSousLaMaison('grillhouse-essais-enveloppe-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 const { essai } = enveloppeEssai(ESSAIS);
 
-// A disk described as { path: entries } for directories, a set of existing paths, the outgoing
-// links of a directory and the `files` field of a directory's package.json.
-function fakeDisk(
-  dirs: Record<string, { name: string; dir: boolean }[]>,
-  files: string[],
-  links = {},
-  manifests: Record<string, string[]> = {}
-) {
-  const exists = new Set([...Object.keys(dirs), ...files]);
-  return {
-    lister: (d: string) => dirs[d] ?? [],
-    existe: (p: string) => exists.has(p),
-    liens: (d: string) => (links as Record<string, { lien: string; cible: string }[]>)[d] ?? [],
-    publies: (d: string) => manifests[d] ?? [],
-  };
+// A disk that holds the paths <files>.
+function fakeDisk(files: string[]) {
+  const exists = new Set(files);
+  return { existe: (p: string) => exists.has(p) };
 }
 
 const pairs = (args: string[], flag: string) =>
   args.flatMap((a, i) => (a === flag ? [args[i + 1]] : []));
+const PAQUETS = [
+  { dossier: 'packages/a', pkg: { name: 'a' }, hors: false },
+  { dossier: 'packages/b', pkg: { name: 'b' }, hors: false },
+];
 
 describe('plan', () => {
-  const disk = fakeDisk(
-    {
-      '/wt/packages': [
-        { name: 'a', dir: true },
-        { name: 'b', dir: true },
-      ],
-      '/wt/packages/a': [],
-      '/main/packages': [],
-    },
-    ['/wt/packages/b/package.json', '/wt/packages/b/docs/INTERFACE.md', '/wt/packages/b/dist']
-  );
   const { args, refus } = plan(
-    { trees: ['/main', '/wt'], copie: '/wt', composant: 'packages/a' },
-    disk
+    { trees: ['/main', '/wt'], copie: '/wt', paquets: ['packages/a'], paquetsDeLaCopie: PAQUETS },
+    fakeDisk(['/wt/packages/a', '/wt/packages/b'])
   );
 
   it('mounts the machine read-only, with a /dev/shm of its own', () => {
+    expect(refus).toBeUndefined();
     expect(args.slice(0, 3)).toEqual(['--ro-bind', '/', '/']);
     expect(args.join(' ')).not.toMatch(/--dev-bind \/ \//);
-    expect(pairs(args, '--tmpfs')[0]).toBe('/dev/shm');
+    expect(pairs(args, '--tmpfs')).toEqual(['/dev/shm']);
   });
-  it('empties the components directory of every worktree', () => {
-    expect(refus).toBeUndefined();
-    expect(pairs(args, '--tmpfs')).toEqual(['/dev/shm', '/main/packages', '/wt/packages']);
-  });
-  it('mounts its copy, then its own component, in writing', () => {
-    expect(pairs(args, '--bind')).toEqual(['/wt', '/wt/packages/a']);
-  });
-  it('mounts only the published parts of a sibling, read-only', () => {
-    expect(pairs(args, '--ro-bind')).toEqual([
-      '/',
-      '/wt/packages/b/package.json',
-      '/wt/packages/b/docs/INTERFACE.md',
-      '/wt/packages/b/dist',
-    ]);
-  });
-  it('seals the emptied directories after the mounts', () => {
-    expect(pairs(args, '--remount-ro')).toEqual(['/main/packages', '/wt/packages']);
-    expect(args.indexOf('--remount-ro')).toBeGreaterThan(args.indexOf('--bind'));
+  it('mounts its copy read-only, then the package of its plan in writing', () => {
+    expect(pairs(args, '--ro-bind')).toEqual(['/', '/wt']);
+    expect(pairs(args, '--bind')).toEqual(['/wt/packages/a']);
   });
   it('runs in the agent copy', () => {
     expect(pairs(args, '--chdir')).toEqual(['/wt']);
-  });
-});
-
-describe('plan and the files field of a sibling', () => {
-  const siblings = {
-    '/wt/packages': [
-      { name: 'a', dir: true },
-      { name: 'b', dir: true },
-      { name: 'c', dir: true },
-    ],
-    '/wt/packages/a': [],
-  };
-  const roBinds = (manifests: Record<string, string[]>, files: string[]) =>
-    pairs(
-      plan(
-        { trees: ['/main', '/wt'], copie: '/wt', composant: 'packages/a' },
-        fakeDisk(siblings, files, {}, manifests)
-      ).args,
-      '--ro-bind'
-    );
-
-  it('mounts read-only the paths that the files field names', () => {
-    const ro = roBinds({ '/wt/packages/b': ['lib'] }, [
-      '/wt/packages/b/package.json',
-      '/wt/packages/b/lib',
-      '/wt/packages/c/package.json',
-    ]);
-    expect(ro).toContain('/wt/packages/b/lib');
-    expect(ro).not.toContain('/wt/packages/c/lib');
-  });
-  it('gives a sibling without files its published parts only', () => {
-    const ro = roBinds({}, [
-      '/wt/packages/b/package.json',
-      '/wt/packages/b/dist',
-      '/wt/packages/b/lib',
-      '/wt/packages/b/src',
-    ]);
-    expect(ro).toEqual(['/', '/wt/packages/b/package.json', '/wt/packages/b/dist']);
-  });
-  // Witness: BPScript, whose tests of 030-binder stopped on a cycle of Turborepo in the envelope:
-  // without a neighbour's turbo.json, Turborepo gave its build the root's `^build`.
-  it("mounts a sibling's package configuration of Turborepo, turbo.json or turbo.jsonc", () => {
-    const ro = roBinds({}, [
-      '/wt/packages/b/package.json',
-      '/wt/packages/b/turbo.json',
-      '/wt/packages/c/turbo.jsonc',
-    ]);
-    expect(ro).toContain('/wt/packages/b/turbo.json');
-    expect(ro).toContain('/wt/packages/c/turbo.jsonc');
-  });
-  it('mounts no path of files that the disk lacks', () => {
-    const ro = roBinds({ '/wt/packages/b': ['lib', 'bin'] }, ['/wt/packages/b/lib']);
-    expect(ro).toContain('/wt/packages/b/lib');
-    expect(ro).not.toContain('/wt/packages/b/bin');
-  });
-  it('mounts no path of files that leaves the sibling', () => {
-    const ro = roBinds({ '/wt/packages/b': ['../c/src'] }, ['/wt/packages/c/src']);
-    expect(ro).not.toContain('/wt/packages/c/src');
-  });
-  it('mounts a path once when files repeats a published part', () => {
-    const ro = roBinds({ '/wt/packages/b': ['dist'] }, ['/wt/packages/b/dist']);
-    expect(ro.filter(p => p === '/wt/packages/b/dist')).toHaveLength(1);
-  });
-});
-
-describe('plan in a one-package project', () => {
-  it('gives back the parent files read-only', () => {
-    const disk = fakeDisk(
-      {
-        '/wt/src': [
-          { name: 'index.ts', dir: false },
-          { name: 'parser', dir: true },
-        ],
-        '/wt/src/parser': [],
-      },
-      []
-    );
-    const { args } = plan({ trees: ['/main', '/wt'], copie: '/wt', composant: 'src/parser' }, disk);
-    expect(pairs(args, '--ro-bind')).toEqual(['/', '/wt/src/index.ts']);
   });
 });
 
@@ -188,7 +76,8 @@ describe('plan and the session mounts', () => {
     etatJetable: '/t/claude.json',
     scratchpads: '/tmp/claude-1/-wt',
   });
-  const disk = fakeDisk({ '/wt/packages': [], '/wt/packages/a': [] }, [
+  const disk = fakeDisk([
+    '/wt/packages/a',
     '/h/.npm',
     '/h/.claude',
     '/t/claude.json',
@@ -200,7 +89,13 @@ describe('plan and the session mounts', () => {
     '/main/.beads',
   ]);
   const { args } = plan(
-    { trees: ['/main', '/wt'], copie: '/wt', composant: 'packages/a', montages },
+    {
+      trees: ['/main', '/wt'],
+      copie: '/wt',
+      paquets: ['packages/a'],
+      paquetsDeLaCopie: PAQUETS,
+      montages,
+    },
     disk
   );
   const triples = (flag: string) =>
@@ -214,7 +109,6 @@ describe('plan and the session mounts', () => {
       '/h/.claude>/h/.claude',
       '/t/claude.json>/h/.claude.json',
       '/h/.claude/projects/-wt>/h/.claude/projects/-wt',
-      '/wt>/wt',
       '/main/.beads>/main/.beads',
       '/wt/packages/a>/wt/packages/a',
     ]);
@@ -234,12 +128,16 @@ describe('plan and the session mounts', () => {
     expect(args.indexOf('/wt')).toBeGreaterThan(args.indexOf('/tmp'));
     expect(triples('--ro-bind')).toContain('/wt/.git>/wt/.git');
   });
+  it('seals the home after the mounts', () => {
+    expect(pairs(args, '--remount-ro')).toEqual(['/h']);
+    expect(args.indexOf('--remount-ro')).toBeGreaterThan(args.lastIndexOf('--bind'));
+  });
 });
 
-// The index is for the roles that see the whole repository (charter, « L'index d'abord »): in its
-// envelope an agent reads its package and the interfaces of its neighbours, as Bazel shows an
-// action only its declared inputs. The envelope declares neither codegraph nor rtfm.
-describe('the session mounts and the index', () => {
+// The roles of the envelope do not receive the servers of the index (scripts/droits.mjs): the
+// home declares neither codegraph nor rtfm, while the indexes of the repository are in sight
+// (tests/unit/enveloppe.enceinte.spec.ts).
+describe('the session mounts and the tools of the index', () => {
   const montages = montagesDeLaSeance({
     cacheNpm: '/h/.npm',
     claude: '/h/.claude',
@@ -273,13 +171,10 @@ describe('plan with the task cache', () => {
     {
       trees: ['/main', '/wt'],
       copie: '/wt',
-      composant: 'scripts',
+      paquets: ['scripts'],
       magasins: ['/main/.turbo/cache', '/main/.absent/cache'],
     },
-    fakeDisk({ '/wt': [{ name: 'scripts', dir: true }], '/wt/scripts': [] }, [
-      '/wt/.git',
-      '/main/.turbo/cache',
-    ])
+    fakeDisk(['/wt/scripts', '/wt/.git', '/main/.turbo/cache'])
   );
   it('mounts each existing cache in writing, after the copy and its .git', () => {
     const texte = args.join(' ');
@@ -291,10 +186,10 @@ describe('plan with the task cache', () => {
 
 describe('plan for a folder of the root', () => {
   const { args, refus } = plan(
-    { trees: ['/main', '/wt'], copie: '/wt', composant: 'scripts' },
-    fakeDisk({ '/wt': [{ name: 'scripts', dir: true }], '/wt/scripts': [] }, ['/wt/.git'])
+    { trees: ['/main', '/wt'], copie: '/wt', paquets: ['scripts'], paquetsDeLaCopie: PAQUETS },
+    fakeDisk(['/wt/scripts', '/wt/.git'])
   );
-  it('hides nothing, and keeps the copy written and its .git read-only', () => {
+  it('writes the package that holds it, the whole copy, its .git read-only', () => {
     expect(refus).toBeUndefined();
     expect(pairs(args, '--tmpfs')).toEqual(['/dev/shm']);
     expect(args.join(' ')).toContain('--bind /wt /wt');
@@ -306,15 +201,15 @@ describe('plan for a folder of the root', () => {
 describe('plan refuses', () => {
   it('the main tree', () => {
     const { refus } = plan(
-      { trees: ['/main', '/wt'], copie: '/main', composant: 'packages/a' },
-      fakeDisk({ '/main/packages/a': [] }, ['/main/packages/a'])
+      { trees: ['/main', '/wt'], copie: '/main', paquets: ['packages/a'] },
+      fakeDisk(['/main/packages/a'])
     );
     expect(refus).toMatch(/arbre principal/);
   });
   it('a missing component', () => {
     const { refus } = plan(
-      { trees: ['/main', '/wt'], copie: '/wt', composant: 'packages/z' },
-      fakeDisk({ '/wt/packages': [] }, [])
+      { trees: ['/main', '/wt'], copie: '/wt', paquets: ['packages/z'] },
+      fakeDisk([])
     );
     expect(refus).toMatch(/n'existe pas/);
   });
@@ -324,13 +219,13 @@ describe('plan refuses', () => {
       {
         trees: ['/main', '/wt'],
         copie: '/wt',
-        composant: '001-kernel',
-        paquets: [
+        paquets: ['001-kernel'],
+        paquetsDeLaCopie: [
           { dossier: 'packages/000-forms', pkg: { name: '000-forms' }, hors: false },
           { dossier: 'packages/001-kernel', pkg: { name: '001-kernel' }, hors: false },
         ],
       },
-      fakeDisk({ '/wt/packages': [] }, [])
+      fakeDisk([])
     );
     expect(refus).toContain(
       "`001-kernel` n'est pas le chemin d'un composant ; écris `packages/001-kernel`"
@@ -343,13 +238,13 @@ describe('plan refuses', () => {
       {
         trees: ['/main', '/wt'],
         copie: '/wt',
-        composant: '050-emitter',
-        paquets: [
+        paquets: ['050-emitter'],
+        paquetsDeLaCopie: [
           { dossier: 'packages/000-forms', pkg: { name: '@bp/forms' }, hors: false },
           { dossier: 'packages/050-emitter', pkg: { name: '@bp/emitter' }, hors: false },
         ],
       },
-      fakeDisk({ '/wt/packages': [] }, [])
+      fakeDisk([])
     );
     expect(refus).toContain(
       "`050-emitter` n'est pas le chemin d'un composant ; écris `packages/050-emitter`"
@@ -361,60 +256,12 @@ describe('plan refuses', () => {
       {
         trees: ['/main', '/wt'],
         copie: '/wt',
-        composant: 'packages/z',
-        paquets: [{ dossier: 'packages/a', pkg: { name: 'a' }, hors: false }],
+        paquets: ['packages/z'],
+        paquetsDeLaCopie: [{ dossier: 'packages/a', pkg: { name: 'a' }, hors: false }],
       },
-      fakeDisk({ '/wt/packages': [] }, [])
+      fakeDisk([])
     );
     expect(refus).toBe("Le composant /wt/packages/z n'existe pas.");
-  });
-  it('a link that crosses into a hidden component', () => {
-    const disk = fakeDisk({ '/wt/packages': [], '/wt/packages/a': [] }, [], {
-      '/wt/packages/a': [{ lien: '/wt/packages/a/x', cible: '/main/packages/b/src' }],
-    });
-    const { refus } = plan(
-      { trees: ['/main', '/wt'], copie: '/wt', composant: 'packages/a' },
-      disk
-    );
-    expect(refus).toMatch(/traverserait l'enveloppe/);
-  });
-  // grillhouse-2sq: the package of the shared test material comes back whole, so a link of it
-  // that aims at a hidden component would cross the envelope, for every role.
-  it.each(['testwriter', 'developpeur'])(
-    'a link of the shared test material that crosses into a hidden component (%s)',
-    role => {
-      const disk = fakeDisk(
-        { '/wt/packages': [], '/wt/packages/a': [], '/wt/packages/matiere': [] },
-        ['/wt/packages/a', '/wt/packages/matiere'],
-        {
-          '/wt/packages/matiere': [
-            { lien: '/wt/packages/matiere/fixtures/x', cible: '/main/packages/b/src' },
-          ],
-        }
-      );
-      const { refus } = plan(
-        {
-          trees: ['/main', '/wt'],
-          copie: '/wt',
-          composant: 'packages/a',
-          role,
-          matieres: ['packages/matiere'],
-        },
-        disk
-      );
-      expect(refus).toMatch(/traverserait l'enveloppe/);
-      expect(refus).toContain('/wt/packages/matiere/fixtures/x');
-    }
-  );
-  it('lets a link to an unhidden place through', () => {
-    const disk = fakeDisk({ '/wt/packages': [], '/wt/packages/a': [] }, [], {
-      '/wt/packages/a': [{ lien: '/wt/packages/a/x', cible: '/usr/lib/node' }],
-    });
-    const { refus } = plan(
-      { trees: ['/main', '/wt'], copie: '/wt', composant: 'packages/a' },
-      disk
-    );
-    expect(refus).toBeUndefined();
   });
 });
 
@@ -423,6 +270,12 @@ describe.runIf(canWrap)('the envelope on disk', () => {
   for (const d of ['packages/a/src', 'packages/b/src', 'packages/b/docs', 'packages/b/dist']) {
     mkdirSync(path.join(repo, d), { recursive: true });
   }
+  writeFileSync(
+    path.join(repo, 'package.json'),
+    JSON.stringify({ name: 'essai', workspaces: ['packages/*'] })
+  );
+  writeFileSync(path.join(repo, 'packages/a/package.json'), JSON.stringify({ name: 'a' }));
+  writeFileSync(path.join(repo, 'packages/b/package.json'), JSON.stringify({ name: 'b' }));
   writeFileSync(path.join(repo, 'packages/a/src/a.ts'), 'a');
   mkdirSync(path.join(repo, '.beads'));
   writeFileSync(path.join(repo, '.beads/config.yaml'), '');
@@ -449,16 +302,14 @@ describe.runIf(canWrap)('the envelope on disk', () => {
       env: { ...process.env, HOME: home },
     });
 
-  it('hides the code of the other components', () => {
-    expect(run('cat packages/b/src/b.ts').status).not.toBe(0);
+  it('shows the code of the other components, their interface and declarations', () => {
+    expect(
+      run('cat packages/b/src/b.ts packages/b/docs/INTERFACE.md packages/b/dist/index.d.ts').stdout
+    ).toBe('secretinterfacedeclare');
   });
-  it('shows their interface and declarations', () => {
-    expect(run('cat packages/b/docs/INTERFACE.md packages/b/dist/index.d.ts').stdout).toBe(
-      'interfacedeclare'
-    );
-  });
-  it('keeps their published parts read-only', () => {
+  it('keeps the other components read-only', () => {
     expect(run('touch packages/b/docs/x').status).not.toBe(0);
+    expect(run('touch packages/b/src/x.ts').status).not.toBe(0);
   });
   it('lets the agent write its own component', () => {
     expect(run('touch packages/a/src/new.ts').status).toBe(0);
@@ -506,12 +357,6 @@ describe.runIf(canWrap)('the envelope on disk', () => {
     const r = run('true', repo);
     expect(r.status).toBe(CODE_REFUS);
     expect(r.stderr).toMatch(/arbre principal/);
-  });
-  it('refuses to launch through a crossing link', () => {
-    symlinkSync(path.join(copie, 'packages/b/src'), path.join(copie, 'packages/a/vers-b'));
-    const r = run('true');
-    expect(r.status).toBe(CODE_REFUS);
-    expect(r.stderr).toMatch(/traverserait l'enveloppe/);
   });
 });
 
@@ -758,7 +603,7 @@ describe.runIf(canWrap && existsSync(sessionReelle))(
 
 // The probe of the ticket, on the real home of this machine: claude and the tools of the session
 // work in the envelope, each for real — claude reads its identity, bd opens a tickets base — and
-// no index of the repository is in sight. Its copy is the one this suite runs in, when that copy is not
+// the indexes of the repository are in sight, as outside; the tools of the index are not. Its copy is the one this suite runs in, when that copy is not
 // the main tree and its session directory under the real `~/.claude/projects` can be written (a
 // role session); else, where `~/.claude/projects` can be written (outside an envelope), a test
 // repository, whose tickets base and indexes are made here and whose session directory is removed
@@ -794,7 +639,6 @@ describe.runIf(canWrap && (copieDeLaSuite || sondeEssai))('the envelope on the r
     spawnSync(cmd[0], cmd.slice(1), { cwd, encoding: 'utf8', env: reel, timeout: 60000 });
   let copie: string;
   let principal: string;
-  let symbole: string;
   if (copieDeLaSuite) {
     copie = copieDeLaSuite;
     principal = execFileSync('git', ['-C', copie, 'worktree', 'list', '--porcelain'], {
@@ -802,12 +646,10 @@ describe.runIf(canWrap && (copieDeLaSuite || sondeEssai))('the envelope on the r
     })
       .split('\n')[0]
       .replace(/^worktree /, '');
-    symbole = 'montagesDeLaSeance';
   } else {
     const repo = essai('maison-reelle-');
     mkdirSync(path.join(repo, 'packages/a'), { recursive: true });
-    symbole = 'sondeDeLEnveloppe';
-    writeFileSync(path.join(repo, 'packages/a/a.ts'), `export function ${symbole}() {}\n`);
+    writeFileSync(path.join(repo, 'packages/a/a.ts'), 'export function sondeDeLEnveloppe() {}\n');
     const git = (...a: string[]) =>
       execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
     git('init', '-q');
@@ -815,7 +657,7 @@ describe.runIf(canWrap && (copieDeLaSuite || sondeEssai))('the envelope on the r
     dehors(['bd', 'create', 'ticket de la sonde', '--json'], repo);
     dehors(['codegraph', 'init', repo], repo);
     mkdirSync(path.join(repo, '.rtfm'), { recursive: true });
-    writeFileSync(path.join(repo, '.rtfm/index.db'), symbole);
+    writeFileSync(path.join(repo, '.rtfm/index.db'), 'sondeDeLEnveloppe');
     principal = repo;
     writeFileSync(path.join(repo, '.gitignore'), '.codegraph/\n.rtfm/\n');
     git('add', '.');
@@ -825,7 +667,7 @@ describe.runIf(canWrap && (copieDeLaSuite || sondeEssai))('the envelope on the r
     const projet = path.join(projetsReels, enTirets(copie));
     afterAll(() => rmSync(projet, { recursive: true, force: true }));
   }
-  const composant = copieDeLaSuite ? 'scripts' : 'packages/a';
+  const composant = copieDeLaSuite ? 'packages/grillhouse' : 'packages/a';
   const dedans = (cmd: string[]) =>
     spawnSync('node', [SCRIPT, copie, composant, 'developpeur', '--', ...cmd], {
       encoding: 'utf8',
@@ -868,28 +710,18 @@ describe.runIf(canWrap && (copieDeLaSuite || sondeEssai))('the envelope on the r
     expect(r.status, r.stderr).toBe(0);
     expect(r.stdout).toContain(ticket);
   });
-  it('shows no content of an index of the repository, nor the state of codegraph and rtfm', () => {
+  it('shows the indexes of the repository as the machine has them, not the state of codegraph and rtfm', () => {
     for (const p of [principal, copie].flatMap(t => [
       path.join(t, '.codegraph'),
       path.join(t, '.rtfm'),
     ])) {
-      const r = dedans(['bash', '-c', `find ${p} -mindepth 1 2>/dev/null; true`]);
-      expect(r.stdout, p).toBe('');
+      const lister = ['bash', '-c', `find ${p} -mindepth 1 2>/dev/null | sort; true`];
+      expect(dedans(lister).stdout, p).toBe(dehors(lister, copie).stdout);
     }
     for (const rel of ['.codegraph', '.rtfm', '.local/bin/codegraph', '.local/bin/rtfm']) {
       const p = path.join(maisonReelle, rel);
       const r = dedans(['bash', '-c', `test -e ${p} || test -L ${p}`]);
       expect(r.status, p).not.toBe(0);
-    }
-  });
-  it('lets no codegraph of the session answer from the index of the repository', () => {
-    for (const t of [principal, copie]) {
-      const r = dedans([
-        'bash',
-        '-c',
-        `codegraph query ${symbole} -p ${t} --json 2>/dev/null; true`,
-      ]);
-      expect(r.stdout, t).not.toContain(symbole);
     }
   });
   // Needs the real bd, which writes the ticket, and the trial repository, made for the probe alone

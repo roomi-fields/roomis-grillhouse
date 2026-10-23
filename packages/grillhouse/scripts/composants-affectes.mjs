@@ -44,7 +44,7 @@
 //   package it changes. A survey by the types that cannot run says why, and the survey stands on
 //   the names; a name the types resolve is no longer set apart.
 // - By the paths read (`lit`): each component whose tests declare they read a path
-//   (`grillhouse.lit` of its package.json, `cheminsLus` of scripts/enveloppe/enveloppe.mjs) that a
+//   (`grillhouse.lit` of its package.json and the `lit` of its traces, `cheminsLus`) that a
 //   path the ticket changes holds or lies in: a path of the repository the sections write (its
 //   `:<line>` left out), or the folder of a component they name.
 // - By the architecture: the items of the « Rend » of the `docs/CADRE.md` of each component that
@@ -71,11 +71,28 @@ import {
   parcourir,
   utilise,
 } from './consommateurs.mjs';
-import { cheminsLus } from './enveloppe/enveloppe.mjs';
 import { lire } from './index-interfaces.mjs';
 import { elementsEcrits, parLesTypes } from './references-par-les-types.mjs';
 
 const DOSSIERS_DE_TEST = new Set(['test', 'tests', '__tests__']);
+
+/**
+ * The paths that the tests of the package at <dir> declare they read: its `grillhouse.lit`, then
+ * the `lit` of each trace it declares (`grillhouse.traces`), each path from the root; none without
+ * a package.json or a declaration.
+ * @param {string} dir the directory of the package
+ * @returns {string[]}
+ */
+export function cheminsLus(dir) {
+  const manifeste = path.join(dir, 'package.json');
+  if (!existsSync(manifeste)) return [];
+  const { grillhouse } = JSON.parse(readFileSync(manifeste, 'utf8'));
+  const liste = v => (Array.isArray(v) ? v.filter(l => typeof l === 'string') : []);
+  return [
+    ...liste(grillhouse?.lit),
+    ...Object.values(grillhouse?.traces ?? {}).flatMap(t => liste(t?.lit)),
+  ];
+}
 const SAUTES = new Set(['node_modules', 'dist', 'build', 'coverage']);
 const SOURCE = /\.[cm]?[jt]sx?$/;
 

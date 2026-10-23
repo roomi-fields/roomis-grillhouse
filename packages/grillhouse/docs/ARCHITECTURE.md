@@ -29,6 +29,20 @@ chemin que ses tests déclarent lire, `grillhouse.lit`) ; sans vert connu, la pa
 complète, et `npm run verifier -- --tout` la joue pour de vrai, comme la nuit. Ainsi un test ne
 tourne qu'une fois tant que rien ne change, et corriger un test ne rejoue que lui.
 
+**Tout se lit, le plan s'écrit** : un agent de rôle travaille dans l'enveloppe de sa copie
+(`packages/grillhouse/scripts/enveloppe/`, un bac à sable bubblewrap) ; il lit toute la copie,
+index compris (`.codegraph`, `.rtfm`), et n'écrit que les paquets que le plan de son ticket nomme
+(les composants du titre), la base des tickets et le cache de Turborepo ; `.git` reste en lecture
+seule, et la matière de test partagée s'écrit par le seul testwriter. Un chemin du plan hors des
+paquets écrit la racine, toute la copie. `GRILLHOUSE_ENVELOPPE` porte la liste aux commandes du
+cadre, qui construisent, jugent et écrivent ses seuls paquets. Une écriture hors du plan échoue
+au montage, et le verrou de l'agent arrête sa séance en nommant le paquet ; le circuit s'arrête à
+« hors-plan », pour le superviseur, qui étend le plan ou refuse. Comme la visibilité de Bazel et
+les frontières de modules de Nx, la règle refuse et le code reste lisible ; comme
+`bwrap --ro-bind / --bind`, le bac à sable n'ouvre en écriture que ce qu'il lie. Ainsi l'agent
+lit ce dont il a besoin, et les gardes tiennent l'architecture (BP 320.9 : la lecture cloisonnée
+causait l'essentiel des pertes).
+
 **Une passe écrit sous sa base** : chaque lancement de Vitest, `npm test`, `npm run verifier`,
 un circuit, une intégration et une enveloppe ouvrent leur base dans le dossier temporaire, la
 nomment dans `TMPDIR` à ce qu'ils lancent (les dossiers d'essai des tests, celui de Vitest, celui

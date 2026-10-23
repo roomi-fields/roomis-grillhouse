@@ -106,10 +106,10 @@ writeFileSync(
 );
 installerEnveloppe(REPO);
 const FAUX = path.join(REPO, 'faux-claude.sh');
-// It writes in the component of the session, the one the envelope leaves writable.
+// It writes in the component of the session, the plan the envelope names (grillhouse-3uv.95.3).
 writeFileSync(
   FAUX,
-  '#!/bin/bash\nfor c in a b d; do\n  if printf "%s\\0" "$@" 2>/dev/null > packages/$c/args; then cat > packages/$c/prompt; break; fi\ndone\n',
+  '#!/bin/bash\nprintf "%s\\0" "$@" > "$GRILLHOUSE_ENVELOPPE/args"\ncat > "$GRILLHOUSE_ENVELOPPE/prompt"\n',
   { mode: 0o755 }
 );
 execFileSync('git', ['init', '-q', REPO]);
@@ -426,7 +426,7 @@ describe('critère 5 — the header of the launcher', () => {
 
 // The usage line of the launcher, with its two options.
 const USAGE =
-  'usage: npx grillhouse lancer [--modele <m>] [--effort <e>] [--seance <id> | --reprise <id>] <ticket> <rôle> <composant> <fichier de consigne>';
+  'usage: npx grillhouse lancer [--modele <m>] [--effort <e>] [--seance <id> | --reprise <id>] [--paquets <liste>] <ticket> <rôle> <composant> <fichier de consigne>';
 
 describe('critère 6 — the usage message shows the two options', () => {
   it('critère 6 — the usage line of the header shows the two options', () => {
@@ -537,7 +537,7 @@ describe.runIf(canWrap)('the launcher and the register line of a session that fa
       'vitest-config/avancement.mjs',
       'vitest-config/pression.mjs',
       'verrou-de-machine.mjs',
-      'enveloppe/composant.mjs',
+      'enveloppe/paquets-du-plan.mjs',
       'verrou-de-fichier.mjs',
       'integration/verdict.mjs',
     ]) {

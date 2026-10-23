@@ -172,6 +172,7 @@ export const ARRETS = {
   'composants-manquants': 21,
   questionnement: 22,
   references: 23,
+  'hors-plan': 24,
   'a-repasser': A_REPASSER,
 };
 
@@ -238,7 +239,8 @@ export const juge = role =>
 // launched for what no line settles, and for the line that sends to him. Each line: `genre`, the
 // kind of stop as the circuit reads it in its structured results and its state; `geste`, what
 // follows; `cas`, the case of BPScript 320.3 (2026-10-20) it would have settled, by its stop (A)
-// or its decision (D) in the analysis of that ticket. The gestures (GESTES):
+// or its decision (D) in the analysis of that ticket, or the analysis of BPScript 320.9
+// (2026-10-23). The gestures (GESTES):
 // - `superviseur`: the circuit ends on the stop, its reason saying why, for the supervisor, with
 //   no regulator, and the board shows it under its step after « ⤷ Arrêt · superviseur »;
 // - `a-repasser`: the circuit ends at 75, which the supervisor plays again at rest;
@@ -269,6 +271,13 @@ export const TABLE_DES_ARRETS = [
     genre: 'questionnement',
     geste: 'superviseur',
     cas: 'A14 : 040-checker nommé au critère 13 et absent du titre, que le plan questionné aurait relevé ; D15 : une consigne neuve sur le fond, hors du plan',
+  },
+  {
+    // A testwriter or developpeur session its lock stops on a write out of the plan (24): the
+    // supervisor extends the plan or refuses the write (grillhouse-3uv.95, decision 1).
+    genre: 'hors-plan',
+    geste: 'superviseur',
+    cas: 'BP 320.9 : l’enceinte de lecture a coûté l’essentiel des pertes ; l’enceinte d’écriture et les gardes tiennent l’architecture',
   },
   {
     // The same stop (its name, step and component) after a RELANCE, the copy and the ticket's

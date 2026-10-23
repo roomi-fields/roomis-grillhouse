@@ -2,7 +2,7 @@
 # Launches a role agent on one ticket, as its own Claude session inside the envelope of its
 # component. The supervisor runs it in the background and is told when the session ends.
 #
-#   npx grillhouse lancer [--modele <m>] [--effort <e>] [--seance <id> | --reprise <id>] <ticket> <rôle> <composant> <fichier de consigne>
+#   npx grillhouse lancer [--modele <m>] [--effort <e>] [--seance <id> | --reprise <id>] [--paquets <liste>] <ticket> <rôle> <composant> <fichier de consigne>
 #
 # - <composant> is the component's path from the root (`packages/<nom>`, or `.` for the whole
 #   repository). It is judged before the copy is prepared, by the envelope's rule
@@ -10,6 +10,11 @@
 #   when it exists, else in the main tree or in the tree of the branch agent/<ticket> when it
 #   exists (`git cat-file -e`; `.` is always admitted): a path that names nothing there is refused on the standard error, CODE_USAGE, nothing prepared; when
 #   it is the name of a package or of its folder, the refusal names the path it means.
+# - --paquets <liste> is the plan of the session: the paths of the packages it writes, in the form
+#   of the envelope's variable (`ecrireLaListe` of paquets-du-plan.mjs, `packages/a:packages/b`),
+#   each judged as <composant> is; without it, the plan is <composant> alone. The envelope shows
+#   the session the whole copy and opens in writing the packages of the plan alone. It takes a
+#   value as --modele does.
 # - --modele <m> and --effort <e> override, for this session only, the model and the thinking level
 #   of the role's definition (its agent in the frame's plugin, agents/<rôle>.md); they reach claude
 #   as --model and --effort.
@@ -45,8 +50,8 @@
 #   dependencies are installed when `node_modules` is absent or `package-lock.json` is newer than
 #   the last installation (`node_modules/.package-lock.json`, written by npm), and it is built there
 #   by Turborepo, which restores an unchanged build from its cache, outside the envelope, so the
-#   agent finds the published parts of its neighbours. As Bazel builds the dependencies of a target
-#   before the target: for a component that is a package of the frame, its providers are built
+#   agent finds the builds of the packages out of its plan. As Bazel builds the dependencies of a
+#   target before the target: for a component that is a package of the frame, its providers are built
 #   first (the packages whose build its build waits for, read in Turborepo's graph,
 #   `turbo run build --filter=<paquet> --dry=json`, which node reads on its standard input, whatever
 #   its size), and a failure stops the launch, CODE_COPIE;
@@ -96,19 +101,22 @@
 #   launcher writes the session's exit code to .claude/worktrees/<ticket>.fin, which a launch
 #   removes first: a launch that stops before its session leaves none, so the circuit
 #   (scripts/circuit.mjs) tells a code of the session from CODE_USAGE, CODE_REFUS and CODE_COPIE.
-#   It then writes the session's line to the register (scripts/registre.mjs --copie), and exits
-#   with the envelope's code.
+#   A session its lock stopped on a write out of the plan (scripts/verrous/verrou.mjs) left the
+#   reason in its working directory (`hors-plan`, removed before the session): the launcher moves
+#   it to .claude/worktrees/<ticket>.hors-plan, which a launch removes first and the circuit reads,
+#   and adds it to the log. It then writes the session's line to the register
+#   (scripts/registre.mjs --copie), and exits with the envelope's code.
 # - The exit codes are named in scripts/enveloppe/codes.mjs; a malformed call exits CODE_USAGE.
 # - CLAUDE_BIN replaces `claude` (the tests use it).
 set -euo pipefail
 ici="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 eval "$(node "$ici/codes.mjs")"
-usage="usage: npx grillhouse lancer [--modele <m>] [--effort <e>] [--seance <id> | --reprise <id>] <ticket> <rôle> <composant> <fichier de consigne>"
+usage="usage: npx grillhouse lancer [--modele <m>] [--effort <e>] [--seance <id> | --reprise <id>] [--paquets <liste>] <ticket> <rôle> <composant> <fichier de consigne>"
 refus_usage() { echo "$usage" >&2; exit "$CODE_USAGE"; }
-modele="" effort="" seance="" reprise="" surcharge=()
+modele="" effort="" seance="" reprise="" liste="" surcharge=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    --modele|--effort|--seance|--reprise)
+    --modele|--effort|--seance|--reprise|--paquets)
       [ $# -ge 2 ] && [ -n "$2" ] && [[ "$2" != --* ]] || refus_usage
       if [ "$1" = --modele ]; then
         modele=$2
@@ -116,6 +124,8 @@ while [ $# -gt 0 ]; do
         seance=$2
       elif [ "$1" = --reprise ]; then
         reprise=$2
+      elif [ "$1" = --paquets ]; then
+        liste=$2
       else
         case "$2" in low|medium|high|xhigh|max) effort=$2 ;; *) refus_usage ;; esac
       fi
@@ -131,6 +141,8 @@ done
 [ -z "$reprise" ] || surcharge+=(--resume "$reprise")
 [ $# -eq 4 ] || refus_usage
 ticket=$1 role=$2 composant=$3 consigne=$4
+# The plan of the session: the packages it writes.
+paquets=${liste:-$composant}
 # The main tree, from the common git directory: launched from an agent copy, the new copy still
 # lands next to the others, never inside one.
 racine=$(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd)
@@ -147,7 +159,7 @@ if [ -d "$racine/.claude/worktrees/$ticket" ]; then
 elif git -C "$racine" rev-parse --verify --quiet "refs/heads/agent/$ticket" > /dev/null; then
   branche="agent/$ticket"
 fi
-refus_composant=$(node --input-type=module -e "import { spawnSync } from 'node:child_process'; import { existsSync } from 'node:fs'; import path from 'node:path'; import { jugerComposant } from '$ici/enveloppe.mjs'; import { paquets } from '$ici/../paquets.mjs'; const [depot, composant, branche] = process.argv.slice(1); const dansBranche = p => { const rel = path.relative(depot, p); return rel === '' || (!rel.startsWith('..') && spawnSync('git', ['-C', depot, 'cat-file', '-e', branche + ':' + rel]).status === 0); }; const existe = p => existsSync(p) || (branche !== '' && dansBranche(p)); process.stdout.write(jugerComposant({ depot, composant, paquets: paquets(depot) }, { existe }) ?? '');" "$juge" "$composant" "$branche") || exit "$CODE_USAGE"
+refus_composant=$(node --input-type=module -e "import { spawnSync } from 'node:child_process'; import { existsSync } from 'node:fs'; import path from 'node:path'; import { jugerComposant } from '$ici/enveloppe.mjs'; import { lireLaListe } from '$ici/paquets-du-plan.mjs'; import { paquets } from '$ici/../paquets.mjs'; const [depot, composant, liste, branche] = process.argv.slice(1); const dansBranche = p => { const rel = path.relative(depot, p); return rel === '' || (!rel.startsWith('..') && spawnSync('git', ['-C', depot, 'cat-file', '-e', branche + ':' + rel]).status === 0); }; const existe = p => existsSync(p) || (branche !== '' && dansBranche(p)); const tous = paquets(depot); process.stdout.write([composant, ...lireLaListe(liste)].map(c => jugerComposant({ depot, composant: c, paquets: tous }, { existe })).find(Boolean) ?? '');" "$juge" "$composant" "$paquets" "$branche") || exit "$CODE_USAGE"
 [ -z "$refus_composant" ] || { echo "⛔ $refus_composant" >&2; exit "$CODE_USAGE"; }
 # The ticket is matched whole: `demo-3160` is not `demo-316`, and its dots are dots.
 motif=$(printf '%s' "$ticket" | sed 's/[.[\*^$]/\\&/g')
@@ -157,8 +169,9 @@ copie="$racine/.claude/worktrees/$ticket"
 journal="$copie.log"
 fin="$copie.fin"
 resultat="$copie.resultat.json"
+hors_plan="$copie.hors-plan"
 mkdir -p "$(dirname "$copie")"
-rm -f "$fin" "$resultat"
+rm -f "$fin" "$resultat" "$hors_plan"
 printf '=== %s · %s · %s ===\n' "$(date -Iseconds)" "$role" "$composant" >> "$journal"
 # A branch still in the queue is not relaunched: the queue brings it onto main, or sends it back.
 if node --input-type=module -e "import { lireEntrees } from '$ici/../integration/file-attente.mjs'; const [r, b, t] = process.argv.slice(1); process.exit(lireEntrees(r).some(e => e.branche === b || e.ticket === t) ? 0 : 1);" "$racine" "agent/$ticket" "$ticket"; then
@@ -263,6 +276,8 @@ publie=$(cd "$copie" && node "$ici/../index-interfaces.mjs" --publie "$composant
 # The session's working directory, the one the envelope gives as TMPDIR, follows them.
 travail=$(node --input-type=module -e "import { dossierDeTravail } from '$ici/enveloppe.mjs'; process.stdout.write(dossierDeTravail(process.argv[1]));" "$copie" 2>> "$journal") \
   || { rm -f "$echec"; echo "⛔ Le dossier de travail de la séance n'a pas pu se lire : voir $journal." >&2; exit "$CODE_COPIE"; }
+# The mark a lock leaves there when it stops the session out of the plan: none before the session.
+rm -f "$travail/hors-plan"
 dossier=$'\n\n'"## Ton dossier de travail"$'\n\n'"Tout fichier temporaire s'écrit dans \`$travail\`, que \`\$TMPDIR\` nomme aussi."
 construction=
 if [ -s "$echec" ]; then
@@ -293,7 +308,7 @@ schema=$(node "$ici/../resultats.mjs" --schema "$role" 2> /dev/null) || schema=
 # An envelope in error does not stop the launcher (set -e): its code is kept for the exit.
 code=0
 lancer_claude() {
-  node "$ici/enveloppe.mjs" "$copie" "$composant" "$role" -- \
+  node "$ici/enveloppe.mjs" "$copie" "$paquets" "$role" -- \
     "${CLAUDE_BIN:-claude}" -p --agent "$role" \
     ${surcharge[@]+"${surcharge[@]}"} ${fiche[@]+"${fiche[@]}"} --permission-mode bypassPermissions \
     "${droits_du_role[@]}" < "$prompt"
@@ -305,6 +320,12 @@ else
   lancer_claude >> "$journal" 2>&1 || code=$?
 fi
 rm -f "$prompt"
+# A session its lock stopped out of the plan (scripts/verrous/verrou.mjs): its reason goes to the
+# circuit, and to the log.
+if [ -f "$travail/hors-plan" ]; then
+  mv "$travail/hors-plan" "$hors_plan"
+  { cat "$hors_plan"; echo; } >> "$journal"
+fi
 echo "$code" > "$fin"
 # The envelope ended: the session's line goes to the register from outside it, whatever its end hook did.
 node "$ici/../registre.mjs" --copie "$copie" >> "$journal" 2>&1 || true

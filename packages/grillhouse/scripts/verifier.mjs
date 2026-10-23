@@ -93,7 +93,7 @@ import { availableParallelism, tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ecrireLaMesure, garderLeTotal, ouvrirAvancement, planifier } from './avancement.mjs';
-import { composantDeLEnveloppe } from './enveloppe/composant.mjs';
+import { paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
 import { paquets } from './paquets.mjs';
 import { AttenteDeLaMachine, avecLaMachine } from './verrou-de-machine.mjs';
 import {
@@ -198,7 +198,7 @@ export function verifier({
         const dossier =
           envMachine[AVANCEMENT] || ouvrirAvancement({ racine, genre: 'verification' });
         const effacer =
-          propre && !composantDeLEnveloppe(envMachine)
+          propre && !paquetsDeLEnveloppe(envMachine)
             ? ecrireLaMesure({
                 env: envMachine,
                 depot: nomDuDepot(racine),

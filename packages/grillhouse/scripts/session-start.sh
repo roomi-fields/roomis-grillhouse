@@ -27,8 +27,7 @@
 # A session of a role agent of the frame (`claude --agent <rôle>`, the circuit's sessions: the
 # hook's input names it, `agent_type`, bare or as `grillhouse:<rôle>`, and the frame's plugin
 # defines it, `$CLAUDE_PLUGIN_ROOT/agents/<rôle>.md`, the plugin whose hook runs this script) receives nothing:
-# what the project lacks is the supervisor's to deal with, and in an envelope the documents of the
-# hidden packages read as absent.
+# what the project lacks is the supervisor's to deal with.
 set -uo pipefail
 
 # The project is Claude Code's, else the working directory; the frame's scripts are this one's

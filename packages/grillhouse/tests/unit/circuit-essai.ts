@@ -34,7 +34,8 @@ export const ecrire = (f: string, texte: string, mode?: number) => {
 // The stand-in for claude, run in the envelope with the copy as working directory. It finds the
 // main tree from git, reads its ticket in the prompt, records the call (prompt, arguments, working
 // directory, the author of its comments at the ticket, `BEADS_ACTOR`, in `<role>-<n>.acteur`, role
-// and component in `ordre`, the role alone out of the envelope), leaves a line of transcript where
+// and component in `ordre`, the role alone out of the envelope, the plan's packages in
+// `<role>-<n>.paquets`), leaves a line of transcript where
 // Claude Code keeps the copy's, then sources the scenario of its role: `<role>-<n>.sh` for its n-th
 // session, else `<role>.sh`. A scenario writes in the component (`$c`), hands over with
 // `passation <text>`, a comment under the session's author, as bd writes it, and ends on its sheet
@@ -72,7 +73,12 @@ printf '%s' "$prompt" > "$e/$role-$n.prompt"
 printf '%s\\0' "$@" > "$e/$role-$n.args"
 pwd > "$e/$role-$n.pwd"
 printf '%s' "\${BEADS_ACTOR-}" > "$e/$role-$n.acteur"
-echo "$role\${GRILLHOUSE_ENVELOPPE:+ $GRILLHOUSE_ENVELOPPE}" >> "$e/ordre"
+# In the envelope, the session's component is in its author (\`<role> <composant>\`), the plan's
+# packages in GRILLHOUSE_ENVELOPPE.
+c=
+[ -z "\${GRILLHOUSE_ENVELOPPE-}" ] || c=\${BEADS_ACTOR#* }
+printf '%s' "\${GRILLHOUSE_ENVELOPPE-}" > "$e/$role-$n.paquets"
+echo "$role\${c:+ $c}" >> "$e/ordre"
 d="$HOME/.claude/projects/$(pwd | sed 's/[^A-Za-z0-9]/-/g')"
 mkdir -p "$d"
 if [ -n "$reprise" ]; then
@@ -84,7 +90,6 @@ elif [ -n "$sid" ]; then
 else
   echo '{"type":"user"}' >> "$d/$role-$n.jsonl"
 fi
-c=$GRILLHOUSE_ENVELOPPE
 passation() {
   node -e 'require("fs").appendFileSync(process.argv[1], JSON.stringify({ author: process.argv[3], text: process.argv[2], created_at: new Date().toISOString().slice(0, 19) + "Z" }) + "\\n")' "$racine/.beads/$ticket.comments.jsonl" "$1" "\${BEADS_ACTOR-}"
 }

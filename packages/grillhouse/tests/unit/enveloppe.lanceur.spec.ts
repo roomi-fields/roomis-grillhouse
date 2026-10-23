@@ -104,8 +104,9 @@ describe.runIf(canWrap)('the launcher', () => {
         '## Ton dossier de travail\n\n' +
         `Tout fichier temporaire s'écrit dans \`${dossierDeTravail(copie)}\`, que \`$TMPDIR\` nomme aussi.`
     );
+    // The whole copy is in sight (grillhouse-3uv.95.3).
     const vu = execFileSync('cat', [path.join(copie, 'packages/a/vu')], { encoding: 'utf8' });
-    expect(vu).not.toMatch(/secret/);
+    expect(vu).toBe('secret');
   });
   it('matches the ticket whole', () => {
     const longer = path.join(repo, 'plus-long.txt');
@@ -460,5 +461,87 @@ describe.runIf(canWrap)('the launcher and the role in the envelope', () => {
     expect(r.status, r.stderr).toBe(0);
     expect(readFileSync(path.join(copie, 'packages/a/ecrit'), 'utf8')).toBe('non\n');
     expect(existsSync(path.join(copie, 'packages/matiere/fixtures/ecrit'))).toBe(false);
+  });
+});
+
+// grillhouse-3uv.95.3 — the launcher gives the envelope the packages of the plan (`--paquets`, the
+// list in the envelope's form), its component alone without them; a session its lock stops out of
+// the plan leaves its mark in its working directory, which the launcher hands to the circuit as
+// `<copie>.hors-plan`, a launch removing it first, and writes to the log.
+describe.runIf(canWrap)('grillhouse-3uv.95.3 — le lanceur et les paquets du plan', () => {
+  const repo = essai('lancer-plan-');
+  const ecrire = (rel: string, contenu: string, mode?: number) => {
+    mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true });
+    writeFileSync(path.join(repo, rel), contenu, mode ? { mode } : undefined);
+  };
+  ecrire('packages/a/src/a.ts', 'a');
+  ecrire('packages/b/src/b.ts', 'b');
+  mkdirSync(path.join(repo, 'scripts/enveloppe'), { recursive: true });
+  installerEnveloppe(repo);
+  // A stand-in for claude: records the plan it receives, and leaves the mark of its lock when
+  // its instruction says so.
+  ecrire(
+    'faux-claude.sh',
+    '#!/bin/bash\nprintenv GRILLHOUSE_ENVELOPPE > packages/a/plan\n' +
+      'if grep -q HORS-PLAN; then echo "⛔ hors-plan — packages/c" > "$TMPDIR/hors-plan"; fi\n',
+    0o755
+  );
+  execFileSync('git', ['init', '-q', repo]);
+  execFileSync('git', ['-C', repo, 'add', '.']);
+  execFileSync('git', [
+    '-C',
+    repo,
+    '-c',
+    'user.name=t',
+    '-c',
+    'user.email=t@t',
+    'commit',
+    '-qm',
+    'i',
+  ]);
+  const home = essai('home-');
+  const lancer = (ticket: string, options: string[], texte = '') => {
+    const consigne = path.join(repo, `${ticket}.txt`);
+    writeFileSync(consigne, `TON TICKET : ${ticket} — un sujet.${texte}`);
+    const r = spawnSync(
+      'bash',
+      [LAUNCHER, ...options, ticket, 'developpeur', 'packages/a', consigne],
+      {
+        cwd: repo,
+        encoding: 'utf8',
+        env: { ...process.env, CLAUDE_BIN: path.join(repo, 'faux-claude.sh'), HOME: home },
+      }
+    );
+    const copie = path.join(repo, '.claude/worktrees', ticket);
+    return { r, copie };
+  };
+
+  it('critère 1 — donne à l’enveloppe la liste des paquets du plan', () => {
+    const { r, copie } = lancer('demo-p', ['--paquets', 'packages/a:packages/b']);
+    expect(r.status, r.stderr).toBe(0);
+    expect(readFileSync(path.join(copie, 'packages/a/plan'), 'utf8')).toBe(
+      'packages/a:packages/b\n'
+    );
+  });
+  it('critère 1 — sans --paquets, le plan est le composant de la séance', () => {
+    const { r, copie } = lancer('demo-s', []);
+    expect(r.status, r.stderr).toBe(0);
+    expect(readFileSync(path.join(copie, 'packages/a/plan'), 'utf8')).toBe('packages/a\n');
+  });
+  it('critère 1 — refuse un chemin du plan qui n’existe pas, avant de préparer la copie', () => {
+    const { r, copie } = lancer('demo-z', ['--paquets', 'packages/a:packages/z']);
+    expect(r.status).toBe(CODE_USAGE);
+    expect(r.stderr).toContain("n'existe pas");
+    expect(existsSync(copie)).toBe(false);
+  });
+  it('critère 2 — rend au circuit la marque d’une séance arrêtée hors du plan, et l’écrit au journal', () => {
+    const { r, copie } = lancer('demo-h', ['--paquets', 'packages/a'], '\nHORS-PLAN');
+    expect(r.status, r.stderr).toBe(0);
+    expect(readFileSync(`${copie}.hors-plan`, 'utf8')).toContain('packages/c');
+    expect(existsSync(path.join(dossierDeTravail(copie), 'hors-plan'))).toBe(false);
+    expect(readFileSync(`${copie}.log`, 'utf8')).toContain('⛔ hors-plan — packages/c');
+    // The next launch starts without it.
+    lancer('demo-h', ['--paquets', 'packages/a']);
+    expect(existsSync(`${copie}.hors-plan`)).toBe(false);
   });
 });

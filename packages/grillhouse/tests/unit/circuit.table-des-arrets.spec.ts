@@ -153,6 +153,32 @@ describe.runIf(canWrap)('the table of the stops', { timeout: 300_000 }, () => {
     ]);
   });
 
+  // grillhouse-3uv.95.3, criteria 1 and 2: every session writes the packages of the plan, the
+  // components of the title (its envelope's list); a session its lock stops on a write out of
+  // the plan (the mark it leaves in its working directory, as verrous/verrou.mjs leaves it) ends
+  // the circuit at « hors-plan », for the supervisor, who extends the plan or refuses, with no
+  // regulateur and no second session.
+  it('a session stopped out of the plan ends the circuit at hors-plan, for the supervisor, with no regulateur', () => {
+    const id = 'demo-table-hors-plan';
+    ticket(id, '000-forms, 030-binder');
+    scenario(
+      id,
+      'testwriter',
+      `echo "⛔ hors-plan — packages/autre/x.ts est dans packages/autre" > "$TMPDIR/hors-plan"\n`
+    );
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(ARRETS['hors-plan']);
+    expect(sessions(id, REGULATEUR)).toBe(0);
+    expect(sessions(id, 'testwriter')).toBe(1);
+    expect(essai(id, 'testwriter-1.paquets')).toBe('packages/forms:packages/binder');
+    const e = etat(id);
+    expect(e).toMatchObject({ etape: 'testwriter', raison: 'hors-plan', regulateur: null });
+    expect(e?.rapport).toContain('packages/autre');
+    expect(arbitrages(id)).toEqual([
+      expect.stringMatching(/^Circuit · packages\/forms · arbitrage : hors-plan → le superviseur/),
+    ]);
+  });
+
   // A3 → D4 and A14 → D17 of 320.3: the supervisor put the provider in the title, and the
   // regulator, resumed on his answer, relaunched its testwriter. The answer goes into the plan
   // (tests/unit/circuit.reponse.spec.ts); the testwriter's report is the stop.

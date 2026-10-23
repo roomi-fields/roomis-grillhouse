@@ -3,7 +3,13 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { admettre, manquants, releve, texteDuReleve } from '../../scripts/composants-affectes.mjs';
+import {
+  admettre,
+  cheminsLus,
+  manquants,
+  releve,
+  texteDuReleve,
+} from '../../scripts/composants-affectes.mjs';
 
 // grillhouse-3uv.89, L6 — the components fixed at the opening. As the « affected components » of
 // a design document (an RFC of Rust, a design doc of Chromium), the components a realisation
@@ -294,5 +300,28 @@ describe('the survey of the components a ticket touches', () => {
     expect(lancer('demo', '--admettre', '999-absent', '--raison', 'x').status).toBe(2);
     expect(lancer('demo', '--admettre', '040-checker').status).toBe(2);
     expect(readFileSync(journal, 'utf8').split('\n')).toHaveLength(2);
+  });
+});
+
+describe('grillhouse-3uv.89 — cheminsLus : ce que le package.json d’un paquet déclare que ses tests lisent', () => {
+  const dir = mkdtempSync(path.join(ESSAIS, 'paquet-'));
+  const manifeste = (o: unknown) =>
+    writeFileSync(path.join(dir, 'package.json'), `${JSON.stringify(o)}\n`);
+
+  it('rend son grillhouse.lit et le lit de chacune de ses traces, chacun depuis la racine', () => {
+    manifeste({
+      name: 'a',
+      grillhouse: {
+        lit: ['packages/b/test', 'spec'],
+        traces: { 'trace:x': { lit: ['packages/c/donnees'], ecrit: 'packages/a/trace/x' } },
+      },
+    });
+    expect(cheminsLus(dir)).toEqual(['packages/b/test', 'spec', 'packages/c/donnees']);
+  });
+
+  it('ne rend rien sans déclaration, ni sans package.json', () => {
+    manifeste({ name: 'a' });
+    expect(cheminsLus(dir)).toEqual([]);
+    expect(cheminsLus(path.join(dir, 'absent'))).toEqual([]);
   });
 });

@@ -1,8 +1,8 @@
 # La consigne d'un agent
 
 Douze gabarits, que le circuit du ticket (`packages/grillhouse/scripts/circuit.mjs`) remplit, chaque `{{champ}}` reçu
-de lui : le premier pour chaque séance neuve du testwriter et du développeur, dans l'enveloppe de son
-composant, le lanceur ajoutant ses sections ; le second pour chaque séance du relecteur, hors
+de lui : le premier pour chaque séance neuve du testwriter et du développeur, dans l'enveloppe du
+plan du ticket, le lanceur ajoutant ses sections ; le second pour chaque séance du relecteur, hors
 enveloppe, après la passe finale verte, qui après un `RENDU` porte la relecture d'avant (la
 commande de la différence entre le lot qu'elle a lu et celui d'aujourd'hui, ses fichiers, ses
 constats) et ne nomme que les fichiers que le lot change depuis elle ; le troisième pour la séance du régulateur, hors
@@ -36,7 +36,7 @@ Premier geste : charge ta compétence (outil Skill), puis suis-la. Ainsi tu trav
 
 TON TICKET : {{ticket}} — {{sujet}}
 
-TON COMPOSANT : {{composant}} ; les lots des composants d'avant sont déjà dans la copie, et tu les vois par leur interface.
+TON COMPOSANT : {{composant}} ; les lots des composants d'avant sont déjà dans la copie.
 
 REPRISE : {{reprise}}
 
@@ -60,9 +60,9 @@ Le circuit joue la preuve du rouge après le testwriter, sur les seuls tests du 
 
 Testwriter : chaque test vert avant le code entre dans `verts_attendus` (son fichier depuis la racine, son nom complet tel que le rapport de la preuve l'écrit, sa raison) ; pour un fichier de tests que HEAD tient, adapté, dont tous les verts ont une même raison, le fichier et la raison seuls, qui n'excusent aucun rouge et ne valent rien sur un fichier neuf ; quand le ticket change un type ou un nom de ton composant, tu migres aussi, dans la même séance, la matière de test partagée qui le lit. Développeur : quand le rouge qui reste est dans les tests d'un composant du titre, le tien ou un d'avant, ta fiche porte `renvoi` (testwriter, ce composant), et le circuit rejoue ce composant depuis son testwriter ; un écart que le commit doit nommer va dans `ecarts`, sous son sujet. Ainsi chaque rouge va à l'agent qui le lève.
 
-Le `statut` de ta fiche : FAIT quand ta part est faite ; BLOQUÉ, avec sa `raison`, quand ce qui reste est hors de ta portée (dans les tests, dans la matière de test partagée, dans un fichier hors de ton enveloppe, ou une décision hors de ton rôle) ; BESOIN, avec sa `question`, quand une réponse te manque pour avancer. Sur BESOIN, ou BLOQUÉ sans `renvoi`, le circuit s'arrête sans te relancer, et le régulateur tranche ; une découverte hors des critères va dans `decouvertes`, que le circuit consigne. Ainsi aucune séance ne tourne sur ce que son agent a dit hors de sa portée.
+Le `statut` de ta fiche : FAIT quand ta part est faite ; BLOQUÉ, avec sa `raison`, quand ce qui reste est hors de ta portée (dans les tests, dans la matière de test partagée, dans un fichier hors du plan, ou une décision hors de ton rôle) ; BESOIN, avec sa `question`, quand une réponse te manque pour avancer. Sur BESOIN, ou BLOQUÉ sans `renvoi`, le circuit s'arrête sans te relancer, et le régulateur tranche ; une découverte hors des critères va dans `decouvertes`, que le circuit consigne. Ainsi aucune séance ne tourne sur ce que son agent a dit hors de sa portée.
 
-Tu travailles dans ta copie (`.claude/worktrees/{{ticket}}`), dans l'enveloppe de ton composant : des autres composants, seules l'interface et la forme publiée existent, et le paquet de la matière de test partagée en entier, que seul le testwriter écrit. `git status` montre les autres composants comme supprimés : c'est l'enveloppe, et non un changement ; leur forme publiée est à sa place (leur `package.json`, `docs/INTERFACE.md`, `dist/`, `turbo.json`, les fichiers de leur champ `files` et leurs traces). L'index (rtfm, codegraph) n'y est pas : tu lis ton paquet, les interfaces de tes voisins et la matière de test partagée. Ainsi tu modifies ta copie, et tes voisins par leurs interfaces seulement.
+Tu travailles dans ta copie (`.claude/worktrees/{{ticket}}`), dans l'enveloppe du plan du ticket : tu lis toute la copie, index compris, et tu n'écris que les paquets du plan, les composants du titre ; le paquet de la matière de test partagée, seul le testwriter l'écrit. Une écriture hors du plan échoue, et ton verrou arrête ta séance : le superviseur étend le plan ou refuse. Ainsi tu lis tout, et tu changes le seul plan.
 
 Le lanceur a avancé ta copie sur main avant d'ouvrir ta séance : tu pars du dernier commit. Ainsi ton lot s'applique sur l'état présent du dépôt.
 

@@ -11,60 +11,38 @@ import { canWrap, racineSousLaMaison } from '../machine.js';
 import { dossierDeTravail, plan } from '../../scripts/enveloppe/enveloppe.mjs';
 import { SCRIPT, enveloppeEssai } from './enveloppe-essai.js';
 
-// A disk described as { path: entries } for directories, a set of existing paths, and the paths
-// each package's tests declare they read.
-function fakeDisk(
-  dirs: Record<string, { name: string; dir: boolean }[]>,
-  files: string[],
-  lus: Record<string, string[]> = {}
-) {
-  const exists = new Set([...Object.keys(dirs), ...files]);
-  return {
-    lister: (d: string) => dirs[d] ?? [],
-    existe: (p: string) => exists.has(p),
-    liens: () => [],
-    publies: () => [],
-    lus: (d: string) => lus[d] ?? [],
-  };
-}
+// A disk that holds the paths <files>.
+const fakeDisk = (files: string[]) => {
+  const exists = new Set(files);
+  return { existe: (p: string) => exists.has(p) };
+};
 const pairs = (args: string[], flag: string) =>
   args.flatMap((a, i) => (a === flag ? [args[i + 1]] : []));
 
-const freres = {
-  '/wt': [
-    { name: 'libraries', dir: true },
-    { name: 'packages', dir: true },
-    { name: 'spec', dir: true },
-  ],
-  '/wt/packages': [
-    { name: 'a', dir: true },
-    { name: 'b', dir: true },
-    { name: 'm', dir: true },
-  ],
-  '/wt/packages/a': [],
-};
-const presents = ['/wt/.git', '/wt/.turbo', '/wt/libraries', '/wt/spec', '/main/.beads'];
+const presents = [
+  '/wt/.git',
+  '/wt/.turbo',
+  '/wt/libraries',
+  '/wt/spec',
+  '/wt/packages/a',
+  '/main/.beads',
+];
 const paquets = [
   { dossier: 'packages/a', pkg: { name: 'a' } },
   { dossier: 'packages/b', pkg: { name: 'b' } },
   { dossier: 'packages/m', pkg: { name: 'm' } },
 ];
-const montages = ({
-  composant = 'packages/a',
-  role = 'developpeur',
-  lus = [] as string[],
-  liste = paquets,
-} = {}) =>
+const montages = ({ composant = 'packages/a', role = 'developpeur', liste = paquets } = {}) =>
   plan(
     {
       trees: ['/main', '/wt'],
       copie: '/wt',
-      composant,
+      paquets: [composant],
       role,
       matieres: ['packages/m'],
-      paquets: liste,
+      paquetsDeLaCopie: liste,
     },
-    fakeDisk(freres, presents, { [`/wt/${composant}`]: lus })
+    fakeDisk(presents)
   ).args;
 
 describe('grillhouse-3uv.92.4 — le plan de l’enveloppe d’un paquet', () => {
@@ -97,11 +75,6 @@ describe('grillhouse-3uv.92.4 — le plan de l’enveloppe d’un paquet', () =>
     expect(args.lastIndexOf('/wt/.turbo')).toBeGreaterThan(args.indexOf('/wt'));
   });
 
-  it('critère 3 — un chemin que ses tests déclarent lire hors des paquets reste en lecture seule', () => {
-    const args = montages({ lus: ['libraries'] });
-    expect(pairs(args, '--bind')).not.toContain('/wt/libraries');
-  });
-
   it('un composant qui n’est pas un paquet écrit le paquet qui le tient, la copie entière', () => {
     expect(pairs(montages({ composant: 'libraries' }), '--bind')).toContain('/wt');
     expect(pairs(montages({ liste: [] }), '--bind')).toContain('/wt');
@@ -121,10 +94,7 @@ describe.runIf(canWrap)('grillhouse-3uv.92.4 — l’enveloppe d’un paquet sur
     writeFileSync(path.join(repo, f), t);
   };
   ecrire('package.json', JSON.stringify({ name: 'essai', workspaces: ['packages/*'] }));
-  ecrire(
-    'packages/a/package.json',
-    JSON.stringify({ name: 'a', grillhouse: { lit: ['libraries'] } })
-  );
+  ecrire('packages/a/package.json', JSON.stringify({ name: 'a' }));
   ecrire('packages/a/src/a.ts', 'a');
   ecrire(
     'packages/m/package.json',
@@ -178,7 +148,7 @@ describe.runIf(canWrap)('grillhouse-3uv.92.4 — l’enveloppe d’un paquet sur
     expect(run('touch packages/m/autre.js').status).not.toBe(0);
   });
 
-  it('critère 3 — ce que ses tests déclarent lire hors des paquets se lit, et ne s’écrit pas', () => {
+  it('grillhouse-3uv.95.3 — les dossiers de la racine hors des paquets se lisent, et ne s’écrivent pas', () => {
     const r = run('cat spec/langage.md libraries/alphabets.bpsl');
     expect(r.stdout, r.stderr).toBe('specalphabets');
     expect(run('touch libraries/neuf.bpsl').status).not.toBe(0);

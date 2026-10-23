@@ -246,6 +246,7 @@ describe('the stops of the circuit, each with its exit code', () => {
       'composants-manquants': 21,
       questionnement: 22,
       references: 23,
+      'hors-plan': 24,
       'a-repasser': 75,
     });
   });
@@ -372,6 +373,7 @@ describe('the table of the stops and their gesture, in the list of the steps', (
     expect(TABLE_DES_ARRETS.map(l => [l.genre, l.geste])).toEqual([
       ['composants-manquants', 'superviseur'],
       ['questionnement', 'superviseur'],
+      ['hors-plan', 'superviseur'],
       ['meme-arret-sans-fait-nouveau', 'superviseur'],
       ['a-repasser', 'a-repasser'],
       ['a-arbitrer', 'regulateur'],
@@ -382,11 +384,12 @@ describe('the table of the stops and their gesture, in the list of the steps', (
     ]);
   });
 
-  it('each line carries a gesture of the vocabulary and the case of BPScript 320.3 it settles', () => {
+  it('each line carries a gesture of the vocabulary and the case of BPScript it settles', () => {
     for (const l of TABLE_DES_ARRETS) {
       expect(GESTES, l.genre).toContain(l.geste);
-      // A stop (A1–A19) or a decision (D1–D22) of the analysis of 320.3.
-      expect(l.cas, l.genre).toMatch(/\b[AD]\d{1,2}\b/);
+      // A stop (A1–A19) or a decision (D1–D22) of the analysis of 320.3, or the analysis of 320.9
+      // (grillhouse-3uv.95).
+      expect(l.cas, l.genre).toMatch(/\b[AD]\d{1,2}\b|\bBP 320\.9\b/);
     }
     expect(new Set(TABLE_DES_ARRETS.map(l => l.genre)).size).toBe(TABLE_DES_ARRETS.length);
   });

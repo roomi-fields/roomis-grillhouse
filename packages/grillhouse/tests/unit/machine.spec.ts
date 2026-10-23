@@ -260,7 +260,7 @@ describe.runIf(canWrap)('critère 4 — on a machine where bwrap works, nothing 
 const BASE_REELLE = 'lets bd read and write the tickets base of the main tree with its own state';
 const SANS_BD = [
   'lets the session write the tickets base of the main tree in the home',
-  'leaves every index whole on disk',
+  'leaves whole on disk every index out of the copy',
 ];
 const filtreBase = [BASE_REELLE, ...SANS_BD].join('|');
 

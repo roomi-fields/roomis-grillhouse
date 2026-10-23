@@ -45,10 +45,10 @@
 // `faute-mal-formee`, `faute-hors-catalogue`, `faute-non-nommee`, `faute-non-produite`,
 // `faute-non-listee`), or by the declaration file and TSDoc's message id for a TSDoc message.
 //
-// In the envelope of a component (`GRILLHOUSE_ENVELOPPE`, scripts/enveloppe/composant.mjs), the
-// check and `npm run api` read and write that component alone: its neighbours' source is hidden,
-// their published parts read-only, and the integration checks every component on the whole
-// repository. The component's build comes first, as outside (`npm test -- <its files>` builds it).
+// In the envelope of an agent (`GRILLHOUSE_ENVELOPPE`, scripts/enveloppe/paquets-du-plan.mjs), the
+// check and `npm run api` judge and write the components of its plan alone: the others are
+// read-only there, and the integration checks every component on the whole repository. The
+// component's build comes first, as outside (`npm test -- <its files>` builds it).
 //
 // A component without `docs/INTERFACE.md` is reported and skipped. A project that prefers a
 // bench per component calls `verifierComposant(racine, composant)` from its test.
@@ -58,7 +58,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { composants, lireSiPresent, parcourir } from './consommateurs.mjs';
-import { composantDeLEnveloppe } from './enveloppe/composant.mjs';
+import { paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
 import { trancher } from './dette.mjs';
 
 const require = createRequire(import.meta.url);
@@ -522,13 +522,13 @@ function codesContreCatalogue(c, racine, fautes, refuser) {
   }
 }
 
-// The components a run reads: every one of <racine>; in the envelope of a component, that one
-// alone, its neighbours read by their published form and never written.
+// The components a run reads: every one of <racine>; in an envelope, those its plan names, the
+// others never written; every one when the plan names none of them (a folder of the root, `.`).
 export function aVerifier(racine, env = process.env) {
   const tous = composants(racine);
-  const propre = composantDeLEnveloppe(env);
-  const sien = propre && tous.filter(c => path.resolve(c.dir) === path.resolve(racine, propre));
-  return sien?.length ? sien : tous;
+  const plan = (paquetsDeLEnveloppe(env) ?? []).map(p => path.resolve(racine, p));
+  const siens = tous.filter(c => plan.includes(path.resolve(c.dir)));
+  return siens.length ? siens : tous;
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

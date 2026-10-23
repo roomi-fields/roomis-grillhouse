@@ -62,7 +62,8 @@ dans le compte rendu, et attend le responsable.
 
 - **Un compte par recherche de texte est un minimum** : une recherche par `grep` ou `find` donne
   un minimum. Pour savoir où vit une chose, tu passes par l'index (`rtfm_search`,
-  `codegraph explore`) ; dans une enveloppe, qui n'en montre aucun, tu lis ton paquet en entier.
+  `codegraph explore`) ; dans une enveloppe, où ton rôle n'en a pas les outils, tu lis en entier
+  les paquets où tu cherches.
   Ainsi un nom écrit autrement, un chemin assemblé ou un appel indirect
   entrent dans le compte.
 - **Un zéro se prouve par trois appuis** : l'outil trouve ce qu'il cherche sur un autre cas ; la

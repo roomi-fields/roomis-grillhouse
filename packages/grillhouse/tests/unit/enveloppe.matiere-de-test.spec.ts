@@ -1,9 +1,8 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
-import { CODE_REFUS } from '../../scripts/enveloppe/codes.mjs';
 import { SCRIPT, enveloppeEssai } from './enveloppe-essai.js';
 
 // The envelope of an agent (scripts/enveloppe/enveloppe.mjs, tests/unit/enveloppe.spec.ts) and the
@@ -21,7 +20,7 @@ const { essai } = enveloppeEssai(ESSAIS);
 // `./test-fixtures` and written by their owner, the package of the shared test material is the
 // package whose package.json exports `./test-fixtures`. In the envelope it comes back whole:
 // written for the testwriter, read-only for every other role. A project without it does not change.
-// The role is the envelope's third argument: `enveloppe.mjs <copie> <composant> <rôle> -- …`.
+// The role is the envelope's third argument: `enveloppe.mjs <copie> <paquets> <rôle> -- …`.
 type Manifeste = Record<string, unknown>;
 const MATIERE_FICHIERS = [
   'fixtures/index.js',
@@ -30,15 +29,18 @@ const MATIERE_FICHIERS = [
   'src/generer.ts',
   'README.md',
 ];
-// A repository with the agent's component `packages/a`, an ordinary sibling `packages/b`, siblings
-// that export other subpaths, and, when <matiere> is given, the package `packages/<nom>` with that
-// package.json and the files of MATIERE_FICHIERS. Its copy is `.claude/worktrees/demo-1`.
+// A repository of workspaces with the agent's package `packages/a`, an ordinary sibling
+// `packages/b`, siblings that export other subpaths, and, when <matiere> is given, the package
+// `packages/<nom>` with that package.json and the files of MATIERE_FICHIERS. Its copy is
+// `.claude/worktrees/demo-1`.
 function depotAvecMatiere(matiere?: { nom: string; manifeste: Manifeste }) {
   const repo = essai('matiere-');
   const ecrire = (rel: string, contenu: string) => {
     mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true });
     writeFileSync(path.join(repo, rel), contenu);
   };
+  ecrire('package.json', JSON.stringify({ name: 'essai', workspaces: ['packages/*'] }));
+  ecrire('packages/a/package.json', '{"name":"a"}');
   ecrire('packages/a/src/a.ts', 'a');
   ecrire('packages/b/src/b.ts', 'secret-b');
   ecrire('packages/b/package.json', '{"name":"b"}');
@@ -119,10 +121,10 @@ describe.runIf(canWrap)('the envelope and the package of the shared test materia
       expect(existsSync(path.join(copie, m, 'README.md')), role).toBe(true);
     }
   });
-  it('gives the testwriter its own component in writing and the other siblings hidden', () => {
+  it('gives the testwriter its own package in writing, the other siblings in sight and read-only', () => {
     expect(run('testwriter', 'touch packages/a/src/neuf.ts').status).toBe(0);
     for (const s of ['b', 'c', 'd']) {
-      expect(run('testwriter', `cat packages/${s}/src/${s}.ts`).status, s).not.toBe(0);
+      expect(run('testwriter', `cat packages/${s}/src/${s}.ts`).stdout, s).toBe(`secret-${s}`);
       expect(run('testwriter', `touch packages/${s}/x`).status, s).not.toBe(0);
     }
   });
@@ -177,33 +179,14 @@ describe.runIf(canWrap)('the package of the shared test material, by any form of
 
 describe.runIf(canWrap)('a project without the package of the shared test material', () => {
   const { run } = depotAvecMatiere();
-  it('hides every sibling from every role, whatever subpaths it exports', () => {
+  it('shows every sibling to every role, read-only, whatever subpaths it exports', () => {
     for (const role of ['testwriter', ...AUTRES_ROLES]) {
       for (const s of ['b', 'c', 'd']) {
-        expect(run(role, `cat packages/${s}/src/${s}.ts`).status, `${role} ${s}`).not.toBe(0);
+        expect(run(role, `cat packages/${s}/src/${s}.ts`).status, `${role} ${s}`).toBe(0);
         expect(run(role, `cat packages/${s}/package.json`).status, `${role} ${s}`).toBe(0);
         expect(run(role, `touch packages/${s}/package.json`).status, `${role} ${s}`).not.toBe(0);
       }
       expect(run(role, 'touch packages/a/src/x.ts').status, role).toBe(0);
     }
   });
-});
-
-describe.runIf(canWrap)('the envelope and a link of the shared test material', () => {
-  it.each(['testwriter', 'developpeur'])(
-    'refuses to launch (%s) when the material links into a hidden component',
-    role => {
-      const { copie, run } = depotAvecMatiere({
-        nom: 'matiere',
-        manifeste: { name: 'matiere', exports: { './test-fixtures': './fixtures/index.js' } },
-      });
-      symlinkSync(
-        path.join(copie, 'packages/b/src'),
-        path.join(copie, 'packages/matiere/fixtures/vers-b')
-      );
-      const r = run(role, 'true');
-      expect(r.status).toBe(CODE_REFUS);
-      expect(r.stderr).toMatch(/traverserait l'enveloppe/);
-    }
-  );
 });

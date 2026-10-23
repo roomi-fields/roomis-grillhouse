@@ -21,8 +21,8 @@ const { essai } = enveloppeEssai(ESSAIS);
 // directory ($XDG_RUNTIME_DIR, /run/user/<uid>) what it declares, and nothing else. It declares
 // what the session needs: `~/.claude` and `~/.claude.json`, claude's binary and versions
 // (`~/.local/bin/claude`, `~/.local/share/claude`), node and its tools (`~/.nvm`), `~/.gitconfig`,
-// the npm cache, and the repository (main tree, its `.git`, `.beads`) with today's rights. No
-// socket of the session comes back.
+// the npm cache, and the repository (main tree, its `.git`, `.beads`) with today's rights, the
+// whole of it in sight. No socket of the session comes back.
 describe.runIf(canWrap)(
   'the envelope shows of the home and the session only what it declares',
   () => {
@@ -251,22 +251,20 @@ describe.runIf(canWrap)(
       }
       expect(run('~/.local/bin/codegraph; ~/.local/bin/rtfm; true').stdout).toBe('');
     });
-    // Ticket grillhouse-3uv.8.4, Architecture: the envelope shows no content of an index, whether
-    // its directory is seen or not; the index stays whole on disk for the roles that use it.
-    it("shows no content of an index of the repository: the main tree's, the copy's or another copy's", () => {
+    // grillhouse-3uv.95.3: the whole repository is in sight, its indexes included: the main
+    // tree's, the copy's and another copy's; what lies out of the copy stays read-only.
+    it("shows every index of the repository: the main tree's, the copy's or another copy's", () => {
       for (const dans of [copie, copieRtfm]) {
         for (const f of INDEX) {
-          expect(run(`cat ${f}; test -e ${f}`, home, dans).status, `${dans}: ${f}`).not.toBe(0);
-          const dir = path.dirname(f);
-          expect(run(`find ${dir} -mindepth 1 2>/dev/null; true`, home, dans).stdout, dir).toBe('');
+          expect(run(`cat ${f}`, home, dans).stdout, `${dans}: ${f}`).toBe(
+            'INDEX-of-the-repository code-of-b'
+          );
         }
-        const r = run(`grep -rs INDEX-of-the-repository ${repo} ~ 2>/dev/null; true`, home, dans);
-        expect(r.stdout, dans).toBe('');
       }
     });
-    it('leaves every index whole on disk', () => {
+    it('leaves whole on disk every index out of the copy', () => {
       run(`rm -rf ${INDEX.map(f => path.dirname(f)).join(' ')} 2>/dev/null; true`);
-      for (const f of INDEX) {
+      for (const f of INDEX.filter(f => !f.startsWith(`${copie}/`))) {
         expect(readFileSync(f, 'utf8'), f).toBe('INDEX-of-the-repository code-of-b');
       }
     });
@@ -345,7 +343,7 @@ describe.runIf(canWrap)(
       expect(run('touch packages/a/src/nouveau.ts').status).toBe(0);
       expect(run(`touch ${repo}/x`).status).not.toBe(0);
       expect(run(`touch ${repo}/.git/x`).status).not.toBe(0);
-      expect(run('cat packages/b/src/b.ts').stdout).not.toContain('code-of-b');
+      expect(run('cat packages/b/src/b.ts').stdout).toBe('code-of-b');
     });
     it('lets the session write the tickets base of the main tree in the home', () => {
       expect(run(`touch ${repo}/.beads/ecrit`).status).toBe(0);

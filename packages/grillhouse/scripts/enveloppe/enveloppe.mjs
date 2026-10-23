@@ -1,23 +1,23 @@
 #!/usr/bin/env node
 // The envelope of a role agent: runs a command (the agent's `claude` session) inside a bwrap
-// sandbox that shows the agent its own component, and of every other component only what it
-// publishes. `npx grillhouse enveloppe <copie> <composant> <rôle> -- <commande…>`
+// sandbox that shows the agent the whole copy and opens in writing only the packages of its plan,
+// as the visibility of Bazel and the module boundaries of Nx refuse a dependency while the code
+// stays readable. `npx grillhouse enveloppe <copie> <paquets> <rôle> -- <commande…>`
 //
-// - The root `/` is read-only. Only these are written: the agent's copy (for a component that is a
-//   package, that package alone, below); a `/tmp` empty and
-//   proper to the session, where only the scratchpad directory of the copy comes back, the
-//   session's working directory inside it (`dossierDeTravail`; Claude Code's scratchpads root,
-//   `CLAUDE_CODE_TMPDIR` else the launch's temporary directory, so that under a pass it lies in
-//   the base of the pass and goes with it); the npm
-//   cache; the Claude session state (`~/.claude` and the copy's project directory), whose
-//   configuration, skills, plugins and other projects stay read-only. `~/.claude.json` is a
-//   throwaway copy: the session writes it, the real file does not change. The tickets base (the
-//   main tree's `.beads/`) is written: the agent claims, plans, hands over and files what it
-//   finds. Every `.git`, the
-//   copy's included, stays read-only: the agent reads the git state and delivers a patch
-//   (`git diff`, and `git diff --no-index /dev/null <file>` for a new file); it never commits.
-//   The cache of Turborepo (`<main tree>/.turbo/cache`, shared by every copy) is written: the
-//   agent's runs of `npm test` keep their tasks there, as every copy's runs do.
+// - The root `/` is read-only, the copy included, its indexes (`.codegraph`, `.rtfm`) and every
+//   package outside the plan in sight. Only these are written: the packages of the plan, below; a
+//   `/tmp` empty and proper to the session, where only the scratchpad directory of the copy comes
+//   back, the session's working directory inside it (`dossierDeTravail`; Claude Code's
+//   scratchpads root, `CLAUDE_CODE_TMPDIR` else the launch's temporary directory, so that under a
+//   pass it lies in the base of the pass and goes with it); the npm cache; the Claude session
+//   state (`~/.claude` and the copy's project directory), whose configuration, skills, plugins and
+//   other projects stay read-only. `~/.claude.json` is a throwaway copy: the session writes it,
+//   the real file does not change. The tickets base (the main tree's `.beads/`) is written: the
+//   agent claims, plans, hands over and files what it finds. Every `.git`, the copy's included,
+//   stays read-only: the agent reads the git state and delivers a patch (`git diff`, and
+//   `git diff --no-index /dev/null <file>` for a new file); it never commits. The cache of
+//   Turborepo (`<main tree>/.turbo/cache`, shared by every copy) is written: the agent's runs of
+//   `npm test` keep their tasks there, as every copy's runs do.
 // - The home and the session directories (`$XDG_RUNTIME_DIR`, `/run/user/<uid>`) show only what
 //   the envelope declares: each starts empty and sealed read-only, and the home gets back
 //   `~/.claude`, `~/.claude.json`, the npm cache, the paths of `MAISON_EN_LECTURE` (claude, node,
@@ -34,83 +34,52 @@
 //   (npm's `ignore-scripts`, docs/content/using-npm/config.md); no script of the frame has one. bwrap
 //   starts with that environment alone, so no other variable of the machine (`GH_TOKEN`,
 //   `NPM_TOKEN`…) enters, by name or by argument. The session also gets `GRILLHOUSE_ENVELOPPE`, the
-//   component's path (`composant.mjs`): the frame's commands build and write that component only. A declared variable that names a path
+//   packages of the plan (`paquets-du-plan.mjs`): the frame's commands build, judge and write those
+//   packages only, and its lock refuses a write out of them. A declared variable that names a path
 //   (`VARIABLES_DE_CHEMIN`) enters only when its path is in sight inside the envelope, tested there
 //   before the command runs. The session has its own process space: it reads the environment of
 //   no process of the machine.
-// - No index of the repository is in sight: neither codegraph nor rtfm comes back in the home,
-//   and every index directory (`INDEX`) of every worktree, the copy's included, is an empty
-//   directory sealed read-only; the worktree around it keeps its mount, the copy in writing.
 // - A declared path that is a symbolic link comes back as that link, and its target with it
 //   (`avecLiens`).
 // - A worktree of the repository under an emptied directory (the home, `/tmp`) comes back
-//   read-only, `.git` included; the copy and the tickets base are then written as above.
-// - An envelope on the main tree is refused, and so is a component that does not exist; when it is
-//   the name of a package of the copy, the refusal gives its path.
-// - <copie> is the agent's git worktree; <composant> is the component's path inside it
-//   (`packages/a`, or `src/parser` in a one-package project); <rôle> is the agent's role
-//   (`testwriter`, `developpeur`…).
-// - In every worktree of the repository, the component's parent directory (`packages/`, `src/`)
-//   is emptied. In <copie>, the component is mounted back in writing; every sibling component
-//   gets back, read-only, its published parts: `package.json`, `docs/INTERFACE.md`, `dist/`, its
-//   package configuration of Turborepo (`turbo.json`, `turbo.jsonc`), by which Turborepo reads in
-//   the envelope the task graph it reads outside, the paths that the `files` field of its
-//   `package.json` names, and the directory each trace it declares writes (`grillhouse.traces`,
-//   which the launcher produces before the session), when they exist inside it.
-//   The parent's own files (`src/index.ts`) come back read-only, and the emptied directories are
-//   then sealed read-only.
-// - What the component's tests declare they read comes back read-only, as Bazel gives a test the
-//   `data` it declares: each path of `grillhouse.lit` of its `package.json`, and of the `lit` of
-//   each trace it declares (`cheminsLus`, each path from the root of <copie>), that lies in a
-//   sibling component and exists, a directory or a file. A path the envelope already shows (the
-//   root, the component itself, the shared test material, whose mount the role decides) adds no
-//   mount.
-// - For a component that is a package of the copy (`paquets` of `scripts/paquets.mjs`), the agent
-//   writes that package and nothing else of the copy, as a sandbox of Bazel or of Nix opens in
-//   writing only what the action declares: the copy is read-only, the folders of its root that no
+//   read-only, `.git` included; the copy's packages of the plan and the tickets base are then
+//   written as above.
+// - An envelope on the main tree is refused, so is a plan that names no package, and so is a path
+//   of the plan that does not exist; when it is the name of a package of the copy, the refusal
+//   gives its path.
+// - <copie> is the agent's git worktree; <paquets> is the plan, the paths it names inside it
+//   (`packages/a`, or `src/parser` in a one-package project), in the variable's form
+//   (`ecrireLaListe` of paquets-du-plan.mjs); <rôle> is the agent's role (`testwriter`,
+//   `developpeur`…).
+// - The plan writes, for each of its paths, the package of the copy that holds it (`ecritsDuPlan`,
+//   `paquets` of `scripts/paquets.mjs`), as a sandbox of Bazel or of Nix opens in writing only
+//   what the action declares: the rest of the copy is read-only, the folders of its root that no
 //   package holds (`libraries/`, `spec/`) included, and a write there fails on « Read-only file
-//   system », which the agent sees. Such a folder is written by the component that owns it, never
-//   by a right the envelope adds: what the tests declare they read stays read-only. The package
-//   of the shared test material, for the `testwriter`, the session's files and the mounts outside
-//   the copy keep their rights; where a run of Turborepo writes at the root of the copy
-//   (`sortiesDeLaRacine`, its `.turbo`) is an empty directory proper to the session, created on
-//   disk before it.
-// - A component that is no package (a folder of the root, `scripts`; `src/parser` in a one-package
-//   project) writes the package that holds it, the root: the copy stays written. A folder of the
-//   root hides nothing: its scripts work on the whole repository. The rest holds: the root
-//   read-only, the copy written, its `.git` read-only.
+//   system », which the agent sees. Where a run of Turborepo writes at the root of the copy
+//   (`sortiesDeLaRacine`, its `.turbo`) is then an empty directory proper to the session, created
+//   on disk before it. A path that no package holds (a folder of the root, `scripts`; `src/parser`
+//   in a one-package project) writes the package that holds it, the root: the copy stays written,
+//   its `.git` read-only.
 // - The package of the shared test material is every component of <copie> whose `package.json`
-//   exports `./test-fixtures` (`matieres` of `scripts/consommateurs.mjs`). It comes back whole, after the agent's own component:
-//   written for the `testwriter`, read-only for every other role, its own component included. For
-//   such a role, where a run of its tests writes in it (`sortiesDeTest`: Turborepo's task logs,
-//   Vite's cache) is an empty directory proper to the session, as Bazel writes a test's logs out
-//   of its source: what is written there leaves no trace. The envelope creates each of them on
-//   disk, empty, before the session, so that bwrap mounts over it inside the read-only package.
-// - The traversal guard refuses to launch when a symbolic link inside the component, or inside a
-//   package of the shared test material, points into a hidden directory: such a link would cross
-//   the envelope.
+//   exports `./test-fixtures` (`matieres` of `scripts/consommateurs.mjs`). It is mounted after the
+//   packages of the plan: written for the `testwriter`, read-only for every other role, in the
+//   plan or not. For such a role, where a run of its tests writes in it (`sortiesDeTest`:
+//   Turborepo's task logs, Vite's cache) is an empty directory proper to the session, as Bazel
+//   writes a test's logs out of its source: what is written there leaves no trace. The envelope
+//   creates each of them on disk, empty, before the session, so that bwrap mounts over it inside
+//   the read-only package.
 // - The exit codes are named in `codes.mjs`.
 import { execFileSync, spawnSync } from 'node:child_process';
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  lstatSync,
-  readdirSync,
-  readFileSync,
-  readlinkSync,
-  statSync,
-} from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, lstatSync, readlinkSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { matieres as lesMatieres } from '../consommateurs.mjs';
 import { paquets as lesPaquets } from '../paquets.mjs';
 import { CODE_REFUS, CODE_USAGE } from './codes.mjs';
-import { VARIABLE } from './composant.mjs';
+import { ecritsDuPlan, ecrireLaListe, lireLaListe, VARIABLE } from './paquets-du-plan.mjs';
 import { ouvrirBase } from '../vitest-config/base-de-passe.mjs';
 
-const PUBLISHED = ['package.json', 'docs/INTERFACE.md', 'dist', 'turbo.json', 'turbo.jsonc'];
 // The role that writes the package of the shared test material.
 const ROLE_MATIERE = 'testwriter';
 // What a run of a package's tests writes in that package, relative to it: the logs of its tasks,
@@ -125,13 +94,6 @@ const sortiesDeTest = dir => SORTIES_DE_TEST.map(s => path.join(dir, s));
 const SORTIES_DE_LA_RACINE = ['.turbo'];
 // The directories of the copy <copie> where a run of Turborepo writes.
 const sortiesDeLaRacine = copie => SORTIES_DE_LA_RACINE.map(s => path.join(copie, s));
-// True when <composant> of <copie> is a package of the copy (`paquets`, the directory of each
-// relative to it): its envelope then writes that package alone.
-const estUnPaquet = (copie, composant, paquets) =>
-  paquets.some(p => path.resolve(copie, p.dossier) === path.resolve(copie, composant));
-// The directories where codegraph and rtfm keep the index of a tree they index: the source of
-// every component, which the envelope hides.
-const INDEX = ['.codegraph', '.rtfm'];
 // The machine's temporary directory: an empty one, proper to the session, replaces it.
 const TEMPORAIRE = '/tmp';
 // What stays read-only inside `~/.claude`: the configuration and what it loads.
@@ -149,8 +111,9 @@ const CLAUDE_EN_LECTURE = [
 ];
 // What the home shows read-only besides `~/.claude`, as paths relative to it: claude's launcher
 // and versions, node and its global tools (bd), the state of bd and of its dolt database, and the
-// git configuration. The home shows nothing else: neither codegraph nor rtfm, whose index is for
-// the roles that see the whole repository.
+// git configuration. The home shows nothing else: neither codegraph nor rtfm, whose servers the
+// roles of the envelope do not receive (scripts/droits.mjs); the indexes of the repository are in
+// sight with it.
 const MAISON_EN_LECTURE = [
   '.local/bin/claude',
   '.local/share/claude',
@@ -222,8 +185,8 @@ export function dossierDeTravail(copie, env = process.env) {
 // envelope mounts in writing, `npm_config_ignore_scripts` set to `true` (npm runs no lifecycle
 // script: a `prepare` that writes under the read-only `.git` would fail `npm install`; the
 // launcher installs outside the session), `TMPDIR` set to the session's working directory
-// <travail>, and `GRILLHOUSE_ENVELOPPE` set to <composant>. Nothing else of <env> enters.
-function environnementDeLaSeance(env, { cacheNpm, composant, travail }) {
+// <travail>, and `GRILLHOUSE_ENVELOPPE` set to the plan <paquets>. Nothing else of <env> enters.
+function environnementDeLaSeance(env, { cacheNpm, paquets, travail }) {
   const declare = nom =>
     ENVIRONNEMENT_DECLARE.includes(nom) ||
     VARIABLES_DE_CHEMIN.includes(nom) ||
@@ -234,7 +197,7 @@ function environnementDeLaSeance(env, { cacheNpm, composant, travail }) {
     npm_config_cache: cacheNpm,
     npm_config_ignore_scripts: 'true',
     TMPDIR: travail,
-    [VARIABLE]: composant,
+    [VARIABLE]: ecrireLaListe(paquets),
   };
 }
 
@@ -316,64 +279,6 @@ function worktrees(copie) {
     .map(l => l.slice('worktree '.length));
 }
 
-// What a directory of the real disk holds, as { name, dir } entries.
-function lister(dir) {
-  return readdirSync(dir, { withFileTypes: true }).map(e => ({
-    name: e.name,
-    dir: e.isDirectory(),
-  }));
-}
-
-// The symbolic links under <dir> whose resolved target lies outside <dir>.
-function liensSortants(dir) {
-  const found = [];
-  const walk = d => {
-    for (const e of readdirSync(d, { withFileTypes: true })) {
-      const p = path.join(d, e.name);
-      if (e.isSymbolicLink()) {
-        const target = path.resolve(d, readlinkSync(p));
-        const rel = path.relative(dir, target);
-        if (rel.startsWith('..') || path.isAbsolute(rel)) found.push({ lien: p, cible: target });
-      } else if (e.isDirectory() && e.name !== 'node_modules') {
-        walk(p);
-      }
-    }
-  };
-  walk(dir);
-  return found;
-}
-
-// The paths, relative to <dir>, a package of <copie>, that its `package.json` publishes beyond the
-// parts every package publishes: what its `files` field names, and the directory each trace it
-// declares writes (`grillhouse.traces`, its `ecrit` from the root of <copie>); none without them.
-function fichiersPublies(dir, copie) {
-  const manifeste = path.join(dir, 'package.json');
-  if (!existsSync(manifeste)) return [];
-  const { files, grillhouse } = JSON.parse(readFileSync(manifeste, 'utf8'));
-  const traces = Object.values(grillhouse?.traces ?? {})
-    .filter(t => typeof t?.ecrit === 'string')
-    .map(t => path.relative(dir, path.join(copie, t.ecrit)));
-  return [...(Array.isArray(files) ? files : []), ...traces];
-}
-
-/**
- * The paths that the tests of the package at <dir> declare they read: its `grillhouse.lit`, then
- * the `lit` of each trace it declares (`grillhouse.traces`), each path from the root; none without
- * a package.json or a declaration.
- * @param {string} dir the directory of the package
- * @returns {string[]}
- */
-export function cheminsLus(dir) {
-  const manifeste = path.join(dir, 'package.json');
-  if (!existsSync(manifeste)) return [];
-  const { grillhouse } = JSON.parse(readFileSync(manifeste, 'utf8'));
-  const liste = v => (Array.isArray(v) ? v.filter(l => typeof l === 'string') : []);
-  return [
-    ...liste(grillhouse?.lit),
-    ...Object.values(grillhouse?.traces ?? {}).flatMap(t => liste(t?.lit)),
-  ];
-}
-
 const inside = (child, parent) => {
   const rel = path.relative(parent, child);
   return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
@@ -397,21 +302,28 @@ export function jugerComposant({ depot, composant, paquets = [] }, fs) {
     : `Le composant ${propre} n'existe pas.`;
 }
 
-// The bwrap arguments for this agent, or the refusal that stops its launch. `montages` lists, in
-// order, the paths outside the copy that are emptied, written, read back or made a symbolic link
-// (`lien`, its text) (`montagesDeLaSeance`); an emptied one marked `scelle` is sealed read-only
-// once every mount inside it is made.
-// `matieres` lists the packages of the shared test material, relative to the copy
-// (`matieres` of `scripts/consommateurs.mjs`); `role` is the agent's role, and only the `testwriter` writes them.
-// `magasins` lists the task caches written by every run, the agent's included (Turborepo's
-// `<main tree>/.turbo/cache`); one that does not exist is not mounted.
-// `paquets` lists the packages of the copy, which `jugerComposant` reads to judge <composant>;
-// a <composant> among them writes itself alone of the copy.
-// `fs` gives `lister(dir)`, `existe(path)`, `liens(dir)`, `publies(dir, copie)` and `lus(dir)`
-// (what the tests of the package at <dir> declare they read, `cheminsLus`), so the plan is testable
-// without disk.
+// The bwrap arguments for this agent, or the refusal that stops its launch. `paquets` is the plan,
+// the paths it names relative to the copy; `paquetsDeLaCopie` lists the packages of the copy
+// (`paquets` of `scripts/paquets.mjs`), which `jugerComposant` reads to judge each path and
+// `ecritsDuPlan` to find the package that holds it. `montages` lists, in order, the paths outside
+// the copy that are emptied, written, read back or made a symbolic link (`lien`, its text)
+// (`montagesDeLaSeance`); an emptied one marked `scelle` is sealed read-only once every mount
+// inside it is made. `matieres` lists the packages of the shared test material, relative to the
+// copy (`matieres` of `scripts/consommateurs.mjs`); `role` is the agent's role, and only the
+// `testwriter` writes them. `magasins` lists the task caches written by every run, the agent's
+// included (Turborepo's `<main tree>/.turbo/cache`); one that does not exist is not mounted.
+// `fs` gives `existe(path)`, so the plan is testable without disk.
 export function plan(
-  { trees, copie, composant, role, matieres = [], montages = [], magasins = [], paquets = [] },
+  {
+    trees,
+    copie,
+    paquets = [],
+    role,
+    matieres = [],
+    montages = [],
+    magasins = [],
+    paquetsDeLaCopie = [],
+  },
   fs
 ) {
   // The worktrees start with the main tree: an envelope on it would let the agent write its root.
@@ -420,23 +332,15 @@ export function plan(
       refus: `La copie ${copie} est l'arbre principal : un agent travaille dans sa propre copie.`,
     };
   }
-  const parentRel = path.dirname(composant);
-  const nom = path.basename(composant);
-  // A folder of the root (`scripts`) works on the whole repository: no neighbour to hide.
-  const racine = parentRel === '.' || parentRel === '';
-  const propre = path.join(copie, composant);
-  const refusDuComposant = jugerComposant({ depot: copie, composant, paquets }, fs);
-  if (refusDuComposant) return { refus: refusDuComposant };
-
-  const caches = racine ? [] : trees.map(t => path.join(t, parentRel));
-  const matiere = matieres.map(m => path.join(copie, m));
-  for (const { lien, cible } of [propre, ...matiere].flatMap(d => fs.liens(d))) {
-    if (caches.some(c => inside(cible, c))) {
-      return {
-        refus: `Le lien ${lien} vise ${cible}, que l'enveloppe masque : il traverserait l'enveloppe.`,
-      };
-    }
+  if (paquets.length === 0) {
+    return { refus: "Le plan ne nomme aucun paquet : l'enveloppe n'ouvre rien en écriture." };
   }
+  for (const p of paquets) {
+    const refus = jugerComposant({ depot: copie, composant: p, paquets: paquetsDeLaCopie }, fs);
+    if (refus) return { refus };
+  }
+  const ecrits = ecritsDuPlan(paquets, paquetsDeLaCopie);
+  const toute = ecrits.includes('.');
 
   // /dev/shm, which /dev brings in writing, becomes an empty directory proper to the session.
   const args = [
@@ -462,50 +366,25 @@ export function plan(
   for (const t of trees) {
     if (videes.some(v => inside(t, v)) && fs.existe(t)) args.push('--ro-bind', t, t);
   }
-  // The copy is mounted after them: an emptied /tmp does not hide it. Its .git stays read-only.
-  // For a component that is a package, the copy is read-only and its package alone comes back in
-  // writing below, as a sandbox of Bazel opens only what the action declares; where a run of
-  // Turborepo writes at the root is an empty directory proper to the session.
-  const paquet = !racine && estUnPaquet(copie, composant, paquets);
-  args.push(paquet ? '--ro-bind' : '--bind', copie, copie);
-  if (paquet) for (const s of sortiesDeLaRacine(copie)) if (fs.existe(s)) args.push('--tmpfs', s);
+  // The copy is mounted after them: an emptied /tmp does not hide it. It is read-only, and the
+  // packages of the plan come back in writing below, as a sandbox of Bazel opens only what the
+  // action declares; where a run of Turborepo writes at the root is an empty directory proper to
+  // the session. A plan that writes the root writes the whole copy. Its .git stays read-only.
+  args.push(toute ? '--bind' : '--ro-bind', copie, copie);
+  if (!toute) for (const s of sortiesDeLaRacine(copie)) if (fs.existe(s)) args.push('--tmpfs', s);
   const gitDeLaCopie = path.join(copie, '.git');
   if (fs.existe(gitDeLaCopie)) args.push('--ro-bind', gitDeLaCopie, gitDeLaCopie);
   // The task cache (Turborepo's) is written by the agent's runs, as by every copy's.
   for (const m of magasins) if (fs.existe(m)) args.push('--bind', m, m);
   const tickets = trees.length > 0 ? path.join(trees[0], '.beads') : null;
   if (tickets && fs.existe(tickets)) args.push('--bind', tickets, tickets);
-  // Every index directory of every worktree, the copy's included, becomes an empty directory in
-  // its place; the worktree around it keeps its mount.
-  const index = [...new Set([...trees, copie])]
-    .flatMap(t => INDEX.map(i => path.join(t, i)))
-    .filter(i => fs.existe(i));
-  for (const i of index) args.push('--tmpfs', i);
-  for (const c of caches) if (fs.existe(c)) args.push('--tmpfs', c);
-  const parent = path.join(copie, parentRel);
-  for (const e of racine ? [] : fs.lister(parent)) {
-    const p = path.join(parent, e.name);
-    if (!e.dir) {
-      args.push('--ro-bind', p, p);
-    } else if (e.name !== nom && !matiere.includes(p)) {
-      for (const part of new Set([...PUBLISHED, ...fs.publies(p, copie)])) {
-        const q = path.join(p, part);
-        if (inside(q, p) && fs.existe(q)) args.push('--ro-bind', q, q);
-      }
+  if (!toute) {
+    for (const e of ecrits) {
+      const d = path.join(copie, e);
+      args.push('--bind', d, d);
     }
   }
-  // What the component's tests declare they read, in a sibling the envelope hides.
-  if (!racine) {
-    for (const l of new Set(fs.lus?.(propre) ?? [])) {
-      const q = path.join(copie, l);
-      const visible = inside(q, propre) || matiere.some(m => inside(q, m));
-      if (inside(q, parent) && q !== parent && !visible && fs.existe(q)) {
-        args.push('--ro-bind', q, q);
-      }
-    }
-  }
-  args.push('--bind', propre, propre);
-  for (const m of matiere) {
+  for (const m of matieres.map(m => path.join(copie, m))) {
     args.push(role === ROLE_MATIERE ? '--bind' : '--ro-bind', m, m);
     // What a run of its tests writes goes, for a role that does not write it, to an empty
     // directory proper to the session, as Bazel writes a test's logs out of its source.
@@ -513,31 +392,25 @@ export function plan(
     for (const s of sortiesDeTest(m)) if (fs.existe(s)) args.push('--tmpfs', s);
   }
   // The emptied directories close behind the mounts: nothing new is written there.
-  for (const c of caches) if (fs.existe(c)) args.push('--remount-ro', c);
   for (const { chemin } of montages.filter(m => m.scelle)) args.push('--remount-ro', chemin);
-  for (const i of index) args.push('--remount-ro', i);
   args.push('--chdir', copie);
   return { args };
 }
 
-const disque = {
-  lister,
-  existe: existsSync,
-  liens: d => (existsSync(d) && statSync(d).isDirectory() ? liensSortants(d) : []),
-  publies: fichiersPublies,
-  lus: cheminsLus,
-};
+const disque = { existe: existsSync };
 
-// The command: the session of <commande> in the envelope of <composant> in <copie>; its exit code.
+// The command: the session of <commande> in the envelope of the plan <paquets> in <copie>; its
+// exit code.
 function envelopper(argv) {
   const sep = argv.indexOf('--');
-  const [copieArg, composant, role] = argv.slice(0, sep < 0 ? undefined : sep);
+  const [copieArg, liste, role] = argv.slice(0, sep < 0 ? undefined : sep);
   const commande = sep < 0 ? [] : argv.slice(sep + 1);
-  if (!copieArg || !composant || !role || commande.length === 0) {
-    process.stderr.write('usage: enveloppe.mjs <copie> <composant> <rôle> -- <commande…>\n');
+  if (!copieArg || !liste || !role || commande.length === 0) {
+    process.stderr.write('usage: enveloppe.mjs <copie> <paquets> <rôle> -- <commande…>\n');
     return CODE_USAGE;
   }
   const copie = path.resolve(copieArg);
+  const paquets = lireLaListe(liste);
   // A launch from a package of a repository of workspaces sets npm's `workspace`, which
   // `npm config` refuses: the cache is the user's, whatever the workspace.
   const cacheNpm = execFileSync('npm', ['config', 'get', 'cache', '--workspaces=false'], {
@@ -579,10 +452,10 @@ function envelopper(argv) {
       for (const s of sortiesDeTest(path.join(copie, m))) mkdirSync(s, { recursive: true });
     }
   }
-  // For a component that is a package, where a run of Turborepo writes at the root of the copy is
-  // created here, so that bwrap mounts an empty one over it inside the read-only copy.
-  const paquets = lesPaquets(copie);
-  if (estUnPaquet(copie, composant, paquets)) {
+  // For a plan that leaves the root read-only, where a run of Turborepo writes at the root of the
+  // copy is created here, so that bwrap mounts an empty one over it inside the read-only copy.
+  const paquetsDeLaCopie = lesPaquets(copie);
+  if (!ecritsDuPlan(paquets, paquetsDeLaCopie).includes('.')) {
     for (const s of sortiesDeLaRacine(copie)) mkdirSync(s, { recursive: true });
   }
   // The cache of Turborepo, in the main tree (the folder of git's common directory), created here
@@ -598,12 +471,12 @@ function envelopper(argv) {
     {
       trees: worktrees(copie),
       copie,
-      composant,
+      paquets,
       role,
       matieres,
       montages,
       magasins,
-      paquets,
+      paquetsDeLaCopie,
     },
     disque
   );
@@ -614,7 +487,7 @@ function envelopper(argv) {
   } else {
     const r = spawnSync('bwrap', [...args, ...commandeEprouvee(commande)], {
       stdio: 'inherit',
-      env: environnementDeLaSeance(process.env, { cacheNpm, composant, travail }),
+      env: environnementDeLaSeance(process.env, { cacheNpm, paquets, travail }),
     });
     if (r.error) process.stderr.write(`⛔ ENVELOPPE IMPOSSIBLE — ${r.error.message}\n`);
     code = r.error ? CODE_REFUS : (r.status ?? 1);

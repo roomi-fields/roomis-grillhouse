@@ -175,7 +175,7 @@ remplace jamais le grill. Les branches de l'arbre :
    déclaration. La racine d'un dépôt sans paquets l'importe par le même nom. Un paquet hors cadre (`docs/agents/hors-cadre.txt`) reste un
    espace de travail, qu'un voisin importe par son nom, et Turborepo ne joue aucune de ses tâches :
    son `turbo.json` généré les exclut, et aucune tâche d'un paquet du cadre ne l'attend. Aucune configuration ne lit
-   celle d'un voisin, que l'enveloppe cache. Un test atteint son paquet
+   celle d'un voisin. Un test atteint son paquet
    par une seule route : les sources relatives pour un test unitaire, le nom du paquet pour un test
    de porte. Ainsi un agent enveloppé construit et teste son paquet avec ce que ses voisins
    publient.

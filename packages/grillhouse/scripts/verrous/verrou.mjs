@@ -11,12 +11,27 @@
 // - developpeur writes none of the testwriter's files, and no other file until its ticket's
 //   description holds a "## Architecture" section. The ticket is the "TON TICKET : <id>" line of the agent's
 //   launch prompt, read from its transcript.
+// - In an envelope (`GRILLHOUSE_ENVELOPPE`, the packages of the plan, scripts/enveloppe/
+//   paquets-du-plan.mjs), a write in the copy out of the packages the plan writes (`ecritsDuPlan`)
+//   and out of the shared test material, whose rule is the one above, stops the session, as the
+//   visibility of Bazel refuses a target the rule does not open: the hook answers Claude Code's
+//   `continue: false`, the tool refused (`permissionDecision: deny`), its reason naming the file's
+//   package and the plan, and leaves that reason in the session's working directory
+//   (`MARQUE_HORS_PLAN` under TMPDIR), which the launcher hands to the circuit. The mount of the
+//   envelope refuses the same write to any tool; the hook says why, and stops.
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { matieres, NOM_DE_TEST } from '../consommateurs.mjs';
+import {
+  ecritsDuPlan,
+  MARQUE_HORS_PLAN,
+  paquetQuiTient,
+  paquetsDeLEnveloppe,
+} from '../enveloppe/paquets-du-plan.mjs';
+import { paquets } from '../paquets.mjs';
 
 const WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 
@@ -66,6 +81,31 @@ function racineDe(file) {
   } catch {
     return null;
   }
+}
+
+// The stop of a write out of the plan of the envelope <env>, `{ paquet, raison }`, or null: a
+// write in the repository holding the file, out of the packages the plan writes and out of the
+// shared test material.
+function horsDuPlan(input, { tmp = tmpdir(), env = process.env } = {}) {
+  const plan = paquetsDeLEnveloppe(env);
+  if (!plan || !WRITE_TOOLS.has(input.tool_name)) return null;
+  const raw = input.tool_input?.file_path ?? input.tool_input?.notebook_path;
+  if (!raw) return null;
+  const file = path.resolve(input.cwd ?? process.cwd(), raw);
+  if (isScratch(file, tmp)) return null;
+  const copie = racineDe(file);
+  if (!copie) return null;
+  const liste = paquets(copie);
+  const ecrits = ecritsDuPlan(plan, liste);
+  const rel = path.relative(copie, file);
+  if (ecrits.includes('.') || ecrits.some(d => rel.startsWith(`${d}/`))) return null;
+  if (matieres(copie).some(m => isInside(file, m.dir))) return null;
+  const tenant = paquetQuiTient(rel, liste);
+  const paquet = tenant === '.' ? 'la racine du dépôt' : tenant;
+  return {
+    paquet,
+    raison: `⛔ hors-plan — ${rel} est dans ${paquet}, hors des paquets du plan (${plan.join(', ')}) : ta séance s'arrête là, et le superviseur étend le plan ou refuse l'écriture.`,
+  };
 }
 
 // The ticket id of the launch prompt. A sub-agent's prompt opens its own transcript, next to the
@@ -157,9 +197,30 @@ export function refusal(role, input, { tmp = tmpdir(), describe = ticketDescript
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const input = JSON.parse(readFileSync(0, 'utf8'));
-  const reason = refusal(process.argv[2], input);
-  if (reason) {
-    process.stderr.write(reason + '\n');
-    process.exitCode = 2;
+  const stop = horsDuPlan(input);
+  if (stop) {
+    // The mark for the circuit; the stop below is the hook's answer, mark or not.
+    try {
+      writeFileSync(path.join(tmpdir(), MARQUE_HORS_PLAN), stop.raison);
+    } catch {
+      // A working directory gone leaves no mark; the session still stops.
+    }
+    process.stdout.write(
+      `${JSON.stringify({
+        continue: false,
+        stopReason: stop.raison,
+        hookSpecificOutput: {
+          hookEventName: 'PreToolUse',
+          permissionDecision: 'deny',
+          permissionDecisionReason: stop.raison,
+        },
+      })}\n`
+    );
+  } else {
+    const reason = refusal(process.argv[2], input);
+    if (reason) {
+      process.stderr.write(reason + '\n');
+      process.exitCode = 2;
+    }
   }
 }

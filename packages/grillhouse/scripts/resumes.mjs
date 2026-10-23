@@ -15,7 +15,7 @@
 //   written in the documentation comment of the export, and `npm run api` carries it over.
 // - A refusal inscribed in the project's debt (`grillhouse-dette.json`, see `dette.mjs`) passes,
 //   keyed by the interface and `resume-trop-long`.
-// - In the envelope of a component (`GRILLHOUSE_ENVELOPPE`), that component alone is judged.
+// - In an envelope (`GRILLHOUSE_ENVELOPPE`), the components of its plan alone are judged.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';

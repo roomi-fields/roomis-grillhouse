@@ -74,7 +74,10 @@
 // - Each session is a launch of scripts/enveloppe/lancer.sh, a child process the circuit waits
 //   for, in its own process group, its errors written to a file: a session outlives the death of
 //   its circuit (its caller dead, the circuit with it), and the state names its group while it
-//   runs. The instruction is written from the first template of
+//   runs. Its plan, the packages it writes (`--paquets`, the envelope's list), is the components
+//   of the title, the whole copy in sight; a session its lock stops on a write out of the plan
+//   ends the circuit at « hors-plan », for the supervisor. The instruction is written from the
+//   first template of
 //   mods/grillhouse/skills/pitmaster/references/consigne-agent.md, each `{{champ}}` filled: the ticket and
 //   its subject, the component, the ticket's description (its criteria) and its notes (a section
 //   absent without notes), both read with `bd show` at the session's launch, the report of the
@@ -490,7 +493,9 @@
 //   carries a `question`),
 //   21 composants-manquants (a component the survey of the ticket finds and its title misses),
 //   22 questionnement (the questioning of the plan ends on a disagreement, or its fourth round is
-//   still questioned),
+//   still questioned), 24 hors-plan (a testwriter or developpeur session its lock stops on a
+//   write out of the plan, `<ticket>.hors-plan` that lancer.sh writes; for the supervisor, with
+//   no regulator),
 //   75 a-repasser (a check or the integration still at 75 once played again, or the branch still
 //   in the queue).
 import { spawn, spawnSync } from 'node:child_process';
@@ -519,7 +524,7 @@ import { DEPUIS_LE_VERT } from './dernier-vert.mjs';
 import { releve as releveDuTexte, repondre, verifierLeTitre } from './composants-affectes.mjs';
 import { optionsDuRole } from './droits.mjs';
 import { matieres, NOM_DE_TEST } from './consommateurs.mjs';
-import { VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/composant.mjs';
+import { ecrireLaListe, VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/paquets-du-plan.mjs';
 import {
   ARRETS,
   AUTO,
@@ -808,6 +813,7 @@ function contexte(o) {
     journal: `${copie}.log`,
     fin: `${copie}.fin`,
     resultat: `${copie}.resultat.json`,
+    horsPlan: `${copie}.hors-plan`,
     fiches: `${copie}.fiches.jsonl`,
     transcriptions: transcriptionsDeLaCopie(copie, os.homedir()),
     immobileMs: Number(process.env.GRILLHOUSE_CIRCUIT_IMMOBILE_MS) || IMMOBILE_MS,
@@ -1013,6 +1019,7 @@ function lancer(
 ) {
   rmSync(ctx.fin, { force: true });
   rmSync(ctx.resultat, { force: true });
+  rmSync(ctx.horsPlan, { force: true });
   const id = ouvre ?? reprend ?? session[1] ?? null;
   if (id) {
     inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, composant, lancement: { role, seance: id } });
@@ -1043,6 +1050,9 @@ function lancer(
         ...(fort ? FORT : []),
         ...(ouvre ? ['--seance', ouvre] : []),
         ...(reprend ? ['--reprise', reprend] : []),
+        // The plan of the session: the components of the title, which it writes.
+        '--paquets',
+        ecrireLaListe(ctx.composants),
         ctx.ticket,
         role,
         composant,
@@ -1080,6 +1090,7 @@ function lancer(
       ecrireEtat(ctx, { ...ctx.courant, seance: null });
       let seance;
       let sortie;
+      let horsPlan = null;
       if (horsEnveloppe) {
         seance = erreurDeLancement === null ? code : null;
         sortie = lire(reponse).trim();
@@ -1091,8 +1102,16 @@ function lancer(
       } else {
         seance = existsSync(ctx.fin) ? Number(readFileSync(ctx.fin, 'utf8').trim()) : null;
         sortie = lire(ctx.resultat).trim();
+        horsPlan = existsSync(ctx.horsPlan) ? lire(ctx.horsPlan).trim() : null;
       }
-      resolve({ code, seance, bloque, erreur: erreurDeLancement ?? lire(erreurs), sortie });
+      resolve({
+        code,
+        seance,
+        bloque,
+        horsPlan,
+        erreur: erreurDeLancement ?? lire(erreurs),
+        sortie,
+      });
     });
   });
 }
@@ -1232,9 +1251,16 @@ function contexteDe(ctx, composant) {
   return [...new Set(textes.filter(Boolean))].join('\n\n') || 'aucun';
 }
 
-// The launch <r> of a session of <role>, or the Arret it is: a motionless session (« bloqué »),
-// a launch that stops before its session (« lancement »).
+// The launch <r> of a session of <role>, or the Arret it is: a session its lock stopped on a
+// write out of the plan (« hors-plan »), a motionless session (« bloqué »), a launch that stops
+// before its session (« lancement »).
 function seanceLancee(ctx, role, r) {
+  if (r.horsPlan) {
+    throw new Arret(
+      'hors-plan',
+      `Le crochet de la séance du ${nomDuRole(role)} l'arrête sur une écriture hors du plan du ticket (ses composants du titre : ${ctx.composants.join(', ')}) :\n\n${r.horsPlan}\n\nLe superviseur étend le plan, au titre du ticket, ou refuse l'écriture.`
+    );
+  }
   if (r.bloque) {
     const minutes = Math.round(ctx.immobileMs / 60_000);
     throw new Arret(
@@ -2501,7 +2527,7 @@ function commandesDuComposant(ctx, index, liste) {
   const sien = chemin => proprietaire(ctx, chemin) === index;
   const tests = testsDuLot(ctx).filter(f => sien(f) || matiereFaite(ctx, liste, f, index));
   const scripts = lireJson(path.join(ctx.copie, 'package.json'))?.scripts ?? {};
-  const enveloppe = { [VARIABLE_ENVELOPPE]: ctx.composants[index] };
+  const enveloppe = { [VARIABLE_ENVELOPPE]: ecrireLaListe([ctx.composants[index]]) };
   return [
     ...(tests.length ? [{ args: ['test', '--', ...tests] }] : []),
     ...[
@@ -3152,6 +3178,7 @@ const LECTURES = {
     return memeArret(avant, a) && avant.signature === signatureDe(ctx, a);
   },
   'a-repasser': (ctx, a) => a.nom === 'a-repasser',
+  'hors-plan': (ctx, a) => a.nom === 'hors-plan',
   'a-arbitrer': (ctx, a) => a.faits?.genre === 'a-arbitrer',
 };
 
@@ -3422,21 +3449,31 @@ function ecrireLArbitrage(ctx, composant, fiche) {
   }
 }
 
-// The stop <a> ended for the supervisor by the line <ligne> of the table: the same stop come back
-// with no new fact. Its exit code.
+// The stop <a> ended for the supervisor by the line <ligne> of the table: a write out of the plan,
+// or the same stop come back with no new fact. Its exit code.
 function rendreAuSuperviseur(ctx, a, ligne) {
   const decisions = ctx.relances.map((x, i) => `${i + 1}. ${x.decision}`).join('\n\n');
+  const pourquoi =
+    ligne.genre === 'hors-plan'
+      ? {
+          rapport: `le circuit s'arrête, pour le superviseur (table des arrêts, ${ligne.genre}), qui étend le plan ou refuse l'écriture.`,
+          ligne: `l'arrêt ${a.nom} attend que le plan s'étende ou que l'écriture soit refusée.`,
+        }
+      : {
+          rapport: `LE MÊME ARRÊT revient sans fait nouveau, la copie et la description du ticket telles qu'à la décision d'avant : le circuit s'arrête, pour le superviseur (table des arrêts, ${ligne.genre}). Les décisions sur cet arrêt :\n\n${decisions}`,
+          ligne: `l'arrêt ${a.nom} revient sans fait nouveau.`,
+        };
   ecrireEtat(ctx, {
     ...a.etat,
     code: a.code,
     raison: a.nom,
-    rapport: `${String(a.rapport ?? '').trim()}\n\nLE MÊME ARRÊT revient sans fait nouveau, la copie et la description du ticket telles qu'à la décision d'avant : le circuit s'arrête, pour le superviseur (table des arrêts, ${ligne.genre}). Les décisions sur cet arrêt :\n\n${decisions}`,
+    rapport: `${String(a.rapport ?? '').trim()}\n\n${pourquoi.rapport}`,
   });
   commenter(
     ctx,
     a.etat.composant,
     'arbitrage',
-    `${ligne.genre} → le superviseur : l'arrêt ${a.nom} revient sans fait nouveau.`
+    `${ligne.genre} → le superviseur : ${pourquoi.ligne}`
   );
   return a.code;
 }

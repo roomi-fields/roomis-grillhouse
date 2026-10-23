@@ -37,21 +37,23 @@
 //   Turborepo's `--force` re-executes every task of the run, so the variable carries the moment of
 //   the run instead (`rejouer`), a value no cached run of the tests has. A test suspected unstable
 //   is played again, and a build, which the same inputs give again, is not.
-// - In the envelope of an agent (`GRILLHOUSE_ENVELOPPE`, scripts/enveloppe/composant.mjs), the
-//   neighbours and their traces arrive built by the launcher and read-only, as in a sandbox of
-//   Bazel: the build is the named packages' alone, with the traces of those packages their tests
-//   wait for, which live in the package the agent writes (`turbo run build <name>#trace:<t>…
-//   --only --filter=<name>`, their task ids read in Turborepo's plan of the tests,
-//   `turbo run test:vitest --filter=<name> --dry=json`), never their dependencies nor a
-//   neighbour's trace; then the tests alone (`turbo run test:vitest --only --filter=<name>`), the
-//   paths in the variable. A named package that the envelope shows read-only (the shared test
-//   material, for every role but the testwriter) is not built, nor are its traces: it arrives built,
-//   as a read-only input of Bazel, and its tests play as it is; the frame knows it read-only by
-//   testing its directory for writing (`inscriptible`), where the envelope mounts it, and the logs
-//   of its tasks go to the envelope's directories proper to the session (`sortiesDeTest`,
-//   scripts/enveloppe/enveloppe.mjs), never into its source. There the hash of the tests sees
-//   neither the code of the neighbours nor their builds: the verdict that counts is the reviewer's
-//   and the integration's, out of the envelope.
+// - In the envelope of an agent (`GRILLHOUSE_ENVELOPPE`, scripts/enveloppe/paquets-du-plan.mjs),
+//   the packages out of its plan and their traces arrive built by the launcher and read-only, as
+//   in a sandbox of Bazel: the build is the named packages' alone, with the traces of those
+//   packages their tests wait for, which live in the package the agent writes
+//   (`turbo run build <name>#trace:<t>… --only --filter=<name>`, their task ids read in
+//   Turborepo's plan of the tests, `turbo run test:vitest --filter=<name> --dry=json`), never
+//   their dependencies nor a neighbour's trace; then the tests alone
+//   (`turbo run test:vitest --only --filter=<name>`), the paths in the variable. A named package
+//   that the envelope shows read-only (one out of the plan; the shared test material, for every
+//   role but the testwriter) is not built, nor are its traces: it arrives built, as a read-only
+//   input of Bazel; the frame knows it read-only by testing its directory for writing
+//   (`inscriptible`), where the envelope mounts it. The shared test material plays its tests as
+//   it is: the logs of its tasks go to the envelope's directories proper to the session
+//   (`sortiesDeTest`, scripts/enveloppe/enveloppe.mjs), never into its source. A package out of
+//   the plan has no such directories: Turborepo and Vite cannot write its logs and its cache, and
+//   a run of its tests fails on « Read-only file system »; its tests play out of the envelope. The
+//   verdict that counts is the reviewer's and the integration's, out of the envelope.
 // - An argument that begins with « - » is an option of Vitest, written `--<name>=<value>`, carried
 //   in the variable beside the paths.
 // - A night test or a time budget bench, which the day leaves out, plays when a path names its own
@@ -79,7 +81,7 @@ import { spawnSync } from 'node:child_process';
 import { accessSync, constants, existsSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { planifier } from './avancement.mjs';
-import { composantDeLEnveloppe } from './enveloppe/composant.mjs';
+import { paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
 import { paquets } from './paquets.mjs';
 import { garderLesResumes, RESULTATS } from './resultats.mjs';
 import { tracesDuPlan } from './turbo-des-paquets.mjs';
@@ -94,7 +96,7 @@ const racine = process.cwd();
 // Turborepo write in it (TMPDIR), and it goes at the end of the run.
 const base = ouvrirBase('tests');
 process.env.TMPDIR = base.dossier;
-const enveloppe = composantDeLEnveloppe() !== null;
+const enveloppe = paquetsDeLEnveloppe() !== null;
 const args = process.argv.slice(2);
 const force = args.includes('--force');
 const options = args.filter(a => a.startsWith('-') && a !== '--force');

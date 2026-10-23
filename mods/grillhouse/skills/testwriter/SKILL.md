@@ -96,7 +96,7 @@ attendus par test se combinent avec lui. Ainsi une fiche dit une raison une fois
 
 **Un type changé migre d'emblée ses lecteurs de test** : quand le ticket change un type ou un nom
 de ton composant, tu migres aussi, dans la même séance, la matière de test partagée qui le lit ; les tests
-des composants suivants, hors de ton enveloppe, vont à leur testwriter, que le circuit lance. Ainsi
+des composants suivants vont à leur testwriter, que le circuit lance. Ainsi
 les développeurs des composants suivants ne tournent pas sur un rouge que seul le testwriter lève.
 
 **Ne pas construire, c'est échouer** : la construction en échec d'un paquet de ton composant (un
@@ -117,8 +117,7 @@ qu'il lit ou lance) fait déclarer son chemin, dossier ou fichier, dans le `pack
 paquet, depuis la racine : `"grillhouse": { "lit": ["<chemin>"] }`. Le test n'est rejoué que si
 son code, ce qu'il importe ou un chemin déclaré change ; un chemin de données seules qu'un autre
 paquet déclare sort de la construction de son paquet, un chemin qui contient du code y reste, et
-un lecteur qui l'omet garde un vert périmé. L'enveloppe de son composant le montre en lecture
-seule, même dans un voisin qu'elle cache. Le `package.json` d'un paquet de la matière est à toi, comme tout
+un lecteur qui l'omet garde un vert périmé. Le `package.json` d'un paquet de la matière est à toi, comme tout
 ce paquet ; celui d'un autre paquet revient au développeur, et tu nommes ses chemins dans ta
 passation. Ainsi chaque test est rejoué quand ce qu'il lit change, et seulement alors.
 
@@ -160,10 +159,10 @@ tests arrivent au dépôt avec le code qui les rend verts.
 **Ta séance finit sur ta fiche**, que ton schéma décrit et que le circuit lit seule :
 
 - `statut` FAIT : tes tests sont écrits, et la preuve du rouge les juge ;
-- `statut` BLOQUÉ, avec sa `raison` : ce qui reste est hors de ta portée (un fichier hors de ton
-  enveloppe, une décision hors de ton rôle) ; hors de ton paquet et de la matière de test
-  partagée, la copie est en lecture seule, et ta `raison` nomme le composant qui possède le
-  fichier ;
+- `statut` BLOQUÉ, avec sa `raison` : ce qui reste est hors de ta portée (un fichier hors du
+  plan, une décision hors de ton rôle) ; hors des paquets du plan et de la matière de test
+  partagée, la copie est en lecture seule, ton verrou arrête ta séance sur une écriture hors du
+  plan, et ta `raison` nomme le composant qui possède le fichier ;
 - `statut` BESOIN, avec sa `question` : une réponse te manque pour avancer ;
 - `verts_attendus` : chaque test vert avant le code, et sa raison ;
 - `decouvertes` : chaque découverte hors des critères (son sujet, son exemple et son adresse),

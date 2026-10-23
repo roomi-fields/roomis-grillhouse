@@ -31,8 +31,8 @@
 //   variable GRILLHOUSE_MESURE_TENUE carries the mark of the taking, and a process whose variable
 //   names the mark the lock holds plays under it without taking it again (the final pass of the
 //   circuit, `npm run verifier`, under the circuit's lock).
-// - In the envelope of an agent (GRILLHOUSE_ENVELOPPE set, scripts/enveloppe/composant.mjs) no lock
-//   is taken: the envelope has its own process space, where an owner's number means nothing
+// - In the envelope of an agent (GRILLHOUSE_ENVELOPPE set, scripts/enveloppe/paquets-du-plan.mjs)
+//   no lock is taken: the envelope has its own process space, where an owner's number means nothing
 //   outside, and its home shows no cache.
 // - A measure has a rank, as the job server of GNU make serves its own build first and Bazel's
 //   `--experimental_local_test_priority` orders the tests that wait for the machine. A measure
@@ -59,7 +59,7 @@ import {
 } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
-import { composantDeLEnveloppe } from './enveloppe/composant.mjs';
+import { paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
 import { paquets } from './paquets.mjs';
 import { attendreUnPeu, lacherVerrou, prendreVerrou } from './verrou-de-fichier.mjs';
 import { vivant } from './vitest-config/base-de-passe.mjs';
@@ -301,7 +301,7 @@ export function avecLaMachine(
     rappelMs = RAPPEL_MS,
   } = {}
 ) {
-  if (composantDeLEnveloppe(env)) return mesure(env);
+  if (paquetsDeLEnveloppe(env)) return mesure(env);
   const verrou = verrouDeMachine(env);
   if (env[VARIABLE_TENUE] && lire(verrou) === env[VARIABLE_TENUE]) return mesure(env);
   mkdirSync(path.dirname(verrou), { recursive: true });

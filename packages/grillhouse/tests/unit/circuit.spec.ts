@@ -43,6 +43,7 @@ describe('the stops of the circuit and their codes', () => {
       'composants-manquants',
       'questionnement',
       'references',
+      'hors-plan',
     ];
     expect(Object.keys(ARRETS).sort()).toEqual([...noms].sort());
     const codes = Object.values(ARRETS);

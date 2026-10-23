@@ -6,12 +6,12 @@
 //   npx grillhouse consommateurs-arbitres   run from the repository root (a guard of grillhouse:gardes)
 //
 // - It judges the copy it runs in, on the branch `agent/<ticket>`: for each component the guards
-//   judge (`aVerifier` of scripts/interfaces-contre-code.mjs; in the envelope of a component,
-//   `GRILLHOUSE_ENVELOPPE`, that component alone), each list line (`- …`) of the `## Consommateurs`
-//   section of its `docs/INTERFACE.md` in the working tree that the section of HEAD does not hold
-//   is a changed line (an interface absent from HEAD: all its lines). Out of a branch `agent/…`
-//   (main, the detached copy of the integration, the CI, the night), there is no lot: nothing is
-//   judged.
+//   judge (`aVerifier` of scripts/interfaces-contre-code.mjs; in an envelope,
+//   `GRILLHOUSE_ENVELOPPE`, the components of its plan), each list line (`- …`) of the
+//   `## Consommateurs` section of its `docs/INTERFACE.md` in the working tree that the section of
+//   HEAD does not hold is a changed line (an interface absent from HEAD: all its lines). Out of a
+//   branch `agent/…` (main, the detached copy of the integration, the CI, the night), there is no
+//   lot: nothing is judged.
 // - With a changed line, the comments of the ticket are read (`bd comments <ticket> --json`, run
 //   from the main tree, the parent of git's common directory). A changed line passes when an
 //   arbitrage that is settled (`arbitrageTranche`: a « ## Arbitrage… » comment, or the regulator's,

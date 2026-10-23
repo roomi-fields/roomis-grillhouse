@@ -503,7 +503,7 @@ export function ticketDuRegulateur(f, depuis = -Infinity, lire = lecteur({})) {
 // The agents running now, each with its measures so far. `ps` is the process list
 // (`pid etimes args` per line); `cache` keeps the readings of unchanged transcripts. A role agent
 // launched in a shell shows by the envelope lancer.sh starts for it,
-// `enveloppe.mjs <racine>/.claude/worktrees/<ticket> <composant> <rôle> --`: its copy gives the
+// `enveloppe.mjs <racine>/.claude/worktrees/<ticket> <paquets> <rôle> --`: its copy gives the
 // ticket, its third argument the role (the prompt goes on the standard input, absent from the line).
 export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} }) {
   const lire = lecteur(cache);
