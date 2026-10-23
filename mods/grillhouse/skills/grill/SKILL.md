@@ -12,7 +12,7 @@ les compétences `pitmaster` et `developpeur` lisent à chaque séance :
 
 | élément | ce qu'il fixe |
 |---|---|
-| `CLAUDE.md` | la charte du projet : le projet, le responsable, ce qui décide, ses critères d'arbitrage, ses commandes ; la charte commune du cadre, que le greffon du cadre donne à chaque séance, la complète et ne se modifie pas |
+| `CLAUDE.md` | la charte du projet : le projet, le responsable, ce qui décide, ses critères d'arbitrage, ses commandes ; la charte commune du cadre, qu'elle importe du paquet installé (`@node_modules/@roomi-fields/grillhouse/charte.md`), la complète et ne se modifie pas |
 | `docs/ARCHITECTURE.md` | comment le projet est construit, et pourquoi |
 | `docs/CADRE.md` | le rôle de chaque composant, sa frontière, ce qu'il refuse (R1…) |
 | `docs/INTERFACE.md` | ce qui traverse chaque frontière, et le garde qui le tient |

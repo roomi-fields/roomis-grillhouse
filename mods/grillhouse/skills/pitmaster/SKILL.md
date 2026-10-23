@@ -196,6 +196,85 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   ou un journal qui bouge, jamais par une phrase ; un circuit mort sans code de fin (sa séance
   d'appel fermée) est relancé par moi, `--reprendre`, sur son ticket. Ainsi la file ne s'arrête jamais sur une promesse.
 
+
+## Le circuit d'un ticket
+
+Le détail de ce que la charte commune résume : le circuit que je lance, et ce qu'il me remonte.
+
+Une séance de supervision charge le superviseur (`pitmaster`) ; un projet a un seul superviseur,
+comme Zuul a un seul ordonnanceur : l'ouverture de séance prend le verrou du dépôt, et une seconde
+séance le dit au responsable et ne lance aucun circuit. Les rôles sont des agents du greffon du
+cadre (ses `agents/`, leurs compétences dans ses `skills/`), chacun sous ses verrous et les droits que nomment les commandes de sa
+compétence, sans la configuration propre de l'utilisateur (`packages/grillhouse/scripts/droits.mjs`). Un ticket
+parcourt l'arbre de son circuit, les étapes « auto » comprises (`packages/grillhouse/scripts/etapes.mjs`, la seule
+liste), comme un pipeline de GitLab CI ses étapes et leurs travaux : 0 Exploration,
+l'`explorateur` ; 1 Ouverture : 1.1 Relevé des composants, auto, puis 1.2 Questionnement,
+le `questionneur` ⇄ le `referent-technique`, qui répond pour le plan, en tours, quatre au plus ;
+2 Composants, pour chaque composant du titre dans son ordre : 2.1 Tests, le `testwriter`, 2.2 Preuve
+du rouge, auto, trois essais au plus, puis 2.3 Code, le `developpeur`, 2.4 Contrôles, auto, trois
+essais au plus ; 3 Passe finale, auto, puis 3.1 Régénération des références, auto, pour un projet
+qui déclare les références qu'il tire de la copie entière (`grillhouse.references` de son
+`package.json`, chacune `{ nom, commande, fichiers, tests, gardes }` : `fichiers`, des chemins,
+des dossiers ou des motifs `*` et `**`, comme les entrées de Turborepo ; `tests`, les fichiers de
+test qui la jugent ; `gardes`, les gardes du projet qui la jugent, par le nom que porte leur
+constat SARIF), comme `rustc --bless` : une passe finale rouge sur elles seules (un de leurs
+tests, un constat d'une de leurs gardes, quel que soit son fichier, ou un fichier qu'elles
+couvrent) les régénère, la
+différence va au lot et au relecteur, et un changement que le plan ne nomme pas arrête le circuit
+(`references`) ; 4 Relecture, le `relecteur`, trois tours au plus, un lot
+rendu revenant en 2 pour les composants nommés ; 5 Intégration : 5.1 Commit et 5.2 File : main,
+poussée, CI, auto. Hors de la suite, sous l'étape arrêtée, l'Arbitrage de l'arrêt : le
+`regulateur` tranche l'arrêt ⇄ le `questionneur` questionne sa décision avant qu'elle
+s'applique, trois arrêts au plus. Le questionneur ne décide rien, et l'échange va au ticket ; le
+référent technique tranche aussi une question de conception née d'un ticket, que le superviseur
+lui pose. Ainsi chaque agent travaille dans son cadre, et le numéro d'une étape dit où en est
+chaque ticket. Un plan que le superviseur rend au responsable passe aussi par le questionneur.
+Ainsi une décision se mesure à des questions qu'elle ne s'est pas posées, comme le code à des
+tests qu'il n'a pas écrits.
+
+**Le superviseur intervient sur ce qui dépasse le ticket** : le circuit applique lui-même le
+geste que la table des arrêts (`packages/grillhouse/scripts/etapes.mjs`) écrit pour un genre d'arrêt, et vérifie sur
+son état chaque décision du régulateur avant de l'appliquer ; le régulateur tranche le reste, ce que la
+lettre d'un critère, un précédent écrit ou une règle du cadre tranchent ; il fait monter au
+superviseur le reste, et tout sujet sensible : le cadre, l'architecture, et le fonctionnel que la
+charte du projet nomme (« Ce qui monte au superviseur »). Ainsi chaque décision se prend au plus
+près du travail, et le superviseur garde les siennes. La réponse du responsable entre dans le plan
+du ticket, comme une RFC amendée : le référent technique la verse dans la description, le circuit
+l'écrit, et un plan changé passe le questionneur avant que le régulateur ne reprenne ; tous les
+agents jugent sur le plan, les commentaires restent l'historique, et le contexte d'une relance porte
+l'arrêt, jamais une décision du responsable. Une décision qu'il donne en séance, hors d'une
+question du circuit, suit le même chemin (`--decision`) : le circuit en cours s'arrête, puis
+reprend sur le plan changé. Ainsi chaque agent lit la même décision.
+
+Un objectif dont le découpage n'est pas connu commence par une exploration, sans code ; un ticket
+de réalisation fait une seule livraison, en un seul commit ; tout ticket se crée sous sa mère
+(`docs/agents/issue-tracker.md`). Ainsi l'avancement se lit ticket par ticket.
+
+**Un ticket de réalisation nomme ses composants** : sa section « Architecture » et son titre
+(« numéro — sujet — composant, composant ») les nomment, le fournisseur d'abord, puis ses lecteurs.
+Le relevé des composants (`packages/grillhouse/scripts/composants-affectes.mjs`) les trouve à la création du ticket, et
+le circuit le refait avant le premier testwriter : un composant relevé que le titre ne nomme pas
+l'arrête d'emblée. Dans la copie du ticket, le circuit (`packages/grillhouse/scripts/circuit.mjs`), que lance le superviseur, lance un
+agent par composant, chacun enveloppé dans son paquet, dans cet ordre, puis le relecteur, qui relit
+l'ensemble. Ainsi un type change avec ses
+lecteurs, comme dans une demande de fusion de rustc, et chaque agent écrit dans son seul paquet.
+Sur un lot rendu, le circuit rejoue les seuls composants que les constats nomment, puis la passe
+finale restreinte à ce que le correctif change et à ses dépendants, et le relecteur relit la
+différence depuis la relecture d'avant et ses constats ; la passe finale entière joue une fois
+avant l'intégration. Ainsi seul ce qui a changé se rejoue, comme Bazel ne joue que les cibles
+qu'un changement atteint.
+
+⛔ **Aucune commande ne fait attendre le responsable** : dans une séance où il attend, celle du
+superviseur, toute commande qui peut dépasser une minute part en arrière-plan, et son avis de fin
+réveille la séance ; aucune boucle d'attente, aucun long délai au premier plan. Ce que la séance
+annonce de sa façon de faire vaut dès la commande suivante ; quand le responsable arrête, elle ne
+lance plus rien. Un agent de rôle, lui, attend au premier plan ce qu'il lance, car sa séance
+finit avec son tour : ses réglages lui ôtent les tâches de fond (`packages/grillhouse/scripts/droits.mjs`). Ainsi le responsable n'attend jamais une commande, et aucun travail ne se
+perd.
+
+Le circuit du ticket fait chaque commit après le verdict `ACCEPTÉ` du relecteur, par le script
+`packages/grillhouse/scripts/integration/integrer.mjs` : commits conventionnels, message par fichier
+(`git commit -F`), trailer `Co-Authored-By: Claude`.
 ## L'architecture tranche d'abord
 
 - **Un ticket part avec sa section « Architecture »** (charte, « Le flux d'une tâche ») : je

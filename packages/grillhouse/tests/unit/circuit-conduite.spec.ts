@@ -40,7 +40,7 @@ describe('Q10 — the supervisor launches the circuit, a régulateur, a session 
   // Romain, 2026-10-21: the sub-step 1.2 is « Questionnement », in every text that names it.
   it('the texts name the sub-step 1.2 « 1.2 Questionnement »', () => {
     for (const f of [
-      'mods/grillhouse/charte.md',
+      'mods/grillhouse/skills/pitmaster/SKILL.md',
       'mods/grillhouse/skills/regulateur/SKILL.md',
       'mods/grillhouse/skills/referent-technique/SKILL.md',
       'mods/grillhouse/skills/questionneur/SKILL.md',
@@ -53,14 +53,16 @@ describe('Q10 — the supervisor launches the circuit, a régulateur, a session 
     }
   });
 
-  it('the charter names the regulateur, at the arbitrage of a stop, who settles a stop of the circuit', () => {
-    const charte = lire('mods/grillhouse/charte.md').replace(/\s+/g, ' ');
+  // grillhouse-3uv.84.8: the circuit of a ticket lives in the supervisor's skill, which the charter
+  // sums up.
+  it('the supervisor’s skill names the regulateur, at the arbitrage of a stop, who settles a stop of the circuit', () => {
+    const charte = lire('mods/grillhouse/skills/pitmaster/SKILL.md').replace(/\s+/g, ' ');
     expect(charte).toMatch(/l'Arbitrage de l'arrêt : le `regulateur` tranche l'arrêt/);
     expect(charte).not.toMatch(/qui mène un ticket de sa prise à son commit/);
   });
 
-  it('the charter says the circuit, launched by the supervisor, launches one agent per component', () => {
-    const charte = lire('mods/grillhouse/charte.md').replace(/\s+/g, ' ');
+  it('the supervisor’s skill says the circuit, launched by the supervisor, launches one agent per component', () => {
+    const charte = lire('mods/grillhouse/skills/pitmaster/SKILL.md').replace(/\s+/g, ' ');
     expect(charte).toMatch(
       /le circuit \(`packages\/grillhouse\/scripts\/circuit\.mjs`\), que lance le superviseur, lance un agent par composant/
     );

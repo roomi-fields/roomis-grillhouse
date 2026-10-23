@@ -39,8 +39,8 @@ const INSTALLE = PAQUET.split(path.sep).includes('node_modules');
 /** The frame's files the package reads under CADRE, which `--empaqueter` copies under cadre/. */
 export const FICHIERS_DU_CADRE = ['templates'];
 
-/** The entries the package publishes of its own. */
-export const PROPRES_DU_PAQUET = ['bin', 'cadre', 'scripts'];
+/** The entries the package publishes of its own; `docs/` holds the architecture the charter names. */
+export const PROPRES_DU_PAQUET = ['bin', 'cadre', 'docs', 'scripts'];
 
 /** The entries of the plugin's source the package leaves out. */
 export const HORS_DU_GREFFON = ['tests', 'tsconfig.json'];

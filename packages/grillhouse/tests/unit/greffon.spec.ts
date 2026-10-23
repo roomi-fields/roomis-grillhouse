@@ -2,7 +2,8 @@
 // the package is since grillhouse-3uv.84.7), carries the skills, the agents, the hooks of
 // Claude Code and the common charter, as a plugin of Claude Code carries the components of a tool.
 // A project holds no copy of them; each hook calls `grillhouse <sous-commande>` of the project's
-// package, and the charter reaches each session by the hook of the session's start.
+// package. The charter reaches each session, a subagent's included, by the import of the project's
+// CLAUDE.md, never by a hook (grillhouse-3uv.84.8).
 import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
@@ -31,8 +32,8 @@ const ecrire = (racine: string, f: string, texte: string) => {
   mkdirSync(path.dirname(path.join(racine, f)), { recursive: true });
   writeFileSync(path.join(racine, f), texte);
 };
-// The common charter as the hooks write it: the plugin's root resolved (grillhouse-3uv.84.7).
-const CHARTE = lire('mods/grillhouse/charte.md').replaceAll('${CLAUDE_PLUGIN_ROOT}', GREFFON);
+// The title of the common charter, which no hook writes (grillhouse-3uv.84.8).
+const TITRE_DE_LA_CHARTE = "# La charte commune de Roomi's Grillhouse";
 
 const COMPETENCES = [
   'developpeur',
@@ -178,7 +179,6 @@ describe('critère 2 — the plugin carries the hooks of the frame, each calling
     );
     expect(appels).toEqual({
       SessionStart: [{ matcher: undefined, sous: ['session-start'] }],
-      SubagentStart: [{ matcher: undefined, sous: ['subagent-start'] }],
       UserPromptSubmit: [{ matcher: undefined, sous: ['structure-guard'] }],
       PreToolUse: [{ matcher: 'Agent|Task', sous: ['ticket-du-sous-agent'] }],
       SubagentStop: [{ matcher: undefined, sous: ['registre'] }],
@@ -194,11 +194,12 @@ describe('critère 2 — the plugin carries the hooks of the frame, each calling
     expect(reglages).not.toHaveProperty('hooks');
   });
 
-  it('without the package, the session start says « lance npm install », after the charter', () => {
+  it('without the package, the session start says « lance npm install », and writes no charter', () => {
     const r = crochet(projet(false), 'session-start');
     expect(r.status, r.stderr).toBe(0);
-    expect(r.stdout.startsWith(CHARTE)).toBe(true);
-    expect(r.stdout.slice(CHARTE.length)).toMatch(/lance `npm install`/);
+    expect(r.stdout).toMatch(/^## Paquet Roomi's Grillhouse absent\n/);
+    expect(r.stdout).toMatch(/lance `npm install`/);
+    expect(r.stdout).not.toContain(TITRE_DE_LA_CHARTE);
   });
 
   it('without the package, the other hooks exit without effect', () => {
@@ -218,20 +219,20 @@ describe('critère 2 — the plugin carries the hooks of the frame, each calling
     }
     const r = crochet(p, 'session-start', '{"source":"startup"}');
     expect(r.status, r.stderr).toBe(0);
-    expect(r.stdout).toBe(`${CHARTE}\ngrillhouse session-start\nentrée : {"source":"startup"}\n`);
+    expect(r.stdout).toBe(`grillhouse session-start\nentrée : {"source":"startup"}\n`);
   });
 });
 
-describe('critère 3 — the common charter reaches each session by the hook of its start', () => {
-  it('a subagent receives the charter as its additional context', () => {
+describe('critère 3 — the common charter reaches each session by the import of CLAUDE.md (grillhouse-3uv.84.8)', () => {
+  it('no hook gives the charter to a subagent: the plugin declares no SubagentStart, the hook no subagent-start', () => {
+    expect(declaration().hooks).not.toHaveProperty('SubagentStart');
+    expect(lire('mods/grillhouse/hooks/crochet.mjs')).not.toMatch(/subagent-start|charte\.md/);
     const r = crochet(projet(false), 'subagent-start', '{"hook_event_name":"SubagentStart"}');
     expect(r.status, r.stderr).toBe(0);
-    expect(JSON.parse(r.stdout)).toEqual({
-      hookSpecificOutput: { hookEventName: 'SubagentStart', additionalContext: CHARTE },
-    });
+    expect(r.stdout).toBe('');
   });
 
-  it('the charter of a project no longer imports the common charter', () => {
+  it('the charter of a project no longer imports the copy .claude/grillhouse/charte.md', () => {
     expect(lire('CLAUDE.md')).not.toMatch(/@\.claude\/grillhouse\/charte\.md/);
     expect(existsSync(path.join(DEPOT, '.claude/grillhouse/charte.md'))).toBe(false);
   });

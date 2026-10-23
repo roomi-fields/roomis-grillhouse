@@ -125,8 +125,9 @@ describe('grillhouse-3uv.84.4 critère 5 — the package declares what its scrip
 });
 
 describe('grillhouse-3uv.84.4 critère 7 — what the frame reads resolves from the package installed', () => {
-  it('the package publishes bin/, scripts/, cadre/ and the plugin’s entries, which its prepack writes and its postpack removes', () => {
-    expect(PROPRES_DU_PAQUET).toEqual(['bin', 'cadre', 'scripts']);
+  // grillhouse-3uv.84.8: docs/, the package's architecture, which the common charter names.
+  it('the package publishes bin/, scripts/, cadre/, docs/ and the plugin’s entries, which its prepack writes and its postpack removes', () => {
+    expect(PROPRES_DU_PAQUET).toEqual(['bin', 'cadre', 'docs', 'scripts']);
     expect([...pkg.files].sort()).toEqual([...PROPRES_DU_PAQUET, ...ELEMENTS_DU_GREFFON].sort());
     expect(pkg.scripts.prepack).toBe('node scripts/cadre.mjs --empaqueter');
     expect(pkg.scripts.postpack).toBe('node scripts/cadre.mjs --nettoyer');

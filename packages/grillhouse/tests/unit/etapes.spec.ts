@@ -350,8 +350,11 @@ describe('one list, which the circuit, the board and the texts read', () => {
     expect(copies).toEqual([]);
   });
 
-  it('the common charter cites each step by its number and title, and the arbitrage', () => {
-    const charte = lire('mods/grillhouse/charte.md').replace(/\s+/g, ' ');
+  // grillhouse-3uv.84.8: the circuit of a ticket lives in the supervisor's skill; the charter names
+  // the list.
+  it('the supervisor’s skill cites each step by its number and title, and the arbitrage; the charter names the list', () => {
+    expect(lire('mods/grillhouse/charte.md')).toContain('(`etapes.mjs`, la seule liste)');
+    const charte = lire('mods/grillhouse/skills/pitmaster/SKILL.md').replace(/\s+/g, ' ');
     for (const e of suite) {
       expect(charte, `${e.numero} ${e.titre}`).toContain(`${e.numero} ${e.titre}`);
     }

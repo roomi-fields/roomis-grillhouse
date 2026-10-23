@@ -259,3 +259,32 @@ describe('grillhouse-3uv.84.4 critère 6 — init writes the status line in the 
     expect(existsSync(path.join(PROJET, '.claude-plugin'))).toBe(false);
   });
 });
+
+// grillhouse-3uv.84.8: the common charter arrives by the import of the project's CLAUDE.md, and the
+// hook of the session's start writes a short state, under the cap Claude Code puts on a hook's
+// output (10,000 characters, docs « Hooks »).
+describe('grillhouse-3uv.84.8 — the new project imports the common charter, and its session’s start holds under the cap', () => {
+  it('critère 1 — its CLAUDE.md imports the charter from the package installed', () => {
+    expect(readFileSync(path.join(PROJET, 'CLAUDE.md'), 'utf8')).toMatch(
+      /^Les règles du cadre : @node_modules\/@roomi-fields\/grillhouse\/charte\.md$/m
+    );
+  });
+
+  it('critère 2 — the hook of its session’s start writes no charter, under the cap of a hook', () => {
+    const r = spawnSync(
+      process.execPath,
+      [path.join(DEPOT, 'mods/grillhouse/hooks/crochet.mjs'), 'session-start'],
+      {
+        cwd: PROJET,
+        encoding: 'utf8',
+        input: '{"hook_event_name":"SessionStart","source":"startup"}',
+        env: { ...ENV(outils, claude.bin), CLAUDE_PROJECT_DIR: PROJET, BEADS_ACTOR: 'essai' },
+        timeout: 60_000,
+      }
+    );
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stdout).toMatch(/Pas encore renseignés/);
+    expect(r.stdout).not.toContain("# La charte commune de Roomi's Grillhouse");
+    expect(r.stdout.length).toBeLessThan(10_000);
+  });
+});

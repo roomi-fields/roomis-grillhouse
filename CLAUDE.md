@@ -6,13 +6,12 @@
 INTERFACE.md> ; le superviseur valide les autres documents. Ainsi le responsable tranche
 l'essentiel.
 
-Les règles du cadre : la charte commune, que le greffon du cadre (`grillhouse@roomi-fields`,
-que porte le paquet `@roomi-fields/grillhouse`) donne à chaque séance.
+Les règles du cadre : @mods/grillhouse/charte.md
 
 ## Ce qui décide
 
-Le métacadre (`METACADRE.md` du greffon du cadre, que la charte commune désigne : les intentions
-du cadre et l'écriture des règles), puis
+Le métacadre (`mods/grillhouse/METACADRE.md` : les intentions du cadre et
+l'écriture des règles), puis
 <la spécification ou la cible>, puis le cadre de chaque composant (`docs/CADRE.md`,
 `docs/INTERFACE.md`, `docs/ARCHITECTURE.md`), puis le code. Ainsi l'architecture décide, et le
 code suit.

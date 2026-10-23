@@ -83,8 +83,9 @@ describe('the questionneur, a role agent', () => {
     expect(p).toMatch(/avant de le rendre au responsable/);
   });
 
-  it('the common charter names the questionneur at its steps, 1.2 and the arbitrage of a stop', () => {
-    const c = lire('mods/grillhouse/charte.md').replace(/\s+/g, ' ');
+  // grillhouse-3uv.84.8: the circuit of a ticket lives in the supervisor's skill.
+  it('the supervisor’s skill names the questionneur at its steps, 1.2 and the arbitrage of a stop', () => {
+    const c = lire('mods/grillhouse/skills/pitmaster/SKILL.md').replace(/\s+/g, ' ');
     expect(c).toContain('1.2 Questionnement, le `questionneur`');
     expect(c).toContain('le `questionneur` questionne sa décision');
   });

@@ -6,8 +6,10 @@
 // what is a project's own (its charter, its settings, its version of the package) lives in the
 // project, never in what is published; the marketplace of a project's own goes, by a migration.
 // One version: the plugin's manifest receives the package's when it is packed. The meta-frame is
-// the plugin's, named by `${CLAUDE_PLUGIN_ROOT}/METACADRE.md`, which Claude Code resolves in a
-// plugin's skills and the hook of the session's start in the charter it writes.
+// the plugin's, named in a skill by `${CLAUDE_PLUGIN_ROOT}/METACADRE.md`, which Claude Code
+// resolves in a plugin's skills, and in the charter as the file beside it; the package publishes
+// its architecture (`docs/`), which the charter names at its path in a project
+// (grillhouse-3uv.84.8).
 import { spawnSync } from 'node:child_process';
 import {
   cpSync,
@@ -57,7 +59,7 @@ const ROOMI = { source: { source: 'github', repo: 'roomi-fields/claude-plugins' 
 function depotDEssai() {
   const depot = mkdtempSync(path.join(ESSAIS, 'depot-'));
   const paquet = path.join(depot, 'packages/grillhouse');
-  for (const f of ['package.json', 'bin', 'scripts']) {
+  for (const f of ['package.json', 'bin', 'docs', 'scripts']) {
     cpSync(path.join(PAQUET, f), path.join(paquet, f), { recursive: true });
   }
   for (const f of [...FICHIERS_DU_CADRE, 'mods/grillhouse']) {
@@ -105,6 +107,7 @@ describe('critère 1 — the published package is the plugin', () => {
       'agents/testwriter.md',
       'cadre/templates/projet/package.json',
       'bin/grillhouse.mjs',
+      'docs/ARCHITECTURE.md',
     ]) {
       expect(chemins, f).toContain(f);
     }
@@ -119,7 +122,7 @@ describe('critère 1 — the published package is the plugin', () => {
   it('npm pack holds no test of the plugin nor its configuration of TypeScript, and the postpack leaves the trial as it was', () => {
     expect(chemins.filter(c => c.startsWith('tests/') || c === 'tsconfig.json')).toEqual([]);
     expect(chemins.filter(c => c.startsWith('cadre/mods/'))).toEqual([]);
-    expect(readdirSync(paquet).sort()).toEqual(['bin', 'package.json', 'scripts']);
+    expect(readdirSync(paquet).sort()).toEqual(['bin', 'docs', 'package.json', 'scripts']);
   });
 
   it('the package publishes its own entries and each entry of the plugin, none of the same name', () => {
@@ -141,6 +144,25 @@ describe('critère 1 — the published package is the plugin', () => {
     expect(manifeste).toEqual({ ...source, version: VERSION });
     for (const f of ['charte.md', 'METACADRE.md', 'hooks/hooks.json']) {
       expect(readFileSync(path.join(racine, f), 'utf8'), f).toBe(lire(`mods/grillhouse/${f}`));
+    }
+  });
+
+  // grillhouse-3uv.84.8 critère 3: a new project imports the charter from the package it installs
+  // (node_modules/@roomi-fields/grillhouse/, the unpacked package); each path the charter gives
+  // resolves there, and in this repository, with no hook to substitute it.
+  it('grillhouse-3uv.84.8 critère 3 — the meta-frame beside the charter, and each path of the package the charter names, resolve in the package installed and in the repository', () => {
+    const charte = readFileSync(path.join(racine, 'charte.md'), 'utf8');
+    expect(charte).not.toContain(RACINE_DU_PLUGIN);
+    expect(charte.replace(/\s+/g, ' ')).toContain('`METACADRE.md`, à côté de cette charte');
+    expect(existsSync(path.join(racine, 'METACADRE.md'))).toBe(true);
+    expect(existsSync(path.join(GREFFON, 'METACADRE.md'))).toBe(true);
+    const chemins = [...charte.matchAll(/`node_modules\/@roomi-fields\/grillhouse\/([^`]+)`/g)].map(
+      m => m[1]!
+    );
+    expect(chemins).toContain('docs/ARCHITECTURE.md');
+    for (const c of chemins) {
+      expect(existsSync(path.join(racine, c)), c).toBe(true);
+      expect(existsSync(path.join(PAQUET, c)), c).toBe(true);
     }
   });
 
@@ -244,13 +266,12 @@ describe('critère 4 — the meta-frame is the plugin’s, named by a path that 
     expect(ELEMENTS_DU_GREFFON).toContain('METACADRE.md');
   });
 
-  it('the charter and each skill that names the meta-frame name it at the plugin’s root', () => {
-    const textes = [
-      'mods/grillhouse/charte.md',
-      ...readdirSync(path.join(GREFFON, 'skills')).map(c => `mods/grillhouse/skills/${c}/SKILL.md`),
-    ];
-    const nommants = textes.filter(f => lire(f).includes('METACADRE.md'));
-    expect(nommants).toContain('mods/grillhouse/charte.md');
+  it('each skill that names the meta-frame names it at the plugin’s root; the charter names it beside itself', () => {
+    const competences = readdirSync(path.join(GREFFON, 'skills')).map(
+      c => `mods/grillhouse/skills/${c}/SKILL.md`
+    );
+    const nommants = competences.filter(f => lire(f).includes('METACADRE.md'));
+    expect(nommants.length).toBeGreaterThan(0);
     for (const f of nommants) {
       const nus = [...lire(f).matchAll(/(\S*)METACADRE\.md/g)].filter(
         m => !m[1]!.endsWith(`${RACINE_DU_PLUGIN}/`)
@@ -260,27 +281,14 @@ describe('critère 4 — the meta-frame is the plugin’s, named by a path that 
         f
       ).toEqual([]);
     }
+    const charte = lire('mods/grillhouse/charte.md');
+    expect(charte).not.toContain(RACINE_DU_PLUGIN);
+    expect([...charte.matchAll(/(\S*)METACADRE\.md/g)].map(m => m[0])).toEqual(['(`METACADRE.md']);
   });
 
-  it('the hook of the session’s start writes the charter with the plugin’s root resolved, to a meta-frame that exists', () => {
-    const p = mkdtempSync(path.join(ESSAIS, 'projet-'));
-    for (const sous of ['session-start', 'subagent-start']) {
-      const r = spawnSync(process.execPath, [path.join(GREFFON, 'hooks/crochet.mjs'), sous], {
-        encoding: 'utf8',
-        input: '{}',
-        env: { PATH: process.env.PATH, CLAUDE_PROJECT_DIR: p },
-      });
-      expect(r.status, r.stderr).toBe(0);
-      expect(r.stdout, sous).not.toContain(RACINE_DU_PLUGIN);
-      const texte =
-        sous === 'subagent-start'
-          ? (JSON.parse(r.stdout) as { hookSpecificOutput: { additionalContext: string } })
-              .hookSpecificOutput.additionalContext
-          : r.stdout;
-      const chemin = /`([^`]*METACADRE\.md)`/.exec(texte)?.[1];
-      expect(chemin, sous).toBe(path.join(GREFFON, 'METACADRE.md'));
-      expect(existsSync(chemin!), sous).toBe(true);
-    }
+  it('grillhouse-3uv.84.8 critère 3 — the hook of the session’s start substitutes nothing: it reads neither the charter nor the plugin’s root', () => {
+    const source = lire('mods/grillhouse/hooks/crochet.mjs');
+    expect(source).not.toMatch(/charte\.md|replaceAll\(/);
   });
 });
 

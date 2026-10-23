@@ -221,13 +221,16 @@ describe.runIf(canWrap)(
       expect(consigne).not.toContain(REPONSE);
     });
 
-    it('critères 4 et 5 — the skills of the regulateur, the référent technique and the superviseur, and the common charter, say the path of an answer', () => {
-      const charte = lire('mods/grillhouse/charte.md');
-      expect(charte).toMatch(/réponse du responsable entre dans le plan/);
-      expect(charte).toMatch(
+    // grillhouse-3uv.84.8: the path of an answer lives in the supervisor's skill; the charter
+    // keeps that every agent judges on the plan.
+    it('critères 4 et 5 — the skills of the regulateur, the référent technique and the superviseur say the path of an answer, the common charter that the plan holds it', () => {
+      const charte = lire('mods/grillhouse/charte.md').replace(/\s+/g, ' ');
+      expect(charte).toMatch(/une décision du responsable entre dans la description du ticket/);
+      const pitmaster = lire('mods/grillhouse/skills/pitmaster/SKILL.md');
+      expect(pitmaster.replace(/\s+/g, ' ')).toMatch(/réponse du responsable entre dans le plan/);
+      expect(pitmaster.replace(/\s+/g, ' ')).toMatch(
         /le contexte d'une relance porte l'arrêt, jamais une décision du responsable/
       );
-      const pitmaster = lire('mods/grillhouse/skills/pitmaster/SKILL.md');
       expect(pitmaster).toMatch(/le référent technique la verse dans le plan/);
       expect(pitmaster).toMatch(
         /le contexte d.une relance porte l.arrêt, jamais une décision du responsable/i
