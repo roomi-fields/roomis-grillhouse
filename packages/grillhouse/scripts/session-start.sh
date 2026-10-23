@@ -15,9 +15,7 @@
 # `claude plugin list --json` (each call stopped after 5 s). Each declared plugin not installed for
 # the project joins « Manque » as « le greffon <id> », the missing claude command as « la commande
 # claude » (the line gives `npx grillhouse maj`, which installs them), and a reading that fails
-# or is stopped as « la lecture des greffons … ». The same reading names the frame's mod installed
-# for the project at another version than the package @roomi-fields/grillhouse, both released under
-# one version, with the command that aligns the one behind. An agent's copy does not read them.
+# or is stopped as « la lecture des greffons … ». An agent's copy does not read them.
 #
 # One supervisor per project (scripts/superviseur.mjs): the session takes the lock of its
 # repository; a second session, while the first one lives, receives first the section « Un autre
@@ -75,10 +73,6 @@ if [ -z "$copie_agent" ]; then
       claude) missing+=("la commande claude") ;;
       "greffon "*) missing+=("le greffon ${ligne#greffon }") ;;
       "lecture "*) missing+=("la lecture des greffons : ${ligne#lecture }") ;;
-      "ecart "*)
-        read -r _ e_id e_greffon e_paquet e_commande <<< "$ligne"
-        ecart_versions="Le greffon $e_id est en $e_greffon, le paquet @roomi-fields/grillhouse en $e_paquet : les deux sortent ensemble, sous une même version. Aligne-les : \`$e_commande\`."
-        ;;
     esac
   done < <(timeout -k 1 8 node "$ici/greffons.mjs" --absents "$root" 2>/dev/null)
 fi
@@ -176,7 +170,7 @@ fi
 # An epic is a chantier, at the root: one with a mother is a mother ticket typed by mistake.
 epopees="$(cd "$root" && bd list --type epic --all --json --limit 0 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.stdout.write(JSON.parse(s).filter(t=>t.parent).map(t=>t.id).join(" "))}catch{}})')"
 
-[ ${#missing[@]} -eq 0 ] && [ ${#pending[@]} -eq 0 ] && [ ${#wiring[@]} -eq 0 ] && [ -z "${nuit:-}" ] && [ -z "$epopees" ] && [ -z "${inconnus:-}" ] && [ -z "${ecart_versions:-}" ] && exit 0
+[ ${#missing[@]} -eq 0 ] && [ ${#pending[@]} -eq 0 ] && [ ${#wiring[@]} -eq 0 ] && [ -z "${nuit:-}" ] && [ -z "$epopees" ] && [ -z "${inconnus:-}" ] && exit 0
 
 echo "## Éléments du projet à définir (Roomi's Grillhouse)"
 if [ ${#missing[@]} -gt 0 ]; then
@@ -199,5 +193,4 @@ fi
 if [ -n "${inconnus:-}" ]; then
   echo "docs/agents/hors-cadre.txt nomme un dossier absent de packages/ et de src/ : $inconnus. Corrige la ligne (faute de frappe) ou retire-la : un nom sans dossier n'écarte rien."
 fi
-[ -n "${ecart_versions:-}" ] && echo "$ecart_versions"
 exit 0

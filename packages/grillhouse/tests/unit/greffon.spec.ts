@@ -1,8 +1,8 @@
-// grillhouse-3uv.84.2: the frame's plugin, grillhouse@roomi-fields (mods/grillhouse/), carries the
-// skills, the agents, the hooks of Claude Code and the common charter, as a plugin of Claude Code
-// carries the components of a tool and is updated by its marketplace. A project holds no copy of
-// them; each hook calls `grillhouse <sous-commande>` of the project's package, and the charter
-// reaches each session by the hook of the session's start.
+// grillhouse-3uv.84.2: the frame's plugin, grillhouse@roomis-grillhouse (mods/grillhouse/, which
+// the package carries since grillhouse-3uv.84.7), carries the skills, the agents, the hooks of
+// Claude Code and the common charter, as a plugin of Claude Code carries the components of a tool.
+// A project holds no copy of them; each hook calls `grillhouse <sous-commande>` of the project's
+// package, and the charter reaches each session by the hook of the session's start.
 import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
@@ -31,7 +31,8 @@ const ecrire = (racine: string, f: string, texte: string) => {
   mkdirSync(path.dirname(path.join(racine, f)), { recursive: true });
   writeFileSync(path.join(racine, f), texte);
 };
-const CHARTE = lire('mods/grillhouse/charte.md');
+// The common charter as the hooks write it: the plugin's root resolved (grillhouse-3uv.84.7).
+const CHARTE = lire('mods/grillhouse/charte.md').replaceAll('${CLAUDE_PLUGIN_ROOT}', GREFFON);
 
 const COMPETENCES = [
   'developpeur',
@@ -244,7 +245,7 @@ describe('critère 4 — the copy of the files, its list, its fingerprints and t
     }
   });
 
-  it('the update copies no file, writes no fingerprints, and writes in the settings of Claude Code the status line alone (grillhouse-3uv.84.4 critère 6)', () => {
+  it('the update copies no file, writes no fingerprints, and writes in the settings of Claude Code the status line and the plugin of the package alone (grillhouse-3uv.84.4 critère 6, grillhouse-3uv.84.7 critère 2)', () => {
     const p = mkdtempSync(path.join(ESSAIS, 'maj-'));
     ecrire(p, 'package.json', `${JSON.stringify({ name: 'p' }, null, 2)}\n`);
     ecrire(p, '.claude/settings.json', `${JSON.stringify({ model: 'opus' })}\n`);
@@ -252,6 +253,12 @@ describe('critère 4 — the copy of the files, its list, its fingerprints and t
     expect(JSON.parse(readFileSync(path.join(p, '.claude/settings.json'), 'utf8'))).toEqual({
       model: 'opus',
       statusLine: { type: 'command', command: maj.LIGNE_ETAT },
+      enabledPlugins: { 'grillhouse@roomis-grillhouse': true },
+      extraKnownMarketplaces: {
+        'roomis-grillhouse': {
+          source: { source: 'directory', path: './node_modules/@roomi-fields/grillhouse' },
+        },
+      },
     });
     for (const f of [
       '.claude/grillhouse',

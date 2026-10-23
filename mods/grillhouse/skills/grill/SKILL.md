@@ -5,7 +5,7 @@ description: "L'initialisation et l'architecture du projet : initialiser un proj
 
 # Grill — initialiser le projet et décider de sa structure
 
-Le framework fournit les outils et les compétences, et `METACADRE.md` les intentions qu'ils servent ;
+Le framework fournit les outils et les compétences, et `${CLAUDE_PLUGIN_ROOT}/METACADRE.md` les intentions qu'ils servent ;
 l'initialisation leur donne leur objet. Lis le métacadre avant le premier tour : chaque
 recommandation du grill sert une de ses intentions. L'initialisation produit les éléments clés que
 les compétences `pitmaster` et `developpeur` lisent à chaque séance :

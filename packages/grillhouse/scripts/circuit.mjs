@@ -3596,8 +3596,8 @@ function rubrique(ctx, titre) {
   );
 }
 
-// The meta-frame, among the frame's files the package reads (scripts/cadre.mjs).
-const METACADRE = path.join(CADRE, 'METACADRE.md');
+// The meta-frame, the frame's plugin's, among the frame's files the package reads (scripts/cadre.mjs).
+const METACADRE = path.join(CADRE, 'mods', 'grillhouse', 'METACADRE.md');
 
 // The questioning of a proposal by the questionneur, in rounds with its author, never side by
 // side: the questionneur asks (its sheet, `questions`), the author answers by resuming its own

@@ -1,7 +1,7 @@
-// The version of Grillhouse: one version for the package and its mod, released by the same
-// commit. It is the `version` of the package's `packages/grillhouse/package.json`, which npm
-// publishes; the mod's `plugin.json` carries the same, and `CHANGELOG.md` dates its section. A
-// release (scripts/sortie.mjs, Grillhouse's own) raises both, dates the changelog, and later tags
+// The version of Grillhouse: one version, the `version` of the package's
+// `packages/grillhouse/package.json`, which npm publishes with the frame's plugin it carries
+// (grillhouse-3uv.84.7: the plugin takes it when the package is packed), and `CHANGELOG.md` dates
+// its section. A release (scripts/sortie.mjs, Grillhouse's own) raises it, dates the changelog, and later tags
 // the release commit, locally: it pushes nothing. The push of the tag publishes the package on the
 // npm registry, after the green CI of its commit (.github/workflows/release.yml).
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -15,7 +15,6 @@ import { configGit } from '../config-git.js';
 
 const DEPOT = path.resolve(__dirname, '../../../..');
 const PAQUET = 'packages/grillhouse/package.json';
-const PLUGIN = 'mods/grillhouse/.claude-plugin/plugin.json';
 const SCRIPT = path.join(DEPOT, 'packages/grillhouse/scripts/sortie.mjs');
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'version-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
@@ -54,19 +53,13 @@ Intro.
 - **The first one**.
 `;
 
-// A trial Grillhouse at <version>, with a changelog, the package's package.json and the mod's
-// plugin.json.
+// A trial Grillhouse at <version>, with a changelog and the package's package.json.
 function grillhouse(version = '0.16.0', changelog = CHANGELOG) {
   const r = mkdtempSync(path.join(ESSAIS, 'grillhouse-'));
   ecrire(
     r,
     PAQUET,
     `${JSON.stringify({ name: '@roomi-fields/grillhouse', version, bin: { grillhouse: 'b.mjs' } }, null, 2)}\n`
-  );
-  ecrire(
-    r,
-    PLUGIN,
-    `${JSON.stringify({ name: 'grillhouse', version, author: { name: 'A' } }, null, 2)}\n`
   );
   ecrire(r, 'CHANGELOG.md', changelog);
   return r;
@@ -77,9 +70,6 @@ describe('the version of Grillhouse', () => {
     const p = JSON.parse(lire(DEPOT, PAQUET)) as { name: string; version: string };
     expect(p.name).toBe('@roomi-fields/grillhouse');
     expect(p.version).toMatch(/^\d+\.\d+\.\d+$/);
-  });
-  it('is the version of the mod: plugin.json holds the same, no gap admitted', () => {
-    expect(versionDe(DEPOT, PLUGIN)).toBe(versionDe(DEPOT, PAQUET));
   });
   it('lives in no other file: .claude/grillhouse/VERSION is gone', () => {
     expect(existsSync(path.join(DEPOT, '.claude/grillhouse/VERSION'))).toBe(false);
@@ -104,18 +94,13 @@ describe('the version of Grillhouse', () => {
 });
 
 describe('a release of Grillhouse prepares its files (scripts/sortie.mjs)', () => {
-  it('raises the package.json of the package and plugin.json by the same number, their other fields kept', () => {
+  it('raises the package.json of the package, its other fields kept', () => {
     const r = grillhouse();
     preparerSortie(r, '0.17.0', '2026-11-02');
     expect(JSON.parse(lire(r, PAQUET))).toEqual({
       name: '@roomi-fields/grillhouse',
       version: '0.17.0',
       bin: { grillhouse: 'b.mjs' },
-    });
-    expect(JSON.parse(lire(r, PLUGIN))).toEqual({
-      name: 'grillhouse',
-      version: '0.17.0',
-      author: { name: 'A' },
     });
     expect(existsSync(path.join(r, '.claude/grillhouse/VERSION'))).toBe(false);
   });
@@ -131,19 +116,12 @@ describe('a release of Grillhouse prepares its files (scripts/sortie.mjs)', () =
       const r = grillhouse();
       expect(() => preparerSortie(r, v, '2026-11-02')).toThrow();
       expect(versionDe(r, PAQUET)).toBe('0.16.0');
-      expect(versionDe(r, PLUGIN)).toBe('0.16.0');
       expect(lire(r, 'CHANGELOG.md')).toBe(CHANGELOG);
     }
   });
   it('refuses a release whose « [Unreleased] » section holds nothing', () => {
     const r = grillhouse('0.16.0', '# Changelog\n\n## [Unreleased]\n\n## [0.16.0] - 2026-10-18\n');
     expect(() => preparerSortie(r, '0.16.1', '2026-11-02')).toThrow(/Unreleased/);
-    expect(versionDe(r, PAQUET)).toBe('0.16.0');
-  });
-  it('refuses a package.json and a plugin.json that already differ', () => {
-    const r = grillhouse();
-    ecrire(r, PLUGIN, `${JSON.stringify({ name: 'grillhouse', version: '0.15.0' })}\n`);
-    expect(() => preparerSortie(r, '0.17.0', '2026-11-02')).toThrow(/plugin\.json/);
     expect(versionDe(r, PAQUET)).toBe('0.16.0');
   });
 });
@@ -198,15 +176,12 @@ describe('a release of Grillhouse tags its commit locally, never pushing', () =>
 });
 
 describe('the tag of a release names the version it publishes (sortie --verifier-etiquette)', () => {
-  it('accepts v<version> of the package and the mod', () => {
+  it('accepts v<version> of the package', () => {
     expect(() => verifierEtiquette(grillhouse(), 'v0.16.0')).not.toThrow();
   });
-  it('refuses a tag of another version, and a package and a mod that differ', () => {
+  it('refuses a tag of another version', () => {
     expect(() => verifierEtiquette(grillhouse(), 'v0.16.1')).toThrow(/0\.16\.0/);
     expect(() => verifierEtiquette(grillhouse(), '0.16.0')).toThrow();
-    const r = grillhouse();
-    ecrire(r, PLUGIN, `${JSON.stringify({ name: 'grillhouse', version: '0.16.1' })}\n`);
-    expect(() => verifierEtiquette(r, 'v0.16.0')).toThrow(/plugin\.json/);
   });
   it('the command exits 0 on the right tag, 1 on another', () => {
     const r = grillhouse();
@@ -271,7 +246,7 @@ describe('the push of a tag v<x> publishes the package on npm, after the green C
     const node = (publication?.steps ?? []).find(e => e.uses?.startsWith('actions/setup-node'));
     expect(node?.with?.['registry-url']).toBe('https://registry.npmjs.org');
   });
-  it('checks, before publishing, that the tag names the version of the package and the mod', () => {
+  it('checks, before publishing, that the tag names the version of the package', () => {
     const etapes = publication?.steps ?? [];
     const verif = etapes.findIndex(e =>
       /grillhouse sortie --verifier-etiquette|sortie\.mjs --verifier-etiquette/.test(e.run ?? '')

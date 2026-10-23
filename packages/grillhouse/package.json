@@ -13,6 +13,7 @@
     "access": "public"
   },
   "files": [
+    ".claude-plugin",
     "bin",
     "cadre",
     "scripts"
@@ -57,7 +58,6 @@
       ".github",
       ".mcp.json",
       "CHANGELOG.md",
-      "METACADRE.md",
       "knip.json",
       "mods",
       "package.json",

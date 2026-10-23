@@ -16,13 +16,19 @@
   "enabledPlugins": {
     "mattpocock-skills@claude-plugins-official": true,
     "rtfm@roomi-fields": true,
-    "grillhouse@roomi-fields": true
+    "grillhouse@roomis-grillhouse": true
   },
   "extraKnownMarketplaces": {
     "roomi-fields": {
       "source": {
         "source": "github",
         "repo": "roomi-fields/claude-plugins"
+      }
+    },
+    "roomis-grillhouse": {
+      "source": {
+        "source": "directory",
+        "path": "./node_modules/@roomi-fields/grillhouse"
       }
     }
   },

@@ -36,7 +36,7 @@ nomme ceux que le ticket peut casser.
 
 ## Tes références, à lire au moment où elles servent
 
-- `METACADRE.md` — les intentions du cadre : quand une règle semble aller contre son but.
+- `${CLAUDE_PLUGIN_ROOT}/METACADRE.md` — les intentions du cadre : quand une règle semble aller contre son but.
 - `docs/agents/index-des-interfaces.md` — ce que fournit chaque composant : pour le relevé.
 - `${CLAUDE_PLUGIN_ROOT}/skills/grill/references/releve-structurel.md` — la consigne du relevé : à l'étape 1.
 - `docs/agents/issue-tracker.md` — le format d'un ticket : avant d'en proposer un.

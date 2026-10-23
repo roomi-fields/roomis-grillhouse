@@ -25,7 +25,7 @@ reste.
 
 ## Tes références, à lire au moment où elles servent
 
-- `METACADRE.md` — les intentions du cadre : quand une règle semble aller contre son but.
+- `${CLAUDE_PLUGIN_ROOT}/METACADRE.md` — les intentions du cadre : quand une règle semble aller contre son but.
 - `docs/ARCHITECTURE.md` — l'architecture d'ensemble : quand un critère touche une frontière.
 - `docs/agents/issue-tracker.md` — la passation au ticket : avant d'y écrire.
 - Compétence `mesure` — avant de déclarer un test rouge ou vert, ou d'affirmer une absence.

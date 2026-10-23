@@ -10,10 +10,10 @@
 // - The folder git reads the hooks from: `core.hooksPath` set to Beads' (`.beads/hooks`) when the
 //   repository names none. The frame's git hooks come by the project's `prepare`
 //   (`grillhouse hooks`), which the `npm install` below runs.
-// - The frame's plugins its settings declare, installed for the project (scripts/greffons.mjs): a
-//   plugin that cannot be installed has its line naming the command to type, and the other steps
-//   still run.
-// - `npm install`, when the project has a package.json.
+// - `npm install`, when the project has a package.json: it installs the frame's package, whose
+//   directory is the marketplace of the frame's plugin.
+// - Then the frame's plugins its settings declare, installed for the project (scripts/greffons.mjs):
+//   a plugin that cannot be installed has its line naming the command to type.
 // A global tool whose installation fails stops the preparation, its message naming the command.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -80,7 +80,6 @@ export function preparer(projet, prefixe) {
   if ((r.stdout ?? '').trim() === '') {
     lancer(projet, 'git', ['config', 'core.hooksPath', '.beads/hooks']);
   }
-  const lignes = installerGreffons(projet);
   if (existsSync(path.join(projet, 'package.json'))) lancer(projet, 'npm', ['install']);
-  return lignes;
+  return installerGreffons(projet);
 }

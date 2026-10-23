@@ -16,7 +16,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { LIGNE_ETAT, mettreAJour, rapport, regenerer } from '../../scripts/grillhouse-maj.mjs';
 import { CONFIGURATION as CONFIG_DES_FRONTIERES } from '../../scripts/frontieres.mjs';
 import { GARDES_DU_CADRE } from '../../scripts/gardes-du-cadre.mjs';
-import { cheminSysteme, claudeSubstitut } from '../claude-substitut.js';
+import { cheminSysteme, claudeSubstitut, paquetInstalle } from '../claude-substitut.js';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'grillhouse-maj-'));
@@ -199,7 +199,7 @@ describe('grillhouse-3uv.55 critère 5 — a replayed update changes nothing', (
 // A source of the frame of one file, whose template's package.json is `pkg` (none when null).
 function sourceAvec(pkg: Record<string, unknown> | null) {
   return source({
-    'METACADRE.md': 'meta',
+    'mods/grillhouse/METACADRE.md': 'meta',
     ...(pkg ? { [GABARIT]: JSON.stringify(pkg, null, 2) } : {}),
   });
 }
@@ -441,7 +441,7 @@ describe('the update installs Turborepo', () => {
   });
   it('the report names the template written, once', () => {
     const src = source({
-      'METACADRE.md': 'meta',
+      'mods/grillhouse/METACADRE.md': 'meta',
       [SANS_PAQUETS]: lire(DEPOT, SANS_PAQUETS),
     });
     const projet = mkdtempSync(path.join(ESSAIS, 'turbo-'));
@@ -1134,7 +1134,10 @@ describe('grillhouse-3uv.75.1 critère 12 — the update poses the frame’s tes
 
 // grillhouse-3uv.76: the update as a project runs it, `claude` stood in (tests/claude-substitut.ts),
 // git and node from the system: no test reaches the real claude nor the network.
+// The update runs from the package the project installed, whose directory is the marketplace of the
+// frame's plugin (grillhouse-3uv.84.7).
 function lancerMajAvec(projet: string, args: string[], bin: string) {
+  paquetInstalle(projet);
   return spawnSync(process.execPath, [SCRIPT_MAJ, ...args], {
     cwd: projet,
     encoding: 'utf8',
@@ -1199,7 +1202,8 @@ describe('grillhouse-3uv.76 critère 1 — the update keeps the order of the set
     const premier = claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')), { marches: ['m'] });
     const r1 = lancerMajAvec(projet, [], premier.bin);
     expect(r1.status, r1.stderr).toBe(0);
-    expect(installs(premier).length, 'the plugin is installed').toBe(1);
+    // The project's plugin and the frame's, which the update declares (grillhouse-3uv.84.7).
+    expect(installs(premier).length, 'the plugins are installed').toBe(2);
     const apres = lire(projet, REGLAGES);
     expect(Object.keys(JSON.parse(apres) as object)).toEqual(ordre);
 
@@ -1207,7 +1211,7 @@ describe('grillhouse-3uv.76 critère 1 — the update keeps the order of the set
     const second = claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')), { marches: ['m'] });
     const r2 = lancerMajAvec(projet, [], second.bin);
     expect(r2.status, r2.stderr).toBe(0);
-    expect(installs(second).length, 'the plugin is installed').toBe(1);
+    expect(installs(second).length, 'the plugins are installed').toBe(2);
     expect(lire(projet, REGLAGES)).toBe(apres);
   });
 });
@@ -1290,6 +1294,7 @@ describe('grillhouse-3uv.76 critère 3 — the update refuses an unknown option,
       const projet = mkdtempSync(path.join(ESSAIS, 'option-'));
       ecrire(projet, 'package.json', `${JSON.stringify({ name: 'p' }, null, 2)}\n`);
       ecrire(projet, '.claude/settings.json', `${JSON.stringify({ model: 'opus' }, null, 2)}\n`);
+      paquetInstalle(projet);
       const avant = contenu(projet);
       const claude = claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')));
       const r = lancerMajAvec(projet, [option], claude.bin);
@@ -1633,7 +1638,13 @@ describe('grillhouse-3uv.84.4 critère 6 — the update keeps the project’s st
     const projet = avecReglages({ model: 'opus', enabledPlugins: {} });
     expect(mettreAJour(projet, DEPOT).ligneEtat).toBe(true);
     expect(ligne(projet)).toEqual({ type: 'command', command: LIGNE_ETAT });
-    expect(Object.keys(json(projet, REGLAGES))).toEqual(['model', 'enabledPlugins', 'statusLine']);
+    // The plugin of the package is declared after it (grillhouse-3uv.84.7 critère 2).
+    expect(Object.keys(json(projet, REGLAGES))).toEqual([
+      'model',
+      'enabledPlugins',
+      'statusLine',
+      'extraKnownMarketplaces',
+    ]);
   });
   it('the frame’s former status line (its script by its path) becomes the command’s', () => {
     const projet = avecReglages({

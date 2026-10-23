@@ -15,8 +15,15 @@
 //   migration), in the order of their versions; each is replayable without effect, and the report
 //   names each one that changed something, with what it changed.
 // - The frame copies no file into a project: its scripts are the package's, its skills, agents,
-//   hooks of Claude Code and common charter the plugin's (grillhouse@roomi-fields), which Claude
-//   Code updates by its marketplace.
+//   hooks of Claude Code, common charter and meta-frame the plugin's, which the package carries
+//   (scripts/cadre.mjs): the frame arrives in one piece, at the version npm installs.
+// - The frame's plugin is a setting of the project: in a project whose `.claude/settings.json`
+//   exists, `extraKnownMarketplaces` declares the marketplace of the package's directory
+//   (`roomis-grillhouse`, a directory, `./node_modules/@roomi-fields/grillhouse`, relative to the
+//   project's root) and `enabledPlugins` enables its plugin (`grillhouse@roomis-grillhouse`), each
+//   added after the keys the settings hold, which keep their order; Claude Code reads the plugin in
+//   place from that folder, so a rise of the package reaches the next session. A migration takes
+//   off the plugin the GitHub marketplace provided (scripts/migrations/0.23.0-greffon-du-paquet.mjs).
 // - The status line is a setting of the project, as Husky writes the project's own configuration:
 //   in a project whose `.claude/settings.json` exists, `statusLine` becomes the frame's
 //   (`"$CLAUDE_PROJECT_DIR/node_modules/.bin/grillhouse" ligne-etat`) when it is absent or names
@@ -109,7 +116,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import semver from 'semver';
-import { CADRE, VERSION } from './cadre.mjs';
+import { CADRE, CHEMIN_DU_MARCHE, GREFFON_DU_CADRE, MARCHE_DU_CADRE, VERSION } from './cadre.mjs';
 import { poserCrochets } from './crochets.mjs';
 import { installerGreffons } from './greffons.mjs';
 import { migrer } from './migrations.mjs';
@@ -247,6 +254,23 @@ function reglerLigneEtat(projet) {
   return true;
 }
 
+// Declares in the settings of the project at <projet>, when they exist, the marketplace of the
+// package's directory and enables its plugin (see the header); returns whether they changed.
+function declarerGreffon(projet) {
+  const f = path.join(projet, '.claude', 'settings.json');
+  if (!existsSync(f)) return false;
+  const avant = readFileSync(f, 'utf8');
+  const reglages = JSON.parse(avant);
+  reglages.extraKnownMarketplaces = {
+    ...(reglages.extraKnownMarketplaces ?? {}),
+    [MARCHE_DU_CADRE]: { source: { source: 'directory', path: CHEMIN_DU_MARCHE } },
+  };
+  reglages.enabledPlugins = { ...(reglages.enabledPlugins ?? {}), [GREFFON_DU_CADRE]: true };
+  if (JSON.stringify(reglages) === JSON.stringify(JSON.parse(avant))) return false;
+  writeFileSync(f, `${JSON.stringify(reglages, null, 2)}\n`);
+  return true;
+}
+
 /** The version of the frame the project at <projet> recorded (`grillhouse.version`), or null. */
 export function versionDuProjet(projet) {
   const v = lireJson(path.join(projet, 'package.json'), {})?.grillhouse?.version;
@@ -266,6 +290,7 @@ export function mettreAJour(projet, source) {
     configVitest: null,
     gardes: null,
     ligneEtat: false,
+    greffon: false,
   };
   const pkg = path.join(projet, 'package.json');
   if (existsSync(pkg)) {
@@ -368,6 +393,7 @@ export function mettreAJour(projet, source) {
   }
   bilan.turbo = poserTurbo(projet, source);
   bilan.ligneEtat = reglerLigneEtat(projet);
+  bilan.greffon = declarerGreffon(projet);
   ignorerTurbo(projet);
   poserCrochets(projet);
   return bilan;
@@ -428,6 +454,11 @@ export function rapport(b) {
   }
   if (b.ligneEtat) {
     lignes.push(`Ligne d'état : .claude/settings.json lance \`grillhouse ligne-etat\`.`);
+  }
+  if (b.greffon) {
+    lignes.push(
+      `Greffon du cadre : .claude/settings.json déclare la place de marché du paquet (${MARCHE_DU_CADRE}, ${CHEMIN_DU_MARCHE}) et active ${GREFFON_DU_CADRE}.`
+    );
   }
   if (b.gardes?.deplace) {
     lignes.push(

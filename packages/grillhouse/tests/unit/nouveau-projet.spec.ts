@@ -88,10 +88,15 @@ function outilsDeLaPreparation() {
 function nomsDesMarches(): Record<string, string> {
   const reglages = JSON.parse(
     readFileSync(path.join(GABARIT, '.claude/settings.json'), 'utf8')
-  ) as { extraKnownMarketplaces?: Record<string, { source: { repo?: string; url?: string } }> };
+  ) as {
+    extraKnownMarketplaces?: Record<
+      string,
+      { source: { repo?: string; url?: string; path?: string } }
+    >;
+  };
   return Object.fromEntries(
     Object.entries(reglages.extraKnownMarketplaces ?? {}).map(([nom, m]) => [
-      m.source.repo ?? m.source.url ?? nom,
+      m.source.repo ?? m.source.url ?? m.source.path ?? nom,
       nom,
     ])
   );

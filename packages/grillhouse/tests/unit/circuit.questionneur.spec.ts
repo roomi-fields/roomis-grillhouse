@@ -63,7 +63,10 @@ const description = (id: string) =>
     .description;
 const questionnements = (id: string) =>
   entrees(id).flatMap(e => (e.questionnement ? [e.questionnement as Record<string, unknown>] : []));
-const METACADRE = readFileSync(path.resolve(__dirname, '../../../../METACADRE.md'), 'utf8');
+const METACADRE = readFileSync(
+  path.resolve(__dirname, '../../../../mods/grillhouse/METACADRE.md'),
+  'utf8'
+);
 
 describe.runIf(canWrap)(
   'the questionneur, on the plan and on the decisions',

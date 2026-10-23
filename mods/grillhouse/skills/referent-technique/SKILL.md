@@ -18,7 +18,7 @@ mécanisme qui existe ou qui se construit. Le cas qui a fait naître la question
 ## Au démarrage
 
 1. Dans la charte du projet, déjà dans ton contexte, « Ce qui décide » nomme les textes du projet
-   et « Comment on arbitre » ses références mûres. Lis `METACADRE.md` : l'étape 1 nomme l'une de
+   et « Comment on arbitre » ses références mûres. Lis `${CLAUDE_PLUGIN_ROOT}/METACADRE.md` : l'étape 1 nomme l'une de
    ses intentions.
 2. Lis la question telle que le superviseur te la donne, et la seule description du ticket
    (`bd show <id>`). Tu lis les commentaires du ticket après ton verdict. Ainsi les options et

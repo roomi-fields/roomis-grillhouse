@@ -4,7 +4,7 @@ This file says how a change reaches the frame of Roomi's Grillhouse. The rules i
 
 ## 1. Where a change comes from
 
-- **A project proposes a gap to Grillhouse**: a project that uses the frame holds no copy of it, its scripts being the package's (`@roomi-fields/grillhouse`) and its skills, agents, hooks of Claude Code and common charter the plugin's (`grillhouse@roomi-fields`); it proposes a change to Grillhouse, and the next version brings it back to every project. The common charter states the rule (`mods/grillhouse/charte.md`, introduction).
+- **A project proposes a gap to Grillhouse**: a project that uses the frame holds no copy of it, its scripts being the package's (`@roomi-fields/grillhouse`) and its skills, agents, hooks of Claude Code, common charter and meta-frame the plugin's (`grillhouse@roomis-grillhouse`), which the package carries; it proposes a change to Grillhouse, and the next version brings it back to every project. The common charter states the rule (`mods/grillhouse/charte.md`, introduction).
 - **A ticket is born of the owner's word, or of a direct need of a project that uses the frame** (a defect it meets). A discovery of an agent is recorded in a closed ticket labelled `decouverte`. The common charter states the rule (« Le flux d'une tâche »).
 
 ## 2. How a rule is written
@@ -23,12 +23,12 @@ A rule serves an intention of the frame and names it; it is written as `METACADR
 
 ## 5. How a version is released
 
-One version covers the package and its mod, released by the same commit. It is the `version` of `packages/grillhouse/package.json`, the package `@roomi-fields/grillhouse` that npm publishes, so each project knows the version it has installed; `mods/grillhouse/.claude-plugin/plugin.json` carries the same, `packages/grillhouse/tests/unit/version.spec.ts` refuses a gap, and the session start of a project names a mod installed at another version than its package, with the command that aligns them. The root `package.json` never carries it.
+One version covers the frame: the `version` of `packages/grillhouse/package.json`, the package `@roomi-fields/grillhouse` that npm publishes, so each project knows the version it has installed. The package carries the frame's plugin, which takes that version when the package is packed (`packages/grillhouse/scripts/cadre.mjs`): the plugin's manifest in the repository carries none, and no other publication of the plugin exists. The root `package.json` never carries it.
 
 The versions follow semantic versioning in 0.x: a change that obliges a project to act raises the minor, a fix the patch. A version is released per lot delivered to the projects, never per commit:
 
-1. `npx grillhouse sortie <x.y.z>` writes the version in the package's `package.json` and in `plugin.json`, and dates `CHANGELOG.md`: « [Unreleased] » becomes « [x.y.z] - <today> » and an empty « [Unreleased] » opens above it. It refuses a version not above the current one, and an empty « [Unreleased] ».
-2. The release commit carries these three files.
+1. `npx grillhouse sortie <x.y.z>` writes the version in the package's `package.json`, and dates `CHANGELOG.md`: « [Unreleased] » becomes « [x.y.z] - <today> » and an empty « [Unreleased] » opens above it. It refuses a version not above the current one, and an empty « [Unreleased] ».
+2. The release commit carries these two files.
 3. `npx grillhouse sortie --etiqueter` creates the annotated tag `v<x.y.z>` on that commit, locally, once its CI is green, and names the push. It pushes nothing: the owner validates the push of the tag.
 4. On the tag, `.github/workflows/release.yml` plays the CI on the tagged commit; once it is green, it checks that the tag names the version (`npx grillhouse sortie --verifier-etiquette <tag>`), publishes the package on the npm registry with the repository's secret `NPM_TOKEN`, and publishes the GitHub release.
 5. The projects update to this version (`npm run grillhouse:maj`, whose report names it). The update installs the last commit of Grillhouse's default branch, not a tag.

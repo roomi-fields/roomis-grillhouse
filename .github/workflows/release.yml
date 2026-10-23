@@ -34,7 +34,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Check the tag names the version of the package and the mod
+      - name: Check the tag names the version of the package
         run: npx grillhouse sortie --verifier-etiquette "$GITHUB_REF_NAME"
 
       - name: Publish the package to npm

@@ -13,8 +13,9 @@
 // - Its package.json declares the frame's package, `@roomi-fields/grillhouse` at `^<version>` of
 //   this package, in its devDependencies.
 // - The preparation (scripts/preparation.mjs): git, Beads and its ticket store under the prefix
-//   given, else the directory's name, CodeGraph and its index, the frame's git hooks, the frame's
-//   plugins its settings declare, then `npm install`.
+//   given, else the directory's name, CodeGraph and its index, the frame's git hooks, `npm install`,
+//   then the plugins its settings declare: the template's declare the frame's, read by the
+//   marketplace of the package's directory, `./node_modules/@roomi-fields/grillhouse`.
 // - Then what the frame writes in a project, as `grillhouse maj` writes it (scripts/grillhouse-maj.mjs):
 //   its turbo.json, the status line of its settings, the version of the frame; and the generated
 //   files (the boundaries' configuration, the interfaces index, run by the project's command). A

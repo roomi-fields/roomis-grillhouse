@@ -8,7 +8,10 @@
 // - The project is `CLAUDE_PROJECT_DIR`, else the working directory; its command is
 //   `node_modules/.bin/grillhouse`, which the project's `npm install` links (the package
 //   @roomi-fields/grillhouse).
-// - `session-start` writes the common charter (`charte.md` of the plugin) first, then runs
+// - The common charter is `charte.md` of the plugin, `${CLAUDE_PLUGIN_ROOT}` replaced by the
+//   plugin's directory, as Claude Code resolves it in a plugin's skills: the charter names the
+//   meta-frame by its path in the plugin, wherever the plugin is installed.
+// - `session-start` writes the common charter first, then runs
 //   `grillhouse session-start`; without the command, it writes, after the charter, a section that
 //   says to run `npm install`. So every session receives the charter, the supervisor's and a
 //   role's, and its start after a compaction.
@@ -27,7 +30,11 @@ const GREFFON = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sous = process.argv[2] ?? '';
 const projet = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 const commande = path.join(projet, 'node_modules', '.bin', 'grillhouse');
-const charte = () => readFileSync(path.join(GREFFON, 'charte.md'), 'utf8');
+const charte = () =>
+  readFileSync(path.join(GREFFON, 'charte.md'), 'utf8').replaceAll(
+    '${CLAUDE_PLUGIN_ROOT}',
+    GREFFON
+  );
 
 if (sous === 'subagent-start') {
   writeSync(

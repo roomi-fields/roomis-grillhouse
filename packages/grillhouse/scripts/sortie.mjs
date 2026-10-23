@@ -1,19 +1,17 @@
 #!/usr/bin/env node
-// A release of Grillhouse, the package and its mod together: Grillhouse's own script, which no
-// project runs (`grillhouse init` installs the template of a project alone).
+// A release of Grillhouse, its package npm, which carries the frame's plugin: Grillhouse's own
+// script, which no project runs (`grillhouse init` installs the template of a project alone).
 //
-//   npx grillhouse sortie <x.y.z>                    the release's files: the package's package.json, plugin.json, CHANGELOG.md
+//   npx grillhouse sortie <x.y.z>                    the release's files: the package's package.json, CHANGELOG.md
 //   npx grillhouse sortie --etiqueter                the annotated tag v<version> on HEAD, the release commit
-//   npx grillhouse sortie --verifier-etiquette <v>   exits 0 when the tag <v> names the version of the package and the mod
+//   npx grillhouse sortie --verifier-etiquette <v>   exits 0 when the tag <v> names the version of the package
 //
 // - The version is the `version` of the package's `packages/grillhouse/package.json`, which npm
-//   publishes; the mod's `mods/grillhouse/.claude-plugin/plugin.json` carries the same, written by
-//   this script beside it (tests/unit/version.spec.ts refuses any gap), and the session start of a
-//   project names a mod installed at another version than its package (scripts/greffons.mjs).
-//   Semantic versioning in 0.x: a change that obliges a project to act raises the minor, a fix the
-//   patch.
-// - Preparing writes the version given, above the current one, in both files, their other fields
-//   kept, and dates the changelog: « ## [Unreleased] » becomes « ## [<x.y.z>] - <today> » and an
+//   publishes; the plugin the package carries takes it when the package is packed
+//   (scripts/cadre.mjs), so the frame has one version. Semantic versioning in 0.x: a change that
+//   obliges a project to act raises the minor, a fix the patch.
+// - Preparing writes the version given, above the current one, in the package's package.json, its
+//   other fields kept, and dates the changelog: « ## [Unreleased] » becomes « ## [<x.y.z>] - <today> » and an
 //   empty « ## [Unreleased] » opens above it. A release with nothing under « [Unreleased] » is
 //   refused. Nothing is written when a check fails.
 // - Tagging creates the annotated tag `v<version>` on HEAD, once the release commit is made and
@@ -27,30 +25,22 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const PAQUET = 'packages/grillhouse/package.json';
-const PLUGIN = 'mods/grillhouse/.claude-plugin/plugin.json';
 const CHANGELOG = 'CHANGELOG.md';
 const OUVERTE = '## [Unreleased]\n';
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)$/;
 
 const lire = (racine, f) => readFileSync(path.join(racine, f), 'utf8');
 
-// The version of Grillhouse at <racine>: its package's, which plugin.json must carry too.
+// The version of Grillhouse at <racine>: its package's.
 export function versionDuCadre(racine) {
-  const v = JSON.parse(lire(racine, PAQUET)).version;
-  const greffon = JSON.parse(lire(racine, PLUGIN)).version;
-  if (greffon !== v) {
-    throw new Error(`${PAQUET} dit ${v}, ${PLUGIN} dit ${greffon} : les deux vont ensemble.`);
-  }
-  return v;
+  return JSON.parse(lire(racine, PAQUET)).version;
 }
 
-// Refuses a tag <etiquette> other than v<version> of the package and the mod at <racine>.
+// Refuses a tag <etiquette> other than v<version> of the package at <racine>.
 export function verifierEtiquette(racine, etiquette) {
   const v = versionDuCadre(racine);
   if (etiquette !== `v${v}`) {
-    throw new Error(
-      `L'étiquette ${etiquette} ne nomme pas la version du paquet et du greffon, ${v}.`
-    );
+    throw new Error(`L'étiquette ${etiquette} ne nomme pas la version du paquet, ${v}.`);
   }
 }
 
@@ -84,11 +74,9 @@ export function preparerSortie(racine, version, date) {
   if ((fin < 0 ? corps : corps.slice(0, fin)).trim() === '') {
     throw new Error(`La section « [Unreleased] » de ${CHANGELOG} est vide : rien à sortir.`);
   }
-  for (const f of [PAQUET, PLUGIN]) {
-    const json = JSON.parse(lire(racine, f));
-    json.version = version;
-    writeFileSync(path.join(racine, f), `${JSON.stringify(json, null, 2)}\n`);
-  }
+  const paquet = JSON.parse(lire(racine, PAQUET));
+  paquet.version = version;
+  writeFileSync(path.join(racine, PAQUET), `${JSON.stringify(paquet, null, 2)}\n`);
   writeFileSync(
     path.join(racine, CHANGELOG),
     `${journal.slice(0, debut + 1)}${OUVERTE}\n## [${version}] - ${date}\n${corps}`
@@ -112,9 +100,9 @@ export function etiqueter(racine) {
 }
 
 const USAGE =
-  'Usage : npx grillhouse sortie <x.y.z>                    prépare la sortie (package.json du paquet, plugin.json, CHANGELOG.md)\n' +
+  'Usage : npx grillhouse sortie <x.y.z>                    prépare la sortie (package.json du paquet, CHANGELOG.md)\n' +
   "        npx grillhouse sortie --etiqueter                pose l'étiquette v<version> sur le commit de sortie\n" +
-  "        npx grillhouse sortie --verifier-etiquette <v>   vérifie que l'étiquette <v> nomme la version du paquet et du greffon\n";
+  "        npx grillhouse sortie --verifier-etiquette <v>   vérifie que l'étiquette <v> nomme la version du paquet\n";
 
 // Today, in the local calendar, as YYYY-MM-DD.
 const aujourdhui = () => {
@@ -138,7 +126,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     } else if (args.length === 1 && !args[0].startsWith('-')) {
       preparerSortie(racine, args[0], aujourdhui());
       process.stdout.write(
-        `Sortie ${args[0]} préparée : ${PAQUET}, ${PLUGIN}, ${CHANGELOG}. ` +
+        `Sortie ${args[0]} préparée : ${PAQUET}, ${CHANGELOG}. ` +
           `Le commit de sortie, puis : npx grillhouse sortie --etiqueter\n`
       );
     } else {

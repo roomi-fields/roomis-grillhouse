@@ -1,7 +1,7 @@
 # La charte commune de Roomi's Grillhouse
 
 Les règles du cadre, identiques dans chaque projet qui l'a installé. Le greffon du cadre
-(`grillhouse@roomi-fields`) la donne à chaque séance par son crochet d'ouverture ; la charte du
+(`grillhouse@roomis-grillhouse`) la donne à chaque séance par son crochet d'ouverture ; la charte du
 projet (`CLAUDE.md`) porte ce qui lui est propre : son nom, son responsable, ce qui décide chez
 lui, ses critères d'arbitrage, ses commandes. Ce fichier vient du greffon et ne se modifie pas dans
 un projet : un écart se propose à Grillhouse. Ainsi les projets suivent un seul cadre.
@@ -10,7 +10,7 @@ un projet : un écart se propose à Grillhouse. Ainsi les projets suivent un seu
 
 Une décision vit dans le document qu'elle règle. Ainsi on la trouve là où on la cherche.
 
-Une règle s'écrit selon le métacadre (`METACADRE.md`, §2).
+Une règle s'écrit selon le métacadre (`${CLAUDE_PLUGIN_ROOT}/METACADRE.md`, §2).
 
 ## Comment on arbitre
 
@@ -227,11 +227,13 @@ chaque découverte est gardée, et le backlog reste le plan du responsable.
   déclarent lire (`grillhouse.lit`), données ou code d'un voisin ; l'index est aux rôles qui voient
   tout le dépôt.
   Ainsi une affirmation sur le code repose sur ce que le code contient.
-- **Le cadre arrive par son paquet et son greffon** : le paquet npm `@roomi-fields/grillhouse`
-  porte les scripts, appelés par `npx grillhouse <sous-commande>` ; le greffon
-  `grillhouse@roomi-fields` porte les compétences, les agents, les crochets de Claude Code et
-  cette charte, et se met à jour par sa place de marché. Un projet n'en garde aucune copie ; sans le
-  paquet installé, l'ouverture de séance dit « lance `npm install` », et les autres crochets
+- **Le cadre arrive en un seul morceau** : le paquet npm `@roomi-fields/grillhouse` porte les
+  scripts, appelés par `npx grillhouse <sous-commande>`, et le greffon `grillhouse@roomis-grillhouse`,
+  qui porte les compétences, les agents, les crochets de Claude Code, cette charte et le
+  métacadre ; le projet déclare le dossier du paquet comme place de marché
+  (`./node_modules/@roomi-fields/grillhouse`, `npx grillhouse maj`), et Claude Code y lit le
+  greffon en place, comme un paquet d'ESLint porte son greffon. Une version de npm vaut pour les
+  deux. Un projet n'en garde aucune copie ; sans le paquet installé, l'ouverture de séance dit « lance `npm install` », et les autres crochets
   sortent sans effet. Les crochets git du cadre suivent le modèle de Husky : le `prepare` du
   projet lance `grillhouse hooks`, qui les pose à côté des sections de Beads, et chacun appelle
   `grillhouse hook <nom>`, sans effet sans le paquet. Ainsi chaque projet suit la version du cadre qu'il installe, sans fichier à

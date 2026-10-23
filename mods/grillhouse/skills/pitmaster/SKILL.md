@@ -11,7 +11,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 
 ## Mes références, à lire au moment où elles servent
 
-- `METACADRE.md` — les intentions du cadre et l'écriture d'une règle : avant de confronter une
+- `${CLAUDE_PLUGIN_ROOT}/METACADRE.md` — les intentions du cadre et l'écriture d'une règle : avant de confronter une
   décision à ses intentions, et avant d'écrire une règle.
 - `references/tour.md` — la procédure d'un tour de supervision : à chaque tour.
 - `references/cadre.md` — ce que je vérifie, règle par règle (documents, vérifications, écarts) :
@@ -285,7 +285,7 @@ ticket. Ainsi ce qui est déclaré fini l'est vraiment.
 Ainsi la relecture finale se fait sur le ticket seul, même après un compactage.
 
 **Le diff des documents** : à la fermeture, je lis le diff de chaque document de référence. La
-règle s'y écrit à son adresse, selon le métacadre (`METACADRE.md`, §2), sans date ni auteur ; la
+règle s'y écrit à son adresse, selon le métacadre (`${CLAUDE_PLUGIN_ROOT}/METACADRE.md`, §2), sans date ni auteur ; la
 citation du responsable va dans le ticket. Ainsi le document dit l'état décidé du produit, et le
 ticket garde l'histoire de la décision.
 

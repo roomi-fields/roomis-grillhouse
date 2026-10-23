@@ -32,7 +32,7 @@ les mots qu'il emploie lui-même. La langue du document est celle de la charte.
 - **Le document parle de son sujet** : une architecture décrit le produit ; l'organisation du
   dépôt et la façon de travailler vivent dans la charte. Ainsi chaque document répond à une seule
   question.
-- **Une règle s'écrit selon le métacadre** (`METACADRE.md`, §2) : elle sert une intention du cadre
+- **Une règle s'écrit selon le métacadre** (`${CLAUDE_PLUGIN_ROOT}/METACADRE.md`, §2) : elle sert une intention du cadre
   et la nomme.
 
 ### La phrase

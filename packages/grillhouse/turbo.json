@@ -22,7 +22,6 @@
         "$TURBO_ROOT$/.github/**",
         "$TURBO_ROOT$/.mcp.json/**",
         "$TURBO_ROOT$/CHANGELOG.md/**",
-        "$TURBO_ROOT$/METACADRE.md/**",
         "$TURBO_ROOT$/knip.json/**",
         "$TURBO_ROOT$/mods/**",
         "$TURBO_ROOT$/package.json/**",

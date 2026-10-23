@@ -124,20 +124,14 @@ describe('grillhouse-3uv.84.4 critère 5 — the package declares what its scrip
 });
 
 describe('grillhouse-3uv.84.4 critère 7 — what the frame reads resolves from the package installed', () => {
-  it('the package publishes bin/, scripts/ and cadre/, which its prepack writes and its postpack removes', () => {
-    expect(pkg.files.sort()).toEqual(['bin', 'cadre', 'scripts']);
+  it('the package publishes bin/, scripts/, cadre/ and its marketplace, which its prepack writes and its postpack removes', () => {
+    expect(pkg.files.sort()).toEqual(['.claude-plugin', 'bin', 'cadre', 'scripts']);
     expect(pkg.scripts.prepack).toBe('node scripts/cadre.mjs --empaqueter');
     expect(pkg.scripts.postpack).toBe('node scripts/cadre.mjs --nettoyer');
   });
 
-  it('cadre/ carries the meta-frame, the instructions of the agents and the template of a project', () => {
-    expect(FICHIERS_DU_CADRE).toEqual(
-      expect.arrayContaining([
-        'METACADRE.md',
-        'mods/grillhouse/skills/pitmaster/references/consigne-agent.md',
-        'templates',
-      ])
-    );
+  it('cadre/ carries the frame’s plugin (its meta-frame and the instructions of the agents with it) and the template of a project', () => {
+    expect(FICHIERS_DU_CADRE).toEqual(expect.arrayContaining(['mods/grillhouse', 'templates']));
   });
 
   it('--empaqueter copies each file of the frame under cadre/ at its own path; --nettoyer removes it', () => {
@@ -156,7 +150,7 @@ describe('grillhouse-3uv.84.4 critère 7 — what the frame reads resolves from 
       });
     expect(lancer('--empaqueter').status).toBe(0);
     for (const f of [
-      'METACADRE.md',
+      'mods/grillhouse/METACADRE.md',
       'mods/grillhouse/skills/pitmaster/references/consigne-agent.md',
       'templates/projet/package.json',
       'templates/projet/_gitignore',
@@ -192,7 +186,9 @@ describe('grillhouse-3uv.84.4 critère 7 — what the frame reads resolves from 
   it('the circuit reads the instructions of the agents and the meta-frame under CADRE, never above its package', () => {
     const texte = readFileSync(path.join(PAQUET, 'scripts/circuit.mjs'), 'utf8');
     expect(texte).toContain("import { CADRE } from './cadre.mjs';");
-    expect(texte).toMatch(/const METACADRE = path\.join\(CADRE, 'METACADRE\.md'\);/);
+    expect(texte).toMatch(
+      /const METACADRE = path\.join\(CADRE, 'mods', 'grillhouse', 'METACADRE\.md'\);/
+    );
     expect(texte).toMatch(/const GABARIT = path\.join\(\s*CADRE,/);
     expect(texte).not.toMatch(/path\.join\(ici, '\.\.', '\.\.', '\.\.'\)/);
   });

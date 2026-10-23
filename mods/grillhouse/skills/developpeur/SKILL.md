@@ -32,7 +32,7 @@ prime sur tout le reste.
 
 ## Tes références, à lire au moment où elles servent
 
-- `METACADRE.md` — les intentions du cadre : quand une règle semble aller contre son but.
+- `${CLAUDE_PLUGIN_ROOT}/METACADRE.md` — les intentions du cadre : quand une règle semble aller contre son but.
 - `docs/ARCHITECTURE.md` — l'architecture d'ensemble : quand ton ticket touche une frontière.
 - `docs/agents/issue-tracker.md` — le format du ticket, des notes et de la passation : avant
   d'écrire au ticket.
