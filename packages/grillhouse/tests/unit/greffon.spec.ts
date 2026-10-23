@@ -1,5 +1,5 @@
-// grillhouse-3uv.84.2: the frame's plugin, grillhouse@roomis-grillhouse (mods/grillhouse/, which
-// the package carries since grillhouse-3uv.84.7), carries the skills, the agents, the hooks of
+// grillhouse-3uv.84.2: the frame's plugin, grillhouse@roomi-fields (mods/grillhouse/, whose root
+// the package is since grillhouse-3uv.84.7), carries the skills, the agents, the hooks of
 // Claude Code and the common charter, as a plugin of Claude Code carries the components of a tool.
 // A project holds no copy of them; each hook calls `grillhouse <sous-commande>` of the project's
 // package, and the charter reaches each session by the hook of the session's start.
@@ -253,11 +253,9 @@ describe('critère 4 — the copy of the files, its list, its fingerprints and t
     expect(JSON.parse(readFileSync(path.join(p, '.claude/settings.json'), 'utf8'))).toEqual({
       model: 'opus',
       statusLine: { type: 'command', command: maj.LIGNE_ETAT },
-      enabledPlugins: { [`grillhouse@grillhouse-${path.basename(p).toLowerCase()}`]: true },
+      enabledPlugins: { 'grillhouse@roomi-fields': true },
       extraKnownMarketplaces: {
-        [`grillhouse-${path.basename(p).toLowerCase()}`]: {
-          source: { source: 'directory', path: './' },
-        },
+        'roomi-fields': { source: { source: 'github', repo: 'roomi-fields/claude-plugins' } },
       },
     });
     for (const f of [

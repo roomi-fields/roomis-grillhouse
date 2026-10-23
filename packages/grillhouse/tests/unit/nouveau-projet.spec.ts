@@ -88,15 +88,10 @@ function outilsDeLaPreparation() {
 function nomsDesMarches(): Record<string, string> {
   const reglages = JSON.parse(
     readFileSync(path.join(GABARIT, '.claude/settings.json'), 'utf8')
-  ) as {
-    extraKnownMarketplaces?: Record<
-      string,
-      { source: { repo?: string; url?: string; path?: string } }
-    >;
-  };
+  ) as { extraKnownMarketplaces?: Record<string, { source: { repo?: string; url?: string } }> };
   return Object.fromEntries(
     Object.entries(reglages.extraKnownMarketplaces ?? {}).map(([nom, m]) => [
-      m.source.repo ?? m.source.url ?? m.source.path ?? nom,
+      m.source.repo ?? m.source.url ?? nom,
       nom,
     ])
   );
@@ -254,20 +249,13 @@ describe('grillhouse-3uv.84.4 critère 6 — init writes the status line in the 
     expect(reglages).not.toHaveProperty('hooks');
   });
 
-  it('the rest of the settings is the template’s, the status line and the project’s marketplace of the frame’s plugin added', () => {
+  it('the rest of the settings is the template’s, which declares grillhouse@roomi-fields, the status line added; no marketplace of the project’s own', () => {
     const modele = JSON.parse(
       readFileSync(path.join(GABARIT, '.claude/settings.json'), 'utf8')
     ) as Record<string, Record<string, unknown>>;
-    const marche = `grillhouse-${path.basename(PROJET).toLowerCase()}`;
     const { statusLine: _s, ...reste } = json('.claude/settings.json');
-    expect(reste).toEqual({
-      ...modele,
-      enabledPlugins: { ...modele.enabledPlugins, [`grillhouse@${marche}`]: true },
-      extraKnownMarketplaces: {
-        ...modele.extraKnownMarketplaces,
-        [marche]: { source: { source: 'directory', path: './' } },
-      },
-    });
-    expect(json('.claude-plugin/marketplace.json').name).toBe(marche);
+    expect(reste).toEqual(modele);
+    expect(reste.enabledPlugins?.['grillhouse@roomi-fields']).toBe(true);
+    expect(existsSync(path.join(PROJET, '.claude-plugin'))).toBe(false);
   });
 });

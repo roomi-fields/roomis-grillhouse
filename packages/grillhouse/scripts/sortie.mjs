@@ -5,6 +5,7 @@
 //   npx grillhouse sortie <x.y.z>                    the release's files: the package's package.json, CHANGELOG.md
 //   npx grillhouse sortie --etiqueter                the annotated tag v<version> on HEAD, the release commit
 //   npx grillhouse sortie --verifier-etiquette <v>   exits 0 when the tag <v> names the version of the package
+//   npx grillhouse sortie --entree-du-marche         the entry of the plugin in the marketplace roomi-fields
 //
 // - The version is the `version` of the package's `packages/grillhouse/package.json`, which npm
 //   publishes; the plugin the package carries takes it when the package is packed
@@ -19,12 +20,23 @@
 //   command the script names; `.github/workflows/release.yml` then plays the CI on the tagged
 //   commit and, once it is green, checks the tag (`--verifier-etiquette`), publishes the package
 //   on the npm registry (the repository's secret NPM_TOKEN) and the release on GitHub.
+// - The marketplace roomi-fields (GitHub, roomi-fields/claude-plugins, a repository of its own)
+//   lists the plugin by its source npm, ENTREE_DU_MARCHE: the package, without a subdirectory (a
+//   source npm has none: the package's root is the plugin's) and without a version, so the machine
+//   installs the version published last. `--entree-du-marche` prints it; the owner sets it in that
+//   repository once the package is published, a public gesture this script does not make.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const PAQUET = 'packages/grillhouse/package.json';
+
+/** The entry of the frame's plugin in the marketplace roomi-fields. */
+export const ENTREE_DU_MARCHE = {
+  name: 'grillhouse',
+  source: { source: 'npm', package: '@roomi-fields/grillhouse' },
+};
 const CHANGELOG = 'CHANGELOG.md';
 const OUVERTE = '## [Unreleased]\n';
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)$/;
@@ -102,7 +114,8 @@ export function etiqueter(racine) {
 const USAGE =
   'Usage : npx grillhouse sortie <x.y.z>                    prépare la sortie (package.json du paquet, CHANGELOG.md)\n' +
   "        npx grillhouse sortie --etiqueter                pose l'étiquette v<version> sur le commit de sortie\n" +
-  "        npx grillhouse sortie --verifier-etiquette <v>   vérifie que l'étiquette <v> nomme la version du paquet\n";
+  "        npx grillhouse sortie --verifier-etiquette <v>   vérifie que l'étiquette <v> nomme la version du paquet\n" +
+  '        npx grillhouse sortie --entree-du-marche         écrit l’entrée du greffon dans la place de marché roomi-fields\n';
 
 // Today, in the local calendar, as YYYY-MM-DD.
 const aujourdhui = () => {
@@ -121,6 +134,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
         `Étiquette ${e} posée sur HEAD, en local. La poussée, que valide le responsable : git push origin ${e} ` +
           '(la CI joue alors le commit, puis publie le paquet sur npm)\n'
       );
+    } else if (args.length === 1 && args[0] === '--entree-du-marche') {
+      process.stdout.write(`${JSON.stringify(ENTREE_DU_MARCHE, null, 2)}\n`);
     } else if (args.length === 2 && args[0] === '--verifier-etiquette') {
       verifierEtiquette(racine, args[1]);
     } else if (args.length === 1 && !args[0].startsWith('-')) {

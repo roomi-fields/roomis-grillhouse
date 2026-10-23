@@ -180,10 +180,6 @@ function mettreAJourProjet(p: string, binClaude: string) {
   return { ...r, sortie: `${r.stdout}\n${r.stderr}` };
 }
 
-// The frame's plugin as the update declares it for the project <p>: its own marketplace, named
-// after its directory (grillhouse-3uv.84.7).
-const grillhouseDe = (p: string) => `grillhouse@grillhouse-${path.basename(p).toLowerCase()}`;
-
 // The command that installs a plugin for the project, as Claude Code itself names it.
 const commande = (id: string) => `claude plugin install ${id} --scope project`;
 
@@ -252,12 +248,12 @@ describe('grillhouse-3uv.71 critère 1 — one mechanism installs the declared p
   });
   it('critère 1: the update of the frame (npm run grillhouse:maj) installs the plugins the project declares, for the project', () => {
     const p = projet(AUTRES_REGLAGES);
-    const claude = claudeSubstitut(dossier('claude'), { noms: AUTRES_NOMS });
+    const claude = claudeSubstitut(dossier('claude'), { noms: { ...AUTRES_NOMS, ...NOMS } });
     const r = mettreAJourProjet(p, claude.bin);
     expect(r.status, r.sortie).toBe(0);
     const appels = claude.appels();
     // The frame's plugin, which the update declares (grillhouse-3uv.84.7), with them.
-    expect(installes(appels)).toEqual([ALPHA, BETA, grillhouseDe(p)].sort());
+    expect(installes(appels)).toEqual([ALPHA, BETA, GRILL].sort());
     expect(installs(appels).every(a => portee(a) === 'project' && a.cwd === p)).toBe(true);
   });
   it('critère 1: no script of scripts/ other than scripts/greffons.mjs installs a plugin or adds a marketplace', () => {
@@ -355,11 +351,8 @@ describe('grillhouse-3uv.71 critère 4 — without claude, or on a failed instal
     const reglages = JSON.parse(readFileSync(path.join(p, '.claude/settings.json'), 'utf8')) as {
       enabledPlugins?: Record<string, boolean>;
     };
-    // The update declares the frame's plugin, the package's (grillhouse-3uv.84.7), beside them.
-    expect(reglages.enabledPlugins).toEqual({
-      ...AUTRES_REGLAGES.enabledPlugins,
-      [grillhouseDe(p)]: true,
-    });
+    // The update declares the frame's plugin (grillhouse-3uv.84.7) beside them.
+    expect(reglages.enabledPlugins).toEqual({ ...AUTRES_REGLAGES.enabledPlugins, [GRILL]: true });
     for (const id of [ALPHA, BETA]) {
       expect(ligneQuiNomme(r.sortie, id), `${id}\n${r.sortie}`).toBeDefined();
     }
@@ -644,13 +637,6 @@ describe('grillhouse-3uv.71 critère 12 — an absent marketplace is added at th
   }
 });
 
-// A marketplace of a directory, which exists: Claude Code refuses to add a path that does not.
-const MARCHE_LOCAL = (() => {
-  const d = dossier('marche-local');
-  writeFileSync(path.join(d, 'marketplace.json'), '{}\n');
-  return d;
-})();
-
 // The command that adds a marketplace from its source (critères 12 and 17).
 const commandeMarche = (src: string) => `claude plugin marketplace add ${src}`;
 
@@ -667,11 +653,11 @@ describe('grillhouse-3uv.71 critère 13 — the source of a marketplace is passe
       champ: { url: 'https://exemple.org/plugins/marketplace.json' },
       src: 'https://exemple.org/plugins/marketplace.json',
     },
-    { type: 'directory', champ: { path: MARCHE_LOCAL }, src: MARCHE_LOCAL },
+    { type: 'directory', champ: { path: '/srv/marches/local' }, src: '/srv/marches/local' },
     {
       type: 'file',
-      champ: { path: path.join(MARCHE_LOCAL, 'marketplace.json') },
-      src: path.join(MARCHE_LOCAL, 'marketplace.json'),
+      champ: { path: '/srv/marches/un/marketplace.json' },
+      src: '/srv/marches/un/marketplace.json',
     },
   ];
   for (const { type, champ, src } of cas) {
@@ -682,10 +668,8 @@ describe('grillhouse-3uv.71 critère 13 — the source of a marketplace is passe
       });
       const r = installer(p, { noms: { [src]: 'marche' } });
       expect(r.status, r.sortie).toBe(0);
-      // A directory or a file is the project's own: added for the project alone (grillhouse-3uv.84.7).
-      const local = type === 'directory' || type === 'file' ? ['--scope', 'local'] : [];
       expect(ajouts(r.claude.appels()).map(a => a.argv)).toEqual([
-        ['plugin', 'marketplace', 'add', src, ...local],
+        ['plugin', 'marketplace', 'add', src],
       ]);
       expect(installes(r.claude.appels())).toEqual(['gamma@marche']);
     });
@@ -695,18 +679,18 @@ describe('grillhouse-3uv.71 critère 13 — the source of a marketplace is passe
       enabledPlugins: { 'gamma@depot': true, 'delta@dossier': true },
       extraKnownMarketplaces: {
         depot: { source: { source: 'git', url: 'https://git.exemple.org/depot.git' } },
-        dossier: { source: { source: 'directory', path: MARCHE_LOCAL } },
+        dossier: { source: { source: 'directory', path: '/srv/dossier' } },
       },
     });
     const r = installer(p, {
-      noms: { 'https://git.exemple.org/depot.git': 'depot', [MARCHE_LOCAL]: 'dossier' },
+      noms: { 'https://git.exemple.org/depot.git': 'depot', '/srv/dossier': 'dossier' },
     });
     expect(r.status, r.sortie).toBe(0);
     expect(
       ajouts(r.claude.appels())
         .map(a => a.argv[3])
         .sort()
-    ).toEqual([MARCHE_LOCAL, 'https://git.exemple.org/depot.git'].sort());
+    ).toEqual(['/srv/dossier', 'https://git.exemple.org/depot.git']);
   });
   for (const source of [
     { source: 'npm', package: '@quelquun/marche' },
@@ -917,120 +901,64 @@ describe('grillhouse-3uv.71 critère 11, cas 11 — the root is compared by its 
   });
 });
 
-// grillhouse-3uv.84.7: the frame arrives in one piece, the package npm carrying its plugin. Claude
-// Code knows a marketplace by its name for the whole machine, the last add of a name pointing it at
-// its own directory (measured on 2026-10-23 with Claude Code 2.1.309: two projects under one name,
-// a session of the first read the plugin of the second); so each project has a marketplace of its
-// own, at its root (`.claude-plugin/marketplace.json`, which `grillhouse maj` writes), declared as a
-// directory, `./`. The mechanism adds a marketplace of a directory for the project alone
-// (`--scope local`, the local settings, which git ignores), from the project, so the relative path
-// resolves at its root; a name the machine knows at another directory is added again; a plugin
-// read in place from its folder (`folderVersion`, its manifest's version) whose installed copy
-// carries another version is refreshed by `claude plugin update`. The session start compares no
-// version: the plugin is the package's.
-describe('grillhouse-3uv.84.7 — the marketplace of the project, at its root', () => {
-  const MARCHE = 'grillhouse-projet';
-  const ID = `grillhouse@${MARCHE}`;
-  const CHEMIN = './';
-  const REGLAGES = {
-    enabledPlugins: { [ID]: true },
-    extraKnownMarketplaces: { [MARCHE]: { source: { source: 'directory', path: CHEMIN } } },
-  };
-  const NOMS_LOCAUX = {};
-  const mises = (appels: AppelClaude[]) =>
-    appels.filter(a => a.argv[0] === 'plugin' && a.argv[1] === 'update');
-  // A project whose marketplace the update wrote, at its root.
-  const projetInstalle = () => {
-    const p = projet(REGLAGES);
-    ecrire(p, '.claude-plugin/marketplace.json', `${JSON.stringify({ name: MARCHE })}\n`);
-    return p;
-  };
-
-  it('critère 2: an unknown marketplace of a directory is added from the project, at the local scope, by its relative path; the plugin is then installed for the project; the settings stay byte for byte', () => {
-    const p = projetInstalle();
-    const avant = readFileSync(path.join(p, '.claude/settings.json'), 'utf8');
-    const r = installer(p, { noms: NOMS_LOCAUX });
-    expect(r.status, r.sortie).toBe(0);
-    const [ajout, ...autres] = ajouts(r.claude.appels());
-    expect(autres).toEqual([]);
-    expect(ajout?.argv).toEqual(['plugin', 'marketplace', 'add', CHEMIN, '--scope', 'local']);
-    expect(ajout?.cwd).toBe(p);
-    expect(installes(r.claude.appels())).toEqual([ID]);
-    expect(readFileSync(path.join(p, '.claude/settings.json'), 'utf8')).toBe(avant);
-  });
-
-  it('critère 2: the name known at the directory of another project is added again from this one', () => {
-    const p = projetInstalle();
-    const autre = dossier('autre-projet');
-    const r = installer(p, {
-      noms: NOMS_LOCAUX,
-      marches: ['claude-plugins-official', MARCHE],
-      chemins: { [MARCHE]: autre },
-    });
-    expect(r.status, r.sortie).toBe(0);
-    expect(ajouts(r.claude.appels()).map(a => a.argv[3])).toEqual([CHEMIN]);
-    expect(r.claude.etat().chemins?.[MARCHE]).toBe(p);
-  });
-
-  it('critère 2: the name known at the directory of this project is not added again', () => {
-    const p = projetInstalle();
-    const r = installer(p, {
-      noms: NOMS_LOCAUX,
-      marches: ['claude-plugins-official', MARCHE],
-      chemins: { [MARCHE]: p },
-    });
-    expect(r.status, r.sortie).toBe(0);
-    expect(ajouts(r.claude.appels())).toEqual([]);
-    expect(installes(r.claude.appels())).toEqual([ID]);
-  });
-
-  it('critère 5: a plugin installed for the project whose folder carries another version than its copy is refreshed, from the project, at its scope', () => {
-    const p = projetInstalle();
-    const r = installer(p, {
-      marches: ['claude-plugins-official', MARCHE],
-      chemins: { [MARCHE]: p },
-      plugins: [
-        { id: ID, scope: 'project', projectPath: p, version: '0.23.0', folderVersion: '0.24.0' },
-      ],
-    });
-    expect(r.status, r.sortie).toBe(0);
-    expect(installes(r.claude.appels())).toEqual([]);
-    const [mise, ...autres] = mises(r.claude.appels());
-    expect(autres).toEqual([]);
-    expect(mise?.argv).toEqual(['plugin', 'update', ID, '--scope', 'project']);
-    expect(mise?.cwd).toBe(p);
-    expect(r.claude.etat().plugins?.[0]?.version).toBe('0.24.0');
-  });
-
-  it('critère 5: a copy at the version of its folder, or a plugin not read from a folder, is not refreshed', () => {
-    const p = projetInstalle();
-    for (const entree of [{ version: '0.24.0', folderVersion: '0.24.0' }, { version: '0.23.0' }]) {
-      const r = installer(p, {
-        marches: ['claude-plugins-official', MARCHE],
-        chemins: { [MARCHE]: p },
-        plugins: [{ id: ID, scope: 'project', projectPath: p, ...entree }],
-      });
-      expect(r.status, r.sortie).toBe(0);
-      expect(mises(r.claude.appels()), JSON.stringify(entree)).toEqual([]);
+// grillhouse-3uv.84.3, critère 3: the package and the mod are released by the same commit, under
+// one version; the session start names a mod installed for the project at another version than
+// the package's (the `version` of its package.json), with the command that aligns them: the mod's
+// update when it is behind, the package's install at the mod's version when the package is.
+describe('grillhouse-3uv.84.3 critère 3 — the session start names a package and a mod of different versions', () => {
+  const PAQUET = (
+    JSON.parse(readFileSync(path.join(DEPOT, 'packages/grillhouse/package.json'), 'utf8')) as {
+      version: string;
     }
+  ).version;
+  const DERRIERE = '0.0.1';
+  const DEVANT = `${Number(PAQUET.split('.')[0]) + 1}.0.0`;
+  const ligneEcart = (sortie: string) =>
+    sortie.split('\n').find(l => l.includes(GRILL) && l.includes('@roomi-fields/grillhouse'));
+  const etat = (p: string, version: string, scope = 'local', racine = p): EtatClaude => ({
+    marches: ['claude-plugins-official', 'roomi-fields'],
+    plugins: [
+      { id: RTFM, scope: 'user', enabled: true, version: '9.9.9' },
+      { id: GRILL, scope, enabled: true, projectPath: racine, version },
+      { id: GRILL, scope: 'user', enabled: true, version: PAQUET },
+      { id: MATT, scope: 'project', enabled: true, projectPath: p, version: '1.0.0' },
+    ],
   });
 
-  it('critère 3: the session start compares no version of the plugin with the package', () => {
-    const p = projetOuvert(REGLAGES);
-    const { sortie } = ouvrir(p, {
-      marches: ['claude-plugins-official', MARCHE],
-      plugins: [
-        { id: ID, scope: 'project', enabled: true, projectPath: p, version: '0.0.1' },
-        { id: ID, scope: 'user', enabled: true, version: '99.0.0' },
-      ],
-    });
-    expect(sortie).not.toMatch(/claude plugin update|npm install -D|sortent ensemble/);
+  it('critère 3: the mod behind the package: both versions, and the update of the mod for the project', () => {
+    const p = projetOuvert();
+    const { sortie } = ouvrir(p, etat(p, DERRIERE));
+    const l = ligneEcart(sortie);
+    expect(l, sortie).toBeDefined();
+    expect(l, sortie).toContain(DERRIERE);
+    expect(l, sortie).toContain(PAQUET);
+    expect(l, sortie).toContain(`\`claude plugin update ${GRILL} --scope local\``);
   });
-
-  it('critère 3: greffons.mjs and the session start hold no comparison of versions', () => {
-    expect(lignesDeCode(readFileSync(GREFFONS, 'utf8')).join('\n')).not.toMatch(
-      /ecart|versionDuPaquet|plusAncienne/
-    );
-    expect(lignesDeCode(readFileSync(SESSION, 'utf8')).join('\n')).not.toMatch(/ecart/);
+  it('critère 3: the package behind the mod: the install of the package at the mod’s version', () => {
+    const p = projetOuvert();
+    const { sortie } = ouvrir(p, etat(p, DEVANT, 'project'));
+    const l = ligneEcart(sortie);
+    expect(l, sortie).toBeDefined();
+    expect(l, sortie).toContain(DEVANT);
+    expect(l, sortie).toContain(PAQUET);
+    expect(l, sortie).toContain(`\`npm install -D @roomi-fields/grillhouse@${DEVANT}\``);
+  });
+  it('critère 3: the same version, other plugins at other versions: nothing is said', () => {
+    const p = projetOuvert();
+    const { sortie } = ouvrir(p, etat(p, PAQUET));
+    expect(ligneEcart(sortie), sortie).toBeUndefined();
+    expect(sortie).not.toMatch(/claude plugin update|npm install -D/);
+  });
+  it('critère 3: the mod at another version for another project only is not compared', () => {
+    const p = projetOuvert();
+    const { sortie } = ouvrir(p, etat(p, DERRIERE, 'local', '/home/quelquun/autre-projet'));
+    expect(ligneEcart(sortie), sortie).toBeUndefined();
+  });
+  // grillhouse-3uv.84.7 critère 3: the plugin's manifest in the repository carries no version (the
+  // package's reaches it when packed), so a plugin read from a git source has none of x.y.z.
+  it('critère 3: a mod whose version is not x.y.z (a manifest without version) is not compared', () => {
+    const p = projetOuvert();
+    const { sortie } = ouvrir(p, etat(p, 'a1b2c3d4e5f6'));
+    expect(ligneEcart(sortie), sortie).toBeUndefined();
   });
 });

@@ -555,7 +555,7 @@ import { NOMS_DES_GARDES } from './gardes-du-cadre.mjs';
 import { isTesterFile } from './verrous/verrou.mjs';
 import { A_REPASSER } from './vitest-config/pression.mjs';
 import { ouvrirBase, vivant } from './vitest-config/base-de-passe.mjs';
-import { CADRE } from './cadre.mjs';
+import { GREFFON } from './cadre.mjs';
 
 // The time a session's transcripts may stand still before the circuit stops it.
 export const IMMOBILE_MS = 20 * 60 * 1000;
@@ -626,16 +626,8 @@ const INTEGRER = path.join(ici, 'integration', 'integrer.mjs');
 const FILE = path.join(ici, 'integration', 'file.mjs');
 const REGISTRE = path.join(ici, 'registre.mjs');
 // The templates of the instructions, in the skill of the supervisor, which the frame's plugin
-// carries (mods/grillhouse/), read among the frame's files the package reads (scripts/cadre.mjs).
-const GABARIT = path.join(
-  CADRE,
-  'mods',
-  'grillhouse',
-  'skills',
-  'pitmaster',
-  'references',
-  'consigne-agent.md'
-);
+// carries, read at the plugin's root (scripts/cadre.mjs).
+const GABARIT = path.join(GREFFON, 'skills', 'pitmaster', 'references', 'consigne-agent.md');
 
 // A stop of the circuit: its name (a key of ARRETS) and its report; for a stop of the checks, its
 // reds read in the structured results (`{ composant, texte, detail }`) and its motive, the report
@@ -3596,8 +3588,8 @@ function rubrique(ctx, titre) {
   );
 }
 
-// The meta-frame, the frame's plugin's, among the frame's files the package reads (scripts/cadre.mjs).
-const METACADRE = path.join(CADRE, 'mods', 'grillhouse', 'METACADRE.md');
+// The meta-frame, the frame's plugin's, read at the plugin's root (scripts/cadre.mjs).
+const METACADRE = path.join(GREFFON, 'METACADRE.md');
 
 // The questioning of a proposal by the questionneur, in rounds with its author, never side by
 // side: the questionneur asks (its sheet, `questions`), the author answers by resuming its own

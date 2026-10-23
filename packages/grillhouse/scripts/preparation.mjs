@@ -10,12 +10,9 @@
 // - The folder git reads the hooks from: `core.hooksPath` set to Beads' (`.beads/hooks`) when the
 //   repository names none. The frame's git hooks come by the project's `prepare`
 //   (`grillhouse hooks`), which the `npm install` below runs.
-// - `npm install`, when the project has a package.json: it installs the frame's package, which
-//   carries the frame's plugin.
-// - Then what the caller writes once the package is installed (`grillhouse init`: what the update
-//   writes, the project's marketplace of the frame's plugin among it), then the plugins its
-//   settings declare, installed for the project (scripts/greffons.mjs): a plugin that cannot be
-//   installed has its line naming the command to type.
+// - `npm install`, when the project has a package.json: it installs the frame's package.
+// - Then the frame's plugins its settings declare, installed for the project (scripts/greffons.mjs):
+//   a plugin that cannot be installed has its line naming the command to type.
 // A global tool whose installation fails stops the preparation, its message naming the command.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -58,11 +55,10 @@ function outil(commande, paquet) {
 }
 
 /**
- * Prepares the project at <projet>, its tickets under <prefixe>, <installe> run once its package is
- * installed (see the header). Returns the lines of failure of the plugins (empty when everything
- * stands).
+ * Prepares the project at <projet>, its tickets under <prefixe> (see the header). Returns the lines
+ * of failure of the plugins (empty when everything stands).
  */
-export function preparer(projet, prefixe, installe = () => {}) {
+export function preparer(projet, prefixe) {
   if (spawnSync('git', ['-C', projet, 'rev-parse', '--git-dir']).status !== 0) {
     lancer(projet, 'git', ['init', '-q']);
   }
@@ -84,6 +80,5 @@ export function preparer(projet, prefixe, installe = () => {}) {
     lancer(projet, 'git', ['config', 'core.hooksPath', '.beads/hooks']);
   }
   if (existsSync(path.join(projet, 'package.json'))) lancer(projet, 'npm', ['install']);
-  installe();
   return installerGreffons(projet);
 }

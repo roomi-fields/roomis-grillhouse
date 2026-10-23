@@ -14,10 +14,10 @@
 import semver from 'semver';
 import * as configVitest from './migrations/0.23.0-config-vitest.mjs';
 import * as crochetsDeSeance from './migrations/0.23.0-crochets-de-seance.mjs';
-import * as greffonDuPaquet from './migrations/0.23.0-greffon-du-paquet.mjs';
+import * as marcheDuProjet from './migrations/0.23.0-marche-du-projet.mjs';
 
 /** The migrations of the package. */
-export const MIGRATIONS = [crochetsDeSeance, configVitest, greffonDuPaquet];
+export const MIGRATIONS = [crochetsDeSeance, configVitest, marcheDuProjet];
 
 /**
  * The migrations of <liste> newer than <depuis> (all of them when it is null), in the order of

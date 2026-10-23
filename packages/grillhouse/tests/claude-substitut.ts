@@ -6,17 +6,9 @@ import path from 'node:path';
 // It records each call (argv and working directory) and answers the plugin commands from a state
 // file, as Claude Code 2.1.296 does (measured on 2026-10-12):
 // - `plugin list --json`: one entry per installation (id, scope, projectPath for project/local);
-// - `plugin marketplace list --json`: one entry per known marketplace (`name`); a marketplace of a
-//   directory (`chemins`) answers `source: directory` and its `path`, as the real one does;
-// - `plugin marketplace add <source> [--scope s]`: the marketplace becomes known, under the name
-//   `noms` gives for the source (else, for a directory holding `.claude-plugin/marketplace.json`,
-//   the `name` it declares, else the last segment of the source); a source that is a path
-//   (`/…` or `./…`) is refused when it does not exist (« Path does not exist »), else recorded in
-//   `chemins`, resolved from the working directory, as Claude Code
-//   2.1.309 records a directory (measured on 2026-10-23, grillhouse-3uv.84.7): the name is the
-//   machine's, the last add of a name points it at its own directory;
-// - `plugin update <id> --scope s`: the entry of that scope at the working directory (or of the
-//   user) takes the version of its folder (`folderVersion`), as the real one refreshes its copy;
+// - `plugin marketplace list --json`: one entry per known marketplace (`name`);
+// - `plugin marketplace add <source>`: the marketplace becomes known, under the name `noms` gives
+//   for the source (else the last segment of the source);
 // - `plugin install <plugin>@<marketplace> [--scope s]`: refused when the marketplace is unknown,
 //   else an entry of scope s (user by default), whose projectPath is the working directory.
 //   With --scope project and a known marketplace, it first rewrites `.claude/settings.json` of the
@@ -33,8 +25,6 @@ export interface EtatClaude {
   plugins?: Record<string, unknown>[];
   /** The names of the known marketplaces; claude-plugins-official by default. */
   marches?: string[];
-  /** The directory each marketplace of a directory points at (its name: its resolved path). */
-  chemins?: Record<string, string>;
   /** The name a marketplace added from a source receives. */
   noms?: Record<string, string>;
   /** The plugins whose install fails. */
@@ -99,19 +89,12 @@ if (k[0] === 'plugin' && k[1] === 'list') {
 }
 if (k[0] === 'plugin' && k[1] === 'marketplace' && k[2] === 'list') {
   if (!json) { process.stdout.write('Configured marketplaces:\\n'); process.exit(0); }
-  lire('marches', e.marches.map(name => (e.chemins ?? {})[name]
-    ? { name, source: 'directory', path: e.chemins[name], installLocation: e.chemins[name] }
-    : { name, source: 'github', repo: 'x/' + name, installLocation: '/x/' + name }));
+  lire('marches', e.marches.map(name => ({ name, source: 'github', repo: 'x/' + name, installLocation: '/x/' + name })));
 }
 if (k[0] === 'plugin' && k[1] === 'marketplace' && k[2] === 'add' && k[3]) {
   if ((e.echecsAjout ?? []).includes(k[3])) { process.stderr.write('Failed to add marketplace\\n'); process.exit(1); }
-  const chemin = k[3].startsWith('/') || k[3].startsWith('.') ? require('path').resolve(process.cwd(), k[3]) : null;
-  if (chemin !== null && !fs.existsSync(chemin)) { process.stderr.write('Path does not exist: ' + chemin + '\\n'); process.exit(1); }
-  const manifeste = chemin === null ? null : require('path').join(chemin, '.claude-plugin', 'marketplace.json');
-  const declare = manifeste !== null && fs.existsSync(manifeste) ? JSON.parse(fs.readFileSync(manifeste, 'utf8')).name : undefined;
-  const nom = (e.noms ?? {})[k[3]] ?? declare ?? k[3].replace(/\\.git$/, '').split('/').pop();
+  const nom = (e.noms ?? {})[k[3]] ?? k[3].replace(/\\.git$/, '').split('/').pop();
   if (!e.marches.includes(nom)) e.marches.push(nom);
-  if (chemin !== null) e.chemins = { ...(e.chemins ?? {}), [nom]: chemin };
   ecrire();
   process.stdout.write('Successfully added marketplace: ' + nom + '\\n');
   process.exit(0);
@@ -136,15 +119,6 @@ if (k[0] === 'plugin' && (k[1] === 'install' || k[1] === 'i') && k[2]) {
     ...(s === 'user' ? {} : { projectPath: process.cwd() }), projectEnabled: true });
   ecrire();
   process.stdout.write('Successfully installed plugin: ' + k[2] + ' (scope: ' + s + ')\\n');
-  process.exit(0);
-}
-if (k[0] === 'plugin' && k[1] === 'update' && k[2]) {
-  const x = e.plugins.find(p => p.id === k[2] && p.scope === scope &&
-    (scope === 'user' || p.projectPath === process.cwd()));
-  if (!x) { process.stderr.write('Plugin "' + k[2] + '" is not installed at scope ' + scope + '\\n'); process.exit(1); }
-  if (typeof x.folderVersion === 'string') x.version = x.folderVersion;
-  ecrire();
-  process.stdout.write('Plugin "' + k[2] + '" updated\\n');
   process.exit(0);
 }
 process.stderr.write('claude (substitut): commande inconnue ' + a.join(' ') + '\\n');

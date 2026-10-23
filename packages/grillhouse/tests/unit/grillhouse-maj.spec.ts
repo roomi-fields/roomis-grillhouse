@@ -1196,16 +1196,21 @@ describe('grillhouse-3uv.76 critère 1 — the update keeps the order of the set
       c.appels().filter(a => a.argv[0] === 'plugin' && a.argv[1] === 'install');
 
     // The install of the plugin rewrites the settings in Claude Code's order: the project's stays.
-    const premier = claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')), { marches: ['m'] });
+    const premier = claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')), {
+      marches: ['m', 'roomi-fields'],
+    });
     const r1 = lancerMajAvec(projet, [], premier.bin);
     expect(r1.status, r1.stderr).toBe(0);
-    // The project's plugin and the frame's, which the update declares (grillhouse-3uv.84.7).
+    // The project's plugin and the frame's, grillhouse@roomi-fields, which the update declares
+    // (grillhouse-3uv.84.7).
     expect(installs(premier).length, 'the plugins are installed').toBe(2);
     const apres = lire(projet, REGLAGES);
     expect(Object.keys(JSON.parse(apres) as object)).toEqual(ordre);
 
     // Replayed (the content does not change), the plugin installed again: the file stays as it is.
-    const second = claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')), { marches: ['m'] });
+    const second = claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')), {
+      marches: ['m', 'roomi-fields'],
+    });
     const r2 = lancerMajAvec(projet, [], second.bin);
     expect(r2.status, r2.stderr).toBe(0);
     expect(installs(second).length, 'the plugins are installed').toBe(2);
@@ -1560,7 +1565,11 @@ describe('grillhouse-3uv.84.4 critère 2 — grillhouse maj plays the migrations
     );
     return projet;
   }
-  const bin = () => claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-'))).bin;
+  // The marketplace of the frame's plugin, which the update declares (grillhouse-3uv.84.7), known.
+  const bin = () =>
+    claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')), {
+      marches: ['claude-plugins-official', 'roomi-fields'],
+    }).bin;
 
   it('a project that recorded no version plays every migration, the report naming each that changed something', () => {
     const projet = projetAncien();
@@ -1634,7 +1643,8 @@ describe('grillhouse-3uv.84.4 critère 6 — the update keeps the project’s st
     const projet = avecReglages({ model: 'opus', enabledPlugins: {} });
     expect(mettreAJour(projet, DEPOT).ligneEtat).toBe(true);
     expect(ligne(projet)).toEqual({ type: 'command', command: LIGNE_ETAT });
-    // The plugin of the package is declared after it (grillhouse-3uv.84.7 critère 2).
+    // The frame's plugin, grillhouse@roomi-fields, is declared after it (grillhouse-3uv.84.7
+    // critère 2).
     expect(Object.keys(json(projet, REGLAGES))).toEqual([
       'model',
       'enabledPlugins',

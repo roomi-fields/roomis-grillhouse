@@ -23,7 +23,7 @@ A rule serves an intention of the frame and names it; it is written as `METACADR
 
 ## 5. How a version is released
 
-One version covers the frame: the `version` of `packages/grillhouse/package.json`, the package `@roomi-fields/grillhouse` that npm publishes, so each project knows the version it has installed. The package carries the frame's plugin, which takes that version when the package is packed (`packages/grillhouse/scripts/cadre.mjs`): the plugin's manifest in the repository carries none, and no other publication of the plugin exists. The root `package.json` never carries it.
+One version covers the frame: the `version` of `packages/grillhouse/package.json`, the package `@roomi-fields/grillhouse` that npm publishes, so each project knows the version it has installed. The package is the frame's plugin: its prepack copies the plugin (`mods/grillhouse/`) at the package's root, whose manifest takes that version (`packages/grillhouse/scripts/cadre.mjs`); the plugin's manifest in the repository carries none, and no other publication of the plugin exists. The marketplace `roomi-fields` (`roomi-fields/claude-plugins`) names the package by its source npm, so a machine installs the version published last. The root `package.json` never carries it.
 
 The versions follow semantic versioning in 0.x: a change that obliges a project to act raises the minor, a fix the patch. A version is released per lot delivered to the projects, never per commit:
 
@@ -31,6 +31,7 @@ The versions follow semantic versioning in 0.x: a change that obliges a project 
 2. The release commit carries these two files.
 3. `npx grillhouse sortie --etiqueter` creates the annotated tag `v<x.y.z>` on that commit, locally, once its CI is green, and names the push. It pushes nothing: the owner validates the push of the tag.
 4. On the tag, `.github/workflows/release.yml` plays the CI on the tagged commit; once it is green, it checks that the tag names the version (`npx grillhouse sortie --verifier-etiquette <tag>`), publishes the package on the npm registry with the repository's secret `NPM_TOKEN`, and publishes the GitHub release.
-5. The projects update to this version (`npm run grillhouse:maj`, whose report names it). The update installs the last commit of Grillhouse's default branch, not a tag.
+5. Once the first package carrying the plugin is published, the owner sets the plugin's entry in the marketplace `roomi-fields/claude-plugins` (`.claude-plugin/marketplace.json`) to its source npm, a public gesture of that repository: `npx grillhouse sortie --entree-du-marche` prints the entry, `{ "name": "grillhouse", "source": { "source": "npm", "package": "@roomi-fields/grillhouse" } }`, whose `source` replaces the entry's former one (`mods/grillhouse` of this repository). A source npm has no subdirectory: the package's root is the plugin's.
+6. The projects update to this version (`npm run grillhouse:maj`, whose report names it). The update installs the last commit of Grillhouse's default branch, not a tag.
 
 `packages/grillhouse/scripts/sortie.mjs` is Grillhouse's own: a project runs none of it, and `grillhouse init` installs the template of a project alone (`templates/projet/`).

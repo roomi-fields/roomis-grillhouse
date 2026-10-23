@@ -1,29 +1,31 @@
 #!/usr/bin/env node
-// The frame's files the package carries: the template of a project (`templates/`, which
-// `grillhouse init` installs and `grillhouse maj` reads) and the frame's plugin (`mods/grillhouse/`:
-// its skills, agents, hooks of Claude Code, panel, common charter and meta-frame, `METACADRE.md`,
-// which the circuit also reads, as the agents' instructions, `consigne-agent.md`). In Grillhouse's
-// repository they live at their own address, beside the package; the published package carries a
-// copy of them under `cadre/`, at the same relative paths, as create-vite carries its templates:
-// the package carries its plugin, as a package of ESLint carries its plugin, and the frame arrives
-// in one piece.
+// The frame's files the package carries: the frame's plugin (`mods/grillhouse/`: its skills,
+// agents, hooks of Claude Code, panel, common charter and meta-frame, `METACADRE.md`, which the
+// circuit also reads, as the agents' instructions, `consigne-agent.md`) and the template of a
+// project (`templates/`, which `grillhouse init` installs and `grillhouse maj` reads). In
+// Grillhouse's repository they live at their own address, beside the package. The published
+// package is the plugin, as a package of ESLint carries its plugin: its root holds the plugin's
+// files, so the marketplace names the package by a source npm, which has no subdirectory; and
+// it carries a copy of the template under `cadre/`, as create-vite carries its templates. The
+// frame arrives in one piece.
 //
-//   node scripts/cadre.mjs --empaqueter   copies them under cadre/ (the package's prepack)
-//   node scripts/cadre.mjs --nettoyer     removes cadre/ (the package's postpack)
+//   node scripts/cadre.mjs --empaqueter   copies them into the package (the package's prepack)
+//   node scripts/cadre.mjs --nettoyer     removes the copies (the package's postpack)
 //
-// - CADRE is the root these paths are read from: `cadre/` of the package when it is installed (its
-//   real path lies under a `node_modules` directory), else Grillhouse's repository, two levels
-//   above the package. So the package reads the same files wherever it is installed, and the
-//   repository keeps one address for each.
-// - The copy of the plugin leaves out its tests (`mods/grillhouse/tests/`), and its manifest
-//   (`.claude-plugin/plugin.json`) receives VERSION: the plugin takes the package's version, its
-//   manifest in the repository carries none.
-// - CHEMIN_DU_GREFFON is the plugin's directory in a project that installed the package, relative
-//   to its root: the marketplace of the project lists it (`grillhouse maj`), and Claude Code reads
-//   the plugin in place from that folder.
+// - GREFFON is the plugin's root these scripts read: the package's own when it is installed (its
+//   real path lies under a `node_modules` directory), else `mods/grillhouse/` of Grillhouse's
+//   repository, two levels above the package. CADRE is the root the template is read from:
+//   `cadre/` of the installed package, else the repository. So the package reads the same files
+//   wherever it is installed, and the repository keeps one address for each.
+// - The copy of the plugin, ELEMENTS_DU_GREFFON, is each entry of `mods/grillhouse/` but its tests
+//   (`tests/`) and its configuration of TypeScript (`tsconfig.json`), at the package's root,
+//   beside the package's own entries, PROPRES_DU_PAQUET; an entry of the plugin of the same name
+//   stops the copy. Its manifest (`.claude-plugin/plugin.json`)
+//   receives VERSION: the plugin takes the package's version, its manifest in the repository
+//   carries none.
 // - VERSION is the `version` of the package's package.json, the one version of the package and its
 //   plugin.
-import { cpSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -31,43 +33,66 @@ import { pathToFileURL } from 'node:url';
 export const PAQUET = path.join(import.meta.dirname, '..');
 const COPIE = path.join(PAQUET, 'cadre');
 const DEPOT = path.join(PAQUET, '..', '..');
-const GREFFON = 'mods/grillhouse';
+const SOURCE_DU_GREFFON = path.join(DEPOT, 'mods', 'grillhouse');
+const INSTALLE = PAQUET.split(path.sep).includes('node_modules');
 
-/** The frame's files the package reads, relative to CADRE, which `--empaqueter` copies. */
-export const FICHIERS_DU_CADRE = [GREFFON, 'templates'];
+/** The frame's files the package reads under CADRE, which `--empaqueter` copies under cadre/. */
+export const FICHIERS_DU_CADRE = ['templates'];
 
-/** The plugin's name, and its directory in a project that installed the package. */
-export const NOM_DU_GREFFON = 'grillhouse';
-export const CHEMIN_DU_GREFFON = `./node_modules/@roomi-fields/grillhouse/cadre/${GREFFON}`;
+/** The entries the package publishes of its own. */
+export const PROPRES_DU_PAQUET = ['bin', 'cadre', 'scripts'];
+
+/** The entries of the plugin's source the package leaves out. */
+export const HORS_DU_GREFFON = ['tests', 'tsconfig.json'];
+
+/** The entries of the plugin, which `--empaqueter` copies at the package's root. */
+export const ELEMENTS_DU_GREFFON = existsSync(SOURCE_DU_GREFFON)
+  ? readdirSync(SOURCE_DU_GREFFON)
+      .filter(e => !HORS_DU_GREFFON.includes(e))
+      .sort()
+  : [];
 
 /** The root of the frame's files: the package's copy when installed, else the repository. */
-export const CADRE = PAQUET.split(path.sep).includes('node_modules') ? COPIE : DEPOT;
+export const CADRE = INSTALLE ? COPIE : DEPOT;
+
+/** The root of the frame's plugin: the package itself when installed, else its source. */
+export const GREFFON = INSTALLE ? PAQUET : SOURCE_DU_GREFFON;
 
 /** The version of the package and its mod. */
 export const VERSION = JSON.parse(readFileSync(path.join(PAQUET, 'package.json'), 'utf8')).version;
 
 const json = v => `${JSON.stringify(v, null, 2)}\n`;
 
-// Copies each file of FICHIERS_DU_CADRE from the repository under cadre/, cadre/ emptied first, the
-// plugin's tests left out and its manifest at VERSION.
+// Copies the plugin at the package's root, its manifest at VERSION, and each file of
+// FICHIERS_DU_CADRE under cadre/; the former copies removed first.
 function empaqueter() {
+  if (!existsSync(SOURCE_DU_GREFFON)) {
+    throw new Error(`mods/grillhouse manque au dépôt du cadre (${DEPOT})`);
+  }
+  const doublon = ELEMENTS_DU_GREFFON.find(e => PROPRES_DU_PAQUET.includes(e));
+  if (doublon) {
+    throw new Error(`${doublon} du greffon porte le nom d'une entrée du paquet (${PAQUET})`);
+  }
   nettoyer();
-  const tests = path.join(DEPOT, GREFFON, 'tests');
+  for (const e of ELEMENTS_DU_GREFFON) {
+    cpSync(path.join(SOURCE_DU_GREFFON, e), path.join(PAQUET, e), { recursive: true });
+  }
+  const manifeste = path.join(PAQUET, '.claude-plugin', 'plugin.json');
+  writeFileSync(
+    manifeste,
+    json({ ...JSON.parse(readFileSync(manifeste, 'utf8')), version: VERSION })
+  );
   for (const f of FICHIERS_DU_CADRE) {
     const source = path.join(DEPOT, f);
     if (!existsSync(source)) throw new Error(`${f} manque au dépôt du cadre (${DEPOT})`);
-    cpSync(source, path.join(COPIE, f), {
-      recursive: true,
-      filter: s => s !== tests && !s.startsWith(`${tests}${path.sep}`),
-    });
+    cpSync(source, path.join(COPIE, f), { recursive: true });
   }
-  const manifeste = path.join(COPIE, GREFFON, '.claude-plugin', 'plugin.json');
-  const greffon = JSON.parse(readFileSync(manifeste, 'utf8'));
-  writeFileSync(manifeste, json({ ...greffon, version: VERSION }));
 }
 
-// Removes cadre/.
+// Removes the copies of the plugin and cadre/.
 function nettoyer() {
+  for (const e of ELEMENTS_DU_GREFFON)
+    rmSync(path.join(PAQUET, e), { recursive: true, force: true });
   rmSync(COPIE, { recursive: true, force: true });
 }
 

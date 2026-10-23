@@ -90,5 +90,13 @@ pids/
 # Turborepo: its local cache and its runs
 .turbo/
 
-# The frame's files the package carries when packed (scripts/cadre.mjs --empaqueter)
+# The frame's files the package carries when packed (scripts/cadre.mjs --empaqueter): the
+# plugin at its root, the template under cadre/
 packages/grillhouse/cadre/
+packages/grillhouse/.claude-plugin/
+packages/grillhouse/METACADRE.md
+packages/grillhouse/agents/
+packages/grillhouse/charte.md
+packages/grillhouse/hooks/
+packages/grillhouse/skills/
+packages/grillhouse/types/

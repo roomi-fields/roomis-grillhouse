@@ -11,27 +11,13 @@
 //   at `false` or unlisted is left alone) and `extraKnownMarketplaces` for the marketplaces. A
 //   missing file declares nothing (code 0); an unreadable one is a failure.
 // - Installation: each marketplace of `extraKnownMarketplaces` unknown to `claude plugin
-//   marketplace list --json` is added by `claude plugin marketplace add <source>`, run from the
-//   project's root (the source is `repo` for github, `url` for git and url, `path` for directory and
-//   file, any other type is a failure); then each declared plugin not installed for the project is
-//   installed by `claude plugin install <id> --scope project`, run from the project's root.
-// - A marketplace of a remote source is added at the user's scope. A marketplace of a directory or
-//   a file is the project's own (the frame's: the project's root, `./`, whose
-//   `.claude-plugin/marketplace.json` `grillhouse maj` writes): it is added at the local scope
-//   (`--scope local`, the local settings, which git ignores), so the project's settings keep the
-//   path as they declare it, relative to the project's root. Claude Code knows a marketplace by its
-//   name for the whole machine, the last add of a name pointing it at its own directory (measured
-//   on 2026-10-23, Claude Code 2.1.309): such a marketplace is known for the project only when the
-//   machine's points at the directory the project declares, resolved from its root; else it is
-//   added again.
-// - A plugin installed for the project that Claude Code reads in place from its folder (`plugin
-//   list` gives the version of that folder, `folderVersion`) and whose installed copy carries
-//   another version is refreshed by `claude plugin update <id> --scope <its scope>`, run from the
-//   project's root: after a rise of the package, the copy follows the folder, which Claude Code
-//   already reads at the next session.
-// - `claude` rewrites `.claude/settings.json` in its own key order; once the installs are done, the
-//   file holds the keys in the order it had before them (the keys claude added after), and its
-//   exact text when the JSON value is the same.
+//   marketplace list --json` is added by `claude plugin marketplace add <source>` (the user's scope,
+//   the project's settings stay untouched; the source is `repo` for github, `url` for git and url,
+//   `path` for directory and file, any other type is a failure); then each declared plugin not
+//   installed for the project is installed by `claude plugin install <id> --scope project`, run
+//   from the project's root. `claude` rewrites `.claude/settings.json` in its own key order; once
+//   the installs are done, the file holds the keys in the order it had before them (the keys
+//   claude added after), and its exact text when the JSON value is the same.
 // - A plugin is installed for the project when `claude plugin list --json` has an entry for it of
 //   scope user, or of scope project or local whose `projectPath` is the project's root (both paths
 //   resolved); the entry's state (enabled, errors) is not read.
@@ -40,7 +26,16 @@
 //   code is 1. A state reading that fails installs nothing. Without `claude`, each plugin has its line.
 // - `--absents` prints `claude` (the command is missing), `greffon <id>` per declared plugin not
 //   installed for the project, or `lecture <reason>` when the state cannot be read; each claude
-//   call stops after 5 s.
+//   call stops after 5 s. It also prints `ecart <id> <mod's version> <package's version>
+//   <command>` when the frame's mod (`grillhouse@…`), installed for the project, carries another
+//   version than the package `@roomi-fields/grillhouse` this script belongs to: the package carries
+//   the plugin, whose manifest receives the package's version when it is packed (scripts/cadre.mjs),
+//   and the marketplace roomi-fields names the package, so a project's package and the plugin the
+//   machine installed for it can drift apart. The entry read is the project's at scope local, else
+//   project, else user; the command aligns the one behind (`claude plugin update <id> --scope <its
+//   scope>`, or `npm install -D @roomi-fields/grillhouse@<mod's version>`). A version that is not
+//   x.y.z (a plugin whose manifest carries none) and a script without its package's package.json
+//   beside it compare nothing.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -123,26 +118,6 @@ function installePourLeProjet(entrees, id, racine) {
   );
 }
 
-// Whether an entry of `extraKnownMarketplaces` is a directory or a file: the project's own.
-const local = entree => ['directory', 'file'].includes(entree?.source?.source);
-
-// Whether the marketplace <nom> of the entry <entree> is known for the project at <racine>, among
-// the marketplaces <connus> of the machine: by its name, and, for a directory or a file, at the
-// path the project declares, resolved from its root.
-function connu(connus, nom, entree, racine) {
-  const m = connus.find(x => x.name === nom);
-  if (!m) {
-    return false;
-  }
-  if (!local(entree)) {
-    return true;
-  }
-  return (
-    typeof m.path === 'string' &&
-    resolu(m.path) === resolu(path.resolve(racine, entree.source.path))
-  );
-}
-
 // The source `marketplace add` receives for an entry of `extraKnownMarketplaces`, or null.
 function sourceDuMarche(entree) {
   const s = entree?.source ?? {};
@@ -189,24 +164,6 @@ function restaurerReglages(fichier, avant) {
 }
 
 const commandeGreffon = id => `claude plugin install ${id} --scope project`;
-
-// Refreshes the installed copies of the plugin <id> for the project at <racine> whose folder, read
-// in place, carries another version (`folderVersion`); returns the lines of failure.
-function rafraichir(entrees, id, racine) {
-  return entrees
-    .filter(
-      e =>
-        installePourLeProjet([e], id, racine) &&
-        typeof e.folderVersion === 'string' &&
-        e.folderVersion !== e.version
-    )
-    .flatMap(e => {
-      const args = ['plugin', 'update', id, '--scope', e.scope];
-      return claude(args, { cwd: racine }).ok
-        ? []
-        : [`${id} : la mise à jour de sa copie échoue ; lance \`claude ${args.join(' ')}\`.`];
-    });
-}
 const marcheDe = id => id.slice(id.indexOf('@') + 1);
 
 /**
@@ -247,10 +204,11 @@ function installer(projet) {
   if (lectureMarches.erreur) {
     return [`${lectureMarches.erreur} : aucun marketplace n'est ajouté, aucun greffon installé.`];
   }
+  const connus = new Set(lectureMarches.liste.map(m => m.name));
   // marketplace name -> the line-part of its failed add (command or reason)
   const echecs = new Map();
   for (const [nom, entree] of Object.entries(d.marches)) {
-    if (connu(lectureMarches.liste, nom, entree, racine)) {
+    if (connus.has(nom)) {
       continue;
     }
     const src = sourceDuMarche(entree);
@@ -260,18 +218,8 @@ function installer(projet) {
         `le marketplace ${nom} a une source (${entree?.source?.source}) que \`claude plugin marketplace add\` n'accepte pas`
       );
       lignes.push(`${echecs.get(nom)}.`);
-    } else if (
-      !claude(
-        ['plugin', 'marketplace', 'add', src, ...(local(entree) ? ['--scope', 'local'] : [])],
-        {
-          cwd: racine,
-        }
-      ).ok
-    ) {
-      echecs.set(
-        nom,
-        `\`claude plugin marketplace add ${src}${local(entree) ? ' --scope local' : ''}\``
-      );
+    } else if (!claude(['plugin', 'marketplace', 'add', src], { cwd: racine }).ok) {
+      echecs.set(nom, `\`claude plugin marketplace add ${src}\``);
       if (!d.plugins.some(id => marcheDe(id) === nom)) {
         lignes.push(`le marketplace ${nom} : l'ajout échoue, lance ${echecs.get(nom)}.`);
       }
@@ -279,7 +227,6 @@ function installer(projet) {
   }
   for (const id of d.plugins) {
     if (installePourLeProjet(lecturePlugins.liste, id, racine)) {
-      lignes.push(...rafraichir(lecturePlugins.liste, id, racine));
       continue;
     }
     const marche = marcheDe(id);
@@ -296,7 +243,8 @@ function installer(projet) {
 
 /**
  * What the project lacks of its declared plugins: `claude`, `greffon <id>` or `lecture <reason>`
- * lines. Reads only; each claude call stops after 5 s.
+ * lines, and the `ecart …` line of a mod and a package of different versions. Reads only; each
+ * claude call stops after 5 s.
  */
 export function greffonsAbsents(projet) {
   const racine = resolu(projet);
@@ -314,9 +262,61 @@ export function greffonsAbsents(projet) {
   if (lecture.erreur) {
     return [`lecture ${lecture.erreur}`];
   }
-  return d.plugins
-    .filter(id => !installePourLeProjet(lecture.liste, id, racine))
-    .map(id => `greffon ${id}`);
+  const absents = d.plugins.filter(id => !installePourLeProjet(lecture.liste, id, racine));
+  const ecart = ecartDeVersions(lecture.liste, d.plugins, racine);
+  return [...absents.map(id => `greffon ${id}`), ...(ecart ? [ecart] : [])];
+}
+
+// The frame's mod and its package: one version, the `version` of the package.json beside this
+// script's directory (the package's, wherever it is installed), which the plugin's manifest
+// receives when the package is packed.
+const GREFFON_DU_CADRE = 'grillhouse';
+const NOM_DU_PAQUET = '@roomi-fields/grillhouse';
+const X_Y_Z = /^\d+\.\d+\.\d+$/;
+function versionDuPaquet() {
+  try {
+    const p = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+    return p.name === NOM_DU_PAQUET && typeof p.version === 'string' ? p.version : null;
+  } catch {
+    return null;
+  }
+}
+
+// The line `ecart <id> <mod's version> <package's version> <command>` when the frame's mod,
+// declared and installed for the project (its entry of scope local, else project, else user, as
+// Claude Code applies them), carries another version than the package; null otherwise. The command
+// aligns the one behind: the mod's update at its scope, or the package's install at the mod's
+// version.
+function ecartDeVersions(entrees, declares, racine) {
+  const paquet = versionDuPaquet();
+  const id = declares.find(x => x.slice(0, x.indexOf('@')) === GREFFON_DU_CADRE);
+  if (!paquet || !id) {
+    return null;
+  }
+  const pourLeProjet = entrees.filter(e => installePourLeProjet([e], id, racine));
+  const entree = ['local', 'project', 'user']
+    .map(s => pourLeProjet.find(e => e.scope === s))
+    .find(Boolean);
+  const greffon = entree?.version;
+  if (typeof greffon !== 'string' || !X_Y_Z.test(greffon) || greffon === paquet) {
+    return null;
+  }
+  const commande = plusAncienne(greffon, paquet)
+    ? `claude plugin update ${id} --scope ${entree.scope}`
+    : `npm install -D ${NOM_DU_PAQUET}@${greffon}`;
+  return `ecart ${id} ${greffon} ${paquet} ${commande}`;
+}
+
+// True when version <a> comes before version <b> (x.y.z, numbers compared in order).
+function plusAncienne(a, b) {
+  const x = a.split('.').map(Number);
+  const y = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((x[i] ?? 0) !== (y[i] ?? 0)) {
+      return (x[i] ?? 0) < (y[i] ?? 0);
+    }
+  }
+  return false;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolu(process.argv[1])).href) {

@@ -13,9 +13,16 @@
     "access": "public"
   },
   "files": [
+    ".claude-plugin",
+    "METACADRE.md",
+    "agents",
     "bin",
     "cadre",
-    "scripts"
+    "charte.md",
+    "hooks",
+    "scripts",
+    "skills",
+    "types"
   ],
   "bin": {
     "grillhouse": "bin/grillhouse.mjs"

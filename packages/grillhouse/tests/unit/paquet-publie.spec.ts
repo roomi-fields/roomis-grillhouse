@@ -12,13 +12,14 @@ import { builtinModules } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { FICHIERS_DU_CADRE } from '../../scripts/cadre.mjs';
+import { ELEMENTS_DU_GREFFON, FICHIERS_DU_CADRE, PROPRES_DU_PAQUET } from '../../scripts/cadre.mjs';
 
 // grillhouse-3uv.84.4 critère 5: the published package installs and works alone: it declares what
 // its scripts import out of Node, and carries its base configuration of Vitest. Critère 7: what the
 // frame reads of a project's frame (the instructions of the agents, the meta-frame, the template,
 // the base configuration of Vitest) resolves from the package installed, which carries the frame's
-// files under cadre/ (scripts/cadre.mjs, the package's prepack). The installation of the packed
+// plugin at its root and the template under cadre/ (scripts/cadre.mjs, the package's prepack;
+// grillhouse-3uv.84.7). The installation of the packed
 // package in a fresh project, where `grillhouse verifier` plays, is the night's
 // (paquet-publie.nuit.test.ts).
 
@@ -124,24 +125,26 @@ describe('grillhouse-3uv.84.4 critère 5 — the package declares what its scrip
 });
 
 describe('grillhouse-3uv.84.4 critère 7 — what the frame reads resolves from the package installed', () => {
-  it('the package publishes bin/, scripts/ and cadre/, which its prepack writes and its postpack removes', () => {
-    expect(pkg.files.sort()).toEqual(['bin', 'cadre', 'scripts']);
+  it('the package publishes bin/, scripts/, cadre/ and the plugin’s entries, which its prepack writes and its postpack removes', () => {
+    expect(PROPRES_DU_PAQUET).toEqual(['bin', 'cadre', 'scripts']);
+    expect([...pkg.files].sort()).toEqual([...PROPRES_DU_PAQUET, ...ELEMENTS_DU_GREFFON].sort());
     expect(pkg.scripts.prepack).toBe('node scripts/cadre.mjs --empaqueter');
     expect(pkg.scripts.postpack).toBe('node scripts/cadre.mjs --nettoyer');
   });
 
-  it('cadre/ carries the frame’s plugin (its meta-frame and the instructions of the agents with it) and the template of a project', () => {
-    expect(FICHIERS_DU_CADRE).toEqual(expect.arrayContaining(['mods/grillhouse', 'templates']));
+  it('cadre/ carries the template of a project; the package’s root, the frame’s plugin, its meta-frame and the instructions of the agents with it', () => {
+    expect(FICHIERS_DU_CADRE).toEqual(['templates']);
+    expect(ELEMENTS_DU_GREFFON).toEqual(expect.arrayContaining(['METACADRE.md', 'skills']));
   });
 
-  it('--empaqueter copies each file of the frame under cadre/ at its own path; --nettoyer removes it', () => {
+  it('--empaqueter copies the plugin at the package’s root and the template under cadre/; --nettoyer removes them', () => {
     // A repository of the frame of trial: the package beside the frame's files.
     const depot = mkdtempSync(path.join(ESSAIS, 'depot-'));
     const paquet = path.join(depot, 'packages/grillhouse');
     mkdirSync(path.join(paquet, 'scripts'), { recursive: true });
     cpSync(path.join(PAQUET, 'scripts/cadre.mjs'), path.join(paquet, 'scripts/cadre.mjs'));
     cpSync(path.join(PAQUET, 'package.json'), path.join(paquet, 'package.json'));
-    for (const f of FICHIERS_DU_CADRE) {
+    for (const f of [...FICHIERS_DU_CADRE, 'mods/grillhouse']) {
       cpSync(path.join(DEPOT, f), path.join(depot, f), { recursive: true });
     }
     const lancer = (option: string) =>
@@ -149,9 +152,12 @@ describe('grillhouse-3uv.84.4 critère 7 — what the frame reads resolves from 
         encoding: 'utf8',
       });
     expect(lancer('--empaqueter').status).toBe(0);
+    for (const f of ['METACADRE.md', 'skills/pitmaster/references/consigne-agent.md']) {
+      expect(readFileSync(path.join(paquet, f), 'utf8'), f).toBe(
+        readFileSync(path.join(DEPOT, 'mods/grillhouse', f), 'utf8')
+      );
+    }
     for (const f of [
-      'mods/grillhouse/METACADRE.md',
-      'mods/grillhouse/skills/pitmaster/references/consigne-agent.md',
       'templates/projet/package.json',
       'templates/projet/_gitignore',
       'templates/turbo/sans-paquets.json',
@@ -161,35 +167,39 @@ describe('grillhouse-3uv.84.4 critère 7 — what the frame reads resolves from 
       );
     }
     expect(lancer('--nettoyer').status).toBe(0);
-    expect(existsSync(path.join(paquet, 'cadre'))).toBe(false);
+    expect(readdirSync(paquet).sort()).toEqual(['package.json', 'scripts']);
   });
 
-  it('installed under node_modules, the package reads the frame’s files in its cadre/; in the repository, at their address', () => {
+  it('installed under node_modules, the package reads the template in its cadre/ and the plugin at its root; in the repository, at their address', () => {
     const installe = path.join(ESSAIS, 'projet/node_modules/@roomi-fields/grillhouse');
     mkdirSync(path.join(installe, 'scripts'), { recursive: true });
     cpSync(path.join(PAQUET, 'scripts/cadre.mjs'), path.join(installe, 'scripts/cadre.mjs'));
     cpSync(path.join(PAQUET, 'package.json'), path.join(installe, 'package.json'));
-    const cadre = (script: string) =>
+    const lu = (script: string, nom: string) =>
       spawnSync(
         process.execPath,
         [
           '--input-type=module',
           '-e',
-          `const m = await import(${JSON.stringify(script)}); console.log(m.CADRE);`,
+          `const m = await import(${JSON.stringify(script)}); console.log(m.${nom});`,
         ],
         { encoding: 'utf8' }
       ).stdout.trim();
-    expect(cadre(path.join(installe, 'scripts/cadre.mjs'))).toBe(path.join(installe, 'cadre'));
-    expect(cadre(path.join(PAQUET, 'scripts/cadre.mjs'))).toBe(DEPOT);
+    expect(lu(path.join(installe, 'scripts/cadre.mjs'), 'CADRE')).toBe(
+      path.join(installe, 'cadre')
+    );
+    expect(lu(path.join(installe, 'scripts/cadre.mjs'), 'GREFFON')).toBe(installe);
+    expect(lu(path.join(PAQUET, 'scripts/cadre.mjs'), 'CADRE')).toBe(DEPOT);
+    expect(lu(path.join(PAQUET, 'scripts/cadre.mjs'), 'GREFFON')).toBe(
+      path.join(DEPOT, 'mods/grillhouse')
+    );
   });
 
-  it('the circuit reads the instructions of the agents and the meta-frame under CADRE, never above its package', () => {
+  it('the circuit reads the instructions of the agents and the meta-frame at the plugin’s root, never above its package', () => {
     const texte = readFileSync(path.join(PAQUET, 'scripts/circuit.mjs'), 'utf8');
-    expect(texte).toContain("import { CADRE } from './cadre.mjs';");
-    expect(texte).toMatch(
-      /const METACADRE = path\.join\(CADRE, 'mods', 'grillhouse', 'METACADRE\.md'\);/
-    );
-    expect(texte).toMatch(/const GABARIT = path\.join\(\s*CADRE,/);
+    expect(texte).toContain("import { GREFFON } from './cadre.mjs';");
+    expect(texte).toMatch(/const METACADRE = path\.join\(GREFFON, 'METACADRE\.md'\);/);
+    expect(texte).toMatch(/const GABARIT = path\.join\(\s*GREFFON,/);
     expect(texte).not.toMatch(/path\.join\(ici, '\.\.', '\.\.', '\.\.'\)/);
   });
 
