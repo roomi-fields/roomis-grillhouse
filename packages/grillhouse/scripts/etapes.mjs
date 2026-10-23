@@ -5,36 +5,32 @@
 //
 // - A step (ETAPES): its number (« 2 », « 2.3 »), its title, who works there (`qui`: the role
 //   agents, or AUTO for a step the circuit leads itself; none for a step that only holds its
-//   sub-steps), its short form on the board's line where the roles' names do not hold in its
-//   width (`quiCourt`, the roles keeping their whole name everywhere else), whether it runs for each component of the ticket's title (`parComposant`), its
+//   sub-steps), whether it runs for each component of the ticket's title (`parComposant`), its
 //   sub-steps (`sous`), and the step of the circuit's state it is (`etat`: the `etape` of
 //   `.claude/worktrees/<ticket>.circuit.json`, the final pass being the checks once `finale`).
 //   A step that runs only for a project that declares it names the key of that declaration under
 //   `grillhouse` of the project's package.json (`declaration`): the board shows it only there.
 //   The opening reads its sub-steps elsewhere in the state: the survey of the components by its
-//   start while it runs (`releve`) and by its stop (`arrets`), the questioning of the plan by the questioning under way (`questionnement`)
-//   and by its stop. SUITE is the tree in its order, each step before its sub-steps.
+//   start while it runs (`releve`) and by its stop (`arrets`), the questioning of the plan by the
+//   questioning under way (`questionnement`) and by its stop. SUITE is the tree in its order, each
+//   step before its sub-steps.
 // - A step carries as many bounded loops as it needs (`boucles`): each its key (`cle`, which
 //   keys its count in the state's `boucles`), its label, its maximum (`max`, the pass that stops
 //   it; null for the components, whose number is the title's) and the sub-steps it spans (`sur`;
 //   the step and all its sub-steps without it): the components of the title, the testwriter's
-//   sessions after a refused proof, the developpeur's sessions with their checks, the rounds of
-//   a questioning, the reviews, the same stop come back after a RELANCE of the regulator. The
+//   sessions after a refused proof, the developpeur's sessions with their checks, the reviews. The
 //   circuit stops each loop at its maximum and writes its count in its state; the board shows
 //   « <label> <n>/<max> » on the ticket's line from the second pass.
-// - The arbitrage of a stop (ARBITRAGE) stands out of the sequence, under the stopped step: the
-//   regulator settles the stop, and the questionneur asks its questions of his decision before it
-//   is applied, as Amazon's bar raiser and a cockpit's challenge and response; it has no number.
 // - The stops of the circuit, each by its name and its exit code (ARRETS): the circuit ends on one
 //   with its code, and its header says when.
-// - The table of the stops (TABLE_DES_ARRETS, below): each kind of stop and its gesture.
+// - The gestures of the circuit (GESTES, below): what it does itself on a stop a rule settles,
+//   with no session.
+// - The question of each other stop (MONTEES, below): what goes up to the supervisor, and who
+//   must answer it.
 import { A_REPASSER } from './vitest-config/pression.mjs';
 
 // Who works at a step the circuit leads itself, with no agent.
 export const AUTO = 'auto';
-
-// The rounds of a questioning, of the plan at 1.2 and of a decision at the arbitrage.
-const TOURS = { cle: 'questionnement', libelle: 'tour', max: 4 };
 
 export const ETAPES = [
   { numero: '0', titre: 'Exploration', qui: ['explorateur'], etat: null },
@@ -55,12 +51,10 @@ export const ETAPES = [
       {
         numero: '1.2',
         titre: 'Questionnement',
-        qui: ['questionneur', 'referent-technique'],
-        quiCourt: 'questionneur ⇄ référent',
+        qui: ['questionneur'],
         etat: null,
         questionnement: 'plan',
         arrets: ['questionnement'],
-        boucles: [TOURS],
       },
     ],
   },
@@ -133,23 +127,11 @@ export const ETAPES = [
 // Every step and sub-step, in the order of the tree.
 export const SUITE = ETAPES.flatMap(e => [e, ...(e.sous ?? [])]);
 
-// The arbitrage of a stop, out of the sequence, under the stopped step.
-export const ARBITRAGE = {
-  numero: null,
-  titre: "Arbitrage de l'arrêt",
-  qui: ['regulateur', 'questionneur'],
-  etat: null,
-  boucles: [{ cle: 'arret', libelle: 'arrêt', max: 3 }, TOURS],
-};
-
 // The bounded loop of key <cle>.
-export const boucle = cle =>
-  [...SUITE, ARBITRAGE].flatMap(e => e.boucles ?? []).find(b => b.cle === cle) ?? null;
+export const boucle = cle => SUITE.flatMap(e => e.boucles ?? []).find(b => b.cle === cle) ?? null;
 
-// The loops that run at the step <etape>: those of the arbitrage at the arbitrage; else those of
-// each step that spans it, itself or its parent.
+// The loops that run at the step <etape>: those of each step that spans it, itself or its parent.
 export const bouclesDe = etape => {
-  if (etape === ARBITRAGE) return ARBITRAGE.boucles;
   const parent = ETAPES.find(e => e === etape || e.sous?.includes(etape));
   return [...new Set([parent, etape])]
     .flatMap(e => e?.boucles ?? [])
@@ -166,7 +148,6 @@ export const ARRETS = {
   'sans-livraison': 15,
   'relecture-arret': 16,
   integration: 17,
-  question: 18,
   'hors-portee': 19,
   besoin: 20,
   'composants-manquants': 21,
@@ -176,21 +157,15 @@ export const ARRETS = {
   'a-repasser': A_REPASSER,
 };
 
-// The role that settles a stop of the circuit, and the one that questions a plan or a decision.
-export const REGULATEUR = 'regulateur';
+// The role that questions a plan.
 export const QUESTIONNEUR = 'questionneur';
 
 // A role in words.
-const NOMS = {
-  'referent-technique': 'référent technique',
-  regulateur: 'régulateur',
-  developpeur: 'développeur',
-};
+const NOMS = { developpeur: 'développeur' };
 export const nomDuRole = role => NOMS[role] ?? role;
 
-// Who works at the step <e>, in words, « questionneur ⇄ référent »: its short form, else its
-// roles' names.
-export const quiDe = e => e.quiCourt ?? e.qui.map(nomDuRole).join(' ⇄ ');
+// Who works at the step <e>, in words: its roles' names.
+export const quiDe = e => e.qui.map(nomDuRole).join(' ⇄ ');
 
 // The step <e> in words, « 2.3 Code ».
 export const libelle = e => `${e.numero} ${e.titre}`;
@@ -218,115 +193,112 @@ export const etapeDuCircuit = ({ etape, finale, raison, questionnement, releve }
   );
 };
 
-// The step where the role agent <role> works, the arbitrage for the regulator, or null for any
-// other agent.
+// The step where the role agent <role> works, or null for any other agent.
 export const etapeDuRole = role =>
-  role === AUTO ? null : ([...SUITE, ARBITRAGE].find(e => e.qui.includes(role)) ?? null);
+  role === AUTO ? null : (SUITE.find(e => e.qui.includes(role)) ?? null);
 
-// The step where a ticket's plan is questioned.
-const QUESTIONNEMENT_DU_PLAN = SUITE.find(e => e.questionnement === 'plan');
-
-// Whether the role agent <role> judges a plan or a stop (the questioning of the plan, the
-// arbitrage), and so delivers nothing to the lot.
-export const juge = role =>
-  [QUESTIONNEMENT_DU_PLAN, ARBITRAGE].some(e => role !== AUTO && e.qui.includes(role));
-
-// The table of the stops and their gesture: the written policy of the circuit's stops, as Zuul
-// and GitHub's merge queue write their bounded retries and their failure policy, and as the
-// sheriffs of Chromium quarantine a flaky test by a rule, not by a judgement. The circuit
-// (scripts/circuit.mjs) tries its lines in their order on each stop, and on the regulator's
-// decision: a gesture the table names, it applies itself, with no regulator; the regulator is
-// launched for what no line settles, and for the line that sends to him. Each line: `genre`, the
-// kind of stop as the circuit reads it in its structured results and its state; `geste`, what
-// follows; `cas`, the case of BPScript 320.3 (2026-10-20) it would have settled, by its stop (A)
-// or its decision (D) in the analysis of that ticket, or the analysis of BPScript 320.9
-// (2026-10-23). The gestures (GESTES):
-// - `superviseur`: the circuit ends on the stop, its reason saying why, for the supervisor, with
-//   no regulator, and the board shows it under its step after « ⤷ Arrêt · superviseur »;
-// - `a-repasser`: the circuit ends at 75, which the supervisor plays again at rest;
-// - `regulateur`: a session of the regulator settles the stop;
-// - `developpeur-du-composant`: the red goes to the developpeur of the component that owns it,
-//   never to the one under way: it waits for that component's checks, or, at the final pass, the
-//   circuit relaunches that developpeur (the checks of scripts/circuit.mjs);
-// - `testwriter`: the circuit plays the component again from its testwriter.
+// The gestures of the circuit: what it does itself on a stop a rule settles, as a CI applies its
+// rules (retry, regenerate, skip a job without object) without asking anyone, and as the sheriffs
+// of Chromium quarantine a flaky test by a rule, not by a judgement. Each gesture: `genre`, its
+// name as the circuit writes it at the ticket and in the log; `geste`, what the circuit does;
+// `regle`, the rule that settles it; `cas`, the case of BPScript it settles (the analysis of 320.3,
+// its stop A or its decision D, or that of 320.9). On each one, the circuit writes at the ticket
+// `Circuit · <composant> · geste : <genre> → <geste> (règle : <regle>)`, and the same line in the
+// ticket's log.
 export const GESTES = [
-  'superviseur',
-  'a-repasser',
-  'regulateur',
-  'developpeur-du-composant',
-  'testwriter',
-];
-
-export const TABLE_DES_ARRETS = [
   {
-    // A component the survey of the ticket finds and its title misses (21): the circuit ends on
-    // it at 1.1, before any session.
-    genre: 'composants-manquants',
-    geste: 'superviseur',
-    cas: 'A3 : 020-loader mis au titre en cours de route ; A14 : 040-checker, nommé au critère 13 et absent du titre, rouge à la première passe finale',
-  },
-  {
-    // A questioning of the plan that does not converge at 1.2 (22), a disagreement or a fourth
-    // round still questioned.
-    genre: 'questionnement',
-    geste: 'superviseur',
-    cas: 'A14 : 040-checker nommé au critère 13 et absent du titre, que le plan questionné aurait relevé ; D15 : une consigne neuve sur le fond, hors du plan',
-  },
-  {
-    // A testwriter or developpeur session its lock stops on a write out of the plan (24): the
-    // supervisor extends the plan or refuses the write (grillhouse-3uv.95, decision 1).
-    genre: 'hors-plan',
-    geste: 'superviseur',
-    cas: 'BP 320.9 : l’enceinte de lecture a coûté l’essentiel des pertes ; l’enceinte d’écriture et les gardes tiennent l’architecture',
-  },
-  {
-    // The same stop (its name, step and component) after a RELANCE, the copy and the ticket's
-    // description unchanged since that decision.
-    genre: 'meme-arret-sans-fait-nouveau',
-    geste: 'superviseur',
-    cas: 'A8 → A9 : RELANCE --reprendre sans contexte, le même arrêt sur la même copie (D9) ; A11 → A13 : le même rouge de la passe finale trois fois (D13, D14)',
-  },
-  {
-    // Checks whose failures all depend on a duration under load (verifier's 75), the integration
-    // at 75, or the branch kept in the queue.
     genre: 'a-repasser',
-    geste: 'a-repasser',
-    cas: 'A12, A17, A18 : un vrai rouge pris pour la charge du processeur (D14, D20, D21) ; seul le code 75 du vérificateur dit la charge',
+    geste: 'le circuit finit à 75, que le superviseur rejoue au repos par --reprendre',
+    regle: 'seul le code 75 du vérificateur dit la charge de la machine',
+    cas: 'A12, A17, A18 : un vrai rouge pris pour la charge du processeur (D14, D20, D21)',
   },
   {
-    // A red whose findings are all to settle (SARIF `genre` a-arbitrer), which no developpeur
-    // settles.
-    genre: 'a-arbitrer',
-    geste: 'regulateur',
-    cas: 'A16 : la garde consommateurs-arbitres attend un arbitrage, que seul le régulateur écrit (D19, juste)',
+    genre: 'rejeu',
+    geste: 'la commande joue une seconde fois',
+    regle:
+      'une commande des contrôles hors de la passe finale, ou l’intégration, à 75 rejoue une fois avant l’arrêt',
+    cas: 'A12 : un contrôle à 75, rejoué avant de conclure à la charge',
   },
   {
-    // A red that belongs to another component of the title than the one whose checks run.
     genre: 'rouge-d-un-autre-composant',
-    geste: 'developpeur-du-composant',
+    geste: 'au développeur du composant qui possède le rouge',
+    regle:
+      'un rouge appartient au composant qui tient son fichier ; il attend ses contrôles, ou à la passe finale va à son développeur',
     cas: 'A4, A6, A8–A10 : la garde des mots de 030-binder rendue aux développeurs de 050, 130 et 900 (D5, D7, D9–D11)',
   },
   {
-    // A developpeur's sheet whose `renvoi` names the testwriter of a component of the title up to
-    // his own.
     genre: 'renvoi-au-testwriter',
-    geste: 'testwriter',
+    geste: 'au testwriter du composant que la fiche du développeur nomme',
+    regle:
+      'le rouge qui reste est dans les tests d’un composant du titre, le sien ou un d’avant (`renvoi` de sa fiche)',
     cas: 'A5, A7 : « Agent : testwriter » non lu, les tests périmés de 050 et de 130 (D6, D8) ; A2 (D2)',
   },
   {
-    // On the supervisor's answer to a question, a component the title gained since the stop.
-    genre: 'composant-ajoute',
-    geste: 'testwriter',
-    cas: 'A3 : 020-loader mis au titre, puis RELANCE testwriter 020-loader (D4) ; A14 : 040-checker, puis testwriter 040-checker (D17)',
+    genre: 'regeneration',
+    geste: 'à la régénération des références (3.1), puis la passe finale restreinte',
+    regle:
+      'chaque rouge de la passe finale est celui d’une référence que le projet déclare (`grillhouse.references`)',
+    cas: 'BP 320.9 : 163 min d’attente pour régénérer à la main l’index des interfaces, le plafond et l’empreinte',
   },
   {
-    // The ticket's description changed while the stop was settled, a criterion added: the circuit
-    // then admits only a RELANCE from a testwriter.
-    genre: 'critere-neuf',
-    geste: 'testwriter',
-    cas: 'D15 : une consigne neuve sur le fond donnée au développeur de 030-binder sans test (A14), rendue au testwriter de 040-checker (D17)',
+    genre: 'rien-a-livrer',
+    geste: 'aux contrôles du composant, qui jugent son lot',
+    regle:
+      'un développeur qui ne change aucun fichier de son composant n’a rien à livrer quand ses contrôles sont verts ; rouges, l’arrêt monte (sans-livraison)',
+    cas: 'BP 320.9 : 995-tools n’a rien à livrer, 4 montées et 49 min (B5)',
   },
 ];
 
-// The line of the table for the kind of stop <genre>, or null.
-export const gesteDe = genre => TABLE_DES_ARRETS.find(l => l.genre === genre) ?? null;
+// The gesture of name <genre>, or null.
+export const gesteDe = genre => GESTES.find(g => g.genre === genre) ?? null;
+
+// Who answers a question of the circuit: the supervisor, or the owner, whose question the
+// supervisor carries.
+export const SUPERVISEUR = 'superviseur';
+export const RESPONSABLE = 'responsable';
+
+// The commands by which the supervisor answers a question (scripts/circuit.mjs): resume, extend
+// the plan, stop.
+const REPONSES =
+  'Le superviseur répond par une commande du circuit : `--reprendre` (avec `--contexte`) ou `--depuis <testwriter|developpeur> <composant> --contexte`, `--etendre <composant>` (le plan gagne ce composant), ou `--arreter`.';
+
+// The question of each stop no gesture settles, as a CI calls a person only for what no rule
+// settles (the approval of a review): every stop of ARRETS but « a-repasser », a gesture. The
+// circuit ends on the stop, its state carrying the question (`question`: `{ arret, fait, piece,
+// question, qui }`: the fact, its piece, file:line or command and output, the question and who must
+// answer it), for the supervisor, who answers by a command of the circuit and carries to the owner
+// what is his (`qui` responsable: the reviewer's question on a real word of the language).
+export const MONTEES = Object.fromEntries(
+  Object.entries({
+    lancement:
+      'Le lanceur s’arrête avant la séance : la machine se répare-t-elle, pour reprendre ?',
+    bloqué:
+      'La séance n’a plus bougé, et le circuit l’a arrêtée : reprendre l’étape, ou arrêter le circuit ?',
+    'sans-fiche':
+      'La séance finit deux fois sans fiche conforme : reprendre l’étape, ou arrêter le circuit ?',
+    preuve:
+      'La troisième preuve du rouge refuse le lot de tests : quel contexte donner au testwriter, ou le plan doit-il changer ?',
+    controles:
+      'Un rouge reste, que le circuit ne rend à aucun développeur, ou que trois séances n’ont pas levé : quel composant le lève, avec quel contexte, ou le plan doit-il s’étendre ?',
+    'sans-livraison':
+      'Le développeur ne change rien et le rouge reste : quel composant le lève, avec quel contexte, ou le plan doit-il changer ?',
+    'relecture-arret':
+      'La relecture ne rend pas le lot à un agent du titre (un constat sans destinataire valide, un critère en cause, ou la troisième relecture rendue) : que devient le plan, et qui reprend ?',
+    integration:
+      'L’intégration refuse le lot, ou la file rouvre le ticket : que corrige le lot, et qui le reprend ?',
+    'hors-portee':
+      'L’agent se dit bloqué hors de sa portée : le plan s’étend-il au composant qu’il nomme, ou un autre agent lève-t-il le reste ?',
+    besoin: 'Une réponse manque pour avancer : laquelle ?',
+    'composants-manquants':
+      'Le relevé trouve des composants que le titre ne nomme pas : le plan les gagne-t-il (`--etendre`), ou restent-ils hors du titre (`npx grillhouse composants-affectes <ticket> --admettre <composant> --raison <texte>`, puis `--reprendre`) ?',
+    questionnement:
+      'Le questionneur questionne le plan : le plan change-t-il (`bd update`), ou reste-t-il tel quel ? `--reprendre` le fait passer tel qu’il est alors.',
+    references:
+      'La régénération des références change une référence ou un fichier que le plan ne nomme pas, ou ne lève pas leurs rouges : le plan les nomme-t-il, ou qui corrige le lot ?',
+    'hors-plan':
+      'La séance écrit hors du plan du ticket : le plan s’étend-il à ce paquet (`--etendre`), ou l’écriture est-elle refusée (`--reprendre` avec son contexte) ?',
+  }).map(([arret, question]) => [arret, { question: `${question} ${REPONSES}`, qui: SUPERVISEUR }])
+);
+
+// The question of the stop <arret>, `{ question, qui }`, or null for a gesture.
+export const monteeDe = arret => MONTEES[arret] ?? null;

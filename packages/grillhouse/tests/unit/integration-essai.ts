@@ -520,7 +520,7 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
     }
     return r;
   };
-  // The queue, as the regulator launches it from the main tree.
+  // The queue, as the circuit launches it from the main tree.
   const file = (...args: string[]): SpawnSyncReturns<string> => fileSous({}, ...args);
   // The same, <ajout> added to its environment.
   const fileSous = (ajout: Record<string, string>, ...args: string[]): SpawnSyncReturns<string> =>

@@ -33,15 +33,12 @@ const mcpDe = (args: string[]) =>
   JSON.parse(valeur(args, '--mcp-config')) as { mcpServers: Record<string, { command: string }> };
 
 // The session of <role> on the ticket demo-1 of the frame's own repository.
-const ETAT = '/depot/.claude/worktrees/demo-1.circuit.json';
 const JOURNAL = '/depot/.claude/worktrees/demo-1.log';
 const options = (role: string, racine = RACINE) =>
   optionsDuRole(role, {
     racine,
     copie: racine,
     ticket: 'demo-1',
-    journal: JOURNAL,
-    preuves: '/depot/.claude/worktrees/demo-1.preuve-*.md',
     // A home without plugins: the servers come from the project alone.
     home: path.join(ESSAIS, 'vide'),
   });
@@ -62,7 +59,6 @@ const COPIE = '/depot/.claude/worktrees/demo-1';
 const COMPLETER: Record<string, string> = {
   copie: COPIE,
   ticket: 'demo-1',
-  etat: ETAT,
   journal: JOURNAL,
   motif: '"FAIL"',
   lignes: '40',
@@ -239,10 +235,7 @@ describe('L2 — the rights of each role are drawn from its skill', () => {
     it(`${role}: each permission it holds answers a command its skill names`, () => {
       const { allow } = reglagesDe(options(role)).permissions;
       const demandes = demandees(role).flatMap(appels);
-      // The reads of the files its instruction names (the regulator's state, log and proofs).
-      const orphelines = allow.filter(
-        r => !r.startsWith('Read(') && !demandes.some(c => couvre(r, c))
-      );
+      const orphelines = allow.filter(r => !demandes.some(c => couvre(r, c)));
       expect(orphelines, `${role} : droits que rien ne demande`).toEqual([]);
     });
   }
@@ -267,12 +260,12 @@ describe('L2 — the rights of each role are drawn from its skill', () => {
 describe('3uv.92.7 — the real rights refuse and pass the forms BPScript 320.4 measured', () => {
   it('refuses the forms refused in 320.4', () => {
     const testwriter = reglagesDe(options('testwriter'));
-    const regulateur = reglagesDe(options('regulateur'));
+    const relecteur = reglagesDe(options('relecteur'));
     const questionneur = reglagesDe(options('questionneur'));
     // A multi-line comment with a line in `#`, under a rule that permits `bd comments add`.
     expect(
       refusReel(
-        'bd comments add demo-1 "## Arbitrage du régulateur\n\nLa ligne.\n### Verdict — tranché"',
+        'bd comments add demo-1 "## Arbitrage\n\nLa ligne.\n### Verdict — tranché"',
         testwriter
       )
     ).toMatch(/ligne en #/);
@@ -281,31 +274,27 @@ describe('3uv.92.7 — the real rights refuse and pass the forms BPScript 320.4 
     );
     // git -C without a rule; a cd out of the copy; a variable in the path of a read.
     expect(refusReel(`git -C ${COPIE} status --short`, questionneur)).toMatch(/sans règle/);
-    expect(refusReel('cd /depot/.claude/worktrees; grep -n FAIL demo-1.log', regulateur)).toMatch(
+    expect(refusReel('cd /depot/.claude/worktrees; grep -n FAIL demo-1.log', relecteur)).toMatch(
       /cd hors/
     );
-    expect(refusReel(`L=${JOURNAL}; grep -n FAIL $L`, regulateur)).not.toBeNull();
-    expect(refusReel('grep -n FAIL /depot/.claude/worktrees/autre.log', regulateur)).toMatch(
+    expect(refusReel(`L=${JOURNAL}; grep -n FAIL $L`, relecteur)).not.toBeNull();
+    expect(refusReel('grep -n FAIL /depot/.claude/worktrees/autre.log', relecteur)).toMatch(
       /hors du dossier/
     );
   });
 
   it('passes the forms passed in 320.4', () => {
-    const regulateur = reglagesDe(options('regulateur'));
     const relecteur = reglagesDe(options('relecteur'));
     const testwriter = reglagesDe(options('testwriter'));
-    expect(refusReel(`tail -n 25 ${JOURNAL} | cut -c1-400`, regulateur)).toBeNull();
-    expect(refusReel(`grep -n "FAIL" ${JOURNAL} | tail -n 30`, regulateur)).toBeNull();
-    expect(refusReel('git status --short | head -30', regulateur)).toBeNull();
+    expect(refusReel('git status --short | head -30', relecteur)).toBeNull();
     expect(refusReel(`git -C ${COPIE} diff HEAD -- packages/a/src/x.ts`, relecteur)).toBeNull();
     expect(refusReel('bd comments add demo-1 "Testwriter : tests écrits."', testwriter)).toBeNull();
   });
 });
 
-// grillhouse-3uv.92.7, critère 3: the reads of git the regulator and the reviewer need, in the copy
-// (BPScript 320.4: 6 refusals for the regulator, `git -C … status` for the reviewer), are in their
-// rights, and their skills name them.
-describe('3uv.92.7 — the regulator and the reviewer read git in the copy', () => {
+// grillhouse-3uv.92.7, critère 3: the reads of git the reviewer needs, in the copy (BPScript 320.4:
+// `git -C … status` for the reviewer), are in its rights, and its skill names them.
+describe('3uv.92.7 — the reviewer reads git in the copy', () => {
   const LECTURES_GIT = [
     `git -C ${COPIE} status --short`,
     `git -C ${COPIE} diff HEAD -- packages/a`,
@@ -313,7 +302,7 @@ describe('3uv.92.7 — the regulator and the reviewer read git in the copy', () 
     `git -C ${COPIE} ls-files packages/a`,
     `git -C ${COPIE} grep -n FAIL -- packages`,
   ];
-  for (const role of ['regulateur', 'relecteur']) {
+  for (const role of ['relecteur']) {
     it(`${role}: git -C <copie> status, diff, log, ls-files and grep pass its real rights, and its skill names each`, () => {
       const reglages = reglagesDe(options(role));
       expect(LECTURES_GIT.map(c => refusReel(c, reglages)).filter(Boolean), role).toEqual([]);
@@ -326,18 +315,6 @@ describe('3uv.92.7 — the regulator and the reviewer read git in the copy', () 
       }
     });
   }
-
-  it("the regulator's instruction promises the reads its rights hold, and no write at the ticket", () => {
-    const consigne = readFileSync(
-      path.join(RACINE, 'mods/grillhouse/skills/pitmaster/references/consigne-agent.md'),
-      'utf8'
-    );
-    const gabarit =
-      /## Régulateur, sur un arrêt[\s\S]*?```text\n([\s\S]*?)```/.exec(consigne)?.[1] ?? '';
-    const promesse = /Hors de tes commandes \(([^)]*)\)/.exec(gabarit)?.[1] ?? '';
-    expect(promesse).toMatch(/`git -C <copie>/);
-    expect(promesse).not.toMatch(/commentaire au ticket|critère ajouté/);
-  });
 });
 
 describe('L2 — what a role that writes may not run', () => {
@@ -467,14 +444,14 @@ describe("L2 — the context of a role's session", () => {
     }
   });
 
-  it('keeps the servers of the index for the roles that read the whole repository (the reviewer, the questionneur, the référent technique), and no other server for any role', () => {
-    for (const role of ['relecteur', 'questionneur', 'referent-technique']) {
+  it('keeps the servers of the index for the roles that read the whole repository (the reviewer, the questionneur), and no other server for any role', () => {
+    for (const role of ['relecteur', 'questionneur']) {
       const r = options(role);
       expect(r, role).toContain('--strict-mcp-config');
       expect(Object.keys(mcpDe(r).mcpServers).sort(), role).toEqual(['codegraph']);
       expect(mcpDe(r).mcpServers.codegraph.command, role).toBe('codegraph');
     }
-    for (const role of ['testwriter', 'developpeur', 'regulateur']) {
+    for (const role of ['testwriter', 'developpeur']) {
       const a = options(role);
       expect(a, role).toContain('--strict-mcp-config');
       expect(mcpDe(a).mcpServers, role).toEqual({});
@@ -528,14 +505,14 @@ describe("L2 — the context of a role's session", () => {
     expect(reglagesDe(a).enabledPlugins['rtfm@roomi-fields']).toBe(false);
   });
 
-  it('offers each role the tools its work needs: the reviewer and the regulator write nothing', () => {
+  it('offers each role the tools its work needs: the reviewer and the questionneur write nothing', () => {
     const outils = (role: string) => valeur(options(role), '--tools').split(',');
     for (const role of ['testwriter', 'developpeur']) {
       expect(outils(role), role).toEqual(
         expect.arrayContaining(['Bash', 'Read', 'Edit', 'Write', 'Skill'])
       );
     }
-    for (const role of ['relecteur', 'regulateur']) {
+    for (const role of ['relecteur', 'questionneur']) {
       expect(outils(role), role).toEqual(expect.arrayContaining(['Bash', 'Read', 'Skill']));
       expect(
         outils(role).filter(o => /Edit|Write/.test(o)),
@@ -544,7 +521,7 @@ describe("L2 — the context of a role's session", () => {
     }
     // The tool search serves the servers of the index, whose tools Claude Code defers.
     expect(outils('relecteur')).toContain('ToolSearch');
-    for (const role of ['testwriter', 'developpeur', 'regulateur']) {
+    for (const role of ['testwriter', 'developpeur']) {
       expect(outils(role), role).not.toContain('ToolSearch');
     }
     for (const role of Object.keys(ROLES)) {
@@ -553,29 +530,6 @@ describe("L2 — the context of a role's session", () => {
         role
       ).toEqual([]);
     }
-  });
-
-  it("lets the regulator read the ticket's log and its proofs, by their absolute paths, and the circuit's state by its command alone", () => {
-    const { allow, deny } = reglagesDe(options('regulateur')).permissions;
-    expect(allow).toEqual(
-      expect.arrayContaining([
-        `Read(/${JOURNAL})`,
-        'Read(//depot/.claude/worktrees/demo-1.preuve-*.md)',
-      ])
-    );
-    expect(allow).not.toContain(`Read(/${ETAT})`);
-    // It writes nothing at the ticket: the circuit writes its arbitrage and its criterion, from its
-    // sheet (critère 1).
-    for (const c of ['bd comments add demo-1 x', 'bd update demo-1 -d x']) {
-      expect(
-        deny.some(r => couvre(r, c)),
-        c
-      ).toBe(true);
-    }
-    // Its skill reads the log in pieces, never whole.
-    const demandes = demandees('regulateur');
-    expect(demandes.some(c => /^grep /.test(c))).toBe(true);
-    expect(demandes.some(c => /^tail /.test(c))).toBe(true);
   });
 
   it("carries the write locks of the testwriter and the developpeur in their settings, not in the agents' definitions", () => {
@@ -599,7 +553,7 @@ describe("L2 — the context of a role's session", () => {
       );
       expect(definition, role).not.toMatch(/verrou\.mjs|hooks:/);
     }
-    for (const role of ['relecteur', 'regulateur']) {
+    for (const role of ['relecteur', 'questionneur']) {
       expect(reglagesDe(options(role)).hooks, role).toBeUndefined();
     }
   });

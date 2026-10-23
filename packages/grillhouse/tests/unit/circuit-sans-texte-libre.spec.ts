@@ -28,8 +28,6 @@ const PERMISES: Record<string, string> = {
   '/\\{\\{(\\w+)\\}\\}/g': 'les champs d’un gabarit de consigne',
   '/\\.(test|spec)(\\.[cm]?[jt]sx?)$/': 'le nom d’un fichier de test, pour sa version de HEAD',
   '/\\.circuit-avant\\.(test|spec)\\./': 'le nom d’un fichier de test, la version de HEAD',
-  '/^(\\d+)\\.\\s/gm':
-    'les lignes numérotées de la description, pour numéroter le critère de la fiche du régulateur',
   '/^##\\s+(.*)$/': 'les titres de section de la description, pour le message de commit',
   '/^Critères\\b/':
     'le titre de la section des critères de la description, pour le message de commit',

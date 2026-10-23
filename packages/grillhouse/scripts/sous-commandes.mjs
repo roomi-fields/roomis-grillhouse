@@ -23,7 +23,6 @@ export const SOUS_COMMANDES = {
   'consommateurs-arbitres': 'consommateurs-arbitres.mjs',
   droits: 'droits.mjs',
   enveloppe: 'enveloppe/enveloppe.mjs',
-  'etat-du-circuit': 'etat-du-circuit.mjs',
   file: 'integration/file.mjs',
   frontieres: 'frontieres.mjs',
   'gardes-du-cadre': 'gardes-du-cadre.mjs',

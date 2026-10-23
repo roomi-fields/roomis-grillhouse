@@ -78,49 +78,7 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
     expect(c.items.required).toEqual(['titre', 'corps', 'genre']);
     expect(c.items.properties.genre.enum).toEqual(['bloquant', 'remarque']);
   });
-  // grillhouse-3uv.92.7, critère 1: its arbitrage and the criterion it adds, which the circuit
-  // writes at the ticket.
-  it('the regulator: its decision, the agents a RELANCE --depuis names, its context, its question, the facts the circuit checks, its arbitrage and its criterion, its discoveries', () => {
-    expect(champs('regulateur')).toEqual(
-      [
-        'arbitrage',
-        'contexte',
-        'critere',
-        'decision',
-        'decouvertes',
-        'depuis',
-        'faits',
-        'question',
-        'reponses',
-      ].sort()
-    );
-    expect((schemaDeFiche('regulateur') as Schema).required).toEqual(['decision']);
-  });
-  // grillhouse-3uv.92.2, witness BPScript 320.4 (n° 11, 20 min): the red of the ceiling of 040,
-  // visible from the first final pass, was relaunched only after the third, the sheet carrying a
-  // single `depuis`.
-  it('critère 1 — a RELANCE --depuis names one or more components of the title, each with its step and its context', () => {
-    const depuis = (schemaDeFiche('regulateur') as Schema).properties.depuis as {
-      type: string;
-      items: Schema & { properties: { role: { enum: string[] } } };
-    };
-    expect(depuis.type).toBe('array');
-    expect(Object.keys(depuis.items.properties).sort()).toEqual(['composant', 'contexte', 'role']);
-    expect(depuis.items.required).toEqual(['role', 'composant', 'contexte']);
-    expect(depuis.items.properties.role.enum).toEqual(['testwriter', 'developpeur']);
-    const lu = lireFiche(
-      'regulateur',
-      sortie({
-        decision: 'RELANCE --depuis',
-        depuis: [
-          { role: 'developpeur', composant: 'packages/a', contexte: 'Le plafond.' },
-          { role: 'testwriter', composant: 'packages/b', contexte: 'Le test du critère 2.' },
-        ],
-      })
-    );
-    expect(lu.erreur).toBeUndefined();
-  });
-  // grillhouse-3uv.89.1 (L9): the questionneur asks, the author answers in its own session.
+  // grillhouse-3uv.89.1 (L9), grillhouse-3uv.95.4: the questionneur asks, once.
   it('the questionneur: its issue (questions, none, a disagreement), its questions each with what it aims at, its disagreement', () => {
     expect(champs('questionneur')).toEqual(['desaccord', 'issue', 'questions'].sort());
     expect((schemaDeFiche('questionneur') as Schema).required).toEqual(['issue']);
@@ -138,18 +96,11 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
     ]);
     expect(q.items.required).toEqual(['question', 'vise']);
   });
-  it('the référent technique, on the questions to a plan: its answer to each, the title or the description the plan becomes, its discoveries', () => {
-    expect(champs('referent-technique')).toEqual(
-      ['decouvertes', 'description', 'reponses', 'titre'].sort()
-    );
-    expect((schemaDeFiche('referent-technique') as Schema).required).toEqual(['reponses']);
-    const r = (schemaDeFiche('referent-technique') as Schema).properties.reponses as {
-      items: { properties: { choix: { enum: string[] } }; required: string[] };
-    };
-    expect(r.items.properties.choix.enum).toEqual(['CHANGE', 'GARDE']);
-    expect(r.items.required).toEqual(['question', 'choix', 'texte']);
-  });
+  // grillhouse-3uv.95.4: the regulator and the technical referent are removed, their sheets with
+  // them.
   it('a role the circuit does not lead has no sheet', () => {
+    expect(schemaDeFiche('regulateur')).toBeNull();
+    expect(schemaDeFiche('referent-technique')).toBeNull();
     expect(schemaDeFiche('explorateur')).toBeNull();
   });
   it('the command prints the schema of a role as JSON, the one claude receives; a role without a sheet exits 1', () => {
@@ -162,35 +113,6 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
       encoding: 'utf8',
     });
     expect(sans.status).toBe(1);
-  });
-});
-
-// grillhouse-3uv.89 (L4): the facts a regulator's decision rests on, in a form the circuit checks
-// on the state before it applies the decision. Witness: BPScript 320.3, where a MONTE rested on
-// « 995-tools hors du titre » (D11) while the title named it, and three relaunches on « la charge
-// CPU » (D14, D20, D21) while the red was a real one.
-describe('the facts of a regulator’s sheet', () => {
-  it('each fact names its subject from a closed list, and its component when the subject has one', () => {
-    const faits = (schemaDeFiche('regulateur') as Schema).properties.faits as {
-      items: { properties: { sujet: { enum: string[] } }; required: string[] };
-    };
-    expect(faits.items.properties.sujet.enum).toEqual([
-      'au-titre',
-      'hors-titre',
-      'rouge-de',
-      'sans-changement',
-      'sous-charge',
-    ]);
-    expect(faits.items.required).toEqual(['sujet']);
-    const lu = lireFiche(
-      'regulateur',
-      sortie({
-        decision: 'MONTE',
-        question: 'q',
-        faits: [{ sujet: 'hors-titre', composant: '995-tools' }, { sujet: 'sous-charge' }],
-      })
-    );
-    expect(lu.erreur).toBeUndefined();
   });
 });
 
@@ -254,21 +176,6 @@ describe('the sheets of the questioning (L9)', () => {
       ).erreur
     ).toContain('vise');
   });
-  it('an answer that changes the plan carries the title or the description it becomes', () => {
-    const change = { question: 'q', choix: 'CHANGE', texte: 'un critère de plus' };
-    expect(lireFiche('referent-technique', sortie({ reponses: [change] })).erreur).toContain(
-      'description'
-    );
-    expect(
-      lireFiche('referent-technique', sortie({ reponses: [change], description: 'd' })).erreur
-    ).toBeUndefined();
-    expect(
-      lireFiche(
-        'referent-technique',
-        sortie({ reponses: [{ question: 'q', choix: 'GARDE', texte: 'parce que' }] })
-      ).erreur
-    ).toBeUndefined();
-  });
 });
 
 describe('the reading of a sheet in the output of a session', () => {
@@ -308,38 +215,7 @@ describe('the reading of a sheet in the output of a session', () => {
     ['relecteur', { verdict: 'RENDU', constats: [{ titre: 't', genre: 'bloquant' }] }, 'corps'],
     ['relecteur', { verdict: 'RENDU', constats: [{ titre: 't', corps: 'c' }] }, 'genre'],
     ['relecteur', { verdict: 'ACCEPTÉ', remarques: ['un nom'] }, 'remarques'],
-    ['regulateur', { decision: 'RELANCE --depuis' }, 'depuis'],
-    ['regulateur', { decision: 'RELANCE --depuis', depuis: [] }, 'depuis'],
-    [
-      'regulateur',
-      {
-        decision: 'RELANCE --depuis',
-        depuis: { role: 'testwriter', composant: 'a', contexte: 'c' },
-      },
-      'depuis',
-    ],
-    [
-      'regulateur',
-      { decision: 'RELANCE --depuis', depuis: [{ role: 'testwriter', composant: 'a' }] },
-      'contexte',
-    ],
-    [
-      'regulateur',
-      {
-        decision: 'RELANCE --depuis',
-        depuis: [{ role: 'testwriter', composant: 'a', contexte: 'c' }],
-        contexte: 'c',
-      },
-      'contexte',
-    ],
-    ['regulateur', { decision: 'MONTE' }, 'question'],
-    ['regulateur', { decision: 'RELANCE --reprendre', contexte: 3 }, 'contexte'],
-    ['regulateur', { decision: 'RELANCE --reprendre', faits: [{ sujet: 'peut-etre' }] }, 'sujet'],
-    [
-      'regulateur',
-      { decision: 'MONTE', question: 'q', faits: [{ sujet: 'hors-titre' }] },
-      'composant',
-    ],
+    ['questionneur', { issue: 'PEUT-ÊTRE' }, 'issue'],
   ])(
     'a sheet of the %s that does not conform is refused, naming its field: %j',
     (role, f, champ) => {

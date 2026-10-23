@@ -1,11 +1,11 @@
-// The regulator on the board (grillhouse-3uv.49, its block at the arbitrage of a stop, out of the
-// sequence of the steps, since grillhouse-3uv.90): a regulator running on a ticket stands in its block with its time and
-// tokens, the agents it launches are tied to their ticket and role as the supervisor's are, and a
-// ticket it leads waits for no role of the flow. A sub-agent, whatever its role, runs when its transcript moved in the last 2
-// minutes, or while its last tool call awaits its answer, its transcript moved in the last 30
-// minutes and no end in the register follows its last incoming message; a session keeps the
-// 2-minute rule alone. The board reads no transcript older than 30 minutes: a shell agent shows by
-// its process alone.
+// The sub-agents on the board (grillhouse-3uv.49; the lead role is the questionneur since
+// grillhouse-3uv.95.4 removed the regulator): a role running on a ticket stands in its block with its
+// time and tokens, the agents it launches are tied to their ticket and role as the supervisor's are,
+// and a ticket it leads waits for no role of the flow. A sub-agent, whatever its role, runs when its
+// transcript moved in the last 2 minutes, or while its last tool call awaits its answer, its
+// transcript moved in the last 30 minutes and no end in the register follows its last incoming
+// message; a session keeps the 2-minute rule alone. The board reads no transcript older than 30
+// minutes: a shell agent shows by its process alone.
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -21,11 +21,11 @@ import {
 import { ligneEnveloppe } from './tableau-essai.js';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
-const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tableau-regulateur-'));
+const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tableau-sous-agents-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const RACINE = '/depot';
-const REGULATEUR = 'regulateur';
+const MENEUR = 'questionneur';
 const MIN = 60_000;
 const SEC = 1000;
 const l = (o: object) => JSON.stringify(o);
@@ -194,72 +194,49 @@ const agentsTextes = (t: Board) => {
   return out.slice(out.findIndex(x => x.texte.startsWith('AGENTS')) - 1);
 };
 
-describe('3uv.49 critère 1 : the block of the regulator stands at the arbitrage of a stop', () => {
-  it('3uv.49 critère 1 : the arbitrage, out of the sequence, holds the regulator, then the questionneur', () => {
-    const t = plateau([], [], []);
-    expect(t.agents.filter(b => b.numero === null).map(b => b.roles)).toEqual([
-      [REGULATEUR, 'questionneur'],
-    ]);
-  });
-
-  it('3uv.49 critère 1 : a regulator running on a ticket stands in progress in its block, with its time and tokens', () => {
-    const t = plateau(
-      [T('demo-9', { title: '9 — Le panneau — tableau' })],
-      [],
-      [vivant('c0', 'demo-9', REGULATEUR, 40)]
-    );
-    expect(bloc(t, REGULATEUR)!.enCours).toMatchObject([
-      { id: 'demo-9', jetons: 40, travail: 20 * MIN },
-    ]);
-    const a = agentsTextes(t);
-    const i = a.findIndex(x => x.texte === "⤷ Arbitrage de l'arrêt · régulateur ⇄ questionneur");
-    expect(a[i].ton).toBe('titre');
-    expect(a[i + 1]).toMatchObject({ ton: 'actif', ticket: 'demo-9' });
-    expect(a[i + 1].texte).toMatch(/^▶ 9 {2}Le panneau +20 min · 40$/);
-  });
-
+describe('3uv.49 critère 1 : a lead role on its ticket', () => {
   it('3uv.49 critère 1 : a site manager whose register end no message follows is finished, not in progress', () => {
     const t = plateau(
       [T('demo-9')],
-      [fin('c0', 'demo-9', REGULATEUR, '09:00', 40)],
-      [vivant('c0', 'demo-9', REGULATEUR, 40, { entre: Date.parse(at('08:00')) })]
+      [fin('c0', 'demo-9', MENEUR, '09:00', 40)],
+      [vivant('c0', 'demo-9', MENEUR, 40, { entre: Date.parse(at('08:00')) })]
     );
-    expect(enCours(t, REGULATEUR)).toEqual([]);
+    expect(enCours(t, MENEUR)).toEqual([]);
   });
 
-  it('3uv.49 critère 1 : a sub-agent of type regulateur, recent, runs as role 0 on its ticket', () => {
+  it('3uv.49 critère 1 : a sub-agent of type questionneur, recent, runs as its role on its ticket', () => {
     const home = nouveauHome();
-    sousAgent(home, 'c1', { agentType: REGULATEUR }, 'demo-9', 3);
+    sousAgent(home, 'c1', { agentType: MENEUR }, 'demo-9', 3);
     expect(vivants(home).find(v => v.agent === 'c1')).toMatchObject({
-      role: REGULATEUR,
+      role: MENEUR,
       ticket: 'demo-9',
       ligne: false,
       jetons: 30,
     });
   });
 
-  it('3uv.49 critère 1 : a named teammate spawned as regulateur runs as role 0, never under its name', () => {
+  it('3uv.49 critère 1 : a named teammate spawned as questionneur runs as its role, never under its name', () => {
     const home = nouveauHome();
     sousAgent(
       home,
       'c2',
-      { agentType: 'demo-9-agent-0', name: 'demo-9-agent-0', spawnedAgentType: REGULATEUR },
+      { agentType: 'demo-9-agent-0', name: 'demo-9-agent-0', spawnedAgentType: MENEUR },
       'demo-9',
       2
     );
     expect(vivants(home).find(v => v.agent === 'c2')).toMatchObject({
-      role: REGULATEUR,
+      role: MENEUR,
       ticket: 'demo-9',
     });
   });
 
-  it('3uv.49 critère 1 : a finished manager has its register line, role 0 and its ticket', () => {
+  it('3uv.49 critère 1 : a finished manager has its register line, its role and its ticket', () => {
     const home = nouveauHome();
-    sousAgent(home, 'cf', { agentType: REGULATEUR }, 'demo-9', 4);
+    sousAgent(home, 'cf', { agentType: MENEUR }, 'demo-9', 4);
     expect(ligneFinie(home, 'cf')).toMatchObject({
       agent: 'cf',
       ticket: 'demo-9',
-      role: REGULATEUR,
+      role: MENEUR,
       jetons: 40,
     });
   });
@@ -268,7 +245,7 @@ describe('3uv.49 critère 1 : the block of the regulator stands at the arbitrage
 describe('3uv.49 critère 2 : the agents a manager launches are tied to their ticket and role', () => {
   it('3uv.49 critère 2 : a reviewer launched by a manager, in the same session, runs under its role on its ticket', () => {
     const home = nouveauHome();
-    sousAgent(home, 'c10', { agentType: REGULATEUR }, 'demo-9', 2);
+    sousAgent(home, 'c10', { agentType: MENEUR }, 'demo-9', 2);
     sousAgent(home, 'r10', { agentType: 'relecteur', parentAgentId: 'c10' }, 'demo-9', 1);
     expect(vivants(home).find(x => x.agent === 'r10')).toMatchObject({
       role: 'relecteur',
@@ -287,13 +264,12 @@ describe('3uv.49 critère 2 : the agents a manager launches are tied to their ti
     });
   });
 
-  it('3uv.49 critère 2 : the testwriter a manager launches in a shell runs under its role, the manager no longer listed', () => {
+  it('3uv.49 critère 2 : the testwriter a manager launches in a shell runs under its role', () => {
     const home = nouveauHome();
-    sousAgent(home, 'c13', { agentType: REGULATEUR }, 'demo-9', 2);
+    sousAgent(home, 'c13', { agentType: MENEUR }, 'demo-9', 2);
     const ps = agentShell(home, 's-t13', 'testwriter', 'demo-9');
     const t = plateauVivant(home, [T('demo-9')], [], ps);
     expect(enCours(t, 'testwriter')).toEqual(['demo-9']);
-    expect(enCours(t, REGULATEUR)).toEqual([]);
   });
 });
 
@@ -302,48 +278,45 @@ describe('3uv.49 critère 3 : a ticket a running manager leads waits for no role
     const t = plateau(
       [T('demo-9')],
       [fin('t1', 'demo-9', 'testwriter', '09:00')],
-      [vivant('c0', 'demo-9', REGULATEUR)]
+      [vivant('c0', 'demo-9', MENEUR)]
     );
     expect(attentes(t)).not.toContain('demo-9');
-    expect(enCours(t, REGULATEUR)).toEqual(['demo-9']);
+    expect(enCours(t, MENEUR)).toEqual(['demo-9']);
   });
 
   it('3uv.49 critère 3 : after an accepted review, the ticket waits for no role while its manager runs', () => {
     const t = plateau(
       [T('demo-9')],
       [fin('t1', 'demo-9', 'testwriter', '09:00'), fin('d1', 'demo-9', 'developpeur', '10:00')],
-      [vivant('c0', 'demo-9', REGULATEUR)],
+      [vivant('c0', 'demo-9', MENEUR)],
       { verdicts: { 'demo-9': { verdict: 'ACCEPTÉ', date: Date.parse(at('10:30')) } } }
     );
     expect(attentes(t)).not.toContain('demo-9');
-    expect(enCours(t, REGULATEUR)).toEqual(['demo-9']);
+    expect(enCours(t, MENEUR)).toEqual(['demo-9']);
   });
 
   it('3uv.49 critère 3 : an open ticket with no passage does not wait for the testwriter while its manager runs', () => {
-    const t = plateau([T('demo-9', { status: 'open' })], [], [vivant('c0', 'demo-9', REGULATEUR)]);
+    const t = plateau([T('demo-9', { status: 'open' })], [], [vivant('c0', 'demo-9', MENEUR)]);
     expect(attentes(t)).not.toContain('demo-9');
-    expect(enCours(t, REGULATEUR)).toEqual(['demo-9']);
+    expect(enCours(t, MENEUR)).toEqual(['demo-9']);
   });
 
-  it('with its testwriter running too, the ticket is in progress under the testwriter alone, waiting nowhere', () => {
+  it('with its testwriter running too, the ticket is in progress under both, waiting nowhere', () => {
     const t = plateau(
       [T('demo-9')],
       [],
-      [
-        vivant('c0', 'demo-9', REGULATEUR),
-        vivant('s1', 'demo-9', 'testwriter', 10, { ligne: true }),
-      ]
+      [vivant('c0', 'demo-9', MENEUR), vivant('s1', 'demo-9', 'testwriter', 10, { ligne: true })]
     );
     expect(attentes(t)).not.toContain('demo-9');
     expect(enCours(t, 'testwriter')).toEqual(['demo-9']);
-    expect(enCours(t, REGULATEUR)).toEqual([]);
+    expect(enCours(t, MENEUR)).toEqual(['demo-9']);
   });
 
   it('3uv.49 critère 3 : a ticket without a manager still waits for the next role of the flow', () => {
     const t = plateau(
       [T('demo-9'), T('demo-10')],
       [fin('t1', 'demo-9', 'testwriter', '09:00'), fin('t2', 'demo-10', 'testwriter', '09:00')],
-      [vivant('c0', 'demo-9', REGULATEUR)]
+      [vivant('c0', 'demo-9', MENEUR)]
     );
     expect(bloc(t, 'developpeur')!.attend.map(x => x.id)).toEqual(['demo-10']);
   });
@@ -390,15 +363,15 @@ function ligneFinie(home: string, id: string, session = 'sess') {
   );
 }
 // A manager's id as the tool writes it, and the parent id its sub-agents carry.
-const ID_REGULATEUR = 'ademo-9-agent-0-4f3ac190df511767';
+const ID_MENEUR = 'ademo-9-agent-0-4f3ac190df511767';
 
-// Decided by the owner on 2026-10-17 (grill, Q10): a regulator comes only on a stop of the
-// circuit, which its state shows; a ticket a manager led waits under no block of its own.
+// Decided by the owner on 2026-10-17 (grill, Q10): a ticket a manager led waits under no block of
+// its own.
 describe('a ticket a manager led: its running agents hold it, and it waits as any other', () => {
   it('a testwriter running on the led ticket holds it in progress, waiting nowhere', () => {
     const t = plateau(
       [T('demo-9')],
-      [fin('c0', 'demo-9', REGULATEUR, '09:00')],
+      [fin('c0', 'demo-9', MENEUR, '09:00')],
       [vivant('s1', 'demo-9', 'testwriter', 10, { ligne: true })]
     );
     expect(enCours(t, 'testwriter')).toEqual(['demo-9']);
@@ -408,20 +381,20 @@ describe('a ticket a manager led: its running agents hold it, and it waits as an
   it('a manager resumed by a message after its end stands in progress, not waiting', () => {
     const t = plateau(
       [T('demo-9')],
-      [fin('c0', 'demo-9', REGULATEUR, '09:00')],
-      [vivant('c0', 'demo-9', REGULATEUR, 40, { entre: Date.parse(at('11:00')) })]
+      [fin('c0', 'demo-9', MENEUR, '09:00')],
+      [vivant('c0', 'demo-9', MENEUR, 40, { entre: Date.parse(at('11:00')) })]
     );
-    expect(enCours(t, REGULATEUR)).toEqual(['demo-9']);
+    expect(enCours(t, MENEUR)).toEqual(['demo-9']);
     expect(attentes(t)).toEqual([]);
   });
 
   it('after its manager and its testwriter finished, the led ticket waits for the developer, not under 0', () => {
     const t = plateau(
       [T('demo-9')],
-      [fin('t1', 'demo-9', 'testwriter', '09:00'), fin('c0', 'demo-9', REGULATEUR, '11:00')],
+      [fin('t1', 'demo-9', 'testwriter', '09:00'), fin('c0', 'demo-9', MENEUR, '11:00')],
       []
     );
-    expect(bloc(t, REGULATEUR)!.attend).toEqual([]);
+    expect(bloc(t, MENEUR)!.attend).toEqual([]);
     expect(bloc(t, 'developpeur')!.attend.map(x => x.id)).toEqual(['demo-9']);
   });
 
@@ -433,9 +406,9 @@ describe('a ticket a manager led: its running agents hold it, and it waits as an
         T('demo-11', { labels: ['a-valider'] }),
       ],
       [
-        fin('c0', 'demo-9', REGULATEUR, '11:00'),
-        fin('c1', 'demo-10', REGULATEUR, '11:00'),
-        fin('c2', 'demo-11', REGULATEUR, '11:00'),
+        fin('c0', 'demo-9', MENEUR, '11:00'),
+        fin('c1', 'demo-10', MENEUR, '11:00'),
+        fin('c2', 'demo-11', MENEUR, '11:00'),
       ],
       []
     );
@@ -443,130 +416,20 @@ describe('a ticket a manager led: its running agents hold it, and it waits as an
   });
 });
 
-describe("3uv.49 critère 6 : a sub-agent of a manager's session naming no ticket takes its manager's", () => {
-  it('3uv.49 critère 6 : running, an Explore launched by a manager stands on the ticket of its manager', () => {
-    const home = nouveauHome();
-    sousAgent(home, ID_REGULATEUR, { agentType: REGULATEUR }, 'demo-9', 2);
-    sousAgentMuet(home, 'e1', { agentType: 'Explore', parentAgentId: ID_REGULATEUR }, 3);
-    expect(vivants(home).find(x => x.agent === 'e1')).toMatchObject({
-      role: 'Explore',
-      ticket: 'demo-9',
-      jetons: 30,
-    });
-  });
-
-  it('3uv.49 critère 6 : running, a sub-agent of a named manager spawned as regulateur takes its ticket', () => {
-    const home = nouveauHome();
-    sousAgent(
-      home,
-      'ademo-12-agent-0-0011',
-      { agentType: 'demo-12-agent-0', name: 'demo-12-agent-0', spawnedAgentType: REGULATEUR },
-      'demo-12',
-      2
-    );
-    sousAgentMuet(
-      home,
-      'e2',
-      { agentType: 'general-purpose', parentAgentId: 'ademo-12-agent-0-0011' },
-      1
-    );
-    expect(vivants(home).find(x => x.agent === 'e2')).toMatchObject({ ticket: 'demo-12' });
-  });
-
-  it('3uv.49 critère 6 : running, the sub-agent takes the ticket of its manager silent for 10 minutes', () => {
-    const home = nouveauHome();
-    sousAgent(home, ID_REGULATEUR, { agentType: REGULATEUR }, 'demo-9', 2, 10 * MIN);
-    sousAgentMuet(home, 'e3', { agentType: 'Explore', parentAgentId: ID_REGULATEUR }, 1);
-    expect(vivants(home).find(x => x.agent === 'e3')).toMatchObject({ ticket: 'demo-9' });
-  });
-
-  it('3uv.49 critère 6 : on the board, the tokens of a running sub-agent count on the ticket of its manager', () => {
-    const home = nouveauHome();
-    sousAgent(home, ID_REGULATEUR, { agentType: REGULATEUR }, 'demo-9', 2);
-    sousAgentMuet(home, 'e4', { agentType: 'Explore', parentAgentId: ID_REGULATEUR }, 3);
-    const t = plateauVivant(home, [T('demo-9')]);
-    expect(bloc(t, REGULATEUR)!.enCours).toMatchObject([{ id: 'demo-9', jetons: 50 }]);
-  });
-
-  it('3uv.49 critère 6 : finished, its register line holds the ticket of its manager and its own role', () => {
-    const home = nouveauHome();
-    sousAgent(home, ID_REGULATEUR, { agentType: REGULATEUR }, 'demo-9', 2, 10 * MIN);
-    sousAgentMuet(home, 'e5', { agentType: 'Explore', parentAgentId: ID_REGULATEUR }, 2, 5 * MIN);
-    expect(ligneFinie(home, 'e5')).toMatchObject({
-      agent: 'e5',
-      ticket: 'demo-9',
-      role: 'Explore',
-      jetons: 20,
-    });
-  });
-
-  it('3uv.49 critère 6 : a sub-agent of a manager whose prompt names its own ticket keeps it, running and finished', () => {
-    const home = nouveauHome();
-    sousAgent(home, ID_REGULATEUR, { agentType: REGULATEUR }, 'demo-9', 2);
-    sousAgent(home, 'r7', { agentType: 'relecteur', parentAgentId: ID_REGULATEUR }, 'demo-10', 1);
-    expect(vivants(home).find(x => x.agent === 'r7')).toMatchObject({ ticket: 'demo-10' });
-    expect(ligneFinie(home, 'r7')).toMatchObject({ ticket: 'demo-10' });
-  });
-
-  it("3uv.49 critère 6 : a sub-agent of the same session without a parent (the supervisor's own) takes no ticket", () => {
-    const home = nouveauHome();
-    sousAgent(home, ID_REGULATEUR, { agentType: REGULATEUR }, 'demo-9', 2);
-    sousAgentMuet(home, 'e8', { agentType: 'Explore' }, 1);
-    expect(vivants(home).find(x => x.agent === 'e8')).toMatchObject({ ticket: null });
-    expect(ligneFinie(home, 'e8')).toMatchObject({ ticket: null });
-  });
-
-  it('3uv.49 critère 6 : a parent written by hand (a generic teammate named -agent-0) is no manager: no ticket taken', () => {
-    const home = nouveauHome();
-    sousAgent(
-      home,
-      'ademo-9-agent-0-0013',
-      { agentType: 'demo-9-agent-0', name: 'demo-9-agent-0', spawnedAgentType: 'general-purpose' },
-      'demo-9',
-      2
-    );
-    sousAgentMuet(home, 'e9', { agentType: 'Explore', parentAgentId: 'ademo-9-agent-0-0013' }, 1);
-    expect(vivants(home).find(x => x.agent === 'e9')).toMatchObject({ ticket: null });
-    expect(ligneFinie(home, 'e9')).toMatchObject({ ticket: null });
-  });
-
-  it('3uv.49 critère 6 : a manager whose transcript is not in the same folder gives no ticket', () => {
-    const home = nouveauHome();
-    sousAgent(home, ID_REGULATEUR, { agentType: REGULATEUR }, 'demo-9', 2, 0, 'autre');
-    sousAgentMuet(home, 'e10', { agentType: 'Explore', parentAgentId: ID_REGULATEUR }, 1);
-    expect(vivants(home).find(x => x.agent === 'e10')).toMatchObject({ ticket: null });
-    expect(ligneFinie(home, 'e10')).toMatchObject({ ticket: null });
-  });
-});
-
-describe('3uv.49 critère 8 : the block of the regulator is shown as « régulateur »', () => {
-  it('3uv.49 critère 8 : its block names the régulateur, at the arbitrage, and the pane draws it so', () => {
-    const t = plateau([T('demo-9')], [], [vivant('c0', 'demo-9', REGULATEUR)]);
-    expect(bloc(t, REGULATEUR)).toMatchObject({
-      numero: null,
-      titre: "Arbitrage de l'arrêt",
-      qui: 'régulateur ⇄ questionneur',
-    });
-    expect(agentsTextes(t).map(x => x.texte)).toContain(
-      "⤷ Arbitrage de l'arrêt · régulateur ⇄ questionneur"
-    );
-  });
-});
-
-// Romain, 2026-10-21: the line of 1.2 names its roles short, to hold in 52 columns; the
-// arbitrage keeps « régulateur ».
-describe('the block of 1.2 names « questionneur ⇄ référent », the regulator its whole name', () => {
-  it('the block of the technical referent at 1.2 is shown « questionneur ⇄ référent », whole in the width', () => {
-    const t = plateau([T('demo-9')], [], [vivant('c0', 'demo-9', 'referent-technique')]);
-    expect(bloc(t, 'referent-technique')).toMatchObject({
+// grillhouse-3uv.95.4: the block 1.2 holds the questionneur alone, and no block stands out of the
+// sequence of the steps.
+describe('the block of 1.2 names the questionneur', () => {
+  it('the block of 1.2 is shown « questionneur », and no block stands out of the steps', () => {
+    const t = plateau([T('demo-9')], [], [vivant('c0', 'demo-9', MENEUR)]);
+    expect(bloc(t, MENEUR)).toMatchObject({
       numero: '1.2',
       titre: 'Questionnement',
-      qui: 'questionneur ⇄ référent',
+      qui: 'questionneur',
     });
     expect(agentsTextes(t).map(x => x.texte.trimEnd())).toContain(
-      '  1.2 · Questionnement · questionneur ⇄ référent'
+      '  1.2 · Questionnement · questionneur'
     );
-    expect(bloc(t, REGULATEUR)).toMatchObject({ qui: 'régulateur ⇄ questionneur' });
+    expect(t.agents.filter(b => b.numero === null)).toEqual([]);
   });
 });
 
@@ -590,7 +453,7 @@ const depotFactice = (tickets: object[], commentaires: object[], registre: objec
   return racine;
 };
 
-describe("3uv.49 critère 9 : a regulator's passage leaves the ticket to the flow", () => {
+describe("3uv.49 critère 9 : a manager's passage leaves the ticket to the flow", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
   });
@@ -598,7 +461,7 @@ describe("3uv.49 critère 9 : a regulator's passage leaves the ticket to the flo
   it("3uv.49 critère 9 : a manager's finished passage leaves the ticket to the next role of the flow", () => {
     const t = plateau(
       [T('demo-9')],
-      [fin('t1', 'demo-9', 'testwriter', '09:00'), fin('c0', 'demo-9', REGULATEUR, '11:00')],
+      [fin('t1', 'demo-9', 'testwriter', '09:00'), fin('c0', 'demo-9', MENEUR, '11:00')],
       []
     );
     expect(bloc(t, 'developpeur')!.attend.map(x => x.id)).toEqual(['demo-9']);
@@ -620,7 +483,7 @@ describe("3uv.49 critère 9 : a regulator's passage leaves the ticket to the flo
         fin('t1', 'demo-9', 'testwriter', '09:00'),
         fin('d1', 'demo-9', 'developpeur', '10:00'),
         fin('r1', 'demo-9', 'relecteur', '10:40'),
-        fin('c0', 'demo-9', REGULATEUR, '11:00'),
+        fin('c0', 'demo-9', MENEUR, '11:00'),
       ]
     );
     const t = tableau(racine, { home: nouveauHome() }) as unknown as Board;
@@ -634,11 +497,11 @@ const bloque = (id: string, par: string, o: object = {}) =>
 
 describe('3uv.49 critère 10 : a blocked ticket in the circuit waits for the next role of the flow', () => {
   // Decided by the owner on 2026-10-17 (grill, Q10): the supervisor launches the circuit, whose
-  // first agent is the testwriter; a regulator comes only on a stop of the circuit.
+  // first agent is the testwriter.
   it('a blocked ticket in the circuit without any passage waits for the testwriter, the circuit launching it first', () => {
     const t = plateau([bloque('demo-9', 'demo-8'), T('demo-8')], [], []);
     expect(bloc(t, 'testwriter')!.attend.map(x => x.id)).toContain('demo-9');
-    expect(bloc(t, REGULATEUR)!.attend.map(x => x.id)).not.toContain('demo-9');
+    expect(bloc(t, MENEUR)!.attend.map(x => x.id)).not.toContain('demo-9');
   });
 
   it('3uv.49 critère 10 : a blocked ticket no manager led still waits for the next role of the flow', () => {
@@ -648,7 +511,7 @@ describe('3uv.49 critère 10 : a blocked ticket in the circuit waits for the nex
       []
     );
     expect(bloc(t, 'developpeur')!.attend.map(x => x.id)).toEqual(['demo-9']);
-    expect(bloc(t, REGULATEUR)!.attend).toEqual([]);
+    expect(bloc(t, MENEUR)!.attend).toEqual([]);
   });
 });
 
@@ -656,7 +519,7 @@ describe('3uv.49 critère 11 : only an agent of a block puts a ticket in progres
   it('3uv.49 critère 11 : an Explore running on a led ticket leaves it waiting for the testwriter', () => {
     const t = plateau(
       [T('demo-9')],
-      [fin('c0', 'demo-9', REGULATEUR, '09:00')],
+      [fin('c0', 'demo-9', MENEUR, '09:00')],
       [vivant('e1', 'demo-9', 'Explore', 30)]
     );
     expect(bloc(t, 'testwriter')!.attend.map(x => x.id)).toEqual(['demo-9']);
@@ -666,7 +529,7 @@ describe('3uv.49 critère 11 : only an agent of a block puts a ticket in progres
   it('3uv.49 critère 11 : a reviewer running on the led ticket, an agent of a block, holds it in progress', () => {
     const t = plateau(
       [T('demo-9')],
-      [fin('c0', 'demo-9', REGULATEUR, '09:00')],
+      [fin('c0', 'demo-9', MENEUR, '09:00')],
       [vivant('r1', 'demo-9', 'relecteur', 30)]
     );
     expect(enCours(t, 'relecteur')).toEqual(['demo-9']);
@@ -674,7 +537,9 @@ describe('3uv.49 critère 11 : only an agent of a block puts a ticket in progres
   });
 });
 
-describe('3uv.49 critère 12 : only a manager gives its ticket to a sub-agent naming none', () => {
+// grillhouse-3uv.95.4: a sub-agent takes its ticket from its own prompt alone, never from the agent
+// that launched it.
+describe('3uv.49 critère 12 : a sub-agent naming no ticket takes none, whatever launched it', () => {
   it('3uv.49 critère 12 : a sub-agent launched by a reviewer takes no ticket, running and finished', () => {
     const home = nouveauHome();
     sousAgent(home, 'arel-1', { agentType: 'relecteur' }, 'demo-9', 2);
@@ -683,27 +548,15 @@ describe('3uv.49 critère 12 : only a manager gives its ticket to a sub-agent na
     expect(ligneFinie(home, 'e1')).toMatchObject({ ticket: null });
   });
 
-  it("3uv.49 critère 12 : a sub-agent of a manager's reviewer takes no ticket: only the direct parent counts", () => {
+  it('3uv.49 critère 12 : an Explore launched by a manager on its ticket takes no ticket, running and finished', () => {
     const home = nouveauHome();
-    sousAgent(home, ID_REGULATEUR, { agentType: REGULATEUR }, 'demo-9', 2);
-    sousAgent(
-      home,
-      'arel-2',
-      { agentType: 'relecteur', parentAgentId: ID_REGULATEUR },
-      'demo-9',
-      1
-    );
-    sousAgentMuet(home, 'e2', { agentType: 'Explore', parentAgentId: 'arel-2' }, 1);
-    expect(vivants(home).find(x => x.agent === 'e2')).toMatchObject({ ticket: null });
-    expect(ligneFinie(home, 'e2')).toMatchObject({ ticket: null });
-  });
-
-  it('3uv.49 critère 12 : a sub-agent of a manager whose prompt names no ticket takes none, running and finished', () => {
-    const home = nouveauHome();
-    sousAgentMuet(home, ID_REGULATEUR, { agentType: REGULATEUR }, 2);
-    sousAgentMuet(home, 'e3', { agentType: 'Explore', parentAgentId: ID_REGULATEUR }, 1);
-    expect(vivants(home).find(x => x.agent === 'e3')).toMatchObject({ ticket: null });
-    expect(ligneFinie(home, 'e3')).toMatchObject({ ticket: null });
+    sousAgent(home, ID_MENEUR, { agentType: MENEUR }, 'demo-9', 2);
+    sousAgentMuet(home, 'e2', { agentType: 'Explore', parentAgentId: ID_MENEUR }, 3);
+    expect(vivants(home).find(x => x.agent === 'e2')).toMatchObject({
+      role: 'Explore',
+      ticket: null,
+    });
+    expect(ligneFinie(home, 'e2')).toMatchObject({ ticket: null, role: 'Explore' });
   });
 });
 
@@ -807,7 +660,7 @@ describe('3uv.49 critère 13 : a sub-agent, whatever its role, runs while its la
     ecrire(
       home,
       'c20',
-      { agentType: REGULATEUR },
+      { agentType: MENEUR },
       enAppel({
         ticket: 'demo-9',
         prompt: 20 * MIN,
@@ -823,19 +676,13 @@ describe('3uv.49 critère 13 : a sub-agent, whatever its role, runs while its la
     expect(v.find(x => x.agent === 'c20')).toBeUndefined();
   });
 
-  it('3uv.49 critère 13 : the real case, a manager silent 5 minutes in the middle of a call and its reviewer silent 3 minutes in the middle of a call, both run, the ticket shown under the reviewer', () => {
+  it('3uv.49 critère 13 : the real case, a manager silent 5 minutes in the middle of a call and its reviewer silent 3 minutes in the middle of a call, both run, the ticket shown under both', () => {
     const home = nouveauHome();
-    enAttente(home, ID_REGULATEUR, { agentType: REGULATEUR }, 'demo-9', 5 * MIN);
-    enAttente(
-      home,
-      'r21',
-      { agentType: 'relecteur', parentAgentId: ID_REGULATEUR },
-      'demo-9',
-      3 * MIN
-    );
+    enAttente(home, ID_MENEUR, { agentType: MENEUR }, 'demo-9', 5 * MIN);
+    enAttente(home, 'r21', { agentType: 'relecteur', parentAgentId: ID_MENEUR }, 'demo-9', 3 * MIN);
     const v = vivants(home);
-    expect(v.find(x => x.agent === ID_REGULATEUR)).toMatchObject({
-      role: REGULATEUR,
+    expect(v.find(x => x.agent === ID_MENEUR)).toMatchObject({
+      role: MENEUR,
       ticket: 'demo-9',
     });
     expect(v.find(x => x.agent === 'r21')).toMatchObject({
@@ -843,7 +690,7 @@ describe('3uv.49 critère 13 : a sub-agent, whatever its role, runs while its la
       ticket: 'demo-9',
     });
     const t = plateauVivant(home, [T('demo-9')]);
-    expect(enCours(t, REGULATEUR)).toEqual([]);
+    expect(enCours(t, MENEUR)).toEqual(['demo-9']);
     expect(enCours(t, 'relecteur')).toEqual(['demo-9']);
   });
 
@@ -979,20 +826,13 @@ describe('3uv.49 critère 15 : the 2-minute rule holds beside the waiting call',
 describe('3uv.49 critère 16 : the 30-minute reading bound holds for every transcript', () => {
   it('3uv.49 critère 16 : a manager silent for 35 minutes is not read: its running sub-agent naming no ticket stays without one', () => {
     const home = nouveauHome();
-    const regulateur = sousAgent(
-      home,
-      ID_REGULATEUR,
-      { agentType: REGULATEUR },
-      'demo-9',
-      2,
-      35 * MIN
-    );
-    sousAgentMuet(home, 'e40', { agentType: 'Explore', parentAgentId: ID_REGULATEUR }, 1);
+    const meneur = sousAgent(home, ID_MENEUR, { agentType: MENEUR }, 'demo-9', 2, 35 * MIN);
+    sousAgentMuet(home, 'e40', { agentType: 'Explore', parentAgentId: ID_MENEUR }, 1);
     const cache: Record<string, unknown> = {};
     const v = vivants(home, '', cache);
     expect(v.find(x => x.agent === 'e40')).toMatchObject({ role: 'Explore', ticket: null });
-    expect(v.find(x => x.agent === ID_REGULATEUR)).toBeUndefined();
-    expect(Object.keys(cache)).not.toContain(regulateur);
+    expect(v.find(x => x.agent === ID_MENEUR)).toBeUndefined();
+    expect(Object.keys(cache)).not.toContain(meneur);
   });
 
   it('3uv.49 critère 16 : a shell agent whose transcript is 40 minutes old shows by its process, without the measures of its transcript', () => {

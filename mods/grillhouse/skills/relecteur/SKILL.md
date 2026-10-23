@@ -109,7 +109,7 @@ test qui manque ou qui ne mord pas, `developpeur` quand il vise le code, et `com
 ceux du titre (son chemin ou le nom de son paquet), celui où la correction s'écrit. Le circuit relance ces
 agents depuis le premier composant nommé, le constat pour rapport. Un constat qui met en cause le
 critère lui-même, et non le lot, porte à la place `critere_en_cause` (son numéro) : le circuit
-s'arrête, et le régulateur tranche. Ainsi chaque constat arrive à l'agent qui le corrige.
+s'arrête, et la question monte au superviseur. Ainsi chaque constat arrive à l'agent qui le corrige.
 
 ```json
 {

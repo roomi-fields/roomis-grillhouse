@@ -13,29 +13,25 @@
 //           (5 s plus tard)
 //   ▶ 320.3  030-binder 2/3 · essai 2/3              12 min · 340 k
 //     2.4 · Contrôles · auto
-//     ⤷ Arbitrage de l'arrêt · régulateur ⇄ questionneur
-//   ■ 318    Le checker refuse … · arrêt 2/3          41 min · 1,2 M
+//     ⤷ Question · superviseur
+//   ■ 318    Le checker refuse …                      41 min · 1,2 M
 //   3 · Passe finale · auto
 //   4 · Relecture · relecteur
 //   ▸ 5 · Intégration
 //
-// A stop of the opening, which the circuit ends on for the supervisor with no regulator (the
-// owner, 2026-10-21):
+// A stop of the opening, a question for the supervisor (the owner, 2026-10-21; grillhouse-3uv.95.4):
 //
 //   ▾ 1 · Ouverture
 //     1.1 · Relevé des composants · auto
-//     ⤷ Arrêt · superviseur
+//     ⤷ Question · superviseur
 //   ■ 322    Le parser garde…
-//     1.2 · Questionnement · questionneur ⇄ référent
+//     1.2 · Questionnement · questionneur
 //
 // - Every step stands in its order. A step with sub-steps is folded (▸) while none of them holds
 //   a ticket, unfolded (▾) once one does, all its sub-steps then shown, the empty ones in the
 //   discreet tone; a step without sub-steps stands on one line, discreet when empty.
-// - A stopped ticket stands under its step, on a line « ⤷ Arbitrage de l'arrêt · régulateur ⇄
-//   questionneur » then its own line, which unfolds its step: the arbitrage is out of the
-//   sequence, tied to the stopped step. A stop whose kind the table of the stops sends to the
-//   supervisor (scripts/etapes.mjs) stands under a line « ⤷ Arrêt · superviseur » instead.
-// - The line of 1.2 names its roles « questionneur ⇄ référent », to hold in 52 columns.
+// - A ticket stopped on a question stands under its step, on a line « ⤷ Question · <qui> », who
+//   must answer it (the supervisor, or the owner), then its own line, which unfolds its step.
 // - A ticket's line in a circuit alternates, every 5 s, its subject and its component under way
 //   (the board gives both texts, `texte` and `alterne`; the mod alternates), with its rank among
 //   the title's components, then the counters of its loops, its time and its tokens.
@@ -110,7 +106,7 @@ const circuit = (ticket: string, o: object = {}) => ({
   arret: null,
   raison: null,
   question: null,
-  regulateur: false,
+  qui: null,
   questionnement: null,
   rang: 1,
   total: 1,
@@ -146,16 +142,23 @@ const agents = (t: Board) => {
   return l.slice(l.findIndex(x => x.texte.startsWith('AGENTS')));
 };
 const textes = (t: Board) => agents(t).map(x => x.texte.trimEnd());
-// A step's line, folded, unfolded, a sub-step or the arbitrage's.
+// A step's line, folded, unfolded or a sub-step.
 const ETAPE = /^(?:[▸▾] | {2})?\d+(?:\.\d+)? · /;
-const ARBITRAGE = "⤷ Arbitrage de l'arrêt · régulateur ⇄ questionneur";
-// The step's line above the line of <id>, and the arbitrage's line when it stands between them.
+const QUESTION = '⤷ Question · superviseur';
+// A circuit stopped on a question for <qui>.
+const enQuestion = (o: object = {}, qui = 'superviseur') => ({
+  vivant: false,
+  question: 'Quel composant lève ce rouge ?',
+  qui,
+  ...o,
+});
+// The step's line above the line of <id>, and whether a question's line stands between them.
 const etapeDe = (t: Board, id: string) => {
   const a = agents(t);
   const i = a.findIndex(x => x.ticket === id);
   return [...a.slice(0, i)].reverse().find(x => ETAPE.test(x.texte))?.texte ?? null;
 };
-const arbitreDe = (t: Board, id: string) => {
+const sousUneQuestion = (t: Board, id: string) => {
   const a = agents(t);
   const i = a.findIndex(x => x.ticket === id);
   const au = [...a.slice(0, i)].reverse().find(x => ETAPE.test(x.texte) || x.texte.includes('⤷'));
@@ -180,12 +183,12 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
     ]);
   });
 
-  it('the data holds a block per step and sub-step, in the order of the list, then the arbitrage', () => {
+  it('the data holds a block per step and sub-step, in the order of the list', () => {
     expect(plateau([]).agents.map(b => [b.numero, b.titre, b.qui])).toEqual([
       ['0', 'Exploration', 'explorateur'],
       ['1', 'Ouverture', ''],
       ['1.1', 'Relevé des composants', 'auto'],
-      ['1.2', 'Questionnement', 'questionneur ⇄ référent'],
+      ['1.2', 'Questionnement', 'questionneur'],
       ['2', 'Composants', ''],
       ['2.1', 'Tests', 'testwriter'],
       ['2.2', 'Preuve du rouge', 'auto'],
@@ -197,7 +200,6 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
       ['5', 'Intégration', ''],
       ['5.1', 'Commit', 'auto'],
       ['5.2', 'File : main, poussée, CI', 'auto'],
-      [null, "Arbitrage de l'arrêt", 'régulateur ⇄ questionneur'],
     ]);
   });
 
@@ -230,13 +232,13 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
     expect(agents(t)[1]).toMatchObject({ ton: 'titre' });
   });
 
-  it('a technical referent on a ticket stands at 1.2, which unfolds the opening, its line whole in the width', () => {
-    const t = plateau([T('demo-31')], { vivants: [vivant('a1', 'demo-31', 'referent-technique')] });
+  it('a questionneur on a ticket stands at 1.2, which unfolds the opening, its line whole in the width', () => {
+    const t = plateau([T('demo-31')], { vivants: [vivant('a1', 'demo-31', 'questionneur')] });
     const a = agents(t);
     expect(a.slice(2, 5).map(x => [x.texte.trimEnd(), x.ton])).toEqual([
       ['▾ 1 · Ouverture', 'titre'],
       ['  1.1 · Relevé des composants · auto', 'discret'],
-      ['  1.2 · Questionnement · questionneur ⇄ référent', 'titre'],
+      ['  1.2 · Questionnement · questionneur', 'titre'],
     ]);
     expect(a[5]).toMatchObject({ ticket: 'demo-31' });
     expect(a.every(x => x.texte.length <= LARGEUR)).toBe(true);
@@ -265,32 +267,26 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     expect(sous({ etape: 'file' })).toBe('  5.2 · File : main, poussée, CI · auto');
   });
 
-  it('the questioning of the plan at 1.2, its round from the second', () => {
+  it('the questioning of the plan at 1.2, read once', () => {
     const t = plateau([T('demo-35')], {
-      circuits: [
-        circuit('demo-35', {
-          etape: 'testwriter',
-          questionnement: 'plan',
-          boucles: { questionnement: 2 },
-        }),
-      ],
+      circuits: [circuit('demo-35', { etape: 'testwriter', questionnement: 'plan' })],
     });
     expect(etapeDe(t, 'demo-35')).toMatch(/^ {2}1\.2 · Questionnement · /);
-    expect(arbitreDe(t, 'demo-35')).toBe(false);
-    expect(ligneDe(t, 'demo-35').texte).toMatch(/^▶ 35 {2}Le sujet de demo-35 · tour 2\/4( |$)/);
+    expect(sousUneQuestion(t, 'demo-35')).toBe(false);
+    expect(ligneDe(t, 'demo-35').texte).toMatch(/^▶ 35 {2}Le sujet de demo-35( |$)/);
   });
 
-  it('a stopped circuit stands under its step, after the line of the arbitrage, which unfolds its step', () => {
+  it('a circuit stopped on a question stands under its step, after the line of the question, which unfolds its step', () => {
     const t = plateau([T('demo-36')], {
       circuits: [
-        circuit('demo-36', { etape: 'controles', vivant: false, code: 14, arret: 'controles' }),
+        circuit('demo-36', enQuestion({ etape: 'controles', code: 14, arret: 'controles' })),
       ],
     });
     const a = textes(t);
     const i = a.indexOf('  2.4 · Contrôles · auto');
     expect(a.slice(i, i + 3)).toEqual([
       '  2.4 · Contrôles · auto',
-      `  ${ARBITRAGE}`,
+      `  ${QUESTION}`,
       expect.stringMatching(/^■ 36 {2}Le sujet de demo-36/),
     ]);
     expect(a).toContain('▾ 2 · Composants');
@@ -301,20 +297,23 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     });
   });
 
-  it('a stop at a step without sub-steps: the arbitrage under it, at its number', () => {
+  it('a question at a step without sub-steps: its line under it, at its number', () => {
     const t = plateau([T('demo-37')], {
       circuits: [
-        circuit('demo-37', { etape: 'controles', finale: true, regulateur: true, code: 14 }),
+        circuit(
+          'demo-37',
+          enQuestion({ etape: 'controles', finale: true, code: 14, arret: 'controles' })
+        ),
       ],
     });
     const a = textes(t);
     const i = a.indexOf('  3 · Passe finale · auto');
     expect(a.slice(i, i + 3)).toEqual([
       '  3 · Passe finale · auto',
-      `  ${ARBITRAGE}`,
-      expect.stringMatching(/^▶ 37 {2}Le sujet de demo-37/),
+      `  ${QUESTION}`,
+      expect.stringMatching(/^■ 37 {2}Le sujet de demo-37/),
     ]);
-    expect(ligneDe(t, 'demo-37')).toMatchObject({ ton: 'actif' });
+    expect(ligneDe(t, 'demo-37')).toMatchObject({ ton: 'attention' });
   });
 
   it('the stops of the opening stand at their step: the survey at 1.1, the questioning at 1.2', () => {
@@ -326,15 +325,13 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     );
   });
 
-  it('a stop of the survey at 1.1 stands under « ⤷ Arrêt · superviseur », which unfolds the opening', () => {
+  it('a stop of the survey at 1.1 stands under « ⤷ Question · superviseur », which unfolds the opening', () => {
     const t = plateau([T('demo-322')], {
       circuits: [
-        circuit('demo-322', {
-          etape: 'testwriter',
-          vivant: false,
-          code: 21,
-          arret: 'composants-manquants',
-        }),
+        circuit(
+          'demo-322',
+          enQuestion({ etape: 'testwriter', code: 21, arret: 'composants-manquants' })
+        ),
       ],
     });
     const a = textes(t);
@@ -342,85 +339,56 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     expect(a.slice(i, i + 5)).toEqual([
       '▾ 1 · Ouverture',
       '  1.1 · Relevé des composants · auto',
-      '  ⤷ Arrêt · superviseur',
+      `  ${QUESTION}`,
       expect.stringMatching(/^■ 322 {2}Le sujet de demo-322/),
-      '  1.2 · Questionnement · questionneur ⇄ référent',
+      '  1.2 · Questionnement · questionneur',
     ]);
-    expect(a).not.toContain(`  ${ARBITRAGE}`);
     expect(agents(t)[i + 2]).toMatchObject({ ton: 'titre' });
     expect(ligneDe(t, 'demo-322')).toMatchObject({ ton: 'attention' });
   });
 
-  it('a questioning of the plan that does not converge stands at 1.2 under « ⤷ Arrêt · superviseur », its rounds shown', () => {
+  it('a questioning of the plan that goes up stands at 1.2 under « ⤷ Question · superviseur »', () => {
     const t = plateau([T('demo-323')], {
       circuits: [
-        circuit('demo-323', {
-          etape: 'testwriter',
-          vivant: false,
-          code: 22,
-          arret: 'questionnement',
-          boucles: { questionnement: 4 },
-        }),
+        circuit('demo-323', enQuestion({ etape: 'testwriter', code: 22, arret: 'questionnement' })),
       ],
     });
     const a = textes(t);
-    const i = a.indexOf('  1.2 · Questionnement · questionneur ⇄ référent');
+    const i = a.indexOf('  1.2 · Questionnement · questionneur');
     expect(a.slice(i, i + 3)).toEqual([
-      '  1.2 · Questionnement · questionneur ⇄ référent',
-      '  ⤷ Arrêt · superviseur',
-      expect.stringMatching(/^■ 323 {2}Le sujet de demo-323 · tour 4\/4( |$)/),
+      '  1.2 · Questionnement · questionneur',
+      `  ${QUESTION}`,
+      expect.stringMatching(/^■ 323 {2}Le sujet de demo-323( |$)/),
     ]);
-    expect(a).not.toContain(`  ${ARBITRAGE}`);
   });
 
-  it('a stop the regulator settles keeps the line of the arbitrage beside a stop for the supervisor', () => {
+  // grillhouse-3uv.95.4, criterion 4: the board shows who must answer the question.
+  it('a question for the owner stands under « ⤷ Question · responsable », the supervisor’s under its own line', () => {
     const t = plateau([T('demo-324'), T('demo-325')], {
       circuits: [
-        circuit('demo-324', {
-          etape: 'testwriter',
-          vivant: false,
-          code: 21,
-          arret: 'composants-manquants',
-        }),
-        circuit('demo-325', { vivant: false, code: 20, arret: 'besoin' }),
+        circuit(
+          'demo-324',
+          enQuestion({ etape: 'testwriter', code: 21, arret: 'composants-manquants' })
+        ),
+        circuit('demo-325', enQuestion({ code: 20, arret: 'besoin' }, 'responsable')),
       ],
     });
-    expect(arbitreDe(t, 'demo-324')).toBe(true);
+    expect(sousUneQuestion(t, 'demo-324')).toBe(true);
     const a = textes(t);
-    expect(a[a.findIndex(x => x.startsWith('■ 324')) - 1]).toBe('  ⤷ Arrêt · superviseur');
-    expect(a[a.findIndex(x => x.startsWith('■ 325')) - 1]).toBe(`  ${ARBITRAGE}`);
+    expect(a[a.findIndex(x => x.startsWith('■ 324')) - 1]).toBe(`  ${QUESTION}`);
+    expect(a[a.findIndex(x => x.startsWith('■ 325')) - 1]).toBe('  ⤷ Question · responsable');
   });
 
-  it('the questioning of a decision of the regulator stands at the arbitrage of the stopped step', () => {
-    const t = plateau([T('demo-38')], {
-      circuits: [
-        circuit('demo-38', {
-          regulateur: true,
-          code: 14,
-          arret: 'controles',
-          questionnement: 'decision',
-          boucles: { arret: 2, questionnement: 3 },
-        }),
-      ],
-    });
-    expect(etapeDe(t, 'demo-38')).toBe('  2.3 · Code · développeur');
-    expect(arbitreDe(t, 'demo-38')).toBe(true);
-    expect(ligneDe(t, 'demo-38').texte).toMatch(/· arrêt 2\/3 · tour 3\/4( |$)/);
-  });
-
-  it('two tickets at one step: the running one, then the arbitrage and the stopped one', () => {
+  it('two tickets at one step: the running one, then the line of the question and the stopped one', () => {
     const t = plateau([T('demo-39'), T('demo-40')], {
-      circuits: [
-        circuit('demo-39'),
-        circuit('demo-40', { vivant: false, code: 20, arret: 'besoin' }),
-      ],
+      circuits: [circuit('demo-39'), circuit('demo-40', enQuestion({ code: 20, arret: 'besoin' }))],
     });
     const a = textes(t);
     const i = a.indexOf('  2.3 · Code · développeur');
     expect(a.slice(i, i + 4)).toEqual([
       '  2.3 · Code · développeur',
       expect.stringMatching(/^▶ 39 /),
-      `  ${ARBITRAGE}`,
+      `  ${QUESTION}`,
       expect.stringMatching(/^■ 40 /),
     ]);
   });
@@ -439,11 +407,13 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     expect(ligneDe(t, 'demo-42').texte).toMatch(/^· 42 {2}Le sujet de demo-42/);
   });
 
-  it('a regulator running on a ticket without a circuit stands under the arbitrage, after the steps', () => {
-    const t = plateau([T('demo-44')], { vivants: [vivant('r1', 'demo-44', 'regulateur')] });
+  it('a circuit stopped on a question at no step of the list stands under the line of its question, after the steps', () => {
+    const t = plateau([T('demo-44')], {
+      circuits: [circuit('demo-44', enQuestion({ etape: 'inconnue', code: 14 }))],
+    });
     expect(textes(t).slice(-2)).toEqual([
-      ARBITRAGE,
-      expect.stringMatching(/^▶ 44 {2}Le sujet de demo-44 +20 min · 40$/),
+      QUESTION,
+      expect.stringMatching(/^■ 44 {2}Le sujet de demo-44/),
     ]);
   });
 });
@@ -543,12 +513,6 @@ describe('the counters of the bounded loops, from their second pass', () => {
     );
   });
 
-  it('the same stop come back after a RELANCE, at the arbitrage: « arrêt 2/3 »', () => {
-    expect(ligne({ regulateur: true, code: 14, boucles: { arret: 2 } }).texte).toMatch(
-      /^▶ 51 {2}Le sujet de demo-51 · arrêt 2\/3 +12 min · 10$/
-    );
-  });
-
   it('a first pass shows no counter, nor the attempt', () => {
     expect(ligne({ etape: 'developpeur', tentative: 1, boucles: { code: 1 } }).texte).toMatch(
       /^▶ 51 {2}Le sujet de demo-51 +12 min · 10$/
@@ -620,22 +584,24 @@ describe('the line of 3.1, for a project that declares its references', () => {
     expect(agents(t).every(x => x.texte.length <= LARGEUR)).toBe(true);
   });
 
-  it('a ticket stopped at the regeneration stands at the arbitrage of 3.1', () => {
+  it('a ticket stopped at the regeneration stands under the question of 3.1', () => {
     const t = plateau([T('demo-37')], {
       declarations: ['references'],
       circuits: [
-        circuit('demo-37', {
-          etape: 'references',
-          finale: true,
-          code: 23,
-          arret: 'references',
-          raison: 'references',
-          vivant: false,
-        }),
+        circuit(
+          'demo-37',
+          enQuestion({
+            etape: 'references',
+            finale: true,
+            code: 23,
+            arret: 'references',
+            raison: 'references',
+          })
+        ),
       ],
     });
     expect(etapeDe(t, 'demo-37')).toBe('  3.1 · Régénération des références · auto');
-    expect(arbitreDe(t, 'demo-37')).toBe(true);
+    expect(sousUneQuestion(t, 'demo-37')).toBe(true);
   });
 
   it("reads the declarations of the project's package.json: a key of grillhouse that holds something", () => {

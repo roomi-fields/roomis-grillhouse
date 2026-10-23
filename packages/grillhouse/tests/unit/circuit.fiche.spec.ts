@@ -91,7 +91,7 @@ describe.runIf(canWrap)('the sheet that ends a session', { timeout: 300_000 }, (
     expect(prompt).toContain('PEUT-ÊTRE');
   });
 
-  it('twice without a sheet: the circuit stops at « sans-fiche », the regulateur launched on it', () => {
+  it('twice without a sheet: the circuit stops at « sans-fiche », a question for the supervisor', () => {
     const id = 'demo-sans-fiche';
     ticket(id, '000-forms');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits.'\nsans_fiche\n`);
@@ -100,7 +100,8 @@ describe.runIf(canWrap)('the sheet that ends a session', { timeout: 300_000 }, (
     expect(r.status, sortie(r)).toBe(ARRETS['sans-fiche']);
     expect(sessions(id, 'testwriter')).toBe(2);
     expect(etat(id)).toMatchObject({ etape: 'testwriter', raison: 'sans-fiche' });
-    expect(ordre(id)[2]).toBe('regulateur');
+    expect(ordre(id)).toHaveLength(2);
+    expect(etat(id)?.question).toMatchObject({ arret: 'sans-fiche', qui: 'superviseur' });
   });
 
   it('the handover at the ticket decides nothing: a status line in it is not read', () => {

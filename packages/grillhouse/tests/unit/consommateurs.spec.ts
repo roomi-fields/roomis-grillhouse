@@ -170,14 +170,14 @@ describe('verifier', () => {
 });
 
 describe('the command', () => {
-  it('exits 1 on a refusal and names the technical referent', () => {
+  it('exits 1 on a refusal and names the supervisor’s arbitrage', () => {
     const dir = repo({
       'packages/b/package.json': '{"name":"@demo/b"}',
       'packages/a/src/index.ts': "import { duree } from '@demo/b';",
     });
     const r = spawnSync('node', [SCRIPT], { cwd: dir, encoding: 'utf8' });
     expect(r.status).toBe(1);
-    expect(r.stderr).toMatch(/référent technique/);
+    expect(r.stderr).toMatch(/arbitrage du superviseur/);
   });
   it('exits 0 on a repository without components', () => {
     expect(spawnSync('node', [SCRIPT], { cwd: repo({}), encoding: 'utf8' }).status).toBe(0);

@@ -70,7 +70,7 @@ describe.runIf(canWrap)('the bilan at the end of the circuit', { timeout: 300_00
     const id = 'demo-bilan-arret';
     ticket(id, '000-forms, 030-binder');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
-    // A developpeur who changes nothing; the regulator, without a scenario, answers nothing.
+    // A developpeur who changes nothing: the stop goes up to the supervisor.
     scenario(id, 'developpeur', "passation 'Code écrit.'\n");
     const r = circuit([id], { GRILLHOUSE_REGISTRE: REGISTRE });
     expect(r.status, sortie(r)).toBe(ARRETS['sans-livraison']);
@@ -88,7 +88,7 @@ describe.runIf(canWrap)('the bilan at the end of the circuit', { timeout: 300_00
     expect(entrees(id).filter(x => x.montee)).toEqual([
       expect.objectContaining({
         role: 'circuit',
-        montee: { code: ARRETS['sans-livraison'], raison: 'sans-livraison' },
+        montee: { code: ARRETS['sans-livraison'], raison: 'sans-livraison', qui: 'superviseur' },
       }),
     ]);
   });

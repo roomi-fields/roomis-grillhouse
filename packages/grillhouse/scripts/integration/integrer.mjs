@@ -14,8 +14,8 @@
 // --ticket is a usage error, named. In order, each step refusing stops the run:
 //  1. the verdict: the ticket has `ACCEPTÉ` as its last reviewer verdict (`ACCEPTÉ` or
 //     `RENDU` at the start of a comment of the author `relecteur`; another author's is none) and, when labelled `arbitrage`, each arbitrage
-//     (`estArbitrage`: a « ## Arbitrage » comment, or the regulator's the circuit writes) is settled
-//     (`arbitrageTranche`: the regulator's, `### Verdict — tranché`, or a « ## Réponse du
+//     (`estArbitrage`: a « ## Arbitrage » comment, the supervisor's) is settled
+//     (`arbitrageTranche`: `### Verdict — tranché`, or a « ## Réponse du
 //     responsable » comment after it);
 //  2. the lots: the tests lot touches only what the testwriter writes (`isTesterFile`: test files
 //     and the shared test material), the code lot none of it;

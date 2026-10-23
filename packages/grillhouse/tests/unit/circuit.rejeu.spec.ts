@@ -329,8 +329,7 @@ fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/zero.t
     );
     const r1 = circuit([id]);
     expect(r1.status, `${sortie(r1)}\n${etat(id)?.rapport ?? ''}`).toBe(ARRETS.controles);
-    // The supervisor adds forms to the title, before binder; the regulator plays it from its
-    // testwriter.
+    // The supervisor adds forms to the title, before binder, and plays it from its testwriter.
     ecrire(
       path.join(BEADS, `${id}.json`),
       json([{ id, title: `${id} — La mesure — 000-forms, 030-binder`, description: DESCRIPTION }])
@@ -345,7 +344,7 @@ fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/zero.t
     ]);
     expect(r2.status, sortie(r2)).toBe(0);
     // Binder, proven and delivered before, plays neither its testwriter nor its proof again.
-    expect(ordre(id).filter(l => !l.startsWith('regulateur'))).toEqual([
+    expect(ordre(id)).toEqual([
       'testwriter packages/binder',
       'developpeur packages/binder',
       'testwriter packages/forms',

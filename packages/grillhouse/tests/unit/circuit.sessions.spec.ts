@@ -63,14 +63,14 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
       });
       expect(historique(id).at(-1)).toEqual(['packages/forms', 'controles']);
     });
-    it("--reprendre starts again at the step and component of the state, with the regulateur's context", () => {
+    it("--reprendre starts again at the step and component of the state, with the supervisor's context", () => {
       scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-      const r = circuit([id, '--reprendre', '--contexte', 'Le regulateur a tranché : le double.']);
+      const r = circuit([id, '--reprendre', '--contexte', 'Le superviseur a tranché : le double.']);
       expect(r.status, sortie(r)).toBe(0);
       expect(sessions(id, 'testwriter')).toBe(1);
       expect(sessions(id, 'developpeur')).toBe(4);
       expect(essai(id, 'developpeur-4.prompt')).toContain(
-        'CONTEXTE : Le regulateur a tranché : le double.'
+        'CONTEXTE : Le superviseur a tranché : le double.'
       );
       expect(args(id, 'developpeur', 4)).not.toContain('--model');
       expect(etat(id)?.etape).toBe('integre');
@@ -110,7 +110,7 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
 passation 'Le rouge qui reste est dans les tests de forms : le test attend un autre type.'
 fiche '{"statut":"BLOQUÉ","raison":"le test attend un autre type.","renvoi":{"role":"testwriter","composant":"000-forms"}}'
 `;
-    it('plays that component again from its testwriter, without relaunching the developpeur nor a regulateur', () => {
+    it('plays that component again from its testwriter, without relaunching the developpeur, the gesture said', () => {
       const id = 'demo-renvoi-testwriter';
       ticket(id, '000-forms');
       scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
@@ -133,6 +133,12 @@ fiche '{"statut":"BLOQUÉ","raison":"le test attend un autre type.","renvoi":{"r
       expect(commentaires(id)).toContainEqual(
         expect.stringMatching(
           /^Circuit · packages\/forms · developpeur : .*testwriter packages\/forms/
+        )
+      );
+      // The gesture and its rule, at the ticket (grillhouse-3uv.95.4).
+      expect(commentaires(id)).toContainEqual(
+        expect.stringMatching(
+          /^Circuit · packages\/forms · geste : renvoi-au-testwriter → .*\(règle : /
         )
       );
       expect(historique(id).slice(0, 5)).toEqual([

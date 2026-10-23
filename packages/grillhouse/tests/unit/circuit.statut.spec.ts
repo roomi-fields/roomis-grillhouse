@@ -8,10 +8,10 @@ import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit
 // `raison`, BESOIN with its `question`), which the circuit reads. Witness: BPScript (320.2.4.5.1,
 // si61.8), where a developpeur was relaunched up to three times on a red he could not lift (in the
 // tests, the shared test material, a file out of his envelope, a decision out of his role), then
-// the circuit stopped at « sans-livraison » and a regulator had to find out why. A BLOQUÉ without a
-// sending and a BESOIN stop the circuit at once, at « hors-portee » and « besoin », the regulator
-// launched on them; a BLOQUÉ with its `renvoi` to `testwriter <composant>` is the sending to the
-// testwriter; FAIT keeps the circuit going.
+// the circuit stopped at « sans-livraison » and a session had to find out why. A BLOQUÉ without a
+// sending and a BESOIN stop the circuit at once, at « hors-portee » and « besoin », a question for
+// the supervisor (grillhouse-3uv.95.4), the reviewer's for the owner; a BLOQUÉ with its `renvoi` to
+// `testwriter <composant>` is the sending to the testwriter; FAIT keeps the circuit going.
 // The trial repository and its stand-ins: ./circuit-essai.ts; each file of the circuit's tests
 // builds its own, in a trial directory of its own.
 
@@ -31,12 +31,14 @@ const {
   historique,
 } = circuitEssai(ESSAIS);
 
-const REGULATEUR = 'regulateur';
+// The question of the circuit's state (scripts/circuit.mjs).
+const question = (id: string) =>
+  (etat(id) as unknown as { question: Record<string, string> | null } | null)?.question ?? null;
 
 describe.runIf(canWrap)('the status of a sheet', { timeout: 300_000 }, () => {
   afterEach(revenirAuDebut);
 
-  it('a developpeur BLOQUÉ without a recipient stops the circuit at « hors-portee » after one session, its reason in the report, the regulateur launched on it', () => {
+  it('a developpeur BLOQUÉ without a recipient stops the circuit at « hors-portee » after one session, its reason in the report, a question for the supervisor', () => {
     const id = 'demo-statut-bloque';
     ticket(id, '000-forms');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
@@ -62,23 +64,16 @@ fiche '{"statut":"BLOQUÉ","raison":"la matière de test partagée attend un aut
     });
     expect(e?.rapport).toContain('la matière de test partagée attend un autre type.');
     expect(historique(id)).not.toContainEqual(['packages/forms', 'controles']);
-    // The regulator is launched on the stop, its reason in its instruction.
-    expect(ordre(id).slice(0, 3)).toEqual([
-      'testwriter packages/forms',
-      'developpeur packages/forms',
-      REGULATEUR,
-    ]);
-    const consigne = essai(id, `${REGULATEUR}-1.prompt`);
-    expect(consigne).toContain(`hors-portee (code ${ARRETS['hors-portee']})`);
-    expect(consigne).toContain('la matière de test partagée attend un autre type.');
+    // No session follows: the stop goes up, its reason as its fact.
+    expect(ordre(id)).toEqual(['testwriter packages/forms', 'developpeur packages/forms']);
+    expect(question(id)).toMatchObject({ arret: 'hors-portee', qui: 'superviseur' });
+    expect(question(id)?.fait).toContain('la matière de test partagée attend un autre type.');
     expect(commentaires(id)).toContainEqual(
-      expect.stringMatching(
-        /^Circuit · packages\/forms · developpeur : arrêt hors-portee à 2\.3 Code — /
-      )
+      expect.stringMatching(/^Circuit · packages\/forms · question : hors-portee à 2\.3 Code — /)
     );
   });
 
-  it('a developpeur BESOIN stops the circuit at « besoin » after one session, its question in the report, the regulateur launched on it', () => {
+  it('a developpeur BESOIN stops the circuit at « besoin » after one session, its question in the report, a question for the supervisor', () => {
     const id = 'demo-statut-besoin';
     ticket(id, '000-forms');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
@@ -94,18 +89,16 @@ fiche '{"statut":"BLOQUÉ","raison":"la matière de test partagée attend un aut
     const e = etat(id);
     expect(e).toMatchObject({ etape: 'developpeur', raison: 'besoin', code: ARRETS.besoin });
     expect(e?.rapport).toContain('la mesure rend-elle le double ou le triple ?');
-    expect(ordre(id)[2]).toBe(REGULATEUR);
-    expect(essai(id, `${REGULATEUR}-1.prompt`)).toContain(`besoin (code ${ARRETS.besoin})`);
-    expect(essai(id, `${REGULATEUR}-1.prompt`)).toContain(
-      'la mesure rend-elle le double ou le triple ?'
-    );
+    expect(ordre(id)).toHaveLength(2);
+    expect(question(id)).toMatchObject({ arret: 'besoin', qui: 'superviseur' });
+    expect(question(id)?.fait).toContain('la mesure rend-elle le double ou le triple ?');
   });
 
   // grillhouse-3uv.89 L7, witness BPScript 320.3: a word a project's vocabulary guard flagged went
   // up to the supervisor, then the owner, 2 h 30 late; the owner: « c'est l'agent qui inspecte
   // les résultats des tests qui doit faire ça », the reviewer. Only a real word of the language
   // written in the code goes up, by the reviewer's `question`: the circuit stops before the commit.
-  it('a reviewer’s sheet with a `question` stops the circuit at « besoin » before the integration, its question in the report, the regulateur launched on it', () => {
+  it('a reviewer’s sheet with a `question` stops the circuit at « besoin » before the integration, its question in the report, for the owner', () => {
     const id = 'demo-statut-relecteur';
     ticket(id, '000-forms');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
@@ -122,11 +115,12 @@ fiche '{"statut":"BLOQUÉ","raison":"la matière de test partagée attend un aut
     expect(e).toMatchObject({ etape: 'relecture', raison: 'besoin', code: ARRETS.besoin });
     expect(e?.rapport).toContain('le mot double, en dur dans src/index.mjs:1');
     expect(historique(id).map(([, x]) => x)).not.toContain('integration');
-    expect(ordre(id).at(-1)).toBe(REGULATEUR);
-    expect(essai(id, `${REGULATEUR}-1.prompt`)).toContain('le mot double, en dur');
+    expect(ordre(id).at(-1)).toBe('relecteur');
+    expect(question(id)).toMatchObject({ arret: 'besoin', qui: 'responsable' });
+    expect(question(id)?.fait).toContain('le mot double, en dur');
   });
 
-  it('the answer to the reviewer’s question reaches the next reviewer, in its CONTEXTE', () => {
+  it('the answer to the reviewer’s question, by --reprendre --contexte, reaches the next reviewer, in its CONTEXTE', () => {
     const id = 'demo-statut-relecteur-reponse';
     ticket(id, '000-forms');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
@@ -136,14 +130,16 @@ fiche '{"statut":"BLOQUÉ","raison":"la matière de test partagée attend un aut
       'relecteur-1',
       `fiche '{"verdict":"ACCEPTÉ","question":"le mot double est-il un mot du langage ?"}'\n`
     );
-    scenario(
-      id,
-      REGULATEUR,
-      `fiche '{"decision":"RELANCE --reprendre","contexte":"le responsable : double est un mot du domaine, il reste"}'\n`
-    );
     scenario(id, 'relecteur-2', `fiche '{"verdict":"ACCEPTÉ"}'\n`);
     const r = circuit([id]);
-    expect(r.status, sortie(r)).toBe(0);
+    expect(r.status, sortie(r)).toBe(ARRETS.besoin);
+    const s = circuit([
+      id,
+      '--reprendre',
+      '--contexte',
+      'le responsable : double est un mot du domaine, il reste',
+    ]);
+    expect(s.status, sortie(s)).toBe(0);
     expect(essai(id, 'relecteur-1.prompt')).toContain('CONTEXTE : aucun');
     expect(essai(id, 'relecteur-2.prompt')).toContain(
       'CONTEXTE : le responsable : double est un mot du domaine, il reste'

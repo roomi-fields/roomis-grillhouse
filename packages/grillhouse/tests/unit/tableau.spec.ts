@@ -187,7 +187,7 @@ describe('verdict and etape', () => {
   it('resumes the role an arbiter interrupted', () => {
     expect(
       etape(
-        [p('developpeur', '2026-10-10T11:00:00Z'), p('referent-technique', '2026-10-10T11:30:00Z')],
+        [p('developpeur', '2026-10-10T11:00:00Z'), p('questionneur', '2026-10-10T11:30:00Z')],
         null
       )
     ).toBe('relecteur');

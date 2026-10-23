@@ -76,7 +76,7 @@ function depotAvecMatiere(matiere?: { nom: string; manifeste: Manifeste }) {
   return { repo, copie, run };
 }
 
-const AUTRES_ROLES = ['developpeur', 'explorateur', 'referent-technique'];
+const AUTRES_ROLES = ['developpeur', 'explorateur', 'questionneur'];
 
 describe.runIf(canWrap)('the envelope and the package of the shared test material', () => {
   const { repo, copie, run } = depotAvecMatiere({

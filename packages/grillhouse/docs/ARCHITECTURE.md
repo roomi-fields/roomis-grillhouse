@@ -37,11 +37,26 @@ seule, et la matière de test partagée s'écrit par le seul testwriter. Un chem
 paquets écrit la racine, toute la copie. `GRILLHOUSE_ENVELOPPE` porte la liste aux commandes du
 cadre, qui construisent, jugent et écrivent ses seuls paquets. Une écriture hors du plan échoue
 au montage, et le verrou de l'agent arrête sa séance en nommant le paquet ; le circuit s'arrête à
-« hors-plan », pour le superviseur, qui étend le plan ou refuse. Comme la visibilité de Bazel et
+« hors-plan », une question pour le superviseur, qui étend le plan (`--etendre`) ou refuse. Comme la visibilité de Bazel et
 les frontières de modules de Nx, la règle refuse et le code reste lisible ; comme
 `bwrap --ro-bind / --bind`, le bac à sable n'ouvre en écriture que ce qu'il lie. Ainsi l'agent
 lit ce dont il a besoin, et les gardes tiennent l'architecture (BP 320.9 : la lecture cloisonnée
 causait l'essentiel des pertes).
+
+**Le circuit fait les gestes, une vraie question monte** : comme une CI applique ses règles
+(rejouer, régénérer, sauter une tâche sans objet) sans demander et n'appelle une personne que pour
+ce qu'aucune règle ne tranche (l'approbation d'une revue), le circuit d'un ticket
+(`packages/grillhouse/scripts/circuit.mjs`) fait lui-même, sans séance, les gestes que la liste des
+étapes écrit (`GESTES` de `packages/grillhouse/scripts/etapes.mjs`) : une commande à 75 rejouée une
+fois, la fin à 75, un rouge rendu au développeur du composant qui le possède, le renvoi au
+testwriter que la fiche du développeur nomme, la régénération des références, un développeur sans
+rien à livrer jugé par les contrôles de son composant ; chaque geste s'écrit au ticket et au
+journal avec sa règle. Tout autre arrêt finit le circuit sur une question au superviseur (`MONTEES`),
+que l'état du circuit porte : le fait, sa pièce (`fichier:ligne`, ou la commande et sa sortie), la
+question, et qui doit répondre, le superviseur ou le responsable ; le superviseur répond par une
+commande du circuit (`--reprendre`, `--depuis`, `--etendre <composant>`, `--arreter`). Ainsi aucune
+séance ne juge un geste qu'une règle tranche (BP 320.9 : 67 séances d'arbitrage et de réponse
+au plan, 14 montées qui étaient des gestes).
 
 **Une passe écrit sous sa base** : chaque lancement de Vitest, `npm test`, `npm run verifier`,
 un circuit, une intégration et une enveloppe ouvrent leur base dans le dossier temporaire, la

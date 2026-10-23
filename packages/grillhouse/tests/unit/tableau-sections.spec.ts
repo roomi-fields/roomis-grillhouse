@@ -818,7 +818,7 @@ describe('a ticket waits in AGENTS only once the owner launched it (label circui
   });
 
   // Decided by the owner on 2026-10-17 (grill, Q10): the supervisor launches the circuit, whose
-  // first agent is the testwriter; a regulator comes only on a stop of the circuit.
+  // first agent is the testwriter.
   it('the same ticket in the circuit waits for the testwriter, the first agent of the circuit', () => {
     const { t, l } = circuit(['circuit']);
     expect(attend(t)).toEqual(['testwriter demo-k.1']);

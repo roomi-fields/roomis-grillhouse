@@ -19,9 +19,9 @@
 //   `agent`), the sheet of each session (`{ role, composant, fiche }`), the outcome of each proof
 //   (`resultat`: `ok`, its counts, `vide`) and of each check (`resultat`: `issue` vert, rouge or a-repasser, `finale`), each stop
 //   (`arret`, its name, `finale`), each developpeur resumed who changed nothing (`inchange`), the
-//   end of each questioning (`questionnement`: its `objet`, plan or decision, its `tours`, whether
-//   it changed the proposal, `change`, and its `issue`, AUCUNE, DÉSACCORD or MONTE), each end of a
-//   run on a stop it hands to the supervisor (`montee`: its code and its stop); the circuit's
+//   end of each questioning of the plan (`questionnement`: its `objet`, its `tours`, whether it
+//   changed the plan, `change`, and its `issue`, AUCUNE, QUESTIONS or DÉSACCORD), each end of a run
+//   on a stop (`montee`: its code, its stop and who must answer its question); the circuit's
 //   state, `.claude/worktrees/<ticket>.circuit.json`, for where the circuit ended. Every
 //   agent declares nothing: the bilan measures.
 // - The steps and the roles are those of scripts/etapes.mjs. Only the circuit's roles count: an
@@ -44,12 +44,8 @@
 //     reds that exist already or of a build alone, no green of the lot); that proof; checks that
 //     play the same red again on a component none of its agents delivered to since its checks
 //     before (the final pass: none of any component's since the final pass before);
-//   - a session of the regulator, its answers to the questionneur among them, takes the category of
-//     what its decision gives, as a developer's: relance sans effet when the first session or step
-//     after its arbitrage, before the circuit ends, is without effect or a replay; travail resté au
-//     lot otherwise, a question sent up to the supervisor included;
-//   - questionnement: a session of the questionneur, and of the referent who answers it for the
-//     plan (kept: a look that did not write the proposal, as a review);
+//   - questionnement: a session of the questionneur (kept: a look that did not write the plan, as
+//     a review);
 //   - attente humaine: from each end of a run on a stop (`montee`) to the first turn of a session or
 //     step after it, or the next result of the circuit, the first of the two;
 //   - étapes automatiques: the other steps the circuit leads, but the final passes;
@@ -71,16 +67,7 @@ import { existsSync, readdirSync, readFileSync, renameSync, writeFileSync } from
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import {
-  ARBITRAGE,
-  etapeDuCircuit,
-  etapeDuRole,
-  juge,
-  nomDuRole,
-  QUESTIONNEUR,
-  REGULATEUR,
-  SUITE,
-} from './etapes.mjs';
+import { etapeDuCircuit, etapeDuRole, nomDuRole, QUESTIONNEUR, SUITE } from './etapes.mjs';
 
 // The role of a register line that a step of the circuit writes, and of its results.
 const CIRCUIT = 'circuit';
@@ -101,9 +88,8 @@ const CATEGORIES = [
 ];
 // The categories of the time kept: the rest is lost.
 const GARDE = new Set(['travail', 'automatique', 'finales', 'questionnement']);
-// The roles of the circuit, by the steps they work at: every step but the exploration, and the
-// arbitrage.
-const ROLES = new Set([...SUITE, ARBITRAGE].filter(e => e.numero !== '0').flatMap(e => e.qui));
+// The roles of the circuit, by the steps they work at: every step but the exploration.
+const ROLES = new Set(SUITE.filter(e => e.numero !== '0').flatMap(e => e.qui));
 
 // The results the circuit kept, `{ t, …entrée }`, in their order; an entry without a time counts
 // nothing.
@@ -221,8 +207,8 @@ export function bilan({ ticket, lignes, entrees = [], etat = null, maintenant = 
     );
 
   // The sessions first: the checks read what they delivered.
-  for (const s of segments.filter(x => x.role !== CIRCUIT && x.role !== REGULATEUR)) {
-    if (juge(s.role)) s.categorie = 'questionnement';
+  for (const s of segments.filter(x => x.role !== CIRCUIT)) {
+    if (s.role === QUESTIONNEUR) s.categorie = 'questionnement';
     else if (s.role === 'developpeur') {
       s.categorie = sansLivraison(s) ? 'sansEffet' : 'travail';
     } else if (s.role === 'testwriter') {
@@ -264,17 +250,6 @@ export function bilan({ ticket, lignes, entrees = [], etat = null, maintenant = 
 
   // The ends of the runs on a stop, each the start of a wait for the supervisor.
   const montees = duCircuit.filter(e => e.montee).map(e => e.t);
-  // The regulator's sessions last: each takes the category of the first session or step after its
-  // arbitrage, before the run ends.
-  const arbitrage = x => x.role === REGULATEUR || x.role === QUESTIONNEUR;
-  for (const s of segments.filter(x => x.role === REGULATEUR)) {
-    const suite = segments.find(x => x.d >= s.f - JEU && !arbitrage(x));
-    const coupe = suite && montees.some(t => t >= s.f - JEU && t <= suite.d);
-    s.categorie =
-      suite && !coupe && (suite.categorie === 'sansEffet' || suite.categorie === 'rejeu')
-        ? 'sansEffet'
-        : 'travail';
-  }
 
   // The waits for the supervisor: from each end of a run on a stop to the answer, the run after.
   const attentes = [];
@@ -318,7 +293,7 @@ export function bilan({ ticket, lignes, entrees = [], etat = null, maintenant = 
   // The sessions <l> by role, in the order of the steps.
   const parRoleDe = l => {
     const out = {};
-    for (const role of new Set([...SUITE, ARBITRAGE].flatMap(e => e.qui))) {
+    for (const role of new Set(SUITE.flatMap(e => e.qui))) {
       const n = l.filter(x => x.role === role).length;
       if (n) out[role] = n;
     }

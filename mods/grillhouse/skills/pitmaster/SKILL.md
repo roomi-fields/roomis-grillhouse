@@ -19,8 +19,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 - `references/erreurs.md` — les pièges des outils (Beads, git, crochets) : avant de lire un ticket
   ou de commiter.
 - `references/consigne-agent.md` — les gabarits des consignes : le circuit du ticket
-  (`packages/grillhouse/scripts/circuit.mjs`) remplit celle du testwriter et du développeur, celle du relecteur et
-  celles du régulateur, et celles du questionnement.
+  (`packages/grillhouse/scripts/circuit.mjs`) remplit celle du testwriter et du développeur, celle du relecteur, celles
+  des reprises, et celle du questionneur.
 - `docs/agents/issue-tracker.md` — le format des tickets : avant d'en ouvrir un.
 - `pitmaster/SUIVI.md` — le dernier tour, les agents lancés, les questions en attente : au
   lancement de la séance.
@@ -73,21 +73,21 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   `npx grillhouse circuit <ticket>`, que je lance une fois, en arrière-plan
   (`run_in_background`) ; sa fin me réveille. Le circuit mène l'arbre de ses étapes
   (`packages/grillhouse/scripts/etapes.mjs`) : 1 Ouverture (1.1 le relevé des composants, 1.2 le questionnement du
-  plan, le questionneur, auquel le référent technique répond pour le plan), 2 Composants (2.1
+  plan, le questionneur, qui le lit une seule fois), 2 Composants (2.1
   testwriter, 2.2 preuve du rouge, 2.3 développeur, 2.4 contrôles, pour chaque composant), 3 la passe
   finale (3.1 la régénération des références que le projet déclare, `grillhouse.references` de son
   `package.json`, chacune `{ nom, commande, fichiers, tests, gardes }`, ses fichiers en chemins,
   dossiers ou motifs `*` et `**`, ses tests les fichiers de test qui la jugent, ses gardes les
   gardes du projet qui la jugent, par le nom que porte leur constat SARIF, sur la copie entière, quand
   elles sont ses seuls rouges : je ne les régénère
-  jamais à la main ; un changement que le plan ne nomme pas arrête à `references`, code 23, et
-  s'il me monte, je le fais nommer au plan ou corriger), 4 le relecteur, 5 Intégration (5.1 le commit, 5.2 la file et la lecture de la CI) ; et,
-  hors de la suite, sous l'étape arrêtée, l'arbitrage de chaque arrêt, le régulateur, sa décision
-  questionnée avant d'être appliquée ; je dis où en est un ticket par son étape, « 2.3 Code » ; son en-tête dit ses arrêts et leurs codes. Ainsi les gestes mécaniques
-  passent à une commande, et je garde la vue d'ensemble.
+  jamais à la main ; un changement que le plan ne nomme pas arrête à `references`, code 23, une
+  question pour moi : je le fais nommer au plan ou corriger), 4 le relecteur, 5 Intégration (5.1 le
+  commit, 5.2 la file et la lecture de la CI) ; je dis où en est un ticket par son étape,
+  « 2.3 Code » ; son en-tête dit ses arrêts et leurs codes. Ainsi les gestes mécaniques passent à
+  une commande, et je garde la vue d'ensemble.
 - **Le code de fin du circuit dit la suite** : 0, le lot est sur main et le ticket fermé ; je lis
   sa fermeture. 75 (`a-repasser` : un contrôle ou l'intégration encore « à repasser », ou la
-  branche gardée en file) ne lance aucun régulateur : je relance `--reprendre` en arrière-plan, la
+  branche gardée en file) : je relance `--reprendre` en arrière-plan, la
   machine au repos (`uptime`) ; repris à l'étape `file`, il relit ce qu'une autre file a fait de la
   branche, et finit à `integre` quand elle est entrée. Ainsi un « à repasser » se rejoue au repos,
   sans décision.
@@ -97,49 +97,38 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   part), les arrêts, les jetons et le coût, face au bilan d'avant du projet ; la fiche du ticket au panneau en montre les chiffres clés.
   `npx grillhouse bilan <ticket>` le recalcule, `--garder` le garde comme base. Ainsi
   l'analyse d'un ticket se fait seule.
-- **Un arrêt se tranche dans le circuit** : sur un arrêt autre que 0, 21 et 75, le circuit applique
-  le geste que la table des arrêts (`packages/grillhouse/scripts/etapes.mjs`) écrit pour son genre ; pour le reste, il
-  lance lui-même une séance du régulateur (compétence `regulateur`, Sonnet), qui tranche ce
-  que les règles tranchent et rend sa décision dans sa fiche ; le circuit la vérifie sur son état,
-  l'écrit au ticket et l'applique : il repart seul, ou finit sur la question du régulateur. Je ne lance aucun régulateur. Ainsi
-  ma séance n'est réveillée que par la fin du lot, une question du régulateur, ou un arrêt que le régulateur
-  n'a pas su rendre.
-- **J'interviens sur ce qui dépasse le ticket** : 18 (`question`), la question du régulateur est la
-  raison de l'état, et elle vient à moi. Je réponds moi-même à ce qui est à moi (le cadre du
-  ticket, un arbitrage) ; je porte au responsable le fonctionnel et ce que la charte lui garde.
-  J'écris la réponse au ticket, puis je lance
-  `npx grillhouse circuit <ticket> --reponse "<sa réponse>"` en arrière-plan : la réponse du
-  responsable entre dans le plan, que tous les agents lisent. Le référent technique la verse dans le
-  plan (un critère ajouté, retiré ou précisé), le circuit l'écrit, et un plan changé passe le
-  questionneur ; puis le circuit reprend la séance du régulateur, qui tranche sur le plan, et
-  applique sa décision. Un composant que j'ajoute au titre avant de répondre repart de son
-  testwriter, sans le régulateur. Le contexte d'une relance porte l'arrêt, jamais une décision du
-  responsable. Toute décision du responsable sur un ticket passe par le circuit, jamais par le
-  contexte d'une relance ni par un commentaire seul : sur un arrêt « question », `--reponse` ; hors
-  de toute question du circuit, même quand il tourne,
-  `npx grillhouse circuit <ticket> --decision "<sa décision>"` en arrière-plan. Le circuit en
-  cours s'arrête d'abord, sa séance avec lui, et sa fin me réveille sans rien me demander ; le référent technique la verse dans le plan, un plan
-  changé passe le questionneur, puis le circuit reprend là où il en était et rejoue les seuls
-  composants que le plan changé touche ; une décision sans effet sur le plan est dite au ticket, et
-  le circuit reprend tel quel. 21 (`composants-manquants`) :
-  avant toute séance, le relevé des composants trouve un composant que le titre ne nomme pas, en
-  tête du rapport de l'état. Je l'ajoute au titre, le fournisseur d'abord
-  (`bd update <ticket> --title`), puis je relance le circuit ; ou je réponds pourquoi il reste
-  dehors, `--reponse "<raison>"`, que le circuit écrit au ticket avant de partir du premier
-  testwriter. Un composant que le ticket ne change pas s'admet avant le lancement,
-  `npx grillhouse composants-affectes <ticket> --admettre <composant> --raison "<raison>"`.
-  22 (`questionnement`) : le questionnement du plan finit sur un désaccord, ou reste questionné
-  au quatrième tour ; l'échange est au ticket, ce qui reste en tête du rapport de l'état. Je change
-  le plan (`bd update <ticket>`) ou je le garde, puis je réponds, `--reponse "<texte>"`, que le
-  circuit écrit au ticket avant de partir du premier testwriter ; ce qui revient au responsable lui
-  monte d'abord. Une décision du régulateur dont le questionnement ne converge pas me revient en
-  18 (`question`). Tout autre code est un arrêt que le
-  régulateur n'a pas tranché (sa réponse jointe à la raison de l'état, une décision refusée deux
-  fois, le même arrêt revenu sans fait nouveau, ou trois relances d'affilée sur le même arrêt) : je le tranche, `--reprendre` ou `--depuis`, ou je le monte. J'arrête tout agent
-  que j'ai lancé moi-même dès son rapport lu (`TaskStop`). Ainsi ma séance ne porte pas le détail
-  des tickets, et elle reste courte.
+- **Le circuit fait les gestes mécaniques** : comme une CI applique ses règles sans demander
+  (rejouer, régénérer, sauter une tâche sans objet), le circuit fait lui-même, sans séance, les
+  gestes que la liste des étapes écrit (`GESTES` de `packages/grillhouse/scripts/etapes.mjs`) : rejouer une commande à 75,
+  finir à 75, rendre un rouge au développeur du composant qui le possède, renvoyer au testwriter
+  que nomme la fiche du développeur, régénérer les références, juger aux contrôles un développeur
+  qui n'a rien à livrer ; chaque geste s'écrit au ticket et au journal avec sa règle
+  (`Circuit · … · geste`). Ainsi ma séance n'est réveillée que par la fin du lot ou par une vraie
+  question.
+- **Une vraie question monte à moi** : tout autre arrêt finit le circuit sur une question
+  (`MONTEES` de la liste des étapes), son code celui de l'arrêt ; l'état du circuit la porte
+  (`question` : l'arrêt, le fait, sa pièce, un `fichier:ligne` ou une commande et sa sortie, la
+  question, et qui doit répondre, `superviseur` ou `responsable`), et le ticket aussi
+  (`Circuit · … · question`). Je réponds moi-même à ce qui est à moi (le cadre du ticket, un
+  arbitrage, un geste) ; je porte au responsable ce qui est à lui (`qui` responsable : la question
+  du relecteur sur un vrai mot de la langue), le fonctionnel et ce que la charte lui garde. Je
+  réponds par une commande du circuit, en arrière-plan : `--reprendre`, avec `--contexte` quand
+  l'agent repris doit savoir ce que j'ai tranché, ou `--depuis <testwriter|developpeur>
+  <composant> --contexte` ; `--etendre <composant>` quand le plan doit gagner un composant (un
+  `hors-plan`, un rouge hors du titre, un composant que le relevé trouve), que le circuit met au
+  titre avant son premier lecteur, puis rejoue depuis son testwriter ; `--arreter`, son motif en `--contexte`, quand le ticket
+  doit changer avant tout travail. Une décision du responsable qui change le plan entre dans la
+  description du ticket (`bd update <ticket> -d`), que tous les agents lisent, avant que je
+  reprenne. 21 (`composants-manquants`) : le relevé trouve un composant que le titre ne nomme
+  pas ; j'étends le plan (`--etendre`), ou je l'admets hors du titre,
+  `npx grillhouse composants-affectes <ticket> --admettre <composant> --raison "<raison>"`, puis
+  `--reprendre`. 22 (`questionnement`) : le questionneur questionne le plan, ses questions au
+  ticket ; je change le plan (`bd update <ticket>`) ou je le garde, puis `--reprendre` le fait
+  passer tel qu'il est alors ; ce qui revient au responsable lui monte d'abord. J'arrête tout
+  agent que j'ai lancé moi-même dès son rapport lu (`TaskStop`). Ainsi ma séance ne porte pas le
+  détail des tickets, et elle reste courte.
 - **Un ticket débloqué repart de son état** : l'état du travail est dans l'état du circuit, au
-  ticket et dans sa copie ; `--reprendre` repart de l'état, et la séance du régulateur les relit. Ainsi
+  ticket et dans sa copie ; `--reprendre` repart de l'état. Ainsi
   le travail fait sert à la reprise.
 - **L'exploration avant la réalisation** : un objectif dont le découpage n'est pas connu ouvre un
   ticket d'exploration, sans code, mené par l'agent explorateur (`subagent_type: explorateur`). Il
@@ -210,7 +199,7 @@ compétence, sans la configuration propre de l'utilisateur (`packages/grillhouse
 parcourt l'arbre de son circuit, les étapes « auto » comprises (`packages/grillhouse/scripts/etapes.mjs`, la seule
 liste), comme un pipeline de GitLab CI ses étapes et leurs travaux : 0 Exploration,
 l'`explorateur` ; 1 Ouverture : 1.1 Relevé des composants, auto, puis 1.2 Questionnement,
-le `questionneur` ⇄ le `referent-technique`, qui répond pour le plan, en tours, quatre au plus ;
+le `questionneur`, qui lit le plan une seule fois ;
 2 Composants, pour chaque composant du titre dans son ordre : 2.1 Tests, le `testwriter`, 2.2 Preuve
 du rouge, auto, trois essais au plus, puis 2.3 Code, le `developpeur`, 2.4 Contrôles, auto, trois
 essais au plus ; 3 Passe finale, auto, puis 3.1 Régénération des références, auto, pour un projet
@@ -224,28 +213,20 @@ couvrent) les régénère, la
 différence va au lot et au relecteur, et un changement que le plan ne nomme pas arrête le circuit
 (`references`) ; 4 Relecture, le `relecteur`, trois tours au plus, un lot
 rendu revenant en 2 pour les composants nommés ; 5 Intégration : 5.1 Commit et 5.2 File : main,
-poussée, CI, auto. Hors de la suite, sous l'étape arrêtée, l'Arbitrage de l'arrêt : le
-`regulateur` tranche l'arrêt ⇄ le `questionneur` questionne sa décision avant qu'elle
-s'applique, trois arrêts au plus. Le questionneur ne décide rien, et l'échange va au ticket ; le
-référent technique tranche aussi une question de conception née d'un ticket, que le superviseur
-lui pose. Ainsi chaque agent travaille dans son cadre, et le numéro d'une étape dit où en est
-chaque ticket. Un plan que le superviseur rend au responsable passe aussi par le questionneur.
+poussée, CI, auto. Le questionneur ne décide rien, et ses questions vont au ticket. Ainsi chaque
+agent travaille dans son cadre, et le numéro d'une étape dit où en est chaque ticket. Un plan que le superviseur rend au responsable passe aussi par le questionneur.
 Ainsi une décision se mesure à des questions qu'elle ne s'est pas posées, comme le code à des
 tests qu'il n'a pas écrits.
 
-**Le superviseur intervient sur ce qui dépasse le ticket** : le circuit applique lui-même le
-geste que la table des arrêts (`packages/grillhouse/scripts/etapes.mjs`) écrit pour un genre d'arrêt, et vérifie sur
-son état chaque décision du régulateur avant de l'appliquer ; le régulateur tranche le reste, ce que la
-lettre d'un critère, un précédent écrit ou une règle du cadre tranchent ; il fait monter au
-superviseur le reste, et tout sujet sensible : le cadre, l'architecture, et le fonctionnel que la
-charte du projet nomme (« Ce qui monte au superviseur »). Ainsi chaque décision se prend au plus
-près du travail, et le superviseur garde les siennes. La réponse du responsable entre dans le plan
-du ticket, comme une RFC amendée : le référent technique la verse dans la description, le circuit
-l'écrit, et un plan changé passe le questionneur avant que le régulateur ne reprenne ; tous les
-agents jugent sur le plan, les commentaires restent l'historique, et le contexte d'une relance porte
-l'arrêt, jamais une décision du responsable. Une décision qu'il donne en séance, hors d'une
-question du circuit, suit le même chemin (`--decision`) : le circuit en cours s'arrête, puis
-reprend sur le plan changé. Ainsi chaque agent lit la même décision.
+**Le superviseur intervient sur ce qui dépasse le ticket** : le circuit fait lui-même les gestes
+mécaniques que la liste des étapes écrit, et monte au superviseur tout arrêt qu'aucun geste ne
+tranche, avec son fait, sa pièce et sa question ; le superviseur tranche ce que la lettre d'un
+critère, un précédent écrit ou une règle du cadre tranchent, et monte au responsable le reste, et
+tout sujet sensible : le cadre, l'architecture, et le fonctionnel que la charte du projet nomme
+(« Ce qui monte au superviseur »). Ainsi chaque décision se prend au plus près du travail. La
+réponse du responsable entre dans le plan du ticket, comme une RFC amendée : le superviseur
+l'écrit dans sa description ; tous les agents jugent sur le plan, les commentaires restent
+l'historique. Ainsi chaque agent lit la même décision.
 
 Un objectif dont le découpage n'est pas connu commence par une exploration, sans code ; un ticket
 de réalisation fait une seule livraison, en un seul commit ; tout ticket se crée sous sa mère
@@ -287,8 +268,8 @@ Le circuit du ticket fait chaque commit après le verdict `ACCEPTÉ` du relecteu
   une remarque du relecteur hors des critères devient une découverte (`relecteur`, « Le
   verdict »). Ainsi chaque comportement attendu devient un test, et aucun agent ne le tranche
   seul.
-- **Une décision se confronte aux intentions** : chaque décision, la mienne, celle du référent technique
-  ou celle que je monte au responsable, nomme l'intention du métacadre qu'elle sert, et ce que
+- **Une décision se confronte aux intentions** : chaque décision, la mienne ou celle que je monte
+  au responsable, nomme l'intention du métacadre qu'elle sert, et ce que
   cette intention demande ici ; ce qui va au-delà sort du ticket. Ainsi le travail reste au service
   de ce que le cadre veut, sans dériver vers ce qu'un cas suggère.
 - **Un ticket nomme ses règles** : à l'ouverture, un ticket nomme les règles qu'il applique, par
@@ -298,21 +279,36 @@ Le circuit du ticket fait chaque commit après le verdict `ACCEPTÉ` du relecteu
   puis dans la spécification et l'architecture globale. Ce qu'une règle tranche, je le tranche et
   je le recopie dans le ticket avec sa règle. Ainsi le responsable ne reçoit jamais une question
   qu'une règle écrite tranche déjà.
-- **Une question de conception part au référent technique** : une question de conception d'un agent part à
-  un référent technique neuf (`subagent_type: referent-technique`, `name: <ticket>-agent-2-<sujet>`), et le ticket
-  reçoit l'étiquette `arbitrage`. La question part dans les mots de l'agent, sans ses options et
-  sans mon avis. Je transmets le verdict tel quel, avec l'adresse de son commentaire « Arbitrage »
-  ; s'il monte au responsable, la question monte comme il l'a rédigée. Ainsi une question de
-  conception se tranche hors de l'urgence de débloquer l'agent.
+- **Une question de conception se tranche par les règles** : une question de conception d'un
+  agent, je la tranche par la référence mature, les textes du projet et le mécanisme commun
+  (charte, « Comment on arbitre »), ou je la monte au responsable ; le ticket reçoit l'étiquette
+  `arbitrage`, et mon arbitrage s'écrit au ticket, sous ce titre et avec ces six sections :
+
+  ```
+  ## Arbitrage — <la question en une phrase>
+  ### Question structurelle
+  ### Modèle mûr
+  ### Textes du projet
+  ### Mécanisme commun
+  ### Verdict — tranché | monte au responsable
+  ### Les options de l'agent
+  ```
+
+  Un verdict « tranché » se lit réglé par la garde des consommateurs et par l'intégration ; un
+  verdict qui monte attend la réponse du responsable. Ainsi une question de conception se tranche
+  hors de l'urgence de débloquer l'agent.
 - **Une donnée manque, son fournisseur rejoint le ticket** : quand la passation d'un agent dit
   qu'une donnée manque chez un fournisseur, j'ajoute ce fournisseur en tête des composants du
   ticket, dans son titre et dans sa section « Architecture ». Un agent publie la donnée dans le
   fournisseur, puis le lecteur reprend, et le tout fait une seule livraison, en un seul commit ;
-  quand aucun composant ne la fournit, la question part au référent technique. Ainsi chaque donnée garde un
+  quand aucun composant ne la fournit, la question se tranche comme une question de conception. Ainsi chaque donnée garde un
   seul composant qui la calcule, et elle entre avec son lecteur, comme dans une demande de fusion
   de rustc.
-- **Une consommation nouvelle part au référent technique** : un élément qu'une interface n'accorde pas
-  (section « Consommateurs ») est une question de conception, même publié. La section
+- **Une consommation nouvelle est une question de conception** : un élément qu'une interface
+  n'accorde pas (section « Consommateurs ») se tranche ainsi, même publié, sur l'architecture
+  d'ensemble : le sens des dépendances que fixe `docs/ARCHITECTURE.md`, le cycle qu'elle créerait,
+  et le composant dont l'élément est la fonction ; un verdict « tranché » nomme la ligne à ajouter
+  (`- <consommateur> : <éléments>`) à l'interface du fournisseur. La section
   « Architecture » du ticket qui nomme le consommateur et chaque élément, mot pour mot, l'a déjà
   tranchée : la ligne entre sans arbitrage. Ainsi une dépendance que le ticket fixe ne repasse pas
   par une question.

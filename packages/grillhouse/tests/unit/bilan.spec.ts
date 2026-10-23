@@ -210,7 +210,6 @@ const montee = (m: number, s: number, code: number, raison: string, ms = 2): Ent
   composant: 'packages/a',
   montee: { code, raison },
 });
-const MONTE = { decision: 'MONTE', question: 'Faut-il ajouter 020-loader au titre ?' };
 
 // The bilan of the lines <lignes> and the entries <entrees>: the circuit kept the launch of each
 // session at its first turn (`lancement`, its role and its session id), save the agents
@@ -308,7 +307,6 @@ describe('a relaunch without effect', () => {
     seance('testwriter', 't2', [[6, 7]]),
     etape('preuve', 'packages/b', 7, 8),
     seance('developpeur', 'd1', [[8, 10]]),
-    seance('regulateur', 'g1', [[10, 11]], { cout: 0.2 }),
     seance('developpeur', 'd2', [[11, 12]]),
     etape('controles', 'packages/b', 12, 18),
     seance('developpeur', 'd3', [[18, 19]]),
@@ -323,7 +321,6 @@ describe('a relaunch without effect', () => {
     preuve(8, 0, 'packages/b', [1, 2, 0, 3], true),
     fiche(10, 0, 'developpeur', 'packages/b'),
     arret(10, 0, 'packages/b', 'developpeur', 'sans-livraison'),
-    fiche(11, 1, 'regulateur', 'packages/b', { decision: 'RELANCE --reprendre' }),
     fiche(12, 0, 'developpeur', 'packages/b'),
     inchange(12, 0, 'packages/b'),
     controles(18, 0, 'packages/b', 'rouge', true),
@@ -342,9 +339,9 @@ describe('a relaunch without effect', () => {
   });
 
   it('counts the testwriter relaunched for its « vert attendu » alone, and the proof it replays, as without effect', () => {
-    // t2 (1 min), the second proof (1 min), d1 (2), g1 (1), d2 (1), d3 (1), the second final pass (6).
-    expect(min(b.categories.sansEffet.ms)).toBe(1 + 1 + 2 + 1 + 1 + 1 + 6);
-    expect(b.categories.sansEffet.n).toBe(7);
+    // t2 (1 min), the second proof (1 min), d1 (2), d2 (1), d3 (1), the second final pass (6).
+    expect(min(b.categories.sansEffet.ms)).toBe(1 + 1 + 2 + 1 + 1 + 6);
+    expect(b.categories.sansEffet.n).toBe(6);
   });
 
   it('counts a final pass that plays the same red on a lot nothing delivered to as without effect', () => {
@@ -353,9 +350,11 @@ describe('a relaunch without effect', () => {
     expect(min(b.categories.automatique.ms)).toBe(1);
   });
 
-  it('counts the regulator whose relaunch delivers nothing as without effect, and every category outside the work, the automatic steps and the final passes as lost', () => {
+  // grillhouse-3uv.95.4: no role of arbitrage, no category of its own.
+  it('counts every category outside the work, the automatic steps and the final passes as lost, with no role of arbitrage', () => {
     expect(Object.keys(b.categories)).not.toContain('regulateur');
-    expect(b.categories.sansEffet.cout).toBeCloseTo(4 * 0.5 + 0.2);
+    expect(Object.keys(b.seances.parRole)).not.toContain('regulateur');
+    expect(b.categories.sansEffet.cout).toBeCloseTo(4 * 0.5);
     expect(b.perdu).toBe(
       b.mur - b.categories.travail.ms - b.categories.automatique.ms - b.categories.finales.ms
     );
@@ -363,15 +362,14 @@ describe('a relaunch without effect', () => {
   });
 });
 
-// grillhouse-3uv.89.1 (L9): the questioning of the plan and of the regulator's decisions, its
-// rounds and the decisions it changed, counted from the results the circuit keeps.
+// grillhouse-3uv.89.1 (L9), grillhouse-3uv.95.4: the questioning of the plan, its readings and
+// the plans it changed, counted from the results the circuit keeps.
 describe('the questioning', () => {
   const lignes = [
     seance('questionneur', 'q1', [
       [0, 2],
       [4, 5],
     ]),
-    seance('referent-technique', 'rt1', [[2, 4]]),
     seance('testwriter', 't1', [[5, 10]]),
     seance('questionneur', 'q2', [[12, 13]], { cout: 0.25 }),
   ];
@@ -389,12 +387,11 @@ describe('the questioning', () => {
   });
   const entrees = [
     fiche(2, 0, 'questionneur', 'packages/a', { issue: 'QUESTIONS', questions: [] }),
-    fiche(4, 0, 'referent-technique', 'packages/a', { reponses: [] }),
     fiche(5, 0, 'questionneur', 'packages/a', { issue: 'AUCUNE' }),
     fin(5, 'plan', 2, true, 'AUCUNE'),
     fiche(10, 0, 'testwriter', 'packages/a'),
     fiche(13, 0, 'questionneur', 'packages/a', { issue: 'DÉSACCORD', desaccord: 'x' }),
-    fin(13, 'decision', 1, false, 'DÉSACCORD'),
+    fin(13, 'plan', 1, false, 'DÉSACCORD'),
   ];
   const b = calculer(lignes, entrees);
 
@@ -402,18 +399,18 @@ describe('the questioning', () => {
     expect(b.questionnement).toEqual({ tours: 3, changees: 1, montees: 1 });
   });
 
-  it('counts the questionneur’s time apart, as kept, the referent’s answers for the plan with it', () => {
-    expect(min(b.categories.questionnement.ms)).toBe(4 + 2);
-    expect(b.categories.questionnement.cout).toBeCloseTo(1.25);
+  it('counts the questionneur’s time apart, as kept', () => {
+    expect(min(b.categories.questionnement.ms)).toBe(3 + 1);
+    expect(b.categories.questionnement.cout).toBeCloseTo(0.75);
     expect(b.perdu).toBe(
       b.mur - b.categories.travail.ms - b.categories.automatique.ms - b.categories.questionnement.ms
     );
-    expect(b.seances.parRole).toMatchObject({ questionneur: 2, 'referent-technique': 1 });
+    expect(b.seances.parRole).toMatchObject({ questionneur: 2 });
   });
 
   it('says its rounds and the decisions changed on its line', () => {
     expect(texteDuBilan(b, null).split('\n')).toContain(
-      '- questionnement : 6 min, 1,25 $ (3 tours, 1 décision changée)'
+      '- questionnement : 4 min, 0,75 $ (3 tours, 1 décision changée)'
     );
   });
 });
@@ -485,42 +482,22 @@ describe('a replay of steps already green', () => {
 });
 
 // grillhouse-3uv.92.10 (BPScript 320.4, n° 16): the bilan counted 69 sessions (68 launched by the
-// circuit), 1.7 min of wait (23.8 measured) and all the regulator's time as lost.
+// circuit) and 1.7 min of wait (23.8 measured).
 describe('the wait for the supervisor and the sessions the circuit launches', () => {
-  // The regulator sends up, the questionneur questions it, it sends up again, the circuit ends on
-  // the question; the supervisor launches a referent of its own, then answers 21 min after.
+  // The developer delivers nothing, the circuit ends on its question; the supervisor launches a
+  // questionneur of its own, then answers 21 min after.
   const lignes = [
     seance('developpeur', 'd1', [[0, 5]]),
-    seance('regulateur', 'g1', [
-      [5, 6],
-      [7, 8],
-      [30, 31],
-    ]),
-    seance('questionneur', 'q1', [
-      [6, 7],
-      [8, 9],
-    ]),
-    seance('referent-technique', 'rt9', [[10, 14]], { cout: 1.64 }),
-    seance('developpeur', 'd2', [[31, 35]]),
+    seance('questionneur', 'q9', [[10, 14]], { cout: 1.64 }),
+    seance('developpeur', 'd2', [[26, 30]]),
   ];
   const entrees = [
     fiche(5, 0, 'developpeur', 'packages/a'),
     arret(5, 0, 'packages/a', 'developpeur', 'sans-livraison'),
-    fiche(6, 0, 'regulateur', 'packages/a', MONTE),
-    fiche(7, 0, 'questionneur', 'packages/a', { issue: 'QUESTIONS', questions: [] }),
-    fiche(8, 0, 'regulateur', 'packages/a', MONTE),
-    fiche(9, 0, 'questionneur', 'packages/a', { issue: 'AUCUNE' }),
-    {
-      date: quand(9, 0, 1),
-      role: 'circuit',
-      composant: 'packages/a',
-      questionnement: { objet: 'decision', tours: 2, change: false, issue: 'AUCUNE' },
-    },
-    montee(9, 0, 18, 'question'),
-    fiche(31, 0, 'regulateur', 'packages/a', { decision: 'RELANCE --reprendre' }),
-    fiche(35, 0, 'developpeur', 'packages/a'),
+    montee(5, 0, 15, 'sans-livraison'),
+    fiche(30, 0, 'developpeur', 'packages/a'),
   ];
-  const b = calculer(lignes, entrees, null, { superviseur: ['rt9'] });
+  const b = calculer(lignes, entrees, null, { superviseur: ['q9'] });
 
   it('runs from the circuit’s end on the stop to the first session of the run that answers it', () => {
     expect(min(b.categories.attente.ms)).toBe(21);
@@ -529,35 +506,25 @@ describe('the wait for the supervisor and the sessions the circuit launches', ()
   });
 
   it('counts a stop the window ends on, still unanswered, as no wait', () => {
-    const avant = [
-      lignes[0],
-      seance('regulateur', 'g1', [
-        [5, 6],
-        [7, 8],
-      ]),
-      lignes[2],
-    ];
-    const fin = calculer(avant, entrees.slice(0, 8));
+    const fin = calculer([lignes[0]], entrees.slice(0, 3));
     expect(fin.categories.attente).toMatchObject({ ms: 0, n: 0 });
   });
 
   it('counts the sessions the circuit launched, and those of the supervisor apart, out of the categories and the cost', () => {
     expect(b.seances).toEqual({
-      total: 4,
-      parRole: { questionneur: 1, developpeur: 2, regulateur: 1 },
-      horsCircuit: { total: 1, parRole: { 'referent-technique': 1 }, cout: 1.64 },
+      total: 2,
+      parRole: { developpeur: 2 },
+      horsCircuit: { total: 1, parRole: { questionneur: 1 }, cout: 1.64 },
     });
-    expect(b.cout).toBeCloseTo(2);
+    expect(b.cout).toBeCloseTo(1);
     expect(texteDuBilan(b, null).split('\n')[0]).toContain(
-      '4 séances (1 questionneur, 2 développeur, 1 régulateur) ; 1 séance hors circuit, lancée par le superviseur (1 référent technique), 1,64 $ ;'
+      '2 séances (2 développeur) ; 1 séance hors circuit, lancée par le superviseur (1 questionneur), 1,64 $ ;'
     );
   });
 
-  it('counts the regulator whose relaunch delivers as work kept in the lot', () => {
-    // g1's three turns (3 min), d2 (4 min); d1 delivered nothing.
-    expect(min(b.categories.travail.ms)).toBe(3 + 4);
+  it('counts the developer who delivered as work, the one who delivered nothing as without effect', () => {
+    expect(min(b.categories.travail.ms)).toBe(4);
     expect(min(b.categories.sansEffet.ms)).toBe(5);
-    expect(min(b.categories.questionnement.ms)).toBe(2);
   });
 });
 
@@ -639,19 +606,19 @@ describe('the text of the bilan and its base', () => {
     fiche(10, 0, 'testwriter', 'packages/a'),
     fiche(12, 0, 'developpeur', 'packages/a'),
     arret(12, 0, 'packages/a', 'developpeur', 'sans-livraison'),
-    fiche(16, 0, 'regulateur', 'packages/a', { decision: 'MONTE', question: 'Une question ?' }),
+    montee(16, 0, 15, 'sans-livraison'),
   ];
   const b = calculer(lignes, entrees, {
     etape: 'developpeur',
-    raison: 'question',
-    code: 18,
+    raison: 'sans-livraison',
+    code: 15,
   });
 
   it('opens on the stop, the wall time, the time lost and the sessions, then a line per category', () => {
     const t = texteDuBilan(b, null);
     const l = t.split('\n');
     expect(l[0]).toBe(
-      'arrêt question (18) en 16 min ; 6 min perdues (38 %) ; 2 séances (1 testwriter, 1 développeur) ; 4,50 $ ; 2,50 M jetons, 30,00 M lus du cache.'
+      'arrêt sans-livraison (15) en 16 min ; 6 min perdues (38 %) ; 2 séances (1 testwriter, 1 développeur) ; 4,50 $ ; 2,50 M jetons, 30,00 M lus du cache.'
     );
     expect(l).toContain('- travail resté au lot : 10 min, 3,50 $');
     expect(l).toContain('- relance sans effet : 2 min, 1,00 $');

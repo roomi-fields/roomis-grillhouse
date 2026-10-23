@@ -12,23 +12,21 @@
 // - Global: the work tickets of the project (a ticket without children; a mother is a grouping)
 //   by state, the agents' working time and tokens of the day and in all, the alerts.
 // - Agents: the tree of the steps of the process (scripts/etapes.mjs), one block per step and
-//   sub-step, with who works there, then the arbitrage of a stop, for the whole project; a step
+//   sub-step, with who works there, for the whole project; a step
 //   that names a declaration (the regeneration of the references, 3.1) has its line only when the
 //   project's package.json declares it (`grillhouse.references`). A ticket
 //   stands at the step of every agent that runs on it, or waits in one place: at
 //   the step of the next role, deduced from the roles of the flow that ran on it and the
-//   reviewer's last verdict (`ACCEPTÉ` or `RENDU` at the start of a comment). A regulator waits for
-//   nothing: it comes on a stop of the circuit, which its entry shows.
+//   reviewer's last verdict (`ACCEPTÉ` or `RENDU` at the start of a comment).
 // - Circuits: one entry per open ticket whose circuit (scripts/circuit.mjs) runs or stopped, read
 //   in its state `.claude/worktrees/<ticket>.circuit.json`: it runs while the process
 //   `npx grillhouse circuit <ticket>` runs, and stands at the step of its state, with its
-//   component, its rank among the title's components and its attempt; while it runs a session of
-//   the regulator on a stop (its state names the regulator's session, `regulateur`), while the
-//   questionneur questions a decision of its regulator, or once it stopped, it stands at the
-//   arbitrage of the stopped step; while the questionneur questions its plan (its state names the
-//   questioning, `questionnement`, of the plan), it stands at the questioning of the plan; its
-//   card gives the stop (its name and code) and the first line of its reason, or, ended on the
-//   regulator's question (« question »), that question. A ticket with a circuit waits in no block.
+//   component, its rank among the title's components and its attempt; while the questionneur
+//   questions its plan (its state names the questioning, `questionnement`, of the plan), it stands
+//   at the questioning of the plan; stopped on a question for the supervisor (its state names it,
+//   `question`), it stands under the stopped step after a line « ⤷ Question · <qui> », who must
+//   answer it, the supervisor or the owner; its card opens on that question, or on the stop (its
+//   name and code) and the first line of its reason. A ticket with a circuit waits in no block.
 // - Bilans: the card of a ticket whose circuit kept its bilan (scripts/bilan.mjs,
 //   `.claude/worktrees/<ticket>.bilan.json`) opens on its key figures: wall time, share lost,
 //   sessions, cost.
@@ -49,8 +47,7 @@
 //   A sub-agent, whatever its role, runs also while its last tool call awaits its answer, its
 //   transcript having moved in the last 30 minutes; a session keeps the 2-minute rule alone. The
 //   board reads no transcript older than 30 minutes: a shell agent whose transcript is older shows
-//   by its process alone. A sub-agent whose prompt names no ticket takes that of the regulator
-//   that launched it.
+//   by its process alone.
 // - Time: a transcript's working time is the union of its turns, each bounded by the earliest and
 //   the latest date of its events, whatever their order in the file; a transcript is read where the
 //   board stopped, its reading kept in the cache file. A ticket's working time adds the steps its
@@ -89,18 +86,16 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
-  ARBITRAGE,
   AUTO,
   bouclesDe,
   ETAPES,
   etapeDuCircuit,
   etapeDuRole,
-  gesteDe,
-  juge,
   libelle,
+  QUESTIONNEUR,
   quiDe,
-  REGULATEUR,
   SUITE,
+  SUPERVISEUR,
 } from './etapes.mjs';
 import { bilansGardes, enBref } from './bilan.mjs';
 import { verdictDe } from './integration/verdict.mjs';
@@ -476,30 +471,6 @@ const metaDe = f => {
   }
 };
 
-// The ticket a sub-agent takes from the regulator that launched it: the ticket its prompt names,
-// read from the regulator's transcript in the same folder; null when its parent is not a regulator
-// (by its spawned role) or names no ticket. With `depuis`, a regulator whose transcript has not
-// moved since that time (ms) is not read. `lire` reads a transcript (the board passes its cached
-// reader).
-export function ticketDuRegulateur(f, depuis = -Infinity, lire = lecteur({})) {
-  const parent = metaDe(f).parentAgentId;
-  if (!parent) {
-    return null;
-  }
-  const g = path.join(path.dirname(f), `agent-${parent}.jsonl`);
-  if (roleDuMeta(metaDe(g)) !== REGULATEUR) {
-    return null;
-  }
-  try {
-    if (statSync(g).mtimeMs < depuis) {
-      return null;
-    }
-    return lire(g)?.ticket ?? null;
-  } catch {
-    return null;
-  }
-}
-
 // The agents running now, each with its measures so far. `ps` is the process list
 // (`pid etimes args` per line); `cache` keeps the readings of unchanged transcripts. A role agent
 // launched in a shell shows by the envelope lancer.sh starts for it,
@@ -571,7 +542,7 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
       const meta = metaDe(f);
       vivants.push({
         agent: path.basename(f, '.jsonl').replace(/^agent-/, ''),
-        ticket: lu.ticket ?? ticketDuRegulateur(f, limite, lire),
+        ticket: lu.ticket ?? null,
         role: roleDuMeta(meta),
         ligne: false,
         depuis: lu.premier ?? maintenant,
@@ -588,10 +559,9 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
 // The circuits of the repository at <racine>: each state `.claude/worktrees/<ticket>.circuit.json`
 // scripts/circuit.mjs writes, but those at « integre », with `vivant` when `ps` (`pid etimes args`
 // per line) shows its process, `grillhouse circuit <ticket>` (the command the supervisor
-// launches, `npx grillhouse circuit <ticket>`), `regulateur` when the state names a
-// session of the regulator, `questionnement` the object of the questioning under way (`plan` or
-// `decision`), null without one, `question` the
-// regulator's whole question for a circuit ended on it,
+// launches, `npx grillhouse circuit <ticket>`), `questionnement` the object of the questioning
+// under way (`plan`), null without one, `question` the whole question of a circuit ended on one
+// and `qui` who must answer it (`superviseur` or `responsable`), null without one,
 // the counters of its bounded loops (`boucles`, by their key), and the rank of its component among the title's (`rang`, from 1) and their number (`total`),
 // the progress of the automatic pass under way (`avancement`, read in the directory its state
 // names, scripts/avancement.mjs: `{ faits, prevus, dernier }`, null without one) and the start of
@@ -629,8 +599,8 @@ export function lireCircuits({ racine, prefix, ps }) {
       code: e.code ?? null,
       arret: e.raison ?? null,
       raison: premiereLigne(e.rapport),
-      question: e.raison === 'question' ? String(e.rapport ?? '').trim() || null : null,
-      regulateur: Boolean(e.regulateur),
+      question: String(e.question?.question ?? '').trim() || null,
+      qui: e.question ? String(e.question.qui ?? SUPERVISEUR) : null,
       questionnement: e.questionnement?.objet ?? null,
       ...rangDe(e),
       boucles: e.boucles && typeof e.boucles === 'object' ? e.boucles : {},
@@ -680,7 +650,7 @@ export function verdict(commentaires) {
 // and the reviewer's last verdict; null when it waits for none: an accepted lot waits for no
 // agent, the circuit integrates it (scripts/circuit.mjs).
 export function etape(passages, v) {
-  const faits = passages.filter(p => etapeDuRole(p.role) && !juge(p.role));
+  const faits = passages.filter(p => etapeDuRole(p.role) && p.role !== QUESTIONNEUR);
   const dernier = faits[faits.length - 1];
   if (!dernier) {
     return 'testwriter';
@@ -951,9 +921,8 @@ export function assembler({
       (passages.get(r.ticket) ?? passages.set(r.ticket, []).get(r.ticket)).push(r);
     }
   }
-  // One block per step and sub-step, in the order of the steps, with who works there, then the
-  // arbitrage's.
-  const blocs = [...SUITE, ARBITRAGE].map(e => ({
+  // One block per step and sub-step, in the order of the steps, with who works there.
+  const blocs = SUITE.map(e => ({
     numero: e.numero,
     titre: e.titre,
     roles: e.qui.filter(r => r !== AUTO),
@@ -966,14 +935,10 @@ export function assembler({
     return e ? blocs.find(b => b.numero === e.numero) : undefined;
   };
   const places = new Set();
-  // One line per ticket: a ticket on which a role agent runs stands at its step, and at the
-  // regulator's only while none of its other agents runs.
-  const auTravail = new Set(
-    enCoursMesures.filter(v => v.role !== REGULATEUR && bloc(v.role)).map(v => v.ticket)
-  );
+  // One line per ticket: a ticket on which a role agent runs stands at its step.
   for (const v of enCoursMesures) {
     const t = v.ticket && parId.get(v.ticket);
-    if (!t || !bloc(v.role) || (v.role === REGULATEUR && auTravail.has(v.ticket))) {
+    if (!t || !bloc(v.role)) {
       continue;
     }
     places.add(t.id);
@@ -1274,19 +1239,16 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   // its sub-steps then shown, indented, the empty ones in the discreet tone; a step without
   // sub-steps stands on one line « number · title · who », discreet when empty, a title with its
   // tickets under it. A circuit's ticket stands on one line, at the step of its state, and nowhere
-  // else in AGENTS: the questioning of the plan at its step; stopped, or while a session of the
-  // regulator runs on its stop or the questionneur questions his decision, under its step after a
-  // line « ⤷ <the arbitrage> · régulateur ⇄ questionneur », which unfolds the step: the
-  // arbitrage is out of the sequence, tied to the stopped step; a stop whose kind the table of the
-  // stops sends to the supervisor (gesture `superviseur`, scripts/etapes.mjs), which no regulator
-  // settles, stands there after a line « ⤷ Arrêt · superviseur » instead, its counters those of
-  // its step. A regulator out of any circuit
-  // stands under that line after the steps. A circuit's line gives its subject (`texte`) and, in
+  // else in AGENTS: the questioning of the plan at its step; stopped on a question for the
+  // supervisor (its state's `question`), under its step after a line « ⤷ Question · <qui> », who
+  // must answer it, the supervisor or the owner, which unfolds the step, its counters those of its
+  // step; a stopped circuit at no step of the list stands under that line after the steps. A
+  // circuit's line gives its subject (`texte`) and, in
   // turn (`alterne`, which the pane shows every other 5 s), the component under way, with its rank
   // among the title's components when they are several; then the counters of the bounded loops of
   // its step from their second pass (`boucles` of the step, scripts/etapes.mjs, their counts in
-  // the state's `boucles`), whole; then its ticket's working time and tokens. Its card says where
-  // it stopped and why, or the regulator's question. The tickets' numbers line up in one column.
+  // the state's `boucles`), whole; then its ticket's working time and tokens. Its card opens on
+  // its question, or says where it stopped and why. The tickets' numbers line up in one column.
   const enCircuit = new Set((t.circuits ?? []).map(c => c.id));
   // The block of the step <e>, an empty one when the board holds none.
   const vides = new Map();
@@ -1302,18 +1264,14 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         attend: [],
       })
       .get(e.numero);
-  const arbitrage = blocDe(ARBITRAGE);
+  // The block of the circuits at no step of the list, after the steps.
+  const ailleurs = { numero: null, titre: '', qui: '', enCours: [], attend: [] };
   const etapeDe = c => etapeDuCircuit({ ...c, raison: c.arret });
-  const auSuperviseur = c =>
-    !c.vivant &&
-    !c.regulateur &&
-    c.questionnement !== 'decision' &&
-    gesteDe(c.arret)?.geste === 'superviseur';
-  const aLArbitrage = c =>
-    !auSuperviseur(c) && (!c.vivant || c.regulateur || c.questionnement === 'decision');
+  // A circuit stopped on a question: who must answer it.
+  const enQuestion = c => (!c.vivant && c.question ? (c.qui ?? SUPERVISEUR) : null);
   const blocDuCircuit = c => {
     const e = etapeDe(c);
-    return e ? blocDe(e) : aLArbitrage(c) ? arbitrage : undefined;
+    return e ? blocDe(e) : !c.vivant ? ailleurs : undefined;
   };
   const montres = t.agents.flatMap(b =>
     [...b.enCours, ...b.attend].filter(x => !enCircuit.has(x.id))
@@ -1325,7 +1283,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   const numero = n => String(n).padEnd(colonne);
   const ligneDuCircuit = c => {
     const droite = conso(t.parTicket?.[c.id]?.travail ?? 0, t.parTicket?.[c.id]?.jetons ?? 0);
-    const etape = aLArbitrage(c) ? ARBITRAGE : etapeDe(c);
+    const etape = etapeDe(c);
     const boucles = (etape ? bouclesDe(etape) : [])
       .filter(b => b.max && c.boucles?.[b.cle] >= 2)
       .map(b => ` · ${b.libelle} ${c.boucles[b.cle]}/${b.max}`)
@@ -1355,28 +1313,28 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   };
   const contenu = b => {
     const tous = (t.circuits ?? []).filter(c => blocDuCircuit(c) === b);
-    const circuits = tous.filter(c => !aLArbitrage(c) && !auSuperviseur(c));
-    const arretes = tous.filter(aLArbitrage);
-    const auxSuperviseur = tous.filter(auSuperviseur);
+    const circuits = tous.filter(c => !enQuestion(c));
+    // The circuits on a question, by who must answer it, the supervisor first.
+    const enQuestions = [SUPERVISEUR, ...new Set(tous.map(enQuestion).filter(Boolean))]
+      .filter((qui, i, l) => l.indexOf(qui) === i)
+      .map(qui => [qui, tous.filter(c => enQuestion(c) === qui)])
+      .filter(([, l]) => l.length);
     const enCours = b.enCours.filter(x => !enCircuit.has(x.id));
     const attend = b.attend.filter(x => !enCircuit.has(x.id));
     return {
       circuits,
-      arretes,
-      auxSuperviseur,
+      enQuestions,
       enCours,
       attend,
       vide: !tous.length && !enCours.length && !attend.length,
     };
   };
-  const contenus = new Map([...SUITE, ARBITRAGE].map(blocDe).map(b => [b, contenu(b)]));
-  const ligneDArbitrage = retrait =>
-    L(cadre(`${retrait}⤷ ${arbitrage.titre} · ${arbitrage.qui}`, '', largeur), 'titre');
-  // The tickets of the block <b>: its circuits that run, its agents, its waits, then the line of
-  // the arbitrage, indented by <retrait> (none when <retrait> is null), and its stopped circuits,
-  // then the line of the stops for the supervisor and theirs.
+  const contenus = new Map([...SUITE.map(blocDe), ailleurs].map(b => [b, contenu(b)]));
+  // The tickets of the block <b>: its circuits without a question, its agents, its waits, then
+  // for each one who must answer, the line « ⤷ Question · <qui> », indented by <retrait>, and its
+  // circuits.
   const tickets = (b, retrait) => {
-    const { circuits, arretes, auxSuperviseur, enCours, attend } = contenus.get(b);
+    const { circuits, enQuestions, enCours, attend } = contenus.get(b);
     for (const c of circuits) {
       ligneDuCircuit(c);
     }
@@ -1397,17 +1355,9 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       ticket: x.id,
     });
     poser(...attend.map(attente));
-    if (arretes.length) {
-      if (retrait !== null) {
-        ligneDArbitrage(retrait);
-      }
-      for (const c of arretes) {
-        ligneDuCircuit(c);
-      }
-    }
-    if (auxSuperviseur.length) {
-      L(cadre(`${retrait ?? ''}⤷ Arrêt · superviseur`, '', largeur), 'titre');
-      for (const c of auxSuperviseur) {
+    for (const [qui, l] of enQuestions) {
+      L(cadre(`${retrait}⤷ Question · ${qui}`, '', largeur), 'titre');
+      for (const c of l) {
         ligneDuCircuit(c);
       }
     }
@@ -1440,11 +1390,9 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       tickets(x, '  ');
     }
   }
-  // A regulator out of any circuit, or a stopped circuit at no step of the list: under the line of
-  // the arbitrage, after the steps.
-  if (!contenus.get(arbitrage).vide) {
-    ligneDArbitrage('');
-    tickets(arbitrage, null);
+  // A stopped circuit at no step of the list, after the steps.
+  if (!contenus.get(ailleurs).vide) {
+    tickets(ailleurs, '');
   }
 
   section = 'chantier';
@@ -1668,10 +1616,11 @@ export function fiches(
       .map(x => x.trim())
       .filter(x => x && !x.startsWith('#'))
       .join(' ');
-    // A stopped circuit's card opens on the regulator's question, or on where it stopped and why.
+    // A stopped circuit's card opens on its question and who must answer it, or on where it
+    // stopped and why.
     const a = arretes.get(t.id);
     const tete = a?.question
-      ? `Question du régulateur : ${a.question.replace(/\s+/g, ' ')} `
+      ? `Question · ${a.qui ?? SUPERVISEUR} : ${a.question.replace(/\s+/g, ' ')} `
       : a
         ? `Circuit arrêté en ${ouEnEst(a)} : ${a.raison ?? 'le circuit ne tourne plus'} `
         : '';
@@ -1781,7 +1730,7 @@ export function tableau(racine, { home = os.homedir(), maintenant = Date.now() }
   // The reviewer's verdict matters once a developer or a reviewer ran: only those tickets are read.
   const dernier = {};
   for (const r of [...registre].sort((x, y) => Date.parse(x.fin) - Date.parse(y.fin))) {
-    if (r.ticket && !juge(r.role) && r.role !== ROLE_DU_CIRCUIT) {
+    if (r.ticket && r.role !== QUESTIONNEUR && r.role !== ROLE_DU_CIRCUIT) {
       dernier[r.ticket] = r.role;
     }
   }

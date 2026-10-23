@@ -13,8 +13,8 @@ import { ecrire as ecrireTurbo } from '../../scripts/turbo-des-paquets.mjs';
 // (packages/binder, which depends on forms), whose `mesure` is wrong until the developpeur writes
 // it; with `feuille`, a third, `060-sheet` (packages/sheet), which depends on none. Each session of the
 // testwriter and the developpeur is a real launch (scripts/enveloppe/lancer.sh) in a real envelope;
-// the reviewer's and the regulator's are claude in the ticket's copy, out of the envelope (a
-// regulator without a scenario answers nothing: the stop goes to the supervisor); claude is a stand-in (CLAUDE_BIN)
+// the reviewer's and the questionneur's are claude in the ticket's copy, out of the envelope; claude
+// is a stand-in (CLAUDE_BIN)
 // that plays the scenario the test wrote for its role, and bd is a stand-in on the PATH whose
 // tickets and comments live in the main tree's `.beads/`, which the envelope leaves writable. The
 // proof and the checks are real runs of the frame's commands (npm test, npm run verifier), and the
@@ -42,8 +42,7 @@ export const ecrire = (f: string, texte: string, mode?: number) => {
 // with `fiche '<json>'`. As claude with `--output-format json`, it prints on its standard output
 // its JSON result alone, whatever the scenario prints (on its standard error), the sheet in
 // `structured_output`: the scenario's, else `{"statut":"FAIT"}` for a testwriter or a developpeur,
-// `{"issue":"AUCUNE"}` for the questionneur (a plan or a decision it has no question on),
-// `{"reponses":[]}` for the technical referent (a plan it leaves as it is), none for another role
+// `{"issue":"AUCUNE"}` for the questionneur (a plan it has no question on), none for another role
 // or after `sans_fiche`; a `--json-schema` that is not JSON fails, code 1,
 // as claude refuses it. As claude, a session `--session-id <id>` keeps its transcript in
 // `<id>.jsonl` (an id already in use fails, code 1), and `--resume <id>` adds to that transcript,
@@ -98,7 +97,6 @@ la_fiche=
 case "$role" in
   testwriter|developpeur) la_fiche='{"statut":"FAIT"}' ;;
   questionneur) la_fiche='{"issue":"AUCUNE"}' ;;
-  referent-technique) la_fiche='{"reponses":[]}' ;;
 esac
 fiche() { la_fiche=$1; }
 sans_fiche() { la_fiche=; }
@@ -119,7 +117,7 @@ exit 0
 // comments `.beads/<id>.comments.jsonl`, each under its author, `BEADS_ACTOR`, else git's user
 // (`t`), with its time to the second, as bd writes it; `update` (--status, --add-label,
 // --remove-label, -d/--description, --notes, --title), `close` (--reason, -r) and `reopen` write
-// its state, as the integration, the queue and the regulator change it; `create` (--parent, -l,
+// its state, as the integration, the queue and the circuit change it; `create` (--parent, -l,
 // -d) makes a child `<parent>.<n>`, and prints its id, and `config get issue_prefix` is `demo`,
 // as scripts/ticket.sh uses them.
 const FAUX_BD = `#!/usr/bin/env node
@@ -437,10 +435,16 @@ export function circuitEssai(ESSAIS: string, { feuille = false } = {}) {
       renvois: Record<string, { etape: string }> | null;
       atteints: string[];
       verifie: string | null;
-      regulateur: { seance: string; arret: string; code: number; rapport: string | null } | null;
+      question: {
+        arret: string;
+        fait: string;
+        piece: string | null;
+        question: string;
+        qui: string;
+      } | null;
     } | null;
-  // The order of the sessions of the lot and of its arbitrage; the questionneur's, which the
-  // default sheet of the stand-in ends at once on a plan or a decision (`AUCUNE`), aside unless
+  // The order of the sessions of the lot; the questionneur's, which the default sheet of the
+  // stand-in ends at once on a plan (`AUCUNE`), aside unless
   // <questionneur> asks for them (tests/unit/circuit.questionneur.spec.ts).
   const ordre = (id: string, { questionneur = false } = {}) =>
     essai(id, 'ordre')
@@ -475,15 +479,13 @@ export function circuitEssai(ESSAIS: string, { feuille = false } = {}) {
   const auteurs = (id: string) => tous(id).filter(c => !BILAN.test(c.text));
   const commentaires = (id: string) => auteurs(id).map(c => c.text);
   // The circuit's history at the ticket: [composant, étape] of each comment « Circuit · … », the
-  // lines of the arbitrage aside, the regulator's, the table's of the stops and the questioning's
-  // (tests/unit/circuit.regulateur.spec.ts, tests/unit/circuit.table-des-arrets.spec.ts and
+  // lines of its gestures, of its questions and of the questioning aside
+  // (tests/unit/circuit.gestes.spec.ts, tests/unit/circuit.montee.spec.ts and
   // tests/unit/circuit.questionneur.spec.ts read them).
   const historique = (id: string) =>
     commentaires(id).flatMap(t => {
       const m = /^Circuit · (\S+) · (\S+) :/.exec(t);
-      return m && !['regulateur', 'arbitrage', 'questionnement'].includes(m[2])
-        ? [[m[1], m[2]]]
-        : [];
+      return m && !['geste', 'question', 'questionnement'].includes(m[2]) ? [[m[1], m[2]]] : [];
     });
   return {
     REPO,

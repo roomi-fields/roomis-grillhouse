@@ -3,7 +3,7 @@
 // review: a look that did not write the proposal. No list of questions is set for it: the frame
 // (the métacadre, the charter, « Comment on arbitre » of the project) and the ticket orient it, as
 // the owner asks his questions by intuition where a proposal seems unclear to him. Its texts are
-// checked here; its rounds in the circuit, by tests/unit/circuit.questionneur.spec.ts.
+// checked here; its reading in the circuit, by tests/unit/circuit.questionneur.spec.ts.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -24,18 +24,18 @@ const duQuestionneur = () => blocs().filter(b => b.titre.startsWith('Questionneu
 const QUESTION_IMPOSEE = /^\s*(?:[-*•]|\d+[.)])\s.*\?\s*$/m;
 
 describe('the questionneur’s instruction', () => {
-  it('a template of its own, for its first round and for the answer it reads', () => {
+  // grillhouse-3uv.95.4: it reads the plan once, with no answer of an author to read.
+  it('a template of its own, for its one reading of the plan', () => {
     expect(duQuestionneur().map(b => b.titre)).toEqual([
-      'Questionneur, sur une proposition (rempli par le circuit)',
-      'Questionneur, sur la réponse de l’auteur (rempli par le circuit)',
+      'Questionneur, sur le plan (rempli par le circuit)',
     ]);
+    expect(duQuestionneur()[0].texte).toContain('une seule fois');
   });
 
   it('critère 4 — carries the proposal and the frame that orients it: the métacadre, « Comment on arbitre », « Ce qui monte au superviseur », the ticket and the survey', () => {
     const [premier] = duQuestionneur();
     for (const champ of [
       'proposition',
-      'auteur',
       'metacadre',
       'arbitrer',
       'monte',
@@ -84,9 +84,8 @@ describe('the questionneur, a role agent', () => {
   });
 
   // grillhouse-3uv.84.8: the circuit of a ticket lives in the supervisor's skill.
-  it('the supervisor’s skill names the questionneur at its steps, 1.2 and the arbitrage of a stop', () => {
+  it('the supervisor’s skill names the questionneur at its step, 1.2, which it reads once', () => {
     const c = lire('mods/grillhouse/skills/pitmaster/SKILL.md').replace(/\s+/g, ' ');
-    expect(c).toContain('1.2 Questionnement, le `questionneur`');
-    expect(c).toContain('le `questionneur` questionne sa décision');
+    expect(c).toContain('1.2 Questionnement, le `questionneur`, qui lit le plan une seule fois');
   });
 });

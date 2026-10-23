@@ -49,8 +49,9 @@ nomme ceux que le ticket peut casser.
    périmètre. Chaque constat porte son fichier et son symbole (`codegraph explore`, `rtfm_search`).
    _Fini quand_ chaque composant touché a son état réel écrit, défauts compris.
 2. **Les décisions.** Tu listes ce qui reste à décider, chaque décision avec ses options, ce que
-   fait la référence mature du domaine et ta recommandation. Une décision de conception part à
-   le référent technique par le superviseur ; une décision qu'aucune règle ne tranche monte au responsable par le superviseur.
+   fait la référence mature du domaine et ta recommandation. Une décision de conception, le
+   superviseur la tranche par les règles ; une décision qu'aucune règle ne tranche monte au
+   responsable par le superviseur.
    _Fini quand_ chaque décision est tranchée et écrite au ticket avec sa source.
 3. **Le découpage.** Tu proposes les tickets de réalisation. Chacun décrit un seul comportement par
    ses tests, fait une seule livraison, et nomme les composants qu'il touche, le fournisseur

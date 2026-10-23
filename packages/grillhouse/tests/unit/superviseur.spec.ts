@@ -114,7 +114,7 @@ describe('grillhouse-3uv.89 — un seul superviseur par projet', () => {
     const p = projet();
     const c = p.copie('demo-1');
     expect(ouvrir(c).stdout).toBe('');
-    expect(ouvrir(p.racine, { BEADS_ACTOR: 'regulateur' }).stdout).toBe('');
+    expect(ouvrir(p.racine, { BEADS_ACTOR: 'relecteur' }).stdout).toBe('');
     expect(existsSync(p.verrou)).toBe(false);
     writeFileSync(p.verrou, `${dormeur.pid}:autre-seance`);
     expect(ouvrir(c).stdout).toBe('');

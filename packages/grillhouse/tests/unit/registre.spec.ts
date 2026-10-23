@@ -58,11 +58,11 @@ describe('the register line', () => {
       hook_event_name: 'SubagentStop',
       transcript_path: '/p/s.jsonl',
       agent_id: 'a1',
-      agent_type: 'referent-technique',
+      agent_type: 'questionneur',
     });
     expect(s).toEqual({
       transcription: '/p/s/subagents/agent-a1.jsonl',
-      role: 'referent-technique',
+      role: 'questionneur',
       agent: 'a1',
     });
   });
@@ -74,7 +74,7 @@ describe('the register line', () => {
       l({
         agentType: 't-agent-2-liste',
         name: 't-agent-2-liste',
-        spawnedAgentType: 'referent-technique',
+        spawnedAgentType: 'questionneur',
       })
     );
     const s = source({
@@ -83,7 +83,7 @@ describe('the register line', () => {
       agent_id: 'a2',
       agent_type: 't-agent-2-liste',
     });
-    expect(s.role).toBe('referent-technique');
+    expect(s.role).toBe('questionneur');
   });
   it('writes nothing for a transcript without time', () => {
     expect(ligne({ hook_event_name: 'SessionEnd' }, lireTranscription(''), '/repo')).toBeNull();

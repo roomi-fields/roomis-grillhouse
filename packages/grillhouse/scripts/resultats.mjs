@@ -5,8 +5,8 @@
 //
 //   npx grillhouse resultats --schema <rôle>      prints the JSON schema of a role's sheet
 //
-// - The sheet of the end of a session (« la fiche ») of the testwriter, the developpeur, the reviewer,
-//   the regulator, the questionneur and the technical referent: the schema of each role (FICHES), which the session receives
+// - The sheet of the end of a session (« la fiche ») of the testwriter, the developpeur, the reviewer
+//   and the questionneur: the schema of each role (FICHES), which the session receives
 //   (`claude -p --output-format json --json-schema <schéma>`) and fills as its last act; claude
 //   writes it in the field `structured_output` of its result (Claude Code, « headless »). A field
 //   exists only when a reader reads it:
@@ -31,20 +31,9 @@
 //     the verdict, for the human (reviewer);
 //   - `question` (reviewer): what goes up to the owner, a real word of the language written in the
 //     code; the circuit stops at « besoin » before it commits or relaunches anyone;
-//   - `decision` (« RELANCE --reprendre » with its `contexte`, « RELANCE --depuis » with `depuis`,
-//     one or more components of the title, each with its `role` and its `contexte`, « MONTE »
-//     with `question`): what the circuit applies (regulator);
-//   - `faits` (`sujet` of SUJETS_DES_FAITS, `composant`): the facts of the state the decision
-//     rests on, which the circuit checks before it applies the decision, and compares with the
-//     facts of the RELANCE before on the same stop (regulator);
 //   - `issue` (QUESTIONS with its `questions`, each with what it aims at, `vise`; AUCUNE; DÉSACCORD
-//     with its `desaccord`): the circuit hands the questions to the author, ends the questioning,
-//     or sends it up to the supervisor, and writes the exchange at the ticket (questionneur);
-//   - `reponses` (`question`, `choix` CHANGE or GARDE, `texte`: what the proposal becomes, or why
-//     it stays): the circuit hands them to the questionneur and writes them at the ticket (the
-//     regulator, the technical referent);
-//   - `titre`, `description`: the plan as an answer changes it, which the circuit writes to the
-//     ticket (`bd update`) (technical referent).
+//     with its `desaccord`): the circuit lets the plan pass, or sends the questions or the
+//     disagreement up to the supervisor, and writes them at the ticket (questionneur).
 //   `lireFiche` reads a session's output: the sheet and the session's id, or the error that
 //   names what lacks or does not conform (no `structured_output`, a field out of the schema, a
 //   status without its reason, a blocking finding without its criterion or rule).
@@ -87,16 +76,6 @@ const SARIF = 'sarif';
 const TURBO = 'turbo';
 // The kinds of a guard's finding: to fix (a developpeur's work), to settle (a person's decision).
 const GENRES = ['a-corriger', 'a-arbitrer'];
-// The subjects of the facts a regulator's decision rests on, which the circuit checks on its
-// state (scripts/circuit.mjs, `faitFaux`): all but sous-charge name their component.
-export const SUJETS_DES_FAITS = [
-  'au-titre',
-  'hors-titre',
-  'rouge-de',
-  'sans-changement',
-  'sous-charge',
-];
-
 const texte = description => ({ type: 'string', description });
 const liste = (items, description) => ({ type: 'array', description, items });
 const objet = (properties, required = [], description) => ({
@@ -132,21 +111,6 @@ const ECARTS = {
       ['sujet', 'texte']
     ),
     'Ce que le message de commit nomme, une fois par sujet, de la dernière fiche qui le porte.'
-  ),
-};
-
-// The answers of an author to the questions of the questionneur.
-const REPONSES = {
-  reponses: liste(
-    objet(
-      {
-        question: texte('La question, telle que le questionneur l’a posée.'),
-        choix: { type: 'string', enum: ['CHANGE', 'GARDE'] },
-        texte: texte('CHANGE : ce que ta proposition devient ; GARDE : pourquoi elle reste.'),
-      },
-      ['question', 'choix', 'texte']
-    ),
-    'Ta réponse à chaque question du questionneur.'
   ),
 };
 
@@ -232,43 +196,6 @@ const FICHES = {
     },
     ['verdict']
   ),
-  regulateur: objet(
-    {
-      decision: { type: 'string', enum: ['RELANCE --reprendre', 'RELANCE --depuis', 'MONTE'] },
-      depuis: liste(
-        objet(
-          {
-            role: { type: 'string', enum: ['testwriter', 'developpeur'] },
-            composant: texte('Un composant du titre.'),
-            contexte: texte('Ce que l’agent relancé fait dans ce composant.'),
-          },
-          ['role', 'composant', 'contexte']
-        ),
-        'RELANCE --depuis : chaque composant que le lot reprend, avec l’agent qui le reprend et son contexte ; le circuit les rejoue dans l’ordre du titre, puis une seule passe finale.'
-      ),
-      contexte: texte('RELANCE --reprendre : ce que l’agent repris fait dans son composant.'),
-      question: texte('MONTE : la question, ses pièces et ta recommandation.'),
-      arbitrage: texte(
-        'RELANCE : ce que tu tranches seul et sa source (la lettre d’un critère, un précédent écrit, une règle du cadre), en nommant chaque consommateur qu’il fixe ; le circuit l’écrit au ticket, tranché.'
-      ),
-      critere: texte(
-        'RELANCE --depuis, son premier composant repris par son testwriter : le critère que tu ajoutes, sans son numéro ; le circuit l’écrit, numéroté, à la fin de la description.'
-      ),
-      faits: liste(
-        objet(
-          {
-            sujet: { type: 'string', enum: SUJETS_DES_FAITS },
-            composant: texte('Le composant ou le paquet du fait ; sans objet pour sous-charge.'),
-          },
-          ['sujet']
-        ),
-        'Chaque fait de l’état sur lequel ta décision s’appuie : au-titre et hors-titre (un composant au titre ou non), rouge-de (un rouge de l’arrêt dans ce composant ou ce paquet), sans-changement (la copie ne change rien de ce composant), sous-charge (une commande de l’arrêt à repasser, sous charge). Le circuit vérifie chacun sur l’état avant d’appliquer ta décision, et refuse une décision qui s’appuie sur un fait faux.'
-      ),
-      ...REPONSES,
-      ...DECOUVERTES,
-    },
-    ['decision']
-  ),
   questionneur: objet(
     {
       issue: { type: 'string', enum: ['QUESTIONS', 'AUCUNE', 'DÉSACCORD'] },
@@ -280,22 +207,11 @@ const FICHES = {
           },
           ['question', 'vise']
         ),
-        'QUESTIONS : tes questions de ce tour.'
+        'QUESTIONS : tes questions.'
       ),
-      desaccord: texte(
-        'DÉSACCORD : ce qui reste, que la réponse de l’auteur ne lève pas, et pourquoi.'
-      ),
+      desaccord: texte('DÉSACCORD : l’écart que la proposition laisse, et pourquoi.'),
     },
     ['issue']
-  ),
-  'referent-technique': objet(
-    {
-      ...REPONSES,
-      titre: texte('Le titre du ticket que ta réponse change, entier.'),
-      description: texte('La description du ticket que ta réponse change, entière.'),
-      ...DECOUVERTES,
-    },
-    ['reponses']
   ),
 };
 
@@ -332,24 +248,14 @@ function erreurs(schema, valeur, ou) {
 }
 
 // What a sheet of <role> needs beyond its schema: the reason of a BLOQUÉ, the question of a
-// BESOIN or a MONTE, the agents of a RELANCE --depuis, each with its own context and none beside
-// them, the component of a fact, the questions of a QUESTIONS, the text of a DÉSACCORD, the plan
-// an answer CHANGE gives, the criterion or rule of a blocking finding, and a reviewer's verdict
-// that follows its findings (RENDU with a blocking one, ACCEPTÉ without).
+// BESOIN, the questions of a QUESTIONS, the text of a DÉSACCORD, the criterion or rule of a
+// blocking finding, and a reviewer's verdict that follows its findings (RENDU with a blocking one,
+// ACCEPTÉ without).
 function manques(role, f) {
   const out = [];
   const plein = k => typeof f[k] === 'string' && f[k].trim() !== '';
   if (f.statut === 'BLOQUÉ' && !plein('raison')) out.push('raison : manque, pour BLOQUÉ');
   if (f.statut === 'BESOIN' && !plein('question')) out.push('question : manque, pour BESOIN');
-  if (role === 'regulateur' && f.decision === 'MONTE' && !plein('question')) {
-    out.push('question : manque, pour MONTE');
-  }
-  if (role === 'regulateur' && f.decision === 'RELANCE --depuis' && !f.depuis?.length) {
-    out.push('depuis : manque, pour RELANCE --depuis');
-  }
-  if (role === 'regulateur' && f.decision === 'RELANCE --depuis' && 'contexte' in f) {
-    out.push('contexte : sous RELANCE --depuis, chaque composant de depuis porte le sien');
-  }
   if (role === 'relecteur') {
     const constats = f.constats ?? [];
     for (const [i, c] of constats.entries()) {
@@ -365,24 +271,11 @@ function manques(role, f) {
       out.push('verdict : ACCEPTÉ avec un constat bloquant, qui rend le lot');
     }
   }
-  for (const [i, x] of (role === 'regulateur' ? (f.faits ?? []) : []).entries()) {
-    if (x.sujet !== 'sous-charge' && !(typeof x.composant === 'string' && x.composant.trim())) {
-      out.push(`faits[${i}].composant : manque, pour ${x.sujet}`);
-    }
-  }
   if (role === 'questionneur' && f.issue === 'QUESTIONS' && !(f.questions ?? []).length) {
     out.push('questions : manque, pour QUESTIONS');
   }
   if (role === 'questionneur' && f.issue === 'DÉSACCORD' && !plein('desaccord')) {
     out.push('desaccord : manque, pour DÉSACCORD');
-  }
-  if (
-    role === 'referent-technique' &&
-    (f.reponses ?? []).some(r => r.choix === 'CHANGE') &&
-    !plein('titre') &&
-    !plein('description')
-  ) {
-    out.push('titre ou description : manque, pour une réponse CHANGE');
   }
   return out;
 }

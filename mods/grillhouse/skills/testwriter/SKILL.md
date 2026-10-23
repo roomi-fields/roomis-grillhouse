@@ -168,7 +168,7 @@ tests arrivent au dépôt avec le code qui les rend verts.
 - `decouvertes` : chaque découverte hors des critères (son sujet, son exemple et son adresse),
   que le circuit consigne fermée sous le ticket.
 
-Sur BLOQUÉ ou BESOIN, le circuit s'arrête avant la preuve, et le régulateur tranche. Ainsi ta
+Sur BLOQUÉ ou BESOIN, le circuit s'arrête avant la preuve, et ta question monte au superviseur. Ainsi ta
 séance finit sur ce que tu sais, et le circuit le lit.
 
 Une preuve refusée reprend ta séance, avec une consigne courte, le rapport neuf de la preuve seul ;

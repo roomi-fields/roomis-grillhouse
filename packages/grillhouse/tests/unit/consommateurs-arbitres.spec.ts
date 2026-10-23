@@ -115,30 +115,11 @@ describe('consommateurs-arbitres — a changed Consommateurs line has its settle
     expect(r.status, r.stderr).toBe(0);
   });
 
-  // grillhouse-3uv.92.7, critère 1: the regulator's arbitrage is written by the circuit, from its
-  // sheet, and read where the circuit writes it; the regulator writes no « ## Arbitrage » itself.
-  it("passes the line with the regulator's arbitrage as the circuit writes it, settled by construction", () => {
+  // grillhouse-3uv.95.4: the arbitrage is the supervisor's « ## Arbitrage » comment, settled by its
+  // verdict; one without its verdict settles nothing.
+  it('refuses a « ## Arbitrage » written at the ticket without its verdict', () => {
     const r = jouer(
-      depot(
-        'agent/demo-1',
-        ['- `c` : duree'],
-        [
-          {
-            text: 'Circuit · packages/a · regulateur : arbitrage — `c` lit duree : la lettre du critère 1.',
-          },
-        ]
-      )
-    );
-    expect(r.status, r.stderr).toBe(0);
-  });
-
-  it("refuses a « ## Arbitrage du régulateur » written at the ticket without its verdict: the regulator's arbitrage is the circuit's line", () => {
-    const r = jouer(
-      depot(
-        'agent/demo-1',
-        ['- `c` : duree'],
-        [{ text: '## Arbitrage du régulateur\n\n`c` lit duree.' }]
-      )
+      depot('agent/demo-1', ['- `c` : duree'], [{ text: '## Arbitrage — `c`\n\n`c` lit duree.' }])
     );
     expect(r.status, r.stderr).toBe(1);
   });

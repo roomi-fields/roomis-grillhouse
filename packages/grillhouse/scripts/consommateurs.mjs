@@ -307,7 +307,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   for (const l of lignes) process.stderr.write(`${l}\n`);
   if (refus.length) {
     process.stderr.write(
-      "Une consommation nouvelle se décide (la section « Architecture » du ticket qui la nomme, sinon le référent technique), puis entre dans la section « Consommateurs » de l'interface du fournisseur.\n"
+      "Une consommation nouvelle se décide (la section « Architecture » du ticket qui la nomme, sinon l'arbitrage du superviseur), puis entre dans la section « Consommateurs » de l'interface du fournisseur.\n"
     );
     process.exitCode = 1;
   }

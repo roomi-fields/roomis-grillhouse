@@ -7,8 +7,8 @@
 // (`ligneDEtape`: its role `circuit`, its step and component, one turn, no tokens).
 //
 // - The line: the project (the main tree of the directory the session opened in, which the hook
-//   reads in CLAUDE_PROJECT_DIR, else in its input's `cwd`), the agent, its ticket (« TON TICKET : »; a sub-agent
-//   whose prompt names none takes that of the regulator that launched it), its role,
+//   reads in CLAUDE_PROJECT_DIR, else in its input's `cwd`), the agent, its ticket (« TON TICKET : »),
+//   its role,
 //   its start and end, its working time and the turns it sums (start and end in milliseconds, the
 //   waits for a message left out), its tokens, its cache reads and its cost when the session wrote
 //   one. All of it is read from the agent's transcript; the agent declares nothing.
@@ -36,14 +36,7 @@ import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import {
-  lireFichier,
-  ROLE_DU_CIRCUIT,
-  roleDeLAgent,
-  roleDuMeta,
-  ticketDuRegulateur,
-  tourne,
-} from './tableau.mjs';
+import { lireFichier, ROLE_DU_CIRCUIT, roleDeLAgent, roleDuMeta, tourne } from './tableau.mjs';
 import { lacherVerrou, prendreVerrou } from './verrou-de-fichier.mjs';
 
 const REGISTRE =
@@ -87,14 +80,14 @@ export function source(input) {
 // The register's line for this hook input and the reading `t` of its transcript (`lireFichier` or
 // `lireTranscription`), or null. `projet` is the main tree of the session.
 export function ligne(input, t, projet) {
-  const { transcription, role, agent } = source(input);
+  const { role, agent } = source(input);
   if (t.premier === null) {
     return null;
   }
   return {
     projet,
     agent,
-    ticket: t.ticket ?? (transcription ? ticketDuRegulateur(transcription) : null),
+    ticket: t.ticket ?? null,
     role: role ?? t.role,
     debut: new Date(t.premier).toISOString(),
     fin: new Date(t.dernier).toISOString(),

@@ -1,5 +1,5 @@
 // grillhouse-3uv.58: a working copy is removed by one script of the frame,
-// `scripts/retirer-copie.sh [--jetable] <copie>`, called by the regulator (agent copy), the
+// `scripts/retirer-copie.sh [--jetable] <copie>`, called by the supervisor (agent copy), the
 // integration and the night. git refuses `worktree remove` on a copy that carries a submodule; the
 // script removes such a copy too, touches nothing but the named copy, and keeps today's refusal of
 // a copy that carries local work or is locked; `--jetable` (the integration's and the night's own

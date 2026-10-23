@@ -1,14 +1,12 @@
 #!/usr/bin/env node
 // The rights and the context of each role session the circuit launches, from one source (ROLES):
 // the testwriter and the developpeur in the envelope of their plan (scripts/enveloppe/lancer.sh),
-// the reviewer, the regulator, the questionneur and the technical referent out of it
-// (scripts/circuit.mjs). As a task of CI receives its
+// the reviewer and the questionneur out of it (scripts/circuit.mjs). As a task of CI receives its
 // rights from its steps and runs on an image of its own, not on the workstation of its author
 // (GitHub Actions `permissions:` per job, the hermetic actions of Bazel), a session receives the
 // rights the commands of its skill name, and the context its work reads.
 //
 //   npx grillhouse droits <rôle> --racine <arbre principal> --copie <copie> --ticket <ticket>
-//                           [--journal <fichier> --preuves <motif>]
 //
 // prints the options of claude for that session, one per line (`optionsDuRole`):
 //
@@ -20,8 +18,7 @@
 //   change): its permissions (`allow`, the commands its skill names; `deny`, the change of its
 //   author at the ticket, AUTEUR_FIXE, for a role that writes the editing by script, the test
 //   tool run directly and the reading again of the ticket its instruction carries, and for a role
-//   that writes nothing at the ticket, the questionneur and the regulator, every write of bd,
-//   ECRIRE_AU_TICKET); the
+//   that writes nothing at the ticket, the questionneur, every write of bd, ECRIRE_AU_TICKET); the
 //   automatic memory off; the skills of Claude Code off (`disableBundledSkills`, and the few it keeps,
 //   INTEGREES), and the project's own skills (`.claude/skills/` of the copy) off
 //   (`skillOverrides`); every plugin the project enables off (`enabledPlugins`: their skills,
@@ -151,38 +148,12 @@ export const ROLES = {
       'mcp__rtfm__rtfm_search',
     ],
   },
-  // It writes nothing at the ticket: the circuit writes its decision, its arbitrage and the
-  // criterion it adds, from its sheet. It reads the circuit's state by its command, the ticket's
-  // log and its proofs by their paths, a precedent by bd, the copy by git.
-  regulateur: {
-    lit: ['journal', 'preuves'],
-    ecritAuTicket: false,
-    commandes: [
-      'Bash(npx grillhouse etat-du-circuit *)',
-      'Bash(bd search *)',
-      'Bash(bd comments *)',
-      ...LIRE_GIT,
-    ],
-  },
   // It asks, and decides nothing: it reads the proposal its instruction carries and the code by
   // the index; the circuit writes its questions at the ticket.
   questionneur: {
     index: true,
     ecritAuTicket: false,
     commandes: [
-      'Bash(codegraph explore *)',
-      'mcp__codegraph__codegraph_explore',
-      'mcp__rtfm__rtfm_search',
-    ],
-  },
-  // On the questions to a plan, it answers for the plan; the circuit writes its changes to the
-  // ticket and its answers at the ticket.
-  'referent-technique': {
-    index: true,
-    commandes: [
-      'Bash(bd show *)',
-      'Bash(bd comments add *)',
-      'Bash(npx grillhouse ticket *)',
       'Bash(codegraph explore *)',
       'mcp__codegraph__codegraph_explore',
       'mcp__rtfm__rtfm_search',
@@ -239,13 +210,10 @@ function serveursDeLIndex(racine, home) {
 }
 
 // The settings of the session of <role>, for the ticket <ticket>, its copy <copie> (where the
-// project's own skills are read) and the main tree <racine>; `lit` names the files the regulator reads.
-function reglagesDuRole(role, { racine, copie = racine, ticket, journal, preuves }) {
+// project's own skills are read) and the main tree <racine>.
+function reglagesDuRole(role, { racine, copie = racine, ticket }) {
   const r = ROLES[role];
   if (!r) throw new Error(`rôle sans droits : ${role}`);
-  const fichiers = { journal, preuves };
-  // An absolute path of the machine opens on `//`.
-  const lectures = (r.lit ?? []).filter(k => fichiers[k]).map(k => `Read(/${fichiers[k]})`);
   const deny = [...AUTEUR_FIXE, ...(r.ecritAuTicket === false ? ECRIRE_AU_TICKET : [])];
   if (r.ecrit) {
     deny.push(...ECRIRE_PAR_SCRIPT, ...TEST_DIRECT);
@@ -264,7 +232,7 @@ function reglagesDuRole(role, { racine, copie = racine, ticket, journal, preuves
       : []),
   ];
   const reglages = {
-    permissions: { allow: [...r.commandes, ...lectures], deny },
+    permissions: { allow: [...r.commandes], deny },
     autoMemoryEnabled: false,
     disableBundledSkills: true,
     skillOverrides: Object.fromEntries(autres.map(s => [s, 'off'])),
@@ -328,13 +296,8 @@ function commande(argv) {
   const o = {};
   for (let i = 0; i < reste.length; i += 2) {
     const cle = reste[i]?.replace(/^--/, '');
-    if (
-      !['racine', 'copie', 'ticket', 'journal', 'preuves'].includes(cle) ||
-      i + 1 >= reste.length
-    ) {
-      process.stderr.write(
-        `usage : droits.mjs <rôle> --racine <r> --copie <c> --ticket <t> [--journal <f> --preuves <m>]\n`
-      );
+    if (!['racine', 'copie', 'ticket'].includes(cle) || i + 1 >= reste.length) {
+      process.stderr.write(`usage : droits.mjs <rôle> --racine <r> --copie <c> --ticket <t>\n`);
       return 2;
     }
     o[cle] = reste[i + 1];

@@ -1,15 +1,13 @@
 // grillhouse-3uv.90: the steps of a ticket are the tree of its circuit, as a pipeline of GitLab CI
 // shows its stages and their jobs: 0 to 5, the sub-steps 1.1, 1.2, 2.1–2.4, 5.1 and 5.2, « auto »
-// for a step the circuit leads itself. A step carries as many bounded loops as it needs, and the
-// arbitrage of a stop stands out of the sequence, under the stopped step. One list
-// (scripts/etapes.mjs) holds them; the circuit, the board and the texts read it; no other script
-// spells it.
+// for a step the circuit leads itself. A step carries as many bounded loops as it needs. One list
+// (scripts/etapes.mjs) holds them, the gestures of the circuit and the questions of its stops
+// (grillhouse-3uv.95.4); the circuit, the board and the texts read it; no other script spells it.
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import * as etapes from '../../scripts/etapes.mjs';
 import {
-  ARBITRAGE,
   ARRETS,
   AUTO,
   boucle,
@@ -19,12 +17,14 @@ import {
   etapeDuRole,
   GESTES,
   gesteDe,
-  juge,
   libelle,
+  MONTEES,
+  monteeDe,
   nomDuRole,
   quiDe,
+  RESPONSABLE,
   SUITE,
-  TABLE_DES_ARRETS,
+  SUPERVISEUR,
 } from '../../scripts/etapes.mjs';
 
 const RACINE = path.resolve(__dirname, '../../../..');
@@ -57,7 +57,7 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21', () => {
         [],
         [
           ['1.1', 'Relevé des composants', [AUTO]],
-          ['1.2', 'Questionnement', ['questionneur', 'referent-technique']],
+          ['1.2', 'Questionnement', ['questionneur']],
         ],
       ],
       [
@@ -107,13 +107,14 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21', () => {
     expect(libelle(a('2.3'))).toBe('2.3 Code');
   });
 
-  it('the arbitrage of a stop stands out of the sequence, the regulator with the questionneur', () => {
-    expect(ARBITRAGE).toMatchObject({
-      numero: null,
-      titre: "Arbitrage de l'arrêt",
-      qui: ['regulateur', 'questionneur'],
-    });
-    expect(suite).not.toContain(ARBITRAGE);
+  // grillhouse-3uv.95.4: no regulator and no technical referent; a stop no gesture settles goes up
+  // to the supervisor.
+  it('no step, nor any arbitrage out of the sequence, holds the removed roles', () => {
+    for (const nom of ['ARBITRAGE', 'REGULATEUR', 'TABLE_DES_ARRETS', 'juge']) {
+      expect(etapes, nom).not.toHaveProperty(nom);
+    }
+    expect(suite.flatMap(e => e.qui)).not.toContain('regulateur');
+    expect(suite.flatMap(e => e.qui)).not.toContain('referent-technique');
   });
 
   it('the questioning numbers no step of its own any more, nor the numbering before it', () => {
@@ -126,11 +127,8 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21', () => {
   });
 
   it('declares each bounded loop with the step that carries it, as many as it needs', () => {
-    const porte = [...suite, ARBITRAGE as Etape]
-      .filter(e => e.boucles)
-      .map(e => [e.numero, e.boucles]);
+    const porte = suite.filter(e => e.boucles).map(e => [e.numero, e.boucles]);
     expect(porte).toEqual([
-      ['1.2', [{ cle: 'questionnement', libelle: 'tour', max: 4 }]],
       [
         '2',
         [
@@ -140,13 +138,6 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21', () => {
         ],
       ],
       ['4', [{ cle: 'relecture', libelle: 'tour', max: 3 }]],
-      [
-        null,
-        [
-          { cle: 'arret', libelle: 'arrêt', max: 3 },
-          { cle: 'questionnement', libelle: 'tour', max: 4 },
-        ],
-      ],
     ]);
   });
 
@@ -158,11 +149,10 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21', () => {
     expect(cles(a('2.3'))).toEqual(['composant', 'code']);
     expect(cles(a('2.4'))).toEqual(['composant', 'code']);
     expect(cles(a('2'))).toEqual(['composant']);
-    expect(cles(a('1.2'))).toEqual(['questionnement']);
+    expect(cles(a('1.2'))).toEqual([]);
     expect(cles(a('4'))).toEqual(['relecture']);
     expect(cles(a('3'))).toEqual([]);
     expect(cles(a('3.1'))).toEqual([]);
-    expect(cles(ARBITRAGE)).toEqual(['arret', 'questionnement']);
   });
 
   it('the circuit reads the maxima of its loops in the list, none spelled again', () => {
@@ -170,7 +160,7 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21', () => {
     expect(c).not.toMatch(
       /(RELANCES_TESTWRITER|SEANCES_DEVELOPPEUR|RELECTURES|RELANCES_DU_REGULATEUR|TOURS) = \d/
     );
-    for (const cle of ['tests', 'code', 'relecture', 'arret', 'questionnement']) {
+    for (const cle of ['tests', 'code', 'relecture']) {
       expect(c, cle).toContain(`boucle('${cle}').max`);
     }
   });
@@ -187,43 +177,17 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21', () => {
 
   it('shows each role by its name in words', () => {
     expect(
-      [
-        'explorateur',
-        'referent-technique',
-        'regulateur',
-        'questionneur',
-        'testwriter',
-        'developpeur',
-        'relecteur',
-        AUTO,
-      ].map(nomDuRole)
-    ).toEqual([
-      'explorateur',
-      'référent technique',
-      'régulateur',
-      'questionneur',
-      'testwriter',
-      'développeur',
-      'relecteur',
-      'auto',
-    ]);
+      ['explorateur', 'questionneur', 'testwriter', 'developpeur', 'relecteur', AUTO].map(nomDuRole)
+    ).toEqual(['explorateur', 'questionneur', 'testwriter', 'développeur', 'relecteur', 'auto']);
   });
 });
 
-// Romain, 2026-10-21: the line of 1.2 on the board holds in 52 columns, « questionneur ⇄
-// référent », the role keeping its whole name everywhere else.
 describe('who works at a step, in words', () => {
-  it('joins the names of its roles, a step that declares its short form showing that', () => {
+  it('joins the names of its roles', () => {
     expect(quiDe(a('2.3'))).toBe('développeur');
     expect(quiDe(a('1.1'))).toBe('auto');
     expect(quiDe(a('1'))).toBe('');
-    expect(quiDe(ARBITRAGE)).toBe('régulateur ⇄ questionneur');
-    expect(quiDe(a('1.2'))).toBe('questionneur ⇄ référent');
-  });
-
-  it('the short form of 1.2 abbreviates no role: the role keeps its whole name', () => {
-    expect(a('1.2').qui).toEqual(['questionneur', 'referent-technique']);
-    expect(nomDuRole('referent-technique')).toBe('référent technique');
+    expect(quiDe(a('1.2'))).toBe('questionneur');
   });
 });
 
@@ -240,7 +204,6 @@ describe('the stops of the circuit, each with its exit code', () => {
       'sans-livraison': 15,
       'relecture-arret': 16,
       integration: 17,
-      question: 18,
       'hors-portee': 19,
       besoin: 20,
       'composants-manquants': 21,
@@ -283,36 +246,19 @@ describe("a circuit's state and a role agent are at one step", () => {
     expect(numero({ etape: 'testwriter', raison: 'questionnement' })).toBe('1.2');
   });
 
-  it('the questioning of a decision of the regulator stays at the stopped step', () => {
-    expect(
-      numero({ etape: 'controles', raison: 'controles', questionnement: { objet: 'decision' } })
-    ).toBe('2.4');
-  });
-
   it('a developpeur relaunched by the final pass is at 2.3, its checks at 3', () => {
     expect(numero({ etape: 'developpeur', finale: true })).toBe('2.3');
   });
 
-  it('places each role agent at its step, the regulator at the arbitrage, any other agent nowhere', () => {
+  it('places each role agent at its step, any other agent nowhere', () => {
     expect(
-      [
-        'explorateur',
-        'referent-technique',
-        'questionneur',
-        'testwriter',
-        'developpeur',
-        'relecteur',
-      ].map(r => etapeDuRole(r)?.numero)
-    ).toEqual(['0', '1.2', '1.2', '2.1', '2.3', '4']);
-    expect(etapeDuRole('regulateur')).toBe(ARBITRAGE);
+      ['explorateur', 'questionneur', 'testwriter', 'developpeur', 'relecteur'].map(
+        r => etapeDuRole(r)?.numero
+      )
+    ).toEqual(['0', '1.2', '2.1', '2.3', '4']);
+    expect(etapeDuRole('regulateur')).toBeNull();
     expect(etapeDuRole('Explore')).toBeNull();
     expect(etapeDuRole(AUTO)).toBeNull();
-  });
-
-  it('the roles that judge a plan or a stop deliver nothing to the lot', () => {
-    expect(
-      ['questionneur', 'referent-technique', 'regulateur', 'testwriter', 'developpeur'].map(juge)
-    ).toEqual([true, true, true, false, false]);
   });
 });
 
@@ -343,7 +289,6 @@ describe('one list, which the circuit, the board and the texts read', () => {
       'Passe finale',
       'Régénération des références',
       'File : main, poussée, CI',
-      "Arbitrage de l'arrêt",
     ];
     const copies = fichiers.flatMap(f =>
       titres.filter(t => lire(f).includes(t)).map(t => `${f} : ${t}`)
@@ -353,66 +298,59 @@ describe('one list, which the circuit, the board and the texts read', () => {
 
   // grillhouse-3uv.84.8: the circuit of a ticket lives in the supervisor's skill; the charter names
   // the list.
-  it('the supervisor’s skill cites each step by its number and title, and the arbitrage; the charter names the list', () => {
+  it('the supervisor’s skill cites each step by its number and title; the charter names the list', () => {
     expect(lire('mods/grillhouse/charte.md')).toContain('(`etapes.mjs`, la seule liste)');
     const charte = lire('mods/grillhouse/skills/pitmaster/SKILL.md').replace(/\s+/g, ' ');
     for (const e of suite) {
       expect(charte, `${e.numero} ${e.titre}`).toContain(`${e.numero} ${e.titre}`);
     }
-    expect(charte).toContain(ARBITRAGE.titre);
     expect(charte).not.toMatch(/2\.1 Questionnement|10 File|dix étapes/);
   });
 });
 
-// grillhouse-3uv.89 (L4): the written policy of the stops, as the bounded retries of Zuul and of
-// GitHub's merge queue are written in their configuration. Witness: BPScript 320.3 (2026-10-20),
-// 22 decisions of the regulator, 11 of them a mechanical rule would have taken, 5 relaunches
-// identical to the one before, 5 wrong on the substance.
-describe('the table of the stops and their gesture, in the list of the steps', () => {
-  it('names each kind of stop with its gesture, in the order the circuit tries them', () => {
-    expect(TABLE_DES_ARRETS.map(l => [l.genre, l.geste])).toEqual([
-      ['composants-manquants', 'superviseur'],
-      ['questionnement', 'superviseur'],
-      ['hors-plan', 'superviseur'],
-      ['meme-arret-sans-fait-nouveau', 'superviseur'],
-      ['a-repasser', 'a-repasser'],
-      ['a-arbitrer', 'regulateur'],
-      ['rouge-d-un-autre-composant', 'developpeur-du-composant'],
-      ['renvoi-au-testwriter', 'testwriter'],
-      ['composant-ajoute', 'testwriter'],
-      ['critere-neuf', 'testwriter'],
+// grillhouse-3uv.95.4 (decision 3 of 3uv.95): as a CI applies its rules without asking and calls a
+// person only for what no rule settles, the circuit makes its mechanical gestures itself, and every
+// other stop goes up to the supervisor with its fact, its piece and its question. Witness: BP 320.9,
+// 45 sessions of the regulator, 22 of the referent, 14 montées that were mechanical gestures.
+describe('the gestures of the circuit and the questions of its stops, in the list of the steps', () => {
+  it('names each gesture the circuit makes itself, with its rule and the case it settles', () => {
+    expect(GESTES.map(g => g.genre)).toEqual([
+      'a-repasser',
+      'rejeu',
+      'rouge-d-un-autre-composant',
+      'renvoi-au-testwriter',
+      'regeneration',
+      'rien-a-livrer',
     ]);
-  });
-
-  it('each line carries a gesture of the vocabulary and the case of BPScript it settles', () => {
-    for (const l of TABLE_DES_ARRETS) {
-      expect(GESTES, l.genre).toContain(l.geste);
-      // A stop (A1–A19) or a decision (D1–D22) of the analysis of 320.3, or the analysis of 320.9
-      // (grillhouse-3uv.95).
-      expect(l.cas, l.genre).toMatch(/\b[AD]\d{1,2}\b|\bBP 320\.9\b/);
+    for (const g of GESTES) {
+      expect(g.geste.trim(), g.genre).not.toBe('');
+      expect(g.regle.trim(), g.genre).not.toBe('');
+      expect(g.cas, g.genre).toMatch(/\b[AB]\d{1,2}\b|\bBP 320\.9\b/);
     }
-    expect(new Set(TABLE_DES_ARRETS.map(l => l.genre)).size).toBe(TABLE_DES_ARRETS.length);
+    expect(gesteDe('rien-a-livrer')?.genre).toBe('rien-a-livrer');
+    expect(gesteDe('controles')).toBeNull();
   });
 
-  it('gives the line of a kind of stop, and none for a kind it does not hold', () => {
-    expect(gesteDe('a-arbitrer')?.geste).toBe('regulateur');
-    expect(gesteDe('relecture-arret')).toBeNull();
-  });
-
-  // Romain, 2026-10-21: the stops of the opening go to the supervisor with no regulator, which
-  // the board reads in the table, never in a list of its own.
-  it('the stops of the opening, at 1.1 and 1.2, go to the supervisor', () => {
-    const ouverture = ['1.1', '1.2'].flatMap(n => (a(n) as { arrets?: string[] }).arrets ?? []);
-    expect(ouverture).toEqual(['composants-manquants', 'questionnement']);
-    for (const arret of ouverture) {
-      expect(ARRETS, arret).toHaveProperty([arret]);
-      expect(gesteDe(arret)?.geste, arret).toBe('superviseur');
+  it('every stop but « a-repasser » carries its question for the supervisor, with the commands that answer it', () => {
+    expect(Object.keys(MONTEES).sort()).toEqual(
+      Object.keys(ARRETS)
+        .filter(n => n !== 'a-repasser')
+        .sort()
+    );
+    for (const [arret, m] of Object.entries(MONTEES)) {
+      expect(m.qui, arret).toBe(SUPERVISEUR);
+      for (const commande of ['--reprendre', '--etendre', '--arreter']) {
+        expect(m.question, arret).toContain(commande);
+      }
     }
+    expect(monteeDe('a-repasser')).toBeNull();
+    expect(monteeDe('hors-plan')?.question).toContain('--etendre');
+    expect([SUPERVISEUR, RESPONSABLE]).toEqual(['superviseur', 'responsable']);
   });
 
-  it('the circuit reads its gestures in the table', () => {
+  it('the circuit reads its gestures and its questions in the list', () => {
     expect(lire('packages/grillhouse/scripts/circuit.mjs')).toMatch(
-      /import \{[^}]*\bgesteDe\b[^}]*\} from '\.\/etapes\.mjs'/
+      /import \{[^}]*\bgesteDe\b[^}]*\bmonteeDe\b[^}]*\} from '\.\/etapes\.mjs'/
     );
   });
 });
@@ -431,7 +369,7 @@ describe('the regeneration of the references, a step of a project that declares 
       arrets: ['references'],
     });
     expect(a('3.1').parComposant).toBeUndefined();
-    expect(gesteDe('references')).toBeNull();
+    expect(gesteDe('regeneration')).not.toBeNull();
   });
 
   it('only 3.1 depends on a declaration of the project', () => {

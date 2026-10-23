@@ -28,7 +28,6 @@ const {
   ticket,
   scenario,
   circuit,
-  essai,
   sessions,
   args,
   etat,
@@ -64,11 +63,9 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
       'developpeur packages/binder',
       'developpeur packages/forms',
       'developpeur packages/binder',
-      // The stop goes to a session of the regulator, who answers nothing here, asked again
-      // once.
-      'regulateur',
-      'regulateur',
     ]);
+    // No session follows the stop: it goes up to the supervisor.
+    expect(etat(id)?.question).toMatchObject({ arret: 'controles', qui: 'superviseur' });
     const fort = args(id, 'developpeur', 4);
     expect(fort[fort.indexOf('--model') + 1]).toBe('opus');
     expect(args(id, 'developpeur', 3)).not.toContain('--model');
@@ -157,7 +154,7 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
     expect(e?.rapport).toContain('020-loader');
     expect(e?.rapport).toContain('chaque fichier est une bibliothèque .bp');
     expect(e?.rapport).toContain('hors des composants du ticket (packages/forms)');
-    expect(e?.rapport).toContain('La décision revient au régulateur');
+    expect(e?.rapport).toContain('Le superviseur étend le plan à ce composant (`--etendre`)');
     // Stopped before the review, the package named in the comment of the stop.
     expect(historique(id).map(([, etape]) => etape)).not.toContain('relecture');
     const arret = commentaires(id)
@@ -165,16 +162,13 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
       .pop();
     expect(arret).toContain('arrêt controles');
     expect(arret).toContain('020-loader');
-    // The regulator receives the stop's reds read in the structured results, each with its
-    // component, apart from the reason, which no longer repeats them.
-    const prompt = essai(id, 'regulateur-1.prompt');
-    expect(prompt).toContain("LES ROUGES DE L'ARRÊT");
-    expect(prompt).toContain('- 020-loader : test packages/loader/test/bibliotheques.test.mjs › ');
-    const raison = prompt.slice(
-      prompt.indexOf("LA RAISON DE L'ARRÊT"),
-      prompt.indexOf("LES ROUGES DE L'ARRÊT")
+    // The question carries the stop's reds read in the structured results as its piece, each with
+    // its component, apart from its fact, which does not repeat them.
+    const q = etat(id)?.question;
+    expect(q?.piece).toContain(
+      '- 020-loader : test packages/loader/test/bibliotheques.test.mjs › '
     );
-    expect(raison).toContain('hors des composants du ticket (packages/forms)');
-    expect(raison).not.toContain('bibliotheques.test.mjs');
+    expect(q?.fait).toContain('hors des composants du ticket (packages/forms)');
+    expect(q?.fait).not.toContain('bibliotheques.test.mjs');
   });
 });

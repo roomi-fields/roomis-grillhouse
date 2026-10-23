@@ -14,8 +14,8 @@
 //   lot: nothing is judged.
 // - With a changed line, the comments of the ticket are read (`bd comments <ticket> --json`, run
 //   from the main tree, the parent of git's common directory). A changed line passes when an
-//   arbitrage that is settled (`arbitrageTranche`: a « ## Arbitrage… » comment, or the regulator's,
-//   that the circuit writes from its sheet, `estArbitrage`) names its consumer, the first
+//   arbitrage of the supervisor that is settled (`arbitrageTranche`: a « ## Arbitrage… » comment,
+//   `estArbitrage`, its verdict « tranché » or the owner's answer after it) names its consumer, the first
 //   name between backquotes of the line, found as it is in the comment's text. Without a changed
 //   line, bd is not called.
 // - A changed line no arbitrage settles passes too when the section « Architecture » of the
@@ -35,21 +35,15 @@ import { aVerifier } from './interfaces-contre-code.mjs';
 
 const REGLE = 'consommateur-sans-arbitrage';
 
-// The regulator's arbitrage as the circuit writes it at the ticket, from the `arbitrage` of its
-// sheet (scripts/circuit.mjs): `Circuit · <composant> · regulateur : arbitrage — <texte>`.
-const DU_REGULATEUR = /^Circuit · [^\n]* · regulateur : arbitrage — /;
+// True when the text <text> of a comment is an arbitrage: a « ## Arbitrage… » comment, as the
+// supervisor writes it (the skill pitmaster, « Une question de conception se tranche par les
+// règles »).
+export const estArbitrage = text => /^\s*## Arbitrage\b/.test(String(text ?? ''));
 
-// True when the text <text> of a comment is an arbitrage: a « ## Arbitrage… » comment, or the
-// regulator's, as the circuit writes it.
-export const estArbitrage = text =>
-  /^\s*## Arbitrage\b/.test(String(text ?? '')) || DU_REGULATEUR.test(String(text ?? ''));
-
-// True when the arbitrage <a> of <comments> (Beads' JSON, in their order) is settled: the
-// regulator's (it settles only what the letter of a criterion, a written precedent or a rule of
-// the frame settles), a line `### Verdict — tranché`, or a « ## Réponse du responsable » comment
-// after it.
+// True when the arbitrage <a> of <comments> (Beads' JSON, in their order) is settled: a line
+// `### Verdict — tranché`, or a « ## Réponse du responsable » comment after it.
 export function arbitrageTranche(comments, a) {
-  const tranche = DU_REGULATEUR.test(a.text) || /^### Verdict\s*—\s*tranché/m.test(a.text);
+  const tranche = /^### Verdict\s*—\s*tranché/m.test(a.text);
   return (
     tranche ||
     comments

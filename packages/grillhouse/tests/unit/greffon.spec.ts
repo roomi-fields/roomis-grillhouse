@@ -43,21 +43,11 @@ const COMPETENCES = [
   'pitmaster',
   'questionneur',
   'redacteur',
-  'referent-technique',
-  'regulateur',
   'release',
   'relecteur',
   'testwriter',
 ];
-const AGENTS = [
-  'developpeur',
-  'explorateur',
-  'questionneur',
-  'referent-technique',
-  'regulateur',
-  'relecteur',
-  'testwriter',
-];
+const AGENTS = ['developpeur', 'explorateur', 'questionneur', 'relecteur', 'testwriter'];
 
 // The frontmatter of a Markdown file, as « key: value » lines and lists of « - item ».
 const enTete = (texte: string) => /^---\n([\s\S]*?)\n---\n/.exec(texte)?.[1] ?? '';

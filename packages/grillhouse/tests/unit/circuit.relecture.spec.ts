@@ -464,7 +464,7 @@ fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/mesure
     const e = etat(id);
     expect(e).toMatchObject({ etape: 'relecture', raison: 'relecture-arret', code: 16 });
     expect(e?.rapport).toContain("n'a pas de destinataire valide");
-    expect(e?.rapport).toContain('La décision revient au régulateur');
+    expect(e?.question).toMatchObject({ arret: 'relecture-arret', qui: 'superviseur' });
     expect(enFile()).not.toContain(`agent/${id}`);
     // Resumed, the reviewer puts a criterion itself in question: a stop again.
     scenario(

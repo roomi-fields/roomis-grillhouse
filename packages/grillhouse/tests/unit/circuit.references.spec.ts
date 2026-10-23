@@ -57,6 +57,8 @@ const {
   etat,
   ordre,
   commandes,
+  commentaires,
+  journal,
   entrees,
   gitRepo,
 } = circuitEssai(ESSAIS);
@@ -187,7 +189,31 @@ describe.runIf(canWrap)(
       expect(gitRepo('show', 'main:reference.txt')).toBe('4\n');
     });
 
-    it('critère 3 — a reference the plan does not name stops the circuit at « references », named, the copy restored, for the regulator', () => {
+    // grillhouse-3uv.95.4: the regeneration is a gesture of the circuit, said with its rule.
+    it('the regeneration is the gesture `regeneration`, its rule at the ticket and in the log, no session launched on it', () => {
+      const id = 'demo-references-geste';
+      laReference(true);
+      leTicket(id, NOMMEE);
+      const r = lancer(id);
+      expect(r.status, sortie(r)).toBe(0);
+      expect(commentaires(id).filter(t => / · geste : /.test(t))).toEqual([
+        expect.stringMatching(
+          /^Circuit · packages\/forms · geste : regeneration → à la régénération des références \(3\.1\), puis la passe finale restreinte \(règle : chaque rouge de la passe finale est celui d’une référence que le projet déclare/
+        ),
+      ]);
+      expect(
+        journal(id)
+          .split('\n')
+          .filter(l => l.startsWith('geste : '))
+      ).toEqual([
+        expect.stringMatching(
+          /^geste : regeneration → à la régénération des références .*\(règle : /
+        ),
+      ]);
+      expect(ordre(id)).toEqual(['developpeur packages/forms', 'relecteur']);
+    });
+
+    it('critère 3 — a reference the plan does not name stops the circuit at « references », named, the copy restored, a question for the supervisor', () => {
       const id = 'demo-references-non-nommee';
       laReference(true);
       const copie = leTicket(id, DESCRIPTION);
@@ -201,12 +227,12 @@ describe.runIf(canWrap)(
       expect(e?.rapport).toContain('ne nomme pas');
       // The regenerated file does not stay in the lot.
       expect(lire(path.join(copie, 'reference.txt'))).toBe('2\n');
-      // No developpeur is relaunched on it; the stop goes to the regulator.
+      // No developpeur is relaunched on it; the stop goes up to the supervisor.
       expect(ordre(id).filter(x => x.startsWith('developpeur'))).toEqual([
         'developpeur packages/forms',
       ]);
-      expect(ordre(id)).toContain('regulateur');
-      expect(essai(id, 'regulateur-1.prompt')).toContain('reference.txt');
+      expect(e?.question).toMatchObject({ arret: 'references', qui: 'superviseur' });
+      expect(e?.question?.fait).toContain('La régénération des références');
     });
 
     it('critère 1 — without the declaration, no step regenerates: the red of the reference stops at « controles »', () => {

@@ -62,16 +62,15 @@ describe('refusVerdicts', () => {
       ])
     ).toBeNull();
   });
-  it("passes the régulateur's arbitrage the circuit writes from its sheet, settled by construction (BPScript 320.2.7, grillhouse-3uv.92.7)", () => {
+  // grillhouse-3uv.95.4: the arbitrage is the supervisor's « ## Arbitrage » comment alone; a line
+  // of the circuit settles nothing.
+  it('takes no line of the circuit for an arbitrage', () => {
     expect(
       refusVerdicts(arb, [
-        c(
-          'Circuit · packages/forms · regulateur : arbitrage — critères 1 à 4 : la lettre du critère 2.',
-          'circuit'
-        ),
+        c('Circuit · packages/forms · geste : rien-a-livrer → aux contrôles.', 'circuit'),
         c('ACCEPTÉ'),
       ])
-    ).toBeNull();
+    ).toMatch(/sans commentaire/);
   });
   it('refuses an arbitrage still open, or missing', () => {
     expect(

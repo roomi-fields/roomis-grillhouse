@@ -17,7 +17,7 @@ import { CODE_COPIE } from '../../scripts/enveloppe/codes.mjs';
 import { dossierDeTravail } from '../../scripts/enveloppe/enveloppe.mjs';
 import { ecrire as ecrireTurbo } from '../../scripts/turbo-des-paquets.mjs';
 
-// Witness: BPScript (Turborepo 2.11.8), four regulators on one day. Inside the envelope of
+// Witness: BPScript (Turborepo 2.11.8), four sessions on one day. Inside the envelope of
 // one package, a command of the frame wanted to build or read what the envelope shows read-only or
 // hides: `npm test -- <files>` rebuilt the dist/ of a neighbour; the tests of 030-binder stopped on a
 // cycle of Turborepo that the copy outside the envelope does not have; `npm run api` failed. As in a

@@ -488,32 +488,6 @@ describe('3uv.44 critère 5 : the board reads a transcript where it stopped, its
     expect(v?.jetons).toBe(3);
     expect(v?.tours).toEqual([[ms('11:00'), ms('11:02')]]);
   });
-
-  it("3uv.44 critère 5 : the manager's transcript a sub-agent takes its ticket from is read where it stopped too", () => {
-    const home = nouveauHome();
-    const sous = path.join(propre(home), 'sess', 'subagents');
-    mkdirSync(sous, { recursive: true });
-    const prompt = invite('08:00', 'demo-9');
-    const regulateur = path.join(sous, 'agent-c1.jsonl');
-    writeFileSync(regulateur, `${transcription(prompt, reponse('08:05'))}\n`);
-    writeFileSync(path.join(sous, 'agent-c1.meta.json'), l({ agentType: 'regulateur' }));
-    const muet = path.join(sous, 'agent-e1.jsonl');
-    writeFileSync(
-      muet,
-      `${transcription(l({ type: 'user', timestamp: at('08:10'), message: { content: 'Cherche les appelants.' } }), reponse('08:11'))}\n`
-    );
-    writeFileSync(
-      path.join(sous, 'agent-e1.meta.json'),
-      l({ agentType: 'Explore', parentAgentId: 'c1' })
-    );
-    let cache: Record<string, unknown> = {};
-    expect(vivants(home, cache).find(v => v.agent === 'e1')?.ticket).toBe('demo-9');
-    cache = parFichier(cache);
-    effacer(regulateur, prompt);
-    appendFileSync(regulateur, `${reponse('08:20')}\n`);
-    appendFileSync(muet, `${reponse('08:21')}\n`);
-    expect(vivants(home, cache).find(v => v.agent === 'e1')?.ticket).toBe('demo-9');
-  });
 });
 
 // The catch-up's trial: a home whose sub-agents and sessions last moved some time before

@@ -1,7 +1,15 @@
+import { spawnSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
-import { sortie, CODE_JUSTE, DESCRIPTION, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
+import {
+  sortie,
+  ARRETS,
+  CODE_JUSTE,
+  DESCRIPTION,
+  ECRIT_ROUGE,
+  circuitEssai,
+} from './circuit-essai.js';
 
 // The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): what the instruction
 // of each session carries (mods/grillhouse/skills/pitmaster/references/consigne-agent.md). Witness:
@@ -9,15 +17,15 @@ import { sortie, CODE_JUSTE, DESCRIPTION, ECRIT_ROUGE, circuitEssai } from './ci
 // last handover » 14 KB of « vert attendu » of the testwriter of 030-binder, and after a RENDU each
 // agent the whole verdict, the findings of the other components included; the reviewer read the
 // criteria at the head of its instruction, which its skill keeps for after its first passes; a
-// criterion the regulator added to the description never reached the session after its RELANCE, nor did
-// the ticket's notes.
+// criterion added to the description never reached the session after the resumption, nor did the
+// ticket's notes.
 // The trial repository and its stand-ins: ./circuit-essai.ts; each file of the circuit's tests
 // builds its own, in a trial directory of its own.
 
 // The trial lives out of /tmp, which the envelope replaces with an empty directory.
 const ESSAIS = racineSousLaMaison('grillhouse-essais-circuit-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-const { revenirAuDebut, ticket, scenario, circuit, essai, ordre } = circuitEssai(ESSAIS);
+const { REPO, ENV, revenirAuDebut, ticket, scenario, circuit, essai, ordre } = circuitEssai(ESSAIS);
 
 // The section « LA DERNIÈRE PASSATION » of an instruction: the text the circuit fills it with.
 const passationDe = (consigne: string) =>
@@ -112,8 +120,8 @@ fiche '{"verdict":"ACCEPTÉ"}'
   it("carries the ticket's description as it is at the session's launch, and its notes when it has some", () => {
     const id = 'demo-consigne-description';
     ticket(id, '000-forms');
-    // The testwriter needs an answer: the circuit stops at « besoin », and the regulator adds the criterion
-    // and the notes to the ticket before its RELANCE, in the same run of the circuit.
+    // The testwriter needs an answer: the circuit stops at « besoin », and the supervisor adds the
+    // criterion and the notes to the ticket before he resumes it.
     scenario(
       id,
       'testwriter-1',
@@ -122,21 +130,18 @@ fiche '{"verdict":"ACCEPTÉ"}'
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const nouvelle = `${DESCRIPTION}\n2. \`mesure\` de 0 rend 0.`;
-    scenario(
-      id,
-      'regulateur',
-      `cat > "$e/description.md" <<'EOF'
-${nouvelle}
-EOF
-(cd "$racine" && bd update "$ticket" -d "$(cat "$e/description.md")" --notes 'Fait : le double. Reste : le cas de zéro.')
-fiche '{"decision":"RELANCE --reprendre"}'
-`
-    );
     const r = circuit([id]);
-    expect(r.status, sortie(r)).toBe(0);
+    expect(r.status, sortie(r)).toBe(ARRETS.besoin);
+    const bd = spawnSync(
+      'bd',
+      ['update', id, '-d', nouvelle, '--notes', 'Fait : le double. Reste : le cas de zéro.'],
+      { cwd: REPO, env: ENV, encoding: 'utf8' }
+    );
+    expect(bd.status, bd.stderr).toBe(0);
+    const s = circuit([id, '--reprendre']);
+    expect(s.status, sortie(s)).toBe(0);
     expect(ordre(id)).toEqual([
       'testwriter packages/forms',
-      'regulateur',
       'testwriter packages/forms',
       'developpeur packages/forms',
       'relecteur',

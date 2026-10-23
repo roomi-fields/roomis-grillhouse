@@ -56,8 +56,8 @@
 //   the order of their names otherwise.
 // - The record of a ticket's survey, beside its copy (`.claude/worktrees/<ticket>.composants.json`
 //   under the main tree), holds the missing components of the circuit's last check and the
-//   components admitted out of the title, by `--admettre` or by the supervisor's answer to a stop
-//   (`repondre`): an admitted component is no longer missing.
+//   components admitted out of the title by `--admettre`: an admitted component is no longer
+//   missing.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -465,17 +465,9 @@ export function verifierLeTitre({ racine, ticket, description, titre, fichier })
     '',
     texteDuReleve(r),
     '',
-    `Le superviseur ajoute chacun au titre, le fournisseur d'abord (\`bd update ${ticket} --title "…"\`), puis relance le circuit ; ou il répond pourquoi il reste dehors : \`npx grillhouse circuit ${ticket} --reponse "<texte>"\`.`,
+    `Le superviseur étend le plan à chacun (\`npx grillhouse circuit ${ticket} --etendre <composant>\`), ou l'admet hors du titre (\`npx grillhouse composants-affectes ${ticket} --admettre <composant> --raison "<texte>"\`), puis \`--reprendre\`.`,
   ].join('\n');
   return { manquants: liste, rapport, releve: texteDuReleve(r) };
-}
-
-// The supervisor's answer <reponse> to the missing components kept in <fichier>: they pass from
-// then on. The components answered for, in their order.
-export function repondre(fichier, reponse) {
-  const { manquants: liste } = lireGarde(fichier);
-  admettre(fichier, liste, reponse);
-  return liste;
 }
 
 // The survey <r> as the section « Architecture » says it, in Markdown.

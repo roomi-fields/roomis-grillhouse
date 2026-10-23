@@ -99,7 +99,7 @@ avec ta fiche. Ainsi le circuit reprend dès ta fiche rendue.
   recommandation ; ton code suit ensuite le verdict « Arbitrage » au ticket.
 - **Un fait que ton code prend chez un fournisseur hors de sa ligne « Déclaré pour »** (un élément
   publié pas encore déclaré pour toi, ou un fait que ta section ne porte pas) : une découverte qui
-  bloque, que le superviseur porte au référent technique, et qui entre ensuite dans la section
+  bloque, que le superviseur tranche ou porte au responsable, et qui entre ensuite dans la section
   « Consommateurs » du fournisseur.
 - **Une donnée qui manque chez un fournisseur** : tu t'arrêtes, et ta fiche finit sur BLOQUÉ, sa
   `raison` nommant la donnée et le fournisseur ; tu ne la calcules pas dans ton paquet. Le superviseur ajoute le fournisseur
@@ -143,7 +143,7 @@ son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
   - `ecarts` : ce que le message de commit nomme, chacun sous son `sujet` (ce qui s'écarte :
     une référence, un test, un plafond), avec son `texte` ;
   - `decouvertes` : ce que le circuit consigne fermé sous le ticket.
-    Sur un arrêt, le régulateur tranche, et le circuit ne te relance pas sur ce rouge. Ainsi
+    Sur un arrêt, ta question monte au superviseur, et le circuit ne te relance pas sur ce rouge. Ainsi
     tu ne tournes jamais sur un rouge que tu as dit hors de ta portée.
 - **Une relance reprend ta séance** : après des contrôles rouges, le circuit reprend ta séance avec
   une consigne courte, le rapport neuf seul ; ta consigne, ta compétence et ce que tu as lu restent
