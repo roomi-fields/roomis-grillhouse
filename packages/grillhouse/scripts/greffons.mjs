@@ -16,8 +16,8 @@
 //   file, any other type is a failure); then each declared plugin not installed for the project is
 //   installed by `claude plugin install <id> --scope project`, run from the project's root.
 // - A marketplace of a remote source is added at the user's scope. A marketplace of a directory or
-//   a file is the project's own (the frame's: the package's directory,
-//   `./node_modules/@roomi-fields/grillhouse`, scripts/cadre.mjs): it is added at the local scope
+//   a file is the project's own (the frame's: the project's root, `./`, whose
+//   `.claude-plugin/marketplace.json` `grillhouse maj` writes): it is added at the local scope
 //   (`--scope local`, the local settings, which git ignores), so the project's settings keep the
 //   path as they declare it, relative to the project's root. Claude Code knows a marketplace by its
 //   name for the whole machine, the last add of a name pointing it at its own directory (measured

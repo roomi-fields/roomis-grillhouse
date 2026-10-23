@@ -14,10 +14,10 @@
 //   this package, in its devDependencies.
 // - The preparation (scripts/preparation.mjs): git, Beads and its ticket store under the prefix
 //   given, else the directory's name, CodeGraph and its index, the frame's git hooks, `npm install`,
-//   then the plugins its settings declare: the template's declare the frame's, read by the
-//   marketplace of the package's directory, `./node_modules/@roomi-fields/grillhouse`.
-// - Then what the frame writes in a project, as `grillhouse maj` writes it (scripts/grillhouse-maj.mjs):
-//   its turbo.json, the status line of its settings, the version of the frame; and the generated
+//   then what the frame writes in a project, as `grillhouse maj` writes it
+//   (scripts/grillhouse-maj.mjs): its turbo.json, the status line of its settings, the project's
+//   marketplace of the frame's plugin, the version of the frame; then the plugins its settings
+//   declare, the frame's among them. Then the generated
 //   files (the boundaries' configuration, the interfaces index, run by the project's command). A
 //   plugin or a generator that fails has its line, and the exit code is non-zero once the project
 //   is created.
@@ -79,8 +79,7 @@ export function initialiser(dossier, prefixe) {
   }
   mkdirSync(projet, { recursive: true });
   copierLeGabarit(projet);
-  const greffons = preparer(projet, prefixe);
-  mettreAJour(projet, CADRE);
+  const greffons = preparer(projet, prefixe, () => mettreAJour(projet, CADRE));
   const lignes = [...greffons, ...regenerer(projet, { tous: true })];
   lancer(projet, 'git', ['add', '-A']);
   // The initial commit carries no ticket: the frame's commit-msg hook has nothing to judge.

@@ -181,16 +181,6 @@ export function claudeSubstitut(dossier: string, etat: EtatClaude = {}) {
   };
 }
 
-/**
- * The frame's package installed in the project at <projet>: its directory, the marketplace of the
- * frame's plugin, with the manifest that names it (grillhouse-3uv.84.7).
- */
-export function paquetInstalle(projet: string) {
-  const d = path.join(projet, 'node_modules/@roomi-fields/grillhouse/.claude-plugin');
-  mkdirSync(d, { recursive: true });
-  writeFileSync(path.join(d, 'marketplace.json'), '{"name":"roomis-grillhouse"}\n');
-}
-
 /** A directory `bin` holding node alone, and no claude: a machine without Claude Code. */
 export function sansClaude(dossier: string) {
   const bin = path.join(dossier, 'bin');

@@ -18,7 +18,6 @@ import {
   type EtatClaude,
   cheminSysteme,
   claudeSubstitut,
-  paquetInstalle,
   sansClaude,
 } from '../claude-substitut.js';
 import { configGit } from '../config-git.js';
@@ -170,10 +169,8 @@ function preparer(p: string, binClaude: string) {
   return { ...r, sortie: `${r.stdout}\n${r.stderr}` };
 }
 
-// npm run grillhouse:maj in the project, with the given bin; the update runs from the package the
-// project installed, whose directory is the marketplace of the frame's plugin (grillhouse-3uv.84.7).
+// npm run grillhouse:maj in the project, with the given bin.
 function mettreAJourProjet(p: string, binClaude: string) {
-  paquetInstalle(p);
   const r = spawnSync(process.execPath, [MAJ], {
     cwd: p,
     encoding: 'utf8',
@@ -182,6 +179,10 @@ function mettreAJourProjet(p: string, binClaude: string) {
   });
   return { ...r, sortie: `${r.stdout}\n${r.stderr}` };
 }
+
+// The frame's plugin as the update declares it for the project <p>: its own marketplace, named
+// after its directory (grillhouse-3uv.84.7).
+const grillhouseDe = (p: string) => `grillhouse@grillhouse-${path.basename(p).toLowerCase()}`;
 
 // The command that installs a plugin for the project, as Claude Code itself names it.
 const commande = (id: string) => `claude plugin install ${id} --scope project`;
@@ -256,7 +257,7 @@ describe('grillhouse-3uv.71 critère 1 — one mechanism installs the declared p
     expect(r.status, r.sortie).toBe(0);
     const appels = claude.appels();
     // The frame's plugin, which the update declares (grillhouse-3uv.84.7), with them.
-    expect(installes(appels)).toEqual([ALPHA, BETA, 'grillhouse@roomis-grillhouse'].sort());
+    expect(installes(appels)).toEqual([ALPHA, BETA, grillhouseDe(p)].sort());
     expect(installs(appels).every(a => portee(a) === 'project' && a.cwd === p)).toBe(true);
   });
   it('critère 1: no script of scripts/ other than scripts/greffons.mjs installs a plugin or adds a marketplace', () => {
@@ -357,7 +358,7 @@ describe('grillhouse-3uv.71 critère 4 — without claude, or on a failed instal
     // The update declares the frame's plugin, the package's (grillhouse-3uv.84.7), beside them.
     expect(reglages.enabledPlugins).toEqual({
       ...AUTRES_REGLAGES.enabledPlugins,
-      'grillhouse@roomis-grillhouse': true,
+      [grillhouseDe(p)]: true,
     });
     for (const id of [ALPHA, BETA]) {
       expect(ligneQuiNomme(r.sortie, id), `${id}\n${r.sortie}`).toBeDefined();
@@ -916,33 +917,32 @@ describe('grillhouse-3uv.71 critère 11, cas 11 — the root is compared by its 
   });
 });
 
-// grillhouse-3uv.84.7: the frame arrives in one piece, the package npm carrying its plugin. The
-// project's settings declare the package's directory as a marketplace,
-// `./node_modules/@roomi-fields/grillhouse`, a path relative to the project that the committed
-// settings keep; Claude Code knows a marketplace by its name for the whole machine, the last add
-// of a name pointing it at its own directory (measured on 2026-10-23 with Claude Code 2.1.309, two
-// projects in one configuration). The mechanism adds a marketplace of a directory for the project
-// alone (`--scope local`, the local settings, which git ignores), from the project, so the
-// relative path resolves at its root; a name the machine knows at another directory is added
-// again; a plugin read in place from its folder (`folderVersion`, its manifest's version) whose
-// installed copy carries another version is refreshed by `claude plugin update`. The session start
-// compares no version: the plugin is the package's.
-describe('grillhouse-3uv.84.7 — the marketplace of the package, a directory of the project', () => {
-  const ID = 'grillhouse@roomis-grillhouse';
-  const CHEMIN = './node_modules/@roomi-fields/grillhouse';
+// grillhouse-3uv.84.7: the frame arrives in one piece, the package npm carrying its plugin. Claude
+// Code knows a marketplace by its name for the whole machine, the last add of a name pointing it at
+// its own directory (measured on 2026-10-23 with Claude Code 2.1.309: two projects under one name,
+// a session of the first read the plugin of the second); so each project has a marketplace of its
+// own, at its root (`.claude-plugin/marketplace.json`, which `grillhouse maj` writes), declared as a
+// directory, `./`. The mechanism adds a marketplace of a directory for the project alone
+// (`--scope local`, the local settings, which git ignores), from the project, so the relative path
+// resolves at its root; a name the machine knows at another directory is added again; a plugin
+// read in place from its folder (`folderVersion`, its manifest's version) whose installed copy
+// carries another version is refreshed by `claude plugin update`. The session start compares no
+// version: the plugin is the package's.
+describe('grillhouse-3uv.84.7 — the marketplace of the project, at its root', () => {
+  const MARCHE = 'grillhouse-projet';
+  const ID = `grillhouse@${MARCHE}`;
+  const CHEMIN = './';
   const REGLAGES = {
     enabledPlugins: { [ID]: true },
-    extraKnownMarketplaces: {
-      'roomis-grillhouse': { source: { source: 'directory', path: CHEMIN } },
-    },
+    extraKnownMarketplaces: { [MARCHE]: { source: { source: 'directory', path: CHEMIN } } },
   };
-  const NOMS_LOCAUX = { [CHEMIN]: 'roomis-grillhouse' };
+  const NOMS_LOCAUX = {};
   const mises = (appels: AppelClaude[]) =>
     appels.filter(a => a.argv[0] === 'plugin' && a.argv[1] === 'update');
-  // A project whose package is installed: its directory, the marketplace, exists.
+  // A project whose marketplace the update wrote, at its root.
   const projetInstalle = () => {
     const p = projet(REGLAGES);
-    mkdirSync(path.join(p, 'node_modules/@roomi-fields/grillhouse'), { recursive: true });
+    ecrire(p, '.claude-plugin/marketplace.json', `${JSON.stringify({ name: MARCHE })}\n`);
     return p;
   };
 
@@ -964,22 +964,20 @@ describe('grillhouse-3uv.84.7 — the marketplace of the package, a directory of
     const autre = dossier('autre-projet');
     const r = installer(p, {
       noms: NOMS_LOCAUX,
-      marches: ['claude-plugins-official', 'roomis-grillhouse'],
-      chemins: { 'roomis-grillhouse': path.join(autre, 'node_modules/@roomi-fields/grillhouse') },
+      marches: ['claude-plugins-official', MARCHE],
+      chemins: { [MARCHE]: autre },
     });
     expect(r.status, r.sortie).toBe(0);
     expect(ajouts(r.claude.appels()).map(a => a.argv[3])).toEqual([CHEMIN]);
-    expect(r.claude.etat().chemins?.['roomis-grillhouse']).toBe(
-      path.join(p, 'node_modules/@roomi-fields/grillhouse')
-    );
+    expect(r.claude.etat().chemins?.[MARCHE]).toBe(p);
   });
 
   it('critère 2: the name known at the directory of this project is not added again', () => {
     const p = projetInstalle();
     const r = installer(p, {
       noms: NOMS_LOCAUX,
-      marches: ['claude-plugins-official', 'roomis-grillhouse'],
-      chemins: { 'roomis-grillhouse': path.join(p, 'node_modules/@roomi-fields/grillhouse') },
+      marches: ['claude-plugins-official', MARCHE],
+      chemins: { [MARCHE]: p },
     });
     expect(r.status, r.sortie).toBe(0);
     expect(ajouts(r.claude.appels())).toEqual([]);
@@ -989,8 +987,8 @@ describe('grillhouse-3uv.84.7 — the marketplace of the package, a directory of
   it('critère 5: a plugin installed for the project whose folder carries another version than its copy is refreshed, from the project, at its scope', () => {
     const p = projetInstalle();
     const r = installer(p, {
-      marches: ['claude-plugins-official', 'roomis-grillhouse'],
-      chemins: { 'roomis-grillhouse': path.join(p, 'node_modules/@roomi-fields/grillhouse') },
+      marches: ['claude-plugins-official', MARCHE],
+      chemins: { [MARCHE]: p },
       plugins: [
         { id: ID, scope: 'project', projectPath: p, version: '0.23.0', folderVersion: '0.24.0' },
       ],
@@ -1008,8 +1006,8 @@ describe('grillhouse-3uv.84.7 — the marketplace of the package, a directory of
     const p = projetInstalle();
     for (const entree of [{ version: '0.24.0', folderVersion: '0.24.0' }, { version: '0.23.0' }]) {
       const r = installer(p, {
-        marches: ['claude-plugins-official', 'roomis-grillhouse'],
-        chemins: { 'roomis-grillhouse': path.join(p, 'node_modules/@roomi-fields/grillhouse') },
+        marches: ['claude-plugins-official', MARCHE],
+        chemins: { [MARCHE]: p },
         plugins: [{ id: ID, scope: 'project', projectPath: p, ...entree }],
       });
       expect(r.status, r.sortie).toBe(0);
@@ -1020,7 +1018,7 @@ describe('grillhouse-3uv.84.7 — the marketplace of the package, a directory of
   it('critère 3: the session start compares no version of the plugin with the package', () => {
     const p = projetOuvert(REGLAGES);
     const { sortie } = ouvrir(p, {
-      marches: ['claude-plugins-official', 'roomis-grillhouse'],
+      marches: ['claude-plugins-official', MARCHE],
       plugins: [
         { id: ID, scope: 'project', enabled: true, projectPath: p, version: '0.0.1' },
         { id: ID, scope: 'user', enabled: true, version: '99.0.0' },

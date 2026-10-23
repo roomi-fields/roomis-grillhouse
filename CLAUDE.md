@@ -6,8 +6,8 @@
 INTERFACE.md> ; le superviseur valide les autres documents. Ainsi le responsable tranche
 l'essentiel.
 
-Les règles du cadre : la charte commune, que le greffon du cadre (`grillhouse@roomis-grillhouse`,
-porté par le paquet `@roomi-fields/grillhouse`) donne à chaque séance.
+Les règles du cadre : la charte commune, que le greffon du cadre (`grillhouse`, porté
+par le paquet `@roomi-fields/grillhouse`) donne à chaque séance.
 
 ## Ce qui décide
 

@@ -4,7 +4,7 @@ This file says how a change reaches the frame of Roomi's Grillhouse. The rules i
 
 ## 1. Where a change comes from
 
-- **A project proposes a gap to Grillhouse**: a project that uses the frame holds no copy of it, its scripts being the package's (`@roomi-fields/grillhouse`) and its skills, agents, hooks of Claude Code, common charter and meta-frame the plugin's (`grillhouse@roomis-grillhouse`), which the package carries; it proposes a change to Grillhouse, and the next version brings it back to every project. The common charter states the rule (`mods/grillhouse/charte.md`, introduction).
+- **A project proposes a gap to Grillhouse**: a project that uses the frame holds no copy of it, its scripts being the package's (`@roomi-fields/grillhouse`) and its skills, agents, hooks of Claude Code, common charter and meta-frame the plugin's (`grillhouse`), which the package carries; it proposes a change to Grillhouse, and the next version brings it back to every project. The common charter states the rule (`mods/grillhouse/charte.md`, introduction).
 - **A ticket is born of the owner's word, or of a direct need of a project that uses the frame** (a defect it meets). A discovery of an agent is recorded in a closed ticket labelled `decouverte`. The common charter states the rule (« Le flux d'une tâche »).
 
 ## 2. How a rule is written

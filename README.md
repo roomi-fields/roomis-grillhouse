@@ -151,8 +151,8 @@ ticket makes one delivery: a goal of unknown size starts with an exploration tic
 is created under its mother (numbered `320.2.1`) and every ticket stands at one step of the tree of its circuit (`packages/grillhouse/scripts/etapes.mjs`: 0 Exploration; 1 Ouverture, its sub-steps 1.1 Relevé des composants and 1.2 Questionnement; 2 Composants, for each component 2.1 Tests, 2.2 Preuve du rouge, 2.3 Code, 2.4 Contrôles; 3 Passe finale; 4 Relecture; 5 Intégration, its sub-steps 5.1 Commit and 5.2 File : main, poussée, CI; and, out of the sequence, under the stopped step, the arbitrage of a stop), each step carrying its bounded loops (`essai 2/3`, `tour 2/4`, `arrêt 2/3`), and a hook refuses a second commit for a closed ticket (a reopened ticket takes correction commits).
 
 **The board** — the `grillhouse` mod (a Claude Code plugin whose source lives in `mods/grillhouse`, carried
-by the package `@roomi-fields/grillhouse` and its marketplace as `grillhouse@roomis-grillhouse`, enabled in
-each project's settings) shows, measured and never declared, in the `/grillhouse` pane, three levels: the project (its work tickets by state, the
+by the package `@roomi-fields/grillhouse`, listed by each project's own marketplace as `grillhouse@grillhouse-<project>`,
+enabled in each project's settings) shows, measured and never declared, in the `/grillhouse` pane, three levels: the project (its work tickets by state, the
 agents' time and tokens of the day and in all, the alerts); the agents: the tree of the steps, as a pipeline
 of GitLab CI shows its stages, each step on its line « number · title · who », a step with sub-steps folded
 (`▸ 1 · Ouverture`) while none of them holds a ticket and unfolded (`▾`) once one does, its empty sub-steps

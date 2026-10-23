@@ -13,7 +13,6 @@
     "access": "public"
   },
   "files": [
-    ".claude-plugin",
     "bin",
     "cadre",
     "scripts"

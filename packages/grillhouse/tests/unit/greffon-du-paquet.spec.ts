@@ -1,10 +1,12 @@
 // grillhouse-3uv.84.7: the frame arrives in one piece. The package npm `@roomi-fields/grillhouse`
 // carries its plugin, as a package of ESLint carries its plugin: the published package holds the
 // whole plugin (skills, agents, hooks of Claude Code, charter, meta-frame, panel) under
-// `cadre/mods/grillhouse/` and, at its root, the marketplace that lists it
-// (`.claude-plugin/marketplace.json`), both written by its prepack. A project declares the package's
-// directory as a marketplace of its own (`./node_modules/@roomi-fields/grillhouse`) and enables the
-// plugin `grillhouse@roomis-grillhouse`, which Claude Code reads in place from that folder. One
+// `cadre/mods/grillhouse/`, written by its prepack. Claude Code knows a marketplace by its name for
+// the whole machine (measured on 2026-10-23: two projects under one name, a session of the first
+// read the plugin of the second), so each project has a marketplace of its own: `grillhouse maj`
+// writes `.claude-plugin/marketplace.json` at its root, `grillhouse-<projet>`, which lists the
+// plugin of its own package, declares it (a directory, `./`) and enables
+// `grillhouse@grillhouse-<projet>`; Claude Code reads the plugin in place from that folder. One
 // version: the plugin takes the package's. The meta-frame is the plugin's, named by
 // `${CLAUDE_PLUGIN_ROOT}/METACADRE.md`, which Claude Code resolves in a plugin's skills and the hook
 // of the session's start in the charter it writes.
@@ -22,13 +24,8 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import {
-  CHEMIN_DU_MARCHE,
-  FICHIERS_DU_CADRE,
-  GREFFON_DU_CADRE,
-  MARCHE_DU_CADRE,
-} from '../../scripts/cadre.mjs';
-import { mettreAJour, rapport } from '../../scripts/grillhouse-maj.mjs';
+import { CHEMIN_DU_GREFFON, FICHIERS_DU_CADRE, NOM_DU_GREFFON } from '../../scripts/cadre.mjs';
+import { marcheDuProjet, mettreAJour, rapport } from '../../scripts/grillhouse-maj.mjs';
 import { MIGRATIONS } from '../../scripts/migrations.mjs';
 
 const PAQUET = path.resolve(__dirname, '../..');
@@ -47,7 +44,6 @@ const VERSION = (
     version: string;
   }
 ).version;
-const ID = 'grillhouse@roomis-grillhouse';
 const RACINE_DU_PLUGIN = '${CLAUDE_PLUGIN_ROOT}';
 
 // A repository of the frame of trial: the package (its package.json, bin/, scripts/) beside a copy
@@ -64,7 +60,7 @@ function depotDEssai() {
   return paquet;
 }
 
-describe('critère 1 — the published package carries the whole plugin and the marketplace that lists it', () => {
+describe('critère 1 — the published package carries the whole plugin', () => {
   const paquet = depotDEssai();
   // npm pack, its lifecycle played (the prepack writes, the postpack removes), in the trial.
   const r = spawnSync('npm', ['pack', '--dry-run', '--json'], {
@@ -77,10 +73,9 @@ describe('critère 1 — the published package carries the whole plugin and the 
       ? (JSON.parse(r.stdout) as { files: { path: string }[] }[])[0]!.files.map(f => f.path)
       : [];
 
-  it('npm pack holds the marketplace, and the plugin’s skills, agents, hooks, charter, meta-frame and panel', () => {
+  it('npm pack holds the plugin’s skills, agents, hooks, charter, meta-frame and panel', () => {
     expect(r.status, r.stderr).toBe(0);
     for (const f of [
-      '.claude-plugin/marketplace.json',
       'cadre/mods/grillhouse/.claude-plugin/plugin.json',
       'cadre/mods/grillhouse/charte.md',
       'cadre/mods/grillhouse/METACADRE.md',
@@ -107,36 +102,22 @@ describe('critère 1 — the published package carries the whole plugin and the 
   it('npm pack holds no test of the plugin, and the postpack leaves the trial as it was', () => {
     expect(chemins.filter(c => c.startsWith('cadre/mods/grillhouse/tests/'))).toEqual([]);
     expect(existsSync(path.join(paquet, 'cadre'))).toBe(false);
-    expect(existsSync(path.join(paquet, '.claude-plugin'))).toBe(false);
   });
 
-  it('the package publishes its marketplace beside bin/, scripts/ and cadre/', () => {
+  it('the package publishes bin/, scripts/ and cadre/, and no marketplace: each project has its own', () => {
     const pkg = JSON.parse(readFileSync(path.join(PAQUET, 'package.json'), 'utf8')) as {
       files: string[];
     };
-    expect([...pkg.files].sort()).toEqual(['.claude-plugin', 'bin', 'cadre', 'scripts']);
+    expect([...pkg.files].sort()).toEqual(['bin', 'cadre', 'scripts']);
+    expect(chemins.filter(c => c.startsWith('.claude-plugin/'))).toEqual([]);
   });
 
-  it('the marketplace lists the plugin grillhouse by its relative path under cadre/, the plugin carries the package’s version', () => {
+  it('the copy of the plugin carries the package’s version', () => {
     const p = depotDEssai();
     const e = spawnSync(process.execPath, [path.join(p, 'scripts/cadre.mjs'), '--empaqueter'], {
       encoding: 'utf8',
     });
     expect(e.status, e.stderr).toBe(0);
-    const marche = JSON.parse(
-      readFileSync(path.join(p, '.claude-plugin/marketplace.json'), 'utf8')
-    ) as {
-      name: string;
-      owner: { name: string };
-      plugins: { name: string; source: string }[];
-    };
-    expect(marche.name).toBe('roomis-grillhouse');
-    expect(marche.owner.name).toBeTruthy();
-    expect(marche.plugins).toHaveLength(1);
-    expect(marche.plugins[0]).toMatchObject({
-      name: 'grillhouse',
-      source: './cadre/mods/grillhouse',
-    });
     const manifeste = JSON.parse(
       readFileSync(path.join(p, 'cadre/mods/grillhouse/.claude-plugin/plugin.json'), 'utf8')
     ) as Record<string, unknown>;
@@ -153,74 +134,96 @@ describe('critère 1 — the published package carries the whole plugin and the 
     });
     expect(n.status, n.stderr).toBe(0);
     expect(existsSync(path.join(p, 'cadre'))).toBe(false);
-    expect(existsSync(path.join(p, '.claude-plugin'))).toBe(false);
   });
 
-  it('the names the frame declares are those of the marketplace: roomis-grillhouse, grillhouse, the package’s directory', () => {
-    expect(MARCHE_DU_CADRE).toBe('roomis-grillhouse');
-    expect(GREFFON_DU_CADRE).toBe(ID);
-    expect(CHEMIN_DU_MARCHE).toBe('./node_modules/@roomi-fields/grillhouse');
+  it('the plugin is grillhouse, at cadre/mods/grillhouse of the package a project installs', () => {
+    expect(NOM_DU_GREFFON).toBe('grillhouse');
+    expect(CHEMIN_DU_GREFFON).toBe('./node_modules/@roomi-fields/grillhouse/cadre/mods/grillhouse');
   });
 });
 
-describe('critère 2 — init and the update declare the package’s marketplace and enable its plugin', () => {
-  const DECLARATION = {
-    'roomis-grillhouse': {
-      source: { source: 'directory', path: './node_modules/@roomi-fields/grillhouse' },
-    },
-  };
+describe('critère 2 — init and the update give each project its marketplace and enable its plugin', () => {
+  const ROOMI = { source: { source: 'github', repo: 'roomi-fields/claude-plugins' } };
+  // A project at <dossier> (a directory of its own, under a parent of its own), its settings.
+  function projet(dossier: string, reglages: Record<string, unknown> = {}) {
+    const p = path.join(mkdtempSync(path.join(ESSAIS, 'parent-')), dossier);
+    ecrire(p, 'package.json', `${JSON.stringify({ name: '@your-scope/project-name' })}\n`);
+    ecrire(p, '.claude/settings.json', `${JSON.stringify(reglages)}\n`);
+    return p;
+  }
+  const json = (p: string, f: string) =>
+    JSON.parse(readFileSync(path.join(p, f), 'utf8')) as Record<string, Record<string, unknown>>;
 
-  it('the template of a project, which grillhouse init installs, declares the marketplace of the package and enables its plugin; no plugin of the frame comes from GitHub', () => {
+  it('the template of a project declares no plugin of the frame: grillhouse init writes the project’s, as the update', () => {
     const r = JSON.parse(lire('templates/projet/.claude/settings.json')) as {
       enabledPlugins: Record<string, boolean>;
-      extraKnownMarketplaces: Record<string, unknown>;
     };
-    expect(r.enabledPlugins[ID]).toBe(true);
-    expect(r.enabledPlugins).not.toHaveProperty('grillhouse@roomi-fields');
-    expect(r.extraKnownMarketplaces).toMatchObject(DECLARATION);
+    expect(Object.keys(r.enabledPlugins).filter(id => id.startsWith('grillhouse@'))).toEqual([]);
+    expect(lire('packages/grillhouse/scripts/init.mjs')).toMatch(/mettreAJour\(projet, CADRE\)/);
   });
 
-  it('the update writes the declaration and the plugin in the project’s settings, its other keys kept in their order', () => {
-    const p = mkdtempSync(path.join(ESSAIS, 'maj-'));
-    ecrire(p, 'package.json', `${JSON.stringify({ name: 'p' })}\n`);
-    ecrire(
-      p,
-      '.claude/settings.json',
-      `${JSON.stringify({
-        model: 'opus',
-        enabledPlugins: { 'rtfm@roomi-fields': true },
-        extraKnownMarketplaces: {
-          'roomi-fields': { source: { source: 'github', repo: 'roomi-fields/claude-plugins' } },
-        },
-      })}\n`
-    );
+  it('the update writes the project’s marketplace, grillhouse-<its directory>, listing the plugin of its own package; the settings declare it at ./ and enable its plugin, their keys kept in their order', () => {
+    const p = projet('BPScript', {
+      model: 'opus',
+      enabledPlugins: { 'rtfm@roomi-fields': true },
+      extraKnownMarketplaces: { 'roomi-fields': ROOMI },
+    });
     const b = mettreAJour(p, DEPOT);
-    const r = JSON.parse(readFileSync(path.join(p, '.claude/settings.json'), 'utf8')) as Record<
-      string,
-      Record<string, unknown>
-    >;
-    expect(Object.keys(r).slice(0, 3)).toEqual([
+    expect(json(p, '.claude-plugin/marketplace.json')).toMatchObject({
+      name: 'grillhouse-bpscript',
+      plugins: [{ name: 'grillhouse', source: CHEMIN_DU_GREFFON }],
+    });
+    const r = json(p, '.claude/settings.json');
+    expect(Object.keys(r)).toEqual([
       'model',
       'enabledPlugins',
       'extraKnownMarketplaces',
+      'statusLine',
     ]);
-    expect(r.enabledPlugins).toEqual({ 'rtfm@roomi-fields': true, [ID]: true });
-    expect(r.extraKnownMarketplaces).toEqual({
-      'roomi-fields': { source: { source: 'github', repo: 'roomi-fields/claude-plugins' } },
-      ...DECLARATION,
+    expect(r.enabledPlugins).toEqual({
+      'rtfm@roomi-fields': true,
+      'grillhouse@grillhouse-bpscript': true,
     });
-    expect(rapport(b)).toContain(ID);
+    expect(r.extraKnownMarketplaces).toEqual({
+      'roomi-fields': ROOMI,
+      'grillhouse-bpscript': { source: { source: 'directory', path: './' } },
+    });
+    expect(rapport(b)).toContain('grillhouse@grillhouse-bpscript');
+  });
+
+  it('two projects receive two marketplaces, each listing its own package', () => {
+    const a = projet('faustx');
+    const b = projet('Kanopi.app');
+    mettreAJour(a, DEPOT);
+    mettreAJour(b, DEPOT);
+    expect(json(a, '.claude-plugin/marketplace.json').name).toBe('grillhouse-faustx');
+    expect(json(b, '.claude-plugin/marketplace.json').name).toBe('grillhouse-kanopi-app');
+  });
+
+  it('a copy of the project keeps the name its settings declare at ./', () => {
+    const p = projet('agent-a8c5', {
+      enabledPlugins: { 'grillhouse@grillhouse-bpscript': true },
+      extraKnownMarketplaces: {
+        'grillhouse-bpscript': { source: { source: 'directory', path: './' } },
+      },
+    });
+    expect(marcheDuProjet(p, json(p, '.claude/settings.json'))).toBe('grillhouse-bpscript');
+    mettreAJour(p, DEPOT);
+    expect(json(p, '.claude-plugin/marketplace.json').name).toBe('grillhouse-bpscript');
+    expect(Object.keys(json(p, '.claude/settings.json').enabledPlugins)).toEqual([
+      'grillhouse@grillhouse-bpscript',
+    ]);
   });
 
   it('a second update changes no byte and reports no declaration', () => {
-    const p = mkdtempSync(path.join(ESSAIS, 'maj-'));
-    ecrire(p, 'package.json', `${JSON.stringify({ name: 'p' })}\n`);
-    ecrire(p, '.claude/settings.json', '{}\n');
+    const p = projet('p');
     mettreAJour(p, DEPOT);
-    const premier = readFileSync(path.join(p, '.claude/settings.json'), 'utf8');
+    const reglages = readFileSync(path.join(p, '.claude/settings.json'), 'utf8');
+    const marche = readFileSync(path.join(p, '.claude-plugin/marketplace.json'), 'utf8');
     const b = mettreAJour(p, DEPOT);
-    expect(readFileSync(path.join(p, '.claude/settings.json'), 'utf8')).toBe(premier);
-    expect(rapport(b)).not.toContain(ID);
+    expect(readFileSync(path.join(p, '.claude/settings.json'), 'utf8')).toBe(reglages);
+    expect(readFileSync(path.join(p, '.claude-plugin/marketplace.json'), 'utf8')).toBe(marche);
+    expect(rapport(b)).not.toContain('grillhouse@');
   });
 
   it('the migration that takes the plugin off GitHub is one of the package', () => {

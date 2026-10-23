@@ -17,13 +17,21 @@
 // - The frame copies no file into a project: its scripts are the package's, its skills, agents,
 //   hooks of Claude Code, common charter and meta-frame the plugin's, which the package carries
 //   (scripts/cadre.mjs): the frame arrives in one piece, at the version npm installs.
-// - The frame's plugin is a setting of the project: in a project whose `.claude/settings.json`
-//   exists, `extraKnownMarketplaces` declares the marketplace of the package's directory
-//   (`roomis-grillhouse`, a directory, `./node_modules/@roomi-fields/grillhouse`, relative to the
-//   project's root) and `enabledPlugins` enables its plugin (`grillhouse@roomis-grillhouse`), each
-//   added after the keys the settings hold, which keep their order; Claude Code reads the plugin in
-//   place from that folder, so a rise of the package reaches the next session. A migration takes
-//   off the plugin the GitHub marketplace provided (scripts/migrations/0.23.0-greffon-du-paquet.mjs).
+// - The frame's plugin comes from a marketplace of the project's own, as Claude Code knows a
+//   marketplace by its name for the whole machine, the last add of a name pointing every project
+//   at its directory (measured on 2026-10-23 with Claude Code 2.1.309: two projects under one
+//   name, a session of the first read the plugin of the second). In a project whose
+//   `.claude/settings.json` exists, the update writes `.claude-plugin/marketplace.json` at the
+//   project's root, the marketplace `grillhouse-<projet>` that lists the plugin `grillhouse` of
+//   its own package (`./node_modules/@roomi-fields/grillhouse/cadre/mods/grillhouse`); the
+//   settings declare it in `extraKnownMarketplaces` (a directory, `./`, the project's root) and
+//   enable `grillhouse@grillhouse-<projet>` in `enabledPlugins`, each added after the keys the
+//   settings hold, which keep their order. `<projet>` is the name the settings already declare for
+//   a marketplace at `./`, else the project's directory's, in lowercase, any other character than
+//   a letter, a digit or `-` a `-`: a copy of the project keeps the name its settings carry.
+//   Claude Code reads the plugin in place from its folder, so a rise of the package reaches the
+//   next session. A migration takes off the plugin the GitHub marketplace provided
+//   (scripts/migrations/0.23.0-greffon-du-paquet.mjs).
 // - The status line is a setting of the project, as Husky writes the project's own configuration:
 //   in a project whose `.claude/settings.json` exists, `statusLine` becomes the frame's
 //   (`"$CLAUDE_PROJECT_DIR/node_modules/.bin/grillhouse" ligne-etat`) when it is absent or names
@@ -116,7 +124,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import semver from 'semver';
-import { CADRE, CHEMIN_DU_MARCHE, GREFFON_DU_CADRE, MARCHE_DU_CADRE, VERSION } from './cadre.mjs';
+import { CADRE, CHEMIN_DU_GREFFON, NOM_DU_GREFFON, VERSION } from './cadre.mjs';
 import { poserCrochets } from './crochets.mjs';
 import { installerGreffons } from './greffons.mjs';
 import { migrer } from './migrations.mjs';
@@ -254,21 +262,57 @@ function reglerLigneEtat(projet) {
   return true;
 }
 
-// Declares in the settings of the project at <projet>, when they exist, the marketplace of the
-// package's directory and enables its plugin (see the header); returns whether they changed.
+// The root of a project, as its settings declare a marketplace of a directory.
+const RACINE_DU_PROJET = './';
+
+/**
+ * The marketplace of the frame's plugin for the project at <projet>: the one its settings
+ * <reglages> declare at its root, else `grillhouse-<its directory's name>` (see the header).
+ */
+export function marcheDuProjet(projet, reglages = {}) {
+  const declare = Object.entries(reglages.extraKnownMarketplaces ?? {}).find(
+    ([, m]) => m?.source?.source === 'directory' && ['./', '.'].includes(m.source.path)
+  );
+  if (declare) return declare[0];
+  const nom = path
+    .basename(path.resolve(projet))
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '-');
+  return `${NOM_DU_GREFFON}-${nom}`;
+}
+
+// Writes the marketplace of the project at <projet> and declares it, its plugin enabled, in its
+// settings, when they exist (see the header); returns the plugin's id when something changed.
 function declarerGreffon(projet) {
   const f = path.join(projet, '.claude', 'settings.json');
-  if (!existsSync(f)) return false;
+  if (!existsSync(f)) return null;
   const avant = readFileSync(f, 'utf8');
   const reglages = JSON.parse(avant);
+  const marche = marcheDuProjet(projet, reglages);
+  const id = `${NOM_DU_GREFFON}@${marche}`;
+  const manifeste = path.join(projet, '.claude-plugin', 'marketplace.json');
+  const voulu = `${JSON.stringify(
+    {
+      name: marche,
+      owner: { name: "Roomi's Grillhouse" },
+      plugins: [{ name: NOM_DU_GREFFON, source: CHEMIN_DU_GREFFON }],
+    },
+    null,
+    2
+  )}\n`;
+  const ecrit = !existsSync(manifeste) || readFileSync(manifeste, 'utf8') !== voulu;
+  if (ecrit) {
+    mkdirSync(path.dirname(manifeste), { recursive: true });
+    writeFileSync(manifeste, voulu);
+  }
   reglages.extraKnownMarketplaces = {
     ...(reglages.extraKnownMarketplaces ?? {}),
-    [MARCHE_DU_CADRE]: { source: { source: 'directory', path: CHEMIN_DU_MARCHE } },
+    [marche]: { source: { source: 'directory', path: RACINE_DU_PROJET } },
   };
-  reglages.enabledPlugins = { ...(reglages.enabledPlugins ?? {}), [GREFFON_DU_CADRE]: true };
-  if (JSON.stringify(reglages) === JSON.stringify(JSON.parse(avant))) return false;
-  writeFileSync(f, `${JSON.stringify(reglages, null, 2)}\n`);
-  return true;
+  reglages.enabledPlugins = { ...(reglages.enabledPlugins ?? {}), [id]: true };
+  const regle = JSON.stringify(reglages) !== JSON.stringify(JSON.parse(avant));
+  if (regle) writeFileSync(f, `${JSON.stringify(reglages, null, 2)}\n`);
+  return ecrit || regle ? id : null;
 }
 
 /** The version of the frame the project at <projet> recorded (`grillhouse.version`), or null. */
@@ -290,7 +334,7 @@ export function mettreAJour(projet, source) {
     configVitest: null,
     gardes: null,
     ligneEtat: false,
-    greffon: false,
+    greffon: null,
   };
   const pkg = path.join(projet, 'package.json');
   if (existsSync(pkg)) {
@@ -457,7 +501,7 @@ export function rapport(b) {
   }
   if (b.greffon) {
     lignes.push(
-      `Greffon du cadre : .claude/settings.json déclare la place de marché du paquet (${MARCHE_DU_CADRE}, ${CHEMIN_DU_MARCHE}) et active ${GREFFON_DU_CADRE}.`
+      `Greffon du cadre : .claude-plugin/marketplace.json, la place de marché du projet, liste le greffon de son paquet (${CHEMIN_DU_GREFFON}) ; .claude/settings.json la déclare et active ${b.greffon}.`
     );
   }
   if (b.gardes?.deplace) {

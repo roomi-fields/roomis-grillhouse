@@ -253,10 +253,10 @@ describe('critère 4 — the copy of the files, its list, its fingerprints and t
     expect(JSON.parse(readFileSync(path.join(p, '.claude/settings.json'), 'utf8'))).toEqual({
       model: 'opus',
       statusLine: { type: 'command', command: maj.LIGNE_ETAT },
-      enabledPlugins: { 'grillhouse@roomis-grillhouse': true },
+      enabledPlugins: { [`grillhouse@grillhouse-${path.basename(p).toLowerCase()}`]: true },
       extraKnownMarketplaces: {
-        'roomis-grillhouse': {
-          source: { source: 'directory', path: './node_modules/@roomi-fields/grillhouse' },
+        [`grillhouse-${path.basename(p).toLowerCase()}`]: {
+          source: { source: 'directory', path: './' },
         },
       },
     });

@@ -16,7 +16,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { LIGNE_ETAT, mettreAJour, rapport, regenerer } from '../../scripts/grillhouse-maj.mjs';
 import { CONFIGURATION as CONFIG_DES_FRONTIERES } from '../../scripts/frontieres.mjs';
 import { GARDES_DU_CADRE } from '../../scripts/gardes-du-cadre.mjs';
-import { cheminSysteme, claudeSubstitut, paquetInstalle } from '../claude-substitut.js';
+import { cheminSysteme, claudeSubstitut } from '../claude-substitut.js';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'grillhouse-maj-'));
@@ -1134,10 +1134,7 @@ describe('grillhouse-3uv.75.1 critère 12 — the update poses the frame’s tes
 
 // grillhouse-3uv.76: the update as a project runs it, `claude` stood in (tests/claude-substitut.ts),
 // git and node from the system: no test reaches the real claude nor the network.
-// The update runs from the package the project installed, whose directory is the marketplace of the
-// frame's plugin (grillhouse-3uv.84.7).
 function lancerMajAvec(projet: string, args: string[], bin: string) {
-  paquetInstalle(projet);
   return spawnSync(process.execPath, [SCRIPT_MAJ, ...args], {
     cwd: projet,
     encoding: 'utf8',
@@ -1294,7 +1291,6 @@ describe('grillhouse-3uv.76 critère 3 — the update refuses an unknown option,
       const projet = mkdtempSync(path.join(ESSAIS, 'option-'));
       ecrire(projet, 'package.json', `${JSON.stringify({ name: 'p' }, null, 2)}\n`);
       ecrire(projet, '.claude/settings.json', `${JSON.stringify({ model: 'opus' }, null, 2)}\n`);
-      paquetInstalle(projet);
       const avant = contenu(projet);
       const claude = claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')));
       const r = lancerMajAvec(projet, [option], claude.bin);

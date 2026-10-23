@@ -124,8 +124,8 @@ describe('grillhouse-3uv.84.4 critère 5 — the package declares what its scrip
 });
 
 describe('grillhouse-3uv.84.4 critère 7 — what the frame reads resolves from the package installed', () => {
-  it('the package publishes bin/, scripts/, cadre/ and its marketplace, which its prepack writes and its postpack removes', () => {
-    expect(pkg.files.sort()).toEqual(['.claude-plugin', 'bin', 'cadre', 'scripts']);
+  it('the package publishes bin/, scripts/ and cadre/, which its prepack writes and its postpack removes', () => {
+    expect(pkg.files.sort()).toEqual(['bin', 'cadre', 'scripts']);
     expect(pkg.scripts.prepack).toBe('node scripts/cadre.mjs --empaqueter');
     expect(pkg.scripts.postpack).toBe('node scripts/cadre.mjs --nettoyer');
   });

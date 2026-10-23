@@ -254,11 +254,20 @@ describe('grillhouse-3uv.84.4 critère 6 — init writes the status line in the 
     expect(reglages).not.toHaveProperty('hooks');
   });
 
-  it('the rest of the settings is the template’s, the status line added', () => {
+  it('the rest of the settings is the template’s, the status line and the project’s marketplace of the frame’s plugin added', () => {
     const modele = JSON.parse(
       readFileSync(path.join(GABARIT, '.claude/settings.json'), 'utf8')
-    ) as Record<string, unknown>;
+    ) as Record<string, Record<string, unknown>>;
+    const marche = `grillhouse-${path.basename(PROJET).toLowerCase()}`;
     const { statusLine: _s, ...reste } = json('.claude/settings.json');
-    expect(reste).toEqual(modele);
+    expect(reste).toEqual({
+      ...modele,
+      enabledPlugins: { ...modele.enabledPlugins, [`grillhouse@${marche}`]: true },
+      extraKnownMarketplaces: {
+        ...modele.extraKnownMarketplaces,
+        [marche]: { source: { source: 'directory', path: './' } },
+      },
+    });
+    expect(json('.claude-plugin/marketplace.json').name).toBe(marche);
   });
 });
