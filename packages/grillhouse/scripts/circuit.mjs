@@ -1675,7 +1675,7 @@ function commandeDeReference(ctx, composant, commande) {
   try {
     const r = avecLaMachine(
       env => spawnSync('sh', ['-c', commande], { cwd: ctx.copie, stdio: ['ignore', fd, fd], env }),
-      { dire: l => appendFileSync(ctx.journal, `${l}\n`) }
+      { racine: ctx.copie, dire: l => appendFileSync(ctx.journal, `${l}\n`) }
     );
     return r.status ?? 1;
   } catch (e) {
@@ -2012,7 +2012,7 @@ function npm(ctx, etape, composant, args, env = {}) {
             },
           })
         ),
-      { dire: l => appendFileSync(ctx.journal, `${l}\n`) }
+      { racine: ctx.copie, dire: l => appendFileSync(ctx.journal, `${l}\n`) }
     );
     return { code: r.status ?? 1, dossier };
   } catch (e) {

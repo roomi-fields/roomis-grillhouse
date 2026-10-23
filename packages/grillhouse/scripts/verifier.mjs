@@ -23,7 +23,8 @@
 //   shared by every repository of the machine: a pass that finds it held waits for the end of the
 //   other measure, and says so every 30 s with who holds it. The wait bounded (60 min), the pass
 //   ends at 75, « à repasser »; a lock held by an ancestor of the pass ends it at once, red (1);
-//   either way without playing, the holder named.
+//   either way without playing, the holder named. A pass in the frame's own repository is of the
+//   second rank: it waits while a project's measure waits too.
 // - Turborepo plays the build, then the guards (the frame's, `grillhouse:gardes`, and the
 //   project's own, its root script `gardes`) and the tests (`test:vitest`) beside each other:
 //   `turbo run grillhouse:gardes gardes test:vitest --continue=dependencies-successful
@@ -226,7 +227,7 @@ export function verifier({
           }
         }
       },
-      { env, dire }
+      { env, racine, dire }
     );
   } catch (e) {
     if (!(e instanceof AttenteDeLaMachine)) throw e;

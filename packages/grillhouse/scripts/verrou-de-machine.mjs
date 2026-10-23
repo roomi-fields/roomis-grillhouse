@@ -34,17 +34,55 @@
 // - In the envelope of an agent (GRILLHOUSE_ENVELOPPE set, scripts/enveloppe/composant.mjs) no lock
 //   is taken: the envelope has its own process space, where an owner's number means nothing
 //   outside, and its home shows no cache.
+// - A measure has a rank, as the job server of GNU make serves its own build first and Bazel's
+//   `--experimental_local_test_priority` orders the tests that wait for the machine. A measure
+//   played in the frame's own repository (one whose workspaces hold the package
+//   @roomi-fields/grillhouse in development, its agent copies included: `rangDeLaMesure`) is of
+//   the second rank; a project's (a circuit, a `npm run verifier`) is of the first. A measure of
+//   the first rank that waits names itself in the directory `<lock>.premier-rang/` (one file per
+//   waiting process, named by its number, removed once it holds the lock or stops); a measure of
+//   the second rank does not take the lock, even free, while a live process waits there, so a
+//   project's circuit never waits behind the frame's own checks (BPScript 320.9: 208 min of its
+//   wait went to the checks of the frame's agent copies). A waiting file whose process is gone
+//   names no one and goes. Between measures of one rank, the first to find the lock free takes
+//   it. The bound of the wait is the same for both ranks, and the wait says its rank.
 // - The lock is let go at the end of the measure, whether it succeeds or throws.
-import { mkdirSync, readFileSync, readlinkSync, statSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import {
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  readlinkSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { composantDeLEnveloppe } from './enveloppe/composant.mjs';
+import { paquets } from './paquets.mjs';
 import { attendreUnPeu, lacherVerrou, prendreVerrou } from './verrou-de-fichier.mjs';
+import { vivant } from './vitest-config/base-de-passe.mjs';
 import { A_REPASSER } from './vitest-config/pression.mjs';
 
 const VARIABLE_VERROU = 'GRILLHOUSE_VERROU_MACHINE';
 const VARIABLE_TENUE = 'GRILLHOUSE_MESURE_TENUE';
 const VARIABLE_ATTENTE = 'GRILLHOUSE_ATTENTE_MACHINE_MS';
+
+// The name of the frame's package, which a repository of the second rank develops.
+const CADRE = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).name;
+
+/**
+ * The rank of a measure played at <racine>: 2 in the frame's own repository (its workspaces hold
+ * the package @roomi-fields/grillhouse in development), 1 elsewhere.
+ * @param {string} racine the root of the repository the measure plays in
+ * @returns {1 | 2}
+ */
+export function rangDeLaMesure(racine) {
+  return paquets(racine).some(p => p.pkg.name === CADRE) ? 2 : 1;
+}
+
+const RANGS = { 1: 'mesure de premier rang', 2: 'mesure de second rang (le dépôt du cadre)' };
 
 /** The longest wait for the lock of the machine, in ms, unless GRILLHOUSE_ATTENTE_MACHINE_MS names another. */
 export const ATTENTE_MACHINE_MS = 60 * 60_000;
@@ -90,12 +128,9 @@ const heure = ms => new Date(ms).toTimeString().slice(0, 8);
 const duree = ms =>
   ms < 120_000 ? `${Math.round(ms / 1000)} s` : `${Math.round(ms / 60_000)} min`;
 
-// Who holds the lock <verrou>: its process, that process's working directory and command when
-// they read (on one line, cut at 200 characters), and since when the lock stands (« le processus 12 (dans /d) : node x, depuis
-// 10:04:31 (3 min) »).
-function qui(verrou) {
-  const pid = detenteur(verrou);
-  if (pid === null) return 'une autre mesure';
+// The process <pid>, its working directory and command when they read (on one line, cut at 200
+// characters): « le processus 12 (dans /d) : node x ».
+function processus(pid) {
   let ou = '';
   try {
     ou = ` (dans ${readlinkSync(`/proc/${pid}/cwd`)})`;
@@ -110,6 +145,14 @@ function qui(verrou) {
   const quoi = commande
     ? ` : ${commande.length > 200 ? `${commande.slice(0, 200)}…` : commande}`
     : '';
+  return `le processus ${pid}${ou}${quoi}`;
+}
+
+// Who holds the lock <verrou>: its process (`processus`) and since when the lock stands
+// (« le processus 12 (dans /d) : node x, depuis 10:04:31 (3 min) »).
+function qui(verrou) {
+  const pid = detenteur(verrou);
+  if (pid === null) return 'une autre mesure';
   let depuis = '';
   try {
     const t = statSync(verrou).mtimeMs;
@@ -117,8 +160,57 @@ function qui(verrou) {
   } catch {
     // the lock is gone meanwhile
   }
-  return `le processus ${pid}${ou}${quoi}${depuis}`;
+  return `${processus(pid)}${depuis}`;
 }
+
+// The directory where the measures of the first rank that wait for <verrou> name themselves.
+const fileDuPremierRang = verrou => `${verrou}.premier-rang`;
+
+// Names this process among the measures of the first rank that wait for <verrou>; a function that
+// removes its name.
+function attendreAuPremierRang(verrou) {
+  const dossier = fileDuPremierRang(verrou);
+  const f = path.join(dossier, `${process.pid}-${randomUUID()}`);
+  mkdirSync(dossier, { recursive: true });
+  writeFileSync(f, String(process.pid));
+  return () => rmSync(f, { force: true });
+}
+
+// The live processes of the measures of the first rank that wait for <verrou>; the name of a
+// process that is gone is removed.
+function premiersQuiAttendent(verrou) {
+  const dossier = fileDuPremierRang(verrou);
+  let noms;
+  try {
+    noms = readdirSync(dossier);
+  } catch {
+    return [];
+  }
+  const pids = [];
+  for (const nom of noms) {
+    const pid = Number(/^(\d+)-/.exec(nom)?.[1]);
+    if (pid && vivant(pid)) pids.push(pid);
+    else rmSync(path.join(dossier, nom), { force: true });
+  }
+  return pids;
+}
+
+// Whom a measure of the rank <rang> waits for at <verrou>: the holder of the lock, and for the
+// second rank the measures of the first that wait too, which pass first.
+function attendus(verrou, rang) {
+  const tenu = detenteur(verrou) === null ? 'libre' : `tenu par ${qui(verrou)}`;
+  const premiers = rang === 2 ? premiersQuiAttendent(verrou) : [];
+  const avant = !premiers.length
+    ? ''
+    : premiers.length === 1
+      ? ` ; une mesure de premier rang attend aussi et passe d'abord : ${processus(premiers[0])}`
+      : ` ; ${premiers.length} mesures de premier rang attendent aussi et passent d'abord : ${premiers.map(processus).join(' ; ')}`;
+  return `le verrou de la mesure lourde (${verrou}) est ${tenu}${avant}`;
+}
+
+// Whether a measure of the rank <rang> may take the lock <verrou>: the second rank only while no
+// measure of the first waits.
+const peutPrendre = (verrou, rang) => rang === 1 || premiersQuiAttendent(verrou).length === 0;
 
 // The parent of the process <pid>, read in /proc (the field after the state, which follows the
 // command, itself free to hold spaces and parentheses), or null.
@@ -140,10 +232,20 @@ function borneDe(env) {
   return env[VARIABLE_ATTENTE] && Number.isFinite(n) && n >= 0 ? n : ATTENTE_MACHINE_MS;
 }
 
-// Waits for the lock <verrou>, saying so (`dire`) when it begins and every <rappelMs>; returns the
-// time waited, in ms. Throws an AttenteDeLaMachine at once when an ancestor holds the lock, and at
-// the bound <borneMs>.
-function attendreLaMachine(verrou, { dire, borneMs, rappelMs }) {
+// Waits for the lock <verrou> at the rank <rang>, saying so (`dire`) when it begins and every
+// <rappelMs>; returns the time waited, in ms. Throws an AttenteDeLaMachine at once when an ancestor
+// holds the lock, and at the bound <borneMs>. A measure of the first rank names itself among those
+// that wait while it waits.
+function attendreLaMachine(verrou, { rang, dire, borneMs, rappelMs }) {
+  const retirer = rang === 1 ? attendreAuPremierRang(verrou) : () => {};
+  try {
+    return attendreAuRang(verrou, { rang, dire, borneMs, rappelMs });
+  } finally {
+    retirer();
+  }
+}
+
+function attendreAuRang(verrou, { rang, dire, borneMs, rappelMs }) {
   const debut = Date.now();
   let dit = null;
   for (;;) {
@@ -156,19 +258,20 @@ function attendreLaMachine(verrou, { dire, borneMs, rappelMs }) {
     const t = Date.now();
     if (t - debut >= borneMs)
       throw new AttenteDeLaMachine(
-        `⏱ attente du verrou de la machine bornée à ${duree(borneMs)} (${VARIABLE_ATTENTE}) : le verrou (${verrou}) est encore tenu par ${qui(verrou)} ; à repasser (code ${A_REPASSER}).`,
+        `⏱ attente du verrou de la machine bornée à ${duree(borneMs)} (${VARIABLE_ATTENTE}), ${RANGS[rang]} : ${attendus(verrou, rang)} ; à repasser (code ${A_REPASSER}).`,
         A_REPASSER
       );
     if (dit === null)
       dire(
-        `⏳ la machine mesure déjà : le verrou de la mesure lourde (${verrou}) est tenu par ${qui(verrou)} ; attente de sa fin, ${duree(borneMs)} au plus.`
+        `⏳ ${RANGS[rang]}, la machine mesure déjà : ${attendus(verrou, rang)} ; attente de son tour, ${duree(borneMs)} au plus.`
       );
     else if (t - dit >= rappelMs)
       dire(
-        `⏳ attente du verrou de la machine depuis ${duree(t - debut)} : il est tenu par ${qui(verrou)}.`
+        `⏳ ${RANGS[rang]}, attente du verrou de la machine depuis ${duree(t - debut)} : ${attendus(verrou, rang)}.`
       );
     if (dit === null || t - dit >= rappelMs) dit = t;
-    if (prendreVerrou(verrou, { attendre: false })) return Date.now() - debut;
+    if (peutPrendre(verrou, rang) && prendreVerrou(verrou, { attendre: false }))
+      return Date.now() - debut;
     attendreUnPeu(Math.max(1, Math.min(200, borneMs - (Date.now() - debut))));
   }
 }
@@ -177,8 +280,10 @@ function attendreLaMachine(verrou, { dire, borneMs, rappelMs }) {
  * Runs <mesure> under the lock of the machine and returns what it returns. <mesure> receives the
  * environment of its children, which carries the lock to them.
  * @param {(envEnfant: Record<string, string | undefined>) => T} mesure a synchronous measure
- * @param {{ env?: Record<string, string | undefined>, dire?: (ligne: string) => void,
- *   borneMs?: number, rappelMs?: number }} options `borneMs`, the bound of the wait
+ * @param {{ env?: Record<string, string | undefined>, racine?: string,
+ *   dire?: (ligne: string) => void, borneMs?: number, rappelMs?: number }} options `racine`, the
+ *   root of the repository the measure plays in, which gives its rank (`rangDeLaMesure`; the
+ *   working directory by default); `borneMs`, the bound of the wait
  *   (GRILLHOUSE_ATTENTE_MACHINE_MS, else ATTENTE_MACHINE_MS); `rappelMs`, the gap between two
  *   lines that say the wait goes on (30 s)
  * @returns {T}
@@ -190,6 +295,7 @@ export function avecLaMachine(
   mesure,
   {
     env = process.env,
+    racine = process.cwd(),
     dire = l => process.stdout.write(`${l}\n`),
     borneMs = borneDe(env),
     rappelMs = RAPPEL_MS,
@@ -199,8 +305,9 @@ export function avecLaMachine(
   const verrou = verrouDeMachine(env);
   if (env[VARIABLE_TENUE] && lire(verrou) === env[VARIABLE_TENUE]) return mesure(env);
   mkdirSync(path.dirname(verrou), { recursive: true });
-  if (!prendreVerrou(verrou, { attendre: false })) {
-    const attendu = attendreLaMachine(verrou, { dire, borneMs, rappelMs });
+  const rang = rangDeLaMesure(racine);
+  if (!(peutPrendre(verrou, rang) && prendreVerrou(verrou, { attendre: false }))) {
+    const attendu = attendreLaMachine(verrou, { rang, dire, borneMs, rappelMs });
     dire(`✓ verrou de la machine pris après ${Math.round(attendu / 1000)} s.`);
   }
   try {

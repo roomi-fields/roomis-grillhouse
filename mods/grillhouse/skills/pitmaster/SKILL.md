@@ -176,8 +176,9 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   fois. Ainsi deux travaux ne s'écrasent jamais.
 - **Une mesure lourde à la fois** : le verrou de la machine la tient (charte, « Une mesure lourde
   à la fois sur la machine ») : mon `npm run verifier` le prend comme celui de chaque circuit, de
-  chaque dépôt de la machine, et attend son tour. Ainsi une mesure rend le résultat du code, et non
-  celui d'une autre mesure qui tourne à côté.
+  chaque dépôt de la machine, et attend son tour ; dans le dépôt du cadre, il passe après toute
+  mesure d'un projet qui attend. Ainsi une mesure rend le résultat du code, et non celui d'une autre
+  mesure qui tourne à côté.
 - **La charge avant le lancement** : avant de lancer un agent, je lis la charge de la machine
   (`uptime`) ; machine chargée, les agents attendent. Ainsi un test rend le résultat du code, et non
   celui d'une machine saturée.

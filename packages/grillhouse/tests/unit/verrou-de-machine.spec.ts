@@ -420,3 +420,188 @@ describe('grillhouse-3uv.89 — npm run verifier et la machine', { timeout: 60_0
     expect(appels(d)[1].match(/--concurrency=\S*/g)).toEqual(['--concurrency=1']);
   });
 });
+
+// grillhouse-3uv.95.2 — the rank of a measure. BPScript 320.9: 208 min of its circuit's wait for
+// the lock of the machine went to the checks of the frame's agent copies. As the job server of GNU
+// make and Bazel's `--experimental_local_test_priority`: a measure played in the frame's own
+// repository (the package @roomi-fields/grillhouse in development, its agent copies included) is
+// of the second rank, a project's is of the first, and a measure of the second rank waits while
+// one of the first waits too.
+describe('grillhouse-3uv.95.2 — le rang d’une mesure', { timeout: 60_000 }, () => {
+  // The repository of the frame in <d>: its root's workspaces hold the package in development.
+  const depotDuCadre = (d: string) => {
+    mkdirSync(path.join(d, 'packages/grillhouse'), { recursive: true });
+    writeFileSync(
+      path.join(d, 'package.json'),
+      JSON.stringify({ name: 'roomis-grillhouse', private: true, workspaces: ['packages/*'] })
+    );
+    writeFileSync(
+      path.join(d, 'packages/grillhouse/package.json'),
+      JSON.stringify({ name: '@roomi-fields/grillhouse', version: '0.0.0' })
+    );
+    return d;
+  };
+  // A project in <d>: its own packages, the frame installed under node_modules.
+  const unProjet = (d: string) => {
+    mkdirSync(path.join(d, 'packages/a'), { recursive: true });
+    mkdirSync(path.join(d, 'node_modules/@roomi-fields/grillhouse'), { recursive: true });
+    writeFileSync(
+      path.join(d, 'package.json'),
+      JSON.stringify({
+        name: 'projet',
+        private: true,
+        workspaces: ['packages/*'],
+        devDependencies: { '@roomi-fields/grillhouse': '0.24.0' },
+      })
+    );
+    writeFileSync(path.join(d, 'packages/a/package.json'), JSON.stringify({ name: 'a' }));
+    writeFileSync(
+      path.join(d, 'node_modules/@roomi-fields/grillhouse/package.json'),
+      JSON.stringify({ name: '@roomi-fields/grillhouse', version: '0.24.0' })
+    );
+    return d;
+  };
+  // A child that takes the lock from <cwd>, its output read as it comes.
+  const lancerDans = (code: string, env: Record<string, string>, cwd: string) => {
+    const p = spawn(process.execPath, ['--input-type=module', '-e', code], {
+      env,
+      cwd,
+      stdio: 'pipe',
+    });
+    let sortie = '';
+    p.stdout?.on('data', b => (sortie += b));
+    p.stderr?.on('data', b => (sortie += b));
+    return { p, fini: fin(p), sortie: () => sortie };
+  };
+
+  it('une mesure du dépôt du cadre, ou d’une de ses copies d’agents, est de second rang ; celle d’un projet, de premier rang', async () => {
+    const { rangDeLaMesure } = (await import(MODULE)) as {
+      rangDeLaMesure: (racine: string) => number;
+    };
+    const d = unDossier();
+    const cadre = depotDuCadre(path.join(d, 'cadre'));
+    const copie = depotDuCadre(path.join(cadre, '.claude/worktrees/agent-x'));
+    const projet = unProjet(path.join(d, 'projet'));
+    expect(rangDeLaMesure(RACINE)).toBe(2);
+    expect(rangDeLaMesure(cadre)).toBe(2);
+    expect(rangDeLaMesure(copie)).toBe(2);
+    expect(rangDeLaMesure(projet)).toBe(1);
+    expect(rangDeLaMesure(unDossier())).toBe(1);
+  });
+
+  it('une mesure de premier rang qui attend passe avant les mesures de second rang qui attendent', async () => {
+    const d = unDossier();
+    const cadre = depotDuCadre(path.join(d, 'cadre'));
+    const projet = unProjet(path.join(d, 'projet'));
+    const env = environnement({ GRILLHOUSE_VERROU_MACHINE: path.join(d, 'mesure.lock') });
+    const trace = path.join(d, 'trace');
+    const libere = path.join(d, 'libere');
+    const a = lancerDans(preneur('A', trace, tenir(libere)), env, projet);
+    await jusqua(() => lignes(trace).includes('A début'));
+    // Three measures of the second rank wait first, then one of the first rank.
+    const seconds = ['S1', 'S2', 'S3'].map(nom => lancerDans(preneur(nom, trace), env, cadre));
+    await jusqua(() => seconds.every(s => s.sortie().includes('⏳')));
+    const premier = lancerDans(preneur('P', trace), env, projet);
+    await jusqua(() => premier.sortie().includes('⏳'));
+    writeFileSync(libere, '');
+    const fins = await Promise.all([a.fini, premier.fini, ...seconds.map(s => s.fini)]);
+    for (const f of fins) {
+      expect(f.code, f.sortie).toBe(0);
+    }
+    expect(lignes(trace).slice(0, 4)).toEqual(['A début', 'A fin', 'P début', 'P fin']);
+    expect(lignes(trace)).toHaveLength(10);
+  });
+
+  it('une mesure de second rang ne prend pas le verrou libre tant qu’une mesure de premier rang attend, et dit qui elle attend', async () => {
+    const d = unDossier();
+    const cadre = depotDuCadre(path.join(d, 'cadre'));
+    const projet = unProjet(path.join(d, 'projet'));
+    const env = environnement({ GRILLHOUSE_VERROU_MACHINE: path.join(d, 'mesure.lock') });
+    const trace = path.join(d, 'trace');
+    const libereA = path.join(d, 'libere-a');
+    const libereP = path.join(d, 'libere-p');
+    const a = lancerDans(preneur('A', trace, tenir(libereA)), env, projet);
+    await jusqua(() => lignes(trace).includes('A début'));
+    const premier = lancerDans(preneur('P', trace, tenir(libereP)), env, projet);
+    await jusqua(() => premier.sortie().includes('⏳'));
+    expect(premier.sortie()).toContain('premier rang');
+    const second = lancerDans(preneur('S', trace), env, cadre);
+    await jusqua(() => second.sortie().includes('⏳'));
+    expect(second.sortie()).toContain('second rang');
+    expect(second.sortie()).toContain(String(a.p.pid));
+    expect(second.sortie()).toContain(String(premier.p.pid));
+    writeFileSync(libereA, '');
+    await jusqua(() => lignes(trace).includes('P début'));
+    writeFileSync(libereP, '');
+    const fins = await Promise.all([a.fini, premier.fini, second.fini]);
+    for (const f of fins) {
+      expect(f.code, f.sortie).toBe(0);
+    }
+    expect(lignes(trace)).toEqual(['A début', 'A fin', 'P début', 'P fin', 'S début', 'S fin']);
+  });
+
+  it('une mesure de second rang seule prend le verrou libre sans attendre', async () => {
+    const d = unDossier();
+    const cadre = depotDuCadre(path.join(d, 'cadre'));
+    const env = environnement({ GRILLHOUSE_VERROU_MACHINE: path.join(d, 'mesure.lock') });
+    const trace = path.join(d, 'trace');
+    const r = await lancerDans(preneur('S', trace), env, cadre).fini;
+    expect(r.code, r.sortie).toBe(0);
+    expect(r.sortie).not.toContain('⏳');
+    expect(lignes(trace)).toEqual(['S début', 'S fin']);
+  });
+
+  it('une mesure de premier rang tuée pendant son attente ne retient pas celles de second rang', async () => {
+    const d = unDossier();
+    const cadre = depotDuCadre(path.join(d, 'cadre'));
+    const projet = unProjet(path.join(d, 'projet'));
+    const env = environnement({ GRILLHOUSE_VERROU_MACHINE: path.join(d, 'mesure.lock') });
+    const trace = path.join(d, 'trace');
+    const libere = path.join(d, 'libere');
+    const a = lancerDans(preneur('A', trace, tenir(libere)), env, projet);
+    await jusqua(() => lignes(trace).includes('A début'));
+    const premier = lancerDans(preneur('P', trace), env, projet);
+    await jusqua(() => premier.sortie().includes('⏳'));
+    premier.p.kill('SIGKILL');
+    await premier.fini;
+    const second = lancerDans(preneur('S', trace), env, cadre);
+    await jusqua(() => second.sortie().includes('⏳'));
+    writeFileSync(libere, '');
+    const debut = Date.now();
+    const r = await second.fini;
+    expect(r.code, r.sortie).toBe(0);
+    expect(Date.now() - debut).toBeLessThan(5_000);
+    expect(lignes(trace)).toEqual(['A début', 'A fin', 'S début', 'S fin']);
+    expect((await a.fini).code).toBe(0);
+  });
+
+  it('la borne de l’attente reste la même pour une mesure de second rang : à 75, le détenteur nommé', async () => {
+    const d = unDossier();
+    const cadre = depotDuCadre(path.join(d, 'cadre'));
+    const projet = unProjet(path.join(d, 'projet'));
+    const env = environnement({ GRILLHOUSE_VERROU_MACHINE: path.join(d, 'mesure.lock') });
+    const trace = path.join(d, 'trace');
+    const libere = path.join(d, 'libere');
+    const a = lancerDans(preneur('A', trace, tenir(libere)), env, projet);
+    const premier = lancerDans(preneur('P', trace), env, projet);
+    try {
+      await jusqua(() => lignes(trace).includes('A début'));
+      await jusqua(() => premier.sortie().includes('⏳'));
+      const debut = Date.now();
+      const s = await lancerDans(
+        preneur('S', trace),
+        { ...env, GRILLHOUSE_ATTENTE_MACHINE_MS: '1500' },
+        cadre
+      ).fini;
+      expect(s.code, s.sortie).toBe(75);
+      expect(Date.now() - debut).toBeGreaterThanOrEqual(1_500);
+      expect(Date.now() - debut).toBeLessThan(10_000);
+      expect(s.sortie).toContain('GRILLHOUSE_ATTENTE_MACHINE_MS');
+      expect(s.sortie).toContain(String(a.p.pid));
+      expect(lignes(trace)).toEqual(['A début']);
+    } finally {
+      writeFileSync(libere, '');
+      await Promise.all([a.fini, premier.fini]);
+    }
+  });
+});
