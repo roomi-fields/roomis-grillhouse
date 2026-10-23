@@ -9,10 +9,7 @@
 //   after it): no second Node starts, which a hook of Claude Code called at each tool pays. A `.sh`
 //   runs by bash, its standard streams this process's, its exit code this command's, and a script
 //   ended by a signal gives 128 plus the signal's number, as a shell gives it.
-// - A subcommand is named after its script, without directory nor extension (`verifier`,
-//   `circuit`, `tableau`); `maj` runs `grillhouse-maj.mjs`, whose name already says the frame's;
-//   `hooks` (`crochets.mjs`, which places the git hooks) and `hook` (`crochet.mjs`, which runs one)
-//   take Husky's names, which a project's `prepare` and its git hooks call.
+// - The subcommands and their scripts are the table of scripts/sous-commandes.mjs.
 // - A subcommand missing or unknown writes the usage and the list of the subcommands on the error
 //   stream, and the exit code is 2.
 // - A script finds its neighbours by its own directory, and the project by the working directory
@@ -20,60 +17,8 @@
 import { spawn } from 'node:child_process';
 import { realpathSync } from 'node:fs';
 import { constants } from 'node:os';
-import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-
-const SCRIPTS = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'scripts');
-
-// Each subcommand and its script, under `scripts/`.
-export const SOUS_COMMANDES = {
-  bilan: 'bilan.mjs',
-  circuit: 'circuit.mjs',
-  'code-mort': 'code-mort.mjs',
-  commande: 'verrous/commande.mjs',
-  'composants-affectes': 'composants-affectes.mjs',
-  consommateurs: 'consommateurs.mjs',
-  'consommateurs-arbitres': 'consommateurs-arbitres.mjs',
-  droits: 'droits.mjs',
-  enveloppe: 'enveloppe/enveloppe.mjs',
-  'etat-du-circuit': 'etat-du-circuit.mjs',
-  file: 'integration/file.mjs',
-  frontieres: 'frontieres.mjs',
-  'gardes-du-cadre': 'gardes-du-cadre.mjs',
-  greffons: 'greffons.mjs',
-  hook: 'crochet.mjs',
-  hooks: 'crochets.mjs',
-  'index-interfaces': 'index-interfaces.mjs',
-  init: 'init.mjs',
-  integrer: 'integration/integrer.mjs',
-  'interfaces-contre-code': 'interfaces-contre-code.mjs',
-  lancer: 'enveloppe/lancer.sh',
-  'ligne-etat': 'ligne-etat/ligne-etat.mjs',
-  maj: 'grillhouse-maj.mjs',
-  nuit: 'nuit.sh',
-  pression: 'vitest-config/pression.mjs',
-  registre: 'registre.mjs',
-  resultats: 'resultats.mjs',
-  resumes: 'resumes.mjs',
-  'retirer-copie': 'retirer-copie.sh',
-  'session-start': 'session-start.sh',
-  sortie: 'sortie.mjs',
-  'sous-modules': 'sous-modules.sh',
-  'structure-guard': 'structure-guard.sh',
-  superviseur: 'superviseur.mjs',
-  tableau: 'tableau.mjs',
-  tests: 'tests.mjs',
-  ticket: 'ticket.sh',
-  'ticket-du-sous-agent': 'verrous/ticket-du-sous-agent.mjs',
-  'turbo-des-paquets': 'turbo-des-paquets.mjs',
-  verifier: 'verifier.mjs',
-  verrou: 'verrous/verrou.mjs',
-};
-
-// The absolute path of the script of the subcommand <nom>; null for a name the table lacks.
-export function scriptDe(nom) {
-  return Object.hasOwn(SOUS_COMMANDES, nom) ? path.join(SCRIPTS, SOUS_COMMANDES[nom]) : null;
-}
+import { pathToFileURL } from 'node:url';
+import { scriptDe, SOUS_COMMANDES } from '../scripts/sous-commandes.mjs';
 
 // The usage and the list of the subcommands, as the error stream receives them.
 const usage = () =>

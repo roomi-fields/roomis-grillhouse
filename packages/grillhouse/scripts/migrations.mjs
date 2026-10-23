@@ -4,8 +4,11 @@
 //
 // - A migration exports `version` (the version of the package that brings the change of form),
 //   `nom` and `migrer(projet)`, which brings the project at <projet> to the new form and returns
-//   the lines of what it changed: none when the project already has it. It is replayable without
-//   effect: a second pass changes no byte and returns no line.
+//   the lines of what it changed: none when the project already has it. A line `{ aFaire }` is
+//   what it leaves to the project (a copy of the frame the project modified), which the update
+//   writes on its error stream, its exit code non-zero, as `@turbo/codemod` fails on a file it
+//   could not transform. It is replayable without effect: a second pass changes no byte and
+//   returns no line.
 // - MIGRATIONS lists them, each imported by its module; the update plays those newer than the
 //   version the project recorded (`grillhouse.version` of its package.json), in the order of their
 //   versions; a project that recorded none plays them all. The package carries no migration newer
@@ -16,9 +19,16 @@ import * as charteImportee from './migrations/0.23.0-charte-importee.mjs';
 import * as configVitest from './migrations/0.23.0-config-vitest.mjs';
 import * as crochetsDeSeance from './migrations/0.23.0-crochets-de-seance.mjs';
 import * as marcheDuProjet from './migrations/0.23.0-marche-du-projet.mjs';
+import * as copiesDuCadre from './migrations/0.23.2-copies-du-cadre.mjs';
 
 /** The migrations of the package. */
-export const MIGRATIONS = [crochetsDeSeance, configVitest, marcheDuProjet, charteImportee];
+export const MIGRATIONS = [
+  crochetsDeSeance,
+  configVitest,
+  marcheDuProjet,
+  charteImportee,
+  copiesDuCadre,
+];
 
 /**
  * The migrations of <liste> newer than <depuis> (all of them when it is null), in the order of
@@ -34,10 +44,18 @@ export function migrationsAJouer(depuis, liste = MIGRATIONS) {
 
 /**
  * Plays on the project at <projet> each migration newer than <depuis>; returns, for each one that
- * changed something, `{ version, nom, lignes }`.
+ * changed something or left something to do, `{ version, nom, lignes, aFaire }`.
  */
 export function migrer(projet, depuis, liste = MIGRATIONS) {
   return migrationsAJouer(depuis, liste)
-    .map(m => ({ version: m.version, nom: m.nom, lignes: m.migrer(projet) }))
-    .filter(r => r.lignes.length > 0);
+    .map(m => {
+      const tout = m.migrer(projet);
+      return {
+        version: m.version,
+        nom: m.nom,
+        lignes: tout.filter(l => typeof l === 'string'),
+        aFaire: tout.filter(l => typeof l !== 'string').map(l => l.aFaire),
+      };
+    })
+    .filter(r => r.lignes.length > 0 || r.aFaire.length > 0);
 }

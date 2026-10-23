@@ -13,7 +13,10 @@
 // - The migrations first (scripts/migrations.mjs): each migration of the package newer than the
 //   version the project recorded (`grillhouse.version` of its package.json; none recorded, every
 //   migration), in the order of their versions; each is replayable without effect, and the report
-//   names each one that changed something, with what it changed.
+//   names each one that changed something, with what it changed. What a migration leaves to the
+//   project (a copy of the frame the project modified, scripts/migrations/0.23.2-copies-du-cadre.mjs)
+//   is written on the error stream, with the command that does it, and the exit code is non-zero;
+//   the project keeps the version it recorded, so that the next update plays that migration again.
 // - The frame copies no file into a project: its scripts are the package's, its skills, agents,
 //   hooks of Claude Code, common charter and meta-frame the plugin's, which the package carries
 //   (scripts/cadre.mjs): the frame arrives in one piece, at the version npm installs.
@@ -31,7 +34,8 @@
 //   the frame's status line (`ligne-etat`, whatever its former form); a status line of the
 //   project's own stays. The settings keep their other keys, in their order.
 // - `package.json`, when there is one: the version of the frame it is brought to
-//   (`grillhouse.version`, the package's version), the frame's npm scripts (`tableau`,
+//   (`grillhouse.version`, the package's version once no migration leaves anything to do), the
+//   frame's npm scripts (`tableau`,
 //   `grillhouse:maj`), its `prepare` beginning with `grillhouse hooks` (the frame's git hooks at
 //   each `npm install`, as Husky's `prepare`; a `prepare` of the project's own follows it,
 //   `grillhouse hooks && …`), and `grillhouse:gardes` (scripts/gardes-du-cadre.mjs, the frame's controls), `grillhouse:dette:inscrire` and
@@ -285,9 +289,10 @@ export function versionDuProjet(projet) {
 
 /**
  * Brings the project at `projet` to the frame's files at `source` (CADRE, scripts/cadre.mjs; a
- * trial's own in the tests). Returns what changed.
+ * trial's own in the tests); <inscrite> is the version it records (the package's; null records
+ * none, the project keeping its own). Returns what changed.
  */
-export function mettreAJour(projet, source) {
+export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
   const bilan = {
     dependances: [],
     test: null,
@@ -301,7 +306,7 @@ export function mettreAJour(projet, source) {
   const pkg = path.join(projet, 'package.json');
   if (existsSync(pkg)) {
     const p = lireJson(pkg, {});
-    p.grillhouse = { ...(p.grillhouse ?? {}), version: VERSION };
+    if (inscrite !== null) p.grillhouse = { ...(p.grillhouse ?? {}), version: inscrite };
     const pkgSource = lireJson(path.join(source, GABARIT), {});
     const gardes = pkgSource.scripts?.['grillhouse:gardes'];
     p.scripts = { ...(p.scripts ?? {}), ...SCRIPTS };
@@ -498,12 +503,19 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   } else {
     const projet = process.cwd();
     const migrations = migrer(projet, versionDuProjet(projet));
-    const b = mettreAJour(projet, CADRE);
+    const resteAFaire = migrations.some(m => m.aFaire.length > 0);
+    const b = mettreAJour(projet, CADRE, resteAFaire ? { inscrite: null } : {});
     process.stdout.write(`Cadre ${VERSION}.\n`);
-    for (const { version, nom, lignes } of migrations) {
+    for (const { version, nom, lignes, aFaire } of migrations) {
       process.stdout.write(
         `Migration ${version} (${nom}) :\n${lignes.map(l => `- ${l}\n`).join('')}`
       );
+      if (aFaire.length > 0) {
+        process.stderr.write(
+          `Migration ${version} (${nom}), à faire :\n${aFaire.map(l => `- ${l}\n`).join('')}`
+        );
+        process.exitCode = 1;
+      }
     }
     process.stdout.write(rapport(b));
     for (const l of [...regenerer(projet), ...installerGreffons(projet)]) {

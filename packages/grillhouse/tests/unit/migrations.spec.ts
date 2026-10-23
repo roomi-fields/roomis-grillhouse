@@ -81,6 +81,24 @@ describe('grillhouse-3uv.84.4 critère 2 — the migrations newer than the proje
 
   it('migrer reports each migration that changed something, with its lines; one without lines is silent', () => {
     const r = migrer('/inexistant', '0.24.0', [fausse('0.25.0'), fausse('0.26.0', [])]);
-    expect(r).toEqual([{ version: '0.25.0', nom: 'm0.25.0', lignes: ['0.25.0'] }]);
+    expect(r).toEqual([{ version: '0.25.0', nom: 'm0.25.0', lignes: ['0.25.0'], aFaire: [] }]);
+  });
+});
+
+// grillhouse-3uv.84.6.1 critère 2: a migration that leaves something to the project (a copy it
+// modified) returns it as `{ aFaire }`, apart from what it changed.
+describe('grillhouse-3uv.84.6.1 critère 2 — what a migration leaves to the project is apart', () => {
+  it('migrer splits the lines of what changed from what is left to do', () => {
+    const m = { version: '0.25.0', nom: 'm', migrer: () => ['fait', { aFaire: 'à faire' }] };
+    expect(migrer('/inexistant', '0.24.0', [m])).toEqual([
+      { version: '0.25.0', nom: 'm', lignes: ['fait'], aFaire: ['à faire'] },
+    ]);
+  });
+
+  it('a migration that only leaves something to do is reported', () => {
+    const m = { version: '0.25.0', nom: 'm', migrer: () => [{ aFaire: 'à faire' }] };
+    expect(migrer('/inexistant', '0.24.0', [m])).toEqual([
+      { version: '0.25.0', nom: 'm', lignes: [], aFaire: ['à faire'] },
+    ]);
   });
 });

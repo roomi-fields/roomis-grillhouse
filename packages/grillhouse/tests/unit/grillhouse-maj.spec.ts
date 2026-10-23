@@ -1604,7 +1604,7 @@ describe('grillhouse-3uv.84.4 critère 4 — new-project.sh, setup.sh and the re
     for (const f of ['new-project.sh', 'setup.sh']) {
       expect(existsSync(path.join(DEPOT, 'packages/grillhouse/scripts', f)), f).toBe(false);
     }
-    const { SOUS_COMMANDES } = (await import('../../bin/grillhouse.mjs')) as {
+    const { SOUS_COMMANDES } = (await import('../../scripts/sous-commandes.mjs')) as {
       SOUS_COMMANDES: Record<string, string>;
     };
     expect(SOUS_COMMANDES).not.toHaveProperty('new-project');

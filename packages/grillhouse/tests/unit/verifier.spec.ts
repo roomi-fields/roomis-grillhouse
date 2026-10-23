@@ -20,7 +20,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { SOUS_COMMANDES } from '../../bin/grillhouse.mjs';
+import { SOUS_COMMANDES } from '../../scripts/sous-commandes.mjs';
 import { A_REPASSER } from '../../scripts/vitest-config/pression.mjs';
 import { verifier } from '../../scripts/verifier.mjs';
 

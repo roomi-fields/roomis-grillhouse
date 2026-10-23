@@ -18,7 +18,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { SOUS_COMMANDES } from '../../bin/grillhouse.mjs';
+import { SOUS_COMMANDES } from '../../scripts/sous-commandes.mjs';
 import * as maj from '../../scripts/grillhouse-maj.mjs';
 
 const DEPOT = path.resolve(__dirname, '../../../..');
@@ -284,6 +284,7 @@ describe('critère 4 — the copy of the files, its list, its fingerprints and t
     expect(r.stderr).not.toMatch(/--ecarts/);
   });
 
+  // Save the migration that takes them off a project in 0.22.x, and its test (grillhouse-3uv.84.6.1).
   it('no script, test or text of the frame names the list or the fingerprints', () => {
     const r = spawnSync(
       'git',
@@ -301,6 +302,8 @@ describe('critère 4 — the copy of the files, its list, its fingerprints and t
         'CONTRIBUTING.md',
         'STRUCTURE.md',
         ':!packages/grillhouse/tests/unit/greffon.spec.ts',
+        ':!packages/grillhouse/scripts/migrations/0.23.2-copies-du-cadre.mjs',
+        ':!packages/grillhouse/tests/unit/migration.copies-du-cadre.spec.ts',
       ],
       { encoding: 'utf8' }
     );
