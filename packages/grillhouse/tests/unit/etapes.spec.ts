@@ -1,5 +1,5 @@
 // grillhouse-3uv.90: the steps of a ticket are the tree of its circuit, as a pipeline of GitLab CI
-// shows its stages and their jobs: 0 to 5, the sub-steps 1.1, 1.2, 2.1–2.4, 5.1 and 5.2, « auto »
+// shows its stages and their jobs: 1 to 5, the sub-steps 2.1–2.4, 3.1, 5.1 and 5.2, « auto »
 // for a step the circuit leads itself. A step carries as many bounded loops as it needs. One list
 // (scripts/etapes.mjs) holds them, the gestures of the circuit and the questions of its stops
 // (grillhouse-3uv.95.4); the circuit, the board and the texts read it; no other script spells it.
@@ -42,7 +42,7 @@ const suite = SUITE as Etape[];
 const a = (numero: string) => suite.find(e => e.numero === numero)!;
 
 describe('the tree of a ticket, decided by the owner on 2026-10-21', () => {
-  it('numbers each step from 0 to 5, its sub-steps under it, with its title and who works there', () => {
+  it('numbers each step from 1 to 5, its sub-steps under it, with its title and who works there', () => {
     const arbre = (e: Etape): unknown => [
       e.numero,
       e.titre,
@@ -50,16 +50,7 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21', () => {
       ...(e.sous ? [e.sous.map(arbre)] : []),
     ];
     expect((ETAPES as Etape[]).map(arbre)).toEqual([
-      ['0', 'Exploration', ['explorateur']],
-      [
-        '1',
-        'Ouverture',
-        [],
-        [
-          ['1.1', 'Relevé des composants', [AUTO]],
-          ['1.2', 'Questionnement', ['questionneur']],
-        ],
-      ],
+      ['1', 'Plan', ['explorateur', 'questionneur']],
       [
         '2',
         'Composants',
@@ -88,10 +79,7 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21', () => {
 
   it('the sequence lists every step and sub-step in its order', () => {
     expect(suite.map(e => e.numero)).toEqual([
-      '0',
       '1',
-      '1.1',
-      '1.2',
       '2',
       '2.1',
       '2.2',
@@ -117,9 +105,18 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21', () => {
     expect(suite.flatMap(e => e.qui)).not.toContain('referent-technique');
   });
 
-  it('the questioning numbers no step of its own any more, nor the numbering before it', () => {
-    // Its one step is 1.2, a sub-step of the opening (Romain, 2026-10-21: « Questionnement »).
-    expect(suite.filter(e => e.titre === 'Questionnement').map(e => e.numero)).toEqual(['1.2']);
+  // grillhouse-3uv.95.5 (decision 4 of 3uv.95): the explorateur writes the plan, the questionneur
+  // reads it once, the explorateur answers once; no survey of the circuit, no exploration apart.
+  it('the plan is step 1, the explorateur’s and the questionneur’s, with no sub-step, nor the numbering before it', () => {
+    expect(a('1')).toMatchObject({
+      titre: 'Plan',
+      questionnement: 'plan',
+      arrets: ['questionnement'],
+    });
+    expect(a('1').sous).toBeUndefined();
+    for (const titre of ['Exploration', 'Ouverture', 'Relevé des composants', 'Questionnement']) {
+      expect(suite.map(e => e.titre)).not.toContain(titre);
+    }
     expect(suite.map(e => e.titre)).not.toContain('Arbitrage');
     expect(etapes).not.toHaveProperty('AUTOMATIQUE');
     expect(etapes).not.toHaveProperty('QUESTIONNEMENT');
@@ -149,7 +146,7 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21', () => {
     expect(cles(a('2.3'))).toEqual(['composant', 'code']);
     expect(cles(a('2.4'))).toEqual(['composant', 'code']);
     expect(cles(a('2'))).toEqual(['composant']);
-    expect(cles(a('1.2'))).toEqual([]);
+    expect(cles(a('1'))).toEqual([]);
     expect(cles(a('4'))).toEqual(['relecture']);
     expect(cles(a('3'))).toEqual([]);
     expect(cles(a('3.1'))).toEqual([]);
@@ -185,16 +182,16 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21', () => {
 describe('who works at a step, in words', () => {
   it('joins the names of its roles', () => {
     expect(quiDe(a('2.3'))).toBe('développeur');
-    expect(quiDe(a('1.1'))).toBe('auto');
-    expect(quiDe(a('1'))).toBe('');
-    expect(quiDe(a('1.2'))).toBe('questionneur');
+    expect(quiDe(a('1'))).toBe('explorateur ⇄ questionneur');
+    expect(quiDe(a('2'))).toBe('');
+    expect(quiDe(a('2.2'))).toBe('auto');
   });
 });
 
 describe('the stops of the circuit, each with its exit code', () => {
-  // grillhouse-3uv.89, L6: the components the survey finds and the title misses stop the circuit
-  // before any session (scripts/composants-affectes.mjs).
-  it('lists every stop by its name and code, the components missing from the title among them', () => {
+  // grillhouse-3uv.95.5: the survey the circuit played again (« composants-manquants », 21) is
+  // gone; the explorateur surveys the components when it writes the plan.
+  it('lists every stop by its name and code', () => {
     expect(ARRETS).toEqual({
       lancement: 10,
       bloqué: 11,
@@ -206,7 +203,6 @@ describe('the stops of the circuit, each with its exit code', () => {
       integration: 17,
       'hors-portee': 19,
       besoin: 20,
-      'composants-manquants': 21,
       questionnement: 22,
       references: 23,
       'hors-plan': 24,
@@ -240,10 +236,15 @@ describe("a circuit's state and a role agent are at one step", () => {
     expect(numero({ etape: 'references', raison: 'references', finale: true })).toBe('3.1');
   });
 
-  it('the opening: the stop of the survey at 1.1, the questioning of the plan and its stop at 1.2', () => {
-    expect(numero({ etape: 'testwriter', raison: 'composants-manquants' })).toBe('1.1');
-    expect(numero({ etape: 'testwriter', questionnement: { objet: 'plan', tour: 2 } })).toBe('1.2');
-    expect(numero({ etape: 'testwriter', raison: 'questionnement' })).toBe('1.2');
+  it('the plan: the work on it and its stop at 1', () => {
+    expect(
+      numero({ etape: 'testwriter', questionnement: { objet: 'plan', role: 'explorateur' } })
+    ).toBe('1');
+    expect(
+      numero({ etape: 'testwriter', questionnement: { objet: 'plan', role: 'questionneur' } })
+    ).toBe('1');
+    expect(numero({ etape: 'testwriter', raison: 'questionnement' })).toBe('1');
+    expect(numero({ etape: 'testwriter', releve: new Date().toISOString() })).toBe('2.1');
   });
 
   it('a developpeur relaunched by the final pass is at 2.3, its checks at 3', () => {
@@ -255,7 +256,7 @@ describe("a circuit's state and a role agent are at one step", () => {
       ['explorateur', 'questionneur', 'testwriter', 'developpeur', 'relecteur'].map(
         r => etapeDuRole(r)?.numero
       )
-    ).toEqual(['0', '1.2', '2.1', '2.3', '4']);
+    ).toEqual(['1', '1', '2.1', '2.3', '4']);
     expect(etapeDuRole('regulateur')).toBeNull();
     expect(etapeDuRole('Explore')).toBeNull();
     expect(etapeDuRole(AUTO)).toBeNull();
@@ -283,8 +284,6 @@ describe('one list, which the circuit, the board and the texts read', () => {
       'mods/grillhouse/hooks/register.tsx',
     ];
     const titres = [
-      'Relevé des composants',
-      'Questionnement',
       'Preuve du rouge',
       'Passe finale',
       'Régénération des références',

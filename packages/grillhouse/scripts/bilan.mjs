@@ -24,8 +24,8 @@
 //   on a stop (`montee`: its code, its stop and who must answer its question); the circuit's
 //   state, `.claude/worktrees/<ticket>.circuit.json`, for where the circuit ended. Every
 //   agent declares nothing: the bilan measures.
-// - The steps and the roles are those of scripts/etapes.mjs. Only the circuit's roles count: an
-//   exploration, before the circuit, is out of it. Only the sessions the circuit launched count in
+// - The steps and the roles are those of scripts/etapes.mjs. Only the circuit's roles count, the
+//   explorateur of the plan among them. Only the sessions the circuit launched count in
 //   the window, the categories, the tokens and the cost; a session of a circuit's role on the
 //   ticket the circuit did not launch, the supervisor's, counts apart (`seances.horsCircuit`: its
 //   number, by role, its cost).
@@ -88,8 +88,8 @@ const CATEGORIES = [
 ];
 // The categories of the time kept: the rest is lost.
 const GARDE = new Set(['travail', 'automatique', 'finales', 'questionnement']);
-// The roles of the circuit, by the steps they work at: every step but the exploration.
-const ROLES = new Set(SUITE.filter(e => e.numero !== '0').flatMap(e => e.qui));
+// The roles of the circuit, by the steps they work at.
+const ROLES = new Set(SUITE.flatMap(e => e.qui));
 
 // The results the circuit kept, `{ t, …entrée }`, in their order; an entry without a time counts
 // nothing.

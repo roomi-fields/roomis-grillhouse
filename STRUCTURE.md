@@ -152,7 +152,7 @@ roomis-grillhouse/
 │   │   ├── developpeur.md            # Writes the code; no test file, no code before the Architecture section
 │   │   ├── relecteur.md              # Reviews the lot adversarially; writes no file
 │   │   ├── questionneur.md           # Questions a plan it did not write; decides nothing, writes nothing
-│   │   └── explorateur.md            # Runs an exploration: survey, decisions, proposed tickets; writes no file
+│   │   └── explorateur.md            # Writes a ticket's plan at step 1, or runs an exploration; writes no file
 │   ├── skills/                    # The frame's skills, ready from the first session (/grillhouse:<nom>)
 │   │   ├── grill/                 # Initialisation & architecture: the grill → charter, architecture, frame, interfaces
 │   │   │   └── references/           # releve-structurel (the structural survey brief)
@@ -242,8 +242,8 @@ tickets. Once done, the hook stays silent.
 - The roles are agents of the frame's plugin (`mods/grillhouse/agents/`): `testwriter` writes the tests, `developpeur` the
   code, `relecteur` reviews; the circuit of the ticket (`npx grillhouse circuit`), which the
   supervisor launches, launches them and commits, makes the mechanical gestures itself and sends
-  every other stop up to the supervisor as a question; `questionneur` reads the ticket's plan once
-  before the first testwriter. Each loads its skill
+  every other stop up to the supervisor as a question; `explorateur` writes the ticket's plan
+  before the first testwriter, `questionneur` reads it once, and the explorer answers once. Each loads its skill
   and works under its locks.
 
 ### An existing project

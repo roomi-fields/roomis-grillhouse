@@ -101,7 +101,33 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
   it('a role the circuit does not lead has no sheet', () => {
     expect(schemaDeFiche('regulateur')).toBeNull();
     expect(schemaDeFiche('referent-technique')).toBeNull();
-    expect(schemaDeFiche('explorateur')).toBeNull();
+  });
+  // grillhouse-3uv.95.5 (decision 4 of 3uv.95): the explorateur writes the plan in its sheet, which
+  // the circuit writes at the ticket, and answers the questionneur once, question by question.
+  it('the explorateur: the plan (its criteria, the packages to touch, its open questions) and its one answer, CHANGE or GARDE by question', () => {
+    expect(champs('explorateur')).toEqual(
+      ['criteres', 'decouvertes', 'paquets', 'questions', 'reponses'].sort()
+    );
+    const s = schemaDeFiche('explorateur') as Schema;
+    expect(s.required).toEqual(['criteres', 'paquets', 'questions']);
+    const r = s.properties.reponses as {
+      items: { required: string[]; properties: { reponse: { enum: string[] } } };
+    };
+    expect(r.items.properties.reponse.enum).toEqual(['CHANGE', 'GARDE']);
+    expect(r.items.required).toEqual(['numero', 'reponse', 'texte']);
+    const q = s.properties.questions as { items: { required: string[] } };
+    expect(q.items.required).toEqual(['question', 'piece']);
+    const plan = { criteres: ['`mesure` rend le double.'], paquets: ['000-forms'], questions: [] };
+    expect(lireFiche('explorateur', sortie(plan)).erreur).toBeUndefined();
+    expect(lireFiche('explorateur', sortie({ ...plan, paquets: [] })).erreur).toContain('paquets');
+    // The sheet carries the criteria the plan adds: none is a plan.
+    expect(lireFiche('explorateur', sortie({ ...plan, criteres: [] })).erreur).toBeUndefined();
+    expect(
+      lireFiche(
+        'explorateur',
+        sortie({ ...plan, reponses: [{ numero: 'un', reponse: 'GARDE', texte: 'x' }] })
+      ).erreur
+    ).toContain('numero');
   });
   it('the command prints the schema of a role as JSON, the one claude receives; a role without a sheet exits 1', () => {
     const r = spawnSync(process.execPath, [SCRIPT, '--schema', 'developpeur'], {
@@ -109,7 +135,7 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
     });
     expect(r.status, r.stderr).toBe(0);
     expect(JSON.parse(r.stdout)).toEqual(schemaDeFiche('developpeur'));
-    const sans = spawnSync(process.execPath, [SCRIPT, '--schema', 'explorateur'], {
+    const sans = spawnSync(process.execPath, [SCRIPT, '--schema', 'regulateur'], {
       encoding: 'utf8',
     });
     expect(sans.status).toBe(1);

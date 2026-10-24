@@ -10,10 +10,9 @@
 //   `.claude/worktrees/<ticket>.circuit.json`, the final pass being the checks once `finale`).
 //   A step that runs only for a project that declares it names the key of that declaration under
 //   `grillhouse` of the project's package.json (`declaration`): the board shows it only there.
-//   The opening reads its sub-steps elsewhere in the state: the survey of the components by its
-//   start while it runs (`releve`) and by its stop (`arrets`), the questioning of the plan by the
-//   questioning under way (`questionnement`) and by its stop. SUITE is the tree in its order, each
-//   step before its sub-steps.
+//   The plan (1) is read elsewhere in the state: by the work on the plan under way
+//   (`questionnement`, the explorateur's or the questionneur's session) and by its stop (`arrets`).
+//   SUITE is the tree in its order, each step before its sub-steps.
 // - A step carries as many bounded loops as it needs (`boucles`): each its key (`cle`, which
 //   keys its count in the state's `boucles`), its label, its maximum (`max`, the pass that stops
 //   it; null for the components, whose number is the title's) and the sub-steps it spans (`sur`;
@@ -33,30 +32,13 @@ import { A_REPASSER } from './vitest-config/pression.mjs';
 export const AUTO = 'auto';
 
 export const ETAPES = [
-  { numero: '0', titre: 'Exploration', qui: ['explorateur'], etat: null },
   {
     numero: '1',
-    titre: 'Ouverture',
-    qui: [],
+    titre: 'Plan',
+    qui: ['explorateur', 'questionneur'],
     etat: null,
-    sous: [
-      {
-        numero: '1.1',
-        titre: 'Relevé des composants',
-        qui: [AUTO],
-        etat: null,
-        releve: true,
-        arrets: ['composants-manquants'],
-      },
-      {
-        numero: '1.2',
-        titre: 'Questionnement',
-        qui: ['questionneur'],
-        etat: null,
-        questionnement: 'plan',
-        arrets: ['questionnement'],
-      },
-    ],
+    questionnement: 'plan',
+    arrets: ['questionnement'],
   },
   {
     numero: '2',
@@ -150,14 +132,14 @@ export const ARRETS = {
   integration: 17,
   'hors-portee': 19,
   besoin: 20,
-  'composants-manquants': 21,
   questionnement: 22,
   references: 23,
   'hors-plan': 24,
   'a-repasser': A_REPASSER,
 };
 
-// The role that questions a plan.
+// The role that writes the plan and answers its questions once, and the role that questions it.
+export const EXPLORATEUR = 'explorateur';
 export const QUESTIONNEUR = 'questionneur';
 
 // A role in words.
@@ -170,18 +152,14 @@ export const quiDe = e => e.qui.map(nomDuRole).join(' ⇄ ');
 // The step <e> in words, « 2.3 Code ».
 export const libelle = e => `${e.numero} ${e.titre}`;
 
-// The step of a circuit's state (`etape`, `finale`, its stop `raison`, its questioning under way
-// `questionnement`, an object or its `objet`, the start of its survey of the components under way
-// `releve`), or null (« integre », an unknown step): the step
-// whose stop or questioning it is, else the step of its `etape`.
-export const etapeDuCircuit = ({ etape, finale, raison, questionnement, releve }) => {
+// The step of a circuit's state (`etape`, `finale`, its stop `raison`, the work on its plan under
+// way `questionnement`, an object or its `objet`), or null (« integre », an unknown step): the step
+// whose stop or work on the plan it is, else the step of its `etape`.
+export const etapeDuCircuit = ({ etape, finale, raison, questionnement }) => {
   const objet = questionnement?.objet ?? questionnement ?? null;
   return (
     SUITE.find(
-      e =>
-        (raison && e.arrets?.includes(raison)) ||
-        (objet && e.questionnement === objet) ||
-        (!raison && !objet && releve && e.releve)
+      e => (raison && e.arrets?.includes(raison)) || (objet && e.questionnement === objet)
     ) ??
     SUITE.find(
       e =>
@@ -289,10 +267,8 @@ export const MONTEES = Object.fromEntries(
     'hors-portee':
       'L’agent se dit bloqué hors de sa portée : le plan s’étend-il au composant qu’il nomme, ou un autre agent lève-t-il le reste ?',
     besoin: 'Une réponse manque pour avancer : laquelle ?',
-    'composants-manquants':
-      'Le relevé trouve des composants que le titre ne nomme pas : le plan les gagne-t-il (`--etendre`), ou restent-ils hors du titre (`npx grillhouse composants-affectes <ticket> --admettre <composant> --raison <texte>`, puis `--reprendre`) ?',
     questionnement:
-      'Le questionneur questionne le plan : le plan change-t-il (`bd update`), ou reste-t-il tel quel ? `--reprendre` le fait passer tel qu’il est alors.',
+      'Des questions du plan restent ouvertes après la réponse de l’explorateur : le plan change-t-il (`bd update`), ou reste-t-il tel quel ? `--reprendre` le fait passer tel qu’il est alors.',
     references:
       'La régénération des références change une référence ou un fichier que le plan ne nomme pas, ou ne lève pas leurs rouges : le plan les nomme-t-il, ou qui corrige le lot ?',
     'hors-plan':

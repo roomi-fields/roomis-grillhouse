@@ -2,9 +2,8 @@
 // counter of actions « [1 234 / 2 000] » and the steps of a CI: the line of a ticket whose circuit
 // runs an automatic step gives `faits/prévus · <durée>` since the last sign of its pass
 // (scripts/avancement.mjs), after the counters of its loops, or in their place when room lacks;
-// past FIGEE without a sign, `⚠ figée <durée> · faits/prévus`, in the tone of an alert. The survey
-// of the components (1.1) gives only the time since its start; the queue (5.2), the steps of its
-// CI. A measure out of a ticket that holds the lock of the machine stands at the head of AGENTS.
+// past FIGEE without a sign, `⚠ figée <durée> · faits/prévus`, in the tone of an alert. The queue
+// (5.2) gives the steps of its CI. A measure out of a ticket that holds the lock of the machine stands at the head of AGENTS.
 // Witness: Romain, 2026-10-21, a pass frozen 40 min, the machine at rest, that nothing showed.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -192,24 +191,6 @@ describe('every automatic step carries its witness', () => {
     return [...a.slice(0, i)].reverse().find(x => /^ *\d+(\.\d+)? · /.test(x.texte))?.texte;
   };
 
-  it('1.1 the survey of the components: the time since its start, frozen past FIGEE', () => {
-    const racine = depot({
-      etape: 'testwriter',
-      releve: new Date(MAINTENANT - 8 * S).toISOString(),
-    });
-    const a = agents(racine);
-    expect(sous(a)).toBe('  1.1 · Relevé des composants · auto');
-    expect(duTicket(a).alterne).toBe('▶ 12  binder 3/5 · 8 s');
-    const fige = depot({
-      etape: 'testwriter',
-      releve: new Date(MAINTENANT - 6 * MIN).toISOString(),
-    });
-    expect(duTicket(agents(fige))).toMatchObject({
-      alterne: '▶ 12  binder 3/5 · ⚠ figée 6 min',
-      ton: 'alerte',
-    });
-  });
-
   it('2.4 the checks and 3 the final pass', () => {
     const controles = agents(
       depot({ etape: 'controles', avancement: avancement([[3, 9, 2 * S]]) })
@@ -270,6 +251,6 @@ describe('a measure out of a ticket stands at the head of AGENTS', () => {
   });
 
   it('without a measure, the steps follow the title', () => {
-    expect(tete(agents(racine())).texte).toMatch(/^ *0 · Exploration/);
+    expect(tete(agents(racine())).texte).toMatch(/^ *1 · Plan/);
   });
 });

@@ -77,7 +77,7 @@ Three layers, each with one job:
 | Developer (agent)             | `developpeur`        | Makes those tests pass; touches no test nor the shared test material, writes no code before the ticket's Architecture section.         |
 | Reviewer (agent)              | `relecteur`          | Reviews the lot adversarially (edge cases, verification gaps, the frame); writes nothing.                                              |
 | Questioner (agent)            | `questionneur`       | Questions a proposal it did not write (a ticket's plan, the supervisor's), led by the frame, no set list; decides and writes nothing.  |
-| Explorer (agent)              | `explorateur`        | Runs an exploration ticket: surveys, lists the decisions, proposes small testable tickets. Writes no code.                             |
+| Explorer (agent)              | `explorateur`        | Writes a ticket's plan at step 1 and answers the questioner once; runs an exploration ticket. Writes no code.                          |
 | Measurement                   | `mesure`             | Measures without fooling itself; proves a guard bites before calling it green.                                                         |
 | Writer                        | `redacteur`          | Writes human-read documents (architecture on the arc42/C4 model, frame, interface).                                                    |
 | Release                       | `release`            | Bumps the version, updates the changelog, tags, publishes.                                                                             |
@@ -96,18 +96,16 @@ language). The supervisor answers by a command of the circuit, `--reprendre` (wi
 `--etendre <composant>` (the plan gains that component, before its first reader), or `--arreter` (its motive in `--contexte`), and carries to the
 owner what is his; a decision of the owner that changes the plan enters the ticket's description, which every agent
 reads. So the supervisor is woken only by a lot integrated or by a question no rule settles.
-The questioner (`questionneur`, at 1.2 Questionnement) reads the ticket's plan once before the first testwriter, after the
-survey of its components, as Amazon's bar raiser or a cockpit's challenge and response; its questions go to the ticket,
-and a question or a disagreement goes up to the supervisor (`questionnement`, 22), who changes the plan or keeps it, then
-`--reprendre` lets it pass. The supervisor has his own plan questioned by the same agent before he gives it to the owner.
-Before the first testwriter, the circuit surveys the components the ticket's Architecture and criteria
-reach (`packages/grillhouse/scripts/composants-affectes.mjs`: each element's provider and readers, by the names, by
-TypeScript's language service, by the paths their tests declare they read (`grillhouse.lit`) and
-by the Rend of the components' CADRE.md; a package that carries a type without reading it is no
-reader, and a symbol internal to a package has none out of it), as the explorer did for its title: a component it finds that the title misses, unless admitted out of it with its
-reason (`composants-affectes.mjs <ticket> --admettre`), stops the circuit at once, before any
-session (`composants-manquants`, 21); the supervisor extends the plan to it (`--etendre`), or admits it out of the
-title and resumes (`--reprendre`).
+Before the first testwriter, the plan (1 Plan), as an RFC: the explorer (`explorateur`) writes it after surveying the
+components the ticket reaches (`packages/grillhouse/scripts/composants-affectes.mjs`: each element's provider and readers,
+by the names, by TypeScript's language service, by the paths their tests declare they read (`grillhouse.lit`) and by the
+Rend of the components' CADRE.md; a package that carries a type without reading it is no reader, and a symbol internal
+to a package has none out of it): its sheet carries the criteria, the packages to touch and its open questions, which
+the circuit writes at the ticket, the packages as the title's components, the list every later session's envelope
+writes. The questioner (`questionneur`) reads the plan once, as Amazon's bar raiser or a cockpit's challenge and
+response; the explorer answers once, CHANGE or GARDE by question, its session resumed; what stays open goes up to the
+supervisor (`questionnement`, 22), who changes the plan or keeps it, then `--reprendre` lets it pass. The supervisor
+has his own plan questioned by the same agent before he gives it to the owner.
 Each session writes at the ticket under its role as author (`BEADS_ACTOR`, which it may not change),
 the circuit's own lines under `circuit`, the queue's under `file`, and the reviewer's verdict under
 `relecteur`, written by the circuit from the reviewer's sheet. Each session's instruction carries the ticket's
@@ -141,21 +139,21 @@ claude's own are reachable (`~/.claude`, a throwaway copy of `~/.claude.json`, i
 token), and no socket of the session, no token held in a variable (`GH_TOKEN`…). A missing piece
 of data becomes a request to the component that provides it, not a local recomputation. One
 ticket makes one delivery: a goal of unknown size starts with an exploration ticket, every ticket
-is created under its mother (numbered `320.2.1`) and every ticket stands at one step of the tree of its circuit (`packages/grillhouse/scripts/etapes.mjs`: 0 Exploration; 1 Ouverture, its sub-steps 1.1 Relevé des composants and 1.2 Questionnement; 2 Composants, for each component 2.1 Tests, 2.2 Preuve du rouge, 2.3 Code, 2.4 Contrôles; 3 Passe finale; 4 Relecture; 5 Intégration, its sub-steps 5.1 Commit and 5.2 File : main, poussée, CI), each step carrying its bounded loops (`essai 2/3`, `tour 2/3`), and a hook refuses a second commit for a closed ticket (a reopened ticket takes correction commits).
+is created under its mother (numbered `320.2.1`) and every ticket stands at one step of the tree of its circuit (`packages/grillhouse/scripts/etapes.mjs`: 1 Plan; 2 Composants, for each component 2.1 Tests, 2.2 Preuve du rouge, 2.3 Code, 2.4 Contrôles; 3 Passe finale; 4 Relecture; 5 Intégration, its sub-steps 5.1 Commit and 5.2 File : main, poussée, CI), each step carrying its bounded loops (`essai 2/3`, `tour 2/3`), and a hook refuses a second commit for a closed ticket (a reopened ticket takes correction commits).
 
 **The board** — the `grillhouse` mod (a Claude Code plugin whose source lives in `mods/grillhouse`, carried
 by the package `@roomi-fields/grillhouse`, whose root is the plugin, listed by the marketplace roomi-fields as `grillhouse@roomi-fields`,
 enabled in each project's settings) shows, measured and never declared, in the `/grillhouse` pane, three levels: the project (its work tickets by state, the
 agents' time and tokens of the day and in all, the alerts); the agents: the tree of the steps, as a pipeline
 of GitLab CI shows its stages, each step on its line « number · title · who », a step with sub-steps folded
-(`▸ 1 · Ouverture`) while none of them holds a ticket and unfolded (`▾`) once one does, its empty sub-steps
+(`▸ 2 · Composants`) while none of them holds a ticket and unfolded (`▾`) once one does, its empty sub-steps
 dimmed, an empty step dimmed, where each ticket stands on one line, once — a ticket with a circuit
 (`packages/grillhouse/scripts/circuit.mjs`, read in its state file) at the step of its state, its subject and, every other 5 s,
 its component under way with its rank among the title's (`030-binder 3/5`), the counters of its step's
 bounded loops from their second pass (`essai 2/3`, `tour 2/3`), at an automatic step the
 progress of its pass in figures, as Bazel counts its actions (`87/123 · il y a 8 s`: the test files done over
 planned, a file replayed from Turborepo's cache counted done, and the time since the last sign;
-`⚠ figée 12 min · 87/123` in red past 5 min; at 1.1 the time alone, at 5.2 the steps of the CI;
+`⚠ figée 12 min · 87/123` in red past 5 min; at 5.2 the steps of the CI;
 `packages/grillhouse/scripts/avancement.mjs`), or, stopped on a question, under its step after a line
 « ⤷ Question · superviseur » (« ⤷ Question · responsable » for a question the owner must answer), its card
 opening on that question, or on where it stopped and why, and its line ending on its ticket's

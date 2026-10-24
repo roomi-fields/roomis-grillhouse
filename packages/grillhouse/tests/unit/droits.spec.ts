@@ -364,31 +364,35 @@ describe('L2 — what a role that writes may not run', () => {
   });
 });
 
-// grillhouse-3uv.89.1 (L9): the questionneur asks and decides nothing; it writes no file and
-// nothing at the ticket, which the circuit writes from its sheet.
-describe('L9 — the questionneur reads, and writes nothing', () => {
-  it('has no tool of writing, and every write at the ticket is refused', () => {
-    const a = options('questionneur');
-    const outils = valeur(a, '--tools').split(',');
-    for (const o of ['Edit', 'Write', 'MultiEdit', 'NotebookEdit']) {
-      expect(outils, o).not.toContain(o);
+// grillhouse-3uv.89.1 (L9): the questionneur asks and decides nothing; grillhouse-3uv.95.5: the
+// explorateur writes the plan in its sheet. Neither writes a file nor anything at the ticket, which
+// the circuit writes from its sheet.
+describe('L9 — the questionneur and the explorateur read, and write nothing', () => {
+  it.each(['questionneur', 'explorateur'])(
+    '%s has no tool of writing, and every write at the ticket is refused',
+    role => {
+      const a = options(role);
+      const outils = valeur(a, '--tools').split(',');
+      for (const o of ['Edit', 'Write', 'MultiEdit', 'NotebookEdit']) {
+        expect(outils, o).not.toContain(o);
+      }
+      const { deny } = reglagesDe(a).permissions;
+      for (const c of [
+        'bd comments add demo-1 x',
+        'bd update demo-1 -d x',
+        'bd update demo-1 --title x',
+        'bd create x',
+        'bd close demo-1',
+        'npx grillhouse ticket demo-1 a b c decouverte',
+      ]) {
+        expect(
+          deny.some(r => couvre(r, c)),
+          c
+        ).toBe(true);
+      }
+      expect(reglagesDe(a).hooks).toBeUndefined();
     }
-    const { deny } = reglagesDe(a).permissions;
-    for (const c of [
-      'bd comments add demo-1 x',
-      'bd update demo-1 -d x',
-      'bd update demo-1 --title x',
-      'bd create x',
-      'bd close demo-1',
-      'npx grillhouse ticket demo-1 a b c decouverte',
-    ]) {
-      expect(
-        deny.some(r => couvre(r, c)),
-        c
-      ).toBe(true);
-    }
-    expect(reglagesDe(a).hooks).toBeUndefined();
-  });
+  );
 });
 
 describe("L2 — the context of a role's session", () => {

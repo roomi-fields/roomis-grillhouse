@@ -66,6 +66,9 @@ describe.runIf(canWrap)(
         'relecteur',
       ]);
       expect(essai(id, 'testwriter-2.paquets')).toBe('packages/forms:packages/binder');
+      // grillhouse-3uv.95.5: the plan the supervisor extends has passed, written and questioned once.
+      expect(sessions(id, 'explorateur')).toBe(1);
+      expect(sessions(id, 'questionneur')).toBe(1);
       expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
       expect(question(id)).toBeNull();
     });

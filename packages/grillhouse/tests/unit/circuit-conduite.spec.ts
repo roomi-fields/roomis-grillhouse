@@ -37,8 +37,9 @@ describe('Q2 — the wait by slices is gone, with its callers', () => {
 // grillhouse-3uv.95.4: as a CI applies its rules alone and calls a person only for what no rule
 // settles, the circuit makes the mechanical gestures and sends every other stop to the supervisor.
 describe('Q10 — the supervisor launches the circuit, which makes the gestures and sends him its questions', () => {
-  // Romain, 2026-10-21: the sub-step 1.2 is « Questionnement », in every text that names it.
-  it('the texts name the sub-step 1.2 « 1.2 Questionnement »', () => {
+  // Romain, 2026-10-21: the questioning is « Questionnement »; grillhouse-3uv.95.5: the plan is
+  // step 1, « 1 Plan », the explorateur's and the questionneur's, in every text that names it.
+  it('the texts name the step « 1 Plan »', () => {
     for (const f of [
       'mods/grillhouse/skills/pitmaster/SKILL.md',
       'mods/grillhouse/skills/questionneur/SKILL.md',
@@ -46,7 +47,8 @@ describe('Q10 — the supervisor launches the circuit, which makes the gestures 
       'docs/agents/issue-tracker.md',
     ]) {
       const texte = lire(f).replace(/\s+/g, ' ');
-      expect(texte, f).toContain('1.2 Questionnement');
+      expect(texte, f).toContain('1 Plan');
+      expect(texte, f).not.toContain('1.2 Questionnement');
       expect(texte, f).not.toContain('Questionnement du plan');
     }
   });

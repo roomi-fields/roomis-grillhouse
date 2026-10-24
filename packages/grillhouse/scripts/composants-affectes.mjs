@@ -1,21 +1,16 @@
 #!/usr/bin/env node
 // The components a realisation ticket touches, surveyed from its text, as the « affected
 // components » of a design document (an RFC of Rust, a design doc of Chromium) and the dependents
-// of a package in Turborepo (`--filter=...<paquet>`). The explorateur runs it on the draft of a
-// ticket, whose title then names these components and whose section « Architecture » says the
-// survey; the circuit (scripts/circuit.mjs) runs it again before the testwriter of the first
-// component, and stops on a component the title does not name.
+// of a package in Turborepo (`--filter=...<paquet>`). The explorateur runs it when it writes the
+// plan of a ticket (step 1 of the circuit, scripts/etapes.mjs), or on the draft of an exploration's
+// ticket: the packages of its plan name these components, the readers it changes, and its section
+// « Architecture » says the survey.
 //
 //   npx grillhouse composants-affectes <ticket>                 the ticket `bd show` gives
 //   npx grillhouse composants-affectes --description <fichier>  a draft of its description
-//   npx grillhouse composants-affectes <ticket> --admettre <composant> --raison <texte>
 //
 // prints the survey (`texteDuReleve`), from the repository root; for a ticket, then the components
-// its title misses, exit 1 when there is one. `--admettre` admits out of the title a component the
-// survey finds and the ticket does not change (the explorateur at the creation of the ticket, or
-// the supervisor): kept in the ticket's record, its reason written at the ticket
-// (`Composants · <composant> admis hors du titre : <raison>`); a component the repository does not
-// hold, or no reason, is refused, exit 2.
+// its title misses, exit 1 when there is one.
 //
 // - The text read is the ticket's section « Architecture » and its section of criteria (a `##`
 //   heading that begins with « Critères »), each up to the next `##` heading; the rest of the
@@ -54,11 +49,7 @@
 // - The components of the survey go in the title's order, the provider first: each one after
 //   every component it reads among them (its imports, the providers of the elements it reads), in
 //   the order of their names otherwise.
-// - The record of a ticket's survey, beside its copy (`.claude/worktrees/<ticket>.composants.json`
-//   under the main tree), holds the missing components of the circuit's last check and the
-//   components admitted out of the title by `--admettre`: an admitted component is no longer
-//   missing.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -401,42 +392,11 @@ function rendus(c) {
   return out;
 }
 
-// The record of a ticket's survey beside its copy (<fichier>): `{ manquants, admis, reponses }`,
-// the components the last survey found missing, those the supervisor answered for, and his
-// answers; empty without it.
-function lireGarde(fichier) {
-  try {
-    const g = JSON.parse(readFileSync(fichier, 'utf8'));
-    return { manquants: g.manquants ?? [], admis: g.admis ?? [], reponses: g.reponses ?? [] };
-  } catch {
-    return { manquants: [], admis: [], reponses: [] };
-  }
-}
-function ecrireGarde(fichier, g) {
-  mkdirSync(path.dirname(fichier), { recursive: true });
-  writeFileSync(fichier, `${JSON.stringify(g, null, 2)}\n`);
-}
-
-// The components the supervisor answered for, kept in <fichier>.
-const admis = fichier => lireGarde(fichier).admis;
-
-// Keeps in <fichier> the components <liste> the supervisor answered for, with his answer.
-export function admettre(fichier, liste, reponse) {
-  const g = lireGarde(fichier);
-  ecrireGarde(fichier, {
-    ...g,
-    manquants: g.manquants.filter(c => !liste.includes(c)),
-    admis: [...new Set([...g.admis, ...liste])],
-    reponses: [...g.reponses, { date: new Date().toISOString(), composants: liste, reponse }],
-  });
-}
-
 // The components of the survey <r> the title <titre> does not name (its components as written,
-// package names or paths, or `.`), nor the answers kept in <fichier>, in the survey's order.
-export function manquants(racine, r, titre, fichier = null) {
+// package names or paths, or `.`), in the survey's order.
+export function manquants(racine, r, titre) {
   if (titre.includes('.')) return [];
   const tous = lesComposants(racine);
-  const garde = new Set(fichier ? admis(fichier) : []);
   const couvre = c => {
     const rel = path.relative(racine, c.dir).split(path.sep).join('/');
     return titre.some(t => {
@@ -445,29 +405,9 @@ export function manquants(racine, r, titre, fichier = null) {
     });
   };
   return r.composants.filter(nom => {
-    if (garde.has(nom)) return false;
     const c = tous.find(x => nomAuTitre(racine, x) === nom);
     return !c || !couvre(c);
   });
-}
-
-// The check of the circuit before the testwriter of the first component: the survey of
-// <description> in <racine> against the title's components <titre>, the missing ones kept in
-// <fichier>. `{ manquants, rapport, releve }`, the report opening on the missing components (null
-// without one), the survey as the section « Architecture » says it, which the questionneur reads.
-export function verifierLeTitre({ racine, ticket, description, titre, fichier }) {
-  const r = releve(racine, description);
-  const liste = manquants(racine, r, titre, fichier);
-  ecrireGarde(fichier, { ...lireGarde(fichier), manquants: liste });
-  if (!liste.length) return { manquants: [], rapport: null, releve: texteDuReleve(r) };
-  const rapport = [
-    `Composants manquants au titre : ${liste.join(', ')}.`,
-    '',
-    texteDuReleve(r),
-    '',
-    `Le superviseur étend le plan à chacun (\`npx grillhouse circuit ${ticket} --etendre <composant>\`), ou l'admet hors du titre (\`npx grillhouse composants-affectes ${ticket} --admettre <composant> --raison "<texte>"\`), puis \`--reprendre\`.`,
-  ].join('\n');
-  return { manquants: liste, rapport, releve: texteDuReleve(r) };
 }
 
 // The survey <r> as the section « Architecture » says it, in Markdown.
@@ -524,34 +464,6 @@ export function texteDuReleve(r) {
   return out.join('\n');
 }
 
-// The admission of <nom> out of the title of <ticket>, its reason after `--raison` in <args>: its
-// exit code.
-function admettreAuTicket(racine, ticket, nom, args) {
-  const r = args.indexOf('--raison');
-  const raison = r >= 0 ? args[r + 1]?.trim() : '';
-  const c = lesComposants(racine).find(
-    x => x.paquet === nom || path.relative(racine, x.dir) === path.normalize(nom ?? '')
-  );
-  if (!c || !raison) {
-    process.stderr.write(
-      `⛔ ${!c ? `${nom ?? '(aucun)'} : aucun composant de ce nom` : '--raison manque'}.\n` +
-        'usage: npx grillhouse composants-affectes <ticket> --admettre <composant> --raison <texte>\n'
-    );
-    return 2;
-  }
-  const titre = nomAuTitre(racine, c);
-  admettre(path.join(racine, '.claude', 'worktrees', `${ticket}.composants.json`), [titre], raison);
-  const texte = `Composants · ${titre} admis hors du titre : ${raison}`;
-  const bd = spawnSync('bd', ['comments', 'add', ticket, texte], {
-    cwd: racine,
-    encoding: 'utf8',
-    maxBuffer: 256 * 1024 * 1024,
-  });
-  if (bd.status !== 0) process.stderr.write(`⚠️  ligne non écrite au ticket : ${bd.stderr}\n`);
-  process.stdout.write(`${texte}\n`);
-  return 0;
-}
-
 // The command: its exit code.
 function commande(racine, args) {
   const i = args.indexOf('--description');
@@ -565,8 +477,6 @@ function commande(racine, args) {
     return 0;
   }
   const [ticket] = args;
-  const a = args.indexOf('--admettre');
-  if (ticket && a >= 0) return admettreAuTicket(racine, ticket, args[a + 1], args);
   if (!ticket) {
     process.stderr.write(
       'usage: npx grillhouse composants-affectes <ticket> | --description <fichier>\n'

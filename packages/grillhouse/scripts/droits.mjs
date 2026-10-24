@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // The rights and the context of each role session the circuit launches, from one source (ROLES):
 // the testwriter and the developpeur in the envelope of their plan (scripts/enveloppe/lancer.sh),
-// the reviewer and the questionneur out of it (scripts/circuit.mjs). As a task of CI receives its
+// the explorateur, the questionneur and the reviewer out of it (scripts/circuit.mjs). As a task of CI receives its
 // rights from its steps and runs on an image of its own, not on the workstation of its author
 // (GitHub Actions `permissions:` per job, the hermetic actions of Bazel), a session receives the
 // rights the commands of its skill name, and the context its work reads.
@@ -18,7 +18,8 @@
 //   change): its permissions (`allow`, the commands its skill names; `deny`, the change of its
 //   author at the ticket, AUTEUR_FIXE, for a role that writes the editing by script, the test
 //   tool run directly and the reading again of the ticket its instruction carries, and for a role
-//   that writes nothing at the ticket, the questionneur, every write of bd, ECRIRE_AU_TICKET); the
+//   that writes nothing at the ticket, the explorateur and the questionneur, every write of bd,
+//   ECRIRE_AU_TICKET); the
 //   automatic memory off; the skills of Claude Code off (`disableBundledSkills`, and the few it keeps,
 //   INTEGREES), and the project's own skills (`.claude/skills/` of the copy) off
 //   (`skillOverrides`); every plugin the project enables off (`enabledPlugins`: their skills,
@@ -114,6 +115,20 @@ const ECRIRE = ['Edit', 'Write'];
 // `ecritAuTicket` is false), whether it uses the index, and the commands its skill names (the
 // frame's plugin, `mods/grillhouse/skills/<rôle>/`), as permission rules.
 export const ROLES = {
+  // It writes no file and nothing at the ticket: it surveys the components and reads the code by
+  // the index, and ends on the plan in its sheet, which the circuit writes at the ticket.
+  explorateur: {
+    index: true,
+    ecritAuTicket: false,
+    commandes: [
+      'Bash(bd show *)',
+      'Bash(bd comments *)',
+      'Bash(npx grillhouse composants-affectes *)',
+      'Bash(codegraph explore *)',
+      'mcp__codegraph__codegraph_explore',
+      'mcp__rtfm__rtfm_search',
+    ],
+  },
   testwriter: {
     ecrit: true,
     commandes: [

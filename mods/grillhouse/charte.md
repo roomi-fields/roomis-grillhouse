@@ -29,7 +29,9 @@ professionnel.
    le correctif va dans ce mécanisme. Ainsi tout correctif passe par l'architecture.
 3. Une décision reste à prendre : `mattpocock-skills:grilling` avant d'écrire, ses questions dans
    le ticket. Ainsi la décision est prise et écrite avant le code.
-4. Le plan va dans le ticket (`bd update <id> -d`). Un travail qui change un comportement est un
+4. Le plan va dans le ticket : dans le circuit, l'explorateur l'écrit (ses critères, les paquets à
+   toucher, ses questions ouvertes), le questionneur le lit une fois, l'explorateur répond une
+   fois, et ce qui reste ouvert monte au superviseur. Un travail qui change un comportement est un
    seul ticket : les tests d'abord (agent `testwriter`), puis le code qui les rend verts (agent
    `developpeur`). Ainsi le code se mesure à des tests qu'il n'a pas écrits. Un critère répond à
    un besoin réel de l'usage actuel. Ainsi le ticket garde la taille du besoin.

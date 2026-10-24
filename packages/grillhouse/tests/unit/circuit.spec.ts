@@ -40,7 +40,6 @@ describe('the stops of the circuit and their codes', () => {
       'a-repasser',
       'hors-portee',
       'besoin',
-      'composants-manquants',
       'questionnement',
       'references',
       'hors-plan',
@@ -57,7 +56,7 @@ describe('the stops of the circuit and their codes', () => {
     // The stops on a status line: a BLOQUÉ without a recipient, a BESOIN.
     expect(ARRETS['hors-portee']).toBe(19);
     expect(ARRETS.besoin).toBe(20);
-    // grillhouse-3uv.89.1: the questioning of the plan that does not converge.
+    // grillhouse-3uv.95.5: questions of the plan left open after the explorateur's answer.
     expect(ARRETS.questionnement).toBe(22);
     // grillhouse-3uv.92.1: a reference regenerated that the plan does not name.
     expect(ARRETS.references).toBe(23);

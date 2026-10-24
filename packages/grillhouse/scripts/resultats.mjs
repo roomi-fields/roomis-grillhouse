@@ -5,8 +5,8 @@
 //
 //   npx grillhouse resultats --schema <rôle>      prints the JSON schema of a role's sheet
 //
-// - The sheet of the end of a session (« la fiche ») of the testwriter, the developpeur, the reviewer
-//   and the questionneur: the schema of each role (FICHES), which the session receives
+// - The sheet of the end of a session (« la fiche ») of the explorateur, the questionneur, the
+//   testwriter, the developpeur and the reviewer: the schema of each role (FICHES), which the session receives
 //   (`claude -p --output-format json --json-schema <schéma>`) and fills as its last act; claude
 //   writes it in the field `structured_output` of its result (Claude Code, « headless »). A field
 //   exists only when a reader reads it:
@@ -31,12 +31,21 @@
 //     the verdict, for the human (reviewer);
 //   - `question` (reviewer): what goes up to the owner, a real word of the language written in the
 //     code; the circuit stops at « besoin » before it commits or relaunches anyone;
+//   - `criteres`, `paquets`, `questions` (each with its `piece`): the plan, which the circuit
+//     writes at the ticket: the criteria it adds after those the ticket holds, which the circuit
+//     keeps as they are; the packages in the title as it names its components (a package name or a
+//     path), the list the envelope of every later session writes; the open questions, a change or
+//     a removal of a criterion written among them, go up to the supervisor (explorateur);
+//   - `reponses` (`numero` of the question, `reponse` CHANGE or GARDE, `texte`): the explorateur's
+//     one answer to the questionneur, which the circuit writes at the ticket; a question without
+//     an answer stays open (explorateur);
 //   - `issue` (QUESTIONS with its `questions`, each with what it aims at, `vise`; AUCUNE; DÉSACCORD
-//     with its `desaccord`): the circuit lets the plan pass, or sends the questions or the
-//     disagreement up to the supervisor, and writes them at the ticket (questionneur).
+//     with its `desaccord`): the explorateur answers the questions, the disagreement as one, and
+//     the circuit writes them at the ticket (questionneur).
 //   `lireFiche` reads a session's output: the sheet and the session's id, or the error that
 //   names what lacks or does not conform (no `structured_output`, a field out of the schema, a
-//   status without its reason, a blocking finding without its criterion or rule).
+//   status without its reason, a blocking finding without its criterion or rule, a plan without
+//   packages).
 // - The findings of a guard, in SARIF 2.1.0 (OASIS), beside its output for the human: one run per
 //   guard, `tool.driver.name` the guard; each finding a result, `ruleId` the guard, `level`
 //   (error by default), `message.text`, its file and line as its location when it has them, and its
@@ -116,6 +125,41 @@ const ECARTS = {
 
 // The schema of the sheet of each role the circuit leads.
 const FICHES = {
+  explorateur: objet(
+    {
+      criteres: liste(
+        texte('Un critère, sans son numéro : un comportement que ses tests mesurent.'),
+        'Les critères que le plan ajoute, dans leur ordre ; le circuit garde tels quels ceux que le ticket porte et écrit les tiens après eux. Changer ou retirer un critère écrit est une question ouverte.'
+      ),
+      paquets: liste(
+        texte('Un paquet, comme le titre le nomme : le nom de son paquet, ou son chemin.'),
+        'Les paquets à toucher, le fournisseur d’abord ; le circuit les écrit au titre, et chaque séance n’écrit qu’eux.'
+      ),
+      questions: liste(
+        objet(
+          {
+            question: texte('La question qui reste ouverte, ses options et ta recommandation.'),
+            piece: texte('Sa pièce : fichier:ligne, ou la commande et sa sortie.'),
+          },
+          ['question', 'piece']
+        ),
+        'Les questions ouvertes du plan, que tu ne tranches pas ; elles montent au superviseur.'
+      ),
+      reponses: liste(
+        objet(
+          {
+            numero: texte('Le numéro de la question, « 1 ».'),
+            reponse: { type: 'string', enum: ['CHANGE', 'GARDE'] },
+            texte: texte('CHANGE : ce que le plan devient ; GARDE : pourquoi il reste tel quel.'),
+          },
+          ['numero', 'reponse', 'texte']
+        ),
+        'Ta réponse, une fois, à chaque question du questionneur.'
+      ),
+      ...DECOUVERTES,
+    },
+    ['criteres', 'paquets', 'questions']
+  ),
   testwriter: objet(
     {
       ...STATUT,
@@ -248,8 +292,8 @@ function erreurs(schema, valeur, ou) {
 }
 
 // What a sheet of <role> needs beyond its schema: the reason of a BLOQUÉ, the question of a
-// BESOIN, the questions of a QUESTIONS, the text of a DÉSACCORD, the criterion or rule of a
-// blocking finding, and a reviewer's verdict that follows its findings (RENDU with a blocking one,
+// BESOIN, the packages of a plan and the number of each answer, the questions of a QUESTIONS, the text of a
+// DÉSACCORD, the criterion or rule of a blocking finding, and a reviewer's verdict that follows its findings (RENDU with a blocking one,
 // ACCEPTÉ without).
 function manques(role, f) {
   const out = [];
@@ -269,6 +313,14 @@ function manques(role, f) {
     }
     if (f.verdict === 'ACCEPTÉ' && bloque) {
       out.push('verdict : ACCEPTÉ avec un constat bloquant, qui rend le lot');
+    }
+  }
+  if (role === 'explorateur') {
+    if (!(f.paquets ?? []).length) out.push('paquets : manque, pour un plan');
+    for (const [i, r] of (f.reponses ?? []).entries()) {
+      if (!/^[1-9]\d*$/.test(r.numero)) {
+        out.push(`reponses[${i}].numero : « ${r.numero} » n'est pas le numéro d'une question`);
+      }
     }
   }
   if (role === 'questionneur' && f.issue === 'QUESTIONS' && !(f.questions ?? []).length) {

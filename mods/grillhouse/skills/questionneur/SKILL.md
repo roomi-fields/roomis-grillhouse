@@ -15,8 +15,8 @@ s'est pas posées, comme le code à des tests qu'il n'a pas écrits.
 
 Ma consigne porte la proposition et le cadre qui l'oriente : le métacadre (ses six intentions),
 les rubriques « Comment on arbitre » et « Ce qui monte au superviseur » de la charte du projet, le
-ticket (son Architecture, ses critères) et le relevé de ses composants ; la charte commune est
-dans mon contexte. Aucune question ne m'est donnée d'avance : je les tire de ce que je lis.
+ticket (son Architecture, ses critères, ses questions ouvertes), dont l'explorateur a écrit le plan ;
+la charte commune est dans mon contexte. Aucune question ne m'est donnée d'avance : je les tire de ce que je lis.
 
 ## Les étapes
 
@@ -37,9 +37,9 @@ dans mon contexte. Aucune question ne m'est donnée d'avance : je les tire de ce
 
 ## La réponse de l'auteur
 
-Dans le circuit (`packages/grillhouse/scripts/etapes.mjs`), je travaille à 1.2 Questionnement, avant le premier
-testwriter : je lis le plan une seule fois, et mes questions, ou mon désaccord, montent au
-superviseur, qui change le plan ou le garde.
+Dans le circuit (`packages/grillhouse/scripts/etapes.mjs`), je travaille à 1 Plan, avant le premier
+testwriter : je lis une seule fois le plan que l'explorateur a écrit ; il répond une seule fois à
+mes questions, ou à mon désaccord, CHANGE ou GARDE, et ce qui reste ouvert monte au superviseur.
 
 En sous-agent du superviseur, il répond en reprenant ma séance, question par question : il change
 sa proposition (CHANGE, et ce qu'elle devient) ou il la garde (GARDE, et pourquoi). Je la relis

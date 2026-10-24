@@ -21,9 +21,9 @@
 // - Circuits: one entry per open ticket whose circuit (scripts/circuit.mjs) runs or stopped, read
 //   in its state `.claude/worktrees/<ticket>.circuit.json`: it runs while the process
 //   `npx grillhouse circuit <ticket>` runs, and stands at the step of its state, with its
-//   component, its rank among the title's components and its attempt; while the questionneur
-//   questions its plan (its state names the questioning, `questionnement`, of the plan), it stands
-//   at the questioning of the plan; stopped on a question for the supervisor (its state names it,
+//   component, its rank among the title's components and its attempt; while the explorateur or
+//   the questionneur works on its plan (its state names that work, `questionnement`, of the
+//   plan), it stands at the plan (1); stopped on a question for the supervisor (its state names it,
 //   `question`), it stands under the stopped step after a line « ⤷ Question · <qui> », who must
 //   answer it, the supervisor or the owner; its card opens on that question, or on the stop (its
 //   name and code) and the first line of its reason. A ticket with a circuit waits in no block.
@@ -60,9 +60,9 @@
 //   its pass, read in the progress directory its state names (scripts/avancement.mjs), in
 //   figures, as Bazel's counter of actions: « faits/prévus · <durée> » since the start of the
 //   pass, after the counters of its loops, or in their place when room lacks (the subject or the
-//   component is cut, never the figures); the survey of the components (1.1), the time since its
-//   start; the queue (5.2), the steps of its CI. Past FIGEE without a sign,
-//   « ⚠ figée <durée> · faits/prévus », the time since its last sign, in the tone of an alert.
+//   component is cut, never the figures); the queue (5.2), the steps of its CI. Past FIGEE
+//   without a sign, « ⚠ figée <durée> · faits/prévus », the time since its last sign, in the
+//   tone of an alert.
 //   A measure out of a ticket that holds the lock of the machine (a supervisor's or an
 //   integration's `npm run verifier`) stands at the head of AGENTS:
 //   « ⏳ Mesure · <dépôt> · faits/prévus · <durée> », since its start,
@@ -559,14 +559,13 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
 // The circuits of the repository at <racine>: each state `.claude/worktrees/<ticket>.circuit.json`
 // scripts/circuit.mjs writes, but those at « integre », with `vivant` when `ps` (`pid etimes args`
 // per line) shows its process, `grillhouse circuit <ticket>` (the command the supervisor
-// launches, `npx grillhouse circuit <ticket>`), `questionnement` the object of the questioning
+// launches, `npx grillhouse circuit <ticket>`), `questionnement` the object of the work on the plan
 // under way (`plan`), null without one, `question` the whole question of a circuit ended on one
 // and `qui` who must answer it (`superviseur` or `responsable`), null without one,
 // the counters of its bounded loops (`boucles`, by their key), and the rank of its component among the title's (`rang`, from 1) and their number (`total`),
 // the progress of the automatic pass under way (`avancement`, read in the directory its state
-// names, scripts/avancement.mjs: `{ faits, prevus, dernier }`, null without one) and the start of
-// the survey of the components under way (`releve`, ms, null without one). A state that does not
-// parse is left out.
+// names, scripts/avancement.mjs: `{ faits, prevus, dernier }`, null without one). A state that
+// does not parse is left out.
 export function lireCircuits({ racine, prefix, ps }) {
   const dossier = path.join(racine, '.claude', 'worktrees');
   const motif = new RegExp(`grillhouse circuit (${prefix}-[A-Za-z0-9]+(?:\\.[0-9]+)*)(?:\\s|$)`);
@@ -608,10 +607,6 @@ export function lireCircuits({ racine, prefix, ps }) {
         typeof e.mene === 'string' && !Number.isNaN(Date.parse(e.mene)) ? Date.parse(e.mene) : null,
       avancement:
         typeof e.avancement?.dossier === 'string' ? lireAvancement(e.avancement.dossier) : null,
-      releve:
-        typeof e.releve === 'string' && !Number.isNaN(Date.parse(e.releve))
-          ? Date.parse(e.releve)
-          : null,
       vivant: enVie.has(ticket),
     });
   }
@@ -1099,12 +1094,11 @@ const jourEtMois = t => {
 // A time since a sign, « 8 s » under a minute, else as `duree`.
 const ilYa = ms => (ms < MINUTE ? `${Math.max(0, Math.round(ms / 1000))} s` : duree(ms));
 
-// The witness of the automatic step <etape> of the running circuit <c> at <maintenant>: the
-// progress of its pass (` · faits/prévus · <durée>`, the figures once a task wrote, the time since
-// the start of the pass, as Bazel's counter), or the time since the start of its survey of the
-// components (1.1); past FIGEE without a sign, ` · ⚠ figée <durée> · faits/prévus`, the time since
-// the last sign, `fige`. Null without either.
-function temoinDe(c, etape, maintenant) {
+// The witness of the automatic step of the running circuit <c> at <maintenant>: the progress of
+// its pass (` · faits/prévus · <durée>`, the figures once a task wrote, the time since the start
+// of the pass, as Bazel's counter); past FIGEE without a sign, ` · ⚠ figée <durée> ·
+// faits/prévus`, the time since the last sign, `fige`. Null without a progress.
+function temoinDe(c, maintenant) {
   let age;
   let ecoule;
   let compte = '';
@@ -1115,9 +1109,6 @@ function temoinDe(c, etape, maintenant) {
     if (faits || prevus) {
       compte = `${faits}/${prevus}`;
     }
-  } else if (etape.releve && c.releve !== null && c.releve !== undefined) {
-    age = maintenant - c.releve;
-    ecoule = age;
   } else {
     return null;
   }
@@ -1235,11 +1226,11 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   }
   // The tree of the steps (scripts/etapes.mjs), in its order, as a pipeline of GitLab CI shows its
   // stages and folds the jobs of a stage that has nothing: a step with sub-steps is folded
-  // (« ▸ 1 · Ouverture ») while none of them holds a ticket, unfolded (« ▾ ») once one does, all
+  // (« ▸ 2 · Composants ») while none of them holds a ticket, unfolded (« ▾ ») once one does, all
   // its sub-steps then shown, indented, the empty ones in the discreet tone; a step without
   // sub-steps stands on one line « number · title · who », discreet when empty, a title with its
   // tickets under it. A circuit's ticket stands on one line, at the step of its state, and nowhere
-  // else in AGENTS: the questioning of the plan at its step; stopped on a question for the
+  // else in AGENTS: the work on the plan at its step; stopped on a question for the
   // supervisor (its state's `question`), under its step after a line « ⤷ Question · <qui> », who
   // must answer it, the supervisor or the owner, which unfolds the step, its counters those of its
   // step; a stopped circuit at no step of the list stands under that line after the steps. A
@@ -1292,7 +1283,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     const composant = c.composant
       ? `${c.composant === '.' ? '.' : path.basename(c.composant)}${c.total > 1 ? ` ${c.rang}/${c.total}` : ''}`
       : null;
-    const temoin = c.vivant && etape?.qui.includes(AUTO) ? temoinDe(c, etape, maintenant) : null;
+    const temoin = c.vivant && etape?.qui.includes(AUTO) ? temoinDe(c, maintenant) : null;
     // The progress after the counters of the loops while the component (else the subject) keeps
     // its room beside them, in their place otherwise.
     const quoiCourt = composant ?? c.sujet;

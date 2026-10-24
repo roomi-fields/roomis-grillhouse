@@ -20,7 +20,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   ou de commiter.
 - `references/consigne-agent.md` — les gabarits des consignes : le circuit du ticket
   (`packages/grillhouse/scripts/circuit.mjs`) remplit celle du testwriter et du développeur, celle du relecteur, celles
-  des reprises, et celle du questionneur.
+  des reprises, celle du questionneur et les deux de l'explorateur.
 - `docs/agents/issue-tracker.md` — le format des tickets : avant d'en ouvrir un.
 - `pitmaster/SUIVI.md` — le dernier tour, les agents lancés, les questions en attente : au
   lancement de la séance.
@@ -72,8 +72,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 - **Je lance le circuit d'un ticket** : un ticket tranché part au circuit,
   `npx grillhouse circuit <ticket>`, que je lance une fois, en arrière-plan
   (`run_in_background`) ; sa fin me réveille. Le circuit mène l'arbre de ses étapes
-  (`packages/grillhouse/scripts/etapes.mjs`) : 1 Ouverture (1.1 le relevé des composants, 1.2 le questionnement du
-  plan, le questionneur, qui le lit une seule fois), 2 Composants (2.1
+  (`packages/grillhouse/scripts/etapes.mjs`) : 1 Plan (l'explorateur écrit le plan, le questionneur le lit une seule
+  fois, l'explorateur répond une fois), 2 Composants (2.1
   testwriter, 2.2 preuve du rouge, 2.3 développeur, 2.4 contrôles, pour chaque composant), 3 la passe
   finale (3.1 la régénération des références que le projet déclare, `grillhouse.references` de son
   `package.json`, chacune `{ nom, commande, fichiers, tests, gardes }`, ses fichiers en chemins,
@@ -115,16 +115,14 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   réponds par une commande du circuit, en arrière-plan : `--reprendre`, avec `--contexte` quand
   l'agent repris doit savoir ce que j'ai tranché, ou `--depuis <testwriter|developpeur>
   <composant> --contexte` ; `--etendre <composant>` quand le plan doit gagner un composant (un
-  `hors-plan`, un rouge hors du titre, un composant que le relevé trouve), que le circuit met au
+  `hors-plan`, un rouge hors du titre), que le circuit met au
   titre avant son premier lecteur, puis rejoue depuis son testwriter ; `--arreter`, son motif en `--contexte`, quand le ticket
   doit changer avant tout travail. Une décision du responsable qui change le plan entre dans la
   description du ticket (`bd update <ticket> -d`), que tous les agents lisent, avant que je
-  reprenne. 21 (`composants-manquants`) : le relevé trouve un composant que le titre ne nomme
-  pas ; j'étends le plan (`--etendre`), ou je l'admets hors du titre,
-  `npx grillhouse composants-affectes <ticket> --admettre <composant> --raison "<raison>"`, puis
-  `--reprendre`. 22 (`questionnement`) : le questionneur questionne le plan, ses questions au
-  ticket ; je change le plan (`bd update <ticket>`) ou je le garde, puis `--reprendre` le fait
-  passer tel qu'il est alors ; ce qui revient au responsable lui monte d'abord. J'arrête tout
+  reprenne. 22 (`questionnement`) : des questions du plan restent ouvertes après la réponse de
+  l'explorateur, au ticket avec leur pièce ; je change le plan (`bd update <ticket>`) ou je le
+  garde, puis `--reprendre` le fait passer tel qu'il est alors ; ce qui revient au responsable lui
+  monte d'abord. J'arrête tout
   agent que j'ai lancé moi-même dès son rapport lu (`TaskStop`). Ainsi ma séance ne porte pas le
   détail des tickets, et elle reste courte.
 - **Un ticket débloqué repart de son état** : l'état du travail est dans l'état du circuit, au
@@ -133,6 +131,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 - **L'exploration avant la réalisation** : un objectif dont le découpage n'est pas connu ouvre un
   ticket d'exploration, sans code, mené par l'agent explorateur (`subagent_type: explorateur`). Il
   se ferme sur les décisions et les tickets de réalisation proposés, que le responsable valide.
+  L'explorateur n'écrit rien au ticket : je consigne au ticket les tickets qu'il propose, fermés
+  sous le ticket d'exploration, et sa passation.
   Ainsi chaque réalisation part petite et testable.
 - **Un ticket, une livraison** : je lis le plan de chaque agent au ticket avant son code ; un plan
   qui annonce plusieurs livraisons s'arrête là. Un ticket qui s'est révélé trop gros fait entrer sa
@@ -197,9 +197,10 @@ séance le dit au responsable et ne lance aucun circuit. Les rôles sont des age
 cadre (ses `agents/`, leurs compétences dans ses `skills/`), chacun sous ses verrous et les droits que nomment les commandes de sa
 compétence, sans la configuration propre de l'utilisateur (`packages/grillhouse/scripts/droits.mjs`). Un ticket
 parcourt l'arbre de son circuit, les étapes « auto » comprises (`packages/grillhouse/scripts/etapes.mjs`, la seule
-liste), comme un pipeline de GitLab CI ses étapes et leurs travaux : 0 Exploration,
-l'`explorateur` ; 1 Ouverture : 1.1 Relevé des composants, auto, puis 1.2 Questionnement,
-le `questionneur`, qui lit le plan une seule fois ;
+liste), comme un pipeline de GitLab CI ses étapes et leurs travaux : 1 Plan : l'`explorateur` écrit le plan
+(ses critères, les paquets à toucher, ses questions ouvertes, que le circuit écrit au ticket), le
+`questionneur` le lit une seule fois, l'explorateur répond une fois, CHANGE ou GARDE par question,
+et ce qui reste ouvert me monte ;
 2 Composants, pour chaque composant du titre dans son ordre : 2.1 Tests, le `testwriter`, 2.2 Preuve
 du rouge, auto, trois essais au plus, puis 2.3 Code, le `developpeur`, 2.4 Contrôles, auto, trois
 essais au plus ; 3 Passe finale, auto, puis 3.1 Régénération des références, auto, pour un projet
@@ -234,9 +235,9 @@ de réalisation fait une seule livraison, en un seul commit ; tout ticket se cr�
 
 **Un ticket de réalisation nomme ses composants** : sa section « Architecture » et son titre
 (« numéro — sujet — composant, composant ») les nomment, le fournisseur d'abord, puis ses lecteurs.
-Le relevé des composants (`packages/grillhouse/scripts/composants-affectes.mjs`) les trouve à la création du ticket, et
-le circuit le refait avant le premier testwriter : un composant relevé que le titre ne nomme pas
-l'arrête d'emblée. Dans la copie du ticket, le circuit (`packages/grillhouse/scripts/circuit.mjs`), que lance le superviseur, lance un
+L'explorateur les trouve par le relevé des composants
+(`packages/grillhouse/scripts/composants-affectes.mjs`) quand il écrit le plan, à l'étape 1 : ses paquets à toucher
+deviennent les composants du titre, que le circuit écrit. Dans la copie du ticket, le circuit (`packages/grillhouse/scripts/circuit.mjs`), que lance le superviseur, lance un
 agent par composant, chacun enveloppé dans son paquet, dans cet ordre, puis le relecteur, qui relit
 l'ensemble. Ainsi un type change avec ses
 lecteurs, comme dans une demande de fusion de rustc, et chaque agent écrit dans son seul paquet.

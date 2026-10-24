@@ -529,7 +529,9 @@ describe('the wait for the supervisor and the sessions the circuit launches', ()
 });
 
 describe('what the bilan reads of the register', () => {
-  it('reads the latest line of each agent, the lines of the ticket only, out of the explorations before the circuit', () => {
+  // grillhouse-3uv.95.5: the explorateur is a role of the circuit, at its plan; one the supervisor
+  // launched on the ticket before the circuit counts apart, as any session the circuit did not launch.
+  it('reads the latest line of each agent, the lines of the ticket only, an exploration the supervisor launched apart', () => {
     const lignes = [
       seance('explorateur', 'x1', [[-60, -30]], { cout: 3 }),
       seance('testwriter', 't1', [[0, 4]], { jetons: 100, cout: 0.5 }),
@@ -559,15 +561,16 @@ describe('what the bilan reads of the register', () => {
       arret(11, 1, 'packages/a', 'developpeur', 'sans-livraison'),
       arret(11, 2, 'packages/a', 'controles', 'a-repasser', { finale: true }),
     ];
-    const b = calculer(lignes, entrees, {
-      etape: 'controles',
-      raison: 'a-repasser',
-      code: 75,
-    });
+    const b = calculer(
+      lignes,
+      entrees,
+      { etape: 'controles', raison: 'a-repasser', code: 75 },
+      { superviseur: ['x1'] }
+    );
     expect(b.seances).toEqual({
       total: 2,
       parRole: { testwriter: 1, developpeur: 1 },
-      horsCircuit: { total: 0, parRole: {}, cout: 0 },
+      horsCircuit: { total: 1, parRole: { explorateur: 1 }, cout: 3 },
     });
     expect(b.jetons).toBe(350);
     expect(b.cout).toBeCloseTo(1.5);

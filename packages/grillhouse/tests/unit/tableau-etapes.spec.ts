@@ -3,8 +3,7 @@
 // and folds the jobs of a stage that has nothing. The maquette the owner validated (2026-10-21):
 //
 //   AGENTS  ▶ en cours · en attente
-//   0 · Exploration · explorateur
-//   ▸ 1 · Ouverture
+//   1 · Plan · explorateur ⇄ questionneur
 //   ▾ 2 · Composants
 //     2.1 · Tests · testwriter
 //     2.2 · Preuve du rouge · auto
@@ -19,13 +18,12 @@
 //   4 · Relecture · relecteur
 //   ▸ 5 · Intégration
 //
-// A stop of the opening, a question for the supervisor (the owner, 2026-10-21; grillhouse-3uv.95.4):
+// A stop of the plan, a question for the supervisor (the owner, 2026-10-21; grillhouse-3uv.95.4;
+// the plan one step, the explorateur's and the questionneur's, grillhouse-3uv.95.5):
 //
-//   ▾ 1 · Ouverture
-//     1.1 · Relevé des composants · auto
+//   1 · Plan · explorateur ⇄ questionneur
 //     ⤷ Question · superviseur
 //   ■ 322    Le parser garde…
-//     1.2 · Questionnement · questionneur
 //
 // - Every step stands in its order. A step with sub-steps is folded (▸) while none of them holds
 //   a ticket, unfolded (▾) once one does, all its sub-steps then shown, the empty ones in the
@@ -173,8 +171,7 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
     expect(agents(plateau([])).map(x => [x.texte.trimEnd(), x.ton])).toEqual([
       ['AGENTS  ▶ en cours · en attente', 'titre'],
       ...[
-        '  0 · Exploration · explorateur',
-        '▸ 1 · Ouverture',
+        '  1 · Plan · explorateur ⇄ questionneur',
         '▸ 2 · Composants',
         '  3 · Passe finale · auto',
         '  4 · Relecture · relecteur',
@@ -185,10 +182,7 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
 
   it('the data holds a block per step and sub-step, in the order of the list', () => {
     expect(plateau([]).agents.map(b => [b.numero, b.titre, b.qui])).toEqual([
-      ['0', 'Exploration', 'explorateur'],
-      ['1', 'Ouverture', ''],
-      ['1.1', 'Relevé des composants', 'auto'],
-      ['1.2', 'Questionnement', 'questionneur'],
+      ['1', 'Plan', 'explorateur ⇄ questionneur'],
       ['2', 'Composants', ''],
       ['2.1', 'Tests', 'testwriter'],
       ['2.2', 'Preuve du rouge', 'auto'],
@@ -207,8 +201,7 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
     const t = plateau([T('demo-33')], { circuits: [circuit('demo-33')] });
     expect(agents(t).map(x => [x.texte.trimEnd().replace(/^▶ .*/, '▶'), x.ton])).toEqual([
       ['AGENTS  ▶ en cours · en attente', 'titre'],
-      ['  0 · Exploration · explorateur', 'discret'],
-      ['▸ 1 · Ouverture', 'discret'],
+      ['  1 · Plan · explorateur ⇄ questionneur', 'discret'],
       ['▾ 2 · Composants', 'titre'],
       ['  2.1 · Tests · testwriter', 'discret'],
       ['  2.2 · Preuve du rouge · auto', 'discret'],
@@ -221,26 +214,25 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
     ]);
   });
 
-  it('an explorer running on a ticket stands under « 0 · Exploration · explorateur », a title', () => {
+  it('an explorer running on a ticket stands under « 1 · Plan · explorateur ⇄ questionneur », a title', () => {
     const t = plateau([T('demo-30')], { vivants: [vivant('e1', 'demo-30', 'explorateur')] });
     expect(textes(t).slice(0, 4)).toEqual([
       'AGENTS  ▶ en cours · en attente',
-      '  0 · Exploration · explorateur',
+      '  1 · Plan · explorateur ⇄ questionneur',
       expect.stringMatching(/^▶ 30 {2}Le sujet de demo-30 +20 min · 40$/),
-      '▸ 1 · Ouverture',
+      '▸ 2 · Composants',
     ]);
     expect(agents(t)[1]).toMatchObject({ ton: 'titre' });
   });
 
-  it('a questionneur on a ticket stands at 1.2, which unfolds the opening, its line whole in the width', () => {
+  it('a questionneur on a ticket stands at the plan too, its line whole in the width', () => {
     const t = plateau([T('demo-31')], { vivants: [vivant('a1', 'demo-31', 'questionneur')] });
     const a = agents(t);
-    expect(a.slice(2, 5).map(x => [x.texte.trimEnd(), x.ton])).toEqual([
-      ['▾ 1 · Ouverture', 'titre'],
-      ['  1.1 · Relevé des composants · auto', 'discret'],
-      ['  1.2 · Questionnement · questionneur', 'titre'],
+    expect([a[1].texte.trimEnd(), a[1].ton]).toEqual([
+      '  1 · Plan · explorateur ⇄ questionneur',
+      'titre',
     ]);
-    expect(a[5]).toMatchObject({ ticket: 'demo-31' });
+    expect(a[2]).toMatchObject({ ticket: 'demo-31' });
     expect(a.every(x => x.texte.length <= LARGEUR)).toBe(true);
   });
 
@@ -267,11 +259,11 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     expect(sous({ etape: 'file' })).toBe('  5.2 · File : main, poussée, CI · auto');
   });
 
-  it('the questioning of the plan at 1.2, read once', () => {
+  it('the work on the plan at 1, the explorateur’s or the questionneur’s', () => {
     const t = plateau([T('demo-35')], {
       circuits: [circuit('demo-35', { etape: 'testwriter', questionnement: 'plan' })],
     });
-    expect(etapeDe(t, 'demo-35')).toMatch(/^ {2}1\.2 · Questionnement · /);
+    expect(etapeDe(t, 'demo-35')).toBe('  1 · Plan · explorateur ⇄ questionneur');
     expect(sousUneQuestion(t, 'demo-35')).toBe(false);
     expect(ligneDe(t, 'demo-35').texte).toMatch(/^▶ 35 {2}Le sujet de demo-35( |$)/);
   });
@@ -316,60 +308,34 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     expect(ligneDe(t, 'demo-37')).toMatchObject({ ton: 'attention' });
   });
 
-  it('the stops of the opening stand at their step: the survey at 1.1, the questioning at 1.2', () => {
-    expect(
-      sous({ etape: 'testwriter', vivant: false, code: 21, arret: 'composants-manquants' })
-    ).toBe('  1.1 · Relevé des composants · auto');
-    expect(sous({ etape: 'testwriter', vivant: false, code: 22, arret: 'questionnement' })).toMatch(
-      /^ {2}1\.2 · Questionnement · /
+  it('the stop of the plan stands at its step, 1', () => {
+    expect(sous({ etape: 'testwriter', vivant: false, code: 22, arret: 'questionnement' })).toBe(
+      '  1 · Plan · explorateur ⇄ questionneur'
     );
   });
 
-  it('a stop of the survey at 1.1 stands under « ⤷ Question · superviseur », which unfolds the opening', () => {
-    const t = plateau([T('demo-322')], {
-      circuits: [
-        circuit(
-          'demo-322',
-          enQuestion({ etape: 'testwriter', code: 21, arret: 'composants-manquants' })
-        ),
-      ],
-    });
-    const a = textes(t);
-    const i = a.indexOf('▾ 1 · Ouverture');
-    expect(a.slice(i, i + 5)).toEqual([
-      '▾ 1 · Ouverture',
-      '  1.1 · Relevé des composants · auto',
-      `  ${QUESTION}`,
-      expect.stringMatching(/^■ 322 {2}Le sujet de demo-322/),
-      '  1.2 · Questionnement · questionneur',
-    ]);
-    expect(agents(t)[i + 2]).toMatchObject({ ton: 'titre' });
-    expect(ligneDe(t, 'demo-322')).toMatchObject({ ton: 'attention' });
-  });
-
-  it('a questioning of the plan that goes up stands at 1.2 under « ⤷ Question · superviseur »', () => {
+  it('a plan whose open questions go up stands at 1 under « ⤷ Question · superviseur »', () => {
     const t = plateau([T('demo-323')], {
       circuits: [
         circuit('demo-323', enQuestion({ etape: 'testwriter', code: 22, arret: 'questionnement' })),
       ],
     });
     const a = textes(t);
-    const i = a.indexOf('  1.2 · Questionnement · questionneur');
+    const i = a.indexOf('  1 · Plan · explorateur ⇄ questionneur');
     expect(a.slice(i, i + 3)).toEqual([
-      '  1.2 · Questionnement · questionneur',
+      '  1 · Plan · explorateur ⇄ questionneur',
       `  ${QUESTION}`,
       expect.stringMatching(/^■ 323 {2}Le sujet de demo-323( |$)/),
     ]);
+    expect(agents(t)[i]).toMatchObject({ ton: 'titre' });
+    expect(ligneDe(t, 'demo-323')).toMatchObject({ ton: 'attention' });
   });
 
   // grillhouse-3uv.95.4, criterion 4: the board shows who must answer the question.
   it('a question for the owner stands under « ⤷ Question · responsable », the supervisor’s under its own line', () => {
     const t = plateau([T('demo-324'), T('demo-325')], {
       circuits: [
-        circuit(
-          'demo-324',
-          enQuestion({ etape: 'testwriter', code: 21, arret: 'composants-manquants' })
-        ),
+        circuit('demo-324', enQuestion({ etape: 'testwriter', code: 22, arret: 'questionnement' })),
         circuit('demo-325', enQuestion({ code: 20, arret: 'besoin' }, 'responsable')),
       ],
     });

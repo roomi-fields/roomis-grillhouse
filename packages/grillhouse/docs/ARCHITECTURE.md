@@ -58,6 +58,18 @@ commande du circuit (`--reprendre`, `--depuis`, `--etendre <composant>`, `--arre
 séance ne juge un geste qu'une règle tranche (BP 320.9 : 67 séances d'arbitrage et de réponse
 au plan, 14 montées qui étaient des gestes).
 
+**L'explorateur écrit le plan, questionné une fois** : comme l'auteur d'une RFC l'écrit après
+avoir relevé l'existant, qu'une revue la lit une fois, que l'auteur répond une fois et que ce qui
+reste ouvert va à qui décide, l'étape 1 du circuit (1 Plan) lance l'explorateur hors de
+l'enveloppe ; il relève les composants (`npx grillhouse composants-affectes <ticket>`) et finit sur
+sa fiche : les critères, les paquets à toucher, ses questions ouvertes avec leur pièce. Le circuit
+écrit le plan au ticket : les paquets deviennent les composants du titre, la seule liste que lit
+l'enveloppe de chaque séance d'après. Le questionneur le lit une fois ; l'explorateur, sa séance
+reprise, répond une fois, CHANGE ou GARDE par question ; ce qui reste ouvert monte au superviseur
+(« questionnement »), sinon le circuit passe aux tests. Ainsi les questions utiles se posent avant
+le plan, et le plan ne tourne pas en rond (BP 320.9 : 132 tours de questions, 29 critères dont 2
+utiles).
+
 **Une passe écrit sous sa base** : chaque lancement de Vitest, `npm test`, `npm run verifier`,
 un circuit, une intégration et une enveloppe ouvrent leur base dans le dossier temporaire, la
 nomment dans `TMPDIR` à ce qu'ils lancent (les dossiers d'essai des tests, celui de Vitest, celui

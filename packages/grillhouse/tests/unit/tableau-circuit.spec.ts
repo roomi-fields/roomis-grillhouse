@@ -339,20 +339,20 @@ describe('a circuit that stopped: under its step, its stop, its code and its rea
   });
 });
 
-// grillhouse-3uv.90, grillhouse-3uv.95.4: a circuit whose plan the questionneur reads stands at
-// 1.2 Questionnement, which it reads once.
+// grillhouse-3uv.90, grillhouse-3uv.95.5: a circuit whose plan the explorateur writes or the
+// questionneur reads stands at 1 Plan.
 describe('a circuit at the questioning', () => {
   const SEANCE = '0b8e8c7e-1d2f-4a3b-9c4d-5e6f7a8b9c0d';
 
-  it('runs on its one line, at 1.2 for the plan', () => {
+  it('runs on its one line, at 1 for the plan', () => {
     const racine = depot({
-      'demo-12': { questionnement: { objet: 'plan', tour: 1, seance: SEANCE } },
+      'demo-12': { questionnement: { objet: 'plan', role: 'questionneur', seance: SEANCE } },
     });
     const lus = circuits(racine, ligneCircuit('demo-12'));
     expect(lus).toEqual([expect.objectContaining({ ticket: 'demo-12', questionnement: 'plan' })]);
     const t = plateau([T('demo-12')], [], [], lus);
     const a = agents(t);
-    const i = a.indexOf('  1.2 · Questionnement · questionneur');
+    const i = a.indexOf('  1 · Plan · explorateur ⇄ questionneur');
     expect(i).toBeGreaterThan(-1);
     expect(a[i + 1]).toBe('▶ 12  Le sujet de demo-12');
   });

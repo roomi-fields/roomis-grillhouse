@@ -13,7 +13,7 @@ import { ecrire as ecrireTurbo } from '../../scripts/turbo-des-paquets.mjs';
 // (packages/binder, which depends on forms), whose `mesure` is wrong until the developpeur writes
 // it; with `feuille`, a third, `060-sheet` (packages/sheet), which depends on none. Each session of the
 // testwriter and the developpeur is a real launch (scripts/enveloppe/lancer.sh) in a real envelope;
-// the reviewer's and the questionneur's are claude in the ticket's copy, out of the envelope; claude
+// the explorateur's, the questionneur's and the reviewer's are claude in the ticket's copy, out of the envelope; claude
 // is a stand-in (CLAUDE_BIN)
 // that plays the scenario the test wrote for its role, and bd is a stand-in on the PATH whose
 // tickets and comments live in the main tree's `.beads/`, which the envelope leaves writable. The
@@ -42,7 +42,8 @@ export const ecrire = (f: string, texte: string, mode?: number) => {
 // with `fiche '<json>'`. As claude with `--output-format json`, it prints on its standard output
 // its JSON result alone, whatever the scenario prints (on its standard error), the sheet in
 // `structured_output`: the scenario's, else `{"statut":"FAIT"}` for a testwriter or a developpeur,
-// `{"issue":"AUCUNE"}` for the questionneur (a plan it has no question on), none for another role
+// `{"issue":"AUCUNE"}` for the questionneur (a plan it has no question on), for the explorateur the plan
+// its ticket holds (the components of its title, no criterion added, no open question), none for another role
 // or after `sans_fiche`; a `--json-schema` that is not JSON fails, code 1,
 // as claude refuses it. As claude, a session `--session-id <id>` keeps its transcript in
 // `<id>.jsonl` (an id already in use fails, code 1), and `--resume <id>` adds to that transcript,
@@ -97,6 +98,10 @@ la_fiche=
 case "$role" in
   testwriter|developpeur) la_fiche='{"statut":"FAIT"}' ;;
   questionneur) la_fiche='{"issue":"AUCUNE"}' ;;
+  explorateur) la_fiche=$(node -e '
+const t = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))[0];
+const paquets = String(t.title).split(" — ").pop().split(",").map(s => s.trim()).filter(Boolean);
+console.log(JSON.stringify({ criteres: [], paquets, questions: [] }));' "$racine/.beads/$ticket.json") ;;
 esac
 fiche() { la_fiche=$1; }
 sans_fiche() { la_fiche=; }
@@ -443,14 +448,14 @@ export function circuitEssai(ESSAIS: string, { feuille = false } = {}) {
         qui: string;
       } | null;
     } | null;
-  // The order of the sessions of the lot; the questionneur's, which the default sheet of the
-  // stand-in ends at once on a plan (`AUCUNE`), aside unless
-  // <questionneur> asks for them (tests/unit/circuit.questionneur.spec.ts).
-  const ordre = (id: string, { questionneur = false } = {}) =>
+  // The order of the sessions of the lot; those of the plan, the explorateur's and the
+  // questionneur's, which the default sheets of the stand-in end at once on the ticket's plan, aside
+  // unless <plan> asks for them (tests/unit/circuit.plan.spec.ts).
+  const ordre = (id: string, { plan = false } = {}) =>
     essai(id, 'ordre')
       .trim()
       .split('\n')
-      .filter(l => questionneur || l !== 'questionneur');
+      .filter(l => plan || !['explorateur', 'questionneur'].includes(l));
   // The log of the ticket, and the commands of the circuit it holds, in their order (`$ …`).
   const journal = (id: string) => lire(path.join(REPO, '.claude/worktrees', `${id}.log`));
   const commandes = (id: string) =>
@@ -479,13 +484,15 @@ export function circuitEssai(ESSAIS: string, { feuille = false } = {}) {
   const auteurs = (id: string) => tous(id).filter(c => !BILAN.test(c.text));
   const commentaires = (id: string) => auteurs(id).map(c => c.text);
   // The circuit's history at the ticket: [composant, étape] of each comment « Circuit · … », the
-  // lines of its gestures, of its questions and of the questioning aside
+  // lines of its gestures, of its questions and of the plan aside
   // (tests/unit/circuit.gestes.spec.ts, tests/unit/circuit.montee.spec.ts and
-  // tests/unit/circuit.questionneur.spec.ts read them).
+  // tests/unit/circuit.plan.spec.ts read them).
   const historique = (id: string) =>
     commentaires(id).flatMap(t => {
       const m = /^Circuit · (\S+) · (\S+) :/.exec(t);
-      return m && !['geste', 'question', 'questionnement'].includes(m[2]) ? [[m[1], m[2]]] : [];
+      return m && !['geste', 'question', 'plan', 'questionnement'].includes(m[2])
+        ? [[m[1], m[2]]]
+        : [];
     });
   return {
     REPO,

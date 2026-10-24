@@ -3,8 +3,8 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import * as module from '../../scripts/composants-affectes.mjs';
 import {
-  admettre,
   cheminsLus,
   manquants,
   releve,
@@ -234,14 +234,6 @@ describe('the survey of the components a ticket touches', () => {
     expect(manquants(racine, r, ['.'])).toEqual([]);
   });
 
-  it('lets pass the components the supervisor answered for, kept beside the copy', () => {
-    const racine = depot(DEPOT);
-    const r = releve(racine, description('`duree` sort.', '1. Plus de `duree`.'));
-    const garde = path.join(racine, '.claude/worktrees/demo.composants.json');
-    admettre(garde, ['040-checker'], 'checker lit duree sans changer.');
-    expect(manquants(racine, r, ['000-forms', '030-binder'], garde)).toEqual(['050-emitter']);
-  });
-
   it('writes the survey for the Architecture section: the title list, then each element and its readers', () => {
     const r = releve(
       depot(DEPOT),
@@ -271,35 +263,13 @@ describe('the survey of the components a ticket touches', () => {
     );
   });
 
-  it('admits at the creation of a ticket a component it does not change, its reason at the ticket, which the check then lets pass', () => {
-    const racine = depot(DEPOT);
-    // A stand-in bd: each call's arguments on one line.
-    const bin = path.join(racine, 'bin');
-    const journal = path.join(racine, 'bd.log');
-    mkdirSync(bin);
-    writeFileSync(
-      path.join(bin, 'bd'),
-      `#!/bin/sh\nprintf '%s|' "$@" >> '${journal}'\necho >> '${journal}'\n`,
-      { mode: 0o755 }
-    );
-    const lancer = (...a: string[]) =>
-      spawnSync('node', [SCRIPT, ...a], {
-        cwd: racine,
-        encoding: 'utf8',
-        env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH ?? ''}` },
-      });
-    const ok = lancer('demo', '--admettre', '050-emitter', '--raison', 'lit duree, inchangé.');
-    expect(ok.status, ok.stderr).toBe(0);
-    expect(readFileSync(journal, 'utf8')).toBe(
-      'comments|add|demo|Composants · 050-emitter admis hors du titre : lit duree, inchangé.|\n'
-    );
-    const r = releve(racine, description('`duree` sort.', '1. Plus de `duree`.'));
-    const garde = path.join(racine, '.claude/worktrees/demo.composants.json');
-    expect(manquants(racine, r, ['000-forms', '030-binder', '040-checker'], garde)).toEqual([]);
-    // A component the repository does not hold, or no reason, is refused, nothing written.
-    expect(lancer('demo', '--admettre', '999-absent', '--raison', 'x').status).toBe(2);
-    expect(lancer('demo', '--admettre', '040-checker').status).toBe(2);
-    expect(readFileSync(journal, 'utf8').split('\n')).toHaveLength(2);
+  // grillhouse-3uv.95.5: the circuit plays the survey no more; the explorateur reads it when it
+  // writes the plan, whose packages name the components: no admission out of the title, no record.
+  it('is the explorateur’s tool alone: no check of the title for the circuit, no admission', () => {
+    for (const nom of ['verifierLeTitre', 'admettre']) {
+      expect(module, nom).not.toHaveProperty(nom);
+    }
+    expect(readFileSync(SCRIPT, 'utf8')).not.toContain('--admettre');
   });
 });
 

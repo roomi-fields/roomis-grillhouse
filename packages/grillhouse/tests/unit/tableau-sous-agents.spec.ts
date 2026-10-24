@@ -416,18 +416,18 @@ describe('a ticket a manager led: its running agents hold it, and it waits as an
   });
 });
 
-// grillhouse-3uv.95.4: the block 1.2 holds the questionneur alone, and no block stands out of the
-// sequence of the steps.
-describe('the block of 1.2 names the questionneur', () => {
-  it('the block of 1.2 is shown « questionneur », and no block stands out of the steps', () => {
+// grillhouse-3uv.95.4, grillhouse-3uv.95.5: the block 1 holds the explorateur and the
+// questionneur, and no block stands out of the sequence of the steps.
+describe('the block of 1 names the explorateur and the questionneur', () => {
+  it('the block of 1 is shown « explorateur ⇄ questionneur », and no block stands out of the steps', () => {
     const t = plateau([T('demo-9')], [], [vivant('c0', 'demo-9', MENEUR)]);
     expect(bloc(t, MENEUR)).toMatchObject({
-      numero: '1.2',
-      titre: 'Questionnement',
-      qui: 'questionneur',
+      numero: '1',
+      titre: 'Plan',
+      qui: 'explorateur ⇄ questionneur',
     });
     expect(agentsTextes(t).map(x => x.texte.trimEnd())).toContain(
-      '  1.2 · Questionnement · questionneur'
+      '  1 · Plan · explorateur ⇄ questionneur'
     );
     expect(t.agents.filter(b => b.numero === null)).toEqual([]);
   });
