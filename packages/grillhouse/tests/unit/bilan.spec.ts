@@ -12,9 +12,11 @@ import { afterAll, describe, expect, it } from 'vitest';
 import {
   bilan,
   bilansGardes,
+  ecrireLeBilan,
   enBref,
   garder,
   lignesDuProjet,
+  plageDeNuit,
   precedent,
   texteDuBilan,
 } from '../../scripts/bilan.mjs';
@@ -60,7 +62,7 @@ interface Entree {
   inchange?: boolean;
   questionnement?: object;
   lancement?: { role: string; seance: string };
-  montee?: { code: number; raison: string | null };
+  montee?: { code: number; raison: string | null; qui: string | null };
 }
 interface Categorie {
   ms: number;
@@ -74,13 +76,17 @@ interface Bilan {
   debut: string;
   fin: string;
   mur: number;
+  murHorsNuit: number;
   statut: string;
   perdu: number;
+  perduHorsAttentes: number;
   categories: Record<
     | 'travail'
     | 'sansEffet'
     | 'questionnement'
-    | 'attente'
+    | 'superviseur'
+    | 'responsable'
+    | 'nuit'
     | 'automatique'
     | 'finales'
     | 'rejeu'
@@ -94,7 +100,7 @@ interface Bilan {
   };
   etapes: Record<string, number>;
   arrets: Record<string, number>;
-  questionnement: { tours: number; changees: number; montees: number };
+  questionnement: { questions: number; changes: number; ouvertes: number };
   jetons: number;
   cache: number;
   cout: number;
@@ -190,12 +196,18 @@ const inchange = (m: number, s: number): Entree => ({
   etape: 'developpeur',
   inchange: true,
 });
-// The end of a run of the circuit on a stop it hands to the supervisor (code <code>), <ms> after
-// the second.
-const montee = (m: number, s: number, code: number, raison: string, ms = 2): Entree => ({
+// The end of a run of the circuit on a stop (code <code>), whose question <qui> must answer, <ms>
+// after the second.
+const montee = (
+  m: number,
+  s: number,
+  code: number,
+  raison: string,
+  { ms = 2, qui = 'superviseur' as string | null } = {}
+): Entree => ({
   date: quand(m, s, ms),
   role: 'circuit',
-  montee: { code, raison },
+  montee: { code, raison, qui },
 });
 
 // The bilan of the lines <lignes> and the entries <entrees>: the circuit kept the launch of each
@@ -285,6 +297,30 @@ describe('the wall time and its categories', () => {
   });
 });
 
+// grillhouse-3uv.95.9: the checks of 3.1 and the final pass are both steps `controles`; in the
+// trial circuit, the final pass ends within the gap after the checks, and its result was the
+// checks' too: two final passes for one.
+describe('a step and the next of its name, within the gap', () => {
+  const finale: Ligne = {
+    ...etape('controles', 20, 21),
+    agent: 'circuit:finale',
+    debut: quand(20, 0, 500),
+    fin: quand(20, 1, 500),
+    tours: [[a(20, 0) + 500, a(20, 1) + 500]],
+  };
+  const lignes = [seance('developpeur', 'd1', [[0, 10]]), etape('controles', 10, 20), finale];
+  const entrees = [
+    fiche(10, 0, 'developpeur'),
+    controles(20, 0, 'vert', false),
+    { ...controles(20, 1, 'vert', true), date: quand(20, 1, 500) },
+  ];
+  const b = calculer(lignes, entrees, { etape: 'integre' });
+
+  it('gives each step its own result: the checks, then one final pass', () => {
+    expect(b.etapes).toEqual({ Contrôles: 1, 'Passe finale': 1 });
+  });
+});
+
 describe('a relaunch without effect', () => {
   // The final passes of one ticket.
   const lignes = [
@@ -359,29 +395,31 @@ describe('the questioning', () => {
     seance('testwriter', 't1', [[5, 10]]),
     seance('questionneur', 'q2', [[12, 13]], { cout: 0.25 }),
   ];
+  // The end of a questioning as the circuit keeps it: the questions the questionneur asked, whether
+  // an answer changed the plan, the questions left open.
   const fin = (
     m: number,
-    objet: string,
-    tours: number,
+    questions: number,
     change: boolean,
-    issue: string
+    issue: string,
+    ouvertes: number
   ): Entree => ({
     date: quand(m, 0, 1),
     role: 'circuit',
-    questionnement: { objet, tours, change, issue },
+    questionnement: { objet: 'plan', questions, change, issue, ouvertes },
   });
   const entrees = [
     fiche(2, 0, 'questionneur', { issue: 'QUESTIONS', questions: [] }),
-    fiche(5, 0, 'questionneur', { issue: 'AUCUNE' }),
-    fin(5, 'plan', 2, true, 'AUCUNE'),
+    fiche(5, 0, 'explorateur', { reponses: [] }),
+    fin(5, 2, true, 'QUESTIONS', 0),
     fiche(10, 0, 'testwriter'),
     fiche(13, 0, 'questionneur', { issue: 'DÉSACCORD', desaccord: 'x' }),
-    fin(13, 'plan', 1, false, 'DÉSACCORD'),
+    fin(13, 1, false, 'DÉSACCORD', 1),
   ];
   const b = calculer(lignes, entrees);
 
-  it('counts its rounds, the decisions it changed and those it sent up', () => {
-    expect(b.questionnement).toEqual({ tours: 3, changees: 1, montees: 1 });
+  it('counts the questions asked, the plans an answer changed and the questions left open, as the circuit keeps them', () => {
+    expect(b.questionnement).toEqual({ questions: 3, changes: 1, ouvertes: 1 });
   });
 
   it('counts the questionneur’s time apart, as kept', () => {
@@ -393,10 +431,12 @@ describe('the questioning', () => {
     expect(b.seances.parRole).toMatchObject({ questionneur: 2 });
   });
 
-  it('says its rounds and the decisions changed on its line', () => {
-    expect(texteDuBilan(b, null).split('\n')).toContain(
-      '- questionnement : 4 min, 0,75 $ (3 tours, 1 décision changée)'
+  it('says its questions, the plans changed and the questions left open on its line, no round', () => {
+    const l = texteDuBilan(b, null).split('\n');
+    expect(l).toContain(
+      '- questionnement : 4 min, 0,75 $ (3 questions, 1 plan changé, 1 question ouverte)'
     );
+    expect(l.join('\n')).not.toMatch(/tour|décision/);
   });
 });
 
@@ -465,14 +505,16 @@ describe('the wait for the supervisor and the sessions the circuit launches', ()
   const b = calculer(lignes, entrees, null, { superviseur: ['q9'] });
 
   it('runs from the circuit’s end on the stop to the first session of the run that answers it', () => {
-    expect(min(b.categories.attente.ms)).toBe(21);
-    expect(b.categories.attente.n).toBe(1);
-    expect(texteDuBilan(b, null).split('\n')).toContain('- attente humaine : 21 min (1 montée)');
+    expect(min(b.categories.superviseur.ms)).toBe(21);
+    expect(b.categories.superviseur.n).toBe(1);
+    expect(texteDuBilan(b, null).split('\n')).toContain(
+      '- attente du superviseur : 21 min (1 montée)'
+    );
   });
 
   it('counts a stop the window ends on, still unanswered, as no wait', () => {
     const fin = calculer([lignes[0]], entrees.slice(0, 3));
-    expect(fin.categories.attente).toMatchObject({ ms: 0, n: 0 });
+    expect(fin.categories.superviseur).toMatchObject({ ms: 0, n: 0 });
   });
 
   it('counts the sessions the circuit launched, and those of the supervisor apart, out of the categories and the cost', () => {
@@ -565,6 +607,152 @@ describe('the lines of the project in the register', () => {
   });
 });
 
+// grillhouse-3uv.95.9: the wait splits as the lead time of DORA separates the wait for review from
+// the work: the supervisor's, the owner's (each by who must answer the question the run ended on),
+// and the night, a range of hours the project declares (23 h – 8 h by default), in local time.
+describe('the night, the supervisor’s wait and the owner’s', () => {
+  // 22:00 local, the evening of 20 October 2026, far from a change of hour.
+  const SOIR = new Date(2026, 9, 20, 22, 0).getTime();
+  const b0 = (m: number) => SOIR + m * MIN;
+  const ligne = (role: string, agent: string, d: number, f: number): Ligne => ({
+    ...seance(role, agent, [[0, 1]]),
+    debut: iso(b0(d)),
+    fin: iso(b0(f)),
+    travail: (f - d) * MIN,
+    tours: [[b0(d), b0(f)]],
+  });
+  const le = (m: number, e: Omit<Entree, 'date'>): Entree => ({ date: iso(b0(m) + 2), ...e });
+  // The testwriter writes, its proof plays 2 min after; the run ends on a question for the
+  // supervisor at 22:33, answered at 22:50; the developpeur's question for the owner ends the run
+  // at 22:55, answered at 9:00 the next morning.
+  const lignes = [
+    ligne('testwriter', 't1', 0, 30),
+    { ...etape('preuve', 0, 1), debut: iso(b0(32)), fin: iso(b0(33)), tours: [[b0(32), b0(33)]] },
+    ligne('developpeur', 'd1', 50, 55),
+    ligne('developpeur', 'd2', 660, 670),
+  ] as Ligne[];
+  const entrees = [
+    le(30, { role: 'testwriter', fiche: { statut: 'FAIT' } }),
+    le(33, {
+      role: 'circuit',
+      etape: 'preuve',
+      resultat: { ok: false, rouges: 1, justifies: 0, sans: 0, casses: 0, anciens: 0 },
+    }),
+    le(33, { role: 'circuit', montee: { code: 21, raison: 'preuve', qui: 'superviseur' } }),
+    le(55, { role: 'developpeur', fiche: { statut: 'BESOIN' } }),
+    le(55, { role: 'circuit', montee: { code: 16, raison: 'besoin', qui: 'responsable' } }),
+    le(670, { role: 'developpeur', fiche: { statut: 'FAIT' } }),
+  ];
+  const b = calculer(lignes, entrees);
+
+  it('splits the wait by who must answer, the night apart', () => {
+    expect(min(b.categories.superviseur.ms)).toBe(17);
+    expect(b.categories.superviseur.n).toBe(1);
+    expect(min(b.categories.responsable.ms)).toBe(5 + 60);
+    expect(b.categories.responsable.n).toBe(1);
+    expect(min(b.categories.nuit.ms)).toBe(9 * 60);
+  });
+
+  it('gives the wall time, the wall time out of the night and the time lost out of the waits', () => {
+    expect(min(b.mur)).toBe(670);
+    expect(min(b.murHorsNuit)).toBe(670 - 540);
+    expect(min(b.perdu)).toBe(17 + 65 + 540 + 2);
+    expect(min(b.perduHorsAttentes)).toBe(2);
+    const l = texteDuBilan(b, null).split('\n');
+    expect(l[0]).toMatch(
+      /^en cours en 670 min, 130 min hors nuit d'attente ; 624 min perdues \(93 %\), 2 min hors attentes ; /
+    );
+    expect(l).toContain('- attente du superviseur : 17 min (1 montée)');
+    expect(l).toContain('- attente du responsable : 65 min (1 montée)');
+    expect(l).toContain('- nuit : 540 min');
+    expect(l.join('\n')).not.toMatch(/attente humaine/);
+  });
+
+  it('takes the night the project declares, its hours in local time', () => {
+    const autre = bilan({
+      ticket: TICKET,
+      lignes,
+      entrees: [
+        ...lignes
+          .filter(l => l.role !== 'circuit')
+          .map(l => ({
+            date: iso(l.tours[0][0]),
+            role: 'circuit',
+            lancement: { role: l.role, seance: l.agent },
+          })),
+        ...entrees,
+      ],
+      nuit: { debut: 1, fin: 7 },
+    }) as Bilan;
+    expect(min(autre.categories.nuit.ms)).toBe(6 * 60);
+    expect(min(autre.categories.responsable.ms)).toBe(605 - 360);
+  });
+
+  it('computes the bilan of a project from its register, its results and the night its package.json declares', () => {
+    // The project at <nom>, its night <plage> declared or not: the night of its bilan, kept.
+    const nuitDu = (nom: string, plage?: object) => {
+      const racine = path.join(ESSAIS, nom);
+      mkdirSync(path.join(racine, '.claude', 'worktrees'), { recursive: true });
+      writeFileSync(
+        path.join(racine, 'package.json'),
+        JSON.stringify({ name: nom, ...(plage ? { grillhouse: { plageDeNuit: plage } } : {}) })
+      );
+      const registre = path.join(racine, 'registre.jsonl');
+      writeFileSync(
+        registre,
+        lignes.map(l => JSON.stringify({ ...l, projet: racine })).join('\n') + '\n'
+      );
+      const lancees = lignes
+        .filter(l => l.role !== 'circuit')
+        .map(l => ({
+          date: iso(l.tours[0][0]),
+          role: 'circuit',
+          lancement: { role: l.role, seance: l.agent },
+        }));
+      writeFileSync(
+        path.join(racine, '.claude', 'worktrees', `${TICKET}.fiches.jsonl`),
+        [...lancees, ...entrees].map(e => JSON.stringify(e)).join('\n') + '\n'
+      );
+      const avant = process.env.GRILLHOUSE_REGISTRE;
+      process.env.GRILLHOUSE_REGISTRE = registre;
+      try {
+        ecrireLeBilan(racine, TICKET);
+      } finally {
+        if (avant === undefined) {
+          delete process.env.GRILLHOUSE_REGISTRE;
+        } else {
+          process.env.GRILLHOUSE_REGISTRE = avant;
+        }
+      }
+      const f = path.join(racine, '.claude', 'worktrees', `${TICKET}.bilan.json`);
+      return JSON.parse(readFileSync(f, 'utf8')) as Bilan;
+    };
+    expect(min(nuitDu('projet-sans-plage').categories.nuit.ms)).toBe(9 * 60);
+    const declaree = nuitDu('projet-plage', { debut: 1, fin: 7 });
+    expect(min(declaree.categories.nuit.ms)).toBe(6 * 60);
+    expect(min(declaree.categories.responsable.ms)).toBe(605 - 360);
+  });
+
+  it('reads the range from the key grillhouse.plageDeNuit of the project’s package.json, 23 h – 8 h without it', () => {
+    const racine = (nom: string, grillhouse?: object) => {
+      const d = path.join(ESSAIS, nom);
+      mkdirSync(d, { recursive: true });
+      writeFileSync(path.join(d, 'package.json'), JSON.stringify({ name: nom, grillhouse }));
+      return d;
+    };
+    expect(plageDeNuit(racine('sans-plage'))).toEqual({ debut: 23, fin: 8 });
+    expect(plageDeNuit(racine('plage', { plageDeNuit: { debut: 22, fin: 6 } }))).toEqual({
+      debut: 22,
+      fin: 6,
+    });
+    expect(plageDeNuit(racine('plage-fausse', { plageDeNuit: { debut: 25, fin: 6 } }))).toEqual({
+      debut: 23,
+      fin: 8,
+    });
+    expect(plageDeNuit(path.join(ESSAIS, 'aucun-depot'))).toEqual({ debut: 23, fin: 8 });
+  });
+});
+
 describe('the text of the bilan and its base', () => {
   const lignes = [
     seance('testwriter', 't1', [[0, 10]], { jetons: 2_000_000, cache: 30_000_000, cout: 3.5 }),
@@ -586,7 +774,7 @@ describe('the text of the bilan and its base', () => {
     const t = texteDuBilan(b, null);
     const l = t.split('\n');
     expect(l[0]).toBe(
-      'arrêt sans-livraison (15) en 16 min ; 6 min perdues (38 %) ; 2 séances (1 testwriter, 1 développeur) ; 4,50 $ ; 2,50 M jetons, 30,00 M lus du cache.'
+      "arrêt sans-livraison (15) en 16 min, 16 min hors nuit d'attente ; 6 min perdues (38 %), 6 min hors attentes ; 2 séances (1 testwriter, 1 développeur) ; 4,50 $ ; 2,50 M jetons, 30,00 M lus du cache."
     );
     expect(l).toContain('- travail resté au lot : 10 min, 3,50 $');
     expect(l).toContain('- relance sans effet : 2 min, 1,00 $');
@@ -594,7 +782,7 @@ describe('the text of the bilan and its base', () => {
     expect(l).toContain('- passes finales : 0 min');
     expect(t).toMatch(/^Arrêts : 1 sans-livraison\.$/m);
     expect(t).toMatch(/^Aucun bilan d'avant dans ce projet : pas de base\.$/m);
-    expect(l.length).toBeLessThanOrEqual(12);
+    expect(l.length).toBeLessThanOrEqual(14);
   });
 
   it('compares itself with the bilan before, ticket named, each key figure before and now', () => {

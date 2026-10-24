@@ -61,9 +61,9 @@
 //   answers each question, CHANGE (what the plan becomes) or GARDE (why it stays), and carries the
 //   plan as it becomes, which the circuit writes at the ticket again. The exchange is written at
 //   the ticket (`Circuit · plan : …`, `Circuit · questionnement : …`) and its end kept with the
-//   circuit's results (`questionnement`: objet, tours, change, issue, ouvertes, the plan's
-//   fingerprint). What stays open (the plan's own questions, and each question the explorateur
-//   leaves without an answer) stops at « questionnement », the open questions as its piece, a
+//   circuit's results (`questionnement`: objet, the questions asked, `questions`, change, issue,
+//   ouvertes, the plan's fingerprint). What stays open (the plan's own questions, and each
+//   question the explorateur leaves without an answer) stops at « questionnement », the open questions as its piece, a
 //   question for the supervisor: he changes the plan (`bd update`) or keeps it, then
 //   `--reprendre` lets the plan pass as it is then, from the testwriter. Nothing open, the plan
 //   passes (`plan`, its fingerprint); a plan that passed, its title and description unchanged
@@ -456,6 +456,7 @@ import {
   QUESTIONNEUR,
   RESPONSABLE,
   SUITE,
+  SUPERVISEUR,
 } from './etapes.mjs';
 import { paquets } from './paquets.mjs';
 import { ecrire as ecrireAuRegistre, ligneDEtape, transcriptionsDeLaCopie } from './registre.mjs';
@@ -3031,7 +3032,8 @@ function depart(ctx, e) {
 }
 
 // The end of the run, its exit code <code>: an end on a stop kept with the circuit's results
-// (`montee`: its code, its stop and who must answer its question, null at 75), from which the
+// (`montee`: its code, its stop and who must answer its question, the supervisor for a stop
+// without one, as an end at 75 he replays), from which the
 // bilan measures the wait to the run that answers it, then the ticket's bilan at the ticket
 // (scripts/bilan.mjs); a bilan it cannot write leaves the code as it is.
 function aLaFin(ctx, code) {
@@ -3042,7 +3044,7 @@ function aLaFin(ctx, code) {
         montee: {
           code,
           raison: ctx.courant?.raison ?? null,
-          qui: ctx.courant?.question?.qui ?? null,
+          qui: ctx.courant?.question?.qui ?? SUPERVISEUR,
         },
       });
     }
@@ -3329,7 +3331,7 @@ async function lePlan(ctx) {
       role: AUTEUR_DU_CIRCUIT,
       questionnement: {
         objet: 'plan',
-        tours: 1,
+        questions: posees.length,
         change: reponses.some(r => r.reponse === 'CHANGE'),
         issue: lu.issue,
         ouvertes: ouvertes.length,

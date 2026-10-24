@@ -101,6 +101,14 @@ lecteurs en une seule séance, et un constat n'est jamais perdu (BP 320.9 : seiz
 joués l'un après l'autre, 118 min d'étapes vertes rejouées, un constat sur `exemplar` perdu six
 fois).
 
+**Le bilan sépare les attentes** : comme le « lead time » de DORA sépare l'attente de revue du
+temps de travail, chaque montée dit qui doit répondre, et le bilan répartit l'attente entre celle
+du superviseur, celle du responsable et la nuit, la plage horaire que le projet déclare
+(`grillhouse.plageDeNuit` de son `package.json`, 23 h – 8 h par défaut). Son texte donne le mur,
+le mur hors nuit d'attente (une nuit de travail y reste) et le perdu hors attentes. Ainsi le temps perdu se lit sans la nuit ni l'attente
+d'une réponse (BP 320.9 : 500 min de nuit mêlées à l'attente du responsable et à celle du
+superviseur).
+
 **Un fait porte sa pièce** : comme une revue de code cite la ligne qu'elle juge, chaque constat,
 question ou montée d'une fiche porte sa `piece`, un seul format (`lirePiece` de `resultats.mjs`) :
 `fichier:ligne` ou `fichier:ligne-ligne` depuis la racine de la copie, ou `$ commande` et sa

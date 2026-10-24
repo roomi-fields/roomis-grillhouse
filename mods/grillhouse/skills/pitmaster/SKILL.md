@@ -94,9 +94,11 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   branche, et finit à `integre` quand elle est entrée. Ainsi un « à repasser » se rejoue au repos,
   sans décision.
 - **Le bilan chiffré de chaque ticket** : à chacune de ses fins, `integre` ou un arrêt qui me
-  revient, le circuit écrit au ticket son bilan (`Circuit · … · bilan`) : le temps mur et sa part
-  perdue, le temps par catégorie, les séances par rôle (celles que le circuit lance ; les miennes à
-  part), les arrêts, les jetons et le coût, face au bilan d'avant du projet ; la fiche du ticket au panneau en montre les chiffres clés.
+  revient, le circuit écrit au ticket son bilan (`Circuit · … · bilan`) : le temps mur, hors nuit
+  d'attente aussi, et sa part perdue, hors attentes aussi ; le temps par catégorie, l'attente répartie entre
+  la mienne, celle du responsable (selon qui doit répondre à la question de l'arrêt) et la nuit (la
+  plage `grillhouse.plageDeNuit` du projet, 23 h – 8 h par défaut) ; les séances par rôle (celles
+  que le circuit lance ; les miennes à part), les arrêts, les jetons et le coût, face au bilan d'avant du projet ; la fiche du ticket au panneau en montre les chiffres clés.
   `npx grillhouse bilan <ticket>` le recalcule, `--garder` le garde comme base. Ainsi
   l'analyse d'un ticket se fait seule.
 - **Le circuit fait les gestes mécaniques** : comme une CI applique ses règles sans demander

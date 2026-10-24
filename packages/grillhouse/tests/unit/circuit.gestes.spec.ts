@@ -27,6 +27,7 @@ const {
   ordre,
   journal,
   commentaires,
+  entrees,
 } = circuitEssai(ESSAIS);
 
 // A developpeur session that changes no file.
@@ -166,6 +167,12 @@ node -e "const f='$c/package.json';const p=JSON.parse(require('fs').readFileSync
     expect(questions(id)).toEqual([]);
     expect(question(id)).toBeNull();
     expect(etat(id)).toMatchObject({ raison: 'a-repasser', code: ARRETS['a-repasser'] });
+    // grillhouse-3uv.95.9: the end at 75 says who answers it, the supervisor, who replays it.
+    expect(entrees(id).filter(x => x.montee)).toEqual([
+      expect.objectContaining({
+        montee: { code: ARRETS['a-repasser'], raison: 'a-repasser', qui: 'superviseur' },
+      }),
+    ]);
   });
 });
 

@@ -41,7 +41,7 @@ describe.runIf(canWrap)('the bilan at the end of the circuit', { timeout: 300_00
     expect(b).toHaveLength(1);
     expect(b[0].author).toBe('circuit');
     expect(b[0].text).toMatch(
-      /^Circuit · bilan : intégré en \d+ min ; \d+ min perdues \(\d+ %\) ; \d+ séances/
+      /^Circuit · bilan : intégré en \d+ min, \d+ min hors nuit d'attente ; \d+ min perdues \(\d+ %\), \d+ min hors attentes ; \d+ séances/
     );
     expect(b[0].text).toContain('- travail resté au lot : ');
     expect(b[0].text).toContain("Aucun bilan d'avant dans ce projet : pas de base.");

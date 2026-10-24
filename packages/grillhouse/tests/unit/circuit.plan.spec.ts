@@ -182,7 +182,7 @@ describe.runIf(canWrap)('the plan, step 1 of the circuit', { timeout: 300_000 },
     expect(questionnements(id)).toEqual([
       expect.objectContaining({
         objet: 'plan',
-        tours: 1,
+        questions: 2,
         change: true,
         issue: 'QUESTIONS',
         ouvertes: 0,
@@ -233,7 +233,7 @@ describe.runIf(canWrap)('the plan, step 1 of the circuit', { timeout: 300_000 },
     expect(leTicket(id).description).toContain(
       '## Questions ouvertes\n\n1. Le format publié change-t-il ? (CLAUDE.md:7)'
     );
-    expect(questionnements(id).at(-1)).toMatchObject({ tours: 1, change: false, ouvertes: 2 });
+    expect(questionnements(id).at(-1)).toMatchObject({ questions: 2, change: false, ouvertes: 2 });
     // The supervisor keeps the plan and resumes: it passes, neither written nor questioned again.
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
@@ -261,7 +261,7 @@ describe.runIf(canWrap)('the plan, step 1 of the circuit', { timeout: 300_000 },
       '1. Le plan corrige le symptôme, la cause reste.'
     );
     expect(etat(id)?.question?.piece).toContain('Le plan corrige le symptôme, la cause reste.');
-    expect(questionnements(id).at(-1)).toMatchObject({ tours: 1, issue: 'DÉSACCORD' });
+    expect(questionnements(id).at(-1)).toMatchObject({ questions: 1, issue: 'DÉSACCORD' });
   });
 
   it('critère 2 — a plan without question from the questionneur needs no answer; its own open questions go up', () => {
@@ -279,6 +279,12 @@ describe.runIf(canWrap)('the plan, step 1 of the circuit', { timeout: 300_000 },
     expect(sessions(id, EXPLORATEUR)).toBe(1);
     expect(sessions(id, QUESTIONNEUR)).toBe(1);
     expect(etat(id)?.question?.piece).toContain('Le format publié change-t-il ? (CLAUDE.md:7)');
+    expect(questionnements(id).at(-1)).toMatchObject({
+      questions: 0,
+      issue: 'AUCUNE',
+      ouvertes: 1,
+    });
+    expect(questionnements(id).at(-1)).not.toHaveProperty('tours');
   });
 
   it('critère 1 — a package the repository does not hold makes the sheet out of conformity', () => {

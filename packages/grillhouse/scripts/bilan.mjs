@@ -19,11 +19,13 @@
 //   `agent`), the sheet of each session (`{ role, fiche }`), the outcome of each proof
 //   (`resultat`: `ok`, its counts, `vide`) and of each check (`resultat`: `issue` vert, rouge or a-repasser, `finale`), each stop
 //   (`arret`, its name, `finale`), each developpeur resumed who changed nothing (`inchange`), the
-//   end of each questioning of the plan (`questionnement`: its `objet`, its `tours`, whether it
-//   changed the plan, `change`, and its `issue`, AUCUNE, QUESTIONS or DÉSACCORD), each end of a run
-//   on a stop (`montee`: its code, its stop and who must answer its question); the circuit's
-//   state, `.claude/worktrees/<ticket>.circuit.json`, for where the circuit ended. Every
-//   agent declares nothing: the bilan measures.
+//   end of the questioning of the plan (`questionnement`: its `objet`, the questions the
+//   questionneur asked, `questions`, whether an answer changed the plan, `change`, its `issue`,
+//   AUCUNE, QUESTIONS or DÉSACCORD, and the questions left open, `ouvertes`), each end of a run on
+//   a stop (`montee`: its code, its stop and who must answer its question, `qui`); the circuit's
+//   state, `.claude/worktrees/<ticket>.circuit.json`, for where the circuit ended; the night the
+//   project declares in its package.json (`grillhouse.plageDeNuit`). Every agent declares
+//   nothing: the bilan measures.
 // - The steps and the roles are those of scripts/etapes.mjs. Only the circuit's roles count, the
 //   explorateur of the plan among them. Only the sessions the circuit launched count in
 //   the window, the categories, the tokens and the cost; a session of a circuit's role on the
@@ -32,8 +34,8 @@
 // - The window: from the first turn of a session or a step to the last result of the circuit or
 //   the last turn; its length is the wall time.
 // - Each turn of a session and each step finds its result: a step, the last outcome or stop of
-//   its step kept during it; a session, the first sheet of its role kept after its turn, before
-//   the next turn of any other. Every step is one for the whole ticket. A step `controles` whose
+//   its step kept during it, before the next step of its name; a session, the first sheet of its
+//   role kept after its turn, before the next turn of any other. Every step is one for the whole ticket. A step `controles` whose
 //   outcome or stop is the final pass's (`finale`) is the final pass.
 // - The categories, each instant once:
 //   - travail resté au lot: a session that delivered, the reviewer's included;
@@ -46,18 +48,24 @@
 //     checks of their kind before (the final pass: since the final pass before);
 //   - questionnement: a session of the questionneur (kept: a look that did not write the plan, as
 //     a review);
-//   - attente humaine: from each end of a run on a stop (`montee`) to the first turn of a session or
-//     step after it, or the next result of the circuit, the first of the two;
+//   - attente du superviseur, attente du responsable, nuit: as the lead time of DORA separates the
+//     wait for review from the work, each wait runs from an end of a run on a stop (`montee`) to
+//     the first turn of a session or step after it, or the next result of the circuit, the first
+//     of the two; it is the wait of who must answer its question (`qui`, the owner or the
+//     supervisor, as the circuit writes it), but its part in the night: the hours of `grillhouse.plageDeNuit` in the
+//     project's package.json (`{ debut, fin }`, in local time), from 23 h to 8 h without it;
 //   - étapes automatiques: the other steps the circuit leads, but the final passes;
 //   - passes finales: the final passes, but those without effect or replayed;
 //   - rejeu d'étapes déjà vertes: the same, on a lot unchanged since green: checks green again,
 //     a testwriter run again on a proven lot, its proof;
 //   - entre deux étapes: the rest of the window.
 //   What is lost is the wall time out of the work, the questioning, the automatic steps and the
-//   final passes.
+//   final passes. The text gives the wall time and the wall time out of the night spent waiting
+//   (« hors nuit d'attente »: a night at work stays in it), the time lost and the time lost out of
+//   the waits.
 // - The bilan counts the sessions by role, the steps by their titles, the stops by kind (`arret`),
-//   the ends on a stop (the waits), the rounds of questioning, the proposals they changed and those
-//   they sent up to the supervisor, the tokens, the cache reads and the cost (a session without a cost
+//   the ends on a stop (the waits), the questions of the plan asked, the plans they changed and the
+//   questions left open, the tokens, the cache reads and the cost (a session without a cost
 //   counts 0); a session's tokens go to its turns by their time.
 // - It is kept in the main tree, `.claude/worktrees/<ticket>.bilan.json`, and compares itself with
 //   the latest bilan kept for another ticket of the project, or with nothing: no figure of
@@ -67,7 +75,15 @@ import { existsSync, readdirSync, readFileSync, renameSync, writeFileSync } from
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { AGENTS_DU_LOT, etapeDuCircuit, nomDuRole, QUESTIONNEUR, SUITE } from './etapes.mjs';
+import {
+  AGENTS_DU_LOT,
+  etapeDuCircuit,
+  nomDuRole,
+  QUESTIONNEUR,
+  RESPONSABLE,
+  SUITE,
+  SUPERVISEUR,
+} from './etapes.mjs';
 
 // The role of a register line that a step of the circuit writes, and of its results.
 const CIRCUIT = 'circuit';
@@ -80,7 +96,9 @@ const CATEGORIES = [
   ['travail', 'travail resté au lot'],
   ['sansEffet', 'relance sans effet'],
   ['questionnement', 'questionnement'],
-  ['attente', 'attente humaine'],
+  [SUPERVISEUR, 'attente du superviseur'],
+  [RESPONSABLE, 'attente du responsable'],
+  ['nuit', 'nuit'],
   ['automatique', 'étapes automatiques'],
   ['finales', 'passes finales'],
   ['rejeu', "rejeu d'étapes déjà vertes"],
@@ -88,6 +106,48 @@ const CATEGORIES = [
 ];
 // The categories of the time kept: the rest is lost.
 const GARDE = new Set(['travail', 'automatique', 'finales', 'questionnement']);
+// The categories of the waits: the rest of the time lost is lost out of them.
+const ATTENTES = [SUPERVISEUR, RESPONSABLE, 'nuit'];
+// The night when the project declares none: from 23 h to 8 h, in local time.
+const NUIT = Object.freeze({ debut: 23, fin: 8 });
+
+// The night the project at <racine> declares in its package.json (`grillhouse.plageDeNuit`, `{
+// debut, fin }`, hours from 0 to 23 in local time, distinct; a night that crosses midnight has its
+// start after its end), else NUIT.
+export function plageDeNuit(racine) {
+  let p = null;
+  try {
+    p = JSON.parse(readFileSync(path.join(racine, 'package.json'), 'utf8'))?.grillhouse
+      ?.plageDeNuit;
+  } catch {
+    p = null;
+  }
+  const heure = h => Number.isInteger(h) && h >= 0 && h <= 23;
+  return heure(p?.debut) && heure(p?.fin) && p.debut !== p.fin
+    ? { debut: p.debut, fin: p.fin }
+    : NUIT;
+}
+
+// The parts of the interval [d, f] in the night <nuit>, each night from its start hour of a day to
+// its end hour, of the next day when it crosses midnight, in local time.
+function nuits([d, f], nuit) {
+  const out = [];
+  const jour = new Date(d);
+  jour.setHours(0, 0, 0, 0);
+  jour.setDate(jour.getDate() - 1);
+  while (jour.getTime() < f) {
+    const a = new Date(jour);
+    a.setHours(nuit.debut);
+    const b = new Date(jour);
+    if (nuit.fin < nuit.debut) b.setDate(b.getDate() + 1);
+    b.setHours(nuit.fin);
+    const x = Math.max(a.getTime(), d);
+    const y = Math.min(b.getTime(), f);
+    if (y > x) out.push([x, y]);
+    jour.setDate(jour.getDate() + 1);
+  }
+  return out;
+}
 // The roles of the circuit, by the steps they work at.
 const ROLES = new Set(SUITE.flatMap(e => e.qui));
 
@@ -125,8 +185,16 @@ const commun = ([d, f], l) =>
   longueur(l.map(([a, b]) => [Math.max(a, d), Math.min(b, f)]).filter(([a, b]) => b > a));
 
 // The bilan of <ticket> from the register's lines <lignes> (of its project), the results the
-// circuit kept <entrees> (`<ticket>.fiches.jsonl`) and the circuit's state <etat> (or null).
-export function bilan({ ticket, lignes, entrees = [], etat = null, maintenant = Date.now() }) {
+// circuit kept <entrees> (`<ticket>.fiches.jsonl`), the circuit's state <etat> (or null) and the
+// project's night <nuit>.
+export function bilan({
+  ticket,
+  lignes,
+  entrees = [],
+  etat = null,
+  nuit = NUIT,
+  maintenant = Date.now(),
+}) {
   // The sessions the circuit launched, by their id.
   const lancees = new Set(
     entrees.filter(e => e.role === CIRCUIT && e.lancement).map(e => e.lancement.seance)
@@ -162,10 +230,17 @@ export function bilan({ ticket, lignes, entrees = [], etat = null, maintenant = 
   const duCircuit = gardes.filter(e => e.role === CIRCUIT);
   for (const s of segments) {
     if (s.role === CIRCUIT) {
+      // The next step of the same name: its result is not this one's, even within the gap.
+      const apres =
+        segments.find(x => x.role === CIRCUIT && x.etape === s.etape && x.d > s.d)?.d ?? Infinity;
       s.entree =
         duCircuit.findLast(
           e =>
-            (e.resultat || e.arret) && e.etape === s.etape && e.t >= s.d - JEU && e.t <= s.f + JEU
+            (e.resultat || e.arret) &&
+            e.etape === s.etape &&
+            e.t >= s.d - JEU &&
+            e.t <= s.f + JEU &&
+            e.t <= apres
         ) ?? null;
       s.finale = s.etape === 'controles' && Boolean(s.entree?.resultat?.finale ?? s.entree?.finale);
     } else {
@@ -231,21 +306,27 @@ export function bilan({ ticket, lignes, entrees = [], etat = null, maintenant = 
     } else s.categorie = 'automatique';
   }
 
-  // The ends of the runs on a stop, each the start of a wait for the supervisor.
-  const montees = duCircuit.filter(e => e.montee).map(e => e.t);
-
-  // The waits for the supervisor: from each end of a run on a stop to the answer, the run after.
-  const attentes = [];
-  for (const t of montees) {
-    const tour = segments.find(s => s.d > t)?.d ?? Infinity;
-    const suivant = gardes.find(e => e.t > t)?.t ?? Infinity;
+  // The waits: from each end of a run on a stop to the answer, the run after, each for who must
+  // answer its question (`qui`, the owner or the supervisor).
+  const lesAttentes = [];
+  for (const e of duCircuit.filter(x => x.montee)) {
+    const tour = segments.find(s => s.d > e.t)?.d ?? Infinity;
+    const suivant = gardes.find(x => x.t > e.t)?.t ?? Infinity;
     const f = Math.min(tour, suivant, fin);
-    if (f > t) attentes.push([t, f]);
+    const { qui } = e.montee;
+    if (f > e.t) lesAttentes.push({ i: [e.t, f], qui, nuit: nuits([e.t, f], nuit) });
   }
+  const attentes = lesAttentes.map(a => a.i);
 
   const vide = () => ({ ms: 0, n: 0, jetons: 0, cache: 0, cout: 0 });
   const categories = Object.fromEntries(CATEGORIES.map(([k]) => [k, vide()]));
-  categories.attente = { ...vide(), ms: longueur(attentes), n: attentes.length };
+  for (const qui of [SUPERVISEUR, RESPONSABLE]) {
+    const l = lesAttentes.filter(a => a.qui === qui);
+    const ms = l.reduce((m, a) => m + a.i[1] - a.i[0] - longueur(a.nuit), 0);
+    categories[qui] = { ...vide(), ms, n: l.length };
+  }
+  const laNuit = lesAttentes.filter(a => a.nuit.length);
+  categories.nuit = { ...vide(), ms: longueur(laNuit.flatMap(a => a.nuit)), n: laNuit.length };
   const fenetre = s => [Math.max(s.d, debut), Math.min(s.f, fin)];
   for (const s of segments) {
     const [d, f] = fenetre(s);
@@ -290,22 +371,29 @@ export function bilan({ ticket, lignes, entrees = [], etat = null, maintenant = 
   }
   const arrets = {};
   for (const e of duCircuit.filter(x => x.arret)) arrets[e.arret] = (arrets[e.arret] ?? 0) + 1;
-  // The ends of the questionings: their rounds, the proposals they changed, those sent up.
+  // The ends of the questionings of the plan: the questions asked, the plans an answer changed, the
+  // questions left open.
   const fins = duCircuit.map(e => e.questionnement).filter(Boolean);
   const questionnement = {
-    tours: fins.reduce((m, q) => m + (q.tours ?? 0), 0),
-    changees: fins.filter(q => q.change).length,
-    montees: fins.filter(q => q.issue !== 'AUCUNE').length,
+    questions: fins.reduce((m, q) => m + (q.questions ?? 0), 0),
+    changes: fins.filter(q => q.change).length,
+    ouvertes: fins.reduce((m, q) => m + (q.ouvertes ?? 0), 0),
   };
   const somme = k => sessions.reduce((m, l) => m + (l[k] ?? 0), 0);
+  const perdu = CATEGORIES.filter(([k]) => !GARDE.has(k)).reduce(
+    (m, [k]) => m + categories[k].ms,
+    0
+  );
   return {
     ticket,
     calcule: new Date(maintenant).toISOString(),
     debut: mur ? new Date(debut).toISOString() : null,
     fin: mur ? new Date(fin).toISOString() : null,
     mur,
+    murHorsNuit: mur - categories.nuit.ms,
     statut: statutDe(etat),
-    perdu: CATEGORIES.filter(([k]) => !GARDE.has(k)).reduce((m, [k]) => m + categories[k].ms, 0),
+    perdu,
+    perduHorsAttentes: perdu - ATTENTES.reduce((m, k) => m + categories[k].ms, 0),
     categories,
     seances: {
       total: sessions.length,
@@ -353,17 +441,17 @@ export function texteDuBilan(b, avant) {
   const horsCircuit = h.total
     ? ` ; ${h.total} séance${h.total > 1 ? 's' : ''} hors circuit, lancée${h.total > 1 ? 's' : ''} par le superviseur (${lesRoles(h.parRole)}), ${dollars(h.cout)} $`
     : '';
-  const tete = `${b.statut} en ${minutes(b.mur)} min ; ${minutes(b.perdu)} min perdues (${pourcent(b.perdu, b.mur)} %) ; ${b.seances.total} séances${roles ? ` (${roles})` : ''}${horsCircuit} ; ${dollars(b.cout)} $ ; ${millions(b.jetons)} M jetons, ${millions(b.cache)} M lus du cache.`;
+  const tete = `${b.statut} en ${minutes(b.mur)} min, ${minutes(b.murHorsNuit)} min hors nuit d'attente ; ${minutes(b.perdu)} min perdues (${pourcent(b.perdu, b.mur)} %), ${minutes(b.perduHorsAttentes)} min hors attentes ; ${b.seances.total} séances${roles ? ` (${roles})` : ''}${horsCircuit} ; ${dollars(b.cout)} $ ; ${millions(b.jetons)} M jetons, ${millions(b.cache)} M lus du cache.`;
   const paye = new Set(['travail', 'sansEffet', 'questionnement']);
-  const q = b.questionnement ?? { tours: 0, changees: 0 };
+  const q = b.questionnement;
   const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
   const lignes = CATEGORIES.map(([k, nom]) => {
     const c = b.categories[k];
     const plus =
-      k === 'attente' && c.n
+      (k === SUPERVISEUR || k === RESPONSABLE) && c.n
         ? ` (${pluriel(c.n, 'montée')})`
         : k === 'questionnement'
-          ? `, ${dollars(c.cout)} $ (${pluriel(q.tours, 'tour')}, ${pluriel(q.changees, 'décision')} ${q.changees > 1 ? 'changées' : 'changée'})`
+          ? `, ${dollars(c.cout)} $ (${pluriel(q.questions, 'question')}, ${pluriel(q.changes, 'plan')} ${q.changes > 1 ? 'changés' : 'changé'}, ${pluriel(q.ouvertes, 'question')} ${q.ouvertes > 1 ? 'ouvertes' : 'ouverte'})`
           : paye.has(k)
             ? `, ${dollars(c.cout)} $`
             : '';
@@ -452,7 +540,7 @@ function calculer(racine, ticket) {
   } catch {
     etat = null;
   }
-  return bilan({ ticket, lignes, entrees, etat });
+  return bilan({ ticket, lignes, entrees, etat, nuit: plageDeNuit(racine) });
 }
 
 // The bilan of <ticket> computed, kept in the main tree <racine>, and its text, compared with the
