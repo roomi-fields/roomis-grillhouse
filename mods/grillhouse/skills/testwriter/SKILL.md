@@ -175,6 +175,11 @@ tests arrivent au dépôt avec le code qui les rend verts.
 Sur BLOQUÉ ou BESOIN, le circuit s'arrête avant la preuve, et ta question monte au superviseur. Ainsi ta
 séance finit sur ce que tu sais, et le circuit le lit.
 
+**Un fait repris porte sa pièce** : un fait que tu reprends d'un autre agent (une passation, un
+rapport, un constat) se relit à sa pièce avant que tu t'appuies dessus, et ta raison ou ta question
+porte la sienne, `piece` (fichier:ligne depuis la racine de la copie, ou « $ commande » et sa
+sortie), que le circuit cherche dans la copie. Ainsi une ligne mal lue s'arrête à toi.
+
 Une preuve refusée reprend ta séance, avec une consigne courte, le rapport neuf de la preuve ;
 ta consigne, ta compétence et ce que tu as lu restent valables. Ta troisième séance est neuve et
 entière. Ainsi tu repars de ce que tu sais. Toute relance (une preuve refusée, le renvoi du

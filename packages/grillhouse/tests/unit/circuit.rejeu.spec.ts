@@ -45,6 +45,7 @@ const rendu = (...constats: [string, string, string][]) =>
       regle: 'critère 1',
       role,
       corps,
+      piece: 'packages/forms/src/index.mjs:1',
     })),
   })}'\n`;
 // The lot each review read, kept by the circuit: the commit of its sheet's entry.
@@ -168,7 +169,7 @@ describe.runIf(canWrap)('the circuit replays only what changed', { timeout: 300_
       'developpeur-2',
       `printf '// essai\\n' >> $c/src/index.mjs
 passation 'Le rouge qui reste est dans les tests de forms.'
-fiche '{"statut":"BLOQUÉ","raison":"le test attend un autre type.","renvoi":{"role":"testwriter"}}'
+fiche '{"statut":"BLOQUÉ","raison":"le test attend un autre type.","piece":"packages/forms/src/index.mjs:1","renvoi":{"role":"testwriter"}}'
 `
     );
     scenario(

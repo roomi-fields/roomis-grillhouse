@@ -149,6 +149,10 @@ son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
   - `decouvertes` : ce que le circuit consigne fermé sous le ticket.
     Sur un arrêt, ta question monte au superviseur, et le circuit ne te relance pas sur ce rouge. Ainsi
     tu ne tournes jamais sur un rouge que tu as dit hors de ta portée.
+- **Un fait repris porte sa pièce** : un fait que tu reprends d'un autre agent (une passation, un
+  rapport, un constat) se relit à sa pièce avant que tu t'appuies dessus, et ta raison ou ta
+  question porte la sienne, `piece` (fichier:ligne depuis la racine de la copie, ou « $ commande »
+  et sa sortie), que le circuit cherche dans la copie. Ainsi une ligne mal lue s'arrête à toi.
 - **Une relance reprend ta séance** : après des contrôles rouges, le circuit reprend ta séance avec
   une consigne courte, le rapport neuf ; ta consigne, ta compétence et ce que tu as lu restent
   valables. La dernière tentative, sur le modèle fort, est une séance neuve et entière. Ainsi tu

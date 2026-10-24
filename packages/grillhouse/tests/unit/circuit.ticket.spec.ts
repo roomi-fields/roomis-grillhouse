@@ -138,6 +138,7 @@ describe.runIf(canWrap)(
             {
               titre: 'packages/forms/src/index.mjs:1 — exemplar reste',
               genre: 'bloquant',
+              piece: 'packages/forms/src/index.mjs:1',
               regle: 'critère 1',
               role: 'developpeur',
               corps: 'exemplar reste dans forms.',
@@ -145,6 +146,7 @@ describe.runIf(canWrap)(
             {
               titre: 'packages/forms/test/mesure.test.mjs:3 — le cas de zéro manque',
               genre: 'bloquant',
+              piece: 'packages/forms/src/index.mjs:1',
               regle: 'critère 1',
               role: 'testwriter',
               corps: 'Aucun test ne mesure zéro.',
@@ -212,6 +214,7 @@ describe.runIf(canWrap)(
             {
               titre: 'packages/binder/src/index.mjs:1 — un nom flou',
               genre: 'bloquant',
+              piece: 'packages/forms/src/index.mjs:1',
               regle: 'critère 1',
               role: 'developpeur',
               corps: 'Le nom ne dit pas la mesure.',
@@ -248,11 +251,12 @@ describe.runIf(canWrap)(
       scenario(
         id,
         'developpeur-3',
-        `passation 'Une question.'\nfiche '{"statut":"BESOIN","question":"que rend mesure de 0 ?"}'\n`
+        `passation 'Une question.'\nfiche '{"statut":"BESOIN","question":"que rend mesure de 0 ?","piece":"packages/forms/src/index.mjs:1"}'\n`
       );
       const constat = (lettre: string) => ({
         titre: `packages/forms/src/index.mjs — constat ${lettre}`,
         genre: 'bloquant',
+        piece: 'packages/forms/src/index.mjs:1',
         regle: 'critère 1',
         role: 'developpeur',
         corps: `Le corps du constat ${lettre}.`,
@@ -285,7 +289,13 @@ describe.runIf(canWrap)(
         constat('B').titre,
         constat('C').titre,
       ]);
+      // grillhouse-3uv.95.10: a finding kept open keeps its piece, which the next agent re-reads.
+      expect(etat(id)?.constats.map(c => c.piece)).toEqual([
+        constat('B').piece,
+        constat('C').piece,
+      ]);
       const consigne = essai(id, 'developpeur-3.prompt');
+      expect(consigne).toContain(`Pièce : ${constat('B').piece}`);
       expect(consigne).toContain('Le corps du constat B.');
       expect(consigne).toContain('Le corps du constat C.');
       expect(consigne).not.toContain('Le corps du constat A.');
@@ -307,6 +317,7 @@ describe.runIf(canWrap)(
             {
               titre: 'packages/forms/test/mesure.test.mjs:3 — le cas de zéro manque',
               genre: 'bloquant',
+              piece: 'packages/forms/src/index.mjs:1',
               regle: 'critère 1',
               role: 'testwriter',
               corps: 'Aucun test ne mesure zéro.',
@@ -392,6 +403,7 @@ describe.runIf(canWrap)(
             {
               titre: 'x',
               genre: 'bloquant',
+              piece: 'packages/forms/src/index.mjs:1',
               regle: 'critère 1',
               role: 'developpeur',
               composant: '000-forms',

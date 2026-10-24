@@ -440,7 +440,7 @@ export function circuitEssai(ESSAIS: string, { feuille = false } = {}) {
       finale: boolean;
       seance: number | null;
       paquets: string[];
-      constats: { titre: string; role: string; regle: string; corps: string }[];
+      constats: { titre: string; role: string; regle: string; corps: string; piece?: string }[];
       verifie: string | null;
       question: {
         arret: string;

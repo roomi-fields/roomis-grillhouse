@@ -27,10 +27,10 @@ des rapports d'API).
 2. Rends une ligne de `conformite` par élément, son `element` tel que la liste l'écrit :
    `conforme` `oui` ou `non`, la règle citée (`document` `CADRE`, `INTERFACE` ou
    `ARCHITECTURE`, et `reference` la règle dans ce document : « de 000-forms, R2 »,
-   « de 030-binder, § Les frontières »), `piece` son `fichier:ligne` et ce qu'il montre. Un export
-   neuf cite son entrée dans l'INTERFACE de son paquet (`document` `INTERFACE`, son nom dans
-   `reference`) ; un export neuf sans entrée est `non`. Un élément supprimé se juge aussi : ses
-   lecteurs et ses textes partent avec lui.
+   « de 030-binder, § Les frontières »), `piece` son `fichier:ligne` et ce qu'il montre, que le
+   circuit cherche dans la copie. Un export neuf cite son entrée dans l'INTERFACE de son paquet
+   (`document` `INTERFACE`, son nom dans `reference`) ; un export neuf sans entrée est `non`. Un
+   élément supprimé se juge aussi : ses lecteurs et ses textes partent avec lui.
 3. Un `non` rend le lot : il nomme son agent (`role`), comme un constat
    bloquant. Le circuit refuse une fiche à laquelle il manque un élément, ou dont une ligne n'a
    pas sa référence.
@@ -123,11 +123,14 @@ avec ta fiche. Ainsi le circuit reprend dès ta fiche rendue.
 Une passe en trouve, tu cherches une entrée voisine qui casse le correctif : un constat se prouve
 par son exemple. Ainsi le verdict repose sur des pièces.
 
-Ton verdict est ta fiche, que ton schéma décrit et qui finit ta séance : `verdict` `ACCEPTÉ`
-ou `RENDU`, ta `conformite` (une ligne par élément du lot), et chaque constat de `constats`, son
-adresse (`titre`), son genre (`genre`) et sa preuve (`corps`). Le circuit l'écrit au ticket, sur plusieurs lignes, son premier mot le verdict,
-que le script d'intégration et le tableau lisent, puis tes remarques. Tu n'écris rien au ticket
-toi-même.
+Ton verdict est ta fiche, que ton schéma décrit et qui finit ta séance : `verdict` `ACCEPTÉ` ou
+`RENDU`, ta `conformite` (une ligne par élément du lot), et chaque constat de `constats`, son sujet
+(`titre`), son genre (`genre`), sa preuve (`corps`) et sa pièce (`piece`, fichier:ligne depuis la
+racine de la copie, ou « $ commande » et sa sortie). Un fait que tu reprends d'un autre agent (une
+passation, un rapport, ta relecture d'avant) se relit à sa pièce avant que tu t'appuies dessus ; le
+circuit cherche chaque pièce fichier:ligne dans la copie et refuse une fiche dont une pièce est
+introuvable. Le circuit l'écrit au ticket, sur plusieurs lignes, son premier mot le verdict, que le
+script d'intégration et le tableau lisent, puis tes remarques. Tu n'écris rien au ticket toi-même.
 
 **Un constat bloquant tient un critère du plan ou une règle du cadre**, que son champ `regle`
 nomme (« critère 2 », ou le document et sa règle) ; tout autre constat est une remarque (`genre`
@@ -159,11 +162,12 @@ s'arrête, et la question monte au superviseur. Ainsi chaque constat arrive à l
   ],
   "constats": [
     {
-      "titre": "packages/forms/src/index.mjs:12",
+      "titre": "mesure(0) rend NaN",
       "genre": "bloquant",
       "regle": "critère 2",
       "role": "developpeur",
-      "corps": "Preuve : mesure(0) rend NaN."
+      "corps": "Preuve : mesure(0) rend NaN.",
+      "piece": "packages/forms/src/index.mjs:12 divise par sa valeur."
     }
   ]
 }
@@ -185,10 +189,10 @@ le ticket exige.
 
 Tu ranges chaque mot qu'une garde de vocabulaire du projet signale sur une ligne que le lot touche,
 même un mot qui y était déjà. Un usage légitime (un champ homonyme, un nom de l'API) entre au
-registre des exceptions du projet, dans le lot, par un constat adressé à l'agent qui l'écrit ;
-seul un vrai mot du langage écrit en dur monte au responsable, par ta `question` (le mot, sa ligne,
-ta recommandation) : le circuit s'arrête avant le commit. Le `CONTEXTE` de ta consigne porte la
-réponse à une question d'avant. Ainsi chaque mot signalé se range dans le lot, et seul le
-responsable tranche le langage.
+registre des exceptions du projet, dans le lot, par un constat adressé à l'agent qui l'écrit ; seul
+un vrai mot du langage écrit en dur monte au responsable, par ta `question` (le mot et ta
+recommandation) et sa `piece` (la ligne du mot) : le circuit s'arrête avant le commit. Le `CONTEXTE`
+de ta consigne porte la réponse à une question d'avant. Ainsi chaque mot signalé se range dans le
+lot, et seul le responsable tranche le langage.
 
 Ta fiche rendue, tu t'arrêtes : le circuit la recueille à la fin de ta séance.

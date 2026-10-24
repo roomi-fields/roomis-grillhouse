@@ -62,7 +62,9 @@ change, et ceux qu'il peut casser.
      titre le nomme (le nom de son paquet, ou son chemin) ; le circuit les écrit au titre, et
      chaque séance du ticket n'écrit qu'eux ;
    - `questions` : ce que je ne tranche pas, chacune avec ses options, ma recommandation et sa
-     `piece` (fichier:ligne, ou la commande et sa sortie) ; elles montent au superviseur.
+     `piece` (fichier:ligne depuis la racine de la copie, ou « $ commande » et sa sortie), que le
+     circuit cherche dans la copie ; elles montent au superviseur. Un fait que je reprends d'un
+     autre agent (le ticket, une passation) se relit à sa pièce avant que je m'appuie dessus.
      Une décision que la référence mature, l'existant ou une règle du cadre tranche, je la tranche
      dans le plan, sa raison au critère. _Fini quand_ chaque critère se mesure et chaque paquet du
      relevé que le ticket change est dans `paquets`.

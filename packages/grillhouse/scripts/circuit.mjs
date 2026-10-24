@@ -88,7 +88,9 @@
 // - Each session of the explorateur, the questionneur, the testwriter, the developpeur and the
 //   reviewer ends on its sheet (« la fiche »): claude runs with `--output-format json --json-schema
 //   <the schema of its role>` (scripts/resultats.mjs), and its JSON result carries the sheet in
-//   `structured_output`, which the circuit reads (`lireFiche`): lancer.sh writes that result to
+//   `structured_output`, which the circuit reads (`lireFiche`), each file piece of it checked in
+//   the copy (a piece not found refuses the sheet, asked again once like any other lack):
+//   lancer.sh writes that result to
 //   `.claude/worktrees/<ticket>.resultat.json`, and a session out of the envelope prints it. Each
 //   sheet read is kept with the ticket's sheets, `.claude/worktrees/<ticket>.fiches.jsonl` (`{
 //   date, role, fiche }`, the lot a review read joined to its sheet, `lot`), beside the circuit's
@@ -128,7 +130,8 @@
 //   below; BESOIN (its `question`) stops the circuit at once at « besoin », the question and the
 //   handover as its report, with no session more; so does BLOQUÉ (its `raison`), at
 //   « hors-portee », save for a developpeur whose sheet sends the red to the testwriter (`renvoi`,
-//   below), which is that sending. Either stop goes up to the supervisor, the sheet as its piece.
+//   below), which is that sending. Either stop goes up to the supervisor, the sheet's `piece` as
+//   its piece.
 // - A plan that carries no test (sansTests: in a repository of packages, no package with a script
 //   `test:vitest` lies in a path of the plan or holds it, as `npm test -- <chemin>` refuses a path
 //   out of every package or in a package without that script) skips the testwriter and the proof:
@@ -273,8 +276,8 @@
 //   under its header line, its line to the register (scripts/registre.mjs --copie), and it is
 //   watched as a session in the envelope is. Its sheet is its verdict (`verdict` ACCEPTÉ or RENDU,
 //   its `conformite`, one line per element of the lot, conforming or not, with the rule it cites
-//   and its piece, its `constats`, each `bloquant` with the criterion or rule it holds, or
-//   `remarque`, its `question`, `ecarts`): a sheet without a line for each element is out of
+//   and its piece, its `constats`, each with its piece, `bloquant` with the criterion or rule it
+//   holds, or `remarque`, its `question` with its piece, `ecarts`): a sheet without a line for each element is out of
 //   conformity (`conformiteDuLot` of scripts/resultats.mjs), and a « non » is a blocking finding
 //   for its agent. In a bounded review, each element of the list is marked: to judge again
 //   when the difference between the two lots touches it, else taken up with its line of the
@@ -1104,7 +1107,7 @@ async function seance(ctx, role, { tentative, rapport, fort, derniere }) {
     };
     const r = await lancer(ctx, role, consigne(courte, 3), { fort, reprend: reprise.seance });
     seanceLancee(ctx, role, r);
-    const lu = r.seance === 0 ? lireFiche(role, r.sortie) : { erreur: `code ${r.seance}` };
+    const lu = r.seance === 0 ? lireSaFiche(ctx, role, r.sortie) : { erreur: `code ${r.seance}` };
     if (lu.fiche) return garder(ctx, role, lu.fiche);
     commenter(
       ctx,
@@ -1207,7 +1210,7 @@ async function jusquALaFiche(ctx, role, texte, options = {}) {
     seanceLancee(ctx, role, r);
     lu =
       r.seance === 0
-        ? lireFiche(role, r.sortie)
+        ? lireSaFiche(ctx, role, r.sortie)
         : { erreur: `la séance finit en erreur (code ${r.seance})` };
     const faute = lu.fiche ? valider(lu.fiche) : null;
     if (faute) lu = { erreur: `fiche non conforme : ${faute}` };
@@ -1221,6 +1224,11 @@ async function jusquALaFiche(ctx, role, texte, options = {}) {
     `Deux fois, la séance du ${nomDuRole(role)} finit sans fiche conforme : ${lu.erreur}. Le journal du ticket : ${ctx.journal}`
   );
 }
+
+// The sheet of <role> in the output <sortie> of its session (`lireFiche`), each file piece of it
+// checked in the ticket's copy, or in the repository before the copy exists.
+const lireSaFiche = (ctx, role, sortie) =>
+  lireFiche(role, sortie, { copie: existsSync(ctx.copie) ? ctx.copie : ctx.racine });
 
 // The name of the package <dossier> as a title writes it: its package's name, or its path.
 function nomDe(ctx, dossier) {
@@ -1280,13 +1288,15 @@ function fichiersDuLot(ctx) {
 const bloquants = bloquantsDeLaFiche;
 
 // The blocking findings <constats>, each under its heading, the criterion or rule it holds, its
-// recipient (or the criterion in question) and its body: lines.
+// recipient (or the criterion in question), its body and its piece (an element judged not
+// conforming carries it in its body): lines.
 const lignesDesConstats = constats =>
   constats.flatMap((c, i) => [
     `### Constat ${i + 1} — ${c.titre}`,
     `Bloquant : ${c.regle}`,
     c.critere_en_cause ? `Critère en cause : ${c.critere_en_cause}` : `Agent : ${c.role ?? '?'}`,
     c.corps,
+    ...(c.piece ? [`Pièce : ${c.piece}`] : []),
     '',
   ]);
 
@@ -1314,9 +1324,14 @@ export function texteDuVerdict(fiche) {
     ),
     ...section(
       'Remarques',
-      (fiche.constats ?? []).filter(c => c.genre === 'remarque').map(c => `${c.titre} — ${c.corps}`)
+      (fiche.constats ?? [])
+        .filter(c => c.genre === 'remarque')
+        .map(c => `${c.titre} — ${c.corps} (${c.piece})`)
     ),
-    ...section('Question au responsable', fiche.question ? [fiche.question] : []),
+    ...section(
+      'Question au responsable',
+      fiche.question ? [`${fiche.question} (${fiche.piece})`] : []
+    ),
     ...section(
       'Écarts à nommer au commit',
       fiche.ecarts?.map(e => `${e.sujet} : ${e.texte}`)
@@ -1680,12 +1695,12 @@ function restaurer(ctx, commit, fichiers) {
 }
 
 // The stop for the sheet <fiche> of the session <tentative> of <role>, BLOQUÉ (« hors-portee »)
-// or BESOIN (« besoin »): its reason or question first, then its handover; the sheet as its piece,
-// and the agent's question as its own.
+// or BESOIN (« besoin »): its reason or question first, then its handover; the sheet's piece as
+// its own, and the agent's question as its own.
 function arretDuStatut(ctx, role, tentative, fiche) {
   const passation = derniereDe(ctx, role)?.text ?? 'aucune';
   const qui = `Le ${nomDuRole(role)}`;
-  const piece = `La fiche du ${nomDuRole(role)}, séance ${tentative} : ${fiche.statut} — ${fiche.statut === 'BESOIN' ? fiche.question : fiche.raison}`;
+  const { piece } = fiche;
   return fiche.statut === 'BESOIN'
     ? new Arret(
         'besoin',
@@ -1712,11 +1727,14 @@ function renvoiDe(ctx, fiche) {
 const ouverts = (ctx, role) => (ctx.constats ?? []).filter(c => c.role === role);
 
 // The findings <constats> as an agent's instruction carries them, each under its heading, with
-// what it holds and its body; « aucun » without one.
+// what it holds, its body and its piece; « aucun » without one.
 const texteDesOuverts = constats =>
   constats.length
     ? constats
-        .map((c, i) => `### Constat ${i + 1} — ${c.titre}\nBloquant : ${c.regle}\n${c.corps}`)
+        .map(
+          (c, i) =>
+            `### Constat ${i + 1} — ${c.titre}\nBloquant : ${c.regle}\n${c.corps}${c.piece ? `\nPièce : ${c.piece}` : ''}`
+        )
         .join('\n\n')
     : 'aucun';
 
@@ -1724,7 +1742,7 @@ const texteDesOuverts = constats =>
 // review stay open until the review that resolves them: each blocking finding of the sheet (a
 // remark reaches the ticket, no agent; the sheet's schema gives a RENDU at least one), after each
 // finding open before it that the sheet neither marks lifted (`suivi`, by its title) nor states
-// again. Each one `{ titre, regle, role, corps }`, its recipient the agent it names, testwriter or
+// again. Each one `{ titre, regle, role, corps, piece }`, its recipient the agent it names, testwriter or
 // developpeur. Throws an Arret `relecture-arret` for a finding without a valid recipient or one
 // that puts a criterion in question.
 function constatsOuverts(ctx, fiche, texte) {
@@ -1738,7 +1756,7 @@ function constatsOuverts(ctx, fiche, texte) {
         `Le constat « ${c.titre} » n'a pas de destinataire valide : il nomme ${c.role ? `« ${c.role} »` : 'personne'}, quand le rôle est ${AGENTS_DU_LOT.join(' ou ')}.`
       );
     }
-    return { titre: c.titre, regle: c.regle, role: c.role, corps: c.corps };
+    return { titre: c.titre, regle: c.regle, role: c.role, corps: c.corps, piece: c.piece };
   });
   const leves = new Set((fiche.suivi ?? []).filter(s => s.etat === 'levé').map(s => s.titre));
   const restes = (ctx.constats ?? []).filter(
@@ -2809,7 +2827,7 @@ async function derouler(ctx, debut) {
             'besoin',
             `Le relecteur attend une réponse : ${v.fiche.question}\n\nLe verdict :\n\n${v.texte}`,
             {
-              piece: `La fiche du relecteur : question — ${v.fiche.question}`,
+              piece: v.fiche.piece,
               question: `Le relecteur demande : ${v.fiche.question}`,
               qui: RESPONSABLE,
             }

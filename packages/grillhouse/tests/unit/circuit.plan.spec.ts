@@ -61,7 +61,7 @@ const plan = (o: Record<string, unknown> = {}) => ({
 });
 const questions = (...q: string[]) => ({
   issue: 'QUESTIONS',
-  questions: q.map(question => ({ question, vise: 'flou' })),
+  questions: q.map(question => ({ question, vise: 'flou', piece: 'CLAUDE.md:9' })),
 });
 const valeur = (a: string[], option: string) =>
   a.includes(option) ? a[a.indexOf(option) + 1] : undefined;

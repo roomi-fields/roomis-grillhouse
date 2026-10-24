@@ -51,6 +51,10 @@ d'une étape dit où en est chaque ticket.
 ticket, comme une RFC amendée ; les commentaires restent l'historique. Ainsi chaque agent lit la
 même décision.
 
+**Un fait repris se relit à sa pièce** (fichier:ligne depuis la racine de la copie, ou
+« $ commande » et sa sortie) avant qu'un agent s'appuie dessus, et un fait transmis porte la
+sienne. Ainsi une ligne mal lue s'arrête au premier qui la relit.
+
 **Un ticket de réalisation nomme ses composants** dans son titre (« numéro — sujet — composant,
 composant ») et sa section « Architecture », le fournisseur d'abord ; il fait une seule livraison,
 en un seul commit, et se crée sous sa mère (`docs/agents/issue-tracker.md`). Un objectif dont le

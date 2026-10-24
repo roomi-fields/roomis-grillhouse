@@ -107,7 +107,7 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     // A red left in the tests of the lot: his sheet sends it to the testwriter.
     const renvoi = `printf '// essai\\n' >> $c/src/index.mjs
 passation 'Le rouge qui reste est dans les tests de forms : le test attend un autre type.'
-fiche '{"statut":"BLOQUÉ","raison":"le test attend un autre type.","renvoi":{"role":"testwriter"}}'
+fiche '{"statut":"BLOQUÉ","piece":"packages/forms/src/index.mjs:1","raison":"le test attend un autre type.","renvoi":{"role":"testwriter"}}'
 `;
     it('relaunches the testwriter, then the proof and the developpeur, without relaunching the developpeur on that red, the gesture said', () => {
       const id = 'demo-renvoi-testwriter';

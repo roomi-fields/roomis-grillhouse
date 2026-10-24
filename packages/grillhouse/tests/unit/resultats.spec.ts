@@ -17,6 +17,7 @@ import {
   conformiteDuLot,
   ecrireSarif,
   lireFiche,
+  lirePiece,
   lireRapportsVitest,
   lireResumes,
   lireSarif,
@@ -45,18 +46,27 @@ const sortie = (structured?: unknown) =>
 describe('the sheet of each role holds only the fields a reader reads', () => {
   it('the testwriter: its status, its reason or question, its expected greens, its discoveries', () => {
     expect(champs('testwriter')).toEqual(
-      ['decouvertes', 'question', 'raison', 'statut', 'verts_attendus'].sort()
+      ['decouvertes', 'piece', 'question', 'raison', 'statut', 'verts_attendus'].sort()
     );
     expect((schemaDeFiche('testwriter') as Schema).required).toEqual(['statut']);
   });
   it('the developpeur: its status, its sending to a testwriter, the deviations to name at the commit, its discoveries', () => {
     expect(champs('developpeur')).toEqual(
-      ['decouvertes', 'ecarts', 'question', 'raison', 'renvoi', 'statut'].sort()
+      ['decouvertes', 'ecarts', 'piece', 'question', 'raison', 'renvoi', 'statut'].sort()
     );
   });
   it('the reviewer: its verdict, its line of conformity per element of the lot, its findings, the findings before it judged (a bounded review), the deviations, its question for the owner, its discoveries', () => {
     expect(champs('relecteur')).toEqual(
-      ['conformite', 'constats', 'decouvertes', 'ecarts', 'question', 'suivi', 'verdict'].sort()
+      [
+        'conformite',
+        'constats',
+        'decouvertes',
+        'ecarts',
+        'piece',
+        'question',
+        'suivi',
+        'verdict',
+      ].sort()
     );
     expect((schemaDeFiche('relecteur') as Schema).required).toEqual(['verdict']);
   });
@@ -75,9 +85,9 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
       items: Schema & { properties: { genre: { enum: string[] } } };
     };
     expect(Object.keys(c.items.properties).sort()).toEqual(
-      ['corps', 'critere_en_cause', 'genre', 'regle', 'role', 'titre'].sort()
+      ['corps', 'critere_en_cause', 'genre', 'piece', 'regle', 'role', 'titre'].sort()
     );
-    expect(c.items.required).toEqual(['titre', 'corps', 'genre']);
+    expect(c.items.required).toEqual(['titre', 'corps', 'genre', 'piece']);
     expect(c.items.properties.genre.enum).toEqual(['bloquant', 'remarque']);
   });
   // grillhouse-3uv.89.1 (L9), grillhouse-3uv.95.4: the questionneur asks, once.
@@ -96,7 +106,7 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
       'règle',
       'critère',
     ]);
-    expect(q.items.required).toEqual(['question', 'vise']);
+    expect(q.items.required).toEqual(['question', 'vise', 'piece']);
   });
   // grillhouse-3uv.95.4: the regulator and the technical referent are removed, their sheets with
   // them.
@@ -147,13 +157,19 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
 // grillhouse-3uv.91.2: only a blocking finding sends the lot back, and it names what it holds.
 describe('the findings of a reviewer’s sheet', () => {
   const bloquant = {
-    titre: 'packages/a/src/x.ts:3',
+    titre: 'x(0) rend NaN',
     genre: 'bloquant',
     regle: 'critère 2',
     role: 'developpeur',
     corps: 'Preuve : x(0) rend NaN.',
+    piece: 'packages/a/src/x.ts:3 divise par sa valeur.',
   };
-  const remarque = { titre: 'packages/a/src/x.ts:9', genre: 'remarque', corps: 'Un nom à revoir.' };
+  const remarque = {
+    titre: 'Un nom à revoir',
+    genre: 'remarque',
+    corps: 'Un nom à revoir.',
+    piece: 'packages/a/src/x.ts:9',
+  };
   it('a blocking finding without the criterion or the rule it holds is refused', () => {
     const { regle: _, ...sans } = bloquant;
     expect(lireFiche('relecteur', sortie({ verdict: 'RENDU', constats: [sans] })).erreur).toMatch(
@@ -310,15 +326,194 @@ describe('the sheets of the questioning (L9)', () => {
     expect(
       lireFiche(
         'questionneur',
-        sortie({ issue: 'QUESTIONS', questions: [{ question: 'Pourquoi ?', vise: 'intention' }] })
+        sortie({
+          issue: 'QUESTIONS',
+          questions: [{ question: 'Pourquoi ?', vise: 'intention', piece: 'CLAUDE.md:7' }],
+        })
       ).erreur
     ).toBeUndefined();
     expect(
       lireFiche(
         'questionneur',
-        sortie({ issue: 'QUESTIONS', questions: [{ question: 'Pourquoi ?', vise: 'goût' }] })
+        sortie({
+          issue: 'QUESTIONS',
+          questions: [{ question: 'Pourquoi ?', vise: 'goût', piece: 'CLAUDE.md:7' }],
+        })
       ).erreur
     ).toContain('vise');
+  });
+});
+
+// grillhouse-3uv.95.10, decision 5 of grillhouse-3uv.95: in BP 320.9 a question born of a line
+// read wrong (native.ts:234) was copied by five agents up to the owner, none of them re-reading it.
+// As a code review cites the line it judges, a finding, a question or a montée carries its piece,
+// in one format: `<fichier>:<ligne>` from the root of the copy, or `$ <commande>` and its output;
+// the circuit checks that a file piece is in the copy.
+describe('the piece of each fact a sheet carries', () => {
+  const copie = mkdtempSync(path.join(ESSAIS, 'copie-'));
+  mkdirSync(path.join(copie, 'packages/a/src'), { recursive: true });
+  writeFileSync(path.join(copie, 'packages/a/src/x.ts'), 'un\ndeux\ntrois\n');
+  writeFileSync(path.join(ESSAIS, 'dehors.ts'), 'un\n');
+  const besoin = (piece?: string) => ({
+    statut: 'BESOIN',
+    question: 'Que rend x de 0 ?',
+    ...(piece === undefined ? {} : { piece }),
+  });
+
+  it('a piece is a file and its line from the root of the copy, or a command and its output', () => {
+    expect(lirePiece('packages/a/src/x.ts:3 divise par sa valeur.')).toEqual({
+      fichier: 'packages/a/src/x.ts',
+      ligne: 3,
+    });
+    expect(lirePiece('packages/a/src/x.ts:3')).toEqual({
+      fichier: 'packages/a/src/x.ts',
+      ligne: 3,
+    });
+    // A range, as SARIF's region and GitHub's link; the place in backquotes or before punctuation.
+    expect(lirePiece('packages/a/src/x.ts:1-3 la boucle.')).toEqual({
+      fichier: 'packages/a/src/x.ts',
+      ligne: 1,
+      fin: 3,
+    });
+    expect(lirePiece('packages/a/src/x.ts:3.')).toEqual({
+      fichier: 'packages/a/src/x.ts',
+      ligne: 3,
+    });
+    expect(lirePiece('`packages/a/src/x.ts:3`, la division')).toEqual({
+      fichier: 'packages/a/src/x.ts',
+      ligne: 3,
+    });
+    expect(lirePiece('$ npm test -- packages/a\n1 failed : x(0)')).toEqual({
+      commande: 'npm test -- packages/a',
+      sortie: '1 failed : x(0)',
+    });
+    for (const faux of [
+      'packages/a/src/x.ts',
+      'packages/a/src/x.ts:0',
+      'packages/a/src/x.ts:3-1',
+      'packages/a/src/x.ts:1-2-3',
+      'packages/a/src/x.ts:trois',
+      ':3',
+      '$ npm test',
+      '$ \n1 failed',
+      'voir le code',
+      '',
+    ]) {
+      expect(lirePiece(faux), faux).toBeNull();
+    }
+  });
+
+  it('each finding, question and stop of a sheet holds its piece in its schema', () => {
+    type Liste = { items: { required: string[] } };
+    const props = (role: string) => (schemaDeFiche(role) as Schema).properties;
+    expect((props('relecteur').constats as Liste).items.required).toContain('piece');
+    expect((props('questionneur').questions as Liste).items.required).toContain('piece');
+    expect((props('explorateur').questions as Liste).items.required).toContain('piece');
+    for (const role of ['testwriter', 'developpeur', 'relecteur']) {
+      expect(props(role), role).toHaveProperty('piece');
+    }
+  });
+
+  it.each([
+    ['testwriter', { statut: 'BLOQUÉ', raison: 'le type manque.' }],
+    ['developpeur', besoin()],
+    ['relecteur', { verdict: 'ACCEPTÉ', question: 'Ce mot est-il du langage ?' }],
+    [
+      'relecteur',
+      { verdict: 'ACCEPTÉ', constats: [{ titre: 'Un nom', genre: 'remarque', corps: 'à revoir' }] },
+    ],
+    ['questionneur', { issue: 'QUESTIONS', questions: [{ question: 'Pourquoi ?', vise: 'flou' }] }],
+    [
+      'explorateur',
+      {
+        criteres: [],
+        paquets: ['packages/a'],
+        questions: [{ question: 'Le format change-t-il ?' }],
+      },
+    ],
+  ])('a sheet of the %s without its piece is refused: %j', (role, f) => {
+    const lu = lireFiche(role, sortie(f));
+    expect(lu.fiche).toBeUndefined();
+    expect(lu.erreur).toMatch(/piece : manque/);
+  });
+
+  it('a piece in neither form is refused, naming its field', () => {
+    expect(lireFiche('developpeur', sortie(besoin('voir le code'))).erreur).toMatch(
+      /piece : « voir le code » n'est pas une pièce/
+    );
+    const ligne = {
+      element: 'packages/a/src/x.ts#x',
+      conforme: 'oui',
+      document: 'CADRE',
+      reference: 'packages/a, R2',
+      piece: 'le code de x',
+    };
+    expect(
+      lireFiche('relecteur', sortie({ verdict: 'ACCEPTÉ', conformite: [ligne] })).erreur
+    ).toMatch(/conformite\[0\]\.piece : « le code de x » n'est pas une pièce/);
+  });
+
+  it('a file piece is checked in the copy: the file present, the line in the file', () => {
+    const lu = (piece: string) => lireFiche('developpeur', sortie(besoin(piece)), { copie });
+    expect(lu('packages/a/src/x.ts:3 rend trois.').erreur).toBeUndefined();
+    expect(lu('$ npm test -- packages/a\n1 failed').erreur).toBeUndefined();
+    expect(lu('packages/a/src/x.ts:2-3').erreur).toBeUndefined();
+    expect(lu('`packages/a/src/x.ts:3`.').erreur).toBeUndefined();
+    expect(lu('packages/a/src/x.ts:2-4').erreur).toMatch(
+      /piece : packages\/a\/src\/x\.ts:2-4 introuvable dans la copie : le fichier a 3 lignes/
+    );
+    expect(lu('packages/a/src/x.ts:4').erreur).toMatch(
+      /piece : packages\/a\/src\/x\.ts:4 introuvable dans la copie : le fichier a 3 lignes/
+    );
+    expect(lu('packages/a/src/y.ts:1').erreur).toMatch(
+      /piece : packages\/a\/src\/y\.ts:1 introuvable dans la copie : pas de tel fichier/
+    );
+    expect(lu('packages/a/src:1').erreur).toMatch(/introuvable dans la copie : pas de tel fichier/);
+    expect(lu(`../${path.basename(ESSAIS)}/dehors.ts:1`).erreur).toMatch(
+      /introuvable dans la copie/
+    );
+    // Without the copy, the form alone is read.
+    expect(
+      lireFiche('developpeur', sortie(besoin('packages/a/src/y.ts:1'))).erreur
+    ).toBeUndefined();
+  });
+
+  it('the piece of each line of conformity and of each finding is checked in the copy', () => {
+    const ligne = {
+      element: 'packages/a/src/x.ts#x',
+      conforme: 'oui',
+      document: 'CADRE',
+      reference: 'packages/a, R2',
+      piece: 'packages/a/src/x.ts:9 reçoit son type.',
+    };
+    const remarque = {
+      titre: 'Un nom',
+      genre: 'remarque',
+      corps: 'à revoir',
+      piece: 'packages/a/src/x.ts:2',
+    };
+    const lu = (f: Record<string, unknown>) => lireFiche('relecteur', sortie(f), { copie });
+    expect(lu({ verdict: 'ACCEPTÉ', conformite: [ligne] }).erreur).toMatch(
+      /conformite\[0\]\.piece : packages\/a\/src\/x\.ts:9 introuvable/
+    );
+    expect(
+      lu({ verdict: 'ACCEPTÉ', conformite: [{ ...ligne, piece: 'packages/a/src/x.ts:1' }] }).erreur
+    ).toBeUndefined();
+    expect(
+      lu({ verdict: 'ACCEPTÉ', constats: [{ ...remarque, piece: 'packages/b/x.ts:1' }] }).erreur
+    ).toMatch(/constats\[0\]\.piece : packages\/b\/x\.ts:1 introuvable/);
+    expect(lu({ verdict: 'ACCEPTÉ', constats: [remarque] }).erreur).toBeUndefined();
+    expect(
+      lireFiche(
+        'explorateur',
+        sortie({
+          criteres: [],
+          paquets: ['packages/a'],
+          questions: [{ question: 'Le format change-t-il ?', piece: 'packages/a/src/z.ts:1' }],
+        }),
+        { copie }
+      ).erreur
+    ).toMatch(/questions\[0\]\.piece : packages\/a\/src\/z\.ts:1 introuvable/);
   });
 });
 

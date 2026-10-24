@@ -54,7 +54,7 @@ describe.runIf(canWrap)('the instruction of a session', { timeout: 300_000 }, ()
     scenario(
       id,
       'relecteur-1',
-      `fiche '{"verdict":"RENDU","constats":[{"titre":"packages/forms/test/mesure.test.mjs","genre":"bloquant","regle":"critère 1","role":"testwriter","corps":"Constat adressé au testwriter."},{"titre":"packages/binder/src/index.mjs","genre":"bloquant","regle":"critère 1","role":"developpeur","corps":"Constat adressé au développeur."}]}'\n`
+      `fiche '{"verdict":"RENDU","constats":[{"titre":"packages/forms/test/mesure.test.mjs","genre":"bloquant","regle":"critère 1","role":"testwriter","corps":"Constat adressé au testwriter.","piece":"packages/forms/test/mesure.test.mjs:1"},{"titre":"packages/binder/src/index.mjs","genre":"bloquant","regle":"critère 1","role":"developpeur","corps":"Constat adressé au développeur.","piece":"packages/binder/src/index.mjs:1"}]}'\n`
     );
     scenario(id, 'relecteur-2', `fiche '{"verdict":"ACCEPTÉ"}'\n`);
     const r = circuit([id]);
@@ -115,7 +115,7 @@ fiche '{"verdict":"ACCEPTÉ"}'
     scenario(
       id,
       'testwriter-1',
-      `passation 'Le cas de zéro manque.'\nfiche '{"statut":"BESOIN","question":"que rend mesure de 0 ?"}'\n`
+      `passation 'Le cas de zéro manque.'\nfiche '{"statut":"BESOIN","question":"que rend mesure de 0 ?","piece":"packages/forms/src/index.mjs:1"}'\n`
     );
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);

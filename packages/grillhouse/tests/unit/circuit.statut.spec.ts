@@ -48,7 +48,7 @@ describe.runIf(canWrap)('the status of a sheet', { timeout: 300_000 }, () => {
       'developpeur',
       `printf '// essai\\n' >> $c/src/index.mjs
 passation 'Le rouge vient de la matière de test partagée, hors de mon enveloppe.'
-fiche '{"statut":"BLOQUÉ","raison":"la matière de test partagée attend un autre type."}'
+fiche '{"statut":"BLOQUÉ","piece":"packages/forms/src/index.mjs:1","raison":"la matière de test partagée attend un autre type."}'
 `
     );
     const r = circuit([id]);
@@ -79,7 +79,7 @@ fiche '{"statut":"BLOQUÉ","raison":"la matière de test partagée attend un aut
     scenario(
       id,
       'developpeur',
-      `passation 'Le critère ne dit pas la valeur.'\nfiche '{"statut":"BESOIN","question":"la mesure rend-elle le double ou le triple ?"}'\n`
+      `passation 'Le critère ne dit pas la valeur.'\nfiche '{"statut":"BESOIN","piece":"packages/forms/src/index.mjs:1","question":"la mesure rend-elle le double ou le triple ?"}'\n`
     );
     const r = circuit([id]);
     expect(ARRETS.besoin).toBeDefined();
@@ -105,7 +105,7 @@ fiche '{"statut":"BLOQUÉ","raison":"la matière de test partagée attend un aut
     scenario(
       id,
       'relecteur',
-      `fiche '{"verdict":"ACCEPTÉ","question":"le mot double, en dur dans src/index.mjs:1, est-il un mot du langage ?"}'\n`
+      `fiche '{"verdict":"ACCEPTÉ","piece":"packages/forms/src/index.mjs:1","question":"le mot double, en dur dans src/index.mjs:1, est-il un mot du langage ?"}'\n`
     );
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(ARRETS.besoin);
@@ -127,7 +127,7 @@ fiche '{"statut":"BLOQUÉ","raison":"la matière de test partagée attend un aut
     scenario(
       id,
       'relecteur-1',
-      `fiche '{"verdict":"ACCEPTÉ","question":"le mot double est-il un mot du langage ?"}'\n`
+      `fiche '{"verdict":"ACCEPTÉ","piece":"packages/forms/src/index.mjs:1","question":"le mot double est-il un mot du langage ?"}'\n`
     );
     scenario(id, 'relecteur-2', `fiche '{"verdict":"ACCEPTÉ"}'\n`);
     const r = circuit([id]);
@@ -152,7 +152,7 @@ fiche '{"statut":"BLOQUÉ","raison":"la matière de test partagée attend un aut
     scenario(
       id,
       'testwriter',
-      `passation 'Aucun test écrit.'\nfiche '{"statut":"BESOIN","question":"le critère 1 vaut-il pour une valeur négative ?"}'\n`
+      `passation 'Aucun test écrit.'\nfiche '{"statut":"BESOIN","piece":"packages/forms/src/index.mjs:1","question":"le critère 1 vaut-il pour une valeur négative ?"}'\n`
     );
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(ARRETS.besoin);
@@ -171,7 +171,7 @@ fiche '{"statut":"BLOQUÉ","raison":"la matière de test partagée attend un aut
       id,
       'developpeur-1',
       `passation 'Le rouge qui reste est dans les tests de forms.'
-fiche '{"statut":"BLOQUÉ","raison":"le test attend un autre type.","renvoi":{"role":"testwriter"}}'
+fiche '{"statut":"BLOQUÉ","piece":"packages/forms/src/index.mjs:1","raison":"le test attend un autre type.","renvoi":{"role":"testwriter"}}'
 `
     );
     scenario(id, 'developpeur-2', `${CODE_JUSTE}passation 'Code écrit.'\n`);

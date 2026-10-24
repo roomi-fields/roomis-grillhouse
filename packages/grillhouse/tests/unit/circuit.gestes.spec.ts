@@ -55,6 +55,7 @@ const rendu = (role: string) =>
         regle: 'critère 1',
         role,
         corps: 'mesure de 0 doit rendre 0.',
+        piece: 'packages/forms/src/index.mjs:1',
       },
     ],
   })}'\n`;

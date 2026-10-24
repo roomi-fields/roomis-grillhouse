@@ -10,8 +10,9 @@
 //   (`claude -p --output-format json --json-schema <schéma>`) and fills as its last act; claude
 //   writes it in the field `structured_output` of its result (Claude Code, « headless »). A field
 //   exists only when a reader reads it:
-//   - `statut` (FAIT, BLOQUÉ, BESOIN), with `raison` for BLOQUÉ and `question` for BESOIN: the
-//     circuit goes on, or stops at « hors-portee » or « besoin » (testwriter, developpeur);
+//   - `statut` (FAIT, BLOQUÉ, BESOIN), with `raison` for BLOQUÉ and `question` for BESOIN, each
+//     with its `piece`: the circuit goes on, or stops at « hors-portee » or « besoin », the piece
+//     with the stop (testwriter, developpeur);
 //   - `verts_attendus` (`fichier` from the root, `test` its full name, or none for every green of a
 //     file HEAD holds, `raison`): the proof of the red (testwriter);
 //   - `renvoi` (`role` testwriter): the circuit relaunches the testwriter, then the proof and the
@@ -20,7 +21,8 @@
 //     subject once, its value from the last sheet that carries it (developpeur, reviewer);
 //   - `decouvertes` (`sujet`, `corps`): each one a ticket filed closed under the ticket, labelled
 //     `decouverte`, created by the circuit (every role);
-//   - `verdict` (ACCEPTÉ, RENDU), `constats` (`titre`, `corps`, `genre` bloquant or remarque; a
+//   - `verdict` (ACCEPTÉ, RENDU), `constats` (`titre`, `corps`, `piece`, `genre` bloquant or
+//     remarque; a
 //     blocking one with `regle`, the criterion of the plan or the rule of the frame it holds, and
 //     `role` its recipient, or `critere_en_cause`): as Conventional Comments mark
 //     a comment blocking or not, the circuit plays the blocking findings alone, each open until a
@@ -36,8 +38,9 @@
 //   - `suivi` (`titre`, `etat` levé or non levé, `preuve`): after a review sent back, each finding
 //     before it judged on the difference of the lot, which the circuit writes at the ticket with
 //     the verdict, for the human (reviewer);
-//   - `question` (reviewer): what goes up to the owner, a real word of the language written in the
-//     code; the circuit stops at « besoin » before it commits or relaunches anyone;
+//   - `question`, with its `piece` (reviewer): what goes up to the owner, a real word of the
+//     language written in the code; the circuit stops at « besoin » before it commits or
+//     relaunches anyone;
 //   - `criteres`, `paquets`, `questions` (each with its `piece`): the plan, which the circuit
 //     writes at the ticket: the criteria it adds after those the ticket holds, which the circuit
 //     keeps as they are; the packages in the title as it names its components (a package name or a
@@ -46,13 +49,22 @@
 //   - `reponses` (`numero` of the question, `reponse` CHANGE or GARDE, `texte`): the explorateur's
 //     one answer to the questionneur, which the circuit writes at the ticket; a question without
 //     an answer stays open (explorateur);
-//   - `issue` (QUESTIONS with its `questions`, each with what it aims at, `vise`; AUCUNE; DÉSACCORD
+//   - `issue` (QUESTIONS with its `questions`, each with what it aims at, `vise`, and its
+//     `piece`; AUCUNE; DÉSACCORD
 //     with its `desaccord`): the explorateur answers the questions, the disagreement as one, and
 //     the circuit writes them at the ticket (questionneur).
 //   `lireFiche` reads a session's output: the sheet and the session's id, or the error that
 //   names what lacks or does not conform (no `structured_output`, a field out of the schema, a
 //   status without its reason, a blocking finding without its criterion or rule, a line of
-//   conformity without its rule or a « non » without its recipient, a plan without packages).
+//   conformity without its rule or a « non » without its recipient, a plan without packages, a
+//   fact without its piece, a piece in neither form, and, given the copy, a file piece not in it).
+// - The piece of a fact (« la pièce »), one format, as a code review cites the line it judges: a
+//   finding, a question or a stop carries it, so the agent who takes the fact up re-reads it
+//   before he builds on it (BP 320.9: a line read wrong, copied by five agents up to the owner).
+//   Either `<fichier>:<ligne>` or `<fichier>:<ligne>-<fin>`, the file from the root of the copy,
+//   the line from 1, then, after a space, what it shows (« packages/a/src/x.ts:3 divise par sa valeur. »); or `$ <commande>` on
+//   its first line and its output on the lines after. `lirePiece` reads it; the circuit gives
+//   `lireFiche` the copy, where each file piece's file stands and holds its line.
 // - The findings of a guard, in SARIF 2.1.0 (OASIS), beside its output for the human: one run per
 //   guard, `tool.driver.name` the guard; each finding a result, `ruleId` the guard, `level`
 //   (error by default), `message.text`, its file and line as its location when it has them, and its
@@ -80,6 +92,7 @@ import {
   readFileSync,
   rmdirSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
@@ -101,10 +114,15 @@ const objet = (properties, required = [], description) => ({
   required,
   properties,
 });
+// The description of a piece in a sheet's schema, the format `lirePiece` reads.
+const PIECE =
+  'fichier:ligne depuis la racine de la copie, puis ce qu’elle montre ; ou « $ <commande> » et sa sortie aux lignes suivantes';
+const piece = quoi => texte(`${quoi} : ${PIECE}.`);
 const STATUT = {
   statut: { type: 'string', enum: ['FAIT', 'BLOQUÉ', 'BESOIN'] },
   raison: texte('BLOQUÉ : ce qui reste hors de ta portée, et où.'),
   question: texte('BESOIN : la question qui t’arrête, ses options et ta recommandation.'),
+  piece: piece('BLOQUÉ ou BESOIN : la pièce de ta raison ou de ta question'),
 };
 const DECOUVERTES = {
   decouvertes: liste(
@@ -149,7 +167,7 @@ const FICHES = {
         objet(
           {
             question: texte('La question qui reste ouverte, ses options et ta recommandation.'),
-            piece: texte('Sa pièce : fichier:ligne, ou la commande et sa sortie.'),
+            piece: piece('Sa pièce'),
           },
           ['question', 'piece']
         ),
@@ -224,7 +242,7 @@ const FICHES = {
             reference: texte(
               'La règle dans ce document (« 000-forms, R2 », « § Les frontières ») ; un export neuf, le nom de son entrée.'
             ),
-            piece: texte('Sa pièce : fichier:ligne, et ce qu’elle montre.'),
+            piece: piece('Sa pièce'),
             role: { type: 'string', enum: ['testwriter', 'developpeur'] },
           },
           ['element', 'conforme', 'document', 'reference', 'piece']
@@ -234,7 +252,7 @@ const FICHES = {
       constats: liste(
         objet(
           {
-            titre: texte('Son adresse : fichier et ligne.'),
+            titre: texte('Son sujet, une ligne.'),
             genre: {
               type: 'string',
               enum: ['bloquant', 'remarque'],
@@ -250,9 +268,10 @@ const FICHES = {
               description: 'Bloquant : l’agent qui écrit la correction, à qui le circuit le rend.',
             },
             corps: texte('Sa preuve : son exemple et ce qu’il montre.'),
+            piece: piece('Sa pièce'),
             critere_en_cause: texte('Le critère lui-même en cause, au lieu d’un destinataire.'),
           },
-          ['titre', 'corps', 'genre']
+          ['titre', 'corps', 'genre', 'piece']
         ),
         'Chaque constat, bloquant ou remarque ; un verdict RENDU en porte au moins un bloquant, un verdict ACCEPTÉ aucun.'
       ),
@@ -268,8 +287,9 @@ const FICHES = {
         'Relecture bornée : chaque constat de la relecture d’avant, levé ou non.'
       ),
       question: texte(
-        'Ce qui revient au responsable (par exemple un vrai mot du langage écrit en dur) : la question, ses pièces et ta recommandation ; le circuit s’arrête avant de commiter ou de relancer.'
+        'Ce qui revient au responsable (par exemple un vrai mot du langage écrit en dur) : la question et ta recommandation ; le circuit s’arrête avant de commiter ou de relancer.'
       ),
+      piece: piece('question : sa pièce'),
       ...ECARTS,
       ...DECOUVERTES,
     },
@@ -283,8 +303,9 @@ const FICHES = {
           {
             question: texte('Ta question, dans les mots de la proposition.'),
             vise: { type: 'string', enum: ['flou', 'intention', 'référence', 'règle', 'critère'] },
+            piece: piece('Sa pièce, ce qui dans la proposition ou le dépôt la fait naître'),
           },
-          ['question', 'vise']
+          ['question', 'vise', 'piece']
         ),
         'QUESTIONS : tes questions.'
       ),
@@ -373,16 +394,88 @@ export function conformiteDuLot(fiche, elements) {
   return fautes.length ? fautes.join(' ; ') : null;
 }
 
+// The piece of a fact <texte>: `{ fichier, ligne }` for « <fichier>:<ligne> », `{ fichier, ligne,
+// fin }` for « <fichier>:<ligne>-<fin> » (as SARIF's region has a start line and an optional end
+// line), then what it shows after a space, the place in backquotes or followed by punctuation
+// read the same; `{ commande, sortie }` for « $ <commande> » and its output on the lines after;
+// null for a text in neither form.
+export function lirePiece(texte) {
+  const t = String(texte ?? '').trim();
+  if (t.startsWith('$ ')) {
+    const saut = t.indexOf('\n');
+    const commande = saut < 0 ? '' : t.slice(2, saut).trim();
+    const sortie = saut < 0 ? '' : t.slice(saut + 1).trim();
+    return commande && sortie ? { commande, sortie } : null;
+  }
+  let lieu = t.split(/\s/)[0];
+  while (lieu && '`.,;:)'.includes(lieu.at(-1))) lieu = lieu.slice(0, -1);
+  while (lieu.startsWith('`')) lieu = lieu.slice(1);
+  const deux = lieu.lastIndexOf(':');
+  const [debut, fin, ...reste] = lieu.slice(deux + 1).split('-');
+  const nombre = n => (/^\d+$/.test(n ?? '') && Number(n) >= 1 ? Number(n) : null);
+  const ligne = nombre(debut);
+  if (deux < 1 || !ligne || reste.length) return null;
+  if (fin === undefined) return { fichier: lieu.slice(0, deux), ligne };
+  if (!nombre(fin) || nombre(fin) < ligne) return null;
+  return { fichier: lieu.slice(0, deux), ligne, fin: nombre(fin) };
+}
+
+// The pieces of the sheet <f>, each `[son chemin, son texte]`: of the stop it carries (a status,
+// a reviewer's question), of its findings, of its lines of conformity, of its questions.
+const piecesDe = f => [
+  ...('piece' in f ? [['piece', f.piece]] : []),
+  ...['constats', 'conformite', 'questions'].flatMap(k =>
+    (f[k] ?? []).map((x, i) => [`${k}[${i}].piece`, x.piece]).filter(([, p]) => p !== undefined)
+  ),
+];
+
+// What makes a file piece of the sheet <f> not found in the copy <copie>: a file absent from it,
+// or out of it, or a line (the end of a range) past its end; each fault, naming its piece.
+function introuvables(f, copie) {
+  const out = [];
+  const racine = path.resolve(copie);
+  for (const [ou, p] of piecesDe(f)) {
+    const lu = lirePiece(p);
+    if (!lu?.fichier) continue;
+    const abs = path.resolve(racine, lu.fichier);
+    const lieu = `${lu.fichier}:${lu.ligne}${lu.fin ? `-${lu.fin}` : ''}`;
+    if (!abs.startsWith(`${racine}${path.sep}`) || !existsSync(abs) || !statSync(abs).isFile()) {
+      out.push(`${ou} : ${lieu} introuvable dans la copie : pas de tel fichier`);
+      continue;
+    }
+    const contenu = readFileSync(abs, 'utf8');
+    const lignes = contenu.split('\n').length - (contenu.endsWith('\n') ? 1 : 0);
+    if ((lu.fin ?? lu.ligne) > lignes) {
+      out.push(`${ou} : ${lieu} introuvable dans la copie : le fichier a ${lignes} lignes`);
+    }
+  }
+  return out;
+}
+
 // What a sheet of <role> needs beyond its schema: the reason of a BLOQUÉ, the question of a
 // BESOIN, the packages of a plan and the number of each answer, the questions of a QUESTIONS, the text of a
 // DÉSACCORD, the criterion or rule of a blocking finding, the reference of the rule each line of
 // a reviewer's conformity cites in its document and the recipient of a « non », and a reviewer's verdict that follows its blocking findings, its « non » among them
-// (RENDU with one, ACCEPTÉ without).
+// (RENDU with one, ACCEPTÉ without), the piece of a BLOQUÉ, a BESOIN and a reviewer's question,
+// and each piece in one of its two forms (`lirePiece`).
 function manques(role, f) {
   const out = [];
   const plein = k => typeof f[k] === 'string' && f[k].trim() !== '';
   if (f.statut === 'BLOQUÉ' && !plein('raison')) out.push('raison : manque, pour BLOQUÉ');
   if (f.statut === 'BESOIN' && !plein('question')) out.push('question : manque, pour BESOIN');
+  if (['BLOQUÉ', 'BESOIN'].includes(f.statut) && !('piece' in f)) {
+    out.push(`piece : manque, pour ${f.statut}`);
+  }
+  if (role === 'relecteur' && 'question' in f && !('piece' in f)) {
+    out.push('piece : manque, pour la question');
+  }
+  for (const [ou, p] of piecesDe(f)) {
+    if (!lirePiece(p)) {
+      out.push(
+        `${ou} : « ${p} » n'est pas une pièce (fichier:ligne, ou « $ <commande> » et sa sortie)`
+      );
+    }
+  }
   if (role === 'relecteur') {
     const constats = f.constats ?? [];
     for (const [i, c] of constats.entries()) {
@@ -426,8 +519,9 @@ function manques(role, f) {
 }
 
 // The sheet of <role> in <sortie>, what claude prints with `--output-format json`: `{ fiche,
-// seance }`, or `{ erreur }` naming what lacks or does not conform.
-export function lireFiche(role, sortie) {
+// seance }`, or `{ erreur }` naming what lacks or does not conform; with <copie>, the directory
+// of the copy, each file piece of the sheet stands in it, its file and its line.
+export function lireFiche(role, sortie, { copie } = {}) {
   const schema = schemaDeFiche(role);
   if (!schema) return { erreur: `le rôle ${role} n'a pas de fiche` };
   let resultat;
@@ -442,6 +536,7 @@ export function lireFiche(role, sortie) {
   const fiche = resultat.structured_output;
   const fautes = erreurs(schema, fiche, '');
   if (!fautes.length) fautes.push(...manques(role, fiche));
+  if (!fautes.length && copie) fautes.push(...introuvables(fiche, copie));
   if (fautes.length) return { erreur: `fiche non conforme : ${fautes.join(' ; ')}` };
   return { fiche, seance: resultat.session_id ?? null };
 }

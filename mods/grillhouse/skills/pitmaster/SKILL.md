@@ -111,7 +111,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   (`MONTEES` de la liste des étapes), son code celui de l'arrêt ; l'état du circuit la porte
   (`question` : l'arrêt, le fait, sa pièce, un `fichier:ligne` ou une commande et sa sortie, la
   question, et qui doit répondre, `superviseur` ou `responsable`), et le ticket aussi
-  (`Circuit · question`). Je réponds moi-même à ce qui est à moi (le cadre du ticket, un
+  (`Circuit · question`). Je relis sa pièce avant de m'appuyer sur la question ou de la porter au
+  responsable. Je réponds moi-même à ce qui est à moi (le cadre du ticket, un
   arbitrage, un geste) ; je porte au responsable ce qui est à lui (`qui` responsable : la question
   du relecteur sur un vrai mot de la langue), le fonctionnel et ce que la charte lui garde. Je
   réponds par une commande du circuit, en arrière-plan : `--reprendre`, avec `--contexte` quand

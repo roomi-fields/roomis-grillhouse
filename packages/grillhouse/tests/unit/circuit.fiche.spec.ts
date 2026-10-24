@@ -89,6 +89,28 @@ describe.runIf(canWrap)('the sheet that ends a session', { timeout: 300_000 }, (
     expect(prompt).toContain('PEUT-ÊTRE');
   });
 
+  // grillhouse-3uv.95.10: a fact's piece file:line is checked in the copy; a piece not found
+  // refuses the sheet, which the circuit asks again once, like any other lack.
+  it('a sheet whose piece is not in the copy is resumed once, the piece named; then the circuit goes on', () => {
+    const id = 'demo-fiche-piece';
+    ticket(id, '000-forms');
+    scenario(
+      id,
+      'testwriter-1',
+      `${ECRIT_ROUGE}fiche '{"statut":"BESOIN","question":"que rend mesure de 0 ?","piece":"packages/forms/src/native.ts:234"}'\n`
+    );
+    scenario(id, 'testwriter-2', `passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(sessions(id, 'testwriter')).toBe(2);
+    const prompt = essai(id, 'testwriter-2.prompt');
+    expect(prompt).toContain('piece : packages/forms/src/native.ts:234 introuvable dans la copie');
+    expect(commentaires(id)).toContainEqual(
+      expect.stringMatching(/^Circuit · testwriter : séance finie sans fiche conforme/)
+    );
+  });
+
   it('twice without a sheet: the circuit stops at « sans-fiche », a question for the supervisor', () => {
     const id = 'demo-sans-fiche';
     ticket(id, '000-forms');
@@ -172,14 +194,14 @@ describe.runIf(canWrap)('the sheet that ends a session', { timeout: 300_000 }, (
     scenario(
       id,
       'relecteur',
-      `fiche '{"verdict":"ACCEPTÉ","constats":[{"titre":"packages/forms/src/index.mjs:1","genre":"remarque","corps":"le nom de la mesure pourrait dire le double"}]}'\n`
+      `fiche '{"verdict":"ACCEPTÉ","constats":[{"titre":"Le nom de la mesure","genre":"remarque","corps":"le nom de la mesure pourrait dire le double","piece":"packages/forms/src/index.mjs:1"}]}'\n`
     );
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     const verdict = auteurs(id).find(c => c.author === 'relecteur');
     expect(verdict?.text).toMatch(/^ACCEPTÉ\n/);
     expect(verdict?.text).toContain(
-      '## Remarques\n\n- packages/forms/src/index.mjs:1 — le nom de la mesure pourrait dire le double'
+      '## Remarques\n\n- Le nom de la mesure — le nom de la mesure pourrait dire le double (packages/forms/src/index.mjs:1)'
     );
   });
 });
