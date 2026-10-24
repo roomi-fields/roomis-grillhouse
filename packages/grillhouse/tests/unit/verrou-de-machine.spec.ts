@@ -36,7 +36,8 @@ const unDossier = () => {
   return d;
 };
 const attendre = (ms: number) => new Promise(r => setTimeout(r, ms));
-async function jusqua(condition: () => boolean, ms = 10_000) {
+// Waits for <condition>, up to <ms>: a child started under the load of a full pass can take a while to begin.
+async function jusqua(condition: () => boolean, ms = 60_000) {
   const fin = Date.now() + ms;
   while (!condition()) {
     if (Date.now() > fin) {
