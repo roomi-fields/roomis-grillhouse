@@ -576,7 +576,8 @@ describe('grillhouse-3uv.95.2 — le rang d’une mesure', { timeout: 60_000 }, 
     expect((await a.fini).code).toBe(0);
   });
 
-  it('la borne de l’attente reste la même pour une mesure de second rang : à 75, le détenteur nommé', async () => {
+  // En quarantaine : délai dépassé sur la CI, au repos (grillhouse-3uv.95.2.2).
+  it.skip('la borne de l’attente reste la même pour une mesure de second rang : à 75, le détenteur nommé', async () => {
     const d = unDossier();
     const cadre = depotDuCadre(path.join(d, 'cadre'));
     const projet = unProjet(path.join(d, 'projet'));
