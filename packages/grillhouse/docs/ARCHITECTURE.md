@@ -70,6 +70,23 @@ reprise, répond une fois, CHANGE ou GARDE par question ; ce qui reste ouvert mo
 le plan, et le plan ne tourne pas en rond (BP 320.9 : 132 tours de questions, 29 critères dont 2
 utiles).
 
+**Le relecteur juge chaque élément qui change** : comme API Extractor fait relire son rapport
+ligne par ligne et qu'une revue mûre exige un avis par fichier changé, le circuit donne au
+relecteur la liste de chaque fonction, classe, type, interface, constante de tête et export que
+le lot ajoute, change ou supprime (`scripts/elements-du-lot.mjs`), avec son paquet, son
+`fichier:ligne` et s'il est exporté : le service de langage de `references-par-les-types.mjs` lit
+les déclarations et les exports, le texte de chaque déclaration avant et après le lot dit ce qui
+change, le diff des rapports d'API (`docs/INTERFACE.api.md`) les exports qui changent. Sa fiche
+rend une ligne par élément (`conformite`), conforme ou non, la règle citée (`document` CADRE,
+INTERFACE ou ARCHITECTURE, et sa `reference`) ; un export neuf cite son entrée dans l'INTERFACE.
+Le schéma de la fiche refuse une ligne sans document ni référence (`resultats.mjs`), et le
+circuit une fiche à laquelle il manque un élément (`conformiteDuLot`) ; un « non » rend le lot à
+son destinataire. En relecture bornée, comme une revue ne décoche « vu » que sur les fichiers
+changés depuis, la consigne marque chaque élément : à rejuger quand la différence le touche,
+repris sinon avec sa ligne d'avant, que la fiche porte encore. Ainsi rien de neuf n'entre sans
+avoir été jugé contre l'architecture (Romain, 2026-10-23 : « il faut que le relecteur valide
+vraiment la conformité à l'architecture de tout ce qu'il y a de nouveau/changé »).
+
 **Une passe écrit sous sa base** : chaque lancement de Vitest, `npm test`, `npm run verifier`,
 un circuit, une intégration et une enveloppe ouvrent leur base dans le dossier temporaire, la
 nomment dans `TMPDIR` à ce qu'ils lancent (les dossiers d'essai des tests, celui de Vitest, celui

@@ -13,6 +13,8 @@ import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import {
   RESULTATS,
+  bloquantsDeLaFiche,
+  conformiteDuLot,
   ecrireSarif,
   lireFiche,
   lireRapportsVitest,
@@ -52,9 +54,9 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
       ['decouvertes', 'ecarts', 'question', 'raison', 'renvoi', 'statut'].sort()
     );
   });
-  it('the reviewer: its verdict, its findings, the findings before it judged (a bounded review), the deviations, its question for the owner, its discoveries', () => {
+  it('the reviewer: its verdict, its line of conformity per element of the lot, its findings, the findings before it judged (a bounded review), the deviations, its question for the owner, its discoveries', () => {
     expect(champs('relecteur')).toEqual(
-      ['constats', 'decouvertes', 'ecarts', 'question', 'suivi', 'verdict'].sort()
+      ['conformite', 'constats', 'decouvertes', 'ecarts', 'question', 'suivi', 'verdict'].sort()
     );
     expect((schemaDeFiche('relecteur') as Schema).required).toEqual(['verdict']);
   });
@@ -179,6 +181,125 @@ describe('the findings of a reviewer’s sheet', () => {
     expect(
       lireFiche('relecteur', sortie({ verdict: 'ACCEPTÉ', constats: [bloquant] })).erreur
     ).toMatch(/verdict : ACCEPTÉ avec un constat bloquant/);
+  });
+});
+
+// grillhouse-3uv.95.7, decision 2 of grillhouse-3uv.95 (Romain, 2026-10-23: « il faut que le
+// relecteur valide vraiment la conformité à l'architecture de tout ce qu'il y a de
+// nouveau/changé »): as a review that asks a word on every changed file, the reviewer's sheet
+// holds one line per element of the lot (scripts/elements-du-lot.mjs), conforming or not, the
+// rule it cites (CADRE, INTERFACE or ARCHITECTURE, with its reference) and its piece; a « non »
+// sends the lot back to its recipient.
+describe('the conformity of each element of the lot in a reviewer’s sheet', () => {
+  const oui = {
+    element: 'packages/a/src/x.ts#x',
+    conforme: 'oui',
+    document: 'CADRE',
+    reference: 'packages/a, R2',
+    piece: 'packages/a/src/x.ts:3 reçoit le type que Reçoit nomme.',
+  };
+  const non = {
+    element: 'packages/a/src/x.ts#lire',
+    conforme: 'non',
+    document: 'ARCHITECTURE',
+    reference: 'packages/a, § Les frontières',
+    piece: 'packages/a/src/x.ts:9 lit packages/b/src/interne.ts.',
+    role: 'developpeur',
+    composant: 'packages/a',
+  };
+  const fiche = (f: Record<string, unknown>) => lireFiche('relecteur', sortie(f));
+
+  it('each line names its element, conforme oui or non, the document and the reference of the rule it cites, and its piece', () => {
+    const c = (schemaDeFiche('relecteur') as Schema).properties.conformite as {
+      items: Schema & {
+        properties: { conforme: { enum: string[] }; document: { enum: string[] } };
+      };
+    };
+    expect(Object.keys(c.items.properties).sort()).toEqual(
+      ['composant', 'conforme', 'document', 'element', 'piece', 'reference', 'role'].sort()
+    );
+    expect(c.items.required).toEqual(['element', 'conforme', 'document', 'reference', 'piece']);
+    expect(c.items.properties.conforme.enum).toEqual(['oui', 'non']);
+    expect(c.items.properties.document.enum).toEqual(['CADRE', 'INTERFACE', 'ARCHITECTURE']);
+    expect(fiche({ verdict: 'ACCEPTÉ', conformite: [oui] }).erreur).toBeUndefined();
+  });
+
+  it('a line that cites no rule of the CADRE, the INTERFACE or the ARCHITECTURE is refused', () => {
+    expect(
+      fiche({ verdict: 'ACCEPTÉ', conformite: [{ ...oui, document: 'le bon sens' }] }).erreur
+    ).toMatch(/conformite\[0\]\.document/);
+    const { document: _d, ...sansDocument } = oui;
+    expect(fiche({ verdict: 'ACCEPTÉ', conformite: [sansDocument] }).erreur).toMatch(
+      /conformite\[0\]\.document : manque/
+    );
+    expect(fiche({ verdict: 'ACCEPTÉ', conformite: [{ ...oui, reference: ' ' }] }).erreur).toMatch(
+      /conformite\[0\]\.reference : manque/
+    );
+  });
+
+  it('a « non » blocks the verdict and names its recipient', () => {
+    expect(fiche({ verdict: 'RENDU', conformite: [oui, non] }).erreur).toBeUndefined();
+    expect(fiche({ verdict: 'ACCEPTÉ', conformite: [non] }).erreur).toMatch(
+      /verdict : ACCEPTÉ avec un constat bloquant/
+    );
+    const { role: _r, ...sansRole } = non;
+    expect(fiche({ verdict: 'RENDU', conformite: [sansRole] }).erreur).toMatch(
+      /conformite\[0\]\.role : manque/
+    );
+    const { composant: _c, ...sansComposant } = non;
+    expect(fiche({ verdict: 'RENDU', conformite: [sansComposant] }).erreur).toMatch(
+      /conformite\[0\]\.composant : manque/
+    );
+    // The circuit plays a « non » as a blocking finding, sent to its recipient.
+    expect(bloquantsDeLaFiche({ verdict: 'RENDU', conformite: [oui, non] })).toEqual([
+      {
+        titre: 'packages/a/src/x.ts#lire',
+        genre: 'bloquant',
+        regle: 'ARCHITECTURE packages/a, § Les frontières',
+        role: 'developpeur',
+        composant: 'packages/a',
+        corps: `Non conforme : ${non.piece}`,
+      },
+    ]);
+  });
+
+  describe('against the elements of its lot', () => {
+    const elements = [
+      { id: 'packages/a/src/x.ts#x', nom: 'x', statut: 'changé', exporte: true },
+      { id: 'packages/a/src/x.ts#lire', nom: 'lire', statut: 'neuf', exporte: false },
+    ];
+    const lire = { ...oui, element: 'packages/a/src/x.ts#lire' };
+
+    it('a sheet with one line per element conforms', () => {
+      expect(conformiteDuLot({ verdict: 'ACCEPTÉ', conformite: [oui, lire] }, elements)).toBeNull();
+    });
+    it('a sheet missing an element is refused, naming it', () => {
+      expect(conformiteDuLot({ verdict: 'ACCEPTÉ', conformite: [oui] }, elements)).toMatch(
+        /packages\/a\/src\/x\.ts#lire/
+      );
+      expect(conformiteDuLot({ verdict: 'ACCEPTÉ' }, elements)).toMatch(
+        /packages\/a\/src\/x\.ts#x/
+      );
+    });
+    it('a line on an element out of the lot is refused', () => {
+      const ailleurs = { ...oui, element: 'packages/a/src/y.ts#y' };
+      expect(
+        conformiteDuLot({ verdict: 'ACCEPTÉ', conformite: [oui, lire, ailleurs] }, elements)
+      ).toMatch(/packages\/a\/src\/y\.ts#y/);
+    });
+    it('a new export names its entry in the INTERFACE of its package', () => {
+      const neuf = [{ id: 'packages/a/src/x.ts#x', nom: 'x', statut: 'neuf', exporte: true }];
+      expect(conformiteDuLot({ verdict: 'ACCEPTÉ', conformite: [oui] }, neuf)).toMatch(/INTERFACE/);
+      expect(
+        conformiteDuLot(
+          {
+            verdict: 'ACCEPTÉ',
+            conformite: [{ ...oui, document: 'INTERFACE', reference: 'packages/a, entrée `x`' }],
+          },
+          neuf
+        )
+      ).toBeNull();
+    });
   });
 });
 

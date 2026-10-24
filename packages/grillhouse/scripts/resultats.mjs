@@ -26,6 +26,13 @@
 //     a comment blocking or not, the circuit plays the blocking findings alone and writes the
 //     verdict at the ticket for the human, the remarks with it; a RENDU carries a blocking finding,
 //     an ACCEPTÉ none (reviewer);
+//   - `conformite` (`element`, `conforme` oui or non, `document` CADRE, INTERFACE or
+//     ARCHITECTURE, `reference`, `piece`; a « non » with `role` and `composant` its recipient):
+//     one line per element of the lot (scripts/elements-du-lot.mjs), its rule cited from a
+//     document of its package, a new export's the entry of the INTERFACE that names it; a line
+//     without its reference is refused; a « non » is a blocking finding (`bloquantsDeLaFiche`),
+//     and the circuit refuses a sheet without a line for each element (`conformiteDuLot`)
+//     (reviewer);
 //   - `suivi` (`titre`, `etat` levé or non levé, `preuve`): after a review sent back, each finding
 //     before it judged on the difference of the lot, which the circuit writes at the ticket with
 //     the verdict, for the human (reviewer);
@@ -44,8 +51,8 @@
 //     the circuit writes them at the ticket (questionneur).
 //   `lireFiche` reads a session's output: the sheet and the session's id, or the error that
 //   names what lacks or does not conform (no `structured_output`, a field out of the schema, a
-//   status without its reason, a blocking finding without its criterion or rule, a plan without
-//   packages).
+//   status without its reason, a blocking finding without its criterion or rule, a line of
+//   conformity without its rule or a « non » without its recipient, a plan without packages).
 // - The findings of a guard, in SARIF 2.1.0 (OASIS), beside its output for the human: one run per
 //   guard, `tool.driver.name` the guard; each finding a result, `ruleId` the guard, `level`
 //   (error by default), `message.text`, its file and line as its location when it has them, and its
@@ -123,6 +130,9 @@ const ECARTS = {
   ),
 };
 
+// The documents a line of a reviewer's conformity cites its rule from.
+const DOCUMENTS = ['CADRE', 'INTERFACE', 'ARCHITECTURE'];
+
 // The schema of the sheet of each role the circuit leads.
 const FICHES = {
   explorateur: objet(
@@ -199,6 +209,32 @@ const FICHES = {
   relecteur: objet(
     {
       verdict: { type: 'string', enum: ['ACCEPTÉ', 'RENDU'] },
+      conformite: liste(
+        objet(
+          {
+            element: texte('L’élément, tel que la liste des éléments du lot l’écrit.'),
+            conforme: {
+              type: 'string',
+              enum: ['oui', 'non'],
+              description: 'non : il rend le lot, à son destinataire.',
+            },
+            document: {
+              type: 'string',
+              enum: DOCUMENTS,
+              description:
+                'Le document de son paquet dont la règle est citée ; un export neuf, l’INTERFACE.',
+            },
+            reference: texte(
+              'La règle dans ce document (« 000-forms, R2 », « § Les frontières ») ; un export neuf, le nom de son entrée.'
+            ),
+            piece: texte('Sa pièce : fichier:ligne, et ce qu’elle montre.'),
+            role: { type: 'string', enum: ['testwriter', 'developpeur'] },
+            composant: texte('non : le composant du titre où la correction s’écrit.'),
+          },
+          ['element', 'conforme', 'document', 'reference', 'piece']
+        ),
+        'Une ligne par élément du lot, chacun une fois : sa conformité à l’architecture.'
+      ),
       constats: liste(
         objet(
           {
@@ -291,10 +327,59 @@ function erreurs(schema, valeur, ou) {
   return [];
 }
 
+// The rule a line of conformity <l> cites: its document and its reference.
+export const regleDeLaLigne = l => `${l.document} ${l.reference}`;
+
+// The blocking findings of a reviewer's sheet <fiche>, the ones that send the lot back: its
+// findings of `genre` bloquant, then each line of its conformity that says « non », as a finding
+// on its element, its rule, its recipient and its piece.
+export const bloquantsDeLaFiche = fiche => [
+  ...(fiche.constats ?? []).filter(c => c.genre === 'bloquant'),
+  ...(fiche.conformite ?? [])
+    .filter(l => l.conforme === 'non')
+    .map(l => ({
+      titre: l.element,
+      genre: 'bloquant',
+      regle: regleDeLaLigne(l),
+      role: l.role,
+      composant: l.composant,
+      corps: `Non conforme : ${l.piece}`,
+    })),
+];
+
+// What makes the reviewer's sheet <fiche> out of conformity with the elements of its lot
+// <elements> (scripts/elements-du-lot.mjs: `{ id, nom, statut, exporte }`), as a review asks a
+// word on every changed file: an element without its line, a line on an element out of the list,
+// a new export whose rule does not name its entry in the INTERFACE of its package. The fault, or
+// null.
+export function conformiteDuLot(fiche, elements) {
+  const lignes = fiche.conformite ?? [];
+  const ids = new Set(elements.map(e => e.id));
+  const fautes = [];
+  const sans = elements.filter(e => !lignes.some(l => l.element === e.id)).map(e => e.id);
+  if (sans.length) fautes.push(`conformite : sans ligne pour ${sans.join(', ')}`);
+  for (const [i, l] of lignes.entries()) {
+    if (!ids.has(l.element)) {
+      fautes.push(`conformite[${i}].element : ${l.element} n'est pas un élément du lot`);
+    }
+  }
+  for (const e of elements.filter(x => x.statut === 'neuf' && x.exporte)) {
+    for (const l of lignes.filter(x => x.element === e.id)) {
+      if (!(l.document === 'INTERFACE' && l.reference.includes(e.nom))) {
+        fautes.push(
+          `conformite : ${e.id} est un export neuf ; sa règle nomme son entrée « ${e.nom} » dans l'INTERFACE de son paquet`
+        );
+      }
+    }
+  }
+  return fautes.length ? fautes.join(' ; ') : null;
+}
+
 // What a sheet of <role> needs beyond its schema: the reason of a BLOQUÉ, the question of a
 // BESOIN, the packages of a plan and the number of each answer, the questions of a QUESTIONS, the text of a
-// DÉSACCORD, the criterion or rule of a blocking finding, and a reviewer's verdict that follows its findings (RENDU with a blocking one,
-// ACCEPTÉ without).
+// DÉSACCORD, the criterion or rule of a blocking finding, the reference of the rule each line of
+// a reviewer's conformity cites in its document and the recipient of a « non », and a reviewer's verdict that follows its blocking findings, its « non » among them
+// (RENDU with one, ACCEPTÉ without).
 function manques(role, f) {
   const out = [];
   const plein = k => typeof f[k] === 'string' && f[k].trim() !== '';
@@ -307,7 +392,19 @@ function manques(role, f) {
         out.push(`constats[${i}].regle : manque, pour un constat bloquant`);
       }
     }
-    const bloque = constats.some(c => c.genre === 'bloquant');
+    for (const [i, l] of (f.conformite ?? []).entries()) {
+      if (!l.reference.trim()) {
+        out.push(`conformite[${i}].reference : manque, la règle citée dans le ${l.document}`);
+      }
+      if (l.conforme === 'non') {
+        for (const k of ['role', 'composant']) {
+          if (!(typeof l[k] === 'string' && l[k].trim())) {
+            out.push(`conformite[${i}].${k} : manque, pour un élément non conforme`);
+          }
+        }
+      }
+    }
+    const bloque = bloquantsDeLaFiche(f).length > 0;
     if (f.verdict === 'RENDU' && !bloque) {
       out.push('verdict : RENDU sans constat bloquant ; un lot sans constat bloquant est ACCEPTÉ');
     }

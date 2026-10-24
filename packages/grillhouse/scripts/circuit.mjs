@@ -277,13 +277,21 @@
 //   description as `bd show` gives it at the session's launch, written by the circuit in its
 //   working folder, which the session may read; the instruction carries no criteria, which the
 //   reviewer's skill reads only after its first passes), the files of the lot (the testwriter's by
-//   `isTesterFile`, then the others) and the circuit's reports since its last sheet (its proofs and
-//   checks). Its errors go to the log under its header line, its line to the register
-//   (scripts/registre.mjs --copie), and it is watched as a session in the envelope is. Its sheet
-//   is its verdict (`verdict` ACCEPTÉ or RENDU, its `constats`, each `bloquant` with the criterion
-//   or rule it holds, or `remarque`, its `question`, `ecarts`): the circuit writes it at the ticket
-//   for the human, under the author `relecteur`, its first word the verdict, each blocking finding
-//   under its heading with its recipient, then the remarks (`texteDuVerdict`).
+//   `isTesterFile`, then the others), the elements of the lot (scripts/elements-du-lot.mjs: each
+//   function, class, type, interface, constant at the top and export the lot adds, changes or
+//   removes against the copy's HEAD, its package, its place, whether its package exports it) and
+//   the circuit's reports since its last sheet (its proofs and checks). Its errors go to the log
+//   under its header line, its line to the register (scripts/registre.mjs --copie), and it is
+//   watched as a session in the envelope is. Its sheet is its verdict (`verdict` ACCEPTÉ or RENDU,
+//   its `conformite`, one line per element of the lot, conforming or not, with the rule it cites
+//   and its piece, its `constats`, each `bloquant` with the criterion or rule it holds, or
+//   `remarque`, its `question`, `ecarts`): a sheet without a line for each element is out of
+//   conformity (`conformiteDuLot` of scripts/resultats.mjs), and a « non » is a blocking finding
+//   for its recipient. In a bounded review, each element of the list is marked: to judge again
+//   when the difference between the two lots touches it, else taken up with its line of the
+//   review before. The circuit writes it at the ticket for the human, under the author
+//   `relecteur`, its first word the verdict, each blocking finding under its heading with its
+//   recipient, then the conformity and the remarks (`texteDuVerdict`).
 // - A sheet of the reviewer with a `question` (what goes up to the owner, a real word of the
 //   language written in the code) stops the circuit at « besoin », whatever its verdict, before
 //   it commits or relaunches anyone, the question and the verdict as its report, a question the
@@ -452,6 +460,7 @@ import { pathToFileURL } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
 import { ecrireLeBilan } from './bilan.mjs';
 import { DEPUIS_LE_VERT } from './dernier-vert.mjs';
+import { elementsDuLot } from './elements-du-lot.mjs';
 import { optionsDuRole } from './droits.mjs';
 import { matieres, NOM_DE_TEST } from './consommateurs.mjs';
 import { ecrireLaListe, VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/paquets-du-plan.mjs';
@@ -472,10 +481,13 @@ import {
 import { paquets } from './paquets.mjs';
 import { ecrire as ecrireAuRegistre, ligneDEtape, transcriptionsDeLaCopie } from './registre.mjs';
 import {
+  bloquantsDeLaFiche,
+  conformiteDuLot,
   lireFiche,
   lireRapportsVitest,
   lireResumes,
   lireSarif,
+  regleDeLaLigne,
   RESULTATS,
   schemaDeFiche,
 } from './resultats.mjs';
@@ -1328,8 +1340,9 @@ function fichiersDuLot(ctx) {
   return { tests: tests.sort(), code: code.sort() };
 }
 
-// The blocking findings of a reviewer's sheet <fiche>, the ones that send the lot back.
-const bloquants = fiche => (fiche.constats ?? []).filter(c => c.genre === 'bloquant');
+// The blocking findings of a reviewer's sheet <fiche>, the ones that send the lot back: its
+// blocking findings and each element it judges not conforming (scripts/resultats.mjs).
+const bloquants = bloquantsDeLaFiche;
 
 // The blocking findings of a reviewer's sheet <fiche>, each under its heading, the criterion or
 // rule it holds, its recipient (or the criterion in question) and its body: lines.
@@ -1347,8 +1360,9 @@ const lignesDesConstats = fiche =>
 // The verdict the reviewer's sheet <fiche> carries, as the circuit writes it at the ticket for the
 // human, its first word ACCEPTÉ or RENDU: after a bounded review, each finding before it lifted or
 // not, with its proof; each blocking finding under its heading, what it holds, its recipient (or
-// the criterion in question) and its body; then the remarks (its findings of `genre` remarque),
-// the question for the owner and the deviations to name at the commit.
+// the criterion in question) and its body (an element judged not conforming among them); then the
+// conformity of each element of the lot, its rule and its piece, the remarks (its findings of
+// `genre` remarque), the question for the owner and the deviations to name at the commit.
 export function texteDuVerdict(fiche) {
   const section = (titre, l) => (l?.length ? [`## ${titre}`, '', ...l.map(x => `- ${x}`), ''] : []);
   const suivi = (fiche.suivi ?? []).map(
@@ -1359,6 +1373,12 @@ export function texteDuVerdict(fiche) {
     '',
     ...section("Constats d'avant", suivi),
     ...lignesDesConstats(fiche),
+    ...section(
+      'Conformité',
+      (fiche.conformite ?? []).map(
+        l => `${l.element} : ${l.conforme} — ${regleDeLaLigne(l)} — ${l.piece}`
+      )
+    ),
     ...section(
       'Remarques',
       (fiche.constats ?? []).filter(c => c.genre === 'remarque').map(c => `${c.titre} — ${c.corps}`)
@@ -1411,6 +1431,20 @@ async function relire(ctx, composant) {
   }
   const affirmations = path.join(ctx.tmp, 'affirmations.md');
   writeFileSync(affirmations, leTicket(ctx).description);
+  const liste = lot
+    ? elementsDuLot(ctx.copie, { avant: 'HEAD', apres: lot.commit })
+    : { etat: 'impossible', raison: 'le lot n’a pas pu être gardé', elements: [] };
+  // A bounded review: the lines of the review before, and the elements the difference touches
+  // (every one when it cannot be computed), as a review unticks « viewed » on the files changed
+  // since.
+  const touches =
+    avant && lot && elementsDuLot(ctx.copie, { avant: avant.lot.commit, apres: lot.commit });
+  const bornee = touches
+    ? {
+        touches: touches.etat === 'fait' ? new Set(touches.elements.map(e => e.id)) : null,
+        lignes: new Map((avant.fiche.conformite ?? []).map(l => [l.element, l])),
+      }
+    : null;
   const valeurs = {
     depot: ctx.racine,
     ticket: ctx.ticket,
@@ -1426,6 +1460,7 @@ async function relire(ctx, composant) {
     ].join(' ; '),
     precedente,
     affirmations,
+    elements: texteDesElements(liste, bornee),
     rapports: rapports.join('\n\n') || 'aucun',
     // The supervisor's context of a resumption, his answer to a question of the reviewer among them.
     contexte: (!ctx.depuis && ctx.contexte) || 'aucun',
@@ -1434,11 +1469,45 @@ async function relire(ctx, composant) {
     horsEnveloppe: true,
     droits: horsDeLEnveloppe(ctx, 'relecteur', 'opus'),
     avec: lot ? { lot: { ...lot, fichiers: [...tests, ...code] } } : {},
+    valider: f => conformiteDuLot(f, liste.elements),
   });
   const texte = texteDuVerdict(fiche);
   const r = ctx.bdSous(AUTEUR_DU_VERDICT, 'comments', 'add', ctx.ticket, texte);
   if (r.status !== 0) process.stderr.write(`⚠️  verdict non écrit au ticket : ${r.stderr}\n`);
   return { verdict: fiche.verdict, fiche, texte, arbre: lot?.arbre ?? null };
+}
+
+// The elements of the lot <liste> (scripts/elements-du-lot.mjs) as the reviewer's instruction
+// lists them: one line each, its id, its kind, its status, its export, its package and its place;
+// in a bounded review (<bornee>: `{ touches, lignes }`, the ids the difference touches, null for
+// every one, and the lines of the review before by element), each marked to judge again, or to
+// take up with its line before; then the changed sources the language service does not read,
+// whose elements he surveys himself, and why.
+function texteDesElements(liste, bornee = null) {
+  if (liste.etat !== 'fait') {
+    return `aucun : la liste n'a pas pu être calculée (${liste.raison}) ; tu relèves toi-même chaque élément du lot.`;
+  }
+  const marque = e => {
+    if (!bornee) return '';
+    const ligne = bornee.lignes.get(e.id);
+    if (bornee.touches && !bornee.touches.has(e.id) && ligne) {
+      return ` — reprise, la différence ne le touche pas : ${ligne.conforme} — ${regleDeLaLigne(ligne)} — ${ligne.piece}`;
+    }
+    return ligne ? ' — à rejuger : la différence le touche' : " — à rejuger : aucune ligne d'avant";
+  };
+  const lignes = liste.elements.map(
+    e =>
+      `- \`${e.id}\` : ${e.genre}, ${e.statut}, ${e.exporte ? 'exporté' : 'non exporté'}, paquet ${e.paquet}, ${e.fichier}:${e.ligne}${marque(e)}`
+  );
+  if (liste.horsDuService.length) {
+    const pourquoi = liste.service
+      ? `le service de langage n'a pas pu tourner : ${liste.service}`
+      : 'aucun tsconfig.json ne les lit';
+    lignes.push(
+      `- Hors du service de langage (${pourquoi}), tu relèves toi-même leurs éléments : ${liste.horsDuService.join(', ')}.`
+    );
+  }
+  return lignes.join('\n') || 'aucun : le lot ne change aucun élément du code.';
 }
 
 // The last review of the ticket and the lot it read: its sheet's entry (`{ fiche, lot: { commit,

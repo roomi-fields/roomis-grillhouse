@@ -3,7 +3,8 @@
 // repository's code (a declaration of a package, a member of a type, a function internal to a
 // package), and its references are those the language service resolves to that symbol, never a
 // text that happens to bear its name. scripts/composants-affectes.mjs runs it beside its survey
-// by the names.
+// by the names; scripts/elements-du-lot.mjs reads the declarations and the exports of a lot
+// through the same service (`leService`).
 //
 // - The code read is the files of each component's `tsconfig.json` (its `include`), in one
 //   language service, so that a reference crosses packages. A workspace package's import resolves
@@ -100,14 +101,15 @@ function entreeDe(c, sous = '.') {
   );
 }
 
-const estTest = (c, f) =>
+// Whether the file <f> (absolute) of the component <c> is a test: a test's name, or a test folder.
+export const estTest = (c, f) =>
   NOM_DE_TEST.test(path.basename(f)) ||
   path
     .relative(c.dir, f)
     .split(path.sep)
     .some(d => DOSSIERS_DE_TEST.has(d));
 
-// The language service over the components <tous> of <racine>: { ts, ls, programme, composantDe }
+// The language service over the components <tous> of <racine>: { ls, programme, composantDe }
 // or { raison } when it cannot run.
 function service(ts, racine, tous) {
   const hote = { ...ts.sys, onUnRecoverableConfigFileDiagnostic: () => {} };
@@ -209,6 +211,51 @@ function service(ts, racine, tous) {
   return { ls, programme, composantDe };
 }
 
+// The language service over the components <tous> of <racine>, and what it says of their
+// declarations: `{ ts, ls, programme, checker, composantDe, sources, entree, publie }`, `sources`
+// the production sources it reads (each `{ sf, c }`, the tests and the declaration files left
+// out), `entree(c)` the source of the entry of the component <c> (or null), `publie(c, noeud)`
+// whether that entry exports the symbol whose name is the node <noeud>; or `{ raison }` when it
+// cannot run. scripts/elements-du-lot.mjs reads it.
+export function leService(racine, tous) {
+  const ts = requis('typescript');
+  const s = service(ts, racine, tous);
+  if (s.raison) {
+    return s;
+  }
+  const { programme, composantDe } = s;
+  const checker = programme.getTypeChecker();
+  const sources = programme.getSourceFiles().flatMap(sf => {
+    const c = composantDe(sf.fileName);
+    return !c || estTest(c, sf.fileName) || DECLARATION.test(sf.fileName) ? [] : [{ sf, c }];
+  });
+  const exportes = new Map();
+  const reel = sym => {
+    let x = sym;
+    if (x && x.flags & ts.SymbolFlags.Alias) {
+      x = checker.getAliasedSymbol(x);
+    }
+    return x ? checker.getExportSymbolOfSymbol(x) : x;
+  };
+  const exportsDe = c => {
+    if (!exportes.has(c)) {
+      const f = entreeDe(c);
+      const sf = f ? programme.getSourceFile(f) : undefined;
+      const mod = sf ? checker.getSymbolAtLocation(sf) : undefined;
+      exportes.set(
+        c,
+        mod ? checker.getExportsOfModule(mod).map(x => ({ nom: x.name, sym: reel(x) })) : []
+      );
+    }
+    return exportes.get(c);
+  };
+  const publie = (c, noeud) => {
+    const sym = reel(checker.getSymbolAtLocation(noeud));
+    return Boolean(sym) && exportsDe(c).some(x => x.sym === sym);
+  };
+  return { ts, ...s, checker, sources, entree: c => entreeDe(c), publie };
+}
+
 // The survey by the types of the elements <ecrits> (`elementsEcrits`) in the components <tous> of
 // <racine>, an element that resolves to several declarations kept to those of the files and the
 // components the ticket names (<contexte>: `{ fichiers, composants }`, Sets of file names and of
@@ -224,13 +271,11 @@ export function parLesTypes(racine, tous, ecrits, contexte = {}) {
 }
 
 function releveParLesTypes(racine, tous, ecrits, { fichiers = new Set(), composants = new Set() }) {
-  const ts = requis('typescript');
-  const s = service(ts, racine, tous);
+  const s = leService(racine, tous);
   if (s.raison) {
     return { etat: 'impossible', raison: s.raison, elements: [] };
   }
-  const { ls, programme, composantDe } = s;
-  const checker = programme.getTypeChecker();
+  const { ts, ls, programme, composantDe } = s;
 
   // The declarations of the components' sources, at their top and as members of their types.
   const hauts = [];
@@ -244,11 +289,7 @@ function releveParLesTypes(racine, tous, ecrits, { fichiers = new Set(), composa
       }
     }
   };
-  for (const sf of programme.getSourceFiles()) {
-    const c = composantDe(sf.fileName);
-    if (!c || estTest(c, sf.fileName) || DECLARATION.test(sf.fileName)) {
-      continue;
-    }
+  for (const { sf, c } of s.sources) {
     for (const st of sf.statements) {
       const decls = ts.isVariableStatement(st)
         ? st.declarationList.declarations.filter(d => ts.isIdentifier(d.name))
@@ -270,32 +311,10 @@ function releveParLesTypes(racine, tous, ecrits, { fichiers = new Set(), composa
     }
   }
 
-  // The symbols each component's entry exports.
-  const exportes = new Map();
-  const reel = sym => {
-    let x = sym;
-    if (x && x.flags & ts.SymbolFlags.Alias) {
-      x = checker.getAliasedSymbol(x);
-    }
-    return x ? checker.getExportSymbolOfSymbol(x) : x;
-  };
-  const exportsDe = c => {
-    if (!exportes.has(c)) {
-      const f = entreeDe(c);
-      const sf = f ? programme.getSourceFile(f) : undefined;
-      const mod = sf ? checker.getSymbolAtLocation(sf) : undefined;
-      exportes.set(
-        c,
-        mod ? checker.getExportsOfModule(mod).map(x => ({ nom: x.name, sym: reel(x) })) : []
-      );
-    }
-    return exportes.get(c);
-  };
-  const symDe = d => reel(checker.getSymbolAtLocation(d.noeud));
+  // Whether the entry of its component exports a declaration (a member, when its type is).
   const publie = d => {
     const h = d.haut ?? d;
-    const sym = symDe(h);
-    return Boolean(sym) && exportsDe(h.c).some(x => x.sym === sym);
+    return s.publie(h.c, h.noeud);
   };
 
   // The references of the declaration <d>: [{ c, appel }], its own declarations left out.

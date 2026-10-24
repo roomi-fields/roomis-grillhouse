@@ -3,7 +3,7 @@
 Sept gabarits, que le circuit du ticket (`packages/grillhouse/scripts/circuit.mjs`) remplit, chaque `{{champ}}` reçu
 de lui : le premier pour chaque séance neuve du testwriter et du développeur, dans l'enveloppe du
 plan du ticket, le lanceur ajoutant ses sections ; le second pour chaque séance du relecteur, hors
-enveloppe, après la passe finale verte, qui après un `RENDU` porte la relecture d'avant (la
+enveloppe, après la passe finale verte, qui porte la liste des éléments du lot, et après un `RENDU` la relecture d'avant (la
 commande de la différence entre le lot qu'elle a lu et celui d'aujourd'hui, ses fichiers, ses
 constats) et ne nomme que les fichiers que le lot change depuis elle ; le troisième pour la reprise
 de toute séance finie sans fiche conforme ; le quatrième pour la reprise de la séance du testwriter
@@ -87,13 +87,19 @@ LA RELECTURE D'AVANT : {{precedente}}
 
 LE FICHIER D'AFFIRMATIONS, la description du ticket et ses critères écrits par le circuit, que tu lis au moment que fixe ta compétence, jamais avant : {{affirmations}}
 
+LES ÉLÉMENTS DU LOT, chaque fonction, classe, type, interface, constante de tête et export que le lot ajoute, change ou supprime, calculés par le circuit (le service de langage et le diff des rapports d'API) :
+
+{{elements}}
+
+Ta fiche rend une ligne de `conformite` par élément, son `element` tel que cette liste l'écrit : `conforme` oui ou non, la règle citée (`document` : le CADRE, l'INTERFACE ou l'ARCHITECTURE de son paquet ; `reference` : la règle dans ce document ; un export neuf, son entrée dans l'INTERFACE de son paquet), sa `piece` ; un « non » nomme son destinataire (`role`, `composant`) et rend le lot. En relecture bornée, tu rejuges un élément marqué « à rejuger » et tu reprends la ligne d'un élément marqué « reprise » ; chacun garde sa ligne. Le circuit refuse une fiche à laquelle il manque un élément. Ainsi chaque élément nouveau ou changé est jugé contre l'architecture.
+
 LES RAPPORTS DU CIRCUIT depuis le dernier verdict (preuves du rouge, contrôles, passe finale) :
 
 {{rapports}}
 
 Tu relis le lot dans la copie du ticket (`.claude/worktrees/{{ticket}}`) et tu y rejoues les tests ciblés et toutes les gardes (`npm run verifier -- --gardes`) ; tu vois tout le dépôt, avec l'index (rtfm, codegraph), dont les chemins se lisent dans la copie. Ainsi tu cherches partout la notion déjà fournie et le texte resté à l'ancien comportement.
 
-Ton verdict est ta fiche, qui finit ta séance : le circuit l'écrit au ticket et la lit. Sur ACCEPTÉ, il intègre le lot ; sur RENDU, il relance l'agent que nomme chaque constat bloquant (`role`, `composant`) ; il écrit tes remarques au ticket.
+Ton verdict est ta fiche, qui finit ta séance : le circuit l'écrit au ticket et la lit. Sur ACCEPTÉ, il intègre le lot ; sur RENDU, il relance l'agent que nomme chaque constat bloquant et chaque élément non conforme (`role`, `composant`) ; il écrit ta conformité et tes remarques au ticket.
 
 Hors de ta copie, la machine est en lecture seule, `.git` compris : tu ne commites pas et tu n'écris pas l'index. Ainsi seul le circuit écrit l'histoire du dépôt.
 ```
