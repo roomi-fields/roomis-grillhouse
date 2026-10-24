@@ -20,6 +20,7 @@ import * as configVitest from './migrations/0.23.0-config-vitest.mjs';
 import * as crochetsDeSeance from './migrations/0.23.0-crochets-de-seance.mjs';
 import * as marcheDuProjet from './migrations/0.23.0-marche-du-projet.mjs';
 import * as copiesDuCadre from './migrations/0.23.2-copies-du-cadre.mjs';
+import * as circuitSimplifie from './migrations/0.24.0-circuit-simplifie.mjs';
 
 /** The migrations of the package. */
 export const MIGRATIONS = [
@@ -28,6 +29,7 @@ export const MIGRATIONS = [
   marcheDuProjet,
   charteImportee,
   copiesDuCadre,
+  circuitSimplifie,
 ];
 
 /**

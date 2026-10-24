@@ -44,8 +44,17 @@ professionnel.
    la fiche le circuit.
 
 Un ticket parcourt les étapes de son circuit (`etapes.mjs`, la seule liste), chacune tenue par un
-rôle, agent du cadre, sous ses droits. Ainsi chaque agent travaille dans son cadre, et le numéro
-d'une étape dit où en est chaque ticket.
+rôle, agent du cadre, sous ses droits : 1 Plan, l'explorateur puis le questionneur ; 2 Tests, une
+séance du testwriter, et 2.1 Preuve du rouge ; 3 Code, une séance du développeur, et
+3.1 Contrôles ; 4 Passe finale et relecture : la passe finale, la régénération des références,
+puis le relecteur, qui rend une ligne de conformité par élément que le lot ajoute, change ou
+supprime ; 5 Intégration. Ainsi chaque agent travaille dans son cadre,
+et le numéro d'une étape dit où en est chaque ticket.
+
+**Le circuit fait les gestes, une vraie question monte** : le circuit fait lui-même les gestes
+mécaniques que la liste des étapes écrit (rejouer, régénérer, juger un lot sans rien à livrer) ;
+tout autre arrêt monte au superviseur avec sa pièce, et il monte au responsable ce qui lui
+revient. Ainsi aucune séance ne juge ce qu'une règle tranche.
 
 **Tous les agents jugent sur le plan** : une décision du responsable entre dans la description du
 ticket, comme une RFC amendée ; les commentaires restent l'historique. Ainsi chaque agent lit la

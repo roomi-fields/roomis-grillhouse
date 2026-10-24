@@ -31,7 +31,8 @@ d'abord », « une personne maintient le projet »…).
 
 ## Ce qui monte au superviseur
 
-Le fonctionnel qu'aucune règle du circuit ne tranche : <le langage, le moteur audio, une
+Une question qu'aucun geste du circuit ne tranche monte au superviseur, avec sa pièce. Il monte au
+responsable le fonctionnel, qu'il ne tranche jamais seul : <le langage, le moteur audio, une
 interface publiée…>. Le cadre et l'architecture montent toujours (charte commune).
 
 ## Commandes

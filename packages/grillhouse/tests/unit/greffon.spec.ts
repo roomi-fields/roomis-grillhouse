@@ -103,6 +103,8 @@ describe('critère 1 — the plugin carries the skills and the agents of the fra
         '--',
         'packages/grillhouse/bin',
         'packages/grillhouse/scripts',
+        // The migrations keep the trace of the forms before, the copies of the agents among them.
+        ':!packages/grillhouse/scripts/migrations',
       ],
       {
         encoding: 'utf8',
@@ -292,8 +294,9 @@ describe('critère 4 — the copy of the files, its list, its fingerprints and t
         'CONTRIBUTING.md',
         'STRUCTURE.md',
         ':!packages/grillhouse/tests/unit/greffon.spec.ts',
-        ':!packages/grillhouse/scripts/migrations/0.23.2-copies-du-cadre.mjs',
-        ':!packages/grillhouse/tests/unit/migration.copies-du-cadre.spec.ts',
+        // The migrations and their tests keep the trace of the forms before.
+        ':!packages/grillhouse/scripts/migrations',
+        ':!packages/grillhouse/tests/unit/migration.*.spec.ts',
       ],
       { encoding: 'utf8' }
     );

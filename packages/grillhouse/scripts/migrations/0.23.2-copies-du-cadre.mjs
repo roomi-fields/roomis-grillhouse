@@ -19,7 +19,8 @@
 //   non-zero; an npm script that runs it is named with it, since its removal breaks that script.
 //   While one stays, the list and the fingerprints stay, so that the next update names it again;
 //   once none stays, `.claude/grillhouse/` goes whole (the list, the fingerprints, the version, the
-//   former charter).
+//   former charter). A modified copy of a role 0.24.0 removes stays too, but is named by that
+//   migration alone (`deRoleSupprime` of 0.24.0-circuit-simplifie.mjs), once.
 // - Each root npm script that runs a copy removed (`node scripts/<chemin>`, `bash scripts/<chemin>`,
 //   its arguments kept) runs its subcommand, `grillhouse <sous-commande>`, by the table of
 //   scripts/sous-commandes.mjs; a script that still names a copy removed (no subcommand runs it) is
@@ -37,6 +38,7 @@ import { paquets } from '../paquets.mjs';
 import { sources } from '../sources.mjs';
 import { SOUS_COMMANDES } from '../sous-commandes.mjs';
 import { formesAnterieures } from './0.23.0-config-vitest.mjs';
+import { deRoleSupprime } from './0.24.0-circuit-simplifie.mjs';
 
 export const version = '0.23.2';
 export const nom = 'copies du cadre';
@@ -125,7 +127,7 @@ export function migrer(projet) {
     if (!existsSync(path.join(projet, f))) continue;
     if (intacte(path.join(projet, f), attendue)) {
       retirer(f, `${f} : copie du cadre retirée, que le paquet porte`);
-    } else {
+    } else if (!deRoleSupprime(f)) {
       restes.push(f);
       sortie.push({
         aFaire: `${f} : copie du cadre modifiée par le projet, laissée en place ; \`git rm ${f}\` la retire, le paquet porte le cadre`,

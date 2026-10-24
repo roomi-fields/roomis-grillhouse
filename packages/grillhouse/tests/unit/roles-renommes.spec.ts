@@ -12,7 +12,8 @@ import { describe, expect, it } from 'vitest';
 const RACINE = path.resolve(__dirname, '../../../..');
 const ANCIENS = ['arbitre', 'chef-de-chantier', 'testeur', 'regulateur', 'referent-technique'];
 // The files the frame distributes and the texts that describe it: its plugin, its package, its
-// project templates and its documents; its history (CHANGELOG.md) and its tests aside.
+// project templates and its documents; its history aside: CHANGELOG.md, its tests (their former
+// forms, tests/formes/) and its migrations (scripts/migrations/), which know the former forms.
 const duCadre = () =>
   execFileSync(
     'git',
@@ -30,6 +31,7 @@ const duCadre = () =>
       'README.md',
       'STRUCTURE.md',
       'CLAUDE.md',
+      ':(exclude)packages/grillhouse/scripts/migrations',
     ],
     { encoding: 'utf8' }
   )
@@ -74,6 +76,67 @@ describe('the roles of the frame under their names alone', () => {
       ]
         .filter(m => m.test(t))
         .map(m => `${f} : ${m}`);
+    });
+    expect(fautes).toEqual([]);
+  });
+
+  // grillhouse-3uv.95.11 critère 1: the circuit of 0.24.0 is 1 Plan, 2 Tests and 2.1 Preuve,
+  // 3 Code and 3.1 Contrôles, 4 Passe finale et relecture, 5 Intégration, each step once for the
+  // whole ticket; the steps of the former tree, its loop by component, its table of the stops and
+  // its options are gone, and no text of the frame names them.
+  // A word's bounds in Unicode (`\b` holds no bound before « é »).
+  const mot = (corps: string, drapeaux = '') =>
+    new RegExp(`(?<![\\p{L}\\p{N}])(?:${corps})(?![\\p{L}\\p{N}])`, `u${drapeaux}`);
+  const ANCIEN_CIRCUIT = [
+    mot('0 Exploration'),
+    mot('1 Ouverture'),
+    mot('1\\.1 Relev[ée]'),
+    mot('1\\.2 Questionnement'),
+    mot('2 Composants'),
+    mot('2\\.[234] (?:Preuve|Code|Contrôles)'),
+    mot('3 Passe finale'),
+    mot('4 Relecture'),
+    mot("Arbitrage de l['’]arrêt", 'i'),
+    mot('tables? des arrêts', 'i'),
+    mot('table of the stops', 'i'),
+    mot('tour [0-9n]/4'),
+    mot('0 to 5'),
+    mot('per component or once'),
+    mot('(?:séance|étape|boucle)s? par composant', 'i'),
+    mot('(?:session|step|loop)s? per component', 'i'),
+    /`(?:testwriter|developpeur) <composant>`/,
+    /composants-manquants/,
+    /--(?:reponse|decision|admettre)\b/,
+  ];
+
+  it('the forms of the former circuit are found, accents included, and not inside another word', () => {
+    for (const t of [
+      'une étape par composant',
+      'Une séance par composant.',
+      '« Arbitrage de l’arrêt »',
+      '0 Exploration ; 1 Ouverture',
+    ]) {
+      expect(
+        ANCIEN_CIRCUIT.some(m => m.test(t)),
+        t
+      ).toBe(true);
+    }
+    for (const t of [
+      'aucune spécificité par composant',
+      'sous-étapes',
+      'un relevé des composants',
+    ]) {
+      expect(
+        ANCIEN_CIRCUIT.some(m => m.test(t)),
+        t
+      ).toBe(false);
+    }
+  });
+
+  it('no file the frame distributes names a step, a loop or an option of the former circuit', () => {
+    const fautes = duCadre().flatMap(f => {
+      const t = readFileSync(path.join(RACINE, f), 'utf8');
+      return ANCIEN_CIRCUIT.filter(m => m.test(t)).map(m => `${f} : ${m}`);
     });
     expect(fautes).toEqual([]);
   });

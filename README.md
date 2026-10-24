@@ -117,7 +117,11 @@ description as it is at its launch, the ticket's notes when it has some, the rev
 last handover of its own role (for a developer who has none yet, that of the testwriter); the reviewer's carries no
 criteria, only the path of the claims file that holds them. A finding of the reviewer goes straight to the agent it
 names and stays open across every relaunch, as an unresolved thread of a review, until the reviewer judges it lifted
-or accepts the lot.
+or accepts the lot. The circuit gives the reviewer the mechanical list of every element the lot adds, changes or
+removes (function, class, type, interface, constant at the top, export, each with its package and its file:line,
+`packages/grillhouse/scripts/elements-du-lot.mjs`), and the reviewer's sheet gives one line of conformity per element,
+conforming or not, the rule cited (CADRE, INTERFACE or ARCHITECTURE; a new export, its entry in the INTERFACE): a « non »
+sends the lot back, an element without its line refuses the sheet.
 Each session of a testwriter, a developer, the reviewer and the questioner ends on its sheet, the structured
 output its role's schema describes (`claude -p --output-format json --json-schema`, `packages/grillhouse/scripts/resultats.mjs`):
 the circuit decides on it, and on the summaries of Turborepo, the JSON reports of Vitest and the SARIF of

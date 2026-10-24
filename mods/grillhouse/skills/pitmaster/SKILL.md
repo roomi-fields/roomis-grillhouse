@@ -218,7 +218,10 @@ constat SARIF), comme `rustc --bless` : une passe finale rouge sur elles seules 
 tests, un constat d'une de leurs gardes, quel que soit son fichier, ou un fichier qu'elles
 couvrent) les régénère, la
 différence va au lot et au relecteur, et un changement que le plan ne nomme pas arrête le circuit
-(`references`), et 4.3 Relecture, le `relecteur`, trois tours au plus, un lot rendu revenant à
+(`references`), et 4.3 Relecture, le `relecteur`, trois tours au plus, qui rend une ligne de
+conformité par élément que le lot ajoute, change ou supprime (la liste mécanique que le circuit
+lui donne, chaque ligne avec sa règle : CADRE, INTERFACE ou ARCHITECTURE), un « non » rendant le
+lot et un élément sans ligne refusant sa fiche, un lot rendu revenant à
 l'agent que nomme chaque constat, en 2 ou en 3, chaque constat ouvert jusqu'à la relecture qui le
 juge levé ; 5 Intégration : 5.1 Commit et 5.2 File : main,
 poussée, CI, auto. Le questionneur ne décide rien, et ses questions vont au ticket. Ainsi chaque
