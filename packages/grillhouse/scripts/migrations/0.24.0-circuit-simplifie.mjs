@@ -18,14 +18,17 @@
 //   not know as the frame's: the project modified it, or no list named it. It is left to the
 //   project, with the command that removes it; the migration of the copies leaves it to this one
 //   (deRoleSupprime), so that it is named once.
-// - A tracked file of the project (`git ls-files`, node_modules and the changelogs aside) that
-//   still calls or names a script of the frame at its former address under `scripts/`
+// - What stays to the project (`restes`, which the update plays after its own update and its
+//   regeneration, so that it sees the final state): a tracked file of the project (`git ls-files`,
+//   node_modules and the changelogs aside) that still calls or names a script of the frame at its former address under `scripts/`
 //   (`node scripts/<script>`, `$RACINE/scripts/<script>`, `path.join(…, 'scripts', '<script>')`;
 //   a tracked path that is no regular file, a submodule or a link, is skipped),
 //   where the project holds no such file any more, is named with its file:line and what replaces
 //   it: the subcommand (`SOUS_COMMANDES` of scripts/sous-commandes.mjs), the hook
 //   (`grillhouse hook <nom>`, `CROCHETS` of scripts/crochets.mjs) or the named entry (the
-//   `exports` of the package). The project's scripts are its own: none is rewritten.
+//   `exports` of the package). The project's scripts are its own: none is rewritten, and the
+//   lines are a report, which never holds back the version the project records, as a codemod
+//   reports what it leaves without failing.
 // - No version of the update wrote a setting of a role in `.claude/settings.json` or under
 //   `grillhouse` of the package.json (the update of 0.22.x wrote the hooks, the status line and the
 //   plugins; the rights of a role are given on the command line of its session, scripts/droits.mjs):
@@ -176,8 +179,8 @@ const ADRESSE = /(?<![\w./-])(?:\.\/|\$\{?\w+\}?\/)?scripts\/([\w./-]+?\.(?:mjs|
 const SEGMENTS = /(['"])scripts\1((?:\s*,\s*(['"])[\w.-]+\3)+)/g;
 const SANS = /(^|\/)(?:node_modules\/|CHANGELOG\.md$)/;
 
-// The tracked files of <projet> that still reach a script of the frame at its former address.
-function appels(projet) {
+/** The lines of the tracked files of <projet> that still reach a script of the frame at its former address. */
+export function restes(projet) {
   let suivis;
   try {
     suivis = execFileSync('git', ['-C', projet, 'ls-files', '-z'], { encoding: 'utf8' })
@@ -213,9 +216,9 @@ function appels(projet) {
         if (!par.has(s) || existsSync(path.join(projet, 'scripts', s))) {
           continue;
         }
-        sortie.push({
-          aFaire: `${f}:${i + 1} : appelle scripts/${s}, copie du cadre retirée ; ${par.get(s).join(' ou ')} la remplace`,
-        });
+        sortie.push(
+          `${f}:${i + 1} : appelle scripts/${s}, copie du cadre retirée ; ${par.get(s).join(' ou ')} la remplace`
+        );
       }
     });
   }
@@ -224,5 +227,5 @@ function appels(projet) {
 
 /** Rewrites in the project at <projet> what the circuit of 0.24.0 changes; returns what it did. */
 export function migrer(projet) {
-  return [...rubrique(projet), ...suivi(projet), ...copies(projet), ...appels(projet)];
+  return [...rubrique(projet), ...suivi(projet), ...copies(projet)];
 }

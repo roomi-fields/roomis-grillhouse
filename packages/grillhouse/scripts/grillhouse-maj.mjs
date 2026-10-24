@@ -17,6 +17,10 @@
 //   project (a copy of the frame the project modified, scripts/migrations/0.23.2-copies-du-cadre.mjs)
 //   is written on the error stream, with the command that does it, and the exit code is non-zero;
 //   the project keeps the version it recorded, so that the next update plays that migration again.
+//   Last, after the update and the regeneration, what stays to the project (`restes` of a
+//   migration played, scripts/migrations.mjs: in 0.24.0, a file that still calls a former copy of
+//   the frame) is reported on the standard output, « reste au projet », with no effect on the exit
+//   code nor on the version recorded.
 // - The frame copies no file into a project: its scripts are the package's, its skills, agents,
 //   hooks of Claude Code, common charter and meta-frame the plugin's, which the package carries
 //   (scripts/cadre.mjs): the frame arrives in one piece, at the version npm installs.
@@ -124,7 +128,7 @@ import semver from 'semver';
 import { CADRE, VERSION } from './cadre.mjs';
 import { poserCrochets } from './crochets.mjs';
 import { installerGreffons } from './greffons.mjs';
-import { migrer } from './migrations.mjs';
+import { migrer, restesAuProjet } from './migrations.mjs';
 import { paquets } from './paquets.mjs';
 
 const SCRIPTS = {
@@ -502,7 +506,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     process.exitCode = 2;
   } else {
     const projet = process.cwd();
-    const migrations = migrer(projet, versionDuProjet(projet));
+    const depuis = versionDuProjet(projet);
+    const migrations = migrer(projet, depuis);
     const resteAFaire = migrations.some(m => m.aFaire.length > 0);
     const b = mettreAJour(projet, CADRE, resteAFaire ? { inscrite: null } : {});
     process.stdout.write(`Cadre ${VERSION}.\n`);
@@ -521,6 +526,11 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     for (const l of [...regenerer(projet), ...installerGreffons(projet)]) {
       process.stderr.write(`${l}\n`);
       process.exitCode = 1;
+    }
+    for (const { version, nom, lignes } of restesAuProjet(projet, depuis)) {
+      process.stdout.write(
+        `Migration ${version} (${nom}), reste au projet :\n${lignes.map(l => `- ${l}\n`).join('')}`
+      );
     }
   }
 }

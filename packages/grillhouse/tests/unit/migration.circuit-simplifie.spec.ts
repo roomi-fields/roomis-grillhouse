@@ -13,7 +13,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { migrer as migrerTout } from '../../scripts/migrations.mjs';
-import { migrer, nom, version } from '../../scripts/migrations/0.24.0-circuit-simplifie.mjs';
+import {
+  migrer,
+  nom,
+  restes as restesDe,
+  version,
+} from '../../scripts/migrations/0.24.0-circuit-simplifie.mjs';
 
 // grillhouse-3uv.95.11 critère 2: the circuit of 0.24.0 has no regulator and no technical referent
 // (decision 3 of grillhouse-3uv.95); a migration rewrites in a project what that changes, and only
@@ -183,7 +188,7 @@ describe('migration 0.24.0 — the circuit without regulator nor technical refer
     expect(migrer(projet())).toEqual([]);
   });
 
-  it('a tracked file that calls a script of the frame at its former address is named with its file:line and its replacement, not written', () => {
+  it('a tracked file that calls a script of the frame at its former address stays to the project, with its file:line and its replacement, not written', () => {
     const fichiers = {
       'outils/crochet.sh':
         'set -e\nnode scripts/index-interfaces.mjs --verifier\nnode scripts/consommateurs.mjs\n',
@@ -197,9 +202,8 @@ describe('migration 0.24.0 — the circuit without regulator nor technical refer
     const p = projet(fichiers);
     execFileSync('git', ['-C', p, 'init', '-q']);
     execFileSync('git', ['-C', p, 'add', '.']);
-    const lignes = migrer(p) as Ligne[];
-    expect(faites(lignes)).toEqual([]);
-    const restes = aFaire(lignes);
+    expect(migrer(p)).toEqual([]);
+    const restes = restesDe(p) as string[];
     const de = (fl: string) => restes.filter(l => l.startsWith(`${fl} : `));
     expect(de('outils/crochet.sh:2')[0]).toContain('`grillhouse index-interfaces`');
     expect(de('outils/crochet.sh:3')[0]).toContain('`grillhouse consommateurs`');
@@ -229,7 +233,7 @@ describe('migration 0.24.0 — the circuit without regulator nor technical refer
     symlinkSync('vendor/moteur', path.join(p, 'lien'));
     execFileSync('git', ['-C', p, 'add', 'lien']);
     rmSync(path.join(p, 'outils/parti.sh'));
-    const restes = aFaire(migrer(p) as Ligne[]);
+    const restes = restesDe(p) as string[];
     expect(restes).toHaveLength(1);
     expect(restes[0]).toMatch(/^outils\/a\.sh:1 : /);
   });
@@ -241,7 +245,7 @@ describe('migration 0.24.0 — the circuit without regulator nor technical refer
     });
     execFileSync('git', ['-C', p, 'init', '-q']);
     execFileSync('git', ['-C', p, 'add', '.']);
-    expect(migrer(p)).toEqual([]);
+    expect(restesDe(p)).toEqual([]);
   });
 
   it('a modified copy of a removed role is named once, by this migration, not by the one of the copies', () => {

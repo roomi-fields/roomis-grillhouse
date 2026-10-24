@@ -1685,3 +1685,63 @@ describe('grillhouse-3uv.84.4 critère 6 — the update keeps the project’s st
     expect(lancerMaj(projet, DEPOT).stdout).not.toContain("Ligne d'état");
   });
 });
+
+// grillhouse-3uv.95.11.1: what stays to the project is read once the update is done, as a codemod
+// reports what it leaves without failing. A generated turbo.json and a git hook of a former
+// version, which the update itself rewrites, are not named; a script of the project that calls a
+// former copy of the frame is named with its file:line and what replaces it, on the standard
+// output; the version is recorded and the exit code is 0.
+describe('grillhouse-3uv.95.11.1 — what stays to the project is reported after the update, without holding back the version', () => {
+  const git = (projet: string, ...args: string[]) =>
+    spawnSync('git', ['-C', projet, ...args], { encoding: 'utf8' });
+
+  function projetDe022() {
+    const projet = mkdtempSync(path.join(ESSAIS, 'restes-'));
+    ecrire(
+      projet,
+      'package.json',
+      `${JSON.stringify({ name: 'p', private: true, workspaces: ['packages/*'] }, null, 2)}\n`
+    );
+    ecrire(projet, 'packages/a/package.json', '{"name":"a","scripts":{"build":"tsc"}}\n');
+    ecrire(
+      projet,
+      'packages/a/turbo.json',
+      '// Généré par `node scripts/turbo-des-paquets.mjs --ecrire` depuis les package.json ; ne pas éditer.\n{ "extends": ["//"], "tasks": {} }\n'
+    );
+    ecrire(
+      projet,
+      '.beads/hooks/commit-msg',
+      '#!/bin/sh\nexec node "$(git rev-parse --show-toplevel)/scripts/un-commit-par-ticket.mjs" "$@"\n'
+    );
+    ecrire(projet, 'outils/nuit.sh', '#!/bin/sh\nnode scripts/code-mort.mjs\n');
+    git(projet, 'init', '-q');
+    git(projet, 'config', 'core.hooksPath', '.beads/hooks');
+    git(projet, 'add', '.');
+    // The project has run `npm install`: the frame's command and tools are installed.
+    symlinkSync(path.join(DEPOT, 'node_modules'), path.join(projet, 'node_modules'), 'dir');
+    return projet;
+  }
+  const bin = () =>
+    claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')), {
+      marches: ['claude-plugins-official', 'roomi-fields'],
+    }).bin;
+
+  it('names the project’s script alone, after the update rewrote its turbo.json and its hook', () => {
+    const projet = projetDe022();
+    const r = lancerMajAvec(projet, [], bin());
+    expect(r.stderr).not.toMatch(/turbo\.json:|commit-msg:/);
+    expect(r.stdout).not.toMatch(/turbo\.json:\d|commit-msg:\d/);
+    expect(r.stdout).toMatch(/^Migration 0\.24\.0 \(circuit simplifié\), reste au projet :$/m);
+    expect(r.stdout).toMatch(
+      /^- outils\/nuit\.sh:2 : appelle scripts\/code-mort\.mjs, .*`grillhouse code-mort`/m
+    );
+    expect(lire(projet, 'outils/nuit.sh')).toBe('#!/bin/sh\nnode scripts/code-mort.mjs\n');
+  });
+
+  it('records the version and exits 0, the report holding nothing back', () => {
+    const projet = projetDe022();
+    const r = lancerMajAvec(projet, [], bin());
+    expect(r.status, r.stderr).toBe(0);
+    expect(json(projet, 'package.json').grillhouse).toEqual({ version: VERSION });
+  });
+});
