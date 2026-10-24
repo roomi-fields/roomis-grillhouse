@@ -1518,6 +1518,117 @@ describe('the update declares the frame’s package in each tested package of a 
   });
 });
 
+// grillhouse-3uv.95.11.2 critère 1: a package whose code out of the tests imports an entry of the
+// frame's package (`/dette`, `/consommateurs`, `/paquets`) runs it: it declares it in its
+// `dependencies`, as npm's rule puts what the published code imports. Witness: BPScript's
+// packages/995-tools, whose guards (src/verif-portes.mjs) import `/paquets`, refused three times
+// by `pas-d-outil-de-developpement-dans-le-code` while the update declared it in devDependencies.
+const deps = (projet: string, f: string) =>
+  (json(projet, f).dependencies ?? {}) as Record<string, string>;
+describe('grillhouse-3uv.95.11.2 critère 1 — a package whose code imports the frame’s package declares it in its dependencies', () => {
+  it('a tested package whose src imports /dette receives it in dependencies, not in devDependencies', () => {
+    const projet = projetAPaquets(['packages/*'], '^0.24.0');
+    ecrire(
+      projet,
+      'packages/teste/src/garde.mjs',
+      "import { trancher } from '@roomi-fields/grillhouse/dette';\ntrancher('.', 'g', []);\n"
+    );
+    const b = mettreAJour(projet, DEPOT);
+    expect(deps(projet, 'packages/teste/package.json')).toEqual({ [NOM_PAQUET]: '^0.24.0' });
+    expect(devDeps(projet, 'packages/teste/package.json')).not.toHaveProperty(NOM_PAQUET);
+    expect(b.dependanceDuCadre).toEqual({ nom: NOM_PAQUET, paquets: ['packages/teste'] });
+    expect(rapport(b)).toContain('dependencies de packages/teste');
+  });
+  it('a declaration in devDependencies, as the update of 0.24.0 wrote it, moves to dependencies with its range', () => {
+    const projet = projetAPaquets(['packages/*']);
+    ecrire(
+      projet,
+      'packages/outils/package.json',
+      pkgJson({
+        name: 'outils',
+        scripts: { 'test:vitest': 'vitest run' },
+        dependencies: { zod: '*' },
+        devDependencies: { [NOM_PAQUET]: '^0.24.0', vitest: '^2.0.0' },
+      })
+    );
+    ecrire(
+      projet,
+      'packages/outils/src/verif-portes.mjs',
+      "const { horsCadre } = await import('@roomi-fields/grillhouse/paquets');\n"
+    );
+    mettreAJour(projet, DEPOT);
+    expect(deps(projet, 'packages/outils/package.json')).toEqual({
+      [NOM_PAQUET]: '^0.24.0',
+      zod: '*',
+    });
+    expect(devDeps(projet, 'packages/outils/package.json')).toEqual({ vitest: '^2.0.0' });
+  });
+  it('a package without tests whose src imports /consommateurs receives it too', () => {
+    const projet = projetAPaquets(['packages/*']);
+    ecrire(
+      projet,
+      'packages/sans/src/index.ts',
+      "import { matieres } from '@roomi-fields/grillhouse/consommateurs';\nexport const m = matieres;\n"
+    );
+    mettreAJour(projet, DEPOT);
+    expect(deps(projet, 'packages/sans/package.json')).toEqual({ [NOM_PAQUET]: `^${VERSION}` });
+  });
+  it('an import in the tests, in a comment or in a string leaves the declaration in devDependencies', () => {
+    const projet = projetAPaquets(['packages/*']);
+    ecrire(
+      projet,
+      'packages/teste/src/a.test.ts',
+      "import { trancher } from '@roomi-fields/grillhouse/dette';\n"
+    );
+    ecrire(
+      projet,
+      'packages/teste/src/test/outil.ts',
+      "import { horsCadre } from '@roomi-fields/grillhouse/paquets';\n"
+    );
+    ecrire(
+      projet,
+      'packages/teste/src/b.mjs',
+      "// import { trancher } from '@roomi-fields/grillhouse/dette';\nconst t = \"import '@roomi-fields/grillhouse/dette'\";\n"
+    );
+    ecrire(
+      projet,
+      'packages/teste/test/c.ts',
+      "import { trancher } from '@roomi-fields/grillhouse/dette';\n"
+    );
+    const b = mettreAJour(projet, DEPOT);
+    expect(json(projet, 'packages/teste/package.json')).not.toHaveProperty('dependencies');
+    expect(devDeps(projet, 'packages/teste/package.json')).toHaveProperty(NOM_PAQUET);
+    expect(b.dependanceDuCadre).toBeNull();
+  });
+  it('a vitest.config.ts out of src/ that imports the package leaves the declaration in devDependencies', () => {
+    const projet = projetAPaquets(['packages/*']);
+    ecrire(
+      projet,
+      'packages/teste/vitest.config.ts',
+      "import base from '@roomi-fields/grillhouse/vitest-config';\nexport default base;\n"
+    );
+    const b = mettreAJour(projet, DEPOT);
+    expect(json(projet, 'packages/teste/package.json')).not.toHaveProperty('dependencies');
+    expect(devDeps(projet, 'packages/teste/package.json')).toHaveProperty(NOM_PAQUET);
+    expect(b.dependanceDuCadre).toBeNull();
+  });
+  it('a package out of the frame is not touched; a replayed update changes nothing', () => {
+    const projet = projetAPaquets(['packages/*']);
+    ecrire(projet, 'docs/agents/hors-cadre.txt', 'kanopi projet voisin\n');
+    const kanopi = pkgJson({ name: 'kanopi' });
+    ecrire(projet, 'packages/kanopi/package.json', kanopi);
+    for (const p of ['kanopi', 'teste']) {
+      ecrire(projet, `packages/${p}/src/g.mjs`, "import '@roomi-fields/grillhouse/dette';\n");
+    }
+    mettreAJour(projet, DEPOT);
+    expect(lire(projet, 'packages/kanopi/package.json')).toBe(kanopi);
+    const avant = lire(projet, 'packages/teste/package.json');
+    const b = mettreAJour(projet, DEPOT);
+    expect(lire(projet, 'packages/teste/package.json')).toBe(avant);
+    expect(b.dependanceDuCadre).toBeNull();
+  });
+});
+
 // The update reads the packages of a project as the frame's checks read them (`paquets` of
 // scripts/paquets.mjs): a package the workspaces take out is none, and a package out of
 // the frame, which Turborepo never tests, is not the frame's.

@@ -212,5 +212,8 @@ la fonction, sans réexport, avec sa déclaration de types à côté (`scripts/<
 partagée), `@roomi-fields/grillhouse/paquets` (`horsCadre`, les paquets hors cadre), et la
 configuration de base de Vitest, `@roomi-fields/grillhouse/vitest-config` et
 `@roomi-fields/grillhouse/vitest-config/mesure`. Une entrée s'ajoute ou se retire avec ce
-paragraphe, que `tests/unit/paquet-publie.spec.ts` confronte au champ `exports`. Ainsi une
-version du paquet dit ce qu'un projet peut importer, et ce qu'elle lui retire.
+paragraphe, que `tests/unit/paquet-publie.spec.ts` confronte au champ `exports`. Un paquet du
+projet dont le code de `src/` hors des tests importe une entrée déclare le paquet du cadre dans
+ses `dependencies`, comme npm y met ce que le code publié importe : `npx grillhouse maj` l'y
+place, ses imports lus par TypeScript. Ainsi une version du paquet dit ce qu'un projet peut
+importer, et ce qu'elle lui retire.

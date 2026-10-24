@@ -6,6 +6,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **`grillhouse maj` declares the frame's package in the dependencies of a package whose code imports it, and its report sees a path to a former copy written in pieces** (grillhouse-3uv.95.11.2): BPScript's migration from 0.22.2 to 0.24.0 (0c5064a99, bp-mono-vbwf.322.14, after the 320.9 that 0.24.0 answers) found four gaps. The update declared `@roomi-fields/grillhouse` in the devDependencies of `packages/995-tools`, whose guards under `src/` import `/consommateurs`, `/dette` and `/paquets`, and `grillhouse frontieres` refused it three times (`pas-d-outil-de-developpement-dans-le-code`); BPScript moved it by hand (`npm install -w packages/995-tools @roomi-fields/grillhouse@^0.24.0 --save-prod`). As npm puts in `dependencies` what the published code imports, a package of the frame whose `src/`, out of the tests (the files the guard judges), imports an entry of the package now declares it in its `dependencies`, a declaration in its `devDependencies` moved there with its range; the imports are read by TypeScript (`preProcessFile`), a comment or a string importing nothing, and the report names the packages. The report « reste au projet » missed two forms of path, `"file://$1/scripts/consommateurs.mjs"` (`generation-des-paquets.sh:16`) and `path.join(RACINE, 'scripts', 'vitest-config', 'duree.reporter.mjs')` (`verif-portes.mjs:38`): it now finds a path by its words, a word cut at its `/` or the literal arguments of a call after `'scripts'`, a `scripts/` under a literal directory (a package of the project, the installed package) being another's and `.` or `..` naming none (`path.join(import.meta.dirname, '..', '..', '..', 'scripts', 'dette.mjs')`, `verif-un-seul-etage.mjs:25`), and a script of the package with no subcommand, hook nor entry is named with « aucune entrée publiée ne la remplace ». The guide of the supervisor sent `horsCadre` to `/consommateurs`; the section Migration below names each entry.
+
+### Migration
+
+For a project in 0.24.0, or migrating from 0.22.x or 0.23.x (the section of 0.24.0, then this one):
+
+1. `npm install -D @roomi-fields/grillhouse@0.24.1`, then `npx grillhouse maj`, then `npm install`.
+2. Each function a project's guard imported from a former copy comes from its entry, never from `scripts/`: `horsCadre` from `@roomi-fields/grillhouse/paquets` (not `/consommateurs`, which it left in 0.23), `trancher` from `@roomi-fields/grillhouse/dette`, `matieres` from `@roomi-fields/grillhouse/consommateurs`. Once the imports are rewritten, play `npx grillhouse maj` again, then `npm install`: the first pass saw no import of the package, and the second declares it in the `dependencies` of each package whose code now imports it, a replayed update changing nothing else.
+3. A test bench that builds a toy repository by copying the project's `scripts/` loses the frame with it: give the toy a link to the project's `node_modules`, which carries the package, and read nothing under `.claude/grillhouse/`, which the migration 0.23.2 removes (its `fichiers.txt` included).
+4. In a copy of the repository made for the migration (a git worktree), `git submodule update --init` first: a guard that reads a submodule (the reference of an engine) is red while it is not checked out.
+5. `npm run verifier -- --gardes`.
+
 ## [0.24.0] - 2026-10-24
 
 ### Added

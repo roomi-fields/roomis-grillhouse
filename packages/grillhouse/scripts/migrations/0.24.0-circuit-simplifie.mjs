@@ -21,12 +21,15 @@
 // - What stays to the project (`restes`, which the update plays after its own update and its
 //   regeneration, so that it sees the final state): a tracked file of the project (`git ls-files`,
 //   node_modules and the changelogs aside) that still calls or names a script of the frame at its former address under `scripts/`
-//   (`node scripts/<script>`, `$RACINE/scripts/<script>`, `path.join(…, 'scripts', '<script>')`;
-//   a tracked path that is no regular file, a submodule or a link, is skipped),
-//   where the project holds no such file any more, is named with its file:line and what replaces
-//   it: the subcommand (`SOUS_COMMANDES` of scripts/sous-commandes.mjs), the hook
+//   (`node scripts/<script>`, `$RACINE/scripts/<script>`, `file://$1/scripts/<script>`,
+//   `path.join(…, '..', 'scripts', '<dossier>', '<script>')`, found by its words, sousScripts; a
+//   `scripts/` under a literal directory, a package of the project or the installed package, is
+//   another's, `.` and `..` naming none; a tracked path that is no regular file, a submodule or a
+//   link, is skipped), where the project holds no such file any more, is named with its file:line
+//   and what replaces it: the subcommand (`SOUS_COMMANDES` of scripts/sous-commandes.mjs), the hook
 //   (`grillhouse hook <nom>`, `CROCHETS` of scripts/crochets.mjs) or the named entry (the
-//   `exports` of the package). The project's scripts are its own: none is rewritten, and the
+//   `exports` of the package). A script of the package that has none of them is named with « aucune
+//   entrée publiée ne la remplace ». The project's scripts are its own: none is rewritten, and the
 //   lines are a report, which never holds back the version the project records, as a codemod
 //   reports what it leaves without failing.
 // - No version of the update wrote a setting of a role in `.claude/settings.json` or under
@@ -37,7 +40,7 @@
 //   to the project.
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, lstatSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { CADRE, PAQUET } from '../cadre.mjs';
 import { CROCHETS } from '../crochets.mjs';
@@ -154,7 +157,7 @@ function copies(projet) {
 }
 
 // What replaces each script of the frame, by its path under `scripts/`: its subcommand, its hook,
-// its named entry.
+// its named entry; none for a script of the package that has none of them.
 function remplacants() {
   const r = new Map();
   const ajouter = (script, quoi) => r.set(script, [...(r.get(script) ?? []), quoi]);
@@ -164,20 +167,64 @@ function remplacants() {
   for (const [n, c] of Object.entries(CROCHETS)) {
     ajouter(c.garde, `\`grillhouse hook ${n}\``);
   }
-  const { exports = {} } = JSON.parse(readFileSync(path.join(PAQUET, 'package.json'), 'utf8'));
+  const { name, exports = {} } = JSON.parse(
+    readFileSync(path.join(PAQUET, 'package.json'), 'utf8')
+  );
   for (const [entree, cible] of Object.entries(exports)) {
     const d = typeof cible === 'string' ? cible : cible?.default;
     if (typeof d === 'string' && d.startsWith('./scripts/')) {
-      ajouter(d.slice('./scripts/'.length), `\`@roomi-fields/grillhouse${entree.slice(1)}\``);
+      ajouter(d.slice('./scripts/'.length), `\`${name}${entree.slice(1)}\``);
+    }
+  }
+  const scripts = path.join(PAQUET, 'scripts');
+  for (const e of readdirSync(scripts, { recursive: true, withFileTypes: true })) {
+    const s = path.relative(scripts, path.join(e.parentPath, e.name)).split(path.sep).join('/');
+    if (e.isFile() && SCRIPT.test(s) && !r.has(s)) {
+      r.set(s, []);
     }
   }
   return r;
 }
-// A script named at its former address: `scripts/<chemin>`, alone or after `./` or `$VAR/`.
-const ADRESSE = /(?<![\w./-])(?:\.\/|\$\{?\w+\}?\/)?scripts\/([\w./-]+?\.(?:mjs|sh))(?![\w.-])/g;
-// The same, as the segments of a path.join: `'scripts', 'dette.mjs'`.
-const SEGMENTS = /(['"])scripts\1((?:\s*,\s*(['"])[\w.-]+\3)+)/g;
+const SCRIPT = /\.(?:mjs|sh)$/;
 const SANS = /(^|\/)(?:node_modules\/|CHANGELOG\.md$)/;
+// What separates the words of a line, and the arguments of a call.
+const BLANCS = /[\s'"`();|&<>=,]+/;
+const APPELS = /[();]/;
+const cite = a => a.length >= 2 && /^['"`]$/.test(a[0]) && a.at(-1) === a[0];
+// Whether a piece of a path names a directory: `.` and `..` name none, only a step.
+const dossier = m => m !== '.' && m !== '..';
+
+// The paths under `scripts/` that the line <ligne> names at a project's root, each as its pieces
+// after `scripts`: a word cut at its `/` (`scripts/x.mjs`, `./scripts/x.mjs`, `../scripts/x.mjs`,
+// `$RACINE/scripts/x.mjs`, `file://$1/scripts/x.mjs`), whose piece before `scripts` is none, a
+// step (`.`, `..`) or a variable; the arguments of a call (`path.join(RACINE, 'scripts', 'd',
+// 'x.mjs')`, `path.join(dir, '..', 'scripts', 'x.mjs')`), whose argument before `'scripts'` is
+// none, no literal or a step, the literals after it its pieces. A `scripts/` under a literal
+// directory (`packages/a/scripts/`, the installed package) is another's.
+function sousScripts(ligne) {
+  const chemins = [];
+  for (const mot of ligne.split(BLANCS)) {
+    const p = mot.split('/');
+    p.forEach((m, i) => {
+      if (m === 'scripts' && (i === 0 || !dossier(p[i - 1]) || p[i - 1].startsWith('$'))) {
+        chemins.push(p.slice(i + 1));
+      }
+    });
+  }
+  for (const appel of ligne.split(APPELS)) {
+    const a = appel.split(',').map(x => x.trim());
+    a.forEach((x, i) => {
+      const avant = a[i - 1];
+      const libre = i === 0 || !cite(avant) || !dossier(avant.slice(1, -1));
+      if (cite(x) && x.slice(1, -1) === 'scripts' && libre) {
+        const suite = a.slice(i + 1);
+        const fin = suite.findIndex(y => !cite(y));
+        chemins.push(suite.slice(0, fin === -1 ? suite.length : fin).map(y => y.slice(1, -1)));
+      }
+    });
+  }
+  return chemins;
+}
 
 /** The lines of the tracked files of <projet> that still reach a script of the frame at its former address. */
 export function restes(projet) {
@@ -202,23 +249,19 @@ export function restes(projet) {
       continue;
     }
     texte.split('\n').forEach((ligne, i) => {
-      const scripts = [
-        ...[...ligne.matchAll(ADRESSE)].map(m => m[1]),
-        ...[...ligne.matchAll(SEGMENTS)].map(m =>
-          m[2]
-            .split(',')
-            .map(s => s.trim().slice(1, -1))
-            .filter(Boolean)
-            .join('/')
-        ),
-      ];
+      const scripts = sousScripts(ligne).flatMap(pieces =>
+        pieces.map((_, n) => pieces.slice(0, n + 1).join('/')).filter(s => par.has(s))
+      );
       for (const s of new Set(scripts)) {
-        if (!par.has(s) || existsSync(path.join(projet, 'scripts', s))) {
+        const quoi = par.get(s);
+        if (existsSync(path.join(projet, 'scripts', s))) {
           continue;
         }
-        sortie.push(
-          `${f}:${i + 1} : appelle scripts/${s}, copie du cadre retirée ; ${par.get(s).join(' ou ')} la remplace`
-        );
+        const suite =
+          quoi.length > 0
+            ? `${quoi.join(' ou ')} la remplace`
+            : 'aucune entrée publiée ne la remplace';
+        sortie.push(`${f}:${i + 1} : appelle scripts/${s}, copie du cadre retirée ; ${suite}`);
       }
     });
   }

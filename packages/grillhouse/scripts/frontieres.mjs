@@ -47,8 +47,10 @@ import { trancher } from './dette.mjs';
 
 export const CONFIGURATION = '.dependency-cruiser.cjs';
 export const RACINES = ['src', 'packages'];
-const TESTS = '(^|/)(test|tests|__tests__)/|[.](test|spec)[.][a-z]+$';
-const CODE = '^src/|^packages/[^/]+/src/';
+/** The test files, as a pattern of a path from the repository's root. */
+export const TESTS = '(^|/)(test|tests|__tests__)/|[.](test|spec)[.][a-z]+$';
+/** The code of `src/` (the root's, or a package's under `packages/`), as a pattern of such a path. */
+export const CODE = '^src/|^packages/[^/]+/src/';
 const REGLE_OUTILS = 'pas-d-outil-de-developpement-dans-le-code';
 // The environment variable naming the file that holds the pattern of the published files.
 const JUGES = 'GRILLHOUSE_JUGES';

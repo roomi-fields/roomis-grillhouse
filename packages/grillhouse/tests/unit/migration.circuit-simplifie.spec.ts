@@ -217,6 +217,57 @@ describe('migration 0.24.0 — the circuit without regulator nor technical refer
     }
   });
 
+  // grillhouse-3uv.95.11.2 critère 2: the report sees a path to a former copy written in pieces,
+  // as BPScript wrote them before its migration (8030741b0): a path built behind a variable inside
+  // a URL, and the segments of a path.join down a directory of scripts/.
+  it('a path built in pieces, `$1/scripts/<copie>` in a URL or path.join down a directory, stays to the project', () => {
+    const fichiers = {
+      'packages/995-tools/src/generation-des-paquets.sh':
+        'paquets_geles() {\n  printf \' %s \' "$(node --input-type=module -e \'const { horsCadre } = await import(process.argv[1]); console.log([...horsCadre(process.argv[2])].join(" "))\' "file://$1/scripts/consommateurs.mjs" "$1")"\n}\n',
+      'packages/995-tools/src/verif-portes.mjs':
+        "const RACINE = path.resolve(import.meta.dirname, '..', '..', '..');\nconst RAPPORTEUR_DUREE = path.join(RACINE, 'scripts', 'vitest-config', 'duree.reporter.mjs');\n",
+    };
+    const p = projet(fichiers);
+    execFileSync('git', ['-C', p, 'init', '-q']);
+    execFileSync('git', ['-C', p, 'add', '.']);
+    const restes = restesDe(p) as string[];
+    const de = (fl: string) => restes.filter(l => l.startsWith(`${fl} : `));
+    expect(de('packages/995-tools/src/generation-des-paquets.sh:2')[0]).toContain(
+      'scripts/consommateurs.mjs'
+    );
+    expect(de('packages/995-tools/src/verif-portes.mjs:2')[0]).toContain(
+      'scripts/vitest-config/duree.reporter.mjs, copie du cadre retirée ; aucune entrée publiée ne la remplace'
+    );
+    expect(restes).toHaveLength(2);
+  });
+
+  // BPScript 8030741b0, packages/995-tools/src/verif-un-seul-etage.mjs:25: a step up is no
+  // directory of another package.
+  it('path.join up by `..` to the root’s scripts/ stays to the project', () => {
+    const p = projet({
+      'packages/995-tools/src/verif-un-seul-etage.mjs':
+        "const { trancher } = await import(path.join(import.meta.dirname, '..', '..', '..', 'scripts', 'dette.mjs'));\n",
+      'b.sh': 'node ../scripts/code-mort.mjs\n',
+    });
+    execFileSync('git', ['-C', p, 'init', '-q']);
+    execFileSync('git', ['-C', p, 'add', '.']);
+    const restes = restesDe(p) as string[];
+    expect(restes).toHaveLength(2);
+    expect(restes[1]).toMatch(/^packages\/995-tools\/src\/verif-un-seul-etage\.mjs:1 : /);
+    expect(restes[1]).toContain('`@roomi-fields/grillhouse/dette`');
+  });
+
+  it('a path into the installed package, or a scripts/ of a package of the project, is not named', () => {
+    const p = projet({
+      'a.sh': '"file://$1/node_modules/@roomi-fields/grillhouse/scripts/paquets.mjs"\n',
+      'b.mjs':
+        "path.join(RACINE, 'node_modules', '@roomi-fields', 'grillhouse', 'scripts', 'vitest-config', 'duree.reporter.mjs');\npath.join(RACINE, 'packages', 'a', 'scripts', 'dette.mjs');\n",
+    });
+    execFileSync('git', ['-C', p, 'init', '-q']);
+    execFileSync('git', ['-C', p, 'add', '.']);
+    expect(restesDe(p)).toEqual([]);
+  });
+
   it('a tracked path that is no regular file (a submodule, a link to a directory, a file gone) is skipped', () => {
     const p = projet({ 'outils/a.sh': 'node scripts/code-mort.mjs\n', 'outils/parti.sh': '' });
     mkdirSync(path.join(p, 'vendor/moteur'), { recursive: true });

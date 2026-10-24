@@ -97,6 +97,13 @@
 //   `^<version>` of the package), a declaration it holds kept; a package out of the frame is not
 //   touched. The report names the packages that received it, `npm install`, which links it, and the
 //   import; the update writes no Vitest configuration.
+// - A package of the frame whose code imports the frame's package (a file of its `src/` out of the
+//   tests, the files whose development dependencies the guard of the boundaries refuses,
+//   scripts/frontieres.mjs; its imports read by TypeScript's `preProcessFile`) declares it in its
+//   `dependencies`, as npm puts there what the published code imports: a declaration in its
+//   `devDependencies` moves there with its range, else the range the root declares (else
+//   `^<version>`); this comes first, so that the declaration of the Vitest base above keeps it.
+//   The report names the packages and `npm install`.
 // - The git hooks: both of the frame (commit-msg « a closed ticket refuses a second commit, a reopened ticket takes its corrections », pre-push night branch
 //   guard) are placed by scripts/crochets.mjs, the mechanism `grillhouse hooks` (the project's
 //   `prepare`) also runs, in the hooks folder git reads for the project (`core.hooksPath`, else the
@@ -122,6 +129,7 @@
 // - The report names the version of the frame, « Cadre 0.23.0. », the package's.
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import semver from 'semver';
@@ -129,7 +137,9 @@ import { CADRE, VERSION } from './cadre.mjs';
 import { poserCrochets } from './crochets.mjs';
 import { installerGreffons } from './greffons.mjs';
 import { migrer, restesAuProjet } from './migrations.mjs';
+import { CODE, TESTS } from './frontieres.mjs';
 import { paquets } from './paquets.mjs';
+import { sources } from './sources.mjs';
 
 const SCRIPTS = {
   tableau: 'grillhouse tableau --texte',
@@ -219,6 +229,64 @@ function poserTurbo(projet, source) {
   return gabarit;
 }
 
+// <deps> written sorted by name, as npm writes them.
+const trie = deps =>
+  Object.fromEntries(Object.entries(deps).sort(([a], [b]) => a.localeCompare(b, 'en')));
+// The range at which the root package.json <p> declares the frame's package, or undefined.
+const plageDeLaRacine = p =>
+  CHAMPS_INSTALLES.map(c => p[c]?.[PAQUET_DU_CADRE]).find(v => v !== undefined);
+
+// Whether the code of the package at <dossier> of <projet> imports the frame's package (an entry of
+// it): a file of its `src/` out of the tests (CODE and TESTS of scripts/frontieres.mjs, the files
+// whose development dependencies its guard refuses), its imports read by TypeScript
+// (`preProcessFile`), a comment or a string importing nothing.
+function codeImporteLeCadre(projet, dossier) {
+  const ts = createRequire(import.meta.url)('typescript');
+  return sources(path.join(projet, dossier))
+    .map(f => `${dossier}/${f}`)
+    .filter(f => new RegExp(CODE).test(f) && !new RegExp(TESTS).test(f))
+    .some(f =>
+      ts
+        .preProcessFile(readFileSync(path.join(projet, f), 'utf8'), true, true)
+        .importedFiles.some(
+          ({ fileName: m }) => m === PAQUET_DU_CADRE || m.startsWith(`${PAQUET_DU_CADRE}/`)
+        )
+    );
+}
+
+// Declares the frame's package in the dependencies of each package of the frame of the project of
+// packages at <projet> (root package.json <p>) whose code imports it (codeImporteLeCadre), as npm
+// puts what the published code imports: a declaration in its devDependencies moves there with its
+// range, else the range the root declares (else `^<version>` of the package); one already in its
+// dependencies or optionalDependencies stays. Returns { nom, paquets } (paquets: the packages
+// whose dependencies received it), or null when nothing changes.
+function declarerDependanceDuCadre(projet, p) {
+  if (p.workspaces === undefined) {
+    return null;
+  }
+  const racine = plageDeLaRacine(p);
+  const declarants = [];
+  for (const { dossier, pkg, hors } of paquets(projet)) {
+    const declare = ['dependencies', 'optionalDependencies'].some(
+      c => pkg[c]?.[PAQUET_DU_CADRE] !== undefined
+    );
+    if (hors || declare || !codeImporteLeCadre(projet, dossier)) {
+      continue;
+    }
+    const { [PAQUET_DU_CADRE]: dev, ...autres } = pkg.devDependencies ?? {};
+    pkg.dependencies = trie({
+      ...(pkg.dependencies ?? {}),
+      [PAQUET_DU_CADRE]: dev ?? racine ?? `^${VERSION}`,
+    });
+    if (dev !== undefined) {
+      pkg.devDependencies = autres;
+    }
+    writeFileSync(path.join(projet, dossier, 'package.json'), `${JSON.stringify(pkg, null, 2)}\n`);
+    declarants.push(dossier);
+  }
+  return declarants.length > 0 ? { nom: PAQUET_DU_CADRE, paquets: declarants } : null;
+}
+
 // Declares the frame's package, whose base configuration of Vitest each Vitest configuration
 // imports, in the devDependencies of each package of the frame of the project of packages at
 // <projet> (root package.json <p>) whose scripts hold `test:vitest`, at the range the root declares
@@ -230,16 +298,14 @@ function poserConfigVitest(projet, p) {
   const testes = paquets(projet).filter(
     ({ pkg, hors }) => !hors && typeof pkg.scripts?.['test:vitest'] === 'string'
   );
-  const racine = CHAMPS_INSTALLES.map(c => p[c]?.[PAQUET_DU_CADRE]).find(v => v !== undefined);
+  const racine = plageDeLaRacine(p);
   const declarants = [];
   for (const { dossier, pkg } of testes) {
     if (CHAMPS_INSTALLES.some(c => pkg[c]?.[PAQUET_DU_CADRE] !== undefined)) continue;
-    pkg.devDependencies = Object.fromEntries(
-      Object.entries({
-        ...(pkg.devDependencies ?? {}),
-        [PAQUET_DU_CADRE]: racine ?? `^${VERSION}`,
-      }).sort(([a], [b]) => a.localeCompare(b, 'en'))
-    );
+    pkg.devDependencies = trie({
+      ...(pkg.devDependencies ?? {}),
+      [PAQUET_DU_CADRE]: racine ?? `^${VERSION}`,
+    });
     writeFileSync(path.join(projet, dossier, 'package.json'), `${JSON.stringify(pkg, null, 2)}\n`);
     declarants.push(dossier);
   }
@@ -303,6 +369,7 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
     vitest: null,
     turbo: null,
     configVitest: null,
+    dependanceDuCadre: null,
     gardes: null,
     ligneEtat: false,
     greffon: false,
@@ -362,9 +429,7 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
       }
     }
     if (p.devDependencies) {
-      p.devDependencies = Object.fromEntries(
-        Object.entries(p.devDependencies).sort(([a], [b]) => a.localeCompare(b, 'en'))
-      );
+      p.devDependencies = trie(p.devDependencies);
     }
     if (typeof pkgSource.packageManager === 'string' && typeof p.packageManager !== 'string') {
       p.packageManager = pkgSource.packageManager;
@@ -403,6 +468,7 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
         bilan.gardes = { deplace: false };
       }
     }
+    bilan.dependanceDuCadre = declarerDependanceDuCadre(projet, p);
     bilan.configVitest = poserConfigVitest(projet, p);
     writeFileSync(pkg, `${JSON.stringify(p, null, 2)}\n`);
   }
@@ -460,6 +526,12 @@ export function rapport(b) {
     const { nom, paquets: declarants } = b.configVitest;
     lignes.push(
       `Configuration de base de Vitest : ${nom} déclaré dans les devDependencies de ${declarants.join(', ')}. \`npm install\` relie le paquet. La configuration Vitest de chaque paquet l'importe par son nom : \`import base from '${CONFIG_VITEST}'\`.`
+    );
+  }
+  if (b.dependanceDuCadre) {
+    const { nom, paquets: declarants } = b.dependanceDuCadre;
+    lignes.push(
+      `Dépendance d'exécution : ${nom} déclaré dans les dependencies de ${declarants.join(', ')}, dont le code hors des tests importe une entrée du paquet. \`npm install\` relie le paquet.`
     );
   }
   if (b.turbo) {
