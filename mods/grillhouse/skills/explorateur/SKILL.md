@@ -61,7 +61,9 @@ change, et ceux qu'il peut casser.
    - `paquets` : les paquets à toucher, le fournisseur d'abord, puis ses lecteurs, chacun comme le
      titre le nomme (le nom de son paquet, ou son chemin) ; le circuit les écrit au titre, et
      chaque séance du ticket n'écrit qu'eux ;
-   - `questions` : ce que je ne tranche pas, chacune avec ses options, ma recommandation et sa
+   - `questions` : seulement ce que je ne sais pas trancher, ou ce qui revient au responsable. Ce
+     que je sais trancher et recommande, je l'applique au plan (retirer du titre un paquet qui
+     n'a plus rien à changer, par exemple) et je le dis dans ma fiche. Chaque question : chacune avec ses options, ma recommandation et sa
      `piece` (fichier:ligne depuis la racine de la copie, ou « $ commande » et sa sortie), que le
      circuit cherche dans la copie ; elles montent au superviseur. Un fait que je reprends d'un
      autre agent (le ticket, une passation) se relit à sa pièce avant que je m'appuie dessus.

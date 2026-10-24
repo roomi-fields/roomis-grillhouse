@@ -54,8 +54,9 @@ avec ta fiche. Ainsi le circuit reprend dès ta fiche rendue.
 Ainsi le code qui les fait passer traite la règle, pas l'exemple.
 
 **Un critère, ses tests** : chaque critère d'acceptation du ticket reçoit au moins un test, dont
-le nom cite son numéro. Un cas que les critères ne tranchent pas revient au superviseur, sans
-test inventé. Ainsi le code se mesure à ce que le ticket attend, et rien d'autre.
+le nom cite son numéro. Un cas que les critères ne tranchent pas, tu le tranches quand tu as la
+réponse (un nom, une signature) et tu l'écris dans ta fiche ; il revient au superviseur seulement
+si tu ne l'as pas ou s'il revient au responsable. Ainsi le code se mesure à ce que le ticket attend, et rien d'autre.
 
 **Les faits reçus entrent tels que leur fournisseur les publie** : la section « Ce que les
 composants d'avant publient » dit, pour chaque paquet de ton plan, ce que ses fournisseurs lui
@@ -189,8 +190,9 @@ d'une relance à l'autre. Une séance qui ne change aucun fichier, ta fiche seul
 complétée (un vert attendu oublié), se juge sur les résultats de la preuve déjà jouée, sans la
 rejouer. Ainsi un oubli de fiche coûte une séance courte, pas une preuve de plus.
 
-Une règle qui manque ou se contredit t'arrête : ta fiche finit sur BESOIN, sa `question` avec les
-options et ta recommandation.
+Une règle qui manque ou se contredit t'arrête seulement si tu n'as pas la réponse, ou si elle revient
+au responsable : ta fiche finit sur BESOIN, sa `question` avec les options et ta recommandation.
+Quand tu as la réponse et la recommandes, tu l'appliques et tu la dis dans ta fiche, sans BESOIN.
 
 Un test qui a besoin d'une donnée qu'aucun fournisseur ne publie t'arrête aussi : ta fiche finit
 sur BLOQUÉ, sa `raison` nommant la donnée et le fournisseur, et tes tests ne la calculent pas. Le superviseur ajoute le

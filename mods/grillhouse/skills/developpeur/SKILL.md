@@ -98,7 +98,9 @@ avec ta fiche. Ainsi le circuit reprend dès ta fiche rendue.
 
 ## Ce qui t'arrête
 
-- **Une question sans règle** : un cas que ni les critères ni une règle ne tranchent. Ta fiche
+- **Une question sans règle, dont tu n'as pas la réponse ou qui revient au responsable** : un cas
+  que ni les critères ni une règle ne tranchent. Quand tu as la réponse et la recommandes, tu
+  l'appliques et tu la dis dans ta fiche, sans t'arrêter. Sinon ta fiche
   finit sur BESOIN, sa `question` portant les options, ce que chacune donne aujourd'hui et ta
   recommandation ; ton code suit ensuite le verdict « Arbitrage » au ticket.
 - **Un fait que ton code prend chez un fournisseur hors de sa ligne « Déclaré pour »** (un élément
