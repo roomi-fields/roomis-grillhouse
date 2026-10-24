@@ -4,19 +4,17 @@
 //
 //   AGENTS  ▶ en cours · en attente
 //   1 · Plan · explorateur ⇄ questionneur
-//   ▾ 2 · Composants
-//     2.1 · Tests · testwriter
-//     2.2 · Preuve du rouge · auto
-//     2.3 · Code · développeur
+//   ▸ 2 · Tests · testwriter
+//   ▾ 3 · Code · développeur
 //   ▶ 320.3  Le binder lit les portées · essai 2/3   12 min · 340 k
-//           (5 s plus tard)
-//   ▶ 320.3  030-binder 2/3 · essai 2/3              12 min · 340 k
-//     2.4 · Contrôles · auto
+//     3.1 · Contrôles · auto
 //     ⤷ Question · superviseur
 //   ■ 318    Le checker refuse …                      41 min · 1,2 M
-//   3 · Passe finale · auto
-//   4 · Relecture · relecteur
+//   ▸ 4 · Passe finale et relecture
 //   ▸ 5 · Intégration
+//
+// One step per agent of the ticket, every step for the whole ticket (grillhouse-3uv.95.6): the
+// final pass, the regeneration of the references and the review are the sub-steps of 4.
 //
 // A stop of the plan, a question for the supervisor (the owner, 2026-10-21; grillhouse-3uv.95.4;
 // the plan one step, the explorateur's and the questionneur's, grillhouse-3uv.95.5):
@@ -30,9 +28,8 @@
 //   discreet tone; a step without sub-steps stands on one line, discreet when empty.
 // - A ticket stopped on a question stands under its step, on a line « ⤷ Question · <qui> », who
 //   must answer it (the supervisor, or the owner), then its own line, which unfolds its step.
-// - A ticket's line in a circuit alternates, every 5 s, its subject and its component under way
-//   (the board gives both texts, `texte` and `alterne`; the mod alternates), with its rank among
-//   the title's components, then the counters of its loops, its time and its tokens.
+// - A ticket's line in a circuit gives its subject, then the counters of its loops, its time and
+//   its tokens.
 import { describe, expect, it } from 'vitest';
 import { assembler, declarations, fiches, LARGEUR, lignes } from '../../scripts/tableau.mjs';
 
@@ -42,7 +39,6 @@ const MAINTENANT = Date.parse(at('12:00'));
 
 interface Ligne {
   texte: string;
-  alterne?: string;
   ton?: string;
   ticket?: string;
   section?: string;
@@ -97,7 +93,6 @@ const vivant = (agent: string, ticket: string, role: string) => ({
 const circuit = (ticket: string, o: object = {}) => ({
   ticket,
   etape: 'developpeur',
-  composant: 'packages/030-binder',
   tentative: 2,
   finale: false,
   code: null,
@@ -106,8 +101,6 @@ const circuit = (ticket: string, o: object = {}) => ({
   question: null,
   qui: null,
   questionnement: null,
-  rang: 1,
-  total: 1,
   boucles: {},
   mene: null,
   vivant: true,
@@ -146,7 +139,7 @@ const QUESTION = '⤷ Question · superviseur';
 // A circuit stopped on a question for <qui>.
 const enQuestion = (o: object = {}, qui = 'superviseur') => ({
   vivant: false,
-  question: 'Quel composant lève ce rouge ?',
+  question: 'Quel paquet lève ce rouge ?',
   qui,
   ...o,
 });
@@ -172,9 +165,9 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
       ['AGENTS  ▶ en cours · en attente', 'titre'],
       ...[
         '  1 · Plan · explorateur ⇄ questionneur',
-        '▸ 2 · Composants',
-        '  3 · Passe finale · auto',
-        '  4 · Relecture · relecteur',
+        '▸ 2 · Tests · testwriter',
+        '▸ 3 · Code · développeur',
+        '▸ 4 · Passe finale et relecture',
         '▸ 5 · Intégration',
       ].map(texte => [texte, 'discret']),
     ]);
@@ -183,33 +176,30 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
   it('the data holds a block per step and sub-step, in the order of the list', () => {
     expect(plateau([]).agents.map(b => [b.numero, b.titre, b.qui])).toEqual([
       ['1', 'Plan', 'explorateur ⇄ questionneur'],
-      ['2', 'Composants', ''],
-      ['2.1', 'Tests', 'testwriter'],
-      ['2.2', 'Preuve du rouge', 'auto'],
-      ['2.3', 'Code', 'développeur'],
-      ['2.4', 'Contrôles', 'auto'],
-      ['3', 'Passe finale', 'auto'],
-      ['3.1', 'Régénération des références', 'auto'],
-      ['4', 'Relecture', 'relecteur'],
+      ['2', 'Tests', 'testwriter'],
+      ['2.1', 'Preuve du rouge', 'auto'],
+      ['3', 'Code', 'développeur'],
+      ['3.1', 'Contrôles', 'auto'],
+      ['4', 'Passe finale et relecture', ''],
+      ['4.1', 'Passe finale', 'auto'],
+      ['4.2', 'Régénération des références', 'auto'],
+      ['4.3', 'Relecture', 'relecteur'],
       ['5', 'Intégration', ''],
       ['5.1', 'Commit', 'auto'],
       ['5.2', 'File : main, poussée, CI', 'auto'],
     ]);
   });
 
-  it('a ticket at 2.3 unfolds step 2: every sub-step shown, the empty ones discreet', () => {
+  it('a ticket at 3 unfolds step 3: its sub-step shown, discreet while empty', () => {
     const t = plateau([T('demo-33')], { circuits: [circuit('demo-33')] });
     expect(agents(t).map(x => [x.texte.trimEnd().replace(/^▶ .*/, '▶'), x.ton])).toEqual([
       ['AGENTS  ▶ en cours · en attente', 'titre'],
       ['  1 · Plan · explorateur ⇄ questionneur', 'discret'],
-      ['▾ 2 · Composants', 'titre'],
-      ['  2.1 · Tests · testwriter', 'discret'],
-      ['  2.2 · Preuve du rouge · auto', 'discret'],
-      ['  2.3 · Code · développeur', 'titre'],
+      ['▸ 2 · Tests · testwriter', 'discret'],
+      ['▾ 3 · Code · développeur', 'titre'],
       ['▶', 'actif'],
-      ['  2.4 · Contrôles · auto', 'discret'],
-      ['  3 · Passe finale · auto', 'discret'],
-      ['  4 · Relecture · relecteur', 'discret'],
+      ['  3.1 · Contrôles · auto', 'discret'],
+      ['▸ 4 · Passe finale et relecture', 'discret'],
       ['▸ 5 · Intégration', 'discret'],
     ]);
   });
@@ -220,7 +210,7 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
       'AGENTS  ▶ en cours · en attente',
       '  1 · Plan · explorateur ⇄ questionneur',
       expect.stringMatching(/^▶ 30 {2}Le sujet de demo-30 +20 min · 40$/),
-      '▸ 2 · Composants',
+      '▸ 2 · Tests · testwriter',
     ]);
     expect(agents(t)[1]).toMatchObject({ ton: 'titre' });
   });
@@ -249,12 +239,12 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
 
 describe("a circuit's ticket stands at the step of its state, at each instant", () => {
   it('each step of the state at its numbered step, the auto ones included', () => {
-    expect(sous({ etape: 'testwriter' })).toBe('  2.1 · Tests · testwriter');
-    expect(sous({ etape: 'preuve' })).toBe('  2.2 · Preuve du rouge · auto');
-    expect(sous({ etape: 'developpeur' })).toBe('  2.3 · Code · développeur');
-    expect(sous({ etape: 'controles' })).toBe('  2.4 · Contrôles · auto');
-    expect(sous({ etape: 'controles', finale: true })).toBe('  3 · Passe finale · auto');
-    expect(sous({ etape: 'relecture' })).toBe('  4 · Relecture · relecteur');
+    expect(sous({ etape: 'testwriter' })).toBe('▾ 2 · Tests · testwriter');
+    expect(sous({ etape: 'preuve' })).toBe('  2.1 · Preuve du rouge · auto');
+    expect(sous({ etape: 'developpeur' })).toBe('▾ 3 · Code · développeur');
+    expect(sous({ etape: 'controles' })).toBe('  3.1 · Contrôles · auto');
+    expect(sous({ etape: 'controles', finale: true })).toBe('  4.1 · Passe finale · auto');
+    expect(sous({ etape: 'relecture' })).toBe('  4.3 · Relecture · relecteur');
     expect(sous({ etape: 'integration' })).toBe('  5.1 · Commit · auto');
     expect(sous({ etape: 'file' })).toBe('  5.2 · File : main, poussée, CI · auto');
   });
@@ -275,21 +265,21 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
       ],
     });
     const a = textes(t);
-    const i = a.indexOf('  2.4 · Contrôles · auto');
+    const i = a.indexOf('  3.1 · Contrôles · auto');
     expect(a.slice(i, i + 3)).toEqual([
-      '  2.4 · Contrôles · auto',
+      '  3.1 · Contrôles · auto',
       `  ${QUESTION}`,
       expect.stringMatching(/^■ 36 {2}Le sujet de demo-36/),
     ]);
-    expect(a).toContain('▾ 2 · Composants');
+    expect(a).toContain('▾ 3 · Code · développeur');
     expect(
-      agents(t)[agents(t).findIndex(x => x.texte.trimEnd() === '  2.4 · Contrôles · auto')]
+      agents(t)[agents(t).findIndex(x => x.texte.trimEnd() === '  3.1 · Contrôles · auto')]
     ).toMatchObject({
       ton: 'titre',
     });
   });
 
-  it('a question at a step without sub-steps: its line under it, at its number', () => {
+  it('a question at the final pass: its line under 4.1, at its number', () => {
     const t = plateau([T('demo-37')], {
       circuits: [
         circuit(
@@ -299,9 +289,9 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
       ],
     });
     const a = textes(t);
-    const i = a.indexOf('  3 · Passe finale · auto');
+    const i = a.indexOf('  4.1 · Passe finale · auto');
     expect(a.slice(i, i + 3)).toEqual([
-      '  3 · Passe finale · auto',
+      '  4.1 · Passe finale · auto',
       `  ${QUESTION}`,
       expect.stringMatching(/^■ 37 {2}Le sujet de demo-37/),
     ]);
@@ -350,9 +340,9 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
       circuits: [circuit('demo-39'), circuit('demo-40', enQuestion({ code: 20, arret: 'besoin' }))],
     });
     const a = textes(t);
-    const i = a.indexOf('  2.3 · Code · développeur');
+    const i = a.indexOf('▾ 3 · Code · développeur');
     expect(a.slice(i, i + 4)).toEqual([
-      '  2.3 · Code · développeur',
+      '▾ 3 · Code · développeur',
       expect.stringMatching(/^▶ 39 /),
       `  ${QUESTION}`,
       expect.stringMatching(/^■ 40 /),
@@ -367,9 +357,9 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
         fin('d2', 'demo-43', 'developpeur', '10:00'),
       ],
     });
-    expect(etapeDe(t, 'demo-41')).toBe('  2.1 · Tests · testwriter');
-    expect(etapeDe(t, 'demo-42')).toBe('  2.3 · Code · développeur');
-    expect(etapeDe(t, 'demo-43')).toBe('  4 · Relecture · relecteur');
+    expect(etapeDe(t, 'demo-41')).toBe('▾ 2 · Tests · testwriter');
+    expect(etapeDe(t, 'demo-42')).toBe('▾ 3 · Code · développeur');
+    expect(etapeDe(t, 'demo-43')).toBe('  4.3 · Relecture · relecteur');
     expect(ligneDe(t, 'demo-42').texte).toMatch(/^· 42 {2}Le sujet de demo-42/);
   });
 
@@ -384,7 +374,7 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
   });
 });
 
-describe('the line of a ticket in a circuit: its subject and its component in turn, then time and tokens', () => {
+describe('the line of a ticket in a circuit: its subject, then time and tokens', () => {
   const t = plateau([T('demo-45')], {
     registre: [fin('t1', 'demo-45', 'testwriter', '08:12')],
     circuits: [circuit('demo-45')],
@@ -395,34 +385,15 @@ describe('the line of a ticket in a circuit: its subject and its component in tu
     expect(ligneDe(t, 'demo-45')).toMatchObject({ ton: 'actif', ticket: 'demo-45' });
   });
 
-  it('the other text: the short name of the component under way in place of the subject, the rest the same', () => {
-    expect(ligneDe(t, 'demo-45').alterne).toMatch(/^▶ 45 {2}030-binder +12 min · 10$/);
-    expect(ligneDe(t, 'demo-45').texte).toHaveLength(LARGEUR);
-    expect(ligneDe(t, 'demo-45').alterne).toHaveLength(LARGEUR);
-  });
-
-  it('the component carries its rank among the components of the title, « composant n/N », never « 1/1 »', () => {
-    const r = plateau([T('demo-46')], {
-      registre: [fin('t1', 'demo-46', 'testwriter', '08:12')],
-      circuits: [circuit('demo-46', { rang: 3, total: 5 })],
-    });
-    expect(ligneDe(r, 'demo-46').alterne).toMatch(/^▶ 46 {2}030-binder 3\/5 +12 min · 10$/);
-    expect(ligneDe(r, 'demo-46').texte).not.toMatch(/3\/5/);
-    expect(ligneDe(t, 'demo-45').alterne).not.toMatch(/1\/1/);
-  });
-
-  it('the root component reads « . »', () => {
-    const r = plateau([T('demo-47')], { circuits: [circuit('demo-47', { composant: '.' })] });
-    expect(ligneDe(r, 'demo-47').alterne).toBe('▶ 47  .');
-  });
-
-  it('a circuit without a component keeps one text, and so does a ticket out of a circuit', () => {
+  // grillhouse-3uv.95.6: every step is one for the whole ticket; no component under way to show.
+  it('one text, its subject: no other text in turn, inside a circuit or out of one', () => {
     const r = plateau([T('demo-48'), T('demo-49')], {
-      circuits: [circuit('demo-48', { composant: null })],
+      circuits: [circuit('demo-48')],
       vivants: [vivant('e2', 'demo-49', 'explorateur')],
     });
-    expect(ligneDe(r, 'demo-48').alterne).toBeUndefined();
-    expect(ligneDe(r, 'demo-49').alterne).toBeUndefined();
+    expect(ligneDe(t, 'demo-45').texte).toHaveLength(LARGEUR);
+    expect(ligneDe(r, 'demo-48')).not.toHaveProperty('alterne');
+    expect(ligneDe(r, 'demo-49')).not.toHaveProperty('alterne');
   });
 
   it('a stopped ticket stands under its step and names no step it comes from', () => {
@@ -431,7 +402,6 @@ describe('the line of a ticket in a circuit: its subject and its component in tu
       circuits: [circuit('demo-50', { vivant: false, code: 20, arret: 'besoin' })],
     });
     expect(ligneDe(r, 'demo-50').texte).toMatch(/^■ 50 {2}Le sujet de demo-50 +41 min · 10$/);
-    expect(ligneDe(r, 'demo-50').alterne).toMatch(/^■ 50 {2}030-binder +41 min · 10$/);
     expect(ligneDe(r, 'demo-50')).toMatchObject({ ton: 'attention' });
   });
 
@@ -451,29 +421,28 @@ describe('the counters of the bounded loops, from their second pass', () => {
     ligneDe(
       plateau([T('demo-51')], {
         registre: [fin('t1', 'demo-51', 'testwriter', '08:12')],
-        circuits: [circuit('demo-51', { rang: 3, total: 5, ...o })],
+        circuits: [circuit('demo-51', o)],
       }),
       'demo-51'
     );
 
-  it("the developpeur's sessions at 2.3: « essai 2/3 », after the subject and after the component", () => {
+  it("the developpeur's sessions at 3: « essai 2/3 », after the subject", () => {
     const l = ligne({ etape: 'developpeur', boucles: { code: 2 } });
     expect(l.texte).toMatch(/^▶ 51 {2}Le sujet de demo-51 · essai 2\/3 +12 min · 10$/);
-    expect(l.alterne).toMatch(/^▶ 51 {2}030-binder 3\/5 · essai 2\/3 +12 min · 10$/);
   });
 
-  it('the same loop at its checks, 2.4', () => {
+  it('the same loop at its checks, 3.1', () => {
     expect(ligne({ etape: 'controles', boucles: { code: 3 } }).texte).toMatch(/· essai 3\/3 /);
   });
 
-  it("the testwriter's sessions after a refused proof, at 2.1 and at its proof 2.2: « essai 3/3 »", () => {
+  it("the testwriter's sessions after a refused proof, at 2 and at its proof 2.1: « essai 3/3 »", () => {
     expect(ligne({ etape: 'testwriter', tentative: 3, boucles: { tests: 3 } }).texte).toMatch(
       /^▶ 51 {2}Le sujet de demo-51 · essai 3\/3 +12 min · 10$/
     );
     expect(ligne({ etape: 'preuve', boucles: { tests: 2 } }).texte).toMatch(/· essai 2\/3 /);
   });
 
-  it('the reviews at 4: « tour 2/3 »', () => {
+  it('the reviews at 4.3: « tour 2/3 »', () => {
     expect(ligne({ etape: 'relecture', boucles: { relecture: 2 } }).texte).toMatch(
       /^▶ 51 {2}Le sujet de demo-51 · tour 2\/3 +12 min · 10$/
     );
@@ -497,7 +466,7 @@ describe('the counters of the bounded loops, from their second pass', () => {
 });
 
 describe('the card of a stopped ticket says its step by number and title', () => {
-  it('the step, the component, the stop and the first line of its reason', () => {
+  it('the step, the stop and the first line of its reason', () => {
     const tous = [T('demo-52')];
     const c = circuit('demo-52', {
       etape: 'controles',
@@ -512,45 +481,48 @@ describe('the card of a stopped ticket says its step by number and title', () =>
       fiches(tous, lignes(t, 'depot'), 'demo', {}, t.circuits) as Record<string, { resume: string }>
     )['demo-52']!.resume;
     expect(carte).toMatch(
-      /^Circuit arrêté en 2\.4 Contrôles 3 · 030-binder, arrêt controles \(14\) : Le test « tableau » reste rouge\./
+      /^Circuit arrêté en 3\.1 Contrôles 3, arrêt controles \(14\) : Le test « tableau » reste rouge\./
     );
   });
 });
 
-// grillhouse-3uv.92.1: the regeneration of the references (3.1) has its line in the tree only for
+// grillhouse-3uv.92.1: the regeneration of the references (4.2) has its line in the tree only for
 // a project that declares them (`grillhouse.references` of its package.json), as a job of GitLab
 // CI shows only in a pipeline whose rules hold it.
-describe('the line of 3.1, for a project that declares its references', () => {
-  it('a project without the declaration keeps 3 on one line, a ticket at the final pass under it', () => {
+describe('the line of 4.2, for a project that declares its references', () => {
+  it('a project without the declaration has no line 4.2, a ticket at the final pass under 4.1', () => {
     const t = plateau([T('demo-35')], {
       circuits: [circuit('demo-35', { etape: 'controles', finale: true })],
     });
     expect(textes(t).filter(x => ETAPE.test(x))).not.toContain(
-      '  3.1 · Régénération des références · auto'
+      '  4.2 · Régénération des références · auto'
     );
-    expect(etapeDe(t, 'demo-35')).toBe('  3 · Passe finale · auto');
+    expect(etapeDe(t, 'demo-35')).toBe('  4.1 · Passe finale · auto');
   });
 
-  it('a project that declares them folds 3 while nothing stands there', () => {
+  it('a project that declares them folds 4 while nothing stands there', () => {
     expect(textes(plateau([], { declarations: ['references'] }))).toContain(
-      '▸ 3 · Passe finale · auto'
+      '▸ 4 · Passe finale et relecture'
     );
   });
 
-  it('a ticket at the regeneration unfolds 3, under « 3.1 · Régénération des références · auto »', () => {
+  it('a ticket at the regeneration unfolds 4, under « 4.2 · Régénération des références · auto »', () => {
     const t = plateau([T('demo-36')], {
       declarations: ['references'],
       circuits: [circuit('demo-36', { etape: 'references', finale: true })],
     });
     const l = textes(t);
-    const i = l.indexOf('▾ 3 · Passe finale · auto');
+    const i = l.indexOf('▾ 4 · Passe finale et relecture');
     expect(i).toBeGreaterThan(0);
-    expect(l[i + 1]).toBe('  3.1 · Régénération des références · auto');
-    expect(etapeDe(t, 'demo-36')).toBe('  3.1 · Régénération des références · auto');
+    expect(l.slice(i + 1, i + 3)).toEqual([
+      '  4.1 · Passe finale · auto',
+      '  4.2 · Régénération des références · auto',
+    ]);
+    expect(etapeDe(t, 'demo-36')).toBe('  4.2 · Régénération des références · auto');
     expect(agents(t).every(x => x.texte.length <= LARGEUR)).toBe(true);
   });
 
-  it('a ticket stopped at the regeneration stands under the question of 3.1', () => {
+  it('a ticket stopped at the regeneration stands under the question of 4.2', () => {
     const t = plateau([T('demo-37')], {
       declarations: ['references'],
       circuits: [
@@ -566,7 +538,7 @@ describe('the line of 3.1, for a project that declares its references', () => {
         ),
       ],
     });
-    expect(etapeDe(t, 'demo-37')).toBe('  3.1 · Régénération des références · auto');
+    expect(etapeDe(t, 'demo-37')).toBe('  4.2 · Régénération des références · auto');
     expect(sousUneQuestion(t, 'demo-37')).toBe(true);
   });
 

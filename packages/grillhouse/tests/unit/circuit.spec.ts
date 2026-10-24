@@ -3,9 +3,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
 import { sortie, CIRCUIT, IMMOBILE_MS, ARRETS, circuitEssai } from './circuit-essai.js';
 
-// The circuit of a ticket (scripts/circuit.mjs): for each component of its title, the provider
-// first, the testwriter, the proof of the red, the developpeur and the checks; then the reviewer,
-// and on ACCEPTÉ the integration, which puts the branch in the queue.
+// The circuit of a ticket (scripts/circuit.mjs): for the whole ticket, the testwriter, the proof of
+// the red, the developpeur and the checks, then the final pass and the reviewer, and on ACCEPTÉ
+// the integration, which puts the branch in the queue.
 // Decided by the owner on 2026-10-17 (grill): the circuit launches each session itself, in place
 // of a session launching and waiting for each one; the circuit
 // launches the reviewer (Q6) and integrates the lot itself, the role of the integrateur gone (Q7);
@@ -13,8 +13,9 @@ import { sortie, CIRCUIT, IMMOBILE_MS, ARRETS, circuitEssai } from './circuit-es
 //
 // This file: the stops of the circuit and their codes, and the calls it refuses. The circuit of a
 // ticket is tested in the files beside it: circuit.preuve (the testwriter and the proof),
-// circuit.sessions (the sessions relaunched, stopped and resumed), circuit.composants (a red judged
-// by its component), circuit.passe-finale (the final pass), circuit.construction (a failed build),
+// circuit.sessions (the sessions relaunched, stopped and resumed), circuit.ticket (one session per
+// agent for the whole ticket, its findings kept open), circuit.passe-finale (the final pass),
+// circuit.construction (a failed build),
 // circuit.tests-de-head (the tests HEAD holds), circuit.relecture (the review and the
 // integration), circuit.gestes (the gestures the circuit makes) and circuit.montee (a question
 // that goes up to the supervisor, and his answers).
@@ -78,11 +79,12 @@ describe.runIf(canWrap)('the circuit refuses a malformed --depuis', () => {
   beforeAll(() => {
     ticket(id, '000-forms');
   });
+  // grillhouse-3uv.95.6: `--depuis` names a step for the whole ticket, never a component.
   for (const [cas, args] of [
-    ['a step other than testwriter or developpeur', ['--depuis', 'preuve', 'packages/forms']],
-    ['a component the title does not name', ['--depuis', 'testwriter', 'packages/binder']],
-    ['a component missing', ['--depuis', 'testwriter']],
-    ['--depuis with --reprendre', ['--depuis', 'testwriter', 'packages/forms', '--reprendre']],
+    ['a step other than testwriter or developpeur', ['--depuis', 'preuve']],
+    ['a step missing', ['--depuis']],
+    ['a component after the step', ['--depuis', 'testwriter', 'packages/forms']],
+    ['--depuis with --reprendre', ['--depuis', 'testwriter', '--reprendre']],
   ] as const) {
     it(`${cas}, exit 2, nothing launched`, () => {
       const r = circuit([id, ...args]);

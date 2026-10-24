@@ -18,8 +18,8 @@ import {
 // RFC: its author writes it after surveying what exists, a review reads it once, the author answers
 // once, and what stays open goes to who decides. The explorateur, launched by the circuit out of
 // the envelope, writes the plan in its sheet (its criteria, the packages to touch, its open
-// questions), which the circuit writes at the ticket: the packages become the title's components,
-// the list the envelope of every later session writes. The questionneur reads the plan once; on its
+// questions), which the circuit writes at the ticket: the packages end its title, the list the
+// envelope of every later session writes. The questionneur reads the plan once; on its
 // questions, the explorateur answers once, CHANGE or GARDE by question, its session resumed; what
 // stays open goes up to the supervisor (scripts/etapes.mjs, MONTEES), else the circuit goes to the
 // tests. Witness: BP 320.9, 132 rounds of questions, 29 criteria of which 2 were useful, and the
@@ -121,7 +121,7 @@ describe.runIf(canWrap)('the plan, step 1 of the circuit', { timeout: 300_000 },
     expect(t.description).toContain(
       "## Critères d'acceptation\n\n1. `mesure` rend le double de sa valeur.\n2. 030-binder lit le double."
     );
-    expect(echange(id)[0]).toMatch(/^Circuit · packages\/forms · plan : /);
+    expect(echange(id)[0]).toMatch(/^Circuit · plan : /);
     // The questionneur reads the plan the explorateur wrote: its title with its packages, its
     // criterion added.
     const q = essai(id, `${QUESTIONNEUR}-1.prompt`);
@@ -131,13 +131,8 @@ describe.runIf(canWrap)('the plan, step 1 of the circuit', { timeout: 300_000 },
     expect(essai(id, 'testwriter-1.paquets')).toBe(
       ['packages/forms', 'packages/binder'].join(path.delimiter)
     );
-    expect(ordre(id)).toEqual([
-      'testwriter packages/forms',
-      'developpeur packages/forms',
-      'testwriter packages/binder',
-      'developpeur packages/binder',
-      'relecteur',
-    ]);
+    // One testwriter and one developpeur for the whole plan (grillhouse-3uv.95.6).
+    expect(ordre(id)).toEqual(['testwriter', 'developpeur', 'relecteur']);
   });
 
   it('critère 2 — one pass of questions: the explorateur answers once, CHANGE or GARDE by question, and the plan with nothing open goes to the tests', () => {
@@ -197,8 +192,8 @@ describe.runIf(canWrap)('the plan, step 1 of the circuit', { timeout: 300_000 },
       EXPLORATEUR,
       QUESTIONNEUR,
       EXPLORATEUR,
-      'testwriter packages/forms',
-      'developpeur packages/forms',
+      'testwriter',
+      'developpeur',
       'relecteur',
     ]);
   });
@@ -340,7 +335,7 @@ describe.runIf(canWrap)('the plan, step 1 of the circuit', { timeout: 300_000 },
   it('critère 3 — the questionneur reads the plan and the frame that orients it, read-only; the circuit plays no survey again', () => {
     const id = 'demo-plan-consigne';
     ticket(id, '000-forms');
-    // A criterion names a component the title misses: no stop of the circuit any more.
+    // A criterion names a package the plan misses: no stop of the circuit any more.
     ecrire(
       path.join(BEADS, `${id}.json`),
       json([
@@ -355,11 +350,7 @@ describe.runIf(canWrap)('the plan, step 1 of the circuit', { timeout: 300_000 },
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
-    expect(ordre(id)).toEqual([
-      'testwriter packages/forms',
-      'developpeur packages/forms',
-      'relecteur',
-    ]);
+    expect(ordre(id)).toEqual(['testwriter', 'developpeur', 'relecteur']);
     expect(existsSync(path.join(REPO, '.claude/worktrees', `${id}.composants.json`))).toBe(false);
     const c = essai(id, `${QUESTIONNEUR}-1.prompt`);
     expect(c).toContain(`TON TICKET : ${id}`);

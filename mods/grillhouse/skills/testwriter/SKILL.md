@@ -6,22 +6,22 @@ description: "Le testwriter : écrire, depuis la spécification, les tests d'un 
 # Testwriter — écrire les tests d'un ticket
 
 Tu écris les tests d'un ticket qui change un comportement, avant que le développeur écrive le code.
-Tu n'écris que des fichiers de test et le paquet de la matière de test partagée (celui qui exporte
+Une seule séance porte tous les tests du ticket, dans tous les paquets de son plan. Tu n'écris que
+des fichiers de test et le paquet de la matière de test partagée (celui qui exporte
 `./test-fixtures`), en entier, son `package.json` et ses `docs/` compris ; un verrou refuse le
 reste.
 
 ## Au démarrage
 
 1. Ta consigne porte ton ticket, lu au lancement de ta séance : sa description et ses critères,
-   ses notes, la dernière passation de ton rôle sur ton composant. Tu ne le relis pas par bd, qui
-   le refuse à ta séance. Puis `bd update <id> --claim`.
-2. Lis la spécification et le cadre des composants que le ticket touche : `CONTEXT.md`, puis
-   `CADRE.md`, `INTERFACE.md` et `ARCHITECTURE.md` de chaque composant.
-3. Lis la section « Ce que les composants d'avant publient » de ta consigne : pour chaque
-   fournisseur, sa ligne, les noms déclarés pour ton composant et l'adresse de sa rubrique « Rend ».
-   Le reste se lit à deux renvois : tous les éléments avec leur phrase dans
+   ses notes, la dernière passation de ton rôle, les paquets de son plan et les constats du
+   relecteur qui restent ouverts pour toi. Tu ne le relis pas par bd, qui le refuse à ta séance.
+   Puis `bd update <id> --claim`.
+2. Lis la spécification et le cadre des paquets du plan : `CONTEXT.md`, puis `CADRE.md`,
+   `INTERFACE.md` et `ARCHITECTURE.md` de chaque paquet.
+3. Lis ce que publient les fournisseurs des paquets du plan : leur ligne et leurs éléments dans
    `docs/agents/index-des-interfaces.md`, puis la section d'un élément dans l'interface du
-   fournisseur.
+   fournisseur, et la ligne « Déclaré pour » de sa section « Consommateurs ».
 
 ## Tes références, à lire au moment où elles servent
 
@@ -39,6 +39,11 @@ dans `$TMPDIR` : il appelle `rmSync` de `node:fs` sur le chemin nommé et lu, et
 `node $TMPDIR/<script>.mjs`. Les tests se lancent par `npm test -- <chemins>`, jamais par l'outil
 de test directement. Ainsi chaque écriture passe par le verrou de ton rôle.
 
+**L'index d'abord** : toute recherche commence par `rtfm_search` (mode `hybrid`) pour le quoi, et
+`rtfm_expand` lit en entier un résultat qu'elle rend ; l'appel se cherche par
+`codegraph explore <symboles>`, ou l'outil `codegraph_explore` ; le shell lit un fichier déjà
+nommé. Ainsi un test vise le code tel qu'il est.
+
 **Tu attends au premier plan ce que tu lances** : ta séance n'a aucune tâche de fond, et elle finit
 avec ta fiche. Ainsi le circuit reprend dès ta fiche rendue.
 
@@ -52,9 +57,10 @@ Ainsi le code qui les fait passer traite la règle, pas l'exemple.
 le nom cite son numéro. Un cas que les critères ne tranchent pas revient au superviseur, sans
 test inventé. Ainsi le code se mesure à ce que le ticket attend, et rien d'autre.
 
-**Les faits reçus entrent tels que leur fournisseur les publie** : un test qui a besoin d'un fait
-de la section « Ce que les composants d'avant publient » le lit à son adresse et le donne au
-composant dans cette forme ; un test qui attend du composant qu'il refasse l'un d'eux se refuse.
+**Les faits reçus entrent tels que leur fournisseur les publie** : la section « Ce que les
+composants d'avant publient » dit, pour chaque paquet de ton plan, ce que ses fournisseurs lui
+publient ; un test qui a besoin d'un de ces faits le lit à son adresse et le donne au paquet dans
+cette forme ; un test qui attend du composant qu'il refasse l'un d'eux se refuse.
 Ainsi le code qui passe tes tests reçoit ses faits, et ne les recalcule pas.
 
 **Plusieurs cas par règle** : le cas nominal, un cas plus profond, un autre objet de même sorte,
@@ -67,14 +73,14 @@ change de forme.
 **Chaque test rougit d'abord** : pendant que tu l'écris, tu le lances sur le code présent
 (`npm test -- <fichier>`, le chemin écrit depuis la racine du dépôt) et tu vois qu'il échoue pour
 la bonne raison. Après ta séance, le circuit du ticket joue la preuve : il lance les seuls tests de
-ton lot dans ton composant, et écrit au ticket les rouges et les verts ; les autres tests de ton
-composant se jouent à ses contrôles. Ainsi chaque test prouve qu'il sait échouer, et la preuve se
+ton lot, dans tous les paquets du plan, et écrit au ticket les rouges et les verts ; les autres
+tests du plan se jouent aux contrôles. Ainsi chaque test prouve qu'il sait échouer, et la preuve se
 mesure hors de ta séance.
 
-**Un rouge existant suffit** : sans fichier de ton lot dans ton composant, la preuve joue ses
-paquets en entier ; un test que HEAD tient et que le lot rougit (un lecteur dont le fournisseur a
-changé un type) est un rouge de la preuve, `rouge existant`, qui lance le développeur. Quand ces
-rouges couvrent les critères de ton composant, tu n'écris aucun test neuf et ta passation le dit.
+**Un rouge existant suffit** : sans fichier de ton lot, la preuve joue en entier les paquets du
+plan ; un test que HEAD tient et que le lot rougit (un lecteur dont le fournisseur a changé un
+type) est un rouge de la preuve, `rouge existant`, qui lance le développeur. Quand ces rouges
+couvrent les critères du ticket, tu n'écris aucun test neuf et ta passation le dit.
 Sans fichier de ton lot ni rouge, la preuve échoue. Ainsi le développeur du lecteur est lancé sur
 ce que le lot casse.
 
@@ -95,15 +101,13 @@ fichier neuf, il ne justifie rien, et le rapport le dit : chaque test vert y a l
 attendus par test se combinent avec lui. Ainsi une fiche dit une raison une fois.
 
 **Un type changé migre d'emblée ses lecteurs de test** : quand le ticket change un type ou un nom
-de ton composant, tu migres aussi, dans la même séance, la matière de test partagée qui le lit ; les tests
-des composants suivants vont à leur testwriter, que le circuit lance. Ainsi
-les développeurs des composants suivants ne tournent pas sur un rouge que seul le testwriter lève.
+d'un paquet du plan, tu migres aussi, dans la même séance, la matière de test partagée et les tests
+du plan qui le lisent. Ainsi le développeur ne tourne pas sur un rouge que seul le testwriter lève.
 
-**Ne pas construire, c'est échouer** : la construction en échec d'un paquet de ton composant (un
-lecteur que le type de son fournisseur a changé) est le rouge de la preuve, et les tests qu'elle
-empêche de charger se jouent aux contrôles, après le développeur ; celle d'un paquet hors de ton
-composant laisse tes fichiers « ne se charge pas ». Ainsi le développeur du lecteur, seul à pouvoir
-le réparer, est lancé.
+**Ne pas construire, c'est échouer** : la construction en échec d'un paquet du plan (un lecteur que
+le type de son fournisseur a changé) est le rouge de la preuve, et les tests qu'elle empêche de
+charger se jouent aux contrôles, après le développeur ; celle d'un paquet hors du plan laisse tes
+fichiers « ne se charge pas ». Ainsi le développeur, seul à pouvoir réparer le lecteur, est lancé.
 
 **Un critère se prouve sur ce que la chaîne publie** : le test donne au composant ce que son
 fournisseur publie (une scène compilée, la forme publiée d'un fournisseur) et lit ce que le
@@ -162,7 +166,7 @@ tests arrivent au dépôt avec le code qui les rend verts.
 - `statut` BLOQUÉ, avec sa `raison` : ce qui reste est hors de ta portée (un fichier hors du
   plan, une décision hors de ton rôle) ; hors des paquets du plan et de la matière de test
   partagée, la copie est en lecture seule, ton verrou arrête ta séance sur une écriture hors du
-  plan, et ta `raison` nomme le composant qui possède le fichier ;
+  plan, et ta `raison` nomme le paquet qui possède le fichier ;
 - `statut` BESOIN, avec sa `question` : une réponse te manque pour avancer ;
 - `verts_attendus` : chaque test vert avant le code, et sa raison ;
 - `decouvertes` : chaque découverte hors des critères (son sujet, son exemple et son adresse),
@@ -171,9 +175,12 @@ tests arrivent au dépôt avec le code qui les rend verts.
 Sur BLOQUÉ ou BESOIN, le circuit s'arrête avant la preuve, et ta question monte au superviseur. Ainsi ta
 séance finit sur ce que tu sais, et le circuit le lit.
 
-Une preuve refusée reprend ta séance, avec une consigne courte, le rapport neuf de la preuve seul ;
+Une preuve refusée reprend ta séance, avec une consigne courte, le rapport neuf de la preuve ;
 ta consigne, ta compétence et ce que tu as lu restent valables. Ta troisième séance est neuve et
-entière. Ainsi tu repars de ce que tu sais. Une séance qui ne change aucun fichier, ta fiche seule
+entière. Ainsi tu repars de ce que tu sais. Toute relance (une preuve refusée, le renvoi du
+développeur, un `RENDU`, une reprise du superviseur) porte les constats du relecteur qui restent
+ouverts pour toi, tous, jusqu'à la relecture qui les juge levés. Ainsi aucun constat ne se perd
+d'une relance à l'autre. Une séance qui ne change aucun fichier, ta fiche seule
 complétée (un vert attendu oublié), se juge sur les résultats de la preuve déjà jouée, sans la
 rejouer. Ainsi un oubli de fiche coûte une séance courte, pas une preuve de plus.
 

@@ -14,8 +14,8 @@ import {
   circuitEssai,
 } from './circuit-essai.js';
 
-// The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): a failed build, the
-// red of the component whose package it builds.
+// The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): a failed build of a
+// package of the plan, a red of the proof.
 // The trial repository and its stand-ins: ./circuit-essai.ts; each file of the circuit's tests
 // builds its own, in a trial directory of its own.
 
@@ -50,23 +50,20 @@ if (existsSync('casse')) {
     ecrire(path.join(p, 'casse'), '');
   };
 
-  it('takes the failed build of a package of the component for its red, its tests for the checks', () => {
+  it('takes the failed build of a package of the plan for its red, its tests for the checks', () => {
     const id = 'demo-construction';
-    const copie = ticket(id, '000-forms, 030-binder');
+    const copie = ticket(id, '030-binder');
     casserLaConstruction(copie, 'binder');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
-    scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code de forms écrit.'\n`);
-    scenario(id, 'developpeur-2', `${CODE_JUSTE}rm $c/casse\npassation 'Binder construit.'\n`);
+    scenario(
+      id,
+      'developpeur',
+      `${CODE_JUSTE}rm $c/casse\npassation 'Code écrit, binder construit.'\n`
+    );
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
-    expect(ordre(id)).toEqual([
-      'testwriter packages/forms',
-      'developpeur packages/forms',
-      'testwriter packages/binder',
-      'developpeur packages/binder',
-      'relecteur',
-    ]);
-    const preuve = commentaires(id).find(t => t.startsWith('Circuit · packages/binder · preuve'));
+    expect(ordre(id)).toEqual(['testwriter', 'developpeur', 'relecteur']);
+    const preuve = commentaires(id).find(t => t.startsWith('Circuit · preuve'));
     expect(preuve).toContain('1 rouge(s)');
     expect(preuve).toContain('0 fichier(s) qui ne se charge(nt) pas');
     // The failed build named with its own log, whose beginning follows.
@@ -80,8 +77,9 @@ if (existsSync('casse')) {
   // Witness: BPScript (bp-mono-vbwf.320.2.2.1.5). 030-binder and 040-checker each hold the other
   // in their devDependencies for their tests; the lot of 000-forms breaks both builds. The proof
   // of 030-binder saw only the failed build of 040-checker, Turborepo having stopped at it, and
-  // counted 0 red and its files « ne se charge pas ».
-  it('counts the failed build of each of two components that test each other at its own proof', () => {
+  // counted 0 red and its files « ne se charge pas ». The testwriter of the ticket writes the tests
+  // of both readers; its one proof counts both builds.
+  it('counts at the proof the failed build of each of two packages of the plan that test each other', () => {
     const id = 'demo-construction-croisee';
     const copie = ticket(id, '000-forms, 030-binder, 040-checker');
     const checker = path.join(copie, 'packages/checker');
@@ -118,40 +116,32 @@ if (existsSync('casse')) {
       `await new Promise(r => setTimeout(r, 2000));\n${readFileSync(construction, 'utf8')}`
     );
     ecrireTurbo(copie);
-    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
-    scenario(id, 'developpeur', `${CODE_JUSTE}rm -f $c/casse\npassation 'Code écrit.'\n`);
+    const lecteurs = ['binder', 'checker'];
+    scenario(
+      id,
+      'testwriter',
+      `${lecteurs.map(p => ECRIT_ROUGE.replaceAll('$c', `$c/../${p}`)).join('')}passation 'Tests écrits, rouges.'\n`
+    );
+    scenario(
+      id,
+      'developpeur',
+      `${lecteurs.map(p => `${CODE_JUSTE.replaceAll('$c', `$c/../${p}`)}rm -f $c/../${p}/casse\n`).join('')}passation 'Code écrit.'\n`
+    );
     const r = circuit([id]);
-    expect(r.status, sortie(r)).toBe(0);
-    expect(ordre(id)).toEqual([
-      'testwriter packages/forms',
-      'developpeur packages/forms',
-      'testwriter packages/binder',
-      'developpeur packages/binder',
-      'testwriter packages/checker',
-      'developpeur packages/checker',
-      'relecteur',
-    ]);
-    const etape = (composant: string, nom: string) =>
-      commentaires(id).find(t => t.startsWith(`Circuit · packages/${composant} · ${nom}`));
-    for (const [composant, nom] of [
-      ['binder', '030-binder'],
-      ['checker', '040-checker'],
-    ]) {
-      const preuve = etape(composant, 'preuve');
-      expect(preuve).toContain('1 rouge(s)');
-      expect(preuve).toContain('0 fichier(s) qui ne se charge(nt) pas');
+    expect(r.status, `${sortie(r)}\n${etat(id)?.rapport ?? ''}`).toBe(0);
+    expect(ordre(id)).toEqual(['testwriter', 'developpeur', 'relecteur']);
+    // The one proof of the ticket names both failed builds, each with its own log.
+    const preuve = commentaires(id).find(t => t.startsWith('Circuit · preuve'));
+    for (const nom of ['030-binder', '040-checker']) {
       expect(preuve).toContain(`construction de ${nom} — son journal : `);
-      expect(preuve).toContain('src/x.ts(1,1): error TS2741');
     }
-    expect(etape('binder', 'preuve')).not.toContain('construction de 040-checker');
-    // Binder built, its tests wait for the build of checker: a red of the component after.
-    const controles = etape('binder', 'controles');
-    expect(controles).toContain('laissés à la passe finale');
-    expect(etape('checker', 'controles')).toContain('controles : verts : npm run verifier.');
+    expect(preuve).toContain('2 rouge(s)');
+    expect(preuve).toContain('0 fichier(s) qui ne se charge(nt) pas');
+    expect(preuve).toContain('src/x.ts(1,1): error TS2741');
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
   });
 
-  it('leaves the files of a component broken when the build that fails lies out of it', () => {
+  it('leaves the files of the plan broken when the build that fails lies out of it', () => {
     const id = 'demo-construction-ailleurs';
     const copie = ticket(id, '030-binder');
     casserLaConstruction(copie, 'forms');

@@ -6,7 +6,7 @@ import { canWrap, racineSousLaMaison } from '../machine.js';
 import { sortie, ecrire, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
 
 // The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): the tests HEAD
-// already holds, in the proof and at the final pass.
+// already holds, in the proof and at the checks.
 // The trial repository and its stand-ins: ./circuit-essai.ts; each file of the circuit's tests
 // builds its own, in a trial directory of its own.
 
@@ -57,80 +57,26 @@ it('lecteur — lit rend sa valeur', () => { expect(lit(2)).toBe(2); });
       git('reset', '-q', '--hard', avant);
     }
   };
-  const LECTEUR_JUSTE = `printf "import { mesure } from '../../forms/src/index.mjs';\\nexport const lit = x => mesure(x) / 2;\\n" > $c/src/lecteur.mjs\n`;
+  const LECTEUR_JUSTE = `printf "import { mesure } from '../../forms/src/index.mjs';\\nexport const lit = x => mesure(x) / 2;\\n" > $c/../binder/src/lecteur.mjs\n`;
 
   // Witness: BPScript (bp-mono-vbwf.320.2.2.1.5). The provider changes a type; tests the readers
-  // already held, green at HEAD, turn red, and their testwriter has no new test to write. The proof
-  // saw no file of the lot and skipped their developpeur.
-  it('takes a test HEAD holds that the lot turns red for the proof of its component', () =>
+  // already held, green at HEAD, turn red. In the one session of the ticket's developpeur
+  // (grillhouse-3uv.95.6), the checks of the plan play every package of it, the reader's whole:
+  // its red goes back to the developpeur, who repairs the reader.
+  it('takes a test HEAD holds that the lot turns red, in a package of the plan the lot does not touch, for a red of the checks', () =>
     avecLecteur(() => {
       const id = 'demo-rouge-existant';
       ticket(id, '000-forms, 030-binder');
-      scenario(id, 'testwriter-1', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
-      scenario(
-        id,
-        'testwriter-2',
-        "passation 'Aucun test neuf à écrire : les rouges existants du lecteur suffisent.'\n"
-      );
+      scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
       scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code de forms écrit.'\n`);
       scenario(id, 'developpeur-2', `${LECTEUR_JUSTE}passation 'Lecteur réparé.'\n`);
       const r = circuit([id]);
       expect(r.status, sortie(r)).toBe(0);
-      expect(ordre(id)).toEqual([
-        'testwriter packages/forms',
-        'developpeur packages/forms',
-        'testwriter packages/binder',
-        'developpeur packages/binder',
-        'relecteur',
-      ]);
-      const preuve = commentaires(id).find(t => t.startsWith('Circuit · packages/binder · preuve'));
-      expect(preuve).toContain('1 rouge(s)');
-      expect(preuve).toContain('au développeur');
-      expect(preuve).toContain(
-        'rouge existant : packages/binder/test/lecteur.test.mjs › lecteur — lit rend sa valeur —'
-      );
-      expect(preuve).not.toContain('Aucun fichier de test du lot');
-      expect(essai(id, 'developpeur-2.prompt')).toContain('rouge existant');
-      expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
-    }));
-
-  it('plays at the final pass each package of the title, and sends its red to its developpeur', () =>
-    avecLecteur(() => {
-      const id = 'demo-finale-intouche';
-      const copie = ticket(id, '000-forms, 030-binder');
-      // The lot of forms is in the copy; binder, untouched, holds only what HEAD holds.
-      ecrire(
-        path.join(copie, 'packages/forms/test/mesure.test.mjs'),
-        `import { expect, it } from 'vitest';
-import { mesure } from '../src/index.mjs';
-it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); });
-`
-      );
-      scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code de forms écrit.'\n`);
-      scenario(id, 'developpeur-2', `${LECTEUR_JUSTE}passation 'Lecteur réparé.'\n`);
-      // A run before carried binder to its end: `--depuis` leaves it to the final pass.
-      ecrire(
-        path.join(REPO, '.claude/worktrees', `${id}.circuit.json`),
-        `${JSON.stringify({ etape: 'relecture', composant: 'packages/binder', atteints: ['packages/binder'] })}\n`
-      );
-      const r = circuit([
-        id,
-        '--depuis',
-        'developpeur',
-        '000-forms',
-        '--contexte',
-        'RENDU : le double.',
-      ]);
-      expect(r.status, sortie(r)).toBe(0);
-      expect(ordre(id)).toEqual([
-        'developpeur packages/forms',
-        'developpeur packages/binder',
-        'relecteur',
-      ]);
+      expect(ordre(id)).toEqual(['testwriter', 'developpeur', 'developpeur', 'relecteur']);
       const consigne = essai(id, 'developpeur-2.prompt');
-      expect(consigne).toContain('TON COMPOSANT : packages/binder');
-      expect(consigne).toContain('Contrôles de la passe finale');
+      expect(consigne).toContain('Contrôles du plan');
       expect(consigne).toContain('Tes rouges (');
+      expect(consigne).toContain('packages/binder/test/lecteur.test.mjs');
       expect(consigne).toContain('lit rend sa valeur');
       expect(etat(id)).toMatchObject({ etape: 'integre', code: 0, finale: true });
     }));
@@ -147,7 +93,7 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     expect(sessions(id, 'testwriter')).toBe(3);
     expect(sessions(id, 'developpeur')).toBe(0);
     const relance = essai(id, 'testwriter-2.prompt');
-    expect(relance).toContain('Aucun fichier de test du lot dans packages/forms');
+    expect(relance).toContain('Aucun fichier de test du lot dans le plan');
     expect(relance).toContain('0 rouge(s)');
     expect(relance).not.toContain('ancien — mesure rend un nombre');
   });
@@ -168,7 +114,7 @@ passation 'Test ajouté, rouge.'
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(sessions(id, 'testwriter')).toBe(1);
-    const preuve = commentaires(id).find(t => t.startsWith('Circuit · packages/forms · preuve'));
+    const preuve = commentaires(id).find(t => t.startsWith('Circuit · preuve'));
     expect(preuve).toContain('1 rouge(s)');
     expect(preuve).toContain('0 vert(s) sans vert attendu');
     expect(preuve).not.toContain('› ancien — mesure rend un nombre');

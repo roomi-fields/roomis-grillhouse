@@ -62,10 +62,10 @@ describe('Q10 — the supervisor launches the circuit, which makes the gestures 
     expect(charte).not.toMatch(/qui mène un ticket de sa prise à son commit/);
   });
 
-  it('the supervisor’s skill says the circuit, launched by the supervisor, launches one agent per component', () => {
+  it('the supervisor’s skill says the circuit, launched by the supervisor, launches one testwriter and one developpeur for the whole ticket', () => {
     const charte = lire('mods/grillhouse/skills/pitmaster/SKILL.md').replace(/\s+/g, ' ');
     expect(charte).toMatch(
-      /le circuit \(`packages\/grillhouse\/scripts\/circuit\.mjs`\), que lance le superviseur, lance un agent par composant/
+      /le circuit \(`packages\/grillhouse\/scripts\/circuit\.mjs`\), que lance le superviseur, lance un seul testwriter et un seul développeur pour tout le ticket/
     );
   });
 
@@ -74,7 +74,7 @@ describe('Q10 — the supervisor launches the circuit, which makes the gestures 
     expect(pitmaster).toMatch(
       /`npx grillhouse circuit <ticket>`, que je lance une fois, en arrière-plan/
     );
-    for (const commande of ['`--reprendre`', '`--etendre <composant>`', '`--arreter`']) {
+    for (const commande of ['`--reprendre`', '`--etendre <paquet>`', '`--arreter`']) {
       expect(pitmaster).toContain(commande);
     }
     expect(pitmaster).toMatch(/`question`/);
@@ -90,7 +90,7 @@ describe('Q10 — the supervisor launches the circuit, which makes the gestures 
     expect(tete).toMatch(/The supervisor runs it once, in the background, and its end wakes him/);
     expect(tete).toMatch(/the circuit makes the mechanical gestures itself, with no session/);
     expect(tete).toMatch(/every other stop goes up to the supervisor/);
-    for (const commande of ['--reprendre', '--depuis', '--etendre <composant>', '--arreter']) {
+    for (const commande of ['--reprendre', '--depuis', '--etendre <paquet>', '--arreter']) {
       expect(tete).toContain(commande);
     }
     expect(tete).not.toMatch(/--reponse|--decision/);
@@ -101,7 +101,7 @@ describe('Q10 — the supervisor launches the circuit, which makes the gestures 
     const readme = lire('README.md').replace(/\s+/g, ' ');
     expect(readme).toMatch(/the circuit makes the mechanical gestures itself, with no session/);
     expect(readme).toMatch(/Every other stop ends the circuit on a question for the supervisor/);
-    expect(readme).toMatch(/`--etendre <composant>`/);
+    expect(readme).toMatch(/`--etendre <paquet>`/);
     expect(readme).toMatch(/`--arreter`/);
     expect(readme).not.toMatch(/--reponse|--decision/);
   });
@@ -109,7 +109,7 @@ describe('Q10 — the supervisor launches the circuit, which makes the gestures 
 
 // The texts of the agents the circuit launches, on what it reads of their sheets (2026-10-19, from
 // BPScript's runs; grillhouse-3uv.89, L1): a test the testwriter adapts carries its expected green in
-// its first sheet; a developpeur sends a red left in the tests of a component to its testwriter.
+// its first sheet; a developpeur sends a red left in the tests of the lot to the testwriter.
 describe('the sheets the circuit reads', () => {
   const testwriter = lire('mods/grillhouse/skills/testwriter/SKILL.md').replace(/\s+/g, ' ');
   const developpeur = lire('mods/grillhouse/skills/developpeur/SKILL.md').replace(/\s+/g, ' ');
@@ -143,7 +143,7 @@ describe('the sheets the circuit reads', () => {
     }
   });
 
-  it('a developpeur whose remaining red lies in the tests of a component sends it by `renvoi`', () => {
+  it('a developpeur whose remaining red lies in the tests of the lot sends it by `renvoi`', () => {
     for (const [nom, texte] of [
       ['developpeur', developpeur],
       ['consigne', premier ?? ''],
@@ -172,14 +172,14 @@ describe('the sheets the circuit reads', () => {
   // Witness: BPScript (320.2.4.5.1), a type changed in 000-forms broke the shared test material,
   // which only the testwriter writes: the developpeurs of the components after it ran on that red
   // for nothing.
-  it('a testwriter whose ticket changes a type or a name of his component migrates, in the same session, the shared test material and the tests of the title that read it', () => {
+  it('a testwriter whose ticket changes a type or a name of a package of the plan migrates, in the same session, the shared test material and the tests of the plan that read it', () => {
     for (const [nom, texte] of [
       ['testwriter', testwriter],
       ['consigne', premier ?? ''],
     ]) {
-      expect(texte, nom).toMatch(/change un type ou un nom de ton composant/);
+      expect(texte, nom).toMatch(/change un type ou un nom d'un paquet du plan/);
       expect(texte, nom).toMatch(
-        /tu migres aussi, dans la même séance, la matière de test partagée qui le lit/
+        /tu migres aussi, dans la même séance, la matière de test partagée et les tests/
       );
     }
   });

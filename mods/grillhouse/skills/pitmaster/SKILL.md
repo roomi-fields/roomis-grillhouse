@@ -73,18 +73,20 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   `npx grillhouse circuit <ticket>`, que je lance une fois, en arrière-plan
   (`run_in_background`) ; sa fin me réveille. Le circuit mène l'arbre de ses étapes
   (`packages/grillhouse/scripts/etapes.mjs`) : 1 Plan (l'explorateur écrit le plan, le questionneur le lit une seule
-  fois, l'explorateur répond une fois), 2 Composants (2.1
-  testwriter, 2.2 preuve du rouge, 2.3 développeur, 2.4 contrôles, pour chaque composant), 3 la passe
-  finale (3.1 la régénération des références que le projet déclare, `grillhouse.references` de son
+  fois, l'explorateur répond une fois), 2 Tests (le testwriter, une séance pour tout le ticket, et
+  2.1 la preuve du rouge sur tous les tests du lot), 3 Code (le développeur, une séance pour tout
+  le ticket, et 3.1 les contrôles du plan), 4 Passe finale et relecture (4.1 la passe
+  finale, 4.2 la régénération des références que le projet déclare, `grillhouse.references` de son
   `package.json`, chacune `{ nom, commande, fichiers, tests, gardes }`, ses fichiers en chemins,
   dossiers ou motifs `*` et `**`, ses tests les fichiers de test qui la jugent, ses gardes les
   gardes du projet qui la jugent, par le nom que porte leur constat SARIF, sur la copie entière, quand
   elles sont ses seuls rouges : je ne les régénère
   jamais à la main ; un changement que le plan ne nomme pas arrête à `references`, code 23, une
-  question pour moi : je le fais nommer au plan ou corriger), 4 le relecteur, 5 Intégration (5.1 le
-  commit, 5.2 la file et la lecture de la CI) ; je dis où en est un ticket par son étape,
-  « 2.3 Code » ; son en-tête dit ses arrêts et leurs codes. Ainsi les gestes mécaniques passent à
-  une commande, et je garde la vue d'ensemble.
+  question pour moi : je le fais nommer au plan ou corriger, 4.3 le relecteur), 5 Intégration (5.1
+  le commit, 5.2 la file et la lecture de la CI) ; aucun composant n'est une unité du circuit, chaque
+  étape joue une fois pour tout le ticket, dans l'enveloppe de tous les paquets du plan ; je dis
+  où en est un ticket par son étape, « 3 Code » ; son en-tête dit ses arrêts et leurs codes. Ainsi
+  les gestes mécaniques passent à une commande, et je garde la vue d'ensemble.
 - **Le code de fin du circuit dit la suite** : 0, le lot est sur main et le ticket fermé ; je lis
   sa fermeture. 75 (`a-repasser` : un contrôle ou l'intégration encore « à repasser », ou la
   branche gardée en file) : je relance `--reprendre` en arrière-plan, la
@@ -100,7 +102,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 - **Le circuit fait les gestes mécaniques** : comme une CI applique ses règles sans demander
   (rejouer, régénérer, sauter une tâche sans objet), le circuit fait lui-même, sans séance, les
   gestes que la liste des étapes écrit (`GESTES` de `packages/grillhouse/scripts/etapes.mjs`) : rejouer une commande à 75,
-  finir à 75, rendre un rouge au développeur du composant qui le possède, renvoyer au testwriter
+  finir à 75, renvoyer au testwriter
   que nomme la fiche du développeur, régénérer les références, juger aux contrôles un développeur
   qui n'a rien à livrer ; chaque geste s'écrit au ticket et au journal avec sa règle
   (`Circuit · … · geste`). Ainsi ma séance n'est réveillée que par la fin du lot ou par une vraie
@@ -109,14 +111,14 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   (`MONTEES` de la liste des étapes), son code celui de l'arrêt ; l'état du circuit la porte
   (`question` : l'arrêt, le fait, sa pièce, un `fichier:ligne` ou une commande et sa sortie, la
   question, et qui doit répondre, `superviseur` ou `responsable`), et le ticket aussi
-  (`Circuit · … · question`). Je réponds moi-même à ce qui est à moi (le cadre du ticket, un
+  (`Circuit · question`). Je réponds moi-même à ce qui est à moi (le cadre du ticket, un
   arbitrage, un geste) ; je porte au responsable ce qui est à lui (`qui` responsable : la question
   du relecteur sur un vrai mot de la langue), le fonctionnel et ce que la charte lui garde. Je
   réponds par une commande du circuit, en arrière-plan : `--reprendre`, avec `--contexte` quand
   l'agent repris doit savoir ce que j'ai tranché, ou `--depuis <testwriter|developpeur>
-  <composant> --contexte` ; `--etendre <composant>` quand le plan doit gagner un composant (un
-  `hors-plan`, un rouge hors du titre), que le circuit met au
-  titre avant son premier lecteur, puis rejoue depuis son testwriter ; `--arreter`, son motif en `--contexte`, quand le ticket
+  --contexte`, l'étape d'où le ticket entier repart ; `--etendre <paquet>` quand le plan doit
+  gagner un paquet (un `hors-plan`, un rouge hors du plan), que le circuit met au titre avant son
+  premier lecteur, puis reprend l'étape en cours ; `--arreter`, son motif en `--contexte`, quand le ticket
   doit changer avant tout travail. Une décision du responsable qui change le plan entre dans la
   description du ticket (`bd update <ticket> -d`), que tous les agents lisent, avant que je
   reprenne. 22 (`questionnement`) : des questions du plan restent ouvertes après la réponse de
@@ -201,9 +203,10 @@ liste), comme un pipeline de GitLab CI ses étapes et leurs travaux : 1 Plan : l
 (ses critères, les paquets à toucher, ses questions ouvertes, que le circuit écrit au ticket), le
 `questionneur` le lit une seule fois, l'explorateur répond une fois, CHANGE ou GARDE par question,
 et ce qui reste ouvert me monte ;
-2 Composants, pour chaque composant du titre dans son ordre : 2.1 Tests, le `testwriter`, 2.2 Preuve
-du rouge, auto, trois essais au plus, puis 2.3 Code, le `developpeur`, 2.4 Contrôles, auto, trois
-essais au plus ; 3 Passe finale, auto, puis 3.1 Régénération des références, auto, pour un projet
+2 Tests, le `testwriter`, une séance pour tout le ticket, et 2.1 Preuve du rouge, auto, sur tous
+les tests du lot, trois essais au plus ; 3 Code, le `developpeur`, une séance pour tout le ticket,
+et 3.1 Contrôles, auto, sur tout le plan, trois essais au plus ; 4 Passe finale et relecture :
+4.1 Passe finale, auto, trois essais au plus, puis 4.2 Régénération des références, auto, pour un projet
 qui déclare les références qu'il tire de la copie entière (`grillhouse.references` de son
 `package.json`, chacune `{ nom, commande, fichiers, tests, gardes }` : `fichiers`, des chemins,
 des dossiers ou des motifs `*` et `**`, comme les entrées de Turborepo ; `tests`, les fichiers de
@@ -212,8 +215,9 @@ constat SARIF), comme `rustc --bless` : une passe finale rouge sur elles seules 
 tests, un constat d'une de leurs gardes, quel que soit son fichier, ou un fichier qu'elles
 couvrent) les régénère, la
 différence va au lot et au relecteur, et un changement que le plan ne nomme pas arrête le circuit
-(`references`) ; 4 Relecture, le `relecteur`, trois tours au plus, un lot
-rendu revenant en 2 pour les composants nommés ; 5 Intégration : 5.1 Commit et 5.2 File : main,
+(`references`), et 4.3 Relecture, le `relecteur`, trois tours au plus, un lot rendu revenant à
+l'agent que nomme chaque constat, en 2 ou en 3, chaque constat ouvert jusqu'à la relecture qui le
+juge levé ; 5 Intégration : 5.1 Commit et 5.2 File : main,
 poussée, CI, auto. Le questionneur ne décide rien, et ses questions vont au ticket. Ainsi chaque
 agent travaille dans son cadre, et le numéro d'une étape dit où en est chaque ticket. Un plan que le superviseur rend au responsable passe aussi par le questionneur.
 Ainsi une décision se mesure à des questions qu'elle ne s'est pas posées, comme le code à des
@@ -238,12 +242,12 @@ de réalisation fait une seule livraison, en un seul commit ; tout ticket se cr�
 L'explorateur les trouve par le relevé des composants
 (`packages/grillhouse/scripts/composants-affectes.mjs`) quand il écrit le plan, à l'étape 1 : ses paquets à toucher
 deviennent les composants du titre, que le circuit écrit. Dans la copie du ticket, le circuit (`packages/grillhouse/scripts/circuit.mjs`), que lance le superviseur, lance un
-agent par composant, chacun enveloppé dans son paquet, dans cet ordre, puis le relecteur, qui relit
-l'ensemble. Ainsi un type change avec ses
-lecteurs, comme dans une demande de fusion de rustc, et chaque agent écrit dans son seul paquet.
-Sur un lot rendu, le circuit rejoue les seuls composants que les constats nomment, puis la passe
-finale restreinte à ce que le correctif change et à ses dépendants, et le relecteur relit la
-différence depuis la relecture d'avant et ses constats ; la passe finale entière joue une fois
+seul testwriter et un seul développeur pour tout le ticket, chacun dans l'enveloppe de tous les
+paquets du plan, puis le relecteur, qui relit l'ensemble. Ainsi un type change avec ses lecteurs,
+comme dans une demande de fusion de rustc : un auteur, une série de tests et de code, une CI sur
+l'ensemble, une revue. Sur un lot rendu, le circuit relance l'agent que nomme chaque constat,
+puis la passe finale restreinte à ce que le correctif change et à ses dépendants, et le relecteur
+relit la différence depuis la relecture d'avant et les constats ouverts ; la passe finale entière joue une fois
 avant l'intégration. Ainsi seul ce qui a changé se rejoue, comme Bazel ne joue que les cibles
 qu'un changement atteint.
 

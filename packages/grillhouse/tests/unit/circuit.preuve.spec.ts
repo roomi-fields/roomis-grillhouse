@@ -4,8 +4,8 @@ import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
 import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
 
-// The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): the order of the
-// components and their steps, and the proof of the testwriter's red.
+// The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): the order of its
+// steps, and the proof of the testwriter's red.
 // The trial repository and its stand-ins: ./circuit-essai.ts; each file of the circuit's tests
 // builds its own, in a trial directory of its own.
 
@@ -27,14 +27,14 @@ const {
   journal,
 } = circuitEssai(ESSAIS);
 
-// The commands the proof of <composant> ran, in their order: the lines `$ …` of the log under a
-// header of the step `preuve` of that component.
-const lancements = (id: string, composant: string) => {
+// The commands the proof ran, in their order: the lines `$ …` of the log under a header of the
+// step `preuve`.
+const lancements = (id: string) => {
   let dans = false;
   const out: string[] = [];
   for (const l of journal(id).split('\n')) {
     if (l.startsWith('=== ')) {
-      dans = l.includes(` · circuit · preuve · ${composant} ===`);
+      dans = l.endsWith(' · circuit · preuve ===');
     } else if (dans && l.startsWith('$ ')) {
       out.push(l.slice(2));
     }
@@ -57,52 +57,45 @@ EOF
 
 describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
   afterEach(revenirAuDebut);
-  it('passes each component of the title, provider first: testwriter, proof, developpeur, checks', () => {
+  it('passes the ticket through its steps: testwriter, proof, developpeur, checks, final pass, review, integration', () => {
     const id = 'demo-ordre';
-    ticket(id, '000-forms, 030-binder');
+    ticket(id, '000-forms');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
-    expect(ordre(id)).toEqual([
-      'testwriter packages/forms',
-      'developpeur packages/forms',
-      'testwriter packages/binder',
-      'developpeur packages/binder',
-      'relecteur',
-    ]);
-    const etapes = ['testwriter', 'preuve', 'developpeur', 'controles'];
+    expect(ordre(id)).toEqual(['testwriter', 'developpeur', 'relecteur']);
     expect(historique(id)).toEqual([
-      ...etapes.map(e => ['packages/forms', e]),
-      ...etapes.map(e => ['packages/binder', e]),
-      ['packages/binder', 'relecture'],
-      ['packages/binder', 'integration'],
-      ['packages/binder', 'file'],
+      'testwriter',
+      'preuve',
+      'developpeur',
+      'controles',
+      'controles',
+      'relecture',
+      'integration',
+      'file',
     ]);
     // The proof is written at the ticket: the red tests.
-    const preuve = commentaires(id).find(t => t.startsWith('Circuit · packages/forms · preuve'));
+    const preuve = commentaires(id).find(t => t.startsWith('Circuit · preuve'));
     expect(preuve).toContain('critère 1 — mesure rend le double');
-    // The state: relecture, every field written.
+    // The state: every field written.
     const e = etat(id);
     expect(Object.keys(e ?? {}).sort()).toEqual(
       [
-        'atteints',
         'avancement',
         'boucles',
-        'composants',
-        'question',
         'code',
-        'composant',
-        'dernier',
+        'constats',
         'etape',
         'finale',
         'journal',
         'mene',
+        'paquets',
         'processus',
+        'question',
         'questionnement',
         'raison',
         'rapport',
-        'renvois',
         'reprise',
         'seance',
         'tentative',
@@ -111,40 +104,33 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     );
     expect(e?.etape).toBe('integre');
     expect(e?.code).toBe(0);
-    // The components of the title, in their order, which the board reads for the rank.
-    expect((e as { composants?: string[] } | null)?.composants).toEqual([
-      'packages/forms',
-      'packages/binder',
-    ]);
-    // The final pass green carried every component to green checks, and the lot it played is
-    // the one the integration takes.
-    expect([...(e?.atteints ?? [])].sort()).toEqual(['packages/binder', 'packages/forms']);
+    // The packages of the plan, which every session writes.
+    expect(e?.paquets).toEqual(['packages/forms']);
+    // The lot the whole final pass green played is the one the integration takes.
     expect(e?.verifie).toMatch(/^[0-9a-f]{40}$/);
     expect(e?.journal).toBe(path.join(REPO, '.claude/worktrees', `${id}.log`));
-    // The instruction the circuit writes: its ticket, its component, the criteria, the proof of
-    // the step before and the last handover.
+    // The instruction the circuit writes: its ticket, its plan, the criteria, the proof of the step
+    // before and the last handover.
     const consigne = essai(id, 'developpeur-1.prompt');
     expect(consigne).toContain(`TON TICKET : ${id}`);
-    expect(consigne).toContain('TON COMPOSANT : packages/forms');
+    expect(consigne).toContain('TON PLAN : packages/forms');
+    expect(consigne).not.toContain('TON COMPOSANT');
     expect(consigne).toContain('1. `mesure` rend le double de sa valeur.');
     expect(consigne).toContain('critère 1 — mesure rend le double');
     expect(consigne).toContain('Tests écrits, rouges.');
-    expect(essai(id, 'testwriter-1.prompt')).toContain('TON COMPOSANT : packages/forms');
-    expect(essai(id, 'testwriter-2.prompt')).toContain('TON COMPOSANT : packages/binder');
+    expect(essai(id, 'testwriter-1.prompt')).toContain('TON PLAN : packages/forms');
   });
 
   // Witness: BPScript (bp-mono-vbwf.325). The proof played every test of its package, 5.2 min,
   // where the new tests of the lot alone had to be seen red.
-  it('plays at the proof the test files of the lot alone, not the packages of the component', () => {
+  it('plays at the proof the test files of the lot alone, not the packages of the plan', () => {
     const id = 'demo-preuve-du-lot';
     ticket(id, '000-forms');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
-    expect(lancements(id, 'packages/forms')).toEqual([
-      'npm test -- --force packages/forms/test/mesure.test.mjs',
-    ]);
+    expect(lancements(id)).toEqual(['npm test -- --force packages/forms/test/mesure.test.mjs']);
   });
 
   it('sends a green test no expected green of the testwriter’s sheet names back to the testwriter', () => {
@@ -165,10 +151,10 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     expect(relance).toContain('vert attendu');
     // The second testwriter changes no file: his expected green is judged on the result of the
     // proof already played, which does not play again (witness: BPScript, bp-mono-vbwf.325).
-    expect(lancements(id, 'packages/forms')).toHaveLength(1);
+    expect(lancements(id)).toHaveLength(1);
     // The proof at the ticket names its whole report, which holds the justified green and its
     // reason; the ticket does not.
-    const preuves = commentaires(id).filter(t => t.startsWith('Circuit · packages/forms · preuve'));
+    const preuves = commentaires(id).filter(t => t.startsWith('Circuit · preuve'));
     expect(preuves.at(-1)).not.toContain('la forme est déjà juste');
     const complet = /Le rapport entier, avec les verts justifiés et leurs raisons : (\S+)/.exec(
       preuves.at(-1) ?? ''
@@ -185,12 +171,8 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     expect(r.status, sortie(r)).toBe(ARRETS.preuve);
     expect(sessions(id, 'testwriter')).toBe(3);
     expect(sessions(id, 'developpeur')).toBe(0);
-    expect(etat(id)).toMatchObject({
-      etape: 'preuve',
-      composant: 'packages/forms',
-      raison: 'preuve',
-    });
-    expect(historique(id).at(-1)).toEqual(['packages/forms', 'preuve']);
+    expect(etat(id)).toMatchObject({ etape: 'preuve', raison: 'preuve' });
+    expect(historique(id).at(-1)).toBe('preuve');
   });
 
   it('takes a test file that does not load for no proof', () => {
@@ -206,6 +188,6 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     expect(relance).toContain('packages/forms/test/casse.test.mjs');
     expect(relance).toContain('ne se charge pas');
     // The second testwriter changes the lot: the proof plays it again.
-    expect(lancements(id, 'packages/forms')).toHaveLength(2);
+    expect(lancements(id)).toHaveLength(2);
   });
 });

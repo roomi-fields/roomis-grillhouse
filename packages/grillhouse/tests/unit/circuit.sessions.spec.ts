@@ -57,13 +57,13 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
       expect(essai(id, 'developpeur-2.prompt')).toContain('critère 1 — mesure rend le double');
       expect(etat(id)).toMatchObject({
         etape: 'controles',
-        composant: 'packages/forms',
         raison: 'controles',
         code: ARRETS.controles,
+        finale: false,
       });
-      expect(historique(id).at(-1)).toEqual(['packages/forms', 'controles']);
+      expect(historique(id).at(-1)).toBe('controles');
     });
-    it("--reprendre starts again at the step and component of the state, with the supervisor's context", () => {
+    it("--reprendre starts again at the step of the state, with the supervisor's context", () => {
       scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
       const r = circuit([id, '--reprendre', '--contexte', 'Le superviseur a tranché : le double.']);
       expect(r.status, sortie(r)).toBe(0);
@@ -77,11 +77,11 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     });
   });
 
-  it('stops at « sans-livraison » after a developpeur session that changes no file of its component', () => {
+  it('stops at « sans-livraison » after a developpeur session that changes no file of the plan', () => {
     const id = 'demo-sans-livraison';
     ticket(id, '000-forms, 030-binder');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
-    // Its handover says it delivered; only the files of the component count.
+    // Its handover says it delivered; only the files of the plan count.
     scenario(id, 'developpeur', "passation 'Code écrit.'\n");
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(ARRETS['sans-livraison']);
@@ -90,13 +90,12 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     const e = etat(id);
     expect(e).toMatchObject({
       etape: 'developpeur',
-      composant: 'packages/forms',
       raison: 'sans-livraison',
       code: ARRETS['sans-livraison'],
     });
-    expect(e?.rapport).toContain('packages/forms');
+    expect(e?.rapport).toContain('packages/forms, packages/binder');
     expect(e?.rapport).toContain('passation');
-    expect(historique(id).at(-1)).toEqual(['packages/forms', 'developpeur']);
+    expect(historique(id).at(-1)).toBe('developpeur');
     const arret = commentaires(id)
       .filter(t => t.includes(' : arrêt '))
       .pop();
@@ -104,13 +103,13 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     expect(arret).toContain('packages/forms');
   });
 
-  describe('a developpeur whose sheet sends the red to `testwriter <composant>`', () => {
-    // A red left in the tests of forms: his sheet sends it to forms' testwriter.
+  describe('a developpeur whose sheet sends the red to the testwriter', () => {
+    // A red left in the tests of the lot: his sheet sends it to the testwriter.
     const renvoi = `printf '// essai\\n' >> $c/src/index.mjs
 passation 'Le rouge qui reste est dans les tests de forms : le test attend un autre type.'
-fiche '{"statut":"BLOQUÉ","raison":"le test attend un autre type.","renvoi":{"role":"testwriter","composant":"000-forms"}}'
+fiche '{"statut":"BLOQUÉ","raison":"le test attend un autre type.","renvoi":{"role":"testwriter"}}'
 `;
-    it('plays that component again from its testwriter, without relaunching the developpeur, the gesture said', () => {
+    it('relaunches the testwriter, then the proof and the developpeur, without relaunching the developpeur on that red, the gesture said', () => {
       const id = 'demo-renvoi-testwriter';
       ticket(id, '000-forms');
       scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
@@ -119,10 +118,10 @@ fiche '{"statut":"BLOQUÉ","raison":"le test attend un autre type.","renvoi":{"r
       const r = circuit([id]);
       expect(r.status, sortie(r)).toBe(0);
       expect(ordre(id)).toEqual([
-        'testwriter packages/forms',
-        'developpeur packages/forms',
-        'testwriter packages/forms',
-        'developpeur packages/forms',
+        'testwriter',
+        'developpeur',
+        'testwriter',
+        'developpeur',
         'relecteur',
       ]);
       // The testwriter receives the developpeur's handover as its report.
@@ -131,43 +130,20 @@ fiche '{"statut":"BLOQUÉ","raison":"le test attend un autre type.","renvoi":{"r
       );
       expect(essai(id, 'testwriter-2.prompt')).toContain('REPRISE : oui');
       expect(commentaires(id)).toContainEqual(
-        expect.stringMatching(
-          /^Circuit · packages\/forms · developpeur : .*testwriter packages\/forms/
-        )
+        expect.stringMatching(/^Circuit · developpeur : .*renvoie le rouge au testwriter/)
       );
       // The gesture and its rule, at the ticket (grillhouse-3uv.95.4).
       expect(commentaires(id)).toContainEqual(
-        expect.stringMatching(
-          /^Circuit · packages\/forms · geste : renvoi-au-testwriter → .*\(règle : /
-        )
+        expect.stringMatching(/^Circuit · geste : renvoi-au-testwriter → .*\(règle : /)
       );
       expect(historique(id).slice(0, 5)).toEqual([
-        ['packages/forms', 'testwriter'],
-        ['packages/forms', 'preuve'],
-        ['packages/forms', 'developpeur'],
-        ['packages/forms', 'testwriter'],
-        ['packages/forms', 'preuve'],
+        'testwriter',
+        'preuve',
+        'developpeur',
+        'testwriter',
+        'preuve',
       ]);
       expect(etat(id)?.etape).toBe('integre');
-    });
-
-    it('then plays in full the components after it that the circuit has not reached yet', () => {
-      const id = 'demo-renvoi-neufs';
-      ticket(id, '000-forms, 030-binder');
-      scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
-      scenario(id, 'developpeur-1', renvoi);
-      scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-      const r = circuit([id]);
-      expect(r.status, sortie(r)).toBe(0);
-      expect(ordre(id)).toEqual([
-        'testwriter packages/forms',
-        'developpeur packages/forms',
-        'testwriter packages/forms',
-        'developpeur packages/forms',
-        'testwriter packages/binder',
-        'developpeur packages/binder',
-        'relecteur',
-      ]);
     });
 
     it('stops at « sans-livraison » on the same renvoi twice in a row, without green checks between', () => {
@@ -182,15 +158,14 @@ fiche '{"statut":"BLOQUÉ","raison":"le test attend un autre type.","renvoi":{"r
       const e = etat(id);
       expect(e).toMatchObject({
         etape: 'developpeur',
-        composant: 'packages/forms',
         raison: 'sans-livraison',
         code: ARRETS['sans-livraison'],
       });
-      expect(e?.rapport).toContain('testwriter packages/forms');
+      expect(e?.rapport).toContain('deuxième fois de suite au testwriter');
     });
   });
 
-  it('sends a resumed developpeur that changes nothing of a delivered component to the checks', () => {
+  it('sends a resumed developpeur that changes nothing of a delivered plan to the checks', () => {
     const id = 'demo-reprise-livree';
     ticket(id, '000-forms');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
@@ -203,7 +178,7 @@ fiche '{"statut":"BLOQUÉ","raison":"le test attend un autre type.","renvoi":{"r
     scenario(id, 'developpeur-3', "passation 'Le lot est complet.'\n");
     const r2 = circuit([id, '--reprendre']);
     expect(r2.status, sortie(r2)).toBe(0);
-    expect(historique(id)).toContainEqual(['packages/forms', 'controles']);
+    expect(historique(id)).toContain('controles');
   });
 
   it('resumes a session without a sheet once, then stops at « sans-fiche »', () => {
@@ -244,7 +219,7 @@ fiche '{"statut":"BLOQUÉ","raison":"le test attend un autre type.","renvoi":{"r
     expect(e).toMatchObject({ etape: 'testwriter', raison: 'bloqué', code: ARRETS['bloqué'] });
     // The last lines of the log come with the stop.
     expect(e?.rapport).toContain('le testwriter réfléchit');
-    expect(historique(id).at(-1)).toEqual(['packages/forms', 'testwriter']);
+    expect(historique(id).at(-1)).toBe('testwriter');
     expect(
       commentaires(id)
         .filter(t => t.includes(' : arrêt '))
@@ -290,7 +265,7 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     await attendre(1_000);
     process.kill(-(appelant.pid as number), 'SIGKILL');
     const laisse = etat(id);
-    expect(laisse).toMatchObject({ etape: 'testwriter', composant: 'packages/forms', code: null });
+    expect(laisse).toMatchObject({ etape: 'testwriter', code: null });
     expect(typeof laisse?.seance).toBe('number');
     const r = circuit([id, '--reprendre']);
     expect(r.status, sortie(r)).toBe(0);

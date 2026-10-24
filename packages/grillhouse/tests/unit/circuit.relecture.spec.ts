@@ -66,10 +66,10 @@ const ticketDe = (id: string) =>
 
 // After the final pass, the circuit launches the reviewer, out of the envelope, from the second
 // template (Q6). ACCEPTÉ: the circuit builds the lot from the copy and integrates it, which puts
-// the branch in the queue (Q7, Q13). RENDU: the reviewer's sheet names the recipient of each
-// finding (`role`, `composant`); the circuit relaunches those agents from the first component
-// named, the components after it pass again, then the final pass and the reviewer; a finding
-// without a valid recipient stops at « relecture-arret », and so does the third RENDU. The circuit
+// the branch in the queue (Q7, Q13). RENDU: the reviewer's sheet names the agent of each finding
+// (`role`); the circuit goes straight to that agent, for the whole ticket (grillhouse-3uv.95.6),
+// then the final pass and the reviewer; a finding without a valid agent stops at
+// « relecture-arret », and so does the third RENDU. The circuit
 // writes the verdict at the ticket, for the human, from the sheet.
 describe('the verdict the circuit writes at the ticket from the reviewer’s sheet', () => {
   it('opens on its word, each blocking finding under its heading with what it holds and its recipient or its criterion, then the remarks and the deviations', () => {
@@ -82,7 +82,6 @@ describe('the verdict the circuit writes at the ticket from the reviewer’s she
             genre: 'bloquant',
             regle: 'critère 1',
             role: 'developpeur',
-            composant: '.',
             corps: 'Preuve : x.',
           },
           { titre: 'packages/forms/src/x.mjs:9', genre: 'remarque', corps: 'un nom à revoir' },
@@ -102,7 +101,7 @@ describe('the verdict the circuit writes at the ticket from the reviewer’s she
         '',
         '### Constat 1 — scripts/garde.mjs',
         'Bloquant : critère 1',
-        'Agent : developpeur .',
+        'Agent : developpeur',
         'Preuve : x.',
         '',
         '### Constat 2 — packages/forms/src/forms.ts',
@@ -144,10 +143,9 @@ describe('the verdict the circuit writes at the ticket from the reviewer’s she
 
 describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, () => {
   afterEach(revenirAuDebut);
-  // The reviewer's sheet RENDU whose one finding goes to <agent> (`<rôle> <composant>`), or puts
-  // the criterion <critere> in question.
-  const rendu = (agent: string, constat = 'mesure de 0 doit rendre 0.', critere?: string) => {
-    const [role, composant] = agent.split(' ');
+  // The reviewer's sheet RENDU whose one finding goes to <role> (none when null), or puts the
+  // criterion <critere> in question.
+  const rendu = (role: string | null, constat = 'mesure de 0 doit rendre 0.', critere?: string) => {
     const fiche = {
       verdict: 'RENDU',
       constats: [
@@ -155,8 +153,7 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
           titre: 'packages/forms/src/index.mjs',
           genre: 'bloquant',
           regle: 'critère 1',
-          role,
-          composant,
+          ...(role ? { role } : {}),
           corps: constat,
           ...(critere ? { critere_en_cause: critere } : {}),
         },
@@ -173,11 +170,7 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
-    expect(ordre(id)).toEqual([
-      'testwriter packages/forms',
-      'developpeur packages/forms',
-      'relecteur',
-    ]);
+    expect(ordre(id)).toEqual(['testwriter', 'developpeur', 'relecteur']);
     // The reviewer's session: claude in the ticket's copy, out of the envelope, on its role.
     expect(essai(id, 'relecteur-1.pwd').trim()).toBe(copie);
     const a = args(id, 'relecteur', 1);
@@ -210,7 +203,7 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
     expect(consigne).not.toContain('1. `mesure` rend le double de sa valeur.');
     expect(consigne).toContain('le lot de tests : packages/forms/test/mesure.test.mjs');
     expect(consigne).toContain('le lot de code : packages/forms/src/index.mjs');
-    expect(consigne).toContain('Circuit · packages/forms · preuve');
+    expect(consigne).toContain('Circuit · preuve');
     expect(consigne).toContain('controles : verts : npm run verifier.');
     expect(consigne).not.toContain('{{');
     // The claims file: the description, in a folder the session may read.
@@ -230,19 +223,13 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
     expect(existsSync(copie)).toBe(false);
     expect(enFile()).toEqual([]);
     expect(gitRepo('branch', '--list', `agent/${id}`)).toBe('');
-    expect(historique(id).slice(-3)).toEqual([
-      ['packages/forms', 'relecture'],
-      ['packages/forms', 'integration'],
-      ['packages/forms', 'file'],
-    ]);
+    expect(historique(id).slice(-3)).toEqual(['relecture', 'integration', 'file']);
     expect(commentaires(id)).toContainEqual(
-      expect.stringMatching(
-        /^Circuit · packages\/forms · integration : .*la branche est en file\.$/
-      )
+      expect.stringMatching(/^Circuit · integration : .*la branche est en file\.$/)
     );
     // The ticket closed by the queue; the trial has no origin, so main is not pushed.
     expect(ticketDe(id)).toMatchObject({ status: 'closed' });
-    expect(commentaires(id).at(-1)).toMatch(/^Circuit · packages\/forms · file : intégré : /);
+    expect(commentaires(id).at(-1)).toMatch(/^Circuit · file : intégré : /);
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
   });
 
@@ -254,18 +241,16 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     // Each session receives the author of its role, in the envelope and out of it.
-    expect(essai(id, 'testwriter-1.acteur')).toBe('testwriter packages/forms');
-    expect(essai(id, 'developpeur-1.acteur')).toBe('developpeur packages/forms');
+    expect(essai(id, 'testwriter-1.acteur')).toBe('testwriter');
+    expect(essai(id, 'developpeur-1.acteur')).toBe('developpeur');
     expect(essai(id, 'relecteur-1.acteur')).toBe('relecteur');
     // Its rights refuse bd's options of author and the variable.
     for (const role of ['testwriter', 'developpeur', 'relecteur']) {
       expect(refusees(args(id, role, 1)), role).toEqual(expect.arrayContaining(AUTEUR_FIXE));
     }
     const liste = auteurs(id);
-    expect(liste.find(c => c.text === 'Tests écrits, rouges.')?.author).toBe(
-      'testwriter packages/forms'
-    );
-    expect(liste.find(c => c.text === 'Code écrit.')?.author).toBe('developpeur packages/forms');
+    expect(liste.find(c => c.text === 'Tests écrits, rouges.')?.author).toBe('testwriter');
+    expect(liste.find(c => c.text === 'Code écrit.')?.author).toBe('developpeur');
     expect(liste.find(c => c.text.startsWith('ACCEPTÉ'))?.author).toBe('relecteur');
     const duCircuit = liste.filter(c => c.text.startsWith('Circuit · '));
     expect(duCircuit.length).toBeGreaterThan(0);
@@ -283,32 +268,30 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
       'developpeur',
       `echo $(( $(cat $c/tour 2>/dev/null || echo 0) + 1 )) > $c/tour\npassation 'RENDU 000-forms — constat traité.'\n`
     );
-    scenario(id, 'relecteur-1', rendu('developpeur 000-forms'));
-    scenario(id, 'relecteur-2', rendu('developpeur 000-forms'));
+    scenario(id, 'relecteur-1', rendu('developpeur'));
+    scenario(id, 'relecteur-2', rendu('developpeur'));
     scenario(id, 'relecteur-3', accepte);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(sessions(id, 'relecteur')).toBe(3);
     expect(sessions(id, 'developpeur')).toBe(3);
-    const rendus = commentaires(id).filter(t =>
-      /^Circuit · packages\/forms · relecture : RENDU/.test(t)
-    );
+    const rendus = commentaires(id).filter(t => /^Circuit · relecture : RENDU/.test(t));
     expect(rendus.map(t => /\(relecture (\d+)\)/.exec(t)?.[1])).toEqual(['1', '2']);
     expect(essai(id, 'relecteur-2.prompt')).toContain('REPRISE : oui : 1 relecture(s)');
     expect(ticketDe(id)).toMatchObject({ status: 'closed' });
   });
 
-  it('RENDU, a finding for the developpeur of a component, relaunches that developpeur, then the rest, to the queue', () => {
+  it('critère 2 — RENDU, a finding for the developpeur, goes straight to him, then the final pass and the review, to the queue', () => {
     const id = 'demo-rendu-dev';
     ticket(id, '000-forms, 030-binder');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     scenario(
       id,
-      'developpeur-3',
+      'developpeur-2',
       `printf '// rendu\\n' >> $c/src/index.mjs\npassation 'Rendu traité.'\n`
     );
-    scenario(id, 'relecteur-1', rendu('developpeur 000-forms'));
+    scenario(id, 'relecteur-1', rendu('developpeur'));
     scenario(id, 'relecteur-2', accepte);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
@@ -319,34 +302,34 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
         /^RENDU\n\n### Constat 1 — packages\/forms\/src\/index\.mjs\nBloquant : critère 1\nAgent : /
       )
     );
-    // Forms' developpeur again; binder, which no finding names, passes its checks again.
+    // The developpeur of the ticket again, no testwriter.
     expect(ordre(id)).toEqual([
-      'testwriter packages/forms',
-      'developpeur packages/forms',
-      'testwriter packages/binder',
-      'developpeur packages/binder',
+      'testwriter',
+      'developpeur',
       'relecteur',
-      'developpeur packages/forms',
+      'developpeur',
       'relecteur',
     ]);
-    const consigne = essai(id, 'developpeur-3.prompt');
-    expect(consigne).toContain('TON COMPOSANT : packages/forms');
-    expect(consigne).toMatch(/LE RAPPORT DE L'ÉTAPE D'AVANT[^\n]*\n\n### Constat 1/);
+    const consigne = essai(id, 'developpeur-2.prompt');
+    expect(consigne).toContain('TON PLAN : packages/forms, packages/binder');
+    expect(consigne).toMatch(
+      /LES CONSTATS DU RELECTEUR QUI RESTENT OUVERTS[^\n]*\n\n### Constat 1/
+    );
     expect(consigne).toContain('mesure de 0 doit rendre 0.');
     expect(consigne).toContain('REPRISE : oui');
     expect(essai(id, 'relecteur-2.prompt')).toContain('REPRISE : oui');
     // Then the final pass restricted to what the fix changes, the review, and the whole final
     // pass once, on the lot accepted, before the integration.
-    const rendus = historique(id).findIndex(([, e]) => e === 'relecture');
+    const rendus = historique(id).indexOf('relecture');
     expect(historique(id).slice(rendus)).toEqual([
-      ['packages/binder', 'relecture'],
-      ['packages/forms', 'developpeur'],
-      ['packages/forms', 'controles'],
-      ['packages/binder', 'controles'],
-      ['packages/binder', 'relecture'],
-      ['packages/binder', 'controles'],
-      ['packages/binder', 'integration'],
-      ['packages/binder', 'file'],
+      'relecture',
+      'developpeur',
+      'controles',
+      'controles',
+      'relecture',
+      'controles',
+      'integration',
+      'file',
     ]);
     expect(gitRepo('show', 'main:packages/forms/src/index.mjs')).toContain('// rendu');
     expect(ticketDe(id)).toMatchObject({ status: 'closed' });
@@ -373,14 +356,12 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
           genre: 'bloquant',
           regle: 'critère 1',
           role: 'developpeur',
-          composant: '000-forms',
           corps: 'mesure de 0 doit rendre 0.',
         },
         {
           titre: 'packages/forms/test/mesure.test.mjs:2',
           genre: 'remarque',
           role: 'testwriter',
-          composant: '000-forms',
           corps: 'un paquet gelé pourrait changer un jour.',
         },
       ],
@@ -406,7 +387,7 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
     expect(ticketDe(id)).toMatchObject({ status: 'closed' });
   });
 
-  it('RENDU, a finding for the testwriter of a component, relaunches the testwriter, the proof, the developpeur, the checks', () => {
+  it('RENDU, a finding for the testwriter, relaunches the testwriter, the proof, the developpeur, the checks', () => {
     const id = 'demo-rendu-testwriter';
     ticket(id, '000-forms');
     scenario(id, 'testwriter-1', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
@@ -429,34 +410,35 @@ fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/mesure
       'developpeur-2',
       `printf 'export const echelle = x => 3 * x;\\n' >> $c/src/index.mjs\npassation 'Echelle écrite.'\n`
     );
-    scenario(id, 'relecteur-1', rendu('testwriter packages/forms', 'echelle manque.'));
+    scenario(id, 'relecteur-1', rendu('testwriter', 'echelle manque.'));
     scenario(id, 'relecteur-2', accepte);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(sessions(id, 'testwriter')).toBe(2);
     expect(sessions(id, 'developpeur')).toBe(2);
     expect(essai(id, 'testwriter-2.prompt')).toContain('echelle manque.');
-    expect(historique(id).slice(-9)).toEqual([
-      ['packages/forms', 'relecture'],
-      ['packages/forms', 'testwriter'],
-      ['packages/forms', 'preuve'],
-      ['packages/forms', 'developpeur'],
-      ['packages/forms', 'controles'],
-      ['packages/forms', 'relecture'],
-      ['packages/forms', 'controles'],
-      ['packages/forms', 'integration'],
-      ['packages/forms', 'file'],
+    expect(historique(id).slice(-10)).toEqual([
+      'relecture',
+      'testwriter',
+      'preuve',
+      'developpeur',
+      'controles',
+      'controles',
+      'relecture',
+      'controles',
+      'integration',
+      'file',
     ]);
-    const preuve = commentaires(id).filter(t => t.startsWith('Circuit · packages/forms · preuve'));
+    const preuve = commentaires(id).filter(t => t.startsWith('Circuit · preuve'));
     expect(preuve.at(-1)).toContain('critère 2 — echelle rend le triple');
   });
 
-  it('stops at « relecture-arret » (16) on a finding without a valid recipient, or on a criterion', () => {
+  it('stops at « relecture-arret » (16) on a finding without a valid agent, or on a criterion', () => {
     const id = 'demo-rendu-sans-destinataire';
     ticket(id, '000-forms');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-    scenario(id, 'relecteur-1', rendu('developpeur packages/autre'));
+    scenario(id, 'relecteur-1', rendu(null));
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(16);
     expect(ARRETS['relecture-arret']).toBe(16);
@@ -467,11 +449,7 @@ fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/mesure
     expect(e?.question).toMatchObject({ arret: 'relecture-arret', qui: 'superviseur' });
     expect(enFile()).not.toContain(`agent/${id}`);
     // Resumed, the reviewer puts a criterion itself in question: a stop again.
-    scenario(
-      id,
-      'relecteur-2',
-      rendu('developpeur packages/forms', 'le double contredit la spec.', '1')
-    );
+    scenario(id, 'relecteur-2', rendu('developpeur', 'le double contredit la spec.', '1'));
     const r2 = circuit([id, '--reprendre']);
     expect(r2.status, sortie(r2)).toBe(16);
     expect(sessions(id, 'developpeur')).toBe(1);
@@ -488,7 +466,7 @@ fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/mesure
       'developpeur',
       `echo $(( $(cat $c/tour 2>/dev/null || echo 0) + 1 )) > $c/tour\npassation 'Un tour.'\n`
     );
-    scenario(id, 'relecteur', rendu('developpeur 000-forms'));
+    scenario(id, 'relecteur', rendu('developpeur'));
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(16);
     expect(sessions(id, 'relecteur')).toBe(3);

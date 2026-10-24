@@ -54,11 +54,7 @@ describe.runIf(canWrap)('the circuit of a ticket and the machine', { timeout: 30
       autre.kill();
     }
     expect(await fin, lire().slice(-4000)).toBe(0);
-    expect(ordre(id)).toEqual([
-      'testwriter packages/forms',
-      'developpeur packages/forms',
-      'relecteur',
-    ]);
+    expect(ordre(id)).toEqual(['testwriter', 'developpeur', 'relecteur']);
     expect(existsSync(verrou)).toBe(false);
   });
 });

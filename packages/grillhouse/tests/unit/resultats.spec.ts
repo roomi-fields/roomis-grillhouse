@@ -75,7 +75,7 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
       items: Schema & { properties: { genre: { enum: string[] } } };
     };
     expect(Object.keys(c.items.properties).sort()).toEqual(
-      ['composant', 'corps', 'critere_en_cause', 'genre', 'regle', 'role', 'titre'].sort()
+      ['corps', 'critere_en_cause', 'genre', 'regle', 'role', 'titre'].sort()
     );
     expect(c.items.required).toEqual(['titre', 'corps', 'genre']);
     expect(c.items.properties.genre.enum).toEqual(['bloquant', 'remarque']);
@@ -151,7 +151,6 @@ describe('the findings of a reviewer’s sheet', () => {
     genre: 'bloquant',
     regle: 'critère 2',
     role: 'developpeur',
-    composant: 'packages/a',
     corps: 'Preuve : x(0) rend NaN.',
   };
   const remarque = { titre: 'packages/a/src/x.ts:9', genre: 'remarque', corps: 'Un nom à revoir.' };
@@ -205,7 +204,6 @@ describe('the conformity of each element of the lot in a reviewer’s sheet', ()
     reference: 'packages/a, § Les frontières',
     piece: 'packages/a/src/x.ts:9 lit packages/b/src/interne.ts.',
     role: 'developpeur',
-    composant: 'packages/a',
   };
   const fiche = (f: Record<string, unknown>) => lireFiche('relecteur', sortie(f));
 
@@ -216,7 +214,7 @@ describe('the conformity of each element of the lot in a reviewer’s sheet', ()
       };
     };
     expect(Object.keys(c.items.properties).sort()).toEqual(
-      ['composant', 'conforme', 'document', 'element', 'piece', 'reference', 'role'].sort()
+      ['conforme', 'document', 'element', 'piece', 'reference', 'role'].sort()
     );
     expect(c.items.required).toEqual(['element', 'conforme', 'document', 'reference', 'piece']);
     expect(c.items.properties.conforme.enum).toEqual(['oui', 'non']);
@@ -237,7 +235,7 @@ describe('the conformity of each element of the lot in a reviewer’s sheet', ()
     );
   });
 
-  it('a « non » blocks the verdict and names its recipient', () => {
+  it('a « non » blocks the verdict and names its agent', () => {
     expect(fiche({ verdict: 'RENDU', conformite: [oui, non] }).erreur).toBeUndefined();
     expect(fiche({ verdict: 'ACCEPTÉ', conformite: [non] }).erreur).toMatch(
       /verdict : ACCEPTÉ avec un constat bloquant/
@@ -246,10 +244,10 @@ describe('the conformity of each element of the lot in a reviewer’s sheet', ()
     expect(fiche({ verdict: 'RENDU', conformite: [sansRole] }).erreur).toMatch(
       /conformite\[0\]\.role : manque/
     );
-    const { composant: _c, ...sansComposant } = non;
-    expect(fiche({ verdict: 'RENDU', conformite: [sansComposant] }).erreur).toMatch(
-      /conformite\[0\]\.composant : manque/
-    );
+    // grillhouse-3uv.95.6: a « non » names its agent alone, as a finding.
+    expect(
+      fiche({ verdict: 'RENDU', conformite: [{ ...non, composant: 'packages/a' }] }).erreur
+    ).toMatch(/composant/);
     // The circuit plays a « non » as a blocking finding, sent to its recipient.
     expect(bloquantsDeLaFiche({ verdict: 'RENDU', conformite: [oui, non] })).toEqual([
       {
@@ -257,7 +255,6 @@ describe('the conformity of each element of the lot in a reviewer’s sheet', ()
         genre: 'bloquant',
         regle: 'ARCHITECTURE packages/a, § Les frontières',
         role: 'developpeur',
-        composant: 'packages/a',
         corps: `Non conforme : ${non.piece}`,
       },
     ]);
@@ -357,7 +354,7 @@ describe('the reading of a sheet in the output of a session', () => {
     ['testwriter', { statut: 'BLOQUÉ' }, 'raison'],
     ['developpeur', { statut: 'BESOIN' }, 'question'],
     ['testwriter', { statut: 'FAIT', verts_attendus: [{ fichier: 'a.test.ts' }] }, 'raison'],
-    ['developpeur', { statut: 'FAIT', renvoi: { role: 'developpeur', composant: 'a' } }, 'role'],
+    ['developpeur', { statut: 'FAIT', renvoi: { role: 'developpeur' } }, 'role'],
     ['relecteur', { verdict: 'PEUT-ÊTRE' }, 'verdict'],
     ['relecteur', { verdict: 'RENDU', constats: [{ titre: 't', genre: 'bloquant' }] }, 'corps'],
     ['relecteur', { verdict: 'RENDU', constats: [{ titre: 't', corps: 'c' }] }, 'genre'],

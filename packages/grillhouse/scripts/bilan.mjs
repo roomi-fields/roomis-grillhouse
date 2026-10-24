@@ -16,7 +16,7 @@
 //   `circuit` of the steps the circuit leads itself; the results the circuit keeps,
 //   `.claude/worktrees/<ticket>.fiches.jsonl`, each with its time: the launch of each session the
 //   circuit opens or resumes (`lancement`: its role and its session id, the register line's
-//   `agent`), the sheet of each session (`{ role, composant, fiche }`), the outcome of each proof
+//   `agent`), the sheet of each session (`{ role, fiche }`), the outcome of each proof
 //   (`resultat`: `ok`, its counts, `vide`) and of each check (`resultat`: `issue` vert, rouge or a-repasser, `finale`), each stop
 //   (`arret`, its name, `finale`), each developpeur resumed who changed nothing (`inchange`), the
 //   end of each questioning of the plan (`questionnement`: its `objet`, its `tours`, whether it
@@ -32,8 +32,8 @@
 // - The window: from the first turn of a session or a step to the last result of the circuit or
 //   the last turn; its length is the wall time.
 // - Each turn of a session and each step finds its result: a step, the last outcome or stop of
-//   its step and component kept during it; a session, the first sheet of its role kept after its
-//   turn, before the next turn of any other, which names its component. A step `controles` whose
+//   its step kept during it; a session, the first sheet of its role kept after its turn, before
+//   the next turn of any other. Every step is one for the whole ticket. A step `controles` whose
 //   outcome or stop is the final pass's (`finale`) is the final pass.
 // - The categories, each instant once:
 //   - travail resté au lot: a session that delivered, the reviewer's included;
@@ -42,8 +42,8 @@
 //     proof finds the lot of the proof before it (the same counts of reds, greens of the lot,
 //     broken files and greens of HEAD), after a refused proof, or no file of the lot (`vide`:
 //     reds that exist already or of a build alone, no green of the lot); that proof; checks that
-//     play the same red again on a component none of its agents delivered to since its checks
-//     before (the final pass: none of any component's since the final pass before);
+//     play the same red again with no delivery of the testwriter or the developpeur since the
+//     checks of their kind before (the final pass: since the final pass before);
 //   - questionnement: a session of the questionneur (kept: a look that did not write the plan, as
 //     a review);
 //   - attente humaine: from each end of a run on a stop (`montee`) to the first turn of a session or
@@ -67,7 +67,7 @@ import { existsSync, readdirSync, readFileSync, renameSync, writeFileSync } from
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { etapeDuCircuit, etapeDuRole, nomDuRole, QUESTIONNEUR, SUITE } from './etapes.mjs';
+import { AGENTS_DU_LOT, etapeDuCircuit, nomDuRole, QUESTIONNEUR, SUITE } from './etapes.mjs';
 
 // The role of a register line that a step of the circuit writes, and of its results.
 const CIRCUIT = 'circuit';
@@ -149,7 +149,6 @@ export function bilan({ ticket, lignes, entrees = [], etat = null, maintenant = 
         f,
         role: l.role,
         etape: l.role === CIRCUIT ? l.etape : null,
-        composant: l.role === CIRCUIT ? l.composant : null,
       }))
     )
     .filter(s => s.f > s.d)
@@ -166,18 +165,13 @@ export function bilan({ ticket, lignes, entrees = [], etat = null, maintenant = 
       s.entree =
         duCircuit.findLast(
           e =>
-            (e.resultat || e.arret) &&
-            e.etape === s.etape &&
-            e.composant === s.composant &&
-            e.t >= s.d - JEU &&
-            e.t <= s.f + JEU
+            (e.resultat || e.arret) && e.etape === s.etape && e.t >= s.d - JEU && e.t <= s.f + JEU
         ) ?? null;
       s.finale = s.etape === 'controles' && Boolean(s.entree?.resultat?.finale ?? s.entree?.finale);
     } else {
       s.suivant = segments.find(x => x.d >= s.f && x.l !== s.l)?.d ?? Infinity;
       s.entree =
         gardes.find(e => e.role === s.role && e.t >= s.f - JEU && e.t <= s.suivant + JEU) ?? null;
-      s.composant = s.entree?.composant ?? null;
     }
   }
   const etapes = segments.filter(s => s.role === CIRCUIT);
@@ -185,7 +179,7 @@ export function bilan({ ticket, lignes, entrees = [], etat = null, maintenant = 
   for (const p of preuves) p.preuve = p.entree?.resultat ?? null;
   // A proof and the category it gives the testwriter before it: the lot unchanged since the proof
   // before, or none.
-  const avantLa = p => preuves.findLast(x => x.composant === p.composant && x.f <= p.d);
+  const avantLa = p => preuves.findLast(x => x.f <= p.d);
   const parLaPreuve = p => {
     const avant = avantLa(p);
     if (!p.preuve) return null;
@@ -200,7 +194,6 @@ export function bilan({ ticket, lignes, entrees = [], etat = null, maintenant = 
     duCircuit.some(
       e =>
         e.etape === 'developpeur' &&
-        e.composant === s.composant &&
         (e.arret === 'sans-livraison' || e.inchange) &&
         e.t >= s.f - JEU &&
         e.t <= s.suivant + JEU
@@ -212,30 +205,20 @@ export function bilan({ ticket, lignes, entrees = [], etat = null, maintenant = 
     else if (s.role === 'developpeur') {
       s.categorie = sansLivraison(s) ? 'sansEffet' : 'travail';
     } else if (s.role === 'testwriter') {
-      const p = preuves.find(x => x.composant === s.composant && x.d >= s.f - JEU);
+      const p = preuves.find(x => x.d >= s.f - JEU);
       s.categorie = p ? (parLaPreuve(p) ?? (p.preuve?.vide ? 'sansEffet' : 'travail')) : 'travail';
     } else s.categorie = 'travail';
   }
-  // A session that changed a component's lot.
-  const livre = s =>
-    s.role !== CIRCUIT && s.categorie === 'travail' && etapeDuRole(s.role)?.parComposant;
+  // A session that changed the lot: the testwriter's or the developpeur's, that delivered.
+  const livre = s => AGENTS_DU_LOT.includes(s.role) && s.categorie === 'travail';
   for (const s of etapes) {
     if (s.etape === 'preuve') {
       s.categorie = parLaPreuve(s) ?? 'automatique';
     } else if (s.etape === 'controles') {
       const memes = x => x.etape === 'controles' && x.finale === s.finale;
-      const avant = etapes.findLast(
-        x => memes(x) && x.f <= s.d && (s.finale || x.composant === s.composant)
-      );
+      const avant = etapes.findLast(x => memes(x) && x.f <= s.d);
       const change =
-        !avant ||
-        segments.some(
-          x =>
-            livre(x) &&
-            x.d >= avant.f - JEU &&
-            x.f <= s.d + JEU &&
-            (s.finale || x.composant === s.composant)
-        );
+        !avant || segments.some(x => livre(x) && x.d >= avant.f - JEU && x.f <= s.d + JEU);
       const i = s.entree ? issue(s.entree) : 'rouge';
       s.categorie =
         change || !avant.entree || issue(avant.entree) !== i

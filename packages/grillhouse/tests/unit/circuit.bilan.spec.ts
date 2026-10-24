@@ -6,7 +6,7 @@ import { ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai, sortie } from './circuit
 
 // The circuit of a ticket (scripts/circuit.mjs) writes the ticket's bilan at each of its ends
 // (grillhouse-3uv.89, L8): at « integre », and on a stop it hands to the supervisor, one short line
-// of figures at the ticket, `Circuit · <composant> · bilan : …` (scripts/bilan.mjs), and the bilan
+// of figures at the ticket, `Circuit · bilan : …` (scripts/bilan.mjs), and the bilan
 // kept in the main tree, `.claude/worktrees/<ticket>.bilan.json`, which the next ticket's bilan
 // compares itself with. The circuit keeps with its results the launch of each session it opens
 // (`lancement`, its role and its session id) and each end of a run on a stop (`montee`), which the
@@ -41,12 +41,12 @@ describe.runIf(canWrap)('the bilan at the end of the circuit', { timeout: 300_00
     expect(b).toHaveLength(1);
     expect(b[0].author).toBe('circuit');
     expect(b[0].text).toMatch(
-      /^Circuit · packages\/forms · bilan : intégré en \d+ min ; \d+ min perdues \(\d+ %\) ; \d+ séances/
+      /^Circuit · bilan : intégré en \d+ min ; \d+ min perdues \(\d+ %\) ; \d+ séances/
     );
     expect(b[0].text).toContain('- travail resté au lot : ');
     expect(b[0].text).toContain("Aucun bilan d'avant dans ce projet : pas de base.");
     // It closes the history: the queue's line comes before it.
-    expect(commentaires(id).at(-1)).toMatch(/^Circuit · packages\/forms · file : intégré : /);
+    expect(commentaires(id).at(-1)).toMatch(/^Circuit · file : intégré : /);
     expect(garde(id)).toMatchObject({
       ticket: id,
       statut: 'intégré',
@@ -77,9 +77,7 @@ describe.runIf(canWrap)('the bilan at the end of the circuit', { timeout: 300_00
     const b = bilans(id);
     expect(b).toHaveLength(1);
     expect(b[0].text).toMatch(
-      new RegExp(
-        `^Circuit · packages/forms · bilan : arrêt sans-livraison \\(${ARRETS['sans-livraison']}\\) en `
-      )
+      new RegExp(`^Circuit · bilan : arrêt sans-livraison \\(${ARRETS['sans-livraison']}\\) en `)
     );
     expect(b[0].text).toMatch(/^Arrêts : 1 sans-livraison\.$/m);
     expect(b[0].text).toMatch(/^Face au bilan de demo-bilan : mur \d+ → \d+ min, /m);

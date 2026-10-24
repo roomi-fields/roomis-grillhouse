@@ -20,17 +20,9 @@ const S = 1_000;
 const MIN = 60_000;
 const at = (hm: string) => `2026-10-18T${hm}:00Z`;
 const MAINTENANT = Date.parse(at('12:00'));
-const COMPOSANTS = [
-  'packages/forms',
-  'packages/sheet',
-  'packages/binder',
-  'packages/audio',
-  'packages/kronos',
-];
 
 interface Ligne {
   texte: string;
-  alterne?: string;
   ton?: string;
   ticket?: string;
   section?: string;
@@ -71,8 +63,8 @@ const depot = (e: object) => {
     path.join(dossier, 'demo-12.circuit.json'),
     JSON.stringify({
       etape: 'preuve',
-      composant: 'packages/binder',
-      composants: COMPOSANTS,
+      paquets: ['packages/binder'],
+      constats: [],
       tentative: 1,
       code: null,
       raison: null,
@@ -132,7 +124,7 @@ const agents = (
 const duTicket = (l: Ligne[]) => l.find(x => x.ticket === 'demo-12')!;
 
 describe('the line of a ticket at an automatic step gives the progress of its pass', () => {
-  it('done/planned and the time since the start of its pass, after its component, on both of its texts', () => {
+  it('done/planned and the time since the start of its pass, after its subject', () => {
     const racine = depot({
       avancement: avancement([
         [80, 100, 8 * S],
@@ -140,7 +132,6 @@ describe('the line of a ticket at an automatic step gives the progress of its pa
       ]),
     });
     const l = duTicket(agents(racine));
-    expect(l.alterne).toBe('▶ 12  binder 3/5 · 87/123 · 20 min');
     expect(l.texte).toBe('▶ 12  Le sujet de demo-12 · 87/123 · 20 min');
     expect(l).toMatchObject({ ton: 'actif', avancement: true });
   });
@@ -149,10 +140,10 @@ describe('the line of a ticket at an automatic step gives the progress of its pa
     expect(FIGEE).toBe(5 * MIN);
     const racine = depot({ avancement: avancement([[87, 123, 12 * MIN]]) });
     const l = duTicket(agents(racine));
-    expect(l.alterne).toBe('▶ 12  binder 3/5 · ⚠ figée 12 min · 87/123');
+    expect(l.texte).toBe('▶ 12  Le sujet de demo-12 · ⚠ figée 12 min · 87/123');
     expect(l.ton).toBe('alerte');
     const juste = depot({ avancement: avancement([[87, 123, 4 * MIN]]) });
-    expect(duTicket(agents(juste)).alterne).toBe('▶ 12  binder 3/5 · 87/123 · 20 min');
+    expect(duTicket(agents(juste)).texte).toBe('▶ 12  Le sujet de demo-12 · 87/123 · 20 min');
   });
 
   it('after the counters of the loops while they hold, in their place when room lacks; the subject is cut, never the figures', () => {
@@ -163,13 +154,11 @@ describe('the line of a ticket at an automatic step gives the progress of its pa
       avancement: avancement([[87, 123, 8 * S]]),
     };
     const large = duTicket(agents(depot(etat)));
-    expect(large.alterne).toBe('▶ 12  binder 3/5 · essai 2/3 · 87/123 · 20 min');
+    expect(large.texte).toMatch(/^▶ 12 {2}Le sujet de dem.* · essai 2\/3 · 87\/123 · 20 min$/);
     const serre = duTicket(agents(depot(etat), { registre: [fin] }));
-    for (const t of [serre.texte, serre.alterne!]) {
-      expect(t.length).toBeLessThanOrEqual(LARGEUR);
-      expect(t).toMatch(/ · 87\/123 · 20 min +1 h 00 · 10$/);
-      expect(t).not.toContain('essai 2/3');
-    }
+    expect(serre.texte.length).toBeLessThanOrEqual(LARGEUR);
+    expect(serre.texte).toMatch(/ · 87\/123 · 20 min +1 h 00 · 10$/);
+    expect(serre.texte).not.toContain('essai 2/3');
   });
 
   it('a circuit that does not run shows no progress', () => {
@@ -181,7 +170,7 @@ describe('the line of a ticket at an automatic step gives the progress of its pa
 
   it('a pass whose tasks have not written yet: the time since its start alone, frozen past FIGEE', () => {
     const racine = depot({ avancement: avancement([]) });
-    expect(duTicket(agents(racine)).alterne).toBe('▶ 12  binder 3/5 · ⚠ figée 20 min');
+    expect(duTicket(agents(racine)).texte).toBe('▶ 12  Le sujet de demo-12 · ⚠ figée 20 min');
   });
 });
 
@@ -191,29 +180,29 @@ describe('every automatic step carries its witness', () => {
     return [...a.slice(0, i)].reverse().find(x => /^ *\d+(\.\d+)? · /.test(x.texte))?.texte;
   };
 
-  it('2.4 the checks and 3 the final pass', () => {
+  it('3.1 the checks and 4.1 the final pass', () => {
     const controles = agents(
       depot({ etape: 'controles', avancement: avancement([[3, 9, 2 * S]]) })
     );
-    expect(sous(controles)).toBe('  2.4 · Contrôles · auto');
-    expect(duTicket(controles).alterne).toBe('▶ 12  binder 3/5 · 3/9 · 20 min');
+    expect(sous(controles)).toBe('  3.1 · Contrôles · auto');
+    expect(duTicket(controles).texte).toBe('▶ 12  Le sujet de demo-12 · 3/9 · 20 min');
     const finale = agents(
       depot({ etape: 'controles', finale: true, avancement: avancement([[40, 200, 2 * S]]) })
     );
-    expect(sous(finale)).toBe('  3 · Passe finale · auto');
-    expect(duTicket(finale).alterne).toBe('▶ 12  binder 3/5 · 40/200 · 20 min');
+    expect(sous(finale)).toBe('  4.1 · Passe finale · auto');
+    expect(duTicket(finale).texte).toBe('▶ 12  Le sujet de demo-12 · 40/200 · 20 min');
   });
 
   it('5.1 the commit: the verification of the integration, in the same figures', () => {
     const a = agents(depot({ etape: 'integration', avancement: avancement([[40, 123, 3 * S]]) }));
     expect(sous(a)).toBe('  5.1 · Commit · auto');
-    expect(duTicket(a).alterne).toBe('▶ 12  binder 3/5 · 40/123 · 20 min');
+    expect(duTicket(a).texte).toBe('▶ 12  Le sujet de demo-12 · 40/123 · 20 min');
   });
 
   it('5.2 the queue: the steps of its CI done over planned', () => {
     const a = agents(depot({ etape: 'file', avancement: avancement([], [3, 7, 10 * S]) }));
     expect(sous(a)).toBe('  5.2 · File : main, poussée, CI · auto');
-    expect(duTicket(a).alterne).toBe('▶ 12  binder 3/5 · 3/7 · 20 min');
+    expect(duTicket(a).texte).toBe('▶ 12  Le sujet de demo-12 · 3/7 · 20 min');
   });
 });
 

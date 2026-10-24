@@ -170,12 +170,6 @@ export const ouvrirGroupe = (s: Etat, groupe: string | undefined): Etat =>
       ? { ...s, vue: 'groupe', groupe, element: null, grand: false }
       : s
 
-// A line's text and its other text (`alterne`) take turns, ALTERNANCE ms each: the text shown at
-// the turn `tour` of the pane's clock (its other text at an odd turn), its text when it has no other.
-export const ALTERNANCE = 5_000
-export const texteDe = (l: Ligne, tour: number) =>
-  l.alterne !== undefined && tour % 2 === 1 ? l.alterne : l.texte
-
 // While the board shows a line of progress (`avancement`: an automatic pass, « il y a 8 s »), it is
 // measured again every AVANCEMENT ms instead of every PERIODE: `aMesurer` says when, at the pane's
 // clock.
@@ -190,8 +184,6 @@ export const couleur = (ton: Ligne['ton']) =>
 // The session's project, and whether the board applies to it.
 let cwd = ''
 let actif = false
-// The turns of the alternation of the lines' texts, one per ALTERNANCE.
-let tour = 0
 // The pane's window: its first line, the element it last followed, and the rows and focus it was
 // last drawn with. The wheel moves it; the ring moving to another line makes it follow.
 let fenetre = 0
@@ -314,11 +306,9 @@ export const register: Register = on => {
     })
     void rafraichir($)
     $.clock.every(PERIODE, () => void rafraichir($))
-    // A line with another text turns at each ALTERNANCE: the pane is drawn again, while one shows.
-    $.clock.every(ALTERNANCE, () => {
-      tour++
+    // A line of progress has the board measured again, by the clock of half its period.
+    $.clock.every(AVANCEMENT / 2, () => {
       void read($, etat).then(s => {
-        if (lignesDe(s).some(l => l.alterne !== undefined)) $.ui.invalidate('ui.render')
         if (aMesurer(s, Date.now())) void rafraichir($)
       })
     })
@@ -508,7 +498,7 @@ export const register: Register = on => {
           {liste.slice(premier, premier + rangs).map(({ l, cle }) => {
             const texte = (
               <Text bold={l.ton === 'titre'} dimColor={l.ton === 'discret'} color={couleur(l.ton)} wrap="truncate-end">
-                {texteDe(l, tour) || ' '}
+                {l.texte || ' '}
               </Text>
             )
             if (cle && l.groupe) {

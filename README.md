@@ -84,16 +84,20 @@ Three layers, each with one job:
 
 A change of behaviour is one ticket that passes from agent to agent in its copy: tests (testwriter) →
 code (developer) → review → commit on the ticket's branch → the queue brings it onto main, which closes it.
+As a merge request, the ticket has one author per step: one testwriter and one developer for the whole ticket,
+each in the envelope of every package of its plan, then a final pass and a review on the whole; no component is
+a unit of the circuit.
 The supervisor launches the ticket's circuit (`packages/grillhouse/scripts/circuit.mjs`) once. As a CI applies its
 rules without asking and calls a person only for what no rule settles, the circuit makes the mechanical gestures
 itself, with no session, each written at the ticket and in the log with its rule (`GESTES` of
-`packages/grillhouse/scripts/etapes.mjs`): a command at 75 played once more, the end at 75 (« à repasser »), a red sent to the
-developer of the component that owns it, a developer's sending to a testwriter, the regeneration of the references, a
-developer with nothing to deliver judged by his component's checks. Every other stop ends the circuit on a question for
+`packages/grillhouse/scripts/etapes.mjs`): a command at 75 played once more, the end at 75 (« à repasser »), a
+developer's sending to the testwriter, the regeneration of the references, a developer with nothing to deliver judged by
+the checks. Every other stop ends the circuit on a question for
 the supervisor, with its exit code: the circuit's state carries the fact, its piece (file:line, or command and output),
 the question and who must answer it (`superviseur`, or `responsable` for the reviewer's question on a real word of the
-language). The supervisor answers by a command of the circuit, `--reprendre` (with `--contexte`) or `--depuis`,
-`--etendre <composant>` (the plan gains that component, before its first reader), or `--arreter` (its motive in `--contexte`), and carries to the
+language). The supervisor answers by a command of the circuit, `--reprendre` (with `--contexte`) or
+`--depuis <testwriter|developpeur>` (the whole ticket again from that step), `--etendre <paquet>` (the plan gains that
+package, before its first reader, then the step under way resumes), or `--arreter` (its motive in `--contexte`), and carries to the
 owner what is his; a decision of the owner that changes the plan enters the ticket's description, which every agent
 reads. So the supervisor is woken only by a lot integrated or by a question no rule settles.
 Before the first testwriter, the plan (1 Plan), as an RFC: the explorer (`explorateur`) writes it after surveying the
@@ -101,7 +105,7 @@ components the ticket reaches (`packages/grillhouse/scripts/composants-affectes.
 by the names, by TypeScript's language service, by the paths their tests declare they read (`grillhouse.lit`) and by the
 Rend of the components' CADRE.md; a package that carries a type without reading it is no reader, and a symbol internal
 to a package has none out of it): its sheet carries the criteria, the packages to touch and its open questions, which
-the circuit writes at the ticket, the packages as the title's components, the list every later session's envelope
+the circuit writes at the ticket, the packages at the end of its title, the list every later session's envelope
 writes. The questioner (`questionneur`) reads the plan once, as Amazon's bar raiser or a cockpit's challenge and
 response; the explorer answers once, CHANGE or GARDE by question, its session resumed; what stays open goes up to the
 supervisor (`questionnement`, 22), who changes the plan or keeps it, then `--reprendre` lets it pass. The supervisor
@@ -109,15 +113,17 @@ has his own plan questioned by the same agent before he gives it to the owner.
 Each session writes at the ticket under its role as author (`BEADS_ACTOR`, which it may not change),
 the circuit's own lines under `circuit`, the queue's under `file`, and the reviewer's verdict under
 `relecteur`, written by the circuit from the reviewer's sheet. Each session's instruction carries the ticket's
-description as it is at its launch, the ticket's notes when it has some, and the last handover of
-its own role on its component (for a developer who has none yet, that of the testwriter of his
-component); the reviewer's carries no criteria, only the path of the claims file that holds them.
+description as it is at its launch, the ticket's notes when it has some, the reviewer's findings still open, and the
+last handover of its own role (for a developer who has none yet, that of the testwriter); the reviewer's carries no
+criteria, only the path of the claims file that holds them. A finding of the reviewer goes straight to the agent it
+names and stays open across every relaunch, as an unresolved thread of a review, until the reviewer judges it lifted
+or accepts the lot.
 Each session of a testwriter, a developer, the reviewer and the questioner ends on its sheet, the structured
 output its role's schema describes (`claude -p --output-format json --json-schema`, `packages/grillhouse/scripts/resultats.mjs`):
 the circuit decides on it, and on the summaries of Turborepo, the JSON reports of Vitest and the SARIF of
 the guards, never on free text; a session without a sheet that conforms is resumed once, then the circuit
-stops (`sans-fiche`). A developer who leaves a red in a component's tests sends it to that testwriter (`renvoi`
-in its sheet), and a component without tests goes straight to its developer. A sheet of a testwriter or a
+stops (`sans-fiche`). A developer who leaves a red in the tests of the lot sends it to the testwriter (`renvoi`
+in its sheet), and a plan without tests goes straight to the developer. A sheet of a testwriter or a
 developer carries its status, FAIT, BLOQUÉ with its reason or BESOIN with its question: a BESOIN, or a
 BLOQUÉ that sends the red to no testwriter, stops the circuit at once (`besoin`, `hors-portee`), a question for the
 supervisor, the agent not relaunched on that red.
@@ -130,7 +136,7 @@ an agent cannot aim the code at its own tests, nor edit a file by the shell; the
 testwriter's files, the code lot none of them). Each agent runs as a fresh session inside the **envelope** of its plan
 (`packages/grillhouse/scripts/enveloppe/`, a bubblewrap sandbox): it reads the whole copy, its indexes included,
 and writes only the packages its ticket's plan names; a write out of the plan stops the session, and the
-supervisor extends the plan or refuses. The package of the shared test material (the component that exports
+supervisor extends the plan or refuses. The package of the shared test material (the package that exports
 `./test-fixtures`) is written by the testwriter alone. Of the home and
 the session directory it shows only what it declares (claude, node, git, the session's tools and
 the repository), and of the environment only what it declares (the base of a login session and
@@ -139,17 +145,16 @@ claude's own are reachable (`~/.claude`, a throwaway copy of `~/.claude.json`, i
 token), and no socket of the session, no token held in a variable (`GH_TOKEN`…). A missing piece
 of data becomes a request to the component that provides it, not a local recomputation. One
 ticket makes one delivery: a goal of unknown size starts with an exploration ticket, every ticket
-is created under its mother (numbered `320.2.1`) and every ticket stands at one step of the tree of its circuit (`packages/grillhouse/scripts/etapes.mjs`: 1 Plan; 2 Composants, for each component 2.1 Tests, 2.2 Preuve du rouge, 2.3 Code, 2.4 Contrôles; 3 Passe finale; 4 Relecture; 5 Intégration, its sub-steps 5.1 Commit and 5.2 File : main, poussée, CI), each step carrying its bounded loops (`essai 2/3`, `tour 2/3`), and a hook refuses a second commit for a closed ticket (a reopened ticket takes correction commits).
+is created under its mother (numbered `320.2.1`) and every ticket stands at one step of the tree of its circuit (`packages/grillhouse/scripts/etapes.mjs`: 1 Plan; 2 Tests, 2.1 Preuve du rouge; 3 Code, 3.1 Contrôles; 4 Passe finale et relecture, its sub-steps 4.1 Passe finale, 4.2 Régénération des références and 4.3 Relecture; 5 Intégration, its sub-steps 5.1 Commit and 5.2 File : main, poussée, CI), each step carrying its bounded loops (`essai 2/3`, `tour 2/3`), and a hook refuses a second commit for a closed ticket (a reopened ticket takes correction commits).
 
 **The board** — the `grillhouse` mod (a Claude Code plugin whose source lives in `mods/grillhouse`, carried
 by the package `@roomi-fields/grillhouse`, whose root is the plugin, listed by the marketplace roomi-fields as `grillhouse@roomi-fields`,
 enabled in each project's settings) shows, measured and never declared, in the `/grillhouse` pane, three levels: the project (its work tickets by state, the
 agents' time and tokens of the day and in all, the alerts); the agents: the tree of the steps, as a pipeline
 of GitLab CI shows its stages, each step on its line « number · title · who », a step with sub-steps folded
-(`▸ 2 · Composants`) while none of them holds a ticket and unfolded (`▾`) once one does, its empty sub-steps
+(`▸ 4 · Passe finale et relecture`) while none of them holds a ticket and unfolded (`▾`) once one does, its empty sub-steps
 dimmed, an empty step dimmed, where each ticket stands on one line, once — a ticket with a circuit
-(`packages/grillhouse/scripts/circuit.mjs`, read in its state file) at the step of its state, its subject and, every other 5 s,
-its component under way with its rank among the title's (`030-binder 3/5`), the counters of its step's
+(`packages/grillhouse/scripts/circuit.mjs`, read in its state file) at the step of its state, its subject, the counters of its step's
 bounded loops from their second pass (`essai 2/3`, `tour 2/3`), at an automatic step the
 progress of its pass in figures, as Bazel counts its actions (`87/123 · il y a 8 s`: the test files done over
 planned, a file replayed from Turborepo's cache counted done, and the time since the last sign;

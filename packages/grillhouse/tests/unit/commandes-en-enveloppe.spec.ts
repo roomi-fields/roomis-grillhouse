@@ -405,16 +405,21 @@ describe.runIf(canWrap)(
     const args = path.join(copie, 'packages/loader/args');
     const recu = path.join(copie, 'packages/loader/prompt');
 
-    const lancer = () => {
+    // A launch of the developpeur on <composant>, with the options <options> before its arguments.
+    const lancer = (options: string[] = [], composant = 'packages/loader') => {
       rmSync(args, { force: true });
       rmSync(recu, { force: true });
       const consigne = path.join(ESSAIS, 'consigne.txt');
       writeFileSync(consigne, 'TON TICKET : demo-1 — suivre forms.');
-      const r = spawnSync('bash', [LANCEUR, 'demo-1', 'developpeur', 'packages/loader', consigne], {
-        cwd: repo,
-        encoding: 'utf8',
-        env: { ...ENV, CLAUDE_BIN: faux, HOME: home },
-      });
+      const r = spawnSync(
+        'bash',
+        [LANCEUR, ...options, 'demo-1', 'developpeur', composant, consigne],
+        {
+          cwd: repo,
+          encoding: 'utf8',
+          env: { ...ENV, CLAUDE_BIN: faux, HOME: home },
+        }
+      );
       const journal = existsSync(`${copie}.log`) ? readFileSync(`${copie}.log`, 'utf8') : '';
       const prompt = existsSync(recu) ? readFileSync(recu, 'utf8') : null;
       return { r, prompt, trace: `${r.stderr}\n${journal}` };
@@ -442,6 +447,24 @@ describe.runIf(canWrap)(
         prompt?.indexOf('## Ton dossier de travail') ?? Infinity
       );
       // The provider was built with its lot.
+      expect(readFileSync(path.join(copie, 'packages/forms/dist/index.d.ts'), 'utf8')).toContain(
+        'nom'
+      );
+    });
+
+    // grillhouse-3uv.95.6: the circuit launches one session for the whole ticket, `.` as its
+    // component and the packages of the plan as `--paquets`: the launch builds the packages of the
+    // plan, their providers first, and one of them that does not build opens the session, its error
+    // in the instruction, as it does for one package; the whole copy is not built in its place.
+    it('builds the packages of the plan of a session over the whole ticket, a failure in its instruction', () => {
+      writeFileSync(
+        path.join(copie, 'packages/forms/src/index.d.ts'),
+        'export declare const nom: string;\n'
+      );
+      const { r, prompt, trace } = lancer(['--paquets', 'packages/forms:packages/loader'], '.');
+      expect(r.status, trace).toBe(0);
+      expect(prompt).toContain('La construction de ton paquet échoue');
+      expect(prompt).toContain("Property 'name' does not exist");
       expect(readFileSync(path.join(copie, 'packages/forms/dist/index.d.ts'), 'utf8')).toContain(
         'nom'
       );

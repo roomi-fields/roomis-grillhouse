@@ -6,7 +6,7 @@ import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit
 // The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): a relaunch of an
 // agent on its step resumes its session. The first session of an agent on a step carries a session
 // id the circuit sets (`--session-id`), kept in the state (`reprise`); its relaunches on the same
-// step and component (the testwriter after a refused proof, the developpeur after red checks) resume
+// step (the testwriter after a refused proof, the developpeur after red checks) resume
 // it (`--resume`) with the short template of consigne-agent.md, save the last attempt, a fresh and
 // whole session. A resumption that fails falls back on a fresh and whole session.
 // The trial repository and its stand-ins: ./circuit-essai.ts (its claude keeps a session's
@@ -64,7 +64,7 @@ describe.runIf(canWrap)(
       expect(courte).toContain(COURTE);
       expect(courte).not.toContain(ENTIERE);
       expect(courte).toContain(`TON TICKET : ${id}`);
-      expect(courte).toContain('TON COMPOSANT : packages/forms');
+      expect(courte).toContain('TON PLAN : packages/forms');
       expect(courte).toContain('critère 1 — mesure rend le double');
       expect(courte).toContain('Ta séance finit sur ta fiche');
       // The resumption carries no section the launcher adds to a whole instruction.
@@ -76,7 +76,7 @@ describe.runIf(canWrap)(
       expect(a3).not.toContain('--resume');
       expect(valeur(a3, '--model')).toBe('opus');
       expect(essai(id, 'developpeur-3.prompt')).toContain(ENTIERE);
-      expect(etat(id)?.reprise).toEqual({ agent: 'developpeur packages/forms', seance: derniere });
+      expect(etat(id)?.reprise).toEqual({ agent: 'developpeur', seance: derniere });
     });
 
     it('a resumption that fails falls back on a fresh and whole session', () => {
@@ -104,7 +104,7 @@ describe.runIf(canWrap)(
       expect(essai(id, 'developpeur-3.prompt')).toContain('critère 1 — mesure rend le double');
       expect(commentaires(id)).toContainEqual(
         expect.stringMatching(
-          /^Circuit · packages\/forms · developpeur : reprise de la séance .* séance neuve et entière/
+          /^Circuit · developpeur : reprise de la séance .* séance neuve et entière/
         )
       );
       expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });

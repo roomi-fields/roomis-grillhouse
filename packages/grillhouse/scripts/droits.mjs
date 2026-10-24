@@ -107,6 +107,14 @@ const INTEGREES = ['design', 'doctor', 'plugin-authoring'];
 const GREFFON_DU_CADRE = 'grillhouse@';
 // The servers of the index (charter, « L'index d'abord »).
 const INDEX = ['codegraph', 'rtfm'];
+// The reads of the index by a role that writes: codegraph for the calls, rtfm for the search and
+// the reading of a result whole.
+const LIRE_L_INDEX = [
+  'Bash(codegraph explore *)',
+  'mcp__codegraph__codegraph_explore',
+  'mcp__rtfm__rtfm_search',
+  'mcp__rtfm__rtfm_expand',
+];
 // The tools of every role, and of a role that writes.
 const LIRE = ['Bash', 'Read', 'Skill'];
 const ECRIRE = ['Edit', 'Write'];
@@ -129,18 +137,25 @@ export const ROLES = {
       'mcp__rtfm__rtfm_search',
     ],
   },
+  // It writes the tests of the whole ticket, in the envelope of its plan, and reads the whole copy
+  // by the index (charter, « L'index d'abord »).
   testwriter: {
     ecrit: true,
+    index: true,
     commandes: [
       'Bash(bd update * --claim)',
       'Bash(bd comments add *)',
       'Bash(npm test *)',
       // The removal of a file of its tests, by a script of its temporary directory.
       'Bash(node $TMPDIR/*)',
+      ...LIRE_L_INDEX,
     ],
   },
+  // It writes the code of the whole ticket, in the envelope of its plan, and reads the whole copy
+  // by the index.
   developpeur: {
     ecrit: true,
+    index: true,
     commandes: [
       'Bash(bd update * --claim)',
       'Bash(bd update * --notes*)',
@@ -149,6 +164,7 @@ export const ROLES = {
       'Bash(git -C * diff*)',
       'Bash(npm test *)',
       'Bash(npm run api*)',
+      ...LIRE_L_INDEX,
     ],
   },
   relecteur: {

@@ -10,7 +10,7 @@ import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit
 // diff, read line by line, and a review that asks a word on every changed file, the circuit gives
 // the reviewer the list of each element the lot adds, changes or removes
 // (scripts/elements-du-lot.mjs); the reviewer's sheet holds one line per element (`conformite`),
-// a sheet that misses one is refused, and a « non » sends the lot back to its recipient.
+// a sheet that misses one is refused, and a « non » sends the lot back to its agent.
 // The trial repository and its stand-ins: ./circuit-essai.ts.
 
 // The trial lives out of /tmp, which the envelope replaces with an empty directory.
@@ -78,7 +78,7 @@ describe.runIf(canWrap)('the conformity of each element of the lot', { timeout: 
 
   // As a review unticks « viewed » on the files changed since: the bounded review takes up the
   // line of an element the difference does not touch, and judges again the one it touches.
-  it('a « non » sends the lot back to its recipient; the bounded review judges again what the fix touches, takes up the rest, and still asks every line', () => {
+  it('a « non » sends the lot back to its agent; the bounded review judges again what the fix touches, takes up the rest, and still asks every line', () => {
     const id = 'demo-conformite-non';
     const UNITE = 'packages/forms/src/index.mjs#unite';
     ticket(id, '000-forms');
@@ -99,7 +99,7 @@ describe.runIf(canWrap)('the conformity of each element of the lot', { timeout: 
       'relecteur-1',
       fiche({
         verdict: 'RENDU',
-        conformite: [ligne('non', { role: 'developpeur', composant: '000-forms' }), unite],
+        conformite: [ligne('non', { role: 'developpeur' }), unite],
       })
     );
     // The line of unite left out: refused, the session resumed once.
@@ -109,10 +109,10 @@ describe.runIf(canWrap)('the conformity of each element of the lot', { timeout: 
     expect(r.status, sortie(r)).toBe(0);
     expect(sessions(id, 'developpeur')).toBe(2);
     expect(sessions(id, 'relecteur')).toBe(3);
-    // The « non » is a blocking finding at the ticket, with its rule and its recipient.
+    // The « non » is a blocking finding at the ticket, with its rule and its agent.
     expect(commentaires(id)).toContainEqual(
       expect.stringMatching(
-        /^RENDU\n\n### Constat 1 — packages\/forms\/src\/index\.mjs#mesure\nBloquant : CADRE de 000-forms, R1\nAgent : developpeur 000-forms\n/
+        /^RENDU\n\n### Constat 1 — packages\/forms\/src\/index\.mjs#mesure\nBloquant : CADRE de 000-forms, R1\nAgent : developpeur\n/
       )
     );
     expect(essai(id, 'developpeur-2.prompt')).toContain(MESURE);

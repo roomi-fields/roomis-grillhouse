@@ -326,7 +326,7 @@ describe('3uv.42 critère 4 : each line carries its section', () => {
 
   it('3uv.42 critère 4 : the agents title, each step and its tickets are in agents', () => {
     expect(section(L0, x => x.texte.startsWith('AGENTS'))).toBe('agents');
-    expect(section(L0, x => x.texte === '  2.3 · Code · développeur')).toBe('agents');
+    expect(section(L0, x => x.texte === '▾ 3 · Code · développeur')).toBe('agents');
     expect(section(L0, x => x.ticket === 'demo-e.1.4')).toBe('agents');
   });
 

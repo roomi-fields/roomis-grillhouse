@@ -106,10 +106,10 @@ writeFileSync(
 );
 installerEnveloppe(REPO);
 const FAUX = path.join(REPO, 'faux-claude.sh');
-// It writes in the component of the session, the plan the envelope names (grillhouse-3uv.95.3).
+// It writes in the first package of the plan the envelope names (grillhouse-3uv.95.3).
 writeFileSync(
   FAUX,
-  '#!/bin/bash\nprintf "%s\\0" "$@" > "$GRILLHOUSE_ENVELOPPE/args"\ncat > "$GRILLHOUSE_ENVELOPPE/prompt"\n',
+  '#!/bin/bash\nc=${GRILLHOUSE_ENVELOPPE%%:*}\nprintf "%s\\0" "$@" > "$c/args"\ncat > "$c/prompt"\n',
   { mode: 0o755 }
 );
 execFileSync('git', ['init', '-q', REPO]);
@@ -320,6 +320,32 @@ describe.runIf(canWrap)('the launcher and what the components before publish', (
       `TON TICKET : ${ticket} — un sujet.\n\n## Ce que les composants d'avant publient\n\n` +
         '`b` ne dépend d’aucun composant : aucune section « Consommateurs » ne le nomme.\n\n' +
         TRAVAIL(ticket)
+    );
+  });
+  // grillhouse-3uv.95.6: one session works the whole plan of a ticket; the section gives, for
+  // each package of the plan, what its providers publish to it.
+  it('gives the session of a plan of two packages what the providers of each publish', () => {
+    const ticket = `demo-${++numero}`;
+    const consigne = path.join(REPO, `${ticket}.txt`);
+    writeFileSync(consigne, `TON TICKET : ${ticket} — un sujet.`);
+    const r = spawnSync(
+      'bash',
+      [LAUNCHER, '--paquets', 'packages/a:packages/d', ticket, 'developpeur', '.', consigne],
+      { cwd: REPO, encoding: 'utf8', env: { ...process.env, CLAUDE_BIN: FAUX, HOME } }
+    );
+    const copie = path.join(REPO, '.claude/worktrees', ticket);
+    expect(r.status, r.stderr).toBe(0);
+    const prompt = readFileSync(path.join(copie, 'packages/a/prompt'), 'utf8');
+    expect(prompt).toContain("## Ce que les composants d'avant publient");
+    expect(prompt).toContain('### Pour `a`');
+    expect(prompt).toContain('#### b');
+    expect(prompt).toContain('Déclaré pour `a` : duree.');
+    expect(prompt).toContain('### Pour `d`');
+    expect(prompt).toContain('#### g');
+    expect(prompt).toContain(`Déclaré pour \`d\` : ${NOMS_DE_G[0]}`);
+    expect(prompt.indexOf('### Pour `a`')).toBeLessThan(prompt.indexOf('### Pour `d`'));
+    expect(prompt).toBe(
+      `TON TICKET : ${ticket} — un sujet.\n\n${publie(copie, 'packages/a:packages/d')}\n\n${TRAVAIL(ticket)}`
     );
   });
   // Witness: BPScript, a ticket across ten components, whose section held 127 KB on its own:

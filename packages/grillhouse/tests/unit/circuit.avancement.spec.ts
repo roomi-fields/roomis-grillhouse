@@ -10,7 +10,7 @@ import { CIRCUIT, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.
 // pass it runs (`avancement`: the proof of the red, the checks, the final pass, the verification
 // of the integration, the queue and its CI), where the passes write their files done and planned
 // (scripts/avancement.mjs), which the board reads; between two passes, the state names none.
-// The final pass, the checks of the last component, says `finale` in the state from its start.
+// The final pass, after the checks of the plan, says `finale` in the state from its start.
 // Witness: a pass frozen 40 min, the machine at rest, that nothing showed.
 // The trial repository and its stand-ins: ./circuit-essai.ts.
 
@@ -69,12 +69,18 @@ describe.runIf(canWrap)(
       expect(await fin, existsSync(journal) ? readFileSync(journal, 'utf8').slice(-4000) : '').toBe(
         0
       );
-      // The checks of the last component are the final pass (`npm run verifier`): the state says
-      // `finale` from its start, as the board reads step 3 there.
-      expect([...vus.keys()].sort()).toEqual(['controles finale', 'file', 'integration', 'preuve']);
+      // The checks of the plan, then the final pass (`npm run verifier`): the state says `finale`
+      // from its start, as the board reads step 4.1 there, and keeps it to the end.
+      expect([...vus.keys()].sort()).toEqual([
+        'controles',
+        'controles finale',
+        'file finale',
+        'integration finale',
+        'preuve',
+      ]);
       expect(vus.get('preuve')).toBeGreaterThan(0);
       expect(vus.get('controles finale')).toBeGreaterThan(0);
-      expect(vus.get('integration')).toBeGreaterThan(0);
+      expect(vus.get('integration finale')).toBeGreaterThan(0);
       expect(lire()?.avancement ?? null).toBeNull();
     });
   }

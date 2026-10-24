@@ -32,7 +32,7 @@ tourne qu'une fois tant que rien ne change, et corriger un test ne rejoue que lu
 **Tout se lit, le plan s'écrit** : un agent de rôle travaille dans l'enveloppe de sa copie
 (`packages/grillhouse/scripts/enveloppe/`, un bac à sable bubblewrap) ; il lit toute la copie,
 index compris (`.codegraph`, `.rtfm`), et n'écrit que les paquets que le plan de son ticket nomme
-(les composants du titre), la base des tickets et le cache de Turborepo ; `.git` reste en lecture
+(les paquets du titre), la base des tickets et le cache de Turborepo ; `.git` reste en lecture
 seule, et la matière de test partagée s'écrit par le seul testwriter. Un chemin du plan hors des
 paquets écrit la racine, toute la copie. `GRILLHOUSE_ENVELOPPE` porte la liste aux commandes du
 cadre, qui construisent, jugent et écrivent ses seuls paquets. Une écriture hors du plan échoue
@@ -48,13 +48,12 @@ causait l'essentiel des pertes).
 ce qu'aucune règle ne tranche (l'approbation d'une revue), le circuit d'un ticket
 (`packages/grillhouse/scripts/circuit.mjs`) fait lui-même, sans séance, les gestes que la liste des
 étapes écrit (`GESTES` de `packages/grillhouse/scripts/etapes.mjs`) : une commande à 75 rejouée une
-fois, la fin à 75, un rouge rendu au développeur du composant qui le possède, le renvoi au
-testwriter que la fiche du développeur nomme, la régénération des références, un développeur sans
-rien à livrer jugé par les contrôles de son composant ; chaque geste s'écrit au ticket et au
+fois, la fin à 75, le renvoi au testwriter que la fiche du développeur nomme, la régénération des
+références, un développeur sans rien à livrer jugé par les contrôles ; chaque geste s'écrit au ticket et au
 journal avec sa règle. Tout autre arrêt finit le circuit sur une question au superviseur (`MONTEES`),
 que l'état du circuit porte : le fait, sa pièce (`fichier:ligne`, ou la commande et sa sortie), la
 question, et qui doit répondre, le superviseur ou le responsable ; le superviseur répond par une
-commande du circuit (`--reprendre`, `--depuis`, `--etendre <composant>`, `--arreter`). Ainsi aucune
+commande du circuit (`--reprendre`, `--depuis`, `--etendre <paquet>`, `--arreter`). Ainsi aucune
 séance ne juge un geste qu'une règle tranche (BP 320.9 : 67 séances d'arbitrage et de réponse
 au plan, 14 montées qui étaient des gestes).
 
@@ -63,8 +62,8 @@ avoir relevé l'existant, qu'une revue la lit une fois, que l'auteur répond une
 reste ouvert va à qui décide, l'étape 1 du circuit (1 Plan) lance l'explorateur hors de
 l'enveloppe ; il relève les composants (`npx grillhouse composants-affectes <ticket>`) et finit sur
 sa fiche : les critères, les paquets à toucher, ses questions ouvertes avec leur pièce. Le circuit
-écrit le plan au ticket : les paquets deviennent les composants du titre, la seule liste que lit
-l'enveloppe de chaque séance d'après. Le questionneur le lit une fois ; l'explorateur, sa séance
+écrit le plan au ticket : les paquets finissent son titre, la seule liste que lit l'enveloppe de
+chaque séance d'après. Le questionneur le lit une fois ; l'explorateur, sa séance
 reprise, répond une fois, CHANGE ou GARDE par question ; ce qui reste ouvert monte au superviseur
 (« questionnement »), sinon le circuit passe aux tests. Ainsi les questions utiles se posent avant
 le plan, et le plan ne tourne pas en rond (BP 320.9 : 132 tours de questions, 29 critères dont 2
@@ -86,6 +85,21 @@ changés depuis, la consigne marque chaque élément : à rejuger quand la diff�
 repris sinon avec sa ligne d'avant, que la fiche porte encore. Ainsi rien de neuf n'entre sans
 avoir été jugé contre l'architecture (Romain, 2026-10-23 : « il faut que le relecteur valide
 vraiment la conformité à l'architecture de tout ce qu'il y a de nouveau/changé »).
+
+**Un circuit par ticket** : comme une demande de fusion (un auteur, une série de tests et de
+code, une CI sur l'ensemble, une revue), le circuit lance un seul testwriter et un seul
+développeur pour tout le ticket, chacun dans l'enveloppe de tous les paquets du plan, puis la
+passe finale et le relecteur sur l'ensemble ; aucun composant n'est une unité du circuit. Les
+étapes (`packages/grillhouse/scripts/etapes.mjs`) : 1 Plan · 2 Tests · 2.1 Preuve du rouge ·
+3 Code · 3.1 Contrôles · 4 Passe finale et relecture (4.1 Passe finale, 4.2 Régénération des
+références, 4.3 Relecture) · 5 Intégration. `--depuis <testwriter|developpeur>` rejoue le
+ticket entier depuis cette étape ; `--etendre <paquet>` ajoute un paquet au plan, puis reprend
+l'étape en cours. Un constat bloquant du relecteur va droit à l'agent qu'il nomme et reste ouvert
+d'une relance à l'autre, comme un fil de revue non résolu, jusqu'à ce que le relecteur le dise
+levé ou accepte le lot. Le bilan compte par étape et par rôle. Ainsi un type change avec ses
+lecteurs en une seule séance, et un constat n'est jamais perdu (BP 320.9 : seize composants
+joués l'un après l'autre, 118 min d'étapes vertes rejouées, un constat sur `exemplar` perdu six
+fois).
 
 **Une passe écrit sous sa base** : chaque lancement de Vitest, `npm test`, `npm run verifier`,
 un circuit, une intégration et une enveloppe ouvrent leur base dans le dossier temporaire, la

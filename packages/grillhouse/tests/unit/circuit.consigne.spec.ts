@@ -34,64 +34,54 @@ const passationDe = (consigne: string) =>
 describe.runIf(canWrap)('the instruction of a session', { timeout: 300_000 }, () => {
   afterEach(revenirAuDebut);
 
-  it("carries as the last handover the one of the session's role on its component, the testwriter's for a developpeur who has none yet, never another component's, nor the verdict", () => {
+  it("carries as the last handover the one of the session's role, the testwriter's for a developpeur who has none yet, never the verdict; each agent its own findings", () => {
     const id = 'demo-consigne-passation';
     ticket(id, '000-forms, 030-binder');
-    scenario(id, 'testwriter-1', `${ECRIT_ROUGE}passation 'Passation du testwriter de forms.'\n`);
-    scenario(id, 'testwriter-2', `${ECRIT_ROUGE}passation 'Passation du testwriter de binder.'\n`);
-    // After the RENDU, the testwriter of forms justifies its test, already green: no red, so no
-    // developpeur of forms; the developpeur of binder comes right after him.
+    scenario(id, 'testwriter-1', `${ECRIT_ROUGE}passation 'Passation du testwriter.'\n`);
+    // After the RENDU, the testwriter justifies its test, already green: no red, the developpeur
+    // comes right after him on his own finding.
     scenario(
       id,
-      'testwriter-3',
-      `passation 'Rendu de forms traité par son testwriter.'\nfiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/mesure.test.mjs","test":"critère 1 — mesure rend le double","raison":"livré avant le rendu"}]}'\n`
+      'testwriter-2',
+      `passation 'Rendu traité par le testwriter.'\nfiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/mesure.test.mjs","test":"critère 1 — mesure rend le double","raison":"livré avant le rendu"}]}'\n`
     );
-    scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code de forms.'\n`);
-    scenario(id, 'developpeur-2', `${CODE_JUSTE}passation 'Code de binder.'\n`);
+    scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     scenario(
       id,
-      'developpeur-3',
-      `printf '// rendu\\n' >> $c/src/index.mjs\npassation 'Rendu de binder traité.'\n`
+      'developpeur-2',
+      `printf '// rendu\\n' >> $c/src/index.mjs\npassation 'Rendu traité par le développeur.'\n`
     );
     scenario(
       id,
       'relecteur-1',
-      `fiche '{"verdict":"RENDU","constats":[{"titre":"packages/forms/test/mesure.test.mjs","genre":"bloquant","regle":"critère 1","role":"testwriter","composant":"000-forms","corps":"Constat adressé à forms."},{"titre":"packages/binder/src/index.mjs","genre":"bloquant","regle":"critère 1","role":"developpeur","composant":"030-binder","corps":"Constat adressé à binder."}]}'\n`
+      `fiche '{"verdict":"RENDU","constats":[{"titre":"packages/forms/test/mesure.test.mjs","genre":"bloquant","regle":"critère 1","role":"testwriter","corps":"Constat adressé au testwriter."},{"titre":"packages/binder/src/index.mjs","genre":"bloquant","regle":"critère 1","role":"developpeur","corps":"Constat adressé au développeur."}]}'\n`
     );
     scenario(id, 'relecteur-2', `fiche '{"verdict":"ACCEPTÉ"}'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(ordre(id)).toEqual([
-      'testwriter packages/forms',
-      'developpeur packages/forms',
-      'testwriter packages/binder',
-      'developpeur packages/binder',
+      'testwriter',
+      'developpeur',
       'relecteur',
-      'testwriter packages/forms',
-      'developpeur packages/binder',
+      'testwriter',
+      'developpeur',
       'relecteur',
     ]);
-    // A first session of each role: the testwriter's, nothing before him on his component; the
-    // developpeur's, the handover of the testwriter of his component.
+    // A first session of each role: the testwriter's, nothing before him; the developpeur's, the
+    // handover of the testwriter.
     expect(passationDe(essai(id, 'testwriter-1.prompt'))).toBe('aucune');
-    expect(passationDe(essai(id, 'developpeur-1.prompt'))).toBe(
-      'Passation du testwriter de forms.'
-    );
-    expect(passationDe(essai(id, 'testwriter-2.prompt'))).toBe('aucune');
-    expect(passationDe(essai(id, 'developpeur-2.prompt'))).toBe(
-      'Passation du testwriter de binder.'
-    );
-    // After the RENDU: each agent its own last handover on its component, its findings alone.
-    const testwriter = essai(id, 'testwriter-3.prompt');
-    expect(passationDe(testwriter)).toBe('Passation du testwriter de forms.');
-    expect(testwriter).toContain('Constat adressé à forms.');
-    expect(testwriter).not.toContain('Constat adressé à binder.');
-    const developpeur = essai(id, 'developpeur-3.prompt');
-    expect(developpeur).toContain('TON COMPOSANT : packages/binder');
-    expect(passationDe(developpeur)).toBe('Code de binder.');
-    expect(developpeur).toContain('Constat adressé à binder.');
-    expect(developpeur).not.toContain('Constat adressé à forms.');
-    expect(developpeur).not.toContain('Rendu de forms traité par son testwriter.');
+    expect(passationDe(essai(id, 'developpeur-1.prompt'))).toBe('Passation du testwriter.');
+    // After the RENDU: each agent its own last handover, its findings alone.
+    const testwriter = essai(id, 'testwriter-2.prompt');
+    expect(passationDe(testwriter)).toBe('Passation du testwriter.');
+    expect(testwriter).toContain('Constat adressé au testwriter.');
+    expect(testwriter).not.toContain('Constat adressé au développeur.');
+    const developpeur = essai(id, 'developpeur-2.prompt');
+    expect(developpeur).toContain('TON PLAN : packages/forms, packages/binder');
+    expect(passationDe(developpeur)).toBe('Code écrit.');
+    expect(developpeur).toContain('Constat adressé au développeur.');
+    expect(developpeur).not.toContain('Constat adressé au testwriter.');
+    expect(developpeur).not.toContain('Rendu traité par le testwriter.');
   });
 
   it("gives the reviewer the claims file, which holds the ticket's criteria, and not the criteria themselves", () => {
@@ -140,12 +130,7 @@ fiche '{"verdict":"ACCEPTÉ"}'
     expect(bd.status, bd.stderr).toBe(0);
     const s = circuit([id, '--reprendre']);
     expect(s.status, sortie(s)).toBe(0);
-    expect(ordre(id)).toEqual([
-      'testwriter packages/forms',
-      'testwriter packages/forms',
-      'developpeur packages/forms',
-      'relecteur',
-    ]);
+    expect(ordre(id)).toEqual(['testwriter', 'testwriter', 'developpeur', 'relecteur']);
     const avant = essai(id, 'testwriter-1.prompt');
     expect(avant).not.toContain('2. `mesure` de 0 rend 0.');
     expect(avant).not.toContain('LES NOTES DU TICKET');

@@ -33,11 +33,11 @@ export const ecrire = (f: string, texte: string, mode?: number) => {
 
 // The stand-in for claude, run in the envelope with the copy as working directory. It finds the
 // main tree from git, reads its ticket in the prompt, records the call (prompt, arguments, working
-// directory, the author of its comments at the ticket, `BEADS_ACTOR`, in `<role>-<n>.acteur`, role
-// and component in `ordre`, the role alone out of the envelope, the plan's packages in
-// `<role>-<n>.paquets`), leaves a line of transcript where
+// directory, the author of its comments at the ticket, `BEADS_ACTOR`, in `<role>-<n>.acteur`, its
+// role in `ordre`, the plan's packages in `<role>-<n>.paquets`), leaves a line of transcript where
 // Claude Code keeps the copy's, then sources the scenario of its role: `<role>-<n>.sh` for its n-th
-// session, else `<role>.sh`. A scenario writes in the component (`$c`), hands over with
+// session, else `<role>.sh`. A scenario writes in the first package of the plan (`$c`), or in any
+// package of the plan by its path, hands over with
 // `passation <text>`, a comment under the session's author, as bd writes it, and ends on its sheet
 // with `fiche '<json>'`. As claude with `--output-format json`, it prints on its standard output
 // its JSON result alone, whatever the scenario prints (on its standard error), the sheet in
@@ -73,12 +73,11 @@ printf '%s' "$prompt" > "$e/$role-$n.prompt"
 printf '%s\\0' "$@" > "$e/$role-$n.args"
 pwd > "$e/$role-$n.pwd"
 printf '%s' "\${BEADS_ACTOR-}" > "$e/$role-$n.acteur"
-# In the envelope, the session's component is in its author (\`<role> <composant>\`), the plan's
-# packages in GRILLHOUSE_ENVELOPPE.
-c=
-[ -z "\${GRILLHOUSE_ENVELOPPE-}" ] || c=\${BEADS_ACTOR#* }
+# In the envelope, the plan's packages are in GRILLHOUSE_ENVELOPPE, joined by \`:\`; \`$c\` the first.
+c=\${GRILLHOUSE_ENVELOPPE-}
+c=\${c%%:*}
 printf '%s' "\${GRILLHOUSE_ENVELOPPE-}" > "$e/$role-$n.paquets"
-echo "$role\${c:+ $c}" >> "$e/ordre"
+echo "$role" >> "$e/ordre"
 d="$HOME/.claude/projects/$(pwd | sed 's/[^A-Za-z0-9]/-/g')"
 mkdir -p "$d"
 if [ -n "$reprise" ]; then
@@ -173,7 +172,8 @@ if (cmd === 'config') {
 // neighbour, its findings in SARIF by the frame's means (ecrireSarif of scripts/resultats.mjs),
 // beside its output: while `packages/binder/garde-rouge.txt` exists and the code of forms does not
 // carry `// accordé`, it is red and names the file of forms; so, while `packages/binder/arbitrer.txt`
-// exists, with a finding to settle (`a-arbitrer`). While `packages/binder/ping-pong.txt`
+// exists, with a finding to settle (`a-arbitrer`); so, while `packages/binder/garde-finale.txt`
+// exists, out of an envelope alone: a red the final pass alone sees. While `packages/binder/ping-pong.txt`
 // exists, it is always red, and names the component whose `tour` (a count each one keeps in its
 // directory) is behind, forms on a tie: the two components send the red to each other. While
 // `packages/forms/garde-globale.txt` exists, it is red without SARIF, its output naming a file of
@@ -200,6 +200,9 @@ if (existsSync('packages/forms/garde-globale.txt')) {
 }
 if (existsSync('packages/binder/garde-rouge.txt') && !accorde) {
   rouge('packages/forms/src/index.mjs', 'la mesure ne suit pas le classeur.');
+}
+if (existsSync('packages/binder/garde-finale.txt') && !accorde && !process.env.GRILLHOUSE_ENVELOPPE) {
+  rouge('packages/forms/src/index.mjs', 'la mesure ne suit pas le classeur, hors enveloppe.');
 }
 if (existsSync('packages/binder/arbitrer.txt') && !accorde) {
   rouge('packages/forms/src/index.mjs', 'la mesure attend un arbitrage.', 'a-arbitrer');
@@ -429,7 +432,6 @@ export function circuitEssai(ESSAIS: string, { feuille = false } = {}) {
   const etat = (id: string) =>
     JSON.parse(lire(path.join(REPO, '.claude/worktrees', `${id}.circuit.json`)) || 'null') as {
       etape: string;
-      composant: string;
       tentative: number;
       code: number | null;
       raison: string | null;
@@ -437,8 +439,8 @@ export function circuitEssai(ESSAIS: string, { feuille = false } = {}) {
       journal: string;
       finale: boolean;
       seance: number | null;
-      renvois: Record<string, { etape: string }> | null;
-      atteints: string[];
+      paquets: string[];
+      constats: { titre: string; role: string; regle: string; corps: string }[];
       verifie: string | null;
       question: {
         arret: string;
@@ -476,23 +478,21 @@ export function circuitEssai(ESSAIS: string, { feuille = false } = {}) {
       .split('\n')
       .filter(Boolean)
       .map(l => JSON.parse(l) as { author: string; text: string; created_at: string });
-  // The bilan the circuit writes at each of its ends (scripts/bilan.mjs), a line `Circuit · … ·
-  // bilan : …`, read apart from its history.
-  const BILAN = /^Circuit · \S+ · bilan :/;
+  // The bilan the circuit writes at each of its ends (scripts/bilan.mjs), a line `Circuit · bilan :
+  // …`, read apart from its history.
+  const BILAN = /^Circuit · bilan :/;
   const bilans = (id: string) => tous(id).filter(c => BILAN.test(c.text));
   // The comments at the ticket, each with its author, the bilan aside.
   const auteurs = (id: string) => tous(id).filter(c => !BILAN.test(c.text));
   const commentaires = (id: string) => auteurs(id).map(c => c.text);
-  // The circuit's history at the ticket: [composant, étape] of each comment « Circuit · … », the
+  // The circuit's history at the ticket: the step of each comment « Circuit · <étape> : … », the
   // lines of its gestures, of its questions and of the plan aside
   // (tests/unit/circuit.gestes.spec.ts, tests/unit/circuit.montee.spec.ts and
   // tests/unit/circuit.plan.spec.ts read them).
   const historique = (id: string) =>
     commentaires(id).flatMap(t => {
-      const m = /^Circuit · (\S+) · (\S+) :/.exec(t);
-      return m && !['geste', 'question', 'plan', 'questionnement'].includes(m[2])
-        ? [[m[1], m[2]]]
-        : [];
+      const m = /^Circuit · (\S+) :/.exec(t);
+      return m && !['geste', 'question', 'plan', 'questionnement'].includes(m[1]) ? [m[1]] : [];
     });
   return {
     REPO,

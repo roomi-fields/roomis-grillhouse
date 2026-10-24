@@ -1,12 +1,10 @@
 export type Ton = 'titre' | 'alerte' | 'attention' | 'actif' | 'discret'
 // `ticket`: the id of the ticket a line names, which makes the line selectable. `chantier`: the line is an epic's, which the pane switches on or off. `section`: the board's
 // section the line belongs to. `groupe`: the key of the folded group the line stands for, which `o`
-// opens. `alterne`: the line's other text, which the pane shows in turn with `texte` (a ticket in a
-// circuit: its component under way in place of its subject).
+// opens.
 export type Section = 'agents' | 'chantier' | 'faits' | 'etats'
 export type Ligne = {
   texte: string
-  alterne?: string
   ton?: Ton
   ticket?: string
   chantier?: boolean

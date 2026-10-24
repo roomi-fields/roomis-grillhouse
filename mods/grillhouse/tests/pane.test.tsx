@@ -1,6 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
-import { ALTERNANCE, AVANCEMENT, aMesurer, texteDe } from '../hooks/register'
+import * as register from '../hooks/register'
+import { AVANCEMENT, aMesurer } from '../hooks/register'
 import type { Etat, Ligne } from '../types'
 import { projetGrillhouse } from './projet'
 
@@ -357,34 +358,6 @@ test('o on a folded group opens it alone and whole, and o again comes back to th
   await ui.unmount()
 })
 
-// grillhouse-3uv.88: the line of a ticket in a circuit alternates, every 5 s, its subject and the
-// component under way; the board gives both texts (`texte`, `alterne`), the mod alternates them by
-// the time of its clock.
-const ALTERNE = {
-  lignes: [
-    { texte: '5 · Code · développeur', ton: 'titre', section: 'agents' },
-    {
-      texte: '▶ 320.3  Le binder lit les portées    2 · 12 min',
-      alterne: '▶ 320.3  030-binder                   2 · 12 min',
-      ton: 'actif',
-      ticket: 'c.1.1',
-      section: 'agents',
-    },
-    { texte: '▶ 330  Le renderer audio', ton: 'actif', ticket: 'c.2', section: 'agents' },
-  ],
-  fiches: TABLEAU.fiches,
-  dernier: null,
-}
-
-test('a line shows its text at the even turns of the clock, its other text at the odd ones', () => {
-  const l = ALTERNE.lignes[1] as Ligne
-  expect(texteDe(l, 0)).toBe(l.texte)
-  expect(texteDe(l, 1)).toBe(l.alterne)
-  expect(texteDe(l, 2)).toBe(l.texte)
-  expect(texteDe(l, 3)).toBe(l.alterne)
-  expect(ALTERNANCE).toBe(5_000)
-})
-
 // 2026-10-21 (Romain): a line of progress (`avancement`, `grillhouse tableau`) says « il y a 8 s »:
 // while the board shows one, the pane measures it again every AVANCEMENT ms, not every 30 s.
 test('the board is measured again every AVANCEMENT ms while a line of progress shows, else not', () => {
@@ -403,55 +376,9 @@ test('the board is measured again every AVANCEMENT ms while a line of progress s
   expect(aMesurer(etat(sans), 1_000 + 10 * AVANCEMENT)).toBe(false)
 })
 
-test('a line without another text keeps its text', () => {
-  const l = ALTERNE.lignes[2] as Ligne
-  expect(texteDe(l, 1)).toBe(l.texte)
+// grillhouse-3uv.95.6: no component is a unit of the circuit any more; the line of a ticket in a
+// circuit gives its subject alone, and the pane alternates no other text with it.
+test('the pane alternates no text: a line shows its text, which the board gives alone', () => {
+  expect(register).not.toHaveProperty('ALTERNANCE')
+  expect(register).not.toHaveProperty('texteDe')
 })
-
-// The pane's clock turns every ALTERNANCE ms: before its first turn the pane draws each line's
-// text, after it the other text. The first period answered, the next ones refused.
-for (const [tours, montre, cache] of [
-  [0, 'Le binder lit les portées', '030-binder'],
-  [1, '030-binder', 'Le binder lit les portées'],
-] as const) {
-  test(`after ${tours} turn(s) of 5 s, the pane draws « ${montre} » on the line, never « ${cache} »`, async ($, on) => {
-    const periodes: number[] = []
-    let donnes = 0
-    on('process.run', ($, e) => ({
-      value: { exitCode: 0, stdout: JSON.stringify(ALTERNE), stderr: '' },
-    }))
-    on('session.start', ($, e) => ({ cwd: e.cwd }))
-    projetGrillhouse(on)
-    on('command.register', () => ({ value: undefined }))
-    on('clock.every', ($, e) => {
-      periodes.push(e.ms)
-      if (e.ms === ALTERNANCE && donnes < tours) {
-        donnes++
-        return { value: undefined }
-      }
-      return { value: { cancel: () => undefined } }
-    })
-    await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
-    await new Promise(r => setTimeout(r, 50))
-    const ui = await $.ui.mount({
-      plugin: 'grillhouse',
-      surface: 'terminal',
-      component: 'Pane',
-      requestId: 'grillhouse',
-      props: {
-        title: 't',
-        isFocused: true,
-        bodyColumns: 50,
-        placement: 'dock',
-        scroll: { bodyRows: 30 } as never,
-        view: {} as never,
-      },
-    })
-    const vu = JSON.stringify(await ui.drawn())
-    expect(vu).toContain(montre)
-    expect(vu).not.toContain(cache)
-    expect(vu).toContain('Le renderer audio')
-    expect(periodes).toContain(ALTERNANCE)
-    await ui.unmount()
-  })
-}

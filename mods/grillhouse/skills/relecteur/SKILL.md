@@ -31,7 +31,7 @@ des rapports d'API).
    neuf cite son entrée dans l'INTERFACE de son paquet (`document` `INTERFACE`, son nom dans
    `reference`) ; un export neuf sans entrée est `non`. Un élément supprimé se juge aussi : ses
    lecteurs et ses textes partent avec lui.
-3. Un `non` rend le lot : il nomme son destinataire (`role`, `composant`), comme un constat
+3. Un `non` rend le lot : il nomme son agent (`role`), comme un constat
    bloquant. Le circuit refuse une fiche à laquelle il manque un élément, ou dont une ligne n'a
    pas sa référence.
 4. Un fichier que la liste dit hors du service de langage se relit de même : ses éléments neufs
@@ -138,10 +138,10 @@ devient pas un constat bloquant, comme il ne devient pas un critère du ticket (
 changerait, une entrée qu'aucun appelant ne donne). Ainsi seul ce que le ticket ou le cadre
 exige rend le lot, comme une relecture mûre n'exige rien dont le changement n'a pas besoin.
 
-**Chaque constat bloquant nomme son destinataire** : `role` `testwriter` quand le constat vise un
-test qui manque ou qui ne mord pas, `developpeur` quand il vise le code, et `composant` l'un de
-ceux du titre (son chemin ou le nom de son paquet), celui où la correction s'écrit. Le circuit relance ces
-agents depuis le premier composant nommé, le constat pour rapport. Un constat qui met en cause le
+**Chaque constat bloquant nomme son agent** : `role` `testwriter` quand le constat vise un test
+qui manque ou qui ne mord pas, `developpeur` quand il vise le code. Le circuit va droit à cet agent,
+une séance pour tout le ticket, et le constat reste ouvert d'une relance à l'autre jusqu'à ce que
+ton `suivi` le dise levé ou que tu acceptes le lot. Un constat qui met en cause le
 critère lui-même, et non le lot, porte à la place `critere_en_cause` (son numéro) : le circuit
 s'arrête, et la question monte au superviseur. Ainsi chaque constat arrive à l'agent qui le corrige.
 
@@ -163,7 +163,6 @@ s'arrête, et la question monte au superviseur. Ainsi chaque constat arrive à l
       "genre": "bloquant",
       "regle": "critère 2",
       "role": "developpeur",
-      "composant": "000-forms",
       "corps": "Preuve : mesure(0) rend NaN."
     }
   ]

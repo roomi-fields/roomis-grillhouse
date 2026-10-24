@@ -73,9 +73,7 @@ describe.runIf(canWrap)('the sheet that ends a session', { timeout: 300_000 }, (
     expect(prompt).toContain('structured_output');
     expect(prompt.length).toBeLessThan(essai(id, 'testwriter-1.prompt').length / 2);
     expect(commentaires(id)).toContainEqual(
-      expect.stringMatching(
-        /^Circuit · packages\/forms · testwriter : séance finie sans fiche conforme/
-      )
+      expect.stringMatching(/^Circuit · testwriter : séance finie sans fiche conforme/)
     );
   });
 
@@ -203,8 +201,8 @@ describe.runIf(canWrap)('the checks read the structured results', { timeout: 300
     expect(r.status, sortie(r)).toBe(0);
     const rapport = rapportNeuf(essai(id, 'developpeur-2.prompt'));
     const lignes = rapport.trim().split('\n');
-    // Forms is the last component of the run: its checks are the final pass.
-    expect(lignes[0]).toMatch(/^Contrôles de la passe finale.* : rouge : 1 rouge\(s\) — /);
+    // The checks of the plan come before the final pass.
+    expect(lignes[0]).toMatch(/^Contrôles du plan.* : rouge : 1 rouge\(s\) — /);
     const tete = lignes.indexOf('Tes rouges (1) :');
     expect(tete).toBeGreaterThan(0);
     expect(lignes[tete + 1]).toMatch(
@@ -214,7 +212,7 @@ describe.runIf(canWrap)('the checks read the structured results', { timeout: 300
     expect(rapport).not.toMatch(/test:vitest:|Tasks:|Cached:/);
   });
 
-  it('a red guard of the project without SARIF at a component’s checks is not that component’s: it waits for the final pass, where no component owns it', () => {
+  it('a red guard of the project without SARIF at the checks of the plan is not the developpeur’s: it waits for the final pass, where no package of the plan holds it', () => {
     const id = 'demo-garde-globale';
     ticket(id, '000-forms, 030-binder');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
@@ -222,31 +220,22 @@ describe.runIf(canWrap)('the checks read the structured results', { timeout: 300
     // in its output only.
     scenario(
       id,
-      'developpeur-1',
-      `${CODE_JUSTE}touch $c/garde-globale.txt\npassation 'Code de forms écrit.'\n`
+      'developpeur',
+      `${CODE_JUSTE}touch $c/garde-globale.txt\npassation 'Code écrit.'\n`
     );
-    scenario(id, 'developpeur-2', `${CODE_JUSTE}passation 'Code de binder écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(ARRETS.controles);
-    // Forms' developpeur is not relaunched on it: binder's circuit runs, then the final pass.
-    expect(ordre(id).slice(0, 4)).toEqual([
-      'testwriter packages/forms',
-      'developpeur packages/forms',
-      'testwriter packages/binder',
-      'developpeur packages/binder',
-    ]);
-    expect(sessions(id, 'developpeur')).toBe(2);
-    const formes = commentaires(id).find(t =>
-      t.startsWith('Circuit · packages/forms · controles :')
-    );
+    // The developpeur is not relaunched on it: the final pass sends it up.
+    expect(ordre(id)).toEqual(['testwriter', 'developpeur']);
+    expect(sessions(id, 'developpeur')).toBe(1);
+    const formes = commentaires(id).find(t => t.startsWith('Circuit · controles :'));
     expect(formes).toContain('laissés à la passe finale');
     const e = etat(id);
     expect(e).toMatchObject({
       etape: 'controles',
-      composant: 'packages/binder',
       raison: 'controles',
     });
-    expect(e?.rapport).toContain('Aucun composant du ticket');
+    expect(e?.rapport).toContain('Aucun paquet du plan');
     expect(e?.rapport).toContain('//#gardes');
   });
 });

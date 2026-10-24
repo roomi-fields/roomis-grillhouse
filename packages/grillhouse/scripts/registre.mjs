@@ -4,7 +4,7 @@
 // role agent launched in a shell included). An agent resumed by a message has one line per stop; the board
 // reads an agent's latest line, and the transcripts of running ones. The circuit of a ticket
 // (scripts/circuit.mjs) writes a line at the end of each step it leads itself, with no agent
-// (`ligneDEtape`: its role `circuit`, its step and component, one turn, no tokens).
+// (`ligneDEtape`: its role `circuit`, its step, one turn, no tokens).
 //
 // - The line: the project (the main tree of the directory the session opened in, which the hook
 //   reads in CLAUDE_PROJECT_DIR, else in its input's `cwd`), the agent, its ticket (« TON TICKET : »),
@@ -101,7 +101,7 @@ export function ligne(input, t, projet) {
 
 // The register's line of a step the circuit of <ticket> leads itself (scripts/circuit.mjs), from
 // <debut> to <fin> (ISO dates): one agent per step, its role `circuit`, one turn, no tokens.
-export function ligneDEtape({ projet, ticket, etape, composant, debut, fin }) {
+export function ligneDEtape({ projet, ticket, etape, debut, fin }) {
   const [d, f] = [Date.parse(debut), Date.parse(fin)];
   return {
     projet,
@@ -109,7 +109,6 @@ export function ligneDEtape({ projet, ticket, etape, composant, debut, fin }) {
     ticket,
     role: ROLE_DU_CIRCUIT,
     etape,
-    composant,
     debut,
     fin,
     travail: f - d,

@@ -1,8 +1,7 @@
 import { rmSync } from 'node:fs';
-import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
-import { sortie, ecrire, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
+import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
 
 // The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts), grillhouse-3uv.95.4
 // (decision 3 of 3uv.95): as a CI applies its rules (retry, regenerate, skip a job without object)
@@ -33,8 +32,8 @@ const {
 // A developpeur session that changes no file.
 const RIEN = "passation 'Rien à écrire.'\n";
 // The gestures the circuit writes at the ticket, and the questions it sends up.
-const gestes = (id: string) => commentaires(id).filter(t => / · geste : /.test(t));
-const questions = (id: string) => commentaires(id).filter(t => / · question : /.test(t));
+const gestes = (id: string) => commentaires(id).filter(t => /^Circuit · geste : /.test(t));
+const questions = (id: string) => commentaires(id).filter(t => /^Circuit · question : /.test(t));
 // The question a circuit's state carries at a montée.
 interface Question {
   arret: string;
@@ -45,8 +44,8 @@ interface Question {
 }
 const question = (id: string) =>
   (etat(id) as unknown as { question: Question | null } | null)?.question ?? null;
-// A blocking finding of the reviewer for <role> <composant>.
-const rendu = (role: string, composant: string) =>
+// A blocking finding of the reviewer for <role>.
+const rendu = (role: string) =>
   `fiche '${JSON.stringify({
     verdict: 'RENDU',
     constats: [
@@ -55,7 +54,6 @@ const rendu = (role: string, composant: string) =>
         genre: 'bloquant',
         regle: 'critère 1',
         role,
-        composant,
         corps: 'mesure de 0 doit rendre 0.',
       },
     ],
@@ -64,51 +62,6 @@ const rendu = (role: string, composant: string) =>
 describe.runIf(canWrap)('the gestures the circuit makes itself', { timeout: 300_000 }, () => {
   afterEach(revenirAuDebut);
 
-  // A4, A6, A8-A10 of 320.3: the guard of the words of 030-binder given to the developpeurs of
-  // 050, 130 and 900, who could change nothing (D5, D7, D9-D11).
-  it('a red of another component goes to that component’s developpeur, the gesture and its rule at the ticket and in the log', () => {
-    const id = 'demo-geste-autre';
-    const copie = ticket(id, '000-forms, 030-binder, spec');
-    ecrire(path.join(copie, 'spec/mesure.md'), '# La mesure\n');
-    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
-    scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code de forms écrit.'\n`);
-    scenario(
-      id,
-      'developpeur-2',
-      `${CODE_JUSTE}echo rouge > $c/garde-rouge.txt\npassation 'Code de binder écrit.'\n`
-    );
-    scenario(
-      id,
-      'developpeur-3',
-      `printf 'La mesure rend le double.\\n' >> $c/mesure.md\npassation 'Spécification écrite.'\n`
-    );
-    scenario(
-      id,
-      'developpeur-4',
-      `printf '// accordé\\n' >> $c/src/index.mjs\npassation 'Forms accordé.'\n`
-    );
-    const r = circuit([id]);
-    expect(r.status, sortie(r)).toBe(0);
-    expect(ordre(id)).toEqual([
-      'testwriter packages/forms',
-      'developpeur packages/forms',
-      'testwriter packages/binder',
-      'developpeur packages/binder',
-      'developpeur spec',
-      'developpeur packages/forms',
-      'relecteur',
-    ]);
-    expect(essai(id, 'developpeur-4.prompt')).toContain('packages/forms/src/index.mjs:1');
-    expect(gestes(id)).toEqual([
-      expect.stringMatching(
-        /^Circuit · packages\/forms · geste : rouge-d-un-autre-composant → au développeur du composant qui possède le rouge \(règle : un rouge appartient/
-      ),
-    ]);
-    expect(journal(id)).toContain('geste : rouge-d-un-autre-composant →');
-    expect(questions(id)).toEqual([]);
-    expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
-  });
-
   // BP 320.9, B5: 995-tools had nothing to deliver, four montées and 49 min.
   it('a developpeur with nothing to deliver goes to the checks: green, the circuit goes on, the gesture at the ticket', () => {
     const id = 'demo-geste-rien';
@@ -116,19 +69,19 @@ describe.runIf(canWrap)('the gestures the circuit makes itself', { timeout: 300_
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     scenario(id, 'developpeur-2', RIEN);
-    scenario(id, 'relecteur-1', rendu('developpeur', '000-forms'));
+    scenario(id, 'relecteur-1', rendu('developpeur'));
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(ordre(id)).toEqual([
-      'testwriter packages/forms',
-      'developpeur packages/forms',
+      'testwriter',
+      'developpeur',
       'relecteur',
-      'developpeur packages/forms',
+      'developpeur',
       'relecteur',
     ]);
     expect(gestes(id)).toEqual([
       expect.stringMatching(
-        /^Circuit · packages\/forms · geste : rien-a-livrer → aux contrôles du composant, qui jugent son lot \(règle : /
+        /^Circuit · geste : rien-a-livrer → aux contrôles, qui jugent le lot \(règle : /
       ),
     ]);
     expect(journal(id)).toContain('geste : rien-a-livrer →');
@@ -175,26 +128,19 @@ node -e "const f='$c/package.json';const p=JSON.parse(require('fs').readFileSync
     const id = 'demo-geste-rejeu';
     ticket(id, '000-forms, 030-binder');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
-    scenario(id, 'developpeur-1', `${CODE_JUSTE}${A_75(1)}passation 'Code de forms écrit.'\n`);
-    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    scenario(id, 'developpeur', `${CODE_JUSTE}${A_75(1)}passation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(gestes(id)).toEqual([
       expect.stringMatching(
-        /^Circuit · packages\/forms · geste : rejeu → la commande joue une seconde fois \(règle : une commande des contrôles hors de la passe finale, ou l’intégration, à 75 rejoue une fois avant l’arrêt\)$/
+        /^Circuit · geste : rejeu → la commande joue une seconde fois \(règle : une commande des contrôles hors de la passe finale, ou l’intégration, à 75 rejoue une fois avant l’arrêt\)$/
       ),
     ]);
     expect(lignes(journal(id), /^geste : /)).toEqual([
       expect.stringMatching(/^geste : rejeu → la commande joue une seconde fois \(règle : /),
     ]);
-    // No session on the gesture: each component's testwriter and developpeur, then the reviewer.
-    expect(ordre(id)).toEqual([
-      'testwriter packages/forms',
-      'developpeur packages/forms',
-      'testwriter packages/binder',
-      'developpeur packages/binder',
-      'relecteur',
-    ]);
+    // No session on the gesture: the testwriter and the developpeur of the ticket, then the reviewer.
+    expect(ordre(id)).toEqual(['testwriter', 'developpeur', 'relecteur']);
     expect(questions(id)).toEqual([]);
   });
 
@@ -202,19 +148,19 @@ node -e "const f='$c/package.json';const p=JSON.parse(require('fs').readFileSync
     const id = 'demo-geste-a-repasser';
     ticket(id, '000-forms, 030-binder');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
-    scenario(id, 'developpeur-1', `${CODE_JUSTE}${A_75(2)}passation 'Code de forms écrit.'\n`);
+    scenario(id, 'developpeur', `${CODE_JUSTE}${A_75(2)}passation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(ARRETS['a-repasser']);
     expect(gestes(id)).toEqual([
-      expect.stringMatching(/^Circuit · packages\/forms · geste : rejeu → /),
+      expect.stringMatching(/^Circuit · geste : rejeu → /),
       expect.stringMatching(
-        /^Circuit · packages\/forms · geste : a-repasser → le circuit finit à 75, que le superviseur rejoue au repos par --reprendre \(règle : seul le code 75 du vérificateur dit la charge de la machine\)$/
+        /^Circuit · geste : a-repasser → le circuit finit à 75, que le superviseur rejoue au repos par --reprendre \(règle : seul le code 75 du vérificateur dit la charge de la machine\)$/
       ),
     ]);
     expect(lignes(journal(id), /^geste : a-repasser/)).toEqual([
       expect.stringMatching(/^geste : a-repasser → le circuit finit à 75, .*\(règle : /),
     ]);
-    expect(ordre(id)).toEqual(['testwriter packages/forms', 'developpeur packages/forms']);
+    expect(ordre(id)).toEqual(['testwriter', 'developpeur']);
     // A gesture, not a question: nothing goes up.
     expect(questions(id)).toEqual([]);
     expect(question(id)).toBeNull();
@@ -229,26 +175,19 @@ describe.runIf(canWrap)(
     afterEach(revenirAuDebut);
 
     // A16 of 320.3: the guard consommateurs-arbitres asked for an arbitrage; a finding of forms,
-    // judged at the final pass, which no developpeur settles.
+    // judged at the checks of the plan, which no developpeur settles.
     it('a finding to settle goes up with its file and line as its piece, no session launched on it', () => {
       const id = 'demo-montee-arbitrer';
-      const copie = ticket(id, '000-forms, 030-binder, spec');
-      ecrire(path.join(copie, 'spec/mesure.md'), '# La mesure\n');
+      ticket(id, '000-forms, 030-binder');
       scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
-      scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code de forms écrit.'\n`);
       scenario(
         id,
-        'developpeur-2',
-        `${CODE_JUSTE}echo oui > $c/arbitrer.txt\npassation 'Code de binder écrit.'\n`
-      );
-      scenario(
-        id,
-        'developpeur-3',
-        `printf 'La mesure rend le double.\\n' >> $c/mesure.md\npassation 'Spécification écrite.'\n`
+        'developpeur',
+        `${CODE_JUSTE}echo oui > $c/../binder/arbitrer.txt\npassation 'Code écrit.'\n`
       );
       const r = circuit([id]);
       expect(r.status, sortie(r)).toBe(ARRETS.controles);
-      expect(ordre(id).at(-1)).toBe('developpeur spec');
+      expect(ordre(id)).toEqual(['testwriter', 'developpeur']);
       const q = question(id);
       expect(q).toMatchObject({ arret: 'controles', qui: 'superviseur' });
       expect(q?.piece).toContain('packages/forms/src/index.mjs:1');
@@ -256,7 +195,7 @@ describe.runIf(canWrap)(
       expect(q?.fait.trim()).not.toBe('');
       expect(questions(id)).toEqual([
         expect.stringMatching(
-          /^Circuit · \S+ · question : controles à 3 Passe finale — .* — au superviseur : /s
+          /^Circuit · question : controles à 3\.1 Contrôles — .* — au superviseur : /s
         ),
       ]);
     });

@@ -448,17 +448,39 @@ describe("L2 — the context of a role's session", () => {
     }
   });
 
-  it('keeps the servers of the index for the roles that read the whole repository (the reviewer, the questionneur), and no other server for any role', () => {
-    for (const role of ['relecteur', 'questionneur']) {
+  // grillhouse-3uv.95.6 (the supervisor's review of 95.3): in the envelope, the testwriter and the
+  // developpeur see the whole copy, index included; the charter says « l'index d'abord ».
+  it('keeps the servers of the index for every role, each of which reads the whole repository, and no other server', () => {
+    for (const role of Object.keys(ROLES)) {
       const r = options(role);
       expect(r, role).toContain('--strict-mcp-config');
       expect(Object.keys(mcpDe(r).mcpServers).sort(), role).toEqual(['codegraph']);
       expect(mcpDe(r).mcpServers.codegraph.command, role).toBe('codegraph');
     }
+  });
+
+  it('grillhouse-3uv.95.6: the testwriter and the developpeur read by the index, codegraph and rtfm, and their skills say so', () => {
     for (const role of ['testwriter', 'developpeur']) {
-      const a = options(role);
-      expect(a, role).toContain('--strict-mcp-config');
-      expect(mcpDe(a).mcpServers, role).toEqual({});
+      const { allow } = reglagesDe(options(role)).permissions;
+      expect(allow, role).toEqual(
+        expect.arrayContaining([
+          'Bash(codegraph explore *)',
+          'mcp__codegraph__codegraph_explore',
+          'mcp__rtfm__rtfm_search',
+          'mcp__rtfm__rtfm_expand',
+        ])
+      );
+      expect(demandees(role), role).toEqual(
+        expect.arrayContaining([
+          'mcp__codegraph__codegraph_explore',
+          'mcp__rtfm__rtfm_search',
+          'mcp__rtfm__rtfm_expand',
+        ])
+      );
+      expect(
+        demandees(role).some(c => c.startsWith('codegraph explore ')),
+        role
+      ).toBe(true);
     }
   });
 
@@ -524,9 +546,8 @@ describe("L2 — the context of a role's session", () => {
       ).toEqual([]);
     }
     // The tool search serves the servers of the index, whose tools Claude Code defers.
-    expect(outils('relecteur')).toContain('ToolSearch');
-    for (const role of ['testwriter', 'developpeur']) {
-      expect(outils(role), role).not.toContain('ToolSearch');
+    for (const role of Object.keys(ROLES)) {
+      expect(outils(role), role).toContain('ToolSearch');
     }
     for (const role of Object.keys(ROLES)) {
       expect(
@@ -576,7 +597,9 @@ describe("L2 — the context of a role's session", () => {
         '--ticket',
         'demo-1',
       ],
-      { encoding: 'utf8' }
+      // The same home without plugins as `options`: the servers of the index come from the
+      // project alone.
+      { encoding: 'utf8', env: { ...process.env, HOME: path.join(ESSAIS, 'vide') } }
     );
     expect(r.status, r.stderr).toBe(0);
     expect(r.stdout.split('\n').slice(0, -1)).toEqual(options('developpeur'));

@@ -14,20 +14,20 @@
 //     circuit goes on, or stops at « hors-portee » or « besoin » (testwriter, developpeur);
 //   - `verts_attendus` (`fichier` from the root, `test` its full name, or none for every green of a
 //     file HEAD holds, `raison`): the proof of the red (testwriter);
-//   - `renvoi` (`role` testwriter, `composant`): the circuit plays that component from its testwriter
-//     (developpeur);
+//   - `renvoi` (`role` testwriter): the circuit relaunches the testwriter, then the proof and the
+//     developpeur (developpeur);
 //   - `ecarts` (`sujet`, `texte`): the body of the commit message, written by the circuit, each
 //     subject once, its value from the last sheet that carries it (developpeur, reviewer);
 //   - `decouvertes` (`sujet`, `corps`): each one a ticket filed closed under the ticket, labelled
 //     `decouverte`, created by the circuit (every role);
 //   - `verdict` (ACCEPTÉ, RENDU), `constats` (`titre`, `corps`, `genre` bloquant or remarque; a
 //     blocking one with `regle`, the criterion of the plan or the rule of the frame it holds, and
-//     `role` and `composant` its recipient, or `critere_en_cause`): as Conventional Comments mark
-//     a comment blocking or not, the circuit plays the blocking findings alone and writes the
-//     verdict at the ticket for the human, the remarks with it; a RENDU carries a blocking finding,
-//     an ACCEPTÉ none (reviewer);
+//     `role` its recipient, or `critere_en_cause`): as Conventional Comments mark
+//     a comment blocking or not, the circuit plays the blocking findings alone, each open until a
+//     review marks it lifted, and writes the verdict at the ticket for the human, the remarks with
+//     it; a RENDU carries a blocking finding, an ACCEPTÉ none (reviewer);
 //   - `conformite` (`element`, `conforme` oui or non, `document` CADRE, INTERFACE or
-//     ARCHITECTURE, `reference`, `piece`; a « non » with `role` and `composant` its recipient):
+//     ARCHITECTURE, `reference`, `piece`; a « non » with `role` its recipient):
 //     one line per element of the lot (scripts/elements-du-lot.mjs), its rule cited from a
 //     document of its package, a new export's the entry of the INTERFACE that names it; a line
 //     without its reference is refused; a « non » is a blocking finding (`bloquantsDeLaFiche`),
@@ -194,12 +194,9 @@ const FICHES = {
     {
       ...STATUT,
       renvoi: objet(
-        {
-          role: { type: 'string', enum: ['testwriter'] },
-          composant: texte('Un composant du titre.'),
-        },
-        ['role', 'composant'],
-        'Le rouge qui reste est dans les tests de ce composant, le tien ou un d’avant.'
+        { role: { type: 'string', enum: ['testwriter'] } },
+        ['role'],
+        'Le rouge qui reste est dans les tests du lot : le circuit relance le testwriter.'
       ),
       ...ECARTS,
       ...DECOUVERTES,
@@ -229,7 +226,6 @@ const FICHES = {
             ),
             piece: texte('Sa pièce : fichier:ligne, et ce qu’elle montre.'),
             role: { type: 'string', enum: ['testwriter', 'developpeur'] },
-            composant: texte('non : le composant du titre où la correction s’écrit.'),
           },
           ['element', 'conforme', 'document', 'reference', 'piece']
         ),
@@ -248,8 +244,11 @@ const FICHES = {
             regle: texte(
               'Bloquant : le critère du plan (« critère 2 ») ou la règle du cadre (son document et sa règle) qu’il tient.'
             ),
-            role: { type: 'string', enum: ['testwriter', 'developpeur'] },
-            composant: texte('Le composant du titre où la correction s’écrit.'),
+            role: {
+              type: 'string',
+              enum: ['testwriter', 'developpeur'],
+              description: 'Bloquant : l’agent qui écrit la correction, à qui le circuit le rend.',
+            },
             corps: texte('Sa preuve : son exemple et ce qu’il montre.'),
             critere_en_cause: texte('Le critère lui-même en cause, au lieu d’un destinataire.'),
           },
@@ -342,7 +341,6 @@ export const bloquantsDeLaFiche = fiche => [
       genre: 'bloquant',
       regle: regleDeLaLigne(l),
       role: l.role,
-      composant: l.composant,
       corps: `Non conforme : ${l.piece}`,
     })),
 ];
@@ -397,10 +395,8 @@ function manques(role, f) {
         out.push(`conformite[${i}].reference : manque, la règle citée dans le ${l.document}`);
       }
       if (l.conforme === 'non') {
-        for (const k of ['role', 'composant']) {
-          if (!(typeof l[k] === 'string' && l[k].trim())) {
-            out.push(`conformite[${i}].${k} : manque, pour un élément non conforme`);
-          }
+        if (!(typeof l.role === 'string' && l.role.trim())) {
+          out.push(`conformite[${i}].role : manque, pour un élément non conforme`);
         }
       }
     }

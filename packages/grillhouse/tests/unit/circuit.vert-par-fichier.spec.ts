@@ -39,7 +39,7 @@ EOF
 // The whole report of the last proof on forms, which the proof at the ticket names.
 const rapportEntier = (id: string) => {
   const preuve = commentaires(id)
-    .filter(t => t.startsWith('Circuit · packages/forms · preuve'))
+    .filter(t => t.startsWith('Circuit · preuve'))
     .at(-1);
   const complet = /Le rapport entier, avec les verts justifiés et leurs raisons : (\S+)/.exec(
     preuve ?? ''

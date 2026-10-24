@@ -24,7 +24,6 @@ interface Ligne {
   ticket: string;
   role: string;
   etape: string;
-  composant: string;
   debut: string;
   fin: string;
   travail: number;
@@ -58,7 +57,14 @@ describe.runIf(canWrap)('the steps the circuit leads itself', { timeout: 300_000
       .filter(Boolean)
       .map(l => JSON.parse(l) as Ligne);
     const duCircuit = lignes.filter(l => l.role === 'circuit');
-    expect(duCircuit.map(l => l.etape)).toEqual(['preuve', 'controles', 'integration', 'file']);
+    // The checks of the plan, then the final pass: two steps `controles`, each one for the ticket.
+    expect(duCircuit.map(l => l.etape)).toEqual([
+      'preuve',
+      'controles',
+      'controles',
+      'integration',
+      'file',
+    ]);
     const agents = new Set<string>();
     for (const l of duCircuit) {
       const debut = Date.parse(l.debut);
@@ -66,12 +72,12 @@ describe.runIf(canWrap)('the steps the circuit leads itself', { timeout: 300_000
       expect(l).toMatchObject({
         projet: REPO,
         ticket: id,
-        composant: 'packages/forms',
         jetons: 0,
         travail: fin - debut,
         tours: [[debut, fin]],
       });
       expect(fin).toBeGreaterThanOrEqual(debut);
+      expect(l).not.toHaveProperty('composant');
       agents.add(l.agent);
     }
     // One line per step: the board keeps an agent's latest line.

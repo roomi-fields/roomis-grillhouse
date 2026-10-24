@@ -13,7 +13,7 @@
 //   by state, the agents' working time and tokens of the day and in all, the alerts.
 // - Agents: the tree of the steps of the process (scripts/etapes.mjs), one block per step and
 //   sub-step, with who works there, for the whole project; a step
-//   that names a declaration (the regeneration of the references, 3.1) has its line only when the
+//   that names a declaration (the regeneration of the references, 4.2) has its line only when the
 //   project's package.json declares it (`grillhouse.references`). A ticket
 //   stands at the step of every agent that runs on it, or waits in one place: at
 //   the step of the next role, deduced from the roles of the flow that ran on it and the
@@ -21,7 +21,7 @@
 // - Circuits: one entry per open ticket whose circuit (scripts/circuit.mjs) runs or stopped, read
 //   in its state `.claude/worktrees/<ticket>.circuit.json`: it runs while the process
 //   `npx grillhouse circuit <ticket>` runs, and stands at the step of its state, with its
-//   component, its rank among the title's components and its attempt; while the explorateur or
+//   attempt, every step one for the whole ticket; while the explorateur or
 //   the questionneur works on its plan (its state names that work, `questionnement`, of the
 //   plan), it stands at the plan (1); stopped on a question for the supervisor (its state names it,
 //   `question`), it stands under the stopped step after a line « ⤷ Question · <qui> », who must
@@ -59,8 +59,8 @@
 // - Progress: the line of a ticket whose circuit runs an automatic step gives the progress of
 //   its pass, read in the progress directory its state names (scripts/avancement.mjs), in
 //   figures, as Bazel's counter of actions: « faits/prévus · <durée> » since the start of the
-//   pass, after the counters of its loops, or in their place when room lacks (the subject or the
-//   component is cut, never the figures); the queue (5.2), the steps of its CI. Past FIGEE
+//   pass, after the counters of its loops, or in their place when room lacks (the subject is cut,
+//   never the figures); the queue (5.2), the steps of its CI. Past FIGEE
 //   without a sign, « ⚠ figée <durée> · faits/prévus », the time since its last sign, in the
 //   tone of an alert.
 //   A measure out of a ticket that holds the lock of the machine (a supervisor's or an
@@ -109,7 +109,7 @@ export const LARGEUR = 52;
 // An automatic pass without a sign for this long is frozen: its line says so, in the tone of an
 // alert.
 export const FIGEE = 5 * MINUTE;
-// The room a circuit's line keeps for its subject or its component beside the counters of its
+// The room a circuit's line keeps for its subject beside the counters of its
 // loops and the progress of its pass: below it, the progress takes the counters' place.
 const PLACE_DU_SUJET = 10;
 // The role of a register line that a step of a circuit writes (scripts/circuit.mjs): no agent,
@@ -562,8 +562,7 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
 // launches, `npx grillhouse circuit <ticket>`), `questionnement` the object of the work on the plan
 // under way (`plan`), null without one, `question` the whole question of a circuit ended on one
 // and `qui` who must answer it (`superviseur` or `responsable`), null without one,
-// the counters of its bounded loops (`boucles`, by their key), and the rank of its component among the title's (`rang`, from 1) and their number (`total`),
-// the progress of the automatic pass under way (`avancement`, read in the directory its state
+// the counters of its bounded loops (`boucles`, by their key), the progress of the automatic pass under way (`avancement`, read in the directory its state
 // names, scripts/avancement.mjs: `{ faits, prevus, dernier }`, null without one). A state that
 // does not parse is left out.
 export function lireCircuits({ racine, prefix, ps }) {
@@ -592,7 +591,6 @@ export function lireCircuits({ racine, prefix, ps }) {
     out.push({
       ticket,
       etape: e.etape ?? null,
-      composant: e.composant ?? null,
       tentative: e.tentative ?? null,
       finale: e.finale === true,
       code: e.code ?? null,
@@ -601,7 +599,6 @@ export function lireCircuits({ racine, prefix, ps }) {
       question: String(e.question?.question ?? '').trim() || null,
       qui: e.question ? String(e.question.qui ?? SUPERVISEUR) : null,
       questionnement: e.questionnement?.objet ?? null,
-      ...rangDe(e),
       boucles: e.boucles && typeof e.boucles === 'object' ? e.boucles : {},
       mene:
         typeof e.mene === 'string' && !Number.isNaN(Date.parse(e.mene)) ? Date.parse(e.mene) : null,
@@ -612,13 +609,6 @@ export function lireCircuits({ racine, prefix, ps }) {
   }
   return out;
 }
-// The rank of the state <e>'s component among the title's components, from 1, and their number;
-// both null when the state does not name them.
-const rangDe = e => {
-  const l = Array.isArray(e.composants) ? e.composants : [];
-  const i = l.indexOf(e.composant);
-  return i < 0 ? { rang: null, total: null } : { rang: i + 1, total: l.length };
-};
 // The first line of a report that is not blank, or null.
 const premiereLigne = r =>
   String(r ?? '')
@@ -1234,11 +1224,9 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   // supervisor (its state's `question`), under its step after a line « ⤷ Question · <qui> », who
   // must answer it, the supervisor or the owner, which unfolds the step, its counters those of its
   // step; a stopped circuit at no step of the list stands under that line after the steps. A
-  // circuit's line gives its subject (`texte`) and, in
-  // turn (`alterne`, which the pane shows every other 5 s), the component under way, with its rank
-  // among the title's components when they are several; then the counters of the bounded loops of
-  // its step from their second pass (`boucles` of the step, scripts/etapes.mjs, their counts in
-  // the state's `boucles`), whole; then its ticket's working time and tokens. Its card opens on
+  // circuit's line gives its subject (`texte`), then the counters of the bounded loops of its step
+  // from their second pass (`boucles` of the step, scripts/etapes.mjs, their counts in the state's
+  // `boucles`), whole; then its ticket's working time and tokens. Its card opens on
   // its question, or says where it stopped and why. The tickets' numbers line up in one column.
   const enCircuit = new Set((t.circuits ?? []).map(c => c.id));
   // The block of the step <e>, an empty one when the board holds none.
@@ -1280,23 +1268,17 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       .map(b => ` · ${b.libelle} ${c.boucles[b.cle]}/${b.max}`)
       .join('');
     const tete = `${c.vivant ? '▶' : '■'} ${numero(c.numero)}  `;
-    const composant = c.composant
-      ? `${c.composant === '.' ? '.' : path.basename(c.composant)}${c.total > 1 ? ` ${c.rang}/${c.total}` : ''}`
-      : null;
     const temoin = c.vivant && etape?.qui.includes(AUTO) ? temoinDe(c, maintenant) : null;
-    // The progress after the counters of the loops while the component (else the subject) keeps
-    // its room beside them, in their place otherwise.
-    const quoiCourt = composant ?? c.sujet;
+    // The progress after the counters of the loops while the subject keeps its room beside them,
+    // in their place otherwise.
     const reste = avec => largeur - (droite ? droite.length + 1 : 0) - tete.length - avec.length;
     const suite = !temoin
       ? boucles
-      : reste(`${boucles}${temoin.texte}`) >= Math.min(PLACE_DU_SUJET, quoiCourt.length)
+      : reste(`${boucles}${temoin.texte}`) >= Math.min(PLACE_DU_SUJET, c.sujet.length)
         ? `${boucles}${temoin.texte}`
         : temoin.texte;
-    const texte = quoi => couperAvant(`${tete}${quoi}`, suite, droite, largeur);
     poser({
-      texte: texte(c.sujet),
-      ...(composant ? { alterne: texte(composant) } : {}),
+      texte: couperAvant(`${tete}${c.sujet}`, suite, droite, largeur),
       ton: temoin?.fige ? 'alerte' : c.vivant ? 'actif' : 'attention',
       ticket: c.id,
       ...(temoin ? { avancement: true } : {}),
@@ -1375,7 +1357,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     if (!ouverte) {
       continue;
     }
-    tickets(b, '');
+    tickets(b, '  ');
     for (const x of sous) {
       ligneDEtape(x, '  ');
       tickets(x, '  ');
@@ -1567,19 +1549,15 @@ export function lignesEtats(t, largeur = LARGEUR) {
   return out;
 }
 
-// Where the stopped circuit <c> is: its step by number and title, its attempt, the last part of its
-// component's path (`.` for the root), and its stop (« interrompu » for a circuit dead without a
-// stop written).
+// Where the stopped circuit <c> is: its step by number and title, its attempt, and its stop
+// (« interrompu » for a circuit dead without a stop written).
 const ouEnEst = c => {
   const e = etapeDuCircuit({ ...c, raison: c.arret });
   const ou = [e ? libelle(e) : c.etape, c.tentative ?? null]
     .filter(x => x !== null && x !== undefined)
     .join(' ');
-  const composant = c.composant
-    ? ` · ${c.composant === '.' ? '.' : path.basename(c.composant)}`
-    : '';
   const arret = c.code === null ? 'interrompu' : `arrêt ${c.arret ?? '?'} (${c.code})`;
-  return `${ou}${composant}, ${arret}`;
+  return `${ou}, ${arret}`;
 };
 
 // The card of each ticket a line names: its number, whole title, component, state, its agents'

@@ -494,6 +494,23 @@ describe('publie: what the providers of a component publish', () => {
     );
     expect(publie(dir, 'src/seul')).toContain('`seul` ne dépend d’aucun composant');
   });
+  // grillhouse-3uv.95.6: a plan of several packages, one part per package, its providers under it.
+  it('gives a plan of several packages one part per package, the providers of each under it', () => {
+    const l = publie(dir, 'packages/a:packages/b').split('\n');
+    expect(l[0]).toBe("## Ce que les composants d'avant publient");
+    expect(l.filter(x => x.startsWith('## '))).toHaveLength(1);
+    const a = l.indexOf('### Pour `a`');
+    const b = l.indexOf('### Pour `b`');
+    expect(a).toBeGreaterThan(0);
+    expect(b).toBeGreaterThan(a);
+    expect(l.slice(a, b)).toContain('#### b — l’interface');
+    expect(l.slice(a, b)).toContain('Déclaré pour `a` : duree.');
+    expect(l.slice(b)).toContain(
+      '`b` ne dépend d’aucun composant : aucune section « Consommateurs » ne le nomme.'
+    );
+    // One package alone keeps its section as it was.
+    expect(publie(dir, 'packages/a')).not.toContain('### Pour');
+  });
   it('points a copy of the whole repository to the index of the interfaces', () => {
     expect(publie(dir, '.')).toBe(
       [

@@ -36,6 +36,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { composants, declares } from './consommateurs.mjs';
+import { lireLaListe } from './enveloppe/paquets-du-plan.mjs';
 import { DEBUT, FIN, marques } from './interfaces-contre-code.mjs';
 import { ecrireSarif } from './resultats.mjs';
 
@@ -179,7 +180,10 @@ function rend(racine, rel) {
 // What the components before <composant> publish, as the section the launcher writes after the
 // instruction of a role agent (scripts/enveloppe/lancer.sh). <composant> is the component's path
 // in the repository at <racine> (`packages/a`, `src/parser`), or `.` for a copy of the whole
-// repository, which the section points to the index of the interfaces. Its providers are the
+// repository, which the section points to the index of the interfaces; or the plan of a session,
+// several paths in the form of the envelope's list (`packages/a:packages/b`, `lireLaListe`), one
+// part of the section per package of the plan, its providers under it, as one session works the
+// whole plan of a ticket (grillhouse-3uv.95.6). Its providers are the
 // components whose `## Consommateurs` section names it; for each, its line in the index of the
 // interfaces (its heading, its first sentence, its interface), the names of the elements its
 // `## Consommateurs` line declares for the component, never their sentence, which the index of the
@@ -187,7 +191,23 @@ function rend(racine, rel) {
 // or one line saying the frame or the rubric is missing. A declaration of `*`, an import of the
 // whole component, names no element: its line says the elements are in the index. Each interface
 // and each frame is read once.
+/** @param {string} racine @param {string} composant @returns {string} */
 export function publie(racine, composant) {
+  const plan = lireLaListe(composant);
+  if (plan.length > 1) {
+    const parties = plan.map(c =>
+      publie(racine, c)
+        .split('\n')
+        .slice(2)
+        .map(l => (l.startsWith('### ') ? `#${l}` : l))
+    );
+    return [
+      TITRE_PUBLIE,
+      '',
+      'Ton plan porte plusieurs paquets : pour chacun, ce que publient les composants dont il dépend.',
+      ...plan.flatMap((c, i) => ['', `### Pour \`${path.basename(c)}\``, '', ...parties[i]]),
+    ].join('\n');
+  }
   if (composant === '.') {
     return [
       TITRE_PUBLIE,

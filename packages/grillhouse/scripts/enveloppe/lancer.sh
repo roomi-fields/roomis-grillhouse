@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Launches a role agent on one ticket, as its own Claude session inside the envelope of its
-# component. The supervisor runs it in the background and is told when the session ends.
+# plan, the packages it writes (one session of the testwriter or the developpeur for the whole
+# ticket, `.` as its component and the plan as `--paquets`, grillhouse-3uv.95.6). The supervisor runs it in the background and is told when the session ends.
 #
 #   npx grillhouse lancer [--modele <m>] [--effort <e>] [--seance <id> | --reprise <id>] [--paquets <liste>] <ticket> <rôle> <composant> <fichier de consigne>
 #
@@ -51,20 +52,21 @@
 #   the last installation (`node_modules/.package-lock.json`, written by npm), and it is built there
 #   by Turborepo, which restores an unchanged build from its cache, outside the envelope, so the
 #   agent finds the builds of the packages out of its plan. As Bazel builds the dependencies of a
-#   target before the target: for a component that is a package of the frame, its providers are built
-#   first (the packages whose build its build waits for, read in Turborepo's graph,
-#   `turbo run build --filter=<paquet> --dry=json`, which node reads on its standard input, whatever
-#   its size), and a failure stops the launch, CODE_COPIE;
-#   then the traces of other packages its tests wait for (`grillhouse.traces`, read in Turborepo's
-#   plan of its tests, `turbo run test:vitest --filter=<paquet> --dry=json`), which the envelope
-#   shows read-only, and a failure stops the launch, CODE_COPIE; then the package, its own traces
-#   and what its tests read (`turbo run build <its traces> --filter=<paquet>...
+#   target before the target: for a plan whose every path is a package of the frame (the circuit's
+#   session over the whole ticket, `.` as its component and the plan as `--paquets`, or a component
+#   alone), their providers are built first (the packages whose build their builds wait for, read
+#   in Turborepo's graph, `turbo run build --filter=<paquet>… --dry=json`, which node reads on its
+#   standard input, whatever its size), and a failure stops the launch, CODE_COPIE;
+#   then the traces of other packages their tests wait for (`grillhouse.traces`, read in Turborepo's
+#   plan of their tests, `turbo run test:vitest --filter=<paquet>… --dry=json`), which the envelope
+#   shows read-only, and a failure stops the launch, CODE_COPIE; then the packages, their own
+#   traces and what their tests read (`turbo run build <their traces> --filter=<paquet>...…
 #   --continue=dependencies-successful`), whose failure does not stop it: each task whose
-#   dependencies succeed goes to its end, so what its tests read without depending on it is built
-#   whole; the session opens, its instruction ending with a section « La construction de ton
+#   dependencies succeed goes to its end, so what their tests read without depending on them is
+#   built whole; the session opens, its instruction ending with a section « La construction de ton
 #   paquet échoue » with the end of that output, since repairing it is the session's work (a
-#   provider's lot that breaks its consumers). Its consumers are not built. Any other component,
-#   the whole repository (`.`) included, builds the copy whole (`turbo run build`). The
+#   provider's lot that breaks its consumers). Their consumers are not built. Any other plan, the
+#   whole repository (`.`) included, builds the copy whole (`turbo run build`). The
 #   installation and the build play through `scripts/sous-modules.sh monter`, each shared submodule
 #   of the main repository read-only, by the list the pose printed, whatever the installation
 #   rewrites afterwards; with a shared submodule and no possible mount (bwrap absent or
@@ -74,11 +76,13 @@
 # - The session runs `claude -p` with the role's agent and, as its prompt, read on its standard
 #   input from a temporary file the launcher writes and removes (an argument may not pass the
 #   128 KiB Linux allows one, MAX_ARG_STRLEN), the instruction file
-#   followed by the section « Ce que les composants d'avant publient »: for each component whose
-#   `## Consommateurs` section names the component, its line, the names of the elements declared
-#   for the component, and the address of the rubric « Rend » of its frame, the rest of its
-#   elements left to the index of the interfaces (`scripts/index-interfaces.mjs --publie`, read in
-#   the prepared copy; a reading that fails stops the launch, CODE_COPIE), then the
+#   followed by the section « Ce que les composants d'avant publient », for each package of the
+#   plan (one part per package when the plan holds several, grillhouse-3uv.95.6): for each
+#   component whose `## Consommateurs` section names the package, its line, the names of the
+#   elements declared for the package, and the address of the rubric « Rend » of its frame, the
+#   rest of its elements left to the index of the interfaces (`scripts/index-interfaces.mjs
+#   --publie <plan>`, read in the prepared copy; a reading that fails stops the launch,
+#   CODE_COPIE), then the
 #   section « Ton dossier de travail », which names the session's working directory, where every
 #   temporary file goes (`dossierDeTravail` of enveloppe.mjs, the envelope's TMPDIR), then the
 #   section « La construction de ton paquet échoue » when it fails. The prompt
@@ -88,7 +92,7 @@
 #   the launch, CODE_COPIE): the user's own configuration left out, its settings on the command
 #   line (its refusals, among them the change of its author at the ticket, AUTEUR_FIXE: its
 #   comments carry the author the launch names in BEADS_ACTOR, which the envelope passes on; its
-#   locks), its tools and no server of the index.
+#   locks), its tools and the servers of the index, for the reading of the whole copy.
 # - A role that ends on a sheet (scripts/resultats.mjs: the testwriter, the developpeur) runs with
 #   `--output-format json --json-schema <its schema>` (`npx grillhouse resultats --schema
 #   <rôle>`): claude's JSON result, its sheet in `structured_output`, goes to
@@ -230,24 +234,28 @@ echec=$(mktemp)
     if [ ! -d "$copie/node_modules" ] || [ "$copie/package-lock.json" -nt "$installe" ]; then
       monter npm --prefix "$copie" install --no-save --no-audit --no-fund --silent || exit 1
     fi
-    # The package of the session, when the component is a package of the frame: its name.
-    paquet=$(node --input-type=module -e "import path from 'node:path'; import { paquets } from '$ici/../paquets.mjs'; const [r, d] = process.argv.slice(1); const p = paquets(r).find(p => !p.hors && p.dossier === path.normalize(d).replace(/\/\$/, '')); process.stdout.write(p?.pkg.name ?? '');" "$copie" "$composant") || exit 1
-    if [ -z "$paquet" ]; then
+    # The packages of the session's plan that are packages of the frame: their names, one per
+    # line; none when a path of the plan is no package of the frame (the root, `.`, a folder).
+    noms=$(node --input-type=module -e "import path from 'node:path'; import { lireLaListe } from '$ici/paquets-du-plan.mjs'; import { paquets } from '$ici/../paquets.mjs'; const [r, liste] = process.argv.slice(1); const tous = paquets(r).filter(p => !p.hors); const l = lireLaListe(liste).map(d => tous.find(p => p.dossier === path.normalize(d).replace(/\/\$/, ''))?.pkg.name ?? null); process.stdout.write(l.length && l.every(Boolean) ? l.join('\n') : '');" "$copie" "$paquets") || exit 1
+    if [ -z "$noms" ]; then
       (cd "$copie" && monter npx --no-install turbo run build) || exit 1
     else
-      # Its providers: the packages whose build its own build waits for, as Turborepo reads them.
-      graphe=$(cd "$copie" && monter npx --no-install turbo run build "--filter=$paquet" --dry=json) || exit 1
+      mapfile -t lesNoms <<<"$noms"
+      cibles=() lecteurs=()
+      for n in "${lesNoms[@]}"; do cibles+=("--filter=$n"); lecteurs+=("--filter=$n..."); done
+      # Their providers: the packages whose build their own builds wait for, as Turborepo reads them.
+      graphe=$(cd "$copie" && monter npx --no-install turbo run build "${cibles[@]}" --dry=json) || exit 1
       # The graph comes on the standard input: as an argument, it may pass the size Linux allows one.
-      fournisseurs=$(node -e 'const [p] = process.argv.slice(1); const t = JSON.parse(require("node:fs").readFileSync(0, "utf8")).tasks.filter(t => t.taskId !== `${p}#build`); console.log([...new Set(t.map(t => `--filter=${t.package}`))].join("\n"));' "$paquet" <<<"$graphe") || exit 1
+      fournisseurs=$(node -e 'const plan = process.argv.slice(1); const t = JSON.parse(require("node:fs").readFileSync(0, "utf8")).tasks.filter(t => !plan.includes(t.package)); console.log([...new Set(t.map(t => `--filter=${t.package}`))].join("\n"));' "${lesNoms[@]}" <<<"$graphe") || exit 1
       if [ -n "$fournisseurs" ]; then
         mapfile -t filtres <<<"$fournisseurs"
         (cd "$copie" && monter npx --no-install turbo run build "${filtres[@]}") || exit 1
       fi
-      # The traces its tests wait for, as Turborepo's plan of its tests reads them. Another
-      # package's trace is produced here, and a failure stops the launch, as a provider's; its own
-      # waits for its own build, and is produced with it below.
-      plan=$(cd "$copie" && monter npx --no-install turbo run test:vitest "--filter=$paquet" --dry=json) || exit 1
-      traces() { node --input-type=module -e "import { readFileSync } from 'node:fs'; import { tracesDuPlan } from '$ici/../turbo-des-paquets.mjs'; const [p, propres] = process.argv.slice(1); console.log(tracesDuPlan(JSON.parse(readFileSync(0, 'utf8')), t => (t.package === p) === (propres === 'oui')).join('\n'));" "$paquet" "$1" <<<"$plan"; }
+      # The traces their tests wait for, as Turborepo's plan of their tests reads them. Another
+      # package's trace is produced here, and a failure stops the launch, as a provider's; a trace
+      # of the plan waits for its build, and is produced with it below.
+      plan=$(cd "$copie" && monter npx --no-install turbo run test:vitest "${cibles[@]}" --dry=json) || exit 1
+      traces() { node --input-type=module -e "import { readFileSync } from 'node:fs'; import { tracesDuPlan } from '$ici/../turbo-des-paquets.mjs'; const [propres, ...plan] = process.argv.slice(1); console.log(tracesDuPlan(JSON.parse(readFileSync(0, 'utf8')), t => plan.includes(t.package) === (propres === 'oui')).join('\n'));" "$1" "${lesNoms[@]}" <<<"$plan"; }
       autres=$(traces non) || exit 1
       if [ -n "$autres" ]; then
         mapfile -t ids <<<"$autres"
@@ -256,22 +264,23 @@ echec=$(mktemp)
       propres=$(traces oui) || exit 1
       ids=()
       [ -z "$propres" ] || mapfile -t ids <<<"$propres"
-      # The package itself, its own traces, and what its tests read (the shared test material),
-      # built after its providers: a failure does not stop the launch, it goes into the instruction.
-      # Each task whose dependencies succeed goes to its end (--continue=dependencies-successful):
-      # the package's failure does not cancel the build of what its tests read without depending
-      # on it, which the envelope shows read-only.
-      if ! (cd "$copie" && monter npx --no-install turbo run build ${ids[@]+"${ids[@]}"} "--filter=$paquet..." --continue=dependencies-successful) > "$echec" 2>&1; then
+      # The packages of the plan, their own traces, and what their tests read (the shared test
+      # material), built after their providers: a failure does not stop the launch, it goes into
+      # the instruction. Each task whose dependencies succeed goes to its end
+      # (--continue=dependencies-successful): one package's failure does not cancel the build of
+      # what the tests read without depending on it, which the envelope shows read-only.
+      if ! (cd "$copie" && monter npx --no-install turbo run build ${ids[@]+"${ids[@]}"} "${lecteurs[@]}" --continue=dependencies-successful) > "$echec" 2>&1; then
         cat "$echec"
-        echo "⚠️  La construction de $paquet échoue : la séance s'ouvre, la consigne porte l'erreur."
+        echo "⚠️  La construction du plan (${lesNoms[*]}) échoue : la séance s'ouvre, la consigne porte l'erreur."
       else
         : > "$echec"
       fi
     fi
   fi
 ) >> "$journal" 2>&1 || { rm -f "$echec"; echo "⛔ La copie $copie n'a pas pu être préparée : voir $journal." >&2; exit "$CODE_COPIE"; }
-# What the components before publish, read in the prepared copy, follows the instruction.
-publie=$(cd "$copie" && node "$ici/../index-interfaces.mjs" --publie "$composant" 2>> "$journal") \
+# What the components before each package of the plan publish, read in the prepared copy,
+# follows the instruction.
+publie=$(cd "$copie" && node "$ici/../index-interfaces.mjs" --publie "$paquets" 2>> "$journal") \
   || { rm -f "$echec"; echo "⛔ Ce que publient les composants d'avant n'a pas pu se lire : voir $journal." >&2; exit "$CODE_COPIE"; }
 # The session's working directory, the one the envelope gives as TMPDIR, follows them.
 travail=$(node --input-type=module -e "import { dossierDeTravail } from '$ici/enveloppe.mjs'; process.stdout.write(dossierDeTravail(process.argv[1]));" "$copie" 2>> "$journal") \

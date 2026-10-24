@@ -5,26 +5,26 @@ description: "Le développeur : travailler un ticket du dépôt courant en agent
 
 # Développeur — travailler un ticket
 
-Tu travailles un seul ticket, dans la copie qui porte son numéro. Le superviseur (`pitmaster`) te
-l'a confié ; le responsable du projet l'a validé. La charte du projet, déjà dans ton contexte,
-prime sur tout le reste.
+Tu travailles un seul ticket, dans la copie qui porte son numéro : une seule séance porte tout son
+code, dans tous les paquets de son plan. Le superviseur (`pitmaster`) te l'a confié ; le
+responsable du projet l'a validé. La charte du projet, déjà dans ton contexte, prime sur tout le
+reste.
 
 ## Au démarrage
 
 1. Ta consigne porte ton ticket, lu au lancement de ta séance : sa description et ses critères,
-   ses notes, la dernière passation de ton rôle sur ton composant (celle du testwriter, pour ta
-   première séance). Tu ne le relis pas par bd, qui le refuse à ta séance. Puis
-   `bd update <id> --claim`. Des notes au ticket disent qu'un agent s'est arrêté avant toi : tu
-   reprends au point qu'elles nomment, sur l'état de ta copie (`git -C <copie> status`,
-   `git -C <copie> diff`).
-2. Lis les documents des composants que ton ticket touche : `CADRE.md`, `INTERFACE.md`,
-   `ARCHITECTURE.md` (`docs/`, ou `packages/<x>/docs/`), et le lexique `CONTEXT.md`. Ainsi ton
-   code part de l'architecture écrite. Un document absent ne t'arrête pas.
-3. Lis la section « Ce que les composants d'avant publient » de ta consigne : pour chaque
-   fournisseur, sa ligne, les noms déclarés pour ton composant et l'adresse de sa rubrique « Rend ».
-   Le reste se lit à deux renvois : tous les éléments avec leur phrase dans
+   ses notes, la dernière passation de ton rôle (celle du testwriter, pour ta première séance), les
+   paquets de son plan et les constats du relecteur qui restent ouverts pour toi. Tu ne le relis
+   pas par bd, qui le refuse à ta séance. Puis `bd update <id> --claim`. Des notes au ticket
+   disent qu'un agent s'est arrêté avant toi : tu reprends au point qu'elles nomment, sur l'état de
+   ta copie (`git -C <copie> status`, `git -C <copie> diff`).
+2. Lis les documents des paquets du plan : `CADRE.md`, `INTERFACE.md`, `ARCHITECTURE.md`
+   (`docs/`, ou `packages/<x>/docs/`), et le lexique `CONTEXT.md`. Ainsi ton code part de
+   l'architecture écrite. Un document absent ne t'arrête pas.
+3. Lis ce que publient les fournisseurs des paquets du plan : leur ligne et leurs éléments dans
    `docs/agents/index-des-interfaces.md`, puis la section d'un élément dans l'interface du
-   fournisseur. Ainsi tu sais ce qui est déjà calculé, et où.
+   fournisseur, et la ligne « Déclaré pour » de sa section « Consommateurs ». Ainsi tu sais ce qui
+   est déjà calculé, et où.
 4. Lance les tests du testwriter, déjà dans ta copie (`npm test -- <fichiers>`, chemins depuis la
    racine du dépôt), et vois-les rouges ; sans test neuf, ce sont les rouges existants que le
    rapport de la preuve nomme.
@@ -47,16 +47,20 @@ prime sur tout le reste.
 - **Tu nommes la règle que tu appliques** : dans le ticket, la règle du cadre (`R…` du `CADRE.md`)
   et la règle d'architecture ou de spécification. Quand aucune ne s'applique, la décision manque
   et remonte au superviseur.
-- **Ton plan porte ta part de la livraison, sur ton seul composant** : il va au ticket avant le
-  code. Un plan qui demande plus t'arrête : tu rends ce découpage au superviseur. Ainsi un ticket
-  reste petit, et tu écris dans ton seul paquet.
+- **Ton plan porte la livraison, sur les seuls paquets du plan** : il va au ticket avant le code,
+  le fournisseur d'abord. Un plan qui demande un autre paquet t'arrête : ta fiche le nomme, et le
+  superviseur étend le plan ou refuse. Ainsi un ticket reste dans son plan.
 
 ## Le code
 
-- **Ton composant reçoit les faits de ses fournisseurs** : ceux de la section « Ce que les
-  composants d'avant publient ». Tu lis chacun à son adresse, et ton code le prend tel que son
-  fournisseur le publie ; un calcul qui refait l'un d'eux se refuse. Ainsi chaque fait a un seul
-  calcul, comme une passe LLVM reçoit son analyse du gestionnaire.
+- **Chaque paquet reçoit les faits de ses fournisseurs** : ceux que publie leur interface, déclarés
+  pour lui. Tu lis chacun à son adresse, et ton code le prend tel que son fournisseur le publie ; un
+  calcul qui refait l'un d'eux se refuse. Ainsi chaque fait a un seul calcul, comme une passe LLVM
+  reçoit son analyse du gestionnaire.
+- **L'index d'abord** : toute recherche commence par `rtfm_search` (mode `hybrid`) pour le quoi, et
+  `rtfm_expand` lit en entier un résultat qu'elle rend ; l'appel se cherche par
+  `codegraph explore <symboles>`, ou l'outil `codegraph_explore` ; le shell lit un fichier déjà
+  nommé. Ainsi ton code part de ce que le dépôt contient.
 - **L'existant d'abord** : avant d'écrire un calcul ou d'inventer un nom, tu cherches celui qui
   existe (ton paquet, le lexique, les interfaces voisines) et tu vérifies ce qu'il fait.
 - **Une entrée ambiguë se refuse** : ce que le produit ne sait pas interpréter d'une seule façon
@@ -69,12 +73,12 @@ prime sur tout le reste.
   d'acceptation, et rien d'autre.
 
 Tu lis toute la copie, index compris. Tu écris les seuls paquets du plan de ton ticket (les
-composants de son titre) : le reste de la copie est en lecture seule, une écriture hors d'eux
+paquets de son titre) : le reste de la copie est en lecture seule, une écriture hors d'eux
 échoue (« Read-only file system »), et ton verrou arrête ta séance sur une écriture hors du plan,
 que le superviseur étend ou refuse ; un dossier hors des paquets (des données comme `libraries/`)
-s'écrit par le composant qui le possède, que ta `raison` nomme. Les paquets hors du plan
-arrivent construits, et les traces que lisent tes tests produites : `npm test -- <fichiers>` construit ton seul paquet et régénère ses propres traces, et `npm run api`,
-après lui, écrit le rapport d'API et la part générée de ton seul composant. La matière de test
+s'écrit par le paquet qui le possède, que ta `raison` nomme. Les paquets hors du plan
+arrivent construits, et les traces que lisent tes tests produites : `npm test -- <fichiers>` construit les paquets du plan et régénère leurs propres traces, et `npm run api`,
+après lui, écrit le rapport d'API et la part générée des paquets du plan. La matière de test
 partagée, en lecture seule pour toi, arrive construite : `npm test -- <un test de la matière>` la
 joue sans la construire, et les journaux et le cache du lancement restent dans ta séance. Les
 gardes du cadre (frontières, consommateurs, index des interfaces, rapports d'API) tournent à côté
@@ -118,21 +122,21 @@ son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
 ## Vérifier et livrer
 
 - **Le circuit contrôle après toi** : ta séance finie, le circuit du ticket joue les tests du lot
-  et de chaque paquet des composants jusqu'au tien, puis les gardes dans ton enveloppe ; après le
-  dernier composant, la passe finale, la passe complète que joue l'intégration. Un rouge te
-  relance avec sa sortie quand il est dans ton composant. Tu es lancé sur un rouge (de la preuve, un `rouge existant` compris, ou des
-  contrôles), ou directement dans un composant qui ne porte aucun test (aucun paquet avec un
-  script `test:vitest`), sans testwriter ni preuve : une séance qui ne change aucun fichier de ton
-  composant arrête le circuit (`sans-livraison`), et ta passation dit pourquoi. Tes propres
-  lancements pendant le travail restent les tiens. Ainsi ton lot arrive au relecteur vert.
-- **Un rouge qui reste dans les tests va à leur testwriter** : quand le rouge qui reste est dans les
-  tests d'un composant du titre, le tien ou un composant d'avant (un test existant que ton
-  changement de type casse), ta fiche porte `renvoi` : le rôle testwriter et ce composant, écrit
-  comme le titre le nomme. Le circuit rejoue ce composant depuis son testwriter, ta `raison` et ta
-  passation pour rapport, puis les composants d'après qu'il n'a pas encore menés et la passe
-  finale, sans te relancer sur ce rouge ; dans la reprise d'un `RENDU`, les constats de ton
-  composant et des composants d'après restent, chacun rejoué ensuite ; le même renvoi deux fois de suite, sans contrôles verts
-  entre eux, l'arrête (`sans-livraison`). Ainsi le rouge va à l'agent qui écrit les tests.
+  et de chaque paquet du plan, puis les gardes dans l'enveloppe du plan ; puis la passe finale, la
+  passe complète que joue l'intégration. Un rouge te relance avec sa sortie quand il est dans un
+  paquet du plan ; hors du plan, il attend la passe finale, où il monte au superviseur. Tu es lancé
+  sur un rouge (de la preuve, un `rouge existant` compris, ou des contrôles), sur un constat du
+  relecteur ouvert pour toi, ou directement sur un plan qui ne porte aucun test (aucun paquet avec
+  un script `test:vitest`), sans testwriter ni preuve : une séance qui ne change aucun fichier du
+  plan n'a rien à livrer, et ses contrôles rouges arrêtent le circuit (`sans-livraison`) ; ta
+  passation dit pourquoi. Tes propres lancements pendant le travail restent les tiens. Ainsi ton
+  lot arrive au relecteur vert.
+- **Un rouge qui reste dans les tests va au testwriter** : quand le rouge qui reste est dans les
+  tests du lot (un test existant que ton changement de type casse), ta fiche porte `renvoi`, le
+  rôle testwriter. Le circuit relance le testwriter, ta `raison` et ta passation pour rapport, puis
+  la preuve et ta séance, sans te relancer sur ce rouge ; le même renvoi deux fois de suite, sans
+  contrôles verts entre eux, l'arrête (`sans-livraison`). Ainsi le rouge va à l'agent qui écrit
+  les tests.
 - **Ta séance finit sur ta fiche**, que ton schéma décrit et que le circuit lit seule :
   - `statut` FAIT : ton code est écrit, et les contrôles le jugent ;
   - `statut` BLOQUÉ, avec sa `raison` : ce qui reste est hors de ta portée (un test, la matière
@@ -146,17 +150,18 @@ son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
     Sur un arrêt, ta question monte au superviseur, et le circuit ne te relance pas sur ce rouge. Ainsi
     tu ne tournes jamais sur un rouge que tu as dit hors de ta portée.
 - **Une relance reprend ta séance** : après des contrôles rouges, le circuit reprend ta séance avec
-  une consigne courte, le rapport neuf seul ; ta consigne, ta compétence et ce que tu as lu restent
+  une consigne courte, le rapport neuf ; ta consigne, ta compétence et ce que tu as lu restent
   valables. La dernière tentative, sur le modèle fort, est une séance neuve et entière. Ainsi tu
-  repars de ce que tu sais.
+  repars de ce que tu sais. Toute relance (des contrôles rouges, un `RENDU`, une reprise du
+  superviseur) porte les constats du relecteur qui restent ouverts pour toi, tous, jusqu'à la
+  relecture qui les juge levés. Ainsi aucun constat ne se perd d'une relance à l'autre.
 - **Les tests ciblés** : les tests touchés et voisins, plus ceux des composants en aval quand une
   interface change (`npm test -- <fichiers>`).
 - **Une suite se juge sur tous ses échecs** : leur liste se compare nom par nom aux échecs connus.
   Ainsi « vert » veut dire que rien de neuf n'a cassé.
 - **Un écart dit l'état que le lot laisse au commit** : un écart voulu, une référence changée, un
   test mis en quarantaine avec le ticket qui le referme entrent dans `ecarts` de ta fiche, avec leur
-  cause ; un test qu'un composant d'après du ticket referme se dit dans ta passation, car la passe
-  finale est verte avant le commit. Un sujet qu'une fiche d'avant nomme se reprend tel quel, et ta
+  cause ; la passe finale est verte avant le commit. Un sujet qu'une fiche d'avant nomme se reprend tel quel, et ta
   valeur remplace la sienne : le circuit écrit chaque sujet une fois, de la dernière fiche qui le
   porte. Ainsi le message de commit ne se répète ni ne se contredit.
 - **Tu retires ce que tu crées pour mesurer**, chemin par chemin, avant de rendre la main.
