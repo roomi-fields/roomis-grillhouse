@@ -28,7 +28,8 @@
 // its types in ./dette.d.ts (docs/ARCHITECTURE.md, the package's named entries).
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { ecrireSarif } from './resultats.mjs';
+import { pathToFileURL } from 'node:url';
+import { A_ELAGUER, ecrireSarif } from './resultats.mjs';
 
 export const FICHIER = 'grillhouse-dette.json';
 // The environment variable that names the mode of a run: `inscrire` or `elaguer`.
@@ -132,11 +133,55 @@ export function juger(dette, garde, constats) {
 // (the keys beyond their count, the keys to prune, what the run wrote). An unknown mode, or a file
 // that is not JSON, refuses every finding, behind a refusal that says why. The refusals are the
 // guard's findings in SARIF too, under the results directory <env> names (scripts/resultats.mjs),
-// each with its file, its line when the guard gives one, and its rule.
+// each with its file, its line when the guard gives one, and its rule; beside them, each key
+// inscribed above what the guard finds is a note (`a-elaguer`, level `note`), no red, by which the
+// circuit lowers the debt d'office at the final pass (scripts/circuit.mjs, 4.2).
 export function trancher(racine, garde, constats, mode = process.env[MODE] || undefined, env) {
-  const { refus, lignes } = juge(racine, garde, constats, mode);
-  ecrireSarif({ garde, constats: refus, racine, env: env ?? process.env });
+  const { refus, lignes, corriges } = juge(racine, garde, constats, mode);
+  const notes = corriges.map(c => ({
+    fichier: c.fichier,
+    regle: c.regle,
+    niveau: 'note',
+    genre: A_ELAGUER,
+    trouve: c.trouve,
+    message: `${c.trouve} constat(s) pour ${c.inscrit} inscrit(s) dans ${FICHIER} : la dette s'abaisse.`,
+  }));
+  ecrireSarif({ garde, constats: [...refus, ...notes], racine, env: env ?? process.env });
   return { refus, lignes };
+}
+
+// Writes <dette> at <racine>, its guards sorted.
+function ecrire(racine, dette) {
+  const triee = Object.fromEntries(
+    Object.keys(dette)
+      .sort()
+      .map(g => [g, dette[g]])
+  );
+  writeFileSync(path.join(racine, FICHIER), `${JSON.stringify(triee, null, 2)}\n`);
+}
+
+// The debt at <racine> lowered by <notes>, each `{ garde, fichier, regle, trouve }` (the notes
+// `a-elaguer` of a pass, scripts/resultats.mjs): each key named comes down to what its guard
+// found, and leaves at zero; a count never rises, no key is added. Written when it changes;
+// returns whether it did.
+function abaisser(racine, notes) {
+  const avant = lire(racine);
+  const dette = JSON.parse(JSON.stringify(avant));
+  for (const { garde, fichier, regle, trouve } of notes) {
+    const parRegle = dette[garde]?.[fichier];
+    const cle = parRegle?.[regle];
+    if (!cle || !Number.isInteger(trouve) || trouve >= cle.count) continue;
+    if (trouve > 0) {
+      cle.count = trouve;
+      continue;
+    }
+    delete parRegle[regle];
+    if (!Object.keys(parRegle).length) delete dette[garde][fichier];
+    if (!Object.keys(dette[garde]).length) delete dette[garde];
+  }
+  const change = JSON.stringify(dette) !== JSON.stringify(avant);
+  if (change) ecrire(racine, dette);
+  return change;
 }
 
 function juge(racine, garde, constats, mode) {
@@ -147,21 +192,15 @@ function juge(racine, garde, constats, mode) {
     }
     avant = lire(racine);
   } catch (e) {
-    return { refus: [{ message: e.message }, ...constats], lignes: [] };
+    return { refus: [{ message: e.message }, ...constats], lignes: [], corriges: [] };
   }
   let dette = avant;
   const lignes = [];
   if (mode) {
     dette =
       mode === 'inscrire' ? inscrire(avant, garde, constats) : elaguer(avant, garde, constats);
-    const f = path.join(racine, FICHIER);
     if (JSON.stringify(dette) !== JSON.stringify(avant)) {
-      const triee = Object.fromEntries(
-        Object.keys(dette)
-          .sort()
-          .map(g => [g, dette[g]])
-      );
-      writeFileSync(f, `${JSON.stringify(triee, null, 2)}\n`);
+      ecrire(racine, dette);
       lignes.push(
         `📝 ${FICHIER} : la dette de ${garde} est ${mode === 'inscrire' ? 'inscrite' : 'élaguée'}.`
       );
@@ -180,5 +219,26 @@ function juge(racine, garde, constats, mode) {
   }
   if (tus > 0)
     lignes.push(`ℹ️  ${garde} : ${tus} constat(s) connu(s), inscrit(s) dans ${FICHIER}.`);
-  return { refus, lignes };
+  return { refus, lignes, corriges };
+}
+
+// `node dette.mjs --abaisser <notes.json>`: the debt of the working directory lowered by the notes
+// of a pass, a JSON list (abaisser), as `prettier --write` writes and judges nothing: 0 once
+// written or left as it is, 1 only on a real failure (a file it cannot read).
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  const [option, notes] = process.argv.slice(2);
+  if (option !== '--abaisser' || !notes) {
+    process.stderr.write('Usage : node dette.mjs --abaisser <notes.json>\n');
+    process.exitCode = 2;
+  } else {
+    try {
+      const fait = abaisser(process.cwd(), JSON.parse(readFileSync(notes, 'utf8')));
+      process.stdout.write(
+        `${fait ? `📝 ${FICHIER} : la dette est abaissée.` : `${FICHIER} : rien à abaisser.`}\n`
+      );
+    } catch (e) {
+      process.stderr.write(`${e instanceof Error ? e.message : e}\n`);
+      process.exitCode = 1;
+    }
+  }
 }

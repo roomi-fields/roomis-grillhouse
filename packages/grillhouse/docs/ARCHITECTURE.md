@@ -57,6 +57,22 @@ commande du circuit (`--reprendre`, `--depuis`, `--etendre <paquet>`, `--arreter
 séance ne juge un geste qu'une règle tranche (BP 320.9 : 67 séances d'arbitrage et de réponse
 au plan, 14 montées qui étaient des gestes).
 
+**La régénération d'office** : comme les genrules de Bazel et `--update-snapshots`, un fichier
+engendré se réécrit par sa commande, puis le circuit rejoue seulement ce qui en dépend. Une passe
+finale dont un rouge est celui d'une référence, mêlé ou non à d'autres, régénère les références
+qu'il nomme (4.2), puis rejoue la passe finale restreinte à ce que la régénération change ; les
+autres rouges restent, chacun à son propriétaire. Les références sont celles que le projet déclare
+(`grillhouse.references`) et celles du cadre, dans chaque projet (`REFERENCES_DU_CADRE` de
+`circuit.mjs`) : l'index des interfaces, les `turbo.json` des paquets et les rapports d'API, chacun
+réécrit par son générateur sans que le plan le nomme, et la dette des gardes. Le circuit ne lit pas
+le code de sortie d'un générateur du cadre, qui juge aussi les rouges qu'il laisse (`npm run api`
+refuse à côté d'eux) : il juge la régénération sur ce qu'elle écrit, puis sur la passe restreinte
+qui suit, et seule une vraie panne l'arrête (la commande introuvable, ou tuée par un signal). La dette s'abaisse depuis les notes de la passe finale (une note
+`a-elaguer` du SARIF d'une garde, chaque clé inscrite au-dessus de ce qu'elle trouve), par
+`dette.mjs --abaisser`, sans rejouer les gardes. Un plafond ne monte jamais : un lot qui le dépasse
+reste rouge. Ainsi aucun fichier engendré n'attend une main (BP 320.9 : 292 min autour des
+références, dont 163 d'attente).
+
 **L'explorateur écrit le plan, questionné une fois** : comme l'auteur d'une RFC l'écrit après
 avoir relevé l'existant, qu'une revue la lit une fois, que l'auteur répond une fois et que ce qui
 reste ouvert va à qui décide, l'étape 1 du circuit (1 Plan) lance l'explorateur hors de

@@ -12,6 +12,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { FICHIER, elaguer, inscrire, juger, trancher } from '../../scripts/dette.mjs';
+import { lireSarif, RESULTATS } from '../../scripts/resultats.mjs';
+
+// The findings of a SARIF, as scripts/resultats.mjs reads them.
+type Sarif = {
+  constats: { garde: string; fichier: string | null; regle: string | null; niveau: string }[];
+};
 import { codeMortEssai } from './code-mort-essai.js';
 
 // The known debt of the guards (`scripts/dette.mjs`), on the model of ESLint's bulk suppressions:
@@ -111,6 +117,58 @@ describe('the judgement of the debt', () => {
     expect(juger({ g: { 'a.ts': { r: { count: 1 } } } }, 'g', [c('a.ts', 'r')]).corriges).toEqual(
       []
     );
+  });
+  // grillhouse-3uv.95.8: the circuit lowers the debt d'office at the final pass, as it reads a
+  // guard's results, never its output: a key inscribed above what is found is a note of the
+  // guard's SARIF, which no verdict counts as red.
+  it('writes each key inscribed above what is found as a note of its SARIF, beside its refusals', () => {
+    const dir = repo({});
+    const resultats = path.join(dir, 'resultats');
+    ecrireDette(dir, { g: { 'a.ts': { r: { count: 3 } } } });
+    const env: Record<string, string> = { [RESULTATS as string]: resultats };
+    const jugement = trancher(dir, 'g', [c('a.ts', 'r'), c('b.ts', 'r')], undefined, env);
+    expect(jugement.refus).toEqual([c('b.ts', 'r')]);
+    const { constats } = lireSarif(resultats) as Sarif;
+    expect(constats.filter(k => k.niveau === 'note')).toEqual([
+      expect.objectContaining({ garde: 'g', fichier: 'a.ts', regle: 'r', niveau: 'note' }),
+    ]);
+    expect(constats.filter(k => k.niveau !== 'note')).toEqual([
+      expect.objectContaining({ garde: 'g', fichier: 'b.ts', regle: 'r' }),
+    ]);
+    // Its witness: a debt at its count writes no note.
+    const juste = path.join(dir, 'juste');
+    ecrireDette(dir, { g: { 'a.ts': { r: { count: 1 } } } });
+    trancher(dir, 'g', [c('a.ts', 'r')], undefined, { [RESULTATS as string]: juste });
+    expect((lireSarif(juste) as Sarif).constats).toEqual([]);
+  });
+  // grillhouse-3uv.95.8: the circuit lowers the debt from those notes, by a command that writes
+  // and judges nothing, as `prettier --write`: no guard plays again, and its code says a failure
+  // alone.
+  it('lowers the debt from the notes of a pass, never up, and ends at 0 though other reds stand', () => {
+    const dir = repo({});
+    ecrireDette(dir, {
+      g: { 'a.ts': { r: { count: 3 } }, 'b.ts': { r: { count: 1 } } },
+      h: { 'c.ts': { s: { count: 2 } } },
+    });
+    const notes = path.join(dir, 'notes.json');
+    writeFileSync(
+      notes,
+      JSON.stringify([
+        { garde: 'g', fichier: 'a.ts', regle: 'r', trouve: 1 },
+        { garde: 'g', fichier: 'b.ts', regle: 'r', trouve: 0 },
+        { garde: 'h', fichier: 'c.ts', regle: 's', trouve: 5 },
+        { garde: 'h', fichier: 'neuf.ts', regle: 's', trouve: 0 },
+      ])
+    );
+    const r = garde(dir, 'dette.mjs', undefined, '--abaisser', notes);
+    expect(r.status, r.sortie).toBe(0);
+    expect(lireDette(dir)).toEqual({
+      g: { 'a.ts': { r: { count: 1 } } },
+      h: { 'c.ts': { s: { count: 2 } } },
+    });
+    // Its witness: a file of notes it cannot read is a failure.
+    const casse = garde(dir, 'dette.mjs', undefined, '--abaisser', path.join(dir, 'absent.json'));
+    expect(casse.status).toBe(1);
   });
   it('inscribes the findings of a guard, the other guards kept', () => {
     const autre = { h: { 'x.ts': { r: { count: 1 } } } };

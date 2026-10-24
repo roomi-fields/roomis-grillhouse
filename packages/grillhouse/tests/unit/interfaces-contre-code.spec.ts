@@ -1,8 +1,15 @@
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { declare } from '../../scripts/interfaces-contre-code.mjs';
+import { lireSarif, RESULTATS } from '../../scripts/resultats.mjs';
+
+// The findings of a SARIF, as scripts/resultats.mjs reads them.
+type Sarif = {
+  constats: { garde: string; fichier: string | null; regle: string | null; niveau: string }[];
+};
 import {
   refusNommant,
   passe,
@@ -46,6 +53,30 @@ describe('the check', () => {
     const r = apres({}, { 'dist/a/index.d.ts': DUREE.replace('x: number)', 'x: string)') });
     expect(r.status).toBe(1);
     expect(r.stderr).toMatch(/l'API a changé sans son rapport/);
+  });
+  // grillhouse-3uv.95.8: the API report is a file the frame generates, which the circuit
+  // regenerates by `npm run api` at the final pass: the refusal its regeneration lifts carries its
+  // rule, never a file, so the debt never inscribes it and the circuit knows it from the others.
+  it('names the rule of the refusals its regeneration lifts, `rapport-api` and `partie-generee`, without a file', () => {
+    const p = ecrit({});
+    writeFileSync(path.join(p.dir, 'dist/a/index.d.ts'), DUREE.replace('x: number)', 'x: string)'));
+    const resultats = path.join(p.dir, 'resultats');
+    const r = spawnSync(
+      'node',
+      [path.resolve(__dirname, '../../scripts/interfaces-contre-code.mjs')],
+      {
+        cwd: p.dir,
+        encoding: 'utf8',
+        env: { ...process.env, [RESULTATS as string]: resultats },
+      }
+    );
+    expect(r.status).toBe(1);
+    const regles = (lireSarif(resultats) as Sarif).constats.map(k => ({
+      regle: k.regle,
+      fichier: k.fichier,
+    }));
+    expect(regles).toContainEqual({ regle: 'rapport-api', fichier: null });
+    expect(regles).toContainEqual({ regle: 'partie-generee', fichier: null });
   });
   it('refuses a listed fault the code does not raise, and a raised fault not listed', () => {
     const r = apres({

@@ -428,7 +428,10 @@ function avecPartie(m, texte, partie) {
 // the debt (`dette.mjs`) judges, keyed by the component's interface (by the declaration file for a
 // TSDoc message, its rule TSDoc's message id); a refusal that a command or a build repairs (a
 // generated part, an API report, a built entry, the marks, the TSDoc configuration) has no key and
-// is never inscribed.
+// is never inscribed. The refusals `npm run api` lifts carry their rule without a file, never
+// inscribed either: `rapport-api` (the API report absent or stale) and `partie-generee` (the
+// generated part of the interface), by which the circuit regenerates them at the final pass
+// (scripts/circuit.mjs, the references of the frame).
 export function verifierComposant(racine, c, { ecrire = false } = {}) {
   const refus = [];
   const signaux = [];
@@ -442,6 +445,8 @@ export function verifierComposant(racine, c, { ecrire = false } = {}) {
         ? { fichier, ...(ligne ? { ligne } : {}), regle, message: `${rel} : ${texte}` }
         : { message: `${rel} : ${texte}` }
     );
+  // A refusal `npm run api` lifts: its rule, no file.
+  const aRegenerer = (texte, regle) => refus.push({ regle, message: `${rel} : ${texte}` });
   if (!existsSync(iface)) {
     signaux.push(`${rel} n'a pas d'interface (docs/INTERFACE.md) : rien n'est vérifié.`);
     return { refus, signaux };
@@ -474,12 +479,14 @@ export function verifierComposant(racine, c, { ecrire = false } = {}) {
     }
     const manque = !ecrire && !existsSync(path.join(c.dir, 'docs', 'INTERFACE.api.md'));
     if (manque) {
-      refuser(
-        "son rapport docs/INTERFACE.api.md manque ; npm run api l'écrit, après la construction."
+      aRegenerer(
+        "son rapport docs/INTERFACE.api.md manque ; npm run api l'écrit, après la construction.",
+        'rapport-api'
       );
     } else if (!api.ajour && !ecrire) {
-      refuser(
-        "l'API a changé sans son rapport docs/INTERFACE.api.md ; npm run api le régénère, après la construction."
+      aRegenerer(
+        "l'API a changé sans son rapport docs/INTERFACE.api.md ; npm run api le régénère, après la construction.",
+        'rapport-api'
       );
     }
     const nommees = new Set();
@@ -497,8 +504,9 @@ export function verifierComposant(racine, c, { ecrire = false } = {}) {
       if (ecrire) {
         if (attendu !== texte) writeFileSync(iface, attendu);
       } else if (attendu !== texte) {
-        refuser(
-          `la part générée de docs/INTERFACE.md (entre ${DEBUT} et ${FIN}) n'est pas celle du code ; npm run api la refait.`
+        aRegenerer(
+          `la part générée de docs/INTERFACE.md (entre ${DEBUT} et ${FIN}) n'est pas celle du code ; npm run api la refait.`,
+          'partie-generee'
         );
       }
     }

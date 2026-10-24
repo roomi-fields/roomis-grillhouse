@@ -9,14 +9,14 @@
 // - Each red guard is named with its code at the end; the exit code is 1 when one guard is red,
 //   0 when all are green.
 // - While the run names its results directory (`GRILLHOUSE_RESULTATS`, scripts/resultats.mjs),
-//   each guard writes its findings there in SARIF; a red guard that wrote no finding has one
-//   written for it, without location, its name (its script's, without extension) and its code:
-//   a red no reader can place.
+//   each guard writes its findings there in SARIF; a red guard that wrote no finding (a note of
+//   the debt, `a-elaguer`, is none) has one written for it, without location, its name (its
+//   script's, without extension) and its code: a red no reader can place.
 // - The build is not among them: Turborepo builds before this task (turbo.json).
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ecrireSarif, lireSarif, RESULTATS } from './resultats.mjs';
+import { A_ELAGUER, ecrireSarif, lireSarif, RESULTATS } from './resultats.mjs';
 
 // A script of the package, beside this one, by its name.
 const ici = nom => fileURLToPath(new URL(nom, import.meta.url));
@@ -47,13 +47,15 @@ export function jouerLesGardes({
   dire = l => process.stdout.write(`${l}\n`),
 }) {
   const rouges = [];
+  // The findings under the results directory, the notes of the debt left out.
+  const nombre = () => lireSarif(env[RESULTATS]).constats.filter(k => k.genre !== A_ELAGUER).length;
   for (const garde of gardes) {
-    const avant = env[RESULTATS] ? lireSarif(env[RESULTATS]).constats.length : 0;
+    const avant = env[RESULTATS] ? nombre() : 0;
     const r = spawnSync(process.execPath, garde, { cwd: racine, env, stdio: 'inherit' });
     if (r.status === 0) continue;
     const code = `code ${r.status ?? r.signal}`;
     rouges.push(`${libelle(garde)} (${code})`);
-    if (env[RESULTATS] && lireSarif(env[RESULTATS]).constats.length === avant) {
+    if (env[RESULTATS] && nombre() === avant) {
       ecrireSarif({
         garde: nomDeGarde(garde),
         racine,

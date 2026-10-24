@@ -31,7 +31,7 @@
 // - A ticket's line in a circuit gives its subject, then the counters of its loops, its time and
 //   its tokens.
 import { describe, expect, it } from 'vitest';
-import { assembler, declarations, fiches, LARGEUR, lignes } from '../../scripts/tableau.mjs';
+import { assembler, fiches, LARGEUR, lignes } from '../../scripts/tableau.mjs';
 
 const MIN = 60_000;
 const at = (hm: string) => `2026-10-20T${hm}:00Z`;
@@ -112,7 +112,6 @@ const plateau = (
     registre?: object[];
     vivants?: object[];
     circuits?: object[];
-    declarations?: string[];
   } = {}
 ): Board =>
   assembler({
@@ -121,7 +120,6 @@ const plateau = (
     registre: o.registre ?? [],
     vivants: o.vivants ?? [],
     circuits: o.circuits ?? [],
-    declarations: o.declarations ?? [],
     maintenant: MAINTENANT,
     jour: MAINTENANT - 24 * 60 * MIN,
   }) as Board;
@@ -486,29 +484,26 @@ describe('the card of a stopped ticket says its step by number and title', () =>
   });
 });
 
-// grillhouse-3uv.92.1: the regeneration of the references (4.2) has its line in the tree only for
-// a project that declares them (`grillhouse.references` of its package.json), as a job of GitLab
-// CI shows only in a pipeline whose rules hold it.
-describe('the line of 4.2, for a project that declares its references', () => {
-  it('a project without the declaration has no line 4.2, a ticket at the final pass under 4.1', () => {
+// grillhouse-3uv.92.1: the regeneration of the references (4.2) has its line in the tree.
+// grillhouse-3uv.95.8: in every project, since the frame's generated files and its known debt are
+// references of the circuit that no project declares.
+describe('the line of 4.2, in every project', () => {
+  it('a project that declares no reference has its line 4.2, a ticket at the final pass under 4.1', () => {
     const t = plateau([T('demo-35')], {
       circuits: [circuit('demo-35', { etape: 'controles', finale: true })],
     });
-    expect(textes(t).filter(x => ETAPE.test(x))).not.toContain(
+    expect(textes(t).filter(x => ETAPE.test(x))).toContain(
       '  4.2 · Régénération des références · auto'
     );
     expect(etapeDe(t, 'demo-35')).toBe('  4.1 · Passe finale · auto');
   });
 
-  it('a project that declares them folds 4 while nothing stands there', () => {
-    expect(textes(plateau([], { declarations: ['references'] }))).toContain(
-      '▸ 4 · Passe finale et relecture'
-    );
+  it('4 folds while nothing stands there', () => {
+    expect(textes(plateau([]))).toContain('▸ 4 · Passe finale et relecture');
   });
 
   it('a ticket at the regeneration unfolds 4, under « 4.2 · Régénération des références · auto »', () => {
     const t = plateau([T('demo-36')], {
-      declarations: ['references'],
       circuits: [circuit('demo-36', { etape: 'references', finale: true })],
     });
     const l = textes(t);
@@ -524,7 +519,6 @@ describe('the line of 4.2, for a project that declares its references', () => {
 
   it('a ticket stopped at the regeneration stands under the question of 4.2', () => {
     const t = plateau([T('demo-37')], {
-      declarations: ['references'],
       circuits: [
         circuit(
           'demo-37',
@@ -540,14 +534,5 @@ describe('the line of 4.2, for a project that declares its references', () => {
     });
     expect(etapeDe(t, 'demo-37')).toBe('  4.2 · Régénération des références · auto');
     expect(sousUneQuestion(t, 'demo-37')).toBe(true);
-  });
-
-  it("reads the declarations of the project's package.json: a key of grillhouse that holds something", () => {
-    expect(declarations({ grillhouse: { references: [{ nom: 'x' }], lit: [] } })).toEqual([
-      'references',
-    ]);
-    expect(declarations({ grillhouse: { references: [] } })).toEqual([]);
-    expect(declarations({})).toEqual([]);
-    expect(declarations(null)).toEqual([]);
   });
 });

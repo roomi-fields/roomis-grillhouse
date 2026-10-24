@@ -10,8 +10,6 @@
 //   `finale`). Every step runs once for the whole ticket, as a merge request has one author of
 //   its tests and one of its code, one CI on the whole and one review: one session of the
 //   testwriter (2) and one of the developpeur (3) carry the whole plan.
-//   A step that runs only for a project that declares it names the key of that declaration under
-//   `grillhouse` of the project's package.json (`declaration`): the board shows it only there.
 //   The plan (1) is read elsewhere in the state: by the work on the plan under way
 //   (`questionnement`, the explorateur's or the questionneur's session) and by its stop (`arrets`).
 //   SUITE is the tree in its order, each step before its sub-steps.
@@ -69,7 +67,6 @@ export const ETAPES = [
         titre: 'Régénération des références',
         qui: [AUTO],
         etat: 'references',
-        declaration: 'references',
         arrets: ['references'],
       },
       {
@@ -193,10 +190,11 @@ export const GESTES = [
   },
   {
     genre: 'regeneration',
-    geste: 'à la régénération des références (4.2), puis la passe finale restreinte',
+    geste:
+      'à la régénération des références (4.2), puis la passe finale restreinte à ce qu’elle change',
     regle:
-      'chaque rouge de la passe finale est celui d’une référence que le projet déclare (`grillhouse.references`)',
-    cas: 'BP 320.9 : 163 min d’attente pour régénérer à la main l’index des interfaces, le plafond et l’empreinte',
+      'un rouge de la passe finale est celui d’une référence, même mêlé à d’autres : une que le projet déclare (`grillhouse.references`), ou un fichier que le cadre engendre (l’index des interfaces, les turbo.json, les rapports d’API) ; ou la passe abaisse la dette des gardes (`dette.mjs --abaisser`, depuis ses notes)',
+    cas: 'BP 320.9 : 292 min autour des références, dont 163 min d’attente pour régénérer à la main l’index des interfaces, le plafond et l’empreinte, des rouges de références mêlés à d’autres',
   },
   {
     genre: 'rien-a-livrer',
@@ -250,7 +248,7 @@ export const MONTEES = Object.fromEntries(
     questionnement:
       'Des questions du plan restent ouvertes après la réponse de l’explorateur : le plan change-t-il (`bd update`), ou reste-t-il tel quel ? `--reprendre` le fait passer tel qu’il est alors.',
     references:
-      'La régénération des références change une référence ou un fichier que le plan ne nomme pas, ou ne lève pas leurs rouges : le plan les nomme-t-il, ou qui corrige le lot ?',
+      'La régénération des références change une référence du projet que le plan ne nomme pas, un fichier qu’aucune référence n’écrit, ou sa commande échoue : le plan les nomme-t-il, ou qui corrige le lot ?',
     'hors-plan':
       'La séance écrit hors du plan du ticket : le plan s’étend-il à ce paquet (`--etendre`), ou l’écriture est-elle refusée (`--reprendre` avec son contexte) ?',
   }).map(([arret, question]) => [arret, { question: `${question} ${REPONSES}`, qui: SUPERVISEUR }])

@@ -206,7 +206,7 @@
 //   SARIF, a failed build or task of the summary; a red check none of them situates is one red of
 //   the command. A red a path of the plan holds is the developpeur's; the others (one without a
 //   file, the root's or a project's guard without SARIF, in a package out of the plan, or a red of
-//   a reference the project declares, which its regeneration lifts) wait for the final pass. Green,
+//   a reference, which its regeneration lifts) wait for the final pass. Green,
 //   the checks lead to the final pass.
 // - The final pass: `npm run verifier`, what the integration plays, as bors plays on a lot the
 //   very check of the merge. Turborepo's cache and the last green hold its cost: a task nothing
@@ -227,28 +227,42 @@
 //   package (`--etendre`), or has the lot corrected (`--depuis developpeur`). A developpeur whose
 //   reds are all findings to settle (`a-arbitrer`) is not launched: the circuit stops at
 //   « controles », each finding as its piece.
-// - The regeneration of the references (step 4.2 of scripts/etapes.mjs), as `rustc --bless`,
-//   `jest -u` and `cargo insta accept`: a project declares in its package.json the references it
-//   derives from the whole copy, which no envelope shows (a fingerprint of its output, a ceiling
-//   of a count), `grillhouse.references`: each `{ nom, commande, fichiers, tests, gardes }`, its
-//   name, the shell command that writes it again from the root of the copy, the files it writes
-//   (paths, directories or glob patterns, `*` and `**`, from the root, as the inputs of
-//   Turborepo), the test files that judge it, as `rustc --bless` ties a test to its expected
-//   outputs, and the guards of the project that judge it, by the name their SARIF finding carries
-//   (its guard or its rule). A final pass whose every red is one of the references declared (a
-//   failed test of one of their test files, a finding of one of their guards, whatever file it
-//   aims at, or a failed test or a finding on a file they cover) sends no developpeur: the gesture
-//   `regeneration`; the circuit keeps the copy as a lot, runs each command on the whole copy, out
-//   of the envelope, under the lock of the machine, its output added to the log, keeps the copy
-//   again on that lot, then plays the final pass restricted to what the regeneration changed and
-//   its dependents (`--filter=...[<avant>...<après>] --filter=//`); that pass green after a whole
-//   one keeps its tree as verified. The files regenerated stay in the copy: the lot carries them,
-//   and the reviewer reads them with the rest of the lot, the step's report among the circuit's. A
-//   reference changed that the ticket's description names neither by its name nor by one of its
-//   files, a file changed that the files of no reference cover, a command at a code other than 0,
-//   a regeneration that changes nothing, or a pass after it red again on the references, stops at
-//   « references » (23), the copy restored as it was before the regeneration, each reference and
-//   file named, a question for the supervisor. Without the declaration, the step never runs.
+// - The regeneration of the references (step 4.2 of scripts/etapes.mjs), as Bazel's genrules,
+//   `--update-snapshots`, `rustc --bless` and `cargo insta accept`: a generated file is written
+//   again by its command, then the circuit replays only what depends on it. A project declares in
+//   its package.json the references it derives from the whole copy, which no envelope shows (a
+//   fingerprint of its output, a ceiling of a count), `grillhouse.references`: each `{ nom,
+//   commande, fichiers, tests, gardes }`, its name, the shell command that writes it again from the
+//   root of the copy, the files it writes (paths, directories or glob patterns, `*` and `**`, from
+//   the root, as the inputs of Turborepo), the test files that judge it, as `rustc --bless` ties a
+//   test to its expected outputs, and the guards of the project that judge it, by the name their
+//   SARIF finding carries (its guard or its rule). The frame's references follow in every project
+//   (REFERENCES_DU_CADRE): the files the frame generates, each judged by a guard of the frame, by
+//   the names its findings carry (the index of the interfaces, the turbo.json of the packages, the
+//   API reports), and the known debt of the guards; a reference of the project whose first file
+//   is one of theirs replaces it. A final pass with a red of a reference (a failed test of one of
+//   their test files, a finding of one of their guards, whatever file it aims at, or a failed test
+//   or a finding on a file a reference of the project covers), mixed with other reds or not, or a
+//   guard's note of a key of the debt inscribed above what it finds (`a-elaguer`, the pass green
+//   or not), sends no developpeur: the gesture `regeneration`, once for that pass. The circuit
+//   keeps the copy as a lot, runs the command of each reference concerned on the whole copy (the
+//   debt lowered from the notes of the pass, its guards not played again), out of the envelope,
+//   under the lock of the machine, its output added to the log, keeps the copy again on that lot, then plays the final pass restricted to what the regeneration changed and its
+//   dependents (`--filter=...[<avant>...<après>] --filter=//`); each red of the pass before in a
+//   package that pass does not play again stands, and a regeneration that changes nothing plays no
+//   pass, every red of the pass before standing. What remains goes each to its owner, as any red
+//   of the final pass; a ceiling never rises (its command lowers it), so a lot beyond it stays red.
+//   That pass green after a whole one keeps its tree as verified. The files regenerated stay in
+//   the copy: the lot carries them, and the reviewer reads them with the rest of the lot, the
+//   step's report among the circuit's. A reference of the project changed that the ticket's
+//   description names neither by its name nor by one of its files, a file changed that the files
+//   of no reference run cover, or a command that fails stops at « references » (23): a command of
+//   the project at a code other than 0, one of the frame on a real failure alone (not found, killed
+//   by a signal), since its code also judges the reds it leaves (`npm run api` refuses beside
+//   them), which the pass that follows judges. The stop leaves the copy restored as it was before
+//   the regeneration, each reference and file named, a
+//   question for the supervisor; the state keeps the references to regenerate and the reds of the
+//   pass before (`aRegenerer`), for a regeneration resumed.
 // - The proof, the checks and the final pass are heavy passes: each holds the lock of the machine
 //   (scripts/verrou-de-machine.mjs), shared by every repository of the machine, and waits, the
 //   wait written to the log, while another measure holds it; the wait bounded, the pass is at 75,
@@ -410,7 +424,7 @@
 //   sending to the testwriter), 20 besoin (a testwriter or developpeur whose sheet says BESOIN, a
 //   reviewer whose sheet carries a `question`), 22 questionnement (questions of the plan left open
 //   after the explorateur's answer), 23 references (a regeneration of 4.2 the plan does not
-//   cover, or that lifts nothing), 24 hors-plan (a testwriter or developpeur session its lock
+//   cover, or whose command fails), 24 hors-plan (a testwriter or developpeur session its lock
 //   stops on a write out of the plan, `<ticket>.hors-plan` that lancer.sh writes), each a question
 //   for the supervisor; 75 a-repasser (a check or the integration still at 75 once played again,
 //   or the branch still in the queue), the gesture `a-repasser`.
@@ -460,7 +474,9 @@ import {
 } from './etapes.mjs';
 import { paquets } from './paquets.mjs';
 import { ecrire as ecrireAuRegistre, ligneDEtape, transcriptionsDeLaCopie } from './registre.mjs';
+import { FICHIER as DETTE } from './dette.mjs';
 import {
+  A_ELAGUER,
   bloquantsDeLaFiche,
   conformiteDuLot,
   lireFiche,
@@ -538,6 +554,48 @@ const LANCEUR = path.join(ici, 'enveloppe', 'lancer.sh');
 const INTEGRER = path.join(ici, 'integration', 'integrer.mjs');
 const FILE = path.join(ici, 'integration', 'file.mjs');
 const REGISTRE = path.join(ici, 'registre.mjs');
+// A generator of the frame, beside this script, as the command of a reference.
+const generateur = (script, ...args) =>
+  [`node ${JSON.stringify(path.join(ici, script))}`, ...args].join(' ');
+// The references of the circuit that no project declares (4.2), as Bazel's genrules: the files the
+// frame generates, each judged by a guard of the frame and written again by its generator, whose
+// code the circuit does not read (a real failure aside): what it writes, then the pass that
+// follows, judge it; and the known debt of the guards, lowered from the notes of the final pass (`dette.mjs --abaisser`,
+// `abaisser`: its command names the file of those notes). Each `{ nom, commande, fichiers,
+// gardes }`, `gardes` the names the findings its regeneration lifts carry (their guard or their
+// rule).
+const REFERENCES_DU_CADRE = [
+  {
+    nom: "l'index des interfaces",
+    commande: generateur('index-interfaces.mjs'),
+    fichiers: ['docs/agents/index-des-interfaces.md'],
+    gardes: ['index-interfaces'],
+  },
+  {
+    nom: 'les turbo.json des paquets',
+    commande: generateur('turbo-des-paquets.mjs', '--ecrire'),
+    fichiers: ['turbo.json', 'turbo.jsonc', '**/turbo.json'],
+    gardes: ['turbo-des-paquets'],
+  },
+  {
+    nom: "les rapports d'API",
+    commande: generateur('interfaces-contre-code.mjs', '--ecrire'),
+    fichiers: [
+      'docs/INTERFACE.api.md',
+      'docs/INTERFACE.md',
+      '**/docs/INTERFACE.api.md',
+      '**/docs/INTERFACE.md',
+    ],
+    gardes: ['rapport-api', 'partie-generee'],
+  },
+  {
+    nom: 'la dette des gardes',
+    commande: generateur('dette.mjs', '--abaisser', '<notes>'),
+    fichiers: [DETTE],
+    gardes: [],
+    abaisser: true,
+  },
+];
 // The templates of the instructions, in the skill of the supervisor, which the frame's plugin
 // carries, read at the plugin's root (scripts/cadre.mjs).
 const GABARIT = path.join(GREFFON, 'skills', 'pitmaster', 'references', 'consigne-agent.md');
@@ -833,8 +891,8 @@ function ecrireRapport(ctx, etape, texte, resultat, rapport = texte) {
 }
 
 // The state of the run, written whole (`seance` and `question` null and `finale` false unless <etat>
-// sets them, `processus`, `paquets`, `constats`, `verifie` and `reprise` the run's), kept as the
-// run's current state.
+// sets them, `processus`, `paquets`, `constats`, `verifie`, `reprise` and `aRegenerer` the
+// run's), kept as the run's current state.
 function ecrireEtat(ctx, etat) {
   ctx.courant = {
     finale: false,
@@ -849,6 +907,7 @@ function ecrireEtat(ctx, etat) {
     constats: ctx.constats ?? [],
     verifie: ctx.verifie ?? null,
     reprise: ctx.reprise ?? null,
+    aRegenerer: ctx.aRegenerer ?? null,
   };
   const provisoire = `${ctx.etat}.${process.pid}`;
   writeFileSync(
@@ -1544,12 +1603,14 @@ function laPasseFinale(ctx) {
   };
 }
 
-// The references the project declares in the package.json of the copy (`grillhouse.references`):
-// each `{ nom, commande, fichiers, tests, gardes }` with a name, a command and files, `tests` and
-// `gardes` arrays when given, empty when not; none without them.
+// The references of the circuit: those the project declares in the package.json of the copy
+// (`grillhouse.references`), each `{ nom, commande, fichiers, tests, gardes }` with a name, a
+// command and files, `tests` and `gardes` arrays when given, empty when not; then the frame's
+// (REFERENCES_DU_CADRE, `cadre`), each but one whose first file a reference of the project covers,
+// which replaces it.
 function lesReferences(ctx) {
   const l = lireJson(path.join(ctx.copie, 'package.json'))?.grillhouse?.references;
-  return (Array.isArray(l) ? l : [])
+  const duProjet = (Array.isArray(l) ? l : [])
     .filter(
       r =>
         typeof r?.nom === 'string' &&
@@ -1559,7 +1620,11 @@ function lesReferences(ctx) {
         (r.tests === undefined || Array.isArray(r.tests)) &&
         (r.gardes === undefined || Array.isArray(r.gardes))
     )
-    .map(r => ({ ...r, tests: r.tests ?? [], gardes: r.gardes ?? [] }));
+    .map(r => ({ ...r, tests: r.tests ?? [], gardes: r.gardes ?? [], cadre: false }));
+  const duCadre = REFERENCES_DU_CADRE.filter(
+    c => !duProjet.some(r => couvertPar(r.fichiers, c.fichiers[0]))
+  ).map(c => ({ ...c, tests: [], cadre: true }));
+  return [...duProjet, ...duCadre];
 }
 
 // Whether one of <motifs> covers the file <fichier>, both from the root of the copy, as the
@@ -1572,29 +1637,42 @@ export function couvertPar(motifs, fichier) {
   });
 }
 
-// The references the project declares, when every red of a final pass, by its place of <lieux>
-// (`{ fichier, gardes }`, the names its finding carries), is one of theirs: a finding of one of
-// their `gardes`, a file of their `tests`, or a file their `fichiers` cover; none otherwise.
-function referencesDesRouges(ctx, lieux) {
-  const refs = lesReferences(ctx);
-  const leur = ({ fichier: f, gardes }) =>
-    refs.some(
-      r =>
-        gardes.some(g => r.gardes.includes(g)) ||
-        (f && (r.tests.includes(f) || couvertPar(r.fichiers, f)))
-    );
-  return refs.length && lieux.length && lieux.every(leur) ? refs : [];
+// The references a red of <lieux> is one of (each `{ fichier, gardes }`, its file and the names its
+// finding carries), however many other reds stand beside it, as `--update-snapshots` updates the
+// snapshots that fail and leaves the other failures: a finding of one of their `gardes`, a file of
+// their `tests`, or a file their `fichiers` cover, the frame's by their `gardes` alone; with
+// <aElaguer> (a guard wrote a key of the debt inscribed above what it finds), the reference that
+// covers the debt's file too.
+function referencesDesRouges(ctx, lieux, aElaguer = false) {
+  const sien = (r, { fichier: f, gardes }) =>
+    gardes.some(g => r.gardes.includes(g)) ||
+    (!r.cadre && Boolean(f) && (r.tests.includes(f) || couvertPar(r.fichiers, f)));
+  return lesReferences(ctx).filter(
+    r => lieux.some(l => sien(r, l)) || (aElaguer && couvertPar(r.fichiers, DETTE))
+  );
 }
 
-// The regeneration of the references the project declares (4.2): the copy kept as a lot on the
-// one the last review read (or HEAD), each command run on the whole copy, the copy kept again on
-// that lot. `{ texte, regenerees, fichiers, restreinte }`: the report, the names of the
-// references changed, the files changed, and the range of the final pass that follows. A
-// reference changed that the ticket's description does not name (its name or one of its files),
-// a file changed that no reference declares, a command at another code than 0 or a regeneration
-// that changes nothing restores the copy as it was and stops at « references ».
-function regenerer(ctx) {
-  const refs = lesReferences(ctx);
+// The regeneration of the references named <noms> (4.2): the copy kept as a lot on the one the
+// last review read (or HEAD), each command run on the whole copy, the copy kept again on that lot.
+// `{ texte, regenerees, fichiers, restreinte }`: the report, the names of the references changed,
+// the files changed, and the range of the final pass that follows (null when nothing changed: no
+// pass plays again, and the reds stand). A file the frame generates follows from the lot, as the
+// output of a genrule, and the reviewer reads its difference; a reference of the project changed
+// that the ticket's description does not name (its name or one of its files), a file changed that
+// none of the references run declares, or a command that fails (a reference of the project at
+// another code than 0, one of the frame on a real failure alone) restores the copy as it was and
+// stops at « references ».
+function regenerer(ctx, noms, notes = []) {
+  // The notes of the debt, in a file of the run, which the command that lowers it reads.
+  const fichierDesNotes = path.join(ctx.base.dossier, 'dette-a-abaisser.json');
+  const refs = lesReferences(ctx)
+    .filter(r => noms.includes(r.nom))
+    .map(r =>
+      r.abaisser
+        ? { ...r, commande: generateur('dette.mjs', '--abaisser', JSON.stringify(fichierDesNotes)) }
+        : r
+    );
+  if (refs.some(r => r.abaisser)) writeFileSync(fichierDesNotes, `${JSON.stringify(notes)}\n`);
   const avant = garderLeLot(ctx, relectureDAvant(ctx)?.lot.commit);
   if (!avant) {
     throw new Arret(
@@ -1602,32 +1680,33 @@ function regenerer(ctx) {
       'Le circuit ne garde pas la copie avant la régénération des références (git échoue).'
     );
   }
+  // The command of a reference of the frame is judged by what it writes, then by the pass that
+  // follows, never by its code, which also judges the reds it leaves (`npm run api` refuses beside
+  // them): a real failure alone counts; a reference of the project, by its code.
   const echecs = refs
-    .map(r => ({ r, code: commandeDeReference(ctx, r.commande) }))
-    .filter(x => x.code !== 0)
-    .map(x => `- ${x.r.nom} : \`${x.r.commande}\` rend le code ${x.code}.`);
+    .map(r => ({ r, ...commandeDeReference(ctx, r.commande) }))
+    .filter(x => x.panne || (!x.r.cadre && x.code !== 0))
+    .map(
+      x =>
+        `- ${x.r.nom} : \`${x.r.commande}\` rend le code ${x.code}${x.panne ? ' (une panne)' : ''}.`
+    );
   const apres = garderLeLot(ctx, avant.commit);
   const fichiers = apres ? differenceDesLots(ctx, avant.commit, apres.commit) : [];
   const description = leTicket(ctx).description;
   const siens = r => fichiers.filter(f => couvertPar(r.fichiers, f));
   const regenerees = refs.filter(r => siens(r).length);
-  const nommee = r => [r.nom, ...r.fichiers].some(x => description.includes(x));
+  const nommee = r => r.cadre || [r.nom, ...r.fichiers].some(x => description.includes(x));
   const horsDeclaration = fichiers.filter(f => !refs.some(r => couvertPar(r.fichiers, f)));
   const ecarts = [
     ...echecs,
     ...(!apres ? ['- Le circuit ne garde pas la copie après la régénération (git échoue).'] : []),
-    ...(apres && !fichiers.length
-      ? [
-          `- La régénération (${refs.map(r => `\`${r.commande}\``).join(', ')}) ne change aucun fichier : les rouges de la passe finale restent.`,
-        ]
-      : []),
     ...regenerees
       .filter(r => !nommee(r))
       .map(
         r =>
           `- ${r.nom} change (${siens(r).join(', ')}), et le plan du ticket ne nomme pas ce changement (ni « ${r.nom} » ni ses fichiers).`
       ),
-    ...horsDeclaration.map(f => `- ${f} change, et aucune référence déclarée ne l'écrit.`),
+    ...horsDeclaration.map(f => `- ${f} change, et aucune référence régénérée ne l'écrit.`),
   ];
   if (ecarts.length) {
     restaurer(ctx, avant.commit, fichiers);
@@ -1647,6 +1726,14 @@ function regenerer(ctx) {
       ].join('\n')
     );
   }
+  if (!fichiers.length) {
+    return {
+      texte: `La régénération (${refs.map(r => `${r.nom}, \`${r.commande}\``).join(' ; ')}) ne change aucun fichier : aucune passe ne rejoue, et les rouges de la passe finale restent, chacun à son propriétaire.`,
+      regenerees: [],
+      fichiers,
+      restreinte: null,
+    };
+  }
   return {
     texte: [
       `Les références régénérées sur la copie entière : ${regenerees.map(r => r.nom).join(', ')} ; le lot porte leurs fichiers, puis la passe finale restreinte à ce qu'elles changent.`,
@@ -1662,7 +1749,10 @@ function regenerer(ctx) {
 }
 
 // One command of a reference, run by the shell at the root of the copy, out of the envelope,
-// under the lock of the machine, its output added to the log: its exit code.
+// under the lock of the machine, its output added to the log: `{ code, panne }`, its exit code and
+// whether it failed for real, whatever it judges: the command not found or not executable (126,
+// 127, as the shell says it), killed by a signal (the shell's 128 + its number), or the lock of the
+// machine not taken.
 function commandeDeReference(ctx, commande) {
   entete(ctx, 'references');
   appendFileSync(ctx.journal, `$ ${commande}\n`);
@@ -1672,11 +1762,16 @@ function commandeDeReference(ctx, commande) {
       env => spawnSync('sh', ['-c', commande], { cwd: ctx.copie, stdio: ['ignore', fd, fd], env }),
       { racine: ctx.copie, dire: l => appendFileSync(ctx.journal, `${l}\n`) }
     );
-    return r.status ?? 1;
+    const code = r.status ?? 1;
+    return {
+      code,
+      panne:
+        r.signal !== null || r.error !== undefined || code === 126 || code === 127 || code > 128,
+    };
   } catch (e) {
     if (!(e instanceof AttenteDeLaMachine)) throw e;
     appendFileSync(ctx.journal, `${e.message}\n`);
-    return e.code;
+    return { code: e.code, panne: true };
   } finally {
     closeSync(fd);
   }
@@ -2271,12 +2366,13 @@ function situer(ctx, liste, chemin) {
 // The reds of the check <c> (`{ args, env, code, dossier }`), read in its results: each failed
 // test of the reports of Vitest, each finding of the guards' SARIF, each failed build, and each
 // failed task none of those situates; a red check with none of them is one red of the command.
-// Each red `{ texte, fichier, gardes, detail, dansLePlan, paquet, horsTitre, arbitrer }`: the line
-// that names it (test or finding, file, message), its file (null for a red of a task), the names
-// its finding carries (its guard and its rule), the beginning of its task's log for a build,
+// Each red `{ texte, fichier, gardes, detail, dansLePlan, paquet, horsTitre, arbitrer, joue }`: the
+// line that names it (test or finding, file, message), its file (null for a red of a task), the
+// names its finding carries (its guard and its rule), the beginning of its task's log for a build,
 // whether a path of the plan holds it (none for a red without a file), the package that holds it
-// and that package again when it is out of the plan, and whether it is a finding to settle
-// (`a-arbitrer`).
+// and that package again when it is out of the plan, whether it is a finding to settle
+// (`a-arbitrer`), and the package whose task gave it, as Turborepo names it (« // » for the
+// root's guards; null for a red of the command).
 function rougesDe(ctx, liste, c) {
   if (c.code === 0 || c.code === A_REPASSER) return [];
   const out = [];
@@ -2289,6 +2385,7 @@ function rougesDe(ctx, liste, c) {
         texte: `test ${f} — ne se charge pas : ${premiereLigne(res.message)}`,
         fichier: f,
         ...lieu,
+        joue: lieu.paquet,
       });
       testes.add(paquetDe(liste, f));
     }
@@ -2297,11 +2394,13 @@ function rougesDe(ctx, liste, c) {
         texte: `test ${f} › ${a.nom} — ${premiereLigne(a.message)}`,
         fichier: f,
         ...lieu,
+        joue: lieu.paquet,
       });
       testes.add(paquetDe(liste, f));
     }
   }
-  const { constats } = lireSarif(c.dossier);
+  // A key of the debt to lower (`a-elaguer`, scripts/dette.mjs) is a note, not a red.
+  const constats = lireSarif(c.dossier).constats.filter(k => k.genre !== A_ELAGUER);
   for (const k of constats) {
     const ou = k.fichier ? ` ${k.fichier}${k.ligne ? `:${k.ligne}` : ''}` : '';
     out.push({
@@ -2310,6 +2409,7 @@ function rougesDe(ctx, liste, c) {
       gardes: [k.garde, k.regle].filter(Boolean),
       ...situer(ctx, liste, k.fichier),
       arbitrer: k.genre === 'a-arbitrer',
+      joue: '//',
     });
   }
   // The guards of the project wrote findings when one comes from a guard out of the frame's.
@@ -2331,6 +2431,7 @@ function rougesDe(ctx, liste, c) {
           : `tâche ${t.tache} rouge (code ${t.code}) — son journal : ${j.chemin}`,
       detail: t.script === 'build' ? j.debut : '',
       ...lieu,
+      joue: t.paquet,
     });
   }
   if (out.length === 0) {
@@ -2352,21 +2453,29 @@ const ligneDeCommande = c =>
 // The checks after the developpeur: those of the plan (3.1), or, when <finale>, `npm run
 // verifier`, what the integration plays (4.1), restricted by <restreinte> (`{ avant, apres }`, two
 // lots kept) to the packages that changed from one to the other and their dependents, with the
-// root's tasks, the guards (`--filter=...[<avant>...<apres>] --filter=//`). `{ rouge, aRepasser,
-// arbitrer, auDeveloppeur, texte, complet, resume, horsTitre, lieux }`: `texte` the report for
-// the developpeur, his reds first; `complet` every red, for a stop; `auDeveloppeur` whether a red
-// lies in a package of the plan; `horsTitre` the packages out of the plan that hold a red;
-// `arbitrer` when every red of the plan is a finding to settle; `lieux` the place of each red, `{
-// fichier, gardes }`, its file (null for a red without one) and the names its finding carries
-// (none for a test or a task).
-function controles(ctx, finale, restreinte = null) {
+// root's tasks, the guards (`--filter=...[<avant>...<apres>] --filter=//`). After a regeneration,
+// <reportes> (`{ rouges, rejouee }`) carries the reds of the final pass before it: each one in a
+// package the pass restricted to the regeneration does not play again stands, as a CI keeps the
+// verdict of a job it does not run again; when the regeneration changes nothing (`rejouee`
+// false), no command plays, and they all stand. `{ rouge, aRepasser, arbitrer, auDeveloppeur,
+// texte, complet, resume, horsTitre, lieux, tous, notes }`: `texte` the report for the
+// developpeur, his reds first; `complet` every red, for a stop; `auDeveloppeur` whether a red lies
+// in a package of the plan; `horsTitre` the packages out of the plan that hold a red; `arbitrer`
+// when every red of the plan is a finding to settle; `lieux` the place of each red, `{ fichier,
+// gardes }`, its file (null for a red without one) and the names its finding carries (none for a
+// test or a task); `tous` every red as it was read; `notes`, at the final pass, each key of the debt
+// a guard wrote inscribed above what it finds, `{ garde, fichier, regle, trouve }`.
+function controles(ctx, finale, restreinte = null, reportes = null) {
   const liste = paquets(ctx.copie).filter(p => !p.hors);
   const filtres = restreinte
     ? ['--', `--filter=...[${restreinte.avant}...${restreinte.apres}]`, '--filter=//']
     : [];
-  const commandes = finale
-    ? [{ args: ['run', 'verifier', ...filtres] }]
-    : commandesDuPlan(ctx, liste);
+  const commandes =
+    reportes && !reportes.rejouee
+      ? []
+      : finale
+        ? [{ args: ['run', 'verifier', ...filtres] }]
+        : commandesDuPlan(ctx, liste);
   const resultats = commandes.map(({ args, env }) => {
     let r = npm(ctx, 'controles', args, env);
     // verifier plays a task at 75 again itself, at rest: its 75 is final; a command of the checks
@@ -2378,10 +2487,17 @@ function controles(ctx, finale, restreinte = null) {
     const c = { args, env, ...r };
     return { ...c, rouges: rougesDe(ctx, liste, c) };
   });
-  const tous = resultats.flatMap(r => r.rouges);
+  // The packages the commands played (the root's tasks under « // »), whose reds are read again.
+  const joues = new Set(resultats.flatMap(r => lireResumes(r.dossier).map(t => t.paquet)));
+  const tous = [
+    ...resultats.flatMap(r => r.rouges),
+    ...(reportes?.rouges ?? []).filter(
+      r => !reportes.rejouee || (Boolean(r.joue) && !joues.has(r.joue))
+    ),
+  ];
   // Out of the final pass, the reds of the plan are the developpeur's; the others (the root, a red
-  // no file situates, a package out of the plan, a red of a reference the project declares, which
-  // its regeneration lifts, 4.2) wait for it.
+  // no file situates, a package out of the plan, a red of a reference, which its regeneration
+  // lifts, 4.2) wait for it.
   const deReference = r =>
     referencesDesRouges(ctx, [{ fichier: r.fichier ?? null, gardes: r.gardes ?? [] }]).length > 0;
   const siens = r => finale || (r.dansLePlan && !deReference(r));
@@ -2393,10 +2509,14 @@ function controles(ctx, finale, restreinte = null) {
   const a = rouges.filter(r => r.dansLePlan);
   const autres = rouges.filter(r => !r.dansLePlan);
   const resume = rouges.length
-    ? `rouge : ${rouges.length} rouge(s) — ${enEchec.map(nommer).join(' ; ')}`
+    ? `rouge : ${rouges.length} rouge(s) — ${
+        commandes.length
+          ? enEchec.map(nommer).join(' ; ')
+          : "ceux de la passe finale d'avant, que la régénération ne change pas"
+      }`
     : aRepasser.length
       ? `à repasser : ${aRepasser.map(nommer).join(' ; ')}`
-      : `verts : ${resultats.map(ligneDeCommande).join(' ; ')}${
+      : `verts : ${commandes.length ? resultats.map(ligneDeCommande).join(' ; ') : "la passe finale d'avant"}${
           laisses.length
             ? ` ; laissés à la passe finale, ${laisses.length} rouge(s) hors du plan`
             : ''
@@ -2454,6 +2574,14 @@ function controles(ctx, finale, restreinte = null) {
     resume,
     horsTitre: [...new Set(rouges.map(r => r.horsTitre).filter(Boolean))].sort(),
     lieux: rouges.map(r => ({ fichier: r.fichier ?? null, gardes: r.gardes ?? [] })),
+    tous,
+    notes: finale
+      ? resultats.flatMap(r =>
+          lireSarif(r.dossier)
+            .constats.filter(k => k.genre === A_ELAGUER)
+            .map(({ garde, fichier, regle, trouve }) => ({ garde, fichier, regle, trouve }))
+        )
+      : [],
   };
 }
 
@@ -2709,8 +2837,9 @@ async function derouler(ctx, debut) {
         etape = CONTROLES;
       } else if (etape === CONTROLES) {
         const passeFinale = finale;
-        // The final pass: after a regeneration of the references, restricted to what it changed;
-        // else whole, or restricted to what changed since the last review.
+        // The final pass: after a regeneration of the references, restricted to what it changed,
+        // the reds of the pass before it carried (none plays when it changed nothing); else whole,
+        // or restricted to what changed since the last review.
         const regeneration = passeFinale ? (ctx.regeneration ?? null) : null;
         ctx.regeneration = null;
         const passe = !passeFinale
@@ -2718,7 +2847,7 @@ async function derouler(ctx, debut) {
           : regeneration
             ? { arbre: arbreDeLaCopie(ctx), restreinte: regeneration.restreinte }
             : laPasseFinale(ctx);
-        const k = controles(ctx, passeFinale, passe.restreinte);
+        const k = controles(ctx, passeFinale, passe.restreinte, regeneration?.reportes ?? null);
         const resultat = issue => ({ issue, finale: passeFinale });
         rapport = k.texte;
         // A developpeur who had nothing to deliver before these checks.
@@ -2734,26 +2863,25 @@ async function derouler(ctx, debut) {
           });
         };
         const suivante = tentative + 1;
-        // A final pass red on the references the project declares alone: their regeneration.
-        const aRegenerer = k.rouge && passeFinale ? referencesDesRouges(ctx, k.lieux) : [];
-        const noms = aRegenerer.map(r => r.nom).join(', ');
-        if (aRegenerer.length && regeneration) {
-          arreter(
-            'references',
-            `La passe finale, après la régénération des références (${noms}), reste rouge sur elles : la régénération ne lève pas leurs rouges.`
-          );
-        } else if (aRegenerer.length) {
+        // A final pass with a red of a reference, mixed with others or not, or a debt the lot
+        // lowers: their regeneration, once for this pass; the reds that remain then go each to
+        // its owner.
+        const aRegenerer =
+          passeFinale && !regeneration && (k.rouge || k.notes.length > 0)
+            ? referencesDesRouges(ctx, k.lieux, k.notes.length > 0)
+            : [];
+        if (aRegenerer.length) {
+          const noms = aRegenerer.map(r => r.nom);
           geste(ctx, 'regeneration');
           ecrireRapport(
             ctx,
             'controles',
-            `${k.resume} ; ses rouges sont ceux des références que le projet déclare (${noms}) : à leur régénération.`,
-            resultat('rouge'),
+            `${k.resume} ; ${k.rouge ? 'des rouges sont ceux de références' : 'la dette des gardes baisse'} (${noms.join(', ')}) : à leur régénération.`,
+            resultat(k.rouge ? 'rouge' : 'vert'),
             k.texte
           );
-          ctx.entiere = !passe.restreinte;
+          ctx.aRegenerer = { noms, rouges: k.tous, notes: k.notes, entiere: !passe.restreinte };
           etape = REFERENCES;
-          tentative = 0;
           finale = true;
         } else if (k.rouge && passeFinale && k.horsTitre.length) {
           arreter(
@@ -2799,8 +2927,9 @@ async function derouler(ctx, debut) {
           } else {
             // The whole pass green on this lot; the lot the last review accepted goes to the
             // integration, any other to the review.
-            // A pass restricted to a regeneration after a whole one counts as whole.
-            if (passe.arbre && (!passe.restreinte || regeneration?.entiere)) {
+            // A pass after a regeneration counts as whole after a whole one: restricted to what
+            // the regeneration changed, or not played when it changed nothing.
+            if (passe.arbre && (regeneration ? regeneration.entiere : !passe.restreinte)) {
               ctx.verifie = passe.arbre;
             }
             const r = relectureDAvant(ctx);
@@ -2810,15 +2939,27 @@ async function derouler(ctx, debut) {
           }
         }
       } else if (etape === REFERENCES) {
-        const g = regenerer(ctx);
+        // The references to regenerate and the reds of the pass before, kept in the state from
+        // the final pass that called for them, so that a regeneration resumed knows them.
+        const a = ctx.aRegenerer;
+        if (!a) {
+          throw new Arret(
+            'references',
+            "L'état du circuit ne garde pas les références à régénérer : la passe finale les redonne (`--depuis developpeur`)."
+          );
+        }
+        const g = regenerer(ctx, a.noms, a.notes);
         ecrireRapport(ctx, 'references', g.texte, {
           regenerees: g.regenerees,
           fichiers: g.fichiers,
         });
-        ctx.regeneration = { restreinte: g.restreinte, entiere: ctx.entiere === true };
-        ctx.entiere = false;
+        ctx.regeneration = {
+          restreinte: g.restreinte,
+          entiere: a.entiere,
+          reportes: { rouges: a.rouges, rejouee: g.fichiers.length > 0 },
+        };
+        ctx.aRegenerer = null;
         etape = CONTROLES;
-        tentative = 0;
         finale = true;
       } else if (etape === RELECTURE) {
         const v = await relire(ctx);
@@ -3483,11 +3624,12 @@ export async function main(argv) {
     ctx = contexte(lireArguments(argv));
     mkdirSync(path.dirname(ctx.copie), { recursive: true });
     const e = existsSync(ctx.etat) ? JSON.parse(readFileSync(ctx.etat, 'utf8')) : null;
-    // The findings of the reviewer still open, the lot the whole final pass verified, and the
-    // session a relaunch resumes, kept from one run to the next.
+    // The findings of the reviewer still open, the lot the whole final pass verified, the session a
+    // relaunch resumes, and the references a regeneration has to run, kept from one run to the next.
     ctx.constats = [...(e?.constats ?? [])];
     ctx.verifie = e?.verifie ?? null;
     ctx.reprise = e?.reprise ?? null;
+    ctx.aRegenerer = e?.aRegenerer ?? null;
     // The supervisor's answers to a question: stop the circuit, or extend its plan and resume.
     if (ctx.arreter) return await arreter(ctx, e);
     if (ctx.etendre) {

@@ -103,8 +103,12 @@ import { RESULTATS, VITEST } from './vitest-config/resultats.mjs';
 export { RESULTATS };
 const SARIF = 'sarif';
 const TURBO = 'turbo';
-// The kinds of a guard's finding: to fix (a developpeur's work), to settle (a person's decision).
-const GENRES = ['a-corriger', 'a-arbitrer'];
+// The kind of a note of a guard, no red: a key of the known debt inscribed above what the guard
+// finds, which the circuit lowers (scripts/dette.mjs, scripts/circuit.mjs).
+export const A_ELAGUER = 'a-elaguer';
+// The kinds of a guard's finding: to fix (a developpeur's work), to settle (a person's decision),
+// to lower (a note).
+const GENRES = ['a-corriger', 'a-arbitrer', A_ELAGUER];
 const texte = description => ({ type: 'string', description });
 const liste = (items, description) => ({ type: 'array', description, items });
 const objet = (properties, required = [], description) => ({
@@ -551,7 +555,8 @@ function paquetDe(racine, fichier) {
 }
 
 // The SARIF 2.1.0 of the findings <constats> of <garde> in <racine>: each `{ fichier, ligne,
-// message, regle, niveau, genre }`, all but the message optional.
+// message, regle, niveau, genre, trouve }`, all but the message optional (`trouve`, the count a
+// note of the debt finds).
 export function sarif({ garde, constats, racine = process.cwd() }) {
   return {
     $schema: 'https://json.schemastore.org/sarif-2.1.0.json',
@@ -579,6 +584,7 @@ export function sarif({ garde, constats, racine = process.cwd() }) {
             ...(c.regle ? { regle: c.regle } : {}),
             paquet: paquetDe(racine, c.fichier),
             genre: c.genre ?? GENRES[0],
+            ...(c.trouve !== undefined ? { trouve: c.trouve } : {}),
           },
         })),
       },
@@ -615,7 +621,8 @@ const lireJson = f => {
 
 // The guards that wrote their SARIF under the results directory <dossier>, and their findings:
 // `{ gardes, constats }`, each finding `{ garde, regle, fichier, ligne, niveau, message, paquet,
-// genre }`, `fichier`, `ligne`, `regle` and `paquet` null when the guard gave none.
+// genre }`, `fichier`, `ligne`, `regle` and `paquet` null when the guard gave none, and `trouve`,
+// the count a note of the debt finds, when it carries one.
 export function lireSarif(dossier) {
   const gardes = new Set();
   const constats = [];
@@ -634,6 +641,7 @@ export function lireSarif(dossier) {
           message: String(r.message?.text ?? ''),
           paquet: r.properties?.paquet ?? null,
           genre: r.properties?.genre ?? GENRES[0],
+          ...(r.properties?.trouve !== undefined ? { trouve: r.properties.trouve } : {}),
         });
       }
     }
