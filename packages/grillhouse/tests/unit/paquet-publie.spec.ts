@@ -128,7 +128,7 @@ describe('grillhouse-3uv.84.4 critère 5 — the package declares what its scrip
 describe('grillhouse-3uv.84.4 critère 7 — what the frame reads resolves from the package installed', () => {
   // grillhouse-3uv.84.8: docs/, the package's architecture, which the common charter names.
   it('the package publishes bin/, scripts/, cadre/, docs/ and the plugin’s entries, which its prepack writes and its postpack removes', () => {
-    expect(PROPRES_DU_PAQUET).toEqual(['bin', 'cadre', 'docs', 'scripts']);
+    expect(PROPRES_DU_PAQUET).toEqual(['bin', 'cadre', 'docs', 'scripts', 'tsdoc-base.json']);
     expect([...pkg.files].sort()).toEqual([...PROPRES_DU_PAQUET, ...ELEMENTS_DU_GREFFON].sort());
     expect(pkg.scripts.prepack).toBe('node scripts/cadre.mjs --empaqueter');
     expect(pkg.scripts.postpack).toBe('node scripts/cadre.mjs --nettoyer');
@@ -208,6 +208,30 @@ describe('grillhouse-3uv.84.4 critère 7 — what the frame reads resolves from 
   it('init and the update read the template under CADRE', () => {
     for (const f of ['scripts/init.mjs', 'scripts/grillhouse-maj.mjs']) {
       expect(readFileSync(path.join(PAQUET, f), 'utf8'), f).toContain("from './cadre.mjs'");
+    }
+  });
+});
+
+// grillhouse-3uv.95.11.3: the package publishes its TSDoc base, which extends API Extractor's, a
+// dependency it declares itself, as a rig of Rushstack carries the base configuration beside the
+// dependency it names; a project's tsdoc.json extends it. TSDoc resolves an `extends` by its path
+// under the package (the module `resolve`, which reads no `exports`): the file lies at the
+// package's root, published, and its entry names it.
+describe('grillhouse-3uv.95.11.3 — the TSDoc base of the package', () => {
+  const lireJson = (f: string) => JSON.parse(readFileSync(f, 'utf8')) as { extends?: string[] };
+  it('the package publishes tsdoc-base.json at its root, its entry naming it, and it extends API Extractor’s', () => {
+    expect(pkg.files).toContain('tsdoc-base.json');
+    expect(pkg.exports['./tsdoc-base.json']).toBe('./tsdoc-base.json');
+    expect(lireJson(path.join(PAQUET, 'tsdoc-base.json')).extends).toEqual([
+      '@microsoft/api-extractor/extends/tsdoc-base.json',
+    ]);
+    expect(pkg.dependencies?.['@microsoft/api-extractor']).toBeTypeOf('string');
+  });
+  it('the tsdoc.json of the template and of the repository extend the package’s base', () => {
+    for (const f of ['templates/projet/tsdoc.json', 'tsdoc.json']) {
+      expect(lireJson(path.join(DEPOT, f)).extends, f).toEqual([
+        '@roomi-fields/grillhouse/tsdoc-base.json',
+      ]);
     }
   });
 });
@@ -327,7 +351,7 @@ export { n, s, refus, lignes };
   it('critère 3: the architecture of the package names each entry it publishes, and names no entry it does not', () => {
     const texte = readFileSync(path.join(PAQUET, 'docs/ARCHITECTURE.md'), 'utf8');
     const nommees = new Set(
-      [...texte.matchAll(/`@roomi-fields\/grillhouse\/([a-z][a-z0-9/-]*)`/g)].map(
+      [...texte.matchAll(/`@roomi-fields\/grillhouse\/([a-z][a-z0-9/.-]*)`/g)].map(
         m => `./${m[1] as string}`
       )
     );

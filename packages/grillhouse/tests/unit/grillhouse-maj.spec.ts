@@ -507,10 +507,10 @@ describe('the update installs Turborepo', () => {
 
 // grillhouse-3uv.60: the update writes in the project the script that writes the API reports and
 // the development dependencies of the frame's controls, as the template declares them.
-// grillhouse-3uv.84.4 critère 5: the tools a project runs as commands (API Extractor, whose TSDoc
-// base its tsdoc.json extends; dependency-cruiser; knip; Turborepo); what the package's scripts
-// import, the package declares itself.
-const DEPENDANCES = ['@microsoft/api-extractor', 'dependency-cruiser', 'knip', 'turbo'];
+// grillhouse-3uv.84.4 critère 5: the tools a project runs as commands (dependency-cruiser; knip;
+// Turborepo); what the package's scripts import, the package declares itself, API Extractor among
+// them (grillhouse-3uv.95.11.3).
+const DEPENDANCES = ['dependency-cruiser', 'knip', 'turbo'];
 type Pkg = {
   scripts?: Record<string, string>;
   dependencies?: Record<string, string>;
@@ -581,7 +581,6 @@ describe('grillhouse-3uv.60 critère 1 — the update writes api and the depende
   });
   it("critère 1: the versions are read in the source — another source's versions are written", () => {
     const versions: Record<string, string> = {
-      '@microsoft/api-extractor': '7.1.0',
       'dependency-cruiser': '^16.0.0',
       knip: '5.0.1',
       turbo: '2.0.0',
@@ -642,11 +641,7 @@ describe('grillhouse-3uv.60 critère 4 — api is written as the frame’s other
       delete p.devDependencies?.knip;
     });
     const { pkg } = apresMaj({ name: 'p' }, src);
-    expect(Object.keys(pkg.devDependencies ?? {}).sort()).toEqual([
-      '@microsoft/api-extractor',
-      'dependency-cruiser',
-      'turbo',
-    ]);
+    expect(Object.keys(pkg.devDependencies ?? {}).sort()).toEqual(['dependency-cruiser', 'turbo']);
   });
   it('critère 4: a source that declares none of the three writes no devDependencies', () => {
     const src = sourceRetouchee(p => {
@@ -692,7 +687,6 @@ describe('grillhouse-3uv.60 critère 5 — a declared dependency keeps its decla
       devDependencies: { vitest: '^2.0.0', eslint: '^8.0.0', '@types/node': '^20.0.0' },
     });
     expect(Object.keys(pkg.devDependencies ?? {})).toEqual([
-      '@microsoft/api-extractor',
       '@types/node',
       'dependency-cruiser',
       'eslint',
@@ -847,7 +841,6 @@ describe('grillhouse-3uv.60 critère 8 — only the source’s devDependencies a
         expect(pkg[c]?.knip, c).toBeUndefined();
       }
       expect(Object.keys(pkg.devDependencies ?? {}).sort()).toEqual([
-        '@microsoft/api-extractor',
         'dependency-cruiser',
         'turbo',
       ]);
@@ -858,7 +851,7 @@ describe('grillhouse-3uv.60 critère 8 — only the source’s devDependencies a
       for (const d of DEPENDANCES) {
         delete p.devDependencies?.[d];
       }
-      p.dependencies = { ...(p.dependencies ?? {}), '@microsoft/api-extractor': '7.0.0' };
+      p.dependencies = { ...(p.dependencies ?? {}), turbo: '2.0.0' };
       p.optionalDependencies = { 'dependency-cruiser': '16.0.0' };
       p.peerDependencies = { knip: '>=5' };
     });
@@ -943,7 +936,7 @@ describe('grillhouse-3uv.60 critère 9 — the report names each added dependenc
     });
     const r = lancerMaj(projet, src);
     expect(r.status, r.stderr).toBe(0);
-    expect(r.stdout).toContain('@microsoft/api-extractor');
+    expect(r.stdout).toContain('turbo');
     expect(r.stdout).not.toContain('knip');
     expect(r.stdout).not.toContain('dependency-cruiser');
     expect(r.stdout).toMatch(NPM_INSTALL);
@@ -952,7 +945,7 @@ describe('grillhouse-3uv.60 critère 9 — the report names each added dependenc
     const { projet, src } = projetEtSource({
       name: 'p',
       peerDependencies: { knip: '>=5' },
-      devDependencies: { '@microsoft/api-extractor': '7.0.0', 'dependency-cruiser': '16.0.0' },
+      devDependencies: { turbo: '2.0.0', 'dependency-cruiser': '16.0.0' },
     });
     const r = lancerMaj(projet, src);
     expect(r.stdout).toContain('knip');
@@ -1023,6 +1016,7 @@ describe('grillhouse-3uv.60 critère 9 — the report names each added dependenc
 // declared by the package itself, so a project receives none of them from the update.
 describe('grillhouse-3uv.84.4 critère 5 — the package declares the tools its scripts import', () => {
   const IMPORTES = [
+    '@microsoft/api-extractor',
     '@microsoft/api-extractor-model',
     '@microsoft/tsdoc-config',
     'jsonc-parser',
@@ -1034,6 +1028,13 @@ describe('grillhouse-3uv.84.4 critère 5 — the package declares the tools its 
     expect(paquet.dependencies?.[nom], nom).toBeTypeOf('string');
     const { pkg } = apresMaj({ name: 'p', devDependencies: { vitest: '^2.0.0' } });
     expect(pkg.devDependencies?.[nom]).toBeUndefined();
+  });
+  // grillhouse-3uv.95.11.3 critère 1: the template of a project declares none of them.
+  it.each(IMPORTES)('%s is not declared by the template of a project', nom => {
+    const m = modele();
+    for (const champ of ['dependencies', 'devDependencies', 'optionalDependencies'] as const) {
+      expect(m[champ]?.[nom], `${champ} ${nom}`).toBeUndefined();
+    }
   });
 });
 

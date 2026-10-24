@@ -27,7 +27,8 @@
 //   named, not rewritten.
 // - A dependency of the project's root that a copy removed imported, that the package declares in
 //   its own `dependencies`, that the template of a project does not declare, and that no source of
-//   the project still imports, is named, not removed: the project decides.
+//   the project still imports, is named, not removed: the project decides. API Extractor is named
+//   by the migration of 0.24.2 alone (`DU_PAQUET` of 0.24.2-api-extractor-du-paquet.mjs), once.
 // - A project without `fichiers.txt` and `empreintes.json` is not written: a second pass finds
 //   neither, or finds only the copies left to the project, which it names again.
 import { createHash } from 'node:crypto';
@@ -35,10 +36,11 @@ import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'no
 import path from 'node:path';
 import { CADRE, PAQUET } from '../cadre.mjs';
 import { paquets } from '../paquets.mjs';
-import { sources } from '../sources.mjs';
+import { importe, sources } from '../sources.mjs';
 import { SOUS_COMMANDES } from '../sous-commandes.mjs';
 import { formesAnterieures } from './0.23.0-config-vitest.mjs';
 import { deRoleSupprime } from './0.24.0-circuit-simplifie.mjs';
+import { dependanceDuPaquet, DU_PAQUET } from './0.24.2-api-extractor-du-paquet.mjs';
 
 export const version = '0.23.2';
 export const nom = 'copies du cadre';
@@ -56,12 +58,6 @@ const GENERE = /^\/\/ Généré par `[^`\n]*turbo-des-paquets[^`\n]*`/;
 
 const hacher = octets => createHash('sha256').update(octets).digest('hex');
 const lireJson = f => JSON.parse(readFileSync(f, 'utf8'));
-const echapper = t => t.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
-// Whether the source text <texte> imports the package <dep> (or a path into it).
-const importe = (texte, dep) =>
-  new RegExp(
-    `(?:\\bfrom\\s*|\\bimport\\s*\\(?\\s*|\\brequire\\s*\\(\\s*)(['"])${echapper(dep)}(?:/[^'"]*)?\\1`
-  ).test(texte);
 
 // The subcommand that runs each script of the package, by the path of its former copy.
 const PAR_COPIE = new Map(Object.entries(SOUS_COMMANDES).map(([n, s]) => [`scripts/${s}`, n]));
@@ -188,14 +184,12 @@ export function migrer(projet) {
   const duPaquet = Object.keys(lireJson(path.join(PAQUET, 'package.json')).dependencies ?? {});
   const gabarit = lireJson(path.join(CADRE, GABARIT, 'package.json'));
   const textes = sources(projet).map(f => readFileSync(path.join(projet, f), 'utf8'));
-  for (const dep of duPaquet) {
+  for (const dep of duPaquet.filter(d => d !== DU_PAQUET)) {
     if (!CHAMPS.some(c => pkg[c]?.[dep] !== undefined)) continue;
     if (CHAMPS.some(c => gabarit[c]?.[dep] !== undefined)) continue;
     if (![...retires.values()].some(t => importe(t, dep))) continue;
     if (textes.some(t => importe(t, dep))) continue;
-    sortie.push(
-      `package.json : la dépendance ${dep} n'est plus importée que par le paquet, qui la déclare lui-même ; \`npm uninstall ${dep}\` la retire si le projet n'en a pas l'usage`
-    );
+    sortie.push(dependanceDuPaquet(dep));
   }
   return sortie;
 }

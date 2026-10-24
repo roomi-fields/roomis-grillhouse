@@ -19,7 +19,7 @@
 //   the project keeps the version it recorded, so that the next update plays that migration again.
 //   Last, after the update and the regeneration, what stays to the project (`restes` of a
 //   migration played, scripts/migrations.mjs: in 0.24.0, a file that still calls a former copy of
-//   the frame) is reported on the standard output, « reste au projet », with no effect on the exit
+//   the frame; in 0.24.2, API Extractor still declared by the project) is reported on the standard output, « reste au projet », with no effect on the exit
 //   code nor on the version recorded.
 // - The frame copies no file into a project: its scripts are the package's, its skills, agents,
 //   hooks of Claude Code, common charter and meta-frame the plugin's, which the package carries
@@ -65,15 +65,17 @@
 //   A `turbo.json` present is never written again by the update; only the generator of the
 //   packages' turbo.json (below) writes in it the `dependsOn` of the guard tasks, and adds one it
 //   lacks.
-// - The tools the frame's checks run as commands (API Extractor, whose TSDoc base the project's
-//   `tsdoc.json` extends, dependency-cruiser, knip, Turborepo) are added to the project's
-//   `devDependencies` at the version the template's `devDependencies` give; a tool the project
-//   already declares in `dependencies`, `devDependencies` or `optionalDependencies` keeps its
-//   declaration, one a previous version added stays, and `devDependencies` are written sorted by
-//   name. The report names each tool added and `npm install`, which installs them. What the
-//   package's scripts import, it declares itself (its `dependencies`, and Vitest and TypeScript as
-//   peers). A project without `packageManager` receives the template's (Turborepo requires it), and
-//   a `.gitignore` that does not ignore `.turbo/` (Turborepo's runs and cache) receives the line.
+// - The tools the frame's checks run as commands (dependency-cruiser, knip, Turborepo) are added
+//   to the project's `devDependencies` at the version the template's `devDependencies` give; a
+//   tool the project already declares in `dependencies`, `devDependencies` or
+//   `optionalDependencies` keeps its declaration, one a previous version added stays, and
+//   `devDependencies` are written sorted by name. The report names each tool added and
+//   `npm install`, which installs them. What the package's scripts import, it declares itself (its
+//   `dependencies`, API Extractor among them; Vitest and TypeScript as peers), as npm leaves to a
+//   package what it imports; the project's `tsdoc.json` extends the package's TSDoc base
+//   (`@roomi-fields/grillhouse/tsdoc-base.json`), which extends API Extractor's. A project without
+//   `packageManager` receives the template's (Turborepo requires it), and a `.gitignore` that does
+//   not ignore `.turbo/` (Turborepo's runs and cache) receives the line.
 // - A project that runs Vitest (its `test` script names it, or `vitest` is in the `dependencies` or
 //   `devDependencies` of its root `package.json` or of one of its packages, the workspaces as npm
 //   maps them, read by `paquets` of scripts/paquets.mjs, the frame's one list of the
@@ -158,7 +160,7 @@ export const LIGNE_ETAT = '"$CLAUDE_PROJECT_DIR/node_modules/.bin/grillhouse" li
 
 // The frame's tools a project runs as commands: their names are the frame's, their versions are
 // read in the template.
-const OUTILS_DU_CADRE = ['@microsoft/api-extractor', 'dependency-cruiser', 'knip', 'turbo'];
+const OUTILS_DU_CADRE = ['dependency-cruiser', 'knip', 'turbo'];
 // The root scripts of the tests, written together from the template.
 const SCRIPTS_DES_TESTS = ['test', 'test:vitest', 'test:forcer', 'verifier'];
 const CHAMPS_INSTALLES = ['dependencies', 'devDependencies', 'optionalDependencies'];

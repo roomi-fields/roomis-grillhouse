@@ -211,7 +211,11 @@ la fonction, sans réexport, avec sa déclaration de types à côté (`scripts/<
 `@roomi-fields/grillhouse/consommateurs` (`matieres`, les paquets de la matière de test
 partagée), `@roomi-fields/grillhouse/paquets` (`horsCadre`, les paquets hors cadre), et la
 configuration de base de Vitest, `@roomi-fields/grillhouse/vitest-config` et
-`@roomi-fields/grillhouse/vitest-config/mesure`. Une entrée s'ajoute ou se retire avec ce
+`@roomi-fields/grillhouse/vitest-config/mesure`, et la base TSDoc,
+`@roomi-fields/grillhouse/tsdoc-base.json`, dont hérite le `tsdoc.json` d'un projet : elle hérite
+de celle d'API Extractor, que le paquet déclare, comme un rig de Rushstack porte la configuration
+de base à côté de la dépendance qu'elle nomme ; TSDoc lit un `extends` par son chemin sous le
+paquet, sans le champ `exports`, et le fichier se tient donc à la racine du paquet. Une entrée s'ajoute ou se retire avec ce
 paragraphe, que `tests/unit/paquet-publie.spec.ts` confronte au champ `exports`. Un paquet du
 projet dont le code de `src/` hors des tests importe une entrée déclare le paquet du cadre dans
 ses `dependencies`, comme npm y met ce que le code publié importe : `npx grillhouse maj` l'y

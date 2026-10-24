@@ -1,7 +1,7 @@
 // The source files of a project, as the migrations read them (scripts/migrations/): each `.ts`,
 // `.mts`, `.cts`, `.js`, `.mjs`, `.cjs` under its root, as a path from it, the directories of
 // tools and of what is installed or built (node_modules, .git, dist, coverage, .turbo, .claude,
-// .beads, .codegraph, .rtfm) left out.
+// .beads, .codegraph, .rtfm) left out; and whether a source text imports a package (`importe`).
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
@@ -26,3 +26,10 @@ export function sources(racine, rel = '') {
     return e.isFile() && EXTENSIONS.test(e.name) ? [r] : [];
   });
 }
+
+const echapper = t => t.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+/** Whether the source text <texte> imports the package <dep> (or a path into it). */
+export const importe = (texte, dep) =>
+  new RegExp(
+    `(?:\\bfrom\\s*|\\bimport\\s*\\(?\\s*|\\brequire\\s*\\(\\s*)(['"])${echapper(dep)}(?:/[^'"]*)?\\1`
+  ).test(texte);

@@ -23,6 +23,7 @@
     "hooks",
     "scripts",
     "skills",
+    "tsdoc-base.json",
     "types"
   ],
   "bin": {
@@ -49,7 +50,8 @@
     "./vitest-config/mesure": {
       "types": "./scripts/vitest-config/mesure.d.ts",
       "default": "./scripts/vitest-config/mesure.mjs"
-    }
+    },
+    "./tsdoc-base.json": "./tsdoc-base.json"
   },
   "scripts": {
     "prepack": "node scripts/cadre.mjs --empaqueter",
