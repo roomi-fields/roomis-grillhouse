@@ -7,7 +7,7 @@
 //   npx grillhouse bilan <ticket> [--garder]
 //
 // prints the bilan of <ticket>, read from the main tree of the current directory; `--garder` keeps
-// it too, as the circuit does, so the next ticket's bilan compares itself with it.
+// it too, as the circuit does, so the next ticket's bilan names it as its base.
 //
 // - Its sources are structured results, never a text (tests/unit/circuit-sans-texte-libre.spec.ts):
 //   the register of finished agents (`~/.claude/grillhouse/registre.jsonl`, GRILLHOUSE_REGISTRE
@@ -17,8 +17,8 @@
 //   `.claude/worktrees/<ticket>.fiches.jsonl`, each with its time: the launch of each session the
 //   circuit opens or resumes (`lancement`: its role and its session id, the register line's
 //   `agent`), the sheet of each session (`{ role, fiche }`), the outcome of each proof
-//   (`resultat`: `ok`, its counts, `vide`) and of each check (`resultat`: `issue` vert, rouge or a-repasser, `finale`), each stop
-//   (`arret`, its name, `finale`), each developpeur resumed who changed nothing (`inchange`), the
+//   (`resultat`: `ok`, its counts, `vide`) and of each check (`resultat`: `issue` vert, rouge or a-repasser, `finale`, its reds `rouges`), each
+//   stop (`arret`, its name, `finale`, the outcome of the checks it stops), each developpeur resumed who changed nothing (`inchange`), the
 //   end of the questioning of the plan (`questionnement`: its `objet`, the questions the
 //   questionneur asked, `questions`, whether an answer changed the plan, `change`, its `issue`,
 //   AUCUNE, QUESTIONS or DÉSACCORD, and the questions left open, `ouvertes`), each end of a run on
@@ -48,7 +48,7 @@
 //     proof finds the lot of the proof before it (the same counts of reds, greens of the lot,
 //     broken files and greens of HEAD), after a refused proof, or no file of the lot (`vide`:
 //     reds that exist already or of a build alone, no green of the lot); that proof; checks that
-//     play the same red again with no delivery of the testwriter or the developpeur since the
+//     play the same measure again (their outcome and their reds) with no delivery of the testwriter or the developpeur since the
 //     checks of their kind before (the final pass: since the final pass before);
 //   - questionnement: a session of the questionneur (kept: a look that did not write the plan, as
 //     a review);
@@ -73,8 +73,9 @@
 //   questions left open, the tokens, the cache reads and the cost (a session without a cost
 //   counts 0); a session's tokens go to its turns by their time.
 // - It is kept in the main tree, `.claude/worktrees/<ticket>.bilan.json`, and compares itself with
-//   the latest bilan kept for another ticket of the project, or with nothing: no figure of
-//   another project is written here.
+//   the latest other ticket of the project whose bilan is kept, its bilan computed again by this
+//   version from its sources (`precedent`), or with nothing when they give none: no figure kept by
+//   an earlier version, and none of another project, is written here.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
@@ -175,6 +176,10 @@ const signature = r => [r.rouges, r.justifies + r.sans, r.casses, r.anciens].joi
 // repasser ».
 const issue = e =>
   e.arret ? (e.arret === 'a-repasser' ? 'a-repasser' : 'rouge') : (e.resultat?.issue ?? 'rouge');
+
+// What the checks of the result <e> measured: their outcome and their reds (`rouges`, each one's
+// place and text), in any order; checks of the same measure played the same thing again.
+const laMesure = e => [issue(e), ...[...(e.resultat?.rouges ?? [])].sort()].join('\n');
 
 // The length of the union of the intervals <l>.
 function longueur(l) {
@@ -304,8 +309,12 @@ export function bilan({
       const change =
         !avant || segments.some(x => livre(x) && x.d >= avant.f - JEU && x.f <= s.d + JEU);
       const i = s.entree ? issue(s.entree) : 'rouge';
+      // The same measure again: the same outcome, and the same reds when the checks kept them.
+      const memeMesure =
+        avant?.entree &&
+        (s.entree ? laMesure(avant.entree) === laMesure(s.entree) : issue(avant.entree) === i);
       s.categorie =
-        change || !avant.entree || issue(avant.entree) !== i
+        change || !memeMesure
           ? s.finale
             ? 'finales'
             : 'automatique'
@@ -446,7 +455,7 @@ export const enBref = b =>
   `Bilan : ${minutes(b.mur)} min, ${pourcent(b.perdu, b.mur)} % perdus, ${b.seances.total} séances, ${dollars(b.cout)} $.`;
 
 // The text of the bilan <b> at the ticket, short and in figures, compared with the bilan
-// <avant> (another ticket's, or null).
+// <avant> (another ticket's, computed again, or null).
 export function texteDuBilan(b, avant) {
   const lesRoles = parRole =>
     Object.entries(parRole)
@@ -478,7 +487,7 @@ export function texteDuBilan(b, avant) {
     .map(([nom, n]) => `${n} ${nom}`)
     .join(', ');
   const base = avant
-    ? `Face au bilan de ${avant.ticket} : mur ${minutes(avant.mur)} → ${minutes(b.mur)} min, perte ${pourcent(avant.perdu, avant.mur)} → ${pourcent(b.perdu, b.mur)} %, séances ${avant.seances.total} → ${b.seances.total}, coût ${dollars(avant.cout)} → ${dollars(b.cout)} $.`
+    ? `Face au bilan de ${avant.ticket}, recalculé : mur ${minutes(avant.mur)} → ${minutes(b.mur)} min, perte ${pourcent(avant.perdu, avant.mur)} → ${pourcent(b.perdu, b.mur)} %, séances ${avant.seances.total} → ${b.seances.total}, coût ${dollars(avant.cout)} → ${dollars(b.cout)} $.`
     : "Aucun bilan d'avant dans ce projet : pas de base.";
   return [tete, ...lignes, `Arrêts : ${arrets || 'aucun'}.`, base].join('\n');
 }
@@ -510,13 +519,18 @@ export function bilansGardes(racine) {
   return out;
 }
 
-// The latest bilan kept for another ticket than <ticket>, or null.
+// The base of the bilan of <ticket> in the main tree <racine>: the bilan of the latest other ticket
+// whose bilan is kept, computed again by this version from its sources, as a bench of time remakes
+// its base, never the figures kept by the version that wrote them; null when its sources give no
+// bilan any more. The figures a base gives (wall time, loss, sessions, cost) hold whoever waited,
+// the owner or the supervisor: its comments are not read, bd reading those of <ticket> alone.
 export function precedent(racine, ticket) {
-  return (
-    Object.values(bilansGardes(racine))
-      .filter(b => b.ticket !== ticket)
-      .sort((x, y) => Date.parse(y.calcule ?? 0) - Date.parse(x.calcule ?? 0))[0] ?? null
-  );
+  const avant = Object.values(bilansGardes(racine))
+    .filter(b => b.ticket !== ticket)
+    .sort((x, y) => Date.parse(y.calcule ?? 0) - Date.parse(x.calcule ?? 0))[0];
+  if (!avant) return null;
+  const b = calculer(racine, avant.ticket, { commentaires: false });
+  return b.mur > 0 ? b : null;
 }
 
 // The lines of the register <texte> of the project at <racine>: its project the main tree, or a
@@ -549,8 +563,8 @@ function commentairesDu(racine, ticket) {
 }
 
 // The bilan of <ticket> computed from the main tree <racine>: its register, the results its
-// circuit kept, its circuit's state, the comments of the ticket.
-function calculer(racine, ticket) {
+// circuit kept, its circuit's state, and the comments of the ticket unless <commentaires> is false.
+function calculer(racine, ticket, { commentaires = true } = {}) {
   const registre =
     process.env.GRILLHOUSE_REGISTRE ??
     path.join(os.homedir(), '.claude', 'grillhouse', 'registre.jsonl');
@@ -578,7 +592,7 @@ function calculer(racine, ticket) {
     entrees,
     etat,
     nuit: plageDeNuit(racine),
-    commentaires: commentairesDu(racine, ticket),
+    commentaires: commentaires ? commentairesDu(racine, ticket) : [],
   });
 }
 

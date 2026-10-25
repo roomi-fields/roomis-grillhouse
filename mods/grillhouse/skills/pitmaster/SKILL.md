@@ -104,8 +104,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   la mienne, celle du responsable (la question de l'arrêt est la sienne, ou je la lui porte et sa
   réponse s'écrit au ticket pendant l'attente) et la nuit (la
   plage `grillhouse.plageDeNuit` du projet, 23 h – 8 h par défaut) ; les séances par rôle (celles
-  que le circuit lance ; les miennes à part), les arrêts, les jetons et le coût, face au bilan d'avant du projet ; la fiche du ticket au panneau en montre les chiffres clés.
-  `npx grillhouse bilan <ticket>` le recalcule, `--garder` le garde comme base. Ainsi
+  que le circuit lance ; les miennes à part), les arrêts, les jetons et le coût, face au bilan d'avant du projet, recalculé par la version courante (aucune base quand ses sources manquent) ; la fiche du ticket au panneau en montre les chiffres clés.
+  `npx grillhouse bilan <ticket>` le recalcule, `--garder` le garde, et son ticket devient la base du suivant. Ainsi
   l'analyse d'un ticket se fait seule.
 - **Le circuit fait les gestes mécaniques** : comme une CI applique ses règles sans demander
   (rejouer, régénérer, sauter une tâche sans objet), le circuit fait lui-même, sans séance, les

@@ -141,6 +141,17 @@ pas), il calcule le coût sur ses jetons, au tarif de son modèle (`TARIFS` de `
 le bilan compte toutes les séances, et un sous-agent du superviseur coûte ce qu'il a dépensé (BP 320.8 : « 0 séances ; 0,00 $ » pour 25
 séances et 20,36 $, et 0 $ pour un questionneur du superviseur).
 
+**Le bilan juge sur ce qui s'est passé, face à une base refaite** : comme ccusage découpe une
+transcription, un tour commence à son message entrant ; les opérations de file et le message sans
+modèle qu'une reprise écrit avant lui ne prolongent pas le tour d'avant (`horsDuTour` de
+`tableau.mjs`). Le circuit garde avec l'issue de chaque contrôle ses rouges, et deux contrôles
+mesurent la même chose quand leur issue et leurs rouges sont les mêmes : la passe qui suit une
+régénération, ses rouges autres, compte. Comme un banc de temps refait sa base, le bilan se compare
+au dernier autre ticket du projet, son bilan recalculé par la version courante depuis ses sources,
+et à rien quand elles n'en donnent plus. Le journal d'un ticket date chaque en-tête, d'étape ou de
+séance, à l'heure locale avec son décalage (ISO 8601). Ainsi la perte dite est celle mesurée (BP
+320.3.2.1 : 34 % dits pour 8,5 % mesurés, « séances 0 → 10 » face au bilan gardé de 320.8).
+
 **Un fait porte sa pièce** : comme une revue de code cite la ligne qu'elle juge, chaque constat,
 question ou montée d'une fiche porte sa `piece`, un seul format (`lirePiece` de `resultats.mjs`) :
 `fichier:ligne` ou `fichier:ligne-ligne` depuis la racine de la copie, ou `$ commande` et sa

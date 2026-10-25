@@ -1,0 +1,50 @@
+{"type":"queue-operation","timestamp":"2026-10-25T11:39:02.602Z","operation":"enqueue"}
+{"type":"queue-operation","timestamp":"2026-10-25T11:39:02.636Z","operation":"dequeue"}
+{"type":"attachment","timestamp":"2026-10-25T11:39:02.578Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:39:02.581Z"}
+{"type":"user","timestamp":"2026-10-25T11:39:02.666Z","message":{"role":"user","content":"Tu es le questionneur du dépôt /home/romi/dev/music/BPScript"}}
+{"type":"attachment","timestamp":"2026-10-25T11:39:02.664Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:39:02.664Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:39:02.664Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:39:02.665Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:39:02.665Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:39:02.665Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:39:02.665Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:39:02.665Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:39:02.954Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:39:02.954Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:39:02.954Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:39:02.957Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:39:02.958Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:39:02.959Z"}
+{"type":"api-request-shape","timestamp":"2026-10-25T11:39:02.982Z"}
+{"type":"api-request","timestamp":"2026-10-25T11:39:02.982Z"}
+{"type":"assistant","timestamp":"2026-10-25T11:39:04.675Z","message":{"role":"assistant","model":"claude-sonnet-5-5","content":[{"type":"tool_use"}]}}
+{"type":"user","timestamp":"2026-10-25T11:39:04.718Z","message":{"role":"user","content":[{"type":"tool_result"}]}}
+{"type":"user","timestamp":"2026-10-25T11:39:04.710Z","isMeta":true,"message":{"role":"user","content":[{"type":"text","text":"Base directory for this skill: /home/romi/.claude/plugins/ca"}]}}
+{"type":"attachment","timestamp":"2026-10-25T11:39:04.707Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:39:04.710Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:39:04.730Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:39:04.734Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:39:04.734Z"}
+{"type":"api-request","timestamp":"2026-10-25T11:39:04.749Z"}
+{"type":"assistant","timestamp":"2026-10-25T11:39:05.837Z","message":{"role":"assistant","model":"claude-sonnet-5-5","content":[{"type":"thinking"}]}}
+{"type":"assistant","timestamp":"2026-10-25T11:39:06.220Z","message":{"role":"assistant","model":"claude-sonnet-5-5","content":[{"type":"tool_use"}]}}
+{"type":"user","timestamp":"2026-10-25T11:39:06.600Z","message":{"role":"user","content":[{"type":"tool_result"}]}}
+{"type":"attachment","timestamp":"2026-10-25T11:39:06.610Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:39:06.611Z"}
+{"type":"api-request","timestamp":"2026-10-25T11:39:06.632Z"}
+{"type":"assistant","timestamp":"2026-10-25T11:39:14.884Z","message":{"role":"assistant","model":"claude-sonnet-5-5","content":[{"type":"tool_use"}]}}
+{"type":"attachment","timestamp":"2026-10-25T11:39:14.894Z"}
+{"type":"user","timestamp":"2026-10-25T11:39:14.897Z","message":{"role":"user","content":[{"type":"tool_result"}]}}
+{"type":"queue-operation","timestamp":"2026-10-25T11:39:23.980Z","operation":"enqueue"}
+{"type":"queue-operation","timestamp":"2026-10-25T11:39:24.013Z","operation":"dequeue"}
+{"type":"assistant","timestamp":"2026-10-25T11:39:23.035Z","message":{"role":"assistant","model":"<synthetic>","content":[{"type":"text","text":"No response requested."}]}}
+{"type":"user","timestamp":"2026-10-25T11:39:24.082Z","message":{"role":"user","content":"TON TICKET : bp-mono-vbwf.320.3.2.1 — LEVEL_TYPES, copie en "}}
+{"type":"attachment","timestamp":"2026-10-25T11:39:24.081Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:39:24.081Z"}
+{"type":"api-request","timestamp":"2026-10-25T11:39:24.376Z"}
+{"type":"assistant","timestamp":"2026-10-25T11:39:25.998Z","message":{"role":"assistant","model":"claude-sonnet-5-5","content":[{"type":"thinking"}]}}
+{"type":"assistant","timestamp":"2026-10-25T11:39:30.600Z","message":{"role":"assistant","model":"claude-sonnet-5-5","content":[{"type":"tool_use"}]}}
+{"type":"attachment","timestamp":"2026-10-25T11:39:30.618Z"}
+{"type":"user","timestamp":"2026-10-25T11:39:30.623Z","message":{"role":"user","content":[{"type":"tool_result"}]}}

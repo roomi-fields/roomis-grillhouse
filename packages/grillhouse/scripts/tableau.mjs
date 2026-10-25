@@ -47,7 +47,8 @@
 //   board reads no transcript older than 30 minutes: a shell agent whose transcript is older shows
 //   by its process alone.
 // - Time: a transcript's working time is the union of its turns, each bounded by the earliest and
-//   the latest date of its events, whatever their order in the file; a transcript is read where the
+//   the latest date of its events, whatever their order in the file, but those a resumption writes
+//   before its incoming message (`horsDuTour`); a transcript is read where the
 //   board stopped, its reading kept in the cache file. A ticket's working time adds the steps its
 //   circuit leads itself, with no agent (the proof, the checks, the final pass, the integration,
 //   the queue): the register's lines of the role `circuit`, which no block shows and no role of the
@@ -167,8 +168,9 @@ function entrant(e) {
 // the cost (the total a session writes), the usage by model (which the register prices when the
 // total lacks, scripts/registre.mjs) and the last tool call, and it is plain JSON, so the board keeps it between two
 // measures and reads only what was appended. A turn is bounded by the earliest and the latest date
-// of its events, whatever their order in the file; the first one holds the events before the first
-// incoming message, each next one opens at an incoming message and holds the events up to the next.
+// of its events, whatever their order in the file, but those a resumption writes (`horsDuTour`);
+// the first one holds the events before the first incoming message, each next one opens at an
+// incoming message and holds the events up to the next.
 const etatNeuf = () => ({
   jetons: 0,
   cache: 0,
@@ -200,6 +202,12 @@ function reunir(intervalles) {
   return out;
 }
 
+// Whether the event <e> is written by Claude Code itself when a session resumes (`--resume`),
+// before its incoming message and at the time of the resumption: an operation of its queue, or a
+// message of no model (« No response requested. »). It bounds no turn: as ccusage cuts a
+// transcript, a turn starts at its incoming message.
+const horsDuTour = e => e.type === 'queue-operation' || e.message?.model === '<synthetic>';
+
 // Adds the lines of `texte` to the state `etat`, which it returns.
 function avancer(etat, texte) {
   const vus = new Set(etat.vus);
@@ -224,6 +232,8 @@ function avancer(etat, texte) {
     if (!Number.isNaN(t)) {
       etat.premier = etat.premier === null ? t : Math.min(etat.premier, t);
       etat.dernier = etat.dernier === null ? t : Math.max(etat.dernier, t);
+    }
+    if (!Number.isNaN(t) && !horsDuTour(e)) {
       // The first incoming message continues the turn its earlier events opened.
       const recoit = entrant(e);
       const coupe = recoit && etat.recu;

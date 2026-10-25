@@ -163,31 +163,34 @@ const preuve = (
   etape: 'preuve',
   resultat: { ok, rouges, justifies, sans, casses: 0, anciens, vide },
 });
-// The outcome of checks, or of the final pass.
+// The outcome of checks, or of the final pass, with its reds when it has any.
 const controles = (
   m: number,
   s: number,
   issue: 'vert' | 'rouge' | 'a-repasser',
-  finale: boolean
+  finale: boolean,
+  rouges?: string[]
 ): Entree => ({
   date: quand(m, s),
   role: 'circuit',
   etape: 'controles',
-  resultat: { issue, finale },
+  resultat: { issue, finale, ...(rouges ? { rouges } : {}) },
 });
-// A stop of the circuit at the step <etape>, <ms> after the second.
+// A stop of the circuit at the step <etape>, <ms> after the second; a stop of the checks keeps
+// their outcome and its reds (<rouges>).
 const arret = (
   m: number,
   s: number,
   etape: string,
   nom: string,
-  { finale = false, ms = 1 } = {}
+  { finale = false, ms = 1, rouges = null as string[] | null } = {}
 ): Entree => ({
   date: quand(m, s, ms),
   role: 'circuit',
   etape,
   arret: nom,
   ...(finale ? { finale } : {}),
+  ...(rouges ? { resultat: { issue: 'rouge', finale, rouges } } : {}),
 });
 // A developpeur resumed who finds the lot delivered and changes nothing.
 const inchange = (m: number, s: number): Entree => ({
@@ -387,6 +390,50 @@ describe('a relaunch without effect', () => {
       b.mur - b.categories.travail.ms - b.categories.automatique.ms - b.categories.finales.ms
     );
     expect(b.arrets).toEqual({ 'sans-livraison': 2 });
+  });
+});
+
+// grillhouse-5m1.1, criterion 2. Witness: BPScript 320.3.2.1 (N2). The pass restricted to what a
+// regeneration changed (12:10:03, 5.8 min) was counted without effect: the rule compared its
+// outcome (red, then red), not its reds, and its red was another (the index of the interfaces).
+describe('a final pass after a regeneration', () => {
+  const REFERENCE =
+    'packages/forms : constat api packages/forms/docs/INTERFACE.api.md — le rapport';
+  const INDEX = 'hors des paquets : constat index-interfaces docs/agents/index-des-interfaces.md';
+  // A final pass red on a reference, its regeneration, the pass restricted to what it changed,
+  // red with <apres>, then the same pass played again with nothing delivered since.
+  const leBilan = (apres: string[]) =>
+    calculer(
+      [
+        seance('developpeur', 'd1', [[0, 2]]),
+        etape('controles', 2, 3),
+        etape('controles', 3, 13),
+        etape('references', 13, 14),
+        etape('controles', 14, 20),
+        etape('controles', 21, 22),
+      ],
+      [
+        fiche(2, 0, 'developpeur'),
+        controles(3, 0, 'vert', false),
+        controles(13, 0, 'rouge', true, [REFERENCE, INDEX].sort()),
+        { date: quand(14, 0), role: 'circuit', etape: 'references', resultat: { regenerees: [] } },
+        arret(20, 0, 'controles', 'controles', { finale: true, rouges: apres }),
+        montee(20, 0, 14, 'controles'),
+        controles(22, 0, 'rouge', true, apres),
+      ]
+    );
+
+  it('counts the pass whose reds differ from those of the pass before as a final pass', () => {
+    const b = leBilan([INDEX]);
+    // The whole pass (10 min) and the restricted one (6 min); the one played again without effect.
+    expect(min(b.categories.finales.ms)).toBe(10 + 6);
+    expect(min(b.categories.sansEffet.ms)).toBe(1);
+  });
+
+  it('counts the pass that plays the same reds again, nothing delivered since, as without effect', () => {
+    const b = leBilan([REFERENCE, INDEX].sort());
+    expect(min(b.categories.finales.ms)).toBe(10);
+    expect(min(b.categories.sansEffet.ms)).toBe(6 + 1);
   });
 });
 
@@ -836,37 +883,48 @@ describe('the owner’s answer the supervisor carries', () => {
     }
   });
 
-  it('reads the comments of the ticket by bd, from the main tree', () => {
+  // grillhouse-5m1.1: bd reads the comments once (19 s a call in BPScript); the base's figures (wall
+  // time, loss, sessions, cost) hold whoever waited, so its bilan reads none.
+  it('reads the comments of the ticket by bd, from the main tree, once, its base computed again without them', () => {
     const racine = path.join(ESSAIS, 'projet-reponse');
     const bin = path.join(racine, 'bin');
     mkdirSync(path.join(racine, '.claude', 'worktrees'), { recursive: true });
     mkdirSync(bin, { recursive: true });
     writeFileSync(path.join(racine, 'package.json'), JSON.stringify({ name: 'projet-reponse' }));
-    // The stand-in for bd: `comments <ticket> --json` prints the ticket's comments.
+    // The stand-in for bd: `comments <ticket> --json` prints the ticket's comments; each call is
+    // written to its log.
+    const appels = path.join(racine, 'bd.log');
     writeFileSync(
       path.join(bin, 'bd'),
-      `#!/bin/sh\n[ "$1 $2 $3" = "comments ${TICKET} --json" ] && cat <<'FIN'\n${JSON.stringify([reponse(84)])}\nFIN\n`,
+      `#!/bin/sh\necho "$*" >> ${appels}\n[ "$1 $2 $3" = "comments ${TICKET} --json" ] && cat <<'FIN'\n${JSON.stringify([reponse(84)])}\nFIN\n`,
       { mode: 0o755 }
     );
     const registre = path.join(racine, 'registre.jsonl');
+    // The ticket, and demo-6 before it, its bilan kept and its sources there.
     writeFileSync(
       registre,
-      lignes.map(l => JSON.stringify({ ...l, projet: racine })).join('\n') + '\n'
+      [TICKET, 'demo-6']
+        .flatMap(t => lignes.map(l => `${JSON.stringify({ ...l, ticket: t, projet: racine })}\n`))
+        .join('')
     );
     const lancees = lignes.map(l => ({
       date: iso(l.tours[0][0]),
       role: 'circuit',
       lancement: { role: l.role, seance: l.agent },
     }));
-    writeFileSync(
-      path.join(racine, '.claude', 'worktrees', `${TICKET}.fiches.jsonl`),
-      [...lancees, ...entrees].map(e => JSON.stringify(e)).join('\n') + '\n'
-    );
+    for (const t of [TICKET, 'demo-6']) {
+      writeFileSync(
+        path.join(racine, '.claude', 'worktrees', `${t}.fiches.jsonl`),
+        [...lancees, ...entrees].map(e => JSON.stringify(e)).join('\n') + '\n'
+      );
+    }
+    garder(racine, { ...bilan({ ticket: 'demo-6', lignes: [] }), ticket: 'demo-6' });
     const avant = { registre: process.env.GRILLHOUSE_REGISTRE, path: process.env.PATH };
     process.env.GRILLHOUSE_REGISTRE = registre;
     process.env.PATH = `${bin}${path.delimiter}${process.env.PATH ?? ''}`;
+    let texte = '';
     try {
-      ecrireLeBilan(racine, TICKET);
+      texte = ecrireLeBilan(racine, TICKET);
     } finally {
       process.env.PATH = avant.path;
       if (avant.registre === undefined) {
@@ -879,6 +937,8 @@ describe('the owner’s answer the supervisor carries', () => {
     const b = JSON.parse(readFileSync(f, 'utf8')) as Bilan;
     expect(min(b.categories.responsable.ms)).toBe(80);
     expect(b.categories.superviseur.ms).toBe(0);
+    expect(texte).toMatch(/^Face au bilan de demo-6, recalculé : /m);
+    expect(readFileSync(appels, 'utf8')).toBe(`comments ${TICKET} --json\n`);
   });
 });
 
@@ -918,23 +978,113 @@ describe('the text of the bilan and its base', () => {
     const avant = { ...b, ticket: 'demo-6', mur: 460 * MIN, perdu: 194 * MIN, cout: 54.93 };
     avant.seances = { total: 84, parRole: {}, horsCircuit: { total: 0, parRole: {}, cout: 0 } };
     expect(texteDuBilan(b, avant)).toMatch(
-      /^Face au bilan de demo-6 : mur 460 → 16 min, perte 42 → 38 %, séances 84 → 2, coût 54,93 → 4,50 \$\.$/m
+      /^Face au bilan de demo-6, recalculé : mur 460 → 16 min, perte 42 → 38 %, séances 84 → 2, coût 54,93 → 4,50 \$\.$/m
     );
   });
 
-  it('keeps each bilan in the main tree and finds the last one of another ticket', () => {
+  it('keeps each bilan in the main tree', () => {
     const racine = path.join(ESSAIS, 'depot');
     mkdirSync(path.join(racine, '.claude', 'worktrees'), { recursive: true });
-    const avant = (r: string) => precedent(r, TICKET) as Bilan | null;
-    expect(avant(racine)).toBeNull();
-    garder(racine, { ...b, ticket: 'demo-5', calcule: '2026-10-19T10:00:00.000Z' });
     garder(racine, { ...b, ticket: 'demo-6', calcule: '2026-10-19T12:00:00.000Z' });
     garder(racine, { ...b, ticket: TICKET, calcule: '2026-10-20T12:00:00.000Z' });
     writeFileSync(path.join(racine, '.claude', 'worktrees', 'demo-9.bilan.json'), '{ cassé');
     const f = path.join(racine, '.claude', 'worktrees', `${TICKET}.bilan.json`);
     expect((JSON.parse(readFileSync(f, 'utf8')) as Bilan).ticket).toBe(TICKET);
-    expect(avant(racine)?.ticket).toBe('demo-6');
-    expect(Object.keys(bilansGardes(racine)).sort()).toEqual(['demo-5', 'demo-6', TICKET]);
+    expect(Object.keys(bilansGardes(racine)).sort()).toEqual(['demo-6', TICKET]);
+  });
+
+  // grillhouse-5m1.1, criterion 3. Witness: BPScript 320.3.2.1 (N6). Its bilan compared itself with
+  // the bilan kept for 320.8 by an earlier version, false: « séances 0 → 10, coût 0,00 → 4,38 $ ».
+  // A base is computed again by the version that compares, as a bench of time remakes its base.
+  it('compares itself with the last other ticket kept, its bilan computed again from its sources by this version', () => {
+    const racine = path.join(ESSAIS, 'depot-recalcule');
+    const dossier = path.join(racine, '.claude', 'worktrees');
+    mkdirSync(dossier, { recursive: true });
+    const registre = path.join(racine, 'registre.jsonl');
+    // demo-6: its register lines and its results are there; the bilan kept for it is false.
+    const lancees = lignes.map(l => ({
+      date: iso(l.tours[0][0]),
+      role: 'circuit',
+      lancement: { role: l.role, seance: l.agent },
+    }));
+    writeFileSync(
+      registre,
+      lignes.map(l => `${JSON.stringify({ ...l, ticket: 'demo-6', projet: racine })}\n`).join('')
+    );
+    writeFileSync(
+      path.join(dossier, 'demo-6.fiches.jsonl'),
+      [...lancees, ...entrees].map(e => `${JSON.stringify(e)}\n`).join('')
+    );
+    garder(racine, {
+      ...b,
+      ticket: 'demo-6',
+      calcule: '2026-10-19T12:00:00.000Z',
+      cout: 0,
+      seances: { ...b.seances, total: 0 },
+    });
+    const avant = process.env.GRILLHOUSE_REGISTRE;
+    process.env.GRILLHOUSE_REGISTRE = registre;
+    try {
+      const p = precedent(racine, TICKET) as Bilan | null;
+      expect(p?.ticket).toBe('demo-6');
+      expect(p?.seances.total).toBe(2);
+      expect(p?.cout).toBeCloseTo(4.5);
+      // Its sources gone, demo-6 gives no base: the bilan compares itself with nothing.
+      writeFileSync(path.join(dossier, 'demo-6.fiches.jsonl'), '');
+      writeFileSync(registre, '');
+      expect(precedent(racine, TICKET)).toBeNull();
+      expect(ecrireLeBilan(racine, TICKET)).toMatch(
+        /^Aucun bilan d'avant dans ce projet : pas de base\.$/m
+      );
+    } finally {
+      if (avant === undefined) {
+        delete process.env.GRILLHOUSE_REGISTRE;
+      } else {
+        process.env.GRILLHOUSE_REGISTRE = avant;
+      }
+    }
+  });
+
+  it('takes as its base the last other ticket kept, by the time its bilan was computed, never its own', () => {
+    const racine = path.join(ESSAIS, 'depot-choix');
+    const dossier = path.join(racine, '.claude', 'worktrees');
+    mkdirSync(dossier, { recursive: true });
+    const registre = path.join(racine, 'registre.jsonl');
+    const tickets = ['demo-5', 'demo-6', TICKET];
+    // Each ticket with its sources, and its bilan kept: demo-6 computed after demo-5, the ticket
+    // itself last.
+    writeFileSync(
+      registre,
+      tickets
+        .flatMap(t => lignes.map(l => `${JSON.stringify({ ...l, ticket: t, projet: racine })}\n`))
+        .join('')
+    );
+    const lancees = lignes.map(l => ({
+      date: iso(l.tours[0][0]),
+      role: 'circuit',
+      lancement: { role: l.role, seance: l.agent },
+    }));
+    for (const t of tickets) {
+      writeFileSync(
+        path.join(dossier, `${t}.fiches.jsonl`),
+        [...lancees, ...entrees].map(e => `${JSON.stringify(e)}\n`).join('')
+      );
+    }
+    garder(racine, { ...b, ticket: 'demo-6', calcule: '2026-10-19T12:00:00.000Z' });
+    garder(racine, { ...b, ticket: 'demo-5', calcule: '2026-10-19T10:00:00.000Z' });
+    garder(racine, { ...b, ticket: TICKET, calcule: '2026-10-20T12:00:00.000Z' });
+    const avant = process.env.GRILLHOUSE_REGISTRE;
+    process.env.GRILLHOUSE_REGISTRE = registre;
+    try {
+      expect((precedent(racine, TICKET) as Bilan | null)?.ticket).toBe('demo-6');
+      expect((precedent(racine, 'demo-6') as Bilan | null)?.ticket).toBe(TICKET);
+    } finally {
+      if (avant === undefined) {
+        delete process.env.GRILLHOUSE_REGISTRE;
+      } else {
+        process.env.GRILLHOUSE_REGISTRE = avant;
+      }
+    }
   });
 
   it('says its key figures in one short sentence', () => {

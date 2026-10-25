@@ -62,8 +62,20 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     ticket(id, '000-forms');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-    const r = circuit([id]);
+    // A zone of its own, half an hour past the hour: the log says the local time of the machine.
+    const r = circuit([id], { TZ: 'Asia/Kolkata' });
     expect(r.status, sortie(r)).toBe(0);
+    // grillhouse-5m1.1, criterion 4. Witness: BP 320.3.2.1 (N8), the sessions' headers in local
+    // time, the steps' in UTC. Every header of the log, a session's or a step's, says the local
+    // time with its offset, as ISO 8601 writes it.
+    const tetes = journal(id)
+      .split('\n')
+      .filter(l => l.startsWith('=== '));
+    expect(tetes.some(l => l.includes(' · circuit · '))).toBe(true);
+    expect(tetes.some(l => !l.includes(' · circuit · '))).toBe(true);
+    for (const l of tetes) {
+      expect(l).toMatch(/^=== \d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+05:30 · /);
+    }
     expect(ordre(id)).toEqual(['testwriter', 'developpeur', 'relecteur']);
     expect(historique(id)).toEqual([
       'testwriter',

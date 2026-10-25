@@ -80,7 +80,8 @@ describe.runIf(canWrap)('the bilan at the end of the circuit', { timeout: 300_00
       new RegExp(`^Circuit · bilan : arrêt sans-livraison \\(${ARRETS['sans-livraison']}\\) en `)
     );
     expect(b[0].text).toMatch(/^Arrêts : 1 sans-livraison\.$/m);
-    expect(b[0].text).toMatch(/^Face au bilan de demo-bilan : mur \d+ → \d+ min, /m);
+    // grillhouse-5m1.1, criterion 3: the base, computed again from the sources of demo-bilan.
+    expect(b[0].text).toMatch(/^Face au bilan de demo-bilan, recalculé : mur \d+ → \d+ min, /m);
     expect(garde(id).statut).toBe(`arrêt sans-livraison (${ARRETS['sans-livraison']})`);
     // The end of the run on its stop, kept before the bilan that reads it.
     expect(entrees(id).filter(x => x.montee)).toEqual([

@@ -1,0 +1,99 @@
+{"type":"queue-operation","timestamp":"2026-10-25T11:37:57.176Z","operation":"enqueue"}
+{"type":"queue-operation","timestamp":"2026-10-25T11:37:57.199Z","operation":"dequeue"}
+{"type":"attachment","timestamp":"2026-10-25T11:37:57.129Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:37:57.136Z"}
+{"type":"user","timestamp":"2026-10-25T11:37:57.228Z","message":{"role":"user","content":"Tu es l'explorateur du dépôt /home/romi/dev/music/BPScript. "}}
+{"type":"attachment","timestamp":"2026-10-25T11:37:57.227Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:37:57.227Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:37:57.227Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:37:57.227Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:37:57.227Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:37:57.228Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:37:57.228Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:37:57.228Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:37:57.521Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:37:57.521Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:37:57.521Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:37:57.523Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:37:57.525Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:37:57.526Z"}
+{"type":"api-request-shape","timestamp":"2026-10-25T11:37:57.551Z"}
+{"type":"api-request","timestamp":"2026-10-25T11:37:57.551Z"}
+{"type":"assistant","timestamp":"2026-10-25T11:37:59.252Z","message":{"role":"assistant","model":"claude-sonnet-5-5","content":[{"type":"tool_use"}]}}
+{"type":"user","timestamp":"2026-10-25T11:37:59.299Z","message":{"role":"user","content":[{"type":"tool_result"}]}}
+{"type":"user","timestamp":"2026-10-25T11:37:59.290Z","isMeta":true,"message":{"role":"user","content":[{"type":"text","text":"Base directory for this skill: /home/romi/.claude/plugins/ca"}]}}
+{"type":"attachment","timestamp":"2026-10-25T11:37:59.287Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:37:59.291Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:37:59.312Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:37:59.316Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:37:59.316Z"}
+{"type":"api-request","timestamp":"2026-10-25T11:37:59.331Z"}
+{"type":"assistant","timestamp":"2026-10-25T11:38:00.827Z","message":{"role":"assistant","model":"claude-sonnet-5-5","content":[{"type":"tool_use"}]}}
+{"type":"user","timestamp":"2026-10-25T11:38:07.768Z","message":{"role":"user","content":[{"type":"tool_result"}]}}
+{"type":"attachment","timestamp":"2026-10-25T11:38:07.774Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:38:07.774Z"}
+{"type":"api-request","timestamp":"2026-10-25T11:38:07.789Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:38:09.476Z"}
+{"type":"assistant","timestamp":"2026-10-25T11:38:09.475Z","message":{"role":"assistant","model":"claude-sonnet-5-5","content":[{"type":"tool_use"}]}}
+{"type":"user","timestamp":"2026-10-25T11:38:09.619Z","message":{"role":"user","content":[{"type":"tool_result"}]}}
+{"type":"attachment","timestamp":"2026-10-25T11:38:09.625Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:38:09.625Z"}
+{"type":"api-request","timestamp":"2026-10-25T11:38:09.638Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:38:11.278Z"}
+{"type":"assistant","timestamp":"2026-10-25T11:38:11.277Z","message":{"role":"assistant","model":"claude-sonnet-5-5","content":[{"type":"tool_use"}]}}
+{"type":"user","timestamp":"2026-10-25T11:38:11.414Z","message":{"role":"user","content":[{"type":"tool_result"}]}}
+{"type":"attachment","timestamp":"2026-10-25T11:38:11.421Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:38:11.421Z"}
+{"type":"api-request","timestamp":"2026-10-25T11:38:11.432Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:38:14.146Z"}
+{"type":"assistant","timestamp":"2026-10-25T11:38:14.146Z","message":{"role":"assistant","model":"claude-sonnet-5-5","content":[{"type":"thinking"}]}}
+{"type":"assistant","timestamp":"2026-10-25T11:38:15.229Z","message":{"role":"assistant","model":"claude-sonnet-5-5","content":[{"type":"tool_use"}]}}
+{"type":"user","timestamp":"2026-10-25T11:38:15.397Z","message":{"role":"user","content":[{"type":"tool_result"}]}}
+{"type":"attachment","timestamp":"2026-10-25T11:38:15.403Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:38:15.403Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:38:15.404Z"}
+{"type":"api-request","timestamp":"2026-10-25T11:38:15.418Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:38:17.342Z"}
+{"type":"assistant","timestamp":"2026-10-25T11:38:17.342Z","message":{"role":"assistant","model":"claude-sonnet-5-5","content":[{"type":"thinking"}]}}
+{"type":"assistant","timestamp":"2026-10-25T11:38:17.344Z","message":{"role":"assistant","model":"claude-sonnet-5-5","content":[{"type":"text","text":"Je relève la cascade déclarée en librairie et la façon dont "}]}}
+{"type":"assistant","timestamp":"2026-10-25T11:38:18.124Z","message":{"role":"assistant","model":"claude-sonnet-5-5","content":[{"type":"tool_use"}]}}
+{"type":"user","timestamp":"2026-10-25T11:38:18.220Z","message":{"role":"user","content":[{"type":"tool_result"}]}}
+{"type":"attachment","timestamp":"2026-10-25T11:38:18.224Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:38:18.225Z"}
+{"type":"api-request","timestamp":"2026-10-25T11:38:18.238Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:38:23.047Z"}
+{"type":"assistant","timestamp":"2026-10-25T11:38:23.047Z","message":{"role":"assistant","model":"claude-sonnet-5-5","content":[{"type":"thinking"}]}}
+{"type":"assistant","timestamp":"2026-10-25T11:38:28.482Z","message":{"role":"assistant","model":"claude-sonnet-5-5","content":[{"type":"tool_use"}]}}
+{"type":"attachment","timestamp":"2026-10-25T11:38:28.496Z"}
+{"type":"user","timestamp":"2026-10-25T11:38:28.499Z","message":{"role":"user","content":[{"type":"tool_result"}]}}
+{"type":"queue-operation","timestamp":"2026-10-25T11:38:36.963Z","operation":"enqueue"}
+{"type":"queue-operation","timestamp":"2026-10-25T11:38:36.987Z","operation":"dequeue"}
+{"type":"assistant","timestamp":"2026-10-25T11:38:35.969Z","message":{"role":"assistant","model":"<synthetic>","content":[{"type":"text","text":"No response requested."}]}}
+{"type":"user","timestamp":"2026-10-25T11:38:37.055Z","message":{"role":"user","content":"TON TICKET : bp-mono-vbwf.320.3.2.1 — LEVEL_TYPES, copie en "}}
+{"type":"attachment","timestamp":"2026-10-25T11:38:37.054Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:38:37.054Z"}
+{"type":"api-request","timestamp":"2026-10-25T11:38:37.337Z"}
+{"type":"assistant","timestamp":"2026-10-25T11:38:39.103Z","message":{"role":"assistant","model":"claude-sonnet-5-5","content":[{"type":"thinking"}]}}
+{"type":"assistant","timestamp":"2026-10-25T11:38:43.096Z","message":{"role":"assistant","model":"claude-sonnet-5-5","content":[{"type":"tool_use"}]}}
+{"type":"attachment","timestamp":"2026-10-25T11:38:43.115Z"}
+{"type":"user","timestamp":"2026-10-25T11:38:43.119Z","message":{"role":"user","content":[{"type":"tool_result"}]}}
+{"type":"queue-operation","timestamp":"2026-10-25T11:39:36.078Z","operation":"enqueue"}
+{"type":"queue-operation","timestamp":"2026-10-25T11:39:36.101Z","operation":"dequeue"}
+{"type":"assistant","timestamp":"2026-10-25T11:39:35.039Z","message":{"role":"assistant","model":"<synthetic>","content":[{"type":"text","text":"No response requested."}]}}
+{"type":"user","timestamp":"2026-10-25T11:39:36.182Z","message":{"role":"user","content":"TON TICKET : bp-mono-vbwf.320.3.2.1 — LEVEL_TYPES, copie en "}}
+{"type":"attachment","timestamp":"2026-10-25T11:39:36.181Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:39:36.181Z"}
+{"type":"api-request","timestamp":"2026-10-25T11:39:36.461Z"}
+{"type":"assistant","timestamp":"2026-10-25T11:39:49.649Z","message":{"role":"assistant","model":"claude-sonnet-5-5","content":[{"type":"tool_use"}]}}
+{"type":"attachment","timestamp":"2026-10-25T11:39:49.670Z"}
+{"type":"user","timestamp":"2026-10-25T11:39:49.674Z","message":{"role":"user","content":[{"type":"tool_result"}]}}
+{"type":"queue-operation","timestamp":"2026-10-25T11:39:57.415Z","operation":"enqueue"}
+{"type":"queue-operation","timestamp":"2026-10-25T11:39:57.437Z","operation":"dequeue"}
+{"type":"assistant","timestamp":"2026-10-25T11:39:56.473Z","message":{"role":"assistant","model":"<synthetic>","content":[{"type":"text","text":"No response requested."}]}}
+{"type":"user","timestamp":"2026-10-25T11:39:57.508Z","message":{"role":"user","content":"TON TICKET : bp-mono-vbwf.320.3.2.1 — LEVEL_TYPES, copie en "}}
+{"type":"attachment","timestamp":"2026-10-25T11:39:57.507Z"}
+{"type":"attachment","timestamp":"2026-10-25T11:39:57.507Z"}
+{"type":"api-request","timestamp":"2026-10-25T11:39:57.803Z"}
+{"type":"assistant","timestamp":"2026-10-25T11:40:07.168Z","message":{"role":"assistant","model":"claude-sonnet-5-5","content":[{"type":"tool_use"}]}}
+{"type":"attachment","timestamp":"2026-10-25T11:40:07.189Z"}
+{"type":"user","timestamp":"2026-10-25T11:40:07.194Z","message":{"role":"user","content":[{"type":"tool_result"}]}}

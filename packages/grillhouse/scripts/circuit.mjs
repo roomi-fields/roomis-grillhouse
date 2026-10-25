@@ -40,7 +40,8 @@
 // the sheet that ends each session, the summaries of Turborepo, the JSON reports of Vitest and the
 // SARIF of the guards. It reads no comment, no answer and no log to decide (a guard holds it:
 // tests/unit/circuit-sans-texte-libre.spec.ts); the handovers at the ticket are for the human and
-// for the next session of their author, the log for the human.
+// for the next session of their author, the log for the human. Each header of the log, a step's or
+// a session's, dates it in local time with its offset (ISO 8601), one time for the whole log.
 //
 // - The plan is read in the ticket's title (`bd show <ticket> --json`), after its last « — »,
 //   separated by commas: each one a path (`packages/<nom>`, or `.`), or the name of a package,
@@ -627,8 +628,8 @@ const GABARIT = path.join(GREFFON, 'skills', 'pitmaster', 'references', 'consign
 
 // A stop of the circuit: its name (a key of ARRETS) and its report; for a stop of the checks, its
 // reds read in the structured results (`{ paquet, texte, detail }`) and its motive, the report
-// without their list; the outcome of the step it stops, when it has one (a proof's), which the
-// bilan reads; and what its montée carries beyond the question of its kind (scripts/etapes.mjs,
+// without their list; the outcome of the step it stops, when it has one (a proof's, the checks'
+// with their reds), which the bilan reads; and what its montée carries beyond the question of its kind (scripts/etapes.mjs,
 // MONTEES): its `piece` (file:line, or command and output), its own `question`, and who must
 // answer it (`qui`, the owner for the reviewer's question).
 class Arret extends Error {
@@ -906,7 +907,7 @@ function commenter(ctx, etape, texte) {
 // The report of a proof or of checks: its line at the ticket, and its report kept for the
 // reviewer, <rapport> when the comment carries only its summary, beside its outcome <resultat>,
 // which the bilan reads (scripts/bilan.mjs): for a proof `{ ok, rouges, justifies, sans, casses,
-// anciens, vide }`, for checks `{ issue, finale }`.
+// anciens, vide }`, for checks `{ issue, finale, rouges }`.
 function ecrireRapport(ctx, etape, texte, resultat, rapport = texte) {
   commenter(ctx, etape, texte);
   inscrire(ctx, {
@@ -963,9 +964,19 @@ function inscrireEtape(ctx, { etape, debut }) {
   }
 }
 
-// The header line of a step or a session in the ticket's log.
+// The time <d> in local time with its offset, to the second, as ISO 8601 writes it and as the
+// envelope dates the header of a session (`date -Iseconds`): « 2026-10-25T12:42:11+01:00 ».
+function heureLocale(d = new Date()) {
+  const deux = n => String(n).padStart(2, '0');
+  const decalage = -d.getTimezoneOffset();
+  const a = Math.abs(decalage);
+  return `${d.getFullYear()}-${deux(d.getMonth() + 1)}-${deux(d.getDate())}T${deux(d.getHours())}:${deux(d.getMinutes())}:${deux(d.getSeconds())}${decalage < 0 ? '-' : '+'}${deux(Math.floor(a / 60))}:${deux(a % 60)}`;
+}
+
+// The header line of a step or a session in the ticket's log, in local time, as the envelope
+// dates a session's.
 const entete = (ctx, etape) =>
-  appendFileSync(ctx.journal, `=== ${new Date().toISOString()} · circuit · ${etape} ===\n`);
+  appendFileSync(ctx.journal, `=== ${heureLocale()} · circuit · ${etape} ===\n`);
 
 // The latest moment a transcript of the copy moved, or 0.
 function derniereTrace(dossier) {
@@ -2880,18 +2891,26 @@ async function derouler(ctx, debut) {
             ? { arbre: arbreDeLaCopie(ctx), restreinte: regeneration.restreinte }
             : laPasseFinale(ctx);
         const k = controles(ctx, passeFinale, passe.restreinte, regeneration?.reportes ?? null);
-        const resultat = issue => ({ issue, finale: passeFinale });
+        // The outcome the bilan reads (scripts/bilan.mjs): with the reds, each its place and its
+        // text, by which it knows two checks that measured the same thing.
+        const resultat = issue => ({
+          issue,
+          finale: passeFinale,
+          rouges: k.rouges.map(r => `${r.paquet} : ${r.texte}`),
+        });
         rapport = k.texte;
         // A developpeur who had nothing to deliver before these checks.
         const rien = ctx.rienALivrer ?? null;
         ctx.rienALivrer = null;
-        // A stop of the checks: <phrase>, then the report, its reds also kept apart, as its piece.
+        // A stop of the checks: <phrase>, then the report, its reds also kept apart, as its piece;
+        // the stop kept at the checks keeps their outcome.
         const arreter = (nom, phrase, lieu = null) => {
           const avant = phrase ? `${phrase}\n\n` : '';
           throw new Arret(nom, `${avant}${k.complet}`, {
             rouges: k.rouges,
             motif: `${avant}${k.sansListe}`,
             etape: lieu,
+            resultat: lieu ? null : resultat(nom === 'a-repasser' ? 'a-repasser' : 'rouge'),
           });
         };
         const suivante = tentative + 1;

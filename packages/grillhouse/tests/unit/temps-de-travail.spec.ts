@@ -467,6 +467,50 @@ describe('3uv.41 critère 8 : the events dated before the first incoming message
   });
 });
 
+// grillhouse-5m1.1, criterion 1. Witness: BPScript 320.3.2.1 (N1). A session resumed by the
+// circuit (`claude --resume`) writes, before the incoming message, the operations of its queue at
+// the time of the resumption and a message of no model (« No response requested. »): they bounded
+// the turn before, whose testwriter then seemed to work through the proof that followed it. As
+// ccusage cuts a transcript, a turn starts at its incoming message.
+describe('5m1.1 critère 1 : a turn of a resumed session starts at its incoming message', () => {
+  const file = (t: string, operation: 'enqueue' | 'dequeue') =>
+    l({ type: 'queue-operation', operation, timestamp: t });
+  const synthetique = (t: string) =>
+    l({
+      type: 'assistant',
+      timestamp: t,
+      message: {
+        id: `m${++n}`,
+        model: '<synthetic>',
+        role: 'assistant',
+        content: [{ type: 'text', text: 'No response requested.' }],
+        usage: { input_tokens: 0, output_tokens: 0 },
+      },
+    });
+
+  it('5m1.1 critère 1 : the operations of the queue and the message of no model of a resumption leave the turn before where its work ended', () => {
+    const t = lireTranscription(
+      transcription(
+        file('2026-10-11T10:00:00Z', 'enqueue'),
+        file('2026-10-11T10:00:00.020Z', 'dequeue'),
+        invite(at('10:00')),
+        reponse(at('10:03')),
+        outil(at('10:04')),
+        file('2026-10-11T10:10:00Z', 'enqueue'),
+        file('2026-10-11T10:10:00.020Z', 'dequeue'),
+        synthetique('2026-10-11T10:09:52Z'),
+        humain('2026-10-11T10:10:00.100Z', 'TON TICKET : demo-5 — reprends'),
+        reponse(at('10:12'))
+      )
+    );
+    expect(t.tours).toEqual([
+      [Date.parse(at('10:00')), Date.parse(at('10:04'))],
+      [Date.parse('2026-10-11T10:10:00.100Z'), Date.parse(at('10:12'))],
+    ]);
+    expect(t.travail).toBe(4 * MIN + 2 * MIN - 100);
+  });
+});
+
 describe('3uv.41 critère 3 : a transcript of one turn keeps its time, first to last event', () => {
   it('3uv.41 critère 3 : one turn of answers measures from its first to its last event', () => {
     expect(travailDe(invite(at('10:00')), reponse(at('10:03')), reponse(at('10:10')))).toBe(

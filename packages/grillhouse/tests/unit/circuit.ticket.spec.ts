@@ -25,6 +25,7 @@ const {
   ordre,
   commentaires,
   historique,
+  entrees,
 } = circuitEssai(ESSAIS);
 
 // What the one testwriter and the one developpeur of a ticket on forms and binder write: a red
@@ -119,6 +120,20 @@ describe.runIf(canWrap)(
       expect(args(id, 'developpeur', 3)).not.toContain('--model');
       expect(etat(id)).toMatchObject({ etape: 'controles', raison: 'controles', finale: true });
       expect(etat(id)?.question).toMatchObject({ arret: 'controles', qui: 'superviseur' });
+      // grillhouse-5m1.1, criterion 2: each red final pass keeps its reds with its outcome, its
+      // stop included, which the bilan compares with those of the pass before.
+      const finales = entrees(id).filter(
+        e => e.etape === 'controles' && (e.resultat as { finale?: boolean } | undefined)?.finale
+      );
+      expect(finales.length).toBeGreaterThanOrEqual(3);
+      for (const e of finales) {
+        const rouges = (e.resultat as { rouges?: string[] }).rouges;
+        expect(
+          rouges?.some(r => r.includes('packages/forms/src/index.mjs')),
+          JSON.stringify(e)
+        ).toBe(true);
+      }
+      expect(finales.at(-1)).toMatchObject({ arret: 'controles', resultat: { issue: 'rouge' } });
     });
 
     // Witness: BP 320.9, C11 (rapport l. 411-418). The blocking finding « `exemplar` reste dans
