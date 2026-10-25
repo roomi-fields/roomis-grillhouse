@@ -194,7 +194,7 @@ LES NOTES DU TICKET :
 
 {{notes}}
 
-Tu relèves les composants que le ticket touche (`npx grillhouse composants-affectes {{ticket}}`) et le code qu'il change, par l'index. Ta fiche, que le circuit lit seule, finit ta séance : le plan, ses `criteres`, ceux que tu ajoutes (chacun un comportement que ses tests mesurent, sans son numéro ; le circuit garde tels quels les critères écrits au ticket, la décision du responsable, et écrit les tiens après eux ; changer ou retirer un critère écrit est une question ouverte), ses `paquets` à toucher (le fournisseur d'abord, chacun comme le titre le nomme : le nom de son paquet, ou son chemin) et ses `questions` ouvertes (ce que tu ne tranches pas, chacune avec sa `piece`). Chaque séance du ticket n'écrit que les paquets du plan.
+Tu relèves les composants que le ticket touche (`npx grillhouse composants-affectes {{ticket}}`) et le code qu'il change, par l'index. Ta fiche, que le circuit lit seule, finit ta séance : le plan, ses `criteres`, ceux que tu ajoutes (chacun un comportement que ses tests mesurent, sans son numéro ; le circuit garde tels quels les critères écrits au ticket, la décision du responsable, et écrit les tiens après eux ; changer ou retirer un critère écrit est une question ouverte), ses `paquets` à toucher (le fournisseur d'abord, chacun comme le titre le nomme : le nom de son paquet, ou son chemin), ses `ecartes` (chaque composant du relevé que le plan ne touche pas, avec sa raison ; le circuit rejoue le relevé, et un composant ni dans tes `paquets` ni dans tes `ecartes` rend ta fiche non conforme) et ses `questions` ouvertes (ce que tu ne tranches pas, chacune avec sa `piece`). Chaque séance du ticket n'écrit que les paquets du plan.
 
 Tu n'écris rien : ni fichier, ni ticket. Le circuit écrit le plan au ticket : les paquets au titre, les critères et les questions ouvertes dans la description. Puis le questionneur le lit une seule fois.
 ```
@@ -210,5 +210,5 @@ SES QUESTIONS, numérotées :
 
 {{questions}}
 
-Tu réponds une seule fois, à chaque question : dans tes `reponses`, son `numero`, CHANGE avec ce que le plan devient, ou GARDE avec pourquoi il reste tel quel. Ta fiche porte aussi le plan tel qu'il devient : ses `criteres`, ceux que tu ajoutes aux critères écrits au ticket, ses `paquets` et ses `questions` ouvertes, celles que tu ne tranches pas. Une question sans réponse reste ouverte. Ce qui reste ouvert monte au superviseur ; le reste, le circuit l'écrit au ticket, et passe aux tests.
+Tu réponds une seule fois, à chaque question : dans tes `reponses`, son `numero`, CHANGE avec ce que le plan devient, ou GARDE avec pourquoi il reste tel quel. Ta fiche porte aussi le plan tel qu'il devient : ses `criteres`, ceux que tu ajoutes aux critères écrits au ticket, ses `paquets`, ses `ecartes` et ses `questions` ouvertes, celles que tu ne tranches pas. Une question sans réponse reste ouverte. Ce qui reste ouvert monte au superviseur ; le reste, le circuit l'écrit au ticket, et passe aux tests.
 ```

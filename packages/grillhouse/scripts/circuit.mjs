@@ -43,12 +43,14 @@
 //   description and notes, the context), writes the plan in its sheet: its criteria, the packages
 //   to touch, and its open questions, each with its piece; it surveys the components the ticket
 //   reaches by `npx grillhouse composants-affectes <ticket>` (scripts/composants-affectes.mjs),
-//   which the circuit plays no more. A package the repository does not hold, or one named twice,
-//   makes the sheet out of conformity. The circuit writes the plan at the ticket (`bd update
-//   --title -d`): the packages end its title, the list the envelope of every later session
-//   writes; the criteria already written stay as they are, the owner's decision, and the criteria
-//   of the sheet, those the plan adds, follow them, numbered after them (a change or a removal of
-//   a criterion written is an open question of the sheet); the open questions a section
+//   which the circuit plays no more as a step. A package the repository does not hold, one named
+//   twice, or a component of the survey of the plan (`releve`, which the circuit plays with no
+//   session to check the sheet) that the sheet neither puts in its packages nor sets apart with
+//   its reason (`ecartes`, written at the ticket) makes the sheet out of conformity. The circuit
+//   writes the plan at the ticket (`bd update --title -d`): the packages end its title, the list the envelope of every later
+//   session writes; the criteria already written stay as they are, the owner's decision, and the
+//   criteria of the sheet, those the plan adds, follow them, numbered after them (a change or a
+//   removal of a criterion written is an open question of the sheet); the open questions a section
 //   « Questions ouvertes » after them. Each writing starts again from the description before the
 //   plan. Then one session of the questionneur out of the envelope, read-only (no tool of
 //   writing, every write of bd refused, scripts/droits.mjs), as Amazon's bar raiser, a cockpit's
@@ -66,8 +68,9 @@
 //   question the explorateur leaves without an answer) stops at « questionnement », the open questions as its piece, a
 //   question for the supervisor: he changes the plan (`bd update`) or keeps it, then
 //   `--reprendre` lets the plan pass as it is then, from the testwriter. Nothing open, the plan
-//   passes (`plan`, its fingerprint); a plan that passed, its title and description unchanged
-//   since, passes with no session.
+//   passes (`plan`, its fingerprint: its title and its criteria); a plan that passed, its title
+//   and criteria unchanged since, passes with no session, whatever else of its description
+//   changed.
 // - Each session is a launch of scripts/enveloppe/lancer.sh, a child process the circuit waits
 //   for, in its own process group, its errors written to a file: a session outlives the death of
 //   its circuit (its caller dead, the circuit with it), and the state names its group while it
@@ -380,9 +383,10 @@
 //   package of the plan that depends on it (its package.json), else at its end, said at the ticket
 //   (`Circuit · plan : le superviseur étend le plan à …`); then the step under way resumes as
 //   after `--reprendre`, on the plan extended, the question as its context with the text of
-//   `--contexte`. The plan so extended has passed (`plan`, its fingerprint): neither the
-//   explorateur nor the questionneur works on it again. A package the repository does not hold is
-//   refused, exit 2.
+//   `--contexte`; a stop « sans-livraison » on the developpeur's sending to the testwriter
+//   resumes at the testwriter, the role it names. The plan so extended has passed (`plan`, its
+//   fingerprint): neither the explorateur nor the questionneur works on it again. A package the
+//   repository does not hold is refused, exit 2.
 // - `--arreter` stops the circuit on the supervisor's word, as a pipeline cancelled: a circuit
 //   running on the ticket (the state's `processus`, alive) stops, SIGTERM then SIGKILL, and so does
 //   the session it led (`seance`); the state keeps its step, its stop « arrete », its question
@@ -473,6 +477,7 @@ import {
   SUPERVISEUR,
 } from './etapes.mjs';
 import { paquets } from './paquets.mjs';
+import { releve } from './composants-affectes.mjs';
 import { ecrire as ecrireAuRegistre, ligneDEtape, transcriptionsDeLaCopie } from './registre.mjs';
 import { FICHIER as DETTE } from './dette.mjs';
 import {
@@ -3224,9 +3229,19 @@ function rubrique(ctx, titre) {
 // The meta-frame, the frame's plugin's, read at the plugin's root (scripts/cadre.mjs).
 const METACADRE = path.join(GREFFON, 'METACADRE.md');
 
-// The fingerprint of a plan, its title and its description.
-const empreinteDuPlan = ({ titre, description }) =>
-  createHash('sha256').update(`${titre}\n${description}`).digest('hex');
+// The fingerprint of a plan, its title and its section of criteria, each line without its blank
+// lines: the rest of the description (an answer of the supervisor, the open questions, its notes)
+// is not the plan, as a CI replays a job only when its inputs move.
+const empreinteDuPlan = ({ titre, description }) => {
+  const criteres = sectionsDe(description)
+    .filter(deCriteres)
+    .flatMap(s => [s.tete, ...s.lignes])
+    .map(l => l.trim())
+    .filter(Boolean);
+  return createHash('sha256')
+    .update([titre, ...criteres].join('\n'))
+    .digest('hex');
+};
 
 // Whether the plan of fingerprint <empreinte> has passed: a plan whose questioning left no
 // question open, or the supervisor's resumption of its stop.
@@ -3315,25 +3330,46 @@ function ecrireLePlan(ctx, plan, description = null) {
 }
 
 // What makes the packages of the sheet <fiche> of the explorateur out of conformity, or null: a
-// package that names neither a package nor a path of the repository, or one package named twice
-// (by its name and by its path). A session that writes one is resumed once (`jusquALaFiche`).
-function fautesDesPaquets(ctx, fiche) {
-  const dossiers = fiche.paquets.map(p => {
+// package that names neither a package nor a path of the repository, one package named twice
+// (by its name and by its path), or a component of the survey of the plan's description
+// <description> (scripts/composants-affectes.mjs, `releve`, played by the circuit with no
+// session, as it checks the packages) that the sheet neither puts in its packages nor sets apart
+// with its reason (`ecartes`). A session that writes one is resumed once (`jusquALaFiche`).
+function fautesDesPaquets(ctx, fiche, description) {
+  const dossier = p => {
     try {
       return ctx.resoudre(p);
     } catch {
       return null;
     }
-  });
+  };
+  const dossiers = fiche.paquets.map(dossier);
   const inconnus = fiche.paquets.filter((p, i) => dossiers[i] === null);
   if (inconnus.length) {
     return `paquets : ${inconnus.join(', ')} ne nomme ni un paquet ni un chemin du dépôt`;
   }
   const doubles = fiche.paquets.filter((p, i) => dossiers.indexOf(dossiers[i]) !== i);
-  return doubles.length
-    ? `paquets : ${doubles.join(', ')} nomme un paquet déjà nommé dans le plan`
+  if (doubles.length) {
+    return `paquets : ${doubles.join(', ')} nomme un paquet déjà nommé dans le plan`;
+  }
+  const tenus = [...dossiers, ...(fiche.ecartes ?? []).map(e => dossier(e.composant))];
+  const couvre = (d, c) => d === '.' || c === d || c.startsWith(`${d}/`);
+  const racine = existsSync(ctx.copie) ? ctx.copie : ctx.racine;
+  const absents = releve(racine, description).composants.filter(c => {
+    const d = dossier(c);
+    return d !== null && !tenus.some(t => t !== null && couvre(t, d));
+  });
+  return absents.length
+    ? `paquets : ${absents.join(', ')}, que le relevé nomme, n'est ni dans les paquets ni dans les écartés (ecartes, avec sa raison)`
     : null;
 }
+
+// The components the sheet <fiche> of the explorateur sets apart, each with its reason, as the
+// circuit writes them at the ticket; empty without one.
+const ecartsDe = fiche =>
+  (fiche.ecartes ?? []).length
+    ? ` ; écartés : ${fiche.ecartes.map(e => `${e.composant} (${e.raison})`).join(' ; ')}`
+    : '';
 
 // The plan of the ticket (step 1 of scripts/etapes.mjs) before its testwriter, as an RFC: its
 // author writes it after surveying what exists, a review reads it once,
@@ -3345,8 +3381,8 @@ function fautesDesPaquets(ctx, fiche) {
 // question it leaves without an answer stays open with its own. Each session's work is named in
 // the state while it runs (`questionnement`); the exchange is written at the ticket and its end
 // kept with the circuit's results (`questionnement`, which the bilan counts). A plan that has
-// passed, its title and description unchanged since, passes. Null when nothing stays open (the
-// plan passes, kept as `plan`); else the exit code of the question it goes up with,
+// passed, its title and criteria unchanged since (`empreinteDuPlan`), passes. Null when nothing
+// stays open (the plan passes, kept as `plan`); else the exit code of the question it goes up with,
 // « questionnement », the open questions as its piece, or the stop of a session that cannot end.
 async function lePlan(ctx) {
   if (planPasse(ctx, empreinteDuPlan(leTicket(ctx)))) return null;
@@ -3368,10 +3404,12 @@ async function lePlan(ctx) {
     ecrireEtat(ctx, etat());
     return fiche;
   };
+  // The description before the plan, from which each sheet's plan is written.
+  const avant = leTicket(ctx).description;
   const explorateur = {
     droits: horsDeLEnveloppe(ctx, EXPLORATEUR, 'sonnet'),
     id: randomUUID(),
-    valider: f => fautesDesPaquets(ctx, f),
+    valider: f => fautesDesPaquets(ctx, f, decrireLePlan(avant, f.criteres, f.questions)),
   };
   try {
     const t = leTicket(ctx);
@@ -3399,7 +3437,7 @@ async function lePlan(ctx) {
     const ouvertesDuPlan = plan.questions.length ? `\n${lignesOuvertes(plan.questions)}` : 'aucune';
     dire(
       'plan',
-      `l'explorateur écrit le plan — paquets : ${plan.paquets.join(', ')} ; ${plan.criteres.length} critère(s) ajouté(s) ; questions ouvertes : ${ouvertesDuPlan}`
+      `l'explorateur écrit le plan — paquets : ${plan.paquets.join(', ')}${ecartsDe(plan)} ; ${plan.criteres.length} critère(s) ajouté(s) ; questions ouvertes : ${ouvertesDuPlan}`
     );
     const ecrit = leTicket(ctx);
     const lu = await session(
@@ -3451,7 +3489,10 @@ async function lePlan(ctx) {
       );
       reponses = plan.reponses ?? [];
       const lignes = reponses.map(r => `${r.numero}. ${r.reponse} — ${r.texte}`).join('\n');
-      dire('questionnement', `la réponse de l'explorateur :\n${lignes || 'aucune'}`);
+      dire(
+        'questionnement',
+        `la réponse de l'explorateur${ecartsDe(plan)} :\n${lignes || 'aucune'}`
+      );
     }
     // What stays open: the plan's own questions, then each question left without an answer.
     const ouvertes = [
@@ -3581,8 +3622,11 @@ async function arreter(ctx, e) {
 // name of the repository, else a Usage): each one enters the title before the first package of
 // the plan whose package.json depends on it, else at its end, written by bd and said at the
 // ticket. With the state <e>, the run then resumes the step under way, as `--reprendre` does, the
-// question of the stop and the text of `--contexte` as the context of its sessions; without one,
-// it starts on the plan extended.
+// question of the stop and the text of `--contexte` as the context of its sessions; a stop
+// « sans-livraison » whose developpeur's last sheet sends the red to the testwriter (`renvoi`,
+// twice in a row) resumes at the step of the role it names, the testwriter's, as a retry plays the
+// job that failed. Without a state, it starts on the plan extended. The state the run resumes
+// from.
 function etendre(ctx, e) {
   const gagnes = [...new Set(ctx.etendre.map(ctx.resoudre))].filter(c => !ctx.paquets.includes(c));
   const liste = paquets(existsSync(ctx.copie) ? ctx.copie : ctx.racine);
@@ -3610,12 +3654,17 @@ function etendre(ctx, e) {
     'plan',
     `le superviseur étend le plan à ${ctx.etendre.join(', ')} : ${titre.split(' — ').at(-1)}.`
   );
-  if (!e) return;
+  if (!e) return e;
   ctx.contexte =
     [e.question ? `${e.question.fait}\n\n${e.question.piece}` : null, ctx.contexte]
       .filter(Boolean)
       .join('\n\n') || null;
   ctx.reprendre = true;
+  const renvoi =
+    e.etape === CODE && e.raison === 'sans-livraison'
+      ? fichesDe(ctx, 'developpeur').at(-1)?.renvoi
+      : null;
+  return renvoi?.role === 'testwriter' ? { ...e, etape: TESTS } : e;
 }
 
 export async function main(argv) {
@@ -3623,7 +3672,7 @@ export async function main(argv) {
   try {
     ctx = contexte(lireArguments(argv));
     mkdirSync(path.dirname(ctx.copie), { recursive: true });
-    const e = existsSync(ctx.etat) ? JSON.parse(readFileSync(ctx.etat, 'utf8')) : null;
+    let e = existsSync(ctx.etat) ? JSON.parse(readFileSync(ctx.etat, 'utf8')) : null;
     // The findings of the reviewer still open, the lot the whole final pass verified, the session a
     // relaunch resumes, and the references a regeneration has to run, kept from one run to the next.
     ctx.constats = [...(e?.constats ?? [])];
@@ -3635,7 +3684,7 @@ export async function main(argv) {
     if (ctx.etendre) {
       if (e?.etape === 'integre')
         throw new Usage(`--etendre : le lot de ${ctx.ticket} est intégré.`);
-      etendre(ctx, e);
+      e = etendre(ctx, e);
     }
     // The supervisor's resumption of the questioning lets the plan pass as it is now.
     if (ctx.reprendre && e?.raison === 'questionnement') {

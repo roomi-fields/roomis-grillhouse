@@ -46,6 +46,9 @@
 //     keeps as they are; the packages in the title as it names its components (a package name or a
 //     path), the list the envelope of every later session writes; the open questions, a change or
 //     a removal of a criterion written among them, go up to the supervisor (explorateur);
+//   - `ecartes` (`composant`, `raison`): the components of the survey the plan does not touch,
+//     which the circuit writes at the ticket; each other component of the survey the circuit
+//     plays is in the packages (explorateur);
 //   - `reponses` (`numero` of the question, `reponse` CHANGE or GARDE, `texte`): the explorateur's
 //     one answer to the questionneur, which the circuit writes at the ticket; a question without
 //     an answer stays open (explorateur);
@@ -166,6 +169,16 @@ const FICHES = {
       paquets: liste(
         texte('Un paquet, comme le titre le nomme : le nom de son paquet, ou son chemin.'),
         'Les paquets à toucher, le fournisseur d’abord ; le circuit les écrit au titre, et chaque séance n’écrit qu’eux.'
+      ),
+      ecartes: liste(
+        objet(
+          {
+            composant: texte('Un composant du relevé, comme le relevé le nomme.'),
+            raison: texte('Pourquoi le plan n’y touche pas.'),
+          },
+          ['composant', 'raison']
+        ),
+        'Les composants du relevé que le plan ne touche pas, chacun avec sa raison ; chaque autre composant du relevé est dans tes paquets.'
       ),
       questions: liste(
         objet(

@@ -341,7 +341,7 @@ describe.runIf(canWrap)('the plan, step 1 of the circuit', { timeout: 300_000 },
   it('critère 3 — the questionneur reads the plan and the frame that orients it, read-only; the circuit plays no survey again', () => {
     const id = 'demo-plan-consigne';
     ticket(id, '000-forms');
-    // A criterion names a package the plan misses: no stop of the circuit any more.
+    // A criterion names a package the plan misses, set apart: no stop of the circuit any more.
     ecrire(
       path.join(BEADS, `${id}.json`),
       json([
@@ -351,6 +351,11 @@ describe.runIf(canWrap)('the plan, step 1 of the circuit', { timeout: 300_000 },
           description: `${DESCRIPTION}\n2. 030-binder lit la mesure, inchangé.\n`,
         },
       ])
+    );
+    scenario(
+      id,
+      EXPLORATEUR,
+      fiche(plan({ ecartes: [{ composant: '030-binder', raison: 'il lit la mesure, inchangé.' }] }))
     );
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
@@ -376,6 +381,110 @@ describe.runIf(canWrap)('the plan, step 1 of the circuit', { timeout: 300_000 },
     expect(reglages.permissions.deny).toEqual(
       expect.arrayContaining(['Bash(bd comments add*)', 'Bash(bd update*)'])
     );
+  });
+
+  // grillhouse-ybq.3 (BP 320.8): the supervisor wrote the names the testwriter asked for in a
+  // section of their own, and the whole plan was played again.
+  it('ybq.3 critère 1 — a change of the description out of its title and criteria plays the plan no more; a change of a criterion plays it again', () => {
+    const id = 'demo-plan-empreinte';
+    ticket(id, '000-forms');
+    // Each testwriter stops on a question, so that the supervisor answers it.
+    scenario(
+      id,
+      'testwriter',
+      `passation 'Aucun test écrit.'\nfiche '{"statut":"BESOIN","piece":"packages/forms/src/index.mjs:1","question":"quel nom publié ?"}'\n`
+    );
+    const r1 = circuit([id]);
+    expect(r1.status, sortie(r1)).toBe(ARRETS.besoin);
+    expect(sessions(id, EXPLORATEUR)).toBe(1);
+    // The supervisor's answer, in a section of the description out of the criteria.
+    const reecrire = (description: string) => {
+      const t = leTicket(id);
+      ecrire(path.join(BEADS, `${id}.json`), json([{ id, title: t.title, description }]));
+    };
+    reecrire(`${leTicket(id).description}\n\n## Noms publiés\n\n- \`mesure\`, de 000-forms.\n`);
+    const r2 = circuit([id, '--reprendre']);
+    expect(r2.status, sortie(r2)).toBe(ARRETS.besoin);
+    expect(sessions(id, EXPLORATEUR)).toBe(1);
+    expect(sessions(id, QUESTIONNEUR)).toBe(1);
+    expect(sessions(id, 'testwriter')).toBe(2);
+    // A criterion changed is a plan changed: it is written and questioned again.
+    reecrire(leTicket(id).description.replace('sa valeur.', 'sa valeur, négative comprise.'));
+    const r3 = circuit([id, '--reprendre']);
+    expect(r3.status, sortie(r3)).toBe(ARRETS.besoin);
+    expect(sessions(id, EXPLORATEUR)).toBe(2);
+    expect(sessions(id, QUESTIONNEUR)).toBe(2);
+  });
+
+  // grillhouse-ybq.3 (BP 320.8): the survey named 001-kernel, 990-corpus and 995-tools, the plan
+  // none of them: two stops of the final pass and of the developpeur, one pass played again. The
+  // circuit plays the survey of the plan's description itself, with no session.
+  const lieABinder = (id: string) => {
+    ticket(id, '000-forms');
+    ecrire(
+      path.join(BEADS, `${id}.json`),
+      json([
+        {
+          id,
+          title: `${id} — La mesure — 000-forms`,
+          description: `${DESCRIPTION}\n2. 030-binder lit la mesure.\n`,
+        },
+      ])
+    );
+  };
+
+  it('ybq.3 critère 2 — a component of the survey set apart with its reason passes, the reason written at the ticket', () => {
+    const id = 'demo-plan-ecarte';
+    lieABinder(id);
+    scenario(
+      id,
+      EXPLORATEUR,
+      fiche(
+        plan({
+          ecartes: [{ composant: '030-binder', raison: 'il lit la mesure sans changement.' }],
+        })
+      )
+    );
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(sessions(id, EXPLORATEUR)).toBe(1);
+    expect(echange(id)[0]).toContain('écartés : 030-binder (il lit la mesure sans changement.)');
+    expect(leTicket(id).title).toBe(`${id} — La mesure — 000-forms`);
+  });
+
+  it('ybq.3 critère 2 — a component of the survey neither in the packages nor set apart makes the sheet out of conformity, though the explorateur never named it', () => {
+    const id = 'demo-plan-releve-manque';
+    lieABinder(id);
+    scenario(id, EXPLORATEUR, fiche(plan()));
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(ARRETS['sans-fiche']);
+    expect(sessions(id, EXPLORATEUR)).toBe(2);
+    expect(sessions(id, QUESTIONNEUR)).toBe(0);
+    expect(
+      commentaires(id).some(
+        t =>
+          t.includes('sans fiche conforme') &&
+          t.includes('030-binder') &&
+          t.includes('que le relevé nomme')
+      )
+    ).toBe(true);
+    expect(leTicket(id).title).toBe(`${id} — La mesure — 000-forms`);
+  });
+
+  it('ybq.3 critère 2 — the resumed session that puts the component in its packages passes', () => {
+    const id = 'demo-plan-releve';
+    lieABinder(id);
+    scenario(id, `${EXPLORATEUR}-1`, fiche(plan()));
+    scenario(id, `${EXPLORATEUR}-2`, fiche(plan({ paquets: ['000-forms', 'packages/binder'] })));
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(sessions(id, EXPLORATEUR)).toBe(2);
+    expect(essai(id, `${EXPLORATEUR}-2.prompt`)).toContain('030-binder');
+    expect(leTicket(id).title).toBe(`${id} — La mesure — 000-forms, 030-binder`);
   });
 });
 

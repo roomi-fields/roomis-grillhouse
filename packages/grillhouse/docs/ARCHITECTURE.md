@@ -77,11 +77,16 @@ références, dont 163 d'attente).
 avoir relevé l'existant, qu'une revue la lit une fois, que l'auteur répond une fois et que ce qui
 reste ouvert va à qui décide, l'étape 1 du circuit (1 Plan) lance l'explorateur hors de
 l'enveloppe ; il relève les composants (`npx grillhouse composants-affectes <ticket>`) et finit sur
-sa fiche : les critères, les paquets à toucher, ses questions ouvertes avec leur pièce. Le circuit
+sa fiche : les critères, les paquets à toucher, les composants du relevé qu'il écarte avec leur
+raison, ses questions ouvertes avec leur pièce. Le circuit rejoue le relevé sur le plan, sans
+séance, comme il contrôle les paquets : un composant du relevé ni touché ni écarté rend la fiche
+non conforme, comme la section des composants touchés d'un document de conception dit pour
+chacun s'il change, ou pourquoi il reste. Le circuit
 écrit le plan au ticket : les paquets finissent son titre, la seule liste que lit l'enveloppe de
 chaque séance d'après. Le questionneur le lit une fois ; l'explorateur, sa séance
 reprise, répond une fois, CHANGE ou GARDE par question ; ce qui reste ouvert monte au superviseur
-(« questionnement »), sinon le circuit passe aux tests. Ainsi les questions utiles se posent avant
+(« questionnement »), sinon le circuit passe aux tests. Un plan passé ne se rejoue que si son
+titre ou ses critères changent. Ainsi les questions utiles se posent avant
 le plan, et le plan ne tourne pas en rond (BP 320.9 : 132 tours de questions, 29 critères dont 2
 utiles).
 
@@ -110,7 +115,7 @@ passe finale et le relecteur sur l'ensemble ; aucun composant n'est une unité d
 3 Code · 3.1 Contrôles · 4 Passe finale et relecture (4.1 Passe finale, 4.2 Régénération des
 références, 4.3 Relecture) · 5 Intégration. `--depuis <testwriter|developpeur>` rejoue le
 ticket entier depuis cette étape ; `--etendre <paquet>` ajoute un paquet au plan, puis reprend
-l'étape en cours. Un constat bloquant du relecteur va droit à l'agent qu'il nomme et reste ouvert
+l'étape en cours, celle du testwriter après un arrêt sur un renvoi du développeur vers lui. Un constat bloquant du relecteur va droit à l'agent qu'il nomme et reste ouvert
 d'une relance à l'autre, comme un fil de revue non résolu, jusqu'à ce que le relecteur le dise
 levé ou accepte le lot. Le bilan compte par étape et par rôle. Ainsi un type change avec ses
 lecteurs en une seule séance, et un constat n'est jamais perdu (BP 320.9 : seize composants

@@ -61,15 +61,19 @@ change, et ceux qu'il peut casser.
    - `paquets` : les paquets à toucher, le fournisseur d'abord, puis ses lecteurs, chacun comme le
      titre le nomme (le nom de son paquet, ou son chemin) ; le circuit les écrit au titre, et
      chaque séance du ticket n'écrit qu'eux ;
+   - `ecartes` : chaque composant du relevé que le plan ne touche pas, avec sa raison (il n'a
+     rien à changer, par exemple) ; le circuit l'écrit au ticket. Le circuit rejoue le relevé sur
+     mon plan : un composant qui n'est ni dans `paquets` ni dans `ecartes` rend ma fiche non
+     conforme ;
    - `questions` : seulement ce que je ne sais pas trancher, ou ce qui revient au responsable. Ce
-     que je sais trancher et recommande, je l'applique au plan (retirer du titre un paquet qui
-     n'a plus rien à changer, par exemple) et je le dis dans ma fiche. Chaque question : chacune avec ses options, ma recommandation et sa
+     que je sais trancher et recommande, je l'applique au plan (écarter un paquet qui n'a rien à
+     changer, par exemple) et je le dis dans ma fiche. Chaque question : chacune avec ses options, ma recommandation et sa
      `piece` (fichier:ligne depuis la racine de la copie, ou « $ commande » et sa sortie), que le
      circuit cherche dans la copie ; elles montent au superviseur. Un fait que je reprends d'un
      autre agent (le ticket, une passation) se relit à sa pièce avant que je m'appuie dessus.
      Une décision que la référence mature, l'existant ou une règle du cadre tranche, je la tranche
-     dans le plan, sa raison au critère. _Fini quand_ chaque critère se mesure et chaque paquet du
-     relevé que le ticket change est dans `paquets`.
+     dans le plan, sa raison au critère. _Fini quand_ chaque critère se mesure et chaque composant du
+     relevé est dans `paquets` ou dans `ecartes`.
 3. **La réponse.** Le circuit reprend ma séance avec les questions du questionneur, numérotées. Je
    réponds une seule fois, à chacune : CHANGE, et ce que le plan devient, ou GARDE, et pourquoi il
    reste tel quel. Ma fiche porte aussi le plan tel qu'il devient, ses `questions` ouvertes

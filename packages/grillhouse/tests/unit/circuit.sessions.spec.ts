@@ -163,6 +163,34 @@ fiche '{"statut":"BLOQUÉ","piece":"packages/forms/src/index.mjs:1","raison":"le
       });
       expect(e?.rapport).toContain('deuxième fois de suite au testwriter');
     });
+
+    // grillhouse-ybq.3 (BP 320.8): --etendre 990-corpus relaunched the developpeur, who stopped
+    // again in 17 s, and not the testwriter his sending named.
+    it('ybq.3 critère 3 — after a stop on a sending to the testwriter, --etendre relaunches the testwriter, the sending as his report', () => {
+      const id = 'demo-renvoi-etendre';
+      ticket(id, '000-forms');
+      scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+      scenario(id, 'developpeur', renvoi);
+      const r1 = circuit([id]);
+      expect(r1.status, sortie(r1)).toBe(ARRETS['sans-livraison']);
+      scenario(id, 'developpeur-3', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+      const r2 = circuit([id, '--etendre', '030-binder']);
+      expect(r2.status, sortie(r2)).toBe(0);
+      expect(ordre(id)).toEqual([
+        'testwriter',
+        'developpeur',
+        'testwriter',
+        'developpeur',
+        'testwriter',
+        'developpeur',
+        'relecteur',
+      ]);
+      expect(essai(id, 'testwriter-3.prompt')).toContain('deuxième fois de suite au testwriter');
+      expect(essai(id, 'testwriter-3.paquets')).toBe(
+        ['packages/forms', 'packages/binder'].join(path.delimiter)
+      );
+      expect(etat(id)?.etape).toBe('integre');
+    });
   });
 
   it('sends a resumed developpeur that changes nothing of a delivered plan to the checks', () => {

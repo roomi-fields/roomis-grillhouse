@@ -118,7 +118,7 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
   // the circuit writes at the ticket, and answers the questionneur once, question by question.
   it('the explorateur: the plan (its criteria, the packages to touch, its open questions) and its one answer, CHANGE or GARDE by question', () => {
     expect(champs('explorateur')).toEqual(
-      ['criteres', 'decouvertes', 'paquets', 'questions', 'reponses'].sort()
+      ['criteres', 'decouvertes', 'ecartes', 'paquets', 'questions', 'reponses'].sort()
     );
     const s = schemaDeFiche('explorateur') as Schema;
     expect(s.required).toEqual(['criteres', 'paquets', 'questions']);
@@ -129,9 +129,20 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
     expect(r.items.required).toEqual(['numero', 'reponse', 'texte']);
     const q = s.properties.questions as { items: { required: string[] } };
     expect(q.items.required).toEqual(['question', 'piece']);
-    const plan = { criteres: ['`mesure` rend le double.'], paquets: ['000-forms'], questions: [] };
+    const plan = {
+      criteres: ['`mesure` rend le double.'],
+      paquets: ['000-forms'],
+      questions: [],
+    };
     expect(lireFiche('explorateur', sortie(plan)).erreur).toBeUndefined();
     expect(lireFiche('explorateur', sortie({ ...plan, paquets: [] })).erreur).toContain('paquets');
+    // grillhouse-ybq.3: a component of the survey the plan does not touch, set apart with its
+    // reason.
+    const ecarte = { ...plan, ecartes: [{ composant: '030-binder', raison: 'inchangé' }] };
+    expect(lireFiche('explorateur', sortie(ecarte)).erreur).toBeUndefined();
+    expect(
+      lireFiche('explorateur', sortie({ ...plan, ecartes: [{ composant: '030-binder' }] })).erreur
+    ).toContain('raison');
     // The sheet carries the criteria the plan adds: none is a plan.
     expect(lireFiche('explorateur', sortie({ ...plan, criteres: [] })).erreur).toBeUndefined();
     expect(

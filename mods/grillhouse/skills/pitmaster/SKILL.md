@@ -125,7 +125,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   l'agent repris doit savoir ce que j'ai tranché, ou `--depuis <testwriter|developpeur>
   --contexte`, l'étape d'où le ticket entier repart ; `--etendre <paquet>` quand le plan doit
   gagner un paquet (un `hors-plan`, un rouge hors du plan), que le circuit met au titre avant son
-  premier lecteur, puis reprend l'étape en cours ; `--arreter`, son motif en `--contexte`, quand le ticket
+  premier lecteur, puis reprend l'étape en cours (celle du testwriter quand le développeur lui a
+  renvoyé le rouge) ; `--arreter`, son motif en `--contexte`, quand le ticket
   doit changer avant tout travail. Une décision du responsable qui change le plan entre dans la
   description du ticket (`bd update <ticket> -d`), que tous les agents lisent, avant que je
   reprenne. 22 (`questionnement`) : des questions du plan restent ouvertes après la réponse de
