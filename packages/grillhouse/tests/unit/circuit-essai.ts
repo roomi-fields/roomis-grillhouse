@@ -439,6 +439,7 @@ export function circuitEssai(ESSAIS: string, { feuille = false } = {}) {
       journal: string;
       finale: boolean;
       seance: number | null;
+      processus: number;
       paquets: string[];
       constats: { titre: string; role: string; regle: string; corps: string; piece?: string }[];
       verifie: string | null;

@@ -1,5 +1,5 @@
 // The circuit of a ticket on the board (scripts/circuit.mjs): its state
-// `.claude/worktrees/<ticket>.circuit.json` and its process `grillhouse circuit <ticket>`.
+// `.claude/worktrees/<ticket>.circuit.json` and the process it names (`processus`, `depart`).
 // A circuit's ticket stands on one line, the only one of it in AGENTS, at the step of its state
 // (scripts/etapes.mjs); one that stopped on a question for the supervisor stands under its step,
 // after the line « ⤷ Question · <qui> », who must answer it (grillhouse-3uv.95.4), its card opening
@@ -10,7 +10,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { assembler, fiches, lignes, lireCircuits } from '../../scripts/tableau.mjs';
-import { ligneCircuit } from './tableau-essai.js';
+import { departDe } from '../../scripts/vitest-config/base-de-passe.mjs';
+import { rendreVivant } from './tableau-essai.js';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tableau-circuit-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
@@ -57,7 +58,13 @@ const depot = (etats: Record<string, object>) => {
   }
   return racine;
 };
-const circuits = (racine: string, ps = '') => lireCircuits({ racine, prefix: 'demo', ps });
+// The circuits of <racine>, those of <vivants> running.
+const circuits = (racine: string, ...vivants: string[]) => {
+  for (const ticket of vivants) {
+    rendreVivant(racine, ticket);
+  }
+  return lireCircuits({ racine });
+};
 
 const T = (id: string, o: object = {}) => ({
   id,
@@ -120,7 +127,7 @@ describe("a circuit's line carries its ticket's working time and tokens", () => 
     const racine = depot({
       'demo-12': { etape: 'developpeur', tentative: 2 },
     });
-    const t = plateau([T('demo-12')], registre, [], circuits(racine, ligneCircuit('demo-12')));
+    const t = plateau([T('demo-12')], registre, [], circuits(racine, 'demo-12'));
     const a = agents(t);
     expect(a[a.indexOf('▾ 3 · Code · développeur') + 1]).toMatch(
       /^▶ 12 {2}Le sujet de demo-12 +1 h 00 · 10$/
@@ -150,7 +157,7 @@ describe('a circuit that runs: its step and its attempt', () => {
     const racine = depot({
       'demo-12': { etape: 'developpeur', tentative: 2 },
     });
-    expect(circuits(racine, ligneCircuit('demo-12', { options: '--reprendre' }))).toEqual([
+    expect(circuits(racine, 'demo-12')).toEqual([
       expect.objectContaining({
         ticket: 'demo-12',
         etape: 'developpeur',
@@ -164,7 +171,7 @@ describe('a circuit that runs: its step and its attempt', () => {
     const racine = depot({
       'demo-12': { etape: 'developpeur', tentative: 2 },
     });
-    const t = plateau([T('demo-12')], [], [], circuits(racine, ligneCircuit('demo-12')));
+    const t = plateau([T('demo-12')], [], [], circuits(racine, 'demo-12'));
     const a = agents(t);
     expect(a).not.toContain('circuits');
     const i = a.indexOf('▾ 3 · Code · développeur');
@@ -179,7 +186,7 @@ describe('a circuit that runs: its step and its attempt', () => {
   it('each step of the state stands at its numbered step, the automatic ones included', () => {
     const sous = (etape: string) => {
       const racine = depot({ 'demo-12': { etape } });
-      const a = agents(plateau([T('demo-12')], [], [], circuits(racine, ligneCircuit('demo-12'))));
+      const a = agents(plateau([T('demo-12')], [], [], circuits(racine, 'demo-12')));
       const i = a.findIndex(x => x.includes('Le sujet de demo-12'));
       return [...a.slice(0, i)].reverse().find(x => /^ *\d+(\.\d+)? · /.test(x));
     };
@@ -194,15 +201,28 @@ describe('a circuit that runs: its step and its attempt', () => {
     const racine = depot({
       'demo-12': { etape: 'controles', tentative: 1, finale: true },
     });
-    const a = agents(plateau([T('demo-12')], [], [], circuits(racine, ligneCircuit('demo-12'))));
+    const a = agents(plateau([T('demo-12')], [], [], circuits(racine, 'demo-12')));
     const i = a.indexOf('  4.1 · Passe finale · auto');
     expect(a[i + 1]).toMatch(/^▶ 12 /);
     expect(a[i - 1]).toBe('▾ 4 · Passe finale et relecture');
   });
 
-  it("another ticket's circuit process does not make it run", () => {
-    const racine = depot({ 'demo-12': { etape: 'preuve' } });
-    expect(circuits(racine, ligneCircuit('demo-120'))[0]?.vivant).toBe(false);
+  // grillhouse-ybq.4: a circuit is a daemon, whose command line is no longer the one the
+  // supervisor typed; the board judges it by the process its state names.
+  it('a circuit whose caller is gone runs while the process of its state runs, the same one by its start', () => {
+    const depart = departDe(process.pid) as string;
+    const racine = depot({
+      'demo-12': { etape: 'preuve', processus: process.pid, depart },
+      // Its number taken again by another process: another start.
+      'demo-13': { etape: 'preuve', processus: process.pid, depart: `${Number(depart) + 1}` },
+      'demo-14': { etape: 'preuve', processus: 2 ** 22 + 1, depart },
+      'demo-15': { etape: 'preuve', processus: process.pid },
+    });
+    const vivant = (t: string) => circuits(racine).find(c => c.ticket === t)?.vivant;
+    expect(vivant('demo-12')).toBe(true);
+    expect(vivant('demo-13')).toBe(false);
+    expect(vivant('demo-14')).toBe(false);
+    expect(vivant('demo-15')).toBe(false);
   });
 
   it('the start of the step the circuit leads itself (`mene`) is read from its state, null between two', () => {
@@ -210,7 +230,7 @@ describe('a circuit that runs: its step and its attempt', () => {
       'demo-12': { etape: 'controles', mene: at('11:50') },
       'demo-13': { etape: 'developpeur' },
     });
-    const lus = circuits(racine, `${ligneCircuit('demo-12')}\n${ligneCircuit('demo-13')}`);
+    const lus = circuits(racine, 'demo-12', 'demo-13');
     expect(lus.find(c => c.ticket === 'demo-12')).toMatchObject({
       mene: Date.parse(at('11:50')),
     });
@@ -327,7 +347,7 @@ describe('a circuit that stopped: under its step, its stop, its code and its rea
 
   it('a circuit that runs again after the answer stands at its step, running, its question gone', () => {
     const racine = depot({ 'demo-13': { ...ARRET, code: null, raison: null } });
-    const t = plateau([T('demo-13')], [], [], circuits(racine, ligneCircuit('demo-13')));
+    const t = plateau([T('demo-13')], [], [], circuits(racine, 'demo-13'));
     const a = agents(t);
     const i = a.indexOf('  3.1 · Contrôles · auto');
     expect(a[i + 1]).toBe('▶ 13  Le sujet de demo-13');
@@ -344,7 +364,7 @@ describe('a circuit at the questioning', () => {
     const racine = depot({
       'demo-12': { questionnement: { objet: 'plan', role: 'questionneur', seance: SEANCE } },
     });
-    const lus = circuits(racine, ligneCircuit('demo-12'));
+    const lus = circuits(racine, 'demo-12');
     expect(lus).toEqual([expect.objectContaining({ ticket: 'demo-12', questionnement: 'plan' })]);
     const t = plateau([T('demo-12')], [], [], lus);
     const a = agents(t);
@@ -368,7 +388,7 @@ describe('a ticket in progress with no circuit and no agent: the alert', () => {
       [T('demo-15')],
       [fin('t0', 'demo-15', 'testwriter', '09:00')],
       [],
-      circuits(racine, ligneCircuit('demo-15'))
+      circuits(racine, 'demo-15')
     );
     expect(alerte(t)).not.toContain('15 en cours sans rien qui tourne');
   });

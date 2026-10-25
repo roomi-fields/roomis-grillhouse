@@ -17,9 +17,9 @@
 //   roles of the flow that ran on it and the reviewer's last verdict (`ACCEPTÉ` or `RENDU` at the
 //   start of a comment).
 // - Circuits: one entry per open ticket whose circuit (scripts/circuit.mjs) runs or stopped, read
-//   in its state `.claude/worktrees/<ticket>.circuit.json`: it runs while the process
-//   `npx grillhouse circuit <ticket>` runs, and stands at the step of its state, with its
-//   attempt, every step one for the whole ticket; while the explorateur or
+//   in its state `.claude/worktrees/<ticket>.circuit.json`: it runs while the process its state
+//   names runs (`processus`, the same one by its start `depart`), and stands at the step of its
+//   state, with its attempt, every step one for the whole ticket; while the explorateur or
 //   the questionneur works on its plan (its state names that work, `questionnement`, of the
 //   plan), it stands at the plan (1); stopped on a question for the supervisor (its state names it,
 //   `question`), it stands under the stopped step after a line « ⤷ Question · <qui> », who must
@@ -99,6 +99,7 @@ import {
 import { bilansGardes, enBref } from './bilan.mjs';
 import { verdictDe } from './integration/verdict.mjs';
 import { lireAvancement, lireLaMesure } from './avancement.mjs';
+import { leMemeVivant } from './vitest-config/base-de-passe.mjs';
 
 const MINUTE = 60_000;
 export const SILENCE = 10 * MINUTE;
@@ -572,25 +573,16 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
 }
 
 // The circuits of the repository at <racine>: each state `.claude/worktrees/<ticket>.circuit.json`
-// scripts/circuit.mjs writes, but those at « integre », with `vivant` when `ps` (`pid etimes args`
-// per line) shows its process, `grillhouse circuit <ticket>` (the command the supervisor
-// launches, `npx grillhouse circuit <ticket>`), `questionnement` the object of the work on the plan
+// scripts/circuit.mjs writes, but those at « integre », with `vivant` when the process its state
+// names lives (`processus`, the same one by its start `depart`: a circuit is a daemon, apart from
+// the command that launched it), `questionnement` the object of the work on the plan
 // under way (`plan`), null without one, `question` the whole question of a circuit ended on one
 // and `qui` who must answer it (`superviseur` or `responsable`), null without one,
 // the counters of its bounded loops (`boucles`, by their key), the progress of the automatic pass under way (`avancement`, read in the directory its state
 // names, scripts/avancement.mjs: `{ faits, prevus, dernier }`, null without one). A state that
 // does not parse is left out.
-export function lireCircuits({ racine, prefix, ps }) {
+export function lireCircuits({ racine }) {
   const dossier = path.join(racine, '.claude', 'worktrees');
-  const motif = new RegExp(`grillhouse circuit (${prefix}-[A-Za-z0-9]+(?:\\.[0-9]+)*)(?:\\s|$)`);
-  const enVie = new Set();
-  for (const ligne of ps.split('\n')) {
-    const m = /^\s*\d+\s+\d+\s+(.*)$/.exec(ligne);
-    const e = m && motif.exec(m[1]);
-    if (e) {
-      enVie.add(e[1]);
-    }
-  }
   const out = [];
   for (const f of fichiers(dossier, '.circuit.json')) {
     let e;
@@ -619,7 +611,7 @@ export function lireCircuits({ racine, prefix, ps }) {
         typeof e.mene === 'string' && !Number.isNaN(Date.parse(e.mene)) ? Date.parse(e.mene) : null,
       avancement:
         typeof e.avancement?.dossier === 'string' ? lireAvancement(e.avancement.dossier) : null,
-      vivant: enVie.has(ticket),
+      vivant: leMemeVivant(e.processus, e.depart),
     });
   }
   return out;
@@ -1732,7 +1724,7 @@ export function tableau(racine, { home = os.homedir(), maintenant = Date.now() }
     ps,
     cache,
   });
-  const circuits = lireCircuits({ racine, prefix: prefix || '[A-Za-z0-9_]+', ps });
+  const circuits = lireCircuits({ racine });
   try {
     if (fichierCache) {
       writeFileSync(

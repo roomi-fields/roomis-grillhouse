@@ -87,6 +87,7 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
         'boucles',
         'code',
         'constats',
+        'depart',
         'etape',
         'finale',
         'journal',

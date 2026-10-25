@@ -37,6 +37,26 @@ import path from 'node:path';
 const PREFIXE = 'grillhouse-';
 const PROPRIETAIRE = '.grillhouse-base';
 
+/**
+ * The start time of the process `pid`, in clock ticks since boot: field 22 of `/proc/<pid>/stat`
+ * (after the command, itself free to hold spaces and parentheses); null when it does not read.
+ * With its number, it names one process, as a number alone does not once it is reused.
+ */
+export function departDe(pid) {
+  try {
+    const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+    const depart = stat.slice(stat.lastIndexOf(')') + 2).split(' ')[19];
+    return depart && /^\d+$/.test(depart) ? depart : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Whether the process `pid` lives and is the one that started at `depart` (departDe). */
+export function leMemeVivant(pid, depart) {
+  return Number.isInteger(pid) && typeof depart === 'string' && departDe(pid) === depart;
+}
+
 /** Whether the process `pid` exists. */
 export function vivant(pid) {
   try {

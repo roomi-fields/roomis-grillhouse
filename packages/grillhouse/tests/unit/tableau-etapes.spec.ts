@@ -89,7 +89,7 @@ const vivant = (agent: string, ticket: string, role: string) => ({
   travail: 20 * MIN,
   tours: [[MAINTENANT - 20 * MIN, MAINTENANT]],
 });
-// A circuit as lireCircuits reads it from its state and the process list.
+// A circuit as lireCircuits reads it from its state.
 const circuit = (ticket: string, o: object = {}) => ({
   ticket,
   etape: 'developpeur',

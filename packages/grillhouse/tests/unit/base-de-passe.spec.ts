@@ -309,15 +309,18 @@ describe('critère 4 — the working directory of an integration and of a circui
           });
           const fin = new Promise(ok => p.on('close', ok));
           let groupe = 0;
+          let circuit = 0;
           for (let i = 0; i < 900 && !groupe; i++) {
             await new Promise(ok => setTimeout(ok, 200));
             const e = etat(id);
             if (e?.etape === 'testwriter' && e.seance && sessions(id, 'testwriter') === n) {
               groupe = e.seance;
+              circuit = e.processus;
             }
           }
           expect(groupe, `la séance du testwriter ${n} tourne`).toBeGreaterThan(0);
-          p.kill('SIGKILL');
+          // The circuit itself, a daemon apart from its caller, which ends once it is gone.
+          process.kill(circuit, 'SIGKILL');
           await fin;
           try {
             process.kill(-groupe, 'SIGKILL');

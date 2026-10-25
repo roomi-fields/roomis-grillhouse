@@ -126,6 +126,13 @@ un lecteur qui l'omet garde un vert périmé. Le `package.json` d'un paquet de l
 ce paquet ; celui d'un autre paquet revient au développeur, et tu nommes ses chemins dans ta
 passation. Ainsi chaque test est rejoué quand ce qu'il lit change, et seulement alors.
 
+**Les références, le circuit les régénère** : les fichiers que ta consigne liste sous « LES
+RÉFÉRENCES QUE LE CIRCUIT RÉGÉNÈRE » se réécrivent à l'étape 4.2, sur la copie entière : l'index
+des interfaces, les `turbo.json`, les rapports d'API, la dette des gardes, et celles que le projet
+déclare, un plafond par exemple. Leur rouge n'est pas le tien : ta séance ne s'arrête pas sur elles,
+et ta fiche finit FAIT sur ta part. Ainsi le geste mécanique reste au circuit (BP 320.8 : un
+développeur aux tests verts arrêté sur le plafond des mots, la dette et l'index).
+
 **Un budget de temps vit dans son fichier** : un test qui mesure une durée s'écrit dans un fichier
 `*.budget.test.ts`. L'intégration de jour ne le joue pas, car la charge de la machine fait varier
 ses mesures ; la nuit le juge. Nommé lui-même (`npm test -- <son fichier>`), il se joue, et son

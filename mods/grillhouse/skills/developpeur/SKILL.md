@@ -133,6 +133,13 @@ son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
   plan n'a rien à livrer, et ses contrôles rouges arrêtent le circuit (`sans-livraison`) ; ta
   passation dit pourquoi. Tes propres lancements pendant le travail restent les tiens. Ainsi ton
   lot arrive au relecteur vert.
+- **Les références, le circuit les régénère** : les fichiers que ta consigne liste sous « LES
+  RÉFÉRENCES QUE LE CIRCUIT RÉGÉNÈRE » se réécrivent à l'étape 4.2, sur la copie entière : l'index
+  des interfaces, les `turbo.json`, les rapports d'API, la dette des gardes, et celles que le
+  projet déclare, un plafond par exemple. Leur rouge n'est pas le tien : ta séance ne s'arrête pas sur elles,
+  et ta fiche finit FAIT sur ta part. Exemple : en 320.8 de BPScript, un développeur aux tests
+  verts s'est arrêté sur le plafond des mots, la dette et l'index, que 4.2 a régénérés ensuite.
+  Ainsi le geste mécanique reste au circuit.
 - **Un rouge qui reste dans les tests va au testwriter** : quand le rouge qui reste est dans les
   tests du lot (un test existant que ton changement de type casse), ta fiche porte `renvoi`, le
   rôle testwriter. Le circuit relance le testwriter, ta `raison` et ta passation pour rapport, puis

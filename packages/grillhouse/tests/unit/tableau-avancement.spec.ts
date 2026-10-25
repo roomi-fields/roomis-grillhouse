@@ -11,7 +11,7 @@ import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { ouvrirAvancement } from '../../scripts/avancement.mjs';
 import { assembler, FIGEE, LARGEUR, lignes, lireCircuits } from '../../scripts/tableau.mjs';
-import { ligneCircuit } from './tableau-essai.js';
+import { rendreVivant } from './tableau-essai.js';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tableau-avancement-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
@@ -101,19 +101,18 @@ const fin = {
 const agents = (
   racine: string,
   { vivant = true, registre = [] as object[], mesure = null as object | null } = {}
-) =>
-  (
+) => {
+  if (vivant) {
+    rendreVivant(racine, 'demo-12');
+  }
+  return (
     lignes(
       assembler({
         tous: [T],
         prefix: 'demo',
         registre,
         vivants: [],
-        circuits: lireCircuits({
-          racine,
-          prefix: 'demo',
-          ps: vivant ? ligneCircuit('demo-12') : '',
-        }),
+        circuits: lireCircuits({ racine }),
         maintenant: MAINTENANT,
         jour: MAINTENANT - 24 * 60 * MIN,
         horsTicket: mesure,
@@ -121,6 +120,7 @@ const agents = (
       'depot'
     ) as Ligne[]
   ).filter(l => l.section === 'agents');
+};
 const duTicket = (l: Ligne[]) => l.find(x => x.ticket === 'demo-12')!;
 
 describe('the line of a ticket at an automatic step gives the progress of its pass', () => {

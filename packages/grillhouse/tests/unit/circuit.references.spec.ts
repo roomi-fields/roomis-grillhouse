@@ -8,6 +8,7 @@ import {
   ARRETS,
   DESCRIPTION,
   CODE_JUSTE,
+  ECRIT_ROUGE,
   circuitEssai,
   ecrire,
   json,
@@ -649,3 +650,52 @@ process.exitCode = refus.length ? 1 : 0;
     });
   }
 );
+
+// grillhouse-ybq.4 — the session's instruction names the references the circuit regenerates.
+// Witness: BPScript 320.8 (fiche of 17:36:12), a developpeur, code and tests green, stopped on the
+// ceiling of the words, the frozen debt and the index of the interfaces, three gestures of 4.2.
+const RACINE_DU_DEPOT = path.resolve(__dirname, '../../../..');
+// The section of the references in an instruction: the lines the circuit fills it with.
+const referencesDe = (consigne: string) =>
+  /LES RÉFÉRENCES QUE LE CIRCUIT RÉGÉNÈRE[^\n]*\n\n([\s\S]*?)\n\n/.exec(consigne)?.[1] ?? null;
+
+describe.runIf(canWrap)(
+  'grillhouse-ybq.4 — the references in the instruction',
+  { timeout: 300_000 },
+  () => {
+    afterEach(revenirAuDebut);
+
+    it("critère 1 — the testwriter's and the developpeur's instruction name the files of the project's references and of the frame's, as the circuit's to regenerate", () => {
+      const id = 'demo-references-consigne';
+      laReference(true);
+      leTicket(id, NOMMEE);
+      scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
+      const r = circuit([id]);
+      expect(r.status, sortie(r)).toBe(0);
+      expect(ordre(id)).toEqual(['testwriter', 'developpeur', 'relecteur']);
+      for (const role of ['testwriter', 'developpeur']) {
+        const section = referencesDe(essai(id, `${role}-1.prompt`));
+        expect(section, role).toContain(`- ${NOM} : \`reference.txt\``);
+        expect(section, role).toContain(
+          "- l'index des interfaces : `docs/agents/index-des-interfaces.md`"
+        );
+        expect(section, role).toContain('- la dette des gardes : `grillhouse-dette.json`');
+      }
+    });
+  }
+);
+
+describe('grillhouse-ybq.4 — the skills of the testwriter and the developpeur', () => {
+  it('critère 1 — each skill says that the circuit regenerates the references at 4.2, and that its session does not stop on them', () => {
+    for (const role of ['testwriter', 'developpeur']) {
+      // The skill's text on one line, its wrapping aside.
+      const competence = lire(
+        path.join(RACINE_DU_DEPOT, `mods/grillhouse/skills/${role}/SKILL.md`)
+      ).replace(/\s+/g, ' ');
+      expect(competence, role).toContain(
+        "**Les références, le circuit les régénère** : les fichiers que ta consigne liste sous « LES RÉFÉRENCES QUE LE CIRCUIT RÉGÉNÈRE » se réécrivent à l'étape 4.2"
+      );
+      expect(competence, role).toContain("ta séance ne s'arrête pas sur elles");
+    }
+  });
+});

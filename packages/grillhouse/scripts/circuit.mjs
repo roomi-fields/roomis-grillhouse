@@ -25,6 +25,16 @@
 //   npx grillhouse circuit <ticket> --etendre <paquet>[,<paquet>…] [--contexte <texte>]
 //   npx grillhouse circuit <ticket> --arreter [--contexte <motif>]
 //
+// The run is a daemon (scripts/demon.mjs), as daemon(3) and `setsid --fork` make one: the command
+// launches a relay,
+// which launches the run in a session of its own and ends at once, so that the run is neither in
+// the caller's process group nor under it in the tree of processes, and goes on to its end when
+// its caller dies (BP 320.8: the circuit, a background command of the supervisor's session, died
+// with it). The caller relays the run's output to its own streams while it lives, and ends on the
+// run's exit code; the state names the run (`processus` and its start `depart`), which the board
+// reads, and a second run of the ticket while it lives is refused (exit 2), `--arreter` stopping
+// it.
+//
 // The circuit decides on structured results only (scripts/resultats.mjs, the one module of their
 // formats), as Bazel's Build Event Protocol and the JUnit reports carry the outcome of a build:
 // the sheet that ends each session, the summaries of Turborepo, the JSON reports of Vitest and the
@@ -73,8 +83,7 @@
 //   changed.
 // - Each session is a launch of scripts/enveloppe/lancer.sh, a child process the circuit waits
 //   for, in its own process group, its errors written to a file: a session outlives the death of
-//   its circuit (its caller dead, the circuit with it), and the state names its group while it
-//   runs. Its plan, the packages it writes (`--paquets`, the envelope's list), is the plan of the
+//   its circuit, and the state names its group while it runs. Its plan, the packages it writes (`--paquets`, the envelope's list), is the plan of the
 //   ticket, the whole copy in sight, the session at the root (`.`); lancer.sh builds the packages
 //   of the plan and what they read before it opens. A session its lock stops on a write out of
 //   the plan ends the circuit at « hors-plan », a question for the supervisor, the write as its
@@ -84,8 +93,11 @@
 //   section absent without notes), both read with `bd show` at the session's launch, the report of
 //   the step before (the proof, the reds of a check), the findings of the reviewer still open, the
 //   last handover of the session's author at the ticket, for a developpeur without one yet the last
-//   of the testwriter, else « aucune » (no verdict), and the line `CONTEXTE :`: the text of
-//   `--contexte`, for each agent of the run. The session's own exit code is the one lancer.sh
+//   of the testwriter, else « aucune » (no verdict), the line `CONTEXTE :`: the text of
+//   `--contexte`, for each agent of the run, and the references 4.2 regenerates, each with its
+//   files (`lesReferences`), so that no session stops on what the circuit writes itself (BP
+//   320.8: a developpeur, code and tests green, stopped on a ceiling, the debt and the index).
+//   The session's own exit code is the one lancer.sh
 //   writes to `.claude/worktrees/<ticket>.fin`; a launch that leaves none stopped before its
 //   session.
 // - Each session of the explorateur, the questionneur, the testwriter, the developpeur and the
@@ -350,8 +362,9 @@
 //   live in the base of the run (scripts/vitest-config/base-de-passe.mjs), removed at its end.
 // - The state is `.claude/worktrees/<ticket>.circuit.json`, written again at each step and at the
 //   start and end of each session: `{ etape, tentative, code, raison, rapport, finale, boucles,
-//   seance, question, questionnement, processus, paquets, constats, verifie, mene, reprise,
-//   journal }`; `processus` the process of the circuit that writes it; `questionnement` the work
+//   seance, question, questionnement, processus, depart, paquets, constats, verifie, mene, reprise,
+//   journal }`; `processus` the process of the circuit that writes it, `depart` its start (field
+//   22 of /proc/<pid>/stat), which together name it, a number alone being reused; `questionnement` the work
 //   on the plan under way (`{ objet, role, seance }`: the plan, the explorateur or the
 //   questionneur, its session), null otherwise; `etape` is the state's name of a numbered step of
 //   the process (scripts/etapes.mjs: testwriter 2, preuve 2.1, developpeur 3, controles 3.1, or 4.1
@@ -368,7 +381,7 @@
 //   itself while it runs, null otherwise; `reprise` the session of the testwriter or developpeur
 //   its relaunches resume, `{ agent, seance }`, null before any.
 // - `--reprendre` starts again at the step of the state, its report given to the next session,
-//   after any stop, the death of the circuit with its caller included. A session the state names
+//   after any stop, the death of the circuit included. A session the state names
 //   that still runs is waited for first, and stopped when it stands still as long as a motionless
 //   session. On a stop « questionnement », it lets the plan pass as it is then (the supervisor
 //   changed it or kept it), from the testwriter.
@@ -502,14 +515,18 @@ import { AVANCEMENT } from './vitest-config/avancement.mjs';
 import { NOMS_DES_GARDES } from './gardes-du-cadre.mjs';
 import { isTesterFile } from './verrous/verrou.mjs';
 import { A_REPASSER } from './vitest-config/pression.mjs';
-import { ouvrirBase, vivant } from './vitest-config/base-de-passe.mjs';
+import { departDe, leMemeVivant, ouvrirBase, vivant } from './vitest-config/base-de-passe.mjs';
 import { GREFFON } from './cadre.mjs';
+import { executerEnDemon } from './demon.mjs';
 
 // The time a session's transcripts may stand still before the circuit stops it.
 export const IMMOBILE_MS = 20 * 60 * 1000;
 // The exit code of each stop, from the list of the steps and stops.
 export { ARRETS };
 const CODE_USAGE = 2;
+// The start of this process (departDe), which the state writes beside its number: a number alone
+// may name another process once reused.
+const DEPART = departDe(process.pid);
 // The bounded loops, each declared with its step (scripts/etapes.mjs, `boucles`): the testwriter is
 // relaunched twice at most after a failed proof (three sessions); the developpeur has three
 // sessions, the last on the strong model; the third RENDU of one ticket stops the circuit.
@@ -908,6 +925,7 @@ function ecrireEtat(ctx, etat) {
     avancement: null,
     ...etat,
     processus: process.pid,
+    depart: DEPART,
     paquets: ctx.paquets,
     constats: ctx.constats ?? [],
     verifie: ctx.verifie ?? null,
@@ -1207,6 +1225,9 @@ async function seance(ctx, role, { tentative, rapport, fort, derniere }) {
     rapport: rapport ?? 'aucun',
     constats,
     passation: passation?.text ?? 'aucune',
+    references: lesReferences(ctx)
+      .map(r => `- ${r.nom} : ${r.fichiers.map(f => `\`${f}\``).join(', ')}`)
+      .join('\n'),
   };
   return await jusquALaFiche(ctx, role, consigne(valeurs), { fort, neuve: role });
 }
@@ -1614,7 +1635,8 @@ function laPasseFinale(ctx) {
 // (REFERENCES_DU_CADRE, `cadre`), each but one whose first file a reference of the project covers,
 // which replaces it.
 function lesReferences(ctx) {
-  const l = lireJson(path.join(ctx.copie, 'package.json'))?.grillhouse?.references;
+  const l = lireJson(path.join(existsSync(ctx.copie) ? ctx.copie : ctx.racine, 'package.json'))
+    ?.grillhouse?.references;
   const duProjet = (Array.isArray(l) ? l : [])
     .filter(
       r =>
@@ -3578,7 +3600,7 @@ async function terminer(cible) {
 // it, its session gone.
 async function arreterLeCircuit(ctx, e) {
   const pid = e.processus;
-  if (Number.isInteger(pid) && pid !== process.pid && vivant(pid)) {
+  if (pid !== process.pid && leMemeVivant(pid, e.depart)) {
     commenter(
       ctx,
       'arret',
@@ -3681,6 +3703,12 @@ export async function main(argv) {
     ctx.aRegenerer = e?.aRegenerer ?? null;
     // The supervisor's answers to a question: stop the circuit, or extend its plan and resume.
     if (ctx.arreter) return await arreter(ctx, e);
+    // A circuit that outlives its caller is still the ticket's: no second run beside it.
+    if (e && e.processus !== process.pid && leMemeVivant(e.processus, e.depart)) {
+      throw new Usage(
+        `un circuit tourne déjà sur ${ctx.ticket} (processus ${e.processus}) : il mène le ticket à sa fin, \`--arreter\` l'arrête.`
+      );
+    }
     if (ctx.etendre) {
       if (e?.etape === 'integre')
         throw new Usage(`--etendre : le lot de ${ctx.ticket} est intégré.`);
@@ -3718,6 +3746,7 @@ export async function main(argv) {
   }
 }
 
+// The entry: the run as a daemon (scripts/demon.mjs), apart from its caller.
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  process.exitCode = await main(process.argv.slice(2));
+  process.exitCode = await executerEnDemon(import.meta.filename, process.argv.slice(2), main);
 }

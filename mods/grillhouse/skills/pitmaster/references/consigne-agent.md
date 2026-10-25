@@ -16,7 +16,8 @@ fois aux questions du plan.
 La consigne du questionneur porte la proposition et le cadre qui l'oriente, jamais une liste de
 questions. Le circuit lit
 la description et les notes du ticket au lancement de chaque séance ; `{{notes}}` porte la section
-des notes, vide quand le ticket n'en a pas. Ainsi chaque agent reçoit la même consigne à chaque
+des notes, vide quand le ticket n'en a pas ; `{{references}}`, les références que l'étape 4.2
+régénère (celles que le projet déclare, puis celles du cadre), chacune avec ses fichiers. Ainsi chaque agent reçoit la même consigne à chaque
 séance, sur le ticket tel qu'il est, et une reprise ne relit que ce qui a changé.
 
 Chaque séance finit sur sa fiche : la sortie structurée que le schéma de son rôle décrit
@@ -56,7 +57,13 @@ LA DERNIÈRE PASSATION de ton rôle (pour un développeur qui n'en a pas encore,
 
 {{passation}}
 
-Le circuit joue la preuve du rouge après le testwriter, sur les seuls tests du lot (sans eux, sur les paquets du plan entiers), et les contrôles après le développeur : les tests du lot, les paquets du plan, les gardes dans l'enveloppe du plan, dont seuls comptent les constats sur ses fichiers ; puis la passe finale, `npm run verifier`, qui juge le reste. Ta séance finit sur ta fiche, que ton schéma décrit et que le circuit lit seule ; ta passation au ticket (`bd comments add`) reste, pour l'humain et la séance suivante de ton rôle : ce qui est fait, ce qui ne l'est pas et pourquoi.
+Le circuit joue la preuve du rouge après le testwriter, sur les seuls tests du lot (sans eux, sur les paquets du plan entiers), et les contrôles après le développeur : les tests du lot, les paquets du plan, les gardes dans l'enveloppe du plan, dont seuls comptent les constats sur ses fichiers ; puis la passe finale, `npm run verifier`, qui juge le reste.
+
+LES RÉFÉRENCES QUE LE CIRCUIT RÉGÉNÈRE à l'étape 4.2, sur la copie entière, après la passe finale : ce que leur commande écrit dans ces fichiers, le circuit l'écrit, et leur rouge (un plafond, la dette, l'index) n'arrête pas ta séance :
+
+{{references}}
+
+Ta séance finit sur ta fiche, que ton schéma décrit et que le circuit lit seule ; ta passation au ticket (`bd comments add`) reste, pour l'humain et la séance suivante de ton rôle : ce qui est fait, ce qui ne l'est pas et pourquoi.
 
 Testwriter : chaque test vert avant le code entre dans `verts_attendus` (son fichier depuis la racine, son nom complet tel que le rapport de la preuve l'écrit, sa raison) ; pour un fichier de tests que HEAD tient, adapté, dont tous les verts ont une même raison, le fichier et la raison seuls, qui n'excusent aucun rouge et ne valent rien sur un fichier neuf ; quand le ticket change un type ou un nom d'un paquet du plan, tu migres aussi, dans la même séance, la matière de test partagée et les tests du plan qui le lisent. Développeur : quand le rouge qui reste est dans les tests du lot, ta fiche porte `renvoi` (testwriter), et le circuit relance le testwriter, puis la preuve et ta séance ; un écart que le commit doit nommer va dans `ecarts`, sous son sujet. Ainsi chaque rouge va à l'agent qui le lève.
 

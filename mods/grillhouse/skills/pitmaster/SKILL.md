@@ -71,7 +71,9 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 
 - **Je lance le circuit d'un ticket** : un ticket tranché part au circuit,
   `npx grillhouse circuit <ticket>`, que je lance une fois, en arrière-plan
-  (`run_in_background`) ; sa fin me réveille. Le circuit mène l'arbre de ses étapes
+  (`run_in_background`) ; sa fin me réveille. Le circuit tourne en démon, détaché de ma séance
+  comme par `setsid` : la commande que je lance relaie sa sortie et rend son code, et sa mort, ma
+  séance fermée, laisse le circuit aller à sa fin. Le circuit mène l'arbre de ses étapes
   (`packages/grillhouse/scripts/etapes.mjs`) : 1 Plan (l'explorateur écrit le plan, le questionneur le lit une seule
   fois, l'explorateur répond une fois), 2 Tests (le testwriter, une séance pour tout le ticket, et
   2.1 la preuve du rouge sur tous les tests du lot), 3 Code (le développeur, une séance pour tout
@@ -123,7 +125,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   du relecteur sur un vrai mot de la langue), le fonctionnel et ce que la charte lui garde. Je
   réponds par une commande du circuit, en arrière-plan : `--reprendre`, avec `--contexte` quand
   l'agent repris doit savoir ce que j'ai tranché, ou `--depuis <testwriter|developpeur>
-  --contexte`, l'étape d'où le ticket entier repart ; `--etendre <paquet>` quand le plan doit
+--contexte`, l'étape d'où le ticket entier repart ; `--etendre <paquet>` quand le plan doit
   gagner un paquet (un `hors-plan`, un rouge hors du plan), que le circuit met au titre avant son
   premier lecteur, puis reprend l'étape en cours (celle du testwriter quand le développeur lui a
   renvoyé le rouge) ; `--arreter`, son motif en `--contexte`, quand le ticket
@@ -193,9 +195,10 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   le lis en ouvrant la séance, et il passe avant tout autre ticket. Ainsi un défaut que les
   intégrations du jour n'ont pas vu se corrige le lendemain.
 - **Un « en cours » est un processus vivant** : un « en cours » se vérifie par un processus vivant
-  ou un journal qui bouge, jamais par une phrase ; un circuit mort sans code de fin (sa séance
-  d'appel fermée) est relancé par moi, `--reprendre`, sur son ticket. Ainsi la file ne s'arrête jamais sur une promesse.
-
+  ou un journal qui bouge, jamais par une phrase ; un circuit dont l'état nomme un processus
+  vivant (`processus`, le même par son départ `depart`) tourne encore, ma séance d'appel fermée comprise, et une seconde course sur
+  son ticket est refusée ; un circuit mort sans code de fin est relancé par moi, `--reprendre`,
+  sur son ticket. Ainsi la file ne s'arrête jamais sur une promesse.
 
 ## Le circuit d'un ticket
 
@@ -276,6 +279,7 @@ perd.
 Le circuit du ticket fait chaque commit après le verdict `ACCEPTÉ` du relecteur, par le script
 `packages/grillhouse/scripts/integration/integrer.mjs` : commits conventionnels, message par fichier
 (`git commit -F`), trailer `Co-Authored-By: Claude`.
+
 ## L'architecture tranche d'abord
 
 - **Un ticket part avec sa section « Architecture »** (charte, « Le flux d'une tâche ») : je
@@ -316,6 +320,7 @@ Le circuit du ticket fait chaque commit après le verdict `ACCEPTÉ` du relecteu
   Un verdict « tranché » se lit réglé par la garde des consommateurs et par l'intégration ; un
   verdict qui monte attend la réponse du responsable. Ainsi une question de conception se tranche
   hors de l'urgence de débloquer l'agent.
+
 - **Une donnée manque, son fournisseur rejoint le ticket** : quand la passation d'un agent dit
   qu'une donnée manque chez un fournisseur, j'ajoute ce fournisseur en tête des composants du
   ticket, dans son titre et dans sa section « Architecture ». Un agent publie la donnée dans le

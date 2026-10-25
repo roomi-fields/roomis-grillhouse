@@ -164,6 +164,18 @@ que le ticket, comme l'espace de travail d'un pipeline ; aucun balayage n'y touc
 l'efface à la clôture, `npx grillhouse retirer-copie` avec la copie d'un ticket fermé sans
 intégration. Ainsi une séance qui survit à son circuit garde ce qu'il lui a remis.
 
+**Le circuit est un démon** (`packages/grillhouse/scripts/demon.mjs`) : comme daemon(3) et
+`setsid --fork`, `npx grillhouse circuit` lance
+un relais, qui lance le circuit dans une session à lui puis finit aussitôt ; le circuit n'est ni
+dans le groupe de son appelant ni sous lui dans l'arbre des processus. L'appelant relaie sa sortie
+jusqu'à sa dernière ligne et rend son code de fin ; mort, il laisse le circuit aller à sa fin.
+L'état du circuit le nomme par son numéro et son heure de départ (`processus`, `depart`, le champ
+22 de `/proc/<pid>/stat`), comme un gestionnaire de services vérifie qu'un numéro réutilisé ne
+désigne pas un autre processus : le panneau tient un circuit pour vivant sur ce seul processus,
+jamais sur la ligne de commande de l'appelant, une seconde course du ticket est refusée tant
+qu'il vit, et `--arreter` ne vise que lui. Ainsi un circuit survit à la séance qui le lance (BP 320.8 : un circuit mort avec
+la séance du superviseur, repris à la main).
+
 **Main reste vert** : l'intégration exige un `npm run verifier` vert, sans rouge admis, mesuré
 contre le dernier vert ; la nuit rejoue la passe complète. Un test connu
 rouge se met en quarantaine dans le test lui-même (`it.skip` ou `it.fails`), avec le ticket qui
