@@ -45,7 +45,7 @@ roomis-grillhouse/
 │   │   ├── elements-du-lot.mjs        # the elements a lot adds, changes or removes (function, class, type, interface, constant at the top, export), each with its package, its file:line and whether its package exports it, by the language service, the git diff of the lot and the diff of the API reports; the list the reviewer judges one line each
 │   │   ├── references-par-les-types.mjs # the references of a ticket's elements by TypeScript's language service: a symbol or a member resolved, the references of one its package's entry exports in the other packages; an internal one has no readers out of its package
 │   │   ├── code-mort.mjs              # grillhouse:gardes: refuses dead code, measured by knip (knip.json); tests and benches count for dependency use only
-│   │   ├── consommateurs.mjs          # grillhouse:gardes: refuses an import that the provider's INTERFACE.md does not declare, and two components of the same name
+│   │   ├── consommateurs.mjs          # grillhouse:gardes: refuses an import that the provider's INTERFACE.md does not declare, a declared name that no code of its consumer uses, and two components of the same name
 │   │   │                              #   composants(): the components for every check, minus the packages out of
 │   │   │                              #   the frame listed in docs/agents/hors-cadre.txt, "<package> <reason>"; such a package stays a
 │   │   │                              #   workspace, and Turborepo plays none of its tasks (turbo-des-paquets.mjs)

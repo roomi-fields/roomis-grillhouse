@@ -3,11 +3,11 @@
 Un composant (le projet entier, ou un paquet d'un dépôt à plusieurs paquets) a trois documents,
 chacun avec son lecteur et sa question :
 
-| document | lecteur | sa question |
-|---|---|---|
-| `docs/CADRE.md` | l'agent qui travaille un ticket | quel est mon rôle, ma frontière, ce que je refuse |
-| `docs/INTERFACE.md` | le composant voisin | quelles formes traversent, qui juge quelle faute |
-| `docs/ARCHITECTURE.md` | l'architecte, le développeur | comment il est construit, et pourquoi |
+| document               | lecteur                         | sa question                                       |
+| ---------------------- | ------------------------------- | ------------------------------------------------- |
+| `docs/CADRE.md`        | l'agent qui travaille un ticket | quel est mon rôle, ma frontière, ce que je refuse |
+| `docs/INTERFACE.md`    | le composant voisin             | quelles formes traversent, qui juge quelle faute  |
+| `docs/ARCHITECTURE.md` | l'architecte, le développeur    | comment il est construit, et pourquoi             |
 
 **Une matière, un document** : une matière vit dans un seul de ces trois documents ; les deux
 autres y renvoient. Ainsi chaque décision a une seule version, celle que le code suit.
@@ -49,9 +49,9 @@ voisin dit vrai.
 **Les fautes se listent** sous « ## Les fautes » : leurs codes sont exactement ceux que le code du
 composant produit.
 **Les consommateurs sont déclarés** : une section `## Consommateurs` liste chaque composant qui
-utilise l'interface, avec les éléments qu'il importe (`` - `parser` : jeton, position ``, `*` pour
+utilise l'interface, avec les éléments qu'il importe (``- `parser` : jeton, position``, `*` pour
 un import entier). Le garde `packages/grillhouse/scripts/consommateurs.mjs` refuse un import qu'elle ne déclare pas, et
-signale une déclaration qu'aucun code n'emploie ; une ligne nouvelle entre avec son arbitrage
+un nom déclaré qu'aucun code du consommateur n'emploie ; une ligne nouvelle entre avec son arbitrage
 tranché au ticket, qui nomme le consommateur, ou avec le plan du ticket (son titre, sa section
 « Architecture », sa section « Noms publiés »), qui nomme mot pour mot le consommateur et chaque élément que le lot ajoute à la
 ligne, et le garde `packages/grillhouse/scripts/consommateurs-arbitres.mjs` refuse une ligne

@@ -439,7 +439,9 @@
 //   RENDU), 17 integration (the integration script refuses the lot, or the queue reopens the
 //   ticket), 19 hors-portee (a testwriter or developpeur whose sheet says BLOQUÉ, without a
 //   sending to the testwriter), 20 besoin (a testwriter or developpeur whose sheet says BESOIN, a
-//   reviewer whose sheet carries a `question`), 22 questionnement (questions of the plan left open
+//   reviewer whose sheet carries a `question`, or a ticket labelled `arbitrage` whose arbitrage
+//   `refusArbitrage` of scripts/integration/integrer.mjs refuses, at the launch or a resumption,
+//   before any session), 22 questionnement (questions of the plan left open
 //   after the explorateur's answer), 23 references (a regeneration of 4.2 the plan does not
 //   cover, or whose command fails), 24 hors-plan (a testwriter or developpeur session its lock
 //   stops on a write out of the plan, `<ticket>.hors-plan` that lancer.sh writes), each a question
@@ -507,6 +509,7 @@ import {
 } from './resultats.mjs';
 import { AUTEUR_DE_LA_FILE } from './integration/file.mjs';
 import { dossierCommun, lireEntrees } from './integration/file-attente.mjs';
+import { refusArbitrage } from './integration/integrer.mjs';
 import { AUTEUR_DU_VERDICT } from './integration/verdict.mjs';
 import { attendreUnPeu } from './verrou-de-fichier.mjs';
 import { AttenteDeLaMachine, avecLaMachine } from './verrou-de-machine.mjs';
@@ -832,8 +835,9 @@ function lesCommentaires(ctx) {
   }));
 }
 
-// The ticket's description (its criteria), notes and title as Beads holds them at this moment, read
-// at the launch of each session: `{ description, notes, titre }`; a failed read throws.
+// The ticket's description (its criteria), notes, title and labels as Beads holds them at this
+// moment, read at the launch of each session: `{ description, notes, titre, labels }`; a failed
+// read throws.
 function leTicket(ctx) {
   const r = ctx.bd('show', ctx.ticket, '--json');
   if (r.status !== 0) {
@@ -846,6 +850,7 @@ function leTicket(ctx) {
     description: String(t.description ?? ''),
     notes: String(t.notes ?? ''),
     titre: String(t.title ?? ''),
+    labels: Array.isArray(t.labels) ? t.labels.map(String) : [],
   };
 }
 
@@ -3729,6 +3734,23 @@ export async function main(argv) {
     const d = depart(ctx, e);
     // A session a dead circuit left running ends before this run launches its own.
     await attendreLaSeance(ctx, e?.seance);
+    // A ticket labelled arbitrage starts and resumes only on the arbitrage its integration will
+    // ask for: the integration's rule, before any session.
+    const arbitrage = refusArbitrage({ id: ctx.ticket, ...leTicket(ctx) }, lesCommentaires(ctx));
+    if (arbitrage) {
+      return aLaFin(
+        ctx,
+        monter(ctx, {
+          code: ARRETS.besoin,
+          nom: 'besoin',
+          rapport: arbitrage,
+          piece: `$ bd show ${ctx.ticket} --json ; bd comments ${ctx.ticket} --json\n${arbitrage}`,
+          question: `${arbitrage} L'arbitrage s'écrit au ticket (« ## Arbitrage — … », tranché ou répondu par le responsable), puis \`--reprendre\`.`,
+          // From the testwriter, the plan comes first: the stop is at « 1 Plan ».
+          etat: d.etape === TESTS ? { ...d, questionnement: { objet: 'plan' } } : d,
+        })
+      );
+    }
     // From the testwriter: the plan, which the explorateur writes and the questionneur reads once.
     if (d.etape === TESTS) {
       const arret = await lePlan(ctx);

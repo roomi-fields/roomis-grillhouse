@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { chantier } from './integration-essai.js';
-import { refusLots, refusVerdicts } from '../../scripts/integration/integrer.mjs';
+import { refusArbitrage, refusLots, refusVerdicts } from '../../scripts/integration/integrer.mjs';
 
 // The integration of a ticket's lot (scripts/integration/integrer.mjs): the verdicts and the lots
 // it refuses, an integration, the copy it recreates, the commit on the ticket branch. The commands
@@ -89,6 +89,26 @@ describe('refusVerdicts', () => {
         c('ACCEPTÉ'),
       ])
     ).toMatch(/ni tranché/);
+  });
+});
+
+// grillhouse-5m1.2 critère 2: the rule of the arbitrage is one, exported for the circuit, which
+// plays it at its launch and its resumption, before any verdict.
+describe('refusArbitrage', () => {
+  const arb = { id: 'demo-3', labels: ['arbitrage'] };
+  it('critère 2 — judges the arbitrage alone, without a verdict of the reviewer', () => {
+    expect(refusArbitrage(arb, [])).toBe(
+      'demo-3 est étiqueté arbitrage sans commentaire « Arbitrage ».'
+    );
+    expect(refusArbitrage(arb, [c('## Arbitrage — x\n### Verdict — tranché\n')])).toBeNull();
+    expect(refusArbitrage(arb, [c('## Arbitrage — x\n### Verdict — monte\n')])).toMatch(
+      /« ## Arbitrage — x » n'est ni tranché ni répondu/
+    );
+    expect(refusArbitrage({ id: 'demo-4', labels: [] }, [])).toBeNull();
+    expect(refusArbitrage({ id: 'demo-5' }, [])).toBeNull();
+  });
+  it('critère 2 — is the rule the integration plays after the verdict', () => {
+    expect(refusVerdicts(arb, [c('ACCEPTÉ')])).toBe(refusArbitrage(arb, [c('ACCEPTÉ')]));
   });
 });
 

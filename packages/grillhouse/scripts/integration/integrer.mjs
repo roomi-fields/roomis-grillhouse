@@ -16,7 +16,8 @@
 //     `RENDU` at the start of a comment of the author `relecteur`; another author's is none) and, when labelled `arbitrage`, each arbitrage
 //     (`estArbitrage`: a « ## Arbitrage » comment, the supervisor's) is settled
 //     (`arbitrageTranche`: `### Verdict — tranché`, or a « ## Réponse du
-//     responsable » comment after it);
+//     responsable » comment after it): `refusArbitrage`, the one rule of the label, which the
+//     circuit plays too at its launch and at each resumption (scripts/circuit.mjs);
 //  2. the lots: the tests lot touches only what the testwriter writes (`isTesterFile`: test files
 //     and the shared test material), the code lot none of it;
 //  3. the main tree: every file of the lots is unmodified there; the ticket's copy is on its
@@ -107,15 +108,24 @@ export function refusVerdicts(ticket, comments) {
   if (verdictDe(dernier) !== 'ACCEPTÉ') {
     return `${id} n'a pas le verdict ACCEPTÉ du relecteur pour dernier verdict.`;
   }
-  if ((ticket.labels ?? []).includes('arbitrage')) {
-    const arbitrages = comments.filter(c => estArbitrage(c.text));
-    if (arbitrages.length === 0)
-      return `${id} est étiqueté arbitrage sans commentaire « Arbitrage ».`;
-    for (const a of arbitrages) {
-      if (!arbitrageTranche(comments, a)) {
-        const titre = a.text.trim().split('\n')[0];
-        return `${id} : « ${titre} » n'est ni tranché ni répondu par le responsable.`;
-      }
+  return refusArbitrage(ticket, comments);
+}
+
+// The refusal for the arbitrage of one ticket, or null: a ticket labelled `arbitrage` holds a
+// « ## Arbitrage » comment, and each one is settled or answered by the owner. The one rule of the
+// label, which the integration plays after the verdict and the circuit at its launch and at each
+// resumption (scripts/circuit.mjs), as a CI refuses a pull request without its required label
+// before it runs a job. `ticket` and `comments` are Beads' JSON.
+export function refusArbitrage(ticket, comments) {
+  if (!(ticket.labels ?? []).includes('arbitrage')) return null;
+  const id = ticket.id;
+  const arbitrages = comments.filter(c => estArbitrage(c.text));
+  if (arbitrages.length === 0)
+    return `${id} est étiqueté arbitrage sans commentaire « Arbitrage ».`;
+  for (const a of arbitrages) {
+    if (!arbitrageTranche(comments, a)) {
+      const titre = a.text.trim().split('\n')[0];
+      return `${id} : « ${titre} » n'est ni tranché ni répondu par le responsable.`;
     }
   }
   return null;

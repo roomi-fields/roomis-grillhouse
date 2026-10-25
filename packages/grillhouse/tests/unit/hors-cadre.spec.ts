@@ -121,8 +121,8 @@ describe('critère 2 — the consumers check reads nothing in a package out of t
       ...BASE,
       'packages/v1/docs/INTERFACE.md': INTERFACE('v1', '## Consommateurs\n\n- `a` : vieux\n'),
     };
-    expect(verifier(repo(files)).signaux).toHaveLength(1);
-    expect(verifier(repo({ ...files, [HORS_CADRE]: 'v1 version gelée\n' })).signaux).toEqual([]);
+    expect(verifier(repo(files)).refus).toHaveLength(1);
+    expect(verifier(repo({ ...files, [HORS_CADRE]: 'v1 version gelée\n' })).refus).toEqual([]);
   });
   it('critère 2 — the components in the frame are still checked', () => {
     const dir = repo({
@@ -295,10 +295,9 @@ describe('critère 10 — a consumer out of the frame, declared by a provider in
       ...BASE,
       'packages/a/docs/INTERFACE.md': INTERFACE('a', '## Consommateurs\n\n- `v1` : duree\n'),
     };
-    expect(verifier(repo(files)).signaux).toHaveLength(1);
+    expect(verifier(repo(files)).refus).toHaveLength(1);
     expect(verifier(repo({ ...files, [HORS_CADRE]: 'v1 version gelée\n' }))).toEqual({
       refus: [],
-      signaux: [],
     });
   });
   it('critère 10 — a module of src out of the frame, declared as consumer, yields no report', () => {
@@ -306,10 +305,9 @@ describe('critère 10 — a consumer out of the frame, declared by a provider in
       ...BASE,
       'packages/a/docs/INTERFACE.md': INTERFACE('a', '## Consommateurs\n\n- `gele` : duree\n'),
     };
-    expect(verifier(repo(files)).signaux).toHaveLength(1);
+    expect(verifier(repo(files)).refus).toHaveLength(1);
     expect(verifier(repo({ ...files, [HORS_CADRE]: 'gele module gelé\n' }))).toEqual({
       refus: [],
-      signaux: [],
     });
   });
   it('critère 10 — the other lines of the same section are still checked', () => {
@@ -321,12 +319,9 @@ describe('critère 10 — a consumer out of the frame, declared by a provider in
         '## Consommateurs\n\n- `v1` : duree\n- `m` : duree\n'
       ),
     });
-    expect(verifier(dir)).toEqual({
-      refus: [],
-      signaux: [
-        "packages/a/docs/INTERFACE.md déclare « duree » pour m, qu'aucun code de m n'utilise.",
-      ],
-    });
+    expect(verifier(dir).refus.map(r => r.message)).toEqual([
+      "packages/a/docs/INTERFACE.md déclare « duree » pour m, qu'aucun code de m n'utilise.",
+    ]);
   });
 });
 

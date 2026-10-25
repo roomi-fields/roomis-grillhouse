@@ -318,8 +318,10 @@ Le circuit du ticket fait chaque commit après le verdict `ACCEPTÉ` du relecteu
   ```
 
   Un verdict « tranché » se lit réglé par la garde des consommateurs et par l'intégration ; un
-  verdict qui monte attend la réponse du responsable. Ainsi une question de conception se tranche
-  hors de l'urgence de débloquer l'agent.
+  verdict qui monte attend la réponse du responsable. Le circuit d'un ticket étiqueté
+  `arbitrage` ne part ni ne reprend sans cet arbitrage réglé, par la règle de l'intégration : il
+  me monte la question avant toute séance. Ainsi une question de conception se tranche hors de
+  l'urgence de débloquer l'agent.
 
 - **Une donnée manque, son fournisseur rejoint le ticket** : quand la passation d'un agent dit
   qu'une donnée manque chez un fournisseur, j'ajoute ce fournisseur en tête des composants du

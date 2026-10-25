@@ -8,11 +8,15 @@
 //   - `c` : *
 //
 // This check reads what the production code of every component imports from every other, and
-// refuses (exit 1) a use that the provider's interface does not declare. A declared use that no
-// code makes is reported, without refusing. `*` stands for a namespace, default, re-export-all or
-// side-effect import. A refusal inscribed in the project's debt (`grillhouse-dette.json`, see
-// `dette.mjs`) passes, keyed by the provider's interface and `usage-non-declare` (`homonyme` for
-// two components of one name, keyed by the first path).
+// refuses (exit 1) a use that the provider's interface does not declare, and a declared name that
+// no code of its consumer uses, as ESLint's `no-unused-vars` refuses a name nothing uses (BP
+// 320.3.2.1: « LEVEL_TYPES » declared for 020-loader, only reported, caught by its second review).
+// `*` stands for a namespace, default, re-export-all or side-effect import. A refusal inscribed in
+// the project's debt (`grillhouse-dette.json`, see `dette.mjs`) passes, keyed by the provider's
+// interface and `usage-non-declare` or `declare-non-utilise` (`homonyme` for two components of one
+// name, keyed by the first path). The debt of the new rule is inscribed once, when a project
+// updates to it (scripts/migrations/0.24.4-noms-declares-inutilises.mjs); in a ticket, the name
+// leaves its line.
 //
 //   npx grillhouse consommateurs        run from the repository root
 //
@@ -244,6 +248,10 @@ export function utilise(racine, tous = composants(racine)) {
   return out;
 }
 
+// The rule of a declared name that no code of its consumer uses; its finding names its consumer
+// and the name, which the migration of 0.24.4 reports line by line.
+export const DECLARE_NON_UTILISE = 'declare-non-utilise';
+
 // The refusals of the components that share a name: one finding per name, both paths.
 function homonymes(racine) {
   const parNom = new Map();
@@ -259,15 +267,15 @@ function homonymes(racine) {
     }));
 }
 
-// The refusals (uses no interface declares), as findings `{ fichier, regle, message }` the debt
-// (`dette.mjs`) judges, and the reports (declared uses no code makes). A declared consumer out of
-// the frame is passed over: its code is not read.
+// The refusals, as findings `{ fichier, regle, message }` the debt (`dette.mjs`) judges: the uses
+// no interface declares (`usage-non-declare`), and the declared names no code of their consumer
+// uses (`declare-non-utilise`). A declared consumer out of the frame is passed over: its code is
+// not read.
 export function verifier(racine) {
   const tous = composants(racine);
   const hors = horsCadre(racine);
   const reel = utilise(racine, tous);
   const refus = homonymes(racine);
-  const signaux = [];
   for (const p of tous) {
     const iface = path.join(p.dir, 'docs', 'INTERFACE.md');
     const rel = path.relative(racine, iface);
@@ -289,26 +297,34 @@ export function verifier(racine) {
       const faits = utilises.get(consommateur) ?? new Set();
       for (const n of noms) {
         if (!faits.has(n))
-          signaux.push(
-            `${rel} déclare « ${n} » pour ${consommateur}, qu'aucun code de ${consommateur} n'utilise.`
-          );
+          refus.push({
+            fichier: rel,
+            regle: DECLARE_NON_UTILISE,
+            consommateur,
+            nom: n,
+            message: `${rel} déclare « ${n} » pour ${consommateur}, qu'aucun code de ${consommateur} n'utilise.`,
+          });
       }
     }
   }
-  return { refus, signaux };
+  return { refus };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const racine = process.cwd();
   const verdict = verifier(racine);
   const { refus, lignes } = trancher(racine, 'consommateurs', verdict.refus);
-  for (const s of verdict.signaux) process.stderr.write(`⚠️  ${s}\n`);
   for (const r of refus) process.stderr.write(`⛔ ${r.message}\n`);
   for (const l of lignes) process.stderr.write(`${l}\n`);
-  if (refus.length) {
+  if (refus.some(r => r.regle !== DECLARE_NON_UTILISE)) {
     process.stderr.write(
       "Une consommation nouvelle se décide (le titre du ticket, sa section « Architecture » ou sa section « Noms publiés » qui la nomment, sinon l'arbitrage du superviseur), puis entre dans la section « Consommateurs » de l'interface du fournisseur.\n"
     );
-    process.exitCode = 1;
   }
+  if (refus.some(r => r.regle === DECLARE_NON_UTILISE)) {
+    process.stderr.write(
+      "Un nom que son consommateur n'utilise plus sort de sa ligne dans la section « Consommateurs » de l'interface du fournisseur.\n"
+    );
+  }
+  if (refus.length) process.exitCode = 1;
 }

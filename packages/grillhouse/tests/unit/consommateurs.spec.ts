@@ -100,7 +100,7 @@ describe('a link of shared test material', () => {
       'packages/a/test/a.spec.ts': "import { exemple } from '@e/b/test-fixtures';\n",
       'packages/a/test/fixture.ts': "export * from '@e/b/test-fixtures';\n",
     });
-    expect(verifier(dir)).toEqual({ refus: [], signaux: [] });
+    expect(verifier(dir)).toEqual({ refus: [] });
   });
 });
 
@@ -118,7 +118,7 @@ describe('verifier', () => {
       ...base,
       'packages/b/docs/INTERFACE.md': INTERFACE_B('## Consommateurs\n\n- `a` : duree'),
     });
-    expect(verifier(dir)).toEqual({ refus: [], signaux: [] });
+    expect(verifier(dir)).toEqual({ refus: [] });
   });
   it('refuses a use the provider does not declare', () => {
     const dir = repo({ ...base, 'packages/b/docs/INTERFACE.md': INTERFACE_B('') });
@@ -133,15 +133,23 @@ describe('verifier', () => {
   it('refuses a use of a provider without interface', () => {
     expect(verifier(repo(base)).refus).toHaveLength(1);
   });
-  it('reports a declared use that no code makes, without refusing', () => {
+  // grillhouse-5m1.2 critère 1, as ESLint's no-unused-vars refuses a name nothing uses: BPScript
+  // 320.3.2.1 saw « LEVEL_TYPES » for 020-loader only reported, and its second review caught it.
+  it('critère 1 — refuses a declared name that no code of the consumer uses', () => {
     const dir = repo({
       ...base,
       'packages/b/docs/INTERFACE.md': INTERFACE_B('## Consommateurs\n\n- `a` : duree, tempo'),
     });
     expect(verifier(dir)).toEqual({
-      refus: [],
-      signaux: [
-        "packages/b/docs/INTERFACE.md déclare « tempo » pour a, qu'aucun code de a n'utilise.",
+      refus: [
+        {
+          fichier: 'packages/b/docs/INTERFACE.md',
+          regle: 'declare-non-utilise',
+          consommateur: 'a',
+          nom: 'tempo',
+          message:
+            "packages/b/docs/INTERFACE.md déclare « tempo » pour a, qu'aucun code de a n'utilise.",
+        },
       ],
     });
   });
@@ -165,7 +173,7 @@ describe('verifier', () => {
   });
   it('does not take a use inside one component for a consumer', () => {
     const dir = repo({ 'src/lexer/a.ts': "import { b } from './b';", 'src/lexer/b.ts': '' });
-    expect(verifier(dir)).toEqual({ refus: [], signaux: [] });
+    expect(verifier(dir)).toEqual({ refus: [] });
   });
 });
 
@@ -178,6 +186,34 @@ describe('the command', () => {
     const r = spawnSync('node', [SCRIPT], { cwd: dir, encoding: 'utf8' });
     expect(r.status).toBe(1);
     expect(r.stderr).toMatch(/arbitrage du superviseur/);
+  });
+  const perime = {
+    'packages/b/package.json': '{"name":"@demo/b"}',
+    'packages/b/docs/INTERFACE.md': INTERFACE_B('## Consommateurs\n\n- `a` : duree, tempo'),
+    'packages/a/package.json': '{"name":"@demo/a"}',
+    'packages/a/src/index.ts': "import { duree } from '@demo/b';",
+  };
+  it('critère 1 — exits 1 on a declared name the consumer no longer uses, and says how to lift it', () => {
+    const r = spawnSync('node', [SCRIPT], { cwd: repo(perime), encoding: 'utf8' });
+    expect(r.status, r.stderr).toBe(1);
+    expect(r.stderr).toContain(
+      "⛔ packages/b/docs/INTERFACE.md déclare « tempo » pour a, qu'aucun code de a n'utilise."
+    );
+    expect(r.stderr).toMatch(/sort de sa ligne/);
+    expect(r.stderr).not.toMatch(/⚠️/);
+    // In a ticket, the name leaves its line: the debt is inscribed once, at the passage of the rule
+    // (the migration of 0.24.4), never offered by the guard.
+    expect(r.stderr).not.toMatch(/dette/);
+  });
+  it('critère 1 — passes the same name inscribed in the debt of the project', () => {
+    const dette = {
+      consommateurs: {
+        'packages/b/docs/INTERFACE.md': { 'declare-non-utilise': { count: 1 } },
+      },
+    };
+    const dir = repo({ ...perime, 'grillhouse-dette.json': JSON.stringify(dette) });
+    const r = spawnSync('node', [SCRIPT], { cwd: dir, encoding: 'utf8' });
+    expect(r.status, r.stderr).toBe(0);
   });
   it('exits 0 on a repository without components', () => {
     expect(spawnSync('node', [SCRIPT], { cwd: repo({}), encoding: 'utf8' }).status).toBe(0);
@@ -266,7 +302,7 @@ describe('a file that vanishes while the check walks the repository', () => {
     const r = lancer(dir);
     expect(r.status, r.stderr).toBe(0);
     expect(r.stderr).not.toContain('ENOENT');
-    expect(verifier(dir)).toEqual({ refus: [], signaux: [] });
+    expect(verifier(dir)).toEqual({ refus: [] });
   });
   it('still refuses a use the provider does not declare beside a file gone', () => {
     const dir = repo({
