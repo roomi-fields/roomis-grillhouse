@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.24.5] - 2026-10-25
+
 ### Fixed
 
 - **A file git does not track in main's last green is not removed from a new copy** (grillhouse-5m1.4): on BPScript bp-mono-vbwf.320.3.2.1 (Grillhouse 0.24.3), main's last green held 54 `.rapport-suite.json`, untracked and not ignored, dated 12 October (an old name of report no script writes any more), absent from every new copy. Each package of the copy saw « un fichier supprimé, que le graphe des tests ne tient plus » and played all its tests, 264 times in the log; the first final pass took 12.9 min, of which 900-driver (597 s, a package the lot does not touch) and 050-emitter (335 s). As Nx affected and Turborepo's `--filter=[ref]` measure against a commit, a file the green's commit does not track lives in the working tree that kept it alone: measured against the last green of another branch (main's, from a copy or the queue's detached replay), its absence is no removal, and the package plays the tests Vitest relates to its changes. A tracked file removed in the copy still plays the package whole, and so does an untracked file the copy created, kept in its own green, then removed.
