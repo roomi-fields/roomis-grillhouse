@@ -254,7 +254,7 @@ export const MONTEES = Object.fromEntries(
     questionnement:
       'Des questions du plan restent ouvertes après la réponse de l’explorateur : le plan change-t-il (`bd update`), ou reste-t-il tel quel ? `--reprendre` le fait passer tel qu’il est alors.',
     references:
-      'La régénération des références change une référence du projet que le plan ne nomme pas, un fichier qu’aucune référence n’écrit, ou sa commande échoue : le plan les nomme-t-il, ou qui corrige le lot ?',
+      'La régénération des références change un fichier qu’aucune référence n’écrit, ou sa commande échoue (ses écarts ci-dessus) : qui corrige la référence ou le lot ?',
     'hors-plan':
       'La séance écrit hors du plan du ticket : le plan s’étend-il à ce paquet (`--etendre`), ou l’écriture est-elle refusée (`--reprendre` avec son contexte) ?',
   }).map(([arret, question]) => [arret, { question: `${question} ${REPONSES}`, qui: SUPERVISEUR }])

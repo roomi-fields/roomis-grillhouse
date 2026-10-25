@@ -142,3 +142,51 @@ describe('the commit message is written once, from the final state', () => {
     );
   });
 });
+
+// grillhouse-j2m — the deviations of every lot, as Gerrit carries the description of a patch set
+// to the next: for one subject the last written alone stays. Witness: BPScript 320.3.2.1, the
+// sheets with deviations of its fiches.jsonl, in their order (developpeur, reviewer RENDU,
+// developpeur, developpeur, reviewer ACCEPTÉ); the deviation « tests sortis de quarantaine », which
+// only the first review names, holds at the end (commit 11696a96d).
+const PLAFOND_BP = 'plafond des mots de librairie';
+const API_BP = "rapport d'API de 000-forms";
+const QUARANTAINE = 'tests sortis de quarantaine';
+const FICHES_320_3_2_1 = [
+  {
+    statut: 'BLOQUÉ',
+    ecarts: [{ sujet: API_BP, texte: 'à régénérer par le circuit (npm run api).' }],
+  },
+  {
+    verdict: 'RENDU',
+    ecarts: [
+      { sujet: PLAFOND_BP, texte: '000-forms passe de 546 à 542 ; ticket bp-mono-vbwf.320.3.2.1.' },
+      { sujet: QUARANTAINE, texte: 'cinq it.fails de 322.12.1 redeviennent des tests ordinaires.' },
+    ],
+  },
+  { statut: 'FAIT', ecarts: [{ sujet: PLAFOND_BP, texte: '000-forms 546 → 542.' }] },
+  {
+    statut: 'FAIT',
+    ecarts: [{ sujet: API_BP, texte: "suivent le retrait de LEVEL_TYPES ; l'index se régénère." }],
+  },
+  {
+    verdict: 'ACCEPTÉ',
+    ecarts: [
+      { sujet: PLAFOND_BP, texte: '000-forms passe de 546 à 542 ; ce ticket le referme.' },
+      { sujet: API_BP, texte: "l'index suit le retrait de LEVEL_TYPES ; ce ticket le referme." },
+    ],
+  },
+];
+
+describe('grillhouse-j2m — the deviations of every lot, the last written of each subject', () => {
+  it('critère 4 — keeps a deviation of a lot before that no later sheet takes up, each subject once with its last value', () => {
+    const m = messageDuLot({ entete: ENTETE, description: '', fiches: FICHES_320_3_2_1 });
+    expect(m.trimEnd().split('\n\n')).toEqual([
+      ENTETE,
+      `${API_BP} : l'index suit le retrait de LEVEL_TYPES ; ce ticket le referme.`,
+      `${PLAFOND_BP} : 000-forms passe de 546 à 542 ; ce ticket le referme.`,
+      `${QUARANTAINE} : cinq it.fails de 322.12.1 redeviennent des tests ordinaires.`,
+      'Co-Authored-By: Claude <noreply@anthropic.com>',
+    ]);
+    expect(m).not.toContain('à régénérer');
+  });
+});

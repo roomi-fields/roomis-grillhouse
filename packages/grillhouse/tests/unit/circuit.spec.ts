@@ -59,7 +59,8 @@ describe('the stops of the circuit and their codes', () => {
     expect(ARRETS.besoin).toBe(20);
     // grillhouse-3uv.95.5: questions of the plan left open after the explorateur's answer.
     expect(ARRETS.questionnement).toBe(22);
-    // grillhouse-3uv.92.1: a reference regenerated that the plan does not name.
+    // grillhouse-3uv.92.1, grillhouse-j2m: a regeneration that changes a file no reference
+    // writes, or whose command fails.
     expect(ARRETS.references).toBe(23);
   });
   it('waits 20 minutes of a motionless transcript before it stops a session', () => {

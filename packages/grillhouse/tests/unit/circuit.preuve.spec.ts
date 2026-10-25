@@ -177,6 +177,55 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     expect(readFileSync(complet ?? '', 'utf8')).toContain('la forme est déjà juste');
   });
 
+  // grillhouse-j2m — the proof reads the full name of an expected green whatever the separator
+  // between its group and its test, as Vitest prints it (« > ») and Jest and the report of the
+  // proof (« › »). Witness: BPScript 320.3.2.1, the sheet of 11:45:03 refused (« 7 vert(s) sans
+  // vert attendu ») for « the order of the cascade the library declares › critère 3 : … », the
+  // report naming « the order of the cascade the library declares critère 3 : … ».
+  it('grillhouse-j2m critère 5 — an expected green named with « › » or « > » between its group and its test justifies its test, at the first proof', () => {
+    const id = 'demo-verts-separateurs';
+    ticket(id, '000-forms');
+    const groupes = `cat > $c/test/forme.test.mjs <<'EOF'
+import { describe, expect, it } from 'vitest';
+import { mesure } from '../src/index.mjs';
+describe('la forme', () => {
+  it('critère 1 — mesure rend un nombre', () => { expect(typeof mesure(1)).toBe('number'); });
+});
+describe('le signe', () => {
+  it('critère 1 — mesure de zéro rend zéro', () => { expect(mesure(0)).toBe(0); });
+});
+EOF
+`;
+    const fiche = {
+      statut: 'FAIT',
+      verts_attendus: [
+        {
+          fichier: 'packages/forms/test/forme.test.mjs',
+          test: 'la forme › critère 1 — mesure rend un nombre',
+          raison: 'la forme est déjà juste',
+        },
+        {
+          fichier: 'packages/forms/test/forme.test.mjs',
+          test: 'le signe > critère 1 — mesure de zéro rend zéro',
+          raison: 'zéro est déjà juste',
+        },
+      ],
+    };
+    scenario(
+      id,
+      'testwriter',
+      `${ECRIT_ROUGE}${groupes}passation 'Tests écrits.'\nfiche '${JSON.stringify(fiche)}'\n`
+    );
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(sessions(id, 'testwriter')).toBe(1);
+    expect(lancements(id)).toHaveLength(1);
+    const preuves = commentaires(id).filter(t => t.startsWith('Circuit · preuve'));
+    expect(preuves).toHaveLength(1);
+    expect(preuves[0]).toContain('2 vert(s) justifié(s), 0 vert(s) sans vert attendu');
+  });
+
   it('relaunches the testwriter twice at most, then stops at « preuve »', () => {
     const id = 'demo-preuve';
     ticket(id, '000-forms');

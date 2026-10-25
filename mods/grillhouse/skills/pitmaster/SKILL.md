@@ -79,15 +79,17 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   2.1 la preuve du rouge sur tous les tests du lot), 3 Code (le développeur, une séance pour tout
   le ticket, et 3.1 les contrôles du plan), 4 Passe finale et relecture (4.1 la passe
   finale, 4.2 la régénération des références : celles que le projet déclare, `grillhouse.references`
-  de son `package.json`, chacune `{ nom, commande, fichiers, tests, gardes }`, ses fichiers en
-  chemins, dossiers ou motifs `*` et `**`, ses tests les fichiers de test qui la jugent, ses gardes
-  les gardes du projet qui la jugent, par le nom que porte leur constat SARIF ; celles du cadre,
-  l'index des interfaces, les `turbo.json`, les rapports d'API et la dette des gardes ; sur la
-  copie entière, dès qu'un rouge est le leur, mêlé ou non à d'autres, ou que la dette baisse, puis
-  la passe finale restreinte à ce qu'elles changent, les autres rouges allant chacun à son
-  propriétaire : je ne les régénère jamais à la main ; un changement d'une référence du projet que
-  le plan ne nomme pas arrête à `references`, code 23, une question pour moi : je le fais nommer au
-  plan ou corriger, 4.3 le relecteur), 5 Intégration (5.1
+  de son `package.json`, chacune `{ nom, commande, fichiers, tests, lit, gardes }`, ses fichiers en
+  chemins, dossiers ou motifs `*` et `**`, ses tests les fichiers de test qui la jugent, `lit` les
+  fichiers qu'elle lit d'une autre référence, ses gardes les gardes du projet qui la jugent, par le
+  nom que porte leur constat SARIF ; celles du cadre, l'index des interfaces, les `turbo.json`, les
+  rapports d'API et la dette des gardes ; sur la copie entière, dès qu'un rouge est le leur, mêlé
+  ou non à d'autres, ou que la dette baisse, chacune suivie de celles qui lisent ce qu'elle écrit
+  (l'index après les rapports d'API), sans que le plan les nomme, puis la passe finale restreinte
+  à ce qu'elles changent, les autres rouges allant chacun à son propriétaire : je ne les régénère
+  jamais à la main ; une commande en échec ou un fichier qu'aucune référence n'écrit arrête à
+  `references`, code 23, une question pour moi qui porte chaque écart : je fais corriger la
+  référence ou le lot, 4.3 le relecteur), 5 Intégration (5.1
   le commit, 5.2 la file et la lecture de la CI) ; aucun composant n'est une unité du circuit, chaque
   étape joue une fois pour tout le ticket, dans l'enveloppe de tous les paquets du plan ; je dis
   où en est un ticket par son étape, « 3 Code » ; son en-tête dit ses arrêts et leurs codes. Ainsi
@@ -219,17 +221,18 @@ les tests du lot, trois essais au plus ; 3 Code, le `developpeur`, une séance p
 et 3.1 Contrôles, auto, sur tout le plan, trois essais au plus ; 4 Passe finale et relecture :
 4.1 Passe finale, auto, trois essais au plus, puis 4.2 Régénération des références, auto : celles
 que le projet tire de la copie entière (`grillhouse.references` de son `package.json`, chacune
-`{ nom, commande, fichiers, tests, gardes }` : `fichiers`, des chemins, des dossiers ou des motifs
-`*` et `**`, comme les entrées de Turborepo ; `tests`, les fichiers de test qui la jugent ;
-`gardes`, les gardes du projet qui la jugent, par le nom que porte leur constat SARIF), et celles
-du cadre dans chaque projet (l'index des interfaces, les `turbo.json`, les rapports d'API, la
-dette des gardes), comme les genrules de Bazel et `--update-snapshots` : un rouge de la passe
-finale qui est le leur (un de leurs tests, un constat d'une de leurs gardes, quel que soit son
-fichier, ou un fichier qu'elles couvrent), mêlé ou non à d'autres, ou une dette qui baisse, les
-régénère, puis la passe finale rejoue restreinte à ce qu'elles changent, les autres rouges allant
-chacun à son propriétaire ; la différence va au lot et au relecteur, un plafond ne monte jamais,
-et un changement d'une référence du projet que le plan ne nomme pas arrête le circuit
-(`references`), et 4.3 Relecture, le `relecteur`, trois tours au plus, qui rend une ligne de
+`{ nom, commande, fichiers, tests, lit, gardes }` : `fichiers`, des chemins, des dossiers ou des
+motifs `*` et `**`, comme les entrées de Turborepo ; `tests`, les fichiers de test qui la jugent ;
+`lit`, les fichiers qu'elle lit d'une autre référence ; `gardes`, les gardes du projet qui la
+jugent, par le nom que porte leur constat SARIF), et celles du cadre dans chaque projet (l'index
+des interfaces, les `turbo.json`, les rapports d'API, la dette des gardes), comme les genrules de
+Bazel et `--update-snapshots` : un rouge de la passe finale qui est le leur (un de leurs tests, un
+constat d'une de leurs gardes, quel que soit son fichier, ou un fichier qu'elles couvrent), mêlé
+ou non à d'autres, ou une dette qui baisse, les régénère, chacune suivie, comme dans make, de
+celles qui lisent ce qu'elle écrit, puis la passe finale rejoue restreinte à ce qu'elles changent,
+les autres rouges allant chacun à son propriétaire ; la différence va au lot et au relecteur sans
+que le plan la nomme, un plafond ne monte jamais, et une commande en échec ou un fichier
+qu'aucune référence n'écrit arrête le circuit (`references`), ses écarts dans sa question, et 4.3 Relecture, le `relecteur`, trois tours au plus, qui rend une ligne de
 conformité par élément que le lot ajoute, change ou supprime (la liste mécanique que le circuit
 lui donne, chaque ligne avec sa règle : CADRE, INTERFACE ou ARCHITECTURE), un « non » rendant le
 lot et un élément sans ligne refusant sa fiche, un lot rendu revenant à

@@ -251,33 +251,36 @@
 //   commande, fichiers, tests, gardes }`, its name, the shell command that writes it again from the
 //   root of the copy, the files it writes (paths, directories or glob patterns, `*` and `**`, from
 //   the root, as the inputs of Turborepo), the test files that judge it, as `rustc --bless` ties a
-//   test to its expected outputs, and the guards of the project that judge it, by the name their
-//   SARIF finding carries (its guard or its rule). The frame's references follow in every project
-//   (REFERENCES_DU_CADRE): the files the frame generates, each judged by a guard of the frame, by
-//   the names its findings carry (the index of the interfaces, the turbo.json of the packages, the
-//   API reports), and the known debt of the guards; a reference of the project whose first file
-//   is one of theirs replaces it. A final pass with a red of a reference (a failed test of one of
+//   test to its expected outputs, `lit`, the files it reads that another reference writes, and the
+//   guards of the project that judge it, by the name their SARIF finding carries (its guard or its
+//   rule). The frame's references follow in every project (REFERENCES_DU_CADRE): the files the
+//   frame generates, each judged by a guard of the frame, by the names its findings carry (the
+//   index of the interfaces, which reads the interfaces, the turbo.json of the packages, the API
+//   reports, which write the generated part of the interfaces), and the known debt of the guards;
+//   a reference of the project whose first file is one of theirs replaces it. A final pass with a red of a reference (a failed test of one of
 //   their test files, a finding of one of their guards, whatever file it aims at, or a failed test
 //   or a finding on a file a reference of the project covers), mixed with other reds or not, or a
 //   guard's note of a key of the debt inscribed above what it finds (`a-elaguer`, the pass green
 //   or not), sends no developpeur: the gesture `regeneration`, once for that pass. The circuit
 //   keeps the copy as a lot, runs the command of each reference concerned on the whole copy (the
 //   debt lowered from the notes of the pass, its guards not played again), out of the envelope,
-//   under the lock of the machine, its output added to the log, keeps the copy again on that lot, then plays the final pass restricted to what the regeneration changed and its
+//   under the lock of the machine, its output added to the log, then, as make remakes the targets
+//   that depend on an output, the command of each reference that reads a file one has just
+//   written, after it (the index after the API reports), keeps the copy again on that lot, then plays the final pass restricted to what the regeneration changed and its
 //   dependents (`--filter=...[<avant>...<après>] --filter=//`); each red of the pass before in a
 //   package that pass does not play again stands, and a regeneration that changes nothing plays no
 //   pass, every red of the pass before standing. What remains goes each to its owner, as any red
 //   of the final pass; a ceiling never rises (its command lowers it), so a lot beyond it stays red.
 //   That pass green after a whole one keeps its tree as verified. The files regenerated stay in
-//   the copy: the lot carries them, and the reviewer reads them with the rest of the lot, the
-//   step's report among the circuit's. A reference of the project changed that the ticket's
-//   description names neither by its name nor by one of its files, a file changed that the files
-//   of no reference run cover, or a command that fails stops at « references » (23): a command of
+//   the copy: the lot carries them, without a word of the plan, as a genrule writes its output,
+//   and the reviewer reads them with the rest of the lot, the step's report among the circuit's. A
+//   file changed that the files of no reference run cover, or a command that fails stops at
+//   « references » (23): a command of
 //   the project at a code other than 0, one of the frame on a real failure alone (not found, killed
 //   by a signal), since its code also judges the reds it leaves (`npm run api` refuses beside
 //   them), which the pass that follows judges. The stop leaves the copy restored as it was before
-//   the regeneration, each reference and file named, a
-//   question for the supervisor; the state keeps the references to regenerate and the reds of the
+//   the regeneration, a question for the supervisor that carries each deviation (the command and
+//   its code, the file), as the comment at the ticket does; the state keeps the references to regenerate and the reds of the
 //   pass before (`aRegenerer`), for a regeneration resumed.
 // - The proof, the checks and the final pass are heavy passes: each holds the lock of the machine
 //   (scripts/verrou-de-machine.mjs), shared by every repository of the machine, and waits, the
@@ -443,8 +446,8 @@
 //   reviewer whose sheet carries a `question`, or a ticket labelled `arbitrage` whose arbitrage
 //   `refusArbitrage` of scripts/integration/integrer.mjs refuses, at the launch or a resumption,
 //   before any session), 22 questionnement (questions of the plan left open
-//   after the explorateur's answer), 23 references (a regeneration of 4.2 the plan does not
-//   cover, or whose command fails), 24 hors-plan (a testwriter or developpeur session its lock
+//   after the explorateur's answer), 23 references (a regeneration of 4.2 that changes a file
+//   no reference writes, or whose command fails), 24 hors-plan (a testwriter or developpeur session its lock
 //   stops on a write out of the plan, `<ticket>.hors-plan` that lancer.sh writes), each a question
 //   for the supervisor; 75 a-repasser (a check or the integration still at 75 once played again,
 //   or the branch still in the queue), the gesture `a-repasser`.
@@ -587,20 +590,24 @@ const generateur = (script, ...args) =>
 // frame generates, each judged by a guard of the frame and written again by its generator, whose
 // code the circuit does not read (a real failure aside): what it writes, then the pass that
 // follows, judge it; and the known debt of the guards, lowered from the notes of the final pass (`dette.mjs --abaisser`,
-// `abaisser`: its command names the file of those notes). Each `{ nom, commande, fichiers,
-// gardes }`, `gardes` the names the findings its regeneration lifts carry (their guard or their
-// rule).
+// `abaisser`: its command names the file of those notes). Each `{ nom, commande, fichiers, lit,
+// gardes }`, `lit` the files of the copy it reads that another reference writes (as the
+// prerequisites of a rule of make: the index reads the interfaces, whose generated part the API
+// reports write), `gardes` the names the findings its regeneration lifts carry (their guard or
+// their rule).
 const REFERENCES_DU_CADRE = [
   {
     nom: "l'index des interfaces",
     commande: generateur('index-interfaces.mjs'),
     fichiers: ['docs/agents/index-des-interfaces.md'],
+    lit: ['docs/INTERFACE.md', '**/docs/INTERFACE.md'],
     gardes: ['index-interfaces'],
   },
   {
     nom: 'les turbo.json des paquets',
     commande: generateur('turbo-des-paquets.mjs', '--ecrire'),
     fichiers: ['turbo.json', 'turbo.jsonc', '**/turbo.json'],
+    lit: [],
     gardes: ['turbo-des-paquets'],
   },
   {
@@ -612,12 +619,14 @@ const REFERENCES_DU_CADRE = [
       '**/docs/INTERFACE.api.md',
       '**/docs/INTERFACE.md',
     ],
+    lit: [],
     gardes: ['rapport-api', 'partie-generee'],
   },
   {
     nom: 'la dette des gardes',
     commande: generateur('dette.mjs', '--abaisser', '<notes>'),
     fichiers: [DETTE],
+    lit: [],
     gardes: [],
     abaisser: true,
   },
@@ -1646,8 +1655,8 @@ function laPasseFinale(ctx) {
 }
 
 // The references of the circuit: those the project declares in the package.json of the copy
-// (`grillhouse.references`), each `{ nom, commande, fichiers, tests, gardes }` with a name, a
-// command and files, `tests` and `gardes` arrays when given, empty when not; then the frame's
+// (`grillhouse.references`), each `{ nom, commande, fichiers, tests, lit, gardes }` with a name, a
+// command and files, `tests`, `lit` and `gardes` arrays when given, empty when not; then the frame's
 // (REFERENCES_DU_CADRE, `cadre`), each but one whose first file a reference of the project covers,
 // which replaces it.
 function lesReferences(ctx) {
@@ -1661,9 +1670,16 @@ function lesReferences(ctx) {
         Array.isArray(r.fichiers) &&
         r.fichiers.length > 0 &&
         (r.tests === undefined || Array.isArray(r.tests)) &&
+        (r.lit === undefined || Array.isArray(r.lit)) &&
         (r.gardes === undefined || Array.isArray(r.gardes))
     )
-    .map(r => ({ ...r, tests: r.tests ?? [], gardes: r.gardes ?? [], cadre: false }));
+    .map(r => ({
+      ...r,
+      tests: r.tests ?? [],
+      lit: r.lit ?? [],
+      gardes: r.gardes ?? [],
+      cadre: false,
+    }));
   const duCadre = REFERENCES_DU_CADRE.filter(
     c => !duProjet.some(r => couvertPar(r.fichiers, c.fichiers[0]))
   ).map(c => ({ ...c, tests: [], cadre: true }));
@@ -1695,27 +1711,28 @@ function referencesDesRouges(ctx, lieux, aElaguer = false) {
   );
 }
 
-// The regeneration of the references named <noms> (4.2): the copy kept as a lot on the one the
-// last review read (or HEAD), each command run on the whole copy, the copy kept again on that lot.
-// `{ texte, regenerees, fichiers, restreinte }`: the report, the names of the references changed,
-// the files changed, and the range of the final pass that follows (null when nothing changed: no
-// pass plays again, and the reds stand). A file the frame generates follows from the lot, as the
-// output of a genrule, and the reviewer reads its difference; a reference of the project changed
-// that the ticket's description does not name (its name or one of its files), a file changed that
-// none of the references run declares, or a command that fails (a reference of the project at
-// another code than 0, one of the frame on a real failure alone) restores the copy as it was and
-// stops at « references ».
+// The regeneration of the references named <noms> (4.2), as make remakes a target and then the
+// targets that depend on its outputs: the copy kept as a lot on the one the last review read (or
+// HEAD), each command run on the whole copy, in their order; a reference that reads (`lit`) a file
+// another one has just written runs after it, once for each reference whose writing calls for it;
+// then the copy kept again on that lot. `{ texte, regenerees, fichiers, restreinte }`: the report,
+// the names of the references changed, the files changed, and the range of the final pass that
+// follows (null when nothing changed: no pass plays again, and the reds stand). A file a reference
+// writes follows from the lot, as the output of a genrule, without a word of the plan, and the
+// reviewer reads its difference; a file changed that none of the references run declares, or a
+// command that fails (a reference of the project at another code than 0, one of the frame on a
+// real failure alone) restores the copy as it was and stops at « references », each deviation in
+// its question.
 function regenerer(ctx, noms, notes = []) {
   // The notes of the debt, in a file of the run, which the command that lowers it reads.
   const fichierDesNotes = path.join(ctx.base.dossier, 'dette-a-abaisser.json');
-  const refs = lesReferences(ctx)
-    .filter(r => noms.includes(r.nom))
-    .map(r =>
-      r.abaisser
-        ? { ...r, commande: generateur('dette.mjs', '--abaisser', JSON.stringify(fichierDesNotes)) }
-        : r
-    );
-  if (refs.some(r => r.abaisser)) writeFileSync(fichierDesNotes, `${JSON.stringify(notes)}\n`);
+  const toutes = lesReferences(ctx).map(r =>
+    r.abaisser
+      ? { ...r, commande: generateur('dette.mjs', '--abaisser', JSON.stringify(fichierDesNotes)) }
+      : r
+  );
+  const aJouer = toutes.filter(r => noms.includes(r.nom));
+  if (aJouer.some(r => r.abaisser)) writeFileSync(fichierDesNotes, `${JSON.stringify(notes)}\n`);
   const avant = garderLeLot(ctx, relectureDAvant(ctx)?.lot.commit);
   if (!avant) {
     throw new Arret(
@@ -1726,47 +1743,62 @@ function regenerer(ctx, noms, notes = []) {
   // The command of a reference of the frame is judged by what it writes, then by the pass that
   // follows, never by its code, which also judges the reds it leaves (`npm run api` refuses beside
   // them): a real failure alone counts; a reference of the project, by its code.
-  const echecs = refs
-    .map(r => ({ r, ...commandeDeReference(ctx, r.commande) }))
-    .filter(x => x.panne || (!x.r.cadre && x.code !== 0))
-    .map(
-      x =>
-        `- ${x.r.nom} : \`${x.r.commande}\` rend le code ${x.code}${x.panne ? ' (une panne)' : ''}.`
-    );
+  const refs = [];
+  const echecs = [];
+  const appelees = new Set();
+  let arbre = avant.arbre;
+  while (aJouer.length) {
+    const r = aJouer.shift();
+    const x = commandeDeReference(ctx, r.commande);
+    if (!refs.includes(r)) refs.push(r);
+    if (x.panne || (!r.cadre && x.code !== 0)) {
+      echecs.push(
+        `- ${r.nom} : \`${r.commande}\` rend le code ${x.code}${x.panne ? ' (une panne)' : ''}.`
+      );
+    }
+    // The references that read a file this command wrote run after it.
+    const suivant = arbreDeLaCopie(ctx);
+    const ecrits = suivant ? differenceDesLots(ctx, arbre, suivant) : [];
+    arbre = suivant ?? arbre;
+    for (const s of toutes) {
+      const appel = `${r.nom}\0${s.nom}`;
+      if (s === r || appelees.has(appel) || !ecrits.some(f => couvertPar(s.lit, f))) continue;
+      appelees.add(appel);
+      if (!aJouer.includes(s)) aJouer.push(s);
+    }
+  }
   const apres = garderLeLot(ctx, avant.commit);
   const fichiers = apres ? differenceDesLots(ctx, avant.commit, apres.commit) : [];
-  const description = leTicket(ctx).description;
   const siens = r => fichiers.filter(f => couvertPar(r.fichiers, f));
   const regenerees = refs.filter(r => siens(r).length);
-  const nommee = r => r.cadre || [r.nom, ...r.fichiers].some(x => description.includes(x));
   const horsDeclaration = fichiers.filter(f => !refs.some(r => couvertPar(r.fichiers, f)));
   const ecarts = [
     ...echecs,
     ...(!apres ? ['- Le circuit ne garde pas la copie après la régénération (git échoue).'] : []),
-    ...regenerees
-      .filter(r => !nommee(r))
-      .map(
-        r =>
-          `- ${r.nom} change (${siens(r).join(', ')}), et le plan du ticket ne nomme pas ce changement (ni « ${r.nom} » ni ses fichiers).`
-      ),
     ...horsDeclaration.map(f => `- ${f} change, et aucune référence régénérée ne l'écrit.`),
   ];
   if (ecarts.length) {
     restaurer(ctx, avant.commit, fichiers);
+    const difference =
+      apres && fichiers.length
+        ? [
+            `La différence, avant d'être rendue : \`git diff ${avant.commit} ${apres.commit}\`, dans la copie du ticket.`,
+          ]
+        : [];
     throw new Arret(
       'references',
       [
-        `La régénération des références, sur la copie entière, s'arrête ; la copie est rendue telle qu'avant elle. Le superviseur fait nommer le changement au plan du ticket, puis \`--reprendre\`, ou fait corriger le lot qui le cause (\`--depuis developpeur\`).`,
+        `La régénération des références, sur la copie entière, s'arrête ; la copie est rendue telle qu'avant elle. Le superviseur fait corriger la référence ou le lot qui cause l'écart (\`--depuis developpeur\`), ou \`--reprendre\` une fois la cause levée.`,
         '',
         ...ecarts,
         '',
-        ...(apres && fichiers.length
-          ? [
-              `La différence, avant d'être rendue : \`git diff ${avant.commit} ${apres.commit}\`, dans la copie du ticket.`,
-            ]
-          : []),
+        ...difference,
         `Le journal du ticket : ${ctx.journal}`,
-      ].join('\n')
+      ].join('\n'),
+      {
+        piece: [...ecarts, ...difference].join('\n'),
+        question: `Les écarts de la régénération :\n${ecarts.join('\n')}`,
+      }
     );
   }
   if (!fichiers.length) {
@@ -2235,16 +2267,30 @@ function mesureDeLaPreuve(ctx, liste, fichiers) {
   return runs;
 }
 
+// The full name of a test <nom> with each separator between a group and what it holds, « > » or
+// « › » between blanks, read as the blank that Vitest's full name puts there.
+const sansSeparateur = nom =>
+  String(nom ?? '')
+    .replace(/\s+[>›]\s+/g, ' ')
+    .trim();
+
 // The proof of the red, on every test of the lot: `{ ok, rouges, texte, resume }`, `texte` without
 // the list of the justified greens, which only the whole report, written to its file, holds. A
 // green test passes by the expected greens of the testwriter's sheets (`verts_attendus`), read at
-// each proof; the measure plays again only when the copy changed (`mesureDeLaPreuve`).
+// each proof, a sheet without them justifying none; a test's full name is read whatever the
+// separator between its group and its title, a blank, or « > » as Vitest prints it, or « › » as
+// Jest and the report of the proof print it (`sansSeparateur`); the measure plays again only when
+// the copy changed (`mesureDeLaPreuve`).
 function preuve(ctx) {
   const fichiers = testsDuLot(ctx);
   const verts = fichesDe(ctx, 'testwriter').flatMap(f => f.verts_attendus ?? []);
   const raisonDuTest = (f, a) =>
-    verts.find(v => v.fichier === f && v.test && (v.test === a.nom || v.test === a.titre))
-      ?.raison ?? null;
+    verts.find(
+      v =>
+        v.fichier === f &&
+        v.test &&
+        [a.nom, a.titre].some(n => sansSeparateur(v.test) === sansSeparateur(n))
+    )?.raison ?? null;
   const duFichier = f => verts.find(v => v.fichier === f && !v.test) ?? null;
   const rouges = [];
   // The reds of the files of the lot, apart from the existing ones and the builds.

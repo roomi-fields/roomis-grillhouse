@@ -64,7 +64,15 @@ qu'il nomme (4.2), puis rejoue la passe finale restreinte à ce que la régéné
 autres rouges restent, chacun à son propriétaire. Les références sont celles que le projet déclare
 (`grillhouse.references`) et celles du cadre, dans chaque projet (`REFERENCES_DU_CADRE` de
 `circuit.mjs`) : l'index des interfaces, les `turbo.json` des paquets et les rapports d'API, chacun
-réécrit par son générateur sans que le plan le nomme, et la dette des gardes. Le circuit ne lit pas
+réécrit par son générateur, et la dette des gardes. Une référence, du projet comme du cadre, se
+régénère sans que le plan la nomme, comme une genrule, et le relecteur lit sa différence. Comme
+make refait une cible avec celles qui dépendent de ses sorties, chaque référence déclare ce
+qu'elle lit d'une autre (`lit`) : une commande qui écrit un fichier qu'une autre lit la fait
+jouer après elle (l'index des interfaces après les rapports d'API, qui écrivent la part générée
+des `docs/INTERFACE.md`). Un arrêt de la régénération (une commande en échec, un fichier
+qu'aucune référence n'écrit) porte ses écarts dans sa question et au ticket (BP 320.3.2.1 : l'index
+oublié après les rapports d'API, un plafond refusé faute d'être nommé au plan, la liste des écarts
+retrouvée en trois commandes). Le circuit ne lit pas
 le code de sortie d'un générateur du cadre, qui juge aussi les rouges qu'il laisse (`npm run api`
 refuse à côté d'eux) : il juge la régénération sur ce qu'elle écrit, puis sur la passe restreinte
 qui suit, et seule une vraie panne l'arrête (la commande introuvable, ou tuée par un signal). La dette s'abaisse depuis les notes de la passe finale (une note

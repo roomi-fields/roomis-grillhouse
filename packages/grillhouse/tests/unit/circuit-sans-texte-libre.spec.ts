@@ -37,6 +37,8 @@ const PERMISES: Record<string, string> = {
   '/-(\\d+)(?:\\.[a-z]+)?$/':
     'le numéro d’un fichier du dossier de travail du circuit, pour numéroter après lui',
   '/\\s+/g': 'les blancs du sujet d’un écart d’une fiche, pour le reconnaître une seule fois',
+  '/\\s+[>›]\\s+/g':
+    'le séparateur « > » ou « › » du nom complet d’un vert attendu d’une fiche et d’un test du rapport de Vitest (grillhouse-j2m)',
 };
 
 // Every regular expression of <texte>: its literals, and each `RegExp(…)` construction.
