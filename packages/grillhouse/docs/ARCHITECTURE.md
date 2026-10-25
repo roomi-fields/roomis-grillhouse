@@ -24,13 +24,17 @@ hit, replaying logs »), et cette relecture vaut un lancement. Une passe se mesu
 dernier vert, l'arbre de la dernière passe verte de sa branche, celle de main pour une copie
 qui n'en a pas encore, comme `vitest --changed` : un paquet que Turborepo rejoue joue les seuls tests que Vitest relie aux fichiers changés depuis,
 et tous ses tests quand un changement sort du graphe de Vitest (un fichier supprimé, une
-configuration, un fichier qu'aucun module n'importe, le code d'un paquet dont il dépend, un
-chemin que ses tests déclarent lire, `grillhouse.lit`) ; sans vert connu, la passe est
-complète, et `npm run verifier -- --tout` la joue pour de vrai, comme la nuit. Un fichier que
-le commit du vert ne suit pas vit dans le seul arbre qui l'a gardé : absent d'une copie mesurée
-contre le vert de main, il n'est pas supprimé, comme Nx et Turborepo mesurent contre un commit.
-Ainsi un test ne
-tourne qu'une fois tant que rien ne change, et corriger un test ne rejoue que lui.
+configuration, un fichier qu'aucun module n'importe, un fichier, changé ou supprimé, que lit
+la construction d'un paquet dont il dépend, un chemin que ses tests déclarent lire,
+`grillhouse.lit`) ; la construction d'un voisin lit les entrées du `build` de son turbo.json,
+lues comme Turborepo les lit (`$TURBO_DEFAULT$` : tous les fichiers du paquet, `docs/`
+compris ; `$TURBO_EXTENDS$` : les entrées du `build` de la racine), et, quand elles n'en
+nomment aucune, son code et sa configuration hors de son `docs/` ; jamais un test ; sans vert
+connu, la passe est complète, et `npm run verifier -- --tout` la joue pour de vrai, comme la
+nuit. Un fichier que le commit du vert ne suit pas vit dans le seul arbre qui l'a gardé :
+absent d'une copie mesurée contre le vert de main, il n'est pas supprimé, comme Nx et
+Turborepo mesurent contre un commit. Ainsi un test ne tourne qu'une fois tant que rien ne
+change, et corriger un test ne rejoue que lui.
 
 **Tout se lit, le plan s'écrit** : un agent de rôle travaille dans l'enveloppe de sa copie
 (`packages/grillhouse/scripts/enveloppe/`, un bac à sable bubblewrap) ; il lit toute la copie,

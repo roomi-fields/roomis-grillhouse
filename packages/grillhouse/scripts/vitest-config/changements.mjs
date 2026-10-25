@@ -16,7 +16,8 @@
 // - The graph of a test is the test file and the modules it imports, statically or dynamically,
 //   node_modules left out (`getTestDependencies` of Vitest). Vitest does not see what lies out of
 //   it, and the package plays whole (`entier`) when a change lies there, the reason written:
-//   1. a file removed, in the package or in a package it depends on: no graph of today holds it;
+//   1. a file removed in the package: no graph of today holds it (one removed in a package it
+//      depends on, as 6 has it);
 //   2. the frame's base configuration (this directory), which every configuration extends;
 //   3. the configuration of the repository at its top: `package.json`, `package-lock.json`,
 //      `turbo.json`, `turbo.jsonc`, `tsconfig*.json`;
@@ -25,10 +26,18 @@
 //      `globalSetup`, which Vitest runs beside the graph;
 //   5. a path its tests declare they read (`grillhouse.lit` of its package.json, from the top):
 //      a script they run, a file they read, as Bazel's `data`;
-//   6. a file of a package it depends on (its `dependencies`, `devDependencies`,
-//      `optionalDependencies` and `peerDependencies` that resolve to a directory of the repository,
-//      out of node_modules, transitively), a test file of that package aside: its tests read that
-//      package built, not the source git follows;
+//   6. a file, changed or removed, that the build of a package it depends on reads (its
+//      `dependencies`, `devDependencies`, `optionalDependencies` and `peerDependencies` that
+//      resolve to a directory of the repository, out of node_modules, transitively): its tests read
+//      that package built, not the source git follows. As Turborepo hashes the inputs of a
+//      neighbour's `build` task and Bazel the `srcs` of its target, the build reads the inputs of
+//      the `build` of the neighbour's turbo.json, the one scripts/turbo-des-paquets.mjs generates,
+//      as Turborepo reads them: each pattern from the package, `$TURBO_ROOT$/…` from the top, `!…`
+//      an exclusion, `<x>/**` covering `<x>` itself, `$TURBO_DEFAULT$` every file of the package,
+//      `$TURBO_EXTENDS$` the inputs of the root's `build` (turbo.json or turbo.jsonc). When they
+//      name none (no turbo.json, no inputs), its files of code and configuration (the extension of
+//      a module), out of its `docs/`, its exclusions kept. A test file of the neighbour is never
+//      one: its build does not compile it;
 //   7. a file of the package that no graph can hold, its extension not that of a module (`.js`,
 //      `.mjs`, `.cjs`, `.ts`, `.mts`, `.cts`, `.jsx`, `.tsx`, `.json`): data, a template, a
 //      script of the shell, a document, which a test reads without importing it.
@@ -39,8 +48,10 @@
 //   plays, changed or not. A package where none relates plays none and passes
 //   (`passWithNoTests`), as Vitest's `--changed` has it.
 //
-// This module uses Node alone.
+// This module's top level uses Node alone (./cibles.mjs, scripts/tests.mjs import it); a
+// turbo.json is read with jsonc-parser, the frame's reader of JSON with comments, loaded then.
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -77,6 +88,46 @@ export function lireChangements(chemin) {
   const liste = l => Array.isArray(l) && l.every(x => typeof x === 'string');
   if (!c || typeof c.racine !== 'string' || !liste(c.fichiers) || !liste(c.supprimes)) return null;
   return c;
+}
+
+// The prefix of a pattern of Turborepo written from the top of the repository.
+const DU_HAUT = '$TURBO_ROOT$/';
+
+// The inputs of the `build` of the Turborepo configuration in <dir> (its <noms>, the first
+// present): the patterns, an empty list when it names none or does not read.
+function entreesDuBuild(dir, noms) {
+  const f = noms.map(n => path.join(dir, n)).find(n => existsSync(n));
+  if (!f) return [];
+  try {
+    const { parse } = createRequire(import.meta.url)('jsonc-parser');
+    const inputs = parse(readFileSync(f, 'utf8'), [], { allowTrailingComma: true })?.tasks?.build
+      ?.inputs;
+    return Array.isArray(inputs) ? inputs.filter(m => typeof m === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+// Whether the build of the package at <d>, in the repository at <racine>, reads the file at the
+// absolute path <a>, which lies in it (6 above).
+function construit(racine, d, a) {
+  const r = path.relative(d, a);
+  if (TEST.test(r)) return false;
+  const motifs = entreesDuBuild(d, ['turbo.json']).flatMap(m =>
+    m === '$TURBO_EXTENDS$' ? entreesDuBuild(racine, ['turbo.json', 'turbo.jsonc']) : [m]
+  );
+  // <m> covers <rel>, `<x>/**` covering `<x>` as Turborepo has it.
+  const couvre = (rel, m) =>
+    path.matchesGlob(rel, m) || (m.endsWith('/**') && path.matchesGlob(rel, m.slice(0, -3)));
+  const lu = m =>
+    m === '$TURBO_DEFAULT$' ||
+    (m.startsWith(DU_HAUT)
+      ? couvre(path.relative(racine, a), m.slice(DU_HAUT.length))
+      : couvre(r, m));
+  if (motifs.some(m => m.startsWith('!') && lu(m.slice(1)))) return false;
+  const positifs = motifs.filter(m => !m.startsWith('!'));
+  if (positifs.length) return positifs.some(lu);
+  return MODULE.test(r) && r.split(path.sep)[0] !== 'docs';
 }
 
 // The directories of the packages of the repository at <racine> that the package at <dossier>
@@ -129,7 +180,8 @@ function paquetEntier(ch, dossier, test = {}) {
     .filter(f => typeof f === 'string')
     .map(f => path.resolve(dossier, f));
   for (const f of ch.supprimes) {
-    if ([dossier, ...deps].some(d => sous(abs(f), d))) {
+    const a = abs(f);
+    if (sous(a, dossier) || deps.some(d => sous(a, d) && construit(racine, d, a))) {
       return { raison: 'un fichier supprimé, que le graphe des tests ne tient plus', fichier: f };
     }
   }
@@ -145,7 +197,7 @@ function paquetEntier(ch, dossier, test = {}) {
             ? 'un fichier de préparation des tests'
             : lit.some(l => f === l || f.startsWith(`${l}/`))
               ? 'un chemin que ses tests déclarent lire (grillhouse.lit)'
-              : deps.some(d => sous(a, d)) && !TEST.test(f)
+              : deps.some(d => sous(a, d) && construit(racine, d, a))
                 ? 'le code d’un paquet dont il dépend, que ses tests lisent construit'
                 : sous(a, dossier) && !MODULE.test(f)
                   ? 'un fichier qu’aucun module n’importe, qu’un test lit sans l’importer'
