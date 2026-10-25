@@ -52,9 +52,11 @@ composant produit.
 utilise l'interface, avec les éléments qu'il importe (`` - `parser` : jeton, position ``, `*` pour
 un import entier). Le garde `packages/grillhouse/scripts/consommateurs.mjs` refuse un import qu'elle ne déclare pas, et
 signale une déclaration qu'aucun code n'emploie ; une ligne nouvelle entre avec son arbitrage
-tranché au ticket, qui nomme le consommateur, ou avec la section « Architecture » du ticket, qui
-nomme mot pour mot le consommateur et chaque élément de la ligne, et le garde
-`packages/grillhouse/scripts/consommateurs-arbitres.mjs` refuse une ligne changée sans l'un ni l'autre.
+tranché au ticket, qui nomme le consommateur, ou avec le plan du ticket (son titre, sa section
+« Architecture », sa section « Noms publiés »), qui nomme mot pour mot le consommateur et chaque élément que le lot ajoute à la
+ligne, et le garde `packages/grillhouse/scripts/consommateurs-arbitres.mjs` refuse une ligne
+changée sans l'un ni l'autre ; il lit la section hors de la part générée, dont les puces ne sont
+pas des consommateurs.
 Ainsi chaque dépendance entre composants est écrite et décidée.
 
 ## L'architecture (`ARCHITECTURE.md`)

@@ -332,10 +332,10 @@ Le circuit du ticket fait chaque commit après le verdict `ACCEPTÉ` du relecteu
   n'accorde pas (section « Consommateurs ») se tranche ainsi, même publié, sur l'architecture
   d'ensemble : le sens des dépendances que fixe `docs/ARCHITECTURE.md`, le cycle qu'elle créerait,
   et le composant dont l'élément est la fonction ; un verdict « tranché » nomme la ligne à ajouter
-  (`- <consommateur> : <éléments>`) à l'interface du fournisseur. La section
-  « Architecture » du ticket qui nomme le consommateur et chaque élément, mot pour mot, l'a déjà
-  tranchée : la ligne entre sans arbitrage. Ainsi une dépendance que le ticket fixe ne repasse pas
-  par une question.
+  (`- <consommateur> : <éléments>`) à l'interface du fournisseur. Le plan du ticket (son titre, sa
+  section « Architecture », sa section « Noms publiés ») qui nomme le consommateur et chaque élément que le lot ajoute à sa ligne, mot
+  pour mot, l'a déjà tranchée : la ligne entre sans arbitrage. Ainsi une dépendance que le ticket
+  fixe ne repasse pas par une question.
 - **La réponse du responsable s'écrit au ticket** : sous le titre « ## Réponse du responsable —
   <la question> », dans ses mots, après le commentaire « Arbitrage » qu'elle tranche, avant de
   reprendre le circuit. Ainsi le script d'intégration la trouve, le lot se commite sur sa branche,

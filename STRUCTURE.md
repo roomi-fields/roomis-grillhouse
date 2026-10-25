@@ -50,7 +50,7 @@ roomis-grillhouse/
 │   │   │                              #   the frame listed in docs/agents/hors-cadre.txt, "<package> <reason>"; such a package stays a
 │   │   │                              #   workspace, and Turborepo plays none of its tasks (turbo-des-paquets.mjs)
 │   │   │                              #   parcourir(): the walk of every guard, Vite's temporary files left out, a file gone meanwhile passed over
-│   │   ├── consommateurs-arbitres.mjs # grillhouse:gardes: a Consommateurs line a lot changes enters with a settled arbitrage at its ticket naming the consumer, or named, consumer and names, by the ticket's Architecture
+│   │   ├── consommateurs-arbitres.mjs # grillhouse:gardes: a Consommateurs line a lot changes enters with a settled arbitrage at its ticket naming the consumer, or named, consumer and the names it adds, by the ticket's title, Architecture or Noms publiés
 │   │   ├── crochet.mjs                # grillhouse hook <nom>: the guard of one frame git hook, which the hook calls (nothing without the package)
 │   │   ├── crochets.mjs               # grillhouse hooks: the frame's git hooks (commit-msg, pre-push), Husky's model: placed by the project's prepare and grillhouse:maj beside Beads' sections, a former version's lines rewritten, absent ones named by the session start
 │   │   ├── greffons.mjs               # the frame's plugins (those `.claude/settings.json` enables): installed for the project by preparation.mjs (init) and grillhouse:maj; absent ones named by the session start, and the frame's plugin installed at another version than the package, with the command that aligns them
