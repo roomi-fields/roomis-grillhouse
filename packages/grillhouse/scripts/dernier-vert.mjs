@@ -18,6 +18,12 @@
 //   the repository. Then the changes are the files that differ between its tree and the tree of the
 //   working tree now (`git diff --raw --no-renames`): the files changed or added, and those
 //   removed. Any two trees compare: the ancestry keeps the measure to the history it belongs to.
+// - A file the last green holds and its commit does not track (untracked, not ignored) lives in
+//   the working tree that kept it alone: measured against the last green of another branch (main's,
+//   from a copy or from the queue's detached replay), its absence is no removal, as Nx affected and
+//   Turborepo's `--filter=[ref]` measure against a commit. Against the branch's own, it is one: the
+//   copy created that file, then removed it. Witness: BPScript 320.3.2.1, 54 `.rapport-suite.json`
+//   untracked on main, each seen removed by every package of a copy, which played whole 264 times.
 // - No last green counts without git, before the first commit, and while a submodule differs
 //   from the commit its parent records (its files changed, or its HEAD moved) or the changes
 //   reach a submodule: git's tree holds a submodule's commit, not its files. The pass is then
@@ -169,6 +175,21 @@ function difference(racine, avant, apres) {
   return out;
 }
 
+// The files the commit <commit> of the repository at <racine> tracks that the tree <arbre> no longer
+// holds, as a Set of paths from its top; null when git fails.
+function supprimesDuCommit(racine, commit, arbre) {
+  const r = git(racine, [
+    'diff',
+    '--name-only',
+    '--no-renames',
+    '--diff-filter=D',
+    '-z',
+    commit,
+    arbre,
+  ]);
+  return r.status === 0 ? new Set(r.stdout.split('\0').filter(Boolean)) : null;
+}
+
 // What a pass in <racine> measures itself against: `{ etat, env, ligne, retirer }`, the state to
 // keep once green (null when none can count), the variables to add to the pass's environment (the
 // changes since the last green, none for a complete pass), the line that says which, and the
@@ -191,6 +212,11 @@ export function mesure(racine, { tout = false, dans = os.tmpdir() } = {}) {
   if (!ch) return complete('git échoue');
   if (ch.sousModules.length) {
     return { ...complete(`un sous-module a changé (${ch.sousModules[0]})`), etat: null };
+  }
+  if (vert.branche !== etat.branche) {
+    const suivis = supprimesDuCommit(etat.racine, vert.commit, etat.arbre);
+    if (!suivis) return complete('git échoue');
+    ch.supprimes = ch.supprimes.filter(f => suivis.has(f));
   }
   const dir = mkdtempSync(path.join(dans, 'grillhouse-changements-'));
   const fichier = path.join(dir, 'changements.json');

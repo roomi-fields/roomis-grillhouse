@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { garderLeVert, mesure } from '../../scripts/dernier-vert.mjs';
+import { restreindre } from '../../scripts/vitest-config/changements.mjs';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'dernier-vert-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
@@ -148,5 +149,67 @@ describe('grillhouse-3uv.93 — the file of the changes lies in the directory th
     expect(path.dirname(path.dirname(f))).toBe(dans);
     m.retirer();
     expect(readdirSync(dans)).toEqual([]);
+  });
+});
+
+// grillhouse-5m1.4: main's last green on BPScript held 54 `.rapport-suite.json` that git does not
+// track (an old name of report), absent from every new copy; each package of a copy saw « un
+// fichier supprimé » and played whole, 264 times in the log of 320.3.2.1. As Nx affected and
+// Turborepo's `--filter=[ref]` measure against a commit, a file the green's commit does not track
+// is removed only from the working tree that kept it.
+describe('grillhouse-5m1.4 — a file git does not track is not removed from a new copy', () => {
+  type Changements = { racine: string; fichiers: string[]; supprimes: string[] };
+  // What a pass in <dossier> measures: its changes.
+  function changements(dossier: string): Changements {
+    const m = mesure(dossier) as { env: Record<string, string>; retirer: () => void };
+    const c = JSON.parse(readFileSync(m.env.GRILLHOUSE_CHANGEMENTS ?? '', 'utf8')) as Changements;
+    m.retirer();
+    return c;
+  }
+  // The line the package at the top of <ch>'s repository writes under the changes <ch>.
+  function ligneDuPaquet(ch: Changements) {
+    const lignes: string[] = [];
+    restreindre({}, ch.racine, ch, [], (l: string) => lignes.push(l));
+    return lignes.join('\n');
+  }
+  // The repository of trial, with a file git does not track kept in main's green.
+  function depotAvecRapport() {
+    const r = depot();
+    writeFileSync(path.join(r, '.rapport-suite.json'), '{}\n');
+    vert(r);
+    return r;
+  }
+
+  it("critère 1: an untracked file of main's green, absent from a new copy, is not removed", () => {
+    const c = copie(depotAvecRapport(), 'agent/t');
+    writeFileSync(path.join(c, 'module.mjs'), 'export {};\n');
+    const ch = changements(c);
+    expect(ch.supprimes).toEqual([]);
+    expect(ch.fichiers).toEqual(['module.mjs']);
+    expect(ligneDuPaquet(ch)).toMatch(/les tests que Vitest relie aux 1 fichier\(s\) changé\(s\)/);
+  });
+
+  it("critère 1: so for the queue's detached replay, which reads main's green", () => {
+    const d = copie(depotAvecRapport(), null);
+    modifier(d, 'a.txt');
+    expect(changements(d).supprimes).toEqual([]);
+  });
+
+  it('critère 2: a tracked file removed in the copy keeps the whole replay of the package', () => {
+    const c = copie(depotAvecRapport(), 'agent/t');
+    rmSync(path.join(c, 'b.txt'));
+    const ch = changements(c);
+    expect(ch.supprimes).toEqual(['b.txt']);
+    expect(ligneDuPaquet(ch)).toMatch(/tous ses tests, un fichier supprimé.*\(b\.txt\)/);
+  });
+
+  it('an untracked file the copy created, kept in its own green, is removed when it goes', () => {
+    const r = depot();
+    vert(r);
+    const c = copie(r, 'agent/t');
+    writeFileSync(path.join(c, 'nouveau.ts'), 'export {};\n');
+    vert(c);
+    rmSync(path.join(c, 'nouveau.ts'));
+    expect(changements(c).supprimes).toEqual(['nouveau.ts']);
   });
 });
