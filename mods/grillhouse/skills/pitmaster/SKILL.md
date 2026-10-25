@@ -99,7 +99,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 - **Le bilan chiffré de chaque ticket** : à chacune de ses fins, `integre` ou un arrêt qui me
   revient, le circuit écrit au ticket son bilan (`Circuit · … · bilan`) : le temps mur, hors nuit
   d'attente aussi, et sa part perdue, hors attentes aussi ; le temps par catégorie, l'attente répartie entre
-  la mienne, celle du responsable (selon qui doit répondre à la question de l'arrêt) et la nuit (la
+  la mienne, celle du responsable (la question de l'arrêt est la sienne, ou je la lui porte et sa
+  réponse s'écrit au ticket pendant l'attente) et la nuit (la
   plage `grillhouse.plageDeNuit` du projet, 23 h – 8 h par défaut) ; les séances par rôle (celles
   que le circuit lance ; les miennes à part), les arrêts, les jetons et le coût, face au bilan d'avant du projet ; la fiche du ticket au panneau en montre les chiffres clés.
   `npx grillhouse bilan <ticket>` le recalcule, `--garder` le garde comme base. Ainsi
@@ -330,8 +331,9 @@ Le circuit du ticket fait chaque commit après le verdict `ACCEPTÉ` du relecteu
   tranchée : la ligne entre sans arbitrage. Ainsi une dépendance que le ticket fixe ne repasse pas
   par une question.
 - **La réponse du responsable s'écrit au ticket** : sous le titre « ## Réponse du responsable —
-  <la question> », dans ses mots, après le commentaire « Arbitrage » qu'elle tranche. Ainsi le
-  script d'intégration la trouve, et le lot se commite sur sa branche.
+  <la question> », dans ses mots, après le commentaire « Arbitrage » qu'elle tranche, avant de
+  reprendre le circuit. Ainsi le script d'intégration la trouve, le lot se commite sur sa branche,
+  et le bilan compte l'attente au responsable.
 - **Ce qui monte au responsable** : je lui monte une décision qu'aucune règle ne tranche, avec son
   contexte, un exemple, ce que fait la référence mature du domaine, ce qui existe déjà, ce qu'exige
   le domaine (charte, « Comment on arbitre ») et ma recommandation. Ainsi il arbitre sur pièces,

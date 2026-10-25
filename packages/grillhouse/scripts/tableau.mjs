@@ -92,6 +92,7 @@ import {
   libelle,
   QUESTIONNEUR,
   quiDe,
+  roleDeLAgent,
   SUITE,
   SUPERVISEUR,
 } from './etapes.mjs';
@@ -113,10 +114,6 @@ const PLACE_DU_SUJET = 10;
 // The role of a register line that a step of a circuit writes (scripts/circuit.mjs): no agent,
 // no role of the flow.
 export const ROLE_DU_CIRCUIT = 'circuit';
-// A role by its agent's name: an agent of the frame's plugin is named bare or scoped by the
-// plugin (`grillhouse:<rôle>`), as Claude Code names a plugin's agents.
-export const roleDeLAgent = nom =>
-  typeof nom === 'string' ? nom.replace(/^grillhouse:/, '') : null;
 // A sub-agent's role from its meta file: the type it was spawned as; a named agent's `agentType`
 // is its name.
 export const roleDuMeta = m =>
@@ -166,7 +163,8 @@ function entrant(e) {
 
 // The reading of a transcript is a state that lines are added to, one JSON object per line: it
 // holds the tokens, the turns, the start and end, the last incoming message, the ticket, the role,
-// the cost and the last tool call, and it is plain JSON, so the board keeps it between two
+// the cost (the total a session writes), the usage by model (which the register prices when the
+// total lacks, scripts/registre.mjs) and the last tool call, and it is plain JSON, so the board keeps it between two
 // measures and reads only what was appended. A turn is bounded by the earliest and the latest date
 // of its events, whatever their order in the file; the first one holds the events before the first
 // incoming message, each next one opens at an incoming message and holds the events up to the next.
@@ -179,6 +177,7 @@ const etatNeuf = () => ({
   ticket: null,
   role: null,
   cout: null,
+  modeles: {},
   appel: null,
   reponses: [],
   tours: [],
@@ -268,6 +267,22 @@ function avancer(etat, texte) {
     etat.jetons +=
       (u.input_tokens ?? 0) + (u.output_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0);
     etat.cache += u.cache_read_input_tokens ?? 0;
+    // The usage of the message's model: a write of the cache by its duration, one without them
+    // of five minutes, the default of the API.
+    const ecrit = u.cache_creation_input_tokens ?? 0;
+    const uneHeure = u.cache_creation?.ephemeral_1h_input_tokens ?? 0;
+    const m = (etat.modeles[String(e.message?.model ?? '')] ??= {
+      entree: 0,
+      sortie: 0,
+      lecture: 0,
+      ecriture5m: 0,
+      ecriture1h: 0,
+    });
+    m.entree += u.input_tokens ?? 0;
+    m.sortie += u.output_tokens ?? 0;
+    m.lecture += u.cache_read_input_tokens ?? 0;
+    m.ecriture5m += u.cache_creation?.ephemeral_5m_input_tokens ?? ecrit - uneHeure;
+    m.ecriture1h += uneHeure;
   }
   etat.vus = [...vus];
   etat.reponses = [...reponses];
@@ -276,7 +291,8 @@ function avancer(etat, texte) {
 
 // The measures of a state: the tokens, the turns and their working time (the union of the turns,
 // the waits left out), the start (the oldest date) and the end (the latest), the ticket, the role
-// (a session launched with `--agent`) and the cost (the total a session writes). `entre` is the
+// (a session launched with `--agent`), the cost (the total a session writes) and the usage by
+// model. `entre` is the
 // time of the latest incoming message, or null; `attend` tells whether the last tool call still
 // awaits its answer, the call and its answer paired by their identifier.
 const mesurer = etat => ({
@@ -291,6 +307,7 @@ const mesurer = etat => ({
   ticket: etat.ticket || null,
   role: etat.role,
   cout: etat.cout,
+  modeles: structuredClone(etat.modeles),
 });
 
 // The measures of the transcript text `texte` held in memory.

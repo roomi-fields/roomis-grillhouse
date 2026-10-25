@@ -128,6 +128,12 @@ export const ARRETS = {
 export const EXPLORATEUR = 'explorateur';
 export const QUESTIONNEUR = 'questionneur';
 
+// A role by its agent's name: an agent of the frame's plugin is named bare or scoped by the
+// plugin (`grillhouse:<rôle>`), as Claude Code names a plugin's agents and the register writes
+// them; the board and the bilan read a role this one way.
+export const roleDeLAgent = nom =>
+  typeof nom === 'string' ? nom.replace(/^grillhouse:/, '') : null;
+
 // A role in words.
 const NOMS = { developpeur: 'développeur' };
 export const nomDuRole = role => NOMS[role] ?? role;

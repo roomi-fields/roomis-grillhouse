@@ -24,9 +24,13 @@
 //   AUCUNE, QUESTIONS or DÉSACCORD, and the questions left open, `ouvertes`), each end of a run on
 //   a stop (`montee`: its code, its stop and who must answer its question, `qui`); the circuit's
 //   state, `.claude/worktrees/<ticket>.circuit.json`, for where the circuit ended; the night the
-//   project declares in its package.json (`grillhouse.plageDeNuit`). Every agent declares
-//   nothing: the bilan measures.
-// - The steps and the roles are those of scripts/etapes.mjs. Only the circuit's roles count, the
+//   project declares in its package.json (`grillhouse.plageDeNuit`); the comments of the ticket
+//   (`bd comments <ticket> --json`, run from the main tree), their times and, of their text, the
+//   title of the owner's answer alone (« ## Réponse du responsable — <la question> », which the
+//   skill pitmaster fixes). Every agent declares nothing: the bilan measures.
+// - The steps and the roles are those of scripts/etapes.mjs; a register line's role is read as the
+//   board reads it (`roleDeLAgent`: bare, or scoped by the frame's plugin, `grillhouse:<rôle>`, as
+//   the register writes it). Only the circuit's roles count, the
 //   explorateur of the plan among them. Only the sessions the circuit launched count in
 //   the window, the categories, the tokens and the cost; a session of a circuit's role on the
 //   ticket the circuit did not launch, the supervisor's, counts apart (`seances.horsCircuit`: its
@@ -51,9 +55,10 @@
 //   - attente du superviseur, attente du responsable, nuit: as the lead time of DORA separates the
 //     wait for review from the work, each wait runs from an end of a run on a stop (`montee`) to
 //     the first turn of a session or step after it, or the next result of the circuit, the first
-//     of the two; it is the wait of who must answer its question (`qui`, the owner or the
-//     supervisor, as the circuit writes it), but its part in the night: the hours of `grillhouse.plageDeNuit` in the
-//     project's package.json (`{ debut, fin }`, in local time), from 23 h to 8 h without it;
+//     of the two; it is the wait of who must answer its question: the owner's when the circuit
+//     names him (`qui`), or when the supervisor carried the question to him, his answer written at
+//     the ticket during the wait; else the supervisor's; but its part in the night: the hours of
+//     `grillhouse.plageDeNuit` in the project's package.json (`{ debut, fin }`, in local time), from 23 h to 8 h without it;
 //   - étapes automatiques: the other steps the circuit leads, but the final passes;
 //   - passes finales: the final passes, but those without effect or replayed;
 //   - rejeu d'étapes déjà vertes: the same, on a lot unchanged since green: checks green again,
@@ -75,12 +80,14 @@ import { existsSync, readdirSync, readFileSync, renameSync, writeFileSync } from
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { estReponseDuResponsable } from './consommateurs-arbitres.mjs';
 import {
   AGENTS_DU_LOT,
   etapeDuCircuit,
   nomDuRole,
   QUESTIONNEUR,
   RESPONSABLE,
+  roleDeLAgent,
   SUITE,
   SUPERVISEUR,
 } from './etapes.mjs';
@@ -185,14 +192,15 @@ const commun = ([d, f], l) =>
   longueur(l.map(([a, b]) => [Math.max(a, d), Math.min(b, f)]).filter(([a, b]) => b > a));
 
 // The bilan of <ticket> from the register's lines <lignes> (of its project), the results the
-// circuit kept <entrees> (`<ticket>.fiches.jsonl`), the circuit's state <etat> (or null) and the
-// project's night <nuit>.
+// circuit kept <entrees> (`<ticket>.fiches.jsonl`), the circuit's state <etat> (or null), the
+// project's night <nuit> and the comments of the ticket <commentaires> (Beads' JSON).
 export function bilan({
   ticket,
   lignes,
   entrees = [],
   etat = null,
   nuit = NUIT,
+  commentaires = [],
   maintenant = Date.now(),
 }) {
   // The sessions the circuit launched, by their id.
@@ -201,7 +209,8 @@ export function bilan({
   );
   // Each agent's latest line on the ticket: it holds all its turns.
   const derniere = new Map();
-  for (const l of lignes) {
+  for (const x of lignes) {
+    const l = { ...x, role: roleDeLAgent(x.role) };
     if (l.ticket !== ticket || (l.role !== CIRCUIT && !ROLES.has(l.role))) continue;
     const avant = derniere.get(l.agent);
     if (!avant || Date.parse(l.fin) > Date.parse(avant.fin)) derniere.set(l.agent, l);
@@ -307,13 +316,20 @@ export function bilan({
   }
 
   // The waits: from each end of a run on a stop to the answer, the run after, each for who must
-  // answer its question (`qui`, the owner or the supervisor).
+  // answer its question: the owner when the circuit names him, or when his answer is written at
+  // the ticket during the wait; else the supervisor.
+  const reponses = commentaires
+    .filter(c => estReponseDuResponsable(c.text))
+    .map(c => Date.parse(c.created_at ?? ''))
+    .filter(t => !Number.isNaN(t));
   const lesAttentes = [];
   for (const e of duCircuit.filter(x => x.montee)) {
     const tour = segments.find(s => s.d > e.t)?.d ?? Infinity;
     const suivant = gardes.find(x => x.t > e.t)?.t ?? Infinity;
     const f = Math.min(tour, suivant, fin);
-    const { qui } = e.montee;
+    // A comment's time is to the second: the answer is in the wait up to the gap around it.
+    const repondu = reponses.some(t => t >= e.t - JEU && t <= f + JEU);
+    const qui = e.montee.qui === RESPONSABLE || repondu ? RESPONSABLE : SUPERVISEUR;
     if (f > e.t) lesAttentes.push({ i: [e.t, f], qui, nuit: nuits([e.t, f], nuit) });
   }
   const attentes = lesAttentes.map(a => a.i);
@@ -516,8 +532,24 @@ export function lignesDuProjet(texte, racine) {
   });
 }
 
+// The comments of <ticket> (Beads' JSON), read from the main tree <racine>; none when bd does not
+// read them.
+function commentairesDu(racine, ticket) {
+  const r = spawnSync('bd', ['comments', ticket, '--json'], {
+    cwd: racine,
+    encoding: 'utf8',
+    maxBuffer: 256 * 1024 * 1024,
+  });
+  try {
+    const c = r.status === 0 ? JSON.parse(r.stdout) : [];
+    return Array.isArray(c) ? c : [];
+  } catch {
+    return [];
+  }
+}
+
 // The bilan of <ticket> computed from the main tree <racine>: its register, the results its
-// circuit kept, its circuit's state.
+// circuit kept, its circuit's state, the comments of the ticket.
 function calculer(racine, ticket) {
   const registre =
     process.env.GRILLHOUSE_REGISTRE ??
@@ -540,7 +572,14 @@ function calculer(racine, ticket) {
   } catch {
     etat = null;
   }
-  return bilan({ ticket, lignes, entrees, etat, nuit: plageDeNuit(racine) });
+  return bilan({
+    ticket,
+    lignes,
+    entrees,
+    etat,
+    nuit: plageDeNuit(racine),
+    commentaires: commentairesDu(racine, ticket),
+  });
 }
 
 // The bilan of <ticket> computed, kept in the main tree <racine>, and its text, compared with the

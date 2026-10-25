@@ -1,9 +1,9 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { aRattraper, deLaCopie, ligne, source } from '../../scripts/registre.mjs';
+import { aRattraper, coutDe, deLaCopie, ligne, source } from '../../scripts/registre.mjs';
 import { lireTranscription } from '../../scripts/tableau.mjs';
 import { attendre, lignes, repos } from './registre-essai.js';
 
@@ -13,11 +13,11 @@ afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/registre.mjs');
 const l = (o: object) => JSON.stringify(o);
-const usage = (id: string, input: number, output: number) =>
+const usage = (id: string, input: number, output: number, model = 'claude-sonnet-5-5') =>
   l({
     type: 'assistant',
     timestamp: '2026-10-10T06:05:00Z',
-    message: { id, usage: { input_tokens: input, output_tokens: output } },
+    message: { id, model, usage: { input_tokens: input, output_tokens: output } },
   });
 const SESSION = [
   l({ type: 'agent-setting', agentSetting: 'developpeur' }),
@@ -87,6 +87,117 @@ describe('the register line', () => {
   });
   it('writes nothing for a transcript without time', () => {
     expect(ligne({ hook_event_name: 'SessionEnd' }, lireTranscription(''), '/repo')).toBeNull();
+  });
+});
+
+// grillhouse-ybq.1: on BPScript 320.8, the register wrote `cout: 0` for the supervisor's
+// questionneur (78 083 tokens): a sub-agent's transcript holds no total. As ccusage keeps the
+// total Claude Code writes and reckons only in its absence, a line without a total, or with a
+// total of 0 for tokens spent, takes its tokens at its model's tariff (the tariffs below give the
+// total Claude Code wrote for each of the 25 sessions of 320.8, to the thousandth).
+describe('the cost of a session without its total, at its model’s tariff', () => {
+  // A message of the model <model> and its usage.
+  const message = (id: string, model: string, u: object) =>
+    l({ type: 'assistant', timestamp: '2026-10-10T06:05:00Z', message: { id, model, usage: u } });
+  const debut = l({
+    type: 'user',
+    timestamp: '2026-10-10T06:00:00Z',
+    message: { content: 'TON TICKET : demo-3.2.1 — le lot' },
+  });
+  const cout = (...messages: string[]) =>
+    (
+      ligne(
+        { hook_event_name: 'SessionEnd', transcript_path: '/t.jsonl', session_id: 's1' },
+        lireTranscription([debut, ...messages].join('\n')),
+        '/repo'
+      ) as { cout: number | null } | null
+    )?.cout;
+
+  it('prices each part of the usage, a write of the cache by its duration', () => {
+    const u = {
+      input_tokens: 10,
+      output_tokens: 500,
+      cache_read_input_tokens: 100_000,
+      cache_creation_input_tokens: 1300,
+      cache_creation: { ephemeral_5m_input_tokens: 300, ephemeral_1h_input_tokens: 1000 },
+    };
+    expect(cout(message('m1', 'claude-sonnet-5-5', u))).toBeCloseTo(
+      (10 * 2 + 500 * 10 + 100_000 * 0.1 + 300 * 2.5 + 1000 * 4) / 1e6,
+      12
+    );
+    expect(cout(message('m1', 'claude-opus-5-5', u))).toBeCloseTo(
+      (10 * 4 + 500 * 20 + 100_000 * 0.2 + 300 * 5 + 1000 * 8) / 1e6,
+      12
+    );
+  });
+
+  it('counts a write of the cache without its durations as one of five minutes, the default of the API', () => {
+    expect(
+      cout(message('m1', 'claude-haiku-4-5', { input_tokens: 0, cache_creation_input_tokens: 800 }))
+    ).toBeCloseTo((800 * 1.25) / 1e6, 12);
+  });
+
+  it('sums the messages of each model once, a message repeated by its id counted once', () => {
+    const u = { input_tokens: 1000, output_tokens: 100 };
+    expect(
+      cout(
+        message('m1', 'claude-sonnet-5-5', u),
+        message('m1', 'claude-sonnet-5-5', u),
+        message('m2', 'claude-opus-5-5', u)
+      )
+    ).toBeCloseTo((1000 * 2 + 100 * 10 + 1000 * 4 + 100 * 20) / 1e6, 12);
+  });
+
+  it('writes no cost when a model without a tariff spent tokens, and none for a message without tokens', () => {
+    expect(cout(message('m1', 'claude-inconnu-9', { input_tokens: 5, output_tokens: 1 }))).toBe(
+      null
+    );
+    expect(
+      cout(
+        message('m1', '<synthetic>', { input_tokens: 0, output_tokens: 0 }),
+        message('m2', 'claude-sonnet-5-5', { input_tokens: 1, output_tokens: 1 })
+      )
+    ).toBeCloseTo(12 / 1e6, 12);
+  });
+
+  it('prices a sub-agent the same way, its transcript holding no total', () => {
+    const d = mkdtempSync(path.join(ESSAIS, 'registre-'));
+    mkdirSync(path.join(d, 's/subagents'), { recursive: true });
+    const f = path.join(d, 's/subagents/agent-q1.jsonl');
+    writeFileSync(
+      f,
+      [debut, message('m1', 'claude-opus-5-5', { input_tokens: 100, output_tokens: 10 })].join('\n')
+    );
+    const input = {
+      hook_event_name: 'SubagentStop',
+      transcript_path: path.join(d, 's.jsonl'),
+      agent_id: 'q1',
+      agent_type: 'questionneur',
+    };
+    const r = ligne(input, lireTranscription(readFileSync(f, 'utf8')), '/repo');
+    expect(r).toMatchObject({ role: 'questionneur', agent: 'q1' });
+    expect(r?.cout).toBeCloseTo((100 * 4 + 10 * 20) / 1e6, 12);
+  });
+
+  it('keeps the total the session writes, and reckons only a total of 0 for tokens spent', () => {
+    const u = { input_tokens: 1000, output_tokens: 100 };
+    const total = (x: number) => l({ type: 'cost-state', totalCostUSD: x });
+    expect(cout(message('m1', 'claude-sonnet-5-5', u), total(7.25))).toBe(7.25);
+    expect(cout(message('m1', 'claude-sonnet-5-5', u), total(0))).toBeCloseTo(
+      (1000 * 2 + 100 * 10) / 1e6,
+      12
+    );
+    expect(cout(total(0))).toBe(0);
+    expect(cout(message('m1', 'claude-inconnu-9', u), total(1.5))).toBe(1.5);
+  });
+
+  it('reckons the cost from the usage by model the reading of a transcript holds', () => {
+    expect(coutDe({})).toBe(0);
+    expect(
+      coutDe({
+        'claude-sonnet-5-5': { entree: 1e6, sortie: 0, lecture: 0, ecriture5m: 0, ecriture1h: 0 },
+      })
+    ).toBeCloseTo(2, 12);
   });
 });
 

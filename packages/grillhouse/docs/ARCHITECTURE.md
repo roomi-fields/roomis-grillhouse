@@ -120,10 +120,21 @@ fois).
 **Le bilan sépare les attentes** : comme le « lead time » de DORA sépare l'attente de revue du
 temps de travail, chaque montée dit qui doit répondre, et le bilan répartit l'attente entre celle
 du superviseur, celle du responsable et la nuit, la plage horaire que le projet déclare
-(`grillhouse.plageDeNuit` de son `package.json`, 23 h – 8 h par défaut). Son texte donne le mur,
-le mur hors nuit d'attente (une nuit de travail y reste) et le perdu hors attentes. Ainsi le temps perdu se lit sans la nuit ni l'attente
-d'une réponse (BP 320.9 : 500 min de nuit mêlées à l'attente du responsable et à celle du
-superviseur).
+(`grillhouse.plageDeNuit` de son `package.json`, 23 h – 8 h par défaut). Une question que le
+superviseur porte au responsable est l'attente du responsable : sa réponse s'écrit au ticket
+pendant l'attente, sous « ## Réponse du responsable — … », seul texte d'un commentaire que le
+bilan lit. Son texte donne le mur, le mur hors nuit d'attente (une nuit de travail y reste) et le
+perdu hors attentes. Ainsi le temps perdu se lit sans la nuit ni l'attente d'une réponse (BP
+320.9 : 500 min de nuit mêlées à l'attente du responsable et à celle du superviseur ; BP 320.8 :
+les 78 min de la réponse du responsable comptées au superviseur).
+
+**Le bilan compte chaque séance à son coût** : le registre écrit chaque rôle tel que Claude Code
+nomme l'agent d'un greffon (`grillhouse:developpeur`), et le bilan le lit comme le panneau, d'une
+seule façon (`roleDeLAgent` de `etapes.mjs`). Le registre garde le total qu'une séance écrit,
+comme ccusage ; sans total, ou à total nul pour des jetons dépensés (un sous-agent n'en écrit
+pas), il calcule le coût sur ses jetons, au tarif de son modèle (`TARIFS` de `registre.mjs`). Ainsi
+le bilan compte toutes les séances, et un sous-agent du superviseur coûte ce qu'il a dépensé (BP 320.8 : « 0 séances ; 0,00 $ » pour 25
+séances et 20,36 $, et 0 $ pour un questionneur du superviseur).
 
 **Un fait porte sa pièce** : comme une revue de code cite la ligne qu'elle juge, chaque constat,
 question ou montée d'une fiche porte sa `piece`, un seul format (`lirePiece` de `resultats.mjs`) :

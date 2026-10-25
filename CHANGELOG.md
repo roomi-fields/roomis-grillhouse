@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **The bilan counts every session at its cost, and puts the owner's answer to his wait** (grillhouse-ybq.1): on BPScript 320.8 (625c8ca12, Grillhouse 0.24.2), the bilan wrote « 0 séances ; 0,00 $ ; 0,00 M jetons » for 25 sessions and 20,36 $, and « 67 % perdus » with them. The register writes each role as Claude Code names a plugin's agent, `grillhouse:developpeur`, and the bilan kept a line only for a bare role; it now reads a role as the board does, by one function (`roleDeLAgent`, moved to `etapes.mjs`). Replayed on the register of 320.8, it counts 25 sessions and 20,36 $. The circuit writes the supervisor as who must answer every stop but the reviewer's question, so the 78 min Romain took to answer criterion 5 counted as the supervisor's wait; as the supervisor writes the owner's answer at the ticket under « ## Réponse du responsable — <la question> » (skill pitmaster), the bilan reads the ticket's comments (`bd comments <ticket> --json`) and counts a wait during which that answer is written as the owner's, the title being the only text of a comment it reads, recognised as the integration recognises it (`estReponseDuResponsable`, `consommateurs-arbitres.mjs`). The register wrote `cout: 0` for the supervisor's questionneur (78 083 tokens), as a sub-agent's transcript holds no total: as ccusage keeps the total Claude Code writes and reckons only in its absence, the register keeps that total, and prices a session without one, or with a total of 0 for tokens spent, on its tokens at its model's tariff (`TARIFS`, Sonnet 5.5, Opus 5.5, Haiku 4.5, a write of the cache by its duration); on 320.8 the tariff gives each of the 25 totals to the thousandth, and 0,29 $ for that questionneur, whose cache writes are of five minutes.
+
 ## [0.24.2] - 2026-10-24
 
 ### Fixed

@@ -10,8 +10,12 @@
 //   reads in CLAUDE_PROJECT_DIR, else in its input's `cwd`), the agent, its ticket (« TON TICKET : »),
 //   its role,
 //   its start and end, its working time and the turns it sums (start and end in milliseconds, the
-//   waits for a message left out), its tokens, its cache reads and its cost when the session wrote
-//   one. All of it is read from the agent's transcript; the agent declares nothing.
+//   waits for a message left out), its tokens, its cache reads and its cost. All of it is read from
+//   the agent's transcript; the agent declares nothing.
+// - The cost is the total the session writes, as ccusage keeps it; without one, or with a total of
+//   0 for tokens spent (a sub-agent's transcript holds none), it is the usage of each model at its
+//   tariff (`TARIFS`), as Claude Code reckons it. A model without a tariff that spent tokens leaves
+//   such a cost unknown (null).
 // - The register is `~/.claude/grillhouse/registre.jsonl` (GRILLHOUSE_REGISTRE replaces it): the
 //   envelope of a role agent leaves it writable.
 // - A hook never stops the session, and never waits for a transcript: it hands the fields of its
@@ -36,7 +40,8 @@ import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { lireFichier, ROLE_DU_CIRCUIT, roleDeLAgent, roleDuMeta, tourne } from './tableau.mjs';
+import { roleDeLAgent } from './etapes.mjs';
+import { lireFichier, ROLE_DU_CIRCUIT, roleDuMeta, tourne } from './tableau.mjs';
 import { lacherVerrou, prendreVerrou } from './verrou-de-fichier.mjs';
 
 const REGISTRE =
@@ -77,6 +82,34 @@ export function source(input) {
   };
 }
 
+// The tariffs of the models the frame's agents run on, in dollars per million tokens: the input,
+// the output, a read of the cache, a write of the cache kept five minutes, and one kept an hour.
+// Those of Sonnet 5.5 and Opus 5.5 give the total Claude Code wrote for each of the 25 sessions of
+// BPScript 320.8, to the thousandth.
+export const TARIFS = {
+  'claude-sonnet-5-5': { entree: 2, sortie: 10, lecture: 0.1, ecriture5m: 2.5, ecriture1h: 4 },
+  'claude-opus-5-5': { entree: 4, sortie: 20, lecture: 0.2, ecriture5m: 5, ecriture1h: 8 },
+  'claude-haiku-4-5': { entree: 1, sortie: 5, lecture: 0.1, ecriture5m: 1.25, ecriture1h: 2 },
+};
+
+// The cost of the usage by model <modeles> (`{ <modèle>: { entree, sortie, lecture, ecriture5m,
+// ecriture1h } }`, tokens), or null when a model without a tariff spent tokens.
+export function coutDe(modeles) {
+  let cout = 0;
+  for (const [modele, u] of Object.entries(modeles ?? {})) {
+    const parts = Object.entries(u);
+    if (parts.every(([, n]) => !n)) {
+      continue;
+    }
+    const tarif = TARIFS[modele];
+    if (!tarif) {
+      return null;
+    }
+    cout += parts.reduce((m, [k, n]) => m + n * (tarif[k] ?? 0), 0) / 1e6;
+  }
+  return cout;
+}
+
 // The register's line for this hook input and the reading `t` of its transcript (`lireFichier` or
 // `lireTranscription`), or null. `projet` is the main tree of the session.
 export function ligne(input, t, projet) {
@@ -95,7 +128,8 @@ export function ligne(input, t, projet) {
     tours: t.tours,
     jetons: t.jetons,
     cache: t.cache,
-    cout: t.cout,
+    // The total the session wrote; none, or 0, reckoned on its tokens (0 without any).
+    cout: t.cout || coutDe(t.modeles),
   };
 }
 

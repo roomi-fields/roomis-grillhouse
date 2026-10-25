@@ -40,15 +40,17 @@ const REGLE = 'consommateur-sans-arbitrage';
 // règles »).
 export const estArbitrage = text => /^\s*## Arbitrage\b/.test(String(text ?? ''));
 
+// True when the text <text> of a comment is the owner's answer, « ## Réponse du responsable — <la
+// question> », as the supervisor writes it (the skill pitmaster).
+export const estReponseDuResponsable = text =>
+  /^\s*## Réponse du responsable\b/.test(String(text ?? ''));
+
 // True when the arbitrage <a> of <comments> (Beads' JSON, in their order) is settled: a line
 // `### Verdict — tranché`, or a « ## Réponse du responsable » comment after it.
 export function arbitrageTranche(comments, a) {
   const tranche = /^### Verdict\s*—\s*tranché/m.test(a.text);
   return (
-    tranche ||
-    comments
-      .slice(comments.indexOf(a) + 1)
-      .some(c => /^\s*## Réponse du responsable\b/.test(c.text))
+    tranche || comments.slice(comments.indexOf(a) + 1).some(c => estReponseDuResponsable(c.text))
   );
 }
 

@@ -217,7 +217,7 @@ const calculer = (
   lignes: Ligne[],
   entrees: Entree[],
   etat: object | null = null,
-  { superviseur = [] as string[] } = {}
+  { superviseur = [] as string[], commentaires = [] as { created_at: string; text: string }[] } = {}
 ) => {
   const lancees = lignes
     .filter(l => l.role !== 'circuit' && !superviseur.includes(l.agent))
@@ -226,7 +226,13 @@ const calculer = (
       role: 'circuit',
       lancement: { role: l.role, seance: l.agent },
     }));
-  return bilan({ ticket: TICKET, lignes, entrees: [...lancees, ...entrees], etat }) as Bilan;
+  return bilan({
+    ticket: TICKET,
+    lignes,
+    entrees: [...lancees, ...entrees],
+    etat,
+    commentaires,
+  }) as Bilan;
 };
 const min = (ms: number) => Math.round((ms / MIN) * 100) / 100;
 
@@ -750,6 +756,129 @@ describe('the night, the supervisor’s wait and the owner’s', () => {
       fin: 8,
     });
     expect(plageDeNuit(path.join(ESSAIS, 'aucun-depot'))).toEqual({ debut: 23, fin: 8 });
+  });
+});
+
+// grillhouse-ybq.1: on BPScript 320.8, the register wrote each role of the frame's plugin scoped
+// by the plugin (`grillhouse:developpeur`), and the bilan counted « 0 séances, 0,00 $ » for 25
+// sessions and 20,36 $. A role reads the same way on the board and in the bilan.
+describe('the roles the register writes scoped by the frame’s plugin', () => {
+  const pref = (l: Ligne): Ligne => ({ ...l, role: `grillhouse:${l.role}` });
+  const lignes = [
+    pref(seance('testwriter', 't1', [[0, 10]], { jetons: 2000, cache: 30_000, cout: 1 })),
+    etape('preuve', 10.25, 11),
+    pref(seance('developpeur', 'd1', [[11.25, 20]], { jetons: 1000, cache: 20_000, cout: 0.25 })),
+    pref(seance('questionneur', 'q9', [[12, 13]], { cout: 0.4 })),
+  ];
+  const entrees = [
+    fiche(10, 5, 'testwriter'),
+    preuve(11, 0, [1, 0, 0, 0], true),
+    fiche(20, 5, 'developpeur'),
+  ];
+  const b = calculer(lignes, entrees, null, { superviseur: ['q9'] });
+
+  it('counts each session, its tokens and its cost, under its bare role', () => {
+    expect(b.seances).toEqual({
+      total: 2,
+      parRole: { testwriter: 1, developpeur: 1 },
+      horsCircuit: { total: 1, parRole: { questionneur: 1 }, cout: 0.4 },
+    });
+    expect(b.jetons).toBe(3000);
+    expect(b.cache).toBe(50_000);
+    expect(b.cout).toBeCloseTo(1.25);
+  });
+
+  it('gives each session the category of its role', () => {
+    expect(min(b.categories.travail.ms)).toBe(10 + 8.75);
+    expect(b.categories.travail.cout).toBeCloseTo(1.25);
+    expect(b.perdu).toBeLessThan(MIN);
+  });
+});
+
+// grillhouse-ybq.1: the circuit writes who must answer the question it stops on, the supervisor
+// for every stop but the reviewer's question; the supervisor carries a question to the owner, and
+// writes his answer at the ticket under « ## Réponse du responsable — <la question> » (skill
+// pitmaster). On 320.8, the 78 min of the owner's answer counted as the supervisor's wait.
+describe('the owner’s answer the supervisor carries', () => {
+  const lignes = [seance('developpeur', 'd1', [[0, 5]]), seance('developpeur', 'd2', [[85, 90]])];
+  const entrees = [
+    fiche(5, 0, 'developpeur', { statut: 'BESOIN' }),
+    montee(5, 0, 20, 'besoin'),
+    fiche(90, 0, 'developpeur'),
+  ];
+  const reponse = (m: number, text = '## Réponse du responsable — le critère 5\n\n« ok »') => ({
+    created_at: iso(a(m)).replace(/\.\d{3}Z$/, 'Z'),
+    text,
+  });
+
+  it('counts the wait as the owner’s when his answer is written at the ticket during it', () => {
+    const b = calculer(lignes, entrees, null, { commentaires: [reponse(84)] });
+    expect(min(b.categories.responsable.ms)).toBe(80);
+    expect(b.categories.responsable.n).toBe(1);
+    expect(b.categories.superviseur).toMatchObject({ ms: 0, n: 0 });
+    expect(texteDuBilan(b, null).split('\n')).toContain(
+      '- attente du responsable : 80 min (1 montée)'
+    );
+  });
+
+  it('leaves the wait to the supervisor without an answer of the owner during it', () => {
+    for (const commentaires of [
+      [],
+      [reponse(2)],
+      [reponse(87)],
+      [reponse(84, '## Arbitrage — le critère 5')],
+      [reponse(84, 'Le superviseur relaie : ## Réponse du responsable')],
+      [reponse(84, '## Réponse du responsables — le critère 5')],
+    ]) {
+      const b = calculer(lignes, entrees, null, { commentaires });
+      expect(min(b.categories.superviseur.ms)).toBe(80);
+      expect(b.categories.responsable).toMatchObject({ ms: 0, n: 0 });
+    }
+  });
+
+  it('reads the comments of the ticket by bd, from the main tree', () => {
+    const racine = path.join(ESSAIS, 'projet-reponse');
+    const bin = path.join(racine, 'bin');
+    mkdirSync(path.join(racine, '.claude', 'worktrees'), { recursive: true });
+    mkdirSync(bin, { recursive: true });
+    writeFileSync(path.join(racine, 'package.json'), JSON.stringify({ name: 'projet-reponse' }));
+    // The stand-in for bd: `comments <ticket> --json` prints the ticket's comments.
+    writeFileSync(
+      path.join(bin, 'bd'),
+      `#!/bin/sh\n[ "$1 $2 $3" = "comments ${TICKET} --json" ] && cat <<'FIN'\n${JSON.stringify([reponse(84)])}\nFIN\n`,
+      { mode: 0o755 }
+    );
+    const registre = path.join(racine, 'registre.jsonl');
+    writeFileSync(
+      registre,
+      lignes.map(l => JSON.stringify({ ...l, projet: racine })).join('\n') + '\n'
+    );
+    const lancees = lignes.map(l => ({
+      date: iso(l.tours[0][0]),
+      role: 'circuit',
+      lancement: { role: l.role, seance: l.agent },
+    }));
+    writeFileSync(
+      path.join(racine, '.claude', 'worktrees', `${TICKET}.fiches.jsonl`),
+      [...lancees, ...entrees].map(e => JSON.stringify(e)).join('\n') + '\n'
+    );
+    const avant = { registre: process.env.GRILLHOUSE_REGISTRE, path: process.env.PATH };
+    process.env.GRILLHOUSE_REGISTRE = registre;
+    process.env.PATH = `${bin}${path.delimiter}${process.env.PATH ?? ''}`;
+    try {
+      ecrireLeBilan(racine, TICKET);
+    } finally {
+      process.env.PATH = avant.path;
+      if (avant.registre === undefined) {
+        delete process.env.GRILLHOUSE_REGISTRE;
+      } else {
+        process.env.GRILLHOUSE_REGISTRE = avant.registre;
+      }
+    }
+    const f = path.join(racine, '.claude', 'worktrees', `${TICKET}.bilan.json`);
+    const b = JSON.parse(readFileSync(f, 'utf8')) as Bilan;
+    expect(min(b.categories.responsable.ms)).toBe(80);
+    expect(b.categories.superviseur.ms).toBe(0);
   });
 });
 
