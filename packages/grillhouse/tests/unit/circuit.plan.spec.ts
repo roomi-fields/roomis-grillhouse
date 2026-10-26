@@ -63,6 +63,12 @@ const questions = (...q: string[]) => ({
   issue: 'QUESTIONS',
   questions: q.map(question => ({ question, vise: 'flou', piece: 'CLAUDE.md:9' })),
 });
+// An open question of the plan, with why it goes up (grillhouse-9jr.3).
+const OUVERTE = {
+  question: 'Le format publié change-t-il ?',
+  motif: 'architecture',
+  piece: 'CLAUDE.md:7',
+};
 const valeur = (a: string[], option: string) =>
   a.includes(option) ? a[a.indexOf(option) + 1] : undefined;
 // The ticket as the stand-in bd holds it.
@@ -212,7 +218,7 @@ describe.runIf(canWrap)('the plan, step 1 of the circuit', { timeout: 300_000 },
       fiche(
         plan({
           reponses: [{ numero: '1', reponse: 'GARDE', texte: '0, le double de 0.' }],
-          questions: [{ question: 'Le format publié change-t-il ?', piece: 'CLAUDE.md:7' }],
+          questions: [OUVERTE],
         })
       )
     );
@@ -226,12 +232,14 @@ describe.runIf(canWrap)('the plan, step 1 of the circuit', { timeout: 300_000 },
     expect(e.raison).toBe('questionnement');
     expect(e.question).toMatchObject({ arret: 'questionnement', qui: 'superviseur' });
     // The explorateur's open question with its piece, and the question it left unanswered.
-    expect(e.question.piece).toContain('Le format publié change-t-il ? (CLAUDE.md:7)');
+    expect(e.question.piece).toContain(
+      '(architecture) Le format publié change-t-il ? (CLAUDE.md:7)'
+    );
     expect(e.question.piece).toContain('Qui lit la mesure publiée ?');
     expect(e.question.piece).not.toContain('Que rend `mesure` de 0 ?');
     // The open questions stand in the plan at the ticket.
     expect(leTicket(id).description).toContain(
-      '## Questions ouvertes\n\n1. Le format publié change-t-il ? (CLAUDE.md:7)'
+      '## Questions ouvertes\n\n1. (architecture) Le format publié change-t-il ? (CLAUDE.md:7)'
     );
     expect(questionnements(id).at(-1)).toMatchObject({ questions: 2, change: false, ouvertes: 2 });
     // The supervisor keeps the plan and resumes: it passes, neither written nor questioned again.
@@ -267,24 +275,65 @@ describe.runIf(canWrap)('the plan, step 1 of the circuit', { timeout: 300_000 },
   it('critère 2 — a plan without question from the questionneur needs no answer; its own open questions go up', () => {
     const id = 'demo-plan-aucune';
     ticket(id, '000-forms');
-    scenario(
-      id,
-      EXPLORATEUR,
-      fiche(
-        plan({ questions: [{ question: 'Le format publié change-t-il ?', piece: 'CLAUDE.md:7' }] })
-      )
-    );
+    scenario(id, EXPLORATEUR, fiche(plan({ questions: [OUVERTE] })));
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(ARRETS.questionnement);
     expect(sessions(id, EXPLORATEUR)).toBe(1);
     expect(sessions(id, QUESTIONNEUR)).toBe(1);
-    expect(etat(id)?.question?.piece).toContain('Le format publié change-t-il ? (CLAUDE.md:7)');
+    expect(etat(id)?.question?.piece).toContain(
+      '(architecture) Le format publié change-t-il ? (CLAUDE.md:7)'
+    );
     expect(questionnements(id).at(-1)).toMatchObject({
       questions: 0,
       issue: 'AUCUNE',
       ouvertes: 1,
     });
     expect(questionnements(id).at(-1)).not.toHaveProperty('tours');
+  });
+
+  // grillhouse-9jr.3 (BP bp-mono-vbwf.328): the plan stopped on a question the ticket settled.
+  it('9jr.3 critère 2 — an open question without its motif is asked again once of the same session, with the reason; the question that goes up names its motif', () => {
+    const id = 'demo-plan-motif';
+    ticket(id, '000-forms');
+    const { motif: _, ...sansMotif } = OUVERTE;
+    scenario(id, `${EXPLORATEUR}-1`, fiche(plan({ questions: [sansMotif] })));
+    scenario(id, `${EXPLORATEUR}-2`, fiche(plan({ questions: [OUVERTE] })));
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(ARRETS.questionnement);
+    // The same session resumed once, its instruction naming the field.
+    expect(sessions(id, EXPLORATEUR)).toBe(2);
+    expect(valeur(args(id, EXPLORATEUR, 2), '--resume')).toBe(
+      valeur(args(id, EXPLORATEUR, 1), '--session-id')
+    );
+    expect(essai(id, `${EXPLORATEUR}-2.prompt`)).toContain('questions[0].motif : manque');
+    expect(
+      commentaires(id).some(
+        t => t.includes('sans fiche conforme') && t.includes('questions[0].motif : manque')
+      )
+    ).toBe(true);
+    // The question that goes up to the supervisor says why.
+    expect(etat(id)?.question?.piece).toContain(
+      '1. (architecture) Le format publié change-t-il ? (CLAUDE.md:7)'
+    );
+  });
+
+  it('9jr.3 critère 2 — a motif out of its values makes the sheet out of conformity, twice a stop', () => {
+    const id = 'demo-plan-motif-hors';
+    ticket(id, '000-forms');
+    scenario(
+      id,
+      EXPLORATEUR,
+      fiche(plan({ questions: [{ ...OUVERTE, motif: 'recommandation' }] }))
+    );
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(ARRETS['sans-fiche']);
+    expect(sessions(id, EXPLORATEUR)).toBe(2);
+    expect(sessions(id, QUESTIONNEUR)).toBe(0);
+    expect(
+      commentaires(id).some(
+        t => t.includes('sans fiche conforme') && t.includes('« recommandation »')
+      )
+    ).toBe(true);
   });
 
   it('critère 1 — a package the repository does not hold makes the sheet out of conformity', () => {
@@ -325,7 +374,7 @@ describe.runIf(canWrap)('the plan, step 1 of the circuit', { timeout: 300_000 },
         plan({
           criteres: ['Ajout Y.'],
           reponses: [{ numero: '1', reponse: 'CHANGE', texte: 'Y à la place de X.' }],
-          questions: [{ question: 'Le format publié change-t-il ?', piece: 'CLAUDE.md:7' }],
+          questions: [OUVERTE],
         })
       )
     );

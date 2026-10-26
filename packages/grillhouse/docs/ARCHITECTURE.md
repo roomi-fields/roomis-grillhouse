@@ -98,7 +98,10 @@ avoir relevé l'existant, qu'une revue la lit une fois, que l'auteur répond une
 reste ouvert va à qui décide, l'étape 1 du circuit (1 Plan) lance l'explorateur hors de
 l'enveloppe ; il relève les composants (`npx grillhouse composants-affectes <ticket>`) et finit sur
 sa fiche : les critères, les paquets à toucher, les composants du relevé qu'il écarte avec leur
-raison, ses questions ouvertes avec leur pièce. Le circuit rejoue le relevé sur le plan, sans
+raison, ses questions ouvertes avec leur pièce et leur motif, pourquoi chacune monte (le langage,
+l'architecture, un écart à la référence, ou « sans réponse ») : une question sans motif rend la
+fiche non conforme, redemandée une fois à la même séance (BP 328 : une question que le ticket
+tranchait arrêtait le plan). Le circuit rejoue le relevé sur le plan, sans
 séance, comme il contrôle les paquets : un composant du relevé ni touché ni écarté rend la fiche
 non conforme, comme la section des composants touchés d'un document de conception dit pour
 chacun s'il change, ou pourquoi il reste. Le circuit

@@ -52,7 +52,8 @@
 //   answers once, and what stays open goes to who decides. One session of the explorateur out of
 //   the envelope, on Sonnet, its instruction from the sixth template (the ticket, its title,
 //   description and notes, the context), writes the plan in its sheet: its criteria, the packages
-//   to touch, and its open questions, each with its piece; it surveys the components the ticket
+//   to touch, and its open questions, each with why it goes up (its motif: the language, the
+//   architecture, a gap to the reference, or no answer) and its piece; it surveys the components the ticket
 //   reaches by `npx grillhouse composants-affectes <ticket>` (scripts/composants-affectes.mjs),
 //   which the circuit plays no more as a step. A package the repository does not hold, one named
 //   twice, or a component of the survey of the plan (`releve`, which the circuit plays with no
@@ -3353,10 +3354,12 @@ function aLaFin(ctx, code) {
 const lignesDesQuestions = questions =>
   (questions ?? []).map((q, i) => `${i + 1}. (${q.vise}) ${q.question}`).join('\n');
 
-// The open questions <questions> of a plan (`{ question, piece }`), one per line, each with its
-// piece.
+// The open questions <questions> of a plan (`{ question, motif, piece }`), one per line, each with
+// why it goes up, when the explorateur wrote it, and its piece.
 const lignesOuvertes = questions =>
-  questions.map((q, i) => `${i + 1}. ${q.question} (${q.piece})`).join('\n');
+  questions
+    .map((q, i) => `${i + 1}. ${q.motif ? `(${q.motif}) ` : ''}${q.question} (${q.piece})`)
+    .join('\n');
 
 // The rubric « ## <titre> » of the project's charter (CLAUDE.md of the main tree), up to the next
 // `##` heading, or what stands in its place.

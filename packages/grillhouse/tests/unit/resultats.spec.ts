@@ -128,7 +128,7 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
     expect(r.items.properties.reponse.enum).toEqual(['CHANGE', 'GARDE']);
     expect(r.items.required).toEqual(['numero', 'reponse', 'texte']);
     const q = s.properties.questions as { items: { required: string[] } };
-    expect(q.items.required).toEqual(['question', 'piece']);
+    expect(q.items.required).toEqual(['question', 'motif', 'piece']);
     const plan = {
       criteres: ['`mesure` rend le double.'],
       paquets: ['000-forms'],
@@ -355,6 +355,42 @@ describe('the sheets of the questioning (L9)', () => {
   });
 });
 
+// grillhouse-9jr.3 (BP bp-mono-vbwf.328): the plan stopped at « questionnement » on a question the
+// ticket already settled, its recommendation written in it. As a structured output holds its form
+// by its schema (a required field, an enum), each open question of the plan names why it goes up.
+describe('the reason an open question of the plan goes up (9jr.3)', () => {
+  const plan = (q: Record<string, unknown>) =>
+    sortie({ criteres: [], paquets: ['packages/a'], questions: [q] });
+  const question = { question: 'Le format change-t-il ?', piece: 'CLAUDE.md:7' };
+
+  it('critère 1 — an open question carries a required motif: the language, the architecture, a gap to the reference, or no answer', () => {
+    const items = (
+      (schemaDeFiche('explorateur') as Schema).properties.questions as {
+        items: Schema & { properties: { motif: { enum: string[] } } };
+      }
+    ).items;
+    expect(items.required).toContain('motif');
+    expect(items.properties.motif.enum).toEqual([
+      'langage',
+      'architecture',
+      'écart à la référence',
+      'sans réponse',
+    ]);
+    for (const motif of items.properties.motif.enum) {
+      expect(lireFiche('explorateur', plan({ ...question, motif })).erreur).toBeUndefined();
+    }
+  });
+
+  it('critère 2 — a question without its motif, or with a motif out of its values, is refused, naming the field', () => {
+    expect(lireFiche('explorateur', plan(question)).erreur).toMatch(
+      /questions\[0\]\.motif : manque/
+    );
+    expect(lireFiche('explorateur', plan({ ...question, motif: 'recommandation' })).erreur).toMatch(
+      /questions\[0\]\.motif : « recommandation » n'est pas l'un de langage, architecture, écart à la référence, sans réponse/
+    );
+  });
+});
+
 // grillhouse-3uv.95.10, decision 5 of grillhouse-3uv.95: in BP 320.9 a question born of a line
 // read wrong (native.ts:234) was copied by five agents up to the owner, none of them re-reading it.
 // As a code review cites the line it judges, a finding, a question or a montée carries its piece,
@@ -454,7 +490,7 @@ describe('the piece of each fact a sheet carries', () => {
       {
         criteres: [],
         paquets: ['packages/a'],
-        questions: [{ question: 'Le format change-t-il ?' }],
+        questions: [{ question: 'Le format change-t-il ?', motif: 'architecture' }],
       },
     ],
   ])('a sheet of the %s without its piece is refused: %j', (role, f) => {
@@ -535,7 +571,13 @@ describe('the piece of each fact a sheet carries', () => {
         sortie({
           criteres: [],
           paquets: ['packages/a'],
-          questions: [{ question: 'Le format change-t-il ?', piece: 'packages/a/src/z.ts:1' }],
+          questions: [
+            {
+              question: 'Le format change-t-il ?',
+              motif: 'architecture',
+              piece: 'packages/a/src/z.ts:1',
+            },
+          ],
         }),
         { copie }
       ).erreur

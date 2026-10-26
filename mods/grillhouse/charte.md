@@ -59,8 +59,8 @@ revient. Ainsi aucune séance ne juge ce qu'une règle tranche.
 **Un agent qui a la réponse l'applique** : une décision qu'il sait trancher et qu'il recommande
 (un nom, une signature, un paquet à retirer de son plan), il la prend et l'écrit dans sa fiche,
 sans s'arrêter ; seule monte une question qui revient au responsable (le langage, l'architecture,
-un écart à la référence) ou dont il n'a pas la réponse. Ainsi le circuit n'attend que les vraies
-décisions.
+un écart à la référence) ou dont il n'a pas la réponse, et elle nomme lequel. Ainsi le circuit
+n'attend que les vraies décisions.
 
 **Tous les agents jugent sur le plan** : une décision du responsable entre dans la description du
 ticket, comme une RFC amendée ; les commentaires restent l'historique. Ainsi chaque agent lit la

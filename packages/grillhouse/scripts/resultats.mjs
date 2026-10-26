@@ -41,11 +41,13 @@
 //   - `question`, with its `piece` (reviewer): what goes up to the owner, a real word of the
 //     language written in the code; the circuit stops at « besoin » before it commits or
 //     relaunches anyone;
-//   - `criteres`, `paquets`, `questions` (each with its `piece`): the plan, which the circuit
+//   - `criteres`, `paquets`, `questions` (each with its `motif` and its `piece`): the plan, which the circuit
 //     writes at the ticket: the criteria it adds after those the ticket holds, which the circuit
 //     keeps as they are; the packages in the title as it names its components (a package name or a
 //     path), the list the envelope of every later session writes; the open questions, a change or
-//     a removal of a criterion written among them, go up to the supervisor (explorateur);
+//     a removal of a criterion written among them, go up to the supervisor, each naming why: the
+//     language, the architecture, a gap to the reference, or no answer (BP 328: a question the
+//     ticket settled stopped the plan) (explorateur);
 //   - `ecartes` (`composant`, `raison`): the components of the survey the plan does not touch,
 //     which the circuit writes at the ticket; each other component of the survey the circuit
 //     plays is in the packages (explorateur);
@@ -159,6 +161,10 @@ const ECARTS = {
 // The documents a line of a reviewer's conformity cites its rule from.
 const DOCUMENTS = ['CADRE', 'INTERFACE', 'ARCHITECTURE'];
 
+// Why an open question of a plan goes up: what is the owner's (the language, the architecture, a
+// gap to the mature reference), or no answer the explorateur holds.
+const MOTIFS = ['langage', 'architecture', 'écart à la référence', 'sans réponse'];
+
 // The schema of the sheet of each role the circuit leads.
 const FICHES = {
   explorateur: objet(
@@ -185,11 +191,17 @@ const FICHES = {
         objet(
           {
             question: texte('La question qui reste ouverte, ses options et ta recommandation.'),
+            motif: {
+              type: 'string',
+              enum: MOTIFS,
+              description:
+                'Pourquoi elle monte : ce qui revient au responsable (le langage, l’architecture, un écart à la référence), ou « sans réponse », tu n’as pas la réponse.',
+            },
             piece: piece('Sa pièce'),
           },
-          ['question', 'piece']
+          ['question', 'motif', 'piece']
         ),
-        'Les questions ouvertes du plan, que tu ne tranches pas ; elles montent au superviseur.'
+        'Les questions ouvertes du plan, que tu ne tranches pas ; elles montent au superviseur. Une question que tu sais trancher, tu la tranches dans le plan.'
       ),
       reponses: liste(
         objet(

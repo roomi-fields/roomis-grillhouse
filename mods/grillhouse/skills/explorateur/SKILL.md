@@ -69,7 +69,10 @@ change, et ceux qu'il peut casser.
      que je sais trancher et recommande, je l'applique au plan (écarter un paquet qui n'a rien à
      changer, par exemple) et je le dis dans ma fiche. Chaque question : chacune avec ses options, ma recommandation et sa
      `piece` (fichier:ligne depuis la racine de la copie, ou « $ commande » et sa sortie), que le
-     circuit cherche dans la copie ; elles montent au superviseur. Un fait que je reprends d'un
+     circuit cherche dans la copie ; elles montent au superviseur. Chacune dit pourquoi elle monte,
+     son `motif` : `langage`, `architecture` ou `écart à la référence`, ce qui revient au
+     responsable, ou `sans réponse`, je n'ai pas la réponse. Une question sans motif, ou au motif
+     hors de ces valeurs, rend ma fiche non conforme : le circuit me la redemande une fois. Un fait que je reprends d'un
      autre agent (le ticket, une passation) se relit à sa pièce avant que je m'appuie dessus.
      Une décision que la référence mature, l'existant ou une règle du cadre tranche, je la tranche
      dans le plan, sa raison au critère. _Fini quand_ chaque critère se mesure et chaque composant du
