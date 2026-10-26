@@ -139,15 +139,21 @@ joués l'un après l'autre, 118 min d'étapes vertes rejouées, un constat sur `
 fois).
 
 **Le bilan sépare les attentes** : comme le « lead time » de DORA sépare l'attente de revue du
-temps de travail, chaque montée dit qui doit répondre, et le bilan répartit l'attente entre celle
-du superviseur, celle du responsable et la nuit, la plage horaire que le projet déclare
-(`grillhouse.plageDeNuit` de son `package.json`, 23 h – 8 h par défaut). Une question que le
-superviseur porte au responsable est l'attente du responsable : sa réponse s'écrit au ticket
-pendant l'attente, sous « ## Réponse du responsable — … », seul texte d'un commentaire que le
-bilan lit. Son texte donne le mur, le mur hors nuit d'attente (une nuit de travail y reste) et le
-perdu hors attentes. Ainsi le temps perdu se lit sans la nuit ni l'attente d'une réponse (BP
-320.9 : 500 min de nuit mêlées à l'attente du responsable et à celle du superviseur ; BP 320.8 :
-les 78 min de la réponse du responsable comptées au superviseur).
+temps de travail, le bilan répartit l'attente entre celle du superviseur, celle du responsable et
+la nuit, la plage horaire que le projet déclare (`grillhouse.plageDeNuit` de son `package.json`,
+23 h – 8 h par défaut). Comme ccusage mesure sur les transcriptions, chaque montée nomme la séance
+du superviseur qui a lancé le circuit (`CLAUDE_CODE_SESSION_ID`), et une attente est celle du
+responsable quand il écrit dans cette séance pendant l'attente (un message de la personne,
+`origin.kind` « human ») ; le bilan ne lit aucun commentaire du ticket. Une séance du développeur
+est une relance sans effet quand le circuit la marque inchangée (`inchange`) : elle ne change aucun
+fichier du plan et va aux contrôles (une reprise d'un plan déjà livré, rien à livrer) ou renvoie
+une deuxième fois au testwriter ; un arrêt seul, « sans-livraison » compris, ne la rend jamais
+sans effet. Son texte donne le mur, le mur hors nuit d'attente
+(une nuit de travail y reste) et le perdu hors attentes. Ainsi le temps perdu se lit sans la nuit
+ni l'attente d'une réponse (BP 320.9 : 500 min de nuit mêlées à l'attente du responsable et à
+celle du superviseur ; BP 320.8 : les 78 min de la réponse du responsable comptées au
+superviseur ; BP 320.3.9 : une attente comptée au responsable sur un commentaire du superviseur,
+et une séance dont le commit livre le code rangée sans effet).
 
 **Le bilan compte chaque séance à son coût** : le registre écrit chaque rôle tel que Claude Code
 nomme l'agent d'un greffon (`grillhouse:developpeur`), et le bilan le lit comme le panneau, d'une

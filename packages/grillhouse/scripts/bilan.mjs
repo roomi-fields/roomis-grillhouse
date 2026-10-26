@@ -18,16 +18,16 @@
 //   circuit opens or resumes (`lancement`: its role and its session id, the register line's
 //   `agent`), the sheet of each session (`{ role, fiche }`), the outcome of each proof
 //   (`resultat`: `ok`, its counts, `vide`) and of each check (`resultat`: `issue` vert, rouge or a-repasser, `finale`, its reds `rouges`), each
-//   stop (`arret`, its name, `finale`, the outcome of the checks it stops), each developpeur resumed who changed nothing (`inchange`), the
+//   stop (`arret`, its name, `finale`, the outcome of the checks it stops), each developpeur session that changed no file of the plan (`inchange`), the
 //   end of the questioning of the plan (`questionnement`: its `objet`, the questions the
 //   questionneur asked, `questions`, whether an answer changed the plan, `change`, its `issue`,
 //   AUCUNE, QUESTIONS or DÉSACCORD, and the questions left open, `ouvertes`), each end of a run on
-//   a stop (`montee`: its code, its stop and who must answer its question, `qui`); the circuit's
-//   state, `.claude/worktrees/<ticket>.circuit.json`, for where the circuit ended; the night the
-//   project declares in its package.json (`grillhouse.plageDeNuit`); the comments of the ticket
-//   (`bd comments <ticket> --json`, run from the main tree), their times and, of their text, the
-//   title of the owner's answer alone (« ## Réponse du responsable — <la question> », which the
-//   skill pitmaster fixes). Every agent declares nothing: the bilan measures.
+//   a stop (`montee`: its code, its stop and the supervisor's session that ran it, `superviseur`);
+//   the circuit's state, `.claude/worktrees/<ticket>.circuit.json`, for where the circuit ended;
+//   the night the project declares in its package.json (`grillhouse.plageDeNuit`); the transcript
+//   of each supervisor's session a stop names (`~/.claude/projects/<projet>/<séance>.jsonl`), of
+//   which the origin and the time of each message, as ccusage measures from the transcripts. It
+//   reads no comment of the ticket. Every agent declares nothing: the bilan measures.
 // - The steps and the roles are those of scripts/etapes.mjs; a register line's role is read as the
 //   board reads it (`roleDeLAgent`: bare, or scoped by the frame's plugin, `grillhouse:<rôle>`, as
 //   the register writes it). Only the circuit's roles count, the
@@ -43,8 +43,8 @@
 //   outcome or stop is the final pass's (`finale`) is the final pass.
 // - The categories, each instant once:
 //   - travail resté au lot: a session that delivered, the reviewer's included;
-//   - relance sans effet: a developer whose session the circuit follows with a stop
-//     « sans-livraison » or a resumption that changed nothing (`inchange`); a testwriter whose next
+//   - relance sans effet: a developer whose session changed no file of the plan (`inchange`, which
+//     the circuit measures), whatever stop follows it; a testwriter whose next
 //     proof finds the lot of the proof before it (the same counts of reds, greens of the lot,
 //     broken files and greens of HEAD), after a refused proof, or no file of the lot (`vide`:
 //     reds that exist already or of a build alone, no green of the lot); that proof; checks that
@@ -55,9 +55,9 @@
 //   - attente du superviseur, attente du responsable, nuit: as the lead time of DORA separates the
 //     wait for review from the work, each wait runs from an end of a run on a stop (`montee`) to
 //     the first turn of a session or step after it, or the next result of the circuit, the first
-//     of the two; it is the wait of who must answer its question: the owner's when the circuit
-//     names him (`qui`), or when the supervisor carried the question to him, his answer written at
-//     the ticket during the wait; else the supervisor's; but its part in the night: the hours of
+//     of the two; it is the owner's when he wrote during it, a message of the person
+//     (`origin.kind` « human ») in the supervisor's session the stop names; else the supervisor's;
+//     but its part in the night: the hours of
 //     `grillhouse.plageDeNuit` in the project's package.json (`{ debut, fin }`, in local time), from 23 h to 8 h without it;
 //   - étapes automatiques: the other steps the circuit leads, but the final passes;
 //   - passes finales: the final passes, but those without effect or replayed;
@@ -77,11 +77,20 @@
 //   version from its sources (`precedent`), or with nothing when they give none: no figure kept by
 //   an earlier version, and none of another project, is written here.
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import {
+  closeSync,
+  existsSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  readSync,
+  renameSync,
+  writeFileSync,
+} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { StringDecoder } from 'node:string_decoder';
 import { pathToFileURL } from 'node:url';
-import { estReponseDuResponsable } from './consommateurs-arbitres.mjs';
 import {
   AGENTS_DU_LOT,
   etapeDuCircuit,
@@ -198,14 +207,15 @@ const commun = ([d, f], l) =>
 
 // The bilan of <ticket> from the register's lines <lignes> (of its project), the results the
 // circuit kept <entrees> (`<ticket>.fiches.jsonl`), the circuit's state <etat> (or null), the
-// project's night <nuit> and the comments of the ticket <commentaires> (Beads' JSON).
+// project's night <nuit> and the times of the owner's messages in the supervisor's sessions the
+// stops name <duResponsable>.
 export function bilan({
   ticket,
   lignes,
   entrees = [],
   etat = null,
   nuit = NUIT,
-  commentaires = [],
+  duResponsable = [],
   maintenant = Date.now(),
 }) {
   // The sessions the circuit launched, by their id.
@@ -277,22 +287,17 @@ export function bilan({
     }
     return null;
   };
-  // Whether the circuit followed the developer's session <s> with a stop « sans-livraison » or a
-  // resumption that changed nothing.
-  const sansLivraison = s =>
+  // Whether the circuit measured that the developer's session <s> changed no file of the plan.
+  const inchangee = s =>
     duCircuit.some(
-      e =>
-        e.etape === 'developpeur' &&
-        (e.arret === 'sans-livraison' || e.inchange) &&
-        e.t >= s.f - JEU &&
-        e.t <= s.suivant + JEU
+      e => e.etape === 'developpeur' && e.inchange && e.t >= s.f - JEU && e.t <= s.suivant + JEU
     );
 
   // The sessions first: the checks read what they delivered.
   for (const s of segments.filter(x => x.role !== CIRCUIT)) {
     if (s.role === QUESTIONNEUR) s.categorie = 'questionnement';
     else if (s.role === 'developpeur') {
-      s.categorie = sansLivraison(s) ? 'sansEffet' : 'travail';
+      s.categorie = inchangee(s) ? 'sansEffet' : 'travail';
     } else if (s.role === 'testwriter') {
       const p = preuves.find(x => x.d >= s.f - JEU);
       s.categorie = p ? (parLaPreuve(p) ?? (p.preuve?.vide ? 'sansEffet' : 'travail')) : 'travail';
@@ -324,21 +329,15 @@ export function bilan({
     } else s.categorie = 'automatique';
   }
 
-  // The waits: from each end of a run on a stop to the answer, the run after, each for who must
-  // answer its question: the owner when the circuit names him, or when his answer is written at
-  // the ticket during the wait; else the supervisor.
-  const reponses = commentaires
-    .filter(c => estReponseDuResponsable(c.text))
-    .map(c => Date.parse(c.created_at ?? ''))
-    .filter(t => !Number.isNaN(t));
+  // The waits: from each end of a run on a stop to the answer, the run after; the owner's when he
+  // wrote during it, else the supervisor's.
   const lesAttentes = [];
   for (const e of duCircuit.filter(x => x.montee)) {
     const tour = segments.find(s => s.d > e.t)?.d ?? Infinity;
     const suivant = gardes.find(x => x.t > e.t)?.t ?? Infinity;
     const f = Math.min(tour, suivant, fin);
-    // A comment's time is to the second: the answer is in the wait up to the gap around it.
-    const repondu = reponses.some(t => t >= e.t - JEU && t <= f + JEU);
-    const qui = e.montee.qui === RESPONSABLE || repondu ? RESPONSABLE : SUPERVISEUR;
+    const ecrit = duResponsable.some(t => t > e.t && t <= f);
+    const qui = ecrit ? RESPONSABLE : SUPERVISEUR;
     if (f > e.t) lesAttentes.push({ i: [e.t, f], qui, nuit: nuits([e.t, f], nuit) });
   }
   const attentes = lesAttentes.map(a => a.i);
@@ -523,13 +522,13 @@ export function bilansGardes(racine) {
 // whose bilan is kept, computed again by this version from its sources, as a bench of time remakes
 // its base, never the figures kept by the version that wrote them; null when its sources give no
 // bilan any more. The figures a base gives (wall time, loss, sessions, cost) hold whoever waited,
-// the owner or the supervisor: its comments are not read, bd reading those of <ticket> alone.
+// the owner or the supervisor: the transcripts of its supervisor's sessions are not read.
 export function precedent(racine, ticket) {
   const avant = Object.values(bilansGardes(racine))
     .filter(b => b.ticket !== ticket)
     .sort((x, y) => Date.parse(y.calcule ?? 0) - Date.parse(x.calcule ?? 0))[0];
   if (!avant) return null;
-  const b = calculer(racine, avant.ticket, { commentaires: false });
+  const b = calculer(racine, avant.ticket, { responsable: false });
   return b.mur > 0 ? b : null;
 }
 
@@ -546,25 +545,62 @@ export function lignesDuProjet(texte, racine) {
   });
 }
 
-// The comments of <ticket> (Beads' JSON), read from the main tree <racine>; none when bd does not
-// read them.
-function commentairesDu(racine, ticket) {
-  const r = spawnSync('bd', ['comments', ticket, '--json'], {
-    cwd: racine,
-    encoding: 'utf8',
-    maxBuffer: 256 * 1024 * 1024,
-  });
-  try {
-    const c = r.status === 0 ? JSON.parse(r.stdout) : [];
-    return Array.isArray(c) ? c : [];
-  } catch {
-    return [];
+// The times of the owner's messages in the transcript text <texte> of a supervisor's session: the
+// messages Claude Code writes as the person's (`type` « user », `origin.kind` « human »); a
+// notification, another agent's message, a tool's result and a torn line are not his.
+export function messagesDuResponsable(texte) {
+  const out = [];
+  for (const l of texte.split('\n')) {
+    // Only a line that names the person can be his message: the others are not parsed.
+    if (!l.includes('"human"')) continue;
+    try {
+      const e = JSON.parse(l);
+      const t = Date.parse(e.timestamp ?? '');
+      if (e.type === 'user' && e.origin?.kind === 'human' && !Number.isNaN(t)) out.push(t);
+    } catch {
+      // A torn line holds no message.
+    }
   }
+  return out;
+}
+
+// The read unit of a transcript: a supervisor's session runs to hundreds of megabytes, never held
+// whole.
+const MORCEAU = 1_048_576;
+
+// The times of the owner's messages in the transcript of the supervisor's session <seance>, in any
+// project folder of ~/.claude/projects; none when no transcript holds it.
+function messagesDeLaSeance(seance) {
+  const projets = path.join(os.homedir(), '.claude', 'projects');
+  const f = existsSync(projets)
+    ? readdirSync(projets)
+        .map(d => path.join(projets, d, `${seance}.jsonl`))
+        .find(g => existsSync(g))
+    : null;
+  if (!f) return [];
+  const out = [];
+  const decodeur = new StringDecoder('utf8');
+  const tampon = Buffer.alloc(MORCEAU);
+  const fd = openSync(f, 'r');
+  try {
+    let reste = '';
+    for (let n = readSync(fd, tampon); n > 0; n = readSync(fd, tampon)) {
+      const texte = reste + decodeur.write(tampon.subarray(0, n));
+      const fin = texte.lastIndexOf('\n') + 1;
+      out.push(...messagesDuResponsable(texte.slice(0, fin)));
+      reste = texte.slice(fin);
+    }
+    out.push(...messagesDuResponsable(reste + decodeur.end()));
+  } finally {
+    closeSync(fd);
+  }
+  return out;
 }
 
 // The bilan of <ticket> computed from the main tree <racine>: its register, the results its
-// circuit kept, its circuit's state, and the comments of the ticket unless <commentaires> is false.
-function calculer(racine, ticket, { commentaires = true } = {}) {
+// circuit kept, its circuit's state, and the owner's messages in the supervisor's sessions its
+// stops name unless <responsable> is false.
+function calculer(racine, ticket, { responsable = true } = {}) {
   const registre =
     process.env.GRILLHOUSE_REGISTRE ??
     path.join(os.homedir(), '.claude', 'grillhouse', 'registre.jsonl');
@@ -586,13 +622,14 @@ function calculer(racine, ticket, { commentaires = true } = {}) {
   } catch {
     etat = null;
   }
+  const seances = new Set(entrees.map(e => e.montee?.superviseur).filter(Boolean));
   return bilan({
     ticket,
     lignes,
     entrees,
     etat,
     nuit: plageDeNuit(racine),
-    commentaires: commentaires ? commentairesDu(racine, ticket) : [],
+    duResponsable: responsable ? [...seances].flatMap(s => messagesDeLaSeance(String(s))) : [],
   });
 }
 

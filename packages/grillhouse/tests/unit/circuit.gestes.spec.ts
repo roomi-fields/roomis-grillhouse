@@ -170,7 +170,7 @@ node -e "const f='$c/package.json';const p=JSON.parse(require('fs').readFileSync
     // grillhouse-3uv.95.9: the end at 75 says who answers it, the supervisor, who replays it.
     expect(entrees(id).filter(x => x.montee)).toEqual([
       expect.objectContaining({
-        montee: { code: ARRETS['a-repasser'], raison: 'a-repasser', qui: 'superviseur' },
+        montee: { code: ARRETS['a-repasser'], raison: 'a-repasser' },
       }),
     ]);
   });

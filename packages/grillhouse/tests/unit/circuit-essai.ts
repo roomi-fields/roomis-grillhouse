@@ -401,11 +401,14 @@ export function circuitEssai(ESSAIS: string, { feuille = false } = {}) {
   const scenario = (id: string, nom: string, script: string) =>
     ecrire(path.join(BEADS, 'essai', id, `${nom}.sh`), script);
 
-  // The circuit's environment: this process's without what Vitest set for itself, the stand-ins
-  // first on the PATH and for claude.
+  // The circuit's environment: this process's without what Vitest set for itself nor the session
+  // of Claude Code that runs the tests (a test names the supervisor's session it needs), the
+  // stand-ins first on the PATH and for claude.
   const ENV = {
     ...Object.fromEntries(
-      Object.entries(process.env).filter(([k]) => !k.startsWith('VITEST') && k !== 'NODE_OPTIONS')
+      Object.entries(process.env).filter(
+        ([k]) => !k.startsWith('VITEST') && k !== 'NODE_OPTIONS' && k !== 'CLAUDE_CODE_SESSION_ID'
+      )
     ),
     PATH: `${BIN}${path.delimiter}${path.join(RACINE, 'node_modules/.bin')}${path.delimiter}${process.env.PATH ?? ''}`,
     CLAUDE_BIN: path.join(REPO, 'faux-claude.sh'),

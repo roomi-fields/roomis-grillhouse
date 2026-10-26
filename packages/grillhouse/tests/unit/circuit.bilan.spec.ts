@@ -9,8 +9,9 @@ import { ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai, sortie } from './circuit
 // of figures at the ticket, `Circuit · bilan : …` (scripts/bilan.mjs), and the bilan
 // kept in the main tree, `.claude/worktrees/<ticket>.bilan.json`, which the next ticket's bilan
 // compares itself with. The circuit keeps with its results the launch of each session it opens
-// (`lancement`, its role and its session id) and each end of a run on a stop (`montee`), which the
-// bilan reads (grillhouse-3uv.92.10).
+// (`lancement`, its role and its session id) and each end of a run on a stop (`montee`), with the
+// supervisor's session that ran it (`CLAUDE_CODE_SESSION_ID`), which the bilan reads
+// (grillhouse-3uv.92.10, grillhouse-982.3).
 // The trial repository and its stand-ins: ./circuit-essai.ts.
 
 // The trial lives out of /tmp, which the envelope replaces with an empty directory.
@@ -72,7 +73,10 @@ describe.runIf(canWrap)('the bilan at the end of the circuit', { timeout: 300_00
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     // A developpeur who changes nothing: the stop goes up to the supervisor.
     scenario(id, 'developpeur', "passation 'Code écrit.'\n");
-    const r = circuit([id], { GRILLHOUSE_REGISTRE: REGISTRE });
+    const r = circuit([id], {
+      GRILLHOUSE_REGISTRE: REGISTRE,
+      CLAUDE_CODE_SESSION_ID: 'seance-du-superviseur',
+    });
     expect(r.status, sortie(r)).toBe(ARRETS['sans-livraison']);
     const b = bilans(id);
     expect(b).toHaveLength(1);
@@ -83,11 +87,16 @@ describe.runIf(canWrap)('the bilan at the end of the circuit', { timeout: 300_00
     // grillhouse-5m1.1, criterion 3: the base, computed again from the sources of demo-bilan.
     expect(b[0].text).toMatch(/^Face au bilan de demo-bilan, recalculé : mur \d+ → \d+ min, /m);
     expect(garde(id).statut).toBe(`arrêt sans-livraison (${ARRETS['sans-livraison']})`);
-    // The end of the run on its stop, kept before the bilan that reads it.
+    // The end of the run on its stop, kept before the bilan that reads it, with the supervisor's
+    // session that ran it.
     expect(entrees(id).filter(x => x.montee)).toEqual([
       expect.objectContaining({
         role: 'circuit',
-        montee: { code: ARRETS['sans-livraison'], raison: 'sans-livraison', qui: 'superviseur' },
+        montee: {
+          code: ARRETS['sans-livraison'],
+          raison: 'sans-livraison',
+          superviseur: 'seance-du-superviseur',
+        },
       }),
     ]);
   });

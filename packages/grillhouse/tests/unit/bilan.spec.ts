@@ -5,7 +5,8 @@
 // circuit's state, as the analysis of BPScript 320.3 was made by hand: the wall time, the time of each category, the sessions by
 // role, the stops by kind, the tokens, the cache and the cost, compared with the last bilan of the
 // project, or with nothing. The data here are trial data, never the real register.
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -16,6 +17,7 @@ import {
   enBref,
   garder,
   lignesDuProjet,
+  messagesDuResponsable,
   plageDeNuit,
   precedent,
   texteDuBilan,
@@ -23,6 +25,7 @@ import {
 import { fiches } from '../../scripts/tableau.mjs';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'bilan-'));
+const BILAN = path.resolve(__dirname, '../../scripts/bilan.mjs');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const TICKET = 'demo-7';
@@ -62,7 +65,7 @@ interface Entree {
   inchange?: boolean;
   questionnement?: object;
   lancement?: { role: string; seance: string };
-  montee?: { code: number; raison: string | null; qui: string | null };
+  montee?: { code: number; raison: string | null; superviseur?: string };
 }
 interface Categorie {
   ms: number;
@@ -192,35 +195,28 @@ const arret = (
   ...(finale ? { finale } : {}),
   ...(rouges ? { resultat: { issue: 'rouge', finale, rouges } } : {}),
 });
-// A developpeur resumed who finds the lot delivered and changes nothing.
+// A developpeur session that changes no file of the plan.
 const inchange = (m: number, s: number): Entree => ({
   date: quand(m, s, 1),
   role: 'circuit',
   etape: 'developpeur',
   inchange: true,
 });
-// The end of a run of the circuit on a stop (code <code>), whose question <qui> must answer, <ms>
-// after the second.
-const montee = (
-  m: number,
-  s: number,
-  code: number,
-  raison: string,
-  { ms = 2, qui = 'superviseur' as string | null } = {}
-): Entree => ({
+// The end of a run of the circuit on a stop (code <code>), <ms> after the second.
+const montee = (m: number, s: number, code: number, raison: string, { ms = 2 } = {}): Entree => ({
   date: quand(m, s, ms),
   role: 'circuit',
-  montee: { code, raison, qui },
+  montee: { code, raison },
 });
 
 // The bilan of the lines <lignes> and the entries <entrees>: the circuit kept the launch of each
 // session at its first turn (`lancement`, its role and its session id), save the agents
-// <superviseur> launched.
+// <superviseur> launched; the owner wrote in the supervisor's session at the times <duResponsable>.
 const calculer = (
   lignes: Ligne[],
   entrees: Entree[],
   etat: object | null = null,
-  { superviseur = [] as string[], commentaires = [] as { created_at: string; text: string }[] } = {}
+  { superviseur = [] as string[], duResponsable = [] as number[] } = {}
 ) => {
   const lancees = lignes
     .filter(l => l.role !== 'circuit' && !superviseur.includes(l.agent))
@@ -234,7 +230,7 @@ const calculer = (
     lignes,
     entrees: [...lancees, ...entrees],
     etat,
-    commentaires,
+    duResponsable,
   }) as Bilan;
 };
 const min = (ms: number) => Math.round((ms / MIN) * 100) / 100;
@@ -351,11 +347,13 @@ describe('a relaunch without effect', () => {
     fiche(7, 0, 'testwriter'),
     preuve(8, 0, [1, 2, 0, 3], true),
     fiche(10, 0, 'developpeur'),
+    inchange(10, 0),
     arret(10, 0, 'developpeur', 'sans-livraison'),
     fiche(12, 0, 'developpeur'),
     inchange(12, 0),
     controles(18, 0, 'rouge', true),
     fiche(19, 0, 'developpeur'),
+    inchange(19, 0),
     arret(19, 0, 'developpeur', 'sans-livraison'),
     controles(25, 0, 'rouge', true),
     fiche(28, 0, 'developpeur'),
@@ -363,7 +361,7 @@ describe('a relaunch without effect', () => {
   ];
   const b = calculer(lignes, entrees);
 
-  it('counts the developer who changes nothing, stopped or resumed unchanged, as without effect', () => {
+  it('counts the developer who changes no file of the plan, stopped or resumed unchanged, as without effect', () => {
     // d1, d2, d3 ; d4 delivers.
     expect(b.categories.travail.n).toBe(2);
     expect(min(b.categories.travail.ms)).toBe(5 + 3);
@@ -390,6 +388,34 @@ describe('a relaunch without effect', () => {
       b.mur - b.categories.travail.ms - b.categories.automatique.ms - b.categories.finales.ms
     );
     expect(b.arrets).toEqual({ 'sans-livraison': 2 });
+  });
+});
+
+// grillhouse-982.3, criterion 1 (BP 320.3.9, N3): the developpeur f67f2b9a corrected
+// libraryWriting, which the commit delivers; the bilan counted him without effect because the
+// circuit followed him with a stop « sans-livraison », his sheet sending the red to the testwriter
+// a second time. A developpeur is without effect only when his session changed no file of the plan
+// (`inchange`, which the circuit measures), whatever stop follows him.
+describe('a developer whose code stays in the lot', () => {
+  const lignes = [
+    seance('developpeur', 'd1', [[0, 5]]),
+    seance('developpeur', 'd2', [[7, 9]]),
+    etape('controles', 9, 12),
+  ];
+  const entrees = [
+    fiche(5, 0, 'developpeur', { statut: 'BLOQUÉ', renvoi: { role: 'testwriter' } }),
+    arret(5, 0, 'developpeur', 'sans-livraison'),
+    montee(5, 0, 15, 'sans-livraison'),
+    fiche(9, 0, 'developpeur'),
+    controles(12, 0, 'vert', true),
+  ];
+  const b = calculer(lignes, entrees);
+
+  it('counts the developer the circuit stops at « sans-livraison » after he changed the plan as work kept in the lot', () => {
+    expect(b.categories.travail.n).toBe(2);
+    expect(min(b.categories.travail.ms)).toBe(5 + 2);
+    expect(b.categories.sansEffet).toMatchObject({ ms: 0, n: 0 });
+    expect(b.arrets).toEqual({ 'sans-livraison': 1 });
   });
 });
 
@@ -551,6 +577,7 @@ describe('the wait for the supervisor and the sessions the circuit launches', ()
   ];
   const entrees = [
     fiche(5, 0, 'developpeur'),
+    inchange(5, 0),
     arret(5, 0, 'developpeur', 'sans-livraison'),
     montee(5, 0, 15, 'sans-livraison'),
     fiche(30, 0, 'developpeur'),
@@ -617,6 +644,7 @@ describe('what the bilan reads of the register', () => {
       fiche(8, 0, 'testwriter'),
       preuve(9, 0, [0, 0, 1, 0], false),
       fiche(11, 0, 'developpeur'),
+      inchange(11, 0),
       arret(11, 0, 'developpeur', 'sans-livraison'),
       arret(11, 1, 'developpeur', 'sans-livraison'),
       arret(11, 2, 'controles', 'a-repasser', { finale: true }),
@@ -661,8 +689,9 @@ describe('the lines of the project in the register', () => {
 });
 
 // grillhouse-3uv.95.9: the wait splits as the lead time of DORA separates the wait for review from
-// the work: the supervisor's, the owner's (each by who must answer the question the run ended on),
-// and the night, a range of hours the project declares (23 h – 8 h by default), in local time.
+// the work: the supervisor's, the owner's (the owner wrote in the supervisor's session during it,
+// grillhouse-982.3), and the night, a range of hours the project declares (23 h – 8 h by default),
+// in local time.
 describe('the night, the supervisor’s wait and the owner’s', () => {
   // 22:00 local, the evening of 20 October 2026, far from a change of hour.
   const SOIR = new Date(2026, 9, 20, 22, 0).getTime();
@@ -677,7 +706,8 @@ describe('the night, the supervisor’s wait and the owner’s', () => {
   const le = (m: number, e: Omit<Entree, 'date'>): Entree => ({ date: iso(b0(m) + 2), ...e });
   // The testwriter writes, its proof plays 2 min after; the run ends on a question for the
   // supervisor at 22:33, answered at 22:50; the developpeur's question for the owner ends the run
-  // at 22:55, answered at 9:00 the next morning.
+  // at 22:55, the owner answering in the supervisor's session at 8:59 the next morning, the run
+  // after at 9:00.
   const lignes = [
     ligne('testwriter', 't1', 0, 30),
     { ...etape('preuve', 0, 1), debut: iso(b0(32)), fin: iso(b0(33)), tours: [[b0(32), b0(33)]] },
@@ -691,14 +721,15 @@ describe('the night, the supervisor’s wait and the owner’s', () => {
       etape: 'preuve',
       resultat: { ok: false, rouges: 1, justifies: 0, sans: 0, casses: 0, anciens: 0 },
     }),
-    le(33, { role: 'circuit', montee: { code: 21, raison: 'preuve', qui: 'superviseur' } }),
+    le(33, { role: 'circuit', montee: { code: 21, raison: 'preuve' } }),
     le(55, { role: 'developpeur', fiche: { statut: 'BESOIN' } }),
-    le(55, { role: 'circuit', montee: { code: 16, raison: 'besoin', qui: 'responsable' } }),
+    le(55, { role: 'circuit', montee: { code: 16, raison: 'besoin' } }),
     le(670, { role: 'developpeur', fiche: { statut: 'FAIT' } }),
   ];
-  const b = calculer(lignes, entrees);
+  const duResponsable = [b0(659)];
+  const b = calculer(lignes, entrees, null, { duResponsable });
 
-  it('splits the wait by who must answer, the night apart', () => {
+  it('splits the wait by who answered, the night apart', () => {
     expect(min(b.categories.superviseur.ms)).toBe(17);
     expect(b.categories.superviseur.n).toBe(1);
     expect(min(b.categories.responsable.ms)).toBe(5 + 60);
@@ -736,6 +767,7 @@ describe('the night, the supervisor’s wait and the owner’s', () => {
         ...entrees,
       ],
       nuit: { debut: 1, fin: 7 },
+      duResponsable,
     }) as Bilan;
     expect(min(autre.categories.nuit.ms)).toBe(6 * 60);
     expect(min(autre.categories.responsable.ms)).toBe(605 - 360);
@@ -783,7 +815,8 @@ describe('the night, the supervisor’s wait and the owner’s', () => {
     expect(min(nuitDu('projet-sans-plage').categories.nuit.ms)).toBe(9 * 60);
     const declaree = nuitDu('projet-plage', { debut: 1, fin: 7 });
     expect(min(declaree.categories.nuit.ms)).toBe(6 * 60);
-    expect(min(declaree.categories.responsable.ms)).toBe(605 - 360);
+    // No session of the supervisor named: both waits are his.
+    expect(min(declaree.categories.superviseur.ms)).toBe(17 + 605 - 360);
   });
 
   it('reads the range from the key grillhouse.plageDeNuit of the project’s package.json, 23 h – 8 h without it', () => {
@@ -842,24 +875,25 @@ describe('the roles the register writes scoped by the frame’s plugin', () => {
   });
 });
 
-// grillhouse-ybq.1: the circuit writes who must answer the question it stops on, the supervisor
-// for every stop but the reviewer's question; the supervisor carries a question to the owner, and
-// writes his answer at the ticket under « ## Réponse du responsable — <la question> » (skill
-// pitmaster). On 320.8, the 78 min of the owner's answer counted as the supervisor's wait.
-describe('the owner’s answer the supervisor carries', () => {
+// grillhouse-982.3, criterion 2 (BP 320.3.9, N4): the wait of the first stop counted as the
+// owner's, because the supervisor wrote at the ticket during it a comment titled « ## Réponse du
+// responsable » that quoted a « oui » given before the launch; the owner wrote nothing during the
+// circuit. As ccusage measures from the transcripts, the owner's wait rests on his messages in the
+// supervisor's session the stop names (`montee.superviseur`), never on a text at the ticket.
+describe('the owner’s wait, his messages in the supervisor’s session', () => {
   const lignes = [seance('developpeur', 'd1', [[0, 5]]), seance('developpeur', 'd2', [[85, 90]])];
+  const SUPERVISEUR = '09f61bc7-0000-4000-8000-000000000001';
   const entrees = [
     fiche(5, 0, 'developpeur', { statut: 'BESOIN' }),
-    montee(5, 0, 20, 'besoin'),
+    {
+      ...montee(5, 0, 20, 'besoin'),
+      montee: { code: 20, raison: 'besoin', superviseur: SUPERVISEUR },
+    },
     fiche(90, 0, 'developpeur'),
   ];
-  const reponse = (m: number, text = '## Réponse du responsable — le critère 5\n\n« ok »') => ({
-    created_at: iso(a(m)).replace(/\.\d{3}Z$/, 'Z'),
-    text,
-  });
 
-  it('counts the wait as the owner’s when his answer is written at the ticket during it', () => {
-    const b = calculer(lignes, entrees, null, { commentaires: [reponse(84)] });
+  it('counts the wait as the owner’s when he writes in the supervisor’s session during it', () => {
+    const b = calculer(lignes, entrees, null, { duResponsable: [a(84)] });
     expect(min(b.categories.responsable.ms)).toBe(80);
     expect(b.categories.responsable.n).toBe(1);
     expect(b.categories.superviseur).toMatchObject({ ms: 0, n: 0 });
@@ -868,77 +902,116 @@ describe('the owner’s answer the supervisor carries', () => {
     );
   });
 
-  it('leaves the wait to the supervisor without an answer of the owner during it', () => {
-    for (const commentaires of [
-      [],
-      [reponse(2)],
-      [reponse(87)],
-      [reponse(84, '## Arbitrage — le critère 5')],
-      [reponse(84, 'Le superviseur relaie : ## Réponse du responsable')],
-      [reponse(84, '## Réponse du responsables — le critère 5')],
-    ]) {
-      const b = calculer(lignes, entrees, null, { commentaires });
+  it('leaves the wait to the supervisor without a message of the owner during it', () => {
+    for (const duResponsable of [[], [a(2)], [a(5, 0) - 1], [a(87)]]) {
+      const b = calculer(lignes, entrees, null, { duResponsable });
       expect(min(b.categories.superviseur.ms)).toBe(80);
       expect(b.categories.responsable).toMatchObject({ ms: 0, n: 0 });
     }
   });
 
-  // grillhouse-5m1.1: bd reads the comments once (19 s a call in BPScript); the base's figures (wall
-  // time, loss, sessions, cost) hold whoever waited, so its bilan reads none.
-  it('reads the comments of the ticket by bd, from the main tree, once, its base computed again without them', () => {
+  it('reads as the owner’s messages the incoming messages of the person alone', () => {
+    const l = (e: object) => JSON.stringify(e);
+    const texte = [
+      l({
+        type: 'user',
+        timestamp: iso(a(1)),
+        origin: { kind: 'human' },
+        message: { content: 'oui' },
+      }),
+      l({ type: 'user', timestamp: iso(a(2)), origin: { kind: 'task-notification' } }),
+      l({ type: 'user', timestamp: iso(a(3)), origin: { kind: 'peer' }, isMeta: true }),
+      l({ type: 'user', timestamp: iso(a(4)), message: { content: [{ type: 'tool_result' }] } }),
+      l({ type: 'assistant', timestamp: iso(a(5)), message: { content: 'human' } }),
+      '{ "type": "user", "origin": { "kind": "human" } cassé',
+      l({
+        type: 'user',
+        timestamp: iso(a(6)),
+        origin: { kind: 'human' },
+        message: { content: '' },
+      }),
+    ].join('\n');
+    expect(messagesDuResponsable(texte)).toEqual([a(1), a(6)]);
+  });
+
+  // The bilan reads the transcript of the session each stop names, under ~/.claude/projects; it
+  // reads no comment of the ticket: a supervisor's comment titled « ## Réponse du responsable »
+  // does not make the wait the owner's.
+  it('reads the owner’s messages from the transcript of the session the stop names, no comment of the ticket', () => {
     const racine = path.join(ESSAIS, 'projet-reponse');
+    const maison = path.join(ESSAIS, 'maison-reponse');
     const bin = path.join(racine, 'bin');
     mkdirSync(path.join(racine, '.claude', 'worktrees'), { recursive: true });
     mkdirSync(bin, { recursive: true });
     writeFileSync(path.join(racine, 'package.json'), JSON.stringify({ name: 'projet-reponse' }));
-    // The stand-in for bd: `comments <ticket> --json` prints the ticket's comments; each call is
-    // written to its log.
+    // The stand-in for bd: each call is written to its log, `comments` printing the supervisor's
+    // comment of 320.3.9.
     const appels = path.join(racine, 'bd.log');
+    const commentaire = {
+      created_at: iso(a(84)),
+      text: '## Réponse du responsable — x\n\n« oui »',
+    };
     writeFileSync(
       path.join(bin, 'bd'),
-      `#!/bin/sh\necho "$*" >> ${appels}\n[ "$1 $2 $3" = "comments ${TICKET} --json" ] && cat <<'FIN'\n${JSON.stringify([reponse(84)])}\nFIN\n`,
+      `#!/bin/sh\necho "$*" >> ${appels}\ncat <<'FIN'\n${JSON.stringify([commentaire])}\nFIN\n`,
       { mode: 0o755 }
     );
+    // The supervisor's session, in the folder of its project: the owner writes at 84 min, and in
+    // another session at 30 min.
+    const projets = path.join(maison, '.claude', 'projects', '-depot-du-superviseur');
+    mkdirSync(projets, { recursive: true });
+    const message = (t: number) =>
+      `${JSON.stringify({ type: 'user', timestamp: iso(t), origin: { kind: 'human' }, message: { content: 'ok' } })}\n`;
+    const ecrireLaSeance = (seance: string, t: number[]) =>
+      writeFileSync(path.join(projets, `${seance}.jsonl`), t.map(message).join(''));
+    ecrireLaSeance('autre-seance', [a(30)]);
     const registre = path.join(racine, 'registre.jsonl');
-    // The ticket, and demo-6 before it, its bilan kept and its sources there.
     writeFileSync(
       registre,
-      [TICKET, 'demo-6']
-        .flatMap(t => lignes.map(l => `${JSON.stringify({ ...l, ticket: t, projet: racine })}\n`))
-        .join('')
+      lignes.map(l => `${JSON.stringify({ ...l, projet: racine })}\n`).join('')
     );
     const lancees = lignes.map(l => ({
       date: iso(l.tours[0][0]),
       role: 'circuit',
       lancement: { role: l.role, seance: l.agent },
     }));
-    for (const t of [TICKET, 'demo-6']) {
-      writeFileSync(
-        path.join(racine, '.claude', 'worktrees', `${t}.fiches.jsonl`),
-        [...lancees, ...entrees].map(e => JSON.stringify(e)).join('\n') + '\n'
+    writeFileSync(
+      path.join(racine, '.claude', 'worktrees', `${TICKET}.fiches.jsonl`),
+      [...lancees, ...entrees].map(e => JSON.stringify(e)).join('\n') + '\n'
+    );
+    // The bilan the circuit writes, in a process of its own: its home is the trial's.
+    const leBilan = () => {
+      const r = spawnSync(
+        'node',
+        [
+          '--input-type=module',
+          '-e',
+          `import { ecrireLeBilan } from ${JSON.stringify(BILAN)};\necrireLeBilan(${JSON.stringify(racine)}, ${JSON.stringify(TICKET)});`,
+        ],
+        {
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            HOME: maison,
+            GRILLHOUSE_REGISTRE: registre,
+            PATH: `${bin}${path.delimiter}${process.env.PATH ?? ''}`,
+          },
+        }
       );
-    }
-    garder(racine, { ...bilan({ ticket: 'demo-6', lignes: [] }), ticket: 'demo-6' });
-    const avant = { registre: process.env.GRILLHOUSE_REGISTRE, path: process.env.PATH };
-    process.env.GRILLHOUSE_REGISTRE = registre;
-    process.env.PATH = `${bin}${path.delimiter}${process.env.PATH ?? ''}`;
-    let texte = '';
-    try {
-      texte = ecrireLeBilan(racine, TICKET);
-    } finally {
-      process.env.PATH = avant.path;
-      if (avant.registre === undefined) {
-        delete process.env.GRILLHOUSE_REGISTRE;
-      } else {
-        process.env.GRILLHOUSE_REGISTRE = avant.registre;
-      }
-    }
-    const f = path.join(racine, '.claude', 'worktrees', `${TICKET}.bilan.json`);
-    const b = JSON.parse(readFileSync(f, 'utf8')) as Bilan;
-    expect(min(b.categories.responsable.ms)).toBe(80);
-    expect(b.categories.superviseur.ms).toBe(0);
-    expect(texte).toMatch(/^Face au bilan de demo-6, recalculé : /m);
-    expect(readFileSync(appels, 'utf8')).toBe(`comments ${TICKET} --json\n`);
+      expect(r.status, r.stderr).toBe(0);
+      const f = path.join(racine, '.claude', 'worktrees', `${TICKET}.bilan.json`);
+      return JSON.parse(readFileSync(f, 'utf8')) as Bilan;
+    };
+    // The session the stop names holds no message of the owner during the wait.
+    ecrireLaSeance(SUPERVISEUR, [a(2)]);
+    const sans = leBilan();
+    expect(min(sans.categories.superviseur.ms)).toBe(80);
+    expect(sans.categories.responsable).toMatchObject({ ms: 0, n: 0 });
+    ecrireLaSeance(SUPERVISEUR, [a(2), a(84)]);
+    const avec = leBilan();
+    expect(min(avec.categories.responsable.ms)).toBe(80);
+    expect(avec.categories.superviseur).toMatchObject({ ms: 0, n: 0 });
+    expect(existsSync(appels)).toBe(false);
   });
 });
 
@@ -950,6 +1023,7 @@ describe('the text of the bilan and its base', () => {
   const entrees = [
     fiche(10, 0, 'testwriter'),
     fiche(12, 0, 'developpeur'),
+    inchange(12, 0),
     arret(12, 0, 'developpeur', 'sans-livraison'),
     montee(16, 0, 15, 'sans-livraison'),
   ];

@@ -30,6 +30,7 @@ const {
   ordre,
   commentaires,
   historique,
+  entrees,
 } = circuitEssai(ESSAIS);
 
 describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
@@ -163,6 +164,23 @@ fiche '{"statut":"BLOQUÉ","piece":"packages/forms/src/index.mjs:1","raison":"le
         code: ARRETS['sans-livraison'],
       });
       expect(e?.rapport).toContain('deuxième fois de suite au testwriter');
+      // grillhouse-982.3: each session changed a file of the plan, which the bilan keeps as work.
+      expect(entrees(id).filter(x => x.inchange)).toEqual([]);
+    });
+
+    // grillhouse-982.3: the bilan counts a developpeur without effect on what the circuit measures,
+    // his session changing no file of the plan (`inchange`), whatever stop follows him.
+    it('keeps that the developpeur changed nothing when it stops at « sans-livraison » on his second sending', () => {
+      const id = 'demo-renvoi-inchange';
+      ticket(id, '000-forms');
+      scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+      scenario(id, 'developpeur-1', renvoi);
+      scenario(id, 'developpeur-2', renvoi.split('\n').slice(1).join('\n'));
+      const r = circuit([id]);
+      expect(r.status, sortie(r)).toBe(ARRETS['sans-livraison']);
+      expect(entrees(id).filter(x => x.inchange)).toEqual([
+        expect.objectContaining({ role: 'circuit', etape: 'developpeur', inchange: true }),
+      ]);
     });
 
     // grillhouse-ybq.3 (BP 320.8): --etendre 990-corpus relaunched the developpeur, who stopped

@@ -10,10 +10,10 @@
 // an answer or a log. A new one fails this test until it is listed, with what it reads.
 //
 // The bilan of a ticket (scripts/bilan.mjs, L8) reads the same structured results the circuit
-// keeps (L3): the sheets and the outcomes of `<ticket>.fiches.jsonl`, the register, the authors and
-// times of the comments, never their text, but the title of the owner's answer, which the skill
-// pitmaster fixes (« ## Réponse du responsable — <la question> ») and which tells whose wait a stop
-// was (grillhouse-ybq.1). It holds no regular expression.
+// keeps (L3): the sheets and the outcomes of `<ticket>.fiches.jsonl`, the register, and of the
+// transcript of the supervisor's session each stop names, the origin and the time of each message,
+// which tell whose wait a stop was (grillhouse-982.3); it reads no comment of the ticket. It holds
+// no regular expression.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
@@ -87,15 +87,12 @@ describe('the circuit decides on structured results, never on free text', () => 
     }
   });
 
-  it('the bilan holds no regular expression and reads no text of a comment but the title of the owner’s answer, nor the lines « Circuit · … »', () => {
+  it('the bilan holds no regular expression and reads no comment of the ticket, nor the lines « Circuit · … »', () => {
     expect(expressions(bilan)).toEqual([]);
     const code = bilan.split('\n').filter(l => !l.trimStart().startsWith('//'));
-    expect(code.filter(l => /\.text\b/.test(l)).map(l => l.trim())).toEqual([
-      '.filter(c => estReponseDuResponsable(c.text))',
-    ]);
-    expect(code.join('\n')).toContain(
-      "import { estReponseDuResponsable } from './consommateurs-arbitres.mjs';"
-    );
-    expect(code.join('\n')).not.toContain('Circuit · ');
+    expect(code.filter(l => /\.text\b/.test(l)).map(l => l.trim())).toEqual([]);
+    for (const forme of ['estReponseDuResponsable', "'comments'", 'Circuit · ']) {
+      expect(code.join('\n'), forme).not.toContain(forme);
+    }
   });
 });

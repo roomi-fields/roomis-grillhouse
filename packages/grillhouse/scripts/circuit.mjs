@@ -111,9 +111,11 @@
 //   sheet read is kept with the ticket's sheets, `.claude/worktrees/<ticket>.fiches.jsonl` (`{
 //   date, role, fiche }`, the lot a review read joined to its sheet, `lot`), beside the circuit's
 //   own results: the report of each proof and check, which the reviewer receives, with its outcome
-//   (`resultat`), each stop (`arret`), each developpeur resumed who changed nothing (`inchange`),
-//   each session launched (`lancement`, its role and its session id), each end of a run on a
-//   question (`montee`: its code, its stop and who must answer it), which the bilan reads; and each
+//   (`resultat`), each stop (`arret`), each developpeur session that changed no file of the plan
+//   and goes to the checks or stops at « sans-livraison » (`inchange`), each session launched
+//   (`lancement`, its role and its session id), each end of a run on a question (`montee`: its
+//   code, its stop and the supervisor's session that ran it, `superviseur`, the
+//   `CLAUDE_CODE_SESSION_ID` Claude Code gives the run), which the bilan reads; and each
 //   of its discoveries (`decouvertes`) filed closed under the ticket (scripts/ticket.sh, label
 //   `decouverte`). A session that ends without a sheet that conforms (none, one out of its schema,
 //   a code other than 0) is resumed once, the same session, with the third template, which names
@@ -493,7 +495,6 @@ import {
   QUESTIONNEUR,
   RESPONSABLE,
   SUITE,
-  SUPERVISEUR,
 } from './etapes.mjs';
 import { paquets } from './paquets.mjs';
 import { releve } from './composants-affectes.mjs';
@@ -2889,6 +2890,9 @@ async function derouler(ctx, debut) {
           // the testwriter, the sending and the handover as its report, then the proof and the
           // developpeur.
           if (ctx.renvoiAuTestwriter) {
+            if (empreinte(ctx) === avant) {
+              inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, etape: CODE, inchange: true });
+            }
             throw new Arret(
               'sans-livraison',
               `La fiche de la séance ${tentative} du développeur renvoie une deuxième fois de suite au testwriter, sans contrôles verts depuis le premier renvoi : le testwriter n'a pas levé ce rouge.\n\n${renvoi}`
@@ -3278,19 +3282,20 @@ function depart(ctx, e) {
 }
 
 // The end of the run, its exit code <code>: an end on a stop kept with the circuit's results
-// (`montee`: its code, its stop and who must answer its question, the supervisor for a stop
-// without one, as an end at 75 he replays), from which the
-// bilan measures the wait to the run that answers it, then the ticket's bilan at the ticket
+// (`montee`: its code, its stop and the supervisor's session that ran it, `superviseur`, when
+// Claude Code names it), from which the bilan measures the wait to the run that answers it, the
+// owner's when he writes in that session meanwhile, then the ticket's bilan at the ticket
 // (scripts/bilan.mjs); a bilan it cannot write leaves the code as it is.
 function aLaFin(ctx, code) {
   try {
     if (code !== 0) {
+      const superviseur = process.env.CLAUDE_CODE_SESSION_ID;
       inscrire(ctx, {
         role: AUTEUR_DU_CIRCUIT,
         montee: {
           code,
           raison: ctx.courant?.raison ?? null,
-          qui: ctx.courant?.question?.qui ?? SUPERVISEUR,
+          ...(superviseur ? { superviseur } : {}),
         },
       });
     }
