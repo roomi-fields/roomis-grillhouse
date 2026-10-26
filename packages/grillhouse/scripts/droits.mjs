@@ -15,7 +15,9 @@
 //   settings and charter, and the frame's plugin it enables (agents, skills, common charter,
 //   hooks), stay in.
 // - `--settings <json>` (the settings of the role, on the command line: no file the session could
-//   change): its permissions (`allow`, the commands its skill names; `deny`, the change of its
+//   change): its permissions (`allow`, the commands its skill names, and the reading of its
+//   skill's files, references included, and of the METACADRE.md its skill names, in the frame's
+//   plugin as installed for the copy, else for the project, by `Read` and `ls` and with no writing; `deny`, the change of its
 //   author at the ticket, AUTEUR_FIXE, for a role that writes the editing by script, the test
 //   tool run directly and the reading again of the ticket its instruction carries, and for a role
 //   that writes nothing at the ticket, the explorateur and the questionneur, every write of bd,
@@ -129,12 +131,14 @@ const LIRE = ['Bash', 'Read', 'Skill'];
 const ECRIRE = ['Edit', 'Write'];
 
 // Each role the circuit launches: whether it writes (files, `ecrit`; the ticket, unless
-// `ecritAuTicket` is false), whether it uses the index, and the commands its skill names (the
-// frame's plugin, `mods/grillhouse/skills/<rôle>/`), as permission rules.
+// `ecritAuTicket` is false), whether it uses the index, whether its skill names the frame's
+// METACADRE.md (`metacadre`, read at the root of the plugin installed), and the commands its skill
+// names (the frame's plugin, `mods/grillhouse/skills/<rôle>/`), as permission rules.
 export const ROLES = {
   // It writes no file and nothing at the ticket: it surveys the components and reads the code by
   // the index, and ends on the plan in its sheet, which the circuit writes at the ticket.
   explorateur: {
+    metacadre: true,
     index: true,
     ecritAuTicket: false,
     commandes: [
@@ -149,6 +153,7 @@ export const ROLES = {
   // It writes the tests of the whole ticket, in the envelope of its plan, and reads the whole copy
   // by the index (charter, « L'index d'abord »).
   testwriter: {
+    metacadre: true,
     ecrit: true,
     index: true,
     commandes: [
@@ -163,6 +168,7 @@ export const ROLES = {
   // It writes the code of the whole ticket, in the envelope of its plan, and reads the whole copy
   // by the index.
   developpeur: {
+    metacadre: true,
     ecrit: true,
     index: true,
     commandes: [
@@ -177,6 +183,7 @@ export const ROLES = {
     ],
   },
   relecteur: {
+    metacadre: true,
     index: true,
     commandes: [
       ...LIRE_GIT,
@@ -219,14 +226,34 @@ function greffonsDuProjet(racine) {
   return [...actifs].sort();
 }
 
-// The installed path of the plugin <nom> for the project <racine>: its entry for the project
-// first, else the user's.
-function cheminDuGreffon(nom, racine, home) {
+// The installed path of the plugin <nom> for the projects <projets>: the entry of the first that
+// has one, else the user's.
+function cheminDuGreffon(nom, projets, home) {
   const entrees =
     lireJson(path.join(home, '.claude', 'plugins', 'installed_plugins.json'))?.plugins?.[nom] ?? [];
   const e =
-    entrees.find(x => x.projectPath === racine) ?? entrees.find(x => x.scope === 'user') ?? null;
+    projets.map(p => entrees.find(x => x.projectPath === p)).find(Boolean) ??
+    entrees.find(x => x.scope === 'user') ??
+    null;
   return e?.installPath ?? null;
+}
+
+// The reading of the skill of <role> (SKILL.md and its references/) in the frame's plugin, as
+// installed for the copy where the session runs, else for the project, and of the plugin's
+// METACADRE.md alone for a role whose skill names it: rules `Read(//…)`, which let through the
+// tool Read and `ls` of those folders, and write nothing (measured on Claude Code in `dontAsk`).
+// Narrower than a folder of work (`--add-dir`), which would open the whole plugin; none when the
+// plugin is not installed.
+function lireSaCompetence(role, { racine, copie, home }) {
+  const cadre = greffonsDuProjet(racine).find(g => g.startsWith(GREFFON_DU_CADRE));
+  const dossier = cadre && cheminDuGreffon(cadre, [copie, racine], home);
+  if (!dossier) {
+    return [];
+  }
+  return [
+    `Read(/${path.join(dossier, 'skills', role)}/**)`,
+    ...(ROLES[role].metacadre ? [`Read(/${path.join(dossier, 'METACADRE.md')})`] : []),
+  ];
 }
 
 // The servers of the index: the project's `.mcp.json`, then the manifests of the plugins it enables.
@@ -235,7 +262,7 @@ function serveursDeLIndex(racine, home) {
   const projet = lireJson(path.join(racine, '.mcp.json'))?.mcpServers ?? {};
   for (const n of INDEX) if (projet[n]) out[n] = projet[n];
   for (const greffon of greffonsDuProjet(racine)) {
-    const dossier = cheminDuGreffon(greffon, racine, home);
+    const dossier = cheminDuGreffon(greffon, [racine], home);
     if (!dossier) continue;
     const serveurs =
       lireJson(path.join(dossier, '.claude-plugin', 'plugin.json'))?.mcpServers ??
@@ -250,8 +277,8 @@ function serveursDeLIndex(racine, home) {
 }
 
 // The settings of the session of <role>, for the ticket <ticket>, its copy <copie> (where the
-// project's own skills are read) and the main tree <racine>.
-function reglagesDuRole(role, { racine, copie = racine, ticket }) {
+// project's own skills are read) and the main tree <racine>; <home> holds the plugins installed.
+function reglagesDuRole(role, { racine, copie = racine, ticket, home }) {
   const r = ROLES[role];
   if (!r) throw new Error(`rôle sans droits : ${role}`);
   const deny = [...AUTEUR_FIXE, ...(r.ecritAuTicket === false ? ECRIRE_AU_TICKET : [])];
@@ -272,7 +299,10 @@ function reglagesDuRole(role, { racine, copie = racine, ticket }) {
       : []),
   ];
   const reglages = {
-    permissions: { allow: [...r.commandes], deny },
+    permissions: {
+      allow: [...r.commandes, ...lireSaCompetence(role, { racine, copie, home })],
+      deny,
+    },
     autoMemoryEnabled: false,
     disableBundledSkills: true,
     skillOverrides: Object.fromEntries(autres.map(s => [s, 'off'])),
@@ -321,7 +351,7 @@ export function optionsDuRole(role, contexte) {
     '--setting-sources',
     'project,local',
     '--settings',
-    JSON.stringify(reglagesDuRole(role, contexte)),
+    JSON.stringify(reglagesDuRole(role, { ...contexte, home })),
     '--tools',
     outils.join(','),
     '--strict-mcp-config',

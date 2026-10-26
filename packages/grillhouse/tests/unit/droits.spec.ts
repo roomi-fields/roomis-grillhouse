@@ -152,11 +152,32 @@ function simples(c: string): string[] {
 }
 // A command Claude Code lets through without a rule: one that only reads, in the working directory
 // or in a file a rule `Read(…)` permits. `git -C <dossier> …` is none: in BPScript 320.4,
-// `git -C <copie> status` is refused without a rule, and `git status` passes.
-const LECTURE = /^(grep|tail|head|cat|cut|wc|sed -n|git (diff|log|show|status|ls-files|grep))( |$)/;
+// `git -C <copie> status` is refused without a rule, and `git status` passes. `ls` is one
+// (grillhouse-9jr.2, measured on Claude Code in `dontAsk`: `ls` of a folder a rule `Read(…)`
+// permits passes, of the folder above it is refused).
+const LECTURE =
+  /^(ls|grep|tail|head|cat|cut|wc|sed -n|git (diff|log|show|status|ls-files|grep))( |$)/;
 // Whether the absolute path <p> lies in the directory <dossier>.
 const dans = (p: string, dossier: string) => p === dossier || p.startsWith(`${dossier}/`);
 const echapper = (s: string) => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+// The absolute paths the rules `Read(//…)` of <allow> permit, as Claude Code matches them (the
+// globs of gitignore): `**` any depth, `*` within one name.
+const lectures = (allow: string[]) =>
+  allow
+    .map(r => /^Read\(\/(\/.*)\)$/.exec(r)?.[1])
+    .filter((g): g is string => Boolean(g))
+    .map(
+      g =>
+        new RegExp(
+          `^${g
+            .split('**')
+            .map(p => p.split('*').map(echapper).join('[^/]*'))
+            .join('.*')}$`
+        )
+    );
+// Whether the tool Read reads the absolute path <p> without a prompt, under <reglages>, in <cwd>.
+const litSansInvite = (p: string, reglages: Reglages, cwd = COPIE) =>
+  dans(p, cwd) || lectures(reglages.permissions.allow).some(g => g.test(p));
 // The refusal Claude Code gives the command <c>, run in <cwd> under the settings <reglages> in the
 // mode `dontAsk` (the circuit's), or null when it lets it through. Its rules are those BPScript
 // 320.4 measured on the refused calls of its sessions (the analysis of 320.4, refus.py): each
@@ -167,10 +188,6 @@ const echapper = (s: string) => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
 // a read.
 function refusReel(c: string, reglages: Reglages, cwd = COPIE): string | null {
   const { allow, deny } = reglages.permissions;
-  const lectures = allow
-    .map(r => /^Read\(\/(\/.*)\)$/.exec(r)?.[1])
-    .filter((g): g is string => Boolean(g))
-    .map(g => new RegExp(`^${g.split('*').map(echapper).join('[^/]*')}$`));
   const citations = [...c.matchAll(/"((?:[^"\\]|\\.)*)"|'([^']*)'/g)].map(m => m[1] ?? m[2]);
   if (citations.some(q => /\n\s*#/.test(q))) {
     return `${c} : une ligne en # dans un argument`;
@@ -203,7 +220,7 @@ function refusReel(c: string, reglages: Reglages, cwd = COPIE): string | null {
         return `${s} : une variable dans le chemin`;
       }
       const p = path.resolve(cwd, m);
-      if (!dans(p, cwd) && !lectures.some(g => g.test(p))) {
+      if (!litSansInvite(p, reglages, cwd)) {
         return `${s} : ${p} hors du dossier de travail, sans Read`;
       }
     }
@@ -690,6 +707,107 @@ describe('3uv.92.6 — a role session ends with its sheet, without a background 
       expect(competence, role).toMatch(
         /\*\*(Tu attends au premier plan ce que tu lances|J'attends au premier plan ce que je lance)\*\*/
       );
+    }
+  });
+});
+
+// grillhouse-9jr.2: each role reads the files of its own skill in the frame's installed plugin,
+// out of the ticket's copy, as Claude Code gives a session the reading of its folders of work
+// (`--add-dir`, `permissions.additionalDirectories`). Witness: BPScript bp-mono-vbwf.328, the
+// reviewer refused Read on its skill's references/edge-case-hunter.md and verification-gap.md, and
+// `ls` of that folder (permission_denials, bp-mono-vbwf.328.log:8529), files its skill tells it to
+// follow to the letter.
+describe('9jr.2 — each role reads the files of its skill', () => {
+  // A project that enables the frame's plugin, its copy, and a home where the plugin is installed
+  // for the copy and for the project, each at its own path.
+  const depot = path.join(ESSAIS, 'cadre');
+  const copie = path.join(depot, '.claude/worktrees/demo-1');
+  const home = path.join(ESSAIS, 'home-cadre');
+  const cache = path.join(home, '.claude/plugins/cache/roomi-fields/grillhouse');
+  const installe = (entrees: object[]) => {
+    mkdirSync(path.join(depot, '.claude'), { recursive: true });
+    writeFileSync(
+      path.join(depot, '.claude/settings.json'),
+      JSON.stringify({ enabledPlugins: { 'grillhouse@roomi-fields': true } })
+    );
+    mkdirSync(path.join(home, '.claude/plugins'), { recursive: true });
+    writeFileSync(
+      path.join(home, '.claude/plugins/installed_plugins.json'),
+      JSON.stringify({ version: 2, plugins: { 'grillhouse@roomi-fields': entrees } })
+    );
+  };
+  const reglages = (role: string) =>
+    reglagesDe(optionsDuRole(role, { racine: depot, copie, ticket: 'demo-1', home }));
+
+  it('criterion 1: every role reads its own skill and its references, by Read and by ls, without a prompt; not the skill of another', () => {
+    installe([
+      { scope: 'local', projectPath: '/ailleurs', installPath: path.join(cache, '0.0.1') },
+      { scope: 'local', projectPath: copie, installPath: path.join(cache, '9.9.9') },
+      { scope: 'local', projectPath: depot, installPath: path.join(cache, '9.9.8') },
+    ]);
+    const roles = Object.keys(ROLES);
+    for (const role of roles) {
+      const r = reglages(role);
+      const dossier = path.join(cache, '9.9.9/skills', role);
+      for (const f of [
+        path.join(dossier, 'SKILL.md'),
+        path.join(dossier, 'references/edge-case-hunter.md'),
+      ]) {
+        expect(litSansInvite(f, r, copie), `${role} : ${f}`).toBe(true);
+      }
+      expect(refusReel(`ls ${dossier}/references/`, r, copie), role).toBeNull();
+      expect(refusReel(`ls ${dossier}/references/ packages/a/docs`, r, copie), role).toBeNull();
+      const autre = roles.find(x => x !== role) ?? '';
+      expect(
+        litSansInvite(path.join(cache, '9.9.9/skills', autre, 'SKILL.md'), r, copie),
+        role
+      ).toBe(false);
+      expect(refusReel(`ls ${path.join(cache, '9.9.9/skills')}/`, r, copie), role).not.toBeNull();
+    }
+  });
+
+  it("criterion 1: the plugin is the copy's, where the session runs, else the project's", () => {
+    installe([{ scope: 'local', projectPath: depot, installPath: path.join(cache, '9.9.8') }]);
+    const r = reglages('relecteur');
+    expect(litSansInvite(path.join(cache, '9.9.8/skills/relecteur/SKILL.md'), r, copie)).toBe(true);
+  });
+
+  it('criterion 2: the right gives no writing, and adds no command', () => {
+    installe([{ scope: 'local', projectPath: copie, installPath: path.join(cache, '9.9.9') }]);
+    for (const role of Object.keys(ROLES)) {
+      const { allow } = reglages(role).permissions;
+      const neufs = allow.filter(a => !ROLES[role as keyof typeof ROLES].commandes.includes(a));
+      expect(neufs, role).toEqual([
+        `Read(/${path.join(cache, '9.9.9/skills', role)}/**)`,
+        ...(nommeLeMetacadre(role) ? [`Read(/${path.join(cache, '9.9.9/METACADRE.md')})`] : []),
+      ]);
+      expect(
+        allow.filter(a => /^(Edit|Write|MultiEdit|NotebookEdit)\(/.test(a)),
+        role
+      ).toEqual([]);
+    }
+  });
+
+  // Criterion 3, found at the review of the lot: the skills of the reviewer, the explorateur, the
+  // testwriter and the developpeur name `${CLAUDE_PLUGIN_ROOT}/METACADRE.md`, at the root of the
+  // plugin, out of the folder of their skill.
+  const nommeLeMetacadre = (role: string) =>
+    readFileSync(path.join(RACINE, 'mods/grillhouse/skills', role, 'SKILL.md'), 'utf8').includes(
+      '${CLAUDE_PLUGIN_ROOT}/METACADRE.md'
+    );
+
+  it('criterion 3: a role whose skill names the METACADRE.md of the plugin reads that file alone, not the root of the plugin', () => {
+    installe([{ scope: 'local', projectPath: copie, installPath: path.join(cache, '9.9.9') }]);
+    const nomment = Object.keys(ROLES).filter(nommeLeMetacadre);
+    expect(nomment.sort()).toEqual(['developpeur', 'explorateur', 'relecteur', 'testwriter']);
+    const racineDuGreffon = path.join(cache, '9.9.9');
+    for (const role of Object.keys(ROLES)) {
+      const r = reglages(role);
+      expect(litSansInvite(path.join(racineDuGreffon, 'METACADRE.md'), r, copie), role).toBe(
+        nommeLeMetacadre(role)
+      );
+      expect(litSansInvite(path.join(racineDuGreffon, 'charte.md'), r, copie), role).toBe(false);
+      expect(refusReel(`ls ${racineDuGreffon}/`, r, copie), role).not.toBeNull();
     }
   });
 });

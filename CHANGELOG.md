@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **Each role reads the files of its own skill** (grillhouse-9jr.2): on BPScript bp-mono-vbwf.328, the reviewer was refused `Read` on its skill's `references/edge-case-hunter.md` and `verification-gap.md`, and `ls` of that folder, files its skill tells it to follow to the letter: they live in the frame's installed plugin, out of the ticket's copy, and its rights gave no reading there. As Claude Code gives a session the reading of its folders of work (`--add-dir`), the rights of every role the circuit launches now carry a rule `Read` on its own skill's folder in the frame's plugin, as installed for the copy, else for the project, and for a role whose skill names it (the reviewer, the explorateur, the testwriter, the developpeur) a rule `Read` on the plugin's `METACADRE.md` alone; measured on Claude Code in `dontAsk`, they let `Read` and `ls` of those folders through, and neither the skill of another role, the rest of the plugin, nor any writing. A rule `Read` rather than a folder of work, which would open the whole plugin: narrower.
+
 ## [0.24.7] - 2026-10-26
 
 ### Fixed

@@ -27,7 +27,7 @@ roomis-grillhouse/
 │   │   ├── migrations/                # one module per change of form, <version>-<nom>.mjs, replayable without effect, each with tests/unit/migration.<nom>.spec.ts
 │   │   ├── session-start.sh           # SessionStart hook: what is still empty (per package in the frame); the lock of the supervisor (superviseur.mjs); silent to a session of a role agent
 │   │   ├── structure-guard.sh         # UserPromptSubmit hook: a structure decision goes to the grill; silent to a session of a role agent
-│   │   ├── droits.mjs                 # The rights and the context of each role session the circuit launches, drawn from the commands its skill names: settings on the command line, the user's configuration out, its skills, tools and index servers alone, its locks (tests: tests/unit/droits.spec.ts)
+│   │   ├── droits.mjs                 # The rights and the context of each role session the circuit launches, drawn from the commands its skill names, with the reading of its skill's files and of the METACADRE.md in the installed plugin: settings on the command line, the user's configuration out, its skills, tools and index servers alone, its locks (tests: tests/unit/droits.spec.ts)
 │   │   ├── verrous/verrou.mjs         # The role agents' write locks (tests: tests/unit/verrous.spec.ts)
 │   │   ├── verrous/commande.mjs       # The lock of the commands of a role that writes: no file of the repository written by the shell (tests: tests/unit/verrou-commande.spec.ts)
 │   │   ├── verrous/ticket-du-sous-agent.mjs # hook: a role agent launches with « TON TICKET : <id> »

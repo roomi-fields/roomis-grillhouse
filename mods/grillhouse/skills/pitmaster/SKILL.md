@@ -211,7 +211,7 @@ Une séance de supervision charge le superviseur (`pitmaster`) ; un projet a un 
 comme Zuul a un seul ordonnanceur : l'ouverture de séance prend le verrou du dépôt, et une seconde
 séance le dit au responsable et ne lance aucun circuit. Les rôles sont des agents du greffon du
 cadre (ses `agents/`, leurs compétences dans ses `skills/`), chacun sous ses verrous et les droits que nomment les commandes de sa
-compétence, sans la configuration propre de l'utilisateur (`packages/grillhouse/scripts/droits.mjs`). Un ticket
+compétence, avec la lecture des fichiers de sa compétence et du métacadre dans le greffon installé, sans la configuration propre de l'utilisateur (`packages/grillhouse/scripts/droits.mjs`). Un ticket
 parcourt l'arbre de son circuit, les étapes « auto » comprises (`packages/grillhouse/scripts/etapes.mjs`, la seule
 liste), comme un pipeline de GitLab CI ses étapes et leurs travaux : 1 Plan : l'`explorateur` écrit le plan
 (ses critères, les paquets à toucher, ses questions ouvertes, que le circuit écrit au ticket), le
