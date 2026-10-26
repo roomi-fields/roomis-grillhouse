@@ -252,8 +252,11 @@ comme un paquet d'ESLint porte son greffon. La place de marché `roomi-fields`
 (`roomi-fields/claude-plugins`) le désigne par sa source npm ; le projet la déclare et active
 `grillhouse@roomi-fields` (`npx grillhouse maj`). Ce qui est propre à un projet (sa charte, ses
 réglages, sa version du paquet) vit dans le projet, jamais dans ce qui se publie. Une version de
-npm vaut pour les deux ; l'ouverture de séance nomme un greffon chargé à une autre version que
-le paquet du projet, avec la commande qui les remet d'accord. Un projet n'en garde aucune copie
+npm vaut pour les deux : `npx grillhouse maj` met à jour le greffon resté derrière le paquet
+(`claude plugin update`), comme `npm install` aligne ce qui est installé sur ce qui est déclaré,
+et finit non nulle, avec la commande à taper, quand les deux restent en désaccord ; l'ouverture
+de séance nomme un greffon chargé à une autre version que le paquet du projet, avec la commande
+qui les remet d'accord. Un projet n'en garde aucune copie
 (`npx grillhouse maj` retire, à leur empreinte, celles que posait la 0.22) ; sans le paquet installé, l'ouverture de séance dit « lance `npm install` », et les autres crochets
 sortent sans effet. Les crochets git du cadre suivent le modèle de Husky : le `prepare` du
 projet lance `grillhouse hooks`, qui les pose à côté des sections de Beads, et chacun appelle

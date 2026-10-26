@@ -962,3 +962,137 @@ describe('grillhouse-3uv.84.3 critère 3 — the session start names a package a
     expect(ligneEcart(sortie), sortie).toBeUndefined();
   });
 });
+
+// grillhouse-982.4: on BPScript 320.3.9, the package was at 0.24.6 and the mod installed for the
+// project stayed at 0.24.3 (~/.claude/plugins/installed_plugins.json): the update installed an
+// absent plugin, never updated a present one. The installation of the plugins (the update and the
+// preparation call it) now brings the frame's mod to the package's version, by `claude plugin
+// update <id> --scope <its scope>` from the project's root; when it cannot, a line names the
+// command to type and the code is non-zero.
+describe('grillhouse-982.4 — the installation brings the frame’s mod to the package’s version', () => {
+  const PAQUET = (
+    JSON.parse(readFileSync(path.join(DEPOT, 'packages/grillhouse/package.json'), 'utf8')) as {
+      version: string;
+    }
+  ).version;
+  const [MAJ_X, MIN_X, PAT_X] = PAQUET.split('.').map(Number);
+  // A version just behind the package's (0.24.3 under 0.24.6 on BPScript), and one ahead.
+  const DERRIERE =
+    PAT_X > 0 ? `${MAJ_X}.${MIN_X}.${PAT_X - 1}` : MIN_X > 0 ? `${MAJ_X}.${MIN_X - 1}.9` : '0.0.1';
+  const DEVANT = `${MAJ_X + 1}.0.0`;
+  const misesAJour = (appels: AppelClaude[]) =>
+    appels.filter(a => a.argv[0] === 'plugin' && a.argv[1] === 'update');
+  const mise = (scope: string) => `claude plugin update ${GRILL} --scope ${scope}`;
+  // The BPScript state: the mod at the root at scope local, the agents' copies at other versions.
+  const etat = (p: string, version: string, scope = 'local', autre: Partial<EtatClaude> = {}) => ({
+    noms: NOMS,
+    marches: ['claude-plugins-official', 'roomi-fields'],
+    plugins: [
+      { id: RTFM, scope: 'user', enabled: true, version: '9.9.9' },
+      { id: MATT, scope: 'project', enabled: true, projectPath: p, version: '1.0.0' },
+      { id: GRILL, scope, enabled: true, projectPath: p, version },
+      {
+        id: GRILL,
+        scope: 'local',
+        enabled: true,
+        projectPath: path.join(p, '.claude/worktrees/copie'),
+        version: '0.14.0',
+      },
+    ],
+    ...autre,
+  });
+  const versionDuMod = (e: EtatClaude, p: string, scope: string) =>
+    e.plugins?.find(x => x.id === GRILL && x.scope === scope && x.projectPath === p)?.version;
+  const ligneMod = (sortie: string) => sortie.split('\n').find(l => l.includes(GRILL));
+
+  for (const scope of ['local', 'project']) {
+    it(`critère 1: the mod behind the package at scope ${scope}: updated at its scope, from the project’s root, to the package’s version; code 0`, () => {
+      const p = projet();
+      const r = installer(p, etat(p, DERRIERE, scope));
+      expect(r.status, r.sortie).toBe(0);
+      const appels = misesAJour(r.claude.appels());
+      expect(
+        appels.map(a => a.argv.join(' ')),
+        r.sortie
+      ).toEqual([`plugin update ${GRILL} --scope ${scope}`]);
+      expect(appels[0]?.cwd).toBe(p);
+      expect(versionDuMod(r.claude.etat(), p, scope), r.sortie).toBe(PAQUET);
+      expect(installs(r.claude.appels())).toEqual([]);
+    });
+  }
+  it('critère 1: the update of the frame (npm run grillhouse:maj) brings the mod to the package’s version', () => {
+    const p = projet();
+    const claude = claudeSubstitut(dossier('claude'), etat(p, DERRIERE));
+    const r = mettreAJourProjet(p, claude.bin);
+    expect(r.status, r.sortie).toBe(0);
+    expect(misesAJour(claude.appels()).map(a => a.argv.join(' '))).toEqual([
+      `plugin update ${GRILL} --scope local`,
+    ]);
+    expect(versionDuMod(claude.etat(), p, 'local'), r.sortie).toBe(PAQUET);
+  });
+  it('critère 1: the mod at the package’s version: no update', () => {
+    const p = projet();
+    const r = installer(p, etat(p, PAQUET));
+    expect(r.status, r.sortie).toBe(0);
+    expect(misesAJour(r.claude.appels())).toEqual([]);
+  });
+  it('critère 1: the update fails: a line names the mod and the command to type, code non-zero', () => {
+    const p = projet();
+    const r = installer(p, etat(p, DERRIERE, 'local', { echecsMiseAJour: [GRILL] }));
+    expect(r.status, r.sortie).not.toBe(0);
+    const l = ligneMod(r.sortie);
+    expect(l, r.sortie).toBeDefined();
+    expect(l, r.sortie).toContain(mise('local'));
+    expect(l, r.sortie).toContain(DERRIERE);
+    expect(l, r.sortie).toContain(PAQUET);
+  });
+  it('critère 1: the update leaves the mod behind (its source publishes no newer version): a line, code non-zero', () => {
+    const p = projet();
+    const r = installer(p, etat(p, DERRIERE, 'local', { publiees: { [GRILL]: DERRIERE } }));
+    expect(r.status, r.sortie).not.toBe(0);
+    expect(ligneMod(r.sortie), r.sortie).toContain(mise('local'));
+  });
+  it('critère 1: the update of the frame whose update of the mod fails finishes its work, then exits non-zero with the command', () => {
+    const p = projet();
+    const claude = claudeSubstitut(
+      dossier('claude'),
+      etat(p, DERRIERE, 'local', { echecsMiseAJour: [GRILL] })
+    );
+    const r = mettreAJourProjet(p, claude.bin);
+    expect(r.status, r.sortie).not.toBe(0);
+    expect(r.sortie).toMatch(/^Cadre /);
+    expect(ligneMod(r.sortie), r.sortie).toContain(mise('local'));
+  });
+  it('critère 1: the mod ahead of the package: no update, a line gives the install of the package at the mod’s version, code non-zero', () => {
+    const p = projet();
+    const r = installer(p, etat(p, DEVANT));
+    expect(r.status, r.sortie).not.toBe(0);
+    expect(misesAJour(r.claude.appels())).toEqual([]);
+    expect(ligneMod(r.sortie), r.sortie).toContain(
+      `npm install -D @roomi-fields/grillhouse@${DEVANT}`
+    );
+  });
+  it('critère 1: the mod installed by this run at another version than the package’s is updated to it', () => {
+    const p = projet();
+    const r = installer(p, { noms: NOMS, publiees: { [GRILL]: DERRIERE } });
+    // The source publishes the version behind: the update cannot bring the package's.
+    expect(installes(r.claude.appels())).toContain(GRILL);
+    expect(misesAJour(r.claude.appels()).map(a => a.argv.join(' '))).toEqual([
+      `plugin update ${GRILL} --scope project`,
+    ]);
+    expect(r.status, r.sortie).not.toBe(0);
+    expect(ligneMod(r.sortie), r.sortie).toContain(mise('project'));
+  });
+
+  it('critère 2: the session start names the BPScript case — the mod a version behind at scope local, the copies at others — with the update at scope local', () => {
+    const p = projetOuvert();
+    const { sortie } = ouvrir(p, etat(p, DERRIERE));
+    const l = sortie
+      .split('\n')
+      .find(x => x.includes(GRILL) && x.includes('@roomi-fields/grillhouse'));
+    expect(l, sortie).toBeDefined();
+    expect(l, sortie).toContain(`en ${DERRIERE}`);
+    expect(l, sortie).toContain(`en ${PAQUET}`);
+    expect(l, sortie).toContain(`\`${mise('local')}\``);
+  });
+});

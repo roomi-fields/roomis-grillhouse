@@ -15,15 +15,18 @@
 //   the project's settings stay untouched; the source is `repo` for github, `url` for git and url,
 //   `path` for directory and file, any other type is a failure); then each declared plugin not
 //   installed for the project is installed by `claude plugin install <id> --scope project`, run
-//   from the project's root. `claude` rewrites `.claude/settings.json` in its own key order; once
+//   from the project's root; last, the frame's mod installed for the project at a version behind
+//   the package's (see `ecart` below) is updated by `claude plugin update <id> --scope <its
+//   scope>`, from the project's root, and read again. `claude` rewrites `.claude/settings.json` in its own key order; once
 //   the installs are done, the file holds the keys in the order it had before them (the keys
 //   claude added after), and its exact text when the JSON value is the same.
 // - A plugin is installed for the project when `claude plugin list --json` has an entry for it of
 //   scope user, or of scope project or local whose `projectPath` is the project's root (both paths
 //   resolved); the entry's state (enabled, errors) is not read.
 // - A failure has its line on the error output, naming the plugin and the command that installs it
-//   (a failed add: the marketplace's command, then the plugin's); the others are still tried and the
-//   code is 1. A state reading that fails installs nothing. Without `claude`, each plugin has its line.
+//   (a failed add: the marketplace's command, then the plugin's; a mod left at another version than
+//   the package's, after its update or ahead of the package: both versions and the command of its
+//   `ecart` line); the others are still tried and the code is 1. A state reading that fails installs nothing. Without `claude`, each plugin has its line.
 // - `--absents` prints `claude` (the command is missing), `greffon <id>` per declared plugin not
 //   installed for the project, or `lecture <reason>` when the state cannot be read; each claude
 //   call stops after 5 s. It also prints `ecart <id> <mod's version> <package's version>
@@ -238,7 +241,30 @@ function installer(projet) {
       lignes.push(`${id} : l'installation échoue ; lance \`${commandeGreffon(id)}\`.`);
     }
   }
-  return lignes;
+  return [...lignes, ...aligner(racine, d.plugins)];
+}
+
+// Brings the frame's mod, installed for the project, to the package's version: behind it, the mod
+// is updated at its scope from the project's root (`claude plugin update`, its source's latest),
+// then read again. Returns the line of a mod that stays at another version, with the command that
+// aligns it (`ecart`); none when the versions agree or compare nothing.
+function aligner(racine, declares) {
+  const lecture = lireListe(['plugin', 'list'], undefined);
+  const avant = lecture.liste ? ecart(lecture.liste, declares, racine) : null;
+  if (!avant) {
+    return [];
+  }
+  let reste = avant;
+  if (avant.derriere) {
+    const r = claude(['plugin', 'update', avant.id, '--scope', avant.scope], { cwd: racine });
+    const relue = r.ok ? lireListe(['plugin', 'list'], undefined) : {};
+    reste = relue.liste ? ecart(relue.liste, declares, racine) : avant;
+  }
+  return reste
+    ? [
+        `${reste.id} : le greffon est en ${reste.greffon}, le paquet ${NOM_DU_PAQUET} en ${reste.paquet} ; lance \`${reste.commande}\`.`,
+      ]
+    : [];
 }
 
 /**
@@ -263,8 +289,11 @@ export function greffonsAbsents(projet) {
     return [`lecture ${lecture.erreur}`];
   }
   const absents = d.plugins.filter(id => !installePourLeProjet(lecture.liste, id, racine));
-  const ecart = ecartDeVersions(lecture.liste, d.plugins, racine);
-  return [...absents.map(id => `greffon ${id}`), ...(ecart ? [ecart] : [])];
+  const e = ecart(lecture.liste, d.plugins, racine);
+  return [
+    ...absents.map(id => `greffon ${id}`),
+    ...(e ? [`ecart ${e.id} ${e.greffon} ${e.paquet} ${e.commande}`] : []),
+  ];
 }
 
 // The frame's mod and its package: one version, the `version` of the package.json beside this
@@ -282,12 +311,12 @@ function versionDuPaquet() {
   }
 }
 
-// The line `ecart <id> <mod's version> <package's version> <command>` when the frame's mod,
-// declared and installed for the project (its entry of scope local, else project, else user, as
-// Claude Code applies them), carries another version than the package; null otherwise. The command
-// aligns the one behind: the mod's update at its scope, or the package's install at the mod's
-// version.
-function ecartDeVersions(entrees, declares, racine) {
+// The frame's mod, declared and installed for the project (its entry of scope local, else
+// project, else user, as Claude Code applies them), when it carries another version than the
+// package: `{ id, scope, greffon, paquet, derriere, commande }`, the command aligning the one
+// behind (the mod's update at its scope, or the package's install at the mod's version); null
+// otherwise.
+function ecart(entrees, declares, racine) {
   const paquet = versionDuPaquet();
   const id = declares.find(x => x.slice(0, x.indexOf('@')) === GREFFON_DU_CADRE);
   if (!paquet || !id) {
@@ -301,10 +330,11 @@ function ecartDeVersions(entrees, declares, racine) {
   if (typeof greffon !== 'string' || !X_Y_Z.test(greffon) || greffon === paquet) {
     return null;
   }
-  const commande = plusAncienne(greffon, paquet)
+  const derriere = plusAncienne(greffon, paquet);
+  const commande = derriere
     ? `claude plugin update ${id} --scope ${entree.scope}`
     : `npm install -D ${NOM_DU_PAQUET}@${greffon}`;
-  return `ecart ${id} ${greffon} ${paquet} ${commande}`;
+  return { id, scope: entree.scope, greffon, paquet, derriere, commande };
 }
 
 // True when version <a> comes before version <b> (x.y.z, numbers compared in order).

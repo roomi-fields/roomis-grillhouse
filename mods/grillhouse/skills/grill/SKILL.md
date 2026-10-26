@@ -41,7 +41,7 @@ Un projet neuf naît de `npx @roomi-fields/grillhouse init <dossier> [préfixe]`
 tickets, l'index, les greffons et les crochets. S'il manque ensuite un élément, l'ouverture de séance
 le signale sous « Manque », chacun avec sa commande, sans invite : `npx grillhouse maj` installe pour
 le projet chaque greffon que `.claude/settings.json` déclare (`enabledPlugins`), après son
-marketplace. Le préfixe des tickets vient du nom du projet ; il se confirme au premier tour du grill.
+marketplace, et met le greffon du cadre à la version du paquet. Le préfixe des tickets vient du nom du projet ; il se confirme au premier tour du grill.
 
 ## 2. La règle de l'architecture
 

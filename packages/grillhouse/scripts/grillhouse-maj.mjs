@@ -113,8 +113,10 @@
 //   the frame's lines of a former version give way to the current ones.
 // - The plugins: after the files, the command line installs the plugins the project's settings
 //   declare, for the project, by scripts/greffons.mjs (the mechanism `grillhouse init` also calls;
-//   `mettreAJour` itself never calls claude). A plugin that cannot be installed has its line naming
-//   the command to type; the update has finished its files, and the exit code is non-zero.
+//   `mettreAJour` itself never calls claude), and brings the frame's mod to the package's version,
+//   as `npm install` brings what is installed to what is declared. A plugin that cannot be
+//   installed, or a mod left at another version, has its line naming the command to type; the
+//   update has finished its files, and the exit code is non-zero.
 // - The generated files: after the package.json, each generator of the frame is run in the project
 //   by the project's command (`node_modules/.bin/grillhouse`, its installed package) for the file
 //   it writes when the project holds that file (`grillhouse frontieres --ecrire` for
