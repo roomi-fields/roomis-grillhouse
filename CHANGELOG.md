@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- The reviewer blocks only on what the lot adds: what stood before the lot, even on a line it touches, is a remark, as a guard reports an existing finding without refusing it. On BPScript 320.3.9, a word of the language already on a touched line, which the guard only reported, was made blocking and cost about 16 minutes.
+
 ## [0.24.6] - 2026-10-26
 
 ### Fixed

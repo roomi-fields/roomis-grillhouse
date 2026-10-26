@@ -141,6 +141,10 @@ devient pas un constat bloquant, comme il ne devient pas un critère du ticket (
 changerait, une entrée qu'aucun appelant ne donne). Ainsi seul ce que le ticket ou le cadre
 exige rend le lot, comme une relecture mûre n'exige rien dont le changement n'a pas besoin.
 
+**Un constat bloquant vise ce que le lot ajoute** : ce qui existait avant le lot, même sur une
+ligne qu'il touche, se signale en remarque, comme une garde qui signale un existant sans le refuser.
+Ainsi un ticket répond de ce qu'il ajoute, et l'existant reste à sa dette.
+
 **Chaque constat bloquant nomme son agent** : `role` `testwriter` quand le constat vise un test
 qui manque ou qui ne mord pas, `developpeur` quand il vise le code. Le circuit va droit à cet agent,
 une séance pour tout le ticket, et le constat reste ouvert d'une relance à l'autre jusqu'à ce que
