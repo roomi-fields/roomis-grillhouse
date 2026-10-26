@@ -213,3 +213,20 @@ describe('grillhouse-5m1.4 — a file git does not track is not removed from a n
     expect(changements(c).supprimes).toEqual(['nouveau.ts']);
   });
 });
+
+// grillhouse-982.6: the update ends with `npm run verifier` on main's tree, its changes not yet
+// committed. The green keeps HEAD and the tree of the working tree, those changes included; once
+// they are committed as they stand, a copy that starts from that commit measures nothing changed.
+describe('grillhouse-982.6 — the green of uncommitted changes counts for the commit that holds them', () => {
+  it("a copy from the commit of the changes main's green holds measures no file changed", () => {
+    const r = depot();
+    vert(r);
+    modifier(r, 'a.txt');
+    writeFileSync(path.join(r, 'nouveau.json'), '{}\n');
+    vert(r);
+    git(r, 'add', '-A');
+    git(r, 'commit', '-q', '-m', 'mise à jour du cadre');
+    expect(mesurer(r).fichiers).toEqual([]);
+    expect(mesurer(copie(r, 'agent/t')).fichiers).toEqual([]);
+  });
+});

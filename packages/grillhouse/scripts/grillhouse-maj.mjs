@@ -131,6 +131,18 @@
 //   `npm install` (the frame's package and tools), and the exit code is non-zero. `interfaces-contre-code.mjs` is not
 //   run: it writes after a build.
 // - The report names the version of the frame, « Cadre 0.23.0. », the package's.
+// - Last, the update plays the project's verification, `npm run verifier`, from its root, its
+//   output shown, as Nx affected moves its base to the last green commit of main: its green keeps
+//   the last green (scripts/dernier-vert.mjs), HEAD and the tree of the working tree, the update's
+//   changes included, so that once they are committed as they stand, a copy that starts from that
+//   commit measures nothing changed (witness: BPScript 320.3.9, whose full pass measured 26 files
+//   since main's last green, 11 from the updates 0.24.5 and 0.24.6 committed without one). The
+//   update exits with its code (a failure before it, a plugin's, keeps 1), and the report's last
+//   line says it: green, the last green kept; red, its code, the last green as it was; 75, « à
+//   repasser ». It is not played, the line saying why, when the update leaves its files to finish
+//   (a migration's `aFaire`, a generator that fails: on the error stream, the exit code already
+//   non-zero), when the project has no `verifier` script, or when the report asks for
+//   `npm install` first (a tool or the frame's package newly declared).
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -573,6 +585,66 @@ export function rapport(b) {
   return lignes.map(l => `${l}\n`).join('');
 }
 
+// Whether the bilan <b> of `mettreAJour` asks for `npm install` (a tool or the frame's package
+// newly declared), which the verification needs first.
+const aInstaller = b =>
+  b.dependances.length > 0 || b.configVitest !== null || b.dependanceDuCadre !== null;
+
+// The project's verification, the last step of the update (see the header): `{ code, ligne,
+// erreur }`, the code of `npm run verifier` (null when it is not played), the line of the report,
+// and whether it goes on the error stream.
+function verifier(projet, { fichiersAFinir, installer, vitest }) {
+  const VERT_INTACT = 'le dernier vert reste où il était';
+  if (fichiersAFinir) {
+    return {
+      code: null,
+      erreur: true,
+      ligne: `Vérification non jouée : la mise à jour laisse à faire ci-dessus ; ${VERT_INTACT}. Fais-le, puis \`npm run verifier\`.`,
+    };
+  }
+  if (typeof lireJson(path.join(projet, 'package.json'), {})?.scripts?.verifier !== 'string') {
+    return {
+      code: null,
+      erreur: false,
+      ligne: `Vérification non jouée : le projet n’a pas de script verifier ; aucun dernier vert n’est posé. ${
+        vitest
+          ? 'La ligne « Vitest : » ci-dessus dit pourquoi : installe à la racine le Vitest que le cadre exige, puis relance `npx grillhouse maj`, qui écrit le script.'
+          : 'La mise à jour l’écrit dans un projet testé par Vitest ; sinon, écris-le pour ses tests.'
+      }`,
+    };
+  }
+  if (installer) {
+    return {
+      code: null,
+      erreur: false,
+      ligne: `Vérification non jouée : \`npm install\` d’abord, qui installe ce que la mise à jour déclare, puis \`npm run verifier\` ; ${VERT_INTACT}.`,
+    };
+  }
+  const r = spawnSync('npm', ['run', 'verifier'], { cwd: projet, stdio: 'inherit' });
+  const code = r.status ?? 1;
+  if (code === 0) {
+    return {
+      code,
+      erreur: false,
+      ligne:
+        'Vérification : `npm run verifier` vert ; il pose le dernier vert sur l’arbre que laisse la mise à jour. Commite ces changements tels quels : une copie partie de ce commit mesure contre ce vert.',
+    };
+  }
+  if (code === 75) {
+    return {
+      code,
+      erreur: true,
+      ligne: `Vérification : \`npm run verifier\` à repasser (code 75) ; ni vert ni rouge, ${VERT_INTACT}. Relance \`npm run verifier\` plus tard.`,
+    };
+  }
+  const cause = r.error ? ` (${r.error.message})` : '';
+  return {
+    code,
+    erreur: true,
+    ligne: `Vérification : \`npm run verifier\` rouge (code ${code})${cause} ; ${VERT_INTACT}. Ses rouges sont nommés ci-dessus (⛔).`,
+  };
+}
+
 const USAGE =
   'Usage : npx grillhouse maj   met le projet à jour du paquet installé (npm install -D @roomi-fields/grillhouse@<version> d’abord)\n';
 
@@ -599,7 +671,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
       }
     }
     process.stdout.write(rapport(b));
-    for (const l of [...regenerer(projet), ...installerGreffons(projet)]) {
+    const echecsDesGeneres = regenerer(projet);
+    for (const l of [...echecsDesGeneres, ...installerGreffons(projet)]) {
       process.stderr.write(`${l}\n`);
       process.exitCode = 1;
     }
@@ -607,6 +680,15 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
       process.stdout.write(
         `Migration ${version} (${nom}), reste au projet :\n${lignes.map(l => `- ${l}\n`).join('')}`
       );
+    }
+    const v = verifier(projet, {
+      fichiersAFinir: resteAFaire || echecsDesGeneres.length > 0,
+      installer: aInstaller(b),
+      vitest: b.vitest,
+    });
+    (v.erreur ? process.stderr : process.stdout).write(`${v.ligne}\n`);
+    if (v.code !== null && !process.exitCode) {
+      process.exitCode = v.code;
     }
   }
 }

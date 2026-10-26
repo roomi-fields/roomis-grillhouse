@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -1855,5 +1856,138 @@ describe('grillhouse-3uv.95.11.1 — what stays to the project is reported after
     const r = lancerMajAvec(projet, [], bin());
     expect(r.status, r.stderr).toBe(0);
     expect(json(projet, 'package.json').grillhouse).toEqual({ version: VERSION });
+  });
+});
+
+// grillhouse-982.6: the update ends with `npm run verifier` in the project, whose green keeps the
+// last green (scripts/dernier-vert.mjs), as Nx affected measures against the last green commit of
+// main and what enters main is verified to move that base. Witness: BPScript 320.3.9, whose full
+// pass measured 26 files since main's last green, 11 of them from the updates 0.24.5 and 0.24.6,
+// committed on main without a verification: about 12 min played again for no change of the ticket.
+// The verification is stood in by an `npm` beside the `claude` stand-in: no test runs a real one.
+describe('grillhouse-982.6 — the update ends with the verification that keeps the last green', () => {
+  // A stand-in for `npm`, which records each call (its directory, its arguments, the project's
+  // package.json at that moment), writes <texte> and exits with <code>.
+  function npmSubstitut(dossier: string, code: number, texte = '') {
+    const appels = path.join(dossier, 'npm-appels');
+    const f = path.join(dossier, 'npm');
+    writeFileSync(
+      f,
+      `#!/bin/sh\nprintf '%s\\n' "$PWD|$*" >> '${appels}'\ncp package.json '${appels}.package.json'\nprintf '%s' '${texte}'\nexit ${code}\n`
+    );
+    chmodSync(f, 0o755);
+    return {
+      appels: () =>
+        existsSync(appels) ? readFileSync(appels, 'utf8').split('\n').filter(Boolean) : [],
+      packageJson: () =>
+        JSON.parse(readFileSync(`${appels}.package.json`, 'utf8')) as Record<string, unknown>,
+    };
+  }
+  // A project that declares the frame's tools already (the update adds none, so it asks for no
+  // `npm install`), with <scripts>.
+  function projetVerifie(
+    scripts: Record<string, string> = { verifier: 'grillhouse verifier' },
+    outilsDeclares = true
+  ) {
+    const projet = mkdtempSync(path.join(ESSAIS, 'verification-'));
+    const dev = modele().devDependencies ?? {};
+    const devDependencies = outilsDeclares
+      ? Object.fromEntries(DEPENDANCES.map(n => [n, dev[n] ?? '*'] as const))
+      : {};
+    ecrire(
+      projet,
+      'package.json',
+      `${JSON.stringify({ name: 'p', scripts, devDependencies }, null, 2)}\n`
+    );
+    return projet;
+  }
+  const outils = (code: number, texte = '') => {
+    const claude = claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'outils-')), {
+      marches: ['claude-plugins-official', 'roomi-fields'],
+    });
+    return { bin: claude.bin, npm: npmSubstitut(claude.bin, code, texte) };
+  };
+
+  it('critère 1: a green verification runs once, in the project, after the files; the update exits 0', () => {
+    const projet = projetVerifie();
+    const { bin, npm } = outils(0, '✅ vert.\n');
+    const r = lancerMajAvec(projet, [], bin);
+    expect(r.status, r.stderr).toBe(0);
+    expect(npm.appels()).toEqual([`${realpathSync(projet)}|run verifier`]);
+    // The update had written its files when the verification ran: the version is recorded.
+    expect(npm.packageJson().grillhouse).toEqual({ version: VERSION });
+    expect(r.stdout).toContain('✅ vert.\n');
+  });
+
+  it('critère 1: the update exits with the code of a red verification, and of one à repasser', () => {
+    for (const code of [1, 75]) {
+      const { bin } = outils(code);
+      const r = lancerMajAvec(projetVerifie(), [], bin);
+      expect(r.status, `${code}: ${r.stdout}${r.stderr}`).toBe(code);
+    }
+  });
+
+  it('critère 2: the report says the green kept as the last green, as its last line', () => {
+    const { bin } = outils(0);
+    const r = lancerMajAvec(projetVerifie(), [], bin);
+    const derniere = r.stdout.trimEnd().split('\n').at(-1);
+    expect(derniere).toMatch(/^Vérification : `npm run verifier` vert ; .*dernier vert/);
+  });
+
+  it('critère 2: the report says a red verification, its code, and that the last green stays', () => {
+    const { bin } = outils(1, '⛔ a#test:vitest\n');
+    const r = lancerMajAvec(projetVerifie(), [], bin);
+    expect(r.stdout).toContain('⛔ a#test:vitest\n');
+    expect(r.stderr).toMatch(
+      /^Vérification : `npm run verifier` rouge \(code 1\) ; .*dernier vert/m
+    );
+  });
+
+  it('critère 2: the report says a verification à repasser, neither green nor red', () => {
+    const { bin } = outils(75);
+    const r = lancerMajAvec(projetVerifie(), [], bin);
+    expect(r.stderr).toMatch(/^Vérification : `npm run verifier` à repasser \(code 75\) ; /m);
+  });
+
+  it('critère 2: an update that leaves its files to finish plays no verification, and says why', () => {
+    // A generated file whose generator cannot run (no `node_modules/.bin/grillhouse`).
+    const projet = projetVerifie();
+    ecrire(projet, '.dependency-cruiser.cjs', 'module.exports = {};\n');
+    const { bin, npm } = outils(0);
+    const r = lancerMajAvec(projet, [], bin);
+    expect(r.status).toBe(1);
+    expect(npm.appels()).toEqual([]);
+    expect(r.stderr).toMatch(/^Vérification non jouée : .*dernier vert/m);
+  });
+
+  it('critère 2: an update that adds a tool to install plays no verification, and names npm install', () => {
+    const { bin, npm } = outils(0);
+    const r = lancerMajAvec(projetVerifie(undefined, false), [], bin);
+    expect(r.status, r.stderr).toBe(0);
+    expect(npm.appels()).toEqual([]);
+    expect(r.stdout).toMatch(
+      /^Vérification non jouée : `npm install` d’abord, .*`npm run verifier`/m
+    );
+  });
+
+  it('critère 2: a project without a verifier script plays none, and the report says so', () => {
+    const { bin, npm } = outils(0);
+    const r = lancerMajAvec(projetVerifie({}), [], bin);
+    expect(r.status, r.stderr).toBe(0);
+    expect(npm.appels()).toEqual([]);
+    expect(r.stdout).toMatch(
+      /^Vérification non jouée : le projet n’a pas de script verifier.*écris-le pour ses tests\.$/m
+    );
+  });
+
+  it('critère 2: a project whose root lacks the Vitest the frame requires is sent to the line « Vitest : »', () => {
+    // A project testé par Vitest, whose root resolves none: the update keeps its scripts.
+    const { bin, npm } = outils(0);
+    const r = lancerMajAvec(projetVerifie({ test: 'vitest run' }), [], bin);
+    expect(r.stdout).toMatch(/^Vitest : la racine résout aucune version/m);
+    expect(npm.appels()).toEqual([]);
+    expect(r.stdout).toMatch(
+      /^Vérification non jouée : le projet n’a pas de script verifier.*La ligne « Vitest : » ci-dessus dit pourquoi.*`npx grillhouse maj`/m
+    );
   });
 });

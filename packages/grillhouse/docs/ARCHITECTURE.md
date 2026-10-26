@@ -216,7 +216,11 @@ qu'il vit, et `--arreter` ne vise que lui. Ainsi un circuit survit à la séance
 la séance du superviseur, repris à la main).
 
 **Main reste vert** : l'intégration exige un `npm run verifier` vert, sans rouge admis, mesuré
-contre le dernier vert ; la nuit rejoue la passe complète. Un test connu
+contre le dernier vert ; la nuit rejoue la passe complète. La mise à jour du cadre
+(`npx grillhouse maj`) finit par `npm run verifier` dans le projet, dont le vert pose le dernier
+vert sur l'arbre qu'elle laisse, comme Nx affected avance sa base au dernier commit vert de main ;
+elle rend le code de la vérification, et son compte rendu dit le vert posé, ou pourquoi il ne
+l'est pas (un rouge, un « à repasser », un `npm install` à faire d'abord). Un test connu
 rouge se met en quarantaine dans le test lui-même (`it.skip` ou `it.fails`), avec le ticket qui
 le corrige, comme le fait une intégration continue mature. Ainsi chaque rouge a son ticket, et
 main ne porte aucun rouge.
