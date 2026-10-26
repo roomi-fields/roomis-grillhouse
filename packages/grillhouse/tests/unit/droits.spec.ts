@@ -332,6 +332,13 @@ describe('L2 — what a role that writes may not run', () => {
     'node_modules/.bin/vitest run',
     'npm exec vitest run',
     'npm exec -- vitest run',
+    // Turborepo, which plays the test tool (grillhouse-982.5).
+    'turbo run test:vitest',
+    'npx turbo run test:vitest --filter=a',
+    'npx --no-install turbo run test',
+    'npm exec turbo run test',
+    'npm exec -- turbo run test',
+    'node_modules/.bin/turbo run test',
     // The ticket its instruction carries, read again.
     'bd show demo-1',
     'bd show demo-1 --json',
@@ -344,7 +351,16 @@ describe('L2 — what a role that writes may not run', () => {
       const passent = INTERDITS.filter(c => !deny.some(r => couvre(r, c)));
       expect(passent, role).toEqual([]);
       // Its own comment at the ticket, and the reads of another ticket, stay open.
-      for (const c of ['bd comments add demo-1 x', 'bd show demo-2', 'npm test -- packages/a']) {
+      // The commands the frame plays its tests by stay open too.
+      for (const c of [
+        'bd comments add demo-1 x',
+        'bd show demo-2',
+        'npm test -- packages/a',
+        'npm run test:forcer -- packages/a',
+        'npm run verifier',
+        'npm run verifier -- --gardes',
+        'npx grillhouse turbo-des-paquets --ecrire',
+      ]) {
         expect(
           deny.some(r => couvre(r, c)),
           `${role} : ${c}`

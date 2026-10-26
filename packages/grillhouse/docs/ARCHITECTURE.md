@@ -10,7 +10,8 @@ constructions du cache ; un changement de ce qu'ils importent les rejoue),
 `npm run test:forcer -- <chemins>` pour rejouer pour de vrai un test soupçonné instable ; un
 lancement qui ne joue aucun test échoue ; un banc de temps ou un test de nuit se joue quand son
 propre fichier est nommé, au repos (un dossier ou un paquet nommé les laisse hors, comme le
-jour) ; aucun agent ne lance l'outil de test directement. `npm run verifier` joue, après la
+jour) ; aucun agent ne lance l'outil de test directement, ni Vitest ni Turborepo (les droits d'un
+rôle qui écrit les refusent, `droits.mjs`). `npm run verifier` joue, après la
 construction : les gardes du cadre,
 celles du projet (son script racine `gardes`, un nom que le cadre réserve ; une garde juge les
 fichiers de l'arbre de travail, que le cache de Turborepo compte, jamais l'index de git ; elle

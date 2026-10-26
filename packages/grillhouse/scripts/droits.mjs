@@ -92,6 +92,9 @@ const LIRE_GIT = [
   'Bash(git -C * ls-files*)',
   'Bash(git -C * grep*)',
 ];
+// The test tool run directly, Vitest or Turborepo that plays it (charter, « Aucun agent ne lance
+// l'outil de test directement »): `npm test` and `npm run verifier` play it with what it depends on.
+// `turbo *` ends on a word, so `npx grillhouse turbo-des-paquets` stays open.
 const TEST_DIRECT = [
   'Bash(vitest*)',
   'Bash(npx vitest*)',
@@ -99,6 +102,12 @@ const TEST_DIRECT = [
   'Bash(npm exec vitest*)',
   'Bash(npm exec * vitest*)',
   'Bash(node_modules/.bin/vitest*)',
+  'Bash(turbo *)',
+  'Bash(npx turbo *)',
+  'Bash(npx * turbo *)',
+  'Bash(npm exec turbo *)',
+  'Bash(npm exec * turbo *)',
+  'Bash(node_modules/.bin/turbo *)',
 ];
 // The skills Claude Code keeps listed when its own are off (`disableBundledSkills`), measured on
 // Claude Code 2.1.305.
