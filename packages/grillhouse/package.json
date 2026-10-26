@@ -1,6 +1,6 @@
 {
   "name": "@roomi-fields/grillhouse",
-  "version": "0.24.6",
+  "version": "0.24.7",
   "description": "Roomi's Grillhouse: the frame's scripts, called by one command, grillhouse <sous-commande>",
   "license": "MIT",
   "type": "module",

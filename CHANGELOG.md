@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.24.7] - 2026-10-26
+
 ### Fixed
 
 - **A resumed session's refused sheet is asked again of that same session** (grillhouse-982.1): on BPScript 320.3.9, a resumed developer returned a right BESOIN whose `$ command` piece carried a « \n » written in two characters; `lirePiece` required a real line break and refused the sheet, and the circuit, on a resumption, launched a fresh and whole session whose instruction did not carry the question. That session declared alone what the question asked to arbitrate, the checks went red on it, and the question reached the supervisor 10 minutes later (4.3 min, 0.24 $ lost). As a validator of structured outputs sends its error back to the same conversation, a resumed session's sheet refused is now asked again once of that same session with the reason, as for a fresh one; only a resumption that ends in error falls back on a fresh session. A command piece written on one line, its output after a « \n » in two characters, reads as after a line break.
