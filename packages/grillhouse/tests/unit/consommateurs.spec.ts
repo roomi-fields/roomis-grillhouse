@@ -183,9 +183,12 @@ describe('imports', () => {
   });
 });
 
-// A link of shared test material (an import of `<package>/test-fixtures`, from a test or from the
-// material itself) is no production use: the check neither refuses nor reports it (grillhouse-3uv.67.1).
-describe('a link of shared test material', () => {
+// grillhouse-mo7: a package of the shared test material (it exports `./test-fixtures`) has only
+// tests for readers, by the rule that keeps tests out of the code (BPScript
+// packages/010-parser/test/corpus.ts imports 990-corpus/test-fixtures, no src/ does). As knip
+// counts test files as entries out of its --production mode, the uses of the material are read in
+// the tests of each consumer: test folders and `*.test.*`, `*.spec.*` files.
+describe('grillhouse-mo7 — the uses of the shared test material are read in the tests', () => {
   const paquet = (nom: string, matiere: boolean) =>
     JSON.stringify({
       name: nom,
@@ -194,18 +197,63 @@ describe('a link of shared test material', () => {
         ? { '.': './src/index.ts', './test-fixtures': './test/fixture.ts' }
         : { '.': './src/index.ts' },
     });
-  it('is neither refused nor reported by the check of the interfaces', () => {
+  const materiel = (consommateurs: string) => ({
+    'packages/b/package.json': paquet('@e/b', true),
+    'packages/b/src/index.ts': 'export const b = 1;\n',
+    'packages/b/test/fixture.ts': 'export const exemple = 1;\nexport const autre = 2;\n',
+    'packages/b/docs/INTERFACE.md': `# b\n\nB.\n\n## Consommateurs\n\n${consommateurs}\n`,
+    'packages/a/package.json': paquet('@e/a', false),
+    'packages/a/src/index.ts': 'export const a = 1;\n',
+  });
+
+  it('critère 1 — a name a test of the consumer imports, static or destructured dynamic, is used', () => {
     const dir = repo({
-      'packages/b/package.json': paquet('@e/b', true),
-      'packages/b/src/index.ts': 'export const b = 1;\n',
-      'packages/b/test/fixture.ts': 'export const exemple = 1;\n',
-      'packages/b/docs/INTERFACE.md': '# b\n\nB.\n\n## Consommateurs\n',
-      'packages/a/package.json': paquet('@e/a', true),
-      'packages/a/src/index.ts': 'export const a = 1;\n',
-      'packages/a/test/a.spec.ts': "import { exemple } from '@e/b/test-fixtures';\n",
-      'packages/a/test/fixture.ts': "export * from '@e/b/test-fixtures';\n",
+      ...materiel('- `a` : exemple, autre, corpus, cas'),
+      'packages/a/test/a.ts': "import { exemple } from '@e/b/test-fixtures';\n",
+      'packages/a/tests/b.ts': "const { autre } = await import('@e/b/test-fixtures');\n",
+      'packages/a/__tests__/c.ts': "import { corpus } from '@e/b/test-fixtures';\n",
+      'packages/a/src/d.spec.ts': "import { cas } from '@e/b/test-fixtures';\n",
     });
     expect(verifier(dir)).toEqual({ refus: [] });
+  });
+
+  it('critère 2 — a name a test imports that the interface does not declare is refused', () => {
+    const dir = repo({
+      ...materiel('- `a` : exemple'),
+      'packages/a/test/a.test.ts':
+        "import { exemple, autre } from '@e/b/test-fixtures';\nexport * from '@e/b/test-fixtures';\n",
+    });
+    expect(verifier(dir).refus).toEqual([
+      {
+        fichier: 'packages/b/docs/INTERFACE.md',
+        regle: 'usage-non-declare',
+        message: 'a utilise « autre » de b, que packages/b/docs/INTERFACE.md ne déclare pas.',
+      },
+      {
+        fichier: 'packages/b/docs/INTERFACE.md',
+        regle: 'usage-non-declare',
+        message: 'a utilise « * » de b, que packages/b/docs/INTERFACE.md ne déclare pas.',
+      },
+    ]);
+  });
+
+  it('critère 3 — for a provider other than the material, the tests do not count', () => {
+    const dir = repo({
+      ...materiel(''),
+      'packages/b/package.json': paquet('@e/b', false),
+      'packages/b/docs/INTERFACE.md': '# b\n\nB.\n\n## Consommateurs\n\n- `a` : b\n',
+      'packages/a/test/a.ts': "import { b, c } from '@e/b';\n",
+      'packages/a/src/d.spec.ts': "import { d } from '@e/b';\n",
+    });
+    expect(verifier(dir).refus).toEqual([
+      {
+        fichier: 'packages/b/docs/INTERFACE.md',
+        regle: 'declare-non-utilise',
+        consommateur: 'a',
+        nom: 'b',
+        message: "packages/b/docs/INTERFACE.md déclare « b » pour a, qu'aucun code de a n'utilise.",
+      },
+    ]);
   });
 });
 

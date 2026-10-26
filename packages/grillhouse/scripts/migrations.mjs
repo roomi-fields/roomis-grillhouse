@@ -28,6 +28,7 @@ import * as circuitSimplifie from './migrations/0.24.0-circuit-simplifie.mjs';
 import * as apiExtractorDuPaquet from './migrations/0.24.2-api-extractor-du-paquet.mjs';
 import * as nomsDeclaresInutilises from './migrations/0.24.4-noms-declares-inutilises.mjs';
 import * as lignesMalFormees from './migrations/0.24.6-lignes-mal-formees.mjs';
+import * as matiereDansLesTests from './migrations/0.24.7-matiere-dans-les-tests.mjs';
 
 /** The migrations of the package. */
 export const MIGRATIONS = [
@@ -40,6 +41,7 @@ export const MIGRATIONS = [
   apiExtractorDuPaquet,
   nomsDeclaresInutilises,
   lignesMalFormees,
+  matiereDansLesTests,
 ];
 
 /**

@@ -7,8 +7,9 @@
 //   - `a` : duree, tempo
 //   - `c` : *
 //
-// This check reads what the production code of every component imports from every other, and
-// refuses (exit 1) a use that the provider's interface does not declare, and a declared name that
+// This check reads what the production code of every component imports from every other, and what
+// its tests import from a package of the shared test material (`matieres`), whose only readers are
+// tests, as knip counts test files as entries out of its `--production` mode; it refuses (exit 1) a use that the provider's interface does not declare, and a declared name that
 // no code of its consumer uses, as ESLint's `no-unused-vars` refuses a name nothing uses (BP
 // 320.3.2.1: « LEVEL_TYPES » declared for 020-loader, only reported, caught by its second review).
 // `*` stands for a namespace, default, re-export-all or side-effect import, and for a dynamic
@@ -20,7 +21,8 @@
 // `usage-non-declare`, `declare-non-utilise` or `ligne-mal-formee` (`homonyme` for two components
 // of one name, keyed by the first path). The debt of a new rule is inscribed once, when a project
 // updates to it (scripts/migrations/0.24.4-noms-declares-inutilises.mjs,
-// scripts/migrations/0.24.6-lignes-mal-formees.mjs); in a ticket, the name leaves its line, and a
+// scripts/migrations/0.24.6-lignes-mal-formees.mjs,
+// scripts/migrations/0.24.7-matiere-dans-les-tests.mjs); in a ticket, the name leaves its line, and a
 // line of prose is written as a list of names.
 //
 //   npx grillhouse consommateurs        run from the repository root
@@ -30,8 +32,9 @@
 // `docs/agents/hors-cadre.txt`: neither read nor checked, as provider or as consumer. Every check
 // of the frame enumerates the components through `composants`. In a repository of packages, such a
 // package stays a workspace, and Turborepo plays none of its tasks (scripts/turbo-des-paquets.mjs
-// writes its configuration). For the check of the uses, test files,
-// `dist/`, `docs/` and `node_modules/` are not production code and are not read; nor are Vite's
+// writes its configuration). For the check of the uses, test files (under a folder `test/`,
+// `tests/` or `__tests__/`, or named `*.test.*`, `*.spec.*`) count only for their imports of a
+// package of the material; `dist/`, `docs/` and `node_modules/` are never read, nor are Vite's
 // temporary files, and a file gone between the walk and its read is passed over (`parcourir`).
 // The identity of a component is its name: two directories of the same name, one under `packages/`
 // and one under `src/`, are refused, both paths named (the way npm workspaces, Nx and Cargo refuse
@@ -255,13 +258,18 @@ export function parcourir(chemin, sauter = () => false) {
 // The text of the file <f> a walk listed, or null when it is gone since.
 export const lireSiPresent = f => siPresent(x => readFileSync(x, 'utf8'), f, null);
 
-// The production source files under <dir>: test folders and test files left out.
+// The source files under <dir>: [{ f, test }], `test` for a file under a test folder or of a test
+// name.
 function fichiers(dir) {
   const nom = p => path.basename(p);
-  return parcourir(
-    dir,
-    p => SKIP.has(nom(p)) || nom(p).startsWith('.') || TEST_DIR.has(nom(p))
-  ).filter(p => SOURCE.test(nom(p)) && !isTest(nom(p)));
+  const sousTest = p =>
+    path
+      .relative(dir, path.dirname(p))
+      .split(path.sep)
+      .some(s => TEST_DIR.has(s));
+  return parcourir(dir, p => SKIP.has(nom(p)) || nom(p).startsWith('.'))
+    .filter(p => SOURCE.test(nom(p)))
+    .map(f => ({ f, test: isTest(nom(f)) || sousTest(f) }));
 }
 
 // The component an import specifier reaches from <fichier>, other than <soi>, or null.
@@ -279,14 +287,16 @@ function fournisseur(spec, fichier, tous, soi) {
   );
 }
 
-// What each component really uses of the others: Map provider → Map consumer → Set of names.
+// What each component really uses of the others: Map provider → Map consumer → Set of names. Its
+// production code counts for every provider, its tests for a package of the material only.
 export function utilise(racine, tous = composants(racine)) {
   const out = new Map();
+  const matiere = new Set(matieres(racine).map(m => m.nom));
   for (const c of tous) {
-    for (const f of fichiers(c.dir)) {
+    for (const { f, test } of fichiers(c.dir)) {
       for (const { spec, noms } of imports(lireSiPresent(f) ?? '')) {
         const p = fournisseur(spec, f, tous, c);
-        if (!p) continue;
+        if (!p || (test && !matiere.has(p.nom))) continue;
         if (!out.has(p.nom)) out.set(p.nom, new Map());
         const parConsommateur = out.get(p.nom);
         if (!parConsommateur.has(c.nom)) parConsommateur.set(c.nom, new Set());

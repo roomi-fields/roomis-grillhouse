@@ -29,7 +29,8 @@
 //   dependencies (the `deps` and `data` of Bazel, the `implicitDependencies` of Nx).
 // - The readers of an element are the other components that: its provider's `## Consommateurs`
 //   declares for it, or for `*` (`consommateurs`); import it, or the whole provider, in their
-//   production code (`import`, the uses of scripts/consommateurs.mjs); hold a test file that names
+//   production code, or in their tests for a package of the shared test material (`import`, the
+//   uses of scripts/consommateurs.mjs); hold a test file that names
 //   it, as a whole word, and imports the provider (the test file's path).
 // - By the types (scripts/references-par-les-types.mjs): each element, a member of a type
 //   included, resolved by TypeScript's language service over the components' `tsconfig.json`;

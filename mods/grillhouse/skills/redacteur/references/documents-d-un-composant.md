@@ -55,7 +55,9 @@ nom un identifiant JavaScript ou `*`, jamais une phrase ; un paragraphe hors puc
 de la v2. ») n'est pas un consommateur. Le garde `packages/grillhouse/scripts/consommateurs.mjs` refuse un import qu'elle ne déclare pas,
 un nom déclaré qu'aucun code du consommateur n'emploie, et une puce d'une autre forme, avec ou
 sans « : » ; il lit les noms d'un `import('x')` littéral déstructuré comme ceux d'un import statique, et
-ne lit pas un chargeur dont le paquet se calcule : le consommateur écrit `import('x')` en clair. Une ligne nouvelle entre avec son arbitrage
+ne lit pas un chargeur dont le paquet se calcule : le consommateur écrit `import('x')` en clair. Il
+lit le code de production de chaque consommateur, et aussi ses tests pour le paquet de la matière
+de test partagée, que seuls des tests lisent. Une ligne nouvelle entre avec son arbitrage
 tranché au ticket, qui nomme le consommateur, ou avec le plan du ticket (son titre, sa section
 « Architecture », sa section « Noms publiés »), qui nomme mot pour mot le consommateur et chaque élément que le lot ajoute à la
 ligne, et le garde `packages/grillhouse/scripts/consommateurs-arbitres.mjs` refuse une ligne

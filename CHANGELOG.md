@@ -10,6 +10,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - The reviewer blocks only on what the lot adds: what stood before the lot, even on a line it touches, is a remark, as a guard reports an existing finding without refusing it. On BPScript 320.3.9, a word of the language already on a touched line, which the guard only reported, was made blocking and cost about 16 minutes.
 
+### Fixed
+
+- **The guard of the consumers reads the uses of the shared test material in the tests of its consumers** (grillhouse-mo7): at 0.24.6, once its 17 lines were rewritten, BPScript's 990-corpus saw 176 names refused as `declare-non-utilise`, which it inscribed as debt. The guard read only production code, and a package of the material (it exports `./test-fixtures`) has, by the rule that keeps tests out of the code, only tests for readers (`packages/010-parser/test/corpus.ts` imports `990-corpus/test-fixtures`, no `src/` does), so every name declared for it came out unused. As knip counts test files as entries out of its `--production` mode, the guard now reads, for a package of the material only, the tests of each consumer too (folders `test/`, `tests/`, `__tests__/`, files `*.test.*`, `*.spec.*`): a name a test imports, statically or by a destructured dynamic import, is used, and one the interface does not declare is refused (`usage-non-declare`), as for production code. For any other provider the tests still do not count. Replayed on BPScript, the 176 fall to 4, and 33 uses come out undeclared; the migration of 0.24.7 (« matière de test lue dans les tests ») names, after `grillhouse maj`, each such use beyond the debt and the command that inscribes them (`npm run grillhouse:dette:inscrire`).
+
 ## [0.24.6] - 2026-10-26
 
 ### Fixed
