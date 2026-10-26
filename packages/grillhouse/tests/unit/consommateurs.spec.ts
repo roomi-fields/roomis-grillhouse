@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { declares, imports, verifier } from '../../scripts/consommateurs.mjs';
+import { declares, imports, lireLigne, verifier } from '../../scripts/consommateurs.mjs';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'consommateurs-'));
@@ -48,7 +48,112 @@ describe('declares', () => {
   });
 });
 
+// grillhouse-wwr critère 2 (the owner's Q2, amended by the supervisor): one form only,
+// `- \`consommateur\` : nom, nom`, for every bullet of the section. A bullet of prose (BPScript
+// 990-corpus/docs/INTERFACE.md:274-289, at 0.24.5) gave « names » that are none, or was passed over.
+describe('grillhouse-wwr critère 2 — a bullet of the section is a list of names', () => {
+  it('reads the consumer and its names, each a JavaScript identifier or `*`', () => {
+    expect(lireLigne('- `a` : duree, `$tempo_2`, *')).toEqual({
+      consommateur: 'a',
+      noms: ['duree', '$tempo_2', '*'],
+    });
+  });
+  it('gives no name for a bullet whose piece after « : » is not a name', () => {
+    const prose =
+      '- `995-tools` : le script `src/empreinte-v2.mjs` importe la porte et lit `scenePaths`, `sceneText` et `compilerOptions`';
+    expect(lireLigne(prose)).toEqual({ consommateur: null, noms: null });
+    expect(lireLigne('- `a` : duree, le type Played')).toEqual({ consommateur: null, noms: null });
+  });
+  it('gives no name for a bullet without « : »', () => {
+    expect(lireLigne('- Les bancs de `100-resolver` lisent `outer`.')).toEqual({
+      consommateur: null,
+      noms: null,
+    });
+  });
+  it('is no line of a consumer for a paragraph', () => {
+    expect(lireLigne('Aucun paquet de la v2.')).toBeNull();
+  });
+  it('declares gives no name for such a bullet', () => {
+    const d = declares(
+      '## Consommateurs\n\n- `a` : duree\n- `c` : le script lit `x`, `y` et `z`\n- Les bancs de `d` lisent `x`.'
+    );
+    expect([...d.keys()]).toEqual(['a']);
+  });
+  const fournisseur = (consommateurs: string) =>
+    repo({
+      'packages/b/package.json': '{"name":"@demo/b"}',
+      'packages/b/docs/INTERFACE.md': INTERFACE_B(consommateurs),
+      'packages/a/package.json': '{"name":"@demo/a"}',
+      'packages/a/src/index.ts': "import { duree } from '@demo/b';",
+      'packages/c/package.json': '{"name":"@demo/c"}',
+    });
+  const refus = (texte: string) => ({
+    fichier: 'packages/b/docs/INTERFACE.md',
+    regle: 'ligne-mal-formee',
+    texte,
+    message: `packages/b/docs/INTERFACE.md § Consommateurs : la ligne « ${texte} » n'est pas une liste de noms ; écrire la ligne en liste de noms : - \`consommateur\` : nom, nom.`,
+  });
+  it('the guard refuses a bullet of prose, with or without « : », naming the file and the line', () => {
+    const avec = '- `c` : le script lit `duree` à l’exécution';
+    const sans = '- Les bancs de `c` lisent `duree`.';
+    expect(verifier(fournisseur(`## Consommateurs\n\n- \`a\` : duree\n${avec}\n${sans}`))).toEqual({
+      refus: [refus(avec), refus(sans)],
+    });
+  });
+  it('the guard admits a paragraph of the section, and reads none of the generated part', () => {
+    const dir = fournisseur(
+      [
+        '## Consommateurs',
+        '',
+        'Aucun paquet de la v2.',
+        '',
+        '- `a` : duree',
+        '',
+        '<!-- généré: début -->',
+        '### `duree`',
+        '',
+        '- `x` — un membre',
+        '<!-- généré: fin -->',
+      ].join('\n')
+    );
+    expect(verifier(dir)).toEqual({ refus: [] });
+  });
+});
+
 describe('imports', () => {
+  // grillhouse-wwr critère 1, as knip reads `const { a, b } = await import('x')`: BPScript 995-tools
+  // (0.24.5) declared the names it reads so, and the guard refused them as unused.
+  it('critère 1 — names what a literal dynamic import destructures, as a static import', () => {
+    const src = [
+      "const { a, b: c } = await import('@demo/p');",
+      'const {',
+      '  x,',
+      '  y = 1,',
+      "} = await import('../q/x');",
+      "let { r } = require('@demo/r');",
+      "const { s, ...reste } = await import('@demo/s');",
+      "const n = await import('@demo/n');",
+      "const { default: X, d } = await import('@demo/d');",
+    ].join('\n');
+    expect(imports(src)).toEqual([
+      { spec: '@demo/p', noms: ['a', 'b'] },
+      { spec: '../q/x', noms: ['x', 'y'] },
+      { spec: '@demo/r', noms: ['r'] },
+      { spec: '@demo/s', noms: ['s', '*'] },
+      { spec: '@demo/n', noms: ['*'] },
+      // `default`, as `import X from 'p'`, is `*`.
+      { spec: '@demo/d', noms: ['*', 'd'] },
+    ]);
+  });
+  it('critère 1 — the guard counts a destructured dynamic import as a use of its names', () => {
+    const dir = repo({
+      'packages/b/package.json': '{"name":"@demo/b"}',
+      'packages/b/docs/INTERFACE.md': INTERFACE_B('## Consommateurs\n\n- `a` : duree, tempo'),
+      'packages/a/package.json': '{"name":"@demo/a"}',
+      'packages/a/src/index.mjs': "const { duree, tempo } = await import('@demo/b');",
+    });
+    expect(verifier(dir)).toEqual({ refus: [] });
+  });
   it('names what each import takes', () => {
     const src = [
       "import { duree, type Tempo as T } from '@demo/b';",

@@ -11,12 +11,17 @@
 // refuses (exit 1) a use that the provider's interface does not declare, and a declared name that
 // no code of its consumer uses, as ESLint's `no-unused-vars` refuses a name nothing uses (BP
 // 320.3.2.1: « LEVEL_TYPES » declared for 020-loader, only reported, caught by its second review).
-// `*` stands for a namespace, default, re-export-all or side-effect import. A refusal inscribed in
-// the project's debt (`grillhouse-dette.json`, see `dette.mjs`) passes, keyed by the provider's
-// interface and `usage-non-declare` or `declare-non-utilise` (`homonyme` for two components of one
-// name, keyed by the first path). The debt of the new rule is inscribed once, when a project
-// updates to it (scripts/migrations/0.24.4-noms-declares-inutilises.mjs); in a ticket, the name
-// leaves its line.
+// `*` stands for a namespace, default, re-export-all or side-effect import, and for a dynamic
+// import not destructured; a literal dynamic import destructured gives its names, as knip reads
+// it. A bullet of the section is a list of names, each a JavaScript identifier or `*`: a bullet of
+// another form, with or without « : », is refused, and gives no name; a paragraph is no consumer
+// and passes. A refusal inscribed in the project's debt
+// (`grillhouse-dette.json`, see `dette.mjs`) passes, keyed by the provider's interface and
+// `usage-non-declare`, `declare-non-utilise` or `ligne-mal-formee` (`homonyme` for two components
+// of one name, keyed by the first path). The debt of a new rule is inscribed once, when a project
+// updates to it (scripts/migrations/0.24.4-noms-declares-inutilises.mjs,
+// scripts/migrations/0.24.6-lignes-mal-formees.mjs); in a ticket, the name leaves its line, and a
+// line of prose is written as a list of names.
 //
 //   npx grillhouse consommateurs        run from the repository root
 //
@@ -111,36 +116,80 @@ export function matieres(racine) {
   return found;
 }
 
-// The declared consumers of an interface text: Map consumer → Set of element names.
-export function declares(texte) {
-  const out = new Map();
+// A name of a `## Consommateurs` line: a JavaScript identifier, or `*`.
+const NOM = /^(?:\*|[\p{ID_Start}$_][\p{ID_Continue}$‌‍]*)$/u;
+
+// The consumer and the names of the bullet <ligne> of a `## Consommateurs` section, trimmed, in
+// its one form ``- `<consommateur>` : <nom>, <nom>``: `{ consommateur, noms }`; `{ consommateur:
+// null, noms: null }` for a bullet of another form, with or without « : », or whose piece after
+// « : » is not a name (`NOM`), a bullet of prose; null for a line that is no bullet (a paragraph).
+// The one reading of such a line, for this guard and for scripts/consommateurs-arbitres.mjs.
+export function lireLigne(ligne) {
+  if (!/^[-*]\s+\S/.test(ligne)) return null;
+  const m = /^[-*]\s+`?([^`:\s]+)`?\s*:\s*(.+)$/.exec(ligne);
+  const noms = m
+    ? m[2]
+        .split(',')
+        .map(s => s.replace(/`/g, '').trim())
+        .filter(Boolean)
+    : [];
+  return noms.length && noms.every(n => NOM.test(n))
+    ? { consommateur: m[1], noms }
+    : { consommateur: null, noms: null };
+}
+
+// The bullets of the section `## Consommateurs` of an interface text, each read by `lireLigne`:
+// [{ texte, consommateur, noms }]; a paragraph is none. The section ends at the next heading of any
+// level: the generated part (scripts/interfaces-contre-code.mjs) opens on the heading of its first
+// element, so its bullets are never read.
+function lignesDeConsommateurs(texte) {
+  const out = [];
   let dedans = false;
   for (const l of texte.split('\n')) {
     if (/^#{1,6} /.test(l)) {
       dedans = /^## Consommateurs\s*$/.test(l);
       continue;
     }
-    const m = dedans && /^[-*]\s+`?([^`:\s]+)`?\s*:\s*(.+)$/.exec(l.trim());
-    if (!m) continue;
-    const noms = m[2]
-      .split(',')
-      .map(s => s.replace(/`/g, '').trim())
-      .filter(Boolean);
-    out.set(m[1], new Set(noms));
+    const lue = dedans ? lireLigne(l.trim()) : null;
+    if (lue) out.push({ texte: l.trim(), ...lue });
   }
   return out;
 }
 
-// The imports of a source text: [{ spec, noms }].
+// The declared consumers of an interface text: Map consumer → Set of element names. A line that
+// is no list of names gives none.
+export function declares(texte) {
+  return new Map(
+    lignesDeConsommateurs(texte)
+      .filter(l => l.noms)
+      .map(l => [l.consommateur, new Set(l.noms)])
+  );
+}
+
+// The imports of a source text: [{ spec, noms }]. A dynamic `import` or a `require` of a literal
+// specifier, destructured in a declaration (`const { a, b: c } = await import(…)`), gives the
+// names it destructures, as a static import, a rest element or `default` `*`; one not
+// destructured gives `*`,
+// as knip reads them. A specifier computed at run time is not read.
 export function imports(source) {
   const out = [];
   // A static clause holds only names, braces, commas, `*`, `as` and `type`: it never crosses a
   // `;`, a quote, a parenthesis or an `=`, so it never runs from one statement into the next.
   const re =
-    /^\s*(?:import|export)\s+(?:type\s+)?([^;'"()=]*?)\s*from\s*['"]([^'"]+)['"]|^\s*import\s*['"]([^'"]+)['"]|\b(?:require|import)\(\s*['"]([^'"]+)['"]\s*\)/gm;
+    /^\s*(?:import|export)\s+(?:type\s+)?([^;'"()=]*?)\s*from\s*['"]([^'"]+)['"]|^\s*import\s*['"]([^'"]+)['"]|\b(?:const|let|var)\s*\{([^{}]*)\}\s*=\s*(?:await\s+)?(?:require|import)\(\s*['"]([^'"]+)['"]\s*\)|\b(?:require|import)\(\s*['"]([^'"]+)['"]\s*\)/gm;
   for (const m of source.matchAll(re)) {
-    if (m[3] || m[4]) {
-      out.push({ spec: m[3] ?? m[4], noms: ['*'] });
+    if (m[5]) {
+      const noms = m[4]
+        .split(',')
+        .map(p => p.trim())
+        .filter(Boolean)
+        .map(p => (p.startsWith('...') ? '*' : p.split(/[:=]/)[0].trim()))
+        .map(n => (n === 'default' ? '*' : n));
+      out.push({ spec: m[5], noms });
+      continue;
+    }
+    if (m[3] || m[6]) {
+      out.push({ spec: m[3] ?? m[6], noms: ['*'] });
       continue;
     }
     const clause = m[1];
@@ -252,6 +301,10 @@ export function utilise(racine, tous = composants(racine)) {
 // and the name, which the migration of 0.24.4 reports line by line.
 export const DECLARE_NON_UTILISE = 'declare-non-utilise';
 
+// The rule of a bullet of a `## Consommateurs` section that is no list of names; its finding
+// names the line (`texte`), which the migration of 0.24.6 reports.
+export const LIGNE_MAL_FORMEE = 'ligne-mal-formee';
+
 // The refusals of the components that share a name: one finding per name, both paths.
 function homonymes(racine) {
   const parNom = new Map();
@@ -268,9 +321,10 @@ function homonymes(racine) {
 }
 
 // The refusals, as findings `{ fichier, regle, message }` the debt (`dette.mjs`) judges: the uses
-// no interface declares (`usage-non-declare`), and the declared names no code of their consumer
-// uses (`declare-non-utilise`). A declared consumer out of the frame is passed over: its code is
-// not read.
+// no interface declares (`usage-non-declare`), the declared names no code of their consumer uses
+// (`declare-non-utilise`), and the lines of a section `## Consommateurs` that are no list of names
+// (`ligne-mal-formee`), which give no name. A declared consumer out of the frame is passed over:
+// its code is not read.
 export function verifier(racine) {
   const tous = composants(racine);
   const hors = horsCadre(racine);
@@ -279,7 +333,16 @@ export function verifier(racine) {
   for (const p of tous) {
     const iface = path.join(p.dir, 'docs', 'INTERFACE.md');
     const rel = path.relative(racine, iface);
-    const declare = existsSync(iface) ? declares(readFileSync(iface, 'utf8')) : new Map();
+    const contenu = existsSync(iface) ? readFileSync(iface, 'utf8') : '';
+    const declare = declares(contenu);
+    for (const { texte } of lignesDeConsommateurs(contenu).filter(l => !l.noms)) {
+      refus.push({
+        fichier: rel,
+        regle: LIGNE_MAL_FORMEE,
+        texte,
+        message: `${rel} § Consommateurs : la ligne « ${texte} » n'est pas une liste de noms ; écrire la ligne en liste de noms : - \`consommateur\` : nom, nom.`,
+      });
+    }
     const utilises = reel.get(p.nom) ?? new Map();
     for (const [consommateur, noms] of utilises) {
       const permis = declare.get(consommateur) ?? new Set();
@@ -316,7 +379,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const { refus, lignes } = trancher(racine, 'consommateurs', verdict.refus);
   for (const r of refus) process.stderr.write(`⛔ ${r.message}\n`);
   for (const l of lignes) process.stderr.write(`${l}\n`);
-  if (refus.some(r => r.regle !== DECLARE_NON_UTILISE)) {
+  if (refus.some(r => r.regle !== DECLARE_NON_UTILISE && r.regle !== LIGNE_MAL_FORMEE)) {
     process.stderr.write(
       "Une consommation nouvelle se décide (le titre du ticket, sa section « Architecture » ou sa section « Noms publiés » qui la nomment, sinon l'arbitrage du superviseur), puis entre dans la section « Consommateurs » de l'interface du fournisseur.\n"
     );

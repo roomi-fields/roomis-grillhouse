@@ -36,6 +36,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { lireLigne } from './consommateurs.mjs';
 import { trancher } from './dette.mjs';
 import { aVerifier, marques } from './interfaces-contre-code.mjs';
 
@@ -90,18 +91,6 @@ function section(description, titre) {
   return out.join('\n');
 }
 
-// The consumer and the names of the `## Consommateurs` line <ligne>
-// (``- `<consommateur>` : <nom>, <nom>``), or null for a line of another form.
-function lireLigne(ligne) {
-  const m = /^[-*]\s+`?([^`:\s]+)`?\s*:\s*(.+)$/.exec(ligne);
-  if (!m) return null;
-  const noms = m[2]
-    .split(',')
-    .map(s => s.replace(/`/g, '').trim())
-    .filter(Boolean);
-  return { consommateur: m[1], noms };
-}
-
 // The names of <noms> the text <texte> does not name word for word: each one whole, with no
 // character of a name (a letter, a digit, `_`, `$`, `-`) beside it; `*`, a namespace, between
 // backquotes.
@@ -135,14 +124,16 @@ export function verifier(racine, env = process.env) {
     const head = git(racine, 'show', `HEAD:${rel}`);
     const lignesAvant = head.status === 0 ? lignesConsommateurs(head.stdout) : [];
     const avant = new Set(lignesAvant);
-    // The names each consumer of HEAD's section reads.
+    // The names each consumer of HEAD's section reads (`lireLigne` of scripts/consommateurs.mjs,
+    // the one reading of such a line: a line that is no list of names gives none).
     const nomsAvant = new Map();
-    for (const l of lignesAvant.map(lireLigne).filter(Boolean)) {
+    for (const l of lignesAvant.map(lireLigne).filter(l => l?.noms)) {
       nomsAvant.set(l.consommateur, new Set([...(nomsAvant.get(l.consommateur) ?? []), ...l.noms]));
     }
     for (const ligne of lignesConsommateurs(readFileSync(iface, 'utf8'))) {
       if (avant.has(ligne)) continue;
-      const lue = lireLigne(ligne);
+      const l = lireLigne(ligne);
+      const lue = l?.noms ? l : null;
       const deja = lue && nomsAvant.get(lue.consommateur);
       const ajoutes = lue ? lue.noms.filter(n => !deja?.has(n)) : null;
       changees.push({ rel, ligne, lue, ajoutes });

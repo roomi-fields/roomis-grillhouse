@@ -50,8 +50,12 @@ voisin dit vrai.
 composant produit.
 **Les consommateurs sont déclarés** : une section `## Consommateurs` liste chaque composant qui
 utilise l'interface, avec les éléments qu'il importe (``- `parser` : jeton, position``, `*` pour
-un import entier). Le garde `packages/grillhouse/scripts/consommateurs.mjs` refuse un import qu'elle ne déclare pas, et
-un nom déclaré qu'aucun code du consommateur n'emploie ; une ligne nouvelle entre avec son arbitrage
+un import entier) ; chaque puce de la section, hors partie générée, a cette seule forme, chaque
+nom un identifiant JavaScript ou `*`, jamais une phrase ; un paragraphe hors puce (« Aucun paquet
+de la v2. ») n'est pas un consommateur. Le garde `packages/grillhouse/scripts/consommateurs.mjs` refuse un import qu'elle ne déclare pas,
+un nom déclaré qu'aucun code du consommateur n'emploie, et une puce d'une autre forme, avec ou
+sans « : » ; il lit les noms d'un `import('x')` littéral déstructuré comme ceux d'un import statique, et
+ne lit pas un chargeur dont le paquet se calcule : le consommateur écrit `import('x')` en clair. Une ligne nouvelle entre avec son arbitrage
 tranché au ticket, qui nomme le consommateur, ou avec le plan du ticket (son titre, sa section
 « Architecture », sa section « Noms publiés »), qui nomme mot pour mot le consommateur et chaque élément que le lot ajoute à la
 ligne, et le garde `packages/grillhouse/scripts/consommateurs-arbitres.mjs` refuse une ligne
