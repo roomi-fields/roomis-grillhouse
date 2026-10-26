@@ -217,5 +217,5 @@ SES QUESTIONS, numérotées :
 
 {{questions}}
 
-Tu réponds une seule fois, à chaque question : dans tes `reponses`, son `numero`, CHANGE avec ce que le plan devient, ou GARDE avec pourquoi il reste tel quel. Ta fiche porte aussi le plan tel qu'il devient : ses `criteres`, ceux que tu ajoutes aux critères écrits au ticket, ses `paquets`, ses `ecartes` et ses `questions` ouvertes, celles que tu ne tranches pas. Une question sans réponse reste ouverte. Ce qui reste ouvert monte au superviseur ; le reste, le circuit l'écrit au ticket, et passe aux tests.
+Tu réponds une seule fois, à chaque question : dans tes `reponses`, son `numero`, CHANGE avec ce que le plan devient, ou GARDE avec pourquoi il reste tel quel. Ta fiche porte aussi le plan tel qu'il devient : ses `criteres`, ceux que tu ajoutes aux critères écrits au ticket, ses `paquets`, ses `ecartes` et ses `questions` ouvertes, celles que tu ne tranches pas. Chaque question posée a sa ligne dans tes `reponses`, même quand tu y réponds par des critères ajoutés : une fiche sans elle est refusée et te revient une fois, avec les numéros qui manquent ; après, une question sans ligne reste ouverte. Ce qui reste ouvert monte au superviseur ; le reste, le circuit l'écrit au ticket, et passe aux tests.
 ```

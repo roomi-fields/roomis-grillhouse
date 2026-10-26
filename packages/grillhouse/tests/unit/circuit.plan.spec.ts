@@ -204,6 +204,44 @@ describe.runIf(canWrap)('the plan, step 1 of the circuit', { timeout: 300_000 },
     ]);
   });
 
+  // grillhouse-9jr.5 critère 1: BPScript 320.10, where the explorateur answered by adding criteria
+  // and its sheet carried no `reponses`: the answer without a line for each question put is
+  // refused, and asked again once of the same session, with the numbers that lack.
+  it('9jr.5 critère 1 — an answer without a line by question put is asked again once of the same session, the numbers that lack named', () => {
+    const id = 'demo-plan-reponse-manquante';
+    ticket(id, '000-forms');
+    scenario(
+      id,
+      QUESTIONNEUR,
+      fiche(questions('Que rend `mesure` de 0 ?', 'Qui lit la mesure publiée ?', 'Et de -1 ?'))
+    );
+    const ligne = (numero: string) => ({ numero, reponse: 'GARDE', texte: 'Le format tient.' });
+    scenario(
+      id,
+      `${EXPLORATEUR}-2`,
+      fiche(plan({ criteres: ['`mesure(0)` rend 0.'], reponses: [ligne('2')] }))
+    );
+    scenario(
+      id,
+      `${EXPLORATEUR}-3`,
+      fiche(plan({ reponses: [ligne('1'), ligne('2'), ligne('3')] }))
+    );
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(sessions(id, EXPLORATEUR)).toBe(3);
+    // The same session, resumed, told the numbers that lack.
+    expect(valeur(args(id, EXPLORATEUR, 3), '--resume')).toBe(
+      valeur(args(id, EXPLORATEUR, 1), '--session-id')
+    );
+    expect(essai(id, `${EXPLORATEUR}-3.prompt`)).toContain(
+      'reponses : sans ligne pour les questions 1, 3'
+    );
+    expect(questionnements(id).at(-1)).toMatchObject({ questions: 3, ouvertes: 0 });
+  });
+
+  // grillhouse-9jr.5 critère 2: a question stays « sans réponse » only after the one resumption.
   it('critère 2 — what stays open after the answer goes up to the supervisor, whose resumption lets the plan pass, questioned no more', () => {
     const id = 'demo-plan-ouvert';
     ticket(id, '000-forms');
@@ -212,19 +250,21 @@ describe.runIf(canWrap)('the plan, step 1 of the circuit', { timeout: 300_000 },
       QUESTIONNEUR,
       fiche(questions('Que rend `mesure` de 0 ?', 'Qui lit la mesure publiée ?'))
     );
-    scenario(
-      id,
-      `${EXPLORATEUR}-2`,
-      fiche(
-        plan({
-          reponses: [{ numero: '1', reponse: 'GARDE', texte: '0, le double de 0.' }],
-          questions: [OUVERTE],
-        })
-      )
+    const partielle = fiche(
+      plan({
+        reponses: [{ numero: '1', reponse: 'GARDE', texte: '0, le double de 0.' }],
+        questions: [OUVERTE],
+      })
     );
+    scenario(id, `${EXPLORATEUR}-2`, partielle);
+    scenario(id, `${EXPLORATEUR}-3`, partielle);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(ARRETS.questionnement);
     expect(sessions(id, 'testwriter')).toBe(0);
+    expect(sessions(id, EXPLORATEUR)).toBe(3);
+    expect(essai(id, `${EXPLORATEUR}-3.prompt`)).toContain(
+      'reponses : sans ligne pour les questions 2'
+    );
     const e = etat(id) as unknown as {
       raison: string;
       question: { arret: string; piece: string; qui: string };
@@ -247,7 +287,7 @@ describe.runIf(canWrap)('the plan, step 1 of the circuit', { timeout: 300_000 },
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const s = circuit([id, '--reprendre']);
     expect(s.status, sortie(s)).toBe(0);
-    expect(sessions(id, EXPLORATEUR)).toBe(2);
+    expect(sessions(id, EXPLORATEUR)).toBe(3);
     expect(sessions(id, QUESTIONNEUR)).toBe(1);
     expect(echange(id).at(-1)).toMatch(
       /le plan passe tel qu’il est, sur la reprise du superviseur/
@@ -264,7 +304,8 @@ describe.runIf(canWrap)('the plan, step 1 of the circuit', { timeout: 300_000 },
     );
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(ARRETS.questionnement);
-    expect(sessions(id, EXPLORATEUR)).toBe(2);
+    // The answer without its line, refused once, then the disagreement left open.
+    expect(sessions(id, EXPLORATEUR)).toBe(3);
     expect(essai(id, `${EXPLORATEUR}-2.prompt`)).toContain(
       '1. Le plan corrige le symptôme, la cause reste.'
     );

@@ -433,6 +433,15 @@ export function conformiteDuLot(fiche, { elements, horsDuService }) {
   return fautes.length ? fautes.join(' ; ') : null;
 }
 
+// What makes the explorateur's answer <fiche> out of conformity with the <posees> questions put to
+// it, as a reviewer gives a line to each element of its lot: each question without its line of
+// `reponses`, by its number. The fault, or null.
+export function reponsesAuxQuestions(fiche, posees) {
+  const numeros = new Set((fiche.reponses ?? []).map(r => Number(r.numero)));
+  const sans = Array.from({ length: posees }, (_, i) => i + 1).filter(n => !numeros.has(n));
+  return sans.length ? `reponses : sans ligne pour les questions ${sans.join(', ')}` : null;
+}
+
 // The piece of a fact <texte>: `{ fichier, ligne }` for « <fichier>:<ligne> », `{ fichier, ligne,
 // fin }` for « <fichier>:<ligne>-<fin> » (as SARIF's region has a start line and an optional end
 // line), then what it shows after a space, the place in backquotes or followed by punctuation

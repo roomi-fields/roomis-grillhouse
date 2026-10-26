@@ -107,7 +107,9 @@ non conforme, comme la section des composants touchés d'un document de concepti
 chacun s'il change, ou pourquoi il reste. Le circuit
 écrit le plan au ticket : les paquets finissent son titre, la seule liste que lit l'enveloppe de
 chaque séance d'après. Le questionneur le lit une fois ; l'explorateur, sa séance
-reprise, répond une fois, CHANGE ou GARDE par question ; ce qui reste ouvert monte au superviseur
+reprise, répond une fois, CHANGE ou GARDE par question, une ligne par question posée : une fiche
+sans elle lui est redemandée une fois avec les numéros qui manquent, comme le relecteur donne une
+ligne à chaque élément du lot ; ce qui reste ouvert monte au superviseur
 (« questionnement »), sinon le circuit passe aux tests. Un plan passé ne se rejoue que si son
 titre ou ses critères changent. Ainsi les questions utiles se posent avant
 le plan, et le plan ne tourne pas en rond (BP 320.9 : 132 tours de questions, 29 critères dont 2

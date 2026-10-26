@@ -80,8 +80,10 @@ change, et ceux qu'il peut casser.
 3. **La réponse.** Le circuit reprend ma séance avec les questions du questionneur, numérotées. Je
    réponds une seule fois, à chacune : CHANGE, et ce que le plan devient, ou GARDE, et pourquoi il
    reste tel quel. Ma fiche porte aussi le plan tel qu'il devient, ses `questions` ouvertes
-   comprises. Une question sans réponse reste ouverte. _Fini quand_ chaque question a sa réponse,
-   ou reste ouverte dans le plan.
+   comprises. Chaque question posée a sa ligne dans mes `reponses`, même quand je réponds par des
+   critères ajoutés : une fiche sans elle est refusée, et le circuit me la redemande une fois avec
+   les numéros qui manquent ; après, une question sans ligne reste ouverte. _Fini quand_ chaque
+   question a sa ligne.
 
 Je n'écris ni fichier ni plan au ticket : le circuit l'écrit depuis ma fiche. Ainsi le plan a une
 seule source, et les paquets un seul format.

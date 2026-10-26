@@ -73,7 +73,10 @@
 //   at), AUCUNE or DÉSACCORD. On its questions, its disagreement as one, the explorateur's session
 //   is resumed once, its instruction from the seventh template (the numbered questions): its sheet
 //   answers each question, CHANGE (what the plan becomes) or GARDE (why it stays), and carries the
-//   plan as it becomes, which the circuit writes at the ticket again. The exchange is written at
+//   plan as it becomes, which the circuit writes at the ticket again. A sheet without a line of
+//   `reponses` by question put (`reponsesAuxQuestions` of scripts/resultats.mjs) is refused and
+//   asked again once of the same session, the numbers that lack named; only after that resumption
+//   does a question without its line stay open. The exchange is written at
 //   the ticket (`Circuit · plan : …`, `Circuit · questionnement : …`) and its end kept with the
 //   circuit's results (`questionnement`: objet, the questions asked, `questions`, change, issue,
 //   ouvertes, the plan's fingerprint). What stays open (the plan's own questions, and each
@@ -515,6 +518,7 @@ import {
   lireResumes,
   lireSarif,
   regleDeLaLigne,
+  reponsesAuxQuestions,
   RESULTATS,
   schemaDeFiche,
 } from './resultats.mjs';
@@ -1308,8 +1312,9 @@ function seanceLancee(ctx, role, r) {
 // id for that author (`ctx.reprise`); with <repli> (a resumption), a session that ends in error
 // returns null, for a fresh session in its place. Throws an Arret for a launch that stops before its session,
 // a motionless session, or twice no sheet that conforms (« sans-fiche »). <avec> joins its fields
-// to the sheet's entry (the lot a review read); <valider> names what makes a sheet out of
-// conformity beyond its schema (an unknown package of a plan), or null.
+// to the sheet's entry (the lot a review read); <valider>(sheet, attempt) names what makes a sheet
+// out of conformity beyond its schema at that attempt (an unknown package of a plan, an answer
+// without a line for a question put), or null.
 async function jusquALaFiche(ctx, role, texte, options = {}) {
   const {
     neuve,
@@ -1338,7 +1343,7 @@ async function jusquALaFiche(ctx, role, texte, options = {}) {
       r.seance === 0
         ? lireSaFiche(ctx, role, r.sortie)
         : { erreur: `la séance finit en erreur (code ${r.seance})` };
-    const faute = lu.fiche ? valider(lu.fiche) : null;
+    const faute = lu.fiche ? valider(lu.fiche, essai) : null;
     if (faute) lu = { erreur: `fiche non conforme : ${faute}` };
     if (lu.fiche) return garder(ctx, role, lu.fiche, avec);
     if (essai === 1) {
@@ -3527,8 +3532,9 @@ const ecartsDe = fiche =>
 // explorateur, out of the envelope, writes the plan in its sheet (its criteria, the packages to
 // touch, its open questions), which the circuit writes at the ticket (`ecrireLePlan`); one session
 // of the questionneur reads it once; on its questions (its disagreement as one), the explorateur's
-// session, resumed, answers once, CHANGE or GARDE by question, its sheet the plan as it becomes. A
-// question it leaves without an answer stays open with its own. Each session's work is named in
+// session, resumed, answers once, CHANGE or GARDE by question, its sheet the plan as it becomes; a
+// sheet without a line by question put is asked again once of that session, and a question it
+// still leaves without an answer stays open with its own. Each session's work is named in
 // the state while it runs (`questionnement`); the exchange is written at the ticket and its end
 // kept with the circuit's results (`questionnement`, which the bilan counts). A plan that has
 // passed, its title and criteria unchanged since (`empreinteDuPlan`), passes. Null when nothing
@@ -3635,7 +3641,14 @@ async function lePlan(ctx) {
           },
           6
         ),
-        { ...explorateur, premiere: 'reprend' }
+        {
+          ...explorateur,
+          premiere: 'reprend',
+          // A line of `reponses` by question put, asked again once; after it, a question without
+          // its line stays open.
+          valider: (f, essai) =>
+            explorateur.valider(f) ?? (essai === 1 ? reponsesAuxQuestions(f, posees.length) : null),
+        }
       );
       reponses = plan.reponses ?? [];
       const lignes = reponses.map(r => `${r.numero}. ${r.reponse} — ${r.texte}`).join('\n');

@@ -21,6 +21,7 @@ import {
   lireRapportsVitest,
   lireResumes,
   lireSarif,
+  reponsesAuxQuestions,
   sarif,
   schemaDeFiche,
 } from '../../scripts/resultats.mjs';
@@ -367,6 +368,22 @@ describe('the conformity of each element of the lot in a reviewer’s sheet', ()
         }
       });
     });
+  });
+});
+
+// grillhouse-9jr.5: on BPScript 320.10 the explorateur's second sheet carried no `reponses`,
+// though it had answered by adding criteria, and the stop « questionnement » came back with its 4
+// questions « sans réponse ». As a reviewer gives a line to each element of its lot
+// (conformiteDuLot), the explorateur's answer gives a line to each question put.
+describe('the answer of the explorateur to the questions put', () => {
+  const ligne = (numero: string) => ({ numero, reponse: 'GARDE', texte: 'x' });
+  it('critère 1 — one line of reponses by question put conforms; each missing number is named', () => {
+    expect(reponsesAuxQuestions({ reponses: [ligne('1'), ligne('2')] }, 2)).toBeNull();
+    expect(reponsesAuxQuestions({ reponses: [ligne('2')] }, 3)).toBe(
+      'reponses : sans ligne pour les questions 1, 3'
+    );
+    expect(reponsesAuxQuestions({}, 1)).toBe('reponses : sans ligne pour les questions 1');
+    expect(reponsesAuxQuestions({}, 0)).toBeNull();
   });
 });
 
