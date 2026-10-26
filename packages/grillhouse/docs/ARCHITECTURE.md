@@ -69,7 +69,11 @@ au plan, 14 montées qui étaient des gestes).
 engendré se réécrit par sa commande, puis le circuit rejoue seulement ce qui en dépend. Une passe
 finale dont un rouge est celui d'une référence, mêlé ou non à d'autres, régénère les références
 qu'il nomme (4.2), puis rejoue la passe finale restreinte à ce que la régénération change ; les
-autres rouges restent, chacun à son propriétaire. Les références sont celles que le projet déclare
+autres rouges restent, chacun à son propriétaire. Des contrôles du plan verts hors des rouges de
+références les régénèrent aussitôt, comme make refait un fichier engendré avant ce qui le lit :
+la passe finale due joue alors une fois, sur l'arbre régénéré, sans régénérer de nouveau une
+référence régénérée sur ce même arbre (BP 320.3.9 : le plafond des mots, rouge aux contrôles,
+laissé à une passe finale qui rejouait les mêmes tests sur le même arbre, 6,1 min). Les références sont celles que le projet déclare
 (`grillhouse.references`) et celles du cadre, dans chaque projet (`REFERENCES_DU_CADRE` de
 `circuit.mjs`) : l'index des interfaces, les `turbo.json` des paquets et les rapports d'API, chacun
 réécrit par son générateur, et la dette des gardes. Une référence, du projet comme du cadre, se

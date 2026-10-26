@@ -86,7 +86,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   rapports d'API et la dette des gardes ; sur la copie entière, dès qu'un rouge est le leur, mêlé
   ou non à d'autres, ou que la dette baisse, chacune suivie de celles qui lisent ce qu'elle écrit
   (l'index après les rapports d'API), sans que le plan les nomme, puis la passe finale restreinte
-  à ce qu'elles changent, les autres rouges allant chacun à son propriétaire : je ne les régénère
+  à ce qu'elles changent, les autres rouges allant chacun à son propriétaire ; aux contrôles du
+  plan verts hors de leurs rouges, avant la passe finale, qui joue alors une fois : je ne les régénère
   jamais à la main ; une commande en échec ou un fichier qu'aucune référence n'écrit arrête à
   `references`, code 23, une question pour moi qui porte chaque écart : je fais corriger la
   référence ou le lot, 4.3 le relecteur), 5 Intégration (5.1

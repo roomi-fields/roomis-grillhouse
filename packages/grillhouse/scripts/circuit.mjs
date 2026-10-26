@@ -263,7 +263,12 @@
 //   their test files, a finding of one of their guards, whatever file it aims at, or a failed test
 //   or a finding on a file a reference of the project covers), mixed with other reds or not, or a
 //   guard's note of a key of the debt inscribed above what it finds (`a-elaguer`, the pass green
-//   or not), sends no developpeur: the gesture `regeneration`, once for that pass. The circuit
+//   or not), sends no developpeur: the gesture `regeneration`, once for that pass. Checks of the
+//   plan green but for reds of references call for it too, before the final pass, as make
+//   remakes a generated file before what reads it: the final pass that is due then plays once, on
+//   the regenerated tree, and does not regenerate again a reference regenerated on that same tree
+//   (BPScript 320.3.9: the ceiling of the words, red at the checks, left to the final pass, which
+//   played the same tests again on the same tree for 6.1 min before regenerating). The circuit
 //   keeps the copy as a lot, runs the command of each reference concerned on the whole copy (the
 //   debt lowered from the notes of the pass, its guards not played again), out of the envelope,
 //   under the lock of the machine, its output added to the log, then, as make remakes the targets
@@ -1726,13 +1731,14 @@ function referencesDesRouges(ctx, lieux, aElaguer = false) {
 // another one has just written runs after it, once for each reference whose writing calls for it;
 // then the copy kept again on that lot. `{ texte, regenerees, fichiers, restreinte }`: the report,
 // the names of the references changed, the files changed, and the range of the final pass that
-// follows (null when nothing changed: no pass plays again, and the reds stand). A file a reference
-// writes follows from the lot, as the output of a genrule, without a word of the plan, and the
-// reviewer reads its difference; a file changed that none of the references run declares, or a
-// command that fails (a reference of the project at another code than 0, one of the frame on a
-// real failure alone) restores the copy as it was and stops at « references », each deviation in
-// its question.
-function regenerer(ctx, noms, notes = []) {
+// follows (null when nothing changed: no pass plays again, and the reds stand); with
+// <avantLaPasse>, the regeneration the checks of the plan call for, the final pass that is due
+// follows, whole or since the last review. A file a reference writes follows from the lot, as
+// the output of a genrule, without a word of the plan, and the reviewer reads its difference; a
+// file changed that none of the references run declares, or a command that fails (a reference of
+// the project at another code than 0, one of the frame on a real failure alone) restores the copy
+// as it was and stops at « references », each deviation in its question.
+function regenerer(ctx, noms, notes = [], avantLaPasse = false) {
   // The notes of the debt, in a file of the run, which the command that lowers it reads.
   const fichierDesNotes = path.join(ctx.base.dossier, 'dette-a-abaisser.json');
   const toutes = lesReferences(ctx).map(r =>
@@ -1812,7 +1818,7 @@ function regenerer(ctx, noms, notes = []) {
   }
   if (!fichiers.length) {
     return {
-      texte: `La régénération (${refs.map(r => `${r.nom}, \`${r.commande}\``).join(' ; ')}) ne change aucun fichier : aucune passe ne rejoue, et les rouges de la passe finale restent, chacun à son propriétaire.`,
+      texte: `La régénération (${refs.map(r => `${r.nom}, \`${r.commande}\``).join(' ; ')}) ne change aucun fichier : ${avantLaPasse ? 'la passe finale juge le lot tel quel' : 'aucune passe ne rejoue, et les rouges de la passe finale restent, chacun à son propriétaire'}.`,
       regenerees: [],
       fichiers,
       restreinte: null,
@@ -1820,7 +1826,7 @@ function regenerer(ctx, noms, notes = []) {
   }
   return {
     texte: [
-      `Les références régénérées sur la copie entière : ${regenerees.map(r => r.nom).join(', ')} ; le lot porte leurs fichiers, puis la passe finale restreinte à ce qu'elles changent.`,
+      `Les références régénérées sur la copie entière : ${regenerees.map(r => r.nom).join(', ')} ; le lot porte leurs fichiers, puis la passe finale${avantLaPasse ? '' : " restreinte à ce qu'elles changent"}.`,
       '',
       ...regenerees.map(r => `- ${r.nom} (\`${r.commande}\`) : ${siens(r).join(', ')}`),
       '',
@@ -2561,8 +2567,10 @@ const ligneDeCommande = c =>
 // in a package of the plan; `horsTitre` the packages out of the plan that hold a red; `arbitrer`
 // when every red of the plan is a finding to settle; `lieux` the place of each red, `{ fichier,
 // gardes }`, its file (null for a red without one) and the names its finding carries (none for a
-// test or a task); `tous` every red as it was read; `notes`, at the final pass, each key of the debt
-// a guard wrote inscribed above what it finds, `{ garde, fichier, regle, trouve }`.
+// test or a task); `references`, out of the final pass, the references whose reds the checks saw,
+// which their regeneration lifts before the final pass; `tous` every red as it was read; `notes`,
+// at the final pass, each key of the debt a guard wrote inscribed above what it finds, `{ garde,
+// fichier, regle, trouve }`.
 function controles(ctx, finale, restreinte = null, reportes = null) {
   const liste = paquets(ctx.copie).filter(p => !p.hors);
   const filtres = restreinte
@@ -2593,14 +2601,17 @@ function controles(ctx, finale, restreinte = null, reportes = null) {
       r => !reportes.rejouee || (Boolean(r.joue) && !joues.has(r.joue))
     ),
   ];
-  // Out of the final pass, the reds of the plan are the developpeur's; the others (the root, a red
-  // no file situates, a package out of the plan, a red of a reference, which its regeneration
-  // lifts, 4.2) wait for it.
-  const deReference = r =>
-    referencesDesRouges(ctx, [{ fichier: r.fichier ?? null, gardes: r.gardes ?? [] }]).length > 0;
+  // Out of the final pass, the reds of the plan are the developpeur's; a red of a reference goes to
+  // its regeneration (4.2), before the final pass; the others (the root, a red no file situates, a
+  // package out of the plan) wait for the final pass.
+  const lieu = r => ({ fichier: r.fichier ?? null, gardes: r.gardes ?? [] });
+  const deReference = r => referencesDesRouges(ctx, [lieu(r)]).length > 0;
   const siens = r => finale || (r.dansLePlan && !deReference(r));
   const rouges = tous.filter(siens);
-  const laisses = tous.filter(r => !siens(r));
+  const references = finale
+    ? []
+    : referencesDesRouges(ctx, tous.filter(r => !siens(r) && deReference(r)).map(lieu));
+  const laisses = tous.filter(r => !siens(r) && (finale || !deReference(r)));
   const aRepasser = resultats.filter(r => r.code === A_REPASSER);
   const nommer = r => `${ligneDeCommande(r)} (code ${r.code})`;
   const enEchec = resultats.filter(r => r.code !== 0 && r.code !== A_REPASSER);
@@ -2617,6 +2628,10 @@ function controles(ctx, finale, restreinte = null, reportes = null) {
       : `verts : ${commandes.length ? resultats.map(ligneDeCommande).join(' ; ') : "la passe finale d'avant"}${
           laisses.length
             ? ` ; laissés à la passe finale, ${laisses.length} rouge(s) hors du plan`
+            : ''
+        }${
+          references.length
+            ? ` ; des rouges sont ceux de références, à leur régénération avant la passe finale (${references.map(r => r.nom).join(', ')})`
             : ''
         }`;
   // Where the checks played: the final pass out of the envelope, on the whole copy or restricted
@@ -2671,7 +2686,8 @@ function controles(ctx, finale, restreinte = null, reportes = null) {
     rouges: rouges.map(r => ({ paquet: nomDuPaquet(r), texte: r.texte, detail: r.detail })),
     resume,
     horsTitre: [...new Set(rouges.map(r => r.horsTitre).filter(Boolean))].sort(),
-    lieux: rouges.map(r => ({ fichier: r.fichier ?? null, gardes: r.gardes ?? [] })),
+    lieux: rouges.map(lieu),
+    references,
     tous,
     notes: finale
       ? resultats.flatMap(r =>
@@ -2973,11 +2989,16 @@ async function derouler(ctx, debut) {
         };
         const suivante = tentative + 1;
         // A final pass with a red of a reference, mixed with others or not, or a debt the lot
-        // lowers: their regeneration, once for this pass; the reds that remain then go each to
-        // its owner.
+        // lowers: their regeneration, once for this pass, but for a reference the checks had
+        // regenerated on this same tree, whose inputs have not changed since; the reds that remain
+        // then go each to its owner.
+        const dejaRegenerees =
+          ctx.regenereSur && ctx.regenereSur.arbre === passe.arbre ? ctx.regenereSur.noms : [];
         const aRegenerer =
           passeFinale && !regeneration && (k.rouge || k.notes.length > 0)
-            ? referencesDesRouges(ctx, k.lieux, k.notes.length > 0)
+            ? referencesDesRouges(ctx, k.lieux, k.notes.length > 0).filter(
+                r => !dejaRegenerees.includes(r.nom)
+              )
             : [];
         if (aRegenerer.length) {
           const noms = aRegenerer.map(r => r.nom);
@@ -3024,6 +3045,21 @@ async function derouler(ctx, debut) {
           arreter('controles', null);
         } else if (k.aRepasser) {
           arreter('a-repasser', null);
+        } else if (!passeFinale && k.references.length) {
+          // The checks green but for reds of references: their regeneration, then the final pass,
+          // which plays once, on the regenerated tree, as make remakes a generated file before
+          // what reads it.
+          geste(ctx, 'regeneration');
+          ecrireRapport(ctx, 'controles', `${k.resume}.`, resultat('vert'));
+          ctx.renvoiAuTestwriter = false;
+          ctx.aRegenerer = {
+            noms: k.references.map(r => r.nom),
+            notes: [],
+            avantLaPasse: true,
+          };
+          etape = REFERENCES;
+          tentative = 0;
+          finale = true;
         } else {
           ecrireRapport(ctx, 'controles', `${k.resume}.`, resultat('vert'));
           // Green checks: a sending of the developpeur to the testwriter may come again.
@@ -3057,16 +3093,22 @@ async function derouler(ctx, debut) {
             "L'état du circuit ne garde pas les références à régénérer : la passe finale les redonne (`--depuis developpeur`)."
           );
         }
-        const g = regenerer(ctx, a.noms, a.notes);
+        const g = regenerer(ctx, a.noms, a.notes, Boolean(a.avantLaPasse));
         ecrireRapport(ctx, 'references', g.texte, {
           regenerees: g.regenerees,
           fichiers: g.fichiers,
         });
-        ctx.regeneration = {
-          restreinte: g.restreinte,
-          entiere: a.entiere,
-          reportes: { rouges: a.rouges, rejouee: g.fichiers.length > 0 },
-        };
+        // After the checks, the final pass that is due, on the regenerated tree, which does not
+        // regenerate again the references just regenerated on it; after a final pass, the pass
+        // restricted to what the regeneration changed, with the reds of the pass before.
+        ctx.regenereSur = a.avantLaPasse ? { arbre: arbreDeLaCopie(ctx), noms: a.noms } : null;
+        ctx.regeneration = a.avantLaPasse
+          ? null
+          : {
+              restreinte: g.restreinte,
+              entiere: a.entiere,
+              reportes: { rouges: a.rouges, rejouee: g.fichiers.length > 0 },
+            };
         ctx.aRegenerer = null;
         etape = CONTROLES;
         finale = true;

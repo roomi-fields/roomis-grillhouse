@@ -171,7 +171,7 @@ describe.runIf(canWrap)(
     // genrule of Bazel writes its output again without a request. Witness: BPScript 320.3.2.1
     // (12:08:52, stop 23): the ceiling of the words of 000-forms lowered from 546 to 542, a
     // mechanical gesture, stopped because the plan named neither the ceiling nor its file.
-    it('critère 2 et 4, grillhouse-j2m critère 2 — regenerates a reference the plan names nowhere, plays the final pass restricted to it, and the lot carries it to the reviewer and the commit', () => {
+    it('critère 2 et 4, grillhouse-j2m critère 2 — regenerates a reference the plan names nowhere, plays the final pass after it, and the lot carries it to the reviewer and the commit', () => {
       const id = 'demo-references-regeneree';
       laReference(true);
       leTicket(id, DESCRIPTION);
@@ -185,12 +185,10 @@ describe.runIf(canWrap)(
       const c = commandes(id);
       const regeneration = c.indexOf(REGENERER);
       expect(regeneration, c.join('\n')).toBeGreaterThan(0);
-      // Before it, the whole final pass, red; after it, the final pass restricted to what it
-      // changes, with the root's tasks.
-      expect(c.slice(0, regeneration)).toContain('npm run verifier');
-      expect(c.slice(regeneration + 1)[0]).toMatch(
-        /^npm run verifier -- --filter=\.\.\.\[[0-9a-f]+\.\.\.[0-9a-f]+\] --filter=\/\/$/
-      );
+      // Before it, the checks of the plan, which see the red (grillhouse-982.2); after it, the
+      // final pass, whole.
+      expect(c.slice(0, regeneration)).not.toContain('npm run verifier');
+      expect(c.slice(regeneration + 1)[0]).toBe('npm run verifier');
       // The step leaves its result with the circuit's, its report naming the reference and its file.
       const e = entrees(id).find(x => x.etape === 'references') as
         { rapport?: string; resultat?: { regenerees?: string[] } } | undefined;
@@ -205,6 +203,36 @@ describe.runIf(canWrap)(
       expect(gitRepo('show', 'main:reference.txt')).toBe('4\n');
     });
 
+    // grillhouse-982.2 — a red of a reference the checks of the plan see is regenerated before the
+    // final pass, as make remakes a generated file before what reads it, and plays no target whose
+    // inputs did not change. Witness: BPScript 320.3.9 (09:25:58 → 09:39:28): the ceiling of the
+    // words red at the checks, left to the final pass, which played 000-forms, 050-emitter and
+    // 995-tools again on the same tree (6.1 min), found the same red, regenerated, then replayed.
+    it('grillhouse-982.2 critère 1 — a red of a reference at the checks of the plan is regenerated before the final pass, which plays once, on the regenerated tree', () => {
+      const id = 'demo-references-aux-controles';
+      laReference(true);
+      leTicket(id, DESCRIPTION);
+      const r = lancer(id);
+      expect(r.status, sortie(r)).toBe(0);
+      const c = commandes(id);
+      const regeneration = c.indexOf(REGENERER);
+      expect(regeneration, c.join('\n')).toBeGreaterThan(0);
+      // Before it, the checks of the plan alone: no final pass on the tree they judged.
+      expect(c.slice(0, regeneration).some(x => x.startsWith('npm test'))).toBe(true);
+      expect(c.slice(0, regeneration).some(x => x.startsWith('npm run verifier'))).toBe(false);
+      // After it, the final pass, once, whole: no ticket was reviewed before.
+      expect(c.slice(regeneration + 1).filter(x => x.startsWith('npm run verifier'))).toEqual([
+        'npm run verifier',
+      ]);
+      expect(c.filter(x => x === REGENERER)).toHaveLength(1);
+      // The checks say the red goes to its regeneration, not to the final pass.
+      const controles = commentaires(id).find(t => t.startsWith('Circuit · controles :'));
+      expect(controles).toContain(`à leur régénération avant la passe finale (${NOM})`);
+      expect(controles).not.toContain('laissés à la passe finale');
+      expect(ordre(id)).toEqual(['developpeur', 'relecteur']);
+      expect(gitRepo('show', 'main:reference.txt')).toBe('4\n');
+    });
+
     // grillhouse-3uv.95.4: the regeneration is a gesture of the circuit, said with its rule.
     it('the regeneration is the gesture `regeneration`, its rule at the ticket and in the log, no session launched on it', () => {
       const id = 'demo-references-geste';
@@ -214,7 +242,7 @@ describe.runIf(canWrap)(
       expect(r.status, sortie(r)).toBe(0);
       expect(commentaires(id).filter(t => / · geste : /.test(t))).toEqual([
         expect.stringMatching(
-          /^Circuit · geste : regeneration → à la régénération des références \(4\.2\), puis la passe finale restreinte à ce qu’elle change \(règle : un rouge de la passe finale est celui d’une référence, même mêlé à d’autres/
+          /^Circuit · geste : regeneration → à la régénération des références \(4\.2\), puis la passe finale : celle qui est due, après les contrôles ; restreinte à ce qu’elle change, après une passe finale \(règle : un rouge de la passe finale est celui d’une référence, même mêlé à d’autres, ou les contrôles du plan sont verts hors des rouges de références/
         ),
       ]);
       expect(
@@ -395,7 +423,7 @@ ecrireSarif({ garde, constats: [] });
       git('commit', '-qm', 'le plafond');
     }
 
-    it("grillhouse-3uv.92.13 critère 1 et 2, grillhouse-3uv.95.8 critère 3 — a ceiling the lot lowers, a guard whose finding aims at a file of code, the guard named by the reference: 4.2 lowers it d'office, then the restricted pass is green", () => {
+    it("grillhouse-3uv.92.13 critère 1 et 2, grillhouse-3uv.95.8 critère 3 — a ceiling the lot lowers, a guard whose finding aims at a file of code, the guard named by the reference: 4.2 lowers it d'office, then the final pass is green", () => {
       const id = 'demo-references-plafond';
       lePlafond(5);
       leTicket(id, `${DESCRIPTION}\n2. ${PLAFOND} suit le double.\n`);
@@ -406,9 +434,8 @@ ecrireSarif({ garde, constats: [] });
       const c = commandes(id);
       const regeneration = c.indexOf('node abaisser.mjs');
       expect(regeneration, c.join('\n')).toBeGreaterThan(0);
-      expect(c.slice(regeneration + 1)[0]).toMatch(
-        /^npm run verifier -- --filter=\.\.\.\[[0-9a-f]+\.\.\.[0-9a-f]+\] --filter=\/\/$/
-      );
+      // The checks see the red: the regeneration, then the final pass, whole (grillhouse-982.2).
+      expect(c.slice(regeneration + 1)[0]).toBe('npm run verifier');
       const e = entrees(id).find(x => x.etape === 'references') as
         { resultat?: { regenerees?: string[]; fichiers?: string[] } } | undefined;
       expect(e?.resultat?.regenerees).toEqual([PLAFOND]);
@@ -417,7 +444,7 @@ ecrireSarif({ garde, constats: [] });
       expect(gitRepo('show', 'main:packages/binder/plafond.txt')).toBe('4\n');
     });
 
-    it('grillhouse-3uv.95.8 critère 3 — a lot beyond the ceiling stays red: the regeneration leaves the ceiling as it is, no pass replays, and the red goes to the developpeur', () => {
+    it('grillhouse-3uv.95.8 critère 3 — a lot beyond the ceiling stays red: the regeneration leaves the ceiling as it is, the final pass does not regenerate it again on the same tree, and the red goes to the developpeur', () => {
       const id = 'demo-references-plafond-depasse';
       lePlafond(3);
       const copie = leTicket(id, `${DESCRIPTION}\n2. ${PLAFOND} suit le double.\n`);
@@ -432,8 +459,11 @@ ecrireSarif({ garde, constats: [] });
       const c = commandes(id);
       const regeneration = c.indexOf('node abaisser.mjs');
       expect(regeneration, c.join('\n')).toBeGreaterThan(0);
-      // The regeneration changes nothing: no pass replays before the developpeur.
-      expect(c.slice(regeneration + 1).some(x => x.startsWith('npm run verifier'))).toBe(false);
+      // The regeneration at the checks changes nothing; the final pass that is due plays once,
+      // and regenerates the ceiling no more on the same tree (grillhouse-982.2).
+      expect(c.slice(0, regeneration).some(x => x.startsWith('npm run verifier'))).toBe(false);
+      expect(c.filter(x => x.startsWith('npm run verifier'))).toEqual(['npm run verifier']);
+      expect(c.filter(x => x === 'node abaisser.mjs')).toHaveLength(1);
       // The ceiling never rises: it stays at 3, beyond which the lot counts 4.
       expect(lire(path.join(copie, 'packages/binder/plafond.txt'))).toBe('3\n');
       // The red stands, the developpeur's: a file of the plan.
@@ -441,11 +471,11 @@ ecrireSarif({ garde, constats: [] });
       expect(essai(id, 'developpeur-2.prompt')).toContain('forms compte 4 pour un plafond de 3');
     });
 
-    it('grillhouse-3uv.95.8 critère 2 et 4 — a red of a reference mixed with others is regenerated, then the restricted pass; the other reds stand, each with its owner', () => {
+    it('grillhouse-3uv.95.8 critère 4, grillhouse-982.2 critère 1 — a red of a reference at the checks is regenerated, and a red out of the plan the final pass then sees stops it, with its owner, the reference no more red', () => {
       const id = 'demo-references-meles';
       laReference(true);
-      // A test of binder, out of the plan, red whatever the lot: the pass restricted to the
-      // regeneration does not play binder again, and its red stands.
+      // A test of binder, out of the plan, red whatever the lot: the checks of the plan do not
+      // play it, the final pass after the regeneration does, and its red stands.
       ecrire(
         path.join(REPO, 'packages/binder/test/rouge.test.mjs'),
         `import { expect, it } from 'vitest';
@@ -459,13 +489,11 @@ it('binder reste rouge', () => { expect(1).toBe(2); });
       expect(r.status, sortie(r)).toBe(ARRETS.controles);
       const c = commandes(id);
       const regeneration = c.indexOf(REGENERER);
-      // Before it, the whole final pass, red on the reference and on binder; after it, the final
-      // pass restricted to what it changes.
+      // Before it, the checks of the plan, which see the reference's red, not binder's, out of
+      // the plan; after it, the final pass, whole, red on binder (grillhouse-982.2).
       expect(regeneration, c.join('\n')).toBeGreaterThan(0);
-      expect(c.slice(0, regeneration)).toContain('npm run verifier');
-      expect(c.slice(regeneration + 1)[0]).toMatch(
-        /^npm run verifier -- --filter=\.\.\.\[[0-9a-f]+\.\.\.[0-9a-f]+\] --filter=\/\/$/
-      );
+      expect(c.slice(0, regeneration)).not.toContain('npm run verifier');
+      expect(c.slice(regeneration + 1)[0]).toBe('npm run verifier');
       // The reference regenerated stays in the copy.
       expect(lire(path.join(copie, 'reference.txt'))).toBe('4\n');
       // The stop names the red that stands, binder's, out of the plan; not the reference's.
@@ -475,7 +503,7 @@ it('binder reste rouge', () => { expect(1).toBe(2); });
       expect(e?.rapport).not.toContain('la référence dit');
     });
 
-    it('grillhouse-3uv.95.8 critère 1 et 4 — a turbo.json the lot makes stale, out of the plan, a file the frame generates: regenerated by its command though the plan does not name it, then the restricted pass', () => {
+    it('grillhouse-3uv.95.8 critère 1 et 4 — a turbo.json the lot makes stale, out of the plan, a file the frame generates: regenerated by its command though the plan does not name it, then the final pass', () => {
       const id = 'demo-references-turbo';
       const TURBO = path.resolve(__dirname, '../../scripts/turbo-des-paquets.mjs');
       const pkg = JSON.parse(lire(path.join(REPO, 'package.json'))) as {
@@ -502,9 +530,8 @@ it('binder reste rouge', () => { expect(1).toBe(2); });
         x => x.includes('turbo-des-paquets.mjs') && x.includes('--ecrire')
       );
       expect(regeneration, c.join('\n')).toBeGreaterThan(0);
-      expect(c.slice(regeneration + 1)[0]).toMatch(
-        /^npm run verifier -- --filter=\.\.\.\[[0-9a-f]+\.\.\.[0-9a-f]+\] --filter=\/\/$/
-      );
+      // The checks of the plan see the stale turbo.json: the final pass after it, whole.
+      expect(c.slice(regeneration + 1)[0]).toBe('npm run verifier');
       const e = entrees(id).find(x => x.etape === 'references') as
         { resultat?: { fichiers?: string[] } } | undefined;
       expect(e?.resultat?.fichiers).toContain('packages/binder/turbo.json');
