@@ -234,6 +234,26 @@ export const tracesDuPlan = (plan, garder = () => true) =>
     .map(t => t.taskId)
     .sort();
 
+// The tasks of a plan of Turborepo (`turbo run … --dry=json`, parsed) that wait, directly or not,
+// for a task of one of the packages <paquets>, those tasks included: their task ids. As Bazel
+// under --keep_going, a task that waits for a target of the plan goes with the plan, whose failure
+// is the session's work; the others are the plan's providers.
+export function attendentLePlan(plan, paquets) {
+  const parId = new Map(plan.tasks.map(t => [t.taskId, t]));
+  const verdicts = new Map();
+  const attend = id => {
+    if (verdicts.has(id)) return verdicts.get(id);
+    // A cycle of tasks is no wait on the plan by itself; Turborepo refuses it anyway.
+    verdicts.set(id, false);
+    const t = parId.get(id);
+    const v =
+      t !== undefined && (paquets.includes(t.package) || (t.dependencies ?? []).some(attend));
+    verdicts.set(id, v);
+    return v;
+  };
+  return new Set(plan.tasks.map(t => t.taskId).filter(attend));
+}
+
 // A path from the root, without its trailing slashes.
 const net = d => String(d ?? '').replace(/\/+$/, '');
 // The fixed part of the pattern <motif>, its segments before the first holding a glob character,

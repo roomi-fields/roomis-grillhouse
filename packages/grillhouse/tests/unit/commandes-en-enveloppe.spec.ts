@@ -765,3 +765,163 @@ describe.runIf(canWrap)(
     });
   }
 );
+
+// Witness: BPScript (bp-mono-vbwf.320.10, 0.24.7). The plan held 990-corpus, the shared test
+// material, and the stages whose tests read it; the testwriter's calls to a new signature left
+// 990-corpus unbuilt until the developer's code, the red expected. The tests of the stages wait for
+// the trace of 060-encoder, out of the plan, whose task waits for 990-corpus's build: the step of the
+// other packages' traces built 990-corpus, and its failure stopped the launch, code 10 « lancement ».
+// As Bazel builds a target's dependencies and, under --keep_going, every target whose dependencies
+// succeed: a package of the plan stays a target of the plan, even as another's dependency; a task
+// out of the plan that waits for it is built with the plan, and only a provider that fails on its
+// own stops the launch.
+describe.runIf(canWrap)(
+  'the launcher builds a package of the plan that provides another with the plan',
+  { timeout: 300_000 },
+  () => {
+    const repo = path.join(ESSAIS, 'lanceur-plan-fournisseur');
+    ecrire(
+      repo,
+      'package.json',
+      json({
+        name: 'essai',
+        private: true,
+        workspaces: ['packages/*'],
+        packageManager: 'npm@10.9.8',
+      })
+    );
+    ecrire(
+      repo,
+      'turbo.json',
+      readFileSync(path.join(DEPOT, 'templates/turbo/paquets.json'), 'utf8')
+    );
+    // A build fails when its package holds src/casse, the error on its output.
+    ecrire(
+      repo,
+      'construire.mjs',
+      [
+        "import { existsSync, mkdirSync, writeFileSync } from 'node:fs';",
+        "if (existsSync('src/casse')) {",
+        '  console.error("error TS2345: Argument of type \'Table\' is not assignable.");',
+        '  process.exit(1);',
+        '}',
+        "mkdirSync('dist', { recursive: true });",
+        "writeFileSync('dist/index.d.ts', 'export {};\\n');",
+        '',
+      ].join('\n')
+    );
+    // `forms`, out of the plan, provides every package; `corpus`, of the plan, is the shared
+    // material; `mid`, out of the plan, provides `stage` and its build waits for `corpus`'s; the
+    // trace of `prod`, out of the plan, which `stage`'s tests read, waits for `corpus`'s build (its
+    // devDependency); `stage`, of the plan, tests itself with `corpus`.
+    const paquets: Record<string, Record<string, unknown>> = {
+      forms: {},
+      corpus: { dependencies: { forms: '*' } },
+      mid: { dependencies: { corpus: '*' } },
+      prod: {
+        devDependencies: { corpus: '*' },
+        scripts: { build: 'node ../../construire.mjs', 'trace:g': 'node trace.mjs' },
+        grillhouse: { traces: { 'trace:g': { lit: [], ecrit: 'packages/prod/trace/g' } } },
+      },
+      stage: {
+        dependencies: { forms: '*', mid: '*' },
+        devDependencies: { corpus: '*' },
+        scripts: { build: 'node ../../construire.mjs', 'test:vitest': 'true' },
+        grillhouse: { lit: ['packages/prod/trace/g'] },
+      },
+    };
+    for (const [nom, champs] of Object.entries(paquets)) {
+      ecrire(
+        repo,
+        `packages/${nom}/package.json`,
+        json({ name: nom, scripts: { build: 'node ../../construire.mjs' }, ...champs })
+      );
+      ecrire(repo, `packages/${nom}/src/index.d.ts`, 'export {};\n');
+    }
+    ecrire(
+      repo,
+      'packages/prod/trace.mjs',
+      [
+        "import { mkdirSync, writeFileSync } from 'node:fs';",
+        "mkdirSync('trace/g', { recursive: true });",
+        "writeFileSync('trace/g/x.txt', 'trace de prod');",
+        '',
+      ].join('\n')
+    );
+    ecrire(
+      repo,
+      '.gitignore',
+      'node_modules\n.turbo/\ndist/\n.claude/worktrees/\npackages/prod/trace/\n'
+    );
+    cpSync(path.join(DEPOT, 'packages/grillhouse/scripts'), path.join(repo, 'scripts'), {
+      recursive: true,
+    });
+    // The main tree's Turborepo, which the copy, under it, reaches as a project's copy does.
+    lierLesDependances(repo);
+    // A stand-in for claude: it writes the prompt it reads on its standard input in a package of
+    // the plan, which the envelope opens in writing.
+    const faux = path.join(repo, 'faux-claude.sh');
+    ecrire(repo, 'faux-claude.sh', '#!/bin/bash\ncat > packages/stage/prompt\n');
+    chmodSync(faux, 0o755);
+    ecrireTurbo(repo);
+    const git = (...a: string[]) =>
+      execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
+    git('init', '-q');
+    git('add', '.');
+    git('commit', '-qm', 'init');
+    const home = path.join(ESSAIS, 'home-lanceur-plan-fournisseur');
+    mkdirSync(path.join(home, '.claude'), { recursive: true });
+    const copie = path.join(repo, '.claude/worktrees/demo-1');
+    const recu = path.join(copie, 'packages/stage/prompt');
+
+    // A launch of the circuit's session over the whole ticket, its plan `corpus` and `stage`.
+    const lancer = () => {
+      rmSync(recu, { force: true });
+      const consigne = path.join(ESSAIS, 'consigne-plan-fournisseur.txt');
+      writeFileSync(consigne, 'TON TICKET : demo-1 — suivre la signature.');
+      const r = spawnSync(
+        'bash',
+        [
+          LANCEUR,
+          '--paquets',
+          'packages/corpus:packages/stage',
+          'demo-1',
+          'developpeur',
+          '.',
+          consigne,
+        ],
+        { cwd: repo, encoding: 'utf8', env: { ...ENV, CLAUDE_BIN: faux, HOME: home } }
+      );
+      const journal = existsSync(`${copie}.log`) ? readFileSync(`${copie}.log`, 'utf8') : '';
+      const prompt = existsSync(recu) ? readFileSync(recu, 'utf8') : null;
+      return { r, prompt, trace: `${r.stderr}\n${journal}` };
+    };
+
+    it('builds the plan with what waits for it out of the plan, the instruction without a build section', () => {
+      const { r, prompt, trace } = lancer();
+      expect(r.status, trace).toBe(0);
+      expect(prompt, trace).not.toContain('La construction de ton paquet échoue');
+      expect(readFileSync(path.join(copie, 'packages/prod/trace/g/x.txt'), 'utf8')).toBe(
+        'trace de prod'
+      );
+      expect(existsSync(path.join(copie, 'packages/mid/dist/index.d.ts')), trace).toBe(true);
+    });
+
+    it('opens the session when a package of the plan that provides another fails, the error in its instruction', () => {
+      writeFileSync(path.join(copie, 'packages/corpus/src/casse'), '');
+      const { r, prompt, trace } = lancer();
+      rmSync(path.join(copie, 'packages/corpus/src/casse'));
+      expect(r.status, trace).toBe(0);
+      expect(prompt, trace).toContain('La construction de ton paquet échoue');
+      expect(prompt).toContain('error TS2345');
+    });
+
+    it('stops the launch when a provider out of the plan fails, as before', () => {
+      writeFileSync(path.join(copie, 'packages/forms/src/casse'), '');
+      const { r, prompt } = lancer();
+      rmSync(path.join(copie, 'packages/forms/src/casse'));
+      expect(r.status).toBe(CODE_COPIE);
+      expect(prompt).toBeNull();
+    });
+  }
+);

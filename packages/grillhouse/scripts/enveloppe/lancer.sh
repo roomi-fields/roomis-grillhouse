@@ -54,14 +54,19 @@
 #   agent finds the builds of the packages out of its plan. As Bazel builds the dependencies of a
 #   target before the target: for a plan whose every path is a package of the frame (the circuit's
 #   session over the whole ticket, `.` as its component and the plan as `--paquets`, or a component
-#   alone), their providers are built first (the packages whose build their builds wait for, read
-#   in Turborepo's graph, `turbo run build --filter=<paquet>… --dry=json`, which node reads on its
-#   standard input, whatever its size), and a failure stops the launch, CODE_COPIE;
+#   alone), their providers are built first (the builds their builds wait for, read in Turborepo's
+#   graph, `turbo run build --filter=<paquet>… --dry=json`, which node reads on its standard input,
+#   whatever its size), and a failure stops the launch, CODE_COPIE;
 #   then the traces of other packages their tests wait for (`grillhouse.traces`, read in Turborepo's
 #   plan of their tests, `turbo run test:vitest --filter=<paquet>… --dry=json`), which the envelope
-#   shows read-only, and a failure stops the launch, CODE_COPIE; then the packages, their own
-#   traces and what their tests read (`turbo run build <their traces> --filter=<paquet>...…
-#   --continue=dependencies-successful`), whose failure does not stop it: each task whose
+#   shows read-only, and a failure stops the launch, CODE_COPIE. A task of either step that waits,
+#   directly or not, for a task of a package of the plan (`attendentLePlan` of
+#   turbo-des-paquets.mjs) is not played there: as with Bazel's --keep_going, a package of the plan
+#   stays a target of the plan even as another's provider (BPScript's 990-corpus, the shared test
+#   material, which the trace of 060-encoder waits for), and goes with the plan. Then the packages,
+#   the traces of the plan or that wait for it, and what their tests read (`turbo run build <those
+#   traces> --filter=<paquet>...… --continue=dependencies-successful`), whose failure does not
+#   stop it: each task whose
 #   dependencies succeed goes to its end, so what their tests read without depending on them is
 #   built whole; the session opens, its instruction ending with a section « La construction de ton
 #   paquet échoue » with the end of that output, since repairing it is the session's work (a
@@ -243,30 +248,32 @@ echec=$(mktemp)
       mapfile -t lesNoms <<<"$noms"
       cibles=() lecteurs=()
       for n in "${lesNoms[@]}"; do cibles+=("--filter=$n"); lecteurs+=("--filter=$n..."); done
-      # Their providers: the packages whose build their own builds wait for, as Turborepo reads them.
+      # Their providers: the builds their own builds wait for, as Turborepo reads them, save those
+      # that wait for a package of the plan, which go with the plan below. The graph comes on the
+      # standard input: as an argument, it may pass the size Linux allows one.
       graphe=$(cd "$copie" && monter npx --no-install turbo run build "${cibles[@]}" --dry=json) || exit 1
-      # The graph comes on the standard input: as an argument, it may pass the size Linux allows one.
-      fournisseurs=$(node -e 'const plan = process.argv.slice(1); const t = JSON.parse(require("node:fs").readFileSync(0, "utf8")).tasks.filter(t => !plan.includes(t.package)); console.log([...new Set(t.map(t => `--filter=${t.package}`))].join("\n"));' "${lesNoms[@]}" <<<"$graphe") || exit 1
+      fournisseurs=$(node --input-type=module -e "import { readFileSync } from 'node:fs'; import { attendentLePlan } from '$ici/../turbo-des-paquets.mjs'; const g = JSON.parse(readFileSync(0, 'utf8')); const avec = attendentLePlan(g, process.argv.slice(1)); console.log(g.tasks.map(t => t.taskId).filter(id => !avec.has(id)).sort().join('\n'));" "${lesNoms[@]}" <<<"$graphe") || exit 1
       if [ -n "$fournisseurs" ]; then
-        mapfile -t filtres <<<"$fournisseurs"
-        (cd "$copie" && monter npx --no-install turbo run build "${filtres[@]}") || exit 1
+        mapfile -t ids <<<"$fournisseurs"
+        (cd "$copie" && monter npx --no-install turbo run "${ids[@]}") || exit 1
       fi
       # The traces their tests wait for, as Turborepo's plan of their tests reads them. Another
-      # package's trace is produced here, and a failure stops the launch, as a provider's; a trace
-      # of the plan waits for its build, and is produced with it below.
+      # package's trace that waits for no package of the plan is produced here, and a failure
+      # stops the launch, as a provider's; a trace of the plan, or one that waits for a package of
+      # the plan, is produced with the plan below.
       plan=$(cd "$copie" && monter npx --no-install turbo run test:vitest "${cibles[@]}" --dry=json) || exit 1
-      traces() { node --input-type=module -e "import { readFileSync } from 'node:fs'; import { tracesDuPlan } from '$ici/../turbo-des-paquets.mjs'; const [propres, ...plan] = process.argv.slice(1); console.log(tracesDuPlan(JSON.parse(readFileSync(0, 'utf8')), t => plan.includes(t.package) === (propres === 'oui')).join('\n'));" "$1" "${lesNoms[@]}" <<<"$plan"; }
+      traces() { node --input-type=module -e "import { readFileSync } from 'node:fs'; import { attendentLePlan, tracesDuPlan } from '$ici/../turbo-des-paquets.mjs'; const [avec, ...noms] = process.argv.slice(1); const p = JSON.parse(readFileSync(0, 'utf8')); const attend = attendentLePlan(p, noms); console.log(tracesDuPlan(p, t => attend.has(t.taskId) === (avec === 'oui')).join('\n'));" "$1" "${lesNoms[@]}" <<<"$plan"; }
       autres=$(traces non) || exit 1
       if [ -n "$autres" ]; then
         mapfile -t ids <<<"$autres"
         (cd "$copie" && monter npx --no-install turbo run "${ids[@]}") || exit 1
       fi
-      propres=$(traces oui) || exit 1
+      avec=$(traces oui) || exit 1
       ids=()
-      [ -z "$propres" ] || mapfile -t ids <<<"$propres"
-      # The packages of the plan, their own traces, and what their tests read (the shared test
-      # material), built after their providers: a failure does not stop the launch, it goes into
-      # the instruction. Each task whose dependencies succeed goes to its end
+      [ -z "$avec" ] || mapfile -t ids <<<"$avec"
+      # The packages of the plan, the traces that go with them, and what their tests read (the
+      # shared test material), built after their providers: a failure does not stop the launch, it
+      # goes into the instruction. Each task whose dependencies succeed goes to its end
       # (--continue=dependencies-successful): one package's failure does not cancel the build of
       # what the tests read without depending on it, which the envelope shows read-only.
       if ! (cd "$copie" && monter npx --no-install turbo run build ${ids[@]+"${ids[@]}"} "${lecteurs[@]}" --continue=dependencies-successful) > "$echec" 2>&1; then
