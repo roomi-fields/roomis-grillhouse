@@ -1185,9 +1185,11 @@ function consigne(valeurs, rang = 0) {
 
 // One session of <role> on the whole ticket: its sheet. A relaunch on its step (<tentative> past
 // 1) that is not the last (<derniere>) resumes the agent's session the circuit keeps
-// (`ctx.reprise`, its author and id) with the short instruction (the fourth template); a
-// resumption that fails (a code other than 0, or no sheet that conforms) falls back on a fresh and
-// whole session, under a new id, which the circuit keeps. A fresh session's instruction (the first
+// (`ctx.reprise`, its author and id) with the short instruction (the fourth template); its sheet
+// refused is asked again once of that same session, as of a fresh one (`jusquALaFiche`), so the
+// question it carries goes up (BP 320.3.9); a resumption that ends in error (a code other than 0:
+// the session not found) falls back on a fresh and whole session, under a new id, which the
+// circuit keeps. A fresh session's instruction (the first
 // template) carries the ticket's description and notes as they are at its launch, the packages of
 // the plan, and the last handover of its author at the ticket. Every instruction, fresh or resumed,
 // carries the findings of the reviewer still open for its role (`ctx.constats`), all of them,
@@ -1213,14 +1215,17 @@ async function seance(ctx, role, { tentative, rapport, fort, derniere }) {
       rapport: rapport ?? 'aucun',
       constats,
     };
-    const r = await lancer(ctx, role, consigne(courte, 3), { fort, reprend: reprise.seance });
-    seanceLancee(ctx, role, r);
-    const lu = r.seance === 0 ? lireSaFiche(ctx, role, r.sortie) : { erreur: `code ${r.seance}` };
-    if (lu.fiche) return garder(ctx, role, lu.fiche);
+    const fiche = await jusquALaFiche(ctx, role, consigne(courte, 3), {
+      fort,
+      premiere: 'reprend',
+      id: reprise.seance,
+      repli: true,
+    });
+    if (fiche) return fiche;
     commenter(
       ctx,
       role,
-      `reprise de la séance ${reprise.seance} sans fiche conforme (${lu.erreur}) : séance neuve et entière.`
+      `reprise de la séance ${reprise.seance} finie en erreur : séance neuve et entière.`
     );
   }
   const lots = testsDuLot(ctx);
@@ -1293,7 +1298,8 @@ function seanceLancee(ctx, role, r) {
 // 0) is resumed once, the same session, with the short instruction that names what lacks (the
 // third template). The session opens under the id <id> (a new one by default), or resumes it with
 // <premiere> « reprend »; with <neuve> (the testwriter or the developpeur), the circuit keeps that
-// id for that author (`ctx.reprise`). Throws an Arret for a launch that stops before its session,
+// id for that author (`ctx.reprise`); with <repli> (a resumption), a session that ends in error
+// returns null, for a fresh session in its place. Throws an Arret for a launch that stops before its session,
 // a motionless session, or twice no sheet that conforms (« sans-fiche »). <avec> joins its fields
 // to the sheet's entry (the lot a review read); <valider> names what makes a sheet out of
 // conformity beyond its schema (an unknown package of a plan), or null.
@@ -1304,6 +1310,7 @@ async function jusquALaFiche(ctx, role, texte, options = {}) {
     id = randomUUID(),
     avec = {},
     valider = () => null,
+    repli = false,
     ...reste
   } = options;
   if (neuve) ctx.reprise = { agent: neuve, seance: id };
@@ -1319,6 +1326,7 @@ async function jusquALaFiche(ctx, role, texte, options = {}) {
       ...ouvrir(essai === 1 ? premiere : 'reprend'),
     });
     seanceLancee(ctx, role, r);
+    if (repli && r.seance !== 0) return null;
     lu =
       r.seance === 0
         ? lireSaFiche(ctx, role, r.sortie)

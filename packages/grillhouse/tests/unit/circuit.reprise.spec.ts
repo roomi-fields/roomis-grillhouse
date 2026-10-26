@@ -8,7 +8,8 @@ import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit
 // id the circuit sets (`--session-id`), kept in the state (`reprise`); its relaunches on the same
 // step (the testwriter after a refused proof, the developpeur after red checks) resume
 // it (`--resume`) with the short template of consigne-agent.md, save the last attempt, a fresh and
-// whole session. A resumption that fails falls back on a fresh and whole session.
+// whole session. A resumed session's sheet refused is asked again once of that same session; a
+// resumption that ends in error falls back on a fresh and whole session.
 // The trial repository and its stand-ins: ./circuit-essai.ts (its claude keeps a session's
 // transcript under its id, and fails a `--resume` it does not find); each file of the circuit's
 // tests builds its own, in a trial directory of its own.
@@ -79,7 +80,7 @@ describe.runIf(canWrap)(
       expect(etat(id)?.reprise).toEqual({ agent: 'developpeur', seance: derniere });
     });
 
-    it('a resumption that fails falls back on a fresh and whole session', () => {
+    it('a resumption that ends in error falls back on a fresh and whole session', () => {
       const id = 'demo-reprise-ratee';
       ticket(id, '000-forms');
       scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
@@ -108,6 +109,42 @@ describe.runIf(canWrap)(
         )
       );
       expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
+    });
+
+    // BP 320.3.9: a resumed developpeur's BESOIN, its sheet refused, was lost to a fresh session.
+    it('a resumed session whose sheet is refused is asked it again once, the same session, with the reason; its question goes up', () => {
+      const id = 'demo-reprise-fiche-refusee';
+      ticket(id, '000-forms');
+      scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
+      scenario(id, 'developpeur-1', `touch $c/essai.txt\npassation 'Un essai.'\n`);
+      scenario(
+        id,
+        'developpeur-2',
+        `fiche '{"statut":"BESOIN","question":"la garde demande un arbitrage : trancher isHeadLayer ?","piece":"packages/forms/src/native.ts:234"}'\n`
+      );
+      scenario(
+        id,
+        'developpeur-3',
+        `fiche '{"statut":"BESOIN","question":"la garde demande un arbitrage : trancher isHeadLayer ?","piece":"packages/forms/src/index.mjs:1"}'\n`
+      );
+      const r = circuit([id]);
+      expect(r.status, sortie(r)).toBe(ARRETS.besoin);
+      expect(sessions(id, 'developpeur')).toBe(3);
+      const premiere = valeur(args(id, 'developpeur', 1), '--session-id');
+      expect(valeur(args(id, 'developpeur', 2), '--resume')).toBe(premiere);
+      const a3 = args(id, 'developpeur', 3);
+      expect(valeur(a3, '--resume')).toBe(premiere);
+      expect(a3).not.toContain('--session-id');
+      const relance = essai(id, 'developpeur-3.prompt');
+      expect(relance).not.toContain(ENTIERE);
+      expect(relance).toContain(
+        'piece : packages/forms/src/native.ts:234 introuvable dans la copie'
+      );
+      expect(commentaires(id)).toContainEqual(
+        expect.stringMatching(/^Circuit · developpeur : séance finie sans fiche conforme/)
+      );
+      expect(commentaires(id)).not.toContainEqual(expect.stringMatching(/séance neuve et entière/));
+      expect(JSON.stringify(etat(id)?.question)).toContain('trancher isHeadLayer');
     });
 
     it('the testwriter relaunched after a refused proof resumes its first session; its last attempt is fresh and whole', () => {

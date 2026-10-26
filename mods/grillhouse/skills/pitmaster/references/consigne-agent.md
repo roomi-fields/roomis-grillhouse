@@ -7,7 +7,7 @@ consigne portant les constats du relecteur qui restent ouverts pour son rôle ; 
 enveloppe, après la passe finale verte, qui porte la liste des éléments du lot, et après un `RENDU` la relecture d'avant (la
 commande de la différence entre le lot qu'elle a lu et celui d'aujourd'hui, ses fichiers, les
 constats qui restent ouverts) et ne nomme que les fichiers que le lot change depuis elle ; le troisième pour la reprise
-de toute séance finie sans fiche conforme ; le quatrième pour la reprise de la séance du testwriter
+de toute séance finie sans fiche conforme, neuve ou reprise, à la même séance ; le quatrième pour la reprise de la séance du testwriter
 ou du développeur, relancé sur son étape (le testwriter après une preuve refusée, le développeur
 après des contrôles rouges), sauf la dernière tentative, une séance neuve sur le premier ; le
 cinquième pour le questionneur, qui lit le plan du ticket une seule fois ; le sixième pour

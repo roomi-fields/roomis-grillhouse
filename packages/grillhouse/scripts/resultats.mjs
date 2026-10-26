@@ -66,7 +66,8 @@
 //   before he builds on it (BP 320.9: a line read wrong, copied by five agents up to the owner).
 //   Either `<fichier>:<ligne>` or `<fichier>:<ligne>-<fin>`, the file from the root of the copy,
 //   the line from 1, then, after a space, what it shows (« packages/a/src/x.ts:3 divise par sa valeur. »); or `$ <commande>` on
-//   its first line and its output on the lines after. `lirePiece` reads it; the circuit gives
+//   its first line and its output on the lines after (after a « \n » written in two characters,
+//   in a piece written on one line). `lirePiece` reads it; the circuit gives
 //   `lireFiche` the copy, where each file piece's file stands and holds its line.
 // - The findings of a guard, in SARIF 2.1.0 (OASIS), beside its output for the human: one run per
 //   guard, `tool.driver.name` the guard; each finding a result, `ruleId` the guard, `level`
@@ -414,14 +415,16 @@ export function conformiteDuLot(fiche, elements) {
 // The piece of a fact <texte>: `{ fichier, ligne }` for « <fichier>:<ligne> », `{ fichier, ligne,
 // fin }` for « <fichier>:<ligne>-<fin> » (as SARIF's region has a start line and an optional end
 // line), then what it shows after a space, the place in backquotes or followed by punctuation
-// read the same; `{ commande, sortie }` for « $ <commande> » and its output on the lines after;
-// null for a text in neither form.
+// read the same; `{ commande, sortie }` for « $ <commande> » and its output on the lines after,
+// a « \n » written in two characters read as the line break of a piece written on one line (BP
+// 320.3.9: a BESOIN refused on it); null for a text in neither form.
 export function lirePiece(texte) {
   const t = String(texte ?? '').trim();
   if (t.startsWith('$ ')) {
-    const saut = t.indexOf('\n');
+    const vrai = t.indexOf('\n');
+    const saut = vrai < 0 ? t.indexOf('\\n') : vrai;
     const commande = saut < 0 ? '' : t.slice(2, saut).trim();
-    const sortie = saut < 0 ? '' : t.slice(saut + 1).trim();
+    const sortie = saut < 0 ? '' : t.slice(saut + (vrai < 0 ? 2 : 1)).trim();
     return commande && sortie ? { commande, sortie } : null;
   }
   let lieu = t.split(/\s/)[0];

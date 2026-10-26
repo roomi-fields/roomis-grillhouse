@@ -414,6 +414,21 @@ describe('the piece of each fact a sheet carries', () => {
     }
   });
 
+  // BP 320.3.9: a developpeur's BESOIN, its piece « $ … gardes\n⛔ … » with a « \n » written in two
+  // characters, was refused, and its question lost.
+  it('a command piece whose output follows a « \\n » written in two characters reads as after a line break', () => {
+    expect(
+      lirePiece('$ npm run grillhouse:gardes\\n⛔ consommateurs-arbitres : isHeadLayer')
+    ).toEqual({
+      commande: 'npm run grillhouse:gardes',
+      sortie: '⛔ consommateurs-arbitres : isHeadLayer',
+    });
+    expect(
+      lireFiche('developpeur', sortie(besoin('$ npm test -- packages/a\\n1 failed'))).erreur
+    ).toBeUndefined();
+    expect(lirePiece('$ npm test\\n')).toBeNull();
+  });
+
   it('each finding, question and stop of a sheet holds its piece in its schema', () => {
     type Liste = { items: { required: string[] } };
     const props = (role: string) => (schemaDeFiche(role) as Schema).properties;
