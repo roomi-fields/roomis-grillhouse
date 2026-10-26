@@ -123,8 +123,11 @@ change, le diff des rapports d'API (`docs/INTERFACE.api.md`) les exports qui cha
 rend une ligne par élément (`conformite`), conforme ou non, la règle citée (`document` CADRE,
 INTERFACE ou ARCHITECTURE, et sa `reference`) ; un export neuf cite son entrée dans l'INTERFACE.
 Le schéma de la fiche refuse une ligne sans document ni référence (`resultats.mjs`), et le
-circuit une fiche à laquelle il manque un élément (`conformiteDuLot`) ; un « non » rend le lot à
-son destinataire. En relecture bornée, comme une revue ne décoche « vu » que sur les fichiers
+circuit une fiche à laquelle il manque un élément, ou dont une ligne nomme un élément hors de la
+liste (`conformiteDuLot`) ; un « non » rend le lot à son destinataire. Un fichier que le service de
+langage ne lit pas, la liste le nomme : le relecteur en relève lui-même les éléments, une ligne
+chacun, `<fichier>#<nom>`, ou le fichier seul, comme une revue accepte un commentaire sur toute
+ligne du diff. En relecture bornée, comme une revue ne décoche « vu » que sur les fichiers
 changés depuis, la consigne marque chaque élément : à rejuger quand la différence le touche,
 repris sinon avec sa ligne d'avant, que la fiche porte encore. Ainsi rien de neuf n'entre sans
 avoir été jugé contre l'architecture (Romain, 2026-10-23 : « il faut que le relecteur valide

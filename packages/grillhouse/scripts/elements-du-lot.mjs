@@ -21,7 +21,7 @@
 //   that no element of its package's sources already names (a type that changed through another),
 //   is an element of the report itself, exported.
 // - A changed source that the service does not read (a package without `tsconfig.json`) is named
-//   in `horsDuService`: the reviewer surveys its elements himself.
+//   in `horsDuService`: the reviewer surveys its elements himself, each named `<fichier>#<nom>`.
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';

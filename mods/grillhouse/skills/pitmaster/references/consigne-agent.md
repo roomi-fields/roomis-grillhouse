@@ -103,7 +103,7 @@ LES ÉLÉMENTS DU LOT, chaque fonction, classe, type, interface, constante de t�
 
 {{elements}}
 
-Ta fiche rend une ligne de `conformite` par élément, son `element` tel que cette liste l'écrit : `conforme` oui ou non, la règle citée (`document` : le CADRE, l'INTERFACE ou l'ARCHITECTURE de son paquet ; `reference` : la règle dans ce document ; un export neuf, son entrée dans l'INTERFACE de son paquet), sa `piece` ; un « non » nomme son agent (`role`) et rend le lot. En relecture bornée, tu rejuges un élément marqué « à rejuger » et tu reprends la ligne d'un élément marqué « reprise » ; chacun garde sa ligne. Le circuit refuse une fiche à laquelle il manque un élément. Ainsi chaque élément nouveau ou changé est jugé contre l'architecture.
+Ta fiche rend une ligne de `conformite` par élément, son `element` tel que cette liste l'écrit : `conforme` oui ou non, la règle citée (`document` : le CADRE, l'INTERFACE ou l'ARCHITECTURE de son paquet ; `reference` : la règle dans ce document ; un export neuf, son entrée dans l'INTERFACE de son paquet), sa `piece` ; un « non » nomme son agent (`role`) et rend le lot. Un fichier hors du service de langage : une ligne par élément que tu y relèves, son `element` écrit `<fichier>#<nom>`. En relecture bornée, tu rejuges un élément marqué « à rejuger » et tu reprends la ligne d'un élément marqué « reprise » ; chacun garde sa ligne. Le circuit refuse une fiche à laquelle il manque un élément. Ainsi chaque élément nouveau ou changé est jugé contre l'architecture.
 
 LES RAPPORTS DU CIRCUIT depuis le dernier verdict (preuves du rouge, contrôles, passe finale) :
 

@@ -34,8 +34,10 @@ des rapports d'API).
 3. Un `non` rend le lot : il nomme son agent (`role`), comme un constat
    bloquant. Le circuit refuse une fiche à laquelle il manque un élément, ou dont une ligne n'a
    pas sa référence.
-4. Un fichier que la liste dit hors du service de langage se relit de même : ses éléments neufs
-   ou changés se jugent dans cette passe, leurs constats dans `constats`.
+4. Un fichier que la liste dit hors du service de langage se relit de même : tu relèves ses
+   éléments neufs, changés ou supprimés, et chacun a sa ligne de `conformite`, son `element`
+   écrit `<fichier>#<nom>` (le fichier seul pour une ligne sur tout le fichier). Le circuit
+   refuse une ligne sur un élément hors de la liste et hors de ces fichiers.
 
 En relecture bornée, la liste porte encore tout le lot, chaque élément marqué, comme une revue ne
 décoche « vu » que sur les fichiers changés depuis : « à rejuger » quand la différence le touche

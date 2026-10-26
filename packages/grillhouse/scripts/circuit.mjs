@@ -1543,7 +1543,7 @@ async function relire(ctx) {
     horsEnveloppe: true,
     droits: horsDeLEnveloppe(ctx, 'relecteur', 'opus'),
     avec: lot ? { lot: { ...lot, fichiers: [...tests, ...code] } } : {},
-    valider: f => conformiteDuLot(f, liste.elements),
+    valider: f => conformiteDuLot(f, liste),
   });
   const texte = texteDuVerdict(fiche);
   const r = ctx.bdSous(AUTEUR_DU_VERDICT, 'comments', 'add', ctx.ticket, texte);
@@ -1556,7 +1556,7 @@ async function relire(ctx) {
 // in a bounded review (<bornee>: `{ touches, lignes }`, the ids the difference touches, null for
 // every one, and the lines of the review before by element), each marked to judge again, or to
 // take up with its line before; then the changed sources the language service does not read,
-// whose elements he surveys himself, and why.
+// whose elements he surveys himself, one line of conformity each as `<fichier>#<nom>`, and why.
 function texteDesElements(liste, bornee = null) {
   if (liste.etat !== 'fait') {
     return `aucun : la liste n'a pas pu être calculée (${liste.raison}) ; tu relèves toi-même chaque élément du lot.`;
@@ -1578,7 +1578,7 @@ function texteDesElements(liste, bornee = null) {
       ? `le service de langage n'a pas pu tourner : ${liste.service}`
       : 'aucun tsconfig.json ne les lit';
     lignes.push(
-      `- Hors du service de langage (${pourquoi}), tu relèves toi-même leurs éléments : ${liste.horsDuService.join(', ')}.`
+      `- Hors du service de langage (${pourquoi}), tu relèves toi-même leurs éléments, une ligne de conformité chacun, son élément \`<fichier>#<nom>\` : ${liste.horsDuService.join(', ')}.`
     );
   }
   return lignes.join('\n') || 'aucun : le lot ne change aucun élément du code.';

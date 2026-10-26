@@ -33,8 +33,9 @@
 //     one line per element of the lot (scripts/elements-du-lot.mjs), its rule cited from a
 //     document of its package, a new export's the entry of the INTERFACE that names it; a line
 //     without its reference is refused; a « non » is a blocking finding (`bloquantsDeLaFiche`),
-//     and the circuit refuses a sheet without a line for each element (`conformiteDuLot`)
-//     (reviewer);
+//     and the circuit refuses a sheet without a line for each element, or with a line on an
+//     element out of the list, a file out of the language service named alone or as
+//     `<fichier>#<nom>` (`conformiteDuLot`) (reviewer);
 //   - `suivi` (`titre`, `etat` levé or non levé, `preuve`): after a review sent back, each finding
 //     before it judged on the difference of the lot, which the circuit writes at the ticket with
 //     the verdict, for the human (reviewer);
@@ -396,19 +397,27 @@ export const bloquantsDeLaFiche = fiche => [
     })),
 ];
 
-// What makes the reviewer's sheet <fiche> out of conformity with the elements of its lot
-// <elements> (scripts/elements-du-lot.mjs: `{ id, nom, statut, exporte }`), as a review asks a
+// What makes the reviewer's sheet <fiche> out of conformity with the list of its lot
+// (scripts/elements-du-lot.mjs: <elements>, each `{ id, nom, statut, exporte }`, and
+// <horsDuService>, the changed sources the language service does not read), as a review asks a
 // word on every changed file: an element without its line, a line on an element out of the list,
-// a new export whose rule does not name its entry in the INTERFACE of its package. The fault, or
-// null.
-export function conformiteDuLot(fiche, elements) {
+// a new export whose rule does not name its entry in the INTERFACE of its package. A line on a
+// file out of the service names it alone or one of its elements, `<fichier>#<nom>`, as a review
+// accepts a comment on any line of the diff. The fault, or null.
+export function conformiteDuLot(fiche, { elements, horsDuService }) {
   const lignes = fiche.conformite ?? [];
   const ids = new Set(elements.map(e => e.id));
+  const hors = new Set(horsDuService);
+  const duLot = element => {
+    if (ids.has(element) || hors.has(element)) return true;
+    const diese = element.lastIndexOf('#');
+    return diese > 0 && diese < element.length - 1 && hors.has(element.slice(0, diese));
+  };
   const fautes = [];
   const sans = elements.filter(e => !lignes.some(l => l.element === e.id)).map(e => e.id);
   if (sans.length) fautes.push(`conformite : sans ligne pour ${sans.join(', ')}`);
   for (const [i, l] of lignes.entries()) {
-    if (!ids.has(l.element)) {
+    if (!duLot(l.element)) {
       fautes.push(`conformite[${i}].element : ${l.element} n'est pas un élément du lot`);
     }
   }

@@ -292,37 +292,80 @@ describe('the conformity of each element of the lot in a reviewer’s sheet', ()
       { id: 'packages/a/src/x.ts#x', nom: 'x', statut: 'changé', exporte: true },
       { id: 'packages/a/src/x.ts#lire', nom: 'lire', statut: 'neuf', exporte: false },
     ];
+    const liste = { elements, horsDuService: [] };
     const lire = { ...oui, element: 'packages/a/src/x.ts#lire' };
 
     it('a sheet with one line per element conforms', () => {
-      expect(conformiteDuLot({ verdict: 'ACCEPTÉ', conformite: [oui, lire] }, elements)).toBeNull();
+      expect(conformiteDuLot({ verdict: 'ACCEPTÉ', conformite: [oui, lire] }, liste)).toBeNull();
     });
     it('a sheet missing an element is refused, naming it', () => {
-      expect(conformiteDuLot({ verdict: 'ACCEPTÉ', conformite: [oui] }, elements)).toMatch(
+      expect(conformiteDuLot({ verdict: 'ACCEPTÉ', conformite: [oui] }, liste)).toMatch(
         /packages\/a\/src\/x\.ts#lire/
       );
-      expect(conformiteDuLot({ verdict: 'ACCEPTÉ' }, elements)).toMatch(
-        /packages\/a\/src\/x\.ts#x/
-      );
+      expect(conformiteDuLot({ verdict: 'ACCEPTÉ' }, liste)).toMatch(/packages\/a\/src\/x\.ts#x/);
     });
     it('a line on an element out of the lot is refused', () => {
       const ailleurs = { ...oui, element: 'packages/a/src/y.ts#y' };
       expect(
-        conformiteDuLot({ verdict: 'ACCEPTÉ', conformite: [oui, lire, ailleurs] }, elements)
+        conformiteDuLot({ verdict: 'ACCEPTÉ', conformite: [oui, lire, ailleurs] }, liste)
       ).toMatch(/packages\/a\/src\/y\.ts#y/);
     });
     it('a new export names its entry in the INTERFACE of its package', () => {
       const neuf = [{ id: 'packages/a/src/x.ts#x', nom: 'x', statut: 'neuf', exporte: true }];
-      expect(conformiteDuLot({ verdict: 'ACCEPTÉ', conformite: [oui] }, neuf)).toMatch(/INTERFACE/);
+      expect(
+        conformiteDuLot(
+          { verdict: 'ACCEPTÉ', conformite: [oui] },
+          { elements: neuf, horsDuService: [] }
+        )
+      ).toMatch(/INTERFACE/);
       expect(
         conformiteDuLot(
           {
             verdict: 'ACCEPTÉ',
             conformite: [{ ...oui, document: 'INTERFACE', reference: 'packages/a, entrée `x`' }],
           },
-          neuf
+          { elements: neuf, horsDuService: [] }
         )
       ).toBeNull();
+    });
+    // grillhouse-9jr.1: on BPScript bp-mono-vbwf.328, the reviewer named the elements of
+    // verif-mots-de-librairie.mjs, out of the language service, as « …mjs#juger » then as the file
+    // alone, and every line was refused. As a review accepts a comment on any line of the diff, a
+    // line on a file out of the service, or on one of its elements, is accepted.
+    describe('a file out of the language service', () => {
+      const HORS = 'packages/t/src/verif.mjs';
+      const hors = { elements, horsDuService: [HORS] };
+      it('a line on one of its elements, or on the file alone, is accepted', () => {
+        expect(
+          conformiteDuLot(
+            {
+              verdict: 'ACCEPTÉ',
+              conformite: [oui, lire, { ...oui, element: `${HORS}#juger` }],
+            },
+            hors
+          )
+        ).toBeNull();
+        expect(
+          conformiteDuLot(
+            { verdict: 'ACCEPTÉ', conformite: [oui, lire, { ...oui, element: HORS }] },
+            hors
+          )
+        ).toBeNull();
+      });
+      it('a line out of the lot and out of these files is still refused', () => {
+        for (const element of [
+          'packages/t/src/autre.mjs#juger',
+          'packages/t/src/verif.mjs.bak',
+          `${HORS}#`,
+        ]) {
+          expect(
+            conformiteDuLot(
+              { verdict: 'ACCEPTÉ', conformite: [oui, lire, { ...oui, element }] },
+              hors
+            )
+          ).toMatch(/n'est pas un élément du lot/);
+        }
+      });
     });
   });
 });

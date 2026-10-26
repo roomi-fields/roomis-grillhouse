@@ -127,4 +127,29 @@ describe.runIf(canWrap)('the conformity of each element of the lot', { timeout: 
     expect(essai(id, 'relecteur-3.prompt')).toContain(UNITE);
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
   });
+
+  // grillhouse-9jr.1: on BPScript bp-mono-vbwf.328, the reviewer named the elements of a file out
+  // of the language service as « <fichier>#<nom> », then as the file alone, and the circuit refused
+  // both (« n'est pas un élément du lot »), a stop « sans-fiche ». As a review accepts a comment
+  // on any line of the diff, the instruction says the form, and the circuit accepts it.
+  it('a file out of the language service: the instruction says the form of its lines, and the sheet that uses it is accepted', () => {
+    const id = 'demo-conformite-hors-service';
+    const FICHIER = 'packages/forms/src/index.mjs';
+    ticket(id, '000-forms');
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    // No tsconfig.json: the package stays out of the language service.
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    scenario(
+      id,
+      'relecteur',
+      fiche({ verdict: 'ACCEPTÉ', conformite: [ligne('oui'), ligne('oui', { element: FICHIER })] })
+    );
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(sessions(id, 'relecteur')).toBe(1);
+    const consigne = essai(id, 'relecteur-1.prompt');
+    expect(consigne).toContain(FICHIER);
+    expect(consigne).toContain('`<fichier>#<nom>`');
+    expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
+  });
 });
