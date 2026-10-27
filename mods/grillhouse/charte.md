@@ -66,8 +66,9 @@ n'attend que les vraies décisions.
 ticket, comme une RFC amendée ; les commentaires restent l'historique. Ainsi chaque agent lit la
 même décision.
 
-**Un fait repris se relit à sa pièce** (fichier:ligne depuis la racine de la copie, ou
-« $ commande » et sa sortie) avant qu'un agent s'appuie dessus, et un fait transmis porte la
+**Un fait repris se relit à sa pièce** (fichier:ligne depuis la racine de la copie,
+« $ commande » et sa sortie, ou « ticket, critère N » et « ticket, § <section> » pour ce que dit
+le ticket) avant qu'un agent s'appuie dessus, et un fait transmis porte la
 sienne. Ainsi une ligne mal lue s'arrête au premier qui la relit.
 
 **Un ticket de réalisation nomme ses composants** dans son titre (« numéro — sujet — composant,

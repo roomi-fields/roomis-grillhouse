@@ -1373,9 +1373,13 @@ async function jusquALaFiche(ctx, role, texte, options = {}) {
 }
 
 // The sheet of <role> in the output <sortie> of its session (`lireFiche`), each file piece of it
-// checked in the ticket's copy, or in the repository before the copy exists.
+// checked in the ticket's copy, or in the repository before the copy exists, and each piece of
+// the ticket in its description.
 const lireSaFiche = (ctx, role, sortie) =>
-  lireFiche(role, sortie, { copie: existsSync(ctx.copie) ? ctx.copie : ctx.racine });
+  lireFiche(role, sortie, {
+    copie: existsSync(ctx.copie) ? ctx.copie : ctx.racine,
+    ticket: leTicket(ctx).description,
+  });
 
 // The name of the package <dossier> as a title writes it: its package's name, or its path.
 function nomDe(ctx, dossier) {

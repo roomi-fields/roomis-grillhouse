@@ -741,6 +741,100 @@ describe('the criteria a developpeur does not hold out of the plan (0yu.1)', () 
   });
 });
 
+// grillhouse-0yu.4, witness BPScript 320.17: three sheets of the questionneur out of four refused
+// for a piece that cites the ticket (« Plan, « Ce qui change » : … », « Ticket, critères 1 et 7,
+// et Q1 amendée … »): the proposal it questions has no file nor line. As a review of a
+// specification cites its section (« RFC 9110 § 15.5 »).
+describe('a piece that cites the ticket (0yu.4)', () => {
+  const TICKET = [
+    'Le préambule.',
+    '',
+    '## Architecture',
+    '',
+    '- Modèle mûr : une RFC.',
+    '',
+    '## Ce qui change',
+    '',
+    'La pièce.',
+    '',
+    "## Critères d'acceptation",
+    '',
+    '1. Une pièce du ticket est acceptée.',
+    '2. Une pièce absente est refusée.',
+    '10. Les formes restent.',
+  ].join('\n');
+  const copie = mkdtempSync(path.join(ESSAIS, 'copie-ticket-'));
+  mkdirSync(path.join(copie, 'packages/a/src'), { recursive: true });
+  writeFileSync(path.join(copie, 'packages/a/src/x.ts'), 'un\n');
+  const question = (piece: string) => ({
+    issue: 'QUESTIONS',
+    questions: [{ question: 'Le critère 2 vaut-il pour un dossier ?', vise: 'critère', piece }],
+  });
+  const lu = (piece: string) =>
+    lireFiche('questionneur', sortie(question(piece)), { copie, ticket: TICKET });
+
+  it('critère 1 — « ticket, critère N » and « ticket, § <section> » read as pieces of the ticket', () => {
+    expect(lirePiece('ticket, critère 2')).toEqual({ critere: 2 });
+    expect(lirePiece('ticket, critère 10 : les formes restent.')).toEqual({ critere: 10 });
+    expect(lirePiece('Ticket, critère 1 dit « acceptée ».')).toEqual({ critere: 1 });
+    expect(lirePiece('ticket, § Architecture')).toEqual({ section: 'Architecture' });
+    expect(lirePiece('ticket, § Ce qui change : la pièce.')).toEqual({ section: 'Ce qui change' });
+    expect(lirePiece('ticket, § « Ce qui change » montre la pièce.')).toEqual({
+      section: 'Ce qui change',
+    });
+    for (const faux of [
+      'ticket, critère',
+      'ticket, critère 0',
+      'ticket, §',
+      'ticket',
+      'ticket, x',
+      'ticket, critère 1 et 7',
+      'ticket, critère 1, 7',
+    ]) {
+      expect(lirePiece(faux), faux).toBeNull();
+    }
+  });
+
+  it('critère 1 — such a piece is accepted when the description of the ticket carries the criterion or the section', () => {
+    for (const piece of [
+      'ticket, critère 1',
+      'ticket, critère 10 : les formes restent.',
+      'ticket, § Architecture : le modèle mûr.',
+      'ticket, § « Ce qui change »',
+      "ticket, § Critères d'acceptation",
+    ]) {
+      expect(lu(piece).erreur, piece).toBeUndefined();
+    }
+  });
+
+  it('critère 2 — such a piece on a criterion or a section the description lacks is refused, naming what lacks', () => {
+    expect(lu('ticket, critère 3').erreur).toMatch(
+      /questions\[0\]\.piece : ticket, critère 3 : la description du ticket n'a pas de critère 3/
+    );
+    expect(lu('ticket, § Décisions : D1.').erreur).toMatch(
+      /questions\[0\]\.piece : ticket, § Décisions : la description du ticket n'a pas de section « Décisions »/
+    );
+    // The preamble is no section, and a numbered line out of the criteria is no criterion.
+    expect(
+      lireFiche('questionneur', sortie(question('ticket, critère 1')), {
+        copie,
+        ticket: '1. Une ligne hors des critères.',
+      }).erreur
+    ).toMatch(/n'a pas de critère 1/);
+  });
+
+  it('critère 3 — the forms of today stay as they are', () => {
+    expect(lu('packages/a/src/x.ts:1 dit un.').erreur).toBeUndefined();
+    expect(lu('$ npm test\n1 failed').erreur).toBeUndefined();
+    expect(lu('packages/a/src/x.ts:2').erreur).toMatch(/introuvable dans la copie/);
+    expect(lu('Plan, « Ce qui change » : la pièce.').erreur).toMatch(/n'est pas une pièce/);
+    // Without the ticket, the form alone is read, as a file piece without the copy.
+    expect(
+      lireFiche('questionneur', sortie(question('ticket, critère 99'))).erreur
+    ).toBeUndefined();
+  });
+});
+
 describe('the reading of a sheet in the output of a session', () => {
   it('a conforming sheet is read with the session that wrote it', () => {
     const lu = lireFiche(

@@ -68,15 +68,19 @@
 //   names what lacks or does not conform (no `structured_output`, a field out of the schema, a
 //   status without its reason, a blocking finding without its criterion or rule, a line of
 //   conformity without its rule or a « non » without its recipient, a plan without packages, a
-//   fact without its piece, a piece in neither form, and, given the copy, a file piece not in it).
+//   fact without its piece, a piece in no form, given the copy, a file piece not in it, and, given
+//   the ticket's description, a piece of the ticket whose criterion or section it lacks).
 // - The piece of a fact (« la pièce »), one format, as a code review cites the line it judges: a
 //   finding, a question or a stop carries it, so the agent who takes the fact up re-reads it
 //   before he builds on it (BP 320.9: a line read wrong, copied by five agents up to the owner).
 //   Either `<fichier>:<ligne>` or `<fichier>:<ligne>-<fin>`, the file from the root of the copy,
 //   the line from 1, then, after a space, what it shows (« packages/a/src/x.ts:3 divise par sa valeur. »); or `$ <commande>` on
 //   its first line and its output on the lines after (after a « \n » written in two characters,
-//   in a piece written on one line). `lirePiece` reads it; the circuit gives
-//   `lireFiche` the copy, where each file piece's file stands and holds its line.
+//   in a piece written on one line); or, for what the ticket says, `ticket, critère <N>` or
+//   `ticket, § <section>`, then « : » and what it shows, as a review of a specification cites its
+//   section (BP 320.17: the questionneur's pieces on the plan it questions, refused). `lirePiece`
+//   reads it; the circuit gives `lireFiche` the copy, where each file piece's file stands and
+//   holds its line, and the ticket's description, which carries each criterion or section cited.
 // - The findings of a guard, in SARIF 2.1.0 (OASIS), beside its output for the human: one run per
 //   guard, `tool.driver.name` the guard; each finding a result, `ruleId` the guard, `level`
 //   (error by default), `message.text`, its file and line as its location when it has them, and its
@@ -133,7 +137,7 @@ const objet = (properties, required = [], description) => ({
 });
 // The description of a piece in a sheet's schema, the format `lirePiece` reads.
 const PIECE =
-  'fichier:ligne depuis la racine de la copie, puis ce qu’elle montre ; ou « $ <commande> » et sa sortie aux lignes suivantes';
+  'fichier:ligne depuis la racine de la copie, puis ce qu’elle montre ; ou « $ <commande> » et sa sortie aux lignes suivantes ; ou, pour ce que dit le ticket, « ticket, critère <N> » ou « ticket, § <section> », puis « : » et ce qu’elle montre';
 const piece = quoi => texte(`${quoi} : ${PIECE}.`);
 const STATUT = {
   statut: { type: 'string', enum: ['FAIT', 'BLOQUÉ', 'BESOIN'] },
@@ -465,9 +469,14 @@ export function reponsesAuxQuestions(fiche, posees) {
 // line), then what it shows after a space, the place in backquotes or followed by punctuation
 // read the same; `{ commande, sortie }` for « $ <commande> » and its output on the lines after,
 // a « \n » written in two characters read as the line break of a piece written on one line (BP
-// 320.3.9: a BESOIN refused on it); null for a text in neither form.
+// 320.3.9: a BESOIN refused on it); `{ critere }` for « ticket, critère <N> » and `{ section }`
+// for « ticket, § <section> » (in « » or up to « : »), what the ticket says, as a review of a
+// specification cites its section (« RFC 9110 § 15.5 »; BP 320.17: three sheets of the
+// questionneur refused for a piece on the plan they question); null for a text in no form.
 export function lirePiece(texte) {
   const t = String(texte ?? '').trim();
+  const ticket = /^ticket\s*,\s*/i.exec(t);
+  if (ticket) return pieceDuTicket(t.slice(ticket[0].length));
   if (t.startsWith('$ ')) {
     const vrai = t.indexOf('\n');
     const saut = vrai < 0 ? t.indexOf('\\n') : vrai;
@@ -486,6 +495,19 @@ export function lirePiece(texte) {
   if (fin === undefined) return { fichier: lieu.slice(0, deux), ligne };
   if (!nombre(fin) || nombre(fin) < ligne) return null;
   return { fichier: lieu.slice(0, deux), ligne, fin: nombre(fin) };
+}
+
+// The piece of the ticket <reste>, what follows « ticket, »: `{ critere }` for « critère <N> »,
+// `{ section }` for « § <section> », the section in « » or up to « : » or the end; else null. A
+// piece cites one criterion: « critère 1 et 7 » is none.
+function pieceDuTicket(reste) {
+  const critere = /^critère\s+([1-9]\d*)(?!\d)(?!\s*(?:et|,)\s*\d)(?:$|[\s.,;:])/i.exec(reste);
+  if (critere) return { critere: Number(critere[1]) };
+  if (!reste.startsWith('§')) return null;
+  const apres = reste.slice(1).trim();
+  const cite = /^«\s*([^»]*?)\s*»/.exec(apres);
+  const section = (cite ? cite[1] : apres.split(/\s:(?:\s|$)|:$/)[0]).trim();
+  return section ? { section } : null;
 }
 
 // The pieces of the sheet <f>, each `[son chemin, son texte]`: of the stop it carries (a status,
@@ -521,12 +543,49 @@ function introuvables(f, copie) {
   return out;
 }
 
+// A heading of a description, without its marks and its case, as a piece of the ticket names it.
+const titreLu = titre => titre.replace(/\s+/g, ' ').trim().toLocaleLowerCase('fr');
+
+// What makes a piece of the ticket of the sheet <f> absent from the description <description>: a
+// criterion no numbered line of its section of criteria (a heading that begins with « Critères »)
+// carries, a section no heading names (its title, or its beginning); each fault, naming its piece.
+function horsDuTicket(f, description) {
+  const titres = [];
+  const criteres = new Set();
+  let dedans = false;
+  for (const ligne of String(description).split('\n')) {
+    const tete = /^#{1,6}\s+(.*)$/.exec(ligne);
+    if (tete) {
+      titres.push(titreLu(tete[1]));
+      dedans = /^Critères\b/i.test(tete[1].trim());
+      continue;
+    }
+    const numero = /^\s*(\d+)[.)]\s/.exec(ligne);
+    if (dedans && numero) criteres.add(Number(numero[1]));
+  }
+  const out = [];
+  for (const [ou, p] of piecesDe(f)) {
+    const lu = lirePiece(p);
+    if (lu?.critere && !criteres.has(lu.critere)) {
+      out.push(
+        `${ou} : ticket, critère ${lu.critere} : la description du ticket n'a pas de critère ${lu.critere}`
+      );
+    }
+    if (lu?.section && !titres.some(x => x.startsWith(titreLu(lu.section)))) {
+      out.push(
+        `${ou} : ticket, § ${lu.section} : la description du ticket n'a pas de section « ${lu.section} »`
+      );
+    }
+  }
+  return out;
+}
+
 // What a sheet of <role> needs beyond its schema: the reason of a BLOQUÉ, the question of a
 // BESOIN, the number of each criterion out of the plan, the packages of a plan and the number of each answer, the questions of a QUESTIONS, the text of a
 // DÉSACCORD, the criterion or rule of a blocking finding, the reference of the rule each line of
 // a reviewer's conformity cites in its document and the recipient of a « non », and a reviewer's verdict that follows its blocking findings, its « non » among them
 // (RENDU with one, ACCEPTÉ without), the piece of a BLOQUÉ, a BESOIN and a reviewer's question,
-// and each piece in one of its two forms (`lirePiece`).
+// and each piece in one of its forms (`lirePiece`).
 function manques(role, f) {
   const out = [];
   const plein = k => typeof f[k] === 'string' && f[k].trim() !== '';
@@ -541,7 +600,7 @@ function manques(role, f) {
   for (const [ou, p] of piecesDe(f)) {
     if (!lirePiece(p)) {
       out.push(
-        `${ou} : « ${p} » n'est pas une pièce (fichier:ligne, ou « $ <commande> » et sa sortie)`
+        `${ou} : « ${p} » n'est pas une pièce (fichier:ligne, « $ <commande> » et sa sortie, ou « ticket, critère <N> » ou « ticket, § <section> »)`
       );
     }
   }
@@ -594,8 +653,9 @@ function manques(role, f) {
 
 // The sheet of <role> in <sortie>, what claude prints with `--output-format json`: `{ fiche,
 // seance }`, or `{ erreur }` naming what lacks or does not conform; with <copie>, the directory
-// of the copy, each file piece of the sheet stands in it, its file and its line.
-export function lireFiche(role, sortie, { copie } = {}) {
+// of the copy, each file piece of the sheet stands in it, its file and its line; with <ticket>,
+// the description of the ticket, each piece of the ticket names a criterion or a section of it.
+export function lireFiche(role, sortie, { copie, ticket } = {}) {
   const schema = schemaDeFiche(role);
   if (!schema) return { erreur: `le rôle ${role} n'a pas de fiche` };
   let resultat;
@@ -611,6 +671,7 @@ export function lireFiche(role, sortie, { copie } = {}) {
   const fautes = erreurs(schema, fiche, '');
   if (!fautes.length) fautes.push(...manques(role, fiche));
   if (!fautes.length && copie) fautes.push(...introuvables(fiche, copie));
+  if (!fautes.length && typeof ticket === 'string') fautes.push(...horsDuTicket(fiche, ticket));
   if (fautes.length) return { erreur: `fiche non conforme : ${fautes.join(' ; ')}` };
   return { fiche, seance: resultat.session_id ?? null };
 }

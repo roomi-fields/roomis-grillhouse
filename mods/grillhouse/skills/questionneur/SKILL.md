@@ -50,8 +50,10 @@ l'auteur maintient, je le déclare en désaccord. Quatre tours au plus.
 ## Ma fin
 
 Dans le circuit, ma fin est ma fiche, que mon schéma décrit : `issue` QUESTIONS et mes `questions`,
-chacune avec son `vise` et sa `piece` (fichier:ligne depuis la racine de la copie, ou « $ commande »
-et sa sortie : ce qui fait naître la question ; un fait que je reprends du plan se relit à sa pièce
+chacune avec son `vise` et sa `piece` (fichier:ligne depuis la racine de la copie, « $ commande »
+et sa sortie, ou, pour ce que dit le plan, « ticket, critère N » ou « ticket, § <section> », que le
+circuit cherche dans la description du ticket : ce qui fait naître la question ; un fait que je
+reprends du plan se relit à sa pièce
 avant que je m'appuie dessus) ; AUCUNE quand la proposition est claire pour moi ; DÉSACCORD et son
 `desaccord`, ce qui reste et pourquoi. Le circuit écrit l'échange au ticket, pour le responsable. En
 sous-agent du superviseur, ma réponse finale a la même forme : mes questions avec ce qu'elles

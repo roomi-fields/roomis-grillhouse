@@ -221,8 +221,12 @@ séance, à l'heure locale avec son décalage (ISO 8601). Ainsi la perte dite es
 **Un fait porte sa pièce** : comme une revue de code cite la ligne qu'elle juge, chaque constat,
 question ou montée d'une fiche porte sa `piece`, un seul format (`lirePiece` de `resultats.mjs`) :
 `fichier:ligne` ou `fichier:ligne-ligne` depuis la racine de la copie, ou `$ commande` et sa
-sortie, à la ligne suivante ou après un « \n » écrit en deux caractères. Le circuit cherche chaque pièce `fichier:ligne` dans la copie, le fichier présent et sa
-ligne (ou la fin de l'intervalle) dedans ; une pièce
+sortie, à la ligne suivante ou après un « \n » écrit en deux caractères, ou, pour ce que dit le
+ticket, `ticket, critère N` ou `ticket, § <section>`, comme une relecture de spécification cite sa
+section (« RFC 9110 § 15.5 »). Le circuit cherche chaque pièce `fichier:ligne` dans la copie, le fichier présent et sa
+ligne (ou la fin de l'intervalle) dedans, et chaque pièce du ticket dans sa description, le critère
+numéroté dans sa section des critères ou la section par son titre (BP 320.17 : trois fiches du
+questionneur sur quatre refusées pour une pièce sur le plan qu'il questionne) ; une pièce
 introuvable refuse la fiche, redemandée une fois à la même séance, neuve ou reprise, comme tout
 autre manque, comme un validateur de sortie structurée renvoie son erreur à la même conversation
 (BP 320.3.9 : une question juste perdue dans une séance neuve). L'agent qui reprend le

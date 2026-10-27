@@ -238,6 +238,27 @@ fiche '{"statut":"FAIT","hors_plan":[{"critere":"1","paquet":"030-binder","piece
     expect(etat(id)).toMatchObject({ etape: 'integre' });
   });
 
+  // grillhouse-0yu.4, witness BPScript 320.17: sheets refused for a piece that cites the ticket.
+  it('a piece that cites a criterion of the ticket is checked against its description: present, the sheet passes; absent, it is asked again', () => {
+    const id = 'demo-statut-piece-ticket';
+    ticket(id, '000-forms');
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(
+      id,
+      'developpeur-1',
+      `passation 'Le critère ne dit pas la valeur.'\nfiche '{"statut":"BESOIN","piece":"ticket, critère 2 : la valeur.","question":"le double ou le triple ?"}'\n`
+    );
+    scenario(
+      id,
+      'developpeur-2',
+      `passation 'Le critère ne dit pas la valeur.'\nfiche '{"statut":"BESOIN","piece":"ticket, critère 1 : rend le double.","question":"le double ou le triple ?"}'\n`
+    );
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(ARRETS.besoin);
+    expect(commentaires(id)).toContainEqual(expect.stringMatching(/n'a pas de critère 2/));
+    expect(question(id)?.piece).toBe('ticket, critère 1 : rend le double.');
+  });
+
   it('FAIT keeps the circuit going: a delivery goes to the checks, none stops at « sans-livraison »', () => {
     const id = 'demo-statut-fait';
     ticket(id, '000-forms');
