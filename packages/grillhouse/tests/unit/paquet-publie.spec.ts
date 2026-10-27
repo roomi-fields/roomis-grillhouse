@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { ELEMENTS_DU_GREFFON, FICHIERS_DU_CADRE, PROPRES_DU_PAQUET } from '../../scripts/cadre.mjs';
+import { lireSarif } from '../../scripts/resultats.mjs';
 
 // grillhouse-3uv.84.4 critère 5: the published package installs and works alone: it declares what
 // its scripts import out of Node, and carries its base configuration of Vitest. Critère 7: what the
@@ -241,10 +242,13 @@ describe('grillhouse-3uv.95.11.3 — the TSDoc base of the package', () => {
 // `eslint/use-at-your-own-risk` publishes its tools. The archive is packed without its prepack
 // (the entries live under scripts/, which the prepack does not write) and unpacked where npm
 // installs a package, in a project of trial that imports each entry by the package's name.
+// grillhouse-u4s.2: `ecrireSarif` too, by `@roomi-fields/grillhouse/resultats`, whose finding
+// `lireSarif` reads back with its file and its line.
 const ENTREES_DES_GARDES = [
   { entree: './dette', module: 'dette', fonction: 'trancher' },
   { entree: './consommateurs', module: 'consommateurs', fonction: 'matieres' },
   { entree: './paquets', module: 'paquets', fonction: 'horsCadre' },
+  { entree: './resultats', module: 'resultats', fonction: 'ecrireSarif' },
 ] as const;
 
 describe('grillhouse-3uv.95.1 — the named entries of the package for a project’s guards', () => {
@@ -283,7 +287,10 @@ describe('grillhouse-3uv.95.1 — the named entries of the package for a project
       mkdirSync(path.dirname(path.join(projet, f)), { recursive: true });
       writeFileSync(path.join(projet, f), texte);
     };
-    ecrire('package.json', '{ "name": "essai", "private": true, "type": "module" }\n');
+    ecrire(
+      'package.json',
+      '{ "name": "essai", "private": true, "type": "module", "workspaces": ["packages/*"] }\n'
+    );
     ecrire('docs/agents/hors-cadre.txt', '# hors cadre\nancien gelé\n');
     ecrire(
       'packages/matiere/package.json',
@@ -293,6 +300,7 @@ describe('grillhouse-3uv.95.1 — the named entries of the package for a project
       "import { trancher } from '@roomi-fields/grillhouse/dette';",
       "import { matieres } from '@roomi-fields/grillhouse/consommateurs';",
       "import { horsCadre } from '@roomi-fields/grillhouse/paquets';",
+      "import { ecrireSarif } from '@roomi-fields/grillhouse/resultats';",
     ].join('\n');
     ecrire(
       'essai.mjs',
@@ -303,15 +311,38 @@ console.log(JSON.stringify({
   refus: refus.map(c => c.message),
   matieres: matieres(racine).map(m => m.paquet),
   horsCadre: [...horsCadre(racine)],
+  sarif: ecrireSarif({
+    garde: 'essai',
+    constats: [{ fichier: 'packages/matiere/f.mjs', ligne: 3, message: 'm', regle: 'r' }],
+    racine,
+    env: { GRILLHOUSE_RESULTATS: 'resultats' },
+  }),
 }));
 `
     );
     const r = spawnSync(process.execPath, ['essai.mjs'], { cwd: projet, encoding: 'utf8' });
     expect(r.status, r.stderr).toBe(0);
-    expect(JSON.parse(r.stdout)).toEqual({
+    const { sarif: ecrit, ...appels } = JSON.parse(r.stdout) as Record<string, unknown>;
+    expect(appels).toEqual({
       refus: ['m'],
       matieres: ['@essai/matiere'],
       horsCadre: ['ancien'],
+    });
+    expect(ecrit).toMatch(/^resultats\/sarif\/essai-\d+-\d+\.sarif$/);
+    expect(lireSarif(path.join(projet, 'resultats'))).toEqual({
+      gardes: ['essai'],
+      constats: [
+        {
+          garde: 'essai',
+          regle: 'r',
+          fichier: 'packages/matiere/f.mjs',
+          ligne: 3,
+          niveau: 'error',
+          message: 'm',
+          paquet: 'packages/matiere',
+          genre: 'a-corriger',
+        },
+      ],
     });
     // The same calls in TypeScript, checked against the declarations the entries publish: an
     // entry without its types is an implicit any, which strict refuses.
@@ -324,7 +355,15 @@ const s: Set<string> = horsCadre(racine);
 const { refus, lignes }: { refus: { message: string }[]; lignes: string[] } = trancher(racine, 'essai', [
   { fichier: 'a.mjs', regle: 'r', message: 'm', ligne: 3 },
 ]);
-export { n, s, refus, lignes };
+const f: string | null = ecrireSarif({
+  garde: 'essai',
+  constats: [
+    { fichier: 'a.mjs', ligne: 3, message: 'm', regle: 'r', niveau: 'note', genre: 'a-arbitrer' },
+  ],
+  racine,
+  env: {},
+});
+export { n, s, refus, lignes, f };
 `
     );
     ecrire(

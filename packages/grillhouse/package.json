@@ -43,6 +43,10 @@
       "types": "./scripts/paquets.d.ts",
       "default": "./scripts/paquets.mjs"
     },
+    "./resultats": {
+      "types": "./scripts/resultats.d.ts",
+      "default": "./scripts/resultats.mjs"
+    },
     "./vitest-config": {
       "types": "./scripts/vitest-config/base.d.ts",
       "default": "./scripts/vitest-config/base.mjs"

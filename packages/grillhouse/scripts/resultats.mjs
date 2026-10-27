@@ -82,7 +82,8 @@
 //   nothing without it; a green guard writes its run, empty, so a reader knows it played. The
 //   frame's guards write through the known debt (scripts/dette.mjs), their runner
 //   (scripts/gardes-du-cadre.mjs) writes for a red guard that wrote none a finding without
-//   location, and a project's guards (its script `gardes`) import `ecrireSarif` from this module.
+//   location, and a project's guards (its script `gardes`) import `ecrireSarif` by the package's
+//   entry `@roomi-fields/grillhouse/resultats`, whose types (./resultats.d.ts) declare it alone.
 // - The summary of a run of Turborepo (`turbo run … --summarize`, `.turbo/runs/<id>.json`):
 //   `garderLesResumes` moves the summaries a run wrote into `<dossier>/turbo/`, and `lireResumes`
 //   gives each task, its package and directory, its script, its exit code, its cache status and

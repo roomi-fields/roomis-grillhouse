@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **The writing of a guard's findings in SARIF has its public address** (grillhouse-u4s.2): on bp-mono-vbwf.320.10, BPScript opened its ticket so that its guards write their SARIF, without which none of their reds is situated (decided by Romain, « A »), and stopped: the package's architecture told a project's guard to write by `ecrireSarif` of `packages/grillhouse/scripts/resultats.mjs`, a path a project reaches only deep in `node_modules`, which its charter refuses, and no entry of the package's `exports` led there. As `eslint/use-at-your-own-risk` publishes ESLint's tools, and as the package already publishes `trancher`, `matieres` and `horsCadre`, its `exports` now carry `@roomi-fields/grillhouse/resultats`, pointing at `scripts/resultats.mjs`, with its declaration of types beside it (`scripts/resultats.d.ts`), which declares `ecrireSarif` alone. The test of the named entries imports it in a project of trial by the package's name, writes a finding, and reads it back with its file and its line. A project's guard writes its findings by `import { ecrireSarif } from '@roomi-fields/grillhouse/resultats'`.
+
 ## [0.24.9] - 2026-10-27
 
 ### Fixed

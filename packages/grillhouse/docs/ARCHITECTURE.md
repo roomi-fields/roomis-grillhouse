@@ -15,8 +15,8 @@ rôle qui écrit les refusent, `droits.mjs`). `npm run verifier` joue, après la
 construction : les gardes du cadre,
 celles du projet (son script racine `gardes`, un nom que le cadre réserve ; une garde juge les
 fichiers de l'arbre de travail, que le cache de Turborepo compte, jamais l'index de git ; elle
-écrit ses constats en SARIF, chacun avec son fichier et sa ligne, par `ecrireSarif` de
-`packages/grillhouse/scripts/resultats.mjs`, dans le dossier que nomme `GRILLHOUSE_RESULTATS`, et sans eux son rouge
+écrit ses constats en SARIF, chacun avec son fichier et sa ligne, par `ecrireSarif`, que
+publie l'entrée `@roomi-fields/grillhouse/resultats`, dans le dossier que nomme `GRILLHOUSE_RESULTATS`, et sans eux son rouge
 ne revient à aucun composant) et les tests, côte à côte ; un rouge n'arrête pas la passe, qui joue tout ce que ses tâches
 préalables permettent et nomme chaque rouge ; `npm run verifier -- --gardes` joue les gardes
 seules, ce que le relecteur joue sur la copie du ticket. Une tâche dont
@@ -301,7 +301,9 @@ nom et l'une de ses entrées (le champ `exports`), jamais par l'adresse d'un fic
 la fonction, sans réexport, avec sa déclaration de types à côté (`scripts/<module>.d.ts`) :
 `@roomi-fields/grillhouse/dette` (`trancher`, la dette connue d'une garde du projet),
 `@roomi-fields/grillhouse/consommateurs` (`matieres`, les paquets de la matière de test
-partagée), `@roomi-fields/grillhouse/paquets` (`horsCadre`, les paquets hors cadre), et la
+partagée), `@roomi-fields/grillhouse/paquets` (`horsCadre`, les paquets hors cadre),
+`@roomi-fields/grillhouse/resultats` (`ecrireSarif`, les constats d'une garde du projet en
+SARIF), et la
 configuration de base de Vitest, `@roomi-fields/grillhouse/vitest-config` et
 `@roomi-fields/grillhouse/vitest-config/mesure`, et la base TSDoc,
 `@roomi-fields/grillhouse/tsdoc-base.json`, dont hérite le `tsdoc.json` d'un projet : elle hérite
