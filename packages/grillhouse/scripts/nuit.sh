@@ -22,8 +22,10 @@
 #   played for real (`--force`, no log replayed from the cache, no measure against the last
 #   green: the complete pass, scripts/verifier.mjs), its result written to the cache again; green,
 #   its tree becomes the last green of the day's passes.
-#   A full pass « à repasser » (75, scripts/verifier.mjs: a failure of duration under load, which
-#   found no rest in its bound) makes the night « à repasser », below.
+#   Its three steps (the full pass, the night tests, the project's night script) each play even
+#   when one before is red, as a CI plays its independent jobs; the night is red when one of them
+#   is. A full pass « à repasser » (75, scripts/verifier.mjs: a failure of duration under load,
+#   which found no rest in its bound) ends the night there, « à repasser », below.
 #   An existing copy that does not get ready (its move onto HEAD, its cleaning or the setting of
 #   its submodules fails) is removed by `scripts/retirer-copie.sh --jetable` (local work does not
 #   hold it, a lock does) and created again, once; a copy that does not get ready the second time
@@ -33,17 +35,17 @@
 #   read-only, its working tree and its git repository (the list the preparation's pose printed,
 #   whatever a command rewrites afterwards): a write into it fails. With a shared submodule and no possible mount (bwrap absent
 #   or refused), the night turns red, the log saying so, before any command runs.
-# - The night tests: after a green full pass, the files `*.nuit.test.*`, `*.nuit.spec.*`,
+# - The night tests: after the full pass, the files `*.nuit.test.*`, `*.nuit.spec.*`,
 #   `*.budget.test.*` and `*.budget.spec.*` of the copy (outside node_modules, dist and .git): the
 #   night tests and the time budget benches, which `npm test` and the integration leave out
 #   (the package @roomi-fields/grillhouse/vitest-config, scripts/vitest-config/, which every day configuration
 #   extends), run by Vitest with the frame's configuration (scripts/vitest.nuit.config.mjs, beside
 #   this script), bench or night test alone as well. A red turns the night red, with a log line that says so, and the
-#   project's night script does not run. A copy with neither plays none. A run « à repasser » (75:
+#   project's night script still plays. A copy with neither plays none. A run « à repasser » (75:
 #   every failure depended on a duration, one under load, scripts/vitest-config/duree.reporter.mjs)
 #   waits for rest (`npx grillhouse pression attendre`, bound 15 min) and plays
 #   once more; green then, the night goes on; à repasser again, or no rest in the bound, the night
-#   is « à repasser ».
+#   ends there, « à repasser », red if the full pass is.
 # - « À repasser » (exit 75): neither green nor red. The last green stays, no ticket opens, nothing
 #   is pushed, the log says so; the next night plays again.
 # - The project's night script: `grillhouse.nuit` in the package.json of the commit it plays names
@@ -61,16 +63,23 @@
 #   keys are read as written, before any work: a grillhouse.poussee that is neither null nor an
 #   object, or a grillhouse.poussee.nuit that is not a non-blank string, turns the night red with
 #   a log line that cites it, one line per faulty key. A refused push keeps the last green, opens
-#   (or completes) the night ticket « La poussée de la nuit est refusée sur <commit> », and exits
-#   1; a remote already at the commit accepts the push.
+#   the night ticket « La poussée de la nuit est refusée sur <commit> vers « origin/<branch> » »
+#   (or comments the open one that names « origin/<branch> »), and exits 1; a remote already at
+#   the commit accepts the push.
 # - It takes no lock of the integration or of the queue (scripts/integration/file.mjs): an
 #   integration and the queue run during the night, each in its own copy.
 # - Its log is <git common dir>/nuit/<date>.log. Green: HEAD becomes the last green commit
-#   (<git common dir>/nuit/dernier-vert). Red: a ticket labelled `nuit`, with the commits since the
-#   last green, where `git bisect` looks for the culprit; an open one gets a comment instead.
-#   With a last green, each red task of the full pass (the file GRILLHOUSE_ROUGES names, which
-#   scripts/verifier.mjs writes: `<package>#<task>` per line, no task à repasser among them) gets
-#   its line, the command that looks for the culprit with that task alone:
+#   (<git common dir>/nuit/dernier-vert). Red: the red tasks, each grouped by its cause as an
+#   alerting system groups by fingerprint: each red task of the full pass (the file
+#   GRILLHOUSE_ROUGES names, which scripts/verifier.mjs writes: `<package>#<task>` per line, no
+#   task à repasser among them), else the full pass by its command, the night tests, the project's
+#   night script by its command, or the preparation when the night is red before any step. Each
+#   red task comments the open ticket labelled `nuit` whose title names it (« <task> »), once per
+#   ticket, or opens its own, « La nuit est rouge sur « <task> » depuis la nuit du <date> ». The
+#   text, the same for each, gives the commits since the last green, where `git bisect` looks for
+#   the culprit, each red step and each red task, with or without a last green, then the end of
+#   the log. With a last green, each red task of the full pass gets the command that looks for the
+#   culprit with that task alone:
 #   `git bisect start <head> <last green> && git bisect run npx turbo run <task> --filter=<package>`
 #   (`--filter=//` for the root), Turborepo's hash replaying at each step only what changed.
 set -u
@@ -109,6 +118,11 @@ rm -f "$rouges"
 tete="$(git -C "$racine" rev-parse HEAD)"
 copie="$racine/.claude/worktrees/nuit"
 branche=
+# The red steps of the night, and its red tasks: those of the full pass (turbo 1, which a bisect
+# replays alone), then a step red without a task of its own, named by its command (turbo 0).
+etapes=()
+taches=()
+turbo=()
 # Gets the copy ready on HEAD: detached, cleaned, its submodules set; `partages` holds the list the
 # pose fixes, which every mount gets. Prints the reason on failure.
 partages=
@@ -187,15 +201,31 @@ jouer() {
     monter npm --prefix "$copie" ci --no-audit --no-fund --silent || return 1
     cp "$copie/package-lock.json" "$copie/node_modules/.nuit-lock"
   fi
-  # The full pass, played for real: the night replays no log of the cache.
-  local code
+  # The full pass, played for real: the night replays no log of the cache. Each step plays even
+  # when one before it is red; a step à repasser ends the night there, red if a step before it is.
+  local code tache avant
   GRILLHOUSE_ROUGES="$rouges" monter npm --prefix "$copie" run verifier -- --force
   code=$?
   if [ "$code" -eq 75 ]; then
     echo "⏱ la passe complète est à repasser (code 75) : un échec de durée sous charge, sans repos dans la borne."
     return 75
   fi
-  [ "$code" -eq 0 ] || return 1
+  if [ "$code" -ne 0 ]; then
+    echo "✗ la passe complète (npm run verifier -- --force) a échoué."
+    etapes+=("la passe complète (npm run verifier -- --force)")
+    avant=${#taches[@]}
+    if [ -s "$rouges" ]; then
+      while IFS= read -r tache; do
+        [ -n "$tache" ] || continue
+        taches+=("$tache")
+        turbo+=(1)
+      done < "$rouges"
+    fi
+    if [ "${#taches[@]}" -eq "$avant" ]; then
+      taches+=("npm run verifier -- --force")
+      turbo+=(0)
+    fi
+  fi
   if [ -n "$(find "$copie" \( -name node_modules -o -name dist -o -name .git \) -prune -o \
       -type f -regextype posix-extended -regex '.*\.(nuit|budget)\.(test|spec)\.(c|m)?[jt]sx?' -print -quit)" ]; then
     bancs() { (cd "$copie" && monter npx --no-install vitest run --root "$copie" \
@@ -206,25 +236,36 @@ jouer() {
       echo "⏱ les bancs de temps ou les tests de nuit sont à repasser (code 75) : attente du repos, puis une relance."
       if ! node "$ici/vitest-config/pression.mjs" attendre; then
         echo "⏱ à repasser : pas de repos dans la borne."
-        return 75
+        fin 75
+        return
       fi
       bancs
       code=$?
       if [ "$code" -eq 75 ]; then
         echo "⏱ à repasser : les bancs échouent encore sous charge après la relance."
-        return 75
+        fin 75
+        return
       fi
     fi
     if [ "$code" -ne 0 ]; then
       echo "✗ les bancs de temps ou les tests de nuit (*.budget.*, *.nuit.*) ont échoué."
-      return 1
+      etapes+=("les bancs de temps et les tests de nuit (*.budget.*, *.nuit.*)")
+      taches+=("les bancs de temps et les tests de nuit")
+      turbo+=(0)
     fi
   fi
-  [ -n "$nuit" ] || return 0
-  if ! monter npm --prefix "$copie" run "$nuit"; then
+  if [ -n "$nuit" ] && ! monter npm --prefix "$copie" run "$nuit"; then
     echo "✗ le script de nuit du projet \`npm run $nuit\` (grillhouse.nuit) a échoué."
-    return 1
+    etapes+=("le script de nuit du projet (npm run $nuit, grillhouse.nuit)")
+    taches+=("npm run $nuit")
+    turbo+=(0)
   fi
+  fin 0
+}
+# The night's verdict once its steps are played: red when a step is red, else <code>.
+fin() {
+  [ "${#etapes[@]}" -eq 0 ] || return 1
+  return "$1"
 }
 jouer >> "$journal" 2>&1
 verdict=$?
@@ -234,19 +275,30 @@ if [ "$verdict" -eq 75 ]; then
   exit 75
 fi
 
-# Opens the night ticket (subject « number — subject — parent », the number being the id without the
-# project's prefix as `bd config get issue_prefix` gives it), or comments the open one; prints its id.
+# The open night tickets, read once; a ticket names a cause when its title holds « <cause> ».
+ouverts=
+commentes=" "
+# Reports one cause: comments the open night ticket whose title names it (once a night), or opens
+# its own (title « number — subject — parent », the number being the id without the project's
+# prefix as `bd config get issue_prefix` gives it, the subject naming « <cause> »); its id goes to
+# `numero`.
 signaler() {
-  local sujet="$1" texte="$2" ouvert neuf= prefixe
-  ouvert="$(cd "$racine" && bd list --status open --label nuit --json 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const l=JSON.parse(s);process.stdout.write(l[0]?.id??"")}catch{}})')"
+  local cause="$1" sujet="$2" texte="$3" ouvert neuf= prefixe
+  [ -n "$ouverts" ] || ouverts="$(cd "$racine" && bd list --status open --label nuit --json 2>/dev/null)"
+  ouvert="$(printf '%s' "$ouverts" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const c=`« ${process.argv[1]} »`;process.stdout.write(JSON.parse(s).find(t=>String(t.title??"").includes(c))?.id??"")}catch{}})' "$cause")"
   if [ -n "$ouvert" ]; then
-    (cd "$racine" && bd comments add "$ouvert" "$texte" >/dev/null)
+    case "$commentes" in
+      *" $ouvert "*) ;;
+      *)
+        (cd "$racine" && bd comments add "$ouvert" "$texte" >/dev/null)
+        commentes="$commentes$ouvert " ;;
+    esac
   else
     neuf="$(cd "$racine" && bd create "$sujet" -t bug -p 1 -l nuit -d "$texte" --silent)"
     prefixe="$(cd "$racine" && bd config get issue_prefix 2>/dev/null)"
     [ -n "$neuf" ] && (cd "$racine" && bd update "$neuf" --title "${neuf#"$prefixe"-} — $sujet — parent" >/dev/null)
   fi
-  echo "${ouvert:-$neuf}"
+  numero="${ouvert:-$neuf}"
 }
 
 if [ "$verdict" -eq 0 ]; then
@@ -262,7 +314,7 @@ Le dernier vert reste ${tete:0:7}.
 Journal : $journal
 Fin du journal :
 $(tail -40 "$journal")"
-      numero="$(signaler "La poussée de la nuit est refusée sur ${tete:0:7}" "$texte")"
+      signaler "origin/$branche" "La poussée de la nuit est refusée sur ${tete:0:7} vers « origin/$branche »" "$texte"
       echo "✗ vert, poussée refusée : ticket ${numero:-neuf} (étiquette nuit)." >> "$journal"
       exit 1
     fi
@@ -272,23 +324,39 @@ fi
 
 vert="$(cat "$dossier/dernier-vert" 2>/dev/null || true)"
 intervalle="${vert:+${vert:0:7}..}${tete:0:7}"
-bissections=
-if [ -n "$vert" ] && [ -s "$rouges" ]; then
-  bissections="Pour chaque tâche rouge, la commande qui cherche le commit fautif :"
-  while IFS= read -r tache; do
-    [ -n "$tache" ] || continue
-    bissections="$bissections
-- $tache : git bisect start ${tete:0:7} ${vert:0:7} && git bisect run npx turbo run ${tache#*#} --filter=${tache%%#*}"
-  done < "$rouges"
-  bissections="$bissections
-"
+# A red before any step (the copy, its mount, the keys, the installation) is the preparation's.
+if [ "${#etapes[@]}" -eq 0 ]; then
+  etapes=("la préparation (la copie, ses sous-modules, les clés grillhouse, l'installation)")
+  taches=("la préparation")
+  turbo=(0)
 fi
+liste="Étapes rouges :"
+for e in "${etapes[@]}"; do
+  liste="$liste
+- $e"
+done
+liste="$liste
+Tâches rouges"
+[ -n "$vert" ] && liste="$liste, avec pour une tâche de la passe complète la commande qui cherche le commit fautif"
+liste="$liste :"
+for i in "${!taches[@]}"; do
+  tache="${taches[$i]}"
+  if [ -n "$vert" ] && [ "${turbo[$i]}" -eq 1 ]; then
+    tache="$tache : git bisect start ${tete:0:7} ${vert:0:7} && git bisect run npx turbo run ${tache#*#} --filter=${tache%%#*}"
+  fi
+  liste="$liste
+- $tache"
+done
 texte="La nuit du $(date +%Y-%m-%d) est rouge sur ${tete:0:7}.
 Commits à chercher (git bisect) : $intervalle.
-${bissections}Journal : $journal
+$liste
+Journal : $journal
 Fin du journal :
 $(tail -40 "$journal")"
-# A night ticket is the mother of its fixes.
-numero="$(signaler "La nuit est rouge depuis la nuit du $(date +%Y-%m-%d)" "$texte")"
-echo "✗ rouge : ticket ${numero:-neuf} (étiquette nuit)." >> "$journal"
+# Each red task reports on the night ticket that names it, else on its own; a night ticket is the
+# mother of its fixes.
+for tache in "${taches[@]}"; do
+  signaler "$tache" "La nuit est rouge sur « $tache » depuis la nuit du $(date +%Y-%m-%d)" "$texte"
+  echo "✗ rouge : ticket ${numero:-neuf} (étiquette nuit) sur « $tache »." >> "$journal"
+done
 exit 1

@@ -270,6 +270,20 @@ describe('the night plays again at rest a bench à repasser', () => {
     expect(existsSync(path.join(p.bin, 'appels'))).toBe(false);
     expect(p.lignes().filter(x => x === 'temps.budget.test.ts')).toHaveLength(2);
   }, 240_000);
+  // grillhouse-w47.2 critère 1: the red of a step before stays when a later step is à repasser.
+  it('w47.2 critère 1: a red full pass, then a bench à repasser twice: the night is red, on the ticket of its red task', () => {
+    const p = projet(
+      { [BANC]: banc(true), 'tests/f.spec.ts': essai('f.spec.ts', true) },
+      { nuits: false }
+    );
+    writeFileSync(p.pression, PRESSION(90));
+    const n = nuitDe(p);
+    expect(n.status, n.journal).toBe(1);
+    expect(n.dernierVert).toBe('');
+    expect(p.lignes().filter(x => x === 'temps.budget.test.ts')).toHaveLength(2);
+    const appels = readFileSync(path.join(p.bin, 'appels'), 'utf8');
+    expect(appels, n.journal).toMatch(/^create La nuit est rouge sur « [^»\n]*test:vitest » /m);
+  }, 240_000);
 });
 
 // The package of the frame's tests.

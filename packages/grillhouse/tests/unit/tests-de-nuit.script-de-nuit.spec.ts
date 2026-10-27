@@ -59,13 +59,13 @@ describe('critère 7 — scripts/nuit.sh plays the night tests itself', () => {
       ).toHaveLength(1);
     }
   }, 240_000);
-  it('critère 7: a red full pass (npm run verifier -- --force) turns the night red before any night test', () => {
+  it('w47.2 critère 1: a red full pass (npm run verifier -- --force) turns the night red, its night tests still played', () => {
     const p = projet({ 'tests/f.spec.ts': essai('f.spec.ts', true) });
     const n = nuitDe(p);
     expect(n.status, n.journal).toBe(1);
     expect(n.dernierVert).toBe('');
     for (const f of noms(NUITS)) {
-      expect(p.lignes()).not.toContain(f);
+      expect(p.lignes(), n.journal).toContain(f);
     }
   }, 240_000);
   it('critère 7: a red night test turns the night red, with no last green, without the key', () => {
@@ -105,17 +105,19 @@ describe('critère 7 and 8 — the night tests, then the night script of the pro
   }, 240_000);
 });
 
-describe('critère 11 — a red night test turns the night red without playing the project script', () => {
+describe('w47.2 critère 1 — a red night test turns the night red, the project script still played', () => {
   const pkg = () => pkgDuDepot({ nuit: 'nuit-projet' }, { 'nuit-projet': noter('projet') });
-  it('critère 11: a red night test, the project script declared: red, no last green, script not played', () => {
+  it('w47.2 critère 1: a red night test, the project script declared: red, no last green, script played after it', () => {
     const p = projet({ 'tests/e.nuit.test.ts': essai('e.nuit.test.ts', true) }, { pkg: pkg() });
     const n = nuitDe(p);
     expect(n.status, n.journal).toBe(1);
     expect(n.dernierVert).toBe('');
-    expect(p.lignes(), n.journal).toContain('e.nuit.test.ts');
-    expect(p.lignes(), n.journal).not.toContain('projet');
+    const l = p.lignes();
+    expect(l, n.journal).toContain('e.nuit.test.ts');
+    expect(l, n.journal).toContain('projet');
+    expect(l.indexOf('e.nuit.test.ts'), l.join(', ')).toBeLessThan(l.indexOf('projet'));
   }, 240_000);
-  it('critère 11: a red night spec deeper down, among green night tests: red, script not played', () => {
+  it('w47.2 critère 1: a red night spec deeper down, among green night tests: red, script played', () => {
     const p = projet(
       { 'tests/profond/plus/e.nuit.spec.ts': essai('e.nuit.spec.ts', true) },
       { pkg: pkg() }
@@ -123,7 +125,7 @@ describe('critère 11 — a red night test turns the night red without playing t
     const n = nuitDe(p);
     expect(n.status, n.journal).toBe(1);
     expect(p.lignes(), n.journal).toContain('e.nuit.spec.ts');
-    expect(p.lignes(), n.journal).not.toContain('projet');
+    expect(p.lignes(), n.journal).toContain('projet');
   }, 240_000);
 });
 

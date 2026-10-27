@@ -99,6 +99,15 @@ describe('w47.1 critère 3 — the entry of the night reads its arguments', () =
   });
 });
 
+// The creation of a red night's ticket, named by its red task (grillhouse-w47.2).
+const CREE_ROUGE =
+  /^create La nuit est rouge sur « [^»\n]+ » depuis la nuit du \d{4}-\d{2}-\d{2} /m;
+// An open night ticket whose title names the cause « <cause> », for OUVERTS.
+const ouvert = (id: string, cause: string) => ({
+  id,
+  title: `${id.split('-').pop()} — La nuit est rouge sur « ${cause} » depuis la nuit du 2026-10-20 — parent`,
+});
+
 describe('the night', () => {
   it('marks a green HEAD as the last green, and opens nothing', () => {
     const m = monde();
@@ -152,10 +161,10 @@ describe('the night', () => {
     const rouge = m.git('rev-parse', '--short=7', 'HEAD').trim();
     expect(m.nuit().status).toBe(1);
     const appels = m.appels();
-    expect(appels).toMatch(/^create La nuit est rouge depuis/m);
+    expect(appels).toMatch(CREE_ROUGE);
     expect(appels).toMatch(/-l nuit/);
     expect(appels).toMatch(
-      /^update demo-12 --title 12 — La nuit est rouge depuis la nuit du \d{4}-\d{2}-\d{2} — parent$/m
+      /^update demo-12 --title 12 — La nuit est rouge sur « npm run verifier -- --force » depuis la nuit du \d{4}-\d{2}-\d{2} — parent$/m
     );
     expect(appels).toContain(`${vert}..${rouge}`);
     expect(appels).toMatch(/un test rouge/);
@@ -169,15 +178,18 @@ describe('the night', () => {
     m.git('commit', '-qm', 'casse');
     expect(m.nuit().status).toBe(1);
     expect(m.appels()).toMatch(
-      /^update bp-mono-vbwf\.12 --title vbwf\.12 — La nuit est rouge depuis la nuit du \d{4}-\d{2}-\d{2} — parent$/m
+      /^update bp-mono-vbwf\.12 --title vbwf\.12 — La nuit est rouge sur « npm run verifier -- --force » depuis la nuit du \d{4}-\d{2}-\d{2} — parent$/m
     );
   });
-  it('comments the open night ticket instead of opening another', () => {
+  it('comments the open night ticket that names its red task instead of opening another', () => {
     const m = monde();
     writeFileSync(path.join(m.repo, 'ROUGE'), '');
     m.git('add', 'ROUGE');
     m.git('commit', '-qm', 'casse');
-    writeFileSync(path.join(m.bin, 'OUVERTS'), '[{"id":"demo-9"}]');
+    writeFileSync(
+      path.join(m.bin, 'OUVERTS'),
+      JSON.stringify([ouvert('demo-9', 'npm run verifier -- --force')])
+    );
     expect(m.nuit().status).toBe(1);
     expect(m.appels()).toMatch(/^comments add demo-9 La nuit du/m);
     expect(m.appels()).not.toMatch(/^create/m);
@@ -253,12 +265,167 @@ describe('the bisect commands of the red night (grillhouse-3uv.56.2)', () => {
     const r = rougeSur(['@x/b#test:vitest', '//#gardes']);
     expect(r.appels).toContain(`@x/b#test:vitest : ${r.bisect('test:vitest', '@x/b')}`);
     expect(r.appels).toContain(`//#gardes : ${r.bisect('gardes', '//')}`);
-    expect(r.appels.match(/git bisect run/g)).toHaveLength(2);
+    // One ticket per red task (grillhouse-w47.2), each text giving both commands.
+    const textes = textesDe(r.appels);
+    expect(textes).toHaveLength(2);
+    for (const t of textes) {
+      expect(t.match(/git bisect run/g)).toHaveLength(2);
+    }
   });
   it('3 — a red with no red task named (à repasser beside, or another step): no command', () => {
     const r = rougeSur([]);
     expect(r.appels).toContain(`${r.vert}..${r.rouge}`);
     expect(r.appels).not.toContain('git bisect run');
+  });
+});
+
+// The text of each ticket call (a creation, or a comment), from its line to the next call.
+const textesDe = (appels: string) =>
+  appels
+    .split(/^(?=create |comments add |update |list |config )/m)
+    .filter(t => /^(create|comments add) /.test(t));
+
+// grillhouse-w47.2: the night plays each step, its ticket names each red step and each red task,
+// with or without a last green, and each red task reports on the open night ticket that names it,
+// else on its own. The fake `npm run verifier` writes the tasks committed in ROUGE to the file
+// GRILLHOUSE_ROUGES names and fails; `grillhouse.nuit`, when given, names a project script.
+describe('grillhouse-w47.2 — the night plays each step and names each red task', () => {
+  function nuitRouge(
+    taches: string[],
+    o: { vertAvant?: boolean; script?: 'vert' | 'rouge'; ouverts?: object[] } = {}
+  ) {
+    const m = monde();
+    const trace = path.join(m.bin, 'trace');
+    writeFileSync(
+      path.join(m.repo, 't.mjs'),
+      "import fs from 'node:fs';\nif (fs.existsSync('ROUGE')) {\n" +
+        "  if (process.env.GRILLHOUSE_ROUGES) fs.copyFileSync('ROUGE', process.env.GRILLHOUSE_ROUGES);\n" +
+        "  console.log('✗ un test rouge'); process.exit(1);\n}\n"
+    );
+    const scripts: Record<string, string> = { test: 'node t.mjs', verifier: 'node t.mjs' };
+    const pkg: Record<string, unknown> = { scripts };
+    if (o.script) {
+      scripts['nuit-projet'] =
+        `node -e "require('fs').appendFileSync('${trace}', 'nuit-projet\\n'); process.exit(require('fs').existsSync('ROUGE') && ${o.script === 'rouge'} ? 1 : 0)"`;
+      pkg.grillhouse = { nuit: 'nuit-projet' };
+    }
+    writeFileSync(path.join(m.repo, 'package.json'), JSON.stringify(pkg));
+    m.git('add', '.');
+    m.git('commit', '-qm', 'verifier');
+    if (o.vertAvant) {
+      expect(m.nuit().status).toBe(0);
+    }
+    writeFileSync(path.join(m.repo, 'ROUGE'), taches.map(t => `${t}\n`).join(''));
+    m.git('add', 'ROUGE');
+    m.git('commit', '-qm', 'casse');
+    if (o.ouverts) {
+      writeFileSync(path.join(m.bin, 'OUVERTS'), JSON.stringify(o.ouverts));
+    }
+    const r = m.nuit();
+    const appels = m.appels();
+    return {
+      ...m,
+      status: r.status,
+      appels,
+      textes: textesDe(appels),
+      creations: appels.split('\n').filter(l => l.startsWith('create ')),
+      commentaires: appels.split('\n').filter(l => l.startsWith('comments add ')),
+      joues: m.lire(trace).split('\n').filter(Boolean),
+    };
+  }
+
+  it('critère 1: a red full pass still plays the project script; a red script after it, both red', () => {
+    const r = nuitRouge(['a#test:vitest'], { script: 'rouge' });
+    expect(r.status).toBe(1);
+    expect(r.joues).toEqual(['nuit-projet']);
+    expect(r.creations).toHaveLength(2);
+  });
+  it('critère 1: a red full pass and a green project script: the script played, the night red', () => {
+    const r = nuitRouge(['a#test:vitest'], { script: 'vert' });
+    expect(r.status).toBe(1);
+    expect(r.joues).toEqual(['nuit-projet']);
+    expect(r.creations).toHaveLength(1);
+  });
+  it('critère 2: without a last green, the text names each red step and each red task, no bisect command', () => {
+    const r = nuitRouge(['a#test:vitest', '//#gardes'], { script: 'rouge' });
+    expect(r.status).toBe(1);
+    expect(r.lire(path.join(r.commun, 'dernier-vert'))).toBe('');
+    expect(r.textes.length).toBeGreaterThan(0);
+    for (const t of r.textes) {
+      expect(t).toMatch(/^- la passe complète \(npm run verifier -- --force\)$/m);
+      expect(t).toMatch(
+        /^- le script de nuit du projet \(npm run nuit-projet, grillhouse\.nuit\)$/m
+      );
+      expect(t).toMatch(/^- a#test:vitest$/m);
+      expect(t).toMatch(/^- \/\/#gardes$/m);
+      expect(t).toMatch(/^- npm run nuit-projet$/m);
+      expect(t).not.toContain('git bisect run');
+    }
+  });
+  it('critère 2: with a last green, each red task of the full pass gets its bisect command, the script none', () => {
+    const r = nuitRouge(['a#test:vitest'], { script: 'rouge', vertAvant: true });
+    expect(r.status).toBe(1);
+    for (const t of r.textes) {
+      expect(t).toMatch(
+        /^- a#test:vitest : git bisect start \w{7} \w{7} && git bisect run npx turbo run test:vitest --filter=a$/m
+      );
+      expect(t).toMatch(/^- npm run nuit-projet$/m);
+      expect(t.match(/git bisect run/g)).toHaveLength(1);
+    }
+  });
+  it('critère 2: a full pass red without a red task named names the step and its command', () => {
+    const r = nuitRouge([]);
+    expect(r.status).toBe(1);
+    expect(r.textes).toHaveLength(1);
+    expect(r.textes[0]).toMatch(/^- la passe complète \(npm run verifier -- --force\)$/m);
+    expect(r.textes[0]).toMatch(/^- npm run verifier -- --force$/m);
+  });
+  it('critère 3: two red tasks, no open night ticket: a ticket of its own for each, its title naming it', () => {
+    const r = nuitRouge(['a#test:vitest', 'b#test:vitest']);
+    expect(r.commentaires).toEqual([]);
+    expect(r.creations).toHaveLength(2);
+    expect(r.creations[0]).toMatch(
+      /^create La nuit est rouge sur « a#test:vitest » depuis la nuit du /
+    );
+    expect(r.creations[1]).toMatch(
+      /^create La nuit est rouge sur « b#test:vitest » depuis la nuit du /
+    );
+    expect(r.appels).toMatch(
+      /^update demo-12 --title 12 — La nuit est rouge sur « a#test:vitest » depuis la nuit du \d{4}-\d{2}-\d{2} — parent$/m
+    );
+  });
+  it('critère 3: a task the open night ticket names comments it; a task it does not name opens its own', () => {
+    const r = nuitRouge(['a#test:vitest', 'b#test:vitest'], {
+      ouverts: [ouvert('demo-9', 'a#test:vitest')],
+    });
+    expect(r.commentaires).toHaveLength(1);
+    expect(r.commentaires[0]).toMatch(/^comments add demo-9 La nuit du/);
+    expect(r.creations).toHaveLength(1);
+    expect(r.creations[0]).toMatch(/^create La nuit est rouge sur « b#test:vitest » /);
+  });
+  it('critère 3: an open night ticket that names no red task gets no comment, each task opens its own', () => {
+    const r = nuitRouge(['a#test:vitest'], {
+      ouverts: [
+        { id: 'demo-9', title: '9 — La nuit est rouge depuis la nuit du 2026-10-17 — parent' },
+        ouvert('demo-8', 'a#test:vitest:lent'),
+      ],
+    });
+    expect(r.commentaires).toEqual([]);
+    expect(r.creations).toHaveLength(1);
+    expect(r.creations[0]).toMatch(/^create La nuit est rouge sur « a#test:vitest » /);
+  });
+  it('critère 3: each open night ticket gets the comment of the tasks it names, once', () => {
+    const r = nuitRouge(['a#test:vitest', 'b#test:vitest'], {
+      script: 'rouge',
+      ouverts: [
+        { id: 'demo-9', title: '9 — « a#test:vitest » et « b#test:vitest » — parent' },
+        ouvert('demo-7', 'npm run nuit-projet'),
+      ],
+    });
+    expect(r.creations).toEqual([]);
+    expect(r.commentaires).toHaveLength(2);
+    expect(r.commentaires.filter(l => l.startsWith('comments add demo-9 '))).toHaveLength(1);
+    expect(r.commentaires.filter(l => l.startsWith('comments add demo-7 '))).toHaveLength(1);
   });
 });
 
@@ -331,11 +498,30 @@ describe('the night plays the project night script (grillhouse.nuit)', () => {
     expect(p.nuit().status, p.journal()).toBe(0);
     expect(p.lignes().map(l => l.nom)).toEqual(['verifier', 'nuit:corpus']);
   });
-  it('2 — a red npm run verifier -- --force turns the night red without playing the project script', () => {
+  it('w47.2 critère 1 — a red npm run verifier -- --force turns the night red, the project script still played', () => {
     const p = projet({ nuit: 'nuit-projet' }, { 'nuit-projet': 'vert' }, true);
     expect(p.nuit().status).toBe(1);
+    expect(p.lignes().map(l => l.nom)).toEqual(['verifier', 'nuit-projet']);
+    expect(p.lire(path.join(p.commun, 'dernier-vert'))).toBe('');
+    expect(p.appels()).toMatch(CREE_ROUGE);
+  });
+  it('w47.2 critère 1 — a red npm run verifier and a red project script: both played, red, each named', () => {
+    const p = projet({ nuit: 'nuit-projet' }, { 'nuit-projet': 'rouge' }, true);
+    expect(p.nuit().status).toBe(1);
+    expect(p.lignes().map(l => l.nom)).toEqual(['verifier', 'nuit-projet']);
+    const appels = p.appels();
+    expect(appels).toMatch(/^create La nuit est rouge sur « npm run verifier -- --force » /m);
+    expect(appels).toMatch(/^create La nuit est rouge sur « npm run nuit-projet » /m);
+  });
+  it('w47.2 critère 1 — a npm run verifier à repasser keeps its rule: 75, the project script not played, no ticket', () => {
+    const p = projet({ nuit: 'nuit-projet' }, { 'nuit-projet': 'rouge' });
+    writeFileSync(path.join(p.repo, 't.mjs'), 'process.exit(75);\n');
+    p.git('add', 't.mjs');
+    p.git('commit', '-qm', 'repasser');
+    expect(p.nuit().status, p.journal()).toBe(75);
     expect(p.lignes().map(l => l.nom)).toEqual(['verifier']);
-    expect(p.appels()).toMatch(/^create La nuit est rouge depuis/m);
+    expect(p.lire(path.join(p.commun, 'dernier-vert'))).toBe('');
+    expect(p.appels()).toBe('');
   });
   it('3 — a red project script turns the night red, on the night ticket, and the log names it', () => {
     const p = projet({ nuit: 'nuit-projet' }, { 'nuit-projet': 'rouge' });
@@ -348,13 +534,16 @@ describe('the night plays the project night script (grillhouse.nuit)', () => {
       journal.split('\n').some(l => l.includes('grillhouse.nuit') && l.includes('nuit-projet'))
     ).toBe(true);
     const appels = p.appels();
-    expect(appels).toMatch(/^create La nuit est rouge depuis/m);
+    expect(appels).toMatch(CREE_ROUGE);
     expect(appels).toMatch(/-l nuit/);
     expect(appels).toMatch(/grillhouse\.nuit[^\n]*nuit-projet|nuit-projet[^\n]*grillhouse\.nuit/);
   });
-  it('3 — a red project script comments the open night ticket instead of opening another', () => {
+  it('3 — a red project script comments the open night ticket that names it instead of opening another', () => {
     const p = projet({ nuit: 'nuit:corpus' }, { 'nuit:corpus': 'rouge' });
-    writeFileSync(path.join(p.bin, 'OUVERTS'), '[{"id":"demo-9"}]');
+    writeFileSync(
+      path.join(p.bin, 'OUVERTS'),
+      JSON.stringify([ouvert('demo-9', 'npm run nuit:corpus')])
+    );
     expect(p.nuit().status).toBe(1);
     expect(p.appels()).toMatch(/^comments add demo-9 La nuit du/m);
     expect(p.appels()).not.toMatch(/^create/m);
@@ -382,7 +571,7 @@ describe('the night plays the project night script (grillhouse.nuit)', () => {
         .split('\n')
         .some(l => l.includes('grillhouse.nuit') && l.includes('nuit-absente'))
     ).toBe(true);
-    expect(p.appels()).toMatch(/^create La nuit est rouge depuis/m);
+    expect(p.appels()).toMatch(CREE_ROUGE);
     expect(p.appels()).toMatch(/nuit-absente/);
   });
   it('7 — a null key is an absent key: the night plays npm run verifier alone', () => {
@@ -416,7 +605,7 @@ describe('the night plays the project night script (grillhouse.nuit)', () => {
           .split('\n')
           .some(l => l.includes('grillhouse.nuit'))
       ).toBe(true);
-      expect(p.appels()).toMatch(/^create La nuit est rouge depuis/m);
+      expect(p.appels()).toMatch(CREE_ROUGE);
       expect(p.appels()).toMatch(/grillhouse\.nuit/);
     });
   }
@@ -445,7 +634,7 @@ describe('the night plays the project night script (grillhouse.nuit)', () => {
           .split('\n')
           .some(l => l.includes('grillhouse.nuit') && l.includes(cle))
       ).toBe(true);
-      expect(p.appels()).toMatch(/^create La nuit est rouge depuis/m);
+      expect(p.appels()).toMatch(CREE_ROUGE);
       expect(p.appels()).toContain(cle);
     });
   }
@@ -671,10 +860,19 @@ describe('the night pushes its green commit (grillhouse.poussee.nuit)', () => {
     expect(d.appels()).toMatch(/^create .*-l nuit/m);
     expect(nommePoussee(d.appels(), 'deploiement')).toBe(true);
   });
-  it('3 — a refused push comments the open night ticket instead of opening another', () => {
+  it('3 — a refused push comments the open night ticket that names its branch instead of opening another', () => {
     const d = distant({ poussee: { nuit: 'deploiement' } }, { branches: ['deploiement'] });
     writeFileSync(path.join(d.bare, 'REFUSE'), '');
-    writeFileSync(path.join(d.bin, 'OUVERTS'), '[{"id":"demo-9"}]');
+    writeFileSync(
+      path.join(d.bin, 'OUVERTS'),
+      JSON.stringify([
+        {
+          id: 'demo-9',
+          title:
+            '9 — La poussée de la nuit est refusée sur 0123abc vers « origin/deploiement » — parent',
+        },
+      ])
+    );
     d.nuit();
     expect(d.dernierVert()).toBe(d.tete);
     expect(d.appels()).toMatch(/^comments add demo-9 /m);
@@ -725,7 +923,7 @@ describe('the night pushes its green commit (grillhouse.poussee.nuit)', () => {
           .split('\n')
           .some(l => l.includes('grillhouse.poussee.nuit'))
       ).toBe(true);
-      expect(d.appels()).toMatch(/^create La nuit est rouge depuis/m);
+      expect(d.appels()).toMatch(CREE_ROUGE);
       expect(d.appels()).toMatch(/grillhouse\.poussee\.nuit/);
     });
   }
@@ -789,17 +987,20 @@ describe('the night pushes its green commit (grillhouse.poussee.nuit)', () => {
       );
       expect(appels).toMatch(
         new RegExp(
-          `^update demo-12 --title 12 — La poussée de la nuit est refusée sur ${court} — parent$`,
+          `^update demo-12 --title 12 — La poussée de la nuit est refusée sur ${court} vers « origin/deploiement » — parent$`,
           'm'
         )
       );
-      expect(appels).not.toMatch(/La nuit est rouge depuis/);
+      expect(appels).not.toMatch(/La nuit est rouge/);
     });
   }
   it('6 — a refused push that comments the open night ticket also exits 1', () => {
     const d = distant({ poussee: { nuit: 'deploiement' } }, { branches: ['deploiement'] });
     writeFileSync(path.join(d.bare, 'REFUSE'), '');
-    writeFileSync(path.join(d.bin, 'OUVERTS'), '[{"id":"demo-9"}]');
+    writeFileSync(
+      path.join(d.bin, 'OUVERTS'),
+      JSON.stringify([{ id: 'demo-9', title: '9 — refusée vers « origin/deploiement » — parent' }])
+    );
     expect(d.nuit().status, d.journal()).toBe(1);
     expect(d.appels()).toMatch(/^comments add demo-9 /m);
     expect(d.appels()).not.toMatch(/^create/m);
@@ -836,7 +1037,7 @@ describe('the night pushes its green commit (grillhouse.poussee.nuit)', () => {
       expect(d.poussees()).toEqual([]);
       expect(d.dernierVert()).toBe('');
       expect(d.journal().split('\n').some(citePoussee)).toBe(true);
-      expect(d.appels()).toMatch(/^create La nuit est rouge depuis/m);
+      expect(d.appels()).toMatch(CREE_ROUGE);
       expect(d.appels().split('\n').some(citePoussee)).toBe(true);
     });
   }
@@ -871,11 +1072,14 @@ describe('the night pushes its green commit (grillhouse.poussee.nuit)', () => {
     expect(lignes.some(l => l.includes('grillhouse.nuit'))).toBe(true);
     expect(lignes.some(l => l.includes('grillhouse.poussee.nuit'))).toBe(true);
     expect(signalements(d.appels())).toHaveLength(1);
-    expect(d.appels()).toMatch(/^create La nuit est rouge depuis/m);
+    expect(d.appels()).toMatch(CREE_ROUGE);
   });
-  it('9 — both keys wrong, with an open night ticket: a line for each, one comment', () => {
+  it('9 — both keys wrong, with an open night ticket on the preparation: a line for each, one comment', () => {
     const d = distant({ nuit: 'nuit-absente', poussee: { nuit: ['main'] } });
-    writeFileSync(path.join(d.bin, 'OUVERTS'), '[{"id":"demo-9"}]');
+    writeFileSync(
+      path.join(d.bin, 'OUVERTS'),
+      JSON.stringify([ouvert('demo-9', 'la préparation')])
+    );
     expect(d.nuit().status).toBe(1);
     expect(d.joues()).toEqual([]);
     const lignes = d.journal().split('\n');

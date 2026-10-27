@@ -198,7 +198,9 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   changement du cadre n'attend aucune livraison.
 - **La nuit se lit le matin** : la passe complète tourne pour de vrai une fois la nuit
   (`packages/grillhouse/scripts/nuit.sh`, `npm run verifier -- --force`), suivie des tests de nuit (`*.nuit.test.*`) et des
-  bancs de budget (`*.budget.test.*`) ; un rouge ouvre un ticket étiqueté `nuit`, avec les commits où chercher ;
+  bancs de budget (`*.budget.test.*`), puis du script de nuit du projet, chaque étape jouée même
+  après un rouge ; chaque tâche rouge commente le ticket étiqueté `nuit` qui la nomme, ou ouvre le
+  sien, avec les commits où chercher, chaque étape et chaque tâche rouges ;
   une nuit « à repasser » (code 75 : des échecs de durée sous charge, sans repos) n'ouvre rien et
   garde le dernier vert, la nuit suivante rejoue. Je
   le lis en ouvrant la séance, et il passe avant tout autre ticket. Ainsi un défaut que les
