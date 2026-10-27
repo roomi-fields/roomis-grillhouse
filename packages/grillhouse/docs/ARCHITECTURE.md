@@ -103,6 +103,15 @@ de sa sortie, dans la limite de ses séances. Ainsi le développeur reçoit le r
 320.10 : un mot de librairie écrit dans 030-binder, absent des trois rapports « Tes rouges », puis
 un arrêt `references` sur « le plafond ne monte pas »).
 
+Comme SARIF 2.1.0 et GitHub code scanning, seul un constat de niveau `error`, le niveau par défaut,
+est un rouge : un avertissement (`warning`) ou une note (`note`) n'entre ni dans « Tes rouges » ni
+dans le compte des rouges, aux contrôles du plan comme à la passe finale ; le rapport des contrôles
+les liste à part, sous « Les avertissements », sans les donner au développeur. Une tâche de gardes
+rouge sans aucun constat `error` garde sa ligne de tâche rouge et son journal. Ainsi un avertissement
+reste visible sans arrêter un lot (BP 320.17 : 8 avertissements sur le code du plan donnés au
+développeur comme rouges, un arrêt `sans-livraison` à 3 Code, quand le seul `error` visait le
+plafond, à régénérer).
+
 **L'explorateur écrit le plan, questionné une fois** : comme l'auteur d'une RFC l'écrit après
 avoir relevé l'existant, qu'une revue la lit une fois, que l'auteur répond une fois et que ce qui
 reste ouvert va à qui décide, l'étape 1 du circuit (1 Plan) lance l'explorateur hors de

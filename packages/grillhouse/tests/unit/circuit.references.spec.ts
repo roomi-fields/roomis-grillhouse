@@ -378,19 +378,35 @@ it("l'empreinte de chaque scène suit la mesure", () => {
     // `node abaisser.mjs` lowers the ceiling to the count; beyond it, it writes the count into the
     // ceiling's file, then refuses (« le plafond ne monte pas », code 1), so that the circuit must
     // restore the copy. With <finale>, the guard judges out of the envelope alone: the final
-    // pass sees its findings, the checks of the plan do not.
+    // pass sees its findings, the checks of the plan do not. With <avertissements>, while the
+    // count is not the ceiling, the guard also writes that many warnings (SARIF level « warning »)
+    // on the code of forms, as BPScript's guard on the words already present on a line the lot
+    // touches; with <refusSansSarif>, it writes those warnings alone, green, and a guard without
+    // SARIF beside it in the task `gardes` refuses, as one of the 14 guards of BPScript's
+    // `gardes` (packages/995-tools/src/gardes-du-crochet.sh:46-59).
     const PLAFOND = 'le plafond des mots';
     const GARDE_DES_MOTS = 'un mot de librairie écrit dans le code';
     const MOT = 'forms compte 4 pour un plafond de 3';
     const MONTE = '✗ le plafond ne monte pas : forms 4 > 3.';
     const git = (...a: string[]) =>
       execFileSync('git', ['-C', REPO, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
-    function lePlafond(plafond: number, { finale = false, sansFichier = true } = {}) {
+    function lePlafond(
+      plafond: number,
+      { finale = false, sansFichier = true, avertissements = 0, refusSansSarif = false } = {}
+    ) {
       const pkg = JSON.parse(lire(path.join(REPO, 'package.json'))) as {
         scripts: Record<string, string>;
         grillhouse?: object;
       };
-      pkg.scripts.gardes = 'node garde.mjs && node garde-mots.mjs';
+      pkg.scripts.gardes = `node garde.mjs && node garde-mots.mjs${refusSansSarif ? ' && node garde-sans-sarif.mjs' : ''}`;
+      ecrire(
+        path.join(REPO, 'garde-sans-sarif.mjs'),
+        `if (${JSON.stringify(!finale)} || !process.env.GRILLHOUSE_ENVELOPPE) {
+  console.log('⛔ une garde sans SARIF refuse.');
+  process.exit(1);
+}
+`
+      );
       pkg.grillhouse = {
         references: [
           {
@@ -425,7 +441,10 @@ const plafond = Number(readFileSync('packages/binder/plafond.txt', 'utf8'));
 const compte = mesure(2);
 const garde = ${JSON.stringify(GARDE_DES_MOTS)};
 const juge = ${JSON.stringify(!finale)} || !process.env.GRILLHOUSE_ENVELOPPE;
-const constats = !juge || compte === plafond
+const signales = !juge || compte === plafond
+  ? []
+  : Array.from({ length: ${avertissements} }, (_, i) => ({ fichier: 'packages/forms/src/index.mjs', ligne: i + 1, niveau: 'warning', message: 'le mot n° ' + (i + 1) + ' déjà présent sur une ligne touchée' }));
+const refus = !juge || compte === plafond || ${JSON.stringify(refusSansSarif)}
   ? []
   : compte < plafond
     ? [{ fichier: 'packages/binder/plafond.txt', ligne: 1, message: 'le plafond de forms reste au-dessus de son compte : ' + compte + ' < ' + plafond }]
@@ -433,9 +452,10 @@ const constats = !juge || compte === plafond
         { fichier: 'packages/forms/src/index.mjs', ligne: 1, message: 'forms compte ' + compte + ' pour un plafond de ' + plafond },
         ...(${JSON.stringify(sansFichier)} ? [{ message: 'des mots entrés dans le code au-delà du plafond : forms ' + compte + ' > ' + plafond }] : []),
       ];
+const constats = [...refus, ...signales];
 for (const k of constats) console.log('⛔ ' + (k.fichier ?? '') + ' — ' + k.message);
 ecrireSarif({ garde, constats });
-if (constats.length) process.exit(1);
+if (refus.length) process.exit(1);
 `
       );
       git('add', '-A');
@@ -560,6 +580,75 @@ if (constats.length) process.exit(1);
       expect(r.status, sortie(r)).toBe(ARRETS.references);
       expect(etat(id)?.question?.question).toContain(`- ${NOM} : \`${REGENERER}\` rend le code 1.`);
       expect(ordre(id)).toEqual(['developpeur']);
+    });
+
+    // grillhouse-v98.1 — as SARIF 2.1.0 and GitHub code scanning, a finding of level error fails,
+    // a warning or a note shows without failing. Witness: BPScript 320.17 (0.24.10): the guard of
+    // the words wrote one error, on the ceiling the lot lowers (110-timer 41 < 44), and 8 warnings,
+    // words already present on lines the lot touches in the code of the plan; the circuit made 8
+    // reds of the warnings, gave them to the developpeur, who had nothing to deliver: stop 15
+    // « sans-livraison » at 3 Code.
+    // The entries of the circuit's reports at the checks.
+    const rapports = (id: string) =>
+      (entrees(id) as { etape?: string; rapport?: string }[])
+        .filter(x => x.etape === 'controles')
+        .map(x => x.rapport ?? '')
+        .join('\n');
+
+    it('grillhouse-v98.1 critère 1, 2, 3 et 4 — at the checks of the plan, 8 warnings on the code of the plan beside a refusal on the ceiling: the regeneration, no session of the developpeur, the warnings listed apart', () => {
+      const id = 'demo-references-avertissements';
+      lePlafond(5, { avertissements: 8 });
+      leTicket(id, `${DESCRIPTION}\n2. ${PLAFOND} suit le double.\n`);
+      const r = lancer(id);
+      expect(r.status, sortie(r)).toBe(0);
+      // The warnings go to no developpeur: the error, the ceiling's, goes to the regeneration.
+      expect(ordre(id)).toEqual(['developpeur', 'relecteur']);
+      const c = commandes(id);
+      const regeneration = c.indexOf('node abaisser.mjs');
+      expect(regeneration, c.join('\n')).toBeGreaterThan(0);
+      expect(c.slice(0, regeneration)).not.toContain('npm run verifier');
+      expect(gitRepo('show', 'main:packages/binder/plafond.txt')).toBe('4\n');
+      // The warnings stay visible in the report of the checks, under their own title, apart from
+      // the reds, whose count does not hold them.
+      const texte = rapports(id);
+      expect(texte).toContain('Les avertissements (8)');
+      expect(texte).toContain('le mot n° 8 déjà présent sur une ligne touchée');
+      expect(texte).not.toMatch(/9 rouge\(s\)|8 rouge\(s\)/);
+    });
+
+    it('grillhouse-v98.1 critère 1 et 3 — at the final pass, 8 warnings on the code of the plan beside a refusal on the ceiling: the regeneration, no session of the developpeur', () => {
+      const id = 'demo-references-avertissements-finale';
+      lePlafond(5, { finale: true, avertissements: 8 });
+      leTicket(id, `${DESCRIPTION}\n2. ${PLAFOND} suit le double.\n`);
+      const r = lancer(id);
+      expect(r.status, sortie(r)).toBe(0);
+      expect(ordre(id)).toEqual(['developpeur', 'relecteur']);
+      const c = commandes(id);
+      const regeneration = c.indexOf('node abaisser.mjs');
+      expect(regeneration, c.join('\n')).toBeGreaterThan(0);
+      expect(c.slice(0, regeneration)).toContain('npm run verifier');
+      expect(entrees(id).some(x => x.arret === 'references')).toBe(false);
+      expect(gitRepo('show', 'main:packages/binder/plafond.txt')).toBe('4\n');
+      expect(rapports(id)).toContain('Les avertissements (8)');
+    });
+
+    // The task `gardes` red by a guard without SARIF, beside the warnings of the guard of the words,
+    // as BPScript's `gardes`, which plays 14 guards in one task, most without SARIF: no finding of
+    // level error, so the task keeps its line of a red task, and no warning becomes a red.
+    it('grillhouse-v98.1 critère 1 et 2 — the task `gardes` red by a guard without SARIF beside warnings: its line of a red task stays, and no warning enters the reds', () => {
+      const id = 'demo-references-avertissements-tache';
+      lePlafond(5, { finale: true, avertissements: 2, refusSansSarif: true });
+      leTicket(id, `${DESCRIPTION}\n2. ${PLAFOND} suit le double.\n`);
+      const r = lancer(id);
+      // A red of the root, which no package of the plan holds: the stop at « controles ».
+      expect(r.status, sortie(r)).toBe(ARRETS.controles);
+      expect(ordre(id)).toEqual(['developpeur']);
+      // The report of the stop: its reds, then the warnings apart.
+      const rapport = String((etat(id) as { rapport?: string } | null)?.rapport ?? '');
+      const reds = /Les rouges \(\d+\) :\n([\s\S]*?)\n\n/.exec(rapport)?.[1] ?? '';
+      expect(reds).toContain('tâche //#gardes rouge (code 1)');
+      expect(reds).not.toContain('déjà présent sur une ligne touchée');
+      expect(rapport).toContain('Les avertissements (2)');
     });
 
     it('grillhouse-3uv.95.8 critère 4, grillhouse-982.2 critère 1 — a red of a reference at the checks is regenerated, and a red out of the plan the final pass then sees stops it, with its owner, the reference no more red', () => {

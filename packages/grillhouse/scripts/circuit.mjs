@@ -224,9 +224,13 @@
 //   script `test:vitest` plays only when the lot touches it), `npm test -- <test files of the lot>`
 //   that none of them holds, each test played once, then the guards in the envelope of the plan (`GRILLHOUSE_ENVELOPPE=<plan> npm run
 //   grillhouse:gardes`, and `npm run gardes` when the project has it). Each red is read in the
-//   results of its command: a failed test of the reports of Vitest, a finding of the guards'
-//   SARIF, a failed build or task of the summary; a red check none of them situates is one red of
-//   the command. A red a path of the plan holds is the developpeur's; the others (one without a
+//   results of its command: a failed test of the reports of Vitest, a finding of level error of
+//   the guards' SARIF, a failed build or task of the summary; a red check none of them situates is
+//   one red of the command. As SARIF 2.1.0 and GitHub code scanning, a warning or a note shows
+//   without failing: the report of the checks lists them apart, under their own title, and gives
+//   them to no developpeur; a guards' task red without a finding of level error keeps its line of
+//   a red task, with its log (BPScript 320.17: 8 warnings on the code of the plan, given as reds,
+//   stopped at « sans-livraison » a lot whose one error was the ceiling's, to regenerate). A red a path of the plan holds is the developpeur's; the others (one without a
 //   file, the root's or a project's guard without SARIF, in a package out of the plan, or a red of
 //   a reference, which its regeneration lifts) wait for the final pass. Green,
 //   the checks lead to the final pass.
@@ -2505,8 +2509,21 @@ function situer(ctx, liste, chemin) {
 // and that package again when it is out of the plan, whether it is a finding to settle
 // (`a-arbitrer`), and the package whose task gave it, as Turborepo names it (« // » for the
 // root's guards; null for a red of the command).
+// As SARIF 2.1.0 and GitHub code scanning, a finding of level error fails, a warning or a note
+// shows without failing: `{ rouges, avertissements }`, `avertissements` the lines of the findings
+// of another level, which the report lists apart. A guards' task red without a finding of level
+// error keeps its line of a red task, with its log.
 function rougesDe(ctx, liste, c) {
-  if (c.code === 0 || c.code === A_REPASSER) return [];
+  const lus = lireSarif(c.dossier).constats.filter(k => k.genre !== A_ELAGUER);
+  const vert = c.code === 0 || c.code === A_REPASSER;
+  const duCadre = k => NOMS_DES_GARDES.includes(k.garde);
+  const rouge = k => k.niveau === 'error';
+  const ligneDe = k => {
+    const ou = k.fichier ? ` ${k.fichier}${k.ligne ? `:${k.ligne}` : ''}` : '';
+    return `${k.garde}${ou} — ${k.message}${k.genre === 'a-arbitrer' ? ' (à arbitrer)' : ''}`;
+  };
+  const avertissements = lus.filter(k => !rouge(k)).map(k => `${k.niveau} ${ligneDe(k)}`);
+  if (vert) return { rouges: [], avertissements };
   const out = [];
   const testes = new Set();
   for (const res of lireRapportsVitest(c.dossier)) {
@@ -2532,11 +2549,10 @@ function rougesDe(ctx, liste, c) {
     }
   }
   // A key of the debt to lower (`a-elaguer`, scripts/dette.mjs) is a note, not a red.
-  const constats = lireSarif(c.dossier).constats.filter(k => k.genre !== A_ELAGUER);
+  const constats = lus.filter(rouge);
   for (const k of constats) {
-    const ou = k.fichier ? ` ${k.fichier}${k.ligne ? `:${k.ligne}` : ''}` : '';
     out.push({
-      texte: `constat ${k.garde}${ou} — ${k.message}${k.genre === 'a-arbitrer' ? ' (à arbitrer)' : ''}`,
+      texte: `constat ${ligneDe(k)}`,
       fichier: k.fichier ?? null,
       gardes: [k.garde, k.regle].filter(Boolean),
       ...situer(ctx, liste, k.fichier),
@@ -2545,7 +2561,7 @@ function rougesDe(ctx, liste, c) {
     });
   }
   // The guards of the project wrote findings when one comes from a guard out of the frame's.
-  const duProjet = constats.some(k => !NOMS_DES_GARDES.includes(k.garde));
+  const duProjet = constats.some(k => !duCadre(k));
   for (const t of lireResumes(c.dossier)) {
     if (t.code === null || t.code === 0 || t.code === A_REPASSER) continue;
     if (t.script === 'test:vitest' && testes.has(t.dossier)) continue;
@@ -2574,7 +2590,7 @@ function rougesDe(ctx, liste, c) {
       horsTitre: null,
     });
   }
-  return out;
+  return { rouges: out, avertissements };
 }
 
 const ligneDeCommande = c =>
@@ -2590,8 +2606,10 @@ const ligneDeCommande = c =>
 // package the pass restricted to the regeneration does not play again stands, as a CI keeps the
 // verdict of a job it does not run again; when the regeneration changes nothing (`rejouee`
 // false), no command plays, and they all stand. `{ rouge, aRepasser, arbitrer, auDeveloppeur,
-// texte, complet, resume, horsTitre, lieux, tous, notes }`: `texte` the report for the
-// developpeur, his reds first; `complet` every red, for a stop; `auDeveloppeur` whether a red lies
+// texte, complet, resume, horsTitre, lieux, tous, notes, avertissements }`: `texte` the report for
+// the developpeur, his reds first; `complet` every red, for a stop, and the warnings;
+// `avertissements` the section of the warnings and notes of the guards, which are no reds, for the
+// report of the checks (empty without one); `auDeveloppeur` whether a red lies
 // in a package of the plan; `horsTitre` the packages out of the plan that hold a red; `arbitrer`
 // when every red of the plan is a finding to settle; `lieux` the place of each red, `{ fichier,
 // gardes, dansLePlan }`, its file (null for a red without one), the names its finding carries
@@ -2619,7 +2637,7 @@ function controles(ctx, finale, restreinte = null, reportes = null) {
       r = npm(ctx, 'controles', args, env);
     }
     const c = { args, env, ...r };
-    return { ...c, rouges: rougesDe(ctx, liste, c) };
+    return { ...c, ...rougesDe(ctx, liste, c) };
   });
   // The packages the commands played (the root's tasks under « // »), whose reds are read again.
   const joues = new Set(resultats.flatMap(r => lireResumes(r.dossier).map(t => t.paquet)));
@@ -2677,6 +2695,15 @@ function controles(ctx, finale, restreinte = null, reportes = null) {
   const ligne = r => [`- ${r.texte}`, ...(r.detail ? ['', r.detail, ''] : [])];
   const nomDuPaquet = r => r.paquet ?? 'hors des paquets';
   const journal = `Le journal du ticket, pour le détail des commandes : ${ctx.journal}`;
+  // The warnings and notes of the guards, apart from the reds: shown, given to no one to correct.
+  const signales = resultats.flatMap(r => r.avertissements);
+  const avertissements = signales.length
+    ? [
+        `Les avertissements (${signales.length}), qui ne sont pas des rouges :`,
+        ...signales.map(l => `- ${l}`),
+        '',
+      ]
+    : [];
   const texte = [
     `${ou} : ${resume}.`,
     '',
@@ -2703,6 +2730,7 @@ function controles(ctx, finale, restreinte = null, reportes = null) {
           '',
         ]
       : []),
+    ...avertissements,
     journal,
   ].join('\n');
   return {
@@ -2713,6 +2741,7 @@ function controles(ctx, finale, restreinte = null, reportes = null) {
     texte,
     complet,
     sansListe,
+    avertissements: avertissements.length ? `\n\n${avertissements.join('\n').trimEnd()}` : '',
     // The reds of the stop, each with where it lies: the plan's, or at the final pass all of them;
     // never those left to the final pass.
     rouges: rouges.map(r => ({ paquet: nomDuPaquet(r), texte: r.texte, detail: r.detail })),
@@ -3040,7 +3069,7 @@ async function derouler(ctx, debut) {
             'controles',
             `${k.resume} ; ${k.rouge ? 'des rouges sont ceux de références' : 'la dette des gardes baisse'} (${noms.join(', ')}) : à leur régénération.`,
             resultat(k.rouge ? 'rouge' : 'vert'),
-            k.texte
+            `${k.texte}${k.avertissements}`
           );
           // The report of the reds of the plan, which go to the developpeur when a command of the
           // project refuses the lot.
@@ -3077,7 +3106,7 @@ async function derouler(ctx, debut) {
             'controles',
             `${k.resume} ; développeur relancé (séance ${suivante}).`,
             resultat('rouge'),
-            k.texte
+            `${k.texte}${k.avertissements}`
           );
           etape = CODE;
           tentative = suivante;
@@ -3090,7 +3119,13 @@ async function derouler(ctx, debut) {
           // which plays once, on the regenerated tree, as make remakes a generated file before
           // what reads it.
           geste(ctx, 'regeneration');
-          ecrireRapport(ctx, 'controles', `${k.resume}.`, resultat('vert'));
+          ecrireRapport(
+            ctx,
+            'controles',
+            `${k.resume}.`,
+            resultat('vert'),
+            `${k.resume}.${k.avertissements}`
+          );
           ctx.renvoiAuTestwriter = false;
           ctx.aRegenerer = {
             noms: k.references.map(r => r.nom),
@@ -3101,7 +3136,13 @@ async function derouler(ctx, debut) {
           tentative = 0;
           finale = true;
         } else {
-          ecrireRapport(ctx, 'controles', `${k.resume}.`, resultat('vert'));
+          ecrireRapport(
+            ctx,
+            'controles',
+            `${k.resume}.`,
+            resultat('vert'),
+            `${k.resume}.${k.avertissements}`
+          );
           // Green checks: a sending of the developpeur to the testwriter may come again.
           ctx.renvoiAuTestwriter = false;
           if (!passeFinale) {
