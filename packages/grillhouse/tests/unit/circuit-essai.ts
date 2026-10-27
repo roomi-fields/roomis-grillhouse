@@ -41,7 +41,8 @@ export const ecrire = (f: string, texte: string, mode?: number) => {
 // `passation <text>`, a comment under the session's author, as bd writes it, and ends on its sheet
 // with `fiche '<json>'`. As claude with `--output-format json`, it prints on its standard output
 // its JSON result alone, whatever the scenario prints (on its standard error), the sheet in
-// `structured_output`: the scenario's, else `{"statut":"FAIT"}` for a testwriter or a developpeur,
+// `structured_output`: the scenario's, else `{"statut":"FAIT"}` for a testwriter, the same for a
+// developpeur with an answer `levé` to each finding its prompt carries (« ### Constat <n> — <titre> »),
 // `{"issue":"AUCUNE"}` for the questionneur (a plan it has no question on), for the explorateur the plan
 // its ticket holds (the components of its title, no criterion added, no open question), or on the
 // schema of the tri a verdict `sans-suite` for each discovery its prompt lists, none for another role
@@ -96,7 +97,11 @@ passation() {
 # The sheet of the session, and none at all.
 la_fiche=
 case "$role" in
-  testwriter|developpeur) la_fiche='{"statut":"FAIT"}' ;;
+  testwriter) la_fiche='{"statut":"FAIT"}' ;;
+  developpeur) la_fiche=$(node -e '
+const titres = [...process.argv[1].matchAll(/^### Constat \\d+ — (.+)$/gm)].map(m => m[1]);
+const reponses = titres.map(titre => ({ titre, etat: "levé", piece: "$ git diff\\nle correctif" }));
+console.log(JSON.stringify({ statut: "FAIT", ...(reponses.length ? { reponses } : {}) }));' "$prompt") ;;
   questionneur) la_fiche='{"issue":"AUCUNE"}' ;;
   explorateur) la_fiche=$(node -e '
 const [ticket, schema, prompt] = process.argv.slice(1);

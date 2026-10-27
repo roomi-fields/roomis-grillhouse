@@ -328,6 +328,10 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
     expect(consigne).toContain('mesure de 0 doit rendre 0.');
     expect(consigne).toContain('REPRISE : oui');
     expect(essai(id, 'relecteur-2.prompt')).toContain('REPRISE : oui');
+    // His sheet answers the finding (the stand-in's, levé), which the review reads under it.
+    expect(essai(id, 'relecteur-2.prompt')).toMatch(
+      /Pièce : packages\/forms\/src\/index\.mjs:1\nRéponse du développeur : levé\nPièce de la réponse : \$ git diff/
+    );
     // Then the final pass restricted to what the fix changes, the review, and the whole final
     // pass once, on the lot accepted, before the integration.
     const rendus = historique(id).indexOf('relecture');
@@ -344,6 +348,54 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
     expect(gitRepo('show', 'main:packages/forms/src/index.mjs')).toContain('// rendu');
     expect(ticketDe(id)).toMatchObject({ status: 'closed' });
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
+  });
+
+  // grillhouse-w47.3, witness BPScript 320.21: the developpeur wrote why he kept his choice in his
+  // handover, which the circuit does not read; the reviewer received nothing of it, three RENDU,
+  // then the stop. As the author answers in each thread of a review on GitHub or Gerrit, his sheet
+  // answers each finding open for him, and the next review reads the answer under the finding.
+  it('critère 1 et 2 — after a RENDU, a sheet of the developpeur without its answer to a finding is refused; his answer reaches the reviewer under its finding', () => {
+    const id = 'demo-rendu-reponse';
+    ticket(id, '000-forms');
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    // His answer in the handover alone, as on BPScript 320.21.
+    scenario(
+      id,
+      'developpeur-2',
+      `passation 'Je garde mon choix : le critère 1 le demande.'\nfiche '{"statut":"FAIT"}'\n`
+    );
+    const reponse = {
+      statut: 'FAIT',
+      reponses: [
+        {
+          titre: 'packages/forms/src/index.mjs',
+          etat: 'contesté',
+          raison: 'le critère 1 demande ce comportement.',
+          piece: 'packages/forms/src/index.mjs:1 rend la mesure.',
+        },
+      ],
+    };
+    scenario(id, 'developpeur-3', `fiche '${JSON.stringify(reponse)}'\n`);
+    scenario(id, 'relecteur-1', rendu('developpeur'));
+    scenario(id, 'relecteur-2', accepte);
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    // The sheet without the answer is refused, the finding named, and asked again of the session.
+    expect(commentaires(id)).toContainEqual(
+      expect.stringContaining(
+        'séance finie sans fiche conforme : fiche non conforme : reponses : sans réponse au constat « packages/forms/src/index.mjs » ; reprise une fois.'
+      )
+    );
+    expect(sessions(id, 'developpeur')).toBe(3);
+    expect(essai(id, 'developpeur-3.prompt')).toContain(
+      'sans réponse au constat « packages/forms/src/index.mjs »'
+    );
+    // The bounded review reads the answer under its finding.
+    expect(essai(id, 'relecteur-2.prompt')).toMatch(
+      /### Constat 1 — packages\/forms\/src\/index\.mjs\nBloquant : critère 1\nAgent : developpeur\nmesure de 0 doit rendre 0\.\nPièce : packages\/forms\/src\/index\.mjs:1\nRéponse du développeur : contesté — le critère 1 demande ce comportement\.\nPièce de la réponse : packages\/forms\/src\/index\.mjs:1 rend la mesure\./
+    );
+    expect(ticketDe(id)).toMatchObject({ status: 'closed' });
   });
 
   // grillhouse-3uv.91.2, witness BPScript 325: a finding on a case the owner ruled out sent the

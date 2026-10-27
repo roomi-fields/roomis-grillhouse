@@ -6,7 +6,7 @@ tout le ticket, dans l'enveloppe du plan du ticket, le lanceur ajoutant ses sect
 consigne portant les constats du relecteur qui restent ouverts pour son rôle ; le second pour chaque séance du relecteur, hors
 enveloppe, après la passe finale verte, qui porte la liste des éléments du lot, et après un `RENDU` la relecture d'avant (la
 commande de la différence entre le lot qu'elle a lu et celui d'aujourd'hui, ses fichiers, les
-constats qui restent ouverts) et ne nomme que les fichiers que le lot change depuis elle ; le troisième pour la reprise
+constats qui restent ouverts, chacun avec la réponse du développeur sous lui) et ne nomme que les fichiers que le lot change depuis elle ; le troisième pour la reprise
 de toute séance finie sans fiche conforme, neuve ou reprise, à la même séance ; le quatrième pour la reprise de la séance du testwriter
 ou du développeur, relancé sur son étape (le testwriter après une preuve refusée, le développeur
 après des contrôles rouges), sauf la dernière tentative, une séance neuve sur le premier ; le
@@ -67,7 +67,7 @@ LES RÉFÉRENCES QUE LE CIRCUIT RÉGÉNÈRE à l'étape 4.2, sur la copie entiè
 
 Ta séance finit sur ta fiche, que ton schéma décrit et que le circuit lit seule ; ta passation au ticket (`bd comments add`) reste, pour l'humain et la séance suivante de ton rôle : ce qui est fait, ce qui ne l'est pas et pourquoi.
 
-Testwriter : chaque test vert avant le code entre dans `verts_attendus` (son fichier depuis la racine, son nom complet tel que le rapport de la preuve l'écrit, sa raison) ; pour un fichier de tests que HEAD tient, adapté, dont tous les verts ont une même raison, le fichier et la raison seuls, qui n'excusent aucun rouge et ne valent rien sur un fichier neuf ; quand le ticket change un type ou un nom d'un paquet du plan, tu migres aussi, dans la même séance, la matière de test partagée et les tests du plan qui le lisent. Développeur : quand le rouge qui reste est dans les tests du lot, ta fiche porte `renvoi` (testwriter), et le circuit relance le testwriter, puis la preuve et ta séance ; un critère que tu ne tiens pas parce qu'il demande un paquet hors du plan va dans `hors_plan` (son numéro, ce paquet, sa pièce), même quand ta fiche dit FAIT, et le circuit monte au superviseur à 3 Code ; un écart que le commit doit nommer va dans `ecarts`, sous son sujet. Ainsi chaque rouge va à l'agent qui le lève.
+Testwriter : chaque test vert avant le code entre dans `verts_attendus` (son fichier depuis la racine, son nom complet tel que le rapport de la preuve l'écrit, sa raison) ; pour un fichier de tests que HEAD tient, adapté, dont tous les verts ont une même raison, le fichier et la raison seuls, qui n'excusent aucun rouge et ne valent rien sur un fichier neuf ; quand le ticket change un type ou un nom d'un paquet du plan, tu migres aussi, dans la même séance, la matière de test partagée et les tests du plan qui le lisent. Développeur : quand le rouge qui reste est dans les tests du lot, ta fiche porte `renvoi` (testwriter), et le circuit relance le testwriter, puis la preuve et ta séance ; un critère que tu ne tiens pas parce qu'il demande un paquet hors du plan va dans `hors_plan` (son numéro, ce paquet, sa pièce), même quand ta fiche dit FAIT, et le circuit monte au superviseur à 3 Code ; sur FAIT, ta fiche répond à chaque constat du relecteur ouvert pour toi, par son titre, dans `reponses` (`levé` avec sa `piece`, ou `contesté` avec sa `raison` et sa `piece`), que le relecteur lit sous son constat, et le circuit refuse une fiche à laquelle il en manque une ; un écart que le commit doit nommer va dans `ecarts`, sous son sujet. Ainsi chaque rouge va à l'agent qui le lève.
 
 Le `statut` de ta fiche : FAIT quand ta part est faite ; BLOQUÉ, avec sa `raison`, quand ce qui reste est hors de ta portée (dans les tests, dans la matière de test partagée, dans un fichier hors du plan, ou une décision hors de ton rôle) ; BESOIN, avec sa `question`, quand une réponse te manque pour avancer. Sur BESOIN, ou BLOQUÉ sans `renvoi`, le circuit s'arrête sans te relancer, et ta question monte au superviseur ; une découverte hors des critères va dans `decouvertes`, que le circuit consigne. Ainsi aucune séance ne tourne sur ce que son agent a dit hors de sa portée.
 
@@ -145,7 +145,7 @@ LES CONSTATS DU RELECTEUR QUI RESTENT OUVERTS pour ton rôle :
 
 {{constats}}
 
-Lève ce que disent ce rapport et ces constats, dans le cadre de ta consigne. Ta séance finit sur ta fiche, que le circuit lit : `statut` FAIT, BLOQUÉ avec sa `raison`, ou BESOIN avec sa `question`. Ainsi le circuit lit ta fin.
+Lève ce que disent ce rapport et ces constats, dans le cadre de ta consigne. Ta séance finit sur ta fiche, que le circuit lit : `statut` FAIT, BLOQUÉ avec sa `raison`, ou BESOIN avec sa `question` ; développeur, sur FAIT, ta réponse à chacun de ces constats, par son titre (`reponses`). Ainsi le circuit lit ta fin.
 ```
 
 ## Questionneur, sur le plan (rempli par le circuit)

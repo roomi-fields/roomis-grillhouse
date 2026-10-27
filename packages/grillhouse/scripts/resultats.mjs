@@ -22,6 +22,12 @@
 //     FAIT that carries one stops at « hors-portee », as a required check keeps a merge from a
 //     change that does not pass it (BP 320.17: « critère 10 hors plan, non fait », in a handover
 //     the circuit does not read, fell at the review) (developpeur);
+//   - `reponses` (`titre` of the finding, `etat` levé or contesté, `raison` for a contesté,
+//     `piece`): as the author answers in each thread of a review on GitHub or Gerrit, a FAIT
+//     answers each finding of the reviewer open for him, by its title, and the circuit refuses a
+//     sheet without the answer to one (`reponsesAuxConstats`) and gives the next review each answer
+//     under its finding (BP 320.21: the cause of his choice in a handover the circuit does not
+//     read, three RENDU, then the stop) (developpeur);
 //   - `ecarts` (`sujet`, `texte`): the body of the commit message, written by the circuit, each
 //     subject once, its value from the last sheet that carries it (developpeur, reviewer);
 //   - `decouvertes` (`sujet`, `corps`): each one a ticket filed closed under the ticket, labelled
@@ -285,6 +291,23 @@ const FICHES = {
         ),
         'Chaque critère du ticket que tu ne tiens pas parce qu’il demande un paquet hors du plan ; le circuit monte au superviseur, qui étend le plan ou amende le critère.'
       ),
+      reponses: liste(
+        objet(
+          {
+            titre: texte('Le titre du constat, tel que ta consigne l’écrit.'),
+            etat: {
+              type: 'string',
+              enum: ['levé', 'contesté'],
+              description:
+                'levé : ton lot le lève ; contesté : tu ne le lèves pas, avec ta raison.',
+            },
+            raison: texte('Contesté : pourquoi le lot reste tel quel.'),
+            piece: piece('Sa pièce, ce qui le lève ou ce qui fonde ta raison'),
+          },
+          ['titre', 'etat', 'piece']
+        ),
+        'FAIT : ta réponse à chaque constat du relecteur ouvert pour toi, par son titre ; le relecteur la lit sous son constat. Le circuit refuse une fiche à laquelle il en manque une.'
+      ),
       ...ECARTS,
       ...DECOUVERTES,
     },
@@ -507,6 +530,17 @@ export function reponsesAuxQuestions(fiche, posees) {
   return sans.length ? `reponses : sans ligne pour les questions ${sans.join(', ')}` : null;
 }
 
+// What makes the developpeur's sheet <fiche> out of conformity with the findings open for him
+// (<titres>), as the author answers in each thread of a review: a FAIT without the answer to one,
+// by its title (a BLOQUÉ or a BESOIN stops the circuit before any review). The fault, or null.
+export function reponsesAuxConstats(fiche, titres) {
+  if (fiche.statut !== 'FAIT') return null;
+  const repondus = new Set((fiche.reponses ?? []).map(r => r.titre));
+  const sans = titres.filter(t => !repondus.has(t)).map(t => `« ${t} »`);
+  if (!sans.length) return null;
+  return `reponses : sans réponse ${sans.length > 1 ? 'aux constats' : 'au constat'} ${sans.join(', ')}`;
+}
+
 // What makes the sheet of the tri <fiche> out of conformity with the discoveries <decouvertes> of
 // the ticket (their ids), as a reviewer gives a line to each element of its lot: a discovery
 // without its line, a line on an id out of the list, a discovery with two lines. The fault, or
@@ -571,10 +605,10 @@ function pieceDuTicket(reste) {
 
 // The pieces of the sheet <f>, each `[son chemin, son texte]`: of the stop it carries (a status,
 // a reviewer's question), of its findings, of its lines of conformity, of its questions, of its
-// criteria out of the plan, of the verdicts of a tri.
+// criteria out of the plan, of the verdicts of a tri, of the developpeur's answers.
 const piecesDe = f => [
   ...('piece' in f ? [['piece', f.piece]] : []),
-  ...['constats', 'conformite', 'questions', 'hors_plan', 'verdicts'].flatMap(k =>
+  ...['constats', 'conformite', 'questions', 'hors_plan', 'verdicts', 'reponses'].flatMap(k =>
     (f[k] ?? []).map((x, i) => [`${k}[${i}].piece`, x.piece]).filter(([, p]) => p !== undefined)
   ),
 ];
@@ -640,7 +674,8 @@ function horsDuTicket(f, description) {
 }
 
 // What a sheet of <role> needs beyond its schema: the reason of a BLOQUÉ, the question of a
-// BESOIN, the number of each criterion out of the plan, the packages of a plan and the number of each answer, the questions of a QUESTIONS, the text of a
+// BESOIN, the number of each criterion out of the plan, the reason of a developpeur's answer
+// contesté, the packages of a plan and the number of each answer, the questions of a QUESTIONS, the text of a
 // DÉSACCORD, the criterion or rule of a blocking finding, the reference of the rule each line of
 // a reviewer's conformity cites in its document and the recipient of a « non », and a reviewer's verdict that follows its blocking findings, its « non » among them
 // (RENDU with one, ACCEPTÉ without), the piece of a BLOQUÉ, a BESOIN and a reviewer's question,
@@ -692,6 +727,13 @@ function manques(role, f) {
   for (const [i, h] of (f.hors_plan ?? []).entries()) {
     if (!/^[1-9]\d*$/.test(h.critere)) {
       out.push(`hors_plan[${i}].critere : « ${h.critere} » n'est pas le numéro d'un critère`);
+    }
+  }
+  if (role === 'developpeur') {
+    for (const [i, r] of (f.reponses ?? []).entries()) {
+      if (r.etat === 'contesté' && !(typeof r.raison === 'string' && r.raison.trim())) {
+        out.push(`reponses[${i}].raison : manque, pour contesté`);
+      }
     }
   }
   if (role === 'explorateur') {

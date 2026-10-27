@@ -177,7 +177,13 @@ références, 4.3 Relecture) · 5 Intégration (5.1 Commit, 5.2 File, 5.3 Tri de
 ticket entier depuis cette étape ; `--etendre <paquet>` ajoute un paquet au plan, puis reprend
 l'étape en cours, celle du testwriter après un arrêt sur un renvoi du développeur vers lui. Un constat bloquant du relecteur va droit à l'agent qu'il nomme et reste ouvert
 d'une relance à l'autre, comme un fil de revue non résolu, jusqu'à ce que le relecteur le dise
-levé ou accepte le lot. Le bilan compte par étape et par rôle. Ainsi un type change avec ses
+levé ou accepte le lot. Comme l'auteur répond dans chaque fil d'une revue GitHub ou Gerrit, la
+fiche FAIT du développeur répond à chaque constat ouvert pour lui, par son titre (`reponses` :
+`levé` avec sa pièce, ou `contesté` avec sa raison et sa pièce) ; le circuit refuse une fiche à
+laquelle il en manque une (`reponsesAuxConstats`), garde chaque réponse avec son constat, et la
+relecture suivante la lit sous lui (BP 320.21 : la cause de son choix dans une passation que le
+circuit ne lit pas, « la relecture n'a reçu aucune fiche du développeur », trois `RENDU`, puis
+l'arrêt). Le bilan compte par étape et par rôle. Ainsi un type change avec ses
 lecteurs en une seule séance, et un constat n'est jamais perdu (BP 320.9 : seize composants
 joués l'un après l'autre, 118 min d'étapes vertes rejouées, un constat sur `exemplar` perdu six
 fois).

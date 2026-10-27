@@ -161,6 +161,11 @@ son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
     critère reste non tenu pour cette raison, même quand ta fiche dit FAIT sur le reste ; le
     circuit s'arrête alors à 3 Code (`hors-portee`), et le superviseur étend le plan ou amende le
     critère. Une passation qui dit « hors plan, non fait » ne suffit pas : le circuit ne la lit pas ;
+  - `reponses` : sur FAIT, ta réponse à chaque constat du relecteur ouvert pour toi, par son
+    `titre` tel que ta consigne l'écrit : `levé`, avec sa `piece`, ou `contesté`, avec sa `raison`
+    et sa `piece` ; le circuit refuse une fiche à laquelle il en manque une, et le relecteur lit
+    chaque réponse sous son constat, comme l'auteur répond dans chaque fil d'une revue. Une
+    passation qui dit pourquoi tu gardes ton choix ne suffit pas : le relecteur ne la reçoit pas ;
   - `ecarts` : ce que le message de commit nomme, chacun sous son `sujet` (ce qui s'écarte :
     une référence, un test, un plafond), avec son `texte` ;
   - `decouvertes` : ce que le circuit consigne fermé sous le ticket.

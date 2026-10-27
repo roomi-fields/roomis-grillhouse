@@ -359,8 +359,14 @@
 //   restricted to what the fix changes and its dependents, and the reviewer again, on the
 //   difference: the lot it read before is kept (`lot` of its sheet's entry), as Gerrit keeps each
 //   patch set, and the next review receives the command of the difference between the two lots,
-//   the files of the lot that changed since, and the findings still open, which it judges lifted
-//   or not (`suivi`); the rest of the lot it does not read again (its skill, « La relecture
+//   the files of the lot that changed since, and the findings still open, each with the
+//   developpeur's answer under it, which it judges lifted or not (`suivi`). As the author answers
+//   in each thread of a review on GitHub or Gerrit, a sheet FAIT of the developpeur answers each
+//   finding open for him, by its title, levé or contesté with its reason, with its piece
+//   (`reponses`); a sheet without the answer to one is refused (`reponsesAuxConstats` of
+//   scripts/resultats.mjs) and asked again once of the same session, and the answer is kept with
+//   its finding in the state until the next review (BP 320.21: the cause of his choice in a
+//   handover the circuit does not read, three RENDU, then the stop); the rest of the lot it does not read again (its skill, « La relecture
 //   bornée »). A blocking finding without a valid agent, or one that puts its criterion in
 //   question (`critere_en_cause`), stops at « relecture-arret »; so does the third RENDU since the
 //   ticket's last ACCEPTÉ.
@@ -549,6 +555,7 @@ import {
   lireResumes,
   lireSarif,
   regleDeLaLigne,
+  reponsesAuxConstats,
   reponsesAuxQuestions,
   RESULTATS,
   schemaDeFiche,
@@ -1250,13 +1257,22 @@ function consigne(valeurs, rang = 0) {
 // the plan, and the last handover of its author at the ticket. Every instruction, fresh or resumed,
 // carries the findings of the reviewer still open for its role (`ctx.constats`), all of them,
 // whatever the relaunch: a proof refused, red checks, a sending, a RENDU, a resumption of the
-// supervisor. Throws an Arret for a launch that stops before its session, a motionless session, or
+// supervisor; a developpeur's sheet FAIT answers each of his by its title (`reponsesAuxConstats`),
+// refused without one, and the circuit keeps each answer with its finding (`avecLesReponses`).
+// Throws an Arret for a launch that stops before its session, a motionless session, or
 // a session that ends twice without a sheet that conforms.
 async function seance(ctx, role, { tentative, rapport, fort, derniere }) {
   const nom = nomDuRole(role);
   const reprise = tentative > 1 && !derniere && ctx.reprise?.agent === role ? ctx.reprise : null;
   const constats = texteDesOuverts(ouverts(ctx, role));
   const plan = ctx.paquets.join(', ');
+  // A developpeur's sheet answers each finding open for him, kept with its finding.
+  const titres = role === 'developpeur' ? ouverts(ctx, role).map(c => c.titre) : [];
+  const valider = f => reponsesAuxConstats(f, titres);
+  const repondu = fiche => {
+    if (fiche && titres.length) ctx.constats = avecLesReponses(ctx.constats, fiche);
+    return fiche;
+  };
   if (reprise) {
     const courte = {
       role: nom,
@@ -1276,8 +1292,9 @@ async function seance(ctx, role, { tentative, rapport, fort, derniere }) {
       premiere: 'reprend',
       id: reprise.seance,
       repli: true,
+      valider,
     });
-    if (fiche) return fiche;
+    if (fiche) return repondu(fiche);
     commenter(
       ctx,
       role,
@@ -1315,7 +1332,22 @@ async function seance(ctx, role, { tentative, rapport, fort, derniere }) {
       .map(r => `- ${r.nom} : ${r.fichiers.map(f => `\`${f}\``).join(', ')}`)
       .join('\n'),
   };
-  return await jusquALaFiche(ctx, role, consigne(valeurs), { fort, neuve: role });
+  return repondu(await jusquALaFiche(ctx, role, consigne(valeurs), { fort, neuve: role, valider }));
+}
+
+// The findings <constats>, each finding of the developpeur that his sheet <fiche> answers (by its
+// title) with its answer `{ etat, raison, piece }`, as a thread of a review keeps the author's
+// reply under its comment.
+function avecLesReponses(constats, fiche) {
+  const parTitre = new Map((fiche.reponses ?? []).map(r => [r.titre, r]));
+  return (constats ?? []).map(c => {
+    const r = c.role === 'developpeur' ? parTitre.get(c.titre) : undefined;
+    if (!r) return c;
+    return {
+      ...c,
+      reponse: { etat: r.etat, ...(r.raison ? { raison: r.raison } : {}), piece: r.piece },
+    };
+  });
 }
 
 // The line CONTEXTE of a session: the text of `--contexte` of the run, which every session of the
@@ -1477,7 +1509,7 @@ const bloquants = bloquantsDeLaFiche;
 
 // The blocking findings <constats>, each under its heading, the criterion or rule it holds, its
 // recipient (or the criterion in question), its body and its piece (an element judged not
-// conforming carries it in its body): lines.
+// conforming carries it in its body), then the developpeur's answer to it, when he gave one: lines.
 const lignesDesConstats = constats =>
   constats.flatMap((c, i) => [
     `### Constat ${i + 1} — ${c.titre}`,
@@ -1485,6 +1517,12 @@ const lignesDesConstats = constats =>
     c.critere_en_cause ? `Critère en cause : ${c.critere_en_cause}` : `Agent : ${c.role ?? '?'}`,
     c.corps,
     ...(c.piece ? [`Pièce : ${c.piece}`] : []),
+    ...(c.reponse
+      ? [
+          `Réponse du développeur : ${c.reponse.etat}${c.reponse.raison ? ` — ${c.reponse.raison}` : ''}`,
+          `Pièce de la réponse : ${c.reponse.piece}`,
+        ]
+      : []),
     '',
   ]);
 
@@ -2025,7 +2063,8 @@ const texteDesOuverts = constats =>
 // remark reaches the ticket, no agent; the sheet's schema gives a RENDU at least one), after each
 // finding open before it that the sheet neither marks lifted (`suivi`, by its title) nor states
 // again. Each one `{ titre, regle, role, corps, piece }`, its recipient the agent it names, testwriter or
-// developpeur. Throws an Arret `relecture-arret` for a finding without a valid recipient or one
+// developpeur, without the developpeur's answer to the review before (`reponse`): his next sheet
+// answers it again. Throws an Arret `relecture-arret` for a finding without a valid recipient or one
 // that puts a criterion in question.
 function constatsOuverts(ctx, fiche, texte) {
   const arret = raison =>
@@ -2041,9 +2080,9 @@ function constatsOuverts(ctx, fiche, texte) {
     return { titre: c.titre, regle: c.regle, role: c.role, corps: c.corps, piece: c.piece };
   });
   const leves = new Set((fiche.suivi ?? []).filter(s => s.etat === 'levé').map(s => s.titre));
-  const restes = (ctx.constats ?? []).filter(
-    c => !leves.has(c.titre) && !neufs.some(n => n.titre === c.titre)
-  );
+  const restes = (ctx.constats ?? [])
+    .filter(c => !leves.has(c.titre) && !neufs.some(n => n.titre === c.titre))
+    .map(c => Object.fromEntries(Object.entries(c).filter(([k]) => k !== 'reponse')));
   return [...restes, ...neufs];
 }
 

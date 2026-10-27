@@ -22,6 +22,7 @@ import {
   lireResumes,
   lireSarif,
   conformiteDuTri,
+  reponsesAuxConstats,
   reponsesAuxQuestions,
   sarif,
   schemaDeFiche,
@@ -53,7 +54,7 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
     );
     expect((schemaDeFiche('testwriter') as Schema).required).toEqual(['statut']);
   });
-  it('the developpeur: its status, its sending to a testwriter, the criteria it does not hold out of the plan, the deviations to name at the commit, its discoveries', () => {
+  it('the developpeur: its status, its sending to a testwriter, the criteria it does not hold out of the plan, its answers to the findings open, the deviations to name at the commit, its discoveries', () => {
     expect(champs('developpeur')).toEqual(
       [
         'decouvertes',
@@ -63,6 +64,7 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
         'question',
         'raison',
         'renvoi',
+        'reponses',
         'statut',
       ].sort()
     );
@@ -437,6 +439,67 @@ describe('the answer of the explorateur to the questions put', () => {
     );
     expect(reponsesAuxQuestions({}, 1)).toBe('reponses : sans ligne pour les questions 1');
     expect(reponsesAuxQuestions({}, 0)).toBeNull();
+  });
+});
+
+// grillhouse-w47.3: on BPScript 320.21 the developpeur wrote why he kept his choice in his
+// handover, which the circuit does not read; the reviewer wrote « la relecture n'a reçu aucune
+// fiche du développeur », three RENDU, then the stop. As the author answers in each thread of a
+// review on GitHub or Gerrit, the developpeur's sheet answers each finding open for him.
+describe('the answer of the developpeur to each finding open for him', () => {
+  const copie = path.join(ESSAIS, 'copie-reponses');
+  mkdirSync(path.join(copie, 'packages/a/src'), { recursive: true });
+  writeFileSync(path.join(copie, 'packages/a/src/x.ts'), 'un\ndeux\ntrois\n');
+  const leve = (titre: string) => ({
+    titre,
+    etat: 'levé',
+    piece: 'packages/a/src/x.ts:2 rend deux.',
+  });
+
+  it('critère 1 — its schema: each answer names its finding by its title, levé or contesté, with its piece', () => {
+    const l = (schemaDeFiche('developpeur') as Schema).properties.reponses as {
+      items: { required: string[]; properties: Record<string, { enum?: string[] }> };
+    };
+    expect(Object.keys(l.items.properties).sort()).toEqual(['etat', 'piece', 'raison', 'titre']);
+    expect(l.items.required).toEqual(['titre', 'etat', 'piece']);
+    expect(l.items.properties.etat.enum).toEqual(['levé', 'contesté']);
+  });
+
+  it('critère 1 — a contesté without its reason, an answer without its piece or with a piece in no form, is refused', () => {
+    const lu = (r: object) =>
+      lireFiche('developpeur', sortie({ statut: 'FAIT', reponses: [r] }), { copie });
+    expect(lu(leve('a')).erreur).toBeUndefined();
+    const conteste = {
+      titre: 'a',
+      etat: 'contesté',
+      raison: 'le critère 1 le demande.',
+      piece: 'ticket, critère 1 : x.',
+    };
+    expect(lu(conteste).erreur).toBeUndefined();
+    expect(lu({ titre: 'a', etat: 'contesté', piece: 'packages/a/src/x.ts:1' }).erreur).toMatch(
+      /reponses\[0\]\.raison : manque, pour contesté/
+    );
+    expect(lu({ titre: 'a', etat: 'levé' }).erreur).toMatch(/reponses\[0\]\.piece : manque/);
+    expect(lu({ titre: 'a', etat: 'levé', piece: 'voir le code' }).erreur).toMatch(
+      /reponses\[0\]\.piece : « voir le code » n'est pas une pièce/
+    );
+    expect(lu({ titre: 'a', etat: 'levé', piece: 'packages/a/src/x.ts:9' }).erreur).toMatch(
+      /reponses\[0\]\.piece : packages\/a\/src\/x\.ts:9 introuvable/
+    );
+  });
+
+  it('critère 1 — a FAIT answers each finding open by its title; each title without its answer is named', () => {
+    const titres = ['packages/a/src/x.ts:1', 'le cas zéro'];
+    expect(reponsesAuxConstats({ statut: 'FAIT', reponses: titres.map(leve) }, titres)).toBeNull();
+    expect(reponsesAuxConstats({ statut: 'FAIT', reponses: [leve('le cas zéro')] }, titres)).toBe(
+      'reponses : sans réponse au constat « packages/a/src/x.ts:1 »'
+    );
+    expect(reponsesAuxConstats({ statut: 'FAIT' }, titres)).toBe(
+      'reponses : sans réponse aux constats « packages/a/src/x.ts:1 », « le cas zéro »'
+    );
+    expect(reponsesAuxConstats({ statut: 'FAIT' }, [])).toBeNull();
+    // A BLOQUÉ or a BESOIN stops the circuit before any review: it answers nothing.
+    expect(reponsesAuxConstats({ statut: 'BLOQUÉ' }, titres)).toBeNull();
   });
 });
 

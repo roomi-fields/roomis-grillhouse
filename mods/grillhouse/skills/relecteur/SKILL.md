@@ -73,11 +73,12 @@ Quand ta consigne porte « LA RELECTURE D'AVANT » (un `RENDU` d'avant), tu reli
 différence du lot depuis elle, comme Gerrit fait relire la différence entre deux jeux de
 correctifs : le circuit garde le lot que chaque relecture a lu, et ta consigne nomme la commande
 de la différence (`git diff <lot d'avant> <lot d'aujourd'hui>`, dans la copie), ses fichiers et
-les constats d'avant.
+les constats d'avant, chacun avec la réponse du développeur sous lui (« Réponse du développeur » :
+`levé` ou `contesté` avec sa raison, et sa pièce).
 
 1. Chaque constat d'avant se juge levé ou non, sa preuve tirée de la différence, dans `suivi`
-   (son titre, `levé` ou `non levé`, la preuve). Un constat non levé revient dans `constats`,
-   bloquant, au même destinataire.
+   (son titre, `levé` ou `non levé`, la preuve). Une réponse `contesté` se juge sur sa raison et
+   sa pièce, relues, et ta preuve dit pourquoi elle tient ou non. Un constat non levé revient dans `constats`, bloquant, au même destinataire.
 2. Les six passes portent sur la différence : un constat bloquant neuf que le correctif crée,
    dans les lignes qu'il change, rend le lot.
 3. Un défaut hors de la différence et des constats d'avant est une remarque, et ne rend pas le
