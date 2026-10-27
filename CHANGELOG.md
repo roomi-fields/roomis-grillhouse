@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.24.13] - 2026-10-28
+
 ### Fixed
 
 - **The night as the crontab runs it: the former line named, the line proposed that runs, its help** (grillhouse-w47.1): on BPScript (bp-mono-vbwf.320.21), the night had stopped since 2026-10-25. The crontab still launched `bash <root>/scripts/nuit.sh`, absent since the frame became a package (0.24.0), and `MAILTO=""` kept the failure silent; the session start looked for its own line alone and said « La nuit n'est pas programmée », without naming the line that aimed at the missing script; the line it proposed did not carry Node's path, which `#!/usr/bin/env node` does not find under the crontab when nvm installed it; and `grillhouse nuit --help` launched the night. As brew doctor and npm doctor name a configuration that aims at a missing path with the command that repairs it, the session start now says « La nuit ne tourne plus » for a line of the crontab that launches a `nuit.sh` absent under the root (absolute, or relative after `cd <root>`), with that line and the one that replaces it. The line it proposes is `0 3 * * * export PATH=<Node's directory>:$PATH; cd <root> && node_modules/.bin/grillhouse nuit`, the directory of the Node that runs the session start; a line that runs `cd <root> && node_modules/.bin/grillhouse nuit` and sets `PATH=<that directory>:` counts as programmed, and the former line without it no longer does. As a GNU command, `grillhouse nuit` answers `--help` (or `-h`) by its usage, exit 0, and refuses any other argument, exit 2, without launching the night. The skill grill writes the line in the session start's form.
