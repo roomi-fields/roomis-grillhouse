@@ -39,8 +39,8 @@
 //     document of its package, a new export's the entry of the INTERFACE that names it; a line
 //     without its reference is refused; a « non » is a blocking finding (`bloquantsDeLaFiche`),
 //     and the circuit refuses a sheet without a line for each element, or with a line on an
-//     element out of the list, a file out of the language service named alone or as
-//     `<fichier>#<nom>` (`conformiteDuLot`) (reviewer);
+//     element out of the list, a file the lot changes named alone or as `<fichier>#<nom>`
+//     (`conformiteDuLot`) (reviewer);
 //   - `suivi` (`titre`, `etat` levé or non levé, `preuve`): after a review sent back, each finding
 //     before it judged on the difference of the lot, which the circuit writes at the ticket with
 //     the verdict, for the human (reviewer);
@@ -415,16 +415,17 @@ export const bloquantsDeLaFiche = fiche => [
 ];
 
 // What makes the reviewer's sheet <fiche> out of conformity with the list of its lot
-// (scripts/elements-du-lot.mjs: <elements>, each `{ id, nom, statut, exporte }`, and
-// <horsDuService>, the changed sources the language service does not read), as a review asks a
-// word on every changed file: an element without its line, a line on an element out of the list,
-// a new export whose rule does not name its entry in the INTERFACE of its package. A line on a
-// file out of the service names it alone or one of its elements, `<fichier>#<nom>`, as a review
-// accepts a comment on any line of the diff. The fault, or null.
-export function conformiteDuLot(fiche, { elements, horsDuService }) {
+// (scripts/elements-du-lot.mjs: <elements>, each `{ id, nom, statut, exporte }`, and <fichiers>,
+// every file the lot changes), as a review asks a word on every changed element: an element
+// without its line, a line on an element out of the list, a new export whose rule does not name
+// its entry in the INTERFACE of its package. A line on a changed file, a source or not, names it
+// alone or one of its parts, `<fichier>#<nom>`, as a review on GitHub or Gerrit accepts a comment
+// on any line of any changed file (BP 320.17: lines on an INTERFACE.md, a CADRE.md and a ceiling
+// the commit changes, refused); a changed file asks no line. The fault, or null.
+export function conformiteDuLot(fiche, { elements, fichiers }) {
   const lignes = fiche.conformite ?? [];
   const ids = new Set(elements.map(e => e.id));
-  const hors = new Set(horsDuService);
+  const hors = new Set(fichiers ?? []);
   const duLot = element => {
     if (ids.has(element) || hors.has(element)) return true;
     const diese = element.lastIndexOf('#');

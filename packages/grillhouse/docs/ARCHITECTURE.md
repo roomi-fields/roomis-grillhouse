@@ -156,8 +156,12 @@ Le schéma de la fiche refuse une ligne sans document ni référence (`resultats
 circuit une fiche à laquelle il manque un élément, ou dont une ligne nomme un élément hors de la
 liste (`conformiteDuLot`) ; un « non » rend le lot à son destinataire. Un fichier que le service de
 langage ne lit pas, la liste le nomme : le relecteur en relève lui-même les éléments, une ligne
-chacun, `<fichier>#<nom>`, ou le fichier seul, comme une revue accepte un commentaire sur toute
-ligne du diff. En relecture bornée, comme une revue ne décoche « vu » que sur les fichiers
+chacun, `<fichier>#<nom>`, ou le fichier seul. Comme une revue GitHub ou Gerrit accepte un
+commentaire sur toute ligne de tout fichier modifié, une ligne sur tout fichier que le lot
+modifie, un document ou un texte compris, s'accepte de même, sans qu'un document modifié en
+exige une ; une ligne sur un fichier que le lot ne modifie pas reste refusée (BP 320.17 : une
+fiche du relecteur refusée pour ses lignes sur un INTERFACE.md, un CADRE.md et un plafond du
+commit, une séance Opus reprise). En relecture bornée, comme une revue ne décoche « vu » que sur les fichiers
 changés depuis, la consigne marque chaque élément : à rejuger quand la différence le touche,
 repris sinon avec sa ligne d'avant, que la fiche porte encore. Ainsi rien de neuf n'entre sans
 avoir été jugé contre l'architecture (Romain, 2026-10-23 : « il faut que le relecteur valide

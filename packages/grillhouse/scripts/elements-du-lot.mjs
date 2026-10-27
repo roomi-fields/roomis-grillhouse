@@ -22,6 +22,10 @@
 //   is an element of the report itself, exported.
 // - A changed source that the service does not read (a package without `tsconfig.json`) is named
 //   in `horsDuService`: the reviewer surveys its elements himself, each named `<fichier>#<nom>`.
+// - Every file the lot changes, a source or not, is named in `fichiers`: a line of the reviewer's
+//   conformity may name any of them, alone or as `<fichier>#<nom>`, as a review on GitHub or
+//   Gerrit accepts a comment on any line of any changed file (scripts/resultats.mjs,
+//   `conformiteDuLot`).
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -115,12 +119,14 @@ function declarationsDuRapport(ts, texte) {
 }
 
 // The elements the lot of the copy <copie> adds, changes or removes between the commits <avant>
-// and <apres>: `{ etat: 'fait', raison: null, elements, horsDuService, service }`, each element
+// and <apres>: `{ etat: 'fait', raison: null, elements, horsDuService, fichiers, service }`, each element
 // `{ id, nom, genre, statut, paquet, fichier, ligne, exporte }` (`id` `<fichier>#<nom>`, `statut`
 // neuf, changé or supprimé, `fichier` from the copy, `ligne` in the file after, or before for a
 // removed one), sorted by file, line and name, `horsDuService` the changed sources the language
-// service does not read, `service` null when it ran, else why it could not (no `tsconfig.json`
-// in the components); or `{ etat: 'impossible', raison, elements: [], horsDuService: [] }`.
+// service does not read, `fichiers` every file the lot changes, a source or not, sorted (a review
+// accepts a comment on any changed file), `service` null when it ran, else why it could not (no
+// `tsconfig.json` in the components); or `{ etat: 'impossible', raison, elements: [],
+// horsDuService: [], fichiers: [] }`.
 export function elementsDuLot(copie, { avant, apres }) {
   try {
     return calculer(copie, avant, apres);
@@ -129,7 +135,13 @@ export function elementsDuLot(copie, { avant, apres }) {
   }
 }
 
-const impossible = raison => ({ etat: 'impossible', raison, elements: [], horsDuService: [] });
+const impossible = raison => ({
+  etat: 'impossible',
+  raison,
+  elements: [],
+  horsDuService: [],
+  fichiers: [],
+});
 
 function calculer(copie, avant, apres) {
   const r = git(copie, 'diff', '--name-status', '-z', '--no-renames', avant, apres);
@@ -241,6 +253,7 @@ function calculer(copie, avant, apres) {
     raison: null,
     elements,
     horsDuService: horsDuService.sort(),
+    fichiers: [...changesEnSet].sort(),
     service: s.raison ?? null,
   };
 }

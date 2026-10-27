@@ -33,6 +33,7 @@ type Liste = {
   raison: string | null;
   elements: Element[];
   horsDuService: string[];
+  fichiers: string[];
   service?: string | null;
 };
 // The elements of the lot of <copie> between the commits of <lot>.
@@ -288,12 +289,26 @@ describe('the elements of a lot', () => {
     expect(liste.service).toBeNull();
   });
 
+  // grillhouse-0yu.2, witness BPScript 320.17: the reviewer's lines on an INTERFACE.md, a CADRE.md
+  // and a text file the commit changes were refused, « n'est pas un élément du lot ».
+  it('names every file the lot changes, a source or not, a test or a removed file among them', () => {
+    expect(liste.fichiers).toEqual([
+      'packages/forms/docs/INTERFACE.api.md',
+      'packages/forms/src/ancien.ts',
+      'packages/forms/src/index.ts',
+      'packages/forms/src/interne.ts',
+      'packages/forms/test/index.test.ts',
+      'packages/outils/src/outil.mjs',
+    ]);
+  });
+
   it('lists nothing for a lot that changes no source', () => {
     expect(lister(racine, { avant: apres, apres })).toEqual({
       etat: 'fait',
       raison: null,
       elements: [],
       horsDuService: [],
+      fichiers: [],
       service: null,
     });
   });

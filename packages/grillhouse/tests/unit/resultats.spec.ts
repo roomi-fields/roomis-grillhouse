@@ -302,7 +302,7 @@ describe('the conformity of each element of the lot in a reviewer’s sheet', ()
       { id: 'packages/a/src/x.ts#x', nom: 'x', statut: 'changé', exporte: true },
       { id: 'packages/a/src/x.ts#lire', nom: 'lire', statut: 'neuf', exporte: false },
     ];
-    const liste = { elements, horsDuService: [] };
+    const liste = { elements, fichiers: ['packages/a/src/x.ts'] };
     const lire = { ...oui, element: 'packages/a/src/x.ts#lire' };
 
     it('a sheet with one line per element conforms', () => {
@@ -325,7 +325,7 @@ describe('the conformity of each element of the lot in a reviewer’s sheet', ()
       expect(
         conformiteDuLot(
           { verdict: 'ACCEPTÉ', conformite: [oui] },
-          { elements: neuf, horsDuService: [] }
+          { elements: neuf, fichiers: ['packages/a/src/x.ts'] }
         )
       ).toMatch(/INTERFACE/);
       expect(
@@ -334,7 +334,7 @@ describe('the conformity of each element of the lot in a reviewer’s sheet', ()
             verdict: 'ACCEPTÉ',
             conformite: [{ ...oui, document: 'INTERFACE', reference: 'packages/a, entrée `x`' }],
           },
-          { elements: neuf, horsDuService: [] }
+          { elements: neuf, fichiers: ['packages/a/src/x.ts'] }
         )
       ).toBeNull();
     });
@@ -342,9 +342,51 @@ describe('the conformity of each element of the lot in a reviewer’s sheet', ()
     // verif-mots-de-librairie.mjs, out of the language service, as « …mjs#juger » then as the file
     // alone, and every line was refused. As a review accepts a comment on any line of the diff, a
     // line on a file out of the service, or on one of its elements, is accepted.
+    // grillhouse-0yu.2, witness BPScript 320.17: the reviewer's first sheet refused for its lines
+    // on packages/000-forms/docs/INTERFACE.md#OBJECT_NUMBER, an INTERFACE.api.md, a CADRE.md#R13
+    // and a ceiling .txt, files the commit changes, « n'est pas un élément du lot ». As a review
+    // on GitHub or Gerrit accepts a comment on any line of any changed file.
+    describe('any file the lot changes (0yu.2)', () => {
+      const DOC = 'packages/a/docs/INTERFACE.md';
+      const TXT = 'packages/t/src/plafond.txt';
+      const lot = { elements, fichiers: ['packages/a/src/x.ts', DOC, TXT] };
+      it('critère 1 — a line on a changed file that is no source, alone or as <fichier>#<nom>, is accepted', () => {
+        for (const element of [DOC, `${DOC}#OBJECT_NUMBER`, TXT, `${TXT}#plafond`]) {
+          expect(
+            conformiteDuLot(
+              { verdict: 'ACCEPTÉ', conformite: [oui, lire, { ...oui, element }] },
+              lot
+            ),
+            element
+          ).toBeNull();
+        }
+      });
+      it('critère 2 — a line on a file the lot does not change is still refused', () => {
+        for (const element of [
+          'packages/a/docs/CADRE.md',
+          'packages/a/docs/CADRE.md#R13',
+          `${DOC}.bak`,
+          `${DOC}#`,
+        ]) {
+          expect(
+            conformiteDuLot(
+              { verdict: 'ACCEPTÉ', conformite: [oui, lire, { ...oui, element }] },
+              lot
+            ),
+            element
+          ).toMatch(/n'est pas un élément du lot/);
+        }
+      });
+      it('critère 3 — each element without its line is still a fault; a changed document asks none', () => {
+        expect(conformiteDuLot({ verdict: 'ACCEPTÉ', conformite: [oui] }, lot)).toMatch(
+          /sans ligne pour packages\/a\/src\/x\.ts#lire$/
+        );
+        expect(conformiteDuLot({ verdict: 'ACCEPTÉ', conformite: [oui, lire] }, lot)).toBeNull();
+      });
+    });
     describe('a file out of the language service', () => {
       const HORS = 'packages/t/src/verif.mjs';
-      const hors = { elements, horsDuService: [HORS] };
+      const hors = { elements, fichiers: ['packages/a/src/x.ts', HORS] };
       it('a line on one of its elements, or on the file alone, is accepted', () => {
         expect(
           conformiteDuLot(

@@ -36,8 +36,10 @@ des rapports d'API).
    pas sa référence.
 4. Un fichier que la liste dit hors du service de langage se relit de même : tu relèves ses
    éléments neufs, changés ou supprimés, et chacun a sa ligne de `conformite`, son `element`
-   écrit `<fichier>#<nom>` (le fichier seul pour une ligne sur tout le fichier). Le circuit
-   refuse une ligne sur un élément hors de la liste et hors de ces fichiers.
+   écrit `<fichier>#<nom>` (le fichier seul pour une ligne sur tout le fichier). Tout autre
+   fichier que le lot modifie (un document, un texte, un plafond) peut porter une ligne de même,
+   seul ou `<fichier>#<nom>`, sans qu'aucune ne soit exigée. Le circuit refuse une ligne sur un
+   élément hors de la liste et sur un fichier que le lot ne modifie pas.
 
 En relecture bornée, la liste porte encore tout le lot, chaque élément marqué, comme une revue ne
 décoche « vu » que sur les fichiers changés depuis : « à rejuger » quand la différence le touche
