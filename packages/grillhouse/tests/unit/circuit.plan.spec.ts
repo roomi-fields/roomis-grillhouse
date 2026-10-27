@@ -587,7 +587,7 @@ describe('critère 3 — the rounds, the survey played again and the referent ar
     expect(ARRETS).not.toHaveProperty('composants-manquants');
   });
 
-  it('the explorateur has two templates of its own: the plan, and its one answer', () => {
+  it('the explorateur has three templates of its own: the plan, its one answer, and the tri', () => {
     const gabarit = readFileSync(
       path.resolve(
         __dirname,
@@ -601,6 +601,7 @@ describe('critère 3 — the rounds, the survey played again and the referent ar
     expect(blocs.map(b => b.titre)).toEqual([
       'Explorateur, sur le plan (rempli par le circuit)',
       'Explorateur, sur les questions du plan (rempli par le circuit)',
+      'Explorateur, sur le tri des découvertes (rempli par le circuit)',
     ]);
     for (const champ of ['ticket', 'titre', 'description', 'contexte']) {
       expect(blocs[0].texte, champ).toContain(`{{${champ}}}`);
