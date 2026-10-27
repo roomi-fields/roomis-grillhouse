@@ -139,7 +139,10 @@ son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
   projet déclare, un plafond par exemple. Leur rouge n'est pas le tien : ta séance ne s'arrête pas sur elles,
   et ta fiche finit FAIT sur ta part. Exemple : en 320.8 de BPScript, un développeur aux tests
   verts s'est arrêté sur le plafond des mots, la dette et l'index, que 4.2 a régénérés ensuite.
-  Ainsi le geste mécanique reste au circuit.
+  Un constat de leur garde sur ton code reste le tien, sous « Tes rouges », comme le refus de leur
+  commande qu'il cause : un plafond ne monte jamais. Exemple : en 320.10 de BPScript, le mot
+  « door » écrit dans 030-binder dépassait le plafond des mots. Ainsi le geste mécanique reste au
+  circuit, et ton code à toi.
 - **Un rouge qui reste dans les tests va au testwriter** : quand le rouge qui reste est dans les
   tests du lot (un test existant que ton changement de type casse), ta fiche porte `renvoi`, le
   rôle testwriter. Le circuit relance le testwriter, ta `raison` et ta passation pour rapport, puis

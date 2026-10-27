@@ -59,7 +59,7 @@ LA DERNIÈRE PASSATION de ton rôle (pour un développeur qui n'en a pas encore,
 
 Le circuit joue la preuve du rouge après le testwriter, sur les seuls tests du lot (sans eux, sur les paquets du plan entiers), et les contrôles après le développeur : les tests du lot, les paquets du plan, les gardes dans l'enveloppe du plan, dont seuls comptent les constats sur ses fichiers ; puis la passe finale, `npm run verifier`, qui juge le reste.
 
-LES RÉFÉRENCES QUE LE CIRCUIT RÉGÉNÈRE à l'étape 4.2, sur la copie entière, après la passe finale : ce que leur commande écrit dans ces fichiers, le circuit l'écrit, et leur rouge (un plafond, la dette, l'index) n'arrête pas ta séance :
+LES RÉFÉRENCES QUE LE CIRCUIT RÉGÉNÈRE à l'étape 4.2, sur la copie entière, après la passe finale : ce que leur commande écrit dans ces fichiers, le circuit l'écrit, et leur rouge (un plafond, la dette, l'index) n'arrête pas ta séance ; un constat de leur garde sur ton code, sous « Tes rouges », reste le tien :
 
 {{references}}
 

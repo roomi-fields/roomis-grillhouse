@@ -88,9 +88,11 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   (l'index après les rapports d'API), sans que le plan les nomme, puis la passe finale restreinte
   à ce qu'elles changent, les autres rouges allant chacun à son propriétaire ; aux contrôles du
   plan verts hors de leurs rouges, avant la passe finale, qui joue alors une fois : je ne les régénère
-  jamais à la main ; une commande en échec ou un fichier qu'aucune référence n'écrit arrête à
-  `references`, code 23, une question pour moi qui porte chaque écart : je fais corriger la
-  référence ou le lot, 4.3 le relecteur), 5 Intégration (5.1
+  jamais à la main ; un constat de leur garde sur le code du plan, hors de leurs fichiers, va au
+  développeur ; une commande du projet qui refuse à côté de rouges du plan, à la passe finale,
+  les lui envoie avec sa sortie ; toute autre commande en échec ou un fichier qu'aucune référence
+  n'écrit arrête à `references`, code 23, une question pour moi qui porte chaque écart : je fais
+  corriger la référence ou le lot, 4.3 le relecteur), 5 Intégration (5.1
   le commit, 5.2 la file et la lecture de la CI) ; aucun composant n'est une unité du circuit, chaque
   étape joue une fois pour tout le ticket, dans l'enveloppe de tous les paquets du plan ; je dis
   où en est un ticket par son étape, « 3 Code » ; son en-tête dit ses arrêts et leurs codes. Ainsi
@@ -228,12 +230,15 @@ motifs `*` et `**`, comme les entrées de Turborepo ; `tests`, les fichiers de t
 jugent, par le nom que porte leur constat SARIF), et celles du cadre dans chaque projet (l'index
 des interfaces, les `turbo.json`, les rapports d'API, la dette des gardes), comme les genrules de
 Bazel et `--update-snapshots` : un rouge de la passe finale qui est le leur (un de leurs tests, un
-constat d'une de leurs gardes, quel que soit son fichier, ou un fichier qu'elles couvrent), mêlé
-ou non à d'autres, ou une dette qui baisse, les régénère, chacune suivie, comme dans make, de
-celles qui lisent ce qu'elle écrit, puis la passe finale rejoue restreinte à ce qu'elles changent,
-les autres rouges allant chacun à son propriétaire ; la différence va au lot et au relecteur sans
-que le plan la nomme, un plafond ne monte jamais, et une commande en échec ou un fichier
-qu'aucune référence n'écrit arrête le circuit (`references`), ses écarts dans sa question, et 4.3 Relecture, le `relecteur`, trois tours au plus, qui rend une ligne de
+constat d'une de leurs gardes, ou un fichier qu'elles couvrent), mêlé ou non à d'autres, ou une
+dette qui baisse, les régénère, chacune suivie, comme dans make, de celles qui lisent ce qu'elle
+écrit, puis la passe finale rejoue restreinte à ce qu'elles changent, les autres rouges allant
+chacun à son propriétaire ; un constat d'une garde d'une référence du projet sur le code du plan,
+hors de ses fichiers, va au développeur, aux contrôles comme à la passe finale ; la différence va
+au lot et au relecteur sans que le plan la nomme, un plafond ne monte jamais, une commande du
+projet qui refuse à côté de rouges du plan envoie ces rouges au développeur avec sa sortie, la
+copie rendue, et toute autre commande en échec ou un fichier qu'aucune référence n'écrit arrête le
+circuit (`references`), ses écarts dans sa question, et 4.3 Relecture, le `relecteur`, trois tours au plus, qui rend une ligne de
 conformité par élément que le lot ajoute, change ou supprime (la liste mécanique que le circuit
 lui donne, chaque ligne avec sa règle : CADRE, INTERFACE ou ARCHITECTURE), un « non » rendant le
 lot et un élément sans ligne refusant sa fiche, un lot rendu revenant à

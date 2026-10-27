@@ -264,10 +264,15 @@
 //   index of the interfaces, which reads the interfaces, the turbo.json of the packages, the API
 //   reports, which write the generated part of the interfaces), and the known debt of the guards;
 //   a reference of the project whose first file is one of theirs replaces it. A final pass with a red of a reference (a failed test of one of
-//   their test files, a finding of one of their guards, whatever file it aims at, or a failed test
-//   or a finding on a file a reference of the project covers), mixed with other reds or not, or a
+//   their test files, a finding of one of their guards, or a failed test or a finding on a file a
+//   reference of the project covers), mixed with other reds or not, or a
 //   guard's note of a key of the debt inscribed above what it finds (`a-elaguer`, the pass green
-//   or not), sends no developpeur: the gesture `regeneration`, once for that pass. Checks of the
+//   or not), sends no developpeur: the gesture `regeneration`, once for that pass. A finding of a
+//   guard of a reference of the project on a file of the plan its files do not cover is no output
+//   it generates but the code of the lot, the developpeur's, at the checks of the plan as at the
+//   final pass, as `--update-snapshots` leaves every failure but the snapshots to its owner; its
+//   finding without a file, or on a file the reference covers, stays the regeneration's (BPScript
+//   320.10: a word of library written in 030-binder, sent to no developpeur). Checks of the
 //   plan green but for reds of references call for it too, before the final pass, as make
 //   remakes a generated file before what reads it: the final pass that is due then plays once, on
 //   the regenerated tree, and does not regenerate again a reference regenerated on that same tree
@@ -292,7 +297,10 @@
 //   them), which the pass that follows judges. The stop leaves the copy restored as it was before
 //   the regeneration, a question for the supervisor that carries each deviation (the command and
 //   its code, the file), as the comment at the ticket does; the state keeps the references to regenerate and the reds of the
-//   pass before (`aRegenerer`), for a regeneration resumed.
+//   pass before (`aRegenerer`), for a regeneration resumed. A command of the project that refuses
+//   (no real failure), its only deviation, after a final pass that carries reds of the plan,
+//   judges the lot, as a ceiling refuses a lot beyond it: the copy restored, those reds go to the
+//   developpeur with the end of its output, within his sessions, then the final pass again.
 // - The proof, the checks and the final pass are heavy passes: each holds the lock of the machine
 //   (scripts/verrou-de-machine.mjs), shared by every repository of the machine, and waits, the
 //   wait written to the log, while another measure holds it; the wait bounded, the pass is at 75,
@@ -1716,15 +1724,19 @@ export function couvertPar(motifs, fichier) {
   });
 }
 
-// The references a red of <lieux> is one of (each `{ fichier, gardes }`, its file and the names its
-// finding carries), however many other reds stand beside it, as `--update-snapshots` updates the
-// snapshots that fail and leaves the other failures: a finding of one of their `gardes`, a file of
-// their `tests`, or a file their `fichiers` cover, the frame's by their `gardes` alone; with
-// <aElaguer> (a guard wrote a key of the debt inscribed above what it finds), the reference that
-// covers the debt's file too.
+// The references a red of <lieux> is one of (each `{ fichier, gardes, dansLePlan }`, its file, the
+// names its finding carries, and whether a path of the plan holds it), however many other reds
+// stand beside it, as `--update-snapshots` updates the snapshots that fail and leaves the other
+// failures: a finding of one of their `gardes`, a file of their `tests`, or a file their
+// `fichiers` cover, the frame's by their `gardes` alone; with <aElaguer> (a guard wrote a key of
+// the debt inscribed above what it finds), the reference that covers the debt's file too. A
+// finding of a guard of a reference of the project on a file of the plan its `fichiers` do not
+// cover is no output it generates, but the code of the lot: the developpeur's (BPScript 320.10,
+// a word of library in the code of 030-binder).
 function referencesDesRouges(ctx, lieux, aElaguer = false) {
-  const sien = (r, { fichier: f, gardes }) =>
-    gardes.some(g => r.gardes.includes(g)) ||
+  const sien = (r, { fichier: f, gardes, dansLePlan: plan = false }) =>
+    (gardes.some(g => r.gardes.includes(g)) &&
+      (r.cadre || !f || !plan || couvertPar(r.fichiers, f))) ||
     (!r.cadre && Boolean(f) && (r.tests.includes(f) || couvertPar(r.fichiers, f)));
   return lesReferences(ctx).filter(
     r => lieux.some(l => sien(r, l)) || (aElaguer && couvertPar(r.fichiers, DETTE))
@@ -1743,8 +1755,12 @@ function referencesDesRouges(ctx, lieux, aElaguer = false) {
 // the output of a genrule, without a word of the plan, and the reviewer reads its difference; a
 // file changed that none of the references run declares, or a command that fails (a reference of
 // the project at another code than 0, one of the frame on a real failure alone) restores the copy
-// as it was and stops at « references », each deviation in its question.
-function regenerer(ctx, noms, notes = [], avantLaPasse = false) {
+// as it was and stops at « references », each deviation in its question. With <refusAuLot>, the
+// final pass that called for it carries reds of the plan: a command of the project that refuses
+// (another code than 0, no real failure), its only deviation, judges the lot, as a ceiling that
+// never rises refuses a lot beyond it; the copy restored, `{ refus }` gives the report of each
+// refusal with the end of its output, for the developpeur (BPScript 320.10).
+function regenerer(ctx, noms, notes = [], avantLaPasse = false, refusAuLot = false) {
   // The notes of the debt, in a file of the run, which the command that lowers it reads.
   const fichierDesNotes = path.join(ctx.base.dossier, 'dette-a-abaisser.json');
   const toutes = lesReferences(ctx).map(r =>
@@ -1766,6 +1782,8 @@ function regenerer(ctx, noms, notes = [], avantLaPasse = false) {
   // them): a real failure alone counts; a reference of the project, by its code.
   const refs = [];
   const echecs = [];
+  // The refusals of the commands of the project, each its line and the end of its output.
+  const refus = [];
   const appelees = new Set();
   let arbre = avant.arbre;
   while (aJouer.length) {
@@ -1773,9 +1791,9 @@ function regenerer(ctx, noms, notes = [], avantLaPasse = false) {
     const x = commandeDeReference(ctx, r.commande);
     if (!refs.includes(r)) refs.push(r);
     if (x.panne || (!r.cadre && x.code !== 0)) {
-      echecs.push(
-        `- ${r.nom} : \`${r.commande}\` rend le code ${x.code}${x.panne ? ' (une panne)' : ''}.`
-      );
+      const ligne = `- ${r.nom} : \`${r.commande}\` rend le code ${x.code}${x.panne ? ' (une panne)' : ''}.`;
+      echecs.push(ligne);
+      if (!x.panne) refus.push([ligne, '', fin(x.sortie.trimEnd(), 30)].join('\n'));
     }
     // The references that read a file this command wrote run after it.
     const suivant = arbreDeLaCopie(ctx);
@@ -1800,6 +1818,7 @@ function regenerer(ctx, noms, notes = [], avantLaPasse = false) {
   ];
   if (ecarts.length) {
     restaurer(ctx, avant.commit, fichiers);
+    if (refusAuLot && refus.length === ecarts.length) return { refus };
     const difference =
       apres && fichiers.length
         ? [
@@ -1845,13 +1864,15 @@ function regenerer(ctx, noms, notes = [], avantLaPasse = false) {
 }
 
 // One command of a reference, run by the shell at the root of the copy, out of the envelope,
-// under the lock of the machine, its output added to the log: `{ code, panne }`, its exit code and
-// whether it failed for real, whatever it judges: the command not found or not executable (126,
-// 127, as the shell says it), killed by a signal (the shell's 128 + its number), or the lock of the
-// machine not taken.
+// under the lock of the machine, its output added to the log: `{ code, panne, sortie }`, its exit
+// code, whether it failed for real, whatever it judges (the command not found or not executable,
+// 126, 127, as the shell says it; killed by a signal, the shell's 128 + its number; or the lock of
+// the machine not taken), and what it wrote to the log.
 function commandeDeReference(ctx, commande) {
   entete(ctx, 'references');
   appendFileSync(ctx.journal, `$ ${commande}\n`);
+  const debut = statSync(ctx.journal).size;
+  const sortie = () => readFileSync(ctx.journal).subarray(debut).toString('utf8');
   const fd = openSync(ctx.journal, 'a');
   try {
     const r = avecLaMachine(
@@ -1863,11 +1884,12 @@ function commandeDeReference(ctx, commande) {
       code,
       panne:
         r.signal !== null || r.error !== undefined || code === 126 || code === 127 || code > 128,
+      sortie: sortie(),
     };
   } catch (e) {
     if (!(e instanceof AttenteDeLaMachine)) throw e;
     appendFileSync(ctx.journal, `${e.message}\n`);
-    return { code: e.code, panne: true };
+    return { code: e.code, panne: true, sortie: sortie() };
   } finally {
     closeSync(fd);
   }
@@ -2572,8 +2594,8 @@ const ligneDeCommande = c =>
 // developpeur, his reds first; `complet` every red, for a stop; `auDeveloppeur` whether a red lies
 // in a package of the plan; `horsTitre` the packages out of the plan that hold a red; `arbitrer`
 // when every red of the plan is a finding to settle; `lieux` the place of each red, `{ fichier,
-// gardes }`, its file (null for a red without one) and the names its finding carries (none for a
-// test or a task); `references`, out of the final pass, the references whose reds the checks saw,
+// gardes, dansLePlan }`, its file (null for a red without one), the names its finding carries
+// (none for a test or a task), and whether a path of the plan holds it; `references`, out of the final pass, the references whose reds the checks saw,
 // which their regeneration lifts before the final pass; `tous` every red as it was read; `notes`,
 // at the final pass, each key of the debt a guard wrote inscribed above what it finds, `{ garde,
 // fichier, regle, trouve }`.
@@ -2610,7 +2632,11 @@ function controles(ctx, finale, restreinte = null, reportes = null) {
   // Out of the final pass, the reds of the plan are the developpeur's; a red of a reference goes to
   // its regeneration (4.2), before the final pass; the others (the root, a red no file situates, a
   // package out of the plan) wait for the final pass.
-  const lieu = r => ({ fichier: r.fichier ?? null, gardes: r.gardes ?? [] });
+  const lieu = r => ({
+    fichier: r.fichier ?? null,
+    gardes: r.gardes ?? [],
+    dansLePlan: Boolean(r.dansLePlan),
+  });
   const deReference = r => referencesDesRouges(ctx, [lieu(r)]).length > 0;
   const siens = r => finale || (r.dansLePlan && !deReference(r));
   const rouges = tous.filter(siens);
@@ -3016,7 +3042,15 @@ async function derouler(ctx, debut) {
             resultat(k.rouge ? 'rouge' : 'vert'),
             k.texte
           );
-          ctx.aRegenerer = { noms, rouges: k.tous, notes: k.notes, entiere: !passe.restreinte };
+          // The report of the reds of the plan, which go to the developpeur when a command of the
+          // project refuses the lot.
+          ctx.aRegenerer = {
+            noms,
+            rouges: k.tous,
+            notes: k.notes,
+            entiere: !passe.restreinte,
+            auDeveloppeur: k.auDeveloppeur && !k.arbitrer ? k.texte : null,
+          };
           etape = REFERENCES;
           finale = true;
         } else if (k.rouge && passeFinale && k.horsTitre.length) {
@@ -3099,7 +3133,25 @@ async function derouler(ctx, debut) {
             "L'état du circuit ne garde pas les références à régénérer : la passe finale les redonne (`--depuis developpeur`)."
           );
         }
-        const g = regenerer(ctx, a.noms, a.notes, Boolean(a.avantLaPasse));
+        // A command of the project that refuses beside reds of the plan, within the developpeur's
+        // sessions: the copy restored, those reds go to him with its output, the final pass after.
+        const suivante = tentative + 1;
+        const auLot = Boolean(a.auDeveloppeur) && suivante <= SEANCES_DEVELOPPEUR;
+        const g = regenerer(ctx, a.noms, a.notes, Boolean(a.avantLaPasse), auLot);
+        if (g.refus) {
+          const texte = [
+            `La régénération des références refuse le lot ; la copie est rendue telle qu'avant elle, et les rouges du plan vont au développeur (séance ${suivante}).`,
+            '',
+            ...g.refus,
+          ].join('\n');
+          ecrireRapport(ctx, 'references', texte, { regenerees: [], fichiers: [] });
+          rapport = `${texte}\n\n${a.auDeveloppeur}`;
+          ctx.aRegenerer = null;
+          etape = CODE;
+          tentative = suivante;
+          finale = true;
+          continue;
+        }
         ecrireRapport(ctx, 'references', g.texte, {
           regenerees: g.regenerees,
           fichiers: g.fichiers,

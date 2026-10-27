@@ -93,6 +93,16 @@ qui suit, et seule une vraie panne l'arrête (la commande introuvable, ou tuée 
 reste rouge. Ainsi aucun fichier engendré n'attend une main (BP 320.9 : 292 min autour des
 références, dont 163 d'attente).
 
+Comme `--update-snapshots` et `rustc --bless`, la régénération ne réécrit que ses sorties : un
+constat d'une garde d'une référence du projet sur un fichier du plan que ses fichiers ne couvrent
+pas vise le code du lot, et va au développeur, aux contrôles du plan comme à la passe finale ; son
+constat sans fichier, ou sur un fichier qu'elle couvre, reste à la régénération. Une commande du
+projet qui refuse, seul écart d'une régénération que demande une passe finale porteuse de rouges du
+plan, juge le lot : la copie rendue telle qu'avant elle, ces rouges vont au développeur avec la fin
+de sa sortie, dans la limite de ses séances. Ainsi le développeur reçoit le refus de son code (BP
+320.10 : un mot de librairie écrit dans 030-binder, absent des trois rapports « Tes rouges », puis
+un arrêt `references` sur « le plafond ne monte pas »).
+
 **L'explorateur écrit le plan, questionné une fois** : comme l'auteur d'une RFC l'écrit après
 avoir relevé l'existant, qu'une revue la lit une fois, que l'auteur répond une fois et que ce qui
 reste ouvert va à qui décide, l'étape 1 du circuit (1 Plan) lance l'explorateur hors de
