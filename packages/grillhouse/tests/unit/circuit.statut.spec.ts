@@ -189,6 +189,55 @@ fiche '{"statut":"BLOQUÉ","piece":"packages/forms/src/index.mjs:1","raison":"le
     );
   });
 
+  // grillhouse-0yu.1, witness BPScript 320.17: three sheets FAIT, each handover naming « critère
+  // 10 hors plan, non fait »; the criterion fell at the review, after the final passes.
+  it('critère 2 — a developpeur FAIT that does not hold a criterion out of the plan stops at « hors-portee » at 3 Code, the question naming the criterion and its package; --etendre answers it', () => {
+    const id = 'demo-statut-hors-plan';
+    ticket(id, '000-forms');
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(
+      id,
+      'developpeur-1',
+      `${CODE_JUSTE}passation 'Code écrit ; le critère 1 demande binder, hors du plan.'
+fiche '{"statut":"FAIT","hors_plan":[{"critere":"1","paquet":"030-binder","piece":"packages/forms/src/index.mjs:1 rend la mesure que binder lit."}]}'
+`
+    );
+    scenario(id, 'developpeur-2', `${CODE_JUSTE}passation 'Code écrit sur le plan étendu.'\n`);
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(ARRETS['hors-portee']);
+    expect(sessions(id, 'developpeur')).toBe(1);
+    expect(historique(id)).not.toContain('controles');
+    expect(etat(id)).toMatchObject({ etape: 'developpeur', raison: 'hors-portee' });
+    const q = question(id);
+    expect(q).toMatchObject({ arret: 'hors-portee', qui: 'superviseur' });
+    expect(q?.fait).toMatch(/critère 1 \(030-binder\)/);
+    expect(q?.question).toMatch(/critère 1 \(030-binder\)/);
+    expect(q?.question).toContain('--etendre 030-binder');
+    expect(q?.question).toContain('--reprendre');
+    expect(q?.piece).toContain('packages/forms/src/index.mjs:1');
+    const s = circuit([id, '--etendre', '030-binder']);
+    expect(s.status, sortie(s)).toBe(0);
+    expect(ordre(id)).toEqual(['testwriter', 'developpeur', 'developpeur', 'relecteur']);
+    expect(essai(id, 'developpeur-2.paquets')).toBe('packages/forms:packages/binder');
+    expect(essai(id, 'developpeur-2.prompt')).toMatch(/CONTEXTE : .*critère 1 \(030-binder\)/);
+    expect(etat(id)).toMatchObject({ etape: 'integre' });
+  });
+
+  it('critère 3 — a developpeur FAIT whose criteria out of the plan are none reads as today', () => {
+    const id = 'demo-statut-hors-plan-vide';
+    ticket(id, '000-forms');
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(
+      id,
+      'developpeur',
+      `${CODE_JUSTE}passation 'Code écrit.'\nfiche '{"statut":"FAIT","hors_plan":[]}'\n`
+    );
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(ordre(id)).toEqual(['testwriter', 'developpeur', 'relecteur']);
+    expect(etat(id)).toMatchObject({ etape: 'integre' });
+  });
+
   it('FAIT keeps the circuit going: a delivery goes to the checks, none stops at « sans-livraison »', () => {
     const id = 'demo-statut-fait';
     ticket(id, '000-forms');

@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **A criterion the developer does not hold out of the plan goes up at 3 Code** (grillhouse-0yu.1): on BPScript bp-mono-vbwf.320.17 (0.24.11), the developer's sheet said FAIT three times while his handover said « garde de constantes d'objet (995-tools, critère 10) hors plan, non fait »; the circuit does not read a handover, so nothing went up, and the criterion fell at the review (4.3, « relecture-arret »), after 25 min of final passes. As a required check of a CI keeps a merge from a change that does not pass it, the developer's sheet now carries `hors_plan`, each criterion he does not hold for want of a package out of the plan, with its number, that package and its piece; a FAIT that carries one stops at 3 Code at « hors-portee », the question naming each criterion and its package, and the supervisor answers by `--etendre <paquet>` or amends the criterion and `--reprendre`. A sheet without it, or with it empty, reads as before.
+
 ## [0.24.11] - 2026-10-27
 
 ### Fixed

@@ -17,6 +17,11 @@
 //     file HEAD holds, `raison`): the proof of the red (testwriter);
 //   - `renvoi` (`role` testwriter): the circuit relaunches the testwriter, then the proof and the
 //     developpeur (developpeur);
+//   - `hors_plan` (`critere` its number, `paquet` the package out of the plan that would hold it,
+//     `piece`): each criterion the session does not hold for want of a package out of the plan; a
+//     FAIT that carries one stops at « hors-portee », as a required check keeps a merge from a
+//     change that does not pass it (BP 320.17: « critère 10 hors plan, non fait », in a handover
+//     the circuit does not read, fell at the review) (developpeur);
 //   - `ecarts` (`sujet`, `texte`): the body of the commit message, written by the circuit, each
 //     subject once, its value from the last sheet that carries it (developpeur, reviewer);
 //   - `decouvertes` (`sujet`, `corps`): each one a ticket filed closed under the ticket, labelled
@@ -248,6 +253,17 @@ const FICHES = {
         ['role'],
         'Le rouge qui reste est dans les tests du lot : le circuit relance le testwriter.'
       ),
+      hors_plan: liste(
+        objet(
+          {
+            critere: texte('Le numéro du critère du ticket, « 10 ».'),
+            paquet: texte('Le paquet hors du plan qui le porterait, comme le titre le nomme.'),
+            piece: piece('Sa pièce'),
+          },
+          ['critere', 'paquet', 'piece']
+        ),
+        'Chaque critère du ticket que tu ne tiens pas parce qu’il demande un paquet hors du plan ; le circuit monte au superviseur, qui étend le plan ou amende le critère.'
+      ),
       ...ECARTS,
       ...DECOUVERTES,
     },
@@ -472,10 +488,11 @@ export function lirePiece(texte) {
 }
 
 // The pieces of the sheet <f>, each `[son chemin, son texte]`: of the stop it carries (a status,
-// a reviewer's question), of its findings, of its lines of conformity, of its questions.
+// a reviewer's question), of its findings, of its lines of conformity, of its questions, of its
+// criteria out of the plan.
 const piecesDe = f => [
   ...('piece' in f ? [['piece', f.piece]] : []),
-  ...['constats', 'conformite', 'questions'].flatMap(k =>
+  ...['constats', 'conformite', 'questions', 'hors_plan'].flatMap(k =>
     (f[k] ?? []).map((x, i) => [`${k}[${i}].piece`, x.piece]).filter(([, p]) => p !== undefined)
   ),
 ];
@@ -504,7 +521,7 @@ function introuvables(f, copie) {
 }
 
 // What a sheet of <role> needs beyond its schema: the reason of a BLOQUÉ, the question of a
-// BESOIN, the packages of a plan and the number of each answer, the questions of a QUESTIONS, the text of a
+// BESOIN, the number of each criterion out of the plan, the packages of a plan and the number of each answer, the questions of a QUESTIONS, the text of a
 // DÉSACCORD, the criterion or rule of a blocking finding, the reference of the rule each line of
 // a reviewer's conformity cites in its document and the recipient of a « non », and a reviewer's verdict that follows its blocking findings, its « non » among them
 // (RENDU with one, ACCEPTÉ without), the piece of a BLOQUÉ, a BESOIN and a reviewer's question,
@@ -550,6 +567,11 @@ function manques(role, f) {
     }
     if (f.verdict === 'ACCEPTÉ' && bloque) {
       out.push('verdict : ACCEPTÉ avec un constat bloquant, qui rend le lot');
+    }
+  }
+  for (const [i, h] of (f.hors_plan ?? []).entries()) {
+    if (!/^[1-9]\d*$/.test(h.critere)) {
+      out.push(`hors_plan[${i}].critere : « ${h.critere} » n'est pas le numéro d'un critère`);
     }
   }
   if (role === 'explorateur') {

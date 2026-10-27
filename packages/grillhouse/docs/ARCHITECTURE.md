@@ -65,6 +65,15 @@ commande du circuit (`--reprendre`, `--depuis`, `--etendre <paquet>`, `--arreter
 séance ne juge un geste qu'une règle tranche (BP 320.9 : 67 séances d'arbitrage et de réponse
 au plan, 14 montées qui étaient des gestes).
 
+**Un critère non tenu n'est jamais fait** : comme un contrôle obligatoire d'une intégration
+continue bloque la fusion d'un changement qui ne le passe pas, la fiche du développeur nomme
+chaque critère qu'il ne tient pas faute d'un paquet hors du plan (`hors_plan` : son numéro, ce
+paquet, sa pièce) ; une fiche FAIT qui en porte un arrête le circuit à 3 Code (`hors-portee`), la
+question nommant chaque critère et son paquet, et le superviseur étend le plan (`--etendre
+<paquet>`) ou amende le critère puis `--reprendre`. Ainsi un critère manquant monte avant les
+passes finales (BP 320.17 : « critère 10 hors plan, non fait » dans trois passations, que le
+circuit ne lit pas, tombé à la relecture après 25 min de passes finales).
+
 **La régénération d'office** : comme les genrules de Bazel et `--update-snapshots`, un fichier
 engendré se réécrit par sa commande, puis le circuit rejoue seulement ce qui en dépend. Une passe
 finale dont un rouge est celui d'une référence, mêlé ou non à d'autres, régénère les références

@@ -153,7 +153,11 @@
 //   handover as its report, with no session more; so does BLOQUÉ (its `raison`), at
 //   « hors-portee », save for a developpeur whose sheet sends the red to the testwriter (`renvoi`,
 //   below), which is that sending. Either stop goes up to the supervisor, the sheet's `piece` as
-//   its piece.
+//   its piece. A developpeur's FAIT that names criteria it does not hold out of the plan
+//   (`hors_plan`) stops at « hors-portee » too, at 3 Code, as a required check keeps a merge from
+//   a change that does not pass it: the question names each criterion and its package, the
+//   supervisor answers `--etendre <paquet>`, or amends the criterion and `--reprendre` (BP 320.17:
+//   « critère 10 hors plan, non fait » in three handovers fell at the review).
 // - A plan that carries no test (sansTests: in a repository of packages, no package with a script
 //   `test:vitest` lies in a path of the plan or holds it, as `npm test -- <chemin>` refuses a path
 //   out of every package or in a package without that script) skips the testwriter and the proof:
@@ -465,7 +469,7 @@
 //   them), 16 relecture-arret (a finding without a valid agent, one on a criterion, the third
 //   RENDU), 17 integration (the integration script refuses the lot, or the queue reopens the
 //   ticket), 19 hors-portee (a testwriter or developpeur whose sheet says BLOQUÉ, without a
-//   sending to the testwriter), 20 besoin (a testwriter or developpeur whose sheet says BESOIN, a
+//   sending to the testwriter, or a developpeur's FAIT with criteria out of the plan), 20 besoin (a testwriter or developpeur whose sheet says BESOIN, a
 //   reviewer whose sheet carries a `question`, or a ticket labelled `arbitrage` whose arbitrage
 //   `refusArbitrage` of scripts/integration/integrer.mjs refuses, at the launch or a resumption,
 //   before any session), 22 questionnement (questions of the plan left open
@@ -1932,6 +1936,25 @@ function arretDuStatut(ctx, role, tentative, fiche) {
       );
 }
 
+// The stop « hors-portee » for the developpeur's sheet FAIT <fiche> of the session <tentative>
+// that does not hold criteria out of the plan (`hors_plan`), as a required check keeps a merge
+// from a change that does not pass it: each criterion and its package in the fact and in the
+// question, the answers `--etendre <paquet>` or the criterion amended and `--reprendre`; their
+// pieces as its piece, the handover after them.
+function arretHorsDuPlan(ctx, tentative, fiche) {
+  const criteres = fiche.hors_plan.map(h => `critère ${h.critere} (${h.paquet})`).join(', ');
+  const paquets = [...new Set(fiche.hors_plan.map(h => h.paquet))].join(',');
+  const passation = derniereDe(ctx, 'developpeur')?.text ?? 'aucune';
+  return new Arret(
+    'hors-portee',
+    `Le développeur dit FAIT sans tenir, hors du plan, ${criteres} (séance ${tentative}).\n\nSa passation :\n\n${passation}`,
+    {
+      piece: fiche.hors_plan.map(h => h.piece).join('\n'),
+      question: `Le développeur ne tient pas, hors du plan, ${criteres} : le plan s'étend (\`--etendre ${paquets}\`), ou le critère s'amende au ticket, puis \`--reprendre\`.`,
+    }
+  );
+}
+
 // The sending to the testwriter in the developpeur's sheet <fiche> (its `renvoi`): what the
 // testwriter receives, the sending, then the developpeur's handover; null without a sending.
 function renvoiDe(ctx, fiche) {
@@ -2991,6 +3014,7 @@ async function derouler(ctx, debut) {
         if (fiche.statut === 'BLOQUÉ') {
           throw arretDuStatut(ctx, 'developpeur', tentative, fiche);
         }
+        if (fiche.hors_plan?.length) throw arretHorsDuPlan(ctx, tentative, fiche);
         const inchangee = empreinte(ctx) === avant;
         if (inchangee && reprend && livre(ctx)) {
           // A resumed developpeur that finds the lot delivered: the checks judge it.

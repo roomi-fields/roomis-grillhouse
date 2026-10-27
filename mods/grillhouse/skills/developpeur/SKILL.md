@@ -156,6 +156,11 @@ son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
     `renvoi`, c'est le renvoi au testwriter ; sans lui, le circuit s'arrête (`hors-portee`) ;
   - `statut` BESOIN, avec sa `question` : une réponse te manque pour avancer ; le circuit
     s'arrête (`besoin`) ;
+  - `hors_plan` : chaque critère du ticket que tu ne tiens pas parce qu'il demande un paquet hors
+    du plan, avec son numéro (`critere`), ce `paquet` et sa `piece` ; tu le remplis dès qu'un
+    critère reste non tenu pour cette raison, même quand ta fiche dit FAIT sur le reste ; le
+    circuit s'arrête alors à 3 Code (`hors-portee`), et le superviseur étend le plan ou amende le
+    critère. Une passation qui dit « hors plan, non fait » ne suffit pas : le circuit ne la lit pas ;
   - `ecarts` : ce que le message de commit nomme, chacun sous son `sujet` (ce qui s'écarte :
     une référence, un test, un plafond), avec son `texte` ;
   - `decouvertes` : ce que le circuit consigne fermé sous le ticket.

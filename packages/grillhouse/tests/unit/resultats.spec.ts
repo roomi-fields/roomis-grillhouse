@@ -51,9 +51,18 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
     );
     expect((schemaDeFiche('testwriter') as Schema).required).toEqual(['statut']);
   });
-  it('the developpeur: its status, its sending to a testwriter, the deviations to name at the commit, its discoveries', () => {
+  it('the developpeur: its status, its sending to a testwriter, the criteria it does not hold out of the plan, the deviations to name at the commit, its discoveries', () => {
     expect(champs('developpeur')).toEqual(
-      ['decouvertes', 'ecarts', 'piece', 'question', 'raison', 'renvoi', 'statut'].sort()
+      [
+        'decouvertes',
+        'ecarts',
+        'hors_plan',
+        'piece',
+        'question',
+        'raison',
+        'renvoi',
+        'statut',
+      ].sort()
     );
   });
   it('the reviewer: its verdict, its line of conformity per element of the lot, its findings, the findings before it judged (a bounded review), the deviations, its question for the owner, its discoveries', () => {
@@ -642,6 +651,51 @@ describe('the piece of each fact a sheet carries', () => {
         { copie }
       ).erreur
     ).toMatch(/questions\[0\]\.piece : packages\/a\/src\/z\.ts:1 introuvable/);
+  });
+});
+
+// grillhouse-0yu.1, witness BPScript 320.17: a developpeur said FAIT three times, his handover
+// naming « critère 10 hors plan, non fait »; the circuit does not read a handover, and the
+// criterion fell at the review, after the final passes.
+describe('the criteria a developpeur does not hold out of the plan (0yu.1)', () => {
+  const copie = mkdtempSync(path.join(ESSAIS, 'copie-hors-plan-'));
+  mkdirSync(path.join(copie, 'packages/a/src'), { recursive: true });
+  writeFileSync(path.join(copie, 'packages/a/src/x.ts'), 'un\ndeux\n');
+  const fait = (horsPlan: unknown) => ({ statut: 'FAIT', hors_plan: horsPlan });
+  const un = {
+    critere: '10',
+    paquet: 'packages/b',
+    piece: 'packages/a/src/x.ts:2 appelle la garde de packages/b.',
+  };
+
+  it('critère 1 — each one carries its number, the package out of the plan that would hold it, and its piece', () => {
+    type Liste = { items: { required: string[]; properties: Record<string, unknown> } };
+    const champ = (schemaDeFiche('developpeur') as Schema).properties.hors_plan as Liste;
+    expect(Object.keys(champ.items.properties).sort()).toEqual(['critere', 'paquet', 'piece']);
+    expect([...champ.items.required].sort()).toEqual(['critere', 'paquet', 'piece']);
+    expect(lireFiche('developpeur', sortie(fait([un])), { copie }).fiche).toMatchObject({
+      hors_plan: [un],
+    });
+    for (const k of ['critere', 'paquet', 'piece']) {
+      const sans = Object.fromEntries(Object.entries(un).filter(([c]) => c !== k));
+      expect(lireFiche('developpeur', sortie(fait([sans]))).erreur, k).toMatch(
+        new RegExp(`hors_plan\\[0\\]\\.${k} : manque`)
+      );
+    }
+  });
+
+  it('critère 1 — its number is a number of a criterion, its piece a piece found in the copy', () => {
+    expect(lireFiche('developpeur', sortie(fait([{ ...un, critere: 'dix' }]))).erreur).toMatch(
+      /hors_plan\[0\]\.critere : « dix » n'est pas le numéro d'un critère/
+    );
+    expect(
+      lireFiche('developpeur', sortie(fait([{ ...un, piece: 'voir le code' }]))).erreur
+    ).toMatch(/hors_plan\[0\]\.piece : « voir le code » n'est pas une pièce/);
+    expect(
+      lireFiche('developpeur', sortie(fait([{ ...un, piece: 'packages/a/src/x.ts:9' }])), {
+        copie,
+      }).erreur
+    ).toMatch(/hors_plan\[0\]\.piece : packages\/a\/src\/x\.ts:9 introuvable/);
   });
 });
 
