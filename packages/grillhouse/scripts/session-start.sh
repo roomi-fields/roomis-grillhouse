@@ -167,9 +167,32 @@ if [ -f "$root/package.json" ]; then
 fi
 
 # Once the architecture is written, the night (the full pass played for real, the night tests and
-# the time budget benches) needs its line in the crontab.
-if [ -f "$root/docs/ARCHITECTURE.md" ] && ! crontab -l 2>/dev/null | grep -qF "cd $root && node_modules/.bin/grillhouse nuit"; then
-  nuit="0 3 * * * cd $root && node_modules/.bin/grillhouse nuit"
+# the time budget benches) needs its line in the crontab. Under the crontab, `#!/usr/bin/env node`
+# does not find a Node that nvm installed: the line sets the directory of the Node this script
+# runs. A line of the crontab is the night's when it runs `cd <root> && node_modules/.bin/grillhouse
+# nuit` and sets `PATH=<that directory>:`. A line that launches a nuit.sh under the root, absent
+# (the frame's script before the package, 0.24.0; a relative path after `cd <root>`), is named
+# with the line that replaces it, as brew doctor names a configuration that aims at a missing path.
+nuit_absente=
+if [ -f "$root/docs/ARCHITECTURE.md" ]; then
+  noeud="$(dirname "$(command -v node)")"
+  table="$(crontab -l 2>/dev/null | grep -v '^[[:space:]]*#')"
+  if ! printf '%s\n' "$table" | grep -F "cd $root && node_modules/.bin/grillhouse nuit" | grep -qF "PATH=$noeud:"; then
+    nuit="0 3 * * * export PATH=$noeud:\$PATH; cd $root && node_modules/.bin/grillhouse nuit"
+    while IFS= read -r ligne; do
+      read -ra mots <<< "$ligne"
+      for mot in "${mots[@]}"; do
+        mot="${mot%%[;&|]*}"
+        case "$mot" in
+          "$root"/*nuit.sh) chemin="$mot" ;;
+          /*) continue ;;
+          *nuit.sh) [[ "$ligne" == *"cd $root "* ]] || continue; chemin="$root/$mot" ;;
+          *) continue ;;
+        esac
+        [ -f "$chemin" ] || nuit_absente+="${nuit_absente:+ ; }lance $chemin, absent, par \`$ligne\`"
+      done
+    done <<< "$table"
+  fi
 fi
 
 # An epic is a chantier, at the root: one with a mother is a mother ticket typed by mistake.
@@ -189,7 +212,9 @@ fi
 if [ ${#wiring[@]} -gt 0 ]; then
   echo "À brancher : $(IFS=' '; echo "${wiring[*]}") dans le package.json de la racine. L'intégration (\`npx grillhouse integrer\`, contrat en tête de son script) et la nuit lancent \`npm run verifier\` (Turborepo, \`turbo.json\` : construction, puis gardes et tests), les agents \`npm test\` ; sans eux, l'intégration refuse chaque lot. Un projet testé par Vitest les reçoit de \`npm run grillhouse:maj\`, qui finit par \`npm run verifier\`, une passe longue : lance-la en tâche de fond et relis son code à la fin ; sinon, écris-les pour ses tests."
 fi
-if [ -n "${nuit:-}" ]; then
+if [ -n "$nuit_absente" ]; then
+  echo "La nuit ne tourne plus : la table des tâches du poste $nuit_absente. Propose au responsable de remplacer cette ligne (\`crontab -e\`) par : \`$nuit\`."
+elif [ -n "${nuit:-}" ]; then
   echo "La nuit n'est pas programmée : elle rejoue pour de vrai la passe complète, puis les tests de nuit et les bancs de budget, que le jour ne joue pas (\`npx grillhouse nuit\`). Propose au responsable d'ajouter à la table des tâches du poste (\`crontab -e\`) : \`$nuit\`."
 fi
 if [ -n "$epopees" ]; then

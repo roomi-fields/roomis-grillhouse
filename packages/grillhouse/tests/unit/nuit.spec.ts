@@ -58,8 +58,8 @@ function monde({ prefixe = 'demo', numero = '12' } = {}) {
   git('init', '-q', '-b', 'main');
   git('add', '.');
   git('commit', '-qm', 'base');
-  const nuit = () =>
-    spawnSync('bash', [path.join(repo, 'scripts/nuit.sh')], {
+  const nuit = (...args: string[]) =>
+    spawnSync('bash', [path.join(repo, 'scripts/nuit.sh'), ...args], {
       cwd: repo,
       encoding: 'utf8',
       env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
@@ -68,6 +68,36 @@ function monde({ prefixe = 'demo', numero = '12' } = {}) {
   const lire = (f: string) => (existsSync(f) ? readFileSync(f, 'utf8') : '');
   return { repo, bin, git, nuit, commun, appels: () => lire(appels), lire };
 }
+
+// grillhouse-w47.1 critère 3: on BPScript (2026-10-27), `grillhouse nuit --help` launched the
+// night; as a GNU command, it answers --help by its usage and refuses an unknown argument (2).
+describe('w47.1 critère 3 — the entry of the night reads its arguments', () => {
+  const rienDeLance = (m: ReturnType<typeof monde>) => {
+    expect(existsSync(m.commun)).toBe(false);
+    expect(existsSync(path.join(m.repo, '.claude/worktrees/nuit'))).toBe(false);
+    expect(m.appels()).toBe('');
+  };
+  it('--help and -h print the usage on the output, exit 0, and launch no night', () => {
+    for (const option of ['--help', '-h']) {
+      const m = monde();
+      const r = m.nuit(option);
+      expect(r.status, r.stderr).toBe(0);
+      expect(r.stdout).toMatch(/^Usage : grillhouse nuit$/m);
+      expect(r.stdout).toContain('--help');
+      rienDeLance(m);
+    }
+  });
+  it('an unknown argument is refused, exit 2, naming it, and launches no night', () => {
+    for (const args of [['--tout'], ['demain'], ['--help', 'demain']]) {
+      const m = monde();
+      const r = m.nuit(...args);
+      expect(r.status).toBe(2);
+      expect(r.stderr).toContain(`argument inconnu : ${args.at(-1)}`);
+      expect(r.stderr).toMatch(/^Usage : grillhouse nuit$/m);
+      rienDeLance(m);
+    }
+  });
+});
 
 describe('the night', () => {
   it('marks a green HEAD as the last green, and opens nothing', () => {

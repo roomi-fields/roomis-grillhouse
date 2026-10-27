@@ -434,6 +434,7 @@ describe('the session start asks for the scripts of the tests and the line of th
   const bin = mkdtempSync(path.join(racine, 'bin-tests-'));
   stub(bin, 'bd', 'echo "[]"');
   stub(bin, 'claude', 'echo "[]"');
+  symlinkSync(process.execPath, path.join(bin, 'node'));
   const PATH = `${bin}:${process.env.PATH ?? ''}`;
   // The output for a project holding <scripts> and <grillhouse>, its architecture written when
   // <architecture>; the crontab answers <table> (none when null).
@@ -484,17 +485,79 @@ describe('the session start asks for the scripts of the tests and the line of th
     const { texte } = sortie(TESTS, { architecture: true });
     expect(texte).not.toMatch(/lusParLesSuites|grillhouse\.integration|« complet »|impactes/);
   });
-  it('the architecture written and the crontab without the night: the night line is proposed', () => {
+  // grillhouse-w47.1 critère 2: under the crontab, `#!/usr/bin/env node` does not find a Node
+  // installed by nvm; the line carries the directory of the Node the session start runs, here the
+  // stand-in bin, where `node` is linked.
+  const ligneDeNuit = (dir: string) =>
+    `0 3 * * * export PATH=${bin}:$PATH; cd ${dir} && node_modules/.bin/grillhouse nuit`;
+  it('w47.1 critère 2: the night line proposed carries the directory of the Node of the session start', () => {
     const { texte, dir } = sortie(TESTS, { architecture: true });
     expect(texte).toContain("La nuit n'est pas programmée");
-    expect(texte).toContain(`0 3 * * * cd ${dir} && node_modules/.bin/grillhouse nuit`);
+    expect(texte).toContain(`\`${ligneDeNuit(dir)}\``);
   });
-  it('the crontab already holding the night: no proposal', () => {
+  it('w47.1 critère 2: the crontab holding the line proposed: no proposal', () => {
+    const { texte } = sortie(TESTS, { architecture: true, table: ligneDeNuit });
+    expect(texte).not.toContain("La nuit n'est pas programmée");
+    expect(texte).not.toContain('La nuit ne tourne plus');
+  });
+  it("w47.1 critère 2: a line that sets Node's directory in its own words is programmed too", () => {
     const { texte } = sortie(TESTS, {
+      architecture: true,
+      table: dir =>
+        `0 6 * * * export PATH=${bin}:/usr/bin:/bin; cd ${dir} && node_modules/.bin/grillhouse nuit # nuit`,
+    });
+    expect(texte).not.toContain("La nuit n'est pas programmée");
+  });
+  it("w47.1 critère 2: the former line, without Node's directory, is not programmed", () => {
+    const { texte, dir } = sortie(TESTS, {
       architecture: true,
       table: dir => `0 3 * * * cd ${dir} && node_modules/.bin/grillhouse nuit`,
     });
+    expect(texte).toContain("La nuit n'est pas programmée");
+    expect(texte).toContain(ligneDeNuit(dir));
+  });
+  // grillhouse-w47.1 critère 1: BPScript's crontab launched `bash <root>/scripts/nuit.sh`, absent
+  // since the frame became a package (0.24.0); MAILTO="" kept the failure silent from 2026-10-25.
+  it('w47.1 critère 1: a line that launches an absent nuit.sh under the root: the night runs no more', () => {
+    const ancienne = (dir: string) => `0 6 * * * bash ${dir}/scripts/nuit.sh`;
+    const { texte, dir } = sortie(TESTS, { architecture: true, table: ancienne });
+    const ligne = texte.split('\n').find(l => l.startsWith('La nuit ne tourne plus')) ?? '';
+    expect(ligne).toContain(`\`${ancienne(dir)}\``);
+    expect(ligne).toContain(`${dir}/scripts/nuit.sh`);
+    expect(ligne).toContain(`\`${ligneDeNuit(dir)}\``);
     expect(texte).not.toContain("La nuit n'est pas programmée");
+  });
+  it('w47.1 critère 1: a relative nuit.sh after a cd to the root, absent, is named too', () => {
+    const ancienne = (dir: string) => `0 3 * * * cd ${dir} && bash scripts/nuit.sh`;
+    const { texte, dir } = sortie(TESTS, { architecture: true, table: ancienne });
+    const ligne = texte.split('\n').find(l => l.startsWith('La nuit ne tourne plus')) ?? '';
+    expect(ligne).toContain(`\`${ancienne(dir)}\``);
+    expect(ligne).toContain(`\`${ligneDeNuit(dir)}\``);
+  });
+  it('w47.1 critère 1: a nuit.sh that exists, or that of another project, is not named', () => {
+    const { texte } = sortie(TESTS, {
+      architecture: true,
+      table: dir => {
+        mkdirSync(path.join(dir, 'scripts'));
+        writeFileSync(path.join(dir, 'scripts/nuit.sh'), '#!/usr/bin/env bash\n');
+        return `0 6 * * * bash ${dir}/scripts/nuit.sh\n0 4 * * * bash ${racine}/autre/scripts/nuit.sh`;
+      },
+    });
+    expect(texte).not.toContain('La nuit ne tourne plus');
+  });
+  // grillhouse-w47.1 critère 4: the grill writes the line of the night as the session start
+  // proposes it.
+  it('w47.1 critère 4: the skill grill writes the night line in the form of the session start', () => {
+    const { texte, dir } = sortie(TESTS, { architecture: true });
+    const proposee = ligneDeNuit(dir);
+    expect(texte).toContain(proposee);
+    const gabarit = proposee.replace(bin, '<dossier de Node>').replace(dir, '<racine>');
+    const grill = readFileSync(
+      path.resolve(__dirname, '../../../../mods/grillhouse/skills/grill/SKILL.md'),
+      'utf8'
+    );
+    expect(grill).toContain(`\`${gabarit}\``);
+    expect(grill).not.toMatch(/scripts\/nuit\.sh/);
   });
   it('without the architecture written, the night is not proposed yet', () => {
     expect(sortie(TESTS).texte).not.toContain("La nuit n'est pas programmée");

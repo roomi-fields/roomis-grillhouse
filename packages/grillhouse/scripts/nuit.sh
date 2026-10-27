@@ -5,8 +5,12 @@
 # to the files changed since the last green (scripts/integration/integrer.mjs,
 # scripts/dernier-vert.mjs).
 #
-#   npx grillhouse nuit        from the root of the project, by the crontab of the machine, e.g.
-#                              « 0 3 * * * cd <root> && node_modules/.bin/grillhouse nuit »
+#   npx grillhouse nuit        from the root of the project, by the crontab of the machine, as the
+#                              session start proposes it, with the directory of its Node, e.g.
+#                              « 0 3 * * * export PATH=<node dir>:$PATH; cd <root> &&
+#                              node_modules/.bin/grillhouse nuit »
+#   npx grillhouse nuit --help the usage on the output (also -h), exit 0; any other argument is
+#                              refused, the usage on the error stream, exit 2: nothing runs.
 #
 # - It plays main's HEAD in its own clean copy (.claude/worktrees/nuit): detached, every untracked
 #   file removed, its submodules set at the commit of HEAD (scripts/sous-modules.sh, a local
@@ -70,6 +74,27 @@
 #   `git bisect start <head> <last green> && git bisect run npx turbo run <task> --filter=<package>`
 #   (`--filter=//` for the root), Turborepo's hash replaying at each step only what changed.
 set -u
+usage() {
+  echo "Usage : grillhouse nuit"
+  echo "La nuit : la passe complète jouée pour de vrai, puis les tests de nuit et les bancs de budget,"
+  echo "sur le HEAD de main, dans sa copie (.claude/worktrees/nuit). Se lance depuis la racine du projet."
+  echo "Options :"
+  echo "  -h, --help  affiche cette aide, sans lancer la nuit"
+}
+for argument in "$@"; do
+  case "$argument" in
+    -h | --help) ;;
+    *)
+      echo "⛔ grillhouse nuit : argument inconnu : $argument" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+if [ $# -gt 0 ]; then
+  usage
+  exit 0
+fi
 # The project is the working directory; the frame's scripts are this one's neighbours.
 racine="$PWD"
 ici="$(cd "$(dirname "$0")" && pwd)"
