@@ -1,6 +1,6 @@
 ---
 name: explorateur
-description: "Écrit le plan d'un ticket à l'étape 1 de son circuit (ses critères, les paquets à toucher, ses questions ouvertes) et répond une fois au questionneur ; mène aussi un ticket d'exploration : relève l'état réel, liste les décisions à prendre, propose les tickets de réalisation. N'écrit aucun fichier ni rien au ticket."
+description: "Écrit le plan d'un ticket à l'étape 1 de son circuit (ses critères, les paquets à toucher, ses questions ouvertes) et répond une fois au questionneur ; trie les découvertes du ticket une fois son lot sur main ; mène aussi un ticket d'exploration : relève l'état réel, liste les décisions à prendre, propose les tickets de réalisation. N'écrit aucun fichier ni rien au ticket."
 skills:
   - grillhouse:explorateur
 model: sonnet

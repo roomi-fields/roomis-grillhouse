@@ -615,6 +615,73 @@ describe('the wait for the supervisor and the sessions the circuit launches', ()
   });
 });
 
+// grillhouse-0yu.5, critère 7: the tri of the discoveries after the queue, the explorateur's
+// session out of the envelope, counted with its verdicts; a tri without a sheet that conforms said
+// so. Witness: BPScript 320.17, 9 discoveries filed closed, one real defect among them.
+describe('the tri of the discoveries', () => {
+  const lignes = [
+    seance('explorateur', 'p1', [[0, 2]]),
+    seance('testwriter', 't1', [[2, 5]]),
+    etape('file', 6, 8),
+    seance('explorateur', 'x1', [[8, 11]], { cout: 0.3 }),
+  ];
+  const lancees = lignes.map((l, i) => ({
+    date: iso(l.tours[0][0]),
+    role: 'circuit',
+    lancement: { role: l.role, seance: l.agent, ...(i === 3 ? { objet: 'tri' } : {}) },
+  }));
+  const tri = (resultat: object) => ({
+    date: quand(11, 1),
+    role: 'circuit',
+    etape: 'tri',
+    tri: resultat,
+  });
+  // The bilan with the tri's result <resultat>; without one, no session of the tri either.
+  const de = (resultat: object | null) =>
+    bilan({
+      ticket: TICKET,
+      lignes: resultat ? lignes : lignes.slice(0, 3),
+      entrees: [
+        ...(resultat ? lancees : lancees.slice(0, 3)),
+        fiche(2, 0, 'explorateur', { criteres: [], paquets: ['a'], questions: [] }),
+        fiche(5, 0, 'testwriter'),
+        ...(resultat ? [tri(resultat)] : []),
+      ],
+      etat: { etape: 'integre' },
+    }) as Bilan & { tri: unknown };
+
+  it('critère 7 — counts the session of the tri, its discoveries and its verdicts by kind', () => {
+    const b = de({
+      decouvertes: 3,
+      conforme: true,
+      verdicts: { 'a-porter': 1, 'sans-suite': 2 },
+    });
+    expect(b.tri).toEqual({
+      seances: 1,
+      decouvertes: 3,
+      conforme: true,
+      verdicts: { 'a-porter': 1, 'sans-suite': 2 },
+    });
+    expect(b.seances.parRole).toEqual({ explorateur: 2, testwriter: 1 });
+    expect(texteDuBilan(b, null).split('\n')).toContain(
+      '- tri des découvertes : 1 séance, 3 découvertes (1 a-porter, 2 sans-suite)'
+    );
+  });
+
+  it('critère 7 — a tri without a sheet that conforms says its discoveries stay as they are', () => {
+    const b = de({ decouvertes: 2, conforme: false, verdicts: {} });
+    expect(texteDuBilan(b, null).split('\n')).toContain(
+      '- tri des découvertes : 1 séance, 2 découvertes, sans fiche conforme : laissées telles quelles'
+    );
+  });
+
+  it('critère 1 — a ticket without discovery has no tri, and its bilan no line of it', () => {
+    const b = de(null);
+    expect(b.tri).toBeNull();
+    expect(texteDuBilan(b, null)).not.toMatch(/tri des découvertes/);
+  });
+});
+
 describe('what the bilan reads of the register', () => {
   // grillhouse-3uv.95.5: the explorateur is a role of the circuit, at its plan; one the supervisor
   // launched on the ticket before the circuit counts apart, as any session the circuit did not launch.

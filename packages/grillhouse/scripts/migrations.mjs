@@ -29,6 +29,7 @@ import * as apiExtractorDuPaquet from './migrations/0.24.2-api-extractor-du-paqu
 import * as nomsDeclaresInutilises from './migrations/0.24.4-noms-declares-inutilises.mjs';
 import * as lignesMalFormees from './migrations/0.24.6-lignes-mal-formees.mjs';
 import * as matiereDansLesTests from './migrations/0.24.7-matiere-dans-les-tests.mjs';
+import * as triDesDecouvertes from './migrations/0.24.12-tri-des-decouvertes.mjs';
 
 /** The migrations of the package. */
 export const MIGRATIONS = [
@@ -42,6 +43,7 @@ export const MIGRATIONS = [
   nomsDeclaresInutilises,
   lignesMalFormees,
   matiereDansLesTests,
+  triDesDecouvertes,
 ];
 
 /**

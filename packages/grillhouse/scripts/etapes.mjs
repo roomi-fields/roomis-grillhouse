@@ -12,6 +12,9 @@
 //   testwriter (2) and one of the developpeur (3) carry the whole plan.
 //   The plan (1) is read elsewhere in the state: by the work on the plan under way
 //   (`questionnement`, the explorateur's or the questionneur's session) and by its stop (`arrets`).
+//   The tri of the discoveries (5.3) is the explorateur's too, once the queue has brought the lot
+//   onto main, as Chromium and Mozilla give each new report a verdict before it is filed; the
+//   role's own step stays the plan (`etapeDuRole`).
 //   SUITE is the tree in its order, each step before its sub-steps.
 // - A step carries as many bounded loops as it needs (`boucles`), each spanning the step and its
 //   sub-steps: each its key (`cle`, which keys its count in the state's `boucles`), its label and
@@ -29,6 +32,11 @@ import { A_REPASSER } from './vitest-config/pression.mjs';
 
 // Who works at a step the circuit leads itself, with no agent.
 export const AUTO = 'auto';
+
+// The role that writes the plan and answers its questions once, and sorts the discoveries of the
+// ticket once its lot is on main; the role that questions the plan.
+export const EXPLORATEUR = 'explorateur';
+export const QUESTIONNEUR = 'questionneur';
 
 export const ETAPES = [
   {
@@ -86,6 +94,8 @@ export const ETAPES = [
     sous: [
       { numero: '5.1', titre: 'Commit', qui: [AUTO], etat: 'integration' },
       { numero: '5.2', titre: 'File : main, poussée, CI', qui: [AUTO], etat: 'file' },
+      // The tri of the discoveries of the ticket, on the lot entered on main (grillhouse-0yu.5).
+      { numero: '5.3', titre: 'Tri des découvertes', qui: [EXPLORATEUR], etat: 'tri' },
     ],
   },
 ];
@@ -123,10 +133,6 @@ export const ARRETS = {
   'hors-plan': 24,
   'a-repasser': A_REPASSER,
 };
-
-// The role that writes the plan and answers its questions once, and the role that questions it.
-export const EXPLORATEUR = 'explorateur';
-export const QUESTIONNEUR = 'questionneur';
 
 // A role by its agent's name: an agent of the frame's plugin is named bare or scoped by the
 // plugin (`grillhouse:<rôle>`), as Claude Code names a plugin's agents and the register writes

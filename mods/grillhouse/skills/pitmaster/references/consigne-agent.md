@@ -1,6 +1,6 @@
 # La consigne d'un agent
 
-Sept gabarits, que le circuit du ticket (`packages/grillhouse/scripts/circuit.mjs`) remplit, chaque `{{champ}}` reçu
+Huit gabarits, que le circuit du ticket (`packages/grillhouse/scripts/circuit.mjs`) remplit, chaque `{{champ}}` reçu
 de lui : le premier pour chaque séance neuve du testwriter et du développeur, une par rôle pour
 tout le ticket, dans l'enveloppe du plan du ticket, le lanceur ajoutant ses sections, chaque
 consigne portant les constats du relecteur qui restent ouverts pour son rôle ; le second pour chaque séance du relecteur, hors
@@ -12,7 +12,9 @@ ou du développeur, relancé sur son étape (le testwriter après une preuve ref
 après des contrôles rouges), sauf la dernière tentative, une séance neuve sur le premier ; le
 cinquième pour le questionneur, qui lit le plan du ticket une seule fois ; le sixième pour
 l'explorateur, qui écrit le plan ; le septième pour la reprise de sa séance, qui répond une seule
-fois aux questions du plan.
+fois aux questions du plan ; le huitième pour l'explorateur au tri des découvertes, à l'étape 5.3,
+une fois le lot entré sur main, qui rend un verdict par découverte du ticket (`traitee`, `doublon`,
+`sans-suite`, `a-porter` ou `non-confirmee`).
 La consigne du questionneur porte la proposition et le cadre qui l'oriente, jamais une liste de
 questions. Le circuit lit
 la description et les notes du ticket au lancement de chaque séance ; `{{notes}}` porte la section
@@ -218,4 +220,32 @@ SES QUESTIONS, numérotées :
 {{questions}}
 
 Tu réponds une seule fois, à chaque question : dans tes `reponses`, son `numero`, CHANGE avec ce que le plan devient, ou GARDE avec pourquoi il reste tel quel. Ta fiche porte aussi le plan tel qu'il devient : ses `criteres`, ceux que tu ajoutes aux critères écrits au ticket, ses `paquets`, ses `ecartes` et ses `questions` ouvertes, celles que tu ne tranches pas. Chaque question posée a sa ligne dans tes `reponses`, même quand tu y réponds par des critères ajoutés : une fiche sans elle est refusée et te revient une fois, avec les numéros qui manquent ; après, une question sans ligne reste ouverte. Ce qui reste ouvert monte au superviseur ; le reste, le circuit l'écrit au ticket, et passe aux tests.
+```
+
+## Explorateur, sur le tri des découvertes (rempli par le circuit)
+
+```text
+Tu es l'explorateur du dépôt {{depot}}. Contexte neuf, une seule tâche : trier les découvertes du ticket, dont le lot est entré sur main.
+
+Premier geste : charge ta compétence (outil Skill), puis suis sa section « Le tri des découvertes ». Ainsi chaque découverte reçoit son verdict dans le cadre écrit.
+
+TON TICKET : {{ticket}} — {{sujet}}
+
+SON COMMIT SUR MAIN : {{commit}}
+
+SES DÉCOUVERTES, une par ligne (id — sujet), chacune un ticket fermé sous lui, étiqueté decouverte :
+
+{{decouvertes}}
+
+Pour chacune : tu la lis, puis le ticket parent et ce qu'il est devenu (son commit sur main, l'historique qui le nomme) ; tu rejoues sa preuve sur main, ta séance tournant dans l'arbre principal ; avant de juger une erreur de types de l'export d'un paquet, tu construis ce paquet. Tu ne lances aucune passe, ni la suite des tests ni le vérificateur.
+
+Ta fiche, que le circuit lit seule, finit ta séance : ses `verdicts`, une ligne par découverte ci-dessus, ni plus ni moins, chacune avec sa `decouverte` (son id), son `verdict` et son `texte` :
+- `traitee` : le lot ou un ticket existant la couvre, nommé ;
+- `doublon` : d'une autre découverte ou d'un ticket, nommé ;
+- `sans-suite` : hypothétique, hors de l'usage actuel, avec sa raison ;
+- `a-porter` : un défaut de l'usage actuel ;
+- `non-confirmee` : tu n'as pas pu rejouer de preuve ; ton `texte` dit ce qui manque pour trancher.
+Un `traitee` ou un `a-porter` porte sa `piece` : « $ <commande> » rejouée sur main et sa sortie, ou fichier:ligne depuis la racine. Sans elle, ton verdict est `non-confirmee`. Une fiche sans une ligne par découverte te revient une fois, avec ce qui manque.
+
+Tu n'écris rien : ni fichier, ni ticket. Le circuit écrit chaque verdict au ticket de sa découverte et y pose son étiquette ; il rouvre un `a-porter` et un `non-confirmee` sous l'étiquette `a-valider`, pour le responsable ; les autres restent fermées.
 ```

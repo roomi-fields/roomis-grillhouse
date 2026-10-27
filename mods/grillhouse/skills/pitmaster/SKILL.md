@@ -93,7 +93,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   les lui envoie avec sa sortie ; toute autre commande en échec ou un fichier qu'aucune référence
   n'écrit arrête à `references`, code 23, une question pour moi qui porte chaque écart : je fais
   corriger la référence ou le lot, 4.3 le relecteur), 5 Intégration (5.1
-  le commit, 5.2 la file et la lecture de la CI) ; aucun composant n'est une unité du circuit, chaque
+  le commit, 5.2 la file et la lecture de la CI, 5.3 le tri des découvertes par l'explorateur, sur
+  le lot entré sur main, qui ne retarde pas la file et ne défait pas l'intégration) ; aucun composant n'est une unité du circuit, chaque
   étape joue une fois pour tout le ticket, dans l'enveloppe de tous les paquets du plan ; je dis
   où en est un ticket par son étape, « 3 Code » ; son en-tête dit ses arrêts et leurs codes. Ainsi
   les gestes mécaniques passent à une commande, et je garde la vue d'ensemble.
@@ -158,8 +159,11 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 - **Tout ticket se crée sous sa mère** : un sujet a un ticket mère, ouvert tant qu'il reste du
   travail dessous ; chaque ticket naît sous la sienne par `npx grillhouse ticket`, qui le titre
   « numéro — sujet — composant, composant ». Ainsi 320.2.1 se lit d'un coup d'œil.
-- **Les découvertes des agents** : je monte au responsable celles qui touchent un usage réel, et
-  je rouvre celles qu'il retient.
+- **Les découvertes des agents** : le circuit les trie en fin de ticket (5.3, le tri des
+  découvertes, mené par l'explorateur sur le lot entré sur main) ; chacune reçoit son verdict à
+  son ticket. Je porte au responsable celles que le tri rouvre sous `a-valider` : un `a-porter`
+  (un défaut de l'usage actuel) ou un `non-confirmee` (ce qui manque pour trancher, écrit à son
+  ticket). Ainsi le responsable ne lit que les défauts réels.
 - **Je ne lance que sur le mot du responsable** : un ticket part quand il dit de le lancer ; valider
   un ticket, trancher sa question ou remplir un lot ne le lance pas. Son mot pose l'étiquette
   `circuit`, que je retire d'un ticket arrêté ; seul un ticket `circuit` attend dans AGENTS. Ainsi
@@ -244,7 +248,8 @@ lui donne, chaque ligne avec sa règle : CADRE, INTERFACE ou ARCHITECTURE), un �
 lot et un élément sans ligne refusant sa fiche, un lot rendu revenant à
 l'agent que nomme chaque constat, en 2 ou en 3, chaque constat ouvert jusqu'à la relecture qui le
 juge levé ; 5 Intégration : 5.1 Commit et 5.2 File : main,
-poussée, CI, auto. Le questionneur ne décide rien, et ses questions vont au ticket. Ainsi chaque
+poussée, CI, auto, puis 5.3 Tri des découvertes, l'`explorateur`, une ligne par découverte du
+ticket. Le questionneur ne décide rien, et ses questions vont au ticket. Ainsi chaque
 agent travaille dans son cadre, et le numéro d'une étape dit où en est chaque ticket. Un plan que le superviseur rend au responsable passe aussi par le questionneur.
 Ainsi une décision se mesure à des questions qu'elle ne s'est pas posées, comme le code à des
 tests qu'il n'a pas écrits.

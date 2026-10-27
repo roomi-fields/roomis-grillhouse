@@ -382,9 +382,22 @@
 //   to the log (it brings the branch onto main, pushes it and reads the CI of the commit pushed).
 //   A queue already running exits 0 at once: the circuit waits while the branch is in the queue
 //   and the queue's lock names a live process. Then the state of the ticket: closed, the circuit
-//   ends at « integre », exit 0 (the queue's last word at the ticket named with it, a CI it could
-//   not read); reopened (out of the queue, or a red CI), it stops at « integration », the queue's
+//   sorts the discoveries (below), then ends at « integre », exit 0 (the queue's last word at the
+//   ticket named with it, a CI it could not read); reopened (out of the queue, or a red CI), it stops at « integration », the queue's
 //   last word as its reason; still in the queue, it stops at « a-repasser », the queue's reason.
+// - Then the tri of the discoveries (step 5.3, `trier`), as Chromium and Mozilla give each new
+//   report a verdict before it is filed: each discovery a sheet filed is kept with the circuit's
+//   results (`decouverte`: its id, its subject); without one, no session. Else one session of the
+//   explorateur out of the envelope, on Sonnet, in the main tree (the copy is gone), under the
+//   rights of its role (reading, the build of a package, no pass), its instruction from the eighth
+//   template, its sheet the tri's (`tri` of scripts/resultats.mjs): one line per discovery
+//   (`conformiteDuTri`), each with its verdict (traitee, doublon, sans-suite, a-porter,
+//   non-confirmee), the piece of a traitee or an a-porter a command played again on main or
+//   file:line; a sheet out of conformity is asked again once of the same session. Each verdict is
+//   written at its discovery's ticket and set there as a label; an a-porter or a non-confirmee
+//   reopens under `a-valider`. A tri without a sheet that conforms leaves the discoveries as they
+//   are, said at the ticket; it never stops the circuit nor undoes the integration. Its end is kept
+//   with the circuit's results (`tri`), which the bilan counts.
 // - The working directory is the ticket's, `.claude/worktrees/<ticket>.travail`: the instructions,
 //   results and errors of the sessions, the patches and message of the integration. It lives as
 //   long as the ticket, as the workspace of a pipeline: a circuit relaunched takes it up again, no
@@ -399,7 +412,8 @@
 //   on the plan under way (`{ objet, role, seance }`: the plan, the explorateur or the
 //   questionneur, its session), null otherwise; `etape` is the state's name of a numbered step of
 //   the process (scripts/etapes.mjs: testwriter 2, preuve 2.1, developpeur 3, controles 3.1, or 4.1
-//   the final pass once `finale`, references 4.2, relecture 4.3, integration 5.1, file 5.2), or
+//   the final pass once `finale`, references 4.2, relecture 4.3, integration 5.1, file 5.2, tri
+//   5.3), or
 //   integre at the end; `raison` names the stop (« arrete » once the supervisor stopped the
 //   circuit); `question` the question of a stop for the supervisor (`{ arret, fait, piece,
 //   question, qui }`), null otherwise; `paquets` the plan of the ticket, in its order; `constats`
@@ -529,6 +543,7 @@ import {
   A_ELAGUER,
   bloquantsDeLaFiche,
   conformiteDuLot,
+  conformiteDuTri,
   lireFiche,
   lireRapportsVitest,
   lireResumes,
@@ -537,8 +552,10 @@ import {
   reponsesAuxQuestions,
   RESULTATS,
   schemaDeFiche,
+  VERDICTS_DU_TRI,
+  VERDICTS_ROUVERTS,
 } from './resultats.mjs';
-import { AUTEUR_DE_LA_FILE } from './integration/file.mjs';
+import { AUTEUR_DE_LA_FILE, INTEGRE } from './integration/file.mjs';
 import { dossierCommun, lireEntrees } from './integration/file-attente.mjs';
 import { refusArbitrage } from './integration/integrer.mjs';
 import { AUTEUR_DU_VERDICT } from './integration/verdict.mjs';
@@ -569,7 +586,7 @@ const SEANCES_DEVELOPPEUR = boucle('code').max;
 const RELECTURES = boucle('relecture').max;
 // The steps of the circuit's state, read from the list of the steps.
 const etatDe = n => SUITE.find(e => e.numero === n).etat;
-const [TESTS, PREUVE, CODE, CONTROLES, REFERENCES, RELECTURE, INTEGRATION, EN_FILE] = [
+const [TESTS, PREUVE, CODE, CONTROLES, REFERENCES, RELECTURE, INTEGRATION, EN_FILE, TRI] = [
   '2',
   '2.1',
   '3',
@@ -578,6 +595,7 @@ const [TESTS, PREUVE, CODE, CONTROLES, REFERENCES, RELECTURE, INTEGRATION, EN_FI
   '4.3',
   '5.1',
   '5.2',
+  '5.3',
 ].map(etatDe);
 // The variable in which bd reads the author of a comment (`bd --help`: « default: $BEADS_ACTOR,
 // git user.name, $USER »), each session's its role; the author of the circuit's own lines.
@@ -1050,20 +1068,25 @@ const mtime = f => {
 // schema of its role's sheet and the options <session> names (its id, or the session it
 // resumes), its instruction on its standard input and its result on its standard output, added
 // to the log under its header line, then its line written to the register, as lancer.sh does.
-// Its launch is kept with the circuit's results (`lancement`: its role and its session id), which
-// the bilan reads to count the sessions the circuit launched (scripts/bilan.mjs).
+// Its launch is kept with the circuit's results (`lancement`: its role, its session id, and the
+// <objet> of a session that is not its role's own work, `tri`), which the bilan reads to count the
+// sessions the circuit launched (scripts/bilan.mjs). Its sheet is the schema <fiche>, by default
+// its role's.
 function lancer(
   ctx,
   role,
   consigne,
-  { fort, horsEnveloppe, droits = [], session = [], ouvre, reprend } = {}
+  { fort, horsEnveloppe, droits = [], session = [], ouvre, reprend, fiche: sorte, objet } = {}
 ) {
   rmSync(ctx.fin, { force: true });
   rmSync(ctx.resultat, { force: true });
   rmSync(ctx.horsPlan, { force: true });
   const id = ouvre ?? reprend ?? session[1] ?? null;
   if (id) {
-    inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, lancement: { role, seance: id } });
+    inscrire(ctx, {
+      role: AUTEUR_DU_CIRCUIT,
+      lancement: { role, seance: id, ...(objet ? { objet } : {}) },
+    });
   }
   const fichier = path.join(ctx.tmp, `consigne-${++ctx.numero}.md`);
   writeFileSync(fichier, consigne);
@@ -1076,7 +1099,12 @@ function lancer(
   if (horsEnveloppe) {
     entete(ctx, role);
     fds = [openSync(fichier, 'r'), openSync(reponse, 'w'), openSync(ctx.journal, 'a')];
-    const fiche = ['--output-format', 'json', '--json-schema', JSON.stringify(schemaDeFiche(role))];
+    const fiche = [
+      '--output-format',
+      'json',
+      '--json-schema',
+      JSON.stringify(schemaDeFiche(sorte ?? role)),
+    ];
     commande = {
       cmd: process.env.CLAUDE_BIN || 'claude',
       args: ['-p', '--agent', role, ...fiche, ...droits, '--add-dir', ctx.tmp, ...session],
@@ -1202,7 +1230,8 @@ async function attendreLaSeance(ctx, groupe) {
 // The template of the instruction at <rang> (0 the testwriter's and the developpeur's, 1 the
 // reviewer's, 2 any session's on a sheet absent or out of its schema, 3 the testwriter's and the
 // developpeur's on a resumption, 4 the questionneur's on the plan, 5 the explorateur's on the plan,
-// 6 the explorateur's on the questions of the plan), filled with <valeurs>.
+// 6 the explorateur's on the questions of the plan, 7 the explorateur's on the tri of the
+// discoveries), filled with <valeurs>.
 function consigne(valeurs, rang = 0) {
   const texte = readFileSync(GABARIT, 'utf8');
   const bloc = [...texte.matchAll(/```text\n([\s\S]*?)\n```/g)][rang];
@@ -1330,7 +1359,8 @@ function seanceLancee(ctx, role, r) {
 // a motionless session, or twice no sheet that conforms (« sans-fiche »). <avec> joins its fields
 // to the sheet's entry (the lot a review read); <valider>(sheet, attempt) names what makes a sheet
 // out of conformity beyond its schema at that attempt (an unknown package of a plan, an answer
-// without a line for a question put), or null.
+// without a line for a question put, a discovery without its verdict), or null. <fiche> names its
+// sheet's schema when it is not its role's (`tri`), and <objet> its launch (`lancer`).
 async function jusquALaFiche(ctx, role, texte, options = {}) {
   const {
     neuve,
@@ -1357,7 +1387,7 @@ async function jusquALaFiche(ctx, role, texte, options = {}) {
     if (repli && r.seance !== 0) return null;
     lu =
       r.seance === 0
-        ? lireSaFiche(ctx, role, r.sortie)
+        ? lireSaFiche(ctx, reste.fiche ?? role, r.sortie)
         : { erreur: `la séance finit en erreur (code ${r.seance})` };
     const faute = lu.fiche ? valider(lu.fiche, essai) : null;
     if (faute) lu = { erreur: `fiche non conforme : ${faute}` };
@@ -1372,11 +1402,11 @@ async function jusquALaFiche(ctx, role, texte, options = {}) {
   );
 }
 
-// The sheet of <role> in the output <sortie> of its session (`lireFiche`), each file piece of it
-// checked in the ticket's copy, or in the repository before the copy exists, and each piece of
-// the ticket in its description.
-const lireSaFiche = (ctx, role, sortie) =>
-  lireFiche(role, sortie, {
+// The sheet of schema <sorte> (a role's, or the tri's) in the output <sortie> of its session
+// (`lireFiche`), each file piece of it checked in the ticket's copy, or in the main tree before the
+// copy exists and once the integration removed it, and each piece of the ticket in its description.
+const lireSaFiche = (ctx, sorte, sortie) =>
+  lireFiche(sorte, sortie, {
     copie: existsSync(ctx.copie) ? ctx.copie : ctx.racine,
     ticket: leTicket(ctx).description,
   });
@@ -1389,7 +1419,8 @@ function nomDe(ctx, dossier) {
 
 // The sheet <fiche> of <role>, kept with the ticket's sheets, <avec> joined to its entry, each of
 // its discoveries filed closed under the ticket (scripts/ticket.sh, label `decouverte`), its
-// components the packages of the plan; returns it.
+// components the packages of the plan, and kept with the circuit's results (`decouverte`: its id
+// and its subject), which the tri reads; returns it.
 function garder(ctx, role, fiche, avec = {}) {
   inscrire(ctx, { role, fiche, ...avec });
   const composants = ctx.paquets.map(c => nomDe(ctx, c)).join(', ');
@@ -1403,12 +1434,18 @@ function garder(ctx, role, fiche, avec = {}) {
         env: { ...process.env, [ACTEUR]: AUTEUR_DU_CIRCUIT },
       }
     );
-    if (r.status !== 0) {
-      process.stderr.write(`⚠️  découverte « ${d.sujet} » non consignée : ${r.stderr}\n`);
-    }
+    const id = r.status === 0 ? r.stdout.trim().split('\n').at(-1) : '';
+    if (id) inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, decouverte: { id, sujet: d.sujet } });
+    else process.stderr.write(`⚠️  découverte « ${d.sujet} » non consignée : ${r.stderr}\n`);
   }
   return fiche;
 }
+
+// The discoveries the sheets of the ticket filed, `{ id, sujet }`, in their order.
+const decouvertesDuTicket = ctx =>
+  lesFiches(ctx)
+    .filter(e => e.role === AUTEUR_DU_CIRCUIT && e.decouverte)
+    .map(e => e.decouverte);
 
 const lire = f => (existsSync(f) ? readFileSync(f, 'utf8') : '');
 
@@ -2102,6 +2139,145 @@ function fileEnCours(ctx) {
   const verrou = path.join(dossierCommun(ctx.racine), 'file-integration.lock');
   const pid = Number.parseInt(lire(verrou), 10);
   return Number.isInteger(pid) && vivant(pid);
+}
+
+// The tri of the discoveries of the ticket (step 5.3 of scripts/etapes.mjs), once the queue has
+// brought its lot onto main, as Chromium and Mozilla give each new report a verdict before it is
+// filed. Without a discovery, no session. Else one session of the explorateur out of the
+// envelope, on Sonnet, in the main tree, under the rights of its role (reading, the build of a
+// package, no pass), its instruction from the eighth template (the ticket, its commit on main, the
+// one the queue names in the reason it closes the ticket with, `commitIntegre`, its discoveries,
+// one per line), its sheet the tri's (`tri` of scripts/resultats.mjs): one line per discovery
+// (`conformiteDuTri`), asked again once of the same session. Each verdict is written at the ticket
+// of its discovery (`Circuit · tri : <verdict> — <texte> (<piece>)`), its label set there; an
+// a-porter or a non-confirmee reopens under `a-valider`, the pane's list « à valider »; the others
+// stay closed. The line of the tri at the ticket names each writing that failed (the verdict, the
+// label, the reopening), with its error, and counts as reopened only what reopened. A tri that ends
+// without a sheet that conforms leaves the discoveries as
+// they are and says so at the ticket. Either way, its end is kept with the circuit's results
+// (`tri`: the discoveries read, whether its sheet conformed, its verdicts by kind), which the bilan
+// reads, and the working directory the queue removed at the closure, recreated for the session, is
+// removed again.
+async function trier(ctx) {
+  const decouvertes = decouvertesDuTicket(ctx);
+  if (!decouvertes.length) return;
+  const ids = decouvertes.map(d => d.id);
+  const n = `${decouvertes.length} découverte${decouvertes.length > 1 ? 's' : ''}`;
+  // The commit the queue brought onto main for this ticket, not main's last, another ticket's
+  // once several circuits run.
+  const show = ctx.bd('show', ctx.ticket, '--json');
+  const fermeture = show.status === 0 ? (JSON.parse(show.stdout)[0]?.close_reason ?? null) : null;
+  const integre = commitIntegre(fermeture);
+  const commit = integre
+    ? spawnSync('git', ['-C', ctx.racine, 'log', '-1', '--format=%h %s', integre], {
+        encoding: 'utf8',
+      }).stdout.trim()
+    : '';
+  mkdirSync(ctx.tmp, { recursive: true });
+  let fiche = null;
+  let faute = null;
+  try {
+    fiche = await jusquALaFiche(
+      ctx,
+      EXPLORATEUR,
+      consigne(
+        {
+          depot: ctx.racine,
+          ticket: ctx.ticket,
+          sujet: ctx.sujet,
+          commit: commit || 'inconnu',
+          decouvertes: decouvertes.map(d => `- ${d.id} — ${d.sujet}`).join('\n'),
+        },
+        7
+      ),
+      {
+        horsEnveloppe: true,
+        droits: horsDeLEnveloppe(ctx, EXPLORATEUR, 'sonnet'),
+        id: randomUUID(),
+        fiche: 'tri',
+        objet: 'tri',
+        valider: f => conformiteDuTri(f, ids),
+      }
+    );
+  } catch (x) {
+    if (!(x instanceof Arret)) throw x;
+    faute = premiereLigne(x.rapport);
+  } finally {
+    rmSync(ctx.tmp, { recursive: true, force: true });
+  }
+  if (!fiche) {
+    inscrire(ctx, {
+      role: AUTEUR_DU_CIRCUIT,
+      etape: TRI,
+      tri: { decouvertes: ids.length, conforme: false, verdicts: {} },
+    });
+    commenter(
+      ctx,
+      TRI,
+      `le tri ne rend pas de fiche conforme (${faute}) : les ${n} restent telles quelles ; l'intégration tient.`
+    );
+    return;
+  }
+  // Each writing at a discovery's ticket, by its name; one that fails is named at the ticket.
+  const echecs = [];
+  const rouvertes = [];
+  for (const l of fiche.verdicts) {
+    const rouvre = VERDICTS_ROUVERTS.includes(l.verdict);
+    const ecritures = [
+      [
+        'verdict',
+        [
+          'comments',
+          'add',
+          l.decouverte,
+          `${PREFIXE}${TRI} : ${l.verdict} — ${l.texte.trim()}${l.piece ? ` (${l.piece.trim()})` : ''}${rouvre ? ' ; rouverte sous a-valider, pour le responsable.' : ''}`,
+        ],
+      ],
+      [
+        'étiquette',
+        [
+          'update',
+          l.decouverte,
+          '--add-label',
+          l.verdict,
+          ...(rouvre ? ['--add-label', 'a-valider'] : []),
+        ],
+      ],
+      ...(rouvre ? [['réouverture', ['reopen', l.decouverte]]] : []),
+    ];
+    const ratees = ecritures.flatMap(([quoi, args]) => {
+      const r = ctx.bd(...args);
+      return r.status === 0 ? [] : [`${quoi} (${premiereLigne(r.stderr) || `code ${r.status}`})`];
+    });
+    if (ratees.length) echecs.push(`${l.decouverte} : ${ratees.join(', ')}`);
+    if (rouvre && !ratees.some(x => x.startsWith('réouverture'))) rouvertes.push(l.decouverte);
+  }
+  const verdicts = Object.fromEntries(
+    VERDICTS_DU_TRI.map(v => [v, fiche.verdicts.filter(l => l.verdict === v).length]).filter(
+      ([, k]) => k
+    )
+  );
+  inscrire(ctx, {
+    role: AUTEUR_DU_CIRCUIT,
+    etape: TRI,
+    tri: { decouvertes: ids.length, conforme: true, verdicts },
+  });
+  commenter(
+    ctx,
+    TRI,
+    `${n} triée${decouvertes.length > 1 ? 's' : ''} — ${Object.entries(verdicts)
+      .map(([v, k]) => `${k} ${v}`)
+      .join(
+        ', '
+      )} ; ${rouvertes.length ? `rouvertes sous a-valider : ${rouvertes.join(', ')}` : 'aucune rouverte'}${echecs.length ? ` ; écritures en échec : ${echecs.join(' ; ')}` : ''}.`
+  );
+}
+
+// The commit the queue names in the reason of a ticket it closes (`intégré : <commit>`,
+// scripts/integration/file.mjs), or null for another reason.
+export function commitIntegre(raison) {
+  const r = String(raison ?? '');
+  return r.startsWith(INTEGRE) ? r.slice(INTEGRE.length).trim().split(' ')[0] || null : null;
 }
 
 // The type of a conventional commit for the ticket's type in Beads; `feat` for any other.
@@ -3315,14 +3491,19 @@ async function derouler(ctx, debut) {
       } else if (etape === EN_FILE) {
         const f = file(ctx);
         if (f.etat === 'ferme') {
-          ecrireEtat(ctx, { ...etat, etape: 'integre', code: 0 });
           commenter(ctx, 'file', `${f.raison}.`);
-          return { code: 0 };
+          etape = TRI;
+          continue;
         }
         if (f.etat === 'en-file') throw new Arret('a-repasser', f.raison);
         throw new Arret('integration', `La file rouvre le ticket.\n\n${f.raison}`, {
           piece: f.raison,
         });
+      } else if (etape === TRI) {
+        // The lot is on main: the tri of its discoveries, which neither stops nor undoes it.
+        await trier(ctx);
+        ecrireEtat(ctx, { ...etat, etape: 'integre', code: 0 });
+        return { code: 0 };
       } else {
         throw new Usage(`étape inconnue dans l'état : ${etape}`);
       }

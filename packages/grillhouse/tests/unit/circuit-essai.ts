@@ -43,7 +43,8 @@ export const ecrire = (f: string, texte: string, mode?: number) => {
 // its JSON result alone, whatever the scenario prints (on its standard error), the sheet in
 // `structured_output`: the scenario's, else `{"statut":"FAIT"}` for a testwriter or a developpeur,
 // `{"issue":"AUCUNE"}` for the questionneur (a plan it has no question on), for the explorateur the plan
-// its ticket holds (the components of its title, no criterion added, no open question), none for another role
+// its ticket holds (the components of its title, no criterion added, no open question), or on the
+// schema of the tri a verdict `sans-suite` for each discovery its prompt lists, none for another role
 // or after `sans_fiche`; a `--json-schema` that is not JSON fails, code 1,
 // as claude refuses it. As claude, a session `--session-id <id>` keeps its transcript in
 // `<id>.jsonl` (an id already in use fails, code 1), and `--resume <id>` adds to that transcript,
@@ -98,9 +99,15 @@ case "$role" in
   testwriter|developpeur) la_fiche='{"statut":"FAIT"}' ;;
   questionneur) la_fiche='{"issue":"AUCUNE"}' ;;
   explorateur) la_fiche=$(node -e '
-const t = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))[0];
-const paquets = String(t.title).split(" — ").pop().split(",").map(s => s.trim()).filter(Boolean);
-console.log(JSON.stringify({ criteres: [], paquets, questions: [] }));' "$racine/.beads/$ticket.json") ;;
+const [ticket, schema, prompt] = process.argv.slice(1);
+if (schema.includes("\\"verdicts\\"")) {
+  const ids = [...prompt.matchAll(/^- (\\S+) — /gm)].map(m => m[1]);
+  console.log(JSON.stringify({ verdicts: ids.map(decouverte => ({ decouverte, verdict: "sans-suite", texte: "hors de l’usage actuel." })) }));
+} else {
+  const t = JSON.parse(require("fs").readFileSync(ticket, "utf8"))[0];
+  const paquets = String(t.title).split(" — ").pop().split(",").map(s => s.trim()).filter(Boolean);
+  console.log(JSON.stringify({ criteres: [], paquets, questions: [] }));
+}' "$racine/.beads/$ticket.json" "$schema" "$prompt") ;;
 esac
 fiche() { la_fiche=$1; }
 sans_fiche() { la_fiche=; }
@@ -119,7 +126,7 @@ exit 0
 
 // The stand-in for bd, run by the circuit from the main tree: a ticket is `.beads/<id>.json`, its
 // comments `.beads/<id>.comments.jsonl`, each under its author, `BEADS_ACTOR`, else git's user
-// (`t`), with its time to the second, as bd writes it; `update` (--status, --add-label,
+// (`t`), with its time to the second, as bd writes it; `update` (--status, --add-label repeatable,
 // --remove-label, -d/--description, --notes, --title), `close` (--reason, -r) and `reopen` write
 // its state, as the integration, the queue and the circuit change it; `create` (--parent, -l,
 // -d) makes a child `<parent>.<n>`, and prints its id, and `config get issue_prefix` is `demo`,
@@ -157,7 +164,7 @@ if (cmd === 'config') {
   if (v('--title')) t.title = v('--title');
   if (cmd === 'reopen') t.status = 'open';
   if (v('--status')) t.status = v('--status');
-  if (v('--add-label')) t.labels.push(v('--add-label'));
+  r.forEach((x, i) => { if (x === '--add-label') t.labels.push(r[i + 1]); });
   if (v('--remove-label')) t.labels = t.labels.filter(x => x !== v('--remove-label'));
   if (v('-d') ?? v('--description')) t.description = v('-d') ?? v('--description');
   if (v('--notes')) t.notes = v('--notes');

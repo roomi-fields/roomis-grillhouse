@@ -173,7 +173,7 @@ développeur pour tout le ticket, chacun dans l'enveloppe de tous les paquets du
 passe finale et le relecteur sur l'ensemble ; aucun composant n'est une unité du circuit. Les
 étapes (`packages/grillhouse/scripts/etapes.mjs`) : 1 Plan · 2 Tests · 2.1 Preuve du rouge ·
 3 Code · 3.1 Contrôles · 4 Passe finale et relecture (4.1 Passe finale, 4.2 Régénération des
-références, 4.3 Relecture) · 5 Intégration. `--depuis <testwriter|developpeur>` rejoue le
+références, 4.3 Relecture) · 5 Intégration (5.1 Commit, 5.2 File, 5.3 Tri des découvertes). `--depuis <testwriter|developpeur>` rejoue le
 ticket entier depuis cette étape ; `--etendre <paquet>` ajoute un paquet au plan, puis reprend
 l'étape en cours, celle du testwriter après un arrêt sur un renvoi du développeur vers lui. Un constat bloquant du relecteur va droit à l'agent qu'il nomme et reste ouvert
 d'une relance à l'autre, comme un fil de revue non résolu, jusqu'à ce que le relecteur le dise
@@ -181,6 +181,24 @@ levé ou accepte le lot. Le bilan compte par étape et par rôle. Ainsi un type 
 lecteurs en une seule séance, et un constat n'est jamais perdu (BP 320.9 : seize composants
 joués l'un après l'autre, 118 min d'étapes vertes rejouées, un constat sur `exemplar` perdu six
 fois).
+
+**Le tri des découvertes en fin de ticket** : comme Chromium et Mozilla donnent un verdict à
+chaque rapport de défaut neuf avant de le ranger, une fois le lot entré sur main (5.2), le
+circuit mène l'étape 5.3 : sans découverte consignée par les fiches du ticket, aucune séance ;
+sinon une séance de l'explorateur hors de l'enveloppe, sur Sonnet, dans l'arbre principal, aux
+droits de la lecture (`droits.mjs` : la construction d'un paquet, `npm run build --
+--filter=<paquet>...`, avant de juger une erreur de types de son export ; aucune passe, aucune
+écriture), sa consigne du huitième gabarit. Sa fiche (`tri` de `resultats.mjs`) donne une ligne
+par découverte, ni plus ni moins (`conformiteDuTri`), chacune avec son verdict : `traitee`,
+`doublon`, `sans-suite`, `a-porter` ou `non-confirmee` ; la pièce d'un `traitee` ou d'un
+`a-porter` est une commande rejouée sur main et sa sortie, ou fichier:ligne, sans quoi la fiche
+est non conforme, redemandée une fois à la même séance. Le circuit écrit chaque verdict au ticket
+de sa découverte et y pose son étiquette ; un `a-porter` ou un `non-confirmee` se rouvre sous
+`a-valider`, dans la liste « à valider » du panneau. Un tri sans fiche conforme laisse les
+découvertes telles quelles et le dit au ticket ; il ne défait pas l'intégration, et le bilan
+compte sa séance et ses verdicts. Ainsi chaque découverte est lue une fois, et le responsable ne
+lit que les défauts réels (BPScript : 161 découvertes fermées depuis le 2026-10-12, aucune lue
+une à une ; sur 320.17, 9 découvertes, un seul défaut réel).
 
 **Le bilan sépare les attentes** : comme le « lead time » de DORA sépare l'attente de revue du
 temps de travail, le bilan répartit l'attente entre celle du superviseur, celle du responsable et

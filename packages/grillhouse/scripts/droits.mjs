@@ -136,7 +136,10 @@ const ECRIRE = ['Edit', 'Write'];
 // names (the frame's plugin, `mods/grillhouse/skills/<rôle>/`), as permission rules.
 export const ROLES = {
   // It writes no file and nothing at the ticket: it surveys the components and reads the code by
-  // the index, and ends on the plan in its sheet, which the circuit writes at the ticket.
+  // the index, and ends on the plan in its sheet, which the circuit writes at the ticket. At the
+  // tri of the discoveries, it reads each one and its parent, the history of main (`git log`, a
+  // read in its working directory, the main tree), and builds a package before it judges an error
+  // of types of its export; no pass (grillhouse-0yu.5).
   explorateur: {
     metacadre: true,
     index: true,
@@ -145,6 +148,7 @@ export const ROLES = {
       'Bash(bd show *)',
       'Bash(bd comments *)',
       'Bash(npx grillhouse composants-affectes *)',
+      'Bash(npm run build -- --filter=*)',
       'Bash(codegraph explore *)',
       'mcp__codegraph__codegraph_explore',
       'mcp__rtfm__rtfm_search',

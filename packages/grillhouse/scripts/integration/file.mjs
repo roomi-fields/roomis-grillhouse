@@ -77,6 +77,9 @@ const ESSAIS_PAR_BRANCHE = 5;
 // The variable in which bd reads the author of a comment, and the queue's author.
 const ACTEUR = 'BEADS_ACTOR';
 export const AUTEUR_DE_LA_FILE = 'file';
+// The reason of the closure of a ticket the queue brought onto main, before its commit, which the
+// circuit reads to name that commit (scripts/circuit.mjs, the tri of the discoveries).
+export const INTEGRE = 'intégré : ';
 // How long the queue looks for the run of the CI, then waits for it.
 const RECHERCHE_CI_MS = 2 * 60 * 1000;
 const ATTENTE_CI_MS = 30 * 60 * 1000;
@@ -302,7 +305,7 @@ function main(argv) {
   const entrer = (entree, nouveau) => {
     const court = nouveau.slice(0, 7);
     bd('update', entree.ticket, '--remove-label', 'en-file');
-    bd('close', entree.ticket, '--reason', `intégré : ${court}`);
+    bd('close', entree.ticket, '--reason', `${INTEGRE}${court}`);
     rmSync(path.join(racine, '.claude', 'worktrees', `${entree.ticket}.travail`), {
       recursive: true,
       force: true,

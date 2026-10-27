@@ -1,5 +1,5 @@
 // grillhouse-3uv.90: the steps of a ticket are the tree of its circuit, as a pipeline of GitLab CI
-// shows its stages and their jobs: 1 to 5, the sub-steps 2.1, 3.1, 4.1–4.3, 5.1 and 5.2, « auto »
+// shows its stages and their jobs: 1 to 5, the sub-steps 2.1, 3.1, 4.1–4.3, 5.1–5.3, « auto »
 // for a step the circuit leads itself. A step carries as many bounded loops as it needs. One list
 // (scripts/etapes.mjs) holds them, the gestures of the circuit and the questions of its stops
 // (grillhouse-3uv.95.4); the circuit, the board and the texts read it; no other script spells it.
@@ -73,6 +73,7 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21 and 2026-10-2
         [
           ['5.1', 'Commit', [AUTO]],
           ['5.2', 'File : main, poussée, CI', [AUTO]],
+          ['5.3', 'Tri des découvertes', ['explorateur']],
         ],
       ],
     ]);
@@ -93,6 +94,7 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21 and 2026-10-2
       '5',
       '5.1',
       '5.2',
+      '5.3',
     ]);
     expect(libelle(a('3'))).toBe('3 Code');
   });
@@ -226,6 +228,9 @@ describe("a circuit's state and a role agent are at one step", () => {
     expect(numero({ etape: 'relecture' })).toBe('4.3');
     expect(numero({ etape: 'integration' })).toBe('5.1');
     expect(numero({ etape: 'file' })).toBe('5.2');
+    // grillhouse-0yu.5: the tri of the discoveries, after the queue, the explorateur's.
+    expect(numero({ etape: 'tri' })).toBe('5.3');
+    expect(etapeDuRole('explorateur')?.numero).toBe('1');
     expect(numero({ etape: 'integre' })).toBeNull();
   });
 

@@ -428,6 +428,46 @@ describe('L9 — the questionneur and the explorateur read, and write nothing', 
   );
 });
 
+// grillhouse-0yu.5, critère 6: the explorateur leads the tri of the discoveries with the rights of
+// reading: no write in the repository nor at the tickets, no pass (npm run verifier, the whole
+// suite); it builds a package before it judges an error of types of its export, and reads the
+// history of the parent ticket on main. Witness: the tri BPScript led by hand, a `npm run verifier
+// -- --gardes` launched against its instruction.
+describe('0yu.5 — the tri of the discoveries reads, builds a package, and plays no pass', () => {
+  const MAIN = '/depot';
+  const reglages = () => reglagesDe(options('explorateur'));
+  it('critère 6 — the build of a package and the history of main pass its real rights, and its skill names each', () => {
+    for (const c of [
+      'npm run build -- --filter=030-binder...',
+      'git log --oneline --grep demo-1',
+      'bd show demo-1.1',
+      'bd comments demo-1.1',
+    ]) {
+      expect(refusReel(c, reglages(), MAIN), c).toBeNull();
+    }
+    const nommees = demandees('explorateur');
+    expect(nommees.some(c => c.startsWith('npm run build -- --filter='))).toBe(true);
+    expect(nommees.some(c => c.startsWith('git log'))).toBe(true);
+  });
+
+  it('critère 6 — no pass, no test, no write at a ticket', () => {
+    for (const c of [
+      'npm run verifier',
+      'npm run verifier -- --gardes',
+      'npm run verifier -- --tout',
+      'npm test',
+      'npm test -- packages/a',
+      'npm run build',
+      'bd comments add demo-1.1 x',
+      'bd update demo-1.1 --add-label a-porter',
+      'bd reopen demo-1.1',
+      'bd label add demo-1.1 a-valider',
+    ]) {
+      expect(refusReel(c, reglages(), MAIN), c).not.toBeNull();
+    }
+  });
+});
+
 describe("L2 — the context of a role's session", () => {
   it('leaves out the configuration of the user: only the project and its local settings are read, the automatic memory is off', () => {
     for (const role of Object.keys(ROLES)) {

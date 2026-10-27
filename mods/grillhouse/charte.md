@@ -48,7 +48,8 @@ rôle, agent du cadre, sous ses droits : 1 Plan, l'explorateur puis le questionn
 séance du testwriter, et 2.1 Preuve du rouge ; 3 Code, une séance du développeur, et
 3.1 Contrôles ; 4 Passe finale et relecture : la passe finale, la régénération des références,
 puis le relecteur, qui rend une ligne de conformité par élément que le lot ajoute, change ou
-supprime ; 5 Intégration. Ainsi chaque agent travaille dans son cadre,
+supprime ; 5 Intégration, et 5.3 Tri des découvertes, l'explorateur, sur le lot entré sur main.
+Ainsi chaque agent travaille dans son cadre,
 et le numéro d'une étape dit où en est chaque ticket.
 
 **Le circuit fait les gestes, une vraie question monte** : le circuit fait lui-même les gestes
@@ -79,7 +80,10 @@ ticket par ticket.
 
 **Un ticket ouvert naît du mot du responsable**, ou d'un défaut qu'un projet du cadre rencontre.
 Une découverte d'agent se consigne dans un ticket fermé, sous le ticket qui l'a trouvée, étiqueté
-`decouverte`. Ainsi chaque découverte est gardée, et le backlog reste le plan du responsable.
+`decouverte`. En fin de ticket, le tri des découvertes lui donne son verdict, avec sa pièce :
+`traitee`, `doublon` ou `sans-suite` la laissent fermée ; `a-porter` (un défaut de l'usage
+actuel) ou `non-confirmee` (sans preuve rejouée) la rouvrent sous `a-valider`, pour le
+responsable. Ainsi chaque découverte est lue, et le backlog reste le plan du responsable.
 
 ## Ce qui tient le dépôt droit
 

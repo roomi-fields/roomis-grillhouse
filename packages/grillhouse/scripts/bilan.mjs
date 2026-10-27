@@ -21,7 +21,10 @@
 //   stop (`arret`, its name, `finale`, the outcome of the checks it stops), each developpeur session that changed no file of the plan (`inchange`), the
 //   end of the questioning of the plan (`questionnement`: its `objet`, the questions the
 //   questionneur asked, `questions`, whether an answer changed the plan, `change`, its `issue`,
-//   AUCUNE, QUESTIONS or DÉSACCORD, and the questions left open, `ouvertes`), each end of a run on
+//   AUCUNE, QUESTIONS or DÉSACCORD, and the questions left open, `ouvertes`), the end of the tri
+//   of the discoveries (`tri`: the discoveries it read, `decouvertes`, whether its sheet
+//   conformed, `conforme`, its verdicts by kind, `verdicts`; its sessions, the launches of object
+//   `tri`), each end of a run on
 //   a stop (`montee`: its code, its stop and the supervisor's session that ran it, `superviseur`);
 //   the circuit's state, `.claude/worktrees/<ticket>.circuit.json`, for where the circuit ended;
 //   the night the project declares in its package.json (`grillhouse.plageDeNuit`); the transcript
@@ -70,7 +73,9 @@
 //   the waits.
 // - The bilan counts the sessions by role, the steps by their titles, the stops by kind (`arret`),
 //   the ends on a stop (the waits), the questions of the plan asked, the plans they changed and the
-//   questions left open, the tokens, the cache reads and the cost (a session without a cost
+//   questions left open, the tri of the discoveries on a line of its own when there was one (its
+//   sessions, its discoveries and its verdicts, or its sheet that did not conform), the tokens,
+//   the cache reads and the cost (a session without a cost
 //   counts 0); a session's tokens go to its turns by their time.
 // - It is kept in the main tree, `.claude/worktrees/<ticket>.bilan.json`, and compares itself with
 //   the latest other ticket of the project whose bilan is kept, its bilan computed again by this
@@ -403,6 +408,19 @@ export function bilan({
     changes: fins.filter(q => q.change).length,
     ouvertes: fins.reduce((m, q) => m + (q.ouvertes ?? 0), 0),
   };
+  // The tri of the discoveries: its sessions (the launches of its object), the discoveries it
+  // read, whether its sheet conformed, its verdicts by kind; null without a tri.
+  const finDuTri = duCircuit.findLast(e => e.tri)?.tri ?? null;
+  const tri = finDuTri
+    ? {
+        seances: new Set(
+          duCircuit.filter(e => e.lancement?.objet === 'tri').map(e => e.lancement.seance)
+        ).size,
+        decouvertes: finDuTri.decouvertes ?? 0,
+        conforme: finDuTri.conforme === true,
+        verdicts: finDuTri.verdicts ?? {},
+      }
+    : null;
   const somme = k => sessions.reduce((m, l) => m + (l[k] ?? 0), 0);
   const perdu = CATEGORIES.filter(([k]) => !GARDE.has(k)).reduce(
     (m, [k]) => m + categories[k].ms,
@@ -431,6 +449,7 @@ export function bilan({
     etapes: parEtape,
     arrets,
     questionnement,
+    tri,
     jetons: somme('jetons'),
     cache: somme('cache'),
     cout: somme('cout'),
@@ -481,6 +500,17 @@ export function texteDuBilan(b, avant) {
             : '';
     return `- ${nom} : ${minutes(c.ms)} min${plus}`;
   });
+  const t = b.tri;
+  const verdicts = t
+    ? Object.entries(t.verdicts)
+        .map(([v, n]) => `${n} ${v}`)
+        .join(', ')
+    : '';
+  const tri = t
+    ? [
+        `- tri des découvertes : ${pluriel(t.seances, 'séance')}, ${pluriel(t.decouvertes, 'découverte')}${t.conforme ? ` (${verdicts})` : ', sans fiche conforme : laissées telles quelles'}`,
+      ]
+    : [];
   const arrets = Object.entries(b.arrets)
     .sort((x, y) => y[1] - x[1])
     .map(([nom, n]) => `${n} ${nom}`)
@@ -488,7 +518,7 @@ export function texteDuBilan(b, avant) {
   const base = avant
     ? `Face au bilan de ${avant.ticket}, recalculé : mur ${minutes(avant.mur)} → ${minutes(b.mur)} min, perte ${pourcent(avant.perdu, avant.mur)} → ${pourcent(b.perdu, b.mur)} %, séances ${avant.seances.total} → ${b.seances.total}, coût ${dollars(avant.cout)} → ${dollars(b.cout)} $.`
     : "Aucun bilan d'avant dans ce projet : pas de base.";
-  return [tete, ...lignes, `Arrêts : ${arrets || 'aucun'}.`, base].join('\n');
+  return [tete, ...lignes, ...tri, `Arrêts : ${arrets || 'aucun'}.`, base].join('\n');
 }
 
 const dossier = racine => path.join(racine, '.claude', 'worktrees');

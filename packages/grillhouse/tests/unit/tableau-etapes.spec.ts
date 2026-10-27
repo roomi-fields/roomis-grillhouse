@@ -185,6 +185,7 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
       ['5', 'Intégration', ''],
       ['5.1', 'Commit', 'auto'],
       ['5.2', 'File : main, poussée, CI', 'auto'],
+      ['5.3', 'Tri des découvertes', 'explorateur'],
     ]);
   });
 
@@ -226,11 +227,21 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
 
   it('a ticket at 5.2 unfolds the integration, its commit shown discreet', () => {
     const t = plateau([T('demo-32')], { circuits: [circuit('demo-32', { etape: 'file' })] });
-    expect(textes(t).slice(-4)).toEqual([
+    expect(textes(t).slice(-5)).toEqual([
       '▾ 5 · Intégration',
       '  5.1 · Commit · auto',
       '  5.2 · File : main, poussée, CI · auto',
       expect.stringMatching(/^▶ 32 /),
+      '  5.3 · Tri des découvertes · explorateur',
+    ]);
+  });
+
+  // grillhouse-0yu.5: the tri of the discoveries, after the queue, at its own line.
+  it('a ticket at 5.3 stands under the tri of the discoveries, the explorateur’s', () => {
+    const t = plateau([T('demo-33')], { circuits: [circuit('demo-33', { etape: 'tri' })] });
+    expect(textes(t).slice(-2)).toEqual([
+      '  5.3 · Tri des découvertes · explorateur',
+      expect.stringMatching(/^▶ 33 /),
     ]);
   });
 });

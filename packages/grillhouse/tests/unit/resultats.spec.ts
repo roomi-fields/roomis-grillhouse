@@ -21,9 +21,11 @@ import {
   lireRapportsVitest,
   lireResumes,
   lireSarif,
+  conformiteDuTri,
   reponsesAuxQuestions,
   sarif,
   schemaDeFiche,
+  VERDICTS_DU_TRI,
 } from '../../scripts/resultats.mjs';
 
 const DEPOT = path.resolve(__dirname, '../../../..');
@@ -1068,5 +1070,98 @@ describe('the JSON reports of Vitest', () => {
         tests: [],
       },
     ]);
+  });
+});
+
+// grillhouse-0yu.5: the tri of the discoveries at the end of a ticket, as Chromium and Mozilla give
+// each new report a verdict before it is filed. The explorateur's sheet of the tri gives one line
+// per discovery of the ticket, each with its verdict among five and what it names; the piece of a
+// `traitee` or an `a-porter` is a command played again on main and its output, or file:line.
+// Witness: BPScript, 161 discoveries filed closed since 2026-10-12, none read one by one.
+describe('the sheet of the tri of the discoveries (0yu.5)', () => {
+  const copie = path.join(ESSAIS, 'tri');
+  mkdirSync(path.join(copie, 'packages/a/src'), { recursive: true });
+  writeFileSync(path.join(copie, 'packages/a/src/x.ts'), 'un\ndeux\ntrois\n');
+  const ligne = (decouverte: string, verdict: string, plus: object = {}) => ({
+    decouverte,
+    verdict,
+    texte: 'ce qu’il nomme',
+    ...plus,
+  });
+  const lu = (verdicts: object[]) => lireFiche('tri', sortie({ verdicts }), { copie });
+
+  it('critère 2 — its schema: one line per discovery, its verdict among the five, what it names, its piece', () => {
+    expect(VERDICTS_DU_TRI).toEqual([
+      'traitee',
+      'doublon',
+      'sans-suite',
+      'a-porter',
+      'non-confirmee',
+    ]);
+    expect(champs('tri')).toEqual(['verdicts']);
+    const s = schemaDeFiche('tri') as Schema;
+    expect(s.required).toEqual(['verdicts']);
+    const l = s.properties.verdicts as {
+      items: { required: string[]; properties: Record<string, { enum?: string[] }> };
+    };
+    expect(Object.keys(l.items.properties).sort()).toEqual(
+      ['decouverte', 'piece', 'texte', 'verdict'].sort()
+    );
+    expect(l.items.required).toEqual(['decouverte', 'verdict', 'texte']);
+    expect(l.items.properties.verdict.enum).toEqual(VERDICTS_DU_TRI);
+    // The sheet of the plan stays the explorateur's: the tri is a sheet of its own.
+    expect(champs('explorateur')).not.toContain('verdicts');
+  });
+
+  it('critère 2 — a sheet with one line per discovery conforms; a missing, unknown or doubled line is named', () => {
+    const tous = ['demo-1.1', 'demo-1.2'];
+    const deux = [ligne('demo-1.1', 'doublon'), ligne('demo-1.2', 'sans-suite')];
+    expect(conformiteDuTri({ verdicts: deux }, tous)).toBeNull();
+    expect(conformiteDuTri({ verdicts: [ligne('demo-1.2', 'sans-suite')] }, tous)).toBe(
+      'verdicts : sans ligne pour demo-1.1'
+    );
+    expect(conformiteDuTri({ verdicts: [...deux, ligne('demo-1.9', 'sans-suite')] }, tous)).toBe(
+      "verdicts : demo-1.9 n'est pas une découverte du ticket"
+    );
+    expect(conformiteDuTri({ verdicts: [...deux, ligne('demo-1.1', 'sans-suite')] }, tous)).toBe(
+      'verdicts : demo-1.1 a deux lignes'
+    );
+  });
+
+  it('critère 2 — a verdict out of the five is refused', () => {
+    expect(lu([ligne('demo-1.1', 'peut-être')]).erreur).toMatch(/verdicts\[0\]\.verdict/);
+  });
+
+  it('critère 5 — a traitee or an a-porter without its piece played again or its file:line is refused', () => {
+    for (const verdict of ['traitee', 'a-porter']) {
+      expect(lu([ligne('demo-1.1', verdict)]).erreur, verdict).toMatch(
+        new RegExp(`verdicts\\[0\\]\\.piece : manque, pour ${verdict}`)
+      );
+      expect(lu([ligne('demo-1.1', verdict, { piece: 'le code de x' })]).erreur, verdict).toMatch(
+        /verdicts\[0\]\.piece : « le code de x » n'est pas une pièce/
+      );
+      expect(
+        lu([ligne('demo-1.1', verdict, { piece: 'packages/a/src/x.ts:9 rien' })]).erreur,
+        verdict
+      ).toMatch(/verdicts\[0\]\.piece : packages\/a\/src\/x\.ts:9 introuvable dans la copie/);
+      expect(
+        lu([ligne('demo-1.1', verdict, { piece: 'packages/a/src/x.ts:2 rend deux.' })]).erreur,
+        verdict
+      ).toBeUndefined();
+      const rejouee = '$ git log --oneline --grep demo-1\nabc1234 fix';
+      expect(lu([ligne('demo-1.1', verdict, { piece: rejouee })]).erreur, verdict).toBeUndefined();
+    }
+  });
+
+  it('critère 5 — a doublon, a sans-suite and a non-confirmee carry their text alone; the text is required', () => {
+    for (const verdict of ['doublon', 'sans-suite', 'non-confirmee']) {
+      expect(lu([ligne('demo-1.1', verdict)]).erreur, verdict).toBeUndefined();
+    }
+    expect(lu([{ decouverte: 'demo-1.1', verdict: 'non-confirmee' }]).erreur).toMatch(
+      /verdicts\[0\]\.texte : manque/
+    );
+    expect(lu([ligne('demo-1.1', 'non-confirmee', { texte: ' ' })]).erreur).toMatch(
+      /verdicts\[0\]\.texte : manque, pour non-confirmee/
+    );
   });
 });

@@ -63,7 +63,14 @@
 //   - `issue` (QUESTIONS with its `questions`, each with what it aims at, `vise`, and its
 //     `piece`; AUCUNE; DÉSACCORD
 //     with its `desaccord`): the explorateur answers the questions, the disagreement as one, and
-//     the circuit writes them at the ticket (questionneur).
+//     the circuit writes them at the ticket (questionneur);
+//   - `verdicts` (`decouverte`, `verdict` among VERDICTS_DU_TRI, `texte`, `piece`): the tri of the
+//     discoveries, the explorateur's sheet after the queue (its own schema, `tri`), one line per
+//     discovery of the ticket, which the circuit writes at the ticket of each and reopens under
+//     `a-valider` for an a-porter or a non-confirmee; the piece of a traitee or an a-porter, a
+//     command played again on main and its output or file:line, is required, and the circuit
+//     refuses a sheet without a line for each discovery, with a line on another, or two on one
+//     (`conformiteDuTri`) (grillhouse-0yu.5).
 //   `lireFiche` reads a session's output: the sheet and the session's id, or the error that
 //   names what lacks or does not conform (no `structured_output`, a field out of the schema, a
 //   status without its reason, a blocking finding without its criterion or rule, a line of
@@ -176,7 +183,17 @@ const DOCUMENTS = ['CADRE', 'INTERFACE', 'ARCHITECTURE'];
 // gap to the mature reference), or no answer the explorateur holds.
 const MOTIFS = ['langage', 'architecture', 'écart à la référence', 'sans réponse'];
 
-// The schema of the sheet of each role the circuit leads.
+// The verdicts of the tri of the discoveries (grillhouse-0yu.5), as the triage of a report of
+// Chromium or Mozilla: the lot or a ticket already holds it, it repeats another, it stays out of
+// the actual use, it is a defect of the actual use, or no proof could be played again. The
+// verdicts that reopen their discovery under `a-valider`, for the owner.
+export const VERDICTS_DU_TRI = ['traitee', 'doublon', 'sans-suite', 'a-porter', 'non-confirmee'];
+export const VERDICTS_ROUVERTS = ['a-porter', 'non-confirmee'];
+// The verdicts whose piece is a command played again on main and its output, or file:line.
+const VERDICTS_PROUVES = ['traitee', 'a-porter'];
+
+// The schema of the sheet of each role the circuit leads, and of the tri of the discoveries
+// (`tri`), the explorateur's after the queue.
 const FICHES = {
   explorateur: objet(
     {
@@ -365,6 +382,32 @@ const FICHES = {
     },
     ['issue']
   ),
+  tri: objet(
+    {
+      verdicts: liste(
+        objet(
+          {
+            decouverte: texte('L’id de la découverte, tel que ta consigne la liste.'),
+            verdict: {
+              type: 'string',
+              enum: VERDICTS_DU_TRI,
+              description:
+                'traitee : le lot ou un ticket existant la couvre ; doublon : d’une autre découverte ou d’un ticket ; sans-suite : hypothétique, hors de l’usage actuel ; a-porter : un défaut de l’usage actuel ; non-confirmee : tu n’as pas pu rejouer de preuve.',
+            },
+            texte: texte(
+              'traitee et doublon : ce qui la couvre, nommé (le lot, un ticket, une découverte) ; sans-suite : sa raison ; a-porter : le défaut ; non-confirmee : ce qui manque pour trancher.'
+            ),
+            piece: piece(
+              'traitee et a-porter : la commande rejouée sur main et sa sortie, ou fichier:ligne'
+            ),
+          },
+          ['decouverte', 'verdict', 'texte']
+        ),
+        'Une ligne par découverte de ta consigne, ni plus ni moins.'
+      ),
+    },
+    ['verdicts']
+  ),
 };
 
 // The schema of the sheet of <role>, or null for a role the circuit does not lead.
@@ -464,6 +507,22 @@ export function reponsesAuxQuestions(fiche, posees) {
   return sans.length ? `reponses : sans ligne pour les questions ${sans.join(', ')}` : null;
 }
 
+// What makes the sheet of the tri <fiche> out of conformity with the discoveries <decouvertes> of
+// the ticket (their ids), as a reviewer gives a line to each element of its lot: a discovery
+// without its line, a line on an id out of the list, a discovery with two lines. The fault, or
+// null.
+export function conformiteDuTri(fiche, decouvertes) {
+  const lignes = (fiche.verdicts ?? []).map(l => l.decouverte);
+  const fautes = [];
+  const sans = decouvertes.filter(d => !lignes.includes(d));
+  if (sans.length) fautes.push(`verdicts : sans ligne pour ${sans.join(', ')}`);
+  for (const d of new Set(lignes)) {
+    if (!decouvertes.includes(d)) fautes.push(`verdicts : ${d} n'est pas une découverte du ticket`);
+    else if (lignes.filter(x => x === d).length > 1) fautes.push(`verdicts : ${d} a deux lignes`);
+  }
+  return fautes.length ? fautes.join(' ; ') : null;
+}
+
 // The piece of a fact <texte>: `{ fichier, ligne }` for « <fichier>:<ligne> », `{ fichier, ligne,
 // fin }` for « <fichier>:<ligne>-<fin> » (as SARIF's region has a start line and an optional end
 // line), then what it shows after a space, the place in backquotes or followed by punctuation
@@ -512,10 +571,10 @@ function pieceDuTicket(reste) {
 
 // The pieces of the sheet <f>, each `[son chemin, son texte]`: of the stop it carries (a status,
 // a reviewer's question), of its findings, of its lines of conformity, of its questions, of its
-// criteria out of the plan.
+// criteria out of the plan, of the verdicts of a tri.
 const piecesDe = f => [
   ...('piece' in f ? [['piece', f.piece]] : []),
-  ...['constats', 'conformite', 'questions', 'hors_plan'].flatMap(k =>
+  ...['constats', 'conformite', 'questions', 'hors_plan', 'verdicts'].flatMap(k =>
     (f[k] ?? []).map((x, i) => [`${k}[${i}].piece`, x.piece]).filter(([, p]) => p !== undefined)
   ),
 ];
@@ -585,7 +644,8 @@ function horsDuTicket(f, description) {
 // DÉSACCORD, the criterion or rule of a blocking finding, the reference of the rule each line of
 // a reviewer's conformity cites in its document and the recipient of a « non », and a reviewer's verdict that follows its blocking findings, its « non » among them
 // (RENDU with one, ACCEPTÉ without), the piece of a BLOQUÉ, a BESOIN and a reviewer's question,
-// and each piece in one of its forms (`lirePiece`).
+// the text of each verdict of a tri and the piece of a traitee or an a-porter, and each piece in
+// one of its forms (`lirePiece`).
 function manques(role, f) {
   const out = [];
   const plein = k => typeof f[k] === 'string' && f[k].trim() !== '';
@@ -639,6 +699,16 @@ function manques(role, f) {
     for (const [i, r] of (f.reponses ?? []).entries()) {
       if (!/^[1-9]\d*$/.test(r.numero)) {
         out.push(`reponses[${i}].numero : « ${r.numero} » n'est pas le numéro d'une question`);
+      }
+    }
+  }
+  if (role === 'tri') {
+    for (const [i, l] of (f.verdicts ?? []).entries()) {
+      if (!l.texte.trim()) out.push(`verdicts[${i}].texte : manque, pour ${l.verdict}`);
+      if (VERDICTS_PROUVES.includes(l.verdict) && !('piece' in l)) {
+        out.push(
+          `verdicts[${i}].piece : manque, pour ${l.verdict} : « $ <commande> » rejouée sur main et sa sortie, ou fichier:ligne ; sans elle, le verdict est non-confirmee`
+        );
       }
     }
   }
