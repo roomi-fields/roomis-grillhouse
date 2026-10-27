@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.24.11] - 2026-10-27
+
 ### Fixed
 
 - **A warning of a guard is not a red** (grillhouse-v98.1): on BPScript bp-mono-vbwf.320.17 (0.24.10), the guard of the library words wrote one finding of level error, on the ceiling the lot lowers (`packages/995-tools/src/mots-de-librairie-plafond.txt:17`, 110-timer 41 < 44, a file the reference « plafond des mots de librairie » covers), and 8 of level warning, words already present on lines the lot touches in `080-aligner` and `110-timer`; the circuit made a red of every finding whatever its level, gave the 8 warnings to the developer as « Tes rouges », who had nothing to deliver, and stopped at 3 Code, « sans-livraison » (15). As SARIF 2.1.0 and GitHub code scanning, where error fails and warning and note show without failing, only a finding of level error (the frame's default) is now a red, at the checks of the plan as at the final pass; the warnings and notes stay visible in the report of the checks, apart, under « Les avertissements », given to no developer; and a red that is a reference's alone goes to its regeneration whatever warnings stand beside it. A guards' task red without any finding of level error keeps its line of a red task, with its log.
