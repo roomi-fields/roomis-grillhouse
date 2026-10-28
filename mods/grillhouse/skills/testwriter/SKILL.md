@@ -116,6 +116,14 @@ composant rend. Exemple : en 320.2.6 de BPScript, des bancs sur des objets faits
 restaient verts alors que la chaîne restait fausse. Ainsi le test mord sur le produit tel qu'il
 tourne.
 
+**Ce que tes tests importent se déclare** : tu inscris, dans le même lot, chaque nom de la matière
+de test partagée que tes tests se mettent à importer, sur la ligne de leur paquet dans la section
+« Consommateurs » de l'interface du fournisseur (la ligne `- <paquet> : <noms>`). Cette interface
+appartient au paquet de la matière, donc à toi seul ; la garde des consommateurs refuse le lot qui
+l'omet. Ainsi une dépendance se déclare dans le changement qui l'ajoute, comme le `package.json`
+de npm (BP 320.37 : deux noms neufs importés par les tests de 060-encoder, la ligne non écrite, le
+lot refusé).
+
 **Ce que tes tests lisent se déclare** : un test qui lit un fichier hors des imports (des
 scènes, des paires de la matière, la trace d'un autre étage, les scripts ou un source d'un voisin
 qu'il lit ou lance) fait déclarer son chemin, dossier ou fichier, dans le `package.json` de son

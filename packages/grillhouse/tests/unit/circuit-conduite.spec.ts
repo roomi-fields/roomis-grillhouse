@@ -183,6 +183,23 @@ describe('the sheets the circuit reads', () => {
       );
     }
   });
+
+  // Witness: BPScript (320.37), the testwriter's lot made 060-encoder's tests import two new names of
+  // the shared test material; the guard « consommateurs » refused the lot, and the file is his alone.
+  it('kgx.1 critère 1 — the testwriter inscribes, in the same lot, each name of the shared test material his tests start to import, on their package’s line of the provider’s « Consommateurs »', () => {
+    for (const [nom, texte] of [
+      ['testwriter', testwriter],
+      ['consigne', premier ?? ''],
+    ]) {
+      expect(texte, nom).toMatch(
+        /chaque nom de la matière de test partagée que tes tests se mettent à importer/
+      );
+      expect(texte, nom).toMatch(
+        /sur la ligne de leur paquet dans la section « Consommateurs » de l'interface du fournisseur/
+      );
+      expect(texte, nom).toMatch(/dans le même lot/);
+    }
+  });
 });
 
 // Witness: BPScript (320.2.4.5.1), the circuit wrote a question for the owner that was the

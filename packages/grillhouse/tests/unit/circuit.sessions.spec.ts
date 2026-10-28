@@ -131,6 +131,10 @@ fiche '{"statut":"BLOQUÉ","piece":"packages/forms/src/index.mjs:1","raison":"le
         'Le rouge qui reste est dans les tests de forms'
       );
       expect(essai(id, 'testwriter-2.prompt')).toContain('REPRISE : oui');
+      // kgx.1 critère 2: no checks ran since the testwriter's session, none is carried.
+      expect(essai(id, 'testwriter-2.prompt')).not.toContain(
+        'La sortie rouge des derniers contrôles'
+      );
       expect(commentaires(id)).toContainEqual(
         expect.stringMatching(/^Circuit · developpeur : .*renvoie le rouge au testwriter/)
       );
@@ -147,6 +151,85 @@ fiche '{"statut":"BLOQUÉ","piece":"packages/forms/src/index.mjs:1","raison":"le
       ]);
       expect(etat(id)?.etape).toBe('integre');
     });
+
+    // A session that changes a file of forms, never the code the test waits for: red checks.
+    const essaiRouge = `printf '// essai\\n' >> $c/src/index.mjs\npassation 'Un essai.'\n`;
+
+    // grillhouse-kgx.1 (BP 320.37): a first sending before any check, then a second after checks
+    // that named the guard's line word for word; the second stopped at « deuxième renvoi de suite »,
+    // and the testwriter never received the line.
+    it('kgx.1 critères 2 et 3 — a sending after red checks, the one before without any, relaunches the testwriter with their output', () => {
+      const id = 'demo-renvoi-controles';
+      ticket(id, '000-forms');
+      scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+      scenario(id, 'developpeur-1', renvoi);
+      scenario(id, 'developpeur-2', essaiRouge);
+      scenario(id, 'developpeur-3', renvoi);
+      scenario(id, 'developpeur-4', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+      const r = circuit([id]);
+      expect(r.status, sortie(r)).toBe(0);
+      expect(ordre(id)).toEqual([
+        'testwriter',
+        'developpeur',
+        'testwriter',
+        'developpeur',
+        'developpeur',
+        'testwriter',
+        'developpeur',
+        'relecteur',
+      ]);
+      // The first sending, before any check, carries none.
+      expect(essai(id, 'testwriter-2.prompt')).not.toContain(
+        'La sortie rouge des derniers contrôles'
+      );
+      const prompt = essai(id, 'testwriter-3.prompt');
+      expect(prompt).toContain('Le rouge qui reste est dans les tests de forms');
+      expect(prompt).toContain('La sortie rouge des derniers contrôles');
+      // The red the checks named: the test and what it misses.
+      expect(prompt).toContain('critère 1 — mesure rend le double');
+    });
+
+    it('kgx.1 critère 3 — the same red output of the checks on two sendings in a row stops at « sans-livraison »', () => {
+      const id = 'demo-renvoi-meme-sortie';
+      ticket(id, '000-forms');
+      scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+      scenario(id, 'developpeur-1', essaiRouge);
+      scenario(id, 'developpeur-2', renvoi);
+      scenario(id, 'developpeur-3', essaiRouge);
+      scenario(id, 'developpeur-4', renvoi);
+      const r = circuit([id]);
+      expect(r.status, sortie(r)).toBe(ARRETS['sans-livraison']);
+      expect(sessions(id, 'testwriter')).toBe(2);
+      expect(sessions(id, 'developpeur')).toBe(4);
+      const e = etat(id);
+      expect(e).toMatchObject({ etape: 'developpeur', raison: 'sans-livraison' });
+      expect(e?.rapport).toContain('deuxième fois de suite au testwriter');
+      expect(e?.rapport).toContain('même sortie rouge des contrôles');
+    });
+
+    // grillhouse-kgx.1: the output lived in the run alone; a resumption lost it.
+    for (const reprise of [['--reprendre'], ['--depuis', 'developpeur']]) {
+      it(`kgx.1 critère 4 — the red output of the last checks, written in the state, survives ${reprise[0]}`, () => {
+        const id = `demo-renvoi-reprise${reprise[0].replace(/^--/, '-')}`;
+        ticket(id, '000-forms');
+        scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+        scenario(id, 'developpeur-1', essaiRouge);
+        // Nothing to deliver, the checks red: the stop at « sans-livraison », at 3 Code.
+        scenario(id, 'developpeur-2', "passation 'Rien de plus.'\n");
+        const r1 = circuit([id]);
+        expect(r1.status, sortie(r1)).toBe(ARRETS['sans-livraison']);
+        expect(etat(id)).toMatchObject({ etape: 'developpeur', raison: 'sans-livraison' });
+        const garde = etat(id) as unknown as { controlesRouges: string | null } | null;
+        expect(garde?.controlesRouges).toContain('critère 1 — mesure rend le double');
+        scenario(id, 'developpeur-3', renvoi);
+        scenario(id, 'developpeur-4', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+        const r2 = circuit([id, ...reprise]);
+        expect(r2.status, sortie(r2)).toBe(0);
+        const prompt = essai(id, 'testwriter-2.prompt');
+        expect(prompt).toContain('La sortie rouge des derniers contrôles');
+        expect(prompt).toContain('critère 1 — mesure rend le double');
+      });
+    }
 
     it('stops at « sans-livraison » on the same renvoi twice in a row, without green checks between', () => {
       const id = 'demo-renvoi-repete';

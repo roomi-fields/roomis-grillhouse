@@ -61,7 +61,11 @@ causait l'essentiel des pertes).
 ce qu'aucune règle ne tranche (l'approbation d'une revue), le circuit d'un ticket
 (`packages/grillhouse/scripts/circuit.mjs`) fait lui-même, sans séance, les gestes que la liste des
 étapes écrit (`GESTES` de `packages/grillhouse/scripts/etapes.mjs`) : une commande à 75 rejouée une
-fois, la fin à 75, le renvoi au testwriter que la fiche du développeur nomme, la régénération des
+fois, la fin à 75, le renvoi au testwriter que la fiche du développeur nomme (sa raison, sa
+passation et, comme une CI rend le journal de la vérification qui échoue, la sortie rouge des
+derniers contrôles quand des contrôles ont tourné depuis la séance du testwriter, gardée dans
+l'état du circuit pour une reprise ; seule la même sortie deux fois de suite arrête le circuit),
+la régénération des
 références, un développeur sans rien à livrer jugé par les contrôles ; chaque geste s'écrit au ticket et au
 journal avec sa règle. Tout autre arrêt finit le circuit sur une question au superviseur (`MONTEES`),
 que l'état du circuit porte : le fait, sa pièce (`fichier:ligne`, ou la commande et sa sortie), la

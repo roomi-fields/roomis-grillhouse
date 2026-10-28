@@ -226,9 +226,14 @@
 //   without a file changed, the checks of the copy green, the integration red on the same lot).
 // - A sheet of the developpeur whose `renvoi` names the testwriter says the red that remains lies
 //   in the tests of the lot: the gesture `renvoi-au-testwriter`, whether or not the session
-//   changed a file: the testwriter, the sending and the handover as his report, then the proof
-//   and the developpeur. The same sending twice in a row, with no green checks between them, stops
-//   at « sans-livraison ».
+//   changed a file: the testwriter, the sending and the handover as his report, with the red
+//   output of the last checks when checks ran since his session, as a CI hands back the log of
+//   the check that fails, then the proof and the developpeur. The same sending twice in a row on
+//   the same red output of the checks (none, or the same), with no green checks between them,
+//   stops at « sans-livraison »: a round trip without a new fact; a sending on another red output
+//   relaunches the testwriter (BP 320.37: a first sending before any check, a second after checks
+//   that named the guard's line). That output is kept in the state (`controlesRouges`), so that a
+//   `--reprendre` or a `--depuis` keeps it.
 // - The checks after the developpeur judge the plan, as Bazel plays the targets of a change: `npm
 //   test -- <package>` for each package of the plan, touched by the lot or not (a package without a
 //   script `test:vitest` plays only when the lot touches it), `npm test -- <test files of the lot>`
@@ -504,8 +509,8 @@
 //   first session of a `--reprendre` whose plan already holds changes goes on to the checks; a
 //   second developpeur session that `--depuis developpeur` launched on the lot the integration
 //   refused and that changes nothing; or
-//   the developpeur's same sending to the testwriter twice in a row, no green checks between
-//   them), 16 relecture-arret (a finding without a valid agent, one on a criterion, the third
+//   the developpeur's same sending to the testwriter twice in a row, on the same red output of the
+//   checks, no green checks between them), 16 relecture-arret (a finding without a valid agent, one on a criterion, the third
 //   RENDU), 17 integration (the integration script refuses the lot, or the queue reopens the
 //   ticket), 19 hors-portee (a testwriter or developpeur whose sheet says BLOQUÉ, without a
 //   sending to the testwriter, or a developpeur's FAIT with criteria out of the plan), 20 besoin (a testwriter or developpeur whose sheet says BESOIN, a
@@ -1007,8 +1012,8 @@ function ecrireRapport(ctx, etape, texte, resultat, rapport = texte) {
 }
 
 // The state of the run, written whole (`seance` and `question` null and `finale` false unless <etat>
-// sets them, `processus`, `paquets`, `constats`, `verifie`, `reprise`, `aRegenerer` and `refus`
-// the run's), kept as the run's current state.
+// sets them, `processus`, `paquets`, `constats`, `verifie`, `reprise`, `aRegenerer`, `refus` and
+// `controlesRouges` the run's), kept as the run's current state.
 function ecrireEtat(ctx, etat) {
   ctx.courant = {
     finale: false,
@@ -1026,6 +1031,7 @@ function ecrireEtat(ctx, etat) {
     reprise: ctx.reprise ?? null,
     aRegenerer: ctx.aRegenerer ?? null,
     refus: ctx.refus ?? null,
+    controlesRouges: ctx.controlesRouges ?? null,
   };
   const provisoire = `${ctx.etat}.${process.pid}`;
   writeFileSync(
@@ -2056,12 +2062,17 @@ function arretHorsDuPlan(ctx, tentative, fiche) {
 }
 
 // The sending to the testwriter in the developpeur's sheet <fiche> (its `renvoi`): what the
-// testwriter receives, the sending, then the developpeur's handover; null without a sending.
+// testwriter receives, the sending, the developpeur's handover, then the red output of the last
+// checks when checks ran since the testwriter's session (`ctx.controlesRouges`); null without a
+// sending.
 function renvoiDe(ctx, fiche) {
   if (!fiche.renvoi) return null;
   const passation = derniereDe(ctx, 'developpeur')?.text ?? 'aucune';
   const raison = fiche.raison ? ` : ${fiche.raison}` : '';
-  return `Le développeur renvoie le rouge qui reste aux tests du lot${raison}.\n\nSa passation :\n\n${passation}`;
+  const controles = ctx.controlesRouges
+    ? `\n\nLa sortie rouge des derniers contrôles :\n\n${ctx.controlesRouges}`
+    : '';
+  return `Le développeur renvoie le rouge qui reste aux tests du lot${raison}.\n\nSa passation :\n\n${passation}${controles}`;
 }
 
 // The findings of the reviewer still open for <role> (`ctx.constats`), in their order.
@@ -3198,6 +3209,8 @@ async function derouler(ctx, debut) {
         });
         // A testwriter who declares himself blocked or in need of an answer goes up to the supervisor.
         if (fiche.statut !== 'FAIT') throw arretDuStatut(ctx, 'testwriter', tentative, fiche);
+        // No checks have run since this session.
+        ctx.controlesRouges = null;
         commenter(ctx, 'testwriter', `séance ${tentative} finie, sa fiche lue.`);
         etape = PREUVE;
       } else if (etape === PREUVE) {
@@ -3247,17 +3260,20 @@ async function derouler(ctx, debut) {
         if (renvoi) {
           // The red that remains lies in the tests of the lot: the gesture `renvoi-au-testwriter`,
           // the testwriter, the sending and the handover as its report, then the proof and the
-          // developpeur.
-          if (ctx.renvoiAuTestwriter) {
+          // developpeur. `renvoiAuTestwriter` keeps the red output of the checks the sending before
+          // carried ('' for none), null after green checks: the same output twice in a row is a
+          // round trip without a new fact.
+          const sortie = ctx.controlesRouges ?? '';
+          if (ctx.renvoiAuTestwriter === sortie) {
             if (empreinte(ctx) === avant) {
               inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, etape: CODE, inchange: true });
             }
             throw new Arret(
               'sans-livraison',
-              `La fiche de la séance ${tentative} du développeur renvoie une deuxième fois de suite au testwriter, sans contrôles verts depuis le premier renvoi : le testwriter n'a pas levé ce rouge.\n\n${renvoi}`
+              `La fiche de la séance ${tentative} du développeur renvoie une deuxième fois de suite au testwriter, sur la même sortie rouge des contrôles que le premier renvoi (aucune, ou la même), sans contrôles verts entre eux : le testwriter n'a pas levé ce rouge.\n\n${renvoi}`
             );
           }
-          ctx.renvoiAuTestwriter = true;
+          ctx.renvoiAuTestwriter = sortie;
           commenter(
             ctx,
             'developpeur',
@@ -3333,6 +3349,8 @@ async function derouler(ctx, debut) {
             ? { arbre: arbreDeLaCopie(ctx), restreinte: regeneration.restreinte }
             : laPasseFinale(ctx);
         const k = controles(ctx, passeFinale, passe.restreinte, regeneration?.reportes ?? null);
+        // The output of these checks, red, which a sending to the testwriter carries.
+        ctx.controlesRouges = k.rouge ? k.texte : null;
         // The outcome the bilan reads (scripts/bilan.mjs): with the reds, each its place and its
         // text, by which it knows two checks that measured the same thing.
         const resultat = issue => ({
@@ -3433,7 +3451,7 @@ async function derouler(ctx, debut) {
             resultat('vert'),
             `${k.resume}.${k.avertissements}`
           );
-          ctx.renvoiAuTestwriter = false;
+          ctx.renvoiAuTestwriter = null;
           ctx.aRegenerer = {
             noms: k.references.map(r => r.nom),
             notes: [],
@@ -3451,7 +3469,7 @@ async function derouler(ctx, debut) {
             `${k.resume}.${k.avertissements}`
           );
           // Green checks: a sending of the developpeur to the testwriter may come again.
-          ctx.renvoiAuTestwriter = false;
+          ctx.renvoiAuTestwriter = null;
           if (!passeFinale) {
             // The checks green: the final pass, its sessions counted apart.
             etape = CONTROLES;
@@ -3744,10 +3762,11 @@ function depart(ctx, e) {
     };
   }
   if (!ctx.reprendre) {
-    // The run starts over: no lot verified, no finding of a review open, no refusal.
+    // The run starts over: no lot verified, no finding of a review open, no refusal, no checks played.
     ctx.verifie = null;
     ctx.constats = [];
     ctx.refus = null;
+    ctx.controlesRouges = null;
     return { etape: TESTS, tentative: 1, rapport: null, finale: false };
   }
   if (!e) throw new Usage(`rien à reprendre : ${ctx.etat} n'existe pas.`);
@@ -4270,13 +4289,14 @@ export async function main(argv) {
     mkdirSync(path.dirname(ctx.copie), { recursive: true });
     let e = existsSync(ctx.etat) ? JSON.parse(readFileSync(ctx.etat, 'utf8')) : null;
     // The findings of the reviewer still open, the lot the whole final pass verified, the session a
-    // relaunch resumes, the references a regeneration has to run, and the integration's refusal of
-    // the lot, kept from one run to the next.
+    // relaunch resumes, the references a regeneration has to run, the integration's refusal of
+    // the lot, and the red output of the last checks, kept from one run to the next.
     ctx.constats = [...(e?.constats ?? [])];
     ctx.verifie = e?.verifie ?? null;
     ctx.reprise = e?.reprise ?? null;
     ctx.aRegenerer = e?.aRegenerer ?? null;
     ctx.refus = e?.refus ?? null;
+    ctx.controlesRouges = e?.controlesRouges ?? null;
     // The supervisor's answers to a question: stop the circuit, or extend its plan and resume.
     if (ctx.arreter) return await arreter(ctx, e);
     // A circuit that outlives its caller is still the ticket's: no second run beside it.

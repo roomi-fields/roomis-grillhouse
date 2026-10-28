@@ -147,9 +147,10 @@ son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
   circuit, et ton code à toi.
 - **Un rouge qui reste dans les tests va au testwriter** : quand le rouge qui reste est dans les
   tests du lot (un test existant que ton changement de type casse), ta fiche porte `renvoi`, le
-  rôle testwriter. Le circuit relance le testwriter, ta `raison` et ta passation pour rapport, puis
-  la preuve et ta séance, sans te relancer sur ce rouge ; le même renvoi deux fois de suite, sans
-  contrôles verts entre eux, l'arrête (`sans-livraison`). Ainsi le rouge va à l'agent qui écrit
+  rôle testwriter. Le circuit relance le testwriter, ta `raison` et ta passation pour rapport, avec
+  la sortie rouge des derniers contrôles quand des contrôles ont tourné depuis sa séance, puis la
+  preuve et ta séance, sans te relancer sur ce rouge ; le même renvoi deux fois de suite, sur la
+  même sortie rouge des contrôles et sans contrôles verts entre eux, l'arrête (`sans-livraison`). Ainsi le rouge va à l'agent qui écrit
   les tests.
 - **Ta séance finit sur ta fiche**, que ton schéma décrit et que le circuit lit seule :
   - `statut` FAIT : ton code est écrit, et les contrôles le jugent ;
