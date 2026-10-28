@@ -26,7 +26,7 @@ function pkgDuDepot(grillhouse?: unknown, scripts: Record<string, string> = {}) 
     scripts: Record<string, string>;
     grillhouse?: unknown;
   };
-  for (const s of ['build', 'prepare']) {
+  for (const s of ['build', 'prepare', 'typecheck']) {
     delete pkg.scripts[s];
   }
   delete pkg.grillhouse;

@@ -59,8 +59,8 @@ export const rangs = (lignes: string[], noms_: string[]) => noms_.map(n => ligne
 // The projects of trial of one test file, under <ESSAIS>.
 export function testsDeNuitEssai(ESSAIS: string) {
   // A project of trial, its frame installed by the update of the frame (critère 9): by default the
-  // package.json of the template of a project (its build, which builds the example itself, left out,
-  // and its section `grillhouse` with it: the key `grillhouse.nuit` is the project's, critère 8) and
+  // package.json of the template of a project (its build, which builds the example itself, and its
+  // typing, which types it, left out, and its section `grillhouse` with it: the key `grillhouse.nuit` is the project's, critère 8) and
   // its day configuration of Vitest; `pkg` replaces that package.json and `fichiers` adds or replaces files.
   // `nuits: false` leaves the night tests out. The project of trial proves the night, not the
   // controls of the frame (grillhouse-3uv.55, critère 8): the update installs `grillhouse:gardes`,
@@ -81,7 +81,7 @@ export function testsDeNuitEssai(ESSAIS: string) {
         scripts: Record<string, string>;
         grillhouse?: unknown;
       };
-      for (const s of ['build', 'prepare']) {
+      for (const s of ['build', 'prepare', 'typecheck']) {
         delete depot.scripts[s];
       }
       delete depot.grillhouse;
