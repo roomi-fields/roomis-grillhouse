@@ -192,7 +192,16 @@ passe finale et le relecteur sur l'ensemble ; aucun composant n'est une unité d
 3 Code · 3.1 Contrôles · 4 Passe finale et relecture (4.1 Passe finale, 4.2 Régénération des
 références, 4.3 Relecture) · 5 Intégration (5.1 Commit, 5.2 File, 5.3 Tri des découvertes). `--depuis <testwriter|developpeur>` rejoue le
 ticket entier depuis cette étape ; `--etendre <paquet>` ajoute un paquet au plan, puis reprend
-l'étape en cours, celle du testwriter après un arrêt sur un renvoi du développeur vers lui. Un constat bloquant du relecteur va droit à l'agent qu'il nomme et reste ouvert
+l'étape en cours, celle du testwriter après un arrêt sur un renvoi du développeur vers lui. Comme
+une file de fusion (GitHub merge queue, bors, Zuul) renvoie le lot à son auteur avec le journal de
+sa vérification, et ne le laisse repasser qu'avec un changement, `--depuis developpeur` après un
+refus de l'intégration repart du développeur, le refus comme le rouge à lever ; une séance ainsi
+lancée qui ne change aucun fichier du lot refusé ne va pas aux contrôles de la copie, qui ne
+voient pas ce rouge : le circuit la relance une fois avec le refus, puis s'arrête en
+`sans-livraison`. `--reprendre` rejoue l'intégration (ou la file) sur le même lot, comme bors
+rejoue un lot : un refus peut venir de la charge ou de main (BP 320.16, 320.16.2) ; `--depuis
+testwriter` refait le lot et oublie le refus (BP 320.37 : trois fois « FAIT » sans un fichier changé, les contrôles de la copie
+verts, l'intégration rouge sur le même lot). Un constat bloquant du relecteur va droit à l'agent qu'il nomme et reste ouvert
 d'une relance à l'autre, comme un fil de revue non résolu, jusqu'à ce que le relecteur le dise
 levé ou accepte le lot. Comme l'auteur répond dans chaque fil d'une revue GitHub ou Gerrit, la
 fiche FAIT du développeur répond à chaque constat ouvert pour lui, par son titre (`reponses` :

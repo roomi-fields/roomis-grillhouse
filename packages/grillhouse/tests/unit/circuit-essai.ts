@@ -189,7 +189,11 @@ if (cmd === 'config') {
 // exists, it is always red, and names the component whose `tour` (a count each one keeps in its
 // directory) is behind, forms on a tie: the two components send the red to each other. While
 // `packages/forms/garde-globale.txt` exists, it is red without SARIF, its output naming a file of
-// forms: a red no finding situates.
+// forms: a red no finding situates. While the main tree holds `.beads/essai/integration/rouge` and
+// the code of forms does not carry `// accordé`, it is red in the integration copy alone
+// (`.claude/worktrees/integration`): a red the checks of the ticket's copy never see, as a path of
+// the copy written in a fingerprint (BP 320.37), which the lot lifts, or the removal of that file,
+// as the load of the machine or main lifts it (BP 320.16).
 const GARDE = `import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -215,6 +219,13 @@ if (existsSync('packages/binder/garde-rouge.txt') && !accorde) {
 }
 if (existsSync('packages/binder/garde-finale.txt') && !accorde && !process.env.GRILLHOUSE_ENVELOPPE) {
   rouge('packages/forms/src/index.mjs', 'la mesure ne suit pas le classeur, hors enveloppe.');
+}
+if (
+  path.basename(process.cwd()) === 'integration' &&
+  existsSync(path.join(e, 'rouge')) &&
+  !accorde
+) {
+  rouge('packages/forms/src/index.mjs', 'la mesure lit un chemin que seule l’intégration voit.');
 }
 if (existsSync('packages/binder/arbitrer.txt') && !accorde) {
   rouge('packages/forms/src/index.mjs', 'la mesure attend un arbitrage.', 'a-arbitrer');
@@ -290,8 +301,10 @@ try {
 }
 
 // The trial repository of one test file under <ESSAIS>, built when this machine can wrap an
-// envelope, and what reads and drives it; <feuille> adds the third package.
-export function circuitEssai(ESSAIS: string, { feuille = false } = {}) {
+// envelope, and what reads and drives it; <feuille> adds the third package; <gardesSansCache> keeps
+// the project's guard out of Turborepo's cache, so that the integration copy plays it again, where
+// the checks of the ticket's copy played it green (the guard red in the integration copy alone).
+export function circuitEssai(ESSAIS: string, { feuille = false, gardesSansCache = false } = {}) {
   const REPO = path.join(ESSAIS, 'depot');
   const HOME = path.join(ESSAIS, 'home');
   const BIN = path.join(ESSAIS, 'bin');
@@ -363,6 +376,14 @@ export function circuitEssai(ESSAIS: string, { feuille = false } = {}) {
     ecrire(path.join(REPO, 'garde.mjs'), GARDE);
     ecrire(path.join(REPO, 'CLAUDE.md'), CHARTE);
     ecrireTurbo(REPO);
+    if (gardesSansCache) {
+      const f = path.join(REPO, 'turbo.json');
+      const turbo = JSON.parse(readFileSync(f, 'utf8')) as {
+        tasks: Record<string, Record<string, unknown>>;
+      };
+      turbo.tasks['//#gardes'] = { ...turbo.tasks['//#gardes'], cache: false };
+      ecrire(f, json(turbo));
+    }
     ecrire(
       path.join(REPO, '.gitignore'),
       'node_modules\n.turbo/\ndist/\n.beads/\n.claude/worktrees/\n'

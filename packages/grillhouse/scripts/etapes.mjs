@@ -212,7 +212,7 @@ export const GESTES = [
     genre: 'rien-a-livrer',
     geste: 'aux contrôles, qui jugent le lot',
     regle:
-      'un développeur qui ne change aucun fichier du plan n’a rien à livrer quand les contrôles sont verts ; rouges, l’arrêt monte (sans-livraison)',
+      'un développeur qui ne change aucun fichier du plan n’a rien à livrer quand les contrôles sont verts ; rouges, l’arrêt monte (sans-livraison) ; sur le lot que l’intégration refuse, pour un développeur que --depuis developpeur lance, le geste ne joue pas : il est relancé une fois avec le refus',
     cas: 'BP 320.9 : 995-tools n’a rien à livrer, 4 montées et 49 min (B5)',
   },
 ];

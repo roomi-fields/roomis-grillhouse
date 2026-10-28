@@ -217,7 +217,13 @@
 //   of its paths and the content of each file it lists, taken before and after the session; the
 //   sheet and the handover do not count) has nothing to deliver, the gesture `rien-a-livrer`, as a
 //   CI skips a job without object: the checks judge the lot; green, the run goes on; red, the
-//   circuit stops at « sans-livraison », its report sending to the developpeur's handover.
+//   circuit stops at « sans-livraison », its report sending to the developpeur's handover. A
+//   developpeur that `--depuis developpeur` launches on the lot the integration refused (`refus`,
+//   the fingerprint of its plan), as a merge queue lets a lot it sends back pass again only with a
+//   change, a session that changes nothing does not go to the checks of the copy, which do not see
+//   that red: the developpeur is relaunched once with the refusal, then the
+//   circuit stops at « sans-livraison », the refusal as its piece (BP 320.37: three times FAIT
+//   without a file changed, the checks of the copy green, the integration red on the same lot).
 // - A sheet of the developpeur whose `renvoi` names the testwriter says the red that remains lies
 //   in the tests of the lot: the gesture `renvoi-au-testwriter`, whether or not the session
 //   changed a file: the testwriter, the sending and the handover as his report, then the proof
@@ -415,7 +421,7 @@
 // - The state is `.claude/worktrees/<ticket>.circuit.json`, written again at each step and at the
 //   start and end of each session: `{ etape, tentative, code, raison, rapport, finale, boucles,
 //   seance, question, questionnement, processus, depart, paquets, constats, verifie, mene, reprise,
-//   journal }`; `processus` the process of the circuit that writes it, `depart` its start (field
+//   refus, journal }`; `processus` the process of the circuit that writes it, `depart` its start (field
 //   22 of /proc/<pid>/stat), which together name it, a number alone being reused; `questionnement` the work
 //   on the plan under way (`{ objet, role, seance }`: the plan, the explorateur or the
 //   questionneur, its session), null otherwise; `etape` is the state's name of a numbered step of
@@ -432,14 +438,23 @@
 //   the session that runs, null between two; `verifie` the tree of the lot the last whole final
 //   pass green played, null before; `mene` the start (an ISO date) of the step the circuit leads
 //   itself while it runs, null otherwise; `reprise` the session of the testwriter or developpeur
-//   its relaunches resume, `{ agent, seance }`, null before any.
+//   its relaunches resume, `{ agent, seance }`, null before any; `refus` the integration's refusal
+//   of the lot (`{ rapport, piece, empreinte, lance, relance }`: its output, its piece, the
+//   fingerprint of the plan refused, whether `--depuis developpeur` launched the developpeur on it,
+//   whether a session so launched left it unchanged once), null before any, once the integration
+//   accepts the lot, and on a run from the testwriter.
 // - `--reprendre` starts again at the step of the state, its report given to the next session,
 //   after any stop, the death of the circuit included. A session the state names
 //   that still runs is waited for first, and stopped when it stands still as long as a motionless
-//   session. On a stop « questionnement », it lets the plan pass as it is then (the supervisor
+//   session. On a stop « integration », it plays the integration (or the queue) again on the same
+//   lot, as bors retries: a refusal can come from the load or from main (BP 320.16, 320.16.2). On
+//   a stop « questionnement », it lets the plan pass as it is then (the supervisor
 //   changed it or kept it), from the testwriter.
 // - `--depuis <testwriter|developpeur>` has the lot corrected: it plays the whole ticket from
-//   that step, the text of `--contexte` on the line CONTEXTE of each agent of the run, as a retry
+//   that step, the text of `--contexte` on the line CONTEXTE of each agent of the run (after a stop
+//   « integration », from the developpeur, the refusal as his report, the red to lift, as a merge
+//   queue sends the lot back to its author with the log of its check; from the testwriter, the
+//   refusal dropped), as a retry
 //   of GitLab CI plays the jobs after it with the same variables: from the testwriter, his proof,
 //   then the developpeur launched by a red of the proof as without `--depuis`; from the
 //   developpeur, his checks; then the final pass, the reviewer and the integration. It goes with
@@ -486,7 +501,9 @@
 //   (the third developpeur of the checks or of the final pass leaves a red check, a red of the
 //   final pass out of the plan or that no package of the plan holds, or reds to settle),
 //   15 sans-livraison (a developpeur session that changes no file of the plan, its checks red; the
-//   first session of a `--reprendre` whose plan already holds changes goes on to the checks; or
+//   first session of a `--reprendre` whose plan already holds changes goes on to the checks; a
+//   second developpeur session that `--depuis developpeur` launched on the lot the integration
+//   refused and that changes nothing; or
 //   the developpeur's same sending to the testwriter twice in a row, no green checks between
 //   them), 16 relecture-arret (a finding without a valid agent, one on a criterion, the third
 //   RENDU), 17 integration (the integration script refuses the lot, or the queue reopens the
@@ -990,8 +1007,8 @@ function ecrireRapport(ctx, etape, texte, resultat, rapport = texte) {
 }
 
 // The state of the run, written whole (`seance` and `question` null and `finale` false unless <etat>
-// sets them, `processus`, `paquets`, `constats`, `verifie`, `reprise` and `aRegenerer` the
-// run's), kept as the run's current state.
+// sets them, `processus`, `paquets`, `constats`, `verifie`, `reprise`, `aRegenerer` and `refus`
+// the run's), kept as the run's current state.
 function ecrireEtat(ctx, etat) {
   ctx.courant = {
     finale: false,
@@ -1008,6 +1025,7 @@ function ecrireEtat(ctx, etat) {
     verifie: ctx.verifie ?? null,
     reprise: ctx.reprise ?? null,
     aRegenerer: ctx.aRegenerer ?? null,
+    refus: ctx.refus ?? null,
   };
   const provisoire = `${ctx.etat}.${process.pid}`;
   writeFileSync(
@@ -1267,11 +1285,12 @@ function consigne(valeurs, rang = 0) {
 // the plan, and the last handover of its author at the ticket. Every instruction, fresh or resumed,
 // carries the findings of the reviewer still open for its role (`ctx.constats`), all of them,
 // whatever the relaunch: a proof refused, red checks, a sending, a RENDU, a resumption of the
-// supervisor; a developpeur's sheet FAIT answers each of his by its title (`reponsesAuxConstats`),
+// supervisor; <change> says what changed on a resumption, when it is not the proof or the checks
+// (the integration's refusal of the lot, `refus`); a developpeur's sheet FAIT answers each of his by its title (`reponsesAuxConstats`),
 // refused without one, and the circuit keeps each answer with its finding (`avecLesReponses`).
 // Throws an Arret for a launch that stops before its session, a motionless session, or
 // a session that ends twice without a sheet that conforms.
-async function seance(ctx, role, { tentative, rapport, fort, derniere }) {
+async function seance(ctx, role, { tentative, rapport, fort, derniere, change }) {
   const nom = nomDuRole(role);
   const reprise = tentative > 1 && !derniere && ctx.reprise?.agent === role ? ctx.reprise : null;
   const constats = texteDesOuverts(ouverts(ctx, role));
@@ -1291,9 +1310,10 @@ async function seance(ctx, role, { tentative, rapport, fort, derniere }) {
       paquets: plan,
       tentative,
       change:
-        role === 'testwriter'
+        change ??
+        (role === 'testwriter'
           ? 'la preuve du rouge, jouée après ta séance, refuse ton lot'
-          : 'les contrôles, joués après ta séance, sont rouges',
+          : 'les contrôles, joués après ta séance, sont rouges'),
       rapport: rapport ?? 'aucun',
       constats,
     };
@@ -3137,6 +3157,8 @@ async function derouler(ctx, debut) {
   let { etape, tentative, rapport, finale } = debut;
   // The step a `--reprendre` starts at, the first of the loop.
   let reprise = Boolean(ctx.reprendre);
+  // A developpeur relaunched on the integration's refusal of the lot he left unchanged.
+  let relanceSurLeRefus = false;
   for (;;) {
     const reprend = reprise;
     reprise = false;
@@ -3213,7 +3235,9 @@ async function derouler(ctx, debut) {
           rapport,
           fort,
           derniere: fort,
+          change: relanceSurLeRefus ? CHANGE_DU_REFUS : undefined,
         });
+        relanceSurLeRefus = false;
         // A question goes up to the supervisor; a red out of reach, to the testwriter its sheet sends
         // it to, else up to the supervisor.
         if (fiche.statut === 'BESOIN') {
@@ -3251,6 +3275,30 @@ async function derouler(ctx, debut) {
         }
         if (fiche.hors_plan?.length) throw arretHorsDuPlan(ctx, tentative, fiche);
         const inchangee = empreinte(ctx) === avant;
+        if (inchangee && ctx.refus?.lance && ctx.refus.empreinte === avant) {
+          // The lot the integration refused, unchanged: as a merge queue lets a lot pass again only
+          // with a change, neither the gesture `rien-a-livrer` nor the checks of the copy, which
+          // the refusal does not see; the developpeur relaunched once with the refusal, then the
+          // stop goes up.
+          inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, etape: CODE, inchange: true });
+          if (ctx.refus.relance) {
+            throw new Arret(
+              'sans-livraison',
+              `La séance ${tentative} du développeur ne change aucun fichier du plan (${ctx.paquets.join(', ')}), une seconde fois sur le lot que l'intégration refuse.\n\n${ctx.refus.rapport}`,
+              { piece: ctx.refus.piece }
+            );
+          }
+          ctx.refus = { ...ctx.refus, relance: true };
+          commenter(
+            ctx,
+            'developpeur',
+            `séance ${tentative}${fort ? ' (opus, effort high)' : ''} finie sans changement, sur le lot que l'intégration refuse : le circuit le relance une fois, le refus comme rapport.`
+          );
+          tentative++;
+          rapport = rapportDuRefus(ctx.refus);
+          relanceSurLeRefus = true;
+          continue;
+        }
         if (inchangee && reprend && livre(ctx)) {
           // A resumed developpeur that finds the lot delivered: the checks judge it.
           commenter(
@@ -3527,12 +3575,13 @@ async function derouler(ctx, debut) {
         const r = integrer(ctx);
         if (r.code === A_REPASSER) throw new Arret('a-repasser', fin(r.sortie, 40));
         if (r.code !== 0) {
-          throw new Arret(
-            'integration',
+          throw refuser(
+            ctx,
             `Le script d'intégration refuse le lot (code ${r.code}).\n\n${fin(r.sortie, 60)}`,
-            { piece: `$ node ${INTEGRER} ${r.args.join(' ')}\n${fin(r.sortie, 30)}` }
+            `$ node ${INTEGRER} ${r.args.join(' ')}\n${fin(r.sortie, 30)}`
           );
         }
+        ctx.refus = null;
         const branche = `agent/${ctx.ticket}`;
         const commit = spawnSync('git', ['-C', ctx.racine, 'rev-parse', '--short', branche], {
           encoding: 'utf8',
@@ -3551,9 +3600,7 @@ async function derouler(ctx, debut) {
           continue;
         }
         if (f.etat === 'en-file') throw new Arret('a-repasser', f.raison);
-        throw new Arret('integration', `La file rouvre le ticket.\n\n${f.raison}`, {
-          piece: f.raison,
-        });
+        throw refuser(ctx, `La file rouvre le ticket.\n\n${f.raison}`, f.raison);
       } else if (etape === TRI) {
         // The lot is on main: the tri of its discoveries, which neither stops nor undoes it.
         await trier(ctx);
@@ -3599,6 +3646,25 @@ async function derouler(ctx, debut) {
     }
   }
 }
+
+// What changed for a developpeur relaunched on the integration's refusal of the lot he left as it was.
+const CHANGE_DU_REFUS =
+  'l’intégration refuse ton lot, et ta séance n’a changé aucun fichier du plan : son refus, dans le rapport ci-dessous, est le rouge à lever';
+
+// The stop « integration » of the motive <rapport> and the piece <piece>, the refusal of the lot
+// kept in the state (`refus`: `{ rapport, piece, empreinte, lance, relance }`, the fingerprint of
+// the plan refused, whether a --depuis developpeur launched the developpeur on it, and whether a
+// session so launched already left it unchanged once), which --depuis developpeur gives the
+// developpeur.
+function refuser(ctx, rapport, piece) {
+  ctx.refus = { rapport, piece, empreinte: empreinte(ctx), lance: false, relance: false };
+  return new Arret('integration', rapport, { piece });
+}
+
+// The developpeur's report on the integration's refusal <refus>: the red to lift, which the checks
+// of the copy, green, do not see.
+const rapportDuRefus = refus =>
+  `L’intégration refuse ce lot : son refus, ci-dessous, est le rouge à lever ; les contrôles de ta copie, verts, ne le voient pas, et le lot ne repasse à l’intégration qu’avec un changement.\n\n${refus.rapport}`;
 
 // The gesture <genre> of the circuit (scripts/etapes.mjs, GESTES), with no session: its line at
 // the ticket and in the log, with its rule.
@@ -3657,10 +3723,18 @@ async function conduire(ctx, d) {
   return monter(ctx, a);
 }
 
-// Where the run starts: the step a --depuis names (the testwriter's or the developpeur's), the
-// step of the state <e> (null without one) on --reprendre, else the testwriter, the run starting
-// over.
+// Where the run starts: after a stop « integration », on --depuis developpeur, the developpeur,
+// the refusal (`refus`) as his report, the session so launched marked (`lance`), as a merge queue
+// sends the lot back to its author with the log of its check; else the step a --depuis names (the
+// testwriter's, which makes the lot again, the refusal dropped, or the developpeur's), the step of
+// the state <e> (null without one) on --reprendre, the integration or the queue played again on
+// the same lot after their stop, as bors retries, else the testwriter, the run starting over.
 function depart(ctx, e) {
+  if (ctx.depuis === 'developpeur' && e?.raison === 'integration' && ctx.refus) {
+    ctx.refus = { ...ctx.refus, lance: true, relance: false };
+    return { etape: CODE, tentative: 1, rapport: rapportDuRefus(ctx.refus), finale: false };
+  }
+  if (ctx.depuis === 'testwriter') ctx.refus = null;
   if (ctx.depuis) {
     return {
       etape: ctx.depuis === 'testwriter' ? TESTS : CODE,
@@ -3670,9 +3744,10 @@ function depart(ctx, e) {
     };
   }
   if (!ctx.reprendre) {
-    // The run starts over: no lot verified, no finding of a review open.
+    // The run starts over: no lot verified, no finding of a review open, no refusal.
     ctx.verifie = null;
     ctx.constats = [];
+    ctx.refus = null;
     return { etape: TESTS, tentative: 1, rapport: null, finale: false };
   }
   if (!e) throw new Usage(`rien à reprendre : ${ctx.etat} n'existe pas.`);
@@ -4123,6 +4198,7 @@ async function arreter(ctx, e) {
   ctx.constats = [...(lu.constats ?? [])];
   ctx.verifie = lu.verifie ?? null;
   ctx.reprise = lu.reprise ?? null;
+  ctx.refus = lu.refus ?? null;
   ecrireEtat(ctx, {
     etape: lu.etape,
     tentative: lu.tentative,
@@ -4194,11 +4270,13 @@ export async function main(argv) {
     mkdirSync(path.dirname(ctx.copie), { recursive: true });
     let e = existsSync(ctx.etat) ? JSON.parse(readFileSync(ctx.etat, 'utf8')) : null;
     // The findings of the reviewer still open, the lot the whole final pass verified, the session a
-    // relaunch resumes, and the references a regeneration has to run, kept from one run to the next.
+    // relaunch resumes, the references a regeneration has to run, and the integration's refusal of
+    // the lot, kept from one run to the next.
     ctx.constats = [...(e?.constats ?? [])];
     ctx.verifie = e?.verifie ?? null;
     ctx.reprise = e?.reprise ?? null;
     ctx.aRegenerer = e?.aRegenerer ?? null;
+    ctx.refus = e?.refus ?? null;
     // The supervisor's answers to a question: stop the circuit, or extend its plan and resume.
     if (ctx.arreter) return await arreter(ctx, e);
     // A circuit that outlives its caller is still the ticket's: no second run beside it.
