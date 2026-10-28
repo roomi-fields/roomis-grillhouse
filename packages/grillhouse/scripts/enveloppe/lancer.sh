@@ -31,7 +31,7 @@
 #   circuit gives them, so that a relaunch of an agent on its step resumes its session. The two
 #   together are refused, CODE_USAGE; each takes a value as --modele does.
 #   A resumed session receives its instruction alone: the session it resumes holds the sections
-#   the launcher adds below, save « La construction de ton paquet échoue », which it receives.
+#   the launcher adds below, save « La construction échoue », which it receives.
 # - The agent's copy is the worktree .claude/worktrees/<ticket> (branch agent/<ticket>), created
 #   from the main tree's HEAD when absent and moved forward to it otherwise. When the branch exists
 #   without a copy, it is brought back to the main tree's HEAD and the copy is made on it: the lot
@@ -68,10 +68,16 @@
 #   traces> --filter=<paquet>...… --continue=dependencies-successful`), whose failure does not
 #   stop it: each task whose
 #   dependencies succeed goes to its end, so what their tests read without depending on them is
-#   built whole; the session opens, its instruction ending with a section « La construction de ton
-#   paquet échoue » with the end of that output, since repairing it is the session's work (a
+#   built whole; the session opens, its instruction ending with a section « La construction
+#   échoue » with the end of that output, since repairing it is the session's work (a
 #   provider's lot that breaks its consumers). Their consumers are not built. Any other plan, the
-#   whole repository (`.`) included, builds the copy whole (`turbo run build`). The
+#   whole repository (`.`) included, or a path that is no package of the frame (BPScript's
+#   libraries/), reads the graph of the whole copy dry (`turbo run build --dry=json`), whose
+#   failure (Turborepo absent, its configuration refused) stops the launch, CODE_COPIE, then builds
+#   the copy whole as far as it builds (`turbo run build --continue=dependencies-successful`): its
+#   failure does not stop the launch either, and goes into the same section. The first line of the
+#   section says which build failed and what was built. The installation and every other step of
+#   the preparation stop it, CODE_COPIE. The
 #   installation and the build play through `scripts/sous-modules.sh monter`, each shared submodule
 #   of the main repository read-only, by the list the pose printed, whatever the installation
 #   rewrites afterwards; with a shared submodule and no possible mount (bwrap absent or
@@ -90,7 +96,7 @@
 #   CODE_COPIE), then the
 #   section « Ton dossier de travail », which names the session's working directory, where every
 #   temporary file goes (`dossierDeTravail` of enveloppe.mjs, the envelope's TMPDIR), then the
-#   section « La construction de ton paquet échoue » when it fails. The prompt
+#   section « La construction échoue » when it fails. The prompt
 #   carries « TON TICKET : <ticket> », which the role's locks read. The envelope is the sandbox, so
 #   the session runs without permission prompts, under the rights and the context of its role
 #   (scripts/droits.mjs, given the main tree, the copy and the ticket; a reading that fails stops
@@ -189,8 +195,10 @@ if node --input-type=module -e "import { lireEntrees } from '$ici/../integration
   echo "$refus" >&2
   exit "$CODE_COPIE"
 fi
-# The output of the session package's build, when it fails.
+# The output of the session's build, when it fails, behind its first line, which says what failed
+# and what was built (`echouer`).
 echec=$(mktemp)
+echouer() { local sortie; sortie=$(cat "$echec"); printf '%s\n%s\n' "$1" "$sortie" > "$echec"; }
 (
   # Each step returns on failure: `set -e` does not act inside a subshell tested by `||`.
   if [ ! -d "$copie" ]; then
@@ -243,7 +251,18 @@ echec=$(mktemp)
     # line; none when a path of the plan is no package of the frame (the root, `.`, a folder).
     noms=$(node --input-type=module -e "import path from 'node:path'; import { lireLaListe } from '$ici/paquets-du-plan.mjs'; import { paquets } from '$ici/../paquets.mjs'; const [r, liste] = process.argv.slice(1); const tous = paquets(r).filter(p => !p.hors); const l = lireLaListe(liste).map(d => tous.find(p => p.dossier === path.normalize(d).replace(/\/\$/, ''))?.pkg.name ?? null); process.stdout.write(l.length && l.every(Boolean) ? l.join('\n') : '');" "$copie" "$paquets") || exit 1
     if [ -z "$noms" ]; then
-      (cd "$copie" && monter npx --no-install turbo run build) || exit 1
+      # The graph read dry first: Turborepo absent or its configuration refused is a preparation
+      # that fails, which stops the launch. Then the whole copy, built as far as it builds
+      # (--continue=dependencies-successful): a failure does not stop the launch, it goes into the
+      # instruction, as for a plan of packages.
+      (cd "$copie" && monter npx --no-install turbo run build --dry=json > /dev/null) || exit 1
+      if ! (cd "$copie" && monter npx --no-install turbo run build --continue=dependencies-successful) > "$echec" 2>&1; then
+        cat "$echec"
+        echo "⚠️  La construction de la copie échoue : la séance s'ouvre, la consigne porte l'erreur."
+        echouer "La construction de la copie entière échoue ; ce qui n'attend pas la construction en échec est construit."
+      else
+        : > "$echec"
+      fi
     else
       mapfile -t lesNoms <<<"$noms"
       cibles=() lecteurs=()
@@ -279,6 +298,7 @@ echec=$(mktemp)
       if ! (cd "$copie" && monter npx --no-install turbo run build ${ids[@]+"${ids[@]}"} "${lecteurs[@]}" --continue=dependencies-successful) > "$echec" 2>&1; then
         cat "$echec"
         echo "⚠️  La construction du plan (${lesNoms[*]}) échoue : la séance s'ouvre, la consigne porte l'erreur."
+        echouer "La construction des paquets de ton plan échoue ; leurs fournisseurs et ce que leurs tests lisent sans dépendre d'eux sont construits."
       else
         : > "$echec"
       fi
@@ -297,7 +317,7 @@ rm -f "$travail/hors-plan"
 dossier=$'\n\n'"## Ton dossier de travail"$'\n\n'"Tout fichier temporaire s'écrit dans \`$travail\`, que \`\$TMPDIR\` nomme aussi."
 construction=
 if [ -s "$echec" ]; then
-  construction=$'\n\n'"## La construction de ton paquet échoue"$'\n\n'"Ses fournisseurs et ce que ses tests lisent sans dépendre de lui sont construits ; sa propre construction échoue, et la réparer fait partie de ta tâche. La fin de sa sortie :"$'\n\n```\n'"$(tail -n 100 "$echec")"$'\n```'
+  construction=$'\n\n'"## La construction échoue"$'\n\n'"$(head -n 1 "$echec") La réparer fait partie de ta tâche. La fin de sa sortie :"$'\n\n```\n'"$(tail -n +2 "$echec" | tail -n 100)"$'\n```'
 fi
 rm -f "$echec"
 # The prompt, assembled in a file: claude reads it on its standard input, since as an argument it

@@ -49,11 +49,16 @@ export const git = (dir: string, ...a: string[]) =>
 const TEST = 'npm run --silent build && node suites.mjs';
 // The trial's stand-in for Turborepo, the local package `outils/turbo` of the trial repository (its
 // `turbo` binary, which `npm install` links into node_modules/.bin, where the launcher's
-// `npx --no-install turbo run build` finds it): `turbo run <task>` runs the npm script <task>.
+// `npx --no-install turbo run build` finds it): `turbo run <task>` runs the npm script <task>; with
+// `--dry`, as Turborepo, it runs nothing and gives an empty plan.
 const TURBO_FAUX = `#!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
 const [commande, tache] = process.argv.slice(2);
 if (commande !== 'run' || !tache) process.exit(2);
+if (process.argv.some(a => a === '--dry' || a.startsWith('--dry='))) {
+  console.log(JSON.stringify({ tasks: [] }));
+  process.exit(0);
+}
 const r = spawnSync('npm', ['run', '--silent', '--if-present', tache], { stdio: 'inherit' });
 process.exit(r.status ?? 1);
 `;

@@ -193,6 +193,7 @@ describe('the launcher and the dependencies of the copy', () => {
       '#!/bin/bash',
       `echo "$*" >> ${appels}`,
       '[ "$1" = config ] && { echo "$HOME/.npm"; exit 0; }',
+      '[ "$3" = install ] && [ -n "$NPM_ECHOUE" ] && exit 1',
       '[ "$3" = install ] && mkdir -p "$2/node_modules" && touch "$2/node_modules/.package-lock.json"',
       'exit 0',
       '',
@@ -252,6 +253,45 @@ describe('the launcher and the dependencies of the copy', () => {
     age(lock, 3600);
     age(mark, 0);
     expect(installs()).toBe(0);
+  });
+  // grillhouse-6q1: a failed build of the whole copy goes into the instruction; a failed
+  // installation still stops the launch, before any session.
+  it('stops the launch, CODE_COPIE, when the installation fails', () => {
+    age(mark, 3600);
+    age(lock, 0);
+    const r = spawnSync('bash', [LAUNCHER, 'demo-1', 'developpeur', 'packages/a', consigne], {
+      cwd: repo,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CLAUDE_BIN: 'true',
+        HOME: home,
+        NPM_ECHOUE: '1',
+        PATH: `${path.join(repo, 'bin')}:${process.env.PATH}`,
+      },
+    });
+    expect(r.status, r.stderr).toBe(CODE_COPIE);
+    expect(r.stderr).toContain("n'a pas pu être préparée");
+    expect(existsSync(`${copie}.fin`)).toBe(false);
+  });
+  // grillhouse-6q1: Turborepo absent from the copy is a preparation that fails, not a build: the
+  // session could not repair it, so the launch stops before any session.
+  it('stops the launch, CODE_COPIE, when Turborepo is absent from the copy', () => {
+    age(lock, 3600);
+    age(mark, 0);
+    const r = spawnSync('bash', [LAUNCHER, 'demo-1', 'developpeur', '.', consigne], {
+      cwd: repo,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CLAUDE_BIN: 'true',
+        HOME: home,
+        PATH: `${path.join(repo, 'bin')}:${process.env.PATH}`,
+      },
+    });
+    expect(r.status, r.stderr).toBe(CODE_COPIE);
+    expect(r.stderr).toContain("n'a pas pu être préparée");
+    expect(existsSync(`${copie}.fin`)).toBe(false);
   });
 });
 

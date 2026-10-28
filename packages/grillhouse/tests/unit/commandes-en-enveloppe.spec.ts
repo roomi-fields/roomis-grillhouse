@@ -429,7 +429,7 @@ describe.runIf(canWrap)(
       const { r, prompt, trace } = lancer();
       expect(r.status, trace).toBe(0);
       expect(prompt).toContain('TON TICKET : demo-1');
-      expect(prompt).not.toContain('La construction de ton paquet échoue');
+      expect(prompt).not.toContain('La construction échoue');
     });
 
     it("opens the session of a consumer that a provider's lot breaks, the error in its instruction", () => {
@@ -439,11 +439,11 @@ describe.runIf(canWrap)(
       );
       const { r, prompt, trace } = lancer();
       expect(r.status, trace).toBe(0);
-      expect(prompt).toContain('La construction de ton paquet échoue');
+      expect(prompt).toContain('La construction échoue');
       expect(prompt).toContain("Property 'name' does not exist");
       expect(prompt).toContain('## Ton dossier de travail');
       // The section of the build comes last, after the working directory.
-      expect(prompt?.indexOf('## La construction de ton paquet échoue')).toBeGreaterThan(
+      expect(prompt?.indexOf('## La construction échoue')).toBeGreaterThan(
         prompt?.indexOf('## Ton dossier de travail') ?? Infinity
       );
       // The provider was built with its lot.
@@ -463,7 +463,8 @@ describe.runIf(canWrap)(
       );
       const { r, prompt, trace } = lancer(['--paquets', 'packages/forms:packages/loader'], '.');
       expect(r.status, trace).toBe(0);
-      expect(prompt).toContain('La construction de ton paquet échoue');
+      expect(prompt).toContain('La construction échoue');
+      expect(prompt).toContain('La construction des paquets de ton plan échoue');
       expect(prompt).toContain("Property 'name' does not exist");
       expect(readFileSync(path.join(copie, 'packages/forms/dist/index.d.ts'), 'utf8')).toContain(
         'nom'
@@ -587,6 +588,12 @@ describe.runIf(canWrap)(
     const faux = path.join(repo, 'faux-claude.sh');
     ecrire(repo, 'faux-claude.sh', '#!/bin/bash\ncat > "$GRILLHOUSE_ENVELOPPE/prompt"\n');
     chmodSync(faux, 0o755);
+    // A folder that is no package of the frame, as BPScript's libraries/ and spec/.
+    ecrire(repo, 'libraries/LISEZMOI.md', 'Les bibliothèques.\n');
+    // A stand-in for claude in a session whose plan names that folder: it writes its prompt in paq.
+    const fauxHors = path.join(repo, 'faux-claude-hors.sh');
+    ecrire(repo, 'faux-claude-hors.sh', '#!/bin/bash\ncat > packages/paq/prompt\n');
+    chmodSync(fauxHors, 0o755);
     ecrireTurbo(repo);
     const git = (...a: string[]) =>
       execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
@@ -609,8 +616,39 @@ describe.runIf(canWrap)(
       const trace = `${r.stderr}\n${journal}`;
       expect(r.status, trace).toBe(0);
       const prompt = readFileSync(path.join(copie, 'packages/paq/prompt'), 'utf8');
-      expect(prompt).toContain('La construction de ton paquet échoue');
+      expect(prompt).toContain('La construction échoue');
       expect(prompt).toContain('construction cassée');
+      expect(existsSync(path.join(copie, 'packages/lent/dist/fin.txt')), trace).toBe(true);
+    });
+
+    // Witness: BPScript bp-mono-vbwf.320.14.2.1 (grillhouse-6q1). The plan of the developpeur's
+    // session named libraries and spec, which are no packages of the frame: the launcher built the
+    // copy whole, stopped on the failure of 990-corpus#build (the red the testwriter wrote for the
+    // developpeur), and the session never opened (code 10). As Bazel's --keep_going, which the
+    // launcher follows for a plan of packages: the copy is built as far as it builds, and the
+    // failure goes into the instruction.
+    it('builds the copy whole as far as it builds when the plan names a path out of the packages, the error in its instruction', () => {
+      // A change of `lent`, so that its build runs anew instead of coming back from the cache.
+      ecrire(repo, 'packages/lent/LISEZMOI.md', 'Lent.\n');
+      git('add', '.');
+      git('commit', '-qm', 'lent');
+      const copie = path.join(repo, '.claude/worktrees/demo-2');
+      const consigne = path.join(ESSAIS, 'consigne-hors.txt');
+      writeFileSync(consigne, 'TON TICKET : demo-2 — réparer paq.');
+      const r = spawnSync(
+        'bash',
+        [LANCEUR, '--paquets', 'libraries:packages/paq', 'demo-2', 'developpeur', '.', consigne],
+        { cwd: repo, encoding: 'utf8', env: { ...ENV, CLAUDE_BIN: fauxHors, HOME: home } }
+      );
+      const journal = existsSync(`${copie}.log`) ? readFileSync(`${copie}.log`, 'utf8') : '';
+      const trace = `${r.stderr}\n${journal}`;
+      expect(r.status, trace).toBe(0);
+      const prompt = readFileSync(path.join(copie, 'packages/paq/prompt'), 'utf8');
+      expect(prompt).toContain('TON TICKET : demo-2');
+      expect(prompt).toContain('## La construction échoue');
+      expect(prompt).toContain('La construction de la copie entière échoue');
+      expect(prompt).toContain('construction cassée');
+      // What the failure does not wait for is built to its end.
       expect(existsSync(path.join(copie, 'packages/lent/dist/fin.txt')), trace).toBe(true);
     });
   }
@@ -760,7 +798,7 @@ describe.runIf(canWrap)(
       writeFileSync(path.join(copie, 'packages/prod/casse'), '');
       const casse = lancer('demo-2', 'packages/prod');
       expect(casse.r.status, casse.trace).toBe(0);
-      expect(casse.prompt).toContain('La construction de ton paquet échoue');
+      expect(casse.prompt).toContain('La construction échoue');
       expect(casse.prompt).toContain('trace cassée');
     });
   }
@@ -900,7 +938,7 @@ describe.runIf(canWrap)(
     it('builds the plan with what waits for it out of the plan, the instruction without a build section', () => {
       const { r, prompt, trace } = lancer();
       expect(r.status, trace).toBe(0);
-      expect(prompt, trace).not.toContain('La construction de ton paquet échoue');
+      expect(prompt, trace).not.toContain('La construction échoue');
       expect(readFileSync(path.join(copie, 'packages/prod/trace/g/x.txt'), 'utf8')).toBe(
         'trace de prod'
       );
@@ -912,7 +950,7 @@ describe.runIf(canWrap)(
       const { r, prompt, trace } = lancer();
       rmSync(path.join(copie, 'packages/corpus/src/casse'));
       expect(r.status, trace).toBe(0);
-      expect(prompt, trace).toContain('La construction de ton paquet échoue');
+      expect(prompt, trace).toContain('La construction échoue');
       expect(prompt).toContain('error TS2345');
     });
 
