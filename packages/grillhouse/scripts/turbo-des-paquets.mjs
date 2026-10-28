@@ -514,11 +514,18 @@ export function attendus(racine) {
       taches.build = {
         dependsOn: internes(pkg, EXECUTION, construits).map(n => `${n}#build`),
       };
+      const propres = entreesBuild(racine, dossier, pkg, sm);
+      // The files the build reads by name stay its inputs, a reader's declaration never changing
+      // them (Bazel: a file is `srcs` of one target and `data` of another): the ones its inputs
+      // name, else its package.json and tsconfig*.json.
+      const lusParBuild = propres
+        ? f => propres.includes(f)
+        : f => f === 'package.json' || /^tsconfig[^/]*\.json$/.test(f);
       const dedans = donnees
         .filter(d => d !== dossier && sous(d, dossier))
         .map(d => path.posix.relative(dossier, d))
+        .filter(d => !lusParBuild(d))
         .sort();
-      const propres = entreesBuild(racine, dossier, pkg, sm);
       const sansDonnees = dedans.map(d => `!${d}/**`);
       if (propres) taches.build.inputs = [...racineBuild, ...propres, ...sansDonnees];
       else if (dedans.length) taches.build.inputs = [base('build'), ...sansDonnees];

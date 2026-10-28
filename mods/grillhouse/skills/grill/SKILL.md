@@ -146,7 +146,8 @@ remplace jamais le grill. Les branches de l'arbre :
    données ou code d'un voisin (ses scripts de capture, un fichier de ses sources), comme le `data`
    de Bazel prend tout fichier ; son test les prend en entrée, et la construction du paquet qui
    porte un chemin de données seules le laisse hors des siennes, tandis qu'un chemin qui contient
-   du code reste dans la construction de son paquet. Une
+   du code, ou un fichier que cette construction lit (son `package.json`, ses `tsconfig*.json`),
+   reste dans la construction de son paquet. Une
    trace qu'un étage produit (des grammaires encodées du corpus), comme une genrule de Bazel, vit
    dans le paquet producteur, dans un dossier que git ignore, et se déclare avec ce qu'elle lit
    (`"traces": { "trace:<nom>": { "lit": [...], "ecrit": "<dossier>" } }`, sa commande le script du

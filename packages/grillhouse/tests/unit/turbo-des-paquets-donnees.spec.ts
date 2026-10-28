@@ -1014,3 +1014,94 @@ describe('an input covering a submodule has its .git left out by the generator',
     expect(sec(racine, ['test:vitest']).get('040-checker#test:vitest')!.hash).not.toBe(avec1);
   });
 });
+
+// A file may be read by the build of its package and by a neighbour's tests, as in Bazel a file is
+// `srcs` of one target and `data` of another: a reader's declaration never changes the inputs of
+// the owner's build. Witness: BPScript (320.21.4.3), whose 995-tools declares the package.json and
+// tsconfig*.json of the numbered packages its benches read: each was left out of its own
+// package's build (`!package.json/**`), and BPScript withdrew the 94 declarations.
+describe('a declared file the build of its package reads', () => {
+  const FORMES = 'packages/000-forms';
+  const PARSER = 'packages/010-parser';
+  const DONNEES = `${PARSER}/test/donnees`;
+  const CONFIGS = [
+    `${FORMES}/package.json`,
+    `${FORMES}/tsconfig.json`,
+    `${PARSER}/package.json`,
+    `${PARSER}/tsconfig.build.json`,
+    `${PARSER}/tsconfig.json`,
+  ];
+  // 010-parser builds src through its tsconfig.build.json; 000-forms has none (Turborepo's
+  // default); 040-checker reads their configurations and a directory of data of 010-parser.
+  const depotLecteur = () => {
+    const paquets = avec('040-checker', p => {
+      p.grillhouse = { lit: [SCENES_040, ...CONFIGS, DONNEES] };
+    });
+    paquets['010-parser'].scripts = { ...etage, build: 'tsc -p tsconfig.build.json' };
+    const racine = depotBP(paquets);
+    ecrireFichier(racine, `${FORMES}/tsconfig.json`, json({ include: ['src'] }));
+    ecrireFichier(racine, `${PARSER}/tsconfig.json`, json({ include: ['src', 'test'] }));
+    ecrireFichier(
+      racine,
+      `${PARSER}/tsconfig.build.json`,
+      json({ extends: './tsconfig.json', include: ['src'] })
+    );
+    ecrireFichier(racine, `${DONNEES}/une.json`, '{"donnee":1}\n');
+    git(racine, ['add', '-A']);
+    return racine;
+  };
+
+  it('stays an input of its package’s build, a directory of data alone still left out', () => {
+    const racine = depotLecteur();
+    expect(refusDe(racine)).toBe('');
+    expect(tachesDe(racine, PARSER).build).toEqual({
+      dependsOn: ['000-forms#build'],
+      inputs: [
+        '$TURBO_ROOT$/tsconfig.construction.json',
+        'package.json',
+        'src/**',
+        'tsconfig.build.json',
+        'tsconfig.json',
+        '!test/donnees/**',
+      ],
+    });
+    // A build on Turborepo's default reads its package.json and tsconfig*.json too.
+    expect(tachesDe(racine, FORMES).build).toEqual({ dependsOn: [] });
+    const graphe = sec(racine, ['build']);
+    expect(Object.keys(graphe.get('010-parser#build')!.inputs)).toEqual(
+      expect.arrayContaining(['package.json', 'tsconfig.build.json', 'tsconfig.json'])
+    );
+    expect(Object.keys(graphe.get('000-forms#build')!.inputs)).toEqual(
+      expect.arrayContaining(['package.json', 'tsconfig.json'])
+    );
+  });
+
+  it('its reader’s tests hash it', () => {
+    const racine = depotLecteur();
+    ecrire(racine);
+    expect(tachesDe(racine, 'packages/040-checker')['test:vitest'].inputs).toEqual([
+      '$TURBO_EXTENDS$',
+      ...[...CONFIGS, DONNEES, SCENES_040].sort().map(l => `$TURBO_ROOT$/${l}/**`),
+    ]);
+    const lues = Object.keys(
+      sec(racine, ['test:vitest']).get('040-checker#test:vitest')!.inputs
+    ).map(f => path.posix.normalize(path.posix.join('packages/040-checker', f)));
+    expect(lues).toEqual(expect.arrayContaining([...CONFIGS, `${DONNEES}/une.json`]));
+  });
+
+  it('witness: a change of it moves its package’s build and its reader’s tests; a change of the data, the tests only', () => {
+    const racine = depotLecteur();
+    ecrire(racine);
+    const empreintes = () =>
+      new Map([...sec(racine, ['test:vitest'])].map(([id, t]) => [id, t.hash]));
+    const avant = empreintes();
+    ecrireFichier(racine, `${PARSER}/tsconfig.json`, json({ include: ['src', 'test', 'bancs'] }));
+    const apres = empreintes();
+    expect(apres.get('010-parser#build')).not.toBe(avant.get('010-parser#build'));
+    expect(apres.get('040-checker#test:vitest')).not.toBe(avant.get('040-checker#test:vitest'));
+    ecrireFichier(racine, `${DONNEES}/une.json`, '{"donnee":2}\n');
+    const donnees = empreintes();
+    expect(donnees.get('010-parser#build')).toBe(apres.get('010-parser#build'));
+    expect(donnees.get('040-checker#test:vitest')).not.toBe(apres.get('040-checker#test:vitest'));
+  });
+});

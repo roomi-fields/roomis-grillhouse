@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **A declared read leaves the file in its owner's build** (grillhouse-kgx.5): on BPScript (bp-mono-vbwf.320.21.4.3), 995-tools declared in `grillhouse.lit` the package.json and tsconfig*.json of the numbered packages its benches read; none holds code, so the generator wrote each as a data path left out of its own package's build (`!package.json/**`, `!tsconfig.json/**` beside the same files as inputs), and BPScript withdrew the 94 declarations: the benches of 995-tools no longer replayed on a change of them, for 27 packages of 31. As in Bazel, where a file may be `srcs` of one target and `data` of another, a reader's declaration no longer changes the owner's inputs: a declared file the owner's build reads by name (an entry of its inputs, else its package.json and tsconfig*.json) stays an input of that build, and the reader's tests keep it among theirs. A declared directory of data alone stays left out of its owner's build, as before.
+
 ## [0.24.13] - 2026-10-28
 
 ### Fixed

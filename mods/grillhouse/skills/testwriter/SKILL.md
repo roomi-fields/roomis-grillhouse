@@ -121,7 +121,8 @@ scènes, des paires de la matière, la trace d'un autre étage, les scripts ou u
 qu'il lit ou lance) fait déclarer son chemin, dossier ou fichier, dans le `package.json` de son
 paquet, depuis la racine : `"grillhouse": { "lit": ["<chemin>"] }`. Le test n'est rejoué que si
 son code, ce qu'il importe ou un chemin déclaré change ; un chemin de données seules qu'un autre
-paquet déclare sort de la construction de son paquet, un chemin qui contient du code y reste, et
+paquet déclare sort de la construction de son paquet, un chemin qui contient du code ou un
+fichier que cette construction lit (son `package.json`, ses `tsconfig*.json`) y reste, et
 un lecteur qui l'omet garde un vert périmé. Le `package.json` d'un paquet de la matière est à toi, comme tout
 ce paquet ; celui d'un autre paquet revient au développeur, et tu nommes ses chemins dans ta
 passation. Ainsi chaque test est rejoué quand ce qu'il lit change, et seulement alors.
