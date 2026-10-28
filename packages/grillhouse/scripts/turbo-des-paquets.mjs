@@ -8,9 +8,9 @@
 //
 //   npx grillhouse turbo-des-paquets           refuses a turbo.json absent or stale, and a
 //                                                declaration of a path read or trace refused (below)
-//   npx grillhouse turbo-des-paquets --ecrire  writes the turbo.json of each package, and the
-//                                                guards' dependsOn, the typing task and the tests'
-//                                                env in the root's
+//   npx grillhouse turbo-des-paquets --ecrire  writes the guards' dependsOn, the typing task and
+//                                                the tests' env in the root's turbo.json, then the
+//                                                turbo.json of each package, in one pass
 //
 // Turborepo's `^build` waits for the build of every internal package a package declares, its
 // devDependencies included; a package whose tests import a neighbour that depends on it (the
@@ -704,17 +704,12 @@ function gitsAbsents(racine) {
   return listes.length ? { f: r.f, listes } : null;
 }
 
-// Writes the turbo.json of each package of <racine>, and in its root's the guards' dependsOn, the
-// typing task, the tests' env and the exclusion of a submodule's `.git` beside each input reaching it; returns the
+// Writes in the root's turbo.json of <racine> the guards' dependsOn, the typing task, the tests' env
+// and the exclusion of a submodule's `.git` beside each input reaching it, then the turbo.json of
+// each package, which derive from the root's tasks: one pass reaches the fixed point. Returns the
 // paths written.
 export function ecrire(racine) {
   const ecrits = [];
-  for (const [f, t] of attendus(racine)) {
-    const abs = path.join(racine, f);
-    if (existsSync(abs) && readFileSync(abs, 'utf8') === t) continue;
-    writeFileSync(abs, t);
-    ecrits.push(f);
-  }
   const racineEcartee = gardesEcartees(racine);
   if (racineEcartee?.ecarts.length) {
     let texte = racineEcartee.texte;
@@ -762,6 +757,12 @@ export function ecrire(racine) {
     }
     writeFileSync(abs, texte);
     if (!ecrits.includes(gits.f)) ecrits.push(gits.f);
+  }
+  for (const [f, t] of attendus(racine)) {
+    const abs = path.join(racine, f);
+    if (existsSync(abs) && readFileSync(abs, 'utf8') === t) continue;
+    writeFileSync(abs, t);
+    ecrits.push(f);
   }
   return ecrits;
 }

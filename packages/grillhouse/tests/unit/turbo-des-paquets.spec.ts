@@ -769,6 +769,36 @@ describe('grillhouse-kgx.3 — the root’s typecheck task, which waits for the 
   });
 });
 
+// Witness: BPScript (ed70d6b86), whose `npx grillhouse maj` to 0.24.14 left its guards red on the
+// turbo.json of 140-scheduler, 150-renderer-* and 995-tools: the generator wrote the packages from
+// the root's `typecheck` it had not yet corrected, and a second `--ecrire` repaired them. A
+// generator reaches its fixed point in one pass, the root, which the packages read, first (make
+// orders its targets by their prerequisites).
+describe('grillhouse-kgx.3.2 — one pass of the generator reaches its fixed point', () => {
+  it('critère 1: a root typecheck waiting for ^build alone, a package deriving its own: one pass, accepted; a second, nothing written', () => {
+    const gabarit = JSON.parse(lire(DEPOT, 'templates/turbo/paquets.json')) as {
+      tasks: Record<string, Record<string, unknown>>;
+    };
+    const racine = depotHorsCadre(
+      `${JSON.stringify(
+        {
+          ...gabarit,
+          tasks: { ...gabarit.tasks, lint: {}, typecheck: { dependsOn: ['^build'], outputs: [] } },
+        },
+        null,
+        2
+      )}\n`
+    );
+    expect(ecrire(racine).length).toBeGreaterThan(0);
+    expect(verifier(racine)).toEqual([]);
+    const banc = nonGenere(lire(racine, 'packages/banc/turbo.json')) as {
+      tasks: Record<string, unknown>;
+    };
+    expect(banc.tasks.typecheck).toEqual({ dependsOn: ['build', 'socle#build'] });
+    expect(ecrire(racine)).toEqual([]);
+  });
+});
+
 // Witness: BPScript, whose reviewer measured it: the targeted run played its tests alone (`--only`),
 // whose hash left out the builds they wait for. The paths now reach Vitest in a variable the `env`
 // of the root's `test:vitest` names (scripts/tests.mjs), which the generator keeps there.

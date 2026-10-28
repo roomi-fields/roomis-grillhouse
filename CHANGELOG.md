@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **One pass of the generator reaches its fixed point** (grillhouse-kgx.3.2): on BPScript (ed70d6b86), after `npx grillhouse maj` to 0.24.14, `grillhouse:gardes` was red on the turbo.json of 140-scheduler, 150-renderer-audio, -midi, -osc and 995-tools, « diffère de ce que donnent les package.json », and a second `npx grillhouse turbo-des-paquets --ecrire` repaired them, each gaining `build` in its own `typecheck`. `--ecrire` wrote the packages' turbo.json first, from the root's tasks, then corrected the root (here its `typecheck`, which waited for `^build` alone): a package whose task derives from a root task the same pass corrects was written from the old root. As make orders its targets by their prerequisites, `--ecrire` now corrects the root first, then writes the packages from it: one pass leaves a state the check accepts, and a second writes nothing.
+
 ## [0.24.14] - 2026-10-28
 
 ### Fixed
