@@ -7,7 +7,7 @@
 // common directory.
 //
 //   npx grillhouse integrer --ticket <id>
-//        [--tests <patch>] [--code <patch>] --message <file>
+//        [--tests <patch>] [--code <patch>] --message <file> [--references <file>]
 //
 // One delivery is one ticket: the ticket gives its branch `agent/<ticket>` and its copy
 // (`.claude/worktrees/<ticket>`, the one the lot was written in, when it exists); a second
@@ -26,11 +26,13 @@
 //  4. a clean integration copy (`.claude/worktrees/integration`) on HEAD, made ready by the
 //     replay (scripts/integration/rejeu.mjs: submodules by scripts/sous-modules.sh, dependencies
 //     in agreement with the lock file and the manifests, mounts);
-//  5. the lots, applied in three ways in the copy, tests first; the files of the lot in the
+//  5. the lots, applied in three ways in the copy, tests first, without the files a reference
+//     writes in full; the files of the lot in the
 //     ticket's copy are compared with the copy's own base plus the lot, not with the integration
 //     copy. Once the lots are in the copy, the replay makes the dependencies agree with the lock
 //     file and the manifests the lot leaves (`npm ci`, as the continuous integration runs it); an
 //     install that fails refuses the lot, « Les dépendances de la copie ne s'installent pas. »;
+//     then the references regenerate (below);
 //  6. the tests: `npm run verifier` in the copy, one command (Turborepo: the build, then the
 //     guards, the frame's and the project's own (its root script `gardes`), and every test of the
 //     day beside each other, each task replayed from the cache of the
@@ -51,6 +53,19 @@
 //     example, is written to the ticket, the commit stands. The ticket is labelled
 //     `en-file` and the branch takes its place at the end of the queue
 //     (scripts/integration/file-attente.mjs). main does not move here.
+//
+// The references are the circuit's (`--references`, a JSON file the circuit writes from its one
+// list, `lesReferences` of scripts/circuit.mjs): each `{ nom, commande, fichiers, entiers, cadre }`,
+// `entiers` the files of `fichiers` its command writes in full (paths, directories or glob
+// patterns, as `couvertPar` reads them). As a genrule of Bazel writes its output again on the
+// merged tree, and npm install writes package-lock.json again after a merge, a file of the lot a
+// reference writes in full is not applied: the reference that writes it plays in the copy, on main
+// of the moment, after the install and before the tests, through the mounts, and what it writes
+// enters the commit (BPScript 320.30: refused twice for the one conflict on the index of the
+// interfaces, which another ticket had regenerated on main in the meantime). A command of the
+// project at another code than 0, one of the frame on a real failure (126, 127, a signal), or a
+// file it changes that its `fichiers` do not cover, refuses the lot. A conflict on any other file
+// refuses it, as the three-way application says.
 //
 // What steps 2, 3 and 5 read of a lot is its files: each file added, modified or deleted, a
 // rename counting its source and its destination (named as the file is, not as git quotes it in
@@ -101,6 +116,16 @@ function nomDeGit(ecrit) {
   return Buffer.from(octets).toString('utf8');
 }
 
+// Whether one of <motifs> covers the file <fichier>, both from the root of the copy, as the
+// inputs of Turborepo read them: a path names that file, a directory every file under it, a glob
+// pattern (`*`, `**`) the files it matches (`path.matchesGlob` of Node).
+export function couvertPar(motifs, fichier) {
+  return motifs.some(m => {
+    const dossier = m.replace(/\/+$/, '');
+    return fichier === dossier || fichier.startsWith(`${dossier}/`) || path.matchesGlob(fichier, m);
+  });
+}
+
 // The refusal for the verdicts of one ticket, or null. `ticket` and `comments` are Beads' JSON.
 export function refusVerdicts(ticket, comments) {
   const id = ticket.id;
@@ -145,7 +170,7 @@ export function refusLots(tests, code, racine) {
 
 // The options, or { faute } for a usage error.
 function lire(argv) {
-  const o = { ticket: null, tests: null, code: null, message: null };
+  const o = { ticket: null, tests: null, code: null, message: null, references: null };
   for (let i = 0; i < argv.length; i++) {
     const v = argv[i + 1];
     switch (argv[i]) {
@@ -167,6 +192,10 @@ function lire(argv) {
         break;
       case '--message':
         o.message = v;
+        i++;
+        break;
+      case '--references':
+        o.references = v;
         i++;
         break;
       default:
@@ -209,11 +238,47 @@ function differents(copieTicket, lots, fichiers, tmp) {
   return r.stdout.split('\0').filter(Boolean);
 }
 
+// The regeneration of the references <refs> in the integration copy <copie>, each command run by
+// the shell at its root through the mounts (`monter`), its output written; then every file they
+// changed staged. Null, or the refusal: a command of the project at another code than 0, one of
+// the frame on a real failure (126, 127, a signal, 128 + its number), a file changed that their
+// `fichiers` do not cover.
+function regenerer(copie, refs, monter, dansCopie) {
+  for (const r of refs) {
+    const x = spawnSync('bash', monter('sh', '-c', r.commande), {
+      cwd: copie,
+      encoding: 'utf8',
+      maxBuffer: 256 * 1024 * 1024,
+    });
+    process.stdout.write(`${x.stdout ?? ''}${x.stderr ?? ''}`);
+    const code = x.status ?? 1;
+    const panne =
+      x.signal !== null || x.error !== undefined || code === 126 || code === 127 || code > 128;
+    if (panne || (!r.cadre && code !== 0)) {
+      return `La référence « ${r.nom} » (\`${r.commande}\`) rend le code ${code} dans la copie d'intégration.`;
+    }
+  }
+  const etat = dansCopie('status', '--porcelain=v1', '-z', '-uall', '--no-renames');
+  if (etat.status !== 0) return "L'état de la copie d'intégration ne se lit pas.";
+  const ecrits = etat.stdout
+    .split('\0')
+    .filter(l => l && (l[1] !== ' ' || l.startsWith('??')))
+    .map(l => l.slice(3));
+  const horsDeclaration = ecrits.filter(f => !refs.some(r => couvertPar(r.fichiers, f)));
+  if (horsDeclaration.length) {
+    return `La régénération des références change des fichiers qu'aucune n'écrit :\n${horsDeclaration.map(f => `  ${f}`).join('\n')}`;
+  }
+  if (ecrits.length && dansCopie('add', '-A', '--', ...ecrits).status !== 0) {
+    return "Les fichiers des références ne s'ajoutent pas au commit.";
+  }
+  return null;
+}
+
 function main(argv) {
   const o = lire(argv);
   if ('faute' in o) {
     process.stderr.write(
-      'usage: integrer.mjs --ticket <id> [--tests <patch>] [--code <patch>] --message <file>\n' +
+      'usage: integrer.mjs --ticket <id> [--tests <patch>] [--code <patch>] --message <file> [--references <file>]\n' +
         (o.faute ? `⛔ ${o.faute}\n` : '')
     );
     return 2;
@@ -276,6 +341,17 @@ function main(argv) {
     if (r2) return refuser(r2);
     const fichiers = [...new Set([...tests, ...code])];
     dire(`✓ lots : ${fichiers.length} fichiers`);
+    let references = [];
+    if (o.references) {
+      try {
+        references = JSON.parse(readFileSync(absolu(o.references), 'utf8'));
+      } catch (e) {
+        return refuser(`Les références ${o.references} ne se lisent pas : ${e.message}`);
+      }
+    }
+    // The files of the lot a reference writes in full, and the references that write them.
+    const entiers = fichiers.filter(f => references.some(r => couvertPar(r.entiers, f)));
+    const aRegenerer = references.filter(r => entiers.some(f => couvertPar(r.entiers, f)));
 
     // 3. The main tree: the lots' files are free there, so the queue can bring them. The ticket's
     // copy holds the lot and nothing else.
@@ -312,9 +388,11 @@ function main(argv) {
     if (ouverte.refus) return refuser(ouverte.refus);
     const { dansCopie, monter, installer, tester } = ouverte;
 
-    // 5. The lots, applied in the copy, then installed.
+    // 5. The lots, applied in the copy without the files a reference writes in full, then
+    // installed, then the references regenerated.
+    const sansEntiers = entiers.map(f => `--exclude=${f}`);
     for (const p of lots) {
-      const r = dansCopie('apply', '--3way', '--index', p);
+      const r = dansCopie('apply', '--3way', '--index', ...sansEntiers, p);
       if (r.status !== 0) return refuser(`Le lot ${p} ne s'applique pas :\n${r.stdout}${r.stderr}`);
     }
     const divergents = avecCopie ? differents(copieTicket, lots, fichiers, tmp) : [];
@@ -326,6 +404,11 @@ function main(argv) {
     dire('✓ lots appliqués');
     const installation = installer();
     if (installation) return refuser(installation);
+    if (aRegenerer.length) {
+      const refus = regenerer(copie, aRegenerer, monter, dansCopie);
+      if (refus) return refuser(refus);
+      dire(`✓ références régénérées sur main à jour : ${aRegenerer.map(r => r.nom).join(', ')}`);
+    }
 
     // 6. The tests: the build, the guards and every test of the day, green required.
     dire('— npm run verifier (construction, gardes, tests)');

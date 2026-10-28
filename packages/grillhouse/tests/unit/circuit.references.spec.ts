@@ -2,7 +2,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
-import { couvertPar } from '../../scripts/circuit.mjs';
+import { couvertPar } from '../../scripts/integration/integrer.mjs';
 import { canWrap, racineSousLaMaison } from '../machine.js';
 import {
   ARRETS,
@@ -715,6 +715,12 @@ it('binder reste rouge', () => { expect(1).toBe(2); });
       const e = entrees(id).find(x => x.etape === 'references') as
         { resultat?: { fichiers?: string[] } } | undefined;
       expect(e?.resultat?.fichiers).toContain('packages/binder/turbo.json');
+      // grillhouse-kgx.2 critère 1: the integration receives the frame's references, takes the
+      // turbo.json the reference writes in full out of the lot, and regenerates it on main.
+      expect(c.find(x => x.includes('integrer.mjs'))).toContain('--references');
+      expect(journal(id)).toContain(
+        '✓ références régénérées sur main à jour : les turbo.json des paquets'
+      );
       expect(gitRepo('show', 'main:packages/binder/turbo.json')).toContain('000-forms#build');
     });
 

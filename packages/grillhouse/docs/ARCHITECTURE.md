@@ -112,6 +112,18 @@ de sa sortie, dans la limite de ses séances. Ainsi le développeur reçoit le r
 320.10 : un mot de librairie écrit dans 030-binder, absent des trois rapports « Tes rouges », puis
 un arrêt `references` sur « le plafond ne monte pas »).
 
+**Un fichier engendré se régénère à l'intégration** : comme une genrule de Bazel réécrit sa sortie
+sur l'arbre fusionné, et `npm install` le `package-lock.json` après une fusion, l'intégration
+n'applique pas du lot un fichier qu'une référence écrit en entier (`entiers` : l'index des
+interfaces, les `turbo.json` des paquets) ; elle rejoue la référence qui l'écrit dans la copie
+d'intégration, sur main à jour, après l'installation et avant la vérification, et ce qu'elle écrit
+entre dans le commit. Le circuit lui passe ses références (`--references`), la seule liste. Un
+conflit sur tout autre fichier refuse le lot ; une commande en échec, ou un fichier changé
+qu'aucune référence rejouée n'écrit, aussi. Les rapports d'API, qui lisent la construction, et la
+dette, qui lit les notes d'une passe, ne s'écrivent pas en entier : ils s'appliquent comme le reste
+du lot. Ainsi deux tickets qui régénèrent le même index s'intègrent l'un après l'autre (BP 320.30 :
+refusé deux fois sur le seul index des interfaces, régénéré sur main entre-temps, levé à la main).
+
 Comme SARIF 2.1.0 et GitHub code scanning, seul un constat de niveau `error`, le niveau par défaut,
 est un rouge : un avertissement (`warning`) ou une note (`note`) n'entre ni dans « Tes rouges » ni
 dans le compte des rouges, aux contrôles du plan comme à la passe finale ; le rapport des contrôles

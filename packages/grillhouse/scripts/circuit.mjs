@@ -379,7 +379,9 @@
 //   `<type>(<paquets>): <sujet> (<ticket>)`, the type read from the ticket's type (bug fix,
 //   chore, docs, else feat), its body written once from the final state: the criteria of the plan,
 //   then each deviation the sheets of the developpeur and of the reviewer name (`ecarts`), once by
-//   its subject, from the last sheet that carries it, with the trailer Co-Authored-By. It runs
+//   its subject, from the last sheet that carries it, with the trailer Co-Authored-By; and the
+//   references that write files in full (`--references`), which the integration regenerates on
+//   main of the moment instead of applying their files from the lot. It runs
 //   scripts/integration/integrer.mjs from the main tree, its output added to the log: 0 is the
 //   commit on agent/<ticket> (which the circuit names from git), the copy removed, the branch in
 //   the queue; 75 (« à repasser ») plays it once more (`rejeu`), then stops at « a-repasser »; any
@@ -564,7 +566,7 @@ import {
 } from './resultats.mjs';
 import { AUTEUR_DE_LA_FILE, INTEGRE } from './integration/file.mjs';
 import { dossierCommun, lireEntrees } from './integration/file-attente.mjs';
-import { refusArbitrage } from './integration/integrer.mjs';
+import { couvertPar, refusArbitrage } from './integration/integrer.mjs';
 import { AUTEUR_DU_VERDICT } from './integration/verdict.mjs';
 import { attendreUnPeu } from './verrou-de-fichier.mjs';
 import { AttenteDeLaMachine, avecLaMachine } from './verrou-de-machine.mjs';
@@ -646,7 +648,11 @@ const generateur = (script, ...args) =>
 // gardes }`, `lit` the files of the copy it reads that another reference writes (as the
 // prerequisites of a rule of make: the index reads the interfaces, whose generated part the API
 // reports write), `gardes` the names the findings its regeneration lifts carry (their guard or
-// their rule).
+// their rule), `entiers` the files of `fichiers` its command writes in full, which the integration
+// does not apply from the lot but regenerates on main of the moment
+// (scripts/integration/integrer.mjs): the index, the turbo.json of the packages (the root's is
+// written in part); not the API reports, which read the build, nor the debt, which reads the notes
+// of a pass.
 const REFERENCES_DU_CADRE = [
   {
     nom: "l'index des interfaces",
@@ -654,6 +660,7 @@ const REFERENCES_DU_CADRE = [
     fichiers: ['docs/agents/index-des-interfaces.md'],
     lit: ['docs/INTERFACE.md', '**/docs/INTERFACE.md'],
     gardes: ['index-interfaces'],
+    entiers: ['docs/agents/index-des-interfaces.md'],
   },
   {
     nom: 'les turbo.json des paquets',
@@ -661,6 +668,7 @@ const REFERENCES_DU_CADRE = [
     fichiers: ['turbo.json', 'turbo.jsonc', '**/turbo.json'],
     lit: [],
     gardes: ['turbo-des-paquets'],
+    entiers: ['*/**/turbo.json'],
   },
   {
     nom: "les rapports d'API",
@@ -673,6 +681,7 @@ const REFERENCES_DU_CADRE = [
     ],
     lit: [],
     gardes: ['rapport-api', 'partie-generee'],
+    entiers: [],
   },
   {
     nom: 'la dette des gardes',
@@ -680,6 +689,7 @@ const REFERENCES_DU_CADRE = [
     fichiers: [DETTE],
     lit: [],
     gardes: [],
+    entiers: [],
     abaisser: true,
   },
 ];
@@ -1771,9 +1781,9 @@ function laPasseFinale(ctx) {
 
 // The references of the circuit: those the project declares in the package.json of the copy
 // (`grillhouse.references`), each `{ nom, commande, fichiers, tests, lit, gardes }` with a name, a
-// command and files, `tests`, `lit` and `gardes` arrays when given, empty when not; then the frame's
-// (REFERENCES_DU_CADRE, `cadre`), each but one whose first file a reference of the project covers,
-// which replaces it.
+// command and files, `tests`, `lit` and `gardes` arrays when given, empty when not, `entiers` empty;
+// then the frame's (REFERENCES_DU_CADRE, `cadre`), each but one whose first file a reference of the
+// project covers, which replaces it.
 function lesReferences(ctx) {
   const l = lireJson(path.join(existsSync(ctx.copie) ? ctx.copie : ctx.racine, 'package.json'))
     ?.grillhouse?.references;
@@ -1793,22 +1803,13 @@ function lesReferences(ctx) {
       tests: r.tests ?? [],
       lit: r.lit ?? [],
       gardes: r.gardes ?? [],
+      entiers: [],
       cadre: false,
     }));
   const duCadre = REFERENCES_DU_CADRE.filter(
     c => !duProjet.some(r => couvertPar(r.fichiers, c.fichiers[0]))
   ).map(c => ({ ...c, tests: [], cadre: true }));
   return [...duProjet, ...duCadre];
-}
-
-// Whether one of <motifs> covers the file <fichier>, both from the root of the copy, as the
-// inputs of Turborepo read them: a path names that file, a directory every file under it, a glob
-// pattern (`*`, `**`) the files it matches (`path.matchesGlob` of Node).
-export function couvertPar(motifs, fichier) {
-  return motifs.some(m => {
-    const dossier = m.replace(/\/+$/, '');
-    return fichier === dossier || fichier.startsWith(`${dossier}/`) || path.matchesGlob(fichier, m);
-  });
 }
 
 // The references a red of <lieux> is one of (each `{ fichier, gardes, dansLePlan }`, its file, the
@@ -2086,7 +2087,8 @@ function constatsOuverts(ctx, fiche, texte) {
   return [...restes, ...neufs];
 }
 
-// The integration of the lot: its two patches and its message, written from the copy, then
+// The integration of the lot: its two patches, its message and the references that write files in
+// full (`--references`, from `lesReferences`, the one list), written from the copy, then
 // scripts/integration/integrer.mjs from the main tree, its output added to the log. A run « à
 // repasser » (75) plays once more, the gesture `rejeu`. `{ code, sortie, args }`.
 function integrer(ctx) {
@@ -2115,6 +2117,20 @@ function integrer(ctx) {
   const message = path.join(ctx.tmp, 'message');
   writeFileSync(message, messageDeCommit(ctx));
   args.push('--message', message);
+  const entieres = lesReferences(ctx)
+    .filter(r => r.entiers.length)
+    .map(({ nom, commande, fichiers, entiers, cadre }) => ({
+      nom,
+      commande,
+      fichiers,
+      entiers,
+      cadre,
+    }));
+  if (entieres.length) {
+    const f = path.join(ctx.tmp, 'references.json');
+    writeFileSync(f, `${JSON.stringify(entieres)}\n`);
+    args.push('--references', f);
+  }
   let r;
   for (let essai = 1; essai <= 2; essai++) {
     entete(ctx, 'integration');
