@@ -224,7 +224,7 @@ npx @roomi-fields/grillhouse init ~/dev/my-project [ticket-prefix]
 cd ~/dev/my-project && claude
 ```
 
-Requirements: Node.js ≥ 22, git, Claude Code. Everything else installs by default: `init`
+Requirements: Linux with Bubblewrap (`bwrap`, the envelope each role agent runs in: `sudo apt install bubblewrap`), Node.js ≥ 22, git, Claude Code; a session start names Bubblewrap under « Manque » while it is absent. Everything else installs by default: `init`
 installs Beads and CodeGraph and indexes the code, places the git hooks, and installs the plugins
 `.claude/settings.json` declares, for the project (and `npm run grillhouse:maj` installs the plugins too); a session start names under « Manque » each plugin still missing. An existing project adopts Grillhouse by copying the template files into it and running
 `npm install -D @roomi-fields/grillhouse`, then `npx grillhouse maj`. MIT licence.
