@@ -2,13 +2,15 @@
 // The `turbo.json` of each package of a repository of packages, generated from its package.json
 // (its dependencies, its build, the paths its tests read and the traces it writes), its
 // configurations of TypeScript, the root's turbo.json and the list of the packages out of the
-// frame; and, in the root's turbo.json, the `dependsOn` of the guard tasks, the `env` of the tests,
-// the variable of the results directory and the exclusion of a submodule's `.git`.
+// frame; and, in the root's turbo.json, the `dependsOn` of the guard tasks, the typing task, the
+// `env` of the tests, the variable of the results directory and the exclusion of a submodule's
+// `.git`.
 //
 //   npx grillhouse turbo-des-paquets           refuses a turbo.json absent or stale, and a
 //                                                declaration of a path read or trace refused (below)
 //   npx grillhouse turbo-des-paquets --ecrire  writes the turbo.json of each package, and the
-//                                                guards' dependsOn and the tests' env in the root's
+//                                                guards' dependsOn, the typing task and the tests'
+//                                                env in the root's
 //
 // Turborepo's `^build` waits for the build of every internal package a package declares, its
 // devDependencies included; a package whose tests import a neighbour that depends on it (the
@@ -119,6 +121,16 @@
 // `dependsOn` differs. A repository without a root turbo.json (or turbo.jsonc) has nothing written
 // or refused at its root.
 //
+// The typing of each package (`typecheck`, its script, as `check-types` in the examples of
+// create-turbo), which `npm run verifier` plays beside the guards and the tests: a task of the
+// root's turbo.json (or turbo.jsonc), cached per package, that waits, as `test:vitest`, for the
+// build of its own package (`build`: the tests of BPScript's 990-corpus import its built entry,
+// `990-corpus/test-fixtures`) and, in a repository of packages, for the build of each package its
+// package declares (`^build`), whose types it reads; a package without a `typecheck` script plays
+// none. The generator adds the task the root lacks (`{ dependsOn: ["build", "^build"], outputs:
+// [] }`, `["build"]` without packages), and each of those builds a `dependsOn` of the project's
+// lacks, the rest of the task kept; the check refuses either. Witness: BPScript 320.21.4, whose type errors in test/ showed only at night.
+//
 // The tests of a targeted run: the paths reach Vitest in the variable `GRILLHOUSE_TESTS`
 // (scripts/vitest-config/cibles.mjs, scripts/tests.mjs), which the `env` of the root's
 // `test:vitest` names: it enters the hash of the tests alone, and reaches their process alone
@@ -171,6 +183,12 @@ export const GARDES = ['grillhouse:gardes', 'gardes'];
 const MISE_EN_FORME = { formattingOptions: { insertSpaces: true, tabSize: 2, eol: '\n' } };
 // The test task of a package, and the prefix of a trace task.
 const TESTS = 'test:vitest';
+// The typing task of each package.
+export const TYPAGE = 'typecheck';
+// The builds the typing of a package waits for in <racine>: its own, whose built entry its tests
+// may import (990-corpus/test-fixtures), and, in a repository of packages, those of its
+// dependencies, as `test:vitest`.
+const attenteDuTypage = racine => (paquets(racine).length ? ['build', '^build'] : ['build']);
 // The temporary directory of a process, which names the base of its pass.
 const TEMPORAIRE = 'TMPDIR';
 // The variables the root's `globalPassThroughEnv` names, and why, as the check says it.
@@ -609,6 +627,27 @@ function gardesEcartees(racine) {
   return { f, texte, ecarts };
 }
 
+// The typing task of the root's turbo.json at <racine> when it lacks it, or when its `dependsOn`
+// lacks one of the builds it waits for (`attenteDuTypage`): { f, chemin, valeur, manques }, the
+// path of the edit and the value it sets (the task, `{ dependsOn, outputs: [] }`; or its
+// `dependsOn`, each build it lacks added to the project's), and the builds it lacks, null for the
+// task absent; null when it holds them, without a root configuration, and when it is no JSON.
+function typageEcarte(racine) {
+  const r = confRacine(racine);
+  if (!r) return null;
+  const attendu = attenteDuTypage(racine);
+  const tache = r.conf.tasks?.[TYPAGE];
+  if (!tache || typeof tache !== 'object') {
+    const valeur = { dependsOn: attendu, outputs: [] };
+    return { f: r.f, chemin: ['tasks', TYPAGE], valeur, manques: null };
+  }
+  const actuel = Array.isArray(tache.dependsOn) ? tache.dependsOn : [];
+  const manques = attendu.filter(d => !actuel.includes(d));
+  if (!manques.length) return null;
+  const chemin = ['tasks', TYPAGE, 'dependsOn'];
+  return { f: r.f, chemin, valeur: [...actuel, ...manques], manques };
+}
+
 // The `env` the `test:vitest` of the root's turbo.json at <racine> must hold, TESTS_CIBLES added
 // to the project's, when it lacks it: { f, attendu }; null when it holds it, without a root
 // configuration or a `test:vitest` in it, and when it is no JSON.
@@ -666,7 +705,7 @@ function gitsAbsents(racine) {
 }
 
 // Writes the turbo.json of each package of <racine>, and in its root's the guards' dependsOn, the
-// tests' env and the exclusion of a submodule's `.git` beside each input reaching it; returns the
+// typing task, the tests' env and the exclusion of a submodule's `.git` beside each input reaching it; returns the
 // paths written.
 export function ecrire(racine) {
   const ecrits = [];
@@ -687,6 +726,16 @@ export function ecrire(racine) {
     }
     writeFileSync(path.join(racine, racineEcartee.f), texte);
     ecrits.push(racineEcartee.f);
+  }
+  const typage = typageEcarte(racine);
+  if (typage) {
+    const abs = path.join(racine, typage.f);
+    const texte = readFileSync(abs, 'utf8');
+    writeFileSync(
+      abs,
+      applyEdits(texte, modify(texte, typage.chemin, typage.valeur, MISE_EN_FORME))
+    );
+    if (!ecrits.includes(typage.f)) ecrits.push(typage.f);
   }
   const tests = testsSansVariable(racine);
   if (tests) {
@@ -844,7 +893,8 @@ function racineRefusee(racine) {
 }
 
 // The refusals of <racine>: one line per package turbo.json absent or other than generated, per
-// guard task of the root absent or whose dependsOn differs, for a root `test:vitest` whose `env`
+// guard task of the root absent or whose dependsOn differs, for a typing task of the root absent
+// or that does not wait for the build of its package and of its dependencies, for a root `test:vitest` whose `env`
 // lacks TESTS_CIBLES, per variable of PASSAGES the root's `globalPassThroughEnv` lacks, per configuration
 // of a package written by hand in the root's turbo.json, and per declaration of data or trace
 // refused.
@@ -858,6 +908,14 @@ export function verifier(racine) {
   for (const { ou, e, m, ligne } of (gits?.listes ?? []).flatMap(l => l.manques)) {
     refus.push(
       `⛔ ${gits.f} : ${ou} \`${e}\` couvre le sous-module \`${m}\` sans exclure son \`.git\`, un fichier qui nomme la copie où il est posé : chaque copie neuve change l'empreinte, et le cache ne sert jamais ; \`${COMMANDE}\` ajoute \`${ligne}\` à côté.`
+    );
+  }
+  const typage = typageEcarte(racine);
+  if (typage) {
+    refus.push(
+      typage.manques
+        ? `⛔ ${typage.f} : la tâche \`${TYPAGE}\` doit attendre ${typage.manques.map(d => `\`${d}\``).join(' et ')}, la construction du paquet et celle de ses dépendances, dont son typage lit les types ; \`${COMMANDE}\` l'ajoute.`
+        : `⛔ ${typage.f} : la tâche \`${TYPAGE}\` manque, le typage de chaque paquet que \`npm run verifier\` joue ; \`${COMMANDE}\` l'ajoute.`
     );
   }
   const tests = testsSansVariable(racine);

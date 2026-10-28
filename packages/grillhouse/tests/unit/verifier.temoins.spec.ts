@@ -79,6 +79,7 @@ function depot(temoins: Partial<Record<'a' | 'b', { uneFois?: boolean }>>, some:
         'grillhouse:gardes': { dependsOn: ['build'], outputs: [] },
         gardes: { dependsOn: ['build'], outputs: [] },
         'test:vitest': { dependsOn: ['build'], env: ['GRILLHOUSE_TESTS'], outputs: [] },
+        typecheck: { dependsOn: ['build', '^build'], outputs: [] },
       },
     })
   );

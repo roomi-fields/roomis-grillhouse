@@ -1,4 +1,6 @@
 {
+  // The typing of the project, its sources and its tests, nothing emitted (`npm run typecheck`,
+  // which `npm run verifier` plays); tsconfig.build.json builds src/ into dist/.
   "compilerOptions": {
     /* Language and Environment */
     "target": "ES2022",
@@ -13,12 +15,8 @@
     "allowJs": true,
     "checkJs": false,
 
-    /* Emit */
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
+    /* Emit: none, tsconfig.build.json builds */
+    "noEmit": true,
 
     /* Interop Constraints */
     "esModuleInterop": true,
@@ -36,6 +34,6 @@
     /* Completeness */
     "skipLibCheck": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.{test,spec}.{ts,js,mjs}"]
+  "include": ["src/**/*", "tests/**/*", "*.ts"],
+  "exclude": ["node_modules", "dist"]
 }

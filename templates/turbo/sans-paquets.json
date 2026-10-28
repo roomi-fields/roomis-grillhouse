@@ -23,6 +23,10 @@
       "dependsOn": ["build"],
       "env": ["GRILLHOUSE_TESTS"],
       "outputs": []
+    },
+    "typecheck": {
+      "dependsOn": ["build"],
+      "outputs": []
     }
   }
 }

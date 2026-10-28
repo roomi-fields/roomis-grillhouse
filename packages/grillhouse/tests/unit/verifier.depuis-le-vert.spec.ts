@@ -70,6 +70,7 @@ function depot({ dependant = false } = {}) {
         'grillhouse:gardes': { dependsOn: ['build'], outputs: [] },
         gardes: { dependsOn: ['build'], outputs: [] },
         'test:vitest': { dependsOn: ['build', '^build'], env: ['GRILLHOUSE_TESTS'], outputs: [] },
+        typecheck: { dependsOn: ['build', '^build'], outputs: [] },
       },
     })
   );

@@ -24,6 +24,10 @@
     "//#gardes": {
       "dependsOn": [],
       "outputs": []
+    },
+    "typecheck": {
+      "dependsOn": ["build", "^build"],
+      "outputs": []
     }
   }
 }

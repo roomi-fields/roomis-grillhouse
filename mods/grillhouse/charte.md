@@ -115,10 +115,10 @@ responsable. Ainsi chaque découverte est lue, et le backlog reste le plan du re
   se lancer. Ainsi la séance avance seule.
 - **Les tests se lancent par `npm test`** : `npm test -- <chemins>` pour un lancement ciblé,
   chaque chemin écrit depuis la racine du dépôt ; `npm run test:forcer -- <chemins>` pour rejouer
-  pour de vrai un test soupçonné instable. `npm run verifier` joue les gardes et les tests ;
-  `npm run verifier -- --gardes`, les gardes seules. Aucun agent ne lance l'outil de test
-  directement. Ainsi chaque test tourne avec ce dont il dépend, et une seule fois tant que rien ne
-  change.
+  pour de vrai un test soupçonné instable. `npm run verifier` joue les gardes, le typage de chaque
+  paquet et les tests ; `npm run verifier -- --gardes`, les gardes seules. Aucun agent ne lance
+  l'outil de test directement. Ainsi chaque test tourne avec ce dont il dépend, et une seule fois
+  tant que rien ne change.
 - **Main reste vert** : l'intégration exige un `npm run verifier` vert. Un test connu rouge se met
   en quarantaine dans le test lui-même (`it.skip` ou `it.fails`), avec le ticket qui le corrige.
   Ainsi chaque rouge a son ticket.

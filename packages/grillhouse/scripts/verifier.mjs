@@ -26,8 +26,10 @@
 //   either way without playing, the holder named. A pass in the frame's own repository is of the
 //   second rank: it waits while a project's measure waits too.
 // - Turborepo plays the build, then the guards (the frame's, `grillhouse:gardes`, and the
-//   project's own, its root script `gardes`) and the tests (`test:vitest`) beside each other:
-//   `turbo run grillhouse:gardes gardes test:vitest --continue=dependencies-successful
+//   project's own, its root script `gardes`), the typing of each package (`typecheck`, its
+//   sources and its tests, cached per package: scripts/turbo-des-paquets.mjs) and the tests
+//   (`test:vitest`) beside each other:
+//   `turbo run grillhouse:gardes gardes typecheck test:vitest --continue=dependencies-successful
 //   --concurrency=<n> --summarize`, each argument given after it. A red does not stop the pass:
 //   every task whose prerequisites passed plays, and each red is named. <n>, the tasks side by
 //   side, is half the cores of the machine, one at least (`concurrence`): each task of tests is
@@ -95,6 +97,7 @@ import { pathToFileURL } from 'node:url';
 import { ecrireLaMesure, garderLeTotal, ouvrirAvancement, planifier } from './avancement.mjs';
 import { paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
 import { paquets } from './paquets.mjs';
+import { TYPAGE } from './turbo-des-paquets.mjs';
 import { AttenteDeLaMachine, avecLaMachine } from './verrou-de-machine.mjs';
 import {
   A_REPASSER,
@@ -110,7 +113,7 @@ import { garderLeVert, mesure } from './dernier-vert.mjs';
 import { ouvrirBase } from './vitest-config/base-de-passe.mjs';
 
 const GARDES = ['grillhouse:gardes', 'gardes'];
-const TACHES = [...GARDES, 'test:vitest'];
+const TACHES = [...GARDES, TYPAGE, 'test:vitest'];
 const TEMOINS = ' (témoins de temps)';
 const CONCURRENCE = /^--concurrency(?:=|$)/;
 // The variable that names the file of the red tasks, which the night reads.

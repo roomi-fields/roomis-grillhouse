@@ -17,7 +17,12 @@ celles du projet (son script racine `gardes`, un nom que le cadre réserve ; une
 fichiers de l'arbre de travail, que le cache de Turborepo compte, jamais l'index de git ; elle
 écrit ses constats en SARIF, chacun avec son fichier et sa ligne, par `ecrireSarif`, que
 publie l'entrée `@roomi-fields/grillhouse/resultats`, dans le dossier que nomme `GRILLHOUSE_RESULTATS`, et sans eux son rouge
-ne revient à aucun composant) et les tests, côte à côte ; un rouge n'arrête pas la passe, qui joue tout ce que ses tâches
+ne revient à aucun composant), le typage de chaque paquet (son script `typecheck`, qui type ses
+sources et ses tests, `tsc -p tsconfig.json --noEmit` du gabarit et de `npx grillhouse maj` ; la
+tâche `typecheck` du turbo.json racine, que le générateur tient, attend, comme `test:vitest`,
+la construction du paquet, dont ses tests peuvent importer l'entrée construite, et celle de ses
+dépendances, `build` et `^build`, comme `check-types` des exemples de create-turbo) et les
+tests, côte à côte ; un rouge n'arrête pas la passe, qui joue tout ce que ses tâches
 préalables permettent et nomme chaque rouge ; `npm run verifier -- --gardes` joue les gardes
 seules, ce que le relecteur joue sur la copie du ticket. Une tâche dont
 rien n'a bougé n'est pas rejouée : Turborepo relit sa sortie consignée dans son cache (« cache

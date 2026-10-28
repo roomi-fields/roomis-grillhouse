@@ -81,6 +81,7 @@ function depot(
         'grillhouse:gardes': { dependsOn: ['build'], outputs: [] },
         gardes: { dependsOn: ['build'], outputs: [] },
         'test:vitest': { dependsOn: ['build'], outputs: [] },
+        typecheck: { dependsOn: ['build', '^build'], outputs: [] },
       },
     })
   );
@@ -226,6 +227,89 @@ describe('npm run verifier', { timeout: 180_000 }, () => {
     expect(d.joues()).toHaveLength(2);
     expect((await lancer(d, ['--force'])).status).toBe(0);
     expect(d.joues()).toHaveLength(4);
+  });
+});
+
+// grillhouse-kgx.3. Witness: BPScript 320.21.4, whose charter asks every commit to pass the strict
+// typing: type errors in test/ showed only at night (110-timer for 10 days, then 060-encoder),
+// since the pass played no typing (the build types src/ alone, Vitest types nothing). The pass
+// plays the `typecheck` of each package beside the guards and the tests, as a task of Turborepo
+// (`check-types` in the examples of create-turbo), cached per package.
+describe('npm run verifier plays the typing of each package', { timeout: 180_000 }, () => {
+  // Package <nom> of <d> holds a script typecheck: it writes its name to types.txt, then the real
+  // tsc types its src/ and its test/, <erreur> a type error in test/.
+  const typer = (d: ReturnType<typeof depot>, nom: string, erreur = false) => {
+    const dir = path.join(d.racine, 'packages', nom);
+    const ecrire = (f: string, t: string) => {
+      mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
+      writeFileSync(path.join(dir, f), t);
+    };
+    const pkg = JSON.parse(readFileSync(path.join(dir, 'package.json'), 'utf8')) as {
+      scripts: Record<string, string>;
+    };
+    pkg.scripts.typecheck = 'node typer.mjs && tsc -p tsconfig.json --noEmit';
+    ecrire('package.json', json(pkg));
+    ecrire(
+      'typer.mjs',
+      `import { appendFileSync } from 'node:fs';\nappendFileSync(${JSON.stringify(path.join(d.racine, 'types.txt'))}, '${nom}\\n');\n`
+    );
+    ecrire(
+      'tsconfig.json',
+      json({
+        compilerOptions: {
+          target: 'ES2022',
+          module: 'ESNext',
+          moduleResolution: 'Bundler',
+          strict: true,
+          noEmit: true,
+          types: [],
+          skipLibCheck: true,
+        },
+        include: ['src', 'test'],
+      })
+    );
+    ecrire('src/index.ts', 'export const n: number = 1;\n');
+    ecrire(
+      'test/aide.ts',
+      `import { n } from '../src/index';\nexport const s: ${erreur ? 'string' : 'number'} = n;\n`
+    );
+  };
+  const types = (d: ReturnType<typeof depot>) =>
+    existsSync(path.join(d.racine, 'types.txt'))
+      ? readFileSync(path.join(d.racine, 'types.txt'), 'utf8').split('\n').filter(Boolean).sort()
+      : [];
+
+  it('critère 1: a type error in the tests of a package makes the pass red, its typing named, the tests played beside', async () => {
+    const d = depot('vert', 'vert', 1);
+    typer(d, 'a', true);
+    typer(d, 'b');
+    const r = await lancer(d);
+    expect(r.status, r.sortie).toBe(1);
+    expect(r.sortie).toContain('⛔ a#typecheck');
+    expect(r.sortie).not.toContain('⛔ b#typecheck');
+    expect(types(d)).toEqual(['a', 'b']);
+    expect(d.joues().sort()).toEqual(['a', 'b']);
+  });
+
+  it('critère 2: a package whose files did not move reads its typing from the cache', async () => {
+    const d = depot('vert', 'vert', 1);
+    typer(d, 'a');
+    typer(d, 'b');
+    const premiere = await lancer(d);
+    expect(premiere.status, premiere.sortie).toBe(0);
+    expect(types(d)).toEqual(['a', 'b']);
+    const seconde = await lancer(d);
+    expect(seconde.status, seconde.sortie).toBe(0);
+    expect(types(d)).toEqual(['a', 'b']);
+    // A test file of `a` changed: `a` types again, `b` replays from the cache.
+    writeFileSync(
+      path.join(d.racine, 'packages/a/test/aide.ts'),
+      "import { n } from '../src/index';\nexport const s: string = n;\n"
+    );
+    const rouge = await lancer(d);
+    expect(rouge.status, rouge.sortie).toBe(1);
+    expect(rouge.sortie).toContain('⛔ a#typecheck');
+    expect(types(d)).toEqual(['a', 'a', 'b']);
   });
 });
 

@@ -13,6 +13,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import ts from 'typescript';
 import { afterAll, describe, expect, it } from 'vitest';
 import { LIGNE_ETAT, mettreAJour, rapport, regenerer } from '../../scripts/grillhouse-maj.mjs';
 import { CONFIGURATION as CONFIG_DES_FRONTIERES } from '../../scripts/frontieres.mjs';
@@ -364,6 +365,7 @@ describe('the update installs Turborepo', () => {
       'grillhouse:gardes': { dependsOn: ['build'], outputs: [] },
       gardes: { dependsOn: ['build'], outputs: [] },
       'test:vitest': { dependsOn: ['build'], env: ['GRILLHOUSE_TESTS'], outputs: [] },
+      typecheck: { dependsOn: ['build'], outputs: [] },
     });
   });
   it('the template with packages: each package builds after its dependencies and tests after its own build and theirs, the root plays the guards, whose dependsOn the generator writes', () => {
@@ -372,6 +374,7 @@ describe('the update installs Turborepo', () => {
       'test:vitest': { dependsOn: ['build', '^build'], env: ['GRILLHOUSE_TESTS'], outputs: [] },
       '//#grillhouse:gardes': { dependsOn: [], outputs: [] },
       '//#gardes': { dependsOn: [], outputs: [] },
+      typecheck: { dependsOn: ['build', '^build'], outputs: [] },
     });
   });
   it('Grillhouse’s own turbo.json follows the template with packages: its tests do not wait for its guards', () => {
@@ -1989,5 +1992,85 @@ describe('grillhouse-982.6 — the update ends with the verification that keeps 
     expect(r.stdout).toMatch(
       /^Vérification non jouée : le projet n’a pas de script verifier.*La ligne « Vitest : » ci-dessus dit pourquoi.*`npx grillhouse maj`/m
     );
+  });
+});
+
+// grillhouse-kgx.3 critère 3. Witness: BPScript 320.21.4, whose type errors in test/ showed only at
+// night: `npm run verifier` now plays the `typecheck` of each package (Turborepo), and the
+// template and the update give each package of TypeScript (a `tsconfig.json`) the script that
+// types its sources and its tests, `tsc -p tsconfig.json --noEmit`, as a package of the examples
+// of create-turbo types itself with `check-types`. The template's tsconfig.json types every file
+// of the project, nothing emitted; its tsconfig.build.json builds src/ into dist/.
+describe('grillhouse-kgx.3 critère 3 — each package of TypeScript has a typecheck that types its sources and its tests', () => {
+  const TYPAGE = 'tsc -p tsconfig.json --noEmit';
+  // The files the configuration <f> compiles, as tsc reads it, relative to its directory.
+  const compiles = (f: string) => {
+    const conf = ts.getParsedCommandLineOfConfigFile(
+      f,
+      {},
+      {
+        ...ts.sys,
+        onUnRecoverableConfigFileDiagnostic: d => {
+          throw new Error(String(d.messageText));
+        },
+      }
+    );
+    return (conf?.fileNames ?? []).map(n => path.relative(path.dirname(f), n));
+  };
+  const PROJET = path.join(DEPOT, 'templates/projet');
+
+  it('critère 3: the template’s typecheck types its sources and its tests, and its build emits src/ alone', () => {
+    expect(gabarit().typecheck).toBe(TYPAGE);
+    const types = compiles(path.join(PROJET, 'tsconfig.json'));
+    expect(types.some(f => f.startsWith('src/'))).toBe(true);
+    expect(types.some(f => f.startsWith('tests/'))).toBe(true);
+    expect(gabarit().build).toBe('tsc -p tsconfig.build.json');
+    const construits = compiles(path.join(PROJET, 'tsconfig.build.json'));
+    expect(construits.length).toBeGreaterThan(0);
+    expect(construits.every(f => f.startsWith('src/') && !/\.(test|spec)\./.test(f))).toBe(true);
+  });
+
+  it('critère 3: in a project of packages, each package of TypeScript of the frame without one receives it; the others stay', () => {
+    const projet = projetAPaquets(['packages/*']);
+    ecrire(projet, 'packages/teste/tsconfig.json', '{ "include": ["src", "test"] }\n');
+    const propre = pkgJson({
+      name: 'propre',
+      scripts: { typecheck: 'svelte-check --tsconfig ./tsconfig.json' },
+    });
+    ecrire(projet, 'packages/propre/package.json', propre);
+    ecrire(projet, 'packages/propre/tsconfig.json', '{}\n');
+    ecrire(projet, 'docs/agents/hors-cadre.txt', 'kanopi projet voisin\n');
+    const kanopi = pkgJson({ name: 'kanopi', scripts: { build: 'vite build' } });
+    ecrire(projet, 'packages/kanopi/package.json', kanopi);
+    ecrire(projet, 'packages/kanopi/tsconfig.json', '{}\n');
+    const b = mettreAJour(projet, DEPOT);
+    const scripts = (f: string) => (json(projet, f).scripts ?? {}) as Record<string, string>;
+    expect(scripts('packages/teste/package.json').typecheck).toBe(TYPAGE);
+    expect(scripts('packages/teste/package.json')['test:vitest']).toBe('vitest run');
+    // `sans` holds no tsconfig.json: no package of TypeScript.
+    expect(scripts('packages/sans/package.json')).not.toHaveProperty('typecheck');
+    expect(lire(projet, 'packages/propre/package.json')).toBe(propre);
+    expect(lire(projet, 'packages/kanopi/package.json')).toBe(kanopi);
+    expect(b.typage).toEqual({ script: TYPAGE, paquets: ['packages/teste'] });
+    expect(rapport(b)).toContain('packages/teste');
+    // The root's typecheck of a project of packages is its own.
+    expect(scripts('package.json')).not.toHaveProperty('typecheck');
+    // Replayed, the update changes nothing.
+    const avant = lire(projet, 'packages/teste/package.json');
+    expect(mettreAJour(projet, DEPOT).typage).toBeNull();
+    expect(lire(projet, 'packages/teste/package.json')).toBe(avant);
+  });
+
+  it('critère 3: a project without packages, of TypeScript, receives the template’s at its root; its own stays', () => {
+    const projet = mkdtempSync(path.join(ESSAIS, 'typage-'));
+    ecrire(projet, 'package.json', pkgJson({ name: 'p', scripts: { build: 'tsc' } }));
+    ecrire(projet, 'tsconfig.json', '{}\n');
+    const b = mettreAJour(projet, DEPOT);
+    expect((json(projet, 'package.json').scripts as Record<string, string>).typecheck).toBe(TYPAGE);
+    expect(b.typage).toEqual({ script: TYPAGE, paquets: ['.'] });
+    const propre = installe({ name: 'p', scripts: { typecheck: 'tsc --noEmit' } });
+    expect(propre.scripts().typecheck).toBe('tsc --noEmit');
+    // Without a tsconfig.json, no project of TypeScript: none.
+    expect(installe({ name: 'p' }).scripts()).not.toHaveProperty('typecheck');
   });
 });

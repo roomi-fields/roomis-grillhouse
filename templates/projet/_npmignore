@@ -15,7 +15,7 @@ coverage/
 .idea/
 
 # Configuration files (dev only)
-tsconfig.json
+tsconfig*.json
 .eslintrc*
 .prettierrc*
 vitest.config.*

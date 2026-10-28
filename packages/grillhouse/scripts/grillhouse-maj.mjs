@@ -55,16 +55,26 @@
 //   `node scripts/integration/gardes.mjs`); what remains is the project's own guards, which move to
 //   `gardes` when the project has none (the report says so), else stay where nothing plays them
 //   (the report names both); nothing remaining, the script goes.
+// - The typing: each package of TypeScript (a `tsconfig.json`) that has no `typecheck` script
+//   receives the template's, `tsc -p tsconfig.json --noEmit` (its tsconfig.json types its sources
+//   and its tests, nothing emitted, as the template's does; its tsconfig.build.json builds), as a
+//   package of the examples of create-turbo types itself (`check-types`): each package of the frame
+//   in a project with `workspaces` (a package out of the frame is not touched, the root's
+//   `typecheck` stays the project's), the root in a project without. `npm run verifier` plays it,
+//   the task `typecheck` of Turborepo, which the generator keeps in the root's turbo.json
+//   (scripts/turbo-des-paquets.mjs). The report names the packages that received it. Witness:
+//   BPScript 320.21.4, whose type errors in test/ showed only at night.
 // - `turbo.json` is the project's own file, as every repository run by Turborepo writes its own. A
 //   project with a `package.json` and no `turbo.json` receives the frame's template of its form:
 //   `templates/turbo/paquets.json` when its `package.json` declares
 //   `workspaces` (the tasks of each package, and the root's guards, `//#grillhouse:gardes` and
-//   `//#gardes`; the tests live in the packages, the root has no `test:vitest`; the `build` of each
-//   package is set by its own generated `turbo.json`, below), else
-//   `templates/turbo/sans-paquets.json` (`build`, then the guards and the tests beside each other).
+//   `//#gardes`, and `typecheck`, after the build of each package and of its dependencies; the
+//   tests live in the packages, the root has no `test:vitest`; the `build` of each package is set by its own
+//   generated `turbo.json`, below), else `templates/turbo/sans-paquets.json` (`build`, then the
+//   guards, the tests and `typecheck` beside each other).
 //   A `turbo.json` present is never written again by the update; only the generator of the
 //   packages' turbo.json (below) writes in it the `dependsOn` of the guard tasks, and adds one it
-//   lacks.
+//   lacks, and the typing task.
 // - The tools the frame's checks run as commands (dependency-cruiser, knip, Turborepo) are added
 //   to the project's `devDependencies` at the version the template's `devDependencies` give; a
 //   tool the project already declares in `dependencies`, `devDependencies` or
@@ -89,7 +99,7 @@
 //   the range the template's package.json declares for `vitest`. Where the root resolves no Vitest or
 //   another version, the project's scripts stay (the frame's included) and the report names the
 //   version found and the range required. A `test` that runs anything else stays. The scripts of
-//   the packages of a monorepo are not written.
+//   the packages of a monorepo are not written, but their `typecheck` (above).
 // - The frame's base configuration of Vitest is the package's (`@roomi-fields/grillhouse/vitest-config`,
 //   scripts/vitest-config/), which each Vitest configuration imports by its name
 //   (`import base from '@roomi-fields/grillhouse/vitest-config'`), as the examples of Turborepo
@@ -156,6 +166,7 @@ import { migrer, restesAuProjet } from './migrations.mjs';
 import { CODE, TESTS } from './frontieres.mjs';
 import { paquets } from './paquets.mjs';
 import { sources } from './sources.mjs';
+import { TYPAGE } from './turbo-des-paquets.mjs';
 
 const SCRIPTS = {
   tableau: 'grillhouse tableau --texte',
@@ -328,6 +339,38 @@ function poserConfigVitest(projet, p) {
   return declarants.length > 0 ? { nom: PAQUET_DU_CADRE, paquets: declarants } : null;
 }
 
+// Gives the typing script of the template, <script> (`tsc -p tsconfig.json --noEmit`: its
+// tsconfig.json types its sources and its tests, nothing emitted), to each package of TypeScript
+// (a `tsconfig.json`) of the project at <projet> (root package.json <p>) that has no `typecheck`:
+// each package of the frame in a project of packages, written in its package.json (a package out
+// of the frame is not touched, and the root's `typecheck` stays the project's); the root itself in
+// a project without packages, set in <p>, which the caller writes. `npm run verifier` plays it, a
+// task of Turborepo (scripts/turbo-des-paquets.mjs). Returns { script, paquets } (paquets: each
+// package's directory, `.` for the root), or null when nothing changes.
+function poserTypage(projet, p, script) {
+  if (typeof script !== 'string') return null;
+  const types = dossier => existsSync(path.join(projet, dossier, 'tsconfig.json'));
+  const sans = pkg => typeof pkg.scripts?.[TYPAGE] !== 'string';
+  const declarants = [];
+  if (p.workspaces === undefined) {
+    if (types('.') && sans(p)) {
+      p.scripts = { ...(p.scripts ?? {}), [TYPAGE]: script };
+      declarants.push('.');
+    }
+  } else {
+    for (const { dossier, pkg, hors } of paquets(projet)) {
+      if (hors || !types(dossier) || !sans(pkg)) continue;
+      pkg.scripts = { ...(pkg.scripts ?? {}), [TYPAGE]: script };
+      writeFileSync(
+        path.join(projet, dossier, 'package.json'),
+        `${JSON.stringify(pkg, null, 2)}\n`
+      );
+      declarants.push(dossier);
+    }
+  }
+  return declarants.length > 0 ? { script, paquets: declarants } : null;
+}
+
 // Writes the frame's status line in the settings of the project at <projet>, when they exist and
 // hold none or the frame's (see the header); their other keys keep their order. Returns whether
 // they changed.
@@ -386,6 +429,7 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
     turbo: null,
     configVitest: null,
     dependanceDuCadre: null,
+    typage: null,
     gardes: null,
     ligneEtat: false,
     greffon: false,
@@ -486,6 +530,7 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
     }
     bilan.dependanceDuCadre = declarerDependanceDuCadre(projet, p);
     bilan.configVitest = poserConfigVitest(projet, p);
+    bilan.typage = poserTypage(projet, p, pkgSource.scripts?.[TYPAGE]);
     writeFileSync(pkg, `${JSON.stringify(p, null, 2)}\n`);
   }
   bilan.turbo = poserTurbo(projet, source);
@@ -548,6 +593,11 @@ export function rapport(b) {
     const { nom, paquets: declarants } = b.dependanceDuCadre;
     lignes.push(
       `Dépendance d'exécution : ${nom} déclaré dans les dependencies de ${declarants.join(', ')}, dont le code hors des tests importe une entrée du paquet. \`npm install\` relie le paquet.`
+    );
+  }
+  if (b.typage) {
+    lignes.push(
+      `Typage : \`${b.typage.script}\` écrit dans ${b.typage.paquets.join(', ')} (le script typecheck, ses sources et ses tests, que son tsconfig.json inclut) ; \`npm run verifier\` le joue à côté des gardes et des tests.`
     );
   }
   if (b.turbo) {

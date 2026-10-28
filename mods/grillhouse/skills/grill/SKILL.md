@@ -187,8 +187,8 @@ remplace jamais le grill. Les branches de l'arbre :
    (`crontab -e` : `0 3 * * * export PATH=<dossier de Node>:$PATH; cd <racine> && node_modules/.bin/grillhouse nuit`,
    la ligne que propose l'ouverture de séance, avec le dossier du Node qui l'exécute, que la table
    des tâches ne trouve pas seule) : elle rejoue pour de vrai la passe complète, puis les tests de nuit et les bancs de budget, que le jour ne joue pas. Chaque
-   intégration joue `npm run verifier` en entier (les gardes et les tests), Turborepo relisant de
-   son cache ce qui n'a pas bougé.
+   intégration joue `npm run verifier` en entier (les gardes, le typage de chaque paquet et les
+   tests), Turborepo relisant de son cache ce qui n'a pas bougé.
    Restent des choix selon la taille du projet, que le responsable tranche :
    - **le contrôle de l'interface contre le code** (`packages/grillhouse/scripts/interfaces-contre-code.mjs`) : une
      seule passe avant les tests (petit projet), ou un banc par composant qui appelle

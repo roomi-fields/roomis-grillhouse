@@ -380,6 +380,7 @@ describe('a package out of the frame stays a workspace, and Turborepo plays none
         build: { extends: false },
         lint: { extends: false },
         'test:vitest': { extends: false },
+        typecheck: { extends: false },
       },
     });
     expect(lire(racine, 'packages/audio/turbo.json')).toBe(
@@ -397,6 +398,7 @@ describe('a package out of the frame stays a workspace, and Turborepo plays none
       tasks: {
         build: { dependsOn: ['socle#build'] },
         'test:vitest': { dependsOn: ['build', 'socle#build'] },
+        typecheck: { dependsOn: ['build', 'socle#build'] },
       },
     });
     // A package that declares none keeps the root's tests.
@@ -429,7 +431,7 @@ describe('a package out of the frame stays a workspace, and Turborepo plays none
     ecrireFichier(
       racine,
       'turbo.json',
-      JSON.stringify({ ...gabarit, tasks: { ...gabarit.tasks, lint: {}, typecheck: {} } })
+      JSON.stringify({ ...gabarit, tasks: { ...gabarit.tasks, lint: {}, 'check-types': {} } })
     );
     const r = lancer(racine, []);
     expect(r.status).toBe(1);
@@ -666,6 +668,104 @@ describe('the guard tasks of the root wait for the build of each package of the 
     expect(dependances(lire(racine, 'turbo.json'), 'gardes')).toEqual(['build']);
     expect(dependances(lire(racine, 'turbo.json'), 'grillhouse:gardes')).toEqual(['build']);
     expect(lancer(racine, []).status).toBe(0);
+  });
+});
+
+// grillhouse-kgx.3. Witness: BPScript 320.21.4, whose charter asks every commit to pass the strict
+// typing: type errors in test/ showed only at night, since `npm run verifier` played no typing
+// (the build types src/ alone, Vitest types nothing). The typing of each package is a task of
+// Turborepo, as `check-types` in the examples of create-turbo: the root's turbo.json holds
+// `typecheck`, which waits for the build of the package and of its dependencies (`build`,
+// `^build`, as `test:vitest`: the tests of 990-corpus import its own built entry), and the
+// generator keeps it there.
+describe('grillhouse-kgx.3 — the root’s typecheck task, which waits for the build of the package and of its dependencies', () => {
+  const typage = (racine: string) =>
+    (
+      parseJsonc(lire(racine, 'turbo.json'), [], { allowTrailingComma: true }) as {
+        tasks: Record<string, { dependsOn?: string[]; outputs?: string[] } | undefined>;
+      }
+    ).tasks.typecheck;
+
+  it('critère 1: both templates hold it, and the generator writes nothing for it', () => {
+    const racine = depotAPaquets();
+    expect(typage(racine)).toEqual({ dependsOn: ['build', '^build'], outputs: [] });
+    ecrire(racine);
+    expect(typage(racine)).toEqual({ dependsOn: ['build', '^build'], outputs: [] });
+    const sans = mkdtempSync(path.join(ESSAIS, 'sans-paquets-'));
+    ecrireFichier(sans, 'package.json', pkg({ name: 'p', scripts: { build: 'tsc' } }));
+    ecrireFichier(sans, 'turbo.json', lire(DEPOT, 'templates/turbo/sans-paquets.json'));
+    expect(ecrire(sans)).toEqual([]);
+    expect(typage(sans)).toEqual({ dependsOn: ['build'], outputs: [] });
+    expect(verifier(DEPOT)).toEqual([]);
+  });
+
+  it('critère 1: a root without it: the check refuses it, naming the task and the command; the generator adds it', () => {
+    const racine = depotAPaquets();
+    ecrire(racine);
+    const t = JSON.parse(lire(racine, 'turbo.json')) as { tasks: Record<string, unknown> };
+    delete t.tasks.typecheck;
+    ecrireFichier(racine, 'turbo.json', JSON.stringify(t, null, 2));
+    const r = lancer(racine, []);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('`typecheck`');
+    expect(r.stderr).toContain(COMMANDE);
+    expect(lancer(racine, ['--ecrire']).status).toBe(0);
+    expect(typage(racine)).toEqual({ dependsOn: ['build', '^build'], outputs: [] });
+    expect(lancer(racine, []).status).toBe(0);
+  });
+
+  it('critère 1: a root typecheck that does not wait for the builds: refused; the generator adds build and ^build to the project’s entries', () => {
+    const racine = depotAPaquets();
+    ecrire(racine);
+    const t = JSON.parse(lire(racine, 'turbo.json')) as {
+      tasks: Record<string, Record<string, unknown>>;
+    };
+    t.tasks.typecheck = { dependsOn: ['lint'], inputs: ['$TURBO_DEFAULT$'], outputs: [] };
+    ecrireFichier(racine, 'turbo.json', JSON.stringify(t, null, 2));
+    const r = lancer(racine, []);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('`build`');
+    expect(r.stderr).toContain('^build');
+    expect(lancer(racine, ['--ecrire']).status).toBe(0);
+    expect(typage(racine)).toEqual({
+      dependsOn: ['lint', 'build', '^build'],
+      inputs: ['$TURBO_DEFAULT$'],
+      outputs: [],
+    });
+    expect(lancer(racine, []).status).toBe(0);
+  });
+
+  it('critère 1: without packages, a root without it is refused, and the generator adds it', () => {
+    const racine = mkdtempSync(path.join(ESSAIS, 'sans-paquets-'));
+    ecrireFichier(racine, 'package.json', pkg({ name: 'p', scripts: { build: 'tsc' } }));
+    const t = JSON.parse(lire(DEPOT, 'templates/turbo/sans-paquets.json')) as {
+      tasks: Record<string, unknown>;
+    };
+    delete t.tasks.typecheck;
+    ecrireFichier(racine, 'turbo.json', JSON.stringify(t, null, 2));
+    expect(lancer(racine, []).stderr).toContain('`typecheck`');
+    expect(lancer(racine, ['--ecrire']).status).toBe(0);
+    expect(typage(racine)).toEqual({ dependsOn: ['build'], outputs: [] });
+    expect(lancer(racine, []).status).toBe(0);
+  });
+
+  it('critère 1: after generation, the typing of a package waits for its own build, which its tests import (990-corpus/test-fixtures), and for the build of each package it declares, as Turborepo plans it', () => {
+    const racine = depotAPaquets();
+    for (const nom of ['a', 'b']) {
+      const f = `packages/${nom}/package.json`;
+      const p = JSON.parse(lire(racine, f)) as { scripts: Record<string, string> };
+      ecrireFichier(
+        racine,
+        f,
+        pkg({ ...p, scripts: { ...p.scripts, typecheck: 'tsc -p tsconfig.json --noEmit' } })
+      );
+    }
+    expect(lancer(racine, ['--ecrire']).status).toBe(0);
+    const r = turbo(racine, ['typecheck']);
+    expect(r.status, r.stderr).toBe(0);
+    const t = taches(r.stdout);
+    expect(t['a#typecheck']).toEqual(['a#build', 'corpus#build', 'socle#build']);
+    expect(t['b#typecheck']).toEqual(['b#build', 'c#build', 'corpus#build']);
   });
 });
 

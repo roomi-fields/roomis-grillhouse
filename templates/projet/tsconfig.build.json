@@ -1,0 +1,14 @@
+{
+  // The build of the project: src/ into dist/, its tests left out (`npm run build`).
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.{test,spec}.{ts,js,mjs}"]
+}

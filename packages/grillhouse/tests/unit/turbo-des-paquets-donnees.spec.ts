@@ -111,6 +111,7 @@ const RACINE_BP = {
     },
     '//#grillhouse:gardes': { dependsOn: [], outputs: [] },
     '//#gardes': { dependsOn: [], outputs: [] },
+    typecheck: { dependsOn: ['build', '^build'], outputs: [] },
   },
 };
 
