@@ -480,8 +480,11 @@ comme le RuleTester d'ESLint une règle. Ainsi le reste du noyau ignore le langa
 lancent le cadre entier (le circuit, plus de la moitié du temps des tests) vivent dans
 `packages/grillhouse-essais`, privé, comme `turborepo-tests` de Turborepo ; ils se jouent quand
 un fichier qu'ils lancent change, et en entier la nuit. Les tests du greffon
-(`mods/grillhouse/tests`) entrent dans la vérification et la CI. Ainsi un test unitaire ne paie
-jamais le prix d'un test d'intégration.
+(`mods/grillhouse/tests`) sont les gardes propres du dépôt, son script racine `gardes`
+(`claude plugin test mods/grillhouse`) : la vérification les joue, et Turborepo les relit de son
+cache tant que rien ne bouge dans le dépôt (les entrées d'une tâche de la racine) ; la CI installe la commande claude à une version
+fixée. Ainsi un test unitaire ne paie jamais le prix d'un test
+d'intégration.
 
 **L'ordre** : les deux causes du « tout rejoué », mesurées ; la jointure et le module
 TypeScript ; le paquet des tests d'intégration ; le module cargo, sur la jointure.

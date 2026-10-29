@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 
 import { enLignes } from '../hooks/register'
 import { projetGrillhouse } from './projet'
@@ -119,7 +119,7 @@ async function monter(
     appels.push(e.argv)
     // The board from `grillhouse tableau`; a ticket's whole text from Beads (`bd show <id> --json`).
     const stdout =
-      e.argv[0] === 'node'
+      e.argv[1] === 'tableau'
         ? JSON.stringify(courant)
         : e.argv[0] === 'bd' && e.argv[1] === 'show'
           ? JSON.stringify([{ id: e.argv[2], description: o.texte?.(e.argv[2] as string) ?? `Le texte entier de ${e.argv[2]}.` }])
@@ -129,7 +129,7 @@ async function monter(
   h('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
   projetGrillhouse(h)
   h('command.register', () => ({ value: undefined }))
-  h('clock.every', () => ({ value: { cancel: () => undefined } }))
+  mock.clock(h as never)
   h('ui.scroll', (_: unknown, e: { offset: number }) => {
     passes++
     decalages.push(e.offset)

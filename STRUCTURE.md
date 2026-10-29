@@ -153,7 +153,7 @@ roomis-grillhouse/
 │
 ├── mods/grillhouse/            # The frame's plugin, grillhouse (grillhouse@roomi-fields, whose marketplace names the package npm), a mod the package carries at its root: the frame's agents, skills, hooks of Claude
 │                              #   Code, common charter, meta-frame (METACADRE.md: the six intentions, how rules are written), and the /grillhouse pane;
-│                              #   a project holds no copy of them, Claude Code installs them from the package; tests: npm run mod:test
+│                              #   a project holds no copy of them, Claude Code installs them from the package; tests: npm run gardes
 │   ├── agents/                    # The roles, each under its locks (packages/grillhouse/scripts/verrous/); Claude Code names them bare or grillhouse:<rôle>
 │   │   ├── testwriter.md             # Writes a ticket's tests from the spec; writes test files and the shared test material only
 │   │   ├── developpeur.md            # Writes the code; no test file, no code before the Architecture section

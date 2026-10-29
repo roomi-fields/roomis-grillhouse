@@ -29,6 +29,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The command claude, at a fixed version: the guards of the repository (its root script
+      # `gardes`) play the tests of the frame's plugin, `claude plugin test mods/grillhouse`.
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code@2.1.312
+
       - name: Check formatting
         run: npm run format:check
 

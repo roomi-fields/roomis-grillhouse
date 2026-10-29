@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 
 import { bascule, couleur, debut, declareLePaquet, ficheLignes, placement } from '../hooks/register'
 import type { Tableau } from '../types'
@@ -31,7 +31,7 @@ test('in a Grillhouse project, the session start measures the board', async ($, 
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   projetGrillhouse(on)
   on('command.register', () => ({ value: undefined }))
-  on('clock.every', () => ({ value: { cancel: () => undefined } }))
+  mock.clock(on)
   await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
   expect(await mesure).toBe('node_modules/.bin/grillhouse tableau')
   await new Promise(r => setTimeout(r, 50))
@@ -61,7 +61,7 @@ for (const [cas, cwd, pkg, isInteractive] of [
     on('session.start', ($, e) => ({ cwd: e.cwd }))
     projetGrillhouse(on, pkg)
     on('command.register', () => ({ value: undefined }))
-    on('clock.every', () => ({ value: { cancel: () => undefined } }))
+    mock.clock(on)
     await $.session.start({ cwd, surface: isInteractive ? 'terminal' : null, isInteractive })
     expect(lances).not.toContain('node_modules/.bin/grillhouse tableau')
   })
