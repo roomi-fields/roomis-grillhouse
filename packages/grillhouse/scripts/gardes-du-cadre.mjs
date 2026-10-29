@@ -31,6 +31,7 @@ export const GARDES_DU_CADRE = [
   [ici('interfaces-contre-code.mjs')],
   [ici('resumes.mjs')],
   [ici('code-mort.mjs')],
+  [ici('tailles-des-tests.mjs')],
 ];
 
 // The name of each guard of the frame, as its findings carry it: its script's, without extension.

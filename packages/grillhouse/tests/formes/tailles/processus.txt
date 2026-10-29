@@ -1,0 +1,2 @@
+import { execFileSync } from 'node:child_process';
+it('cli', () => execFileSync(process.execPath, ['bin/cli.mjs', '--help']));

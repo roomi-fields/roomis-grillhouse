@@ -24,6 +24,14 @@
 //   Turborepo's `--filter=[ref]` measure against a commit. Against the branch's own, it is one: the
 //   copy created that file, then removed it. Witness: BPScript 320.3.2.1, 54 `.rapport-suite.json`
 //   untracked on main, each seen removed by every package of a copy, which played whole 264 times.
+// - So for a file the commit of the last green tracks and the working tree that kept it holds
+//   modified, never committed so: measured against the last green of another branch, it is a
+//   change only when the pass's tree differs from that commit on it (the copy, or a commit since,
+//   changed it), never when it holds it as that commit has it. Witness: Grillhouse 2026-10-29,
+//   main's `.beads/hooks/commit-msg` and `pre-push` as the frame's placement of the hooks writes
+//   them (scripts/crochets.mjs), committed in a former form; every copy and every replay of the
+//   queue saw them changed, and packages/grillhouse, whose tests declare they read them
+//   (`grillhouse.lit`), played whole on each pass.
 // - No last green counts without git, before the first commit, and while a submodule differs
 //   from the commit its parent records (its files changed, or its HEAD moved) or the changes
 //   reach a submodule: git's tree holds a submodule's commit, not its files. The pass is then
@@ -175,14 +183,15 @@ function difference(racine, avant, apres) {
   return out;
 }
 
-// The files the commit <commit> of the repository at <racine> tracks that the tree <arbre> no longer
-// holds, as a Set of paths from its top; null when git fails.
-function supprimesDuCommit(racine, commit, arbre) {
+// The files that differ between the commit <commit> of the repository at <racine> and the tree
+// <arbre>, as a Set of paths from its top: those the tree no longer holds when <filtre> is `D`,
+// those it changed or added when it is `AMT`; null when git fails.
+function changesDepuisLeCommit(racine, commit, arbre, filtre) {
   const r = git(racine, [
     'diff',
     '--name-only',
     '--no-renames',
-    '--diff-filter=D',
+    `--diff-filter=${filtre}`,
     '-z',
     commit,
     arbre,
@@ -214,9 +223,11 @@ export function mesure(racine, { tout = false, dans = os.tmpdir() } = {}) {
     return { ...complete(`un sous-module a changé (${ch.sousModules[0]})`), etat: null };
   }
   if (vert.branche !== etat.branche) {
-    const suivis = supprimesDuCommit(etat.racine, vert.commit, etat.arbre);
-    if (!suivis) return complete('git échoue');
+    const suivis = changesDepuisLeCommit(etat.racine, vert.commit, etat.arbre, 'D');
+    const changes = changesDepuisLeCommit(etat.racine, vert.commit, etat.arbre, 'AMT');
+    if (!suivis || !changes) return complete('git échoue');
     ch.supprimes = ch.supprimes.filter(f => suivis.has(f));
+    ch.fichiers = ch.fichiers.filter(f => changes.has(f));
   }
   const dir = mkdtempSync(path.join(dans, 'grillhouse-changements-'));
   const fichier = path.join(dir, 'changements.json');

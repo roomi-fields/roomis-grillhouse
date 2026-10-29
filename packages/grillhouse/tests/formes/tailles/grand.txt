@@ -1,0 +1,5 @@
+import { spawnSync } from 'node:child_process';
+it('verifier', () => {
+  spawnSync('git', ['init', '-q', repo]);
+  spawnSync('npm', ['run', 'verifier'], { cwd: repo });
+});

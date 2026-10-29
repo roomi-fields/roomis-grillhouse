@@ -39,7 +39,9 @@ nomment aucune, son code et sa configuration hors de son `docs/` ; jamais un tes
 connu, la passe est complète, et `npm run verifier -- --tout` la joue pour de vrai, comme la
 nuit. Un fichier que le commit du vert ne suit pas vit dans le seul arbre qui l'a gardé :
 absent d'une copie mesurée contre le vert de main, il n'est pas supprimé, comme Nx et
-Turborepo mesurent contre un commit. Ainsi un test ne tourne qu'une fois tant que rien ne
+Turborepo mesurent contre un commit ; de même, un fichier que l'arbre de main tient modifié sans
+le commiter (les crochets git que pose le cadre, `.beads/hooks/*`) ne change pas pour une copie
+qui le tient comme ce commit. Ainsi un test ne tourne qu'une fois tant que rien ne
 change, et corriger un test ne rejoue que lui.
 
 **Tout se lit, le plan s'écrit** : un agent de rôle travaille dans l'enveloppe de sa copie
@@ -322,6 +324,16 @@ l'est pas (un rouge, un « à repasser », un `npm install` à faire d'abord). U
 rouge se met en quarantaine dans le test lui-même (`it.skip` ou `it.fails`), avec le ticket qui
 le corrige, comme le fait une intégration continue mature. Ainsi chaque rouge a son ticket, et
 main ne porte aucun rouge.
+
+**La taille d'un test** (`packages/grillhouse/scripts/tailles-des-tests.mjs`, une garde du
+cadre) : comme la pyramide des tests de Google et le `size` de Bazel, chaque fichier de tests
+que git liste est petit, moyen ou grand, lu dans son texte et dans la matière de test qu'il
+importe : grand, il monte un dépôt d'essai (`init`, `clone` ou `worktree add` de git) et y lance
+autre chose que git ; moyen, il lance un processus ou importe plusieurs modules du dépôt ;
+petit, sinon. Un grand test de jour est un constat (`grand-de-jour`), un test de nuit ou un banc
+jamais ; les grands tests de jour d'un projet s'inscrivent dans sa dette à la mise à jour qui
+apporte la garde (`npx grillhouse maj`, migration 0.25.0), sans qu'un test se réécrive. Ainsi
+le jour ne joue que des tests courts, et la dette des grands ne fait que baisser.
 
 **Une mesure lourde à la fois sur la machine** : chaque `npm run verifier` et chaque passe
 lourde du circuit (preuve du rouge, contrôles, passe finale) prennent le verrou de la machine,

@@ -1,0 +1,6 @@
+import { spawnSync } from 'node:child_process';
+const git = (d, ...a) => spawnSync('git', ['-C', d, ...a]);
+it('repo', () => {
+  git(d, 'init', '-q');
+  git(d, 'commit', '-m', 'x');
+});

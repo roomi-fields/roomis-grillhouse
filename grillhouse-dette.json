@@ -1,0 +1,354 @@
+{
+  "tailles-des-tests": {
+    "packages/grillhouse/tests/unit/avancement.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/base-de-passe.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.arbitrage.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.avancement.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.bilan.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.conformite.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.consigne.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.construction.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.fiche.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.gestes.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.machine.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.montee.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.passe-finale.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.plan.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.preuve.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.references.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.refus.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.registre.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.rejeu.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.relance.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.relecture.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.reprise.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.sessions.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.statut.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.tests-de-head.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.ticket.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.tri.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.vert-par-fichier.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/commandes-en-enveloppe.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/consommateurs-arbitres.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/crochets-du-cadre.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/enveloppe.enceinte.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/enveloppe.lanceur.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/enveloppe.maison.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/enveloppe.matiere-de-test.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/enveloppe.paquet.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/enveloppe.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/file-integration.ci.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/file-integration.dependances.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/file-integration.renvois.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/file-integration.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/git-des-tests.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/greffons-du-cadre.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/grillhouse-maj.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/integrer.commandes.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/integrer.dependances.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/integrer.references.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/integrer.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/lancer-modele.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/ligne-etat.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/nouveau-projet.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/nuit.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/pre-push-nuit.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/registre-fin.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/retirer-copie.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/session-start.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/sous-modules.adresses.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/sous-modules.montage.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/sous-modules.partage.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/sous-modules.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/superviseur.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/tests-cibles.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/tests-de-nuit.script-de-nuit.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/tests-de-nuit.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/turbo-des-paquets-donnees.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/un-commit-par-ticket.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/verifier.depuis-le-vert.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/verrous.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/version.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    }
+  }
+}

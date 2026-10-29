@@ -30,6 +30,7 @@ import * as nomsDeclaresInutilises from './migrations/0.24.4-noms-declares-inuti
 import * as lignesMalFormees from './migrations/0.24.6-lignes-mal-formees.mjs';
 import * as matiereDansLesTests from './migrations/0.24.7-matiere-dans-les-tests.mjs';
 import * as triDesDecouvertes from './migrations/0.24.12-tri-des-decouvertes.mjs';
+import * as taillesDesTests from './migrations/0.25.0-tailles-des-tests.mjs';
 
 /** The migrations of the package. */
 export const MIGRATIONS = [
@@ -44,6 +45,7 @@ export const MIGRATIONS = [
   lignesMalFormees,
   matiereDansLesTests,
   triDesDecouvertes,
+  taillesDesTests,
 ];
 
 /**

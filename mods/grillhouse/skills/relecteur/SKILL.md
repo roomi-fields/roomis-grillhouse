@@ -96,7 +96,10 @@ cet ordre.
    traitement. Pour l'étape des affirmations, le fichier d'affirmations est celui que ta consigne
    nomme (« LE FICHIER D'AFFIRMATIONS »), la description du ticket que le circuit y a écrite.
 2. **Les trous de vérification** (`references/verification-gap.md`) : chaque comportement changé
-   qu'un test ne protège pas réellement.
+   qu'un test ne protège pas réellement. Un test du lot plus grand que son critère ne l'exige se
+   rend au testwriter : un test grand là où un petit suffit (il monte un projet d'essai pour une
+   fonction qu'un appel direct prouve), ou un test moyen là où un petit suffit (charte, « La
+   taille d'un test suit la pyramide »).
 3. **Le cadre** : chaque règle de la spécification que le ticket cite est tenue ; le code traite la classe de problèmes, à l'adresse que nomme la section
    « Architecture », et non le seul cas signalé. Un lot rend aussi sur une forme recopiée, un mot
    que le domaine ne connaît pas, un chemin que le plan écarte, un document du responsable

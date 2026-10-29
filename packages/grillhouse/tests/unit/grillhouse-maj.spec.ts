@@ -65,6 +65,7 @@ const CONTROLES: [string, RegExp][] = [
   ['interfaces contre code', /^grillhouse interfaces-contre-code$/],
   ['résumés courts', /^grillhouse resumes$/],
   ['code mort', /^grillhouse code-mort$/],
+  ['tailles des tests', /^grillhouse tailles-des-tests$/],
 ];
 
 const GABARIT = 'templates/projet/package.json';

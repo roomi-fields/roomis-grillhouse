@@ -1,0 +1,5 @@
+import { spawnSync } from 'node:child_process';
+export function essai(repo) {
+  spawnSync('git', ['worktree', 'add', repo]);
+  return spawnSync(process.execPath, ['scripts/circuit.mjs'], { cwd: repo });
+}

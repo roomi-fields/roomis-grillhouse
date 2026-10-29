@@ -78,6 +78,15 @@ en un seul commit, et se crée sous sa mère (`docs/agents/issue-tracker.md`). U
 découpage n'est pas connu commence par une exploration, sans code. Ainsi l'avancement se lit
 ticket par ticket.
 
+**La taille d'un test suit la pyramide** (la pyramide des tests de Google, les tailles de
+Bazel) : un test petit vérifie son module par son interface, sans processus ; un test moyen
+assemble quelques modules sur la machine, avec des processus locaux ; un test grand monte un
+projet d'essai et y lance le produit ou le cadre entier : il est un test de nuit (`*.nuit.test.*`),
+jamais joué au fil du travail. Chaque test prend la plus petite taille qui prouve son critère, dans
+Grillhouse comme dans chaque projet. La garde des tailles (`grillhouse tailles-des-tests`) refuse
+un grand test de jour, et la dette inscrite des grands tests existants ne fait que baisser. Ainsi
+le jour reste court, et la preuve longue tourne la nuit.
+
 **Un ticket ouvert naît du mot du responsable**, ou d'un défaut qu'un projet du cadre rencontre.
 Une découverte d'agent se consigne dans un ticket fermé, sous le ticket qui l'a trouvée, étiqueté
 `decouverte`. En fin de ticket, le tri des découvertes lui donne son verdict, avec sa pièce :

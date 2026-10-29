@@ -71,6 +71,13 @@ ses bords et ses refus. Ainsi un code taillé pour l'exemple du ticket échoue.
 qu'il rend, sans simuler ce que le composant fait lui-même. Ainsi ils restent vrais quand le code
 change de forme.
 
+**La plus petite taille qui prouve** : chaque test prend la plus petite taille de la pyramide qui
+prouve son critère (charte, « La taille d'un test suit la pyramide »). Un test petit appelle son
+module dans son propre processus ; un test moyen assemble quelques modules, avec des processus
+locaux ; un test grand, qui monte un projet d'essai et y lance le produit ou le cadre entier,
+s'écrit dans un fichier `*.nuit.test.ts`. La garde des tailles refuse un grand test de jour. Ainsi
+le jour garde ses tests rapides, et chaque critère sa preuve la plus directe.
+
 **Chaque test rougit d'abord** : pendant que tu l'écris, tu le lances sur le code présent
 (`npm test -- <fichier>`, le chemin écrit depuis la racine du dépôt) et tu vois qu'il échoue pour
 la bonne raison. Après ta séance, le circuit du ticket joue la preuve : il lance les seuls tests de
