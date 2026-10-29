@@ -76,7 +76,15 @@
   },
   "grillhouse": {
     "lit": [
-      ".beads",
+      ".beads/.gitignore",
+      ".beads/config.yaml",
+      ".beads/hooks/commit-msg",
+      ".beads/hooks/post-checkout",
+      ".beads/hooks/post-merge",
+      ".beads/hooks/pre-commit",
+      ".beads/hooks/pre-push",
+      ".beads/hooks/prepare-commit-msg",
+      ".beads/metadata.json",
       ".claude",
       ".dependency-cruiser.cjs",
       ".eslintrc.cjs",

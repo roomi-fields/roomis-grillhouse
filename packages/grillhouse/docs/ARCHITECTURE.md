@@ -403,12 +403,12 @@ d'aujourd'hui, et chaque ticket de l'épopée qui la mène les réécrit au pré
 
 **Une vérification à la mesure de ce qui change** : une vérification sur main qui ne touche
 qu'un ou deux scripts du cadre prend moins de 5 minutes ; la passe complète reste à la nuit et à
-la sortie. Aujourd'hui, presque tout changement rejoue les 3 200 tests (environ 22 minutes), pour
-deux causes que le cadre corrige d'abord, mesure en main : les tests déclarent lire `.beads`, que
-chaque commande de tickets réécrit, et le code entier du paquet, qu'ils lancent par son chemin
-(`grillhouse.lit`, la règle 5 de `vitest-config/changements.mjs`). Un test déclare ce qu'il lance,
-script par script. Ainsi le cache de Turborepo et le graphe de Vitest ne rejouent que ce qui est
-touché.
+la sortie. Le journal des tickets ne rejoue déjà aucun test : `grillhouse.lit` (la règle 5 de
+`vitest-config/changements.mjs`) nomme un par un les fichiers de `.beads` que les tests lisent
+(ses crochets, sa configuration), jamais ses journaux, que chaque commande de tickets réécrit. Un
+changement d'un script du cadre rejoue encore les 3 200 tests (environ 22 minutes), ses tests le
+lançant par son chemin ; la pyramide des tests (grillhouse-3dr.4) et les tests d'intégration dans
+leur paquet (grillhouse-3dr.3) le ramènent aux tests qui le lisent.
 
 **Un noyau, et un paquet par langage** : comme `nx` et ses greffons `@nx/js`, `@nx/vite`, le
 cadre publie `@roomi-fields/grillhouse`, le **noyau** (les tickets, le circuit, les rôles et

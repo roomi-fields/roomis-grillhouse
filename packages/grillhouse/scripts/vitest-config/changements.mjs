@@ -25,7 +25,9 @@
 //      `vite.config.*`, `vitest.workspace.*`, `tsconfig*.json`; its `setupFiles` and its
 //      `globalSetup`, which Vitest runs beside the graph;
 //   5. a path its tests declare they read (`grillhouse.lit` of its package.json, from the top):
-//      a script they run, a file they read, as Bazel's `data`;
+//      a script they run, a file they read, as Bazel's `data`, named file by file where the
+//      frame rewrites their neighbours (the hooks and configuration of `.beads`, never its
+//      journals, `interactions.jsonl`, which each command of bd writes);
 //   6. a file, changed or removed, that the build of a package it depends on reads (its
 //      `dependencies`, `devDependencies`, `optionalDependencies` and `peerDependencies` that
 //      resolve to a directory of the repository, out of node_modules, transitively): its tests read
