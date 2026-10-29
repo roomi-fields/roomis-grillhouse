@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { commandeDe, sousCommandes } from '../../scripts/sous-commandes.mjs';
+import { declarerLeLangage } from './enveloppe-essai.js';
 
 // The frame's one command, `grillhouse <sous-commande>` (bin/grillhouse.mjs, the `bin` of the
 // package @roomi-fields/grillhouse): each script a caller launches has its subcommand, and every
@@ -22,6 +23,8 @@ const DEPOT = path.resolve(PAQUET, '../..');
 const COMMANDE = path.join(DEPOT, 'node_modules/.bin/grillhouse');
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'commande-grillhouse-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+// The command runs in a project of TypeScript, its language declared (grillhouse-3dr.2.3).
+declarerLeLangage(ESSAIS);
 
 const grillhouse = (args: string[], cwd = ESSAIS) =>
   spawnSync(COMMANDE, args, { cwd, encoding: 'utf8', timeout: 30_000 });
@@ -78,6 +81,7 @@ describe('grillhouse <sous-commande>', () => {
 
   it('works in the working directory, the project', () => {
     const projet = mkdtempSync(path.join(ESSAIS, 'projet-'));
+    declarerLeLangage(projet);
     mkdirSync(path.join(projet, 'docs/agents'), { recursive: true });
     const r = grillhouse(['index-interfaces'], projet);
     expect(r.status, r.stderr).toBe(0);
