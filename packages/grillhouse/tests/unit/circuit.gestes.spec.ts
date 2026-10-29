@@ -122,7 +122,7 @@ if (existsSync('repasser')) {
 process.exit(spawnSync('vitest', ['run'], { stdio: 'inherit' }).status ?? 1);
 EOF
 printf '${n}' > $c/repasser
-node -e "const f='$c/package.json';const p=JSON.parse(require('fs').readFileSync(f,'utf8'));p.scripts['test:vitest']='node repasser.mjs';require('fs').writeFileSync(f,JSON.stringify(p,null,2))"
+node -e "const f='$c/package.json';const p=JSON.parse(require('fs').readFileSync(f,'utf8'));p.scripts['test:unit']='node repasser.mjs';require('fs').writeFileSync(f,JSON.stringify(p,null,2))"
 `;
   const lignes = (texte: string, motif: RegExp) => texte.split('\n').filter(l => motif.test(l));
 

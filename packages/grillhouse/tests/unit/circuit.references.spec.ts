@@ -706,7 +706,7 @@ it('binder reste rouge', () => { expect(1).toBe(2); });
       scenario(
         id,
         'developpeur',
-        `${CODE_JUSTE}printf '{"name":"000-forms","type":"module","scripts":{"test:vitest":"vitest run","build":"node -e 0"}}\\n' > $c/package.json\npassation 'Code de forms écrit.'\n`
+        `${CODE_JUSTE}printf '{"name":"000-forms","type":"module","scripts":{"test:unit":"vitest run","build":"node -e 0"}}\\n' > $c/package.json\npassation 'Code de forms écrit.'\n`
       );
       const r = lancer(id);
       expect(r.status, sortie(r)).toBe(0);

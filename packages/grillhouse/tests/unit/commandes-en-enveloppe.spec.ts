@@ -115,12 +115,12 @@ function depot() {
     kernel: {
       dependencies: { forms: '*' },
       devDependencies: { corpus: '*' },
-      scripts: { build: 'node ../../construire.mjs', 'test:vitest': 'vitest run' },
+      scripts: { build: 'node ../../construire.mjs', 'test:unit': 'vitest run' },
     },
     corpus: {
       dependencies: { forms: '*', etage: '*', kernel: '*' },
       exports: { './test-fixtures': { types: './dist/index.d.ts' } },
-      scripts: { build: 'node ../../construire.mjs', 'test:vitest': 'vitest run' },
+      scripts: { build: 'node ../../construire.mjs', 'test:unit': 'vitest run' },
     },
   };
   for (const [nom, champs] of Object.entries(paquets)) {
@@ -298,7 +298,7 @@ describe.runIf(canWrap)(
 
       it('in the envelope of the testwriter, the material builds and writes as before', () => {
         rmSync(path.join(temoins, 'construits.txt'), { force: true });
-        const journal = path.join(copie, 'packages/corpus/.turbo/turbo-test$colon$vitest.log');
+        const journal = path.join(copie, 'packages/corpus/.turbo/turbo-test$colon$unit.log');
         rmSync(journal, { force: true });
         // A change to the material's source: its build misses the cache, and plays.
         ecrire(copie, 'packages/corpus/src/index.d.ts', `${declarations('corpus')}// changé\n`);
@@ -707,7 +707,7 @@ describe.runIf(canWrap)(
       'packages/prod/package.json',
       json({
         name: 'prod',
-        scripts: { build: 'true', 'trace:g': 'node trace.mjs', 'test:vitest': 'true' },
+        scripts: { build: 'true', 'trace:g': 'node trace.mjs', 'test:unit': 'true' },
         // Its tests read its own trace too, as BPScript's 060-encoder.
         grillhouse: {
           lit: ['packages/prod/trace/g'],
@@ -720,7 +720,7 @@ describe.runIf(canWrap)(
       'packages/lect/package.json',
       json({
         name: 'lect',
-        scripts: { build: 'true', 'test:vitest': 'true' },
+        scripts: { build: 'true', 'test:unit': 'true' },
         grillhouse: { lit: ['packages/prod/trace/g'] },
       })
     );
@@ -875,7 +875,7 @@ describe.runIf(canWrap)(
       stage: {
         dependencies: { forms: '*', mid: '*' },
         devDependencies: { corpus: '*' },
-        scripts: { build: 'node ../../construire.mjs', 'test:vitest': 'true' },
+        scripts: { build: 'node ../../construire.mjs', 'test:unit': 'true' },
         grillhouse: { lit: ['packages/prod/trace/g'] },
       },
     };

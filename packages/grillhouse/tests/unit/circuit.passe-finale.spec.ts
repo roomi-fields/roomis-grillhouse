@@ -32,7 +32,7 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
       json({
         name: '020-loader',
         type: 'module',
-        scripts: { 'test:vitest': 'vitest run' },
+        scripts: { 'test:unit': 'vitest run' },
         grillhouse: { lit: ['libraries'] },
       })
     );

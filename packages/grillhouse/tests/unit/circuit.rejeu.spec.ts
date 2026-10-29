@@ -126,9 +126,9 @@ describe.runIf(canWrap)('the circuit replays only what changed', { timeout: 300_
     expect(gitRepo('show', `${apres}:packages/forms/src/index.mjs`)).toContain('// rendu');
     // Turborepo plays forms and binder, which depends on it, and leaves sheet out.
     const restreinte = sortieDe(id, passes[1]);
-    expect(restreinte).toContain('000-forms:test:vitest');
-    expect(restreinte).toContain('030-binder:test:vitest');
-    expect(restreinte).not.toContain('060-sheet:test:vitest');
+    expect(restreinte).toContain('000-forms:test:unit');
+    expect(restreinte).toContain('030-binder:test:unit');
+    expect(restreinte).not.toContain('060-sheet:test:unit');
     // Each final pass keeps its outcome with the circuit's results.
     const finales = entrees(id).filter(
       e => e.role === 'circuit' && (e.resultat as { finale?: boolean } | undefined)?.finale

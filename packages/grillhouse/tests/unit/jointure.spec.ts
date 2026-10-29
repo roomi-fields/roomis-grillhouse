@@ -76,7 +76,6 @@ const MOT = /turbo|vitest|knip|dependency-cruiser|\btsc\b/i;
 // The rests of the core that name a tool, each with the ticket that takes it out: the file, and
 // the pieces of its lines that may name one, in any case.
 const RESTES: Record<string, { ticket: string; morceaux: string[] }> = {
-  'scripts/circuit.mjs': { ticket: 'grillhouse-pkl.2', morceaux: ['test:vitest'] },
   'scripts/droits.mjs': { ticket: 'grillhouse-pkl.5', morceaux: ['vitest', 'turbo'] },
   'scripts/enveloppe/enveloppe.mjs': { ticket: 'grillhouse-pkl.5', morceaux: ['.turbo'] },
   'scripts/enveloppe/lancer.sh': { ticket: 'grillhouse-pkl.5', morceaux: ['turbo'] },

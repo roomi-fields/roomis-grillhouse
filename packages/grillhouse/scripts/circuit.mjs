@@ -158,9 +158,10 @@
 //   a change that does not pass it: the question names each criterion and its package, the
 //   supervisor answers `--etendre <paquet>`, or amends the criterion and `--reprendre` (BP 320.17:
 //   « critère 10 hors plan, non fait » in three handovers fell at the review).
-// - A plan that carries no test (sansTests: in a repository of packages, no package with a script
-//   `test:vitest` lies in a path of the plan or holds it, as `npm test -- <chemin>` refuses a path
-//   out of every package or in a package without that script) skips the testwriter and the proof:
+// - A plan that carries no test (sansTests: in a repository of packages, no package that plays
+//   tests, as the module of language answers (`joueDesTests`), lies in a path of the plan or holds
+//   it, as `npm test -- <chemin>` refuses a path out of every package or in a package without
+//   tests) skips the testwriter and the proof:
 //   the circuit writes `Circuit · testwriter : aucun test …` at the ticket and launches the
 //   developpeur, the reason as his report, then his checks.
 // - Each command of the proof and of the checks runs with its own results directory
@@ -186,7 +187,7 @@
 //   copy, the testwriter's files as the integration shares them, `estUnTest`), played for real,
 //   since a run replayed from Turborepo's cache writes no report; the other tests of the plan play
 //   at its checks and at the final pass. With no file of the lot (a reader whose provider changed a
-//   type, no new test to write), each package of the plan that has a script `test:vitest` plays
+//   type, no new test to write), each package of the plan that plays tests (`joueDesTests`) plays
 //   whole, `npm test -- <package>`: main is green, so a test HEAD holds that
 //   turns red in the copy is a regression of the lot, a red, written `rouge existant : <file> ›
 //   <name> — <message>`, and so is a file that does not load while no build of the plan fails (it
@@ -235,8 +236,8 @@
 //   that named the guard's line). That output is kept in the state (`controlesRouges`), so that a
 //   `--reprendre` or a `--depuis` keeps it.
 // - The checks after the developpeur judge the plan, as Bazel plays the targets of a change: `npm
-//   test -- <package>` for each package of the plan, touched by the lot or not (a package without a
-//   script `test:vitest` plays only when the lot touches it), `npm test -- <test files of the lot>`
+//   test -- <package>` for each package of the plan, touched by the lot or not (a package that plays no
+//   tests, `joueDesTests`, plays only when the lot touches it), `npm test -- <test files of the lot>`
 //   that none of them holds, each test played once, then the guards in the envelope of the plan (`GRILLHOUSE_ENVELOPPE=<plan> npm run
 //   grillhouse:gardes`, and `npm run gardes` when the project has it). Each red is read in the
 //   results of its command: a failed test of the reports of Vitest, a finding of level error of
@@ -2832,7 +2833,7 @@ function rougesDe(ctx, liste, c) {
   const duProjet = constats.some(k => !duCadre(k));
   for (const t of langageDe(ctx.copie).verdict(c.dossier).taches) {
     if (t.code === null || t.code === 0 || t.code === A_REPASSER) continue;
-    if (t.script === 'test:vitest' && testes.has(t.dossier)) continue;
+    if (t.tests && testes.has(t.dossier)) continue;
     if (t.script === 'grillhouse:gardes' && constats.length) continue;
     if (t.script === 'gardes' && duProjet) continue;
     const p = liste.find(x => x.pkg.name === t.paquet);
@@ -3058,28 +3059,34 @@ function commandesDuPlan(ctx, liste) {
   ];
 }
 
-// The directories of the packages of <liste> that play tests (a script `test:vitest`) and that the
-// plan holds; sorted.
+// Whether the package <p> of the repository at <racine> (an entry of `paquets`) plays tests, as the
+// module of its language answers.
+const joueDesTests = (racine, p) =>
+  langageDe(racine).joueDesTests(racine, {
+    dossier: path.join(racine, p.dossier),
+    nom: path.basename(p.dossier),
+    paquet: p.pkg.name ?? null,
+  });
+
+// The directories of the packages of <liste> that play tests (`joueDesTests`) and that the plan
+// holds; sorted.
 function paquetsDuPlan(ctx, liste) {
   return liste
-    .filter(p => p.pkg.scripts?.['test:vitest'] && dansLePlan(ctx, p.dossier))
+    .filter(p => dansLePlan(ctx, p.dossier) && joueDesTests(ctx.copie, p))
     .map(p => p.dossier)
     .sort();
 }
 
-// Whether the plan carries no test: in a repository of packages, no package of the frame with a
-// script `test:vitest` lies in a path of the plan or holds it, as `npm test -- <chemin>`
-// (scripts/langages/typescript/tests.mjs) refuses a path out of every package or in a package without that script. A
-// repository without packages plays its tests at its root: each plan has them.
+// Whether the plan carries no test: in a repository of packages, no package of the frame that
+// plays tests (`joueDesTests`) lies in a path of the plan or holds it, as `npm test -- <chemin>`
+// refuses a path out of every package or in a package without tests. A repository without
+// packages plays its tests at its root: each plan has them.
 function sansTests(ctx) {
-  const liste = paquets(existsSync(ctx.copie) ? ctx.copie : ctx.racine).filter(p => !p.hors);
+  const racine = existsSync(ctx.copie) ? ctx.copie : ctx.racine;
+  const liste = paquets(racine).filter(p => !p.hors);
   if (liste.length === 0) return false;
   const touche = (c, d) => c === '.' || d === c || d.startsWith(`${c}/`) || c.startsWith(`${d}/`);
-  return !liste.some(
-    p =>
-      typeof p.pkg.scripts?.['test:vitest'] === 'string' &&
-      ctx.paquets.some(c => touche(c, p.dossier))
-  );
+  return !liste.some(p => ctx.paquets.some(c => touche(c, p.dossier)) && joueDesTests(racine, p));
 }
 
 // Whether the copy holds a change of the plan against its HEAD.
@@ -3176,10 +3183,10 @@ async function derouler(ctx, debut) {
         commenter(
           ctx,
           'testwriter',
-          'aucun test dans le plan (aucun paquet avec un script test:vitest ne le tient) : ni testwriter ni preuve, le développeur directement.'
+          'aucun test dans le plan (aucun paquet qui joue des tests ne le tient) : ni testwriter ni preuve, le développeur directement.'
         );
         rapport = [
-          `Le plan (${ctx.paquets.join(', ')}) ne porte aucun test (aucun paquet avec un script test:vitest ne le tient) : le circuit te lance sans testwriter ni preuve. Tu écris le ticket d'après ses critères ; les contrôles suivent ta séance.`,
+          `Le plan (${ctx.paquets.join(', ')}) ne porte aucun test (aucun paquet qui joue des tests ne le tient) : le circuit te lance sans testwriter ni preuve. Tu écris le ticket d'après ses critères ; les contrôles suivent ta séance.`,
           rapport,
         ]
           .filter(Boolean)

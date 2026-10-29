@@ -14,7 +14,7 @@ import { stripVTControlCharacters } from 'node:util';
 import { afterAll, describe, expect, it } from 'vitest';
 import { ecrire as ecrireTurbo } from '../../../../scripts/langages/typescript/turbo-des-paquets.mjs';
 
-// Witness: BPScript (31 packages). `npm test -- <files>` was `turbo run test:vitest -- <files>`:
+// Witness: BPScript (31 packages). `npm test -- <files>` was `turbo run test:unit -- <files>`:
 // each package received the files, resolved them from its own directory, matched none, and the
 // base configuration's `passWithNoTests` turned each into a green: the run played nothing and
 // returned 0, and an agent believed it had played its tests. `npm test` (scripts/langages/typescript/tests.mjs) plays
@@ -85,7 +85,7 @@ function depotAPaquets({ socleEchoue = false, casses = [] as string[] } = {}) {
         name: nom,
         type: 'module',
         scripts: {
-          'test:vitest': 'vitest run',
+          'test:unit': 'vitest run',
           ...(casses.includes(nom) ? { build: construction(2, nom, true) } : {}),
         },
         ...(nom === 'b' ? { dependencies: { socle: '*' } } : {}),
@@ -121,7 +121,7 @@ function depotSansPaquets() {
       name: 'essai',
       type: 'module',
       packageManager: 'npm@10.9.8',
-      scripts: { build: construction(0, 'racine'), 'test:vitest': 'vitest run' },
+      scripts: { build: construction(0, 'racine'), 'test:unit': 'vitest run' },
     })
   );
   ecrire(
@@ -209,12 +209,12 @@ describe(
       expect(joues(racine)).toEqual([]);
     });
 
-    it('a file of a package without test:vitest is refused, and nothing plays', () => {
+    it('a file of a package without test:unit is refused, and nothing plays', () => {
       const racine = depotAPaquets();
       const r = lancer(racine, ['packages/outil/test/x.test.mjs']);
       expect(r.status).not.toBe(0);
       expect(r.stderr).toContain('packages/outil/test/x.test.mjs');
-      expect(r.stderr).toContain('test:vitest');
+      expect(r.stderr).toContain('test:unit');
       expect(joues(racine)).toEqual([]);
     });
 
@@ -386,7 +386,7 @@ describe('npm test -- <files>, in a repository without packages', { timeout: 60_
 });
 
 // Witness: BPScript, whose reviewer measured it. The targeted run played the tests alone
-// (`turbo run test:vitest --only`), whose hash then counts neither the builds nor the traces they
+// (`turbo run test:unit --only`), whose hash then counts neither the builds nor the traces they
 // wait for: a change to a package they import replayed from the cache a green of the former code.
 // As Bazel's key of a target holds its transitive inputs, a targeted test replays from the cache
 // only while what it imports is unchanged.
@@ -426,7 +426,7 @@ function depotAImport() {
       name: 'b',
       type: 'module',
       dependencies: { a: '*' },
-      scripts: { build: 'true', 'test:vitest': 'vitest run' },
+      scripts: { build: 'true', 'test:unit': 'vitest run' },
     })
   );
   ecrire(r, 'packages/b/vitest.config.mjs', configuration);
@@ -509,7 +509,7 @@ describe(
     it('the variable of the paths enters the hash of the tests alone, never a build’s', () => {
       const racine = depotATrace();
       const plan = (valeur: string) => {
-        const r = spawnSync('turbo', ['run', 'test:vitest', '--filter=lect', '--dry=json'], {
+        const r = spawnSync('turbo', ['run', 'test:unit', '--filter=lect', '--dry=json'], {
           cwd: racine,
           encoding: 'utf8',
           env: {
@@ -531,20 +531,20 @@ describe(
       const deux = plan('{"arguments":["/y"]}');
       expect(Object.keys(un).sort()).toEqual([
         'lect#build',
-        'lect#test:vitest',
+        'lect#test:unit',
         'prod#build',
         'prod#trace:g',
       ]);
       for (const t of ['lect#build', 'prod#build', 'prod#trace:g']) {
         expect(deux[t], t).toBe(un[t]);
       }
-      expect(deux['lect#test:vitest']).not.toBe(un['lect#test:vitest']);
+      expect(deux['lect#test:unit']).not.toBe(un['lect#test:unit']);
     });
   }
 );
 
 // Witness: BPScript (320.6.6). A package whose tests read the trace of another
-// (`grillhouse.lit` over its `grillhouse.traces`) has its `test:vitest` wait for
+// (`grillhouse.lit` over its `grillhouse.traces`) has its `test:unit` wait for
 // `<producer>#trace:<name>`; the targeted run played the builds, then the tests alone (`--only`),
 // and on a copy without the trace the test failed, « trace absente ». As Bazel produces the inputs
 // of a test before it, the targeted run plays the traces the tests wait for with the builds.
@@ -567,7 +567,7 @@ function depotATrace() {
     json({
       name: 'prod',
       type: 'module',
-      scripts: { build: 'true', 'trace:g': 'node trace.mjs', 'test:vitest': 'vitest run' },
+      scripts: { build: 'true', 'trace:g': 'node trace.mjs', 'test:unit': 'vitest run' },
       // Its tests read its own trace too, as BPScript's 060-encoder.
       grillhouse: {
         lit: ['packages/prod/trace/g'],
@@ -609,7 +609,7 @@ function depotATrace() {
     json({
       name: 'lect',
       type: 'module',
-      scripts: { build: 'true', 'test:vitest': 'vitest run' },
+      scripts: { build: 'true', 'test:unit': 'vitest run' },
       grillhouse: { lit: ['packages/prod/trace/g'] },
     })
   );

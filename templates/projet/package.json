@@ -38,7 +38,7 @@
     "tableau": "grillhouse tableau --texte",
     "grillhouse:maj": "grillhouse maj",
     "code-mort": "grillhouse code-mort",
-    "test:vitest": "vitest run",
+    "test:unit": "vitest run",
     "test:forcer": "grillhouse tests --force",
     "verifier": "grillhouse verifier",
     "grillhouse:dette:inscrire": "turbo run build && GRILLHOUSE_DETTE=inscrire npm run --silent grillhouse:gardes",

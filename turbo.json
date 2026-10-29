@@ -12,7 +12,7 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
-    "test:vitest": {
+    "test:unit": {
       "dependsOn": ["build", "^build"],
       "env": ["GRILLHOUSE_TESTS"],
       "outputs": []

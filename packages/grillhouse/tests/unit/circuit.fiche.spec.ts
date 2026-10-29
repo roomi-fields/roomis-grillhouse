@@ -231,7 +231,7 @@ describe.runIf(canWrap)('the checks read the structured results', { timeout: 300
       /^- test packages\/forms\/test\/mesure\.test\.mjs › critère 1 — mesure rend le double — .*expected 2 to be 4/
     );
     // Nothing of Turborepo's output: no prefixed line of a task, no summary of the run.
-    expect(rapport).not.toMatch(/test:vitest:|Tasks:|Cached:/);
+    expect(rapport).not.toMatch(/test:unit:|Tasks:|Cached:/);
   });
 
   it('a red guard of the project without SARIF at the checks of the plan is not the developpeur’s: it waits for the final pass, where no package of the plan holds it', () => {

@@ -12,7 +12,8 @@
 //   added: `change`, measured from its commit; the same where the code of `b` imports `a` and the
 //   code of `c` imports `b`: `lus`; the same with a second commit that changes a file of `a`:
 //   `lot`. A directory whose package.json names no package: `vide`. A tsconfig.json at the root of
-//   a directory, and in a package of a repository of packages: `aLaRacine`, `dansUnPaquet`.
+//   a directory, and in a package of a repository of packages: `aLaRacine`, `dansUnPaquet`. A
+//   repository of two packages, one with the script of the tests (`test:unit`): `avecTests`.
 // - Two results directories of a run: every task and test green (`vert`); `a` at 75, `b` red, a
 //   test of `b` failed (`defaut`).
 import { execFileSync } from 'node:child_process';
@@ -70,7 +71,7 @@ function depot(dans) {
   return racine;
 }
 
-// A results directory under <dans> of the tasks <taches> (`[paquet, code]` of `test:vitest`) and
+// A results directory under <dans> of the tasks <taches> (`[paquet, code]` of `test:unit`) and
 // the test files <fichiers> (`[fichier, nom, etat]`).
 function resultats(dans, taches, fichiers) {
   const dossier = mkdtempSync(path.join(dans, 'resultats-'));
@@ -79,10 +80,10 @@ function resultats(dans, taches, fichiers) {
     'turbo/run.json',
     json({
       tasks: taches.map(([paquet, code]) => ({
-        taskId: `${paquet}#test:vitest`,
+        taskId: `${paquet}#test:unit`,
         package: paquet,
         directory: `packages/${paquet}`,
-        task: 'test:vitest',
+        task: 'test:unit',
         execution: { exitCode: code },
         cache: { status: 'MISS' },
         logFile: `packages/${paquet}/.turbo/turbo-test.log`,
@@ -119,6 +120,14 @@ export default {
     ecrireDans(dansUnPaquet)('package.json', json({ name: 'p', workspaces: ['packages/*'] }));
     ecrireDans(dansUnPaquet)('packages/a/package.json', json({ name: '@p/a' }));
     ecrireDans(dansUnPaquet)('packages/a/tsconfig.json', json({}));
+    // A repository of two packages, `a` with the script of the tests, `b` without.
+    const avecTests = mkdtempSync(path.join(dans, 'tests-'));
+    ecrireDans(avecTests)('package.json', json({ name: 't', workspaces: ['packages/*'] }));
+    ecrireDans(avecTests)(
+      'packages/a/package.json',
+      json({ name: '@t/a', scripts: { 'test:unit': 'vitest run' } })
+    );
+    ecrireDans(avecTests)('packages/b/package.json', json({ name: '@t/b', scripts: {} }));
     const enRetard = depot(dans);
     writeFileSync(
       path.join(enRetard, 'packages/a/docs/INTERFACE.md'),
@@ -212,7 +221,11 @@ export default {
             ['packages/b/x.test.ts', 'b', 'failed'],
           ]
         ),
-        attendu: ['a#test:vitest à repasser', 'b#test:vitest rouge (1)', 'test x.test.ts › b'],
+        attendu: [
+          'a#test:unit à repasser, tests',
+          'b#test:unit rouge (1), tests',
+          'test x.test.ts › b',
+        ],
       },
       estUnTest: {
         valide: ['packages/a/src/index.ts', 'packages/a/src/testing.ts', 'README.md'],
@@ -257,6 +270,7 @@ export default {
         attendu: ['fichier packages/a/src/index.ts', 'hors du service packages/a/src/index.ts'],
       },
       matieres: { valide: vide, invalide: aJour, attendu: ['m (@e/m)'] },
+      joueDesTests: { valide: aJour, invalide: avecTests, attendu: ['a (@t/a) : joue des tests'] },
       trouve: {
         valide: [
           { nom: 'vide', racine: vide },

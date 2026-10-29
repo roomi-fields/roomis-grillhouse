@@ -69,7 +69,7 @@
 //   `templates/turbo/paquets.json` when its `package.json` declares
 //   `workspaces` (the tasks of each package, and the root's guards, `//#grillhouse:gardes` and
 //   `//#gardes`, and `typecheck`, after the build of each package and of its dependencies; the
-//   tests live in the packages, the root has no `test:vitest`; the `build` of each package is set by its own
+//   tests live in the packages, the root has no `test:unit`; the `build` of each package is set by its own
 //   generated `turbo.json`, below), else `templates/turbo/sans-paquets.json` (`build`, then the
 //   guards, the tests and `typecheck` beside each other).
 //   A `turbo.json` present is never written again by the update; only the generator of the
@@ -99,11 +99,11 @@
 //   maps them, read by `paquets` of scripts/paquets.mjs, the frame's one list of the
 //   packages: a package a negation takes out is none, and a package out of the frame
 //   (`docs/agents/hors-cadre.txt`), which Turborepo never tests, counts for nothing) has its root scripts
-//   `test`, `test:vitest`, `test:forcer` and `verifier` become the template's (`npm test`, the tests
+//   `test`, `test:unit`, `test:forcer` and `verifier` become the template's (`npm test`, the tests
 //   as Turborepo's tasks with its cache; `npm run test:forcer`, the same played for real;
 //   `npm run verifier`, scripts/langages/typescript/verifier.mjs, the guards and the tests beside each other, which the
 //   integration, the queue, the continuous integration and the night play); the report says so, when the
-//   Vitest of the project's root (`npx --no-install vitest`, the one `test:vitest` calls) satisfies
+//   Vitest of the project's root (`npx --no-install vitest`, the one `test:unit` calls) satisfies
 //   the range the template's package.json declares for `vitest`. Where the root resolves no Vitest or
 //   another version, the project's scripts stay (the frame's included) and the report names the
 //   version found and the range required. A `test` that runs anything else stays. The scripts of
@@ -112,7 +112,7 @@
 //   scripts/langages/typescript/vitest-config/), which each Vitest configuration imports by its name
 //   (`import base from '@roomi-fields/grillhouse/vitest-config'`), as the examples of Turborepo
 //   reach @repo/eslint-config: a package is reached by its name, never by a path into it. In a
-//   project with `workspaces`, each package of the frame that holds a `test:vitest` script
+//   project with `workspaces`, each package of the frame that holds a `test:unit` script
 //   declares the frame's package in its `devDependencies`, at the range the root declares (else
 //   `^<version>` of the package), a declaration it holds kept; a package out of the frame is not
 //   touched. The report names the packages that received it, `npm install`, which links it, and the
@@ -191,7 +191,7 @@ const CONFIG_VITEST = `${PAQUET_DU_CADRE}/vitest-config`;
 export const LIGNE_ETAT = '"$CLAUDE_PROJECT_DIR/node_modules/.bin/grillhouse" ligne-etat';
 
 // The root scripts of the tests, written together from the template.
-const SCRIPTS_DES_TESTS = ['test', 'test:vitest', 'test:forcer', 'verifier'];
+const SCRIPTS_DES_TESTS = ['test', 'test:unit', 'test:forcer', 'verifier'];
 const CHAMPS_INSTALLES = ['dependencies', 'devDependencies', 'optionalDependencies'];
 
 // The frame's former wiring of the guards: the call its `pretest` held, and the commands its
@@ -219,7 +219,7 @@ const declareVitest = (dossier, p) => {
   const a = pkg => Boolean(pkg?.dependencies?.vitest ?? pkg?.devDependencies?.vitest);
   return a(p) || paquets(dossier).some(({ pkg, hors }) => !hors && a(pkg));
 };
-// The version of the Vitest the project's root resolves, as `test:vitest` calls it
+// The version of the Vitest the project's root resolves, as `test:unit` calls it
 // (`npx --no-install vitest --version`); null when it answers none.
 const vitestDeLaRacine = projet => {
   const r = spawnSync('npx', ['--no-install', 'vitest', '--version'], {
@@ -320,14 +320,22 @@ function declarerDependanceDuCadre(projet, p) {
 
 // Declares the frame's package, whose base configuration of Vitest each Vitest configuration
 // imports, in the devDependencies of each package of the frame of the project of packages at
-// <projet> (root package.json <p>) whose scripts hold `test:vitest`, at the range the root declares
+// <projet> (root package.json <p>) that plays tests, as the module of its language answers
+// (`joueDesTests`; for typescript, its script `test:unit`), at the range the root declares
 // (else `^<version>` of the package), a declaration the package holds kept; a package out of the
 // frame is not touched. Returns { nom, paquets } (paquets: the packages that received the
 // declaration), or null when nothing changes.
 function poserConfigVitest(projet, p) {
   if (p.workspaces === undefined) return null;
+  const langage = langageDe(projet);
   const testes = paquets(projet).filter(
-    ({ pkg, hors }) => !hors && typeof pkg.scripts?.['test:vitest'] === 'string'
+    ({ dossier, pkg, hors }) =>
+      !hors &&
+      langage.joueDesTests(projet, {
+        dossier: path.join(projet, dossier),
+        nom: path.basename(dossier),
+        paquet: pkg.name ?? null,
+      })
   );
   const racine = plageDeLaRacine(p);
   const declarants = [];
@@ -492,7 +500,7 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
       typeof testDuProjet === 'string' &&
       (testDuProjet === testDuCadre || /\bvitest\b/.test(testDuProjet) || declareVitest(projet, p));
     if (lanceVitest) {
-      // The root must resolve the Vitest the frame requires (`test:vitest` calls it).
+      // The root must resolve the Vitest the frame requires (`test:unit` calls it).
       const trouvee = typeof vitestExige === 'string' ? vitestDeLaRacine(projet) : null;
       const convient =
         typeof vitestExige !== 'string' ||
@@ -506,8 +514,8 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
           const script = pkgSource.scripts?.[nom];
           if (typeof script !== 'string') continue;
           // A repository of packages keeps its tests in its packages, as Turborepo does: its root
-          // gets no `test:vitest`, and the frame's own leaves.
-          if (p.workspaces !== undefined && nom === 'test:vitest') {
+          // gets no `test:unit`, and the frame's own leaves.
+          if (p.workspaces !== undefined && nom === 'test:unit') {
             if (p.scripts[nom] === script) delete p.scripts[nom];
             continue;
           }

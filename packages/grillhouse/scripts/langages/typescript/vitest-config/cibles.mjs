@@ -1,7 +1,7 @@
 // The tests a targeted run names (`npm test -- <paths>`, scripts/langages/typescript/tests.mjs), carried to Vitest by
 // the variable `GRILLHOUSE_TESTS` rather than by its command line: the arguments after `--` of a
 // Turborepo run enter the hash of every task of that run, the builds included, while a variable
-// that the `env` of the task `test:vitest` names enters the hash of the tests alone
+// that the `env` of the task `test:unit` names enters the hash of the tests alone
 // (https://turborepo.dev/docs/reference/configuration#env). Turborepo then plays the tests with
 // what they depend on, each build and each trace hashed by Turborepo itself.
 //

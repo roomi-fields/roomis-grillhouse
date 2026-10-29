@@ -84,7 +84,7 @@ function depot(temoins: Partial<Record<'a' | 'b', { uneFois?: boolean }>>, some:
         build: { outputs: [] },
         'grillhouse:gardes': { dependsOn: ['build'], outputs: [] },
         gardes: { dependsOn: ['build'], outputs: [] },
-        'test:vitest': { dependsOn: ['build'], env: ['GRILLHOUSE_TESTS'], outputs: [] },
+        'test:unit': { dependsOn: ['build'], env: ['GRILLHOUSE_TESTS'], outputs: [] },
         typecheck: { dependsOn: ['build', '^build'], outputs: [] },
       },
     })
@@ -92,7 +92,7 @@ function depot(temoins: Partial<Record<'a' | 'b', { uneFois?: boolean }>>, some:
   for (const nom of ['a', 'b'] as const) {
     ecrire(
       `packages/${nom}/package.json`,
-      json({ name: nom, type: 'module', scripts: { 'test:vitest': 'vitest run' } })
+      json({ name: nom, type: 'module', scripts: { 'test:unit': 'vitest run' } })
     );
     ecrire(
       `packages/${nom}/vitest.config.mjs`,
@@ -178,7 +178,7 @@ describe('grillhouse-3uv.89 — les témoins de temps jouent seuls', { timeout: 
     const d = depot({ a: { uneFois: true } }, 90);
     const r = await lancer(d, () => d.ecrirePression(1));
     expect(r.status, r.sortie).toBe(0);
-    expect(r.sortie).toContain('↻ a#test:vitest');
+    expect(r.sortie).toContain('↻ a#test:unit');
     const j = d.joues();
     expect(j.filter(l => l === 'a')).toEqual(['a']);
     expect(j.filter(l => l === 'b')).toEqual(['b']);

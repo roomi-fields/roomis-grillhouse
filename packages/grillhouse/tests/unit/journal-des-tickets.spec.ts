@@ -1,7 +1,7 @@
 // The journal of the tickets replays no test of the frame: each command of bd rewrites
 // `.beads/interactions.jsonl`, and a pass measured against the last green plays every test of a
 // package when a change lies on a path its tests declare they read (`grillhouse.lit`, rule 5 of
-// scripts/langages/typescript/vitest-config/changements.mjs), which its turbo.json also hashes for its `test:vitest`.
+// scripts/langages/typescript/vitest-config/changements.mjs), which its turbo.json also hashes for its `test:unit`.
 // The package declares under `.beads` the files its tests read, one by one: each file git follows
 // there but the journals (`*.jsonl`) and the README, which ./git-des-tests.spec.ts reads to look
 // for a setting of git's maintenance, the hooks included; its scripts and its launcher stay
@@ -57,7 +57,7 @@ describe('grillhouse-3dr.1 — the journal of the tickets replays no test', () =
     const turbo = JSON.parse(
       readFileSync(path.join(PAQUET, 'turbo.json'), 'utf8').replace(/^\/\/.*$/gm, '')
     ) as { tasks: Record<string, { inputs?: string[] }> };
-    const beads = (turbo.tasks['test:vitest']?.inputs ?? []).filter(e =>
+    const beads = (turbo.tasks['test:unit']?.inputs ?? []).filter(e =>
       e.startsWith('$TURBO_ROOT$/.beads')
     );
     expect(beads).toEqual(LUS.map(f => `$TURBO_ROOT$/${f}/**`));

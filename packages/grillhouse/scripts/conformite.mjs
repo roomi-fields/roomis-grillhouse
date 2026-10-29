@@ -21,8 +21,8 @@
 //   and each file out of the graph;
 // - commandes: each command named is described (`{ script, args }`, the script a file), and asking
 //   them writes nothing in the repository;
-// - verdict: each task neither green nor unplayed (« à repasser » at 75, red otherwise) and each
-//   test failed;
+// - verdict: each task neither green nor unplayed (« à repasser » at 75, red otherwise), the one
+//   that plays the tests marked, and each test failed;
 // - estUnTest: each path the testwriter writes, with what it is (`joue`, `test`, `matiere`);
 // - fichiersEngendres: each generated file whose check finds a gap;
 // - gardes: each guard named that the module does not play, and each script it plays that does
@@ -30,6 +30,7 @@
 // - elementsDuLot: each file the lot of the entry changes, each changed source the module reads no
 //   element of, and each element it adds, changes or removes;
 // - matieres: each component of the shared test material of the repository of the entry;
+// - joueDesTests: each component of the repository of the entry that plays tests;
 // - trouve: each repository of the entry where the module finds its language.
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -138,8 +139,8 @@ export function cas(langage, exemples, { dans = tmpdir() } = {}) {
           .filter(t => t.code !== null && t.code !== 0)
           .map(t =>
             t.code === 75
-              ? `${t.paquet}#${t.script} à repasser`
-              : `${t.paquet}#${t.script} rouge (${t.code})`
+              ? `${t.paquet}#${t.script} à repasser${t.tests ? ', tests' : ''}`
+              : `${t.paquet}#${t.script} rouge (${t.code})${t.tests ? ', tests' : ''}`
           ),
         ...v.rapports.flatMap(r =>
           r.tests
@@ -177,6 +178,11 @@ export function cas(langage, exemples, { dans = tmpdir() } = {}) {
       ];
     },
     matieres: racine => langage.matieres(racine).map(nommer),
+    joueDesTests: racine =>
+      langage
+        .composants(racine)
+        .filter(c => langage.joueDesTests(racine, c))
+        .map(c => `${nommer(c)} : joue des tests`),
     trouve: depots => depots.filter(d => langage.trouve(d.racine)).map(d => `${d.nom} : trouvé`),
   };
   const invalides = {

@@ -168,7 +168,7 @@ remplace jamais le grill. Les branches de l'arbre :
    généré depuis son `package.json` (`npx grillhouse turbo-des-paquets --ecrire`, que la mise à
    jour lance) et `grillhouse:gardes` refuse un fichier absent ou périmé : une dépendance s'écrit
    au `package.json` seul. Chaque paquet testé porte son script
-   `test:vitest` et sa configuration Vitest, qui étend la configuration de base du cadre, le
+   `test:unit` et sa configuration Vitest, qui étend la configuration de base du cadre, le
    `@roomi-fields/grillhouse/vitest-config`, que le paquet du cadre exporte (par `mergeConfig`) : les
    exclusions du jour (tests de nuit, bancs de budget) et l'environnement commun y sont, sans
    copie. Le paquet l'importe par son nom (`import base from '@roomi-fields/grillhouse/vitest-config'`) et le

@@ -72,7 +72,7 @@ function depot({ dependant = false } = {}) {
         build: { outputs: [] },
         'grillhouse:gardes': { dependsOn: ['build'], outputs: [] },
         gardes: { dependsOn: ['build'], outputs: [] },
-        'test:vitest': { dependsOn: ['build', '^build'], env: ['GRILLHOUSE_TESTS'], outputs: [] },
+        'test:unit': { dependsOn: ['build', '^build'], env: ['GRILLHOUSE_TESTS'], outputs: [] },
         typecheck: { dependsOn: ['build', '^build'], outputs: [] },
       },
     })
@@ -84,7 +84,7 @@ function depot({ dependant = false } = {}) {
       json({
         name: nom,
         type: 'module',
-        scripts: { build: 'node -e 0', 'test:vitest': 'vitest run' },
+        scripts: { build: 'node -e 0', 'test:unit': 'vitest run' },
         ...plus,
       })
     );
@@ -156,7 +156,7 @@ function depot({ dependant = false } = {}) {
     });
     const taches = lireResumes(resultats) as { script: string; paquet: string; cache: string }[];
     const cache: Record<string, string> = Object.fromEntries(
-      taches.filter(t => t.script === 'test:vitest').map(t => [t.paquet, t.cache])
+      taches.filter(t => t.script === 'test:unit').map(t => [t.paquet, t.cache])
     );
     return { code, sortie: lignes.join('\n'), cache, joues: joues() };
   };

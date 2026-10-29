@@ -1,29 +1,29 @@
 #!/usr/bin/env node
 // The day's tests, as Turborepo's tasks (`npm test`, `npm run test:forcer`): the build, then the
-// `test:vitest` of each package, an unchanged task replayed from Turborepo's cache.
+// `test:unit` of each package, an unchanged task replayed from Turborepo's cache.
 //
 //   npx grillhouse tests [--force] [<path>…] [--<option>=<value>…]
 //
-// - Without a path, every package plays its tests (`turbo run test:vitest`); `--force` plays each
+// - Without a path, every package plays its tests (`turbo run test:unit`); `--force` plays each
 //   task for real, the builds included (`npm run test:forcer`).
 // - A path is written from the root of the repository: a test file or a directory. In a repository
-//   of packages, each path plays in the package that holds it: Turborepo runs the `test:vitest` of
+//   of packages, each path plays in the package that holds it: Turborepo runs the `test:unit` of
 //   those packages only (`--filter=<name>`), and their Vitest receives each path made absolute,
 //   which it matches against its own test files (a path of another package matches none of them).
 //   Turborepo filters packages, not files, and Vitest resolves a relative path from the directory
 //   of the package that runs it, so the frame translates each path into its package; a Vitest at the
 //   root (its projects) would run each package's tests under the root's version, not the one the
 //   package declares. A path out of every package, in a package out of the frame
-//   (`docs/agents/hors-cadre.txt`), or in a package without a `test:vitest` script is refused,
+//   (`docs/agents/hors-cadre.txt`), or in a package without a `test:unit` script is refused,
 //   named, and nothing plays. In a repository without packages, the paths go to the root's Vitest
 //   as they are.
 // - The paths and the options reach Vitest in the variable `GRILLHOUSE_TESTS`
-//   (scripts/langages/typescript/vitest-config/cibles.mjs), which the `env` of the task `test:vitest` names, never
+//   (scripts/langages/typescript/vitest-config/cibles.mjs), which the `env` of the task `test:unit` names, never
 //   after `--`: Turborepo passes the arguments after `--` to the tasks the command names only, and
 //   counts them in the hash of every task of the run (its documentation, « Caching »: « including
 //   dependencies of `build` that did not receive `--arg=value` »), where a variable of a task's
 //   `env` enters that task's hash alone. So a run with paths is one Turborepo run of the tests with
-//   what they depend on (`turbo run test:vitest --filter=<name>`): the builds and the traces they
+//   what they depend on (`turbo run test:unit --filter=<name>`): the builds and the traces they
 //   wait for play first, from the cache when nothing moved, whatever paths are named, and the hash
 //   of the tests holds theirs, as Bazel's key of a target holds its transitive inputs; a change to
 //   a package the tests import, or to what they read, plays them again. Every other run of
@@ -42,9 +42,9 @@
 //   in a sandbox of Bazel: the build is the named packages' alone, with the traces of those
 //   packages their tests wait for, which live in the package the agent writes
 //   (`turbo run build <name>#trace:<t>… --only --filter=<name>`, their task ids read in
-//   Turborepo's plan of the tests, `turbo run test:vitest --filter=<name> --dry=json`), never
+//   Turborepo's plan of the tests, `turbo run test:unit --filter=<name> --dry=json`), never
 //   their dependencies nor a neighbour's trace; then the tests alone
-//   (`turbo run test:vitest --only --filter=<name>`), the paths in the variable. A named package
+//   (`turbo run test:unit --only --filter=<name>`), the paths in the variable. A named package
 //   that the envelope shows read-only (one out of the plan; the shared test material, for every
 //   role but the testwriter) is not built, nor are its traces: it arrives built, as a read-only
 //   input of Bazel; the frame knows it read-only by testing its directory for writing
@@ -92,6 +92,7 @@ import { paquets } from '../../paquets.mjs';
 import { garderLesResumes } from './verdict.mjs';
 import { RESULTATS } from '../../resultats.mjs';
 import { planifier, tracesDuPlan } from './turbo-des-paquets.mjs';
+import { SCRIPT_DES_TESTS } from './script-des-tests.mjs';
 import { VARIABLE } from './vitest-config/cibles.mjs';
 
 const racine = process.cwd();
@@ -121,7 +122,7 @@ const turbo = (args, tests) => {
   const runs = path.join(racine, '.turbo', 'runs');
   const avant = new Set(existsSync(runs) ? readdirSync(runs) : []);
   // A run of the tests under a progress directory plans its tasks (scripts/avancement.mjs).
-  if (args[0] === 'test:vitest') {
+  if (args[0] === SCRIPT_DES_TESTS) {
     planifier(env[AVANCEMENT], {
       racine,
       args: [...args, '--continue=dependencies-successful'],
@@ -141,7 +142,7 @@ const turbo = (args, tests) => {
 // The trace tasks of the packages <noms> their tests wait for, read in Turborepo's plan of the
 // tests <filtres> select: `{ ids }`; a plan that fails gives `{ code }`, its output written.
 const traces = (filtres, noms) => {
-  const plan = spawnSync('turbo', ['run', 'test:vitest', ...filtres, '--dry=json'], {
+  const plan = spawnSync('turbo', ['run', SCRIPT_DES_TESTS, ...filtres, '--dry=json'], {
     cwd: racine,
     encoding: 'utf8',
     maxBuffer: 256 * 1024 * 1024,
@@ -158,7 +159,7 @@ const traces = (filtres, noms) => {
 // Its exit code: the first that is not 0, else the tests'.
 const cibles = (filtres, passes) => {
   const tests = { arguments: passes, ...(force ? { rejouer: new Date().toISOString() } : {}) };
-  if (!enveloppe) return turbo(['test:vitest', ...filtres], tests);
+  if (!enveloppe) return turbo([SCRIPT_DES_TESTS, ...filtres], tests);
   // A package the envelope shows read-only arrives built: only the packages it shows in writing
   // build, as the envelope mounts them (`inscriptible`).
   const construits = filtres.filter(f => inscriptible(dossiers.get(f.slice('--filter='.length))));
@@ -169,7 +170,7 @@ const cibles = (filtres, passes) => {
     const construction = turbo(['build', ...propres.ids, '--only', ...construits]);
     if (construction !== 0) return construction;
   }
-  return turbo(['test:vitest', '--only', ...filtres], tests);
+  return turbo([SCRIPT_DES_TESTS, '--only', ...filtres], tests);
 };
 
 // True when this process may write the directory <dir>: false under a read-only mount.
@@ -190,7 +191,7 @@ const dossiers = new Map(liste.map(p => [p.pkg.name, path.join(racine, p.dossier
 const lancer = () => {
   if (chemins.length === 0) {
     return turbo(
-      ['test:vitest', ...(force ? ['--force'] : [])],
+      [SCRIPT_DES_TESTS, ...(force ? ['--force'] : [])],
       options.length ? { arguments: options } : undefined
     );
   }
@@ -213,8 +214,8 @@ const lancer = () => {
       refus.push(
         `⛔ ${chemin} : ${p.dossier} est hors cadre (docs/agents/hors-cadre.txt) ; Turborepo n'en joue aucune tâche.`
       );
-    } else if (typeof p.pkg.scripts?.['test:vitest'] !== 'string') {
-      refus.push(`⛔ ${chemin} : ${p.dossier} n'a pas de script test:vitest.`);
+    } else if (typeof p.pkg.scripts?.[SCRIPT_DES_TESTS] !== 'string') {
+      refus.push(`⛔ ${chemin} : ${p.dossier} n'a pas de script ${SCRIPT_DES_TESTS}.`);
     } else {
       noms.add(p.pkg.name);
       // A directory ends with « / »: Vitest matches the start of a path, and packages/a is the start

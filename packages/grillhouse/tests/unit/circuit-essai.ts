@@ -366,7 +366,7 @@ export function circuitEssai(ESSAIS: string, { feuille = false, gardesSansCache 
       const p = path.join(REPO, 'packages', dossier);
       ecrire(
         path.join(p, 'package.json'),
-        json({ name: nom, type: 'module', scripts: { 'test:vitest': 'vitest run' }, ...champs })
+        json({ name: nom, type: 'module', scripts: { 'test:unit': 'vitest run' }, ...champs })
       );
       ecrire(path.join(p, 'src/index.mjs'), 'export const mesure = x => x;\n');
       ecrire(

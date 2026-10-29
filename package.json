@@ -10,7 +10,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p templates/projet",
     "test": "grillhouse tests",
-    "test:vitest": "vitest run",
+    "test:unit": "vitest run",
     "test:forcer": "grillhouse tests --force",
     "lint": "eslint templates/projet/src templates/projet/tests packages/grillhouse/tests --ext .ts,.js,.mjs",
     "lint:fix": "eslint templates/projet/src templates/projet/tests packages/grillhouse/tests --ext .ts,.js,.mjs --fix",

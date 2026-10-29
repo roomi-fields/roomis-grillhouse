@@ -98,7 +98,7 @@ function depot() {
     ecrire(
       r,
       `packages/${nom}/package.json`,
-      json({ name: nom, type: 'module', scripts: { 'test:vitest': 'vitest run' } })
+      json({ name: nom, type: 'module', scripts: { 'test:unit': 'vitest run' } })
     );
     ecrire(
       r,
@@ -122,7 +122,7 @@ function depot() {
 
 // One run of Turborepo's tests in <racine>, its progress written to <dossier>.
 const turbo = (racine: string, dossier: string) =>
-  spawnSync('turbo', ['run', 'test:vitest'], {
+  spawnSync('turbo', ['run', 'test:unit'], {
     cwd: racine,
     env: { ...ENV, [AVANCEMENT]: dossier },
     encoding: 'utf8',
@@ -170,7 +170,7 @@ describe('the total planned: the tasks started, the cache, the previous pass of 
       const { racine } = depot();
       // A first pass, its total kept.
       const premier = ouvrirAvancement({ racine, genre: 'verification', dans: ESSAIS });
-      planifier(premier, { racine, args: ['test:vitest'], env: ENV });
+      planifier(premier, { racine, args: ['test:unit'], env: ENV });
       expect(turbo(racine, premier).status).toBe(0);
       garderLeTotal(premier, racine);
       expect(lireAvancement(premier)).toMatchObject({ faits: 5, prevus: 5 });
@@ -178,13 +178,13 @@ describe('the total planned: the tasks started, the cache, the previous pass of 
       // The same pass again: both tasks replay from the cache, every file counts as done before
       // Turborepo plays.
       const second = ouvrirAvancement({ racine, genre: 'verification', dans: ESSAIS });
-      planifier(second, { racine, args: ['test:vitest'], env: ENV });
+      planifier(second, { racine, args: ['test:unit'], env: ENV });
       expect(lireAvancement(second)).toMatchObject({ faits: 5, prevus: 5 });
 
       // b gains a file: a replays from the cache, b has not started; the previous total stands.
       ecrire(racine, 'packages/b/test/x4.test.mjs', fichierDeTest('b4'));
       const troisieme = ouvrirAvancement({ racine, genre: 'verification', dans: ESSAIS });
-      planifier(troisieme, { racine, args: ['test:vitest'], env: ENV });
+      planifier(troisieme, { racine, args: ['test:unit'], env: ENV });
       expect(lireAvancement(troisieme)).toMatchObject({ faits: 2, prevus: 5 });
       // Another kind has no previous total.
       const autre = ouvrirAvancement({ racine, genre: 'preuve packages/b', dans: ESSAIS });

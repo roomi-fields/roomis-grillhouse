@@ -16,12 +16,14 @@ export interface Commande {
   args: string[];
 }
 
-/** A task of a run, as its runner reports it; `code` null for a task that did not run. */
+/** A task of a run, as its runner reports it; `code` null for a task that did not run, `tests`
+ * true for the task that plays the tests of its component. */
 export interface TacheJouee {
   tache: string;
   paquet: string;
   dossier: string;
   script: string;
+  tests: boolean;
   code: number | null;
   cache: string | null;
   journal: string | null;
@@ -124,6 +126,8 @@ export interface Langage {
   composants(racine: string): Composant[];
   composantDe(racine: string, fichier: string): Composant | null;
   matieres(racine: string): Composant[];
+  /** Whether the component plays tests: the runner of the language has tests to play in it. */
+  joueDesTests(racine: string, composant: Composant): boolean;
   lecteurs(
     racine: string,
     o: { composants: Composant[]; noms: string[]; texte: string; nommes: Composant[] }

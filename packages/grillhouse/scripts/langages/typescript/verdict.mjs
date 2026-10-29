@@ -5,7 +5,7 @@
 // - The summary of a run of Turborepo (`turbo run … --summarize`, `.turbo/runs/<id>.json`):
 //   `garderLesResumes` moves the summaries a run wrote into `<dossier>/turbo/`, and `lireResumes`
 //   gives each task, its package and directory, its script, its exit code, its cache status and
-//   its log file (from the root).
+//   its log file (from the root), and whether it plays the tests of its package (`test:unit`).
 // - The JSON report of Vitest, which the frame's base configuration writes under
 //   `<dossier>/vitest/` while the variable is set (scripts/langages/typescript/vitest-config/resultats.mjs):
 //   `lireRapportsVitest` gives each test file, its status, the message of a file that does not
@@ -21,6 +21,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { RESULTATS } from '../../resultats.mjs';
+import { SCRIPT_DES_TESTS } from './script-des-tests.mjs';
 import { VITEST } from './vitest-config/resultats.mjs';
 
 const TURBO = 'turbo';
@@ -63,7 +64,7 @@ export function garderLesResumes(racine, avant, env = process.env) {
 }
 
 // The tasks of the summaries of Turborepo under the results directory <dossier>, in their order:
-// `{ tache, paquet, dossier, script, code, cache, journal }`, `dossier` « . » for the root,
+// `{ tache, paquet, dossier, script, tests, code, cache, journal }`, `dossier` « . » for the root,
 // `code` null for a task that did not run.
 export function lireResumes(dossier) {
   return fichiers(path.join(dossier, TURBO), '.json').flatMap(f =>
@@ -72,6 +73,7 @@ export function lireResumes(dossier) {
       paquet: t.package,
       dossier: t.directory || '.',
       script: t.task,
+      tests: t.task === SCRIPT_DES_TESTS,
       code: t.execution?.exitCode ?? null,
       cache: t.cache?.status ?? null,
       journal: t.logFile ?? null,

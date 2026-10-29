@@ -128,8 +128,8 @@ son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
   passe complète que joue l'intégration. Un rouge te relance avec sa sortie quand il est dans un
   paquet du plan ; hors du plan, il attend la passe finale, où il monte au superviseur. Tu es lancé
   sur un rouge (de la preuve, un `rouge existant` compris, ou des contrôles), sur un constat du
-  relecteur ouvert pour toi, ou directement sur un plan qui ne porte aucun test (aucun paquet avec
-  un script `test:vitest`), sans testwriter ni preuve : une séance qui ne change aucun fichier du
+  relecteur ouvert pour toi, ou directement sur un plan qui ne porte aucun test (aucun paquet qui
+  joue des tests, un script `test:unit` en typescript), sans testwriter ni preuve : une séance qui ne change aucun fichier du
   plan n'a rien à livrer, et ses contrôles rouges arrêtent le circuit (`sans-livraison`) ; ta
   passation dit pourquoi. Lancé après un refus de l'intégration, ton rapport porte ce refus : c'est
   le rouge à lever, que les contrôles de ta copie, verts, ne voient pas ; une séance qui ne change

@@ -9,7 +9,9 @@
 //   the update installs in such a project (`outils`).
 // - The components: the folders `packages/<x>` and `src/<x>` of the frame (`composants` of
 //   ./consommateurs.mjs), out of the frame left out; a file's is the component that holds it; the
-//   shared test material, the components whose package exports `./test-fixtures` (`matieres`).
+//   shared test material, the components whose package exports `./test-fixtures` (`matieres`); a
+//   component plays tests when its package.json holds the script `test:unit` (`joueDesTests`),
+//   which Turborepo runs in it (./tests.mjs).
 // - The components touched since a commit: the files git sees changed since it, the working tree
 //   and the untracked files included (`git diff --name-only <depuis>`, `git ls-files -o
 //   --exclude-standard`), each in its component, and the components that depend on them by their
@@ -41,6 +43,7 @@ import { A_ELAGUER, lireSarif, RESULTATS } from '../../resultats.mjs';
 import { paquets } from '../../paquets.mjs';
 import { lecteurs } from './lecteurs.mjs';
 import { estUnTest } from './regle-des-tests.mjs';
+import { SCRIPT_DES_TESTS } from './script-des-tests.mjs';
 import { verdict } from './verdict.mjs';
 import * as nomsDeclaresInutilises from './migrations/0.24.4-noms-declares-inutilises.mjs';
 import * as lignesMalFormees from './migrations/0.24.6-lignes-mal-formees.mjs';
@@ -199,6 +202,9 @@ export default {
   composantDe: (racine, fichier) => composantDans(composants(racine), racine, fichier),
   matieres: racine =>
     matieres(racine).map(({ nom, dir, paquet }) => ({ nom, dossier: dir, paquet })),
+  joueDesTests: (_racine, composant) =>
+    typeof lireJson(path.join(composant.dossier, 'package.json'))?.scripts?.[SCRIPT_DES_TESTS] ===
+    'string',
   lecteurs,
   touches,
   elementsDuLot,

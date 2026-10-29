@@ -43,7 +43,7 @@ describe('the repository in three directories', () => {
   it('plays the frame’s tests in their package, as Turborepo’s task of a package', () => {
     expect(existsSync(path.join(DEPOT, 'vitest.config.ts'))).toBe(false);
     const p = lire('packages/grillhouse/package.json') as { scripts: Record<string, string> };
-    expect(p.scripts['test:vitest']).toBe('vitest run');
+    expect(p.scripts['test:unit']).toBe('vitest run');
     expect(existsSync(path.join(PAQUET, 'vitest.config.ts'))).toBe(true);
   });
 });

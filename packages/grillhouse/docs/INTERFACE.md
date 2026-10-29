@@ -44,6 +44,9 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   composant ; toujours l'un de ceux que `composants` rend.
 - `matieres` : les composants de la matière de test partagée, que l'enveloppe monte en écriture
   pour le testwriter.
+- `joueDesTests` : si un composant joue des tests, que le lanceur du langage y trouve à jouer ;
+  `typescript`, un script `test:unit` dans son `package.json`. Le circuit en tire les paquets du
+  plan qui portent des tests, comme Bazel lit les cibles de test d'un paquet à leur genre.
 - `lecteurs` : les fournisseurs et les lecteurs, par le code, des éléments qu'un ticket nomme : son
   interface, ses imports, ses tests, ses types. Le relevé des composants touchés
   (`composants-affectes`) y ajoute les chemins lus et l'architecture.
@@ -60,7 +63,7 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   (`grillhouse frontieres`), comme un backend de Pants apporte ses buts.
 - `verdict` : ce qu'un lancement a laissé dans son dossier de résultats (`GRILLHOUSE_RESULTATS`) :
   `{ rapports, taches }`, chaque fichier de test avec ses tests, chaque tâche avec son code, 0 vert,
-  1 rouge, 75 « à repasser ».
+  1 rouge, 75 « à repasser », et `tests` vrai pour la tâche qui joue les tests de son composant.
 - `estUnTest` : ce que le testwriter écrit dans un fichier, `{ joue, test, matiere }` (un test que
   le lanceur joue, un fichier de test ou d'un dossier de tests, un fichier de la matière de test
   partagée), ou null pour un fichier qu'il n'écrit pas. Les verrous des rôles, l'intégration et le
@@ -92,5 +95,5 @@ entrées sont celles du module (`scripts/langages/typescript/exemples.mjs`).
 Un cas tient chaque demande sauf `nom`, `verdict` lu à part, `migrations`, que le test de
 chaque migration tient, et `outils`, que le test de la mise à jour tient. L'entrée défectueuse des
 fichiers engendrés met chacun d'eux en retard.
-Le test du noyau joue la suite sur le module typescript et sur treize modules défectueux, un défaut
+Le test du noyau joue la suite sur le module typescript et sur seize modules défectueux, un défaut
 chacun ; chacun manque son seul cas. Ainsi la suite attrape un vrai défaut.

@@ -28,8 +28,8 @@
 // - Turborepo plays the build, then the guards (the frame's, `grillhouse:gardes`, and the
 //   project's own, its root script `gardes`), the typing of each package (`typecheck`, its
 //   sources and its tests, cached per package: scripts/langages/typescript/turbo-des-paquets.mjs) and the tests
-//   (`test:vitest`) beside each other:
-//   `turbo run grillhouse:gardes gardes typecheck test:vitest --continue=dependencies-successful
+//   (`test:unit`) beside each other:
+//   `turbo run grillhouse:gardes gardes typecheck test:unit --continue=dependencies-successful
 //   --concurrency=<n> --summarize`, each argument given after it. A red does not stop the pass:
 //   every task whose prerequisites passed plays, and each red is named. <n>, the tasks side by
 //   side, is half the cores of the machine, one at least (`concurrence`): each task of tests is
@@ -37,7 +37,7 @@
 //   build by the machine; a `--concurrency` among the arguments replaces it.
 // - The time witnesses play alone, as Bazel plays a test tagged `exclusive`: the pass above leaves
 //   them out, then a pass of their own plays them, one task at a time, one file at a time, nothing
-//   beside them: `turbo run test:vitest --filter=<package>… --continue=dependencies-successful
+//   beside them: `turbo run test:unit --filter=<package>… --continue=dependencies-successful
 //   --concurrency=1 --summarize`, for each package that holds one (a test file that imports
 //   `mesurerAuRepos`, `fichiersTemoins` of scripts/langages/typescript/vitest-config/cibles.mjs, which receives the
 //   choice in the variable of the tests, `GRILLHOUSE_TESTS`: `temoins: 'hors'`, then `'seuls'`).
@@ -113,11 +113,12 @@ import {
 } from '../../services-du-noyau.mjs';
 import { paquets, TYPAGE } from '../../paquets.mjs';
 import { planifier } from './turbo-des-paquets.mjs';
+import { SCRIPT_DES_TESTS } from './script-des-tests.mjs';
 import { garderLesResumes } from './verdict.mjs';
 import { fichiersTemoins, VARIABLE as TESTS_CIBLES } from './vitest-config/cibles.mjs';
 
 const GARDES = ['grillhouse:gardes', 'gardes'];
-const TACHES = [...GARDES, TYPAGE, 'test:vitest'];
+const TACHES = [...GARDES, TYPAGE, SCRIPT_DES_TESTS];
 const TEMOINS = ' (témoins de temps)';
 const CONCURRENCE = /^--concurrency(?:=|$)/;
 // The variable that names the file of the red tasks, which the night reads.
@@ -173,7 +174,7 @@ function filtresDesTemoins(racine) {
   const liste = paquets(racine);
   if (liste.length === 0) return fichiersTemoins(racine).length ? [] : null;
   const noms = liste
-    .filter(p => !p.hors && p.pkg.scripts?.['test:vitest'])
+    .filter(p => !p.hors && p.pkg.scripts?.[SCRIPT_DES_TESTS])
     .filter(p => fichiersTemoins(path.resolve(racine, p.dossier)).length > 0)
     .map(p => p.pkg.name);
   return noms.length ? noms.map(n => `--filter=${n}`) : null;
@@ -258,19 +259,21 @@ function nomDuDepot(racine) {
   return path.basename(r.status === 0 ? path.dirname(r.stdout.trim()) : path.resolve(racine));
 }
 
-// Whether a package of <racine>, or its root, plays tests (a script `test:vitest`).
-function joueDesTests(racine) {
+// Whether a package of <racine>, or its root, plays tests (a script `test:unit`).
+function depotAvecTests(racine) {
   const liste = paquets(racine);
   if (liste.length === 0) {
     try {
       return Boolean(
-        JSON.parse(readFileSync(path.join(racine, 'package.json'), 'utf8')).scripts?.['test:vitest']
+        JSON.parse(readFileSync(path.join(racine, 'package.json'), 'utf8')).scripts?.[
+          SCRIPT_DES_TESTS
+        ]
       );
     } catch {
       return false;
     }
   }
-  return liste.some(p => !p.hors && p.pkg.scripts?.['test:vitest']);
+  return liste.some(p => !p.hors && p.pkg.scripts?.[SCRIPT_DES_TESTS]);
 }
 
 function passe({ racine, demandes, env, borneMs, pasMs, dire, coeurs }) {
@@ -382,7 +385,7 @@ function jouerLaPasse({
   if (filtres) {
     lancements.push({
       a: [
-        'test:vitest',
+        SCRIPT_DES_TESTS,
         ...filtres,
         '--continue=dependencies-successful',
         '--concurrency=1',
@@ -393,7 +396,7 @@ function jouerLaPasse({
     });
   }
   // The plan of each run that plays tests, before the first: the progress knows all its tasks.
-  if (!gardesSeules && joueDesTests(racine)) {
+  if (!gardesSeules && depotAvecTests(racine)) {
     for (const { a, e } of lancements) planifier(env[AVANCEMENT], { racine, args: a, env: e });
   }
   const passes = [];

@@ -9,12 +9,12 @@
       "taches": [
         {
           "paquet": "a",
-          "script": "test:vitest",
+          "script": "test:unit",
           "code": 0
         },
         {
           "paquet": "b",
-          "script": "test:vitest",
+          "script": "test:unit",
           "code": 0
         }
       ],
@@ -49,12 +49,12 @@
       "taches": [
         {
           "paquet": "a",
-          "script": "test:vitest",
+          "script": "test:unit",
           "code": 1
         },
         {
           "paquet": "b",
-          "script": "test:vitest",
+          "script": "test:unit",
           "code": 0
         }
       ],
@@ -89,12 +89,12 @@
       "taches": [
         {
           "paquet": "a",
-          "script": "test:vitest",
+          "script": "test:unit",
           "code": 75
         },
         {
           "paquet": "b",
-          "script": "test:vitest",
+          "script": "test:unit",
           "code": 0
         }
       ],
@@ -129,12 +129,12 @@
       "taches": [
         {
           "paquet": "a",
-          "script": "test:vitest",
+          "script": "test:unit",
           "code": 0
         },
         {
           "paquet": "b",
-          "script": "test:vitest",
+          "script": "test:unit",
           "code": 0
         }
       ],
@@ -169,12 +169,12 @@
       "taches": [
         {
           "paquet": "a",
-          "script": "test:vitest",
+          "script": "test:unit",
           "code": 1
         },
         {
           "paquet": "b",
-          "script": "test:vitest",
+          "script": "test:unit",
           "code": 0
         }
       ],

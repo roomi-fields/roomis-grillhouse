@@ -19,7 +19,7 @@ fichiers de l'arbre de travail, que le cache de Turborepo compte, jamais l'index
 publie l'entrée `@roomi-fields/grillhouse/resultats`, dans le dossier que nomme `GRILLHOUSE_RESULTATS`, et sans eux son rouge
 ne revient à aucun composant), le typage de chaque paquet (son script `typecheck`, qui type ses
 sources et ses tests, `tsc -p tsconfig.json --noEmit` du gabarit et de `npx grillhouse maj` ; la
-tâche `typecheck` du turbo.json racine, que le générateur tient, attend, comme `test:vitest`,
+tâche `typecheck` du turbo.json racine, que le générateur tient, attend, comme `test:unit`,
 la construction du paquet, dont ses tests peuvent importer l'entrée construite, et celle de ses
 dépendances, `build` et `^build`, comme `check-types` des exemples de create-turbo) et les
 tests, côte à côte ; un rouge n'arrête pas la passe, qui joue tout ce que ses tâches
@@ -447,7 +447,8 @@ imports à réécrire chez les projets.
 **La jointure des langages** : le noyau ne demande à un module de langage que cinq choses — ses
 composants et celui d'un fichier, avec les lecteurs par le code des éléments qu'un ticket nomme ;
 les composants touchés depuis un commit, avec leurs dépendants ; les commandes qui testent,
-typent et vérifient, et la lecture de leur verdict ; la règle qui dit qu'un fichier est un test
+typent et vérifient, les composants qui jouent des tests (`joueDesTests` ; le script des tests
+porte un nom neutre, `test:unit`, le même pour chaque langage), et la lecture de leur verdict ; la règle qui dit qu'un fichier est un test
 (le verrou du testwriter) ; ses fichiers engendrés, leur commande et ses gardes de structure.
 L'INTERFACE.md du noyau l'écrit (`packages/grillhouse/docs/INTERFACE.md`), `scripts/jointure.d.ts`
 la type, et `scripts/langages.mjs` charge le module que le projet déclare (`grillhouse.langages`
@@ -455,7 +456,7 @@ de son `package.json` ; un projet qui n'en déclare aucun est refusé, la comman
 un seul langage est servi, la fusion de plusieurs est grillhouse-pkl.3. Passent par elle : les
 composants et leurs lecteurs du relevé des composants ; la règle d'un fichier de test des verrous,
 des lots de l'intégration et du circuit ; les commandes de `grillhouse tests` et `grillhouse
-verifier` ; le verdict que le circuit lit ; les fichiers engendrés du circuit ; les gardes de
+verifier` ; le verdict que le circuit lit, et les paquets du plan qui portent des tests ; les fichiers engendrés du circuit ; les gardes de
 `grillhouse gardes-du-cadre` ; les sous-commandes du module, chacune de son nom (`grillhouse
 frontieres`) ; les éléments du lot que le circuit donne au relecteur ; la matière de test que
 l'enveloppe monte ; les migrations qui rejouent une garde du module, que `maj` joue avec celles du

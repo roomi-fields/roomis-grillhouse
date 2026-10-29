@@ -5,8 +5,9 @@
 // own case and no other, so that the suite catches a real defect. grillhouse-3dr.2.2: the suite
 // covers the components alone, the readers, the elements of a lot, the shared test material, and
 // each generated file late. grillhouse-3dr.2.3: and the repositories where the module finds its
-// language.
-import { mkdtempSync, rmSync } from 'node:fs';
+// language. grillhouse-pkl.2: and the components that play tests (`joueDesTests`, the script
+// `test:unit` for typescript), and the task of a run that plays them.
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -147,6 +148,30 @@ const MUTANTS: [string, string, Partial<Langage>][] = [
   ['matieres vide', 'matieres', { matieres: () => [] }],
   // grillhouse-3dr.2.3: the update declares the languages it finds.
   ['trouve qui ne trouve jamais rien', 'trouve', { trouve: () => false }],
+  // grillhouse-pkl.2: the circuit asks the module which components play tests.
+  ['joueDesTests qui ne voit aucun script', 'joueDesTests', { joueDesTests: () => false }],
+  [
+    'joueDesTests qui lit encore test:vitest',
+    'joueDesTests',
+    {
+      joueDesTests: (_racine: string, c: { dossier: string }) =>
+        typeof (
+          JSON.parse(readFileSync(path.join(c.dossier, 'package.json'), 'utf8')) as {
+            scripts?: Record<string, string>;
+          }
+        ).scripts?.['test:vitest'] === 'string',
+    },
+  ],
+  [
+    'verdict sans la tâche des tests',
+    'verdict',
+    {
+      verdict: (dossier: string) => {
+        const v = typescript.verdict(dossier);
+        return { ...v, taches: v.taches.map((t: object) => ({ ...t, tests: false })) };
+      },
+    },
+  ],
 ];
 
 describe('grillhouse-3dr.2.1 — la suite de conformité de la jointure', { timeout: 180_000 }, () => {
@@ -164,6 +189,7 @@ describe('grillhouse-3dr.2.1 — la suite de conformité de la jointure', { time
       'gardes',
       'elementsDuLot',
       'matieres',
+      'joueDesTests',
       'trouve',
     ]);
   });

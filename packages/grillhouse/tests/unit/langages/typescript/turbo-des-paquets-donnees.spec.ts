@@ -12,7 +12,7 @@ import {
 
 // The data a package's tests read (Bazel's `data`) and the traces a stage writes (Bazel's
 // genrule), declared in its package.json (`grillhouse.lit`, `grillhouse.traces`).
-// Witness: BPScript (320.6.6, 320.6.7), whose `060-encoder#test:vitest` waited for
+// Witness: BPScript (320.6.6, 320.6.7), whose `060-encoder#test:unit` waited for
 // `990-corpus#build`, the build of the shared test material, whose inputs counted its 2043 data
 // files: a scene changed replayed the tests of 26 packages. The guarantee: the test task of a
 // package depends on its code, on what it imports and on the directories it declares only.
@@ -49,7 +49,7 @@ const PAIRES = `${CORPUS}/test/060-encoder/paires-v1`;
 const SCENES_040 = `${CORPUS}/test/040-checker/scenes`;
 const SCENES_070 = `${CORPUS}/test/070-deriver/scenes`;
 const GRAMMAIRES = 'packages/060-encoder/trace/grammaires-du-corpus';
-const etage = { build: 'tsc', 'test:vitest': 'vitest run' };
+const etage = { build: 'tsc', 'test:unit': 'vitest run' };
 
 // The package.json of each package of a repository of BPScript's form: the stages declare the
 // shared test material (990-corpus) in their devDependencies, which declares them in its
@@ -111,7 +111,7 @@ const RACINE_BP = {
       inputs: ['$TURBO_DEFAULT$', '$TURBO_ROOT$/tsconfig.construction.json'],
       outputs: ['dist/**'],
     },
-    'test:vitest': {
+    'test:unit': {
       dependsOn: ['build', '^build'],
       inputs: ['$TURBO_DEFAULT$', '$TURBO_ROOT$/spec/**'],
       outputs: [],
@@ -179,12 +179,12 @@ describe('the turbo.json generated from the declared data and traces', () => {
   it('a reader’s tests wait for the traces it reads and hash the directories it declares', () => {
     const racine = depotBP();
     expect(lancer(racine, ['--ecrire']).status).toBe(0);
-    expect(tachesDe(racine, 'packages/070-deriver')['test:vitest']).toEqual({
+    expect(tachesDe(racine, 'packages/070-deriver')['test:unit']).toEqual({
       dependsOn: ['build', '^build', '060-encoder#trace:grammaires'],
       inputs: ['$TURBO_EXTENDS$', `$TURBO_ROOT$/${GRAMMAIRES}/**`, `$TURBO_ROOT$/${SCENES_070}/**`],
     });
     // A reader whose directories no trace writes waits for what the root's test task waits for.
-    expect(tachesDe(racine, 'packages/040-checker')['test:vitest']).toEqual({
+    expect(tachesDe(racine, 'packages/040-checker')['test:unit']).toEqual({
       dependsOn: ['build', '^build'],
       inputs: ['$TURBO_EXTENDS$', `$TURBO_ROOT$/${SCENES_040}/**`],
     });
@@ -227,13 +227,13 @@ describe('the turbo.json generated from the declared data and traces', () => {
   it('a root task without inputs is extended from Turborepo’s default: `$TURBO_EXTENDS$` would hash only the declared data', () => {
     const racine = depotBP(PAQUETS, JSON.parse(lire(DEPOT, 'templates/turbo/paquets.json')));
     ecrire(racine);
-    expect(tachesDe(racine, 'packages/040-checker')['test:vitest'].inputs).toEqual([
+    expect(tachesDe(racine, 'packages/040-checker')['test:unit'].inputs).toEqual([
       '$TURBO_DEFAULT$',
       `$TURBO_ROOT$/${SCENES_040}/**`,
     ]);
     expect(tachesDe(racine, CORPUS).build.inputs?.[0]).toBe('$TURBO_DEFAULT$');
-    const t = sec(racine, ['test:vitest']);
-    expect(Object.keys(t.get('040-checker#test:vitest')!.inputs)).toContain('src/index.ts');
+    const t = sec(racine, ['test:unit']);
+    expect(Object.keys(t.get('040-checker#test:unit')!.inputs)).toContain('src/index.ts');
     expect(Object.keys(t.get('990-corpus#build')!.inputs)).toContain('src/index.ts');
   });
 
@@ -245,7 +245,7 @@ describe('the turbo.json generated from the declared data and traces', () => {
   });
 });
 
-// The guarantee, read in Turborepo's own graph and hashes (`turbo run test:vitest --dry=json`,
+// The guarantee, read in Turborepo's own graph and hashes (`turbo run test:unit --dry=json`,
 // Turborepo 2.11.8): what each test task waits for and hashes is computed from the package.json
 // alone.
 describe('the guarantee: a test task depends on its code, what it imports and the directories it declares only', () => {
@@ -308,23 +308,23 @@ describe('the guarantee: a test task depends on its code, what it imports and th
   it('each test task reaches exactly the tasks its package.json and the declared traces give', () => {
     const racine = depotBP();
     ecrire(racine);
-    const graphe = sec(racine, ['test:vitest']);
-    for (const n of Object.keys(PAQUETS).filter(n => graphe.has(`${n}#test:vitest`))) {
+    const graphe = sec(racine, ['test:unit']);
+    for (const n of Object.keys(PAQUETS).filter(n => graphe.has(`${n}#test:unit`))) {
       const attendu = [...attente(n, decl(n).lit ?? [], new Set())].sort();
-      expect([...atteint(graphe, `${n}#test:vitest`)].sort(), n).toEqual(attendu);
+      expect([...atteint(graphe, `${n}#test:unit`)].sort(), n).toEqual(attendu);
     }
     // The chain to the stages through the material's dependencies stays, visible: BPScript
     // reduces it in its package.json, the frame does not cut it.
-    expect(atteint(graphe, '060-encoder#test:vitest')).toContain('040-checker#build');
+    expect(atteint(graphe, '060-encoder#test:unit')).toContain('040-checker#build');
   });
 
   it('each input file of a test task out of its package falls under a directory it declares, or a root input', () => {
     const racine = depotBP();
     ecrire(racine);
-    const graphe = sec(racine, ['test:vitest']);
+    const graphe = sec(racine, ['test:unit']);
     for (const n of lecteurs) {
       const dossier = `packages/${n}`;
-      const dehors = Object.keys(graphe.get(`${n}#test:vitest`)!.inputs)
+      const dehors = Object.keys(graphe.get(`${n}#test:unit`)!.inputs)
         .map(f => path.posix.normalize(path.posix.join(dossier, f)))
         .filter(f => !sous(f, dossier));
       expect(dehors.length, n).toBeGreaterThan(0);
@@ -336,7 +336,7 @@ describe('the guarantee: a test task depends on its code, what it imports and th
       }
     }
     // A trace's output, which git ignores, is hashed by its reader.
-    expect(Object.keys(graphe.get('070-deriver#test:vitest')!.inputs)).toContain(
+    expect(Object.keys(graphe.get('070-deriver#test:unit')!.inputs)).toContain(
       '../060-encoder/trace/grammaires-du-corpus/grammaire.json'
     );
   });
@@ -358,29 +358,27 @@ describe('the guarantee: a test task depends on its code, what it imports and th
     const racine = depotBP();
     ecrire(racine);
     const empreintes = () =>
-      new Map([...sec(racine, ['test:vitest'])].map(([id, t]) => [id, t.hash]));
+      new Map([...sec(racine, ['test:unit'])].map(([id, t]) => [id, t.hash]));
     const avant = empreintes();
     ecrireFichier(racine, `${SCENES_040}/une.json`, '{"scene":2}\n');
     const apres040 = empreintes();
-    expect(apres040.get('060-encoder#test:vitest')).toBe(avant.get('060-encoder#test:vitest'));
-    expect(apres040.get('070-deriver#test:vitest')).toBe(avant.get('070-deriver#test:vitest'));
+    expect(apres040.get('060-encoder#test:unit')).toBe(avant.get('060-encoder#test:unit'));
+    expect(apres040.get('070-deriver#test:unit')).toBe(avant.get('070-deriver#test:unit'));
     expect(apres040.get('990-corpus#build')).toBe(avant.get('990-corpus#build'));
-    expect(apres040.get('040-checker#test:vitest')).not.toBe(avant.get('040-checker#test:vitest'));
+    expect(apres040.get('040-checker#test:unit')).not.toBe(avant.get('040-checker#test:unit'));
     ecrireFichier(racine, `${PAIRES}/profonde/paire.bps`, 'S --> b\n');
     const apresPaires = empreintes();
-    expect(apresPaires.get('060-encoder#test:vitest')).not.toBe(
-      apres040.get('060-encoder#test:vitest')
+    expect(apresPaires.get('060-encoder#test:unit')).not.toBe(
+      apres040.get('060-encoder#test:unit')
     );
     expect(apresPaires.get('060-encoder#trace:grammaires')).not.toBe(
       apres040.get('060-encoder#trace:grammaires')
     );
     // The reader of the trace follows it.
-    expect(apresPaires.get('070-deriver#test:vitest')).not.toBe(
-      apres040.get('070-deriver#test:vitest')
+    expect(apresPaires.get('070-deriver#test:unit')).not.toBe(
+      apres040.get('070-deriver#test:unit')
     );
-    expect(apresPaires.get('040-checker#test:vitest')).toBe(
-      apres040.get('040-checker#test:vitest')
-    );
+    expect(apresPaires.get('040-checker#test:unit')).toBe(apres040.get('040-checker#test:unit'));
   });
 });
 
@@ -545,8 +543,8 @@ describe('a declared file is treated as a declared directory', () => {
   it('its reader’s tests hash it, and the build of the material leaves it out', () => {
     const racine = depotAvecFichier();
     expect(refusDe(racine)).toBe('');
-    const graphe = sec(racine, ['test:vitest']);
-    const lues = Object.keys(graphe.get('040-checker#test:vitest')!.inputs).map(f =>
+    const graphe = sec(racine, ['test:unit']);
+    const lues = Object.keys(graphe.get('040-checker#test:unit')!.inputs).map(f =>
       path.posix.normalize(path.posix.join('packages/040-checker', f))
     );
     expect(lues).toContain(LEXIQUE);
@@ -561,13 +559,13 @@ describe('a declared file is treated as a declared directory', () => {
     const racine = depotAvecFichier();
     ecrire(racine);
     const empreintes = () =>
-      new Map([...sec(racine, ['test:vitest'])].map(([id, t]) => [id, t.hash]));
+      new Map([...sec(racine, ['test:unit'])].map(([id, t]) => [id, t.hash]));
     const avant = empreintes();
     ecrireFichier(racine, LEXIQUE, '{"mot":2}\n');
     const apres = empreintes();
-    expect(apres.get('040-checker#test:vitest')).not.toBe(avant.get('040-checker#test:vitest'));
+    expect(apres.get('040-checker#test:unit')).not.toBe(avant.get('040-checker#test:unit'));
     expect(apres.get('990-corpus#build')).toBe(avant.get('990-corpus#build'));
-    expect(apres.get('060-encoder#test:vitest')).toBe(avant.get('060-encoder#test:vitest'));
+    expect(apres.get('060-encoder#test:unit')).toBe(avant.get('060-encoder#test:unit'));
   });
 
   it('a declared file absent that no trace writes is refused, named a path read', () => {
@@ -620,7 +618,7 @@ describe('a declared path holding code, a neighbour’s', () => {
   it('its reader’s tests hash it; its own package’s build keeps it in its inputs', () => {
     const racine = depotAvecCode([CAPTURES, TABLES]);
     ecrire(racine);
-    expect(tachesDe(racine, 'packages/040-checker')['test:vitest'].inputs).toEqual([
+    expect(tachesDe(racine, 'packages/040-checker')['test:unit'].inputs).toEqual([
       '$TURBO_EXTENDS$',
       `$TURBO_ROOT$/${TABLES}/**`,
       `$TURBO_ROOT$/${CAPTURES}/**`,
@@ -630,8 +628,8 @@ describe('a declared path holding code, a neighbour’s', () => {
     expect(tachesDe(racine, 'packages/060-encoder').build).toEqual({
       dependsOn: ['000-forms#build'],
     });
-    const graphe = sec(racine, ['test:vitest']);
-    const lues = Object.keys(graphe.get('040-checker#test:vitest')!.inputs).map(f =>
+    const graphe = sec(racine, ['test:unit']);
+    const lues = Object.keys(graphe.get('040-checker#test:unit')!.inputs).map(f =>
       path.posix.normalize(path.posix.join('packages/040-checker', f))
     );
     expect(lues).toContain(TABLES);
@@ -644,18 +642,16 @@ describe('a declared path holding code, a neighbour’s', () => {
     const racine = depotAvecCode([CAPTURES, TABLES]);
     ecrire(racine);
     const empreintes = () =>
-      new Map([...sec(racine, ['test:vitest'])].map(([id, t]) => [id, t.hash]));
+      new Map([...sec(racine, ['test:unit'])].map(([id, t]) => [id, t.hash]));
     const avant = empreintes();
     ecrireFichier(racine, `${CAPTURES}/capture.mjs`, 'console.log(2);\n');
     const apresCaptures = empreintes();
-    expect(apresCaptures.get('040-checker#test:vitest')).not.toBe(
-      avant.get('040-checker#test:vitest')
-    );
+    expect(apresCaptures.get('040-checker#test:unit')).not.toBe(avant.get('040-checker#test:unit'));
     expect(apresCaptures.get('060-encoder#build')).not.toBe(avant.get('060-encoder#build'));
     ecrireFichier(racine, TABLES, 'export const tables = [1];\n');
     const apresTables = empreintes();
-    expect(apresTables.get('040-checker#test:vitest')).not.toBe(
-      apresCaptures.get('040-checker#test:vitest')
+    expect(apresTables.get('040-checker#test:unit')).not.toBe(
+      apresCaptures.get('040-checker#test:unit')
     );
     expect(apresTables.get('000-forms#build')).not.toBe(apresCaptures.get('000-forms#build'));
   });
@@ -690,9 +686,9 @@ describe('the check refuses a root turbo.json that configures a package by hand'
 
   it('a task of one package', () => {
     const racine = racineAvec(t => {
-      tachesRacine(t)['060-encoder#test:vitest'] = { dependsOn: ['build'] };
+      tachesRacine(t)['060-encoder#test:unit'] = { dependsOn: ['build'] };
     });
-    expect(refusDe(racine)).toContain('060-encoder#test:vitest');
+    expect(refusDe(racine)).toContain('060-encoder#test:unit');
   });
 
   it('a trace task', () => {
@@ -708,7 +704,7 @@ describe('the check refuses a root turbo.json that configures a package by hand'
     ['an input over every package', '$TURBO_ROOT$/packages/**'],
   ])('%s naming a package directory', (_cas, entree) => {
     const racine = racineAvec(t => {
-      const tests = tachesRacine(t)['test:vitest'] as { inputs: string[] };
+      const tests = tachesRacine(t)['test:unit'] as { inputs: string[] };
       tests.inputs = [...tests.inputs, entree];
     });
     expect(refusDe(racine)).toContain(entree);
@@ -813,15 +809,15 @@ describe('the build of a package hashes what its tsconfig.build.json reads', () 
     ecrire(racine);
     expect(verifier(racine)).toEqual([]);
     const empreintes = () =>
-      new Map([...sec(racine, ['test:vitest'])].map(([id, t]) => [id, t.hash]));
+      new Map([...sec(racine, ['test:unit'])].map(([id, t]) => [id, t.hash]));
     const avant = empreintes();
     ecrireFichier(racine, 'packages/010-parser/test/parser.test.ts', 'export const essai = 2;\n');
     const apres = empreintes();
-    expect(apres.get('010-parser#test:vitest')).not.toBe(avant.get('010-parser#test:vitest'));
+    expect(apres.get('010-parser#test:unit')).not.toBe(avant.get('010-parser#test:unit'));
     for (const id of ['010-parser#build', '040-checker#build', '990-corpus#build']) {
       expect(apres.get(id), id).toBe(avant.get(id));
     }
-    expect(apres.get('040-checker#test:vitest')).toBe(avant.get('040-checker#test:vitest'));
+    expect(apres.get('040-checker#test:unit')).toBe(avant.get('040-checker#test:unit'));
     // Its source changed moves its build, and what depends on it.
     ecrireFichier(racine, 'packages/010-parser/src/index.ts', "export const nom = 'autre';\n");
     const source = empreintes();
@@ -897,7 +893,7 @@ describe('the build of a package hashes what its tsconfig.build.json reads', () 
 // A submodule's `.git` is a pointer file naming the copy it was set in (a worktree): an input
 // covering the submodule without leaving it out changes every hash in each new copy. The update
 // of the frame writes the exclusion beside each such input.
-// Witness: BPScript (si61.8), whose root `test:vitest` hashed `$TURBO_ROOT$/vendor/bp3-engine/**`:
+// Witness: BPScript (si61.8), whose root `test:unit` hashed `$TURBO_ROOT$/vendor/bp3-engine/**`:
 // no copy ever replayed a test from the cache.
 describe('an input covering a submodule has its .git left out by the generator', () => {
   const MOTEUR = 'vendor/moteur';
@@ -906,7 +902,7 @@ describe('an input covering a submodule has its .git left out by the generator',
   // The root's turbo.json of the project, a comment of its own heading it.
   const depotAvecSousModule = (entrees: string[], paquets = PAQUETS, globales?: string[]) => {
     const t = structuredClone(RACINE_BP) as typeof RACINE_BP & { globalDependencies?: string[] };
-    t.tasks['test:vitest'].inputs = [...t.tasks['test:vitest'].inputs, ...entrees];
+    t.tasks['test:unit'].inputs = [...t.tasks['test:unit'].inputs, ...entrees];
     if (globales) {
       t.globalDependencies = globales;
     }
@@ -940,14 +936,14 @@ describe('an input covering a submodule has its .git left out by the generator',
       expect(refus).toContain(COMMANDE);
       expect(ecrire(racine)).toContain('turbo.json');
       const apres = lire(racine, 'turbo.json');
-      expect(racineLue(racine).tasks['test:vitest'].inputs).toEqual([
+      expect(racineLue(racine).tasks['test:unit'].inputs).toEqual([
         '$TURBO_DEFAULT$',
         '$TURBO_ROOT$/spec/**',
         entree,
         exclusion,
       ]);
       // Only the inputs of the task are rewritten.
-      const horsEntrees = (t: string) => t.replace(/"test:vitest": \{[\s\S]*?"outputs"/, '');
+      const horsEntrees = (t: string) => t.replace(/"test:unit": \{[\s\S]*?"outputs"/, '');
       expect(horsEntrees(apres)).toBe(horsEntrees(avant));
       expect(apres.startsWith('// Le turbo.json du projet.\n')).toBe(true);
       expect(verifier(racine)).toEqual([]);
@@ -968,7 +964,7 @@ describe('an input covering a submodule has its .git left out by the generator',
       expect(verifier(racine)).toEqual([]);
       expect(ecrire(racine)).toEqual([]);
       expect(lire(racine, 'turbo.json')).toBe(avant);
-      expect(racineLue(racine).tasks['test:vitest'].inputs).toEqual([
+      expect(racineLue(racine).tasks['test:unit'].inputs).toEqual([
         '$TURBO_DEFAULT$',
         '$TURBO_ROOT$/spec/**',
         ...entrees,
@@ -995,7 +991,7 @@ describe('an input covering a submodule has its .git left out by the generator',
       })
     );
     expect(refusDe(racine)).toBe('');
-    expect(tachesDe(racine, 'packages/040-checker')['test:vitest'].inputs).toEqual([
+    expect(tachesDe(racine, 'packages/040-checker')['test:unit'].inputs).toEqual([
       '$TURBO_EXTENDS$',
       `$TURBO_ROOT$/${SCENES_040}/**`,
       `$TURBO_ROOT$/${MOTEUR}/**`,
@@ -1005,7 +1001,7 @@ describe('an input covering a submodule has its .git left out by the generator',
 
   it('witness: after the update, a new copy’s pointer file leaves the tests’ hashes as they are', () => {
     const copies = (racine: string) => {
-      const empreinte = () => sec(racine, ['test:vitest']).get('040-checker#test:vitest')!.hash;
+      const empreinte = () => sec(racine, ['test:unit']).get('040-checker#test:unit')!.hash;
       writeFileSync(path.join(racine, MOTEUR, '.git'), 'gitdir: ../../.git/worktrees/copie-1\n');
       const avant = empreinte();
       writeFileSync(path.join(racine, MOTEUR, '.git'), 'gitdir: ../../.git/worktrees/copie-2\n');
@@ -1019,7 +1015,7 @@ describe('an input covering a submodule has its .git left out by the generator',
     const [avec1, avec2] = copies(racine);
     expect(avec2).toBe(avec1);
     writeFileSync(path.join(racine, MOTEUR, 'moteur.json'), '{"v":2}\n');
-    expect(sec(racine, ['test:vitest']).get('040-checker#test:vitest')!.hash).not.toBe(avec1);
+    expect(sec(racine, ['test:unit']).get('040-checker#test:unit')!.hash).not.toBe(avec1);
   });
 });
 
@@ -1087,13 +1083,13 @@ describe('a declared file the build of its package reads', () => {
   it('its reader’s tests hash it', () => {
     const racine = depotLecteur();
     ecrire(racine);
-    expect(tachesDe(racine, 'packages/040-checker')['test:vitest'].inputs).toEqual([
+    expect(tachesDe(racine, 'packages/040-checker')['test:unit'].inputs).toEqual([
       '$TURBO_EXTENDS$',
       ...[...CONFIGS, DONNEES, SCENES_040].sort().map(l => `$TURBO_ROOT$/${l}/**`),
     ]);
-    const lues = Object.keys(
-      sec(racine, ['test:vitest']).get('040-checker#test:vitest')!.inputs
-    ).map(f => path.posix.normalize(path.posix.join('packages/040-checker', f)));
+    const lues = Object.keys(sec(racine, ['test:unit']).get('040-checker#test:unit')!.inputs).map(
+      f => path.posix.normalize(path.posix.join('packages/040-checker', f))
+    );
     expect(lues).toEqual(expect.arrayContaining([...CONFIGS, `${DONNEES}/une.json`]));
   });
 
@@ -1101,15 +1097,15 @@ describe('a declared file the build of its package reads', () => {
     const racine = depotLecteur();
     ecrire(racine);
     const empreintes = () =>
-      new Map([...sec(racine, ['test:vitest'])].map(([id, t]) => [id, t.hash]));
+      new Map([...sec(racine, ['test:unit'])].map(([id, t]) => [id, t.hash]));
     const avant = empreintes();
     ecrireFichier(racine, `${PARSER}/tsconfig.json`, json({ include: ['src', 'test', 'bancs'] }));
     const apres = empreintes();
     expect(apres.get('010-parser#build')).not.toBe(avant.get('010-parser#build'));
-    expect(apres.get('040-checker#test:vitest')).not.toBe(avant.get('040-checker#test:vitest'));
+    expect(apres.get('040-checker#test:unit')).not.toBe(avant.get('040-checker#test:unit'));
     ecrireFichier(racine, `${DONNEES}/une.json`, '{"donnee":2}\n');
     const donnees = empreintes();
     expect(donnees.get('010-parser#build')).toBe(apres.get('010-parser#build'));
-    expect(donnees.get('040-checker#test:vitest')).not.toBe(apres.get('040-checker#test:vitest'));
+    expect(donnees.get('040-checker#test:unit')).not.toBe(apres.get('040-checker#test:unit'));
   });
 });

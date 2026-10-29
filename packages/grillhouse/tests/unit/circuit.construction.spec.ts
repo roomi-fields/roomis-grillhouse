@@ -88,7 +88,7 @@ if (existsSync('casse')) {
       json({
         name: '040-checker',
         type: 'module',
-        scripts: { 'test:vitest': 'vitest run' },
+        scripts: { 'test:unit': 'vitest run' },
         dependencies: { '000-forms': '*' },
         devDependencies: { '030-binder': '*' },
       })

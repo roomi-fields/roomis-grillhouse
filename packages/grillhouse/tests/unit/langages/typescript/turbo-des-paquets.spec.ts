@@ -41,7 +41,7 @@ const ecrireFichier = (racine: string, f: string, texte: string) => {
 };
 const lire = (racine: string, f: string) => readFileSync(path.join(racine, f), 'utf8');
 const pkg = (o: Record<string, unknown>) => `${JSON.stringify(o, null, 2)}\n`;
-const etage = { build: 'tsc', 'test:vitest': 'vitest run' };
+const etage = { build: 'tsc', 'test:unit': 'vitest run' };
 
 // A repository of packages of BPScript's form: `socle` a runtime dependency of each stage; the
 // corpus (no build, as 990-corpus) depends on the stages, which declare it in their
@@ -123,7 +123,7 @@ describe('the build of a package waits for its runtime dependencies only', () =>
   it('after generation, the build and the tests run without a cycle, each test after what it imports', () => {
     const racine = depotAPaquets();
     expect(lancer(racine, ['--ecrire']).status).toBe(0);
-    const r = turbo(racine, ['build', 'test:vitest']);
+    const r = turbo(racine, ['build', 'test:unit']);
     expect(r.status, r.stderr).toBe(0);
     const t = taches(r.stdout);
     expect(t['a#build']).toEqual(['socle#build']);
@@ -131,8 +131,8 @@ describe('the build of a package waits for its runtime dependencies only', () =>
     expect(t['c#build']).toEqual(['socle#build']);
     // A test waits for its own package's build and for everything it imports, devDependencies
     // included (the root's build and ^build): a package tests its built entry.
-    expect(t['a#test:vitest']).toEqual(['a#build', 'corpus#build', 'socle#build']);
-    expect(t['b#test:vitest']).toEqual(['b#build', 'c#build', 'corpus#build']);
+    expect(t['a#test:unit']).toEqual(['a#build', 'corpus#build', 'socle#build']);
+    expect(t['b#test:unit']).toEqual(['b#build', 'c#build', 'corpus#build']);
     expect(t['corpus#build']).toEqual(['a#build', 'b#build', 'c#build']);
   });
 
@@ -350,15 +350,15 @@ const nonGenere = (texte: string) => JSON.parse(texte.replace(/^\/\/.*\n/, '')) 
 
 describe('a package out of the frame stays a workspace, and Turborepo plays none of its tasks', () => {
   it('with the root configuration alone, Turborepo plays the packages out of the frame', () => {
-    const t = taches(turbo(depotHorsCadre(), ['build', 'test:vitest']).stdout);
-    expect(Object.keys(t)).toContain('kronos#test:vitest');
-    expect(t['banc#test:vitest']).toContain('kronos#build');
+    const t = taches(turbo(depotHorsCadre(), ['build', 'test:unit']).stdout);
+    expect(Object.keys(t)).toContain('kronos#test:unit');
+    expect(t['banc#test:unit']).toContain('kronos#build');
   });
 
   it('after generation, no task of a package out of the frame is played, none waited for', () => {
     const racine = depotHorsCadre();
     expect(lancer(racine, ['--ecrire']).status).toBe(0);
-    const r = turbo(racine, ['build', 'test:vitest', 'lint']);
+    const r = turbo(racine, ['build', 'test:unit', 'lint']);
     expect(r.status, r.stderr).toBe(0);
     const t = taches(r.stdout);
     const ids = Object.keys(t);
@@ -368,14 +368,14 @@ describe('a package out of the frame stays a workspace, and Turborepo plays none
         .flat()
         .filter(d => /^(kronos|audio)#/.test(d))
     ).toEqual([]);
-    expect(ids).toContain('banc#test:vitest');
+    expect(ids).toContain('banc#test:unit');
     expect(ids).toContain('banc#lint');
     // The build waits for its runtime dependencies of the frame; a test for its own build and all
     // it imports.
     expect(t['banc#build']).toEqual(['socle#build']);
-    expect(t['banc#test:vitest']).toEqual(['banc#build', 'socle#build']);
+    expect(t['banc#test:unit']).toEqual(['banc#build', 'socle#build']);
     expect(t['corpus#build']).toEqual(['banc#build']);
-    expect(t['lecteur#test:vitest']).toEqual(['corpus#build', 'lecteur#build']);
+    expect(t['lecteur#test:unit']).toEqual(['corpus#build', 'lecteur#build']);
   });
 
   it('a package out of the frame receives the exclusion of each task of the root', () => {
@@ -387,7 +387,7 @@ describe('a package out of the frame stays a workspace, and Turborepo plays none
       tasks: {
         build: { extends: false },
         lint: { extends: false },
-        'test:vitest': { extends: false },
+        'test:unit': { extends: false },
         typecheck: { extends: false },
       },
     });
@@ -405,7 +405,7 @@ describe('a package out of the frame stays a workspace, and Turborepo plays none
       extends: ['//'],
       tasks: {
         build: { dependsOn: ['socle#build'] },
-        'test:vitest': { dependsOn: ['build', 'socle#build'] },
+        'test:unit': { dependsOn: ['build', 'socle#build'] },
         typecheck: { dependsOn: ['build', 'socle#build'] },
       },
     });
@@ -457,7 +457,7 @@ describe('a package out of the frame stays a workspace, and Turborepo plays none
     expect(r.stderr).toContain(COMMANDE);
     expect(lancer(racine, ['--ecrire']).status).toBe(0);
     expect(lancer(racine, []).status).toBe(0);
-    const t = taches(turbo(racine, ['build', 'test:vitest']).stdout);
+    const t = taches(turbo(racine, ['build', 'test:unit']).stdout);
     expect(Object.keys(t).filter(id => id.startsWith('socle#'))).toEqual([]);
   });
 
@@ -560,7 +560,7 @@ describe('the guard tasks of the root wait for the build of each package of the 
     const racine = depotAvecGardes();
     ecrire(racine);
     // Without a `gardes` script at the root, the task is not played, and the run passes.
-    const sans = turbo(racine, ['grillhouse:gardes', 'gardes', 'test:vitest']);
+    const sans = turbo(racine, ['grillhouse:gardes', 'gardes', 'test:unit']);
     expect(sans.status, sans.stderr).toBe(0);
     const commandes = Object.fromEntries(
       (JSON.parse(sans.stdout) as { tasks: { taskId: string; command: string }[] }).tasks.map(t => [
@@ -572,7 +572,7 @@ describe('the guard tasks of the root wait for the build of each package of the 
     expect(commandes['//#gardes']).toBe('<NONEXISTENT>');
     const avecPropres = depotAvecGardes(true);
     ecrire(avecPropres);
-    const avec = turbo(avecPropres, ['grillhouse:gardes', 'gardes', 'test:vitest']);
+    const avec = turbo(avecPropres, ['grillhouse:gardes', 'gardes', 'test:unit']);
     expect(avec.status, avec.stderr).toBe(0);
     expect(taches(avec.stdout)['//#gardes']).toEqual(TOUS);
   });
@@ -586,7 +586,7 @@ describe('the guard tasks of the root wait for the build of each package of the 
       '  "tasks": {',
       '    // la construction de chaque paquet',
       '    "build": { "dependsOn": ["^build"], "outputs": ["dist/**"] },',
-      '    "test:vitest": { "dependsOn": ["^build"], "outputs": [] },',
+      '    "test:unit": { "dependsOn": ["^build"], "outputs": [] },',
       '    "lint": {},',
       '    "//#grillhouse:gardes": {',
       '      "dependsOn": ["vieux#build"], // périmé',
@@ -684,7 +684,7 @@ describe('the guard tasks of the root wait for the build of each package of the 
 // (the build types src/ alone, Vitest types nothing). The typing of each package is a task of
 // Turborepo, as `check-types` in the examples of create-turbo: the root's turbo.json holds
 // `typecheck`, which waits for the build of the package and of its dependencies (`build`,
-// `^build`, as `test:vitest`: the tests of 990-corpus import its own built entry), and the
+// `^build`, as `test:unit`: the tests of 990-corpus import its own built entry), and the
 // generator keeps it there.
 describe('grillhouse-kgx.3 — the root’s typecheck task, which waits for the build of the package and of its dependencies', () => {
   const typage = (racine: string) =>
@@ -809,14 +809,14 @@ describe('grillhouse-kgx.3.2 — one pass of the generator reaches its fixed poi
 
 // Witness: BPScript, whose reviewer measured it: the targeted run played its tests alone (`--only`),
 // whose hash left out the builds they wait for. The paths now reach Vitest in a variable the `env`
-// of the root's `test:vitest` names (scripts/langages/typescript/tests.mjs), which the generator keeps there.
-describe('the env of the root’s test:vitest names the variable of the targeted runs', () => {
+// of the root's `test:unit` names (scripts/langages/typescript/tests.mjs), which the generator keeps there.
+describe('the env of the root’s test:unit names the variable of the targeted runs', () => {
   const env = (racine: string) =>
     (
       parseJsonc(lire(racine, 'turbo.json'), [], { allowTrailingComma: true }) as {
         tasks: Record<string, { env?: string[] }>;
       }
-    ).tasks['test:vitest']?.env;
+    ).tasks['test:unit']?.env;
 
   it('both templates hold it, and the generator writes nothing for it', () => {
     const racine = depotAPaquets();
@@ -830,13 +830,13 @@ describe('the env of the root’s test:vitest names the variable of the targeted
     expect(env(sans)).toEqual(['GRILLHOUSE_TESTS']);
   });
 
-  it('a root test:vitest without it: the check refuses it, naming the variable and the command; the generator adds it to the project’s', () => {
+  it('a root test:unit without it: the check refuses it, naming the variable and the command; the generator adds it to the project’s', () => {
     const racine = depotAPaquets();
     ecrire(racine);
     const t = JSON.parse(lire(racine, 'turbo.json')) as {
       tasks: Record<string, Record<string, unknown>>;
     };
-    t.tasks['test:vitest'] = { ...t.tasks['test:vitest'], env: ['CI'] };
+    t.tasks['test:unit'] = { ...t.tasks['test:unit'], env: ['CI'] };
     ecrireFichier(racine, 'turbo.json', JSON.stringify(t, null, 2));
     const r = lancer(racine, []);
     expect(r.status).toBe(1);
@@ -921,6 +921,7 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
       'enveloppe/paquets-du-plan.mjs',
       'paquets.mjs',
       'langages/typescript/consommateurs.mjs',
+      'langages/typescript/script-des-tests.mjs',
       'dette.mjs',
       'resultats.mjs',
       'mesure/avancement.mjs',

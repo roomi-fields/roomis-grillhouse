@@ -257,13 +257,13 @@ describe('the bisect commands of the red night (grillhouse-3uv.56.2)', () => {
   }
 
   it('1 — a red task of a package: the ticket gives the interval and its bisect command', () => {
-    const r = rougeSur(['a#test:vitest']);
+    const r = rougeSur(['a#test:unit']);
     expect(r.appels).toContain(`${r.vert}..${r.rouge}`);
-    expect(r.appels).toContain(`a#test:vitest : ${r.bisect('test:vitest', 'a')}`);
+    expect(r.appels).toContain(`a#test:unit : ${r.bisect('test:unit', 'a')}`);
   });
   it('2 — two red tasks: two commands, one per task, the root filtered by //', () => {
-    const r = rougeSur(['@x/b#test:vitest', '//#gardes']);
-    expect(r.appels).toContain(`@x/b#test:vitest : ${r.bisect('test:vitest', '@x/b')}`);
+    const r = rougeSur(['@x/b#test:unit', '//#gardes']);
+    expect(r.appels).toContain(`@x/b#test:unit : ${r.bisect('test:unit', '@x/b')}`);
     expect(r.appels).toContain(`//#gardes : ${r.bisect('gardes', '//')}`);
     // One ticket per red task (grillhouse-w47.2), each text giving both commands.
     const textes = textesDe(r.appels);
@@ -335,19 +335,19 @@ describe('grillhouse-w47.2 — the night plays each step and names each red task
   }
 
   it('critère 1: a red full pass still plays the project script; a red script after it, both red', () => {
-    const r = nuitRouge(['a#test:vitest'], { script: 'rouge' });
+    const r = nuitRouge(['a#test:unit'], { script: 'rouge' });
     expect(r.status).toBe(1);
     expect(r.joues).toEqual(['nuit-projet']);
     expect(r.creations).toHaveLength(2);
   });
   it('critère 1: a red full pass and a green project script: the script played, the night red', () => {
-    const r = nuitRouge(['a#test:vitest'], { script: 'vert' });
+    const r = nuitRouge(['a#test:unit'], { script: 'vert' });
     expect(r.status).toBe(1);
     expect(r.joues).toEqual(['nuit-projet']);
     expect(r.creations).toHaveLength(1);
   });
   it('critère 2: without a last green, the text names each red step and each red task, no bisect command', () => {
-    const r = nuitRouge(['a#test:vitest', '//#gardes'], { script: 'rouge' });
+    const r = nuitRouge(['a#test:unit', '//#gardes'], { script: 'rouge' });
     expect(r.status).toBe(1);
     expect(r.lire(path.join(r.commun, 'dernier-vert'))).toBe('');
     expect(r.textes.length).toBeGreaterThan(0);
@@ -356,18 +356,18 @@ describe('grillhouse-w47.2 — the night plays each step and names each red task
       expect(t).toMatch(
         /^- le script de nuit du projet \(npm run nuit-projet, grillhouse\.nuit\)$/m
       );
-      expect(t).toMatch(/^- a#test:vitest$/m);
+      expect(t).toMatch(/^- a#test:unit$/m);
       expect(t).toMatch(/^- \/\/#gardes$/m);
       expect(t).toMatch(/^- npm run nuit-projet$/m);
       expect(t).not.toContain('git bisect run');
     }
   });
   it('critère 2: with a last green, each red task of the full pass gets its bisect command, the script none', () => {
-    const r = nuitRouge(['a#test:vitest'], { script: 'rouge', vertAvant: true });
+    const r = nuitRouge(['a#test:unit'], { script: 'rouge', vertAvant: true });
     expect(r.status).toBe(1);
     for (const t of r.textes) {
       expect(t).toMatch(
-        /^- a#test:vitest : git bisect start \w{7} \w{7} && git bisect run npx turbo run test:vitest --filter=a$/m
+        /^- a#test:unit : git bisect start \w{7} \w{7} && git bisect run npx turbo run test:unit --filter=a$/m
       );
       expect(t).toMatch(/^- npm run nuit-projet$/m);
       expect(t.match(/git bisect run/g)).toHaveLength(1);
@@ -381,44 +381,44 @@ describe('grillhouse-w47.2 — the night plays each step and names each red task
     expect(r.textes[0]).toMatch(/^- npm run verifier -- --force$/m);
   });
   it('critère 3: two red tasks, no open night ticket: a ticket of its own for each, its title naming it', () => {
-    const r = nuitRouge(['a#test:vitest', 'b#test:vitest']);
+    const r = nuitRouge(['a#test:unit', 'b#test:unit']);
     expect(r.commentaires).toEqual([]);
     expect(r.creations).toHaveLength(2);
     expect(r.creations[0]).toMatch(
-      /^create La nuit est rouge sur « a#test:vitest » depuis la nuit du /
+      /^create La nuit est rouge sur « a#test:unit » depuis la nuit du /
     );
     expect(r.creations[1]).toMatch(
-      /^create La nuit est rouge sur « b#test:vitest » depuis la nuit du /
+      /^create La nuit est rouge sur « b#test:unit » depuis la nuit du /
     );
     expect(r.appels).toMatch(
-      /^update demo-12 --title 12 — La nuit est rouge sur « a#test:vitest » depuis la nuit du \d{4}-\d{2}-\d{2} — parent$/m
+      /^update demo-12 --title 12 — La nuit est rouge sur « a#test:unit » depuis la nuit du \d{4}-\d{2}-\d{2} — parent$/m
     );
   });
   it('critère 3: a task the open night ticket names comments it; a task it does not name opens its own', () => {
-    const r = nuitRouge(['a#test:vitest', 'b#test:vitest'], {
-      ouverts: [ouvert('demo-9', 'a#test:vitest')],
+    const r = nuitRouge(['a#test:unit', 'b#test:unit'], {
+      ouverts: [ouvert('demo-9', 'a#test:unit')],
     });
     expect(r.commentaires).toHaveLength(1);
     expect(r.commentaires[0]).toMatch(/^comments add demo-9 La nuit du/);
     expect(r.creations).toHaveLength(1);
-    expect(r.creations[0]).toMatch(/^create La nuit est rouge sur « b#test:vitest » /);
+    expect(r.creations[0]).toMatch(/^create La nuit est rouge sur « b#test:unit » /);
   });
   it('critère 3: an open night ticket that names no red task gets no comment, each task opens its own', () => {
-    const r = nuitRouge(['a#test:vitest'], {
+    const r = nuitRouge(['a#test:unit'], {
       ouverts: [
         { id: 'demo-9', title: '9 — La nuit est rouge depuis la nuit du 2026-10-17 — parent' },
-        ouvert('demo-8', 'a#test:vitest:lent'),
+        ouvert('demo-8', 'a#test:unit:lent'),
       ],
     });
     expect(r.commentaires).toEqual([]);
     expect(r.creations).toHaveLength(1);
-    expect(r.creations[0]).toMatch(/^create La nuit est rouge sur « a#test:vitest » /);
+    expect(r.creations[0]).toMatch(/^create La nuit est rouge sur « a#test:unit » /);
   });
   it('critère 3: each open night ticket gets the comment of the tasks it names, once', () => {
-    const r = nuitRouge(['a#test:vitest', 'b#test:vitest'], {
+    const r = nuitRouge(['a#test:unit', 'b#test:unit'], {
       script: 'rouge',
       ouverts: [
-        { id: 'demo-9', title: '9 — « a#test:vitest » et « b#test:vitest » — parent' },
+        { id: 'demo-9', title: '9 — « a#test:unit » et « b#test:unit » — parent' },
         ouvert('demo-7', 'npm run nuit-projet'),
       ],
     });

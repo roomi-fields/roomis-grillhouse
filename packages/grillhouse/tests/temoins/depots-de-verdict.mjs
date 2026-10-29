@@ -37,7 +37,7 @@ export function depotDeVerdict(racine, sorte, { base, pression = 1 }) {
         build: { outputs: [] },
         'grillhouse:gardes': { dependsOn: ['build'], outputs: [] },
         gardes: { dependsOn: ['build'], outputs: [] },
-        'test:vitest': { dependsOn: ['build'], env: ['GRILLHOUSE_TESTS'], outputs: [] },
+        'test:unit': { dependsOn: ['build'], env: ['GRILLHOUSE_TESTS'], outputs: [] },
         typecheck: { dependsOn: ['build', '^build'], outputs: [] },
       },
     })
@@ -53,7 +53,7 @@ export function depotDeVerdict(racine, sorte, { base, pression = 1 }) {
   ]) {
     ecrire(
       `packages/${nom}/package.json`,
-      json({ name: nom, type: 'module', scripts: { 'test:vitest': 'vitest run' } })
+      json({ name: nom, type: 'module', scripts: { 'test:unit': 'vitest run' } })
     );
     ecrire(
       `packages/${nom}/vitest.config.mjs`,

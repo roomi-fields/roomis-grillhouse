@@ -19,7 +19,7 @@
       "dependsOn": ["build"],
       "outputs": []
     },
-    "test:vitest": {
+    "test:unit": {
       "dependsOn": ["build"],
       "env": ["GRILLHOUSE_TESTS"],
       "outputs": []

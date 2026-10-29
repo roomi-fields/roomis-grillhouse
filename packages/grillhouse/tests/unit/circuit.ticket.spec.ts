@@ -1,4 +1,4 @@
-import { rmSync } from 'node:fs';
+import { readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
@@ -14,6 +14,8 @@ import { sortie, ecrire, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from '.
 const ESSAIS = racineSousLaMaison('grillhouse-essais-circuit-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 const {
+  REPO,
+  gitRepo,
   revenirAuDebut,
   ticket,
   scenario,
@@ -387,7 +389,7 @@ describe.runIf(canWrap)(
     it('launches the developpeur directly on a plan whose packages carry no test: no testwriter, no proof', () => {
       const id = 'demo-ticket-sans-tests';
       const copie = ticket(id, 'spec');
-      // A plan of documentation alone: no package, so no script test:vitest.
+      // A plan of documentation alone: no package, so no script test:unit.
       ecrire(path.join(copie, 'spec/mesure.md'), '# La mesure\n');
       scenario(
         id,
@@ -402,6 +404,30 @@ describe.runIf(canWrap)(
       expect(ligne).toContain('aucun test');
       expect(essai(id, 'developpeur-1.prompt')).toContain('ne porte aucun test');
       expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
+    });
+
+    // grillhouse-pkl.2: the circuit asks the module of language which package plays tests
+    // (`joueDesTests`), and the module typescript answers by `test:unit` alone.
+    it('a package of the plan whose script of the tests is still test:vitest carries no test', () => {
+      const id = 'demo-ticket-test-vitest';
+      const f = path.join(REPO, 'packages/forms/package.json');
+      const pkg = JSON.parse(readFileSync(f, 'utf8')) as { scripts: Record<string, string> };
+      pkg.scripts = { 'test:vitest': 'vitest run' };
+      ecrire(f, `${JSON.stringify(pkg, null, 2)}\n`);
+      gitRepo('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qam', 'test:vitest');
+      const copie = ticket(id, '000-forms, spec');
+      ecrire(path.join(copie, 'spec/mesure.md'), '# La mesure\n');
+      scenario(
+        id,
+        'developpeur',
+        `printf 'La mesure rend le double.\\n' >> spec/mesure.md\npassation 'Spécification écrite.'\n`
+      );
+      const r = circuit([id]);
+      expect(r.status, sortie(r)).toBe(0);
+      expect(ordre(id)).toEqual(['developpeur', 'relecteur']);
+      expect(commentaires(id).find(t => t.startsWith('Circuit · testwriter : '))).toContain(
+        'aucun paquet qui joue des tests'
+      );
     });
 
     it('a finding that names a component is out of the reviewer’s sheet: its schema refuses it', () => {

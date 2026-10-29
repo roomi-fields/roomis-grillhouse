@@ -285,7 +285,7 @@ describe('the night plays again at rest a bench à repasser', () => {
     expect(n.dernierVert).toBe('');
     expect(p.lignes().filter(x => x === 'temps.budget.test.ts')).toHaveLength(2);
     const appels = readFileSync(path.join(p.bin, 'appels'), 'utf8');
-    expect(appels, n.journal).toMatch(/^create La nuit est rouge sur « [^»\n]*test:vitest » /m);
+    expect(appels, n.journal).toMatch(/^create La nuit est rouge sur « [^»\n]*test:unit » /m);
   }, 240_000);
 });
 

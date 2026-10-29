@@ -53,7 +53,7 @@ describe('grillhouse-3uv.84.4 critère 5 — the packed package installs in a fr
       writeFileSync(path.join(projet, f), texte);
     };
     const scripts = Object.fromEntries(
-      ['test', 'test:vitest', 'verifier'].map(s => [s, gabarit.scripts[s] as string])
+      ['test', 'test:unit', 'verifier'].map(s => [s, gabarit.scripts[s] as string])
     );
     ecrire(
       'package.json',

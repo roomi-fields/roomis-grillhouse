@@ -83,7 +83,7 @@ function depot(
         build: { outputs: [] },
         'grillhouse:gardes': { dependsOn: ['build'], outputs: [] },
         gardes: { dependsOn: ['build'], outputs: [] },
-        'test:vitest': { dependsOn: ['build'], outputs: [] },
+        'test:unit': { dependsOn: ['build'], outputs: [] },
         typecheck: { dependsOn: ['build', '^build'], outputs: [] },
       },
     })
@@ -97,7 +97,7 @@ function depot(
       json({
         name: nom,
         type: 'module',
-        scripts: { 'test:vitest': 'vitest run', ...(gardes[nom] ?? {}) },
+        scripts: { 'test:unit': 'vitest run', ...(gardes[nom] ?? {}) },
       })
     );
     ecrire(
@@ -156,15 +156,15 @@ describe('npm run verifier', { timeout: 180_000 }, () => {
     const r = await lancer(d, [], () => d.ecrirePression(1));
     expect(r.status, r.sortie).toBe(0);
     expect(r.sortie).toContain('90.0 %');
-    expect(r.sortie).toContain('↻ a#test:vitest');
-    expect(r.sortie).not.toContain('↻ b#test:vitest');
+    expect(r.sortie).toContain('↻ a#test:unit');
+    expect(r.sortie).not.toContain('↻ b#test:unit');
     expect(d.joues().sort()).toEqual(['a', 'a', 'b']);
   });
   it('a real red beside a task at 75 is a red, named, and nothing waits', async () => {
     const d = depot('delai', 'rouge', 90);
     const r = await lancer(d);
     expect(r.status, r.sortie).toBe(1);
-    expect(r.sortie).toContain('⛔ b#test:vitest');
+    expect(r.sortie).toContain('⛔ b#test:unit');
     expect(r.sortie).not.toContain('⏳');
     expect(r.sortie).not.toContain('↻');
     expect(d.joues().sort()).toEqual(['a', 'b']);
@@ -173,8 +173,8 @@ describe('npm run verifier', { timeout: 180_000 }, () => {
     const d = depot('delai', 'vert', 90);
     const r = await lancer(d, [], () => d.ecrirePression(1));
     expect(r.status, r.sortie).toBe(1);
-    expect(r.sortie).toContain('↻ a#test:vitest');
-    expect(r.sortie).toContain('⛔ a#test:vitest');
+    expect(r.sortie).toContain('↻ a#test:unit');
+    expect(r.sortie).toContain('⛔ a#test:unit');
   });
   // grillhouse-3uv.56.2: the red tasks, one Turborepo task id per line, go to the file
   // GRILLHOUSE_ROUGES names, where the night reads them for its bisect commands; a task at 75 is
@@ -184,7 +184,7 @@ describe('npm run verifier', { timeout: 180_000 }, () => {
     const fichier = path.join(d.racine, 'rouges');
     const r = await lancer({ ...d, env: { ...d.env, GRILLHOUSE_ROUGES: fichier } });
     expect(r.status, r.sortie).toBe(1);
-    expect(readFileSync(fichier, 'utf8')).toBe('b#test:vitest\n');
+    expect(readFileSync(fichier, 'utf8')).toBe('b#test:unit\n');
   });
   it('3uv.56.2: a task red at rest is in the file GRILLHOUSE_ROUGES names', async () => {
     const d = depot('delai', 'vert', 90);
@@ -193,12 +193,12 @@ describe('npm run verifier', { timeout: 180_000 }, () => {
       d.ecrirePression(1)
     );
     expect(r.status, r.sortie).toBe(1);
-    expect(readFileSync(fichier, 'utf8')).toBe('a#test:vitest\n');
+    expect(readFileSync(fichier, 'utf8')).toBe('a#test:unit\n');
   });
   it('3uv.56.2: a green pass leaves the file GRILLHOUSE_ROUGES names empty', async () => {
     const d = depot('vert', 'vert', 1);
     const fichier = path.join(d.racine, 'rouges');
-    writeFileSync(fichier, 'a#test:vitest\n');
+    writeFileSync(fichier, 'a#test:unit\n');
     const r = await lancer({ ...d, env: { ...d.env, GRILLHOUSE_ROUGES: fichier } });
     expect(r.status, r.sortie).toBe(0);
     expect(readFileSync(fichier, 'utf8')).toBe('');

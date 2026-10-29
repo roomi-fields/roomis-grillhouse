@@ -58,7 +58,7 @@
 #   graph, `turbo run build --filter=<paquet>… --dry=json`, which node reads on its standard input,
 #   whatever its size), and a failure stops the launch, CODE_COPIE;
 #   then the traces of other packages their tests wait for (`grillhouse.traces`, read in Turborepo's
-#   plan of their tests, `turbo run test:vitest --filter=<paquet>… --dry=json`), which the envelope
+#   plan of their tests, `turbo run test:unit --filter=<paquet>… --dry=json`), which the envelope
 #   shows read-only, and a failure stops the launch, CODE_COPIE. A task of either step that waits,
 #   directly or not, for a task of a package of the plan (`attendentLePlan` of
 #   turbo-des-paquets.mjs) is not played there: as with Bazel's --keep_going, a package of the plan
@@ -280,7 +280,7 @@ echouer() { local sortie; sortie=$(cat "$echec"); printf '%s\n%s\n' "$1" "$sorti
       # package's trace that waits for no package of the plan is produced here, and a failure
       # stops the launch, as a provider's; a trace of the plan, or one that waits for a package of
       # the plan, is produced with the plan below.
-      plan=$(cd "$copie" && monter npx --no-install turbo run test:vitest "${cibles[@]}" --dry=json) || exit 1
+      plan=$(cd "$copie" && monter npx --no-install turbo run test:unit "${cibles[@]}" --dry=json) || exit 1
       traces() { node --input-type=module -e "import { readFileSync } from 'node:fs'; import { attendentLePlan, tracesDuPlan } from '$ici/../langages/typescript/turbo-des-paquets.mjs'; const [avec, ...noms] = process.argv.slice(1); const p = JSON.parse(readFileSync(0, 'utf8')); const attend = attendentLePlan(p, noms); console.log(tracesDuPlan(p, t => attend.has(t.taskId) === (avec === 'oui')).join('\n'));" "$1" "${lesNoms[@]}" <<<"$plan"; }
       autres=$(traces non) || exit 1
       if [ -n "$autres" ]; then

@@ -113,7 +113,7 @@ const gabarit = () =>
     }
   ).scripts;
 
-// grillhouse-3uv.80 critère 2: `test:vitest` calls the Vitest of the project's root. A Vitest at the
+// grillhouse-3uv.80 critère 2: `test:unit` calls the Vitest of the project's root. A Vitest at the
 // root of <projet>: the frame's own (2.1.9, this repository's node_modules) when <version> is
 // absent, else a stand-in package of that version, whose command answers `--version` as Vitest
 // does (« vitest/<version> <platform>-<arch> node-<version> »). The project has run `npm install`:
@@ -397,14 +397,14 @@ describe('the update installs Turborepo', () => {
       build: { outputs: ['dist/**'] },
       'grillhouse:gardes': { dependsOn: ['build'], outputs: [] },
       gardes: { dependsOn: ['build'], outputs: [] },
-      'test:vitest': { dependsOn: ['build'], env: ['GRILLHOUSE_TESTS'], outputs: [] },
+      'test:unit': { dependsOn: ['build'], env: ['GRILLHOUSE_TESTS'], outputs: [] },
       typecheck: { dependsOn: ['build'], outputs: [] },
     });
   });
   it('the template with packages: each package builds after its dependencies and tests after its own build and theirs, the root plays the guards, whose dependsOn the generator writes', () => {
     expect(taches(DEPOT, PAQUETS)).toEqual({
       build: { dependsOn: ['^build'], outputs: ['dist/**'] },
-      'test:vitest': { dependsOn: ['build', '^build'], env: ['GRILLHOUSE_TESTS'], outputs: [] },
+      'test:unit': { dependsOn: ['build', '^build'], env: ['GRILLHOUSE_TESTS'], outputs: [] },
       '//#grillhouse:gardes': { dependsOn: [], outputs: [] },
       '//#gardes': { dependsOn: [], outputs: [] },
       typecheck: { dependsOn: ['build', '^build'], outputs: [] },
@@ -520,9 +520,9 @@ describe('the update installs Turborepo', () => {
     mettreAJour(projet, DEPOT);
     expect(lire(projet, '.gitignore')).toBe(`node_modules\n${l}\n`);
   });
-  it('a project that runs Vitest receives test, test:vitest, test:forcer and verifier of the frame, together', () => {
+  it('a project that runs Vitest receives test, test:unit, test:forcer and verifier of the frame, together', () => {
     const s = installe({ name: 'p', scripts: { test: 'vitest run' } }, { vitest: true }).scripts();
-    for (const nom of ['test', 'test:vitest', 'test:forcer', 'verifier']) {
+    for (const nom of ['test', 'test:unit', 'test:forcer', 'verifier']) {
       expect(s[nom], nom).toBe(gabarit()[nom]);
     }
   });
@@ -536,7 +536,7 @@ describe('the update installs Turborepo', () => {
   it('a project whose root resolves no Vitest receives none of the four', () => {
     const s = installe({ name: 'p', scripts: { test: 'vitest run' } }).scripts();
     expect(s.test).toBe('vitest run');
-    expect(s).not.toHaveProperty('test:vitest');
+    expect(s).not.toHaveProperty('test:unit');
     expect(s).not.toHaveProperty('test:forcer');
     expect(s).not.toHaveProperty('verifier');
   });
@@ -597,7 +597,7 @@ describe('grillhouse-3uv.60 critère 1 — the update writes api and the depende
     });
     expect(pkg.scripts?.api).toBe(modele().scripts?.api);
     expect(pkg.scripts?.test).toBe(modele().scripts?.test);
-    expect(pkg.scripts?.['test:vitest']).toBe(modele().scripts?.['test:vitest']);
+    expect(pkg.scripts?.['test:unit']).toBe(modele().scripts?.['test:unit']);
     expect(pkg.scripts?.['test:forcer']).toBe(modele().scripts?.['test:forcer']);
   });
   it('critère 1: a project without dependencies receives the tools, at the versions of the template', () => {
@@ -1142,11 +1142,11 @@ describe('grillhouse-3uv.75.1 critère 12 — the update poses the frame’s tes
       TEST_DU_CADRE
     );
     expect(r.stdout).toContain(TEST_DU_CADRE);
-    // Its tests live in its packages, as Turborepo keeps them: the root gets no test:vitest.
-    expect(json(projet, 'package.json').scripts).not.toHaveProperty('test:vitest');
+    // Its tests live in its packages, as Turborepo keeps them: the root gets no test:unit.
+    expect(json(projet, 'package.json').scripts).not.toHaveProperty('test:unit');
   });
-  it('a project of workspaces loses the frame’s root test:vitest and keeps one of its own', () => {
-    const cadre = (json(DEPOT, 'package.json').scripts as Record<string, string>)['test:vitest'];
+  it('a project of workspaces loses the frame’s root test:unit and keeps one of its own', () => {
+    const cadre = (json(DEPOT, 'package.json').scripts as Record<string, string>)['test:unit'];
     for (const [racine, attendu] of [
       [cadre, undefined],
       ['vitest run --project racine', 'vitest run --project racine'],
@@ -1156,7 +1156,7 @@ describe('grillhouse-3uv.75.1 critère 12 — the update poses the frame’s tes
           name: 'p',
           private: true,
           workspaces: ['packages/*'],
-          scripts: { test: TEST_DU_CADRE, 'test:vitest': racine },
+          scripts: { test: TEST_DU_CADRE, 'test:unit': racine },
         },
         () => {},
         { vitest: true }
@@ -1168,7 +1168,7 @@ describe('grillhouse-3uv.75.1 critère 12 — the update poses the frame’s tes
       );
       const r = lancerMaj(projet, src);
       expect(r.status, r.stderr).toBe(0);
-      expect((json(projet, 'package.json').scripts as Record<string, string>)['test:vitest']).toBe(
+      expect((json(projet, 'package.json').scripts as Record<string, string>)['test:unit']).toBe(
         attendu
       );
     }
@@ -1375,7 +1375,7 @@ describe('grillhouse-3uv.76 critère 3 — the update refuses an unknown option,
 });
 
 // grillhouse-3uv.80 critère 2. Witness: BPScript, whose root resolves the hoisted Vitest 1.6.1 while
-// each package declares ^2: `test:vitest` calls the Vitest of the root (`npx --no-install
+// each package declares ^2: `test:unit` calls the Vitest of the root (`npx --no-install
 // vitest`). The version the frame requires is the one its package.json declares, read in the source.
 const VITEST_EXIGE = '^2.0.0';
 describe('grillhouse-3uv.80 critère 2 — the update poses the frame’s test only where the root resolves the Vitest the frame requires', () => {
@@ -1471,7 +1471,7 @@ describe('grillhouse-3uv.80 critère 6 — a project whose test is already the f
 // Witness: BPScript, whose guard of access refuses a relative path out of a package.
 const NOM_PAQUET = '@roomi-fields/grillhouse';
 const pkgJson = (o: Record<string, unknown>) => `${JSON.stringify(o, null, 2)}\n`;
-// A project of packages: `teste` holds a test:vitest, `sans` none; the root declares the frame's
+// A project of packages: `teste` holds a test:unit, `sans` none; the root declares the frame's
 // package at <plage> (none when absent).
 function projetAPaquets(workspaces: unknown, plage?: string) {
   const projet = mkdtempSync(path.join(ESSAIS, 'config-vitest-'));
@@ -1488,7 +1488,7 @@ function projetAPaquets(workspaces: unknown, plage?: string) {
   ecrire(
     projet,
     'packages/teste/package.json',
-    pkgJson({ name: 'teste', scripts: { 'test:vitest': 'vitest run' } })
+    pkgJson({ name: 'teste', scripts: { 'test:unit': 'vitest run' } })
   );
   ecrire(
     projet,
@@ -1521,7 +1521,7 @@ describe('the update declares the frame’s package in each tested package of a 
     it(`${cas} is not touched`, () => {
       const projet = projetAPaquets(workspaces);
       ecrire(projet, 'docs/agents/hors-cadre.txt', 'kanopi projet voisin\n');
-      const kanopi = pkgJson({ name: 'kanopi', scripts: { 'test:vitest': 'vitest run' } });
+      const kanopi = pkgJson({ name: 'kanopi', scripts: { 'test:unit': 'vitest run' } });
       ecrire(projet, 'packages/kanopi/package.json', kanopi);
       mettreAJour(projet, DEPOT);
       expect(lire(projet, 'packages/kanopi/package.json')).toBe(kanopi);
@@ -1532,7 +1532,7 @@ describe('the update declares the frame’s package in each tested package of a 
     const projet = projetAPaquets(['packages/*']);
     const propre = pkgJson({
       name: 'propre',
-      scripts: { 'test:vitest': 'vitest run' },
+      scripts: { 'test:unit': 'vitest run' },
       devDependencies: { [NOM_PAQUET]: '^0.0.0' },
     });
     ecrire(projet, 'packages/propre/package.json', propre);
@@ -1541,7 +1541,7 @@ describe('the update declares the frame’s package in each tested package of a 
       'packages/teste/package.json',
       pkgJson({
         name: 'teste',
-        scripts: { 'test:vitest': 'vitest run' },
+        scripts: { 'test:unit': 'vitest run' },
         devDependencies: { zod: '*', vitest: '^2.0.0' },
       })
     );
@@ -1569,7 +1569,7 @@ describe('the update declares the frame’s package in each tested package of a 
     expect(mettreAJour(projet, DEPOT).configVitest).toBeNull();
   });
   it('a project without workspaces receives none', () => {
-    const { projet } = installe({ name: 'p', scripts: { 'test:vitest': 'vitest run' } });
+    const { projet } = installe({ name: 'p', scripts: { 'test:unit': 'vitest run' } });
     expect(json(projet, 'package.json')).not.toHaveProperty('workspaces');
     expect(devDeps(projet, 'package.json')).not.toHaveProperty(NOM_PAQUET);
   });
@@ -1613,7 +1613,7 @@ describe('grillhouse-3uv.95.11.2 critère 1 — a package whose code imports the
       'packages/outils/package.json',
       pkgJson({
         name: 'outils',
-        scripts: { 'test:vitest': 'vitest run' },
+        scripts: { 'test:unit': 'vitest run' },
         dependencies: { zod: '*' },
         devDependencies: { [NOM_PAQUET]: '^0.24.0', vitest: '^2.0.0' },
       })
@@ -2006,9 +2006,9 @@ describe('grillhouse-982.6 — the update ends with the verification that keeps 
   });
 
   it('critère 2: the report says a red verification, its code, and that the last green stays', () => {
-    const { bin } = outils(1, '⛔ a#test:vitest\n');
+    const { bin } = outils(1, '⛔ a#test:unit\n');
     const r = lancerMajAvec(projetVerifie(), [], bin);
-    expect(r.stdout).toContain('⛔ a#test:vitest\n');
+    expect(r.stdout).toContain('⛔ a#test:unit\n');
     expect(r.stderr).toMatch(
       /^Vérification : `npm run verifier` rouge \(code 1\) ; .*dernier vert/m
     );
@@ -2114,7 +2114,7 @@ describe('grillhouse-kgx.3 critère 3 — each package of TypeScript has a typec
     const b = mettreAJour(projet, DEPOT);
     const scripts = (f: string) => (json(projet, f).scripts ?? {}) as Record<string, string>;
     expect(scripts('packages/teste/package.json').typecheck).toBe(TYPAGE);
-    expect(scripts('packages/teste/package.json')['test:vitest']).toBe('vitest run');
+    expect(scripts('packages/teste/package.json')['test:unit']).toBe('vitest run');
     // `sans` holds no tsconfig.json: no package of TypeScript.
     expect(scripts('packages/sans/package.json')).not.toHaveProperty('typecheck');
     expect(lire(projet, 'packages/propre/package.json')).toBe(propre);

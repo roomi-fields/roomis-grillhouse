@@ -62,7 +62,7 @@
 //   }
 //
 // - `lit`: the paths its tests read, directories or files, data or code, a neighbour's scripts and
-//   sources included, as Bazel's `data` takes any file. Its `test:vitest` hashes them
+//   sources included, as Bazel's `data` takes any file. Its `test:unit` hashes them
 //   (`inputs`: the root's, `$TURBO_EXTENDS$`, or Turborepo's default, `$TURBO_DEFAULT$`, when the
 //   root's task sets none, since `$TURBO_EXTENDS$` then extends an empty list; then
 //   `$TURBO_ROOT$/<dir>/**` each) and waits, beside the root's `dependsOn`, for each trace whose
@@ -123,7 +123,7 @@
 //
 // The typing of each package (`typecheck`, its script, as `check-types` in the examples of
 // create-turbo), which `npm run verifier` plays beside the guards and the tests: a task of the
-// root's turbo.json (or turbo.jsonc), cached per package, that waits, as `test:vitest`, for the
+// root's turbo.json (or turbo.jsonc), cached per package, that waits, as `test:unit`, for the
 // build of its own package (`build`: the tests of BPScript's 990-corpus import its built entry,
 // `990-corpus/test-fixtures`) and, in a repository of packages, for the build of each package its
 // package declares (`^build`), whose types it reads; a package without a `typecheck` script plays
@@ -133,10 +133,10 @@
 //
 // The tests of a targeted run: the paths reach Vitest in the variable `GRILLHOUSE_TESTS`
 // (scripts/langages/typescript/vitest-config/cibles.mjs, scripts/langages/typescript/tests.mjs), which the `env` of the root's
-// `test:vitest` names: it enters the hash of the tests alone, and reaches their process alone
-// (Turborepo's strict mode of the variables). A package's own `test:vitest` sets no `env`, and
-// inherits the root's. The generator adds the variable to the `env` of the root's `test:vitest`,
-// the project's entries kept, and the check refuses a `test:vitest` of the root without it.
+// `test:unit` names: it enters the hash of the tests alone, and reaches their process alone
+// (Turborepo's strict mode of the variables). A package's own `test:unit` sets no `env`, and
+// inherits the root's. The generator adds the variable to the `env` of the root's `test:unit`,
+// the project's entries kept, and the check refuses a `test:unit` of the root without it.
 //
 // Four variables pass to every task without entering any hash: the root's `globalPassThroughEnv`
 // names them, Turborepo's strict mode of the variables keeping out of a task every variable its
@@ -166,6 +166,7 @@ import { AVANCEMENT, CHANGEMENTS, inscrireLePlan } from '../../services-du-noyau
 import { matieres, parcourir } from './consommateurs.mjs';
 import { paquets, TYPAGE } from '../../paquets.mjs';
 import { ecrireSarif, RESULTATS } from '../../resultats.mjs';
+import { SCRIPT_DES_TESTS as TESTS } from './script-des-tests.mjs';
 import { VARIABLE as TESTS_CIBLES } from './vitest-config/cibles.mjs';
 
 export const TURBO = 'turbo.json';
@@ -180,11 +181,9 @@ const RACINES = ['turbo.json', 'turbo.jsonc'];
 export const GARDES = ['grillhouse:gardes', 'gardes'];
 // The layout of what the generator writes in the root's turbo.json.
 const MISE_EN_FORME = { formattingOptions: { insertSpaces: true, tabSize: 2, eol: '\n' } };
-// The test task of a package, and the prefix of a trace task.
-const TESTS = 'test:vitest';
 // The builds the typing of a package waits for in <racine>: its own, whose built entry its tests
 // may import (990-corpus/test-fixtures), and, in a repository of packages, those of its
-// dependencies, as `test:vitest`.
+// dependencies, as `test:unit`.
 const attenteDuTypage = racine => (paquets(racine).length ? ['build', '^build'] : ['build']);
 // The temporary directory of a process, which names the base of its pass.
 const TEMPORAIRE = 'TMPDIR';
@@ -199,6 +198,7 @@ const POURQUOI = {
   [TEMPORAIRE]:
     'la base de la passe, où chaque tâche écrit ses fichiers temporaires, effacée à sa fin',
 };
+// The prefix of a trace task.
 const TRACE = 'trace:';
 // The files a build compiles: TypeScript's sources and declarations (tsc's default `include`
 // takes a `.d.ts` into the program, whose types the build checks) and JavaScript (`allowJs`).
@@ -271,7 +271,7 @@ export function planifier(dossier, { racine, args, env = process.env }) {
   } catch {
     return;
   }
-  const taches = (plan?.tasks ?? []).filter(t => t.task === 'test:vitest' && t.hash);
+  const taches = (plan?.tasks ?? []).filter(t => t.task === TESTS && t.hash);
   inscrireLePlan(dossier, {
     racine,
     taches: taches.map(t => ({ hash: t.hash, cache: t.cache?.status === 'HIT' })),
@@ -674,9 +674,9 @@ function typageEcarte(racine) {
   return { f: r.f, chemin, valeur: [...actuel, ...manques], manques };
 }
 
-// The `env` the `test:vitest` of the root's turbo.json at <racine> must hold, TESTS_CIBLES added
+// The `env` the `test:unit` of the root's turbo.json at <racine> must hold, TESTS_CIBLES added
 // to the project's, when it lacks it: { f, attendu }; null when it holds it, without a root
-// configuration or a `test:vitest` in it, and when it is no JSON.
+// configuration or a `test:unit` in it, and when it is no JSON.
 function testsSansVariable(racine) {
   const r = confRacine(racine);
   const tache = r?.conf.tasks?.[TESTS];
@@ -921,7 +921,7 @@ function racineRefusee(racine) {
 
 // The refusals of <racine>: one line per package turbo.json absent or other than generated, per
 // guard task of the root absent or whose dependsOn differs, for a typing task of the root absent
-// or that does not wait for the build of its package and of its dependencies, for a root `test:vitest` whose `env`
+// or that does not wait for the build of its package and of its dependencies, for a root `test:unit` whose `env`
 // lacks TESTS_CIBLES, per variable of PASSAGES the root's `globalPassThroughEnv` lacks, per configuration
 // of a package written by hand in the root's turbo.json, and per declaration of data or trace
 // refused.

@@ -336,8 +336,8 @@ describe('L2 — what a role that writes may not run', () => {
     'npm exec vitest run',
     'npm exec -- vitest run',
     // Turborepo, which plays the test tool (grillhouse-982.5).
-    'turbo run test:vitest',
-    'npx turbo run test:vitest --filter=a',
+    'turbo run test:unit',
+    'npx turbo run test:unit --filter=a',
     'npx --no-install turbo run test',
     'npm exec turbo run test',
     'npm exec -- turbo run test',
