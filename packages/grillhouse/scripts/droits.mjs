@@ -137,9 +137,10 @@ const ECRIRE = ['Edit', 'Write'];
 export const ROLES = {
   // It writes no file and nothing at the ticket: it surveys the components and reads the code by
   // the index, and ends on the plan in its sheet, which the circuit writes at the ticket. At the
-  // tri of the discoveries, it reads each one and its parent, the history of main (`git log`, a
-  // read in its working directory, the main tree), and builds a package before it judges an error
-  // of types of its export; no pass (grillhouse-0yu.5).
+  // tri of the discoveries, it reads each one and its parent, the commit of main and its history
+  // (`git show`, `git log`, in its working directory, the main tree, or by `git -C`), and builds
+  // a package before it judges an error of types of its export; no pass (grillhouse-0yu.5). Its
+  // instruction of the tri lists these commands (`commandesPermises`, grillhouse-6ve).
   explorateur: {
     metacadre: true,
     index: true,
@@ -147,6 +148,10 @@ export const ROLES = {
     commandes: [
       'Bash(bd show *)',
       'Bash(bd comments *)',
+      'Bash(git show *)',
+      'Bash(git log *)',
+      'Bash(git -C * show *)',
+      'Bash(git -C * log *)',
       'Bash(npx grillhouse composants-affectes *)',
       'Bash(npm run build -- --filter=*)',
       'Bash(codegraph explore *)',
@@ -211,6 +216,21 @@ export const ROLES = {
     ],
   },
 };
+
+// The commands the rights of <role> permit (ROLES.<role>.commandes), one line each, in Markdown, as
+// the help of a tool lists its commands: a rule of Bash as its command, `…` for its wildcard; a
+// tool by its name. Its instruction carries them, so that it names no command its rights refuse.
+/** @param {keyof typeof ROLES} role @returns {string} */
+export function commandesPermises(role) {
+  return ROLES[role].commandes
+    .map(r => {
+      const bash = /^Bash\((.*)\)$/.exec(r);
+      return bash
+        ? `- \`${bash[1].replaceAll('*', '…')}\``
+        : `- l'outil \`${r.split('__').at(-1)}\``;
+    })
+    .join('\n');
+}
 
 const lireJson = f => {
   try {

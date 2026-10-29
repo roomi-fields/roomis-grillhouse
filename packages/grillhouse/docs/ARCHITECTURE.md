@@ -223,9 +223,13 @@ fois).
 chaque rapport de défaut neuf avant de le ranger, une fois le lot entré sur main (5.2), le
 circuit mène l'étape 5.3 : sans découverte consignée par les fiches du ticket, aucune séance ;
 sinon une séance de l'explorateur hors de l'enveloppe, sur Sonnet, dans l'arbre principal, aux
-droits de la lecture (`droits.mjs` : la construction d'un paquet, `npm run build --
+droits de la lecture (`droits.mjs` : la lecture d'un commit de main, `git show` et `git log`,
+dans l'arbre principal et par `git -C` ; la construction d'un paquet, `npm run build --
 --filter=<paquet>...`, avant de juger une erreur de types de son export ; aucune passe, aucune
-écriture), sa consigne du huitième gabarit. Sa fiche (`tri` de `resultats.mjs`) donne une ligne
+écriture), sa consigne du huitième gabarit, qui liste les commandes que ces droits permettent
+(`commandesPermises`, tirée des droits du rôle, comme l'aide d'un outil liste ses commandes) et
+leur forme : une par appel, sans `cd` ni enchaînement, une commande refusée relancée sous sa
+forme simple (BP 320.39 : trois `non-confirmee` sur une boucle de `bd show` refusée). Sa fiche (`tri` de `resultats.mjs`) donne une ligne
 par découverte, ni plus ni moins (`conformiteDuTri`), chacune avec son verdict : `traitee`,
 `doublon`, `sans-suite`, `a-porter` ou `non-confirmee` ; la pièce d'un `traitee` ou d'un
 `a-porter` est une commande rejouée sur main et sa sortie, ou fichier:ligne, sans quoi la fiche

@@ -14,7 +14,8 @@ cinquième pour le questionneur, qui lit le plan du ticket une seule fois ; le s
 l'explorateur, qui écrit le plan ; le septième pour la reprise de sa séance, qui répond une seule
 fois aux questions du plan ; le huitième pour l'explorateur au tri des découvertes, à l'étape 5.3,
 une fois le lot entré sur main, qui rend un verdict par découverte du ticket (`traitee`, `doublon`,
-`sans-suite`, `a-porter` ou `non-confirmee`).
+`sans-suite`, `a-porter` ou `non-confirmee`) et porte les commandes que ses droits permettent
+(`{{commandes}}`, tirées des droits du rôle, `packages/grillhouse/scripts/droits.mjs`) et leur forme.
 La consigne du questionneur porte la proposition et le cadre qui l'oriente, jamais une liste de
 questions. Le circuit lit
 la description et les notes du ticket au lancement de chaque séance ; `{{notes}}` porte la section
@@ -237,7 +238,13 @@ SES DÉCOUVERTES, une par ligne (id — sujet), chacune un ticket fermé sous lu
 
 {{decouvertes}}
 
-Pour chacune : tu la lis, puis le ticket parent et ce qu'il est devenu (son commit sur main, l'historique qui le nomme) ; tu rejoues sa preuve sur main, ta séance tournant dans l'arbre principal ; avant de juger une erreur de types de l'export d'un paquet, tu construis ce paquet. Tu ne lances aucune passe, ni la suite des tests ni le vérificateur.
+Pour chacune : tu la lis, puis le ticket parent et ce qu'il est devenu (son commit sur main, l'historique qui le nomme) ; tu rejoues sa preuve sur main, par l'index ou la lecture du code ; avant de juger une erreur de types de l'export d'un paquet, tu construis ce paquet. Tu ne lances aucun test ni aucune passe, ni la suite des tests ni le vérificateur.
+
+LES COMMANDES QUE TES DROITS PERMETTENT, chacune sous cette forme, `…` ce que tu y mets :
+
+{{commandes}}
+
+Leur forme : une commande par appel, sans `cd` ni enchaînement (`;`, `&&`, `|`, une boucle) ; ta séance tourne déjà dans l'arbre principal. Une commande refusée se relance sous sa forme simple, une par appel.
 
 Ta fiche, que le circuit lit seule, finit ta séance : ses `verdicts`, une ligne par découverte ci-dessus, ni plus ni moins, chacune avec sa `decouverte` (son id), son `verdict` et son `texte` :
 - `traitee` : le lot ou un ticket existant la couvre, nommé ;
@@ -245,7 +252,7 @@ Ta fiche, que le circuit lit seule, finit ta séance : ses `verdicts`, une ligne
 - `sans-suite` : hypothétique, hors de l'usage actuel, avec sa raison ;
 - `a-porter` : un défaut de l'usage actuel ;
 - `non-confirmee` : tu n'as pas pu rejouer de preuve ; ton `texte` dit ce qui manque pour trancher.
-Un `traitee` ou un `a-porter` porte sa `piece` : « $ <commande> » rejouée sur main et sa sortie, ou fichier:ligne depuis la racine. Sans elle, ton verdict est `non-confirmee`. Une fiche sans une ligne par découverte te revient une fois, avec ce qui manque.
+Un `traitee` ou un `a-porter` porte sa `piece` : « $ <commande> » rejouée sur main et sa sortie, ou fichier:ligne depuis la racine ; une pièce fichier:ligne lue sur main suffit, sans test ni passe. Sans pièce, ton verdict est `non-confirmee`. Une fiche sans une ligne par découverte te revient une fois, avec ce qui manque.
 
 Tu n'écris rien : ni fichier, ni ticket. Le circuit écrit chaque verdict au ticket de sa découverte et y pose son étiquette ; il rouvre un `a-porter` et un `non-confirmee` sous l'étiquette `a-valider`, pour le responsable ; les autres restent fermées.
 ```

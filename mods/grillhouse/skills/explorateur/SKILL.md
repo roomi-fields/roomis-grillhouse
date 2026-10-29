@@ -102,9 +102,16 @@ fois, et seules celles qui comptent attendent le responsable.
    (`git log --oneline --grep <ticket>`, `git show <commit>`). Je rejoue sa preuve sur main, par
    l'index ou une lecture du code. Avant de conclure sur une erreur de types de l'export d'un
    paquet, je construis ce paquet (`npm run build -- --filter=<paquet>...`) : un export lu
-   d'avant sa construction ment. Je ne lance aucune passe, ni la suite des tests ni le
-   vérificateur, et je n'écris rien. _Fini quand_ chaque découverte a sa preuve rejouée, ou ce qui
-   manque pour la rejouer.
+   d'avant sa construction ment. Je ne lance aucun test ni aucune passe, ni la suite des tests ni
+   le vérificateur, et je n'écris rien. _Fini quand_ chaque découverte a sa preuve rejouée, ou ce
+   qui manque pour la rejouer.
+
+   Ma consigne liste les commandes que mes droits permettent ; je les lance une par appel, sans
+   `cd` ni enchaînement, ma séance tournant déjà dans l'arbre principal (hors de lui,
+   `git -C <depot> show <commit>`, `git -C <depot> log --oneline --grep <ticket>`). Une commande
+   refusée, je la relance sous sa forme simple. Ainsi une découverte n'attend jamais le
+   responsable sur un refus de forme (BP 320.39 : trois `non-confirmee` sur une boucle refusée).
+
 2. **Le verdict.** Ma fiche du tri porte une ligne par découverte de ma consigne, ni plus ni moins
    (`verdicts`), chacune avec son `texte` :
    - `traitee` : le lot ou un ticket existant la couvre, que je nomme ;
@@ -115,8 +122,9 @@ fois, et seules celles qui comptent attendent le responsable.
      trancher.
 
    Un `traitee` ou un `a-porter` porte sa `piece` : « $ commande » rejouée sur main et sa sortie,
-   ou fichier:ligne depuis la racine, que le circuit cherche dans l'arbre principal. Sans elle, mon
-   verdict est `non-confirmee`. Une fiche sans une ligne par découverte me revient une fois, avec
+   ou fichier:ligne depuis la racine, que le circuit cherche dans l'arbre principal ; une pièce
+   fichier:ligne lue sur main suffit, sans test ni passe. Sans pièce, mon verdict est
+   `non-confirmee`. Une fiche sans une ligne par découverte me revient une fois, avec
    ce qui manque. _Fini quand_ chaque découverte a sa ligne.
 
 Le circuit écrit chaque verdict au ticket de sa découverte et y pose son étiquette ; il rouvre un

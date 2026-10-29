@@ -546,7 +546,7 @@ import { stripVTControlCharacters } from 'node:util';
 import { ecrireLeBilan } from './bilan.mjs';
 import { DEPUIS_LE_VERT } from './dernier-vert.mjs';
 import { elementsDuLot } from './elements-du-lot.mjs';
-import { optionsDuRole } from './droits.mjs';
+import { commandesPermises, optionsDuRole } from './droits.mjs';
 import { ecrireLaListe, VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/paquets-du-plan.mjs';
 import {
   AGENTS_DU_LOT,
@@ -2204,7 +2204,7 @@ function fileEnCours(ctx) {
 // envelope, on Sonnet, in the main tree, under the rights of its role (reading, the build of a
 // package, no pass), its instruction from the eighth template (the ticket, its commit on main, the
 // one the queue names in the reason it closes the ticket with, `commitIntegre`, its discoveries,
-// one per line), its sheet the tri's (`tri` of scripts/resultats.mjs): one line per discovery
+// one per line, the commands its rights permit, `commandesPermises`), its sheet the tri's (`tri` of scripts/resultats.mjs): one line per discovery
 // (`conformiteDuTri`), asked again once of the same session. Each verdict is written at the ticket
 // of its discovery (`Circuit · tri : <verdict> — <texte> (<piece>)`), its label set there; an
 // a-porter or a non-confirmee reopens under `a-valider`, the pane's list « à valider »; the others
@@ -2244,6 +2244,7 @@ async function trier(ctx) {
           sujet: ctx.sujet,
           commit: commit || 'inconnu',
           decouvertes: decouvertes.map(d => `- ${d.id} — ${d.sujet}`).join('\n'),
+          commandes: commandesPermises(EXPLORATEUR),
         },
         7
       ),

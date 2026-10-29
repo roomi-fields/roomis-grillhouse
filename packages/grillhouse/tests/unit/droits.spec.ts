@@ -9,8 +9,9 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { AUTEUR_FIXE, optionsDuRole, ROLES } from '../../scripts/droits.mjs';
+import { AUTEUR_FIXE, commandesPermises, optionsDuRole, ROLES } from '../../scripts/droits.mjs';
 import { refusDeCommande } from '../../scripts/verrous/commande.mjs';
+import { couvre } from './regle-de-permission.js';
 
 const RACINE = path.resolve(__dirname, '../../../..');
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'droits-'));
@@ -101,21 +102,6 @@ function demandees(role: string): string[] {
   return [...out];
 }
 
-// Whether the permission rule <regle> covers the call <appel> (a command, or a tool's name), as
-// Claude Code matches it: `*` any text, and a final ` *` also nothing.
-function couvre(regle: string, appel: string): boolean {
-  const m = /^Bash\((.*)\)$/.exec(regle);
-  if (!m) {
-    return regle === appel;
-  }
-  const motif = m[1];
-  const final = motif.endsWith(' *');
-  const corps = (final ? motif.slice(0, -2) : motif)
-    .split('*')
-    .map(s => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
-    .join('.*');
-  return new RegExp(`^${corps}${final ? '( .*)?' : ''}$`, 's').test(appel);
-}
 // The calls a command of the skill makes: the command, and for `codegraph explore` the tool of the
 // index too.
 const appels = (c: string) =>
@@ -465,6 +451,94 @@ describe('0yu.5 — the tri of the discoveries reads, builds a package, and play
     ]) {
       expect(refusReel(c, reglages(), MAIN), c).not.toBeNull();
     }
+  });
+});
+
+// grillhouse-6ve: the tri reads a commit of main, and its instruction publishes the commands its
+// rights permit, as the help of a tool lists its commands, and their form. Witness: BPScript
+// 320.39, the three verdicts of its tri `non-confirmee`, its one refusal the compound command
+// `cd <main>; for i in 1 2 3; do bd show <id>.$i; done`, and no rule for `git show`.
+describe('6ve — the tri reads a commit of main, and its instruction names the commands its rights permit', () => {
+  const MAIN = '/depot';
+  const reglages = () => reglagesDe(options('explorateur'));
+  const LIRE_UN_COMMIT = [
+    'git show abc1234',
+    'git show --stat abc1234',
+    'git log --oneline --grep demo-1',
+    'git log -1 --format=%h abc1234',
+    `git -C ${MAIN} show abc1234`,
+    `git -C ${MAIN} log --oneline --grep demo-1`,
+  ];
+  it('critère 1 — git show and git log, in the main tree and by git -C, each by a rule of its role', () => {
+    const { allow, deny } = reglages().permissions;
+    for (const c of LIRE_UN_COMMIT) {
+      expect(
+        allow.some(r => couvre(r, c)),
+        c
+      ).toBe(true);
+      expect(
+        deny.some(r => couvre(r, c)),
+        c
+      ).toBe(false);
+      expect(refusReel(c, reglages(), MAIN), c).toBeNull();
+    }
+    const nommees = demandees('explorateur');
+    for (const verbe of ['show', 'log']) {
+      expect(
+        nommees.some(c => c.startsWith(`git ${verbe}`)),
+        `git ${verbe}`
+      ).toBe(true);
+      expect(
+        nommees.some(c => new RegExp(`^git -C \\S+ ${verbe}`).test(c)),
+        `git -C <dépôt> ${verbe}`
+      ).toBe(true);
+    }
+  });
+
+  it('critère 2 — the compound form BPScript 320.39 saw refused is refused, its simple form passes', () => {
+    expect(
+      refusReel(`cd ${MAIN}; for i in 1 2 3; do bd show demo-1.$i; done`, reglages(), MAIN)
+    ).not.toBeNull();
+    expect(refusReel('bd show demo-1.1', reglages(), MAIN)).toBeNull();
+  });
+
+  // The eighth block of the templates, the explorateur's on the tri.
+  const gabarit = () =>
+    [
+      ...readFileSync(
+        path.join(RACINE, 'mods/grillhouse/skills/pitmaster/references/consigne-agent.md'),
+        'utf8'
+      ).matchAll(/```text\n([\s\S]*?)\n```/g),
+    ][7][1];
+
+  it('critère 2 — the commands the instruction of the tri names are those of its role, one line per rule', () => {
+    const t = commandesPermises('explorateur');
+    for (const c of [
+      'bd show',
+      'git show',
+      'git log',
+      'npm run build -- --filter=',
+      'codegraph_explore',
+    ]) {
+      expect(t, c).toContain(c);
+    }
+    expect(t.split('\n')).toHaveLength(ROLES.explorateur.commandes.length);
+    expect(gabarit()).toContain('{{commandes}}');
+  });
+
+  it('critère 2 — the instruction of the tri says the form: one command per call, no cd nor chain, the main tree its directory, a refusal run again in its simple form', () => {
+    const t = gabarit().replace(/\s+/g, ' ');
+    expect(t).toMatch(/une commande par appel/);
+    expect(t).toMatch(/sans `cd`/);
+    expect(t).toMatch(/ni enchaînement/);
+    expect(t).toMatch(/tourne déjà dans l'arbre principal/);
+    expect(t).toMatch(/refusée se relance sous sa forme simple/);
+  });
+
+  it('critère 3 — the instruction of the tri says a piece file:line suffices to an a-porter or a traitee, and that no test nor pass runs', () => {
+    const t = gabarit().replace(/\s+/g, ' ');
+    expect(t).toMatch(/fichier:ligne[^.]*suffit/);
+    expect(t).toMatch(/aucun test ni aucune passe/);
   });
 });
 

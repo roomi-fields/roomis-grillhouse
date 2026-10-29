@@ -5,6 +5,7 @@ import { commitIntegre } from '../../scripts/circuit.mjs';
 import { schemaDeFiche } from '../../scripts/resultats.mjs';
 import { canWrap, racineSousLaMaison } from '../machine.js';
 import { sortie, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
+import { couvre } from './regle-de-permission.js';
 
 // grillhouse-0yu.5: the tri of the discoveries at the end of a ticket, as Chromium and Mozilla give
 // each new report a verdict before it is filed. After the queue brings the lot onto main, the
@@ -188,6 +189,67 @@ describe.runIf(canWrap)(
       // Critère 7: the bilan counts the session of the tri and its verdicts.
       expect(bilans(id).at(-1)?.text).toContain(
         '- tri des découvertes : 1 séance, 3 découvertes (1 sans-suite, 1 a-porter, 1 non-confirmee)'
+      );
+    });
+
+    // grillhouse-6ve, critère 4: the explorateur of the tri reads its discovery and the commit of
+    // main in the forms its instruction names, one command per call, in the main tree, each under
+    // a rule of its rights; its verdict carries the piece it replayed. Witness: BPScript 320.39,
+    // its three verdicts `non-confirmee` on one compound command refused.
+    it('6ve, critère 4 — the explorateur of the tri runs bd show and git show in their simple forms, each under a rule of its rights, and gives a proven verdict', () => {
+      const id = 'demo-tri-preuve';
+      ticket(id, '000-forms');
+      scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+      scenario(id, 'developpeur', avecDecouvertes('La mesure de zéro'));
+      const LANCEES = [`bd show ${id}.1`, 'git show --stat "$commit"'];
+      scenario(
+        id,
+        'explorateur-2',
+        [
+          `commit=$(printf '%s\\n' "$prompt" | sed -n 's/^SON COMMIT SUR MAIN : \\([0-9a-f]*\\).*/\\1/p')`,
+          `pwd > "$e/tri.pwd"`,
+          `${LANCEES[0]} > "$e/tri.show"`,
+          `${LANCEES[1]} > "$e/tri.git"`,
+          `fiche "$(node -e 'const [c, l] = process.argv.slice(1); console.log(JSON.stringify({ verdicts: [{ decouverte: "${id}.1", verdict: "a-porter", texte: "mesure(0) rend 0.", piece: "$ git show --stat " + c + "\\n" + l }] }))' "$commit" "$(grep -m1 index.mjs "$e/tri.git")")"`,
+          '',
+        ].join('\n')
+      );
+      const r = circuit([id]);
+      expect(r.status, sortie(r)).toBe(0);
+      expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
+      // In the main tree, its discovery read and the commit of main shown.
+      expect(essai(id, 'tri.pwd').trim()).toBe(essai(id, 'explorateur-2.pwd').trim());
+      expect(essai(id, 'tri.show')).toContain(`"${id}.1"`);
+      expect(essai(id, 'tri.git')).toContain('packages/forms/src/index.mjs');
+      // Each command it ran, under a rule of its rights, refused by none; its instruction names
+      // each, and the form.
+      const { allow, deny } = (
+        JSON.parse(valeur(args(id, 'explorateur', 2), '--settings')) as {
+          permissions: { allow: string[]; deny: string[] };
+        }
+      ).permissions;
+      for (const c of LANCEES.map(l => l.replace('"$commit"', 'abc1234'))) {
+        expect(
+          allow.some(regle => couvre(regle, c)),
+          c
+        ).toBe(true);
+        expect(
+          deny.some(regle => couvre(regle, c)),
+          c
+        ).toBe(false);
+      }
+      const prompt = essai(id, 'explorateur-2.prompt').replace(/\s+/g, ' ');
+      for (const c of ['`bd show …`', '`git show …`']) {
+        expect(prompt, c).toContain(c);
+      }
+      expect(prompt).toContain('une commande par appel');
+      // The verdict proven: a-porter, its piece the commit replayed.
+      expect(sessions(id, 'explorateur')).toBe(2);
+      expect(leTicket(`${id}.1`).labels).toEqual(expect.arrayContaining(['a-porter', 'a-valider']));
+      expect(sesCommentaires(`${id}.1`)).toContainEqual(
+        expect.stringMatching(
+          /^Circuit · tri : a-porter — mesure\(0\) rend 0\. \(\$ git show --stat [0-9a-f]{7}\n.*index\.mjs/s
+        )
       );
     });
 
