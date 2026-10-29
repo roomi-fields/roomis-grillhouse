@@ -32,8 +32,8 @@
   "exports": {
     "./package.json": "./package.json",
     "./consommateurs": {
-      "types": "./scripts/consommateurs.d.ts",
-      "default": "./scripts/consommateurs.mjs"
+      "types": "./scripts/langages/typescript/consommateurs.d.ts",
+      "default": "./scripts/langages/typescript/consommateurs.mjs"
     },
     "./conformite": {
       "types": "./scripts/conformite.d.ts",
@@ -45,7 +45,7 @@
     },
     "./jointure": {
       "types": "./scripts/jointure.d.ts",
-      "default": "./scripts/langages.mjs"
+      "default": "./scripts/services-du-noyau.mjs"
     },
     "./paquets": {
       "types": "./scripts/paquets.d.ts",
@@ -56,12 +56,12 @@
       "default": "./scripts/resultats.mjs"
     },
     "./vitest-config": {
-      "types": "./scripts/vitest-config/base.d.ts",
-      "default": "./scripts/vitest-config/base.mjs"
+      "types": "./scripts/langages/typescript/vitest-config/base.d.ts",
+      "default": "./scripts/langages/typescript/vitest-config/base.mjs"
     },
     "./vitest-config/mesure": {
-      "types": "./scripts/vitest-config/mesure.d.ts",
-      "default": "./scripts/vitest-config/mesure.mjs"
+      "types": "./scripts/langages/typescript/vitest-config/mesure.d.ts",
+      "default": "./scripts/langages/typescript/vitest-config/mesure.mjs"
     },
     "./tsdoc-base.json": "./tsdoc-base.json"
   },
@@ -71,16 +71,55 @@
     "test:vitest": "vitest run"
   },
   "dependencies": {
-    "@microsoft/api-extractor": "7.59.2",
-    "@microsoft/api-extractor-model": "7.33.13",
-    "@microsoft/tsdoc-config": "0.18.3",
-    "jsonc-parser": "3.3.1",
     "semver": "^7.8.5",
     "yaml": "2.9.1"
   },
   "peerDependencies": {
+    "@microsoft/api-extractor": "^7.59.2",
+    "@microsoft/api-extractor-model": "^7.33.13",
+    "@microsoft/tsdoc-config": "^0.18.3",
+    "dependency-cruiser": "^16.10.4 || ^17.0.0 || ^18.0.0",
+    "jsonc-parser": "^3.3.1",
+    "knip": "^6.41.0",
+    "turbo": "^2.11.8",
     "typescript": "^5.3.3",
     "vitest": "^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@microsoft/api-extractor": {
+      "optional": true
+    },
+    "@microsoft/api-extractor-model": {
+      "optional": true
+    },
+    "@microsoft/tsdoc-config": {
+      "optional": true
+    },
+    "dependency-cruiser": {
+      "optional": true
+    },
+    "jsonc-parser": {
+      "optional": true
+    },
+    "knip": {
+      "optional": true
+    },
+    "turbo": {
+      "optional": true
+    },
+    "typescript": {
+      "optional": true
+    },
+    "vitest": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@microsoft/api-extractor": "7.59.2",
+    "@microsoft/api-extractor-model": "7.33.13",
+    "@microsoft/tsdoc-config": "0.18.3",
+    "dependency-cruiser": "18.4.0",
+    "jsonc-parser": "3.3.1"
   },
   "grillhouse": {
     "lit": [
@@ -95,6 +134,7 @@
       ".beads/metadata.json",
       ".claude",
       ".dependency-cruiser.cjs",
+      ".dependency-cruiser.projet.cjs",
       ".eslintrc.cjs",
       ".github",
       ".mcp.json",

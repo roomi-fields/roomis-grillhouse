@@ -1,4 +1,4 @@
-// The results directory of a nested trial (scripts/vitest-config/resultats.setup.mjs), as Bazel
+// The results directory of a nested trial (scripts/langages/typescript/vitest-config/resultats.setup.mjs), as Bazel
 // gives each test its own outputs directory (TEST_UNDECLARED_OUTPUTS_DIR): a test file that plays
 // a run of its own (a Vitest, a `npm run verifier`, a circuit in a repository of trial) hands it a
 // results directory of its own, never the one of the pass that plays it.
@@ -22,7 +22,10 @@ const lireRapportsVitest = (dossier: string) =>
   lire(dossier) as { fichier: string; etat: string }[];
 
 const DEPOT = path.resolve(__dirname, '../../../..');
-const BASE = path.join(DEPOT, 'packages/grillhouse/scripts/vitest-config/base.mjs');
+const BASE = path.join(
+  DEPOT,
+  'packages/grillhouse/scripts/langages/typescript/vitest-config/base.mjs'
+);
 const VITEST = path.join(DEPOT, 'node_modules/vitest/vitest.mjs');
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'resultats-imbriques-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));

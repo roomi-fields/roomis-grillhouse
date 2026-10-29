@@ -22,7 +22,7 @@ import {
 } from '../../scripts/mesure/pression.mjs';
 
 const DEPOT = path.resolve(__dirname, '../../../..');
-const PAQUET = path.join(DEPOT, 'packages/grillhouse/scripts/vitest-config');
+const PAQUET = path.join(DEPOT, 'packages/grillhouse/scripts/langages/typescript/vitest-config');
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'temps-au-repos-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
@@ -42,7 +42,7 @@ function projet(fichiers: Record<string, string>, some: number | null, o: { nuit
     writeFileSync(fichierPression, pression(some));
   }
   const config = o.nuit
-    ? path.join(DEPOT, 'packages/grillhouse/scripts/vitest.nuit.config.mjs')
+    ? path.join(DEPOT, 'packages/grillhouse/scripts/langages/typescript/vitest.nuit.config.mjs')
     : path.join(repo, 'vitest.config.mjs');
   writeFileSync(
     path.join(repo, 'vitest.config.mjs'),

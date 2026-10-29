@@ -2,7 +2,7 @@ import { readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
-import { ecrire as ecrireTurbo } from '../../scripts/turbo-des-paquets.mjs';
+import { ecrire as ecrireTurbo } from '../../scripts/langages/typescript/turbo-des-paquets.mjs';
 import {
   sortie,
   ecrire,

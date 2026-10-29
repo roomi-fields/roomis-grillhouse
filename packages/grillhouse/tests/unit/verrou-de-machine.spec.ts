@@ -25,7 +25,7 @@ const RACINE = path.resolve(__dirname, '../../../..');
 const MODULE = pathToFileURL(
   path.join(RACINE, 'packages/grillhouse/scripts/verrou-de-machine.mjs')
 ).href;
-const VERIFIER = path.join(RACINE, 'packages/grillhouse/scripts/verifier.mjs');
+const VERIFIER = path.join(RACINE, 'packages/grillhouse/scripts/langages/typescript/verifier.mjs');
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'verrou-de-machine-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
@@ -218,7 +218,7 @@ describe(
       const verrou = path.join(d, 'mesure.lock');
       const trace = path.join(d, 'trace');
       const libere = path.join(d, 'libere');
-      // The holder's command names its script, as `node scripts/verifier.mjs` does.
+      // The holder's command names its script, as `node scripts/langages/typescript/verifier.mjs` does.
       const script = path.join(d, 'marque-du-detenteur.mjs');
       writeFileSync(script, preneur('A', trace, tenir(libere)));
       const detenteur = spawn(process.execPath, [script], {

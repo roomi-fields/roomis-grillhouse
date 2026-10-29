@@ -390,7 +390,7 @@ describe('an integration', () => {
     expect(r.stdout.indexOf('sortie des tests')).toBeLessThan(r.stdout.indexOf('⛔'));
   });
   // « À repasser » (75): every failure of the tests depended on a duration under load, and the
-  // pass found no rest in its bound (scripts/verifier.mjs). Neither green nor red: nothing is
+  // pass found no rest in its bound (scripts/langages/typescript/verifier.mjs). Neither green nor red: nothing is
   // committed, nothing is refused, the lot stays where it is for the same command again.
   it('a npm run verifier à repasser (75) neither commits nor refuses: exit 75, the lot stays', () => {
     const m = monde(['ACCEPTÉ']);

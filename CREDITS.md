@@ -21,11 +21,11 @@ Each tool below is called by a file of the repository, named on its line. The ro
 - **[Beads](https://github.com/gastownhall/beads)** (`bd`): the ticket store (`packages/grillhouse/scripts/preparation.mjs`, `docs/agents/issue-tracker.md`).
 - **[bubblewrap](https://github.com/containers/bubblewrap)** (`bwrap`): the envelope of each role agent (`packages/grillhouse/scripts/enveloppe/enveloppe.mjs`).
 - **[Turborepo](https://turborepo.com/)**: the tasks of `npm test` and `npm run verifier` (`turbo.json`, `templates/turbo/`).
-- **[Vitest](https://vitest.dev/)** and `@vitest/coverage-v8`: the tests (`vitest.config.ts`, `packages/grillhouse/scripts/vitest-config/`).
-- **[API Extractor](https://api-extractor.com/)** and **[TSDoc](https://tsdoc.org/)**: the API report checked against each written interface (`packages/grillhouse/scripts/interfaces-contre-code.mjs`, `tsdoc.json`).
-- **[dependency-cruiser](https://github.com/sverweij/dependency-cruiser)**: the boundaries of the code (`packages/grillhouse/scripts/frontieres.mjs`).
-- **[knip](https://knip.dev/)**: dead code and unused dependencies (`packages/grillhouse/scripts/code-mort.mjs`).
-- **[jsonc-parser](https://github.com/microsoft/node-jsonc-parser)**: reads and writes the root's `turbo.json` with its comments (`packages/grillhouse/scripts/turbo-des-paquets.mjs`, a dependency of the package).
+- **[Vitest](https://vitest.dev/)** and `@vitest/coverage-v8`: the tests (`vitest.config.ts`, `packages/grillhouse/scripts/langages/typescript/vitest-config/`).
+- **[API Extractor](https://api-extractor.com/)** and **[TSDoc](https://tsdoc.org/)**: the API report checked against each written interface (`packages/grillhouse/scripts/langages/typescript/interfaces-contre-code.mjs`, `tsdoc.json`).
+- **[dependency-cruiser](https://github.com/sverweij/dependency-cruiser)**: the boundaries of the code (`packages/grillhouse/scripts/langages/typescript/frontieres.mjs`).
+- **[knip](https://knip.dev/)**: dead code and unused dependencies (`packages/grillhouse/scripts/langages/typescript/code-mort.mjs`).
+- **[jsonc-parser](https://github.com/microsoft/node-jsonc-parser)**: reads and writes the root's `turbo.json` with its comments (`packages/grillhouse/scripts/langages/typescript/turbo-des-paquets.mjs`, a dependency of the package).
 - **[TypeScript](https://www.typescriptlang.org/)**, **[ESLint](https://eslint.org/)** with **[typescript-eslint](https://typescript-eslint.io/)**, **[Prettier](https://prettier.io/)**: type checking, lint and formatting (`package.json`).
 
 ## 4. Models the documents follow

@@ -61,7 +61,7 @@
 //   in a one-package project) writes the package that holds it, the root: the copy stays written,
 //   its `.git` read-only.
 // - The package of the shared test material is every component of <copie> whose `package.json`
-//   exports `./test-fixtures` (`matieres` of `scripts/consommateurs.mjs`). It is mounted after the
+//   exports `./test-fixtures` (`matieres` of `scripts/langages/typescript/consommateurs.mjs`). It is mounted after the
 //   packages of the plan: written for the `testwriter`, read-only for every other role, in the
 //   plan or not. For such a role, where a run of its tests writes in it (`sortiesDeTest`:
 //   Turborepo's task logs, Vite's cache) is an empty directory proper to the session, as Bazel
@@ -74,7 +74,7 @@ import { copyFileSync, existsSync, mkdirSync, lstatSync, readlinkSync } from 'no
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { matieres as lesMatieres } from '../consommateurs.mjs';
+import { langageDe } from '../langages.mjs';
 import { paquets as lesPaquets } from '../paquets.mjs';
 import { CODE_REFUS, CODE_USAGE } from './codes.mjs';
 import { ecritsDuPlan, ecrireLaListe, lireLaListe, VARIABLE } from './paquets-du-plan.mjs';
@@ -309,7 +309,7 @@ export function jugerComposant({ depot, composant, paquets = [] }, fs) {
 // the copy that are emptied, written, read back or made a symbolic link (`lien`, its text)
 // (`montagesDeLaSeance`); an emptied one marked `scelle` is sealed read-only once every mount
 // inside it is made. `matieres` lists the packages of the shared test material, relative to the
-// copy (`matieres` of `scripts/consommateurs.mjs`); `role` is the agent's role, and only the
+// copy (`matieres` of `scripts/langages/typescript/consommateurs.mjs`); `role` is the agent's role, and only the
 // `testwriter` writes them. `magasins` lists the task caches written by every run, the agent's
 // included (Turborepo's `<main tree>/.turbo/cache`); one that does not exist is not mounted.
 // `fs` gives `existe(path)`, so the plan is testable without disk.
@@ -444,7 +444,9 @@ function envelopper(argv) {
     montagesDeLaSeance({ cacheNpm, claude, projet, etatJetable, scratchpads, sessions }),
     lienSurDisque
   );
-  const matieres = lesMatieres(copie).map(m => path.relative(copie, m.dir));
+  const matieres = langageDe(copie)
+    .matieres(copie)
+    .map(m => path.relative(copie, m.dossier));
   // For a role that does not write it, the directories where a run of the material's tests writes
   // are created here, so that bwrap mounts an empty one over each inside the read-only package.
   if (role !== ROLE_MATIERE) {

@@ -161,7 +161,7 @@ describe('grillhouse-3uv.63 — the queue brings the branches onto main', () => 
     },
     LONG
   );
-  // « À repasser » (75, scripts/verifier.mjs): neither green nor red. The branch stays in the queue,
+  // « À repasser » (75, scripts/langages/typescript/verifier.mjs): neither green nor red. The branch stays in the queue,
   // its tickets written to, neither reopened nor closed, and the next queue takes it again.
   it(
     'a branch whose `npm run verifier` is à repasser (75) once replaced stays in the queue, and the next queue takes it',

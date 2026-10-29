@@ -9,9 +9,19 @@
 // - A word of a tool (turbo, vitest, knip, dependency-cruiser, tsc) in the code of the core is a
 //   rest that its ticket takes out, inscribed below: the comments, which name the mature models
 //   (« as Turborepo does »), are not read.
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
+import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import typescript from '../../scripts/langages/typescript/index.mjs';
 
 const PAQUET = path.resolve(__dirname, '../..');
@@ -80,10 +90,6 @@ const RESTES: Record<string, { ticket: string; morceaux: string[] }> = {
   'scripts/migrations.mjs': {
     ticket: 'grillhouse-pkl.7',
     morceaux: ['config-vitest', 'configvitest'],
-  },
-  'scripts/sous-commandes.mjs': {
-    ticket: 'grillhouse-3dr.2.2',
-    morceaux: ["'turbo-des-paquets': 'turbo-des-paquets.mjs'"],
   },
 };
 // The migrations rewrite the projects of each version: what they name stays as it was.
@@ -170,6 +176,236 @@ describe('grillhouse-3dr.2.1 — la jointure des langages', () => {
     }
     for (const f of trois) {
       expect(REPARTITION.noyau).toContain(`scripts/mesure/${f}`);
+    }
+  });
+});
+
+// grillhouse-3dr.2.2, criteria 10 and 11 (grillhouse-3dr.2, § Amendement) — the module typescript
+// under its folder, scripts/langages/typescript/, its published entries at their address; the
+// rules of the join held by the guard of the boundaries (`grillhouse frontieres`, the repository's
+// own rules in .dependency-cruiser.projet.cjs), as Nx's enforce-module-boundaries holds a plugin
+// to the devkit; the tools of the language, optional peers of the package.
+const DEPOT = path.resolve(PAQUET, '../..');
+const ESSAIS = mkdtempSync(path.join(tmpdir(), 'jointure-'));
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+const MODULE = 'scripts/langages/typescript/';
+const PKG = JSON.parse(lire('package.json')) as {
+  exports: Record<string, string | Record<string, string>>;
+  dependencies: Record<string, string>;
+  peerDependencies: Record<string, string>;
+  peerDependenciesMeta?: Record<string, { optional?: boolean }>;
+};
+const cibles = (e: string | Record<string, string>) =>
+  (typeof e === 'string' ? [e] : Object.values(e)).map(c => path.posix.normalize(c));
+// What a shell script names beside itself (`"$ici/<chemin>"`), resolved from its folder.
+const duShell = (rel: string) =>
+  rel.endsWith('.sh')
+    ? lignesDeCode(rel).flatMap(([, l]) =>
+        [...l.matchAll(/\$ici\/([\w./-]+\.(?:mjs|sh|cjs|js))/g)].map(m =>
+          path.posix.normalize(path.posix.join(path.posix.dirname(rel), m[1]))
+        )
+      )
+    : [];
+// The files of a module of language the core names, each with the ticket that takes it out: the
+// scripts of the shell that run a module's file by its path.
+const NOMMES_EN_RESTE: Record<string, { ticket: string; fichiers: string[] }> = {
+  'scripts/enveloppe/lancer.sh': {
+    ticket: 'grillhouse-pkl.5',
+    fichiers: [`${MODULE}turbo-des-paquets.mjs`],
+  },
+  'scripts/nuit.sh': { ticket: 'grillhouse-pkl.5', fichiers: [`${MODULE}vitest.nuit.config.mjs`] },
+  'scripts/session-start.sh': {
+    ticket: 'grillhouse-pkl.7',
+    fichiers: [`${MODULE}consommateurs.mjs`],
+  },
+};
+
+// The violations of the rules of the repository's own (.dependency-cruiser.projet.cjs) that
+// dependency-cruiser finds under <chemins> of the repository <racine>.
+async function violations(racine: string, chemins: string[]) {
+  type Violation = { from: string; to: string; rule: { name: string } };
+  const { cruise } = (await import('dependency-cruiser')) as unknown as {
+    cruise: (
+      a: string[],
+      o: Record<string, unknown>
+    ) => Promise<{ output: string | { summary: { violations: Violation[] } } }>;
+  };
+  const regles = (await import(path.join(DEPOT, '.dependency-cruiser.projet.cjs'))) as {
+    default: { forbidden: unknown[] };
+  };
+  const { output } = await cruise(chemins, {
+    baseDir: racine,
+    validate: true,
+    ruleSet: { forbidden: regles.default.forbidden },
+  });
+  type Resultat = { summary: { violations: Violation[] } };
+  const r = typeof output === 'string' ? (JSON.parse(output) as Resultat) : output;
+  return r.summary.violations;
+}
+
+describe('grillhouse-3dr.2.2 — le module typescript sous son dossier', () => {
+  it('every file of the module typescript lies under scripts/langages/typescript/, and exists', () => {
+    expect(REPARTITION.typescript.length).toBeGreaterThan(30);
+    for (const f of REPARTITION.typescript) {
+      expect(f).toMatch(/^scripts\/langages\/typescript\//);
+    }
+  });
+
+  it('criterion 10: the published entries keep their address, the module’s lead under its folder', () => {
+    expect(Object.keys(PKG.exports)).toEqual([
+      './package.json',
+      './consommateurs',
+      './conformite',
+      './dette',
+      './jointure',
+      './paquets',
+      './resultats',
+      './vitest-config',
+      './vitest-config/mesure',
+      './tsdoc-base.json',
+    ]);
+    for (const e of ['./consommateurs', './vitest-config', './vitest-config/mesure']) {
+      for (const c of cibles(PKG.exports[e])) {
+        expect(c, e).toMatch(/^scripts\/langages\/typescript\//);
+        expect(REPARTITION.typescript, e).toContain(c);
+      }
+    }
+    for (const e of ['./conformite', './dette', './jointure', './paquets', './resultats']) {
+      for (const c of cibles(PKG.exports[e])) {
+        expect(REPARTITION.noyau, e).toContain(c);
+      }
+    }
+  });
+
+  it('criterion 11: the guard of the boundaries refuses the core reading a module out of the join, and a module reading the core out of its entries', async () => {
+    const essai = mkdtempSync(path.join(ESSAIS, 'frontieres-'));
+    {
+      const ecrire = (rel: string, texte: string) => {
+        mkdirSync(path.dirname(path.join(essai, rel)), { recursive: true });
+        writeFileSync(path.join(essai, rel), texte);
+      };
+      const p = 'packages/grillhouse/';
+      ecrire(`${p}package.json`, lire('package.json'));
+      ecrire(`${p}scripts/dette.mjs`, 'export const d = 1;\n');
+      ecrire(`${p}scripts/interne.mjs`, 'export const i = 1;\n');
+      ecrire(
+        `${p}scripts/circuit.mjs`,
+        "import o from './langages/typescript/outil.mjs';\nexport default o;\n"
+      );
+      ecrire(
+        `${p}scripts/langages.mjs`,
+        "import t from './langages/typescript/index.mjs';\nexport default t;\n"
+      );
+      ecrire(`${p}bin/grillhouse.mjs`, "import '../scripts/langages/typescript/outil.mjs';\n");
+      ecrire(`${p}${MODULE}outil.mjs`, 'export default 1;\n');
+      ecrire(
+        `${p}${MODULE}index.mjs`,
+        "import { d } from '../../dette.mjs';\nimport { i } from '../../interne.mjs';\nimport o from './outil.mjs';\nexport default [d, i, o];\n"
+      );
+      const vues = (await violations(essai, [`${p}scripts`, `${p}bin`]))
+        .map(v => `${v.rule.name} ${v.from} → ${v.to}`)
+        .sort();
+      expect(vues).toEqual([
+        `module-hors-des-entrees-du-noyau ${p}${MODULE}index.mjs → ${p}scripts/interne.mjs`,
+        `noyau-hors-de-la-jointure ${p}bin/grillhouse.mjs → ${p}${MODULE}outil.mjs`,
+        `noyau-hors-de-la-jointure ${p}scripts/circuit.mjs → ${p}${MODULE}outil.mjs`,
+      ]);
+    }
+  }, 60_000);
+
+  it('criterion 11: the core and the module typescript of the repository break no rule of the join', async () => {
+    const vues = await violations(DEPOT, [
+      'packages/grillhouse/scripts',
+      'packages/grillhouse/bin',
+    ]);
+    expect(vues.map(v => `${v.from} → ${v.to}`)).toEqual([]);
+  }, 60_000);
+
+  it('the core names no file of a module of language out of the join, out of the rests and their ticket', () => {
+    const DES_MODULES = (f: string) => f.startsWith('scripts/langages/');
+    const trouves = REPARTITION.noyau
+      .filter(f => f !== 'scripts/langages.mjs' && !f.endsWith('.d.ts'))
+      .flatMap(f =>
+        [...nommes(f), ...voisins(f), ...duShell(f)]
+          .filter(DES_MODULES)
+          .filter(n => !(NOMMES_EN_RESTE[f]?.fichiers ?? []).includes(n))
+          .map(n => `${f} → ${n}`)
+      );
+    expect(trouves).toEqual([]);
+    for (const [f, r] of Object.entries(NOMMES_EN_RESTE)) {
+      expect(r.ticket, f).toMatch(/^grillhouse-pkl\.\d/);
+      for (const n of r.fichiers) {
+        expect(REPARTITION.typescript, f).toContain(n);
+      }
+    }
+  });
+
+  it('the module typescript names of the core only its published entries and its command', () => {
+    const entrees = new Set([
+      'bin/grillhouse.mjs',
+      ...Object.values(PKG.exports)
+        .flatMap(cibles)
+        .filter(c => REPARTITION.noyau.includes(c)),
+    ]);
+    const trouves = REPARTITION.typescript
+      .filter(f => /\.(mjs|js|cjs)$/.test(f))
+      .flatMap(f =>
+        [...nommes(f), ...voisins(f)]
+          .filter(n => REPARTITION.noyau.includes(n) && !entrees.has(n))
+          .map(n => `${f} → ${n}`)
+      );
+    expect(trouves).toEqual([]);
+  });
+
+  it('the tools of the module typescript are optional peers of the package; its dependencies are the core’s', () => {
+    expect(Object.keys(PKG.dependencies).sort()).toEqual(['semver', 'yaml']);
+    const outils = [
+      '@microsoft/api-extractor',
+      '@microsoft/api-extractor-model',
+      '@microsoft/tsdoc-config',
+      'dependency-cruiser',
+      'jsonc-parser',
+      'knip',
+      'turbo',
+      'typescript',
+      'vitest',
+    ];
+    expect(Object.keys(PKG.peerDependencies).sort()).toEqual(outils);
+    for (const o of outils) {
+      expect(PKG.peerDependenciesMeta?.[o], o).toEqual({ optional: true });
+    }
+  });
+
+  it('each optional peer admits the version the template installs and the one BPScript holds', () => {
+    // npm checks an optional peer as soon as the project holds it: a range that refuses the
+    // project's version stops `npm install` (ERESOLVE). BPScript's versions, read in its
+    // package.json on 2026-10-29 (its devDependencies).
+    const BPSCRIPT: Record<string, string> = {
+      'dependency-cruiser': '^16.10.4',
+      knip: '^6.41.0',
+      turbo: '2.11.8',
+      vitest: '^2.1.9',
+    };
+    // semver ships no types of its own: required with the API this test calls.
+    const semver = createRequire(import.meta.url)('semver') as {
+      satisfies(v: string, r: string): boolean;
+      minVersion(r: string): { version: string } | null;
+    };
+    const gabarit = JSON.parse(
+      readFileSync(path.join(DEPOT, 'templates/projet/package.json'), 'utf8')
+    ) as { devDependencies: Record<string, string> };
+    const refus = Object.entries(PKG.peerDependencies).flatMap(([nom, plage]) =>
+      [
+        ['gabarit', gabarit.devDependencies[nom]],
+        ['BPScript', BPSCRIPT[nom]],
+      ]
+        .filter((v): v is [string, string] => typeof v[1] === 'string')
+        .filter(([, v]) => !semver.satisfies(semver.minVersion(v)?.version ?? v, plage))
+        .map(([qui, v]) => `${nom} ${plage} refuse ${v} (${qui})`)
+    );
+    expect(refus).toEqual([]);
+    for (const nom of Object.keys(PKG.peerDependencies)) {
+      expect(gabarit.devDependencies[nom], nom).toBeTypeOf('string');
     }
   });
 });

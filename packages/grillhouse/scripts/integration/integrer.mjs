@@ -40,7 +40,7 @@
 //     known red is put in quarantine in the test itself (`it.skip` or `it.fails`, with its
 //     ticket), as a mature continuous integration does; the integration admits none. A
 //     `npm run verifier` « à repasser » (75: a failure of duration under load, which found no rest
-//     in its bound, scripts/verifier.mjs) is neither green nor red: the run stops there, exit 75,
+//     in its bound, scripts/langages/typescript/verifier.mjs) is neither green nor red: the run stops there, exit 75,
 //     nothing committed and nothing refused, the lot where it was, for the same command again;
 //     any other code than 0 refuses;
 //  7. the commit in the copy, its hooks included, under GRILLHOUSE_INTEGRATION=1: a pre-commit
@@ -81,7 +81,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { arbitrageTranche, estArbitrage } from '../consommateurs-arbitres.mjs';
+import { arbitrageTranche, estArbitrage } from '../arbitrages.mjs';
 import { langageDe } from '../langages.mjs';
 import { lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
 import { dossierCommun, inscrireEntree } from './file-attente.mjs';

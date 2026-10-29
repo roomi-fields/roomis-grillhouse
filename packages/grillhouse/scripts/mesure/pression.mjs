@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // The CPU pressure of the machine, the witness of rest for every measure of time: a time witness
 // is measured with the CPU at rest, and a failure that depends on a duration under load is played
 // again at rest (« à repasser »), never taken as a red nor as a green. The model is Bazel's
@@ -12,7 +11,7 @@
 //   reads it says « pression illisible » and leaves the verdict to the runner of the tests.
 // - A_REPASSER, 75, is the exit code of « à repasser » (EX_TEMPFAIL of sysexits.h: try again
 //   later), neither green nor red: the duration reporter of the module of the language gives it
-//   (scripts/vitest-config/duree.reporter.mjs), `npm run verifier` reads it (scripts/verifier.mjs),
+//   (scripts/langages/typescript/vitest-config/duree.reporter.mjs), `npm run verifier` reads it (scripts/langages/typescript/verifier.mjs),
 //   and so do the integration, the queue and the night.
 //
 //   npx grillhouse pression attendre

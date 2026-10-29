@@ -12,7 +12,11 @@
 // - `echecs(langage, exemples, { dans })`: the cases a module fails, `{ nom, raison }`.
 //
 // The checks:
+// - composants: each component of the repository of the entry, its name and its package, its
+//   folder absolute and existing;
 // - composantDe: each file of the entry lies in the component it names, among `composants`;
+// - lecteurs: what each component reads of another, by its code, and each name of the entry no
+//   component provides;
 // - touches: what changed since the commit of the entry, each component touched, each dependent
 //   and each file out of the graph;
 // - commandes: each command named is described (`{ script, args }`, the script a file), and asking
@@ -22,7 +26,10 @@
 // - estUnTest: each path the testwriter writes, with what it is (`joue`, `test`, `matiere`);
 // - fichiersEngendres: each generated file whose check finds a gap;
 // - gardes: each guard named that the module does not play, and each script it plays that does
-//   not exist.
+//   not exist;
+// - elementsDuLot: each file the lot of the entry changes, each changed source the module reads no
+//   element of, and each element it adds, changes or removes;
+// - matieres: each component of the shared test material of the repository of the entry.
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -74,7 +81,16 @@ const nomDeGarde = g => path.basename(String(g?.[0] ?? '')).replace(/\.[cm]?js$/
  */
 export function cas(langage, exemples, { dans = tmpdir() } = {}) {
   const e = entrees(exemples, dans);
+  const nommer = c => `${c.nom} (${c.paquet ?? 'sans paquet'})`;
   const juges = {
+    composants: racine =>
+      langage
+        .composants(racine)
+        .map(c =>
+          path.isAbsolute(c.dossier) && existsSync(c.dossier)
+            ? nommer(c)
+            : `${nommer(c)} : dossier ${c.dossier} absent`
+        ),
     composantDe: liste =>
       liste.flatMap(({ fichier, composant }) => {
         const c = langage.composantDe(e.racine, fichier);
@@ -84,6 +100,18 @@ export function cas(langage, exemples, { dans = tmpdir() } = {}) {
         if (!connu) return [`${rel} : dans ${c.nom}, qui n'est pas un composant`];
         return c.nom === composant ? [] : [`${rel} : dans ${c.nom}, attendu ${composant}`];
       }),
+    lecteurs: ({ racine, noms }) => {
+      const l = langage.lecteurs(racine, {
+        composants: langage.composants(racine),
+        noms,
+        texte: noms.join(' '),
+        nommes: [],
+      });
+      return [
+        ...[...l.lit].flatMap(([c, lus]) => [...lus].map(f => `${c.nom} lit ${f.nom}`)).sort(),
+        ...l.sansFournisseur.map(n => `${n} : sans fournisseur`),
+      ];
+    },
     touches: ({ racine, depuis }) => {
       const t = langage.touches(racine, { depuis });
       return [
@@ -138,6 +166,16 @@ export function cas(langage, exemples, { dans = tmpdir() } = {}) {
         ...gardes.filter(g => !existsSync(String(g?.[0]))).map(g => `${g?.[0]} : absent`),
       ];
     },
+    elementsDuLot: ({ racine, avant, apres }) => {
+      const l = langage.elementsDuLot(racine, { avant, apres });
+      if (l.etat !== 'fait') return [`impossible : ${l.raison}`];
+      return [
+        ...l.fichiers.map(f => `fichier ${f}`),
+        ...l.horsDuService.map(f => `hors du service ${f}`),
+        ...l.elements.map(x => `${x.statut} ${x.id}`),
+      ];
+    },
+    matieres: racine => langage.matieres(racine).map(nommer),
   };
   const invalides = {
     gardes: [...e.gardes.valide, 'garde-inexistante'],

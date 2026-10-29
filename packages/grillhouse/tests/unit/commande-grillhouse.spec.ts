@@ -11,7 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { commandeDe, SOUS_COMMANDES } from '../../scripts/sous-commandes.mjs';
+import { commandeDe, sousCommandes } from '../../scripts/sous-commandes.mjs';
 
 // The frame's one command, `grillhouse <sous-commande>` (bin/grillhouse.mjs, the `bin` of the
 // package @roomi-fields/grillhouse): each script a caller launches has its subcommand, and every
@@ -45,8 +45,8 @@ describe('grillhouse <sous-commande>', () => {
   });
 
   it('names a script of the package for each subcommand', () => {
-    for (const nom of Object.keys(SOUS_COMMANDES)) {
-      const commande = commandeDe(nom, path.resolve(__dirname, '../../../..'));
+    for (const nom of Object.keys(sousCommandes(DEPOT))) {
+      const commande = commandeDe(nom, DEPOT);
       expect(commande, nom).not.toBeNull();
       expect(statSync(commande?.script as string).isFile(), nom).toBe(true);
     }
@@ -56,7 +56,7 @@ describe('grillhouse <sous-commande>', () => {
     const r = grillhouse(['inconnue']);
     expect(r.status).toBe(2);
     expect(r.stderr).toContain('sous-commande inconnue : inconnue');
-    expect(r.stderr).toContain(`Sous-commandes : ${Object.keys(SOUS_COMMANDES).join(', ')}`);
+    expect(r.stderr).toContain(`Sous-commandes : ${Object.keys(sousCommandes(DEPOT)).join(', ')}`);
   });
 
   it('writes the usage without a subcommand, exit code 2', () => {
@@ -112,7 +112,7 @@ describe('the callers name the subcommand, never a path of the frame', () => {
     const lignes = texte.split('\n').filter(l => PAR_CHEMIN.test(l));
     expect(lignes, f).toEqual([]);
     for (const m of texte.matchAll(NOMMEE)) {
-      expect(Object.keys(SOUS_COMMANDES), `${f} : grillhouse ${m[1]}`).toContain(m[1]);
+      expect(Object.keys(sousCommandes(DEPOT)), `${f} : grillhouse ${m[1]}`).toContain(m[1]);
     }
   });
 

@@ -26,7 +26,10 @@ const ESSAIS = mkdtempSync(path.join(tmpdir(), 'git-des-tests-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const DEPOT = path.resolve(__dirname, '../../../..');
-const CONFIG_NUIT = path.join(DEPOT, 'packages/grillhouse/scripts/vitest.nuit.config.mjs');
+const CONFIG_NUIT = path.join(
+  DEPOT,
+  'packages/grillhouse/scripts/langages/typescript/vitest.nuit.config.mjs'
+);
 const LONG = 60_000;
 const REGLAGE = { 'maintenance.auto': 'false', 'gc.auto': '0' };
 const IDENTITE = ['-c', 'user.name=t', '-c', 'user.email=t@t'];
@@ -215,7 +218,7 @@ describe('3uv.72.1 critères 3 et 6 : the setting lives in the environment of th
       .filter(f => f !== '')
       .filter(f => !f.startsWith('packages/grillhouse/tests/'))
       .filter(f => !/\.md$/.test(f) && !/(^|\/)LICENSE/.test(f) && !/^\.beads\/.*\.jsonl$/.test(f))
-      .filter(f => f !== 'packages/grillhouse/scripts/vitest-config/base.mjs');
+      .filter(f => f !== 'packages/grillhouse/scripts/langages/typescript/vitest-config/base.mjs');
     const porteurs = suivis.filter(f => {
       let texte: string;
       try {

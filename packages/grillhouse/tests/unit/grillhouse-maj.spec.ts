@@ -11,14 +11,21 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import ts from 'typescript';
 import { afterAll, describe, expect, it } from 'vitest';
 import { LIGNE_ETAT, mettreAJour, rapport, regenerer } from '../../scripts/grillhouse-maj.mjs';
-import { CONFIGURATION as CONFIG_DES_FRONTIERES } from '../../scripts/frontieres.mjs';
+import { CONFIGURATION as CONFIG_DES_FRONTIERES } from '../../scripts/langages/typescript/frontieres.mjs';
 import { gardesDuCadre } from '../../scripts/gardes-du-cadre.mjs';
 import { cheminSysteme, claudeSubstitut } from '../claude-substitut.js';
+
+// semver, which ships no types of its own, required with the API this file calls.
+const semver = createRequire(import.meta.url)('semver') as {
+  satisfies(v: string, r: string): boolean;
+  minVersion(r: string): { version: string } | null;
+};
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'grillhouse-maj-'));
@@ -513,9 +520,18 @@ describe('the update installs Turborepo', () => {
 // grillhouse-3uv.60: the update writes in the project the script that writes the API reports and
 // the development dependencies of the frame's controls, as the template declares them.
 // grillhouse-3uv.84.4 critère 5: the tools a project runs as commands (dependency-cruiser; knip;
-// Turborepo); what the package's scripts import, the package declares itself, API Extractor among
-// them (grillhouse-3uv.95.11.3).
-const DEPENDANCES = ['dependency-cruiser', 'knip', 'turbo'];
+// Turborepo); grillhouse-3dr.2.2: and what the scripts of the module typescript import (API
+// Extractor, its model, TSDoc's configuration, jsonc-parser), each an optional peer of the package,
+// which a project of the language installs (the project's own typescript and vitest left out).
+const DEPENDANCES = [
+  '@microsoft/api-extractor',
+  '@microsoft/api-extractor-model',
+  '@microsoft/tsdoc-config',
+  'dependency-cruiser',
+  'jsonc-parser',
+  'knip',
+  'turbo',
+];
 type Pkg = {
   scripts?: Record<string, string>;
   dependencies?: Record<string, string>;
@@ -542,7 +558,7 @@ function apresMaj(pkg: Record<string, unknown>, src: string = DEPOT, o: { vitest
 }
 
 describe('grillhouse-3uv.60 critère 1 — the update writes api and the dependencies of the controls', () => {
-  it('critère 1: the template declares the api script and the three dependencies of the controls', () => {
+  it('critère 1: the template declares the api script and the dependencies of the controls', () => {
     const m = modele();
     expect(m.scripts?.api).toBe('grillhouse interfaces-contre-code --ecrire');
     for (const d of DEPENDANCES) {
@@ -559,7 +575,7 @@ describe('grillhouse-3uv.60 critère 1 — the update writes api and the depende
     expect(pkg.scripts?.['test:vitest']).toBe(modele().scripts?.['test:vitest']);
     expect(pkg.scripts?.['test:forcer']).toBe(modele().scripts?.['test:forcer']);
   });
-  it('critère 1: a project without dependencies receives the three, at the versions of the template', () => {
+  it('critère 1: a project without dependencies receives the tools, at the versions of the template', () => {
     const { pkg } = apresMaj({ name: 'p' });
     const m = modele();
     expect(pkg.devDependencies).toEqual(
@@ -572,7 +588,7 @@ describe('grillhouse-3uv.60 critère 1 — the update writes api and the depende
     expect(pkg).not.toHaveProperty('dependencies');
     expect(pkg).not.toHaveProperty('optionalDependencies');
   });
-  it("critère 1: the project's own dependencies stay as they are, the three added beside them", () => {
+  it("critère 1: the project's own dependencies stay as they are, the tools added beside them", () => {
     const { pkg } = apresMaj({
       name: 'p',
       dependencies: { zod: '^3.0.0' },
@@ -586,7 +602,11 @@ describe('grillhouse-3uv.60 critère 1 — the update writes api and the depende
   });
   it("critère 1: the versions are read in the source — another source's versions are written", () => {
     const versions: Record<string, string> = {
+      '@microsoft/api-extractor': '7.0.0',
+      '@microsoft/api-extractor-model': '7.0.1',
+      '@microsoft/tsdoc-config': '0.17.0',
       'dependency-cruiser': '^16.0.0',
+      'jsonc-parser': '3.0.0',
       knip: '5.0.1',
       turbo: '2.0.0',
     };
@@ -646,9 +666,11 @@ describe('grillhouse-3uv.60 critère 4 — api is written as the frame’s other
       delete p.devDependencies?.knip;
     });
     const { pkg } = apresMaj({ name: 'p' }, src);
-    expect(Object.keys(pkg.devDependencies ?? {}).sort()).toEqual(['dependency-cruiser', 'turbo']);
+    expect(Object.keys(pkg.devDependencies ?? {}).sort()).toEqual(
+      DEPENDANCES.filter(d => d !== 'knip')
+    );
   });
-  it('critère 4: a source that declares none of the three writes no devDependencies', () => {
+  it('critère 4: a source that declares none of the tools writes no devDependencies', () => {
     const src = sourceRetouchee(p => {
       for (const d of DEPENDANCES) {
         delete p.devDependencies?.[d];
@@ -691,16 +713,11 @@ describe('grillhouse-3uv.60 critère 5 — a declared dependency keeps its decla
       name: 'p',
       devDependencies: { vitest: '^2.0.0', eslint: '^8.0.0', '@types/node': '^20.0.0' },
     });
-    expect(Object.keys(pkg.devDependencies ?? {})).toEqual([
-      '@types/node',
-      'dependency-cruiser',
-      'eslint',
-      'knip',
-      'turbo',
-      'vitest',
-    ]);
+    expect(Object.keys(pkg.devDependencies ?? {})).toEqual(
+      [...DEPENDANCES, '@types/node', 'eslint', 'vitest'].sort((a, b) => a.localeCompare(b, 'en'))
+    );
   });
-  it('critère 5: a project already holding the three, unsorted, gets them sorted, versions kept', () => {
+  it('critère 5: a project already holding the tools, unsorted, gets them sorted, versions kept', () => {
     const { pkg } = apresMaj({
       name: 'p',
       devDependencies: {
@@ -710,12 +727,14 @@ describe('grillhouse-3uv.60 critère 5 — a declared dependency keeps its decla
       },
     });
     const m = modele();
-    expect(Object.entries(pkg.devDependencies ?? {})).toEqual([
-      ['@microsoft/api-extractor', '3.0.0'],
-      ['dependency-cruiser', '2.0.0'],
-      ['knip', '1.0.0'],
-      ['turbo', m.devDependencies?.turbo],
-    ]);
+    const tenues: Record<string, string> = {
+      '@microsoft/api-extractor': '3.0.0',
+      'dependency-cruiser': '2.0.0',
+      knip: '1.0.0',
+    };
+    expect(Object.entries(pkg.devDependencies ?? {})).toEqual(
+      DEPENDANCES.map(d => [d, tenues[d] ?? m.devDependencies?.[d]])
+    );
   });
 });
 
@@ -727,7 +746,7 @@ describe('grillhouse-3uv.60 critère 3 — a replayed update changes nothing', (
       { name: 'p', devDependencies: { knip: '^5.0.0', vitest: '^2.0.0' } },
     ],
     [
-      'holding all three at other versions, unsorted',
+      'holding all the tools at other versions, unsorted',
       {
         name: 'p',
         devDependencies: {
@@ -794,10 +813,10 @@ describe('grillhouse-3uv.60 critère 7 — a dependency a previous version wrote
       modele().devDependencies?.['dependency-cruiser']
     );
   });
-  it('critère 7: all three stay when the new source declares none of them', () => {
+  it('critère 7: all the tools stay when the new source declares none of them', () => {
     const { projet } = apresMaj({ name: 'p', devDependencies: { vitest: '^2.0.0' } });
     const premier = (json(projet, 'package.json') as Pkg).devDependencies;
-    expect(Object.keys(premier ?? {}).sort(), 'the first update wrote the three').toEqual(
+    expect(Object.keys(premier ?? {}).sort(), 'the first update wrote the tools').toEqual(
       [...DEPENDANCES, 'vitest'].sort()
     );
     const src = sourceRetouchee(p => {
@@ -811,7 +830,7 @@ describe('grillhouse-3uv.60 critère 7 — a dependency a previous version wrote
   it('critère 7: they stay when the new source has no package.json', () => {
     const { projet } = apresMaj({ name: 'p' });
     const premier = (json(projet, 'package.json') as Pkg).devDependencies;
-    expect(Object.keys(premier ?? {}).sort(), 'the first update wrote the three').toEqual(
+    expect(Object.keys(premier ?? {}).sort(), 'the first update wrote the tools').toEqual(
       DEPENDANCES
     );
     mettreAJour(projet, sourceAvec(null));
@@ -845,13 +864,12 @@ describe('grillhouse-3uv.60 critère 8 — only the source’s devDependencies a
       for (const c of champs) {
         expect(pkg[c]?.knip, c).toBeUndefined();
       }
-      expect(Object.keys(pkg.devDependencies ?? {}).sort()).toEqual([
-        'dependency-cruiser',
-        'turbo',
-      ]);
+      expect(Object.keys(pkg.devDependencies ?? {}).sort()).toEqual(
+        DEPENDANCES.filter(d => d !== 'knip')
+      );
     });
   }
-  it('critère 8: a source declaring none of the three in devDependencies, all elsewhere, writes no devDependencies', () => {
+  it('critère 8: a source declaring none of the tools in devDependencies, all elsewhere, writes no devDependencies', () => {
     const src = sourceRetouchee(p => {
       for (const d of DEPENDANCES) {
         delete p.devDependencies?.[d];
@@ -924,7 +942,7 @@ function projetEtSource(
 const NPM_INSTALL = /npm install/;
 
 describe('grillhouse-3uv.60 critère 9 — the report names each added dependency and npm install', () => {
-  it('critère 9: a project without dependencies hears the three named, and npm install', () => {
+  it('critère 9: a project without dependencies hears the tools named, and npm install', () => {
     const { projet, src } = projetEtSource({ name: 'p' });
     const r = lancerMaj(projet, src);
     expect(r.status, r.stderr).toBe(0);
@@ -989,7 +1007,7 @@ describe('grillhouse-3uv.60 critère 9 — the report names each added dependenc
     }
     expect(r.stdout).not.toMatch(NPM_INSTALL);
   });
-  it('critère 9: a source declaring none of the three adds none, so says nothing of them', () => {
+  it('critère 9: a source declaring none of the tools adds none, so says nothing of them', () => {
     const { projet, src } = projetEtSource({ name: 'p' }, p => {
       for (const d of DEPENDANCES) {
         delete p.devDependencies?.[d];
@@ -1017,29 +1035,34 @@ describe('grillhouse-3uv.60 critère 9 — the report names each added dependenc
   });
 });
 
-// grillhouse-3uv.64 critère 25, grillhouse-3uv.84.4 critère 5: each tool the controls import is
-// declared by the package itself, so a project receives none of them from the update.
-describe('grillhouse-3uv.84.4 critère 5 — the package declares the tools its scripts import', () => {
-  const IMPORTES = [
+// grillhouse-3dr.2.2 (grillhouse-3dr.2, § Amendement): what the core imports, the package declares
+// in its dependencies, which the update writes nowhere; what the scripts of the module typescript
+// import is an optional peer of the package, which the template declares at the same version and
+// the update writes (DEPENDANCES, above), as Vite declares the preprocessors it imports.
+describe('grillhouse-3dr.2.2 — the package declares the core’s imports, and the module’s tools as optional peers', () => {
+  const paquet = () =>
+    JSON.parse(lire(DEPOT, 'packages/grillhouse/package.json')) as Pkg & {
+      peerDependenciesMeta?: Record<string, { optional?: boolean }>;
+    };
+  it.each(['semver', 'yaml'])(
+    '%s is a dependency of the package, and the update writes it nowhere',
+    nom => {
+      expect(paquet().dependencies?.[nom], nom).toBeTypeOf('string');
+      const { pkg } = apresMaj({ name: 'p', devDependencies: { vitest: '^2.0.0' } });
+      expect(pkg.devDependencies?.[nom]).toBeUndefined();
+    }
+  );
+  it.each([
     '@microsoft/api-extractor',
     '@microsoft/api-extractor-model',
     '@microsoft/tsdoc-config',
     'jsonc-parser',
-    'semver',
-    'yaml',
-  ];
-  it.each(IMPORTES)('%s is a dependency of the package, and the update writes it nowhere', nom => {
-    const paquet = JSON.parse(lire(DEPOT, 'packages/grillhouse/package.json')) as Pkg;
-    expect(paquet.dependencies?.[nom], nom).toBeTypeOf('string');
-    const { pkg } = apresMaj({ name: 'p', devDependencies: { vitest: '^2.0.0' } });
-    expect(pkg.devDependencies?.[nom]).toBeUndefined();
-  });
-  // grillhouse-3uv.95.11.3 critère 1: the template of a project declares none of them.
-  it.each(IMPORTES)('%s is not declared by the template of a project', nom => {
-    const m = modele();
-    for (const champ of ['dependencies', 'devDependencies', 'optionalDependencies'] as const) {
-      expect(m[champ]?.[nom], `${champ} ${nom}`).toBeUndefined();
-    }
+  ])('%s is an optional peer of the package, which the template declares within its range', nom => {
+    const p = paquet();
+    expect(p.dependencies?.[nom], nom).toBeUndefined();
+    expect(p.peerDependenciesMeta?.[nom]).toEqual({ optional: true });
+    const version = modele().devDependencies?.[nom] ?? '';
+    expect(semver.satisfies(version, p.peerDependencies?.[nom] ?? ''), version).toBe(true);
   });
 });
 
@@ -1225,9 +1248,9 @@ describe('grillhouse-3uv.76 critère 1 — the update keeps the order of the set
 });
 
 // Witness: BPScript (322.10), brought to fc9fe55, whose .dependency-cruiser.cjs, written by the
-// previous scripts/frontieres.mjs, was refused as stale by the boundaries check. The generators the
-// update can run on the sources alone (arbitrage of the ticket): scripts/frontieres.mjs --ecrire
-// and scripts/index-interfaces.mjs, whose outputs grillhouse:gardes refuses when stale.
+// previous scripts/langages/typescript/frontieres.mjs, was refused as stale by the boundaries check. The generators the
+// update can run on the sources alone (arbitrage of the ticket): scripts/langages/typescript/frontieres.mjs --ecrire
+// and scripts/langages/typescript/index-interfaces.mjs, whose outputs grillhouse:gardes refuses when stale.
 describe('grillhouse-3uv.76 critère 2 — the update regenerates what a frame generator it replaces produces', () => {
   it('critère 2: after the update, .dependency-cruiser.cjs and docs/agents/index-des-interfaces.md are what the package’s generators write, and their checks accept them', () => {
     const projet = mkdtempSync(path.join(ESSAIS, 'generateur-'));
@@ -1242,13 +1265,19 @@ describe('grillhouse-3uv.76 critère 2 — the update regenerates what a frame g
     // What previous generators wrote.
     const generes = {
       [CONFIG_DES_FRONTIERES]: {
-        generateur: path.join(DEPOT, 'packages/grillhouse/scripts/frontieres.mjs'),
+        generateur: path.join(
+          DEPOT,
+          'packages/grillhouse/scripts/langages/typescript/frontieres.mjs'
+        ),
         ecrire: ['--ecrire'],
         verifier: [] as string[],
         perime: '// Généré par une version précédente.\nmodule.exports = { forbidden: [] };\n',
       },
       'docs/agents/index-des-interfaces.md': {
-        generateur: path.join(DEPOT, 'packages/grillhouse/scripts/index-interfaces.mjs'),
+        generateur: path.join(
+          DEPOT,
+          'packages/grillhouse/scripts/langages/typescript/index-interfaces.mjs'
+        ),
         ecrire: [] as string[],
         verifier: ['--verifier'],
         perime: '# Index des interfaces\n\nGénéré par une version précédente.\n',

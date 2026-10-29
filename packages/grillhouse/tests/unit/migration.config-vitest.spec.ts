@@ -115,7 +115,9 @@ describe('migration 0.23.0 — the base configuration of Vitest is the frame’s
     migrer(p);
     expect(lireJson(p, 'package.json').workspaces).toEqual(['packages/*']);
     const q = ancien({
-      workspaces: { packages: ['packages/*', 'packages/grillhouse/scripts/vitest-config'] },
+      workspaces: {
+        packages: ['packages/*', 'packages/grillhouse/scripts/vitest-config'],
+      },
     });
     migrer(q);
     expect(lireJson(q, 'package.json').workspaces).toEqual({ packages: ['packages/*'] });

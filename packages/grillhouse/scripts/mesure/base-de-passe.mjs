@@ -8,10 +8,10 @@
 //   processes write: the pass names it in `TMPDIR` to its children, so `os.tmpdir()`, `mktemp` and
 //   Claude Code (`CLAUDE_CODE_TMPDIR`, else `os.tmpdir()`) write there.
 // - The genres: `vitest`, each run of the tests of the module typescript (a plugin of its base
-//   configuration, scripts/vitest-config/base.mjs), which holds the runner's own temporary
-//   directory too; `tests`, `npm test` (scripts/tests.mjs); `verification`,
-//   `npm run verifier` (scripts/verifier.mjs), whose base Turborepo passes to its tasks
-//   (`globalPassThroughEnv`, scripts/turbo-des-paquets.mjs); `circuit`, the results and progress
+//   configuration, scripts/langages/typescript/vitest-config/base.mjs), which holds the runner's own temporary
+//   directory too; `tests`, `npm test` (scripts/langages/typescript/tests.mjs); `verification`,
+//   `npm run verifier` (scripts/langages/typescript/verifier.mjs), whose base Turborepo passes to its tasks
+//   (`globalPassThroughEnv`, scripts/langages/typescript/turbo-des-paquets.mjs); `circuit`, the results and progress
 //   of the passes of a circuit's run (scripts/circuit.mjs; its working directory is the ticket's,
 //   beside its copy, which no sweep touches); `integration`, the working directory of an
 //   integration (scripts/integration/integrer.mjs); `enveloppe`, the throwaway state of a session's envelope

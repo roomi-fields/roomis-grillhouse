@@ -30,12 +30,15 @@ import {
   ouvrirAvancement,
 } from '../../scripts/avancement.mjs';
 import { AVANCEMENT } from '../../scripts/mesure/avancement.mjs';
-import { planifier } from '../../scripts/turbo-des-paquets.mjs';
-import { rapportAvancement } from '../../scripts/vitest-config/avancement.reporter.mjs';
+import { planifier } from '../../scripts/langages/typescript/turbo-des-paquets.mjs';
+import { rapportAvancement } from '../../scripts/langages/typescript/vitest-config/avancement.reporter.mjs';
 
 const DEPOT = path.resolve(__dirname, '../../../..');
-const BASE = path.join(DEPOT, 'packages/grillhouse/scripts/vitest-config/base.mjs');
-const VERIFIER = path.join(DEPOT, 'packages/grillhouse/scripts/verifier.mjs');
+const BASE = path.join(
+  DEPOT,
+  'packages/grillhouse/scripts/langages/typescript/vitest-config/base.mjs'
+);
+const VERIFIER = path.join(DEPOT, 'packages/grillhouse/scripts/langages/typescript/verifier.mjs');
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'avancement-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 const LONG = 120_000;

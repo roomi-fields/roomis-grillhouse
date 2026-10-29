@@ -38,8 +38,8 @@ function verifier(fichiers: Record<string, string>, resolution: (typeof RESOLUTI
   const nm = path.join(repo, 'node_modules');
   const installe = path.join(nm, '@roomi-fields/grillhouse');
   cpSync(
-    path.join(DEPOT, 'packages/grillhouse/scripts/vitest-config'),
-    path.join(installe, 'scripts/vitest-config'),
+    path.join(DEPOT, 'packages/grillhouse/scripts/langages/typescript/vitest-config'),
+    path.join(installe, 'scripts/langages/typescript/vitest-config'),
     { recursive: true }
   );
   cpSync(path.join(DEPOT, 'packages/grillhouse/package.json'), path.join(installe, 'package.json'));

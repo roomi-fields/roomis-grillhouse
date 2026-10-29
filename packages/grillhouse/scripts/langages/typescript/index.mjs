@@ -1,46 +1,68 @@
 // The module of language typescript: what the core asks of a language (scripts/jointure.d.ts,
-// docs/INTERFACE.md), answered by the scripts in place — the components of the frame
-// (scripts/consommateurs.mjs), the tests by Turborepo and Vitest (scripts/tests.mjs,
-// scripts/verifier.mjs), the guards of structure and their generators. The core loads it by
-// scripts/langages.mjs; grillhouse-3dr.2.2 moves those scripts under this directory.
+// docs/INTERFACE.md), answered by the scripts of this directory — the components of the frame
+// (./consommateurs.mjs), the tests by Turborepo and Vitest (./tests.mjs, ./verifier.mjs), the
+// guards of structure and their generators. The core loads it by scripts/langages.mjs, and this
+// module imports of the core its published entries alone.
 //
 // - The components: the folders `packages/<x>` and `src/<x>` of the frame (`composants` of
-//   scripts/consommateurs.mjs), out of the frame left out; a file's is the component that holds it.
+//   ./consommateurs.mjs), out of the frame left out; a file's is the component that holds it; the
+//   shared test material, the components whose package exports `./test-fixtures` (`matieres`).
 // - The components touched since a commit: the files git sees changed since it, the working tree
 //   and the untracked files included (`git diff --name-only <depuis>`, `git ls-files -o
 //   --exclude-standard`), each in its component, and the components that depend on them by their
 //   package.json (its `dependencies`, `devDependencies`, `optionalDependencies` and
 //   `peerDependencies` that name another component), transitively, as Turborepo's
 //   `--filter=...[<depuis>]`; a file out of every component is out of the graph.
-// - The commands: `grillhouse tests` (scripts/tests.mjs) tests, `grillhouse verifier`
-//   (scripts/verifier.mjs) verifies, and TypeScript's compiler, the project's or else the frame's,
-//   types (`tsc --noEmit`); each one described, `{ script, args }`, never run.
+// - The elements of a lot (./elements-du-lot.mjs).
+// - The commands: `grillhouse tests` (./tests.mjs) tests, `grillhouse verifier` (./verifier.mjs)
+//   verifies, and TypeScript's compiler, the project's or else the frame's, types (`tsc
+//   --noEmit`); each guard and generator of this directory is a command too, by its name (`grillhouse
+//   frontieres`); each one described, `{ script, args }`, never run.
 // - The verdict: the summaries of Turborepo and the reports of Vitest of a results directory
 //   (./verdict.mjs).
 // - The rule of a test file (./regle-des-tests.mjs).
 // - The generated files, each its command, the guard that checks it and the names its findings
 //   carry: the index of the interfaces, the turbo.json of the packages, the reports of API.
 // - The guards of structure, in the order they play.
+// - The migrations of a project that replay a guard of this module (./migrations/), which the
+//   update plays with the core's (scripts/migrations.mjs), as each plugin of Nx carries its own.
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { composants as lesComposants } from '../../consommateurs.mjs';
+import { composants as lesComposants, matieres } from './consommateurs.mjs';
+import { elementsDuLot } from './elements-du-lot.mjs';
 import { A_ELAGUER, lireSarif, RESULTATS } from '../../resultats.mjs';
 import { lecteurs } from './lecteurs.mjs';
 import { estUnTest } from './regle-des-tests.mjs';
 import { verdict } from './verdict.mjs';
+import * as nomsDeclaresInutilises from './migrations/0.24.4-noms-declares-inutilises.mjs';
+import * as lignesMalFormees from './migrations/0.24.6-lignes-mal-formees.mjs';
+import * as matiereDansLesTests from './migrations/0.24.7-matiere-dans-les-tests.mjs';
+import * as taillesDesTests from './migrations/0.25.0-tailles-des-tests.mjs';
 
-// The scripts of the frame, where this module's scripts still lie.
-const SCRIPTS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+// The scripts of this module, beside this file.
+const SCRIPTS = path.dirname(fileURLToPath(import.meta.url));
 const ici = nom => path.join(SCRIPTS, nom);
 const generateur = (script, ...args) => [`node ${JSON.stringify(ici(script))}`, ...args].join(' ');
 const CHAMPS = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'];
 
 const composants = racine =>
   lesComposants(racine).map(({ nom, dir, paquet }) => ({ nom, dossier: dir, paquet }));
+// The guards and the generators of this directory, each a command by its name.
+const OUTILS = [
+  'code-mort',
+  'consommateurs',
+  'consommateurs-arbitres',
+  'frontieres',
+  'index-interfaces',
+  'interfaces-contre-code',
+  'resumes',
+  'tailles-des-tests',
+  'turbo-des-paquets',
+];
 
 // The component of <liste> that holds <fichier> (absolute, or from <racine>), null for none.
 function composantDans(liste, racine, fichier) {
@@ -149,12 +171,16 @@ export default {
   nom: 'typescript',
   composants,
   composantDe: (racine, fichier) => composantDans(composants(racine), racine, fichier),
+  matieres: racine =>
+    matieres(racine).map(({ nom, dir, paquet }) => ({ nom, dossier: dir, paquet })),
   lecteurs,
   touches,
+  elementsDuLot,
   commandes: racine => ({
     tester: { script: ici('tests.mjs'), args: [] },
     verifier: { script: ici('verifier.mjs'), args: [] },
     typer: { script: compilateur(racine), args: ['--noEmit'] },
+    ...Object.fromEntries(OUTILS.map(n => [n, { script: ici(`${n}.mjs`), args: [] }])),
   }),
   verdict,
   estUnTest,
@@ -210,5 +236,7 @@ export default {
     [ici('interfaces-contre-code.mjs')],
     [ici('code-mort.mjs')],
     [ici('tailles-des-tests.mjs')],
+    [ici('resumes.mjs')],
   ],
+  migrations: [nomsDeclaresInutilises, lignesMalFormees, matiereDansLesTests, taillesDesTests],
 };

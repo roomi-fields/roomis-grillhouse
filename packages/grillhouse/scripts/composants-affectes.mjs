@@ -24,7 +24,7 @@
 // - An element is a name between backquotes that begins with an identifier: a call (`f()`) or a
 //   member (`A.b`) is read by its head. Its provider is the component whose interface
 //   (`docs/INTERFACE.md`) publishes it: a heading of its generated part
-//   (scripts/index-interfaces.mjs). A name no interface publishes, that names a symbol of the
+//   (scripts/langages/typescript/index-interfaces.mjs). A name no interface publishes, that names a symbol of the
 //   repository (a declaration at the top of a component's source) or a path of it, is set apart
 //   (`sansFournisseur`); a word that names neither (an example of the ticket, a fault to create)
 //   is left out.
@@ -33,9 +33,9 @@
 // - The readers of an element are the other components that: its provider's `## Consommateurs`
 //   declares for it, or for `*` (`consommateurs`); import it, or the whole provider, in their
 //   production code, or in their tests for a package of the shared test material (`import`, the
-//   uses of scripts/consommateurs.mjs); hold a test file that names
+//   uses of scripts/langages/typescript/consommateurs.mjs); hold a test file that names
 //   it, as a whole word, and imports the provider (the test file's path).
-// - By the types (scripts/references-par-les-types.mjs): each element, a member of a type
+// - By the types (scripts/langages/typescript/references-par-les-types.mjs): each element, a member of a type
 //   included, resolved by TypeScript's language service over the components' `tsconfig.json`;
 //   the components whose entry exports it, and the readers its references reach (`types`). An
 //   element that only names a symbol internal to a package leads to no component, its package

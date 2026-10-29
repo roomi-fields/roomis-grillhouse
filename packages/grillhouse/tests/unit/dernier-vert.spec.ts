@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { garderLeVert, mesure } from '../../scripts/dernier-vert.mjs';
-import { restreindre } from '../../scripts/vitest-config/changements.mjs';
+import { restreindre } from '../../scripts/langages/typescript/vitest-config/changements.mjs';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'dernier-vert-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));

@@ -226,7 +226,7 @@ describe('the findings of a reviewer’s sheet', () => {
 // grillhouse-3uv.95.7, decision 2 of grillhouse-3uv.95 (Romain, 2026-10-23: « il faut que le
 // relecteur valide vraiment la conformité à l'architecture de tout ce qu'il y a de
 // nouveau/changé »): as a review that asks a word on every changed file, the reviewer's sheet
-// holds one line per element of the lot (scripts/elements-du-lot.mjs), conforming or not, the
+// holds one line per element of the lot (scripts/langages/typescript/elements-du-lot.mjs), conforming or not, the
 // rule it cites (CADRE, INTERFACE or ARCHITECTURE, with its reference) and its piece; a « non »
 // sends the lot back to its recipient.
 describe('the conformity of each element of the lot in a reviewer’s sheet', () => {

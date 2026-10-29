@@ -91,8 +91,8 @@
 #   plan (one part per package when the plan holds several, grillhouse-3uv.95.6): for each
 #   component whose `## Consommateurs` section names the package, its line, the names of the
 #   elements declared for the package, and the address of the rubric « Rend » of its frame, the
-#   rest of its elements left to the index of the interfaces (`scripts/index-interfaces.mjs
-#   --publie <plan>`, read in the prepared copy; a reading that fails stops the launch,
+#   rest of its elements left to the index of the interfaces (`grillhouse index-interfaces
+#   --publie <plan>`, a command of the module of the copy's language, read in the prepared copy; a reading that fails stops the launch,
 #   CODE_COPIE), then the
 #   section « Ton dossier de travail », which names the session's working directory, where every
 #   temporary file goes (`dossierDeTravail` of enveloppe.mjs, the envelope's TMPDIR), then the
@@ -271,7 +271,7 @@ echouer() { local sortie; sortie=$(cat "$echec"); printf '%s\n%s\n' "$1" "$sorti
       # that wait for a package of the plan, which go with the plan below. The graph comes on the
       # standard input: as an argument, it may pass the size Linux allows one.
       graphe=$(cd "$copie" && monter npx --no-install turbo run build "${cibles[@]}" --dry=json) || exit 1
-      fournisseurs=$(node --input-type=module -e "import { readFileSync } from 'node:fs'; import { attendentLePlan } from '$ici/../turbo-des-paquets.mjs'; const g = JSON.parse(readFileSync(0, 'utf8')); const avec = attendentLePlan(g, process.argv.slice(1)); console.log(g.tasks.map(t => t.taskId).filter(id => !avec.has(id)).sort().join('\n'));" "${lesNoms[@]}" <<<"$graphe") || exit 1
+      fournisseurs=$(node --input-type=module -e "import { readFileSync } from 'node:fs'; import { attendentLePlan } from '$ici/../langages/typescript/turbo-des-paquets.mjs'; const g = JSON.parse(readFileSync(0, 'utf8')); const avec = attendentLePlan(g, process.argv.slice(1)); console.log(g.tasks.map(t => t.taskId).filter(id => !avec.has(id)).sort().join('\n'));" "${lesNoms[@]}" <<<"$graphe") || exit 1
       if [ -n "$fournisseurs" ]; then
         mapfile -t ids <<<"$fournisseurs"
         (cd "$copie" && monter npx --no-install turbo run "${ids[@]}") || exit 1
@@ -281,7 +281,7 @@ echouer() { local sortie; sortie=$(cat "$echec"); printf '%s\n%s\n' "$1" "$sorti
       # stops the launch, as a provider's; a trace of the plan, or one that waits for a package of
       # the plan, is produced with the plan below.
       plan=$(cd "$copie" && monter npx --no-install turbo run test:vitest "${cibles[@]}" --dry=json) || exit 1
-      traces() { node --input-type=module -e "import { readFileSync } from 'node:fs'; import { attendentLePlan, tracesDuPlan } from '$ici/../turbo-des-paquets.mjs'; const [avec, ...noms] = process.argv.slice(1); const p = JSON.parse(readFileSync(0, 'utf8')); const attend = attendentLePlan(p, noms); console.log(tracesDuPlan(p, t => attend.has(t.taskId) === (avec === 'oui')).join('\n'));" "$1" "${lesNoms[@]}" <<<"$plan"; }
+      traces() { node --input-type=module -e "import { readFileSync } from 'node:fs'; import { attendentLePlan, tracesDuPlan } from '$ici/../langages/typescript/turbo-des-paquets.mjs'; const [avec, ...noms] = process.argv.slice(1); const p = JSON.parse(readFileSync(0, 'utf8')); const attend = attendentLePlan(p, noms); console.log(tracesDuPlan(p, t => attend.has(t.taskId) === (avec === 'oui')).join('\n'));" "$1" "${lesNoms[@]}" <<<"$plan"; }
       autres=$(traces non) || exit 1
       if [ -n "$autres" ]; then
         mapfile -t ids <<<"$autres"
@@ -307,7 +307,7 @@ echouer() { local sortie; sortie=$(cat "$echec"); printf '%s\n%s\n' "$1" "$sorti
 ) >> "$journal" 2>&1 || { rm -f "$echec"; echo "⛔ La copie $copie n'a pas pu être préparée : voir $journal." >&2; exit "$CODE_COPIE"; }
 # What the components before each package of the plan publish, read in the prepared copy,
 # follows the instruction.
-publie=$(cd "$copie" && node "$ici/../index-interfaces.mjs" --publie "$paquets" 2>> "$journal") \
+publie=$(cd "$copie" && node "$ici/../../bin/grillhouse.mjs" index-interfaces --publie "$paquets" 2>> "$journal") \
   || { rm -f "$echec"; echo "⛔ Ce que publient les composants d'avant n'a pas pu se lire : voir $journal." >&2; exit "$CODE_COPIE"; }
 # The session's working directory, the one the envelope gives as TMPDIR, follows them.
 travail=$(node --input-type=module -e "import { dossierDeTravail } from '$ici/enveloppe.mjs'; process.stdout.write(dossierDeTravail(process.argv[1]));" "$copie" 2>> "$journal") \

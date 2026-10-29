@@ -1,5 +1,5 @@
 // The last green of a branch: the tree of the last pass of `npm run verifier` green on every
-// package (scripts/verifier.mjs), against which the next pass measures itself, as
+// package (scripts/langages/typescript/verifier.mjs), against which the next pass measures itself, as
 // `vitest --changed <ref>` and `jest --onlyChanged` play the tests a change reaches, and Bazel
 // keeps by target the result of a test whose inputs did not move.
 //
@@ -29,11 +29,11 @@
 //   reach a submodule: git's tree holds a submodule's commit, not its files. The pass is then
 //   complete, and keeps no green.
 // - The changes go to the runner of the tests in a file that the variable `GRILLHOUSE_CHANGEMENTS`
-//   names (`CHANGEMENTS`; for the module typescript, scripts/vitest-config/changements.mjs reads
+//   names (`CHANGEMENTS`; for the module typescript, scripts/langages/typescript/vitest-config/changements.mjs reads
 //   them in each package); the file lies in a temporary directory of its own, which the pass
 //   removes at its end.
 // - `npm test` measures itself against the last green under the circuit's mark,
-//   `GRILLHOUSE_DEPUIS_LE_VERT` (scripts/tests.mjs, scripts/circuit.mjs); it never keeps one.
+//   `GRILLHOUSE_DEPUIS_LE_VERT` (scripts/langages/typescript/tests.mjs, scripts/circuit.mjs); it never keeps one.
 import { spawnSync } from 'node:child_process';
 import {
   copyFileSync,

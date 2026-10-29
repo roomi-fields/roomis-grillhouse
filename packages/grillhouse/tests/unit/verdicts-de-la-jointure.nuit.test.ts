@@ -35,7 +35,7 @@ describe('grillhouse-3dr.2.1 — les verdicts comme avant', { timeout: 300_000 }
     'criterion 5: grillhouse %s gives the witness’s code and verdict',
     async (_nom, v) => {
       const d = depotDeVerdict(mkdtempSync(path.join(ESSAIS, 'depot-')), v.sorte, {
-        base: path.join(PAQUET, 'scripts/vitest-config/base.mjs'),
+        base: path.join(PAQUET, 'scripts/langages/typescript/vitest-config/base.mjs'),
         pression: v.pression,
       }) as { racine: string; env: Record<string, string> };
       const resultats = mkdtempSync(path.join(ESSAIS, 'resultats-'));

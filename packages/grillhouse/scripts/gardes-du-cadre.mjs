@@ -4,7 +4,7 @@
 //   npx grillhouse gardes-du-cadre      (npm run grillhouse:gardes, a task of Turborepo)
 //
 // - The guards are those of the module of the project's language (`gardes`, scripts/jointure.d.ts,
-//   scripts/langages.mjs), then the core's own (`resumes`, the first sentence of each summary).
+//   scripts/langages.mjs), in their order.
 // - Each guard is a script of the package, and plays in the working directory, under the environment of the run
 //   (`GRILLHOUSE_DETTE` among it, scripts/dette.mjs), whatever the verdict of the ones before: a
 //   red does not stop the pass, as `--continue` does for Turborepo's tasks.
@@ -17,17 +17,14 @@
 // - The build is not among them: Turborepo builds before this task (turbo.json).
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
 import { langageDe } from './langages.mjs';
 import { A_ELAGUER, ecrireSarif, lireSarif, RESULTATS } from './resultats.mjs';
 
-// A script of the package, beside this one, by its name.
-const ici = nom => fileURLToPath(new URL(nom, import.meta.url));
-
 // The guards of the frame in the repository at <racine>, each its script and its arguments, in
-// the order they play: the language's, then the core's.
+// the order they play: the language's.
 export function gardesDuCadre(racine) {
-  return [...langageDe(racine).gardes(racine), [ici('resumes.mjs')]];
+  return langageDe(racine).gardes(racine);
 }
 
 // The name of each guard of the frame, as its findings carry it: its script's, without extension.

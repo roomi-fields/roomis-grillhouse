@@ -5,7 +5,12 @@
       "ignoreDependencies": [
         "dotenv",
         "zod"
-      ]
+      ],
+      "dependency-cruiser": {
+        "config": [
+          ".dependency-cruiser.cjs"
+        ]
+      }
     },
     "packages/grillhouse": {
       "entry": [

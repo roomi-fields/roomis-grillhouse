@@ -3,15 +3,15 @@
 // from `python_test_utils`. A file the testwriter writes is, one or several of:
 //
 // - `joue`: a test Vitest plays, its name `*.test.*` or `*.spec.*` of a module (`NOM_DE_TEST` of
-//   scripts/consommateurs.mjs), wherever it lies;
+//   scripts/langages/typescript/consommateurs.mjs), wherever it lies;
 // - `test`: a test file, or any file of a folder of tests (`test`, `tests`, `__tests__`), a helper
 //   the tests import (`isTestFile`);
 // - `matiere`: a file of a package of the shared test material, a component of the repository
-//   whose package exports `./test-fixtures` (`matieres` of scripts/consommateurs.mjs).
+//   whose package exports `./test-fixtures` (`matieres` of scripts/langages/typescript/consommateurs.mjs).
 //
 // Any other file is none of them: null.
 import path from 'node:path';
-import { matieres, NOM_DE_TEST } from '../../consommateurs.mjs';
+import { matieres, NOM_DE_TEST } from './consommateurs.mjs';
 
 const DOSSIERS = new Set(['test', 'tests', '__tests__']);
 

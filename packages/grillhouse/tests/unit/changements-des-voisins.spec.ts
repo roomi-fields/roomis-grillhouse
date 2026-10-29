@@ -3,7 +3,7 @@
 // task and Bazel the `srcs` of its target, the rule reads the inputs of the `build` of the
 // neighbour's generated turbo.json as Turborepo reads them, or, when they name none, its files of
 // code and configuration out of its docs/; a test of the neighbour plays none of the dependent's
-// tests (scripts/vitest-config/changements.mjs).
+// tests (scripts/langages/typescript/vitest-config/changements.mjs).
 // Witness: BPScript bp-mono-vbwf.320.8 (Grillhouse 0.24.3), where a change of
 // packages/000-forms/docs/INTERFACE.md played 900-driver (6 min 25 s) and 995-tools (5 min 15 s)
 // whole: « ↳ packages/900-driver : tous ses tests, le code d’un paquet dont il dépend, que ses tests
@@ -12,7 +12,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { restreindre } from '../../scripts/vitest-config/changements.mjs';
+import { restreindre } from '../../scripts/langages/typescript/vitest-config/changements.mjs';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'changements-des-voisins-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));

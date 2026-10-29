@@ -6,7 +6,10 @@
 //   node packages/grillhouse/tests/temoins/enregistrer.mjs <commit>
 //
 // - The code measured is `packages/grillhouse` of <commit> (`git archive`), in a directory of its
-//   own beside the repository's node_modules; the trials are those of ./depots.mjs.
+//   own beside the repository's node_modules; the trials are those of ./depots.mjs. <commit> comes
+//   before the join (c31dd7d for the witnesses of grillhouse-3dr.2.1): the scripts and functions
+//   read below are that commit's, where `consommateurs.mjs` and `vitest-config/` lay directly under
+//   `scripts/` and `resultats.mjs` still read the summaries; no later commit has them.
 // - releve.json: the survey of BPScript 320.8 (`texteDuReleve` of composants-affectes.mjs).
 // - classement.json: each path of `CHEMINS`, whether the testwriter writes it (`isTesterFile`), a
 //   test file (`isTestFile`), a test Vitest plays (its name), and the right of each role to write

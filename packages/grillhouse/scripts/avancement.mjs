@@ -5,7 +5,7 @@
 // - A pass has its progress directory, which the variable GRILLHOUSE_AVANCEMENT (AVANCEMENT of
 //   scripts/mesure/avancement.mjs) names to its commands: the circuit opens one for each
 //   automatic pass and names it in its state (scripts/circuit.mjs), `npm run verifier` opens its own when it
-//   receives none (scripts/verifier.mjs). The directory holds `passe.json` (`{ genre, debut,
+//   receives none (scripts/langages/typescript/verifier.mjs). The directory holds `passe.json` (`{ genre, debut,
 //   precedent }`: its kind, its start, the total of the previous pass of that kind), the records
 //   of its tasks (`taches/`, written by the reporter of progress of the base configuration, one
 //   per run of Vitest, and by the queue for the steps of its CI, scripts/integration/file.mjs),
@@ -86,7 +86,7 @@ export function ouvrirAvancement({ racine, genre = null, dans = tmpdir(), debut 
  * Before a run while <dossier> is a progress directory: its plan, the tasks of tests <taches> it
  * names (`{ hash, cache }`, `cache` whether the run replays it from its cache), each task replayed
  * counted done at once, its number known by its hash. The module of the language reads the plan of
- * its runner (scripts/turbo-des-paquets.mjs, `planifier`).
+ * its runner (scripts/langages/typescript/turbo-des-paquets.mjs, `planifier`).
  * @param {string | undefined} dossier
  * @param {{ racine: string, taches: { hash: string, cache: boolean }[] }} o
  */

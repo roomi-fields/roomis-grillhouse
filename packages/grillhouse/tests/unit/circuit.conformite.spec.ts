@@ -9,7 +9,7 @@ import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit
 // à l'architecture de tout ce qu'il y a de nouveau/changé ». As API Extractor's report and its
 // diff, read line by line, and a review that asks a word on every changed file, the circuit gives
 // the reviewer the list of each element the lot adds, changes or removes
-// (scripts/elements-du-lot.mjs); the reviewer's sheet holds one line per element (`conformite`),
+// (scripts/langages/typescript/elements-du-lot.mjs); the reviewer's sheet holds one line per element (`conformite`),
 // a sheet that misses one is refused, and a « non » sends the lot back to its agent.
 // The trial repository and its stand-ins: ./circuit-essai.ts.
 

@@ -7,7 +7,7 @@
 //   gives each task, its package and directory, its script, its exit code, its cache status and
 //   its log file (from the root).
 // - The JSON report of Vitest, which the frame's base configuration writes under
-//   `<dossier>/vitest/` while the variable is set (scripts/vitest-config/resultats.mjs):
+//   `<dossier>/vitest/` while the variable is set (scripts/langages/typescript/vitest-config/resultats.mjs):
 //   `lireRapportsVitest` gives each test file, its status, the message of a file that does not
 //   load, and each test, its title, its full name, its status and its first message.
 import {
@@ -21,7 +21,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { RESULTATS } from '../../resultats.mjs';
-import { VITEST } from '../../vitest-config/resultats.mjs';
+import { VITEST } from './vitest-config/resultats.mjs';
 
 const TURBO = 'turbo';
 

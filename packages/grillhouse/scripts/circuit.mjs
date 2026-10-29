@@ -164,8 +164,8 @@
 //   the circuit writes `Circuit · testwriter : aucun test …` at the ticket and launches the
 //   developpeur, the reason as his report, then his checks.
 // - Each command of the proof and of the checks runs with its own results directory
-//   (`GRILLHOUSE_RESULTATS`), where Turborepo writes its summary (scripts/tests.mjs,
-//   scripts/verifier.mjs), Vitest its JSON report (scripts/vitest-config/resultats.mjs) and each
+//   (`GRILLHOUSE_RESULTATS`), where Turborepo writes its summary (scripts/langages/typescript/tests.mjs,
+//   scripts/langages/typescript/verifier.mjs), Vitest its JSON report (scripts/langages/typescript/vitest-config/resultats.mjs) and each
 //   guard its SARIF; its output goes to the log, for the human. Each `npm test` of them carries
 //   the mark `GRILLHOUSE_DEPUIS_LE_VERT` (scripts/dernier-vert.mjs): in a package named whole,
 //   the tests that play are those Vitest relates to the files changed since the last green of the
@@ -340,7 +340,7 @@
 //   description as `bd show` gives it at the session's launch, written by the circuit in its
 //   working folder, which the session may read; the instruction carries no criteria, which the
 //   reviewer's skill reads only after its first passes), the files of the lot (the testwriter's by
-//   `estUnTest`, then the others), the elements of the lot (scripts/elements-du-lot.mjs: each
+//   `estUnTest`, then the others), the elements of the lot (scripts/langages/typescript/elements-du-lot.mjs: each
 //   function, class, type, interface, constant at the top and export the lot adds, changes or
 //   removes against the copy's HEAD, its package, its place, whether its package exports it) and
 //   the circuit's reports since its last sheet (its proofs and checks). Its errors go to the log
@@ -545,7 +545,6 @@ import { pathToFileURL } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
 import { ecrireLeBilan } from './bilan.mjs';
 import { DEPUIS_LE_VERT } from './dernier-vert.mjs';
-import { elementsDuLot } from './elements-du-lot.mjs';
 import { commandesPermises, optionsDuRole } from './droits.mjs';
 import { ecrireLaListe, VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/paquets-du-plan.mjs';
 import {
@@ -1613,13 +1612,15 @@ async function relire(ctx) {
   const affirmations = path.join(ctx.tmp, 'affirmations.md');
   writeFileSync(affirmations, leTicket(ctx).description);
   const liste = lot
-    ? elementsDuLot(ctx.copie, { avant: 'HEAD', apres: lot.commit })
+    ? langageDe(ctx.copie).elementsDuLot(ctx.copie, { avant: 'HEAD', apres: lot.commit })
     : { etat: 'impossible', raison: 'le lot n’a pas pu être gardé', elements: [] };
   // A bounded review: the lines of the review before, and the elements the difference touches
   // (every one when it cannot be computed), as a review unticks « viewed » on the files changed
   // since.
   const touches =
-    avant && lot && elementsDuLot(ctx.copie, { avant: avant.lot.commit, apres: lot.commit });
+    avant &&
+    lot &&
+    langageDe(ctx.copie).elementsDuLot(ctx.copie, { avant: avant.lot.commit, apres: lot.commit });
   const bornee = touches
     ? {
         touches: touches.etat === 'fait' ? new Set(touches.elements.map(e => e.id)) : null,
@@ -1658,7 +1659,7 @@ async function relire(ctx) {
   return { verdict: fiche.verdict, fiche, texte, arbre: lot?.arbre ?? null };
 }
 
-// The elements of the lot <liste> (scripts/elements-du-lot.mjs) as the reviewer's instruction
+// The elements of the lot <liste> (`elementsDuLot` of the module of language) as the reviewer's instruction
 // lists them: one line each, its id, its kind, its status, its export, its package and its place;
 // in a bounded review (<bornee>: `{ touches, lignes }`, the ids the difference touches, null for
 // every one, and the lines of the review before by element), each marked to judge again, or to
@@ -3068,7 +3069,7 @@ function paquetsDuPlan(ctx, liste) {
 
 // Whether the plan carries no test: in a repository of packages, no package of the frame with a
 // script `test:vitest` lies in a path of the plan or holds it, as `npm test -- <chemin>`
-// (scripts/tests.mjs) refuses a path out of every package or in a package without that script. A
+// (scripts/langages/typescript/tests.mjs) refuses a path out of every package or in a package without that script. A
 // repository without packages plays its tests at its root: each plan has them.
 function sansTests(ctx) {
   const liste = paquets(existsSync(ctx.copie) ? ctx.copie : ctx.racine).filter(p => !p.hors);

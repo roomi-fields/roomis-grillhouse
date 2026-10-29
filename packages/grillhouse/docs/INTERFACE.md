@@ -4,9 +4,11 @@ Le noyau demande à un module de langage ce que ce document écrit, et rien d'au
 
 Le noyau porte les tickets, le circuit, les rôles et leur relecture, le tableau, l'enveloppe, les
 crochets et la mise à jour. Un module de langage, sous `scripts/langages/<nom>/`, porte ce qui
-dépend du langage du projet : ses outils de test, de typage et de structure. Comme Pants, qui
-active les backends que sa configuration nomme, le noyau charge le module que le projet déclare et
-ne lit aucun autre de ses fichiers. Ainsi le reste du noyau ignore le langage du projet.
+dépend du langage du projet : ses outils de test, de typage et de structure, et leurs tests sous
+`tests/unit/langages/<nom>/`. Comme Pants, qui active les backends que sa configuration nomme, le
+noyau charge le module que le projet déclare et n'importe aucun autre de ses fichiers ; comme un
+greffon de Nx n'importe que `@nx/devkit`, le module n'importe du noyau que ses entrées publiées.
+La garde des frontières tient les deux sens. Ainsi le reste du noyau ignore le langage du projet.
 
 Les types de la jointure sont `scripts/jointure.d.ts` ; l'entrée publiée
 `@roomi-fields/grillhouse/jointure` les porte.
@@ -32,15 +34,22 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
 - `composants` : les composants du projet, chacun `{ dossier, nom, paquet }`, le dossier absolu.
 - `composantDe` : le composant qui tient un fichier, ou null pour un fichier hors de tout
   composant ; toujours l'un de ceux que `composants` rend.
+- `matieres` : les composants de la matière de test partagée, que l'enveloppe monte en écriture
+  pour le testwriter.
 - `lecteurs` : les fournisseurs et les lecteurs, par le code, des éléments qu'un ticket nomme : son
   interface, ses imports, ses tests, ses types. Le relevé des composants touchés
   (`composants-affectes`) y ajoute les chemins lus et l'architecture.
 - `touches` : les composants touchés depuis un commit, leurs dépendants, transitivement, et les
   fichiers hors de tout composant (`{ touches, dependants, horsGraphe }`), comme le
   `--filter=...[<commit>]` de Turborepo.
+- `elementsDuLot` : les éléments qu'un lot ajoute, change ou supprime entre deux commits, chacun à
+  sa place, les fichiers qu'il change, et les sources dont le module ne lit aucun élément ; le
+  circuit les donne au relecteur.
 - `commandes` : les commandes qui testent (`tester`), vérifient (`verifier`) et typent (`typer`),
-  chacune `{ script, args }`, le script absolu, jamais lancée. `grillhouse tests` et
-  `grillhouse verifier` lancent `tester` et `verifier`.
+  et chaque garde ou générateur du module, par son nom ; chacune `{ script, args }`, le script
+  absolu, jamais lancée. `grillhouse tests` et `grillhouse verifier` lancent `tester` et
+  `verifier` ; chaque autre, sauf `typer`, est une sous-commande de son nom
+  (`grillhouse frontieres`), comme un backend de Pants apporte ses buts.
 - `verdict` : ce qu'un lancement a laissé dans son dossier de résultats (`GRILLHOUSE_RESULTATS`) :
   `{ rapports, taches }`, chaque fichier de test avec ses tests, chaque tâche avec son code, 0 vert,
   1 rouge, 75 « à repasser ».
@@ -52,7 +61,17 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   ceux qu'il lit, les noms de ses constats et sa vérification (`verifier`), qui rend ses écarts.
   Le circuit les régénère et les juge (étape 4.2).
 - `gardes` : les gardes de structure du module, chacune `[script, ...args]`, dans l'ordre où elles
-  jouent ; `grillhouse gardes-du-cadre` joue ensuite celles du noyau.
+  jouent ; `grillhouse gardes-du-cadre` les joue.
+- `migrations` : les migrations d'un projet qui rejouent une garde du module, que `grillhouse maj`
+  joue avec celles du noyau, comme `nx migrate` réunit celles de chaque greffon.
+
+## Les services du noyau
+
+L'entrée `@roomi-fields/grillhouse/jointure` donne au module de langage les services du noyau
+qu'il emploie, et `scripts/jointure.d.ts` les type : le plan d'une enveloppe, l'avancement d'une
+passe et sa mesure, la base d'une passe, la pression de la machine et son verrou, le dernier vert,
+les arbitrages d'un ticket. Un module n'importe rien d'autre du noyau que ses entrées publiées
+(`./jointure`, `./paquets`, `./dette`, `./resultats`, `./conformite`).
 
 ## La conformité
 
@@ -62,5 +81,7 @@ sur son entrée valide, un module sain ne donne aucune faute ; sur son entrée d
 exactement les fautes attendues. `echecs(langage, exemples)` rend les cas qu'un module manque. Les
 entrées sont celles du module (`scripts/langages/typescript/exemples.mjs`).
 
-Le test du noyau joue la suite sur le module typescript et sur sept modules défectueux, un défaut
+Un cas tient chaque demande sauf `nom`, `verdict` lu à part, et `migrations`, que le test de
+chaque migration tient. L'entrée défectueuse des fichiers engendrés met chacun d'eux en retard.
+Le test du noyau joue la suite sur le module typescript et sur douze modules défectueux, un défaut
 chacun ; chacun manque son seul cas. Ainsi la suite attrape un vrai défaut.

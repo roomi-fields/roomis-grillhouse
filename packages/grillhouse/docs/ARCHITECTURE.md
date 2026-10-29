@@ -168,7 +168,7 @@ utiles).
 **Le relecteur juge chaque élément qui change** : comme API Extractor fait relire son rapport
 ligne par ligne et qu'une revue mûre exige un avis par fichier changé, le circuit donne au
 relecteur la liste de chaque fonction, classe, type, interface, constante de tête et export que
-le lot ajoute, change ou supprime (`scripts/elements-du-lot.mjs`), avec son paquet, son
+le lot ajoute, change ou supprime (`scripts/langages/typescript/elements-du-lot.mjs`), avec son paquet, son
 `fichier:ligne` et s'il est exporté : le service de langage de `references-par-les-types.mjs` lit
 les déclarations et les exports, le texte de chaque déclaration avant et après le lot dit ce qui
 change, le diff des rapports d'API (`docs/INTERFACE.api.md`) les exports qui changent. Sa fiche
@@ -328,7 +328,7 @@ rouge se met en quarantaine dans le test lui-même (`it.skip` ou `it.fails`), av
 le corrige, comme le fait une intégration continue mature. Ainsi chaque rouge a son ticket, et
 main ne porte aucun rouge.
 
-**La taille d'un test** (`packages/grillhouse/scripts/tailles-des-tests.mjs`, une garde du
+**La taille d'un test** (`packages/grillhouse/scripts/langages/typescript/tailles-des-tests.mjs`, une garde du
 cadre) : comme la pyramide des tests de Google et le `size` de Bazel, chaque fichier de tests
 que git liste est petit, moyen ou grand, lu dans son texte et dans la matière de test qu'il
 importe : grand, il monte un dépôt d'essai (`init`, `clone` ou `worktree add` de git) et y lance
@@ -455,18 +455,25 @@ un seul langage est servi, la fusion de plusieurs est grillhouse-pkl.3. Passent 
 composants et leurs lecteurs du relevé des composants ; la règle d'un fichier de test des verrous,
 des lots de l'intégration et du circuit ; les commandes de `grillhouse tests` et `grillhouse
 verifier` ; le verdict que le circuit lit ; les fichiers engendrés du circuit ; les gardes de
-`grillhouse gardes-du-cadre`. Le noyau importe encore cinq fichiers rangés côté TypeScript, que
-grillhouse-3dr.2.2 fait passer par la jointure : le circuit `elements-du-lot.mjs`, l'intégration
-`consommateurs-arbitres.mjs`, `resumes.mjs` `index-interfaces.mjs` et `interfaces-contre-code.mjs`,
-l'enveloppe `consommateurs.mjs`, et `grillhouse-maj.mjs`. Les trois modules du noyau que rangeait
-`vitest-config/` (l'avancement, la base d'une passe, la pression) vivent sous `scripts/mesure/`.
-Le module typescript (`scripts/langages/typescript/`) appelle encore les scripts à leur place, que
-grillhouse-3dr.2.2 range sous son dossier d'après `tests/temoins/repartition.json`. Une même suite
-de conformité (`scripts/conformite.mjs`) tient chaque module de langage, comme le RuleTester
-d'ESLint une règle ; une garde refusera un import d'un module de langage par le noyau hors de la
-jointure (grillhouse-3dr.2.2), et le test de la jointure (`tests/unit/jointure.spec.ts`) inscrit
-chaque reste du noyau qui nomme encore un outil, avec le ticket qui le retire. Ainsi le reste du
-noyau ignore le langage du projet.
+`grillhouse gardes-du-cadre` ; les sous-commandes du module, chacune de son nom (`grillhouse
+frontieres`) ; les éléments du lot que le circuit donne au relecteur ; la matière de test que
+l'enveloppe monte ; les migrations qui rejouent une garde du module, que `maj` joue avec celles du
+noyau, comme `nx migrate` réunit celles de chaque greffon. Le module typescript vit sous
+`scripts/langages/typescript/` (`tests/temoins/repartition.json` range chaque fichier), ses tests
+sous `tests/unit/langages/typescript/` ; les entrées publiées (`./consommateurs`,
+`./vitest-config`, `./vitest-config/mesure`, `./tsdoc-base.json`) gardent leur adresse. Comme un
+greffon de Nx n'importe que `@nx/devkit`, le module n'importe du noyau que ses entrées publiées :
+`./jointure` (`scripts/services-du-noyau.mjs`) lui donne les services du noyau qu'il emploie (le plan d'une
+enveloppe, l'avancement et la mesure d'une passe, la pression et le verrou de la machine, le
+dernier vert, les arbitrages d'un ticket). La garde des frontières tient les deux sens, par les
+règles propres au dépôt (`.dependency-cruiser.projet.cjs`), comme `enforce-module-boundaries` de
+Nx ; le test de la jointure (`tests/unit/jointure.spec.ts`) inscrit chaque reste du noyau qui
+nomme encore un outil ou lance un fichier du module par son chemin, avec le ticket qui le retire.
+Les outils du langage (api-extractor et son modèle, la configuration de TSDoc, jsonc-parser,
+Turborepo, Vitest, knip, dependency-cruiser, TypeScript) sont des pairs facultatifs du paquet,
+comme Vite déclare les préprocesseurs qu'il importe ; `maj` ajoute au projet ceux que le gabarit
+déclare. Une même suite de conformité (`scripts/conformite.mjs`) tient chaque module de langage,
+comme le RuleTester d'ESLint une règle. Ainsi le reste du noyau ignore le langage du projet.
 
 **Les tests d'intégration, un paquet à part** : les tests qui montent un dépôt d'essai et y
 lancent le cadre entier (le circuit, plus de la moitié du temps des tests) vivent dans

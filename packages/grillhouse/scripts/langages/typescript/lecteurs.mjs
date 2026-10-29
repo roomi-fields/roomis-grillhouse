@@ -4,16 +4,16 @@
 // language service starts from a published symbol.
 //
 // - The provider of an element is the component whose interface (`docs/INTERFACE.md`) publishes
-//   it: a heading of its generated part (`lire` of scripts/index-interfaces.mjs). A name no
+//   it: a heading of its generated part (`lire` of scripts/langages/typescript/index-interfaces.mjs). A name no
 //   interface publishes, no component bears as its package name and no survey by the types
 //   resolves, that names a path of the repository or a declaration at the top of a component's
 //   production source, is set apart (`sansFournisseur`).
 // - The readers of an element are the other components that: its provider's `## Consommateurs`
 //   declares for it, or for `*` (`consommateurs`); import it, or the whole provider, in their
 //   production code, or in their tests for a package of the shared test material (`import`, the
-//   uses of scripts/consommateurs.mjs); hold a test file that names it, as a whole word, and
+//   uses of scripts/langages/typescript/consommateurs.mjs); hold a test file that names it, as a whole word, and
 //   imports the provider (the test file's path).
-// - By the types (scripts/references-par-les-types.mjs): each element the text writes, resolved by
+// - By the types (scripts/langages/typescript/references-par-les-types.mjs): each element the text writes, resolved by
 //   TypeScript's language service over the components' `tsconfig.json`.
 // - What each component reads (`lit`): its imports, and the providers of the elements it reads.
 import { existsSync, readFileSync } from 'node:fs';
@@ -25,9 +25,9 @@ import {
   NOM_DE_TEST,
   parcourir,
   utilise,
-} from '../../consommateurs.mjs';
-import { lire } from '../../index-interfaces.mjs';
-import { elementsEcrits, parLesTypes } from '../../references-par-les-types.mjs';
+} from './consommateurs.mjs';
+import { lire } from './index-interfaces.mjs';
+import { elementsEcrits, parLesTypes } from './references-par-les-types.mjs';
 
 const DOSSIERS_DE_TEST = new Set(['test', 'tests', '__tests__']);
 const SAUTES = new Set(['node_modules', 'dist', 'build', 'coverage']);

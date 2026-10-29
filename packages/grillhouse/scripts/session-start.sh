@@ -102,14 +102,14 @@ else
 fi
 # The packages out of the frame: docs/agents/hors-cadre.txt ("<package> <reason>", e.g. a frozen
 # version), read by scripts/paquets.mjs as every check reads it; Turborepo plays none of
-# its tasks (scripts/turbo-des-paquets.mjs). Line 1: the names listed;
+# its tasks (scripts/langages/typescript/turbo-des-paquets.mjs). Line 1: the names listed;
 # line 2: the names that no directory under packages/ or src/ bears.
 { read -r hors; read -r inconnus; } < <(node --input-type=module -e '
 const { pathToFileURL } = await import("node:url");
 const { horsCadre } = await import(pathToFileURL(process.argv[1]).href);
 const { horsCadreInconnus } = await import(pathToFileURL(process.argv[2]).href);
 process.stdout.write(`${[...horsCadre(process.argv[3])].join(" ")}\n${horsCadreInconnus(process.argv[3]).join(" ")}\n`);
-' "$ici/paquets.mjs" "$ici/consommateurs.mjs" "$root" 2>/dev/null)
+' "$ici/paquets.mjs" "$ici/langages/typescript/consommateurs.mjs" "$root" 2>/dev/null)
 # One package: docs/ at the root. Several: each package under packages/ has its own three documents,
 # unless it is out of the frame.
 if ls -d "$root"/packages/*/ >/dev/null 2>&1; then

@@ -2,7 +2,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { canWrap } from '../machine.js';
-import { ecrire as ecrireTurbo } from '../../scripts/turbo-des-paquets.mjs';
+import { ecrire as ecrireTurbo } from '../../scripts/langages/typescript/turbo-des-paquets.mjs';
 
 // The trial harness of the circuit of a ticket (scripts/circuit.mjs), shared by its tests
 // (tests/unit/circuit*.spec.ts): the frame's paths, the stand-ins of claude and bd, the scenarios a
@@ -23,7 +23,10 @@ import { ecrire as ecrireTurbo } from '../../scripts/turbo-des-paquets.mjs';
 const RACINE = path.resolve(__dirname, '../../../..');
 export const CIRCUIT = path.join(RACINE, 'packages/grillhouse/scripts/circuit.mjs');
 const ENVELOPPE = path.join(RACINE, 'packages/grillhouse/scripts/enveloppe/enveloppe.mjs');
-export const BASE = path.join(RACINE, 'packages/grillhouse/scripts/vitest-config/base.mjs');
+export const BASE = path.join(
+  RACINE,
+  'packages/grillhouse/scripts/langages/typescript/vitest-config/base.mjs'
+);
 
 export const json = (o: unknown) => `${JSON.stringify(o, null, 2)}\n`;
 export const ecrire = (f: string, texte: string, mode?: number) => {
@@ -340,8 +343,8 @@ export function circuitEssai(ESSAIS: string, { feuille = false, gardesSansCache 
         workspaces: ['packages/*'],
         packageManager: 'npm@10.9.8',
         scripts: {
-          test: `node ${path.join(RACINE, 'packages/grillhouse/scripts/tests.mjs')}`,
-          verifier: `node ${path.join(RACINE, 'packages/grillhouse/scripts/verifier.mjs')}`,
+          test: `node ${path.join(RACINE, 'packages/grillhouse/scripts/langages/typescript/tests.mjs')}`,
+          verifier: `node ${path.join(RACINE, 'packages/grillhouse/scripts/langages/typescript/verifier.mjs')}`,
           'grillhouse:gardes': 'node -e 0',
           gardes: 'node garde.mjs',
         },

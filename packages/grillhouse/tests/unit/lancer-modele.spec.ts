@@ -5,7 +5,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
 import { CODE_USAGE } from '../../scripts/enveloppe/codes.mjs';
 import { dossierDeTravail } from '../../scripts/enveloppe/enveloppe.mjs';
-import { publie } from '../../scripts/index-interfaces.mjs';
+import { publie } from '../../scripts/langages/typescript/index-interfaces.mjs';
 import { optionsDuRole } from '../../scripts/droits.mjs';
 import { schemaDeFiche } from '../../scripts/resultats.mjs';
 

@@ -27,7 +27,7 @@ afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 // The package of the frame's tests, whose configuration the child vitest reads.
 const RACINE = path.resolve(__dirname, '../..');
 const VITEST = path.resolve(RACINE, '../../node_modules/.bin/vitest');
-const NUIT = path.join(RACINE, 'scripts/vitest.nuit.config.mjs');
+const NUIT = path.join(RACINE, 'scripts/langages/typescript/vitest.nuit.config.mjs');
 const LONG = 120_000;
 // A test name that no test carries: the child vitest loads every file and runs none of its tests.
 const AUCUN = 'grillhouse-3uv.50: no test carries this name';

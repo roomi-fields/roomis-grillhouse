@@ -10,7 +10,7 @@ interface Rapport {
   messages: { line: number; message: string }[];
 }
 
-// Witness: BPScript, `node scripts/index-interfaces.mjs --publie <composant>` read through a pipe
+// Witness: BPScript, `node scripts/langages/typescript/index-interfaces.mjs --publie <composant>` read through a pipe
 // stopped at 65 536 bytes of 149 340. Towards a pipe, Node writes what the pipe's buffer holds at
 // once and queues the rest; `process.exit` ends the process before the queue drains, and the end
 // of the output is lost. A script of the frame sets `process.exitCode` and lets Node drain its

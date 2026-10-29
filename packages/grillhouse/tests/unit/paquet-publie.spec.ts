@@ -79,19 +79,21 @@ describe('grillhouse-3uv.84.4 critère 5 — the package declares what its scrip
     expect(manquants).toEqual([]);
   });
 
-  it('declares jsonc-parser and yaml among its dependencies, Vitest and TypeScript as peers', () => {
-    expect(Object.keys(pkg.dependencies ?? {})).toEqual(
-      expect.arrayContaining(['jsonc-parser', 'yaml'])
+  it('declares yaml among its dependencies, jsonc-parser, Vitest and TypeScript as optional peers (grillhouse-3dr.2.2)', () => {
+    expect(Object.keys(pkg.dependencies ?? {})).toEqual(expect.arrayContaining(['yaml']));
+    expect(Object.keys(pkg.peerDependencies ?? {})).toEqual(
+      expect.arrayContaining(['jsonc-parser', 'typescript', 'vitest'])
     );
-    expect(Object.keys(pkg.peerDependencies ?? {}).sort()).toEqual(['typescript', 'vitest']);
   });
 
   it('carries its base configuration of Vitest, exported by its name; no package of its own stays', () => {
     expect(pkg.exports['./vitest-config']).toEqual({
-      types: './scripts/vitest-config/base.d.ts',
-      default: './scripts/vitest-config/base.mjs',
+      types: './scripts/langages/typescript/vitest-config/base.d.ts',
+      default: './scripts/langages/typescript/vitest-config/base.mjs',
     });
-    expect(existsSync(path.join(PAQUET, 'scripts/vitest-config/package.json'))).toBe(false);
+    expect(
+      existsSync(path.join(PAQUET, 'scripts/langages/typescript/vitest-config/package.json'))
+    ).toBe(false);
     const racine = JSON.parse(readFileSync(path.join(DEPOT, 'package.json'), 'utf8')) as {
       workspaces: string[];
     };
@@ -116,7 +118,7 @@ describe('grillhouse-3uv.84.4 critère 5 — the package declares what its scrip
           !f.startsWith('.beads/') &&
           !f.includes('config-vitest') &&
           f !== 'packages/grillhouse/tests/unit/paquet-publie.spec.ts' &&
-          f !== 'packages/grillhouse/tests/unit/turbo-des-paquets.spec.ts' &&
+          f !== 'packages/grillhouse/tests/unit/langages/typescript/turbo-des-paquets.spec.ts' &&
           existsSync(path.join(DEPOT, f))
       );
     const porteurs = suivis.filter(f =>
@@ -226,7 +228,7 @@ describe('grillhouse-3uv.95.11.3 — the TSDoc base of the package', () => {
     expect(lireJson(path.join(PAQUET, 'tsdoc-base.json')).extends).toEqual([
       '@microsoft/api-extractor/extends/tsdoc-base.json',
     ]);
-    expect(pkg.dependencies?.['@microsoft/api-extractor']).toBeTypeOf('string');
+    expect(pkg.peerDependencies?.['@microsoft/api-extractor']).toBeTypeOf('string');
   });
   it('the tsdoc.json of the template and of the repository extend the package’s base', () => {
     for (const f of ['templates/projet/tsdoc.json', 'tsdoc.json']) {
@@ -246,7 +248,7 @@ describe('grillhouse-3uv.95.11.3 — the TSDoc base of the package', () => {
 // `lireSarif` reads back with its file and its line.
 const ENTREES_DES_GARDES = [
   { entree: './dette', module: 'dette', fonction: 'trancher' },
-  { entree: './consommateurs', module: 'consommateurs', fonction: 'matieres' },
+  { entree: './consommateurs', module: 'langages/typescript/consommateurs', fonction: 'matieres' },
   { entree: './paquets', module: 'paquets', fonction: 'horsCadre' },
   { entree: './resultats', module: 'resultats', fonction: 'ecrireSarif' },
 ] as const;

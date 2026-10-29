@@ -74,12 +74,12 @@ describe('critère 4 — npm test leaves the night tests out', () => {
 });
 
 // The frame's base configuration of the day (`@roomi-fields/grillhouse/vitest-config`, the
-// package's scripts/vitest-config/) carries the exclusions of the night tests and the time budget
+// package's scripts/langages/typescript/vitest-config/) carries the exclusions of the night tests and the time budget
 // benches and the common environment; the frame's tests and each configuration of a project extend
 // it (mergeConfig) without repeating them, and reach it by its name, as the examples of Turborepo
 // reach their configuration packages (@repo/eslint-config).
 describe('the base configuration of the day leaves the night out of every configuration that extends it', () => {
-  const PAQUET = path.join(DEPOT, 'packages/grillhouse/scripts/vitest-config');
+  const PAQUET = path.join(DEPOT, 'packages/grillhouse/scripts/langages/typescript/vitest-config');
   const BASE = path.join(PAQUET, 'base.mjs');
   type Config = { test: { exclude: string[]; env: Record<string, string> } };
   it('is exported by the frame’s package, typed, and no package of its own', () => {
@@ -87,19 +87,21 @@ describe('the base configuration of the day leaves the night out of every config
       readFileSync(path.join(DEPOT, 'packages/grillhouse/package.json'), 'utf8')
     ) as { exports: Record<string, unknown> };
     expect(paquet.exports['./vitest-config']).toEqual({
-      types: './scripts/vitest-config/base.d.ts',
-      default: './scripts/vitest-config/base.mjs',
+      types: './scripts/langages/typescript/vitest-config/base.d.ts',
+      default: './scripts/langages/typescript/vitest-config/base.mjs',
     });
     expect(paquet.exports['./vitest-config/mesure']).toEqual({
-      types: './scripts/vitest-config/mesure.d.ts',
-      default: './scripts/vitest-config/mesure.mjs',
+      types: './scripts/langages/typescript/vitest-config/mesure.d.ts',
+      default: './scripts/langages/typescript/vitest-config/mesure.mjs',
     });
     expect(existsSync(path.join(PAQUET, 'package.json'))).toBe(false);
   });
   it('is a directory of the package; the former file is gone', () => {
-    expect(existsSync(path.join(DEPOT, 'packages/grillhouse/scripts/vitest-config/base.mjs'))).toBe(
-      true
-    );
+    expect(
+      existsSync(
+        path.join(DEPOT, 'packages/grillhouse/scripts/langages/typescript/vitest-config/base.mjs')
+      )
+    ).toBe(true);
     expect(existsSync(path.join(DEPOT, 'packages/grillhouse/scripts/vitest.base.config.mjs'))).toBe(
       false
     );
@@ -138,14 +140,12 @@ describe('the base configuration of the day leaves the night out of every config
   it('a package whose configuration imports it by its name plays its day tests, and neither its night tests nor its benches', () => {
     const repo = mkdtempSync(path.join(ESSAIS, 'paquets-'));
     lierDependances(repo);
-    // The frame's package as npm installs it: its package.json, its base configuration and the
-    // modules of the core it reads, in place of the link to the repository's.
+    // The frame's package as npm installs it: its package.json and its scripts (the base
+    // configuration of the module typescript, the core's entries it reads), in place of the link
+    // to the repository's.
     const installe = path.join(repo, 'node_modules/@roomi-fields/grillhouse');
     rmSync(path.join(repo, 'node_modules/@roomi-fields'), { force: true });
-    cpSync(PAQUET, path.join(installe, 'scripts/vitest-config'), { recursive: true });
-    for (const f of ['mesure', 'resultats.mjs', 'paquets.mjs', 'dernier-vert.mjs']) {
-      cpSync(path.join(PAQUET, '..', f), path.join(installe, 'scripts', f), { recursive: true });
-    }
+    cpSync(path.join(PAQUET, '../../..'), path.join(installe, 'scripts'), { recursive: true });
     cpSync(
       path.join(DEPOT, 'packages/grillhouse/package.json'),
       path.join(installe, 'package.json')
@@ -237,7 +237,7 @@ describe('3uv.75.1 critères 11 et 17 — the day leaves the time budget benches
 });
 
 // A time witness is measured with the CPU at rest: a bench that fails under load is « à repasser »
-// (75, scripts/vitest-config/duree.reporter.mjs). The night waits for rest
+// (75, scripts/langages/typescript/vitest-config/duree.reporter.mjs). The night waits for rest
 // (scripts/mesure/pression.mjs attendre) and plays its benches once more; à repasser again,
 // the night is à repasser: no last green, no ticket.
 describe('the night plays again at rest a bench à repasser', () => {

@@ -125,7 +125,7 @@ describe('the frame’s guards that judge the root write their refusals in SARIF
     const d = dossier();
     const r = spawnSync(
       process.execPath,
-      [path.join(DEPOT, 'packages/grillhouse/scripts/turbo-des-paquets.mjs')],
+      [path.join(DEPOT, 'packages/grillhouse/scripts/langages/typescript/turbo-des-paquets.mjs')],
       {
         cwd: racine,
         encoding: 'utf8',

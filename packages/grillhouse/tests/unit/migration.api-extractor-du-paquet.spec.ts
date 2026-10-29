@@ -14,7 +14,7 @@ import { cheminSysteme, claudeSubstitut } from '../claude-substitut.js';
 
 // grillhouse-3uv.95.11.3: the update of 0.23.0 to 0.24.1 added `@microsoft/api-extractor` to the
 // devDependencies of a project's root, as a tool the project runs; the package imports it as a
-// library (scripts/interfaces-contre-code.mjs) and declares it itself, and no command of the
+// library (scripts/langages/typescript/interfaces-contre-code.mjs) and declares it itself, and no command of the
 // project runs it. BPScript, brought to 0.24.1 (0c5064a99), heard `grillhouse code-mort` refuse it
 // (« dépendance de développement sans usage »). A project that still declares it receives the line
 // of the other dependencies only the package imports (0.23.2-copies-du-cadre.mjs), with

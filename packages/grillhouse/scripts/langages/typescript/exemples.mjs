@@ -5,9 +5,13 @@
 // - A repository of four packages: `@e/a`; `@e/b`, which depends on `@e/a`; `@e/c`, which depends
 //   on `@e/b`; `@e/m`, the shared test material (it exports `./test-fixtures`). Each has its
 //   interface, and the generated files are written by their own commands (the index of the
-//   interfaces, the turbo.json of the packages): `aJour`; the same with the interface of `a`
-//   changed after, its index out of date: `enRetard`; the same, committed, a file of `a` then
-//   changed and a file out of every package added: `change`, measured from its commit.
+//   interfaces, the turbo.json of the packages): `aJour`; the same with each generated file out
+//   of date: the interface of `a` changed after its index, a fault listed that its code never
+//   produces (the check of the interfaces against the code), the turbo.json of `b` stale:
+//   `enRetard`; the same, committed, a file of `a` then changed and a file out of every package
+//   added: `change`, measured from its commit; the same where the code of `b` imports `a` and the
+//   code of `c` imports `b`: `lus`; the same with a second commit that changes a file of `a`:
+//   `lot`. A directory whose package.json names no package: `vide`.
 // - Two results directories of a run: every task and test green (`vert`); `a` at 75, `b` red, a
 //   test of `b` failed (`defaut`).
 import { execFileSync } from 'node:child_process';
@@ -15,7 +19,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const SCRIPTS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const SCRIPTS = path.dirname(fileURLToPath(import.meta.url));
 const json = o => `${JSON.stringify(o, null, 2)}\n`;
 const ecrireDans = racine => (rel, texte) => {
   mkdirSync(path.dirname(path.join(racine, rel)), { recursive: true });
@@ -98,29 +102,52 @@ function resultats(dans, taches, fichiers) {
   return dossier;
 }
 
+const tete = racine =>
+  execFileSync('git', ['-C', racine, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+
 export default {
   // The trials under <dans>.
   preparer(dans) {
     const aJour = depot(dans);
+    const vide = mkdtempSync(path.join(dans, 'vide-'));
+    writeFileSync(path.join(vide, 'package.json'), json({ name: 'vide', private: true }));
     const enRetard = depot(dans);
     writeFileSync(
       path.join(enRetard, 'packages/a/docs/INTERFACE.md'),
-      '# a\n\nA rend un autre nombre.\n'
+      '# a\n\nA rend un autre nombre.\n\n## Les fautes\n\n- `A_ABSENTE` : jamais produite.\n'
     );
+    writeFileSync(path.join(enRetard, 'packages/b/turbo.json'), '{}\n');
+    // The specifiers are written apart, so that no reading of the package's imports takes a
+    // trial's for its own.
+    const lus = depot(dans);
+    writeFileSync(
+      path.join(lus, 'packages/b/src/index.ts'),
+      `import { a } from ${"'@e/a'"};\nexport const b = a;\n`
+    );
+    writeFileSync(
+      path.join(lus, 'packages/c/src/index.ts'),
+      `import { b } from ${"'@e/b'"};\nexport const c = b;\n`
+    );
+    const lot = depot(dans);
+    const avantLeLot = tete(lot);
+    writeFileSync(path.join(lot, 'packages/a/src/index.ts'), 'export const a = 3;\n');
+    git(lot, 'commit', '-q', '-am', 'lot');
     const change = depot(dans);
-    const depuis = execFileSync('git', ['-C', change, 'rev-parse', 'HEAD'], {
-      encoding: 'utf8',
-    }).trim();
+    const depuis = tete(change);
     writeFileSync(path.join(change, 'packages/a/src/index.ts'), 'export const a = 2;\n');
     writeFileSync(path.join(change, 'notes.txt'), 'hors des paquets\n');
     return {
       racine: aJour,
+      composants: {
+        valide: vide,
+        invalide: aJour,
+        attendu: ['a (@e/a)', 'b (@e/b)', 'c (@e/c)', 'm (@e/m)'],
+      },
       composantDe: {
         valide: [
           { fichier: 'packages/a/src/index.ts', composant: 'a' },
           { fichier: 'packages/b/docs/INTERFACE.md', composant: 'b' },
           { fichier: path.join(aJour, 'packages/c/package.json'), composant: 'c' },
-          { fichier: 'packages/m/src/index.ts', composant: 'm' },
         ],
         invalide: [{ fichier: 'package.json' }, { fichier: 'docs/agents/index-des-interfaces.md' }],
         attendu: [
@@ -128,13 +155,31 @@ export default {
           'docs/agents/index-des-interfaces.md : hors de tout composant',
         ],
       },
+      lecteurs: {
+        valide: { racine: aJour, noms: [] },
+        invalide: { racine: lus, noms: ['package.json'] },
+        attendu: ['b lit a', 'c lit b', 'package.json : sans fournisseur'],
+      },
       touches: {
         valide: { racine: aJour, depuis: 'HEAD' },
         invalide: { racine: change, depuis },
         attendu: ['touché a', 'dépendant b', 'dépendant c', 'hors notes.txt'],
       },
       commandes: {
-        valide: ['tester', 'verifier', 'typer'],
+        valide: [
+          'tester',
+          'verifier',
+          'typer',
+          'code-mort',
+          'consommateurs',
+          'consommateurs-arbitres',
+          'frontieres',
+          'index-interfaces',
+          'interfaces-contre-code',
+          'resumes',
+          'tailles-des-tests',
+          'turbo-des-paquets',
+        ],
         invalide: ['tester', 'deployer'],
         attendu: ['deployer : absente'],
       },
@@ -179,7 +224,11 @@ export default {
       fichiersEngendres: {
         valide: aJour,
         invalide: enRetard,
-        attendu: ["l'index des interfaces : en retard"],
+        attendu: [
+          "l'index des interfaces : en retard",
+          'les turbo.json des paquets : en retard',
+          "les rapports d'API : en retard",
+        ],
       },
       gardes: {
         valide: [
@@ -191,8 +240,15 @@ export default {
           'interfaces-contre-code',
           'code-mort',
           'tailles-des-tests',
+          'resumes',
         ],
       },
+      elementsDuLot: {
+        valide: { racine: aJour, avant: 'HEAD', apres: 'HEAD' },
+        invalide: { racine: lot, avant: avantLeLot, apres: 'HEAD' },
+        attendu: ['fichier packages/a/src/index.ts', 'hors du service packages/a/src/index.ts'],
+      },
+      matieres: { valide: vide, invalide: aJour, attendu: ['m (@e/m)'] },
     };
   },
 };

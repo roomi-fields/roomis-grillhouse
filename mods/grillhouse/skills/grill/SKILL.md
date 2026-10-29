@@ -190,7 +190,7 @@ remplace jamais le grill. Les branches de l'arbre :
    intégration joue `npm run verifier` en entier (les gardes, le typage de chaque paquet et les
    tests), Turborepo relisant de son cache ce qui n'a pas bougé.
    Restent des choix selon la taille du projet, que le responsable tranche :
-   - **le contrôle de l'interface contre le code** (`packages/grillhouse/scripts/interfaces-contre-code.mjs`) : une
+   - **le contrôle de l'interface contre le code** (`packages/grillhouse/scripts/langages/typescript/interfaces-contre-code.mjs`) : une
      seule passe avant les tests (petit projet), ou un banc par composant qui appelle
      `verifierComposant`, rejoué seulement quand son composant l'est (grand projet).
    - **les sous-modules partagés** : un sous-module qu'aucun ticket n'écrit (un moteur de

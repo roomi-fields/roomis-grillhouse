@@ -1,8 +1,10 @@
 // grillhouse-3dr.2.1, criterion 3 — one suite of conformity holds every module of language to the
 // join (scripts/conformite.mjs), as ESLint's RuleTester holds a rule to its valid and invalid
 // cases: each case has an entry that passes and a defective entry that fails with the faults it
-// expects. It passes on the module typescript; each of seven defective modules, one defect each,
-// fails its own case and no other, so that the suite catches a real defect.
+// expects. It passes on the module typescript; each defective module, one defect each, fails its
+// own case and no other, so that the suite catches a real defect. grillhouse-3dr.2.2: the suite
+// covers the components alone, the readers, the elements of a lot, the shared test material, and
+// each generated file late.
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -39,7 +41,7 @@ const reference: Langage = {
     })),
 };
 
-// The seven defects, each the case it must fail.
+// The defects, each the case it must fail.
 const MUTANTS: [string, string, Partial<Langage>][] = [
   [
     'touches sans dépendants transitifs',
@@ -101,19 +103,64 @@ const MUTANTS: [string, string, Partial<Langage>][] = [
     },
   ],
   ['gardes vide', 'gardes', { gardes: () => [] }],
+  [
+    'composants sans la matière partagée',
+    'composants',
+    {
+      composants: (racine: string) =>
+        typescript.composants(racine).filter((c: { nom: string }) => c.nom !== 'm'),
+    },
+  ],
+  [
+    'lecteurs qui ne voit aucune lecture',
+    'lecteurs',
+    {
+      lecteurs: (racine: string, o: Parameters<Langage['lecteurs']>[1]) => ({
+        ...typescript.lecteurs(racine, o),
+        lit: new Map(),
+      }),
+    },
+  ],
+  [
+    'un seul fichier engendré dont la vérification est aveugle',
+    'fichiersEngendres',
+    {
+      fichiersEngendres: (racine: string) =>
+        reference
+          .fichiersEngendres(racine)
+          .map((e: Engendre) =>
+            e.gardes.includes('turbo-des-paquets') ? { ...e, verifier: () => [] } : e
+          ),
+    },
+  ],
+  [
+    'elementsDuLot qui ne nomme aucun fichier',
+    'elementsDuLot',
+    {
+      elementsDuLot: (racine: string, o: { avant: string; apres: string }) => ({
+        ...typescript.elementsDuLot(racine, o),
+        fichiers: [],
+      }),
+    },
+  ],
+  ['matieres vide', 'matieres', { matieres: () => [] }],
 ];
 
 describe('grillhouse-3dr.2.1 — la suite de conformité de la jointure', { timeout: 180_000 }, () => {
   it('names one case per demand of the join', () => {
     const noms = cas(reference, exemples, { dans: ESSAIS }).map(c => c.nom);
     expect(noms).toEqual([
+      'composants',
       'composantDe',
+      'lecteurs',
       'touches',
       'commandes',
       'verdict',
       'estUnTest',
       'fichiersEngendres',
       'gardes',
+      'elementsDuLot',
+      'matieres',
     ]);
   });
 
@@ -121,6 +168,13 @@ describe('grillhouse-3dr.2.1 — la suite de conformité de la jointure', { time
     for (const c of cas(reference, exemples, { dans: ESSAIS })) {
       expect(c.attendu.length, c.nom).toBeGreaterThan(0);
     }
+  });
+
+  it('its defective entry of the generated files makes each of them late', () => {
+    const c = cas(reference, exemples, { dans: ESSAIS }).find(k => k.nom === 'fichiersEngendres');
+    expect(c?.attendu).toEqual(
+      typescript.fichiersEngendres(ESSAIS).map((e: Engendre) => `${e.nom} : en retard`)
+    );
   });
 
   it('passes on the module typescript', () => {

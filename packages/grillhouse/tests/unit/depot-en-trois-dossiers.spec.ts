@@ -17,7 +17,9 @@ describe('the repository in three directories', () => {
     expect(existsSync(path.join(DEPOT, 'scripts'))).toBe(false);
     expect(existsSync(path.join(DEPOT, 'tests'))).toBe(false);
     expect(existsSync(path.join(PAQUET, 'scripts/circuit.mjs'))).toBe(true);
-    expect(existsSync(path.join(PAQUET, 'scripts/vitest-config/base.mjs'))).toBe(true);
+    expect(
+      existsSync(path.join(PAQUET, 'scripts/langages/typescript/vitest-config/base.mjs'))
+    ).toBe(true);
     expect(existsSync(path.join(PAQUET, 'tests/unit/circuit.spec.ts'))).toBe(true);
   });
 

@@ -135,7 +135,7 @@ describe('the night', () => {
     expect(m.nuit().status).toBe(0);
     expect(m.lire(recu)).toBe('--force');
   });
-  // « À repasser » (75, scripts/verifier.mjs): the machine stayed loaded. Neither green nor red: the
+  // « À repasser » (75, scripts/langages/typescript/verifier.mjs): the machine stayed loaded. Neither green nor red: the
   // last green stays, no ticket opens, nothing is pushed, and the next night plays again.
   it('a npm run verifier à repasser (75): exit 75, no last green, no ticket, the log says so', () => {
     const m = monde();
@@ -232,7 +232,7 @@ describe('the night', () => {
 // grillhouse-3uv.56.2: the red night's ticket gives, for each red task of the full pass, the
 // command that looks for the culprit commit over the interval, `git bisect run` with that task
 // alone. The fake `npm run verifier` writes the red tasks committed in ROUGE (one Turborepo task id
-// per line) to the file GRILLHOUSE_ROUGES names, as scripts/verifier.mjs does, and fails.
+// per line) to the file GRILLHOUSE_ROUGES names, as scripts/langages/typescript/verifier.mjs does, and fails.
 describe('the bisect commands of the red night (grillhouse-3uv.56.2)', () => {
   function rougeSur(taches: string[]) {
     const m = monde();

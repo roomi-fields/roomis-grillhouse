@@ -62,7 +62,7 @@
 //   in a project with `workspaces` (a package out of the frame is not touched, the root's
 //   `typecheck` stays the project's), the root in a project without. `npm run verifier` plays it,
 //   the task `typecheck` of Turborepo, which the generator keeps in the root's turbo.json
-//   (scripts/turbo-des-paquets.mjs). The report names the packages that received it. Witness:
+//   (scripts/langages/typescript/turbo-des-paquets.mjs). The report names the packages that received it. Witness:
 //   BPScript 320.21.4, whose type errors in test/ showed only at night.
 // - `turbo.json` is the project's own file, as every repository run by Turborepo writes its own. A
 //   project with a `package.json` and no `turbo.json` receives the frame's template of its form:
@@ -93,7 +93,7 @@
 //   (`docs/agents/hors-cadre.txt`), which Turborepo never tests, counts for nothing) has its root scripts
 //   `test`, `test:vitest`, `test:forcer` and `verifier` become the template's (`npm test`, the tests
 //   as Turborepo's tasks with its cache; `npm run test:forcer`, the same played for real;
-//   `npm run verifier`, scripts/verifier.mjs, the guards and the tests beside each other, which the
+//   `npm run verifier`, scripts/langages/typescript/verifier.mjs, the guards and the tests beside each other, which the
 //   integration, the queue, the continuous integration and the night play); the report says so, when the
 //   Vitest of the project's root (`npx --no-install vitest`, the one `test:vitest` calls) satisfies
 //   the range the template's package.json declares for `vitest`. Where the root resolves no Vitest or
@@ -101,7 +101,7 @@
 //   version found and the range required. A `test` that runs anything else stays. The scripts of
 //   the packages of a monorepo are not written, but their `typecheck` (above).
 // - The frame's base configuration of Vitest is the package's (`@roomi-fields/grillhouse/vitest-config`,
-//   scripts/vitest-config/), which each Vitest configuration imports by its name
+//   scripts/langages/typescript/vitest-config/), which each Vitest configuration imports by its name
 //   (`import base from '@roomi-fields/grillhouse/vitest-config'`), as the examples of Turborepo
 //   reach @repo/eslint-config: a package is reached by its name, never by a path into it. In a
 //   project with `workspaces`, each package of the frame that holds a `test:vitest` script
@@ -111,7 +111,7 @@
 //   import; the update writes no Vitest configuration.
 // - A package of the frame whose code imports the frame's package (a file of its `src/` out of the
 //   tests, the files whose development dependencies the guard of the boundaries refuses,
-//   scripts/frontieres.mjs; its imports read by TypeScript's `preProcessFile`) declares it in its
+//   scripts/langages/typescript/frontieres.mjs; its imports read by TypeScript's `preProcessFile`) declares it in its
 //   `dependencies`, as npm puts there what the published code imports: a declaration in its
 //   `devDependencies` moves there with its range, else the range the root declares (else
 //   `^<version>`); this comes first, so that the declaration of the Vitest base above keeps it.
@@ -159,14 +159,13 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import semver from 'semver';
-import { CADRE, VERSION } from './cadre.mjs';
+import { CADRE, PAQUET, VERSION } from './cadre.mjs';
 import { poserCrochets } from './crochets.mjs';
 import { installerGreffons } from './greffons.mjs';
 import { migrer, restesAuProjet } from './migrations.mjs';
-import { CODE, TESTS } from './frontieres.mjs';
-import { paquets } from './paquets.mjs';
+import { langageDe } from './langages.mjs';
+import { CODE, paquets, TYPAGE } from './paquets.mjs';
 import { sources } from './sources.mjs';
-import { TYPAGE } from './turbo-des-paquets.mjs';
 
 const SCRIPTS = {
   tableau: 'grillhouse tableau --texte',
@@ -183,9 +182,17 @@ const CONFIG_VITEST = `${PAQUET_DU_CADRE}/vitest-config`;
 /** The frame's status line, as the settings of a project run it. */
 export const LIGNE_ETAT = '"$CLAUDE_PROJECT_DIR/node_modules/.bin/grillhouse" ligne-etat';
 
-// The frame's tools a project runs as commands: their names are the frame's, their versions are
-// read in the template.
-const OUTILS_DU_CADRE = ['dependency-cruiser', 'knip', 'turbo'];
+// The frame's tools a project installs: the optional peers of the package (its package.json), the
+// tools its module of language runs as commands or its scripts import, as Vite names the
+// preprocessors it imports when a project has them; the project's own TypeScript and Vitest left
+// out, which it writes its code and its tests with. Their versions are read in the template.
+const DU_PROJET = new Set(['typescript', 'vitest']);
+const OUTILS_DU_CADRE = Object.entries(
+  JSON.parse(readFileSync(path.join(PAQUET, 'package.json'), 'utf8')).peerDependenciesMeta ?? {}
+)
+  .filter(([nom, m]) => m?.optional && !DU_PROJET.has(nom))
+  .map(([nom]) => nom)
+  .sort();
 // The root scripts of the tests, written together from the template.
 const SCRIPTS_DES_TESTS = ['test', 'test:vitest', 'test:forcer', 'verifier'];
 const CHAMPS_INSTALLES = ['dependencies', 'devDependencies', 'optionalDependencies'];
@@ -264,14 +271,14 @@ const plageDeLaRacine = p =>
   CHAMPS_INSTALLES.map(c => p[c]?.[PAQUET_DU_CADRE]).find(v => v !== undefined);
 
 // Whether the code of the package at <dossier> of <projet> imports the frame's package (an entry of
-// it): a file of its `src/` out of the tests (CODE and TESTS of scripts/frontieres.mjs, the files
-// whose development dependencies its guard refuses), its imports read by TypeScript
+// it): a file of its `src/` (CODE of scripts/paquets.mjs) out of the tests (`estUnTest` of the
+// module of the project's language, scripts/langages.mjs), its imports read by TypeScript
 // (`preProcessFile`), a comment or a string importing nothing.
 function codeImporteLeCadre(projet, dossier) {
   const ts = createRequire(import.meta.url)('typescript');
   return sources(path.join(projet, dossier))
     .map(f => `${dossier}/${f}`)
-    .filter(f => new RegExp(CODE).test(f) && !new RegExp(TESTS).test(f))
+    .filter(f => new RegExp(CODE).test(f) && !langageDe(projet).estUnTest(f, projet)?.test)
     .some(f =>
       ts
         .preProcessFile(readFileSync(path.join(projet, f), 'utf8'), true, true)
@@ -345,7 +352,7 @@ function poserConfigVitest(projet, p) {
 // each package of the frame in a project of packages, written in its package.json (a package out
 // of the frame is not touched, and the root's `typecheck` stays the project's); the root itself in
 // a project without packages, set in <p>, which the caller writes. `npm run verifier` plays it, a
-// task of Turborepo (scripts/turbo-des-paquets.mjs). Returns { script, paquets } (paquets: each
+// task of Turborepo (scripts/langages/typescript/turbo-des-paquets.mjs). Returns { script, paquets } (paquets: each
 // package's directory, `.` for the root), or null when nothing changes.
 function poserTypage(projet, p, script) {
   if (typeof script !== 'string') return null;

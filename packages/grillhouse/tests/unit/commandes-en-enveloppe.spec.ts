@@ -15,7 +15,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
 import { CODE_COPIE } from '../../scripts/enveloppe/codes.mjs';
 import { dossierDeTravail } from '../../scripts/enveloppe/enveloppe.mjs';
-import { ecrire as ecrireTurbo } from '../../scripts/turbo-des-paquets.mjs';
+import { ecrire as ecrireTurbo } from '../../scripts/langages/typescript/turbo-des-paquets.mjs';
 
 // Witness: BPScript (Turborepo 2.11.8), four sessions on one day. Inside the envelope of
 // one package, a command of the frame wanted to build or read what the envelope shows read-only or
@@ -26,9 +26,15 @@ import { ecrire as ecrireTurbo } from '../../scripts/turbo-des-paquets.mjs';
 
 const DEPOT = path.resolve(__dirname, '../../../..');
 const ENVELOPPE = path.join(DEPOT, 'packages/grillhouse/scripts/enveloppe/enveloppe.mjs');
-const TESTS = path.join(DEPOT, 'packages/grillhouse/scripts/tests.mjs');
-const API = path.join(DEPOT, 'packages/grillhouse/scripts/interfaces-contre-code.mjs');
-const BASE = path.join(DEPOT, 'packages/grillhouse/scripts/vitest-config/base.mjs');
+const TESTS = path.join(DEPOT, 'packages/grillhouse/scripts/langages/typescript/tests.mjs');
+const API = path.join(
+  DEPOT,
+  'packages/grillhouse/scripts/langages/typescript/interfaces-contre-code.mjs'
+);
+const BASE = path.join(
+  DEPOT,
+  'packages/grillhouse/scripts/langages/typescript/vitest-config/base.mjs'
+);
 const BIN = path.join(DEPOT, 'node_modules/.bin');
 const LANCEUR = path.join(DEPOT, 'packages/grillhouse/scripts/enveloppe/lancer.sh');
 
@@ -152,7 +158,7 @@ function depot() {
     'packages/kernel/vitest.config.mjs',
     `import base from ${JSON.stringify(BASE)};\nexport default base;\n`
   );
-  // The material's configuration is CommonJS, as the frame asks (scripts/turbo-des-paquets.mjs),
+  // The material's configuration is CommonJS, as the frame asks (scripts/langages/typescript/turbo-des-paquets.mjs),
   // and reaches the frame's base, ESM, by its name, as a project does: by a dynamic import, which
   // Vite lets through where it refuses a `require` of an ESM package.
   ecrire(

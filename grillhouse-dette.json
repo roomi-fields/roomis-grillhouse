@@ -150,11 +150,6 @@
         "count": 1
       }
     },
-    "packages/grillhouse/tests/unit/consommateurs-arbitres.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
     "packages/grillhouse/tests/unit/crochets-du-cadre.spec.ts": {
       "grand-de-jour": {
         "count": 1
@@ -250,6 +245,26 @@
         "count": 1
       }
     },
+    "packages/grillhouse/tests/unit/langages/typescript/consommateurs-arbitres.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/tests-cibles.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/turbo-des-paquets-donnees.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/verifier.depuis-le-vert.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
     "packages/grillhouse/tests/unit/ligne-etat.spec.ts": {
       "grand-de-jour": {
         "count": 1
@@ -310,11 +325,6 @@
         "count": 1
       }
     },
-    "packages/grillhouse/tests/unit/tests-cibles.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
     "packages/grillhouse/tests/unit/tests-de-nuit.script-de-nuit.spec.ts": {
       "grand-de-jour": {
         "count": 1
@@ -325,17 +335,7 @@
         "count": 1
       }
     },
-    "packages/grillhouse/tests/unit/turbo-des-paquets-donnees.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
     "packages/grillhouse/tests/unit/un-commit-par-ticket.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/verifier.depuis-le-vert.spec.ts": {
       "grand-de-jour": {
         "count": 1
       }

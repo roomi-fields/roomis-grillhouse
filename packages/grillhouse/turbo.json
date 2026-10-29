@@ -26,6 +26,7 @@
         "$TURBO_ROOT$/.beads/metadata.json/**",
         "$TURBO_ROOT$/.claude/**",
         "$TURBO_ROOT$/.dependency-cruiser.cjs/**",
+        "$TURBO_ROOT$/.dependency-cruiser.projet.cjs/**",
         "$TURBO_ROOT$/.eslintrc.cjs/**",
         "$TURBO_ROOT$/.github/**",
         "$TURBO_ROOT$/.mcp.json/**",

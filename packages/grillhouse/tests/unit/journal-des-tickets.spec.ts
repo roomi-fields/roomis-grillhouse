@@ -1,7 +1,7 @@
 // The journal of the tickets replays no test of the frame: each command of bd rewrites
 // `.beads/interactions.jsonl`, and a pass measured against the last green plays every test of a
 // package when a change lies on a path its tests declare they read (`grillhouse.lit`, rule 5 of
-// scripts/vitest-config/changements.mjs), which its turbo.json also hashes for its `test:vitest`.
+// scripts/langages/typescript/vitest-config/changements.mjs), which its turbo.json also hashes for its `test:vitest`.
 // The package declares under `.beads` the files its tests read, one by one: each file git follows
 // there but the journals (`*.jsonl`) and the README, which ./git-des-tests.spec.ts reads to look
 // for a setting of git's maintenance, the hooks included; its scripts and its launcher stay
@@ -13,7 +13,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { restreindre } from '../../scripts/vitest-config/changements.mjs';
+import { restreindre } from '../../scripts/langages/typescript/vitest-config/changements.mjs';
 
 const DEPOT = path.resolve(__dirname, '../../../..');
 const PAQUET = path.join(DEPOT, 'packages/grillhouse');

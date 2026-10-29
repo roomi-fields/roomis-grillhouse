@@ -9,7 +9,9 @@
 //   writes on its error stream, its exit code non-zero, as `@turbo/codemod` fails on a file it
 //   could not transform. It is replayable without effect: a second pass changes no byte and
 //   returns no line.
-// - MIGRATIONS lists them, each imported by its module; the update plays those newer than the
+// - MIGRATIONS lists the core's, each imported by its module, and a module of language carries
+//   the ones that replay one of its guards (`migrations`, scripts/jointure.d.ts), as each plugin
+//   of Nx carries its own (`migrationsDe`); the update plays those newer than the
 //   version the project recorded (`grillhouse.version` of its package.json), in the order of their
 //   versions; a project that recorded none plays them all. The package carries no migration newer
 //   than itself once released, so the range ends with the package.
@@ -17,8 +19,10 @@
 //   update is done, which the update plays after its own update and its regeneration, for each
 //   migration it played, and reports (« reste au projet ») without holding back the version, as a
 //   codemod reports what it leaves without failing (restesAuProjet).
-// - Each migration has its test, tests/unit/migration.<nom>.spec.ts.
+// - Each migration has its test, tests/unit/migration.<nom>.spec.ts (a module's, under its
+//   folder of tests, tests/unit/langages/<nom>/).
 import semver from 'semver';
+import { langageDe } from './langages.mjs';
 import * as charteImportee from './migrations/0.23.0-charte-importee.mjs';
 import * as configVitest from './migrations/0.23.0-config-vitest.mjs';
 import * as crochetsDeSeance from './migrations/0.23.0-crochets-de-seance.mjs';
@@ -26,13 +30,9 @@ import * as marcheDuProjet from './migrations/0.23.0-marche-du-projet.mjs';
 import * as copiesDuCadre from './migrations/0.23.2-copies-du-cadre.mjs';
 import * as circuitSimplifie from './migrations/0.24.0-circuit-simplifie.mjs';
 import * as apiExtractorDuPaquet from './migrations/0.24.2-api-extractor-du-paquet.mjs';
-import * as nomsDeclaresInutilises from './migrations/0.24.4-noms-declares-inutilises.mjs';
-import * as lignesMalFormees from './migrations/0.24.6-lignes-mal-formees.mjs';
-import * as matiereDansLesTests from './migrations/0.24.7-matiere-dans-les-tests.mjs';
 import * as triDesDecouvertes from './migrations/0.24.12-tri-des-decouvertes.mjs';
-import * as taillesDesTests from './migrations/0.25.0-tailles-des-tests.mjs';
 
-/** The migrations of the package. */
+/** The migrations of the core. */
 export const MIGRATIONS = [
   crochetsDeSeance,
   configVitest,
@@ -41,12 +41,14 @@ export const MIGRATIONS = [
   copiesDuCadre,
   circuitSimplifie,
   apiExtractorDuPaquet,
-  nomsDeclaresInutilises,
-  lignesMalFormees,
-  matiereDansLesTests,
   triDesDecouvertes,
-  taillesDesTests,
 ];
+
+/**
+ * The migrations of the project at <projet>: the core's, and the ones of the module of its
+ * language (`migrations`, scripts/jointure.d.ts), as `nx migrate` gathers each plugin's.
+ */
+export const migrationsDe = projet => [...MIGRATIONS, ...langageDe(projet).migrations];
 
 /**
  * The migrations of <liste> newer than <depuis> (all of them when it is null), in the order of
@@ -64,7 +66,7 @@ export function migrationsAJouer(depuis, liste = MIGRATIONS) {
  * What stays to the project at <projet> after the update, for each migration newer than <depuis>
  * that exports `restes` and names something: `{ version, nom, lignes }`.
  */
-export function restesAuProjet(projet, depuis, liste = MIGRATIONS) {
+export function restesAuProjet(projet, depuis, liste = migrationsDe(projet)) {
   return migrationsAJouer(depuis, liste)
     .filter(m => typeof m.restes === 'function')
     .map(m => ({ version: m.version, nom: m.nom, lignes: m.restes(projet) }))
@@ -75,7 +77,7 @@ export function restesAuProjet(projet, depuis, liste = MIGRATIONS) {
  * Plays on the project at <projet> each migration newer than <depuis>; returns, for each one that
  * changed something or left something to do, `{ version, nom, lignes, aFaire }`.
  */
-export function migrer(projet, depuis, liste = MIGRATIONS) {
+export function migrer(projet, depuis, liste = migrationsDe(projet)) {
   return migrationsAJouer(depuis, liste)
     .map(m => {
       const tout = m.migrer(projet);

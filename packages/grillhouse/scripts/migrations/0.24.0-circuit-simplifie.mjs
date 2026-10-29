@@ -156,6 +156,11 @@ function copies(projet) {
     }));
 }
 
+// The path under `scripts/` where the frame of a former version kept the script <s> of the package
+// (a path under `scripts/`): a script of a module of language lay where its module's folder now
+// holds it, directly under `scripts/` (grillhouse-3dr.2.2).
+const ancienne = s => s.replace(/^langages\/[^/]+\//, '');
+
 // What replaces each script of the frame, by its path under `scripts/`: its subcommand, its hook,
 // its named entry; none for a script of the package that has none of them.
 function remplacants(projet) {
@@ -173,12 +178,14 @@ function remplacants(projet) {
   for (const [entree, cible] of Object.entries(exports)) {
     const d = typeof cible === 'string' ? cible : cible?.default;
     if (typeof d === 'string' && d.startsWith('./scripts/')) {
-      ajouter(d.slice('./scripts/'.length), `\`${name}${entree.slice(1)}\``);
+      ajouter(ancienne(d.slice('./scripts/'.length)), `\`${name}${entree.slice(1)}\``);
     }
   }
   const scripts = path.join(PAQUET, 'scripts');
   for (const e of readdirSync(scripts, { recursive: true, withFileTypes: true })) {
-    const s = path.relative(scripts, path.join(e.parentPath, e.name)).split(path.sep).join('/');
+    const s = ancienne(
+      path.relative(scripts, path.join(e.parentPath, e.name)).split(path.sep).join('/')
+    );
     if (e.isFile() && SCRIPT.test(s) && !r.has(s)) {
       r.set(s, []);
     }

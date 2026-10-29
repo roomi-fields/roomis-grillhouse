@@ -76,7 +76,7 @@ Le flux est celui de la charte, et toutes ses compétences s'appliquent. Ce que 
   responsable, à l'adoption du cadre ; l'élagage suit chaque correction.
 - **Une vérification change par le responsable** : une vérification ajoutée, retirée ou élargie
   part avec son accord, écrit au ticket. Ainsi ce qui refuse un commit reste sa décision.
-- **Le code mort se refuse** : `packages/grillhouse/scripts/code-mort.mjs` (knip, configuré dans `knip.json`) refuse un
+- **Le code mort se refuse** : `packages/grillhouse/scripts/langages/typescript/code-mort.mjs` (knip, configuré dans `knip.json`) refuse un
   fichier, un export ou une dépendance que rien de vivant n'utilise ; un nom légitime sort par son
   nom, avec sa raison. Ainsi le dépôt garde seulement ce qui sert.
 - **Un plafond ne remonte jamais** : quand une vérification tolère des défauts jusqu'à un plafond,

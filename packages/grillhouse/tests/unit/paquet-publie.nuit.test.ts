@@ -8,7 +8,9 @@ import { afterAll, describe, expect, it } from 'vitest';
 // grillhouse-3uv.84.4 critère 5, a night test: the package packed as npm publishes it (`npm pack`,
 // its prepack carrying the frame's files under cadre/) installs in a fresh project, whose
 // `grillhouse verifier` plays its tests, green. The project declares what a project declares: the
-// frame's package, Turborepo and Vitest; npm brings the rest, the package's dependencies and peers.
+// frame's package, Turborepo and Vitest, and the optional peers the scripts of the module
+// typescript import, which `grillhouse maj` adds from the template (grillhouse-3dr.2.2); npm
+// brings the rest, the package's dependencies.
 // npm reads its cache first (`--prefer-offline`), the registry for what it lacks.
 
 const PAQUET = path.resolve(__dirname, '../..');
@@ -65,6 +67,14 @@ describe('grillhouse-3uv.84.4 critère 5 — the packed package installs in a fr
             '@roomi-fields/grillhouse': `file:${path.join(archives, archive as string)}`,
             turbo: gabarit.devDependencies.turbo,
             vitest: gabarit.devDependencies.vitest,
+            ...Object.fromEntries(
+              [
+                '@microsoft/api-extractor',
+                '@microsoft/api-extractor-model',
+                '@microsoft/tsdoc-config',
+                'jsonc-parser',
+              ].map(d => [d, gabarit.devDependencies[d]])
+            ),
           },
           packageManager: gabarit.packageManager,
         },

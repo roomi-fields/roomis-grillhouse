@@ -17,7 +17,7 @@ import {
   paquetsDeLEnveloppe,
   VARIABLE as VARIABLE_NUE,
 } from '../../scripts/enveloppe/paquets-du-plan.mjs';
-import { aVerifier } from '../../scripts/interfaces-contre-code.mjs';
+import { aVerifier } from '../../scripts/langages/typescript/interfaces-contre-code.mjs';
 import { SCRIPT, enveloppeEssai } from './enveloppe-essai.js';
 
 const VARIABLE = VARIABLE_NUE as string;

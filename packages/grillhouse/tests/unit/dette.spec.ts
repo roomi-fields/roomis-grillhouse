@@ -18,7 +18,7 @@ import { lireSarif, RESULTATS } from '../../scripts/resultats.mjs';
 type Sarif = {
   constats: { garde: string; fichier: string | null; regle: string | null; niveau: string }[];
 };
-import { codeMortEssai } from './code-mort-essai.js';
+import { codeMortEssai } from './langages/typescript/code-mort-essai.js';
 
 // The known debt of the guards (`scripts/dette.mjs`), on the model of ESLint's bulk suppressions:
 // a finding inscribed in `grillhouse-dette.json`, keyed by guard, file and rule with its count,
@@ -29,7 +29,9 @@ import { codeMortEssai } from './code-mort-essai.js';
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'dette-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
-const SCRIPTS = path.resolve(__dirname, '../../scripts');
+// The guards of the module typescript, and the core's scripts (`dette.mjs`).
+const SCRIPTS = path.resolve(__dirname, '../../scripts/langages/typescript');
+const DU_NOYAU = path.resolve(__dirname, '../../scripts');
 const MODULES = path.resolve(__dirname, '../../../../node_modules');
 const IFACE_B = 'packages/b/docs/INTERFACE.md';
 
@@ -54,7 +56,8 @@ function garde(dir: string, script: string, mode?: string, ...args: string[]) {
   if (mode) {
     env.GRILLHOUSE_DETTE = mode;
   }
-  const r = spawnSync('node', [path.join(SCRIPTS, script), ...args], {
+  const dossier = script === 'dette.mjs' ? DU_NOYAU : SCRIPTS;
+  const r = spawnSync('node', [path.join(dossier, script), ...args], {
     cwd: dir,
     encoding: 'utf8',
     env,

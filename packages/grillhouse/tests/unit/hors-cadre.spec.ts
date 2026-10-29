@@ -12,9 +12,13 @@ import { tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { composants, matieres, verifier } from '../../scripts/consommateurs.mjs';
-import { configuration } from '../../scripts/frontieres.mjs';
-import { index, interfaces } from '../../scripts/index-interfaces.mjs';
+import {
+  composants,
+  matieres,
+  verifier,
+} from '../../scripts/langages/typescript/consommateurs.mjs';
+import { configuration } from '../../scripts/langages/typescript/frontieres.mjs';
+import { index, interfaces } from '../../scripts/langages/typescript/index-interfaces.mjs';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'hors-cadre-'));
@@ -24,7 +28,7 @@ afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 // docs/agents/hors-cadre.txt (« <package> <reason> », one line per package), and every check reads
 // that list through composants(): the consumers, the index of the interfaces, the boundaries.
 const HORS_CADRE = 'docs/agents/hors-cadre.txt';
-const FRONTIERES = path.resolve(__dirname, '../../scripts/frontieres.mjs');
+const FRONTIERES = path.resolve(__dirname, '../../scripts/langages/typescript/frontieres.mjs');
 const MODULES = path.resolve(__dirname, '../../../../node_modules');
 
 function repo(files: Record<string, string>) {

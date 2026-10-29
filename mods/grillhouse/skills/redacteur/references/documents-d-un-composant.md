@@ -30,14 +30,14 @@ frontière a une seule définition, tenue par son garde.
 qu'il rend. L'étiquette `@faute` est déclarée dans la configuration TSDoc du cadre (`tsdoc.json`).
 Ainsi le contrat change avec le code qu'il décrit.
 **La première phrase du résumé tient en 80 caractères**, style télégraphique admis ; le détail va
-dans les phrases suivantes. Le garde `packages/grillhouse/scripts/resumes.mjs` la mesure comme l'index la reprend.
+dans les phrases suivantes. Le garde `packages/grillhouse/scripts/langages/typescript/resumes.mjs` la mesure comme l'index la reprend.
 Ainsi l'index des interfaces et la consigne d'un agent restent courts.
 **`INTERFACE.md` a deux parts** : la part écrite à la main porte la vue d'ensemble, les fautes et
 les consommateurs ; la part générée, entre `<!-- généré: début -->` et `<!-- généré: fin -->`,
 donne une entrée par export (son nom en code, sa signature, son résumé, ses paramètres, son retour,
 ses fautes, et le résumé de ses membres), tirée des commentaires TSDoc. `npm run api` la refait,
 avec le rapport de l'API qu'API Extractor tire du code construit (`docs/INTERFACE.api.md`), et ne
-touche jamais la part écrite à la main. Le contrôle `packages/grillhouse/scripts/interfaces-contre-code.mjs` refuse une
+touche jamais la part écrite à la main. Le contrôle `packages/grillhouse/scripts/langages/typescript/interfaces-contre-code.mjs` refuse une
 part générée périmée ou sans ses marques, un export auquel une rubrique manque, une étiquette
 inconnue ou mal formée, un `@faute` hors du catalogue, et un code du catalogue qu'aucun `@faute` ne
 nomme. Un paquet qui n'exporte que des sous-chemins, sans entrée `.` (la matière de test partagée,
@@ -52,7 +52,7 @@ composant produit.
 utilise l'interface, avec les éléments qu'il importe (``- `parser` : jeton, position``, `*` pour
 un import entier) ; chaque puce de la section, hors partie générée, a cette seule forme, chaque
 nom un identifiant JavaScript ou `*`, jamais une phrase ; un paragraphe hors puce (« Aucun paquet
-de la v2. ») n'est pas un consommateur. Le garde `packages/grillhouse/scripts/consommateurs.mjs` refuse un import qu'elle ne déclare pas,
+de la v2. ») n'est pas un consommateur. Le garde `packages/grillhouse/scripts/langages/typescript/consommateurs.mjs` refuse un import qu'elle ne déclare pas,
 un nom déclaré qu'aucun code du consommateur n'emploie, et une puce d'une autre forme, avec ou
 sans « : » ; il lit les noms d'un `import('x')` littéral déstructuré comme ceux d'un import statique, et
 ne lit pas un chargeur dont le paquet se calcule : le consommateur écrit `import('x')` en clair. Il
@@ -60,7 +60,7 @@ lit le code de production de chaque consommateur, et aussi ses tests pour le paq
 de test partagée, que seuls des tests lisent. Une ligne nouvelle entre avec son arbitrage
 tranché au ticket, qui nomme le consommateur, ou avec le plan du ticket (son titre, sa section
 « Architecture », sa section « Noms publiés »), qui nomme mot pour mot le consommateur et chaque élément que le lot ajoute à la
-ligne, et le garde `packages/grillhouse/scripts/consommateurs-arbitres.mjs` refuse une ligne
+ligne, et le garde `packages/grillhouse/scripts/langages/typescript/consommateurs-arbitres.mjs` refuse une ligne
 changée sans l'un ni l'autre ; il lit la section hors de la part générée, dont les puces ne sont
 pas des consommateurs.
 Ainsi chaque dépendance entre composants est écrite et décidée.

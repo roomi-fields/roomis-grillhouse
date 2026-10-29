@@ -40,7 +40,7 @@
 //     it; a RENDU carries a blocking finding, an ACCEPTÉ none (reviewer);
 //   - `conformite` (`element`, `conforme` oui or non, `document` CADRE, INTERFACE or
 //     ARCHITECTURE, `reference`, `piece`; a « non » with `role` its recipient):
-//     one line per element of the lot (scripts/elements-du-lot.mjs), its rule cited from a
+//     one line per element of the lot (scripts/langages/typescript/elements-du-lot.mjs), its rule cited from a
 //     document of its package, a new export's the entry of the INTERFACE that names it; a line
 //     without its reference is refused; a « non » is a blocking finding (`bloquantsDeLaFiche`),
 //     and the circuit refuses a sheet without a line for each element, or with a line on an
@@ -468,7 +468,7 @@ export const bloquantsDeLaFiche = fiche => [
 ];
 
 // What makes the reviewer's sheet <fiche> out of conformity with the list of its lot
-// (scripts/elements-du-lot.mjs: <elements>, each `{ id, nom, statut, exporte }`, and <fichiers>,
+// (scripts/langages/typescript/elements-du-lot.mjs: <elements>, each `{ id, nom, statut, exporte }`, and <fichiers>,
 // every file the lot changes), as a review asks a word on every changed element: an element
 // without its line, a line on an element out of the list, a new export whose rule does not name
 // its entry in the INTERFACE of its package. A line on a changed file, a source or not, names it

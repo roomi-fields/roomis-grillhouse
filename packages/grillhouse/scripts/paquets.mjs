@@ -1,6 +1,6 @@
 // The packages of a repository: the frame's one list of them, each marked out of the frame or not.
 // The update of the frame (scripts/grillhouse-maj.mjs), the generator of the packages' turbo.json
-// (scripts/turbo-des-paquets.mjs) and the targeted test runs (scripts/tests.mjs) read it.
+// (scripts/langages/typescript/turbo-des-paquets.mjs) and the targeted test runs (scripts/langages/typescript/tests.mjs) read it.
 //
 // The packages are the directories holding a `package.json` that the `workspaces` of the root
 // `package.json` select (an array, or its `packages` key), mapped as npm maps them
@@ -17,6 +17,12 @@
 // its types in ./paquets.d.ts (docs/ARCHITECTURE.md, the package's named entries).
 import { existsSync, globSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+
+/** The code of `src/` (the root's, or a package's under `packages/`), as a pattern of a path from
+ * the root: what a project publishes, out of its tests. */
+export const CODE = '^src/|^packages/[^/]+/src/';
+/** The script of a package that types it, which the verification plays in each package. */
+export const TYPAGE = 'typecheck';
 
 // The list of the packages out of the frame: one line per package, « <package> <reason> », its
 // first word the name of a directory under `packages/` or `src/`; a blank line or a line starting

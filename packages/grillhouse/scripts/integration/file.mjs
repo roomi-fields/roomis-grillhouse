@@ -32,7 +32,7 @@
 //  - a branch whose replay cannot be done (the copy does not get ready, main does not take the
 //    branch, the main tree holds a file of the lot), or whose `npm run verifier` is « à repasser »
 //    once replaced (75: a failure of duration under load, which found no rest in its bound,
-//    scripts/verifier.mjs; neither green nor red), stays in the queue, the reason written to its
+//    scripts/langages/typescript/verifier.mjs; neither green nor red), stays in the queue, the reason written to its
 //    ticket, which is neither reopened nor closed, and the queue goes on; the next queue takes it
 //    again. Any other code than 0 and 75 is red.
 // At its entry on main, the branch's ticket closes « intégré : <commit> », loses `en-file`, the

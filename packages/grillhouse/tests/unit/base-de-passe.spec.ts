@@ -29,7 +29,7 @@ import { CIRCUIT, circuitEssai } from './circuit-essai.js';
 const DEPOT = path.resolve(__dirname, '../..');
 const RACINE = path.resolve(DEPOT, '../..');
 const MODULE = path.join(DEPOT, 'scripts/mesure/base-de-passe.mjs');
-const BASE = path.join(DEPOT, 'scripts/vitest-config/base.mjs');
+const BASE = path.join(DEPOT, 'scripts/langages/typescript/vitest-config/base.mjs');
 const VITEST = path.join(RACINE, 'node_modules/vitest/vitest.mjs');
 const INTEGRER = path.join(DEPOT, 'scripts/integration/integrer.mjs');
 const ESSAI_DE_PROJET = path.join(__dirname, 'base-de-passe.essai.mjs');
@@ -374,7 +374,7 @@ function creations(): { fichier: string; nom: string; source: string }[] {
 }
 
 // The directories a script makes without removing them itself, each with its reason: the base,
-// which `fermer` removes; the progress directory, which its caller removes (scripts/verifier.mjs)
+// which `fermer` removes; the progress directory, which its caller removes (scripts/langages/typescript/verifier.mjs)
 // or which lives in the base of the circuit's run; the results of a pass of the circuit, in that
 // base; the trials of the suite of conformity of the module typescript, under the directory its
 // caller gives it and removes (scripts/conformite.mjs).
@@ -384,6 +384,7 @@ const HORS_DU_SCRIPT = new Set([
   'scripts/circuit.mjs: dossier',
   'scripts/langages/typescript/exemples.mjs: racine',
   'scripts/langages/typescript/exemples.mjs: dossier',
+  'scripts/langages/typescript/exemples.mjs: vide',
 ]);
 
 describe('critère 9 — a script of the frame that makes a temporary directory removes it at its end', () => {
@@ -404,8 +405,8 @@ describe('critère 9 — a script of the frame that makes a temporary directory 
     expect(circuit).toContain('dans: ctx.base.dossier');
     expect(circuit).toContain('ctx?.base.fermer();');
     // The progress directory of a pass of its own goes at the end of the pass.
-    expect(readFileSync(path.join(DEPOT, 'scripts/verifier.mjs'), 'utf8')).toContain(
-      'rmSync(dossier, { recursive: true, force: true })'
-    );
+    expect(
+      readFileSync(path.join(DEPOT, 'scripts/langages/typescript/verifier.mjs'), 'utf8')
+    ).toContain('rmSync(dossier, { recursive: true, force: true })');
   });
 });

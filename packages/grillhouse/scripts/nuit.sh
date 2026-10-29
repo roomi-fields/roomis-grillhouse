@@ -20,11 +20,11 @@
 #   `npm run verifier -- --force`: Turborepo's build, guards (the frame's and the project's own,
 #   its root script `gardes`) and every test of the day, each task
 #   played for real (`--force`, no log replayed from the cache, no measure against the last
-#   green: the complete pass, scripts/verifier.mjs), its result written to the cache again; green,
+#   green: the complete pass, scripts/langages/typescript/verifier.mjs), its result written to the cache again; green,
 #   its tree becomes the last green of the day's passes.
 #   Its three steps (the full pass, the night tests, the project's night script) each play even
 #   when one before is red, as a CI plays its independent jobs; the night is red when one of them
-#   is. A full pass « à repasser » (75, scripts/verifier.mjs: a failure of duration under load,
+#   is. A full pass « à repasser » (75, scripts/langages/typescript/verifier.mjs: a failure of duration under load,
 #   which found no rest in its bound) ends the night there, « à repasser », below.
 #   An existing copy that does not get ready (its move onto HEAD, its cleaning or the setting of
 #   its submodules fails) is removed by `scripts/retirer-copie.sh --jetable` (local work does not
@@ -38,11 +38,11 @@
 # - The night tests: after the full pass, the files `*.nuit.test.*`, `*.nuit.spec.*`,
 #   `*.budget.test.*` and `*.budget.spec.*` of the copy (outside node_modules, dist and .git): the
 #   night tests and the time budget benches, which `npm test` and the integration leave out
-#   (the package @roomi-fields/grillhouse/vitest-config, scripts/vitest-config/, which every day configuration
-#   extends), run by Vitest with the frame's configuration (scripts/vitest.nuit.config.mjs, beside
+#   (the package @roomi-fields/grillhouse/vitest-config, scripts/langages/typescript/vitest-config/, which every day configuration
+#   extends), run by Vitest with the frame's configuration (scripts/langages/typescript/vitest.nuit.config.mjs, beside
 #   this script), bench or night test alone as well. A red turns the night red, with a log line that says so, and the
 #   project's night script still plays. A copy with neither plays none. A run « à repasser » (75:
-#   every failure depended on a duration, one under load, scripts/vitest-config/duree.reporter.mjs)
+#   every failure depended on a duration, one under load, scripts/langages/typescript/vitest-config/duree.reporter.mjs)
 #   waits for rest (`npx grillhouse pression attendre`, bound 15 min) and plays
 #   once more; green then, the night goes on; à repasser again, or no rest in the bound, the night
 #   ends there, « à repasser », red if the full pass is.
@@ -71,7 +71,7 @@
 # - Its log is <git common dir>/nuit/<date>.log. Green: HEAD becomes the last green commit
 #   (<git common dir>/nuit/dernier-vert). Red: the red tasks, each grouped by its cause as an
 #   alerting system groups by fingerprint: each red task of the full pass (the file
-#   GRILLHOUSE_ROUGES names, which scripts/verifier.mjs writes: `<package>#<task>` per line, no
+#   GRILLHOUSE_ROUGES names, which scripts/langages/typescript/verifier.mjs writes: `<package>#<task>` per line, no
 #   task à repasser among them), else the full pass by its command, the night tests, the project's
 #   night script by its command, or the preparation when the night is red before any step. Each
 #   red task comments the open ticket labelled `nuit` whose title names it (« <task> »), once per
@@ -111,7 +111,7 @@ commun="$(git -C "$racine" rev-parse --path-format=absolute --git-common-dir)"
 dossier="$commun/nuit"
 mkdir -p "$dossier"
 journal="$dossier/$(date +%Y-%m-%d).log"
-# The red tasks of the full pass, written by scripts/verifier.mjs.
+# The red tasks of the full pass, written by scripts/langages/typescript/verifier.mjs.
 rouges="$dossier/rouges"
 rm -f "$rouges"
 
@@ -229,7 +229,7 @@ jouer() {
   if [ -n "$(find "$copie" \( -name node_modules -o -name dist -o -name .git \) -prune -o \
       -type f -regextype posix-extended -regex '.*\.(nuit|budget)\.(test|spec)\.(c|m)?[jt]sx?' -print -quit)" ]; then
     bancs() { (cd "$copie" && monter npx --no-install vitest run --root "$copie" \
-        --config "$ici/vitest.nuit.config.mjs"); }
+        --config "$ici/langages/typescript/vitest.nuit.config.mjs"); }
     bancs
     code=$?
     if [ "$code" -eq 75 ]; then
