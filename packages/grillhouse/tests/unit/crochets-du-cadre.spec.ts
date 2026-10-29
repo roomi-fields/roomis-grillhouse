@@ -164,7 +164,8 @@ function projet({ paquet = true, hooksPath = false } = {}) {
       {
         name: 'p',
         scripts: { prepare: 'grillhouse hooks' },
-        grillhouse: { poussee: { nuit: 'main' } },
+        // grillhouse-3dr.2.3: a project of TypeScript declares its language.
+        grillhouse: { langages: ['typescript'], poussee: { nuit: 'main' } },
       },
       null,
       2

@@ -87,6 +87,11 @@ export function testsDeNuitEssai(ESSAIS: string) {
       delete depot.grillhouse;
       pkg = depot;
     }
+    // grillhouse-3dr.2.3: the project of trial declares its language.
+    pkg = {
+      ...pkg,
+      grillhouse: { langages: ['typescript'], ...((pkg.grillhouse as object | undefined) ?? {}) },
+    };
     writeFileSync(path.join(repo, 'package.json'), JSON.stringify(pkg, null, 2));
     if (o.jourVitest !== false) {
       for (const f of readdirSync(GABARIT)) {

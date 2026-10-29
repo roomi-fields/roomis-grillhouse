@@ -117,6 +117,10 @@ export interface Migration {
 /** A module of language, the default export of `scripts/langages/<nom>/index.mjs`. */
 export interface Langage {
   nom: string;
+  /** Whether the repository at `racine` holds code of this language, which the update declares. */
+  trouve(racine: string): boolean;
+  /** The tools a project of this language installs, optional peers of the package. */
+  outils: string[];
   composants(racine: string): Composant[];
   composantDe(racine: string, fichier: string): Composant | null;
   matieres(racine: string): Composant[];
@@ -141,11 +145,11 @@ export interface Langage {
 
 /** The frame's languages, each its module. */
 export const LANGAGES: Record<string, string>;
-/** The languages of a project that declares none. */
-export const PAR_DEFAUT: string[];
-/** The languages the project at `racine` declares (`grillhouse.langages`), or PAR_DEFAUT. */
+/** The languages the project at `racine` declares (`grillhouse.langages`), empty for none. */
 export function langagesDeclares(racine: string): string[];
-/** The module of the language that serves the project at `racine`. */
+/** The languages of the frame whose module finds its code in the repository at `racine`. */
+export function langagesTrouves(racine: string): string[];
+/** The module of the language that serves the project at `racine`; throws when it declares none. */
 export function langageDe(racine: string): Langage;
 
 // The services of the core to a module of language, which imports of the core its published

@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
-import { SCRIPT, enveloppeEssai } from './enveloppe-essai.js';
+import { LANGAGE, SCRIPT, enveloppeEssai } from './enveloppe-essai.js';
 
 // The envelope of an agent (scripts/enveloppe/enveloppe.mjs, tests/unit/enveloppe.spec.ts) and the
 // package of the shared test material: shown, by any form of export, absent, or reached by a link.
@@ -39,7 +39,10 @@ function depotAvecMatiere(matiere?: { nom: string; manifeste: Manifeste }) {
     mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true });
     writeFileSync(path.join(repo, rel), contenu);
   };
-  ecrire('package.json', JSON.stringify({ name: 'essai', workspaces: ['packages/*'] }));
+  ecrire(
+    'package.json',
+    JSON.stringify({ name: 'essai', workspaces: ['packages/*'], grillhouse: LANGAGE })
+  );
   ecrire('packages/a/package.json', '{"name":"a"}');
   ecrire('packages/a/src/a.ts', 'a');
   ecrire('packages/b/src/b.ts', 'secret-b');

@@ -19,9 +19,13 @@ Un projet déclare son langage dans son `package.json`, sous `grillhouse.langage
 `["typescript"]`. Le nom vient de la liste fermée des langages du cadre (`LANGAGES` de
 `scripts/langages.mjs`) ; un nom hors de la liste est refusé, nommé, avec la liste.
 
-Un projet sans déclaration est lu comme `["typescript"]`, jusqu'à grillhouse-3dr.2.3, où `init` et
-`maj` écriront la déclaration d'après ce qu'ils trouvent. Un seul langage est servi par projet ; la
-fusion de plusieurs langages est grillhouse-pkl.3.
+La déclaration est la seule lecture : un projet sans déclaration, ou un dossier sans
+`package.json`, est refusé, nommé, avec la commande qui l'écrit. `init` et `maj` écrivent la
+déclaration d'après ce que les modules trouvent dans le dépôt (`langagesTrouves(racine)`), comme
+chaque greffon de Nx infère ses projets de ses propres fichiers (`createNodes`) ; une déclaration
+présente reste. Là où aucun module ne trouve son langage, `maj` refuse le projet, nommé, sans rien
+écrire : le cadre n'invente aucune déclaration. Un seul langage est servi par projet ; la fusion de
+plusieurs langages est grillhouse-pkl.3.
 
 `langageDe(racine)` rend le module qui sert le projet de `racine`, chargé une fois par processus.
 
@@ -31,6 +35,10 @@ Le module de langage exporte par défaut un objet `Langage`. Chaque membre répo
 noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engendré, qui juge.
 
 - `nom` : le nom du langage, celui de la liste du cadre.
+- `trouve` : si le dépôt tient du code du langage, que `maj` déclare alors ; `typescript`, un
+  `tsconfig.json` à la racine ou dans un paquet du cadre.
+- `outils` : les outils qu'un projet du langage installe, dépendances facultatives du paquet ;
+  `maj` n'ajoute que ceux du langage déclaré, aux versions du gabarit.
 - `composants` : les composants du projet, chacun `{ dossier, nom, paquet }`, le dossier absolu.
 - `composantDe` : le composant qui tient un fichier, ou null pour un fichier hors de tout
   composant ; toujours l'un de ceux que `composants` rend.
@@ -81,7 +89,8 @@ sur son entrée valide, un module sain ne donne aucune faute ; sur son entrée d
 exactement les fautes attendues. `echecs(langage, exemples)` rend les cas qu'un module manque. Les
 entrées sont celles du module (`scripts/langages/typescript/exemples.mjs`).
 
-Un cas tient chaque demande sauf `nom`, `verdict` lu à part, et `migrations`, que le test de
-chaque migration tient. L'entrée défectueuse des fichiers engendrés met chacun d'eux en retard.
-Le test du noyau joue la suite sur le module typescript et sur douze modules défectueux, un défaut
+Un cas tient chaque demande sauf `nom`, `verdict` lu à part, `migrations`, que le test de
+chaque migration tient, et `outils`, que le test de la mise à jour tient. L'entrée défectueuse des
+fichiers engendrés met chacun d'eux en retard.
+Le test du noyau joue la suite sur le module typescript et sur treize modules défectueux, un défaut
 chacun ; chacun manque son seul cas. Ainsi la suite attrape un vrai défaut.

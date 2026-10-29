@@ -188,6 +188,15 @@ const TURBO_PAQUET = JSON.stringify({
   bin: { turbo: 'turbo.mjs' },
 });
 
+// Writes the trial's stand-in for Turborepo under <repo>/outils/turbo, its binary executable as npm
+// leaves a linked one, so an install changes nothing git tracks.
+export function installerFauxTurbo(repo: string) {
+  mkdirSync(path.join(repo, 'outils/turbo'), { recursive: true });
+  writeFileSync(path.join(repo, 'outils/turbo/package.json'), TURBO_PAQUET);
+  writeFileSync(path.join(repo, 'outils/turbo/turbo.mjs'), TURBO_FAUX);
+  chmodSync(path.join(repo, 'outils/turbo/turbo.mjs'), 0o755);
+}
+
 export interface Fichiers {
   [rel: string]: string | null;
 }
@@ -279,6 +288,8 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
     JSON.stringify(
       {
         ...pkg,
+        // grillhouse-3dr.2.3: a project of TypeScript declares its language.
+        grillhouse: { langages: ['typescript'], ...((pkg.grillhouse as object) ?? {}) },
         scripts: { verifier: TEST },
         devDependencies: { turbo: 'file:outils/turbo' },
       },
@@ -288,10 +299,7 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
   );
   ecrire(repo, 'suites.mjs', SUITES);
   ecrire(repo, 'gardes.mjs', GARDES);
-  ecrire(repo, 'outils/turbo/package.json', TURBO_PAQUET);
-  ecrire(repo, 'outils/turbo/turbo.mjs', TURBO_FAUX);
-  // Executable as npm leaves a linked binary, so an install changes nothing git tracks.
-  chmodSync(path.join(repo, 'outils/turbo/turbo.mjs'), 0o755);
+  installerFauxTurbo(repo);
   for (const c of ['a', 'b', 'c']) {
     ecrire(repo, `src/${c}/index.ts`, `export const ${c} = 0;\n`);
   }
@@ -790,6 +798,7 @@ export function chantierDependances(
       {
         name: 'essai',
         private: true,
+        grillhouse: { langages: ['typescript'] },
         workspaces: motifs ?? Object.keys(espaces),
         dependencies: { 'ext-lib': `file:vendor/ext-lib-${externe}.tgz` },
         scripts,

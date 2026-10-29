@@ -45,5 +45,10 @@
     "vitest": "^2.0.0",
     "zod": "^3.22.0"
   },
-  "packageManager": "npm@10.9.8"
+  "packageManager": "npm@10.9.8",
+  "grillhouse": {
+    "langages": [
+      "typescript"
+    ]
+  }
 }

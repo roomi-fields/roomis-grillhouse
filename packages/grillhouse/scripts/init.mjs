@@ -17,7 +17,8 @@
 //   then the plugins its settings declare: the template's declare the frame's,
 //   `grillhouse@roomi-fields`, whose marketplace names the package npm.
 // - Then what the frame writes in a project, as `grillhouse maj` writes it (scripts/grillhouse-maj.mjs):
-//   its turbo.json, the status line of its settings, the version of the frame; and the generated
+//   its languages (`grillhouse.langages`, typescript, the template's tsconfig.json found), its
+//   turbo.json, the status line of its settings, the version of the frame; and the generated
 //   files (the boundaries' configuration, the interfaces index, run by the project's command). A
 //   plugin or a generator that fails has its line, and the exit code is non-zero once the project
 //   is created.

@@ -37,7 +37,15 @@ export function depotDuReleve(racine) {
   const [ticket] = JSON.parse(readFileSync(path.join(CAS, 'ticket.json'), 'utf8'));
   const noms = ticket.title.split(' — ').at(-1).split(', ');
   const ecrire = ecrireDans(racine);
-  ecrire('package.json', json({ name: 'bp', private: true, workspaces: ['packages/*'] }));
+  ecrire(
+    'package.json',
+    json({
+      name: 'bp',
+      private: true,
+      workspaces: ['packages/*'],
+      grillhouse: { langages: ['typescript'] },
+    })
+  );
   for (const nom of noms) {
     ecrire(`packages/${nom}/package.json`, json({ name: nom, type: 'module' }));
     ecrire(`packages/${nom}/src/index.ts`, `export const ${nom.replace(/\W/g, '_')}_ = 1;\n`);
@@ -104,7 +112,15 @@ export const CHEMINS = [
 // A git repository of a package `a` and a package of the shared test material, `matiere`.
 export function depotDuClassement(racine) {
   const ecrire = ecrireDans(racine);
-  ecrire('package.json', json({ name: 'c', private: true, workspaces: ['packages/*'] }));
+  ecrire(
+    'package.json',
+    json({
+      name: 'c',
+      private: true,
+      workspaces: ['packages/*'],
+      grillhouse: { langages: ['typescript'] },
+    })
+  );
   ecrire('packages/a/package.json', json({ name: 'a', type: 'module' }));
   ecrire(
     'packages/matiere/package.json',

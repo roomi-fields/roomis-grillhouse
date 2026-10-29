@@ -112,7 +112,8 @@ describe('grillhouse-3dr.2.1 — la jointure des langages', () => {
       expect(iface, m).toContain(`\`${m}\``);
     }
     expect(iface).toMatch(/\["typescript"\]/);
-    expect(iface).toContain('grillhouse-3dr.2.3');
+    // grillhouse-3dr.2.3: the declaration is the only reading, no language by default.
+    expect(iface).not.toMatch(/sans déclaration est lu comme/);
   });
 
   it('criterion 1: jointure.d.ts declares exactly what the module typescript answers', () => {

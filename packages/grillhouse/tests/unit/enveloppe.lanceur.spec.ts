@@ -5,7 +5,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
 import { CODE_COPIE, CODE_REFUS, CODE_USAGE } from '../../scripts/enveloppe/codes.mjs';
 import { dossierDeTravail } from '../../scripts/enveloppe/enveloppe.mjs';
-import { SCRIPT, enveloppeEssai } from './enveloppe-essai.js';
+import { LANGAGE, SCRIPT, enveloppeEssai, projetDuLanceur } from './enveloppe-essai.js';
 import { optionsDuRole } from '../../scripts/droits.mjs';
 import { schemaDeFiche } from '../../scripts/resultats.mjs';
 
@@ -53,6 +53,7 @@ describe.runIf(canWrap)('the launcher', () => {
   }
   writeFileSync(path.join(repo, 'packages/a/src/a.ts'), 'a');
   writeFileSync(path.join(repo, 'packages/b/src/b.ts'), 'secret');
+  projetDuLanceur(repo);
   installerEnveloppe(repo);
   execFileSync('git', ['init', '-q', repo]);
   execFileSync('git', ['-C', repo, 'add', '.']);
@@ -182,7 +183,10 @@ describe('the launcher and the dependencies of the copy', () => {
     mkdirSync(path.join(repo, d), { recursive: true });
   }
   writeFileSync(path.join(repo, 'packages/a/src/a.ts'), 'a');
-  writeFileSync(path.join(repo, 'package.json'), '{"name":"t","private":true}\n');
+  writeFileSync(
+    path.join(repo, 'package.json'),
+    `${JSON.stringify({ name: 't', private: true, grillhouse: LANGAGE })}\n`
+  );
   writeFileSync(path.join(repo, 'package-lock.json'), '{"lockfileVersion":3}\n');
   writeFileSync(path.join(repo, '.gitignore'), 'node_modules\nbin\nappels\nconsigne.txt\n');
   installerEnveloppe(repo);
@@ -311,6 +315,7 @@ describe('the launcher and the work in progress of the copy', () => {
     writeFileSync(path.join(repo, 'packages/a/src/a.ts'), lignes('l2'));
     writeFileSync(path.join(repo, 'packages/a/src/b.ts'), 'b\n');
     writeFileSync(path.join(repo, '.gitignore'), 'consigne.txt\n');
+    projetDuLanceur(repo);
     installerEnveloppe(repo);
     const consigne = path.join(repo, 'consigne.txt');
     writeFileSync(consigne, 'TON TICKET : demo-1 — un sujet.');
@@ -456,6 +461,7 @@ describe.runIf(canWrap)('the launcher and the role in the envelope', () => {
   );
   ecrire('packages/matiere/fixtures/index.js', 'm');
   mkdirSync(path.join(repo, 'scripts/enveloppe'), { recursive: true });
+  projetDuLanceur(repo);
   installerEnveloppe(repo);
   // A stand-in for claude: tries to write the package, and records whether it could.
   ecrire(
@@ -517,6 +523,7 @@ describe.runIf(canWrap)('grillhouse-3uv.95.3 — le lanceur et les paquets du pl
   ecrire('packages/a/src/a.ts', 'a');
   ecrire('packages/b/src/b.ts', 'b');
   mkdirSync(path.join(repo, 'scripts/enveloppe'), { recursive: true });
+  projetDuLanceur(repo);
   installerEnveloppe(repo);
   // A stand-in for claude: records the plan it receives, and leaves the mark of its lock when
   // its instruction says so.

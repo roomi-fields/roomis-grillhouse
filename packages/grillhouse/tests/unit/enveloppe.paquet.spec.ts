@@ -9,7 +9,7 @@ import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
 import { dossierDeTravail, plan } from '../../scripts/enveloppe/enveloppe.mjs';
-import { SCRIPT, enveloppeEssai } from './enveloppe-essai.js';
+import { LANGAGE, SCRIPT, enveloppeEssai } from './enveloppe-essai.js';
 
 // A disk that holds the paths <files>.
 const fakeDisk = (files: string[]) => {
@@ -93,7 +93,10 @@ describe.runIf(canWrap)('grillhouse-3uv.92.4 — l’enveloppe d’un paquet sur
     mkdirSync(path.dirname(path.join(repo, f)), { recursive: true });
     writeFileSync(path.join(repo, f), t);
   };
-  ecrire('package.json', JSON.stringify({ name: 'essai', workspaces: ['packages/*'] }));
+  ecrire(
+    'package.json',
+    JSON.stringify({ name: 'essai', workspaces: ['packages/*'], grillhouse: LANGAGE })
+  );
   ecrire('packages/a/package.json', JSON.stringify({ name: 'a' }));
   ecrire('packages/a/src/a.ts', 'a');
   ecrire(

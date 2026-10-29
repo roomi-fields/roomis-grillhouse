@@ -16,7 +16,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import ts from 'typescript';
 import { afterAll, describe, expect, it } from 'vitest';
-import { LIGNE_ETAT, mettreAJour, rapport, regenerer } from '../../scripts/grillhouse-maj.mjs';
+import {
+  LIGNE_ETAT,
+  mettreAJour as mettreAJourLeProjet,
+  rapport,
+  regenerer,
+} from '../../scripts/grillhouse-maj.mjs';
 import { CONFIGURATION as CONFIG_DES_FRONTIERES } from '../../scripts/langages/typescript/frontieres.mjs';
 import { gardesDuCadre } from '../../scripts/gardes-du-cadre.mjs';
 import { cheminSysteme, claudeSubstitut } from '../claude-substitut.js';
@@ -37,6 +42,26 @@ const ecrire = (racine: string, f: string, texte: string) => {
 };
 const lire = (racine: string, f: string) => readFileSync(path.join(racine, f), 'utf8');
 const json = (racine: string, f: string) => JSON.parse(lire(racine, f)) as Record<string, unknown>;
+// grillhouse-3dr.2.3: the projects of this file are of TypeScript, declared (`grillhouse.langages`)
+// before the update, which refuses a project where it finds no language
+// (tests/unit/grillhouse-maj.langages.spec.ts tests the declaration itself).
+function declarer(projet: string) {
+  const f = path.join(projet, 'package.json');
+  if (!existsSync(f)) {
+    return;
+  }
+  const p = JSON.parse(readFileSync(f, 'utf8')) as { grillhouse?: Record<string, unknown> };
+  if (p.grillhouse?.langages === undefined) {
+    p.grillhouse = { ...(p.grillhouse ?? {}), langages: ['typescript'] };
+    writeFileSync(f, `${JSON.stringify(p, null, 2)}\n`);
+  }
+}
+const mettreAJour = (projet: string, ...reste: unknown[]) => {
+  declarer(projet);
+  return (
+    mettreAJourLeProjet as (p: string, ...r: unknown[]) => ReturnType<typeof mettreAJourLeProjet>
+  )(projet, ...reste);
+};
 const crochet = (command: string, matcher?: string) => ({
   ...(matcher ? { matcher } : {}),
   hooks: [{ type: 'command', command }],
@@ -914,7 +939,10 @@ describe('the update names the version of the frame it installs', () => {
     const r = lancerMajAvec(projet, [], claude.bin);
     expect(r.status, r.stderr).toBe(0);
     expect(r.stdout.startsWith(`Cadre ${VERSION}.\n`), r.stdout).toBe(true);
-    expect(json(projet, 'package.json').grillhouse).toEqual({ version: VERSION });
+    expect(json(projet, 'package.json').grillhouse).toEqual({
+      langages: ['typescript'],
+      version: VERSION,
+    });
   });
 });
 // A trial project with `pkg` as its package.json, and a one-file source with the template's
@@ -1164,6 +1192,7 @@ describe('grillhouse-3uv.75.1 critère 12 — the update poses the frame’s tes
 // grillhouse-3uv.76: the update as a project runs it, `claude` stood in (tests/claude-substitut.ts),
 // git and node from the system: no test reaches the real claude nor the network.
 function lancerMajAvec(projet: string, args: string[], bin: string) {
+  declarer(projet);
   return spawnSync(process.execPath, [SCRIPT_MAJ, ...args], {
     cwd: projet,
     encoding: 'utf8',
@@ -1196,6 +1225,8 @@ describe('grillhouse-3uv.76 critère 1 — the update keeps the order of the set
     const PLUGIN = 'p@m';
     const REGLAGES = '.claude/settings.json';
     const projet = mkdtempSync(path.join(ESSAIS, 'greffons-ordre-'));
+    // grillhouse-3dr.2.3: the update refuses a directory without package.json.
+    ecrire(projet, 'package.json', '{ "name": "p" }\n');
     // The project's own order, not Claude Code's: enabledPlugins first, statusLine after.
     const ordre = [
       'enabledPlugins',
@@ -1331,6 +1362,7 @@ describe('grillhouse-3uv.76 critère 3 — the update refuses an unknown option,
       const projet = mkdtempSync(path.join(ESSAIS, 'option-'));
       ecrire(projet, 'package.json', `${JSON.stringify({ name: 'p' }, null, 2)}\n`);
       ecrire(projet, '.claude/settings.json', `${JSON.stringify({ model: 'opus' }, null, 2)}\n`);
+      declarer(projet);
       const avant = contenu(projet);
       const claude = claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')));
       const r = lancerMajAvec(projet, [option], claude.bin);
@@ -1723,7 +1755,10 @@ describe('grillhouse-3uv.84.4 critère 2 — grillhouse maj plays the migrations
     expect(r.status, r.stderr).toBe(0);
     expect(r.stdout).toMatch(/^Migration 0\.23\.0 \(crochets de séance\) :$/m);
     expect(json(projet, '.claude/settings.json')).not.toHaveProperty('hooks');
-    expect(json(projet, 'package.json').grillhouse).toEqual({ version: VERSION });
+    expect(json(projet, 'package.json').grillhouse).toEqual({
+      langages: ['typescript'],
+      version: VERSION,
+    });
   });
   it('a project that recorded a version at or past a migration does not play it', () => {
     const projet = projetAncien('99.0.0');
@@ -1888,7 +1923,10 @@ describe('grillhouse-3uv.95.11.1 — what stays to the project is reported after
     const projet = projetDe022();
     const r = lancerMajAvec(projet, [], bin());
     expect(r.status, r.stderr).toBe(0);
-    expect(json(projet, 'package.json').grillhouse).toEqual({ version: VERSION });
+    expect(json(projet, 'package.json').grillhouse).toEqual({
+      langages: ['typescript'],
+      version: VERSION,
+    });
   });
 });
 
@@ -1948,7 +1986,7 @@ describe('grillhouse-982.6 — the update ends with the verification that keeps 
     expect(r.status, r.stderr).toBe(0);
     expect(npm.appels()).toEqual([`${realpathSync(projet)}|run verifier`]);
     // The update had written its files when the verification ran: the version is recorded.
-    expect(npm.packageJson().grillhouse).toEqual({ version: VERSION });
+    expect(npm.packageJson().grillhouse).toEqual({ langages: ['typescript'], version: VERSION });
     expect(r.stdout).toContain('✅ vert.\n');
   });
 

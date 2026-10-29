@@ -4,6 +4,9 @@
 // guards of structure and their generators. The core loads it by scripts/langages.mjs, and this
 // module imports of the core its published entries alone.
 //
+// - Where it is found: a repository with a tsconfig.json at its root or in a package of the frame
+//   (`trouve`), which the update declares typescript; its tools, the optional peers of the package
+//   the update installs in such a project (`outils`).
 // - The components: the folders `packages/<x>` and `src/<x>` of the frame (`composants` of
 //   ./consommateurs.mjs), out of the frame left out; a file's is the component that holds it; the
 //   shared test material, the components whose package exports `./test-fixtures` (`matieres`).
@@ -27,7 +30,7 @@
 // - The migrations of a project that replay a guard of this module (./migrations/), which the
 //   update plays with the core's (scripts/migrations.mjs), as each plugin of Nx carries its own.
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -35,6 +38,7 @@ import { fileURLToPath } from 'node:url';
 import { composants as lesComposants, matieres } from './consommateurs.mjs';
 import { elementsDuLot } from './elements-du-lot.mjs';
 import { A_ELAGUER, lireSarif, RESULTATS } from '../../resultats.mjs';
+import { paquets } from '../../paquets.mjs';
 import { lecteurs } from './lecteurs.mjs';
 import { estUnTest } from './regle-des-tests.mjs';
 import { verdict } from './verdict.mjs';
@@ -167,8 +171,30 @@ const engendre = (o, script, args) => ({
   verifier: racine => constatsDe(racine, ici(script), args),
 });
 
+// Whether the repository at <racine> holds TypeScript: a tsconfig.json at its root or in one of its
+// packages of the frame, as @nx/js infers a project from its tsconfig.
+const trouve = racine =>
+  existsSync(path.join(racine, 'tsconfig.json')) ||
+  paquets(racine).some(
+    ({ dossier, hors }) => !hors && existsSync(path.join(racine, dossier, 'tsconfig.json'))
+  );
+
 export default {
   nom: 'typescript',
+  trouve,
+  // The tools a project of TypeScript installs, optional peers of the package: what this module
+  // runs as commands (Turborepo, knip, dependency-cruiser) and what its scripts import (API
+  // Extractor, its model, TSDoc's configuration, jsonc-parser); the project's own TypeScript and
+  // Vitest left out, which it writes its code and its tests with.
+  outils: [
+    '@microsoft/api-extractor',
+    '@microsoft/api-extractor-model',
+    '@microsoft/tsdoc-config',
+    'dependency-cruiser',
+    'jsonc-parser',
+    'knip',
+    'turbo',
+  ],
   composants,
   composantDe: (racine, fichier) => composantDans(composants(racine), racine, fichier),
   matieres: racine =>

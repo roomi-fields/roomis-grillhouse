@@ -104,7 +104,8 @@ function projet(grillhouse: unknown, { hooksPath = true, prePush = true } = {}) 
     scripts: { test: 'node t.mjs', verifier: 'node t.mjs' },
   };
   if (grillhouse !== undefined) {
-    pkg.grillhouse = grillhouse;
+    // grillhouse-3dr.2.3: a project of TypeScript declares its language.
+    pkg.grillhouse = { langages: ['typescript'], ...(grillhouse as object) };
   }
   writeFileSync(path.join(repo, 'package.json'), JSON.stringify(pkg, null, 2));
   writeFileSync(path.join(repo, 't.mjs'), "console.log('tout vert');\n");

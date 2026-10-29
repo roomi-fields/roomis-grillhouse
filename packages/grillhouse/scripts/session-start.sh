@@ -11,6 +11,9 @@
 # written; the session start goes on. Without the key (or with null), nothing runs; a value that is
 # not a non-blank string runs nothing and adds a line that says so. An agent's copy does not play it.
 #
+# The project's language: a package.json without `grillhouse.langages` (scripts/langages.mjs)
+# joins « Manque » as « la déclaration du langage », with `npx grillhouse maj`, which writes it.
+#
 # The frame's plugins: scripts/greffons.mjs --absents reads `.claude/settings.json` and
 # `claude plugin list --json` (each call stopped after 5 s). Each declared plugin not installed for
 # the project joins « Manque » as « le greffon <id> », the missing claude command as « la commande
@@ -66,6 +69,11 @@ if [ -z "$copie_agent" ]; then
   [ -d "$root/.codegraph" ] || missing+=("l'index CodeGraph du code (\`codegraph init .\`)")
 fi
 [ ! -f "$root/package.json" ] || [ -d "$root/node_modules" ] || missing+=("les dépendances npm (\`npm install\`)")
+# The project's language (scripts/langages.mjs): a package.json without `grillhouse.langages` is
+# refused by the frame's scripts and locks until the update writes it.
+if [ -f "$root/package.json" ] && ! node -e 'const l=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"))?.grillhouse?.langages;process.exit(Array.isArray(l)&&l.length>0?0:1)' "$root/package.json" 2>/dev/null; then
+  missing+=("la déclaration du langage (grillhouse.langages du package.json : \`npx grillhouse maj\` l'écrit)")
+fi
 # The frame's plugins not installed for the project (scripts/greffons.mjs): the plugins are the
 # machine's installation for the project, so an agent's copy does not read them.
 if [ -z "$copie_agent" ]; then

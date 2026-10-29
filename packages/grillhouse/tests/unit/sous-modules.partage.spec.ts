@@ -78,7 +78,10 @@ describe('grillhouse-3uv.58.1 critères 1 et 7 — a shared submodule is read fr
       expect(m.natifDe(copie)).toBe('v1');
       const pkgPath = path.join(m.repo, 'package.json');
       const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as Paquet;
-      writeFileSync(pkgPath, JSON.stringify({ ...pkg, grillhouse: { partage: ['vendor/natif'] } }));
+      writeFileSync(
+        pkgPath,
+        JSON.stringify({ ...pkg, grillhouse: { ...pkg.grillhouse, partage: ['vendor/natif'] } })
+      );
       git(m.repo, 'commit', '-qm', 'partage déclaré', '--', 'package.json');
       const r = m.avancerCommeLIntegration(copie);
       expect(r.status, r.stderr).toBe(0);
@@ -200,7 +203,7 @@ describe('grillhouse-3uv.58.1 critère 4 — a submodule not declared shared kee
       git(m.principalNatif, 'checkout', '-q', m.commits[1] ?? '');
       const pkgPath = path.join(m.repo, 'package.json');
       const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as Paquet;
-      delete pkg.grillhouse;
+      delete pkg.grillhouse?.partage;
       writeFileSync(pkgPath, JSON.stringify(pkg));
       git(m.repo, 'commit', '-qm', 'partage retiré', '--', 'package.json');
       const r = m.avancerCommeLAgent(copie);

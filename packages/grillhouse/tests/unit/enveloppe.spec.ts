@@ -16,7 +16,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { canWrap, hasBd, racineSousLaMaison } from '../machine.js';
 import { CODE_REFUS } from '../../scripts/enveloppe/codes.mjs';
 import { dossierDeTravail, montagesDeLaSeance, plan } from '../../scripts/enveloppe/enveloppe.mjs';
-import { SCRIPT, enveloppeEssai } from './enveloppe-essai.js';
+import { LANGAGE, SCRIPT, declarerLeLangage, enveloppeEssai } from './enveloppe-essai.js';
 
 // The envelope of an agent (scripts/enveloppe/enveloppe.mjs): its plan, and the real envelope on
 // disk, its environment, the session of the machine and the real home. What it shows of the home
@@ -272,7 +272,7 @@ describe.runIf(canWrap)('the envelope on disk', () => {
   }
   writeFileSync(
     path.join(repo, 'package.json'),
-    JSON.stringify({ name: 'essai', workspaces: ['packages/*'] })
+    JSON.stringify({ name: 'essai', workspaces: ['packages/*'], grillhouse: LANGAGE })
   );
   writeFileSync(path.join(repo, 'packages/a/package.json'), JSON.stringify({ name: 'a' }));
   writeFileSync(path.join(repo, 'packages/b/package.json'), JSON.stringify({ name: 'b' }));
@@ -376,6 +376,7 @@ describe.runIf(canWrap && existsSync(CERTIFICATS))(
     const repo = path.join(home, 'dev/projet');
     mkdirSync(path.join(repo, 'packages/a'), { recursive: true });
     writeFileSync(path.join(repo, 'packages/a/a.ts'), 'a');
+    declarerLeLangage(repo);
     const git = (...a: string[]) =>
       execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
     git('init', '-q');
@@ -570,6 +571,7 @@ describe.runIf(canWrap && existsSync(sessionReelle))(
     const repo = essai('session-reelle-');
     mkdirSync(path.join(repo, 'packages/a'), { recursive: true });
     writeFileSync(path.join(repo, 'packages/a/a.ts'), 'a');
+    declarerLeLangage(repo);
     const git = (...a: string[]) =>
       execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
     git('init', '-q');
@@ -650,6 +652,7 @@ describe.runIf(canWrap && (copieDeLaSuite || sondeEssai))('the envelope on the r
     const repo = essai('maison-reelle-');
     mkdirSync(path.join(repo, 'packages/a'), { recursive: true });
     writeFileSync(path.join(repo, 'packages/a/a.ts'), 'export function sondeDeLEnveloppe() {}\n');
+    declarerLeLangage(repo);
     const git = (...a: string[]) =>
       execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
     git('init', '-q');

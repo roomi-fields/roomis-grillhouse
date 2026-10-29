@@ -60,8 +60,13 @@ describe('grillhouse:gardes — a red guard does not stop the others', () => {
     expect(readFileSync(path.join(racine, 'mode'), 'utf8')).toBe('inscrire');
   });
   it('the command plays the list of the frame in its working directory, and exits non-zero on a red', () => {
-    // An empty directory: the index of the interfaces it lacks is red, named by its subcommand.
+    // An empty project of TypeScript (grillhouse-3dr.2.3: declared): the index of the interfaces it
+    // lacks is red, named by its subcommand.
     const racine = mkdtempSync(path.join(ESSAIS, 'vide-'));
+    writeFileSync(
+      path.join(racine, 'package.json'),
+      JSON.stringify({ name: 'vide', grillhouse: { langages: ['typescript'] } })
+    );
     const r = spawnSync(process.execPath, [SCRIPT], { cwd: racine, encoding: 'utf8' });
     expect(r.status).not.toBe(0);
     expect(r.stdout).toContain('⛔ garde rouge : grillhouse index-interfaces --verifier');

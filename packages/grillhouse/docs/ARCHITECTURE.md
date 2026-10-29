@@ -434,7 +434,8 @@ relecture, le tableau, l'enveloppe, les crochets, la mise à jour, le greffon Cl
 **module de langage** par famille, sous `scripts/langages/` : `typescript` (la vérification par
 Turborepo et Vitest, les gardes de structure) et `cargo` (la même chose pour Rust, l'épopée
 grillhouse-pkl). Un projet déclare ses langages dans son `package.json` (`grillhouse.langages`),
-que `init` et `maj` remplissent d'après ce qu'ils trouvent (`tsconfig.json`, `Cargo.toml`).
+que `init` et `maj` remplissent d'après ce qu'ils trouvent (`tsconfig.json` ; `Cargo.toml` avec
+grillhouse-pkl.7) ; là où ils ne trouvent aucun langage du cadre, ils refusent le projet, nommé.
 Les outils d'un langage (Turborepo, Vitest, knip, api-extractor ; cargo-nextest, cargo-deny)
 sont des dépendances facultatives du paquet : `maj` n'installe que ceux des langages déclarés.
 Ainsi chaque projet n'installe que les outils qu'il utilise : un projet tout Rust n'a aucun outil
@@ -450,7 +451,7 @@ typent et vérifient, et la lecture de leur verdict ; la règle qui dit qu'un fi
 (le verrou du testwriter) ; ses fichiers engendrés, leur commande et ses gardes de structure.
 L'INTERFACE.md du noyau l'écrit (`packages/grillhouse/docs/INTERFACE.md`), `scripts/jointure.d.ts`
 la type, et `scripts/langages.mjs` charge le module que le projet déclare (`grillhouse.langages`
-de son `package.json`, lu comme `["typescript"]` sans déclaration, jusqu'à grillhouse-3dr.2.3) ;
+de son `package.json` ; un projet qui n'en déclare aucun est refusé, la commande `maj` nommée) ;
 un seul langage est servi, la fusion de plusieurs est grillhouse-pkl.3. Passent par elle : les
 composants et leurs lecteurs du relevé des composants ; la règle d'un fichier de test des verrous,
 des lots de l'intégration et du circuit ; les commandes de `grillhouse tests` et `grillhouse
@@ -471,8 +472,8 @@ Nx ; le test de la jointure (`tests/unit/jointure.spec.ts`) inscrit chaque reste
 nomme encore un outil ou lance un fichier du module par son chemin, avec le ticket qui le retire.
 Les outils du langage (api-extractor et son modèle, la configuration de TSDoc, jsonc-parser,
 Turborepo, Vitest, knip, dependency-cruiser, TypeScript) sont des pairs facultatifs du paquet,
-comme Vite déclare les préprocesseurs qu'il importe ; `maj` ajoute au projet ceux que le gabarit
-déclare. Une même suite de conformité (`scripts/conformite.mjs`) tient chaque module de langage,
+comme Vite déclare les préprocesseurs qu'il importe ; `maj` ajoute au projet ceux du module de
+son langage (`outils`), aux versions du gabarit. Une même suite de conformité (`scripts/conformite.mjs`) tient chaque module de langage,
 comme le RuleTester d'ESLint une règle. Ainsi le reste du noyau ignore le langage du projet.
 
 **Les tests d'intégration, un paquet à part** : les tests qui montent un dépôt d'essai et y

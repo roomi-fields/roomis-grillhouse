@@ -11,7 +11,8 @@
 //   `enRetard`; the same, committed, a file of `a` then changed and a file out of every package
 //   added: `change`, measured from its commit; the same where the code of `b` imports `a` and the
 //   code of `c` imports `b`: `lus`; the same with a second commit that changes a file of `a`:
-//   `lot`. A directory whose package.json names no package: `vide`.
+//   `lot`. A directory whose package.json names no package: `vide`. A tsconfig.json at the root of
+//   a directory, and in a package of a repository of packages: `aLaRacine`, `dansUnPaquet`.
 // - Two results directories of a run: every task and test green (`vert`); `a` at 75, `b` red, a
 //   test of `b` failed (`defaut`).
 import { execFileSync } from 'node:child_process';
@@ -111,6 +112,13 @@ export default {
     const aJour = depot(dans);
     const vide = mkdtempSync(path.join(dans, 'vide-'));
     writeFileSync(path.join(vide, 'package.json'), json({ name: 'vide', private: true }));
+    const aLaRacine = mkdtempSync(path.join(dans, 'tsconfig-'));
+    writeFileSync(path.join(aLaRacine, 'package.json'), json({ name: 'r', private: true }));
+    writeFileSync(path.join(aLaRacine, 'tsconfig.json'), json({}));
+    const dansUnPaquet = mkdtempSync(path.join(dans, 'tsconfig-'));
+    ecrireDans(dansUnPaquet)('package.json', json({ name: 'p', workspaces: ['packages/*'] }));
+    ecrireDans(dansUnPaquet)('packages/a/package.json', json({ name: '@p/a' }));
+    ecrireDans(dansUnPaquet)('packages/a/tsconfig.json', json({}));
     const enRetard = depot(dans);
     writeFileSync(
       path.join(enRetard, 'packages/a/docs/INTERFACE.md'),
@@ -249,6 +257,17 @@ export default {
         attendu: ['fichier packages/a/src/index.ts', 'hors du service packages/a/src/index.ts'],
       },
       matieres: { valide: vide, invalide: aJour, attendu: ['m (@e/m)'] },
+      trouve: {
+        valide: [
+          { nom: 'vide', racine: vide },
+          { nom: 'paquets sans tsconfig', racine: aJour },
+        ],
+        invalide: [
+          { nom: 'à la racine', racine: aLaRacine },
+          { nom: 'dans un paquet', racine: dansUnPaquet },
+        ],
+        attendu: ['à la racine : trouvé', 'dans un paquet : trouvé'],
+      },
     };
   },
 };

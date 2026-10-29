@@ -18,7 +18,7 @@ import {
   VARIABLE as VARIABLE_NUE,
 } from '../../scripts/enveloppe/paquets-du-plan.mjs';
 import { aVerifier } from '../../scripts/langages/typescript/interfaces-contre-code.mjs';
-import { SCRIPT, enveloppeEssai } from './enveloppe-essai.js';
+import { LANGAGE, SCRIPT, enveloppeEssai } from './enveloppe-essai.js';
 
 const VARIABLE = VARIABLE_NUE as string;
 const ecrireLaListe = (paquets: string[]) => ecrireLaListeNue(paquets) as string;
@@ -170,7 +170,10 @@ describe.runIf(canWrap)('grillhouse-3uv.95.3 — l’enceinte sur le disque', ()
     mkdirSync(path.dirname(path.join(repo, f)), { recursive: true });
     writeFileSync(path.join(repo, f), t);
   };
-  ecrire('package.json', JSON.stringify({ name: 'essai', workspaces: ['packages/*'] }));
+  ecrire(
+    'package.json',
+    JSON.stringify({ name: 'essai', workspaces: ['packages/*'], grillhouse: LANGAGE })
+  );
   for (const n of ['a', 'b', 'c']) {
     ecrire(`packages/${n}/package.json`, JSON.stringify({ name: n }));
     ecrire(`packages/${n}/src/${n}.ts`, `source-${n}`);
@@ -238,7 +241,10 @@ describe('grillhouse-3uv.95.3 — le crochet de l’agent et le plan', () => {
     mkdirSync(path.dirname(path.join(repo, f)), { recursive: true });
     writeFileSync(path.join(repo, f), t);
   };
-  ecrire('package.json', JSON.stringify({ name: 'essai', workspaces: ['packages/*'] }));
+  ecrire(
+    'package.json',
+    JSON.stringify({ name: 'essai', workspaces: ['packages/*'], grillhouse: LANGAGE })
+  );
   for (const n of ['a', 'b', 'c']) {
     ecrire(`packages/${n}/package.json`, JSON.stringify({ name: n }));
   }

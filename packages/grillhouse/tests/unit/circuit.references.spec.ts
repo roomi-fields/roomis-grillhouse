@@ -91,6 +91,7 @@ function laReference(declarer: boolean) {
   pkg.scripts.gardes = 'node garde.mjs && node garde-reference.mjs';
   if (declarer) {
     pkg.grillhouse = {
+      ...pkg.grillhouse,
       references: [{ nom: NOM, commande: REGENERER, fichiers: ['reference.txt'] }],
     };
   }
@@ -311,6 +312,7 @@ writeFileSync('autre.txt', 'hors de toute référence\\n');
       const SCENES = { zero: 0, un: 1, deux: 2 };
       const pkg = JSON.parse(lire(path.join(REPO, 'package.json'))) as { grillhouse?: object };
       pkg.grillhouse = {
+        ...pkg.grillhouse,
         references: [
           {
             nom: EMPREINTE,
@@ -408,6 +410,7 @@ it("l'empreinte de chaque scène suit la mesure", () => {
 `
       );
       pkg.grillhouse = {
+        ...pkg.grillhouse,
         references: [
           {
             nom: PLAFOND,

@@ -120,7 +120,10 @@ function depotLots() {
     mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true });
     writeFileSync(path.join(repo, rel), contenu);
   };
-  ecrire('package.json', JSON.stringify({ name: 'racine', private: true }));
+  ecrire(
+    'package.json',
+    JSON.stringify({ name: 'racine', private: true, grillhouse: { langages: ['typescript'] } })
+  );
   ecrire(
     'packages/matiere/package.json',
     JSON.stringify({ name: 'matiere', exports: { '.': './i.js', './test-fixtures': './f.js' } })
@@ -177,6 +180,10 @@ describe('refusLots', () => {
   });
   it('a project without the material keeps the test files alone in the tests lot', () => {
     const vide = mkdtempSync(path.join(ESSAIS, 'lots-vide-'));
+    writeFileSync(
+      path.join(vide, 'package.json'),
+      JSON.stringify({ name: 'vide', grillhouse: { langages: ['typescript'] } })
+    );
     expect(refusLots(['packages/matiere/fixtures/un.txt'], [], vide)).toMatch(
       /lot de tests touche du code/
     );
@@ -205,6 +212,7 @@ function monde(commentaires: string[]) {
   writeFileSync(
     path.join(repo, 'package.json'),
     JSON.stringify({
+      grillhouse: { langages: ['typescript'] },
       scripts: { verifier: 'test ! -f GARDE_ROUGE && test ! -f RESTE && node suites.mjs' },
     })
   );

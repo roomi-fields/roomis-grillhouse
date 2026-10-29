@@ -75,14 +75,22 @@
 //   A `turbo.json` present is never written again by the update; only the generator of the
 //   packages' turbo.json (below) writes in it the `dependsOn` of the guard tasks, and adds one it
 //   lacks, and the typing task.
-// - The tools the frame's checks run as commands (dependency-cruiser, knip, Turborepo) are added
+// - The languages first (`declarerLangages`): a project that declares none (`grillhouse.langages`
+//   of its package.json) receives the languages the modules of the frame find in it
+//   (`langagesTrouves` of scripts/langages.mjs: typescript, a tsconfig.json at its root or in a
+//   package of the frame), and the report says so; a declaration it holds stays. A directory
+//   without package.json, or a project where no module finds its language, is refused, named on
+//   the error stream, the exit code 1, nothing written: the frame invents no declaration, and the
+//   migrations of the declared language play with the core's. No import of the project is
+//   rewritten.
+// - The tools of the declared language (the `outils` of its module: what it runs as commands,
+//   Turborepo, knip, dependency-cruiser, and what its scripts import, API Extractor among them),
+//   and none other, are added
 //   to the project's `devDependencies` at the version the template's `devDependencies` give; a
 //   tool the project already declares in `dependencies`, `devDependencies` or
 //   `optionalDependencies` keeps its declaration, one a previous version added stays, and
 //   `devDependencies` are written sorted by name. The report names each tool added and
-//   `npm install`, which installs them. What the package's scripts import, it declares itself (its
-//   `dependencies`, API Extractor among them; Vitest and TypeScript as peers), as npm leaves to a
-//   package what it imports; the project's `tsdoc.json` extends the package's TSDoc base
+//   `npm install`, which installs them. The project's `tsdoc.json` extends the package's TSDoc base
 //   (`@roomi-fields/grillhouse/tsdoc-base.json`), which extends API Extractor's. A project without
 //   `packageManager` receives the template's (Turborepo requires it), and a `.gitignore` that does
 //   not ignore `.turbo/` (Turborepo's runs and cache) receives the line.
@@ -159,11 +167,11 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import semver from 'semver';
-import { CADRE, PAQUET, VERSION } from './cadre.mjs';
+import { CADRE, VERSION } from './cadre.mjs';
 import { poserCrochets } from './crochets.mjs';
 import { installerGreffons } from './greffons.mjs';
 import { migrer, restesAuProjet } from './migrations.mjs';
-import { langageDe } from './langages.mjs';
+import { LANGAGES, langageDe, langagesDeclares, langagesTrouves } from './langages.mjs';
 import { CODE, paquets, TYPAGE } from './paquets.mjs';
 import { sources } from './sources.mjs';
 
@@ -182,17 +190,6 @@ const CONFIG_VITEST = `${PAQUET_DU_CADRE}/vitest-config`;
 /** The frame's status line, as the settings of a project run it. */
 export const LIGNE_ETAT = '"$CLAUDE_PROJECT_DIR/node_modules/.bin/grillhouse" ligne-etat';
 
-// The frame's tools a project installs: the optional peers of the package (its package.json), the
-// tools its module of language runs as commands or its scripts import, as Vite names the
-// preprocessors it imports when a project has them; the project's own TypeScript and Vitest left
-// out, which it writes its code and its tests with. Their versions are read in the template.
-const DU_PROJET = new Set(['typescript', 'vitest']);
-const OUTILS_DU_CADRE = Object.entries(
-  JSON.parse(readFileSync(path.join(PAQUET, 'package.json'), 'utf8')).peerDependenciesMeta ?? {}
-)
-  .filter(([nom, m]) => m?.optional && !DU_PROJET.has(nom))
-  .map(([nom]) => nom)
-  .sort();
 // The root scripts of the tests, written together from the template.
 const SCRIPTS_DES_TESTS = ['test', 'test:vitest', 'test:forcer', 'verifier'];
 const CHAMPS_INSTALLES = ['dependencies', 'devDependencies', 'optionalDependencies'];
@@ -417,6 +414,34 @@ function declarerGreffon(projet) {
   return true;
 }
 
+/**
+ * Declares the languages of the project at <projet> (`grillhouse.langages` of its package.json)
+ * from what the modules of the frame find in it (`langagesTrouves`, scripts/langages.mjs), when it
+ * declares none; a declaration it holds stays. Returns `{ langages, ecrits }` (ecrits: whether the
+ * update wrote them). Throws, writing nothing, when the project has no package.json or the modules
+ * find no language of the frame in it: the update invents no declaration.
+ */
+export function declarerLangages(projet) {
+  const fichier = path.join(projet, 'package.json');
+  if (!existsSync(fichier)) {
+    throw new Error(
+      `${projet} n'a pas de package.json, où un projet déclare ses langages (grillhouse.langages) ; la mise à jour du cadre s'y joue.`
+    );
+  }
+  const declares = langagesDeclares(projet);
+  if (declares.length > 0) return { langages: declares, ecrits: false };
+  const trouves = langagesTrouves(projet);
+  if (trouves.length === 0) {
+    throw new Error(
+      `aucun langage du cadre trouvé dans ${projet} (typescript : un tsconfig.json à la racine ou dans un paquet) ; déclare-le dans grillhouse.langages de ${fichier} (les langages du cadre : ${Object.keys(LANGAGES).join(', ')}), puis relance \`npx grillhouse maj\`.`
+    );
+  }
+  const p = lireJson(fichier, {});
+  p.grillhouse = { ...(p.grillhouse ?? {}), langages: trouves };
+  writeFileSync(fichier, `${JSON.stringify(p, null, 2)}\n`);
+  return { langages: trouves, ecrits: true };
+}
+
 /** The version of the frame the project at <projet> recorded (`grillhouse.version`), or null. */
 export function versionDuProjet(projet) {
   const v = lireJson(path.join(projet, 'package.json'), {})?.grillhouse?.version;
@@ -430,6 +455,7 @@ export function versionDuProjet(projet) {
  */
 export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
   const bilan = {
+    langages: null,
     dependances: [],
     test: null,
     vitest: null,
@@ -443,6 +469,7 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
   };
   const pkg = path.join(projet, 'package.json');
   if (existsSync(pkg)) {
+    bilan.langages = declarerLangages(projet);
     const p = lireJson(pkg, {});
     if (inscrite !== null) p.grillhouse = { ...(p.grillhouse ?? {}), version: inscrite };
     const pkgSource = lireJson(path.join(source, GABARIT), {});
@@ -488,7 +515,8 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
         }
       }
     }
-    for (const nom of OUTILS_DU_CADRE) {
+    // The tools of the declared language alone (its module's `outils`), at the template's versions.
+    for (const nom of langageDe(projet).outils) {
       const version = pkgSource.devDependencies?.[nom];
       if (typeof version === 'string' && !CHAMPS_INSTALLES.some(c => p[c]?.[nom] !== undefined)) {
         p.devDependencies = { ...(p.devDependencies ?? {}), [nom]: version };
@@ -585,6 +613,11 @@ export function regenerer(projet, { tous = false } = {}) {
 /** The report of an update, from the bilan <b> of `mettreAJour`: one line per change. */
 export function rapport(b) {
   const lignes = [];
+  if (b.langages?.ecrits) {
+    lignes.push(
+      `Langages : grillhouse.langages déclare ${b.langages.langages.join(', ')}, trouvé dans le dépôt ; le cadre sert le projet par ce langage.`
+    );
+  }
   if (b.dependances.length > 0) {
     lignes.push(
       `Dépendances de développement ajoutées : ${b.dependances.join(', ')}. \`npm install\` les installe.`
@@ -711,41 +744,54 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     process.exitCode = 2;
   } else {
     const projet = process.cwd();
-    const depuis = versionDuProjet(projet);
-    const migrations = migrer(projet, depuis);
-    const resteAFaire = migrations.some(m => m.aFaire.length > 0);
-    const b = mettreAJour(projet, CADRE, resteAFaire ? { inscrite: null } : {});
-    process.stdout.write(`Cadre ${VERSION}.\n`);
-    for (const { version, nom, lignes, aFaire } of migrations) {
-      process.stdout.write(
-        `Migration ${version} (${nom}) :\n${lignes.map(l => `- ${l}\n`).join('')}`
-      );
-      if (aFaire.length > 0) {
-        process.stderr.write(
-          `Migration ${version} (${nom}), à faire :\n${aFaire.map(l => `- ${l}\n`).join('')}`
-        );
-        process.exitCode = 1;
-      }
-    }
-    process.stdout.write(rapport(b));
-    const echecsDesGeneres = regenerer(projet);
-    for (const l of [...echecsDesGeneres, ...installerGreffons(projet)]) {
-      process.stderr.write(`${l}\n`);
+    // The languages first: the migrations of the declared language play with the core's.
+    let langages = null;
+    try {
+      langages = declarerLangages(projet);
+    } catch (e) {
+      process.stderr.write(`⛔ ${e.message}\n`);
       process.exitCode = 1;
     }
-    for (const { version, nom, lignes } of restesAuProjet(projet, depuis)) {
-      process.stdout.write(
-        `Migration ${version} (${nom}), reste au projet :\n${lignes.map(l => `- ${l}\n`).join('')}`
+    if (langages !== null) mettreAJourLeProjet(projet, langages);
+  }
+}
+
+// The update of the project at <projet>, its languages <langages> declared (declarerLangages).
+function mettreAJourLeProjet(projet, langages) {
+  const depuis = versionDuProjet(projet);
+  const migrations = migrer(projet, depuis);
+  const resteAFaire = migrations.some(m => m.aFaire.length > 0);
+  const b = { ...mettreAJour(projet, CADRE, resteAFaire ? { inscrite: null } : {}), langages };
+  process.stdout.write(`Cadre ${VERSION}.\n`);
+  for (const { version, nom, lignes, aFaire } of migrations) {
+    process.stdout.write(
+      `Migration ${version} (${nom}) :\n${lignes.map(l => `- ${l}\n`).join('')}`
+    );
+    if (aFaire.length > 0) {
+      process.stderr.write(
+        `Migration ${version} (${nom}), à faire :\n${aFaire.map(l => `- ${l}\n`).join('')}`
       );
+      process.exitCode = 1;
     }
-    const v = verifier(projet, {
-      fichiersAFinir: resteAFaire || echecsDesGeneres.length > 0,
-      installer: aInstaller(b),
-      vitest: b.vitest,
-    });
-    (v.erreur ? process.stderr : process.stdout).write(`${v.ligne}\n`);
-    if (v.code !== null && !process.exitCode) {
-      process.exitCode = v.code;
-    }
+  }
+  process.stdout.write(rapport(b));
+  const echecsDesGeneres = regenerer(projet);
+  for (const l of [...echecsDesGeneres, ...installerGreffons(projet)]) {
+    process.stderr.write(`${l}\n`);
+    process.exitCode = 1;
+  }
+  for (const { version, nom, lignes } of restesAuProjet(projet, depuis)) {
+    process.stdout.write(
+      `Migration ${version} (${nom}), reste au projet :\n${lignes.map(l => `- ${l}\n`).join('')}`
+    );
+  }
+  const v = verifier(projet, {
+    fichiersAFinir: resteAFaire || echecsDesGeneres.length > 0,
+    installer: aInstaller(b),
+    vitest: b.vitest,
+  });
+  (v.erreur ? process.stderr : process.stdout).write(`${v.ligne}\n`);
+  if (v.code !== null && !process.exitCode) {
+    process.exitCode = v.code;
   }
 }

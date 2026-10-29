@@ -342,6 +342,7 @@ export function circuitEssai(ESSAIS: string, { feuille = false, gardesSansCache 
         type: 'module',
         workspaces: ['packages/*'],
         packageManager: 'npm@10.9.8',
+        grillhouse: { langages: ['typescript'] },
         scripts: {
           test: `node ${path.join(RACINE, 'packages/grillhouse/scripts/langages/typescript/tests.mjs')}`,
           verifier: `node ${path.join(RACINE, 'packages/grillhouse/scripts/langages/typescript/verifier.mjs')}`,

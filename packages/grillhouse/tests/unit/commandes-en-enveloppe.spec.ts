@@ -88,6 +88,7 @@ function depot() {
       type: 'module',
       workspaces: ['packages/*'],
       packageManager: 'npm@10.9.8',
+      grillhouse: { langages: ['typescript'] },
     })
   );
   ecrire(
@@ -344,6 +345,7 @@ describe.runIf(canWrap)(
         private: true,
         workspaces: ['packages/*'],
         packageManager: 'npm@10.9.8',
+        grillhouse: { langages: ['typescript'] },
       })
     );
     ecrire(
@@ -549,6 +551,7 @@ describe.runIf(canWrap)(
         private: true,
         workspaces: ['packages/*'],
         packageManager: 'npm@10.9.8',
+        grillhouse: { langages: ['typescript'] },
       })
     );
     ecrire(
@@ -678,6 +681,7 @@ describe.runIf(canWrap)(
         private: true,
         workspaces: ['packages/*'],
         packageManager: 'npm@10.9.8',
+        grillhouse: { langages: ['typescript'] },
       })
     );
     ecrire(
@@ -832,6 +836,7 @@ describe.runIf(canWrap)(
         private: true,
         workspaces: ['packages/*'],
         packageManager: 'npm@10.9.8',
+        grillhouse: { langages: ['typescript'] },
       })
     );
     ecrire(

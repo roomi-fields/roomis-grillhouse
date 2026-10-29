@@ -8,6 +8,7 @@ import { dossierDeTravail } from '../../scripts/enveloppe/enveloppe.mjs';
 import { publie } from '../../scripts/langages/typescript/index-interfaces.mjs';
 import { optionsDuRole } from '../../scripts/droits.mjs';
 import { schemaDeFiche } from '../../scripts/resultats.mjs';
+import { projetDuLanceur } from './enveloppe-essai.js';
 
 // Ticket grillhouse-3uv.46: the launcher takes a model and a reasoning level for one session
 // (--modele, --effort) and hands them to claude (--model, --effort); without them, the role's
@@ -104,6 +105,7 @@ writeFileSync(
   path.join(REPO, '.claude/agents/developpeur.md'),
   '---\nname: developpeur\nmodel: sonnet\neffort: medium\n---\n'
 );
+projetDuLanceur(REPO);
 installerEnveloppe(REPO);
 const FAUX = path.join(REPO, 'faux-claude.sh');
 // It writes in the first package of the plan the envelope names (grillhouse-3uv.95.3).
@@ -608,7 +610,12 @@ describe('the launcher refuses a component that is not a path before preparing t
   mkdirSync(path.join(DEPOT, 'packages/050-emitter/src'), { recursive: true });
   writeFileSync(
     path.join(DEPOT, 'package.json'),
-    JSON.stringify({ name: 'essai', private: true, workspaces: ['packages/*'] })
+    JSON.stringify({
+      name: 'essai',
+      private: true,
+      workspaces: ['packages/*'],
+      grillhouse: { langages: ['typescript'] },
+    })
   );
   writeFileSync(
     path.join(DEPOT, 'packages/050-emitter/package.json'),

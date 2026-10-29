@@ -131,6 +131,8 @@ function projet({ retouche = true }: { retouche?: boolean } = {}) {
     json({
       name: 'bp',
       private: true,
+      // grillhouse-3dr.2.3: a project of TypeScript declares its language.
+      grillhouse: { langages: ['typescript'] },
       scripts: {
         frontieres: 'node scripts/frontieres.mjs',
         interfaces: 'node scripts/index-interfaces.mjs --verifier',
@@ -311,7 +313,15 @@ describe('migration 0.23.2 — the copies of the frame leave a project in 0.22.x
 
   it('a project without the former list is left as it is', () => {
     const p = mkdtempSync(path.join(ESSAIS, 'neuf-'));
-    ecrire(p, 'package.json', json({ name: 'n', scripts: { x: 'node scripts/x.mjs' } }));
+    ecrire(
+      p,
+      'package.json',
+      json({
+        name: 'n',
+        grillhouse: { langages: ['typescript'] },
+        scripts: { x: 'node scripts/x.mjs' },
+      })
+    );
     ecrire(p, 'scripts/x.mjs', 'export {};\n');
     const avant = contenu(p);
     expect(migrer(p)).toEqual([]);

@@ -16,7 +16,13 @@ export function depotDeVerdict(racine, sorte, { base, pression = 1 }) {
   symlinkSync(path.join(DEPOT, 'node_modules'), path.join(racine, 'node_modules'), 'dir');
   ecrire(
     'package.json',
-    json({ name: 'essai', private: true, workspaces: ['packages/*'], packageManager: 'npm@10.9.8' })
+    json({
+      name: 'essai',
+      private: true,
+      workspaces: ['packages/*'],
+      packageManager: 'npm@10.9.8',
+      grillhouse: { langages: ['typescript'] },
+    })
   );
   ecrire(
     'turbo.json',

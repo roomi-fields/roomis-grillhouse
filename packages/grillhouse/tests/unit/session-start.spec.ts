@@ -611,3 +611,29 @@ describe('the session start and the sessions of a role', () => {
     }
   });
 });
+
+// grillhouse-3dr.2.3: a project that declares no language (grillhouse.langages) is refused by the
+// frame's scripts and locks; the session start names it under « Manque », with the update that
+// writes the declaration, between the install of a version and `npx grillhouse maj`.
+describe('the session start and the declaration of the language', () => {
+  const avecPaquet = (nom: string, pkg: object) => {
+    const q = projet(nom);
+    writeFileSync(path.join(q.racine, 'package.json'), JSON.stringify(pkg));
+    mkdirSync(path.join(q.racine, 'node_modules'), { recursive: true });
+    return q.racine;
+  };
+  it('names a package.json without grillhouse.langages under « Manque », with npx grillhouse maj', () => {
+    const r = demarrer(avecPaquet('sans-langage', { name: 'p' }), avec);
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stdout).toMatch(
+      /Manque : .*la déclaration du langage \(grillhouse\.langages[^)]*npx grillhouse maj/
+    );
+  });
+  it('says nothing of it for a project that declares its language', () => {
+    const r = demarrer(
+      avecPaquet('avec-langage', { name: 'p', grillhouse: { langages: ['typescript'] } }),
+      avec
+    );
+    expect(r.stdout).not.toContain('la déclaration du langage');
+  });
+});

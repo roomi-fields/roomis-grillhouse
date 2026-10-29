@@ -30,7 +30,8 @@ const projet = (fichiers: Record<string, string>) => {
 const INTERFACE = (consommateurs: string) =>
   `# b\n\nB porte le corpus.\n\n## Consommateurs\n\n${consommateurs}\n`;
 const BASE = {
-  'package.json': '{"name":"p","grillhouse":{"version":"0.24.6"}}',
+  // grillhouse-3dr.2.3: a project of TypeScript declares its language.
+  'package.json': '{"name":"p","grillhouse":{"langages":["typescript"],"version":"0.24.6"}}',
   'packages/b/package.json': JSON.stringify({
     name: '@demo/b',
     exports: { './test-fixtures': './test/corpus.ts' },

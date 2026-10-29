@@ -15,7 +15,15 @@ const ESSAIS = mkdtempSync(path.join(tmpdir(), 'verrous-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/verrous/verrou.mjs');
-const ROOT = '/repo';
+const COMMANDE = path.resolve(__dirname, '../../scripts/verrous/commande.mjs');
+// The project the hook judges: it declares its language (grillhouse-3dr.2.3), outside the system
+// temp directory, which the hook command takes for the scratchpad.
+const ROOT = racineSousLaMaison('grillhouse-essais-verrous-racine-');
+afterAll(() => rmSync(ROOT, { recursive: true, force: true }));
+writeFileSync(
+  path.join(ROOT, 'package.json'),
+  JSON.stringify({ name: 'repo', grillhouse: { langages: ['typescript'] } })
+);
 const SCRATCH = '/scratch';
 
 // A session whose sub-agent was launched with `prompt`, as Claude Code lays it on disk.
@@ -65,22 +73,22 @@ describe('isTestFile', () => {
 
 describe('testwriter', () => {
   it('writes a test file', () => {
-    expect(refusal('testwriter', write('/repo/tests/a.spec.ts'), options(null))).toBeNull();
+    expect(refusal('testwriter', write(`${ROOT}/tests/a.spec.ts`), options(null))).toBeNull();
   });
   it('writes in the scratchpad', () => {
     expect(refusal('testwriter', write('/scratch/s/lot.patch'), options(null))).toBeNull();
   });
   it('does not write code', () => {
-    expect(refusal('testwriter', write('/repo/src/a.ts'), options(null))).toMatch(
+    expect(refusal('testwriter', write(`${ROOT}/src/a.ts`), options(null))).toMatch(
       /seulement des fichiers de test/
     );
   });
   it('does not edit code', () => {
-    const edit = { tool_name: 'Edit', tool_input: { file_path: '/repo/src/a.ts' }, cwd: ROOT };
+    const edit = { tool_name: 'Edit', tool_input: { file_path: `${ROOT}/src/a.ts` }, cwd: ROOT };
     expect(refusal('testwriter', edit, options(null))).toMatch(/seulement des fichiers de test/);
   });
   it('lets other tools through', () => {
-    const read = { tool_name: 'Read', tool_input: { file_path: '/repo/src/a.ts' }, cwd: ROOT };
+    const read = { tool_name: 'Read', tool_input: { file_path: `${ROOT}/src/a.ts` }, cwd: ROOT };
     expect(refusal('testwriter', read, options(null))).toBeNull();
   });
 });
@@ -90,42 +98,42 @@ describe('developpeur', () => {
   const withArchitecture = options('## Architecture\n- Modèle mûr : X\n\n## Travail\n1. Y');
 
   it('writes code when its ticket has its Architecture section', () => {
-    expect(refusal('developpeur', write('/repo/src/a.ts', ready), withArchitecture)).toBeNull();
+    expect(refusal('developpeur', write(`${ROOT}/src/a.ts`, ready), withArchitecture)).toBeNull();
   });
   it('reads its ticket in its own session', () => {
     const own = ownSession('TON TICKET : demo-12 — un sujet.');
-    expect(refusal('developpeur', write('/repo/src/a.ts', own), withArchitecture)).toBeNull();
-    expect(refusal('developpeur', write('/repo/src/a.ts', own), options('## Travail'))).toMatch(
+    expect(refusal('developpeur', write(`${ROOT}/src/a.ts`, own), withArchitecture)).toBeNull();
+    expect(refusal('developpeur', write(`${ROOT}/src/a.ts`, own), options('## Travail'))).toMatch(
       /section « ## Architecture »/
     );
   });
   it('does not write a test file', () => {
-    expect(refusal('developpeur', write('/repo/tests/a.spec.ts', ready), withArchitecture)).toMatch(
-      /appartiennent au testwriter/
-    );
+    expect(
+      refusal('developpeur', write(`${ROOT}/tests/a.spec.ts`, ready), withArchitecture)
+    ).toMatch(/appartiennent au testwriter/);
   });
   it('does not write code while its ticket lacks the Architecture section', () => {
     expect(
-      refusal('developpeur', write('/repo/src/a.ts', ready), options('## Travail\n1. Y'))
+      refusal('developpeur', write(`${ROOT}/src/a.ts`, ready), options('## Travail\n1. Y'))
     ).toMatch(/section « ## Architecture »/);
   });
   it('does not take an Architecture word in the text for the section', () => {
     expect(
       refusal(
         'developpeur',
-        write('/repo/src/a.ts', ready),
+        write(`${ROOT}/src/a.ts`, ready),
         options('Voir ## Architecture plus tard')
       )
     ).toMatch(/section « ## Architecture »/);
   });
   it('does not write code when its ticket is unreadable', () => {
-    expect(refusal('developpeur', write('/repo/src/a.ts', ready), options(null))).toMatch(
+    expect(refusal('developpeur', write(`${ROOT}/src/a.ts`, ready), options(null))).toMatch(
       /illisible/
     );
   });
   it('does not write code without a ticket in its launch prompt', () => {
     const lost = session('Tu es un agent sans ticket.');
-    expect(refusal('developpeur', write('/repo/src/a.ts', lost), withArchitecture)).toMatch(
+    expect(refusal('developpeur', write(`${ROOT}/src/a.ts`, lost), withArchitecture)).toMatch(
       /introuvable/
     );
   });
@@ -137,7 +145,7 @@ describe('developpeur', () => {
 
 describe('an unknown role', () => {
   it('writes nothing', () => {
-    expect(refusal('cuisinier', write('/repo/src/a.ts'), options(null))).toMatch(/Rôle inconnu/);
+    expect(refusal('cuisinier', write(`${ROOT}/src/a.ts`), options(null))).toMatch(/Rôle inconnu/);
   });
 });
 
@@ -146,15 +154,41 @@ describe('the hook command', () => {
     spawnSync('node', [SCRIPT, role], { input: JSON.stringify(input), encoding: 'utf8' });
 
   it('refuses with exit code 2 and its reason on stderr', () => {
-    const r = run('testwriter', write('/repo/src/a.ts'));
+    const r = run('testwriter', write(`${ROOT}/src/a.ts`));
     expect(r.status).toBe(2);
     expect(r.stderr).toMatch(/seulement des fichiers de test/);
   });
   it('allows with exit code 0', () => {
-    const r = run('testwriter', write('/repo/tests/a.spec.ts'));
+    const r = run('testwriter', write(`${ROOT}/tests/a.spec.ts`));
     expect(r.status).toBe(0);
     expect(r.stderr).toBe('');
   });
+  // grillhouse-3dr.2.3: a project that declares no language is refused, closed, as the lock cannot
+  // judge its writes: a hook that throws exits 1, which Claude Code lets pass.
+  it('refuses in a project that declares no language, exit code 2, the update named', () => {
+    const sans = mkdtempSync(path.join(ROOT, 'sans-langage-'));
+    writeFileSync(path.join(sans, 'package.json'), JSON.stringify({ name: 'sans' }));
+    const r = run('testwriter', { ...write(`${sans}/tests/a.spec.ts`), cwd: sans });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/grillhouse\.langages.*npx grillhouse maj/);
+    expect(r.stderr.trim().split('\n')).toHaveLength(1);
+  });
+  // The update that writes the declaration stays open there: the write lock judges the tools of
+  // writing alone, and the lock of the commands no language.
+  it.each(['npx grillhouse maj', 'node_modules/.bin/grillhouse maj'])(
+    'lets %s run in a project that declares no language',
+    commande => {
+      const sans = mkdtempSync(path.join(ROOT, 'sans-langage-'));
+      writeFileSync(path.join(sans, 'package.json'), JSON.stringify({ name: 'sans' }));
+      const bash = { tool_name: 'Bash', tool_input: { command: commande }, cwd: sans };
+      for (const role of ['testwriter', 'developpeur']) {
+        const r = run(role, bash);
+        expect(r.status, `${role} : ${r.stderr}`).toBe(0);
+        const c = spawnSync('node', [COMMANDE], { input: JSON.stringify(bash), encoding: 'utf8' });
+        expect(c.status, c.stderr).toBe(0);
+      }
+    }
+  );
 });
 
 // grillhouse-2sq: the package of the shared test material, the component whose package.json
@@ -171,7 +205,10 @@ function depotAvecMatiere() {
     mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true });
     writeFileSync(path.join(repo, rel), contenu);
   };
-  ecrire('package.json', JSON.stringify({ name: 'racine', private: true }));
+  ecrire(
+    'package.json',
+    JSON.stringify({ name: 'racine', private: true, grillhouse: { langages: ['typescript'] } })
+  );
   ecrire(
     'packages/matiere/package.json',
     JSON.stringify({ name: 'matiere', exports: { '.': './index.js', './test-fixtures': './f.js' } })
@@ -246,7 +283,11 @@ describe('testwriter and the package of the shared test material', () => {
     const racine = depotAvecMatiere();
     writeFileSync(
       path.join(racine, 'package.json'),
-      JSON.stringify({ name: 'racine', exports: { './test-fixtures': './f.js' } })
+      JSON.stringify({
+        name: 'racine',
+        exports: { './test-fixtures': './f.js' },
+        grillhouse: { langages: ['typescript'] },
+      })
     );
     const w = { ...write(path.join(racine, 'src/a.ts')), cwd: racine };
     expect(refusal('testwriter', w, options(null))).toMatch(/seulement des fichiers de test/);

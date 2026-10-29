@@ -133,6 +133,7 @@ export function sousModulesEssai(ESSAIS: string) {
       JSON.stringify({
         name: 't',
         private: true,
+        grillhouse: { langages: ['typescript'] },
         scripts: { build: 'node build.mjs', test: TEST, verifier: 'npm test' },
         devDependencies: { turbo: 'file:outils/turbo' },
       })
@@ -298,7 +299,7 @@ export function sousModulesEssai(ESSAIS: string) {
     const pkgPath = path.join(m.repo, 'package.json');
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as Paquet;
     if (partage !== null) {
-      pkg.grillhouse = { partage };
+      pkg.grillhouse = { ...pkg.grillhouse, partage };
     }
     if (ecritures) {
       writeFileSync(path.join(m.repo, 'ecrire.mjs'), PARTAGE_ECRITURE);

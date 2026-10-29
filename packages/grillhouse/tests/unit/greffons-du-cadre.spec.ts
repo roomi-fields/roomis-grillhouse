@@ -169,8 +169,15 @@ function preparer(p: string, binClaude: string) {
   return { ...r, sortie: `${r.stdout}\n${r.stderr}` };
 }
 
-// npm run grillhouse:maj in the project, with the given bin.
+// npm run grillhouse:maj in the project, with the given bin; grillhouse-3dr.2.3: the project, of
+// TypeScript, has the package.json where it declares its language.
 function mettreAJourProjet(p: string, binClaude: string) {
+  if (!existsSync(path.join(p, 'package.json'))) {
+    writeFileSync(
+      path.join(p, 'package.json'),
+      '{"name":"p","grillhouse":{"langages":["typescript"]}}\n'
+    );
+  }
   const r = spawnSync(process.execPath, [MAJ], {
     cwd: p,
     encoding: 'utf8',

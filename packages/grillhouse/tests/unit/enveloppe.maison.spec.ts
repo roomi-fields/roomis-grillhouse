@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { canWrap, hasBd, racineSousLaMaison } from '../machine.js';
-import { SCRIPT, enveloppeEssai } from './enveloppe-essai.js';
+import { SCRIPT, declarerLeLangage, enveloppeEssai } from './enveloppe-essai.js';
 
 // The envelope of an agent (scripts/enveloppe/enveloppe.mjs, tests/unit/enveloppe.spec.ts): what
 // it shows of the home and of the session, and only that.
@@ -34,6 +34,7 @@ describe.runIf(canWrap)(
     writeFileSync(path.join(repo, 'packages/a/src/a.ts'), 'a');
     writeFileSync(path.join(repo, 'packages/b/src/b.ts'), 'code-of-b');
     writeFileSync(path.join(repo, 'LISEZMOI'), 'racine');
+    declarerLeLangage(repo);
     const git = (...a: string[]) =>
       execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
     git('init', '-q');

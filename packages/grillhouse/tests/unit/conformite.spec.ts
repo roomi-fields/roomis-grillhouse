@@ -4,7 +4,8 @@
 // expects. It passes on the module typescript; each defective module, one defect each, fails its
 // own case and no other, so that the suite catches a real defect. grillhouse-3dr.2.2: the suite
 // covers the components alone, the readers, the elements of a lot, the shared test material, and
-// each generated file late.
+// each generated file late. grillhouse-3dr.2.3: and the repositories where the module finds its
+// language.
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -144,6 +145,8 @@ const MUTANTS: [string, string, Partial<Langage>][] = [
     },
   ],
   ['matieres vide', 'matieres', { matieres: () => [] }],
+  // grillhouse-3dr.2.3: the update declares the languages it finds.
+  ['trouve qui ne trouve jamais rien', 'trouve', { trouve: () => false }],
 ];
 
 describe('grillhouse-3dr.2.1 — la suite de conformité de la jointure', { timeout: 180_000 }, () => {
@@ -161,6 +164,7 @@ describe('grillhouse-3dr.2.1 — la suite de conformité de la jointure', { time
       'gardes',
       'elementsDuLot',
       'matieres',
+      'trouve',
     ]);
   });
 

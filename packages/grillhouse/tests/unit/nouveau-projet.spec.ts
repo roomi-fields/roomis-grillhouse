@@ -168,7 +168,8 @@ describe('grillhouse-3uv.84.4 critère 1 — grillhouse init creates a project f
     expect(dev['@roomi-fields/grillhouse']).toBe(`^${VERSION}`);
     const { ['@roomi-fields/grillhouse']: _paquet, ...autres } = dev;
     expect(autres).toEqual(modele.devDependencies);
-    expect(recu.grillhouse).toEqual({ version: VERSION });
+    // grillhouse-3dr.2.3: the project, of TypeScript, declares its language.
+    expect(recu.grillhouse).toEqual({ langages: ['typescript'], version: VERSION });
     const sans = (p: Record<string, unknown>) => {
       const { devDependencies: _d, grillhouse: _g, ...reste } = p;
       return reste;

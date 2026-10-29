@@ -10,6 +10,8 @@
 //   material.
 // - The repository root is that of the git repository holding the written file, whatever the
 //   agent's working directory; a file outside any repository is read against the working directory.
+//   A project that declares no language (`grillhouse.langages`) is refused, exit code 2, the
+//   update named: the lock cannot judge its writes, and a hook that throws would let them pass.
 // - developpeur writes none of the testwriter's files, and no other file until its ticket's
 //   description holds a "## Architecture" section. The ticket is the "TON TICKET : <id>" line of the agent's
 //   launch prompt, read from its transcript.
@@ -179,7 +181,16 @@ export function refusal(role, input, { tmp = tmpdir(), describe = ticketDescript
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const input = JSON.parse(readFileSync(0, 'utf8'));
-  const stop = horsDuPlan(input);
+  // A project the lock cannot judge (no language declared, scripts/langages.mjs) is refused, as a
+  // hook that throws exits 1, which Claude Code lets pass.
+  let stop = null;
+  let reason = null;
+  try {
+    stop = horsDuPlan(input);
+    if (!stop) reason = refusal(process.argv[2], input);
+  } catch (e) {
+    reason = e.message;
+  }
   if (stop) {
     // The mark for the circuit; the stop below is the hook's answer, mark or not.
     try {
@@ -198,11 +209,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
         },
       })}\n`
     );
-  } else {
-    const reason = refusal(process.argv[2], input);
-    if (reason) {
-      process.stderr.write(reason + '\n');
-      process.exitCode = 2;
-    }
+  } else if (reason) {
+    process.stderr.write(reason + '\n');
+    process.exitCode = 2;
   }
 }

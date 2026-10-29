@@ -182,7 +182,12 @@ describe('critère 2 — init and the update declare roomi-fields and enable gri
   // A project at <dossier>, its settings.
   function projet(dossier: string, reglages: Record<string, unknown> = {}) {
     const p = path.join(mkdtempSync(path.join(ESSAIS, 'parent-')), dossier);
-    ecrire(p, 'package.json', `${JSON.stringify({ name: '@your-scope/project-name' })}\n`);
+    // grillhouse-3dr.2.3: a project of TypeScript declares its language.
+    ecrire(
+      p,
+      'package.json',
+      `${JSON.stringify({ name: '@your-scope/project-name', grillhouse: { langages: ['typescript'] } })}\n`
+    );
     ecrire(p, '.claude/settings.json', `${JSON.stringify(reglages)}\n`);
     return p;
   }
