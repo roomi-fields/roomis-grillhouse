@@ -396,9 +396,9 @@ ses `dependencies`, comme npm y met ce que le code publié importe : `npx grillh
 place, ses imports lus par TypeScript. Ainsi une version du paquet dit ce qu'un projet peut
 importer, et ce qu'elle lui retire.
 
-## La cible : un noyau et un paquet par langage
+## La cible : un noyau et un module par langage
 
-Décidée au grill du 2026-10-28 avec le responsable ; les paragraphes ci-dessus décrivent le cadre
+Décidée au grill du 2026-10-28 avec le responsable, la forme d'un seul paquet le 2026-10-29 ; les paragraphes ci-dessus décrivent le cadre
 d'aujourd'hui, et chaque ticket de l'épopée qui la mène les réécrit au présent quand il la livre.
 
 **Une vérification à la mesure de ce qui change** : une vérification sur main qui ne touche
@@ -410,28 +410,29 @@ changement d'un script du cadre rejoue encore les 3 200 tests (environ 22 minute
 lançant par son chemin ; la pyramide des tests (grillhouse-3dr.4) et les tests d'intégration dans
 leur paquet (grillhouse-3dr.3) le ramènent aux tests qui le lisent.
 
-**Un noyau, et un paquet par langage** : comme `nx` et ses greffons `@nx/js`, `@nx/vite`, le
-cadre publie `@roomi-fields/grillhouse`, le **noyau** (les tickets, le circuit, les rôles et
-leur relecture, le tableau, l'enveloppe, les crochets, la mise à jour, le greffon Claude), et un
-**paquet de langage** par famille : `@roomi-fields/grillhouse-typescript` (la vérification par
-Turborepo et Vitest, les gardes de structure et leurs outils) et `@roomi-fields/grillhouse-cargo`
-(la même chose pour Rust, l'épopée grillhouse-pkl). Un projet installe le noyau et le paquet de
-chacun de ses langages, et le noyau trouve ces paquets parmi ses dépendances, comme ESLint trouve
-ses extensions. Ainsi chaque projet n'installe que ce qu'il utilise : BPScript n'a rien de Rust,
-SyntHub a les deux.
+**Un noyau, et un module par langage** : comme Pants, qui publie un seul paquet et active ses
+langages dans sa configuration (`backend_packages`), le cadre publie un seul paquet,
+`@roomi-fields/grillhouse`. Il porte le **noyau** (les tickets, le circuit, les rôles et leur
+relecture, le tableau, l'enveloppe, les crochets, la mise à jour, le greffon Claude) et un
+**module de langage** par famille, sous `scripts/langages/` : `typescript` (la vérification par
+Turborepo et Vitest, les gardes de structure) et `cargo` (la même chose pour Rust, l'épopée
+grillhouse-pkl). Un projet déclare ses langages dans son `package.json` (`grillhouse.langages`),
+que `init` et `maj` remplissent d'après ce qu'ils trouvent (`tsconfig.json`, `Cargo.toml`).
+Les outils d'un langage (Turborepo, Vitest, knip, api-extractor ; cargo-nextest, cargo-deny)
+sont des dépendances facultatives du paquet : `maj` n'installe que ceux des langages déclarés.
+Ainsi chaque projet n'installe que les outils qu'il utilise : un projet tout Rust n'a aucun outil
+TypeScript, BPScript aucun outil Rust ; les scripts d'un langage non déclaré restent sur le disque,
+inertes. Un module par langage et un seul paquet, plutôt qu'un paquet par langage comme ESLint
+ou Nx : une seule équipe tient tous les langages, et un seul paquet n'a ni versions à aligner ni
+imports à réécrire chez les projets.
 
-**La jointure des langages** : le noyau ne demande à un paquet de langage que cinq choses — ses
+**La jointure des langages** : le noyau ne demande à un module de langage que cinq choses — ses
 composants et celui d'un fichier ; les composants touchés depuis un commit, avec leurs
 dépendants ; les commandes qui testent, typent et vérifient un composant, et la lecture de leur
 verdict ; la règle qui dit qu'un fichier est un test (le verrou du testwriter) ; ses fichiers
-engendrés et leur commande. L'INTERFACE.md du noyau l'écrit, et une même suite de conformité la
-tient sur chaque paquet de langage. Ainsi le reste du noyau ignore le langage du projet.
-
-**Une version pour tous** : les paquets publiés sortent ensemble, à la même version, comme Nx et
-Babel. La mise à jour installe le paquet de langage et réécrit les imports du projet vers leur
-nouvelle adresse (la configuration de Vitest, la base TSDoc et `consommateurs` au paquet
-TypeScript ; `paquets`, `dette` et `resultats` au noyau), sans alias. Ainsi un projet ne se
-demande jamais quels paquets vont ensemble.
+engendrés et leur commande. L'INTERFACE.md du noyau l'écrit, une même suite de conformité la
+tient sur chaque module de langage, et une garde refuse un import d'un module de langage par le
+noyau hors de la jointure. Ainsi le reste du noyau ignore le langage du projet.
 
 **Les tests d'intégration, un paquet à part** : les tests qui montent un dépôt d'essai et y
 lancent le cadre entier (le circuit, plus de la moitié du temps des tests) vivent dans
@@ -440,5 +441,5 @@ un fichier qu'ils lancent change, et en entier la nuit. Les tests du greffon
 (`mods/grillhouse/tests`) entrent dans la vérification et la CI. Ainsi un test unitaire ne paie
 jamais le prix d'un test d'intégration.
 
-**L'ordre** : les deux causes du « tout rejoué », mesurées ; la jointure et le paquet
-TypeScript ; le paquet des tests d'intégration ; le paquet cargo, sur la jointure.
+**L'ordre** : les deux causes du « tout rejoué », mesurées ; la jointure et le module
+TypeScript ; le paquet des tests d'intégration ; le module cargo, sur la jointure.
