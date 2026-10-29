@@ -69,7 +69,7 @@ const AVANT: Record<string, [number, number]> = {
   'circuit.sessions': [18, 107],
   'circuit.statut': [10, 66],
   'circuit.tests-de-head': [5, 22],
-  'circuit.ticket': [9, 68],
+  'circuit.ticket': [10, 71], // main 23dd5ba [9, 68], plus the test grillhouse-pkl.2 added (a7cb14d)
   'circuit.tri': [8, 78],
   'circuit.vert-par-fichier': [8, 28],
 };
@@ -127,8 +127,8 @@ describe('grillhouse-3dr.3.2 — the package of the tests of the chain', () => {
 
   it('critère 6: the day leaves every moved file out, and a file named plays it', () => {
     const pkg = lireJson(path.join(PAQUET, 'package.json'));
-    // npm test -- <path> plays a path in a package that has a test:vitest script.
-    expect(pkg.scripts['test:vitest']).toBe('vitest run');
+    // npm test -- <path> plays a path in a package that has a test:unit script.
+    expect(pkg.scripts['test:unit']).toBe('vitest run');
     const exclusions = optionsDe('scripts/langages/typescript/vitest-config/base.mjs').exclude;
     for (const n of DE_NUIT) {
       expect(

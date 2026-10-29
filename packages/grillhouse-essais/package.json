@@ -6,7 +6,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "test:vitest": "vitest run"
+    "test:unit": "vitest run"
   },
   "dependencies": {
     "@roomi-fields/grillhouse": "*"
