@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.24.15] - 2026-10-29
+
 ### Fixed
 
 - **The journal of the tickets no longer replays the frame's tests** (grillhouse-3dr.1): every verification of main played the frame's 3 200 tests (about 22 minutes) after any command of bd, its log saying « ↳ packages/grillhouse : tous ses tests, un chemin que ses tests déclarent lire (grillhouse.lit) (.beads/interactions.jsonl) »: `grillhouse.lit` named `.beads` whole, whose `interactions.jsonl` each command of bd rewrites, and the package's turbo.json hashed it for its `test:vitest`. As Bazel's `data` names a test's files one by one, `grillhouse.lit` now names under `.beads` the files the tests read, one by one: each file git follows there but the journals (`*.jsonl`) and the README, which `git-des-tests.spec.ts` reads for a setting of git's maintenance, the hooks of bd included. A change of the journal alone plays no test and leaves Turborepo's cache valid; a change of a hook or of the configuration of bd still plays every test. A change of a script of the package still plays every test, its tests running it by its path.
