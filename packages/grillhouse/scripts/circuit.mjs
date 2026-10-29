@@ -675,7 +675,7 @@ const generateur = (script, ...args) =>
 const referencesDuCadre = racine => [
   ...langageDe(racine)
     .fichiersEngendres(racine)
-    .map(({ verifier, ...reference }) => reference),
+    .map(({ verifier: _verifier, ...reference }) => reference),
   {
     nom: 'la dette des gardes',
     commande: generateur('dette.mjs', '--abaisser', '<notes>'),
