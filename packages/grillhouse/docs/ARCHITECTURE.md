@@ -39,9 +39,7 @@ nomment aucune, son code et sa configuration hors de son `docs/` ; jamais un tes
 connu, la passe est complète, et `npm run verifier -- --tout` la joue pour de vrai, comme la
 nuit. Un fichier que le commit du vert ne suit pas vit dans le seul arbre qui l'a gardé :
 absent d'une copie mesurée contre le vert de main, il n'est pas supprimé, comme Nx et
-Turborepo mesurent contre un commit ; de même, un fichier que l'arbre de main tient modifié sans
-le commiter (les crochets git que pose le cadre, `.beads/hooks/*`) ne change pas pour une copie
-qui le tient comme ce commit. Ainsi un test ne tourne qu'une fois tant que rien ne
+Turborepo mesurent contre un commit. Ainsi un test ne tourne qu'une fois tant que rien ne
 change, et corriger un test ne rejoue que lui.
 
 **Tout se lit, le plan s'écrit** : un agent de rôle travaille dans l'enveloppe de sa copie

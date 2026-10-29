@@ -131,9 +131,8 @@ describe('the last green per branch', () => {
     expect(mesurer(d).fichiers).toEqual(['a.txt']);
     vert(d);
     expect(mesurer(r).fichiers).toEqual(['a.txt']);
-    // A new copy holds a.txt as the green's commit has it: no change of the copy (3dr.4 critère 7).
     const c = copie(r, 'agent/t');
-    expect(mesurer(c).fichiers).toEqual([]);
+    expect(mesurer(c).fichiers).toEqual(['a.txt']);
   });
 });
 
@@ -229,51 +228,5 @@ describe('grillhouse-982.6 — the green of uncommitted changes counts for the c
     git(r, 'commit', '-q', '-m', 'mise à jour du cadre');
     expect(mesurer(r).fichiers).toEqual([]);
     expect(mesurer(copie(r, 'agent/t')).fichiers).toEqual([]);
-  });
-});
-
-// grillhouse-3dr.4 critère 7: main's tree held `.beads/hooks/commit-msg` and `pre-push` as the
-// frame's placement of the hooks writes them (scripts/crochets.mjs), never committed in that form;
-// main's last green kept them so (`git diff --raw` of its commit and its tree, 2026-10-29), and
-// every copy and every replay of the queue, which hold them as committed, saw them changed: the
-// package whose tests declare they read them (`grillhouse.lit`) played whole, on every pass. As Nx
-// affected and Turborepo's `--filter=[ref]` measure against a commit, a file main's working tree
-// modified without committing it is no change of a copy that holds it as that commit has it.
-describe('grillhouse-3dr.4 critère 7 — a modification main does not commit is no change of a copy', () => {
-  // The repository of trial, its main's green holding a.txt modified and not committed.
-  function depotModifie() {
-    const r = depot();
-    modifier(r, 'a.txt');
-    vert(r);
-    return r;
-  }
-
-  it("critère 7: a copy that holds the file as the green's commit measures no change of it", () => {
-    const c = copie(depotModifie(), 'agent/t');
-    modifier(c, 'b.txt');
-    expect(mesurer(c).fichiers).toEqual(['b.txt']);
-  });
-
-  it("critère 7: so for the queue's detached replay, which reads main's green", () => {
-    expect(mesurer(copie(depotModifie(), null)).fichiers).toEqual([]);
-  });
-
-  it('critère 7: a copy that changes the file itself still measures it changed', () => {
-    const c = copie(depotModifie(), 'agent/t');
-    modifier(c, 'a.txt');
-    expect(mesurer(c).fichiers).toEqual(['a.txt']);
-  });
-
-  it('critère 7: a commit after the green that changes the file still measures it changed', () => {
-    const c = copie(depotModifie(), 'agent/t');
-    modifier(c, 'a.txt');
-    git(c, 'commit', '-q', '-am', 'a');
-    expect(mesurer(c).fichiers).toEqual(['a.txt']);
-  });
-
-  it('critère 7: main, measured against its own green, still sees its own change', () => {
-    const r = depotModifie();
-    modifier(r, 'a.txt');
-    expect(mesurer(r).fichiers).toEqual(['a.txt']);
   });
 });
