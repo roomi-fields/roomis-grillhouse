@@ -2,7 +2,7 @@
 // state of a ticket's circuit that runs.
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { departDe } from '../../scripts/vitest-config/base-de-passe.mjs';
+import { departDe } from '../../scripts/mesure/base-de-passe.mjs';
 
 // The line `ps -o pid,etimes,args` shows for the envelope lancer.sh starts: node runs enveloppe.mjs
 // on the copy `<racine>/.claude/worktrees/<ticket>`, the component and the role, then the claude

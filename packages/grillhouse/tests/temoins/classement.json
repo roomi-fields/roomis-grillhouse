@@ -1,0 +1,245 @@
+{
+  "commit": "c31dd7d",
+  "chemins": [
+    {
+      "chemin": "packages/a/src/index.ts",
+      "testeur": false,
+      "test": false,
+      "joue": false,
+      "testwriter": false,
+      "developpeur": true
+    },
+    {
+      "chemin": "packages/a/src/index.test.ts",
+      "testeur": true,
+      "test": true,
+      "joue": true,
+      "testwriter": true,
+      "developpeur": false
+    },
+    {
+      "chemin": "packages/a/src/index.spec.mjs",
+      "testeur": true,
+      "test": true,
+      "joue": true,
+      "testwriter": true,
+      "developpeur": false
+    },
+    {
+      "chemin": "packages/a/test/aide.ts",
+      "testeur": true,
+      "test": true,
+      "joue": false,
+      "testwriter": true,
+      "developpeur": false
+    },
+    {
+      "chemin": "packages/a/tests/x.spec.ts",
+      "testeur": true,
+      "test": true,
+      "joue": true,
+      "testwriter": true,
+      "developpeur": false
+    },
+    {
+      "chemin": "packages/a/__tests__/y.js",
+      "testeur": true,
+      "test": true,
+      "joue": false,
+      "testwriter": true,
+      "developpeur": false
+    },
+    {
+      "chemin": "packages/a/src/testing.ts",
+      "testeur": false,
+      "test": false,
+      "joue": false,
+      "testwriter": false,
+      "developpeur": true
+    },
+    {
+      "chemin": "packages/a/src/tests.ts",
+      "testeur": false,
+      "test": false,
+      "joue": false,
+      "testwriter": false,
+      "developpeur": true
+    },
+    {
+      "chemin": "packages/a/docs/INTERFACE.md",
+      "testeur": false,
+      "test": false,
+      "joue": false,
+      "testwriter": false,
+      "developpeur": true
+    },
+    {
+      "chemin": "packages/a/package.json",
+      "testeur": false,
+      "test": false,
+      "joue": false,
+      "testwriter": false,
+      "developpeur": true
+    },
+    {
+      "chemin": "packages/matiere/src/generer.ts",
+      "testeur": true,
+      "test": false,
+      "joue": false,
+      "testwriter": true,
+      "developpeur": false
+    },
+    {
+      "chemin": "packages/matiere/fixtures/un.txt",
+      "testeur": true,
+      "test": false,
+      "joue": false,
+      "testwriter": true,
+      "developpeur": false
+    },
+    {
+      "chemin": "packages/matiere/package.json",
+      "testeur": true,
+      "test": false,
+      "joue": false,
+      "testwriter": true,
+      "developpeur": false
+    },
+    {
+      "chemin": "packages/matiere/src/x.spec.ts",
+      "testeur": true,
+      "test": true,
+      "joue": true,
+      "testwriter": true,
+      "developpeur": false
+    },
+    {
+      "chemin": "tests/a.spec.ts",
+      "testeur": true,
+      "test": true,
+      "joue": true,
+      "testwriter": true,
+      "developpeur": false
+    },
+    {
+      "chemin": "tests/outil.ts",
+      "testeur": true,
+      "test": true,
+      "joue": false,
+      "testwriter": true,
+      "developpeur": false
+    },
+    {
+      "chemin": "src/a.ts",
+      "testeur": false,
+      "test": false,
+      "joue": false,
+      "testwriter": false,
+      "developpeur": true
+    },
+    {
+      "chemin": "src/a.test.tsx",
+      "testeur": true,
+      "test": true,
+      "joue": true,
+      "testwriter": true,
+      "developpeur": false
+    },
+    {
+      "chemin": "scripts/b.cjs",
+      "testeur": false,
+      "test": false,
+      "joue": false,
+      "testwriter": false,
+      "developpeur": true
+    },
+    {
+      "chemin": "packages/a/src/c.test.cjs",
+      "testeur": true,
+      "test": true,
+      "joue": true,
+      "testwriter": true,
+      "developpeur": false
+    },
+    {
+      "chemin": "packages/a/src/c.spec.jsx",
+      "testeur": true,
+      "test": true,
+      "joue": true,
+      "testwriter": true,
+      "developpeur": false
+    },
+    {
+      "chemin": "packages/a/src/d.bench.ts",
+      "testeur": false,
+      "test": false,
+      "joue": false,
+      "testwriter": false,
+      "developpeur": true
+    },
+    {
+      "chemin": "packages/a/src/e.nuit.test.ts",
+      "testeur": true,
+      "test": true,
+      "joue": true,
+      "testwriter": true,
+      "developpeur": false
+    },
+    {
+      "chemin": "packages/a/src/f.test.md",
+      "testeur": false,
+      "test": false,
+      "joue": false,
+      "testwriter": false,
+      "developpeur": true
+    },
+    {
+      "chemin": "packages/a/test-fixtures/g.ts",
+      "testeur": false,
+      "test": false,
+      "joue": false,
+      "testwriter": false,
+      "developpeur": true
+    },
+    {
+      "chemin": "packages/a/src/test/h.ts",
+      "testeur": true,
+      "test": true,
+      "joue": false,
+      "testwriter": true,
+      "developpeur": false
+    },
+    {
+      "chemin": "README.md",
+      "testeur": false,
+      "test": false,
+      "joue": false,
+      "testwriter": false,
+      "developpeur": true
+    },
+    {
+      "chemin": "packages/a/src/i.spec.mts",
+      "testeur": true,
+      "test": true,
+      "joue": true,
+      "testwriter": true,
+      "developpeur": false
+    },
+    {
+      "chemin": "packages/a/src/j.test.js.map",
+      "testeur": false,
+      "test": false,
+      "joue": false,
+      "testwriter": false,
+      "developpeur": true
+    },
+    {
+      "chemin": "packages/a/src/k.spec.cts",
+      "testeur": true,
+      "test": true,
+      "joue": true,
+      "testwriter": true,
+      "developpeur": false
+    }
+  ]
+}

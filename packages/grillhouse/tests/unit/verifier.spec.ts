@@ -20,8 +20,8 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { SOUS_COMMANDES } from '../../scripts/sous-commandes.mjs';
-import { A_REPASSER } from '../../scripts/vitest-config/pression.mjs';
+import { commandeDe } from '../../scripts/sous-commandes.mjs';
+import { A_REPASSER } from '../../scripts/mesure/pression.mjs';
 import { verifier } from '../../scripts/verifier.mjs';
 
 const DEPOT = path.resolve(__dirname, '../../../..');
@@ -358,8 +358,8 @@ describe('the root script verifier', () => {
     };
     expect(pkg.scripts.verifier).toBe('grillhouse verifier');
   });
-  it('is a subcommand of the package, grillhouse verifier', () => {
-    expect(SOUS_COMMANDES.verifier).toBe('verifier.mjs');
+  it('is a subcommand of the package, grillhouse verifier, the command of the module typescript', () => {
+    expect(commandeDe('verifier', DEPOT)).toEqual({ script: SCRIPT, args: [] });
   });
   it('npm passes its code through: 75 stays 75', () => {
     const r = mkdtempSync(path.join(ESSAIS, 'npm-'));

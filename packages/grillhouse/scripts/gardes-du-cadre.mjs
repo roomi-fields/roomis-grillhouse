@@ -3,7 +3,9 @@
 //
 //   npx grillhouse gardes-du-cadre      (npm run grillhouse:gardes, a task of Turborepo)
 //
-// - Each guard is a script of the package, beside this one, and plays in the working directory, under the environment of the run
+// - The guards are those of the module of the project's language (`gardes`, scripts/jointure.d.ts,
+//   scripts/langages.mjs), then the core's own (`resumes`, the first sentence of each summary).
+// - Each guard is a script of the package, and plays in the working directory, under the environment of the run
 //   (`GRILLHOUSE_DETTE` among it, scripts/dette.mjs), whatever the verdict of the ones before: a
 //   red does not stop the pass, as `--continue` does for Turborepo's tasks.
 // - Each red guard is named with its code at the end; the exit code is 1 when one guard is red,
@@ -16,34 +18,28 @@
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { langageDe } from './langages.mjs';
 import { A_ELAGUER, ecrireSarif, lireSarif, RESULTATS } from './resultats.mjs';
 
 // A script of the package, beside this one, by its name.
 const ici = nom => fileURLToPath(new URL(nom, import.meta.url));
 
-// The guards of the frame, each its script and its arguments, in the order they play.
-export const GARDES_DU_CADRE = [
-  [ici('turbo-des-paquets.mjs')],
-  [ici('index-interfaces.mjs'), '--verifier'],
-  [ici('consommateurs.mjs')],
-  [ici('consommateurs-arbitres.mjs')],
-  [ici('frontieres.mjs')],
-  [ici('interfaces-contre-code.mjs')],
-  [ici('resumes.mjs')],
-  [ici('code-mort.mjs')],
-  [ici('tailles-des-tests.mjs')],
-];
+// The guards of the frame in the repository at <racine>, each its script and its arguments, in
+// the order they play: the language's, then the core's.
+export function gardesDuCadre(racine) {
+  return [...langageDe(racine).gardes(racine), [ici('resumes.mjs')]];
+}
 
 // The name of each guard of the frame, as its findings carry it: its script's, without extension.
 const nomDeGarde = garde => path.basename(garde[0]).replace(/\.[cm]?js$/, '');
-export const NOMS_DES_GARDES = GARDES_DU_CADRE.map(nomDeGarde);
+export const nomsDesGardes = racine => gardesDuCadre(racine).map(nomDeGarde);
 // A guard as its lines name it: its subcommand and its arguments.
 const libelle = garde => ['grillhouse', nomDeGarde(garde), ...garde.slice(1)].join(' ');
 
 // Plays each guard of <gardes> in <racine> under <env>; its verdict, 0 or 1. `dire` writes a line.
 export function jouerLesGardes({
   racine = process.cwd(),
-  gardes = GARDES_DU_CADRE,
+  gardes = gardesDuCadre(racine),
   env = process.env,
   dire = l => process.stdout.write(`${l}\n`),
 }) {

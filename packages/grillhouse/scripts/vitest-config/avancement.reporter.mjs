@@ -1,10 +1,18 @@
 // The reporter of progress of the base configuration, while the variable GRILLHOUSE_AVANCEMENT
-// names the progress directory of a pass (./avancement.mjs): it writes the record of its task
+// names the progress directory of a pass (scripts/mesure/avancement.mjs): it writes the record of its task
 // once Vitest knows the files it plays (their number, the files planned), then at each test file
 // done, then at the end of the run, every file done. The name of the record is made of the package
 // directory it runs in and its process; it carries the hash of its Turborepo task (TURBO_HASH), by
 // which the pass knows it again in Turborepo's cache (scripts/avancement.mjs).
-import { AVANCEMENT, ecrireTache } from './avancement.mjs';
+import { fileURLToPath } from 'node:url';
+import { AVANCEMENT, ecrireTache } from '../mesure/avancement.mjs';
+
+// The reporter of progress under <env>'s progress directory, as Vitest's `reporters` take it; an
+// empty list without the variable.
+export function rapportAvancement(env = process.env) {
+  if (!env[AVANCEMENT]) return [];
+  return [fileURLToPath(import.meta.url)];
+}
 
 const FINIS = new Set(['pass', 'fail', 'skip', 'todo']);
 

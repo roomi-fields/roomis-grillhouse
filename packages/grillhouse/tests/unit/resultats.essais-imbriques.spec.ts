@@ -14,7 +14,8 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { lireRapportsVitest as lire, RESULTATS } from '../../scripts/resultats.mjs';
+import { lireRapportsVitest as lire } from '../../scripts/langages/typescript/verdict.mjs';
+import { RESULTATS } from '../../scripts/resultats.mjs';
 
 // The test files of the reports of Vitest under a results directory, as the circuit reads them.
 const lireRapportsVitest = (dossier: string) =>

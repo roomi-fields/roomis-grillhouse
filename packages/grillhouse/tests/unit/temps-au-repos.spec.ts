@@ -19,7 +19,7 @@ import {
   attendreLeRepos,
   lirePression,
   SEUIL_PRESSION,
-} from '../../scripts/vitest-config/pression.mjs';
+} from '../../scripts/mesure/pression.mjs';
 
 const DEPOT = path.resolve(__dirname, '../../../..');
 const PAQUET = path.join(DEPOT, 'packages/grillhouse/scripts/vitest-config');

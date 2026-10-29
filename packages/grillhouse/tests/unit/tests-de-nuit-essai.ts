@@ -132,7 +132,7 @@ export function testsDeNuitEssai(ESSAIS: string) {
     const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
     const trace = path.join(bin, 'trace');
     writeFileSync(path.join(repo, '.trace'), `${trace}\n`);
-    // The CPU pressure the measures of time read (scripts/vitest-config/pression.mjs): at rest, unless
+    // The CPU pressure the measures of time read (scripts/mesure/pression.mjs): at rest, unless
     // a case writes it.
     const pression = path.join(bin, 'pression');
     writeFileSync(pression, PRESSION(1));

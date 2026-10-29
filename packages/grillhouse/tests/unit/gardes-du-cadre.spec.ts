@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { GARDES_DU_CADRE, jouerLesGardes } from '../../scripts/gardes-du-cadre.mjs';
+import { gardesDuCadre, jouerLesGardes } from '../../scripts/gardes-du-cadre.mjs';
 
 const DEPOT = path.resolve(__dirname, '../../../..');
 const SCRIPT = path.join(DEPOT, 'packages/grillhouse/scripts/gardes-du-cadre.mjs');
@@ -76,7 +76,7 @@ describe('grillhouse:gardes — one list of the guards', () => {
     expect(pkg.scripts['grillhouse:gardes']).toBe('grillhouse gardes-du-cadre');
   });
   it('each guard of the list is a script of the package', () => {
-    for (const [f] of GARDES_DU_CADRE) {
+    for (const [f] of gardesDuCadre(path.resolve(__dirname, '../../../..'))) {
       expect(existsSync(f), f).toBe(true);
       expect(path.relative(DEPOT, f), f).toMatch(/^packages\/grillhouse\/scripts\//);
     }

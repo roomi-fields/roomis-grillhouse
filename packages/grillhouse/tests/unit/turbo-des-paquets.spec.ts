@@ -902,11 +902,18 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
   it('a project holding the frame’s scripts, jsonc-parser declared, has no finding on it', () => {
     const scripts = [
       'turbo-des-paquets.mjs',
+      'avancement.mjs',
+      'dernier-vert.mjs',
+      'verrou-de-machine.mjs',
+      'verrou-de-fichier.mjs',
+      'enveloppe/paquets-du-plan.mjs',
       'paquets.mjs',
       'consommateurs.mjs',
       'dette.mjs',
       'resultats.mjs',
-      'vitest-config/avancement.mjs',
+      'mesure/avancement.mjs',
+      'mesure/base-de-passe.mjs',
+      'mesure/pression.mjs',
       'vitest-config/cibles.mjs',
       'vitest-config/changements.mjs',
       'vitest-config/resultats.mjs',
@@ -916,9 +923,9 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
         name: 'p',
         private: true,
         type: 'module',
-        devDependencies: { 'jsonc-parser': '3.3.1' },
+        devDependencies: { 'jsonc-parser': '3.3.1', turbo: '2.11.8', vitest: '2.1.9' },
       }),
-      'knip.json': pkg({ entry: ['scripts/*.mjs'], project: ['scripts/*.mjs'] }),
+      'knip.json': pkg({ entry: ['scripts/**/*.mjs'], project: ['scripts/**/*.mjs'] }),
       ...Object.fromEntries(
         scripts.map(f => {
           const source = path.join(DEPOT, 'packages/grillhouse/scripts', f);

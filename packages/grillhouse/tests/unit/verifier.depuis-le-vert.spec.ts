@@ -23,7 +23,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { lireResumes } from '../../scripts/resultats.mjs';
+import { lireResumes } from '../../scripts/langages/typescript/verdict.mjs';
 import { verifier } from '../../scripts/verifier.mjs';
 
 const DEPOT = path.resolve(__dirname, '../../../..');

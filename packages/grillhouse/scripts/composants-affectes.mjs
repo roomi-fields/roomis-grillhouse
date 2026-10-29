@@ -17,7 +17,10 @@
 //   description (its provenance, its notes) names nothing.
 // - A component is named by its package name, as a whole word, or by a path in it
 //   (`packages/<x>`, `src/<x>`, its files included), the components being those of `composants`
-//   (scripts/consommateurs.mjs).
+//   of the module of the project's language (scripts/langages.mjs, scripts/jointure.d.ts).
+// - The providers, the readers and the survey by the types read the code: the module of the
+//   language gives them (`lecteurs`; for typescript, scripts/langages/typescript/lecteurs.mjs), and
+//   this survey reads the text, the paths read and the architecture.
 // - An element is a name between backquotes that begins with an identifier: a call (`f()`) or a
 //   member (`A.b`) is read by its head. Its provider is the component whose interface
 //   (`docs/INTERFACE.md`) publishes it: a heading of its generated part
@@ -54,19 +57,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import {
-  composants as lesComposants,
-  declares,
-  imports,
-  lireSiPresent,
-  NOM_DE_TEST,
-  parcourir,
-  utilise,
-} from './consommateurs.mjs';
-import { lire } from './index-interfaces.mjs';
-import { elementsEcrits, parLesTypes } from './references-par-les-types.mjs';
-
-const DOSSIERS_DE_TEST = new Set(['test', 'tests', '__tests__']);
+import { langageDe } from './langages.mjs';
 
 /**
  * The paths that the tests of the package at <dir> declare they read: its `grillhouse.lit`, then
@@ -85,8 +76,6 @@ export function cheminsLus(dir) {
     ...Object.values(grillhouse?.traces ?? {}).flatMap(t => liste(t?.lit)),
   ];
 }
-const SAUTES = new Set(['node_modules', 'dist', 'build', 'coverage']);
-const SOURCE = /\.[cm]?[jt]sx?$/;
 
 // The sections the survey reads in <description>: « Architecture » and the criteria, as one text.
 function lesSections(description) {
@@ -101,17 +90,16 @@ function lesSections(description) {
 }
 
 const echapper = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-// A package name as a whole word of a text; an identifier as a whole word of a source.
+// A package name as a whole word of a text.
 const motEntier = nom => new RegExp(`(?<![\\w@/.-])${echapper(nom)}(?![\\w-])`);
-const identifiant = nom => new RegExp(`(?<![\\w$])${echapper(nom)}(?![\\w$])`);
 
 // The title's name of the component <c>: its package name, else its path.
-const nomAuTitre = (racine, c) => c.paquet ?? path.relative(racine, c.dir);
+const nomAuTitre = (racine, c) => c.paquet ?? path.relative(racine, c.dossier);
 
 // The components <texte> names, by their package name or a path in them.
 function nommes(racine, tous, texte) {
   return tous.filter(c => {
-    const rel = path.relative(racine, c.dir).split(path.sep).join('/');
+    const rel = path.relative(racine, c.dossier).split(path.sep).join('/');
     return (
       (c.paquet && motEntier(c.paquet).test(texte)) ||
       new RegExp(`(?<![\\w/.-])${echapper(rel)}(?![\\w-])`).test(texte)
@@ -151,9 +139,9 @@ const recouvre = (a, b) => a === b || b.startsWith(`${a}/`) || a.startsWith(`${b
 function lecteursDesChemins(racine, tous, changes) {
   const out = new Map();
   for (const c of tous) {
-    const propre = path.relative(racine, c.dir).split(path.sep).join('/');
+    const propre = path.relative(racine, c.dossier).split(path.sep).join('/');
     const par = new Set();
-    for (const brut of new Set(cheminsLus(c.dir))) {
+    for (const brut of new Set(cheminsLus(c.dossier))) {
       const lu = brut.replace(/^\.\//, '').replace(/\/+$/, '');
       const atteints = changes.filter(ch => !recouvre(propre, ch) && recouvre(lu, ch)).sort();
       if (atteints.length) par.add(`lit ${lu} (${atteints.join(', ')})`);
@@ -161,64 +149,6 @@ function lecteursDesChemins(racine, tous, changes) {
     if (par.size) out.set(c, par);
   }
   return out;
-}
-
-// A declaration of <nom> at the top of a source, exported or not.
-const DECLARATION_EN_TETE = nom =>
-  new RegExp(
-    `^(?:export\\s+)?(?:default\\s+)?(?:declare\\s+)?(?:abstract\\s+)?(?:async\\s+)?(?:function\\*?|class|interface|type|enum|const|let|var)\\s+${echapper(nom)}(?![\\w$])`,
-    'm'
-  );
-// The texts of the production sources of the components <tous>, their tests left out.
-function sourcesDe(tous) {
-  return tous.flatMap(c =>
-    parcourir(c.dir, p => SAUTES.has(path.basename(p)))
-      .filter(f => {
-        if (!SOURCE.test(f) || NOM_DE_TEST.test(path.basename(f))) return false;
-        return !path
-          .relative(c.dir, f)
-          .split(path.sep)
-          .some(d => DOSSIERS_DE_TEST.has(d));
-      })
-      .map(f => lireSiPresent(f) ?? '')
-  );
-}
-
-// Each component's published elements and declared consumers, read in its interface.
-function interfacesDe(racine, tous) {
-  const out = new Map();
-  for (const c of tous) {
-    const f = path.join(c.dir, 'docs', 'INTERFACE.md');
-    if (!existsSync(f)) continue;
-    const i = lire(path.relative(racine, f).split(path.sep).join('/'), readFileSync(f, 'utf8'));
-    const publies = new Set(
-      i.parties.filter(p => !p.consommateurs).map(p => p.titre.replace(/`/g, '').trim())
-    );
-    const consommateurs = i.parties.find(p => p.consommateurs)?.consommateurs ?? declares('');
-    out.set(c, { publies, consommateurs });
-  }
-  return out;
-}
-
-// The test sources of the component <c>: test files, and the sources of its test folders, built
-// files left out.
-function testsDe(c) {
-  return parcourir(c.dir, p => SAUTES.has(path.basename(p))).filter(f => {
-    if (!SOURCE.test(f)) return false;
-    const rel = path.relative(c.dir, f).split(path.sep);
-    return NOM_DE_TEST.test(path.basename(f)) || rel.some(d => DOSSIERS_DE_TEST.has(d));
-  });
-}
-
-// Whether the source <texte> of the file <fichier> imports the component <p>.
-function importe(texte, fichier, p) {
-  return imports(texte).some(({ spec }) => {
-    if (spec.startsWith('.')) {
-      const cible = path.resolve(path.dirname(fichier), spec);
-      return cible === p.dir || cible.startsWith(p.dir + path.sep);
-    }
-    return Boolean(p.paquet) && (spec === p.paquet || spec.startsWith(`${p.paquet}/`));
-  });
 }
 
 // The components <liste> in the title's order: each one after those it reads among them
@@ -242,74 +172,34 @@ function ordonner(liste, lit, nom) {
 // its title's name, `composants` in the title's order.
 export function releve(racine, description) {
   const texte = lesSections(description);
-  const tous = lesComposants(racine);
-  const reel = utilise(racine, tous);
-  const ifaces = interfacesDe(racine, tous);
-  const tests = new Map();
-  const testsDuComposant = c => {
-    if (!tests.has(c))
-      tests.set(
-        c,
-        testsDe(c).map(f => ({ f, texte: lireSiPresent(f) ?? '' }))
-      );
-    return tests.get(c);
-  };
-  const trouves = new Set(nommes(racine, tous, texte));
-  const elements = [];
-  const sansFournisseur = [];
-  for (const nom of elementsNommes(texte)) {
-    const fournisseurs = tous.filter(c => ifaces.get(c)?.publies.has(nom));
-    if (fournisseurs.length === 0) {
-      if (!tous.some(c => c.paquet === nom)) sansFournisseur.push(nom);
-      continue;
-    }
-    for (const p of fournisseurs) {
-      trouves.add(p);
-      const lecteurs = [];
-      for (const c of tous) {
-        if (c === p) continue;
-        const par = [];
-        const declare =
-          ifaces.get(p).consommateurs.get(c.nom) ?? ifaces.get(p).consommateurs.get(c.paquet);
-        if (declare && (declare.has(nom) || declare.has('*'))) par.push('consommateurs');
-        const noms = reel.get(p.nom)?.get(c.nom);
-        if (noms && (noms.has(nom) || noms.has('*'))) par.push('import');
-        for (const t of testsDuComposant(c)) {
-          if (identifiant(nom).test(t.texte) && importe(t.texte, t.f, p)) {
-            par.push(path.relative(racine, t.f).split(path.sep).join('/'));
-          }
-        }
-        if (par.length) {
-          lecteurs.push({ c, par });
-          trouves.add(c);
-        }
-      }
-      elements.push({ nom, p, lecteurs });
-    }
-  }
-  // By the types: each element resolved by the language service, the components that publish it
-  // and their readers.
-  const types = parLesTypes(racine, tous, elementsEcrits(texte), {
-    fichiers: new Set(
-      [...texte.matchAll(/[\w.-]+\.[cm]?[jt]sx?\b/g)].map(m => path.basename(m[0]))
-    ),
-    composants: new Set(nommes(racine, tous, texte)),
+  const langage = langageDe(racine);
+  const tous = langage.composants(racine);
+  const ceuxNommes = nommes(racine, tous, texte);
+  const code = langage.lecteurs(racine, {
+    composants: tous,
+    noms: elementsNommes(texte),
+    texte,
+    nommes: ceuxNommes,
   });
-  const resolus = new Set(types.elements.map(e => e.ecrit));
-  for (const e of types.elements) {
-    for (const d of e.declarations) if (d.publie) trouves.add(d.c);
+  const trouves = new Set(ceuxNommes);
+  for (const e of code.elements) {
+    trouves.add(e.fournisseur);
+    for (const l of e.lecteurs) trouves.add(l.composant);
+  }
+  for (const e of code.types.elements) {
+    for (const d of e.declarations) if (d.publie) trouves.add(d.composant);
     for (const c of e.lecteurs.keys()) trouves.add(c);
   }
   // By the paths read: the components whose tests declare they read a path the ticket changes.
   const parChemins = lecteursDesChemins(racine, tous, [
     ...cheminsEcrits(racine, texte),
-    ...nommes(racine, tous, texte).map(c => path.relative(racine, c.dir).split(path.sep).join('/')),
+    ...ceuxNommes.map(c => path.relative(racine, c.dossier).split(path.sep).join('/')),
   ]);
   for (const c of parChemins.keys()) trouves.add(c);
   // By the architecture: the Rend of the CADRE.md of each component that publishes an element.
   const declarants = new Set([
-    ...elements.map(e => e.p),
-    ...types.elements.flatMap(e => e.declarations.filter(d => d.publie).map(d => d.c)),
+    ...code.elements.map(e => e.fournisseur),
+    ...code.types.elements.flatMap(e => e.declarations.filter(d => d.publie).map(d => d.composant)),
   ]);
   const architecture = new Map();
   for (const p of declarants) {
@@ -322,43 +212,29 @@ export function releve(racine, description) {
       }
     }
   }
-  // What each component reads: its imports, and the providers of the elements it reads.
-  const lit = new Map(tous.map(c => [c, new Set()]));
-  for (const p of tous) {
-    for (const nomLecteur of reel.get(p.nom)?.keys() ?? []) {
-      for (const c of tous) if (c.nom === nomLecteur) lit.get(c).add(p);
-    }
-  }
-  for (const e of elements) for (const l of e.lecteurs) lit.get(l.c).add(e.p);
   const titre = c => nomAuTitre(racine, c);
   const parNom = (a, b) => titre(a).localeCompare(titre(b));
-  let sources = null;
   const lecteursDe = m =>
     [...m]
       .sort(([a], [b]) => parNom(a, b))
       .map(([c, par]) => ({ composant: titre(c), par: [...par] }));
   return {
-    nommes: [...nommes(racine, tous, texte)].sort(parNom).map(titre),
-    elements: elements.map(e => ({
+    nommes: [...ceuxNommes].sort(parNom).map(titre),
+    elements: code.elements.map(e => ({
       nom: e.nom,
-      fournisseur: titre(e.p),
+      fournisseur: titre(e.fournisseur),
       lecteurs: e.lecteurs
-        .sort((a, b) => parNom(a.c, b.c))
-        .map(l => ({ composant: titre(l.c), par: l.par })),
+        .sort((a, b) => parNom(a.composant, b.composant))
+        .map(l => ({ composant: titre(l.composant), par: l.par })),
     })),
-    sansFournisseur: sansFournisseur.filter(
-      n =>
-        !resolus.has(n) &&
-        (existsSync(path.join(racine, n)) ||
-          (sources ??= sourcesDe(tous)).some(s => DECLARATION_EN_TETE(n).test(s)))
-    ),
+    sansFournisseur: code.sansFournisseur,
     types: {
-      etat: types.etat,
-      raison: types.raison,
-      elements: types.elements.map(e => ({
+      etat: code.types.etat,
+      raison: code.types.raison,
+      elements: code.types.elements.map(e => ({
         nom: e.nom,
         declarations: e.declarations.map(d => ({
-          composant: titre(d.c),
+          composant: titre(d.composant),
           publie: d.publie,
         })),
         lecteurs: lecteursDe(e.lecteurs),
@@ -366,7 +242,7 @@ export function releve(racine, description) {
     },
     lit: lecteursDe(parChemins),
     architecture: lecteursDe(architecture),
-    composants: ordonner([...trouves], lit, titre).map(titre),
+    composants: ordonner([...trouves], code.lit, titre).map(titre),
   };
 }
 
@@ -374,8 +250,9 @@ export function releve(racine, description) {
 // `##` heading that ends with that word), its rule (`**R4.**`, else its line), its continuation
 // lines included.
 function rendus(c) {
-  const texte = lireSiPresent(path.join(c.dir, 'docs', 'CADRE.md'));
-  if (!texte) return [];
+  const f = path.join(c.dossier, 'docs', 'CADRE.md');
+  if (!existsSync(f)) return [];
+  const texte = readFileSync(f, 'utf8');
   const out = [];
   let dedans = false;
   for (const [i, l] of texte.split('\n').entries()) {
@@ -397,9 +274,9 @@ function rendus(c) {
 // package names or paths, or `.`), in the survey's order.
 export function manquants(racine, r, titre) {
   if (titre.includes('.')) return [];
-  const tous = lesComposants(racine);
+  const tous = langageDe(racine).composants(racine);
   const couvre = c => {
-    const rel = path.relative(racine, c.dir).split(path.sep).join('/');
+    const rel = path.relative(racine, c.dossier).split(path.sep).join('/');
     return titre.some(t => {
       const n = path.normalize(t).replace(/\/$/, '');
       return t === c.paquet || rel === n || rel.startsWith(`${n}/`);

@@ -9,7 +9,10 @@
 //   after it): no second Node starts, which a hook of Claude Code called at each tool pays. A `.sh`
 //   runs by bash, its standard streams this process's, its exit code this command's, and a script
 //   ended by a signal gives 128 plus the signal's number, as a shell gives it.
-// - The subcommands and their scripts are the table of scripts/sous-commandes.mjs.
+// - The subcommands and their scripts are the table of scripts/sous-commandes.mjs; `tests` and
+//   `verifier` run the commands of the module of the project's language, with their arguments
+//   first. A project whose language the frame refuses (scripts/langages.mjs) has the refusal on
+//   the error stream, and the exit code is 2.
 // - A subcommand missing or unknown writes the usage and the list of the subcommands on the error
 //   stream, and the exit code is 2.
 // - A script finds its neighbours by its own directory, and the project by the working directory
@@ -18,7 +21,7 @@ import { spawn } from 'node:child_process';
 import { realpathSync } from 'node:fs';
 import { constants } from 'node:os';
 import { pathToFileURL } from 'node:url';
-import { scriptDe, SOUS_COMMANDES } from '../scripts/sous-commandes.mjs';
+import { commandeDe, SOUS_COMMANDES } from '../scripts/sous-commandes.mjs';
 
 // The usage and the list of the subcommands, as the error stream receives them.
 const usage = () =>
@@ -38,14 +41,23 @@ const lance = () => {
 // The script of the subcommand, run (see the header); the exit code is set, never forced
 // (`process.exitCode`), so that what the command wrote on a pipe reaches its reader.
 async function lancer([nom, ...args]) {
-  const script = nom === undefined ? null : scriptDe(nom);
-  if (script === null) {
+  let commande;
+  try {
+    commande = nom === undefined ? null : commandeDe(nom);
+  } catch (e) {
+    process.stderr.write(`${e.message}\n`);
+    process.exitCode = 2;
+    return;
+  }
+  if (commande === null) {
     process.stderr.write(
       nom === undefined ? usage() : `⛔ sous-commande inconnue : ${nom}\n${usage()}`
     );
     process.exitCode = 2;
     return;
   }
+  const script = commande.script;
+  args = [...commande.args, ...args];
   if (script.endsWith('.mjs')) {
     process.argv = [process.argv[0], script, ...args];
     await import(pathToFileURL(script).href);

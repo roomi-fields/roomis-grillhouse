@@ -18,8 +18,6 @@ import {
   ecrireSarif,
   lireFiche,
   lirePiece,
-  lireRapportsVitest,
-  lireResumes,
   lireSarif,
   conformiteDuTri,
   reponsesAuxConstats,
@@ -28,6 +26,7 @@ import {
   schemaDeFiche,
   VERDICTS_DU_TRI,
 } from '../../scripts/resultats.mjs';
+import { lireRapportsVitest, lireResumes } from '../../scripts/langages/typescript/verdict.mjs';
 
 const DEPOT = path.resolve(__dirname, '../../../..');
 const SCRIPT = path.join(DEPOT, 'packages/grillhouse/scripts/resultats.mjs');

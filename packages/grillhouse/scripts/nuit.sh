@@ -234,7 +234,7 @@ jouer() {
     code=$?
     if [ "$code" -eq 75 ]; then
       echo "⏱ les bancs de temps ou les tests de nuit sont à repasser (code 75) : attente du repos, puis une relance."
-      if ! node "$ici/vitest-config/pression.mjs" attendre; then
+      if ! node "$ici/mesure/pression.mjs" attendre; then
         echo "⏱ à repasser : pas de repos dans la borne."
         fin 75
         return

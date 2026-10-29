@@ -4,8 +4,10 @@
 // file write the role does not own, with exit code 2 and its reason on stderr.
 //
 // - A path under the system temp directory (the session scratchpad) is always writable.
-// - testwriter writes the files it owns (`isTesterFile`): test files, and every file of a package
-//   of the shared test material.
+// - testwriter writes the files it owns, those the rule of a test file of the module of the
+//   project's language classes (`estUnTest`, scripts/jointure.d.ts, scripts/langages.mjs): its test
+//   files, the helpers of its folders of tests, and every file of a package of the shared test
+//   material.
 // - The repository root is that of the git repository holding the written file, whatever the
 //   agent's working directory; a file outside any repository is read against the working directory.
 // - developpeur writes none of the testwriter's files, and no other file until its ticket's
@@ -24,37 +26,16 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { matieres, NOM_DE_TEST } from '../consommateurs.mjs';
 import {
   ecritsDuPlan,
   MARQUE_HORS_PLAN,
   paquetQuiTient,
   paquetsDeLEnveloppe,
 } from '../enveloppe/paquets-du-plan.mjs';
+import { langageDe } from '../langages.mjs';
 import { paquets } from '../paquets.mjs';
 
 const WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
-
-export function isTestFile(file) {
-  const parts = file.split(/[\\/]/);
-  const base = parts[parts.length - 1];
-  return (
-    parts.slice(0, -1).some(d => d === 'test' || d === 'tests' || d === '__tests__') ||
-    NOM_DE_TEST.test(base)
-  );
-}
-
-// True when <file>, absolute or relative to the repository root <racine>, is written by the
-// testwriter: a test file, or a file of a package of the shared test material (a component of
-// <racine> whose package exports `./test-fixtures`, `matieres` of `scripts/consommateurs.mjs`).
-// The one rule of ownership, read by the locks of both roles and by the integration's lots.
-export function isTesterFile(file, racine) {
-  const abs = path.resolve(racine, file);
-  if (isTestFile(path.relative(path.resolve(racine), abs))) {
-    return true;
-  }
-  return matieres(racine).some(m => isInside(abs, m.dir));
-}
 
 // True when <file> lies strictly under the directory <dir>.
 function isInside(file, dir) {
@@ -99,7 +80,7 @@ function horsDuPlan(input, { tmp = tmpdir(), env = process.env } = {}) {
   const ecrits = ecritsDuPlan(plan, liste);
   const rel = path.relative(copie, file);
   if (ecrits.includes('.') || ecrits.some(d => rel.startsWith(`${d}/`))) return null;
-  if (matieres(copie).some(m => isInside(file, m.dir))) return null;
+  if (langageDe(copie).estUnTest(file, copie)?.matiere) return null;
   const tenant = paquetQuiTient(rel, liste);
   const paquet = tenant === '.' ? 'la racine du dépôt' : tenant;
   return {
@@ -166,7 +147,8 @@ export function refusal(role, input, { tmp = tmpdir(), describe = ticketDescript
     return null;
   }
   const racine = racineDe(file) ?? cwd;
-  const testwriter = isTesterFile(file, racine);
+  const classe = langageDe(racine).estUnTest(file, racine);
+  const testwriter = classe !== null;
 
   if (role === 'testwriter') {
     return testwriter
@@ -175,7 +157,7 @@ export function refusal(role, input, { tmp = tmpdir(), describe = ticketDescript
   }
   if (role === 'developpeur') {
     if (testwriter) {
-      return isTestFile(path.relative(path.resolve(racine), file))
+      return classe.test
         ? `Les tests appartiennent au testwriter : ${raw} est un fichier de test. Un test faux se signale au superviseur.`
         : `La matière de test partagée appartient au testwriter : ${raw} en fait partie. Un besoin de matière se signale au superviseur.`;
     }

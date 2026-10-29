@@ -44,7 +44,8 @@
 // This module's top level uses Node alone: scripts/tests.mjs reads its VARIABLE.
 import { globSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { CHANGEMENTS, lireChangements, restreindre } from './changements.mjs';
+import { CHANGEMENTS } from '../dernier-vert.mjs';
+import { lireChangements, restreindre } from './changements.mjs';
 
 export const VARIABLE = 'GRILLHOUSE_TESTS';
 // The day's exclusions, which the base configuration (./base.mjs) sets and the night plays

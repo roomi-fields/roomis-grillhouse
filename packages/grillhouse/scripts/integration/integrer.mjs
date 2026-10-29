@@ -18,8 +18,8 @@
 //     (`arbitrageTranche`: `### Verdict — tranché`, or a « ## Réponse du
 //     responsable » comment after it): `refusArbitrage`, the one rule of the label, which the
 //     circuit plays too at its launch and at each resumption (scripts/circuit.mjs);
-//  2. the lots: the tests lot touches only what the testwriter writes (`isTesterFile`: test files
-//     and the shared test material), the code lot none of it;
+//  2. the lots: the tests lot touches only what the testwriter writes (`estUnTest` of the module
+//     of the language: test files and the shared test material), the code lot none of it;
 //  3. the main tree: every file of the lots is unmodified there; the ticket's copy is on its
 //     branch and carries the lot and nothing else: a modified or untracked file outside the lot
 //     refuses, named (what an ignored folder such as node_modules holds is not work);
@@ -82,13 +82,13 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { arbitrageTranche, estArbitrage } from '../consommateurs-arbitres.mjs';
-import { isTesterFile } from '../verrous/verrou.mjs';
+import { langageDe } from '../langages.mjs';
 import { lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
 import { dossierCommun, inscrireEntree } from './file-attente.mjs';
 import { ouvrirCopie, RETIRER_COPIE } from './rejeu.mjs';
 import { verdictDe } from './verdict.mjs';
-import { A_REPASSER } from '../vitest-config/pression.mjs';
-import { ouvrirBase } from '../vitest-config/base-de-passe.mjs';
+import { A_REPASSER } from '../mesure/pression.mjs';
+import { ouvrirBase } from '../mesure/base-de-passe.mjs';
 
 // A file name as git writes it in a patch: a name with a character outside ASCII, a quote, a
 // backslash or a control character comes between quotes with C escapes (`\303\251` for `é`).
@@ -159,7 +159,8 @@ export function refusArbitrage(ticket, comments) {
 // The refusal for the files of the lots, or null. The files are relative to the repository root
 // <racine>; the tests lot holds only what the testwriter writes, the code lot none of it.
 export function refusLots(tests, code, racine) {
-  const testwriter = f => isTesterFile(f, racine);
+  const langage = langageDe(racine);
+  const testwriter = f => langage.estUnTest(f, racine) !== null;
   const horsTests = tests.filter(f => !testwriter(f));
   if (horsTests.length) return `Le lot de tests touche du code : ${horsTests.join(', ')}.`;
   const duTestwriter = code.filter(testwriter);
@@ -305,7 +306,7 @@ function main(argv) {
   prendreVerrou(verrou, { attendre: true });
   const debut = Date.now();
   // The working directory of the integration: a base of its own, removed at its end, swept by the
-  // next one to open a base when the integration is killed (../vitest-config/base-de-passe.mjs).
+  // next one to open a base when the integration is killed (../mesure/base-de-passe.mjs).
   const base = ouvrirBase('integration');
   const tmp = base.dossier;
   try {

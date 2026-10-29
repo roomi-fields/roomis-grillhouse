@@ -9,11 +9,11 @@
 //   GRILLHOUSE_PRESSION_CPU names another file of the same form (the trials write it).
 // - The machine is at rest under SEUIL_PRESSION (25 %); at or above it, it is under load.
 // - A file that does not read (no pressure stall information on the machine) gives null: whoever
-//   reads it says « pression illisible » and leaves the verdict to Vitest.
+//   reads it says « pression illisible » and leaves the verdict to the runner of the tests.
 // - A_REPASSER, 75, is the exit code of « à repasser » (EX_TEMPFAIL of sysexits.h: try again
-//   later), neither green nor red: the duration reporter of Vitest gives it
-//   (./duree.reporter.mjs), `npm run verifier` reads it (scripts/verifier.mjs), and so do the
-//   integration, the queue and the night.
+//   later), neither green nor red: the duration reporter of the module of the language gives it
+//   (scripts/vitest-config/duree.reporter.mjs), `npm run verifier` reads it (scripts/verifier.mjs),
+//   and so do the integration, the queue and the night.
 //
 //   npx grillhouse pression attendre
 //
@@ -60,7 +60,7 @@ export function attendreLeRepos({
   for (;;) {
     const p = lire();
     if (p === null) {
-      dire('⏳ pression CPU illisible : la relance part sans attendre, verdict de Vitest.');
+      dire('⏳ pression CPU illisible : la relance part sans attendre, verdict des tests.');
       return true;
     }
     if (p < SEUIL_PRESSION) return true;

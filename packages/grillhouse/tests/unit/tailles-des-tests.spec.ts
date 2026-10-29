@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { juger, lire as lireDette } from '../../scripts/dette.mjs';
-import { GARDES_DU_CADRE } from '../../scripts/gardes-du-cadre.mjs';
+import { gardesDuCadre } from '../../scripts/gardes-du-cadre.mjs';
 import { SOUS_COMMANDES } from '../../scripts/sous-commandes.mjs';
 import {
   classer,
@@ -139,7 +139,9 @@ describe('grillhouse-3dr.4 critère 3 — the guard refuses a large test of the 
 
 describe('grillhouse-3dr.4 critères 3 et 4 — a guard of the frame, in Grillhouse as in each project', () => {
   it('critère 4: the guard is in the one list of the frame’s guards, which every project plays', () => {
-    const scripts = GARDES_DU_CADRE.map(([f]) => path.basename(f));
+    const scripts = gardesDuCadre(path.resolve(__dirname, '../../../..')).map(([f]) =>
+      path.basename(f)
+    );
     expect(scripts).toContain('tailles-des-tests.mjs');
     expect(SOUS_COMMANDES['tailles-des-tests']).toBe('tailles-des-tests.mjs');
   });

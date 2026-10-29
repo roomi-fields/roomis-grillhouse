@@ -23,7 +23,7 @@ import { readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { prendreVerrou } from './verrou-de-fichier.mjs';
-import { vivant } from './vitest-config/base-de-passe.mjs';
+import { vivant } from './mesure/base-de-passe.mjs';
 
 const VERROU_SUPERVISEUR = 'grillhouse-superviseur.lock';
 const COQUILLES = new Set(['sh', 'bash', 'dash', 'zsh']);

@@ -134,7 +134,7 @@ function depotLots() {
   return repo;
 }
 
-// grillhouse-2sq.2: the lots follow the one rule of ownership of the locks (`isTesterFile`): the
+// grillhouse-2sq.2: the lots follow the one rule of ownership of the locks (`estUnTest`): the
 // tests lot holds what the testwriter writes, test files and the shared test material; the code
 // lot holds none of it.
 describe('refusLots', () => {

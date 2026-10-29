@@ -17,7 +17,7 @@ import ts from 'typescript';
 import { afterAll, describe, expect, it } from 'vitest';
 import { LIGNE_ETAT, mettreAJour, rapport, regenerer } from '../../scripts/grillhouse-maj.mjs';
 import { CONFIGURATION as CONFIG_DES_FRONTIERES } from '../../scripts/frontieres.mjs';
-import { GARDES_DU_CADRE } from '../../scripts/gardes-du-cadre.mjs';
+import { gardesDuCadre } from '../../scripts/gardes-du-cadre.mjs';
 import { cheminSysteme, claudeSubstitut } from '../claude-substitut.js';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
@@ -49,11 +49,11 @@ function source(fichiers: Record<string, string>) {
 const DEPOT = path.resolve(__dirname, '../../../..');
 const GARDES = 'npm run --silent grillhouse:gardes';
 // The controls of the frame, in the order of the list grillhouse:gardes plays
-// (scripts/gardes-du-cadre.mjs, critère 1); the build is not among them: Turborepo builds before
+// (scripts/gardes-du-cadre.mjs, critère 1: the language's, then the core's); the build is not among them: Turborepo builds before
 // them.
 const APPEL_DES_GARDES = 'grillhouse gardes-du-cadre';
 const etapesDesGardes = () =>
-  GARDES_DU_CADRE.map(
+  gardesDuCadre(path.resolve(__dirname, '../../../..')).map(
     ([f, ...args]) => `grillhouse ${[path.basename(f, '.mjs'), ...args].join(' ')}`
   );
 const CONTROLES: [string, RegExp][] = [
@@ -63,9 +63,9 @@ const CONTROLES: [string, RegExp][] = [
   ['consommateurs arbitrés', /^grillhouse consommateurs-arbitres$/],
   ['frontières', /^grillhouse frontieres$/],
   ['interfaces contre code', /^grillhouse interfaces-contre-code$/],
-  ['résumés courts', /^grillhouse resumes$/],
   ['code mort', /^grillhouse code-mort$/],
   ['tailles des tests', /^grillhouse tailles-des-tests$/],
+  ['résumés courts', /^grillhouse resumes$/],
 ];
 
 const GABARIT = 'templates/projet/package.json';

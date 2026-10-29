@@ -78,7 +78,7 @@ import { matieres as lesMatieres } from '../consommateurs.mjs';
 import { paquets as lesPaquets } from '../paquets.mjs';
 import { CODE_REFUS, CODE_USAGE } from './codes.mjs';
 import { ecritsDuPlan, ecrireLaListe, lireLaListe, VARIABLE } from './paquets-du-plan.mjs';
-import { ouvrirBase } from '../vitest-config/base-de-passe.mjs';
+import { ouvrirBase } from '../mesure/base-de-passe.mjs';
 
 // The role that writes the package of the shared test material.
 const ROLE_MATIERE = 'testwriter';
@@ -166,7 +166,7 @@ const EPREUVE =
 // Code keeps them under `<temporary>/claude-<uid>/<working directory in dashes>/`, every sign
 // outside [A-Za-z0-9] a dash, <temporary> its `CLAUDE_CODE_TMPDIR`, else the system's temporary
 // directory as `os.tmpdir()` reads it (TMPDIR, TMP, TEMP, else /tmp): under a pass, the base of
-// the pass (scripts/vitest-config/base-de-passe.mjs), removed with it.
+// the pass (scripts/mesure/base-de-passe.mjs), removed with it.
 function scratchpadsDe(copie, env = process.env) {
   const enTirets = path.resolve(copie).replace(/[^A-Za-z0-9]/g, '-');
   const temporaire = env.CLAUDE_CODE_TMPDIR || env.TMPDIR || env.TMP || env.TEMP || TEMPORAIRE;
@@ -428,7 +428,7 @@ function envelopper(argv) {
   mkdirSync(travail, { recursive: true });
   // `~/.claude.json` holds the permissions and servers of every project: it enters the session
   // as a throwaway copy, in a base of its own removed on exit and swept when the envelope is
-  // killed (../vitest-config/base-de-passe.mjs).
+  // killed (../mesure/base-de-passe.mjs).
   const temporaire = ouvrirBase('enveloppe');
   const etatJetable = path.join(temporaire.dossier, 'claude.json');
   if (existsSync(`${claude}.json`)) copyFileSync(`${claude}.json`, etatJetable);

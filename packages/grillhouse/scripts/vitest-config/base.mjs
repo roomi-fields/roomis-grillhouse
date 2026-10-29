@@ -51,18 +51,43 @@
 //   it while the configuration resolves, sweeping the orphan bases a killed run left, and names
 //   it in TMPDIR, so that Vitest's own temporary directory, each test process and everything they
 //   start write there; the base is removed when the run exits, green or red
-//   (./base-de-passe.mjs).
+//   (`baseDeVitest`, below; the base, scripts/mesure/base-de-passe.mjs).
 // - While a run names the progress directory of its pass (`GRILLHOUSE_AVANCEMENT`,
-//   ./avancement.mjs), the reporter of progress writes there the files done and planned of its
+//   scripts/mesure/avancement.mjs), the reporter of progress writes there the files done and planned of its
 //   task at each test file done, which the board reads (scripts/avancement.mjs,
 //   scripts/tableau.mjs).
 import { fileURLToPath } from 'node:url';
-import { baseDeVitest } from './base-de-passe.mjs';
+import { ouvrirBase } from '../mesure/base-de-passe.mjs';
 import { ciblage, HORS_DU_JOUR } from './cibles.mjs';
-import { rapportAvancement } from './avancement.mjs';
+import { rapportAvancement } from './avancement.reporter.mjs';
 import { rapportJson } from './resultats.mjs';
 
 const ici = f => fileURLToPath(new URL(f, import.meta.url));
+
+// The variable that marks the base of a run of Vitest: `<process>:<base>`, the process that opened
+// it. A configuration loaded again in that process (Vite bundles each load) keeps that base.
+const MARQUE = 'GRILLHOUSE_BASE_DE_VITEST';
+
+/**
+ * The plugin of the base configuration that gives a run of Vitest its base: while Vite resolves
+ * the configuration, before Vitest makes its own temporary directory (`join(tmpdir(), nanoid())`,
+ * its transformed modules), the main process opens a base of genre `vitest` and names it in its
+ * `TMPDIR`, which every test process inherits; the base is removed when the process exits, green
+ * or red. A process that already opened its base keeps it.
+ * @returns {{ name: string, config: () => void }} a plugin of Vite
+ */
+function baseDeVitest() {
+  return {
+    name: 'grillhouse:base-de-passe',
+    config() {
+      if (process.env[MARQUE]?.startsWith(`${process.pid}:`)) return;
+      const b = ouvrirBase('vitest');
+      process.env[MARQUE] = `${process.pid}:${b.base}`;
+      process.env.TMPDIR = b.dossier;
+      process.on('exit', b.fermer);
+    },
+  };
+}
 
 export default {
   plugins: [baseDeVitest(), ciblage()],

@@ -7,12 +7,17 @@
 //   `circuit`, `tableau`); `maj` runs `grillhouse-maj.mjs`, whose name already says the frame's;
 //   `hooks` (`crochets.mjs`, which places the git hooks) and `hook` (`crochet.mjs`, which runs one)
 //   take Husky's names, which a project's `prepare` and its git hooks call.
+// - `tests` and `verifier` run the commands the module of the project's language describes
+//   (`commandes`, scripts/jointure.d.ts: `tester` and `verifier`), the project being the working
+//   directory (scripts/langages.mjs).
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { langageDe } from './langages.mjs';
 
 const SCRIPTS = path.dirname(fileURLToPath(import.meta.url));
 
-// Each subcommand and its script, under `scripts/`.
+// Each subcommand and its script, under `scripts/`, or the command of the module of the language
+// that runs it (`{ langage }`, its name in `commandes`).
 export const SOUS_COMMANDES = {
   bilan: 'bilan.mjs',
   circuit: 'circuit.mjs',
@@ -37,7 +42,7 @@ export const SOUS_COMMANDES = {
   'ligne-etat': 'ligne-etat/ligne-etat.mjs',
   maj: 'grillhouse-maj.mjs',
   nuit: 'nuit.sh',
-  pression: 'vitest-config/pression.mjs',
+  pression: 'mesure/pression.mjs',
   registre: 'registre.mjs',
   resultats: 'resultats.mjs',
   resumes: 'resumes.mjs',
@@ -49,15 +54,32 @@ export const SOUS_COMMANDES = {
   superviseur: 'superviseur.mjs',
   tableau: 'tableau.mjs',
   'tailles-des-tests': 'tailles-des-tests.mjs',
-  tests: 'tests.mjs',
+  tests: { langage: 'tester' },
   ticket: 'ticket.sh',
   'ticket-du-sous-agent': 'verrous/ticket-du-sous-agent.mjs',
   'turbo-des-paquets': 'turbo-des-paquets.mjs',
-  verifier: 'verifier.mjs',
+  verifier: { langage: 'verifier' },
   verrou: 'verrous/verrou.mjs',
 };
 
-// The absolute path of the script of the subcommand <nom>; null for a name the table lacks.
-export function scriptDe(nom) {
-  return Object.hasOwn(SOUS_COMMANDES, nom) ? path.join(SCRIPTS, SOUS_COMMANDES[nom]) : null;
+/**
+ * The command of the subcommand <nom> in the project at <racine>, the script absolute; null for a
+ * name the table lacks.
+ * @param {string} nom the subcommand
+ * @param {string} [racine] the root of the project, the working directory by default
+ * @returns {import('./jointure.js').Commande | null}
+ */
+export function commandeDe(nom, racine = process.cwd()) {
+  if (!Object.hasOwn(SOUS_COMMANDES, nom)) return null;
+  const s = SOUS_COMMANDES[nom];
+  if (typeof s === 'string') return { script: path.join(SCRIPTS, s), args: [] };
+  return langageDe(racine).commandes(racine)[s.langage];
+}
+
+// The script of each subcommand in the project at <racine>, from `scripts/`: what the migrations
+// name, a former copy of a script becoming its subcommand.
+export function scriptsDesSousCommandes(racine) {
+  return Object.fromEntries(
+    Object.keys(SOUS_COMMANDES).map(n => [n, path.relative(SCRIPTS, commandeDe(n, racine).script)])
+  );
 }

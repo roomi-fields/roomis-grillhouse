@@ -7,7 +7,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { GARDES_DU_CADRE } from '../../scripts/gardes-du-cadre.mjs';
+import { gardesDuCadre } from '../../scripts/gardes-du-cadre.mjs';
 import { LONGUEUR_MAX, verifier } from '../../scripts/resumes.mjs';
 
 const DEPOT = path.resolve(__dirname, '../../../..');
@@ -150,6 +150,8 @@ describe('resumes — the first sentence of a summary holds in 80 characters', (
   });
 
   it('the guard is among the frame’s guards', () => {
-    expect(GARDES_DU_CADRE).toContainEqual([path.resolve(__dirname, '../../scripts/resumes.mjs')]);
+    expect(gardesDuCadre(path.resolve(__dirname, '../../../..'))).toContainEqual([
+      path.resolve(__dirname, '../../scripts/resumes.mjs'),
+    ]);
   });
 });

@@ -183,7 +183,7 @@
 // - The proof of the red plays the new tests alone, as test-driven development runs the test it
 //   has just written to see it red, not the whole suite: one run per package, `npm test -- --force
 //   <files>` in the copy, the test files the testwriter's lot adds or changes (git status of the
-//   copy, the testwriter's files as the integration shares them, `isTesterFile`), played for real,
+//   copy, the testwriter's files as the integration shares them, `estUnTest`), played for real,
 //   since a run replayed from Turborepo's cache writes no report; the other tests of the plan play
 //   at its checks and at the final pass. With no file of the lot (a reader whose provider changed a
 //   type, no new test to write), each package of the plan that has a script `test:vitest` plays
@@ -278,7 +278,7 @@
 //   the root, as the inputs of Turborepo), the test files that judge it, as `rustc --bless` ties a
 //   test to its expected outputs, `lit`, the files it reads that another reference writes, and the
 //   guards of the project that judge it, by the name their SARIF finding carries (its guard or its
-//   rule). The frame's references follow in every project (REFERENCES_DU_CADRE): the files the
+//   rule). The frame's references follow in every project (`referencesDuCadre`): the files the
 //   frame generates, each judged by a guard of the frame, by the names its findings carry (the
 //   index of the interfaces, which reads the interfaces, the turbo.json of the packages, the API
 //   reports, which write the generated part of the interfaces), and the known debt of the guards;
@@ -340,7 +340,7 @@
 //   description as `bd show` gives it at the session's launch, written by the circuit in its
 //   working folder, which the session may read; the instruction carries no criteria, which the
 //   reviewer's skill reads only after its first passes), the files of the lot (the testwriter's by
-//   `isTesterFile`, then the others), the elements of the lot (scripts/elements-du-lot.mjs: each
+//   `estUnTest`, then the others), the elements of the lot (scripts/elements-du-lot.mjs: each
 //   function, class, type, interface, constant at the top and export the lot adds, changes or
 //   removes against the copy's HEAD, its package, its place, whether its package exports it) and
 //   the circuit's reports since its last sheet (its proofs and checks). Its errors go to the log
@@ -384,7 +384,7 @@
 // - ACCEPTÉ: the integration, once the whole final pass has played on the lot accepted (its tree
 //   is `verifie`); else that pass first, once, its red going to the developpeur and the lot then
 //   to the reviewer again. The circuit builds the lot from the copy: the files the copy changes
-//   against its HEAD, the testwriter's (`isTesterFile`: test files and the shared test material)
+//   against its HEAD, the testwriter's (`estUnTest`: test files and the shared test material)
 //   in one patch, the others in another, each file against HEAD and a new one against nothing
 //   (`git diff --no-index /dev/null`), the copy's index untouched; the message
 //   `<type>(<paquets>): <sujet> (<ticket>)`, the type read from the ticket's type (bug fix,
@@ -422,7 +422,7 @@
 //   long as the ticket, as the workspace of a pipeline: a circuit relaunched takes it up again, no
 //   sweep touches it, the queue removes it at the ticket's closure, and scripts/retirer-copie.sh
 //   with the copy of a ticket closed without integration. The results and progress of the passes
-//   live in the base of the run (scripts/vitest-config/base-de-passe.mjs), removed at its end.
+//   live in the base of the run (scripts/mesure/base-de-passe.mjs), removed at its end.
 // - The state is `.claude/worktrees/<ticket>.circuit.json`, written again at each step and at the
 //   start and end of each session: `{ etape, tentative, code, raison, rapport, finale, boucles,
 //   seance, question, questionnement, processus, depart, paquets, constats, verifie, mene, reprise,
@@ -547,7 +547,6 @@ import { ecrireLeBilan } from './bilan.mjs';
 import { DEPUIS_LE_VERT } from './dernier-vert.mjs';
 import { elementsDuLot } from './elements-du-lot.mjs';
 import { optionsDuRole } from './droits.mjs';
-import { NOM_DE_TEST } from './consommateurs.mjs';
 import { ecrireLaListe, VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/paquets-du-plan.mjs';
 import {
   AGENTS_DU_LOT,
@@ -575,8 +574,6 @@ import {
   conformiteDuLot,
   conformiteDuTri,
   lireFiche,
-  lireRapportsVitest,
-  lireResumes,
   lireSarif,
   regleDeLaLigne,
   reponsesAuxConstats,
@@ -593,11 +590,11 @@ import { AUTEUR_DU_VERDICT } from './integration/verdict.mjs';
 import { attendreUnPeu } from './verrou-de-fichier.mjs';
 import { AttenteDeLaMachine, avecLaMachine } from './verrou-de-machine.mjs';
 import { garderLeTotal, ouvrirAvancement } from './avancement.mjs';
-import { AVANCEMENT } from './vitest-config/avancement.mjs';
-import { NOMS_DES_GARDES } from './gardes-du-cadre.mjs';
-import { isTesterFile } from './verrous/verrou.mjs';
-import { A_REPASSER } from './vitest-config/pression.mjs';
-import { departDe, leMemeVivant, ouvrirBase, vivant } from './vitest-config/base-de-passe.mjs';
+import { AVANCEMENT } from './mesure/avancement.mjs';
+import { nomsDesGardes } from './gardes-du-cadre.mjs';
+import { langageDe } from './langages.mjs';
+import { A_REPASSER } from './mesure/pression.mjs';
+import { departDe, leMemeVivant, ouvrirBase, vivant } from './mesure/base-de-passe.mjs';
 import { GREFFON } from './cadre.mjs';
 import { executerEnDemon } from './demon.mjs';
 
@@ -663,7 +660,8 @@ const REGISTRE = path.join(ici, 'registre.mjs');
 const generateur = (script, ...args) =>
   [`node ${JSON.stringify(path.join(ici, script))}`, ...args].join(' ');
 // The references of the circuit that no project declares (4.2), as Bazel's genrules: the files the
-// frame generates, each judged by a guard of the frame and written again by its generator, whose
+// module of the project's language generates (`fichiersEngendres`, scripts/jointure.d.ts), each
+// judged by a guard of the frame and written again by its generator, whose
 // code the circuit does not read (a real failure aside): what it writes, then the pass that
 // follows, judge it; and the known debt of the guards, lowered from the notes of the final pass (`dette.mjs --abaisser`,
 // `abaisser`: its command names the file of those notes). Each `{ nom, commande, fichiers, lit,
@@ -672,39 +670,12 @@ const generateur = (script, ...args) =>
 // reports write), `gardes` the names the findings its regeneration lifts carry (their guard or
 // their rule), `entiers` the files of `fichiers` its command writes in full, which the integration
 // does not apply from the lot but regenerates on main of the moment
-// (scripts/integration/integrer.mjs): the index, the turbo.json of the packages (the root's is
-// written in part); not the API reports, which read the build, nor the debt, which reads the notes
-// of a pass.
-const REFERENCES_DU_CADRE = [
-  {
-    nom: "l'index des interfaces",
-    commande: generateur('index-interfaces.mjs'),
-    fichiers: ['docs/agents/index-des-interfaces.md'],
-    lit: ['docs/INTERFACE.md', '**/docs/INTERFACE.md'],
-    gardes: ['index-interfaces'],
-    entiers: ['docs/agents/index-des-interfaces.md'],
-  },
-  {
-    nom: 'les turbo.json des paquets',
-    commande: generateur('turbo-des-paquets.mjs', '--ecrire'),
-    fichiers: ['turbo.json', 'turbo.jsonc', '**/turbo.json'],
-    lit: [],
-    gardes: ['turbo-des-paquets'],
-    entiers: ['*/**/turbo.json'],
-  },
-  {
-    nom: "les rapports d'API",
-    commande: generateur('interfaces-contre-code.mjs', '--ecrire'),
-    fichiers: [
-      'docs/INTERFACE.api.md',
-      'docs/INTERFACE.md',
-      '**/docs/INTERFACE.api.md',
-      '**/docs/INTERFACE.md',
-    ],
-    lit: [],
-    gardes: ['rapport-api', 'partie-generee'],
-    entiers: [],
-  },
+// (scripts/integration/integrer.mjs), as the module says of each of its own; not the debt, which
+// reads the notes of a pass.
+const referencesDuCadre = racine => [
+  ...langageDe(racine)
+    .fichiersEngendres(racine)
+    .map(({ verifier, ...reference }) => reference),
   {
     nom: 'la dette des gardes',
     commande: generateur('dette.mjs', '--abaisser', '<notes>'),
@@ -880,7 +851,7 @@ function contexte(o) {
   // files after those it finds, and the queue removes it at the ticket's closure, or the removal of
   // the copy of a ticket closed without integration (scripts/retirer-copie.sh). The results and
   // the progress of the circuit's passes live in the base of its run
-  // (scripts/vitest-config/base-de-passe.mjs), removed at its end, swept when the run is killed.
+  // (scripts/mesure/base-de-passe.mjs), removed at its end, swept when the run is killed.
   const tmp = `${copie}.travail`;
   mkdirSync(tmp, { recursive: true });
   const numero = Math.max(
@@ -1529,12 +1500,12 @@ function rapportsDuCircuit(ctx) {
 }
 
 // The files of the lot, as the copy holds them against its HEAD: `{ tests, code }`, the
-// testwriter's files (`isTesterFile`: test files and the shared test material) and the others.
+// testwriter's files (`estUnTest`: test files and the shared test material) and the others.
 function fichiersDuLot(ctx) {
   const tests = [];
   const code = [];
   for (const { fichier } of changements(ctx)) {
-    (isTesterFile(fichier, ctx.copie) ? tests : code).push(fichier);
+    (duTestwriter(ctx, fichier) ? tests : code).push(fichier);
   }
   return { tests: tests.sort(), code: code.sort() };
 }
@@ -1625,8 +1596,8 @@ async function relire(ctx) {
       dansLeLot.has(f)
     );
     lus = {
-      tests: changes.filter(f => isTesterFile(f, ctx.copie)),
-      code: changes.filter(f => !isTesterFile(f, ctx.copie)),
+      tests: changes.filter(f => duTestwriter(ctx, f)),
+      code: changes.filter(f => !duTestwriter(ctx, f)),
     };
     precedente = [
       `la relecture ${precedents}, ${avant.fiche.verdict} : tu relis la différence du lot depuis elle et ses constats, selon ta compétence (« La relecture bornée »).`,
@@ -1808,7 +1779,7 @@ function laPasseFinale(ctx) {
 // The references of the circuit: those the project declares in the package.json of the copy
 // (`grillhouse.references`), each `{ nom, commande, fichiers, tests, lit, gardes }` with a name, a
 // command and files, `tests`, `lit` and `gardes` arrays when given, empty when not, `entiers` empty;
-// then the frame's (REFERENCES_DU_CADRE, `cadre`), each but one whose first file a reference of the
+// then the frame's (`referencesDuCadre`, `cadre`), each but one whose first file a reference of the
 // project covers, which replaces it.
 function lesReferences(ctx) {
   const l = lireJson(path.join(existsSync(ctx.copie) ? ctx.copie : ctx.racine, 'package.json'))
@@ -1832,9 +1803,9 @@ function lesReferences(ctx) {
       entiers: [],
       cadre: false,
     }));
-  const duCadre = REFERENCES_DU_CADRE.filter(
-    c => !duProjet.some(r => couvertPar(r.fichiers, c.fichiers[0]))
-  ).map(c => ({ ...c, tests: [], cadre: true }));
+  const duCadre = referencesDuCadre(existsSync(ctx.copie) ? ctx.copie : ctx.racine)
+    .filter(c => !duProjet.some(r => couvertPar(r.fichiers, c.fichiers[0])))
+    .map(c => ({ ...c, tests: [], cadre: true }));
   return [...duProjet, ...duCadre];
 }
 
@@ -2443,13 +2414,17 @@ function changements(ctx) {
   return out;
 }
 
+// Whether the testwriter writes <fichier> of the copy: the rule of a test file of the module of its
+// language (`estUnTest`, scripts/jointure.d.ts).
+const duTestwriter = (ctx, fichier) => langageDe(ctx.copie).estUnTest(fichier, ctx.copie) !== null;
+
 // The test files of the lot that the testwriter writes, present in the copy: in the packages of
 // the plan and in the shared test material.
 function testsDuLot(ctx) {
   return changements(ctx)
     .filter(c => !c.supprime)
     .map(c => c.fichier)
-    .filter(f => NOM_DE_TEST.test(path.basename(f)) && isTesterFile(f, ctx.copie))
+    .filter(f => langageDe(ctx.copie).estUnTest(f, ctx.copie)?.joue)
     .sort();
 }
 
@@ -2477,7 +2452,7 @@ function npm(ctx, etape, args, env = {}) {
   try {
     const r = avecLaMachine(
       envMachine =>
-        avecAvancement(ctx, genreDeLaPasse(etape, args), avancement =>
+        avecAvancement(ctx, genreDeLaPasse(ctx, etape, args), avancement =>
           spawnSync('npm', args, {
             cwd: ctx.copie,
             stdio: ['ignore', fd, fd],
@@ -2505,9 +2480,9 @@ function npm(ctx, etape, args, env = {}) {
 // The kind of an automatic pass, by which its total is kept from one pass to the next
 // (scripts/avancement.mjs): its step (the checks once final, the final pass) and its command
 // without the test files and the filters, which move from one lot to the next.
-function genreDeLaPasse(etape, args) {
+function genreDeLaPasse(ctx, etape, args) {
   const commande = args.filter(
-    a => !NOM_DE_TEST.test(path.basename(a)) && !a.startsWith('--filter=')
+    a => !langageDe(ctx.copie).estUnTest(a, ctx.copie)?.joue && !a.startsWith('--filter=')
   );
   return etape === 'controles' && args[1] === 'verifier'
     ? ['passe finale', ...commande].join(' ')
@@ -2594,7 +2569,7 @@ function mesureDeLaPreuve(ctx, liste, fichiers) {
       entier,
       avant,
       code: r.code,
-      resultats: lireRapportsVitest(r.dossier),
+      resultats: langageDe(ctx.copie).verdict(r.dossier).rapports,
       // The builds of the plan's packages that failed: each one a red, not compiling is failing.
       constructions: constructionsEchouees(ctx, liste, r.dossier),
     });
@@ -2768,8 +2743,9 @@ function preuve(ctx) {
 // task `<package>#build`) of a package of the plan: `{ nom, erreur }`, `erreur` its log file and
 // the beginning of its own output.
 function constructionsEchouees(ctx, liste, dossier) {
-  return lireResumes(dossier)
-    .filter(t => t.script === 'build' && t.code !== null && t.code !== 0)
+  return langageDe(ctx.copie)
+    .verdict(dossier)
+    .taches.filter(t => t.script === 'build' && t.code !== null && t.code !== 0)
     .flatMap(t => {
       const p = liste.find(x => x.pkg.name === t.paquet);
       if (!p || !dansLePlan(ctx, p.dossier)) return [];
@@ -2805,7 +2781,8 @@ function situer(ctx, liste, chemin) {
 function rougesDe(ctx, liste, c) {
   const lus = lireSarif(c.dossier).constats.filter(k => k.genre !== A_ELAGUER);
   const vert = c.code === 0 || c.code === A_REPASSER;
-  const duCadre = k => NOMS_DES_GARDES.includes(k.garde);
+  const gardesDuCadre = nomsDesGardes(ctx.copie);
+  const duCadre = k => gardesDuCadre.includes(k.garde);
   const rouge = k => k.niveau === 'error';
   const ligneDe = k => {
     const ou = k.fichier ? ` ${k.fichier}${k.ligne ? `:${k.ligne}` : ''}` : '';
@@ -2815,7 +2792,7 @@ function rougesDe(ctx, liste, c) {
   if (vert) return { rouges: [], avertissements };
   const out = [];
   const testes = new Set();
-  for (const res of lireRapportsVitest(c.dossier)) {
+  for (const res of langageDe(ctx.copie).verdict(c.dossier).rapports) {
     const f = path.relative(ctx.copie, res.fichier);
     const lieu = situer(ctx, liste, f);
     if (res.tests.length === 0 && res.etat === 'failed') {
@@ -2851,7 +2828,7 @@ function rougesDe(ctx, liste, c) {
   }
   // The guards of the project wrote findings when one comes from a guard out of the frame's.
   const duProjet = constats.some(k => !duCadre(k));
-  for (const t of lireResumes(c.dossier)) {
+  for (const t of langageDe(ctx.copie).verdict(c.dossier).taches) {
     if (t.code === null || t.code === 0 || t.code === A_REPASSER) continue;
     if (t.script === 'test:vitest' && testes.has(t.dossier)) continue;
     if (t.script === 'grillhouse:gardes' && constats.length) continue;
@@ -2929,7 +2906,13 @@ function controles(ctx, finale, restreinte = null, reportes = null) {
     return { ...c, ...rougesDe(ctx, liste, c) };
   });
   // The packages the commands played (the root's tasks under « // »), whose reds are read again.
-  const joues = new Set(resultats.flatMap(r => lireResumes(r.dossier).map(t => t.paquet)));
+  const joues = new Set(
+    resultats.flatMap(r =>
+      langageDe(ctx.copie)
+        .verdict(r.dossier)
+        .taches.map(t => t.paquet)
+    )
+  );
   const tous = [
     ...resultats.flatMap(r => r.rouges),
     ...(reportes?.rouges ?? []).filter(

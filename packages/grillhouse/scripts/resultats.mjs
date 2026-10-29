@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // The formats of the results the circuit decides on, in one module, which the circuit
 // (scripts/circuit.mjs), the guards and the tests read; as Bazel's Build Event Protocol and the
 // JUnit reports carry the outcome of a build, no reader reads an output meant for the human.
@@ -106,33 +105,17 @@
 //   (scripts/gardes-du-cadre.mjs) writes for a red guard that wrote none a finding without
 //   location, and a project's guards (its script `gardes`) import `ecrireSarif` by the package's
 //   entry `@roomi-fields/grillhouse/resultats`, whose types (./resultats.d.ts) declare it alone.
-// - The summary of a run of Turborepo (`turbo run … --summarize`, `.turbo/runs/<id>.json`):
-//   `garderLesResumes` moves the summaries a run wrote into `<dossier>/turbo/`, and `lireResumes`
-//   gives each task, its package and directory, its script, its exit code, its cache status and
-//   its log file (from the root).
-// - The JSON report of Vitest, which the frame's base configuration writes under
-//   `<dossier>/vitest/` while the variable is set (scripts/vitest-config/resultats.mjs):
-//   `lireRapportsVitest` gives each test file, its status, the message of a file that does not
-//   load, and each test, its title, its full name, its status and its first message.
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  rmdirSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs';
+// - The verdict of a run of tests, the summaries and reports its tools write in the results
+//   directory, is the module of the project's language's to read (`verdict`, scripts/jointure.d.ts,
+//   scripts/langages.mjs).
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { paquets } from './paquets.mjs';
-import { RESULTATS, VITEST } from './vitest-config/resultats.mjs';
 
-export { RESULTATS };
+// The variable that names the results directory of a run.
+export const RESULTATS = 'GRILLHOUSE_RESULTATS';
 const SARIF = 'sarif';
-const TURBO = 'turbo';
 // The kind of a note of a guard, no red: a key of the known debt inscribed above what the guard
 // finds, which the circuit lowers (scripts/dette.mjs, scripts/circuit.mjs).
 export const A_ELAGUER = 'a-elaguer';
@@ -890,63 +873,6 @@ export function lireSarif(dossier) {
     }
   }
   return { gardes: [...gardes].sort(), constats };
-}
-
-// Moves the summaries of Turborepo that a run in <racine> wrote (`.turbo/runs/*.json` absent from
-// <avant>, the names there before it) into the results directory <env> names; removes them
-// without it. `.turbo/runs` goes too when the run created it (<avant> empty) and it is left empty.
-export function garderLesResumes(racine, avant, env = process.env) {
-  const runs = path.join(racine, '.turbo', 'runs');
-  const neufs = (existsSync(runs) ? readdirSync(runs) : []).filter(
-    f => !avant.has(f) && f.endsWith('.json')
-  );
-  const dossier = env[RESULTATS];
-  for (const f of neufs) {
-    if (dossier) {
-      mkdirSync(path.join(dossier, TURBO), { recursive: true });
-      // The results directory may lie on another file system: a copy, then the removal.
-      copyFileSync(path.join(runs, f), path.join(dossier, TURBO, f));
-      rmSync(path.join(runs, f), { force: true });
-    } else rmSync(path.join(runs, f), { force: true });
-  }
-  if (neufs.length && !avant.size && existsSync(runs) && readdirSync(runs).length === 0) {
-    rmdirSync(runs);
-  }
-}
-
-// The tasks of the summaries of Turborepo under the results directory <dossier>, in their order:
-// `{ tache, paquet, dossier, script, code, cache, journal }`, `dossier` « . » for the root,
-// `code` null for a task that did not run.
-export function lireResumes(dossier) {
-  return fichiers(path.join(dossier, TURBO), '.json').flatMap(f =>
-    (lireJson(f)?.tasks ?? []).map(t => ({
-      tache: t.taskId,
-      paquet: t.package,
-      dossier: t.directory || '.',
-      script: t.task,
-      code: t.execution?.exitCode ?? null,
-      cache: t.cache?.status ?? null,
-      journal: t.logFile ?? null,
-    }))
-  );
-}
-
-// The test files of the reports of Vitest under the results directory <dossier>: `{ fichier,
-// etat, message, tests }`, `fichier` its absolute path, each test `{ titre, nom, etat, message }`.
-export function lireRapportsVitest(dossier) {
-  return fichiers(path.join(dossier, VITEST), '.json').flatMap(f =>
-    (lireJson(f)?.testResults ?? []).map(r => ({
-      fichier: r.name,
-      etat: r.status,
-      message: String(r.message ?? ''),
-      tests: (r.assertionResults ?? []).map(a => ({
-        titre: a.title,
-        nom: a.fullName || a.title,
-        etat: a.status,
-        message: String(a.failureMessages?.[0] ?? ''),
-      })),
-    }))
-  );
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

@@ -138,11 +138,14 @@ describe('the base configuration of the day leaves the night out of every config
   it('a package whose configuration imports it by its name plays its day tests, and neither its night tests nor its benches', () => {
     const repo = mkdtempSync(path.join(ESSAIS, 'paquets-'));
     lierDependances(repo);
-    // The frame's package as npm installs it: its package.json and its base configuration, in
-    // place of the link to the repository's.
+    // The frame's package as npm installs it: its package.json, its base configuration and the
+    // modules of the core it reads, in place of the link to the repository's.
     const installe = path.join(repo, 'node_modules/@roomi-fields/grillhouse');
     rmSync(path.join(repo, 'node_modules/@roomi-fields'), { force: true });
     cpSync(PAQUET, path.join(installe, 'scripts/vitest-config'), { recursive: true });
+    for (const f of ['mesure', 'resultats.mjs', 'paquets.mjs', 'dernier-vert.mjs']) {
+      cpSync(path.join(PAQUET, '..', f), path.join(installe, 'scripts', f), { recursive: true });
+    }
     cpSync(
       path.join(DEPOT, 'packages/grillhouse/package.json'),
       path.join(installe, 'package.json')
@@ -235,7 +238,7 @@ describe('3uv.75.1 critères 11 et 17 — the day leaves the time budget benches
 
 // A time witness is measured with the CPU at rest: a bench that fails under load is « à repasser »
 // (75, scripts/vitest-config/duree.reporter.mjs). The night waits for rest
-// (scripts/vitest-config/pression.mjs attendre) and plays its benches once more; à repasser again,
+// (scripts/mesure/pression.mjs attendre) and plays its benches once more; à repasser again,
 // the night is à repasser: no last green, no ticket.
 describe('the night plays again at rest a bench à repasser', () => {
   const BANC = 'tests/temps.budget.test.ts';

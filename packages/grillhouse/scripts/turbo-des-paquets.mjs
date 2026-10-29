@@ -147,7 +147,7 @@
 // Vitest relates to them, while a package whose inputs did not move replays from the cache; the
 // progress directory of a pass (`GRILLHOUSE_AVANCEMENT`, scripts/avancement.mjs), where Vitest
 // writes the files done and planned of each task, which the board reads; the temporary directory
-// (`TMPDIR`), the base of a pass (scripts/vitest-config/base-de-passe.mjs), where every task writes
+// (`TMPDIR`), the base of a pass (scripts/mesure/base-de-passe.mjs), where every task writes
 // its temporary files and which goes at the end of the pass. The generator adds each
 // one the root lacks, the project's entries kept, and the check refuses a
 // root without one.
@@ -162,12 +162,13 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { applyEdits, modify, parse } from 'jsonc-parser';
+import { inscrireLePlan } from './avancement.mjs';
 import { matieres, parcourir } from './consommateurs.mjs';
 import { paquets } from './paquets.mjs';
 import { ecrireSarif, RESULTATS } from './resultats.mjs';
 import { VARIABLE as TESTS_CIBLES } from './vitest-config/cibles.mjs';
-import { AVANCEMENT } from './vitest-config/avancement.mjs';
-import { CHANGEMENTS } from './vitest-config/changements.mjs';
+import { AVANCEMENT } from './mesure/avancement.mjs';
+import { CHANGEMENTS } from './dernier-vert.mjs';
 
 export const TURBO = 'turbo.json';
 export const COMMANDE = 'npx grillhouse turbo-des-paquets --ecrire';
@@ -251,6 +252,35 @@ export const tracesDuPlan = (plan, garder = () => true) =>
     .filter(t => t.task.startsWith(TRACE) && garder(t))
     .map(t => t.taskId)
     .sort();
+
+/**
+ * Before a run of Turborepo of <args> in <racine> under <env>, while <dossier> is a progress
+ * directory (scripts/avancement.mjs): the plan of the run (`turbo run … --dry=json`), its tasks of
+ * tests and those Turborepo replays from its cache, inscribed in the progress (`inscrireLePlan`).
+ * A plan that does not read changes nothing.
+ * @param {string | undefined} dossier
+ * @param {{ racine: string, args: string[], env?: Record<string, string | undefined> }} o
+ */
+export function planifier(dossier, { racine, args, env = process.env }) {
+  if (!dossier) return;
+  const r = spawnSync('turbo', ['run', ...args.filter(a => a !== '--summarize'), '--dry=json'], {
+    cwd: racine,
+    env,
+    encoding: 'utf8',
+    maxBuffer: 256 * 1024 * 1024,
+  });
+  let plan;
+  try {
+    plan = JSON.parse(r.stdout);
+  } catch {
+    return;
+  }
+  const taches = (plan?.tasks ?? []).filter(t => t.task === 'test:vitest' && t.hash);
+  inscrireLePlan(dossier, {
+    racine,
+    taches: taches.map(t => ({ hash: t.hash, cache: t.cache?.status === 'HIT' })),
+  });
+}
 
 // The tasks of a plan of Turborepo (`turbo run … --dry=json`, parsed) that wait, directly or not,
 // for a task of one of the packages <paquets>, those tasks included: their task ids. As Bazel

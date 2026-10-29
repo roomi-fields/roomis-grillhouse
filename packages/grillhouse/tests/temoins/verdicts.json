@@ -1,0 +1,213 @@
+{
+  "commit": "c31dd7d",
+  "verdicts": [
+    {
+      "commande": "tests",
+      "sorte": "vert",
+      "pression": 1,
+      "code": 0,
+      "taches": [
+        {
+          "paquet": "a",
+          "script": "test:vitest",
+          "code": 0
+        },
+        {
+          "paquet": "b",
+          "script": "test:vitest",
+          "code": 0
+        }
+      ],
+      "rapports": [
+        {
+          "fichier": "packages/a/test/x.test.mjs",
+          "etat": "passed",
+          "tests": [
+            {
+              "nom": "a",
+              "etat": "passed"
+            }
+          ]
+        },
+        {
+          "fichier": "packages/b/test/x.test.mjs",
+          "etat": "passed",
+          "tests": [
+            {
+              "nom": "b",
+              "etat": "passed"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "commande": "tests",
+      "sorte": "rouge",
+      "pression": 1,
+      "code": 1,
+      "taches": [
+        {
+          "paquet": "a",
+          "script": "test:vitest",
+          "code": 1
+        },
+        {
+          "paquet": "b",
+          "script": "test:vitest",
+          "code": 0
+        }
+      ],
+      "rapports": [
+        {
+          "fichier": "packages/a/test/x.test.mjs",
+          "etat": "failed",
+          "tests": [
+            {
+              "nom": "a",
+              "etat": "failed"
+            }
+          ]
+        },
+        {
+          "fichier": "packages/b/test/x.test.mjs",
+          "etat": "passed",
+          "tests": [
+            {
+              "nom": "b",
+              "etat": "passed"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "commande": "tests",
+      "sorte": "delai",
+      "pression": 90,
+      "code": 75,
+      "taches": [
+        {
+          "paquet": "a",
+          "script": "test:vitest",
+          "code": 75
+        },
+        {
+          "paquet": "b",
+          "script": "test:vitest",
+          "code": 0
+        }
+      ],
+      "rapports": [
+        {
+          "fichier": "packages/a/test/x.test.mjs",
+          "etat": "failed",
+          "tests": [
+            {
+              "nom": "a",
+              "etat": "failed"
+            }
+          ]
+        },
+        {
+          "fichier": "packages/b/test/x.test.mjs",
+          "etat": "passed",
+          "tests": [
+            {
+              "nom": "b",
+              "etat": "passed"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "commande": "verifier",
+      "sorte": "vert",
+      "pression": 1,
+      "code": 0,
+      "taches": [
+        {
+          "paquet": "a",
+          "script": "test:vitest",
+          "code": 0
+        },
+        {
+          "paquet": "b",
+          "script": "test:vitest",
+          "code": 0
+        }
+      ],
+      "rapports": [
+        {
+          "fichier": "packages/a/test/x.test.mjs",
+          "etat": "passed",
+          "tests": [
+            {
+              "nom": "a",
+              "etat": "passed"
+            }
+          ]
+        },
+        {
+          "fichier": "packages/b/test/x.test.mjs",
+          "etat": "passed",
+          "tests": [
+            {
+              "nom": "b",
+              "etat": "passed"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "commande": "verifier",
+      "sorte": "rouge",
+      "pression": 1,
+      "code": 1,
+      "taches": [
+        {
+          "paquet": "a",
+          "script": "test:vitest",
+          "code": 1
+        },
+        {
+          "paquet": "b",
+          "script": "test:vitest",
+          "code": 0
+        }
+      ],
+      "rapports": [
+        {
+          "fichier": "packages/a/test/x.test.mjs",
+          "etat": "failed",
+          "tests": [
+            {
+              "nom": "a",
+              "etat": "failed"
+            }
+          ]
+        },
+        {
+          "fichier": "packages/b/test/x.test.mjs",
+          "etat": "passed",
+          "tests": [
+            {
+              "nom": "b",
+              "etat": "passed"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "commande": "verifier",
+      "sorte": "tenu",
+      "pression": 1,
+      "code": 75,
+      "taches": [],
+      "rapports": []
+    }
+  ]
+}

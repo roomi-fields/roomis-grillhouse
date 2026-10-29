@@ -37,7 +37,7 @@ import path from 'node:path';
 import { CADRE, PAQUET } from '../cadre.mjs';
 import { paquets } from '../paquets.mjs';
 import { importe, sources } from '../sources.mjs';
-import { SOUS_COMMANDES } from '../sous-commandes.mjs';
+import { scriptsDesSousCommandes } from '../sous-commandes.mjs';
 import { formesAnterieures } from './0.23.0-config-vitest.mjs';
 import { deRoleSupprime } from './0.24.0-circuit-simplifie.mjs';
 import { dependanceDuPaquet, DU_PAQUET } from './0.24.2-api-extractor-du-paquet.mjs';
@@ -60,7 +60,8 @@ const hacher = octets => createHash('sha256').update(octets).digest('hex');
 const lireJson = f => JSON.parse(readFileSync(f, 'utf8'));
 
 // The subcommand that runs each script of the package, by the path of its former copy.
-const PAR_COPIE = new Map(Object.entries(SOUS_COMMANDES).map(([n, s]) => [`scripts/${s}`, n]));
+const parCopie = projet =>
+  new Map(Object.entries(scriptsDesSousCommandes(projet)).map(([n, s]) => [`scripts/${s}`, n]));
 
 // The lines of the list that keep a path: a file, or a directory « …/ ».
 const gardees = texte =>
@@ -154,11 +155,12 @@ export function migrer(projet) {
   const fPkg = path.join(projet, 'package.json');
   if (!existsSync(fPkg)) return sortie;
   const pkg = lireJson(fPkg);
+  const par = parCopie(projet);
   let reecrit = false;
   for (const [n, script] of Object.entries(pkg.scripts ?? {})) {
     if (typeof script !== 'string') continue;
     const neuf = script.replace(APPEL, (tout, avant, f) =>
-      retires.has(f) && PAR_COPIE.has(f) ? `${avant}grillhouse ${PAR_COPIE.get(f)}` : tout
+      retires.has(f) && par.has(f) ? `${avant}grillhouse ${par.get(f)}` : tout
     );
     if (neuf !== script) {
       pkg.scripts[n] = neuf;
@@ -173,7 +175,7 @@ export function migrer(projet) {
       }
     }
     for (const f of restes.filter(r => neuf.includes(r))) {
-      const sous = PAR_COPIE.get(f);
+      const sous = par.get(f);
       sortie.push({
         aFaire: `package.json : le script ${n} lance ${f}, copie modifiée laissée en place ; son \`git rm\` le casse : ${sous ? `\`grillhouse ${sous}\` le remplace` : 'à réécrire'}`,
       });

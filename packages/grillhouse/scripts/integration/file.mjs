@@ -70,8 +70,8 @@ import { lireCommit } from '../poussee-cles.mjs';
 import { attendreUnPeu, lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
 import { dossierCommun, lireEntrees, retirerEntree } from './file-attente.mjs';
 import { ouvrirCopie } from './rejeu.mjs';
-import { A_REPASSER } from '../vitest-config/pression.mjs';
-import { AVANCEMENT, ecrireTache } from '../vitest-config/avancement.mjs';
+import { A_REPASSER } from '../mesure/pression.mjs';
+import { AVANCEMENT, ecrireTache } from '../mesure/avancement.mjs';
 
 const ESSAIS_PAR_BRANCHE = 5;
 // The variable in which bd reads the author of a comment, and the queue's author.

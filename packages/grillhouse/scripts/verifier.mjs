@@ -60,7 +60,7 @@
 //   task of the witnesses' pass with « (témoins de temps) ».
 // - A task at 75 (« à repasser »: every failure of its tests depended on a duration and one took
 //   place under load, scripts/vitest-config/duree.reporter.mjs) is played again alone, once the CPU
-//   pressure is back under the threshold (scripts/vitest-config/pression.mjs; one line per 30 s at
+//   pressure is back under the threshold (scripts/mesure/pression.mjs; one line per 30 s at
 //   most while it waits, with the pressure), one task after the other, in the choice of its run
 //   (a task of the witnesses' pass plays its witnesses alone again):
 //   `turbo run <task> --filter=<package>`, the arguments given after it, with what it depends on,
@@ -82,7 +82,7 @@
 //   none of them, nor a task that did not play (its prerequisite red is). Green or à repasser, the
 //   file is empty. The night reads it for its bisect commands (scripts/nuit.sh), with no second
 //   reading of the summaries.
-// - The pass has a base of its own (scripts/vitest-config/base-de-passe.mjs), in the temporary
+// - The pass has a base of its own (scripts/mesure/base-de-passe.mjs), in the temporary
 //   directory of its environment, which it sweeps first of the bases a killed pass left: every
 //   run of Turborepo gets it in TMPDIR, which the root's `globalPassThroughEnv` passes on to every
 //   task (scripts/turbo-des-paquets.mjs), and the pass removes it at its end, green or red.
@@ -94,23 +94,17 @@ import { existsSync, readdirSync, readFileSync, rmdirSync, rmSync, writeFileSync
 import { availableParallelism, tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ecrireLaMesure, garderLeTotal, ouvrirAvancement, planifier } from './avancement.mjs';
+import { ecrireLaMesure, garderLeTotal, ouvrirAvancement } from './avancement.mjs';
 import { paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
 import { paquets } from './paquets.mjs';
-import { TYPAGE } from './turbo-des-paquets.mjs';
+import { planifier, TYPAGE } from './turbo-des-paquets.mjs';
 import { AttenteDeLaMachine, avecLaMachine } from './verrou-de-machine.mjs';
-import {
-  A_REPASSER,
-  attendreLeRepos,
-  BORNE_ATTENTE_MS,
-  lirePression,
-} from './vitest-config/pression.mjs';
-import { garderLesResumes } from './resultats.mjs';
+import { A_REPASSER, attendreLeRepos, BORNE_ATTENTE_MS, lirePression } from './mesure/pression.mjs';
+import { garderLesResumes } from './langages/typescript/verdict.mjs';
 import { fichiersTemoins, VARIABLE as TESTS_CIBLES } from './vitest-config/cibles.mjs';
-import { AVANCEMENT } from './vitest-config/avancement.mjs';
-import { CHANGEMENTS } from './vitest-config/changements.mjs';
-import { garderLeVert, mesure } from './dernier-vert.mjs';
-import { ouvrirBase } from './vitest-config/base-de-passe.mjs';
+import { AVANCEMENT } from './mesure/avancement.mjs';
+import { CHANGEMENTS, garderLeVert, mesure } from './dernier-vert.mjs';
+import { ouvrirBase } from './mesure/base-de-passe.mjs';
 
 const GARDES = ['grillhouse:gardes', 'gardes'];
 const TACHES = [...GARDES, TYPAGE, 'test:vitest'];

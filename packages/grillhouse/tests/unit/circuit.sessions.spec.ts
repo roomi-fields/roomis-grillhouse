@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { appendFileSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
-import { departDe } from '../../scripts/vitest-config/base-de-passe.mjs';
+import { departDe } from '../../scripts/mesure/base-de-passe.mjs';
 import { canWrap, racineSousLaMaison } from '../machine.js';
 import { sortie, CIRCUIT, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
 

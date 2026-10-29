@@ -1,5 +1,5 @@
 // Ticket grillhouse-3uv.93: the trials live under the base of their pass, removed at its end and
-// swept when orphan (scripts/vitest-config/base-de-passe.mjs), as Bazel gives each test its
+// swept when orphan (scripts/mesure/base-de-passe.mjs), as Bazel gives each test its
 // temporary directory (TEST_TMPDIR) under the base of its run and cleans the sandboxes a killed
 // run leaves.
 // Witness (2026-10-22): /tmp full at 100 % of its files (1 044 112 of 1 048 576), a command
@@ -22,13 +22,13 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { dossierDeTravail } from '../../scripts/enveloppe/enveloppe.mjs';
-import { ouvrirBase } from '../../scripts/vitest-config/base-de-passe.mjs';
+import { ouvrirBase } from '../../scripts/mesure/base-de-passe.mjs';
 import { canWrap, racineSousLaMaison } from '../machine.js';
 import { CIRCUIT, circuitEssai } from './circuit-essai.js';
 
 const DEPOT = path.resolve(__dirname, '../..');
 const RACINE = path.resolve(DEPOT, '../..');
-const MODULE = path.join(DEPOT, 'scripts/vitest-config/base-de-passe.mjs');
+const MODULE = path.join(DEPOT, 'scripts/mesure/base-de-passe.mjs');
 const BASE = path.join(DEPOT, 'scripts/vitest-config/base.mjs');
 const VITEST = path.join(RACINE, 'node_modules/vitest/vitest.mjs');
 const INTEGRER = path.join(DEPOT, 'scripts/integration/integrer.mjs');
@@ -376,11 +376,14 @@ function creations(): { fichier: string; nom: string; source: string }[] {
 // The directories a script makes without removing them itself, each with its reason: the base,
 // which `fermer` removes; the progress directory, which its caller removes (scripts/verifier.mjs)
 // or which lives in the base of the circuit's run; the results of a pass of the circuit, in that
-// base.
+// base; the trials of the suite of conformity of the module typescript, under the directory its
+// caller gives it and removes (scripts/conformite.mjs).
 const HORS_DU_SCRIPT = new Set([
-  'scripts/vitest-config/base-de-passe.mjs: base',
+  'scripts/mesure/base-de-passe.mjs: base',
   'scripts/avancement.mjs: dossier',
   'scripts/circuit.mjs: dossier',
+  'scripts/langages/typescript/exemples.mjs: racine',
+  'scripts/langages/typescript/exemples.mjs: dossier',
 ]);
 
 describe('critère 9 — a script of the frame that makes a temporary directory removes it at its end', () => {

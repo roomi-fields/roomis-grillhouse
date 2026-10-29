@@ -73,26 +73,25 @@
 // - While the environment names the progress directory of a pass (`GRILLHOUSE_AVANCEMENT`,
 //   scripts/avancement.mjs: the circuit's proof and checks), each run of the tests plans its
 //   tasks first, and Vitest writes there the files done and planned of each.
-// - The run has a base of its own (scripts/vitest-config/base-de-passe.mjs), which it sweeps first
+// - The run has a base of its own (scripts/mesure/base-de-passe.mjs), which it sweeps first
 //   of the bases a killed run left: it names it in TMPDIR to every run of Turborepo, which the
 //   root's `globalPassThroughEnv` passes on to every task, and removes it at its end.
 // The exit code is Turborepo's; 2 for a path refused.
 import { spawnSync } from 'node:child_process';
 import { accessSync, constants, existsSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { planifier } from './avancement.mjs';
 import { paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
 import { paquets } from './paquets.mjs';
-import { garderLesResumes, RESULTATS } from './resultats.mjs';
-import { tracesDuPlan } from './turbo-des-paquets.mjs';
-import { AVANCEMENT } from './vitest-config/avancement.mjs';
+import { garderLesResumes } from './langages/typescript/verdict.mjs';
+import { RESULTATS } from './resultats.mjs';
+import { planifier, tracesDuPlan } from './turbo-des-paquets.mjs';
+import { AVANCEMENT } from './mesure/avancement.mjs';
 import { VARIABLE } from './vitest-config/cibles.mjs';
-import { CHANGEMENTS } from './vitest-config/changements.mjs';
-import { DEPUIS_LE_VERT, mesure } from './dernier-vert.mjs';
-import { ouvrirBase } from './vitest-config/base-de-passe.mjs';
+import { CHANGEMENTS, DEPUIS_LE_VERT, mesure } from './dernier-vert.mjs';
+import { ouvrirBase } from './mesure/base-de-passe.mjs';
 
 const racine = process.cwd();
-// The base of the run (scripts/vitest-config/base-de-passe.mjs): this process and every run of
+// The base of the run (scripts/mesure/base-de-passe.mjs): this process and every run of
 // Turborepo write in it (TMPDIR), and it goes at the end of the run.
 const base = ouvrirBase('tests');
 process.env.TMPDIR = base.dossier;

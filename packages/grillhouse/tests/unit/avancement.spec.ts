@@ -1,4 +1,4 @@
-// The progress of an automatic pass (scripts/avancement.mjs, scripts/vitest-config/avancement.mjs),
+// The progress of an automatic pass (scripts/avancement.mjs, scripts/mesure/avancement.mjs),
 // as Bazel counts its actions « [1 234 / 2 000] » and a CI its steps: while the variable
 // GRILLHOUSE_AVANCEMENT names the progress directory of a pass, the reporter of the base
 // configuration writes, at each test file done, the files done and planned of its task; the
@@ -28,9 +28,10 @@ import {
   lireAvancement,
   lireLaMesure,
   ouvrirAvancement,
-  planifier,
 } from '../../scripts/avancement.mjs';
-import { AVANCEMENT, rapportAvancement } from '../../scripts/vitest-config/avancement.mjs';
+import { AVANCEMENT } from '../../scripts/mesure/avancement.mjs';
+import { planifier } from '../../scripts/turbo-des-paquets.mjs';
+import { rapportAvancement } from '../../scripts/vitest-config/avancement.reporter.mjs';
 
 const DEPOT = path.resolve(__dirname, '../../../..');
 const BASE = path.join(DEPOT, 'packages/grillhouse/scripts/vitest-config/base.mjs');

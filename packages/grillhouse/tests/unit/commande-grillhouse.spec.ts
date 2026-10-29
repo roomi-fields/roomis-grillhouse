@@ -11,7 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { scriptDe, SOUS_COMMANDES } from '../../scripts/sous-commandes.mjs';
+import { commandeDe, SOUS_COMMANDES } from '../../scripts/sous-commandes.mjs';
 
 // The frame's one command, `grillhouse <sous-commande>` (bin/grillhouse.mjs, the `bin` of the
 // package @roomi-fields/grillhouse): each script a caller launches has its subcommand, and every
@@ -46,9 +46,9 @@ describe('grillhouse <sous-commande>', () => {
 
   it('names a script of the package for each subcommand', () => {
     for (const nom of Object.keys(SOUS_COMMANDES)) {
-      const script = scriptDe(nom);
-      expect(script, nom).not.toBeNull();
-      expect(statSync(script as string).isFile(), nom).toBe(true);
+      const commande = commandeDe(nom, path.resolve(__dirname, '../../../..'));
+      expect(commande, nom).not.toBeNull();
+      expect(statSync(commande?.script as string).isFile(), nom).toBe(true);
     }
   });
 

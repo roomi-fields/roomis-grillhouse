@@ -28,9 +28,10 @@
 //   from the commit its parent records (its files changed, or its HEAD moved) or the changes
 //   reach a submodule: git's tree holds a submodule's commit, not its files. The pass is then
 //   complete, and keeps no green.
-// - The changes go to Vitest in a file that the variable `GRILLHOUSE_CHANGEMENTS` names
-//   (scripts/vitest-config/changements.mjs, which reads them in each package); the file lies in a
-//   temporary directory of its own, which the pass removes at its end.
+// - The changes go to the runner of the tests in a file that the variable `GRILLHOUSE_CHANGEMENTS`
+//   names (`CHANGEMENTS`; for the module typescript, scripts/vitest-config/changements.mjs reads
+//   them in each package); the file lies in a temporary directory of its own, which the pass
+//   removes at its end.
 // - `npm test` measures itself against the last green under the circuit's mark,
 //   `GRILLHOUSE_DEPUIS_LE_VERT` (scripts/tests.mjs, scripts/circuit.mjs); it never keeps one.
 import { spawnSync } from 'node:child_process';
@@ -46,8 +47,9 @@ import {
 } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { CHANGEMENTS } from './vitest-config/changements.mjs';
-
+// The variable that names the file of the changes since the last green, which the runner of the
+// tests of the module of the language reads in each package.
+export const CHANGEMENTS = 'GRILLHOUSE_CHANGEMENTS';
 export const DEPUIS_LE_VERT = 'GRILLHOUSE_DEPUIS_LE_VERT';
 const SHA = /^[0-9a-f]{40,64}$/;
 
@@ -194,7 +196,7 @@ function supprimesDuCommit(racine, commit, arbre) {
 // keep once green (null when none can count), the variables to add to the pass's environment (the
 // changes since the last green, none for a complete pass), the line that says which, and the
 // function that removes the file of the changes. <tout> asks for the complete pass; the file lies
-// in <dans>, the base of the pass (scripts/vitest-config/base-de-passe.mjs), which a killed pass
+// in <dans>, the base of the pass (scripts/mesure/base-de-passe.mjs), which a killed pass
 // leaves to the next one to sweep.
 export function mesure(racine, { tout = false, dans = os.tmpdir() } = {}) {
   const etat = etatDuDepot(racine);
@@ -228,7 +230,7 @@ export function mesure(racine, { tout = false, dans = os.tmpdir() } = {}) {
   return {
     etat,
     env: { [CHANGEMENTS]: fichier },
-    ligne: `↳ depuis le dernier vert de ${vert.branche} (${vert.commit.slice(0, 12)}, arbre ${vert.arbre.slice(0, 12)}) : ${n} fichier(s) changé(s) ; chaque paquet que Turborepo rejoue joue les tests que Vitest y relie.`,
+    ligne: `↳ depuis le dernier vert de ${vert.branche} (${vert.commit.slice(0, 12)}, arbre ${vert.arbre.slice(0, 12)}) : ${n} fichier(s) changé(s) ; chaque paquet rejoué joue les tests que ses changements atteignent.`,
     retirer: () => rmSync(dir, { recursive: true, force: true }),
   };
 }

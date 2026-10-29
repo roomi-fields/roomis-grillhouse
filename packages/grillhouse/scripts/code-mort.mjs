@@ -33,8 +33,8 @@
 //   exports and types findings are those of the first run.
 // - The test and bench files are those git does not ignore (`.gitignore`, as knip reads it): a
 //   ticket copy or a build that git ignores counts for nothing. A test file is known by the
-//   repository's rule (`isTestFile`, `verrous/verrou.mjs`), plus the benches `*.budget.*` and
-//   `*.nuit.*`. A file the top-level or workspace `ignore` targets is not an entry: these patterns
+//   repository's rule (`isTestFile`, langages/typescript/regle-des-tests.mjs), plus the benches
+//   `*.budget.*` and `*.nuit.*`. A file the top-level or workspace `ignore` targets is not an entry: these patterns
 //   become negated entry patterns, which knip matches as its own.
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -44,7 +44,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { horsCadre } from './paquets.mjs';
 import { trancher } from './dette.mjs';
-import { isTestFile } from './verrous/verrou.mjs';
+import { isTestFile } from './langages/typescript/regle-des-tests.mjs';
 
 const GENRES = {
   files: 'fichier sans appelant',

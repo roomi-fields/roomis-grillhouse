@@ -15,7 +15,7 @@
 // that does not read. Each failure of duration is written with the pressure measured and the
 // threshold; a pressure that does not read is said, « pression CPU illisible ».
 import path from 'node:path';
-import { A_REPASSER, ecrirePression, lirePression, SEUIL_PRESSION } from './pression.mjs';
+import { A_REPASSER, ecrirePression, lirePression, SEUIL_PRESSION } from '../mesure/pression.mjs';
 
 const DELAI = /^(Test|Hook) timed out in \d+ms\./;
 const BANC = /\.budget\.(test|spec)\.(c|m)?[jt]sx?$/;

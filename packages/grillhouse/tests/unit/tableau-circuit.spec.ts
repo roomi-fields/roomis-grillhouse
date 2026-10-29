@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { assembler, fiches, lignes, lireCircuits } from '../../scripts/tableau.mjs';
-import { departDe } from '../../scripts/vitest-config/base-de-passe.mjs';
+import { departDe } from '../../scripts/mesure/base-de-passe.mjs';
 import { rendreVivant } from './tableau-essai.js';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tableau-circuit-'));

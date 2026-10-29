@@ -62,8 +62,8 @@ import path from 'node:path';
 import { paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
 import { paquets } from './paquets.mjs';
 import { attendreUnPeu, lacherVerrou, prendreVerrou } from './verrou-de-fichier.mjs';
-import { vivant } from './vitest-config/base-de-passe.mjs';
-import { A_REPASSER } from './vitest-config/pression.mjs';
+import { vivant } from './mesure/base-de-passe.mjs';
+import { A_REPASSER } from './mesure/pression.mjs';
 
 const VARIABLE_VERROU = 'GRILLHOUSE_VERROU_MACHINE';
 const VARIABLE_TENUE = 'GRILLHOUSE_MESURE_TENUE';

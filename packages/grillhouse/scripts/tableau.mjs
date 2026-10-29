@@ -100,7 +100,7 @@ import {
 import { bilansGardes, enBref } from './bilan.mjs';
 import { verdictDe } from './integration/verdict.mjs';
 import { lireAvancement, lireLaMesure } from './avancement.mjs';
-import { leMemeVivant } from './vitest-config/base-de-passe.mjs';
+import { leMemeVivant } from './mesure/base-de-passe.mjs';
 
 const MINUTE = 60_000;
 export const SILENCE = 10 * MINUTE;

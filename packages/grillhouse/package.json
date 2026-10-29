@@ -35,9 +35,17 @@
       "types": "./scripts/consommateurs.d.ts",
       "default": "./scripts/consommateurs.mjs"
     },
+    "./conformite": {
+      "types": "./scripts/conformite.d.ts",
+      "default": "./scripts/conformite.mjs"
+    },
     "./dette": {
       "types": "./scripts/dette.d.ts",
       "default": "./scripts/dette.mjs"
+    },
+    "./jointure": {
+      "types": "./scripts/jointure.d.ts",
+      "default": "./scripts/langages.mjs"
     },
     "./paquets": {
       "types": "./scripts/paquets.d.ts",

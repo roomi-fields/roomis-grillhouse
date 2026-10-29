@@ -56,8 +56,8 @@ import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CHANGEMENTS } from '../dernier-vert.mjs';
 
-export const CHANGEMENTS = 'GRILLHOUSE_CHANGEMENTS';
 // This directory, the frame's base configuration.
 const BASE = path.dirname(fileURLToPath(import.meta.url));
 // The extension of a module, which a graph of Vitest can hold.

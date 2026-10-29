@@ -26,7 +26,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { vivant } from './vitest-config/base-de-passe.mjs';
+import { vivant } from './mesure/base-de-passe.mjs';
 
 /** Blocks the process for `ms` milliseconds. */
 export const attendreUnPeu = ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);

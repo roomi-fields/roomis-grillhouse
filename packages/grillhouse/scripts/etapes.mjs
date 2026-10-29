@@ -28,7 +28,7 @@
 //   with no session.
 // - The question of each other stop (MONTEES, below): what goes up to the supervisor, and who
 //   must answer it.
-import { A_REPASSER } from './vitest-config/pression.mjs';
+import { A_REPASSER } from './mesure/pression.mjs';
 
 // Who works at a step the circuit leads itself, with no agent.
 export const AUTO = 'auto';
@@ -205,7 +205,7 @@ export const GESTES = [
     geste:
       'à la régénération des références (4.2), puis la passe finale : celle qui est due, après les contrôles ; restreinte à ce qu’elle change, après une passe finale',
     regle:
-      'un rouge de la passe finale est celui d’une référence, même mêlé à d’autres, ou les contrôles du plan sont verts hors des rouges de références : une que le projet déclare (`grillhouse.references`), ou un fichier que le cadre engendre (l’index des interfaces, les turbo.json, les rapports d’API) ; ou la passe abaisse la dette des gardes (`dette.mjs --abaisser`, depuis ses notes)',
+      'un rouge de la passe finale est celui d’une référence, même mêlé à d’autres, ou les contrôles du plan sont verts hors des rouges de références : une que le projet déclare (`grillhouse.references`), ou un fichier que le cadre engendre (l’index des interfaces, les fichiers que le module du langage engendre) ; ou la passe abaisse la dette des gardes (`dette.mjs --abaisser`, depuis ses notes)',
     cas: 'BP 320.9 : 292 min autour des références, dont 163 min d’attente pour régénérer à la main l’index des interfaces, le plafond et l’empreinte, des rouges de références mêlés à d’autres ; BP 320.3.9 : le plafond rouge aux contrôles, laissé à une passe finale qui rejoue les mêmes tests sur le même arbre (6,1 min)',
   },
   {

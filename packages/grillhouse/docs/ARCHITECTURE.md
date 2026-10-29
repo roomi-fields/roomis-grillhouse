@@ -92,8 +92,9 @@ références les régénèrent aussitôt, comme make refait un fichier engendré
 la passe finale due joue alors une fois, sur l'arbre régénéré, sans régénérer de nouveau une
 référence régénérée sur ce même arbre (BP 320.3.9 : le plafond des mots, rouge aux contrôles,
 laissé à une passe finale qui rejouait les mêmes tests sur le même arbre, 6,1 min). Les références sont celles que le projet déclare
-(`grillhouse.references`) et celles du cadre, dans chaque projet (`REFERENCES_DU_CADRE` de
-`circuit.mjs`) : l'index des interfaces, les `turbo.json` des paquets et les rapports d'API, chacun
+(`grillhouse.references`) et celles du cadre, dans chaque projet (`referencesDuCadre` de
+`circuit.mjs`, les fichiers que le module du langage engendre, `fichiersEngendres`) : l'index des
+interfaces, les `turbo.json` des paquets et les rapports d'API, chacun
 réécrit par son générateur, et la dette des gardes. Une référence, du projet comme du cadre, se
 régénère sans que le plan la nomme, comme une genrule, et le relecteur lit sa différence. Comme
 make refait une cible avec celles qui dépendent de ses sorties, chaque référence déclare ce
@@ -293,7 +294,7 @@ un circuit, une intégration et une enveloppe ouvrent leur base dans le dossier 
 nomment dans `TMPDIR` à ce qu'ils lancent (les dossiers d'essai des tests, celui de Vitest, celui
 de Claude Code) et l'effacent à leur fin, verte ou rouge ; la base d'une passe tuée, la suivante
 la balaie, comme Bazel donne à chaque test son `TEST_TMPDIR` et nettoie ses bacs à sable
-(`packages/grillhouse/scripts/vitest-config/base-de-passe.mjs`). Ainsi un essai oublié ne remplit jamais le dossier
+(`packages/grillhouse/scripts/mesure/base-de-passe.mjs`). Ainsi un essai oublié ne remplit jamais le dossier
 temporaire de la machine.
 
 **Le dossier du circuit appartient au ticket** : `.claude/worktrees/<ticket>.travail` vit autant
@@ -393,7 +394,9 @@ la fonction, sans réexport, avec sa déclaration de types à côté (`scripts/<
 `@roomi-fields/grillhouse/consommateurs` (`matieres`, les paquets de la matière de test
 partagée), `@roomi-fields/grillhouse/paquets` (`horsCadre`, les paquets hors cadre),
 `@roomi-fields/grillhouse/resultats` (`ecrireSarif`, les constats d'une garde du projet en
-SARIF), et la
+SARIF), `@roomi-fields/grillhouse/jointure` (`langageDe`, le module de langage d'un projet, et les
+types de la jointure, `scripts/jointure.d.ts`), `@roomi-fields/grillhouse/conformite` (`cas` et
+`echecs`, la suite de conformité d'un module de langage), et la
 configuration de base de Vitest, `@roomi-fields/grillhouse/vitest-config` et
 `@roomi-fields/grillhouse/vitest-config/mesure`, et la base TSDoc,
 `@roomi-fields/grillhouse/tsdoc-base.json`, dont hérite le `tsdoc.json` d'un projet : elle hérite
@@ -437,12 +440,29 @@ ou Nx : une seule équipe tient tous les langages, et un seul paquet n'a ni vers
 imports à réécrire chez les projets.
 
 **La jointure des langages** : le noyau ne demande à un module de langage que cinq choses — ses
-composants et celui d'un fichier ; les composants touchés depuis un commit, avec leurs
-dépendants ; les commandes qui testent, typent et vérifient un composant, et la lecture de leur
-verdict ; la règle qui dit qu'un fichier est un test (le verrou du testwriter) ; ses fichiers
-engendrés et leur commande. L'INTERFACE.md du noyau l'écrit, une même suite de conformité la
-tient sur chaque module de langage, et une garde refuse un import d'un module de langage par le
-noyau hors de la jointure. Ainsi le reste du noyau ignore le langage du projet.
+composants et celui d'un fichier, avec les lecteurs par le code des éléments qu'un ticket nomme ;
+les composants touchés depuis un commit, avec leurs dépendants ; les commandes qui testent,
+typent et vérifient, et la lecture de leur verdict ; la règle qui dit qu'un fichier est un test
+(le verrou du testwriter) ; ses fichiers engendrés, leur commande et ses gardes de structure.
+L'INTERFACE.md du noyau l'écrit (`packages/grillhouse/docs/INTERFACE.md`), `scripts/jointure.d.ts`
+la type, et `scripts/langages.mjs` charge le module que le projet déclare (`grillhouse.langages`
+de son `package.json`, lu comme `["typescript"]` sans déclaration, jusqu'à grillhouse-3dr.2.3) ;
+un seul langage est servi, la fusion de plusieurs est grillhouse-pkl.3. Passent par elle : les
+composants et leurs lecteurs du relevé des composants ; la règle d'un fichier de test des verrous,
+des lots de l'intégration et du circuit ; les commandes de `grillhouse tests` et `grillhouse
+verifier` ; le verdict que le circuit lit ; les fichiers engendrés du circuit ; les gardes de
+`grillhouse gardes-du-cadre`. Le noyau importe encore cinq fichiers rangés côté TypeScript, que
+grillhouse-3dr.2.2 fait passer par la jointure : le circuit `elements-du-lot.mjs`, l'intégration
+`consommateurs-arbitres.mjs`, `resumes.mjs` `index-interfaces.mjs` et `interfaces-contre-code.mjs`,
+l'enveloppe `consommateurs.mjs`, et `grillhouse-maj.mjs`. Les trois modules du noyau que rangeait
+`vitest-config/` (l'avancement, la base d'une passe, la pression) vivent sous `scripts/mesure/`.
+Le module typescript (`scripts/langages/typescript/`) appelle encore les scripts à leur place, que
+grillhouse-3dr.2.2 range sous son dossier d'après `tests/temoins/repartition.json`. Une même suite
+de conformité (`scripts/conformite.mjs`) tient chaque module de langage, comme le RuleTester
+d'ESLint une règle ; une garde refusera un import d'un module de langage par le noyau hors de la
+jointure (grillhouse-3dr.2.2), et le test de la jointure (`tests/unit/jointure.spec.ts`) inscrit
+chaque reste du noyau qui nomme encore un outil, avec le ticket qui le retire. Ainsi le reste du
+noyau ignore le langage du projet.
 
 **Les tests d'intégration, un paquet à part** : les tests qui montent un dépôt d'essai et y
 lancent le cadre entier (le circuit, plus de la moitié du temps des tests) vivent dans

@@ -30,7 +30,7 @@ import {
 } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { vivant } from './vitest-config/base-de-passe.mjs';
+import { vivant } from './mesure/base-de-passe.mjs';
 
 // The variable that carries, to the relay and then to the daemon, its role, the directory of the
 // daemon's output and the caller's process.

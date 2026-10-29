@@ -44,7 +44,7 @@ import { existsSync, lstatSync, readdirSync, readFileSync, writeFileSync } from 
 import path from 'node:path';
 import { CADRE, PAQUET } from '../cadre.mjs';
 import { CROCHETS } from '../crochets.mjs';
-import { SOUS_COMMANDES } from '../sous-commandes.mjs';
+import { scriptsDesSousCommandes } from '../sous-commandes.mjs';
 
 export const version = '0.24.0';
 export const nom = 'circuit simplifié';
@@ -158,10 +158,10 @@ function copies(projet) {
 
 // What replaces each script of the frame, by its path under `scripts/`: its subcommand, its hook,
 // its named entry; none for a script of the package that has none of them.
-function remplacants() {
+function remplacants(projet) {
   const r = new Map();
   const ajouter = (script, quoi) => r.set(script, [...(r.get(script) ?? []), quoi]);
-  for (const [n, s] of Object.entries(SOUS_COMMANDES)) {
+  for (const [n, s] of Object.entries(scriptsDesSousCommandes(projet))) {
     ajouter(s, `\`grillhouse ${n}\``);
   }
   for (const [n, c] of Object.entries(CROCHETS)) {
@@ -236,7 +236,7 @@ export function restes(projet) {
   } catch {
     return [];
   }
-  const par = remplacants();
+  const par = remplacants(projet);
   const sortie = [];
   for (const f of suivis) {
     const absolu = path.join(projet, f);

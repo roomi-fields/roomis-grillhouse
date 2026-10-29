@@ -4,7 +4,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { racineSousLaMaison } from '../machine.js';
-import { isTestFile, isTesterFile, refusal } from '../../scripts/verrous/verrou.mjs';
+import { estUnTest, isTestFile } from '../../scripts/langages/typescript/regle-des-tests.mjs';
+import { refusal } from '../../scripts/verrous/verrou.mjs';
+
+// What the testwriter writes, by the rule of a test file of the module typescript.
+const duTestwriter = (f: string, racine: string) => estUnTest(f, racine) !== null;
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'verrous-'));
@@ -261,8 +265,8 @@ describe('testwriter and the package of the shared test material', () => {
 
 // grillhouse-2sq.2: one rule of ownership, read by every lock and by the integration. A file is
 // written by the testwriter when it is a test file or a file of a package of the shared test
-// material (`isTesterFile`); the developpeur writes none of them, whatever its ticket.
-describe('isTesterFile, the one rule of what the testwriter writes', () => {
+// material (`estUnTest`); the developpeur writes none of them, whatever its ticket.
+describe('estUnTest, the one rule of what the testwriter writes', () => {
   const repo = depotAvecMatiere();
 
   it.each([
@@ -275,11 +279,11 @@ describe('isTesterFile, the one rule of what the testwriter writes', () => {
     'packages/matiere/fixtures/neuf/dossier/neuf.json',
     'packages/corpus/scenes/x.bps',
   ])('%s is written by the testwriter (relative to the root)', rel => {
-    expect(isTesterFile(rel, repo)).toBe(true);
+    expect(duTestwriter(rel, repo)).toBe(true);
   });
   it('takes an absolute path as well', () => {
-    expect(isTesterFile(path.join(repo, 'packages/corpus/scenes/x.bps'), repo)).toBe(true);
-    expect(isTesterFile(path.join(repo, 'packages/autre/src/a.ts'), repo)).toBe(false);
+    expect(duTestwriter(path.join(repo, 'packages/corpus/scenes/x.bps'), repo)).toBe(true);
+    expect(duTestwriter(path.join(repo, 'packages/autre/src/a.ts'), repo)).toBe(false);
   });
   it.each([
     'packages/autre/src/a.ts',
@@ -292,12 +296,12 @@ describe('isTesterFile, the one rule of what the testwriter writes', () => {
     'scripts/a.mjs',
     'README.md',
   ])('%s is not written by the testwriter', rel => {
-    expect(isTesterFile(rel, repo)).toBe(false);
+    expect(duTestwriter(rel, repo)).toBe(false);
   });
   it('a project without the material keeps the test files alone', () => {
     const vide = mkdtempSync(path.join(ESSAIS_VERROU, 'vide-'));
-    expect(isTesterFile('tests/a.spec.ts', vide)).toBe(true);
-    expect(isTesterFile('packages/matiere/fixtures/un.txt', vide)).toBe(false);
+    expect(duTestwriter('tests/a.spec.ts', vide)).toBe(true);
+    expect(duTestwriter('packages/matiere/fixtures/un.txt', vide)).toBe(false);
   });
 });
 
@@ -549,14 +553,14 @@ describe('an unreadable package.json', () => {
   });
 
   it('does not make its component the material, and does not throw', () => {
-    expect(isTesterFile('packages/casse/src/a.ts', repo)).toBe(false);
-    expect(isTesterFile('packages/casse/package.json', repo)).toBe(false);
+    expect(duTestwriter('packages/casse/src/a.ts', repo)).toBe(false);
+    expect(duTestwriter('packages/casse/package.json', repo)).toBe(false);
   });
   it('leaves the rest of the rule whole', () => {
-    expect(isTesterFile('packages/casse/tests/a.ts', repo)).toBe(true);
-    expect(isTesterFile('packages/corpus/scenes/x.bps', repo)).toBe(true);
-    expect(isTesterFile('packages/matiere/src/generer.ts', repo)).toBe(true);
-    expect(isTesterFile('src/a.ts', repo)).toBe(false);
+    expect(duTestwriter('packages/casse/tests/a.ts', repo)).toBe(true);
+    expect(duTestwriter('packages/corpus/scenes/x.bps', repo)).toBe(true);
+    expect(duTestwriter('packages/matiere/src/generer.ts', repo)).toBe(true);
+    expect(duTestwriter('src/a.ts', repo)).toBe(false);
   });
   it.each(['packages/casse/package.json', 'packages/casse/src/a.ts', 'src/a.ts'])(
     'lets the developpeur write %s, code of the component and around it',

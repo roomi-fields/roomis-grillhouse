@@ -3,7 +3,7 @@
 // which the board shows (scripts/tableau.mjs), so that a pass that freezes is seen.
 //
 // - A pass has its progress directory, which the variable GRILLHOUSE_AVANCEMENT (AVANCEMENT of
-//   scripts/vitest-config/avancement.mjs) names to its commands: the circuit opens one for each
+//   scripts/mesure/avancement.mjs) names to its commands: the circuit opens one for each
 //   automatic pass and names it in its state (scripts/circuit.mjs), `npm run verifier` opens its own when it
 //   receives none (scripts/verifier.mjs). The directory holds `passe.json` (`{ genre, debut,
 //   precedent }`: its kind, its start, the total of the previous pass of that kind), the records
@@ -14,10 +14,10 @@
 //   while every task the plans name has not started, the total of the previous pass of the same
 //   kind stands when it is greater (a pass without a plan never knows all its tasks started).
 //   The last sign is the latest writing of a record, or the start of the pass without one.
-// - A plan: before a run of Turborepo that plays tests, its plan (`turbo run … --dry=json`) names
-//   the tasks of tests and those Turborepo replays from its cache; a task replayed counts its files
-//   as done at once, its number known by its hash from the pass that played it, as a cache of
-//   Bazel keeps the outcome of an action by its key.
+// - A plan: before a run that plays tests, its plan names the tasks of tests and those the run
+//   replays from its cache (`inscrireLePlan`, which the module of the language feeds from the plan
+//   of its runner); a task replayed counts its files as done at once, its number known by its hash
+//   from the pass that played it, as a cache of Bazel keeps the outcome of an action by its key.
 // - The totals live in `<git common dir>/grillhouse/avancement.json`, one per repository, its
 //   copies included, beside the last green (scripts/dernier-vert.mjs): `{ passes, taches }`, the
 //   total of the last pass of each kind and the files planned of each task by its hash (the
@@ -31,13 +31,12 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { ecrireAtomique, TACHES } from './vitest-config/avancement.mjs';
+import { ecrireAtomique, TACHES } from './mesure/avancement.mjs';
 import { verrouDeMachine } from './verrou-de-machine.mjs';
 
 const PASSE = 'passe.json';
 const PLAN = 'plan';
 const TACHES_GARDEES = 2_000;
-const TESTS = 'test:vitest';
 
 const lireJson = f => {
   try {
@@ -84,31 +83,18 @@ export function ouvrirAvancement({ racine, genre = null, dans = tmpdir(), debut 
 }
 
 /**
- * Before a run of Turborepo of <args> in <racine> under <env>, while <dossier> is a progress
- * directory: the plan of the run, its tasks of tests and those replayed from the cache, each of
- * those counted done at once. A plan that does not read changes nothing.
+ * Before a run while <dossier> is a progress directory: its plan, the tasks of tests <taches> it
+ * names (`{ hash, cache }`, `cache` whether the run replays it from its cache), each task replayed
+ * counted done at once, its number known by its hash. The module of the language reads the plan of
+ * its runner (scripts/turbo-des-paquets.mjs, `planifier`).
  * @param {string | undefined} dossier
- * @param {{ racine: string, args: string[], env?: Record<string, string | undefined> }} o
+ * @param {{ racine: string, taches: { hash: string, cache: boolean }[] }} o
  */
-export function planifier(dossier, { racine, args, env = process.env }) {
-  if (!dossier) return;
-  const r = spawnSync('turbo', ['run', ...args.filter(a => a !== '--summarize'), '--dry=json'], {
-    cwd: racine,
-    env,
-    encoding: 'utf8',
-    maxBuffer: 256 * 1024 * 1024,
-  });
-  let plan;
-  try {
-    plan = JSON.parse(r.stdout);
-  } catch {
-    return;
-  }
-  const taches = (plan?.tasks ?? []).filter(t => t.task === TESTS && t.hash);
-  if (!taches.length) return;
+export function inscrireLePlan(dossier, { racine, taches }) {
+  if (!dossier || !taches.length) return;
   const { taches: connues } = lireLesTotaux(racine);
   try {
-    for (const t of taches.filter(x => x.cache?.status === 'HIT')) {
+    for (const t of taches.filter(x => x.cache)) {
       const n = connues[t.hash] ?? 0;
       ecrireAtomique(path.join(dossier, TACHES, `cache-${t.hash}.json`), {
         hash: t.hash,
