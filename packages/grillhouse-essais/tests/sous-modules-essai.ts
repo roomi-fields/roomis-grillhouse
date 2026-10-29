@@ -16,14 +16,14 @@ import {
 import path from 'node:path';
 import { expect } from 'vitest';
 import { configGit } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { CADRE } from './cadre.js';
 
 // The trial harness of the submodules of the working copies (scripts/sous-modules.sh), shared by
-// their tests (tests/unit/sous-modules*.spec.ts): the frame's scripts, git's environment, and the
+// their tests (sous-modules*.nuit.spec.ts): the frame's scripts, git's environment, and the
 // worlds of trial (a main repository, its submodules, its copies), which sousModulesEssai builds
 // in the trial directory of the file that calls it.
 
-export const RACINE = path.resolve(__dirname, '../../../..');
-export const SCRIPTS = path.join(RACINE, 'packages/grillhouse/scripts');
+export const SCRIPTS = path.join(CADRE, 'scripts');
 export const INTEGRER = path.join(SCRIPTS, 'integration/integrer.mjs');
 export const LANCER = path.join(SCRIPTS, 'enveloppe/lancer.sh');
 export const POSE = path.join(SCRIPTS, 'sous-modules.sh');

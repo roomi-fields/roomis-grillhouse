@@ -10,9 +10,10 @@ import {
   INTEGRER_SCRIPT,
   suitesParLiens,
 } from './integration-essai.js';
+import { CADRE } from './cadre.js';
 
 // The integration of a ticket's lot (scripts/integration/integrer.mjs,
-// tests/unit/integrer.spec.ts): the commands of the project in its copy, which leave its index up
+// integrer.nuit.spec.ts): the commands of the project in its copy, which leave its index up
 // to date (grillhouse-3uv.73), install a changed manifest and are judged by their status
 // (grillhouse-3uv.56).
 // The trial harness: ./integration-essai.ts.
@@ -210,7 +211,7 @@ describe('grillhouse-3uv.73 — every command of the project leaves the index of
     LONG_73
   );
   it('critère 4: the refresh lives in `lancer` of rejeu.mjs, after the command, and nowhere else in scripts/integration/', () => {
-    const dossier = path.resolve(__dirname, '../../scripts/integration');
+    const dossier = path.join(CADRE, 'scripts/integration');
     // The code of a script, its comments removed: the texts may name the refresh (critère 7).
     const code = (f: string) =>
       readFileSync(path.join(dossier, f), 'utf8')

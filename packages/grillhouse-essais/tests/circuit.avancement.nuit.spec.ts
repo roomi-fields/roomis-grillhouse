@@ -3,7 +3,8 @@ import { existsSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { CIRCUIT, CODE_JUSTE, ECRIT_ROUGE, circuitEssai, enProcessus } from './circuit-essai.js';
+import { CIRCUIT, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
+import { enProcessus } from './cadre.js';
 
 const lireAvancement = enProcessus<{ faits: number; prevus: number; dernier: number } | null>(
   'scripts/avancement.mjs',

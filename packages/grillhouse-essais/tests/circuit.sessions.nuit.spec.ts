@@ -3,15 +3,8 @@ import { appendFileSync, readdirSync, readFileSync, rmSync, writeFileSync } from
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import {
-  sortie,
-  CIRCUIT,
-  ARRETS,
-  CODE_JUSTE,
-  ECRIT_ROUGE,
-  circuitEssai,
-  enProcessus,
-} from './circuit-essai.js';
+import { sortie, CIRCUIT, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
+import { enProcessus } from './cadre.js';
 
 const departDe = enProcessus<string | null>('scripts/mesure/base-de-passe.mjs', 'departDe');
 

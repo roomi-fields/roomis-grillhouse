@@ -22,12 +22,13 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { configGit } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { CADRE } from './cadre.js';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'retirer-copie-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
-const RETIRER = path.resolve(__dirname, '../../scripts/retirer-copie.sh');
+const RETIRER = path.join(CADRE, 'scripts/retirer-copie.sh');
 const LONG = 30_000;
 
 // The test repositories live on disk: the commands that build them allow the file transport to

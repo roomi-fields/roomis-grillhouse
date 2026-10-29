@@ -16,15 +16,23 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import ts from 'typescript';
 import { afterAll, describe, expect, it } from 'vitest';
-import {
-  LIGNE_ETAT,
-  mettreAJour as mettreAJourLeProjet,
-  rapport,
-  regenerer,
-} from '../../scripts/grillhouse-maj.mjs';
-import { CONFIGURATION as CONFIG_DES_FRONTIERES } from '../../scripts/langages/typescript/frontieres.mjs';
-import { gardesDuCadre } from '../../scripts/gardes-du-cadre.mjs';
 import { cheminSysteme, claudeSubstitut } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { RACINE, enProcessus, valeursDe } from './cadre.js';
+
+const mettreAJourLeProjet = enProcessus<Record<string, unknown>>(
+  'scripts/grillhouse-maj.mjs',
+  'mettreAJour'
+);
+const rapport = enProcessus<string>('scripts/grillhouse-maj.mjs', 'rapport');
+const regenerer = enProcessus<string[]>('scripts/grillhouse-maj.mjs', 'regenerer');
+const { LIGNE_ETAT } = valeursDe('scripts/grillhouse-maj.mjs', ['LIGNE_ETAT']) as {
+  LIGNE_ETAT: string;
+};
+const { CONFIGURATION: CONFIG_DES_FRONTIERES } = valeursDe(
+  'scripts/langages/typescript/frontieres.mjs',
+  ['CONFIGURATION']
+) as { CONFIGURATION: string };
+const gardesDuCadre = enProcessus<string[][]>('scripts/gardes-du-cadre.mjs', 'gardesDuCadre');
 
 // semver, which ships no types of its own, required with the API this file calls.
 const semver = createRequire(import.meta.url)('semver') as {
@@ -44,7 +52,7 @@ const lire = (racine: string, f: string) => readFileSync(path.join(racine, f), '
 const json = (racine: string, f: string) => JSON.parse(lire(racine, f)) as Record<string, unknown>;
 // grillhouse-3dr.2.3: the projects of this file are of TypeScript, declared (`grillhouse.langages`)
 // before the update, which refuses a project where it finds no language
-// (tests/unit/grillhouse-maj.langages.spec.ts tests the declaration itself).
+// (packages/grillhouse/tests/unit/grillhouse-maj.langages.spec.ts tests the declaration itself).
 function declarer(projet: string) {
   const f = path.join(projet, 'package.json');
   if (!existsSync(f)) {
@@ -78,14 +86,14 @@ function source(fichiers: Record<string, string>) {
 // grillhouse-3uv.55: the update writes the frame's controls, `grillhouse:gardes`, the one list of
 // them, into the project it installs. The frame is this repository: the package.json of its
 // template of a project (templates/projet/) holds the frame's scripts and tools (grillhouse-3uv.84.4). Turborepo plays that list after the build, beside the tests (turbo.json, npm run verifier).
-const DEPOT = path.resolve(__dirname, '../../../..');
+const DEPOT = RACINE;
 const GARDES = 'npm run --silent grillhouse:gardes';
 // The controls of the frame, in the order of the list grillhouse:gardes plays
 // (scripts/gardes-du-cadre.mjs, critère 1: the language's, then the core's); the build is not among them: Turborepo builds before
 // them.
 const APPEL_DES_GARDES = 'grillhouse gardes-du-cadre';
 const etapesDesGardes = () =>
-  gardesDuCadre(path.resolve(__dirname, '../../../..')).map(
+  gardesDuCadre(RACINE).map(
     ([f, ...args]) => `grillhouse ${[path.basename(f, '.mjs'), ...args].join(' ')}`
   );
 const CONTROLES: [string, RegExp][] = [
@@ -1781,11 +1789,11 @@ describe('grillhouse-3uv.84.4 critère 2 — grillhouse maj plays the migrations
 // former scripts, their subcommands, their npm scripts and the relay of the update to a source
 // checkout are gone.
 describe('grillhouse-3uv.84.4 critère 4 — new-project.sh, setup.sh and the relay of the update are gone', () => {
-  it('the package holds neither new-project.sh nor setup.sh, and its command names neither', async () => {
+  it('the package holds neither new-project.sh nor setup.sh, and its command names neither', () => {
     for (const f of ['new-project.sh', 'setup.sh']) {
       expect(existsSync(path.join(DEPOT, 'packages/grillhouse/scripts', f)), f).toBe(false);
     }
-    const { SOUS_COMMANDES } = (await import('../../scripts/sous-commandes.mjs')) as {
+    const { SOUS_COMMANDES } = valeursDe('scripts/sous-commandes.mjs', ['SOUS_COMMANDES']) as {
       SOUS_COMMANDES: Record<string, string>;
     };
     expect(SOUS_COMMANDES).not.toHaveProperty('new-project');

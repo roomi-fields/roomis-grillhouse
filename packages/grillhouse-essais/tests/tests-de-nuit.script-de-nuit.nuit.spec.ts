@@ -2,17 +2,29 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { DEPOT, rangs, NUITS, essai, JOUR, noms, testsDeNuitEssai } from './tests-de-nuit-essai.js';
+import {
+  rangs,
+  NUITS,
+  essai,
+  JOUR,
+  noms,
+  testsDeNuitEssai,
+} from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { RACINE, enProcessus } from './cadre.js';
 
-// The night tests (grillhouse-3uv.34, tests/unit/tests-de-nuit.spec.ts): scripts/nuit.sh plays
+// The frame's repository of the same tree, and its update, called in a process of its own.
+const DEPOT = RACINE;
+const mettreAJour = enProcessus<unknown>('scripts/grillhouse-maj.mjs', 'mettreAJour');
+
+// The night tests (grillhouse-3uv.34, packages/grillhouse/tests/unit/tests-de-nuit.spec.ts): scripts/nuit.sh plays
 // them itself, then the night script of the project; a red one turns the night red; the key
 // grillhouse.nuit, a project installed by the update, a project without any night test.
-// The projects of trial: ./tests-de-nuit-essai.ts.
+// The projects of trial: the shared material (@roomi-fields/grillhouse-matiere/test-fixtures: testsDeNuitEssai).
 
 // The trial directories of this run live in one root, removed at its end (critère 2).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tests-de-nuit-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-const { projet, nuitDe } = testsDeNuitEssai(ESSAIS);
+const { projet, nuitDe } = testsDeNuitEssai(ESSAIS, { depot: DEPOT, mettreAJour });
 
 // A script that appends `nom` to TRACE, for the package.json of a project of trial.
 const noter = (nom: string, code = 0) =>

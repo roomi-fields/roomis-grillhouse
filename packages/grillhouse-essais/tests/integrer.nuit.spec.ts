@@ -12,7 +12,17 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { chantier } from './integration-essai.js';
-import { refusArbitrage, refusLots, refusVerdicts } from '../../scripts/integration/integrer.mjs';
+import { CADRE, enProcessus } from './cadre.js';
+
+const refusArbitrage = enProcessus<string | null>(
+  'scripts/integration/integrer.mjs',
+  'refusArbitrage'
+);
+const refusLots = enProcessus<string | null>('scripts/integration/integrer.mjs', 'refusLots');
+const refusVerdicts = enProcessus<string | null>(
+  'scripts/integration/integrer.mjs',
+  'refusVerdicts'
+);
 
 // The integration of a ticket's lot (scripts/integration/integrer.mjs): the verdicts and the lots
 // it refuses, an integration, the copy it recreates, the commit on the ticket branch. The commands
@@ -24,8 +34,8 @@ import { refusArbitrage, refusLots, refusVerdicts } from '../../scripts/integrat
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'integrer-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
-const SCRIPT = path.resolve(__dirname, '../../scripts/integration/integrer.mjs');
-const RETIRER = path.resolve(__dirname, '../../scripts/retirer-copie.sh');
+const SCRIPT = path.join(CADRE, 'scripts/integration/integrer.mjs');
+const RETIRER = path.join(CADRE, 'scripts/retirer-copie.sh');
 // A comment of Beads' JSON, under its author, the reviewer's by default.
 const c = (text: string, author = 'relecteur') => ({ text, author });
 

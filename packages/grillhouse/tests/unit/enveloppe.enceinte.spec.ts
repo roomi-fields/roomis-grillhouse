@@ -8,7 +8,12 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import {
+  canWrap,
+  enveloppeEssai,
+  LANGAGE,
+  racineSousLaMaison,
+} from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { CODE_REFUS } from '../../scripts/enveloppe/codes.mjs';
 import { montagesDeLaSeance, plan } from '../../scripts/enveloppe/enveloppe.mjs';
 import {
@@ -18,8 +23,7 @@ import {
   VARIABLE as VARIABLE_NUE,
 } from '../../scripts/enveloppe/paquets-du-plan.mjs';
 import { aVerifier } from '../../scripts/langages/typescript/interfaces-contre-code.mjs';
-import { SCRIPT, enveloppeEssai } from './enveloppe-essai.js';
-import { LANGAGE } from './langage-essai.js';
+import { SCRIPT } from './enveloppe-essai.js';
 
 const VARIABLE = VARIABLE_NUE as string;
 const ecrireLaListe = (paquets: string[]) => ecrireLaListeNue(paquets) as string;

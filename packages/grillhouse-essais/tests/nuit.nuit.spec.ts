@@ -13,12 +13,13 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { CADRE, RACINE } from './cadre.js';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'nuit-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
-const NUIT = path.resolve(__dirname, '../../scripts/nuit.sh');
+const NUIT = path.join(CADRE, 'scripts/nuit.sh');
 // The header of nuit.sh: its comment lines after the shebang, up to the first line that is not one.
 const enteteDeNuit = () => {
   const lignes = readFileSync(NUIT, 'utf8').split('\n').slice(1);
@@ -1323,7 +1324,7 @@ describe('grillhouse-3uv.58 critère 6 — the night removes and recreates a cop
 // (grillhouse.nuit) and the push of the green (grillhouse.poussee.nuit).
 describe('grillhouse-3uv.56 critère 15 — STRUCTURE.md sums up the night with its two keys', () => {
   it('critère 15: the line of nuit.sh in STRUCTURE.md names grillhouse.nuit and grillhouse.poussee.nuit', () => {
-    const ligne = readFileSync(path.resolve(__dirname, '../../../../STRUCTURE.md'), 'utf8')
+    const ligne = readFileSync(path.join(RACINE, 'STRUCTURE.md'), 'utf8')
       .split('\n')
       .find(l => /\bnuit\.sh\s+#/.test(l));
     expect(ligne).toBeDefined();

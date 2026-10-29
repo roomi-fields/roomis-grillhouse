@@ -10,15 +10,15 @@ import {
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
-import { mettreAJour } from '../../scripts/grillhouse-maj.mjs';
 
-// The trial harness of the night tests (grillhouse-3uv.34), shared by their tests
-// (tests/unit/tests-de-nuit*.spec.ts): the projects of trial that play the real configuration of
-// the repository, and what reads their runs.
+// The trial harness of the night tests (grillhouse-3uv.34), shared by their tests (the frame's
+// tests/unit/tests-de-nuit.spec.ts, and packages/grillhouse-essais/tests/
+// tests-de-nuit.script-de-nuit.nuit.spec.ts): the projects of trial that play the real
+// configuration of the repository, and what reads their runs. The repository of the frame and its
+// update are passed in by the caller: this material imports no package.
 
-export const DEPOT = path.resolve(__dirname, '../../../..');
-// The template of a project, whose package.json and day configuration a project of trial takes.
-const GABARIT = path.join(DEPOT, 'templates/projet');
+// The update of the frame that installs it in the project <projet> from the repository <depot>.
+export type MiseAJour = (projet: string, depot: string) => unknown;
 
 // A test file that appends its name to the trace `.trace` names, and fails when `rouge`.
 export const essai = (nom: string, rouge = false) =>
@@ -42,7 +42,7 @@ export const NUITS = [
 
 // The dependencies of the repository, linked one by one so that Vitest writes its cache in the
 // project of trial.
-export function lierDependances(repo: string) {
+export function lierDependances(repo: string, DEPOT: string) {
   mkdirSync(path.join(repo, 'node_modules'));
   for (const e of readdirSync(path.join(DEPOT, 'node_modules'))) {
     if (e !== '.vite' && e !== '.vitest') {
@@ -57,7 +57,12 @@ export const noms = (fichiers: string[]) => fichiers.map(f => path.basename(f)).
 export const rangs = (lignes: string[], noms_: string[]) => noms_.map(n => lignes.indexOf(n));
 
 // The projects of trial of one test file, under <ESSAIS>.
-export function testsDeNuitEssai(ESSAIS: string) {
+export function testsDeNuitEssai(
+  ESSAIS: string,
+  { depot: DEPOT, mettreAJour }: { depot: string; mettreAJour: MiseAJour }
+) {
+  // The template of a project, whose package.json and day configuration a project of trial takes.
+  const GABARIT = path.join(DEPOT, 'templates/projet');
   // A project of trial, its frame installed by the update of the frame (critère 9): by default the
   // package.json of the template of a project (its build, which builds the example itself, and its
   // typing, which types it, left out, and its section `grillhouse` with it: the key `grillhouse.nuit` is the project's, critère 8) and
@@ -103,7 +108,7 @@ export function testsDeNuitEssai(ESSAIS: string) {
     // The dependencies are installed before the update, as in a project: the update reads the
     // Vitest its root resolves.
     if (o.dependances !== false) {
-      lierDependances(repo);
+      lierDependances(repo, DEPOT);
     }
     mettreAJour(repo, DEPOT);
     // The frame's package at packages/grillhouse/, whose scripts the night names by their path
@@ -157,7 +162,7 @@ export function testsDeNuitEssai(ESSAIS: string) {
     return { repo, bin, env, lancer, lignes, joues, pression };
   }
 
-  // The night in a repository of trial, as tests/unit/nuit.spec.ts plays it: a fake Beads records
+  // The night in a repository of trial, as packages/grillhouse-essais/tests/nuit.nuit.spec.ts plays it: a fake Beads records
   // its calls.
   function nuitDe(p: ReturnType<typeof projet>) {
     writeFileSync(path.join(p.bin, 'bd'), `#!/bin/sh\necho "$@" >> ${p.bin}/appels\n`, {

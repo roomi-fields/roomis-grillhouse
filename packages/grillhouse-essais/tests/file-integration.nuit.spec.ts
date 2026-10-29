@@ -5,6 +5,7 @@ import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { chantier, FILE, INTEGRER_SCRIPT, type Chantier } from './integration-essai.js';
 import { LONG } from './file-integration-essai.js';
+import { RACINE } from './cadre.js';
 
 // grillhouse-3uv.63: the integration commits a ticket's lot on its branch agent/<ticket>, and a
 // queue brings the branches onto main, one at a time, in their order of arrival (a merge queue:
@@ -26,7 +27,6 @@ import { LONG } from './file-integration-essai.js';
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'file-integration-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-const RACINE = path.resolve(__dirname, '../../../..');
 const lire = (rel: string) => readFileSync(path.join(RACINE, rel), 'utf8');
 
 describe('grillhouse-3uv.63 — the queue brings the branches onto main', () => {

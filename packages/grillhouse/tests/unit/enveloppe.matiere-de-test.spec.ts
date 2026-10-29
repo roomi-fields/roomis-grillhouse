@@ -2,9 +2,13 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { SCRIPT, enveloppeEssai } from './enveloppe-essai.js';
-import { LANGAGE } from './langage-essai.js';
+import {
+  canWrap,
+  enveloppeEssai,
+  LANGAGE,
+  racineSousLaMaison,
+} from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { SCRIPT } from './enveloppe-essai.js';
 
 // The envelope of an agent (scripts/enveloppe/enveloppe.mjs, tests/unit/enveloppe.spec.ts) and the
 // package of the shared test material: shown, by any form of export, absent, or reached by a link.

@@ -7,10 +7,14 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import {
+  canWrap,
+  enveloppeEssai,
+  LANGAGE,
+  racineSousLaMaison,
+} from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { dossierDeTravail, plan } from '../../scripts/enveloppe/enveloppe.mjs';
-import { SCRIPT, enveloppeEssai } from './enveloppe-essai.js';
-import { LANGAGE } from './langage-essai.js';
+import { SCRIPT } from './enveloppe-essai.js';
 
 // A disk that holds the paths <files>.
 const fakeDisk = (files: string[]) => {

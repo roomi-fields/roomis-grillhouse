@@ -17,6 +17,7 @@ import {
   claudeSubstitut,
   configGit,
 } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { CADRE } from './cadre.js';
 
 // grillhouse-3uv.84.4 critère 1: `grillhouse init <dossier> [préfixe]` creates a project from the
 // template of a project (templates/projet/), as create-turbo creates one from its example: each file
@@ -28,7 +29,7 @@ import {
 // (Beads, CodeGraph, npm, whose install links this repository's node_modules) are stood in, and so
 // is claude (packages/grillhouse-matiere/src/claude-substitut.ts).
 
-const PAQUET = path.resolve(__dirname, '../..');
+const PAQUET = CADRE;
 const DEPOT = path.resolve(PAQUET, '../..');
 const GRILLHOUSE = path.join(PAQUET, 'bin/grillhouse.mjs');
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'nouveau-projet-'));

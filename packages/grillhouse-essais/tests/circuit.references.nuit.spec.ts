@@ -5,17 +5,16 @@ import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import {
   ARRETS,
-  CADRE,
   DESCRIPTION,
   CODE_JUSTE,
   ECRIT_ROUGE,
   circuitEssai,
   ecrire,
-  enProcessus,
   json,
   lire,
   sortie,
 } from './circuit-essai.js';
+import { CADRE, enProcessus } from './cadre.js';
 
 const couvertPar = enProcessus<boolean>('scripts/integration/integrer.mjs', 'couvertPar');
 

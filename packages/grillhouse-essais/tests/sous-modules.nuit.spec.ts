@@ -4,16 +4,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { canWrap } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { CODE_COPIE } from '../../scripts/enveloppe/codes.mjs';
-import {
-  git,
-  LANCER,
-  SCRIPTS,
-  RACINE,
-  INTEGRER,
-  LONG,
-  sousModulesEssai,
-} from './sous-modules-essai.js';
+import { git, LANCER, SCRIPTS, INTEGRER, LONG, sousModulesEssai } from './sous-modules-essai.js';
+import { RACINE, valeursDe } from './cadre.js';
+
+const { CODE_COPIE } = valeursDe('scripts/enveloppe/codes.mjs', ['CODE_COPIE']) as {
+  CODE_COPIE: number;
+};
 
 // grillhouse-3uv.29: the working copies set their submodules. Three places create a working copy
 // — the integration copy (scripts/integration/integrer.mjs, step 4), the agent copy

@@ -14,7 +14,12 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { mettreAJour } from '../../scripts/grillhouse-maj.mjs';
+import { RACINE, enProcessus } from './cadre.js';
+
+const mettreAJour = enProcessus<Record<string, unknown>>(
+  'scripts/grillhouse-maj.mjs',
+  'mettreAJour'
+);
 
 // grillhouse-3uv.59: the frame's pre-push hook refuses every push to the branch named by
 // `grillhouse.poussee.nuit` that does not come from the night; scripts/nuit.sh makes itself known
@@ -29,7 +34,7 @@ import { mettreAJour } from '../../scripts/grillhouse-maj.mjs';
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'pre-push-nuit-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
-const DEPOT = path.resolve(__dirname, '../../../..');
+const DEPOT = RACINE;
 const NUIT = path.join(DEPOT, 'packages/grillhouse/scripts/nuit.sh');
 
 // The Beads section of the pre-push hook, markers included, as Beads 1.2.2 writes it.

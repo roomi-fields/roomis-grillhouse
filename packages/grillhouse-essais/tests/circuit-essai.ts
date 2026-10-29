@@ -11,16 +11,14 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { canWrap } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { CADRE, RACINE, valeursDe } from './cadre.js';
 
 // The trial harness of the circuit of a ticket (scripts/circuit.mjs), shared by its tests
 // (tests/circuit*.nuit.spec.ts): the frame's paths, the stand-ins of claude and bd, the scenarios a
 // test writes for each role, and the trial repository, which circuitEssai builds in the trial
 // directory of the file that calls it.
 //
-// The frame's package is the one of the same tree (`CADRE`, packages/grillhouse beside this
-// package), never the one a resolution by its name would reach (in a copy without its own
-// install, main's): a test launches its scripts in processes, as turborepo-tests launch the
-// binary of turbo built in their own tree, and imports none of them in its own process.
+// The frame's package is the one of the same tree (./cadre.ts).
 //
 // The trial repository holds two packages, `000-forms` (packages/forms) and `030-binder`
 // (packages/binder, which depends on forms), whose `mesure` is wrong until the developpeur writes
@@ -33,43 +31,9 @@ import { canWrap } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 // proof and the checks are real runs of the frame's commands (npm test, npm run verifier), and the
 // integration the frame's script (scripts/integration/integrer.mjs).
 
-const RACINE = path.resolve(__dirname, '../../..');
-// The directory of the frame's package, in the same tree.
-export const CADRE = path.join(RACINE, 'packages/grillhouse');
 export const CIRCUIT = path.join(CADRE, 'scripts/circuit.mjs');
 const ENVELOPPE = path.join(CADRE, 'scripts/enveloppe/enveloppe.mjs');
 export const BASE = path.join(CADRE, 'scripts/langages/typescript/vitest-config/base.mjs');
-
-// The function <nom> of the frame's script <script> (from the package's directory), called in a
-// process of its own: its arguments and its result pass as JSON.
-export function enProcessus<T>(script: string, nom: string): (...args: unknown[]) => T {
-  const module = pathToFileURL(path.join(CADRE, script)).href;
-  const code = `const m = await import(${JSON.stringify(module)});
-process.stdout.write(JSON.stringify(m[${JSON.stringify(nom)}](...JSON.parse(process.argv[1]))) ?? 'null');`;
-  return (...args) => {
-    const r = spawnSync(
-      process.execPath,
-      ['--input-type=module', '-e', code, JSON.stringify(args)],
-      {
-        encoding: 'utf8',
-      }
-    );
-    if (r.status !== 0) {
-      throw new Error(`${script} ${nom} : ${r.stderr}`);
-    }
-    return JSON.parse(r.stdout) as T;
-  };
-}
-
-// The values <noms> the frame's script <script> exports, read in a process of its own; empty when
-// the script does not load.
-function valeursDe(script: string, noms: string[]): Record<string, unknown> {
-  const module = pathToFileURL(path.join(CADRE, script)).href;
-  const code = `const m = await import(${JSON.stringify(module)});
-process.stdout.write(JSON.stringify(Object.fromEntries(${JSON.stringify(noms)}.map(n => [n, m[n]]))));`;
-  const r = spawnSync(process.execPath, ['--input-type=module', '-e', code], { encoding: 'utf8' });
-  return r.status === 0 ? (JSON.parse(r.stdout) as Record<string, unknown>) : {};
-}
 
 // The turbo.json of each package of <racine> and its root's, written by the frame's command.
 export function ecrireTurbo(racine: string): void {

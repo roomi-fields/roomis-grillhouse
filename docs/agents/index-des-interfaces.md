@@ -13,7 +13,7 @@ Le paquet n'exporte rien : il ne déclare ni `exports`, ni `main`, ni `types`, e
 
 La matière de test que partagent les paquets de Grillhouse, par la seule entrée `@roomi-fields/grillhouse-matiere/test-fixtures` (`src/index.ts`). (`packages/grillhouse-matiere/docs/INTERFACE.md`)
 
-- **Consommateurs** — grillhouse (AppelClaude, EtatClaude, canWrap, cheminSysteme, claudeSubstitut, configGit, couvre, hasBd, racineSousLaMaison, sansClaude) ; grillhouse-essais (canWrap, couvre, racineSousLaMaison)
+- **Consommateurs** — grillhouse (JOUR, LANGAGE, NUITS, PRESSION, canWrap, cheminSysteme, claudeSubstitut, configGit, couvre, declarerLeLangage, enveloppeEssai, essai, hasBd, lierDependances, noms, racineSousLaMaison, rangs, testsDeNuitEssai) ; grillhouse-essais (AppelClaude, EtatClaude, JOUR, LANGAGE, NUITS, canWrap, cheminSysteme, claudeSubstitut, configGit, couvre, enveloppeEssai, essai, noms, racineSousLaMaison, rangs, sansClaude, testsDeNuitEssai)
 
 ## grillhouse — Le noyau de Grillhouse — interface
 

@@ -6,7 +6,8 @@ import {
   couvre,
   racineSousLaMaison,
 } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { sortie, CODE_JUSTE, ECRIT_ROUGE, circuitEssai, enProcessus } from './circuit-essai.js';
+import { sortie, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
+import { enProcessus } from './cadre.js';
 
 const commitIntegre = enProcessus<string | null>('scripts/circuit.mjs', 'commitIntegre');
 const schemaDeFiche = enProcessus<unknown>('scripts/resultats.mjs', 'schemaDeFiche');

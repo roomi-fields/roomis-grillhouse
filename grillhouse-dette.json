@@ -5,22 +5,7 @@
         "count": 1
       }
     },
-    "packages/grillhouse/tests/unit/commandes-en-enveloppe.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/crochets-du-cadre.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
     "packages/grillhouse/tests/unit/enveloppe.enceinte.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/enveloppe.lanceur.spec.ts": {
       "grand-de-jour": {
         "count": 1
       }
@@ -45,62 +30,7 @@
         "count": 1
       }
     },
-    "packages/grillhouse/tests/unit/file-integration.ci.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/file-integration.dependances.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/file-integration.renvois.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/file-integration.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
     "packages/grillhouse/tests/unit/git-des-tests.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/greffons-du-cadre.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/grillhouse-maj.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/integrer.commandes.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/integrer.dependances.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/integrer.references.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/integrer.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/lancer-modele.spec.ts": {
       "grand-de-jour": {
         "count": 1
       }
@@ -130,62 +60,7 @@
         "count": 1
       }
     },
-    "packages/grillhouse/tests/unit/nouveau-projet.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/nuit.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/pre-push-nuit.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
     "packages/grillhouse/tests/unit/registre-fin.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/retirer-copie.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/session-start.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/sous-modules.adresses.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/sous-modules.montage.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/sous-modules.partage.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/sous-modules.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/superviseur.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/tests-de-nuit.script-de-nuit.spec.ts": {
       "grand-de-jour": {
         "count": 1
       }

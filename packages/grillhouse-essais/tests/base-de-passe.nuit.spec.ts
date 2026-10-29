@@ -22,13 +22,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import {
-  CADRE,
-  CIRCUIT,
-  circuitEssai,
-  enProcessus,
-  ouvrirBaseEnProcessus as ouvrirBase,
-} from './circuit-essai.js';
+import { CIRCUIT, circuitEssai, ouvrirBaseEnProcessus as ouvrirBase } from './circuit-essai.js';
+import { CADRE, enProcessus } from './cadre.js';
 
 const DEPOT = CADRE;
 const RACINE = path.resolve(__dirname, '../../..');

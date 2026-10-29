@@ -3,12 +3,16 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { CODE_USAGE } from '../../scripts/enveloppe/codes.mjs';
-import { dossierDeTravail } from '../../scripts/enveloppe/enveloppe.mjs';
-import { publie } from '../../scripts/langages/typescript/index-interfaces.mjs';
-import { optionsDuRole } from '../../scripts/droits.mjs';
-import { schemaDeFiche } from '../../scripts/resultats.mjs';
 import { projetDuLanceur } from './enveloppe-essai.js';
+import { RACINE, enProcessus, valeursDe } from './cadre.js';
+
+const { CODE_USAGE } = valeursDe('scripts/enveloppe/codes.mjs', ['CODE_USAGE']) as {
+  CODE_USAGE: number;
+};
+const dossierDeTravail = enProcessus<string>('scripts/enveloppe/enveloppe.mjs', 'dossierDeTravail');
+const publie = enProcessus<string>('scripts/langages/typescript/index-interfaces.mjs', 'publie');
+const optionsDuRole = enProcessus<string[]>('scripts/droits.mjs', 'optionsDuRole');
+const schemaDeFiche = enProcessus<unknown>('scripts/resultats.mjs', 'schemaDeFiche');
 
 // Ticket grillhouse-3uv.46: the launcher takes a model and a reasoning level for one session
 // (--modele, --effort) and hands them to claude (--model, --effort); without them, the role's
@@ -16,7 +20,6 @@ import { projetDuLanceur } from './enveloppe-essai.js';
 const ESSAIS = racineSousLaMaison('grillhouse-essais-lancer-modele-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
-const RACINE = path.resolve(__dirname, '../../../..');
 const LAUNCHER = path.join(RACINE, 'packages/grillhouse/scripts/enveloppe/lancer.sh');
 const SCRIPT = path.join(RACINE, 'packages/grillhouse/scripts/enveloppe/enveloppe.mjs');
 

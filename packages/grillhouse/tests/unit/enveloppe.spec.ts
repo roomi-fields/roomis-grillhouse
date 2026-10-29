@@ -13,11 +13,17 @@ import {
 import { tmpdir, userInfo } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { canWrap, hasBd, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import {
+  canWrap,
+  declarerLeLangage,
+  enveloppeEssai,
+  hasBd,
+  LANGAGE,
+  racineSousLaMaison,
+} from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { CODE_REFUS } from '../../scripts/enveloppe/codes.mjs';
 import { dossierDeTravail, montagesDeLaSeance, plan } from '../../scripts/enveloppe/enveloppe.mjs';
-import { SCRIPT, enveloppeEssai } from './enveloppe-essai.js';
-import { LANGAGE, declarerLeLangage } from './langage-essai.js';
+import { SCRIPT } from './enveloppe-essai.js';
 
 // The envelope of an agent (scripts/enveloppe/enveloppe.mjs): its plan, and the real envelope on
 // disk, its environment, the session of the machine and the real home. What it shows of the home

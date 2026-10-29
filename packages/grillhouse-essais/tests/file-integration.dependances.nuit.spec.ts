@@ -13,7 +13,7 @@ import { LONG } from './file-integration-essai.js';
 // The integration queue (scripts/integration/file.mjs): its copy after a build that hard-links
 // tracked files (grillhouse-3uv.73), and its dependencies, which follow its lock file
 // (grillhouse-3uv.74).
-// The queue's interface is told in tests/unit/file-integration.spec.ts; the trial harness is
+// The queue's interface is told in file-integration.nuit.spec.ts; the trial harness is
 // ./integration-essai.ts, and the matter these files share ./file-integration-essai.ts.
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).

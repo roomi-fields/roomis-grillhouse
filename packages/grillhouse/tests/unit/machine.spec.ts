@@ -26,6 +26,15 @@ afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 // The package of the frame's tests, whose configuration the child vitest reads.
 const RACINE = path.resolve(__dirname, '../..');
+// The tests of the submodules, a night test of the package of the frame's chain, beside the frame's
+// package: a run in that package plays it when it names it (GRILLHOUSE_TESTS, the targeted run of
+// scripts/langages/typescript/vitest-config/cibles.mjs).
+const ESSAIS_DU_CADRE = path.resolve(RACINE, '../grillhouse-essais');
+const SOUS_MODULES = {
+  GRILLHOUSE_TESTS: JSON.stringify({
+    arguments: [path.join(ESSAIS_DU_CADRE, 'tests/sous-modules.nuit.spec.ts')],
+  }),
+};
 const VITEST = path.resolve(RACINE, '../../node_modules/.bin/vitest');
 const NUIT = path.join(RACINE, 'scripts/langages/typescript/vitest.nuit.config.mjs');
 const LONG = 120_000;
@@ -228,9 +237,12 @@ describe('critère 2 — on a machine without bwrap, a test that launches a real
   it(
     'critère 2: the agent copy of the submodules skips, the other tests of its describe run green',
     () => {
-      const r = jouer(['tests/unit/sous-modules.spec.ts'], 'critère 4', {
-        PATH: cheminSans('bwrap'),
-      });
+      const r = jouer(
+        [],
+        'critère 4',
+        { ...SOUS_MODULES, PATH: cheminSans('bwrap') },
+        { racine: ESSAIS_DU_CADRE }
+      );
       expect(statut(r, ENVELOPPE_REELLE)).toBe('skipped');
       for (const titre of SANS_ENVELOPPE) {
         expect(statut(r, titre), titre).toBe('passed');
@@ -244,7 +256,7 @@ describe.runIf(canWrap)('critère 4 — on a machine where bwrap works, nothing 
   it(
     'critère 4: the agent copy of the submodules runs, with the tests beside it',
     () => {
-      const r = jouer(['tests/unit/sous-modules.spec.ts'], 'critère 4', {});
+      const r = jouer([], 'critère 4', SOUS_MODULES, { racine: ESSAIS_DU_CADRE });
       expect(statut(r, ENVELOPPE_REELLE)).toBe('passed');
       for (const titre of SANS_ENVELOPPE) {
         expect(statut(r, titre), titre).toBe('passed');

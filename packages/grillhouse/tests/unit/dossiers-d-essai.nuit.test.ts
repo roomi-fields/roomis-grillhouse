@@ -15,28 +15,53 @@ const DEPOT = path.resolve(__dirname, '../..');
 const SUITES = [
   'tests/unit/enveloppe.spec.ts',
   'tests/unit/enveloppe.maison.spec.ts',
-  'tests/unit/enveloppe.lanceur.spec.ts',
   'tests/unit/enveloppe.matiere-de-test.spec.ts',
   'tests/unit/verrous.spec.ts',
 ];
+// The tests of the launcher, a night test of the package of the frame's chain beside this one,
+// which a run in that package plays when it names it (GRILLHOUSE_TESTS,
+// scripts/langages/typescript/vitest-config/cibles.mjs).
+const ESSAIS_DU_CADRE = path.resolve(DEPOT, '../grillhouse-essais');
+const LANCEUR = path.join(ESSAIS_DU_CADRE, 'tests/enveloppe.lanceur.nuit.spec.ts');
 const VITEST = path.resolve(DEPOT, '../../node_modules/vitest/vitest.mjs');
 const ECART_MS = 8000;
 
-function executer(delai: number): Promise<{ code: number | null; sortie: string }> {
+// A run of Vitest in <cwd>, with <args> and the variables <ajouts>: its exit code and its output.
+function vitest(
+  cwd: string,
+  args: string[],
+  ajouts: Record<string, string>
+): Promise<{ code: number | null; sortie: string }> {
   // The child is a run of its own, not a worker of this one.
-  const env = Object.fromEntries(
-    Object.entries(process.env).filter(([k]) => !k.startsWith('VITEST') && k !== 'NODE_OPTIONS')
-  );
+  const env = {
+    ...Object.fromEntries(
+      Object.entries(process.env).filter(([k]) => !k.startsWith('VITEST') && k !== 'NODE_OPTIONS')
+    ),
+    ...ajouts,
+  };
+  return new Promise(resolve => {
+    const p = spawn(process.execPath, [VITEST, 'run', '--reporter=dot', ...args], { cwd, env });
+    let sortie = '';
+    p.stdout.on('data', d => (sortie += d));
+    p.stderr.on('data', d => (sortie += d));
+    p.on('close', code => resolve({ code, sortie }));
+  });
+}
+
+// One run of the tests of the envelope and of the locks, after <delai>: the frame's and the
+// launcher's at once; its code is the worst of the two.
+function executer(delai: number): Promise<{ code: number | null; sortie: string }> {
   return new Promise(resolve => {
     setTimeout(() => {
-      const p = spawn(process.execPath, [VITEST, 'run', '--reporter=dot', ...SUITES], {
-        cwd: DEPOT,
-        env,
-      });
-      let sortie = '';
-      p.stdout.on('data', d => (sortie += d));
-      p.stderr.on('data', d => (sortie += d));
-      p.on('close', code => resolve({ code, sortie }));
+      void Promise.all([
+        vitest(DEPOT, SUITES, {}),
+        vitest(ESSAIS_DU_CADRE, [], { GRILLHOUSE_TESTS: JSON.stringify({ arguments: [LANCEUR] }) }),
+      ]).then(([cadre, lanceur]) =>
+        resolve({
+          code: cadre.code === 0 ? lanceur.code : cadre.code,
+          sortie: `${cadre.sortie}\n${lanceur.sortie}`,
+        })
+      );
     }, delai);
   });
 }

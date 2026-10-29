@@ -15,23 +15,25 @@ import {
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
-import { inscrireEntree } from '../../scripts/integration/file-attente.mjs';
+import { CADRE, enProcessus } from './cadre.js';
 
 // The trial harness of the integration and of its queue (grillhouse-3uv.63): a repository with
 // a fake Beads that keeps the state of its tickets, a bare remote `origin`, the frame's real
 // scripts, and the tickets' copies made as the launcher makes them (branch agent/<ticket> from
 // main's HEAD, the lot as local work in it).
 
-export const INTEGRER_SCRIPT = path.resolve(__dirname, '../../scripts/integration/integrer.mjs');
+const inscrireEntree = enProcessus<void>('scripts/integration/file-attente.mjs', 'inscrireEntree');
+
+export const INTEGRER_SCRIPT = path.join(CADRE, 'scripts/integration/integrer.mjs');
 const INTEGRER = INTEGRER_SCRIPT;
-export const FILE = path.resolve(__dirname, '../../scripts/integration/file.mjs');
-const RETIRER = path.resolve(__dirname, '../../scripts/retirer-copie.sh');
-const LANCER = path.resolve(__dirname, '../../scripts/enveloppe/lancer.sh');
+export const FILE = path.join(CADRE, 'scripts/integration/file.mjs');
+const RETIRER = path.join(CADRE, 'scripts/retirer-copie.sh');
+const LANCER = path.join(CADRE, 'scripts/enveloppe/lancer.sh');
 
 // The envelope as the launcher's tests stand it in: run, it runs the command after `--` in the
 // copy, without any sandbox; imported, it gives what the frame's envelope exports. A copy of the
 // frame's scripts holds it beside the launcher.
-const ENVELOPPE_NUE = `export * from '${path.resolve(__dirname, '../../scripts/enveloppe/enveloppe.mjs')}';
+const ENVELOPPE_NUE = `export * from '${path.join(CADRE, 'scripts/enveloppe/enveloppe.mjs')}';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

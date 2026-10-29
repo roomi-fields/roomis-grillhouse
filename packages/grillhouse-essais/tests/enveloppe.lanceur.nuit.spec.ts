@@ -2,16 +2,26 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { CODE_COPIE, CODE_REFUS, CODE_USAGE } from '../../scripts/enveloppe/codes.mjs';
-import { dossierDeTravail } from '../../scripts/enveloppe/enveloppe.mjs';
-import { SCRIPT, enveloppeEssai, projetDuLanceur } from './enveloppe-essai.js';
-import { LANGAGE } from './langage-essai.js';
-import { optionsDuRole } from '../../scripts/droits.mjs';
-import { schemaDeFiche } from '../../scripts/resultats.mjs';
+import {
+  canWrap,
+  enveloppeEssai,
+  LANGAGE,
+  racineSousLaMaison,
+} from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { SCRIPT, projetDuLanceur } from './enveloppe-essai.js';
+import { CADRE, RACINE, enProcessus, valeursDe } from './cadre.js';
+
+const { CODE_COPIE, CODE_REFUS, CODE_USAGE } = valeursDe('scripts/enveloppe/codes.mjs', [
+  'CODE_COPIE',
+  'CODE_REFUS',
+  'CODE_USAGE',
+]) as { CODE_COPIE: number; CODE_REFUS: number; CODE_USAGE: number };
+const dossierDeTravail = enProcessus<string>('scripts/enveloppe/enveloppe.mjs', 'dossierDeTravail');
+const optionsDuRole = enProcessus<string[]>('scripts/droits.mjs', 'optionsDuRole');
+const schemaDeFiche = enProcessus<unknown>('scripts/resultats.mjs', 'schemaDeFiche');
 
 // The launcher of an agent's session in its envelope (scripts/enveloppe/lancer.sh,
-// tests/unit/enveloppe.spec.ts): its exit codes, the dependencies and the work in progress of the
+// packages/grillhouse/tests/unit/enveloppe.spec.ts): its exit codes, the dependencies and the work in progress of the
 // copy, and the role in the envelope.
 // The trial harness: ./enveloppe-essai.ts.
 
@@ -21,12 +31,11 @@ const ESSAIS = racineSousLaMaison('grillhouse-essais-enveloppe-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 const { essai } = enveloppeEssai(ESSAIS);
 
-const CODES = path.resolve(__dirname, '../../scripts/enveloppe/codes.mjs');
-const LAUNCHER = path.resolve(__dirname, '../../scripts/enveloppe/lancer.sh');
+const CODES = path.join(CADRE, 'scripts/enveloppe/codes.mjs');
+const LAUNCHER = path.join(CADRE, 'scripts/enveloppe/lancer.sh');
 
 // The envelope as a test repository holds it: enveloppe.mjs and every module it imports, followed
 // from import to import, each copied at its path relative to the repository root.
-const RACINE = path.resolve(__dirname, '../../../..');
 function installerEnveloppe(repo: string) {
   const vus = new Set<string>();
   const suivre = (fichier: string) => {

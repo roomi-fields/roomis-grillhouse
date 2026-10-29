@@ -13,7 +13,6 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import {
-  DEPOT,
   PRESSION,
   rangs,
   NUITS,
@@ -22,7 +21,11 @@ import {
   lierDependances,
   noms,
   testsDeNuitEssai,
-} from './tests-de-nuit-essai.js';
+} from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { mettreAJour } from '../../scripts/grillhouse-maj.mjs';
+
+// The frame's repository, whose update the projects of trial receive.
+const DEPOT = path.resolve(__dirname, '../../../..');
 
 // grillhouse-3uv.34, critères 4 and 5: the night tests, a category beside the time budget benches
 // (`*.budget.test.*`). A night test is a file `*.nuit.test.*` or `*.nuit.spec.*`: `npm test` (the
@@ -38,12 +41,12 @@ import {
 //
 // This file: the day leaves the night tests and the benches out, the night plays them, and the
 // guards of the day. The night script (scripts/nuit.sh) is tested in tests-de-nuit.script-de-nuit.
-// The projects of trial: ./tests-de-nuit-essai.ts.
+// The projects of trial: the shared material (@roomi-fields/grillhouse-matiere/test-fixtures: testsDeNuitEssai).
 
 // The trial directories of this run live in one root, removed at its end (critère 2).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tests-de-nuit-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-const { projet, nuitDe } = testsDeNuitEssai(ESSAIS);
+const { projet, nuitDe } = testsDeNuitEssai(ESSAIS, { depot: DEPOT, mettreAJour });
 
 const NUIT_RE = /\.nuit\.(test|spec)\.(c|m)?[jt]sx?$/;
 const BUDGET_RE = /\.budget\.(test|spec)\.(c|m)?[jt]sx?$/;
@@ -139,7 +142,7 @@ describe('the base configuration of the day leaves the night out of every config
   });
   it('a package whose configuration imports it by its name plays its day tests, and neither its night tests nor its benches', () => {
     const repo = mkdtempSync(path.join(ESSAIS, 'paquets-'));
-    lierDependances(repo);
+    lierDependances(repo, DEPOT);
     // The frame's package as npm installs it: its package.json and its scripts (the base
     // configuration of the module typescript, the core's entries it reads), in place of the link
     // to the repository's.

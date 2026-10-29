@@ -13,11 +13,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { configGit } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { CADRE, RACINE } from './cadre.js';
 
 // Ticket grillhouse-3uv.8.4: the index is for the roles that see the whole repository (charter,
 // « L'index d'abord »); in an agent's copy (`.claude/worktrees/`), the session start asks neither
 // to install nor to make the index of CodeGraph. In a project tree, it still does.
-const SCRIPT = path.resolve(__dirname, '../../scripts/session-start.sh');
+const SCRIPT = path.join(CADRE, 'scripts/session-start.sh');
 const BASH = execFileSync('bash', ['-c', 'command -v bash'], { encoding: 'utf8' }).trim();
 const racine = mkdtempSync(path.join(tmpdir(), 'session-start-'));
 afterAll(() => rmSync(racine, { recursive: true, force: true }));
@@ -109,7 +110,7 @@ describe('the session start and the index of CodeGraph', () => {
 // does (« <package> <reason> », first word = a directory under packages/ or src/), and refuses a
 // line that names no directory, so that a typo does not pass in silence.
 describe('the session start and the packages out of the frame', () => {
-  const SCRIPTS = path.resolve(__dirname, '../../scripts');
+  const SCRIPTS = path.join(CADRE, 'scripts');
   // A project with packages a, v1 and v10, none with its three documents, the frame's scripts
   // installed, and the given list out of the frame.
   const avecPaquets = (liste: string | null) => {
@@ -552,10 +553,7 @@ describe('the session start asks for the scripts of the tests and the line of th
     const proposee = ligneDeNuit(dir);
     expect(texte).toContain(proposee);
     const gabarit = proposee.replace(bin, '<dossier de Node>').replace(dir, '<racine>');
-    const grill = readFileSync(
-      path.resolve(__dirname, '../../../../mods/grillhouse/skills/grill/SKILL.md'),
-      'utf8'
-    );
+    const grill = readFileSync(path.join(RACINE, 'mods/grillhouse/skills/grill/SKILL.md'), 'utf8');
     expect(grill).toContain(`\`${gabarit}\``);
     expect(grill).not.toMatch(/scripts\/nuit\.sh/);
   });

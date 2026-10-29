@@ -1,5 +1,6 @@
-// Ticket grillhouse-3dr.3.2: the tests of the frame's chain, its circuit first, live in a package of
-// their own and play at night, as Nx keeps its end-to-end projects apart from the projects they
+// Tickets grillhouse-3dr.3.2 and grillhouse-3dr.3.3: the tests of the frame's chain, its circuit
+// first, then the night, the integration and its queue, the launcher, the session start, the
+// update and the init, live in a package of their own and play at night, as Nx keeps its end-to-end projects apart from the projects they
 // test; their shared material is a package of its own, which imports none
 // (@roomi-fields/grillhouse-matiere, the convention of BPScript's corpus).
 import { spawnSync } from 'node:child_process';
@@ -40,6 +41,10 @@ type Paquet = {
   scripts: Record<string, string>;
 };
 const lireJson = (f: string) => JSON.parse(readFileSync(f, 'utf8')) as Paquet;
+// The modules a source <t> imports or re-exports: its statements at the start of a line, not the
+// text of a file of trial it writes inside a string.
+const importsDe = (t: string) =>
+  [...t.matchAll(/^(?:import|export)\b[^;]*? from '([^']+)'/gm)].map(m => m[1] as string);
 
 // The counts of `it` and of `expect` of each file moved from packages/grillhouse/tests/unit, read
 // on main before the move (23dd5ba).
@@ -72,6 +77,32 @@ const AVANT: Record<string, [number, number]> = {
   'circuit.ticket': [10, 71], // main 23dd5ba [9, 68], plus the test grillhouse-pkl.2 added (a7cb14d)
   'circuit.tri': [8, 78],
   'circuit.vert-par-fichier': [8, 28],
+  // grillhouse-3dr.3.3: the other tests of the chain, read on main before the move (255b40d).
+  nuit: [73, 318],
+  'sous-modules': [24, 95],
+  'commandes-en-enveloppe': [23, 76],
+  'retirer-copie': [48, 124],
+  'tests-de-nuit.script-de-nuit': [14, 40],
+  'integrer.dependances': [13, 40],
+  'sous-modules.adresses': [29, 119],
+  'file-integration': [21, 92],
+  'lancer-modele': [39, 115],
+  'file-integration.renvois': [15, 85],
+  integrer: [63, 217],
+  'integrer.commandes': [18, 61],
+  'sous-modules.montage': [14, 86],
+  'sous-modules.partage': [23, 124],
+  'file-integration.dependances': [7, 40],
+  'session-start': [45, 98],
+  'grillhouse-maj': [141, 329],
+  'enveloppe.lanceur': [26, 66],
+  'pre-push-nuit': [16, 63],
+  'greffons-du-cadre': [63, 170],
+  'file-integration.ci': [15, 68],
+  'crochets-du-cadre': [25, 58],
+  'integrer.references': [4, 18],
+  'nouveau-projet': [15, 37],
+  superviseur: [7, 26],
 };
 const IT = /(?<![\w.])it(?:\.\w+(?:\([^()]*\))?)*\(/g;
 const EXPECT = /(?<![\w.])expect(?:\.\w+)?\(/g;
@@ -99,15 +130,31 @@ describe('grillhouse-3dr.3.2 — the package of the tests of the chain', () => {
     expect(pkg.dependencies ?? {}).toEqual({});
     for (const f of readdirSync(path.join(dir, 'src'))) {
       const t = readFileSync(path.join(dir, 'src', f), 'utf8');
-      const imports = [...t.matchAll(/from '([^']+)'/g)].map(m => m[1] as string);
       expect(
-        imports.filter(i => !i.startsWith('node:') && !i.startsWith('./')),
+        importsDe(t).filter(i => !i.startsWith('node:') && !i.startsWith('./')),
         f
       ).toEqual([]);
     }
     expect(
       lireJson(path.join(RACINE, 'packages/grillhouse/package.json')).devDependencies
     ).toMatchObject({ '@roomi-fields/grillhouse-matiere': '*' });
+  });
+
+  it('critère 4: the reading of the material sees an import and a re-export of a package, not the text of a file of trial it writes', () => {
+    const source = [
+      "import { a } from 'paquet-importe';",
+      "export * from '@roomi-fields/grillhouse';",
+      'export {',
+      '  b,',
+      "} from 'paquet-reexporte';",
+      "const essai = `import { test } from 'vitest';\\n`;",
+      '',
+    ].join('\n');
+    expect(importsDe(source)).toEqual([
+      'paquet-importe',
+      '@roomi-fields/grillhouse',
+      'paquet-reexporte',
+    ]);
   });
 
   it('critère 5: each moved file keeps its it and its expect, and the frame keeps none of them', () => {
@@ -122,7 +169,14 @@ describe('grillhouse-3dr.3.2 — the package of the tests of the chain', () => {
     for (const nom of Object.keys(AVANT)) {
       expect(restes).not.toContain(`${nom}.spec.ts`);
     }
-    expect(restes).not.toContain('circuit-essai.ts');
+    for (const banc of [
+      'circuit-essai.ts',
+      'integration-essai.ts',
+      'file-integration-essai.ts',
+      'sous-modules-essai.ts',
+    ]) {
+      expect(restes).not.toContain(banc);
+    }
   });
 
   it('critère 6: the day leaves every moved file out, and a file named plays it', () => {

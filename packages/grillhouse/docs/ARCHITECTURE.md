@@ -481,7 +481,9 @@ son langage (`outils`), aux versions du gabarit. Une même suite de conformité 
 comme le RuleTester d'ESLint une règle. Ainsi le reste du noyau ignore le langage du projet.
 
 **Les tests d'intégration, un paquet à part** : les tests qui montent un dépôt d'essai et y
-lancent le cadre entier (le circuit, plus de la moitié du temps des tests) vivent dans
+lancent un point d'entrée qui en enchaîne plusieurs (le circuit, plus de la moitié du temps des
+tests ; la nuit, l'intégration et sa file, le lanceur d'un agent, l'ouverture de séance, la mise à
+jour et l'init, le retrait d'une copie) vivent dans
 `packages/grillhouse-essais`, privé, comme `turborepo-tests` de Turborepo : des tests de nuit
 (`*.nuit.spec.ts`), qui lancent en processus les scripts du cadre de leur propre arbre, et n'en
 importent aucun dans leur processus ; la nuit les

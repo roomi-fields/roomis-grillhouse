@@ -21,6 +21,7 @@ import {
   configGit,
   sansClaude,
 } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { RACINE } from './cadre.js';
 
 // grillhouse-3uv.71: the nominal configuration. The frame's plugins are listed once, in
 // `enabledPlugins` (and `extraKnownMarketplaces`) of the project's `.claude/settings.json`. One
@@ -35,7 +36,7 @@ import {
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'greffons-du-cadre-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
-const DEPOT = path.resolve(__dirname, '../../../..');
+const DEPOT = RACINE;
 const GREFFONS = path.join(DEPOT, 'packages/grillhouse/scripts/greffons.mjs');
 const MAJ = path.join(DEPOT, 'packages/grillhouse/scripts/grillhouse-maj.mjs');
 const SESSION = path.join(DEPOT, 'packages/grillhouse/scripts/session-start.sh');

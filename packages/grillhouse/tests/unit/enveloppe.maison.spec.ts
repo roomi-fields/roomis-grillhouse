@@ -3,9 +3,14 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { canWrap, hasBd, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { SCRIPT, enveloppeEssai } from './enveloppe-essai.js';
-import { declarerLeLangage } from './langage-essai.js';
+import {
+  canWrap,
+  declarerLeLangage,
+  enveloppeEssai,
+  hasBd,
+  racineSousLaMaison,
+} from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { SCRIPT } from './enveloppe-essai.js';
 
 // The envelope of an agent (scripts/enveloppe/enveloppe.mjs, tests/unit/enveloppe.spec.ts): what
 // it shows of the home and of the session, and only that.

@@ -11,12 +11,16 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { CODE_COPIE } from '../../scripts/enveloppe/codes.mjs';
 import { git, LONG, POSE, sousModulesEssai } from './sous-modules-essai.js';
+import { valeursDe } from './cadre.js';
+
+const { CODE_COPIE } = valeursDe('scripts/enveloppe/codes.mjs', ['CODE_COPIE']) as {
+  CODE_COPIE: number;
+};
 
 // grillhouse-3uv.69: the address a copy sets each submodule from, the main repository's
 // submodule.<name>.url, the url of .gitmodules, relative urls and remotes. The preparation of the
-// copies: tests/unit/sous-modules.spec.ts.
+// copies: sous-modules.nuit.spec.ts.
 // The worlds of trial and the frame's scripts they run: ./sous-modules-essai.ts.
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).

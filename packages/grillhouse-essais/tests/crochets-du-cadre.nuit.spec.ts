@@ -14,9 +14,16 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { CROCHETS } from '../../scripts/crochets.mjs';
-import { mettreAJour } from '../../scripts/grillhouse-maj.mjs';
 import { claudeSubstitut } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { RACINE, enProcessus, valeursDe } from './cadre.js';
+
+const { CROCHETS } = valeursDe('scripts/crochets.mjs', ['CROCHETS']) as {
+  CROCHETS: Record<'commit-msg' | 'pre-push', { garde: string; lignes: string[] }>;
+};
+const mettreAJour = enProcessus<Record<string, unknown>>(
+  'scripts/grillhouse-maj.mjs',
+  'mettreAJour'
+);
 
 // The frame's git hooks, on Husky's model (grillhouse-3uv.84.5, after grillhouse-3uv.59.1):
 // commit-msg (« un ticket fermé garde sa livraison », scripts/un-commit-par-ticket.mjs) and pre-push
@@ -35,7 +42,7 @@ import { claudeSubstitut } from '@roomi-fields/grillhouse-matiere/test-fixtures'
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'crochets-du-cadre-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
-const DEPOT = path.resolve(__dirname, '../../../..');
+const DEPOT = RACINE;
 const PAQUET = path.join(DEPOT, 'packages/grillhouse');
 const SESSION = path.join(PAQUET, 'scripts/session-start.sh');
 

@@ -3,13 +3,20 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { chantier, type Chantier } from './integration-essai.js';
-import { CODE_COPIE } from '../../scripts/enveloppe/codes.mjs';
-import { lireEntrees } from '../../scripts/integration/file-attente.mjs';
 import { LONG } from './file-integration-essai.js';
+import { enProcessus, valeursDe } from './cadre.js';
+
+const { CODE_COPIE } = valeursDe('scripts/enveloppe/codes.mjs', ['CODE_COPIE']) as {
+  CODE_COPIE: number;
+};
+const lireEntrees = enProcessus<{ fichier: string; branche: string; ticket: string }[]>(
+  'scripts/integration/file-attente.mjs',
+  'lireEntrees'
+);
 
 // The integration queue (scripts/integration/file.mjs, grillhouse-3uv.63): a copy still in place,
 // a ticket sent back and relaunched, a branch with nothing ahead of main.
-// The queue's interface is told in tests/unit/file-integration.spec.ts; the trial harness is
+// The queue's interface is told in file-integration.nuit.spec.ts; the trial harness is
 // ./integration-essai.ts, and the matter these files share ./file-integration-essai.ts.
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).

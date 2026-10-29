@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { canWrap } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { CODE_COPIE } from '../../scripts/enveloppe/codes.mjs';
 import {
   git,
   LANCER,
@@ -15,10 +14,15 @@ import {
   POSE,
   sousModulesEssai,
 } from './sous-modules-essai.js';
+import { valeursDe } from './cadre.js';
+
+const { CODE_COPIE } = valeursDe('scripts/enveloppe/codes.mjs', ['CODE_COPIE']) as {
+  CODE_COPIE: number;
+};
 
 // grillhouse-3uv.58.1: the read-only mount of the shared submodules over each command of the
 // project the frame plays in a linked copy (critères 15 to 20). The preparation of the copies:
-// tests/unit/sous-modules.spec.ts.
+// sous-modules.nuit.spec.ts.
 // The worlds of trial and the frame's scripts they run: ./sous-modules-essai.ts.
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).

@@ -2,15 +2,8 @@ import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import {
-  lire,
-  sortie,
-  ARRETS,
-  CODE_JUSTE,
-  ECRIT_ROUGE,
-  circuitEssai,
-  enProcessus,
-} from './circuit-essai.js';
+import { lire, sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
+import { enProcessus } from './cadre.js';
 
 const texteDuVerdict = enProcessus<string>('scripts/circuit.mjs', 'texteDuVerdict');
 

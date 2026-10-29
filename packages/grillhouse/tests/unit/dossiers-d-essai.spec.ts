@@ -342,9 +342,9 @@ describe('the trial directories of the tests', () => {
       }
     }
     expect(restent).toEqual([]);
-    // The guard sees the roots in the temp directory too, as the one of the session start.
-    const s = sources.find(x => x.f === 'tests/unit/session-start.spec.ts')?.s ?? '';
-    expect(racines(s).map(r => r.nom)).toEqual(['racine']);
+    // The guard sees the roots in the temp directory too, as the one of the tests of the machine.
+    const s = sources.find(x => x.f === 'tests/unit/machine.spec.ts')?.s ?? '';
+    expect(racines(s).map(r => r.nom)).toEqual(['ESSAIS']);
   });
 
   it('critère 3 — a trial directory outside the temp directory carries a unique name and its written reason', () => {

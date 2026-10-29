@@ -13,6 +13,12 @@ au sens du cadre : il n'exporte que ce sous-chemin, et seuls des tests le lisent
 - `configGit(...)`, le type `ReglageGit` : les réglages de git passés par l'environnement, composés
   avec ceux de la suite.
 - `couvre(regle, appel)` : une règle de permission couvre un appel, comme Claude Code la lit.
+- `LANGAGE`, `declarerLeLangage(repo)` : la section `grillhouse` d'un projet d'essai de
+  TypeScript, et son package.json qui la déclare.
+- `enveloppeEssai(ESSAIS)` : les dossiers d'essai d'un fichier de tests de l'enveloppe.
+- `testsDeNuitEssai(ESSAIS, { depot, mettreAJour })`, le type `MiseAJour`, et `essai`, `PRESSION`,
+  `JOUR`, `NUITS`, `lierDependances(repo, depot)`, `noms`, `rangs` : les projets d'essai des tests
+  de nuit, que la mise à jour du cadre installe depuis `depot`.
 
 ## Les fautes
 
@@ -22,5 +28,5 @@ Aucune : la matière ne rend aucune faute.
 
 Les lecteurs la déclarent en `devDependencies` et l'importent par son nom.
 
-- `grillhouse` : AppelClaude, EtatClaude, canWrap, cheminSysteme, claudeSubstitut, configGit, couvre, hasBd, racineSousLaMaison, sansClaude
-- `grillhouse-essais` : canWrap, couvre, racineSousLaMaison
+- `grillhouse` : JOUR, LANGAGE, NUITS, PRESSION, canWrap, cheminSysteme, claudeSubstitut, configGit, couvre, declarerLeLangage, enveloppeEssai, essai, hasBd, lierDependances, noms, racineSousLaMaison, rangs, testsDeNuitEssai
+- `grillhouse-essais` : AppelClaude, EtatClaude, JOUR, LANGAGE, NUITS, canWrap, cheminSysteme, claudeSubstitut, configGit, couvre, enveloppeEssai, essai, noms, racineSousLaMaison, rangs, sansClaude, testsDeNuitEssai

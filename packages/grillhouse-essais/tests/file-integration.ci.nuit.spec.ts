@@ -2,13 +2,15 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { fluxDeLaBranche } from '../../scripts/integration/file.mjs';
 import { chantier, type Chantier } from './integration-essai.js';
 import { LONG } from './file-integration-essai.js';
+import { enProcessus } from './cadre.js';
+
+const fluxDeLaBranche = enProcessus<string[]>('scripts/integration/file.mjs', 'fluxDeLaBranche');
 
 // The integration queue (scripts/integration/file.mjs): it judges the tests by their status
 // (grillhouse-3uv.56), and reads the CI of the commit it pushes.
-// The queue's interface is told in tests/unit/file-integration.spec.ts; the trial harness is
+// The queue's interface is told in file-integration.nuit.spec.ts; the trial harness is
 // ./integration-essai.ts, and the matter these files share ./file-integration-essai.ts.
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
@@ -289,7 +291,7 @@ describe('L7 — a project without a CI for the branch pushed does not wait for 
 // (docs.github.com, « Workflow syntax », on.push.branches, and its filter pattern cheat sheet).
 describe('L7 — the workflows that run on a push to a branch', () => {
   const un = (texte: string, branche = 'main') =>
-    fluxDeLaBranche([{ chemin: '.github/workflows/ci.yml', texte }], branche) as string[];
+    fluxDeLaBranche([{ chemin: '.github/workflows/ci.yml', texte }], branche);
 
   it('none without a workflow', () => {
     expect(fluxDeLaBranche([], 'main')).toEqual([]);

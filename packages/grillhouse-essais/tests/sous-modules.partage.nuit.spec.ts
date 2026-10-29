@@ -27,7 +27,7 @@ import {
 // grillhouse-3uv.58.1: a shared submodule (grillhouse.partage) is read from the main repository,
 // read-only, in each copy: its link, its status, its writes refused, its preparation, its
 // declaration and its absence (critères 1 to 14). The preparation of the copies:
-// tests/unit/sous-modules.spec.ts.
+// sous-modules.nuit.spec.ts.
 // The worlds of trial and the frame's scripts they run: ./sous-modules-essai.ts.
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).

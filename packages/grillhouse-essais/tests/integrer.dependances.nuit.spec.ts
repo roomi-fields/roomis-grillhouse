@@ -5,9 +5,10 @@ import path from 'node:path';
 import ts from 'typescript';
 import { afterAll, describe, expect, it } from 'vitest';
 import { chantierDependances } from './integration-essai.js';
+import { CADRE } from './cadre.js';
 
 // The integration of a ticket's lot (scripts/integration/integrer.mjs,
-// tests/unit/integrer.spec.ts): the dependencies of its copy follow its lock file
+// integrer.nuit.spec.ts): the dependencies of its copy follow its lock file
 // (grillhouse-3uv.74).
 // The trial harness: ./integration-essai.ts.
 
@@ -211,7 +212,7 @@ describe('grillhouse-3uv.74 — the dependencies of the integration copy follow 
 // node_modules (`.integration-lock`) and `npm ci` live in one function of the replay; neither the
 // integration nor the queue reads the key or runs npm ci.
 describe('grillhouse-3uv.74 critère 7 — one function compares the lock file and installs', () => {
-  const dossier = path.resolve(__dirname, '../../scripts/integration');
+  const dossier = path.join(CADRE, 'scripts/integration');
   // The string literals of <f> (comments are not literals), each with its innermost function.
   const litteraux = (f: string) => {
     const source = ts.createSourceFile(

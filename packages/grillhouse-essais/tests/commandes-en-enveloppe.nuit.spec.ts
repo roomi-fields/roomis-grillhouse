@@ -13,9 +13,16 @@ import {
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { CODE_COPIE } from '../../scripts/enveloppe/codes.mjs';
-import { dossierDeTravail } from '../../scripts/enveloppe/enveloppe.mjs';
-import { ecrire as ecrireTurbo } from '../../scripts/langages/typescript/turbo-des-paquets.mjs';
+import { RACINE, enProcessus, valeursDe } from './cadre.js';
+
+const { CODE_COPIE } = valeursDe('scripts/enveloppe/codes.mjs', ['CODE_COPIE']) as {
+  CODE_COPIE: number;
+};
+const dossierDeTravail = enProcessus<string>('scripts/enveloppe/enveloppe.mjs', 'dossierDeTravail');
+const ecrireTurbo = enProcessus<unknown>(
+  'scripts/langages/typescript/turbo-des-paquets.mjs',
+  'ecrire'
+);
 
 // Witness: BPScript (Turborepo 2.11.8), four sessions on one day. Inside the envelope of
 // one package, a command of the frame wanted to build or read what the envelope shows read-only or
@@ -24,7 +31,7 @@ import { ecrire as ecrireTurbo } from '../../scripts/langages/typescript/turbo-d
 // sandbox of Bazel, the neighbours arrive built and read-only: a command of the frame builds and
 // writes the agent's package only, and reads the neighbours by their published form.
 
-const DEPOT = path.resolve(__dirname, '../../../..');
+const DEPOT = RACINE;
 const ENVELOPPE = path.join(DEPOT, 'packages/grillhouse/scripts/enveloppe/enveloppe.mjs');
 const TESTS = path.join(DEPOT, 'packages/grillhouse/scripts/langages/typescript/tests.mjs');
 const API = path.join(

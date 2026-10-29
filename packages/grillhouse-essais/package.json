@@ -2,7 +2,7 @@
   "name": "@roomi-fields/grillhouse-essais",
   "version": "0.0.0",
   "private": true,
-  "description": "Roomi's Grillhouse: the tests of the frame's chain (its circuit), played at night",
+  "description": "Roomi's Grillhouse: the tests of the frame's chain (its circuit, its night, its integration, its launcher, its update), played at night",
   "license": "MIT",
   "type": "module",
   "scripts": {
