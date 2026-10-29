@@ -163,14 +163,19 @@ describe('grillhouse-3dr.2.1 — la jointure des langages', () => {
     expect(lire('scripts/resultats.d.ts')).toBe(temoin['scripts/resultats.d.ts']);
   });
 
-  it('criterion 9: scripts/mesure/ holds the three files of the core, scripts/vitest-config/ none of them', () => {
+  it('criterion 9: scripts/mesure/ holds the three files of the core, the vitest-config/ of the module none of them', () => {
     const trois = ['avancement.mjs', 'base-de-passe.mjs', 'pression.mjs'];
     expect(
       fichiers('scripts/mesure')
         .map(f => path.basename(f))
         .sort()
     ).toEqual(trois);
-    const config = fichiers('scripts/vitest-config').map(f => path.basename(f));
+    // grillhouse-3dr.2.2: vitest-config/ lives in the module typescript; no file of the package
+    // lies under scripts/vitest-config/ any more (the share is exhaustive, above).
+    const partages = [...REPARTITION.noyau, ...REPARTITION.typescript];
+    expect(partages.filter(f => f.startsWith('scripts/vitest-config/'))).toEqual([]);
+    const config = fichiers(`${MODULE}vitest-config`).map(f => path.basename(f));
+    expect(config).toContain('base.mjs');
     for (const f of trois) {
       expect(config).not.toContain(f);
     }

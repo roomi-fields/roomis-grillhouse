@@ -440,13 +440,19 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
   };
 
   // The relaunch of <id> by the frame's launcher, role developpeur on src/a, the envelope stood
-  // in by ENVELOPPE_NUE in a copy of the frame's scripts (<bin>/scripts, beside which the launcher
-  // finds its envelope) and claude by a script that records the session in <bin>/sessions.
-  const lanceur = path.join(bin, 'scripts/enveloppe/lancer.sh');
+  // in by ENVELOPPE_NUE in a copy of the frame's package under <bin>/cadre (its scripts, beside
+  // which the launcher finds its envelope, its command, by which it runs a command of the module of
+  // the language, and its package.json, apart from the stand-ins of <bin>) and claude by a script
+  // that records the session in <bin>/sessions.
+  const cadre = path.join(bin, 'cadre');
+  const lanceur = path.join(cadre, 'scripts/enveloppe/lancer.sh');
   const lancer = (id: string): SpawnSyncReturns<string> => {
     if (!existsSync(lanceur)) {
-      cpSync(path.dirname(path.dirname(LANCER)), path.join(bin, 'scripts'), { recursive: true });
-      writeFileSync(path.join(bin, 'scripts/enveloppe/enveloppe.mjs'), ENVELOPPE_NUE);
+      const scripts = path.dirname(path.dirname(LANCER));
+      cpSync(scripts, path.join(cadre, 'scripts'), { recursive: true });
+      cpSync(path.join(scripts, '../bin'), path.join(cadre, 'bin'), { recursive: true });
+      cpSync(path.join(scripts, '../package.json'), path.join(cadre, 'package.json'));
+      writeFileSync(path.join(cadre, 'scripts/enveloppe/enveloppe.mjs'), ENVELOPPE_NUE);
       writeFileSync(
         path.join(bin, 'claude'),
         `#!/bin/sh\necho "$(pwd)" >> ${path.join(bin, 'sessions')}\n`,

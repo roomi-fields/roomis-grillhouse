@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterAll, describe, expect, it, vi } from 'vitest';
-import { lacherVerrou, prendreVerrou } from '../../scripts/verrou-de-fichier.mjs';
 
 // grillhouse-3uv.72: the lock of a shared file is one module at the root of scripts/ (arbitrage
 // « Où vit le verrou de fichier… »), imported by the integration (judged by the owner's process
@@ -56,6 +55,12 @@ vi.mock('node:fs', async importOriginal => {
   }
   return { ...enveloppe, default: enveloppe };
 });
+
+// The lock is imported after the registry is emptied: a setup file of the base configuration may
+// have loaded it already (the pressure, by the services of the core, grillhouse-3dr.2.2), with the
+// real node:fs, and the adversary above must sit under the module this file judges.
+vi.resetModules();
+const { lacherVerrou, prendreVerrou } = await import('../../scripts/verrou-de-fichier.mjs');
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'verrou-de-fichier-'));
 const RACINE = path.resolve(__dirname, '../../../..');
