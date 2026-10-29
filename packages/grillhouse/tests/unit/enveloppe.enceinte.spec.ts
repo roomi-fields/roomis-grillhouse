@@ -18,7 +18,8 @@ import {
   VARIABLE as VARIABLE_NUE,
 } from '../../scripts/enveloppe/paquets-du-plan.mjs';
 import { aVerifier } from '../../scripts/langages/typescript/interfaces-contre-code.mjs';
-import { LANGAGE, SCRIPT, enveloppeEssai } from './enveloppe-essai.js';
+import { SCRIPT, enveloppeEssai } from './enveloppe-essai.js';
+import { LANGAGE } from './langage-essai.js';
 
 const VARIABLE = VARIABLE_NUE as string;
 const ecrireLaListe = (paquets: string[]) => ecrireLaListeNue(paquets) as string;

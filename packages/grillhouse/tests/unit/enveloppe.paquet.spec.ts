@@ -9,7 +9,8 @@ import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
 import { dossierDeTravail, plan } from '../../scripts/enveloppe/enveloppe.mjs';
-import { LANGAGE, SCRIPT, enveloppeEssai } from './enveloppe-essai.js';
+import { SCRIPT, enveloppeEssai } from './enveloppe-essai.js';
+import { LANGAGE } from './langage-essai.js';
 
 // A disk that holds the paths <files>.
 const fakeDisk = (files: string[]) => {

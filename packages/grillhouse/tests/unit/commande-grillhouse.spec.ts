@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { commandeDe, sousCommandes } from '../../scripts/sous-commandes.mjs';
-import { declarerLeLangage } from './enveloppe-essai.js';
+import { declarerLeLangage } from './langage-essai.js';
 
 // The frame's one command, `grillhouse <sous-commande>` (bin/grillhouse.mjs, the `bin` of the
 // package @roomi-fields/grillhouse): each script a caller launches has its subcommand, and every

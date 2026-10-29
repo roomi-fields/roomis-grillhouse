@@ -5,7 +5,8 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '../machine.js';
 import { CODE_COPIE, CODE_REFUS, CODE_USAGE } from '../../scripts/enveloppe/codes.mjs';
 import { dossierDeTravail } from '../../scripts/enveloppe/enveloppe.mjs';
-import { LANGAGE, SCRIPT, enveloppeEssai, projetDuLanceur } from './enveloppe-essai.js';
+import { SCRIPT, enveloppeEssai, projetDuLanceur } from './enveloppe-essai.js';
+import { LANGAGE } from './langage-essai.js';
 import { optionsDuRole } from '../../scripts/droits.mjs';
 import { schemaDeFiche } from '../../scripts/resultats.mjs';
 
