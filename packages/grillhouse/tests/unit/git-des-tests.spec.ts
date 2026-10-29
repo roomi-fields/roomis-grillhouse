@@ -20,7 +20,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { configGit } from '../config-git.js';
+import { configGit } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'git-des-tests-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));

@@ -118,6 +118,7 @@
     "@microsoft/api-extractor": "7.59.2",
     "@microsoft/api-extractor-model": "7.33.13",
     "@microsoft/tsdoc-config": "0.18.3",
+    "@roomi-fields/grillhouse-matiere": "*",
     "dependency-cruiser": "18.4.0",
     "jsonc-parser": "3.3.1"
   },
@@ -142,6 +143,7 @@
       "knip.json",
       "mods",
       "package.json",
+      "packages/grillhouse-matiere",
       "packages/grillhouse/bin",
       "packages/grillhouse/scripts",
       "templates",

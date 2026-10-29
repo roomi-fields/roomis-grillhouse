@@ -12,7 +12,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { canWrap, racineSousLaMaison } from '../machine.js';
+import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { CODE_COPIE } from '../../scripts/enveloppe/codes.mjs';
 import { dossierDeTravail } from '../../scripts/enveloppe/enveloppe.mjs';
 import { ecrire as ecrireTurbo } from '../../scripts/langages/typescript/turbo-des-paquets.mjs';

@@ -12,7 +12,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { configGit } from '../config-git.js';
+import { configGit } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
 // Ticket grillhouse-3uv.8.4: the index is for the roles that see the whole repository (charter,
 // « L'index d'abord »); in an agent's copy (`.claude/worktrees/`), the session start asks neither

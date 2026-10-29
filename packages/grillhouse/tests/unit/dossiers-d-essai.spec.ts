@@ -57,7 +57,7 @@ const APPEL_TEMP = /\b(?:os\.)?tmpdir\(\)/g;
 
 // The roots of trial of a file, at the start of a line: `const NAME = mkdtempSync(...)` made in
 // the temp directory, and `const NAME = racineSousLaMaison('prefix-')`, the root under the home
-// of tests/machine.ts. Every other trial directory lives inside one of them.
+// of packages/grillhouse-matiere/src/machine.ts. Every other trial directory lives inside one of them.
 function racines(source: string) {
   const out: { nom: string; ligne: number; prefixe: string | null; horsTemp: boolean }[] = [];
   for (const m of source.matchAll(/^const (\w+) = racineSousLaMaison\('([^']*)'\);$/gm)) {
@@ -231,7 +231,7 @@ describe('grillhouse-3uv.50, critère 1 — a root under the home creates its pa
     const ligne = "const R = mkdtempSync(path.join(homedir(), '.cache', 'grillhouse-essais-x-'));";
     expect(racinesSansParent(`${imports}${ligne}\n`)).toEqual([`3: ${ligne}`]);
   });
-  it('critère 1: takes the root of tests/machine.ts for a root under the home, with its prefix', () => {
+  it('critère 1: takes the root of packages/grillhouse-matiere/src/machine.ts for a root under the home, with its prefix', () => {
     const source = `${imports}// reason\nconst R = racineSousLaMaison('grillhouse-essais-x-');\n`;
     expect(racinesSansParent(source)).toEqual([]);
     expect(cheminsFixes(source)).toEqual([]);

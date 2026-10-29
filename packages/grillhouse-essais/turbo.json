@@ -1,0 +1,38 @@
+// Généré par `npx grillhouse turbo-des-paquets --ecrire` depuis les package.json, le turbo.json racine et docs/agents/hors-cadre.txt ; ne pas éditer.
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "extends": [
+    "//"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": []
+    },
+    "test:vitest": {
+      "dependsOn": [
+        "build",
+        "^build"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/.beads/.gitignore/**",
+        "$TURBO_ROOT$/.beads/config.yaml/**",
+        "$TURBO_ROOT$/.beads/metadata.json/**",
+        "$TURBO_ROOT$/.claude/**",
+        "$TURBO_ROOT$/.dependency-cruiser.cjs/**",
+        "$TURBO_ROOT$/.dependency-cruiser.projet.cjs/**",
+        "$TURBO_ROOT$/.eslintrc.cjs/**",
+        "$TURBO_ROOT$/CHANGELOG.md/**",
+        "$TURBO_ROOT$/knip.json/**",
+        "$TURBO_ROOT$/mods/**",
+        "$TURBO_ROOT$/package.json/**",
+        "$TURBO_ROOT$/packages/grillhouse-matiere/**",
+        "$TURBO_ROOT$/packages/grillhouse/bin/**",
+        "$TURBO_ROOT$/packages/grillhouse/package.json/**",
+        "$TURBO_ROOT$/packages/grillhouse/scripts/**",
+        "$TURBO_ROOT$/templates/**",
+        "$TURBO_ROOT$/tsdoc.json/**"
+      ]
+    }
+  }
+}

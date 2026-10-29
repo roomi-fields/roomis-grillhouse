@@ -16,7 +16,7 @@ import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { CROCHETS } from '../../scripts/crochets.mjs';
 import { mettreAJour } from '../../scripts/grillhouse-maj.mjs';
-import { claudeSubstitut } from '../claude-substitut.js';
+import { claudeSubstitut } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
 // The frame's git hooks, on Husky's model (grillhouse-3uv.84.5, after grillhouse-3uv.59.1):
 // commit-msg (« un ticket fermé garde sa livraison », scripts/un-commit-par-ticket.mjs) and pre-push

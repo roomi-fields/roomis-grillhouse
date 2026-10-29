@@ -15,7 +15,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { canWrap, hasBd, racineSousLaMaison } from '../machine.js';
+import { canWrap, hasBd, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
 // Tickets grillhouse-3uv.50 and grillhouse-3uv.50.1: the suite runs on every machine where the
 // project builds. A test that needs a capacity of the machine (a directory under the home, a bwrap
@@ -265,7 +265,7 @@ const SANS_BD = [
 const filtreBase = [BASE_REELLE, ...SANS_BD].join('|');
 
 // True when a file named bd, executable, lies in a directory of the PATH: read without running bd,
-// apart from the detection of tests/machine.ts that the critère 3 watches.
+// apart from the detection of packages/grillhouse-matiere/src/machine.ts that the critère 3 watches.
 const bdSurLeChemin = (process.env.PATH ?? '').split(':').some(d => {
   try {
     accessSync(path.join(d, 'bd'), constants.X_OK);

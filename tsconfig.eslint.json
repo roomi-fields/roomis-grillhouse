@@ -9,7 +9,10 @@
     "templates/projet/tests/**/*",
     "templates/projet/*.ts",
     "packages/grillhouse/tests/**/*",
-    "packages/grillhouse/*.ts"
+    "packages/grillhouse/*.ts",
+    "packages/grillhouse-essais/tests/**/*",
+    "packages/grillhouse-essais/*.ts",
+    "packages/grillhouse-matiere/src/**/*"
   ],
   "exclude": ["node_modules", "dist"]
 }

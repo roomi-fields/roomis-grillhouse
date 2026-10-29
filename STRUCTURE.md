@@ -114,7 +114,10 @@ roomis-grillhouse/
 │   │   │   ├── rejeu.mjs                 # the replay shared by integrer.mjs and file.mjs: clean copy, dependencies of its lock file, npm run verifier (Turborepo: build, then guards and tests); a 75 keeps the lot waiting
 │   │   │   └── file-attente.mjs          # the queue's entries (a branch and its one ticket each), in git's common directory, and the directory the integration's locks live in
 │   │   └── un-commit-par-ticket.mjs   # commit-msg hook (grillhouse hook commit-msg, crochets.mjs): a closed ticket refuses a second commit, a reopened ticket takes its corrections
-│   └── tests/                     # The frame's tests (unit/) and their material (claude-substitut, config-git, machine, unit/*-essai.ts, formes/: the former forms of a template's file a migration knows): Grillhouse only, not copied
+│   └── tests/                     # The frame's tests (unit/) and their own material (unit/*-essai.ts, formes/: the former forms of a template's file a migration knows): Grillhouse only, not copied
+│
+├── packages/grillhouse-essais/  # The package @roomi-fields/grillhouse-essais, private: the tests of the frame's chain (tests/circuit*.nuit.spec.ts, base-de-passe.nuit.spec.ts, their harness circuit-essai.ts), played at night; they launch the frame's scripts in processes; tests/paquet.spec.ts, its small test of the day
+├── packages/grillhouse-matiere/ # The package @roomi-fields/grillhouse-matiere, private, which imports no package: the test material both packages share (machine, claude-substitut, config-git, regle-de-permission), by its entry ./test-fixtures
 │
 ├── templates/projet/           # The template of a project: `grillhouse init` places each of its files at the root of the new project (its settings, charter, configurations, example application); the published package carries it under cadre/
 │   ├── package.json               # the example's package manifest, its npm scripts calling `grillhouse <sous-commande>`

@@ -13,7 +13,7 @@ import {
 import { tmpdir, userInfo } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { canWrap, hasBd, racineSousLaMaison } from '../machine.js';
+import { canWrap, hasBd, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { CODE_REFUS } from '../../scripts/enveloppe/codes.mjs';
 import { dossierDeTravail, montagesDeLaSeance, plan } from '../../scripts/enveloppe/enveloppe.mjs';
 import { SCRIPT, enveloppeEssai } from './enveloppe-essai.js';

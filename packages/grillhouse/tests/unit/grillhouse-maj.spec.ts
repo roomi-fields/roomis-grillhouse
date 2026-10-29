@@ -24,7 +24,7 @@ import {
 } from '../../scripts/grillhouse-maj.mjs';
 import { CONFIGURATION as CONFIG_DES_FRONTIERES } from '../../scripts/langages/typescript/frontieres.mjs';
 import { gardesDuCadre } from '../../scripts/gardes-du-cadre.mjs';
-import { cheminSysteme, claudeSubstitut } from '../claude-substitut.js';
+import { cheminSysteme, claudeSubstitut } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
 // semver, which ships no types of its own, required with the API this file calls.
 const semver = createRequire(import.meta.url)('semver') as {
@@ -1189,7 +1189,7 @@ describe('grillhouse-3uv.75.1 critère 12 — the update poses the frame’s tes
   });
 });
 
-// grillhouse-3uv.76: the update as a project runs it, `claude` stood in (tests/claude-substitut.ts),
+// grillhouse-3uv.76: the update as a project runs it, `claude` stood in (packages/grillhouse-matiere/src/claude-substitut.ts),
 // git and node from the system: no test reaches the real claude nor the network.
 function lancerMajAvec(projet: string, args: string[], bin: string) {
   declarer(projet);

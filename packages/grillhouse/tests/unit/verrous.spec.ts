@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { racineSousLaMaison } from '../machine.js';
+import { racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { estUnTest, isTestFile } from '../../scripts/langages/typescript/regle-des-tests.mjs';
 import { refusal } from '../../scripts/verrous/verrou.mjs';
 

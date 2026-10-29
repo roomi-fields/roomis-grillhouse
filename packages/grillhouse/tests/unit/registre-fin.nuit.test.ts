@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { closeSync, mkdirSync, openSync, rmSync, utimesSync, writeSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { racineSousLaMaison } from '../machine.js';
+import { racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { attendre, lignes } from './registre-essai.js';
 
 // Ticket grillhouse-3uv.72, critère 2: a transcript of several hundred MB is written to the

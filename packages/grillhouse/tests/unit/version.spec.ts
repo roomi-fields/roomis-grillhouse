@@ -11,7 +11,7 @@ import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 import { etiqueter, preparerSortie, verifierEtiquette } from '../../scripts/sortie.mjs';
-import { configGit } from '../config-git.js';
+import { configGit } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
 const DEPOT = path.resolve(__dirname, '../../../..');
 const PAQUET = 'packages/grillhouse/package.json';

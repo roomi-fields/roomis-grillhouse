@@ -21,7 +21,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { configGit } from '../config-git.js';
+import { configGit } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
 const RACINE = path.resolve(__dirname, '../../../..');
 const SUPERVISEUR = path.join(RACINE, 'packages/grillhouse/scripts/superviseur.mjs');

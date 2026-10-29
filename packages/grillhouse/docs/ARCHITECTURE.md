@@ -479,8 +479,13 @@ comme le RuleTester d'ESLint une règle. Ainsi le reste du noyau ignore le langa
 
 **Les tests d'intégration, un paquet à part** : les tests qui montent un dépôt d'essai et y
 lancent le cadre entier (le circuit, plus de la moitié du temps des tests) vivent dans
-`packages/grillhouse-essais`, privé, comme `turborepo-tests` de Turborepo ; ils se jouent quand
-un fichier qu'ils lancent change, et en entier la nuit. Les tests du greffon
+`packages/grillhouse-essais`, privé, comme `turborepo-tests` de Turborepo : des tests de nuit
+(`*.nuit.spec.ts`), qui lancent en processus les scripts du cadre de leur propre arbre, et n'en
+importent aucun dans leur processus ; la nuit les
+joue tous, et un fichier nommé se joue par `npm test -- <fichier>`. La matière de test que
+partagent ses tests et ceux du cadre vit dans un troisième paquet, `packages/grillhouse-matiere`,
+privé, qui n'importe aucun paquet et exporte `./test-fixtures`, comme le corpus de BPScript : le
+cadre et ses essais en dépendent sans cycle. Les tests du greffon
 (`mods/grillhouse/tests`) sont les gardes propres du dépôt, son script racine `gardes`
 (`claude plugin test mods/grillhouse`) : la vérification les joue, et Turborepo les relit de son
 cache tant que rien ne bouge dans le dépôt (les entrées d'une tâche de la racine) ; la CI installe la commande claude à une version

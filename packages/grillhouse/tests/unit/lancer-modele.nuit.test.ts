@@ -12,7 +12,7 @@ import {
 import { userInfo } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { canWrap, racineSousLaMaison } from '../machine.js';
+import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
 // Ticket grillhouse-3uv.46, critère 3: a real session launched with --modele runs on the model
 // asked, over the model of the role's definition; its transcript says so in the model field of

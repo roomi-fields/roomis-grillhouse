@@ -10,7 +10,7 @@ import {
   restes,
   version,
 } from '../../scripts/migrations/0.24.2-api-extractor-du-paquet.mjs';
-import { cheminSysteme, claudeSubstitut } from '../claude-substitut.js';
+import { cheminSysteme, claudeSubstitut } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
 // grillhouse-3uv.95.11.3: the update of 0.23.0 to 0.24.1 added `@microsoft/api-extractor` to the
 // devDependencies of a project's root, as a tool the project runs; the package imports it as a

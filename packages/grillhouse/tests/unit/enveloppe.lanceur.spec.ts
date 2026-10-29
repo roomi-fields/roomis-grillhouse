@@ -2,7 +2,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { canWrap, racineSousLaMaison } from '../machine.js';
+import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { CODE_COPIE, CODE_REFUS, CODE_USAGE } from '../../scripts/enveloppe/codes.mjs';
 import { dossierDeTravail } from '../../scripts/enveloppe/enveloppe.mjs';
 import { SCRIPT, enveloppeEssai, projetDuLanceur } from './enveloppe-essai.js';

@@ -1,0 +1,38 @@
+{
+  "name": "@roomi-fields/grillhouse-essais",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Roomi's Grillhouse: the tests of the frame's chain (its circuit), played at night",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test:vitest": "vitest run"
+  },
+  "dependencies": {
+    "@roomi-fields/grillhouse": "*"
+  },
+  "devDependencies": {
+    "@roomi-fields/grillhouse-matiere": "*"
+  },
+  "grillhouse": {
+    "lit": [
+      ".beads/.gitignore",
+      ".beads/config.yaml",
+      ".beads/metadata.json",
+      ".claude",
+      ".dependency-cruiser.cjs",
+      ".dependency-cruiser.projet.cjs",
+      ".eslintrc.cjs",
+      "CHANGELOG.md",
+      "knip.json",
+      "mods",
+      "package.json",
+      "packages/grillhouse-matiere",
+      "packages/grillhouse/bin",
+      "packages/grillhouse/package.json",
+      "packages/grillhouse/scripts",
+      "templates",
+      "tsdoc.json"
+    ]
+  }
+}

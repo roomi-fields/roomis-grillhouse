@@ -8,7 +8,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { canWrap, racineSousLaMaison } from '../machine.js';
+import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { CODE_REFUS } from '../../scripts/enveloppe/codes.mjs';
 import { montagesDeLaSeance, plan } from '../../scripts/enveloppe/enveloppe.mjs';
 import {

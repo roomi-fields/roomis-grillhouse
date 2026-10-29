@@ -14,7 +14,7 @@ import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { migrer as toutesLesMigrations } from '../../scripts/migrations.mjs';
 import { migrer, nom, version } from '../../scripts/migrations/0.23.2-copies-du-cadre.mjs';
-import { cheminSysteme, claudeSubstitut } from '../claude-substitut.js';
+import { cheminSysteme, claudeSubstitut } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
 // grillhouse-3uv.84.6.1: a project in 0.22.x holds the frame in copies, which the former update
 // listed (`.claude/grillhouse/fichiers.txt`) and fingerprinted (`.claude/grillhouse/empreintes.json`,

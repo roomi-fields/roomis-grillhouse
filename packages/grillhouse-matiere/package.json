@@ -1,0 +1,19 @@
+{
+  "name": "@roomi-fields/grillhouse-matiere",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Roomi's Grillhouse: the test material its packages share, by its entry ./test-fixtures",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./test-fixtures": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "grillhouse": {
+    "lit": [
+      "packages/grillhouse/package.json"
+    ]
+  }
+}

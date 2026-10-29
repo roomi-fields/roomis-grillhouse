@@ -15,7 +15,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { expect } from 'vitest';
-import { configGit } from '../config-git.js';
+import { configGit } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
 // The trial harness of the submodules of the working copies (scripts/sous-modules.sh), shared by
 // their tests (tests/unit/sous-modules*.spec.ts): the frame's scripts, git's environment, and the

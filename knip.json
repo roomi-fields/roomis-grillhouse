@@ -22,6 +22,22 @@
         "scripts/**/*.mjs",
         "tests/**/*.ts"
       ]
+    },
+    "packages/grillhouse-essais": {
+      "entry": [
+        "tests/**/*.spec.ts"
+      ],
+      "project": [
+        "tests/**/*.ts"
+      ]
+    },
+    "packages/grillhouse-matiere": {
+      "entry": [
+        "src/index.ts"
+      ],
+      "project": [
+        "src/**/*.ts"
+      ]
     }
   },
   "ignore": [

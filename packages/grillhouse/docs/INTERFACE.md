@@ -97,3 +97,10 @@ chaque migration tient, et `outils`, que le test de la mise à jour tient. L'ent
 fichiers engendrés met chacun d'eux en retard.
 Le test du noyau joue la suite sur le module typescript et sur seize modules défectueux, un défaut
 chacun ; chacun manque son seul cas. Ainsi la suite attrape un vrai défaut.
+
+## Consommateurs
+
+Les paquets de Grillhouse qui importent le cadre par son nom ; un projet le lit par ses entrées
+publiées.
+
+- `grillhouse-essais` : *

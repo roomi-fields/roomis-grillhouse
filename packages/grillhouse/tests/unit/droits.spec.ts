@@ -11,7 +11,7 @@ import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { AUTEUR_FIXE, commandesPermises, optionsDuRole, ROLES } from '../../scripts/droits.mjs';
 import { refusDeCommande } from '../../scripts/verrous/commande.mjs';
-import { couvre } from './regle-de-permission.js';
+import { couvre } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
 const RACINE = path.resolve(__dirname, '../../../..');
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'droits-'));

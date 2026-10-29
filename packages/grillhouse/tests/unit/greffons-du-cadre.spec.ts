@@ -18,9 +18,9 @@ import {
   type EtatClaude,
   cheminSysteme,
   claudeSubstitut,
+  configGit,
   sansClaude,
-} from '../claude-substitut.js';
-import { configGit } from '../config-git.js';
+} from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
 // grillhouse-3uv.71: the nominal configuration. The frame's plugins are listed once, in
 // `enabledPlugins` (and `extraKnownMarketplaces`) of the project's `.claude/settings.json`. One
@@ -30,7 +30,7 @@ import { configGit } from '../config-git.js';
 // (scripts/grillhouse-maj.mjs) call it;
 // the session start (scripts/session-start.sh) names under « Manque » each declared plugin not
 // installed for the project. No test launches the real claude (critère 6): a stand-in
-// on the PATH records each call (tests/claude-substitut.ts).
+// on the PATH records each call (packages/grillhouse-matiere/src/claude-substitut.ts).
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'greffons-du-cadre-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));

@@ -12,8 +12,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { stripVTControlCharacters } from 'node:util';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { cheminSysteme, claudeSubstitut } from '../claude-substitut.js';
-import { configGit } from '../config-git.js';
+import {
+  cheminSysteme,
+  claudeSubstitut,
+  configGit,
+} from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
 // grillhouse-3uv.84.4 critère 1: `grillhouse init <dossier> [préfixe]` creates a project from the
 // template of a project (templates/projet/), as create-turbo creates one from its example: each file
@@ -23,7 +26,7 @@ import { configGit } from '../config-git.js';
 // in a project (its turbo.json, the generated files). Critère 6: the status line is a setting of
 // the project, which init writes in its `.claude/settings.json`. The tools the preparation calls
 // (Beads, CodeGraph, npm, whose install links this repository's node_modules) are stood in, and so
-// is claude (tests/claude-substitut.ts).
+// is claude (packages/grillhouse-matiere/src/claude-substitut.ts).
 
 const PAQUET = path.resolve(__dirname, '../..');
 const DEPOT = path.resolve(PAQUET, '../..');

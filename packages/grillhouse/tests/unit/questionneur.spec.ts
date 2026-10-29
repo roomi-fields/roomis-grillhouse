@@ -3,7 +3,8 @@
 // review: a look that did not write the proposal. No list of questions is set for it: the frame
 // (the métacadre, the charter, « Comment on arbitre » of the project) and the ticket orient it, as
 // the owner asks his questions by intuition where a proposal seems unclear to him. Its texts are
-// checked here; its reading in the circuit, by tests/unit/circuit.plan.spec.ts.
+// checked here; its reading in the circuit, at night, by
+// packages/grillhouse-essais/tests/circuit.plan.nuit.spec.ts.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -70,7 +71,9 @@ describe('the questionneur, a role agent', () => {
     expect(existsSync(path.join(RACINE, 'mods/grillhouse/skills/questionneur/SKILL.md'))).toBe(
       true
     );
-    expect(existsSync(path.resolve(__dirname, 'circuit.plan.spec.ts'))).toBe(true);
+    expect(
+      existsSync(path.join(RACINE, 'packages/grillhouse-essais/tests/circuit.plan.nuit.spec.ts'))
+    ).toBe(true);
   });
 
   it('critère 6 — the supervisor has his plan questioned before he gives it to the owner, and answers in his own session', () => {

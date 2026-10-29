@@ -20,7 +20,7 @@ describe('the repository in three directories', () => {
     expect(
       existsSync(path.join(PAQUET, 'scripts/langages/typescript/vitest-config/base.mjs'))
     ).toBe(true);
-    expect(existsSync(path.join(PAQUET, 'tests/unit/circuit.spec.ts'))).toBe(true);
+    expect(existsSync(path.join(PAQUET, 'tests/unit/circuit-sans-texte-libre.spec.ts'))).toBe(true);
   });
 
   it('is private, its workspaces the packages', () => {

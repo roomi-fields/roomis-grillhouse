@@ -21,7 +21,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { configGit } from '../config-git.js';
+import { configGit } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'retirer-copie-'));
