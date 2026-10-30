@@ -352,3 +352,26 @@ describe('3uv.91.2 — a finding of the reviewer blocks or remarks', () => {
     expect(relecteur).not.toMatch(/`remarques`/);
   });
 });
+
+// grillhouse-dw5, witness OSC Bridge (SyntHub SH-cgi.9, 92234db): the ticket required that a change
+// visible to the users go up to the owner; the reviewer wrote he could not read the developer's
+// handover on it, then rendered ACCEPTÉ, and the circuit integrated, pushed and deployed. As Gerrit's
+// « Verified » requires the result, a review approves no evidence it has not seen.
+describe('dw5 — a piece the ticket requires and the reviewer cannot read never passes', () => {
+  const relecteur = lire('mods/grillhouse/skills/relecteur/SKILL.md').replace(/\s+/g, ' ');
+
+  it('an unreadable required piece renders the lot by a blocking finding to the agent who owes it', () => {
+    expect(relecteur).toMatch(
+      /Une pièce que le ticket exige se lit avant ton verdict\*\* : une pièce qu'un critère ou une section du ticket exige/
+    );
+    expect(relecteur).toMatch(
+      /que tu ne peux pas lire rend le lot \(`RENDU`\), par un constat bloquant que son `role` adresse à l'agent qui la doit/
+    );
+  });
+
+  it('a decision of the owner the lot has not received goes up by the `question`, never under ACCEPTÉ', () => {
+    expect(relecteur).toMatch(
+      /une décision qui revient au responsable et que le lot n'a pas reçue monte par ta `question`, jamais sous un `ACCEPTÉ`/
+    );
+  });
+});

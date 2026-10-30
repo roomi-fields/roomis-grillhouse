@@ -140,6 +140,13 @@ circuit cherche chaque pièce fichier:ligne dans la copie et refuse une fiche do
 introuvable. Le circuit l'écrit au ticket, sur plusieurs lignes, son premier mot le verdict, que le
 script d'intégration et le tableau lisent, puis tes remarques. Tu n'écris rien au ticket toi-même.
 
+**Une pièce que le ticket exige se lit avant ton verdict** : une pièce qu'un critère ou une section
+du ticket exige (une passation, une sortie, une décision) et que tu ne peux pas lire rend le lot
+(`RENDU`), par un constat bloquant que son `role` adresse à l'agent qui la doit ; une décision qui
+revient au responsable et que le lot n'a pas reçue monte par ta `question`, jamais sous un
+`ACCEPTÉ`. Ainsi le lot n'entre sur main que sur des pièces lues, comme une revue mûre n'approuve
+aucune preuve qu'elle n'a pas vue.
+
 **Un constat bloquant tient un critère du plan ou une règle du cadre**, que son champ `regle`
 nomme (« critère 2 », ou le document et sa règle) ; tout autre constat est une remarque (`genre`
 `remarque`), que le circuit écrit au ticket sans relancer personne. Seuls les constats bloquants
