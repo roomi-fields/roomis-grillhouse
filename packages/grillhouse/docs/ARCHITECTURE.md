@@ -52,7 +52,9 @@ nomme (les paquets du titre), la base des tickets et les sorties du module de so
 cache de Turborepo ; le `target/` et les magasins de cargo, sa maison `~/.cargo` et `~/.rustup`
 en lecture) ; `.git` reste en lecture seule, et la matière de test partagée s'écrit par le seul
 testwriter. Le plan se juge sur les composants du module (un paquet TypeScript, un crate, un
-paquet hors cadre) : un chemin du plan hors de tout composant écrit la racine, toute la copie. `GRILLHOUSE_ENVELOPPE` porte la liste aux commandes du
+paquet hors cadre) : un chemin du plan hors de tout composant écrit la racine, toute la copie. Le
+circuit résout les composants du titre sur la même liste (`paquetsDuLangage`) : un crate racine
+est le composant `.`, nommé par son crate (osc-bridge). `GRILLHOUSE_ENVELOPPE` porte la liste aux commandes du
 cadre, qui construisent, jugent et écrivent ses seuls paquets. Une écriture hors du plan échoue
 au montage, et le verrou de l'agent arrête sa séance en nommant le paquet ; le circuit s'arrête à
 « hors-plan », une question pour le superviseur, qui étend le plan (`--etendre`) ou refuse. Comme la visibilité de Bazel et

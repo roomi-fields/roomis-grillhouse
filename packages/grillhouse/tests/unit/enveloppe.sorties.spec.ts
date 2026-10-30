@@ -162,6 +162,7 @@ describe('grillhouse-pkl.5 — le plan d’un projet cargo écrit le crate qu’
     expect(paquetsDuLangage(cargo as unknown as Langage, espace)).toContainEqual({
       dossier: 'crates/core',
       pkg: { name: 'ws-core' },
+      hors: false,
     });
   });
 
@@ -206,8 +207,8 @@ describe('grillhouse-pkl.5 — un paquet hors cadre nommé par le plan s’ouvre
 
   it('the components of the envelope hold the package out of the frame', () => {
     const liste = paquetsDuLangage(typescript as unknown as Langage, HORS);
-    expect(liste).toContainEqual({ dossier: 'packages/a', pkg: { name: 'a' } });
-    expect(liste).toContainEqual({ dossier: 'packages/h', pkg: { name: 'h' } });
+    expect(liste).toContainEqual({ dossier: 'packages/a', pkg: { name: 'a' }, hors: false });
+    expect(liste).toContainEqual({ dossier: 'packages/h', pkg: { name: 'h' }, hors: true });
   });
 
   it('a plan naming it writes it alone, the copy read-only', () => {

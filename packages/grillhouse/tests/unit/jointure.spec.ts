@@ -167,6 +167,16 @@ describe('grillhouse-3dr.2.1 — la jointure des langages', () => {
     expect(lire('scripts/resultats.d.ts')).toBe(temoin['scripts/resultats.d.ts']);
   });
 
+  // OSC Bridge, 0.25.3: the circuit refused its root crate, the components it read being the
+  // workspaces of npm.
+  it('grillhouse-x7c: the circuit lists its components by the join, never by the workspaces of npm', () => {
+    const appels = lignesDeCode('scripts/circuit.mjs')
+      .filter(([, l]) => /(?<![.\w])paquets\(/.test(l))
+      .map(([n, l]) => `scripts/circuit.mjs:${n}: ${l.trim()}`);
+    expect(appels).toEqual([]);
+    expect(lire('scripts/circuit.mjs')).not.toMatch(/import \{[^}]*\bpaquets\b[^}]*\} from/);
+  });
+
   it('criterion 9: scripts/mesure/ holds the three files of the core, the vitest-config/ of the module none of them', () => {
     const trois = ['avancement.mjs', 'base-de-passe.mjs', 'pression.mjs'];
     expect(

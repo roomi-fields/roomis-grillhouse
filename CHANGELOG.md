@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **The circuit reads a ticket's components by the join** (grillhouse-x7c): OSC Bridge's first circuit under 0.25.3 stopped at once, `npx grillhouse circuit OB-vch.1.3` refusing « le composant « osc-bridge » du titre ne nomme ni un paquet ni un chemin du dépôt. »: osc-bridge is a workspace of cargo whose application is the root crate (`members = ["."]`, `[package] name = "osc-bridge"`), and `scripts/circuit.mjs` listed the components by the workspaces of npm (`paquets`) at seven places. As the core asks its components of the language's module (Pants and its backends), and as the envelope does since grillhouse-pkl.5, the circuit now reads them from `paquetsDuLangage`: a crate at the root is the component `.`, named by its crate, which the title, the discoveries and the scope of the commit message name; the packages out of the frame keep their mark (`hors`). A project of TypeScript resolves its components as before.
+
 ## [0.25.3] - 2026-10-30
 
 ### Fixed

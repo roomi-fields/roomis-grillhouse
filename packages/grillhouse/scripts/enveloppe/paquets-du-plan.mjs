@@ -33,20 +33,27 @@ export const paquetsDeLEnveloppe = (env = process.env) =>
  * The components of the copy <copie>, as the module of its language <langage> gives them
  * (`composants`, scripts/jointure.d.ts), and the packages out of the frame
  * (`docs/agents/hors-cadre.txt`, `paquets` of scripts/paquets.mjs), which no module counts but a
- * plan may name, in the form the plan reads: each `dossier` relative to the copy, its `pkg.name`
- * the package's name, else the component's.
+ * plan may name, in the form the plan reads: each `dossier` relative to the copy (`.` for a
+ * component at its root, as a crate whose workspace is its own), its `pkg.name` the package's
+ * name, else the component's, `hors` whether it is out of the frame.
  * @param {{ composants(racine: string): { dossier: string, nom: string, paquet: string | null }[] }} langage
  * @param {string} copie
- * @returns {{ dossier: string, pkg: { name: string } }[]}
+ * @returns {{ dossier: string, pkg: { name: string }, hors: boolean }[]}
  */
 export function paquetsDuLangage(langage, copie) {
-  const composants = langage
-    .composants(copie)
-    .map(c => ({ dossier: path.relative(copie, c.dossier), pkg: { name: c.paquet ?? c.nom } }));
+  const composants = langage.composants(copie).map(c => ({
+    dossier: path.relative(copie, c.dossier) || '.',
+    pkg: { name: c.paquet ?? c.nom },
+    hors: false,
+  }));
   const connus = new Set(composants.map(c => c.dossier));
   const hors = paquets(copie)
     .filter(p => p.hors && !connus.has(p.dossier))
-    .map(p => ({ dossier: p.dossier, pkg: { name: p.pkg?.name ?? path.basename(p.dossier) } }));
+    .map(p => ({
+      dossier: p.dossier,
+      pkg: { name: p.pkg?.name ?? path.basename(p.dossier) },
+      hors: true,
+    }));
   return [...composants, ...hors];
 }
 

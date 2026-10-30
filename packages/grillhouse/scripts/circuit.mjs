@@ -547,7 +547,11 @@ import { stripVTControlCharacters } from 'node:util';
 import { ecrireLeBilan } from './bilan.mjs';
 import { DEPUIS_LE_VERT } from './dernier-vert.mjs';
 import { commandesPermises, optionsDuRole } from './droits.mjs';
-import { ecrireLaListe, VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/paquets-du-plan.mjs';
+import {
+  ecrireLaListe,
+  paquetsDuLangage,
+  VARIABLE as VARIABLE_ENVELOPPE,
+} from './enveloppe/paquets-du-plan.mjs';
 import {
   AGENTS_DU_LOT,
   ARRETS,
@@ -564,7 +568,6 @@ import {
   RESPONSABLE,
   SUITE,
 } from './etapes.mjs';
-import { paquets } from './paquets.mjs';
 import { releve } from './composants-affectes.mjs';
 import { ecrire as ecrireAuRegistre, ligneDEtape, transcriptionsDeLaCopie } from './registre.mjs';
 import { FICHIER as DETTE } from './dette.mjs';
@@ -795,6 +798,26 @@ function arbrePrincipal() {
   return path.dirname(r.stdout.trim());
 }
 
+// The components of the repository at <racine> as the module of its language gives them, and the
+// packages out of the frame a plan may name (`paquetsDuLangage`, as the envelope reads them):
+// `{ dossier, pkg: { name }, hors }`, `dossier` relative to <racine>, `.` for a component at its
+// root (a crate whose workspace is its own, as OSC Bridge's).
+export const composantsDe = racine => paquetsDuLangage(langageDe(racine), racine);
+
+// The directory of the component <nom> of a title among <liste> (`composantsDe` of the repository
+// at <base>): `.` itself; a component by its path or its name; else a path of the repository; or a
+// Usage.
+export function resoudreComposant(liste, base, nom) {
+  const brut = path.normalize(nom);
+  const norme = brut.endsWith('/') ? brut.slice(0, -1) : brut;
+  if (norme === '.') return '.';
+  if (liste.some(p => p.dossier === norme)) return norme;
+  const parNom = liste.find(p => p.pkg.name === nom);
+  if (parNom) return parNom.dossier;
+  if (!norme.startsWith('..') && existsSync(path.join(base, norme))) return norme;
+  throw new Usage(`le composant « ${nom} » du titre ne nomme ni un paquet ni un chemin du dépôt.`);
+}
+
 // The context of one run: the paths of the ticket, its plan, how the circuit speaks to bd.
 function contexte(o) {
   const racine = arbrePrincipal();
@@ -813,20 +836,8 @@ function contexte(o) {
   if (show.status !== 0) throw new Usage(`ticket ${o.ticket} illisible : ${show.stderr}`);
   const t = JSON.parse(show.stdout)[0];
   const base = existsSync(copie) ? copie : racine;
-  const liste = paquets(base);
-  const resoudre = nom => {
-    if (nom === '.') return '.';
-    const norme = path.normalize(nom).endsWith('/')
-      ? path.normalize(nom).slice(0, -1)
-      : path.normalize(nom);
-    if (liste.some(p => p.dossier === norme)) return norme;
-    const parNom = liste.find(p => p.pkg.name === nom);
-    if (parNom) return parNom.dossier;
-    if (!norme.startsWith('..') && existsSync(path.join(base, norme))) return norme;
-    throw new Usage(
-      `le composant « ${nom} » du titre ne nomme ni un paquet ni un chemin du dépôt.`
-    );
-  };
+  const liste = composantsDe(base);
+  const resoudre = nom => resoudreComposant(liste, base, nom);
   // The subject of the title <titre>, « numéro — sujet — composants », and the packages of its
   // plan, its components, each a directory of the repository; or a Usage.
   const duTitre = titre => {
@@ -1450,10 +1461,10 @@ const lireSaFiche = (ctx, sorte, sortie) =>
     ticket: leTicket(ctx).description,
   });
 
-// The name of the package <dossier> as a title writes it: its package's name, or its path.
-function nomDe(ctx, dossier) {
-  const liste = paquets(existsSync(ctx.copie) ? ctx.copie : ctx.racine);
-  return liste.find(p => p.dossier === dossier)?.pkg.name ?? dossier;
+// The name of each package of <dossiers> as a title writes it: its component's name, or its path.
+function nomsDe(ctx, dossiers) {
+  const liste = composantsDe(existsSync(ctx.copie) ? ctx.copie : ctx.racine);
+  return dossiers.map(d => liste.find(p => p.dossier === d)?.pkg.name ?? d);
 }
 
 // The sheet <fiche> of <role>, kept with the ticket's sheets, <avec> joined to its entry, each of
@@ -1462,7 +1473,7 @@ function nomDe(ctx, dossier) {
 // and its subject), which the tri reads; returns it.
 function garder(ctx, role, fiche, avec = {}) {
   inscrire(ctx, { role, fiche, ...avec });
-  const composants = ctx.paquets.map(c => nomDe(ctx, c)).join(', ');
+  const composants = nomsDe(ctx, ctx.paquets).join(', ');
   for (const d of fiche.decouvertes ?? []) {
     const r = spawnSync(
       'bash',
@@ -2347,10 +2358,11 @@ const TYPES_DE_COMMIT = { bug: 'fix', chore: 'chore', docs: 'docs' };
 // plan by their name; then the message the sheets of the developpeur and of the reviewer give, in
 // their order, written once from the final state (`messageDuLot`).
 function messageDeCommit(ctx) {
-  const liste = paquets(existsSync(ctx.copie) ? ctx.copie : ctx.racine);
-  const noms = ctx.paquets
-    .filter(c => c !== '.')
-    .map(c => liste.find(p => p.dossier === c)?.pkg.name ?? path.basename(c));
+  const liste = composantsDe(existsSync(ctx.copie) ? ctx.copie : ctx.racine);
+  const noms = ctx.paquets.flatMap(c => {
+    const nom = liste.find(p => p.dossier === c)?.pkg.name;
+    return nom ? [nom] : c === '.' ? [] : [path.basename(c)];
+  });
   const type = TYPES_DE_COMMIT[ctx.type] ?? 'feat';
   const portee = noms.length ? `(${noms.join(',')})` : '';
   return messageDuLot({
@@ -2613,7 +2625,7 @@ function preuve(ctx) {
   const injustifies = [];
   const casses = [];
   const neufs = [];
-  const liste = paquets(ctx.copie).filter(p => !p.hors);
+  const liste = composantsDe(ctx.copie).filter(p => !p.hors);
   let anciens = 0;
   const reportes = [];
   const mesure = mesureDeLaPreuve(ctx, liste, fichiers);
@@ -2887,7 +2899,7 @@ const ligneDeCommande = c =>
 // at the final pass, each key of the debt a guard wrote inscribed above what it finds, `{ garde,
 // fichier, regle, trouve }`.
 function controles(ctx, finale, restreinte = null, reportes = null) {
-  const liste = paquets(ctx.copie).filter(p => !p.hors);
+  const liste = composantsDe(ctx.copie).filter(p => !p.hors);
   const filtres = restreinte
     ? ['--', `--filter=...[${restreinte.avant}...${restreinte.apres}]`, '--filter=//']
     : [];
@@ -3083,7 +3095,7 @@ function paquetsDuPlan(ctx, liste) {
 // packages plays its tests at its root: each plan has them.
 function sansTests(ctx) {
   const racine = existsSync(ctx.copie) ? ctx.copie : ctx.racine;
-  const liste = paquets(racine).filter(p => !p.hors);
+  const liste = composantsDe(racine).filter(p => !p.hors);
   if (liste.length === 0) return false;
   const touche = (c, d) => c === '.' || d === c || d.startsWith(`${c}/`) || c.startsWith(`${d}/`);
   return !liste.some(p => ctx.paquets.some(c => touche(c, p.dossier)) && joueDesTests(racine, p));
@@ -3914,7 +3926,7 @@ function decrireLePlan(description, criteres, questions) {
 function ecrireLePlan(ctx, plan, description = null) {
   const t = leTicket(ctx);
   const parts = t.titre.split(' — ');
-  const titre = [...parts.slice(0, -1), plan.map(c => nomDe(ctx, c)).join(', ')].join(' — ');
+  const titre = [...parts.slice(0, -1), nomsDe(ctx, plan).join(', ')].join(' — ');
   const options = [
     ...(titre === t.titre ? [] : ['--title', titre]),
     ...(description === null || description === t.description ? [] : ['-d', description]),
@@ -4236,8 +4248,10 @@ async function arreter(ctx, e) {
 // from.
 function etendre(ctx, e) {
   const gagnes = [...new Set(ctx.etendre.map(ctx.resoudre))].filter(c => !ctx.paquets.includes(c));
-  const liste = paquets(existsSync(ctx.copie) ? ctx.copie : ctx.racine);
-  const pkg = c => liste.find(p => p.dossier === c)?.pkg ?? null;
+  const base = existsSync(ctx.copie) ? ctx.copie : ctx.racine;
+  const liste = composantsDe(base);
+  const pkg = c =>
+    liste.some(p => p.dossier === c) ? lireJson(path.join(base, c, 'package.json')) : null;
   const lit = (lecteur, fournisseur) => {
     const nom = pkg(fournisseur)?.name;
     const p = pkg(lecteur);
