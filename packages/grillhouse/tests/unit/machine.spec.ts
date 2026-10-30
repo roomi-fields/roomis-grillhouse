@@ -181,7 +181,8 @@ describe('critère 1 — on a machine without ~/.cache, no test file fails to lo
       const r = jouer([], AUCUN, { HOME: maison });
       expect(nonCharges(r)).toEqual([]);
       expect(r.numFailedTestSuites).toBe(0);
-      expect(existsSync(path.join(maison, '.cache'))).toBe(true);
+      // No day test makes a root under the home since grillhouse-3dr.3.7 (the locks' roots are in
+      // the temp directory): the case above proves a root under the home makes ~/.cache.
       // The roots of trial of the files, made at load and left by the tests that did not run, go
       // with the base of the child's run, in its temp directory (grillhouse-3uv.93): nothing stays.
       expect(readdirSync(r.temp)).toEqual([]);
