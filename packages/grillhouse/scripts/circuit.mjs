@@ -585,6 +585,7 @@ import { FICHIER as DETTE } from './dette.mjs';
 import {
   A_ELAGUER,
   bloquantsDeLaFiche,
+  cleDuConstat,
   conformiteDuLot,
   conformiteDuTri,
   lireFiche,
@@ -1430,10 +1431,10 @@ export const auLancement = (contexte, constats) =>
   });
 
 // The findings <constats>, each finding of the developpeur that his sheet <fiche> answers (by its
-// title) with its answer `{ etat, raison, piece }`, as a thread of a review keeps the author's
-// reply under its comment.
+// title, numbered or not: `cleDuConstat`) with its answer `{ etat, raison, piece }`, as a thread
+// of a review keeps the author's reply under its comment.
 function avecLesReponses(constats, fiche) {
-  const parTitre = new Map((fiche.reponses ?? []).map(r => [r.titre, r]));
+  const parTitre = new Map((fiche.reponses ?? []).map(r => [cleDuConstat(r.titre), r]));
   return (constats ?? []).map(c => {
     const r = c.role === 'developpeur' ? parTitre.get(c.titre) : undefined;
     if (!r) return c;
@@ -2172,7 +2173,9 @@ export function constatsOuverts(ctx, fiche, texte) {
     }
     return { titre: c.titre, regle: c.regle, role: c.role, corps: c.corps, piece: c.piece };
   });
-  const leves = new Set((fiche.suivi ?? []).filter(s => s.etat === 'levé').map(s => s.titre));
+  const leves = new Set(
+    (fiche.suivi ?? []).filter(s => s.etat === 'levé').map(s => cleDuConstat(s.titre))
+  );
   const restes = (ctx.constats ?? [])
     .filter(c => !leves.has(c.titre) && !neufs.some(n => n.titre === c.titre))
     .map(c => Object.fromEntries(Object.entries(c).filter(([k]) => k !== 'reponse')));

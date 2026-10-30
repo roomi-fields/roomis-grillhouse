@@ -77,7 +77,7 @@ les constats d'avant, chacun avec la réponse du développeur sous lui (« Répo
 `levé` ou `contesté` avec sa raison, et sa pièce).
 
 1. Chaque constat d'avant se juge levé ou non, sa preuve tirée de la différence, dans `suivi`
-   (son titre, `levé` ou `non levé`, la preuve). Une réponse `contesté` se juge sur sa raison et
+   (son titre sans son numéro « Constat N — », `levé` ou `non levé`, la preuve). Une réponse `contesté` se juge sur sa raison et
    sa pièce, relues, et ta preuve dit pourquoi elle tient ou non. Un constat non levé revient dans `constats`, bloquant, au même destinataire.
 2. Les six passes portent sur la différence : un constat bloquant neuf que le correctif crée,
    dans les lignes qu'il change, rend le lot.

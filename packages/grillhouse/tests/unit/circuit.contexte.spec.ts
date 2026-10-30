@@ -204,3 +204,49 @@ describe('jya — the supervisor’s context heads the instruction, the open fin
     ).toBeNull();
   });
 });
+
+// grillhouse-y42: in open-synth-descriptors (OSD-b91.2.3), each answer of the developpeur's sheet
+// was titled « Constat N — <titre> », as the instruction heads the finding; none was paired.
+describe('y42 — an answer titled as the instruction numbers its finding is paired with it', () => {
+  it('critère 1 — no refusal, and the answer is kept with its finding', () => {
+    const seance = constatsDeLaSeance(null, [ANCIEN, DU_TESTWRITER], 'developpeur');
+    expect(seance.constats).toMatch(`### Constat 1 — ${ANCIEN.titre}`);
+    const fiche = {
+      statut: 'FAIT',
+      reponses: [
+        { titre: `Constat 1 — ${ANCIEN.titre}`, etat: 'levé', piece: 'packages/130-projector/x:1' },
+      ],
+    };
+    expect(seance.valider(fiche)).toBeNull();
+    const gardes = seance.repondre([ANCIEN, DU_TESTWRITER], fiche);
+    expect(gardes[0].reponse).toEqual({ etat: 'levé', piece: 'packages/130-projector/x:1' });
+    expect(gardes[1]).toEqual(DU_TESTWRITER);
+  });
+
+  it('critère 2 — an answer to no finding, numbered or not, leaves it without answer', () => {
+    const seance = constatsDeLaSeance(null, [ANCIEN], 'developpeur');
+    for (const titre of ['Constat 1 — un autre', 'un autre']) {
+      const fiche = { statut: 'FAIT', reponses: [{ titre, etat: 'levé', piece: 'x:1' }] };
+      expect(seance.valider(fiche), titre).toBe(
+        `reponses : sans réponse au constat « ${ANCIEN.titre} »`
+      );
+      expect(seance.repondre([ANCIEN], fiche)[0], titre).toEqual(ANCIEN);
+    }
+  });
+
+  // The reviewer's instruction heads each finding before it the same way (`lignesDesConstats`).
+  it('a reviewer’s suivi levé titled « Constat N — <titre> » lifts its finding; one of no finding lifts none', () => {
+    const suivi = (titre: string) => ({
+      statut: 'ACCEPTÉ',
+      suivi: [{ titre, etat: 'levé', preuve: 'la différence du lot' }],
+    });
+    expect(
+      constatsOuverts({ constats: [ANCIEN] }, suivi(`Constat 1 — ${ANCIEN.titre}`), 'le verdict')
+    ).toEqual([]);
+    for (const titre of ['Constat 1 — un autre', 'un autre']) {
+      expect(constatsOuverts({ constats: [ANCIEN] }, suivi(titre), 'le verdict'), titre).toEqual([
+        ANCIEN,
+      ]);
+    }
+  });
+});

@@ -23,7 +23,8 @@
 //     the circuit does not read, fell at the review) (developpeur);
 //   - `reponses` (`titre` of the finding, `etat` levé or contesté, `raison` for a contesté,
 //     `piece`): as the author answers in each thread of a review on GitHub or Gerrit, a FAIT
-//     answers each finding of the reviewer open for him, by its title, and the circuit refuses a
+//     answers each finding of the reviewer open for him, by its title (the number « Constat N — »
+//     its instruction heads it with recognised, `cleDuConstat`), and the circuit refuses a
 //     sheet without the answer to one (`reponsesAuxConstats`), save in a run where the supervisor
 //     gives the task (`--contexte`, the findings open at the run's launch then its context, the
 //     ones a RENDU states within it still its task: `constatsDeLaSeance` of
@@ -50,8 +51,9 @@
 //     element out of the list, a file the lot changes named alone or as `<fichier>#<nom>`
 //     (`conformiteDuLot`) (reviewer);
 //   - `suivi` (`titre`, `etat` levé or non levé, `preuve`): after a review sent back, each finding
-//     before it judged on the difference of the lot, which the circuit writes at the ticket with
-//     the verdict, for the human (reviewer);
+//     before it judged on the difference of the lot, by its title (its number « Constat N — »
+//     recognised, `cleDuConstat`), which the circuit writes at the ticket with the verdict, for
+//     the human (reviewer);
 //   - `question`, with its `piece` (reviewer): what goes up to the owner, a real word of the
 //     language written in the code; the circuit stops at « besoin » before it commits or
 //     relaunches anyone;
@@ -280,7 +282,9 @@ const FICHES = {
       reponses: liste(
         objet(
           {
-            titre: texte('Le titre du constat, tel que ta consigne l’écrit.'),
+            titre: texte(
+              'Le titre du constat, tel que ta consigne l’écrit, sans son numéro « Constat N — ».'
+            ),
             etat: {
               type: 'string',
               enum: ['levé', 'contesté'],
@@ -356,7 +360,7 @@ const FICHES = {
       suivi: liste(
         objet(
           {
-            titre: texte('Le titre du constat d’avant.'),
+            titre: texte('Le titre du constat d’avant, sans son numéro « Constat N — ».'),
             etat: { type: 'string', enum: ['levé', 'non levé'] },
             preuve: texte('Ce que la différence du lot en montre.'),
           },
@@ -516,12 +520,24 @@ export function reponsesAuxQuestions(fiche, posees) {
   return sans.length ? `reponses : sans ligne pour les questions ${sans.join(', ')}` : null;
 }
 
+// The finding an answer's title <titre> names: the title itself, or the title as the instruction
+// heads it, numbered, « Constat N — <titre> » (`texteDesOuverts` of scripts/circuit.mjs), as a review
+// attaches a reply to its thread by its identifier, never by a copy of its display.
+export function cleDuConstat(titre) {
+  const tiret = ' — ';
+  const fin = titre.indexOf(tiret);
+  const numero = titre.slice('Constat '.length, fin);
+  return titre.startsWith('Constat ') && fin > 0 && String(Number.parseInt(numero, 10)) === numero
+    ? titre.slice(fin + tiret.length)
+    : titre;
+}
+
 // What makes the developpeur's sheet <fiche> out of conformity with the findings open for him
 // (<titres>), as the author answers in each thread of a review: a FAIT without the answer to one,
 // by its title (a BLOQUÉ or a BESOIN stops the circuit before any review). The fault, or null.
 export function reponsesAuxConstats(fiche, titres) {
   if (fiche.statut !== 'FAIT') return null;
-  const repondus = new Set((fiche.reponses ?? []).map(r => r.titre));
+  const repondus = new Set((fiche.reponses ?? []).map(r => cleDuConstat(r.titre)));
   const sans = titres.filter(t => !repondus.has(t)).map(t => `« ${t} »`);
   if (!sans.length) return null;
   return `reponses : sans réponse ${sans.length > 1 ? 'aux constats' : 'au constat'} ${sans.join(', ')}`;

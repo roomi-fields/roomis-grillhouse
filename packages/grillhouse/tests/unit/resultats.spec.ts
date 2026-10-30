@@ -20,6 +20,7 @@ import {
   lirePiece,
   lireSarif,
   conformiteDuTri,
+  cleDuConstat,
   reponsesAuxConstats,
   reponsesAuxQuestions,
   sarif,
@@ -1227,5 +1228,58 @@ describe('the sheet of the tri of the discoveries (0yu.5)', () => {
     expect(lu([ligne('demo-1.1', 'non-confirmee', { texte: ' ' })]).erreur).toMatch(
       /verdicts\[0\]\.texte : manque, pour non-confirmee/
     );
+  });
+});
+
+// grillhouse-y42: in open-synth-descriptors (OSD-b91.2.3), the developpeur's sheet FAIT answered
+// its 4 findings, each title copied as the instruction heads it, « Constat 1 — <titre> »; the
+// titles compared as they were, the 4 findings read « sans réponse », twice. As a review attaches
+// a reply to its thread by its identifier, never by a copy of the display, the circuit recognises
+// its own numbering.
+describe('y42 — an answer titled as the instruction numbers its finding', () => {
+  const titres = ['packages/a/src/x.ts:1', 'le cas zéro'];
+  const repond = (titre: string) => ({ titre, etat: 'levé', piece: 'packages/a/src/x.ts:2' });
+
+  it('critère 1 — « Constat N — <titre> » answers the finding <titre>', () => {
+    expect(
+      reponsesAuxConstats(
+        {
+          statut: 'FAIT',
+          reponses: [
+            repond('Constat 1 — packages/a/src/x.ts:1'),
+            repond('Constat 12 — le cas zéro'),
+          ],
+        },
+        titres
+      )
+    ).toBeNull();
+    expect(cleDuConstat('Constat 3 — le cas zéro')).toBe('le cas zéro');
+    expect(cleDuConstat('le cas zéro')).toBe('le cas zéro');
+  });
+
+  it('critère 2 — a title of no finding, numbered or not, stays without answer, each title expected named as it is', () => {
+    const faute = 'reponses : sans réponse aux constats « packages/a/src/x.ts:1 », « le cas zéro »';
+    for (const autre of [
+      'Constat 1 — un autre',
+      'un autre',
+      'Constat — le cas zéro',
+      'Constat x — le cas zéro',
+    ]) {
+      expect(
+        reponsesAuxConstats({ statut: 'FAIT', reponses: [repond(autre)] }, titres),
+        autre
+      ).toBe(faute);
+    }
+  });
+
+  it('critère 3 — the schema asks the title without its number', () => {
+    const l = (schemaDeFiche('developpeur') as Schema).properties.reponses as {
+      items: { properties: Record<string, { description?: string }> };
+    };
+    expect(l.items.properties.titre.description).toMatch(/sans son numéro « Constat N — »/);
+    const s = (schemaDeFiche('relecteur') as Schema).properties.suivi as {
+      items: { properties: Record<string, { description?: string }> };
+    };
+    expect(s.items.properties.titre.description).toMatch(/sans son numéro « Constat N — »/);
   });
 });

@@ -216,7 +216,9 @@ testwriter` refait le lot et oublie le refus (BP 320.37 : trois fois « FAIT » 
 verts, l'intégration rouge sur le même lot). Un constat bloquant du relecteur va droit à l'agent qu'il nomme et reste ouvert
 d'une relance à l'autre, comme un fil de revue non résolu, jusqu'à ce que le relecteur le dise
 levé ou accepte le lot. Comme l'auteur répond dans chaque fil d'une revue GitHub ou Gerrit, la
-fiche FAIT du développeur répond à chaque constat ouvert pour lui, par son titre (`reponses` :
+fiche FAIT du développeur répond à chaque constat ouvert pour lui, par son titre, sans le
+numéro « Constat N — » que la consigne lui donne, numéro que le circuit reconnaît aussi, comme
+une revue rattache la réponse à son fil par son identifiant (`cleDuConstat`) (`reponses` :
 `levé` avec sa pièce, ou `contesté` avec sa raison et sa pièce) ; le circuit refuse une fiche à
 laquelle il en manque une (`reponsesAuxConstats`). Quand le superviseur relance avec son
 contexte (`--contexte`, ou la question que `--etendre` y verse), comme une revue que son auteur

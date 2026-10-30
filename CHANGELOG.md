@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **An answer titled « Constat N — <title> » answers its finding** (grillhouse-y42): in open-synth-descriptors (OSD-b91.2.3), the developpeur's sheet FAIT gave its 4 answers, one per finding, each with its piece, but each title began with « Constat N — », copied from the heading the instruction gives the finding (`texteDesOuverts`); `reponsesAuxConstats` compared the titles as they were and declared the 4 findings « sans réponse », twice, then the stop « sans-fiche » at 3 Code. As a review attaches a reply to its thread by its identifier, never by a copy of its display (GitHub, Gerrit), the circuit now recognises its own numbering: one function, `cleDuConstat` in `scripts/resultats.mjs`, brings an answer's title back to its finding's, used by `reponsesAuxConstats` and by `avecLesReponses` in `scripts/circuit.mjs`; a title of no finding, numbered or not, stays without answer, and the refusal names each expected title as it is. The reviewer, whose instruction heads each finding before it the same way (`lignesDesConstats`), had the same fault: a `suivi` levé titled « Constat N — » lifted nothing (`constatsOuverts`); it goes through `cleDuConstat` too. The schemas of `reponses.titre` and `suivi.titre`, the instruction and the reviewer's skill ask the title without its number.
+
 ## [0.25.5] - 2026-10-30
 
 ### Added
