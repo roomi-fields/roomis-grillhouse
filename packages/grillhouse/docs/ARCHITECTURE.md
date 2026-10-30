@@ -409,7 +409,12 @@ npm vaut pour les deux : `npx grillhouse maj` met à jour le greffon resté derr
 (`claude plugin update`), comme `npm install` aligne ce qui est installé sur ce qui est déclaré,
 et finit non nulle, avec la commande à taper, quand les deux restent en désaccord ; l'ouverture
 de séance nomme un greffon chargé à une autre version que le paquet du projet, avec la commande
-qui les remet d'accord. Un projet n'en garde aucune copie
+qui les remet d'accord. Dans un projet de TypeScript, `npx grillhouse maj` monte à `^<version>` la
+plage du paquet dans chaque manifeste qui la déclare plus basse (la racine et chaque paquet,
+`dependencies` ou `devDependencies`), comme `npm install <paquet>@<version> --workspaces` ou
+syncpack alignent les déclarations d'une dépendance : un paquet resté sur l'ancienne plage
+garderait sous lui une copie de l'ancienne version ; une plage qui couvre déjà la version reste.
+Un projet n'en garde aucune copie
 (`npx grillhouse maj` retire, à leur empreinte, celles que posait la 0.22) ; sans le paquet installé, l'ouverture de séance dit « lance `npm install` », et les autres crochets
 sortent sans effet. Les crochets git du cadre suivent le modèle de Husky : le `prepare` du
 projet lance `grillhouse hooks`, qui les pose à côté des sections de Beads, et chacun appelle

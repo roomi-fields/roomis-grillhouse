@@ -1481,7 +1481,8 @@ describe('grillhouse-3uv.80 critère 6 — a project whose test is already the f
 const NOM_PAQUET = '@roomi-fields/grillhouse';
 const pkgJson = (o: Record<string, unknown>) => `${JSON.stringify(o, null, 2)}\n`;
 // A project of packages: `teste` holds a test:unit, `sans` none; the root declares the frame's
-// package at <plage> (none when absent).
+// package at <plage> (none when absent). The ranges here cover the version, so the update keeps
+// them (a lower one it brings up, grillhouse-49r).
 function projetAPaquets(workspaces: unknown, plage?: string) {
   const projet = mkdtempSync(path.join(ESSAIS, 'config-vitest-'));
   ecrire(
@@ -1511,10 +1512,10 @@ const devDeps = (projet: string, f: string) =>
 
 describe('the update declares the frame’s package in each tested package of a project of packages', () => {
   it('each tested package declares it at the root’s range; the workspaces stay as they are', () => {
-    const projet = projetAPaquets(['packages/*'], '^0.23.0');
+    const projet = projetAPaquets(['packages/*'], '>=0.23.0');
     const b = mettreAJour(projet, DEPOT);
     expect(json(projet, 'package.json').workspaces).toEqual(['packages/*']);
-    expect(devDeps(projet, 'packages/teste/package.json')).toEqual({ [NOM_PAQUET]: '^0.23.0' });
+    expect(devDeps(projet, 'packages/teste/package.json')).toEqual({ [NOM_PAQUET]: '>=0.23.0' });
     expect(json(projet, 'packages/sans/package.json')).not.toHaveProperty('devDependencies');
     expect(b.configVitest).toEqual({ nom: NOM_PAQUET, paquets: ['packages/teste'] });
   });
@@ -1542,7 +1543,7 @@ describe('the update declares the frame’s package in each tested package of a 
     const propre = pkgJson({
       name: 'propre',
       scripts: { 'test:unit': 'vitest run' },
-      devDependencies: { [NOM_PAQUET]: '^0.0.0' },
+      devDependencies: { [NOM_PAQUET]: '>=0.0.0' },
     });
     ecrire(projet, 'packages/propre/package.json', propre);
     ecrire(
@@ -1603,14 +1604,14 @@ const deps = (projet: string, f: string) =>
   (json(projet, f).dependencies ?? {}) as Record<string, string>;
 describe('grillhouse-3uv.95.11.2 critère 1 — a package whose code imports the frame’s package declares it in its dependencies', () => {
   it('a tested package whose src imports /dette receives it in dependencies, not in devDependencies', () => {
-    const projet = projetAPaquets(['packages/*'], '^0.24.0');
+    const projet = projetAPaquets(['packages/*'], '>=0.24.0');
     ecrire(
       projet,
       'packages/teste/src/garde.mjs',
       "import { trancher } from '@roomi-fields/grillhouse/dette';\ntrancher('.', 'g', []);\n"
     );
     const b = mettreAJour(projet, DEPOT);
-    expect(deps(projet, 'packages/teste/package.json')).toEqual({ [NOM_PAQUET]: '^0.24.0' });
+    expect(deps(projet, 'packages/teste/package.json')).toEqual({ [NOM_PAQUET]: '>=0.24.0' });
     expect(devDeps(projet, 'packages/teste/package.json')).not.toHaveProperty(NOM_PAQUET);
     expect(b.dependanceDuCadre).toEqual({ nom: NOM_PAQUET, paquets: ['packages/teste'] });
     expect(rapport(b)).toContain('dependencies de packages/teste');
@@ -1624,7 +1625,7 @@ describe('grillhouse-3uv.95.11.2 critère 1 — a package whose code imports the
         name: 'outils',
         scripts: { 'test:unit': 'vitest run' },
         dependencies: { zod: '*' },
-        devDependencies: { [NOM_PAQUET]: '^0.24.0', vitest: '^2.0.0' },
+        devDependencies: { [NOM_PAQUET]: '>=0.24.0', vitest: '^2.0.0' },
       })
     );
     ecrire(
@@ -1634,7 +1635,7 @@ describe('grillhouse-3uv.95.11.2 critère 1 — a package whose code imports the
     );
     mettreAJour(projet, DEPOT);
     expect(deps(projet, 'packages/outils/package.json')).toEqual({
-      [NOM_PAQUET]: '^0.24.0',
+      [NOM_PAQUET]: '>=0.24.0',
       zod: '*',
     });
     expect(devDeps(projet, 'packages/outils/package.json')).toEqual({ vitest: '^2.0.0' });

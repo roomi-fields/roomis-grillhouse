@@ -17,6 +17,15 @@
 //   version, the project's scripts stay (the frame's included) and the report names the version
 //   found and the range required. A `test` that runs anything else stays. A repository of packages
 //   keeps its tests in its packages: its root gets no `test:unit`, and the frame's own leaves.
+// - The frame's range: each manifest of the project (the root's, and each package's the workspaces
+//   select, out of the frame included) that declares the frame's package in its `dependencies` or
+//   `devDependencies` at a range lower than the version installed (no version it covers reaches
+//   it) passes to `^<version>`, as `npm install <pkg>@<version> --workspaces`, Renovate and syncpack
+//   align every declaration of a dependency of the workspace; a range that covers the version, one
+//   above it, or one that is no range of versions (`file:`, `workspace:`) stays. The report names
+//   each manifest brought up. Witness: BPScript at 0.25.1 (bp-mono-vbwf.322.15), whose packages kept
+//   `^0.24.0`: npm left a copy 0.24.15 under each `packages/*/node_modules`, where the entry
+//   `./vitest-config/duree` does not resolve.
 // - A package of the frame whose code imports the frame's package (a file of its `src/` out of the
 //   tests, its imports read by TypeScript's `preProcessFile`) declares it in its `dependencies`, as
 //   npm puts there what the published code imports: a declaration in its `devDependencies` moves
@@ -25,7 +34,7 @@
 //   which each Vitest configuration imports by its name: in a project with `workspaces`, each
 //   package of the frame that plays tests (`joueDesTests`: its script `test:unit`) declares the
 //   frame's package in its `devDependencies`, at the range the root declares (else `^<version>`),
-//   a declaration it holds kept. The update writes no Vitest configuration.
+//   a declaration it holds kept (at its range, brought up as above). The update writes no Vitest configuration.
 // - The typing: each package of TypeScript (a `tsconfig.json`) that has no `typecheck` script
 //   receives the template's, `tsc -p tsconfig.json --noEmit`: each package of the frame in a
 //   project with `workspaces` (the root's `typecheck` stays the project's), the root in a project
@@ -62,6 +71,42 @@ const trie = deps =>
 // The range at which the root package.json <p> declares the frame's package, or undefined.
 const plageDeLaRacine = p =>
   CHAMPS_INSTALLES.map(c => p[c]?.[PAQUET_DU_CADRE]).find(v => v !== undefined);
+
+// Brings the frame's range up to `^<version>` in each manifest of the project at <projet> that
+// declares it lower (see the header): the root's in <p>, which the core writes, each package's on
+// disk. { plage, manifestes } (each manifest's path from the root), or null when nothing changes.
+export function alignerLaPlageDuCadre(projet, p, version) {
+  // semver, required when the update runs, not when the module loads (see poserLesTests).
+  const semver = createRequire(import.meta.url)('semver');
+  const plage = `^${version}`;
+  const basse = v =>
+    typeof v === 'string' &&
+    semver.validRange(v) !== null &&
+    !semver.satisfies(version, v) &&
+    semver.lt(semver.minVersion(v), version);
+  const monter = pkg => {
+    let monte = false;
+    for (const c of ['dependencies', 'devDependencies']) {
+      if (basse(pkg[c]?.[PAQUET_DU_CADRE])) {
+        pkg[c][PAQUET_DU_CADRE] = plage;
+        monte = true;
+      }
+    }
+    return monte;
+  };
+  const manifestes = [];
+  if (monter(p)) {
+    manifestes.push('package.json');
+  }
+  // A project without workspaces has no package (paquets).
+  for (const { dossier, pkg } of paquets(projet)) {
+    if (monter(pkg)) {
+      ecrireJson(path.join(projet, dossier, 'package.json'), pkg);
+      manifestes.push(path.join(dossier, 'package.json'));
+    }
+  }
+  return manifestes.length > 0 ? { plage, manifestes } : null;
+}
 
 // Whether `vitest` is declared in the dependencies of the package.json <p> (read at <dossier>) or of
 // one of its packages of the frame.
@@ -243,8 +288,14 @@ function poserTurbo(projet, p, source) {
 }
 
 // The lines of the report of the share <b>.
-function rapport(b) {
+export function rapport(b) {
   const lignes = [];
+  if (b.plageDuCadre) {
+    const { plage, manifestes } = b.plageDuCadre;
+    lignes.push(
+      `Plage du cadre : ${PAQUET_DU_CADRE} monté à ${plage} dans ${manifestes.join(', ')}, qui déclaraient une plage plus basse. \`npm install\` relie cette version dans chaque paquet.`
+    );
+  }
   if (b.configVitest) {
     const { nom, paquets: declarants } = b.configVitest;
     lignes.push(
@@ -284,9 +335,12 @@ function rapport(b) {
 function appliquer(projet, { p, modele, source, version }, joueDesTests) {
   p.scripts ??= {};
   const { test, vitest } = poserLesTests(projet, p, modele);
+  // First: the declarations written after take the root's range, brought up.
+  const plageDuCadre = alignerLaPlageDuCadre(projet, p, version);
   const bilan = {
     test,
     vitest,
+    plageDuCadre,
     dependanceDuCadre: declarerDependanceDuCadre(projet, p, version),
     configVitest: poserConfigVitest(projet, p, version, joueDesTests),
     typage: poserTypage(projet, p, modele.scripts?.[TYPAGE]),
@@ -295,7 +349,10 @@ function appliquer(projet, { p, modele, source, version }, joueDesTests) {
   return {
     bilan,
     lignes: rapport(bilan),
-    installer: bilan.configVitest !== null || bilan.dependanceDuCadre !== null,
+    installer:
+      bilan.plageDuCadre !== null ||
+      bilan.configVitest !== null ||
+      bilan.dependanceDuCadre !== null,
     sansVerifier: bilan.vitest
       ? 'La ligne « Vitest : » ci-dessus dit pourquoi : installe à la racine le Vitest que le cadre exige, puis relance `npx grillhouse maj`, qui écrit le script.'
       : 'La mise à jour l’écrit dans un projet testé par Vitest ; sinon, écris-le pour ses tests.',
