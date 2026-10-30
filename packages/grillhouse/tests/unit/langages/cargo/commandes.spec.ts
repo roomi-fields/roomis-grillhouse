@@ -30,10 +30,8 @@ beforeAll(() => {
   restaurer = avecFauxCargo(installerFauxCargo(ESSAIS), JOURNAL);
   d = (exemples.preparer(ESSAIS) as { depots: Depots }).depots;
 });
-afterAll(() => {
-  restaurer();
-  rmSync(ESSAIS, { recursive: true, force: true });
-});
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+afterAll(() => restaurer());
 beforeEach(() => writeFileSync(JOURNAL, ''));
 
 // Runs the command <nom> of the module in <racine> with <args>, the codes <codes> of the fake

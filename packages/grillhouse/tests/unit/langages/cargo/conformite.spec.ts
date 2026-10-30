@@ -23,10 +23,8 @@ let restaurer = () => {};
 beforeAll(() => {
   restaurer = avecFauxCargo(installerFauxCargo(ESSAIS), path.join(ESSAIS, 'journal'));
 });
-afterAll(() => {
-  restaurer();
-  rmSync(ESSAIS, { recursive: true, force: true });
-});
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+afterAll(() => restaurer());
 
 describe('grillhouse-pkl.3, critère 1 — le module cargo passe la suite de conformité', () => {
   it('the frame’s list names cargo, its module under scripts/langages/cargo/', () => {

@@ -29,10 +29,8 @@ beforeAll(() => {
   restaurer = avecFauxCargo(installerFauxCargo(ESSAIS), path.join(ESSAIS, 'journal'));
   d = (exemples.preparer(ESSAIS) as { depots: Depots }).depots;
 });
-afterAll(() => {
-  restaurer();
-  rmSync(ESSAIS, { recursive: true, force: true });
-});
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+afterAll(() => restaurer());
 
 describe('grillhouse-pkl.3, critère 6 — les crates touchés et leurs dépendants', () => {
   it('ws-core touched gives ws-app (normal) and ws-outil (dev and build); a file out of every crate is out of the graph', () => {
