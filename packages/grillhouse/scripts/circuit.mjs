@@ -47,6 +47,10 @@
 //   separated by commas: each one a path (`packages/<nom>`, or `.`), or the name of a package,
 //   which becomes its directory (scripts/paquets.mjs), read in the ticket's copy when it exists,
 //   else in the main tree. A name that names neither stops the call, exit 2, named.
+// - A ticket whose description holds no « ## Architecture » section stops the call, exit 2, before
+//   step 1, with the reason of the developer's lock (`sansArchitecture`, scripts/verrous/
+//   verrou.mjs), the one rule both read: the code waits for the architecture, and the steps before
+//   it would be sessions lost. `--arreter` passes, the stop not depending on the ticket's content.
 // - Before the testwriter (a run that starts there), the plan (step 1 of scripts/etapes.mjs), as
 //   an RFC: its author writes it after surveying what exists, a review reads it once, the author
 //   answers once, and what stays open goes to who decides. One session of the explorateur out of
@@ -596,6 +600,7 @@ import { garderLeTotal, ouvrirAvancement } from './avancement.mjs';
 import { AVANCEMENT } from './mesure/avancement.mjs';
 import { nomsDesGardes } from './gardes-du-cadre.mjs';
 import { langageDe } from './langages.mjs';
+import { sansArchitecture } from './verrous/verrou.mjs';
 import { A_REPASSER } from './mesure/pression.mjs';
 import { departDe, leMemeVivant, ouvrirBase, vivant } from './mesure/base-de-passe.mjs';
 import { GREFFON } from './cadre.mjs';
@@ -818,6 +823,19 @@ export function resoudreComposant(liste, base, nom) {
   throw new Usage(`le composant « ${nom} » du titre ne nomme ni un paquet ni un chemin du dépôt.`);
 }
 
+// The ticket <id> as `bd show --json` gives it in <sortie>, refused by a Usage when its description
+// holds no « ## Architecture » section, by the rule of the developer's lock (`sansArchitecture`):
+// the code waits for the architecture, so the circuit stops before its first session, as a CI
+// validates its configuration before it runs its jobs. The supervisor's stop (<arreter>,
+// `--arreter`) passes: it does not depend on the ticket's content, as GitLab cancels a pipeline
+// whatever its configuration; `--reprendre` and `--etendre` keep the check.
+export function ticketAuDepart(id, sortie, { arreter = false } = {}) {
+  const t = JSON.parse(sortie)[0];
+  const refus = arreter ? null : sansArchitecture(id, t?.description);
+  if (refus) throw new Usage(refus);
+  return t;
+}
+
 // The context of one run: the paths of the ticket, its plan, how the circuit speaks to bd.
 function contexte(o) {
   const racine = arbrePrincipal();
@@ -834,7 +852,7 @@ function contexte(o) {
   const bd = (...a) => bdSous(AUTEUR_DU_CIRCUIT, ...a);
   const show = bd('show', o.ticket, '--json');
   if (show.status !== 0) throw new Usage(`ticket ${o.ticket} illisible : ${show.stderr}`);
-  const t = JSON.parse(show.stdout)[0];
+  const t = ticketAuDepart(o.ticket, show.stdout, { arreter: Boolean(o.arreter) });
   const base = existsSync(copie) ? copie : racine;
   const liste = composantsDe(base);
   const resoudre = nom => resoudreComposant(liste, base, nom);

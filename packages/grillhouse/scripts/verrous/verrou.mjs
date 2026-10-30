@@ -13,7 +13,8 @@
 //   A project that declares no language (`grillhouse.langages`) is refused, exit code 2, the
 //   update named: the lock cannot judge its writes, and a hook that throws would let them pass.
 // - developpeur writes none of the testwriter's files, and no other file until its ticket's
-//   description holds a "## Architecture" section. The ticket is the "TON TICKET : <id>" line of the agent's
+//   description holds a "## Architecture" section (`sansArchitecture`, which the start of the
+//   circuit reads too). The ticket is the "TON TICKET : <id>" line of the agent's
 //   launch prompt, read from its transcript.
 // - In an envelope (`GRILLHOUSE_ENVELOPPE`, the packages of the plan, scripts/enveloppe/
 //   paquets-du-plan.mjs), a write in the copy out of the packages the plan writes (`ecritsDuPlan`
@@ -44,6 +45,14 @@ const WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 function isInside(file, dir) {
   const rel = path.relative(path.resolve(dir), file);
   return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
+}
+
+// The refusal of the ticket <id> whose <description> holds no "## Architecture" section, or null:
+// the one rule the developer's lock and the start of the circuit (scripts/circuit.mjs) read.
+export function sansArchitecture(id, description) {
+  return /^##\s+Architecture\b/m.test(String(description ?? ''))
+    ? null
+    : `Le ticket ${id} n'a pas sa section « ## Architecture » : le code attend l'architecture. Rends la question au superviseur.`;
 }
 
 const isScratch = (file, tmp = tmpdir()) => isInside(file, tmp);
@@ -172,10 +181,7 @@ export function refusal(role, input, { tmp = tmpdir(), describe = ticketDescript
     if (description === null) {
       return `Le ticket ${id} est illisible par bd.`;
     }
-    if (!/^##\s+Architecture\b/m.test(description)) {
-      return `Le ticket ${id} n'a pas sa section « ## Architecture » : le code attend l'architecture. Rends la question au superviseur.`;
-    }
-    return null;
+    return sansArchitecture(id, description);
   }
   return `Rôle inconnu du verrou : ${role}.`;
 }

@@ -302,7 +302,8 @@ Le circuit du ticket fait chaque commit après le verdict `ACCEPTÉ` du relecteu
 ## L'architecture tranche d'abord
 
 - **Un ticket part avec sa section « Architecture »** (charte, « Le flux d'une tâche ») : je
-  l'écris avant de le proposer. Un mécanisme manquant devient le travail, jamais une compensation
+  l'écris avant de le proposer ; le circuit refuse dès son départ un ticket qui ne l'a pas, avec
+  la raison du verrou du développeur. Un mécanisme manquant devient le travail, jamais une compensation
   locale.
 - **Les critères naissent avec le ticket** : je crée chaque ticket de réalisation avec ses
   critères d'acceptation numérotés (`docs/agents/issue-tracker.md`, « Conventions »). Un cas
