@@ -85,8 +85,9 @@
 //   reading of the summaries.
 // - The pass has a base of its own (scripts/mesure/base-de-passe.mjs), in the temporary
 //   directory of its environment, which it sweeps first of the bases a killed pass left: every
-//   run of Turborepo gets it in TMPDIR, which the root's `globalPassThroughEnv` passes on to every
-//   task (scripts/langages/typescript/turbo-des-paquets.mjs), and the pass removes it at its end, green or red.
+//   run of Turborepo gets it in TMPDIR, TMP and TEMP, the root's `globalPassThroughEnv` passing
+//   TMPDIR on to every task (scripts/langages/typescript/turbo-des-paquets.mjs), and the pass
+//   removes it at its end, green, red or interrupted (SIGINT, SIGTERM, SIGHUP).
 // - Every run plays without the paths of a targeted run's tests: the variable `GRILLHOUSE_TESTS`
 //   (scripts/langages/typescript/vitest-config/cibles.mjs) carries only the choice of the witnesses (and `rejouer` for
 //   a complete pass).
@@ -111,6 +112,7 @@ import {
   ouvrirAvancement,
   ouvrirBase,
   paquetsDeLEnveloppe,
+  retirerALInterruption,
 } from '../../services-du-noyau.mjs';
 import { paquets, TYPAGE } from '../../paquets.mjs';
 import { planifier } from './turbo-des-paquets.mjs';
@@ -204,6 +206,7 @@ export function verifier({
   // The base of the pass, in the temporary directory of <env>: every task writes in it (TMPDIR,
   // which Turborepo passes on), and it goes at the end of the pass.
   const base = ouvrirBase('verification', { dans: env.TMPDIR || tmpdir() });
+  const lacher = retirerALInterruption(base.fermer);
   try {
     return avecLaMachine(
       envMachine => {
@@ -228,7 +231,7 @@ export function verifier({
           return passe({
             racine,
             demandes,
-            env: { ...envMachine, [AVANCEMENT]: dossier, TMPDIR: base.dossier },
+            env: { ...envMachine, [AVANCEMENT]: dossier, ...base.env },
             borneMs,
             pasMs,
             dire,
@@ -249,6 +252,7 @@ export function verifier({
     dire(e.message);
     return e.code;
   } finally {
+    lacher();
     base.fermer();
   }
 }

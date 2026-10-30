@@ -26,6 +26,10 @@
 //   --noEmit`); the launcher builds an agent's copy (./construire.mjs) and the night plays the
 //   night tests (./tests-de-nuit.mjs); each guard and generator of this directory is a command
 //   too, by its name (`grillhouse frontieres`); each one described, `{ script, args }`, never run.
+// - The tool of a test's temporary directory, `mkdtempSync(path.join(tmpdir(), '<prefix>-'))`
+//   removed in `afterAll`, and its guard: each run of Vitest plays under a base of its own,
+//   named in TMPDIR, TMP and TEMP, and fails naming what its tests left there
+//   (./vitest-config/base.mjs).
 // - The verdict: the summaries of Turborepo and the reports of Vitest of a results directory
 //   (./verdict.mjs).
 // - The rule of a test file (./regle-des-tests.mjs).

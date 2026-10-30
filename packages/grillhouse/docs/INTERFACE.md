@@ -137,7 +137,9 @@ clippy`). Le noyau en lance trois
 
 L'entrée `@roomi-fields/grillhouse/jointure` donne au module de langage les services du noyau
 qu'il emploie, et `scripts/jointure.d.ts` les type : le plan d'une enveloppe, l'avancement d'une
-passe et sa mesure, la base d'une passe, la pression de la machine et son verrou, le dernier vert,
+passe et sa mesure, la base d'une passe (son dossier temporaire, nommé dans `TMPDIR`, `TMP` et
+`TEMP` ; la ligne de sa garde, qui nomme ce que les tests y laissent ; son retrait à
+l'interruption), la pression de la machine et son verrou, le dernier vert,
 les arbitrages d'un ticket, les fichiers sources d'un projet. Un module n'importe rien d'autre du noyau que ses entrées publiées
 (`./jointure`, `./paquets`, `./dette`, `./resultats`, `./conformite`).
 

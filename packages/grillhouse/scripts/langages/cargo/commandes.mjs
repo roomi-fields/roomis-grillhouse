@@ -29,6 +29,14 @@
 //   time (`avecLaMachine` of ./jointure, as the module typescript's verifier): a measure that
 //   holds it makes it wait, and the bound of the wait reached, it stops at 75 without running
 //   cargo.
+// - `tester` and `verifier` play under a temporary directory of their pass, the module's guard of
+//   the temporary directory, as the CI of osc-bridge (OB-ud1.3): a base (`ouvrirBase` of
+//   ./jointure, genre `tests` or `verification`) in the temporary directory of the environment,
+//   named in TMPDIR, TMP and TEMP to cargo, which nextest and the doctests inherit; removed at the
+//   end of the pass, green, red or interrupted (SIGINT, SIGTERM, SIGHUP). What the tests left there
+//   fails the pass (code 1), each name written on the error stream. A test makes its temporary
+//   directory or file with the crate `tempfile` (`TempDir`, `NamedTempFile`), removed when dropped,
+//   a failed test included, never a path built by hand under `std::env::temp_dir()`.
 // - `typer`: `cargo check --all-targets`. `preparer`: `cargo fetch --locked`.
 // - Nextest reads the frame's profile `grillhouse` (./nextest.toml, a tool's configuration under
 //   the project's own, `--tool-config-file`), whose JUnit report lands at
@@ -41,7 +49,7 @@
 //   otherwise; 2 for a path refused or a command unknown.
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { constants } from 'node:os';
+import { constants, tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { RESULTATS } from '../../resultats.mjs';
@@ -51,7 +59,10 @@ import {
   CHANGEMENTS,
   DEPUIS_LE_VERT,
   garderLeVert,
+  ligneDesRestes,
   mesure,
+  ouvrirBase,
+  retirerALInterruption,
 } from '../../services-du-noyau.mjs';
 import { composantDans, crates, joueDesTests, metadonnees } from './composants.mjs';
 import { touchesDesFichiers } from './touches.mjs';
@@ -264,6 +275,26 @@ function verifier(racine, args, env) {
   }
 }
 
+// Plays <jouer>(env) under the base of a pass of <genre> in the temporary directory of <env>,
+// named to cargo in TMPDIR, TMP and TEMP: its code, 1 when the tests left something there, named.
+// The base goes at the end, or at an interruption.
+function sousLaBase(genre, env, jouer) {
+  const base = ouvrirBase(genre, { dans: env.TMPDIR || tmpdir() });
+  const lacher = retirerALInterruption(base.fermer);
+  try {
+    const code = jouer({ ...env, ...base.env });
+    const ligne = ligneDesRestes(base.restes());
+    if (!ligne) {
+      return code;
+    }
+    process.stderr.write(`${ligne}\n`);
+    return code === 0 || code === A_REPASSER ? 1 : code;
+  } finally {
+    lacher();
+    base.fermer();
+  }
+}
+
 /**
  * Runs the command <nom> with <args> in the workspace at <racine>: its exit code.
  * @param {string} nom one of NOMS
@@ -283,11 +314,13 @@ export function lancer(nom, args, { racine = process.cwd(), env = process.env } 
   if (nom === 'verifier') {
     const dire = l => process.stdout.write(`${l}\n`);
     try {
-      return avecLaMachine(envMachine => verifier(racine, args, envMachine), {
-        env,
-        racine,
-        dire,
-      });
+      return sousLaBase('verification', env, envBase =>
+        avecLaMachine(envMachine => verifier(racine, args, envMachine), {
+          env: envBase,
+          racine,
+          dire,
+        })
+      );
     } catch (e) {
       if (!(e instanceof AttenteDeLaMachine)) {
         throw e;
@@ -298,34 +331,40 @@ export function lancer(nom, args, { racine = process.cwd(), env = process.env } 
   }
   const tous = crates(racine);
   if (nom === 'tester') {
-    const chemins = args.filter(a => !a.startsWith('-'));
-    const options = args.filter(a => a.startsWith('-') && a !== '--force');
-    let choix;
-    let m = null;
-    if (chemins.length) {
-      const r = choisir(racine, tous, chemins);
-      if (r.refus) {
-        for (const l of r.refus) {
-          process.stderr.write(`⛔ ${l}\n`);
-        }
-        return 2;
-      }
-      choix = r.choix;
-    } else if (env[DEPUIS_LE_VERT]) {
-      ({ choix, m } = depuisLeVert(racine, tous, args.includes('--force'), env));
-      choix = choix.map(c => ({ c, cibles: [] }));
-    } else {
-      choix = tous.map(c => ({ c, cibles: [] }));
-    }
-    try {
-      jouerLesTests(racine, p, choix, options);
-    } finally {
-      m?.retirer();
-    }
-    return p.code();
+    return sousLaBase('tests', env, envBase => tester(racine, tous, args, envBase));
   }
   process.stderr.write(`⛔ commande inconnue du module cargo : ${nom} (${NOMS.join(', ')})\n`);
   return 2;
+}
+
+// The pass of `tester` in <racine>, the crates <tous>, its arguments <args>, under <env>.
+function tester(racine, tous, args, env) {
+  const p = passe(racine, env);
+  const chemins = args.filter(a => !a.startsWith('-'));
+  const options = args.filter(a => a.startsWith('-') && a !== '--force');
+  let choix;
+  let m = null;
+  if (chemins.length) {
+    const r = choisir(racine, tous, chemins);
+    if (r.refus) {
+      for (const l of r.refus) {
+        process.stderr.write(`⛔ ${l}\n`);
+      }
+      return 2;
+    }
+    choix = r.choix;
+  } else if (env[DEPUIS_LE_VERT]) {
+    ({ choix, m } = depuisLeVert(racine, tous, args.includes('--force'), env));
+    choix = choix.map(c => ({ c, cibles: [] }));
+  } else {
+    choix = tous.map(c => ({ c, cibles: [] }));
+  }
+  try {
+    jouerLesTests(racine, p, choix, options);
+  } finally {
+    m?.retirer();
+  }
+  return p.code();
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

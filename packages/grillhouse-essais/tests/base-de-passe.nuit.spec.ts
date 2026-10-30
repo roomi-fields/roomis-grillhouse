@@ -146,12 +146,13 @@ function projet(): string {
 const motif = (dans: string) => dans.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 describe('critères 1, 2 et 6 — each run of Vitest gives its tests a directory of its base, removed at its end', () => {
-  for (const [cas, rouge, code] of [
-    ['green', false, 0],
-    ['red', true, 1],
+  // grillhouse-nt4: the trial directory the test leaves fails the run, named, green or red.
+  for (const [cas, rouge] of [
+    ['green', false],
+    ['red', true],
   ] as const) {
     it(
-      `critères 1, 2 et 6: a ${cas} run: TMPDIR of the test is under the base of the run, which goes after it with the trial directory the test left`,
+      `critères 1, 2 et 6: a ${cas} run: TMPDIR of the test is under the base of the run, which goes after it with the trial directory the test left, named by the guard`,
       () => {
         const dans = mkdtempSync(path.join(ESSAIS, 'vitest-'));
         const orpheline = baseTuee(dans, 'vitest');
@@ -161,7 +162,8 @@ describe('critères 1, 2 et 6 — each run of Vitest gives its tests a directory
           env: { ...ENV, TMPDIR: dans, SONDE: sonde, ...(rouge ? { ROUGE: '1' } : {}) },
           encoding: 'utf8',
         });
-        expect(r.status, r.stdout + r.stderr).toBe(code);
+        expect(r.status, r.stdout + r.stderr).toBe(1);
+        expect(r.stderr).toMatch(/dossier temporaire : trace-/);
         const env = JSON.parse(readFileSync(sonde, 'utf8')) as Record<string, string | undefined>;
         expect(env.TMPDIR).toMatch(new RegExp(`^${motif(dans)}/grillhouse-vitest-[^/]+/t$`));
         expect(existsSync(orpheline)).toBe(false);
@@ -376,8 +378,8 @@ function creations(): { fichier: string; nom: string; source: string }[] {
 // The directories a script makes without removing them itself, each with its reason: the base,
 // which `fermer` removes; the progress directory, which its caller removes (scripts/langages/typescript/verifier.mjs)
 // or which lives in the base of the circuit's run; the results of a pass of the circuit, in that
-// base; the trials of the suite of conformity of the module typescript, under the directory its
-// caller gives it and removes (scripts/conformite.mjs).
+// base; the trials of the suite of conformity of the modules typescript and cargo, under the
+// directory their caller gives them and removes (scripts/conformite.mjs).
 const HORS_DU_SCRIPT = new Set([
   'scripts/mesure/base-de-passe.mjs: base',
   'scripts/avancement.mjs: dossier',
@@ -388,6 +390,10 @@ const HORS_DU_SCRIPT = new Set([
   'scripts/langages/typescript/exemples.mjs: aLaRacine',
   'scripts/langages/typescript/exemples.mjs: dansUnPaquet',
   'scripts/langages/typescript/exemples.mjs: avecTests',
+  'scripts/langages/cargo/exemples.mjs: racine',
+  'scripts/langages/cargo/exemples.mjs: dossier',
+  'scripts/langages/cargo/exemples.mjs: vide',
+  'scripts/langages/cargo/exemples.mjs: typescript',
 ]);
 
 describe('critère 9 — a script of the frame that makes a temporary directory removes it at its end', () => {

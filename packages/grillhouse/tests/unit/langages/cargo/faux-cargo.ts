@@ -22,6 +22,10 @@ import path from 'node:path';
 // - `cargo install --list`: the binaries `FAUX_CARGO_INSTALLES` names (JSON, a version by name),
 //   in cargo's form, `<nom> v<version>:` then the binary, indented (grillhouse-pkl.7); it reads
 //   no manifest, as cargo's own, and plays in a directory without Cargo.toml.
+// - `cargo nextest …` under `FAUX_CARGO_TEMPORAIRE` writes there its temporary directories
+//   (TMPDIR, TMP, TEMP, JSON); under `FAUX_CARGO_RESTE`, leaves a file of that name in its TMPDIR,
+//   as a test that forgets its file; under `FAUX_CARGO_ATTENDRE`, waits that many ms, as a long
+//   test (grillhouse-nt4).
 // - Each call is a line of the journal `FAUX_CARGO_JOURNAL` names (its arguments, joined by a
 //   blank); its code is the one `FAUX_CARGO_CODES` gives (JSON, by `<sous-commande> <crate>` or
 //   `<sous-commande>`), 0 otherwise.
@@ -109,6 +113,16 @@ const crate = d => {
 const sous = args[0] === 'nextest' ? 'nextest' : args[0];
 const nomme = args[args.indexOf('-p') + 1];
 const code = codes[sous + ' ' + nomme] ?? codes[sous] ?? 0;
+if (sous === 'nextest' && process.env.FAUX_CARGO_TEMPORAIRE) {
+  const { TMPDIR, TMP, TEMP } = process.env;
+  fs.writeFileSync(process.env.FAUX_CARGO_TEMPORAIRE, JSON.stringify({ TMPDIR, TMP, TEMP }));
+}
+if (sous === 'nextest' && process.env.FAUX_CARGO_RESTE) {
+  fs.writeFileSync(path.join(process.env.TMPDIR, process.env.FAUX_CARGO_RESTE), '');
+}
+if (sous === 'nextest' && process.env.FAUX_CARGO_ATTENDRE) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Number(process.env.FAUX_CARGO_ATTENDRE));
+}
 if (sous === 'metadata') {
   const packages = dossiers.map(crate);
   process.stdout.write(JSON.stringify({

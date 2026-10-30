@@ -4,6 +4,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  rmSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
@@ -58,7 +59,8 @@ export function ouvrirBaseEnProcessus(
   genre: string,
   { dans }: { dans: string }
 ): { base: string; dossier: string; fermer: () => void } {
-  const remise = path.join(mkdtempSync(path.join(tmpdir(), 'base-tenue-')), 'base.json');
+  const tenue = mkdtempSync(path.join(tmpdir(), 'base-tenue-'));
+  const remise = path.join(tenue, 'base.json');
   const module = pathToFileURL(path.join(CADRE, 'scripts/mesure/base-de-passe.mjs')).href;
   const code = `import { writeFileSync } from 'node:fs';
 const { ouvrirBase } = await import(${JSON.stringify(module)});
@@ -81,6 +83,7 @@ writeFileSync(${JSON.stringify(remise)}, JSON.stringify({ base: b.base, dossier:
     base: string;
     dossier: string;
   };
+  rmSync(tenue, { recursive: true, force: true });
   const fermer = () => {
     enfant.kill('SIGTERM');
     for (let i = 0; existsSync(base); i++) {

@@ -300,11 +300,16 @@ jusqu'au responsable).
 
 **Une passe écrit sous sa base** : chaque lancement de Vitest, `npm test`, `npm run verifier`,
 un circuit, une intégration et une enveloppe ouvrent leur base dans le dossier temporaire, la
-nomment dans `TMPDIR` à ce qu'ils lancent (les dossiers d'essai des tests, celui de Vitest, celui
-de Claude Code) et l'effacent à leur fin, verte ou rouge ; la base d'une passe tuée, la suivante
-la balaie, comme Bazel donne à chaque test son `TEST_TMPDIR` et nettoie ses bacs à sable
-(`packages/grillhouse/scripts/mesure/base-de-passe.mjs`). Ainsi un essai oublié ne remplit jamais le dossier
-temporaire de la machine.
+nomment dans `TMPDIR`, `TMP` et `TEMP` à ce qu'ils lancent (les dossiers d'essai des tests, celui
+de Vitest, celui de Claude Code) et l'effacent à leur fin, verte, rouge ou interrompue (SIGINT,
+SIGTERM, SIGHUP) ; la base d'une passe tuée, la suivante la balaie, comme Bazel donne à chaque
+test son `TEST_TMPDIR` et nettoie ses bacs à sable
+(`packages/grillhouse/scripts/mesure/base-de-passe.mjs`). Une passe de tests garde son dossier :
+ce que ses tests y laissent la fait échouer, chaque nom écrit, comme la CI d'osc-bridge
+(OB-ud1.3), les caches des outils qu'un test lance tolérés par leur nom ; le module de chaque langage nomme son outil et joue cette garde dans son lanceur de
+tests (typescript : la base de chaque lancement de Vitest, `mkdtempSync` retiré en `afterAll` ;
+cargo : `tester` et `verifier`, le crate `tempfile`). Ainsi un essai oublié ne remplit jamais le
+dossier temporaire de la machine, et le test qui l'oublie est nommé.
 
 **Le dossier du circuit appartient au ticket** : `.claude/worktrees/<ticket>.travail` vit autant
 que le ticket, comme l'espace de travail d'un pipeline ; aucun balayage n'y touche, la file

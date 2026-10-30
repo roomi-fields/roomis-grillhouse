@@ -8,7 +8,15 @@
 // without running cargo; it plays the crates the changes since the last green touch and their
 // dependents.
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -268,4 +276,76 @@ describe('grillhouse-pkl.3 — verifier depuis le dernier vert', () => {
     writeFileSync(path.join(espace, 'README.md'), '# Changé\n');
     expect(lancer(espace, 'verifier').appels).toEqual(['deny check']);
   });
+});
+
+// grillhouse-nt4: a pass of tests plays under a temporary directory of its own (TMPDIR, TMP,
+// TEMP), removed at its end, green, red or interrupted, and fails naming what its tests left
+// there, as the CI of osc-bridge does (OB-ud1.3). Witness: SyntHub's passes each left ~10
+// directories `synthhub-db-*` in /tmp (crates/service/src/db.rs:36).
+describe('grillhouse-nt4, critères 2 et 3 — les tests du module cargo sous un dossier temporaire de passe', () => {
+  // A temporary directory of trial, the one the command is launched with, and a probe beside it.
+  const essai = () => {
+    const racine = mkdtempSync(path.join(ESSAIS, 'temporaire-'));
+    const dans = path.join(racine, 'tmp');
+    mkdirSync(dans);
+    return { dans, sonde: path.join(racine, 'sonde.json') };
+  };
+  const motif = (dans: string, genre: string) =>
+    new RegExp(`^${dans.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/grillhouse-${genre}-[^/]+/t$`);
+
+  for (const [nom, args, genre] of [
+    ['tester', [], 'tests'],
+    ['verifier', ['--tout'], 'verification'],
+  ] as const) {
+    it(`${nom}: a red nextest plays under TMPDIR, TMP and TEMP of the pass, then nothing stays and no leftover is named`, () => {
+      const { dans, sonde } = essai();
+      const r = lancer(
+        d.seul,
+        nom,
+        [...args],
+        { nextest: 100 },
+        { TMPDIR: dans, FAUX_CARGO_TEMPORAIRE: sonde }
+      );
+      expect(r.code, r.stdout + r.stderr).toBe(1);
+      const t = JSON.parse(readFileSync(sonde, 'utf8')) as Record<string, string>;
+      expect(t.TMPDIR).toMatch(motif(dans, genre));
+      expect(t.TMP).toBe(t.TMPDIR);
+      expect(t.TEMP).toBe(t.TMPDIR);
+      expect(r.stderr).not.toMatch(/dossier temporaire/);
+      expect(readdirSync(dans)).toEqual([]);
+    });
+
+    it(`${nom}: a test that leaves a file in its temporary directory fails the pass, the file named, and nothing stays`, () => {
+      const { dans } = essai();
+      const r = lancer(d.seul, nom, [...args], {}, { TMPDIR: dans, FAUX_CARGO_RESTE: 'oublie.db' });
+      expect(r.code, r.stdout + r.stderr).toBe(1);
+      expect(r.stderr).toMatch(/dossier temporaire.*oublie\.db/);
+      expect(readdirSync(dans)).toEqual([]);
+    });
+  }
+
+  it('tester interrupted (SIGINT) leaves nothing in the temporary directory', async () => {
+    const { dans, sonde } = essai();
+    const c = cargo.commandes(d.seul).tester;
+    const enfant = spawn(process.execPath, [c.script, ...c.args], {
+      cwd: d.seul,
+      detached: true,
+      stdio: 'ignore',
+      env: {
+        ...process.env,
+        TMPDIR: dans,
+        FAUX_CARGO_TEMPORAIRE: sonde,
+        FAUX_CARGO_ATTENDRE: '20000',
+      },
+    });
+    const fin = new Promise(ok => enfant.on('close', ok));
+    for (let i = 0; i < 200 && !existsSync(sonde); i++) {
+      await new Promise(ok => setTimeout(ok, 50));
+    }
+    expect(existsSync(sonde)).toBe(true);
+    // Ctrl-C reaches the whole group of the command, as a terminal sends it.
+    process.kill(-(enfant.pid ?? 0), 'SIGINT');
+    await fin;
+    expect(readdirSync(dans)).toEqual([]);
+  }, 30_000);
 });

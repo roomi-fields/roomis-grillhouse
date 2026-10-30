@@ -265,6 +265,12 @@ export function ecrireLaMesure(o: {
 }): void;
 /** Opens the base of a pass of the kind `genre` (scripts/mesure/base-de-passe.mjs). */
 export function ouvrirBase(genre: string, o?: { dans?: string }): unknown;
+/** The line of the guard of a pass of tests, what its tests left in their temporary directory
+ * named; null when they left nothing. */
+export function ligneDesRestes(restes: string[]): string | null;
+/** Runs `retirer` when the process is interrupted, then lets the signal end it; the removal of
+ * the handlers. */
+export function retirerALInterruption(retirer: () => void): () => void;
 /** The pressure of the processor above which a pass is « à repasser » (scripts/mesure/pression.mjs). */
 export const SEUIL_PRESSION: number;
 /** The exit code of a pass « à repasser ». */

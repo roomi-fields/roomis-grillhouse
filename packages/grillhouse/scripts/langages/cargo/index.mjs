@@ -17,7 +17,9 @@
 // - The elements of a lot, one per crate (./elements-du-lot.mjs).
 // - The commands `tester`, `verifier`, `typer` and `preparer` (./commandes.mjs), each described,
 //   `{ script, args }`, never run, `preparer` played by the integration before the verification;
-//   the verdict of a run (./verdict.mjs).
+//   the verdict of a run (./verdict.mjs). The tool of a test's temporary directory, the crate
+//   `tempfile`, and its guard: `tester` and `verifier` play under a base of their pass, named in
+//   TMPDIR, TMP and TEMP, and fail naming what the tests left there (./commandes.mjs).
 // - The generated file, the index of the interfaces (./index-interfaces.mjs), its command and its
 //   check; the guards of structure, in the order they play: clippy (./clippy.mjs), the boundaries
 //   between crates (./frontieres.mjs), the index of the interfaces up to date, each a command by

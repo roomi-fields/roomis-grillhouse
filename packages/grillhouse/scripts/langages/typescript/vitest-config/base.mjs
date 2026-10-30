@@ -49,15 +49,21 @@
 //   test plays in a repository of trial never writes in it (./resultats.setup.mjs).
 // - A run of Vitest has a base of its own, as Bazel gives each test its TEST_TMPDIR: a plugin opens
 //   it while the configuration resolves, sweeping the orphan bases a killed run left, and names
-//   it in TMPDIR, so that Vitest's own temporary directory, each test process and everything they
-//   start write there; the base is removed when the run exits, green or red
-//   (`baseDeVitest`, below; the base, scripts/mesure/base-de-passe.mjs).
+//   it in TMPDIR, TMP and TEMP, so that Vitest's own temporary directory, each test process and
+//   everything they start write there; the base is removed when the run exits, green, red or
+//   interrupted (SIGINT, SIGTERM, SIGHUP). It is the guard of the temporary directory of the
+//   module typescript: what the tests left there at the end of the run, once Vitest removed its
+//   own directory, fails the run, each name written, the caches of the tools a test launches
+//   tolerated by name (`CACHES_DES_OUTILS`, below) (`baseDeVitest`, below; the base,
+//   scripts/mesure/base-de-passe.mjs). A test makes its temporary directory with
+//   `mkdtempSync(path.join(tmpdir(), '<prefix>-'))` and removes it in `afterAll` (`rmSync`,
+//   `recursive` and `force`), a red test included.
 // - While a run names the progress directory of its pass (`GRILLHOUSE_AVANCEMENT`,
 //   scripts/mesure/avancement.mjs), the reporter of progress writes there the files done and planned of its
 //   task at each test file done, which the board reads (scripts/avancement.mjs,
 //   scripts/tableau.mjs).
 import { fileURLToPath } from 'node:url';
-import { ouvrirBase } from '../../../services-du-noyau.mjs';
+import { ligneDesRestes, ouvrirBase, retirerALInterruption } from '../../../services-du-noyau.mjs';
 import { ciblage, HORS_DU_JOUR } from './cibles.mjs';
 import { rapportAvancement } from './avancement.reporter.mjs';
 import { rapportJson } from './resultats.mjs';
@@ -69,11 +75,26 @@ const ici = f => fileURLToPath(new URL(f, import.meta.url));
 const MARQUE = 'GRILLHOUSE_BASE_DE_VITEST';
 
 /**
+ * The caches the tools a test launches keep in the temporary directory, which the guard of the
+ * base tolerates, by name, at its root (the base removes them with the rest):
+ * - `node-compile-cache`: Node's compile cache, which npm enables (`module.enableCompileCache()`)
+ *   under `os.tmpdir()`. Its variable, NODE_COMPILE_CACHE, enables the cache in every Node the
+ *   tests start, written out of the pass for good;
+ * - `claude-<uid>`: the temporary directory of Claude Code (`CLAUDE_CODE_TMPDIR`, else
+ *   `os.tmpdir()`), where a claude a test launches keeps its scratchpads. Its variable named out
+ *   of the pass would bring them back into the machine's /tmp (grillhouse-3uv.93: 18 835
+ *   directories of `/tmp/claude-1000` left by the envelopes of trial copies).
+ */
+const CACHES_DES_OUTILS = new Set(['node-compile-cache', `claude-${process.getuid?.() ?? ''}`]);
+
+/**
  * The plugin of the base configuration that gives a run of Vitest its base: while Vite resolves
  * the configuration, before Vitest makes its own temporary directory (`join(tmpdir(), nanoid())`,
  * its transformed modules), the main process opens a base of genre `vitest` and names it in its
- * `TMPDIR`, which every test process inherits; the base is removed when the process exits, green
- * or red. A process that already opened its base keeps it.
+ * `TMPDIR`, `TMP` and `TEMP`, which every test process inherits. When the process exits, what is
+ * left in the base fails the run, named on the error stream (Vitest removed its own directory at
+ * its close); then the base goes. An interruption removes it too. A process that already opened
+ * its base keeps it.
  * @returns {{ name: string, config: () => void }} a plugin of Vite
  */
 function baseDeVitest() {
@@ -83,8 +104,16 @@ function baseDeVitest() {
       if (process.env[MARQUE]?.startsWith(`${process.pid}:`)) return;
       const b = ouvrirBase('vitest');
       process.env[MARQUE] = `${process.pid}:${b.base}`;
-      process.env.TMPDIR = b.dossier;
-      process.on('exit', b.fermer);
+      Object.assign(process.env, b.env);
+      retirerALInterruption(b.fermer);
+      process.on('exit', () => {
+        const ligne = ligneDesRestes(b.restes().filter(n => !CACHES_DES_OUTILS.has(n)));
+        if (ligne) {
+          process.stderr.write(`${ligne}\n`);
+          process.exitCode = 1;
+        }
+        b.fermer();
+      });
     },
   };
 }

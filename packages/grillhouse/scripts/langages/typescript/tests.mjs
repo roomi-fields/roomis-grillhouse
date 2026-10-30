@@ -74,8 +74,9 @@
 //   scripts/avancement.mjs: the circuit's proof and checks), each run of the tests plans its
 //   tasks first, and Vitest writes there the files done and planned of each.
 // - The run has a base of its own (scripts/mesure/base-de-passe.mjs), which it sweeps first
-//   of the bases a killed run left: it names it in TMPDIR to every run of Turborepo, which the
-//   root's `globalPassThroughEnv` passes on to every task, and removes it at its end.
+//   of the bases a killed run left: it names it in TMPDIR, TMP and TEMP to every run of
+//   Turborepo, whose root's `globalPassThroughEnv` passes TMPDIR on to every task, and removes it
+//   at its end, green, red or interrupted (SIGINT, SIGTERM, SIGHUP).
 // The exit code is Turborepo's; 2 for a path refused.
 import { spawnSync } from 'node:child_process';
 import { accessSync, constants, existsSync, readdirSync, statSync } from 'node:fs';
@@ -87,6 +88,7 @@ import {
   mesure,
   ouvrirBase,
   paquetsDeLEnveloppe,
+  retirerALInterruption,
 } from '../../services-du-noyau.mjs';
 import { paquets } from '../../paquets.mjs';
 import { garderLesResumes } from './verdict.mjs';
@@ -97,9 +99,11 @@ import { VARIABLE } from './vitest-config/cibles.mjs';
 
 const racine = process.cwd();
 // The base of the run (scripts/mesure/base-de-passe.mjs): this process and every run of
-// Turborepo write in it (TMPDIR), and it goes at the end of the run.
+// Turborepo write in it (TMPDIR, TMP, TEMP), and it goes at the end of the run, or at its
+// interruption.
 const base = ouvrirBase('tests');
-process.env.TMPDIR = base.dossier;
+Object.assign(process.env, base.env);
+const lacher = retirerALInterruption(base.fermer);
 const enveloppe = paquetsDeLEnveloppe() !== null;
 const args = process.argv.slice(2);
 const force = args.includes('--force');
@@ -237,6 +241,7 @@ const lancer = () => {
 try {
   process.exitCode = lancer();
 } finally {
+  lacher();
   depuis?.retirer();
   base.fermer();
 }

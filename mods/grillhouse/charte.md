@@ -128,6 +128,13 @@ responsable. Ainsi chaque découverte est lue, et le backlog reste le plan du re
   paquet et les tests ; `npm run verifier -- --gardes`, les gardes seules. Aucun agent ne lance
   l'outil de test directement. Ainsi chaque test tourne avec ce dont il dépend, et une seule fois
   tant que rien ne change.
+- **Les tests ne laissent rien dans le dossier temporaire** : un test crée ses fichiers et
+  dossiers temporaires par l'outil de son langage, qui les retire à la fin, test rouge compris ;
+  aucun chemin ne se bâtit à la main sous le dossier temporaire. Chaque passe de tests joue sous un
+  dossier temporaire à elle, retiré à sa fin, même rouge ou interrompue, et échoue en nommant ce
+  qu'un test y laisse ; le module de chaque langage nomme son outil et porte cette garde. Ainsi le
+  dossier temporaire, souvent un disque en mémoire que partagent les séances du poste, ne sature
+  jamais.
 - **Main reste vert** : l'intégration exige un `npm run verifier` vert. Un test connu rouge se met
   en quarantaine dans le test lui-même (`it.skip` ou `it.fails`), avec le ticket qui le corrige.
   Ainsi chaque rouge a son ticket.
