@@ -181,7 +181,7 @@ function ticketsEnCours(racine) {
   const r = spawnSync('bd', ['list', '--status', 'in_progress', '--limit', '0', '--json'], {
     cwd: racine,
     encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
+    maxBuffer: 256 * 1024 * 1024,
     timeout: LECTURE_MS,
   });
   if (r.status !== 0) {
