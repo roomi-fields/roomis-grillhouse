@@ -19,10 +19,13 @@
 //   `peerDependencies` that name another component), transitively, as Turborepo's
 //   `--filter=...[<depuis>]`; a file out of every component is out of the graph.
 // - The elements of a lot (./elements-du-lot.mjs).
+// - Where its tools write, which the envelope opens to a session (`sorties`), and the rules that
+//   refuse a role that writes the test tool run directly (`droits`).
 // - The commands: `grillhouse tests` (./tests.mjs) tests, `grillhouse verifier` (./verifier.mjs)
 //   verifies, and TypeScript's compiler, the project's or else the frame's, types (`tsc
-//   --noEmit`); each guard and generator of this directory is a command too, by its name (`grillhouse
-//   frontieres`); each one described, `{ script, args }`, never run.
+//   --noEmit`); the launcher builds an agent's copy (./construire.mjs) and the night plays the
+//   night tests (./tests-de-nuit.mjs); each guard and generator of this directory is a command
+//   too, by its name (`grillhouse frontieres`); each one described, `{ script, args }`, never run.
 // - The verdict: the summaries of Turborepo and the reports of Vitest of a results directory
 //   (./verdict.mjs).
 // - The rule of a test file (./regle-des-tests.mjs).
@@ -198,6 +201,33 @@ export default {
     'knip',
     'turbo',
   ],
+  // Where its tools write: the cache of Turborepo in the main tree, shared by every copy, written;
+  // the logs of Turborepo's tasks (`.turbo/turbo-<task>.log`, written on every run, a task replayed
+  // from its cache included, and which no option of Turborepo sends elsewhere) and the cache of
+  // Vite, where Vitest writes the results of a run (`node_modules/.vite/vitest/`) and whose failure
+  // fails it, proper to the session.
+  sorties: {
+    ecrites: ['//.turbo/cache/'],
+    propres: ['.turbo', 'node_modules/.vite'],
+    lues: [],
+  },
+  // The test tool run directly, Vitest or Turborepo that plays it: `npm test` and `npm run
+  // verifier` play it with what it depends on. `turbo *` ends on a word, so `npx grillhouse
+  // turbo-des-paquets` stays open.
+  droits: [
+    'Bash(vitest*)',
+    'Bash(npx vitest*)',
+    'Bash(npx * vitest*)',
+    'Bash(npm exec vitest*)',
+    'Bash(npm exec * vitest*)',
+    'Bash(node_modules/.bin/vitest*)',
+    'Bash(turbo *)',
+    'Bash(npx turbo *)',
+    'Bash(npx * turbo *)',
+    'Bash(npm exec turbo *)',
+    'Bash(npm exec * turbo *)',
+    'Bash(node_modules/.bin/turbo *)',
+  ],
   composants,
   composantDe: (racine, fichier) => composantDans(composants(racine), racine, fichier),
   matieres: racine =>
@@ -212,6 +242,8 @@ export default {
     tester: { script: ici('tests.mjs'), args: [] },
     verifier: { script: ici('verifier.mjs'), args: [] },
     typer: { script: compilateur(racine), args: ['--noEmit'] },
+    construire: { script: ici('construire.mjs'), args: [] },
+    'tests-de-nuit': { script: ici('tests-de-nuit.mjs'), args: [] },
     ...Object.fromEntries(OUTILS.map(n => [n, { script: ici(`${n}.mjs`), args: [] }])),
   }),
   verdict,

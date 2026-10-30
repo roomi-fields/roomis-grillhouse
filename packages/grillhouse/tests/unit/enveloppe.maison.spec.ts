@@ -209,8 +209,8 @@ describe.runIf(canWrap)(
       DBUS_SESSION_BUS_ADDRESS: `unix:path=${bus}`,
       npm_config_cache: path.join(maison, '.npm'),
     });
-    const run = (shell: string, maison = home, dans = copie) =>
-      spawnSync('node', [SCRIPT, dans, 'packages/a', 'developpeur', '--', 'bash', '-c', shell], {
+    const run = (shell: string, maison = home, dans = copie, plan = 'packages/a') =>
+      spawnSync('node', [SCRIPT, dans, plan, 'developpeur', '--', 'bash', '-c', shell], {
         encoding: 'utf8',
         env: env(maison),
       });
@@ -276,14 +276,17 @@ describe.runIf(canWrap)(
       }
     });
     // The envelope's contract: « Only these are written: the agent's copy ». A copy that holds an
-    // index keeps its root written: a file is created, replaced and deleted there, a directory made.
+    // index keeps its root written for a plan that writes it: a file is created, replaced and
+    // deleted there, a directory made. (grillhouse-pkl.5: `packages/a` is a component of the
+    // module, which a plan naming it writes alone; the root is the plan `.`.)
     it('lets a copy that holds an index create, replace and delete a file of its root', () => {
       for (const dans of [copie, copieRtfm]) {
         const ecrit = run(
           'echo neuf > neuf.txt && printf remplace > t && mv t LISEZMOI && mkdir dossier-neuf' +
             ' && echo a > efface.txt && rm efface.txt && mv neuf.txt renomme.txt',
           home,
-          dans
+          dans,
+          '.'
         );
         expect(ecrit.status, `${dans}: ${ecrit.stderr}`).toBe(0);
         expect(readFileSync(path.join(dans, 'renomme.txt'), 'utf8'), dans).toBe('neuf\n');
@@ -291,7 +294,7 @@ describe.runIf(canWrap)(
         expect(existsSync(path.join(dans, 'dossier-neuf')), dans).toBe(true);
         expect(existsSync(path.join(dans, 'efface.txt')), dans).toBe(false);
         expect(existsSync(path.join(dans, 'neuf.txt')), dans).toBe(false);
-        const efface = run('rm LISEZMOI renomme.txt && rmdir dossier-neuf', home, dans);
+        const efface = run('rm LISEZMOI renomme.txt && rmdir dossier-neuf', home, dans, '.');
         expect(efface.status, `${dans}: ${efface.stderr}`).toBe(0);
         expect(existsSync(path.join(dans, 'LISEZMOI')), dans).toBe(false);
         expect(existsSync(path.join(dans, 'renomme.txt')), dans).toBe(false);

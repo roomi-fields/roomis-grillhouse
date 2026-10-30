@@ -56,7 +56,7 @@ const PRESENTS = [
   '/main/.turbo/cache',
   '/h/.claude',
 ];
-const enceinte = ({ paquets = ['packages/a', 'packages/b'], role = 'developpeur' } = {}) =>
+const enceinteBrute = ({ paquets = ['packages/a', 'packages/b'], role = 'developpeur' } = {}) =>
   plan(
     {
       trees: ['/main', '/wt'],
@@ -65,6 +65,8 @@ const enceinte = ({ paquets = ['packages/a', 'packages/b'], role = 'developpeur'
       role,
       matieres: ['packages/m'],
       magasins: ['/main/.turbo/cache'],
+      // The outputs of TypeScript proper to the session (grillhouse-pkl.5: its module's).
+      sorties: { ecrites: [], propres: ['.turbo', 'node_modules/.vite'] },
       paquetsDeLaCopie: DE_LA_COPIE,
       montages: montagesDeLaSeance({
         cacheNpm: '/h/.npm',
@@ -76,6 +78,11 @@ const enceinte = ({ paquets = ['packages/a', 'packages/b'], role = 'developpeur'
     },
     disque(PRESENTS)
   );
+// The plan, its arguments empty when it refuses.
+const enceinte = (o?: { paquets?: string[]; role?: string }) => {
+  const r = enceinteBrute(o);
+  return { refus: r.refus, args: r.args ?? [] };
+};
 
 describe('grillhouse-3uv.95.3 — le plan de l’enceinte', () => {
   it('critère 1 — monte la copie entière en lecture seule, puis en écriture les seuls paquets du plan', () => {

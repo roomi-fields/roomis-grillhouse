@@ -44,10 +44,12 @@ change, et corriger un test ne rejoue que lui.
 
 **Tout se lit, le plan s'écrit** : un agent de rôle travaille dans l'enveloppe de sa copie
 (`packages/grillhouse/scripts/enveloppe/`, un bac à sable bubblewrap) ; il lit toute la copie,
-index compris (`.codegraph`, `.rtfm`), et n'écrit que les paquets que le plan de son ticket nomme
-(les paquets du titre), la base des tickets et le cache de Turborepo ; `.git` reste en lecture
-seule, et la matière de test partagée s'écrit par le seul testwriter. Un chemin du plan hors des
-paquets écrit la racine, toute la copie. `GRILLHOUSE_ENVELOPPE` porte la liste aux commandes du
+index compris (`.codegraph`, `.rtfm`), et n'écrit que les composants que le plan de son ticket
+nomme (les paquets du titre), la base des tickets et les sorties du module de son langage (le
+cache de Turborepo ; le `target/` et les magasins de cargo, sa maison `~/.cargo` et `~/.rustup`
+en lecture) ; `.git` reste en lecture seule, et la matière de test partagée s'écrit par le seul
+testwriter. Le plan se juge sur les composants du module (un paquet TypeScript, un crate, un
+paquet hors cadre) : un chemin du plan hors de tout composant écrit la racine, toute la copie. `GRILLHOUSE_ENVELOPPE` porte la liste aux commandes du
 cadre, qui construisent, jugent et écrivent ses seuls paquets. Une écriture hors du plan échoue
 au montage, et le verrou de l'agent arrête sa séance en nommant le paquet ; le circuit s'arrête à
 « hors-plan », une question pour le superviseur, qui étend le plan (`--etendre`) ou refuse. Comme la visibilité de Bazel et
@@ -444,12 +446,13 @@ inertes. Un module par langage et un seul paquet, plutôt qu'un paquet par langa
 ou Nx : une seule équipe tient tous les langages, et un seul paquet n'a ni versions à aligner ni
 imports à réécrire chez les projets.
 
-**La jointure des langages** : le noyau ne demande à un module de langage que cinq choses — ses
+**La jointure des langages** : le noyau ne demande à un module de langage que six choses — ses
 composants et celui d'un fichier, avec les lecteurs par le code des éléments qu'un ticket nomme ;
 les composants touchés depuis un commit, avec leurs dépendants ; les commandes qui testent,
 typent et vérifient, les composants qui jouent des tests (`joueDesTests` ; le script des tests
 porte un nom neutre, `test:unit`, le même pour chaque langage), et la lecture de leur verdict ; la règle qui dit qu'un fichier est un test
-(le verrou du testwriter) ; ses fichiers engendrés, leur commande et ses gardes de structure.
+(le verrou du testwriter) ; ses fichiers engendrés, leur commande et ses gardes de structure ;
+où écrivent ses outils et l'outil de test qu'un rôle ne lance pas lui-même.
 L'INTERFACE.md du noyau l'écrit (`packages/grillhouse/docs/INTERFACE.md`), `scripts/jointure.d.ts`
 la type, et `scripts/langages.mjs` charge le module que le projet déclare (`grillhouse.langages`
 de son `package.json` ; un projet qui n'en déclare aucun est refusé, la commande `maj` nommée) ;
@@ -459,7 +462,14 @@ des lots de l'intégration et du circuit ; les commandes de `grillhouse tests` e
 verifier` ; le verdict que le circuit lit, et les paquets du plan qui portent des tests ; les fichiers engendrés du circuit ; les gardes de
 `grillhouse gardes-du-cadre` ; les sous-commandes du module, chacune de son nom (`grillhouse
 frontieres`) ; les éléments du lot que le circuit donne au relecteur ; la matière de test que
-l'enveloppe monte ; les migrations qui rejouent une garde du module, que `maj` joue avec celles du
+l'enveloppe monte ; où écrivent les outils du langage (`sorties`), que l'enveloppe ouvre à la
+séance, comme un bac à sable de Bazel ouvre ce que l'action déclare (le cache de Turborepo ; le
+`target/` et les magasins de cargo) ; l'outil de test lancé directement, que les droits refusent
+à un rôle qui écrit (`droits`) ; la préparation que l'intégration et la file jouent avant la
+vérification (`preparer`, `cargo fetch --locked`), la construction de la copie d'un agent que joue
+le lanceur (`construire`), les tests de nuit que joue la nuit (`tests-de-nuit`), et la commande
+qui rejoue seule une tâche rouge, que la vérification écrit pour la bissection de la nuit ; les
+migrations qui rejouent une garde du module, que `maj` joue avec celles du
 noyau, comme `nx migrate` réunit celles de chaque greffon. Le module typescript vit sous
 `scripts/langages/typescript/` (`tests/temoins/repartition.json` range chaque fichier), ses tests
 sous `tests/unit/langages/typescript/` ; le module cargo sous `scripts/langages/cargo/` (les crates

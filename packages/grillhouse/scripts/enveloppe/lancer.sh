@@ -10,7 +10,7 @@
 #   (`jugerComposant` of enveloppe.mjs), as the role and the instruction are, in the ticket's copy
 #   when it exists, else in the main tree or in the tree of the branch agent/<ticket> when it
 #   exists (`git cat-file -e`; `.` is always admitted): a path that names nothing there is refused on the standard error, CODE_USAGE, nothing prepared; when
-#   it is the name of a package or of its folder, the refusal names the path it means.
+#   it is the name of a component of the module of its language (a package, a crate) or of its folder, the refusal names the path it means.
 # - --paquets <liste> is the plan of the session: the paths of the packages it writes, in the form
 #   of the envelope's variable (`ecrireLaListe` of paquets-du-plan.mjs, `packages/a:packages/b`),
 #   each judged as <composant> is; without it, the plan is <composant> alone. The envelope shows
@@ -50,34 +50,16 @@
 #   project shares (`grillhouse.partage`), which the copy reads from the main repository. Its
 #   dependencies are installed when `node_modules` is absent or `package-lock.json` is newer than
 #   the last installation (`node_modules/.package-lock.json`, written by npm), and it is built there
-#   by Turborepo, which restores an unchanged build from its cache, outside the envelope, so the
-#   agent finds the builds of the packages out of its plan. As Bazel builds the dependencies of a
-#   target before the target: for a plan whose every path is a package of the frame (the circuit's
-#   session over the whole ticket, `.` as its component and the plan as `--paquets`, or a component
-#   alone), their providers are built first (the builds their builds wait for, read in Turborepo's
-#   graph, `turbo run build --filter=<paquet>… --dry=json`, which node reads on its standard input,
-#   whatever its size), and a failure stops the launch, CODE_COPIE;
-#   then the traces of other packages their tests wait for (`grillhouse.traces`, read in Turborepo's
-#   plan of their tests, `turbo run test:unit --filter=<paquet>… --dry=json`), which the envelope
-#   shows read-only, and a failure stops the launch, CODE_COPIE. A task of either step that waits,
-#   directly or not, for a task of a package of the plan (`attendentLePlan` of
-#   turbo-des-paquets.mjs) is not played there: as with Bazel's --keep_going, a package of the plan
-#   stays a target of the plan even as another's provider (BPScript's 990-corpus, the shared test
-#   material, which the trace of 060-encoder waits for), and goes with the plan. Then the packages,
-#   the traces of the plan or that wait for it, and what their tests read (`turbo run build <those
-#   traces> --filter=<paquet>...… --continue=dependencies-successful`), whose failure does not
-#   stop it: each task whose
-#   dependencies succeed goes to its end, so what their tests read without depending on them is
-#   built whole; the session opens, its instruction ending with a section « La construction
-#   échoue » with the end of that output, since repairing it is the session's work (a
-#   provider's lot that breaks its consumers). Their consumers are not built. Any other plan, the
-#   whole repository (`.`) included, or a path that is no package of the frame (BPScript's
-#   libraries/), reads the graph of the whole copy dry (`turbo run build --dry=json`), whose
-#   failure (Turborepo absent, its configuration refused) stops the launch, CODE_COPIE, then builds
-#   the copy whole as far as it builds (`turbo run build --continue=dependencies-successful`): its
-#   failure does not stop the launch either, and goes into the same section. The first line of the
-#   section says which build failed and what was built. The installation and every other step of
-#   the preparation stop it, CODE_COPIE. The
+#   for the session's plan by the module of its language, when the module describes it
+#   (`construire`, by scripts/commande-du-langage.mjs, as the night plays its night tests; the
+#   module typescript builds by Turborepo, which restores
+#   an unchanged build from its cache, scripts/langages/typescript/construire.mjs), outside the
+#   envelope, so the agent finds built what it reads out of its plan. A build that fails does not
+#   stop the launch: the session opens, its instruction ending with a section « La construction
+#   échoue », whose first line says which build failed and what was built, with the end of its
+#   output, since repairing it is the session's work (a provider's lot that breaks its consumers).
+#   Any other failure of the command, the installation and every other step of the preparation
+#   stop it, CODE_COPIE. The
 #   installation and the build play through `scripts/sous-modules.sh monter`, each shared submodule
 #   of the main repository read-only, by the list the pose printed, whatever the installation
 #   rewrites afterwards; with a shared submodule and no possible mount (bwrap absent or
@@ -174,7 +156,7 @@ if [ -d "$racine/.claude/worktrees/$ticket" ]; then
 elif git -C "$racine" rev-parse --verify --quiet "refs/heads/agent/$ticket" > /dev/null; then
   branche="agent/$ticket"
 fi
-refus_composant=$(node --input-type=module -e "import { spawnSync } from 'node:child_process'; import { existsSync } from 'node:fs'; import path from 'node:path'; import { jugerComposant } from '$ici/enveloppe.mjs'; import { lireLaListe } from '$ici/paquets-du-plan.mjs'; import { paquets } from '$ici/../paquets.mjs'; const [depot, composant, liste, branche] = process.argv.slice(1); const dansBranche = p => { const rel = path.relative(depot, p); return rel === '' || (!rel.startsWith('..') && spawnSync('git', ['-C', depot, 'cat-file', '-e', branche + ':' + rel]).status === 0); }; const existe = p => existsSync(p) || (branche !== '' && dansBranche(p)); const tous = paquets(depot); process.stdout.write([composant, ...lireLaListe(liste)].map(c => jugerComposant({ depot, composant: c, paquets: tous }, { existe })).find(Boolean) ?? '');" "$juge" "$composant" "$paquets" "$branche") || exit "$CODE_USAGE"
+refus_composant=$(node --input-type=module -e "import { spawnSync } from 'node:child_process'; import { existsSync } from 'node:fs'; import path from 'node:path'; import { jugerComposant, paquetsDuLangage } from '$ici/enveloppe.mjs'; import { lireLaListe } from '$ici/paquets-du-plan.mjs'; import { langageDe } from '$ici/../langages.mjs'; const [depot, composant, liste, branche] = process.argv.slice(1); const dansBranche = p => { const rel = path.relative(depot, p); return rel === '' || (!rel.startsWith('..') && spawnSync('git', ['-C', depot, 'cat-file', '-e', branche + ':' + rel]).status === 0); }; const existe = p => existsSync(p) || (branche !== '' && dansBranche(p)); const tous = paquetsDuLangage(langageDe(depot), depot); process.stdout.write([composant, ...lireLaListe(liste)].map(c => jugerComposant({ depot, composant: c, paquets: tous }, { existe })).find(Boolean) ?? '');" "$juge" "$composant" "$paquets" "$branche") || exit "$CODE_USAGE"
 [ -z "$refus_composant" ] || { echo "⛔ $refus_composant" >&2; exit "$CODE_USAGE"; }
 # The ticket is matched whole: `demo-3160` is not `demo-316`, and its dots are dots.
 motif=$(printf '%s' "$ticket" | sed 's/[.[\*^$]/\\&/g')
@@ -196,9 +178,8 @@ if node --input-type=module -e "import { lireEntrees } from '$ici/../integration
   exit "$CODE_COPIE"
 fi
 # The output of the session's build, when it fails, behind its first line, which says what failed
-# and what was built (`echouer`).
+# and what was built: the module's command `construire` writes it.
 echec=$(mktemp)
-echouer() { local sortie; sortie=$(cat "$echec"); printf '%s\n%s\n' "$1" "$sortie" > "$echec"; }
 (
   # Each step returns on failure: `set -e` does not act inside a subshell tested by `||`.
   if [ ! -d "$copie" ]; then
@@ -247,62 +228,10 @@ echouer() { local sortie; sortie=$(cat "$echec"); printf '%s\n%s\n' "$1" "$sorti
     if [ ! -d "$copie/node_modules" ] || [ "$copie/package-lock.json" -nt "$installe" ]; then
       monter npm --prefix "$copie" install --no-save --no-audit --no-fund --silent || exit 1
     fi
-    # The packages of the session's plan that are packages of the frame: their names, one per
-    # line; none when a path of the plan is no package of the frame (the root, `.`, a folder).
-    noms=$(node --input-type=module -e "import path from 'node:path'; import { lireLaListe } from '$ici/paquets-du-plan.mjs'; import { paquets } from '$ici/../paquets.mjs'; const [r, liste] = process.argv.slice(1); const tous = paquets(r).filter(p => !p.hors); const l = lireLaListe(liste).map(d => tous.find(p => p.dossier === path.normalize(d).replace(/\/\$/, ''))?.pkg.name ?? null); process.stdout.write(l.length && l.every(Boolean) ? l.join('\n') : '');" "$copie" "$paquets") || exit 1
-    if [ -z "$noms" ]; then
-      # The graph read dry first: Turborepo absent or its configuration refused is a preparation
-      # that fails, which stops the launch. Then the whole copy, built as far as it builds
-      # (--continue=dependencies-successful): a failure does not stop the launch, it goes into the
-      # instruction, as for a plan of packages.
-      (cd "$copie" && monter npx --no-install turbo run build --dry=json > /dev/null) || exit 1
-      if ! (cd "$copie" && monter npx --no-install turbo run build --continue=dependencies-successful) > "$echec" 2>&1; then
-        cat "$echec"
-        echo "⚠️  La construction de la copie échoue : la séance s'ouvre, la consigne porte l'erreur."
-        echouer "La construction de la copie entière échoue ; ce qui n'attend pas la construction en échec est construit."
-      else
-        : > "$echec"
-      fi
-    else
-      mapfile -t lesNoms <<<"$noms"
-      cibles=() lecteurs=()
-      for n in "${lesNoms[@]}"; do cibles+=("--filter=$n"); lecteurs+=("--filter=$n..."); done
-      # Their providers: the builds their own builds wait for, as Turborepo reads them, save those
-      # that wait for a package of the plan, which go with the plan below. The graph comes on the
-      # standard input: as an argument, it may pass the size Linux allows one.
-      graphe=$(cd "$copie" && monter npx --no-install turbo run build "${cibles[@]}" --dry=json) || exit 1
-      fournisseurs=$(node --input-type=module -e "import { readFileSync } from 'node:fs'; import { attendentLePlan } from '$ici/../langages/typescript/turbo-des-paquets.mjs'; const g = JSON.parse(readFileSync(0, 'utf8')); const avec = attendentLePlan(g, process.argv.slice(1)); console.log(g.tasks.map(t => t.taskId).filter(id => !avec.has(id)).sort().join('\n'));" "${lesNoms[@]}" <<<"$graphe") || exit 1
-      if [ -n "$fournisseurs" ]; then
-        mapfile -t ids <<<"$fournisseurs"
-        (cd "$copie" && monter npx --no-install turbo run "${ids[@]}") || exit 1
-      fi
-      # The traces their tests wait for, as Turborepo's plan of their tests reads them. Another
-      # package's trace that waits for no package of the plan is produced here, and a failure
-      # stops the launch, as a provider's; a trace of the plan, or one that waits for a package of
-      # the plan, is produced with the plan below.
-      plan=$(cd "$copie" && monter npx --no-install turbo run test:unit "${cibles[@]}" --dry=json) || exit 1
-      traces() { node --input-type=module -e "import { readFileSync } from 'node:fs'; import { attendentLePlan, tracesDuPlan } from '$ici/../langages/typescript/turbo-des-paquets.mjs'; const [avec, ...noms] = process.argv.slice(1); const p = JSON.parse(readFileSync(0, 'utf8')); const attend = attendentLePlan(p, noms); console.log(tracesDuPlan(p, t => attend.has(t.taskId) === (avec === 'oui')).join('\n'));" "$1" "${lesNoms[@]}" <<<"$plan"; }
-      autres=$(traces non) || exit 1
-      if [ -n "$autres" ]; then
-        mapfile -t ids <<<"$autres"
-        (cd "$copie" && monter npx --no-install turbo run "${ids[@]}") || exit 1
-      fi
-      avec=$(traces oui) || exit 1
-      ids=()
-      [ -z "$avec" ] || mapfile -t ids <<<"$avec"
-      # The packages of the plan, the traces that go with them, and what their tests read (the
-      # shared test material), built after their providers: a failure does not stop the launch, it
-      # goes into the instruction. Each task whose dependencies succeed goes to its end
-      # (--continue=dependencies-successful): one package's failure does not cancel the build of
-      # what the tests read without depending on it, which the envelope shows read-only.
-      if ! (cd "$copie" && monter npx --no-install turbo run build ${ids[@]+"${ids[@]}"} "${lecteurs[@]}" --continue=dependencies-successful) > "$echec" 2>&1; then
-        cat "$echec"
-        echo "⚠️  La construction du plan (${lesNoms[*]}) échoue : la séance s'ouvre, la consigne porte l'erreur."
-        echouer "La construction des paquets de ton plan échoue ; leurs fournisseurs et ce que leurs tests lisent sans dépendre d'eux sont construits."
-      else
-        : > "$echec"
-      fi
-    fi
+    # The build of the copy for the session's plan, by the module of its language (`construire`),
+    # when it describes one: a build that fails writes its first line and its output in $echec,
+    # and the session opens with them; any other failure stops the launch.
+    (cd "$copie" && monter node "$ici/../commande-du-langage.mjs" construire --echec "$echec" "$paquets") || exit 1
   fi
 ) >> "$journal" 2>&1 || { rm -f "$echec"; echo "⛔ La copie $copie n'a pas pu être préparée : voir $journal." >&2; exit "$CODE_COPIE"; }
 # What the components before each package of the plan publish, read in the prepared copy,

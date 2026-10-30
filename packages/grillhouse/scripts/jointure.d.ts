@@ -123,6 +123,22 @@ export interface Langage {
   trouve(racine: string): boolean;
   /** The tools a project of this language installs, optional peers of the package. */
   outils: string[];
+  /** Where a run of the language's tools writes, which the envelope opens to a session. */
+  sorties: {
+    /** Opened in writing: from the root of the copy, from the home (`~/…`), or from the main
+     * tree (`//…`), a store shared by every copy; each created before the session, a directory
+     * when it ends with `/`, else an empty file. */
+    ecrites: string[];
+    /** Proper to the session: from the root of the copy and of each component of the shared test
+     * material, where the session does not write them, an empty directory. */
+    propres: string[];
+    /** Read by the tools, from the home (`~/…`) or the main tree (`//…`), mounted read-only
+     * before what is written inside them; one absent is not mounted. */
+    lues: string[];
+  };
+  /** The rules of Claude Code that refuse a role that writes the test tool run directly (charter,
+   * « Aucun agent ne lance l'outil de test directement »). */
+  droits: string[];
   composants(racine: string): Composant[];
   composantDe(racine: string, fichier: string): Composant | null;
   matieres(racine: string): Composant[];

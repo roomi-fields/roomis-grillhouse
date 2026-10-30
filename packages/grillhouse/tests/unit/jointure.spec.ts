@@ -11,6 +11,9 @@
 //   (« as Turborepo does »), are not read.
 // - grillhouse-pkl.3: the module cargo, under scripts/langages/cargo/, takes its share of the
 //   files, answers each member of the join, and names of the core its published entries alone.
+// - grillhouse-pkl.5, criterion 4: the rights, the envelope, the launcher and the night name no
+//   tool and no file of a module: they ask the module (`sorties`, `droits`, its commands), and
+//   leave the rests.
 import {
   mkdirSync,
   mkdtempSync,
@@ -79,10 +82,6 @@ const MOT = /turbo|vitest|knip|dependency-cruiser|\btsc\b/i;
 // The rests of the core that name a tool, each with the ticket that takes it out: the file, and
 // the pieces of its lines that may name one, in any case.
 const RESTES: Record<string, { ticket: string; morceaux: string[] }> = {
-  'scripts/droits.mjs': { ticket: 'grillhouse-pkl.5', morceaux: ['vitest', 'turbo'] },
-  'scripts/enveloppe/enveloppe.mjs': { ticket: 'grillhouse-pkl.5', morceaux: ['.turbo'] },
-  'scripts/enveloppe/lancer.sh': { ticket: 'grillhouse-pkl.5', morceaux: ['turbo'] },
-  'scripts/nuit.sh': { ticket: 'grillhouse-pkl.5', morceaux: ['turbo', 'vitest'] },
   'scripts/sources.mjs': { ticket: 'grillhouse-pkl.7', morceaux: ['.turbo'] },
   'scripts/session-start.sh': { ticket: 'grillhouse-pkl.7', morceaux: ['turbo'] },
   'scripts/grillhouse-maj.mjs': {
@@ -225,11 +224,6 @@ const duShell = (rel: string) =>
 // The files of a module of language the core names, each with the ticket that takes it out: the
 // scripts of the shell that run a module's file by its path.
 const NOMMES_EN_RESTE: Record<string, { ticket: string; fichiers: string[] }> = {
-  'scripts/enveloppe/lancer.sh': {
-    ticket: 'grillhouse-pkl.5',
-    fichiers: [`${MODULE}turbo-des-paquets.mjs`],
-  },
-  'scripts/nuit.sh': { ticket: 'grillhouse-pkl.5', fichiers: [`${MODULE}vitest.nuit.config.mjs`] },
   'scripts/session-start.sh': {
     ticket: 'grillhouse-pkl.7',
     fichiers: [`${MODULE}consommateurs.mjs`],

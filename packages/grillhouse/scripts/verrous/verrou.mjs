@@ -16,7 +16,8 @@
 //   description holds a "## Architecture" section. The ticket is the "TON TICKET : <id>" line of the agent's
 //   launch prompt, read from its transcript.
 // - In an envelope (`GRILLHOUSE_ENVELOPPE`, the packages of the plan, scripts/enveloppe/
-//   paquets-du-plan.mjs), a write in the copy out of the packages the plan writes (`ecritsDuPlan`)
+//   paquets-du-plan.mjs), a write in the copy out of the packages the plan writes (`ecritsDuPlan`
+//   on the components of the module of the language, `paquetsDuLangage`, as the envelope reads them)
 //   and out of the shared test material, whose rule is the one above, stops the session, as the
 //   visibility of Bazel refuses a target the rule does not open: the hook answers Claude Code's
 //   `continue: false`, the tool refused (`permissionDecision: deny`), its reason naming the file's
@@ -33,9 +34,9 @@ import {
   MARQUE_HORS_PLAN,
   paquetQuiTient,
   paquetsDeLEnveloppe,
+  paquetsDuLangage,
 } from '../enveloppe/paquets-du-plan.mjs';
 import { langageDe } from '../langages.mjs';
-import { paquets } from '../paquets.mjs';
 
 const WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 
@@ -78,7 +79,7 @@ function horsDuPlan(input, { tmp = tmpdir(), env = process.env } = {}) {
   if (isScratch(file, tmp)) return null;
   const copie = racineDe(file);
   if (!copie) return null;
-  const liste = paquets(copie);
+  const liste = paquetsDuLangage(langageDe(copie), copie);
   const ecrits = ecritsDuPlan(plan, liste);
   const rel = path.relative(copie, file);
   if (ecrits.includes('.') || ecrits.some(d => rel.startsWith(`${d}/`))) return null;

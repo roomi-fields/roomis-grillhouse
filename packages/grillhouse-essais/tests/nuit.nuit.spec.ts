@@ -233,7 +233,12 @@ describe('the night', () => {
 // grillhouse-3uv.56.2: the red night's ticket gives, for each red task of the full pass, the
 // command that looks for the culprit commit over the interval, `git bisect run` with that task
 // alone. The fake `npm run verifier` writes the red tasks committed in ROUGE (one Turborepo task id
-// per line) to the file GRILLHOUSE_ROUGES names, as scripts/langages/typescript/verifier.mjs does, and fails.
+// per line, then a tab and the command that replays it alone, grillhouse-pkl.5) to the file
+// GRILLHOUSE_ROUGES names, as scripts/langages/typescript/verifier.mjs does, and fails.
+const ligneRouge = (t: string) => {
+  const i = t.indexOf('#');
+  return `${t}\tnpx turbo run ${t.slice(i + 1)} --filter=${t.slice(0, i)}\n`;
+};
 describe('the bisect commands of the red night (grillhouse-3uv.56.2)', () => {
   function rougeSur(taches: string[]) {
     const m = monde();
@@ -247,7 +252,7 @@ describe('the bisect commands of the red night (grillhouse-3uv.56.2)', () => {
     m.git('commit', '-qm', 'verifier');
     expect(m.nuit().status).toBe(0);
     const vert = m.git('rev-parse', '--short=7', 'HEAD').trim();
-    writeFileSync(path.join(m.repo, 'ROUGE'), taches.map(t => `${t}\n`).join(''));
+    writeFileSync(path.join(m.repo, 'ROUGE'), taches.map(ligneRouge).join(''));
     m.git('add', 'ROUGE');
     m.git('commit', '-qm', 'casse');
     const rouge = m.git('rev-parse', '--short=7', 'HEAD').trim();
@@ -316,7 +321,7 @@ describe('grillhouse-w47.2 — the night plays each step and names each red task
     if (o.vertAvant) {
       expect(m.nuit().status).toBe(0);
     }
-    writeFileSync(path.join(m.repo, 'ROUGE'), taches.map(t => `${t}\n`).join(''));
+    writeFileSync(path.join(m.repo, 'ROUGE'), taches.map(ligneRouge).join(''));
     m.git('add', 'ROUGE');
     m.git('commit', '-qm', 'casse');
     if (o.ouverts) {

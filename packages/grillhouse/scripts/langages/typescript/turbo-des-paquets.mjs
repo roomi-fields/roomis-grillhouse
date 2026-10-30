@@ -73,8 +73,8 @@
 //   output, `ecrit`, a directory inside the package that git ignores. A restore from the cache
 //   adds files and removes none: the command empties its directory before writing it.
 //   The traces a package's tests wait for are read in Turborepo's plan of its tests
-//   (`tracesDuPlan`), by the targeted run (scripts/langages/typescript/tests.mjs) and the launcher
-//   (scripts/enveloppe/lancer.sh), which produce them before the tests; the envelope shows the
+//   (`tracesDuPlan`), by the targeted run (scripts/langages/typescript/tests.mjs) and the build of an
+//   agent's copy (./construire.mjs), which produce them before the tests; the envelope shows the
 //   directory of a neighbour's trace read-only (scripts/enveloppe/enveloppe.mjs), and the targeted
 //   run inside it plays the traces of the agent's package only.
 // - The package holding a declared path of data alone (the shared test material) has its `build`

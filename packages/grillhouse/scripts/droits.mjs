@@ -45,6 +45,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { langageDe } from './langages.mjs';
 
 // The variable in which bd reads the author of a comment (`bd --help`: « default: $BEADS_ACTOR,
 // git user.name, $USER »).
@@ -93,23 +94,6 @@ const LIRE_GIT = [
   'Bash(git -C * log*)',
   'Bash(git -C * ls-files*)',
   'Bash(git -C * grep*)',
-];
-// The test tool run directly, Vitest or Turborepo that plays it (charter, « Aucun agent ne lance
-// l'outil de test directement »): `npm test` and `npm run verifier` play it with what it depends on.
-// `turbo *` ends on a word, so `npx grillhouse turbo-des-paquets` stays open.
-const TEST_DIRECT = [
-  'Bash(vitest*)',
-  'Bash(npx vitest*)',
-  'Bash(npx * vitest*)',
-  'Bash(npm exec vitest*)',
-  'Bash(npm exec * vitest*)',
-  'Bash(node_modules/.bin/vitest*)',
-  'Bash(turbo *)',
-  'Bash(npx turbo *)',
-  'Bash(npx * turbo *)',
-  'Bash(npm exec turbo *)',
-  'Bash(npm exec * turbo *)',
-  'Bash(node_modules/.bin/turbo *)',
 ];
 // The skills Claude Code keeps listed when its own are off (`disableBundledSkills`), measured on
 // Claude Code 2.1.305.
@@ -307,7 +291,9 @@ function reglagesDuRole(role, { racine, copie = racine, ticket, home }) {
   if (!r) throw new Error(`rôle sans droits : ${role}`);
   const deny = [...AUTEUR_FIXE, ...(r.ecritAuTicket === false ? ECRIRE_AU_TICKET : [])];
   if (r.ecrit) {
-    deny.push(...ECRIRE_PAR_SCRIPT, ...TEST_DIRECT);
+    // The test tool run directly (charter, « Aucun agent ne lance l'outil de test directement »),
+    // as the module of the copy's language names it: `npm test` and `npm run verifier` play it.
+    deny.push(...ECRIRE_PAR_SCRIPT, ...langageDe(copie).droits);
     // The ticket its instruction carries, its description, notes and last handover.
     for (const lecture of ['show', 'comments']) {
       deny.push(`Bash(bd ${lecture} ${ticket})`, `Bash(bd ${lecture} ${ticket} *)`);

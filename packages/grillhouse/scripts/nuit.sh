@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # The night: once a day, the full pass played for real, then what the day never plays: the night
-# tests and the time budget benches. During the day `npm run verifier` (the integration's) replays
-# from Turborepo's cache every task whose inputs are unchanged, and plays the tests Vitest relates
-# to the files changed since the last green (scripts/integration/integrer.mjs,
-# scripts/dernier-vert.mjs).
+# tests and the time budget benches. During the day `npm run verifier` (the integration's) plays
+# what the changes since the last green touch (scripts/integration/integrer.mjs,
+# scripts/dernier-vert.mjs); the module of the project's language plays each step
+# (scripts/jointure.d.ts).
 #
 #   npx grillhouse nuit        from the root of the project, by the crontab of the machine, as the
 #                              session start proposes it, with the directory of its Node, e.g.
@@ -17,15 +17,14 @@
 #   modification overwritten; one that cannot be set turns the night red; a submodule the project
 #   shares, `grillhouse.partage`, is linked to the main repository's instead, not set),
 #   dependencies reinstalled (npm ci) when package-lock.json changes, then
-#   `npm run verifier -- --force`: Turborepo's build, guards (the frame's and the project's own,
-#   its root script `gardes`) and every test of the day, each task
-#   played for real (`--force`, no log replayed from the cache, no measure against the last
-#   green: the complete pass, scripts/langages/typescript/verifier.mjs), its result written to the cache again; green,
-#   its tree becomes the last green of the day's passes.
+#   `npm run verifier -- --force`: the build, the guards (the frame's and the project's own, its
+#   root script `gardes`) and every test of the day, each task played for real (`--force`, no log
+#   replayed from a cache, no measure against the last green: the complete pass); green, its tree
+#   becomes the last green of the day's passes.
 #   Its three steps (the full pass, the night tests, the project's night script) each play even
 #   when one before is red, as a CI plays its independent jobs; the night is red when one of them
-#   is. A full pass « à repasser » (75, scripts/langages/typescript/verifier.mjs: a failure of duration under load,
-#   which found no rest in its bound) ends the night there, « à repasser », below.
+#   is. A full pass « à repasser » (75: a failure of duration under load, which found no rest in
+#   its bound) ends the night there, « à repasser », below.
 #   An existing copy that does not get ready (its move onto HEAD, its cleaning or the setting of
 #   its submodules fails) is removed by `scripts/retirer-copie.sh --jetable` (local work does not
 #   hold it, a lock does) and created again, once; a copy that does not get ready the second time
@@ -35,16 +34,14 @@
 #   read-only, its working tree and its git repository (the list the preparation's pose printed,
 #   whatever a command rewrites afterwards): a write into it fails. With a shared submodule and no possible mount (bwrap absent
 #   or refused), the night turns red, the log saying so, before any command runs.
-# - The night tests: after the full pass, the files `*.nuit.test.*`, `*.nuit.spec.*`,
-#   `*.budget.test.*` and `*.budget.spec.*` of the copy (outside node_modules, dist and .git): the
-#   night tests and the time budget benches, which `npm test` and the integration leave out
-#   (the package @roomi-fields/grillhouse/vitest-config, scripts/langages/typescript/vitest-config/, which every day configuration
-#   extends), run by Vitest with the frame's configuration (scripts/langages/typescript/vitest.nuit.config.mjs, beside
-#   this script), bench or night test alone as well. A red turns the night red, with a log line that says so, and the
-#   project's night script still plays. A copy with neither plays none. A run « à repasser » (75:
-#   every failure depended on a duration, one under load, scripts/langages/typescript/vitest-config/duree.reporter.mjs)
-#   waits for rest (`npx grillhouse pression attendre`, bound 15 min) and plays
-#   once more; green then, the night goes on; à repasser again, or no rest in the bound, the night
+# - The night tests: after the full pass, the night tests and the time budget benches, which
+#   `npm test` and the integration leave out, played by the command `tests-de-nuit` of the module
+#   of the copy's language (the module typescript's: the files `*.nuit.test.*`, `*.nuit.spec.*`,
+#   `*.budget.test.*` and `*.budget.spec.*`, by Vitest), when the project declares a language
+#   whose module describes it (scripts/commande-du-langage.mjs); none otherwise. A red turns the night red, with a log line that
+#   says so, and the project's night script still plays. A run « à repasser » (75: every failure
+#   depended on a duration, one under load) waits for rest (`npx grillhouse pression attendre`,
+#   bound 15 min) and plays once more; green then, the night goes on; à repasser again, or no rest in the bound, the night
 #   ends there, « à repasser », red if the full pass is.
 # - « À repasser » (exit 75): neither green nor red. The last green stays, no ticket opens, nothing
 #   is pushed, the log says so; the next night plays again.
@@ -71,17 +68,19 @@
 # - Its log is <git common dir>/nuit/<date>.log. Green: HEAD becomes the last green commit
 #   (<git common dir>/nuit/dernier-vert). Red: the red tasks, each grouped by its cause as an
 #   alerting system groups by fingerprint: each red task of the full pass (the file
-#   GRILLHOUSE_ROUGES names, which scripts/langages/typescript/verifier.mjs writes: `<package>#<task>` per line, no
-#   task à repasser among them), else the full pass by its command, the night tests, the project's
+#   GRILLHOUSE_ROUGES names, which the verification of the module writes: `<task>` per line, then
+#   a tab and the command that replays it alone when the language has one, no task à repasser
+#   among them), else the full pass by its command, the night tests, the project's
 #   night script by its command, or the preparation when the night is red before any step. Each
 #   red task comments the open ticket labelled `nuit` whose title names it (« <task> »), once per
 #   ticket, or opens its own, « La nuit est rouge sur « <task> » depuis la nuit du <date> ». The
 #   text, the same for each, gives the commits since the last green, where `git bisect` looks for
 #   the culprit, each red step and each red task, with or without a last green, then the end of
-#   the log. With a last green, each red task of the full pass gets the command that looks for the
-#   culprit with that task alone:
-#   `git bisect start <head> <last green> && git bisect run npx turbo run <task> --filter=<package>`
-#   (`--filter=//` for the root), Turborepo's hash replaying at each step only what changed.
+#   the log. With a last green, each red task of the full pass that comes with its command gets the
+#   command that looks for the culprit with that task alone:
+#   `git bisect start <head> <last green> && git bisect run <its command>` (the module typescript's:
+#   `npx turbo run <task> --filter=<package>`, `--filter=//` for the root, Turborepo's hash
+#   replaying at each step only what changed).
 set -u
 usage() {
   echo "Usage : grillhouse nuit"
@@ -111,18 +110,19 @@ commun="$(git -C "$racine" rev-parse --path-format=absolute --git-common-dir)"
 dossier="$commun/nuit"
 mkdir -p "$dossier"
 journal="$dossier/$(date +%Y-%m-%d).log"
-# The red tasks of the full pass, written by scripts/langages/typescript/verifier.mjs.
+# The red tasks of the full pass, written by the verification of the module of the language.
 rouges="$dossier/rouges"
 rm -f "$rouges"
 
 tete="$(git -C "$racine" rev-parse HEAD)"
 copie="$racine/.claude/worktrees/nuit"
 branche=
-# The red steps of the night, and its red tasks: those of the full pass (turbo 1, which a bisect
-# replays alone), then a step red without a task of its own, named by its command (turbo 0).
+# The red steps of the night, and its red tasks: those of the full pass, each with the command
+# that replays it alone when the language has one (in `rejeux`, which a bisect runs), then a step
+# red without a task of its own, named by its command (no command).
 etapes=()
 taches=()
-turbo=()
+rejeux=()
 # Gets the copy ready on HEAD: detached, cleaned, its submodules set; `partages` holds the list the
 # pose fixes, which every mount gets. Prints the reason on failure.
 partages=
@@ -215,50 +215,46 @@ jouer() {
     etapes+=("la passe complète (npm run verifier -- --force)")
     avant=${#taches[@]}
     if [ -s "$rouges" ]; then
-      while IFS= read -r tache; do
-        [ -n "$tache" ] || continue
-        taches+=("$tache")
-        turbo+=(1)
+      while IFS= read -r ligne; do
+        [ -n "$ligne" ] || continue
+        taches+=("${ligne%%$'\t'*}")
+        if [[ "$ligne" == *$'\t'* ]]; then rejeux+=("${ligne#*$'\t'}"); else rejeux+=(""); fi
       done < "$rouges"
     fi
     if [ "${#taches[@]}" -eq "$avant" ]; then
       taches+=("npm run verifier -- --force")
-      turbo+=(0)
+      rejeux+=("")
     fi
   fi
-  if [ -n "$(find "$copie" \( -name node_modules -o -name dist -o -name .git \) -prune -o \
-      -type f -regextype posix-extended -regex '.*\.(nuit|budget)\.(test|spec)\.(c|m)?[jt]sx?' -print -quit)" ]; then
-    bancs() { (cd "$copie" && monter npx --no-install vitest run --root "$copie" \
-        --config "$ici/langages/typescript/vitest.nuit.config.mjs"); }
+  bancs() { (cd "$copie" && monter node "$ici/commande-du-langage.mjs" tests-de-nuit); }
+  bancs
+  code=$?
+  if [ "$code" -eq 75 ]; then
+    echo "⏱ les bancs de temps ou les tests de nuit sont à repasser (code 75) : attente du repos, puis une relance."
+    if ! node "$ici/mesure/pression.mjs" attendre; then
+      echo "⏱ à repasser : pas de repos dans la borne."
+      fin 75
+      return
+    fi
     bancs
     code=$?
     if [ "$code" -eq 75 ]; then
-      echo "⏱ les bancs de temps ou les tests de nuit sont à repasser (code 75) : attente du repos, puis une relance."
-      if ! node "$ici/mesure/pression.mjs" attendre; then
-        echo "⏱ à repasser : pas de repos dans la borne."
-        fin 75
-        return
-      fi
-      bancs
-      code=$?
-      if [ "$code" -eq 75 ]; then
-        echo "⏱ à repasser : les bancs échouent encore sous charge après la relance."
-        fin 75
-        return
-      fi
+      echo "⏱ à repasser : les bancs échouent encore sous charge après la relance."
+      fin 75
+      return
     fi
-    if [ "$code" -ne 0 ]; then
-      echo "✗ les bancs de temps ou les tests de nuit (*.budget.*, *.nuit.*) ont échoué."
-      etapes+=("les bancs de temps et les tests de nuit (*.budget.*, *.nuit.*)")
-      taches+=("les bancs de temps et les tests de nuit")
-      turbo+=(0)
-    fi
+  fi
+  if [ "$code" -ne 0 ]; then
+    echo "✗ les bancs de temps ou les tests de nuit (*.budget.*, *.nuit.*) ont échoué."
+    etapes+=("les bancs de temps et les tests de nuit (*.budget.*, *.nuit.*)")
+    taches+=("les bancs de temps et les tests de nuit")
+    rejeux+=("")
   fi
   if [ -n "$nuit" ] && ! monter npm --prefix "$copie" run "$nuit"; then
     echo "✗ le script de nuit du projet \`npm run $nuit\` (grillhouse.nuit) a échoué."
     etapes+=("le script de nuit du projet (npm run $nuit, grillhouse.nuit)")
     taches+=("npm run $nuit")
-    turbo+=(0)
+    rejeux+=("")
   fi
   fin 0
 }
@@ -328,7 +324,7 @@ intervalle="${vert:+${vert:0:7}..}${tete:0:7}"
 if [ "${#etapes[@]}" -eq 0 ]; then
   etapes=("la préparation (la copie, ses sous-modules, les clés grillhouse, l'installation)")
   taches=("la préparation")
-  turbo=(0)
+  rejeux=("")
 fi
 liste="Étapes rouges :"
 for e in "${etapes[@]}"; do
@@ -341,8 +337,8 @@ Tâches rouges"
 liste="$liste :"
 for i in "${!taches[@]}"; do
   tache="${taches[$i]}"
-  if [ -n "$vert" ] && [ "${turbo[$i]}" -eq 1 ]; then
-    tache="$tache : git bisect start ${tete:0:7} ${vert:0:7} && git bisect run npx turbo run ${tache#*#} --filter=${tache%%#*}"
+  if [ -n "$vert" ] && [ -n "${rejeux[$i]}" ]; then
+    tache="$tache : git bisect start ${tete:0:7} ${vert:0:7} && git bisect run ${rejeux[$i]}"
   fi
   liste="$liste
 - $tache"

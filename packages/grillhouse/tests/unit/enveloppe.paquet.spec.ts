@@ -45,10 +45,12 @@ const montages = ({ composant = 'packages/a', role = 'developpeur', liste = paqu
       paquets: [composant],
       role,
       matieres: ['packages/m'],
+      // The outputs of TypeScript proper to the session (grillhouse-pkl.5: its module's).
+      sorties: { ecrites: [], propres: ['.turbo', 'node_modules/.vite'] },
       paquetsDeLaCopie: liste,
     },
     fakeDisk(presents)
-  ).args;
+  ).args ?? [];
 
 describe('grillhouse-3uv.92.4 — le plan de l’enveloppe d’un paquet', () => {
   it('critère 1 — monte la copie en lecture seule, puis le seul paquet du composant en écriture', () => {

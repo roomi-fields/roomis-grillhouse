@@ -77,7 +77,8 @@
 //   plan of each run that plays tests (`turbo run … --dry=json`) names their tasks and counts done
 //   the files of those Turborepo replays from its cache.
 // - The red tasks: while the variable `GRILLHOUSE_ROUGES` (`ROUGES`) names a file, the pass writes
-//   there, one Turborepo task id per line (`<package>#<task>`, `//#<task>` for the root), each task
+//   there, one Turborepo task id per line (`<package>#<task>`, `//#<task>` for the root), then a
+//   tab and the command that replays it alone (`npx turbo run <task> --filter=<package>`), each task
 //   red on its own exit code, a task red at rest included, once each; a task à repasser (75) is
 //   none of them, nor a task that did not play (its prerequisite red is). Green or à repasser, the
 //   file is empty. The night reads it for its bisect commands (scripts/nuit.sh), with no second
@@ -123,6 +124,12 @@ const TEMOINS = ' (témoins de temps)';
 const CONCURRENCE = /^--concurrency(?:=|$)/;
 // The variable that names the file of the red tasks, which the night reads.
 const ROUGES = 'GRILLHOUSE_ROUGES';
+// The command that replays the task <id> (`<package>#<task>`) alone, Turborepo's hash replaying
+// from its cache what did not change.
+const rejeu = id => {
+  const i = id.indexOf('#');
+  return `npx turbo run ${id.slice(i + 1)} --filter=${id.slice(0, i)}`;
+};
 
 const lister = dossier => (existsSync(dossier) ? readdirSync(dossier) : []);
 
@@ -299,7 +306,8 @@ function passe({ racine, demandes, env, borneMs, pasMs, dire, coeurs }) {
       coeurs,
       taches,
     });
-    if (env[ROUGES]) writeFileSync(env[ROUGES], [...taches].map(t => `${t}\n`).join(''));
+    if (env[ROUGES])
+      writeFileSync(env[ROUGES], [...taches].map(t => `${t}\t${rejeu(t)}\n`).join(''));
     // A pass green on every package keeps its tree as the last green.
     if (code === 0 && m?.etat && filtresDeLaPasse.length === 0) garderLeVert(m.etat);
     return code;

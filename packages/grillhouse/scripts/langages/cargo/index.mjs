@@ -7,12 +7,15 @@
 // - Where it is found: a repository with a Cargo.toml at its root, the manifest of its workspace
 //   or of its one crate (`trouve`). Its tools are no package of npm (`outils` empty): cargo and
 //   its subcommands live on the machine.
+// - Where cargo writes, which the envelope opens to a session (`sorties`), and the rules that
+//   refuse a role that writes the test runner run directly (`droits`).
 // - The components, a file's, the shared test material, the components that play tests, the
 //   readers of a crate and the rule of a test file (./composants.mjs).
 // - The crates touched since a commit and their dependents (./touches.mjs).
 // - The elements of a lot, one per crate (./elements-du-lot.mjs).
 // - The commands `tester`, `verifier`, `typer` and `preparer` (./commandes.mjs), each described,
-//   `{ script, args }`, never run; the verdict of a run (./verdict.mjs).
+//   `{ script, args }`, never run, `preparer` played by the integration before the verification;
+//   the verdict of a run (./verdict.mjs).
 // - The generated file, the index of the interfaces (./index-interfaces.mjs), its command and its
 //   check; the guards of structure, in the order they play: clippy (./clippy.mjs), the boundaries
 //   between crates (./frontieres.mjs), the index of the interfaces up to date. No migration yet.
@@ -40,6 +43,34 @@ export default {
   nom: 'cargo',
   trouve: racine => existsSync(path.join(racine, 'Cargo.toml')),
   outils: [],
+  // Where cargo writes, in writing: the target directory of the workspace; in its home, the
+  // registry's index and sources, the git dependencies, cargo-deny's advisories, and the files of
+  // its locks and of the SQLite cache of its packages (`.package-cache`, `.package-cache-mutate`,
+  // `.global-cache`), files without a trailing `/`. What it reads, read-only: its home, `~/.cargo`
+  // (its binaries, its `env`, which the shells source, and its configuration stay unwritten), and
+  // rustup's toolchains, `~/.rustup`. Measured on 2026-10-30: `cargo fetch --locked` of
+  // osc-bridge in bwrap with these mounts alone, green, the cache of its packages written.
+  sorties: {
+    ecrites: [
+      'target/',
+      '~/.cargo/registry/',
+      '~/.cargo/git/',
+      '~/.cargo/advisory-dbs/',
+      '~/.cargo/.package-cache',
+      '~/.cargo/.package-cache-mutate',
+      '~/.cargo/.global-cache',
+    ],
+    propres: [],
+    lues: ['~/.cargo/', '~/.rustup/'],
+  },
+  // The test runner run directly, cargo's or nextest: `npm test` and `npm run verifier` play it.
+  droits: [
+    'Bash(cargo test*)',
+    'Bash(cargo t)',
+    'Bash(cargo t *)',
+    'Bash(cargo nextest*)',
+    'Bash(cargo-nextest*)',
+  ],
   composants,
   composantDe: (racine, fichier) => composantDans(composants(racine), racine, fichier),
   matieres,

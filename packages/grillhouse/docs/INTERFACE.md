@@ -39,8 +39,24 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   `tsconfig.json` à la racine ou dans un paquet du cadre ; `cargo`, un `Cargo.toml` à la racine.
 - `outils` : les outils qu'un projet du langage installe, dépendances facultatives du paquet ;
   `maj` n'ajoute que ceux du langage déclaré, aux versions du gabarit.
+- `sorties` : où écrit un lancement des outils du langage, que l'enveloppe ouvre à la séance.
+  `ecrites` s'ouvrent en écriture, créées avant la séance, un dossier quand le chemin finit par
+  `/`, sinon un fichier vide : un chemin depuis la racine de la copie, `~/…` depuis la maison,
+  `//…` depuis l'arbre principal, un magasin que toutes les copies partagent. `propres` deviennent
+  un dossier vide propre à la séance, à la racine de la copie et dans chaque composant de la
+  matière de test, là où la séance ne les écrit pas, comme Bazel écrit les journaux d'un test hors
+  de ses sources. `lues`, `~/…` ou `//…`, se montent en lecture seule avant ce qui s'écrit en
+  elles, quand elles existent. `typescript` : `//.turbo/cache/` écrit, `.turbo` et
+  `node_modules/.vite` propres ; `cargo` : `target/`, et dans `~/.cargo` son registre, ses
+  dépendances git, ses avis de sécurité et les fichiers de ses verrous et du cache de ses paquets
+  écrits ; `~/.cargo/` (son `env`, que les shells sourcent, sa configuration, ses binaires) et
+  `~/.rustup/` lus.
+- `droits` : les règles de Claude Code qui refusent à un rôle qui écrit l'outil de test lancé
+  directement ; `typescript`, Vitest et Turborepo ; `cargo`, `cargo test` et `cargo nextest`.
 - `composants` : les composants du projet, chacun `{ dossier, nom, paquet }`, le dossier absolu ;
   `cargo`, les membres de l'espace de travail que décrit `cargo metadata --no-deps --offline`.
+  L'enveloppe et le lanceur y lisent le plan : un plan qui nomme un composant (un paquet, un
+  crate) ouvre ce composant seul en écriture.
 - `composantDe` : le composant qui tient un fichier, ou null pour un fichier hors de tout
   composant ; toujours l'un de ceux que `composants` rend.
 - `matieres` : les composants de la matière de test partagée, que l'enveloppe monte en écriture
@@ -59,11 +75,23 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   sa place, les fichiers qu'il change, et les sources dont le module ne lit aucun élément ; le
   circuit les donne au relecteur.
 - `commandes` : les commandes qui testent (`tester`), vérifient (`verifier`) et typent (`typer`),
-  et chaque autre commande du module, garde, générateur ou préparation (`preparer` de `cargo`, qui
-  télécharge les dépendances), par son nom ; chacune `{ script, args }`, le script
-  absolu, jamais lancée. `grillhouse tests` et `grillhouse verifier` lancent `tester` et
-  `verifier` ; chaque autre, sauf `typer`, est une sous-commande de son nom
-  (`grillhouse frontieres`), comme un backend de Pants apporte ses buts.
+  et chaque autre commande du module, garde, générateur ou préparation, par son nom ; chacune
+  `{ script, args }`, le script absolu, jamais lancée. `grillhouse tests` et `grillhouse verifier`
+  lancent `tester` et `verifier` ; chaque autre, sauf `typer`, est une sous-commande de son nom
+  (`grillhouse frontieres`), comme un backend de Pants apporte ses buts. Le noyau en lance trois
+  quand le module les décrit, et passe l'étape sinon :
+  - `preparer`, que l'intégration et la file jouent avant la vérification (`cargo`, `cargo fetch
+--locked`, qui télécharge les dépendances) ;
+  - `construire --echec <fichier> <plan>`, que le lanceur joue dans la copie préparée, pour que la
+    séance trouve construit ce qu'elle lit (`typescript`, la construction par Turborepo) : une
+    construction en échec écrit dans `<fichier>` sa première ligne, puis sa sortie, et rend 0 ;
+    tout autre échec rend un autre code et arrête le lancement ;
+  - `tests-de-nuit`, que la nuit joue après la passe complète (`typescript`, les tests de nuit et
+    les bancs de temps, par Vitest), 75 pour « à repasser ».
+- La vérification écrit ses tâches rouges dans le fichier que nomme `GRILLHOUSE_ROUGES`, une par
+  ligne, `<tâche>`, puis une tabulation et la commande qui la rejoue seule quand le langage en a
+  une (`typescript`, `npx turbo run <tâche> --filter=<paquet>`) ; la nuit en tire sa commande
+  `git bisect run`.
 - `verdict` : ce qu'un lancement a laissé dans son dossier de résultats (`GRILLHOUSE_RESULTATS`) :
   `{ rapports, taches }`, chaque fichier de test avec ses tests, chaque tâche avec son code, 0 vert,
   1 rouge, 75 « à repasser », et `tests` vrai pour la tâche qui joue les tests de son composant.
@@ -96,7 +124,8 @@ exactement les fautes attendues. `echecs(langage, exemples)` rend les cas qu'un 
 entrées sont celles de chaque module (`scripts/langages/<nom>/exemples.mjs`).
 
 Un cas tient chaque demande sauf `nom`, `verdict` lu à part, `migrations`, que le test de
-chaque migration tient, et `outils`, que le test de la mise à jour tient. L'entrée défectueuse des
+chaque migration tient, `outils`, que le test de la mise à jour tient, `sorties`, que les tests
+de l'enveloppe tiennent, et `droits`, que le test des droits tient. L'entrée défectueuse des
 fichiers engendrés met chacun d'eux en retard.
 Le test du noyau joue la suite sur le module typescript et sur seize modules défectueux, un défaut
 chacun ; chacun manque son seul cas. Ainsi la suite attrape un vrai défaut. Le module cargo la

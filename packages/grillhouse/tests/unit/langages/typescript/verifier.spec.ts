@@ -109,7 +109,7 @@ function depot(
   ecrire('.gitignore', 'node_modules\n.turbo/\n');
   const fichierPression = path.join(r, 'pression');
   writeFileSync(fichierPression, pression(some));
-  const env = {
+  const env: NodeJS.ProcessEnv = {
     ...Object.fromEntries(
       Object.entries(process.env).filter(([k]) => !k.startsWith('VITEST') && k !== 'NODE_OPTIONS')
     ),
@@ -178,13 +178,14 @@ describe('npm run verifier', { timeout: 180_000 }, () => {
   });
   // grillhouse-3uv.56.2: the red tasks, one Turborepo task id per line, go to the file
   // GRILLHOUSE_ROUGES names, where the night reads them for its bisect commands; a task at 75 is
-  // none of them.
+  // none of them. grillhouse-pkl.5: each with the command that replays it alone, after a tab,
+  // which the night gives to `git bisect run` without naming the tool itself.
   it('3uv.56.2: the file GRILLHOUSE_ROUGES names holds the red task, not the task at 75', async () => {
     const d = depot('delai', 'rouge', 90);
     const fichier = path.join(d.racine, 'rouges');
     const r = await lancer({ ...d, env: { ...d.env, GRILLHOUSE_ROUGES: fichier } });
     expect(r.status, r.sortie).toBe(1);
-    expect(readFileSync(fichier, 'utf8')).toBe('b#test:unit\n');
+    expect(readFileSync(fichier, 'utf8')).toBe('b#test:unit\tnpx turbo run test:unit --filter=b\n');
   });
   it('3uv.56.2: a task red at rest is in the file GRILLHOUSE_ROUGES names', async () => {
     const d = depot('delai', 'vert', 90);
@@ -193,7 +194,7 @@ describe('npm run verifier', { timeout: 180_000 }, () => {
       d.ecrirePression(1)
     );
     expect(r.status, r.sortie).toBe(1);
-    expect(readFileSync(fichier, 'utf8')).toBe('a#test:unit\n');
+    expect(readFileSync(fichier, 'utf8')).toBe('a#test:unit\tnpx turbo run test:unit --filter=a\n');
   });
   it('3uv.56.2: a green pass leaves the file GRILLHOUSE_ROUGES names empty', async () => {
     const d = depot('vert', 'vert', 1);
@@ -212,7 +213,10 @@ describe('npm run verifier', { timeout: 180_000 }, () => {
       env: d.env,
       borneMs: 1_500,
       pasMs: 100,
-      dire: (l: string) => lignes.push(l),
+      dire: (l: string) => {
+        lignes.push(l);
+        return true;
+      },
     });
     expect(code, lignes.join('\n')).toBe(A_REPASSER);
     expect(lignes.join('\n')).toMatch(/à repasser/);
@@ -348,8 +352,8 @@ describe('npm run verifier -- --gardes', { timeout: 180_000 }, () => {
     const r = await lancer({ ...d, env: { ...d.env, GRILLHOUSE_ROUGES: fichier } }, ['--gardes']);
     expect(r.status, r.sortie).toBe(1);
     expect(readFileSync(fichier, 'utf8').split('\n').filter(Boolean).sort()).toEqual([
-      'a#grillhouse:gardes',
-      'b#gardes',
+      'a#grillhouse:gardes\tnpx turbo run grillhouse:gardes --filter=a',
+      'b#gardes\tnpx turbo run gardes --filter=b',
     ]);
   });
 });

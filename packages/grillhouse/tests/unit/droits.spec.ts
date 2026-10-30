@@ -10,6 +10,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { AUTEUR_FIXE, commandesPermises, optionsDuRole, ROLES } from '../../scripts/droits.mjs';
+import type { Langage } from '../../scripts/jointure.js';
+import typescript from '../../scripts/langages/typescript/index.mjs';
 import { refusDeCommande } from '../../scripts/verrous/commande.mjs';
 import { couvre } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
@@ -372,6 +374,59 @@ describe('L2 — what a role that writes may not run', () => {
     });
   }
 
+  // grillhouse-pkl.5, criterion 2: the test tool run directly is the language's, which its module
+  // names (`droits`, scripts/jointure.d.ts): a project of cargo refuses cargo's runner, and names
+  // neither Vitest nor Turborepo; a project of TypeScript keeps the rules it had.
+  it('pkl.5 critère 2: the rules of TypeScript stay the same, and are its module’s', () => {
+    expect((typescript as unknown as Langage).droits).toEqual([
+      'Bash(vitest*)',
+      'Bash(npx vitest*)',
+      'Bash(npx * vitest*)',
+      'Bash(npm exec vitest*)',
+      'Bash(npm exec * vitest*)',
+      'Bash(node_modules/.bin/vitest*)',
+      'Bash(turbo *)',
+      'Bash(npx turbo *)',
+      'Bash(npx * turbo *)',
+      'Bash(npm exec turbo *)',
+      'Bash(npm exec * turbo *)',
+      'Bash(node_modules/.bin/turbo *)',
+    ]);
+    for (const role of ['testwriter', 'developpeur']) {
+      const { deny } = reglagesDe(options(role)).permissions;
+      for (const r of (typescript as unknown as Langage).droits) {
+        expect(deny, `${role} : ${r}`).toContain(r);
+      }
+    }
+  });
+
+  it('pkl.5 critère 2: a project of cargo refuses cargo’s test runner, and names neither vitest nor turbo', () => {
+    const projet = mkdtempSync(path.join(ESSAIS, 'cargo-'));
+    writeFileSync(
+      path.join(projet, 'package.json'),
+      JSON.stringify({ name: 'p', grillhouse: { langages: ['cargo'] } })
+    );
+    for (const role of ['testwriter', 'developpeur']) {
+      const { deny } = reglagesDe(options(role, projet)).permissions;
+      expect(
+        deny.filter(r => /vitest|turbo/i.test(r)),
+        role
+      ).toEqual([]);
+      for (const c of ['cargo test', 'cargo test -p a', 'cargo nextest run -p a']) {
+        expect(
+          deny.some(r => couvre(r, c)),
+          `${role} : ${c}`
+        ).toBe(true);
+      }
+      for (const c of ['npm test -- crates/a', 'npx grillhouse preparer', 'cargo check']) {
+        expect(
+          deny.some(r => couvre(r, c)),
+          `${role} : ${c}`
+        ).toBe(false);
+      }
+    }
+  });
+
   it('the testwriter and the developpeur no longer read their ticket by bd: their instruction carries it', () => {
     for (const role of ['testwriter', 'developpeur']) {
       const relit = /^bd (show|comments)( (?!add\b)|$)/;
@@ -558,6 +613,10 @@ describe("L2 — the context of a role's session", () => {
     const projet = mkdtempSync(path.join(ESSAIS, 'propres-'));
     mkdirSync(path.join(projet, '.claude/skills/propre'), { recursive: true });
     writeFileSync(path.join(projet, '.claude/skills/propre/SKILL.md'), '---\nname: propre\n---\n');
+    writeFileSync(
+      path.join(projet, 'package.json'),
+      JSON.stringify({ name: 'p', grillhouse: { langages: ['typescript'] } })
+    );
     for (const role of Object.keys(ROLES)) {
       const { skillOverrides } = reglagesDe(options(role, projet));
       expect(skillOverrides, role).toEqual({
@@ -839,6 +898,13 @@ describe('9jr.2 — each role reads the files of its skill', () => {
   const home = path.join(ESSAIS, 'home-cadre');
   const cache = path.join(home, '.claude/plugins/cache/roomi-fields/grillhouse');
   const installe = (entrees: object[]) => {
+    // The copy declares its language, whose module names the test tool a writer may not run
+    // (grillhouse-pkl.5).
+    mkdirSync(copie, { recursive: true });
+    writeFileSync(
+      path.join(copie, 'package.json'),
+      JSON.stringify({ name: 'p', grillhouse: { langages: ['typescript'] } })
+    );
     mkdirSync(path.join(depot, '.claude'), { recursive: true });
     writeFileSync(
       path.join(depot, '.claude/settings.json'),

@@ -22,11 +22,14 @@
 //   lot that changes the lock file or a manifest is installed as the continuous integration
 //   installs it (`npm ci` refuses a lock file in disagreement with its manifest). The tests run on
 //   dependencies in agreement, and they neither read the key nor install.
-// - `tester` plays `npm run verifier` in the copy: Turborepo builds the project, then plays its
-//   guards and its tests beside each other (`turbo.json`), each task kept in the cache of the main
-//   tree (`.turbo/cache`, shared by every copy), so a task whose inputs an earlier run already
-//   played replays its log. It gives the command's result, green (status 0), « à repasser »
-//   (75, scripts/langages/typescript/verifier.mjs) or red (any other), its output written as it comes.
+// - `tester` plays the commands of the verification in the copy (`commandesDeVerification`): the
+//   preparation the module of its language describes (`preparer` of its `commandes`, cargo's
+//   `cargo fetch --locked`), as a CI fetches the dependencies of a job before its tests, then
+//   `npm run verifier`, the command of the module (TypeScript's builds the project with Turborepo,
+//   then plays its guards and its tests beside each other, each task kept in the cache of the main
+//   tree, shared by every copy). It gives the result of the first command that is not green, else
+//   of the last: green (status 0), « à repasser » (75) or red (any other), its output written as it
+//   comes.
 // - Every command of the project run in the copy (`lancer`: the install, the tests) leaves the
 //   index of its copy up to date, green or red: the consumers that apply a lot with `--index` (the
 //   integration, the queue) read an index that matches the files the command touched, and none
@@ -36,6 +39,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { langageDe } from '../langages.mjs';
 
 const SOUS_MODULES = fileURLToPath(new URL('../sous-modules.sh', import.meta.url));
 export const RETIRER_COPIE = fileURLToPath(new URL('../retirer-copie.sh', import.meta.url));
@@ -57,6 +61,21 @@ function empreinteDesDependances(copie, verrou, dansCopie) {
   const h = createHash('sha256').update(readFileSync(verrou));
   for (const f of suivis) h.update(`\0${f}\0`).update(readFileSync(path.join(copie, f)));
   return h.digest('hex');
+}
+
+/**
+ * The commands of the verification of the copy <copie>, in order, each `[commande, args]`: the
+ * preparation the module of its language describes, when it describes one, then `npm run
+ * verifier`.
+ * @param {string} copie the root of the copy
+ * @returns {[string, string[]][]}
+ */
+export function commandesDeVerification(copie) {
+  const preparer = langageDe(copie).commandes(copie).preparer;
+  return [
+    ...(preparer ? [[process.execPath, [preparer.script, ...preparer.args]]] : []),
+    ['npm', ['run', 'verifier']],
+  ];
 }
 
 // The copy <copie> ready on <ref>, or `{ refus }`. `dire` writes a progress line. Returns the
@@ -133,7 +152,17 @@ export function ouvrirCopie({ racine, copie, ref, dire }) {
   if (refusOuverture) return { refus: refusOuverture };
   dire(`✓ copie propre sur ${tete.slice(0, 7)}`);
 
-  // The checks of the copy: Turborepo builds, then plays the guards and the tests.
-  const tester = () => npm(['run', 'verifier']);
+  // The checks of the copy: its preparation, then its verification; the first that is not green
+  // ends them.
+  const tester = () => {
+    let r;
+    for (const [commande, args] of commandesDeVerification(copie)) {
+      r = lancer(commande, args);
+      if (r.status !== 0) {
+        break;
+      }
+    }
+    return r;
+  };
   return { dansCopie, monter, installer: accorder, tester, tete };
 }

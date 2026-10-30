@@ -8,6 +8,7 @@
 //
 // This module uses Node alone, as the modules of scripts/paquets.mjs.
 import path from 'node:path';
+import { paquets } from '../paquets.mjs';
 
 export const VARIABLE = 'GRILLHOUSE_ENVELOPPE';
 // The file the lock of a session leaves in its working directory when it stops the session on a
@@ -28,8 +29,29 @@ export const lireLaListe = texte =>
 export const paquetsDeLEnveloppe = (env = process.env) =>
   env[VARIABLE] ? lireLaListe(env[VARIABLE]) : null;
 
-// The directory of the package of <paquetsDeLaCopie> (`paquets` of scripts/paquets.mjs, each
-// `dossier` relative to the copy) that holds the path <chemin> of the copy, the deepest; `.`, the
+/**
+ * The components of the copy <copie>, as the module of its language <langage> gives them
+ * (`composants`, scripts/jointure.d.ts), and the packages out of the frame
+ * (`docs/agents/hors-cadre.txt`, `paquets` of scripts/paquets.mjs), which no module counts but a
+ * plan may name, in the form the plan reads: each `dossier` relative to the copy, its `pkg.name`
+ * the package's name, else the component's.
+ * @param {{ composants(racine: string): { dossier: string, nom: string, paquet: string | null }[] }} langage
+ * @param {string} copie
+ * @returns {{ dossier: string, pkg: { name: string } }[]}
+ */
+export function paquetsDuLangage(langage, copie) {
+  const composants = langage
+    .composants(copie)
+    .map(c => ({ dossier: path.relative(copie, c.dossier), pkg: { name: c.paquet ?? c.nom } }));
+  const connus = new Set(composants.map(c => c.dossier));
+  const hors = paquets(copie)
+    .filter(p => p.hors && !connus.has(p.dossier))
+    .map(p => ({ dossier: p.dossier, pkg: { name: p.pkg?.name ?? path.basename(p.dossier) } }));
+  return [...composants, ...hors];
+}
+
+// The directory of the component of <paquetsDeLaCopie> (`paquetsDuLangage`, each `dossier`
+// relative to the copy) that holds the path <chemin> of the copy, the deepest; `.`, the
 // root, when none holds it.
 export function paquetQuiTient(chemin, paquetsDeLaCopie) {
   const rel = path.normalize(chemin).replace(/\/+$/, '');
