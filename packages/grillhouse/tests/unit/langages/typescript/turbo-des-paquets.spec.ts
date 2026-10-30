@@ -930,6 +930,7 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
       'mesure/pression.mjs',
       'langages/typescript/vitest-config/cibles.mjs',
       'langages/typescript/vitest-config/changements.mjs',
+      'langages/typescript/vitest-config/lances.mjs',
       'langages/typescript/vitest-config/resultats.mjs',
     ];
     const r = codeMortEssai(ESSAIS, {

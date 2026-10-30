@@ -29,7 +29,10 @@ rien n'a bougé n'est pas rejouée : Turborepo relit sa sortie consignée dans s
 hit, replaying logs »), et cette relecture vaut un lancement. Une passe se mesure contre le
 dernier vert, l'arbre de la dernière passe verte de sa branche, celle de main pour une copie
 qui n'en a pas encore, comme `vitest --changed` : un paquet que Turborepo rejoue joue les seuls tests que Vitest relie aux fichiers changés depuis,
-et tous ses tests quand un changement sort du graphe de Vitest (un fichier supprimé, une
+et ceux qui lisent un fichier changé par son chemin (un script qu'ils lancent, une donnée qu'ils
+lisent, les fichiers qu'un motif couvre, une commande de l'espace lancée par son lien ou sa
+ligne de commande, avec ce que ce fichier importe et nomme à son tour, comme les `data` d'une
+cible de Bazel, `vitest-config/lances.mjs`), et tous ses tests quand un changement sort du graphe de Vitest (un fichier supprimé, une
 configuration, un fichier qu'aucun module n'importe, un fichier, changé ou supprimé, que lit
 la construction d'un paquet dont il dépend, un chemin que ses tests déclarent lire,
 `grillhouse.lit`) ; la construction d'un voisin lit les entrées du `build` de son turbo.json,
@@ -333,12 +336,23 @@ main ne porte aucun rouge.
 **La taille d'un test** (`packages/grillhouse/scripts/langages/typescript/tailles-des-tests.mjs`, une garde du
 cadre) : comme la pyramide des tests de Google et le `size` de Bazel, chaque fichier de tests
 que git liste est petit, moyen ou grand, lu dans son texte et dans la matière de test qu'il
-importe : grand, il monte un dépôt d'essai (`init`, `clone` ou `worktree add` de git) et y lance
+importe, par un chemin relatif ou par le nom d'un paquet de la matière partagée (son entrée
+`./test-fixtures`, suivie jusqu'aux modules qui déclarent les noms importés) : grand, il monte un dépôt d'essai (`init`, `clone` ou `worktree add` de git) et y lance
 autre chose que git ; moyen, il lance un processus ou importe plusieurs modules du dépôt ;
 petit, sinon. Un grand test de jour est un constat (`grand-de-jour`), un test de nuit ou un banc
 jamais ; les grands tests de jour d'un projet s'inscrivent dans sa dette à la mise à jour qui
 apporte la garde (`npx grillhouse maj`, migration 0.25.0), sans qu'un test se réécrive. Ainsi
 le jour ne joue que des tests courts, et la dette des grands ne fait que baisser.
+
+**Les chemins des tests** (`packages/grillhouse/scripts/langages/typescript/chemins-des-tests.mjs`, une
+garde du cadre) : comme le bac à sable de Bazel, qui fait échouer un test qui lit une entrée non
+déclarée, un test qui nomme un module de son paquet par un chemin que le cadre ne lit pas (un
+chemin construit à l'exécution, `path.join(SCRIPTS, nom)`, ou un motif sans début fixe qui nomme
+un de ses dossiers), hors de ce qu'il importe et nomme et
+hors du `grillhouse.lit` de son paquet, est un constat (`chemin-non-declare`) : le test écrit le
+chemin entier, ou son paquet le déclare. Les constats d'un projet s'inscrivent dans sa dette à la
+mise à jour qui apporte la garde (migration 0.25.0). Ainsi aucun script lancé par un test ne se
+perd en silence, et un changement d'un script ne rejoue que les tests qui le lisent.
 
 **Une mesure lourde à la fois sur la machine** : chaque `npm run verifier` et chaque passe
 lourde du circuit (preuve du rouge, contrôles, passe finale) prennent le verrou de la machine,
@@ -422,12 +436,15 @@ d'aujourd'hui, et chaque ticket de l'épopée qui la mène les réécrit au pré
 
 **Une vérification à la mesure de ce qui change** : une vérification sur main qui ne touche
 qu'un ou deux scripts du cadre prend moins de 5 minutes ; la passe complète reste à la nuit et à
-la sortie. Le journal des tickets ne rejoue déjà aucun test : `grillhouse.lit` (la règle 5 de
+la sortie. Le journal des tickets ne rejoue aucun test : `grillhouse.lit` (la règle 5 de
 `vitest-config/changements.mjs`) nomme un par un les fichiers de `.beads` que les tests lisent
 (ses crochets, sa configuration), jamais ses journaux, que chaque commande de tickets réécrit. Un
-changement d'un script du cadre rejoue encore les 3 200 tests (environ 22 minutes), ses tests le
-lançant par son chemin ; la pyramide des tests (grillhouse-3dr.4) et les tests d'intégration dans
-leur paquet (grillhouse-3dr.3) le ramènent aux tests qui le lisent.
+changement d'un script du cadre ne rejoue que les tests qui l'importent ou le lancent : le paquet
+du cadre ne déclare plus ses scripts dans son `grillhouse.lit`, chaque test nomme les scripts
+qu'il lance par leur chemin, et la garde des chemins des tests refuse un chemin que le cadre ne
+lit pas (grillhouse-3dr.3.4). Après un changement de `verrous/verrou.mjs`, 58 fichiers de tests
+sur 127 rejouent (1 070 s des 3 987 s cumulées de la mesure de départ) ; après
+`services-du-noyau.mjs`, que la plupart du cadre importe, 105.
 
 **Un noyau, et un module par langage** : comme Pants, qui publie un seul paquet et active ses
 langages dans sa configuration (`backend_packages`), le cadre publie un seul paquet,

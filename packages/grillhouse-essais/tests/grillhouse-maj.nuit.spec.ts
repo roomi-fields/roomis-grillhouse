@@ -105,6 +105,7 @@ const CONTROLES: [string, RegExp][] = [
   ['interfaces contre code', /^grillhouse interfaces-contre-code$/],
   ['code mort', /^grillhouse code-mort$/],
   ['tailles des tests', /^grillhouse tailles-des-tests$/],
+  ['chemins des tests', /^grillhouse chemins-des-tests$/],
   ['résumés courts', /^grillhouse resumes$/],
 ];
 

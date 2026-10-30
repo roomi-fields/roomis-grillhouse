@@ -19,6 +19,7 @@ import {
   classer,
   GARDE,
   GRAND_DE_JOUR,
+  tailles,
   testsDuDepot,
   verifier,
 } from '../../../../scripts/langages/typescript/tailles-des-tests.mjs';
@@ -90,6 +91,42 @@ describe('grillhouse-3dr.4 critère 5 — the guard classes each test by its siz
       'src/m.ts': MATIERE_GRANDE,
     };
     expect(tailleDe(fichiers, 'tests/m.test.ts')).toBe('petit');
+  });
+
+  // grillhouse-3dr.3.4 (the supervisor's addition): a large test does not hide in the shared test
+  // material imported by its package's name; a barrel of the material is followed to the modules
+  // that declare the names imported.
+  const matiere = [{ nom: '@e/matiere', dir: '/r/m', entree: '/r/m/src/index.ts' }];
+  const parSonNom = {
+    'm/src/index.ts': "export * from './essai.js';\nexport * from './aide.js';\n",
+    'm/src/essai.ts': MATIERE_GRANDE,
+    'm/src/aide.ts': 'export const aide = 1;\n',
+  };
+  const tailleAvecMatiere = (fichiers: Record<string, string>, test: string) =>
+    classer(path.join(R, test), memoire(fichiers), R, matiere).taille;
+
+  it('critère 5: large through the shared material it imports by the package’s name', () => {
+    const fichiers = {
+      ...parSonNom,
+      'tests/c.spec.ts':
+        "import { essai } from '@e/matiere/test-fixtures';\nit('c', () => essai('x'));\n",
+    };
+    expect(tailleAvecMatiere(fichiers, 'tests/c.spec.ts')).toBe('grand');
+  });
+
+  it('critère 5: a name of the material whose module starts nothing does not make it large', () => {
+    const fichiers = {
+      ...parSonNom,
+      'tests/d.spec.ts': "import { aide } from '@e/matiere/test-fixtures';\nit('d', () => aide);\n",
+    };
+    expect(tailleAvecMatiere(fichiers, 'tests/d.spec.ts')).toBe('petit');
+  });
+
+  it('critère 5: in Grillhouse, tests-de-nuit.spec.ts is large again, through its material', () => {
+    const t = tailles(DEPOT).find(
+      x => x.fichier === 'packages/grillhouse/tests/unit/tests-de-nuit.spec.ts'
+    );
+    expect(t?.taille).toBe('grand');
   });
 
   it('critère 5: a regular expression that runs `.exec(` starts no process', () => {

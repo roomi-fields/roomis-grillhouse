@@ -133,10 +133,15 @@ l'omet. Ainsi une dépendance se déclare dans le changement qui l'ajoute, comme
 de npm (BP 320.37 : deux noms neufs importés par les tests de 060-encoder, la ligne non écrite, le
 lot refusé).
 
-**Ce que tes tests lisent se déclare** : un test qui lit un fichier hors des imports (des
-scènes, des paires de la matière, la trace d'un autre étage, les scripts ou un source d'un voisin
-qu'il lit ou lance) fait déclarer son chemin, dossier ou fichier, dans le `package.json` de son
-paquet, depuis la racine : `"grillhouse": { "lit": ["<chemin>"] }`. Le test n'est rejoué que si
+**Ce que tes tests lisent se nomme ou se déclare** : un test qui lance un script de son paquet,
+ou en lit un fichier, écrit son chemin entier dans une chaîne
+(`const SCRIPT = path.resolve(__dirname, '../scripts/verrous/verrou.mjs')`), et le cadre le
+rejoue quand ce script, ou ce qu'il importe, change ; un chemin construit à l'exécution
+(`path.join(SCRIPTS, nom)`) est refusé par la garde des chemins des tests. Un test qui lit un
+fichier hors de son paquet et de ses imports (des scènes, des paires de la matière, la trace d'un
+autre étage, un source d'un voisin qu'il lit ou lance) fait déclarer son chemin, dossier ou
+fichier, dans le `package.json` de son paquet, depuis la racine :
+`"grillhouse": { "lit": ["<chemin>"] }`. Le test n'est rejoué que si
 son code, ce qu'il importe ou un chemin déclaré change ; un chemin de données seules qu'un autre
 paquet déclare sort de la construction de son paquet, un chemin qui contient du code ou un
 fichier que cette construction lit (son `package.json`, ses `tsconfig*.json`) y reste, et

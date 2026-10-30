@@ -58,6 +58,7 @@ import * as nomsDeclaresInutilises from './migrations/0.24.4-noms-declares-inuti
 import * as lignesMalFormees from './migrations/0.24.6-lignes-mal-formees.mjs';
 import * as matiereDansLesTests from './migrations/0.24.7-matiere-dans-les-tests.mjs';
 import * as taillesDesTests from './migrations/0.25.0-tailles-des-tests.mjs';
+import * as cheminsDesTests from './migrations/0.25.0-chemins-des-tests.mjs';
 
 // The scripts of this module, beside this file.
 const SCRIPTS = path.dirname(fileURLToPath(import.meta.url));
@@ -69,6 +70,7 @@ const composants = racine =>
   lesComposants(racine).map(({ nom, dir, paquet }) => ({ nom, dossier: dir, paquet }));
 // The guards and the generators of this directory, each a command by its name.
 const OUTILS = [
+  'chemins-des-tests',
   'code-mort',
   'consommateurs',
   'consommateurs-arbitres',
@@ -314,6 +316,7 @@ export default {
     [ici('interfaces-contre-code.mjs')],
     [ici('code-mort.mjs')],
     [ici('tailles-des-tests.mjs')],
+    [ici('chemins-des-tests.mjs')],
     [ici('resumes.mjs')],
   ],
   migrations: [
@@ -322,6 +325,7 @@ export default {
     lignesMalFormees,
     matiereDansLesTests,
     taillesDesTests,
+    cheminsDesTests,
   ],
   miseAJour: miseAJour(joueDesTests),
 };

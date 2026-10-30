@@ -25,9 +25,11 @@
 //      `vite.config.*`, `vitest.workspace.*`, `tsconfig*.json`; its `setupFiles` and its
 //      `globalSetup`, which Vitest runs beside the graph;
 //   5. a path its tests declare they read (`grillhouse.lit` of its package.json, from the top):
-//      a script they run, a file they read, as Bazel's `data`, named file by file where the
-//      frame rewrites their neighbours (the hooks and configuration of `.beads`, never its
-//      journals, `interactions.jsonl`, which each command of bd writes);
+//      a directory or a file out of the package that its tests read as a whole (the templates,
+//      the plugin, the configuration of the repository), as Bazel's `data`, named file by file
+//      where the frame rewrites their neighbours (the hooks and configuration of `.beads`, never
+//      its journals, `interactions.jsonl`, which each command of bd writes); a script of the
+//      package that a test launches needs none, the test naming its path (./lances.mjs);
 //   6. a file, changed or removed, that the build of a package it depends on reads (its
 //      `dependencies`, `devDependencies`, `optionalDependencies` and `peerDependencies` that
 //      resolve to a directory of the repository, out of node_modules, transitively): its tests read
@@ -46,8 +48,10 @@
 //   Vitest's own `forceRerunTriggers` (a configuration's, or its default) still apply, as with
 //   `--changed`.
 // - Otherwise the tests played are those Vitest relates to the files changed or added (`related`,
-//   absolute), and the files a targeted run names themselves (./cibles.mjs) join them: a file named
-//   plays, changed or not. A package where none relates plays none and passes
+//   absolute), the tests that read one of them by its path, a script they launch or a file they
+//   read, with what it imports and names (`testsQuiLancent`, ./lances.mjs, as Bazel's `data`),
+//   and the files a targeted run names themselves (./cibles.mjs): a file named plays, changed or
+//   not. A package where none relates plays none and passes
 //   (`passWithNoTests`), as Vitest's `--changed` has it.
 //
 // This module's top level uses Node alone (./cibles.mjs, scripts/langages/typescript/tests.mjs import it); a
@@ -57,6 +61,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CHANGEMENTS } from '../../../services-du-noyau.mjs';
+import { testsQuiLancent } from './lances.mjs';
 
 // This directory, the frame's base configuration.
 const BASE = path.dirname(fileURLToPath(import.meta.url));
@@ -219,9 +224,11 @@ export function restreindre(test, dossier, ch, nommes, dire) {
     dire(`↳ ${nom} : tous ses tests, ${entier.raison} (${entier.fichier}).`);
     return;
   }
-  test.related = [...new Set([...ch.fichiers.map(f => path.join(ch.racine, f)), ...nommes])];
+  const changes = ch.fichiers.map(f => path.join(ch.racine, f));
+  const lanceurs = testsQuiLancent(dossier, ch.racine, changes);
+  test.related = [...new Set([...changes, ...nommes, ...lanceurs])];
   test.passWithNoTests = true;
   dire(
-    `↳ ${nom} : les tests que Vitest relie aux ${ch.fichiers.length} fichier(s) changé(s) depuis le dernier vert.`
+    `↳ ${nom} : les tests que Vitest relie aux ${ch.fichiers.length} fichier(s) changé(s) depuis le dernier vert${lanceurs.length ? `, et ${lanceurs.length} test(s) qui en lisent un par son chemin` : ''}.`
   );
 }

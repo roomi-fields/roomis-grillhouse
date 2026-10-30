@@ -145,7 +145,6 @@
       "package.json",
       "packages/grillhouse-matiere",
       "packages/grillhouse/bin",
-      "packages/grillhouse/scripts",
       "templates",
       "tsdoc.json"
     ]

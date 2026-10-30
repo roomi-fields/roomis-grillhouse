@@ -4,8 +4,9 @@
 // scripts/langages/typescript/vitest-config/changements.mjs), which its turbo.json also hashes for its `test:unit`.
 // The package declares under `.beads` the files its tests read, one by one: each file git follows
 // there but the journals (`*.jsonl`) and the README, which ./git-des-tests.spec.ts reads to look
-// for a setting of git's maintenance, the hooks included; its scripts and its launcher stay
-// declared whole, as its tests run them by their path.
+// for a setting of git's maintenance, the hooks included; its launcher stays declared whole,
+// and its scripts are not declared: each test names the scripts it launches by their path
+// (grillhouse-3dr.3.4, scripts/langages/typescript/vitest-config/lances.mjs).
 //
 // Witness: the frame (2026-10-28), « ↳ packages/grillhouse : tous ses tests, un chemin que ses
 // tests déclarent lire (grillhouse.lit) (.beads/interactions.jsonl) » on every pass of main: its
@@ -49,8 +50,10 @@ describe('grillhouse-3dr.1 — the journal of the tickets replays no test', () =
     expect(ligne('.beads/config.yaml')).toContain('tous ses tests');
   });
 
-  it('critère 1 : a change of a script of the package still plays every test, as its tests run it', () => {
-    expect(ligne('packages/grillhouse/scripts/sortie.mjs')).toContain('tous ses tests');
+  it('grillhouse-3dr.3.4 : a change of a script of the package plays the tests that import or launch it', () => {
+    const dit = ligne('packages/grillhouse/scripts/sortie.mjs');
+    expect(dit).toContain('les tests que Vitest relie');
+    expect(dit).toMatch(/\d+ test\(s\) qui en lisent un par son chemin/);
   });
 
   it('critère 1 : the turbo.json of the package hashes of .beads the files a test reads, no journal', () => {

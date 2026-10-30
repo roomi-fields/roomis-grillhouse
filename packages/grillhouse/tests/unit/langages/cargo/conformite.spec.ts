@@ -19,6 +19,8 @@ const cargo = module as unknown as Langage;
 const exemples = lesExemples as unknown as Parameters<typeof cas>[1];
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'conformite-cargo-'));
+// The frame's package, from which the test names the scripts of the module's guards.
+const PAQUET = path.resolve(__dirname, '../../../..');
 let restaurer = () => {};
 beforeAll(() => {
   restaurer = avecFauxCargo(installerFauxCargo(ESSAIS), path.join(ESSAIS, 'journal'));
@@ -51,10 +53,12 @@ describe('grillhouse-pkl.3, critère 1 — le module cargo passe la suite de con
 describe('grillhouse-pkl.6, critère 1 — les gardes de structure du module cargo', () => {
   it('it plays clippy, frontieres and index-interfaces, in this order, each script existing', () => {
     const gardes = cargo.gardes(ESSAIS);
-    expect(gardes.map(([s, ...args]) => [path.basename(s), ...args])).toEqual([
-      ['clippy.mjs'],
-      ['frontieres.mjs'],
-      ['index-interfaces.mjs', '--verifier'],
+    // Each script by its whole path from the package, which the frame reads to replay this test
+    // when the script changes (grillhouse-3dr.3.4, the guard chemins-des-tests).
+    expect(gardes.map(([s, ...args]) => [path.relative(PAQUET, s), ...args])).toEqual([
+      ['scripts/langages/cargo/clippy.mjs'],
+      ['scripts/langages/cargo/frontieres.mjs'],
+      ['scripts/langages/cargo/index-interfaces.mjs', '--verifier'],
     ]);
     const c = cas(cargo, exemples, { dans: ESSAIS }).find(x => x.nom === 'gardes');
     expect(c?.valide()).toEqual([]);
