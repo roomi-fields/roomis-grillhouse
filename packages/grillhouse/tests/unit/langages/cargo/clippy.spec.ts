@@ -75,10 +75,8 @@ beforeAll(() => {
   restaurer = avecFauxCargo(installerFauxCargo(ESSAIS), path.join(ESSAIS, 'journal'));
   seul = (exemples.preparer(ESSAIS) as { depots: { seul: string } }).depots.seul;
 });
-afterAll(() => {
-  restaurer();
-  rmSync(ESSAIS, { recursive: true, force: true });
-});
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+afterAll(() => restaurer());
 
 // Runs the guard on the trial <seul>, clippy answering <lignes>, in the debt's mode <mode>: its
 // code, its refusals in SARIF, and what the journal of the fake cargo received.

@@ -30,10 +30,8 @@ beforeAll(() => {
     })
   );
 });
-afterAll(() => {
-  restaurer();
-  rmSync(ESSAIS, { recursive: true, force: true });
-});
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+afterAll(() => restaurer());
 
 describe('grillhouse-pkl.5, critère 3 — l’intégration prépare avant de vérifier', () => {
   it('a workspace of cargo: cargo fetch --locked, then the verification and its nextest', () => {

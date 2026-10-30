@@ -34,10 +34,8 @@ beforeAll(() => {
   d = (exemples.preparer(ESSAIS) as { depots: typeof d }).depots;
   manifeste = readFileSync(path.join(d.espace, 'Cargo.toml'), 'utf8');
 });
-afterAll(() => {
-  restaurer();
-  rmSync(ESSAIS, { recursive: true, force: true });
-});
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+afterAll(() => restaurer());
 
 // The workspace of four crates, its list <liste> appended to its manifest.
 const permettre = (liste: string) =>

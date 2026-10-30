@@ -22,10 +22,8 @@ beforeAll(() => {
     JSON.stringify({ name: 'seul', grillhouse: { langages: ['cargo'] } })
   );
 });
-afterAll(() => {
-  restaurer();
-  rmSync(ESSAIS, { recursive: true, force: true });
-});
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+afterAll(() => restaurer());
 beforeEach(() => writeFileSync(JOURNAL, ''));
 const appels = () => readFileSync(JOURNAL, 'utf8').split('\n').filter(Boolean);
 

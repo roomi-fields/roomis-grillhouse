@@ -36,10 +36,8 @@ beforeAll(() => {
   restaurer = avecFauxCargo(installerFauxCargo(ESSAIS), path.join(ESSAIS, 'journal'));
   d = (exemples.preparer(ESSAIS) as { depots: Depots }).depots;
 });
-afterAll(() => {
-  restaurer();
-  rmSync(ESSAIS, { recursive: true, force: true });
-});
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+afterAll(() => restaurer());
 
 const lIndex = () => {
   const f = cargo.fichiersEngendres(d.espace).find(x => x.nom === "l'index des interfaces");
