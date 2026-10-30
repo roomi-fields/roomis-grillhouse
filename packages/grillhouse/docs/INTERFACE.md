@@ -90,7 +90,9 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   `typescript`, un script `test:unit` dans son `package.json` ; `cargo`, un dossier `tests/`. Le circuit en tire les paquets du
   plan qui portent des tests, comme Bazel lit les cibles de test d'un paquet à leur genre.
 - `lecteurs` : les fournisseurs et les lecteurs, par le code, des éléments qu'un ticket nomme : son
-  interface, ses imports, ses tests, ses types. Le relevé des composants touchés
+  interface, ses imports, ses tests, ses types ; ce que lit chaque composant (`lit`) et ce que
+  lisent ses tests (`parLesTests` : leurs imports ; `cargo`, ses dépendances de développement),
+  d'où `--etendre` tire l'ordre du plan. Le relevé des composants touchés
   (`composants-affectes`) y ajoute les chemins lus et l'architecture.
 - `touches` : les composants touchés depuis un commit, leurs dépendants, transitivement, et les
   fichiers hors de tout composant (`{ touches, dependants, horsGraphe }`), comme le

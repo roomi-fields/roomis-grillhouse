@@ -177,6 +177,21 @@ describe('grillhouse-3dr.2.1 — la jointure des langages', () => {
     expect(lire('scripts/circuit.mjs')).not.toMatch(/import \{[^}]*\bpaquets\b[^}]*\} from/);
   });
 
+  // grillhouse-x7c.1: `--etendre` ordered the plan by the dependencies of the package.json files,
+  // which no crate of OSC Bridge has; the order is the module's (`lecteurs`).
+  it('grillhouse-x7c.1: the extension of the plan reads no package.json, its order the join’s', () => {
+    const texte = lire('scripts/circuit.mjs');
+    const corps = (nom: string) => {
+      const debut = texte.indexOf(`function ${nom}(`);
+      expect(debut, nom).toBeGreaterThan(-1);
+      return texte.slice(debut, texte.indexOf('\n}\n', debut));
+    };
+    for (const nom of ['etendre', 'ordonnerLePlan']) {
+      expect(corps(nom), nom).not.toMatch(/package\.json|[dD]ependencies|lireJson/);
+    }
+    expect(corps('ordonnerLePlan')).toMatch(/\.lecteurs\(/);
+  });
+
   it('criterion 9: scripts/mesure/ holds the three files of the core, the vitest-config/ of the module none of them', () => {
     const trois = ['avancement.mjs', 'base-de-passe.mjs', 'pression.mjs'];
     expect(

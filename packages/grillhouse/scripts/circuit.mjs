@@ -471,7 +471,10 @@
 //   no `--reprendre`, and names no component: a second name is a second ticket, exit 2.
 // - `--etendre <paquet>[,<paquet>…]` (each a path or a package name of the repository) extends the
 //   plan: the circuit writes the title (`bd update --title`), each package gained before the first
-//   package of the plan that depends on it (its package.json), else at its end, said at the ticket
+//   package of the plan that reads it, as the module of the language says (`lecteurs` of the
+//   join: the imports of a package of TypeScript, its tests' included, the dependencies of a
+//   crate, of development included), else at its end,
+//   said at the ticket
 //   (`Circuit · plan : le superviseur étend le plan à …`); then the step under way resumes as
 //   after `--reprendre`, on the plan extended, the question as its context with the text of
 //   `--contexte`; a stop « sans-livraison » on the developpeur's sending to the testwriter
@@ -4255,33 +4258,47 @@ async function arreter(ctx, e) {
   return 0;
 }
 
+// The plan <paquets> of the repository at <base>, each a directory relative to it, extended by
+// <gagnes>: each one enters before the first package of the plan that reads it, as the module of
+// the language reads its components (`lecteurs` of the join, its `lit` and its `parLesTests`: the
+// imports of a package of TypeScript, its tests' included, the dependencies of a crate of cargo,
+// of development included), else at its end, as Pants asks the order of the targets of its
+// backends.
+export function ordonnerLePlan(base, paquets, gagnes) {
+  const langage = langageDe(base);
+  const composants = langage.composants(base);
+  const { lit, parLesTests } = langage.lecteurs(base, {
+    composants,
+    noms: [],
+    texte: '',
+    nommes: [],
+  });
+  const de = d => composants.find(c => (path.relative(base, c.dossier) || '.') === d);
+  const litLe = (lecteur, fournisseur) => {
+    const l = de(lecteur);
+    const f = de(fournisseur);
+    return Boolean(l && f && (lit.get(l)?.has(f) || parLesTests.get(l)?.has(f)));
+  };
+  const plan = [...paquets];
+  for (const c of gagnes) {
+    const i = plan.findIndex(x => litLe(x, c));
+    plan.splice(i < 0 ? plan.length : i, 0, c);
+  }
+  return plan;
+}
+
 // The plan extended by the supervisor to the packages of `--etendre` (each a path or a package
-// name of the repository, else a Usage): each one enters the title before the first package of
-// the plan whose package.json depends on it, else at its end, written by bd and said at the
-// ticket. With the state <e>, the run then resumes the step under way, as `--reprendre` does, the
-// question of the stop and the text of `--contexte` as the context of its sessions; a stop
-// « sans-livraison » whose developpeur's last sheet sends the red to the testwriter (`renvoi`,
-// twice in a row) resumes at the step of the role it names, the testwriter's, as a retry plays the
-// job that failed. Without a state, it starts on the plan extended. The state the run resumes
-// from.
+// name of the repository, else a Usage): each one enters the title in the order of
+// `ordonnerLePlan`, written by bd and said at the ticket. With the state <e>, the run then resumes
+// the step under way, as `--reprendre` does, the question of the stop and the text of
+// `--contexte` as the context of its sessions; a stop « sans-livraison » whose developpeur's last
+// sheet sends the red to the testwriter (`renvoi`, twice in a row) resumes at the step of the role
+// it names, the testwriter's, as a retry plays the job that failed. Without a state, it starts on
+// the plan extended. The state the run resumes from.
 function etendre(ctx, e) {
   const gagnes = [...new Set(ctx.etendre.map(ctx.resoudre))].filter(c => !ctx.paquets.includes(c));
   const base = existsSync(ctx.copie) ? ctx.copie : ctx.racine;
-  const liste = composantsDe(base);
-  const pkg = c =>
-    liste.some(p => p.dossier === c) ? lireJson(path.join(base, c, 'package.json')) : null;
-  const lit = (lecteur, fournisseur) => {
-    const nom = pkg(fournisseur)?.name;
-    const p = pkg(lecteur);
-    return Boolean(
-      nom && p && [p.dependencies, p.devDependencies, p.peerDependencies].some(d => d && nom in d)
-    );
-  };
-  const plan = [...ctx.paquets];
-  for (const c of gagnes) {
-    const i = plan.findIndex(x => lit(x, c));
-    plan.splice(i < 0 ? plan.length : i, 0, c);
-  }
+  const plan = ordonnerLePlan(base, ctx.paquets, gagnes);
   const titre = ecrireLePlan(ctx, plan);
   // The plan the supervisor extends has passed: it is written, questioned no more.
   inscrire(ctx, {

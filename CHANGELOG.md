@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **`--etendre` orders the plan by the join** (grillhouse-x7c.1): the reviewer of grillhouse-x7c found that `etendre` in `scripts/circuit.mjs` placed a component added to the plan before its reader by the `dependencies`, `devDependencies` and `peerDependencies` of the package.json files; in a workspace of cargo such as OSC Bridge no crate has one, so the component added always went to the end of the plan. As the core asks the order of the language's module (Pants and its backends), the plan is now ordered by `lecteurs` of the join (`ordonnerLePlan`): its `lit`, and its new `parLesTests`, what a component's tests read (the imports of a package's tests, which the guard of the consumers keeps out of `lit`; a crate's dependencies of development), so that BPScript's 010-parser, read by the chain tests of 040-checker alone, still enters before it. `etendre` reads no package.json any more. `lecteurs` builds TypeScript's language service only when the ticket's text names an element to resolve (7.9 s on BPScript for none).
+
 ## [0.25.4] - 2026-10-30
 
 ### Changed

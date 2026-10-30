@@ -85,7 +85,11 @@ export interface Lecteurs {
       lecteurs: Map<Composant, Set<string>>;
     }[];
   };
+  /** What each component reads: its production code, and its dependencies of every kind. */
   lit: Map<Composant, Set<Composant>>;
+  /** What each component's tests read: the components they import, its dependencies of
+   * development. */
+  parLesTests: Map<Composant, Set<Composant>>;
 }
 
 /** The elements a lot adds, changes or removes between two commits, each with its place. */

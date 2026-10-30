@@ -230,14 +230,22 @@ function fournisseur(spec, fichier, tous, soi) {
 }
 
 // What each component really uses of the others: Map provider → Map consumer → Set of names. Its
-// production code counts for every provider, its tests for a package of the material only.
-export function utilise(racine, tous = composants(racine)) {
+// production code counts for every provider, its tests for a package of the material only; the
+// providers its tests import, the material's included, go in <parLesTests>, when given (Map
+// consumer → Set of providers, each of <tous>).
+export function utilise(racine, tous = composants(racine), parLesTests = null) {
   const out = new Map();
   const matiere = new Set(matieres(racine).map(m => m.nom));
   for (const c of tous) {
     for (const { f, test } of fichiers(c.dir)) {
       for (const { spec, noms } of imports(lireSiPresent(f) ?? '')) {
         const p = fournisseur(spec, f, tous, c);
+        if (p && test && parLesTests) {
+          if (!parLesTests.has(c)) {
+            parLesTests.set(c, new Set());
+          }
+          parLesTests.get(c).add(p);
+        }
         if (!p || (test && !matiere.has(p.nom))) continue;
         if (!out.has(p.nom)) out.set(p.nom, new Map());
         const parConsommateur = out.get(p.nom);

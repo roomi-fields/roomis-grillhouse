@@ -15,7 +15,8 @@
 //   imports the provider (the test file's path).
 // - By the types (scripts/langages/typescript/references-par-les-types.mjs): each element the text writes, resolved by
 //   TypeScript's language service over the components' `tsconfig.json`.
-// - What each component reads (`lit`): its imports, and the providers of the elements it reads.
+// - What each component reads (`lit`): its imports, and the providers of the elements it reads;
+//   what its tests read (`parLesTests`): the components its tests import.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
@@ -97,12 +98,13 @@ function importe(texte, fichier, p) {
 // components <composants> of <racine> (`composants` of the module), the components the text
 // names <nommes>: `{ elements: [{ nom, fournisseur, lecteurs: [{ composant, par }] }],
 // sansFournisseur, types: { etat, raison, elements: [{ nom, declarations: [{ composant, publie }],
-// lecteurs: Map composant → Set of « par » }] }, lit: Map composant → Set of composants }`, each
-// component one of <composants>.
+// lecteurs: Map composant → Set of « par » }] }, lit: Map composant → Set of composants,
+// parLesTests: Map composant → Set of composants }`, each component one of <composants>.
 export function lecteurs(racine, { composants, noms, texte, nommes }) {
   const tous = composants.map(c => ({ nom: c.nom, dir: c.dossier, paquet: c.paquet, c }));
   const exterieur = i => i.c;
-  const reel = utilise(racine, tous);
+  const testsLisent = new Map();
+  const reel = utilise(racine, tous, testsLisent);
   const ifaces = interfacesDe(racine, tous);
   const tests = new Map();
   const testsDuComposant = c => {
@@ -157,6 +159,12 @@ export function lecteurs(racine, { composants, noms, texte, nommes }) {
     }
   }
   for (const e of elements) for (const l of e.lecteurs) lit.get(l.composant).add(e.fournisseur);
+  const parLesTests = new Map(composants.map(c => [c, new Set()]));
+  for (const [c, lus] of testsLisent) {
+    for (const p of lus) {
+      parLesTests.get(c.c).add(p.c);
+    }
+  }
   return {
     elements,
     sansFournisseur: sansFournisseur.filter(
@@ -175,5 +183,6 @@ export function lecteurs(racine, { composants, noms, texte, nommes }) {
       })),
     },
     lit,
+    parLesTests,
   };
 }

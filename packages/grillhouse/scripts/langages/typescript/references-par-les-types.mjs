@@ -261,8 +261,12 @@ export function leService(racine, tous) {
 // components the ticket names (<contexte>: `{ fichiers, composants }`, Sets of file names and of
 // components), when it has some: `{ etat: 'fait', raison: null, elements: [{ nom, ecrit,
 // declarations: [{ c, publie }], lecteurs: Map component → Set of « par » }] }`, or
-// `{ etat: 'impossible', raison, elements: [] }` when it cannot run.
+// `{ etat: 'impossible', raison, elements: [] }` when it cannot run. Without any element, the
+// survey is done at once: no language service is built.
 export function parLesTypes(racine, tous, ecrits, contexte = {}) {
+  if (ecrits.length === 0) {
+    return { etat: 'fait', raison: null, elements: [] };
+  }
   try {
     return releveParLesTypes(racine, tous, ecrits, contexte);
   } catch (e) {

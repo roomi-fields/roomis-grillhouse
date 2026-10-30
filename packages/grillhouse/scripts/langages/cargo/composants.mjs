@@ -108,12 +108,14 @@ export function joueDesTests(_racine, composant) {
 
 /**
  * The readers, by their manifests, of the crates <noms> among <composants> of <racine>: each a
- * reader `{ composant, par }`, `par` the kinds of its dependencies on it.
+ * reader `{ composant, par }`, `par` the kinds of its dependencies on it; what each crate reads
+ * (`lit`), every kind; what its tests read (`parLesTests`), its dependencies of development.
  */
 export function lecteurs(racine, { composants: liste, noms }) {
   const tous = crates(racine);
   const parDossier = new Map(liste.map(c => [c.dossier, c]));
   const lit = new Map(liste.map(c => [c, new Set()]));
+  const parLesTests = new Map(liste.map(c => [c, new Set()]));
   const genres = new Map(liste.map(c => [c, new Map()]));
   for (const c of tous) {
     const lecteur = parDossier.get(c.composant.dossier);
@@ -126,6 +128,9 @@ export function lecteurs(racine, { composants: liste, noms }) {
         continue;
       }
       lit.get(lecteur).add(lu);
+      if (d.genre === 'dev') {
+        parLesTests.get(lecteur).add(lu);
+      }
       const g = genres.get(lu);
       if (!g.has(lecteur)) {
         g.set(lecteur, new Set());
@@ -151,6 +156,7 @@ export function lecteurs(racine, { composants: liste, noms }) {
     sansFournisseur,
     types: { etat: 'fait', raison: null, elements: [] },
     lit,
+    parLesTests,
   };
 }
 
