@@ -236,3 +236,46 @@ describe('grillhouse-982.6 — the green of uncommitted changes counts for the c
     expect(mesurer(copie(r, 'agent/t')).fichiers).toEqual([]);
   });
 });
+
+// When the measure gives a complete pass; what a measured pass plays in each package,
+// tests/unit/langages/typescript/changements.spec.ts.
+describe('the complete pass', () => {
+  it('without a green known, the pass is complete; its green becomes the last green', () => {
+    const r = depot();
+    const m = mesurer(r);
+    expect(m.fichiers).toBeNull();
+    expect(m.ligne).toMatch(/passe complète : aucun vert connu/);
+    vert(r);
+    const n = mesurer(r);
+    expect(n.fichiers).toEqual([]);
+    expect(n.ligne).toMatch(/depuis le dernier vert de main /);
+  });
+
+  it('--tout asks for the complete pass, whatever the last green', () => {
+    const r = depot();
+    vert(r);
+    modifier(r, 'a.txt');
+    const m = mesure(r, { tout: true }) as { ligne: string; env: Record<string, string> };
+    expect(m.ligne).toMatch(/passe complète : demandée/);
+    expect(m.env).toEqual({});
+  });
+
+  it('a file removed since the last green is among the removals', () => {
+    const r = depot();
+    vert(r);
+    rmSync(path.join(r, 'b.txt'));
+    expect(mesurer(r).fichiers).toEqual(['b.txt']);
+  });
+
+  it('a last green that is no ancestor of HEAD gives a complete pass', () => {
+    const r = depot();
+    vert(r);
+    git(r, 'checkout', '-q', '--orphan', 'autre');
+    git(r, 'commit', '-q', '-m', 'autre histoire');
+    // Main now holds that other history.
+    git(r, 'checkout', '-q', '-B', 'main');
+    const m = mesurer(r);
+    expect(m.fichiers).toBeNull();
+    expect(m.ligne).toMatch(/passe complète : le dernier vert n’est pas un ancêtre de HEAD/);
+  });
+});

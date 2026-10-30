@@ -1,71 +1,11 @@
 {
   "tailles-des-tests": {
-    "packages/grillhouse/tests/unit/avancement.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/enveloppe.enceinte.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/enveloppe.maison.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/enveloppe.matiere-de-test.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/enveloppe.paquet.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/enveloppe.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/git-des-tests.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
     "packages/grillhouse/tests/unit/langages/typescript/consommateurs-arbitres.spec.ts": {
       "grand-de-jour": {
         "count": 1
       }
     },
-    "packages/grillhouse/tests/unit/langages/typescript/tests-cibles.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
     "packages/grillhouse/tests/unit/langages/typescript/turbo-des-paquets-donnees.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/langages/typescript/verifier.depuis-le-vert.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/ligne-etat.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/registre-fin.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/tests-de-nuit.spec.ts": {
       "grand-de-jour": {
         "count": 1
       }

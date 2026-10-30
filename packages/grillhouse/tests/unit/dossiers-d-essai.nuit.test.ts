@@ -18,11 +18,16 @@ const SUITES = [
   'tests/unit/enveloppe.matiere-de-test.spec.ts',
   'tests/unit/verrous.spec.ts',
 ];
-// The tests of the launcher, a night test of the package of the frame's chain beside this one,
-// which a run in that package plays when it names it (GRILLHOUSE_TESTS,
+// The tests of the launcher and of the real envelope, night tests of the package of the frame's
+// chain beside this one, which a run in that package plays when it names them (GRILLHOUSE_TESTS,
 // scripts/langages/typescript/vitest-config/cibles.mjs).
 const ESSAIS_DU_CADRE = path.resolve(DEPOT, '../grillhouse-essais');
-const LANCEUR = path.join(ESSAIS_DU_CADRE, 'tests/enveloppe.lanceur.nuit.spec.ts');
+const LANCEUR = [
+  'enveloppe.lanceur',
+  'enveloppe',
+  'enveloppe.maison',
+  'enveloppe.matiere-de-test',
+].map(f => path.join(ESSAIS_DU_CADRE, `tests/${f}.nuit.spec.ts`));
 const VITEST = path.resolve(DEPOT, '../../node_modules/vitest/vitest.mjs');
 const ECART_MS = 8000;
 
@@ -55,7 +60,7 @@ function executer(delai: number): Promise<{ code: number | null; sortie: string 
     setTimeout(() => {
       void Promise.all([
         vitest(DEPOT, SUITES, {}),
-        vitest(ESSAIS_DU_CADRE, [], { GRILLHOUSE_TESTS: JSON.stringify({ arguments: [LANCEUR] }) }),
+        vitest(ESSAIS_DU_CADRE, [], { GRILLHOUSE_TESTS: JSON.stringify({ arguments: LANCEUR }) }),
       ]).then(([cadre, lanceur]) =>
         resolve({
           code: cadre.code === 0 ? lanceur.code : cadre.code,

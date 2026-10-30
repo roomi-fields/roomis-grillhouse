@@ -122,9 +122,9 @@ describe('grillhouse-3dr.4 critère 5 — the guard classes each test by its siz
     expect(tailleAvecMatiere(fichiers, 'tests/d.spec.ts')).toBe('petit');
   });
 
-  it('critère 5: in Grillhouse, tests-de-nuit.spec.ts is large again, through its material', () => {
+  it('critère 5: in Grillhouse, tests-de-nuit.nuit.spec.ts is large, through its material', () => {
     const t = tailles(DEPOT).find(
-      x => x.fichier === 'packages/grillhouse/tests/unit/tests-de-nuit.spec.ts'
+      x => x.fichier === 'packages/grillhouse-essais/tests/tests-de-nuit.nuit.spec.ts'
     );
     expect(t?.taille).toBe('grand');
   });

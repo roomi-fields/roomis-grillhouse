@@ -28,5 +28,5 @@ Aucune : la matière ne rend aucune faute.
 
 Les lecteurs la déclarent en `devDependencies` et l'importent par son nom.
 
-- `grillhouse` : JOUR, LANGAGE, NUITS, PRESSION, canWrap, cheminSysteme, claudeSubstitut, configGit, couvre, declarerLeLangage, enveloppeEssai, essai, hasBd, lierDependances, noms, racineSousLaMaison, rangs, testsDeNuitEssai
-- `grillhouse-essais` : AppelClaude, EtatClaude, JOUR, LANGAGE, NUITS, canWrap, cheminSysteme, claudeSubstitut, configGit, couvre, enveloppeEssai, essai, noms, racineSousLaMaison, rangs, sansClaude, testsDeNuitEssai
+- `grillhouse` : canWrap, cheminSysteme, claudeSubstitut, configGit, couvre, declarerLeLangage, hasBd, lierDependances, racineSousLaMaison
+- `grillhouse-essais` : AppelClaude, EtatClaude, JOUR, LANGAGE, NUITS, PRESSION, canWrap, cheminSysteme, claudeSubstitut, configGit, couvre, declarerLeLangage, enveloppeEssai, essai, hasBd, lierDependances, noms, racineSousLaMaison, rangs, sansClaude, testsDeNuitEssai

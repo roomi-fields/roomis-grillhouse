@@ -268,7 +268,13 @@ describe.runIf(canWrap)('critère 4 — on a machine where bwrap works, nothing 
 
 // The test of the envelope that needs the real bd, and two beside it in their describe that need
 // none: one writes in the directory of the tickets base, made by hand without bd
-// (grillhouse-3uv.50.1).
+// (grillhouse-3uv.50.1). They are night tests of the package of the frame's chain, which a run in
+// that package plays when it names their file.
+const MAISON = {
+  GRILLHOUSE_TESTS: JSON.stringify({
+    arguments: [path.join(ESSAIS_DU_CADRE, 'tests/enveloppe.maison.nuit.spec.ts')],
+  }),
+};
 const BASE_REELLE = 'lets bd read and write the tickets base of the main tree with its own state';
 const SANS_BD = [
   'lets the session write the tickets base of the main tree in the home',
@@ -301,10 +307,12 @@ describe('critère 1 (grillhouse-3uv.50.1) — on a machine without bd, no test 
   it.runIf(canWrap)(
     'critère 1 (grillhouse-3uv.50.1): the test that needs the real bd skips, those beside it pass',
     () => {
-      const r = jouer(['tests/unit/enveloppe.maison.spec.ts'], filtreBase, {
-        HOME: maisonNeuve(),
-        PATH: cheminSans('bd'),
-      });
+      const r = jouer(
+        [],
+        filtreBase,
+        { ...MAISON, HOME: maisonNeuve(), PATH: cheminSans('bd') },
+        { racine: ESSAIS_DU_CADRE }
+      );
       expect(statut(r, BASE_REELLE)).toBe('skipped');
       for (const titre of SANS_BD) {
         expect(statut(r, titre), titre).toBe('passed');
@@ -324,7 +332,12 @@ describe.runIf(bdSurLeChemin)('critère 3 (grillhouse-3uv.50.1) — on a machine
   it.runIf(canWrap)(
     'critère 3 (grillhouse-3uv.50.1): the test that needs the real bd runs, with those beside it',
     () => {
-      const r = jouer(['tests/unit/enveloppe.maison.spec.ts'], filtreBase, { HOME: maisonNeuve() });
+      const r = jouer(
+        [],
+        filtreBase,
+        { ...MAISON, HOME: maisonNeuve() },
+        { racine: ESSAIS_DU_CADRE }
+      );
       for (const titre of [BASE_REELLE, ...SANS_BD]) {
         expect(statut(r, titre), titre).toBe('passed');
       }

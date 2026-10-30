@@ -105,6 +105,23 @@ const AVANT: Record<string, [number, number]> = {
   'nouveau-projet': [15, 37],
   superviseur: [7, 26],
 };
+// The counts of `it` and of `expect` of each file of packages/grillhouse/tests/unit split by
+// grillhouse-3dr.3.6: its cases that a large test alone proves, moved as they are; its other
+// cases rewritten by day, in its file of the same name. Read once moved.
+const SCINDES: Record<string, [number, number]> = {
+  avancement: [4, 19],
+  enveloppe: [28, 64],
+  'enveloppe.enceinte': [8, 22],
+  'enveloppe.maison': [19, 60],
+  'enveloppe.matiere-de-test': [9, 35],
+  'enveloppe.paquet': [4, 13],
+  'git-des-tests': [2, 3],
+  'ligne-etat': [2, 2],
+  'registre-fin': [1, 3],
+  'tests-cibles': [11, 27],
+  'tests-de-nuit': [14, 38],
+  'verifier.depuis-le-vert': [6, 31],
+};
 const IT = /(?<![\w.])it(?:\.\w+(?:\([^()]*\))?)*\(/g;
 const EXPECT = /(?<![\w.])expect(?:\.\w+)?\(/g;
 const compte = (t: string, re: RegExp) => (t.match(re) ?? []).length;
@@ -165,7 +182,7 @@ describe('grillhouse-3dr.3.2 — the package of the tests of the chain', () => {
         return [n.replace('.nuit.spec.ts', ''), [compte(t, IT), compte(t, EXPECT)]];
       })
     );
-    expect(apres).toEqual(AVANT);
+    expect(apres).toEqual({ ...AVANT, ...SCINDES });
     const restes = readdirSync(path.join(RACINE, 'packages/grillhouse/tests/unit'));
     for (const nom of Object.keys(AVANT)) {
       expect(restes).not.toContain(`${nom}.spec.ts`);
@@ -195,7 +212,7 @@ describe('grillhouse-3dr.3.2 — the package of the tests of the chain', () => {
 
   it('critère 6: the night configuration, played from the root of the copy, plays every moved file', () => {
     const { include, exclude } = optionsDe('scripts/langages/typescript/vitest.nuit.config.mjs');
-    expect(DE_NUIT).toHaveLength(Object.keys(AVANT).length);
+    expect(DE_NUIT).toHaveLength(Object.keys({ ...AVANT, ...SCINDES }).length);
     for (const n of DE_NUIT) {
       const f = `packages/grillhouse-essais/tests/${n}`;
       expect(

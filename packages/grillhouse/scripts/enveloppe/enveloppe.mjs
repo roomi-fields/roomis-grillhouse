@@ -215,7 +215,7 @@ export function dossierDeTravail(copie, env = process.env) {
 // script: a `prepare` that writes under the read-only `.git` would fail `npm install`; the
 // launcher installs outside the session), `TMPDIR` set to the session's working directory
 // <travail>, and `GRILLHOUSE_ENVELOPPE` set to the plan <paquets>. Nothing else of <env> enters.
-function environnementDeLaSeance(env, { cacheNpm, paquets, travail }) {
+export function environnementDeLaSeance(env, { cacheNpm, paquets, travail }) {
   const declare = nom =>
     ENVIRONNEMENT_DECLARE.includes(nom) ||
     VARIABLES_DE_CHEMIN.includes(nom) ||

@@ -1,4 +1,4 @@
-import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import {
   chmodSync,
   closeSync,
@@ -22,7 +22,9 @@ import { attendre, lignes, repos } from './registre-essai.js';
 // that outlives it; the line it writes is the one of today; two simultaneous ends write it once;
 // a reading that fails writes nothing and `--rattraper` catches it up; one stop has one line, its
 // writes overlapping or following one another, by the hook as by `--rattraper`. Criterion 2 (a transcript
-// of several hundred MB, never held whole) lives in registre-fin.nuit.test.ts.
+// of several hundred MB, never held whole) lives in registre-fin.nuit.test.ts; the project of a
+// session read in a git repository of trial and its copy (3uv.89 L2), in
+// packages/grillhouse-essais/tests/registre-fin.nuit.spec.ts.
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'registre-fin-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
@@ -418,41 +420,5 @@ describe('3uv.72 critère 6 — one stop, one line', () => {
         racine
       )
     );
-  }, 30_000);
-});
-
-// grillhouse-3uv.89, L2 (found by L8): a session of a role is written under its project, the main
-// tree, whatever directory its shell stands in when it ends. Witness: BPScript 320.3, the session
-// of 995-tools at 13:40 written under `<copie>/packages/990-corpus/test/scenes`: in the envelope,
-// that directory is a mount of its own, where git stops looking for the repository (« Arrêt à la
-// limite du système de fichiers »). GIT_CEILING_DIRECTORIES stops git the same way at the copy.
-describe('3uv.89 L2 — the project of a session whose shell stands where git finds no repository', () => {
-  it('is the main tree of the copy the session opened in (CLAUDE_PROJECT_DIR), not its last directory', async () => {
-    const d = dossier();
-    const principal = path.join(d, 'depot');
-    mkdirSync(principal);
-    const git = (...a: string[]) =>
-      execFileSync('git', ['-C', principal, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
-    git('init', '-q');
-    git('commit', '-q', '--allow-empty', '-m', 'init');
-    const copie = path.join(principal, '.claude/worktrees/demo-3');
-    git('worktree', 'add', '-q', '-b', 'agent/demo-3', copie);
-    const sous = path.join(copie, 'packages/a/test');
-    mkdirSync(sous, { recursive: true });
-    const { input } = session(d, 's12', temoin(5));
-    const registre = path.join(d, 'registre.jsonl');
-    const r = spawnSync('node', [SCRIPT], {
-      input: l({ ...input, cwd: sous }),
-      env: {
-        ...process.env,
-        GRILLHOUSE_REGISTRE: registre,
-        CLAUDE_PROJECT_DIR: copie,
-        GIT_CEILING_DIRECTORIES: copie,
-      },
-      encoding: 'utf8',
-    });
-    expect(r.status).toBe(0);
-    await attendre(registre, 1);
-    expect(premiere(registre)).toMatchObject({ agent: 's12', projet: principal });
   }, 30_000);
 });

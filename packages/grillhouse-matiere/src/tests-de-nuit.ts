@@ -6,13 +6,13 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
-  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
+import { lierDependances } from './dependances.js';
 
-// The trial harness of the night tests (grillhouse-3uv.34), shared by their tests (the frame's
-// tests/unit/tests-de-nuit.spec.ts, and packages/grillhouse-essais/tests/
+// The trial harness of the night tests (grillhouse-3uv.34), shared by their tests
+// (packages/grillhouse-essais/tests/tests-de-nuit.nuit.spec.ts and
 // tests-de-nuit.script-de-nuit.nuit.spec.ts): the projects of trial that play the real
 // configuration of the repository, and what reads their runs. The repository of the frame and its
 // update are passed in by the caller: this material imports no package.
@@ -39,17 +39,6 @@ export const NUITS = [
   'tests/profond/c.nuit.test.ts',
   'tests/d.nuit.test.mjs',
 ];
-
-// The dependencies of the repository, linked one by one so that Vitest writes its cache in the
-// project of trial.
-export function lierDependances(repo: string, DEPOT: string) {
-  mkdirSync(path.join(repo, 'node_modules'));
-  for (const e of readdirSync(path.join(DEPOT, 'node_modules'))) {
-    if (e !== '.vite' && e !== '.vitest') {
-      symlinkSync(path.join(DEPOT, 'node_modules', e), path.join(repo, 'node_modules', e));
-    }
-  }
-}
 
 export const noms = (fichiers: string[]) => fichiers.map(f => path.basename(f)).sort();
 

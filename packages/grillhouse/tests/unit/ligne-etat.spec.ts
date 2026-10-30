@@ -1,4 +1,3 @@
-import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -11,11 +10,13 @@ import {
   sansCouleur,
 } from '../../scripts/ligne-etat/ligne-etat.mjs';
 
+// The status line (scripts/ligne-etat/ligne-etat.mjs): how it composes the line and reads the
+// person's own command. The command itself, in a repository of trial, is the night's
+// (packages/grillhouse-essais/tests/ligne-etat.nuit.spec.ts).
+
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'ligne-etat-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-
-const SCRIPT = path.resolve('scripts/ligne-etat/ligne-etat.mjs');
 
 describe('composer', () => {
   it('aligns the right part on the width, two columns kept on each side', () => {
@@ -53,33 +54,5 @@ describe('commandePersonnelle', () => {
         maison({ statusLine: { type: 'command', command: 'node x/ligne-etat/ligne-etat.mjs' } })
       )
     ).toBeNull();
-  });
-});
-
-describe('the status line command', () => {
-  const projet = () => {
-    const d = mkdtempSync(path.join(ESSAIS, 'ligne-projet-'));
-    execFileSync('git', ['init', '-q', d]);
-    writeFileSync(path.join(d, '.git/grillhouse-etat.txt'), '▶ 2 en cours\n');
-    return d;
-  };
-  const lancer = (home: string, dir: string) =>
-    execFileSync('node', [SCRIPT], {
-      input: JSON.stringify({ model: { display_name: 'Opus 5.5' } }),
-      env: { ...process.env, HOME: home, CLAUDE_PROJECT_DIR: dir, COLUMNS: '60' },
-      encoding: 'utf8',
-    });
-  it("puts the person's own line on the left and the chantier on the right", () => {
-    const home = mkdtempSync(path.join(ESSAIS, 'ligne-maison-'));
-    mkdirSync(path.join(home, '.claude'));
-    writeFileSync(
-      path.join(home, '.claude/settings.json'),
-      JSON.stringify({ statusLine: { type: 'command', command: 'cat >/dev/null; echo ma ligne' } })
-    );
-    expect(sansCouleur(lancer(home, projet()))).toMatch(/^ma ligne +▶ 2 en cours\n$/);
-  });
-  it('puts the default line on the left for a person without one', () => {
-    const home = mkdtempSync(path.join(ESSAIS, 'ligne-maison-'));
-    expect(sansCouleur(lancer(home, projet()))).toMatch(/^Opus 5\.5 +▶ 2 en cours\n$/);
   });
 });

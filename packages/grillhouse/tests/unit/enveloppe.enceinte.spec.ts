@@ -4,17 +4,13 @@
 // (`bwrap --ro-bind / --bind`). Witness: BPScript 320.9, where the reading enclosure (emptied
 // directories, neighbours shown in part) caused most of the losses, while the writing enclosure
 // and the guards held the architecture.
-import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+// Each case reads the plan of the envelope, the arguments of bwrap, on a disk described; bwrap
+// itself and the lock of the agent in a repository of trial are the night's
+// (packages/grillhouse-essais/tests/enveloppe.enceinte.nuit.spec.ts).
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import {
-  canWrap,
-  enveloppeEssai,
-  LANGAGE,
-  racineSousLaMaison,
-} from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { CODE_REFUS } from '../../scripts/enveloppe/codes.mjs';
 import { montagesDeLaSeance, plan } from '../../scripts/enveloppe/enveloppe.mjs';
 import {
   ecritsDuPlan,
@@ -23,7 +19,6 @@ import {
   VARIABLE as VARIABLE_NUE,
 } from '../../scripts/enveloppe/paquets-du-plan.mjs';
 import { aVerifier } from '../../scripts/langages/typescript/interfaces-contre-code.mjs';
-import { SCRIPT } from './enveloppe-essai.js';
 
 const VARIABLE = VARIABLE_NUE as string;
 const ecrireLaListe = (paquets: string[]) => ecrireLaListeNue(paquets) as string;
@@ -157,13 +152,11 @@ describe('grillhouse-3uv.95.3 — GRILLHOUSE_ENVELOPPE porte la liste', () => {
   });
 });
 
-// The real envelope replaces /tmp with an empty directory: its repositories live outside it.
-const ESSAIS = racineSousLaMaison('grillhouse-essais-enceinte-');
+const ESSAIS = mkdtempSync(path.join(tmpdir(), 'enveloppe-enceinte-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 describe('grillhouse-3uv.95.3 — les composants que juge une garde dans l’enveloppe', () => {
-  const { essai } = enveloppeEssai(ESSAIS);
-  const repo = essai('composants-');
+  const repo = mkdtempSync(path.join(ESSAIS, 'composants-'));
   for (const n of ['a', 'b', 'c']) {
     mkdirSync(path.join(repo, 'packages', n, 'docs'), { recursive: true });
     writeFileSync(path.join(repo, 'packages', n, 'package.json'), JSON.stringify({ name: n }));
@@ -172,147 +165,5 @@ describe('grillhouse-3uv.95.3 — les composants que juge une garde dans l’env
     const env = { [VARIABLE]: ecrireLaListe(['packages/a', 'packages/c']) };
     expect(aVerifier(repo, env).map(c => path.basename(c.dir))).toEqual(['a', 'c']);
     expect(aVerifier(repo, {}).map(c => path.basename(c.dir))).toEqual(['a', 'b', 'c']);
-  });
-});
-
-describe.runIf(canWrap)('grillhouse-3uv.95.3 — l’enceinte sur le disque', () => {
-  const { essai } = enveloppeEssai(ESSAIS);
-  const repo = essai('enceinte-');
-  const ecrire = (f: string, t: string) => {
-    mkdirSync(path.dirname(path.join(repo, f)), { recursive: true });
-    writeFileSync(path.join(repo, f), t);
-  };
-  ecrire(
-    'package.json',
-    JSON.stringify({ name: 'essai', workspaces: ['packages/*'], grillhouse: LANGAGE })
-  );
-  for (const n of ['a', 'b', 'c']) {
-    ecrire(`packages/${n}/package.json`, JSON.stringify({ name: n }));
-    ecrire(`packages/${n}/src/${n}.ts`, `source-${n}`);
-  }
-  ecrire('.beads/config.yaml', '');
-  const git = (...a: string[]) =>
-    execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
-  git('init', '-q');
-  git('add', '.');
-  git('commit', '-qm', 'init');
-  const copie = path.join(repo, '.claude/worktrees/demo-1');
-  git('worktree', 'add', '-q', '-b', 'agent/demo-1', copie);
-  // An index of the copy, as codegraph and rtfm keep one.
-  mkdirSync(path.join(copie, '.codegraph'));
-  writeFileSync(path.join(copie, '.codegraph/index.db'), 'index');
-  const home = essai('home-');
-  mkdirSync(path.join(home, '.claude/projects'), { recursive: true });
-
-  const run = (shell: string, paquets = 'packages/a:packages/b') =>
-    spawnSync('node', [SCRIPT, copie, paquets, 'developpeur', '--', 'bash', '-c', shell], {
-      encoding: 'utf8',
-      env: { ...process.env, HOME: home, LC_ALL: 'C' },
-    });
-
-  it('critère 1 — l’agent lit toute la copie : le code d’un paquet hors du plan et l’index', () => {
-    const r = run('cat packages/c/src/c.ts .codegraph/index.db');
-    expect(r.stdout, r.stderr).toBe('source-cindex');
-  });
-
-  it('critère 1 — l’agent écrit chaque paquet du plan, et la base des tickets', () => {
-    const r = run(`touch packages/a/src/x.ts packages/b/src/x.ts ${repo}/.beads/x`);
-    expect(r.status, r.stderr).toBe(0);
-    expect(existsSync(path.join(copie, 'packages/b/src/x.ts'))).toBe(true);
-  });
-
-  it('critère 2 — une écriture hors des paquets du plan échoue au montage : un autre paquet, la racine, .git', () => {
-    for (const f of ['packages/c/src/c.ts', 'racine.txt', '.git']) {
-      const r = run(`echo x >> ${f}`);
-      expect(r.status, f).not.toBe(0);
-      expect(r.stderr, f).toContain('Read-only file system');
-    }
-    expect(readFileSync(path.join(copie, 'packages/c/src/c.ts'), 'utf8')).toBe('source-c');
-  });
-
-  it('critère 3 — la séance reçoit la liste dans GRILLHOUSE_ENVELOPPE', () => {
-    expect(run('printenv GRILLHOUSE_ENVELOPPE').stdout.trim()).toBe('packages/a:packages/b');
-  });
-
-  it('critère 1 — refuse un chemin du plan qui n’existe pas', () => {
-    const r = run('true', 'packages/a:packages/z');
-    expect(r.status).toBe(CODE_REFUS);
-    expect(r.stderr).toContain('Le composant');
-  });
-});
-
-// The lock of the agent (scripts/verrous/verrou.mjs), a hook of its session, reads the plan in the
-// envelope's variable: a write out of the plan's packages stops the session, as Claude Code's
-// `continue: false` ends it, with the package named, and leaves its mark in the session's working
-// directory, which the launcher hands to the circuit.
-const VERROU = path.resolve(__dirname, '../../scripts/verrous/verrou.mjs');
-describe('grillhouse-3uv.95.3 — le crochet de l’agent et le plan', () => {
-  const { essai } = enveloppeEssai(ESSAIS);
-  const repo = essai('crochet-');
-  const ecrire = (f: string, t: string) => {
-    mkdirSync(path.dirname(path.join(repo, f)), { recursive: true });
-    writeFileSync(path.join(repo, f), t);
-  };
-  ecrire(
-    'package.json',
-    JSON.stringify({ name: 'essai', workspaces: ['packages/*'], grillhouse: LANGAGE })
-  );
-  for (const n of ['a', 'b', 'c']) {
-    ecrire(`packages/${n}/package.json`, JSON.stringify({ name: n }));
-  }
-  spawnSync('git', ['init', '-q'], { cwd: repo });
-  const ecrireAvec = (role: string, rel: string, liste: string | null) => {
-    const tmp = essai('tmp-');
-    const env: Record<string, string | undefined> = { ...process.env, TMPDIR: tmp };
-    delete env[VARIABLE];
-    if (liste !== null) {
-      env[VARIABLE] = liste;
-    }
-    const input = {
-      tool_name: 'Write',
-      tool_input: { file_path: path.join(repo, rel), content: 'x' },
-      cwd: repo,
-    };
-    const r = spawnSync('node', [VERROU, role], {
-      input: JSON.stringify(input),
-      encoding: 'utf8',
-      env,
-    });
-    const marque = path.join(tmp, 'hors-plan');
-    return { ...r, marque: existsSync(marque) ? readFileSync(marque, 'utf8') : null };
-  };
-
-  it('critère 2 — une écriture hors des paquets du plan arrête la séance, le paquet nommé', () => {
-    const r = ecrireAvec('testwriter', 'packages/c/test/x.test.ts', 'packages/a:packages/b');
-    expect(r.status, r.stderr).toBe(0);
-    const sortie = JSON.parse(r.stdout) as {
-      continue: boolean;
-      stopReason: string;
-      hookSpecificOutput: Record<string, string>;
-    };
-    expect(sortie.continue).toBe(false);
-    expect(sortie.stopReason).toContain('hors-plan');
-    expect(sortie.stopReason).toContain('packages/c');
-    expect(sortie.hookSpecificOutput).toMatchObject({
-      hookEventName: 'PreToolUse',
-      permissionDecision: 'deny',
-    });
-    expect(r.marque).toBe(sortie.stopReason);
-  });
-
-  it('critère 2 — une écriture dans un paquet du plan suit la règle de son rôle, sans arrêt', () => {
-    const r = ecrireAvec('testwriter', 'packages/b/test/x.test.ts', 'packages/a:packages/b');
-    expect(r.status, r.stderr).toBe(0);
-    expect(r.stdout).toBe('');
-    expect(r.marque).toBeNull();
-    const code = ecrireAvec('testwriter', 'packages/b/src/x.ts', 'packages/a:packages/b');
-    expect(code.status).toBe(2);
-    expect(code.marque).toBeNull();
-  });
-
-  it('critère 2 — hors de l’enveloppe, aucun plan ne borne l’écriture', () => {
-    const r = ecrireAvec('testwriter', 'packages/c/test/x.test.ts', null);
-    expect(r.status, r.stderr).toBe(0);
-    expect(r.stdout).toBe('');
   });
 });

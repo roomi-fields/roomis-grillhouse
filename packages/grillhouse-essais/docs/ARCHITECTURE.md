@@ -3,7 +3,11 @@
 Le paquet des grands tests de Grillhouse, ceux qui prouvent l'enchaînement du cadre (le circuit
 d'abord ; la nuit, l'intégration et sa file, le lanceur d'un agent, l'ouverture de séance, la mise
 à jour et l'init, le retrait d'une copie) : des tests de nuit, qui montent un dépôt d'essai et y
-lancent les scripts du cadre en processus.
+lancent les scripts du cadre en processus. S'y ajoutent les cas d'un module du cadre que seul un
+grand test prouve (l'enveloppe réelle sous bwrap, la passe de `npm run verifier` et de `npm test`
+sous Turborepo et Vitest, le rapporteur d'avancement dans une vraie passe, un crochet dans un dépôt
+git et sa copie) ; les autres cas de ce module sont des petits tests de jour, dans le fichier du
+même nom du paquet du cadre.
 
 ## Contexte
 
@@ -28,7 +32,8 @@ packages/grillhouse-essais ──(processus : node <script>, grillhouse <command
   de passe s'ouvre dans un processus qui vit jusqu'à sa fermeture (`ouvrirBaseEnProcessus`). Aucun test n'importe un script du cadre dans son
   processus ; seule la configuration de Vitest du paquet importe son entrée `./vitest-config`.
 - **Un petit test de jour** (`tests/paquet.spec.ts`) : il tient la forme du paquet et le compte des
-  tests déplacés, et donne à la journée un test à jouer.
+  tests déplacés, ceux d'un fichier déplacé entier comme ceux d'un fichier scindé, et donne à la
+  journée un test à jouer.
 
 ## Composants
 
@@ -39,8 +44,8 @@ packages/grillhouse-essais ──(processus : node <script>, grillhouse <command
   l'intégration et de sa file, partagé par les `integrer*`, les `file-integration*` et le banc de
   l'enveloppe.
 - `tests/sous-modules-essai.ts` : les mondes d'essai des sous-modules (`sous-modules*.nuit.spec.ts`).
-- `tests/enveloppe-essai.ts` : le projet que prépare le lanceur d'un agent
-  (`enveloppe.lanceur.nuit.spec.ts`, `lancer-modele.nuit.spec.ts`).
+- `tests/enveloppe-essai.ts` : l'enveloppe du cadre et le projet que prépare le lanceur d'un agent
+  (`enveloppe*.nuit.spec.ts`, `lancer-modele.nuit.spec.ts`).
 - La matière que ces tests partagent avec ceux du cadre vient de
   `@roomi-fields/grillhouse-matiere/test-fixtures` : les projets d'essai de la nuit
   (`testsDeNuitEssai`, le dépôt et sa mise à jour passés par l'appelant), le langage d'un projet

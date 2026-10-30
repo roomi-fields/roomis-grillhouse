@@ -6,31 +6,20 @@
 // suite does not read it, and no code or configuration file outside the tests carries it but the
 // frame's base Vitest configuration, its one address, which the day and night configurations
 // read. No test reads a configuration file the suite does not own (the user's, or the real
-// repository's).
+// repository's). A script under test that launches git, and a night test run by Vitest under the
+// night's configuration, are the night's (packages/grillhouse-essais/tests/git-des-tests.nuit.spec.ts).
 import { execFileSync, spawnSync } from 'node:child_process';
-import {
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { configGit } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import nuit from '../../scripts/langages/typescript/vitest.nuit.config.mjs';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'git-des-tests-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const DEPOT = path.resolve(__dirname, '../../../..');
-const CONFIG_NUIT = path.join(
-  DEPOT,
-  'packages/grillhouse/scripts/langages/typescript/vitest.nuit.config.mjs'
-);
-const LONG = 60_000;
 const REGLAGE = { 'maintenance.auto': 'false', 'gc.auto': '0' };
 const IDENTITE = ['-c', 'user.name=t', '-c', 'user.email=t@t'];
 
@@ -73,21 +62,6 @@ describe('3uv.72.1 critères 1 et 2 : a git launched by a day test runs with the
     );
   });
 
-  it('critère 1 : a script under test that launches git in its turn hands it the setting', () => {
-    const repo = depot();
-    const r = spawnSync(
-      'bash',
-      [
-        '-c',
-        'git -C "$1" config --get maintenance.auto; git -C "$1" config --get gc.auto',
-        '-',
-        repo,
-      ],
-      { encoding: 'utf8' }
-    );
-    expect(r.stdout.trim().split('\n')).toEqual(['false', '0']);
-  });
-
   it('critère 1 : a commit in a trial repository starts no automatic maintenance', () => {
     const repo = depot();
     const trace = path.join(ESSAIS, `trace-${path.basename(repo)}.json`);
@@ -128,59 +102,17 @@ describe('3uv.72.1 critères 1 et 2 : a git launched by a day test runs with the
   });
 });
 
-// The dependencies of the repository, linked one by one into <racine>, so that Vitest writes its
-// cache there.
-function lierDependances(racine: string) {
-  mkdirSync(path.join(racine, 'node_modules'));
-  for (const e of readdirSync(path.join(DEPOT, 'node_modules'))) {
-    if (e !== '.vite' && e !== '.vitest') {
-      symlinkSync(path.join(DEPOT, 'node_modules', e), path.join(racine, 'node_modules', e));
-    }
-  }
-}
-
 describe('3uv.72.1 critère 1 : the night configuration carries the same setting', () => {
-  it(
-    'critère 1 : a git launched by a night test, under scripts/vitest.nuit.config.mjs alone, reads maintenance.auto=false and gc.auto=0',
-    () => {
-      const racine = mkdtempSync(path.join(ESSAIS, 'nuit-'));
-      lierDependances(racine);
-      const sortie = path.join(racine, 'lu.json');
-      writeFileSync(
-        path.join(racine, 'sonde.nuit.test.mjs'),
-        `import { spawnSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
-import { test } from 'vitest';
-const lire = cle => {
-  const r = spawnSync('git', ['config', '--get', cle], { encoding: 'utf8' });
-  return r.status === 0 ? r.stdout.trim() : null;
-};
-test('sonde', () => {
-  writeFileSync(${JSON.stringify(sortie)}, JSON.stringify({
-    'maintenance.auto': lire('maintenance.auto'),
-    'gc.auto': lire('gc.auto'),
-  }));
-});
-`
-      );
-      // The night as scripts/nuit.sh plays it: its configuration alone, from the root of the copy,
-      // on an environment that carries no git setting of the day suite.
-      const env: NodeJS.ProcessEnv = {};
-      for (const [k, v] of Object.entries(sansGitConfig())) {
-        if (!k.startsWith('VITEST') && k !== 'NODE_OPTIONS') {
-          env[k] = v;
-        }
-      }
-      const r = spawnSync(
-        path.join(DEPOT, 'node_modules/.bin/vitest'),
-        ['run', '--root', racine, '--config', CONFIG_NUIT],
-        { cwd: racine, encoding: 'utf8', env, timeout: LONG }
-      );
-      expect(r.status, r.stdout + r.stderr).toBe(0);
-      expect(JSON.parse(readFileSync(sortie, 'utf8'))).toEqual(REGLAGE);
-    },
-    LONG
-  );
+  it('critère 1 : its environment gives git maintenance.auto=false and gc.auto=0', () => {
+    const env = (nuit as { test: { env: Record<string, string> } }).test.env;
+    const lus: Record<string, string> = Object.fromEntries(
+      Array.from({ length: Number(env.GIT_CONFIG_COUNT) }, (_, i): [string, string] => [
+        env[`GIT_CONFIG_KEY_${i}`] ?? '',
+        env[`GIT_CONFIG_VALUE_${i}`] ?? '',
+      ])
+    );
+    expect(lus).toEqual(REGLAGE);
+  });
 });
 
 describe('3uv.72.1 critères 3 et 6 : the setting lives in the environment of the suite alone', () => {
@@ -208,7 +140,8 @@ describe('3uv.72.1 critères 3 et 6 : the setting lives in the environment of th
     expect(reglageLu(repo, horsSuite)).toEqual({ 'maintenance.auto': null, 'gc.auto': null });
   });
 
-  // Every tracked code or configuration file outside the tests: scripts, hooks, the Vitest day
+  // Every tracked code or configuration file outside the tests (the frame's and the night's of its
+  // chain, packages/grillhouse-essais): scripts, hooks, the Vitest day
   // configuration, the continuous-integration workflows, the deployment scripts. Only prose (.md,
   // the licences) and the data of the ticket tracker (.beads/*.jsonl) stay out. The setting has one
   // address, the frame's base configuration, which the day and night configurations read.
@@ -216,7 +149,11 @@ describe('3uv.72.1 critères 3 et 6 : the setting lives in the environment of th
     const suivis = execFileSync('git', ['-C', DEPOT, 'ls-files'], { encoding: 'utf8' })
       .split('\n')
       .filter(f => f !== '')
-      .filter(f => !f.startsWith('packages/grillhouse/tests/'))
+      .filter(
+        f =>
+          !f.startsWith('packages/grillhouse/tests/') &&
+          !f.startsWith('packages/grillhouse-essais/tests/')
+      )
       .filter(f => !/\.md$/.test(f) && !/(^|\/)LICENSE/.test(f) && !/^\.beads\/.*\.jsonl$/.test(f))
       .filter(f => f !== 'packages/grillhouse/scripts/langages/typescript/vitest-config/base.mjs');
     const porteurs = suivis.filter(f => {

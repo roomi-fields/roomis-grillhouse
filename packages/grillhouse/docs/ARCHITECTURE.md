@@ -346,8 +346,13 @@ importe, par un chemin relatif ou par le nom d'un paquet de la matière partagé
 autre chose que git ; moyen, il lance un processus ou importe plusieurs modules du dépôt ;
 petit, sinon. Un grand test de jour est un constat (`grand-de-jour`), un test de nuit ou un banc
 jamais ; les grands tests de jour d'un projet s'inscrivent dans sa dette à la mise à jour qui
-apporte la garde (`npx grillhouse maj`, migration 0.25.0), sans qu'un test se réécrive. Ainsi
-le jour ne joue que des tests courts, et la dette des grands ne fait que baisser.
+apporte la garde (`npx grillhouse maj`, migration 0.25.0), sans qu'un test se réécrive. Un grand
+test de jour qui ne vérifie qu'un module en sort ainsi : ses cas se réécrivent en petits tests par
+l'interface du module (le plan de l'enveloppe, les options qu'un greffon laisse à Vitest, la
+configuration du jour et celle de la nuit, la fonction qui lit l'avancement), et ses cas que seul
+un grand test prouve (bwrap réel, une passe réelle de Turborepo et de Vitest) se déplacent tels
+quels en tests de nuit dans `packages/grillhouse-essais`. Ainsi le jour ne joue que des tests
+courts, et la dette des grands ne fait que baisser.
 
 **Les chemins des tests** (`packages/grillhouse/scripts/langages/typescript/chemins-des-tests.mjs`, une
 garde du cadre) : comme le bac à sable de Bazel, qui fait échouer un test qui lit une entrée non

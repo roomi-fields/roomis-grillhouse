@@ -1,15 +1,15 @@
 // `npm run verifier` measures a pass against the last green (scripts/dernier-vert.mjs): it keeps
 // the tree of its last pass green, and the next pass plays, in each package Turborepo plays again,
-// the tests Vitest relates to the files changed since that green, as `vitest --changed` does
-// (scripts/langages/typescript/vitest-config/cibles.mjs); a file Vitest cannot see in the graph of a test (the
-// configuration, a file no module imports, a file removed, the code of a package it depends on)
-// plays the package whole.
+// the tests Vitest relates to the files changed since that green, as `vitest --changed` does; a
+// package whose inputs did not move replays from Turborepo's cache.
 // Witness: Grillhouse (2026-10-21), a full `npm run verifier` red on one wrong test of 2 643 (the
 // test, not the code); corrected, it played again whole: 13 min for one test.
 //
-// Each case plays the real Turborepo, Vitest and git of the repository in a repository of trial:
-// package `a` (two test files, `un` importing the shared material and the code, `deux` the code),
-// package `c` that nothing links to `a`, and, for one case, package `b` that depends on `a`.
+// The chain, played at night: the real Turborepo, Vitest and git of the repository in a repository
+// of trial, package `a` (two test files, `un` importing the shared material and the code, `deux`
+// the code) and package `c` that nothing links to `a`. What each change plays in a package is the
+// day's (packages/grillhouse/tests/unit/langages/typescript/changements.spec.ts), and so is the
+// measure against the last green (packages/grillhouse/tests/unit/dernier-vert.spec.ts).
 import { spawnSync } from 'node:child_process';
 import {
   existsSync,
@@ -23,15 +23,17 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { lireResumes } from '../../../../scripts/langages/typescript/verdict.mjs';
-import { verifier } from '../../../../scripts/langages/typescript/verifier.mjs';
+import { CADRE, RACINE, enProcessus } from './cadre.js';
 
-const DEPOT = path.resolve(__dirname, '../../../../../..');
-const BASE = path.join(
-  DEPOT,
-  'packages/grillhouse/scripts/langages/typescript/vitest-config/base.mjs'
+const DEPOT = RACINE;
+const BASE = path.join(CADRE, 'scripts/langages/typescript/vitest-config/base.mjs');
+const TESTS = path.join(CADRE, 'scripts/langages/typescript/tests.mjs');
+const VERIFIER = path.join(CADRE, 'scripts/langages/typescript/verifier.mjs');
+// The summaries of Turborepo's runs a results directory holds, read in a process of its own.
+const lireResumes = enProcessus<{ script: string; paquet: string; cache: string }[]>(
+  'scripts/langages/typescript/verdict.mjs',
+  'lireResumes'
 );
-const TESTS = path.join(DEPOT, 'packages/grillhouse/scripts/langages/typescript/tests.mjs');
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'depuis-le-vert-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
@@ -49,9 +51,8 @@ const UN_IMPORTS =
   "import { attendu } from './matiere.mjs';\nimport { deux } from '../src/index.mjs';\n";
 const DEUX_IMPORTS = "import { deux } from '../src/index.mjs';\n";
 
-// The repository of trial, committed; with <dependant>, package `b` depends on `a` (its build
-// waits for a's, as `^build` has it) and its one test imports nothing of it.
-function depot({ dependant = false } = {}) {
+// The repository of trial, committed.
+function depot() {
   const r = mkdtempSync(path.join(ESSAIS, 'depot-'));
   symlinkSync(path.join(DEPOT, 'node_modules'), path.join(r, 'node_modules'), 'dir');
   const trace = path.join(r, 'joues.txt');
@@ -78,14 +79,13 @@ function depot({ dependant = false } = {}) {
     })
   );
   const config = `import base from ${JSON.stringify(BASE)};\nexport default base;\n`;
-  const paquet = (nom: string, plus: Record<string, unknown> = {}) => {
+  const paquet = (nom: string) => {
     ecrire(
       `packages/${nom}/package.json`,
       json({
         name: nom,
         type: 'module',
         scripts: { build: 'node -e 0', 'test:unit': 'vitest run' },
-        ...plus,
       })
     );
     ecrire(`packages/${nom}/vitest.config.mjs`, config);
@@ -104,12 +104,6 @@ function depot({ dependant = false } = {}) {
   );
   paquet('c');
   ecrire('packages/c/test/c.test.mjs', fichierDeTest(trace, 'c'));
-  if (dependant) {
-    paquet('b', { devDependencies: { a: '*' } });
-    mkdirSync(path.join(r, 'packages/b/node_modules'), { recursive: true });
-    symlinkSync('../../a', path.join(r, 'packages/b/node_modules/a'), 'dir');
-    ecrire('packages/b/test/b.test.mjs', fichierDeTest(trace, 'b'));
-  }
   ecrire('.gitignore', 'node_modules\n.turbo/\njoues.txt\nmesure.lock\n');
   const env: Record<string, string | undefined> = {
     ...Object.fromEntries(
@@ -144,21 +138,21 @@ function depot({ dependant = false } = {}) {
     lus = tout.length;
     return neufs.sort();
   };
-  // One pass of verifier with <args>: its code, its lines, the cache of each task of tests.
+  // One pass of verifier with <args>, in a process of its own: its code, its output, the cache of
+  // each task of tests.
   const passe = (args: string[] = []) => {
-    const lignes: string[] = [];
     const resultats = mkdtempSync(path.join(ESSAIS, 'resultats-'));
-    const code = verifier({
-      racine: r,
-      args,
+    const v = spawnSync(process.execPath, [VERIFIER, ...args], {
+      cwd: r,
       env: { ...env, GRILLHOUSE_RESULTATS: resultats },
-      dire: (l: string) => lignes.push(l),
+      encoding: 'utf8',
     });
-    const taches = lireResumes(resultats) as { script: string; paquet: string; cache: string }[];
     const cache: Record<string, string> = Object.fromEntries(
-      taches.filter(t => t.script === 'test:unit').map(t => [t.paquet, t.cache])
+      lireResumes(resultats)
+        .filter(t => t.script === 'test:unit')
+        .map(t => [t.paquet, t.cache])
     );
-    return { code, sortie: lignes.join('\n'), cache, joues: joues() };
+    return { code: v.status, sortie: `${v.stdout}${v.stderr}`, cache, joues: joues() };
   };
   // `npm test -- <args>` as the circuit plays it, under <plus>.
   const npmTest = (args: string[], plus: Record<string, string> = {}) => {
@@ -212,78 +206,6 @@ describe('npm run verifier measured against the last green', { timeout: 240_000 
     expect(p.cache.a).toBe('MISS');
   });
 
-  it('the shared test material corrected plays the test that imports it', () => {
-    const d = depot();
-    premierVert(d);
-    d.ecrire('packages/a/test/matiere.mjs', 'export const attendu = 1 + 1;\n');
-    const p = d.passe();
-    expect(p.code, p.sortie).toBe(0);
-    expect(p.joues).toEqual(['a/un']);
-  });
-
-  it('the code changed plays the tests that read it', () => {
-    const d = depot();
-    premierVert(d);
-    d.ecrire('packages/a/src/index.mjs', 'export const deux = () => 1 + 1;\n');
-    const p = d.passe();
-    expect(p.code, p.sortie).toBe(0);
-    expect(p.joues).toEqual(['a/deux', 'a/un']);
-    expect(p.cache.c).toBe('HIT');
-  });
-
-  it('the configuration of Vitest changed plays the whole package', () => {
-    const d = depot();
-    premierVert(d);
-    d.ecrire(
-      'packages/a/vitest.config.mjs',
-      `import base from ${JSON.stringify(BASE)};\n// changée\nexport default base;\n`
-    );
-    const p = d.passe();
-    expect(p.code, p.sortie).toBe(0);
-    expect(p.joues).toEqual(['a/deux', 'a/un']);
-    expect(p.cache.c).toBe('HIT');
-  });
-
-  it('a file no module imports (data a test reads) plays the whole package', () => {
-    const d = depot();
-    premierVert(d);
-    d.ecrire('packages/a/test/notes.txt', 'des notes changées\n');
-    const p = d.passe();
-    expect(p.code, p.sortie).toBe(0);
-    expect(p.joues).toEqual(['a/deux', 'a/un']);
-  });
-
-  it('a file removed plays the whole package', () => {
-    const d = depot();
-    premierVert(d);
-    rmSync(path.join(d.racine, 'packages/a/test/notes.txt'));
-    const p = d.passe();
-    expect(p.code, p.sortie).toBe(0);
-    expect(p.joues).toEqual(['a/deux', 'a/un']);
-  });
-
-  it('the code of a package it depends on plays the dependent whole; a test of it, none of its', () => {
-    const d = depot({ dependant: true });
-    const p0 = premierVert(d);
-    expect(p0.joues).toEqual(['a/deux', 'a/un', 'b', 'c']);
-    d.ecrire(
-      'packages/a/test/deux.test.mjs',
-      fichierDeTest(
-        path.join(d.racine, 'joues.txt'),
-        'a/deux',
-        DEUX_IMPORTS,
-        '  expect(2).toBe(2);\n'
-      )
-    );
-    const p = d.passe();
-    expect(p.code, p.sortie).toBe(0);
-    expect(p.joues).toEqual(['a/deux']);
-    d.ecrire('packages/a/src/index.mjs', 'export const deux = () => 1 + 1;\n');
-    const q = d.passe();
-    expect(q.code, q.sortie).toBe(0);
-    expect(q.joues).toEqual(['a/deux', 'a/un', 'b']);
-  });
-
   it('--tout plays every test for real, whatever the last green and the cache', () => {
     const d = depot();
     premierVert(d);
@@ -311,28 +233,6 @@ describe('npm run verifier measured against the last green', { timeout: 240_000 
     const p = d.passe();
     expect(p.code, p.sortie).toBe(0);
     expect(p.joues).toEqual(['a/deux']);
-  });
-
-  it('a last green that is no ancestor of HEAD gives a complete pass', () => {
-    const d = depot();
-    premierVert(d);
-    d.git('checkout', '-q', '--orphan', 'autre');
-    d.git('commit', '-q', '-m', 'autre histoire');
-    d.ecrire(
-      'packages/a/test/deux.test.mjs',
-      fichierDeTest(
-        path.join(d.racine, 'joues.txt'),
-        'a/deux',
-        DEUX_IMPORTS,
-        '  expect(2).toBe(2);\n'
-      )
-    );
-    const p = d.passe();
-    expect(p.code, p.sortie).toBe(0);
-    expect(p.sortie).toMatch(/passe complète/);
-    // Complete: every test of the package Turborepo plays again; the untouched one from its cache.
-    expect(p.joues).toEqual(['a/deux', 'a/un']);
-    expect(p.cache.c).toBe('HIT');
   });
 
   it("npm test under the circuit's mark plays, in a package named, the tests related since the last green", () => {
