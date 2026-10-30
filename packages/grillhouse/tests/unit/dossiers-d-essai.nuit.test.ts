@@ -18,15 +18,16 @@ const SUITES = [
   'tests/unit/enveloppe.matiere-de-test.spec.ts',
   'tests/unit/verrous.spec.ts',
 ];
-// The tests of the launcher and of the real envelope, night tests of the package of the frame's
-// chain beside this one, which a run in that package plays when it names them (GRILLHOUSE_TESTS,
-// scripts/langages/typescript/vitest-config/cibles.mjs).
+// The tests of the launcher, of the real envelope and of the locks' hooks, night tests of the
+// package of the frame's chain beside this one, which a run in that package plays when it names
+// them (GRILLHOUSE_TESTS, scripts/langages/typescript/vitest-config/cibles.mjs).
 const ESSAIS_DU_CADRE = path.resolve(DEPOT, '../grillhouse-essais');
 const LANCEUR = [
   'enveloppe.lanceur',
   'enveloppe',
   'enveloppe.maison',
   'enveloppe.matiere-de-test',
+  'verrous',
 ].map(f => path.join(ESSAIS_DU_CADRE, `tests/${f}.nuit.spec.ts`));
 const VITEST = path.resolve(DEPOT, '../../node_modules/vitest/vitest.mjs');
 const ECART_MS = 8000;

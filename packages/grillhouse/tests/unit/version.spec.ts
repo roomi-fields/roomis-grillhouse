@@ -3,15 +3,15 @@
 // (grillhouse-3uv.84.7: the plugin takes it when the package is packed), and `CHANGELOG.md` dates
 // its section. A release (scripts/sortie.mjs, Grillhouse's own) raises it, dates the changelog, and later tags
 // the release commit, locally: it pushes nothing. The push of the tag publishes the package on the
-// npm registry, after the green CI of its commit (.github/workflows/release.yml).
-import { execFileSync, spawnSync } from 'node:child_process';
+// npm registry, after the green CI of its commit (.github/workflows/release.yml). The command run
+// in a git repository is the night's (packages/grillhouse-essais/tests/version.nuit.spec.ts).
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 import { etiqueter, preparerSortie, verifierEtiquette } from '../../scripts/sortie.mjs';
-import { configGit } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
 const DEPOT = path.resolve(__dirname, '../../../..');
 const PAQUET = 'packages/grillhouse/package.json';
@@ -26,15 +26,6 @@ const ecrire = (racine: string, f: string, texte: string) => {
 };
 const versionDe = (racine: string, f: string) =>
   (JSON.parse(lire(racine, f)) as { version: string }).version;
-const ENV_GIT = {
-  ...process.env,
-  ...configGit([
-    ['user.name', 'Essai'],
-    ['user.email', 'essai@example.invalid'],
-  ]),
-};
-const git = (racine: string, ...args: string[]) =>
-  execFileSync('git', ['-C', racine, ...args], { encoding: 'utf8', env: ENV_GIT }).trim();
 
 const CHANGELOG = `# Changelog
 
@@ -126,52 +117,41 @@ describe('a release of Grillhouse prepares its files (scripts/sortie.mjs)', () =
   });
 });
 
+// The tagging by its interface, the git it runs passed in: a stand-in that records each call and
+// answers `status --porcelain` and `tag --list` as git does. The command run in a git repository,
+// prepared then tagged, is the night's (packages/grillhouse-essais/tests/version.nuit.spec.ts).
 describe('a release of Grillhouse tags its commit locally, never pushing', () => {
-  // A trial Grillhouse in a git repository, its release commit made, with a remote.
-  function depotDeSortie() {
-    const r = grillhouse();
-    const distant = mkdtempSync(path.join(ESSAIS, 'distant-'));
-    git(distant, 'init', '-q', '--bare');
-    git(r, 'init', '-q');
-    // Its own identity, which `etiqueter`, run in this process, reads: a machine without one, as
-    // the CI's, refuses an annotated tag.
-    git(r, 'config', 'user.name', 'Essai');
-    git(r, 'config', 'user.email', 'essai@example.invalid');
-    git(r, 'remote', 'add', 'origin', distant);
-    git(r, 'add', '-A');
-    git(r, 'commit', '-q', '-m', 'chore(release): 0.16.0');
-    git(r, 'push', '-q', 'origin', 'HEAD:main');
-    return { r, distant };
+  // A git whose working tree holds <changements> and whose tags are <etiquettes>.
+  function faux(changements = '', etiquettes: string[] = []) {
+    const appels: string[][] = [];
+    const git = (...args: string[]) => {
+      appels.push(args);
+      if (args[0] === 'status') {
+        return changements;
+      }
+      if (args[0] === 'tag' && args[1] === '--list') {
+        return etiquettes.includes(args[2] ?? '') ? `${args[2]}\n` : '';
+      }
+      return '';
+    };
+    return { git, appels };
   }
-  it('creates the annotated tag v<version> on HEAD, and the remote receives nothing', () => {
-    const { r, distant } = depotDeSortie();
-    expect(etiqueter(r)).toBe('v0.16.0');
-    expect(git(r, 'cat-file', '-t', 'v0.16.0')).toBe('tag');
-    expect(git(r, 'rev-parse', 'v0.16.0^{commit}')).toBe(git(r, 'rev-parse', 'HEAD'));
-    expect(git(distant, 'tag', '--list')).toBe('');
+
+  it('creates the annotated tag v<version> on HEAD, and pushes nothing', () => {
+    const { git, appels } = faux();
+    expect(etiqueter(grillhouse(), git)).toBe('v0.16.0');
+    expect(appels).toContainEqual(['tag', '-a', 'v0.16.0', '-m', "Roomi's Grillhouse 0.16.0"]);
+    expect(appels.filter(a => a[0] === 'tag' && a[1] !== '--list')).toHaveLength(1);
+    expect(appels.filter(a => a.includes('push'))).toEqual([]);
   });
   it('refuses a tag that exists, and a working tree with changes', () => {
-    const { r } = depotDeSortie();
-    etiqueter(r);
-    expect(() => etiqueter(r)).toThrow(/v0\.16\.0/);
-    const s = depotDeSortie().r;
-    ecrire(s, 'CHANGELOG.md', `${CHANGELOG}\nmore\n`);
-    expect(() => etiqueter(s)).toThrow();
-    expect(git(s, 'tag', '--list')).toBe('');
-  });
-  it('the command prepares, then tags, and names the push, which publishes the package', () => {
-    const { r } = depotDeSortie();
-    const env = ENV_GIT;
-    const p = spawnSync('node', [SCRIPT, '0.17.0'], { cwd: r, encoding: 'utf8', env });
-    expect(p.status, p.stderr).toBe(0);
-    expect(versionDe(r, PAQUET)).toBe('0.17.0');
-    git(r, 'commit', '-q', '-am', 'chore(release): 0.17.0');
-    const e = spawnSync('node', [SCRIPT, '--etiqueter'], { cwd: r, encoding: 'utf8', env });
-    expect(e.status, e.stderr).toBe(0);
-    expect(e.stdout).toContain('git push origin v0.17.0');
-    expect(e.stdout).toContain('npm');
-    const u = spawnSync('node', [SCRIPT], { cwd: r, encoding: 'utf8', env });
-    expect(u.status).not.toBe(0);
+    const existe = faux('', ['v0.16.0']);
+    expect(() => etiqueter(grillhouse(), existe.git)).toThrow(/v0\.16\.0/);
+    const change = faux(' M CHANGELOG.md\n');
+    expect(() => etiqueter(grillhouse(), change.git)).toThrow();
+    for (const { appels } of [existe, change]) {
+      expect(appels.filter(a => a[0] === 'tag' && a[1] === '-a')).toEqual([]);
+    }
   });
 });
 

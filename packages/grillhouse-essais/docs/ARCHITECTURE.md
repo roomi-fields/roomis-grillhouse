@@ -6,8 +6,10 @@ d'abord ; la nuit, l'intégration et sa file, le lanceur d'un agent, l'ouverture
 lancent les scripts du cadre en processus. S'y ajoutent les cas d'un module du cadre que seul un
 grand test prouve (l'enveloppe réelle sous bwrap, la passe de `npm run verifier` et de `npm test`
 sous Turborepo et Vitest, le rapporteur d'avancement dans une vraie passe, un crochet dans un dépôt
-git et sa copie) ; les autres cas de ce module sont des petits tests de jour, dans le fichier du
-même nom du paquet du cadre.
+git et sa copie, le crochet d'un commit par ticket, les verrous, la garde des consommateurs et la
+commande de sortie lancés en processus, le graphe et les empreintes de Turborepo sur les
+`turbo.json` générés) ; les autres cas de ce module sont des petits tests de jour, dans le fichier
+du même nom du paquet du cadre.
 
 ## Contexte
 

@@ -30,6 +30,8 @@
 //   reference, no tag. The branch `agent/<ticket>` of the ticket itself does not count for that
 //   ticket: the integration commits there before the queue brings the commit onto main, which
 //   then holds the one delivery; the branch of another ticket counts.
+// - The reading of the history and the answers of Beads are passed in (`controle`, `commitsDelivering`,
+//   `gitLog`, `lireBeads`): the hook wires git and bd, a test passes its own.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -108,6 +110,11 @@ function beads(id) {
   } catch (e) {
     out = typeof e?.stdout === 'string' ? e.stdout : '';
   }
+  return lireBeads(out, id);
+}
+
+// What the output <out> of `bd show <id> --json` answers on <id>: as `beads`.
+export function lireBeads(out, id) {
   let answer;
   try {
     answer = JSON.parse(out);
@@ -121,15 +128,16 @@ function beads(id) {
   return answer && typeof answer === 'object' && 'error' in answer ? 'unknown' : null;
 }
 
-// `git log` with these arguments, its output as text.
-function log(...args) {
-  return execFileSync('git', ['log', ...args], { encoding: 'utf8' });
-}
+/** `git log` in the repository at <racine>: its arguments, its output as text. */
+export const gitLog =
+  racine =>
+  (...args) =>
+    execFileSync('git', ['-C', racine, 'log', ...args], { encoding: 'utf8' });
 
 // The reverting commits of the history, over the branches, as a map from a commit's full sha to the
 // full sha it reverts. Git keeps the commits whose message holds a `This reverts commit` line and a
 // `Revert "` or `Reapply "` line; the output grows with those commits alone.
-function revertingCommits() {
+function revertingCommits(log) {
   const out = log(
     '--branches',
     '--all-match',
@@ -152,8 +160,8 @@ function revertingCommits() {
 // The commits among `candidates` (`{ full, short }`) that no effective reverting commit names, and
 // that are not reverting commits themselves. A reverting commit is effective when no effective
 // reverting commit names it.
-function withoutWithdrawn(candidates) {
-  const reverts = revertingCommits();
+function withoutWithdrawn(candidates, log) {
+  const reverts = revertingCommits(log);
   const namedBy = new Map();
   for (const [hash, target] of reverts) {
     namedBy.set(target, [...(namedBy.get(target) ?? []), hash]);
@@ -177,7 +185,7 @@ function withoutWithdrawn(candidates) {
 // of its subject (`%<(N,trunc)%B`), which keeps its first line whole; that line decides. The output
 // grows with the commits quoting the id: by their first paragraphs, and by one byte per line of
 // their bodies, since the cut keeps every line break.
-function commitsDelivering(id, prefix) {
+export function commitsDelivering(id, prefix, log) {
   const subjects = log(
     `--exclude=agent/${id}`,
     '--branches',
@@ -207,16 +215,22 @@ function commitsDelivering(id, prefix) {
     .filter(([, first = '']) => named(first, prefix).includes(id))
     .map(([hash]) => hash);
   return withoutWithdrawn(
-    delivering.map(short => ({ short, full: subjects.find(c => c.hash === short).full }))
+    delivering.map(short => ({ short, full: subjects.find(c => c.hash === short).full })),
+    log
   ).map(c => c.short);
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const prefix = prefixe();
+/**
+ * The verdict of the hook on the message <message>, the prefix <prefix> read from Beads,
+ * `commitsOf(id)` the earlier commits delivering the id, `answer(id)` what Beads answers on it (as
+ * `beads`, each id asked once): `{ lignes, code }`, the lines the hook writes on its error output
+ * and its exit code (1 on a refusal).
+ */
+export function controle(message, prefix, commitsOf, answer) {
   const answers = new Map();
-  const answer = id => {
+  const answerOf = id => {
     if (!answers.has(id)) {
-      answers.set(id, beads(id));
+      answers.set(id, answer(id));
     }
     return answers.get(id);
   };
@@ -224,23 +238,39 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const reason =
     prefix && !prefix.includes(' ')
       ? refusal(
-          readFileSync(process.argv[2], 'utf8'),
+          message,
           prefix,
-          id => commitsDelivering(id, prefix),
+          commitsOf,
           id => {
-            const status = answer(id)?.status;
+            const status = answerOf(id)?.status;
             return typeof status === 'string' && status !== 'closed';
           },
-          id => answer(id) !== 'unknown'
+          id => answerOf(id) !== 'unknown'
         )
       : null;
+  const lignes = [];
   if ([...answers.values()].includes(null)) {
-    process.stderr.write(
-      `Beads injoignable : chaque mot ${prefix}-… du titre compte pour un ticket, connu ou non.\n`
+    lignes.push(
+      `Beads injoignable : chaque mot ${prefix}-… du titre compte pour un ticket, connu ou non.`
     );
   }
   if (reason) {
-    process.stderr.write(`⛔ ${reason}\n`);
-    process.exitCode = 1;
+    lignes.push(`⛔ ${reason}`);
   }
+  return { lignes, code: reason ? 1 : 0 };
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  const prefix = prefixe();
+  const log = gitLog(process.cwd());
+  const { lignes, code } = controle(
+    readFileSync(process.argv[2], 'utf8'),
+    prefix,
+    id => commitsDelivering(id, prefix, log),
+    beads
+  );
+  for (const l of lignes) {
+    process.stderr.write(`${l}\n`);
+  }
+  process.exitCode = code;
 }

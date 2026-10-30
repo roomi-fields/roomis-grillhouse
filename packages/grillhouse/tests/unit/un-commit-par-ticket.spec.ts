@@ -3,13 +3,41 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { refusal, tickets } from '../../scripts/un-commit-par-ticket.mjs';
+import {
+  commitsDelivering,
+  controle,
+  gitLog,
+  lireBeads,
+  refusal,
+  tickets,
+} from '../../scripts/un-commit-par-ticket.mjs';
+
+// The hook by its interface: its verdict (`controle`) on a message, the history read by git in a
+// trial repository (`commitsDelivering`, its reading `gitLog` passed in) and the answers of Beads
+// given as `bd show <id> --json` writes them (`lireBeads`). The hook run by git, a node process
+// that calls bd, is the night's (packages/grillhouse-essais/tests/un-commit-par-ticket.nuit.spec.ts).
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'un-commit-par-ticket-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
-const SCRIPT = path.resolve(__dirname, '../../scripts/un-commit-par-ticket.mjs');
+// What a `bd show <id> --json` prints on its standard output: by default « demo », as a stand-in
+// that answers the prefix to every command, which is no JSON (Beads does not answer).
+type Beads = (id: string) => string;
+const SANS_REPONSE: Beads = () => 'demo\n';
+
+// The hook's verdict on <message> in the repository at <racine>, Beads printing <beads>: its exit
+// code and its error output, as the hook writes them.
+function juger(racine: string, message: string, beads: Beads = SANS_REPONSE) {
+  const log = gitLog(racine);
+  const { lignes, code } = controle(
+    message,
+    'demo',
+    (id: string) => commitsDelivering(id, 'demo', log) as string[],
+    (id: string) => lireBeads(beads(id), id) as unknown
+  );
+  return { status: code, stderr: lignes.map(l => `${l}\n`).join('') };
+}
 
 describe('tickets', () => {
   it('finds the ticket ids of a message, once each', () => {
@@ -40,18 +68,61 @@ describe('refusal', () => {
   });
 });
 
+// The answers of Beads, read from what `bd show <id> --json` prints, and the verdict built on them,
+// the history given.
+describe('lireBeads and controle', () => {
+  it('reads a ticket Beads knows, an unknown id, and no answer', () => {
+    expect(lireBeads('[{"id":"demo-1","status":"open"}]\n', 'demo-1')).toEqual({
+      status: 'open',
+    });
+    expect(lireBeads('[{"id":"demo-10","status":"open"}]\n', 'demo-1')).toBe('unknown');
+    expect(lireBeads('{"error": "no issues found"}\n', 'demo-1')).toBe('unknown');
+    expect(lireBeads('', 'demo-1')).toBeNull();
+    expect(lireBeads('demo\n', 'demo-1')).toBeNull();
+  });
+  it('refuses with exit code 1 and its line, says once that Beads does not answer', () => {
+    const delivered = (id: string) => (id === 'demo-1' ? ['abc1234'] : []);
+    const r = controle('fix: demo-1 and demo-2', 'demo', delivered, () => null);
+    expect(r.code).toBe(1);
+    expect(r.lignes).toEqual([
+      'Beads injoignable : chaque mot demo-… du titre compte pour un ticket, connu ou non.',
+      expect.stringMatching(/^⛔ Le ticket demo-1 a déjà son commit \(abc1234\)/),
+    ]);
+  });
+  it('asks Beads once per id, and lets a commit through without a prefix filled in', () => {
+    const asked: string[] = [];
+    const answer = (id: string) => {
+      asked.push(id);
+      return { status: 'open' };
+    };
+    expect(controle('fix: demo-1', 'demo', () => ['abc1234'], answer)).toEqual({
+      lignes: [],
+      code: 0,
+    });
+    expect(asked).toEqual(['demo-1']);
+    for (const prefix of ['', 'pas encore']) {
+      expect(
+        controle(
+          'fix: demo-1',
+          prefix,
+          () => ['abc1234'],
+          () => null
+        ).code
+      ).toBe(0);
+    }
+  });
+});
+
 // A trial repository whose history holds `messages`, one commit each (`git commit -F`, so a message
-// keeps its lines), and a fake `bd` answering the prefix `demo`. `check` runs the hook on a message.
-// A message given as a function receives the full shas of the commits before it; `check.shas` holds
-// the full sha of each commit, `check.short` its short form as `git log --format=%h` writes it.
-// `check.bin` is the folder of the fake `bd`. `check.git` runs git in the repository,
+// keeps its lines). `check` gives the hook's verdict on a message, Beads printing `check.beads`
+// (`SANS_REPONSE` until a case sets it). A message given as a function receives the full shas of
+// the commits before it; `check.shas` holds the full sha of each commit, `check.short` its short
+// form as `git log --format=%h` writes it. `check.git` runs git in the repository,
 // `check.commit` adds one more commit on the current branch (its extra arguments go to
 // `git commit`, or replace it with `git merge` when the first is `merge`).
 type Message = string | ((shas: string[]) => string);
 function history(messages: Message[]) {
   const repo = mkdtempSync(path.join(ESSAIS, 'commit-'));
-  const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
-  writeFileSync(path.join(bin, 'bd'), '#!/bin/sh\necho demo\n', { mode: 0o755 });
   const git = (...args: string[]) =>
     execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...args]);
   git('init', '-q', '-b', 'main');
@@ -69,16 +140,14 @@ function history(messages: Message[]) {
     short.push(git('log', '-1', '--format=%h').toString().trim());
   };
   messages.forEach(message => commit(message));
-  const check = (message: string) => {
-    const file = path.join(repo, 'MSG');
-    writeFileSync(file, message);
-    return spawnSync('node', [SCRIPT, file], {
-      cwd: repo,
-      encoding: 'utf8',
-      env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
-    });
-  };
-  return Object.assign(check, { shas, short, git, commit, bin });
+  const check = Object.assign((message: string) => juger(repo, message, check.beads), {
+    shas,
+    short,
+    git,
+    commit,
+    beads: SANS_REPONSE,
+  });
+  return check;
 }
 
 describe('the hook on a real history', () => {
@@ -405,8 +474,6 @@ describe('the hook on a history whose messages pass 1 MB (grillhouse-3uv.57)', (
 describe('the hook on a history of more than 1100 commits naming a ticket (grillhouse-3uv.57)', () => {
   const COMMITS = 1200;
   const repo = mkdtempSync(path.join(ESSAIS, 'many-'));
-  const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
-  writeFileSync(path.join(bin, 'bd'), '#!/bin/sh\necho demo\n', { mode: 0o755 });
   execFileSync('git', ['-C', repo, 'init', '-q', '-b', 'main']);
   const stream = Array.from({ length: COMMITS }, (_, i) => {
     const message = `feat: short title (demo-${i + 1})\n`;
@@ -416,15 +483,7 @@ describe('the hook on a history of more than 1100 commits naming a ticket (grill
     );
   }).join('');
   execFileSync('git', ['-C', repo, 'fast-import', '--quiet'], { input: stream });
-  const check = (message: string) => {
-    const file = path.join(repo, 'MSG');
-    writeFileSync(file, message);
-    return spawnSync('node', [SCRIPT, file], {
-      cwd: repo,
-      encoding: 'utf8',
-      env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
-    });
-  };
+  const check = (message: string) => juger(repo, message);
 
   it('criteria 1 to 3: a message without a ticket and a new ticket pass, a second delivery stays refused', () => {
     const count = execFileSync('git', ['-C', repo, 'rev-list', '--count', 'main'], {
@@ -520,14 +579,8 @@ describe('grillhouse-3uv.56 critère 6 — the autostash of a copy delivers noth
     expect(String(check.git('log', '-1', '--format=%s', 'refs/stash^2'))).toMatch(
       /^index on agent\/demo-1: /
     );
-    const message = path.join(copie, 'MSG');
-    writeFileSync(message, 'feat: lot (demo-1)\n');
     for (const cwd of [copie, racine]) {
-      const r = spawnSync('node', [SCRIPT, message], {
-        cwd,
-        encoding: 'utf8',
-        env: { ...process.env, PATH: `${check.bin}:${process.env.PATH}` },
-      });
+      const r = juger(cwd, 'feat: lot (demo-1)\n');
       expect(r.status, `${cwd}: ${r.stderr}`).toBe(0);
     }
   });
@@ -535,15 +588,10 @@ describe('grillhouse-3uv.56 critère 6 — the autostash of a copy delivers noth
 
 // grillhouse-3uv.81: a commit naming a delivered ticket passes while that ticket is open in Beads
 // (reopened after its delivery): it is a correction commit. A closed ticket is finished: the commit
-// stays refused, with the same message. The fake `bd` answers `demo` to `config`, and to
-// `bd show <id> --json` the JSON Beads 1.2.2 writes: an array of one object carrying its `status`.
-function answerState(bin: string, id: string, status: string) {
-  const out = JSON.stringify([{ id, title: 't', status }]);
-  writeFileSync(
-    path.join(bin, 'bd'),
-    `#!/bin/sh\ncase "$1" in config) echo demo; exit 0;; esac\nprintf '%s\\n' '${out}'\n`,
-    { mode: 0o755 }
-  );
+// stays refused, with the same message. Beads answers `bd show <id> --json` with the JSON Beads
+// 1.2.2 writes: an array of one object carrying its `status`.
+function answerState(check: { beads: Beads }, id: string, status: string) {
+  check.beads = () => `${JSON.stringify([{ id, title: 't', status }])}\n`;
 }
 
 describe('a correction commit on a reopened ticket (grillhouse-3uv.81)', () => {
@@ -551,13 +599,13 @@ describe('a correction commit on a reopened ticket (grillhouse-3uv.81)', () => {
 
   it('criterion 1: a delivered ticket that is open, then in progress, lets its correction through', () => {
     for (const status of ['open', 'in_progress']) {
-      answerState(check.bin, 'demo-1', status);
+      answerState(check, 'demo-1', status);
       const r = check('fix: the CI is green again (demo-1)');
       expect(r.status, `${status}: ${r.stderr}`).toBe(0);
     }
   });
   it('criterion 2: a delivered ticket that is closed is refused with the current message', () => {
-    answerState(check.bin, 'demo-1', 'closed');
+    answerState(check, 'demo-1', 'closed');
     const r = check('fix: lot 2 (demo-1)');
     expect(r.status).toBe(1);
     expect(r.stderr).toBe(
@@ -588,37 +636,25 @@ describe('a word shaped like a ticket is a ticket only when Beads knows it (gril
     ).toMatch(/^Le ticket demo-1 a déjà son commit \(def5678\)/);
   });
 
-  // A fake `bd` answering the prefix `demo` and, for `show`, the tickets `known` as Beads does (an
-  // array of tickets), any other id as Beads does an unknown one (a JSON error, status 1).
-  function beadsKnowing(bin: string, known: string[]) {
-    const cas = known
-      .map(id => `  ${id}) printf '%s\\n' '${JSON.stringify([{ id, status: 'closed' }])}';;`)
-      .join('\n');
-    writeFileSync(
-      path.join(bin, 'bd'),
-      [
-        '#!/bin/sh',
-        'if [ "$1" = config ]; then echo demo; exit 0; fi',
-        'case "$2" in',
-        cas,
-        `  *) printf '%s\\n' '{"error": "no issues found matching the provided IDs"}'; exit 1;;`,
-        'esac',
-        '',
-      ].join('\n'),
-      { mode: 0o755 }
-    );
+  // Beads answering, for `show`, the tickets `known` as it does (an array of tickets), any other id
+  // as it does an unknown one (a JSON error).
+  function beadsKnowing(check: { beads: Beads }, known: string[]) {
+    check.beads = id =>
+      known.includes(id)
+        ? `${JSON.stringify([{ id, status: 'closed' }])}\n`
+        : '{"error": "no issues found matching the provided IDs"}\n';
   }
 
   it('criterion 1: the hook takes a package named like a delivered word for no ticket', () => {
     const check = history(['fix(demo-essais): first (demo-1)']);
-    beadsKnowing(check.bin, ['demo-1']);
+    beadsKnowing(check, ['demo-1']);
     const r = check('fix(demo-essais): the trials (demo-2)');
     expect(r.status, r.stderr).toBe(0);
     expect(r.stderr).toBe('');
   });
   it('criterion 2: the hook still refuses a known closed ticket delivered twice', () => {
     const check = history(['fix(demo-essais): first (demo-1)']);
-    beadsKnowing(check.bin, ['demo-1']);
+    beadsKnowing(check, ['demo-1']);
     const r = check('fix(demo-essais): lot 2 (demo-1)');
     expect(r.status).toBe(1);
     expect(r.stderr).toBe(
@@ -627,11 +663,8 @@ describe('a word shaped like a ticket is a ticket only when Beads knows it (gril
   });
   it('criterion 3: without Beads answering, every word of the form counts, and the hook says so in one line', () => {
     const check = history(['fix(demo-essais): first (demo-1)']);
-    writeFileSync(
-      path.join(check.bin, 'bd'),
-      '#!/bin/sh\nif [ "$1" = config ]; then echo demo; exit 0; fi\necho "Error: no beads database found" >&2\nexit 1\n',
-      { mode: 0o755 }
-    );
+    // bd writes its error on its error output alone.
+    check.beads = () => '';
     const r = check('fix(demo-essais): the trials (demo-2)');
     expect(r.status).toBe(1);
     const lines = r.stderr.split('\n').filter(Boolean);

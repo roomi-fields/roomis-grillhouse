@@ -185,12 +185,12 @@ describe('grillhouse-3dr.4 critères 3 et 4 — a guard of the frame, in Grillho
     );
   });
 
-  it('critère 4: Grillhouse inscribes its own large tests of the day in its debt, frozen', () => {
+  // grillhouse-3dr.3.6 and grillhouse-3dr.3.7 rewrote the large tests of the day Grillhouse
+  // inscribed: its debt of them fell to none.
+  it('critère 4: Grillhouse has no large test of the day left, and its debt holds none', () => {
     const dette = lireDette(DEPOT) as Record<string, Record<string, unknown>>;
-    const inscrits = Object.keys(dette[GARDE] ?? {});
-    expect(inscrits.length).toBeGreaterThan(0);
-    expect(inscrits.every(f => /\.(test|spec)\.[cm]?[jt]sx?$/.test(f))).toBe(true);
-    expect(inscrits.some(f => /\.nuit\.(test|spec)\./.test(f))).toBe(false);
+    expect(Object.keys(dette[GARDE] ?? {})).toEqual([]);
+    expect(verifier(DEPOT)).toEqual([]);
   });
 });
 

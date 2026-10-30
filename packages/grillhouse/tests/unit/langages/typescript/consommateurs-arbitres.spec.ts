@@ -2,38 +2,19 @@
 // enters with a settled arbitrage at its ticket, which names its consumer. Decided by the owner on
 // 2026-10-17 (grill, Q7): the integrateur's judgement « un consommateur nouveau a son arbitrage »
 // becomes a guard of the frame.
-import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { gardesDuCadre } from '../../../../scripts/gardes-du-cadre.mjs';
+import {
+  juger,
+  ticketDeLaBranche,
+} from '../../../../scripts/langages/typescript/consommateurs-arbitres.mjs';
 
-const DEPOT = path.resolve(__dirname, '../../../../../..');
-const SCRIPT = path.join(
-  DEPOT,
-  'packages/grillhouse/scripts/langages/typescript/consommateurs-arbitres.mjs'
-);
-const ESSAIS = mkdtempSync(path.join(tmpdir(), 'consommateurs-arbitres-'));
-afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-
-// The stand-in for bd: `bd comments <id> --json` prints `.beads/<id>.comments.json` of the
-// directory it runs in, `bd show <id> --json` its `.beads/<id>.json`, and each call is recorded in
-// `.beads/appels`.
-const FAUX_BD = `#!/usr/bin/env node
-const fs = require('node:fs');
-const path = require('node:path');
-const b = path.join(process.cwd(), '.beads');
-fs.mkdirSync(b, { recursive: true });
-fs.appendFileSync(path.join(b, 'appels'), process.argv.slice(2).join(' ') + '\\n');
-const [cmd, id] = process.argv.slice(2);
-const f = path.join(b, id + (cmd === 'show' ? '.json' : '.comments.json'));
-if (!['comments', 'show'].includes(cmd) || !fs.existsSync(f)) process.exit(1);
-process.stdout.write(fs.readFileSync(f, 'utf8'));
-`;
-const BIN = path.join(ESSAIS, 'bin');
-mkdirSync(BIN, { recursive: true });
-writeFileSync(path.join(BIN, 'bd'), FAUX_BD, { mode: 0o755 });
+// The guard by its interface: the ticket read from the branch (`ticketDeLaBranche`), and the
+// judgement (`juger`) on the interface's text at HEAD and in the working tree, the ticket's
+// comments and plan given as bd prints them. The guard run in a git repository, bd called from the
+// main tree, is the night's (packages/grillhouse-essais/tests/consommateurs-arbitres.nuit.spec.ts).
 
 const interfaceDe = (lignes: string[], genere: string[] = []) =>
   [
@@ -48,10 +29,10 @@ const interfaceDe = (lignes: string[], genere: string[] = []) =>
     ...(genere.length ? ['<!-- généré: début -->', ...genere, '<!-- généré: fin -->', ''] : []),
   ].join('\n');
 
-// A repository whose package <paquet> holds the interface <avant> at HEAD; then, on <branche>,
-// the working tree holds <apres>. The main tree holds <ticket>, its <show> (the JSON of
-// `bd show <ticket> --json`), and its comments <comments>.
-function depotAvec(o: {
+// A lot whose package <paquet> holds the interface <avant> at HEAD; then, on <branche>, the working
+// tree holds <apres>. Beads holds <ticket>, its <show> (the JSON of `bd show <ticket> --json`), and
+// its comments <comments> (none: `bd comments` fails). `appels` records each reading of Beads.
+type Lot = {
   branche: string;
   avant: string;
   apres: string;
@@ -59,35 +40,15 @@ function depotAvec(o: {
   show: unknown;
   ticket?: string;
   paquet?: string;
-}) {
+};
+function depotAvec(o: Lot) {
   const { ticket = 'demo-1', paquet = 'a' } = o;
-  const racine = mkdtempSync(path.join(ESSAIS, 'depot-'));
-  const ecrire = (rel: string, texte: string) => {
-    mkdirSync(path.dirname(path.join(racine, rel)), { recursive: true });
-    writeFileSync(path.join(racine, rel), texte);
-  };
-  ecrire(`packages/${paquet}/package.json`, JSON.stringify({ name: `@demo/${paquet}` }));
-  ecrire(`packages/${paquet}/docs/INTERFACE.md`, o.avant);
-  ecrire('.gitignore', '.beads/\n');
-  const git = (...a: string[]) =>
-    execFileSync('git', ['-C', racine, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
-  git('init', '-q', '-b', 'main');
-  git('add', '.');
-  git('commit', '-qm', 'init');
-  if (o.branche !== 'main') {
-    git('checkout', '-q', '-b', o.branche);
-  }
-  ecrire(`packages/${paquet}/docs/INTERFACE.md`, o.apres);
-  if (o.comments) {
-    ecrire(`.beads/${ticket}.comments.json`, JSON.stringify(o.comments));
-  }
-  ecrire(`.beads/${ticket}.json`, JSON.stringify(o.show));
-  return racine;
+  return { ...o, ticket, paquet, appels: [] as string[] };
 }
 
-// A repository whose package `a` declares `b` as consumer at HEAD; then, on <branche>, the working
-// tree adds <neuves> to that section. The main tree holds demo-1, its <description> (none by
-// default), and its comments <comments>.
+// A lot whose package `a` declares `b` as consumer at HEAD; then, on <branche>, the working tree
+// adds <neuves> to that section. Beads holds demo-1, its <description> (none by default), and its
+// comments <comments>.
 const depot = (
   branche: string,
   neuves: string[],
@@ -102,17 +63,33 @@ const depot = (
     show: [{ id: 'demo-1', title: 'demo-1 — un sujet — a', description }],
   });
 
-const jouer = (racine: string) =>
-  spawnSync(process.execPath, [SCRIPT], {
-    cwd: racine,
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      PATH: `${BIN}${path.delimiter}${process.env.PATH ?? ''}`,
-      GRILLHOUSE_DETTE: '',
-      GRILLHOUSE_ENVELOPPE: '',
-    },
-  });
+// The guard on the lot <lot>: its exit code and its error output, as it writes them, no finding
+// inscribed in a debt.
+function jouer(lot: ReturnType<typeof depotAvec>) {
+  const ticket = ticketDeLaBranche(lot.branche);
+  const constats =
+    ticket === null
+      ? []
+      : juger(
+          ticket,
+          [{ rel: `packages/${lot.paquet}/docs/INTERFACE.md`, avant: lot.avant, apres: lot.apres }],
+          () => {
+            lot.appels.push(`comments ${ticket} --json`);
+            if (!lot.comments) {
+              throw new Error('code 1');
+            }
+            return lot.comments;
+          },
+          () => {
+            lot.appels.push(`show ${ticket} --json`);
+            return (lot.show as unknown[])[0];
+          }
+        );
+  return {
+    status: constats.length ? 1 : 0,
+    stderr: constats.map(c => `⛔ ${c.message}\n`).join(''),
+  };
+}
 
 const TRANCHE = '## Arbitrage — `c` lit duree\n\n### Verdict — tranché — la spécification';
 
@@ -164,16 +141,20 @@ describe('consommateurs-arbitres — a changed Consommateurs line has its settle
   });
 
   it('judges nothing out of a branch agent/…, and calls no bd', () => {
-    const racine = depot('main', ['- `c` : duree']);
-    const r = jouer(racine);
+    const lot = depot('main', ['- `c` : duree']);
+    const r = jouer(lot);
     expect(r.status, r.stderr).toBe(0);
-    expect(existsSync(path.join(racine, '.beads/appels'))).toBe(false);
+    expect(lot.appels).toEqual([]);
+    expect(ticketDeLaBranche('agent/demo-1.2')).toBe('demo-1.2');
+    for (const b of ['main', 'HEAD', 'feature/agent/demo-1']) {
+      expect(ticketDeLaBranche(b)).toBeNull();
+    }
   });
 
   it('calls no bd when no line changes', () => {
-    const racine = depot('agent/demo-1', []);
-    expect(jouer(racine).status).toBe(0);
-    expect(existsSync(path.join(racine, '.beads/appels'))).toBe(false);
+    const lot = depot('agent/demo-1', []);
+    expect(jouer(lot).status).toBe(0);
+    expect(lot.appels).toEqual([]);
   });
 
   it('refuses when the comments of the ticket cannot be read', () => {
@@ -247,7 +228,7 @@ describe('consommateurs-arbitres — a changed Consommateurs line has its settle
       `- \`${parametre}\` — any value.`,
       '',
     ];
-    const racine = depotAvec({
+    const lot = depotAvec({
       branche: 'agent/demo-1',
       avant: interfaceDe(['- `b` : duree'], entree('duree', 'value')),
       apres: interfaceDe(
@@ -256,9 +237,9 @@ describe('consommateurs-arbitres — a changed Consommateurs line has its settle
       ),
       show: [{ id: 'demo-1', title: '', description: '' }],
     });
-    const r = jouer(racine);
+    const r = jouer(lot);
     expect(r.status, r.stderr).toBe(0);
-    expect(existsSync(path.join(racine, '.beads/appels'))).toBe(false);
+    expect(lot.appels).toEqual([]);
   });
 
   it('passes a line the ticket’s plan names out of its Architecture: its title, « Noms publiés »', () => {

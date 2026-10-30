@@ -19,7 +19,8 @@
 //   the working tree holds no change. Nothing is pushed: the owner validates the push, whose
 //   command the script names; `.github/workflows/release.yml` then plays the CI on the tagged
 //   commit and, once it is green, checks the tag (`--verifier-etiquette`), publishes the package
-//   on the npm registry (trusted publishing, no token stored) and the release on GitHub.
+//   on the npm registry (trusted publishing, no token stored) and the release on GitHub. The git
+//   it runs is passed in (`etiqueter`'s `git`): the command runs git in the repository.
 // - The marketplace roomi-fields (GitHub, roomi-fields/claude-plugins, a repository of its own)
 //   lists the plugin by its source npm, ENTREE_DU_MARCHE: the package, without a subdirectory (a
 //   source npm has none: the package's root is the plugin's) and without a version, so the machine
@@ -95,9 +96,12 @@ export function preparerSortie(racine, version, date) {
   );
 }
 
-// Creates the annotated tag of the release at <racine> on HEAD, and returns its name.
-export function etiqueter(racine) {
-  const git = (...args) => execFileSync('git', ['-C', racine, ...args], { encoding: 'utf8' });
+// Creates the annotated tag of the release at <racine> on HEAD, and returns its name; <git> runs
+// git in <racine> (its arguments, its output as text).
+export function etiqueter(
+  racine,
+  git = (...args) => execFileSync('git', ['-C', racine, ...args], { encoding: 'utf8' })
+) {
   const etiquette = `v${versionDuCadre(racine)}`;
   if (git('status', '--porcelain').trim() !== '') {
     throw new Error(

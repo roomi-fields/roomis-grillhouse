@@ -106,7 +106,7 @@ const AVANT: Record<string, [number, number]> = {
   superviseur: [7, 26],
 };
 // The counts of `it` and of `expect` of each file of packages/grillhouse/tests/unit split by
-// grillhouse-3dr.3.6: its cases that a large test alone proves, moved as they are; its other
+// grillhouse-3dr.3.6 and grillhouse-3dr.3.7: its cases that a large test alone proves, moved as they are; its other
 // cases rewritten by day, in its file of the same name. Read once moved.
 const SCINDES: Record<string, [number, number]> = {
   avancement: [4, 19],
@@ -121,6 +121,13 @@ const SCINDES: Record<string, [number, number]> = {
   'tests-cibles': [11, 27],
   'tests-de-nuit': [14, 38],
   'verifier.depuis-le-vert': [6, 31],
+  // grillhouse-3dr.3.7: the last five; the hook, the guard or the command run in a git repository,
+  // and Turborepo's own graph and hashes.
+  'consommateurs-arbitres': [5, 11],
+  'turbo-des-paquets-donnees': [17, 75],
+  'un-commit-par-ticket': [5, 10],
+  verrous: [8, 20],
+  version: [1, 6],
 };
 const IT = /(?<![\w.])it(?:\.\w+(?:\([^()]*\))?)*\(/g;
 const EXPECT = /(?<![\w.])expect(?:\.\w+)?\(/g;

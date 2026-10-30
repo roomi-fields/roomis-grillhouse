@@ -351,10 +351,13 @@ jamais ; les grands tests de jour d'un projet s'inscrivent dans sa dette à la m
 apporte la garde (`npx grillhouse maj`, migration 0.25.0), sans qu'un test se réécrive. Un grand
 test de jour qui ne vérifie qu'un module en sort ainsi : ses cas se réécrivent en petits tests par
 l'interface du module (le plan de l'enveloppe, les options qu'un greffon laisse à Vitest, la
-configuration du jour et celle de la nuit, la fonction qui lit l'avancement), et ses cas que seul
-un grand test prouve (bwrap réel, une passe réelle de Turborepo et de Vitest) se déplacent tels
-quels en tests de nuit dans `packages/grillhouse-essais`. Ainsi le jour ne joue que des tests
-courts, et la dette des grands ne fait que baisser.
+configuration du jour et celle de la nuit, la fonction qui lit l'avancement), le module recevant
+en argument ce qu'il lit au dehors (la lecture de l'historique et les réponses de Beads du crochet
+d'un commit par ticket, le git qui pose l'étiquette d'une sortie, les textes des interfaces et les
+lecteurs du ticket de la garde des consommateurs), et ses cas que seul un grand test prouve (bwrap
+réel, une passe réelle de Turborepo et de Vitest, un crochet ou une commande lancés dans un dépôt
+git) se déplacent tels quels en tests de nuit dans `packages/grillhouse-essais`. Ainsi le jour ne
+joue que des tests courts, et la dette des grands ne fait que baisser.
 
 **Les chemins des tests** (`packages/grillhouse/scripts/langages/typescript/chemins-des-tests.mjs`, une
 garde du cadre) : comme le bac à sable de Bazel, qui fait échouer un test qui lit une entrée non

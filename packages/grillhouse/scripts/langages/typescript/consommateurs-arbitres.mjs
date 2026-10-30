@@ -32,6 +32,8 @@
 //   refusal inscribed in the project's debt (`grillhouse-dette.json`, see `dette.mjs`) passes,
 //   keyed by the interface and `consommateur-sans-arbitrage`. Comments that cannot be read refuse,
 //   never inscribed.
+// - The judgement (`juger`) takes the interfaces' texts and the readers of the ticket passed in;
+//   `verifier` reads them from git and bd.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -87,24 +89,70 @@ function nonNommes(texte, noms) {
 
 const git = (racine, ...a) => spawnSync('git', ['-C', racine, ...a], { encoding: 'utf8' });
 
-// The ticket of the copy at <racine>: <ticket> of its branch `agent/<ticket>`, or null.
-function ticketDeLaCopie(racine) {
-  const r = git(racine, 'rev-parse', '--abbrev-ref', 'HEAD');
-  const m = r.status === 0 ? /^agent\/(.+)$/.exec(r.stdout.trim()) : null;
-  return m ? m[1] : null;
+/** The ticket of the branch <branche>: <ticket> of `agent/<ticket>`, or null. */
+export function ticketDeLaBranche(branche) {
+  return /^agent\/(.+)$/.exec(branche)?.[1] ?? null;
 }
 
-// The findings of the copy <racine> under <env>, in the debt's form (`dette.mjs`).
+// The ticket of the copy at <racine>, by its branch, or null.
+function ticketDeLaCopie(racine) {
+  const r = git(racine, 'rev-parse', '--abbrev-ref', 'HEAD');
+  return r.status === 0 ? ticketDeLaBranche(r.stdout.trim()) : null;
+}
+
+// What `bd <args>` prints, run from <principal>, parsed as JSON; throws with what it says when it
+// fails.
+function bdJson(principal, args) {
+  const r = spawnSync('bd', args, {
+    cwd: principal,
+    encoding: 'utf8',
+    maxBuffer: 256 * 1024 * 1024,
+  });
+  if (r.status !== 0) throw new Error(r.stderr || r.error?.message || `code ${r.status}`);
+  return JSON.parse(r.stdout || '[]');
+}
+
+// The findings of the copy <racine> under <env>, in the debt's form (`dette.mjs`): its ticket,
+// read from its branch, its interfaces at HEAD and in its working tree, and the ticket's comments
+// and plan read by bd from the main tree, judged by `juger`.
 export function verifier(racine, env = process.env) {
   const ticket = ticketDeLaCopie(racine);
   if (!ticket) return [];
-  const changees = [];
+  const interfaces = [];
   for (const c of aVerifier(racine, env)) {
     const iface = path.join(c.dir, 'docs', 'INTERFACE.md');
     if (!existsSync(iface)) continue;
     const rel = path.relative(racine, iface);
     const head = git(racine, 'show', `HEAD:${rel}`);
-    const lignesAvant = head.status === 0 ? lignesConsommateurs(head.stdout) : [];
+    interfaces.push({
+      rel,
+      avant: head.status === 0 ? head.stdout : null,
+      apres: readFileSync(iface, 'utf8'),
+    });
+  }
+  const principal = () =>
+    path.dirname(
+      git(racine, 'rev-parse', '--path-format=absolute', '--git-common-dir').stdout.trim()
+    );
+  return juger(
+    ticket,
+    interfaces,
+    () => bdJson(principal(), ['comments', ticket, '--json']),
+    () => bdJson(principal(), ['show', ticket, '--json'])?.[0]
+  );
+}
+
+/**
+ * The findings on the lot of <ticket>, in the debt's form (`dette.mjs`): <interfaces>
+ * `[{ rel, avant, apres }]`, each interface's path from the root, its text at HEAD (null when
+ * absent) and in the working tree; `commentaires()` the ticket's comments (`[{ text }]`) and
+ * `ticketLu()` the ticket (`{ title, description }`), each read only when a changed line needs it,
+ * throwing when it does not read.
+ */
+export function juger(ticket, interfaces, commentaires, ticketLu) {
+  const changees = [];
+  for (const { rel, avant: texteAvant, apres } of interfaces) {
+    const lignesAvant = texteAvant === null ? [] : lignesConsommateurs(texteAvant);
     const avant = new Set(lignesAvant);
     // The names each consumer of HEAD's section reads (`lireLigne` of scripts/langages/typescript/consommateurs.mjs,
     // the one reading of such a line: a line that is no list of names gives none).
@@ -112,7 +160,7 @@ export function verifier(racine, env = process.env) {
     for (const l of lignesAvant.map(lireLigne).filter(l => l?.noms)) {
       nomsAvant.set(l.consommateur, new Set([...(nomsAvant.get(l.consommateur) ?? []), ...l.noms]));
     }
-    for (const ligne of lignesConsommateurs(readFileSync(iface, 'utf8'))) {
+    for (const ligne of lignesConsommateurs(apres)) {
       if (avant.has(ligne)) continue;
       const l = lireLigne(ligne);
       const lue = l?.noms ? l : null;
@@ -122,17 +170,9 @@ export function verifier(racine, env = process.env) {
     }
   }
   if (changees.length === 0) return [];
-  const commun = git(racine, 'rev-parse', '--path-format=absolute', '--git-common-dir');
-  const principal = path.dirname(commun.stdout.trim());
-  const r = spawnSync('bd', ['comments', ticket, '--json'], {
-    cwd: principal,
-    encoding: 'utf8',
-    maxBuffer: 256 * 1024 * 1024,
-  });
   let comments;
   try {
-    if (r.status !== 0) throw new Error(r.stderr || r.error?.message || `code ${r.status}`);
-    comments = (JSON.parse(r.stdout || '[]') ?? []).map(x => ({ text: String(x.text ?? '') }));
+    comments = (commentaires() ?? []).map(x => ({ text: String(x.text ?? '') }));
   } catch (e) {
     return [
       {
@@ -148,17 +188,9 @@ export function verifier(racine, env = process.env) {
   if (restantes.length === 0) return [];
   // The lines no arbitrage settles: the ticket's plan, its title and its sections « Architecture »
   // and « Noms publiés ».
-  const show = spawnSync('bd', ['show', ticket, '--json'], {
-    cwd: principal,
-    encoding: 'utf8',
-    maxBuffer: 256 * 1024 * 1024,
-  });
   let plan;
   try {
-    if (show.status !== 0) {
-      throw new Error(show.stderr || show.error?.message || `code ${show.status}`);
-    }
-    const t = JSON.parse(show.stdout || '[]')?.[0];
+    const t = ticketLu();
     plan = [
       t?.title ?? '',
       section(t?.description, /^Architecture\b/),

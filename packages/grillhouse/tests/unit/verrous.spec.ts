@@ -3,8 +3,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { estUnTest, isTestFile } from '../../scripts/langages/typescript/regle-des-tests.mjs';
+import { refusDeCommande } from '../../scripts/verrous/commande.mjs';
 import { refusal } from '../../scripts/verrous/verrou.mjs';
 
 // What the testwriter writes, by the rule of a test file of the module typescript.
@@ -14,12 +14,9 @@ const duTestwriter = (f: string, racine: string) => estUnTest(f, racine) !== nul
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'verrous-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
-const SCRIPT = path.resolve(__dirname, '../../scripts/verrous/verrou.mjs');
-const COMMANDE = path.resolve(__dirname, '../../scripts/verrous/commande.mjs');
-// The project the hook judges: it declares its language (grillhouse-3dr.2.3), outside the system
-// temp directory, which the hook command takes for the scratchpad.
-const ROOT = racineSousLaMaison('grillhouse-essais-verrous-racine-');
-afterAll(() => rmSync(ROOT, { recursive: true, force: true }));
+// The project the lock judges: it declares its language (grillhouse-3dr.2.3). The scratchpad the
+// lock lets through is SCRATCH, passed in (`options`): the trial directories are no scratchpad.
+const ROOT = mkdtempSync(path.join(ESSAIS, 'racine-'));
 writeFileSync(
   path.join(ROOT, 'package.json'),
   JSON.stringify({ name: 'repo', grillhouse: { langages: ['typescript'] } })
@@ -149,44 +146,35 @@ describe('an unknown role', () => {
   });
 });
 
-describe('the hook command', () => {
-  const run = (role: string, input: object) =>
-    spawnSync('node', [SCRIPT, role], { input: JSON.stringify(input), encoding: 'utf8' });
-
-  it('refuses with exit code 2 and its reason on stderr', () => {
-    const r = run('testwriter', write(`${ROOT}/src/a.ts`));
-    expect(r.status).toBe(2);
-    expect(r.stderr).toMatch(/seulement des fichiers de test/);
-  });
-  it('allows with exit code 0', () => {
-    const r = run('testwriter', write(`${ROOT}/tests/a.spec.ts`));
-    expect(r.status).toBe(0);
-    expect(r.stderr).toBe('');
-  });
+// The hook command, a node process whose exit code and error output carry the verdict, is the
+// night's (packages/grillhouse-essais/tests/verrous.nuit.spec.ts); its judgement is `refusal`'s.
+describe('a project that declares no language', () => {
   // grillhouse-3dr.2.3: a project that declares no language is refused, closed, as the lock cannot
-  // judge its writes: a hook that throws exits 1, which Claude Code lets pass.
-  it('refuses in a project that declares no language, exit code 2, the update named', () => {
+  // judge its writes: the judgement throws, and the hook command refuses with its message.
+  it('the lock refuses a write there, one line naming the update', () => {
     const sans = mkdtempSync(path.join(ROOT, 'sans-langage-'));
     writeFileSync(path.join(sans, 'package.json'), JSON.stringify({ name: 'sans' }));
-    const r = run('testwriter', { ...write(`${sans}/tests/a.spec.ts`), cwd: sans });
-    expect(r.status).toBe(2);
-    expect(r.stderr).toMatch(/grillhouse\.langages.*npx grillhouse maj/);
-    expect(r.stderr.trim().split('\n')).toHaveLength(1);
+    let message = '';
+    try {
+      refusal('testwriter', { ...write(`${sans}/tests/a.spec.ts`), cwd: sans }, options(null));
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    expect(message).toMatch(/grillhouse\.langages.*npx grillhouse maj/);
+    expect(message.trim().split('\n')).toHaveLength(1);
   });
   // The update that writes the declaration stays open there: the write lock judges the tools of
   // writing alone, and the lock of the commands no language.
   it.each(['npx grillhouse maj', 'node_modules/.bin/grillhouse maj'])(
-    'lets %s run in a project that declares no language',
+    'lets %s run there',
     commande => {
       const sans = mkdtempSync(path.join(ROOT, 'sans-langage-'));
       writeFileSync(path.join(sans, 'package.json'), JSON.stringify({ name: 'sans' }));
       const bash = { tool_name: 'Bash', tool_input: { command: commande }, cwd: sans };
       for (const role of ['testwriter', 'developpeur']) {
-        const r = run(role, bash);
-        expect(r.status, `${role} : ${r.stderr}`).toBe(0);
-        const c = spawnSync('node', [COMMANDE], { input: JSON.stringify(bash), encoding: 'utf8' });
-        expect(c.status, c.stderr).toBe(0);
+        expect(refusal(role, bash, options(null)), role).toBeNull();
       }
+      expect(refusDeCommande(bash)).toBeNull();
     }
   );
 });
@@ -194,10 +182,8 @@ describe('the hook command', () => {
 // grillhouse-2sq: the package of the shared test material, the component whose package.json
 // exports `./test-fixtures`, is written by the testwriter alone, every file of it; the rest of the
 // code stays refused to the testwriter, and the developpeur's lock does not change. The repositories
-// live outside the system temp directory, which the hook command takes for the scratchpad, in a
-// trial directory of this run alone.
-const ESSAIS_VERROU = racineSousLaMaison('grillhouse-essais-verrou-');
-afterAll(() => rmSync(ESSAIS_VERROU, { recursive: true, force: true }));
+// live in a trial directory of this run alone.
+const ESSAIS_VERROU = mkdtempSync(path.join(ESSAIS, 'depots-'));
 
 function depotAvecMatiere() {
   const repo = mkdtempSync(path.join(ESSAIS_VERROU, 'depot-'));
@@ -291,16 +277,6 @@ describe('testwriter and the package of the shared test material', () => {
     );
     const w = { ...write(path.join(racine, 'src/a.ts')), cwd: racine };
     expect(refusal('testwriter', w, options(null))).toMatch(/seulement des fichiers de test/);
-  });
-
-  it('the hook command lets the testwriter write the material, and refuses it the rest', () => {
-    const run = (rel: string) =>
-      spawnSync('node', [SCRIPT, 'testwriter'], {
-        input: JSON.stringify(at(rel)),
-        encoding: 'utf8',
-      });
-    expect(run('packages/matiere/fixtures/cas/profond/un.txt').status).toBe(0);
-    expect(run('packages/autre/src/a.ts').status).toBe(2);
   });
 });
 
@@ -406,19 +382,6 @@ describe('developpeur and the package of the shared test material', () => {
   ])('still writes %s, code outside the material, with the Architecture section', rel => {
     expect(refusal('developpeur', at(rel), withArchitecture)).toBeNull();
   });
-  it('the hook command refuses the material to the developpeur, with exit code 2', () => {
-    const r = spawnSync('node', [SCRIPT, 'developpeur'], {
-      input: JSON.stringify({
-        tool_name: 'Write',
-        tool_input: { file_path: path.join(repo, 'packages/corpus/scenes/x.bps'), content: 'x' },
-        cwd: repo,
-      }),
-      encoding: 'utf8',
-    });
-    expect(r.status).toBe(2);
-    expect(r.stderr).toMatch(/testwriter/);
-    expect(r.stderr).not.toMatch(/introuvable/);
-  });
 });
 
 // grillhouse-2sq.2, relecture A: the lock reads the root of the repository that holds the written
@@ -500,19 +463,6 @@ describe('the lock and the working directory of the agent', () => {
       /testwriter/
     );
     expect(refusal('testwriter', from(dehors, mat), options(null))).toBeNull();
-  });
-  it('the hook command reads the root of the file, not the working directory', () => {
-    const run = (role: string, cwd: string, rel: string) =>
-      spawnSync('node', [SCRIPT, role], {
-        input: JSON.stringify(from(path.join(repo, cwd), path.join(repo, rel))),
-        encoding: 'utf8',
-      });
-    expect(run('testwriter', 'packages', 'packages/corpus/cas/x.json').status).toBe(0);
-    expect(run('testwriter', 'tests', 'src/a.ts').status).toBe(2);
-    const dev = run('developpeur', 'packages/corpus', 'packages/corpus/cas/x.json');
-    expect(dev.status).toBe(2);
-    expect(dev.stderr).toMatch(/testwriter/);
-    expect(dev.stderr).not.toMatch(/introuvable/);
   });
 
   // A sub-agent launched from the main tree works in the main root while it writes in its copy,
@@ -627,12 +577,5 @@ describe('an unreadable package.json', () => {
     const r = refusal('testwriter', at('packages/casse/src/a.ts'), options(null));
     expect(r).toMatch(/seulement des fichiers de test/);
     expect(r).not.toMatch(/illisible/);
-  });
-  it('the hook command lets the developpeur repair it', () => {
-    const r = spawnSync('node', [SCRIPT, 'developpeur'], {
-      input: JSON.stringify({ ...at('packages/casse/package.json'), ...ready, cwd: repo }),
-      encoding: 'utf8',
-    });
-    expect(r.stderr).not.toMatch(/La matière de test partagée/);
   });
 });
