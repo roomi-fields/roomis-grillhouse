@@ -392,6 +392,7 @@ const HORS_DU_SCRIPT = new Set([
   'scripts/langages/typescript/exemples.mjs: vide',
   'scripts/langages/typescript/exemples.mjs: aLaRacine',
   'scripts/langages/typescript/exemples.mjs: dansUnPaquet',
+  'scripts/langages/typescript/exemples.mjs: avecTests',
 ]);
 
 describe('critère 9 — a script of the frame that makes a temporary directory removes it at its end', () => {
