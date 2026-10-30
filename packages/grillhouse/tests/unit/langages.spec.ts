@@ -1,12 +1,14 @@
 // grillhouse-3dr.2.1, criterion 2 — the core finds the language of a project, as Pants activates
 // the backends its configuration names (`backend_packages`): `grillhouse.langages` of the
 // project's package.json names it among the frame's closed list. A language the frame lacks is
-// named in the refusal; one language is served (several: grillhouse-pkl.3).
+// named in the refusal; one language is served.
 // grillhouse-3dr.2.3 — the declaration is the only reading: a project that declares none, or a
 // directory without package.json, is refused, named, with the command that writes it (`grillhouse
 // maj`). What the update writes is found in the repository, as each plugin of Nx infers its
 // projects from its own files (`createNodes`): typescript, a tsconfig.json at the root or in a
 // package of the frame.
+// grillhouse-pkl.3 — the list names cargo, found by a Cargo.toml at the root; a project that
+// declares two languages is refused, both named, as the frame serves one (Q5 of the ticket).
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -33,8 +35,8 @@ function projet(grillhouse?: object, champs: object = {}) {
 }
 
 describe('grillhouse-3dr.2.1 — les langages déclarés d’un projet', () => {
-  it('the frame’s closed list holds typescript', () => {
-    expect(Object.keys(LANGAGES)).toEqual(['typescript']);
+  it('the frame’s closed list holds typescript and cargo', () => {
+    expect(Object.keys(LANGAGES)).toEqual(['typescript', 'cargo']);
   });
 
   it('a project that declares typescript is served by the module typescript', () => {
@@ -49,9 +51,11 @@ describe('grillhouse-3dr.2.1 — les langages déclarés d’un projet', () => {
     expect(() => langageDe(racine)).toThrow(/typescript/);
   });
 
-  it('two languages are refused: one is served, the merge is grillhouse-pkl.3', () => {
-    const racine = projet({ langages: ['typescript', 'typescript'] });
-    expect(() => langageDe(racine)).toThrow(/pkl\.3/);
+  it('two languages are refused, both named, no ticket cited', () => {
+    const racine = projet({ langages: ['typescript', 'cargo'] });
+    expect(() => langageDe(racine)).toThrow(/typescript, cargo/);
+    expect(() => langageDe(racine)).toThrow(/un seul langage/);
+    expect(() => langageDe(racine)).not.toThrow(/grillhouse-\w+\.\d/);
   });
 
   it('the module is loaded once per language', () => {
@@ -106,11 +110,18 @@ describe('grillhouse-3dr.2.3 — les langages trouvés dans un dépôt', () => {
     expect(langagesTrouves(racine)).toEqual([]);
   });
 
-  it('no tsconfig.json, a Cargo.toml: none, the module cargo is grillhouse-pkl.3', () => {
+  it('no tsconfig.json, a Cargo.toml at the root: cargo', () => {
     const racine = projet();
     ecrire(racine, 'Cargo.toml', '[workspace]\n');
     ecrire(racine, 'src/index.ts', 'export {};\n');
-    expect(langagesTrouves(racine)).toEqual([]);
+    expect(langagesTrouves(racine)).toEqual(['cargo']);
+  });
+
+  it('a tsconfig.json and a Cargo.toml: both found, which the core then refuses together', () => {
+    const racine = projet();
+    ecrire(racine, 'tsconfig.json', '{}\n');
+    ecrire(racine, 'Cargo.toml', '[workspace]\n');
+    expect(langagesTrouves(racine)).toEqual(['typescript', 'cargo']);
   });
 
   it('what is found is not a declaration: the core still refuses the project', () => {

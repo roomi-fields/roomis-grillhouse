@@ -119,9 +119,11 @@ describe('grillhouse-3dr.2.3 — la mise à jour déclare les langages qu’elle
   });
 
   it('no language found and none declared: the update is refused, named, nothing written', () => {
-    const racine = projet({ 'package.json': { name: 'p' }, 'Cargo.toml': '[workspace]\n' });
+    // grillhouse-pkl.3: a Cargo.toml is cargo's; a project of Python holds no language of the frame.
+    const racine = projet({ 'package.json': { name: 'p' }, 'pyproject.toml': '[project]\n' });
     const avant = etat(racine);
     expect(() => mettreAJour(racine, DEPOT)).toThrow(/tsconfig\.json/);
+    expect(() => mettreAJour(racine, DEPOT)).toThrow(/Cargo\.toml/);
     expect(() => mettreAJour(racine, DEPOT)).toThrow(/grillhouse\.langages/);
     expect(etat(racine)).toEqual(avant);
   });

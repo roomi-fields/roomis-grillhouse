@@ -78,7 +78,7 @@
 // - The languages first (`declarerLangages`): a project that declares none (`grillhouse.langages`
 //   of its package.json) receives the languages the modules of the frame find in it
 //   (`langagesTrouves` of scripts/langages.mjs: typescript, a tsconfig.json at its root or in a
-//   package of the frame), and the report says so; a declaration it holds stays. A directory
+//   package of the frame; cargo, a Cargo.toml at its root), and the report says so; a declaration it holds stays. A directory
 //   without package.json, or a project where no module finds its language, is refused, named on
 //   the error stream, the exit code 1, nothing written: the frame invents no declaration, and the
 //   migrations of the declared language play with the core's. No import of the project is
@@ -242,7 +242,7 @@ function ignorerTurbo(projet) {
   const texte = existsSync(f) ? readFileSync(f, 'utf8') : '';
   const lignes = texte.split('\n').map(l => l.trim());
   if (lignes.some(l => l === '.turbo' || l === TURBO_IGNORE || l === '/.turbo' || l === '/.turbo/'))
-    return;
+    {return;}
   const fin = texte === '' || texte.endsWith('\n') ? '' : '\n';
   writeFileSync(f, `${texte}${fin}${TURBO_IGNORE}\n`);
 }
@@ -253,9 +253,9 @@ function ignorerTurbo(projet) {
 function poserTurbo(projet, source) {
   const f = path.join(projet, 'turbo.json');
   const pkg = path.join(projet, 'package.json');
-  if (existsSync(f) || !existsSync(pkg)) return null;
+  if (existsSync(f) || !existsSync(pkg)) {return null;}
   const gabarit = lireJson(pkg, {}).workspaces !== undefined ? TURBO_PAQUETS : TURBO_SANS_PAQUETS;
-  if (!existsSync(path.join(source, gabarit))) return null;
+  if (!existsSync(path.join(source, gabarit))) {return null;}
   copyFileSync(path.join(source, gabarit), f);
   return gabarit;
 }
@@ -326,7 +326,7 @@ function declarerDependanceDuCadre(projet, p) {
 // frame is not touched. Returns { nom, paquets } (paquets: the packages that received the
 // declaration), or null when nothing changes.
 function poserConfigVitest(projet, p) {
-  if (p.workspaces === undefined) return null;
+  if (p.workspaces === undefined) {return null;}
   const langage = langageDe(projet);
   const testes = paquets(projet).filter(
     ({ dossier, pkg, hors }) =>
@@ -340,7 +340,7 @@ function poserConfigVitest(projet, p) {
   const racine = plageDeLaRacine(p);
   const declarants = [];
   for (const { dossier, pkg } of testes) {
-    if (CHAMPS_INSTALLES.some(c => pkg[c]?.[PAQUET_DU_CADRE] !== undefined)) continue;
+    if (CHAMPS_INSTALLES.some(c => pkg[c]?.[PAQUET_DU_CADRE] !== undefined)) {continue;}
     pkg.devDependencies = trie({
       ...(pkg.devDependencies ?? {}),
       [PAQUET_DU_CADRE]: racine ?? `^${VERSION}`,
@@ -360,7 +360,7 @@ function poserConfigVitest(projet, p) {
 // task of Turborepo (scripts/langages/typescript/turbo-des-paquets.mjs). Returns { script, paquets } (paquets: each
 // package's directory, `.` for the root), or null when nothing changes.
 function poserTypage(projet, p, script) {
-  if (typeof script !== 'string') return null;
+  if (typeof script !== 'string') {return null;}
   const types = dossier => existsSync(path.join(projet, dossier, 'tsconfig.json'));
   const sans = pkg => typeof pkg.scripts?.[TYPAGE] !== 'string';
   const declarants = [];
@@ -371,7 +371,7 @@ function poserTypage(projet, p, script) {
     }
   } else {
     for (const { dossier, pkg, hors } of paquets(projet)) {
-      if (hors || !types(dossier) || !sans(pkg)) continue;
+      if (hors || !types(dossier) || !sans(pkg)) {continue;}
       pkg.scripts = { ...(pkg.scripts ?? {}), [TYPAGE]: script };
       writeFileSync(
         path.join(projet, dossier, 'package.json'),
@@ -388,13 +388,13 @@ function poserTypage(projet, p, script) {
 // they changed.
 function reglerLigneEtat(projet) {
   const f = path.join(projet, '.claude', 'settings.json');
-  if (!existsSync(f)) return false;
+  if (!existsSync(f)) {return false;}
   const reglages = JSON.parse(readFileSync(f, 'utf8'));
   const actuelle = reglages.statusLine;
   const commande = typeof actuelle?.command === 'string' ? actuelle.command : '';
-  if (actuelle !== undefined && !commande.includes('ligne-etat')) return false;
+  if (actuelle !== undefined && !commande.includes('ligne-etat')) {return false;}
   const voulue = { type: 'command', command: LIGNE_ETAT };
-  if (JSON.stringify(actuelle) === JSON.stringify(voulue)) return false;
+  if (JSON.stringify(actuelle) === JSON.stringify(voulue)) {return false;}
   reglages.statusLine = voulue;
   writeFileSync(f, `${JSON.stringify(reglages, null, 2)}\n`);
   return true;
@@ -409,7 +409,7 @@ export const GREFFON_DU_CADRE = `grillhouse@${MARCHE_DU_CADRE}`;
 // and enables the frame's plugin (see the header); returns whether they changed.
 function declarerGreffon(projet) {
   const f = path.join(projet, '.claude', 'settings.json');
-  if (!existsSync(f)) return false;
+  if (!existsSync(f)) {return false;}
   const avant = readFileSync(f, 'utf8');
   const reglages = JSON.parse(avant);
   reglages.extraKnownMarketplaces = {
@@ -417,7 +417,7 @@ function declarerGreffon(projet) {
     [MARCHE_DU_CADRE]: { source: SOURCE_DU_MARCHE },
   };
   reglages.enabledPlugins = { ...(reglages.enabledPlugins ?? {}), [GREFFON_DU_CADRE]: true };
-  if (JSON.stringify(reglages) === JSON.stringify(JSON.parse(avant))) return false;
+  if (JSON.stringify(reglages) === JSON.stringify(JSON.parse(avant))) {return false;}
   writeFileSync(f, `${JSON.stringify(reglages, null, 2)}\n`);
   return true;
 }
@@ -437,11 +437,11 @@ export function declarerLangages(projet) {
     );
   }
   const declares = langagesDeclares(projet);
-  if (declares.length > 0) return { langages: declares, ecrits: false };
+  if (declares.length > 0) {return { langages: declares, ecrits: false };}
   const trouves = langagesTrouves(projet);
   if (trouves.length === 0) {
     throw new Error(
-      `aucun langage du cadre trouvé dans ${projet} (typescript : un tsconfig.json à la racine ou dans un paquet) ; déclare-le dans grillhouse.langages de ${fichier} (les langages du cadre : ${Object.keys(LANGAGES).join(', ')}), puis relance \`npx grillhouse maj\`.`
+      `aucun langage du cadre trouvé dans ${projet} (typescript : un tsconfig.json à la racine ou dans un paquet ; cargo : un Cargo.toml à la racine) ; déclare-le dans grillhouse.langages de ${fichier} (les langages du cadre : ${Object.keys(LANGAGES).join(', ')}), puis relance \`npx grillhouse maj\`.`
     );
   }
   const p = lireJson(fichier, {});
@@ -479,7 +479,7 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
   if (existsSync(pkg)) {
     bilan.langages = declarerLangages(projet);
     const p = lireJson(pkg, {});
-    if (inscrite !== null) p.grillhouse = { ...(p.grillhouse ?? {}), version: inscrite };
+    if (inscrite !== null) {p.grillhouse = { ...(p.grillhouse ?? {}), version: inscrite };}
     const pkgSource = lireJson(path.join(source, GABARIT), {});
     const gardes = pkgSource.scripts?.['grillhouse:gardes'];
     p.scripts = { ...(p.scripts ?? {}), ...SCRIPTS };
@@ -509,14 +509,14 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
         bilan.vitest = { trouvee, exigee: vitestExige };
       } else {
         if (testDuProjet !== testDuCadre)
-          bilan.test = { ancien: testDuProjet, nouveau: testDuCadre };
+          {bilan.test = { ancien: testDuProjet, nouveau: testDuCadre };}
         for (const nom of SCRIPTS_DES_TESTS) {
           const script = pkgSource.scripts?.[nom];
-          if (typeof script !== 'string') continue;
+          if (typeof script !== 'string') {continue;}
           // A repository of packages keeps its tests in its packages, as Turborepo does: its root
           // gets no `test:unit`, and the frame's own leaves.
           if (p.workspaces !== undefined && nom === 'test:unit') {
-            if (p.scripts[nom] === script) delete p.scripts[nom];
+            if (p.scripts[nom] === script) {delete p.scripts[nom];}
             continue;
           }
           p.scripts[nom] = script;
@@ -537,11 +537,11 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
     if (typeof pkgSource.packageManager === 'string' && typeof p.packageManager !== 'string') {
       p.packageManager = pkgSource.packageManager;
     }
-    if (typeof gardes === 'string') p.scripts['grillhouse:gardes'] = gardes;
+    if (typeof gardes === 'string') {p.scripts['grillhouse:gardes'] = gardes;}
     // The commands of the known debt of the guards (scripts/dette.mjs) are the frame's.
     for (const nom of ['grillhouse:dette:inscrire', 'grillhouse:dette:elaguer']) {
       const script = pkgSource.scripts?.[nom];
-      if (typeof script === 'string') p.scripts[nom] = script;
+      if (typeof script === 'string') {p.scripts[nom] = script;}
     }
     // The frame's former wiring of the guards goes: Turborepo plays them (`npm run verifier`).
     const pretest = typeof p.scripts.pretest === 'string' ? p.scripts.pretest.trim() : null;
@@ -607,7 +607,7 @@ export function regenerer(projet, { tous = false } = {}) {
       continue;
     }
     if (g.sortie !== null)
-      mkdirSync(path.dirname(path.join(projet, g.sortie)), { recursive: true });
+      {mkdirSync(path.dirname(path.join(projet, g.sortie)), { recursive: true });}
     const r = spawnSync(grillhouse, [g.commande, ...g.args], { cwd: projet, encoding: 'utf8' });
     if (r.status !== 0) {
       lignes.push(
@@ -760,7 +760,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
       process.stderr.write(`⛔ ${e.message}\n`);
       process.exitCode = 1;
     }
-    if (langages !== null) mettreAJourLeProjet(projet, langages);
+    if (langages !== null) {mettreAJourLeProjet(projet, langages);}
   }
 }
 

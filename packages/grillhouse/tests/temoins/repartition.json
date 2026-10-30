@@ -112,5 +112,15 @@
     "scripts/langages/typescript/vitest-config/resultats.mjs",
     "scripts/langages/typescript/vitest-config/resultats.setup.mjs",
     "scripts/langages/typescript/vitest.nuit.config.mjs"
+  ],
+  "cargo": [
+    "scripts/langages/cargo/commandes.mjs",
+    "scripts/langages/cargo/composants.mjs",
+    "scripts/langages/cargo/elements-du-lot.mjs",
+    "scripts/langages/cargo/exemples.mjs",
+    "scripts/langages/cargo/index.mjs",
+    "scripts/langages/cargo/nextest.toml",
+    "scripts/langages/cargo/touches.mjs",
+    "scripts/langages/cargo/verdict.mjs"
   ]
 }

@@ -1,0 +1,5 @@
+# The frame's profile of nextest, which ./commandes.mjs passes as a tool's configuration
+# (`--tool-config-file grillhouse:<this file>`), under the project's own: its JUnit report, which
+# the verdict reads (./verdict.mjs).
+[profile.grillhouse.junit]
+path = "junit.xml"

@@ -9,8 +9,8 @@
 // - What the update writes is what the modules find in the repository (`langagesTrouves`), as each
 //   plugin of Nx infers its projects from its own files (`createNodes`): each module answers by
 //   its `trouve`.
-// - One language is served: a declaration of several is refused, as their merge is grillhouse-pkl.3;
-//   a name out of the list is refused, the list named.
+// - One language is served: a declaration of several is refused, each named; a name out of the
+//   list is refused, the list named.
 // - A module is loaded once per process, synchronously (`require` of an ES module, Node 22): the
 //   locks and the guards ask it in a hook, where nothing waits.
 import { readFileSync } from 'node:fs';
@@ -18,12 +18,15 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 
 // The frame's languages, each its module, from this directory.
-export const LANGAGES = { typescript: './langages/typescript/index.mjs' };
+export const LANGAGES = {
+  typescript: './langages/typescript/index.mjs',
+  cargo: './langages/cargo/index.mjs',
+};
 
 const requis = createRequire(import.meta.url);
 const charges = new Map();
 const charger = nom => {
-  if (!charges.has(nom)) charges.set(nom, requis(LANGAGES[nom]).default);
+  if (!charges.has(nom)) {charges.set(nom, requis(LANGAGES[nom]).default);}
   return charges.get(nom);
 };
 
@@ -68,7 +71,7 @@ export function langageDe(racine) {
   }
   if (noms.length > 1) {
     throw new Error(
-      `⛔ ${noms.join(', ')} : le cadre sert un seul langage par projet ; la fusion de plusieurs est grillhouse-pkl.3.`
+      `⛔ ${noms.join(', ')} : le cadre sert un seul langage par projet (grillhouse.langages de ${fichier}).`
     );
   }
   return charger(noms[0]);

@@ -16,7 +16,7 @@ Les types de la jointure sont `scripts/jointure.d.ts` ; l'entrée publiée
 ## Le langage d'un projet
 
 Un projet déclare son langage dans son `package.json`, sous `grillhouse.langages` :
-`["typescript"]`. Le nom vient de la liste fermée des langages du cadre (`LANGAGES` de
+`["typescript"]` ou `["cargo"]`. Le nom vient de la liste fermée des langages du cadre (`LANGAGES` de
 `scripts/langages.mjs`) ; un nom hors de la liste est refusé, nommé, avec la liste.
 
 La déclaration est la seule lecture : un projet sans déclaration, ou un dossier sans
@@ -24,8 +24,8 @@ La déclaration est la seule lecture : un projet sans déclaration, ou un dossie
 déclaration d'après ce que les modules trouvent dans le dépôt (`langagesTrouves(racine)`), comme
 chaque greffon de Nx infère ses projets de ses propres fichiers (`createNodes`) ; une déclaration
 présente reste. Là où aucun module ne trouve son langage, `maj` refuse le projet, nommé, sans rien
-écrire : le cadre n'invente aucune déclaration. Un seul langage est servi par projet ; la fusion de
-plusieurs langages est grillhouse-pkl.3.
+écrire : le cadre n'invente aucune déclaration. Un seul langage est servi par projet : une
+déclaration de plusieurs est refusée, chacun nommé.
 
 `langageDe(racine)` rend le module qui sert le projet de `racine`, chargé une fois par processus.
 
@@ -36,28 +36,31 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
 
 - `nom` : le nom du langage, celui de la liste du cadre.
 - `trouve` : si le dépôt tient du code du langage, que `maj` déclare alors ; `typescript`, un
-  `tsconfig.json` à la racine ou dans un paquet du cadre.
+  `tsconfig.json` à la racine ou dans un paquet du cadre ; `cargo`, un `Cargo.toml` à la racine.
 - `outils` : les outils qu'un projet du langage installe, dépendances facultatives du paquet ;
   `maj` n'ajoute que ceux du langage déclaré, aux versions du gabarit.
-- `composants` : les composants du projet, chacun `{ dossier, nom, paquet }`, le dossier absolu.
+- `composants` : les composants du projet, chacun `{ dossier, nom, paquet }`, le dossier absolu ;
+  `cargo`, les membres de l'espace de travail que décrit `cargo metadata --no-deps --offline`.
 - `composantDe` : le composant qui tient un fichier, ou null pour un fichier hors de tout
   composant ; toujours l'un de ceux que `composants` rend.
 - `matieres` : les composants de la matière de test partagée, que l'enveloppe monte en écriture
   pour le testwriter.
 - `joueDesTests` : si un composant joue des tests, que le lanceur du langage y trouve à jouer ;
-  `typescript`, un script `test:unit` dans son `package.json`. Le circuit en tire les paquets du
+  `typescript`, un script `test:unit` dans son `package.json` ; `cargo`, un dossier `tests/`. Le circuit en tire les paquets du
   plan qui portent des tests, comme Bazel lit les cibles de test d'un paquet à leur genre.
 - `lecteurs` : les fournisseurs et les lecteurs, par le code, des éléments qu'un ticket nomme : son
   interface, ses imports, ses tests, ses types. Le relevé des composants touchés
   (`composants-affectes`) y ajoute les chemins lus et l'architecture.
 - `touches` : les composants touchés depuis un commit, leurs dépendants, transitivement, et les
   fichiers hors de tout composant (`{ touches, dependants, horsGraphe }`), comme le
-  `--filter=...[<commit>]` de Turborepo.
+  `--filter=...[<commit>]` de Turborepo ; `cargo`, un fichier de l'espace de travail lui-même
+  (`Cargo.toml`, `Cargo.lock` à la racine) touche tous les crates.
 - `elementsDuLot` : les éléments qu'un lot ajoute, change ou supprime entre deux commits, chacun à
   sa place, les fichiers qu'il change, et les sources dont le module ne lit aucun élément ; le
   circuit les donne au relecteur.
 - `commandes` : les commandes qui testent (`tester`), vérifient (`verifier`) et typent (`typer`),
-  et chaque garde ou générateur du module, par son nom ; chacune `{ script, args }`, le script
+  et chaque autre commande du module, garde, générateur ou préparation (`preparer` de `cargo`, qui
+  télécharge les dépendances), par son nom ; chacune `{ script, args }`, le script
   absolu, jamais lancée. `grillhouse tests` et `grillhouse verifier` lancent `tester` et
   `verifier` ; chaque autre, sauf `typer`, est une sous-commande de son nom
   (`grillhouse frontieres`), comme un backend de Pants apporte ses buts.
@@ -90,13 +93,14 @@ les arbitrages d'un ticket. Un module n'importe rien d'autre du noyau que ses en
 RuleTester d'ESLint tient une règle à ses cas. `cas(langage, exemples)` rend un cas par demande :
 sur son entrée valide, un module sain ne donne aucune faute ; sur son entrée défectueuse, il donne
 exactement les fautes attendues. `echecs(langage, exemples)` rend les cas qu'un module manque. Les
-entrées sont celles du module (`scripts/langages/typescript/exemples.mjs`).
+entrées sont celles de chaque module (`scripts/langages/<nom>/exemples.mjs`).
 
 Un cas tient chaque demande sauf `nom`, `verdict` lu à part, `migrations`, que le test de
 chaque migration tient, et `outils`, que le test de la mise à jour tient. L'entrée défectueuse des
 fichiers engendrés met chacun d'eux en retard.
 Le test du noyau joue la suite sur le module typescript et sur seize modules défectueux, un défaut
-chacun ; chacun manque son seul cas. Ainsi la suite attrape un vrai défaut.
+chacun ; chacun manque son seul cas. Ainsi la suite attrape un vrai défaut. Le module cargo la
+passe contre un faux cargo en tête du PATH, et contre le vrai à la nuit.
 
 ## Consommateurs
 

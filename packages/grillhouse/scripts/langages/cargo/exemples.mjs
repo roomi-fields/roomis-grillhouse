@@ -1,0 +1,303 @@
+// The entries of the suite of conformity (scripts/conformite.mjs) for the module cargo, as the
+// valid and invalid cases a rule of ESLint gives its RuleTester: each a trial, built under the
+// directory the suite gives, with what a sound module answers on it. Each manifest is one the real
+// cargo reads (the night plays them with it), in the subset of TOML the tests' fake cargo reads.
+//
+// - A virtual workspace of four crates under `crates/`: `ws-core`, with its tests (`tests/t.rs`)
+//   and their helpers (`tests/common/`); `ws-app`, which depends on `ws-core` and has its tests;
+//   `ws-outil`, which depends on `ws-app` for its tests (`dev`) and on `ws-core` for its build
+//   script (`build`); `ws-matiere`, the shared test material (`[package.metadata.grillhouse]
+//   matiere = true`). Committed: `espace`; the same, a source of `ws-core` then changed and a file
+//   out of every crate added: `change`, measured from its commit; the same with a second commit
+//   that changes `ws-core`, adds the crate `ws-neuf` and removes `ws-outil`: `lot`.
+// - A crate at the root, its workspace `members = ["."]`, with its tests, as OSC Bridge: `seul`;
+//   a crate at the root holding a second crate, `crates/aide`, none with tests: `imbrique`.
+// - A directory without Cargo.toml: `vide`; one with a tsconfig.json alone: `typescript`.
+// - Two results directories of a run: every task and test green (`vert`); `ws-core` at 75,
+//   `ws-app` red with a test of `integ` failed, `ws-outil` not played (`defaut`).
+// - `depots`: the repositories, for the tests of the module beside the suite.
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+
+const ecrireDans = racine => (rel, texte) => {
+  mkdirSync(path.dirname(path.join(racine, rel)), { recursive: true });
+  writeFileSync(path.join(racine, rel), texte);
+};
+const git = (racine, ...args) => execFileSync('git', ['-C', racine, ...args], { stdio: 'pipe' });
+const tete = racine =>
+  execFileSync('git', ['-C', racine, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+
+// The manifest of the crate <nom>, its tables <tables> after `[package]`.
+const manifeste = (nom, tables = '') =>
+  `[package]\nname = "${nom}"\nversion = "0.1.0"\nedition = "2021"\npublish = false\n${tables}`;
+
+// Commits every file of <racine>, a new repository.
+function engager(racine) {
+  git(racine, 'init', '-q', '-b', 'main');
+  git(racine, 'config', 'user.email', 'essai@example.com');
+  git(racine, 'config', 'user.name', 'essai');
+  git(racine, 'config', 'commit.gpgsign', 'false');
+  git(racine, 'add', '-A');
+  git(racine, 'commit', '-q', '-m', 'essai');
+  return racine;
+}
+
+const CRATES = {
+  core: manifeste('ws-core'),
+  app: manifeste('ws-app', '\n[dependencies]\nws-core = { path = "../core" }\n'),
+  outil: manifeste(
+    'ws-outil',
+    '\n[dev-dependencies]\nws-app = { path = "../app" }\n\n[build-dependencies]\nws-core = { path = "../core" }\n'
+  ),
+  matiere: manifeste('ws-matiere', '\n[package.metadata.grillhouse]\nmatiere = true\n'),
+};
+const membres = noms =>
+  `[workspace]\nresolver = "2"\nmembers = [${noms.map(n => `"crates/${n}"`).join(', ')}]\n`;
+
+// The virtual workspace of the four crates in a new directory under <dans>, committed.
+function espace(dans) {
+  const racine = mkdtempSync(path.join(dans, 'espace-'));
+  const ecrire = ecrireDans(racine);
+  ecrire('Cargo.toml', membres(Object.keys(CRATES)));
+  ecrire('.gitignore', '/target\n');
+  ecrire('README.md', "# L'espace d'essai\n");
+  for (const [n, m] of Object.entries(CRATES)) {
+    ecrire(`crates/${n}/Cargo.toml`, m);
+    ecrire(`crates/${n}/src/lib.rs`, `pub fn ${n}() -> i32 {\n    1\n}\n`);
+  }
+  ecrire('crates/outil/build.rs', 'fn main() {}\n');
+  ecrire(
+    'crates/core/tests/t.rs',
+    'mod common;\n\n#[test]\nfn passe() {\n    common::aide();\n}\n'
+  );
+  ecrire('crates/core/tests/common/mod.rs', 'pub fn aide() {}\n');
+  ecrire(
+    'crates/app/tests/integ.rs',
+    '#[test]\nfn lit() {\n    assert_eq!(ws_app::app(), 1);\n}\n'
+  );
+  return engager(racine);
+}
+
+// A crate at the root under <dans>, its workspace <membres>, committed.
+function aLaRacine(dans, nom, membresEnPlus, fichiers) {
+  const racine = mkdtempSync(path.join(dans, `${nom}-`));
+  const ecrire = ecrireDans(racine);
+  ecrire(
+    'Cargo.toml',
+    `[workspace]\nmembers = [${['.', ...membresEnPlus].map(m => `"${m}"`).join(', ')}]\n\n${manifeste(nom)}`
+  );
+  ecrire('.gitignore', '/target\n');
+  for (const [f, t] of Object.entries(fichiers)) {
+    ecrire(f, t);
+  }
+  return engager(racine);
+}
+
+// A results directory under <dans>: the tasks <taches> (`[crate, script, code]`), and the JUnit
+// report of <crate> (`[crate, [[binaire, test, echoue]…]]`), the files of the binaries <cibles>.
+function resultats(dans, taches, rapports, cibles) {
+  const dossier = mkdtempSync(path.join(dans, 'resultats-'));
+  const ecrire = ecrireDans(dossier);
+  ecrire(
+    'cargo/1-1.json',
+    `${JSON.stringify({
+      taches: taches.map(([paquet, script, code]) => ({
+        tache: `${paquet}#${script}`,
+        paquet,
+        dossier: paquet === '//' ? '.' : `crates/${paquet.slice(3)}`,
+        script,
+        tests: script === 'nextest' || script === 'doctest',
+        code,
+        cache: null,
+        journal: null,
+      })),
+      cibles,
+    })}\n`
+  );
+  for (const [crate, suites] of rapports) {
+    const corps = suites
+      .map(
+        ([binaire, test, echoue]) =>
+          `<testsuite name="${binaire}" tests="1"><testcase name="${test}" classname="${binaire}">${
+            echoue ? '<failure message="assertion &apos;a &lt; b&apos;">a &lt; b</failure>' : ''
+          }</testcase></testsuite>`
+      )
+      .join('');
+    ecrire(`nextest/1-1-${crate}.xml`, `<?xml version="1.0"?><testsuites>${corps}</testsuites>`);
+  }
+  return dossier;
+}
+
+export default {
+  // The trials under <dans>.
+  preparer(dans) {
+    const aJour = espace(dans);
+    const vide = mkdtempSync(path.join(dans, 'vide-'));
+    writeFileSync(path.join(vide, 'README.md'), 'aucun crate\n');
+    const typescript = mkdtempSync(path.join(dans, 'typescript-'));
+    writeFileSync(path.join(typescript, 'tsconfig.json'), '{}\n');
+    const seul = aLaRacine(dans, 'seul', [], {
+      'src/main.rs': 'fn main() {}\n',
+      'src/lib.rs': 'pub fn un() -> i32 {\n    1\n}\n',
+      'tests/bout.rs': '#[test]\nfn passe() {}\n',
+      'tests/common/mod.rs': 'pub fn aide() {}\n',
+      'README.md': '# Un crate à la racine\n',
+    });
+    const imbrique = aLaRacine(dans, 'imbrique', ['crates/aide'], {
+      'src/lib.rs': 'pub fn un() -> i32 {\n    1\n}\n',
+      'crates/aide/Cargo.toml': manifeste('aide'),
+      'crates/aide/src/lib.rs': 'pub fn aide() {}\n',
+    });
+    const change = espace(dans);
+    const depuis = tete(change);
+    writeFileSync(
+      path.join(change, 'crates/core/src/lib.rs'),
+      'pub fn core() -> i32 {\n    2\n}\n'
+    );
+    writeFileSync(path.join(change, 'notes.txt'), 'hors des crates\n');
+    const lot = espace(dans);
+    const avantLeLot = tete(lot);
+    const ecrireLot = ecrireDans(lot);
+    ecrireLot('crates/core/src/lib.rs', 'pub fn core() -> i32 {\n    3\n}\n');
+    ecrireLot('crates/neuf/Cargo.toml', manifeste('ws-neuf'));
+    ecrireLot('crates/neuf/src/lib.rs', 'pub fn neuf() {}\n');
+    ecrireLot('Cargo.toml', membres(['core', 'app', 'matiere', 'neuf']));
+    rmSync(path.join(lot, 'crates/outil'), { recursive: true, force: true });
+    git(lot, 'add', '-A');
+    git(lot, 'commit', '-q', '-m', 'lot');
+    const cibles = {
+      'ws-core': path.join(aJour, 'crates/core/src/lib.rs'),
+      'ws-core::t': path.join(aJour, 'crates/core/tests/t.rs'),
+      'ws-app': path.join(aJour, 'crates/app/src/lib.rs'),
+      'ws-app::integ': path.join(aJour, 'crates/app/tests/integ.rs'),
+    };
+    return {
+      racine: aJour,
+      depots: { espace: aJour, seul, imbrique, change, depuis, lot, avantLeLot, vide, typescript },
+      composants: {
+        valide: vide,
+        invalide: aJour,
+        attendu: [
+          'ws-app (ws-app)',
+          'ws-core (ws-core)',
+          'ws-matiere (ws-matiere)',
+          'ws-outil (ws-outil)',
+        ],
+      },
+      composantDe: {
+        valide: [
+          { fichier: 'crates/core/src/lib.rs', composant: 'ws-core' },
+          { fichier: 'crates/app/tests/integ.rs', composant: 'ws-app' },
+          { fichier: path.join(aJour, 'crates/outil/Cargo.toml'), composant: 'ws-outil' },
+        ],
+        invalide: [{ fichier: 'Cargo.toml' }, { fichier: 'README.md' }],
+        attendu: ['Cargo.toml : hors de tout composant', 'README.md : hors de tout composant'],
+      },
+      lecteurs: {
+        valide: { racine: seul, noms: [] },
+        invalide: { racine: aJour, noms: ['ws-core', 'ws-absent'] },
+        attendu: [
+          'ws-app lit ws-core',
+          'ws-outil lit ws-app',
+          'ws-outil lit ws-core',
+          'ws-absent : sans fournisseur',
+        ],
+      },
+      touches: {
+        valide: { racine: aJour, depuis: 'HEAD' },
+        invalide: { racine: change, depuis },
+        attendu: ['touché ws-core', 'dépendant ws-app', 'dépendant ws-outil', 'hors notes.txt'],
+      },
+      commandes: {
+        valide: ['tester', 'verifier', 'typer', 'preparer'],
+        invalide: ['tester', 'deployer'],
+        attendu: ['deployer : absente'],
+      },
+      verdict: {
+        valide: resultats(
+          dans,
+          [
+            ['ws-core', 'nextest', 0],
+            ['ws-core', 'doctest', 0],
+            ['//', 'deny', 0],
+          ],
+          [['ws-core', [['ws-core::t', 'passe', false]]]],
+          cibles
+        ),
+        invalide: resultats(
+          dans,
+          [
+            ['ws-core', 'nextest', 75],
+            ['ws-app', 'nextest', 100],
+            ['ws-outil', 'nextest', null],
+            ['//', 'deny', 4],
+          ],
+          [
+            ['ws-core', [['ws-core::t', 'passe', false]]],
+            ['ws-app', [['ws-app::integ', 'lit', true]]],
+          ],
+          cibles
+        ),
+        attendu: [
+          'ws-core#nextest à repasser, tests',
+          'ws-app#nextest rouge (100), tests',
+          '//#deny rouge (4)',
+          'test integ.rs › lit',
+        ],
+      },
+      estUnTest: {
+        valide: ['crates/core/src/lib.rs', 'crates/app/Cargo.toml', 'Cargo.toml', 'README.md'],
+        invalide: [
+          'crates/core/tests/t.rs',
+          'crates/core/tests/common/mod.rs',
+          'crates/matiere/src/lib.rs',
+        ],
+        attendu: [
+          'crates/core/tests/t.rs : joue, test',
+          'crates/core/tests/common/mod.rs : test, matiere',
+          'crates/matiere/src/lib.rs : matiere',
+        ],
+      },
+      fichiersEngendres: { valide: aJour, invalide: aJour, attendu: [] },
+      gardes: { valide: [] },
+      elementsDuLot: {
+        valide: { racine: aJour, avant: 'HEAD', apres: 'HEAD' },
+        invalide: { racine: lot, avant: avantLeLot, apres: 'HEAD' },
+        attendu: [
+          'fichier Cargo.toml',
+          'fichier crates/core/src/lib.rs',
+          'fichier crates/neuf/Cargo.toml',
+          'fichier crates/neuf/src/lib.rs',
+          'fichier crates/outil/Cargo.toml',
+          'fichier crates/outil/build.rs',
+          'fichier crates/outil/src/lib.rs',
+          'hors du service crates/core/src/lib.rs',
+          'hors du service crates/neuf/src/lib.rs',
+          'hors du service crates/outil/build.rs',
+          'hors du service crates/outil/src/lib.rs',
+          'changé crates/core/Cargo.toml#ws-core',
+          'neuf crates/neuf/Cargo.toml#ws-neuf',
+          'supprimé crates/outil/Cargo.toml#ws-outil',
+        ],
+      },
+      matieres: { valide: seul, invalide: aJour, attendu: ['ws-matiere (ws-matiere)'] },
+      joueDesTests: {
+        valide: imbrique,
+        invalide: aJour,
+        attendu: ['ws-app (ws-app) : joue des tests', 'ws-core (ws-core) : joue des tests'],
+      },
+      trouve: {
+        valide: [
+          { nom: 'vide', racine: vide },
+          { nom: 'typescript', racine: typescript },
+        ],
+        invalide: [
+          { nom: 'espace', racine: aJour },
+          { nom: 'crate à la racine', racine: seul },
+        ],
+        attendu: ['espace : trouvé', 'crate à la racine : trouvé'],
+      },
+    };
+  },
+};

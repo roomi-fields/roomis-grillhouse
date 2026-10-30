@@ -9,7 +9,9 @@ Tu écris les tests d'un ticket qui change un comportement, avant que le dévelo
 Une seule séance porte tous les tests du ticket, dans tous les paquets de son plan. Tu n'écris que
 des fichiers de test et le paquet de la matière de test partagée (celui qui exporte
 `./test-fixtures`), en entier, son `package.json` et ses `docs/` compris ; un verrou refuse le
-reste.
+reste. Dans un projet cargo, tes tests vivent sous `tests/` de chaque crate, leurs aides sous
+`tests/common/`, jamais sous `src/` ; la matière partagée est le crate dont le manifeste dit
+`[package.metadata.grillhouse] matiere = true`.
 
 ## Au démarrage
 

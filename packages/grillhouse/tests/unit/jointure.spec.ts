@@ -9,6 +9,8 @@
 // - A word of a tool (turbo, vitest, knip, dependency-cruiser, tsc) in the code of the core is a
 //   rest that its ticket takes out, inscribed below: the comments, which name the mature models
 //   (« as Turborepo does »), are not read.
+// - grillhouse-pkl.3: the module cargo, under scripts/langages/cargo/, takes its share of the
+//   files, answers each member of the join, and names of the core its published entries alone.
 import {
   mkdirSync,
   mkdtempSync,
@@ -22,14 +24,15 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import cargo from '../../scripts/langages/cargo/index.mjs';
 import typescript from '../../scripts/langages/typescript/index.mjs';
 
 const PAQUET = path.resolve(__dirname, '../..');
 const lire = (rel: string) => readFileSync(path.join(PAQUET, rel), 'utf8');
 const REPARTITION = JSON.parse(
   readFileSync(path.join(PAQUET, 'tests/temoins/repartition.json'), 'utf8')
-) as { noyau: string[]; typescript: string[] };
-const DU_LANGAGE = new Set(REPARTITION.typescript);
+) as { noyau: string[]; typescript: string[]; cargo: string[] };
+const DU_LANGAGE = new Set([...REPARTITION.typescript, ...REPARTITION.cargo]);
 
 // Every file under <rel>, from the package.
 const fichiers = (rel: string): string[] =>
@@ -97,7 +100,7 @@ const HISTOIRE = 'scripts/migrations/';
 describe('grillhouse-3dr.2.1 — la jointure des langages', () => {
   it('the share of scripts/ and bin/ is exhaustive, each file once', () => {
     const tous = [...fichiers('scripts'), ...fichiers('bin')].sort();
-    const partages = [...REPARTITION.noyau, ...REPARTITION.typescript].sort();
+    const partages = [...REPARTITION.noyau, ...REPARTITION.typescript, ...REPARTITION.cargo].sort();
     expect(partages).toEqual(tous);
     expect(new Set(partages).size).toBe(partages.length);
   });
@@ -117,6 +120,14 @@ describe('grillhouse-3dr.2.1 — la jointure des langages', () => {
 
   it('criterion 1: jointure.d.ts declares exactly what the module typescript answers', () => {
     expect(membresDeLangage().sort()).toEqual(Object.keys(typescript).sort());
+  });
+
+  it('grillhouse-pkl.3: jointure.d.ts declares exactly what the module cargo answers, its files under its folder', () => {
+    expect(membresDeLangage().sort()).toEqual(Object.keys(cargo).sort());
+    expect(REPARTITION.cargo).toContain('scripts/langages/cargo/index.mjs');
+    for (const f of REPARTITION.cargo) {
+      expect(f).toMatch(/^scripts\/langages\/cargo\//);
+    }
   });
 
   it('criterion 4: composants-affectes, dernier-vert, the lock and the guards read no file of the language', () => {
@@ -345,14 +356,14 @@ describe('grillhouse-3dr.2.2 — le module typescript sous son dossier', () => {
     }
   });
 
-  it('the module typescript names of the core only its published entries and its command', () => {
+  it('the modules of language name of the core only its published entries and its command', () => {
     const entrees = new Set([
       'bin/grillhouse.mjs',
       ...Object.values(PKG.exports)
         .flatMap(cibles)
         .filter(c => REPARTITION.noyau.includes(c)),
     ]);
-    const trouves = REPARTITION.typescript
+    const trouves = [...REPARTITION.typescript, ...REPARTITION.cargo]
       .filter(f => /\.(mjs|js|cjs)$/.test(f))
       .flatMap(f =>
         [...nommes(f), ...voisins(f)]

@@ -434,8 +434,8 @@ relecture, le tableau, l'enveloppe, les crochets, la mise à jour, le greffon Cl
 **module de langage** par famille, sous `scripts/langages/` : `typescript` (la vérification par
 Turborepo et Vitest, les gardes de structure) et `cargo` (la même chose pour Rust, l'épopée
 grillhouse-pkl). Un projet déclare ses langages dans son `package.json` (`grillhouse.langages`),
-que `init` et `maj` remplissent d'après ce qu'ils trouvent (`tsconfig.json` ; `Cargo.toml` avec
-grillhouse-pkl.7) ; là où ils ne trouvent aucun langage du cadre, ils refusent le projet, nommé.
+que `init` et `maj` remplissent d'après ce qu'ils trouvent (`tsconfig.json` ; un `Cargo.toml` à la
+racine) ; là où ils ne trouvent aucun langage du cadre, ils refusent le projet, nommé.
 Les outils d'un langage (Turborepo, Vitest, knip, api-extractor ; cargo-nextest, cargo-deny)
 sont des dépendances facultatives du paquet : `maj` n'installe que ceux des langages déclarés.
 Ainsi chaque projet n'installe que les outils qu'il utilise : un projet tout Rust n'a aucun outil
@@ -453,7 +453,7 @@ porte un nom neutre, `test:unit`, le même pour chaque langage), et la lecture d
 L'INTERFACE.md du noyau l'écrit (`packages/grillhouse/docs/INTERFACE.md`), `scripts/jointure.d.ts`
 la type, et `scripts/langages.mjs` charge le module que le projet déclare (`grillhouse.langages`
 de son `package.json` ; un projet qui n'en déclare aucun est refusé, la commande `maj` nommée) ;
-un seul langage est servi, la fusion de plusieurs est grillhouse-pkl.3. Passent par elle : les
+un seul langage est servi : un projet qui en déclare deux est refusé, chacun nommé. Passent par elle : les
 composants et leurs lecteurs du relevé des composants ; la règle d'un fichier de test des verrous,
 des lots de l'intégration et du circuit ; les commandes de `grillhouse tests` et `grillhouse
 verifier` ; le verdict que le circuit lit, et les paquets du plan qui portent des tests ; les fichiers engendrés du circuit ; les gardes de
@@ -462,7 +462,10 @@ frontieres`) ; les éléments du lot que le circuit donne au relecteur ; la mati
 l'enveloppe monte ; les migrations qui rejouent une garde du module, que `maj` joue avec celles du
 noyau, comme `nx migrate` réunit celles de chaque greffon. Le module typescript vit sous
 `scripts/langages/typescript/` (`tests/temoins/repartition.json` range chaque fichier), ses tests
-sous `tests/unit/langages/typescript/` ; les entrées publiées (`./consommateurs`,
+sous `tests/unit/langages/typescript/` ; le module cargo sous `scripts/langages/cargo/` (les crates
+de `cargo metadata`, les tests par nextest puis les doctests, la vérification par cargo-deny,
+sous le verrou de la machine), ses
+tests sous `tests/unit/langages/cargo/`, contre un faux cargo en tête du PATH, le vrai à la nuit ; les entrées publiées (`./consommateurs`,
 `./vitest-config`, `./vitest-config/mesure`, `./tsdoc-base.json`) gardent leur adresse. Comme un
 greffon de Nx n'importe que `@nx/devkit`, le module n'importe du noyau que ses entrées publiées :
 `./jointure` (`scripts/services-du-noyau.mjs`) lui donne les services du noyau qu'il emploie (le plan d'une
