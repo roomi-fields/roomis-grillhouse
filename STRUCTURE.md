@@ -113,7 +113,7 @@ roomis-grillhouse/
 │   │   │   ├── file.mjs                  # the queue: brings the branches onto main one at a time, replaced and replayed when main moved, pushes main, then reads the CI of the commit pushed (gh: a red CI reopens the ticket; no workflow that runs on a push to the branch pushed, none waited for, the ticket told in one line) (tests: tests/unit/file-integration*.spec.ts)
 │   │   │   ├── rejeu.mjs                 # the replay shared by integrer.mjs and file.mjs: clean copy, dependencies of its lock file, npm run verifier (Turborepo: build, then guards and tests); a 75 keeps the lot waiting
 │   │   │   └── file-attente.mjs          # the queue's entries (a branch and its one ticket each), in git's common directory, and the directory the integration's locks live in
-│   │   └── un-commit-par-ticket.mjs   # commit-msg hook (grillhouse hook commit-msg, crochets.mjs): a closed ticket refuses a second commit, a reopened ticket takes its corrections
+│   │   └── un-commit-par-ticket.mjs   # commit-msg hook (grillhouse hook commit-msg, crochets.mjs): a closed ticket refuses a second commit, a reopened ticket takes its corrections, a word Beads does not know is no ticket
 │   └── tests/                     # The frame's tests (unit/) and their own material (unit/*-essai.ts, formes/: the former forms of a template's file a migration knows): Grillhouse only, not copied
 │
 ├── packages/grillhouse-essais/  # The package @roomi-fields/grillhouse-essais, private: the tests of the frame's chain (tests/circuit*.nuit.spec.ts, base-de-passe.nuit.spec.ts, their harness circuit-essai.ts), played at night; they launch the frame's scripts in processes; tests/paquet.spec.ts, its small test of the day

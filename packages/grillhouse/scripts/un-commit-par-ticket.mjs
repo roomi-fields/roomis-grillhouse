@@ -12,8 +12,13 @@
 //   reference, a `Refs:` trailer) is not delivered.
 //   The title line of a message is its first line that is neither blank nor a comment (a line
 //   starting with `#`); in the history it is the first line of the commit message.
-// - The tickets are the words `<prefix>-<id>` of the title line, the prefix read from Beads
-//   (`bd config get issue_prefix`).
+// - The tickets are the words `<prefix>-<id>` of the title line that Beads knows, the prefix read
+//   from Beads (`bd config get issue_prefix`): as Jira's smart commits and GitHub's « fixes #12 »
+//   link a commit to an existing key alone, a word of that shape Beads does not know (a package
+//   `grillhouse-essais` in the frame's repository) is text. Beads knows an id when
+//   `bd show <id> --json` lists a ticket of that exact id, and does not when it answers a JSON
+//   error. When Beads does not answer, every word of the shape counts, and the hook says so in one
+//   line.
 // - A message that names no ticket passes (the supervisor's commits of the frame).
 // - A reverting commit delivers nothing and passes: it carries both marks git writes, a title line
 //   starting `Revert "` or `Reapply "` and a body line `This reverts commit <sha>` (the sha is the one
@@ -60,15 +65,16 @@ function revertedBy(message) {
 }
 
 // The refusal for this message, or null. `commitsOf(id)` gives the earlier commits delivering the id;
-// `isOpen(id)` says whether the ticket is open (absent: not open). A reverting message delivers
-// nothing and passes; a ticket that is open takes a correction commit and passes.
-export function refusal(message, prefix, commitsOf, isOpen = () => false) {
+// `isOpen(id)` says whether the ticket is open (absent: not open); `isKnown(id)` says whether Beads
+// knows the id (absent: every word counts). A reverting message delivers nothing and passes; a
+// ticket that is open takes a correction commit and passes; a word Beads does not know is no ticket.
+export function refusal(message, prefix, commitsOf, isOpen = () => false, isKnown = () => true) {
   if (revertedBy(message) !== null) {
     return null;
   }
   for (const id of tickets(message, prefix)) {
     const earlier = commitsOf(id);
-    if (earlier.length > 0 && !isOpen(id)) {
+    if (earlier.length > 0 && isKnown(id) && !isOpen(id)) {
       return `Le ticket ${id} a déjà son commit (${earlier.join(', ')}) : un ticket fait une seule livraison. Ce qui reste devient un ticket neuf sous ${id} (bd create --parent ${id}).`;
     }
   }
@@ -87,20 +93,32 @@ function prefixe() {
   }
 }
 
-// Whether the ticket is open in Beads: its `status` is anything but `closed`. A status that cannot
-// be read is not open.
-function ticketIsOpen(id) {
+// What Beads answers on the id (`bd show <id> --json`): `{ status }` when it knows the id (a ticket
+// of that exact id in its array; `status` undefined when unreadable), `'unknown'` when it answers
+// a JSON error (no such ticket), `null` when it does not answer (no `bd`, no database, an answer
+// that is not JSON).
+function beads(id) {
+  let out;
   try {
-    const out = execFileSync('bd', ['show', id, '--json'], {
+    out = execFileSync('bd', ['show', id, '--json'], {
       encoding: 'utf8',
       stdio: 'pipe',
       maxBuffer: 256 * 1024 * 1024,
     });
-    const status = JSON.parse(out)?.[0]?.status;
-    return typeof status === 'string' && status !== 'closed';
-  } catch {
-    return false;
+  } catch (e) {
+    out = typeof e?.stdout === 'string' ? e.stdout : '';
   }
+  let answer;
+  try {
+    answer = JSON.parse(out);
+  } catch {
+    return null;
+  }
+  if (Array.isArray(answer)) {
+    const ticket = answer.find(t => t?.id === id);
+    return ticket ? { status: ticket.status } : 'unknown';
+  }
+  return answer && typeof answer === 'object' && 'error' in answer ? 'unknown' : null;
 }
 
 // `git log` with these arguments, its output as text.
@@ -195,6 +213,13 @@ function commitsDelivering(id, prefix) {
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const prefix = prefixe();
+  const answers = new Map();
+  const answer = id => {
+    if (!answers.has(id)) {
+      answers.set(id, beads(id));
+    }
+    return answers.get(id);
+  };
   // Without a prefix, or with one that is not yet filled in, every commit passes.
   const reason =
     prefix && !prefix.includes(' ')
@@ -202,9 +227,18 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
           readFileSync(process.argv[2], 'utf8'),
           prefix,
           id => commitsDelivering(id, prefix),
-          ticketIsOpen
+          id => {
+            const status = answer(id)?.status;
+            return typeof status === 'string' && status !== 'closed';
+          },
+          id => answer(id) !== 'unknown'
         )
       : null;
+  if ([...answers.values()].includes(null)) {
+    process.stderr.write(
+      `Beads injoignable : chaque mot ${prefix}-… du titre compte pour un ticket, connu ou non.\n`
+    );
+  }
   if (reason) {
     process.stderr.write(`⛔ ${reason}\n`);
     process.exitCode = 1;

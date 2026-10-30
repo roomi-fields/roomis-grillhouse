@@ -565,3 +565,80 @@ describe('a correction commit on a reopened ticket (grillhouse-3uv.81)', () => {
     );
   });
 });
+
+// grillhouse-3dr.3.2.2: a word of the title line shaped `<prefix>-…` is a ticket only when Beads
+// knows it, as Jira's smart commits and GitHub's « fixes #12 » link a commit to an existing key
+// alone. `isKnown(id)` says whether Beads knows the id.
+describe('a word shaped like a ticket is a ticket only when Beads knows it (grillhouse-3dr.3.2.2)', () => {
+  const delivered: Record<string, string[]> = {
+    'demo-essais': ['abc1234'],
+    'demo-1': ['def5678'],
+  };
+  const commitsOf = (id: string) => delivered[id] ?? [];
+  const isKnown = (id: string) => id === 'demo-1' || id === 'demo-2';
+
+  it('criterion 1: a package named like a ticket in the title is not a ticket, the known one is', () => {
+    expect(
+      refusal('fix(demo-essais): the trials (demo-2)', 'demo', commitsOf, () => false, isKnown)
+    ).toBeNull();
+  });
+  it('criterion 2: a known ticket named twice is refused as before', () => {
+    expect(
+      refusal('fix(demo-essais): lot 2 (demo-1)', 'demo', commitsOf, () => false, isKnown)
+    ).toMatch(/^Le ticket demo-1 a déjà son commit \(def5678\)/);
+  });
+
+  // A fake `bd` answering the prefix `demo` and, for `show`, the tickets `known` as Beads does (an
+  // array of tickets), any other id as Beads does an unknown one (a JSON error, status 1).
+  function beadsKnowing(bin: string, known: string[]) {
+    const cas = known
+      .map(id => `  ${id}) printf '%s\\n' '${JSON.stringify([{ id, status: 'closed' }])}';;`)
+      .join('\n');
+    writeFileSync(
+      path.join(bin, 'bd'),
+      [
+        '#!/bin/sh',
+        'if [ "$1" = config ]; then echo demo; exit 0; fi',
+        'case "$2" in',
+        cas,
+        `  *) printf '%s\\n' '{"error": "no issues found matching the provided IDs"}'; exit 1;;`,
+        'esac',
+        '',
+      ].join('\n'),
+      { mode: 0o755 }
+    );
+  }
+
+  it('criterion 1: the hook takes a package named like a delivered word for no ticket', () => {
+    const check = history(['fix(demo-essais): first (demo-1)']);
+    beadsKnowing(check.bin, ['demo-1']);
+    const r = check('fix(demo-essais): the trials (demo-2)');
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stderr).toBe('');
+  });
+  it('criterion 2: the hook still refuses a known closed ticket delivered twice', () => {
+    const check = history(['fix(demo-essais): first (demo-1)']);
+    beadsKnowing(check.bin, ['demo-1']);
+    const r = check('fix(demo-essais): lot 2 (demo-1)');
+    expect(r.status).toBe(1);
+    expect(r.stderr).toBe(
+      `⛔ Le ticket demo-1 a déjà son commit (${check.short[0]}) : un ticket fait une seule livraison. Ce qui reste devient un ticket neuf sous demo-1 (bd create --parent demo-1).\n`
+    );
+  });
+  it('criterion 3: without Beads answering, every word of the form counts, and the hook says so in one line', () => {
+    const check = history(['fix(demo-essais): first (demo-1)']);
+    writeFileSync(
+      path.join(check.bin, 'bd'),
+      '#!/bin/sh\nif [ "$1" = config ]; then echo demo; exit 0; fi\necho "Error: no beads database found" >&2\nexit 1\n',
+      { mode: 0o755 }
+    );
+    const r = check('fix(demo-essais): the trials (demo-2)');
+    expect(r.status).toBe(1);
+    const lines = r.stderr.split('\n').filter(Boolean);
+    expect(
+      lines.filter(l => /Beads/.test(l) && /injoignable/.test(l)),
+      r.stderr
+    ).toHaveLength(1);
+    expect(r.stderr).toMatch(/Le ticket demo-essais a déjà son commit/);
+  });
+});
