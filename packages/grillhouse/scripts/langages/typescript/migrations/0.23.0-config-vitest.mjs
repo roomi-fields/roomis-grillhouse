@@ -2,13 +2,13 @@
 // (and `/mesure`), in place of the workspace package `@grillhouse/vitest-config` that the frame's
 // copied files held.
 //
-// - Each source file of the project (scripts/sources.mjs) that names
+// - A migration of the module typescript (../index.mjs), which a project of TypeScript plays.
+// - Each source file of the project (`sources` of the core) that names
 //   `@grillhouse/vitest-config` or `@grillhouse/vitest-config/mesure` in quotes names the package's
 //   instead; a root configuration that imports the base by its former path
 //   (`./scripts/vitest-config/base.mjs`, `./packages/grillhouse/scripts/vitest-config/base.mjs`)
-//   imports it by its name. `formesAnterieures` gives back what a text so rewritten held before,
-//   by which the migration of the copies (0.23.2-copies-du-cadre.mjs) still knows a former copy of
-//   the frame by its fingerprint.
+//   imports it by its name. The migration of the copies (scripts/migrations/0.23.2-copies-du-cadre.mjs)
+//   still knows a former copy of the frame so rewritten by its fingerprint.
 // - Each package.json of the project (the root's and each workspace's) that declares
 //   `@grillhouse/vitest-config` declares `@roomi-fields/grillhouse` in the same field in its place,
 //   at the range the root declares (else `^<version>` of the package), unless it already declares
@@ -16,10 +16,13 @@
 //   `packages/grillhouse/scripts/vitest-config`).
 // - A project already in the new form is not written.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
-import { VERSION } from '../cadre.mjs';
-import { paquets } from '../paquets.mjs';
-import { sources } from '../sources.mjs';
+import { paquets } from '../../../paquets.mjs';
+import { sources } from '../../../services-du-noyau.mjs';
+
+// The version of the frame's package, read by its published entry `./package.json`.
+const VERSION = createRequire(import.meta.url)('@roomi-fields/grillhouse/package.json').version;
 
 export const version = '0.23.0';
 export const nom = 'configuration de base de Vitest';
@@ -33,29 +36,8 @@ const CHAMPS = ['dependencies', 'devDependencies', 'optionalDependencies', 'peer
 const NOMME =
   /(['"])(?:@grillhouse\/vitest-config(\/mesure)?|\.\/(?:packages\/grillhouse\/)?scripts\/vitest-config\/base\.mjs)\1/g;
 
-// A quoted name of the package's base, as this migration writes it.
-const ECRIT = /(['"])@roomi-fields\/grillhouse\/vitest-config(\/mesure)?\1/g;
-const ANCIENS_CHEMINS = [
-  './scripts/vitest-config/base.mjs',
-  './packages/grillhouse/scripts/vitest-config/base.mjs',
-];
-
 const lireJson = f => JSON.parse(readFileSync(f, 'utf8'));
 const ecrireJson = (f, v) => writeFileSync(f, `${JSON.stringify(v, null, 2)}\n`);
-
-/**
- * The texts <texte> may have held before this migration rewrote it: each name it wrote back to the
- * former package's, or each name of the base back to one former path; none when it wrote nothing.
- */
-export function formesAnterieures(texte) {
-  if (texte.search(ECRIT) < 0) return [];
-  return [
-    texte.replace(ECRIT, (_, q, mesure) => `${q}${ANCIEN}${mesure ?? ''}${q}`),
-    ...ANCIENS_CHEMINS.map(c =>
-      texte.replace(ECRIT, (tout, q, mesure) => (mesure ? tout : `${q}${c}${q}`))
-    ),
-  ];
-}
 
 /** Brings the project to the package's base configuration of Vitest; returns what it did. */
 export function migrer(projet) {

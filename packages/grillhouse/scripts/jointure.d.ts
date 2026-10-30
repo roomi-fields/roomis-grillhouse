@@ -116,13 +116,70 @@ export interface Migration {
   restes?(projet: string): string[];
 }
 
+/** A generator of the frame the update runs in a project, by the project's command
+ * (`grillhouse <commande> <args>`). */
+export interface Generateur {
+  commande: string;
+  args: string[];
+  /** The file it writes, from the root: it runs where the project holds that file (every one for a
+   * project `grillhouse init` creates); null, it runs in every project whose package.json declares
+   * `workspaces`. */
+  sortie: string | null;
+}
+
+/** What the module brings to the update of a project (`grillhouse maj`), as each plugin of Nx
+ * brings its `init` generator. */
+export interface MiseAJour {
+  /** The directory of the frame's template of a project of the language, from the frame's files:
+   * its package.json gives the frame's scripts and the versions of the tools. */
+  gabarit: string;
+  /** Brings the project at `projet` to the form the module asks: its root package.json `p`, which
+   * the core writes after, and its other files, from the frame's files at `source` (its template's
+   * package.json `modele`; `version`, the frame's). Its share of the update: `bilan`, the changes by
+   * name, each null when nothing changes; `lignes`, the lines of the report; `installer`, whether
+   * `npm install` comes before the verification; `sansVerifier`, the line that says why the project
+   * has no script `verifier`, null for the core's. */
+  appliquer(
+    projet: string,
+    o: {
+      p: Record<string, unknown>;
+      modele: Record<string, unknown>;
+      source: string;
+      version: string;
+    }
+  ): {
+    bilan: Record<string, unknown>;
+    lignes: string[];
+    installer: boolean;
+    sansVerifier: string | null;
+  };
+  /** The generators the update runs after the package.json. */
+  generateurs: Generateur[];
+  /** How the binaries of the language (`binaires`) are installed, null without any: `liste`, the
+   * command that writes on its standard output the binaries installed, `{ <nom>: <version> }` in
+   * JSON; `installer`, the command that installs one at its version. The core runs them, each by
+   * Node, and reports the error stream of a failure. */
+  installation: {
+    liste: Commande;
+    installer(nom: string, version: string): Commande;
+  } | null;
+}
+
 /** A module of language, the default export of `scripts/langages/<nom>/index.mjs`. */
 export interface Langage {
   nom: string;
   /** Whether the repository at `racine` holds code of this language, which the update declares. */
   trouve(racine: string): boolean;
+  /** What `trouve` looks for, in words: the refusal of the update names it. */
+  signe: string;
   /** The tools a project of this language installs, optional peers of the package. */
   outils: string[];
+  /** The binaries a project of this language installs on the machine, each at its exact version:
+   * the update installs each one missing or at another version (`miseAJour.installation`). */
+  binaires: Record<string, string>;
+  /** The directories the language's tools write in a project, by name: the source files leave them
+   * out, and the update writes them in the project's `.gitignore`. */
+  ignorer: string[];
   /** Where a run of the language's tools writes, which the envelope opens to a session. */
   sorties: {
     /** Opened in writing: from the root of the copy, from the home (`~/…`), or from the main
@@ -161,6 +218,7 @@ export interface Langage {
   fichiersEngendres(racine: string): FichierEngendre[];
   gardes(racine: string): string[][];
   migrations: Migration[];
+  miseAJour: MiseAJour;
 }
 
 /** The frame's languages, each its module. */
@@ -231,6 +289,9 @@ export function mesure(racine: string, o?: { tout?: boolean; dans?: string }): u
 export class AttenteDeLaMachine extends Error {}
 /** Runs `faire` under the lock of the machine. */
 export function avecLaMachine(...args: unknown[]): unknown;
+/** The source files of the project at `racine` under `dossier`, as paths from `racine`, what the
+ * tools of its language write left out (scripts/sources.mjs). */
+export function sources(racine: string, dossier?: string): string[];
 /** True when the text of a ticket's comment is an arbitrage (scripts/arbitrages.mjs). */
 export function estArbitrage(text: string | null | undefined): boolean;
 /** True when the arbitrage `a` of `comments` is settled. */

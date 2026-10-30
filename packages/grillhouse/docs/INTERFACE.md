@@ -37,8 +37,31 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
 - `nom` : le nom du langage, celui de la liste du cadre.
 - `trouve` : si le dépôt tient du code du langage, que `maj` déclare alors ; `typescript`, un
   `tsconfig.json` à la racine ou dans un paquet du cadre ; `cargo`, un `Cargo.toml` à la racine.
+- `signe` : ce que `trouve` cherche, en mots, que le refus de `maj` nomme quand aucun langage n'est
+  trouvé.
 - `outils` : les outils qu'un projet du langage installe, dépendances facultatives du paquet ;
   `maj` n'ajoute que ceux du langage déclaré, aux versions du gabarit.
+- `binaires` : les binaires qu'un projet du langage installe sur la machine, chacun à sa version
+  exacte ; `maj` installe chacun de ceux qui manquent ou sont à une autre version, par les
+  commandes de `miseAJour.installation`. `typescript`, aucun ; `cargo`, nextest et cargo-deny
+  (`scripts/langages/cargo/binaires.json`).
+- `ignorer` : les dossiers qu'écrivent les outils du langage dans un projet, par leur nom ; les
+  fichiers sources que lisent les migrations les laissent de côté, et `maj` les écrit dans le
+  `.gitignore` du projet. `typescript`, `.turbo` ; `cargo`, `target`.
+- `miseAJour` : la part du langage dans `maj`, comme chaque greffon de Nx apporte son générateur
+  `init`. `gabarit`, le dossier du gabarit d'un projet du langage, dont le `package.json` donne les
+  scripts du cadre et les versions des outils (`templates/projet`, `templates/cargo`) ;
+  `appliquer`, qui met le projet à la forme du langage, son `package.json` racine, que le noyau
+  écrit après, et ses autres fichiers, et rend sa part du bilan, les lignes du rapport, s'il faut
+  `npm install` avant la vérification et la ligne qui dit pourquoi un projet n'a pas de script
+  `verifier` ; `generateurs`, les générateurs que `maj` lance ensuite, chacun avec le fichier qu'il
+  écrit ; `installation`, null sans binaires, sinon la commande qui liste les binaires installés
+  (`{ <nom>: <version> }` en JSON) et celle qui en installe un, que le noyau lance par Node.
+  `typescript` : les scripts de test, le paquet du cadre déclaré, le typage, le `turbo.json`, ses
+  générateurs ; `cargo` : les fichiers du gabarit qui manquent au projet (`deny.toml`,
+  `.config/nextest.toml`, `rust-toolchain.toml`), ses scripts de test, l'index des interfaces, et
+  ses binaires par `cargo install --list` puis `cargo binstall --no-confirm --locked
+<nom>@<version>`.
 - `sorties` : où écrit un lancement des outils du langage, que l'enveloppe ouvre à la séance.
   `ecrites` s'ouvrent en écriture, créées avant la séance, un dossier quand le chemin finit par
   `/`, sinon un fichier vide : un chemin depuis la racine de la copie, `~/…` depuis la maison,
@@ -78,7 +101,9 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   et chaque autre commande du module, garde, générateur ou préparation, par son nom ; chacune
   `{ script, args }`, le script absolu, jamais lancée. `grillhouse tests` et `grillhouse verifier`
   lancent `tester` et `verifier` ; chaque autre, sauf `typer`, est une sous-commande de son nom
-  (`grillhouse frontieres`), comme un backend de Pants apporte ses buts. Le noyau en lance trois
+  (`grillhouse frontieres`), comme un backend de Pants apporte ses buts. Chaque garde du module est
+  une commande de son nom, celui de son script, que la ligne d'une garde rouge nomme (`grillhouse
+clippy`). Le noyau en lance trois
   quand le module les décrit, et passe l'étape sinon :
   - `preparer`, que l'intégration et la file jouent avant la vérification (`cargo`, `cargo fetch
 --locked`, qui télécharge les dépendances) ;
@@ -104,7 +129,8 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   Le circuit les régénère et les juge (étape 4.2).
 - `gardes` : les gardes de structure du module, chacune `[script, ...args]`, dans l'ordre où elles
   jouent ; `grillhouse gardes-du-cadre` les joue.
-- `migrations` : les migrations d'un projet qui rejouent une garde du module, que `grillhouse maj`
+- `migrations` : les migrations d'un projet du langage, celles qui rejouent une garde du module et
+  celles de ses outils (`typescript`, la configuration de base de Vitest), que `grillhouse maj`
   joue avec celles du noyau, comme `nx migrate` réunit celles de chaque greffon.
 
 ## Les services du noyau
@@ -112,7 +138,7 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
 L'entrée `@roomi-fields/grillhouse/jointure` donne au module de langage les services du noyau
 qu'il emploie, et `scripts/jointure.d.ts` les type : le plan d'une enveloppe, l'avancement d'une
 passe et sa mesure, la base d'une passe, la pression de la machine et son verrou, le dernier vert,
-les arbitrages d'un ticket. Un module n'importe rien d'autre du noyau que ses entrées publiées
+les arbitrages d'un ticket, les fichiers sources d'un projet. Un module n'importe rien d'autre du noyau que ses entrées publiées
 (`./jointure`, `./paquets`, `./dette`, `./resultats`, `./conformite`).
 
 ## La conformité
@@ -124,7 +150,8 @@ exactement les fautes attendues. `echecs(langage, exemples)` rend les cas qu'un 
 entrées sont celles de chaque module (`scripts/langages/<nom>/exemples.mjs`).
 
 Un cas tient chaque demande sauf `nom`, `verdict` lu à part, `migrations`, que le test de
-chaque migration tient, `outils`, que le test de la mise à jour tient, `sorties`, que les tests
+chaque migration tient, `signe`, `outils`, `binaires`, `ignorer` et `miseAJour`, que les tests de la mise à
+jour tiennent, `sorties`, que les tests
 de l'enveloppe tiennent, et `droits`, que le test des droits tient. L'entrée défectueuse des
 fichiers engendrés met chacun d'eux en retard.
 Le test du noyau joue la suite sur le module typescript et sur seize modules défectueux, un défaut

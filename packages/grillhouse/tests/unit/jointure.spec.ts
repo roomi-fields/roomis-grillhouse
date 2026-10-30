@@ -6,14 +6,18 @@
 //
 // - The share of each file of `scripts/` and `bin/` between the core and the module typescript is
 //   tests/temoins/repartition.json, exhaustive (grillhouse-3dr.2.2 moves the module's files by it).
-// - A word of a tool (turbo, vitest, knip, dependency-cruiser, tsc) in the code of the core is a
-//   rest that its ticket takes out, inscribed below: the comments, which name the mature models
-//   (« as Turborepo does »), are not read.
+// - A word of a tool (turbo, vitest, knip, dependency-cruiser, tsc; cargo since grillhouse-pkl.7)
+//   in the code of the core is a rest that its ticket takes out, inscribed below: the comments,
+//   which name the mature models (« as Turborepo does »), are not read, nor the join itself,
+//   scripts/langages.mjs, whose list names each language by its module.
 // - grillhouse-pkl.3: the module cargo, under scripts/langages/cargo/, takes its share of the
 //   files, answers each member of the join, and names of the core its published entries alone.
 // - grillhouse-pkl.5, criterion 4: the rights, the envelope, the launcher and the night name no
 //   tool and no file of a module: they ask the module (`sorties`, `droits`, its commands), and
 //   leave the rests.
+// - grillhouse-pkl.7, criterion 5: the update, the source files, the session start and the list
+//   of the migrations name no tool and no file of a module either: they ask the module
+//   (`outils`, `binaires`, `ignorer`, `miseAJour`, `migrations`); no rest remains.
 import {
   mkdirSync,
   mkdtempSync,
@@ -78,21 +82,10 @@ const membresDeLangage = () => {
   return [...corps.matchAll(/^\s{2}(\w+)\??(?:\(|:)/gm)].map(m => m[1]);
 };
 
-const MOT = /turbo|vitest|knip|dependency-cruiser|\btsc\b/i;
+const MOT = /turbo|vitest|knip|dependency-cruiser|\btsc\b|cargo/i;
 // The rests of the core that name a tool, each with the ticket that takes it out: the file, and
 // the pieces of its lines that may name one, in any case.
-const RESTES: Record<string, { ticket: string; morceaux: string[] }> = {
-  'scripts/sources.mjs': { ticket: 'grillhouse-pkl.7', morceaux: ['.turbo'] },
-  'scripts/session-start.sh': { ticket: 'grillhouse-pkl.7', morceaux: ['turbo'] },
-  'scripts/grillhouse-maj.mjs': {
-    ticket: 'grillhouse-pkl.7',
-    morceaux: ['turbo', 'vitest', 'knip', 'dependency-cruiser'],
-  },
-  'scripts/migrations.mjs': {
-    ticket: 'grillhouse-pkl.7',
-    morceaux: ['config-vitest', 'configvitest'],
-  },
-};
+const RESTES: Record<string, { ticket: string; morceaux: string[] }> = {};
 // The migrations rewrite the projects of each version: what they name stays as it was.
 const HISTOIRE = 'scripts/migrations/';
 
@@ -142,6 +135,7 @@ describe('grillhouse-3dr.2.1 — la jointure des langages', () => {
   it('criterion 4: no word of a tool in the code of the core, out of the rests and their ticket', () => {
     const trouves = REPARTITION.noyau
       .filter(f => /\.(mjs|js|cjs|sh)$/.test(f) && !f.startsWith(HISTOIRE))
+      .filter(f => f !== 'scripts/langages.mjs')
       .flatMap(f =>
         lignesDeCode(f)
           .filter(([, l]) => MOT.test(l))
@@ -223,12 +217,7 @@ const duShell = (rel: string) =>
     : [];
 // The files of a module of language the core names, each with the ticket that takes it out: the
 // scripts of the shell that run a module's file by its path.
-const NOMMES_EN_RESTE: Record<string, { ticket: string; fichiers: string[] }> = {
-  'scripts/session-start.sh': {
-    ticket: 'grillhouse-pkl.7',
-    fichiers: [`${MODULE}consommateurs.mjs`],
-  },
-};
+const NOMMES_EN_RESTE: Record<string, { ticket: string; fichiers: string[] }> = {};
 
 // The violations of the rules of the repository's own (.dependency-cruiser.projet.cjs) that
 // dependency-cruiser finds under <chemins> of the repository <racine>.

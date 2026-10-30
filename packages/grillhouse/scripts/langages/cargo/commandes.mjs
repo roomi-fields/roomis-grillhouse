@@ -7,7 +7,11 @@
 //   npx grillhouse verifier [--tout]                            verifier
 //   node commandes.mjs typer                                    typer
 //   npx grillhouse preparer                                     preparer
+//   npx grillhouse clippy | frontieres | index-interfaces       each guard, its own script
 //
+// - Each guard of structure of the module (./clippy.mjs, ./frontieres.mjs, ./index-interfaces.mjs)
+//   is a command by its name too, its own script, as the module typescript's: the line of a red
+//   guard (`grillhouse <garde>`, scripts/gardes-du-cadre.mjs) names a command that exists.
 // - `tester` plays the tests of each crate chosen, one crate after the other: `cargo nextest run
 //   -p <crate> --no-fail-fast` for a crate that plays tests (./composants.mjs, `joueDesTests`),
 //   then `cargo test --doc -p <crate>` for a crate whose library has doctests, which nextest does
@@ -60,8 +64,21 @@ export const NOMS = ['tester', 'verifier', 'typer', 'preparer'];
 const A_REPASSER = 75;
 const RACINE = '//';
 
-/** The commands of the module, each this script and its name, described. */
-export const commandes = () => Object.fromEntries(NOMS.map(n => [n, { script: ICI, args: [n] }]));
+/** The guards of structure of the module, in the order they play: each its name, its script beside
+ * this one, and its arguments as a guard. */
+export const GARDES = [
+  { nom: 'clippy', args: [] },
+  { nom: 'frontieres', args: [] },
+  { nom: 'index-interfaces', args: ['--verifier'] },
+].map(g => ({ ...g, script: path.join(path.dirname(ICI), `${g.nom}.mjs`) }));
+
+/** The commands of the module, each this script and its name, described; then each guard, its
+ * script by its name, as `grillhouse <garde>` runs it and the line of a red guard names it. */
+export const commandes = () =>
+  Object.fromEntries([
+    ...NOMS.map(n => [n, { script: ICI, args: [n] }]),
+    ...GARDES.map(g => [g.nom, { script: g.script, args: [] }]),
+  ]);
 
 // The id of each test binary of nextest of <c>, its target's source: the library under the
 // crate's name, the others as `<crate>::<nom>`, a binary, an example or a bench prefixed by kind.

@@ -5,8 +5,10 @@
 // entries alone.
 //
 // - Where it is found: a repository with a Cargo.toml at its root, the manifest of its workspace
-//   or of its one crate (`trouve`). Its tools are no package of npm (`outils` empty): cargo and
-//   its subcommands live on the machine.
+//   or of its one crate (`trouve`). Its tools are no
+//   package of npm (`outils` empty): cargo and its subcommands live on the machine, and the update
+//   installs the binaries the module runs, nextest and cargo-deny, at their versions
+//   (`binaires`, ./binaires.json). What cargo writes in a project: `target` (`ignorer`).
 // - Where cargo writes, which the envelope opens to a session (`sorties`), and the rules that
 //   refuse a role that writes the test runner run directly (`droits`).
 // - The components, a file's, the shared test material, the components that play tests, the
@@ -18,11 +20,14 @@
 //   the verdict of a run (./verdict.mjs).
 // - The generated file, the index of the interfaces (./index-interfaces.mjs), its command and its
 //   check; the guards of structure, in the order they play: clippy (./clippy.mjs), the boundaries
-//   between crates (./frontieres.mjs), the index of the interfaces up to date. No migration yet.
-import { existsSync } from 'node:fs';
+//   between crates (./frontieres.mjs), the index of the interfaces up to date, each a command by
+//   its name too (./commandes.mjs), which the line of a red guard names. No migration yet.
+// - Its share of the update (./mise-a-jour.mjs, `miseAJour`): the template of a project of cargo
+//   (`templates/cargo/`) and its test scripts.
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { commandes } from './commandes.mjs';
+import { commandes, GARDES } from './commandes.mjs';
 import {
   composantDans,
   composants,
@@ -33,16 +38,26 @@ import {
 } from './composants.mjs';
 import { elementsDuLot } from './elements-du-lot.mjs';
 import { enRetard, SORTIE } from './index-interfaces.mjs';
+import { miseAJour } from './mise-a-jour.mjs';
 import { touches } from './touches.mjs';
 import { verdict } from './verdict.mjs';
 
 // The scripts of this module, beside this file.
 const ici = nom => path.join(path.dirname(fileURLToPath(import.meta.url)), nom);
 
+// Whether the repository at <racine> holds a Cargo.toml at its root.
+const trouve = racine => existsSync(path.join(racine, 'Cargo.toml'));
+
 export default {
   nom: 'cargo',
-  trouve: racine => existsSync(path.join(racine, 'Cargo.toml')),
+  trouve,
+  signe: 'un Cargo.toml à la racine',
   outils: [],
+  // The binaries the module runs, nextest and cargo-deny, each at the version the probe of
+  // grillhouse-pkl.1 measured.
+  binaires: JSON.parse(readFileSync(ici('binaires.json'), 'utf8')),
+  // What cargo writes in a project: its target directory.
+  ignorer: ['target'],
   // Where cargo writes, in writing: the target directory of the workspace; in its home, the
   // registry's index and sources, the git dependencies, cargo-deny's advisories, and the files of
   // its locks and of the SQLite cache of its packages (`.package-cache`, `.package-cache-mutate`,
@@ -92,10 +107,7 @@ export default {
       verifier: enRetard,
     },
   ],
-  gardes: () => [
-    [ici('clippy.mjs')],
-    [ici('frontieres.mjs')],
-    [ici('index-interfaces.mjs'), '--verifier'],
-  ],
+  gardes: () => GARDES.map(({ script, args }) => [script, ...args]),
   migrations: [],
+  miseAJour,
 };

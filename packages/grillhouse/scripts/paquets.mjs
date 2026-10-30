@@ -15,7 +15,7 @@
 //
 // A project's guard imports `horsCadre` by the package's entry `@roomi-fields/grillhouse/paquets`,
 // its types in ./paquets.d.ts (docs/ARCHITECTURE.md, the package's named entries).
-import { existsSync, globSync, readFileSync } from 'node:fs';
+import { existsSync, globSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 /** The code of `src/` (the root's, or a package's under `packages/`), as a pattern of a path from
@@ -39,6 +39,22 @@ export function horsCadre(racine) {
     if (mot && !mot.startsWith('#')) noms.add(mot);
   }
   return noms;
+}
+
+// The names of <racine>'s `docs/agents/hors-cadre.txt` that no directory under `packages/` or
+// `src/` bears, in the order of the list: a line the session start names (a typo names nothing).
+export function horsCadreInconnus(racine) {
+  const presents = new Set(
+    ['packages', 'src'].flatMap(parent => {
+      const base = path.join(racine, parent);
+      return existsSync(base)
+        ? readdirSync(base, { withFileTypes: true })
+            .filter(e => e.isDirectory())
+            .map(e => e.name)
+        : [];
+    })
+  );
+  return [...horsCadre(racine)].filter(nom => !presents.has(nom));
 }
 
 const lireJson = f => {

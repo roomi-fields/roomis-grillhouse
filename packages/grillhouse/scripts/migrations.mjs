@@ -24,7 +24,6 @@
 import semver from 'semver';
 import { langageDe } from './langages.mjs';
 import * as charteImportee from './migrations/0.23.0-charte-importee.mjs';
-import * as configVitest from './migrations/0.23.0-config-vitest.mjs';
 import * as crochetsDeSeance from './migrations/0.23.0-crochets-de-seance.mjs';
 import * as marcheDuProjet from './migrations/0.23.0-marche-du-projet.mjs';
 import * as copiesDuCadre from './migrations/0.23.2-copies-du-cadre.mjs';
@@ -36,7 +35,6 @@ import * as scriptDesTests from './migrations/0.25.0-script-des-tests.mjs';
 /** The migrations of the core. */
 export const MIGRATIONS = [
   crochetsDeSeance,
-  configVitest,
   marcheDuProjet,
   charteImportee,
   copiesDuCadre,

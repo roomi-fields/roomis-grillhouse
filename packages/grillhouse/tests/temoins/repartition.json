@@ -41,7 +41,6 @@
     "scripts/mesure/pression.mjs",
     "scripts/migrations.mjs",
     "scripts/migrations/0.23.0-charte-importee.mjs",
-    "scripts/migrations/0.23.0-config-vitest.mjs",
     "scripts/migrations/0.23.0-crochets-de-seance.mjs",
     "scripts/migrations/0.23.0-marche-du-projet.mjs",
     "scripts/migrations/0.23.2-copies-du-cadre.mjs",
@@ -88,10 +87,12 @@
     "scripts/langages/typescript/index.mjs",
     "scripts/langages/typescript/interfaces-contre-code.mjs",
     "scripts/langages/typescript/lecteurs.mjs",
+    "scripts/langages/typescript/migrations/0.23.0-config-vitest.mjs",
     "scripts/langages/typescript/migrations/0.24.4-noms-declares-inutilises.mjs",
     "scripts/langages/typescript/migrations/0.24.6-lignes-mal-formees.mjs",
     "scripts/langages/typescript/migrations/0.24.7-matiere-dans-les-tests.mjs",
     "scripts/langages/typescript/migrations/0.25.0-tailles-des-tests.mjs",
+    "scripts/langages/typescript/mise-a-jour.mjs",
     "scripts/langages/typescript/references-par-les-types.mjs",
     "scripts/langages/typescript/regle-des-tests.mjs",
     "scripts/langages/typescript/resumes.mjs",
@@ -117,6 +118,8 @@
     "scripts/langages/typescript/vitest.nuit.config.mjs"
   ],
   "cargo": [
+    "scripts/langages/cargo/binaires.json",
+    "scripts/langages/cargo/binaires.mjs",
     "scripts/langages/cargo/clippy.mjs",
     "scripts/langages/cargo/commandes.mjs",
     "scripts/langages/cargo/composants.mjs",
@@ -125,6 +128,7 @@
     "scripts/langages/cargo/frontieres.mjs",
     "scripts/langages/cargo/index-interfaces.mjs",
     "scripts/langages/cargo/index.mjs",
+    "scripts/langages/cargo/mise-a-jour.mjs",
     "scripts/langages/cargo/nextest.toml",
     "scripts/langages/cargo/touches.mjs",
     "scripts/langages/cargo/verdict.mjs"

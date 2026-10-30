@@ -32,8 +32,12 @@
 // - The generated files, each its command, the guard that checks it and the names its findings
 //   carry: the index of the interfaces, the turbo.json of the packages, the reports of API.
 // - The guards of structure, in the order they play.
-// - The migrations of a project that replay a guard of this module (./migrations/), which the
-//   update plays with the core's (scripts/migrations.mjs), as each plugin of Nx carries its own.
+// - The migrations of a project of TypeScript (./migrations/): the base configuration of Vitest,
+//   and the ones that replay a guard of this module, which the update plays with the core's
+//   (scripts/migrations.mjs), as each plugin of Nx carries its own.
+// - No binary of the machine (`binaires`); what its tools write in a project, `.turbo`
+//   (`ignorer`); its share of the update (./mise-a-jour.mjs, `miseAJour`): the tests by Vitest,
+//   the frame's package declared, the typing, the turbo.json, and the generators.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -48,6 +52,8 @@ import { lecteurs } from './lecteurs.mjs';
 import { estUnTest } from './regle-des-tests.mjs';
 import { SCRIPT_DES_TESTS } from './script-des-tests.mjs';
 import { verdict } from './verdict.mjs';
+import { miseAJour } from './mise-a-jour.mjs';
+import * as configVitest from './migrations/0.23.0-config-vitest.mjs';
 import * as nomsDeclaresInutilises from './migrations/0.24.4-noms-declares-inutilises.mjs';
 import * as lignesMalFormees from './migrations/0.24.6-lignes-mal-formees.mjs';
 import * as matiereDansLesTests from './migrations/0.24.7-matiere-dans-les-tests.mjs';
@@ -177,6 +183,11 @@ const engendre = (o, script, args) => ({
   verifier: racine => constatsDe(racine, ici(script), args),
 });
 
+// Whether the component plays tests: its package.json holds the script `test:unit`.
+const joueDesTests = (_racine, composant) =>
+  typeof lireJson(path.join(composant.dossier, 'package.json'))?.scripts?.[SCRIPT_DES_TESTS] ===
+  'string';
+
 // Whether the repository at <racine> holds TypeScript: a tsconfig.json at its root or in one of its
 // packages of the frame, as @nx/js infers a project from its tsconfig.
 const trouve = racine =>
@@ -188,6 +199,7 @@ const trouve = racine =>
 export default {
   nom: 'typescript',
   trouve,
+  signe: 'un tsconfig.json à la racine ou dans un paquet',
   // The tools a project of TypeScript installs, optional peers of the package: what this module
   // runs as commands (Turborepo, knip, dependency-cruiser) and what its scripts import (API
   // Extractor, its model, TSDoc's configuration, jsonc-parser); the project's own TypeScript and
@@ -201,6 +213,10 @@ export default {
     'knip',
     'turbo',
   ],
+  // No binary of the machine: its tools are packages of npm.
+  binaires: {},
+  // What its tools write in a project: Turborepo's runs and cache.
+  ignorer: ['.turbo'],
   // Where its tools write: the cache of Turborepo in the main tree, shared by every copy, written;
   // the logs of Turborepo's tasks (`.turbo/turbo-<task>.log`, written on every run, a task replayed
   // from its cache included, and which no option of Turborepo sends elsewhere) and the cache of
@@ -232,9 +248,7 @@ export default {
   composantDe: (racine, fichier) => composantDans(composants(racine), racine, fichier),
   matieres: racine =>
     matieres(racine).map(({ nom, dir, paquet }) => ({ nom, dossier: dir, paquet })),
-  joueDesTests: (_racine, composant) =>
-    typeof lireJson(path.join(composant.dossier, 'package.json'))?.scripts?.[SCRIPT_DES_TESTS] ===
-    'string',
+  joueDesTests,
   lecteurs,
   touches,
   elementsDuLot,
@@ -302,5 +316,12 @@ export default {
     [ici('tailles-des-tests.mjs')],
     [ici('resumes.mjs')],
   ],
-  migrations: [nomsDeclaresInutilises, lignesMalFormees, matiereDansLesTests, taillesDesTests],
+  migrations: [
+    configVitest,
+    nomsDeclaresInutilises,
+    lignesMalFormees,
+    matiereDansLesTests,
+    taillesDesTests,
+  ],
+  miseAJour: miseAJour(joueDesTests),
 };

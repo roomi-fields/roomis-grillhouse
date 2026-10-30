@@ -19,6 +19,9 @@ import path from 'node:path';
 //   `grillhouse` under `target/nextest/grillhouse/junit.xml`, one suite per test binary of the
 //   crate (the library, each test target or the ones named), one test `essai` each, failed when
 //   its code is not 0.
+// - `cargo install --list`: the binaries `FAUX_CARGO_INSTALLES` names (JSON, a version by name),
+//   in cargo's form, `<nom> v<version>:` then the binary, indented (grillhouse-pkl.7); it reads
+//   no manifest, as cargo's own, and plays in a directory without Cargo.toml.
 // - Each call is a line of the journal `FAUX_CARGO_JOURNAL` names (its arguments, joined by a
 //   blank); its code is the one `FAUX_CARGO_CODES` gives (JSON, by `<sous-commande> <crate>` or
 //   `<sous-commande>`), 0 otherwise.
@@ -63,7 +66,7 @@ const toml = texte => {
 };
 const racine = process.cwd();
 const lire = d => toml(fs.readFileSync(path.join(d, 'Cargo.toml'), 'utf8'));
-const tete = lire(racine);
+const tete = fs.existsSync(path.join(racine, 'Cargo.toml')) ? lire(racine) : {};
 const dossiers = [];
 if (tete.package) dossiers.push(racine);
 for (const m of tete.workspace?.members ?? []) {
@@ -118,6 +121,11 @@ if (sous === 'metadata') {
     version: 1,
   }));
 }
+if (sous === 'install' && args.includes('--list')) {
+  for (const [n, v] of Object.entries(JSON.parse(process.env.FAUX_CARGO_INSTALLES || '{}'))) {
+    process.stdout.write(n + ' v' + v + ':\\n    ' + n + '\\n');
+  }
+}
 if (sous === 'clippy' && process.env.FAUX_CARGO_CLIPPY) {
   process.stdout.write(fs.readFileSync(process.env.FAUX_CARGO_CLIPPY, 'utf8'));
 }
@@ -157,11 +165,13 @@ export function avecFauxCargo(dossier: string, journal: string): () => void {
     FAUX_CARGO_JOURNAL: process.env.FAUX_CARGO_JOURNAL,
     FAUX_CARGO_CODES: process.env.FAUX_CARGO_CODES,
     FAUX_CARGO_CLIPPY: process.env.FAUX_CARGO_CLIPPY,
+    FAUX_CARGO_INSTALLES: process.env.FAUX_CARGO_INSTALLES,
   };
   process.env.PATH = `${dossier}${path.delimiter}${process.env.PATH ?? ''}`;
   process.env.FAUX_CARGO_JOURNAL = journal;
   delete process.env.FAUX_CARGO_CODES;
   delete process.env.FAUX_CARGO_CLIPPY;
+  delete process.env.FAUX_CARGO_INSTALLES;
   appendFileSync(journal, '');
   return () => {
     for (const [k, v] of Object.entries(avant)) {

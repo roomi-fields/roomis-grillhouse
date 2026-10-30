@@ -7,7 +7,7 @@
 // - Each file `empreintes.json` records that a line of `fichiers.txt` keeps (the file itself, or a
 //   directory « …/ » above it; a line « - … » keeps none) goes when its bytes have the recorded
 //   SHA-256 (as the former update computed it), or had it before the migration 0.23.0 of Vitest
-//   rewrote its import of the base (`formesAnterieures` of 0.23.0-config-vitest.mjs); a directory
+//   rewrote its import of the base (`formesAnterieures`, below); a directory
 //   it leaves empty goes with it. A file the template of a project holds at the same path
 //   (`tsdoc.json`, `docs/agents/issue-tracker.md`) is the project's own since 0.23.0, as
 //   `grillhouse init` places it, and stays.
@@ -38,7 +38,6 @@ import { CADRE, PAQUET } from '../cadre.mjs';
 import { paquets } from '../paquets.mjs';
 import { importe, sources } from '../sources.mjs';
 import { scriptsDesSousCommandes } from '../sous-commandes.mjs';
-import { formesAnterieures } from './0.23.0-config-vitest.mjs';
 import { deRoleSupprime } from './0.24.0-circuit-simplifie.mjs';
 import { dependanceDuPaquet, DU_PAQUET } from './0.24.2-api-extractor-du-paquet.mjs';
 
@@ -55,6 +54,28 @@ const CODE = /\.(?:[mc]?ts|[mc]?js)$/;
 const APPEL = /(^|[\s;&|(])(?:node|bash)\s+(?:\.\/)?(scripts\/[^\s'";&|)]+)/g;
 // The first line of a file the generator of the packages' turbo.json wrote.
 const GENERE = /^\/\/ Généré par `[^`\n]*turbo-des-paquets[^`\n]*`/;
+
+// What the migration of 0.23.0 of Vitest (the module typescript's) wrote in a copy: a quoted name
+// of the package's base, in place of the former package's or of a former path of the base.
+const ECRIT = /(['"])@roomi-fields\/grillhouse\/vitest-config(\/mesure)?\1/g;
+const ANCIEN = '@grillhouse/vitest-config';
+const ANCIENS_CHEMINS = [
+  './scripts/vitest-config/base.mjs',
+  './packages/grillhouse/scripts/vitest-config/base.mjs',
+];
+
+// The texts <texte> may have held before the migration of 0.23.0 rewrote it: each name it wrote
+// back to the former package's, or each name of the base back to one former path; none when it
+// wrote nothing.
+function formesAnterieures(texte) {
+  if (texte.search(ECRIT) < 0) return [];
+  return [
+    texte.replace(ECRIT, (_, q, mesure) => `${q}${ANCIEN}${mesure ?? ''}${q}`),
+    ...ANCIENS_CHEMINS.map(c =>
+      texte.replace(ECRIT, (tout, q, mesure) => (mesure ? tout : `${q}${c}${q}`))
+    ),
+  ];
+}
 
 const hacher = octets => createHash('sha256').update(octets).digest('hex');
 const lireJson = f => JSON.parse(readFileSync(f, 'utf8'));

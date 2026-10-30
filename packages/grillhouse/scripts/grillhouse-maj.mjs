@@ -7,9 +7,10 @@
 // - The versions pass by npm: the project installs the version of @roomi-fields/grillhouse it wants
 //   (`npm install -D @roomi-fields/grillhouse@<version>`), then the update brings the project to it.
 //   What the update reads of the frame is the package's own (scripts/cadre.mjs): the template of a
-//   project (`templates/projet/package.json` for the frame's scripts and tools,
-//   `templates/turbo/*.json` for a turbo.json). Any argument is refused: the usage is shown (the
-//   exit code is non-zero) and nothing is updated, `--help` included.
+//   project of the declared language (`miseAJour.gabarit` of its module: `templates/projet/` for
+//   typescript, `templates/cargo/` for cargo), whose package.json gives the frame's scripts and
+//   the versions of the tools. Any argument is refused: the usage is shown (the exit code is
+//   non-zero) and nothing is updated, `--help` included.
 // - The migrations first (scripts/migrations.mjs): each migration of the package newer than the
 //   version the project recorded (`grillhouse.version` of its package.json; none recorded, every
 //   migration), in the order of their versions; each is replayable without effect, and the report
@@ -45,9 +46,9 @@
 //   `grillhouse hooks && …`), and `grillhouse:gardes` (scripts/gardes-du-cadre.mjs, the frame's controls), `grillhouse:dette:inscrire` and
 //   `grillhouse:dette:elaguer` (the known debt of the guards, scripts/dette.mjs), and `api` (`npm run api`, which writes
 //   the API reports and the generated part of each `docs/INTERFACE.md`), each read as it is in the
-//   template's `package.json` (a template without one writes none). Turborepo plays `grillhouse:gardes`
-//   and the project's own guards, the root script `gardes`, after the build, beside the tests
-//   (`turbo.json`, `npm run verifier`): the frame's former wiring goes, a `pretest` that is the
+//   template's `package.json` (a template without one writes none). `npm run verifier` plays
+//   `grillhouse:gardes` and the project's own guards, the root script `gardes`, beside the tests:
+//   the frame's former wiring goes, a `pretest` that is the
 //   frame's call (`npm run --silent grillhouse:gardes`) removed or taken off the head of a longer
 //   one (`… && <its pretest>`, the rest kept; a `pretest` of the project's own stays). An
 //   `integration:gardes`, the script the former integration played, loses each head that is a
@@ -55,75 +56,42 @@
 //   `node scripts/integration/gardes.mjs`); what remains is the project's own guards, which move to
 //   `gardes` when the project has none (the report says so), else stay where nothing plays them
 //   (the report names both); nothing remaining, the script goes.
-// - The typing: each package of TypeScript (a `tsconfig.json`) that has no `typecheck` script
-//   receives the template's, `tsc -p tsconfig.json --noEmit` (its tsconfig.json types its sources
-//   and its tests, nothing emitted, as the template's does; its tsconfig.build.json builds), as a
-//   package of the examples of create-turbo types itself (`check-types`): each package of the frame
-//   in a project with `workspaces` (a package out of the frame is not touched, the root's
-//   `typecheck` stays the project's), the root in a project without. `npm run verifier` plays it,
-//   the task `typecheck` of Turborepo, which the generator keeps in the root's turbo.json
-//   (scripts/langages/typescript/turbo-des-paquets.mjs). The report names the packages that received it. Witness:
-//   BPScript 320.21.4, whose type errors in test/ showed only at night.
-// - `turbo.json` is the project's own file, as every repository run by Turborepo writes its own. A
-//   project with a `package.json` and no `turbo.json` receives the frame's template of its form:
-//   `templates/turbo/paquets.json` when its `package.json` declares
-//   `workspaces` (the tasks of each package, and the root's guards, `//#grillhouse:gardes` and
-//   `//#gardes`, and `typecheck`, after the build of each package and of its dependencies; the
-//   tests live in the packages, the root has no `test:unit`; the `build` of each package is set by its own
-//   generated `turbo.json`, below), else `templates/turbo/sans-paquets.json` (`build`, then the
-//   guards, the tests and `typecheck` beside each other).
-//   A `turbo.json` present is never written again by the update; only the generator of the
-//   packages' turbo.json (below) writes in it the `dependsOn` of the guard tasks, and adds one it
-//   lacks, and the typing task.
+// - The share of the declared language (`miseAJour.appliquer` of its module, as each plugin of Nx
+//   brings its `init` generator): what its tools ask of the project, in its package.json and its
+//   other files, and the lines of the report; the core writes the package.json after. Typescript
+//   (scripts/langages/typescript/mise-a-jour.mjs): the frame's test scripts in a project that runs
+//   its tests, the frame's package declared where the code or the tests read it, the typing of
+//   each package, the project's first configuration of its task runner. Cargo
+//   (scripts/langages/cargo/mise-a-jour.mjs): the files of its template a project lacks, and its
+//   test scripts.
 // - The languages first (`declarerLangages`): a project that declares none (`grillhouse.langages`
 //   of its package.json) receives the languages the modules of the frame find in it
 //   (`langagesTrouves` of scripts/langages.mjs: typescript, a tsconfig.json at its root or in a
-//   package of the frame; cargo, a Cargo.toml at its root), and the report says so; a declaration it holds stays. A directory
+//   package of the frame; cargo, a Cargo.toml at its root; the refusal names
+//   each one's sign, `signe` of its module), and the report says
+//   so; a declaration it holds stays. A directory
 //   without package.json, or a project where no module finds its language, is refused, named on
 //   the error stream, the exit code 1, nothing written: the frame invents no declaration, and the
 //   migrations of the declared language play with the core's. No import of the project is
 //   rewritten.
-// - The tools of the declared language (the `outils` of its module: what it runs as commands,
-//   Turborepo, knip, dependency-cruiser, and what its scripts import, API Extractor among them),
-//   and none other, are added
-//   to the project's `devDependencies` at the version the template's `devDependencies` give; a
-//   tool the project already declares in `dependencies`, `devDependencies` or
-//   `optionalDependencies` keeps its declaration, one a previous version added stays, and
-//   `devDependencies` are written sorted by name. The report names each tool added and
-//   `npm install`, which installs them. The project's `tsdoc.json` extends the package's TSDoc base
-//   (`@roomi-fields/grillhouse/tsdoc-base.json`), which extends API Extractor's. A project without
-//   `packageManager` receives the template's (Turborepo requires it), and a `.gitignore` that does
-//   not ignore `.turbo/` (Turborepo's runs and cache) receives the line.
-// - A project that runs Vitest (its `test` script names it, or `vitest` is in the `dependencies` or
-//   `devDependencies` of its root `package.json` or of one of its packages, the workspaces as npm
-//   maps them, read by `paquets` of scripts/paquets.mjs, the frame's one list of the
-//   packages: a package a negation takes out is none, and a package out of the frame
-//   (`docs/agents/hors-cadre.txt`), which Turborepo never tests, counts for nothing) has its root scripts
-//   `test`, `test:unit`, `test:forcer` and `verifier` become the template's (`npm test`, the tests
-//   as Turborepo's tasks with its cache; `npm run test:forcer`, the same played for real;
-//   `npm run verifier`, scripts/langages/typescript/verifier.mjs, the guards and the tests beside each other, which the
-//   integration, the queue, the continuous integration and the night play); the report says so, when the
-//   Vitest of the project's root (`npx --no-install vitest`, the one `test:unit` calls) satisfies
-//   the range the template's package.json declares for `vitest`. Where the root resolves no Vitest or
-//   another version, the project's scripts stay (the frame's included) and the report names the
-//   version found and the range required. A `test` that runs anything else stays. The scripts of
-//   the packages of a monorepo are not written, but their `typecheck` (above).
-// - The frame's base configuration of Vitest is the package's (`@roomi-fields/grillhouse/vitest-config`,
-//   scripts/langages/typescript/vitest-config/), which each Vitest configuration imports by its name
-//   (`import base from '@roomi-fields/grillhouse/vitest-config'`), as the examples of Turborepo
-//   reach @repo/eslint-config: a package is reached by its name, never by a path into it. In a
-//   project with `workspaces`, each package of the frame that holds a `test:unit` script
-//   declares the frame's package in its `devDependencies`, at the range the root declares (else
-//   `^<version>` of the package), a declaration it holds kept; a package out of the frame is not
-//   touched. The report names the packages that received it, `npm install`, which links it, and the
-//   import; the update writes no Vitest configuration.
-// - A package of the frame whose code imports the frame's package (a file of its `src/` out of the
-//   tests, the files whose development dependencies the guard of the boundaries refuses,
-//   scripts/langages/typescript/frontieres.mjs; its imports read by TypeScript's `preProcessFile`) declares it in its
-//   `dependencies`, as npm puts there what the published code imports: a declaration in its
-//   `devDependencies` moves there with its range, else the range the root declares (else
-//   `^<version>`); this comes first, so that the declaration of the Vitest base above keeps it.
-//   The report names the packages and `npm install`.
+// - The tools of the declared language (the `outils` of its module: what it runs as commands and
+//   what its scripts import), and none other, are added to the project's `devDependencies` at the
+//   version the template's `devDependencies` give; a tool the project already declares in
+//   `dependencies`, `devDependencies` or `optionalDependencies` keeps its declaration, one a
+//   previous version added stays, and `devDependencies` are written sorted by name. The report
+//   names each tool added and `npm install`, which installs them. A project without
+//   `packageManager` receives the template's.
+// - What the tools of the declared language write in a project (`ignorer` of its module:
+//   typescript's `.turbo`, cargo's `target`): a `.gitignore` that does not ignore one receives its
+//   line, `<nom>/`.
+// - The binaries of the declared language (`binaires` of its module: cargo's nextest and
+//   cargo-deny), after the files: the command line runs the commands of its module
+//   (`miseAJour.installation`), which list what is installed and install each one missing or at
+//   another version (cargo's: `cargo install --list`, then `cargo binstall --no-confirm --locked
+//   <nom>@<version>`), as `npm install` brings what is installed to what is declared; the report
+//   names each one installed. One that cannot be installed has its line, the error stream of its
+//   command naming the command to type, and the exit code is non-zero. A language without
+//   binaries runs nothing.
 // - The git hooks: both of the frame (commit-msg « a closed ticket refuses a second commit, a reopened ticket takes its corrections », pre-push night branch
 //   guard) are placed by scripts/crochets.mjs, the mechanism `grillhouse hooks` (the project's
 //   `prepare`) also runs, in the hooks folder git reads for the project (`core.hooksPath`, else the
@@ -135,19 +103,13 @@
 //   as `npm install` brings what is installed to what is declared. A plugin that cannot be
 //   installed, or a mod left at another version, has its line naming the command to type; the
 //   update has finished its files, and the exit code is non-zero.
-// - The generated files: after the package.json, each generator of the frame is run in the project
-//   by the project's command (`node_modules/.bin/grillhouse`, its installed package) for the file
-//   it writes when the project holds that file (`grillhouse frontieres --ecrire` for
-//   `.dependency-cruiser.cjs`, `grillhouse index-interfaces` for
-//   `docs/agents/index-des-interfaces.md`; every one of them for a project `grillhouse init`
-//   creates), and `grillhouse turbo-des-paquets --ecrire`
-//   in a repository with `workspaces` (the `turbo.json` of each of its packages, whose build waits
-//   for its runtime dependencies only, and of which a package out of the frame plays no task; the
-//   `dependsOn` of the guard tasks of the root's turbo.json, which wait for the builds), so that
-//   the frame's checks accept them; a generator
-//   that fails, or a project without its command, has its line, which says to run it after
-//   `npm install` (the frame's package and tools), and the exit code is non-zero. `interfaces-contre-code.mjs` is not
-//   run: it writes after a build.
+// - The generated files: after the package.json, each generator of the declared language
+//   (`miseAJour.generateurs` of its module) is run in the project by the project's command
+//   (`node_modules/.bin/grillhouse`, its installed package) for the file it writes when the project
+//   holds that file (every one of them for a project `grillhouse init` creates), and a generator
+//   without file in a repository with `workspaces`, so that the frame's checks accept them; a
+//   generator that fails, or a project without its command, has its line, which says to run it
+//   after `npm install` (the frame's package and tools), and the exit code is non-zero.
 // - The report names the version of the frame, « Cadre 0.23.0. », the package's.
 // - Last, the update plays the project's verification, `npm run verifier`, from its root, its
 //   output shown, as Nx affected moves its base to the last green commit of main: its green keeps
@@ -159,21 +121,18 @@
 //   line says it: green, the last green kept; red, its code, the last green as it was; 75, « à
 //   repasser ». It is not played, the line saying why, when the update leaves its files to finish
 //   (a migration's `aFaire`, a generator that fails: on the error stream, the exit code already
-//   non-zero), when the project has no `verifier` script, or when the report asks for
-//   `npm install` first (a tool or the frame's package newly declared).
+//   non-zero), when the project has no `verifier` script (the line of the language's share says
+//   why), or when the report asks for `npm install` first (a tool or the frame's package newly
+//   declared).
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import semver from 'semver';
 import { CADRE, VERSION } from './cadre.mjs';
 import { poserCrochets } from './crochets.mjs';
 import { installerGreffons } from './greffons.mjs';
 import { migrer, restesAuProjet } from './migrations.mjs';
-import { LANGAGES, langageDe, langagesDeclares, langagesTrouves } from './langages.mjs';
-import { CODE, paquets, TYPAGE } from './paquets.mjs';
-import { sources } from './sources.mjs';
+import { LANGAGES, langage, langageDe, langagesDeclares, langagesTrouves } from './langages.mjs';
 
 const SCRIPTS = {
   tableau: 'grillhouse tableau --texte',
@@ -181,17 +140,10 @@ const SCRIPTS = {
 };
 // The command of the project's `prepare` that places the frame's git hooks (Husky's model).
 const PREPARE = 'grillhouse hooks';
-// The template's package.json, where the frame's scripts and tools are read.
-const GABARIT = 'templates/projet/package.json';
-// The frame's package, as a project declares it, and its base configuration of Vitest.
-const PAQUET_DU_CADRE = '@roomi-fields/grillhouse';
-const CONFIG_VITEST = `${PAQUET_DU_CADRE}/vitest-config`;
 
 /** The frame's status line, as the settings of a project run it. */
 export const LIGNE_ETAT = '"$CLAUDE_PROJECT_DIR/node_modules/.bin/grillhouse" ligne-etat';
 
-// The root scripts of the tests, written together from the template.
-const SCRIPTS_DES_TESTS = ['test', 'test:unit', 'test:forcer', 'verifier'];
 const CHAMPS_INSTALLES = ['dependencies', 'devDependencies', 'optionalDependencies'];
 
 // The frame's former wiring of the guards: the call its `pretest` held, and the commands its
@@ -206,28 +158,7 @@ const ANCIENS_GARDES_D_INTEGRATION = [
 // the one the former integration played.
 const GARDES_DU_PROJET = 'gardes';
 const ANCIEN_GARDES_DU_PROJET = 'integration:gardes';
-// The line of `.gitignore` that keeps Turborepo's folder out of git.
-const TURBO_IGNORE = '.turbo/';
-// The frame's templates of `turbo.json`, one per form of repository, read in the source.
-const TURBO_PAQUETS = 'templates/turbo/paquets.json';
-const TURBO_SANS_PAQUETS = 'templates/turbo/sans-paquets.json';
 
-// Whether `vitest` is declared in the dependencies of the package.json <p> (read at <dossier>) or of
-// one of its packages of the frame (`paquets`: the workspaces as npm maps them, a package out of
-// the frame left out, which Turborepo never tests).
-const declareVitest = (dossier, p) => {
-  const a = pkg => Boolean(pkg?.dependencies?.vitest ?? pkg?.devDependencies?.vitest);
-  return a(p) || paquets(dossier).some(({ pkg, hors }) => !hors && a(pkg));
-};
-// The version of the Vitest the project's root resolves, as `test:unit` calls it
-// (`npx --no-install vitest --version`); null when it answers none.
-const vitestDeLaRacine = projet => {
-  const r = spawnSync('npx', ['--no-install', 'vitest', '--version'], {
-    cwd: projet,
-    encoding: 'utf8',
-  });
-  return r.status === 0 ? (/vitest\/(\d+\.\d+\.\d+\S*)/.exec(r.stdout)?.[1] ?? null) : null;
-};
 const lireJson = (f, defaut) => {
   try {
     return JSON.parse(readFileSync(f, 'utf8'));
@@ -236,152 +167,29 @@ const lireJson = (f, defaut) => {
   }
 };
 
-// Adds `.turbo/` to the `.gitignore` of the project at <projet> when no line ignores it.
-function ignorerTurbo(projet) {
+// Adds to the `.gitignore` of the project at <projet> each directory its language's tools write
+// (`ignorer` of its module: `<nom>/`), when no line ignores it (`<nom>`, `<nom>/`, `/<nom>`,
+// `/<nom>/`); its own lines stay.
+function ignorer(projet) {
   const f = path.join(projet, '.gitignore');
-  const texte = existsSync(f) ? readFileSync(f, 'utf8') : '';
-  const lignes = texte.split('\n').map(l => l.trim());
-  if (lignes.some(l => l === '.turbo' || l === TURBO_IGNORE || l === '/.turbo' || l === '/.turbo/'))
-    {return;}
-  const fin = texte === '' || texte.endsWith('\n') ? '' : '\n';
-  writeFileSync(f, `${texte}${fin}${TURBO_IGNORE}\n`);
-}
-
-// Writes the `turbo.json` of the project at <projet>, when it has a package.json and no turbo.json,
-// from the source's template of its form (`workspaces` declared: a repository of packages).
-// Returns the template written, or null.
-function poserTurbo(projet, source) {
-  const f = path.join(projet, 'turbo.json');
-  const pkg = path.join(projet, 'package.json');
-  if (existsSync(f) || !existsSync(pkg)) {return null;}
-  const gabarit = lireJson(pkg, {}).workspaces !== undefined ? TURBO_PAQUETS : TURBO_SANS_PAQUETS;
-  if (!existsSync(path.join(source, gabarit))) {return null;}
-  copyFileSync(path.join(source, gabarit), f);
-  return gabarit;
+  let texte = existsSync(f) ? readFileSync(f, 'utf8') : '';
+  const avant = texte;
+  for (const nom of langageDe(projet).ignorer) {
+    const lignes = texte.split('\n').map(l => l.trim());
+    if ([nom, `${nom}/`, `/${nom}`, `/${nom}/`].some(l => lignes.includes(l))) {
+      continue;
+    }
+    const fin = texte === '' || texte.endsWith('\n') ? '' : '\n';
+    texte = `${texte}${fin}${nom}/\n`;
+  }
+  if (texte !== avant) {
+    writeFileSync(f, texte);
+  }
 }
 
 // <deps> written sorted by name, as npm writes them.
 const trie = deps =>
   Object.fromEntries(Object.entries(deps).sort(([a], [b]) => a.localeCompare(b, 'en')));
-// The range at which the root package.json <p> declares the frame's package, or undefined.
-const plageDeLaRacine = p =>
-  CHAMPS_INSTALLES.map(c => p[c]?.[PAQUET_DU_CADRE]).find(v => v !== undefined);
-
-// Whether the code of the package at <dossier> of <projet> imports the frame's package (an entry of
-// it): a file of its `src/` (CODE of scripts/paquets.mjs) out of the tests (`estUnTest` of the
-// module of the project's language, scripts/langages.mjs), its imports read by TypeScript
-// (`preProcessFile`), a comment or a string importing nothing.
-function codeImporteLeCadre(projet, dossier) {
-  const ts = createRequire(import.meta.url)('typescript');
-  return sources(path.join(projet, dossier))
-    .map(f => `${dossier}/${f}`)
-    .filter(f => new RegExp(CODE).test(f) && !langageDe(projet).estUnTest(f, projet)?.test)
-    .some(f =>
-      ts
-        .preProcessFile(readFileSync(path.join(projet, f), 'utf8'), true, true)
-        .importedFiles.some(
-          ({ fileName: m }) => m === PAQUET_DU_CADRE || m.startsWith(`${PAQUET_DU_CADRE}/`)
-        )
-    );
-}
-
-// Declares the frame's package in the dependencies of each package of the frame of the project of
-// packages at <projet> (root package.json <p>) whose code imports it (codeImporteLeCadre), as npm
-// puts what the published code imports: a declaration in its devDependencies moves there with its
-// range, else the range the root declares (else `^<version>` of the package); one already in its
-// dependencies or optionalDependencies stays. Returns { nom, paquets } (paquets: the packages
-// whose dependencies received it), or null when nothing changes.
-function declarerDependanceDuCadre(projet, p) {
-  if (p.workspaces === undefined) {
-    return null;
-  }
-  const racine = plageDeLaRacine(p);
-  const declarants = [];
-  for (const { dossier, pkg, hors } of paquets(projet)) {
-    const declare = ['dependencies', 'optionalDependencies'].some(
-      c => pkg[c]?.[PAQUET_DU_CADRE] !== undefined
-    );
-    if (hors || declare || !codeImporteLeCadre(projet, dossier)) {
-      continue;
-    }
-    const { [PAQUET_DU_CADRE]: dev, ...autres } = pkg.devDependencies ?? {};
-    pkg.dependencies = trie({
-      ...(pkg.dependencies ?? {}),
-      [PAQUET_DU_CADRE]: dev ?? racine ?? `^${VERSION}`,
-    });
-    if (dev !== undefined) {
-      pkg.devDependencies = autres;
-    }
-    writeFileSync(path.join(projet, dossier, 'package.json'), `${JSON.stringify(pkg, null, 2)}\n`);
-    declarants.push(dossier);
-  }
-  return declarants.length > 0 ? { nom: PAQUET_DU_CADRE, paquets: declarants } : null;
-}
-
-// Declares the frame's package, whose base configuration of Vitest each Vitest configuration
-// imports, in the devDependencies of each package of the frame of the project of packages at
-// <projet> (root package.json <p>) that plays tests, as the module of its language answers
-// (`joueDesTests`; for typescript, its script `test:unit`), at the range the root declares
-// (else `^<version>` of the package), a declaration the package holds kept; a package out of the
-// frame is not touched. Returns { nom, paquets } (paquets: the packages that received the
-// declaration), or null when nothing changes.
-function poserConfigVitest(projet, p) {
-  if (p.workspaces === undefined) {return null;}
-  const langage = langageDe(projet);
-  const testes = paquets(projet).filter(
-    ({ dossier, pkg, hors }) =>
-      !hors &&
-      langage.joueDesTests(projet, {
-        dossier: path.join(projet, dossier),
-        nom: path.basename(dossier),
-        paquet: pkg.name ?? null,
-      })
-  );
-  const racine = plageDeLaRacine(p);
-  const declarants = [];
-  for (const { dossier, pkg } of testes) {
-    if (CHAMPS_INSTALLES.some(c => pkg[c]?.[PAQUET_DU_CADRE] !== undefined)) {continue;}
-    pkg.devDependencies = trie({
-      ...(pkg.devDependencies ?? {}),
-      [PAQUET_DU_CADRE]: racine ?? `^${VERSION}`,
-    });
-    writeFileSync(path.join(projet, dossier, 'package.json'), `${JSON.stringify(pkg, null, 2)}\n`);
-    declarants.push(dossier);
-  }
-  return declarants.length > 0 ? { nom: PAQUET_DU_CADRE, paquets: declarants } : null;
-}
-
-// Gives the typing script of the template, <script> (`tsc -p tsconfig.json --noEmit`: its
-// tsconfig.json types its sources and its tests, nothing emitted), to each package of TypeScript
-// (a `tsconfig.json`) of the project at <projet> (root package.json <p>) that has no `typecheck`:
-// each package of the frame in a project of packages, written in its package.json (a package out
-// of the frame is not touched, and the root's `typecheck` stays the project's); the root itself in
-// a project without packages, set in <p>, which the caller writes. `npm run verifier` plays it, a
-// task of Turborepo (scripts/langages/typescript/turbo-des-paquets.mjs). Returns { script, paquets } (paquets: each
-// package's directory, `.` for the root), or null when nothing changes.
-function poserTypage(projet, p, script) {
-  if (typeof script !== 'string') {return null;}
-  const types = dossier => existsSync(path.join(projet, dossier, 'tsconfig.json'));
-  const sans = pkg => typeof pkg.scripts?.[TYPAGE] !== 'string';
-  const declarants = [];
-  if (p.workspaces === undefined) {
-    if (types('.') && sans(p)) {
-      p.scripts = { ...(p.scripts ?? {}), [TYPAGE]: script };
-      declarants.push('.');
-    }
-  } else {
-    for (const { dossier, pkg, hors } of paquets(projet)) {
-      if (hors || !types(dossier) || !sans(pkg)) {continue;}
-      pkg.scripts = { ...(pkg.scripts ?? {}), [TYPAGE]: script };
-      writeFileSync(
-        path.join(projet, dossier, 'package.json'),
-        `${JSON.stringify(pkg, null, 2)}\n`
-      );
-      declarants.push(dossier);
-    }
-  }
-  return declarants.length > 0 ? { script, paquets: declarants } : null;
-}
 
 // Writes the frame's status line in the settings of the project at <projet>, when they exist and
 // hold none or the frame's (see the header); their other keys keep their order. Returns whether
@@ -440,8 +248,11 @@ export function declarerLangages(projet) {
   if (declares.length > 0) {return { langages: declares, ecrits: false };}
   const trouves = langagesTrouves(projet);
   if (trouves.length === 0) {
+    const signes = Object.keys(LANGAGES)
+      .map(n => `${n} : ${langage(n).signe}`)
+      .join(' ; ');
     throw new Error(
-      `aucun langage du cadre trouvé dans ${projet} (typescript : un tsconfig.json à la racine ou dans un paquet ; cargo : un Cargo.toml à la racine) ; déclare-le dans grillhouse.langages de ${fichier} (les langages du cadre : ${Object.keys(LANGAGES).join(', ')}), puis relance \`npx grillhouse maj\`.`
+      `aucun langage du cadre trouvé dans ${projet} (${signes}) ; déclare-le dans grillhouse.langages de ${fichier} (les langages du cadre : ${Object.keys(LANGAGES).join(', ')}), puis relance \`npx grillhouse maj\`.`
     );
   }
   const p = lireJson(fichier, {});
@@ -465,22 +276,19 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
   const bilan = {
     langages: null,
     dependances: [],
-    test: null,
-    vitest: null,
-    turbo: null,
-    configVitest: null,
-    dependanceDuCadre: null,
-    typage: null,
     gardes: null,
     ligneEtat: false,
     greffon: false,
+    duLangage: { lignes: [], installer: false, sansVerifier: null },
   };
   const pkg = path.join(projet, 'package.json');
   if (existsSync(pkg)) {
     bilan.langages = declarerLangages(projet);
+    const langage = langageDe(projet);
     const p = lireJson(pkg, {});
     if (inscrite !== null) {p.grillhouse = { ...(p.grillhouse ?? {}), version: inscrite };}
-    const pkgSource = lireJson(path.join(source, GABARIT), {});
+    // The template of the declared language, where the frame's scripts and tools are read.
+    const pkgSource = lireJson(path.join(source, langage.miseAJour.gabarit, 'package.json'), {});
     const gardes = pkgSource.scripts?.['grillhouse:gardes'];
     p.scripts = { ...(p.scripts ?? {}), ...SCRIPTS };
     // The project's `prepare`, which npm runs at its install, places the frame's git hooks first.
@@ -491,40 +299,8 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
     if (typeof pkgSource.scripts?.api === 'string') {
       p.scripts.api = pkgSource.scripts.api;
     }
-    // The frame's tests (Turborepo's tasks) replace a project's own test that runs Vitest.
-    const testDuCadre = pkgSource.scripts?.test;
-    const testDuProjet = p.scripts.test;
-    const vitestExige = pkgSource.devDependencies?.vitest ?? pkgSource.dependencies?.vitest;
-    const lanceVitest =
-      typeof testDuCadre === 'string' &&
-      typeof testDuProjet === 'string' &&
-      (testDuProjet === testDuCadre || /\bvitest\b/.test(testDuProjet) || declareVitest(projet, p));
-    if (lanceVitest) {
-      // The root must resolve the Vitest the frame requires (`test:unit` calls it).
-      const trouvee = typeof vitestExige === 'string' ? vitestDeLaRacine(projet) : null;
-      const convient =
-        typeof vitestExige !== 'string' ||
-        (trouvee !== null && semver.satisfies(trouvee, vitestExige));
-      if (!convient) {
-        bilan.vitest = { trouvee, exigee: vitestExige };
-      } else {
-        if (testDuProjet !== testDuCadre)
-          {bilan.test = { ancien: testDuProjet, nouveau: testDuCadre };}
-        for (const nom of SCRIPTS_DES_TESTS) {
-          const script = pkgSource.scripts?.[nom];
-          if (typeof script !== 'string') {continue;}
-          // A repository of packages keeps its tests in its packages, as Turborepo does: its root
-          // gets no `test:unit`, and the frame's own leaves.
-          if (p.workspaces !== undefined && nom === 'test:unit') {
-            if (p.scripts[nom] === script) {delete p.scripts[nom];}
-            continue;
-          }
-          p.scripts[nom] = script;
-        }
-      }
-    }
     // The tools of the declared language alone (its module's `outils`), at the template's versions.
-    for (const nom of langageDe(projet).outils) {
+    for (const nom of langage.outils) {
       const version = pkgSource.devDependencies?.[nom];
       if (typeof version === 'string' && !CHAMPS_INSTALLES.some(c => p[c]?.[nom] !== undefined)) {
         p.devDependencies = { ...(p.devDependencies ?? {}), [nom]: version };
@@ -571,37 +347,86 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
         bilan.gardes = { deplace: false };
       }
     }
-    bilan.dependanceDuCadre = declarerDependanceDuCadre(projet, p);
-    bilan.configVitest = poserConfigVitest(projet, p);
-    bilan.typage = poserTypage(projet, p, pkgSource.scripts?.[TYPAGE]);
+    // The share of the declared language (its module's `miseAJour`), in <p> and in its files.
+    const part = langage.miseAJour.appliquer(projet, {
+      p,
+      modele: pkgSource,
+      source,
+      version: VERSION,
+    });
+    Object.assign(bilan, part.bilan);
+    bilan.duLangage = {
+      lignes: part.lignes,
+      installer: part.installer,
+      sansVerifier: part.sansVerifier,
+    };
     writeFileSync(pkg, `${JSON.stringify(p, null, 2)}\n`);
+    ignorer(projet);
   }
-  bilan.turbo = poserTurbo(projet, source);
   bilan.ligneEtat = reglerLigneEtat(projet);
   bilan.greffon = declarerGreffon(projet);
-  ignorerTurbo(projet);
   poserCrochets(projet);
   return bilan;
 }
 
-// The frame's generators, subcommands of the project's command, and the file each writes: run in
-// the project after its package.json. A generator without `sortie` (the `turbo.json` of each
-// package) runs in every project whose package.json declares `workspaces`.
-const GENERATEURS = [
-  { commande: 'frontieres', args: ['--ecrire'], sortie: '.dependency-cruiser.cjs' },
-  { commande: 'index-interfaces', args: [], sortie: 'docs/agents/index-des-interfaces.md' },
-  { commande: 'turbo-des-paquets', args: ['--ecrire'], sortie: null },
-];
+/**
+ * Installs on the machine each binary of the language of the project at <projet> (`binaires` of
+ * its module) that its installation does not list at its version, by the commands its module
+ * describes (`miseAJour.installation`: `liste`, then `installer` for each one missing), each run by
+ * Node, as `npm install` brings what is installed to what is declared; a language without
+ * binaries runs nothing. Returns `{ installes, lignes }`: each binary installed
+ * (`<nom>@<version>`), and the line of each failure, the error stream of its command, which names
+ * the command to type.
+ */
+export function installerBinaires(projet) {
+  const langage = langageDe(projet);
+  const voulus = Object.entries(langage.binaires);
+  const installation = langage.miseAJour.installation;
+  if (voulus.length === 0 || installation === null) {
+    return { installes: [], lignes: [] };
+  }
+  const lancer = c =>
+    spawnSync(process.execPath, [c.script, ...c.args], { cwd: projet, encoding: 'utf8' });
+  const cause = r => (r.error ? r.error.message : (r.stderr ?? '').trim() || `code ${r.status}`);
+  const liste = lancer(installation.liste);
+  let presents;
+  try {
+    if (liste.error || liste.status !== 0) {
+      throw new Error(cause(liste));
+    }
+    presents = JSON.parse(liste.stdout);
+  } catch (e) {
+    return {
+      installes: [],
+      lignes: [`Binaires : la liste des binaires installés échoue. ${e.message}`],
+    };
+  }
+  const installes = [];
+  const lignes = [];
+  for (const [nom, version] of voulus) {
+    if (presents[nom] === version) {
+      continue;
+    }
+    const r = lancer(installation.installer(nom, version));
+    if (!r.error && r.status === 0) {
+      installes.push(`${nom}@${version}`);
+    } else {
+      lignes.push(`Binaire ${nom}@${version} : ${cause(r)}`);
+    }
+  }
+  return { installes, lignes };
+}
 
 /**
- * Runs each generator whose output the project holds (every one with `tous`, for a project
- * `grillhouse init` creates); returns the lines of failure.
+ * Runs each generator of the language of the project (`miseAJour.generateurs` of its module)
+ * whose output the project holds (every one with `tous`, for a project `grillhouse init` creates);
+ * returns the lines of failure.
  */
 export function regenerer(projet, { tous = false } = {}) {
   const lignes = [];
   const grillhouse = path.join(projet, 'node_modules', '.bin', 'grillhouse');
   const aPaquets = lireJson(path.join(projet, 'package.json'), {})?.workspaces !== undefined;
-  for (const g of GENERATEURS) {
+  for (const g of langageDe(projet).miseAJour.generateurs) {
     const absente = g.sortie !== null && !tous && !existsSync(path.join(projet, g.sortie));
     if (g.sortie === null ? !aPaquets : absente) {
       continue;
@@ -631,28 +456,7 @@ export function rapport(b) {
       `Dépendances de développement ajoutées : ${b.dependances.join(', ')}. \`npm install\` les installe.`
     );
   }
-  if (b.configVitest) {
-    const { nom, paquets: declarants } = b.configVitest;
-    lignes.push(
-      `Configuration de base de Vitest : ${nom} déclaré dans les devDependencies de ${declarants.join(', ')}. \`npm install\` relie le paquet. La configuration Vitest de chaque paquet l'importe par son nom : \`import base from '${CONFIG_VITEST}'\`.`
-    );
-  }
-  if (b.dependanceDuCadre) {
-    const { nom, paquets: declarants } = b.dependanceDuCadre;
-    lignes.push(
-      `Dépendance d'exécution : ${nom} déclaré dans les dependencies de ${declarants.join(', ')}, dont le code hors des tests importe une entrée du paquet. \`npm install\` relie le paquet.`
-    );
-  }
-  if (b.typage) {
-    lignes.push(
-      `Typage : \`${b.typage.script}\` écrit dans ${b.typage.paquets.join(', ')} (le script typecheck, ses sources et ses tests, que son tsconfig.json inclut) ; \`npm run verifier\` le joue à côté des gardes et des tests.`
-    );
-  }
-  if (b.turbo) {
-    lignes.push(
-      `turbo.json écrit depuis le gabarit du cadre ${b.turbo} ; il est au projet, la mise à jour n'y touche plus.`
-    );
-  }
+  lignes.push(...(b.duLangage?.lignes ?? []));
   if (b.ligneEtat) {
     lignes.push(`Ligne d'état : .claude/settings.json lance \`grillhouse ligne-etat\`.`);
   }
@@ -663,35 +467,25 @@ export function rapport(b) {
   }
   if (b.gardes?.deplace) {
     lignes.push(
-      `Gardes du projet : le script integration:gardes devient gardes, que \`npm run verifier\` joue après la construction (turbo.json).`
+      `Gardes du projet : le script integration:gardes devient gardes, que \`npm run verifier\` joue à côté des tests.`
     );
   } else if (b.gardes) {
     lignes.push(
       `Gardes du projet : integration:gardes et gardes coexistent ; rien ne joue plus integration:gardes, \`npm run verifier\` joue gardes. Verse l'un dans l'autre.`
     );
   }
-  if (b.vitest) {
-    lignes.push(
-      `Vitest : la racine résout ${b.vitest.trouvee ?? 'aucune version'}, le cadre exige ${b.vitest.exigee} ; le script test du projet reste tel quel.`
-    );
-  }
-  if (b.test) {
-    lignes.push(
-      `Script test : \`${b.test.ancien}\` remplacé par le test du cadre \`${b.test.nouveau}\` (Turborepo : construction, puis tests ; une tâche dont rien n'a bougé est relue de son cache ; \`npm run verifier\` joue les gardes et les tests).`
-    );
-  }
   return lignes.map(l => `${l}\n`).join('');
 }
 
-// Whether the bilan <b> of `mettreAJour` asks for `npm install` (a tool or the frame's package
-// newly declared), which the verification needs first.
-const aInstaller = b =>
-  b.dependances.length > 0 || b.configVitest !== null || b.dependanceDuCadre !== null;
+// Whether the bilan <b> of `mettreAJour` asks for `npm install` (a tool or what the language's
+// share declares), which the verification needs first.
+const aInstaller = b => b.dependances.length > 0 || b.duLangage.installer;
 
 // The project's verification, the last step of the update (see the header): `{ code, ligne,
 // erreur }`, the code of `npm run verifier` (null when it is not played), the line of the report,
-// and whether it goes on the error stream.
-function verifier(projet, { fichiersAFinir, installer, vitest }) {
+// and whether it goes on the error stream. <sansVerifier>: the language's line on a project
+// without script `verifier`.
+function verifier(projet, { fichiersAFinir, installer, sansVerifier }) {
   const VERT_INTACT = 'le dernier vert reste où il était';
   if (fichiersAFinir) {
     return {
@@ -705,9 +499,7 @@ function verifier(projet, { fichiersAFinir, installer, vitest }) {
       code: null,
       erreur: false,
       ligne: `Vérification non jouée : le projet n’a pas de script verifier ; aucun dernier vert n’est posé. ${
-        vitest
-          ? 'La ligne « Vitest : » ci-dessus dit pourquoi : installe à la racine le Vitest que le cadre exige, puis relance `npx grillhouse maj`, qui écrit le script.'
-          : 'La mise à jour l’écrit dans un projet testé par Vitest ; sinon, écris-le pour ses tests.'
+        sansVerifier ?? 'Écris-le pour ses tests.'
       }`,
     };
   }
@@ -783,8 +575,12 @@ function mettreAJourLeProjet(projet, langages) {
     }
   }
   process.stdout.write(rapport(b));
+  const binaires = installerBinaires(projet);
+  if (binaires.installes.length > 0) {
+    process.stdout.write(`Binaires installés : ${binaires.installes.join(', ')}.\n`);
+  }
   const echecsDesGeneres = regenerer(projet);
-  for (const l of [...echecsDesGeneres, ...installerGreffons(projet)]) {
+  for (const l of [...binaires.lignes, ...echecsDesGeneres, ...installerGreffons(projet)]) {
     process.stderr.write(`${l}\n`);
     process.exitCode = 1;
   }
@@ -796,7 +592,7 @@ function mettreAJourLeProjet(projet, langages) {
   const v = verifier(projet, {
     fichiersAFinir: resteAFaire || echecsDesGeneres.length > 0,
     installer: aInstaller(b),
-    vitest: b.vitest,
+    sansVerifier: b.duLangage.sansVerifier,
   });
   (v.erreur ? process.stderr : process.stdout).write(`${v.ligne}\n`);
   if (v.code !== null && !process.exitCode) {

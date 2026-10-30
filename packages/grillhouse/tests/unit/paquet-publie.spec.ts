@@ -106,7 +106,7 @@ describe('grillhouse-3uv.84.4 critère 5 — the package declares what its scrip
     );
   });
 
-  it('no file of the repository names the former package @grillhouse/vitest-config, save its migration and the changelog', () => {
+  it('no file of the repository names the former package @grillhouse/vitest-config, save its migration, the migration of the copies that knows its rewrite (grillhouse-pkl.7), and the changelog', () => {
     const suivis = spawnSync('git', ['-C', DEPOT, 'ls-files', '-co', '--exclude-standard'], {
       encoding: 'utf8',
     })
@@ -117,6 +117,7 @@ describe('grillhouse-3uv.84.4 critère 5 — the package declares what its scrip
           f !== 'CHANGELOG.md' &&
           !f.startsWith('.beads/') &&
           !f.includes('config-vitest') &&
+          f !== 'packages/grillhouse/scripts/migrations/0.23.2-copies-du-cadre.mjs' &&
           f !== 'packages/grillhouse/tests/unit/paquet-publie.spec.ts' &&
           f !== 'packages/grillhouse/tests/unit/langages/typescript/turbo-des-paquets.spec.ts' &&
           existsSync(path.join(DEPOT, f))

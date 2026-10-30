@@ -72,12 +72,33 @@ function lu(resultats: string) {
 describe('grillhouse-pkl.3, critère 7 — les commandes du module cargo', () => {
   it('each command is its script of the module and its name, described, nothing run', () => {
     const c = cargo.commandes(d.espace);
-    expect(Object.keys(c)).toEqual(['tester', 'verifier', 'typer', 'preparer']);
-    for (const [nom, k] of Object.entries(c)) {
-      expect(k).toEqual({ script: path.join(MODULE, 'commandes.mjs'), args: [nom] });
+    expect(Object.keys(c)).toEqual([
+      'tester',
+      'verifier',
+      'typer',
+      'preparer',
+      'clippy',
+      'frontieres',
+      'index-interfaces',
+    ]);
+    for (const nom of ['tester', 'verifier', 'typer', 'preparer']) {
+      expect(c[nom]).toEqual({ script: path.join(MODULE, 'commandes.mjs'), args: [nom] });
     }
     expect(existsSync(path.join(MODULE, 'commandes.mjs'))).toBe(true);
     expect(readFileSync(JOURNAL, 'utf8')).toBe('');
+  });
+
+  // grillhouse-pkl.7 (grillhouse-pkl.6.1): a red guard is named `grillhouse <its script's name>`
+  // (scripts/gardes-du-cadre.mjs); each guard of the module is a command of that name, its script.
+  it('each guard of the module is a command by its script’s name, so the line of a red guard names a command that exists', () => {
+    const c = cargo.commandes(d.espace);
+    const gardes = cargo.gardes(d.espace);
+    expect(gardes.length).toBe(3);
+    for (const [script] of gardes) {
+      const nom = path.basename(script).replace(/\.[cm]?js$/, '');
+      expect(c[nom], nom).toEqual({ script, args: [] });
+      expect(existsSync(script), script).toBe(true);
+    }
   });
 
   it('tester plays nextest for each crate with tests, then the doctests of each library', () => {

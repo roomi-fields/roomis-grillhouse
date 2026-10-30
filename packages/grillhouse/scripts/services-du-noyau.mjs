@@ -11,9 +11,10 @@ export * from './langages.mjs';
 
 // The services of the core to a module of language: the plan of an envelope, the progress of a
 // pass and its measure, the base of a pass, the pressure of the machine and its lock, the last
-// green, the arbitrages of a ticket.
+// green, the arbitrages of a ticket, the source files of a project.
 export { arbitrageTranche, estArbitrage } from './arbitrages.mjs';
 export { ecrireLaMesure, garderLeTotal, inscrireLePlan, ouvrirAvancement } from './avancement.mjs';
+export { sources } from './sources.mjs';
 export { CHANGEMENTS, DEPUIS_LE_VERT, garderLeVert, mesure } from './dernier-vert.mjs';
 export { lireLaListe, paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
 export { AVANCEMENT, ecrireTache } from './mesure/avancement.mjs';

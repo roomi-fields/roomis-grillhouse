@@ -2,17 +2,22 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { migrer, version } from '../../scripts/migrations/0.23.0-config-vitest.mjs';
+import { MIGRATIONS } from '../../../../scripts/migrations.mjs';
+import * as migration from '../../../../scripts/langages/typescript/migrations/0.23.0-config-vitest.mjs';
+import typescript from '../../../../scripts/langages/typescript/index.mjs';
+
+const { migrer, version } = migration;
 
 // grillhouse-3uv.84.4 critères 5 and 7: the frame's base configuration of Vitest is the
 // package's, `@roomi-fields/grillhouse/vitest-config`; the migration brings a project that imported
 // the former workspace package `@grillhouse/vitest-config` (BPScript) to it. Critère 3: replayable
-// without effect.
+// without effect. grillhouse-pkl.7, criterion 5: a migration of Vitest, the module typescript
+// carries it, and the core's list names it no more.
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'migration-config-vitest-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 const VERSION = (
-  JSON.parse(readFileSync(path.resolve(__dirname, '../../package.json'), 'utf8')) as {
+  JSON.parse(readFileSync(path.resolve(__dirname, '../../../../package.json'), 'utf8')) as {
     version: string;
   }
 ).version;
@@ -77,6 +82,11 @@ function ancien(racine: Record<string, unknown> = {}) {
 }
 
 describe('migration 0.23.0 — the base configuration of Vitest is the frame’s package’s', () => {
+  it('is the module typescript’s, out of the core’s list', () => {
+    expect((typescript as unknown as { migrations: unknown[] }).migrations).toContain(migration);
+    expect(MIGRATIONS).not.toContain(migration);
+  });
+
   it('is the migration of 0.23.0', () => {
     expect(version).toBe('0.23.0');
   });

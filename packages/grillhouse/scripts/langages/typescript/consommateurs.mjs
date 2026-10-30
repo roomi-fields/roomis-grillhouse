@@ -76,13 +76,6 @@ function dossiers(racine) {
   return tousDossiers(racine).filter(d => !hors.has(d.nom));
 }
 
-// The names of `docs/agents/hors-cadre.txt` that no directory under `packages/` or `src/` bears,
-// in the order of the list.
-export function horsCadreInconnus(racine) {
-  const presents = new Set(tousDossiers(racine).map(d => d.nom));
-  return [...horsCadre(racine)].filter(nom => !presents.has(nom));
-}
-
 // The components of the repository at <racine>: [{ nom, dir, paquet }], `paquet` its package name.
 // Throws when a package.json is unreadable.
 export function composants(racine) {

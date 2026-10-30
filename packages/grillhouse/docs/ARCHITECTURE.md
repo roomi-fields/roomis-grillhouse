@@ -437,9 +437,10 @@ relecture, le tableau, l'enveloppe, les crochets, la mise à jour, le greffon Cl
 Turborepo et Vitest, les gardes de structure) et `cargo` (la même chose pour Rust, l'épopée
 grillhouse-pkl). Un projet déclare ses langages dans son `package.json` (`grillhouse.langages`),
 que `init` et `maj` remplissent d'après ce qu'ils trouvent (`tsconfig.json` ; un `Cargo.toml` à la
-racine) ; là où ils ne trouvent aucun langage du cadre, ils refusent le projet, nommé.
-Les outils d'un langage (Turborepo, Vitest, knip, api-extractor ; cargo-nextest, cargo-deny)
-sont des dépendances facultatives du paquet : `maj` n'installe que ceux des langages déclarés.
+racine) ; là où ils ne trouvent aucun langage du cadre, ils
+refusent le projet, nommé. Les outils npm d'un langage (Turborepo, Vitest, knip, api-extractor)
+sont des dépendances facultatives du paquet, ses binaires (cargo-nextest, cargo-deny) s'installent
+sur la machine par `cargo binstall` : `maj` n'installe que ceux des langages déclarés.
 Ainsi chaque projet n'installe que les outils qu'il utilise : un projet tout Rust n'a aucun outil
 TypeScript, BPScript aucun outil Rust ; les scripts d'un langage non déclaré restent sur le disque,
 inertes. Un module par langage et un seul paquet, plutôt qu'un paquet par langage comme ESLint
@@ -469,23 +470,29 @@ séance, comme un bac à sable de Bazel ouvre ce que l'action déclare (le cache
 vérification (`preparer`, `cargo fetch --locked`), la construction de la copie d'un agent que joue
 le lanceur (`construire`), les tests de nuit que joue la nuit (`tests-de-nuit`), et la commande
 qui rejoue seule une tâche rouge, que la vérification écrit pour la bissection de la nuit ; les
-migrations qui rejouent une garde du module, que `maj` joue avec celles du
-noyau, comme `nx migrate` réunit celles de chaque greffon. Le module typescript vit sous
+migrations du langage, que `maj` joue avec celles du noyau, comme `nx migrate` réunit celles de
+chaque greffon ; la part du langage dans `maj` (`miseAJour`), comme le générateur `init` d'un
+greffon de Nx : son gabarit (`templates/projet/`, `templates/cargo/`), ce que ses outils
+demandent au projet, ses générateurs ; ses binaires (`binaires`), que `maj` installe par
+`cargo binstall` ; ce que ses outils écrivent dans un projet (`ignorer` : `.turbo`, `target`), que
+les fichiers sources laissent de côté et que `maj` écrit dans le `.gitignore`. Le module typescript vit sous
 `scripts/langages/typescript/` (`tests/temoins/repartition.json` range chaque fichier), ses tests
 sous `tests/unit/langages/typescript/` ; le module cargo sous `scripts/langages/cargo/` (les crates
 de `cargo metadata`, les tests par nextest puis les doctests, la vérification par cargo-deny,
 sous le verrou de la machine ; ses gardes, clippy, les frontières entre crates contre la liste
 permise du manifeste de l'espace de travail, `[workspace.metadata.grillhouse.frontieres]`, comme
-les `depConstraints` de Nx, et l'index des interfaces, qu'il engendre), ses
+les `depConstraints` de Nx, et l'index des interfaces, qu'il engendre, chacune aussi une
+commande de son nom, que la ligne d'une garde rouge nomme), ses
 tests sous `tests/unit/langages/cargo/`, contre un faux cargo en tête du PATH, le vrai à la nuit ; les entrées publiées (`./consommateurs`,
 `./vitest-config`, `./vitest-config/mesure`, `./tsdoc-base.json`) gardent leur adresse. Comme un
 greffon de Nx n'importe que `@nx/devkit`, le module n'importe du noyau que ses entrées publiées :
 `./jointure` (`scripts/services-du-noyau.mjs`) lui donne les services du noyau qu'il emploie (le plan d'une
 enveloppe, l'avancement et la mesure d'une passe, la pression et le verrou de la machine, le
-dernier vert, les arbitrages d'un ticket). La garde des frontières tient les deux sens, par les
+dernier vert, les arbitrages d'un ticket, les fichiers sources d'un projet).
+La garde des frontières tient les deux sens, par les
 règles propres au dépôt (`.dependency-cruiser.projet.cjs`), comme `enforce-module-boundaries` de
-Nx ; le test de la jointure (`tests/unit/jointure.spec.ts`) inscrit chaque reste du noyau qui
-nomme encore un outil ou lance un fichier du module par son chemin, avec le ticket qui le retire.
+Nx ; le test de la jointure (`tests/unit/jointure.spec.ts`) refuse tout mot d'un outil dans le
+code du noyau et tout fichier d'un module que le noyau lance par son chemin.
 Les outils du langage (api-extractor et son modèle, la configuration de TSDoc, jsonc-parser,
 Turborepo, Vitest, knip, dependency-cruiser, TypeScript) sont des pairs facultatifs du paquet,
 comme Vite déclare les préprocesseurs qu'il importe ; `maj` ajoute au projet ceux du module de

@@ -30,6 +30,13 @@ const charger = nom => {
   return charges.get(nom);
 };
 
+/**
+ * The module of the language <nom> of the frame's list, loaded once per process.
+ * @param {string} nom a name of LANGAGES
+ * @returns {import('./jointure.js').Langage}
+ */
+export const langage = nom => charger(nom);
+
 // The languages the project at <racine> declares (`grillhouse.langages` of its package.json), an
 // empty list when it declares none.
 export function langagesDeclares(racine) {

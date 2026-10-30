@@ -109,15 +109,14 @@ else
     || pending+=("les critères d'arbitrage (section « Comment on arbitre » de CLAUDE.md : la référence mature du domaine, l'existant à reprendre, les exigences du domaine)")
 fi
 # The packages out of the frame: docs/agents/hors-cadre.txt ("<package> <reason>", e.g. a frozen
-# version), read by scripts/paquets.mjs as every check reads it; Turborepo plays none of
-# its tasks (scripts/langages/typescript/turbo-des-paquets.mjs). Line 1: the names listed;
-# line 2: the names that no directory under packages/ or src/ bears.
+# version), read by scripts/paquets.mjs as every check reads it; the verification plays none of
+# their tasks. Line 1: the names listed; line 2: the names that no directory under packages/ or
+# src/ bears.
 { read -r hors; read -r inconnus; } < <(node --input-type=module -e '
 const { pathToFileURL } = await import("node:url");
-const { horsCadre } = await import(pathToFileURL(process.argv[1]).href);
-const { horsCadreInconnus } = await import(pathToFileURL(process.argv[2]).href);
-process.stdout.write(`${[...horsCadre(process.argv[3])].join(" ")}\n${horsCadreInconnus(process.argv[3]).join(" ")}\n`);
-' "$ici/paquets.mjs" "$ici/langages/typescript/consommateurs.mjs" "$root" 2>/dev/null)
+const { horsCadre, horsCadreInconnus } = await import(pathToFileURL(process.argv[1]).href);
+process.stdout.write(`${[...horsCadre(process.argv[2])].join(" ")}\n${horsCadreInconnus(process.argv[2]).join(" ")}\n`);
+' "$ici/paquets.mjs" "$root" 2>/dev/null)
 # One package: docs/ at the root. Several: each package under packages/ has its own three documents,
 # unless it is out of the frame.
 if ls -d "$root"/packages/*/ >/dev/null 2>&1; then
@@ -165,7 +164,8 @@ if [ -n "$demarrage" ]; then
 fi
 
 # The agents run the tests by `npm test`; the integration, the queue and the night run the guards
-# and the tests by `npm run verifier` (Turborepo): two npm scripts to wire.
+# and the tests by `npm run verifier`, each the command of the project's language: two npm scripts
+# to wire.
 wiring=()
 if [ -f "$root/package.json" ]; then
   for s in test verifier; do
@@ -218,7 +218,7 @@ if [ ${#pending[@]} -gt 0 ]; then
   echo "Dès ta première réponse, propose au responsable de les griller, chacun avec ce que tu recommandes pour ce projet (compétence \`grill\`). Il peut accepter, en choisir un, ou reporter ; tant qu'un élément reste vide, cette proposition revient à chaque séance."
 fi
 if [ ${#wiring[@]} -gt 0 ]; then
-  echo "À brancher : $(IFS=' '; echo "${wiring[*]}") dans le package.json de la racine. L'intégration (\`npx grillhouse integrer\`, contrat en tête de son script) et la nuit lancent \`npm run verifier\` (Turborepo, \`turbo.json\` : construction, puis gardes et tests), les agents \`npm test\` ; sans eux, l'intégration refuse chaque lot. Un projet testé par Vitest les reçoit de \`npm run grillhouse:maj\`, qui finit par \`npm run verifier\`, une passe longue : lance-la en tâche de fond et relis son code à la fin ; sinon, écris-les pour ses tests."
+  echo "À brancher : $(IFS=' '; echo "${wiring[*]}") dans le package.json de la racine. L'intégration (\`npx grillhouse integrer\`, contrat en tête de son script) et la nuit lancent \`npm run verifier\` (les gardes et les tests, par l'outil du langage du projet), les agents \`npm test\` ; sans eux, l'intégration refuse chaque lot. \`npm run grillhouse:maj\` les écrit quand le langage du projet sait jouer ses tests, et finit par \`npm run verifier\`, une passe longue : lance-la en tâche de fond et relis son code à la fin ; sinon, écris-les pour ses tests."
 fi
 if [ -n "$nuit_absente" ]; then
   echo "La nuit ne tourne plus : la table des tâches du poste $nuit_absente. Propose au responsable de remplacer cette ligne (\`crontab -e\`) par : \`$nuit\`."
