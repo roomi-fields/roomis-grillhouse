@@ -517,7 +517,10 @@ les fichiers sources laissent de côté et que `maj` écrit dans le `.gitignore`
 `scripts/langages/typescript/` (`tests/temoins/repartition.json` range chaque fichier), ses tests
 sous `tests/unit/langages/typescript/` ; le module cargo sous `scripts/langages/cargo/` (les crates
 de `cargo metadata`, les tests par nextest puis les doctests, la vérification par cargo-deny,
-sous le verrou de la machine ; ses gardes, clippy, les frontières entre crates contre la liste
+sous le verrou de la machine ; le refus, avant tout lancement de cargo, d'un espace dont git ne
+suit pas le Cargo.lock, comme `npm ci` refuse un projet sans package-lock.json : les tests, la
+vérification et la préparation le nomment en une ligne avec son geste (`git add Cargo.lock`), et
+`maj` le laisse au projet (`aFaire` de sa part), sans jouer la vérification ; ses gardes, clippy, les frontières entre crates contre la liste
 permise du manifeste de l'espace de travail, `[workspace.metadata.grillhouse.frontieres]`, comme
 les `depConstraints` de Nx, et l'index des interfaces, qu'il engendre, chacune aussi une
 commande de son nom, que la ligne d'une garde rouge nomme), ses

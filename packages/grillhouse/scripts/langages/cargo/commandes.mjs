@@ -45,8 +45,15 @@
 //   there what ./verdict.mjs reads: its tasks, each planned before it plays (`code` null until it
 //   ran), and the JUnit report of each run of nextest. A task of the workspace is named after its
 //   root, `//`, as Turborepo names the root's tasks.
+// - `tester`, `verifier` and `preparer` refuse, before any run of cargo, a workspace whose
+//   Cargo.lock git does not track (grillhouse-rph), in one line that names the file and the
+//   gesture: `git add Cargo.lock`, or `cargo generate-lockfile` first when it is absent. Cargo
+//   recommends committing it for every project, and the verification plays the exact versions of
+//   the repository (`--locked`, as `npm ci` refuses a project without package-lock.json): a lock
+//   ignored passes in the main repository, where it lies on disk, and fails in a copy taken from
+//   git, the integration's.
 // - The exit code: 0 when every task is green, 75 when the only reds are « à repasser », 1
-//   otherwise; 2 for a path refused or a command unknown.
+//   otherwise; 2 for a path refused, a Cargo.lock not tracked or a command unknown.
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { constants, tmpdir } from 'node:os';
@@ -74,6 +81,9 @@ const PROFIL = 'grillhouse';
 export const NOMS = ['tester', 'verifier', 'typer', 'preparer'];
 const A_REPASSER = 75;
 const RACINE = '//';
+const VERROU = 'Cargo.lock';
+// The commands that play the exact versions of the repository, refused without its Cargo.lock.
+const VERROUILLEES = ['tester', 'verifier', 'preparer'];
 
 /** The guards of structure of the module, in the order they play: each its name, its script beside
  * this one, and its arguments as a guard. */
@@ -296,12 +306,34 @@ function sousLaBase(genre, env, jouer) {
 }
 
 /**
+ * The line that refuses the workspace at <racine> whose Cargo.lock git does not track, the
+ * gesture named; null when git tracks it.
+ * @param {string} racine
+ * @returns {string | null}
+ */
+export function verrouNonVersionne(racine) {
+  if (!existsSync(path.join(racine, VERROU))) {
+    return `⛔ ${VERROU} absent : cargo generate-lockfile, puis git add ${VERROU}`;
+  }
+  const r = spawnSync('git', ['ls-files', '--error-unmatch', '--', VERROU], {
+    cwd: racine,
+    stdio: 'ignore',
+  });
+  return r.status === 0 ? null : `⛔ ${VERROU} non versionné : git add ${VERROU}`;
+}
+
+/**
  * Runs the command <nom> with <args> in the workspace at <racine>: its exit code.
  * @param {string} nom one of NOMS
  * @param {string[]} args its arguments
  * @param {{ racine?: string, env?: NodeJS.ProcessEnv }} [o]
  */
 export function lancer(nom, args, { racine = process.cwd(), env = process.env } = {}) {
+  const refus = VERROUILLEES.includes(nom) ? verrouNonVersionne(racine) : null;
+  if (refus) {
+    process.stderr.write(`${refus}\n`);
+    return 2;
+  }
   const p = passe(racine, env);
   if (nom === 'typer') {
     p.jouer(p.prevoir(RACINE, racine, 'check', false, ['check', '--all-targets']));

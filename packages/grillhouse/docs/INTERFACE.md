@@ -52,8 +52,10 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   `init`. `gabarit`, le dossier du gabarit d'un projet du langage, dont le `package.json` donne les
   scripts du cadre et les versions des outils (`templates/projet`, `templates/cargo`) ;
   `appliquer`, qui met le projet à la forme du langage, son `package.json` racine, que le noyau
-  écrit après, et ses autres fichiers, et rend sa part du bilan, les lignes du rapport, s'il faut
-  `npm install` avant la vérification et la ligne qui dit pourquoi un projet n'a pas de script
+  écrit après, et ses autres fichiers, et rend sa part du bilan, les lignes du rapport, ce qu'il
+  laisse au projet (`aFaire`, chaque ligne avec son geste, que `maj` écrit sur la sortie d'erreur
+  avant tout outil du langage, son code 1, sans jouer la vérification ; `cargo`, un Cargo.lock que
+  git ne suit pas), s'il faut `npm install` avant la vérification et la ligne qui dit pourquoi un projet n'a pas de script
   `verifier` ; `generateurs`, les générateurs que `maj` lance ensuite, chacun avec le fichier qu'il
   écrit ; `installation`, null sans binaires, sinon la commande qui liste les binaires installés
   (`{ <nom>: <version> }` en JSON) et celle qui en installe un, que le noyau lance par Node.

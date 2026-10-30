@@ -349,6 +349,7 @@ function appliquer(projet, { p, modele, source, version }, joueDesTests) {
   return {
     bilan,
     lignes: rapport(bilan),
+    aFaire: [],
     installer:
       bilan.plageDuCadre !== null ||
       bilan.configVitest !== null ||

@@ -63,7 +63,9 @@
 //   its tests, the frame's package declared where the code or the tests read it, the typing of
 //   each package, the project's first configuration of its task runner. Cargo
 //   (scripts/langages/cargo/mise-a-jour.mjs): the files of its template a project lacks, and its
-//   test scripts.
+//   test scripts. What the share leaves to the project (`aFaire`: for cargo, a Cargo.lock that git
+//   does not track) is written on the error stream, the exit code 1, and the verification is not
+//   played.
 // - The languages first (`declarerLangages`): a project that declares none (`grillhouse.langages`
 //   of its package.json) receives the languages the modules of the frame find in it
 //   (`langagesTrouves` of scripts/langages.mjs: typescript, a tsconfig.json at its root or in a
@@ -279,7 +281,7 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
     gardes: null,
     ligneEtat: false,
     greffon: false,
-    duLangage: { lignes: [], installer: false, sansVerifier: null },
+    duLangage: { lignes: [], aFaire: [], installer: false, sansVerifier: null },
   };
   const pkg = path.join(projet, 'package.json');
   if (existsSync(pkg)) {
@@ -357,6 +359,7 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
     Object.assign(bilan, part.bilan);
     bilan.duLangage = {
       lignes: part.lignes,
+      aFaire: part.aFaire,
       installer: part.installer,
       sansVerifier: part.sansVerifier,
     };
@@ -575,6 +578,12 @@ function mettreAJourLeProjet(projet, langages) {
     }
   }
   process.stdout.write(rapport(b));
+  // What the language leaves to the project comes first, before any of its tools runs.
+  const duLangage = b.duLangage.aFaire;
+  for (const l of duLangage) {
+    process.stderr.write(`${l}\n`);
+    process.exitCode = 1;
+  }
   const binaires = installerBinaires(projet);
   if (binaires.installes.length > 0) {
     process.stdout.write(`Binaires installés : ${binaires.installes.join(', ')}.\n`);
@@ -590,7 +599,7 @@ function mettreAJourLeProjet(projet, langages) {
     );
   }
   const v = verifier(projet, {
-    fichiersAFinir: resteAFaire || echecsDesGeneres.length > 0,
+    fichiersAFinir: resteAFaire || duLangage.length > 0 || echecsDesGeneres.length > 0,
     installer: aInstaller(b),
     sansVerifier: b.duLangage.sansVerifier,
   });

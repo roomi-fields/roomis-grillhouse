@@ -15,6 +15,9 @@
 // - The root scripts `test`, `test:forcer` and `verifier` a project lacks become the template's:
 //   the agents run `npm test`, the integration and the night `npm run verifier`. A project's own
 //   script stays.
+// - A Cargo.lock that git does not track is left to the project (`aFaire`, grillhouse-rph): the
+//   line of ./commandes.mjs (`verrouNonVersionne`), the gesture named; the core writes it on the
+//   error stream and plays no verification, which `--locked` would fail in a copy taken from git.
 // - The generator: the index of the interfaces (./index-interfaces.mjs), run where the project
 //   holds it, as the module typescript's.
 // - The installation of its binaries (./binaires.json): the commands of ./binaires.mjs, which list
@@ -22,6 +25,7 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { verrouNonVersionne } from './commandes.mjs';
 import { SORTIE } from './index-interfaces.mjs';
 
 const BINAIRES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'binaires.mjs');
@@ -70,12 +74,14 @@ function appliquer(projet, { p, modele, source }) {
       `Scripts des tests : ${scripts.map(n => `${n} (\`${p.scripts[n]}\`)`).join(', ')} écrits ; les agents lancent \`npm test\`, l'intégration et la nuit \`npm run verifier\`.`
     );
   }
+  const verrou = verrouNonVersionne(projet);
   return {
     bilan: {
       gabarit: copies.length > 0 ? copies : null,
       scripts: scripts.length > 0 ? scripts : null,
     },
     lignes,
+    aFaire: verrou ? [verrou] : [],
     installer: false,
     sansVerifier: null,
   };

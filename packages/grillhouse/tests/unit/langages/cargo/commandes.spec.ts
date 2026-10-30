@@ -349,3 +349,62 @@ describe('grillhouse-nt4, critères 2 et 3 — les tests du module cargo sous un
     expect(readdirSync(dans)).toEqual([]);
   }, 30_000);
 });
+
+// grillhouse-rph: OSC Bridge ignored its Cargo.lock, and the verification, `--locked`, failed in
+// the integration's copy alone (« cannot create the lock file … because --locked was passed »).
+// As `npm ci` refuses a project without package-lock.json, tester, verifier and preparer refuse,
+// before any run of cargo, a workspace whose Cargo.lock git does not track, in one line that names
+// the file and the gesture.
+describe('grillhouse-rph, critère 1 — un Cargo.lock non versionné se signale', () => {
+  const git = (racine: string, ...args: string[]) =>
+    spawnSync('git', ['-C', racine, ...args], { encoding: 'utf8' });
+  // A crate at the root whose Cargo.lock .gitignore ignores, the lock taken out of git and kept
+  // on disk: OSC Bridge's case.
+  const ignore = () => {
+    const { seul } = (
+      exemples.preparer(mkdtempSync(path.join(ESSAIS, 'ignore-'))) as { depots: Depots }
+    ).depots;
+    git(seul, 'rm', '-q', '--cached', 'Cargo.lock');
+    writeFileSync(path.join(seul, '.gitignore'), '/target\nCargo.lock\n');
+    git(seul, 'commit', '-q', '-am', 'ignore Cargo.lock');
+    return seul;
+  };
+
+  it('every workspace of the trials commits its Cargo.lock', () => {
+    for (const racine of [d.espace, d.seul]) {
+      expect(git(racine, 'ls-files', 'Cargo.lock').stdout.trim(), racine).toBe('Cargo.lock');
+    }
+  });
+
+  for (const [nom, args] of [
+    ['tester', []],
+    ['verifier', ['--tout']],
+    ['preparer', []],
+  ] as const) {
+    it(`${nom}: a Cargo.lock ignored by git is refused in one line, cargo never run`, () => {
+      const racine = ignore();
+      const r = lancer(racine, nom, [...args]);
+      expect(r.code, r.stdout + r.stderr).toBe(2);
+      expect(r.stderr).toBe('⛔ Cargo.lock non versionné : git add Cargo.lock\n');
+      expect(readFileSync(JOURNAL, 'utf8')).toBe('');
+    });
+  }
+
+  it('a Cargo.lock absent is refused, the gesture that writes it named', () => {
+    const racine = ignore();
+    rmSync(path.join(racine, 'Cargo.lock'));
+    const r = lancer(racine, 'preparer');
+    expect(r.code).toBe(2);
+    expect(r.stderr).toBe(
+      '⛔ Cargo.lock absent : cargo generate-lockfile, puis git add Cargo.lock\n'
+    );
+    expect(readFileSync(JOURNAL, 'utf8')).toBe('');
+  });
+
+  it('a Cargo.lock tracked: nothing changes, cargo runs', () => {
+    const r = lancer(d.seul, 'preparer');
+    expect(r.code).toBe(0);
+    expect(r.stderr).toBe('');
+    expect(r.appels).toEqual(['fetch --locked']);
+  });
+});

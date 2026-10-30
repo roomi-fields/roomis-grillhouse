@@ -136,9 +136,11 @@ export interface MiseAJour {
   /** Brings the project at `projet` to the form the module asks: its root package.json `p`, which
    * the core writes after, and its other files, from the frame's files at `source` (its template's
    * package.json `modele`; `version`, the frame's). Its share of the update: `bilan`, the changes by
-   * name, each null when nothing changes; `lignes`, the lines of the report; `installer`, whether
-   * `npm install` comes before the verification; `sansVerifier`, the line that says why the project
-   * has no script `verifier`, null for the core's. */
+   * name, each null when nothing changes; `lignes`, the lines of the report; `aFaire`, what the
+   * update leaves to the project, each line naming its gesture, written on the error stream, the
+   * code 1 and the verification not played; `installer`, whether `npm install` comes before the
+   * verification; `sansVerifier`, the line that says why the project has no script `verifier`,
+   * null for the core's. */
   appliquer(
     projet: string,
     o: {
@@ -150,6 +152,7 @@ export interface MiseAJour {
   ): {
     bilan: Record<string, unknown>;
     lignes: string[];
+    aFaire: string[];
     installer: boolean;
     sansVerifier: string | null;
   };
