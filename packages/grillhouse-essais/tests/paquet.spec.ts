@@ -49,7 +49,8 @@ const importsDe = (t: string) =>
 // The counts of `it` and of `expect` of each file moved from packages/grillhouse/tests/unit, read
 // on main before the move (23dd5ba).
 const AVANT: Record<string, [number, number]> = {
-  'base-de-passe': [10, 54],
+  // grillhouse-nt4: one more expect, the guard that names the trial directory the test leaves.
+  'base-de-passe': [10, 55],
   'circuit.arbitrage': [2, 15],
   'circuit.avancement': [1, 6],
   'circuit.bilan': [2, 20],

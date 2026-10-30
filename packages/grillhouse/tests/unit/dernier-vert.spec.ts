@@ -65,8 +65,14 @@ function mesurer(dossier: string) {
   };
 }
 
-// A pass green in <dossier>: its state kept as the last green.
-const vert = (dossier: string) => garderLeVert(mesure(dossier).etat);
+// A pass green in <dossier>: its state kept as the last green, the file of its changes removed,
+// as a pass removes it at its end (grillhouse-nt4: the guard of the temporary directory named
+// the `grillhouse-changements-*` this helper left).
+const vert = (dossier: string) => {
+  const m = mesure(dossier);
+  m.retirer();
+  garderLeVert(m.etat);
+};
 
 const modifier = (dossier: string, f: string) =>
   writeFileSync(path.join(dossier, f), `${f} changé ${Math.random()}\n`);
