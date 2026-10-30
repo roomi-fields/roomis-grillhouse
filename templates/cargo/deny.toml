@@ -25,6 +25,11 @@ allow = [
 ]
 confidence-threshold = 0.8
 
+[licenses.private]
+# The project's own crates that are not published (`publish = false`) are left out of the check:
+# the list above is the licences of the dependencies, not the project's.
+ignore = true
+
 [bans]
 # Two versions of a crate are named, not refused.
 multiple-versions = "warn"

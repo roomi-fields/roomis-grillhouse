@@ -247,6 +247,11 @@ describe('grillhouse-pkl.7, critère 3 — le gabarit d’un projet cargo', () =
     }
   });
 
+  it('grillhouse-is4 — deny.toml leaves the project’s unpublished crates out of the licence check', () => {
+    const t = toml(lire(GABARIT, 'deny.toml'));
+    expect(t['licenses.private']?.ignore).toBe(true);
+  });
+
   it('the JUnit report lands where the verdict reads it: the frame’s profile, which the project’s nextest.toml leaves to it', () => {
     // The frame's profile, a tool's configuration under the project's (./commandes.mjs reads
     // `<target>/nextest/grillhouse/junit.xml`, then copies it where ./verdict.mjs reads it).
