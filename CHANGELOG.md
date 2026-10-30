@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.25.5] - 2026-10-30
+
 ### Added
 
 - **The night removes the copies whose content is on main** (grillhouse-5vv): working copies survived the entry of their content on main, the circuit removing only its own at the integration: OSC Bridge kept 5 copies out of the frame (4.4 GB) and 2 agent copies (`.claude/worktrees/agent-*`, the Agent tool in isolation) after their merge, Grillhouse 79 agent copies (5.7 GB). As `git worktree prune` and a CI's workspace cleanup at the end of a pipeline, the night (`scripts/nuit.sh`), once its steps are played, prunes the list, then passes each copy `git worktree list` names, the main tree and its own left out, through the existing `scripts/retirer-copie.sh` without `--jetable` (`scripts/copies-finies.mjs`): a copy whose commits and local work have all entered main by their content goes, with its branch (main and a branch another copy holds stay); since `retirer-copie.sh` judges only the local work, the copy's HEAD is judged first, so that a detached copy's commit never becomes unreachable. A copy refused (commits or work not entered, its first path named; a lock) or held by a running circuit (its ticket in progress, its `<copie>.travail`, the lock of the integration or of the queue) stays, its log line naming why; tickets in progress that do not read within a minute hold every copy. The removal never changes the night's verdict.
