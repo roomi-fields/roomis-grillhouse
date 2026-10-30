@@ -513,7 +513,8 @@
 //   ticket in one short comment, `Circuit · bilan : …`, compared with the bilan before it in the
 //   project.
 // - Exit codes: 0 at « integre »; 2 a malformed call; a stop, by its name (ARRETS):
-//   10 lancement (lancer.sh stopped before the session), 11 bloqué (a motionless transcript),
+//   10 lancement (lancer.sh stopped before the session, or the tools of the project,
+//   `grillhouse.outils`, refused at the launch or a resumption, before any session), 11 bloqué (a motionless transcript),
 //   12 sans-fiche (twice no sheet that conforms), 13 preuve (the third proof fails), 14 controles
 //   (the third developpeur of the checks or of the final pass leaves a red check, a red of the
 //   final pass out of the plan or that no package of the plan holds, or reds to settle),
@@ -557,6 +558,7 @@ import { pathToFileURL } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
 import { ecrireLeBilan } from './bilan.mjs';
 import { DEPUIS_LE_VERT } from './dernier-vert.mjs';
+import { avecLesOutils, outilsDe } from './outils-cles.mjs';
 import { commandesPermises, optionsDuRole } from './droits.mjs';
 import {
   ecrireLaListe,
@@ -2038,11 +2040,40 @@ function regenerer(ctx, noms, notes = [], avantLaPasse = false, refusAuLot = fal
   };
 }
 
+// The environment of a pass of the circuit (the proof, the checks, the final pass, a command of a
+// reference): <base>, the launcher's under the lock of the machine, with the tools of the project
+// (`ctx.outils`, `grillhouse.outils`, read at the launch) whatever <base> holds, then <env>.
+export const environnementDeLaPasse = (ctx, base, env = {}) => ({
+  ...avecLesOutils(ctx.outils ?? {}, base),
+  ...env,
+});
+
+// The tools of the project whose main tree is <racine>, read at the launch of a run:
+// `{ outils }`, or `{ arret }`, the stop « lancement » that goes up to the supervisor before any
+// session (its code, name, report, piece and question), the faults of the key named.
+export function outilsAuLancement(racine) {
+  try {
+    return { outils: outilsDe(racine) };
+  } catch (err) {
+    const rapport = `La clé grillhouse.outils du package.json est refusée :\n${err.message}`;
+    return {
+      arret: {
+        code: ARRETS.lancement,
+        nom: 'lancement',
+        rapport,
+        piece: `$ npm pkg get grillhouse.outils\n${rapport}`,
+        question: `${rapport}\nLa clé se corrige au package.json du projet, puis \`--reprendre\`.`,
+      },
+    };
+  }
+}
+
 // One command of a reference, run by the shell at the root of the copy, out of the envelope,
 // under the lock of the machine, its output added to the log: `{ code, panne, sortie }`, its exit
 // code, whether it failed for real, whatever it judges (the command not found or not executable,
 // 126, 127, as the shell says it; killed by a signal, the shell's 128 + its number; or the lock of
-// the machine not taken), and what it wrote to the log.
+// the machine not taken), and what it wrote to the log. It runs in the environment of a pass
+// (`environnementDeLaPasse`).
 function commandeDeReference(ctx, commande) {
   entete(ctx, 'references');
   appendFileSync(ctx.journal, `$ ${commande}\n`);
@@ -2051,7 +2082,12 @@ function commandeDeReference(ctx, commande) {
   const fd = openSync(ctx.journal, 'a');
   try {
     const r = avecLaMachine(
-      env => spawnSync('sh', ['-c', commande], { cwd: ctx.copie, stdio: ['ignore', fd, fd], env }),
+      env =>
+        spawnSync('sh', ['-c', commande], {
+          cwd: ctx.copie,
+          stdio: ['ignore', fd, fd],
+          env: environnementDeLaPasse(ctx, env),
+        }),
       { racine: ctx.copie, dire: l => appendFileSync(ctx.journal, `${l}\n`) }
     );
     const code = r.status ?? 1;
@@ -2537,7 +2573,8 @@ function paquetDe(liste, fichier) {
 // (scripts/verrou-de-machine.mjs), its wait written to the log, and passes it to the
 // `npm run verifier` it runs. A wait that stops (its bound, 75; a lock held by an ancestor, 1) is
 // the command's code, its message in the log. Once it holds the lock, the pass plays under a
-// progress directory of its own (`avancement`), of the kind `genreDeLaPasse` names.
+// progress directory of its own (`avancement`), of the kind `genreDeLaPasse` names. It plays in
+// the environment of a pass (`environnementDeLaPasse`).
 function npm(ctx, etape, args, env = {}) {
   entete(ctx, etape);
   const dossier = mkdtempSync(path.join(ctx.base.dossier, 'resultats-'));
@@ -2551,13 +2588,12 @@ function npm(ctx, etape, args, env = {}) {
           spawnSync('npm', args, {
             cwd: ctx.copie,
             stdio: ['ignore', fd, fd],
-            env: {
-              ...envMachine,
+            env: environnementDeLaPasse(ctx, envMachine, {
               ...env,
               [RESULTATS]: dossier,
               [AVANCEMENT]: avancement,
               ...(args[0] === 'test' ? { [DEPUIS_LE_VERT]: '1' } : {}),
-            },
+            }),
           })
         ),
       { racine: ctx.copie, dire: l => appendFileSync(ctx.journal, `${l}\n`) }
@@ -4445,6 +4481,11 @@ export async function main(argv) {
         })
       );
     }
+    // The tools of the project, which every pass of the circuit plays with: a faulty key stops the
+    // run before any session, by its name.
+    const lancement = outilsAuLancement(ctx.racine);
+    if (lancement.arret) return aLaFin(ctx, monter(ctx, { ...lancement.arret, etat: d }));
+    ctx.outils = lancement.outils;
     // From the testwriter: the plan, which the explorateur writes and the questionneur reads once.
     if (d.etape === TESTS) {
       const arret = await lePlan(ctx);

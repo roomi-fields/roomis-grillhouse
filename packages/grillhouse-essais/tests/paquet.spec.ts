@@ -131,6 +131,9 @@ const SCINDES: Record<string, [number, number]> = {
   'un-commit-par-ticket': [5, 10],
   verrous: [8, 20],
   version: [1, 6],
+  // grillhouse-4id: the runs of the circuit, the night, the command of the key and `grillhouse
+  // verifier` with the tools of the project; the day proves them by the exported functions.
+  outils: [6, 23],
 };
 const IT = /(?<![\w.])it(?:\.\w+(?:\([^()]*\))?)*\(/g;
 const EXPECT = /(?<![\w.])expect(?:\.\w+)?\(/g;

@@ -14,6 +14,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { langageDe } from './langages.mjs';
+import { avecLesOutils, outilsDe } from './outils-cles.mjs';
 
 const SCRIPTS = path.dirname(fileURLToPath(import.meta.url));
 
@@ -86,6 +87,20 @@ export function commandeDe(nom, racine = process.cwd()) {
   const commandes = langageDe(racine).commandes(racine);
   const n = s?.langage ?? (DU_NOYAU.has(nom) ? null : nom);
   return n !== null && Object.hasOwn(commandes, n) ? commandes[n] : null;
+}
+
+/**
+ * The environment the subcommand <nom> runs under, in the project at <racine>, from <env>:
+ * `verifier` gets the tools of the project (`grillhouse.outils`, scripts/outils-cles.mjs), each
+ * variable set to its path, whatever <env> holds; every other subcommand gets <env>.
+ * @param {string} nom the subcommand
+ * @param {string} [racine] the root of the project, the working directory by default
+ * @param {Record<string, string | undefined>} [env]
+ * @returns {Record<string, string | undefined>}
+ * @throws {Error} the faults of the key, for `verifier`
+ */
+export function environnementDe(nom, racine = process.cwd(), env = process.env) {
+  return nom === 'verifier' ? avecLesOutils(outilsDe(racine), env) : env;
 }
 
 // The script of each subcommand in the project at <racine>, where a former copy of the frame lay

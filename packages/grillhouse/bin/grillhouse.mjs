@@ -16,6 +16,10 @@
 //   `verifier` and the guards and generators of the module of the project's language
 //   (`grillhouse frontieres`) run its commands, with their arguments first. A project whose language the frame refuses (scripts/langages.mjs) has the refusal on
 //   the error stream, and the exit code is 2.
+// - `verifier` runs with the tools of the project (`grillhouse.outils` of the package.json of its
+//   main tree, `environnementDe` of scripts/sous-commandes.mjs), each variable set to its path,
+//   whatever the caller's environment; a faulty key is refused by its name on the error stream,
+//   nothing run, and the exit code is 2.
 // - A subcommand missing or unknown writes the usage and the list of the subcommands on the error
 //   stream, and the exit code is 2.
 // - A script finds its neighbours by its own directory, and the project by the working directory
@@ -24,7 +28,12 @@ import { spawn } from 'node:child_process';
 import { realpathSync } from 'node:fs';
 import { constants } from 'node:os';
 import { pathToFileURL } from 'node:url';
-import { commandeDe, SOUS_COMMANDES, sousCommandes } from '../scripts/sous-commandes.mjs';
+import {
+  commandeDe,
+  environnementDe,
+  SOUS_COMMANDES,
+  sousCommandes,
+} from '../scripts/sous-commandes.mjs';
 
 // The subcommands in the working directory: the core's, and the ones of the module of its
 // language; the core's alone when the frame refuses its language.
@@ -77,9 +86,17 @@ async function lancer([nom, ...args]) {
     await import(pathToFileURL(script).href);
     return;
   }
+  let env;
+  try {
+    env = environnementDe(nom);
+  } catch (e) {
+    process.stderr.write(`⛔ grillhouse ${nom} : ${e.message}\n`);
+    process.exitCode = 2;
+    return;
+  }
   const enfant = script.endsWith('.sh')
-    ? spawn('bash', [script, ...args], { stdio: 'inherit' })
-    : spawn(process.execPath, [script, ...args], { stdio: 'inherit' });
+    ? spawn('bash', [script, ...args], { stdio: 'inherit', env })
+    : spawn(process.execPath, [script, ...args], { stdio: 'inherit', env });
   // A signal this process receives goes to the script, which decides how it ends.
   const relais = s => enfant.kill(s);
   for (const s of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(s, relais);

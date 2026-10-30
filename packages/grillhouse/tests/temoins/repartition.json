@@ -50,6 +50,7 @@
     "scripts/migrations/0.24.2-api-extractor-du-paquet.mjs",
     "scripts/migrations/0.25.0-script-des-tests.mjs",
     "scripts/nuit.sh",
+    "scripts/outils-cles.mjs",
     "scripts/paquets.d.ts",
     "scripts/paquets.mjs",
     "scripts/poussee-cles.mjs",

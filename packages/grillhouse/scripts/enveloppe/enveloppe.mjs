@@ -33,6 +33,18 @@
 //   `~/.claude`, `~/.claude.json`, the npm cache, the paths of `MAISON_EN_LECTURE` (claude, node,
 //   git and the session's tools) and the repository. No socket of the session comes back. Of
 //   the machine's credentials, only claude's own are in sight.
+// - The tools of the project (`grillhouse.outils` of the package.json of the main tree, never of
+//   the copy, so that an agent never opens a path for its next session; `{ "<VARIABLE>":
+//   "<chemin>" }`, read by scripts/outils-cles.mjs), as Bazel declares what an action sees out of
+//   its sandbox and the environment it gets: each path comes back read-only after the declared
+//   paths of the home, before the copy and the packages of the plan, which come back in writing
+//   over it, and each variable reaches the session, the path resolved. A tool never covers a mount
+//   of the envelope: a path is refused when it is `/`, the home or holds it, holds the main tree,
+//   `/tmp`, the temporary directories, `~/.claude`, the scratchpads, the npm cache or a session
+//   directory, or lies under a hidden directory of the first level of the home (`~/.ssh`,
+//   `~/.gnupg`, `~/.aws`, `~/.config`…) but `~/.local` and `~/.cache`, or lies under or holds the
+//   keyrings `~/.local/share/keyrings`; a link is judged by its target too. A faulty key refuses the
+//   envelope, by its name, before anything is prepared.
 // - The session gets only the environment the envelope declares (`environnementDeLaSeance`), as
 //   sudo's env_reset and bwrap's --clearenv give it: the base of a login session, claude's own
 //   configuration and credentials (`ANTHROPIC_*`, `CLAUDE_CODE_OAUTH_TOKEN`), the author of its
@@ -110,6 +122,7 @@ import {
 
 export { paquetsDuLangage };
 import { ouvrirBase } from '../mesure/base-de-passe.mjs';
+import { outilsDe } from '../outils-cles.mjs';
 
 // The role that writes the package of the shared test material and the lock files of the versions.
 const ROLE_MATIERE = 'testwriter';
@@ -218,8 +231,10 @@ export function dossierDeTravail(copie, env = process.env) {
 // envelope mounts in writing, `npm_config_ignore_scripts` set to `true` (npm runs no lifecycle
 // script: a `prepare` that writes under the read-only `.git` would fail `npm install`; the
 // launcher installs outside the session), `TMPDIR` set to the session's working directory
-// <travail>, and `GRILLHOUSE_ENVELOPPE` set to the plan <paquets>. Nothing else of <env> enters.
-export function environnementDeLaSeance(env, { cacheNpm, paquets, travail }) {
+// <travail>, and `GRILLHOUSE_ENVELOPPE` set to the plan <paquets>; with them, each tool of the
+// project <outils> (`grillhouse.outils`), its variable set to its path. Nothing else of <env>
+// enters.
+export function environnementDeLaSeance(env, { cacheNpm, paquets, travail, outils = {} }) {
   const declare = nom =>
     ENVIRONNEMENT_DECLARE.includes(nom) ||
     VARIABLES_DE_CHEMIN.includes(nom) ||
@@ -227,6 +242,7 @@ export function environnementDeLaSeance(env, { cacheNpm, paquets, travail }) {
   const garde = Object.entries(env).filter(([nom, v]) => v !== undefined && declare(nom));
   return {
     ...Object.fromEntries(garde),
+    ...outils,
     npm_config_cache: cacheNpm,
     npm_config_ignore_scripts: 'true',
     TMPDIR: travail,
@@ -243,8 +259,9 @@ function commandeEprouvee(commande) {
 // The mounts outside the copy, in bwrap's order: an empty `/tmp`; the home that holds
 // `~/.claude` and the session directories, empty and sealed; the copy's scratchpads, the npm
 // cache and `~/.claude` in writing; the throwaway `~/.claude.json`; over them, what the session
-// reads without writing; the copy's project directory, in writing; last, the declared paths of
-// the home, read-only.
+// reads without writing; the copy's project directory, in writing; the declared paths of the
+// home, read-only; last, the path of each tool of the project <outils>, read-only (the plan mounts
+// the copy and its written packages after them).
 export function montagesDeLaSeance({
   cacheNpm,
   claude,
@@ -252,6 +269,7 @@ export function montagesDeLaSeance({
   etatJetable,
   scratchpads,
   sessions = [],
+  outils = {},
 }) {
   const maison = path.dirname(claude);
   return [
@@ -262,6 +280,7 @@ export function montagesDeLaSeance({
     ...CLAUDE_EN_LECTURE.map(nom => ({ chemin: path.join(claude, nom), ecriture: false })),
     { chemin: projet, ecriture: true },
     ...MAISON_EN_LECTURE.map(rel => ({ chemin: path.join(maison, rel), ecriture: false })),
+    ...Object.values(outils).map(chemin => ({ chemin, ecriture: false })),
   ];
 }
 
@@ -559,17 +578,8 @@ function envelopper(argv) {
   // [A-Za-z0-9] turned into a dash; it is created here so that bwrap mounts it in writing.
   const enTirets = copie.replace(/[^A-Za-z0-9]/g, '-');
   const projet = path.join(claude, 'projects', enTirets);
-  mkdirSync(projet, { recursive: true });
   const scratchpads = scratchpadsDe(copie);
-  // The session's working directory, created here inside the scratchpads that bwrap mounts.
   const travail = dossierDeTravail(copie);
-  mkdirSync(travail, { recursive: true });
-  // `~/.claude.json` holds the permissions and servers of every project: it enters the session
-  // as a throwaway copy, in a base of its own removed on exit and swept when the envelope is
-  // killed (../mesure/base-de-passe.mjs).
-  const temporaire = ouvrirBase('enveloppe');
-  const etatJetable = path.join(temporaire.dossier, 'claude.json');
-  if (existsSync(`${claude}.json`)) copyFileSync(`${claude}.json`, etatJetable);
   // The session directories of this user that exist: the XDG one and the systemd one.
   const sessions = [
     ...new Set(
@@ -578,8 +588,27 @@ function envelopper(argv) {
         .map(d => path.resolve(d))
     ),
   ];
+  // The tools of the project, judged before anything is prepared: none holds a mount.
+  let outils;
+  try {
+    outils = outilsDe(copie, {
+      montages: [copie, claude, scratchpads, cacheNpm, TEMPORAIRE, ...sessions],
+    });
+  } catch (e) {
+    process.stderr.write(`⛔ ENVELOPPE REFUSÉE — ${e.message}\n`);
+    return CODE_REFUS;
+  }
+  mkdirSync(projet, { recursive: true });
+  // The session's working directory, created here inside the scratchpads that bwrap mounts.
+  mkdirSync(travail, { recursive: true });
+  // `~/.claude.json` holds the permissions and servers of every project: it enters the session
+  // as a throwaway copy, in a base of its own removed on exit and swept when the envelope is
+  // killed (../mesure/base-de-passe.mjs).
+  const temporaire = ouvrirBase('enveloppe');
+  const etatJetable = path.join(temporaire.dossier, 'claude.json');
+  if (existsSync(`${claude}.json`)) copyFileSync(`${claude}.json`, etatJetable);
   const montages = avecLiens(
-    montagesDeLaSeance({ cacheNpm, claude, projet, etatJetable, scratchpads, sessions }),
+    montagesDeLaSeance({ cacheNpm, claude, projet, etatJetable, scratchpads, sessions, outils }),
     lienSurDisque
   );
   const langage = langageDe(copie);
@@ -642,7 +671,7 @@ function envelopper(argv) {
   } else {
     const r = spawnSync('bwrap', [...args, ...commandeEprouvee(commande)], {
       stdio: 'inherit',
-      env: environnementDeLaSeance(process.env, { cacheNpm, paquets, travail }),
+      env: environnementDeLaSeance(process.env, { cacheNpm, paquets, travail, outils }),
     });
     if (r.error) process.stderr.write(`⛔ ENVELOPPE IMPOSSIBLE — ${r.error.message}\n`);
     code = r.error ? CODE_REFUS : (r.status ?? 1);

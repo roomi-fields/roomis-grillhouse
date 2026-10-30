@@ -48,3 +48,9 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
 - La plage de nuit : la clé `grillhouse.plageDeNuit` du `package.json` (`{ "debut": 23, "fin": 8 }`
   par défaut : les heures, à l'heure locale, où l'attente d'une réponse compte au bilan comme nuit,
   à part de l'attente du superviseur et de celle du responsable).
+- Les outils du projet : la clé `grillhouse.outils` du `package.json` (`{ "<VARIABLE>": "<chemin>" }`,
+  un chemin absolu ou sous `~` : un outil hors du dépôt que les tests exigent ; l'enveloppe d'un
+  agent le monte en lecture seule et lui passe la variable, et le circuit, `npm run verifier` et la
+  nuit jouent avec la même ; lue dans l'arbre principal ; un chemin qui recouvrirait l'enveloppe
+  (`/`, la maison, un dossier caché de la maison hors `~/.local` et `~/.cache`, le trousseau
+  `~/.local/share/keyrings`, un montage de l'enveloppe) et une clé fautive sont refusés par leur nom avant tout travail).

@@ -63,6 +63,29 @@ les frontières de modules de Nx, la règle refuse et le code reste lisible ; co
 lit ce dont il a besoin, et les gardes tiennent l'architecture (BP 320.9 : la lecture cloisonnée
 causait l'essentiel des pertes).
 
+**Les outils du projet se déclarent** : comme Bazel déclare ce qu'une action voit hors de son bac
+à sable (`--sandbox_add_mount_pair`) et l'environnement qu'elle reçoit (`--action_env`), un projet
+déclare ses outils hors du dépôt dans `grillhouse.outils` de son `package.json`
+(`{ "<VARIABLE>": "<chemin>" }`, un chemin absolu ou sous `~`), lue en un seul endroit
+(`packages/grillhouse/scripts/outils-cles.mjs`), toujours dans l'arbre principal, jamais dans une
+copie : un agent ne s'ouvre pas un chemin pour sa séance suivante. L'enveloppe monte chaque chemin
+en lecture seule, avant la copie et ses paquets en écriture, et passe chaque variable à la séance ;
+les passes du circuit (environnementDeLaPasse : preuve, contrôles, passe finale, régénération des
+références), `npm run verifier` et la nuit jouent avec les mêmes variables, prises de la clé, quel
+que soit l'environnement de leur lanceur. Un outil ne défait jamais l'enveloppe : un chemin est
+refusé, sa variable et son chemin nommés, quand il est `/`, la maison ou un chemin qui la contient,
+un chemin qui contient un montage de l'enveloppe (l'arbre principal et ses copies, `/tmp` et les
+dossiers temporaires, `~/.claude`, le bloc-notes, le cache npm, les dossiers de séance), ou un
+chemin sous un dossier caché de premier niveau de la maison (`~/.ssh`, `~/.gnupg`, `~/.aws`,
+`~/.config`…), où la machine garde ses identifiants, sauf `~/.local` et `~/.cache`, ou un
+chemin sous le trousseau `~/.local/share/keyrings` ou qui le contient ; un lien se juge aussi
+par sa cible, que l'enveloppe monte avec lui. Une clé fautive
+(une valeur qui n'est pas une chaîne, un nom de variable invalide, un chemin refusé ou absent) est
+refusée par son nom avant tout travail :
+le circuit s'arrête à « lancement », l'enveloppe, `verifier` et la nuit refusent. Ainsi le
+développeur joue les tests qu'il doit rendre verts avec l'outil que voient les contrôles (SyntHub,
+SH-cgi.8 : son Python, donné par `SYNTHHUB_PYTHON`, n'existait pas dans l'enveloppe).
+
 **Le circuit fait les gestes, une vraie question monte** : comme une CI applique ses règles
 (rejouer, régénérer, sauter une tâche sans objet) sans demander et n'appelle une personne que pour
 ce qu'aucune règle ne tranche (l'approbation d'une revue), le circuit d'un ticket

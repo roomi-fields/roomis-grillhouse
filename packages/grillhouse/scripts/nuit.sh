@@ -34,6 +34,10 @@
 #   read-only, its working tree and its git repository (the list the preparation's pose printed,
 #   whatever a command rewrites afterwards): a write into it fails. With a shared submodule and no possible mount (bwrap absent
 #   or refused), the night turns red, the log saying so, before any command runs.
+# - The tools of the project: `grillhouse.outils` in the package.json of the main tree
+#   (scripts/outils-cles.mjs) gives each command of the project its variables, each set to its
+#   path, whatever the environment of the night's launcher; a faulty key turns the night red, the
+#   log naming it, and nothing runs.
 # - The night tests: after the full pass, the night tests and the time budget benches, which
 #   `npm test` and the integration leave out, played by the command `tests-de-nuit` of the module
 #   of the copy's language (the module typescript's: the files `*.nuit.test.*`, `*.nuit.spec.*`,
@@ -205,6 +209,14 @@ jouer() {
     esac
   done <<< "$lecture"
   [ "$faute" -eq 0 ] || return 1
+  # The tools of the project, one `export VARIABLE='chemin'` each (exportsDesOutils of
+  # outils-cles.mjs), evaluated for every command.
+  local outils
+  if ! outils=$(node "$ici/outils-cles.mjs" "$copie"); then
+    echo "✗ la clé grillhouse.outils est refusée : rien n'est joué."
+    return 1
+  fi
+  eval "$outils"
   if [ -f "$copie/package-lock.json" ] && ! cmp -s "$copie/package-lock.json" "$copie/node_modules/.nuit-lock"; then
     monter npm --prefix "$copie" ci --no-audit --no-fund --silent || return 1
     cp "$copie/package-lock.json" "$copie/node_modules/.nuit-lock"
