@@ -102,8 +102,8 @@
 //   section absent without notes), both read with `bd show` at the session's launch, the report of
 //   the step before (the proof, the reds of a check), the findings of the reviewer still open, the
 //   last handover of the session's author at the ticket, for a developpeur without one yet the last
-//   of the testwriter, else « aucune » (no verdict), the line `CONTEXTE :`: the text of
-//   `--contexte`, for each agent of the run, and the references 4.2 regenerates, each with its
+//   of the testwriter, else « aucune » (no verdict), the text of `--contexte` at its head, as its
+//   task (`tache`), for each agent of the run, and the references 4.2 regenerates, each with its
 //   files (`lesReferences`), so that no session stops on what the circuit writes itself (BP
 //   320.8: a developpeur, code and tests green, stopped on a ceiling, the debt and the index).
 //   The session's own exit code is the one lancer.sh
@@ -380,7 +380,10 @@
 //   in each thread of a review on GitHub or Gerrit, a sheet FAIT of the developpeur answers each
 //   finding open for him, by its title, levé or contesté with its reason, with its piece
 //   (`reponses`); a sheet without the answer to one is refused (`reponsesAuxConstats` of
-//   scripts/resultats.mjs) and asked again once of the same session, and the answer is kept with
+//   scripts/resultats.mjs) and asked again once of the same session, except in a run whose
+//   supervisor gives the task (`--contexte`), where the findings open at its launch are the
+//   session's context and need no answer, a finding a RENDU states within the run still its task
+//   (`auLancement`, `constatsDeLaSeance`, BP 320.14.2.3), and the answer is kept with
 //   its finding in the state until the next review (BP 320.21: the cause of his choice in a
 //   handover the circuit does not read, three RENDU, then the stop); the rest of the lot it does not read again (its skill, « La relecture
 //   bornée »). A blocking finding without a valid agent, or one that puts its criterion in
@@ -461,7 +464,8 @@
 //   a stop « questionnement », it lets the plan pass as it is then (the supervisor
 //   changed it or kept it), from the testwriter.
 // - `--depuis <testwriter|developpeur>` has the lot corrected: it plays the whole ticket from
-//   that step, the text of `--contexte` on the line CONTEXTE of each agent of the run (after a stop
+//   that step, the text of `--contexte` the task at the head of each agent's instruction in the
+//   run, the reviewer's line CONTEXTE (after a stop
 //   « integration », from the developpeur, the refusal as his report, the red to lift, as a merge
 //   queue sends the lot back to its author with the log of its check; from the testwriter, the
 //   refusal dropped), as a retry
@@ -1276,7 +1280,7 @@ async function attendreLaSeance(ctx, groupe) {
 // developpeur's on a resumption, 4 the questionneur's on the plan, 5 the explorateur's on the plan,
 // 6 the explorateur's on the questions of the plan, 7 the explorateur's on the tri of the
 // discoveries), filled with <valeurs>.
-function consigne(valeurs, rang = 0) {
+export function consigne(valeurs, rang = 0) {
   const texte = readFileSync(GABARIT, 'utf8');
   const bloc = [...texte.matchAll(/```text\n([\s\S]*?)\n```/g)][rang];
   if (!bloc) throw new Error(`gabarit sans bloc de consigne n° ${rang + 1} : ${GABARIT}`);
@@ -1292,23 +1296,24 @@ function consigne(valeurs, rang = 0) {
 // circuit keeps. A fresh session's instruction (the first
 // template) carries the ticket's description and notes as they are at its launch, the packages of
 // the plan, and the last handover of its author at the ticket. Every instruction, fresh or resumed,
-// carries the findings of the reviewer still open for its role (`ctx.constats`), all of them,
-// whatever the relaunch: a proof refused, red checks, a sending, a RENDU, a resumption of the
-// supervisor; <change> says what changed on a resumption, when it is not the proof or the checks
-// (the integration's refusal of the lot, `refus`); a developpeur's sheet FAIT answers each of his by its title (`reponsesAuxConstats`),
-// refused without one, and the circuit keeps each answer with its finding (`avecLesReponses`).
+// carries the supervisor's context of the run at its head, as its task, and the findings of the
+// reviewer still open for its role (`ctx.constats`), all of them, whatever the relaunch: a proof
+// refused, red checks, a sending, a RENDU, a resumption of the supervisor (`constatsDeLaSeance`);
+// <change> says what changed on a resumption, when it is not the proof or the checks (the
+// integration's refusal of the lot, `refus`).
 // Throws an Arret for a launch that stops before its session, a motionless session, or
 // a session that ends twice without a sheet that conforms.
 async function seance(ctx, role, { tentative, rapport, fort, derniere, change }) {
   const nom = nomDuRole(role);
   const reprise = tentative > 1 && !derniere && ctx.reprise?.agent === role ? ctx.reprise : null;
-  const constats = texteDesOuverts(ouverts(ctx, role));
+  const { tache, ouverts, constats, valider, repondre } = constatsDeLaSeance(
+    ctx.contexte,
+    ctx.constats,
+    role
+  );
   const plan = ctx.paquets.join(', ');
-  // A developpeur's sheet answers each finding open for him, kept with its finding.
-  const titres = role === 'developpeur' ? ouverts(ctx, role).map(c => c.titre) : [];
-  const valider = f => reponsesAuxConstats(f, titres);
   const repondu = fiche => {
-    if (fiche && titres.length) ctx.constats = avecLesReponses(ctx.constats, fiche);
+    if (fiche) ctx.constats = repondre(ctx.constats, fiche);
     return fiche;
   };
   if (reprise) {
@@ -1324,6 +1329,8 @@ async function seance(ctx, role, { tentative, rapport, fort, derniere, change })
           ? 'la preuve du rouge, jouée après ta séance, refuse ton lot'
           : 'les contrôles, joués après ta séance, sont rouges'),
       rapport: rapport ?? 'aucun',
+      tache,
+      ouverts,
       constats,
     };
     const fiche = await jusquALaFiche(ctx, role, consigne(courte, 3), {
@@ -1358,13 +1365,14 @@ async function seance(ctx, role, { tentative, rapport, fort, derniere, change })
     lots: lots.length
       ? `${role === 'developpeur' ? 'le lot de tests' : 'tes tests'}, déjà dans la copie : ${lots.join(', ')}`
       : 'aucun',
-    contexte: contexteDe(ctx),
+    tache,
     description: description.trim() || 'aucune',
     // The section of the ticket's notes, absent without notes.
     notes: notes.trim()
       ? `\nLES NOTES DU TICKET, l'état qu'un agent d'avant y a écrit :\n\n${notes.trim()}\n`
       : '',
     rapport: rapport ?? 'aucun',
+    ouverts,
     constats,
     passation: passation?.text ?? 'aucune',
     references: lesReferences(ctx)
@@ -1373,6 +1381,53 @@ async function seance(ctx, role, { tentative, rapport, fort, derniere, change })
   };
   return repondu(await jusquALaFiche(ctx, role, consigne(valeurs), { fort, neuve: role, valider }));
 }
+
+// The findings of the reviewer open for <role> among <constats>, as a session of the run whose
+// supervisor's context is <contexte> (`--contexte`, with `--depuis`, `--reprendre` or
+// `--etendre`) receives them, as a review its author relaunches on a change he frames keeps its
+// open threads in sight without blocking on them (BP 320.14.2.3: the context after the rule of
+// the answers, a session that worked an old finding only, its sheet refused, « sans-livraison »
+// twice). With a context, the context heads the instruction as its task (`tache`); the findings
+// open at the launch of the run (`enContexte`, `auLancement`) are its context, after the others
+// under their own heading, and a developpeur's sheet FAIT is not refused for want of an answer to
+// one of them; every other finding, without a context or stated by a RENDU within the run, is its
+// task, and his sheet FAIT answers each by its title, refused without one (`valider`,
+// `reponsesAuxConstats`). Either way, each answer a developpeur's sheet gives is kept with its
+// finding (`repondre`, `avecLesReponses`).
+export function constatsDeLaSeance(contexte, constats, role) {
+  const siens = (constats ?? []).filter(c => c.role === role);
+  const anciens = siens.filter(c => c.enContexte);
+  const neufs = siens.filter(c => !c.enContexte);
+  const titres = role === 'developpeur' ? neufs.map(c => c.titre) : [];
+  const enContexte = `les constats ouverts au lancement de la passe du superviseur, donnés en contexte : ta tâche est celle du superviseur, ci-dessus ; chacun reste ouvert jusqu'à la relecture qui le juge levé, et ta fiche n'a pas à répondre à chacun`;
+  const titre =
+    'LES CONSTATS DU RELECTEUR QUI RESTENT OUVERTS pour ton rôle, ' +
+    (anciens.length && !neufs.length ? enContexte : "chacun jusqu'à la relecture qui le juge levé");
+  const texte =
+    anciens.length && neufs.length
+      ? `${texteDesOuverts(neufs)}\n\nPUIS ${enContexte} :\n\n${texteDesOuverts(anciens, neufs.length)}`
+      : texteDesOuverts(siens);
+  return {
+    tache: contexte
+      ? `TA TÂCHE, que le superviseur te donne ; elle passe avant le ticket, le rapport${anciens.length ? ' et les constats donnés en contexte' : ''} ci-dessous :\n\n${contexte}\n\n`
+      : '',
+    ouverts: titre,
+    constats: texte,
+    valider: f => reponsesAuxConstats(f, titres),
+    repondre: (tous, fiche) =>
+      role === 'developpeur' && siens.length ? avecLesReponses(tous, fiche) : tous,
+  };
+}
+
+// The findings <constats> as a run launched with the supervisor's context <contexte> holds them:
+// each one open at its launch marked `enContexte`, as the threads already open when the author
+// relaunches a review on a change he frames; without a context, none. A finding a RENDU states
+// within the run comes without the mark (`constatsOuverts`), and is the session's task again.
+export const auLancement = (contexte, constats) =>
+  (constats ?? []).map(c => {
+    const { enContexte, ...reste } = c;
+    return contexte ? { ...reste, enContexte: true } : reste;
+  });
 
 // The findings <constats>, each finding of the developpeur that his sheet <fiche> answers (by its
 // title) with its answer `{ etat, raison, piece }`, as a thread of a review keeps the author's
@@ -1389,8 +1444,8 @@ function avecLesReponses(constats, fiche) {
   });
 }
 
-// The line CONTEXTE of a session: the text of `--contexte` of the run, which every session of the
-// run receives; « aucun » without it.
+// The line CONTEXTE of a reviewer's session: the text of `--contexte` of the run; « aucun »
+// without it.
 const contexteDe = ctx => ctx.contexte || 'aucun';
 
 // The launch <r> of a session of <role>, or the Arret it is: a session its lock stopped on a
@@ -2084,13 +2139,13 @@ function renvoiDe(ctx, fiche) {
 const ouverts = (ctx, role) => (ctx.constats ?? []).filter(c => c.role === role);
 
 // The findings <constats> as an agent's instruction carries them, each under its heading, with
-// what it holds, its body and its piece; « aucun » without one.
-const texteDesOuverts = constats =>
+// what it holds, its body and its piece, numbered after <avant>; « aucun » without one.
+const texteDesOuverts = (constats, avant = 0) =>
   constats.length
     ? constats
         .map(
           (c, i) =>
-            `### Constat ${i + 1} — ${c.titre}\nBloquant : ${c.regle}\n${c.corps}${c.piece ? `\nPièce : ${c.piece}` : ''}`
+            `### Constat ${avant + i + 1} — ${c.titre}\nBloquant : ${c.regle}\n${c.corps}${c.piece ? `\nPièce : ${c.piece}` : ''}`
         )
         .join('\n\n')
     : 'aucun';
@@ -2099,11 +2154,12 @@ const texteDesOuverts = constats =>
 // review stay open until the review that resolves them: each blocking finding of the sheet (a
 // remark reaches the ticket, no agent; the sheet's schema gives a RENDU at least one), after each
 // finding open before it that the sheet neither marks lifted (`suivi`, by its title) nor states
-// again. Each one `{ titre, regle, role, corps, piece }`, its recipient the agent it names, testwriter or
+// again, which keeps its mark `enContexte` (`auLancement`), a finding the sheet states coming
+// without it. Each one `{ titre, regle, role, corps, piece }`, its recipient the agent it names, testwriter or
 // developpeur, without the developpeur's answer to the review before (`reponse`): his next sheet
 // answers it again. Throws an Arret `relecture-arret` for a finding without a valid recipient or one
 // that puts a criterion in question.
-function constatsOuverts(ctx, fiche, texte) {
+export function constatsOuverts(ctx, fiche, texte) {
   const arret = raison =>
     new Arret('relecture-arret', `${raison}\n\nLe verdict :\n\n${texte}`, { piece: raison });
   const neufs = bloquants(fiche).map(c => {
@@ -4351,6 +4407,9 @@ export async function main(argv) {
         throw new Usage(`--etendre : le lot de ${ctx.ticket} est intégré.`);
       e = etendre(ctx, e);
     }
+    // The findings open at the launch of a run with the supervisor's context (`--contexte`, or the
+    // question `--etendre` gives it) are its sessions' context; without one, their task.
+    ctx.constats = auLancement(ctx.contexte, ctx.constats);
     // The supervisor's resumption of the questioning lets the plan pass as it is now.
     if (ctx.reprendre && e?.raison === 'questionnement') {
       commenter(

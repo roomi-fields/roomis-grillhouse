@@ -24,7 +24,10 @@
 //   - `reponses` (`titre` of the finding, `etat` levé or contesté, `raison` for a contesté,
 //     `piece`): as the author answers in each thread of a review on GitHub or Gerrit, a FAIT
 //     answers each finding of the reviewer open for him, by its title, and the circuit refuses a
-//     sheet without the answer to one (`reponsesAuxConstats`) and gives the next review each answer
+//     sheet without the answer to one (`reponsesAuxConstats`), save in a run where the supervisor
+//     gives the task (`--contexte`, the findings open at the run's launch then its context, the
+//     ones a RENDU states within it still its task: `constatsDeLaSeance` of
+//     scripts/circuit.mjs), and gives the next review each answer
 //     under its finding (BP 320.21: the cause of his choice in a handover the circuit does not
 //     read, three RENDU, then the stop) (developpeur);
 //   - `ecarts` (`sujet`, `texte`): the body of the commit message, written by the circuit, each

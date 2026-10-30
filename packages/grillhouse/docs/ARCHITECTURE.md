@@ -218,7 +218,14 @@ d'une relance à l'autre, comme un fil de revue non résolu, jusqu'à ce que le 
 levé ou accepte le lot. Comme l'auteur répond dans chaque fil d'une revue GitHub ou Gerrit, la
 fiche FAIT du développeur répond à chaque constat ouvert pour lui, par son titre (`reponses` :
 `levé` avec sa pièce, ou `contesté` avec sa raison et sa pièce) ; le circuit refuse une fiche à
-laquelle il en manque une (`reponsesAuxConstats`), garde chaque réponse avec son constat, et la
+laquelle il en manque une (`reponsesAuxConstats`). Quand le superviseur relance avec son
+contexte (`--contexte`, ou la question que `--etendre` y verse), comme une revue que son auteur
+relance sur un changement qu'il cadre, la consigne porte ce contexte en tête, comme la tâche,
+avant le ticket, le rapport et les constats ; les constats ouverts au lancement de la passe
+(`enContexte`, `auLancement`) sont donnés en contexte, sans réponse exigée, et ceux qu'un
+`RENDU` pose dans la passe restent la tâche, leur réponse exigée (`constatsDeLaSeance`,
+BP 320.14.2.3 : le contexte après la règle des réponses, une séance qui ne travaille qu'un
+constat ancien, sa fiche refusée, deux fois `sans-livraison`). Le circuit garde chaque réponse avec son constat, et la
 relecture suivante la lit sous lui (BP 320.21 : la cause de son choix dans une passation que le
 circuit ne lit pas, « la relecture n'a reçu aucune fiche du développeur », trois `RENDU`, puis
 l'arrêt). Le bilan compte par étape et par rôle. Ainsi un type change avec ses

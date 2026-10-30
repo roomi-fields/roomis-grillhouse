@@ -168,7 +168,11 @@ son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
     `titre` tel que ta consigne l'écrit : `levé`, avec sa `piece`, ou `contesté`, avec sa `raison`
     et sa `piece` ; le circuit refuse une fiche à laquelle il en manque une, et le relecteur lit
     chaque réponse sous son constat, comme l'auteur répond dans chaque fil d'une revue. Une
-    passation qui dit pourquoi tu gardes ton choix ne suffit pas : le relecteur ne la reçoit pas ;
+    passation qui dit pourquoi tu gardes ton choix ne suffit pas : le relecteur ne la reçoit pas.
+    Quand le superviseur te donne ta tâche, en tête de ta consigne, les constats ouverts au
+    lancement de sa passe sont ton contexte : aucune réponse ne leur est exigée, et une réponse
+    donnée reste lue sous son constat ; un constat qu'un `RENDU` pose dans la passe exige la
+    sienne ;
   - `ecarts` : ce que le message de commit nomme, chacun sous son `sujet` (ce qui s'écarte :
     une référence, un test, un plafond), avec son `texte` ;
   - `decouvertes` : ce que le circuit consigne fermé sous le ticket.
@@ -183,7 +187,11 @@ son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
   valables. La dernière tentative, sur le modèle fort, est une séance neuve et entière. Ainsi tu
   repars de ce que tu sais. Toute relance (des contrôles rouges, un `RENDU`, une reprise du
   superviseur) porte les constats du relecteur qui restent ouverts pour toi, tous, jusqu'à la
-  relecture qui les juge levés. Ainsi aucun constat ne se perd d'une relance à l'autre.
+  relecture qui les juge levés. Ainsi aucun constat ne se perd d'une relance à l'autre. Une
+  relance du superviseur avec son contexte (`--contexte`) te donne ce contexte en tête de ta
+  consigne : c'est ta tâche, qui passe avant le ticket, le rapport et les constats ; ceux
+  ouverts au lancement de sa passe te sont donnés en contexte, ceux qu'un `RENDU` pose dans la
+  passe restent ta tâche. Ainsi la demande du superviseur prime.
 - **Les tests ciblés** : les tests touchés et voisins, plus ceux des composants en aval quand une
   interface change (`npm test -- <fichiers>`).
 - **Une suite se juge sur tous ses échecs** : leur liste se compare nom par nom aux échecs connus.

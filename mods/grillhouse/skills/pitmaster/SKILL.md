@@ -138,7 +138,10 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   le même lot (la charge, main), et `--depuis developpeur` repart du développeur, le refus comme
   son rapport, quand le lot est en cause ; `--arreter`, son motif en
   `--contexte`, quand le ticket
-  doit changer avant tout travail. Une décision du responsable qui change le plan entre dans la
+  doit changer avant tout travail. Mon `--contexte` est la tâche du testwriter et du
+  développeur : il vient en tête de leur consigne, et les constats du relecteur ouverts au
+  lancement de la passe leur sont donnés en contexte, sans réponse exigée ; un constat qu'un
+  `RENDU` pose dans la passe reste leur tâche. Une décision du responsable qui change le plan entre dans la
   description du ticket (`bd update <ticket> -d`), que tous les agents lisent, avant que je
   reprenne. 22 (`questionnement`) : des questions du plan restent ouvertes après la réponse de
   l'explorateur, au ticket avec leur pièce ; je change le plan (`bd update <ticket>`) ou je le
