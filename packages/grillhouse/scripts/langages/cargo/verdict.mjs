@@ -4,7 +4,8 @@
 //
 // - `<dossier>/cargo/<run>.json`, one per run: `{ taches, cibles }`, each task as the join types
 //   it (`code` null for a task planned that did not run; `tests` true for the runs of nextest and
-//   of the doctests), and the file of each test binary of nextest by its id (`ws-core`,
+//   of the doctests; `journal`, from the root, the log of the task `build`, the build of a crate's
+//   test targets, which the circuit reads for a failed build), and the file of each test binary of nextest by its id (`ws-core`,
 //   `ws-core::integ`, `ws-core::bin/outil`), its target's source.
 // - `<dossier>/nextest/<run>-<crate>.xml`, the JUnit report of each run of nextest: each
 //   `testsuite`, a test binary, gives a test file, each `testcase` a test, failed when it holds a

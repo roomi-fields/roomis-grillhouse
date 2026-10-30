@@ -536,7 +536,10 @@ demandent au projet, ses générateurs ; ses binaires (`binaires`), que `maj` in
 les fichiers sources laissent de côté et que `maj` écrit dans le `.gitignore`. Le module typescript vit sous
 `scripts/langages/typescript/` (`tests/temoins/repartition.json` range chaque fichier), ses tests
 sous `tests/unit/langages/typescript/` ; le module cargo sous `scripts/langages/cargo/` (les crates
-de `cargo metadata`, les tests par nextest puis les doctests, la vérification par cargo-deny,
+de `cargo metadata`, les tests par nextest puis les doctests, après la construction des cibles de
+test de chaque crate (`cargo test --no-run`), une tâche `build` du verdict avec son journal, comme
+la tâche `test` de Turborepo dépend de `build` : des tests qui ne compilent pas sont le rouge
+« construction de <crate> » de la preuve du rouge, et se jouent aux contrôles ; la vérification par cargo-deny,
 sous le verrou de la machine ; le refus, avant tout lancement de cargo, d'un espace dont git ne
 suit pas le Cargo.lock, comme `npm ci` refuse un projet sans package-lock.json : les tests, la
 vérification et la préparation le nomment en une ligne avec son geste (`git add Cargo.lock`), et

@@ -12,12 +12,18 @@
 // - Each guard of structure of the module (./clippy.mjs, ./frontieres.mjs, ./index-interfaces.mjs)
 //   is a command by its name too, its own script, as the module typescript's: the line of a red
 //   guard (`grillhouse <garde>`, scripts/gardes-du-cadre.mjs) names a command that exists.
-// - `tester` plays the tests of each crate chosen, one crate after the other: `cargo nextest run
-//   -p <crate> --no-fail-fast` for a crate that plays tests (./composants.mjs, `joueDesTests`),
-//   then `cargo test --doc -p <crate>` for a crate whose library has doctests, which nextest does
-//   not play. A path, written from the root, chooses the crate that holds it; the source of a test
-//   target (`<crate>/tests/<nom>.rs`) plays that target alone (`--test <nom>`), without the
-//   doctests. A path out of every crate, or in a crate without tests, is refused, named, and
+// - `tester` plays the tests of each crate chosen, one crate after the other. For a crate that
+//   plays tests (./composants.mjs, `joueDesTests`): the build of its test targets, `cargo test
+//   --no-run -p <crate>`, a task `build` of its own, as Turborepo's `test` depends on `build`
+//   (grillhouse-egm); then `cargo nextest run -p <crate> --no-fail-fast`, which finds them built.
+//   Then `cargo test --doc -p <crate>` for a crate whose library has doctests, which nextest does
+//   not play. A failed build leaves the crate's other tasks not played (`code` null): a test that
+//   does not compile is a red of the build, which the proof of the red reads as one (« construction
+//   de <crate> », scripts/circuit.mjs), and the tests play at the checks. The output of the build
+//   goes to its log, `<target>/grillhouse/<crate>-build.log`, the task's `journal` from the root,
+//   then to the error stream. A path, written from the root, chooses the crate that holds it; the
+//   source of a test target (`<crate>/tests/<nom>.rs`) builds and plays that target alone
+//   (`--test <nom>`), without the doctests. A path out of every crate, or in a crate without tests, is refused, named, and
 //   nothing plays (code 2). Without a path, every crate plays, or, under the circuit's mark
 //   (`GRILLHOUSE_DEPUIS_LE_VERT`), the crates the changes since the last green touch and their
 //   dependents (./touches.mjs), every crate when no last green counts. `--force` changes nothing:
@@ -55,7 +61,16 @@
 // - The exit code: 0 when every task is green, 75 when the only reds are « à repasser », 1
 //   otherwise; 2 for a path refused, a Cargo.lock not tracked or a command unknown.
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  closeSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { constants, tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -152,12 +167,27 @@ function passe(racine, env) {
       ecrire();
       return { t, args };
     },
-    jouer({ t, args }, junit = null) {
+    jouer({ t, args }, { junit = null, journal = null } = {}) {
       // A report of an earlier run is no report of this one, which may write none.
       if (junit) {
         rmSync(junit, { force: true });
       }
-      const r = spawnSync('cargo', args, { cwd: racine, env, stdio: 'inherit' });
+      let r;
+      if (journal) {
+        // The output of cargo, both streams in their order, goes to the task's log, then to the
+        // command's error stream, where cargo writes it.
+        mkdirSync(path.dirname(journal), { recursive: true });
+        const fd = openSync(journal, 'w');
+        try {
+          r = spawnSync('cargo', args, { cwd: racine, env, stdio: ['inherit', fd, fd] });
+        } finally {
+          closeSync(fd);
+        }
+        process.stderr.write(readFileSync(journal, 'utf8'));
+        t.journal = path.relative(racine, journal);
+      } else {
+        r = spawnSync('cargo', args, { cwd: racine, env, stdio: 'inherit' });
+      }
       t.code = r.error ? 127 : (r.status ?? 128 + (constants.signals[r.signal] ?? 0));
       if (junit && dossier && existsSync(junit)) {
         mkdirSync(path.join(dossier, JUNIT), { recursive: true });
@@ -192,30 +222,40 @@ function depuisLeVert(racine, tous, tout, env) {
 }
 
 // Plans and plays the tests of the crates <choix> (each `{ c, cibles }`, `cibles` the test targets
-// named, empty for the whole crate) in the run <p>.
+// named, empty for the whole crate) in the run <p>: for a crate that plays tests, the build of its
+// test targets first, then nextest, then its doctests; a failed build leaves the crate's other
+// tasks not played.
 function jouerLesTests(racine, p, choix, options) {
   const m = metadonnees(racine);
   const junit = path.join(m.target_directory, 'nextest', PROFIL, 'junit.xml');
-  const prevues = [];
+  const parCrate = [];
   for (const { c, cibles } of choix) {
     Object.assign(p.cibles, binaires(c));
     const d = c.composant.dossier;
+    const nom = c.composant.nom;
+    const prevues = [];
     if (joueDesTests(racine, c.composant)) {
+      const selection = ['-p', nom, ...cibles.flatMap(n => ['--test', n])];
+      const journal = path.join(m.target_directory, 'grillhouse', `${nom}-build.log`);
+      const construction = ['test', '--no-run', ...selection];
+      prevues.push([p.prevoir(nom, d, 'build', false, construction), { journal }]);
       const args = ['nextest', 'run', '--tool-config-file', `${PROFIL}:${NEXTEST}`];
-      args.push('--profile', PROFIL, '--no-fail-fast', '-p', c.composant.nom);
-      for (const n of cibles) {
-        args.push('--test', n);
-      }
-      prevues.push([p.prevoir(c.composant.nom, d, 'nextest', true, [...args, ...options]), junit]);
+      args.push('--profile', PROFIL, '--no-fail-fast', ...selection);
+      prevues.push([p.prevoir(nom, d, 'nextest', true, [...args, ...options]), { junit }]);
     }
     const doctests = c.cibles.some(t => t.kind.includes('lib') && t.doctest !== false);
     if (cibles.length === 0 && doctests) {
-      const args = ['test', '--doc', '-p', c.composant.nom];
-      prevues.push([p.prevoir(c.composant.nom, d, 'doctest', true, args), null]);
+      const args = ['test', '--doc', '-p', nom];
+      prevues.push([p.prevoir(nom, d, 'doctest', true, args), {}]);
     }
+    parCrate.push(prevues);
   }
-  for (const [t, j] of prevues) {
-    p.jouer(t, j);
+  for (const prevues of parCrate) {
+    for (const [t, o] of prevues) {
+      if (p.jouer(t, o) !== 0 && t.t.script === 'build') {
+        break;
+      }
+    }
   }
 }
 

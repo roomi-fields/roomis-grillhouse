@@ -15,6 +15,10 @@ import path from 'node:path';
 //   `[package.metadata]`; the workspace's `[workspace.metadata]`, as `metadata` (grillhouse-pkl.6).
 // - `cargo clippy …`: prints the file `FAUX_CARGO_CLIPPY` names, the JSON lines of a recorded run
 //   of clippy, nothing without it (grillhouse-pkl.6).
+// - `cargo test --no-run -p <crate> [--test <nom>]…`: the build of the crate's test targets, its
+//   code under the key `build <crate>` or `build` of `FAUX_CARGO_CODES`; red, it writes on its
+//   error stream the errors of rustc of a test that calls a name the crate does not have yet
+//   (grillhouse-egm, as OSD-b91.2.3's tests calling `osd::convert`).
 // - `cargo nextest run -p <crate> [--test <nom>]…`: writes the JUnit report of the profile
 //   `grillhouse` under `target/nextest/grillhouse/junit.xml`, one suite per test binary of the
 //   crate (the library, each test target or the ones named), one test `essai` each, failed when
@@ -110,9 +114,16 @@ const crate = d => {
     metadata: m.package.metadata ?? null,
   };
 };
-const sous = args[0] === 'nextest' ? 'nextest' : args[0];
+const sous = args[0] === 'test' && args.includes('--no-run') ? 'build' : args[0];
 const nomme = args[args.indexOf('-p') + 1];
 const code = codes[sous + ' ' + nomme] ?? codes[sous] ?? 0;
+if (sous === 'build' && code !== 0) {
+  process.stderr.write(
+    '   Compiling ' + nomme + ' v0.1.0\\n' +
+    'error[E0425]: cannot find function \`convert\` in crate \`' + nomme + '\`\\n' +
+    'error: could not compile \`' + nomme + '\` (test "bout") due to 1 previous error\\n'
+  );
+}
 if (sous === 'nextest' && process.env.FAUX_CARGO_TEMPORAIRE) {
   const { TMPDIR, TMP, TEMP } = process.env;
   fs.writeFileSync(process.env.FAUX_CARGO_TEMPORAIRE, JSON.stringify({ TMPDIR, TMP, TEMP }));

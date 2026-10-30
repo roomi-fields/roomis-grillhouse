@@ -48,6 +48,7 @@ describe('grillhouse-pkl.3 — le module cargo contre le vrai cargo', () => {
       expect(r.status, r.stderr).toBe(0);
       const v = cargo.verdict(resultats);
       expect(v.taches.map(t => [t.tache, t.code])).toEqual([
+        ['seul#build', 0],
         ['seul#nextest', 0],
         ['seul#doctest', 0],
       ]);

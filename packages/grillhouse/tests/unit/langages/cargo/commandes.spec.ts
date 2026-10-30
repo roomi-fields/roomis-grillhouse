@@ -1,7 +1,7 @@
 // grillhouse-pkl.3, criteria 7 and 8 — the commands of the module cargo, each `{ script, args }`
 // with a real script of the module, described without running anything; run against the fake
-// cargo (./faux-cargo.ts), whose journal lists the calls: tester (nextest for each crate with
-// tests, then its doctests), typer (cargo check --all-targets), verifier (the tests, then cargo
+// cargo (./faux-cargo.ts), whose journal lists the calls: tester (the build of the test targets
+// and nextest for each crate with tests, then its doctests), typer (cargo check --all-targets), verifier (the tests, then cargo
 // deny check), preparer (cargo fetch --locked); the verdict of a run reads the JUnit report of
 // nextest and the code of each task, and a red makes verifier's code 1. Verifier plays under the
 // lock of the machine: a lock held makes it wait, and the bound of the wait reached it stops at 75
@@ -20,6 +20,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { paquetsDuLangage } from '../../../../scripts/enveloppe/paquets-du-plan.mjs';
 import type { Langage } from '../../../../scripts/jointure.js';
 import module from '../../../../scripts/langages/cargo/index.mjs';
 import exemples from '../../../../scripts/langages/cargo/exemples.mjs';
@@ -113,8 +114,10 @@ describe('grillhouse-pkl.3, critère 7 — les commandes du module cargo', () =>
     const r = lancer(d.espace, 'tester');
     expect(r.code).toBe(0);
     expect(r.appels).toEqual([
+      'test --no-run -p ws-app',
       'nextest run --no-fail-fast -p ws-app',
       'test --doc -p ws-app',
+      'test --no-run -p ws-core',
       'nextest run --no-fail-fast -p ws-core',
       'test --doc -p ws-core',
       'test --doc -p ws-matiere',
@@ -124,9 +127,11 @@ describe('grillhouse-pkl.3, critère 7 — les commandes du module cargo', () =>
 
   it('tester with paths: the crate of each, a test target alone; a path out of every crate refused', () => {
     expect(lancer(d.espace, 'tester', ['crates/core/tests/t.rs']).appels).toEqual([
+      'test --no-run -p ws-core --test t',
       'nextest run --no-fail-fast -p ws-core --test t',
     ]);
     expect(lancer(d.espace, 'tester', ['crates/app']).appels).toEqual([
+      'test --no-run -p ws-app',
       'nextest run --no-fail-fast -p ws-app',
       'test --doc -p ws-app',
     ]);
@@ -146,6 +151,7 @@ describe('grillhouse-pkl.3, critère 7 — les commandes du module cargo', () =>
     const r = lancer(d.seul, 'verifier', ['--tout']);
     expect(r.code).toBe(0);
     expect(r.appels).toEqual([
+      'test --no-run -p seul',
       'nextest run --no-fail-fast -p seul',
       'test --doc -p seul',
       'deny check',
@@ -157,6 +163,7 @@ describe('grillhouse-pkl.3, critère 8 — le verdict d’un lancement', () => {
   it('green: each task 0, each test of the JUnit report in its file', () => {
     const v = lancer(d.seul, 'verifier', ['--tout']).verdict;
     expect(v.taches.map(t => [t.tache, t.code, t.tests])).toEqual([
+      ['seul#build', 0, false],
       ['seul#nextest', 0, true],
       ['seul#doctest', 0, true],
       ['//#deny', 0, false],
@@ -176,7 +183,7 @@ describe('grillhouse-pkl.3, critère 8 — le verdict d’un lancement', () => {
   it('a red of nextest: its task red, each test failed with its message', () => {
     const r = lancer(d.seul, 'tester', [], { 'nextest seul': 100 });
     expect(r.code).toBe(1);
-    expect(r.verdict.taches[0]).toMatchObject({ tache: 'seul#nextest', code: 100, tests: true });
+    expect(r.verdict.taches[1]).toMatchObject({ tache: 'seul#nextest', code: 100, tests: true });
     expect(r.verdict.rapports.flatMap(x => x.tests)).toEqual([
       { titre: 'essai', nom: 'essai', etat: 'failed', message: 'rouge & faux' },
       { titre: 'essai', nom: 'essai', etat: 'failed', message: 'rouge & faux' },
@@ -250,6 +257,7 @@ describe('grillhouse-pkl.3 — verifier sous le verrou de la machine', () => {
     expect(await fin, sortie).toBe(0);
     expect(sortie).toMatch(/verrou de la machine pris après/);
     expect(lu(resultats).appels).toEqual([
+      'test --no-run -p seul',
       'nextest run --no-fail-fast -p seul',
       'test --doc -p seul',
       'deny check',
@@ -268,6 +276,7 @@ describe('grillhouse-pkl.3 — verifier depuis le dernier vert', () => {
     const r = lancer(espace, 'verifier');
     expect(r.code).toBe(0);
     expect(r.appels).toEqual([
+      'test --no-run -p ws-app',
       'nextest run --no-fail-fast -p ws-app',
       'test --doc -p ws-app',
       'test --doc -p ws-outil',
@@ -406,5 +415,74 @@ describe('grillhouse-rph, critère 1 — un Cargo.lock non versionné se signale
     expect(r.code).toBe(0);
     expect(r.stderr).toBe('');
     expect(r.appels).toEqual(['fetch --locked']);
+  });
+});
+
+// grillhouse-egm: in TDD, a test that does not compile is a red (Kent Beck, TDD by Example), and
+// the proof of the red reads a failed build of a package of the plan as one (« construction de
+// <paquet> », constructionsEchouees of scripts/circuit.mjs: a task `script: 'build'` of the
+// verdict, its package the component's name, its log from the root). Witness: OSD-b91.2.3, whose
+// tests called the ticket's new interface (`osd::convert`, `osd::read_as`, `Version::V0_5`): cargo
+// stopped the whole pass, and the proof read six files « non joué (code 1) » and refused the lot.
+describe('grillhouse-egm, critères 1 et 2 — la compilation des tests d’une caisse est une construction', () => {
+  it('a crate whose tests do not compile: a failed build task, its log the beginning of cargo’s output', () => {
+    const r = lancer(d.seul, 'tester', [], { 'build seul': 101 });
+    expect(r.code, r.stdout + r.stderr).toBe(1);
+    expect(r.appels).toEqual(['test --no-run -p seul']);
+    const b = r.verdict.taches.find(t => t.script === 'build');
+    expect(b).toMatchObject({ tache: 'seul#build', paquet: 'seul', code: 101, tests: false });
+    // The log from the root of the workspace, as the circuit reads a task's log
+    // (journalDeTache: path.join(<copie>, journal)).
+    const journal = b?.journal ?? '';
+    expect(journal).not.toBe('');
+    expect(path.isAbsolute(journal)).toBe(false);
+    const texte = readFileSync(path.join(d.seul, journal), 'utf8');
+    expect(texte).toContain('error[E0425]: cannot find function `convert` in crate `seul`');
+    expect(texte).toContain('error: could not compile `seul`');
+    // The output of the build still shows on the command's own streams.
+    expect(r.stderr).toContain('error[E0425]');
+  });
+
+  it('a failed build leaves its crate’s tests not played and no report: they play at the checks', () => {
+    const r = lancer(d.seul, 'tester', ['tests/bout.rs'], { 'build seul': 101 });
+    expect(r.appels).toEqual(['test --no-run -p seul --test bout']);
+    expect(r.verdict.taches.map(t => [t.tache, t.code])).toEqual([
+      ['seul#build', 101],
+      ['seul#nextest', null],
+    ]);
+    expect(r.verdict.rapports).toEqual([]);
+  });
+
+  it('the build task bears the name and the directory the circuit gives the crate', () => {
+    const r = lancer(d.espace, 'tester', [], { 'build ws-core': 101 });
+    expect(r.code).toBe(1);
+    const echouees = r.verdict.taches.filter(
+      t => t.script === 'build' && t.code !== null && t.code !== 0
+    );
+    expect(echouees.map(t => [t.paquet, t.dossier])).toEqual([['ws-core', 'crates/core']]);
+    expect(paquetsDuLangage(cargo, d.espace)).toContainEqual({
+      dossier: 'crates/core',
+      pkg: { name: 'ws-core' },
+      hors: false,
+    });
+  });
+
+  it('the build of one crate failed, the other crates play their tests', () => {
+    const r = lancer(d.espace, 'tester', [], { 'build ws-core': 101 });
+    expect(r.appels).toEqual([
+      'test --no-run -p ws-app',
+      'nextest run --no-fail-fast -p ws-app',
+      'test --doc -p ws-app',
+      'test --no-run -p ws-core',
+      'test --doc -p ws-matiere',
+      'test --doc -p ws-outil',
+    ]);
+    expect(
+      r.verdict.taches.filter(t => t.paquet === 'ws-core').map(t => [t.script, t.code])
+    ).toEqual([
+      ['build', 101],
+      ['nextest', null],
+      ['doctest', null],
+    ]);
   });
 });
