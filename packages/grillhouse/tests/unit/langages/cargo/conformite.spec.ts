@@ -1,8 +1,8 @@
 // grillhouse-pkl.3, criterion 1 — the module cargo answers the join: the frame's list names it,
 // it exports a whole `Langage`, and the suite of conformity (scripts/conformite.mjs) finds no
 // fault in it, against the fake cargo first on the PATH (the real one plays at night,
-// cargo.nuit.test.ts). Each case with something to find has a defective entry that finds it, so
-// that a check that never fails is seen.
+// cargo.nuit.test.ts). Each case has a defective entry that finds something, so that a check
+// that never fails is seen. grillhouse-pkl.6, criterion 1: its guards of structure.
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -40,10 +40,23 @@ describe('grillhouse-pkl.3, critère 1 — le module cargo passe la suite de con
     expect(echecs(cargo, exemples, { dans: ESSAIS })).toEqual([]);
   });
 
-  it('each case but the generated files, which the module has none of, has a defective entry with faults', () => {
+  it('each case has a defective entry with faults', () => {
     const vides = cas(cargo, exemples, { dans: ESSAIS })
       .filter(c => c.attendu.length === 0)
       .map(c => c.nom);
-    expect(vides).toEqual(['fichiersEngendres']);
+    expect(vides).toEqual([]);
+  });
+});
+
+describe('grillhouse-pkl.6, critère 1 — les gardes de structure du module cargo', () => {
+  it('it plays clippy, frontieres and index-interfaces, in this order, each script existing', () => {
+    const gardes = cargo.gardes(ESSAIS);
+    expect(gardes.map(([s, ...args]) => [path.basename(s), ...args])).toEqual([
+      ['clippy.mjs'],
+      ['frontieres.mjs'],
+      ['index-interfaces.mjs', '--verifier'],
+    ]);
+    const c = cas(cargo, exemples, { dans: ESSAIS }).find(x => x.nom === 'gardes');
+    expect(c?.valide()).toEqual([]);
   });
 });

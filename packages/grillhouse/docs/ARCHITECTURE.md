@@ -464,7 +464,9 @@ noyau, comme `nx migrate` réunit celles de chaque greffon. Le module typescript
 `scripts/langages/typescript/` (`tests/temoins/repartition.json` range chaque fichier), ses tests
 sous `tests/unit/langages/typescript/` ; le module cargo sous `scripts/langages/cargo/` (les crates
 de `cargo metadata`, les tests par nextest puis les doctests, la vérification par cargo-deny,
-sous le verrou de la machine), ses
+sous le verrou de la machine ; ses gardes, clippy, les frontières entre crates contre la liste
+permise du manifeste de l'espace de travail, `[workspace.metadata.grillhouse.frontieres]`, comme
+les `depConstraints` de Nx, et l'index des interfaces, qu'il engendre), ses
 tests sous `tests/unit/langages/cargo/`, contre un faux cargo en tête du PATH, le vrai à la nuit ; les entrées publiées (`./consommateurs`,
 `./vitest-config`, `./vitest-config/mesure`, `./tsdoc-base.json`) gardent leur adresse. Comme un
 greffon de Nx n'importe que `@nx/devkit`, le module n'importe du noyau que ses entrées publiées :

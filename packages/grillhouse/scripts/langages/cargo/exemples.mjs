@@ -7,9 +7,11 @@
 //   and their helpers (`tests/common/`); `ws-app`, which depends on `ws-core` and has its tests;
 //   `ws-outil`, which depends on `ws-app` for its tests (`dev`) and on `ws-core` for its build
 //   script (`build`); `ws-matiere`, the shared test material (`[package.metadata.grillhouse]
-//   matiere = true`). Committed: `espace`; the same, a source of `ws-core` then changed and a file
+//   matiere = true`); the interfaces of `ws-core`, of `ws-app` and of the root, and the index of the
+//   interfaces they give, up to date (grillhouse-pkl.6). Committed: `espace`; the same, a source of `ws-core` then changed and a file
 //   out of every crate added: `change`, measured from its commit; the same with a second commit
-//   that changes `ws-core`, adds the crate `ws-neuf` and removes `ws-outil`: `lot`.
+//   that changes `ws-core`, adds the crate `ws-neuf` and removes `ws-outil`: `lot`; the same, the
+//   interface of `ws-core` then changed, its index late: `enRetard`.
 // - A crate at the root, its workspace `members = ["."]`, with its tests, as OSC Bridge: `seul`;
 //   a crate at the root holding a second crate, `crates/aide`, none with tests: `imbrique`.
 // - A directory without Cargo.toml: `vide`; one with a tsconfig.json alone: `typescript`.
@@ -52,6 +54,34 @@ const CRATES = {
   ),
   matiere: manifeste('ws-matiere', '\n[package.metadata.grillhouse]\nmatiere = true\n'),
 };
+// The interfaces of the workspace, and the index of the interfaces they give
+// (./index-interfaces.mjs).
+const INTERFACES = {
+  'crates/core/docs/INTERFACE.md':
+    '# ws-core — interface\n\n`ws-core` offre le cœur. Une seconde phrase.\n\n## Consommateurs\n\n- `ws-app`: `core`\n',
+  'crates/app/docs/INTERFACE.md': "# L'application\n\nL'application lit le cœur.\n",
+  'docs/INTERFACE.md': "# L'espace d'essai\n\nQuatre crates sous `crates/`.\n",
+};
+export const INDEX = [
+  '# Index des interfaces',
+  '',
+  'Généré depuis les `INTERFACE.md` des crates ; ne pas éditer.',
+  "Une ligne par composant ; l'interface donne le détail.",
+  '',
+  "## ws-app — L'application",
+  '',
+  "L'application lit le cœur. (`crates/app/docs/INTERFACE.md`)",
+  '',
+  '## ws-core — interface',
+  '',
+  '`ws-core` offre le cœur. (`crates/core/docs/INTERFACE.md`)',
+  '',
+  "## (racine) — L'espace d'essai",
+  '',
+  'Quatre crates sous `crates/`. (`docs/INTERFACE.md`)',
+  '',
+].join('\n');
+
 const membres = noms =>
   `[workspace]\nresolver = "2"\nmembers = [${noms.map(n => `"crates/${n}"`).join(', ')}]\n`;
 
@@ -67,6 +97,10 @@ function espace(dans) {
     ecrire(`crates/${n}/src/lib.rs`, `pub fn ${n}() -> i32 {\n    1\n}\n`);
   }
   ecrire('crates/outil/build.rs', 'fn main() {}\n');
+  for (const [f, t] of Object.entries(INTERFACES)) {
+    ecrire(f, t);
+  }
+  ecrire('docs/agents/index-des-interfaces.md', INDEX);
   ecrire(
     'crates/core/tests/t.rs',
     'mod common;\n\n#[test]\nfn passe() {\n    common::aide();\n}\n'
@@ -166,6 +200,11 @@ export default {
     rmSync(path.join(lot, 'crates/outil'), { recursive: true, force: true });
     git(lot, 'add', '-A');
     git(lot, 'commit', '-q', '-m', 'lot');
+    const enRetard = espace(dans);
+    writeFileSync(
+      path.join(enRetard, 'crates/core/docs/INTERFACE.md'),
+      '# ws-core — interface\n\n`ws-core` offre un autre cœur.\n'
+    );
     const cibles = {
       'ws-core': path.join(aJour, 'crates/core/src/lib.rs'),
       'ws-core::t': path.join(aJour, 'crates/core/tests/t.rs'),
@@ -174,7 +213,18 @@ export default {
     };
     return {
       racine: aJour,
-      depots: { espace: aJour, seul, imbrique, change, depuis, lot, avantLeLot, vide, typescript },
+      depots: {
+        espace: aJour,
+        seul,
+        imbrique,
+        change,
+        depuis,
+        lot,
+        avantLeLot,
+        enRetard,
+        vide,
+        typescript,
+      },
       composants: {
         valide: vide,
         invalide: aJour,
@@ -259,8 +309,12 @@ export default {
           'crates/matiere/src/lib.rs : matiere',
         ],
       },
-      fichiersEngendres: { valide: aJour, invalide: aJour, attendu: [] },
-      gardes: { valide: [] },
+      fichiersEngendres: {
+        valide: aJour,
+        invalide: enRetard,
+        attendu: ["l'index des interfaces : en retard"],
+      },
+      gardes: { valide: ['clippy', 'frontieres', 'index-interfaces'] },
       elementsDuLot: {
         valide: { racine: aJour, avant: 'HEAD', apres: 'HEAD' },
         invalide: { racine: lot, avant: avantLeLot, apres: 'HEAD' },

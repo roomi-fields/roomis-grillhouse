@@ -12,7 +12,9 @@ import path from 'node:path';
 //   of `[workspace]` (a pattern `dir/*` included) and the root's `[package]`; each crate's
 //   dependencies of each kind, by its path or by the workspace's; its targets, the library
 //   (`src/lib.rs`), the binary (`src/main.rs`) and each test (`tests/<nom>.rs`); its
-//   `[package.metadata]`.
+//   `[package.metadata]`; the workspace's `[workspace.metadata]`, as `metadata` (grillhouse-pkl.6).
+// - `cargo clippy …`: prints the file `FAUX_CARGO_CLIPPY` names, the JSON lines of a recorded run
+//   of clippy, nothing without it (grillhouse-pkl.6).
 // - `cargo nextest run -p <crate> [--test <nom>]…`: writes the JUnit report of the profile
 //   `grillhouse` under `target/nextest/grillhouse/junit.xml`, one suite per test binary of the
 //   crate (the library, each test target or the ones named), one test `essai` each, failed when
@@ -111,9 +113,13 @@ if (sous === 'metadata') {
     workspace_members: packages.map(p => p.id),
     workspace_root: racine,
     target_directory: path.join(racine, 'target'),
+    metadata: tete.workspace?.metadata ?? null,
     resolve: null,
     version: 1,
   }));
+}
+if (sous === 'clippy' && process.env.FAUX_CARGO_CLIPPY) {
+  process.stdout.write(fs.readFileSync(process.env.FAUX_CARGO_CLIPPY, 'utf8'));
 }
 if (sous === 'nextest') {
   const c = dossiers.map(crate).find(p => p.name === nomme);
@@ -150,10 +156,12 @@ export function avecFauxCargo(dossier: string, journal: string): () => void {
     PATH: process.env.PATH,
     FAUX_CARGO_JOURNAL: process.env.FAUX_CARGO_JOURNAL,
     FAUX_CARGO_CODES: process.env.FAUX_CARGO_CODES,
+    FAUX_CARGO_CLIPPY: process.env.FAUX_CARGO_CLIPPY,
   };
   process.env.PATH = `${dossier}${path.delimiter}${process.env.PATH ?? ''}`;
   process.env.FAUX_CARGO_JOURNAL = journal;
   delete process.env.FAUX_CARGO_CODES;
+  delete process.env.FAUX_CARGO_CLIPPY;
   appendFileSync(journal, '');
   return () => {
     for (const [k, v] of Object.entries(avant)) {

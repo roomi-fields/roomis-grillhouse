@@ -114,10 +114,13 @@
     "scripts/langages/typescript/vitest.nuit.config.mjs"
   ],
   "cargo": [
+    "scripts/langages/cargo/clippy.mjs",
     "scripts/langages/cargo/commandes.mjs",
     "scripts/langages/cargo/composants.mjs",
     "scripts/langages/cargo/elements-du-lot.mjs",
     "scripts/langages/cargo/exemples.mjs",
+    "scripts/langages/cargo/frontieres.mjs",
+    "scripts/langages/cargo/index-interfaces.mjs",
     "scripts/langages/cargo/index.mjs",
     "scripts/langages/cargo/nextest.toml",
     "scripts/langages/cargo/touches.mjs",
