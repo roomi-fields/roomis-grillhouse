@@ -77,6 +77,7 @@
   "typescript": [
     "scripts/langages/typescript/chemins-des-tests.mjs",
     "scripts/langages/typescript/code-mort.mjs",
+    "scripts/langages/typescript/composants.mjs",
     "scripts/langages/typescript/consommateurs-arbitres.mjs",
     "scripts/langages/typescript/consommateurs.d.ts",
     "scripts/langages/typescript/consommateurs.mjs",

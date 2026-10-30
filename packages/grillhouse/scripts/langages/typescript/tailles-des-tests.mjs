@@ -11,7 +11,7 @@
 // - A test is classed by a static reading of its text and of the test material it imports,
 //   followed from file to file: a file under a directory `test`, `tests` or `__tests__` imported by
 //   a relative path, or a package of the shared test material (whose package.json exports
-//   `./test-fixtures`, ./consommateurs.mjs `matieres`) imported by its name
+//   `./test-fixtures`, ./composants.mjs `matieres`) imported by its name
 //   (`@roomi-fields/grillhouse-matiere/test-fixtures`) or by a relative path, each of its files
 //   followed; a module of the product it imports is counted, not read: what it starts is its
 //   own. Bazel declares `size` by hand; the frame reads it from the text, so that every existing
@@ -32,7 +32,7 @@ import { globSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { trancher } from '../../dette.mjs';
-import { matieres } from './consommateurs.mjs';
+import { matieres } from './composants.mjs';
 import { HORS_DU_JOUR } from './vitest-config/cibles.mjs';
 import {
   IMPORT,

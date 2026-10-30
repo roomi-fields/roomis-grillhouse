@@ -50,7 +50,7 @@
 import { existsSync, globSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { matieres } from '../consommateurs.mjs';
+import { matieres } from '../composants.mjs';
 import { paquets } from '../../../paquets.mjs';
 
 /** A test file, as Vitest's default `include` names one. */
@@ -234,7 +234,7 @@ function resoudre(de, spec, racine) {
 }
 
 // Whether the file <f> of the repository at <racine> is test material: under a directory of
-// tests, or in a package of the shared material (`matieres` of ../consommateurs.mjs).
+// tests, or in a package of the shared material (`matieres` of ../composants.mjs).
 function estMatiere(f, racine, memo) {
   if (MATIERE.test(du(racine, f))) return true;
   return memoise(memo, 'matieres', () => matieres(racine)).some(m => sous(f, m.dir));
