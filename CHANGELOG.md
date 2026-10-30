@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.25.2] - 2026-10-30
+
 ### Fixed
 
 - **`grillhouse maj` brings the frame's range up in every manifest of the project** (grillhouse-49r): BPScript's update to 0.25.1 (bp-mono-vbwf.322.15) left each package declaring `"@roomi-fields/grillhouse": "^0.24.0"` in its devDependencies, as the update kept a declaration a package held; npm then kept a copy 0.24.15 under each `packages/*/node_modules` (32 copies), where the entry `./vitest-config/duree` does not resolve (« Missing "./vitest-config/duree" specifier »), and the hook refused the commit until BPScript set each range by hand. As `npm install <pkg>@<version> --workspaces`, Renovate and syncpack align every declaration of a dependency of the workspace, the module typescript's share of the update now writes `^<version>` in each manifest (the root and each package, `dependencies` or `devDependencies`) whose range of the frame's package is lower than the version installed; a range that covers the version, one above it or one that is no range of versions (`file:`) stays. The report names each manifest brought up, and asks for `npm install` before the verification.
