@@ -252,6 +252,10 @@ describe('grillhouse-pkl.7, critère 3 — le gabarit d’un projet cargo', () =
     expect(t['licenses.private']?.ignore).toBe(true);
   });
 
+  it('grillhouse-0wy — deny.toml allows CDLA-Permissive-2.0, the licence of webpki-roots', () => {
+    expect(toml(lire(GABARIT, 'deny.toml')).licenses?.allow).toContain('CDLA-Permissive-2.0');
+  });
+
   it('the JUnit report lands where the verdict reads it: the frame’s profile, which the project’s nextest.toml leaves to it', () => {
     // The frame's profile, a tool's configuration under the project's (./commandes.mjs reads
     // `<target>/nextest/grillhouse/junit.xml`, then copies it where ./verdict.mjs reads it).

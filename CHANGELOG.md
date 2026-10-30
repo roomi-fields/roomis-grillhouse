@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **The template's deny.toml allows CDLA-Permissive-2.0** (grillhouse-0wy): OSC Bridge's `cargo deny check licenses` refused `webpki-roots`, Mozilla's certificate authorities, which most TLS in Rust pulls in (tungstenite, ureq), under CDLA-Permissive-2.0, a permissive licence of the Linux Foundation for data, which asks only that its text go along with the data. On the owner's word (2026-10-30), `templates/cargo/deny.toml` adds it to `allow`. `grillhouse maj` writes deny.toml once; a project that has one adds the licence itself.
+
 ## [0.25.2] - 2026-10-30
 
 ### Fixed
