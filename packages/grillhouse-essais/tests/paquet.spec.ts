@@ -104,6 +104,9 @@ const AVANT: Record<string, [number, number]> = {
   'integrer.references': [4, 18],
   'nouveau-projet': [15, 37],
   superviseur: [7, 26],
+  // grillhouse-0v3: the night test of a real session through the launcher, which mounts a project
+  // the launcher prepares (./enveloppe-essai.ts), read on main before the move (b048461).
+  'lancer-modele.seance': [2, 5],
 };
 // The counts of `it` and of `expect` of each file of packages/grillhouse/tests/unit split by
 // grillhouse-3dr.3.6 and grillhouse-3dr.3.7: its cases that a large test alone proves, moved as they are; its other

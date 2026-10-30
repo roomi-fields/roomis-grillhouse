@@ -150,7 +150,8 @@
       "packages/grillhouse-matiere",
       "packages/grillhouse/bin",
       "templates",
-      "tsdoc.json"
+      "tsdoc.json",
+      "packages/grillhouse-essais/tests"
     ]
   }
 }

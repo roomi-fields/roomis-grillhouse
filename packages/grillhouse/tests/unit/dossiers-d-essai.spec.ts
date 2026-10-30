@@ -9,7 +9,9 @@ import { describe, expect, it } from 'vitest';
 const DEPOT = path.resolve(__dirname, '../..');
 const MOI = path.relative(DEPOT, __filename);
 
-// Every test file of the repository: tests/ and src/, .spec and .test, ts, js and mjs.
+// Every test file of the repository: tests/ and src/, .spec and .test, ts, js and mjs; and those of
+// the package of the trials, where the night tests that mount a trial repository live
+// (grillhouse-3dr.3.2, grillhouse-3dr.3.3), as paths from this package.
 function fichiersDeTest(): string[] {
   const out: string[] = [];
   const parcourir = (rel: string) => {
@@ -24,7 +26,7 @@ function fichiersDeTest(): string[] {
       }
     }
   };
-  for (const racine of ['tests', 'src']) {
+  for (const racine of ['tests', 'src', '../grillhouse-essais/tests']) {
     try {
       parcourir(racine);
     } catch {

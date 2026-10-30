@@ -34,6 +34,7 @@
         "$TURBO_ROOT$/knip.json/**",
         "$TURBO_ROOT$/mods/**",
         "$TURBO_ROOT$/package.json/**",
+        "$TURBO_ROOT$/packages/grillhouse-essais/tests/**",
         "$TURBO_ROOT$/packages/grillhouse-matiere/**",
         "$TURBO_ROOT$/packages/grillhouse/bin/**",
         "$TURBO_ROOT$/templates/**",

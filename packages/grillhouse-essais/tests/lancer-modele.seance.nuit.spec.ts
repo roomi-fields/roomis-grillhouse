@@ -13,6 +13,8 @@ import { userInfo } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { RACINE } from './cadre.js';
+import { SCRIPT, projetDuLanceur } from './enveloppe-essai.js';
 
 // Ticket grillhouse-3uv.46, critère 3: a real session launched with --modele runs on the model
 // asked, over the model of the role's definition; its transcript says so in the model field of
@@ -20,9 +22,7 @@ import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/te
 const ESSAIS = racineSousLaMaison('grillhouse-essais-lancer-nuit-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
-const RACINE = path.resolve(__dirname, '../../../..');
 const LAUNCHER = path.join(RACINE, 'packages/grillhouse/scripts/enveloppe/lancer.sh');
-const SCRIPT = path.join(RACINE, 'packages/grillhouse/scripts/enveloppe/enveloppe.mjs');
 const projetsReels = path.join(userInfo().homedir, '.claude/projects');
 const enTirets = (p: string) => p.replace(/[^A-Za-z0-9]/g, '-');
 const ecrivable = (p: string) => {
@@ -66,7 +66,8 @@ if (!actif) {
 }
 
 describe.runIf(actif)('critère 3 — the transcript of a real session', () => {
-  // The developpeur's definition sets sonnet; the override asks for haiku.
+  // The developpeur's definition sets sonnet; the override asks for haiku. The repository is a
+  // project the launcher prepares: its language declared, Turborepo the trial's stand-in.
   const repo = path.join(ESSAIS, 'depot');
   beforeAll(() => {
     mkdirSync(path.join(repo, 'packages/a'), { recursive: true });
@@ -76,6 +77,7 @@ describe.runIf(actif)('critère 3 — the transcript of a real session', () => {
       path.join(repo, '.claude/agents/developpeur.md'),
       '---\nname: developpeur\ndescription: essai\nmodel: sonnet\neffort: low\n---\nRéponds en un mot.\n'
     );
+    projetDuLanceur(repo);
     installerEnveloppe(repo);
     execFileSync('git', ['init', '-q', repo]);
     execFileSync('git', ['-C', repo, 'add', '.']);
