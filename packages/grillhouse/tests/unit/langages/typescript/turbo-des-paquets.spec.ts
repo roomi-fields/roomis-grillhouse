@@ -911,6 +911,7 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
     const scripts = [
       'langages/typescript/turbo-des-paquets.mjs',
       'services-du-noyau.mjs',
+      'sources.mjs',
       'langages.mjs',
       'jointure.d.ts',
       'arbitrages.mjs',

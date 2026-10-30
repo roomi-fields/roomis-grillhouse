@@ -21,8 +21,10 @@ import path from 'node:path';
 import { paquets } from '../../../paquets.mjs';
 import { sources } from '../../../services-du-noyau.mjs';
 
-// The version of the frame's package, read by its published entry `./package.json`.
-const VERSION = createRequire(import.meta.url)('@roomi-fields/grillhouse/package.json').version;
+// The version of the frame's package, read by its published entry `./package.json` when the
+// migration plays: the module loads where the package is not resolved by its name.
+const versionDuCadre = () =>
+  createRequire(import.meta.url)('@roomi-fields/grillhouse/package.json').version;
 
 export const version = '0.23.0';
 export const nom = 'configuration de base de Vitest';
@@ -53,7 +55,8 @@ export function migrer(projet) {
   const fracine = path.join(projet, 'package.json');
   if (!existsSync(fracine)) return lignes;
   const racine = lireJson(fracine);
-  const plage = CHAMPS.map(c => racine[c]?.[PAQUET]).find(v => v !== undefined) ?? `^${VERSION}`;
+  const plage =
+    CHAMPS.map(c => racine[c]?.[PAQUET]).find(v => v !== undefined) ?? `^${versionDuCadre()}`;
   const declarer = pkg => {
     let change = false;
     for (const c of CHAMPS) {

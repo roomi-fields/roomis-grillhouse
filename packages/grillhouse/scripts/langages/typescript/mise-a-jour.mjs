@@ -40,7 +40,6 @@ import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import semver from 'semver';
 import { CODE, paquets, TYPAGE } from '../../paquets.mjs';
 import { sources } from '../../services-du-noyau.mjs';
 import { estUnTest } from './regle-des-tests.mjs';
@@ -94,6 +93,9 @@ function poserLesTests(projet, p, modele) {
   if (!lanceVitest) {
     return { test: null, vitest: null };
   }
+  // semver, required here alone: the module loads where the package's dependencies are not
+  // installed (a copy of the frame's scripts, the night of a trial), and only this update reads it.
+  const semver = createRequire(import.meta.url)('semver');
   // The root must resolve the Vitest the frame requires (`test:unit` calls it).
   const trouvee = typeof vitestExige === 'string' ? vitestDeLaRacine(projet) : null;
   const convient =
