@@ -427,8 +427,9 @@ partagée), `@roomi-fields/grillhouse/paquets` (`horsCadre`, les paquets hors ca
 SARIF), `@roomi-fields/grillhouse/jointure` (`langageDe`, le module de langage d'un projet, et les
 types de la jointure, `scripts/jointure.d.ts`), `@roomi-fields/grillhouse/conformite` (`cas` et
 `echecs`, la suite de conformité d'un module de langage), et la
-configuration de base de Vitest, `@roomi-fields/grillhouse/vitest-config` et
-`@roomi-fields/grillhouse/vitest-config/mesure`, et la base TSDoc,
+configuration de base de Vitest, `@roomi-fields/grillhouse/vitest-config`,
+`@roomi-fields/grillhouse/vitest-config/mesure` et son rapporteur de durée,
+`@roomi-fields/grillhouse/vitest-config/duree`, que Vitest charge par son nom, et la base TSDoc,
 `@roomi-fields/grillhouse/tsdoc-base.json`, dont hérite le `tsdoc.json` d'un projet : elle hérite
 de celle d'API Extractor, que le paquet déclare, comme un rig de Rushstack porte la configuration
 de base à côté de la dépendance qu'elle nomme ; TSDoc lit un `extends` par son chemin sous le
@@ -511,7 +512,7 @@ permise du manifeste de l'espace de travail, `[workspace.metadata.grillhouse.fro
 les `depConstraints` de Nx, et l'index des interfaces, qu'il engendre, chacune aussi une
 commande de son nom, que la ligne d'une garde rouge nomme), ses
 tests sous `tests/unit/langages/cargo/`, contre un faux cargo en tête du PATH, le vrai à la nuit ; les entrées publiées (`./consommateurs`,
-`./vitest-config`, `./vitest-config/mesure`, `./tsdoc-base.json`) gardent leur adresse. Comme un
+`./vitest-config`, `./vitest-config/mesure`, `./vitest-config/duree`, `./tsdoc-base.json`) mènent au module. Comme un
 greffon de Nx n'importe que `@nx/devkit`, le module n'importe du noyau que ses entrées publiées :
 `./jointure` (`scripts/services-du-noyau.mjs`) lui donne les services du noyau qu'il emploie (le plan d'une
 enveloppe, l'avancement et la mesure d'une passe, la pression et le verrou de la machine, le

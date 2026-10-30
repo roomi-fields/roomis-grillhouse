@@ -26,7 +26,7 @@ langage du projet, il le demande au module de ce langage, par la jointure
   tickets.
 - **R2.** Aux projets, les entrées publiées du noyau : `./jointure`, `./conformite`, `./paquets`,
   `./dette`, `./resultats`. Les entrées `./consommateurs`, `./vitest-config`,
-  `./vitest-config/mesure` et `./tsdoc-base.json` gardent leur adresse et mènent au module
+  `./vitest-config/mesure`, `./vitest-config/duree` et `./tsdoc-base.json` mènent au module
   typescript.
 
 ## Ce qu'il refuse

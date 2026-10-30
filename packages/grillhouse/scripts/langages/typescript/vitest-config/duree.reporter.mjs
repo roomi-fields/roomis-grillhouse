@@ -1,5 +1,7 @@
-// The duration reporter of the base configuration, beside Vitest's default reporter. At the end of
-// a run with failures, it reads each one:
+// The duration reporter of the base configuration, beside Vitest's default reporter; a project
+// names it by its published entry, `@roomi-fields/grillhouse/vitest-config/duree`
+// (`--reporter=<entry>`, or `reporters` in a configuration; types ./duree.reporter.d.ts). At the end
+// of a run with failures, it reads each one:
 //
 // - a failure depends on a duration when it is a delay past (an error « Test timed out in <n>ms. »
 //   or « Hook timed out in <n>ms. », Vitest's own message), a failure of a time budget bench (a

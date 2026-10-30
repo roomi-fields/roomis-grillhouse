@@ -1,6 +1,7 @@
 // The frame's base configuration of Vitest carries its types: a strict TypeScript file of a package
 // that imports `@roomi-fields/grillhouse/vitest-config/mesure` (a test marking a measure of time)
-// or `@roomi-fields/grillhouse/vitest-config` (a Vitest configuration written in TypeScript)
+// or `@roomi-fields/grillhouse/vitest-config` (a Vitest configuration written in TypeScript), or
+// `@roomi-fields/grillhouse/vitest-config/duree` (its duration reporter, named in `reporters`)
 // type-checks without error (no TS7016, « could not find a declaration file »). Witness: BPScript, a
 // repository of packages, whose strict tests importing `mesurerAuRepos` failed `tsc --noEmit`.
 //
@@ -129,6 +130,27 @@ describe.each(RESOLUTIONS)(
         expect(r.status).not.toBe(0);
         expect(r.sortie).toMatch(/TS2322/);
         expect(r.sortie).not.toMatch(/TS7016/);
+      },
+      T
+    );
+
+    it(
+      'a Vitest configuration in TypeScript naming the duration reporter by its entry type-checks',
+      () => {
+        const r = verifier(
+          {
+            'vitest.config.ts': [
+              "import { defineConfig } from 'vitest/config';",
+              "import DureeReporter from '@roomi-fields/grillhouse/vitest-config/duree';",
+              '',
+              "export default defineConfig({ test: { reporters: ['default', new DureeReporter()] } });",
+              '',
+            ].join('\n'),
+          },
+          resolution
+        );
+        expect(r.sortie).toBe('');
+        expect(r.status).toBe(0);
       },
       T
     );

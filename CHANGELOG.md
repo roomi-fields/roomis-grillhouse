@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **The duration reporter is a published entry, `@roomi-fields/grillhouse/vitest-config/duree`** (grillhouse-8cf): BPScript's update to 0.25.0 (bp-mono-vbwf.322.15) failed at its version commit: `packages/995-tools/src/verif-portes.mjs:38` launches each test of a gate with the frame's duration reporter, read at the package's inner path `scripts/vitest-config/duree.reporter.mjs`, which 0.25.0 moved under `scripts/langages/typescript/vitest-config/` (`ERR_MODULE_NOT_FOUND`), and no published entry gave the reporter. As Vitest loads a reporter by a package's name (`--reporter=<specifier>`, `reporters: ['<specifier>']`), the package now publishes `./vitest-config/duree` beside `./vitest-config/mesure`, typed as a Vitest `Reporter` (`duree.reporter.d.ts`); a project names `--reporter=@roomi-fields/grillhouse/vitest-config/duree` and no longer depends on where the file lives. The report « reste au projet » of `grillhouse maj` now names this entry for the former path.
+
 ## [0.25.0] - 2026-10-30
 
 ### Added

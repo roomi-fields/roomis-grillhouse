@@ -261,9 +261,15 @@ describe('grillhouse-3dr.2.2 — le module typescript sous son dossier', () => {
       './resultats',
       './vitest-config',
       './vitest-config/mesure',
+      './vitest-config/duree',
       './tsdoc-base.json',
     ]);
-    for (const e of ['./consommateurs', './vitest-config', './vitest-config/mesure']) {
+    for (const e of [
+      './consommateurs',
+      './vitest-config',
+      './vitest-config/mesure',
+      './vitest-config/duree',
+    ]) {
       for (const c of cibles(PKG.exports[e])) {
         expect(c, e).toMatch(/^scripts\/langages\/typescript\//);
         expect(REPARTITION.typescript, e).toContain(c);

@@ -111,6 +111,7 @@
     "scripts/langages/typescript/vitest-config/base.mjs",
     "scripts/langages/typescript/vitest-config/changements.mjs",
     "scripts/langages/typescript/vitest-config/cibles.mjs",
+    "scripts/langages/typescript/vitest-config/duree.reporter.d.ts",
     "scripts/langages/typescript/vitest-config/duree.reporter.mjs",
     "scripts/langages/typescript/vitest-config/lances.mjs",
     "scripts/langages/typescript/vitest-config/machine.setup.mjs",

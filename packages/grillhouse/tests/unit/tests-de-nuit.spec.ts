@@ -117,6 +117,10 @@ describe('the base configuration of the day leaves the night out of every config
       types: './scripts/langages/typescript/vitest-config/mesure.d.ts',
       default: './scripts/langages/typescript/vitest-config/mesure.mjs',
     });
+    expect(paquet.exports['./vitest-config/duree']).toEqual({
+      types: './scripts/langages/typescript/vitest-config/duree.reporter.d.ts',
+      default: './scripts/langages/typescript/vitest-config/duree.reporter.mjs',
+    });
     expect(existsSync(path.join(PAQUET, 'package.json'))).toBe(false);
   });
   it('is a directory of the package; the former file is gone', () => {

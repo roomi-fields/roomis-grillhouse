@@ -160,6 +160,14 @@ Le test du noyau joue la suite sur le module typescript et sur seize modules dé
 chacun ; chacun manque son seul cas. Ainsi la suite attrape un vrai défaut. Le module cargo la
 passe contre un faux cargo en tête du PATH, et contre le vrai à la nuit.
 
+## Les entrées du module typescript
+
+Un projet en TypeScript lit le module typescript par ces entrées publiées, chacune typée :
+`./consommateurs` ; `./vitest-config`, la configuration de base de Vitest ;
+`./vitest-config/mesure`, `mesurerAuRepos` ; `./vitest-config/duree`, le rapporteur de durée, que
+Vitest charge par son nom (`--reporter=@roomi-fields/grillhouse/vitest-config/duree`, ou
+`reporters` dans une configuration) ; `./tsdoc-base.json`, la base TSDoc.
+
 ## Consommateurs
 
 Les paquets de Grillhouse qui importent le cadre par son nom ; un projet le lit par ses entrées

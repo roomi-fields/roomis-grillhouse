@@ -147,6 +147,39 @@ describe('the duration reporter of the base configuration', { timeout: 120_000 }
     expect(p.status, p.sortie).toBe(1);
     expect(p.sortie).toMatch(/pression CPU illisible/);
   });
+  // grillhouse-8cf: BPScript's verif-portes.mjs launches each test of a gate with the duration
+  // reporter; Vitest loads a reporter by a package's name, so the package publishes it. The project
+  // installs the frame's package as npm links a workspace, beside Vitest, without the base.
+  it('Vitest loads the reporter by its published name, --reporter=@roomi-fields/grillhouse/vitest-config/duree', () => {
+    const repo = mkdtempSync(path.join(ESSAIS, 'nomme-'));
+    mkdirSync(path.join(repo, 'node_modules/@roomi-fields'), { recursive: true });
+    symlinkSync(path.join(DEPOT, 'node_modules/vitest'), path.join(repo, 'node_modules/vitest'));
+    symlinkSync(
+      path.join(DEPOT, 'packages/grillhouse'),
+      path.join(repo, 'node_modules/@roomi-fields/grillhouse')
+    );
+    const fichierPression = path.join(repo, 'pression');
+    writeFileSync(fichierPression, pression(REPOS));
+    writeFileSync(path.join(repo, 'package.json'), '{"type":"module"}\n');
+    writeFileSync(path.join(repo, 'vitest.config.mjs'), 'export default {};\n');
+    mkdirSync(path.join(repo, 'tests'));
+    writeFileSync(path.join(repo, 'tests/a.test.mjs'), DELAI);
+    const env = {
+      ...Object.fromEntries(
+        Object.entries(process.env).filter(([k]) => !k.startsWith('VITEST') && k !== 'NODE_OPTIONS')
+      ),
+      GRILLHOUSE_PRESSION_CPU: fichierPression,
+    };
+    const r = spawnSync(
+      path.join(DEPOT, 'node_modules/.bin/vitest'),
+      ['run', '--root', repo, '--reporter=@roomi-fields/grillhouse/vitest-config/duree'],
+      { cwd: repo, encoding: 'utf8', env, timeout: 120_000 }
+    );
+    const sortie = `${r.stdout}\n${r.stderr}`;
+    expect(sortie).toContain('⏱ tests/a.test.mjs › lent : délai dépassé');
+    expect(sortie).toContain(`seuil ${SEUIL_PRESSION} %`);
+    expect(r.status, sortie).toBe(1);
+  });
   it('the night configuration: a time budget bench that fails under load gives 75, at rest 1', () => {
     const banc = { 'tests/t.budget.test.mjs': ROUGE };
     const charge = projet(banc, CHARGE, { nuit: true });

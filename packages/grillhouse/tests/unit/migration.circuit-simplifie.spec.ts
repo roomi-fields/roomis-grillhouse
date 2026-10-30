@@ -238,7 +238,7 @@ describe('migration 0.24.0 — the circuit without regulator nor technical refer
       'scripts/consommateurs.mjs'
     );
     expect(de('packages/995-tools/src/verif-portes.mjs:2')[0]).toContain(
-      'scripts/vitest-config/duree.reporter.mjs, copie du cadre retirée ; aucune entrée publiée ne la remplace'
+      'scripts/vitest-config/duree.reporter.mjs, copie du cadre retirée ; `@roomi-fields/grillhouse/vitest-config/duree` la remplace'
     );
     expect(restes).toHaveLength(2);
   });
