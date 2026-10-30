@@ -63,6 +63,14 @@
 #   the night ticket « La poussée de la nuit est refusée sur <commit> vers « origin/<branch> » »
 #   (or comments the open one that names « origin/<branch> »), and exits 1; a remote already at
 #   the commit accepts the push.
+# - The copies whose content is on main: once its steps are played, whatever their verdict, the
+#   night passes each copy `git worktree list` names, the main tree and its own left out, through
+#   scripts/retirer-copie.sh without `--jetable` (scripts/copies-finies.mjs), as a CI cleans its
+#   workspaces at the end of a pipeline: a copy whose commits and local work have all entered
+#   main by their content goes, and its branch (main and a branch another copy holds stay); a copy
+#   refused (commits or work not entered, a lock) or held by a running circuit (its ticket in progress, its
+#   `<copie>.travail`, the lock of the integration or of the queue) stays, its log line naming
+#   why. The removal never changes the night's verdict.
 # - It takes no lock of the integration or of the queue (scripts/integration/file.mjs): an
 #   integration and the queue run during the night, each in its own copy.
 # - Its log is <git common dir>/nuit/<date>.log. Green: HEAD becomes the last green commit
@@ -265,6 +273,9 @@ fin() {
 }
 jouer >> "$journal" 2>&1
 verdict=$?
+# The copies whose content is on main go once the steps are played, the night's own kept; their
+# removal never changes the verdict.
+(cd "$racine" && node "$ici/copies-finies.mjs" "$copie") >> "$journal" 2>&1 || true
 
 if [ "$verdict" -eq 75 ]; then
   echo "⏱ à repasser : ${tete:0:7} n'est ni vert ni rouge, la machine est restée chargée ; le dernier vert reste, aucun ticket, la nuit suivante rejoue." >> "$journal"

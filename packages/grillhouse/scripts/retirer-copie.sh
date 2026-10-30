@@ -2,7 +2,8 @@
 # The removal of a working copy, called by the three places that end one: the agent copy (by
 # scripts/integration/integrer.mjs once its lot is committed, and by the supervisor for a ticket
 # closed without integration), the integration copy (by the same script) and the night copy
-# (scripts/nuit.sh), the last two when their existing copy does not get ready.
+# (scripts/nuit.sh), the last two when their existing copy does not get ready; and by the night
+# for every other copy once its steps are played (scripts/copies-finies.mjs), without `--jetable`.
 #
 #   npx grillhouse retirer-copie [--jetable] [--garder-travail] <copie>
 #

@@ -325,6 +325,19 @@ que le ticket, comme l'espace de travail d'un pipeline ; aucun balayage n'y touc
 l'efface à la clôture, `npx grillhouse retirer-copie` avec la copie d'un ticket fermé sans
 intégration. Ainsi une séance qui survit à son circuit garde ce qu'il lui a remis.
 
+**La nuit retire les copies finies** (`packages/grillhouse/scripts/copies-finies.mjs`) : après ses
+étapes, quel que soit son verdict, la nuit passe chaque copie que `git worktree list` nomme, hors
+l'arbre principal et sa propre copie, par `retirer-copie.sh` sans `--jetable`, comme une CI
+nettoie ses espaces de travail à la fin d'un pipeline et comme `git worktree prune`, qu'elle joue
+d'abord. Une copie dont les commits et le travail local sont tous entrés sur main, jugés par le
+contenu comme le retrait juge le travail, part avec sa branche (main et une branche qu'une autre
+copie tient restent) ; une copie refusée (commits ou travail non entrés, verrou) reste, et le
+journal la nomme avec sa raison, le premier chemin non entré compris. Une copie qu'un circuit tient reste sans passer : son ticket en
+cours, son dossier `.travail`, ou, pour la copie de l'intégration et celle de la file, leur
+verrou ; des tickets en cours illisibles, ou lus au-delà d'une minute, gardent toutes les
+copies. Le retrait ne change pas le verdict de la nuit. Ainsi aucune copie ne survit à l'entrée de
+son contenu sur main (Grillhouse, 79 copies d'agents, 5,7 Go ; OSC Bridge, 4,4 Go).
+
 **Le circuit est un démon** (`packages/grillhouse/scripts/demon.mjs`) : comme daemon(3) et
 `setsid --fork`, `npx grillhouse circuit` lance
 un relais, qui lance le circuit dans une session à lui puis finit aussitôt ; le circuit n'est ni
