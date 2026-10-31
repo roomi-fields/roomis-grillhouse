@@ -1,6 +1,6 @@
 import { expect, mock, test } from 'claude-code/testing'
 
-import { bascule, couleur, debut, declareLePaquet, ficheLignes, placement } from '../hooks/register'
+import { bascule, commenceParCd, couleur, debut, declareLePaquet, ficheLignes, placement } from '../hooks/register'
 import type { Tableau } from '../types'
 import { projetGrillhouse } from './projet'
 
@@ -64,6 +64,63 @@ for (const [cas, cwd, pkg, isInteractive] of [
     mock.clock(on)
     await $.session.start({ cwd, surface: isInteractive ? 'terminal' : null, isInteractive })
     expect(lances).not.toContain('node_modules/.bin/grillhouse tableau')
+  })
+}
+
+// grillhouse-9cv critère 1: a command that runs cd at the head of a subcommand is recognized.
+test('a command with cd at the head of a subcommand starts with cd', () => {
+  for (const c of [
+    'cd /p/copie && npm test -- a.spec.ts > log; echo $?',
+    'cd /p/copie; npm test',
+    'cd /p/copie',
+    'cd',
+    '  cd /p && ls',
+    'npm test && cd /p',
+    'ls; cd /p',
+    'ls | cd /p',
+    'ls\ncd /p',
+  ])
+    expect(commenceParCd(c)).toBe(true)
+})
+
+// grillhouse-9cv critère 2: cd elsewhere than at the head of a command is not a cd.
+test('a command with cd as an argument, in a path or in a word does not start with cd', () => {
+  for (const c of [
+    'echo cd',
+    'ls ./src/cd/x',
+    'ls /home/cd/x && npm test',
+    'abcd /p',
+    'git -C /p log',
+    'env -C /p npm test',
+    'cdk deploy',
+    'bd show abc-cd',
+  ])
+    expect(commenceParCd(c)).toBe(false)
+})
+
+// grillhouse-9cv critères 1 et 3: the refusal holds in the main session and in an agent's copy,
+// with or without a screen, and names env -C and git -C; another command runs.
+for (const [cas, cwd, isInteractive] of [
+  ['in the main session', '/p', true],
+  ["in an agent's copy, without screen", '/p/.claude/worktrees/demo-1', false],
+] as const) {
+  test(`${cas}, a command that starts with cd is refused, and another one runs`, async ($, on) => {
+    const lances: string[] = []
+    on('process.run', () => ({ value: { exitCode: 0, stdout: JSON.stringify(TABLEAU), stderr: '' } }))
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    projetGrillhouse(on)
+    on('command.register', () => ({ value: undefined }))
+    on('tool.call', ($, e) => {
+      lances.push(e.tool === 'Bash' ? e.command : e.tool)
+      return { result: {} }
+    })
+    mock.clock(on)
+    await $.session.start({ cwd, surface: isInteractive ? 'terminal' : null, isInteractive })
+    const refus = await $.tool.call({ tool: 'Bash', command: 'cd /p/copie && npm test' })
+    expect(refus.deny).toMatch(/env -C/)
+    expect(refus.deny).toMatch(/git -C/)
+    await $.tool.call({ tool: 'Bash', command: 'env -C /p/copie npm test' })
+    expect(lances).toEqual(['env -C /p/copie npm test'])
   })
 }
 

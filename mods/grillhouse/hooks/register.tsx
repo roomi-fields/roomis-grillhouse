@@ -9,7 +9,9 @@ import type { Etat, Fiche, Ligne, Tableau } from '../types'
 // person's status line command; this mod shows the lines, every 30 s (every 10 s while a line of
 // progress shows) and after each `bd` or `git` command. A Grillhouse project is one whose
 // package.json declares the package (`dependencies` or `devDependencies`); the mod stays silent
-// outside one and inside an agent's copy (`.claude/worktrees/`).
+// outside one and inside an agent's copy (`.claude/worktrees/`). In a Grillhouse project, every
+// session, an agent's copy included, has a Bash command that starts with cd refused, with the
+// form to take (`env -C`, `git -C`).
 const PANE = 'grillhouse'
 // The frame's command, which the project's `npm install` links, and its package.
 const GRILLHOUSE = 'node_modules/.bin/grillhouse'
@@ -24,6 +26,16 @@ export function declareLePaquet(texte: string | null): boolean {
     return false
   }
 }
+// Whether a shell command runs `cd` at the head of one of its subcommands (the line's start, or
+// after `&&`, `||`, `;`, `|`, `(` or a newline). Claude Code asks a person to approve such a
+// command, even where it asks nothing else, and the session waits on it.
+export function commenceParCd(commande: string): boolean {
+  return /(^|[;&|(\n])\s*cd(\s|$)/.test(commande)
+}
+// The refusal of a command that starts with cd: the agent takes the form it names and goes on.
+export const REFUS_CD =
+  "Refusé : une commande qui commence par cd (seule ou composée) attend la validation d'une personne et bloque la séance. " +
+  "Écris `env -C <dossier> <commande>`, `git -C <dossier> <sous-commande>`, ou la commande seule si le dossier courant est déjà le bon."
 const PERIODE = 30_000
 // The width of the lines `grillhouse tableau` lays out (its LARGEUR).
 const COLONNES = 52
@@ -181,8 +193,9 @@ export const aMesurer = (s: Etat, maintenant: number) =>
 export const couleur = (ton: Ligne['ton']) =>
   ton === 'alerte' ? 'red' : ton === 'attention' ? 'yellow' : ton === 'actif' ? 'cyan' : undefined
 
-// The session's project, and whether the board applies to it.
+// The session's project, whether it is a Grillhouse project, and whether the board applies to it.
 let cwd = ''
+let projet = false
 let actif = false
 // The pane's window: its first line, the element it last followed, and the rows and focus it was
 // last drawn with. The wheel moves it; the ring moving to another line makes it follow.
@@ -298,7 +311,8 @@ export const register: Register = on => {
     cwd = e.cwd
     const pkg = `${cwd}/package.json`
     const texte = (await $.fs.exists(pkg)) ? String(await $.fs.read(pkg)) : null
-    actif = e.isInteractive && declareLePaquet(texte) && !cwd.includes('/.claude/worktrees/')
+    projet = declareLePaquet(texte)
+    actif = e.isInteractive && projet && !cwd.includes('/.claude/worktrees/')
     if (!actif) return started
     await $.command.register({
       name: 'grillhouse',
@@ -323,6 +337,12 @@ export const register: Register = on => {
     await $.ui.open({ id: PANE, title: 'Grillhouse', columns: COLONNES, rows: 12 })
     return { text: placement(e.presentation) }
   })
+
+  // In a Grillhouse project, a command that starts with cd is refused at once, in every session
+  // and every agent's copy, before the engine's prompt: a refusal never waits, a prompt does.
+  on('tool.call', { tool: 'Bash' }, ($, e, next) =>
+    projet && commenceParCd(e.command) ? { deny: REFUS_CD } : next(e),
+  ).catch(($, e, next) => (next.called ? next(e) : { deny: REFUS_CD }))
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const ran = await next(e)

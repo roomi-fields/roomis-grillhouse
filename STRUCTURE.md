@@ -186,7 +186,7 @@ roomis-grillhouse/
 │   └── hooks/
 │       ├── hooks.json             # The mod's module and the hooks of Claude Code, each `node crochet.mjs <sous-commande>`
 │       ├── crochet.mjs            # Runs `grillhouse <sous-commande>` of the project (node_modules/.bin), Node alone; the session start says « lance npm install » without the package
-│       └── register.tsx           # The /grillhouse pane: the lines of `grillhouse tableau`, in a project whose package.json declares @roomi-fields/grillhouse
+│       └── register.tsx           # The /grillhouse pane: the lines of `grillhouse tableau`, in a project whose package.json declares @roomi-fields/grillhouse; there, a Bash command that starts with cd is refused
 ├── .github/                    # GitHub integrations
 │   ├── workflows/                 # CI/CD workflows
 │   │   ├── ci.yml                    # Continuous Integration
