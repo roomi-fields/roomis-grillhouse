@@ -21,7 +21,8 @@
 // - The generator: the index of the interfaces (./index-interfaces.mjs), run where the project
 //   holds it, as the module typescript's.
 // - The installation of its binaries (./binaires.json): the commands of ./binaires.mjs, which list
-//   what cargo installed and install one binary by cargo-binstall; the core runs them.
+//   what cargo installed and install one binary by cargo-binstall, installed first when it lacks;
+//   the core runs them.
 import { copyFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

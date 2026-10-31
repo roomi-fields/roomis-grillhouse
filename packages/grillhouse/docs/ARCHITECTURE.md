@@ -565,7 +565,7 @@ que `init` et `maj` remplissent d'après ce qu'ils trouvent (`tsconfig.json` ; u
 racine) ; là où ils ne trouvent aucun langage du cadre, ils
 refusent le projet, nommé. Les outils npm d'un langage (Turborepo, Vitest, knip, api-extractor)
 sont des dépendances facultatives du paquet, ses binaires (cargo-nextest, cargo-deny, sccache) s'installent
-sur la machine par `cargo binstall` : `maj` n'installe que ceux des langages déclarés.
+sur la machine par `cargo binstall`, que cargo installe d'abord quand il manque : `maj` n'installe que ceux des langages déclarés.
 Ainsi chaque projet n'installe que les outils qu'il utilise : un projet tout Rust n'a aucun outil
 TypeScript, BPScript aucun outil Rust ; les scripts d'un langage non déclaré restent sur le disque,
 inertes. Un module par langage et un seul paquet, plutôt qu'un paquet par langage comme ESLint
@@ -626,7 +626,7 @@ sous le verrou de la machine ; chaque commande qui compile (tests, vérification
 à travers sccache (`RUSTC_WRAPPER=sccache`), le cache de compilation de Mozilla qu'emploient
 Firefox et les CI Rust, son cache sous la maison (`~/.cache/sccache`), commun aux copies du poste
 et que l'enveloppe ouvre en écriture : chaque copie garde son `target/`, sans le verrou que cargo
-pose sur un dossier commun, et ne recompile pas ce qu’une autre a compilé ; un serveur de sccache par copie et par espace de processus (`/proc/self/ns/pid`, que chaque enveloppe crée), sur un socket unix abstrait nommé d'après eux (`SCCACHE_SERVER_UDS`), puisque le serveur par défaut écoute 127.0.0.1:4226 pour toute la machine et que l'enveloppe partage le réseau ; un lanceur de rustc que le projet pose reste le sien, sans sccache, lu comme cargo le lit (l'environnement, puis `build.rustc-wrapper` des `.cargo/config.toml` du projet vers la racine, puis de `$CARGO_HOME`) ; sans sccache sur le PATH, ces commandes refusent avant cargo, en une ligne qui nomme `npx grillhouse maj` ; le refus, avant tout lancement de cargo, d'un espace dont git ne
+pose sur un dossier commun, et ne recompile pas ce qu’une autre a compilé ; un serveur de sccache par copie et par espace de processus (`/proc/self/ns/pid`, que chaque enveloppe crée), sur un socket unix abstrait nommé d'après eux (`SCCACHE_SERVER_UDS`), puisque le serveur par défaut écoute 127.0.0.1:4226 pour toute la machine et que l'enveloppe partage le réseau ; ce serveur démarre avant chaque lancement de cargo qui compile, sous `/tmp` (celui de la machine, ou dans une enveloppe celui, vide, de la séance), car sccache 0.19.0 démarre le sien par un socket au chemin sous TMPDIR, refusé au-delà des 108 octets d'un chemin de socket, et le dossier temporaire d'une passe sous le dossier de travail d'une séance les dépasse ; un lanceur de rustc que le projet pose reste le sien, sans sccache, lu comme cargo le lit (l'environnement, puis `build.rustc-wrapper` des `.cargo/config.toml` du projet vers la racine, puis de `$CARGO_HOME`) ; sans sccache sur le PATH, ces commandes refusent avant cargo, en une ligne qui nomme `npx grillhouse maj` ; le refus, avant tout lancement de cargo, d'un espace dont git ne
 suit pas le Cargo.lock, comme `npm ci` refuse un projet sans package-lock.json : les tests, la
 vérification et la préparation le nomment en une ligne avec son geste (`git add Cargo.lock`), et
 `maj` le laisse au projet (`aFaire` de sa part), sans jouer la vérification ; ses gardes, clippy, les frontières entre crates contre la liste

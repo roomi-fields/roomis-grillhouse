@@ -17,6 +17,13 @@
 //   share a server, whatever the environment says. An abstract socket writes no file, so that
 //   neither the read-only copy nor the 108 bytes of a socket's path bind it, and it goes with its
 //   server, leaving no stale file. The disk cache stays common.
+// - The server starts before each run of cargo that compiles, under the machine's `/tmp`
+//   (`demarrerLeServeur`): sccache 0.19.0 starts its server by binding a socket of a path under
+//   TMPDIR (`<TMPDIR>/sccacheXXXXXX/sock`, src/commands.rs, `run_server_process`), which fails
+//   past the 108 bytes of a socket's path (« path must be shorter than SUN_LEN »), and the
+//   temporary directory of a pass of tests under the working directory of a session passes them
+//   (grillhouse-qmk, OSC Bridge OB-p58). Cargo then finds the server running and starts none; it
+//   keeps its own temporary directory, the pass's.
 // - A wrapper the project sets already is its own: the run keeps it, without sccache. It is read
 //   as cargo reads it: the environment (`RUSTC_WRAPPER`, `CARGO_BUILD_RUSTC_WRAPPER`), then
 //   `build.rustc-wrapper` of each `.cargo/config.toml` (or `.cargo/config`) from the project up to
@@ -24,6 +31,7 @@
 // - A machine without sccache on the PATH of the command is refused before any run of cargo, in
 //   one line that names it and the command that installs it (`sccacheAbsent`), rather than on the
 //   error of cargo that cannot run its wrapper.
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { accessSync, constants, readFileSync, readlinkSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -35,6 +43,10 @@ const require = createRequire(import.meta.url);
 
 /** The cache of sccache, from the home: what the envelope opens in writing. */
 export const CACHE = '~/.cache/sccache/';
+
+// The machine's temporary directory, short whatever the copy: the one the server of sccache starts
+// under (`demarrerLeServeur`), an empty one proper to the session in an envelope.
+const COURT = '/tmp';
 
 // The directories of cargo's configuration for a run in <racine> under <env>, in cargo's order:
 // `.cargo` of the project and of each parent up to the root, then `$CARGO_HOME`.
@@ -121,6 +133,23 @@ export function sccacheAbsent(racine, env) {
   return present
     ? null
     : "⛔ sccache absent du PATH : cargo compile à travers lui (RUSTC_WRAPPER=sccache) ; `npx grillhouse maj` l'installe avec les autres binaires du module cargo.";
+}
+
+/**
+ * Starts the server of sccache of the copy at <racine> under <env> (`avecSccache`), under the
+ * machine's temporary directory (`COURT`), unless the project sets its own wrapper; a server
+ * already running stays, and its refusal of a second one is no failure.
+ * @param {string} racine
+ * @param {NodeJS.ProcessEnv} env the environment before `avecSccache`
+ */
+export function demarrerLeServeur(racine, env) {
+  if (lanceurDuProjet(racine, env)) {
+    return;
+  }
+  spawnSync('sccache', ['--start-server'], {
+    env: { ...avecSccache(racine, env), TMPDIR: COURT },
+    stdio: 'ignore',
+  });
 }
 
 /**

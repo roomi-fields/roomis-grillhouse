@@ -9,8 +9,11 @@
 //   which cargo-binstall's installations also write). Cargo absent or failing: a line on the error
 //   stream, named, and the code 1.
 // - `installer`: `cargo binstall --no-confirm --locked <nom>@<version>`, its output this process's
-//   error stream, its code this process's; a failure names on the error stream the command to type
-//   and how cargo-binstall installs itself.
+//   error stream, its code this process's; a failure names on the error stream the command to type.
+//   A machine whose cargo lacks binstall (`cargo --list`) first receives cargo-binstall from cargo,
+//   at its exact version (`cargo install --locked cargo-binstall@<BINSTALL>`, the installation the
+//   README of cargo-binstall gives): the update installs the binaries without a step by hand
+//   (grillhouse-qmk, OSC Bridge). Its failure names that command, and no binstall runs.
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
@@ -28,16 +31,36 @@ export function installes() {
   );
 }
 
-/** Installs <cible> (`<nom>@<version>`): the exit code of cargo binstall. */
+/** The version of cargo-binstall that cargo installs when the machine lacks it. */
+export const BINSTALL = '1.26.2';
+
+// Whether cargo has the subcommand binstall, as `cargo --list` lists it.
+const avecBinstall = () => {
+  const r = spawnSync('cargo', ['--list'], { encoding: 'utf8' });
+  return r.status === 0 && /^\s+binstall\s*$/m.test(r.stdout ?? '');
+};
+
+/**
+ * Installs <cible> (`<nom>@<version>`): the exit code of cargo binstall, or of the installation of
+ * cargo-binstall when it lacks and fails.
+ */
 export function installer(cible) {
+  if (!avecBinstall()) {
+    const args = ['install', '--locked', `cargo-binstall@${BINSTALL}`];
+    const r = spawnSync('cargo', args, { stdio: ['ignore', 2, 2] });
+    const code = r.error ? 127 : (r.status ?? 1);
+    if (code !== 0) {
+      const cause = r.error ? r.error.message : `code ${code}`;
+      process.stderr.write(`⛔ \`cargo ${args.join(' ')}\` échoue (${cause}) ; lance-la.\n`);
+      return code;
+    }
+  }
   const args = ['binstall', '--no-confirm', '--locked', cible];
   const r = spawnSync('cargo', args, { stdio: ['ignore', 2, 2] });
   const code = r.error ? 127 : (r.status ?? 1);
   if (code !== 0) {
     const cause = r.error ? r.error.message : `code ${code}`;
-    process.stderr.write(
-      `⛔ \`cargo ${args.join(' ')}\` échoue (${cause}) ; lance-la (cargo-binstall s'installe par \`cargo install cargo-binstall\`).\n`
-    );
+    process.stderr.write(`⛔ \`cargo ${args.join(' ')}\` échoue (${cause}) ; lance-la.\n`);
   }
   return code;
 }

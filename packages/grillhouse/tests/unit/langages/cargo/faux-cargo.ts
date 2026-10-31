@@ -26,16 +26,22 @@ import path from 'node:path';
 // - `cargo install --list`: the binaries `FAUX_CARGO_INSTALLES` names (JSON, a version by name),
 //   in cargo's form, `<nom> v<version>:` then the binary, indented (grillhouse-pkl.7); it reads
 //   no manifest, as cargo's own, and plays in a directory without Cargo.toml.
+// - `cargo --list`: the subcommands, in cargo's form, `binstall` among them, save under
+//   `FAUX_CARGO_SANS_BINSTALL` (a path) while no file lies there: then `cargo binstall …` fails as
+//   cargo fails on a subcommand it lacks (code 101), and `cargo install … cargo-binstall@…` that
+//   succeeds writes the file, cargo-binstall installed (grillhouse-qmk).
 // - `cargo nextest …` under `FAUX_CARGO_TEMPORAIRE` writes there its temporary directories
 //   (TMPDIR, TMP, TEMP, JSON); under `FAUX_CARGO_RESTE`, leaves a file of that name in its TMPDIR,
 //   as a test that forgets its file; under `FAUX_CARGO_ATTENDRE`, waits that many ms, as a long
 //   test (grillhouse-nt4).
 // - Under `FAUX_CARGO_COMPILATEUR`, each call adds there a line `<sous-commande>
-//   RUSTC_WRAPPER=<valeur> SCCACHE_DIR=<valeur> SCCACHE_SERVER_UDS=<valeur>`: the wrapper of
-//   rustc it was given, the cache of sccache and the socket of its server (grillhouse-cyr).
+//   RUSTC_WRAPPER=<valeur> SCCACHE_DIR=<valeur> SCCACHE_SERVER_UDS=<valeur> TMPDIR=<valeur>`:
+//   the wrapper of rustc it was given, the cache of sccache and the socket of its server
+//   (grillhouse-cyr), and its temporary directory (grillhouse-qmk).
 // - Each call is a line of the journal `FAUX_CARGO_JOURNAL` names (its arguments, joined by a
 //   blank); its code is the one `FAUX_CARGO_CODES` gives (JSON, by `<sous-commande> <crate>` or
-//   `<sous-commande>`), 0 otherwise.
+//   `<sous-commande>`; for `install`, the crate is the one it installs, `install cargo-binstall`),
+//   0 otherwise.
 const SCRIPT = `#!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
@@ -119,9 +125,9 @@ const crate = d => {
 };
 const sous = args[0] === 'test' && args.includes('--no-run') ? 'build' : args[0];
 if (process.env.FAUX_CARGO_COMPILATEUR) {
-  fs.appendFileSync(process.env.FAUX_CARGO_COMPILATEUR, sous + ' RUSTC_WRAPPER=' + (process.env.RUSTC_WRAPPER ?? '') + ' SCCACHE_DIR=' + (process.env.SCCACHE_DIR ?? '') + ' SCCACHE_SERVER_UDS=' + (process.env.SCCACHE_SERVER_UDS ?? '') + '\\n');
+  fs.appendFileSync(process.env.FAUX_CARGO_COMPILATEUR, sous + ' RUSTC_WRAPPER=' + (process.env.RUSTC_WRAPPER ?? '') + ' SCCACHE_DIR=' + (process.env.SCCACHE_DIR ?? '') + ' SCCACHE_SERVER_UDS=' + (process.env.SCCACHE_SERVER_UDS ?? '') + ' TMPDIR=' + (process.env.TMPDIR ?? '') + '\\n');
 }
-const nomme = args[args.indexOf('-p') + 1];
+const nomme = sous === 'install' ? args.at(-1).split('@')[0] : args[args.indexOf('-p') + 1];
 const code = codes[sous + ' ' + nomme] ?? codes[sous] ?? 0;
 if (sous === 'build' && code !== 0) {
   process.stderr.write(
@@ -157,6 +163,18 @@ if (sous === 'install' && args.includes('--list')) {
     process.stdout.write(n + ' v' + v + ':\\n    ' + n + '\\n');
   }
 }
+const sansBinstall = process.env.FAUX_CARGO_SANS_BINSTALL;
+const binstall = !sansBinstall || fs.existsSync(sansBinstall);
+if (sous === 'install' && code === 0 && sansBinstall && args.some(a => a.startsWith('cargo-binstall'))) {
+  fs.writeFileSync(sansBinstall, '');
+}
+if (sous === '--list') {
+  process.stdout.write('Installed Commands:\\n    build                Compile a local package and all of its dependencies\\n' + (binstall ? '    binstall\\n' : '') + '    nextest\\n');
+}
+if (sous === 'binstall' && !binstall) {
+  process.stderr.write('error: no such command: \`binstall\`\\n');
+  process.exit(101);
+}
 if (sous === 'clippy' && process.env.FAUX_CARGO_CLIPPY) {
   process.stdout.write(fs.readFileSync(process.env.FAUX_CARGO_CLIPPY, 'utf8'));
 }
@@ -176,6 +194,19 @@ process.exit(code);
 `;
 
 /**
+ * The tests' stand-in for sccache: each call adds to `FAUX_SCCACHE_JOURNAL`, when set, a line
+ * `sccache <arguments> TMPDIR=<valeur> SCCACHE_DIR=<valeur> SCCACHE_SERVER_UDS=<valeur>`: what it
+ * was asked, the temporary directory where the real one binds the socket by which its server says
+ * it started, its cache and its server's socket (grillhouse-qmk); its code is 0.
+ */
+const FAUX_SCCACHE = `#!/bin/sh
+if [ -n "$FAUX_SCCACHE_JOURNAL" ]; then
+  printf 'sccache %s TMPDIR=%s SCCACHE_DIR=%s SCCACHE_SERVER_UDS=%s\\n' "$*" "$TMPDIR" "$SCCACHE_DIR" "$SCCACHE_SERVER_UDS" >> "$FAUX_SCCACHE_JOURNAL"
+fi
+exit 0
+`;
+
+/**
  * Writes the fake cargo in a new directory under <dans>, and returns that directory, to put first
  * on the PATH.
  */
@@ -184,8 +215,9 @@ export function installerFauxCargo(dans: string): string {
   writeFileSync(path.join(dossier, 'cargo'), SCRIPT);
   chmodSync(path.join(dossier, 'cargo'), 0o755);
   // The wrapper the commands of the module require on the PATH (grillhouse-cyr), which the fake
-  // cargo never runs.
-  writeFileSync(path.join(dossier, 'sccache'), '#!/bin/sh\nexit 0\n');
+  // cargo never runs; the commands start its server (grillhouse-qmk), each call a line of
+  // `FAUX_SCCACHE_JOURNAL` when set.
+  writeFileSync(path.join(dossier, 'sccache'), FAUX_SCCACHE);
   chmodSync(path.join(dossier, 'sccache'), 0o755);
   return dossier;
 }
@@ -202,6 +234,8 @@ export function avecFauxCargo(dossier: string, journal: string): () => void {
     FAUX_CARGO_CLIPPY: process.env.FAUX_CARGO_CLIPPY,
     FAUX_CARGO_INSTALLES: process.env.FAUX_CARGO_INSTALLES,
     FAUX_CARGO_COMPILATEUR: process.env.FAUX_CARGO_COMPILATEUR,
+    FAUX_CARGO_SANS_BINSTALL: process.env.FAUX_CARGO_SANS_BINSTALL,
+    FAUX_SCCACHE_JOURNAL: process.env.FAUX_SCCACHE_JOURNAL,
   };
   process.env.PATH = `${dossier}${path.delimiter}${process.env.PATH ?? ''}`;
   process.env.FAUX_CARGO_JOURNAL = journal;
@@ -209,6 +243,8 @@ export function avecFauxCargo(dossier: string, journal: string): () => void {
   delete process.env.FAUX_CARGO_CLIPPY;
   delete process.env.FAUX_CARGO_INSTALLES;
   delete process.env.FAUX_CARGO_COMPILATEUR;
+  delete process.env.FAUX_CARGO_SANS_BINSTALL;
+  delete process.env.FAUX_SCCACHE_JOURNAL;
   appendFileSync(journal, '');
   return () => {
     for (const [k, v] of Object.entries(avant)) {

@@ -725,6 +725,101 @@ describe('grillhouse-cyr, critère 1 — les commandes cargo compilent à traver
   });
 });
 
+// grillhouse-qmk (OSC Bridge, OB-p58, 2026-10-31): in an agent's envelope, every build stopped on
+// « sccache: error: path must be shorter than SUN_LEN ». sccache 0.19.0 starts its server by
+// binding a socket under TMPDIR (`<TMPDIR>/sccacheXXXXXX/sock`, src/commands.rs,
+// `run_server_process`), and the base of the pass under the session's working directory made it
+// longer than the 108 bytes of a socket's path. The commands start the copy's server themselves,
+// under the machine's /tmp, before each run of cargo that compiles: cargo finds it running.
+describe('grillhouse-qmk, critère 1 — le serveur de sccache démarre sous un dossier temporaire court', () => {
+  const MAISON = path.join(ESSAIS, 'maison');
+  const CACHE = path.join(MAISON, '.cache', 'sccache');
+  // A temporary directory as long as the working directory of a session in a copy of a project
+  // (`/tmp/claude-<uid>/<copy in dashes>/travail`), which the commands receive.
+  const LONG = path.join(ESSAIS, 'x'.repeat(40), 'y'.repeat(40), 'travail');
+  // The calls of sccache and of cargo of the command <nom> run in <racine>, in their order, each
+  // `{ appel, tmpdir, cache, socket }`: `sccache <arguments>`, or the subcommand of cargo.
+  const appels = (racine: string, nom: string, args: string[] = [], env = {}) => {
+    const f = path.join(mkdtempSync(path.join(ESSAIS, 'serveur-')), 'appels');
+    writeFileSync(f, '');
+    mkdirSync(LONG, { recursive: true });
+    lancer(
+      racine,
+      nom,
+      args,
+      {},
+      {
+        FAUX_CARGO_COMPILATEUR: f,
+        FAUX_SCCACHE_JOURNAL: f,
+        RUSTC_WRAPPER: '',
+        CARGO_BUILD_RUSTC_WRAPPER: '',
+        CARGO_HOME: '',
+        SCCACHE_DIR: '',
+        SCCACHE_SERVER_UDS: '',
+        GRILLHOUSE_ENVELOPPE: '',
+        HOME: MAISON,
+        TMPDIR: LONG,
+        ...env,
+      }
+    );
+    return readFileSync(f, 'utf8')
+      .split('\n')
+      .filter(l => l && !l.startsWith('metadata '))
+      .map(l => {
+        const mots = l.split(' ');
+        const cles = mots.filter(m => /^[A-Z_]+=/.test(m));
+        const o = new Map(cles.map(x => [x.split('=')[0], x.slice(x.indexOf('=') + 1)]));
+        return {
+          appel: mots.filter(m => !cles.includes(m)).join(' '),
+          tmpdir: o.get('TMPDIR') ?? '',
+          cache: o.get('SCCACHE_DIR') ?? '',
+          socket: o.get('SCCACHE_SERVER_UDS') ?? '',
+        };
+      });
+  };
+  const DEMARRE = 'sccache --start-server';
+  // Each run of cargo that compiles follows the start of its server: under /tmp, its cache and
+  // its socket cargo's; cargo keeps its own temporary directory.
+  const demarreAvant = (a: ReturnType<typeof appels>, attendus: string[]) => {
+    expect(a.map(x => x.appel)).toEqual(attendus);
+    const socket = a.find(x => x.appel !== DEMARRE)!.socket;
+    expect(socket).toMatch(/^\\x00grillhouse-sccache-[0-9a-f]{16}$/);
+    for (const x of a) {
+      expect(x.socket, x.appel).toBe(socket);
+      expect(x.cache, x.appel).toBe(CACHE);
+      if (x.appel === DEMARRE) {
+        expect(x.tmpdir).toBe('/tmp');
+      } else {
+        expect(x.tmpdir.startsWith(LONG), x.appel).toBe(true);
+      }
+    }
+  };
+
+  it('tester, verifier and typer start the server of the copy under /tmp before each build', () => {
+    demarreAvant(appels(d.seul, 'tester'), [DEMARRE, 'build', DEMARRE, 'nextest', DEMARRE, 'test']);
+    demarreAvant(appels(d.seul, 'verifier', ['--tout']), [
+      DEMARRE,
+      'build',
+      DEMARRE,
+      'nextest',
+      DEMARRE,
+      'test',
+      'deny',
+    ]);
+    demarreAvant(appels(d.seul, 'typer'), [DEMARRE, 'check']);
+  });
+
+  it('the guard clippy starts it too', () => {
+    demarreAvant(appels(d.seul, 'clippy'), [DEMARRE, 'clippy']);
+  });
+
+  it('a wrapper the project sets: no server of sccache is started', () => {
+    expect(appels(d.seul, 'typer', [], { RUSTC_WRAPPER: 'mon-lanceur' }).map(x => x.appel)).toEqual(
+      ['check']
+    );
+  });
+});
+
 describe('grillhouse-cyr, critère 2 — la mise à jour installe sccache à sa version exacte', () => {
   it('sccache is a binary of the module cargo, at the version of mozilla/sccache v0.19.0', () => {
     expect(cargo.binaires.sccache).toBe('0.19.0');

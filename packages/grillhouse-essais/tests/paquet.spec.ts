@@ -134,6 +134,10 @@ const SCINDES: Record<string, [number, number]> = {
   // grillhouse-4id: the runs of the circuit, the night, the command of the key and `grillhouse
   // verifier` with the tools of the project; the day proves them by the exported functions.
   outils: [6, 23],
+  // grillhouse-8o9: the integration of a generated file a project declares, on a real repository.
+  'integrer.engendres': [5, 25],
+  // grillhouse-qmk: a real envelope with a fake sccache, and the cause replayed with the real one.
+  'sccache-en-enveloppe': [3, 13],
 };
 const IT = /(?<![\w.])it(?:\.\w+(?:\([^()]*\))?)*\(/g;
 const EXPECT = /(?<![\w.])expect(?:\.\w+)?\(/g;

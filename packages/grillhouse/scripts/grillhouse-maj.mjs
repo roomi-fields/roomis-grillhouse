@@ -94,7 +94,8 @@
 //   cargo-deny), after the files: the command line runs the commands of its module
 //   (`miseAJour.installation`), which list what is installed and install each one missing or at
 //   another version (cargo's: `cargo install --list`, then `cargo binstall --no-confirm --locked
-//   <nom>@<version>`), as `npm install` brings what is installed to what is declared; the report
+//   <nom>@<version>`, cargo-binstall installed by cargo first when it lacks), as `npm install`
+//   brings what is installed to what is declared; the report
 //   names each one installed. One that cannot be installed has its line, the error stream of its
 //   command naming the command to type, and the exit code is non-zero. A language without
 //   binaries runs nothing.
@@ -120,7 +121,10 @@
 //   without file in a repository with `workspaces`, so that the frame's checks accept them; a
 //   generator that fails, or a project without its command, has its line, which says to run it
 //   after `npm install` (the frame's package and tools), and the exit code is non-zero.
-// - The report names the version of the frame, « Cadre 0.23.0. », the package's.
+// - The report names first the version of the frame, the package's, and the command that installs
+//   another before the update (`LIGNE_DU_CADRE`): npm reads a range `^0.25.5` as `>=0.25.5
+//   <0.26.0` (node-semver, caret ranges), so `npm install` never brings the next minor of a 0.x
+//   (grillhouse-qmk, OSC Bridge at 0.25.5 under ^0.25.5).
 // - Last, the update plays the project's verification, `npm run verifier`, from its root, its
 //   output shown, as Nx affected moves its base to the last green commit of main: its green keeps
 //   the last green (scripts/dernier-vert.mjs), HEAD and the tree of the working tree, the update's
@@ -623,6 +627,9 @@ function verifier(projet, { fichiersAFinir, installer, sansVerifier }) {
 const USAGE =
   'Usage : npx grillhouse maj   met le projet à jour du paquet installé (npm install -D @roomi-fields/grillhouse@<version> d’abord)\n';
 
+/** The first line of the report: the version installed, and the command that installs another. */
+export const LIGNE_DU_CADRE = `Cadre ${VERSION}, la version installée ; une autre s'installe d'abord par \`npm install -D @roomi-fields/grillhouse@<version>\` (une plage ^0.x n'admet pas la mineure suivante).`;
+
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   if (process.argv.length > 2) {
     process.stderr.write(USAGE);
@@ -649,7 +656,7 @@ function mettreAJourLeProjet(projet, langages) {
   const migrations = migrer(projet, depuis);
   const resteAFaire = migrations.some(m => m.aFaire.length > 0);
   const b = { ...mettreAJour(projet, CADRE, resteAFaire ? { inscrite: null } : {}), langages };
-  process.stdout.write(`Cadre ${VERSION}.\n`);
+  process.stdout.write(`${LIGNE_DU_CADRE}\n`);
   for (const { version, nom, lignes, aFaire } of migrations) {
     process.stdout.write(
       `Migration ${version} (${nom}) :\n${lignes.map(l => `- ${l}\n`).join('')}`

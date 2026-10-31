@@ -947,7 +947,7 @@ describe('the update names the version of the frame it installs', () => {
     const claude = claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')));
     const r = lancerMajAvec(projet, [], claude.bin);
     expect(r.status, r.stderr).toBe(0);
-    expect(r.stdout.startsWith(`Cadre ${VERSION}.\n`), r.stdout).toBe(true);
+    expect(r.stdout.startsWith(`Cadre ${VERSION}, la version installée`), r.stdout).toBe(true);
     expect(json(projet, 'package.json').grillhouse).toEqual({
       langages: ['typescript'],
       version: VERSION,

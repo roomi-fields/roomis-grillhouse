@@ -12,12 +12,14 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { installerBinaires, mettreAJour } from '../../scripts/grillhouse-maj.mjs';
+import { VERSION } from '../../scripts/cadre.mjs';
+import { installerBinaires, LIGNE_DU_CADRE, mettreAJour } from '../../scripts/grillhouse-maj.mjs';
 import { langagesTrouves } from '../../scripts/langages.mjs';
 import cargo from '../../scripts/langages/cargo/index.mjs';
 import typescript from '../../scripts/langages/typescript/index.mjs';
 import { sources as lesSources } from '../../scripts/sources.mjs';
 import type { Langage } from '../../scripts/jointure.js';
+import { BINSTALL } from '../../scripts/langages/cargo/binaires.mjs';
 import { avecFauxCargo, installerFauxCargo } from './langages/cargo/faux-cargo.js';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'grillhouse-maj-cargo-'));
@@ -205,6 +207,62 @@ describe('grillhouse-pkl.7, critère 2 — maj installe les binaires qui manquen
     for (const [n, v] of Object.entries(BINAIRES)) {
       expect(r.lignes.join('\n')).toContain(`cargo binstall --no-confirm --locked ${n}@${v}`);
     }
+  });
+});
+
+// grillhouse-qmk (OSC Bridge, 2026-10-31): `npx grillhouse maj` installed sccache only once
+// cargo-binstall was there; `cargo install cargo-binstall` had to be typed by hand.
+describe('grillhouse-qmk, critère 2 — maj installe cargo-binstall quand il manque', () => {
+  const sansBinstall = () => {
+    const marque = path.join(mkdtempSync(path.join(ESSAIS, 'binstall-')), 'installe');
+    process.env.FAUX_CARGO_SANS_BINSTALL = marque;
+    return marque;
+  };
+  beforeEach(() => {
+    delete process.env.FAUX_CARGO_SANS_BINSTALL;
+  });
+  const INSTALLATION = `install --locked cargo-binstall@${BINSTALL}`;
+
+  it('cargo-binstall absent: cargo installs it once, at its exact version, then every binary by it', () => {
+    const racine = rust({ 'package.json': { name: 'p', grillhouse: { langages: ['cargo'] } } });
+    sansBinstall();
+    const r = installerBinaires(racine) as { installes: string[]; lignes: string[] };
+    expect(appels().filter(a => a.startsWith('install --locked'))).toEqual([INSTALLATION]);
+    const ordre = appels();
+    expect(ordre.indexOf(INSTALLATION)).toBeLessThan(
+      ordre.findIndex(a => a.startsWith('binstall '))
+    );
+    expect(installations()).toEqual(
+      Object.entries(BINAIRES).map(([n, v]) => `binstall --no-confirm --locked ${n}@${v}`)
+    );
+    expect(r.lignes).toEqual([]);
+  });
+
+  it('cargo-binstall present: cargo installs nothing else', () => {
+    const racine = rust({ 'package.json': { name: 'p', grillhouse: { langages: ['cargo'] } } });
+    installerBinaires(racine);
+    expect(appels().filter(a => a.startsWith('install --locked'))).toEqual([]);
+  });
+
+  it('cargo-binstall that does not install: its line names the command to type, no binstall run', () => {
+    const racine = rust({ 'package.json': { name: 'p', grillhouse: { langages: ['cargo'] } } });
+    sansBinstall();
+    process.env.FAUX_CARGO_CODES = JSON.stringify({ 'install cargo-binstall': 1 });
+    const r = installerBinaires(racine) as { installes: string[]; lignes: string[] };
+    expect(r.installes).toEqual([]);
+    expect(installations()).toEqual([]);
+    expect(r.lignes.join('\n')).toContain(`cargo ${INSTALLATION}`);
+  });
+});
+
+// grillhouse-qmk (OSC Bridge, 2026-10-31): `npx grillhouse maj` left a project at 0.25.5 whose
+// package.json held ^0.25.5. The update brings the project to the version installed, by design;
+// npm reads ^0.25.5 as >=0.25.5 <0.26.0 (node-semver, « caret ranges »: a 0.x range admits no next
+// minor), so `npm install` never reaches 0.26.0. The report says the command to type first.
+describe('grillhouse-qmk, critère 3 — maj dit la commande qui monte la version', () => {
+  it('the first line of the report names the version installed and the command that installs another', () => {
+    expect(LIGNE_DU_CADRE).toContain(`Cadre ${VERSION}, la version installée`);
+    expect(LIGNE_DU_CADRE).toContain('`npm install -D @roomi-fields/grillhouse@<version>`');
   });
 });
 

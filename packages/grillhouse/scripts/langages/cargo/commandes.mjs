@@ -49,7 +49,8 @@
 //   a failed test included, never a path built by hand under `std::env::temp_dir()`.
 // - `typer`: `cargo check --all-targets`. `preparer`: `cargo fetch --locked`.
 // - Cargo runs with rustc wrapped by sccache, its cache common to the copies of the machine
-//   (./sccache.mjs), in a copy as in an agent's envelope (grillhouse-cyr). `tester`, `verifier`
+//   (./sccache.mjs), in a copy as in an agent's envelope (grillhouse-cyr), its server started
+//   under the machine's /tmp before each run of cargo that compiles (grillhouse-qmk). `tester`, `verifier`
 //   and `typer` refuse, before any run of cargo, a PATH without sccache, in one line that names it
 //   and `npx grillhouse maj`, which installs it (code 2).
 // - Nextest reads the frame's profile `grillhouse` (./nextest.toml, a tool's configuration under
@@ -95,7 +96,7 @@ import {
   retirerALInterruption,
 } from '../../services-du-noyau.mjs';
 import { composantDans, crates, joueDesTests, metadonnees } from './composants.mjs';
-import { avecSccache, sccacheAbsent } from './sccache.mjs';
+import { avecSccache, demarrerLeServeur, sccacheAbsent } from './sccache.mjs';
 import { touchesDesFichiers } from './touches.mjs';
 import { JUNIT, TACHES } from './verdict.mjs';
 
@@ -110,6 +111,8 @@ const VERROU = 'Cargo.lock';
 const VERROUILLEES = ['tester', 'verifier', 'preparer'];
 // The commands that compile, refused without sccache on the PATH (./sccache.mjs).
 const COMPILENT = ['tester', 'verifier', 'typer'];
+// The subcommands of cargo that compile, before which the server of sccache starts.
+const COMPILATIONS = ['test', 'nextest', 'check'];
 
 /** The guards of structure of the module, in the order they play: each its name, its script beside
  * this one, and its arguments as a guard. */
@@ -184,6 +187,10 @@ function passe(racine, env) {
       // A report of an earlier run is no report of this one, which may write none.
       if (junit) {
         rmSync(junit, { force: true });
+      }
+      // The server of sccache, started under a short temporary directory (./sccache.mjs).
+      if (COMPILATIONS.includes(args[0])) {
+        demarrerLeServeur(racine, env);
       }
       let r;
       if (journal) {

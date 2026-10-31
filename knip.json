@@ -50,7 +50,9 @@
     "claude",
     "codegraph",
     "mkfifo",
-    "pm2"
+    "pm2",
+    "rustc",
+    "sccache"
   ],
   "ignoreUnresolved": [
     "./.dependency-cruiser.projet.cjs"
