@@ -11,7 +11,8 @@
 //   a component's manifest whose only change from the file on disk lies in the part of its tests
 //   (`horsDesTests` empty; the text after an Edit or a MultiEdit is the file's with its
 //   replacements), and the lock files of the versions; any other change of a manifest is refused,
-//   the path and each part named.
+//   the path and each part named. A file of code is judged the same way when the module declares
+//   a part of it the tests' (cargo: the test module of a file of `src/`).
 // - The repository root is that of the git repository holding the written file, whatever the
 //   agent's working directory; a file outside any repository is read against the working directory.
 //   A project that declares no language (`grillhouse.langages`) is refused, exit code 2, the
@@ -197,9 +198,9 @@ export function refusal(role, input, { tmp = tmpdir(), describe = ticketDescript
       apres === null ? null : langage.manifestes.horsDesTests(file, racine, lu(file), apres);
     if (hors?.length === 0) return null;
     const regle =
-      "Le testwriter écrit seulement des fichiers de test, la matière de test partagée et, d'un manifeste, ce dont ses tests dépendent";
+      "Le testwriter écrit seulement des fichiers de test, la matière de test partagée et, d'un manifeste ou d'un fichier de code, la part de ses tests";
     return hors
-      ? `${regle} ; ce changement du manifeste ${raw} touche aussi ${hors.join(', ')}. Le reste du manifeste revient au développeur.`
+      ? `${regle} ; ce changement de ${raw} touche aussi ${hors.join(', ')}. Le reste du fichier revient au développeur.`
       : `${regle} ; ${raw} n'est rien de cela. Le code revient au développeur.`;
   }
   if (role === 'developpeur') {

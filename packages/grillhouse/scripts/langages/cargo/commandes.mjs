@@ -277,7 +277,7 @@ function choisir(racine, tous, chemins) {
       continue;
     }
     if (!joueDesTests(racine, c)) {
-      refus.push(`${chemin} : ${c.nom} n'a pas de dossier tests/`);
+      refus.push(`${chemin} : ${c.nom} n'a aucun test, ni dossier tests/, ni tests.rs sous src/`);
       continue;
     }
     const cible = crate.cibles.find(t => t.kind.includes('test') && t.src === abs);

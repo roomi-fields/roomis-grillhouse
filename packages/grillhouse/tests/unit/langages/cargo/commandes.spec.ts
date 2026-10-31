@@ -138,7 +138,9 @@ describe('grillhouse-pkl.3, critère 7 — les commandes du module cargo', () =>
     const refus = lancer(d.espace, 'tester', ['README.md', 'crates/outil/src/lib.rs']);
     expect(refus.code).toBe(2);
     expect(refus.stderr).toMatch(/README\.md : hors de tout crate/);
-    expect(refus.stderr).toMatch(/ws-outil n'a pas de dossier tests/);
+    expect(refus.stderr).toMatch(
+      /ws-outil n'a aucun test, ni dossier tests\/, ni tests\.rs sous src\//
+    );
     expect(refus.appels).toEqual([]);
   });
 

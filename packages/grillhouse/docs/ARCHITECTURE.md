@@ -555,7 +555,8 @@ porte un nom neutre, `test:unit`, le même pour chaque langage), et la lecture d
 (le verrou du testwriter), et la partie d'un manifeste qui déclare ce dont ses tests dépendent,
 avec le fichier de verrouillage des versions (`manifestes` : le testwriter les écrit, comme
 l'auteur d'un test de Bazel déclare les dépendances de sa cible ; le verrou refuse tout autre
-changement du manifeste, chaque partie nommée) ; ses fichiers engendrés, leur commande et ses gardes de structure ;
+changement du manifeste, chaque partie nommée ; en cargo, d'un fichier de code, le testwriter
+n'écrit que le module de test) ; ses fichiers engendrés, leur commande et ses gardes de structure ;
 où écrivent ses outils et l'outil de test qu'un rôle ne lance pas lui-même.
 L'INTERFACE.md du noyau l'écrit (`packages/grillhouse/docs/INTERFACE.md`), `scripts/jointure.d.ts`
 la type, et `scripts/langages.mjs` charge le module que le projet déclare (`grillhouse.langages`
@@ -581,7 +582,10 @@ demandent au projet, ses générateurs ; ses binaires (`binaires`), que `maj` in
 les fichiers sources laissent de côté et que `maj` écrit dans le `.gitignore`. Le module typescript vit sous
 `scripts/langages/typescript/` (`tests/temoins/repartition.json` range chaque fichier), ses tests
 sous `tests/unit/langages/typescript/` ; le module cargo sous `scripts/langages/cargo/` (les crates
-de `cargo metadata`, les tests par nextest puis les doctests, après la construction des cibles de
+de `cargo metadata` ; les fichiers de test que le testwriter écrit, chacun un fichier à lui : les
+tests par l'interface sous `tests/` d'un crate, les tests unitaires près de leur module, un
+`tests.rs` ou un dossier `tests/` sous `src/`, comme le contrôle tidy de rustc, que le module
+déclare par `#[cfg(test)] mod tests;`, ligne que le testwriter écrit avec son test ; les tests par nextest puis les doctests, après la construction des cibles de
 test de chaque crate (`cargo test --no-run`), une tâche `build` du verdict avec son journal, comme
 la tâche `test` de Turborepo dépend de `build` : des tests qui ne compilent pas sont le rouge
 « construction de <crate> » de la preuve du rouge, et se jouent aux contrôles ; la vérification par cargo-deny,

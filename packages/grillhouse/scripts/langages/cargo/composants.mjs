@@ -13,27 +13,36 @@
 //   ./touches.mjs reads as the whole workspace.
 // - The shared test material: the crates whose manifest says `[package.metadata.grillhouse]
 //   matiere = true`.
-// - A crate plays tests when it has a folder `tests/`, where cargo finds its integration tests:
-//   the tests of the project live there (decision 5 of the epic grillhouse-pkl).
+// - A test lives in a file of its own, never in a file of code (decision 5 of the epic
+//   grillhouse-pkl, amended by grillhouse-agr): the tests by the interface under `tests/` of each
+//   crate, where cargo finds its integration tests; the unit tests near their module, under
+//   `src/`, in a file `tests.rs` or a folder `tests/`, as rustc's tidy check wants them
+//   (src/tools/tidy/src/unit_tests.rs), declared in the module by `#[cfg(test)] mod tests;`, a line
+//   the testwriter writes with his test. A crate plays tests when it has either.
 // - The readers of a crate: the members that depend on it by its path, of any kind (`normal`,
 //   `dev`, `build`), the kind in `par`; a name no member bears is without provider. The types
 //   give no survey of their own: `etat` done, no element.
 // - What the testwriter writes: a file of `<crate>/tests/` is a test file; the runner plays the
 //   ones cargo makes a test target of, `tests/<nom>.rs` and `tests/<dossier>/main.rs`, and the
 //   others are their helpers and data (`tests/fixtures/`, as OSC Bridge's devices); a file of
-//   `<crate>/tests/common/`, the helpers cargo's book puts there, is test material too; a file of
-//   a crate of the shared test material is material; any other file of a crate (`src/` included)
-//   is none of them.
+//   `<crate>/tests/common/`, the helpers cargo's book puts there, is test material too; a file
+//   `tests.rs` under `src/`, and any file of a folder `tests/` under `src/`, is a unit test file,
+//   played with its crate when it is Rust; a file of a crate of the shared test material is
+//   material; any other file of a crate (the code of `src/`) is none of them.
 // - What the testwriter writes of the manifests (`manifestes`): the tables that declare what the
 //   tests of a crate depend on, `[dev-dependencies]` and `[target.<cible>.dev-dependencies]` of
 //   its Cargo.toml (cargo's book, « Development dependencies »), as the author of a test of Bazel
 //   declares the deps of its target; and Cargo.lock at the root, which cargo brings in line with
 //   them. A change of any other table is named by it; the Cargo.toml of a virtual workspace is
-//   no crate's. The manifests are read with smol-toml, a tool of this module (`outils`), an
-//   optional peer of the package loaded when a manifest is judged, so that a project of another
-//   language, which loads this module without it, never needs it.
+//   no crate's. Of a file of code of `src/` of a crate, the testwriter writes its test module
+//   alone (grillhouse-agr): the declaration `#[cfg(test)] mod tests;` added or removed, without
+//   which a new tests.rs is never compiled, and an inline `#[cfg(test)] mod tests { … }` removed,
+//   which he moves into tests.rs; any other change is named by its first line. The manifests are
+//   read with smol-toml, a tool of this module (`outils`), an optional peer of the package loaded
+//   when a manifest is judged, so that a project of another language, which loads this module
+//   without it, never needs it.
 import { spawnSync } from 'node:child_process';
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
@@ -114,10 +123,33 @@ export const matieres = racine =>
     .filter(c => c.matiere)
     .map(c => c.composant);
 
-/** Whether the crate <composant> has a folder `tests/`, its integration tests. */
+// Whether <parts>, a path from the folder of a crate split, is a unit test file under its `src/`:
+// a file `tests.rs`, or a file of a folder `tests/`.
+// `src/bin/tests.rs` and `src/bin/tests/` are a binary target for cargo, its code.
+const unitaire = parts =>
+  parts[0] === 'src' &&
+  parts.length > 1 &&
+  !(parts[1] === 'bin' && ['tests.rs', 'tests'].includes(parts[2])) &&
+  (parts.at(-1) === 'tests.rs' || parts.slice(1, -1).includes('tests'));
+
+/**
+ * Whether the crate <composant> plays tests: a folder `tests/`, its integration tests, or a unit
+ * test file under `src/`.
+ */
 export function joueDesTests(_racine, composant) {
   const d = path.join(composant.dossier, 'tests');
-  return existsSync(d) && statSync(d).isDirectory();
+  if (existsSync(d) && statSync(d).isDirectory()) {
+    return true;
+  }
+  const src = path.join(composant.dossier, 'src');
+  if (!existsSync(src)) {
+    return false;
+  }
+  return readdirSync(src, { recursive: true, withFileTypes: true }).some(
+    e =>
+      e.isFile() &&
+      unitaire(['src', ...path.relative(src, path.join(e.parentPath, e.name)).split(path.sep)])
+  );
 }
 
 /**
@@ -207,6 +239,10 @@ export function estUnTest(chemin, racine) {
       (parts.length === 3 && parts[2] === 'main.rs');
     return { joue, test: true, matiere };
   }
+  // The unit tests near their module, compiled with it: `tests.rs`, the files of `tests/`.
+  if (unitaire(parts)) {
+    return { joue: parts.at(-1).endsWith('.rs'), test: true, matiere };
+  }
   return matiere ? { joue: false, test: false, matiere: true } : null;
 }
 
@@ -239,10 +275,113 @@ function partiesHors(a, b) {
   return out;
 }
 
+// The head of the test module, `#[cfg(test)]`, other attributes after it, then `mod tests`.
+const TETE = String.raw`#\[cfg\(test\)\](?:\s*#\[[^\]\n]*\])*\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+tests\s*`;
+
+// The declaration of the test module in a file of code, `#[cfg(test)] mod tests;`, its lines and
+// the blank line before them.
+const DECLARATION = new RegExp(String.raw`(?:^\r?\n)?^[ \t]*${TETE};[ \t]*(?:\r?\n|$)`, 'gm');
+
+// The head of an inline test module, `#[cfg(test)] mod tests {`.
+const EN_LIGNE = new RegExp(String.raw`^[ \t]*${TETE}\{`, 'm');
+
+// The lexemes of Rust whose braces and quotes are no code, each a sticky expression from its
+// start: a raw string (`r#"…"#`, `br`, `cr`, its hashes captured), a string (`"…"`, `b"`, `c"`),
+// a character or a byte (`'{'`, `b'{'`, `'\''`, `'\u{7B}'`); a lifetime (`'a`) is none.
+const BRUTE = /(?<![\w])[bc]?r(#*)"/y;
+const CHAINE = /(?<![\w])[bc]?"(?:\\[\s\S]|[^\\"])*"/y;
+const CARACTERE = /(?<![\w])b?'(?:\\u\{[0-9a-fA-F]{1,6}\}|\\x[0-9a-fA-F]{2}|\\[\s\S]|[^\\'\n])'/y;
+
+// The end of the lexeme of <texte> that starts at <i> and holds no code (a comment, nested ones
+// included, a string, a character), its index past it; null when code starts at <i>. A lexeme
+// left open ends with the text.
+function finDuLexeme(texte, i) {
+  if (texte.startsWith('//', i)) {
+    const fin = texte.indexOf('\n', i);
+    return fin < 0 ? texte.length : fin;
+  }
+  if (texte.startsWith('/*', i)) {
+    let profondeur = 0;
+    for (let j = i; j < texte.length; j++) {
+      if (texte.startsWith('/*', j)) {
+        profondeur++;
+        j++;
+      } else if (texte.startsWith('*/', j)) {
+        j++;
+        if (--profondeur === 0) return j + 1;
+      }
+    }
+    return texte.length;
+  }
+  for (const re of [BRUTE, CHAINE, CARACTERE]) {
+    re.lastIndex = i;
+    const m = re.exec(texte);
+    if (!m) continue;
+    if (re !== BRUTE) return m.index + m[0].length;
+    const fin = texte.indexOf(`"${m[1]}`, i + m[0].length);
+    return fin < 0 ? texte.length : fin + 1 + m[1].length;
+  }
+  return null;
+}
+
+// The inline test module of the Rust text <texte>, from its attribute to its closing brace and the
+// end of that line, with the blank line before it; null for none, or for one never closed. The
+// braces of a comment, a string or a character do not count.
+function moduleEnLigne(texte) {
+  const m = EN_LIGNE.exec(texte);
+  if (!m) {
+    return null;
+  }
+  let profondeur = 0;
+  let i = m.index + m[0].length - 1;
+  while (i < texte.length) {
+    const fin = finDuLexeme(texte, i);
+    if (fin !== null) {
+      i = fin;
+      continue;
+    }
+    if (texte[i] === '{') {
+      profondeur++;
+    } else if (texte[i] === '}' && --profondeur === 0) {
+      const ligne = texte.indexOf('\n', i);
+      const debut = /\n\r?\n$/.test(texte.slice(0, m.index))
+        ? texte.lastIndexOf('\n', m.index - 2) + 1
+        : m.index;
+      return texte.slice(debut, ligne < 0 ? texte.length : ligne + 1);
+    }
+    i++;
+  }
+  return null;
+}
+
 /**
- * The parts of the Cargo.toml of a crate at <chemin> (absolute, or from <racine>) that change from
- * <avant> (null: no file) to <apres> out of the tables of its tests; null when <chemin> is the
- * manifest of no crate.
+ * The parts of a file of code of a crate that change from <avant> (null: no file) to <apres> out
+ * of its test module: the declaration `#[cfg(test)] mod tests;` added or removed, an inline
+ * `#[cfg(test)] mod tests { … }` removed, as the testwriter moves it into tests.rs. The lines
+ * compare as they are, the module's blank line before it apart.
+ */
+function codeHorsDuModuleDeTest(avant, apres) {
+  const [a, b] = [(avant ?? '').replace(DECLARATION, ''), apres.replace(DECLARATION, '')];
+  const [ma, mb] = [moduleEnLigne(a), moduleEnLigne(b)];
+  if (mb !== null && mb !== ma) {
+    return ['le module de test en ligne, qui va dans tests.rs'];
+  }
+  const lignes = (texte, m) => (m === null ? texte : texte.replace(m, '')).split('\n');
+  const [la, lb] = [lignes(a, ma), lignes(b, mb)];
+  const n = Array.from({ length: Math.max(la.length, lb.length) }, (_, k) => k).find(
+    k => la[k] !== lb[k]
+  );
+  if (n === undefined) {
+    return [];
+  }
+  const ligne = (lb[n] ?? la[n]).trim();
+  return [`le code hors du module de test (« ${ligne || 'une ligne vide'} »)`];
+}
+
+/**
+ * The parts of a file of a crate at <chemin> (absolute, or from <racine>) that change from
+ * <avant> (null: no file) to <apres> out of the part of its tests: of its Cargo.toml, the tables
+ * of its tests; of a file of code of its `src/`, its test module. Null for any other file.
  * @param {string} chemin
  * @param {string} racine
  * @param {string | null} avant
@@ -250,8 +389,18 @@ function partiesHors(a, b) {
  */
 function horsDesTests(chemin, racine, avant, apres) {
   const abs = path.resolve(racine, chemin);
+  const tous = crates(racine);
+  if (abs.endsWith('.rs')) {
+    const c = composantDans(
+      tous.map(x => x.composant),
+      racine,
+      abs
+    );
+    const parts = c ? path.relative(c.dossier, abs).split(path.sep) : [];
+    return parts[0] === 'src' && !unitaire(parts) ? codeHorsDuModuleDeTest(avant, apres) : null;
+  }
   if (path.basename(abs) !== 'Cargo.toml') return null;
-  if (!crates(racine).some(c => path.join(c.composant.dossier, 'Cargo.toml') === abs)) return null;
+  if (!tous.some(c => path.join(c.composant.dossier, 'Cargo.toml') === abs)) return null;
   const { parse } = require('smol-toml');
   const lire = texte => {
     try {

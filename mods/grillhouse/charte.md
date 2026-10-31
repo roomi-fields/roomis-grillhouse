@@ -87,6 +87,14 @@ Grillhouse comme dans chaque projet. La garde des tailles (`grillhouse tailles-d
 un grand test de jour, et la dette inscrite des grands tests existants ne fait que baisser. Ainsi
 le jour reste court, et la preuve longue tourne la nuit.
 
+**Un test vit dans un fichier à lui**, jamais dans un fichier de code, reconnu au nom ou au
+dossier qu'attend l'outil de son langage : près de son module pour un test unitaire (en Rust, un
+`tests.rs` ou un dossier `tests/` sous `src/`, comme le veut le contrôle tidy de rustc), dans le
+dossier de tests du paquet pour un test par l'interface (en Rust, `tests/` du crate). Les sortes
+de tests, qui les écrit, qui les lit et qui les joue sont les mêmes dans chaque langage ; seule
+l'adresse d'un fichier de test suit l'outil. Ainsi chaque test a un fichier à lui, que le
+testwriter écrit.
+
 **Un ticket ouvert naît du mot du responsable**, ou d'un défaut qu'un projet du cadre rencontre.
 Une découverte d'agent se consigne dans un ticket fermé, sous le ticket qui l'a trouvée, étiqueté
 `decouverte`. En fin de ticket, le tri des découvertes lui donne son verdict, avec sa pièce :

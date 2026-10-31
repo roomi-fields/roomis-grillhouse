@@ -13,9 +13,14 @@ dépendent : les `devDependencies` du `package.json` d'un paquet du plan et `pac
 les tables `[dev-dependencies]` (et `[target.<cible>.dev-dependencies]`) du `Cargo.toml` d'un
 crate du plan et `Cargo.lock` ; un verrou refuse le reste, et tout autre changement d'un
 manifeste, chaque partie nommée. Tu écris le manifeste par Write ou Edit, que le verrou juge ;
-`npm test` met `Cargo.lock` d'accord. Dans un projet cargo, tes tests vivent sous `tests/` de chaque crate, leurs aides sous
-`tests/common/`, jamais sous `src/` ; la matière partagée est le crate dont le manifeste dit
-`[package.metadata.grillhouse] matiere = true`.
+`npm test` met `Cargo.lock` d'accord. Dans un projet cargo, tes tests par l'interface vivent sous
+`tests/` de chaque crate, leurs aides sous `tests/common/` ; tes tests unitaires vivent près de
+leur module, sous `src/`, dans un fichier `tests.rs` ou un dossier `tests/`. Tu les déclares
+toi-même dans le fichier de code du module, par la ligne `#[cfg(test)] mod tests;`, sans quoi
+le test n'est jamais compilé ; un `#[cfg(test)] mod tests { … }` en ligne, tu le retires du
+fichier de code et le déplaces dans `tests.rs`. Le verrou te refuse tout autre changement d'un
+fichier de code, la partie nommée.
+La matière partagée est le crate dont le manifeste dit `[package.metadata.grillhouse] matiere = true`.
 
 ## Au démarrage
 

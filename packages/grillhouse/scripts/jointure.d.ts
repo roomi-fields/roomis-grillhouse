@@ -75,9 +75,10 @@ export interface Manifestes {
   /** The lock files of the versions, from the root: the testwriter writes them, and the envelope
    * opens them to him. */
   verrous: string[];
-  /** The parts of the manifest of a component at `chemin` (absolute, or from `racine`) that change
-   * from `avant` (null: no file) to `apres` out of the part of its tests, each named as the
-   * manifest names it, empty for none; null when `chemin` is the manifest of no component. */
+  /** The parts of a file of a component at `chemin` (absolute, or from `racine`) that change from
+   * `avant` (null: no file) to `apres` out of the part of its tests, each named, empty for none:
+   * of its manifest, the part that declares what its tests depend on; for cargo, of a file of code
+   * of `src/`, its test module. Null for a file the module does not judge. */
   horsDesTests(
     chemin: string,
     racine: string,

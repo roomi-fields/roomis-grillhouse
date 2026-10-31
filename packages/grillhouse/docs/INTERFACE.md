@@ -134,7 +134,9 @@ clippy`). Le noyau en lance trois
   seul testwriter ; `horsDesTests(chemin, racine, avant, apres)`, les parties du manifeste d'un
   composant qu'un changement touche hors de la partie de ses tests (cargo : `[dev-dependencies]`
   et `[target.<cible>.dev-dependencies]` d'un Cargo.toml ; typescript : `devDependencies` d'un
-  package.json), chacune nommée, ou null pour un fichier qui n'est le manifeste d'aucun composant.
+  package.json), et, pour cargo, d'un fichier de code de `src/` d'un crate hors de son module de
+  test (la déclaration `#[cfg(test)] mod tests;` ajoutée ou retirée, un module de test en ligne
+  retiré), chacune nommée, ou null pour un fichier que le module ne juge pas.
   Le verrou du testwriter accepte une écriture dont la liste est vide, et refuse les autres en
   nommant le chemin et chaque partie ; le noyau ne connaît aucun nom de section.
 - `fichiersEngendres` : les fichiers que le module engendre, chacun avec sa commande, ses fichiers,

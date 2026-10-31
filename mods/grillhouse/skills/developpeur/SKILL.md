@@ -117,6 +117,10 @@ avec ta fiche. Ainsi le circuit reprend dès ta fiche rendue.
   travail.
 - **Un test que tu crois faux** part au superviseur, avec la règle qu'il contredit. Les tests et la
   matière de test partagée sont au testwriter.
+- **Le module de test d'un fichier de code est au testwriter** : dans un projet cargo, la ligne
+  `#[cfg(test)] mod tests;` déclare le `tests.rs` (ou le dossier `tests/`) que le testwriter
+  écrit près du module ; il l'écrit avec son test, et tu ne la touches pas, ni un module de test
+  en ligne. Ainsi chaque test arrive compilé, avant ton code.
 
 Une découverte qui ne bloque pas entre dans `decouvertes` de ta fiche (son sujet, son exemple et
 son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
