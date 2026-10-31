@@ -25,7 +25,9 @@
 // - The generated file, the index of the interfaces (./index-interfaces.mjs), its command and its
 //   check; the guards of structure, in the order they play: clippy (./clippy.mjs), the boundaries
 //   between crates (./frontieres.mjs), the index of the interfaces up to date, each a command by
-//   its name too (./commandes.mjs), which the line of a red guard names. No migration yet.
+//   its name too (./commandes.mjs), which the line of a red guard names; the entries of the index
+//   of each interface (`entreesDeLIndex`), which the core assembles in a project of several
+//   languages. No migration yet.
 // - Its share of the update (./mise-a-jour.mjs, `miseAJour`): the template of a project of cargo
 //   (`templates/cargo/`) and its test scripts.
 import { existsSync, readFileSync } from 'node:fs';
@@ -42,7 +44,7 @@ import {
   matieres,
 } from './composants.mjs';
 import { elementsDuLot } from './elements-du-lot.mjs';
-import { enRetard, SORTIE } from './index-interfaces.mjs';
+import { enRetard, entreesDeLIndex, SORTIE } from './index-interfaces.mjs';
 import { miseAJour } from './mise-a-jour.mjs';
 import { CACHE } from './sccache.mjs';
 import { touches } from './touches.mjs';
@@ -118,6 +120,7 @@ export default {
       verifier: enRetard,
     },
   ],
+  entreesDeLIndex,
   gardes: () => GARDES.map(({ script, args }) => [script, ...args]),
   migrations: [],
   miseAJour,

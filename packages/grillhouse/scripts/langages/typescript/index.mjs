@@ -36,6 +36,8 @@
 //   (./regle-des-tests.mjs).
 // - The generated files, each its command, the guard that checks it and the names its findings
 //   carry: the index of the interfaces, the turbo.json of the packages, the reports of API.
+// - The entries of the index of each interface (`entreesDeLIndex`, ./index-interfaces.mjs), which
+//   the core assembles in a project of several languages.
 // - The guards of structure, in the order they play.
 // - The migrations of a project of TypeScript (./migrations/): the base configuration of Vitest,
 //   and the ones that replay a guard of this module, which the update plays with the core's
@@ -67,6 +69,7 @@ import * as cheminsDesTests from './migrations/0.25.0-chemins-des-tests.mjs';
 
 // The scripts of this module, beside this file.
 const SCRIPTS = path.dirname(fileURLToPath(import.meta.url));
+const requis = createRequire(import.meta.url);
 const ici = nom => path.join(SCRIPTS, nom);
 const generateur = (script, ...args) => [`node ${JSON.stringify(ici(script))}`, ...args].join(' ');
 const CHAMPS = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'];
@@ -313,6 +316,9 @@ export default {
       []
     ),
   ],
+  // Loaded at the call: ./index-interfaces.mjs imports the services of the core, which import the
+  // join that loads this module.
+  entreesDeLIndex: racine => requis('./index-interfaces.mjs').entreesDeLIndex(racine),
   gardes: () => [
     [ici('turbo-des-paquets.mjs')],
     [ici('index-interfaces.mjs'), '--verifier'],

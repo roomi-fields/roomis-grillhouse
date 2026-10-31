@@ -7,6 +7,9 @@
 //   node index-interfaces.mjs             writes docs/agents/index-des-interfaces.md
 //   node index-interfaces.mjs --verifier  refuses (exit 1) when that file is out of date, its
 //                                         finding in SARIF too (../../resultats.mjs)
+//   node index-interfaces.mjs --publie <composant>
+//                                         prints nothing: a crate's interface names no consumer,
+//                                         which the module typescript's prints from
 //
 // - An interface is found at `<crate>/docs/INTERFACE.md` for each member of the workspace
 //   (./composants.mjs), and at `docs/INTERFACE.md`; in their paths' order.
@@ -79,13 +82,23 @@ function entrees({ rel, composant }, contenu) {
 }
 
 /**
+ * The entries of the index of each interface of the workspace at <racine>, `{ rel, lignes }`, in
+ * the order of `interfaces`: what the module gives the core's index of a project of several
+ * languages (`entreesDeLIndex` of the join).
+ * @param {string} racine the root of the workspace
+ */
+export const entreesDeLIndex = racine =>
+  interfaces(racine).map(i => ({
+    rel: i.rel,
+    lignes: entrees(i, readFileSync(path.join(racine, i.rel), 'utf8')),
+  }));
+
+/**
  * The index of the interfaces of the workspace at <racine>, as its file holds it.
  * @param {string} racine the root of the workspace
  */
 export function index(racine) {
-  const corps = interfaces(racine).flatMap(i =>
-    entrees(i, readFileSync(path.join(racine, i.rel), 'utf8'))
-  );
+  const corps = entreesDeLIndex(racine).flatMap(e => e.lignes);
   return [
     '# Index des interfaces',
     '',
@@ -120,6 +133,10 @@ export function enRetard(racine) {
  * @param {{ env?: NodeJS.ProcessEnv }} [o] the environment (the results directory)
  */
 export function commande(racine, args, { env = process.env } = {}) {
+  // A crate's interface declares no consumers: what its providers publish is nothing to print.
+  if (args.includes('--publie')) {
+    return 0;
+  }
   if (!args.includes('--verifier')) {
     mkdirSync(path.dirname(path.join(racine, SORTIE)), { recursive: true });
     writeFileSync(path.join(racine, SORTIE), index(racine));

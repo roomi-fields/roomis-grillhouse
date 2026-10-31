@@ -4,7 +4,7 @@
 // `commandes`; run by `grillhouse <commande>` in the root of the workspace, its arguments after.
 //
 //   npx grillhouse tests [--force] [<chemin>…] [--<option>…]   tester
-//   npx grillhouse verifier [--tout]                            verifier
+//   npx grillhouse verifier [--tout | --gardes]                 verifier
 //   node commandes.mjs typer                                    typer
 //   npx grillhouse preparer                                     preparer
 //   npx grillhouse clippy | frontieres | index-interfaces       each guard, its own script
@@ -35,6 +35,10 @@
 //   time (`avecLaMachine` of ./jointure, as the module typescript's verifier): a measure that
 //   holds it makes it wait, and the bound of the wait reached, it stops at 75 without running
 //   cargo.
+// - `verifier --gardes` plays the guards alone, the same verdict as the module typescript's: the
+//   project's root scripts `grillhouse:gardes` (the frame's guards) then `gardes` (its own), each
+//   one the package.json holds a task of the root, by npm, without its tests nor cargo deny, and
+//   keeps no last green.
 // - `tester` and `verifier` play under a temporary directory of their pass, the module's guard of
 //   the temporary directory, as the CI of osc-bridge (OB-ud1.3): a base (`ouvrirBase` of
 //   ./jointure, genre `tests` or `verification`) in the temporary directory of the environment,
@@ -176,7 +180,7 @@ function passe(racine, env) {
       ecrire();
       return { t, args };
     },
-    jouer({ t, args }, { junit = null, journal = null } = {}) {
+    jouer({ t, args }, { junit = null, journal = null, programme = 'cargo' } = {}) {
       // A report of an earlier run is no report of this one, which may write none.
       if (junit) {
         rmSync(junit, { force: true });
@@ -188,7 +192,7 @@ function passe(racine, env) {
         mkdirSync(path.dirname(journal), { recursive: true });
         const fd = openSync(journal, 'w');
         try {
-          r = spawnSync('cargo', args, {
+          r = spawnSync(programme, args, {
             cwd: racine,
             env: compilation,
             stdio: ['inherit', fd, fd],
@@ -199,7 +203,7 @@ function passe(racine, env) {
         process.stderr.write(readFileSync(journal, 'utf8'));
         t.journal = path.relative(racine, journal);
       } else {
-        r = spawnSync('cargo', args, { cwd: racine, env: compilation, stdio: 'inherit' });
+        r = spawnSync(programme, args, { cwd: racine, env: compilation, stdio: 'inherit' });
       }
       t.code = r.error ? 127 : (r.status ?? 128 + (constants.signals[r.signal] ?? 0));
       if (junit && dossier && existsSync(junit)) {
@@ -318,6 +322,9 @@ function choisir(racine, tous, chemins) {
 // last green.
 function verifier(racine, args, env) {
   const p = passe(racine, env);
+  if (args.includes('--gardes')) {
+    return gardes(racine, p);
+  }
   const tous = crates(racine);
   const { choix, m } = depuisLeVert(racine, tous, args.includes('--tout'), env);
   try {
@@ -338,6 +345,30 @@ function verifier(racine, args, env) {
   }
 }
 
+// The scripts of guards of the project, in the order they play, as the module typescript's
+// `--gardes` plays its tasks: the frame's, then the project's own.
+const SCRIPTS_DE_GARDES = ['grillhouse:gardes', 'gardes'];
+
+// The pass of `verifier --gardes` in <racine>, the run <p>: each script of SCRIPTS_DE_GARDES the
+// root package.json holds, a task of the root, whatever the verdict of the one before; no test.
+function gardes(racine, p) {
+  let scripts = {};
+  try {
+    scripts = JSON.parse(readFileSync(path.join(racine, 'package.json'), 'utf8')).scripts ?? {};
+  } catch {
+    scripts = {};
+  }
+  for (const nom of SCRIPTS_DE_GARDES.filter(n => typeof scripts[n] === 'string')) {
+    p.jouer(p.prevoir(RACINE, racine, nom, false, ['run', '--silent', nom]), { programme: 'npm' });
+  }
+  return p.code();
+}
+
+// Node's compile cache, which npm enables under the temporary directory (`module.enableCompileCache()`)
+// when `verifier --gardes` runs the project's scripts: the guard of the base tolerates it at its
+// root, as the module typescript's base of Vitest, and the base removes it with the rest.
+const CACHE_DE_NODE = 'node-compile-cache';
+
 // Plays <jouer>(env) under the base of a pass of <genre> in the temporary directory of <env>,
 // named to cargo in TMPDIR, TMP and TEMP: its code, 1 when the tests left something there, named.
 // The base goes at the end, or at an interruption.
@@ -346,7 +377,7 @@ function sousLaBase(genre, env, jouer) {
   const lacher = retirerALInterruption(base.fermer);
   try {
     const code = jouer({ ...env, ...base.env });
-    const ligne = ligneDesRestes(base.restes());
+    const ligne = ligneDesRestes(base.restes().filter(n => n !== CACHE_DE_NODE));
     if (!ligne) {
       return code;
     }

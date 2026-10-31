@@ -66,6 +66,10 @@
 //   test scripts. What the share leaves to the project (`aFaire`: for cargo, a Cargo.lock that git
 //   does not track) is written on the error stream, the exit code 1, and the verification is not
 //   played.
+// - A project of several languages (scripts/langages.mjs, `langagesDe`) receives the share of each,
+//   in the order of the declaration: its template's tools, its share of the update, its binaries,
+//   its generators (each once) and what its tools write; the frame's scripts of a template come
+//   from the first template that has each.
 // - The languages first (`declarerLangages`): a project that declares none (`grillhouse.langages`
 //   of its package.json) receives the languages the modules of the frame find in it
 //   (`langagesTrouves` of scripts/langages.mjs: typescript, a tsconfig.json at its root or in a
@@ -139,7 +143,14 @@ import { poserCrochets } from './crochets.mjs';
 import { ATTRIBUT } from './fusion-du-changelog.mjs';
 import { installerGreffons } from './greffons.mjs';
 import { migrer, restesAuProjet } from './migrations.mjs';
-import { LANGAGES, langage, langageDe, langagesDeclares, langagesTrouves } from './langages.mjs';
+import {
+  LANGAGES,
+  langage,
+  langageDe,
+  langagesDe,
+  langagesDeclares,
+  langagesTrouves,
+} from './langages.mjs';
 
 const SCRIPTS = {
   tableau: 'grillhouse tableau --texte',
@@ -216,13 +227,19 @@ const trie = deps =>
 // they changed.
 function reglerLigneEtat(projet) {
   const f = path.join(projet, '.claude', 'settings.json');
-  if (!existsSync(f)) {return false;}
+  if (!existsSync(f)) {
+    return false;
+  }
   const reglages = JSON.parse(readFileSync(f, 'utf8'));
   const actuelle = reglages.statusLine;
   const commande = typeof actuelle?.command === 'string' ? actuelle.command : '';
-  if (actuelle !== undefined && !commande.includes('ligne-etat')) {return false;}
+  if (actuelle !== undefined && !commande.includes('ligne-etat')) {
+    return false;
+  }
   const voulue = { type: 'command', command: LIGNE_ETAT };
-  if (JSON.stringify(actuelle) === JSON.stringify(voulue)) {return false;}
+  if (JSON.stringify(actuelle) === JSON.stringify(voulue)) {
+    return false;
+  }
   reglages.statusLine = voulue;
   writeFileSync(f, `${JSON.stringify(reglages, null, 2)}\n`);
   return true;
@@ -237,7 +254,9 @@ export const GREFFON_DU_CADRE = `grillhouse@${MARCHE_DU_CADRE}`;
 // and enables the frame's plugin (see the header); returns whether they changed.
 function declarerGreffon(projet) {
   const f = path.join(projet, '.claude', 'settings.json');
-  if (!existsSync(f)) {return false;}
+  if (!existsSync(f)) {
+    return false;
+  }
   const avant = readFileSync(f, 'utf8');
   const reglages = JSON.parse(avant);
   reglages.extraKnownMarketplaces = {
@@ -245,7 +264,9 @@ function declarerGreffon(projet) {
     [MARCHE_DU_CADRE]: { source: SOURCE_DU_MARCHE },
   };
   reglages.enabledPlugins = { ...(reglages.enabledPlugins ?? {}), [GREFFON_DU_CADRE]: true };
-  if (JSON.stringify(reglages) === JSON.stringify(JSON.parse(avant))) {return false;}
+  if (JSON.stringify(reglages) === JSON.stringify(JSON.parse(avant))) {
+    return false;
+  }
   writeFileSync(f, `${JSON.stringify(reglages, null, 2)}\n`);
   return true;
 }
@@ -265,7 +286,9 @@ export function declarerLangages(projet) {
     );
   }
   const declares = langagesDeclares(projet);
-  if (declares.length > 0) {return { langages: declares, ecrits: false };}
+  if (declares.length > 0) {
+    return { langages: declares, ecrits: false };
+  }
   const trouves = langagesTrouves(projet);
   if (trouves.length === 0) {
     const signes = Object.keys(LANGAGES)
@@ -304,40 +327,58 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
   const pkg = path.join(projet, 'package.json');
   if (existsSync(pkg)) {
     bilan.langages = declarerLangages(projet);
-    const langage = langageDe(projet);
+    const modules = langagesDe(projet);
     const p = lireJson(pkg, {});
-    if (inscrite !== null) {p.grillhouse = { ...(p.grillhouse ?? {}), version: inscrite };}
-    // The template of the declared language, where the frame's scripts and tools are read.
-    const pkgSource = lireJson(path.join(source, langage.miseAJour.gabarit, 'package.json'), {});
-    const gardes = pkgSource.scripts?.['grillhouse:gardes'];
+    if (inscrite !== null) {
+      p.grillhouse = { ...(p.grillhouse ?? {}), version: inscrite };
+    }
+    // The template of each declared language, where the frame's scripts and tools are read; the
+    // frame's scripts from the first that has each.
+    const gabarits = modules.map(m => ({
+      module: m,
+      pkgSource: lireJson(path.join(source, m.miseAJour.gabarit, 'package.json'), {}),
+    }));
+    const duGabarit = lire => gabarits.map(g => lire(g.pkgSource)).find(v => v !== undefined);
+    const gardes = duGabarit(g => g.scripts?.['grillhouse:gardes']);
     p.scripts = { ...(p.scripts ?? {}), ...SCRIPTS };
     // The project's `prepare`, which npm runs at its install, places the frame's git hooks first.
     const prepare = typeof p.scripts.prepare === 'string' ? p.scripts.prepare.trim() : '';
     if (!prepare.split(/\s*&&\s*/).includes(PREPARE)) {
       p.scripts.prepare = prepare === '' ? PREPARE : `${PREPARE} && ${prepare}`;
     }
-    if (typeof pkgSource.scripts?.api === 'string') {
-      p.scripts.api = pkgSource.scripts.api;
+    const api = duGabarit(g => (typeof g.scripts?.api === 'string' ? g.scripts.api : undefined));
+    if (api !== undefined) {
+      p.scripts.api = api;
     }
-    // The tools of the declared language alone (its module's `outils`), at the template's versions.
-    for (const nom of langage.outils) {
-      const version = pkgSource.devDependencies?.[nom];
-      if (typeof version === 'string' && !CHAMPS_INSTALLES.some(c => p[c]?.[nom] !== undefined)) {
-        p.devDependencies = { ...(p.devDependencies ?? {}), [nom]: version };
-        bilan.dependances.push(nom);
+    // The tools of the declared languages alone (each module's `outils`), at its template's
+    // versions.
+    for (const { module, pkgSource } of gabarits) {
+      for (const nom of module.outils) {
+        const version = pkgSource.devDependencies?.[nom];
+        if (typeof version === 'string' && !CHAMPS_INSTALLES.some(c => p[c]?.[nom] !== undefined)) {
+          p.devDependencies = { ...(p.devDependencies ?? {}), [nom]: version };
+          bilan.dependances.push(nom);
+        }
       }
     }
     if (p.devDependencies) {
       p.devDependencies = trie(p.devDependencies);
     }
-    if (typeof pkgSource.packageManager === 'string' && typeof p.packageManager !== 'string') {
-      p.packageManager = pkgSource.packageManager;
+    const gestionnaire = duGabarit(g =>
+      typeof g.packageManager === 'string' ? g.packageManager : undefined
+    );
+    if (gestionnaire !== undefined && typeof p.packageManager !== 'string') {
+      p.packageManager = gestionnaire;
     }
-    if (typeof gardes === 'string') {p.scripts['grillhouse:gardes'] = gardes;}
+    if (typeof gardes === 'string') {
+      p.scripts['grillhouse:gardes'] = gardes;
+    }
     // The commands of the known debt of the guards (scripts/dette.mjs) are the frame's.
     for (const nom of ['grillhouse:dette:inscrire', 'grillhouse:dette:elaguer']) {
-      const script = pkgSource.scripts?.[nom];
-      if (typeof script === 'string') {p.scripts[nom] = script;}
+      const script = duGabarit(g => g.scripts?.[nom]);
+      if (typeof script === 'string') {
+        p.scripts[nom] = script;
+      }
     }
     // The frame's former wiring of the guards goes: Turborepo plays them (`npm run verifier`).
     const pretest = typeof p.scripts.pretest === 'string' ? p.scripts.pretest.trim() : null;
@@ -367,20 +408,24 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
         bilan.gardes = { deplace: false };
       }
     }
-    // The share of the declared language (its module's `miseAJour`), in <p> and in its files.
-    const part = langage.miseAJour.appliquer(projet, {
-      p,
-      modele: pkgSource,
-      source,
-      version: VERSION,
-    });
-    Object.assign(bilan, part.bilan);
-    bilan.duLangage = {
-      lignes: part.lignes,
-      aFaire: part.aFaire,
-      installer: part.installer,
-      sansVerifier: part.sansVerifier,
-    };
+    // The share of each declared language (its module's `miseAJour`), in <p> and in its files, in
+    // the order of the declaration: the lines joined, `installer` when one asks it, the first line
+    // that says why the project has no script `verifier`.
+    for (const { module, pkgSource } of gabarits) {
+      const part = module.miseAJour.appliquer(projet, {
+        p,
+        modele: pkgSource,
+        source,
+        version: VERSION,
+      });
+      Object.assign(bilan, part.bilan);
+      bilan.duLangage = {
+        lignes: [...bilan.duLangage.lignes, ...part.lignes],
+        aFaire: [...bilan.duLangage.aFaire, ...part.aFaire],
+        installer: bilan.duLangage.installer || part.installer,
+        sansVerifier: bilan.duLangage.sansVerifier ?? part.sansVerifier,
+      };
+    }
     writeFileSync(pkg, `${JSON.stringify(p, null, 2)}\n`);
     ignorer(projet);
   }
@@ -392,7 +437,7 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
 }
 
 /**
- * Installs on the machine each binary of the language of the project at <projet> (`binaires` of
+ * Installs on the machine each binary of the languages of the project at <projet> (`binaires` of
  * its module) that its installation does not list at its version, by the commands its module
  * describes (`miseAJour.installation`: `liste`, then `installer` for each one missing), each run by
  * Node, as `npm install` brings what is installed to what is declared; a language without
@@ -401,7 +446,18 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
  * the command to type.
  */
 export function installerBinaires(projet) {
-  const langage = langageDe(projet);
+  const installes = [];
+  const lignes = [];
+  for (const m of langagesDe(projet)) {
+    const r = installerLesBinairesDe(projet, m);
+    installes.push(...r.installes);
+    lignes.push(...r.lignes);
+  }
+  return { installes, lignes };
+}
+
+// The binaries of the module <langage> installed in the project at <projet> (`installerBinaires`).
+function installerLesBinairesDe(projet, langage) {
   const voulus = Object.entries(langage.binaires);
   const installation = langage.miseAJour.installation;
   if (voulus.length === 0 || installation === null) {
@@ -440,21 +496,28 @@ export function installerBinaires(projet) {
 }
 
 /**
- * Runs each generator of the language of the project (`miseAJour.generateurs` of its module)
- * whose output the project holds (every one with `tous`, for a project `grillhouse init` creates);
+ * Runs each generator of the languages of the project (`miseAJour.generateurs` of each module,
+ * each once) whose output the project holds (every one with `tous`, for a project `grillhouse init` creates);
  * returns the lines of failure.
  */
 export function regenerer(projet, { tous = false } = {}) {
   const lignes = [];
   const grillhouse = path.join(projet, 'node_modules', '.bin', 'grillhouse');
   const aPaquets = lireJson(path.join(projet, 'package.json'), {})?.workspaces !== undefined;
-  for (const g of langageDe(projet).miseAJour.generateurs) {
+  const vus = new Set();
+  for (const g of langagesDe(projet).flatMap(m => m.miseAJour.generateurs)) {
+    const cle = JSON.stringify([g.commande, ...g.args]);
+    if (vus.has(cle)) {
+      continue;
+    }
+    vus.add(cle);
     const absente = g.sortie !== null && !tous && !existsSync(path.join(projet, g.sortie));
     if (g.sortie === null ? !aPaquets : absente) {
       continue;
     }
-    if (g.sortie !== null)
-      {mkdirSync(path.dirname(path.join(projet, g.sortie)), { recursive: true });}
+    if (g.sortie !== null) {
+      mkdirSync(path.dirname(path.join(projet, g.sortie)), { recursive: true });
+    }
     const r = spawnSync(grillhouse, [g.commande, ...g.args], { cwd: projet, encoding: 'utf8' });
     if (r.status !== 0) {
       lignes.push(
@@ -470,7 +533,7 @@ export function rapport(b) {
   const lignes = [];
   if (b.langages?.ecrits) {
     lignes.push(
-      `Langages : grillhouse.langages déclare ${b.langages.langages.join(', ')}, trouvé dans le dépôt ; le cadre sert le projet par ce langage.`
+      `Langages : grillhouse.langages déclare ${b.langages.langages.join(', ')}, trouvé dans le dépôt ; le cadre sert le projet par ${b.langages.langages.length > 1 ? 'ces langages' : 'ce langage'}.`
     );
   }
   if (b.dependances.length > 0) {
@@ -574,7 +637,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
       process.stderr.write(`⛔ ${e.message}\n`);
       process.exitCode = 1;
     }
-    if (langages !== null) {mettreAJourLeProjet(projet, langages);}
+    if (langages !== null) {
+      mettreAJourLeProjet(projet, langages);
+    }
   }
 }
 

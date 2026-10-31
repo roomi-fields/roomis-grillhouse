@@ -77,10 +77,13 @@ const voisins = (rel: string) =>
     )
   );
 
-// The members of the interface `Langage` of scripts/jointure.d.ts.
+// The members of the interface `Langage` of scripts/jointure.d.ts: its own, and those of the
+// `Composition` it extends (grillhouse-akd).
 const membresDeLangage = () => {
-  const corps =
-    /export interface Langage \{([\s\S]*?)\n\}/.exec(lire('scripts/jointure.d.ts'))?.[1] ?? '';
+  const texte = lire('scripts/jointure.d.ts');
+  const corps = ['Composition \\{', 'Langage extends Composition \\{']
+    .map(t => new RegExp(`export interface ${t}([\\s\\S]*?)\\n\\}`).exec(texte)?.[1] ?? '')
+    .join('\n');
   return [...corps.matchAll(/^\s{2}(\w+)\??(?:\(|:)/gm)].map(m => m[1]);
 };
 

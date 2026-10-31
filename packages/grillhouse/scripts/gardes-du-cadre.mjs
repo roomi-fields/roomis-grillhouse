@@ -3,8 +3,9 @@
 //
 //   npx grillhouse gardes-du-cadre      (npm run grillhouse:gardes, a task of Turborepo)
 //
-// - The guards are those of the module of the project's language (`gardes`, scripts/jointure.d.ts,
-//   scripts/langages.mjs), in their order.
+// - The guards are those of the modules of the project's languages (`gardes`,
+//   scripts/jointure.d.ts, scripts/langages.mjs), each module's in their order, the modules in the
+//   order of the declaration.
 // - Each guard is a script of the package, and plays in the working directory, under the environment of the run
 //   (`GRILLHOUSE_DETTE` among it, scripts/dette.mjs), whatever the verdict of the ones before: a
 //   red does not stop the pass, as `--continue` does for Turborepo's tasks.

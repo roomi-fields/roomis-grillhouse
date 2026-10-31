@@ -383,3 +383,37 @@ describe('grillhouse-pkl.7, critère 4 — ce que les outils du langage écriven
     expect(lire(r, '.gitignore')).toBe('/target\n');
   });
 });
+
+describe('grillhouse-akd, critère 4 — la mise à jour d’un projet de deux langages prend l’union', () => {
+  // A project of Rust at its root and of TypeScript in a package of its workspaces.
+  const deux = () =>
+    rust({
+      'package.json': { name: 'p', workspaces: ['site'] },
+      'site/package.json': { name: 'site' },
+      'site/tsconfig.json': '{}\n',
+    });
+
+  it('both found and declared, the tools of npm of each module added, both directories ignored', () => {
+    const racine = deux();
+    const b = mettreAJour(racine, DEPOT);
+    const p = pkgDe(racine);
+    expect(p.grillhouse?.langages).toEqual(['typescript', 'cargo']);
+    expect(b.dependances).toEqual(expect.arrayContaining(['smol-toml', ...OUTILS_TS]));
+    expect(p.devDependencies?.['smol-toml']).toBe('1.9.1');
+    for (const o of OUTILS_TS) {
+      expect(p.devDependencies?.[o], o).toBeDefined();
+    }
+    const ignores = lire(racine, '.gitignore').split('\n');
+    expect(ignores).toContain('target/');
+    expect(ignores).toContain('.turbo/');
+  });
+
+  it('the binaries of cargo are installed for the project of two languages', () => {
+    const racine = deux();
+    mettreAJour(racine, DEPOT);
+    writeFileSync(JOURNAL, '');
+    const r = installerBinaires(racine) as { installes: string[]; lignes: string[] };
+    expect(r.installes).toEqual(Object.entries(BINAIRES).map(([n, v]) => `${n}@${v}`));
+    expect(r.lignes).toEqual([]);
+  });
+});

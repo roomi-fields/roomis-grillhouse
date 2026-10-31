@@ -13,21 +13,50 @@ La garde des frontières tient les deux sens. Ainsi le reste du noyau ignore le 
 Les types de la jointure sont `scripts/jointure.d.ts` ; l'entrée publiée
 `@roomi-fields/grillhouse/jointure` les porte.
 
-## Le langage d'un projet
+## Les langages d'un projet
 
-Un projet déclare son langage dans son `package.json`, sous `grillhouse.langages` :
-`["typescript"]` ou `["cargo"]`. Le nom vient de la liste fermée des langages du cadre (`LANGAGES` de
-`scripts/langages.mjs`) ; un nom hors de la liste est refusé, nommé, avec la liste.
+Un projet déclare ses langages dans son `package.json`, sous `grillhouse.langages` :
+`["typescript"]`, `["cargo"]` ou `["cargo", "typescript"]`. Chaque nom vient de la liste fermée des
+langages du cadre (`LANGAGES` de `scripts/langages.mjs`) ; un nom hors de la liste est refusé,
+nommé, avec la liste, et un nom déclaré deux fois, nommé.
 
-La déclaration est la seule lecture : un projet sans déclaration, ou un dossier sans
-`package.json`, est refusé, nommé, avec la commande qui l'écrit. `init` et `maj` écrivent la
-déclaration d'après ce que les modules trouvent dans le dépôt (`langagesTrouves(racine)`), comme
-chaque greffon de Nx infère ses projets de ses propres fichiers (`createNodes`) ; une déclaration
-présente reste. Là où aucun module ne trouve son langage, `maj` refuse le projet, nommé, sans rien
-écrire : le cadre n'invente aucune déclaration. Un seul langage est servi par projet : une
-déclaration de plusieurs est refusée, chacun nommé.
+La déclaration est la seule lecture (`langagesDeclares(racine)`) : un projet sans déclaration, ou
+un dossier sans `package.json`, est refusé, nommé, avec la commande qui l'écrit. `init` et `maj`
+écrivent la déclaration d'après ce que les modules trouvent dans le dépôt
+(`langagesTrouves(racine)`), comme chaque greffon de Nx infère ses projets de ses propres fichiers
+(`createNodes`) ; une déclaration présente reste. Là où aucun module ne trouve son langage, `maj`
+refuse le projet, nommé, sans rien écrire : le cadre n'invente aucune déclaration.
 
-`langageDe(racine)` rend le module qui sert le projet de `racine`, chargé une fois par processus.
+Un projet a plusieurs langages, un paquet un seul, comme Bazel et Nx jouent une même liste de
+cibles, un outil par langage. `langagesDe(racine)` rend les modules déclarés, dans l'ordre de la
+déclaration, chacun chargé une fois par processus ; `langageDe(racine)` rend leur composition
+(`scripts/composition-des-langages.mjs`), le module lui-même quand le projet n'en déclare qu'un.
+La composition répond aux demandes ci-dessous, `trouve`, `signe` et `miseAJour` à part, que `maj`
+demande à chaque module :
+
+- les composants sont ceux de chaque module ; un dossier que deux modules revendiquent est refusé,
+  nommé avec les deux langages ;
+- un fichier va au module du composant qui le tient, le plus profond ; un fichier hors de tout
+  composant, au premier module dont la réponse n'est pas nulle (`estUnTest`,
+  `manifestes.horsDesTests`) ;
+- les lecteurs, les composants touchés et les éléments d'un lot sont ceux de chaque module sur ses
+  composants, réunis : un nom sans fournisseur l'est dans chaque module, un fichier hors du graphe
+  l'est de chaque module ; le verdict d'une passe, celui de chaque module, lu dans le même dossier
+  de résultats ;
+- chaque commande d'un module est la commande composée de son nom
+  (`scripts/commandes-composees.mjs`) : chaque module qui la décrit la joue avec son outil, l'un
+  après l'autre ; pour `tester`, chaque chemin va au module de son composant, et un module sans
+  chemin ne joue pas ; le code est 0 quand chaque module est vert, 75 quand les seuls rouges sont
+  « à repasser », sinon le premier autre ; le dernier vert se garde une fois, quand chaque module a
+  joué vert ;
+- les gardes, les fichiers engendrés, les migrations et la matière de test partagée sont ceux de
+  chaque module, sauf l'index des interfaces, que chaque module engendre : il en reste un seul,
+  celui du noyau (`scripts/index-interfaces.mjs`), assemblé des entrées de chaque module
+  (`entreesDeLIndex`) dans l'ordre de leurs chemins, celle de la racine une fois, sous une seule
+  commande (`index-interfaces`) et une seule garde ; les verrous, les sorties, les droits, les
+  outils, les binaires et les dossiers à ignorer, leur union ;
+- `npm run verifier -- --gardes` joue dans chaque module les gardes seules : celles du cadre, puis
+  celles du projet, sans ses tests.
 
 ## Les demandes
 
@@ -40,7 +69,7 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
 - `signe` : ce que `trouve` cherche, en mots, que le refus de `maj` nomme quand aucun langage n'est
   trouvé.
 - `outils` : les outils qu'un projet du langage installe, dépendances facultatives du paquet ;
-  `maj` n'ajoute que ceux du langage déclaré, aux versions du gabarit.
+  `maj` n'ajoute que ceux des langages déclarés, chacun à la version de son gabarit.
 - `binaires` : les binaires qu'un projet du langage installe sur la machine, chacun à sa version
   exacte ; `maj` installe chacun de ceux qui manquent ou sont à une autre version, par les
   commandes de `miseAJour.installation`. `typescript`, aucun ; `cargo`, nextest, cargo-deny et
@@ -147,6 +176,9 @@ clippy`). Le noyau en lance trois
   vérification ni constat ; l'intégration les régénère au lieu de les fusionner.
 - `gardes` : les gardes de structure du module, chacune `[script, ...args]`, dans l'ordre où elles
   jouent ; `grillhouse gardes-du-cadre` les joue.
+- `entreesDeLIndex` : les entrées de l'index des interfaces, une par interface des composants du
+  module et pour celle de la racine, `{ rel, lignes }`, `lignes` telles que l'index les écrit ; le
+  noyau les assemble en un seul index pour un projet de plusieurs langages.
 - `migrations` : les migrations d'un projet du langage, celles qui rejouent une garde du module et
   celles de ses outils (`typescript`, la configuration de base de Vitest), que `grillhouse maj`
   joue avec celles du noyau, comme `nx migrate` réunit celles de chaque greffon.

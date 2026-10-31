@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { cas, echecs } from '../../scripts/conformite.mjs';
-import type { langageDe } from '../../scripts/langages.mjs';
+import type { Langage } from '../../scripts/jointure.js';
 import module from '../../scripts/langages/typescript/index.mjs';
 import lesExemples from '../../scripts/langages/typescript/exemples.mjs';
 
@@ -22,7 +22,6 @@ const exemples = lesExemples as unknown as Parameters<typeof cas>[1];
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'conformite-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
-type Langage = ReturnType<typeof langageDe>;
 type Engendre = ReturnType<Langage['fichiersEngendres']>[number];
 
 // The module typescript, the check of its generated files kept by repository: the mutants below

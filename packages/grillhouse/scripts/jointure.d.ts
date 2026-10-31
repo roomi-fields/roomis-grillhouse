@@ -191,13 +191,11 @@ export interface MiseAJour {
   } | null;
 }
 
-/** A module of language, the default export of `scripts/langages/<nom>/index.mjs`. */
-export interface Langage {
+/** What the core asks of the languages of a project: a module of language, or the composition of
+ * the modules a project declares (scripts/composition-des-langages.mjs), whose name joins theirs
+ * with `+`. */
+export interface Composition {
   nom: string;
-  /** Whether the repository at `racine` holds code of this language, which the update declares. */
-  trouve(racine: string): boolean;
-  /** What `trouve` looks for, in words: the refusal of the update names it. */
-  signe: string;
   /** The tools a project of this language installs, optional peers of the package. */
   outils: string[];
   /** The binaries a project of this language installs on the machine, each at its exact version:
@@ -246,6 +244,18 @@ export interface Langage {
   fichiersEngendres(racine: string): FichierEngendre[];
   gardes(racine: string): string[][];
   migrations: Migration[];
+}
+
+/** A module of language, the default export of `scripts/langages/<nom>/index.mjs`. */
+export interface Langage extends Composition {
+  /** Whether the repository at `racine` holds code of this language, which the update declares. */
+  trouve(racine: string): boolean;
+  /** What `trouve` looks for, in words: the refusal of the update names it. */
+  signe: string;
+  /** The entries of the index of the interfaces, one per interface of the module's components and
+   * the root's, `lignes` as the index writes them, which the core assembles for a project of
+   * several languages (scripts/index-interfaces.mjs). */
+  entreesDeLIndex(racine: string): { rel: string; lignes: string[] }[];
   miseAJour: MiseAJour;
 }
 
@@ -255,8 +265,12 @@ export const LANGAGES: Record<string, string>;
 export function langagesDeclares(racine: string): string[];
 /** The languages of the frame whose module finds its code in the repository at `racine`. */
 export function langagesTrouves(racine: string): string[];
-/** The module of the language that serves the project at `racine`; throws when it declares none. */
-export function langageDe(racine: string): Langage;
+/** The modules of the languages the project at `racine` declares, in the order of the
+ * declaration; throws when it declares none, one out of the list, or one twice. */
+export function langagesDe(racine: string): Langage[];
+/** The join of the modules that serve the project at `racine`: the module itself for one, their
+ * composition for several; throws as `langagesDe`. */
+export function langageDe(racine: string): Composition;
 
 // The services of the core to a module of language, which imports of the core its published
 // entries alone (.dependency-cruiser.projet.cjs of the frame's repository).
@@ -315,8 +329,9 @@ export function attendreLeRepos(o?: Record<string, unknown>): unknown;
 export const CHANGEMENTS: string;
 /** The variable naming the commit of the last green a run measures itself from. */
 export const DEPUIS_LE_VERT: string;
-/** Keeps the green of a pass, which the next one measures itself from. */
-export function garderLeVert(etat: unknown): void;
+/** Keeps the green of a pass, which the next one measures itself from; deferred to the file
+ * `GRILLHOUSE_VERT_DIFFERE` of `env` names, in a project of several languages. */
+export function garderLeVert(etat: unknown, env?: NodeJS.ProcessEnv): void;
 /** The measure of the repository at `racine` against its last green. */
 export function mesure(racine: string, o?: { tout?: boolean; dans?: string }): unknown;
 /** The wait for the lock of the machine, ended without it (scripts/verrou-de-machine.mjs). */

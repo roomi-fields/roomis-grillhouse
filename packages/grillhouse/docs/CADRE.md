@@ -10,12 +10,12 @@ Ce cadre est celui du noyau ; l'interface qu'il demande aux modules est `docs/IN
 
 Le noyau tient les tickets et leur circuit, les rôles et leurs droits, leur relecture, le tableau,
 l'enveloppe des agents, les crochets, l'intégration, la nuit et la mise à jour. Ce qui dépend du
-langage du projet, il le demande au module de ce langage, par la jointure
-(`scripts/langages.mjs`).
+langage d'un paquet, il le demande au module de ce langage, par la jointure
+(`scripts/langages.mjs`), qui compose les modules qu'un projet déclare.
 
 ## Reçoit
 
-- Du projet : sa déclaration de langage (`grillhouse.langages` de son `package.json`), ses
+- Du projet : la déclaration de ses langages (`grillhouse.langages` de son `package.json`), ses
   tickets, sa charte.
 - Du module de langage : ses réponses aux demandes de `docs/INTERFACE.md`.
 
@@ -39,8 +39,9 @@ langage du projet, il le demande au module de ce langage, par la jointure
 - **R4.** Le code du noyau ne nomme aucun outil d'un langage (turbo, vitest, knip,
   dependency-cruiser, tsc) ; chaque reste nommé l'est avec le ticket qui le retire
   (`tests/unit/jointure.spec.ts`).
-- **R5.** Un langage hors de la liste du cadre, ou plusieurs langages déclarés ensemble, sont
-  refusés, nommés.
+- **R5.** Un projet a plusieurs langages, un paquet un seul : un langage hors de la liste du
+  cadre, ou déclaré deux fois, est refusé, nommé ; un dossier que deux modules revendiquent est
+  refusé, nommé avec les deux langages.
 - **R6.** Le paquet ne dépend d'aucun outil d'un langage : chacun est un pair facultatif
   (`peerDependencies`, `peerDependenciesMeta` facultatif), comme Vite déclare les préprocesseurs
   qu'il importe quand un projet les a. Un projet n'installe que ceux de son langage, et

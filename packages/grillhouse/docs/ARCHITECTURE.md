@@ -521,7 +521,7 @@ la fonction, sans réexport, avec sa déclaration de types à côté (`scripts/<
 `@roomi-fields/grillhouse/consommateurs` (`matieres`, les paquets de la matière de test
 partagée), `@roomi-fields/grillhouse/paquets` (`horsCadre`, les paquets hors cadre),
 `@roomi-fields/grillhouse/resultats` (`ecrireSarif`, les constats d'une garde du projet en
-SARIF), `@roomi-fields/grillhouse/jointure` (`langageDe`, le module de langage d'un projet, et les
+SARIF), `@roomi-fields/grillhouse/jointure` (`langageDe`, les modules de langage d'un projet composés, et les
 types de la jointure, `scripts/jointure.d.ts`), `@roomi-fields/grillhouse/conformite` (`cas` et
 `echecs`, la suite de conformité d'un module de langage), et la
 configuration de base de Vitest, `@roomi-fields/grillhouse/vitest-config`,
@@ -584,9 +584,16 @@ changement du manifeste, chaque partie nommée ; en cargo, d'un fichier de code,
 n'écrit que le module de test) ; ses fichiers engendrés, leur commande et ses gardes de structure ;
 où écrivent ses outils et l'outil de test qu'un rôle ne lance pas lui-même.
 L'INTERFACE.md du noyau l'écrit (`packages/grillhouse/docs/INTERFACE.md`), `scripts/jointure.d.ts`
-la type, et `scripts/langages.mjs` charge le module que le projet déclare (`grillhouse.langages`
-de son `package.json` ; un projet qui n'en déclare aucun est refusé, la commande `maj` nommée) ;
-un seul langage est servi : un projet qui en déclare deux est refusé, chacun nommé. Passent par elle : les
+la type, et `scripts/langages.mjs` charge les modules que le projet déclare (`grillhouse.langages`
+de son `package.json` ; un projet qui n'en déclare aucun est refusé, la commande `maj` nommée).
+Un projet a plusieurs langages, un paquet un seul, comme Bazel et Nx jouent une même liste de
+cibles, un outil par langage, chaque cible d'un seul langage : le noyau compose les modules
+déclarés (`scripts/composition-des-langages.mjs`), range chaque fichier au composant qui le tient,
+donc au module de son langage, et refuse un dossier que deux modules revendiquent ; chaque
+commande joue dans chaque module qui la décrit, avec son outil, et les verdicts s'unissent
+(`scripts/commandes-composees.mjs`) ; l'index des interfaces, que chaque module engendre, reste
+un seul fichier, assemblé par le noyau des entrées de chaque module (`scripts/index-interfaces.mjs`) ;
+le verrou des rôles, l'enveloppe et `maj` prennent l'union de ce que demandent les modules. Passent par elle : les
 composants et leurs lecteurs du relevé des composants ; la règle d'un fichier de test des verrous,
 des lots de l'intégration et du circuit ; les commandes de `grillhouse tests` et `grillhouse
 verifier` ; le verdict que le circuit lit, et les paquets du plan qui portent des tests ; les fichiers engendrés du circuit ; les gardes de

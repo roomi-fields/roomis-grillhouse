@@ -11,6 +11,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import {
   chmodSync,
   copyFileSync,
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -215,6 +216,53 @@ describe('grillhouse-pkl.3, critère 8 — le verdict d’un lancement', () => {
     expect(echoue?.tests).toEqual([
       { titre: 'lit', nom: 'lit', etat: 'failed', message: "assertion 'a < b'" },
     ]);
+  });
+});
+
+// grillhouse-akd: the reviewer plays `npm run verifier -- --gardes`, the guards alone, the same
+// verdict in each module: as the module typescript plays the tasks `grillhouse:gardes` and
+// `gardes`, the module cargo plays the project's scripts of those names, without its tests nor
+// cargo deny.
+describe('grillhouse-akd — verifier --gardes, les gardes seules', () => {
+  const TRACE = () => path.join(ESSAIS, 'trace-des-gardes');
+  // A copy of the crate at the root whose package.json runs <scripts>, each a line of the shell.
+  function avecGardes(scripts: Record<string, string>) {
+    const racine = mkdtempSync(path.join(ESSAIS, 'gardes-'));
+    cpSync(d.seul, racine, { recursive: true });
+    writeFileSync(path.join(racine, 'package.json'), JSON.stringify({ name: 'seul', scripts }));
+    writeFileSync(TRACE(), '');
+    return racine;
+  }
+  const trace = (n: string) =>
+    `node -e "require('node:fs').appendFileSync(process.env.TRACE, '${n}\\n')"`;
+  const traces = () => readFileSync(TRACE(), 'utf8').split('\n').filter(Boolean);
+
+  it('plays the guards of the frame, then the project’s, no test and no cargo deny', () => {
+    const racine = avecGardes({ 'grillhouse:gardes': trace('cadre'), gardes: trace('projet') });
+    const r = lancer(racine, 'verifier', ['--gardes'], {}, { TRACE: TRACE() });
+    expect(r.code).toBe(0);
+    expect(r.appels).toEqual([]);
+    expect(traces()).toEqual(['cadre', 'projet']);
+    expect(r.verdict.taches.map(t => [t.tache, t.code])).toEqual([
+      ['//#grillhouse:gardes', 0],
+      ['//#gardes', 0],
+    ]);
+  });
+
+  it('a red guard makes it red, its task named; the other guard plays all the same', () => {
+    const racine = avecGardes({ 'grillhouse:gardes': 'exit 3', gardes: trace('projet') });
+    const r = lancer(racine, 'verifier', ['--gardes'], {}, { TRACE: TRACE() });
+    expect(r.code).toBe(1);
+    expect(traces()).toEqual(['projet']);
+    expect(r.verdict.taches.find(t => t.script === 'grillhouse:gardes')?.code).not.toBe(0);
+  });
+
+  it('a project without its script gardes plays the frame’s guards alone', () => {
+    const racine = avecGardes({ 'grillhouse:gardes': trace('cadre') });
+    const r = lancer(racine, 'verifier', ['--gardes'], {}, { TRACE: TRACE() });
+    expect(r.code).toBe(0);
+    expect(traces()).toEqual(['cadre']);
+    expect(r.verdict.taches.map(t => t.tache)).toEqual(['//#grillhouse:gardes']);
   });
 });
 

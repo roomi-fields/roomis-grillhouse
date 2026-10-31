@@ -261,10 +261,17 @@ export function publie(racine, composant) {
   return out.join('\n');
 }
 
+// The entries of the index of each interface of the repository at <racine>, `{ rel, lignes }`, in
+// the order of `interfaces`: what the module gives the core's index of a project of several
+// languages (`entreesDeLIndex` of the join).
+export const entreesDeLIndex = racine =>
+  interfaces(racine).map(rel => ({
+    rel,
+    lignes: entrees(rel, readFileSync(path.join(racine, rel), 'utf8')),
+  }));
+
 export function index(racine) {
-  const corps = interfaces(racine).flatMap(rel =>
-    entrees(rel, readFileSync(path.join(racine, rel), 'utf8'))
-  );
+  const corps = entreesDeLIndex(racine).flatMap(e => e.lignes);
   return [
     '# Index des interfaces',
     '',

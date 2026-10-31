@@ -7,9 +7,10 @@
 //   (`circuit`, `tableau`); `maj` runs `grillhouse-maj.mjs`, whose name already says the frame's;
 //   `hooks` (`crochets.mjs`, which places the git hooks) and `hook` (`crochet.mjs`, which runs one)
 //   take Husky's names, which a project's `prepare` and its git hooks call.
-// - `tests` and `verifier` run the commands the module of the project's language describes
-//   (`commandes`, scripts/jointure.d.ts: `tester` and `verifier`), the project being the working
-//   directory (scripts/langages.mjs); each other command it describes but `typer` is a subcommand
+// - `tests` and `verifier` run the commands the modules of the project's languages describe
+//   (`commandes`, scripts/jointure.d.ts: `tester` and `verifier`; for several languages, the
+//   composed command, scripts/commandes-composees.mjs), the project being the working directory
+//   (scripts/langages.mjs); each other command it describes but `typer` is a subcommand
 //   by its name (`frontieres`, `index-interfaces`), as a backend of Pants brings its goals.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
