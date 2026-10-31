@@ -130,9 +130,10 @@ describe('grillhouse-3uv.58.1 critère 2 — git status of the copy does not rep
 
 describe('grillhouse-3uv.58.1 critère 3 — a write into a shared submodule from an agent copy fails', () => {
   // The agent's session is a script of the repository, run inside the real envelope: it reads the
-  // shared submodule, then tries to write into it and into the copy.
+  // shared submodule, then tries to write into it and into its plan, packages/a, a component of the
+  // module typescript that the envelope alone opens in writing (grillhouse-pkl.5).
   it.runIf(canWrap)(
-    'critère 3: inside the envelope, the agent reads the shared submodule and its write into it fails; its write into the copy succeeds',
+    'critère 3: inside the envelope, the agent reads the shared submodule and its write into it fails; its write into its plan in the copy succeeds',
     () => {
       const m = mondePartage();
       writeFileSync(
@@ -140,8 +141,8 @@ describe('grillhouse-3uv.58.1 critère 3 — a write into a shared submodule fro
         `#!/bin/sh
 lu=$(cat vendor/natif/natif.txt 2>/dev/null || echo illisible)
 if echo agent > vendor/natif/agent.txt 2>/dev/null; then s=ok; else s=refus; fi
-if echo agent > copie-agent.txt 2>/dev/null; then c=ok; else c=refus; fi
-echo "agent $s $c $lu" >> ecritures.log
+if echo agent > packages/a/copie-agent.txt 2>/dev/null; then c=ok; else c=refus; fi
+echo "agent $s $c $lu" >> packages/a/ecritures.log
 `,
         { mode: 0o755 }
       );
@@ -164,7 +165,7 @@ echo "agent $s $c $lu" >> ecritures.log
         },
       });
       expect(r.status, r.stderr + readFileSync(`${m.copies.agent}.log`, 'utf8')).toBe(0);
-      expect(m.ecrituresDe(m.copies.agent)).toEqual(['agent refus ok v1']);
+      expect(m.ecrituresDe(path.join(m.copies.agent, 'packages/a'))).toEqual(['agent refus ok v1']);
       expect(m.intrus()).toEqual([]);
     },
     LONG

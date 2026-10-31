@@ -64,7 +64,7 @@ const branches = (racine: string) =>
 const balayer = (racine: string, o: { garder?: string[]; enCours?: Set<string> | null } = {}) =>
   retirerLesCopiesFinies(racine, {
     garder: o.garder ?? [],
-    enCours: o.enCours === undefined ? new Set<string>() : o.enCours,
+    lireEnCours: () => (o.enCours === undefined ? new Set<string>() : o.enCours),
   }).join('\n');
 
 describe('the night removes the copies whose content is on main (grillhouse-5vv)', () => {
@@ -242,6 +242,48 @@ describe('the night removes the copies whose content is on main (grillhouse-5vv)
       const journal = balayer(racine, { enCours: null });
       expect(existsSync(c)).toBe(true);
       expect(journal).toContain('aucune copie n’est retirée');
+    },
+    LONG
+  );
+
+  // grillhouse-8ye: the night of 2026-10-31 called bd in every trial of the night, which has no
+  // copy but its own; the tests that a green night calls no bd went red.
+  it(
+    'grillhouse-8ye: with no copy but those left out, the tickets in progress are not read',
+    () => {
+      const racine = depot();
+      const nuit = copie(racine, 'nuit', null);
+      let lectures = 0;
+      const journal = retirerLesCopiesFinies(racine, {
+        garder: [nuit],
+        lireEnCours: () => {
+          lectures += 1;
+          return null;
+        },
+      });
+      expect(journal).toEqual([]);
+      expect(lectures).toBe(0);
+      expect(existsSync(nuit)).toBe(true);
+    },
+    LONG
+  );
+
+  it(
+    'grillhouse-8ye: with a copy to judge, the tickets in progress are read once',
+    () => {
+      const racine = depot();
+      const nuit = copie(racine, 'nuit', null);
+      copie(racine, 'agent-7', null);
+      copie(racine, 'agent-8', null);
+      let lectures = 0;
+      retirerLesCopiesFinies(racine, {
+        garder: [nuit],
+        lireEnCours: () => {
+          lectures += 1;
+          return new Set<string>();
+        },
+      });
+      expect(lectures).toBe(1);
     },
     LONG
   );

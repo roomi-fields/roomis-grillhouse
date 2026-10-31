@@ -2,7 +2,16 @@ import { rmSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { sortie, lire, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
+import {
+  sortie,
+  lire,
+  ARRETS,
+  CODE_JUSTE,
+  ECRIT_ROUGE,
+  TA_TACHE,
+  circuitEssai,
+  ecrire,
+} from './circuit-essai.js';
 
 // The circuit of a ticket (scripts/circuit.mjs), grillhouse-3uv.95.4, criterion 2: a stop no
 // gesture settles puts the circuit in « question », a montée to the supervisor; the supervisor
@@ -16,7 +25,9 @@ import { sortie, lire, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './c
 const ESSAIS = racineSousLaMaison('grillhouse-essais-circuit-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 const {
+  REPO,
   BEADS,
+  gitRepo,
   revenirAuDebut,
   ticket,
   scenario,
@@ -42,6 +53,14 @@ describe.runIf(canWrap)(
 
     it('--etendre adds the package to the plan, its provider before its reader, and the circuit resumes the step under way on the whole plan, the question as its context', () => {
       const id = 'demo-montee-etendre';
+      // binder reads forms by its code: the module typescript orders the plan by the imports, never
+      // by the manifests of npm (grillhouse-x7c.1).
+      ecrire(
+        path.join(REPO, 'packages/binder/src/index.mjs'),
+        "import '../../forms/src/index.mjs';\nexport const mesure = x => x;\n"
+      );
+      gitRepo('add', '-A');
+      gitRepo('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'binder lit forms');
       ticket(id, '030-binder');
       scenario(id, 'testwriter-1', HORS_PLAN);
       scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
@@ -59,7 +78,7 @@ describe.runIf(canWrap)(
       // The step under way, the testwriter's, resumes once on the plan extended.
       expect(ordre(id)).toEqual(['testwriter', 'testwriter', 'developpeur', 'relecteur']);
       expect(essai(id, 'testwriter-2.paquets')).toBe('packages/forms:packages/binder');
-      expect(essai(id, 'testwriter-2.prompt')).toMatch(/CONTEXTE : .*hors du plan/);
+      expect(essai(id, 'testwriter-2.prompt')).toMatch(new RegExp(`${TA_TACHE}.*hors du plan`));
       // grillhouse-3uv.95.5: the plan the supervisor extends has passed, written and questioned once.
       expect(sessions(id, 'explorateur')).toBe(1);
       expect(sessions(id, 'questionneur')).toBe(1);
@@ -67,7 +86,7 @@ describe.runIf(canWrap)(
       expect(question(id)).toBeNull();
     });
 
-    it('--reprendre resumes the stopped step, its context on the line CONTEXTE, the question lifted', () => {
+    it('--reprendre resumes the stopped step, its context its task at the head of the instruction, the question lifted', () => {
       const id = 'demo-montee-reprendre';
       ticket(id, '000-forms');
       scenario(id, 'testwriter-1', HORS_PLAN);
@@ -78,7 +97,7 @@ describe.runIf(canWrap)(
       const r2 = circuit([id, '--reprendre', '--contexte', 'Écris dans le plan seul.']);
       expect(r2.status, sortie(r2)).toBe(0);
       expect(sessions(id, 'testwriter')).toBe(2);
-      expect(essai(id, 'testwriter-2.prompt')).toContain('CONTEXTE : Écris dans le plan seul.');
+      expect(essai(id, 'testwriter-2.prompt')).toContain(`${TA_TACHE}Écris dans le plan seul.`);
       expect(question(id)).toBeNull();
       expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
     });

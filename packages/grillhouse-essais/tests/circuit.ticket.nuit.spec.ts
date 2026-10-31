@@ -2,7 +2,15 @@ import { readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { sortie, ecrire, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
+import {
+  sortie,
+  ecrire,
+  ARRETS,
+  CODE_JUSTE,
+  ECRIT_ROUGE,
+  TA_TACHE,
+  circuitEssai,
+} from './circuit-essai.js';
 
 // grillhouse-3uv.95.6 (decision 6 of 3uv.95): the circuit of a ticket, as a merge request: one
 // author of the tests and one of the code for the whole ticket, one CI on the whole, one review.
@@ -381,7 +389,7 @@ describe.runIf(canWrap)(
         'developpeur',
         'relecteur',
       ]);
-      expect(essai(id, 'developpeur-1.prompt')).toContain('CONTEXTE : Le double, sans test neuf.');
+      expect(essai(id, 'developpeur-1.prompt')).toContain(`${TA_TACHE}Le double, sans test neuf.`);
       expect(essai(id, 'developpeur-1.paquets')).toBe('packages/forms:packages/binder');
       expect(sessions(id, 'developpeur')).toBe(1);
     });

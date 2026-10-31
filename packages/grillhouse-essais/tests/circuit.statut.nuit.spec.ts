@@ -1,7 +1,14 @@
 import { rmSync } from 'node:fs';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
+import {
+  sortie,
+  ARRETS,
+  CODE_JUSTE,
+  ECRIT_ROUGE,
+  TA_TACHE,
+  circuitEssai,
+} from './circuit-essai.js';
 
 // The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): the status of the
 // sheet that ends a session of the testwriter and the developpeur (`statut`: FAIT, BLOQUÉ with its
@@ -219,7 +226,9 @@ fiche '{"statut":"FAIT","hors_plan":[{"critere":"1","paquet":"030-binder","piece
     expect(s.status, sortie(s)).toBe(0);
     expect(ordre(id)).toEqual(['testwriter', 'developpeur', 'developpeur', 'relecteur']);
     expect(essai(id, 'developpeur-2.paquets')).toBe('packages/forms:packages/binder');
-    expect(essai(id, 'developpeur-2.prompt')).toMatch(/CONTEXTE : .*critère 1 \(030-binder\)/);
+    expect(essai(id, 'developpeur-2.prompt')).toMatch(
+      new RegExp(`${TA_TACHE}.*critère 1 \\(030-binder\\)`)
+    );
     expect(etat(id)).toMatchObject({ etape: 'integre' });
   });
 

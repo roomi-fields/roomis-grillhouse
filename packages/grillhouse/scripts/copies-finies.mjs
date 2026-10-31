@@ -17,7 +17,8 @@
 //   scripts/circuit.mjs), or, for the integration copy and the queue copy
 //   (`.claude/worktrees/integration`, `.claude/worktrees/file`), their lock in git's common
 //   directory (`integration.lock`, `file-integration.lock`, scripts/integration/). Tickets in
-//   progress that do not read, or not within a minute, hold every copy: none is removed.
+//   progress that do not read, or not within a minute, hold every copy: none is removed. They are
+//   read only when a copy is left to judge: a repository with no copy but the night's calls no bd.
 // - A copy whose commits are not on main stays, its line naming the first path that has not
 //   entered: retirer-copie.sh judges the local work alone, so the copy's HEAD is judged first, as
 //   the removal judges local work: each path HEAD changed since its base with main holds the
@@ -116,10 +117,17 @@ function pasEntre(racine, b) {
 
 /**
  * Removes the copies of the repository at <racine> whose content is on main; returns one line per
- * copy removed or kept. <garder> names the copies left out (the night's); <enCours> the ids of the
- * tickets in progress, null when they do not read.
+ * copy removed or kept. <garder> names the copies left out (the night's); <lireEnCours> reads the
+ * ids of the tickets in progress, null when they do not read: called once, and only when a copy
+ * is left to judge, as a cleanup with nothing to clean asks nothing.
  */
-export function retirerLesCopiesFinies(racine, { garder = [], enCours }) {
+export function retirerLesCopiesFinies(racine, { garder = [], lireEnCours }) {
+  const [principale, ...listees] = lesCopies(racine);
+  const ecartees = new Set([principale?.chemin, ...garder].filter(Boolean).map(reel));
+  if (listees.every(c => ecartees.has(reel(c.chemin)))) {
+    return [];
+  }
+  const enCours = lireEnCours();
   if (enCours === null) {
     return ['✗ les tickets en cours ne se lisent pas (bd list) : aucune copie n’est retirée.'];
   }
@@ -130,8 +138,7 @@ export function retirerLesCopiesFinies(racine, { garder = [], enCours }) {
     '--path-format=absolute',
     '--git-common-dir'
   ).stdout.trim();
-  const [principale, ...copies] = lesCopies(racine);
-  const ecartees = new Set([principale?.chemin, ...garder].filter(Boolean).map(reel));
+  const copies = lesCopies(racine).slice(1);
   const ici = reel(racine);
   const vu = c => (path.relative(ici, reel(c)).startsWith('..') ? c : path.relative(ici, reel(c)));
   const lignes = [];
@@ -198,7 +205,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const racine = process.cwd();
   const lignes = retirerLesCopiesFinies(racine, {
     garder: process.argv.slice(2),
-    enCours: ticketsEnCours(racine),
+    lireEnCours: () => ticketsEnCours(racine),
   });
   if (lignes.length) {
     process.stdout.write(`${lignes.join('\n')}\n`);

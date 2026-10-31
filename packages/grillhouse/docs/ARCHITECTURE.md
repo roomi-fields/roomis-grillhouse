@@ -370,7 +370,8 @@ copie tient restent) ; une copie refusée (commits ou travail non entrés, verro
 journal la nomme avec sa raison, le premier chemin non entré compris. Une copie qu'un circuit tient reste sans passer : son ticket en
 cours, son dossier `.travail`, ou, pour la copie de l'intégration et celle de la file, leur
 verrou ; des tickets en cours illisibles, ou lus au-delà d'une minute, gardent toutes les
-copies. Le retrait ne change pas le verdict de la nuit. Ainsi aucune copie ne survit à l'entrée de
+copies. Les tickets en cours se lisent seulement quand une copie reste à juger : une nuit sans
+autre copie que la sienne n'appelle pas Beads. Le retrait ne change pas le verdict de la nuit. Ainsi aucune copie ne survit à l'entrée de
 son contenu sur main (Grillhouse, 79 copies d'agents, 5,7 Go ; OSC Bridge, 4,4 Go).
 
 **Le circuit est un démon** (`packages/grillhouse/scripts/demon.mjs`) : comme daemon(3) et

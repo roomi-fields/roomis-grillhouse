@@ -12,10 +12,11 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
-import { CADRE, enProcessus } from './cadre.js';
+import { CADRE, RACINE, enProcessus } from './cadre.js';
 
 // The trial harness of the integration and of its queue (grillhouse-3uv.63): a repository with
 // a fake Beads that keeps the state of its tickets, a bare remote `origin`, the frame's real
@@ -452,7 +453,8 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
   // The relaunch of <id> by the frame's launcher, role developpeur on src/a, the envelope stood
   // in by ENVELOPPE_NUE in a copy of the frame's package under <bin>/cadre (its scripts, beside
   // which the launcher finds its envelope, its command, by which it runs a command of the module of
-  // the language, and its package.json, apart from the stand-ins of <bin>) and claude by a script
+  // the language, its package.json and the tools a project installs beside it, apart from the
+  // stand-ins of <bin>) and claude by a script
   // that records the session in <bin>/sessions.
   const cadre = path.join(bin, 'cadre');
   const lanceur = path.join(cadre, 'scripts/enveloppe/lancer.sh');
@@ -462,6 +464,9 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
       cpSync(scripts, path.join(cadre, 'scripts'), { recursive: true });
       cpSync(path.join(scripts, '../bin'), path.join(cadre, 'bin'), { recursive: true });
       cpSync(path.join(scripts, '../package.json'), path.join(cadre, 'package.json'));
+      // The tools a project of TypeScript installs beside the package (its optional peers,
+      // jsonc-parser that the module typescript imports, Turborepo), as npm resolves them.
+      symlinkSync(path.join(RACINE, 'node_modules'), path.join(cadre, 'node_modules'), 'dir');
       writeFileSync(path.join(cadre, 'scripts/enveloppe/enveloppe.mjs'), ENVELOPPE_NUE);
       writeFileSync(
         path.join(bin, 'claude'),

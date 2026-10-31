@@ -3,7 +3,15 @@ import { appendFileSync, readdirSync, readFileSync, rmSync, writeFileSync } from
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { sortie, CIRCUIT, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
+import {
+  sortie,
+  CIRCUIT,
+  ARRETS,
+  CODE_JUSTE,
+  ECRIT_ROUGE,
+  TA_TACHE,
+  circuitEssai,
+} from './circuit-essai.js';
 import { enProcessus } from './cadre.js';
 
 const departDe = enProcessus<string | null>('scripts/mesure/base-de-passe.mjs', 'departDe');
@@ -74,7 +82,7 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
       expect(sessions(id, 'testwriter')).toBe(1);
       expect(sessions(id, 'developpeur')).toBe(4);
       expect(essai(id, 'developpeur-4.prompt')).toContain(
-        'CONTEXTE : Le superviseur a tranché : le double.'
+        `${TA_TACHE}Le superviseur a tranché : le double.`
       );
       expect(args(id, 'developpeur', 4)).not.toContain('--model');
       expect(etat(id)?.etape).toBe('integre');

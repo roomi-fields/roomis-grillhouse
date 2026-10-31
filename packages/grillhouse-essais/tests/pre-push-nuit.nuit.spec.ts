@@ -87,8 +87,13 @@ function projet(grillhouse: unknown, { hooksPath = true, prePush = true } = {}) 
   } else if (prePush) {
     writeFileSync(path.join(repo, '.git/hooks/pre-push'), PRE_PUSH_BEADS, { mode: 0o755 });
   }
-  // The night runs from the project's own scripts, as in a project the frame installed.
+  // The night runs from the project's own scripts, as in a project the frame installed, its
+  // package.json beside them as the package carries it (scripts/verrou-de-machine.mjs reads its name).
   cpSync(path.dirname(NUIT), path.join(repo, 'packages/grillhouse/scripts'), { recursive: true });
+  cpSync(
+    path.join(path.dirname(NUIT), '../package.json'),
+    path.join(repo, 'packages/grillhouse/package.json')
+  );
   // The frame's package installed, as npm links it: the hook calls its `grillhouse hook pre-push`
   // (grillhouse-3uv.84.5).
   mkdirSync(path.join(repo, 'node_modules/@roomi-fields'), { recursive: true });
