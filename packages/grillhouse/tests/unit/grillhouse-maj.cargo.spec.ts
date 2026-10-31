@@ -12,9 +12,9 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { VERSION } from '../../scripts/cadre.mjs';
 import { installerBinaires, LIGNE_DU_CADRE, mettreAJour } from '../../scripts/grillhouse-maj.mjs';
-import { langagesTrouves } from '../../scripts/langages.mjs';
 import cargo from '../../scripts/langages/cargo/index.mjs';
 import typescript from '../../scripts/langages/typescript/index.mjs';
 import { sources as lesSources } from '../../scripts/sources.mjs';
@@ -52,7 +52,7 @@ const ecrire = (racine: string, f: string, texte: string) => {
 };
 const lire = (racine: string, f: string) => readFileSync(path.join(racine, f), 'utf8');
 type Pkg = {
-  grillhouse?: { langages?: string[] };
+  grillhouse?: Record<string, unknown>;
   scripts?: Record<string, string>;
   devDependencies?: Record<string, string>;
 };
@@ -66,15 +66,22 @@ function projet(fichiers: Record<string, string | object>) {
   }
   return racine;
 }
+// grillhouse-ca7: each project declares its language in its architecture.
 const rust = (autres: Record<string, string | object> = {}) =>
   projet({
     'package.json': { name: 'p' },
+    'docs/ARCHITECTURE.md': architecture({ p: 'cargo' }),
     'Cargo.toml': '[package]\nname = "p"\nversion = "0.1.0"\n',
     'src/lib.rs': '',
     ...autres,
   });
 const ts = (autres: Record<string, string | object> = {}) =>
-  projet({ 'package.json': { name: 'p' }, 'tsconfig.json': '{}\n', ...autres });
+  projet({
+    'package.json': { name: 'p' },
+    'docs/ARCHITECTURE.md': architecture(),
+    'tsconfig.json': '{}\n',
+    ...autres,
+  });
 
 // The tables of the TOML text <texte>, each its keys and their values as written: the subset the
 // templates write (tables, strings, booleans, arrays of strings over several lines).
@@ -116,25 +123,18 @@ function toml(texte: string): Record<string, Record<string, unknown>> {
   return tables;
 }
 
-describe('grillhouse-pkl.7, critère 1 — maj déclare cargo, sans outil npm d’un autre langage', () => {
-  it('cargo is found by a Cargo.toml at the root, not in a directory under it', () => {
-    expect(cargo.trouve(rust())).toBe(true);
-    const dessous = projet({ 'package.json': { name: 'p' }, 'moteur/Cargo.toml': '[package]\n' });
-    expect(cargo.trouve(dessous)).toBe(false);
-    expect(langagesTrouves(dessous)).toEqual([]);
+describe('grillhouse-pkl.7, critère 1 — maj sert cargo, sans outil npm d’un autre langage', () => {
+  it('no language declared: the update guesses none from a Cargo.toml, the refusal names the column', () => {
+    // grillhouse-ca7: the language is declared at the design, never recognised.
+    const racine = projet({ 'package.json': { name: 'p' }, 'Cargo.toml': '[package]\n' });
+    expect(() => mettreAJour(racine, DEPOT)).toThrow(/ARCHITECTURE\.md.*« Langage »/);
   });
 
-  it('no language found: the refusal names the sign of each language', () => {
-    const racine = projet({ 'package.json': { name: 'p' } });
-    expect(() => mettreAJour(racine, DEPOT)).toThrow(/cargo : un Cargo\.toml à la racine\)/);
-    expect(() => mettreAJour(racine, DEPOT)).toThrow(/typescript : un tsconfig\.json/);
-  });
-
-  it('a project of Rust is declared cargo and receives no tool of npm of typescript', () => {
+  it('a project of Rust declared cargo receives no tool of npm of typescript', () => {
     const racine = rust();
     const b = mettreAJour(racine, DEPOT);
     const p = pkgDe(racine);
-    expect(p.grillhouse?.langages).toEqual(['cargo']);
+    expect(p.grillhouse).not.toHaveProperty('langages');
     // grillhouse-ool: the one tool of npm of the module cargo, the reader of a Cargo.toml.
     expect(b.dependances).toEqual(['smol-toml']);
     expect(p.devDependencies?.['smol-toml']).toBe('1.9.1');
@@ -170,7 +170,7 @@ describe('grillhouse-pkl.7, critère 2 — maj installe les binaires qui manquen
   });
 
   it('one call of cargo binstall per binary missing, none for a binary up to date', () => {
-    const racine = rust({ 'package.json': { name: 'p', grillhouse: { langages: ['cargo'] } } });
+    const racine = rust();
     // The first binary installed at its version, the others missing.
     const manquants = Object.keys(BINAIRES).slice(1);
     process.env.FAUX_CARGO_INSTALLES = JSON.stringify(
@@ -185,7 +185,7 @@ describe('grillhouse-pkl.7, critère 2 — maj installe les binaires qui manquen
   });
 
   it('a binary at another version is installed at the module’s; all up to date, no install', () => {
-    const racine = rust({ 'package.json': { name: 'p', grillhouse: { langages: ['cargo'] } } });
+    const racine = rust();
     const [ancien] = Object.keys(BINAIRES);
     process.env.FAUX_CARGO_INSTALLES = JSON.stringify({ ...BINAIRES, [ancien]: '0.0.1' });
     installerBinaires(racine);
@@ -199,7 +199,7 @@ describe('grillhouse-pkl.7, critère 2 — maj installe les binaires qui manquen
   });
 
   it('an install that fails has its line, the command to type named', () => {
-    const racine = rust({ 'package.json': { name: 'p', grillhouse: { langages: ['cargo'] } } });
+    const racine = rust();
     process.env.FAUX_CARGO_CODES = JSON.stringify({ binstall: 1 });
     const r = installerBinaires(racine) as { installes: string[]; lignes: string[] };
     expect(r.installes).toEqual([]);
@@ -224,7 +224,7 @@ describe('grillhouse-qmk, critère 2 — maj installe cargo-binstall quand il ma
   const INSTALLATION = `install --locked cargo-binstall@${BINSTALL}`;
 
   it('cargo-binstall absent: cargo installs it once, at its exact version, then every binary by it', () => {
-    const racine = rust({ 'package.json': { name: 'p', grillhouse: { langages: ['cargo'] } } });
+    const racine = rust();
     sansBinstall();
     const r = installerBinaires(racine) as { installes: string[]; lignes: string[] };
     expect(appels().filter(a => a.startsWith('install --locked'))).toEqual([INSTALLATION]);
@@ -239,13 +239,13 @@ describe('grillhouse-qmk, critère 2 — maj installe cargo-binstall quand il ma
   });
 
   it('cargo-binstall present: cargo installs nothing else', () => {
-    const racine = rust({ 'package.json': { name: 'p', grillhouse: { langages: ['cargo'] } } });
+    const racine = rust();
     installerBinaires(racine);
     expect(appels().filter(a => a.startsWith('install --locked'))).toEqual([]);
   });
 
   it('cargo-binstall that does not install: its line names the command to type, no binstall run', () => {
-    const racine = rust({ 'package.json': { name: 'p', grillhouse: { langages: ['cargo'] } } });
+    const racine = rust();
     sansBinstall();
     process.env.FAUX_CARGO_CODES = JSON.stringify({ 'install cargo-binstall': 1 });
     const r = installerBinaires(racine) as { installes: string[]; lignes: string[] };
@@ -370,7 +370,6 @@ describe('grillhouse-rph, critère 1 — maj signale un Cargo.lock non versionn�
   // A project of Rust in git, its Cargo.lock on disk, committed or ignored by .gitignore.
   const engage = (suivi: boolean) => {
     const racine = rust({
-      'package.json': { name: 'p', grillhouse: { langages: ['cargo'] } },
       'Cargo.lock': '# This file is automatically @generated by Cargo.\nversion = 4\n',
       '.gitignore': suivi ? '/target\n' : '/target\nCargo.lock\n',
     });
@@ -410,13 +409,11 @@ describe('grillhouse-pkl.7, critère 4 — ce que les outils du langage écriven
 
   it('the source files of a project of Rust leave target/ out; of typescript, .turbo', () => {
     const r = rust({
-      'package.json': { name: 'p', grillhouse: { langages: ['cargo'] } },
       'target/debug/build.mjs': '',
       'scripts/a.mjs': '',
     });
     expect(sources(r)).toEqual(['scripts/a.mjs']);
     const t = ts({
-      'package.json': { name: 'p', grillhouse: { langages: ['typescript'] } },
       '.turbo/cache.mjs': '',
       'target/a.mjs': '',
       'src/a.ts': '',
@@ -447,15 +444,15 @@ describe('grillhouse-akd, critère 4 — la mise à jour d’un projet de deux l
   const deux = () =>
     rust({
       'package.json': { name: 'p', workspaces: ['site'] },
+      'docs/ARCHITECTURE.md': architecture({ site: 'typescript', p: 'cargo' }),
       'site/package.json': { name: 'site' },
       'site/tsconfig.json': '{}\n',
     });
 
-  it('both found and declared, the tools of npm of each module added, both directories ignored', () => {
+  it('both declared, the tools of npm of each module added, both directories ignored', () => {
     const racine = deux();
     const b = mettreAJour(racine, DEPOT);
     const p = pkgDe(racine);
-    expect(p.grillhouse?.langages).toEqual(['typescript', 'cargo']);
     expect(b.dependances).toEqual(expect.arrayContaining(['smol-toml', ...OUTILS_TS]));
     expect(p.devDependencies?.['smol-toml']).toBe('1.9.1');
     for (const o of OUTILS_TS) {

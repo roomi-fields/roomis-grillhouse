@@ -11,6 +11,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import {
   avecLesOutils,
   exportsDesOutils,
@@ -35,8 +36,9 @@ function projet(nom: string, outils: unknown): string {
   mkdirSync(dir, { recursive: true });
   writeFileSync(
     path.join(dir, 'package.json'),
-    JSON.stringify({ name: nom, private: true, grillhouse: { langages: ['typescript'], outils } })
+    JSON.stringify({ name: nom, private: true, grillhouse: { outils } })
   );
+  declarerLesLangages(dir);
   return dir;
 }
 

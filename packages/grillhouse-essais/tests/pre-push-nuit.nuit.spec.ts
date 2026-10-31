@@ -14,6 +14,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { RACINE, enProcessus } from './cadre.js';
 
 const mettreAJour = enProcessus<Record<string, unknown>>(
@@ -114,8 +115,9 @@ function projet(grillhouse: unknown, { hooksPath = true, prePush = true } = {}) 
     scripts: { test: 'node t.mjs', verifier: 'node t.mjs' },
   };
   if (grillhouse !== undefined) {
-    // grillhouse-3dr.2.3: a project of TypeScript declares its language.
-    pkg.grillhouse = { langages: ['typescript'], ...(grillhouse as object) };
+    pkg.grillhouse = grillhouse;
+    // grillhouse-ca7: a project of TypeScript declares its language in its architecture.
+    declarerLesLangages(repo);
   }
   writeFileSync(path.join(repo, 'package.json'), JSON.stringify(pkg, null, 2));
   writeFileSync(path.join(repo, 't.mjs'), "console.log('tout vert');\n");

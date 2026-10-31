@@ -31,6 +31,7 @@ import * as circuitSimplifie from './migrations/0.24.0-circuit-simplifie.mjs';
 import * as apiExtractorDuPaquet from './migrations/0.24.2-api-extractor-du-paquet.mjs';
 import * as triDesDecouvertes from './migrations/0.24.12-tri-des-decouvertes.mjs';
 import * as scriptDesTests from './migrations/0.25.0-script-des-tests.mjs';
+import * as langagesDansLArchitecture from './migrations/0.27.0-langages-dans-l-architecture.mjs';
 
 /** The migrations of the core. */
 export const MIGRATIONS = [
@@ -42,6 +43,7 @@ export const MIGRATIONS = [
   apiExtractorDuPaquet,
   triDesDecouvertes,
   scriptDesTests,
+  langagesDansLArchitecture,
 ];
 
 /**

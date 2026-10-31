@@ -4,8 +4,8 @@
 // The core loads it by scripts/langages.mjs, and this module imports of the core its published
 // entries alone.
 //
-// - Where it is found: a repository with a Cargo.toml at its root, the manifest of its workspace
-//   or of its one crate (`trouve`). Its one tool of npm is what its scripts import, smol-toml, the
+// - The manifest of its package, which the guard of the languages asks of a package the
+//   architecture declares cargo (`manifeste`): a Cargo.toml. Its one tool of npm is what its scripts import, smol-toml, the
 //   reader of a Cargo.toml (`outils`, an optional peer of the package, which the update adds to a
 //   project of cargo alone): cargo and its subcommands live on the machine, and the update
 //   installs the binaries the module runs, nextest, cargo-deny and sccache, at their versions
@@ -30,7 +30,7 @@
 //   languages. No migration yet.
 // - Its share of the update (./mise-a-jour.mjs, `miseAJour`): the template of a project of cargo
 //   (`templates/cargo/`) and its test scripts.
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { commandes, GARDES } from './commandes.mjs';
@@ -53,13 +53,9 @@ import { verdict } from './verdict.mjs';
 // The scripts of this module, beside this file.
 const ici = nom => path.join(path.dirname(fileURLToPath(import.meta.url)), nom);
 
-// Whether the repository at <racine> holds a Cargo.toml at its root.
-const trouve = racine => existsSync(path.join(racine, 'Cargo.toml'));
-
 export default {
   nom: 'cargo',
-  trouve,
-  signe: 'un Cargo.toml à la racine',
+  manifeste: 'Cargo.toml',
   // The reader of TOML by which the lock judges a Cargo.toml (./composants.mjs, `manifestes`).
   outils: ['smol-toml'],
   // The binaries the module runs, each at an exact version: nextest and cargo-deny at the ones the

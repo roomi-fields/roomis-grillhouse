@@ -12,7 +12,11 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import {
+  canWrap,
+  racineSousLaMaison,
+  architecture,
+} from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { RACINE, enProcessus, valeursDe } from './cadre.js';
 
 const { CODE_COPIE } = valeursDe('scripts/enveloppe/codes.mjs', ['CODE_COPIE']) as {
@@ -95,9 +99,9 @@ function depot() {
       type: 'module',
       workspaces: ['packages/*'],
       packageManager: 'npm@10.9.8',
-      grillhouse: { langages: ['typescript'] },
     })
   );
+  ecrire(repo, 'docs/ARCHITECTURE.md', architecture());
   ecrire(
     repo,
     'turbo.json',
@@ -352,9 +356,9 @@ describe.runIf(canWrap)(
         private: true,
         workspaces: ['packages/*'],
         packageManager: 'npm@10.9.8',
-        grillhouse: { langages: ['typescript'] },
       })
     );
+    ecrire(repo, 'docs/ARCHITECTURE.md', architecture());
     ecrire(
       repo,
       'turbo.json',
@@ -558,9 +562,9 @@ describe.runIf(canWrap)(
         private: true,
         workspaces: ['packages/*'],
         packageManager: 'npm@10.9.8',
-        grillhouse: { langages: ['typescript'] },
       })
     );
+    ecrire(repo, 'docs/ARCHITECTURE.md', architecture());
     ecrire(
       repo,
       'turbo.json',
@@ -688,9 +692,9 @@ describe.runIf(canWrap)(
         private: true,
         workspaces: ['packages/*'],
         packageManager: 'npm@10.9.8',
-        grillhouse: { langages: ['typescript'] },
       })
     );
+    ecrire(repo, 'docs/ARCHITECTURE.md', architecture());
     ecrire(
       repo,
       'turbo.json',
@@ -843,9 +847,9 @@ describe.runIf(canWrap)(
         private: true,
         workspaces: ['packages/*'],
         packageManager: 'npm@10.9.8',
-        grillhouse: { langages: ['typescript'] },
       })
     );
+    ecrire(repo, 'docs/ARCHITECTURE.md', architecture());
     ecrire(
       repo,
       'turbo.json',

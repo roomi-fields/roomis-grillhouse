@@ -5,7 +5,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import {
   canWrap,
   enveloppeEssai,
-  LANGAGE,
+  declarerLesLangages,
   racineSousLaMaison,
 } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { SCRIPT } from './enveloppe-essai.js';
@@ -46,10 +46,8 @@ function depotAvecMatiere(matiere?: { nom: string; manifeste: Manifeste }) {
     mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true });
     writeFileSync(path.join(repo, rel), contenu);
   };
-  ecrire(
-    'package.json',
-    JSON.stringify({ name: 'essai', workspaces: ['packages/*'], grillhouse: LANGAGE })
-  );
+  ecrire('package.json', JSON.stringify({ name: 'essai', workspaces: ['packages/*'] }));
+  declarerLesLangages(repo);
   ecrire('packages/a/package.json', '{"name":"a"}');
   ecrire('packages/a/src/a.ts', 'a');
   ecrire('packages/b/src/b.ts', 'secret-b');

@@ -18,6 +18,10 @@ export const DEPOT = path.resolve(ICI, '../../../..');
 const CAS = path.join(ICI, '../cas-reels/bp-320.8');
 export const json = o => `${JSON.stringify(o, null, 2)}\n`;
 
+// The docs/ARCHITECTURE.md of a trial of TypeScript: the column « Langage » declares its language.
+export const ARCHITECTURE_TYPESCRIPT =
+  '# Architecture\n\n| Composant | Langage |\n| --- | --- |\n| `.` | typescript |\n';
+
 export const ecrireDans = racine => (rel, texte) => {
   mkdirSync(path.dirname(path.join(racine, rel)), { recursive: true });
   writeFileSync(path.join(racine, rel), texte);
@@ -43,9 +47,9 @@ export function depotDuReleve(racine) {
       name: 'bp',
       private: true,
       workspaces: ['packages/*'],
-      grillhouse: { langages: ['typescript'] },
     })
   );
+  ecrire('docs/ARCHITECTURE.md', ARCHITECTURE_TYPESCRIPT);
   for (const nom of noms) {
     ecrire(`packages/${nom}/package.json`, json({ name: nom, type: 'module' }));
     ecrire(`packages/${nom}/src/index.ts`, `export const ${nom.replace(/\W/g, '_')}_ = 1;\n`);
@@ -118,9 +122,9 @@ export function depotDuClassement(racine) {
       name: 'c',
       private: true,
       workspaces: ['packages/*'],
-      grillhouse: { langages: ['typescript'] },
     })
   );
+  ecrire('docs/ARCHITECTURE.md', ARCHITECTURE_TYPESCRIPT);
   ecrire('packages/a/package.json', json({ name: 'a', type: 'module' }));
   ecrire(
     'packages/matiere/package.json',

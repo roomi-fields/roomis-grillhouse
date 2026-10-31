@@ -6,7 +6,8 @@
 //   dist, coverage, .claude, .beads, .codegraph, .rtfm), and what the tools of the project's
 //   language write (`ignorer` of its module, scripts/jointure.d.ts: typescript's `.turbo`, cargo's
 //   `target`), as git leaves out what a `.gitignore` names. A project that declares no language
-//   (`grillhouse.langages`) leaves out what every language of the frame writes.
+//   (the column « Langage » of its docs/ARCHITECTURE.md) leaves out what every language of the
+//   frame writes.
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { LANGAGES, langage, langageDe, langagesDeclares } from './langages.mjs';

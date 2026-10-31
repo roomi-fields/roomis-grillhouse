@@ -11,8 +11,13 @@
 # written; the session start goes on. Without the key (or with null), nothing runs; a value that is
 # not a non-blank string runs nothing and adds a line that says so. An agent's copy does not play it.
 #
-# The project's language: a package.json without `grillhouse.langages` (scripts/langages.mjs)
-# joins « Manque » as « la déclaration du langage », with `npx grillhouse maj`, which writes it.
+# The project's languages: a project whose docs/ARCHITECTURE.md declares none (the column
+# « Langage » of its table of the components, scripts/langages.mjs) joins « Manque » as « le
+# langage de chaque paquet », with the grill, which writes it, or with `npx grillhouse maj` for a
+# project that holds the declaration of a former version, which it reports. A document of the project that holds
+# a field <…> of its template (the template's docs/ARCHITECTURE.md declares its language, its
+# other fields left to the grill) is not yet written: it stays under « Pas encore renseignés », and
+# the line of the night waits for it.
 #
 # The frame's plugins: scripts/greffons.mjs --absents reads `.claude/settings.json` and
 # `claude plugin list --json` (each call stopped after 5 s). Each declared plugin not installed for
@@ -69,10 +74,23 @@ if [ -z "$copie_agent" ]; then
   [ -d "$root/.codegraph" ] || missing+=("l'index CodeGraph du code (\`codegraph init .\`)")
 fi
 [ ! -f "$root/package.json" ] || [ -d "$root/node_modules" ] || missing+=("les dépendances npm (\`npm install\`)")
-# The project's language (scripts/langages.mjs): a package.json without `grillhouse.langages` is
-# refused by the frame's scripts and locks until the update writes it.
-if [ -f "$root/package.json" ] && ! node -e 'const l=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"))?.grillhouse?.langages;process.exit(Array.isArray(l)&&l.length>0?0:1)' "$root/package.json" 2>/dev/null; then
-  missing+=("la déclaration du langage (grillhouse.langages du package.json : \`npx grillhouse maj\` l'écrit)")
+# The project's languages (scripts/langages.mjs): a project whose docs/ARCHITECTURE.md declares
+# none (the column « Langage » of its table of the components) is refused by the frame's scripts
+# and locks until the grill writes it, or, for a project that holds the declaration of a former
+# version (the migration of 0.27.0, `aReporter`), until `npx grillhouse maj` reports it. The
+# reading gives « declare », « maj » or « grill ».
+if [ -f "$root/package.json" ]; then
+  langues="$(node --input-type=module -e '
+const { pathToFileURL } = await import("node:url");
+const { langagesDeclares } = await import(pathToFileURL(process.argv[1]).href);
+const { aReporter } = await import(pathToFileURL(process.argv[2]).href);
+process.stdout.write(langagesDeclares(process.argv[3]).length > 0 ? "declare" : aReporter(process.argv[3]) ? "maj" : "grill");
+' "$ici/langages.mjs" "$ici/migrations/0.27.0-langages-dans-l-architecture.mjs" "$root" 2>/dev/null)"
+  case "$langues" in
+    declare) ;;
+    maj) missing+=("le langage de chaque paquet (colonne « Langage » du tableau des composants de docs/ARCHITECTURE.md : \`npx grillhouse maj\` y reporte la déclaration du package.json)") ;;
+    *) missing+=("le langage de chaque paquet (colonne « Langage » du tableau des composants de docs/ARCHITECTURE.md : le grill l'écrit, branche 8)") ;;
+  esac
 fi
 # The frame's plugins not installed for the project (scripts/greffons.mjs): the plugins are the
 # machine's installation for the project, so an agent's copy does not read them.
@@ -97,12 +115,19 @@ command -v bwrap >/dev/null || missing+=("bubblewrap (bwrap), l'enveloppe des ag
 
 # The key elements the skills read; each one still empty is proposed for a grill.
 pending=()
+# Whether the document <$1> holds a field <…> of its template, outside code spans.
+a_des_champs() {
+  node -e 'const t=require("fs").readFileSync(process.argv[1],"utf8").replace(/`[^`]*`/g,"");process.exit(/<[^<>\n]+>/.test(t)?0:1)' "$1"
+}
+# Whether the document <$1> is written: present, without a field of its template (the template's
+# docs/ARCHITECTURE.md holds the declaration of its language, its fields left to the grill).
+ecrit() { [ -f "$1" ] && ! a_des_champs "$1"; }
 charter="$root/CLAUDE.md"
 if [ ! -f "$charter" ]; then
   pending+=("la charte (CLAUDE.md)")
 else
   # an unfilled field of the charter template: <…> outside code spans
-  node -e 'const t=require("fs").readFileSync(process.argv[1],"utf8").replace(/`[^`]*`/g,"");process.exit(/<[^<>\n]+>/.test(t)?0:1)' "$charter" \
+  a_des_champs "$charter" \
     && pending+=("les champs <…> encore vides de la charte (CLAUDE.md)")
   # the arbitration criteria: a heading about arbitration in the charter or a reference document
   grep -qiE '^#+ .*(arbitr)' "$charter" "$root"/docs/*.md 2>/dev/null \
@@ -129,7 +154,7 @@ if ls -d "$root"/packages/*/ >/dev/null 2>&1; then
   done
 else
   for doc in ARCHITECTURE CADRE INTERFACE; do
-    [ -f "$root/docs/$doc.md" ] || pending+=("docs/$doc.md")
+    ecrit "$root/docs/$doc.md" || pending+=("docs/$doc.md")
   done
 fi
 [ -f "$root/CONTEXT.md" ] || pending+=("le lexique du domaine (CONTEXT.md)")
@@ -182,7 +207,7 @@ fi
 # (the frame's script before the package, 0.24.0; a relative path after `cd <root>`), is named
 # with the line that replaces it, as brew doctor names a configuration that aims at a missing path.
 nuit_absente=
-if [ -f "$root/docs/ARCHITECTURE.md" ]; then
+if ecrit "$root/docs/ARCHITECTURE.md"; then
   noeud="$(dirname "$(command -v node)")"
   table="$(crontab -l 2>/dev/null | grep -v '^[[:space:]]*#')"
   if ! printf '%s\n' "$table" | grep -F "cd $root && node_modules/.bin/grillhouse nuit" | grep -qF "PATH=$noeud:"; then

@@ -29,8 +29,9 @@ const projet = (fichiers: Record<string, string>) => {
 const INTERFACE = (consommateurs: string) =>
   `# b\n\nB rend les durées.\n\n## duree\n\nRend une durée.\n\n## Consommateurs\n\n${consommateurs}\n`;
 const BASE = {
-  // grillhouse-3dr.2.3: a project of TypeScript declares its language.
-  'package.json': '{"name":"p","grillhouse":{"langages":["typescript"],"version":"0.24.5"}}',
+  // grillhouse-ca7: a project of TypeScript declares its language in its architecture.
+  'package.json': '{"name":"p","grillhouse":{"version":"0.24.5"}}',
+  'docs/ARCHITECTURE.md': '| Composant | Langage |\n| --- | --- |\n| `.` | typescript |\n',
   'packages/b/package.json': '{"name":"@demo/b"}',
   'packages/a/package.json': '{"name":"@demo/a"}',
   'packages/c/package.json': '{"name":"@demo/c"}',

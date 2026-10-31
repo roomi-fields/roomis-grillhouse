@@ -6,7 +6,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync, symlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { DEPOT, ecrireDans, git, initialiser, json } from './depots.mjs';
+import { ARCHITECTURE_TYPESCRIPT, DEPOT, ecrireDans, git, initialiser, json } from './depots.mjs';
 
 // The trial of a verdict, its package `a` of <sorte>, its tests under the base configuration
 // <base> (the `vitest-config/base.mjs` of the code measured): `{ racine, env }`, the environment
@@ -21,9 +21,9 @@ export function depotDeVerdict(racine, sorte, { base, pression = 1 }) {
       private: true,
       workspaces: ['packages/*'],
       packageManager: 'npm@10.9.8',
-      grillhouse: { langages: ['typescript'] },
     })
   );
+  ecrire('docs/ARCHITECTURE.md', ARCHITECTURE_TYPESCRIPT);
   ecrire(
     'turbo.json',
     json({

@@ -9,7 +9,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import {
   canWrap,
   enveloppeEssai,
-  LANGAGE,
+  declarerLesLangages,
   racineSousLaMaison,
 } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { CADRE, valeursDe } from './cadre.js';
@@ -34,10 +34,8 @@ describe.runIf(canWrap)('grillhouse-3uv.95.3 — l’enceinte sur le disque', ()
     mkdirSync(path.dirname(path.join(repo, f)), { recursive: true });
     writeFileSync(path.join(repo, f), t);
   };
-  ecrire(
-    'package.json',
-    JSON.stringify({ name: 'essai', workspaces: ['packages/*'], grillhouse: LANGAGE })
-  );
+  ecrire('package.json', JSON.stringify({ name: 'essai', workspaces: ['packages/*'] }));
+  declarerLesLangages(repo);
   for (const n of ['a', 'b', 'c']) {
     ecrire(`packages/${n}/package.json`, JSON.stringify({ name: n }));
     ecrire(`packages/${n}/src/${n}.ts`, `source-${n}`);
@@ -105,10 +103,8 @@ describe('grillhouse-3uv.95.3 — le crochet de l’agent et le plan', () => {
     mkdirSync(path.dirname(path.join(repo, f)), { recursive: true });
     writeFileSync(path.join(repo, f), t);
   };
-  ecrire(
-    'package.json',
-    JSON.stringify({ name: 'essai', workspaces: ['packages/*'], grillhouse: LANGAGE })
-  );
+  ecrire('package.json', JSON.stringify({ name: 'essai', workspaces: ['packages/*'] }));
+  declarerLesLangages(repo);
   for (const n of ['a', 'b', 'c']) {
     ecrire(`packages/${n}/package.json`, JSON.stringify({ name: n }));
   }

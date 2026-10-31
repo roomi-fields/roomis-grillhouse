@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { lierDependances } from './dependances.js';
+import { declarerLesLangages } from './langage.js';
 
 // The trial harness of the night tests (grillhouse-3uv.34), shared by their tests
 // (packages/grillhouse-essais/tests/tests-de-nuit.nuit.spec.ts and
@@ -81,12 +82,9 @@ export function testsDeNuitEssai(
       delete depot.grillhouse;
       pkg = depot;
     }
-    // grillhouse-3dr.2.3: the project of trial declares its language.
-    pkg = {
-      ...pkg,
-      grillhouse: { langages: ['typescript'], ...((pkg.grillhouse as object | undefined) ?? {}) },
-    };
     writeFileSync(path.join(repo, 'package.json'), JSON.stringify(pkg, null, 2));
+    // grillhouse-ca7: the project of trial declares its language in its architecture.
+    declarerLesLangages(repo);
     if (o.jourVitest !== false) {
       for (const f of readdirSync(GABARIT)) {
         if (/^vitest\.config\.(c|m)?[jt]s$/.test(f)) {

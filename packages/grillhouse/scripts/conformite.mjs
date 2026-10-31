@@ -30,8 +30,7 @@
 // - elementsDuLot: each file the lot of the entry changes, each changed source the module reads no
 //   element of, and each element it adds, changes or removes;
 // - matieres: each component of the shared test material of the repository of the entry;
-// - joueDesTests: each component of the repository of the entry that plays tests;
-// - trouve: each repository of the entry where the module finds its language.
+// - joueDesTests: each component of the repository of the entry that plays tests.
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -183,7 +182,6 @@ export function cas(langage, exemples, { dans = tmpdir() } = {}) {
         .composants(racine)
         .filter(c => langage.joueDesTests(racine, c))
         .map(c => `${nommer(c)} : joue des tests`),
-    trouve: depots => depots.filter(d => langage.trouve(d.racine)).map(d => `${d.nom} : trouvé`),
   };
   const invalides = {
     gardes: [...e.gardes.valide, 'garde-inexistante'],

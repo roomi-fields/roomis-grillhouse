@@ -13,6 +13,7 @@ import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { chantier } from './integration-essai.js';
 import { CADRE, enProcessus } from './cadre.js';
+import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
 const refusArbitrage = enProcessus<string | null>(
   'scripts/integration/integrer.mjs',
@@ -130,10 +131,8 @@ function depotLots() {
     mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true });
     writeFileSync(path.join(repo, rel), contenu);
   };
-  ecrire(
-    'package.json',
-    JSON.stringify({ name: 'racine', private: true, grillhouse: { langages: ['typescript'] } })
-  );
+  ecrire('package.json', JSON.stringify({ name: 'racine', private: true }));
+  declarerLesLangages(repo);
   ecrire(
     'packages/matiere/package.json',
     JSON.stringify({ name: 'matiere', exports: { '.': './i.js', './test-fixtures': './f.js' } })
@@ -190,10 +189,8 @@ describe('refusLots', () => {
   });
   it('a project without the material keeps the test files alone in the tests lot', () => {
     const vide = mkdtempSync(path.join(ESSAIS, 'lots-vide-'));
-    writeFileSync(
-      path.join(vide, 'package.json'),
-      JSON.stringify({ name: 'vide', grillhouse: { langages: ['typescript'] } })
-    );
+    writeFileSync(path.join(vide, 'package.json'), JSON.stringify({ name: 'vide' }));
+    declarerLesLangages(vide);
     expect(refusLots(['packages/matiere/fixtures/un.txt'], [], vide)).toMatch(
       /lot de tests touche du code/
     );
@@ -222,10 +219,10 @@ function monde(commentaires: string[]) {
   writeFileSync(
     path.join(repo, 'package.json'),
     JSON.stringify({
-      grillhouse: { langages: ['typescript'] },
       scripts: { verifier: 'test ! -f GARDE_ROUGE && test ! -f RESTE && node suites.mjs' },
     })
   );
+  declarerLesLangages(repo);
   writeFileSync(path.join(repo, 'suites.mjs'), SUITES_MONDE);
   mkdirSync(path.join(repo, 'src/a'), { recursive: true });
   writeFileSync(path.join(repo, 'src/a/index.ts'), 'export const a = 1;\n');

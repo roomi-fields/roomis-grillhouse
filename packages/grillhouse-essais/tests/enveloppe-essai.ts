@@ -1,6 +1,6 @@
 import { appendFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { LANGAGE } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { CADRE } from './cadre.js';
 import { installerFauxTurbo } from './integration-essai.js';
 
@@ -18,10 +18,10 @@ export function projetDuLanceur(repo: string) {
     JSON.stringify({
       name: 'essai',
       private: true,
-      grillhouse: LANGAGE,
       devDependencies: { turbo: 'file:outils/turbo' },
     })
   );
+  declarerLesLangages(repo);
   installerFauxTurbo(repo);
   appendFileSync(path.join(repo, '.gitignore'), 'node_modules\n');
 }

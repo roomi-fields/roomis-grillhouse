@@ -24,6 +24,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { ELEMENTS_DU_GREFFON, FICHIERS_DU_CADRE, PROPRES_DU_PAQUET } from '../../scripts/cadre.mjs';
 import {
   GREFFON_DU_CADRE,
@@ -183,11 +184,8 @@ describe('critère 2 — init and the update declare roomi-fields and enable gri
   function projet(dossier: string, reglages: Record<string, unknown> = {}) {
     const p = path.join(mkdtempSync(path.join(ESSAIS, 'parent-')), dossier);
     // grillhouse-3dr.2.3: a project of TypeScript declares its language.
-    ecrire(
-      p,
-      'package.json',
-      `${JSON.stringify({ name: '@your-scope/project-name', grillhouse: { langages: ['typescript'] } })}\n`
-    );
+    ecrire(p, 'package.json', `${JSON.stringify({ name: '@your-scope/project-name' })}\n`);
+    declarerLesLangages(p);
     ecrire(p, '.claude/settings.json', `${JSON.stringify(reglages)}\n`);
     return p;
   }

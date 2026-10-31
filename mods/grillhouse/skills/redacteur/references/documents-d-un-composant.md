@@ -46,6 +46,9 @@ ses commandes dans `bin`), n'a pas d'API publique : son `INTERFACE.md` est tout 
 marques ni rapport, et le contrôle ne lui demande aucune construction. L'index des interfaces (`docs/agents/index-des-interfaces.md`, généré par
 `npm run interfaces`) se construit depuis la part générée. Ainsi l'interface que lit un agent
 voisin dit vrai.
+**Le langage du paquet** : une ligne `**Langage** : <nom>` reprend la colonne « Langage » de
+l'architecture ; la garde `grillhouse langages-des-paquets` refuse une interface qui en nomme un
+autre. Ainsi l'interface dit dans quel langage le voisin la lit.
 **Les fautes se listent** sous « ## Les fautes » : leurs codes sont exactement ceux que le code du
 composant produit.
 **Les consommateurs sont déclarés** : une section `## Consommateurs` liste chaque composant qui
@@ -96,6 +99,15 @@ Ainsi le document reste exact quand le code bouge.
 
 Dans un dépôt à plusieurs paquets, `docs/ARCHITECTURE.md` à la racine décrit l'ensemble sur le même
 modèle et renvoie à l'architecture de chaque paquet.
+
+**Le tableau des composants porte la colonne « Langage »** : à la racine, la section des
+composants liste chaque paquet dans un tableau dont la colonne « Langage » nomme son langage
+(`typescript`, `cargo`), comme le fichier BUILD de Bazel nomme la règle de chaque cible ; une ligne
+sans langage nomme une partie qui n'est pas un paquet du projet (un crate d'un autre dépôt). Un
+paquet qu'un tableau propre à une vue ne nomme pas (le tableau des étages d'une chaîne, où chaque
+ligne fait une étape) va dans une section « Les paquets », un tableau `Paquet | Langage`. Le cadre
+lit les langages du projet dans chaque tableau qui porte la colonne. Ainsi le langage se décide à
+la conception.
 
 ## Le ton
 

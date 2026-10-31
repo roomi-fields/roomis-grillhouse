@@ -2,7 +2,11 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import {
+  canWrap,
+  racineSousLaMaison,
+  declarerLesLangages,
+} from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { projetDuLanceur } from './enveloppe-essai.js';
 import { RACINE, enProcessus, valeursDe } from './cadre.js';
 
@@ -617,9 +621,9 @@ describe('the launcher refuses a component that is not a path before preparing t
       name: 'essai',
       private: true,
       workspaces: ['packages/*'],
-      grillhouse: { langages: ['typescript'] },
     })
   );
+  declarerLesLangages(DEPOT);
   writeFileSync(
     path.join(DEPOT, 'packages/050-emitter/package.json'),
     JSON.stringify({ name: '050-emitter' })

@@ -4,9 +4,9 @@
 // guards of structure and their generators. The core loads it by scripts/langages.mjs, and this
 // module imports of the core its published entries alone.
 //
-// - Where it is found: a repository with a tsconfig.json at its root or in a package of the frame
-//   (`trouve`), which the update declares typescript; its tools, the optional peers of the package
-//   the update installs in such a project (`outils`).
+// - The manifest of its package, which the guard of the languages asks of a package the
+//   architecture declares typescript (`manifeste`): a package.json; its tools, the optional peers of
+//   the package the update installs in such a project (`outils`).
 // - The components: the folders `packages/<x>` and `src/<x>` of the frame (`composants` of
 //   ./consommateurs.mjs), out of the frame left out; a file's is the component that holds it; the
 //   shared test material, the components whose package exports `./test-fixtures` (`matieres`); a
@@ -46,7 +46,7 @@
 //   (`ignorer`); its share of the update (./mise-a-jour.mjs, `miseAJour`): the tests by Vitest,
 //   the frame's package declared, the typing, the turbo.json, and the generators.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -54,7 +54,6 @@ import { fileURLToPath } from 'node:url';
 import { composants as lesComposants, matieres } from './consommateurs.mjs';
 import { elementsDuLot } from './elements-du-lot.mjs';
 import { A_ELAGUER, lireSarif, RESULTATS } from '../../resultats.mjs';
-import { paquets } from '../../paquets.mjs';
 import { lecteurs } from './lecteurs.mjs';
 import { estUnTest, manifestes } from './regle-des-tests.mjs';
 import { SCRIPT_DES_TESTS } from './script-des-tests.mjs';
@@ -198,18 +197,9 @@ const joueDesTests = (_racine, composant) =>
   typeof lireJson(path.join(composant.dossier, 'package.json'))?.scripts?.[SCRIPT_DES_TESTS] ===
   'string';
 
-// Whether the repository at <racine> holds TypeScript: a tsconfig.json at its root or in one of its
-// packages of the frame, as @nx/js infers a project from its tsconfig.
-const trouve = racine =>
-  existsSync(path.join(racine, 'tsconfig.json')) ||
-  paquets(racine).some(
-    ({ dossier, hors }) => !hors && existsSync(path.join(racine, dossier, 'tsconfig.json'))
-  );
-
 export default {
   nom: 'typescript',
-  trouve,
-  signe: 'un tsconfig.json à la racine ou dans un paquet',
+  manifeste: 'package.json',
   // The tools a project of TypeScript installs, optional peers of the package: what this module
   // runs as commands (Turborepo, knip, dependency-cruiser) and what its scripts import (API
   // Extractor, its model, TSDoc's configuration, jsonc-parser); the project's own TypeScript and

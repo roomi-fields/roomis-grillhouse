@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { architecture, declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { estUnTest, isTestFile } from '../../scripts/langages/typescript/regle-des-tests.mjs';
 import { refusDeCommande } from '../../scripts/verrous/commande.mjs';
 import type { Langage } from '../../scripts/jointure.js';
@@ -21,10 +22,8 @@ afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 // The project the lock judges: it declares its language (grillhouse-3dr.2.3). The scratchpad the
 // lock lets through is SCRATCH, passed in (`options`): the trial directories are no scratchpad.
 const ROOT = mkdtempSync(path.join(ESSAIS, 'racine-'));
-writeFileSync(
-  path.join(ROOT, 'package.json'),
-  JSON.stringify({ name: 'repo', grillhouse: { langages: ['typescript'] } })
-);
+writeFileSync(path.join(ROOT, 'package.json'), JSON.stringify({ name: 'repo' }));
+declarerLesLangages(ROOT);
 const SCRATCH = '/scratch';
 
 // A session whose sub-agent was launched with `prompt`, as Claude Code lays it on disk.
@@ -164,7 +163,7 @@ describe('a project that declares no language', () => {
     } catch (e) {
       message = (e as Error).message;
     }
-    expect(message).toMatch(/grillhouse\.langages.*npx grillhouse maj/);
+    expect(message).toMatch(/ARCHITECTURE\.md.*« Langage »/);
     expect(message.trim().split('\n')).toHaveLength(1);
   });
   // The update that writes the declaration stays open there: the write lock judges the tools of
@@ -195,10 +194,8 @@ function depotAvecMatiere() {
     mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true });
     writeFileSync(path.join(repo, rel), contenu);
   };
-  ecrire(
-    'package.json',
-    JSON.stringify({ name: 'racine', private: true, grillhouse: { langages: ['typescript'] } })
-  );
+  ecrire('package.json', JSON.stringify({ name: 'racine', private: true }));
+  ecrire('docs/ARCHITECTURE.md', architecture());
   ecrire(
     'packages/matiere/package.json',
     JSON.stringify({ name: 'matiere', exports: { '.': './index.js', './test-fixtures': './f.js' } })
@@ -276,7 +273,6 @@ describe('testwriter and the package of the shared test material', () => {
       JSON.stringify({
         name: 'racine',
         exports: { './test-fixtures': './f.js' },
-        grillhouse: { langages: ['typescript'] },
       })
     );
     const w = { ...write(path.join(racine, 'src/a.ts')), cwd: racine };
@@ -605,8 +601,8 @@ function depotDeManifestes() {
     name: 'racine',
     private: true,
     workspaces: ['packages/*'],
-    grillhouse: { langages: ['typescript'] },
   });
+  declarerLesLangages(repo);
   ecrire('package-lock.json', { name: 'racine', lockfileVersion: 3, packages: {} });
   ecrire('packages/a/package.json', MANIFESTE_A);
   ecrire('packages/b/package.json', { name: 'b' });

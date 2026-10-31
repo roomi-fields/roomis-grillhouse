@@ -9,6 +9,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { AUTEUR_FIXE, commandesPermises, optionsDuRole, ROLES } from '../../scripts/droits.mjs';
 import type { Langage } from '../../scripts/jointure.js';
 import typescript from '../../scripts/langages/typescript/index.mjs';
@@ -402,10 +403,8 @@ describe('L2 — what a role that writes may not run', () => {
 
   it('pkl.5 critère 2: a project of cargo refuses cargo’s test runner, and names neither vitest nor turbo', () => {
     const projet = mkdtempSync(path.join(ESSAIS, 'cargo-'));
-    writeFileSync(
-      path.join(projet, 'package.json'),
-      JSON.stringify({ name: 'p', grillhouse: { langages: ['cargo'] } })
-    );
+    writeFileSync(path.join(projet, 'package.json'), JSON.stringify({ name: 'p' }));
+    declarerLesLangages(projet, ['cargo']);
     for (const role of ['testwriter', 'developpeur']) {
       const { deny } = reglagesDe(options(role, projet)).permissions;
       expect(
@@ -613,10 +612,8 @@ describe("L2 — the context of a role's session", () => {
     const projet = mkdtempSync(path.join(ESSAIS, 'propres-'));
     mkdirSync(path.join(projet, '.claude/skills/propre'), { recursive: true });
     writeFileSync(path.join(projet, '.claude/skills/propre/SKILL.md'), '---\nname: propre\n---\n');
-    writeFileSync(
-      path.join(projet, 'package.json'),
-      JSON.stringify({ name: 'p', grillhouse: { langages: ['typescript'] } })
-    );
+    writeFileSync(path.join(projet, 'package.json'), JSON.stringify({ name: 'p' }));
+    declarerLesLangages(projet);
     for (const role of Object.keys(ROLES)) {
       const { skillOverrides } = reglagesDe(options(role, projet));
       expect(skillOverrides, role).toEqual({
@@ -901,10 +898,8 @@ describe('9jr.2 — each role reads the files of its skill', () => {
     // The copy declares its language, whose module names the test tool a writer may not run
     // (grillhouse-pkl.5).
     mkdirSync(copie, { recursive: true });
-    writeFileSync(
-      path.join(copie, 'package.json'),
-      JSON.stringify({ name: 'p', grillhouse: { langages: ['typescript'] } })
-    );
+    writeFileSync(path.join(copie, 'package.json'), JSON.stringify({ name: 'p' }));
+    declarerLesLangages(copie);
     mkdirSync(path.join(depot, '.claude'), { recursive: true });
     writeFileSync(
       path.join(depot, '.claude/settings.json'),

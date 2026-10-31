@@ -12,7 +12,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { configGit } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { architecture, configGit } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { CADRE, RACINE } from './cadre.js';
 
 // Ticket grillhouse-3uv.8.4: the index is for the roles that see the whole repository (charter,
@@ -610,28 +610,46 @@ describe('the session start and the sessions of a role', () => {
   });
 });
 
-// grillhouse-3dr.2.3: a project that declares no language (grillhouse.langages) is refused by the
-// frame's scripts and locks; the session start names it under « Manque », with the update that
-// writes the declaration, between the install of a version and `npx grillhouse maj`.
+// grillhouse-ca7: a project whose architecture declares no language (the column « Langage » of
+// the table of the components of docs/ARCHITECTURE.md) is refused by the frame's scripts and
+// locks; the session start names it under « Manque », with the grill that writes it. The
+// template's architecture, which declares its language, keeps its fields to the grill: it stays
+// « pas encore renseigné ».
 describe('the session start and the declaration of the language', () => {
-  const avecPaquet = (nom: string, pkg: object) => {
+  const avecPaquet = (nom: string, pkg: object, architecture?: string) => {
     const q = projet(nom);
     writeFileSync(path.join(q.racine, 'package.json'), JSON.stringify(pkg));
     mkdirSync(path.join(q.racine, 'node_modules'), { recursive: true });
+    if (architecture !== undefined) {
+      mkdirSync(path.join(q.racine, 'docs'), { recursive: true });
+      writeFileSync(path.join(q.racine, 'docs/ARCHITECTURE.md'), architecture);
+    }
     return q.racine;
   };
-  it('names a package.json without grillhouse.langages under « Manque », with npx grillhouse maj', () => {
+  it('names a project without the column « Langage » under « Manque », with the grill', () => {
     const r = demarrer(avecPaquet('sans-langage', { name: 'p' }), avec);
     expect(r.status, r.stderr).toBe(0);
     expect(r.stdout).toMatch(
-      /Manque : .*la déclaration du langage \(grillhouse\.langages[^)]*npx grillhouse maj/
+      /Manque : .*le langage de chaque paquet \(colonne « Langage »[^)]*grill/
     );
   });
+  it('names npx grillhouse maj for a project that holds the declaration of a former version', () => {
+    const ancien = { name: 'p', grillhouse: { langages: ['typescript'] } };
+    const r = demarrer(avecPaquet('ancienne-cle', ancien), avec);
+    expect(r.stdout).toMatch(/Manque : .*le langage de chaque paquet \([^)]*npx grillhouse maj/);
+    expect(r.stdout).not.toMatch(/le langage de chaque paquet \([^)]*grill l'écrit/);
+  });
   it('says nothing of it for a project that declares its language', () => {
-    const r = demarrer(
-      avecPaquet('avec-langage', { name: 'p', grillhouse: { langages: ['typescript'] } }),
-      avec
+    const r = demarrer(avecPaquet('avec-langage', { name: 'p' }, architecture()), avec);
+    expect(r.stdout).not.toContain('le langage de chaque paquet');
+  });
+  it('the template’s architecture, its fields empty, is still to write', () => {
+    const gabarit = readFileSync(
+      path.join(RACINE, 'templates/projet/docs/ARCHITECTURE.md'),
+      'utf8'
     );
-    expect(r.stdout).not.toContain('la déclaration du langage');
+    const r = demarrer(avecPaquet('gabarit', { name: 'p' }, gabarit), avec);
+    expect(r.stdout).not.toContain('le langage de chaque paquet');
+    expect(r.stdout).toMatch(/Pas encore renseignés.*docs\/ARCHITECTURE\.md/s);
   });
 });

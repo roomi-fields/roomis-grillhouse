@@ -9,8 +9,8 @@
 // - The command is the subcommand <nom> of the module (`commandeDe` of ./sous-commandes.mjs), run
 //   by Node with its arguments then these, in the working directory, this process's standard
 //   streams; its exit code is this command's, 128 plus the number of a signal that ended it.
-// - A project that declares no language (`grillhouse.langages`), or whose module describes no
-//   command <nom>, plays nothing: exit 0.
+// - A project that declares no language (the column « Langage » of its docs/ARCHITECTURE.md),
+//   or whose module describes no command <nom>, plays nothing: exit 0.
 // - A name of the core (`grillhouse <nom>`), or none, is refused, exit 2.
 import { spawnSync } from 'node:child_process';
 import { constants } from 'node:os';

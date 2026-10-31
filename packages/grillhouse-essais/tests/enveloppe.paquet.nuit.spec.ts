@@ -9,7 +9,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import {
   canWrap,
   enveloppeEssai,
-  LANGAGE,
+  declarerLesLangages,
   racineSousLaMaison,
 } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { enProcessus } from './cadre.js';
@@ -30,10 +30,8 @@ describe.runIf(canWrap)('grillhouse-3uv.92.4 — l’enveloppe d’un paquet sur
     mkdirSync(path.dirname(path.join(repo, f)), { recursive: true });
     writeFileSync(path.join(repo, f), t);
   };
-  ecrire(
-    'package.json',
-    JSON.stringify({ name: 'essai', workspaces: ['packages/*'], grillhouse: LANGAGE })
-  );
+  ecrire('package.json', JSON.stringify({ name: 'essai', workspaces: ['packages/*'] }));
+  declarerLesLangages(repo);
   ecrire('packages/a/package.json', JSON.stringify({ name: 'a' }));
   ecrire('packages/a/src/a.ts', 'a');
   ecrire(

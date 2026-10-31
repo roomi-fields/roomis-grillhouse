@@ -2,7 +2,7 @@
 // of the plan plays tests), stops the circuit at that verdict (grillhouse-26x), as a CI fails fast
 // on a step it cannot run rather than playing it again: a new pass cannot treat that finding.
 // Witness: OSC Bridge, SyntHub SH-13y.1 under 0.25.5 (2026-10-31): the package site holds its tests
-// in Python, played by the CI alone, `grillhouse.langages` being ["cargo"]; the reviewer sent the
+// in Python, played by the CI alone, its declared languages being cargo alone; the reviewer sent the
 // lot back three times with findings « Agent : testwriter », each time the circuit skipped the
 // testwriter again, relaunched the developpeur (empty diff) and the checks, then stopped at
 // relecture-arret: 72 min, 30 of them lost, 2,18 $.
@@ -10,6 +10,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import * as circuit from '../../scripts/circuit.mjs';
 
 interface Constat {
@@ -46,8 +47,8 @@ for (const [rel, texte] of Object.entries({
   'package.json': JSON.stringify({
     name: 'essai',
     workspaces: ['packages/*'],
-    grillhouse: { langages: ['typescript'] },
   }),
+  'docs/ARCHITECTURE.md': architecture(),
   'packages/site/package.json': JSON.stringify({ name: '@essai/site' }),
   'packages/outil/package.json': JSON.stringify({
     name: '@essai/outil',

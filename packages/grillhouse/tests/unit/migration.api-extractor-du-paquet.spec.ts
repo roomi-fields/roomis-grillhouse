@@ -10,7 +10,11 @@ import {
   restes,
   version,
 } from '../../scripts/migrations/0.24.2-api-extractor-du-paquet.mjs';
-import { cheminSysteme, claudeSubstitut } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import {
+  cheminSysteme,
+  claudeSubstitut,
+  architecture,
+} from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
 // grillhouse-3uv.95.11.3: the update of 0.23.0 to 0.24.1 added `@microsoft/api-extractor` to the
 // devDependencies of a project's root, as a tool the project runs; the package imports it as a
@@ -33,12 +37,9 @@ const LIGNE = `package.json : la dépendance ${DEP} n'est plus importée que par
 const projet = (pkg: Record<string, unknown>, fichiers: Record<string, string> = {}) => {
   const p = mkdtempSync(path.join(ESSAIS, 'projet-'));
   for (const [f, t] of Object.entries({
-    // grillhouse-3dr.2.3: a project of TypeScript declares its language.
-    'package.json': `${JSON.stringify(
-      { ...pkg, grillhouse: { langages: ['typescript'], ...((pkg.grillhouse as object) ?? {}) } },
-      null,
-      2
-    )}\n`,
+    // grillhouse-ca7: a project of TypeScript declares its language in its architecture.
+    'docs/ARCHITECTURE.md': architecture(),
+    'package.json': `${JSON.stringify(pkg, null, 2)}\n`,
     ...fichiers,
   })) {
     mkdirSync(path.dirname(path.join(p, f)), { recursive: true });

@@ -5,7 +5,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import {
   canWrap,
   enveloppeEssai,
-  LANGAGE,
+  declarerLesLangages,
   racineSousLaMaison,
 } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { SCRIPT, projetDuLanceur } from './enveloppe-essai.js';
@@ -195,8 +195,9 @@ describe('the launcher and the dependencies of the copy', () => {
   writeFileSync(path.join(repo, 'packages/a/src/a.ts'), 'a');
   writeFileSync(
     path.join(repo, 'package.json'),
-    `${JSON.stringify({ name: 't', private: true, grillhouse: LANGAGE })}\n`
+    `${JSON.stringify({ name: 't', private: true })}\n`
   );
+  declarerLesLangages(repo);
   writeFileSync(path.join(repo, 'package-lock.json'), '{"lockfileVersion":3}\n');
   writeFileSync(path.join(repo, '.gitignore'), 'node_modules\nbin\nappels\nconsigne.txt\n');
   installerEnveloppe(repo);

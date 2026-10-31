@@ -11,7 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { canWrap } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { canWrap, declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { CADRE, RACINE, valeursDe } from './cadre.js';
 
 // The trial harness of the circuit of a ticket (scripts/circuit.mjs), shared by its tests
@@ -409,7 +409,6 @@ export function circuitEssai(ESSAIS: string, { feuille = false, gardesSansCache 
         type: 'module',
         workspaces: ['packages/*'],
         packageManager: 'npm@10.9.8',
-        grillhouse: { langages: ['typescript'] },
         scripts: {
           test: `node ${path.join(CADRE, 'scripts/langages/typescript/tests.mjs')}`,
           verifier: `node ${path.join(CADRE, 'scripts/langages/typescript/verifier.mjs')}`,
@@ -418,6 +417,7 @@ export function circuitEssai(ESSAIS: string, { feuille = false, gardesSansCache 
         },
       })
     );
+    declarerLesLangages(REPO);
     ecrire(
       path.join(REPO, 'turbo.json'),
       readFileSync(path.join(RACINE, 'templates/turbo/paquets.json'), 'utf8')

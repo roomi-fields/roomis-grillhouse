@@ -18,6 +18,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
+import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
 // The frame's package, in the same tree.
 const CADRE = path.resolve(__dirname, '../../grillhouse');
@@ -28,19 +29,23 @@ const COMMANDE = path.join(CADRE, 'bin/grillhouse.mjs');
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'outils-nuit-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
-// A repository of trial whose package.json declares <outils> (and <cles>), committed once.
-function depotGit(outils: unknown, cles: Record<string, unknown> = {}): string {
+// A repository of trial whose package.json declares <outils> (and <cles>), its architecture
+// <langages> (none when empty), committed once.
+function depotGit(outils: unknown, cles: Record<string, unknown> = {}, langages: string[] = []) {
   const racine = mkdtempSync(path.join(ESSAIS, 'depot-'));
   writeFileSync(
     path.join(racine, 'package.json'),
     JSON.stringify({ name: 'essai', private: true, grillhouse: { ...cles, outils } })
   );
+  if (langages.length) {
+    declarerLesLangages(racine, langages);
+  }
   const git = (...a: string[]) => {
     const r = spawnSync('git', ['-C', racine, ...a], { encoding: 'utf8' });
     expect(r.status, r.stderr).toBe(0);
   };
   git('init', '-q');
-  git('add', 'package.json');
+  git('add', '.');
   git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'un');
   return racine;
 }
@@ -58,7 +63,7 @@ function commandes(racine: string, scripts: Record<string, string[]>): string {
 
 describe('critère 3 — a faulty key stops the circuit at its launch, by its name', () => {
   it('stops at « lancement », before any session, the fault in its state and its question', () => {
-    const racine = depotGit({ X_OUTIL: '~' }, { langages: ['typescript'] });
+    const racine = depotGit({ X_OUTIL: '~' }, {}, ['typescript']);
     const bin = commandes(racine, {
       bd: [
         'ici=$(dirname "$0")',
@@ -170,7 +175,7 @@ describe('the command of the key and `grillhouse verifier`', () => {
     expect(r.stderr).toContain('X-OUTIL');
   });
   it('critère 3: `grillhouse verifier` refuses a faulty key before any pass, naming it', () => {
-    const dir = depotGit({ X_OUTIL: '/nulle/part/outil' }, { langages: ['typescript'] });
+    const dir = depotGit({ X_OUTIL: '/nulle/part/outil' }, {}, ['typescript']);
     const r = spawnSync(process.execPath, [COMMANDE, 'verifier'], {
       cwd: dir,
       encoding: 'utf8',

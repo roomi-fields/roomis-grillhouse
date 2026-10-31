@@ -248,10 +248,9 @@ export interface Composition {
 
 /** A module of language, the default export of `scripts/langages/<nom>/index.mjs`. */
 export interface Langage extends Composition {
-  /** Whether the repository at `racine` holds code of this language, which the update declares. */
-  trouve(racine: string): boolean;
-  /** What `trouve` looks for, in words: the refusal of the update names it. */
-  signe: string;
+  /** The manifest of a package of this language, in its folder (`package.json`, `Cargo.toml`):
+   * the guard of the languages asks it of a package the architecture declares of this language. */
+  manifeste: string;
   /** The entries of the index of the interfaces, one per interface of the module's components and
    * the root's, `lignes` as the index writes them, which the core assembles for a project of
    * several languages (scripts/index-interfaces.mjs). */
@@ -261,12 +260,11 @@ export interface Langage extends Composition {
 
 /** The frame's languages, each its module. */
 export const LANGAGES: Record<string, string>;
-/** The languages the project at `racine` declares (`grillhouse.langages`), empty for none. */
+/** The languages the project at `racine` declares: the column « Langage » of the table of the
+ * components of its docs/ARCHITECTURE.md, each once, empty for none. */
 export function langagesDeclares(racine: string): string[];
-/** The languages of the frame whose module finds its code in the repository at `racine`. */
-export function langagesTrouves(racine: string): string[];
-/** The modules of the languages the project at `racine` declares, in the order of the
- * declaration; throws when it declares none, one out of the list, or one twice. */
+/** The modules of the languages the project at `racine` declares, in the order of the table;
+ * throws when it declares none, or one out of the list. */
 export function langagesDe(racine: string): Langage[];
 /** The join of the modules that serve the project at `racine`: the module itself for one, their
  * composition for several; throws as `langagesDe`. */

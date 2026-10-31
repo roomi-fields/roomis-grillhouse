@@ -110,8 +110,9 @@ describe('grillhouse-3dr.2.1 — la jointure des langages', () => {
     for (const m of membres) {
       expect(iface, m).toContain(`\`${m}\``);
     }
-    expect(iface).toMatch(/\["typescript"\]/);
-    // grillhouse-3dr.2.3: the declaration is the only reading, no language by default.
+    // grillhouse-ca7: the declaration is the column « Langage » of the architecture, the only
+    // reading, no language by default.
+    expect(iface).toMatch(/colonne « Langage »/);
     expect(iface).not.toMatch(/sans déclaration est lu comme/);
   });
 

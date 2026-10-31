@@ -15,7 +15,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { expect } from 'vitest';
-import { configGit } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { configGit, declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { CADRE } from './cadre.js';
 
 // The trial harness of the submodules of the working copies (scripts/sous-modules.sh), shared by
@@ -134,11 +134,11 @@ export function sousModulesEssai(ESSAIS: string) {
       JSON.stringify({
         name: 't',
         private: true,
-        grillhouse: { langages: ['typescript'] },
         scripts: { build: 'node build.mjs', test: TEST, verifier: 'npm test' },
         devDependencies: { turbo: 'file:outils/turbo' },
       })
     );
+    declarerLesLangages(repo);
     // Without .gitmodules the build passes. The build says nothing on its own output, so a refusal that names the submodule comes from the
     // preparation, not from it.
     writeFileSync(

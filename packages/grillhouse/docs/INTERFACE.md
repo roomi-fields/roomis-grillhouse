@@ -2,6 +2,8 @@
 
 Le noyau demande à un module de langage ce que ce document écrit, et rien d'autre.
 
+**Langage** : typescript
+
 Le noyau porte les tickets, le circuit, les rôles et leur relecture, le tableau, l'enveloppe, les
 crochets et la mise à jour. Un module de langage, sous `scripts/langages/<nom>/`, porte ce qui
 dépend du langage du projet : ses outils de test, de typage et de structure, et leurs tests sous
@@ -15,24 +17,39 @@ Les types de la jointure sont `scripts/jointure.d.ts` ; l'entrée publiée
 
 ## Les langages d'un projet
 
-Un projet déclare ses langages dans son `package.json`, sous `grillhouse.langages` :
-`["typescript"]`, `["cargo"]` ou `["cargo", "typescript"]`. Chaque nom vient de la liste fermée des
-langages du cadre (`LANGAGES` de `scripts/langages.mjs`) ; un nom hors de la liste est refusé,
-nommé, avec la liste, et un nom déclaré deux fois, nommé.
+Un projet déclare le langage de chaque paquet à la conception, dans la colonne « Langage » du
+tableau des composants de son `docs/ARCHITECTURE.md`, comme le fichier BUILD de Bazel nomme la règle
+de chaque cible ; l'`INTERFACE.md` de chaque paquet le reprend (`**Langage** : <nom>`). Un tableau
+des composants est un tableau du document dont l'en-tête porte cette colonne, et chacun compte
+(chez BPScript, le tableau des étages, puis la section « Les paquets » pour ceux qu'il ne nomme
+pas) ; une ligne dont la cellule « Langage » est vide nomme une partie qui n'est pas un paquet du
+projet (un crate d'un autre dépôt). Les langages du projet sont l'ensemble de la colonne, dans
+l'ordre du document ;
+chaque nom vient de la liste fermée des langages du cadre (`LANGAGES` de `scripts/langages.mjs`),
+et un nom hors de la liste est refusé, nommé, avec la liste.
 
-La déclaration est la seule lecture (`langagesDeclares(racine)`) : un projet sans déclaration, ou
-un dossier sans `package.json`, est refusé, nommé, avec la commande qui l'écrit. `init` et `maj`
-écrivent la déclaration d'après ce que les modules trouvent dans le dépôt
-(`langagesTrouves(racine)`), comme chaque greffon de Nx infère ses projets de ses propres fichiers
-(`createNodes`) ; une déclaration présente reste. Là où aucun module ne trouve son langage, `maj`
-refuse le projet, nommé, sans rien écrire : le cadre n'invente aucune déclaration.
+La colonne est la seule lecture (`langagesDeclares(racine)`, `scripts/tableau-des-composants.mjs`) :
+un projet qui n'en déclare aucun est refusé, nommé, avec la colonne à écrire. Rien ne se devine aux
+fichiers du dépôt. `maj` reporte dans la colonne la déclaration d'une version antérieure du cadre
+(la migration de 0.27.0), avant tout autre geste. La garde des langages des paquets
+(`grillhouse langages-des-paquets`, la première des gardes du cadre) cherche les paquets avec le
+module de chaque langage du cadre, pas des seuls langages déclarés, et lit chaque manifeste pour
+refuser un écart, sans rien en déduire ; elle refuse, chacun nommé avec son paquet : un paquet d'un
+module (son manifeste, `manifeste`) qu'aucune ligne ne nomme ; un paquet qu'une ligne déclare d'un
+langage dont le module ne l'y trouve pas, nommé avec le manifeste qu'il porte, ou sans le manifeste
+de son langage ; une interface dont la ligne `**Langage**` nomme un autre langage. Une ligne nomme
+un paquet par l'un de ses noms en code (son dossier, son nom de paquet, son chemin depuis la
+racine, `.` pour la racine), dans la première colonne de son tableau où un paquet est nommé.
+`npx grillhouse maj` reporte l'ancienne déclaration du `package.json` : il ajoute la colonne au
+tableau qui nomme un paquet, et range dans une section « Les paquets » (`Paquet | Langage`) ceux
+qu'aucun tableau ne nomme.
 
 Un projet a plusieurs langages, un paquet un seul, comme Bazel et Nx jouent une même liste de
 cibles, un outil par langage. `langagesDe(racine)` rend les modules déclarés, dans l'ordre de la
 déclaration, chacun chargé une fois par processus ; `langageDe(racine)` rend leur composition
 (`scripts/composition-des-langages.mjs`), le module lui-même quand le projet n'en déclare qu'un.
-La composition répond aux demandes ci-dessous, `trouve`, `signe` et `miseAJour` à part, que `maj`
-demande à chaque module :
+La composition répond aux demandes ci-dessous, `manifeste` et `miseAJour` à part, que la garde des
+langages et `maj` demandent à chaque module :
 
 - les composants sont ceux de chaque module ; un dossier que deux modules revendiquent est refusé,
   nommé avec les deux langages ;
@@ -64,10 +81,9 @@ Le module de langage exporte par défaut un objet `Langage`. Chaque membre répo
 noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engendré, qui juge.
 
 - `nom` : le nom du langage, celui de la liste du cadre.
-- `trouve` : si le dépôt tient du code du langage, que `maj` déclare alors ; `typescript`, un
-  `tsconfig.json` à la racine ou dans un paquet du cadre ; `cargo`, un `Cargo.toml` à la racine.
-- `signe` : ce que `trouve` cherche, en mots, que le refus de `maj` nomme quand aucun langage n'est
-  trouvé.
+- `manifeste` : le manifeste d'un paquet du langage, dans son dossier (`typescript`, un
+  `package.json` ; `cargo`, un `Cargo.toml`), que la garde des langages demande à un paquet que
+  l'architecture déclare de ce langage.
 - `outils` : les outils qu'un projet du langage installe, dépendances facultatives du paquet ;
   `maj` n'ajoute que ceux des langages déclarés, chacun à la version de son gabarit.
 - `binaires` : les binaires qu'un projet du langage installe sur la machine, chacun à sa version
@@ -202,8 +218,8 @@ exactement les fautes attendues. `echecs(langage, exemples)` rend les cas qu'un 
 entrées sont celles de chaque module (`scripts/langages/<nom>/exemples.mjs`).
 
 Un cas tient chaque demande sauf `nom`, `verdict` lu à part, `migrations`, que le test de
-chaque migration tient, `signe`, `outils`, `binaires`, `ignorer` et `miseAJour`, que les tests de la mise à
-jour tiennent, `sorties`, que les tests
+chaque migration tient, `manifeste`, que les tests de la garde des langages tiennent, `outils`,
+`binaires`, `ignorer` et `miseAJour`, que les tests de la mise à jour tiennent, `sorties`, que les tests
 de l'enveloppe tiennent, et `droits`, que le test des droits tient. L'entrée défectueuse des
 fichiers engendrés met chacun d'eux en retard.
 Le test du noyau joue la suite sur le module typescript et sur seize modules défectueux, un défaut

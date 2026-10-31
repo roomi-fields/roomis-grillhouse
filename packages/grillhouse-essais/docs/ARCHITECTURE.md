@@ -51,7 +51,7 @@ packages/grillhouse-essais ──(processus : node <script>, grillhouse <command
 - La matière que ces tests partagent avec ceux du cadre vient de
   `@roomi-fields/grillhouse-matiere/test-fixtures` : les projets d'essai de la nuit
   (`testsDeNuitEssai`, le dépôt et sa mise à jour passés par l'appelant), le langage d'un projet
-  d'essai et les dossiers d'essai de l'enveloppe (`LANGAGE`, `enveloppeEssai`).
+  d'essai et les dossiers d'essai de l'enveloppe (`declarerLesLangages`, `enveloppeEssai`).
 - `tests/base-de-passe.essai.mjs` : le fichier de test du projet d'essai de
   `base-de-passe.nuit.spec.ts`.
 

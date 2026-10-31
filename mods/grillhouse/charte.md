@@ -91,6 +91,12 @@ le jour reste court, et la preuve longue tourne la nuit.
 outil, et `npm test`, la vérification et le circuit jouent chaque paquet avec cet outil. Ainsi
 chaque paquet se construit et se teste d'une seule façon.
 
+**Le langage d'un paquet se décide à la conception** : la colonne « Langage » du tableau des
+composants de `docs/ARCHITECTURE.md` le nomme, l'`INTERFACE.md` du paquet le reprend, et le cadre
+le lit là, sans le deviner aux fichiers ; la garde `grillhouse langages-des-paquets` refuse un
+paquet que l'architecture ne déclare pas ou dont le manifeste suit un autre langage. Ainsi
+l'architecture fixe le langage, et le code le suit.
+
 **Un test vit dans un fichier à lui**, jamais dans un fichier de code, reconnu au nom ou au
 dossier qu'attend l'outil de son langage : près de son module pour un test unitaire (en Rust, un
 `tests.rs` ou un dossier `tests/` sous `src/`, comme le veut le contrôle tidy de rustc), dans le

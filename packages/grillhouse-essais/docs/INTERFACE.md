@@ -9,6 +9,8 @@ l'importe. Ce qu'il lit des autres paquets :
 - de la matière partagée (`@roomi-fields/grillhouse-matiere/test-fixtures`) : la liste de son
   `INTERFACE.md`.
 
+**Langage** : typescript
+
 ## Les fautes
 
 Aucune : le paquet ne rend aucune faute.

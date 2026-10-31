@@ -12,6 +12,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import type { Langage } from '../../scripts/jointure.js';
 import { paquetsDuLangage, plan, sortiesDuLangage } from '../../scripts/enveloppe/enveloppe.mjs';
 import cargo from '../../scripts/langages/cargo/index.mjs';
@@ -199,9 +200,9 @@ describe('grillhouse-pkl.5 — un paquet hors cadre nommé par le plan s’ouvre
     JSON.stringify({
       name: 'essai',
       workspaces: ['packages/*'],
-      grillhouse: { langages: ['typescript'] },
     })
   );
+  ecrire('docs/ARCHITECTURE.md', architecture());
   ecrire('packages/a/package.json', JSON.stringify({ name: 'a' }));
   ecrire('packages/h/package.json', JSON.stringify({ name: 'h' }));
   ecrire('docs/agents/hors-cadre.txt', 'h un outil à part\n');

@@ -25,8 +25,9 @@ packages/grillhouse-essais ───┘
 - `src/claude-substitut.ts` : le remplaçant de `claude`.
 - `src/config-git.ts` : les réglages de git par l'environnement.
 - `src/regle-de-permission.ts` : la lecture d'une règle de permission (`couvre`).
-- `src/langage.ts` : le langage d'un projet d'essai (`LANGAGE`, `declarerLeLangage`) et les
-  dossiers d'essai des tests de l'enveloppe (`enveloppeEssai`).
+- `src/langage.ts` : les langages d'un projet d'essai, la colonne « Langage » de son
+  `docs/ARCHITECTURE.md` (`ARCHITECTURE`, `architecture`, `declarerLesLangages`,
+  `declarerLeLangage`), et les dossiers d'essai des tests de l'enveloppe (`enveloppeEssai`).
 - `src/tests-de-nuit.ts` : les projets d'essai des tests de nuit (`testsDeNuitEssai`) ; le dépôt
   du cadre et sa mise à jour lui sont passés, pour qu'elle n'importe aucun paquet.
 - `src/index.ts` : l'entrée, qui réexporte les six.

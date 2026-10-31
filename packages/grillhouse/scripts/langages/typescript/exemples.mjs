@@ -11,8 +11,7 @@
 //   `enRetard`; the same, committed, a file of `a` then changed and a file out of every package
 //   added: `change`, measured from its commit; the same where the code of `b` imports `a` and the
 //   code of `c` imports `b`: `lus`; the same with a second commit that changes a file of `a`:
-//   `lot`. A directory whose package.json names no package: `vide`. A tsconfig.json at the root of
-//   a directory, and in a package of a repository of packages: `aLaRacine`, `dansUnPaquet`. A
+//   `lot`. A directory whose package.json names no package: `vide`. A
 //   repository of two packages, one with the script of the tests (`test:unit`): `avecTests`.
 // - Two results directories of a run: every task and test green (`vert`); `a` at 75, `b` red, a
 //   test of `b` failed (`defaut`).
@@ -113,13 +112,6 @@ export default {
     const aJour = depot(dans);
     const vide = mkdtempSync(path.join(dans, 'vide-'));
     writeFileSync(path.join(vide, 'package.json'), json({ name: 'vide', private: true }));
-    const aLaRacine = mkdtempSync(path.join(dans, 'tsconfig-'));
-    writeFileSync(path.join(aLaRacine, 'package.json'), json({ name: 'r', private: true }));
-    writeFileSync(path.join(aLaRacine, 'tsconfig.json'), json({}));
-    const dansUnPaquet = mkdtempSync(path.join(dans, 'tsconfig-'));
-    ecrireDans(dansUnPaquet)('package.json', json({ name: 'p', workspaces: ['packages/*'] }));
-    ecrireDans(dansUnPaquet)('packages/a/package.json', json({ name: '@p/a' }));
-    ecrireDans(dansUnPaquet)('packages/a/tsconfig.json', json({}));
     // A repository of two packages, `a` with the script of the tests, `b` without.
     const avecTests = mkdtempSync(path.join(dans, 'tests-'));
     ecrireDans(avecTests)('package.json', json({ name: 't', workspaces: ['packages/*'] }));
@@ -273,17 +265,6 @@ export default {
       },
       matieres: { valide: vide, invalide: aJour, attendu: ['m (@e/m)'] },
       joueDesTests: { valide: aJour, invalide: avecTests, attendu: ['a (@t/a) : joue des tests'] },
-      trouve: {
-        valide: [
-          { nom: 'vide', racine: vide },
-          { nom: 'paquets sans tsconfig', racine: aJour },
-        ],
-        invalide: [
-          { nom: 'à la racine', racine: aLaRacine },
-          { nom: 'dans un paquet', racine: dansUnPaquet },
-        ],
-        attendu: ['à la racine : trouvé', 'dans un paquet : trouvé'],
-      },
     };
   },
 };

@@ -17,6 +17,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { CADRE, RACINE, enProcessus } from './cadre.js';
+import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
 // The trial harness of the integration and of its queue (grillhouse-3uv.63): a repository with
 // a fake Beads that keeps the state of its tickets, a bare remote `origin`, the frame's real
@@ -291,8 +292,6 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
     JSON.stringify(
       {
         ...pkg,
-        // grillhouse-3dr.2.3: a project of TypeScript declares its language.
-        grillhouse: { langages: ['typescript'], ...((pkg.grillhouse as object) ?? {}) },
         scripts: { verifier: TEST },
         devDependencies: { turbo: 'file:outils/turbo' },
       },
@@ -300,6 +299,8 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
       2
     )
   );
+  // grillhouse-ca7: a project of TypeScript declares its language in its architecture.
+  declarerLesLangages(repo);
   ecrire(repo, 'suites.mjs', SUITES);
   ecrire(repo, 'gardes.mjs', GARDES);
   installerFauxTurbo(repo);
@@ -787,6 +788,7 @@ export function chantierDependances(
       path.join(src, 'package.json'),
       JSON.stringify({ name: 'ext-lib', version, main: 'index.js' })
     );
+    declarerLesLangages(src);
     writeFileSync(path.join(src, 'index.js'), `module.exports = '${version}';\n`);
     execFileSync('npm', ['pack', '--silent', '--pack-destination', vendor, src], { env: npmEnv });
   }
@@ -805,7 +807,6 @@ export function chantierDependances(
       {
         name: 'essai',
         private: true,
-        grillhouse: { langages: ['typescript'] },
         workspaces: motifs ?? Object.keys(espaces),
         dependencies: { 'ext-lib': `file:vendor/ext-lib-${externe}.tgz` },
         scripts,

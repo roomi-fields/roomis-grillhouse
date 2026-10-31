@@ -14,7 +14,10 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { claudeSubstitut } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import {
+  claudeSubstitut,
+  declarerLesLangages,
+} from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { RACINE, enProcessus, valeursDe } from './cadre.js';
 
 const { CROCHETS } = valeursDe('scripts/crochets.mjs', ['CROCHETS']) as {
@@ -171,13 +174,14 @@ function projet({ paquet = true, hooksPath = false } = {}) {
       {
         name: 'p',
         scripts: { prepare: 'grillhouse hooks' },
-        // grillhouse-3dr.2.3: a project of TypeScript declares its language.
-        grillhouse: { langages: ['typescript'], poussee: { nuit: 'main' } },
+        grillhouse: { poussee: { nuit: 'main' } },
       },
       null,
       2
     )}\n`
   );
+  // grillhouse-ca7: a project of TypeScript declares its language in its architecture.
+  declarerLesLangages(repo);
   writeFileSync(path.join(repo, '.gitignore'), 'node_modules/\n');
   git(repo, 'init', '-q', '-b', 'main');
   if (hooksPath) {

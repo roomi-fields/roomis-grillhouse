@@ -12,6 +12,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { migrer as migrerTout } from '../../scripts/migrations.mjs';
 import {
   migrer,
@@ -35,11 +36,15 @@ const ESSAIS = mkdtempSync(path.join(tmpdir(), 'migration-circuit-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 type Ligne = string | { aFaire: string };
-// grillhouse-3dr.2.3: a project of TypeScript declares its language.
-const PKG = `${JSON.stringify({ name: 'p', grillhouse: { langages: ['typescript'] } }, null, 2)}\n`;
+// grillhouse-ca7: a project of TypeScript declares its language in its architecture.
+const PKG = `${JSON.stringify({ name: 'p' }, null, 2)}\n`;
 const projet = (fichiers: Record<string, string> = {}) => {
   const p = mkdtempSync(path.join(ESSAIS, 'projet-'));
-  for (const [f, t] of Object.entries({ 'package.json': PKG, ...fichiers })) {
+  for (const [f, t] of Object.entries({
+    'package.json': PKG,
+    'docs/ARCHITECTURE.md': architecture(),
+    ...fichiers,
+  })) {
     mkdirSync(path.dirname(path.join(p, f)), { recursive: true });
     writeFileSync(path.join(p, f), t);
   }
@@ -166,7 +171,7 @@ describe('migration 0.24.0 — the circuit without regulator nor technical refer
 
   it('writes neither the settings nor the package.json, where no version wrote a setting of a role', () => {
     const reglages = `${JSON.stringify({ permissions: { allow: ['Bash(bd *)'] } }, null, 2)}\n`;
-    const pkg = `${JSON.stringify({ name: 'p', grillhouse: { langages: ['typescript'], version: '0.22.2', nuit: 'nuit' } }, null, 2)}\n`;
+    const pkg = `${JSON.stringify({ name: 'p', grillhouse: { version: '0.22.2', nuit: 'nuit' } }, null, 2)}\n`;
     const p = projet({ '.claude/settings.json': reglages, 'package.json': pkg });
     expect(migrer(p)).toEqual([]);
     expect(lire(p, '.claude/settings.json')).toBe(reglages);

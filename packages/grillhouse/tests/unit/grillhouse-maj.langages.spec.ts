@@ -1,12 +1,14 @@
-// grillhouse-3dr.2.3 — the update declares the languages of a project, as each plugin of Nx infers
-// its projects from its own files (`createNodes`): `grillhouse maj` (and `grillhouse init`, which
-// plays it) writes `grillhouse.langages` in the project's package.json from what it finds (a
-// tsconfig.json at the root or in a package of the frame: typescript), keeps a declaration the
-// project holds, and adds the tools of the declared languages alone (the `outils` of each module).
-// A project where it finds no language of the frame is refused, named, nothing written: the frame
-// invents no declaration. No import of the project is rewritten. Witness: a trial copied from
-// BPScript (its package.json, those of its packages and their tsconfig.json, its turbo.json, its
-// .gitignore, its tsdoc.json and its list of the packages out of the frame, tests/cas-reels/bp-3dr.2.3).
+// grillhouse-ca7 — the update serves the languages the architecture declares (the column
+// « Langage » of the table of the components of docs/ARCHITECTURE.md), and guesses none from the
+// files (decision D2 of grillhouse-1zu). Before every other step, it brings the declaration of a
+// former version of the frame (`grillhouse.langages` of the package.json) into that column, by the
+// migration of 0.27.0, which then removes the key (tests/unit/migration.langages-dans-l-architecture
+// .spec.ts). A project that declares no language is refused, named with the column, nothing
+// written. It adds the tools of the declared languages alone (the `outils` of each module). No
+// import of the project is rewritten. Witness: a trial copied from BPScript (its package.json,
+// those of its packages and their tsconfig.json, its turbo.json, its .gitignore, its tsdoc.json and
+// its list of the packages out of the frame, tests/cas-reels/bp-3dr.2.3), its architecture
+// declaring typescript.
 import { spawnSync } from 'node:child_process';
 import {
   cpSync,
@@ -20,8 +22,9 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { mettreAJour, rapport } from '../../scripts/grillhouse-maj.mjs';
-import { langageDe } from '../../scripts/langages.mjs';
+import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { declarerLesLangages, mettreAJour } from '../../scripts/grillhouse-maj.mjs';
+import { langageDe, langagesDeclares } from '../../scripts/langages.mjs';
 import typescript from '../../scripts/langages/typescript/index.mjs';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'grillhouse-maj-langages-'));
@@ -33,7 +36,7 @@ const BPSCRIPT = path.join(__dirname, '../cas-reels/bp-3dr.2.3/depot.json');
 const OUTILS = (typescript as unknown as { outils: string[] }).outils;
 
 type Pkg = {
-  grillhouse?: { langages?: string[]; version?: string };
+  grillhouse?: Record<string, unknown>;
   devDependencies?: Record<string, string>;
 };
 const ecrire = (racine: string, f: string, texte: string) => {
@@ -90,50 +93,52 @@ function ajoutees(avant: Map<string, string>, apres: Map<string, string>) {
   return [...noms].sort();
 }
 
-describe('grillhouse-3dr.2.3 — la mise à jour déclare les langages qu’elle trouve', () => {
-  it('a tsconfig.json at the root: the update writes ["typescript"], the report names it', () => {
-    const racine = projet({ 'package.json': { name: 'p' }, 'tsconfig.json': '{}\n' });
-    const b = mettreAJour(racine, DEPOT);
-    expect(pkgDe(racine).grillhouse?.langages).toEqual(['typescript']);
-    expect(rapport(b)).toMatch(/grillhouse\.langages.*typescript/);
+describe('grillhouse-ca7 — la mise à jour sert les langages de l’architecture', () => {
+  it('a project declared in its architecture is served by its language, its package.json without key', () => {
+    const racine = projet({
+      'package.json': { name: 'p' },
+      'docs/ARCHITECTURE.md': architecture(),
+      'tsconfig.json': '{}\n',
+    });
+    mettreAJour(racine, DEPOT);
+    expect(pkgDe(racine).grillhouse).not.toHaveProperty('langages');
     expect(langageDe(racine).nom).toBe('typescript');
   });
 
-  it('a tsconfig.json in a package of the workspaces only: ["typescript"]', () => {
+  it('the declaration of a former version goes into the architecture first, the key removed', () => {
     const racine = projet({
-      'package.json': { name: 'p', workspaces: ['packages/*'] },
-      'packages/a/package.json': { name: 'a' },
-      'packages/a/tsconfig.json': '{}\n',
+      'package.json': { name: 'p', grillhouse: { langages: ['typescript'], version: '0.26.0' } },
+      'tsconfig.json': '{}\n',
     });
-    mettreAJour(racine, DEPOT);
-    expect(pkgDe(racine).grillhouse?.langages).toEqual(['typescript']);
+    const r = declarerLesLangages(racine) as { version: string; lignes: string[] } | null;
+    expect(r?.version).toBe('0.27.0');
+    expect(r?.lignes).toEqual([expect.stringMatching(/« Langage »/)]);
+    expect(pkgDe(racine).grillhouse).toEqual({ version: '0.26.0' });
+    expect(langagesDeclares(racine)).toEqual(['typescript']);
+    expect(declarerLesLangages(racine)).toBeNull();
   });
 
-  it('a declaration the project holds stays, nothing found needed, and the report says nothing of it', () => {
-    const racine = projet({
-      'package.json': { name: 'p', grillhouse: { langages: ['typescript'] } },
-    });
-    const b = mettreAJour(racine, DEPOT);
-    expect(pkgDe(racine).grillhouse?.langages).toEqual(['typescript']);
-    expect(rapport(b)).not.toMatch(/grillhouse\.langages/);
-  });
-
-  it('no language found and none declared: the update is refused, named, nothing written', () => {
-    // grillhouse-pkl.3: a Cargo.toml is cargo's; a project of Python holds no language of the frame.
-    const racine = projet({ 'package.json': { name: 'p' }, 'pyproject.toml': '[project]\n' });
+  it('no declaration: the update is refused, the column named, nothing written, whatever the files show', () => {
+    const racine = projet({ 'package.json': { name: 'p' }, 'tsconfig.json': '{}\n' });
     const avant = etat(racine);
-    expect(() => mettreAJour(racine, DEPOT)).toThrow(/tsconfig\.json/);
-    expect(() => mettreAJour(racine, DEPOT)).toThrow(/Cargo\.toml/);
-    expect(() => mettreAJour(racine, DEPOT)).toThrow(/grillhouse\.langages/);
+    expect(() => mettreAJour(racine, DEPOT)).toThrow(/ARCHITECTURE\.md.*« Langage »/);
+    expect(() => declarerLesLangages(racine)).toThrow(/« Langage »/);
     expect(etat(racine)).toEqual(avant);
   });
 
-  it('the command refuses such a project, its code 1, the refusal on the error stream', () => {
+  it('a former declaration of a language the frame lacks is refused, named, nothing written', () => {
+    const racine = projet({ 'package.json': { name: 'p', grillhouse: { langages: ['cobol'] } } });
+    const avant = etat(racine);
+    expect(() => declarerLesLangages(racine)).toThrow(/cobol/);
+    expect(etat(racine)).toEqual(avant);
+  });
+
+  it('the command refuses a project without declaration, its code 1, the refusal on the error stream', () => {
     const racine = projet({ 'package.json': { name: 'p' } });
     const avant = etat(racine);
     const r = spawnSync(process.execPath, [MAJ], { cwd: racine, encoding: 'utf8' });
     expect(r.status).toBe(1);
-    expect(r.stderr).toMatch(/⛔.*grillhouse\.langages/);
+    expect(r.stderr).toMatch(/⛔.*« Langage »/);
     expect(etat(racine)).toEqual(avant);
   });
 
@@ -145,11 +150,13 @@ describe('grillhouse-3dr.2.3 — la mise à jour déclare les langages qu’elle
     expect(readdirSync(racine)).toEqual([]);
   });
 
-  it('the template of a project, which init copies, is declared typescript', () => {
+  it('the template of a project, which init copies, declares typescript in its architecture', () => {
     const racine = mkdtempSync(path.join(ESSAIS, 'gabarit-'));
     cpSync(path.join(DEPOT, 'templates/projet'), racine, { recursive: true });
+    expect(langagesDeclares(racine)).toEqual(['typescript']);
+    expect(pkgDe(racine).grillhouse).toBeUndefined();
     mettreAJour(racine, DEPOT);
-    expect(pkgDe(racine).grillhouse?.langages).toEqual(['typescript']);
+    expect(pkgDe(racine).grillhouse).not.toHaveProperty('langages');
   });
 });
 
@@ -167,7 +174,11 @@ describe('grillhouse-3dr.2.3 — les outils des langages déclarés, seuls', () 
   });
 
   it('a project of typescript receives the tools of its module, and none other', () => {
-    const racine = projet({ 'package.json': { name: 'p' }, 'tsconfig.json': '{}\n' });
+    const racine = projet({
+      'package.json': { name: 'p' },
+      'docs/ARCHITECTURE.md': architecture(),
+      'tsconfig.json': '{}\n',
+    });
     const b = mettreAJour(racine, DEPOT);
     expect(Object.keys(pkgDe(racine).devDependencies ?? {}).sort()).toEqual([...OUTILS].sort());
     expect([...b.dependances].sort()).toEqual([...OUTILS].sort());
@@ -176,20 +187,20 @@ describe('grillhouse-3dr.2.3 — les outils des langages déclarés, seuls', () 
 
 describe('grillhouse-3dr.2.3 — un projet d’essai copié de BPScript', () => {
   const bpscript = () =>
-    projet(JSON.parse(readFileSync(BPSCRIPT, 'utf8')) as Record<string, string>);
+    projet({
+      ...(JSON.parse(readFileSync(BPSCRIPT, 'utf8')) as Record<string, string>),
+      'docs/ARCHITECTURE.md': architecture(),
+    });
 
-  it('the trial declares no language, and holds no tsconfig.json at its root', () => {
-    const racine = bpscript();
-    expect(pkgDe(racine).grillhouse).not.toHaveProperty('langages');
-    expect(readdirSync(racine)).not.toContain('tsconfig.json');
+  it('the trial holds no tsconfig.json at its root', () => {
+    expect(readdirSync(bpscript())).not.toContain('tsconfig.json');
   });
 
-  it('the update writes ["typescript"], adds no tool of another language, and rewrites nothing on a second pass', () => {
+  it('the update adds no tool of another language, and rewrites nothing on a second pass', () => {
     const racine = bpscript();
     const avant = etat(racine);
     mettreAJour(racine, DEPOT);
     const premiere = etat(racine);
-    expect(pkgDe(racine).grillhouse?.langages).toEqual(['typescript']);
     for (const n of ajoutees(avant, premiere)) {
       expect(OUTILS, n).toContain(n);
     }

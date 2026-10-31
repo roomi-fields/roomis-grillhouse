@@ -14,7 +14,11 @@ import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { migrer as toutesLesMigrations } from '../../scripts/migrations.mjs';
 import { migrer, nom, version } from '../../scripts/migrations/0.23.2-copies-du-cadre.mjs';
-import { cheminSysteme, claudeSubstitut } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import {
+  cheminSysteme,
+  claudeSubstitut,
+  declarerLesLangages,
+} from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
 // grillhouse-3uv.84.6.1: a project in 0.22.x holds the frame in copies, which the former update
 // listed (`.claude/grillhouse/fichiers.txt`) and fingerprinted (`.claude/grillhouse/empreintes.json`,
@@ -131,8 +135,6 @@ function projet({ retouche = true }: { retouche?: boolean } = {}) {
     json({
       name: 'bp',
       private: true,
-      // grillhouse-3dr.2.3: a project of TypeScript declares its language.
-      grillhouse: { langages: ['typescript'] },
       scripts: {
         frontieres: 'node scripts/frontieres.mjs',
         interfaces: 'node scripts/index-interfaces.mjs --verifier',
@@ -150,6 +152,8 @@ function projet({ retouche = true }: { retouche?: boolean } = {}) {
       },
     })
   );
+  // grillhouse-ca7: a project of TypeScript declares its language in its architecture.
+  declarerLesLangages(p);
   return p;
 }
 
@@ -318,10 +322,10 @@ describe('migration 0.23.2 — the copies of the frame leave a project in 0.22.x
       'package.json',
       json({
         name: 'n',
-        grillhouse: { langages: ['typescript'] },
         scripts: { x: 'node scripts/x.mjs' },
       })
     );
+    declarerLesLangages(p);
     ecrire(p, 'scripts/x.mjs', 'export {};\n');
     const avant = contenu(p);
     expect(migrer(p)).toEqual([]);

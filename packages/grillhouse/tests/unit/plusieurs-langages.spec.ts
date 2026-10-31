@@ -10,6 +10,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { composer } from '../../scripts/composition-des-langages.mjs';
 import { SCRIPT } from '../../scripts/commandes-composees.mjs';
 import { SCRIPT as INDEX_DU_NOYAU, SORTIE as INDEX } from '../../scripts/index-interfaces.mjs';
@@ -36,8 +37,7 @@ function faux(nom: string, dossiers: string[], autres: Partial<Langage> = {}): L
   const de = (f: string) => comps.find(c => tient(c, f)) ?? null;
   return {
     nom,
-    trouve: () => true,
-    signe: `signe de ${nom}`,
+    manifeste: `manifeste de ${nom}`,
     outils: [`outil-${nom}`, 'commun'],
     binaires: { [`binaire-${nom}`]: '1.0.0' },
     ignorer: [`sortie-${nom}`],
@@ -316,14 +316,12 @@ describe('grillhouse-akd, critère 1 — un projet qui déclare deux langages n�
   const projet = (langages: string[]) => {
     const racine = mkdtempSync(path.join(ESSAIS, 'projet-'));
     mkdirSync(racine, { recursive: true });
-    writeFileSync(
-      path.join(racine, 'package.json'),
-      JSON.stringify({ name: 'p', grillhouse: { langages } })
-    );
+    writeFileSync(path.join(racine, 'package.json'), JSON.stringify({ name: 'p' }));
+    declarerLesLangages(racine, langages);
     return racine;
   };
 
-  it('cargo and typescript: both modules, in the order of the declaration, composed', () => {
+  it('cargo and typescript: both modules, in the order of the table, composed', () => {
     const racine = projet(['cargo', 'typescript']);
     expect(langagesDe(racine).map(m => m.nom)).toEqual(['cargo', 'typescript']);
     expect(langageDe(racine).nom).toBe('cargo+typescript');
@@ -335,7 +333,7 @@ describe('grillhouse-akd, critère 1 — un projet qui déclare deux langages n�
     expect(() => langageDe(racine)).toThrow(/typescript, cargo/);
   });
 
-  it('a language declared twice is refused, named', () => {
-    expect(() => langageDe(projet(['cargo', 'cargo']))).toThrow(/cargo.*deux fois/);
+  it('a language of several packages is one language (grillhouse-ca7)', () => {
+    expect(langagesDe(projet(['cargo', 'cargo'])).map(m => m.nom)).toEqual(['cargo']);
   });
 });

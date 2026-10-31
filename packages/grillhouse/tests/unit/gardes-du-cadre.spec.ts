@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { gardesDuCadre, jouerLesGardes } from '../../scripts/gardes-du-cadre.mjs';
 
 const DEPOT = path.resolve(__dirname, '../../../..');
@@ -63,10 +64,8 @@ describe('grillhouse:gardes — a red guard does not stop the others', () => {
     // An empty project of TypeScript (grillhouse-3dr.2.3: declared): the index of the interfaces it
     // lacks is red, named by its subcommand.
     const racine = mkdtempSync(path.join(ESSAIS, 'vide-'));
-    writeFileSync(
-      path.join(racine, 'package.json'),
-      JSON.stringify({ name: 'vide', grillhouse: { langages: ['typescript'] } })
-    );
+    writeFileSync(path.join(racine, 'package.json'), JSON.stringify({ name: 'vide' }));
+    declarerLesLangages(racine);
     const r = spawnSync(process.execPath, [SCRIPT], { cwd: racine, encoding: 'utf8' });
     expect(r.status).not.toBe(0);
     expect(r.stdout).toContain('⛔ garde rouge : grillhouse index-interfaces --verifier');

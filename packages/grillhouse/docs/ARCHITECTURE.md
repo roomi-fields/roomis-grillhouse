@@ -560,10 +560,13 @@ langages dans sa configuration (`backend_packages`), le cadre publie un seul paq
 relecture, le tableau, l'enveloppe, les crochets, la mise à jour, le greffon Claude) et un
 **module de langage** par famille, sous `scripts/langages/` : `typescript` (la vérification par
 Turborepo et Vitest, les gardes de structure) et `cargo` (la même chose pour Rust, l'épopée
-grillhouse-pkl). Un projet déclare ses langages dans son `package.json` (`grillhouse.langages`),
-que `init` et `maj` remplissent d'après ce qu'ils trouvent (`tsconfig.json` ; un `Cargo.toml` à la
-racine) ; là où ils ne trouvent aucun langage du cadre, ils
-refusent le projet, nommé. Les outils npm d'un langage (Turborepo, Vitest, knip, api-extractor)
+grillhouse-pkl). Un projet déclare le langage de chaque paquet à la conception, dans la colonne
+« Langage » du tableau des composants de son `docs/ARCHITECTURE.md`, comme le fichier BUILD de
+Bazel nomme la règle de chaque cible : le grill l'écrit (branche 8), le gabarit d'un projet la porte,
+et rien ne se devine aux fichiers ; un projet qui n'en déclare aucun est refusé, nommé. La garde
+des langages des paquets (`scripts/langages-des-paquets.mjs`) refuse un paquet que l'architecture
+ne déclare pas, un paquet dont le manifeste suit un autre langage, et une interface qui en nomme un
+autre. Les outils npm d'un langage (Turborepo, Vitest, knip, api-extractor)
 sont des dépendances facultatives du paquet, ses binaires (cargo-nextest, cargo-deny, sccache) s'installent
 sur la machine par `cargo binstall`, que cargo installe d'abord quand il manque : `maj` n'installe que ceux des langages déclarés.
 Ainsi chaque projet n'installe que les outils qu'il utilise : un projet tout Rust n'a aucun outil
@@ -584,8 +587,8 @@ changement du manifeste, chaque partie nommée ; en cargo, d'un fichier de code,
 n'écrit que le module de test) ; ses fichiers engendrés, leur commande et ses gardes de structure ;
 où écrivent ses outils et l'outil de test qu'un rôle ne lance pas lui-même.
 L'INTERFACE.md du noyau l'écrit (`packages/grillhouse/docs/INTERFACE.md`), `scripts/jointure.d.ts`
-la type, et `scripts/langages.mjs` charge les modules que le projet déclare (`grillhouse.langages`
-de son `package.json` ; un projet qui n'en déclare aucun est refusé, la commande `maj` nommée).
+la type, et `scripts/langages.mjs` charge les modules que le projet déclare (la colonne
+« Langage » de son architecture ; un projet qui n'en déclare aucun est refusé, la colonne nommée).
 Un projet a plusieurs langages, un paquet un seul, comme Bazel et Nx jouent une même liste de
 cibles, un outil par langage, chaque cible d'un seul langage : le noyau compose les modules
 déclarés (`scripts/composition-des-langages.mjs`), range chaque fichier au composant qui le tient,

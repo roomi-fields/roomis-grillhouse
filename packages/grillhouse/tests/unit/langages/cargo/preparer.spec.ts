@@ -9,6 +9,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { commandesDeVerification } from '../../../../scripts/integration/rejeu.mjs';
 import exemples from '../../../../scripts/langages/cargo/exemples.mjs';
 import { avecFauxCargo, installerFauxCargo } from './faux-cargo.js';
@@ -25,10 +26,10 @@ beforeAll(() => {
     path.join(seul, 'package.json'),
     JSON.stringify({
       name: 'seul',
-      grillhouse: { langages: ['cargo'] },
       scripts: { verifier: `node ${JSON.stringify(BIN)} verifier --tout` },
     })
   );
+  declarerLesLangages(seul, ['cargo']);
 });
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 afterAll(() => restaurer());
@@ -61,10 +62,8 @@ describe('grillhouse-pkl.5, critère 3 — l’intégration prépare avant de v�
 
   it('a project of TypeScript describes no preparation: the verification alone', () => {
     const projet = mkdtempSync(path.join(ESSAIS, 'typescript-'));
-    writeFileSync(
-      path.join(projet, 'package.json'),
-      JSON.stringify({ name: 'p', grillhouse: { langages: ['typescript'] } })
-    );
+    writeFileSync(path.join(projet, 'package.json'), JSON.stringify({ name: 'p' }));
+    declarerLesLangages(projet);
     expect(commandesDeVerification(projet)).toEqual([['npm', ['run', 'verifier']]]);
   });
 });

@@ -16,7 +16,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import ts from 'typescript';
 import { afterAll, describe, expect, it } from 'vitest';
-import { cheminSysteme, claudeSubstitut } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import {
+  ARCHITECTURE,
+  cheminSysteme,
+  claudeSubstitut,
+  declarerLesLangages,
+} from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { RACINE, enProcessus, valeursDe } from './cadre.js';
 
 const mettreAJourLeProjet = enProcessus<Record<string, unknown>>(
@@ -50,18 +55,15 @@ const ecrire = (racine: string, f: string, texte: string) => {
 };
 const lire = (racine: string, f: string) => readFileSync(path.join(racine, f), 'utf8');
 const json = (racine: string, f: string) => JSON.parse(lire(racine, f)) as Record<string, unknown>;
-// grillhouse-3dr.2.3: the projects of this file are of TypeScript, declared (`grillhouse.langages`)
-// before the update, which refuses a project where it finds no language
+// grillhouse-ca7: the projects of this file are of TypeScript, declared in their architecture
+// before the update, which refuses a project that declares no language
 // (packages/grillhouse/tests/unit/grillhouse-maj.langages.spec.ts tests the declaration itself).
 function declarer(projet: string) {
-  const f = path.join(projet, 'package.json');
-  if (!existsSync(f)) {
-    return;
-  }
-  const p = JSON.parse(readFileSync(f, 'utf8')) as { grillhouse?: Record<string, unknown> };
-  if (p.grillhouse?.langages === undefined) {
-    p.grillhouse = { ...(p.grillhouse ?? {}), langages: ['typescript'] };
-    writeFileSync(f, `${JSON.stringify(p, null, 2)}\n`);
+  if (
+    existsSync(path.join(projet, 'package.json')) &&
+    !existsSync(path.join(projet, ARCHITECTURE))
+  ) {
+    declarerLesLangages(projet);
   }
 }
 const mettreAJour = (projet: string, ...reste: unknown[]) => {
@@ -97,6 +99,8 @@ const etapesDesGardes = () =>
     ([f, ...args]) => `grillhouse ${[path.basename(f, '.mjs'), ...args].join(' ')}`
   );
 const CONTROLES: [string, RegExp][] = [
+  // grillhouse-ca7: the core's guard first, whatever the languages.
+  ['langages des paquets', /^grillhouse langages-des-paquets$/],
   ['turbo.json des paquets', /^grillhouse turbo-des-paquets$/],
   ['index des interfaces', /^grillhouse index-interfaces --verifier$/],
   ['consommateurs', /^grillhouse consommateurs$/],
@@ -948,10 +952,7 @@ describe('the update names the version of the frame it installs', () => {
     const r = lancerMajAvec(projet, [], claude.bin);
     expect(r.status, r.stderr).toBe(0);
     expect(r.stdout.startsWith(`Cadre ${VERSION}, la version installée`), r.stdout).toBe(true);
-    expect(json(projet, 'package.json').grillhouse).toEqual({
-      langages: ['typescript'],
-      version: VERSION,
-    });
+    expect(json(projet, 'package.json').grillhouse).toEqual({ version: VERSION });
   });
 });
 // A trial project with `pkg` as its package.json, and a one-file source with the template's
@@ -1765,10 +1766,7 @@ describe('grillhouse-3uv.84.4 critère 2 — grillhouse maj plays the migrations
     expect(r.status, r.stderr).toBe(0);
     expect(r.stdout).toMatch(/^Migration 0\.23\.0 \(crochets de séance\) :$/m);
     expect(json(projet, '.claude/settings.json')).not.toHaveProperty('hooks');
-    expect(json(projet, 'package.json').grillhouse).toEqual({
-      langages: ['typescript'],
-      version: VERSION,
-    });
+    expect(json(projet, 'package.json').grillhouse).toEqual({ version: VERSION });
   });
   it('a project that recorded a version at or past a migration does not play it', () => {
     const projet = projetAncien('99.0.0');
@@ -1933,10 +1931,7 @@ describe('grillhouse-3uv.95.11.1 — what stays to the project is reported after
     const projet = projetDe022();
     const r = lancerMajAvec(projet, [], bin());
     expect(r.status, r.stderr).toBe(0);
-    expect(json(projet, 'package.json').grillhouse).toEqual({
-      langages: ['typescript'],
-      version: VERSION,
-    });
+    expect(json(projet, 'package.json').grillhouse).toEqual({ version: VERSION });
   });
 });
 
@@ -1996,7 +1991,7 @@ describe('grillhouse-982.6 — the update ends with the verification that keeps 
     expect(r.status, r.stderr).toBe(0);
     expect(npm.appels()).toEqual([`${realpathSync(projet)}|run verifier`]);
     // The update had written its files when the verification ran: the version is recorded.
-    expect(npm.packageJson().grillhouse).toEqual({ langages: ['typescript'], version: VERSION });
+    expect(npm.packageJson().grillhouse).toEqual({ version: VERSION });
     expect(r.stdout).toContain('✅ vert.\n');
   });
 

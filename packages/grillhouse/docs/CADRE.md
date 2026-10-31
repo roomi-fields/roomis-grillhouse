@@ -15,8 +15,8 @@ langage d'un paquet, il le demande au module de ce langage, par la jointure
 
 ## Reçoit
 
-- Du projet : la déclaration de ses langages (`grillhouse.langages` de son `package.json`), ses
-  tickets, sa charte.
+- Du projet : le langage de chaque paquet (la colonne « Langage » du tableau des composants de
+  son `docs/ARCHITECTURE.md`), ses tickets, sa charte.
 - Du module de langage : ses réponses aux demandes de `docs/INTERFACE.md`.
 
 ## Rend

@@ -8,6 +8,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { declarerLesLangages, architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { ordonnerLePlan } from '../../scripts/circuit.mjs';
 import type { Langage } from '../../scripts/jointure.js';
 import moduleCargo from '../../scripts/langages/cargo/index.mjs';
@@ -39,10 +40,8 @@ describe('grillhouse-x7c.1, critère 1 — un espace cargo ordonne le plan par s
     mkdirSync(cargo);
     restaurer = avecFauxCargo(installerFauxCargo(cargo), path.join(cargo, 'journal'));
     espace = (exemples.preparer(cargo) as { depots: { espace: string } }).depots.espace;
-    writeFileSync(
-      path.join(espace, 'package.json'),
-      JSON.stringify({ name: 'espace', grillhouse: { langages: ['cargo'] } })
-    );
+    writeFileSync(path.join(espace, 'package.json'), JSON.stringify({ name: 'espace' }));
+    declarerLesLangages(espace, ['cargo']);
   });
   afterAll(() => restaurer());
 
@@ -74,8 +73,8 @@ describe('grillhouse-x7c.1, critère 2 — un projet typescript s’ordonne comm
     'package.json': JSON.stringify({
       name: 'essai',
       workspaces: ['packages/*'],
-      grillhouse: { langages: ['typescript'] },
     }),
+    'docs/ARCHITECTURE.md': architecture(),
     'packages/a/package.json': JSON.stringify({
       name: '@essai/a',
       dependencies: { '@essai/b': '*' },

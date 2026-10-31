@@ -9,6 +9,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { composantsDe, resoudreComposant } from '../../scripts/circuit.mjs';
 import { avecFauxCargo, installerFauxCargo } from './langages/cargo/faux-cargo.js';
 
@@ -31,7 +32,8 @@ describe('grillhouse-x7c, critère 1 — un crate racine se résout par son nom'
   beforeAll(() => {
     restaurer = avecFauxCargo(installerFauxCargo(ESSAIS), path.join(ESSAIS, 'journal'));
     espace = depot('osc-bridge', {
-      'package.json': JSON.stringify({ name: 'osc-bridge', grillhouse: { langages: ['cargo'] } }),
+      'package.json': JSON.stringify({ name: 'osc-bridge' }),
+      'docs/ARCHITECTURE.md': architecture({ 'osc-bridge': 'cargo', aide: 'cargo' }),
       'Cargo.toml':
         '[workspace]\nmembers = [".", "crates/aide"]\n\n[package]\nname = "osc-bridge"\nversion = "0.1.0"\nedition = "2021"\n',
       'src/main.rs': 'fn main() {}\n',
@@ -72,8 +74,8 @@ describe('grillhouse-x7c, critère 2 — un projet typescript résout ses compos
     'package.json': JSON.stringify({
       name: 'essai',
       workspaces: ['packages/*'],
-      grillhouse: { langages: ['typescript'] },
     }),
+    'docs/ARCHITECTURE.md': architecture(),
     'packages/a/package.json': JSON.stringify({ name: '@essai/a' }),
     'packages/h/package.json': JSON.stringify({ name: '@essai/h' }),
     'docs/agents/hors-cadre.txt': 'h un outil à part\n',

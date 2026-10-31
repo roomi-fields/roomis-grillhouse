@@ -15,8 +15,9 @@
 //   a part of it the tests' (cargo: the test module of a file of `src/`).
 // - The repository root is that of the git repository holding the written file, whatever the
 //   agent's working directory; a file outside any repository is read against the working directory.
-//   A project that declares no language (`grillhouse.langages`) is refused, exit code 2, the
-//   update named: the lock cannot judge its writes, and a hook that throws would let them pass.
+//   A project that declares no language (the column « Langage » of its docs/ARCHITECTURE.md) is
+//   refused, exit code 2, the column named: the lock cannot judge its writes, and a hook that
+//   throws would let them pass.
 // - developpeur writes none of the testwriter's files, and no other file until its ticket's
 //   description holds a "## Architecture" section (`sansArchitecture`, which the start of the
 //   circuit reads too). The ticket is the "TON TICKET : <id>" line of the agent's

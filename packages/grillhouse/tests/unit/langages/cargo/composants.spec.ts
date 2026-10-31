@@ -7,6 +7,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import type { Langage } from '../../../../scripts/jointure.js';
 import module from '../../../../scripts/langages/cargo/index.mjs';
 import exemples from '../../../../scripts/langages/cargo/exemples.mjs';
@@ -186,7 +187,8 @@ function espaceDeManifeste() {
     mkdirSync(path.dirname(path.join(r, rel)), { recursive: true });
     writeFileSync(path.join(r, rel), texte);
   };
-  ecrire('package.json', JSON.stringify({ name: 'm', grillhouse: { langages: ['cargo'] } }));
+  ecrire('package.json', JSON.stringify({ name: 'm' }));
+  ecrire('docs/ARCHITECTURE.md', architecture(['cargo']));
   ecrire('Cargo.toml', '[workspace]\nresolver = "2"\nmembers = ["crates/app"]\n');
   ecrire('Cargo.lock', 'version = 4\n');
   ecrire('crates/app/Cargo.toml', MANIFESTE);
@@ -377,7 +379,8 @@ describe('grillhouse-agr, critère 1 — les tests unitaires dans tests.rs près
       mkdirSync(path.dirname(path.join(r, rel)), { recursive: true });
       writeFileSync(path.join(r, rel), texte);
     };
-    ecrire('package.json', JSON.stringify({ name: 'u', grillhouse: { langages: ['cargo'] } }));
+    ecrire('package.json', JSON.stringify({ name: 'u' }));
+    ecrire('docs/ARCHITECTURE.md', architecture(['cargo']));
     ecrire('Cargo.toml', '[workspace]\nresolver = "2"\nmembers = ["crates/service"]\n');
     ecrire('Cargo.lock', 'version = 4\n');
     ecrire('crates/service/Cargo.toml', '[package]\nname = "service"\nversion = "0.1.0"\n');
@@ -536,7 +539,8 @@ describe('grillhouse-agr, critère 3 — le testwriter écrit seulement le modul
       mkdirSync(path.dirname(path.join(r, rel)), { recursive: true });
       writeFileSync(path.join(r, rel), texte);
     };
-    ecrire('package.json', JSON.stringify({ name: 'c', grillhouse: { langages: ['cargo'] } }));
+    ecrire('package.json', JSON.stringify({ name: 'c' }));
+    ecrire('docs/ARCHITECTURE.md', architecture(['cargo']));
     ecrire('Cargo.toml', '[workspace]\nresolver = "2"\nmembers = ["crates/service"]\n');
     ecrire('Cargo.lock', 'version = 4\n');
     ecrire('crates/service/Cargo.toml', '[package]\nname = "service"\nversion = "0.1.0"\n');

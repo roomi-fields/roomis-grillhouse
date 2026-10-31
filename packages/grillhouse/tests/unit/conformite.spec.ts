@@ -145,8 +145,6 @@ const MUTANTS: [string, string, Partial<Langage>][] = [
     },
   ],
   ['matieres vide', 'matieres', { matieres: () => [] }],
-  // grillhouse-3dr.2.3: the update declares the languages it finds.
-  ['trouve qui ne trouve jamais rien', 'trouve', { trouve: () => false }],
   // grillhouse-pkl.2: the circuit asks the module which components play tests.
   ['joueDesTests qui ne voit aucun script', 'joueDesTests', { joueDesTests: () => false }],
   [
@@ -189,7 +187,6 @@ describe('grillhouse-3dr.2.1 — la suite de conformité de la jointure', { time
       'elementsDuLot',
       'matieres',
       'joueDesTests',
-      'trouve',
     ]);
   });
 

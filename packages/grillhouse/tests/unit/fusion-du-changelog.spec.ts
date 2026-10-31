@@ -142,6 +142,12 @@ describe('grillhouse-tkv, critère 3 — le gabarit, la mise à jour et Grillhou
     const racine = mkdtempSync(path.join(ESSAIS, 'projet-'));
     ecrire(racine, 'package.json', '{ "name": "p" }\n');
     ecrire(racine, 'tsconfig.json', '{}\n');
+    // grillhouse-ca7: the project declares its language in its architecture.
+    ecrire(
+      racine,
+      'docs/ARCHITECTURE.md',
+      '| Composant | Langage |\n| --- | --- |\n| `.` | typescript |\n'
+    );
     for (const [f, t] of Object.entries(fichiers)) {
       ecrire(racine, f, t);
     }

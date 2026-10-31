@@ -2,25 +2,30 @@
 // backends its configuration names (`backend_packages`). The core asks them what docs/INTERFACE.md
 // writes and scripts/jointure.d.ts types, and imports no other file of a module of language.
 //
-// - A project declares its languages in its package.json, `grillhouse.langages`, a list of names
-//   of the frame's closed list (`LANGAGES`), each a module under `scripts/langages/<nom>/`. The
-//   declaration is the only reading (`langagesDeclares`, the one function that reads it): a
-//   project that declares none, or a directory without package.json, is refused, named, with the
-//   command that writes it (`grillhouse maj`).
-// - What the update writes is what the modules find in the repository (`langagesTrouves`), as each
-//   plugin of Nx infers its projects from its own files (`createNodes`): each module answers by
-//   its `trouve`.
+// - A project declares the language of each package at its design, in the column « Langage » of
+//   the table of the components of its docs/ARCHITECTURE.md (./tableau-des-composants.mjs), as
+//   the BUILD file of Bazel names the rule of each target: nothing is guessed from the files. Its
+//   languages are the set of that column, in every table that holds it, each a name of the
+//   frame's closed list (`LANGAGES`), a module under `scripts/langages/<nom>/`. That column is the only reading (`langagesDeclares`,
+//   the one function that reads it): a project that declares none is refused, named, with the
+//   column to write. The guard of the languages (./langages-des-paquets.mjs) judges each package
+//   against its row.
 // - A project has several languages, a package one, as Bazel and Nx run one list of targets, one
-//   tool per language: `langagesDe` gives the declared modules, in the order of the declaration,
-//   and `langageDe` their join (./composition-des-langages.mjs), which gives each file to the
-//   module of its component, the module itself when one is declared. A name out of the list, or
-//   one declared twice, is refused, named.
+//   tool per language: `langagesDe` gives the declared modules, in the order of the table, and
+//   `langageDe` their join (./composition-des-langages.mjs), which gives each file to the module
+//   of its component, the module itself when one is declared. A name out of the list is refused,
+//   named.
 // - A module is loaded once per process, synchronously (`require` of an ES module, Node 22): the
 //   locks and the guards ask it in a hook, where nothing waits.
-import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { composer } from './composition-des-langages.mjs';
+import {
+  ARCHITECTURE,
+  COLONNE,
+  langageDeLaCellule,
+  tableauxDesComposants,
+} from './tableau-des-composants.mjs';
 
 // The frame's languages, each its module, from this directory.
 export const LANGAGES = {
@@ -44,49 +49,38 @@ const charger = nom => {
  */
 export const langage = nom => charger(nom);
 
-// The languages the project at <racine> declares (`grillhouse.langages` of its package.json), an
-// empty list when it declares none.
+/**
+ * The languages the project at <racine> declares: the cells of the column « Langage » of the tables
+ * of the components of its docs/ARCHITECTURE.md (./tableau-des-composants.mjs), each once, in the
+ * order of the document; an empty list without document, table or language.
+ * @param {string} racine the root of the project
+ * @returns {string[]}
+ */
 export function langagesDeclares(racine) {
-  let declares;
-  try {
-    declares = JSON.parse(readFileSync(path.join(racine, 'package.json'), 'utf8'))?.grillhouse
-      ?.langages;
-  } catch {
-    declares = undefined;
-  }
-  return Array.isArray(declares) ? declares.map(String) : [];
-}
-
-// The languages of the frame whose module finds its code in the repository at <racine>, in the
-// order of the list.
-export function langagesTrouves(racine) {
-  return Object.keys(LANGAGES).filter(nom => charger(nom).trouve(racine));
+  const noms = tableauxDesComposants(racine).flatMap(t =>
+    t.lignes.map(l => langageDeLaCellule(l.cellules[t.colonne])).filter(Boolean)
+  );
+  return [...new Set(noms)];
 }
 
 /**
- * The modules of the languages the project at <racine> declares, in the order of the declaration.
- * Throws when it declares none, a language out of the frame's list, or one twice.
+ * The modules of the languages the project at <racine> declares, in the order of the table.
+ * Throws when it declares none, or a language out of the frame's list.
  * @param {string} racine the root of the project
  * @returns {import('./jointure.js').Langage[]}
  */
 export function langagesDe(racine) {
   const noms = langagesDeclares(racine);
-  const fichier = path.join(racine, 'package.json');
+  const fichier = path.join(racine, ARCHITECTURE);
   if (noms.length === 0) {
     throw new Error(
-      `⛔ ${fichier} ne déclare aucun langage (grillhouse.langages) ; \`npx grillhouse maj\` l'écrit d'après ce qu'il trouve (les langages du cadre : ${Object.keys(LANGAGES).join(', ')}).`
+      `⛔ ${fichier} ne déclare aucun langage : la colonne « ${COLONNE} » de son tableau des composants nomme le langage de chaque paquet (le grill l'écrit, branche 8 ; \`npx grillhouse maj\` y reporte la déclaration d'une version antérieure du cadre ; les langages du cadre : ${Object.keys(LANGAGES).join(', ')}).`
     );
   }
   const inconnus = noms.filter(n => !Object.hasOwn(LANGAGES, n));
   if (inconnus.length) {
     throw new Error(
-      `⛔ langage inconnu du cadre : ${inconnus.join(', ')} (grillhouse.langages de ${fichier}) ; les langages du cadre : ${Object.keys(LANGAGES).join(', ')}.`
-    );
-  }
-  const doubles = [...new Set(noms.filter((n, i) => noms.indexOf(n) !== i))];
-  if (doubles.length) {
-    throw new Error(
-      `⛔ ${doubles.join(', ')} : déclaré deux fois (grillhouse.langages de ${fichier}).`
+      `⛔ langage inconnu du cadre : ${inconnus.join(', ')} (colonne « ${COLONNE} » de ${fichier}) ; les langages du cadre : ${Object.keys(LANGAGES).join(', ')}.`
     );
   }
   return noms.map(charger);

@@ -4,12 +4,13 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { stripVTControlCharacters } from 'node:util';
 import { afterAll, describe, expect, it } from 'vitest';
-import { LANGAGE } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
 // grillhouse-3uv.84.4 critère 5, a night test: the package packed as npm publishes it (`npm pack`,
 // its prepack carrying the frame's files under cadre/) installs in a fresh project, whose
 // `grillhouse verifier` plays its tests, green. The project declares what a project declares: its
-// language (grillhouse.langages, which the core requires: grillhouse-3dr.2.3), the frame's
+// language (the column « Langage » of its docs/ARCHITECTURE.md, which the core requires:
+// grillhouse-ca7), the frame's
 // package, Turborepo and Vitest, and the optional peers the scripts of the module typescript
 // import, which `grillhouse maj` adds from the template (grillhouse-3dr.2.2); npm brings the rest,
 // the package's dependencies.
@@ -79,12 +80,12 @@ describe('grillhouse-3uv.84.4 critère 5 — the packed package installs in a fr
             ),
           },
           packageManager: gabarit.packageManager,
-          grillhouse: LANGAGE,
         },
         null,
         2
       )}\n`
     );
+    ecrire('docs/ARCHITECTURE.md', architecture());
     ecrire(
       'turbo.json',
       readFileSync(path.join(DEPOT, 'templates/turbo/sans-paquets.json'), 'utf8')

@@ -8,7 +8,10 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import {
+  declarerLesLangages,
+  racineSousLaMaison,
+} from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { CADRE } from './cadre.js';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
@@ -21,10 +24,8 @@ const COMMANDE = path.join(CADRE, 'scripts/verrous/commande.mjs');
 // temp directory, which the hook command takes for the scratchpad.
 const ROOT = racineSousLaMaison('grillhouse-essais-verrous-racine-');
 afterAll(() => rmSync(ROOT, { recursive: true, force: true }));
-writeFileSync(
-  path.join(ROOT, 'package.json'),
-  JSON.stringify({ name: 'repo', grillhouse: { langages: ['typescript'] } })
-);
+writeFileSync(path.join(ROOT, 'package.json'), JSON.stringify({ name: 'repo' }));
+declarerLesLangages(ROOT);
 
 // A session whose sub-agent was launched with `prompt`, as Claude Code lays it on disk.
 function session(prompt: string) {
@@ -55,12 +56,12 @@ describe('the hook command', () => {
   });
   // grillhouse-3dr.2.3: a project that declares no language is refused, closed, as the lock cannot
   // judge its writes: a hook that throws exits 1, which Claude Code lets pass.
-  it('refuses in a project that declares no language, exit code 2, the update named', () => {
+  it('refuses in a project that declares no language, exit code 2, the column named', () => {
     const sans = mkdtempSync(path.join(ROOT, 'sans-langage-'));
     writeFileSync(path.join(sans, 'package.json'), JSON.stringify({ name: 'sans' }));
     const r = run('testwriter', { ...write(`${sans}/tests/a.spec.ts`), cwd: sans });
     expect(r.status).toBe(2);
-    expect(r.stderr).toMatch(/grillhouse\.langages.*npx grillhouse maj/);
+    expect(r.stderr).toMatch(/ARCHITECTURE\.md.*« Langage »/);
     expect(r.stderr.trim().split('\n')).toHaveLength(1);
   });
   // The update that writes the declaration stays open there: the write lock judges the tools of
@@ -95,10 +96,8 @@ function depotAvecMatiere() {
     mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true });
     writeFileSync(path.join(repo, rel), contenu);
   };
-  ecrire(
-    'package.json',
-    JSON.stringify({ name: 'racine', private: true, grillhouse: { langages: ['typescript'] } })
-  );
+  ecrire('package.json', JSON.stringify({ name: 'racine', private: true }));
+  declarerLesLangages(repo);
   ecrire(
     'packages/matiere/package.json',
     JSON.stringify({ name: 'matiere', exports: { '.': './index.js', './test-fixtures': './f.js' } })

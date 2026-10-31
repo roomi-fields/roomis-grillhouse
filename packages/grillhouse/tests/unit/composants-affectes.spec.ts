@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import * as module from '../../scripts/composants-affectes.mjs';
 import {
   cheminsLus,
@@ -29,12 +30,12 @@ const SCRIPT = path.resolve(__dirname, '../../scripts/composants-affectes.mjs');
 
 function depot(files: Record<string, string>) {
   const dir = mkdtempSync(path.join(ESSAIS, 'depot-'));
-  // grillhouse-3dr.2.3: the project declares its language, which the survey asks.
-  const racine = JSON.parse(files['package.json'] ?? '{"name":"essai","private":true}') as {
-    grillhouse?: Record<string, unknown>;
+  // grillhouse-ca7: the project declares its language, which the survey asks.
+  files = {
+    'package.json': '{"name":"essai","private":true}',
+    'docs/ARCHITECTURE.md': architecture(),
+    ...files,
   };
-  racine.grillhouse = { langages: ['typescript'], ...(racine.grillhouse ?? {}) };
-  files = { ...files, 'package.json': JSON.stringify(racine) };
   for (const [rel, text] of Object.entries(files)) {
     mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
     writeFileSync(path.join(dir, rel), text);

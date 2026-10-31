@@ -70,16 +70,14 @@
 //   in the order of the declaration: its template's tools, its share of the update, its binaries,
 //   its generators (each once) and what its tools write; the frame's scripts of a template come
 //   from the first template that has each.
-// - The languages first (`declarerLangages`): a project that declares none (`grillhouse.langages`
-//   of its package.json) receives the languages the modules of the frame find in it
-//   (`langagesTrouves` of scripts/langages.mjs: typescript, a tsconfig.json at its root or in a
-//   package of the frame; cargo, a Cargo.toml at its root; the refusal names
-//   each one's sign, `signe` of its module), and the report says
-//   so; a declaration it holds stays. A directory
-//   without package.json, or a project where no module finds its language, is refused, named on
-//   the error stream, the exit code 1, nothing written: the frame invents no declaration, and the
-//   migrations of the declared language play with the core's. No import of the project is
-//   rewritten.
+// - The languages first (`declarerLesLangages`): the languages of the project are the column
+//   « Langage » of the table of the components of its docs/ARCHITECTURE.md (scripts/langages.mjs),
+//   written at its design; the update writes there the declaration of a former version of the
+//   frame (the migration of 0.27.0, ./migrations/0.27.0-langages-dans-l-architecture.mjs), played
+//   before every other, since the migrations of the declared languages play with the core's. A
+//   directory without package.json, a project that declares no language, or one whose former
+//   declaration the migration leaves to it, is refused, named on the error stream, the exit code
+//   1: the frame guesses no language from the files. No import of the project is rewritten.
 // - The tools of the declared language (the `outils` of its module: what it runs as commands and
 //   what its scripts import), and none other, are added to the project's `devDependencies` at the
 //   version the template's `devDependencies` give; a tool the project already declares in
@@ -147,14 +145,8 @@ import { poserCrochets } from './crochets.mjs';
 import { ATTRIBUT } from './fusion-du-changelog.mjs';
 import { installerGreffons } from './greffons.mjs';
 import { migrer, restesAuProjet } from './migrations.mjs';
-import {
-  LANGAGES,
-  langage,
-  langageDe,
-  langagesDe,
-  langagesDeclares,
-  langagesTrouves,
-} from './langages.mjs';
+import { langageDe, langagesDe } from './langages.mjs';
+import * as langagesDansLArchitecture from './migrations/0.27.0-langages-dans-l-architecture.mjs';
 
 const SCRIPTS = {
   tableau: 'grillhouse tableau --texte',
@@ -276,36 +268,31 @@ function declarerGreffon(projet) {
 }
 
 /**
- * Declares the languages of the project at <projet> (`grillhouse.langages` of its package.json)
- * from what the modules of the frame find in it (`langagesTrouves`, scripts/langages.mjs), when it
- * declares none; a declaration it holds stays. Returns `{ langages, ecrits }` (ecrits: whether the
- * update wrote them). Throws, writing nothing, when the project has no package.json or the modules
- * find no language of the frame in it: the update invents no declaration.
+ * Declares the languages of the project at <projet> in its architecture: plays the migration of
+ * 0.27.0, which writes there the declaration of a former version of the frame, then reads them
+ * (`langagesDe`). Returns what the migration did, `{ version, nom, lignes, aFaire }`, null when it
+ * did nothing. Throws, named, when the project has no package.json, when the migration leaves its
+ * declaration to it, or when it declares no language: the update guesses none.
  */
-export function declarerLangages(projet) {
-  const fichier = path.join(projet, 'package.json');
-  if (!existsSync(fichier)) {
-    throw new Error(
-      `${projet} n'a pas de package.json, où un projet déclare ses langages (grillhouse.langages) ; la mise à jour du cadre s'y joue.`
-    );
+export function declarerLesLangages(projet) {
+  if (!existsSync(path.join(projet, 'package.json'))) {
+    throw new Error(`${projet} n'a pas de package.json ; la mise à jour du cadre s'y joue.`);
   }
-  const declares = langagesDeclares(projet);
-  if (declares.length > 0) {
-    return { langages: declares, ecrits: false };
+  const tout = langagesDansLArchitecture.migrer(projet);
+  const aFaire = tout.filter(l => typeof l !== 'string').map(l => l.aFaire);
+  if (aFaire.length) {
+    throw new Error(aFaire.join(' ; '));
   }
-  const trouves = langagesTrouves(projet);
-  if (trouves.length === 0) {
-    const signes = Object.keys(LANGAGES)
-      .map(n => `${n} : ${langage(n).signe}`)
-      .join(' ; ');
-    throw new Error(
-      `aucun langage du cadre trouvé dans ${projet} (${signes}) ; déclare-le dans grillhouse.langages de ${fichier} (les langages du cadre : ${Object.keys(LANGAGES).join(', ')}), puis relance \`npx grillhouse maj\`.`
-    );
-  }
-  const p = lireJson(fichier, {});
-  p.grillhouse = { ...(p.grillhouse ?? {}), langages: trouves };
-  writeFileSync(fichier, `${JSON.stringify(p, null, 2)}\n`);
-  return { langages: trouves, ecrits: true };
+  langagesDe(projet);
+  const lignes = tout.filter(l => typeof l === 'string');
+  return lignes.length
+    ? {
+        version: langagesDansLArchitecture.version,
+        nom: langagesDansLArchitecture.nom,
+        lignes,
+        aFaire,
+      }
+    : null;
 }
 
 /** The version of the frame the project at <projet> recorded (`grillhouse.version`), or null. */
@@ -321,7 +308,6 @@ export function versionDuProjet(projet) {
  */
 export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
   const bilan = {
-    langages: null,
     dependances: [],
     gardes: null,
     ligneEtat: false,
@@ -330,7 +316,6 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
   };
   const pkg = path.join(projet, 'package.json');
   if (existsSync(pkg)) {
-    bilan.langages = declarerLangages(projet);
     const modules = langagesDe(projet);
     const p = lireJson(pkg, {});
     if (inscrite !== null) {
@@ -535,11 +520,6 @@ export function regenerer(projet, { tous = false } = {}) {
 /** The report of an update, from the bilan <b> of `mettreAJour`: one line per change. */
 export function rapport(b) {
   const lignes = [];
-  if (b.langages?.ecrits) {
-    lignes.push(
-      `Langages : grillhouse.langages déclare ${b.langages.langages.join(', ')}, trouvé dans le dépôt ; le cadre sert le projet par ${b.langages.langages.length > 1 ? 'ces langages' : 'ce langage'}.`
-    );
-  }
   if (b.dependances.length > 0) {
     lignes.push(
       `Dépendances de développement ajoutées : ${b.dependances.join(', ')}. \`npm install\` les installe.`
@@ -636,26 +616,27 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     process.exitCode = 2;
   } else {
     const projet = process.cwd();
-    // The languages first: the migrations of the declared language play with the core's.
-    let langages = null;
+    // The languages first: the migrations of the declared languages play with the core's.
+    let premiere;
     try {
-      langages = declarerLangages(projet);
+      premiere = declarerLesLangages(projet);
     } catch (e) {
-      process.stderr.write(`⛔ ${e.message}\n`);
+      process.stderr.write(`⛔ ${e.message.replace(/^⛔ /, '')}\n`);
       process.exitCode = 1;
     }
-    if (langages !== null) {
-      mettreAJourLeProjet(projet, langages);
+    if (premiere !== undefined) {
+      mettreAJourLeProjet(projet, premiere);
     }
   }
 }
 
-// The update of the project at <projet>, its languages <langages> declared (declarerLangages).
-function mettreAJourLeProjet(projet, langages) {
+// The update of the project at <projet>, its languages declared (declarerLesLangages), <premiere>
+// what the migration of its languages did, null for nothing.
+function mettreAJourLeProjet(projet, premiere) {
   const depuis = versionDuProjet(projet);
-  const migrations = migrer(projet, depuis);
+  const migrations = [...(premiere ? [premiere] : []), ...migrer(projet, depuis)];
   const resteAFaire = migrations.some(m => m.aFaire.length > 0);
-  const b = { ...mettreAJour(projet, CADRE, resteAFaire ? { inscrite: null } : {}), langages };
+  const b = mettreAJour(projet, CADRE, resteAFaire ? { inscrite: null } : {});
   process.stdout.write(`${LIGNE_DU_CADRE}\n`);
   for (const { version, nom, lignes, aFaire } of migrations) {
     process.stdout.write(

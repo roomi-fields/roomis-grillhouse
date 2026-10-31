@@ -6,6 +6,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { lancerDuLangage } from '../../../../scripts/commande-du-langage.mjs';
 import exemples from '../../../../scripts/langages/cargo/exemples.mjs';
 import { avecFauxCargo, installerFauxCargo } from './faux-cargo.js';
@@ -17,10 +18,8 @@ let seul = '';
 beforeAll(() => {
   restaurer = avecFauxCargo(installerFauxCargo(ESSAIS), JOURNAL);
   seul = (exemples.preparer(ESSAIS) as { depots: { seul: string } }).depots.seul;
-  writeFileSync(
-    path.join(seul, 'package.json'),
-    JSON.stringify({ name: 'seul', grillhouse: { langages: ['cargo'] } })
-  );
+  writeFileSync(path.join(seul, 'package.json'), JSON.stringify({ name: 'seul' }));
+  declarerLesLangages(seul, ['cargo']);
 });
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 afterAll(() => restaurer());

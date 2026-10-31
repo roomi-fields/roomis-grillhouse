@@ -9,6 +9,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { SCRIPT, SORTIE } from '../../scripts/index-interfaces.mjs';
 import { langageDe } from '../../scripts/langages.mjs';
 import { avecFauxCargo, installerFauxCargo } from './langages/cargo/faux-cargo.js';
@@ -37,9 +38,9 @@ function deuxLangages() {
       name: 'p',
       private: true,
       workspaces: ['packages/*'],
-      grillhouse: { langages: ['cargo', 'typescript'] },
     })
   );
+  ecrire(racine, 'docs/ARCHITECTURE.md', architecture({ moteur: 'cargo', site: 'typescript' }));
   ecrire(racine, 'Cargo.toml', '[workspace]\nmembers = ["moteur"]\n');
   ecrire(racine, 'moteur/Cargo.toml', '[package]\nname = "moteur"\nversion = "0.1.0"\n');
   ecrire(racine, 'moteur/src/lib.rs', '');

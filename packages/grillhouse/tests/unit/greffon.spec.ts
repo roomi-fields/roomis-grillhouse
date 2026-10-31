@@ -18,6 +18,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { SOUS_COMMANDES } from '../../scripts/sous-commandes.mjs';
 import * as maj from '../../scripts/grillhouse-maj.mjs';
 
@@ -135,10 +136,10 @@ function projet(paquet: boolean) {
     // grillhouse-3dr.2.3: a project of TypeScript declares its language.
     JSON.stringify({
       name: 'p',
-      grillhouse: { langages: ['typescript'] },
       devDependencies: { '@roomi-fields/grillhouse': '*' },
     })
   );
+  declarerLesLangages(p);
   if (paquet) {
     ecrire(
       p,
@@ -245,11 +246,8 @@ describe('critère 4 — the copy of the files, its list, its fingerprints and t
 
   it('the update copies no file, writes no fingerprints, and writes in the settings of Claude Code the status line and the plugin of the package alone (grillhouse-3uv.84.4 critère 6, grillhouse-3uv.84.7 critère 2)', () => {
     const p = mkdtempSync(path.join(ESSAIS, 'maj-'));
-    ecrire(
-      p,
-      'package.json',
-      `${JSON.stringify({ name: 'p', grillhouse: { langages: ['typescript'] } }, null, 2)}\n`
-    );
+    ecrire(p, 'package.json', `${JSON.stringify({ name: 'p' }, null, 2)}\n`);
+    declarerLesLangages(p);
     ecrire(p, '.claude/settings.json', `${JSON.stringify({ model: 'opus' })}\n`);
     maj.mettreAJour(p, DEPOT);
     expect(JSON.parse(readFileSync(path.join(p, '.claude/settings.json'), 'utf8'))).toEqual({

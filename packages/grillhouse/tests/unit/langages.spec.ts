@@ -1,20 +1,28 @@
-// grillhouse-3dr.2.1, criterion 2 — the core finds the language of a project, as Pants activates
-// the backends its configuration names (`backend_packages`): `grillhouse.langages` of the
-// project's package.json names it among the frame's closed list. A language the frame lacks is
-// named in the refusal.
-// grillhouse-3dr.2.3 — the declaration is the only reading: a project that declares none, or a
-// directory without package.json, is refused, named, with the command that writes it (`grillhouse
-// maj`). What the update writes is found in the repository, as each plugin of Nx infers its
-// projects from its own files (`createNodes`): typescript, a tsconfig.json at the root or in a
-// package of the frame.
-// grillhouse-pkl.3 — the list names cargo, found by a Cargo.toml at the root.
+// grillhouse-3dr.2.1, criterion 2 — the core finds the languages of a project, as Pants activates
+// the backends its configuration names (`backend_packages`), among the frame's closed list. A
+// language the frame lacks is named in the refusal.
+// grillhouse-ca7 — the declaration is the column « Langage » of the table of the components of
+// docs/ARCHITECTURE.md, the only reading: a project that declares none is refused, named, with the
+// column to write; nothing is guessed from the files (decision D2 of grillhouse-1zu: « pas besoin
+// de reconnaissance technique »). The guard and the forms of the table:
+// tests/unit/langages-des-paquets.spec.ts.
+// grillhouse-pkl.3 — the list names cargo.
 // grillhouse-akd — a project that declares two languages is served by both modules, composed
 // (tests/unit/plusieurs-langages.spec.ts).
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { LANGAGES, langageDe, langagesDeclares, langagesTrouves } from '../../scripts/langages.mjs';
+import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { LANGAGES, langageDe, langagesDeclares } from '../../scripts/langages.mjs';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'langages-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
@@ -24,14 +32,13 @@ const ecrire = (racine: string, f: string, texte: string) => {
   writeFileSync(path.join(racine, f), texte);
 };
 
-// A project whose package.json holds <grillhouse> (no key when undefined), and <champs>.
-function projet(grillhouse?: object, champs: object = {}) {
+// A project whose architecture declares <langages> (no document when undefined).
+function projet(langages?: string[]) {
   const racine = mkdtempSync(path.join(ESSAIS, 'projet-'));
-  ecrire(
-    racine,
-    'package.json',
-    JSON.stringify({ name: 'p', private: true, ...champs, ...(grillhouse ? { grillhouse } : {}) })
-  );
+  ecrire(racine, 'package.json', JSON.stringify({ name: 'p', private: true }));
+  if (langages) {
+    ecrire(racine, 'docs/ARCHITECTURE.md', architecture(langages));
+  }
   return racine;
 }
 
@@ -40,92 +47,89 @@ describe('grillhouse-3dr.2.1 — les langages déclarés d’un projet', () => {
     expect(Object.keys(LANGAGES)).toEqual(['typescript', 'cargo']);
   });
 
-  it('a project that declares typescript is served by the module typescript', () => {
-    const racine = projet({ langages: ['typescript'] });
+  it('a project whose architecture declares typescript is served by the module typescript', () => {
+    const racine = projet(['typescript']);
     expect(langagesDeclares(racine)).toEqual(['typescript']);
     expect(langageDe(racine).nom).toBe('typescript');
   });
 
   it('a language the frame lacks is refused, named', () => {
-    const racine = projet({ langages: ['cobol'] });
+    const racine = projet(['cobol']);
     expect(() => langageDe(racine)).toThrow(/cobol/);
     expect(() => langageDe(racine)).toThrow(/typescript/);
   });
 
   it('two languages are served together, their modules composed (grillhouse-akd)', () => {
-    const racine = projet({ langages: ['typescript', 'cargo'] });
+    const racine = projet(['typescript', 'cargo']);
     expect(langageDe(racine).nom).toBe('typescript+cargo');
   });
 
   it('the module is loaded once per language', () => {
-    expect(langageDe(projet({ langages: ['typescript'] }))).toBe(
-      langageDe(projet({ langages: ['typescript'] }))
-    );
+    expect(langageDe(projet(['typescript']))).toBe(langageDe(projet(['typescript'])));
   });
 });
 
-describe('grillhouse-3dr.2.3 — la déclaration seule, plus de repli', () => {
-  it('a project without declaration is refused, the declaration and grillhouse maj named', () => {
+describe('grillhouse-ca7 — la déclaration seule, rien ne se devine', () => {
+  it('a project without declaration is refused, the column and the document named', () => {
     const racine = projet();
     expect(langagesDeclares(racine)).toEqual([]);
-    expect(() => langageDe(racine)).toThrow(/grillhouse\.langages/);
-    expect(() => langageDe(racine)).toThrow(/grillhouse maj/);
+    expect(() => langageDe(racine)).toThrow(/docs\/ARCHITECTURE\.md/);
+    expect(() => langageDe(racine)).toThrow(/« Langage »/);
   });
 
-  it('an empty declaration is none', () => {
-    expect(() => langageDe(projet({ langages: [] }))).toThrow(/grillhouse maj/);
-  });
-
-  it('a directory without package.json is refused, named', () => {
-    const vide = mkdtempSync(path.join(ESSAIS, 'vide-'));
-    expect(langagesDeclares(vide)).toEqual([]);
-    expect(() => langageDe(vide)).toThrow(/grillhouse\.langages/);
-  });
-
-  it('the core holds no default language', async () => {
-    expect(await import('../../scripts/langages.mjs')).not.toHaveProperty('PAR_DEFAUT');
-  });
-});
-
-describe('grillhouse-3dr.2.3 — les langages trouvés dans un dépôt', () => {
-  it('a tsconfig.json at the root: typescript', () => {
+  it('a key grillhouse.langages of the package.json is no declaration', () => {
     const racine = projet();
-    ecrire(racine, 'tsconfig.json', '{}\n');
-    expect(langagesTrouves(racine)).toEqual(['typescript']);
+    ecrire(racine, 'package.json', JSON.stringify({ grillhouse: { langages: ['typescript'] } }));
+    expect(langagesDeclares(racine)).toEqual([]);
   });
 
-  it('a tsconfig.json in a package of the workspaces, none at the root: typescript (BPScript)', () => {
-    const racine = projet(undefined, { workspaces: ['packages/*'] });
-    ecrire(racine, 'packages/a/package.json', JSON.stringify({ name: 'a' }));
-    ecrire(racine, 'packages/a/tsconfig.json', '{}\n');
-    expect(langagesTrouves(racine)).toEqual(['typescript']);
-  });
-
-  it('a tsconfig.json in a package out of the frame only: none', () => {
-    const racine = projet(undefined, { workspaces: ['packages/*'] });
-    ecrire(racine, 'packages/a/package.json', JSON.stringify({ name: 'a' }));
-    ecrire(racine, 'packages/a/tsconfig.json', '{}\n');
-    ecrire(racine, 'docs/agents/hors-cadre.txt', 'a vendored\n');
-    expect(langagesTrouves(racine)).toEqual([]);
-  });
-
-  it('no tsconfig.json, a Cargo.toml at the root: cargo', () => {
-    const racine = projet();
-    ecrire(racine, 'Cargo.toml', '[workspace]\n');
-    ecrire(racine, 'src/index.ts', 'export {};\n');
-    expect(langagesTrouves(racine)).toEqual(['cargo']);
-  });
-
-  it('a tsconfig.json and a Cargo.toml: both found', () => {
+  it('what the files show is no declaration: a tsconfig.json, a Cargo.toml', () => {
     const racine = projet();
     ecrire(racine, 'tsconfig.json', '{}\n');
     ecrire(racine, 'Cargo.toml', '[workspace]\n');
-    expect(langagesTrouves(racine)).toEqual(['typescript', 'cargo']);
+    expect(() => langageDe(racine)).toThrow(/« Langage »/);
   });
 
-  it('what is found is not a declaration: the core still refuses the project', () => {
-    const racine = projet();
-    ecrire(racine, 'tsconfig.json', '{}\n');
-    expect(() => langageDe(racine)).toThrow(/grillhouse maj/);
+  it('the core holds no default language, and recognises none', async () => {
+    const m = await import('../../scripts/langages.mjs');
+    expect(m).not.toHaveProperty('PAR_DEFAUT');
+    expect(m).not.toHaveProperty('langagesTrouves');
+  });
+
+  it('grillhouse.langages is named by the migration that removes it alone: code, templates, texts', () => {
+    const DEPOT = path.resolve(__dirname, '../../../..');
+    const MIGRATION =
+      'packages/grillhouse/scripts/migrations/0.27.0-langages-dans-l-architecture.mjs';
+    const nommes = (rel: string): string[] => {
+      const abs = path.join(DEPOT, rel);
+      if (statSync(abs).isDirectory()) {
+        return readdirSync(abs)
+          .filter(n => n !== 'node_modules')
+          .flatMap(n => nommes(`${rel}/${n}`));
+      }
+      return readFileSync(abs, 'utf8').includes('grillhouse.langages') ? [rel] : [];
+    };
+    const dossiers = ['packages/grillhouse/scripts', 'packages/grillhouse/docs', 'mods/grillhouse'];
+    expect([...dossiers, 'templates'].flatMap(nommes).filter(f => f !== MIGRATION)).toEqual([]);
+  });
+
+  it('the template and the grill carry the column « Langage » (criterion 4)', () => {
+    const DEPOT = path.resolve(__dirname, '../../../..');
+    expect(langagesDeclares(path.join(DEPOT, 'templates/projet'))).toEqual(['typescript']);
+    const grill = readFileSync(path.join(DEPOT, 'mods/grillhouse/skills/grill/SKILL.md'), 'utf8');
+    const branche8 = grill.slice(grill.indexOf('8. **Les composants**'), grill.indexOf('9. **'));
+    expect(branche8).toContain('colonne « Langage »');
+  });
+
+  it('no module of language recognises its code: each names its manifest', () => {
+    for (const nom of Object.keys(LANGAGES)) {
+      const m = langageDe(projet([nom])) as unknown as Record<string, unknown>;
+      expect(m, nom).not.toHaveProperty('trouve');
+      expect(m, nom).not.toHaveProperty('signe');
+    }
+    expect((langageDe(projet(['typescript'])) as { manifeste?: string }).manifeste).toBe(
+      'package.json'
+    );
+    expect((langageDe(projet(['cargo'])) as { manifeste?: string }).manifeste).toBe('Cargo.toml');
   });
 });

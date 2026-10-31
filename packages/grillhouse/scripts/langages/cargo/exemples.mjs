@@ -16,7 +16,7 @@
 //   tester, verifier and preparer refuse a workspace whose Cargo.lock git does not track.
 // - A crate at the root, its workspace `members = ["."]`, with its tests, as OSC Bridge: `seul`;
 //   a crate at the root holding a second crate, `crates/aide`, none with tests: `imbrique`.
-// - A directory without Cargo.toml: `vide`; one with a tsconfig.json alone: `typescript`.
+// - A directory without Cargo.toml: `vide`.
 // - Two results directories of a run: every task and test green (`vert`); `ws-core` at 75,
 //   `ws-app` red with a test of `integ` failed, `ws-outil` not played (`defaut`).
 // - `depots`: the repositories, for the tests of the module beside the suite.
@@ -202,8 +202,6 @@ export default {
     const aJour = espace(dans);
     const vide = mkdtempSync(path.join(dans, 'vide-'));
     writeFileSync(path.join(vide, 'README.md'), 'aucun crate\n');
-    const typescript = mkdtempSync(path.join(dans, 'typescript-'));
-    writeFileSync(path.join(typescript, 'tsconfig.json'), '{}\n');
     const seul = aLaRacine(dans, 'seul', [], {
       'src/main.rs': 'fn main() {}\n',
       'src/lib.rs': 'pub fn un() -> i32 {\n    1\n}\n',
@@ -260,7 +258,6 @@ export default {
         avantLeLot,
         enRetard,
         vide,
-        typescript,
       },
       composants: {
         valide: vide,
@@ -378,17 +375,6 @@ export default {
         valide: imbrique,
         invalide: aJour,
         attendu: ['ws-app (ws-app) : joue des tests', 'ws-core (ws-core) : joue des tests'],
-      },
-      trouve: {
-        valide: [
-          { nom: 'vide', racine: vide },
-          { nom: 'typescript', racine: typescript },
-        ],
-        invalide: [
-          { nom: 'espace', racine: aJour },
-          { nom: 'crate à la racine', racine: seul },
-        ],
-        attendu: ['espace : trouvé', 'crate à la racine : trouvé'],
       },
     };
   },

@@ -35,6 +35,7 @@ export const SOUS_COMMANDES = {
   hook: 'crochet.mjs',
   hooks: 'crochets.mjs',
   init: 'init.mjs',
+  'langages-des-paquets': 'langages-des-paquets.mjs',
   integrer: 'integration/integrer.mjs',
   lancer: 'enveloppe/lancer.sh',
   'ligne-etat': 'ligne-etat/ligne-etat.mjs',

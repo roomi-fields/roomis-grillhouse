@@ -18,7 +18,7 @@ import {
   declarerLeLangage,
   enveloppeEssai,
   hasBd,
-  LANGAGE,
+  declarerLesLangages,
   racineSousLaMaison,
 } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { RACINE, enProcessus, valeursDe } from './cadre.js';
@@ -56,8 +56,9 @@ describe.runIf(canWrap)('the envelope on disk', () => {
   }
   writeFileSync(
     path.join(repo, 'package.json'),
-    JSON.stringify({ name: 'essai', workspaces: ['packages/*'], grillhouse: LANGAGE })
+    JSON.stringify({ name: 'essai', workspaces: ['packages/*'] })
   );
+  declarerLesLangages(repo);
   writeFileSync(path.join(repo, 'packages/a/package.json'), JSON.stringify({ name: 'a' }));
   writeFileSync(path.join(repo, 'packages/b/package.json'), JSON.stringify({ name: 'b' }));
   writeFileSync(path.join(repo, 'packages/a/src/a.ts'), 'a');

@@ -3,9 +3,10 @@
 //
 //   npx grillhouse gardes-du-cadre      (npm run grillhouse:gardes, a task of Turborepo)
 //
-// - The guards are those of the modules of the project's languages (`gardes`,
-//   scripts/jointure.d.ts, scripts/langages.mjs), each module's in their order, the modules in the
-//   order of the declaration.
+// - The guards are the core's, the languages of the packages first (./langages-des-paquets.mjs:
+//   each package follows the language the architecture declares for it), then those of the
+//   modules of the project's languages (`gardes`, scripts/jointure.d.ts, scripts/langages.mjs),
+//   each module's in their order, the modules in the order of the declaration.
 // - Each guard is a script of the package, and plays in the working directory, under the environment of the run
 //   (`GRILLHOUSE_DETTE` among it, scripts/dette.mjs), whatever the verdict of the ones before: a
 //   red does not stop the pass, as `--continue` does for Turborepo's tasks.
@@ -19,13 +20,14 @@
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { SCRIPT as LANGAGES_DES_PAQUETS } from './langages-des-paquets.mjs';
 import { langageDe } from './langages.mjs';
 import { A_ELAGUER, ecrireSarif, lireSarif, RESULTATS } from './resultats.mjs';
 
 // The guards of the frame in the repository at <racine>, each its script and its arguments, in
-// the order they play: the language's.
+// the order they play: the core's, then the languages'.
 export function gardesDuCadre(racine) {
-  return langageDe(racine).gardes(racine);
+  return [[LANGAGES_DES_PAQUETS], ...langageDe(racine).gardes(racine)];
 }
 
 // The name of each guard of the frame, as its findings carry it: its script's, without extension.
