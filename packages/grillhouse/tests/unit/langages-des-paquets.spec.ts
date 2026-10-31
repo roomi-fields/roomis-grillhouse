@@ -84,6 +84,14 @@ describe('grillhouse-ca7, critère 1 — les langages se lisent dans la colonne 
     }
   });
 
+  it('a document written in English names the column « Language »: it reads the same', () => {
+    const racine = projet(
+      '# Architecture\n\n| Crate | Responsibility | Language |\n| --- | --- | --- |\n| `a` | the a | cargo |\n',
+      {}
+    );
+    expect(langagesDeclares(racine)).toEqual(['cargo']);
+  });
+
   it('a language the frame lacks is refused, named with the frame’s list', () => {
     const racine = projet(table(['| `a` | x | cobol |']), {});
     expect(() => langageDe(racine)).toThrow(/cobol/);

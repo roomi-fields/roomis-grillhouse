@@ -5,7 +5,7 @@
 // (./migrations/0.27.0-langages-dans-l-architecture.mjs).
 //
 // - A table of the components is a table of Markdown of docs/ARCHITECTURE.md whose header holds a
-//   column « Langage » (COLONNE): BPScript's table of the stages, and its section « Les paquets »
+//   column « Langage » (COLONNE), or « Language » in a document written in English: BPScript's table of the stages, and its section « Les paquets »
 //   for the packages that table does not name; each counts, in the order of the document. A row
 //   declares a package when its cell of that column is not empty: the language is that cell, its backquotes and its case left out. A row
 //   with an empty cell names a part that is no package of the project (a crate of another
@@ -23,8 +23,10 @@ import path from 'node:path';
 
 /** The document that holds the table, from the root of the project. */
 export const ARCHITECTURE = 'docs/ARCHITECTURE.md';
-/** The header of the column of the languages. */
+/** The header of the column of the languages, as the migration writes it. */
 export const COLONNE = 'Langage';
+// The headers read as that column: the document's language names it, French or English.
+const NOMS = [COLONNE, 'Language'].map(n => n.toLowerCase());
 
 // The cells of the row <ligne> of a table, its outer pipes left out.
 export function cellules(ligne) {
@@ -76,7 +78,7 @@ export function tableaux(texte) {
 
 /** The index of the column of the languages in the header <entete>, -1 without one. */
 export const colonneDesLangages = entete =>
-  entete.findIndex(c => c.replace(/[`*]/g, '').trim().toLowerCase() === COLONNE.toLowerCase());
+  entete.findIndex(c => NOMS.includes(c.replace(/[`*]/g, '').trim().toLowerCase()));
 
 /**
  * The tables of the components of the project at <racine> (each table whose header holds the

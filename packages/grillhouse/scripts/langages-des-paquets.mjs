@@ -50,7 +50,7 @@ function langageDeLInterface(dossier) {
   if (!existsSync(f)) {
     return null;
   }
-  const m = readFileSync(f, 'utf8').match(/^\*\*Langage\*\*\s*:\s*(.+)$/m);
+  const m = readFileSync(f, 'utf8').match(/^\*\*Langu?age\*\*\s*:\s*(.+)$/m);
   return m ? langageDeLaCellule(m[1]) || null : null;
 }
 

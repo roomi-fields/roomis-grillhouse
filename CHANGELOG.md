@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **The column of the languages reads as « Language » too** (grillhouse-4v1): osc-bridge and OSD write their architecture in English (« Crate | Responsibility | Owns | Calls »), and the column 0.27.0 asked for was French alone (OSC Bridge, 2026-10-31). The header of a table of the components, and the line of an interface, read as « Langage » or « Language », the document's language naming it.
+
 ## [0.27.0] - 2026-10-31
 
 ### Added
