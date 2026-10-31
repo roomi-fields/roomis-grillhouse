@@ -8,6 +8,7 @@
     "packages/*"
   ],
   "scripts": {
+    "prepare": "grillhouse hooks",
     "typecheck": "tsc --noEmit -p templates/projet",
     "test": "grillhouse tests",
     "test:unit": "vitest run",

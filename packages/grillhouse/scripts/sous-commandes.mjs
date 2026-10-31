@@ -28,6 +28,7 @@ export const SOUS_COMMANDES = {
   droits: 'droits.mjs',
   enveloppe: 'enveloppe/enveloppe.mjs',
   file: 'integration/file.mjs',
+  'fusion-du-changelog': 'fusion-du-changelog.mjs',
   'gardes-du-cadre': 'gardes-du-cadre.mjs',
   greffons: 'greffons.mjs',
   hook: 'crochet.mjs',

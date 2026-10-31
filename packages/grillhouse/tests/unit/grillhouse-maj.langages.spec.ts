@@ -204,7 +204,7 @@ describe('grillhouse-3dr.2.3 — un projet d’essai copié de BPScript', () => 
     const changes = [...etat(racine)]
       .filter(([f, t]) => avant.get(f) !== t)
       .map(([f]) => f)
-      .filter(f => path.basename(f) !== 'package.json');
+      .filter(f => path.basename(f) !== 'package.json' && f !== '.gitattributes');
     expect(changes).toEqual([]);
   });
 });

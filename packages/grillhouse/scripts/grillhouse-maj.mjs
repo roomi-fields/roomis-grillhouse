@@ -99,6 +99,10 @@
 //   `prepare`) also runs, in the hooks folder git reads for the project (`core.hooksPath`, else the
 //   default one; the configuration stays). A hook of the project keeps its lines, which still run;
 //   the frame's lines of a former version give way to the current ones.
+// - The merge driver of the CHANGELOG (scripts/fusion-du-changelog.mjs): a `.gitattributes`
+//   without the line `CHANGELOG.md merge=grillhouse-changelog` receives it, after its own lines,
+//   and the driver's command is written in the repository's configuration with the hooks
+//   (scripts/crochets.mjs): two lots that each add an entry under the same heading both enter main.
 // - The plugins: after the files, the command line installs the plugins the project's settings
 //   declare, for the project, by scripts/greffons.mjs (the mechanism `grillhouse init` also calls;
 //   `mettreAJour` itself never calls claude), and brings the frame's mod to the package's version,
@@ -132,6 +136,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { CADRE, VERSION } from './cadre.mjs';
 import { poserCrochets } from './crochets.mjs';
+import { ATTRIBUT } from './fusion-du-changelog.mjs';
 import { installerGreffons } from './greffons.mjs';
 import { migrer, restesAuProjet } from './migrations.mjs';
 import { LANGAGES, langage, langageDe, langagesDeclares, langagesTrouves } from './langages.mjs';
@@ -187,6 +192,19 @@ function ignorer(projet) {
   if (texte !== avant) {
     writeFileSync(f, texte);
   }
+}
+
+// Adds to the `.gitattributes` of the project at <projet> the line that gives its CHANGELOG to the
+// frame's merge driver (ATTRIBUT, scripts/fusion-du-changelog.mjs), when no line is it; its own
+// lines stay.
+function attribuer(projet) {
+  const f = path.join(projet, '.gitattributes');
+  const texte = existsSync(f) ? readFileSync(f, 'utf8') : '';
+  if (texte.split('\n').some(l => l.trim() === ATTRIBUT)) {
+    return;
+  }
+  const fin = texte === '' || texte.endsWith('\n') ? '' : '\n';
+  writeFileSync(f, `${texte}${fin}${ATTRIBUT}\n`);
 }
 
 // <deps> written sorted by name, as npm writes them.
@@ -369,6 +387,7 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
   bilan.ligneEtat = reglerLigneEtat(projet);
   bilan.greffon = declarerGreffon(projet);
   poserCrochets(projet);
+  attribuer(projet);
   return bilan;
 }
 

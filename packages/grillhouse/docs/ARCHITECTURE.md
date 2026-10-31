@@ -475,7 +475,13 @@ Un projet n'en garde aucune copie
 (`npx grillhouse maj` retire, à leur empreinte, celles que posait la 0.22) ; sans le paquet installé, l'ouverture de séance dit « lance `npm install` », et les autres crochets
 sortent sans effet. Les crochets git du cadre suivent le modèle de Husky : le `prepare` du
 projet lance `grillhouse hooks`, qui les pose à côté des sections de Beads, et chacun appelle
-`grillhouse hook <nom>`, sans effet sans le paquet. Ainsi chaque projet suit la version du cadre qu'il installe, sans fichier à
+`grillhouse hook <nom>`, sans effet sans le paquet. Le même geste écrit dans la configuration du
+dépôt le pilote de fusion du CHANGELOG (`scripts/fusion-du-changelog.mjs`, sur le modèle de
+git-merge-changelog de gnulib), que le `.gitattributes` du projet nomme
+(`CHANGELOG.md merge=grillhouse-changelog`, posé par le gabarit et par `npx grillhouse maj`) :
+partout où git fusionne en trois voies (l'intégration, la relance, la copie ramenée sur main),
+deux ajouts au même endroit sont gardés tous deux, ceux de main d'abord, et tout autre conflit
+reste un conflit. Ainsi chaque projet suit la version du cadre qu'il installe, sans fichier à
 recopier.
 
 **Le paquet publie ses entrées nommées, son interface** : un projet importe le paquet par son

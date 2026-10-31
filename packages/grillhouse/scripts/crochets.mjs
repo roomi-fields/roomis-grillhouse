@@ -2,13 +2,14 @@
 // The frame's git hooks, on Husky's model: the project's `prepare`, which npm runs at its install,
 // places them, and each calls the project's command, `grillhouse hook <nom>`.
 //
-//   npx grillhouse hooks [<project>]            places both hooks (the current directory by default)
+//   npx grillhouse hooks [<project>]            places both hooks and the merge driver of the
+//                                               CHANGELOG (the current directory by default)
 //   npx grillhouse hooks --absents [<project>]  prints the name of each absent hook, one per line
 //
 // - commit-msg: « un ticket fermé garde sa livraison ; un ticket rouvert reçoit ses corrections » (scripts/un-commit-par-ticket.mjs).
 // - pre-push: the night branch guard (scripts/branche-de-nuit.mjs).
 // - A hook lives in the folder git reads for the project (`git rev-parse --git-path hooks`, which
-//   follows `core.hooksPath`, Beads' `.beads/hooks` included); the configuration is never changed
+//   follows `core.hooksPath`, Beads' `.beads/hooks` included); `core.hooksPath` is never changed
 //   here. The update of the frame (scripts/grillhouse-maj.mjs) places them by the same function.
 // - The frame's lines run `node_modules/.bin/grillhouse` of the project, the package installed;
 //   without it they do nothing and let the hook go on, as Husky's lines do without Husky.
@@ -19,10 +20,14 @@
 //   stay as they are. The frame's lines never end the hook early (no `exec` of a command), so the
 //   lines that follow still run.
 // - A hook is absent when it is missing from that folder or lacks the current lines of the frame.
+// - The merge driver of the CHANGELOG (scripts/fusion-du-changelog.mjs) is written in the
+//   repository's configuration by the same function, `poserCrochets`, which each `npm install`
+//   runs, as git asks a driver's command of the configuration, never of a versioned file.
 import { execFileSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { poserLePilote } from './fusion-du-changelog.mjs';
 
 // The project's command, which the frame's lines run.
 const COMMANDE = '_gh_commande="$(git rev-parse --show-toplevel)/node_modules/.bin/grillhouse"';
@@ -102,8 +107,9 @@ function poserCrochet(projet, nom) {
   return ecrit ? f : null;
 }
 
-/** Places both frame hooks in the project; returns the paths written. */
+/** Places both frame hooks and the merge driver of the CHANGELOG in the project; returns the paths written. */
 export function poserCrochets(projet) {
+  poserLePilote(projet);
   return Object.keys(CROCHETS)
     .map(nom => poserCrochet(projet, nom))
     .filter(Boolean);

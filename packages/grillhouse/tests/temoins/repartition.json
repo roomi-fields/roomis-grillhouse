@@ -24,6 +24,7 @@
     "scripts/enveloppe/lancer.sh",
     "scripts/enveloppe/paquets-du-plan.mjs",
     "scripts/etapes.mjs",
+    "scripts/fusion-du-changelog.mjs",
     "scripts/gardes-du-cadre.mjs",
     "scripts/greffons.mjs",
     "scripts/grillhouse-maj.mjs",
