@@ -50,7 +50,6 @@ for (const [cas, cwd, pkg, isInteractive] of [
   ["in an agent's copy", '/p/.claude/worktrees/demo-1', undefined, true],
   ['outside a Grillhouse project (no package.json)', '/hors', null, true],
   ['in a project that does not declare the package', '/hors', '{"devDependencies":{"vitest":"*"}}', true],
-  ['in a session without screen', '/p', undefined, false],
 ] as const) {
   test(`${cas}, the mod measures nothing`, async ($, on) => {
     const lances: string[] = []
@@ -63,6 +62,71 @@ for (const [cas, cwd, pkg, isInteractive] of [
     on('command.register', () => ({ value: undefined }))
     mock.clock(on)
     await $.session.start({ cwd, surface: isInteractive ? 'terminal' : null, isInteractive })
+    expect(lances).not.toContain('node_modules/.bin/grillhouse tableau')
+  })
+}
+
+// grillhouse-jqp: a session of the desktop app's Code tab starts as the SDK does, headless (no
+// surface, no person at the prompt), and the app then attaches to it (session.attach). The command
+// and the board come with that attachment; a run nothing attaches to (claude -p, the SDK without a
+// display) has neither, nor has an agent's copy.
+type Banc = Parameters<Parameters<typeof test>[1]>
+async function seance($: Banc[0], on: Banc[1], cwd: string, attache: 'desktop' | null) {
+  const lances: string[] = []
+  const commandes: string[] = []
+  on('process.run', ($, e) => {
+    lances.push(e.argv.join(' '))
+    return { value: { exitCode: 0, stdout: JSON.stringify(TABLEAU), stderr: '' } }
+  })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('session.attach', ($, e) => ({ clientId: e.clientId }))
+  projetGrillhouse(on)
+  on('command.register', ($, e) => {
+    commandes.push(e.name)
+    return { value: undefined }
+  })
+  mock.clock(on)
+  await $.session.start({ cwd, surface: null, isInteractive: false })
+  if (attache) await $.session.attach({ surface: attache, clientId: `${attache}:default` })
+  await new Promise(r => setTimeout(r, 50))
+  return { lances, commandes }
+}
+
+// grillhouse-jqp critères 1 et 3: in the desktop app, /grillhouse registers, the board is
+// measured, and the pane draws on the terminal and on the desktop alike.
+test("in the desktop app's Code tab, /grillhouse registers and the pane draws on every surface", async ($, on) => {
+  const { lances, commandes } = await seance($, on, '/p', 'desktop')
+  expect(commandes).toEqual(['grillhouse'])
+  expect(lances).toContain('node_modules/.bin/grillhouse tableau')
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const ui = await $.ui.mount({
+      plugin: 'grillhouse',
+      surface,
+      component: 'Pane',
+      requestId: 'grillhouse',
+      props: {
+        title: 'Grillhouse',
+        isFocused: false,
+        bodyColumns: 52,
+        placement: 'dock',
+        scroll: { offset: 0, bodyRows: 20 },
+        view: {} as never,
+      },
+    })
+    expect((await ui.find({ type: 'Text', text: /DEMO/ }))?.text).toBe('DEMO')
+    await ui.unmount()
+  }
+})
+
+// grillhouse-jqp critère 2: a run nobody attaches to, and an agent's copy the desktop app attaches
+// to, register no command and measure nothing.
+for (const [cas, cwd, attache] of [
+  ['in a claude -p run or the SDK without a display', '/p', null],
+  ["in an agent's copy the desktop app attaches to", '/p/.claude/worktrees/demo-1', 'desktop'],
+] as const) {
+  test(`${cas}, /grillhouse does not register`, async ($, on) => {
+    const { lances, commandes } = await seance($, on, cwd, attache)
+    expect(commandes).toEqual([])
     expect(lances).not.toContain('node_modules/.bin/grillhouse tableau')
   })
 }

@@ -9,7 +9,9 @@ import type { Etat, Fiche, Ligne, Tableau } from '../types'
 // person's status line command; this mod shows the lines, every 30 s (every 10 s while a line of
 // progress shows) and after each `bd` or `git` command. A Grillhouse project is one whose
 // package.json declares the package (`dependencies` or `devDependencies`); the mod stays silent
-// outside one and inside an agent's copy (`.claude/worktrees/`). In a Grillhouse project, every
+// outside one, inside an agent's copy (`.claude/worktrees/`), and in a run nobody sees (claude -p,
+// the SDK without a display): the board comes with the terminal's prompt, or with a surface that
+// attaches, as the desktop app's Code tab does (`activer`). In a Grillhouse project, every
 // session, an agent's copy included, has a Bash command that starts with cd refused, with the
 // form to take (`env -C`, `git -C`).
 const PANE = 'grillhouse'
@@ -193,9 +195,11 @@ export const aMesurer = (s: Etat, maintenant: number) =>
 export const couleur = (ton: Ligne['ton']) =>
   ton === 'alerte' ? 'red' : ton === 'attention' ? 'yellow' : ton === 'actif' ? 'cyan' : undefined
 
-// The session's project, whether it is a Grillhouse project, and whether the board applies to it.
+// The session's project, whether it is a Grillhouse project, whether the board applies to it, and
+// whether the board is on.
 let cwd = ''
 let projet = false
+let eligible = false
 let actif = false
 // The pane's window: its first line, the element it last followed, and the rows and focus it was
 // last drawn with. The wheel moves it; the ring moving to another line makes it follow.
@@ -304,6 +308,29 @@ async function basculer($: EngineInterface, id: string, statut: string | undefin
   await rafraichir($)
 }
 
+// The board applies to a Grillhouse project outside an agent's copy (`eligible`), once someone can
+// see it: a person at the terminal's prompt from the start (`isInteractive`), or a surface that
+// attaches later — the desktop app's Code tab, whose session starts headless, as the SDK's does,
+// and which then attaches (`session.attach`). A run nothing attaches to (claude -p, the SDK
+// without a display) has no command and no board. Registers the command and starts the clocks,
+// once.
+async function activer($: EngineInterface) {
+  if (!eligible || actif) return
+  actif = true
+  await $.command.register({
+    name: 'grillhouse',
+    description: 'Ouvre le tableau Grillhouse : le projet, les agents, le chantier en cours',
+  })
+  void rafraichir($)
+  $.clock.every(PERIODE, () => void rafraichir($))
+  // A line of progress has the board measured again, by the clock of half its period.
+  $.clock.every(AVANCEMENT / 2, () => {
+    void read($, etat).then(s => {
+      if (aMesurer(s, Date.now())) void rafraichir($)
+    })
+  })
+}
+
 export const register: Register = on => {
 
   on('session.start', async ($, e, next) => {
@@ -312,21 +339,15 @@ export const register: Register = on => {
     const pkg = `${cwd}/package.json`
     const texte = (await $.fs.exists(pkg)) ? String(await $.fs.read(pkg)) : null
     projet = declareLePaquet(texte)
-    actif = e.isInteractive && projet && !cwd.includes('/.claude/worktrees/')
-    if (!actif) return started
-    await $.command.register({
-      name: 'grillhouse',
-      description: 'Ouvre le tableau Grillhouse : le projet, les agents, le chantier en cours',
-    })
-    void rafraichir($)
-    $.clock.every(PERIODE, () => void rafraichir($))
-    // A line of progress has the board measured again, by the clock of half its period.
-    $.clock.every(AVANCEMENT / 2, () => {
-      void read($, etat).then(s => {
-        if (aMesurer(s, Date.now())) void rafraichir($)
-      })
-    })
+    eligible = projet && !cwd.includes('/.claude/worktrees/')
+    if (e.isInteractive) await activer($)
     return started
+  })
+
+  on('session.attach', async ($, e, next) => {
+    const attached = await next(e)
+    await activer($)
+    return attached
   })
 
   // The command answers at once and the board is measured behind it: a measure takes seconds on a
