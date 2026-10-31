@@ -27,19 +27,65 @@
 //   of the first. What the role lock, the envelope and the update ask (the lock
 //   files, the outputs, the rules of the roles, the tools, the binaries, the directories to
 //   ignore): the union, each once.
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  enRetard as indexEnRetard,
-  SCRIPT as INDEX,
-  SORTIE as INDEX_DES_INTERFACES,
-} from './index-interfaces.mjs';
 
-// The script that plays a composed command (./commandes-composees.mjs).
-const COMMANDES_COMPOSEES = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  'commandes-composees.mjs'
-);
+// The scripts of the commands above the composition, named by their paths, never imported: the
+// one that plays a composed command (./commandes-composees.mjs), and the index of the interfaces
+// (./index-interfaces.mjs).
+const ICI = path.dirname(fileURLToPath(import.meta.url));
+const COMMANDES_COMPOSEES = path.join(ICI, 'commandes-composees.mjs');
+const INDEX = path.join(ICI, 'index-interfaces.mjs');
+/** The index of the interfaces, from the root. */
+export const INDEX_DES_INTERFACES = 'docs/agents/index-des-interfaces.md';
+
+/**
+ * The index of the interfaces of the project at <racine>, from the modules <modules>: each one's
+ * entries (`entreesDeLIndex`), in the order of their paths, an interface two modules give (the
+ * root's) once, the first module's.
+ * @param {string} racine
+ * @param {import('./jointure.js').Langage[]} modules
+ */
+export function indexDesInterfaces(racine, modules) {
+  const parRel = new Map();
+  for (const m of modules) {
+    for (const e of m.entreesDeLIndex(racine)) {
+      if (!parRel.has(e.rel)) {
+        parRel.set(e.rel, e.lignes);
+      }
+    }
+  }
+  const corps = [...parRel]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .flatMap(([, lignes]) => lignes);
+  return [
+    '# Index des interfaces',
+    '',
+    'Généré par `npx grillhouse index-interfaces` depuis les `INTERFACE.md` de chaque langage ; ne pas éditer.',
+    "Une ligne par composant, puis, selon son langage, une par élément qu'il fournit ; l'interface donne le détail.",
+    '',
+    ...corps,
+  ].join('\n');
+}
+
+/**
+ * The findings of the check of the index of the project at <racine>: none when it is up to date.
+ * @param {string} racine
+ * @param {import('./jointure.js').Langage[]} modules
+ */
+export function indexEnRetard(racine, modules) {
+  const cible = path.join(racine, INDEX_DES_INTERFACES);
+  const present = existsSync(cible) ? readFileSync(cible, 'utf8') : '';
+  return present === indexDesInterfaces(racine, modules)
+    ? []
+    : [
+        {
+          fichier: INDEX_DES_INTERFACES,
+          message: `${INDEX_DES_INTERFACES} n'est pas à jour avec les interfaces : npx grillhouse index-interfaces le régénère.`,
+        },
+      ];
+}
 
 const unique = liste => [...new Set(liste)];
 // The index of the interfaces, which each module generates, and its command: one of the core

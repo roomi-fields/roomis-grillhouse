@@ -10,67 +10,28 @@
 //                                                        date, its finding in SARIF too
 //   node index-interfaces.mjs --publie <composant>   asks each module (./commandes-composees.mjs)
 //
-// - The entries are each module's, in the order of their interfaces' paths; an interface two
+// - The index and its check are the composition's (`indexDesInterfaces`, `indexEnRetard`), which
+//   this command writes and judges. The entries are each module's, in the order of their interfaces' paths; an interface two
 //   modules give (the root's) is written once, the first module's in the order of the declaration.
 // - The finding of the check carries the name `index-interfaces`, as each module's.
 // - Any other argument goes to the command `index-interfaces` of each module that describes it,
 //   which writes nothing then: what the providers of a component publish.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import {
+  INDEX_DES_INTERFACES,
+  indexDesInterfaces as index,
+  indexEnRetard as enRetard,
+} from './composition-des-langages.mjs';
 import { ecrireSarif } from './resultats.mjs';
 
 /** This script. */
 export const SCRIPT = fileURLToPath(import.meta.url);
 /** The index of the interfaces, from the root. */
-export const SORTIE = 'docs/agents/index-des-interfaces.md';
+export const SORTIE = INDEX_DES_INTERFACES;
 /** The name its finding carries, its command's in a module and in the project. */
 export const GARDE = 'index-interfaces';
-
-/**
- * The index of the interfaces of the project at <racine>, from the modules <modules>.
- * @param {string} racine
- * @param {import('./jointure.js').Langage[]} modules
- */
-export function index(racine, modules) {
-  const parRel = new Map();
-  for (const m of modules) {
-    for (const e of m.entreesDeLIndex(racine)) {
-      if (!parRel.has(e.rel)) {
-        parRel.set(e.rel, e.lignes);
-      }
-    }
-  }
-  const corps = [...parRel]
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .flatMap(([, lignes]) => lignes);
-  return [
-    '# Index des interfaces',
-    '',
-    'Généré par `npx grillhouse index-interfaces` depuis les `INTERFACE.md` de chaque langage ; ne pas éditer.',
-    "Une ligne par composant, puis, selon son langage, une par élément qu'il fournit ; l'interface donne le détail.",
-    '',
-    ...corps,
-  ].join('\n');
-}
-
-/**
- * The findings of the check of the index of the project at <racine>: none when it is up to date.
- * @param {string} racine
- * @param {import('./jointure.js').Langage[]} modules
- */
-export function enRetard(racine, modules) {
-  const cible = path.join(racine, SORTIE);
-  const present = existsSync(cible) ? readFileSync(cible, 'utf8') : '';
-  return present === index(racine, modules)
-    ? []
-    : [
-        {
-          fichier: SORTIE,
-          message: `${SORTIE} n'est pas à jour avec les interfaces : npx grillhouse index-interfaces le régénère.`,
-        },
-      ];
-}
 
 /**
  * Runs the command in the project at <racine> with <args>: its exit code.
