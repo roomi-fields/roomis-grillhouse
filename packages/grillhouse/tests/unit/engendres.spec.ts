@@ -5,8 +5,7 @@
 // the command fails. Witness: OSC Bridge, 2026-10-31, four conflicts in one day on the generated
 // files of synthhub (docs/SUPPORTED_DEVICES.md, docs/devices.json) and open-synth-descriptors
 // (schemas/SHA256SUMS), each resolved by hand.
-import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -117,30 +116,30 @@ describe('critère 2 — a lot that touches a declared file, or what it reads, r
 });
 
 describe('critère 3 — a command that fails stops, the command and its output named', () => {
-  // A repository of trial: git, its generated file, and the shell that runs a command at its root.
-  function depot(nom: string) {
-    const dir = path.join(ESSAIS, nom);
-    mkdirSync(path.join(dir, 'docs'), { recursive: true });
-    const git = (...a: string[]) =>
-      spawnSync('git', ['-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], {
-        encoding: 'utf8',
-      });
-    git('init', '-q', '-b', 'main');
-    writeFileSync(path.join(dir, 'docs/liste.txt'), 'a\n');
-    git('add', '-A');
-    git('commit', '-q', '-m', 'base');
-    const lancer = (commande: string) =>
-      spawnSync('bash', ['-c', commande], { cwd: dir, encoding: 'utf8' });
-    return { dir, git, lancer };
+  // The tree stood in: git's status before and after the commands, and each git call recorded.
+  // The real commands on a real tree are the night's (packages/grillhouse-essais/tests/
+  // integrer.engendres.nuit.spec.ts).
+  function arbre(avant: string[], apres: string[]) {
+    const appels: string[][] = [];
+    let statuts = 0;
+    const dansCopie = (...a: string[]) => {
+      appels.push(a);
+      const lignes = a[0] === 'status' ? (statuts++ === 0 ? avant : apres) : [];
+      return { status: 0, stdout: lignes.map(l => `${l}\0`).join(''), stderr: '' } as never;
+    };
+    return { appels, dansCopie };
   }
+  const resultat = (status: number, stdout = '', stderr = '') =>
+    ({ status, stdout, stderr, signal: null, error: undefined }) as never;
+  const liste = () => ({ ...lireEngendres(pkg({ liste: LISTE })).engendres[0], cadre: false });
 
   it('refuses, naming the declared file, its command, its code and its output', () => {
-    const d = depot('rouge');
-    const commande = 'echo "la source b est illisible" >&2; exit 3';
+    const t = arbre([], []);
+    const commande = 'python3 scripts/liste.py';
     const refus = regenerer({
       refs: [{ ...liste(), commande }],
-      lancer: d.lancer,
-      dansCopie: d.git,
+      lancer: () => resultat(3, '', 'la source b est illisible\n'),
+      dansCopie: t.dansCopie,
     });
     expect(refus).toContain('liste');
     expect(refus).toContain(commande);
@@ -148,26 +147,25 @@ describe('critère 3 — a command that fails stops, the command and its output 
     expect(refus).toContain('la source b est illisible');
   });
 
-  it('writes the declared file and stages it, a file it does not declare refused', () => {
-    const d = depot('vert');
+  it('stages the declared file it writes, and refuses a file it does not declare', () => {
+    const t = arbre(['M  src/d/index.ts'], ['M  src/d/index.ts', ' M docs/liste.txt']);
     expect(
       regenerer({
-        refs: [{ ...liste(), commande: 'printf "a\\nb\\n" > docs/liste.txt' }],
-        lancer: d.lancer,
-        dansCopie: d.git,
+        refs: [liste()],
+        lancer: () => resultat(0),
+        dansCopie: t.dansCopie,
+        ecrire: () => {},
       })
     ).toBeNull();
-    expect(readFileSync(path.join(d.dir, 'docs/liste.txt'), 'utf8')).toBe('a\nb\n');
-    expect(d.git('diff', '--cached', '--name-only').stdout.trim()).toBe('docs/liste.txt');
-    const autre = regenerer({
-      refs: [{ ...liste(), commande: 'echo x > autre.txt' }],
-      lancer: d.lancer,
-      dansCopie: d.git,
+    expect(t.appels).toContainEqual(['add', '-A', '--', 'docs/liste.txt']);
+    const autre = arbre([], ['?? autre.txt']);
+    const refus = regenerer({
+      refs: [liste()],
+      lancer: () => resultat(0),
+      dansCopie: autre.dansCopie,
+      ecrire: () => {},
     });
-    expect(autre).toContain('autre.txt');
+    expect(refus).toContain('autre.txt');
+    expect(autre.appels.some(a => a[0] === 'add')).toBe(false);
   });
-
-  function liste() {
-    return { ...lireEngendres(pkg({ liste: LISTE })).engendres[0], cadre: false };
-  }
 });
