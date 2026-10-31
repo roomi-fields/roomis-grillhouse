@@ -30,6 +30,9 @@ import path from 'node:path';
 //   (TMPDIR, TMP, TEMP, JSON); under `FAUX_CARGO_RESTE`, leaves a file of that name in its TMPDIR,
 //   as a test that forgets its file; under `FAUX_CARGO_ATTENDRE`, waits that many ms, as a long
 //   test (grillhouse-nt4).
+// - Under `FAUX_CARGO_COMPILATEUR`, each call adds there a line `<sous-commande>
+//   RUSTC_WRAPPER=<valeur> SCCACHE_DIR=<valeur> SCCACHE_SERVER_UDS=<valeur>`: the wrapper of
+//   rustc it was given, the cache of sccache and the socket of its server (grillhouse-cyr).
 // - Each call is a line of the journal `FAUX_CARGO_JOURNAL` names (its arguments, joined by a
 //   blank); its code is the one `FAUX_CARGO_CODES` gives (JSON, by `<sous-commande> <crate>` or
 //   `<sous-commande>`), 0 otherwise.
@@ -115,6 +118,9 @@ const crate = d => {
   };
 };
 const sous = args[0] === 'test' && args.includes('--no-run') ? 'build' : args[0];
+if (process.env.FAUX_CARGO_COMPILATEUR) {
+  fs.appendFileSync(process.env.FAUX_CARGO_COMPILATEUR, sous + ' RUSTC_WRAPPER=' + (process.env.RUSTC_WRAPPER ?? '') + ' SCCACHE_DIR=' + (process.env.SCCACHE_DIR ?? '') + ' SCCACHE_SERVER_UDS=' + (process.env.SCCACHE_SERVER_UDS ?? '') + '\\n');
+}
 const nomme = args[args.indexOf('-p') + 1];
 const code = codes[sous + ' ' + nomme] ?? codes[sous] ?? 0;
 if (sous === 'build' && code !== 0) {
@@ -177,6 +183,10 @@ export function installerFauxCargo(dans: string): string {
   const dossier = mkdtempSync(path.join(dans, 'faux-cargo-'));
   writeFileSync(path.join(dossier, 'cargo'), SCRIPT);
   chmodSync(path.join(dossier, 'cargo'), 0o755);
+  // The wrapper the commands of the module require on the PATH (grillhouse-cyr), which the fake
+  // cargo never runs.
+  writeFileSync(path.join(dossier, 'sccache'), '#!/bin/sh\nexit 0\n');
+  chmodSync(path.join(dossier, 'sccache'), 0o755);
   return dossier;
 }
 
@@ -191,12 +201,14 @@ export function avecFauxCargo(dossier: string, journal: string): () => void {
     FAUX_CARGO_CODES: process.env.FAUX_CARGO_CODES,
     FAUX_CARGO_CLIPPY: process.env.FAUX_CARGO_CLIPPY,
     FAUX_CARGO_INSTALLES: process.env.FAUX_CARGO_INSTALLES,
+    FAUX_CARGO_COMPILATEUR: process.env.FAUX_CARGO_COMPILATEUR,
   };
   process.env.PATH = `${dossier}${path.delimiter}${process.env.PATH ?? ''}`;
   process.env.FAUX_CARGO_JOURNAL = journal;
   delete process.env.FAUX_CARGO_CODES;
   delete process.env.FAUX_CARGO_CLIPPY;
   delete process.env.FAUX_CARGO_INSTALLES;
+  delete process.env.FAUX_CARGO_COMPILATEUR;
   appendFileSync(journal, '');
   return () => {
     for (const [k, v] of Object.entries(avant)) {

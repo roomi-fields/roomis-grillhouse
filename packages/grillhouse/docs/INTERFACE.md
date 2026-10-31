@@ -43,11 +43,12 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   `maj` n'ajoute que ceux du langage déclaré, aux versions du gabarit.
 - `binaires` : les binaires qu'un projet du langage installe sur la machine, chacun à sa version
   exacte ; `maj` installe chacun de ceux qui manquent ou sont à une autre version, par les
-  commandes de `miseAJour.installation`. `typescript`, aucun ; `cargo`, nextest et cargo-deny
-  (`scripts/langages/cargo/binaires.json`).
+  commandes de `miseAJour.installation`. `typescript`, aucun ; `cargo`, nextest, cargo-deny et
+  sccache (`scripts/langages/cargo/binaires.json`).
 - `ignorer` : les dossiers qu'écrivent les outils du langage dans un projet, par leur nom ; les
-  fichiers sources que lisent les migrations les laissent de côté, et `maj` les écrit dans le
-  `.gitignore` du projet. `typescript`, `.turbo` ; `cargo`, `target`.
+  fichiers sources que lisent les migrations les laissent de côté, `maj` les écrit dans le
+  `.gitignore` du projet, et le retrait des copies finies les retire d'une copie gardée dont le
+  ticket est fermé. `typescript`, `.turbo` ; `cargo`, `target`.
 - `miseAJour` : la part du langage dans `maj`, comme chaque greffon de Nx apporte son générateur
   `init`. `gabarit`, le dossier du gabarit d'un projet du langage, dont le `package.json` donne les
   scripts du cadre et les versions des outils (`templates/projet`, `templates/cargo`) ;

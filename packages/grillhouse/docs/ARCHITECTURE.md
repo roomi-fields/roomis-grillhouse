@@ -360,19 +360,28 @@ que le ticket, comme l'espace de travail d'un pipeline ; aucun balayage n'y touc
 l'efface à la clôture, `npx grillhouse retirer-copie` avec la copie d'un ticket fermé sans
 intégration. Ainsi une séance qui survit à son circuit garde ce qu'il lui a remis.
 
-**La nuit retire les copies finies** (`packages/grillhouse/scripts/copies-finies.mjs`) : après ses
-étapes, quel que soit son verdict, la nuit passe chaque copie que `git worktree list` nomme, hors
+**La nuit et la fin de chaque circuit retirent les copies finies**
+(`packages/grillhouse/scripts/copies-finies.mjs`) : après ses étapes, quel que soit son verdict,
+la nuit passe chaque copie que `git worktree list` nomme, hors
 l'arbre principal et sa propre copie, par `retirer-copie.sh` sans `--jetable`, comme une CI
 nettoie ses espaces de travail à la fin d'un pipeline et comme `git worktree prune`, qu'elle joue
 d'abord. Une copie dont les commits et le travail local sont tous entrés sur main, jugés par le
-contenu comme le retrait juge le travail, part avec sa branche (main et une branche qu'une autre
-copie tient restent) ; une copie refusée (commits ou travail non entrés, verrou) reste, et le
+contenu comme le retrait juge le travail, part avec sa branche (main et une branche qu'une autre copie tient restent) ; un fichier que le
+pilote de fusion du CHANGELOG fusionne (`merge=grillhouse-changelog`) est entré quand chacune de
+ses entrées est sur main, puisqu'il y entre fusionné aux entrées des lots voisins ; le lien
+`node_modules` d'une copie, quand il est tout son travail local, n'est pas du travail ; une copie refusée (commits ou travail non entrés, verrou) reste, et le
 journal la nomme avec sa raison, le premier chemin non entré compris. Une copie qu'un circuit tient reste sans passer : son ticket en
-cours, son dossier `.travail`, ou, pour la copie de l'intégration et celle de la file, leur
-verrou ; des tickets en cours illisibles, ou lus au-delà d'une minute, gardent toutes les
+cours, son dossier `.travail`, son verrou de git (la copie d'un agent vivant), ou, pour la copie
+de l'intégration et celle de la file, leur verrou ; des tickets en cours illisibles, ou lus au-delà d'une minute, gardent toutes les
 copies. Les tickets en cours se lisent seulement quand une copie reste à juger : une nuit sans
-autre copie que la sienne n'appelle pas Beads. Le retrait ne change pas le verdict de la nuit. Ainsi aucune copie ne survit à l'entrée de
-son contenu sur main (Grillhouse, 79 copies d'agents, 5,7 Go ; OSC Bridge, 4,4 Go).
+autre copie que la sienne n'appelle pas Beads. Une copie gardée dont le ticket est fermé perd
+ce que les outils de ses langages y écrivent, hors du suivi de git : les dossiers que le module
+du langage nomme (`ignorer` : `target`, `.turbo`) et `node_modules` ; son travail suivi reste.
+Chaque ligne d'une copie gardée nomme la place qu'elle tient. Le même retrait tourne à la fin de
+chaque circuit, sa copie de nuit laissée à la nuit, ses lignes au journal du ticket. Le retrait
+ne change ni le verdict de la nuit, ni le code du circuit. Ainsi aucune copie ne survit à
+l'entrée de son contenu sur main, ni un dossier de compilation à son ticket (Grillhouse, 79
+copies d'agents, 5,7 Go ; OSC Bridge, 4,4 Go ; synthhub, 34 Go de `target/`).
 
 **Le circuit est un démon** (`packages/grillhouse/scripts/demon.mjs`) : comme daemon(3) et
 `setsid --fork`, `npx grillhouse circuit` lance
@@ -540,7 +549,7 @@ grillhouse-pkl). Un projet déclare ses langages dans son `package.json` (`grill
 que `init` et `maj` remplissent d'après ce qu'ils trouvent (`tsconfig.json` ; un `Cargo.toml` à la
 racine) ; là où ils ne trouvent aucun langage du cadre, ils
 refusent le projet, nommé. Les outils npm d'un langage (Turborepo, Vitest, knip, api-extractor)
-sont des dépendances facultatives du paquet, ses binaires (cargo-nextest, cargo-deny) s'installent
+sont des dépendances facultatives du paquet, ses binaires (cargo-nextest, cargo-deny, sccache) s'installent
 sur la machine par `cargo binstall` : `maj` n'installe que ceux des langages déclarés.
 Ainsi chaque projet n'installe que les outils qu'il utilise : un projet tout Rust n'a aucun outil
 TypeScript, BPScript aucun outil Rust ; les scripts d'un langage non déclaré restent sur le disque,
@@ -580,7 +589,8 @@ chaque greffon ; la part du langage dans `maj` (`miseAJour`), comme le générat
 greffon de Nx : son gabarit (`templates/projet/`, `templates/cargo/`), ce que ses outils
 demandent au projet, ses générateurs ; ses binaires (`binaires`), que `maj` installe par
 `cargo binstall` ; ce que ses outils écrivent dans un projet (`ignorer` : `.turbo`, `target`), que
-les fichiers sources laissent de côté et que `maj` écrit dans le `.gitignore`. Le module typescript vit sous
+les fichiers sources laissent de côté, que `maj` écrit dans le `.gitignore` et que le retrait
+des copies finies retire d'une copie gardée dont le ticket est fermé. Le module typescript vit sous
 `scripts/langages/typescript/` (`tests/temoins/repartition.json` range chaque fichier), ses tests
 sous `tests/unit/langages/typescript/` ; le module cargo sous `scripts/langages/cargo/` (les crates
 de `cargo metadata` ; les fichiers de test que le testwriter écrit, chacun un fichier à lui : les
@@ -590,7 +600,11 @@ déclare par `#[cfg(test)] mod tests;`, ligne que le testwriter écrit avec son 
 test de chaque crate (`cargo test --no-run`), une tâche `build` du verdict avec son journal, comme
 la tâche `test` de Turborepo dépend de `build` : des tests qui ne compilent pas sont le rouge
 « construction de <crate> » de la preuve du rouge, et se jouent aux contrôles ; la vérification par cargo-deny,
-sous le verrou de la machine ; le refus, avant tout lancement de cargo, d'un espace dont git ne
+sous le verrou de la machine ; chaque commande qui compile (tests, vérification, typage, clippy)
+à travers sccache (`RUSTC_WRAPPER=sccache`), le cache de compilation de Mozilla qu'emploient
+Firefox et les CI Rust, son cache sous la maison (`~/.cache/sccache`), commun aux copies du poste
+et que l'enveloppe ouvre en écriture : chaque copie garde son `target/`, sans le verrou que cargo
+pose sur un dossier commun, et ne recompile pas ce qu’une autre a compilé ; un serveur de sccache par copie et par espace de processus (`/proc/self/ns/pid`, que chaque enveloppe crée), sur un socket unix abstrait nommé d'après eux (`SCCACHE_SERVER_UDS`), puisque le serveur par défaut écoute 127.0.0.1:4226 pour toute la machine et que l'enveloppe partage le réseau ; un lanceur de rustc que le projet pose reste le sien, sans sccache, lu comme cargo le lit (l'environnement, puis `build.rustc-wrapper` des `.cargo/config.toml` du projet vers la racine, puis de `$CARGO_HOME`) ; sans sccache sur le PATH, ces commandes refusent avant cargo, en une ligne qui nomme `npx grillhouse maj` ; le refus, avant tout lancement de cargo, d'un espace dont git ne
 suit pas le Cargo.lock, comme `npm ci` refuse un projet sans package-lock.json : les tests, la
 vérification et la préparation le nomment en une ligne avec son geste (`git add Cargo.lock`), et
 `maj` le laisse au projet (`aFaire` de sa part), sans jouer la vérification ; ses gardes, clippy, les frontières entre crates contre la liste

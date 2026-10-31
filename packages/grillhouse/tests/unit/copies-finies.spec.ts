@@ -8,7 +8,16 @@
 // Each case plays the real git in a repository of trial: main (the main tree) and its copies
 // under .claude/worktrees, as the circuit and the agents make them.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -61,10 +70,15 @@ function engager(dossier: string, fichier: string, texte: string) {
 
 const branches = (racine: string) =>
   git(racine, 'branch', '--format=%(refname:short)').split('\n').filter(Boolean);
-const balayer = (racine: string, o: { garder?: string[]; enCours?: Set<string> | null } = {}) =>
+const balayer = (
+  racine: string,
+  o: { garder?: string[]; enCours?: Set<string> | null; fermes?: Set<string> } = {}
+) =>
   retirerLesCopiesFinies(racine, {
     garder: o.garder ?? [],
     lireEnCours: () => (o.enCours === undefined ? new Set<string>() : o.enCours),
+    lireFermes: () => o.fermes ?? new Set<string>(),
+    ignorer: ['target', '.turbo'],
   }).join('\n');
 
 describe('the night removes the copies whose content is on main (grillhouse-5vv)', () => {
@@ -95,7 +109,9 @@ describe('the night removes the copies whose content is on main (grillhouse-5vv)
       expect(existsSync(c)).toBe(true);
       expect(readFileSync(path.join(c, 'b.txt'), 'utf8')).toBe('b local\n');
       expect(branches(racine)).toContain('worktree-agent-2');
-      expect(journal).toMatch(/copie gardée : \.claude\/worktrees\/agent-2 : .*travail local/);
+      expect(journal).toMatch(
+        /copie gardée : \.claude\/worktrees\/agent-2 \([^)]*\) : .*travail local/
+      );
       expect(journal).toContain('b.txt');
     },
     LONG
@@ -109,7 +125,9 @@ describe('the night removes the copies whose content is on main (grillhouse-5vv)
       git(racine, 'worktree', 'lock', '--reason', 'agent en cours', c);
       const journal = balayer(racine);
       expect(existsSync(c)).toBe(true);
-      expect(journal).toMatch(/copie gardée : \.claude\/worktrees\/agent-3 : .*verrouillée/);
+      expect(journal).toMatch(
+        /copie gardée : \.claude\/worktrees\/agent-3 \([^)]*\) : .*verrouillée/
+      );
     },
     LONG
   );
@@ -124,7 +142,7 @@ describe('the night removes the copies whose content is on main (grillhouse-5vv)
       expect(existsSync(c)).toBe(true);
       expect(branches(racine)).toContain('worktree-agent-4');
       expect(journal).toMatch(
-        /copie gardée : \.claude\/worktrees\/agent-4 : ses commits ne sont pas entrés, b\.txt n'est pas sur main/
+        /copie gardée : \.claude\/worktrees\/agent-4 \([^)]*\) : ses commits ne sont pas entrés, b\.txt n'est pas sur main/
       );
     },
     LONG
@@ -141,7 +159,7 @@ describe('the night removes the copies whose content is on main (grillhouse-5vv)
       expect(existsSync(c)).toBe(true);
       expect(git(c, 'rev-parse', 'HEAD')).toBe(commit);
       expect(journal).toMatch(
-        /copie gardée : \.claude\/worktrees\/detachee : ses commits ne sont pas entrés, a\.txt n'est pas sur main/
+        /copie gardée : \.claude\/worktrees\/detachee \([^)]*\) : ses commits ne sont pas entrés, a\.txt n'est pas sur main/
       );
     },
     LONG
@@ -206,8 +224,12 @@ describe('the night removes the copies whose content is on main (grillhouse-5vv)
       expect(existsSync(parTravail)).toBe(true);
       expect(existsSync(path.join(`${parTravail}.travail`, 'consigne-1.md'))).toBe(true);
       expect(existsSync(parTicket)).toBe(true);
-      expect(journal).toMatch(/copie gardée : \.claude\/worktrees\/proj-1 : .*proj-1\.travail/);
-      expect(journal).toMatch(/copie gardée : \.claude\/worktrees\/proj-2 : .*proj-2 est en cours/);
+      expect(journal).toMatch(
+        /copie gardée : \.claude\/worktrees\/proj-1 \([^)]*\) : .*proj-1\.travail/
+      );
+      expect(journal).toMatch(
+        /copie gardée : \.claude\/worktrees\/proj-2 \([^)]*\) : .*proj-2 est en cours/
+      );
     },
     LONG
   );
@@ -225,10 +247,10 @@ describe('the night removes the copies whose content is on main (grillhouse-5vv)
       expect(existsSync(integration)).toBe(true);
       expect(existsSync(file)).toBe(true);
       expect(journal).toMatch(
-        /copie gardée : \.claude\/worktrees\/integration : .*integration\.lock/
+        /copie gardée : \.claude\/worktrees\/integration \([^)]*\) : .*integration\.lock/
       );
       expect(journal).toMatch(
-        /copie gardée : \.claude\/worktrees\/file : .*file-integration\.lock/
+        /copie gardée : \.claude\/worktrees\/file \([^)]*\) : .*file-integration\.lock/
       );
     },
     LONG
@@ -287,6 +309,212 @@ describe('the night removes the copies whose content is on main (grillhouse-5vv)
     },
     LONG
   );
+});
+
+// grillhouse-cyr (OSC Bridge, 2026-10-31): the disk at 91-97 %, 34 GB under the copies of
+// synthhub, each copy of a circuit of Rust keeping its target/ of 3 to 6.5 GB, a closed ticket's
+// included; 58 of the 180 copies of Grillhouse kept for ever, their CHANGELOG entered main merged
+// with its neighbours' entries.
+describe('grillhouse-cyr — what a kept copy loses, and what the removal names', () => {
+  // The tools' output of a copy: target/ and a package's .turbo/ (ignored by the repository), and
+  // a node_modules link to the main tree's install, as an agent's copy carries it.
+  function sorties(c: string, racine: string) {
+    mkdirSync(path.join(c, 'target', 'debug'), { recursive: true });
+    writeFileSync(path.join(c, 'target', 'debug', 'gros'), 'x'.repeat(4096));
+    mkdirSync(path.join(c, 'paquet', '.turbo'), { recursive: true });
+    writeFileSync(path.join(c, 'paquet', '.turbo', 'turbo-build.log'), 'x\n');
+    mkdirSync(path.join(racine, 'node_modules'), { recursive: true });
+    symlinkSync(path.join(racine, 'node_modules'), path.join(c, 'node_modules'));
+  }
+  // A repository whose .gitignore ignores what the tools write, and tracks paquet/p.txt.
+  function depotOutille() {
+    const r = depot();
+    writeFileSync(
+      path.join(r, '.gitignore'),
+      '.claude/worktrees/\ntarget/\n.turbo/\nnode_modules/\n'
+    );
+    mkdirSync(path.join(r, 'paquet'));
+    writeFileSync(path.join(r, 'paquet', 'p.txt'), 'p\n');
+    git(r, 'add', '-A');
+    git(r, 'commit', '-q', '-m', 'outils');
+    return r;
+  }
+
+  it(
+    'criterion 3b: a copy kept, its ticket closed, loses target, .turbo and node_modules; its tracked work stays',
+    () => {
+      const racine = depotOutille();
+      const c = copie(racine, 'proj-9', 'agent/proj-9');
+      engager(c, 'b.txt', 'b9\n');
+      writeFileSync(path.join(c, 'a.txt'), 'a local\n');
+      sorties(c, racine);
+      const journal = balayer(racine, { fermes: new Set(['proj-9']) });
+      expect(existsSync(c)).toBe(true);
+      expect(existsSync(path.join(c, 'target'))).toBe(false);
+      expect(existsSync(path.join(c, 'paquet', '.turbo'))).toBe(false);
+      expect(existsSync(path.join(c, 'node_modules'))).toBe(false);
+      expect(existsSync(path.join(racine, 'node_modules'))).toBe(true);
+      expect(readFileSync(path.join(c, 'a.txt'), 'utf8')).toBe('a local\n');
+      expect(readFileSync(path.join(c, 'b.txt'), 'utf8')).toBe('b9\n');
+      expect(readFileSync(path.join(c, 'paquet', 'p.txt'), 'utf8')).toBe('p\n');
+      expect(journal).toMatch(/copie gardée : \.claude\/worktrees\/proj-9 \(/);
+      expect(journal).toMatch(/son ticket est fermé : .*target/);
+      expect(journal).toMatch(/son ticket est fermé : .*node_modules/);
+      expect(journal).toMatch(/son ticket est fermé : .*paquet\/\.turbo/);
+    },
+    LONG
+  );
+
+  it(
+    'criterion 3b: a copy whose ticket is in progress, or open, keeps everything',
+    () => {
+      const racine = depotOutille();
+      const enCours = copie(racine, 'proj-10', 'agent/proj-10');
+      sorties(enCours, racine);
+      const ouvert = copie(racine, 'proj-11', 'agent/proj-11');
+      engager(ouvert, 'b.txt', 'b11\n');
+      sorties(ouvert, racine);
+      balayer(racine, { enCours: new Set(['proj-10']) });
+      for (const c of [enCours, ouvert]) {
+        expect(existsSync(path.join(c, 'target', 'debug', 'gros'))).toBe(true);
+        expect(existsSync(path.join(c, 'paquet', '.turbo'))).toBe(true);
+        expect(existsSync(path.join(c, 'node_modules'))).toBe(true);
+      }
+    },
+    LONG
+  );
+
+  it(
+    'criterion 3c: the line of each kept copy names the place it holds',
+    () => {
+      const racine = depotOutille();
+      const c = copie(racine, 'agent-12', 'worktree-agent-12');
+      engager(c, 'b.txt', 'b12\n');
+      mkdirSync(path.join(c, 'target'));
+      writeFileSync(path.join(c, 'target', 'gros'), 'x'.repeat(2 * 1024 * 1024));
+      const enCours = copie(racine, 'proj-13', 'agent/proj-13');
+      const journal = balayer(racine, { enCours: new Set(['proj-13']) });
+      expect(journal).toMatch(
+        /copie gardée : \.claude\/worktrees\/agent-12 \(\d+(,\d)? Mo\) : ses commits ne sont pas entrés/
+      );
+      expect(journal).toMatch(
+        /copie gardée : \.claude\/worktrees\/proj-13 \(\d+(,\d)? [KMG]o\) : le ticket proj-13 est en cours/
+      );
+      expect(existsSync(enCours)).toBe(true);
+    },
+    LONG
+  );
+
+  it(
+    'a copy whose commits entered main, holding only its node_modules link, goes; a locked copy keeps its link',
+    () => {
+      const racine = depotOutille();
+      const c = copie(racine, 'agent-14', 'worktree-agent-14');
+      mkdirSync(path.join(racine, 'node_modules'), { recursive: true });
+      symlinkSync(path.join(racine, 'node_modules'), path.join(c, 'node_modules'));
+      const tenue = copie(racine, 'agent-15', 'worktree-agent-15');
+      symlinkSync(path.join(racine, 'node_modules'), path.join(tenue, 'node_modules'));
+      git(racine, 'worktree', 'lock', '--reason', 'claude agent', tenue);
+      const journal = balayer(racine);
+      expect(existsSync(c)).toBe(false);
+      expect(existsSync(path.join(racine, 'node_modules'))).toBe(true);
+      expect(existsSync(path.join(tenue, 'node_modules'))).toBe(true);
+      expect(journal).toMatch(/copie retirée : \.claude\/worktrees\/agent-14/);
+      expect(journal).toMatch(/copie gardée : \.claude\/worktrees\/agent-15 .*verrouillée/);
+    },
+    LONG
+  );
+
+  it(
+    'a copy kept for its local work keeps its node_modules link, its ticket open',
+    () => {
+      const racine = depotOutille();
+      const c = copie(racine, 'agent-22', 'worktree-agent-22');
+      writeFileSync(path.join(c, 'a.txt'), 'a local\n');
+      mkdirSync(path.join(racine, 'node_modules'), { recursive: true });
+      symlinkSync(path.join(racine, 'node_modules'), path.join(c, 'node_modules'));
+      const journal = balayer(racine);
+      expect(existsSync(c)).toBe(true);
+      expect(journal).toMatch(/copie gardée : \.claude\/worktrees\/agent-22 .*travail local/);
+      expect(lstatSync(path.join(c, 'node_modules')).isSymbolicLink()).toBe(true);
+      expect(readFileSync(path.join(c, 'a.txt'), 'utf8')).toBe('a local\n');
+    },
+    LONG
+  );
+
+  // The CHANGELOG enters main merged with the entries of the lots beside it (the merge driver
+  // `grillhouse-changelog`, scripts/fusion-du-changelog.mjs): its content is never a commit's of
+  // main, so the copy's entries are judged, not its whole file.
+  function depotAuJournal(attribut: boolean) {
+    const r = depot();
+    writeFileSync(path.join(r, 'CHANGELOG.md'), '# Changelog\n\n## Unreleased\n\n## 0.1.0\n');
+    if (attribut) {
+      writeFileSync(path.join(r, '.gitattributes'), 'CHANGELOG.md merge=grillhouse-changelog\n');
+    }
+    git(r, 'add', '-A');
+    git(r, 'commit', '-q', '-m', 'journal');
+    return r;
+  }
+  const avecEntrees = (...entrees: string[]) =>
+    `# Changelog\n\n## Unreleased\n\n${entrees.map(e => `- ${e}\n`).join('')}\n## 0.1.0\n`;
+
+  it(
+    'a CHANGELOG the driver merges counts as entered once each of its entries is on main',
+    () => {
+      const racine = depotAuJournal(true);
+      const c = copie(racine, 'agent-16', 'worktree-agent-16');
+      engager(c, 'CHANGELOG.md', avecEntrees('fix A (proj-16)'));
+      engager(c, 'a.txt', 'a16\n');
+      // Main receives the lot with its entry merged after a neighbour's.
+      engager(racine, 'CHANGELOG.md', avecEntrees('fix B (proj-17)', 'fix A (proj-16)'));
+      engager(racine, 'a.txt', 'a16\n');
+      const journal = balayer(racine);
+      expect(existsSync(c)).toBe(false);
+      expect(journal).toMatch(/copie retirée : \.claude\/worktrees\/agent-16/);
+    },
+    LONG
+  );
+
+  it(
+    'a CHANGELOG the driver merges, one of its entries absent from main, holds the copy',
+    () => {
+      const racine = depotAuJournal(true);
+      const c = copie(racine, 'agent-18', 'worktree-agent-18');
+      engager(c, 'CHANGELOG.md', avecEntrees('fix A (proj-18)', 'fix C (proj-18)'));
+      engager(racine, 'CHANGELOG.md', avecEntrees('fix B (proj-19)', 'fix A (proj-18)'));
+      const journal = balayer(racine);
+      expect(existsSync(c)).toBe(true);
+      expect(journal).toMatch(/agent-18 .*CHANGELOG\.md n'est pas sur main/);
+    },
+    LONG
+  );
+
+  it(
+    'a CHANGELOG without the driver is judged by its whole content, as any file',
+    () => {
+      const racine = depotAuJournal(false);
+      const c = copie(racine, 'agent-20', 'worktree-agent-20');
+      engager(c, 'CHANGELOG.md', avecEntrees('fix A (proj-20)'));
+      engager(racine, 'CHANGELOG.md', avecEntrees('fix B (proj-21)', 'fix A (proj-20)'));
+      const journal = balayer(racine);
+      expect(existsSync(c)).toBe(true);
+      expect(journal).toMatch(/agent-20 .*CHANGELOG\.md n'est pas sur main/);
+    },
+    LONG
+  );
+});
+
+describe('grillhouse-cyr, critère 3 — le retrait tourne aussi à la fin de chaque circuit', () => {
+  it('the end of a circuit (aLaFin of circuit.mjs) runs the removal of the repository', () => {
+    const circuit = readFileSync(
+      path.join(import.meta.dirname, '../../scripts/circuit.mjs'),
+      'utf8'
+    );
+    const debut = circuit.indexOf('function aLaFin(');
+    const fin = circuit.indexOf('\n}\n', debut);
+    expect(debut).toBeGreaterThan(0);
+    expect(circuit.slice(debut, fin)).toContain('retirerLesCopiesDuDepot(ctx.racine)');
+  });
 });
 
 describe('the night calls the removal after its steps, its verdict unchanged (grillhouse-5vv)', () => {

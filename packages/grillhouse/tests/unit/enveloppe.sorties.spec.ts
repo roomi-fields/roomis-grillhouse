@@ -135,6 +135,7 @@ describe('grillhouse-pkl.5, critère 1 — l’enveloppe d’un projet cargo', (
         '~/.cargo/.package-cache',
         '~/.cargo/.package-cache-mutate',
         '~/.cargo/.global-cache',
+        '~/.cache/sccache/',
       ],
       propres: [],
       lues: ['~/.cargo/', '~/.rustup/'],

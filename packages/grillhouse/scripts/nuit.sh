@@ -74,7 +74,9 @@
 #   main by their content goes, and its branch (main and a branch another copy holds stay); a copy
 #   refused (commits or work not entered, a lock) or held by a running circuit (its ticket in progress, its
 #   `<copie>.travail`, the lock of the integration or of the queue) stays, its log line naming
-#   why. The removal never changes the night's verdict.
+#   why and the place it holds, a kept copy whose ticket is closed losing what the tools of its
+#   languages wrote there. The removal never changes the night's verdict; the end of each
+#   circuit runs it too (scripts/circuit.mjs).
 # - It takes no lock of the integration or of the queue (scripts/integration/file.mjs): an
 #   integration and the queue run during the night, each in its own copy.
 # - Its log is <git common dir>/nuit/<date>.log. Green: HEAD becomes the last green commit

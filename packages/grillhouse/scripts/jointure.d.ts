@@ -204,7 +204,8 @@ export interface Langage {
    * the update installs each one missing or at another version (`miseAJour.installation`). */
   binaires: Record<string, string>;
   /** The directories the language's tools write in a project, by name: the source files leave them
-   * out, and the update writes them in the project's `.gitignore`. */
+   * out, the update writes them in the project's `.gitignore`, and the removal of the finished
+   * copies removes them from a kept copy whose ticket is closed (scripts/copies-finies.mjs). */
   ignorer: string[];
   /** Where a run of the language's tools writes, which the envelope opens to a session. */
   sorties: {

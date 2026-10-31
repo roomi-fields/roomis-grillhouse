@@ -8,7 +8,7 @@
 //   or of its one crate (`trouve`). Its one tool of npm is what its scripts import, smol-toml, the
 //   reader of a Cargo.toml (`outils`, an optional peer of the package, which the update adds to a
 //   project of cargo alone): cargo and its subcommands live on the machine, and the update
-//   installs the binaries the module runs, nextest and cargo-deny, at their versions
+//   installs the binaries the module runs, nextest, cargo-deny and sccache, at their versions
 //   (`binaires`, ./binaires.json). What cargo writes in a project: `target` (`ignorer`).
 // - Where cargo writes, which the envelope opens to a session (`sorties`), and the rules that
 //   refuse a role that writes the test runner run directly (`droits`).
@@ -44,6 +44,7 @@ import {
 import { elementsDuLot } from './elements-du-lot.mjs';
 import { enRetard, SORTIE } from './index-interfaces.mjs';
 import { miseAJour } from './mise-a-jour.mjs';
+import { CACHE } from './sccache.mjs';
 import { touches } from './touches.mjs';
 import { verdict } from './verdict.mjs';
 
@@ -59,15 +60,17 @@ export default {
   signe: 'un Cargo.toml à la racine',
   // The reader of TOML by which the lock judges a Cargo.toml (./composants.mjs, `manifestes`).
   outils: ['smol-toml'],
-  // The binaries the module runs, nextest and cargo-deny, each at the version the probe of
-  // grillhouse-pkl.1 measured.
+  // The binaries the module runs, each at an exact version: nextest and cargo-deny at the ones the
+  // probe of grillhouse-pkl.1 measured; sccache, the cache of compilation common to the copies
+  // (./sccache.mjs), at the last release of mozilla/sccache, v0.19.0 (2026-10-24).
   binaires: JSON.parse(readFileSync(ici('binaires.json'), 'utf8')),
   // What cargo writes in a project: its target directory.
   ignorer: ['target'],
   // Where cargo writes, in writing: the target directory of the workspace; in its home, the
   // registry's index and sources, the git dependencies, cargo-deny's advisories, and the files of
   // its locks and of the SQLite cache of its packages (`.package-cache`, `.package-cache-mutate`,
-  // `.global-cache`), files without a trailing `/`. What it reads, read-only: its home, `~/.cargo`
+  // `.global-cache`), files without a trailing `/`; the cache of sccache, common to the copies
+  // (./sccache.mjs), where a server of sccache the session starts writes. What it reads, read-only: its home, `~/.cargo`
   // (its binaries, its `env`, which the shells source, and its configuration stay unwritten), and
   // rustup's toolchains, `~/.rustup`. Measured on 2026-10-30: `cargo fetch --locked` of
   // osc-bridge in bwrap with these mounts alone, green, the cache of its packages written.
@@ -80,6 +83,7 @@ export default {
       '~/.cargo/.package-cache',
       '~/.cargo/.package-cache-mutate',
       '~/.cargo/.global-cache',
+      CACHE,
     ],
     propres: [],
     lues: ['~/.cargo/', '~/.rustup/'],

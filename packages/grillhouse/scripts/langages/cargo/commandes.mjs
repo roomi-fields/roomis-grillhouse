@@ -44,6 +44,10 @@
 //   directory or file with the crate `tempfile` (`TempDir`, `NamedTempFile`), removed when dropped,
 //   a failed test included, never a path built by hand under `std::env::temp_dir()`.
 // - `typer`: `cargo check --all-targets`. `preparer`: `cargo fetch --locked`.
+// - Cargo runs with rustc wrapped by sccache, its cache common to the copies of the machine
+//   (./sccache.mjs), in a copy as in an agent's envelope (grillhouse-cyr). `tester`, `verifier`
+//   and `typer` refuse, before any run of cargo, a PATH without sccache, in one line that names it
+//   and `npx grillhouse maj`, which installs it (code 2).
 // - Nextest reads the frame's profile `grillhouse` (./nextest.toml, a tool's configuration under
 //   the project's own, `--tool-config-file`), whose JUnit report lands at
 //   `<target>/nextest/grillhouse/junit.xml`.
@@ -87,6 +91,7 @@ import {
   retirerALInterruption,
 } from '../../services-du-noyau.mjs';
 import { composantDans, crates, joueDesTests, metadonnees } from './composants.mjs';
+import { avecSccache, sccacheAbsent } from './sccache.mjs';
 import { touchesDesFichiers } from './touches.mjs';
 import { JUNIT, TACHES } from './verdict.mjs';
 
@@ -99,6 +104,8 @@ const RACINE = '//';
 const VERROU = 'Cargo.lock';
 // The commands that play the exact versions of the repository, refused without its Cargo.lock.
 const VERROUILLEES = ['tester', 'verifier', 'preparer'];
+// The commands that compile, refused without sccache on the PATH (./sccache.mjs).
+const COMPILENT = ['tester', 'verifier', 'typer'];
 
 /** The guards of structure of the module, in the order they play: each its name, its script beside
  * this one, and its arguments as a guard. */
@@ -140,6 +147,8 @@ function passe(racine, env) {
   const id = `${Date.now()}-${process.pid}`;
   const taches = [];
   const cibles = {};
+  // Cargo compiles through sccache (./sccache.mjs).
+  const compilation = avecSccache(racine, env);
   const ecrire = () => {
     if (!dossier) {
       return;
@@ -179,14 +188,18 @@ function passe(racine, env) {
         mkdirSync(path.dirname(journal), { recursive: true });
         const fd = openSync(journal, 'w');
         try {
-          r = spawnSync('cargo', args, { cwd: racine, env, stdio: ['inherit', fd, fd] });
+          r = spawnSync('cargo', args, {
+            cwd: racine,
+            env: compilation,
+            stdio: ['inherit', fd, fd],
+          });
         } finally {
           closeSync(fd);
         }
         process.stderr.write(readFileSync(journal, 'utf8'));
         t.journal = path.relative(racine, journal);
       } else {
-        r = spawnSync('cargo', args, { cwd: racine, env, stdio: 'inherit' });
+        r = spawnSync('cargo', args, { cwd: racine, env: compilation, stdio: 'inherit' });
       }
       t.code = r.error ? 127 : (r.status ?? 128 + (constants.signals[r.signal] ?? 0));
       if (junit && dossier && existsSync(junit)) {
@@ -369,7 +382,9 @@ export function verrouNonVersionne(racine) {
  * @param {{ racine?: string, env?: NodeJS.ProcessEnv }} [o]
  */
 export function lancer(nom, args, { racine = process.cwd(), env = process.env } = {}) {
-  const refus = VERROUILLEES.includes(nom) ? verrouNonVersionne(racine) : null;
+  const refus =
+    (VERROUILLEES.includes(nom) ? verrouNonVersionne(racine) : null) ??
+    (COMPILENT.includes(nom) ? sccacheAbsent(racine, env) : null);
   if (refus) {
     process.stderr.write(`${refus}\n`);
     return 2;

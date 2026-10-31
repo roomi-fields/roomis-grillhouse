@@ -1,4 +1,5 @@
 {
   "cargo-deny": "0.20.2",
-  "cargo-nextest": "0.9.150"
+  "cargo-nextest": "0.9.150",
+  "sccache": "0.19.0"
 }

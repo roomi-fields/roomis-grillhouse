@@ -9,6 +9,8 @@
 // dependents.
 import { spawn, spawnSync } from 'node:child_process';
 import {
+  chmodSync,
+  copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -20,10 +22,15 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { sortiesDuLangage } from '../../../../scripts/enveloppe/enveloppe.mjs';
 import { paquetsDuLangage } from '../../../../scripts/enveloppe/paquets-du-plan.mjs';
 import type { Langage } from '../../../../scripts/jointure.js';
 import module from '../../../../scripts/langages/cargo/index.mjs';
 import exemples from '../../../../scripts/langages/cargo/exemples.mjs';
+import {
+  espaceDesProcessus,
+  socketDuServeur,
+} from '../../../../scripts/langages/cargo/sccache.mjs';
 import { avecFauxCargo, installerFauxCargo } from './faux-cargo.js';
 
 const cargo = module as unknown as Langage;
@@ -486,5 +493,192 @@ describe('grillhouse-egm, critères 1 et 2 — la compilation des tests d’une 
       ['nextest', null],
       ['doctest', null],
     ]);
+  });
+});
+
+// grillhouse-cyr (OSC Bridge, 2026-10-31): each copy of a circuit of Rust kept its own target/, of
+// 3 to 6.5 GB, compiled again from nothing. The cargo commands of the frame compile through
+// sccache (RUSTC_WRAPPER), its cache one directory of the home, common to the copies of the
+// machine, which the envelope opens in writing.
+describe('grillhouse-cyr, critère 1 — les commandes cargo compilent à travers sccache', () => {
+  // The home of the runs, which the cache follows.
+  const MAISON = path.join(ESSAIS, 'maison');
+  const CACHE = path.join(MAISON, '.cache', 'sccache');
+  // The calls of cargo of the command <nom> run in <racine> under <env>, each `{ sous, wrapper,
+  // cache, socket }`, metadata left out.
+  const compilateur = (
+    racine: string,
+    nom: string,
+    args: string[] = [],
+    env: NodeJS.ProcessEnv = {}
+  ) => {
+    const f = path.join(mkdtempSync(path.join(ESSAIS, 'compilateur-')), 'appels');
+    writeFileSync(f, '');
+    lancer(
+      racine,
+      nom,
+      args,
+      {},
+      {
+        FAUX_CARGO_COMPILATEUR: f,
+        RUSTC_WRAPPER: '',
+        CARGO_BUILD_RUSTC_WRAPPER: '',
+        CARGO_HOME: '',
+        SCCACHE_DIR: '',
+        SCCACHE_SERVER_UDS: '',
+        GRILLHOUSE_ENVELOPPE: '',
+        HOME: MAISON,
+        ...env,
+      }
+    );
+    return readFileSync(f, 'utf8')
+      .split('\n')
+      .filter(l => l && !l.startsWith('metadata '))
+      .map(l => {
+        const [sous, ...v] = l.split(' ');
+        const o = new Map(
+          v.map((x): [string, string] => [x.split('=')[0], x.slice(x.indexOf('=') + 1)])
+        );
+        return {
+          sous,
+          wrapper: o.get('RUSTC_WRAPPER') ?? '',
+          cache: o.get('SCCACHE_DIR') ?? '',
+          socket: o.get('SCCACHE_SERVER_UDS') ?? '',
+        };
+      });
+  };
+  // A call through sccache, its common cache and its server's socket, an abstract unix socket.
+  const parSccache = (appels: ReturnType<typeof compilateur>, sous: string[]) => {
+    expect(appels.map(a => a.sous)).toEqual(sous);
+    for (const a of appels) {
+      expect(a.wrapper).toBe('sccache');
+      expect(a.cache).toBe(CACHE);
+      expect(a.socket).toMatch(/^\\x00grillhouse-sccache-[0-9a-f]{16}$/);
+    }
+    return appels[0].socket;
+  };
+
+  it('tester, verifier and typer give cargo the wrapper sccache and the common cache', () => {
+    parSccache(compilateur(d.seul, 'tester'), ['build', 'nextest', 'test']);
+    parSccache(compilateur(d.seul, 'verifier', ['--tout']), ['build', 'nextest', 'test', 'deny']);
+    parSccache(compilateur(d.seul, 'typer'), ['check']);
+  });
+
+  it('the guard clippy compiles through sccache too', () => {
+    parSccache(compilateur(d.seul, 'clippy'), ['clippy']);
+  });
+
+  it('one server per copy and per namespace of processes: its socket follows both', () => {
+    const seul = parSccache(compilateur(d.seul, 'typer'), ['check']);
+    expect(parSccache(compilateur(d.seul, 'tester'), ['build', 'nextest', 'test'])).toBe(seul);
+    expect(seul).toBe(socketDuServeur(d.seul, espaceDesProcessus()));
+    const espace = parSccache(compilateur(d.espace, 'typer'), ['check']);
+    // Another namespace of processes, as an envelope creates (bwrap --unshare-pid).
+    const enveloppe = socketDuServeur(d.seul, 'pid:[1]');
+    const autre = socketDuServeur(d.seul, 'pid:[2]');
+    expect(new Set([seul, espace, enveloppe, autre]).size).toBe(4);
+    expect(socketDuServeur(d.seul, 'pid:[2]')).toBe(autre);
+  });
+
+  // grillhouse-cyr: the circuit sets GRILLHOUSE_ENVELOPPE for its checks out of bwrap; a server
+  // named after that variable would serve the next session in the envelope, from outside it.
+  it('the environment of the envelope does not choose the server: out of bwrap, the same one', () => {
+    const hors = parSccache(compilateur(d.seul, 'typer'), ['check']);
+    const marque = compilateur(d.seul, 'typer', [], { GRILLHOUSE_ENVELOPPE: 'crates/a' });
+    expect(parSccache(marque, ['check'])).toBe(hors);
+  });
+
+  it('a wrapper the project sets is kept, without sccache, and no sccache is asked for', () => {
+    const [appel] = compilateur(d.seul, 'typer', [], { RUSTC_WRAPPER: 'mon-lanceur' });
+    expect(appel).toEqual({ sous: 'check', wrapper: 'mon-lanceur', cache: '', socket: '' });
+    // Its .cargo/config.toml: cargo reads it, the environment adds nothing; a PATH without sccache.
+    const projet = mkdtempSync(path.join(ESSAIS, 'lanceur-'));
+    writeFileSync(path.join(projet, 'Cargo.toml'), '[package]\nname = "lanceur"\n');
+    mkdirSync(path.join(projet, '.cargo'));
+    writeFileSync(
+      path.join(projet, '.cargo', 'config.toml'),
+      '[build]\nrustc-wrapper = "mon-lanceur"\n'
+    );
+    const sans = mkdtempSync(path.join(ESSAIS, 'sans-sccache-'));
+    copyFileSync(
+      path.join(process.env.PATH!.split(path.delimiter)[0], 'cargo'),
+      path.join(sans, 'cargo')
+    );
+    chmodSync(path.join(sans, 'cargo'), 0o755);
+    const PATH = [sans, path.dirname(process.execPath), '/usr/bin', '/bin'].join(path.delimiter);
+    expect(compilateur(projet, 'typer', [], { PATH })).toEqual([
+      { sous: 'check', wrapper: '', cache: '', socket: '' },
+    ]);
+  });
+
+  it('a wrapper of a parent directory or of $CARGO_HOME, as cargo reads them, is kept too', () => {
+    const configurer = (dossier: string, texte: string) => {
+      mkdirSync(path.join(dossier, '.cargo'), { recursive: true });
+      writeFileSync(path.join(dossier, '.cargo', 'config.toml'), texte);
+    };
+    const parent = mkdtempSync(path.join(ESSAIS, 'parent-'));
+    configurer(parent, '[build]\nrustc-wrapper = "du-parent"\n');
+    const projet = path.join(parent, 'projet');
+    mkdirSync(projet);
+    writeFileSync(path.join(projet, 'Cargo.toml'), '[package]\nname = "projet"\n');
+    expect(compilateur(projet, 'typer')).toEqual([
+      { sous: 'check', wrapper: '', cache: '', socket: '' },
+    ]);
+    // $CARGO_HOME, `.cargo` of the home when unset.
+    const maison = mkdtempSync(path.join(ESSAIS, 'cargo-home-'));
+    writeFileSync(path.join(maison, 'config.toml'), '[build]\nrustc-wrapper = "de-la-maison"\n');
+    expect(compilateur(d.seul, 'typer', [], { CARGO_HOME: maison })).toEqual([
+      { sous: 'check', wrapper: '', cache: '', socket: '' },
+    ]);
+    const home = mkdtempSync(path.join(ESSAIS, 'home-'));
+    configurer(home, '[build]\nrustc-wrapper = "du-home"\n');
+    expect(compilateur(d.seul, 'typer', [], { HOME: home })).toEqual([
+      { sous: 'check', wrapper: '', cache: '', socket: '' },
+    ]);
+    // CARGO_BUILD_RUSTC_WRAPPER, cargo's variable of the same key.
+    expect(
+      compilateur(d.seul, 'typer', [], { CARGO_BUILD_RUSTC_WRAPPER: 'par-cargo' })[0].wrapper
+    ).toBe('');
+  });
+
+  it('without sccache on the PATH, tester, verifier, typer and clippy refuse, named, cargo never run', () => {
+    // A PATH that holds the fake cargo, node and git, without sccache.
+    const sans = mkdtempSync(path.join(ESSAIS, 'sans-sccache-'));
+    copyFileSync(
+      path.join(process.env.PATH!.split(path.delimiter)[0], 'cargo'),
+      path.join(sans, 'cargo')
+    );
+    chmodSync(path.join(sans, 'cargo'), 0o755);
+    const PATH = [sans, path.dirname(process.execPath), '/usr/bin', '/bin'].join(path.delimiter);
+    for (const [nom, args] of [
+      ['tester', []],
+      ['verifier', ['--tout']],
+      ['typer', []],
+      ['clippy', []],
+    ] as const) {
+      const r = lancer(d.seul, nom, [...args], {}, { PATH });
+      expect(r.code, nom).not.toBe(0);
+      expect(r.stderr, nom).toContain('sccache absent du PATH');
+      expect(r.stderr, nom).toContain('npx grillhouse maj');
+      expect(r.appels, nom).toEqual([]);
+    }
+  });
+
+  it('the envelope opens the cache of sccache in writing, a store of the home it creates before mounting', () => {
+    expect(cargo.sorties.ecrites).toContain('~/.cache/sccache/');
+    // The stores of the home are created before bwrap mounts them (scripts/enveloppe/enveloppe.mjs,
+    // `creer` of each of `magasins`).
+    const { magasins, fichiers } = sortiesDuLangage(cargo.sorties, {
+      maison: '/h',
+      principal: '/p',
+    });
+    expect(magasins).toContain('/h/.cache/sccache');
+    expect(fichiers).not.toContain('/h/.cache/sccache');
+  });
+});
+
+describe('grillhouse-cyr, critère 2 — la mise à jour installe sccache à sa version exacte', () => {
+  it('sccache is a binary of the module cargo, at the version of mozilla/sccache v0.19.0', () => {
+    expect(cargo.binaires.sccache).toBe('0.19.0');
   });
 });

@@ -23,6 +23,7 @@
     "scripts/enveloppe/enveloppe.mjs",
     "scripts/enveloppe/lancer.sh",
     "scripts/enveloppe/paquets-du-plan.mjs",
+    "scripts/enveloppe/travail-de-la-copie.mjs",
     "scripts/etapes.mjs",
     "scripts/fusion-du-changelog.mjs",
     "scripts/gardes-du-cadre.mjs",
@@ -138,6 +139,7 @@
     "scripts/langages/cargo/index.mjs",
     "scripts/langages/cargo/mise-a-jour.mjs",
     "scripts/langages/cargo/nextest.toml",
+    "scripts/langages/cargo/sccache.mjs",
     "scripts/langages/cargo/touches.mjs",
     "scripts/langages/cargo/verdict.mjs"
   ]

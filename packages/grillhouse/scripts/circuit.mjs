@@ -622,6 +622,7 @@ import { A_REPASSER } from './mesure/pression.mjs';
 import { departDe, leMemeVivant, ouvrirBase, vivant } from './mesure/base-de-passe.mjs';
 import { GREFFON } from './cadre.mjs';
 import { executerEnDemon } from './demon.mjs';
+import { retirerLesCopiesDuDepot } from './copies-finies.mjs';
 
 // The time a session's transcripts may stand still before the circuit stops it.
 export const IMMOBILE_MS = 20 * 60 * 1000;
@@ -3949,7 +3950,10 @@ function depart(ctx, e) {
 // (`montee`: its code, its stop and the supervisor's session that ran it, `superviseur`, when
 // Claude Code names it), from which the bilan measures the wait to the run that answers it, the
 // owner's when he writes in that session meanwhile, then the ticket's bilan at the ticket
-// (scripts/bilan.mjs); a bilan it cannot write leaves the code as it is.
+// (scripts/bilan.mjs); a bilan it cannot write leaves the code as it is. Then the removal of the
+// finished copies of the repository (scripts/copies-finies.mjs), as a CI cleans its workspaces at
+// the end of each pipeline, not only the night's: its lines added to the log and written on the
+// error stream, each kept copy with the place it holds; it never changes the code.
 function aLaFin(ctx, code) {
   try {
     if (code !== 0) {
@@ -3967,6 +3971,15 @@ function aLaFin(ctx, code) {
     commenter(ctx, 'bilan', texte);
   } catch (e) {
     process.stderr.write(`⚠️  bilan non écrit au ticket : ${e.message}\n`);
+  }
+  try {
+    const lignes = retirerLesCopiesDuDepot(ctx.racine);
+    if (lignes.length) {
+      appendFileSync(ctx.journal, `${lignes.join('\n')}\n`);
+      process.stderr.write(`${lignes.join('\n')}\n`);
+    }
+  } catch (e) {
+    process.stderr.write(`⚠️  copies finies non retirées : ${e.message}\n`);
   }
   return code;
 }

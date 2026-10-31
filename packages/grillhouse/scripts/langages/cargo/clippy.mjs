@@ -5,7 +5,9 @@
 //   node clippy.mjs     in the root of the workspace; 0 green, 1 a finding refused
 //
 // - It runs `cargo clippy --all-targets --message-format=json -- -D warnings`: every target, the
-//   tests of `tests/` included, which clippy reads only with `--all-targets`; every warning denied.
+//   tests of `tests/` included, which clippy reads only with `--all-targets`; every warning denied;
+//   rustc wrapped by sccache, as every command of the module that compiles (./sccache.mjs); a
+//   PATH without sccache refuses before cargo runs, the line naming `npx grillhouse maj`.
 // - Each diagnostic of the compiler that carries a code is a finding: its file, the primary span's
 //   from the root, its line, its message the compiler's. A lint (`clippy::needless_return`, a lint
 //   of rustc such as `unused_variables`) is its rule, which the debt keys; an error of compilation
@@ -20,6 +22,7 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { MODE, trancher } from '../../dette.mjs';
+import { avecSccache, sccacheAbsent } from './sccache.mjs';
 
 export const GARDE = 'clippy';
 export const ARGS = ['clippy', '--all-targets', '--message-format=json', '--', '-D', 'warnings'];
@@ -76,9 +79,14 @@ export function constatsDeClippy(sortie, racine) {
  * @param {{ env?: NodeJS.ProcessEnv }} [o] the environment (the results directory, the debt's mode)
  */
 export function commande(racine, { env = process.env } = {}) {
+  const absent = sccacheAbsent(racine, env);
+  if (absent) {
+    process.stderr.write(`${absent}\n`);
+    return 1;
+  }
   const r = spawnSync('cargo', ARGS, {
     cwd: racine,
-    env,
+    env: avecSccache(racine, env),
     encoding: 'utf8',
     maxBuffer: 256 * 1024 * 1024,
   });
