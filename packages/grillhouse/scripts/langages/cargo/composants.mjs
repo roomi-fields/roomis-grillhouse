@@ -24,9 +24,23 @@
 //   `<crate>/tests/common/`, the helpers cargo's book puts there, is test material too; a file of
 //   a crate of the shared test material is material; any other file of a crate (`src/` included)
 //   is none of them.
+// - What the testwriter writes of the manifests (`manifestes`): the tables that declare what the
+//   tests of a crate depend on, `[dev-dependencies]` and `[target.<cible>.dev-dependencies]` of
+//   its Cargo.toml (cargo's book, « Development dependencies »), as the author of a test of Bazel
+//   declares the deps of its target; and Cargo.lock at the root, which cargo brings in line with
+//   them. A change of any other table is named by it; the Cargo.toml of a virtual workspace is
+//   no crate's. The manifests are read with smol-toml, a tool of this module (`outils`), an
+//   optional peer of the package loaded when a manifest is judged, so that a project of another
+//   language, which loads this module without it, never needs it.
 import { spawnSync } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
+
+// The loader of the optional peers this module reads when it needs them (smol-toml), under the
+// name by which knip reads a dependency.
+const require = createRequire(import.meta.url);
 
 // The genre of a dependency as cargo names its kind, null for a normal one.
 const genre = kind => kind ?? 'normal';
@@ -195,3 +209,61 @@ export function estUnTest(chemin, racine) {
   }
   return matiere ? { joue: false, test: false, matiere: true } : null;
 }
+
+// The tables of a manifest that declare what its tests depend on.
+const DES_TESTS = 'dev-dependencies';
+
+// The table <t> of a parsed manifest, an object; {} for any other value.
+const table = t => (t !== null && typeof t === 'object' && !Array.isArray(t) ? t : {});
+
+// The parts of the parsed manifests <a> and <b> that differ, out of the tables of the tests: each
+// `[<table>]` (`[target.<cible>.<table>]` under `target`), a key out of every table bare.
+function partiesHors(a, b) {
+  const cles = (x, y) => [...new Set([...Object.keys(x), ...Object.keys(y)])].sort();
+  const out = [];
+  for (const k of cles(a, b)) {
+    if (k === DES_TESTS || isDeepStrictEqual(a[k], b[k])) continue;
+    if (k !== 'target') {
+      const tableau = [a[k], b[k]].some(v => v !== null && typeof v === 'object');
+      out.push(tableau ? `[${k}]` : k);
+      continue;
+    }
+    const [ta, tb] = [table(a.target), table(b.target)];
+    for (const c of cles(ta, tb)) {
+      const [ca, cb] = [table(ta[c]), table(tb[c])];
+      for (const s of cles(ca, cb)) {
+        if (s !== DES_TESTS && !isDeepStrictEqual(ca[s], cb[s])) out.push(`[target.${c}.${s}]`);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * The parts of the Cargo.toml of a crate at <chemin> (absolute, or from <racine>) that change from
+ * <avant> (null: no file) to <apres> out of the tables of its tests; null when <chemin> is the
+ * manifest of no crate.
+ * @param {string} chemin
+ * @param {string} racine
+ * @param {string | null} avant
+ * @param {string} apres
+ */
+function horsDesTests(chemin, racine, avant, apres) {
+  const abs = path.resolve(racine, chemin);
+  if (path.basename(abs) !== 'Cargo.toml') return null;
+  if (!crates(racine).some(c => path.join(c.composant.dossier, 'Cargo.toml') === abs)) return null;
+  const { parse } = require('smol-toml');
+  const lire = texte => {
+    try {
+      return { valeur: parse(texte ?? '') };
+    } catch (e) {
+      return { faute: `le manifeste entier, illisible (${e.message.split('\n')[0]})` };
+    }
+  };
+  const [a, b] = [lire(avant), lire(apres)];
+  if (a.faute || b.faute) return [a.faute ?? b.faute];
+  return partiesHors(a.valeur, b.valeur);
+}
+
+/** What the testwriter writes of the manifests (scripts/jointure.d.ts, `manifestes`). */
+export const manifestes = { verrous: ['Cargo.lock'], horsDesTests };

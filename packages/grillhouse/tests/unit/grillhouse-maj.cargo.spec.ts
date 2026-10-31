@@ -133,7 +133,9 @@ describe('grillhouse-pkl.7, critère 1 — maj déclare cargo, sans outil npm d�
     const b = mettreAJour(racine, DEPOT);
     const p = pkgDe(racine);
     expect(p.grillhouse?.langages).toEqual(['cargo']);
-    expect(b.dependances).toEqual([]);
+    // grillhouse-ool: the one tool of npm of the module cargo, the reader of a Cargo.toml.
+    expect(b.dependances).toEqual(['smol-toml']);
+    expect(p.devDependencies?.['smol-toml']).toBe('1.9.1');
     for (const o of OUTILS_TS) {
       expect(p.devDependencies?.[o], o).toBeUndefined();
     }
@@ -281,7 +283,8 @@ describe('grillhouse-pkl.7, critère 3 — le gabarit d’un projet cargo', () =
     expect(p.scripts?.verifier).toBe('grillhouse verifier');
     expect(p.scripts?.['grillhouse:gardes']).toBe('grillhouse gardes-du-cadre');
     expect(JSON.stringify(p)).not.toMatch(/turbo|vitest|tsc\b/);
-    expect(p.devDependencies ?? {}).toEqual({});
+    // The version of each tool of npm of the module cargo, which the update installs (grillhouse-ool).
+    expect(p.devDependencies ?? {}).toEqual({ 'smol-toml': '1.9.1' });
   });
 
   it('the update copies the template’s files a project lacks, keeps its own, and writes its test scripts', () => {

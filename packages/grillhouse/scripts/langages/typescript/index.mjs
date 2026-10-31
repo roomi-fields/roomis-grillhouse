@@ -32,7 +32,8 @@
 //   (./vitest-config/base.mjs).
 // - The verdict: the summaries of Turborepo and the reports of Vitest of a results directory
 //   (./verdict.mjs).
-// - The rule of a test file (./regle-des-tests.mjs).
+// - The rule of a test file and what the testwriter writes of the manifests
+//   (./regle-des-tests.mjs).
 // - The generated files, each its command, the guard that checks it and the names its findings
 //   carry: the index of the interfaces, the turbo.json of the packages, the reports of API.
 // - The guards of structure, in the order they play.
@@ -53,7 +54,7 @@ import { elementsDuLot } from './elements-du-lot.mjs';
 import { A_ELAGUER, lireSarif, RESULTATS } from '../../resultats.mjs';
 import { paquets } from '../../paquets.mjs';
 import { lecteurs } from './lecteurs.mjs';
-import { estUnTest } from './regle-des-tests.mjs';
+import { estUnTest, manifestes } from './regle-des-tests.mjs';
 import { SCRIPT_DES_TESTS } from './script-des-tests.mjs';
 import { verdict } from './verdict.mjs';
 import { miseAJour } from './mise-a-jour.mjs';
@@ -268,6 +269,7 @@ export default {
   }),
   verdict,
   estUnTest,
+  manifestes,
   fichiersEngendres: () => [
     engendre(
       {

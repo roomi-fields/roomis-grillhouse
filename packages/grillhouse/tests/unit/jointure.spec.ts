@@ -35,6 +35,8 @@ import cargo from '../../scripts/langages/cargo/index.mjs';
 import typescript from '../../scripts/langages/typescript/index.mjs';
 
 const PAQUET = path.resolve(__dirname, '../..');
+// The tools of npm of the module cargo, optional peers of the package.
+const OUTILS_CARGO = (cargo as unknown as { outils: string[] }).outils;
 const lire = (rel: string) => readFileSync(path.join(PAQUET, rel), 'utf8');
 const REPARTITION = JSON.parse(
   readFileSync(path.join(PAQUET, 'tests/temoins/repartition.json'), 'utf8')
@@ -387,8 +389,10 @@ describe('grillhouse-3dr.2.2 — le module typescript sous son dossier', () => {
     expect(trouves).toEqual([]);
   });
 
-  it('the tools of the module typescript are optional peers of the package; its dependencies are the core’s', () => {
+  it('the tools of the modules are optional peers of the package; its dependencies are the core’s', () => {
     expect(Object.keys(PKG.dependencies).sort()).toEqual(['semver', 'yaml']);
+    // The module typescript's, then the module cargo's (grillhouse-ool: smol-toml, the reader of
+    // a Cargo.toml).
     const outils = [
       '@microsoft/api-extractor',
       '@microsoft/api-extractor-model',
@@ -396,17 +400,19 @@ describe('grillhouse-3dr.2.2 — le module typescript sous son dossier', () => {
       'dependency-cruiser',
       'jsonc-parser',
       'knip',
+      'smol-toml',
       'turbo',
       'typescript',
       'vitest',
     ];
+    expect(OUTILS_CARGO).toEqual(['smol-toml']);
     expect(Object.keys(PKG.peerDependencies).sort()).toEqual(outils);
     for (const o of outils) {
       expect(PKG.peerDependenciesMeta?.[o], o).toEqual({ optional: true });
     }
   });
 
-  it('each optional peer admits the version the template installs and the one BPScript holds', () => {
+  it('each optional peer admits the version its module’s template installs and the one BPScript holds', () => {
     // npm checks an optional peer as soon as the project holds it: a range that refuses the
     // project's version stops `npm install` (ERESOLVE). BPScript's versions, read in its
     // package.json on 2026-10-29 (its devDependencies).
@@ -421,12 +427,18 @@ describe('grillhouse-3dr.2.2 — le module typescript sous son dossier', () => {
       satisfies(v: string, r: string): boolean;
       minVersion(r: string): { version: string } | null;
     };
-    const gabarit = JSON.parse(
-      readFileSync(path.join(DEPOT, 'templates/projet/package.json'), 'utf8')
-    ) as { devDependencies: Record<string, string> };
+    // A tool of the module cargo is read in its template (templates/cargo/), the others in the
+    // template of a project of TypeScript: the update adds each to a project of its language alone.
+    const lu = (rel: string) =>
+      JSON.parse(readFileSync(path.join(DEPOT, rel, 'package.json'), 'utf8')) as {
+        devDependencies: Record<string, string>;
+      };
+    const [projet, deCargo] = [lu('templates/projet'), lu('templates/cargo')];
+    const version = (nom: string) =>
+      (OUTILS_CARGO.includes(nom) ? deCargo : projet).devDependencies[nom];
     const refus = Object.entries(PKG.peerDependencies).flatMap(([nom, plage]) =>
       [
-        ['gabarit', gabarit.devDependencies[nom]],
+        ['gabarit', version(nom)],
         ['BPScript', BPSCRIPT[nom]],
       ]
         .filter((v): v is [string, string] => typeof v[1] === 'string')
@@ -435,7 +447,8 @@ describe('grillhouse-3dr.2.2 — le module typescript sous son dossier', () => {
     );
     expect(refus).toEqual([]);
     for (const nom of Object.keys(PKG.peerDependencies)) {
-      expect(gabarit.devDependencies[nom], nom).toBeTypeOf('string');
+      expect(version(nom), nom).toBeTypeOf('string');
     }
+    expect(projet.devDependencies['smol-toml']).toBeUndefined();
   });
 });

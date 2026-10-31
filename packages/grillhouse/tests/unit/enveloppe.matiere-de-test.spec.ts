@@ -172,3 +172,30 @@ describe('the envelope and the package of the shared test material', () => {
     );
   });
 });
+
+// grillhouse-ool, criterion 1: the testwriter declares what his tests depend on, and the run of
+// his tests (`npm test`) brings the lock file of the versions at the root of the copy in line with
+// it, as cargo does: the envelope opens that file to him alone, the rest of the root read-only.
+describe('the envelope and the lock file of the versions', () => {
+  const verrous = (role: string, composant = 'packages/a') =>
+    plan(
+      {
+        trees: ['/main', '/wt'],
+        copie: '/wt',
+        paquets: [composant],
+        role,
+        verrous: ['Cargo.lock'],
+        paquetsDeLaCopie: [{ dossier: 'packages/a', pkg: { name: 'a' } }],
+      },
+      { existe: (p: string) => ['/wt/.git', '/wt/packages/a', '/wt/Cargo.lock'].includes(p) }
+    ).args ?? [];
+
+  it('opens it to the testwriter', () => {
+    expect(dernier(verrous('testwriter'), '/wt/Cargo.lock')).toBe('--bind /wt/Cargo.lock');
+  });
+  it('leaves it read-only for every other role', () => {
+    for (const role of AUTRES_ROLES) {
+      expect(dernier(verrous(role), '/wt/Cargo.lock'), role).toBeUndefined();
+    }
+  });
+});

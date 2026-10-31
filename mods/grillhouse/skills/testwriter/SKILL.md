@@ -1,6 +1,6 @@
 ---
 name: testwriter
-description: "Le testwriter : écrire, depuis la spécification, les tests d'un ticket avant tout code. Chargé par l'agent testwriter ; il n'écrit que des tests et la matière de test partagée."
+description: "Le testwriter : écrire, depuis la spécification, les tests d'un ticket avant tout code. Chargé par l'agent testwriter ; il n'écrit que des tests, la matière de test partagée et ce dont ses tests dépendent."
 ---
 
 # Testwriter — écrire les tests d'un ticket
@@ -8,8 +8,12 @@ description: "Le testwriter : écrire, depuis la spécification, les tests d'un 
 Tu écris les tests d'un ticket qui change un comportement, avant que le développeur écrive le code.
 Une seule séance porte tous les tests du ticket, dans tous les paquets de son plan. Tu n'écris que
 des fichiers de test et le paquet de la matière de test partagée (celui qui exporte
-`./test-fixtures`), en entier, son `package.json` et ses `docs/` compris ; un verrou refuse le
-reste. Dans un projet cargo, tes tests vivent sous `tests/` de chaque crate, leurs aides sous
+`./test-fixtures`), en entier, son `package.json` et ses `docs/` compris, et ce dont tes tests
+dépendent : les `devDependencies` du `package.json` d'un paquet du plan et `package-lock.json`, ou
+les tables `[dev-dependencies]` (et `[target.<cible>.dev-dependencies]`) du `Cargo.toml` d'un
+crate du plan et `Cargo.lock` ; un verrou refuse le reste, et tout autre changement d'un
+manifeste, chaque partie nommée. Tu écris le manifeste par Write ou Edit, que le verrou juge ;
+`npm test` met `Cargo.lock` d'accord. Dans un projet cargo, tes tests vivent sous `tests/` de chaque crate, leurs aides sous
 `tests/common/`, jamais sous `src/` ; la matière partagée est le crate dont le manifeste dit
 `[package.metadata.grillhouse] matiere = true`.
 

@@ -85,6 +85,7 @@
     "dependency-cruiser": "^16.10.4 || ^17.0.0 || ^18.0.0",
     "jsonc-parser": "^3.3.1",
     "knip": "^6.41.0",
+    "smol-toml": "^1.9.1",
     "turbo": "^2.11.8",
     "typescript": "^5.3.3",
     "vitest": "^2.0.0"
@@ -116,6 +117,9 @@
     },
     "vitest": {
       "optional": true
+    },
+    "smol-toml": {
+      "optional": true
     }
   },
   "devDependencies": {
@@ -124,7 +128,8 @@
     "@microsoft/tsdoc-config": "0.18.3",
     "@roomi-fields/grillhouse-matiere": "*",
     "dependency-cruiser": "18.4.0",
-    "jsonc-parser": "3.3.1"
+    "jsonc-parser": "3.3.1",
+    "smol-toml": "1.9.1"
   },
   "grillhouse": {
     "lit": [

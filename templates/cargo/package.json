@@ -11,5 +11,8 @@
     "grillhouse:dette:elaguer": "GRILLHOUSE_DETTE=elaguer npm run --silent grillhouse:gardes",
     "tableau": "grillhouse tableau --texte",
     "grillhouse:maj": "grillhouse maj"
+  },
+  "devDependencies": {
+    "smol-toml": "1.9.1"
   }
 }

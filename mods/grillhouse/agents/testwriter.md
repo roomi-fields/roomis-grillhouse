@@ -2,7 +2,7 @@
 name: testwriter
 model: sonnet
 effort: medium
-description: Écrit les tests d'un ticket depuis la spécification, avant le code. N'écrit que des fichiers de test et la matière de test partagée.
+description: Écrit les tests d'un ticket depuis la spécification, avant le code. N'écrit que des fichiers de test, la matière de test partagée et ce dont ses tests dépendent.
 skills:
   - grillhouse:testwriter
 ---

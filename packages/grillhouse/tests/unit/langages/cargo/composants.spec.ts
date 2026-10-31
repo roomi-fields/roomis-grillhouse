@@ -1,14 +1,16 @@
 // grillhouse-pkl.3, criteria 2 to 5 — the crates of a workspace of cargo, read from `cargo
 // metadata --no-deps --offline` (the fake cargo of ./faux-cargo.ts, first on the PATH): its
 // members, a file's crate, the readers of a crate by its manifests, what the testwriter writes,
-// the shared test material and the crates that play tests.
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+// the shared test material and the crates that play tests; grillhouse-ool: the part of a crate's
+// manifest the testwriter writes, and its lock's judgment.
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Langage } from '../../../../scripts/jointure.js';
 import module from '../../../../scripts/langages/cargo/index.mjs';
 import exemples from '../../../../scripts/langages/cargo/exemples.mjs';
+import { refusal } from '../../../../scripts/verrous/verrou.mjs';
 import { avecFauxCargo, installerFauxCargo } from './faux-cargo.js';
 
 const cargo = module as unknown as Langage;
@@ -157,5 +159,125 @@ describe('grillhouse-pkl.3, critère 5 — ce que le testwriter écrit, la mati�
     expect(joueurs(d.espace)).toEqual(['ws-app', 'ws-core']);
     expect(joueurs(d.seul)).toEqual(['seul']);
     expect(joueurs(d.imbrique)).toEqual([]);
+  });
+});
+
+// grillhouse-ool, criterion 1: the testwriter declares what his tests depend on, as the author of
+// a test of Bazel the deps of its target: the tables [dev-dependencies] (and
+// [target.*.dev-dependencies]) of the Cargo.toml of a crate, and Cargo.lock; any other table of
+// the manifest stays the developpeur's, named in the refusal.
+const MANIFESTE = [
+  '[package]',
+  'name = "ws-app"',
+  'version = "0.1.0"',
+  '',
+  '[dependencies]',
+  'ws-core = { path = "../core" }',
+  '',
+  '[dev-dependencies]',
+  'ws-outil = { path = "../outil" }',
+  '',
+].join('\n');
+
+// A virtual workspace of one crate, `crates/app`, that declares the language cargo.
+function espaceDeManifeste() {
+  const r = mkdtempSync(path.join(ESSAIS, 'manifeste-'));
+  const ecrire = (rel: string, texte: string) => {
+    mkdirSync(path.dirname(path.join(r, rel)), { recursive: true });
+    writeFileSync(path.join(r, rel), texte);
+  };
+  ecrire('package.json', JSON.stringify({ name: 'm', grillhouse: { langages: ['cargo'] } }));
+  ecrire('Cargo.toml', '[workspace]\nresolver = "2"\nmembers = ["crates/app"]\n');
+  ecrire('Cargo.lock', 'version = 4\n');
+  ecrire('crates/app/Cargo.toml', MANIFESTE);
+  ecrire('crates/app/src/lib.rs', 'pub fn app() {}\n');
+  return r;
+}
+
+const SCRATCH = { tmp: '/scratch' };
+
+describe('grillhouse-ool, critère 1 — le testwriter écrit les [dev-dependencies] d’un crate', () => {
+  it('the module names the tables of a crate’s manifest a change touches out of its tests', () => {
+    const r = espaceDeManifeste();
+    const hors = (apres: string) =>
+      cargo.manifestes.horsDesTests('crates/app/Cargo.toml', r, MANIFESTE, apres);
+    expect(hors(MANIFESTE.replace('"../outil" }', '"../outil" }\ntempfile = "3"'))).toEqual([]);
+    expect(hors(`${MANIFESTE}\n[target.'cfg(unix)'.dev-dependencies]\nlibc = "0.2"\n`)).toEqual([]);
+    expect(hors(MANIFESTE.replace('"../core" }', '"../core" }\ntempfile = "3"'))).toEqual([
+      '[dependencies]',
+    ]);
+    expect(hors(MANIFESTE.replace('version = "0.1.0"', 'version = "0.2.0"'))).toEqual([
+      '[package]',
+    ]);
+    expect(hors(`${MANIFESTE}\n[features]\nx = []\n`)).toEqual(['[features]']);
+    expect(hors(`${MANIFESTE}\n[target.'cfg(unix)'.dependencies]\nlibc = "0.2"\n`)).toEqual([
+      '[target.cfg(unix).dependencies]',
+    ]);
+  });
+
+  it('the workspace’s Cargo.toml, of no crate, is no manifest of a component', () => {
+    const r = espaceDeManifeste();
+    expect(cargo.manifestes.horsDesTests('Cargo.toml', r, '', '[workspace]\n')).toBeNull();
+    expect(cargo.manifestes.horsDesTests('crates/app/src/lib.rs', r, '', '')).toBeNull();
+  });
+
+  it('the lock file of the versions is Cargo.lock, at the root', () => {
+    expect(cargo.manifestes.verrous).toEqual(['Cargo.lock']);
+  });
+
+  it('the lock lets the testwriter edit [dev-dependencies] and write Cargo.lock', () => {
+    const r = espaceDeManifeste();
+    const edit = {
+      tool_name: 'Edit',
+      tool_input: {
+        file_path: path.join(r, 'crates/app/Cargo.toml'),
+        old_string: 'ws-outil = { path = "../outil" }',
+        new_string: 'ws-outil = { path = "../outil" }\ntempfile = "3"',
+      },
+      cwd: r,
+    };
+    expect(refusal('testwriter', edit, SCRATCH)).toBeNull();
+    const verrou = {
+      tool_name: 'Write',
+      tool_input: { file_path: path.join(r, 'Cargo.lock'), content: 'version = 4\n# x\n' },
+      cwd: r,
+    };
+    expect(refusal('testwriter', verrou, SCRATCH)).toBeNull();
+  });
+
+  it('the lock refuses the testwriter any other table, the path and the table named', () => {
+    const r = espaceDeManifeste();
+    const fichier = path.join(r, 'crates/app/Cargo.toml');
+    const edit = (old_string: string, new_string: string) => ({
+      tool_name: 'Edit',
+      tool_input: { file_path: fichier, old_string, new_string },
+      cwd: r,
+    });
+    const dependances = refusal(
+      'testwriter',
+      edit('ws-core = { path = "../core" }', 'ws-core = { path = "../core" }\ntempfile = "3"'),
+      SCRATCH
+    );
+    expect(dependances).toContain(fichier);
+    expect(dependances).toContain('[dependencies]');
+    expect(
+      refusal('testwriter', edit('version = "0.1.0"', 'version = "0.2.0"'), SCRATCH)
+    ).toContain('[package]');
+    const ecrit = {
+      tool_name: 'Write',
+      tool_input: { file_path: fichier, content: `${MANIFESTE}\n[features]\nx = []\n` },
+      cwd: r,
+    };
+    expect(refusal('testwriter', ecrit, SCRATCH)).toContain('[features]');
+  });
+
+  it('the lock keeps refusing the testwriter the workspace’s Cargo.toml', () => {
+    const r = espaceDeManifeste();
+    const ecrit = {
+      tool_name: 'Write',
+      tool_input: { file_path: path.join(r, 'Cargo.toml'), content: '[workspace]\n' },
+      cwd: r,
+    };
+    expect(refusal('testwriter', ecrit, SCRATCH)).toMatch(/seulement des fichiers de test/);
   });
 });

@@ -5,14 +5,16 @@
 // entries alone.
 //
 // - Where it is found: a repository with a Cargo.toml at its root, the manifest of its workspace
-//   or of its one crate (`trouve`). Its tools are no
-//   package of npm (`outils` empty): cargo and its subcommands live on the machine, and the update
+//   or of its one crate (`trouve`). Its one tool of npm is what its scripts import, smol-toml, the
+//   reader of a Cargo.toml (`outils`, an optional peer of the package, which the update adds to a
+//   project of cargo alone): cargo and its subcommands live on the machine, and the update
 //   installs the binaries the module runs, nextest and cargo-deny, at their versions
 //   (`binaires`, ./binaires.json). What cargo writes in a project: `target` (`ignorer`).
 // - Where cargo writes, which the envelope opens to a session (`sorties`), and the rules that
 //   refuse a role that writes the test runner run directly (`droits`).
 // - The components, a file's, the shared test material, the components that play tests, the
-//   readers of a crate and the rule of a test file (./composants.mjs).
+//   readers of a crate, the rule of a test file and what the testwriter writes of the manifests
+//   (./composants.mjs).
 // - The crates touched since a commit and their dependents (./touches.mjs).
 // - The elements of a lot, one per crate (./elements-du-lot.mjs).
 // - The commands `tester`, `verifier`, `typer` and `preparer` (./commandes.mjs), each described,
@@ -36,6 +38,7 @@ import {
   estUnTest,
   joueDesTests,
   lecteurs,
+  manifestes,
   matieres,
 } from './composants.mjs';
 import { elementsDuLot } from './elements-du-lot.mjs';
@@ -54,7 +57,8 @@ export default {
   nom: 'cargo',
   trouve,
   signe: 'un Cargo.toml à la racine',
-  outils: [],
+  // The reader of TOML by which the lock judges a Cargo.toml (./composants.mjs, `manifestes`).
+  outils: ['smol-toml'],
   // The binaries the module runs, nextest and cargo-deny, each at the version the probe of
   // grillhouse-pkl.1 measured.
   binaires: JSON.parse(readFileSync(ici('binaires.json'), 'utf8')),
@@ -98,6 +102,7 @@ export default {
   commandes,
   verdict,
   estUnTest,
+  manifestes,
   fichiersEngendres: () => [
     {
       nom: "l'index des interfaces",

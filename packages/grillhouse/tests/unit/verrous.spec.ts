@@ -5,7 +5,11 @@ import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { estUnTest, isTestFile } from '../../scripts/langages/typescript/regle-des-tests.mjs';
 import { refusDeCommande } from '../../scripts/verrous/commande.mjs';
-import { refusal } from '../../scripts/verrous/verrou.mjs';
+import type { Langage } from '../../scripts/jointure.js';
+import module from '../../scripts/langages/typescript/index.mjs';
+import { horsDuPlan, refusal } from '../../scripts/verrous/verrou.mjs';
+
+const typescript = module as unknown as Langage;
 
 // What the testwriter writes, by the rule of a test file of the module typescript.
 const duTestwriter = (f: string, racine: string) => estUnTest(f, racine) !== null;
@@ -577,5 +581,145 @@ describe('an unreadable package.json', () => {
     const r = refusal('testwriter', at('packages/casse/src/a.ts'), options(null));
     expect(r).toMatch(/seulement des fichiers de test/);
     expect(r).not.toMatch(/illisible/);
+  });
+});
+
+// grillhouse-ool, criteria 2 and 3: the testwriter declares what his tests depend on, as the
+// author of a test of Bazel the deps of its target: the devDependencies of the package.json of a
+// package, and package-lock.json; any other field of the manifest stays the developpeur's, named in
+// the refusal; a manifest out of the plan stays out of it; the developpeur keeps his rights.
+const MANIFESTE_A = {
+  name: 'a',
+  scripts: { test: 'vitest run' },
+  dependencies: { x: '1.0.0' },
+  devDependencies: { y: '1.0.0' },
+};
+
+function depotDeManifestes() {
+  const repo = mkdtempSync(path.join(ESSAIS_VERROU, 'manifestes-'));
+  const ecrire = (rel: string, contenu: unknown) => {
+    mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true });
+    writeFileSync(path.join(repo, rel), `${JSON.stringify(contenu, null, 2)}\n`);
+  };
+  ecrire('package.json', {
+    name: 'racine',
+    private: true,
+    workspaces: ['packages/*'],
+    grillhouse: { langages: ['typescript'] },
+  });
+  ecrire('package-lock.json', { name: 'racine', lockfileVersion: 3, packages: {} });
+  ecrire('packages/a/package.json', MANIFESTE_A);
+  ecrire('packages/b/package.json', { name: 'b' });
+  spawnSync('git', ['init', '-q'], { cwd: repo });
+  return repo;
+}
+
+describe('grillhouse-ool, critère 2 — le testwriter écrit les devDependencies d’un paquet', () => {
+  const repo = depotDeManifestes();
+  const manifeste = path.join(repo, 'packages/a/package.json');
+  const avec = (champs: object) => `${JSON.stringify({ ...MANIFESTE_A, ...champs }, null, 2)}\n`;
+  const ecrit = (contenu: string, fichier = manifeste) => ({
+    tool_name: 'Write',
+    tool_input: { file_path: fichier, content: contenu },
+    cwd: repo,
+  });
+
+  it('the module names the fields of a package’s manifest a change touches out of its tests', () => {
+    const hors = (apres: string) =>
+      typescript.manifestes.horsDesTests('packages/a/package.json', repo, avec({}), apres);
+    expect(hors(avec({ devDependencies: { y: '1.0.0', tempfile: '3.0.0' } }))).toEqual([]);
+    expect(hors(avec({ dependencies: { x: '2.0.0' } }))).toEqual(['dependencies']);
+    expect(hors(avec({ scripts: {}, version: '1.0.0' }))).toEqual(['scripts', 'version']);
+    expect(typescript.manifestes.horsDesTests('package.json', repo, '{}', '{}')).toBeNull();
+    expect(typescript.manifestes.horsDesTests('packages/a/src/a.ts', repo, '', '')).toBeNull();
+    expect(typescript.manifestes.verrous).toEqual(['package-lock.json']);
+  });
+
+  it('the lock lets the testwriter write devDependencies and package-lock.json', () => {
+    const neuf = avec({ devDependencies: { y: '1.0.0', z: '2.0.0' } });
+    expect(refusal('testwriter', ecrit(neuf), options(null))).toBeNull();
+    const edit = {
+      tool_name: 'Edit',
+      tool_input: { file_path: manifeste, old_string: '"y": "1.0.0"', new_string: '"y": "1.1.0"' },
+      cwd: repo,
+    };
+    expect(refusal('testwriter', edit, options(null))).toBeNull();
+    expect(
+      refusal('testwriter', ecrit('{}\n', path.join(repo, 'package-lock.json')), options(null))
+    ).toBeNull();
+  });
+
+  it('the lock refuses the testwriter dependencies, scripts or any other field, named', () => {
+    for (const [champs, nom] of [
+      [{ dependencies: { x: '2.0.0' } }, 'dependencies'],
+      [{ scripts: { test: 'rm -rf /' } }, 'scripts'],
+      [{ exports: './i.js' }, 'exports'],
+    ] as const) {
+      const r = refusal('testwriter', ecrit(avec(champs)), options(null));
+      expect(r, nom).toContain(manifeste);
+      expect(r, nom).toContain(nom);
+    }
+    const edit = {
+      tool_name: 'Edit',
+      tool_input: { file_path: manifeste, old_string: '"x": "1.0.0"', new_string: '"x": "2.0.0"' },
+      cwd: repo,
+    };
+    expect(refusal('testwriter', edit, options(null))).toContain('dependencies');
+  });
+
+  it('the lock keeps refusing the testwriter the root package.json', () => {
+    expect(
+      refusal('testwriter', ecrit('{}\n', path.join(repo, 'package.json')), options(null))
+    ).toMatch(/seulement des fichiers de test/);
+  });
+});
+
+describe('grillhouse-ool, critère 3 — hors du plan, et les droits du développeur', () => {
+  const repo = depotDeManifestes();
+  const env = { GRILLHOUSE_ENVELOPPE: 'packages/a' };
+  const devDependencies = (rel: string) => ({
+    tool_name: 'Write',
+    tool_input: {
+      file_path: path.join(repo, rel),
+      content: `${JSON.stringify({ name: 'b', devDependencies: { z: '1.0.0' } }, null, 2)}\n`,
+    },
+    cwd: repo,
+  });
+
+  it('a manifest out of the plan stops the testwriter, whatever the part', () => {
+    const stop = horsDuPlan(devDependencies('packages/b/package.json'), {
+      tmp: SCRATCH,
+      env,
+      role: 'testwriter',
+    });
+    expect(stop?.paquet).toBe('packages/b');
+  });
+
+  it('the manifest of a package of the plan does not stop the testwriter', () => {
+    expect(
+      horsDuPlan(devDependencies('packages/a/package.json'), {
+        tmp: SCRATCH,
+        env,
+        role: 'testwriter',
+      })
+    ).toBeNull();
+  });
+
+  it('the lock file at the root does not stop the testwriter, and still stops the developpeur', () => {
+    const verrou = devDependencies('package-lock.json');
+    expect(horsDuPlan(verrou, { tmp: SCRATCH, env, role: 'testwriter' })).toBeNull();
+    expect(horsDuPlan(verrou, { tmp: SCRATCH, env, role: 'developpeur' })?.paquet).toBe(
+      'la racine du dépôt'
+    );
+  });
+
+  it('the developpeur writes every field of a package’s manifest, as before', () => {
+    const ready = session('TON TICKET : demo-12 — un sujet.');
+    const r = refusal(
+      'developpeur',
+      { ...devDependencies('packages/a/package.json'), ...ready, cwd: repo },
+      options('## Architecture\n- Modèle mûr : X')
+    );
+    expect(r).toBeNull();
   });
 });

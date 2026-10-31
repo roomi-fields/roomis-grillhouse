@@ -512,7 +512,10 @@ composants et celui d'un fichier, avec les lecteurs par le code des éléments q
 les composants touchés depuis un commit, avec leurs dépendants ; les commandes qui testent,
 typent et vérifient, les composants qui jouent des tests (`joueDesTests` ; le script des tests
 porte un nom neutre, `test:unit`, le même pour chaque langage), et la lecture de leur verdict ; la règle qui dit qu'un fichier est un test
-(le verrou du testwriter) ; ses fichiers engendrés, leur commande et ses gardes de structure ;
+(le verrou du testwriter), et la partie d'un manifeste qui déclare ce dont ses tests dépendent,
+avec le fichier de verrouillage des versions (`manifestes` : le testwriter les écrit, comme
+l'auteur d'un test de Bazel déclare les dépendances de sa cible ; le verrou refuse tout autre
+changement du manifeste, chaque partie nommée) ; ses fichiers engendrés, leur commande et ses gardes de structure ;
 où écrivent ses outils et l'outil de test qu'un rôle ne lance pas lui-même.
 L'INTERFACE.md du noyau l'écrit (`packages/grillhouse/docs/INTERFACE.md`), `scripts/jointure.d.ts`
 la type, et `scripts/langages.mjs` charge le module que le projet déclare (`grillhouse.langages`
@@ -560,9 +563,10 @@ règles propres au dépôt (`.dependency-cruiser.projet.cjs`), comme `enforce-mo
 Nx ; le test de la jointure (`tests/unit/jointure.spec.ts`) refuse tout mot d'un outil dans le
 code du noyau et tout fichier d'un module que le noyau lance par son chemin.
 Les outils du langage (api-extractor et son modèle, la configuration de TSDoc, jsonc-parser,
-Turborepo, Vitest, knip, dependency-cruiser, TypeScript) sont des pairs facultatifs du paquet,
-comme Vite déclare les préprocesseurs qu'il importe ; `maj` ajoute au projet ceux du module de
-son langage (`outils`), aux versions du gabarit. Une même suite de conformité (`scripts/conformite.mjs`) tient chaque module de langage,
+Turborepo, Vitest, knip, dependency-cruiser, TypeScript ; pour cargo, smol-toml, le lecteur d'un
+Cargo.toml) sont des pairs facultatifs du paquet, comme Vite déclare les préprocesseurs qu'il
+importe, chacun chargé à la demande ; `maj` ajoute au projet ceux du module de son langage
+(`outils`), aux versions du gabarit de ce module. Une même suite de conformité (`scripts/conformite.mjs`) tient chaque module de langage,
 comme le RuleTester d'ESLint une règle. Ainsi le reste du noyau ignore le langage du projet.
 
 **Les tests d'intégration, un paquet à part** : les tests qui montent un dépôt d'essai et y

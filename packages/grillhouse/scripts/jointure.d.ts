@@ -68,6 +68,24 @@ export interface FichierEngendre {
  * does not write. */
 export type ClasseDeTest = { joue: boolean; test: boolean; matiere: boolean } | null;
 
+/** What the testwriter writes of the manifests, as the author of a test of Bazel declares the deps
+ * of its target: the part of a component's manifest that declares what its tests depend on, and
+ * the lock files of the versions. */
+export interface Manifestes {
+  /** The lock files of the versions, from the root: the testwriter writes them, and the envelope
+   * opens them to him. */
+  verrous: string[];
+  /** The parts of the manifest of a component at `chemin` (absolute, or from `racine`) that change
+   * from `avant` (null: no file) to `apres` out of the part of its tests, each named as the
+   * manifest names it, empty for none; null when `chemin` is the manifest of no component. */
+  horsDesTests(
+    chemin: string,
+    racine: string,
+    avant: string | null,
+    apres: string
+  ): string[] | null;
+}
+
 /** The readers, by the code, of the elements a ticket names (composants-affectes). */
 export interface Lecteurs {
   elements: {
@@ -222,6 +240,7 @@ export interface Langage {
   ): { tester: Commande; verifier: Commande; typer: Commande } & Record<string, Commande>;
   verdict(dossier: string): { rapports: RapportDeTest[]; taches: TacheJouee[] };
   estUnTest(chemin: string, racine: string): ClasseDeTest;
+  manifestes: Manifestes;
   fichiersEngendres(racine: string): FichierEngendre[];
   gardes(racine: string): string[][];
   migrations: Migration[];

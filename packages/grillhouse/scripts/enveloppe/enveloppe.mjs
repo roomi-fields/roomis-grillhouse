@@ -81,6 +81,10 @@
 //   the session, as Bazel writes a test's logs out of its source: what is written there leaves no
 //   trace. The envelope creates each of them on disk, empty, before the session, so that bwrap
 //   mounts over it inside the read-only package.
+// - The lock files of the versions at the root of the copy (`manifestes.verrous` of the module of
+//   the language: cargo's Cargo.lock), which a run of the tests brings in line with the
+//   dependencies of the tests the testwriter declares, come back in writing for the `testwriter`
+//   alone, when the plan leaves the root read-only and the file exists.
 // - The exit codes are named in `codes.mjs`.
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
@@ -107,7 +111,7 @@ import {
 export { paquetsDuLangage };
 import { ouvrirBase } from '../mesure/base-de-passe.mjs';
 
-// The role that writes the package of the shared test material.
+// The role that writes the package of the shared test material and the lock files of the versions.
 const ROLE_MATIERE = 'testwriter';
 // The directories <sorties> of <dir>, each relative to it.
 // One that a symbolic link carries out of <dir> (a `node_modules` linked to another tree's) is
@@ -396,7 +400,8 @@ export function jugerComposant({ depot, composant, paquets = [] }, fs) {
 // (`montagesDeLaSeance`); an emptied one marked `scelle` is sealed read-only once every mount
 // inside it is made. `matieres` lists the packages of the shared test material, relative to the
 // copy (`matieres` of the module of the language); `role` is the agent's role, and only the
-// `testwriter` writes them. `magasins` lists the stores written by every run, the agent's included
+// `testwriter` writes them, and the lock files of the versions `verrous`, from the root of the copy.
+// `magasins` lists the stores written by every run, the agent's included
 // (the module's, `sortiesDuLangage`: Turborepo's `<main tree>/.turbo/cache`, cargo's registry,
 // git dependencies, advisories and lock files in the home); one that does not exist is not
 // mounted. `lectures` lists what the language's tools read (cargo's home, rustup's toolchains),
@@ -414,6 +419,7 @@ export function jugerComposant({ depot, composant, paquets = [] }, fs) {
  *   paquets?: string[],
  *   role?: string,
  *   matieres?: string[],
+ *   verrous?: string[],
  *   montages?: { chemin: string, source?: string, ecriture?: boolean, vide?: boolean, scelle?: boolean, lien?: string }[],
  *   magasins?: string[],
  *   lectures?: string[],
@@ -430,6 +436,7 @@ export function plan(
     paquets = [],
     role,
     matieres = [],
+    verrous = [],
     montages = [],
     magasins = [],
     lectures = [],
@@ -507,6 +514,11 @@ export function plan(
     for (const e of ecrits) {
       const d = path.join(copie, e);
       args.push('--bind', d, d);
+    }
+    // The lock files of the versions, which a run of the testwriter's tests brings in line with
+    // the dependencies of his tests, are written by him alone.
+    for (const v of verrous.map(v => path.join(copie, v))) {
+      if (role === ROLE_MATIERE && fs.existe(v)) args.push('--bind', v, v);
     }
   }
   for (const m of matieres.map(m => path.join(copie, m))) {
@@ -614,6 +626,7 @@ function envelopper(argv) {
       paquets,
       role,
       matieres,
+      verrous: langage.manifestes.verrous,
       montages,
       magasins,
       lectures,

@@ -7,7 +7,11 @@
 // - testwriter writes the files it owns, those the rule of a test file of the module of the
 //   project's language classes (`estUnTest`, scripts/jointure.d.ts, scripts/langages.mjs): its test
 //   files, the helpers of its folders of tests, and every file of a package of the shared test
-//   material.
+//   material. Of the manifests, it writes what the module declares its (`manifestes`): a write of
+//   a component's manifest whose only change from the file on disk lies in the part of its tests
+//   (`horsDesTests` empty; the text after an Edit or a MultiEdit is the file's with its
+//   replacements), and the lock files of the versions; any other change of a manifest is refused,
+//   the path and each part named.
 // - The repository root is that of the git repository holding the written file, whatever the
 //   agent's working directory; a file outside any repository is read against the working directory.
 //   A project that declares no language (`grillhouse.langages`) is refused, exit code 2, the
@@ -19,7 +23,8 @@
 // - In an envelope (`GRILLHOUSE_ENVELOPPE`, the packages of the plan, scripts/enveloppe/
 //   paquets-du-plan.mjs), a write in the copy out of the packages the plan writes (`ecritsDuPlan`
 //   on the components of the module of the language, `paquetsDuLangage`, as the envelope reads them)
-//   and out of the shared test material, whose rule is the one above, stops the session, as the
+//   and out of the shared test material, whose rule is the one above, and for the testwriter out
+//   of the lock files of the versions (`manifestes.verrous`), stops the session, as the
 //   visibility of Bazel refuses a target the rule does not open: the hook answers Claude Code's
 //   `continue: false`, the tool refused (`permissionDecision: deny`), its reason naming the file's
 //   package and the plan, and leaves that reason in the session's working directory
@@ -76,10 +81,13 @@ function racineDe(file) {
   }
 }
 
-// The stop of a write out of the plan of the envelope <env>, `{ paquet, raison }`, or null: a
-// write in the repository holding the file, out of the packages the plan writes and out of the
-// shared test material.
-function horsDuPlan(input, { tmp = tmpdir(), env = process.env } = {}) {
+// The role that writes the tests, the shared test material and the lock files of the versions.
+const TESTWRITER = 'testwriter';
+
+// The stop of a write of <role> out of the plan of the envelope <env>, `{ paquet, raison }`, or
+// null: a write in the repository holding the file, out of the packages the plan writes, out of
+// the shared test material and, for the testwriter, out of the lock files of the versions.
+export function horsDuPlan(input, { tmp = tmpdir(), env = process.env, role = null } = {}) {
   const plan = paquetsDeLEnveloppe(env);
   if (!plan || !WRITE_TOOLS.has(input.tool_name)) return null;
   const raw = input.tool_input?.file_path ?? input.tool_input?.notebook_path;
@@ -88,17 +96,36 @@ function horsDuPlan(input, { tmp = tmpdir(), env = process.env } = {}) {
   if (isScratch(file, tmp)) return null;
   const copie = racineDe(file);
   if (!copie) return null;
-  const liste = paquetsDuLangage(langageDe(copie), copie);
+  const langage = langageDe(copie);
+  const liste = paquetsDuLangage(langage, copie);
   const ecrits = ecritsDuPlan(plan, liste);
   const rel = path.relative(copie, file);
   if (ecrits.includes('.') || ecrits.some(d => rel.startsWith(`${d}/`))) return null;
-  if (langageDe(copie).estUnTest(file, copie)?.matiere) return null;
+  if (langage.estUnTest(file, copie)?.matiere) return null;
+  if (role === TESTWRITER && langage.manifestes.verrous.includes(rel)) return null;
   const tenant = paquetQuiTient(rel, liste);
   const paquet = tenant === '.' ? 'la racine du dépôt' : tenant;
   return {
     paquet,
     raison: `⛔ hors-plan — ${rel} est dans ${paquet}, hors des paquets du plan (${plan.join(', ')}) : ta séance s'arrête là, et le superviseur étend le plan ou refuse l'écriture.`,
   };
+}
+
+// The text of the file at <file>, null when there is none.
+const lu = file => (existsSync(file) ? readFileSync(file, 'utf8') : null);
+
+// The text the write <input> leaves at <file>: a Write's content, the file's text with each
+// replacement of an Edit or a MultiEdit, as Claude Code applies them; null for another tool.
+function texteApres(input, file) {
+  const t = input.tool_input ?? {};
+  const remplacer = (texte, e) =>
+    e.replace_all
+      ? texte.split(e.old_string ?? '').join(e.new_string ?? '')
+      : texte.replace(e.old_string ?? '', () => e.new_string ?? '');
+  if (input.tool_name === 'Write') return t.content ?? '';
+  if (input.tool_name === 'Edit') return remplacer(lu(file) ?? '', t);
+  if (input.tool_name === 'MultiEdit') return (t.edits ?? []).reduce(remplacer, lu(file) ?? '');
+  return null;
 }
 
 // The ticket id of the launch prompt. A sub-agent's prompt opens its own transcript, next to the
@@ -159,13 +186,21 @@ export function refusal(role, input, { tmp = tmpdir(), describe = ticketDescript
     return null;
   }
   const racine = racineDe(file) ?? cwd;
-  const classe = langageDe(racine).estUnTest(file, racine);
+  const langage = langageDe(racine);
+  const classe = langage.estUnTest(file, racine);
   const testwriter = classe !== null;
 
-  if (role === 'testwriter') {
-    return testwriter
-      ? null
-      : `Le testwriter écrit seulement des fichiers de test et la matière de test partagée ; ${raw} n'est ni l'un ni l'autre. Le code revient au développeur.`;
+  if (role === TESTWRITER) {
+    if (testwriter || langage.manifestes.verrous.includes(path.relative(racine, file))) return null;
+    const apres = texteApres(input, file);
+    const hors =
+      apres === null ? null : langage.manifestes.horsDesTests(file, racine, lu(file), apres);
+    if (hors?.length === 0) return null;
+    const regle =
+      "Le testwriter écrit seulement des fichiers de test, la matière de test partagée et, d'un manifeste, ce dont ses tests dépendent";
+    return hors
+      ? `${regle} ; ce changement du manifeste ${raw} touche aussi ${hors.join(', ')}. Le reste du manifeste revient au développeur.`
+      : `${regle} ; ${raw} n'est rien de cela. Le code revient au développeur.`;
   }
   if (role === 'developpeur') {
     if (testwriter) {
@@ -193,7 +228,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   let stop = null;
   let reason = null;
   try {
-    stop = horsDuPlan(input);
+    stop = horsDuPlan(input, { role: process.argv[2] });
     if (!stop) reason = refusal(process.argv[2], input);
   } catch (e) {
     reason = e.message;

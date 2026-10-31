@@ -128,6 +128,15 @@ clippy`). Le noyau en lance trois
   le lanceur joue, un fichier de test ou d'un dossier de tests, un fichier de la matière de test
   partagée), ou null pour un fichier qu'il n'écrit pas. Les verrous des rôles, l'intégration et le
   circuit le lisent.
+- `manifestes` : ce que le testwriter écrit des manifestes, comme l'auteur d'un test de Bazel
+  déclare les dépendances de sa cible. `verrous`, les fichiers de verrouillage des versions depuis
+  la racine (cargo : `Cargo.lock` ; typescript : `package-lock.json`), que l'enveloppe ouvre au
+  seul testwriter ; `horsDesTests(chemin, racine, avant, apres)`, les parties du manifeste d'un
+  composant qu'un changement touche hors de la partie de ses tests (cargo : `[dev-dependencies]`
+  et `[target.<cible>.dev-dependencies]` d'un Cargo.toml ; typescript : `devDependencies` d'un
+  package.json), chacune nommée, ou null pour un fichier qui n'est le manifeste d'aucun composant.
+  Le verrou du testwriter accepte une écriture dont la liste est vide, et refuse les autres en
+  nommant le chemin et chaque partie ; le noyau ne connaît aucun nom de section.
 - `fichiersEngendres` : les fichiers que le module engendre, chacun avec sa commande, ses fichiers,
   ceux qu'il lit, les noms de ses constats et sa vérification (`verifier`), qui rend ses écarts.
   Le circuit les régénère et les juge (étape 4.2).
