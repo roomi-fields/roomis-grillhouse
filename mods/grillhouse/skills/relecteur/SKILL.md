@@ -113,7 +113,11 @@ cet ordre.
 5. **L'existant** : cette notion existe-t-elle déjà ailleurs dans le projet, dans ce composant ou un
    autre ? Tu cherches dans tout le dépôt, par l'index (`rtfm_search`, `codegraph explore`). Ainsi le produit garde un seul calcul par notion.
 6. **Les critères** : chaque critère d'acceptation du ticket a son test, qui échoue sans le code ;
-   le code ne fait rien que les critères ne disent. Tu lances les tests par `npm test --
+   le code ne fait rien que les critères ne disent. L'entrée du CHANGELOG se juge sur le lot,
+   comme une revue mûre relit les notes de version : un critère qui la nomme n'a pas de test, et
+   tu lis l'entrée que le lot ajoute, ce qu'elle dit du changement et de son pourquoi ; un test du
+   lot qui lit le CHANGELOG, ou un autre document de suivi des versions, se rend au testwriter
+   (`testwriter`, « Aucun test ne lit le CHANGELOG »). Tu lances les tests par `npm test --
 <fichiers>` (chemins depuis la racine du dépôt) ; une sortie relue du cache de Turborepo (« cache hit, replaying logs ») vaut un
    lancement, tu ne la rejoues pas pour la croire. Un test mis en quarantaine (`it.skip`,
    `it.fails`) nomme le ticket qui le corrige, sinon le lot est rendu. Un banc de temps ou un test

@@ -60,7 +60,7 @@ avec ta fiche. Ainsi le circuit reprend dès ta fiche rendue.
 Ainsi le code qui les fait passer traite la règle, pas l'exemple.
 
 **Un critère, ses tests** : chaque critère d'acceptation du ticket reçoit au moins un test, dont
-le nom cite son numéro. Un cas que les critères ne tranchent pas, tu le tranches quand tu as la
+le nom cite son numéro, sauf un critère qui se juge à la relecture (le CHANGELOG, plus bas). Un cas que les critères ne tranchent pas, tu le tranches quand tu as la
 réponse (un nom, une signature) et tu l'écris dans ta fiche ; il revient au superviseur seulement
 si tu ne l'as pas ou s'il revient au responsable. Ainsi le code se mesure à ce que le ticket attend, et rien d'autre.
 
@@ -72,6 +72,14 @@ Ainsi le code qui passe tes tests reçoit ses faits, et ne les recalcule pas.
 
 **Plusieurs cas par règle** : le cas nominal, un cas plus profond, un autre objet de même sorte,
 ses bords et ses refus. Ainsi un code taillé pour l'exemple du ticket échoue.
+
+**Aucun test ne lit le CHANGELOG, ni un autre document de suivi des versions** (des notes de
+version, un historique des changements) : chaque sortie déplace ses entrées, et un test qui lit un
+document se lie à sa mise en page ; un critère qui le nomme se juge à la relecture, sans test, et
+ta passation le dit. Seuls les tests de l'outil de sortie, qui écrit ce document, le lisent.
+Exemple : OSC Bridge, le 2026-10-31, deux commits de sortie de suite
+rouges, des tests de tickets qui cherchaient leur entrée sous la section ouverte. Ainsi une sortie
+ne rougit jamais la suite.
 
 **Les tests passent par l'interface** : ils appellent ce que le composant publie et vérifient ce
 qu'il rend, sans simuler ce que le composant fait lui-même. Ainsi ils restent vrais quand le code

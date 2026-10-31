@@ -58,7 +58,9 @@ change, et ceux qu'il peut casser.
      répond à un besoin réel de l'usage actuel, et se confronte à la spécification. Ma fiche ne
      porte que les critères que j'ajoute : les critères déjà écrits au ticket sont la décision du
      responsable, que le circuit garde tels quels, les miens après eux. Pour changer ou retirer un
-     critère écrit, je pose une question ouverte ;
+     critère écrit, je pose une question ouverte. Un critère sur le changelog s'écrit
+     « le CHANGELOG le dit », sans le lier à un titre de section, que chaque sortie déplace : le
+     relecteur juge l'entrée sur le lot, et aucun test ne la lit ;
    - `paquets` : les paquets à toucher, le fournisseur d'abord, puis ses lecteurs, chacun comme le
      titre le nomme (le nom de son paquet, ou son chemin) ; le circuit les écrit au titre, et
      chaque séance du ticket n'écrit qu'eux ;
