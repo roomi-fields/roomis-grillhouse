@@ -40,10 +40,13 @@
 #   again from main. A ticket whose branch is still in the integration queue is not launched:
 #   the refusal goes to the log, which names the queue, CODE_COPIE, before any copy is made.
 #   Moving forward keeps
-#   the work in progress of the copy: git stashes it, fast-forwards, and reapplies it
-#   (`--autostash`). A refusal, such as commits of the agent on its branch, goes to the log and
-#   stops the launch, CODE_COPIE; so does a reapplication that conflicts: the log names each file
-#   in conflict, the work stays in git's stash, and no agent starts on a half-merged copy. Its
+#   the work in progress of the copy in the copy, never in git's stash, which every copy of the
+#   repository shares: it is set aside as a lot, the copy fast-forwards, and the lot is applied
+#   three ways, as the lot of a branch sent back is (scripts/enveloppe/travail-de-la-copie.mjs).
+#   A refusal, such as commits of the agent on its branch or conflicts left unresolved, goes to
+#   the log and stops the launch, CODE_COPIE; so does a reapplication that conflicts: the log
+#   names the copy and each file in conflict, the conflicts stay marked in the copy's files and
+#   unmerged in its index, and no agent starts on a half-merged copy. Its
 #   submodules go through the common preparation (scripts/sous-modules.sh): before moving forward,
 #   a submodule carrying local work stops the launch, CODE_COPIE, its log naming it, the work in
 #   place; then every submodule is set at the commit of HEAD, before any installation, except one the
@@ -185,38 +188,28 @@ echec=$(mktemp)
   if [ ! -d "$copie" ]; then
     tete=$(git -C "$racine" rev-parse HEAD) || exit 1
     branche="agent/$ticket"
-    lot=
+    base= pointe=
     if git -C "$racine" rev-parse --verify -q "refs/heads/$branche" > /dev/null; then
       # A branch already there: the queue sent it back, or it was left without a commit. Its lot,
       # when it carries one, goes back as local work on main; the branch returns to main.
       if [ "$(git -C "$racine" rev-list --count "$tete..$branche")" -gt 0 ]; then
         base=$(git -C "$racine" merge-base "$tete" "$branche") || exit 1
-        lot=$(mktemp) || exit 1
-        git -C "$racine" diff --binary "$base" "$branche" > "$lot" || exit 1
+        pointe=$(git -C "$racine" rev-parse "$branche") || exit 1
       fi
       git -C "$racine" branch -q -f "$branche" "$tete" || exit 1
       git -C "$racine" worktree add -q "$copie" "$branche" || exit 1
     else
       git -C "$racine" worktree add -q -b "$branche" "$copie" HEAD || exit 1
     fi
-    if [ -n "$lot" ]; then
-      # The lot is applied three ways: a conflict is marked in the file, the rest of the lot is
-      # there. The index is left as HEAD has it, so that all of it is local work.
-      git -C "$copie" apply --3way "$lot" || [ -n "$(git -C "$copie" ls-files -u)" ] || exit 1
-      git -C "$copie" reset -q || exit 1
-      rm -f "$lot"
+    if [ -n "$pointe" ]; then
+      # The lot as local work, a conflict marked in its file (travail-de-la-copie.mjs).
+      node "$ici/travail-de-la-copie.mjs" reporter "$copie" "$base" "$pointe" || exit 1
     fi
   else
     bash "$ici/../sous-modules.sh" garde "$copie" || exit 1
-    git -C "$copie" merge -q --ff-only --autostash "$(git -C "$racine" rev-parse HEAD)" || exit 1
-    # A conflicting reapplication exits 0: the unmerged files are what tells it.
-    conflits=$(git -C "$copie" diff --name-only --diff-filter=U) || exit 1
-    if [ -n "$conflits" ]; then
-      echo "⛔ Le travail en cours de la copie entre en conflit avec main ; il reste dans la remise de git (git stash list)."
-      echo "Fichiers en conflit :"
-      sed 's/^/  /' <<<"$conflits"
-      exit 1
-    fi
+    # The work in progress moves with the copy, in the copy: a conflict stops the launch, marked
+    # in the files, the log naming each one (travail-de-la-copie.mjs).
+    node "$ici/travail-de-la-copie.mjs" avancer "$copie" "$(git -C "$racine" rev-parse HEAD)" || exit 1
   fi
   # The list the pose fixes is the one every mount gets, whatever the installation rewrites.
   partages=$(bash "$ici/../sous-modules.sh" pose "$copie") || exit 1

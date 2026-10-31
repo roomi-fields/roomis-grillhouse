@@ -27,6 +27,7 @@ export const SCRIPTS = path.join(CADRE, 'scripts');
 export const INTEGRER = path.join(SCRIPTS, 'integration/integrer.mjs');
 export const LANCER = path.join(SCRIPTS, 'enveloppe/lancer.sh');
 export const POSE = path.join(SCRIPTS, 'sous-modules.sh');
+const AVANCER = path.join(SCRIPTS, 'enveloppe/travail-de-la-copie.mjs');
 export const LONG = 60_000;
 
 // The file protocol is refused to submodule commands by default; the test repositories live on
@@ -361,11 +362,16 @@ export function sousModulesEssai(ESSAIS: string) {
     // refuse a copy with a shared submodule (critères 13 and 15): these tests of the preparation run
     // on every machine.
     const tete = () => git(m.repo, 'rev-parse', 'HEAD').trim();
-    // As lancer.sh does for the agent copy: the guard, then a fast-forward merge with autostash.
+    // As lancer.sh does for the agent copy: the guard, then the move of the copy and its work
+    // (scripts/enveloppe/travail-de-la-copie.mjs).
     const avancerCommeLAgent = (copie: string) => {
       const g = garder(copie);
       expect(g.status, g.stderr).toBe(0);
-      git(copie, 'merge', '-q', '--ff-only', '--autostash', tete());
+      const a = spawnSync('node', [AVANCER, 'avancer', copie, tete()], {
+        encoding: 'utf8',
+        env: ENV_SCRIPTS,
+      });
+      expect(a.status, a.stdout + a.stderr).toBe(0);
       return poser(copie);
     };
     // As the integration does for its copy: detached on HEAD, forced, every untracked file removed.

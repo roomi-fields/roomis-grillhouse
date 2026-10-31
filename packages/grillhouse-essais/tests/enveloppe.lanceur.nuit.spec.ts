@@ -311,7 +311,8 @@ describe('the launcher and the dependencies of the copy', () => {
 
 // « Un ticket bloqué repart de sa copie : sa copie garde le code de l'agent précédent » (pitmaster),
 // and the safety measure of grillhouse-3uv.8.3: a reapplication that conflicts stops the launch
-// (CODE_COPIE), names the conflict in the log and leaves the work in git's stash. The copy moves
+// (CODE_COPIE), names the conflict in the log and leaves the work in the copy, its conflicts
+// marked, never in git's stash, which every copy shares (grillhouse-fy3). The copy moves
 // forward before its envelope, so these tests do not depend on bwrap.
 describe('the launcher and the work in progress of the copy', () => {
   const ident = ['-c', 'user.name=t', '-c', 'user.email=t@t'];
@@ -408,14 +409,14 @@ describe('the launcher and the work in progress of the copy', () => {
     expect(log).toMatch(/packages\/a\/src\/a\.ts/);
   });
 
-  it('keeps the conflicting work in the stash', () => {
+  it('keeps the conflicting work in the copy, its conflicts marked, and nothing in the stash', () => {
     const d = depot();
     d.avance('packages/a/src/a.ts', lignes('MAIN'));
     d.ecrire('packages/a/src/a.ts', lignes('COPIE'));
     d.launch();
-    const remise = d.git(d.copie, 'stash', 'list');
-    expect(remise.trim().split('\n')).toHaveLength(1);
-    expect(d.git(d.copie, 'stash', 'show', '-p', 'stash@{0}')).toMatch(/^\+COPIE$/m);
+    expect(d.git(d.copie, 'stash', 'list')).toBe('');
+    expect(d.lire('packages/a/src/a.ts')).toMatch(/^<<<<<<< .*\nMAIN\n=======\nCOPIE\n>>>>>>> /m);
+    expect(readFileSync(d.copie + '.log', 'utf8')).toContain('il reste dans la copie');
   });
 
   it('starts no agent on a copy whose work conflicts', () => {
