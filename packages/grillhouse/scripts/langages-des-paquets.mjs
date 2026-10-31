@@ -17,12 +17,14 @@
 //   named with the manifest it holds; a package a row declares without the manifest of that
 //   language; a docs/INTERFACE.md of the package, or of
 //   the root for the row that names it (`.`), whose line `**Langage** : <nom>` names another
-//   language. A folder of a module without its manifest and without row (a folder of `src/` of a
-//   project of one package) is no package; a row that names no component (a package not yet
-//   created, a crate of another repository) is not judged.
+//   language; a row that names a folder of the project no module finds (a package of Python
+//   without its pyproject.toml, grillhouse-ziy), without the manifest of its language. A folder of
+//   a module without its manifest and without row (a folder of `src/` of a project of one package)
+//   is no package; a row that names neither a component nor a folder (a package not yet created,
+//   a crate of another repository) is not judged.
 // - Each finding is written in SARIF under the guard's name, and on the error stream after ⛔; the
 //   exit code is 1 when there is one, 0 otherwise.
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { LANGAGES, langage, langagesDe } from './langages.mjs';
@@ -136,6 +138,19 @@ export function constats(racine) {
   const l = ligneDe([laRacine]);
   if (l && !vus.has(l)) {
     interface_(racine, l);
+  }
+  // A row that names a folder of the project no module finds: the package without its manifest.
+  for (const d of declarees.filter(x => !vus.has(x) && x !== l)) {
+    const manifeste = langage(d.langage).manifeste;
+    for (const n of d.noms.filter(x => existsSync(path.join(racine, x)) && x !== '.')) {
+      if (statSync(path.join(racine, n)).isDirectory()) {
+        out.push({
+          fichier: ARCHITECTURE,
+          ligne: d.index + 1,
+          message: `${n} : déclaré ${d.langage} (${ou(d)}), sans son ${manifeste}.`,
+        });
+      }
+    }
   }
   return out;
 }

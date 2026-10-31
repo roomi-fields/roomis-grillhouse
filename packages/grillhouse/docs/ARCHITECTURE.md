@@ -559,16 +559,17 @@ langages dans sa configuration (`backend_packages`), le cadre publie un seul paq
 `@roomi-fields/grillhouse`. Il porte le **noyau** (les tickets, le circuit, les rôles et leur
 relecture, le tableau, l'enveloppe, les crochets, la mise à jour, le greffon Claude) et un
 **module de langage** par famille, sous `scripts/langages/` : `typescript` (la vérification par
-Turborepo et Vitest, les gardes de structure) et `cargo` (la même chose pour Rust, l'épopée
-grillhouse-pkl). Un projet déclare le langage de chaque paquet à la conception, dans la colonne
+Turborepo et Vitest, les gardes de structure), `cargo` (la même chose pour Rust, l'épopée
+grillhouse-pkl) et `python` (uv et pytest, grillhouse-ziy). Un projet déclare le langage de chaque paquet à la conception, dans la colonne
 « Langage » du tableau des composants de son `docs/ARCHITECTURE.md`, comme le fichier BUILD de
 Bazel nomme la règle de chaque cible : le grill l'écrit (branche 8), le gabarit d'un projet la porte,
 et rien ne se devine aux fichiers ; un projet qui n'en déclare aucun est refusé, nommé. La garde
 des langages des paquets (`scripts/langages-des-paquets.mjs`) refuse un paquet que l'architecture
-ne déclare pas, un paquet dont le manifeste suit un autre langage, et une interface qui en nomme un
-autre. Les outils npm d'un langage (Turborepo, Vitest, knip, api-extractor)
+ne déclare pas, un paquet dont le manifeste suit un autre langage, un dossier déclaré sans le
+manifeste de son langage, et une interface qui en nomme un autre. Les outils npm d'un langage (Turborepo, Vitest, knip, api-extractor)
 sont des dépendances facultatives du paquet, ses binaires (cargo-nextest, cargo-deny, sccache) s'installent
-sur la machine par `cargo binstall`, que cargo installe d'abord quand il manque : `maj` n'installe que ceux des langages déclarés.
+sur la machine par `cargo binstall`, que cargo installe d'abord quand il manque, et uv par
+l'installeur d'Astral à sa version : `maj` n'installe que ceux des langages déclarés.
 Ainsi chaque projet n'installe que les outils qu'il utilise : un projet tout Rust n'a aucun outil
 TypeScript, BPScript aucun outil Rust ; les scripts d'un langage non déclaré restent sur le disque,
 inertes. Un module par langage et un seul paquet, plutôt qu'un paquet par langage comme ESLint
@@ -636,7 +637,22 @@ vérification et la préparation le nomment en une ligne avec son geste (`git ad
 permise du manifeste de l'espace de travail, `[workspace.metadata.grillhouse.frontieres]`, comme
 les `depConstraints` de Nx, et l'index des interfaces, qu'il engendre, chacune aussi une
 commande de son nom, que la ligne d'une garde rouge nomme), ses
-tests sous `tests/unit/langages/cargo/`, contre un faux cargo en tête du PATH, le vrai à la nuit ; les entrées publiées (`./consommateurs`,
+tests sous `tests/unit/langages/cargo/`, contre un faux cargo en tête du PATH, le vrai à la nuit ; le module
+python sous `scripts/langages/python/` (un paquet par `pyproject.toml`, PEP 621 ; les tests
+`test_*.py` et `*_test.py` que pytest trouve, un test de nuit `*_nuit_test.py`, `conftest.py` et
+`tests/` ses aides ; du manifeste, le testwriter n'écrit que le groupe `test` de
+`[dependency-groups]`, PEP 735, et `uv.lock` ; les tests par `uv run --locked --group test pytest`
+dans chaque paquet, leur rapport JUnit, le typage par `python -m compileall`, la préparation par
+`uv sync --locked`, la version de Python celle que choisit uv d'après `requires-python` et
+`.python-version` ; le code-octet sous un seul `__pycache__` à la racine, PYTHONPYCACHEPREFIX, que
+l'enveloppe rend propre à la séance ; l'environnement de uv et le cache de pytest de chaque paquet
+sous `.venv/<dossier>` et `.pytest_cache/<dossier>` à la racine, que l'enveloppe ouvre en écriture
+avec `~/.cache/uv`, plutôt que dans le dossier du paquet, qu'une séance dont le plan ne l'écrit pas
+ne pourrait écrire ; les Python de uv en lecture ; la garde des tailles des tests en Python, et celle
+du dossier temporaire, `tempfile` et jamais `mkdtemp` à la main ; l'index des interfaces, qu'il
+engendre comme cargo, et que l'index du noyau remplace dans un projet de plusieurs langages), ses
+tests sous `tests/unit/langages/python/`, la suite de conformité comprise, contre un faux uv, le
+vrai à la nuit ; les entrées publiées (`./consommateurs`,
 `./vitest-config`, `./vitest-config/mesure`, `./vitest-config/duree`, `./tsdoc-base.json`) mènent au module. Comme un
 greffon de Nx n'importe que `@nx/devkit`, le module n'importe du noyau que ses entrées publiées :
 `./jointure` (`scripts/services-du-noyau.mjs`) lui donne les services du noyau qu'il emploie (le plan d'une
@@ -647,8 +663,8 @@ règles propres au dépôt (`.dependency-cruiser.projet.cjs`), comme `enforce-mo
 Nx ; le test de la jointure (`tests/unit/jointure.spec.ts`) refuse tout mot d'un outil dans le
 code du noyau et tout fichier d'un module que le noyau lance par son chemin.
 Les outils du langage (api-extractor et son modèle, la configuration de TSDoc, jsonc-parser,
-Turborepo, Vitest, knip, dependency-cruiser, TypeScript ; pour cargo, smol-toml, le lecteur d'un
-Cargo.toml) sont des pairs facultatifs du paquet, comme Vite déclare les préprocesseurs qu'il
+Turborepo, Vitest, knip, dependency-cruiser, TypeScript ; pour cargo et python, smol-toml, le
+lecteur d'un Cargo.toml et d'un pyproject.toml) sont des pairs facultatifs du paquet, comme Vite déclare les préprocesseurs qu'il
 importe, chacun chargé à la demande ; `maj` ajoute au projet ceux du module de son langage
 (`outils`), aux versions du gabarit de ce module. Une même suite de conformité (`scripts/conformite.mjs`) tient chaque module de langage,
 comme le RuleTester d'ESLint une règle. Ainsi le reste du noyau ignore le langage du projet.

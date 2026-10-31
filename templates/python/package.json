@@ -1,0 +1,18 @@
+{
+  "name": "project-name",
+  "private": true,
+  "scripts": {
+    "test": "grillhouse tests",
+    "test:forcer": "grillhouse tests --force",
+    "verifier": "grillhouse verifier",
+    "prepare": "grillhouse hooks",
+    "grillhouse:gardes": "grillhouse gardes-du-cadre",
+    "grillhouse:dette:inscrire": "GRILLHOUSE_DETTE=inscrire npm run --silent grillhouse:gardes",
+    "grillhouse:dette:elaguer": "GRILLHOUSE_DETTE=elaguer npm run --silent grillhouse:gardes",
+    "tableau": "grillhouse tableau --texte",
+    "grillhouse:maj": "grillhouse maj"
+  },
+  "devDependencies": {
+    "smol-toml": "1.9.1"
+  }
+}

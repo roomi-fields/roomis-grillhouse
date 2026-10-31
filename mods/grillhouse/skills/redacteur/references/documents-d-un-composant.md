@@ -102,7 +102,7 @@ modèle et renvoie à l'architecture de chaque paquet.
 
 **Le tableau des composants porte la colonne « Langage »** : à la racine, la section des
 composants liste chaque paquet dans un tableau dont la colonne « Langage » nomme son langage
-(`typescript`, `cargo`), comme le fichier BUILD de Bazel nomme la règle de chaque cible ; une ligne
+(`typescript`, `cargo`, `python`), comme le fichier BUILD de Bazel nomme la règle de chaque cible ; une ligne
 sans langage nomme une partie qui n'est pas un paquet du projet (un crate d'un autre dépôt). Un
 paquet qu'un tableau propre à une vue ne nomme pas (le tableau des étages d'une chaîne, où chaque
 ligne fait une étape) va dans une section « Les paquets », un tableau `Paquet | Langage`. Le cadre

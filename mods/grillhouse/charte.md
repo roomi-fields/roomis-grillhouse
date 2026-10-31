@@ -94,7 +94,8 @@ chaque paquet se construit et se teste d'une seule façon.
 **Le langage d'un paquet se décide à la conception** : la colonne « Langage » du tableau des
 composants de `docs/ARCHITECTURE.md` le nomme, l'`INTERFACE.md` du paquet le reprend, et le cadre
 le lit là, sans le deviner aux fichiers ; la garde `grillhouse langages-des-paquets` refuse un
-paquet que l'architecture ne déclare pas ou dont le manifeste suit un autre langage. Ainsi
+paquet que l'architecture ne déclare pas, dont le manifeste suit un autre langage, ou qui n'a pas
+le manifeste du sien. Ainsi
 l'architecture fixe le langage, et le code le suit.
 
 **Un test vit dans un fichier à lui**, jamais dans un fichier de code, reconnu au nom ou au

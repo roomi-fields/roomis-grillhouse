@@ -149,5 +149,18 @@
     "scripts/langages/cargo/sccache.mjs",
     "scripts/langages/cargo/touches.mjs",
     "scripts/langages/cargo/verdict.mjs"
+  ],
+  "python": [
+    "scripts/langages/python/binaires.json",
+    "scripts/langages/python/binaires.mjs",
+    "scripts/langages/python/commandes.mjs",
+    "scripts/langages/python/composants.mjs",
+    "scripts/langages/python/exemples.mjs",
+    "scripts/langages/python/index-interfaces.mjs",
+    "scripts/langages/python/index.mjs",
+    "scripts/langages/python/lot.mjs",
+    "scripts/langages/python/mise-a-jour.mjs",
+    "scripts/langages/python/tailles-des-tests.mjs",
+    "scripts/langages/python/verdict.mjs"
   ]
 }

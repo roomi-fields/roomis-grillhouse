@@ -21,6 +21,12 @@ le test n'est jamais compilé ; un `#[cfg(test)] mod tests { … }` en ligne, tu
 fichier de code et le déplaces dans `tests.rs`. Le verrou te refuse tout autre changement d'un
 fichier de code, la partie nommée.
 La matière partagée est le crate dont le manifeste dit `[package.metadata.grillhouse] matiere = true`.
+Dans un paquet Python, tes tests sont les fichiers que pytest trouve, `test_*.py` ou `*_test.py`,
+un test de nuit `*_nuit_test.py` ; leurs aides vont dans `conftest.py` et sous `tests/`. Ce dont
+ils dépendent va dans le groupe `test` de `[dependency-groups]` du `pyproject.toml`, et
+`uv.lock` suit ; le verrou te refuse toute autre partie du `pyproject.toml`. Un dossier ou un
+fichier temporaire se crée par `tempfile` (`TemporaryDirectory`, `NamedTemporaryFile`), jamais
+par `mkdtemp` à la main : la passe échoue sur ce qu'un test laisse dans son dossier temporaire.
 
 ## Au démarrage
 

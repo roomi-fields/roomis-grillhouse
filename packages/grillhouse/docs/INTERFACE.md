@@ -82,21 +82,24 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
 
 - `nom` : le nom du langage, celui de la liste du cadre.
 - `manifeste` : le manifeste d'un paquet du langage, dans son dossier (`typescript`, un
-  `package.json` ; `cargo`, un `Cargo.toml`), que la garde des langages demande à un paquet que
+  `package.json` ; `cargo`, un `Cargo.toml` ; `python`, un `pyproject.toml`), que la garde des langages demande à un paquet que
   l'architecture déclare de ce langage.
 - `outils` : les outils qu'un projet du langage installe, dépendances facultatives du paquet ;
   `maj` n'ajoute que ceux des langages déclarés, chacun à la version de son gabarit.
 - `binaires` : les binaires qu'un projet du langage installe sur la machine, chacun à sa version
   exacte ; `maj` installe chacun de ceux qui manquent ou sont à une autre version, par les
   commandes de `miseAJour.installation`. `typescript`, aucun ; `cargo`, nextest, cargo-deny et
-  sccache (`scripts/langages/cargo/binaires.json`).
+  sccache (`scripts/langages/cargo/binaires.json`) ; `python`, uv
+  (`scripts/langages/python/binaires.json`).
 - `ignorer` : les dossiers qu'écrivent les outils du langage dans un projet, par leur nom ; les
   fichiers sources que lisent les migrations les laissent de côté, `maj` les écrit dans le
   `.gitignore` du projet, et le retrait des copies finies les retire d'une copie gardée dont le
-  ticket est fermé. `typescript`, `.turbo` ; `cargo`, `target`.
+  ticket est fermé. `typescript`, `.turbo` ; `cargo`, `target` ; `python`, `.venv`,
+  `.pytest_cache` et `__pycache__`.
 - `miseAJour` : la part du langage dans `maj`, comme chaque greffon de Nx apporte son générateur
   `init`. `gabarit`, le dossier du gabarit d'un projet du langage, dont le `package.json` donne les
-  scripts du cadre et les versions des outils (`templates/projet`, `templates/cargo`) ;
+  scripts du cadre et les versions des outils (`templates/projet`, `templates/cargo`,
+  `templates/python`) ;
   `appliquer`, qui met le projet à la forme du langage, son `package.json` racine, que le noyau
   écrit après, et ses autres fichiers, et rend sa part du bilan, les lignes du rapport, ce qu'il
   laisse au projet (`aFaire`, chaque ligne avec son geste, que `maj` écrit sur la sortie d'erreur
@@ -109,7 +112,9 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   générateurs ; `cargo` : les fichiers du gabarit qui manquent au projet (`deny.toml`,
   `.config/nextest.toml`, `rust-toolchain.toml`), ses scripts de test, l'index des interfaces, et
   ses binaires par `cargo install --list` puis `cargo binstall --no-confirm --locked
-<nom>@<version>`.
+<nom>@<version>` ; `python` : ses scripts de test, l'index des interfaces, et uv par `uv --version`
+  puis l'installeur d'Astral à sa version, les profils du shell laissés tels quels
+  (UV_NO_MODIFY_PATH).
 - `sorties` : où écrit un lancement des outils du langage, que l'enveloppe ouvre à la séance.
   `ecrites` s'ouvrent en écriture, créées avant la séance, un dossier quand le chemin finit par
   `/`, sinon un fichier vide : un chemin depuis la racine de la copie, `~/…` depuis la maison,
@@ -121,11 +126,16 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   `node_modules/.vite` propres ; `cargo` : `target/`, et dans `~/.cargo` son registre, ses
   dépendances git, ses avis de sécurité et les fichiers de ses verrous et du cache de ses paquets
   écrits ; `~/.cargo/` (son `env`, que les shells sourcent, sa configuration, ses binaires) et
-  `~/.rustup/` lus.
+  `~/.rustup/` lus ; `python` : `.venv/` et `.pytest_cache/`, où ses commandes font écrire uv et pytest pour chaque
+  paquet, et `~/.cache/uv/` écrits,
+  `__pycache__` propre (le code-octet de Python, sous un seul arbre à la racine), les Python de uv,
+  `~/.local/share/uv/python/`, lus.
 - `droits` : les règles de Claude Code qui refusent à un rôle qui écrit l'outil de test lancé
-  directement ; `typescript`, Vitest et Turborepo ; `cargo`, `cargo test` et `cargo nextest`.
+  directement ; `typescript`, Vitest et Turborepo ; `cargo`, `cargo test` et `cargo nextest` ;
+  `python`, pytest, seul, par Python ou par `uv run`.
 - `composants` : les composants du projet, chacun `{ dossier, nom, paquet }`, le dossier absolu ;
-  `cargo`, les membres de l'espace de travail que décrit `cargo metadata --no-deps --offline`.
+  `cargo`, les membres de l'espace de travail que décrit `cargo metadata --no-deps --offline` ;
+  `python`, chaque dossier qui tient un `pyproject.toml`.
   L'enveloppe et le lanceur y lisent le plan : un plan qui nomme un composant (un paquet, un
   crate) ouvre ce composant seul en écriture.
 - `composantDe` : le composant qui tient un fichier, ou null pour un fichier hors de tout
@@ -133,7 +143,8 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
 - `matieres` : les composants de la matière de test partagée, que l'enveloppe monte en écriture
   pour le testwriter.
 - `joueDesTests` : si un composant joue des tests, que le lanceur du langage y trouve à jouer ;
-  `typescript`, un script `test:unit` dans son `package.json` ; `cargo`, un dossier `tests/`. Le circuit en tire les paquets du
+  `typescript`, un script `test:unit` dans son `package.json` ; `cargo`, un dossier `tests/` ;
+  `python`, un fichier de test du jour (`test_*.py`, `*_test.py`, hors `*_nuit_test.py`). Le circuit en tire les paquets du
   plan qui portent des tests, comme Bazel lit les cibles de test d'un paquet à leur genre.
 - `lecteurs` : les fournisseurs et les lecteurs, par le code, des éléments qu'un ticket nomme : son
   interface, ses imports, ses tests, ses types ; ce que lit chaque composant (`lit`) et ce que
@@ -156,13 +167,14 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
 clippy`). Le noyau en lance trois
   quand le module les décrit, et passe l'étape sinon :
   - `preparer`, que l'intégration et la file jouent avant la vérification (`cargo`, `cargo fetch
---locked`, qui télécharge les dépendances) ;
+--locked`, qui télécharge les dépendances ; `python`, `uv sync --locked --group test`) ;
   - `construire --echec <fichier> <plan>`, que le lanceur joue dans la copie préparée, pour que la
     séance trouve construit ce qu'elle lit (`typescript`, la construction par Turborepo) : une
     construction en échec écrit dans `<fichier>` sa première ligne, puis sa sortie, et rend 0 ;
     tout autre échec rend un autre code et arrête le lancement ;
   - `tests-de-nuit`, que la nuit joue après la passe complète (`typescript`, les tests de nuit et
-    les bancs de temps, par Vitest), 75 pour « à repasser ».
+    les bancs de temps, par Vitest ; `python`, les `*_nuit_test.py` par pytest), 75 pour « à
+    repasser ».
 - La vérification écrit ses tâches rouges dans le fichier que nomme `GRILLHOUSE_ROUGES`, une par
   ligne, `<tâche>`, puis une tabulation et la commande qui la rejoue seule quand le langage en a
   une (`typescript`, `npx turbo run <tâche> --filter=<paquet>`) ; la nuit en tire sa commande
@@ -176,11 +188,13 @@ clippy`). Le noyau en lance trois
   circuit le lisent.
 - `manifestes` : ce que le testwriter écrit des manifestes, comme l'auteur d'un test de Bazel
   déclare les dépendances de sa cible. `verrous`, les fichiers de verrouillage des versions depuis
-  la racine (cargo : `Cargo.lock` ; typescript : `package-lock.json`), que l'enveloppe ouvre au
+  la racine (cargo : `Cargo.lock` ; typescript : `package-lock.json` ; python : `uv.lock`, celui
+  de chaque paquet aussi), que l'enveloppe ouvre au
   seul testwriter ; `horsDesTests(chemin, racine, avant, apres)`, les parties du manifeste d'un
   composant qu'un changement touche hors de la partie de ses tests (cargo : `[dev-dependencies]`
   et `[target.<cible>.dev-dependencies]` d'un Cargo.toml ; typescript : `devDependencies` d'un
-  package.json), et, pour cargo, d'un fichier de code de `src/` d'un crate hors de son module de
+  package.json ; python : le groupe `test` de `[dependency-groups]` d'un pyproject.toml), et, pour
+  cargo, d'un fichier de code de `src/` d'un crate hors de son module de
   test (la déclaration `#[cfg(test)] mod tests;` ajoutée ou retirée, un module de test en ligne
   retiré), chacune nommée, ou null pour un fichier que le module ne juge pas.
   Le verrou du testwriter accepte une écriture dont la liste est vide, et refuse les autres en

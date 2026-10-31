@@ -12,6 +12,8 @@
 //   scripts/langages.mjs, whose list names each language by its module.
 // - grillhouse-pkl.3: the module cargo, under scripts/langages/cargo/, takes its share of the
 //   files, answers each member of the join, and names of the core its published entries alone.
+// - grillhouse-ziy: the module python, under scripts/langages/python/, takes its share too, and
+//   uv and pytest are words of a tool.
 // - grillhouse-pkl.5, criterion 4: the rights, the envelope, the launcher and the night name no
 //   tool and no file of a module: they ask the module (`sorties`, `droits`, its commands), and
 //   leave the rests.
@@ -32,6 +34,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import cargo from '../../scripts/langages/cargo/index.mjs';
+import python from '../../scripts/langages/python/index.mjs';
 import typescript from '../../scripts/langages/typescript/index.mjs';
 
 const PAQUET = path.resolve(__dirname, '../..');
@@ -40,8 +43,12 @@ const OUTILS_CARGO = (cargo as unknown as { outils: string[] }).outils;
 const lire = (rel: string) => readFileSync(path.join(PAQUET, rel), 'utf8');
 const REPARTITION = JSON.parse(
   readFileSync(path.join(PAQUET, 'tests/temoins/repartition.json'), 'utf8')
-) as { noyau: string[]; typescript: string[]; cargo: string[] };
-const DU_LANGAGE = new Set([...REPARTITION.typescript, ...REPARTITION.cargo]);
+) as { noyau: string[]; typescript: string[]; cargo: string[]; python: string[] };
+const DU_LANGAGE = new Set([
+  ...REPARTITION.typescript,
+  ...REPARTITION.cargo,
+  ...REPARTITION.python,
+]);
 
 // Every file under <rel>, from the package.
 const fichiers = (rel: string): string[] =>
@@ -87,7 +94,7 @@ const membresDeLangage = () => {
   return [...corps.matchAll(/^\s{2}(\w+)\??(?:\(|:)/gm)].map(m => m[1]);
 };
 
-const MOT = /turbo|vitest|knip|dependency-cruiser|\btsc\b|cargo/i;
+const MOT = /turbo|vitest|knip|dependency-cruiser|\btsc\b|cargo|pytest|\buv\b/i;
 // The rests of the core that name a tool, each with the ticket that takes it out: the file, and
 // the pieces of its lines that may name one, in any case.
 const RESTES: Record<string, { ticket: string; morceaux: string[] }> = {};
@@ -97,7 +104,12 @@ const HISTOIRE = 'scripts/migrations/';
 describe('grillhouse-3dr.2.1 — la jointure des langages', () => {
   it('the share of scripts/ and bin/ is exhaustive, each file once', () => {
     const tous = [...fichiers('scripts'), ...fichiers('bin')].sort();
-    const partages = [...REPARTITION.noyau, ...REPARTITION.typescript, ...REPARTITION.cargo].sort();
+    const partages = [
+      ...REPARTITION.noyau,
+      ...REPARTITION.typescript,
+      ...REPARTITION.cargo,
+      ...REPARTITION.python,
+    ].sort();
     expect(partages).toEqual(tous);
     expect(new Set(partages).size).toBe(partages.length);
   });
@@ -125,6 +137,14 @@ describe('grillhouse-3dr.2.1 — la jointure des langages', () => {
     expect(REPARTITION.cargo).toContain('scripts/langages/cargo/index.mjs');
     for (const f of REPARTITION.cargo) {
       expect(f).toMatch(/^scripts\/langages\/cargo\//);
+    }
+  });
+
+  it('grillhouse-ziy: jointure.d.ts declares exactly what the module python answers, its files under its folder', () => {
+    expect(membresDeLangage().sort()).toEqual(Object.keys(python).sort());
+    expect(REPARTITION.python).toContain('scripts/langages/python/index.mjs');
+    for (const f of REPARTITION.python) {
+      expect(f).toMatch(/^scripts\/langages\/python\//);
     }
   });
 
@@ -383,7 +403,7 @@ describe('grillhouse-3dr.2.2 — le module typescript sous son dossier', () => {
         .flatMap(cibles)
         .filter(c => REPARTITION.noyau.includes(c)),
     ]);
-    const trouves = [...REPARTITION.typescript, ...REPARTITION.cargo]
+    const trouves = [...REPARTITION.typescript, ...REPARTITION.cargo, ...REPARTITION.python]
       .filter(f => /\.(mjs|js|cjs)$/.test(f))
       .flatMap(f =>
         [...nommes(f), ...voisins(f)]
@@ -410,6 +430,8 @@ describe('grillhouse-3dr.2.2 — le module typescript sous son dossier', () => {
       'vitest',
     ];
     expect(OUTILS_CARGO).toEqual(['smol-toml']);
+    // The module python's: smol-toml too, the reader of a pyproject.toml (grillhouse-ziy).
+    expect((python as unknown as { outils: string[] }).outils).toEqual(['smol-toml']);
     expect(Object.keys(PKG.peerDependencies).sort()).toEqual(outils);
     for (const o of outils) {
       expect(PKG.peerDependenciesMeta?.[o], o).toEqual({ optional: true });

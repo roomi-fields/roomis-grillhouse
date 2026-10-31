@@ -43,8 +43,8 @@ function projet(langages?: string[]) {
 }
 
 describe('grillhouse-3dr.2.1 — les langages déclarés d’un projet', () => {
-  it('the frame’s closed list holds typescript and cargo', () => {
-    expect(Object.keys(LANGAGES)).toEqual(['typescript', 'cargo']);
+  it('the frame’s closed list holds typescript, cargo and python (grillhouse-ziy)', () => {
+    expect(Object.keys(LANGAGES)).toEqual(['typescript', 'cargo', 'python']);
   });
 
   it('a project whose architecture declares typescript is served by the module typescript', () => {
