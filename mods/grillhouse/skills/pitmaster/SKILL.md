@@ -93,7 +93,9 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   les lui envoie avec sa sortie ; toute autre commande en échec ou un fichier qu'aucune référence
   n'écrit arrête à `references`, code 23, une question pour moi qui porte chaque écart : je fais
   corriger la référence ou le lot, 4.3 le relecteur), 5 Intégration (5.1
-  le commit, 5.2 la file et la lecture de la CI, 5.3 le tri des découvertes par l'explorateur, sur
+  le commit, 5.2 la file et la lecture de la CI : une CI rouge rouvre le ticket ; un rejeu vert
+  des jobs rouges, `gh run rerun <id> --failed`, puis `--reprendre`, le ferme ; un test instable
+  se met en quarantaine dans le test, avec son ticket ; 5.3 le tri des découvertes par l'explorateur, sur
   le lot entré sur main, qui ne retarde pas la file et ne défait pas l'intégration) ; aucun composant n'est une unité du circuit, chaque
   étape joue une fois pour tout le ticket, dans l'enveloppe de tous les paquets du plan ; je dis
   où en est un ticket par son étape, « 3 Code » ; son en-tête dit ses arrêts et leurs codes. Ainsi

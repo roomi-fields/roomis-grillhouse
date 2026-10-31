@@ -234,7 +234,10 @@ refus de l'intégration repart du développeur, le refus comme le rouge à lever
 lancée qui ne change aucun fichier du lot refusé ne va pas aux contrôles de la copie, qui ne
 voient pas ce rouge : le circuit la relance une fois avec le refus, puis s'arrête en
 `sans-livraison`. `--reprendre` rejoue l'intégration (ou la file) sur le même lot, comme bors
-rejoue un lot : un refus peut venir de la charge ou de main (BP 320.16, 320.16.2) ; `--depuis
+rejoue un lot : un refus peut venir de la charge ou de main (BP 320.16, 320.16.2) ; après une CI
+rouge, le lot déjà sur main, la file relit la CI de son commit (`file.mjs --ci <ticket>`), comme une
+file de fusion juge le dernier essai des vérifications : un rejeu vert (`gh run rerun <id>
+--failed`) ferme le ticket, un rouge le laisse ouvert sur le rouge nommé (OSC Bridge OB-20q.3) ; `--depuis
 testwriter` refait le lot et oublie le refus (BP 320.37 : trois fois « FAIT » sans un fichier changé, les contrôles de la copie
 verts, l'intégration rouge sur le même lot). Un constat bloquant du relecteur va droit à l'agent qu'il nomme et reste ouvert
 d'une relance à l'autre, comme un fil de revue non résolu, jusqu'à ce que le relecteur le dise

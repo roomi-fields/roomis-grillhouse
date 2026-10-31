@@ -416,6 +416,9 @@
 //   sorts the discoveries (below), then ends at « integre », exit 0 (the queue's last word at the
 //   ticket named with it, a CI it could not read); reopened (out of the queue, or a red CI), it stops at « integration », the queue's
 //   last word as its reason; still in the queue, it stops at « a-repasser », the queue's reason.
+//   The branch out of the queue and its ticket open, as `--reprendre` finds it after a red CI, the
+//   queue reads the CI of the ticket's commit on main again (`file.mjs --ci <ticket>`): a rerun
+//   green (`gh run rerun <id> --failed`) closes the ticket, as an entry does.
 // - Then the tri of the discoveries (step 5.3, `trier`), as Chromium and Mozilla give each new
 //   report a verdict before it is filed: each discovery a sheet filed is kept with the circuit's
 //   results (`decouverte`: its id, its subject); without one, no session. Else one session of the
@@ -2306,18 +2309,35 @@ function integrer(ctx) {
   return r;
 }
 
+// The arguments of the queue at 5.2 for the ticket <ticket>, whether its branch is in the queue
+// (<enFile>) and its status in Beads (<statut>): none, the queue as it is, while the branch waits
+// in it or once the ticket is closed; `--ci <ticket>` for a branch out of the queue and a ticket
+// open, a red CI reopened it, which the queue reads again (`relireCI` of
+// scripts/integration/file.mjs), as a merge queue judges the last attempt of the checks.
+export const argumentsDeLaFile = ({ ticket, enFile, statut }) =>
+  enFile || statut === 'closed' ? [] : ['--ci', ticket];
+
 // The queue (scripts/integration/file.mjs), launched from the main tree and waited for, its output
 // added to the log; then the state it leaves to the ticket: `{ etat, raison }`, `etat` ferme (the
 // ticket closed, its branch on main and its CI read), en-file (the branch still in the queue, the
 // queue's reason) or rouvert (out of the queue, or a red CI, the queue's last comment). A queue
-// already running exits 0 at once: it takes the branch, and the state is read at its end too.
+// already running exits 0 at once: it takes the branch, and the state is read at its end too. A
+// branch out of the queue with its ticket open (a red CI reopened it, then `--reprendre`) runs the
+// queue's reading of the CI again instead (`argumentsDeLaFile`).
 function file(ctx) {
   const motsDeLaFile = () => passations(ctx).filter(c => c.author === AUTEUR_DE_LA_FILE);
   const avant = motsDeLaFile().length;
+  const branche = `agent/${ctx.ticket}`;
+  const avantLaFile = ctx.bd('show', ctx.ticket, '--json');
+  const args = argumentsDeLaFile({
+    ticket: ctx.ticket,
+    enFile: lireEntrees(ctx.racine).some(e => e.branche === branche),
+    statut: avantLaFile.status === 0 ? (JSON.parse(avantLaFile.stdout)[0]?.status ?? null) : null,
+  });
   entete(ctx, 'file');
-  appendFileSync(ctx.journal, `$ node ${FILE}\n`);
+  appendFileSync(ctx.journal, `$ node ${[FILE, ...args].join(' ')}\n`);
   const x = avecAvancement(ctx, null, avancement =>
-    spawnSync(process.execPath, [FILE], {
+    spawnSync(process.execPath, [FILE, ...args], {
       cwd: ctx.racine,
       encoding: 'utf8',
       maxBuffer: 256 * 1024 * 1024,
@@ -2325,7 +2345,6 @@ function file(ctx) {
     })
   );
   appendFileSync(ctx.journal, `${x.stdout ?? ''}${x.stderr ?? ''}`);
-  const branche = `agent/${ctx.ticket}`;
   // Another queue that runs takes the branch: the circuit waits for its end.
   while (lireEntrees(ctx.racine).some(e => e.branche === branche) && fileEnCours(ctx)) {
     attendreUnPeu(5_000);

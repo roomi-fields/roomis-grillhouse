@@ -4,9 +4,9 @@
 // circuit of a ticket (scripts/circuit.mjs), once it has put the ticket's branch in the queue, and
 // by the supervisor by hand.
 //
-//   npx grillhouse file
+//   npx grillhouse file [--ci <ticket>]
 //
-// No argument (exit 2 and the usage otherwise). It takes the branches waiting one by one until none is
+// No argument, or `--ci <ticket>` (below; exit 2 and the usage otherwise). It takes the branches waiting one by one until none is
 // left, then exits 0, whatever became of each branch. A queue launched while another runs exits 0 at
 // once, refusing nothing: the running queue takes the branch that arrived (it reads the entries
 // again before it lets go of its lock, `.git/file-integration.lock`).
@@ -58,7 +58,16 @@
 // `npm run verifier` play out of it. A red CI reopens the ticket (`bd reopen`), its comment giving the
 // address of the run (`gh run view <id> --json url`) and the end of `gh run view <id>
 // --log-failed`. Without `gh`, without a run found, with `gh` refusing or past the 30 min, the
-// ticket is told that the CI was not read, and why, and stays closed.
+// ticket is told that the CI was not read, and why, and stays closed. The run is read at its current
+// attempt (`gh run view <id>` without `--attempt`), as a merge queue judges the last attempt of a
+// commit's checks.
+// `--ci <ticket>` reads again the CI of a ticket a red CI reopened, which the circuit runs at 5.2
+// on `--reprendre` (scripts/circuit.mjs, `argumentsDeLaFile`), once the supervisor had the failed
+// jobs run again (`gh run rerun <id> --failed`): the commit of main that delivers the ticket, its
+// CI read as above (`relireCI`); green, the ticket closes « intégré : <commit> », the run named at
+// it; red or not read, it stays open, the reading at the ticket. A flaky test has no path of its
+// own: the red comment gives the charter's rule, a test known red goes into quarantine in the test
+// itself, with the ticket that fixes it. It takes no lock: it does not move main.
 // Every comment and change of the queue at a ticket is written under the author `file`, which bd
 // reads in BEADS_ACTOR, as the circuit writes its own lines under `circuit`.
 import { spawnSync } from 'node:child_process';
@@ -67,6 +76,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { lireCommit } from '../poussee-cles.mjs';
+import { commitsDelivering, gitLog } from '../un-commit-par-ticket.mjs';
 import { attendreUnPeu, lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
 import { dossierCommun, lireEntrees, retirerEntree } from './file-attente.mjs';
 import { ouvrirCopie } from './rejeu.mjs';
@@ -193,9 +203,185 @@ export function fluxDeLaBranche(fichiers, branche) {
     .map(({ chemin }) => chemin);
 }
 
+// The verdicts of a reading of the CI (`lireCI`).
+const VERTE = 'verte';
+const ROUGE = 'rouge';
+const SANS_CI = 'sans-ci';
+const NON_LUE = 'non-lue';
+
+// The workflows of the commit <sha> of the repository <racine> that run on a push to <branche>:
+// their paths.
+function fluxDuCommit(racine, sha, branche) {
+  const git = (...a) => spawnSync('git', ['-C', racine, ...a], { encoding: 'utf8' });
+  const l = git('ls-tree', '--name-only', `${sha}:${DOSSIER_DES_FLUX}`);
+  const noms = l.status === 0 ? l.stdout.split('\n').filter(n => EXTENSIONS_DES_FLUX.test(n)) : [];
+  const fichiers = noms.map(n => {
+    const chemin = `${DOSSIER_DES_FLUX}/${n}`;
+    const f = git('show', `${sha}:${chemin}`);
+    return { chemin, texte: f.status === 0 ? f.stdout : null };
+  });
+  return fluxDeLaBranche(fichiers, branche);
+}
+
+// The GitHub CLI run in the main tree <racine>.
+const ghDans =
+  racine =>
+  (args, options = {}) =>
+    spawnSync('gh', args, {
+      cwd: racine,
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+      ...options,
+    });
+
+// The CI of the commit <sha> pushed to <branche>, for the ticket <ticket>, read with the tools <o>
+// (`{ racine, principale, bd, gh, dire, avancement }`: the main tree, its branch, bd, the GitHub
+// CLI, a line of the output, the progress directory or null): `{ verdict, passage }`, the verdict
+// VERTE, ROUGE, SANS_CI or NON_LUE, and the id of the run read. The run is read by `gh run view
+// <id>`, which gives its current attempt: a run whose failed jobs were run again
+// (`gh run rerun <id> --failed`) is judged on that attempt, as a merge queue judges the last
+// attempt of a commit's checks. No CI, red or not read, the ticket is told so; green, nothing is
+// written to it.
+function lireCI(o, ticket, sha, branche) {
+  const court = sha.slice(0, 7);
+  const commenter = texte => o.bd('comments', 'add', ticket, texte);
+  if (fluxDuCommit(o.racine, sha, branche).length === 0) {
+    const texte = `Aucune CI pour origin/${branche} : aucun flux de ${DOSSIER_DES_FLUX} de ${court} ne se lance sur la branche ${branche}, la file n'en attend pas.`;
+    commenter(texte);
+    o.dire(`✓ ${texte}`);
+    return { verdict: SANS_CI, passage: null };
+  }
+  const { gh } = o;
+  const nonLue = raison => {
+    commenter(`## CI non lue\n\nLa CI de ${court} n'a pas été lue : ${raison}`);
+    o.dire(`⚠ CI de ${court} non lue : ${raison}`);
+    return { verdict: NON_LUE, passage: null };
+  };
+  const recherche = delai('GRILLHOUSE_CI_RECHERCHE_MS', RECHERCHE_CI_MS);
+  const debut = Date.now();
+  let passage = null;
+  for (;;) {
+    const r = gh(['run', 'list', '--commit', sha, '--json', 'databaseId,status,conclusion']);
+    if (r.error) return nonLue(`gh ne se lance pas (${r.error.code ?? r.error.message}).`);
+    if (r.status !== 0) return nonLue(`gh run list refuse :\n${`${r.stderr}${r.stdout}`.trim()}`);
+    let passages = [];
+    try {
+      passages = JSON.parse(r.stdout || '[]');
+    } catch {
+      return nonLue(`gh run list rend une sortie illisible :\n${r.stdout.trim()}`);
+    }
+    passage = passages.find(x => x?.databaseId);
+    const reste = recherche - (Date.now() - debut);
+    if (passage || reste <= 0) break;
+    attendreUnPeu(Math.min(10_000, reste));
+  }
+  if (!passage) {
+    return nonLue(`aucun passage de la CI pour ce commit en ${Math.round(recherche / 1000)} s.`);
+  }
+  const id = String(passage.databaseId);
+  const attente = delai('GRILLHOUSE_CI_ATTENTE_MS', ATTENTE_CI_MS);
+  const pas = delai('GRILLHOUSE_CI_PAS_MS', PAS_CI_MS);
+  const limite = Date.now() + attente;
+  let vue = null;
+  for (;;) {
+    const v = gh(['run', 'view', id, '--json', 'status,conclusion,jobs'], {
+      timeout: 60_000,
+      killSignal: 'SIGKILL',
+    });
+    if (v.error) return nonLue(`gh ne se lance pas (${v.error.code ?? v.error.message}).`);
+    if (v.status !== 0) return nonLue(`gh run view refuse :\n${`${v.stderr}${v.stdout}`.trim()}`);
+    try {
+      vue = JSON.parse(v.stdout || '{}');
+    } catch {
+      return nonLue(`gh run view rend une sortie illisible :\n${v.stdout.trim()}`);
+    }
+    ecrireLesEtapes(o.avancement, vue);
+    if (vue?.status === 'completed') break;
+    const reste = limite - Date.now();
+    if (reste <= 0) {
+      return nonLue(`le passage ${id} n'a pas fini en ${Math.round(attente / 60_000)} min.`);
+    }
+    attendreUnPeu(Math.min(pas, reste));
+  }
+  if (vue.conclusion === 'success') {
+    o.dire(`✓ CI de ${court} verte (passage ${id})`);
+    return { verdict: VERTE, passage: id };
+  }
+  const url = gh(['run', 'view', id, '--json', 'url', '--jq', '.url']).stdout?.trim() || id;
+  const journal = `${gh(['run', 'view', id, '--log-failed']).stdout ?? ''}`
+    .trim()
+    .split('\n')
+    .slice(-60)
+    .join('\n');
+  commenter(
+    `## CI rouge\n\nLa CI de ${court} sur ${o.principale} est rouge : ${url}\n\nLa fin de gh run view ${id} --log-failed :\n\n${journal}\n\nLe ticket est rouvert : sa correction entre sous son numéro. Un rejeu vert de la même CI (\`gh run rerun ${id} --failed\`), puis \`--reprendre\` du circuit, le ferme ; un test connu instable se met en quarantaine dans le test, avec le ticket qui le corrige.`
+  );
+  o.dire(`✗ CI de ${court} rouge (passage ${id}) : ${ticket} rouvert`);
+  return { verdict: ROUGE, passage: id };
+}
+
+/**
+ * The CI of the ticket's commit on main read again, with the tools <o> (`{ racine, principale,
+ * ticket, bd, gh, dire, avancement }`, as `lireCI`), for a ticket a red CI reopened: as a merge
+ * queue judges the last attempt of a commit's checks, a run whose failed jobs were run again green
+ * is green. The commit is the last of main that delivers the ticket (its title line names it,
+ * `commitsDelivering` of ../un-commit-par-ticket.mjs, the prefix read from bd); green, or no CI
+ * for the branch pushed to, the ticket closes as an entry closes it (« intégré : <commit> »), its
+ * run named at the ticket; red or not read, it stays open, the reading at the ticket. No commit of
+ * main delivering it, or its branch `agent/<ticket>` still ahead of main (a lot not yet on main),
+ * the ticket is told that the CI is not read again. Exit 0.
+ */
+export function relireCI(o) {
+  const { racine, principale, ticket } = o;
+  const git = (...a) => spawnSync('git', ['-C', racine, ...a], { encoding: 'utf8' });
+  const nonRelue = raison => {
+    o.bd('comments', 'add', ticket, `## CI non relue\n\n${raison}`);
+    o.dire(`⚠ CI non relue : ${raison}`);
+    return 0;
+  };
+  const refPrincipale = `refs/heads/${principale}`;
+  const branche = `agent/${ticket}`;
+  const enAvance = git('rev-list', '--count', `${refPrincipale}..refs/heads/${branche}`);
+  if (enAvance.status === 0 && Number(enAvance.stdout.trim()) > 0) {
+    return nonRelue(
+      `La branche ${branche} a des commits hors de ${principale} : son lot n'est pas sur ${principale}, la file n'en relit pas la CI.`
+    );
+  }
+  const prefixe = o.bd('config', 'get', 'issue_prefix').stdout?.trim() ?? '';
+  const sha = commitsDelivering(ticket, prefixe, gitLog(racine))
+    .map(c => git('rev-parse', '--verify', '-q', `${c}^{commit}`).stdout.trim())
+    .find(c => c && git('merge-base', '--is-ancestor', c, refPrincipale).status === 0);
+  if (!sha) {
+    return nonRelue(
+      `Aucun commit de ${principale} ne livre ${ticket} : la file n'a pas de CI à relire.`
+    );
+  }
+  const court = sha.slice(0, 7);
+  const paquet = git('show', `${refPrincipale}:package.json`);
+  const { commit, faute } = lireCommit(paquet.status === 0 ? JSON.parse(paquet.stdout) : null);
+  if (faute) {
+    return nonRelue(`grillhouse.poussee.commit vaut ${faute}, pas un nom de branche.`);
+  }
+  const ci = lireCI(o, ticket, sha, commit);
+  if (ci.verdict === VERTE || ci.verdict === SANS_CI) {
+    o.bd('close', ticket, '--reason', `${INTEGRE}${court}`);
+    if (ci.passage) {
+      o.bd(
+        'comments',
+        'add',
+        ticket,
+        `## CI relue\n\nLa CI de ${court} sur ${principale} est verte au dernier essai du passage ${ci.passage} : le ticket se ferme.`
+      );
+    }
+    o.dire(`✓ ${ticket} fermé : ${court} est sur ${principale}`);
+  }
+  return 0;
+}
+
 function main(argv) {
-  if (argv.length) {
-    process.stderr.write('usage: file.mjs (sans argument)\n');
+  const relecture = argv.length === 2 && argv[0] === '--ci' && argv[1] ? argv[1] : null;
+  if (argv.length && !relecture) {
+    process.stderr.write('usage: file.mjs [--ci <ticket>]\n');
     return 2;
   }
   // The progress directory of the circuit's step (scripts/avancement.mjs), where the queue writes
@@ -227,6 +413,9 @@ function main(argv) {
     process.stderr.write("⛔ L'arbre principal n'est pas sur une branche.\n");
     return 1;
   }
+  // The tools of the reading of the CI, the queue's and its reading again.
+  const lecture = { racine, principale, bd, gh: ghDans(racine), dire, avancement };
+  if (relecture) return relireCI({ ...lecture, ticket: relecture });
   const refPrincipale = `refs/heads/${principale}`;
   const copie = path.join(racine, '.claude', 'worktrees', 'file');
   const verrou = path.join(dossierCommun(racine), 'file-integration.lock');
@@ -342,106 +531,9 @@ function main(argv) {
       dire(`⚠ poussée de ${court} refusée`);
     } else {
       dire(`✓ poussée : ${court} est sur origin/${commit}`);
-      lireCI(entree, nouveau, commit);
+      const ci = lireCI(lecture, entree.ticket, nouveau, commit);
+      if (ci.verdict === ROUGE) bd('reopen', entree.ticket);
     }
-  };
-
-  // The workflows of the commit <sha> that run on a push to <branche>: their paths.
-  const fluxDuCommit = (sha, branche) => {
-    const l = git('ls-tree', '--name-only', `${sha}:${DOSSIER_DES_FLUX}`);
-    const noms =
-      l.status === 0 ? l.stdout.split('\n').filter(n => EXTENSIONS_DES_FLUX.test(n)) : [];
-    const fichiers = noms.map(n => {
-      const chemin = `${DOSSIER_DES_FLUX}/${n}`;
-      const f = git('show', `${sha}:${chemin}`);
-      return { chemin, texte: f.status === 0 ? f.stdout : null };
-    });
-    return fluxDeLaBranche(fichiers, branche);
-  };
-
-  // The CI of the commit <sha> pushed to <branche>: none, the ticket is told so in one line; green,
-  // the ticket stays closed; red, it reopens; not read, the ticket is told why.
-  const lireCI = (entree, sha, branche) => {
-    const court = sha.slice(0, 7);
-    if (fluxDuCommit(sha, branche).length === 0) {
-      const texte = `Aucune CI pour origin/${branche} : aucun flux de ${DOSSIER_DES_FLUX} de ${court} ne se lance sur la branche ${branche}, la file n'en attend pas.`;
-      commenter(entree.ticket, texte);
-      dire(`✓ ${texte}`);
-      return;
-    }
-    const gh = (args, options = {}) =>
-      spawnSync('gh', args, {
-        cwd: racine,
-        encoding: 'utf8',
-        maxBuffer: 64 * 1024 * 1024,
-        ...options,
-      });
-    const nonLue = raison => {
-      commenter(entree.ticket, `## CI non lue\n\nLa CI de ${court} n'a pas été lue : ${raison}`);
-      dire(`⚠ CI de ${court} non lue : ${raison}`);
-    };
-    const recherche = delai('GRILLHOUSE_CI_RECHERCHE_MS', RECHERCHE_CI_MS);
-    const debut = Date.now();
-    let passage = null;
-    for (;;) {
-      const r = gh(['run', 'list', '--commit', sha, '--json', 'databaseId,status,conclusion']);
-      if (r.error) return nonLue(`gh ne se lance pas (${r.error.code ?? r.error.message}).`);
-      if (r.status !== 0) return nonLue(`gh run list refuse :\n${`${r.stderr}${r.stdout}`.trim()}`);
-      let passages = [];
-      try {
-        passages = JSON.parse(r.stdout || '[]');
-      } catch {
-        return nonLue(`gh run list rend une sortie illisible :\n${r.stdout.trim()}`);
-      }
-      passage = passages.find(x => x?.databaseId);
-      const reste = recherche - (Date.now() - debut);
-      if (passage || reste <= 0) break;
-      attendreUnPeu(Math.min(10_000, reste));
-    }
-    if (!passage) {
-      return nonLue(`aucun passage de la CI pour ce commit en ${Math.round(recherche / 1000)} s.`);
-    }
-    const id = String(passage.databaseId);
-    const attente = delai('GRILLHOUSE_CI_ATTENTE_MS', ATTENTE_CI_MS);
-    const pas = delai('GRILLHOUSE_CI_PAS_MS', PAS_CI_MS);
-    const limite = Date.now() + attente;
-    let vue = null;
-    for (;;) {
-      const v = gh(['run', 'view', id, '--json', 'status,conclusion,jobs'], {
-        timeout: 60_000,
-        killSignal: 'SIGKILL',
-      });
-      if (v.error) return nonLue(`gh ne se lance pas (${v.error.code ?? v.error.message}).`);
-      if (v.status !== 0) return nonLue(`gh run view refuse :\n${`${v.stderr}${v.stdout}`.trim()}`);
-      try {
-        vue = JSON.parse(v.stdout || '{}');
-      } catch {
-        return nonLue(`gh run view rend une sortie illisible :\n${v.stdout.trim()}`);
-      }
-      ecrireLesEtapes(avancement, vue);
-      if (vue?.status === 'completed') break;
-      const reste = limite - Date.now();
-      if (reste <= 0) {
-        return nonLue(`le passage ${id} n'a pas fini en ${Math.round(attente / 60_000)} min.`);
-      }
-      attendreUnPeu(Math.min(pas, reste));
-    }
-    if (vue.conclusion === 'success') {
-      dire(`✓ CI de ${court} verte (passage ${id})`);
-      return;
-    }
-    const url = gh(['run', 'view', id, '--json', 'url', '--jq', '.url']).stdout?.trim() || id;
-    const journal = `${gh(['run', 'view', id, '--log-failed']).stdout ?? ''}`
-      .trim()
-      .split('\n')
-      .slice(-60)
-      .join('\n');
-    bd('reopen', entree.ticket);
-    commenter(
-      entree.ticket,
-      `## CI rouge\n\nLa CI de ${court} sur ${principale} est rouge : ${url}\n\nLa fin de gh run view ${id} --log-failed :\n\n${journal}\n\nLe ticket est rouvert : sa correction entre sous son numéro.`
-    );
-    dire(`✗ CI de ${court} rouge (passage ${id}) : ${entree.ticket} rouvert`);
   };
 
   // One branch of the queue, against the main of the moment.
