@@ -251,7 +251,7 @@ export const MONTEES = Object.fromEntries(
     'sans-livraison':
       'Le développeur ne change rien et le rouge reste : avec quel contexte le lever, ou le plan doit-il changer ?',
     'relecture-arret':
-      'La relecture ne rend pas le lot à un agent (un constat sans destinataire valide, un critère en cause, ou la troisième relecture rendue) : que devient le plan, et qui reprend ?',
+      'La relecture ne rend pas le lot à un agent (un constat sans destinataire valide, un constat au testwriter que le plan saute, un critère en cause, ou la troisième relecture rendue) : que devient le plan, et qui reprend ?',
     integration:
       'L’intégration refuse le lot, ou la file rouvre le ticket : que corrige le lot, et qui le reprend ?',
     'hors-portee':

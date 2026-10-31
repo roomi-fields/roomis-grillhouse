@@ -70,7 +70,7 @@ const AVANT: Record<string, [number, number]> = {
   'circuit.registre': [1, 9],
   'circuit.rejeu': [7, 51],
   'circuit.relance': [3, 10],
-  'circuit.relecture': [12, 105],
+  'circuit.relecture': [13, 113],
   'circuit.reprise': [5, 58],
   'circuit.sessions': [18, 107],
   'circuit.statut': [10, 66],

@@ -238,7 +238,14 @@ rejoue un lot : un refus peut venir de la charge ou de main (BP 320.16, 320.16.2
 testwriter` refait le lot et oublie le refus (BP 320.37 : trois fois « FAIT » sans un fichier changé, les contrôles de la copie
 verts, l'intégration rouge sur le même lot). Un constat bloquant du relecteur va droit à l'agent qu'il nomme et reste ouvert
 d'une relance à l'autre, comme un fil de revue non résolu, jusqu'à ce que le relecteur le dise
-levé ou accepte le lot. Comme l'auteur répond dans chaque fil d'une revue GitHub ou Gerrit, la
+levé ou accepte le lot. Comme une CI échoue vite sur une étape qu'elle ne peut pas jouer, un
+`RENDU` dont un constat va au testwriter quand le plan le saute (aucun paquet du plan ne joue de
+tests) arrête le circuit dès ce verdict, en `relecture-arret`, sans relancer ni le testwriter, ni
+le développeur, ni les contrôles ; la question au superviseur nomme le constat et le plan :
+déclarer les tests du paquet au cadre, ou trancher le constat (`arretDuTestwriterSaute` ; OSC
+Bridge SH-13y.1 : trois `RENDU` « Agent : testwriter » sur un paquet dont les tests en Python
+ne se jouent qu'en CI, le développeur relancé trois fois sur un lot inchangé, 30 min perdues).
+Comme l'auteur répond dans chaque fil d'une revue GitHub ou Gerrit, la
 fiche FAIT du développeur répond à chaque constat ouvert pour lui, par son titre, sans le
 numéro « Constat N — » que la consigne lui donne, numéro que le circuit reconnaît aussi, comme
 une revue rattache la réponse à son fil par son identifiant (`cleDuConstat`) (`reponses` :

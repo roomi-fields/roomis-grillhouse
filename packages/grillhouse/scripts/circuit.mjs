@@ -388,7 +388,11 @@
 //   handover the circuit does not read, three RENDU, then the stop); the rest of the lot it does not read again (its skill, « La relecture
 //   bornée »). A blocking finding without a valid agent, or one that puts its criterion in
 //   question (`critere_en_cause`), stops at « relecture-arret »; so does the third RENDU since the
-//   ticket's last ACCEPTÉ.
+//   ticket's last ACCEPTÉ, and a RENDU whose finding goes to the testwriter when the plan skips
+//   him (`sansTests`), at that verdict, as a CI fails fast on a step it cannot run
+//   (`arretDuTestwriterSaute`; OSC Bridge SH-13y.1: three RENDU « Agent : testwriter » on a
+//   package whose tests no command of the frame plays, the developpeur relaunched on an empty
+//   diff each time); its question, declare the tests of the package or settle the finding.
 // - ACCEPTÉ: the integration, once the whole final pass has played on the lot accepted (its tree
 //   is `verifie`); else that pass first, once, its red going to the developpeur and the lot then
 //   to the reviewer again. The circuit builds the lot from the copy: the files the copy changes
@@ -523,8 +527,8 @@
 //   second developpeur session that `--depuis developpeur` launched on the lot the integration
 //   refused and that changes nothing; or
 //   the developpeur's same sending to the testwriter twice in a row, on the same red output of the
-//   checks, no green checks between them), 16 relecture-arret (a finding without a valid agent, one on a criterion, the third
-//   RENDU), 17 integration (the integration script refuses the lot, or the queue reopens the
+//   checks, no green checks between them), 16 relecture-arret (a finding without a valid agent, one to the testwriter the plan skips,
+//   one on a criterion, the third RENDU), 17 integration (the integration script refuses the lot, or the queue reopens the
 //   ticket), 19 hors-portee (a testwriter or developpeur whose sheet says BLOQUÉ, without a
 //   sending to the testwriter, or a developpeur's FAIT with criteria out of the plan), 20 besoin (a testwriter or developpeur whose sheet says BESOIN, a
 //   reviewer whose sheet carries a `question`, or a ticket labelled `arbitrage` whose arbitrage
@@ -2218,6 +2222,26 @@ export function constatsOuverts(ctx, fiche, texte) {
   return [...restes, ...neufs];
 }
 
+// The stop for the findings open in <ctx> that go to the testwriter when the plan skips him
+// (`sansTests`), or null: no new pass treats them, as a CI fails fast on a step it cannot run
+// (grillhouse-26x). An Arret `relecture-arret` whose report names each finding, the role skipped
+// and why, then the verdict <texte>; its piece, the findings' pieces; its question, declare the
+// tests of the package or settle the finding.
+export function arretDuTestwriterSaute(ctx, texte) {
+  const auTestwriter = ouverts(ctx, 'testwriter');
+  if (!auTestwriter.length || !sansTests(ctx)) return null;
+  const titres = auTestwriter.map(c => `« ${c.titre} »`).join(', ');
+  const plan = ctx.paquets.join(', ');
+  return new Arret(
+    'relecture-arret',
+    `Le relecteur adresse au testwriter ${titres}, quand le plan saute le testwriter : aucun paquet du plan ne joue de tests (${plan}).\n\nLe verdict :\n\n${texte}`,
+    {
+      piece: auTestwriter.map(c => c.piece ?? c.titre).join('\n'),
+      question: `Le constat ${titres} va au testwriter, que le plan (${plan}) saute : déclarer les tests du paquet au cadre, puis \`--reprendre\`, ou trancher le constat (\`--depuis developpeur --contexte\`, ou \`--arreter\`).`,
+    }
+  );
+}
+
 // The integration of the lot: its two patches, its message and the references that write files in
 // full (`--references`, from `lesReferences`, the one list), written from the copy, then
 // scripts/integration/integrer.mjs from the main tree, its output added to the log. A run « à
@@ -3698,6 +3722,8 @@ async function derouler(ctx, debut) {
             );
           }
           ctx.constats = constatsOuverts(ctx, v.fiche, v.texte);
+          const saute = arretDuTestwriterSaute(ctx, v.texte);
+          if (saute) throw saute;
           const auTestwriter = ouverts(ctx, 'testwriter').length > 0;
           etape = auTestwriter ? TESTS : CODE;
           tentative = 1;

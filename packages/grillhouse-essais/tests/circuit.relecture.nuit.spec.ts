@@ -2,7 +2,15 @@ import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { lire, sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
+import {
+  ecrire,
+  lire,
+  sortie,
+  ARRETS,
+  CODE_JUSTE,
+  ECRIT_ROUGE,
+  circuitEssai,
+} from './circuit-essai.js';
 import { enProcessus } from './cadre.js';
 
 const texteDuVerdict = enProcessus<string>('scripts/circuit.mjs', 'texteDuVerdict');
@@ -520,6 +528,31 @@ fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/mesure
     expect(r2.status, sortie(r2)).toBe(16);
     expect(sessions(id, 'developpeur')).toBe(1);
     expect(etat(id)?.rapport).toContain('met en cause un critère');
+  });
+
+  // grillhouse-26x: OSC Bridge SH-13y.1, three RENDU « Agent : testwriter » on a plan whose package
+  // plays no test, the developpeur relaunched on an empty diff each time.
+  it('stops at « relecture-arret » (16) at the first RENDU whose finding goes to the testwriter the plan skips', () => {
+    const id = 'demo-rendu-testwriter-saute';
+    // The package of the plan plays no test: its package.json without the script `test:unit`.
+    ecrire(
+      path.join(REPO, 'packages/forms/package.json'),
+      `${JSON.stringify({ name: '000-forms', type: 'module' }, null, 2)}\n`
+    );
+    gitRepo('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qam', 'forms sans tests');
+    ticket(id, '000-forms');
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    scenario(id, 'relecteur-1', rendu('testwriter', 'mesure manque de test.'));
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(16);
+    expect(sessions(id, 'testwriter')).toBe(0);
+    expect(sessions(id, 'developpeur')).toBe(1);
+    expect(sessions(id, 'relecteur')).toBe(1);
+    const e = etat(id);
+    expect(e).toMatchObject({ etape: 'relecture', raison: 'relecture-arret', code: 16 });
+    expect(e?.rapport).toContain('quand le plan saute le testwriter');
+    expect(e?.question).toMatchObject({ arret: 'relecture-arret', qui: 'superviseur' });
+    expect(enFile()).not.toContain(`agent/${id}`);
   });
 
   it('stops at « relecture-arret » at the third RENDU', () => {
