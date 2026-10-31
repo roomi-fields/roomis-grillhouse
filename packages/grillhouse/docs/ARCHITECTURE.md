@@ -437,12 +437,13 @@ celui qui attend est un blocage : l'attente le dit tout de suite et s'arrête, r
 borne ses tâches côte à côte à la moitié des cœurs. Ainsi une mesure rend le résultat du code, et
 non celui d'une autre mesure à côté, et aucune passe ne reste figée sans le dire.
 
-**Le projet passe avant le cadre** : une mesure jouée dans le dépôt du cadre lui-même (le paquet
-en développement, ses copies d'agents comprises) est de second rang ; celle d'un projet, de
-premier rang. Une mesure de second rang ne prend pas le verrou, même libre, tant qu'une mesure de
-premier rang attend ; l'attente dit son rang et qui elle attend, sous la même borne. Ainsi le
-circuit d'un projet n'attend pas les vérifications du cadre, comme le serveur de tâches de GNU
-make sert sa construction et Bazel ordonne ses tests par priorité.
+**Le cadre passe avant les projets** : une mesure jouée dans le dépôt du cadre lui-même (le
+paquet en développement, ses copies d'agents comprises) est de premier rang, « mesure du cadre » ;
+celle d'un projet, de second rang, « mesure d'un projet ». Une mesure d'un projet ne prend pas le
+verrou, même libre, tant qu'une mesure du cadre attend ; la mesure en cours finit toujours. L'attente
+dit son rang et qui elle attend, sous la même borne. Ainsi la version suivante du cadre, que tous
+les projets attendent, ne reste pas derrière leurs mesures, comme une file à priorités de Slurm et
+comme Bazel ordonne ses tests par priorité.
 
 **Une passe automatique montre son avancement** : chaque passe automatique écrit ses fichiers
 de tests faits sur prévus (la file, les étapes de sa CI), que le panneau affiche avec le temps

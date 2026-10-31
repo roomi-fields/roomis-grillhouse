@@ -475,7 +475,7 @@ describe('grillhouse-3uv.95.2 — le rang d’une mesure', { timeout: 60_000 }, 
     return { p, fini: fin(p), sortie: () => sortie };
   };
 
-  it('une mesure du dépôt du cadre, ou d’une de ses copies d’agents, est de second rang ; celle d’un projet, de premier rang', async () => {
+  it('une mesure du dépôt du cadre, ou d’une de ses copies d’agents, est de premier rang ; celle d’un projet, de second rang', async () => {
     const { rangDeLaMesure } = (await import(MODULE)) as {
       rangDeLaMesure: (racine: string) => number;
     };
@@ -483,11 +483,11 @@ describe('grillhouse-3uv.95.2 — le rang d’une mesure', { timeout: 60_000 }, 
     const cadre = depotDuCadre(path.join(d, 'cadre'));
     const copie = depotDuCadre(path.join(cadre, '.claude/worktrees/agent-x'));
     const projet = unProjet(path.join(d, 'projet'));
-    expect(rangDeLaMesure(RACINE)).toBe(2);
-    expect(rangDeLaMesure(cadre)).toBe(2);
-    expect(rangDeLaMesure(copie)).toBe(2);
-    expect(rangDeLaMesure(projet)).toBe(1);
-    expect(rangDeLaMesure(unDossier())).toBe(1);
+    expect(rangDeLaMesure(RACINE)).toBe(1);
+    expect(rangDeLaMesure(cadre)).toBe(1);
+    expect(rangDeLaMesure(copie)).toBe(1);
+    expect(rangDeLaMesure(projet)).toBe(2);
+    expect(rangDeLaMesure(unDossier())).toBe(2);
   });
 
   it('une mesure de premier rang qui attend passe avant les mesures de second rang qui attendent', async () => {
@@ -497,12 +497,12 @@ describe('grillhouse-3uv.95.2 — le rang d’une mesure', { timeout: 60_000 }, 
     const env = environnement({ GRILLHOUSE_VERROU_MACHINE: path.join(d, 'mesure.lock') });
     const trace = path.join(d, 'trace');
     const libere = path.join(d, 'libere');
-    const a = lancerDans(preneur('A', trace, tenir(libere)), env, projet);
+    const a = lancerDans(preneur('A', trace, tenir(libere)), env, cadre);
     await jusqua(() => lignes(trace).includes('A début'));
     // Three measures of the second rank wait first, then one of the first rank.
-    const seconds = ['S1', 'S2', 'S3'].map(nom => lancerDans(preneur(nom, trace), env, cadre));
+    const seconds = ['S1', 'S2', 'S3'].map(nom => lancerDans(preneur(nom, trace), env, projet));
     await jusqua(() => seconds.every(s => s.sortie().includes('⏳')));
-    const premier = lancerDans(preneur('P', trace), env, projet);
+    const premier = lancerDans(preneur('P', trace), env, cadre);
     await jusqua(() => premier.sortie().includes('⏳'));
     writeFileSync(libere, '');
     const fins = await Promise.all([a.fini, premier.fini, ...seconds.map(s => s.fini)]);
@@ -521,14 +521,15 @@ describe('grillhouse-3uv.95.2 — le rang d’une mesure', { timeout: 60_000 }, 
     const trace = path.join(d, 'trace');
     const libereA = path.join(d, 'libere-a');
     const libereP = path.join(d, 'libere-p');
-    const a = lancerDans(preneur('A', trace, tenir(libereA)), env, projet);
+    const a = lancerDans(preneur('A', trace, tenir(libereA)), env, cadre);
     await jusqua(() => lignes(trace).includes('A début'));
-    const premier = lancerDans(preneur('P', trace, tenir(libereP)), env, projet);
+    const premier = lancerDans(preneur('P', trace, tenir(libereP)), env, cadre);
     await jusqua(() => premier.sortie().includes('⏳'));
-    expect(premier.sortie()).toContain('premier rang');
-    const second = lancerDans(preneur('S', trace), env, cadre);
+    expect(premier.sortie()).toContain('mesure du cadre');
+    const second = lancerDans(preneur('S', trace), env, projet);
     await jusqua(() => second.sortie().includes('⏳'));
-    expect(second.sortie()).toContain('second rang');
+    expect(second.sortie()).toContain("mesure d'un projet");
+    expect(second.sortie()).toContain("une mesure du cadre attend aussi et passe d'abord");
     expect(second.sortie()).toContain(String(a.p.pid));
     expect(second.sortie()).toContain(String(premier.p.pid));
     writeFileSync(libereA, '');
@@ -543,10 +544,10 @@ describe('grillhouse-3uv.95.2 — le rang d’une mesure', { timeout: 60_000 }, 
 
   it('une mesure de second rang seule prend le verrou libre sans attendre', async () => {
     const d = unDossier();
-    const cadre = depotDuCadre(path.join(d, 'cadre'));
+    const projet = unProjet(path.join(d, 'projet'));
     const env = environnement({ GRILLHOUSE_VERROU_MACHINE: path.join(d, 'mesure.lock') });
     const trace = path.join(d, 'trace');
-    const r = await lancerDans(preneur('S', trace), env, cadre).fini;
+    const r = await lancerDans(preneur('S', trace), env, projet).fini;
     expect(r.code, r.sortie).toBe(0);
     expect(r.sortie).not.toContain('⏳');
     expect(lignes(trace)).toEqual(['S début', 'S fin']);
@@ -559,13 +560,13 @@ describe('grillhouse-3uv.95.2 — le rang d’une mesure', { timeout: 60_000 }, 
     const env = environnement({ GRILLHOUSE_VERROU_MACHINE: path.join(d, 'mesure.lock') });
     const trace = path.join(d, 'trace');
     const libere = path.join(d, 'libere');
-    const a = lancerDans(preneur('A', trace, tenir(libere)), env, projet);
+    const a = lancerDans(preneur('A', trace, tenir(libere)), env, cadre);
     await jusqua(() => lignes(trace).includes('A début'));
-    const premier = lancerDans(preneur('P', trace), env, projet);
+    const premier = lancerDans(preneur('P', trace), env, cadre);
     await jusqua(() => premier.sortie().includes('⏳'));
     premier.p.kill('SIGKILL');
     await premier.fini;
-    const second = lancerDans(preneur('S', trace), env, cadre);
+    const second = lancerDans(preneur('S', trace), env, projet);
     await jusqua(() => second.sortie().includes('⏳'));
     writeFileSync(libere, '');
     const debut = Date.now();
@@ -584,8 +585,8 @@ describe('grillhouse-3uv.95.2 — le rang d’une mesure', { timeout: 60_000 }, 
     const env = environnement({ GRILLHOUSE_VERROU_MACHINE: path.join(d, 'mesure.lock') });
     const trace = path.join(d, 'trace');
     const libere = path.join(d, 'libere');
-    const a = lancerDans(preneur('A', trace, tenir(libere)), env, projet);
-    const premier = lancerDans(preneur('P', trace), env, projet);
+    const a = lancerDans(preneur('A', trace, tenir(libere)), env, cadre);
+    const premier = lancerDans(preneur('P', trace), env, cadre);
     try {
       await jusqua(() => lignes(trace).includes('A début'));
       await jusqua(() => premier.sortie().includes('⏳'));
@@ -593,7 +594,7 @@ describe('grillhouse-3uv.95.2 — le rang d’une mesure', { timeout: 60_000 }, 
       const s = await lancerDans(
         preneur('S', trace),
         { ...env, GRILLHOUSE_ATTENTE_MACHINE_MS: '1500' },
-        cadre
+        projet
       ).fini;
       expect(s.code, s.sortie).toBe(75);
       expect(Date.now() - debut).toBeGreaterThanOrEqual(1_500);

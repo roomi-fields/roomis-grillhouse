@@ -38,12 +38,13 @@
 //   `--experimental_local_test_priority` orders the tests that wait for the machine. A measure
 //   played in the frame's own repository (one whose workspaces hold the package
 //   @roomi-fields/grillhouse in development, its agent copies included: `rangDeLaMesure`) is of
-//   the second rank; a project's (a circuit, a `npm run verifier`) is of the first. A measure of
-//   the first rank that waits names itself in the directory `<lock>.premier-rang/` (one file per
-//   waiting process, named by its number, removed once it holds the lock or stops); a measure of
-//   the second rank does not take the lock, even free, while a live process waits there, so a
-//   project's circuit never waits behind the frame's own checks (BPScript 320.9: 208 min of its
-//   wait went to the checks of the frame's agent copies). A waiting file whose process is gone
+//   the first rank, « mesure du cadre »; a project's (a circuit, a `npm run verifier`) is of the
+//   second, « mesure d'un projet ». A measure of the first rank that waits names itself in the
+//   directory `<lock>.premier-rang/` (one file per waiting process, named by its number, removed
+//   once it holds the lock or stops); a measure of the second rank does not take the lock, even
+//   free, while a live process waits there, so a check of the frame, whose next version every
+//   project waits for, never waits behind the projects' measures (the verification of 0.26.0
+//   waited 61 min behind five measures of two projects). A waiting file whose process is gone
 //   names no one and goes. Between measures of one rank, the first to find the lock free takes
 //   it. The bound of the wait is the same for both ranks, and the wait says its rank.
 // - The lock is let go at the end of the measure, whether it succeeds or throws.
@@ -69,20 +70,20 @@ const VARIABLE_VERROU = 'GRILLHOUSE_VERROU_MACHINE';
 const VARIABLE_TENUE = 'GRILLHOUSE_MESURE_TENUE';
 const VARIABLE_ATTENTE = 'GRILLHOUSE_ATTENTE_MACHINE_MS';
 
-// The name of the frame's package, which a repository of the second rank develops.
+// The name of the frame's package, which a repository of the first rank develops.
 const CADRE = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).name;
 
 /**
- * The rank of a measure played at <racine>: 2 in the frame's own repository (its workspaces hold
- * the package @roomi-fields/grillhouse in development), 1 elsewhere.
+ * The rank of a measure played at <racine>: 1 in the frame's own repository (its workspaces hold
+ * the package @roomi-fields/grillhouse in development), 2 elsewhere.
  * @param {string} racine the root of the repository the measure plays in
  * @returns {1 | 2}
  */
 export function rangDeLaMesure(racine) {
-  return paquets(racine).some(p => p.pkg.name === CADRE) ? 2 : 1;
+  return paquets(racine).some(p => p.pkg.name === CADRE) ? 1 : 2;
 }
 
-const RANGS = { 1: 'mesure de premier rang', 2: 'mesure de second rang (le dépôt du cadre)' };
+const RANGS = { 1: 'mesure du cadre', 2: "mesure d'un projet" };
 
 /** The longest wait for the lock of the machine, in ms, unless GRILLHOUSE_ATTENTE_MACHINE_MS names another. */
 export const ATTENTE_MACHINE_MS = 60 * 60_000;
@@ -203,8 +204,8 @@ function attendus(verrou, rang) {
   const avant = !premiers.length
     ? ''
     : premiers.length === 1
-      ? ` ; une mesure de premier rang attend aussi et passe d'abord : ${processus(premiers[0])}`
-      : ` ; ${premiers.length} mesures de premier rang attendent aussi et passent d'abord : ${premiers.map(processus).join(' ; ')}`;
+      ? ` ; une mesure du cadre attend aussi et passe d'abord : ${processus(premiers[0])}`
+      : ` ; ${premiers.length} mesures du cadre attendent aussi et passent d'abord : ${premiers.map(processus).join(' ; ')}`;
   return `le verrou de la mesure lourde (${verrou}) est ${tenu}${avant}`;
 }
 
