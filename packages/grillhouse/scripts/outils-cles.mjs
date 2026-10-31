@@ -129,7 +129,7 @@ export function lireOutils(
 
 // The main tree of the repository that holds <dir>, from git's common directory; <dir> itself out
 // of a repository.
-function arbrePrincipal(dir) {
+export function arbrePrincipal(dir) {
   const r = spawnSync(
     'git',
     ['-C', dir, 'rev-parse', '--path-format=absolute', '--git-common-dir'],

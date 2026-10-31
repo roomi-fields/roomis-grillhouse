@@ -82,7 +82,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   de son `package.json`, chacune `{ nom, commande, fichiers, tests, lit, gardes }`, ses fichiers en
   chemins, dossiers ou motifs `*` et `**`, ses tests les fichiers de test qui la jugent, `lit` les
   fichiers qu'elle lit d'une autre référence, ses gardes les gardes du projet qui la jugent, par le
-  nom que porte leur constat SARIF ; celles du cadre, l'index des interfaces, les `turbo.json`, les
+  nom que porte leur constat SARIF ; ses fichiers engendrés, `grillhouse.engendres`, que
+  l'intégration régénère au lieu de les fusionner ; celles du cadre, l'index des interfaces, les `turbo.json`, les
   rapports d'API et la dette des gardes ; sur la copie entière, dès qu'un rouge est le leur, mêlé
   ou non à d'autres, ou que la dette baisse, chacune suivie de celles qui lisent ce qu'elle écrit
   (l'index après les rapports d'API), sans que le plan les nomme, puis la passe finale restreinte
@@ -100,6 +101,10 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   étape joue une fois pour tout le ticket, dans l'enveloppe de tous les paquets du plan ; je dis
   où en est un ticket par son étape, « 3 Code » ; son en-tête dit ses arrêts et leurs codes. Ainsi
   les gestes mécaniques passent à une commande, et je garde la vue d'ensemble.
+- **Je ne lance pas de circuit pour un ticket de données** : un ticket qui n'ajoute que des
+  données (des fichiers qu'un schéma valide) passe par le chemin de données du projet, sa
+  validation et sa CI (charte commune). Ainsi les tests, la preuve du rouge et le développeur ne
+  tournent que sur du code.
 - **Le code de fin du circuit dit la suite** : 0, le lot est sur main et le ticket fermé ; je lis
   sa fermeture. 75 (`a-repasser` : un contrôle ou l'intégration encore « à repasser », ou la
   branche gardée en file) : je relance `--reprendre` en arrière-plan, la

@@ -22,7 +22,15 @@
 //    `npm run verifier` (Turborepo: the build, then the guards and every test of the day beside
 //    each other, each task replayed from the cache of the main tree when its inputs are
 //    unchanged), every command of the project run in the copy leaving its index up to date
-//    (rejeu.mjs); main moves forward onto the replaced branch when `npm run verifier` is green;
+//    (rejeu.mjs); main moves forward onto the replaced branch when `npm run verifier` is green.
+//    A generated file the project declares (`grillhouse.engendres`, scripts/engendres.mjs, read
+//    from the main tree, a faulty key keeping the branch in the queue, named) is never merged, as
+//    npm writes package-lock.json again after a merge: a conflict on such files only takes main's
+//    version, and once the branch is replaced and installed, the command of each one whose files,
+//    or the files it reads, the branch touches writes it again, with the tools of the project,
+//    and what it writes enters the branch's commit; a command that fails makes the branch leave
+//    the queue, the command and its output named (OSC Bridge, 2026-10-31: four conflicts in one
+//    day on the generated files of synthhub and open-synth-descriptors);
 //  - a branch with nothing ahead of main does not enter: it leaves the queue, its ticket loses
 //    `en-file` and takes a comment, and stays as it is;
 //  - a branch that does not replace (the files in conflict) or whose `npm run verifier` is red once
@@ -75,6 +83,8 @@ import { existsSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { couvertPar, engendresDe, regenerer, touchesPar } from '../engendres.mjs';
+import { avecLesOutils, outilsDe } from '../outils-cles.mjs';
 import { lireCommit } from '../poussee-cles.mjs';
 import { commitsDelivering, gitLog } from '../un-commit-par-ticket.mjs';
 import { attendreUnPeu, lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
@@ -452,29 +462,80 @@ function main(argv) {
   const rejouer = (tip, tete) => {
     if (existsSync(copie))
       spawnSync('git', ['-C', copie, 'rebase', '--abort'], { encoding: 'utf8' });
+    // The keys of the project, before any work: its generated files and its tools.
+    let engendres;
+    let env;
+    try {
+      engendres = engendresDe(racine);
+      env = avecLesOutils(outilsDe(racine), process.env);
+    } catch (e) {
+      return { garde: `une clé grillhouse du package.json est refusée :\n${e.message}` };
+    }
     const ouverte = ouvrirCopie({ racine, copie, ref: tete, dire });
     if (ouverte.refus) return { garde: ouverte.refus };
-    const { dansCopie, installer, tester } = ouverte;
+    const { dansCopie, monter, installer, tester } = ouverte;
     if (dansCopie('checkout', '-q', '--detach', tip).status !== 0)
       return { garde: `la copie ne prend pas ${tip.slice(0, 7)}` };
-    const rebase = dansCopie('rebase', tete);
-    if (rebase.status !== 0) {
+    // A conflict on generated files the project declares only is no conflict: main's version is
+    // taken, and their command writes them again once the branch is replaced (below).
+    let rebase = dansCopie('rebase', tete);
+    let tours = Number(dansCopie('rev-list', '--count', `${tete}..${tip}`).stdout.trim()) || 1;
+    while (rebase.status !== 0) {
       const conflits = dansCopie('diff', '--name-only', '--diff-filter=U')
         .stdout.split('\n')
         .filter(Boolean);
-      dansCopie('rebase', '--abort');
-      return {
-        sortie: [
-          'elle ne se replace pas sur main.',
-          conflits.length
-            ? `Fichiers en conflit :\n${conflits.map(f => `  ${f}`).join('\n')}`
-            : `Sortie de git :\n${rebase.stdout}${rebase.stderr}`,
-        ],
-      };
+      const engendresSeuls =
+        tours-- > 0 &&
+        conflits.length > 0 &&
+        conflits.every(f => engendres.some(e => couvertPar(e.entiers, f))) &&
+        dansCopie('checkout', '--ours', '--', ...conflits).status === 0 &&
+        dansCopie('add', '--', ...conflits).status === 0;
+      if (!engendresSeuls) {
+        dansCopie('rebase', '--abort');
+        return {
+          sortie: [
+            'elle ne se replace pas sur main.',
+            conflits.length
+              ? `Fichiers en conflit :\n${conflits.map(f => `  ${f}`).join('\n')}`
+              : `Sortie de git :\n${rebase.stdout}${rebase.stderr}`,
+          ],
+        };
+      }
+      rebase = dansCopie('-c', 'core.editor=true', 'rebase', '--continue');
     }
     const installation = installer();
     if (installation) {
       return { sortie: [installation, "Le verrou de la branche replacée ne s'installe pas."] };
+    }
+    const touches = touchesPar(
+      engendres,
+      dansCopie('diff', '--name-only', '--no-renames', '-z', tete, 'HEAD')
+        .stdout.split('\0')
+        .filter(Boolean)
+    );
+    if (touches.length) {
+      const refus = regenerer({
+        refs: touches.map(e => ({ ...e, cadre: false })),
+        dansCopie,
+        lancer: commande =>
+          spawnSync('bash', monter('sh', '-c', commande), {
+            cwd: copie,
+            encoding: 'utf8',
+            maxBuffer: 256 * 1024 * 1024,
+            env,
+          }),
+      });
+      if (refus)
+        return { sortie: ['ses fichiers engendrés ne se régénèrent pas sur main.', refus] };
+      if (dansCopie('diff', '--cached', '--quiet').status !== 0) {
+        const corrige = dansCopie('commit', '-q', '--amend', '--no-edit', '--no-verify');
+        if (corrige.status !== 0) {
+          return {
+            garde: `ses fichiers régénérés n'entrent pas dans son commit :\n${corrige.stderr}`,
+          };
+        }
+      }
+      dire(`✓ fichiers engendrés régénérés sur main : ${touches.map(e => e.nom).join(', ')}`);
     }
     dire('— npm run verifier (construction, gardes, tests)');
     const t = tester();

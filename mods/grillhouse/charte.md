@@ -102,6 +102,11 @@ Une découverte d'agent se consigne dans un ticket fermé, sous le ticket qui l'
 actuel) ou `non-confirmee` (sans preuve rejouée) la rouvrent sous `a-valider`, pour le
 responsable. Ainsi chaque découverte est lue, et le backlog reste le plan du responsable.
 
+**Un ticket de données suit le chemin de données du projet** : un ticket qui n'ajoute que des
+données (des fichiers qu'un schéma valide, une fiche à un catalogue) ne passe pas par le circuit
+de code ; il passe par la validation du projet et sa CI, comme une formule de Homebrew ou un
+type de DefinitelyTyped. Ainsi le circuit garde les tests et le code pour ce qui en a.
+
 ## Ce qui tient le dépôt droit
 
 - **Une matière, une adresse** : ce qu'un document décrit déjà s'y verse. Ainsi l'architecture
@@ -118,6 +123,12 @@ responsable. Ainsi chaque découverte est lue, et le backlog reste le plan du re
   Ainsi le cadre ne maintient aucune spécificité par composant.
 - **Une dette connue s'inscrit et se gèle** (`grillhouse-dette.json`) : une garde refuse tout
   constat neuf, et le compte ne remonte jamais. Ainsi la dette ne fait que baisser.
+- **Un fichier engendré se construit** plutôt que de se commiter (au démarrage, au déploiement),
+  comme les index de Homebrew ou de caniuse. Un fichier qu'un lecteur ne peut pas construire
+  (une page lue sur GitHub, une somme de contrôle publiée) reste commité : le projet le déclare
+  avec sa commande (`grillhouse.engendres` de son `package.json`), et l'intégration le régénère
+  sur le lot appliqué au lieu de le fusionner. Ainsi deux tickets qui touchent ses sources
+  entrent tous deux.
 - **Un remplacement supprime le remplacé** dans le même commit, avec ses consommateurs et ses
   gardes. Ainsi le produit garde une seule façon de faire chaque chose.
 - **Un commentaire dit ce que la chose est**, au présent. Ainsi il reste vrai tant que le code ne

@@ -283,7 +283,10 @@
 //   the root, as the inputs of Turborepo), the test files that judge it, as `rustc --bless` ties a
 //   test to its expected outputs, `lit`, the files it reads that another reference writes, and the
 //   guards of the project that judge it, by the name their SARIF finding carries (its guard or its
-//   rule). The frame's references follow in every project (`referencesDuCadre`): the files the
+//   rule). The generated files it keeps committed, `grillhouse.engendres` (scripts/engendres.mjs,
+//   read from the main tree at the launch, a faulty key the stop « lancement »), follow as
+//   references written in full, which the integration regenerates instead of merging them. The
+//   frame's references follow in every project (`referencesDuCadre`): the files the
 //   frame generates, each judged by a guard of the frame, by the names its findings carry (the
 //   index of the interfaces, which reads the interfaces, the turbo.json of the packages, the API
 //   reports, which write the generated part of the interfaces), and the known debt of the guards;
@@ -403,7 +406,8 @@
 //   chore, docs, else feat), its body written once from the final state: the criteria of the plan,
 //   then each deviation the sheets of the developpeur and of the reviewer name (`ecarts`), once by
 //   its subject, from the last sheet that carries it, with the trailer Co-Authored-By; and the
-//   references that write files in full (`--references`), which the integration regenerates on
+//   frame's references that write files in full (`--references`; the project's generated files,
+//   the integration reads itself), which the integration regenerates on
 //   main of the moment instead of applying their files from the lot. It runs
 //   scripts/integration/integrer.mjs from the main tree, its output added to the log: 0 is the
 //   commit on agent/<ticket> (which the circuit names from git), the copy removed, the branch in
@@ -566,6 +570,7 @@ import { stripVTControlCharacters } from 'node:util';
 import { ecrireLeBilan } from './bilan.mjs';
 import { DEPUIS_LE_VERT } from './dernier-vert.mjs';
 import { avecLesOutils, outilsDe } from './outils-cles.mjs';
+import { couvertPar, engendresDe } from './engendres.mjs';
 import { commandesPermises, optionsDuRole } from './droits.mjs';
 import {
   ecrireLaListe,
@@ -609,7 +614,7 @@ import {
 } from './resultats.mjs';
 import { AUTEUR_DE_LA_FILE, INTEGRE } from './integration/file.mjs';
 import { dossierCommun, lireEntrees } from './integration/file-attente.mjs';
-import { couvertPar, refusArbitrage } from './integration/integrer.mjs';
+import { refusArbitrage } from './integration/integrer.mjs';
 import { AUTEUR_DU_VERDICT } from './integration/verdict.mjs';
 import { attendreUnPeu } from './verrou-de-fichier.mjs';
 import { AttenteDeLaMachine, avecLaMachine } from './verrou-de-machine.mjs';
@@ -1879,8 +1884,10 @@ function laPasseFinale(ctx) {
 // The references of the circuit: those the project declares in the package.json of the copy
 // (`grillhouse.references`), each `{ nom, commande, fichiers, tests, lit, gardes }` with a name, a
 // command and files, `tests`, `lit` and `gardes` arrays when given, empty when not, `entiers` empty;
-// then the frame's (`referencesDuCadre`, `cadre`), each but one whose first file a reference of the
-// project covers, which replaces it.
+// then its generated files (`grillhouse.engendres`, read at the launch, `ctx.engendres`), each
+// written in full (`entiers`), which the integration regenerates itself; then the frame's
+// (`referencesDuCadre`, `cadre`), each but one whose first file a reference of the project covers,
+// which replaces it.
 function lesReferences(ctx) {
   const l = lireJson(path.join(existsSync(ctx.copie) ? ctx.copie : ctx.racine, 'package.json'))
     ?.grillhouse?.references;
@@ -1902,7 +1909,8 @@ function lesReferences(ctx) {
       gardes: r.gardes ?? [],
       entiers: [],
       cadre: false,
-    }));
+    }))
+    .concat((ctx.engendres ?? []).map(e => ({ ...e, tests: [], cadre: false })));
   const duCadre = referencesDuCadre(existsSync(ctx.copie) ? ctx.copie : ctx.racine)
     .filter(c => !duProjet.some(r => couvertPar(r.fichiers, c.fichiers[0])))
     .map(c => ({ ...c, tests: [], cadre: true }));
@@ -2070,6 +2078,26 @@ export function outilsAuLancement(racine) {
         nom: 'lancement',
         rapport,
         piece: `$ npm pkg get grillhouse.outils\n${rapport}`,
+        question: `${rapport}\nLa clé se corrige au package.json du projet, puis \`--reprendre\`.`,
+      },
+    };
+  }
+}
+
+// The generated files the project declares (`grillhouse.engendres`, scripts/engendres.mjs), read
+// at the launch of a run from its main tree: `{ engendres }`, or `{ arret }`, the stop « lancement »
+// that goes up to the supervisor before any session, the faults of the key named.
+export function engendresAuLancement(racine) {
+  try {
+    return { engendres: engendresDe(racine) };
+  } catch (err) {
+    const rapport = `La clé grillhouse.engendres du package.json est refusée :\n${err.message}`;
+    return {
+      arret: {
+        code: ARRETS.lancement,
+        nom: 'lancement',
+        rapport,
+        piece: `$ npm pkg get grillhouse.engendres\n${rapport}`,
         question: `${rapport}\nLa clé se corrige au package.json du projet, puis \`--reprendre\`.`,
       },
     };
@@ -2276,12 +2304,14 @@ function integrer(ctx) {
   const message = path.join(ctx.tmp, 'message');
   writeFileSync(message, messageDeCommit(ctx));
   args.push('--message', message);
+  // The project's generated files, the integration reads from the main tree itself.
   const entieres = lesReferences(ctx)
-    .filter(r => r.entiers.length)
-    .map(({ nom, commande, fichiers, entiers, cadre }) => ({
+    .filter(r => r.cadre && r.entiers.length)
+    .map(({ nom, commande, fichiers, lit, entiers, cadre }) => ({
       nom,
       commande,
       fichiers,
+      lit,
       entiers,
       cadre,
     }));
@@ -4544,6 +4574,12 @@ export async function main(argv) {
     const lancement = outilsAuLancement(ctx.racine);
     if (lancement.arret) return aLaFin(ctx, monter(ctx, { ...lancement.arret, etat: d }));
     ctx.outils = lancement.outils;
+    // The generated files the project declares: references of the circuit, which 4.2 regenerates
+    // only when a red of a pass lies in their files (`referencesDesRouges`); the integration
+    // regenerates them whenever the lot touches their files or what they read.
+    const engendres = engendresAuLancement(ctx.racine);
+    if (engendres.arret) return aLaFin(ctx, monter(ctx, { ...engendres.arret, etat: d }));
+    ctx.engendres = engendres.engendres;
     // From the testwriter: the plan, which the explorateur writes and the questionneur reads once.
     if (d.etape === TESTS) {
       const arret = await lePlan(ctx);

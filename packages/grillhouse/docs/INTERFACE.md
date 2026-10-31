@@ -142,7 +142,9 @@ clippy`). Le noyau en lance trois
   nommant le chemin et chaque partie ; le noyau ne connaît aucun nom de section.
 - `fichiersEngendres` : les fichiers que le module engendre, chacun avec sa commande, ses fichiers,
   ceux qu'il lit, les noms de ses constats et sa vérification (`verifier`), qui rend ses écarts.
-  Le circuit les régénère et les juge (étape 4.2).
+  Le circuit les régénère et les juge (étape 4.2). Les fichiers engendrés qu'un projet déclare
+  (`grillhouse.engendres` de son `package.json`) se lisent à côté, dans la même forme, sans
+  vérification ni constat ; l'intégration les régénère au lieu de les fusionner.
 - `gardes` : les gardes de structure du module, chacune `[script, ...args]`, dans l'ordre où elles
   jouent ; `grillhouse gardes-du-cadre` les joue.
 - `migrations` : les migrations d'un projet du langage, celles qui rejouent une garde du module et

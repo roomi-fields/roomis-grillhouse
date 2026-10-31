@@ -19,6 +19,7 @@
     "scripts/dette.d.ts",
     "scripts/dette.mjs",
     "scripts/droits.mjs",
+    "scripts/engendres.mjs",
     "scripts/enveloppe/codes.mjs",
     "scripts/enveloppe/enveloppe.mjs",
     "scripts/enveloppe/lancer.sh",

@@ -28,10 +28,22 @@
 //     that fails after the work is set aside (an untracked file in the way) gives the work back
 //     on HEAD; exit 1.
 //   - A copy at <cible> already, or without local work, simply fast-forwards; exit 0.
+// - Both: a generated file the project declares (`grillhouse.engendres`, scripts/engendres.mjs,
+//   read from the main tree) is not merged, as npm writes package-lock.json again after a merge:
+//   when the lot touches one of its files, or one it reads (the copy's untracked files counting),
+//   the application leaves its files out (main's version stays), then its command writes them
+//   again in the copy, the lot applied, with the tools of the project (`grillhouse.outils`), out
+//   of the envelope. A command that fails stops, exit 1, the command, its code and its output
+//   named, the rest of the lot in the copy; a faulty key refuses, named, before the copy is
+//   touched (OSC Bridge, 2026-10-31: four conflicts in one day on the generated files of synthhub
+//   and open-synth-descriptors, each copy moved by hand). A lot in conflict on another file is not
+//   regenerated: its conflicts come first.
 import { spawnSync } from 'node:child_process';
 import { existsSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { couvertPar, engendresDe, regenerer, touchesPar } from '../engendres.mjs';
+import { avecLesOutils, outilsDe } from '../outils-cles.mjs';
 
 const LOT = 'grillhouse-travail.patch';
 
@@ -47,16 +59,65 @@ const lignes = r =>
 // The files of <copie> unmerged in its index.
 const enConflit = copie => lignes(git(copie, ['diff', '--name-only', '--diff-filter=U']));
 
+// The files the lot <lot> touches in <copie>: each added, modified or deleted, a rename its source
+// and its destination.
+const fichiersDuLot = (copie, lot) =>
+  String(git(copie, ['apply', '--numstat', '-z', '-'], lot).stdout)
+    .split('\0')
+    .map(l => (l.includes('\t') ? l.split('\t')[2] : l))
+    .filter(Boolean);
+
 /**
- * Applies the lot <lot> (a Buffer of `git diff --binary`) three ways to <copie>; returns the files
- * in conflict, null when git refuses the lot outright.
+ * The keys of the project that holds <copie>, read before any work: `{ engendres, env }`, its
+ * generated files and the environment of their commands with its tools, or `{ refus }`.
+ * @param {string} copie
+ * @returns {{ engendres: any[], env: NodeJS.ProcessEnv, refus?: undefined } | { refus: string }}
+ */
+function lesCles(copie) {
+  try {
+    return { engendres: engendresDe(copie), env: avecLesOutils(outilsDe(copie), process.env) };
+  } catch (e) {
+    return {
+      refus: `⛔ Une clé grillhouse du package.json est refusée :\n${/** @type {Error} */ (e).message}`,
+    };
+  }
+}
+
+/**
+ * Applies the lot <lot> (a Buffer of `git diff --binary`) three ways to <copie>: `conflits`, the
+ * files in conflict, null when git refuses the lot outright. With <cles> (`lesCles`), the generated
+ * files the lot (or one of <autres>, the copy's untracked files) touches are left out, then written
+ * again by their command once the lot applies without conflict; `refus`, a command that fails.
  * @param {string} copie
  * @param {Buffer} lot
+ * @param {{ engendres: any[], env: NodeJS.ProcessEnv } | null} [cles]
+ * @param {string[]} [autres]
+ * @returns {{ conflits: string[] | null, refus?: string | null }}
  */
-function appliquer(copie, lot) {
-  const r = git(copie, ['apply', '--3way', '-'], lot);
+function appliquer(copie, lot, cles = null, autres = []) {
+  const fichiers = cles ? [...fichiersDuLot(copie, lot), ...autres] : [];
+  const touches = cles ? touchesPar(cles.engendres, fichiers) : [];
+  const exclus = fichiers.filter(f => touches.some(e => couvertPar(e.entiers, f)));
+  const r = git(
+    copie,
+    ['apply', '--3way', '--allow-empty', ...exclus.map(f => `--exclude=${f}`), '-'],
+    lot
+  );
   const conflits = enConflit(copie);
-  return r.status === 0 || conflits.length ? conflits : null;
+  if (r.status !== 0 && !conflits.length) return { conflits: null };
+  if (conflits.length || !touches.length || !cles) return { conflits };
+  const refus = regenerer({
+    refs: touches.map(e => ({ ...e, cadre: false })),
+    lancer: commande =>
+      spawnSync('bash', ['-c', commande], {
+        cwd: copie,
+        encoding: 'utf8',
+        env: cles.env,
+        maxBuffer: 1024 * 1024 * 1024,
+      }),
+    dansCopie: (...args) => spawnSync('git', ['-C', copie, ...args], { encoding: 'utf8' }),
+  });
+  return { conflits, refus };
 }
 
 /**
@@ -69,10 +130,14 @@ export function reporter(copie, { base, pointe }) {
   if (d.status !== 0) {
     return { ok: false, message: `⛔ Le lot de ${base} à ${pointe} ne se lit pas : ${texte(d)}` };
   }
-  if (appliquer(copie, d.stdout) === null) {
+  const cles = lesCles(copie);
+  if (cles.refus !== undefined) return { ok: false, message: cles.refus };
+  const a = appliquer(copie, d.stdout, cles);
+  if (a.conflits === null) {
     return { ok: false, message: `⛔ Le lot ne s'applique pas à la copie ${copie}.` };
   }
   const r = git(copie, ['reset', '-q']);
+  if (a.refus) return { ok: false, message: `⛔ ${a.refus}` };
   return r.status === 0 ? { ok: true, message: '' } : { ok: false, message: texte(r) };
 }
 
@@ -106,6 +171,8 @@ export function avancer(copie, cible) {
       message: `⛔ Le travail de la copie ${copie} attend dans ${garde}, que git n'a pas pu remettre en place ; il se reprend à la main (git apply --3way ${garde}, ou il se jette), puis le fichier se retire, avant une relance.`,
     };
   }
+  const cles = lesCles(copie);
+  if (cles.refus !== undefined) return { ok: false, message: cles.refus };
   const tete = String(git(copie, ['rev-parse', 'HEAD']).stdout).trim();
   const vise = git(copie, ['rev-parse', '--verify', `${cible}^{commit}`]);
   if (vise.status !== 0) {
@@ -134,7 +201,7 @@ export function avancer(copie, cible) {
   const remis = git(copie, ['reset', '-q', '--hard']);
   const ff = remis.status === 0 ? git(copie, ['merge', '-q', '--ff-only', cible]) : remis;
   if (ff.status !== 0) {
-    const rendu = appliquer(copie, d.stdout);
+    const rendu = appliquer(copie, d.stdout).conflits;
     if (rendu !== null && rendu.length === 0 && git(copie, ['reset', '-q']).status === 0) {
       rmSync(garde, { force: true });
       return {
@@ -147,7 +214,8 @@ export function avancer(copie, cible) {
       message: `⛔ La copie ${copie} ne peut pas avancer sur main : ${texte(ff)}\nSon travail ne se remet pas en place ; il reste dans ${garde}.`,
     };
   }
-  const conflits = appliquer(copie, d.stdout);
+  const libres = lignes(git(copie, ['ls-files', '--others', '--exclude-standard']));
+  const { conflits, refus } = appliquer(copie, d.stdout, cles, libres);
   if (conflits === null) {
     return {
       ok: false,
@@ -166,6 +234,12 @@ export function avancer(copie, cible) {
     };
   }
   const r = git(copie, ['reset', '-q']);
+  if (refus) {
+    return {
+      ok: false,
+      message: `⛔ ${refus}\nLe travail de la copie ${copie} est sur main, ses fichiers engendrés à la version de main.`,
+    };
+  }
   return r.status === 0 ? { ok: true, message: '' } : { ok: false, message: texte(r) };
 }
 

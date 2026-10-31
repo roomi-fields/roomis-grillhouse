@@ -6,7 +6,7 @@
 // Each case plays the real git in a repository of trial: main (the main tree) and the copy of a
 // ticket under .claude/worktrees, as the launcher makes it.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -190,5 +190,116 @@ describe('the lot of a branch sent back, as local work', () => {
     expect(d.lire('neuf.txt')).toBe('neuf\n');
     expect(git(d.copie, 'diff', '--cached', '--name-only')).toBe('');
     expect(d.remise()).toBe(false);
+  });
+});
+
+// grillhouse-8o9 critère 2: a generated file the project declares (`grillhouse.engendres`,
+// scripts/engendres.mjs) is not merged when the copy moves onto main, nor when the lot of a branch
+// sent back comes back as local work: the copy takes main's version, then the declared command
+// writes it again on the work applied. Witness: OSC Bridge, 2026-10-31, SH-a3x.4 « U
+// docs/devices.json », each copy moved onto main by hand, the file regenerated, then relaunched.
+const LISTE = `import fs from 'node:fs';
+fs.writeFileSync('liste.txt', fs.readdirSync('src').sort().join('\\n') + '\\n');
+`;
+
+// The repository of trial with a generated file declared: liste.txt, the list of the folder src,
+// written by <commande>; the copy of demo-1 at its HEAD.
+function depotEngendre(commande = 'node liste.mjs') {
+  const d = depot();
+  writeFileSync(
+    path.join(d.racine, 'package.json'),
+    JSON.stringify({
+      name: 'essai',
+      grillhouse: {
+        engendres: { liste: { commande, fichiers: ['liste.txt'], lit: ['src/**'] } },
+      },
+    })
+  );
+  writeFileSync(path.join(d.racine, 'liste.mjs'), LISTE);
+  mkdirSync(path.join(d.racine, 'src'));
+  writeFileSync(path.join(d.racine, 'src/a.txt'), 'a\n');
+  writeFileSync(path.join(d.racine, 'liste.txt'), 'a.txt\n');
+  git(d.racine, 'add', '-A');
+  git(d.racine, 'commit', '-qm', 'liste');
+  git(d.copie, 'merge', '-q', '--ff-only', 'main');
+  // Main gains the source b, and its list.
+  const ajouterSurMain = () => {
+    writeFileSync(path.join(d.racine, 'src/b.txt'), 'b\n');
+    writeFileSync(path.join(d.racine, 'liste.txt'), 'a.txt\nb.txt\n');
+    git(d.racine, 'add', '-A');
+    git(d.racine, 'commit', '-qm', 'main b');
+    return git(d.racine, 'rev-parse', 'HEAD');
+  };
+  return { ...d, ajouterSurMain };
+}
+
+describe('grillhouse-8o9 critère 2 — a declared generated file is written again, not merged', () => {
+  it('moves the copy onto main: main’s version taken, the command played on the work, both sources listed', () => {
+    const d = depotEngendre();
+    mkdirSync(path.join(d.copie, 'src'), { recursive: true });
+    d.ecrire('src/c.txt', 'c\n');
+    git(d.copie, 'add', 'src/c.txt');
+    d.ecrire('liste.txt', 'a.txt\nc.txt\n');
+    const main = d.ajouterSurMain();
+    const r = avancer(d.copie, main);
+    expect(r, r.message).toEqual({ ok: true, message: '' });
+    expect(git(d.copie, 'rev-parse', 'HEAD')).toBe(main);
+    expect(d.lire('liste.txt')).toBe('a.txt\nb.txt\nc.txt\n');
+    expect(git(d.copie, 'diff', '--name-only', '--diff-filter=U')).toBe('');
+    expect(git(d.copie, 'diff', '--cached', '--name-only')).toBe('');
+    expect(git(d.copie, 'diff', '--name-only', 'HEAD')).toBe('liste.txt');
+    expect(d.lire('src/c.txt')).toBe('c\n');
+    expect(existsSync(d.lot())).toBe(false);
+  });
+
+  it('brings back the lot of a branch sent back the same way', () => {
+    const d = depotEngendre();
+    const base = git(d.racine, 'rev-parse', 'HEAD');
+    mkdirSync(path.join(d.copie, 'src'), { recursive: true });
+    d.ecrire('src/c.txt', 'c\n');
+    d.ecrire('liste.txt', 'a.txt\nc.txt\n');
+    git(d.copie, 'add', '-A');
+    git(d.copie, 'commit', '-qm', 'lot');
+    const pointe = git(d.copie, 'rev-parse', 'HEAD');
+    const main = d.ajouterSurMain();
+    git(d.copie, 'reset', '-q', '--hard', main);
+    const r = reporter(d.copie, { base, pointe });
+    expect(r.ok, r.message).toBe(true);
+    expect(d.lire('liste.txt')).toBe('a.txt\nb.txt\nc.txt\n');
+    expect(git(d.copie, 'diff', '--cached', '--name-only')).toBe('');
+  });
+
+  it('stops on a command that fails, the command and its output named, the work in the copy', () => {
+    const d = depotEngendre('echo "liste illisible" >&2; exit 4');
+    mkdirSync(path.join(d.copie, 'src'), { recursive: true });
+    d.ecrire('src/c.txt', 'c\n');
+    git(d.copie, 'add', 'src/c.txt');
+    d.ecrire('liste.txt', 'a.txt\nc.txt\n');
+    const main = d.ajouterSurMain();
+    const r = avancer(d.copie, main);
+    expect(r.ok).toBe(false);
+    expect(r.message).toContain('echo "liste illisible" >&2; exit 4');
+    expect(r.message).toContain('liste illisible');
+    expect(git(d.copie, 'rev-parse', 'HEAD')).toBe(main);
+    expect(d.lire('src/c.txt')).toBe('c\n');
+    expect(git(d.copie, 'diff', '--name-only', '--diff-filter=U')).toBe('');
+    expect(existsSync(d.lot())).toBe(false);
+  });
+
+  it('refuses a faulty key by its name before it touches the copy', () => {
+    const d = depotEngendre();
+    writeFileSync(
+      path.join(d.racine, 'package.json'),
+      JSON.stringify({ grillhouse: { engendres: { liste: { fichiers: ['liste.txt'] } } } })
+    );
+    git(d.racine, 'commit', '-qam', 'clé fautive');
+    const tete = git(d.copie, 'rev-parse', 'HEAD');
+    d.ecrire('liste.txt', 'a.txt\nc.txt\n');
+    const main = d.ajouterSurMain();
+    const r = avancer(d.copie, main);
+    expect(r.ok).toBe(false);
+    expect(r.message).toContain('grillhouse.engendres.liste');
+    expect(git(d.copie, 'rev-parse', 'HEAD')).toBe(tete);
+    expect(d.lire('liste.txt')).toBe('a.txt\nc.txt\n');
   });
 });

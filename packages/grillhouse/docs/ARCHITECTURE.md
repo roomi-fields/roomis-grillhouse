@@ -157,9 +157,24 @@ sur l'arbre fusionné, et `npm install` le `package-lock.json` après une fusion
 n'applique pas du lot un fichier qu'une référence écrit en entier (`entiers` : l'index des
 interfaces, les `turbo.json` des paquets) ; elle rejoue la référence qui l'écrit dans la copie
 d'intégration, sur main à jour, après l'installation et avant la vérification, et ce qu'elle écrit
-entre dans le commit. Le circuit lui passe ses références (`--references`), la seule liste. Un
-conflit sur tout autre fichier refuse le lot ; une commande en échec, ou un fichier changé
-qu'aucune référence rejouée n'écrit, aussi. Les rapports d'API, qui lisent la construction, et la
+entre dans le commit. Le circuit lui passe les références du cadre (`--references`), tirées de
+sa seule liste. Un projet déclare les fichiers engendrés qu'il garde commités (une page lue sur
+GitHub, une somme de contrôle publiée) sous `grillhouse.engendres` de son `package.json`
+(`{ "<nom>": { "commande": "<ligne du shell>", "fichiers": ["<motif>"], "lit": ["<motif>"] } }`),
+lue à côté des fichiers engendrés du module du langage, dans la même forme, toujours dans l'arbre
+principal (`packages/grillhouse/scripts/engendres.mjs`) ; une clé sans commande, sans fichiers ou
+avec un motif hors du dépôt est refusée par son nom avant tout travail, comme `grillhouse.outils`.
+L'intégration, la file qui replace une branche sur main et l'avance d'une copie sur main
+(`travail-de-la-copie.mjs`, comme le report d'une branche renvoyée) ne fusionnent pas ces
+fichiers : un lot qui touche l'un d'eux ou ce qu'il lit prend la version de main, puis la commande
+rejoue hors de l'enveloppe, avec les outils du projet, sur le lot appliqué, et ce qu'elle écrit
+entre dans le lot ; la passe finale (4.2) ne les régénère que si un rouge d'une passe tombe
+dans leurs fichiers. L'intégration régénère aussi une référence du cadre dès que le lot touche ce
+qu'elle lit : l'index des interfaces se refait quand un `INTERFACE.md` change. Un conflit sur tout autre fichier
+refuse le lot ; une commande en échec, sa commande et sa sortie nommées, ou un fichier changé
+qu'aucune référence rejouée n'écrit, aussi (OSC Bridge, 2026-10-31 : quatre conflits en un jour
+sur les fichiers engendrés de synthhub et d'open-synth-descriptors, chaque copie avancée à la
+main). Les rapports d'API, qui lisent la construction, et la
 dette, qui lit les notes d'une passe, ne s'écrivent pas en entier : ils s'appliquent comme le reste
 du lot. Ainsi deux tickets qui régénèrent le même index s'intègrent l'un après l'autre (BP 320.30 :
 refusé deux fois sur le seul index des interfaces, régénéré sur main entre-temps, levé à la main).

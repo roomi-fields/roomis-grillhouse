@@ -12,6 +12,9 @@
 // One delivery is one ticket: the ticket gives its branch `agent/<ticket>` and its copy
 // (`.claude/worktrees/<ticket>`, the one the lot was written in, when it exists); a second
 // --ticket is a usage error, named. In order, each step refusing stops the run:
+//  0. the keys of the project, read from the package.json of the main tree: its generated files
+//     (`grillhouse.engendres`, scripts/engendres.mjs) and its tools (`grillhouse.outils`,
+//     scripts/outils-cles.mjs), a faulty key refused by its name before any work;
 //  1. the verdict: the ticket has `ACCEPTÉ` as its last reviewer verdict (`ACCEPTÉ` or
 //     `RENDU` at the start of a comment of the author `relecteur`; another author's is none) and, when labelled `arbitrage`, each arbitrage
 //     (`estArbitrage`: a « ## Arbitrage » comment, the supervisor's) is settled
@@ -56,17 +59,21 @@
 //     `en-file` and the branch takes its place at the end of the queue
 //     (scripts/integration/file-attente.mjs). main does not move here.
 //
-// The references are the circuit's (`--references`, a JSON file the circuit writes from its one
-// list, `lesReferences` of scripts/circuit.mjs): each `{ nom, commande, fichiers, entiers, cadre }`,
-// `entiers` the files of `fichiers` its command writes in full (paths, directories or glob
-// patterns, as `couvertPar` reads them). As a genrule of Bazel writes its output again on the
-// merged tree, and npm install writes package-lock.json again after a merge, a file of the lot a
-// reference writes in full is not applied: the reference that writes it plays in the copy, on main
-// of the moment, after the install and before the tests, through the mounts, and what it writes
-// enters the commit (BPScript 320.30: refused twice for the one conflict on the index of the
-// interfaces, which another ticket had regenerated on main in the meantime). A command of the
-// project at another code than 0, one of the frame on a real failure (126, 127, a signal), or a
-// file it changes that its `fichiers` do not cover, refuses the lot. A conflict on any other file
+// The references written in full are the generated files the project declares
+// (`grillhouse.engendres`), then the frame's the circuit hands over (`--references`, a JSON file the
+// circuit writes from its one list, `lesReferences` of scripts/circuit.mjs): each `{ nom, commande,
+// fichiers, lit, entiers, cadre }`, `entiers` the files of `fichiers` its command writes in full,
+// `lit` the files it reads (paths, directories or glob patterns, as `couvertPar` of
+// scripts/engendres.mjs reads them). As a genrule of Bazel writes its output again on the merged
+// tree, and npm install writes package-lock.json again after a merge, a file of the lot a reference
+// writes in full is not applied: main's version stays, and each reference whose files or reads the
+// lot touches plays in the copy, on main of the moment, after the install and before the tests,
+// through the mounts, with the tools of the project, and what it writes enters the commit
+// (`regenerer` of scripts/engendres.mjs; BPScript 320.30: refused twice for the one conflict on the
+// index of the interfaces; OSC Bridge, 2026-10-31: four conflicts in one day on the generated files
+// of synthhub and open-synth-descriptors). A command of the project at another code than 0, one of
+// the frame on a real failure (126, 127, a signal), or a file it changes that its `fichiers` do not
+// cover, refuses the lot, the command, its code and its output named. A conflict on any other file
 // refuses it, as the three-way application says.
 //
 // What steps 2, 3 and 5 read of a lot is its files: each file added, modified or deleted, a
@@ -84,7 +91,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { arbitrageTranche, estArbitrage } from '../arbitrages.mjs';
+import { couvertPar, engendresDe, regenerer, touchesPar } from '../engendres.mjs';
 import { langageDe } from '../langages.mjs';
+import { avecLesOutils, outilsDe } from '../outils-cles.mjs';
 import { lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
 import { dossierCommun, inscrireEntree } from './file-attente.mjs';
 import { ouvrirCopie, RETIRER_COPIE } from './rejeu.mjs';
@@ -116,16 +125,6 @@ function nomDeGit(ecrit) {
     }
   }
   return Buffer.from(octets).toString('utf8');
-}
-
-// Whether one of <motifs> covers the file <fichier>, both from the root of the copy, as the
-// inputs of Turborepo read them: a path names that file, a directory every file under it, a glob
-// pattern (`*`, `**`) the files it matches (`path.matchesGlob` of Node).
-export function couvertPar(motifs, fichier) {
-  return motifs.some(m => {
-    const dossier = m.replace(/\/+$/, '');
-    return fichier === dossier || fichier.startsWith(`${dossier}/`) || path.matchesGlob(fichier, m);
-  });
 }
 
 // The refusal for the verdicts of one ticket, or null. `ticket` and `comments` are Beads' JSON.
@@ -241,42 +240,6 @@ function differents(copieTicket, lots, fichiers, tmp) {
   return r.stdout.split('\0').filter(Boolean);
 }
 
-// The regeneration of the references <refs> in the integration copy <copie>, each command run by
-// the shell at its root through the mounts (`monter`), its output written; then every file they
-// changed staged. Null, or the refusal: a command of the project at another code than 0, one of
-// the frame on a real failure (126, 127, a signal, 128 + its number), a file changed that their
-// `fichiers` do not cover.
-function regenerer(copie, refs, monter, dansCopie) {
-  for (const r of refs) {
-    const x = spawnSync('bash', monter('sh', '-c', r.commande), {
-      cwd: copie,
-      encoding: 'utf8',
-      maxBuffer: 256 * 1024 * 1024,
-    });
-    process.stdout.write(`${x.stdout ?? ''}${x.stderr ?? ''}`);
-    const code = x.status ?? 1;
-    const panne =
-      x.signal !== null || x.error !== undefined || code === 126 || code === 127 || code > 128;
-    if (panne || (!r.cadre && code !== 0)) {
-      return `La référence « ${r.nom} » (\`${r.commande}\`) rend le code ${code} dans la copie d'intégration.`;
-    }
-  }
-  const etat = dansCopie('status', '--porcelain=v1', '-z', '-uall', '--no-renames');
-  if (etat.status !== 0) return "L'état de la copie d'intégration ne se lit pas.";
-  const ecrits = etat.stdout
-    .split('\0')
-    .filter(l => l && (l[1] !== ' ' || l.startsWith('??')))
-    .map(l => l.slice(3));
-  const horsDeclaration = ecrits.filter(f => !refs.some(r => couvertPar(r.fichiers, f)));
-  if (horsDeclaration.length) {
-    return `La régénération des références change des fichiers qu'aucune n'écrit :\n${horsDeclaration.map(f => `  ${f}`).join('\n')}`;
-  }
-  if (ecrits.length && dansCopie('add', '-A', '--', ...ecrits).status !== 0) {
-    return "Les fichiers des références ne s'ajoutent pas au commit.";
-  }
-  return null;
-}
-
 function main(argv) {
   const o = lire(argv);
   if ('faute' in o) {
@@ -312,6 +275,16 @@ function main(argv) {
   const base = ouvrirBase('integration');
   const tmp = base.dossier;
   try {
+    // 0. The keys of the project, before any work.
+    let engendres;
+    let outils;
+    try {
+      engendres = engendresDe(racine);
+      outils = outilsDe(racine);
+    } catch (e) {
+      return refuser(`Une clé grillhouse du package.json est refusée :\n${e.message}`);
+    }
+
     // 1. The verdict.
     const show = bd('show', o.ticket, '--json');
     const comments = bd('comments', o.ticket, '--json');
@@ -344,17 +317,21 @@ function main(argv) {
     if (r2) return refuser(r2);
     const fichiers = [...new Set([...tests, ...code])];
     dire(`✓ lots : ${fichiers.length} fichiers`);
-    let references = [];
+    let duCircuit = [];
     if (o.references) {
       try {
-        references = JSON.parse(readFileSync(absolu(o.references), 'utf8'));
+        duCircuit = JSON.parse(readFileSync(absolu(o.references), 'utf8'));
       } catch (e) {
         return refuser(`Les références ${o.references} ne se lisent pas : ${e.message}`);
       }
     }
-    // The files of the lot a reference writes in full, and the references that write them.
+    const references = [
+      ...engendres.map(e => ({ ...e, cadre: false })),
+      ...duCircuit.map(r => ({ ...r, lit: r.lit ?? [] })),
+    ];
+    // The files of the lot a reference writes in full, and the references the lot touches.
     const entiers = fichiers.filter(f => references.some(r => couvertPar(r.entiers, f)));
-    const aRegenerer = references.filter(r => entiers.some(f => couvertPar(r.entiers, f)));
+    const aRegenerer = touchesPar(references, fichiers);
 
     // 3. The main tree: the lots' files are free there, so the queue can bring them. The ticket's
     // copy holds the lot and nothing else.
@@ -408,7 +385,18 @@ function main(argv) {
     const installation = installer();
     if (installation) return refuser(installation);
     if (aRegenerer.length) {
-      const refus = regenerer(copie, aRegenerer, monter, dansCopie);
+      const env = avecLesOutils(outils, process.env);
+      const refus = regenerer({
+        refs: aRegenerer,
+        dansCopie,
+        lancer: commande =>
+          spawnSync('bash', monter('sh', '-c', commande), {
+            cwd: copie,
+            encoding: 'utf8',
+            maxBuffer: 256 * 1024 * 1024,
+            env,
+          }),
+      });
       if (refus) return refuser(refus);
       dire(`✓ références régénérées sur main à jour : ${aRegenerer.map(r => r.nom).join(', ')}`);
     }

@@ -54,3 +54,10 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
   nuit jouent avec la même ; lue dans l'arbre principal ; un chemin qui recouvrirait l'enveloppe
   (`/`, la maison, un dossier caché de la maison hors `~/.local` et `~/.cache`, le trousseau
   `~/.local/share/keyrings`, un montage de l'enveloppe) et une clé fautive sont refusés par leur nom avant tout travail).
+- Les fichiers engendrés commités : la clé `grillhouse.engendres` du `package.json`
+  (`{ "<nom>": { "commande": "<ligne du shell>", "fichiers": ["<motif>"], "lit": ["<motif>"] } }`,
+  chaque motif depuis la racine : un fichier qu'un lecteur ne peut pas construire, une page lue
+  sur GitHub ou une somme de contrôle publiée ; l'intégration, la file et l'avance d'une copie
+  sur main ne le fusionnent pas, elles prennent la version de main et rejouent sa commande sur le
+  lot appliqué ; lue dans l'arbre principal ; une clé sans commande, sans fichiers ou avec un
+  motif hors du dépôt est refusée par son nom avant tout travail).

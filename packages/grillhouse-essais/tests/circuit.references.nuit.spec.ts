@@ -16,7 +16,7 @@ import {
 } from './circuit-essai.js';
 import { CADRE, enProcessus } from './cadre.js';
 
-const couvertPar = enProcessus<boolean>('scripts/integration/integrer.mjs', 'couvertPar');
+const couvertPar = enProcessus<boolean>('scripts/engendres.mjs', 'couvertPar');
 
 // grillhouse-3uv.92.1 — the regeneration of the project’s references (step 4.2 of
 // scripts/etapes.mjs), as `rustc --bless`, `jest -u` and `cargo insta accept`: a reference the
