@@ -913,6 +913,10 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
       'services-du-noyau.mjs',
       'sources.mjs',
       'langages.mjs',
+      // What langages.mjs imports: the composition of the languages (grillhouse-akd) and the
+      // table of the components (grillhouse-ca7).
+      'composition-des-langages.mjs',
+      'tableau-des-composants.mjs',
       'jointure.d.ts',
       'arbitrages.mjs',
       'avancement.mjs',

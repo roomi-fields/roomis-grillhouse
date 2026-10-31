@@ -178,11 +178,13 @@ describe('grillhouse-3dr.4 critère 3 — the guard refuses a large test of the 
 describe('grillhouse-3dr.4 critères 3 et 4 — a guard of the frame, in Grillhouse as in each project', () => {
   it('critère 4: the guard is in the one list of the frame’s guards, which every project plays', () => {
     const racine = path.resolve(__dirname, '../../../../../..');
-    const scripts = gardesDuCadre(racine).map(([f]) => path.basename(f));
-    expect(scripts).toContain('tailles-des-tests.mjs');
-    expect(path.basename(commandeDe('tailles-des-tests', racine)?.script ?? '')).toBe(
-      'tailles-des-tests.mjs'
+    // The module typescript's script, by its whole path (a module python has one of the same name).
+    const script = path.resolve(
+      __dirname,
+      '../../../../scripts/langages/typescript/tailles-des-tests.mjs'
     );
+    expect(gardesDuCadre(racine).map(([f]) => f)).toContain(script);
+    expect(commandeDe('tailles-des-tests', racine)?.script).toBe(script);
   });
 
   // grillhouse-3dr.3.6 and grillhouse-3dr.3.7 rewrote the large tests of the day Grillhouse

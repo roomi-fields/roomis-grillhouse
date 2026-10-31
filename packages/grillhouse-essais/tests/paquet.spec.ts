@@ -94,7 +94,7 @@ const AVANT: Record<string, [number, number]> = {
   'sous-modules.montage': [14, 86],
   'sous-modules.partage': [23, 124],
   'file-integration.dependances': [7, 40],
-  'session-start': [45, 98],
+  'session-start': [47, 102], // [45, 98], plus the two tests grillhouse-ca7 added (e506a50)
   'grillhouse-maj': [141, 329],
   'enveloppe.lanceur': [26, 67],
   'pre-push-nuit': [16, 63],
