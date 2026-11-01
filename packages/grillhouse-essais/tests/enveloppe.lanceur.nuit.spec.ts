@@ -105,15 +105,17 @@ describe.runIf(canWrap)('the launcher', () => {
     expect(args).toBe(
       `-p|--agent|developpeur|--output-format|json|--json-schema|${JSON.stringify(schemaDeFiche('developpeur'))}|--permission-mode|bypassPermissions|${droits.join('|')}|`
     );
+    // The temporary directory of the ticket, which the launcher gives the session (grillhouse-xv9),
+    // is named `/BASE`.
     const prompt = execFileSync('cat', [path.join(copie, 'packages/a/prompt')], {
       encoding: 'utf8',
-    });
+    }).replace(/[^\s`]*\/grillhouse-ticket-[^/\s`]+\/t\//g, '/BASE/');
     expect(prompt).toBe(
       'TON TICKET : demo-1 — un sujet.\n\n' +
         "## Ce que les composants d'avant publient\n\n" +
         '`a` ne dépend d’aucun composant : aucune section « Consommateurs » ne le nomme.\n\n' +
         '## Ton dossier de travail\n\n' +
-        `Tout fichier temporaire s'écrit dans \`${dossierDeTravail(copie)}\`, que \`$TMPDIR\` nomme aussi.`
+        `Tout fichier temporaire s'écrit dans \`${dossierDeTravail(copie, { TMPDIR: '/BASE' })}\`, que \`$TMPDIR\` nomme aussi.`
     );
     // The whole copy is in sight (grillhouse-3uv.95.3).
     const vu = execFileSync('cat', [path.join(copie, 'packages/a/vu')], { encoding: 'utf8' });
@@ -537,11 +539,11 @@ describe.runIf(canWrap)('grillhouse-3uv.95.3 — le lanceur et les paquets du pl
   mkdirSync(path.join(repo, 'scripts/enveloppe'), { recursive: true });
   projetDuLanceur(repo);
   installerEnveloppe(repo);
-  // A stand-in for claude: records the plan it receives, and leaves the mark of its lock when
-  // its instruction says so.
+  // A stand-in for claude: records the plan and the temporary directory it receives, and leaves
+  // the mark of its lock when its instruction says so.
   ecrire(
     'faux-claude.sh',
-    '#!/bin/bash\nprintenv GRILLHOUSE_ENVELOPPE > packages/a/plan\n' +
+    '#!/bin/bash\nprintenv GRILLHOUSE_ENVELOPPE > packages/a/plan\nprintenv TMPDIR > packages/a/temporaire\n' +
       'if grep -q HORS-PLAN; then echo "⛔ hors-plan — packages/c" > "$TMPDIR/hors-plan"; fi\n',
     0o755
   );
@@ -597,7 +599,11 @@ describe.runIf(canWrap)('grillhouse-3uv.95.3 — le lanceur et les paquets du pl
     const { r, copie } = lancer('demo-h', ['--paquets', 'packages/a'], '\nHORS-PLAN');
     expect(r.status, r.stderr).toBe(0);
     expect(readFileSync(`${copie}.hors-plan`, 'utf8')).toContain('packages/c');
-    expect(existsSync(path.join(dossierDeTravail(copie), 'hors-plan'))).toBe(false);
+    // The working directory lies in the temporary directory of the ticket (grillhouse-xv9), which
+    // the mark leaves.
+    const travail = readFileSync(path.join(copie, 'packages/a/temporaire'), 'utf8').trim();
+    expect(travail).toMatch(/\/grillhouse-ticket-demo-h\/t\//);
+    expect(existsSync(path.join(travail, 'hors-plan'))).toBe(false);
     expect(readFileSync(`${copie}.log`, 'utf8')).toContain('⛔ hors-plan — packages/c');
     // The next launch starts without it.
     lancer('demo-h', ['--paquets', 'packages/a']);

@@ -11,7 +11,8 @@
 //   `.pytest_cache`, `__pycache__` (`ignorer`).
 // - Where they write, which the envelope opens to a session (`sorties`): in writing, `.venv` and
 //   `.pytest_cache` at the root, where the commands make uv and pytest write for each package
-//   (./commandes.mjs), and uv's cache, `~/.cache/uv`; proper to the session, the
+//   (./commandes.mjs), and uv's cache, `~/.cache/grillhouse/uv` (UV_CACHE_DIR, ./commandes.mjs: the
+//   frame's caches of compilation, never in the temporary directory); proper to the session, the
 //   tree of the bytecode at the root, `__pycache__` (PYTHONPYCACHEPREFIX, ./commandes.mjs); read,
 //   the Pythons uv installs, `~/.local/share/uv/python`. The version of Python is uv's choice, from
 //   `requires-python` and `.python-version`. The rules that refuse a role that writes pytest run
@@ -56,7 +57,7 @@ export default {
   binaires: JSON.parse(readFileSync(ici('binaires.json'), 'utf8')),
   ignorer: ['.venv', '.pytest_cache', PYCACHE],
   sorties: {
-    ecrites: ['.venv/', '.pytest_cache/', '~/.cache/uv/'],
+    ecrites: ['.venv/', '.pytest_cache/', '~/.cache/grillhouse/uv/'],
     propres: [PYCACHE],
     lues: ['~/.local/share/uv/python/'],
   },

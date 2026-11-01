@@ -52,6 +52,7 @@ export const SOUS_COMMANDES = {
   'structure-guard': 'structure-guard.sh',
   superviseur: 'superviseur.mjs',
   tableau: 'tableau.mjs',
+  temporaire: 'mesure/base-de-passe.mjs',
   tests: { langage: 'tester' },
   ticket: 'ticket.sh',
   'ticket-du-sous-agent': 'verrous/ticket-du-sous-agent.mjs',

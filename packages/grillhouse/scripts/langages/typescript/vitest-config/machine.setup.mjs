@@ -3,7 +3,9 @@
 // directory named after its process and a token, scripts/verrou-de-machine.mjs), which every
 // process it starts inherits: a `npm run verifier` or a circuit that a test plays in a repository
 // of trial neither waits for the lock of the machine nor holds it, and no test writes in the
-// user's cache. A lock already named in the environment stays.
+// user's cache. A lock already named in the environment stays. Its heavy passes want no room in
+// the temporary directory (GRILLHOUSE_TEMPORAIRE_LIBRE, 0): the room of the machine is the pass's
+// that plays the file, which waited for it.
 import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -12,3 +14,4 @@ process.env.GRILLHOUSE_VERROU_MACHINE ||= path.join(
   tmpdir(),
   `grillhouse-mesure-${process.pid}-${randomUUID()}.lock`
 );
+process.env.GRILLHOUSE_TEMPORAIRE_LIBRE ||= '0';

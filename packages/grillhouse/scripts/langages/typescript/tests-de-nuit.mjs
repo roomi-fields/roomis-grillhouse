@@ -13,10 +13,13 @@
 //   the copy, a bench or a night test alone as well: `npx --no-install vitest run --root <copie>
 //   --config <configuration>`. Its exit code is this command's: 75, « à repasser », when every
 //   failure depended on a duration, one under load (./vitest-config/duree.reporter.mjs).
+// - They play once the temporary directory has room, as every heavy pass
+//   (`attendreDeLaPlace` of scripts/verrou-de-machine.mjs): a wait that reaches its bound ends at 75.
 import { spawnSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { attendreDeLaPlace } from '../../services-du-noyau.mjs';
 
 const CONFIGURATION = fileURLToPath(new URL('./vitest.nuit.config.mjs', import.meta.url));
 const HORS = new Set(['node_modules', 'dist', '.git']);
@@ -43,6 +46,13 @@ function enTient(dossier) {
 export function testsDeNuit(racine) {
   if (!enTient(racine)) {
     return 0;
+  }
+  try {
+    attendreDeLaPlace();
+  } catch (e) {
+    if (e?.name !== 'AttenteDeLaMachine') throw e;
+    process.stdout.write(`${e.message}\n`);
+    return e.code;
   }
   const r = spawnSync(
     'npx',

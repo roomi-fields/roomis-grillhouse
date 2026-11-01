@@ -41,6 +41,8 @@ const MODULE = path.resolve(__dirname, '../../../../scripts/langages/cargo');
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'commandes-cargo-'));
 const JOURNAL = path.join(ESSAIS, 'journal');
+// The home of the runs, so that no test writes in the user's cache (grillhouse-xv9).
+const MAISON_DES_ESSAIS = path.join(ESSAIS, 'maison-des-essais');
 let restaurer = () => {};
 let d: Depots;
 beforeAll(() => {
@@ -69,6 +71,8 @@ function lancer(
     encoding: 'utf8',
     env: {
       ...process.env,
+      HOME: MAISON_DES_ESSAIS,
+      XDG_CACHE_HOME: '',
       GRILLHOUSE_RESULTATS: resultats,
       FAUX_CARGO_CODES: JSON.stringify(codes),
       ...env,
@@ -303,7 +307,13 @@ describe('grillhouse-pkl.3 — verifier sous le verrou de la machine', () => {
     const c = cargo.commandes(d.seul).verifier;
     const enfant = spawn(process.execPath, [c.script, ...c.args, '--tout'], {
       cwd: d.seul,
-      env: { ...process.env, GRILLHOUSE_RESULTATS: resultats, GRILLHOUSE_VERROU_MACHINE: verrou },
+      env: {
+        ...process.env,
+        HOME: MAISON_DES_ESSAIS,
+        XDG_CACHE_HOME: '',
+        GRILLHOUSE_RESULTATS: resultats,
+        GRILLHOUSE_VERROU_MACHINE: verrou,
+      },
     });
     let sortie = '';
     enfant.stdout.on('data', (b: Buffer) => (sortie += String(b)));
@@ -399,6 +409,8 @@ describe('grillhouse-nt4, critères 2 et 3 — les tests du module cargo sous un
       stdio: 'ignore',
       env: {
         ...process.env,
+        HOME: MAISON_DES_ESSAIS,
+        XDG_CACHE_HOME: '',
         TMPDIR: dans,
         FAUX_CARGO_TEMPORAIRE: sonde,
         FAUX_CARGO_ATTENDRE: '20000',
@@ -551,7 +563,7 @@ describe('grillhouse-egm, critères 1 et 2 — la compilation des tests d’une 
 describe('grillhouse-cyr, critère 1 — les commandes cargo compilent à travers sccache', () => {
   // The home of the runs, which the cache follows.
   const MAISON = path.join(ESSAIS, 'maison');
-  const CACHE = path.join(MAISON, '.cache', 'sccache');
+  const CACHE = path.join(MAISON, '.cache', 'grillhouse', 'sccache');
   // The calls of cargo of the command <nom> run in <racine> under <env>, each `{ sous, wrapper,
   // cache, socket }`, metadata left out.
   const compilateur = (
@@ -573,6 +585,7 @@ describe('grillhouse-cyr, critère 1 — les commandes cargo compilent à traver
         CARGO_BUILD_RUSTC_WRAPPER: '',
         CARGO_HOME: '',
         SCCACHE_DIR: '',
+        XDG_CACHE_HOME: '',
         SCCACHE_SERVER_UDS: '',
         GRILLHOUSE_ENVELOPPE: '',
         HOME: MAISON,
@@ -713,15 +726,32 @@ describe('grillhouse-cyr, critère 1 — les commandes cargo compilent à traver
   });
 
   it('the envelope opens the cache of sccache in writing, a store of the home it creates before mounting', () => {
-    expect(cargo.sorties.ecrites).toContain('~/.cache/sccache/');
+    expect(cargo.sorties.ecrites).toContain('~/.cache/grillhouse/sccache/');
     // The stores of the home are created before bwrap mounts them (scripts/enveloppe/enveloppe.mjs,
     // `creer` of each of `magasins`).
     const { magasins, fichiers } = sortiesDuLangage(cargo.sorties, {
       maison: '/h',
       principal: '/p',
     });
-    expect(magasins).toContain('/h/.cache/sccache');
-    expect(fichiers).not.toContain('/h/.cache/sccache');
+    expect(magasins).toContain('/h/.cache/grillhouse/sccache');
+    expect(fichiers).not.toContain('/h/.cache/grillhouse/sccache');
+  });
+
+  // grillhouse-xv9, critère 3: the target of a workspace rooted in the temporary directory lies
+  // under ~/.cache/grillhouse/cargo/, which the envelope opens in writing, as the home's other stores.
+  it('the envelope opens in writing the targets of the workspaces rooted in the temporary directory', () => {
+    expect(cargo.sorties.ecrites).toContain('~/.cache/grillhouse/cargo/');
+    const { magasins } = sortiesDuLangage(cargo.sorties, { maison: '/h', principal: '/p' });
+    expect(magasins).toContain('/h/.cache/grillhouse/cargo');
+  });
+
+  it("a workspace under the temporary directory builds into the cache of the test's home, never the user's", () => {
+    lancer(d.seul, 'typer');
+    const cibles = path.join(MAISON_DES_ESSAIS, '.cache', 'grillhouse', 'cargo');
+    const faites = existsSync(cibles)
+      ? readdirSync(cibles).filter(n => n.startsWith('grillhouse-'))
+      : [];
+    expect(faites.length).toBeGreaterThan(0);
   });
 });
 
@@ -733,7 +763,7 @@ describe('grillhouse-cyr, critère 1 — les commandes cargo compilent à traver
 // under the machine's /tmp, before each run of cargo that compiles: cargo finds it running.
 describe('grillhouse-qmk, critère 1 — le serveur de sccache démarre sous un dossier temporaire court', () => {
   const MAISON = path.join(ESSAIS, 'maison');
-  const CACHE = path.join(MAISON, '.cache', 'sccache');
+  const CACHE = path.join(MAISON, '.cache', 'grillhouse', 'sccache');
   // A temporary directory as long as the working directory of a session in a copy of a project
   // (`/tmp/claude-<uid>/<copy in dashes>/travail`), which the commands receive.
   const LONG = path.join(ESSAIS, 'x'.repeat(40), 'y'.repeat(40), 'travail');
@@ -755,6 +785,7 @@ describe('grillhouse-qmk, critère 1 — le serveur de sccache démarre sous un 
         CARGO_BUILD_RUSTC_WRAPPER: '',
         CARGO_HOME: '',
         SCCACHE_DIR: '',
+        XDG_CACHE_HOME: '',
         SCCACHE_SERVER_UDS: '',
         GRILLHOUSE_ENVELOPPE: '',
         HOME: MAISON,

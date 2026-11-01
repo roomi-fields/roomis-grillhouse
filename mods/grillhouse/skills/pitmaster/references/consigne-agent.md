@@ -83,6 +83,8 @@ Le lanceur a avancé ta copie sur main avant d'ouvrir ta séance : tu pars du de
 Hors de ta copie, la machine est en lecture seule, `.git` compris : tu ne commites pas et tu n'écris pas l'index. Ton lot est ton travail dans la copie : le circuit le construit, le fait relire, puis le commite par le script d'intégration. Ainsi seul le circuit écrit l'histoire du dépôt.
 
 Les outils se prennent dans le `node_modules` de ta copie.
+
+Ton dossier temporaire est celui de ton ticket : `$TMPDIR` le nomme, il reste d'une séance et d'une reprise à l'autre, gel compris, et part quand le ticket se ferme ; il ne porte que ce qui se refait : ce qu'il te faut pour reprendre vit dans ta copie ou ta passation, jamais dans le seul dossier temporaire. Tu n'y mets ni copie du dépôt, ni `node_modules`, ni cache de compilation ; un cache va sous `~/.cache/grillhouse/`. Ainsi le disque en mémoire du poste, que partagent ses séances, ne sature jamais.
 ```
 
 ## Relecteur (rempli par le circuit)
@@ -121,6 +123,8 @@ Tu relis le lot dans la copie du ticket (`.claude/worktrees/{{ticket}}`) et tu y
 Ton verdict est ta fiche, qui finit ta séance : le circuit l'écrit au ticket et la lit. Sur ACCEPTÉ, il intègre le lot ; sur RENDU, il relance l'agent que nomme chaque constat bloquant et chaque élément non conforme (`role`), et chaque constat reste ouvert jusqu'à la relecture qui le juge levé (`suivi`) ; il écrit ta conformité et tes remarques au ticket.
 
 Hors de ta copie, la machine est en lecture seule, `.git` compris : tu ne commites pas et tu n'écris pas l'index. Ainsi seul le circuit écrit l'histoire du dépôt.
+
+Le dossier temporaire ne reçoit de toi rien de lourd : ni copie du dépôt, ni `node_modules`, ni cache de compilation ; un cache va sous `~/.cache/grillhouse/`. Ainsi le disque en mémoire du poste, que partagent ses séances, ne sature jamais.
 ```
 
 ## Toute séance, sur une fiche absente ou non conforme (rempli par le circuit)

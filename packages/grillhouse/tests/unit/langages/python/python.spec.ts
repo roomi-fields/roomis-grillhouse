@@ -63,7 +63,7 @@ function projet() {
 
 // Runs the command <nom> of the module in <racine> with <args>, the fake uv first on the PATH:
 // `{ code, stderr, appels, verdict }`, `appels` the calls of uv, each `{ args, cwd, pycache, venv,
-// tmpdir }`.
+// cache, tmpdir }`.
 function lancer(racine: string, nom: string, args: string[] = [], env: NodeJS.ProcessEnv = {}) {
   writeFileSync(JOURNAL, '');
   const resultats = mkdtempSync(path.join(ESSAIS, 'resultats-'));
@@ -89,6 +89,7 @@ function lancer(racine: string, nom: string, args: string[] = [], env: NodeJS.Pr
           cwd: string;
           pycache: string | null;
           venv: string | null;
+          cache: string | null;
           tmpdir: string;
         }
     );
@@ -245,12 +246,12 @@ describe('grillhouse-ziy, critère 3 — les commandes par uv', () => {
 describe('grillhouse-ziy, critère 4 — l’enveloppe', () => {
   it('.venv, .pytest_cache and uv’s cache written, a __pycache__ proper to the session, uv’s Pythons read', () => {
     expect(python.sorties).toEqual({
-      ecrites: ['.venv/', '.pytest_cache/', '~/.cache/uv/'],
+      ecrites: ['.venv/', '.pytest_cache/', '~/.cache/grillhouse/uv/'],
       propres: ['__pycache__'],
       lues: ['~/.local/share/uv/python/'],
     });
     const s = sortiesDuLangage(python.sorties, { maison: '/home/x', principal: '/depot' });
-    expect(s.magasins).toEqual(['/home/x/.cache/uv']);
+    expect(s.magasins).toEqual(['/home/x/.cache/grillhouse/uv']);
     expect(s.lectures).toEqual(['/home/x/.local/share/uv/python']);
     expect(s.sorties).toEqual({ ecrites: ['.venv', '.pytest_cache'], propres: ['__pycache__'] });
     expect(python.ignorer).toEqual(['.venv', '.pytest_cache', '__pycache__']);
@@ -269,6 +270,16 @@ describe('grillhouse-ziy, critère 4 — l’enveloppe', () => {
     expect(r.appels[0].args).toContain(`cache_dir=${path.join(racine, '.pytest_cache', 'site')}`);
     const p = lancer(racine, 'preparer');
     expect(p.appels[0].venv).toBe(path.join(racine, '.venv', 'site'));
+  });
+
+  // grillhouse-xv9, critère 3: uv's cache with the frame's caches of compilation, out of /tmp.
+  it('uv keeps its cache under ~/.cache/grillhouse/uv, never in the temporary directory', () => {
+    const racine = projet();
+    const maison = mkdtempSync(path.join(ESSAIS, 'maison-'));
+    const r = lancer(racine, 'tester', [], { HOME: maison, XDG_CACHE_HOME: '' });
+    expect(r.appels[0].cache).toBe(path.join(maison, '.cache', 'grillhouse', 'uv'));
+    const x = lancer(racine, 'preparer', [], { XDG_CACHE_HOME: path.join(maison, 'xdg') });
+    expect(x.appels[0].cache).toBe(path.join(maison, 'xdg', 'grillhouse', 'uv'));
   });
 
   it('pytest run directly is refused to a role that writes', () => {

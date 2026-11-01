@@ -14,6 +14,10 @@ const { CODE_USAGE } = valeursDe('scripts/enveloppe/codes.mjs', ['CODE_USAGE']) 
   CODE_USAGE: number;
 };
 const dossierDeTravail = enProcessus<string>('scripts/enveloppe/enveloppe.mjs', 'dossierDeTravail');
+const ouvrirBaseDuTicket = enProcessus<{ dossier: string }>(
+  'scripts/mesure/base-de-passe.mjs',
+  'ouvrirBaseDuTicket'
+);
 const publie = enProcessus<string>('scripts/langages/typescript/index-interfaces.mjs', 'publie');
 const optionsDuRole = enProcessus<string[]>('scripts/droits.mjs', 'optionsDuRole');
 const schemaDeFiche = enProcessus<unknown>('scripts/resultats.mjs', 'schemaDeFiche');
@@ -155,9 +159,14 @@ function lancer(options: string[], apres: string[] = [], composant = 'packages/a
   const fichier = path.join(copie, composant, 'args');
   const args = existsSync(fichier) ? readFileSync(fichier, 'utf8').split('\0').slice(0, -1) : null;
   const recu = path.join(copie, composant, 'prompt');
-  const prompt = existsSync(recu) ? readFileSync(recu, 'utf8') : null;
-  return { r, copie, args, prompt, ticket };
+  const brut = existsSync(recu) ? readFileSync(recu, 'utf8') : null;
+  return { r, copie, args, prompt: brut === null ? null : sansBase(brut), brut, ticket };
 }
+
+// <texte> with the temporary directory of the ticket, which the launcher gives its session
+// (grillhouse-xv9), named `/BASE`.
+const sansBase = (texte: string) =>
+  texte.replace(/[^\s`]*\/grillhouse-ticket-[^/\s`]+\/t\//g, '/BASE/');
 
 // The section the launcher writes after the instruction, for a: b's line, the names it declares
 // for a, and the address of its rubric « Rend ».
@@ -174,12 +183,12 @@ const PUBLIE_POUR_A = [
 ].join('\n');
 
 // The section the launcher writes last: the session's working directory, in its copy's
-// scratchpads.
+// scratchpads, under the temporary directory of the ticket (`/BASE`, `sansBase`).
 const TRAVAIL = (ticket: string) =>
   [
     '## Ton dossier de travail',
     '',
-    `Tout fichier temporaire s'écrit dans \`${dossierDeTravail(path.join(REPO, '.claude/worktrees', ticket))}\`, que \`$TMPDIR\` nomme aussi.`,
+    `Tout fichier temporaire s'écrit dans \`${dossierDeTravail(path.join(REPO, '.claude/worktrees', ticket), { TMPDIR: '/BASE' })}\`, que \`$TMPDIR\` nomme aussi.`,
   ].join('\n');
 
 // The prompt claude reads on its standard input, for a ticket.
@@ -344,7 +353,7 @@ describe.runIf(canWrap)('the launcher and what the components before publish', (
     );
     const copie = path.join(REPO, '.claude/worktrees', ticket);
     expect(r.status, r.stderr).toBe(0);
-    const prompt = readFileSync(path.join(copie, 'packages/a/prompt'), 'utf8');
+    const prompt = sansBase(readFileSync(path.join(copie, 'packages/a/prompt'), 'utf8'));
     expect(prompt).toContain("## Ce que les composants d'avant publient");
     expect(prompt).toContain('### Pour `a`');
     expect(prompt).toContain('#### b');
@@ -376,13 +385,25 @@ describe.runIf(canWrap)("the launcher and the session's working directory", () =
   it('names the working directory of the copy after what the components before publish', () => {
     const { r, prompt, copie } = lancer([]);
     expect(r.status, r.stderr).toBe(0);
-    const travail = dossierDeTravail(copie);
+    const travail = dossierDeTravail(copie, { TMPDIR: '/BASE' });
     expect(prompt).toContain(
       `## Ton dossier de travail\n\nTout fichier temporaire s'écrit dans \`${travail}\``
     );
     expect(prompt?.indexOf('## Ton dossier de travail')).toBeGreaterThan(
       prompt?.indexOf("## Ce que les composants d'avant publient") ?? Infinity
     );
+  });
+
+  // grillhouse-xv9, critère 1: the working directory lies in the temporary directory of the
+  // ticket, which outlives the launch, for the next session of the ticket.
+  it("the working directory lies in the ticket's temporary directory, kept once the launch ends", () => {
+    const { r, brut, copie, ticket } = lancer([]);
+    expect(r.status, r.stderr).toBe(0);
+    const travail = /s'écrit dans `([^`]+)`/.exec(brut ?? '')?.[1] ?? '';
+    // The ticket's directory, as the frame names it (`npx grillhouse temporaire <ticket>`).
+    const duTicket = ouvrirBaseDuTicket(ticket).dossier;
+    expect(travail).toBe(dossierDeTravail(copie, { TMPDIR: duTicket }));
+    expect(existsSync(travail)).toBe(true);
   });
 });
 

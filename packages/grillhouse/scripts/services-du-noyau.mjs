@@ -18,7 +18,14 @@ export { sources } from './sources.mjs';
 export { CHANGEMENTS, DEPUIS_LE_VERT, garderLeVert, mesure } from './dernier-vert.mjs';
 export { lireLaListe, paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
 export { AVANCEMENT, ecrireTache } from './mesure/avancement.mjs';
-export { ligneDesRestes, ouvrirBase, retirerALInterruption } from './mesure/base-de-passe.mjs';
+export {
+  cacheDeCompilation,
+  cacheDeLaRacine,
+  dansLeTemporaire,
+  ligneDesRestes,
+  ouvrirBase,
+  retirerALInterruption,
+} from './mesure/base-de-passe.mjs';
 export {
   A_REPASSER,
   attendreLeRepos,
@@ -27,4 +34,4 @@ export {
   lirePression,
   SEUIL_PRESSION,
 } from './mesure/pression.mjs';
-export { AttenteDeLaMachine, avecLaMachine } from './verrou-de-machine.mjs';
+export { attendreDeLaPlace, AttenteDeLaMachine, avecLaMachine } from './verrou-de-machine.mjs';

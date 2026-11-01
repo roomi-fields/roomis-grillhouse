@@ -172,7 +172,8 @@ dossier.
 
 ## Outils
 
-- ⛔ **Des commandes sans invite** : tout fichier temporaire dans le scratchpad de session ;
+- ⛔ **Des commandes sans invite** : tout fichier temporaire dans le scratchpad de session, ou
+  dans le dossier temporaire du ticket ;
   `env -C <dossier>` ou `git -C` à la place de `cd`, et le greffon refuse une commande qui
   commence par `cd` ; une suppression passe par un script node du
   scratchpad (`rmSync` de `node:fs`) sur un chemin nommé et lu ; un signal vise seulement un
@@ -191,6 +192,17 @@ dossier.
   qu'un test y laisse ; le module de chaque langage nomme son outil et porte cette garde. Ainsi le
   dossier temporaire, souvent un disque en mémoire que partagent les séances du poste, ne sature
   jamais.
+- **Un fichier temporaire meurt avec son propriétaire** : une passe ou une séance hors ticket (la
+  nuit, une vérification) écrit sous un dossier temporaire à elle, retiré à sa fin, même
+  interrompue, et balayé par la suivante quand son processus est tué ; un agent écrit sous celui
+  de son ticket, que donne `npx grillhouse temporaire <ticket>`, qui vit le temps de son ticket,
+  d'une séance et d'une reprise à l'autre, gel compris, et part quand le ticket se ferme. Ce qu'un
+  agent doit avoir pour
+  reprendre vit dans la copie du ticket ou sa passation, jamais dans le seul dossier temporaire,
+  qui ne porte que ce qui se refait. Le dossier temporaire ne tient ni copie du dépôt, ni
+  `node_modules`, ni cache : un cache de compilation va sous `~/.cache/grillhouse/`. Une passe
+  lourde qui y trouve moins de 4 Go libres attend la place et dit ce qui l'occupe, le ticket
+  nommé. Ainsi le poste ne sature jamais son disque en mémoire.
 - **Main reste vert** : l'intégration exige un `npm run verifier` vert. Un test connu rouge se met
   en quarantaine dans le test lui-même (`it.skip` ou `it.fails`), avec le ticket qui le corrige.
   Ainsi chaque rouge a son ticket.

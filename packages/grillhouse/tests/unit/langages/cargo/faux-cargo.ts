@@ -236,6 +236,7 @@ export function avecFauxCargo(dossier: string, journal: string): () => void {
     FAUX_CARGO_COMPILATEUR: process.env.FAUX_CARGO_COMPILATEUR,
     FAUX_CARGO_SANS_BINSTALL: process.env.FAUX_CARGO_SANS_BINSTALL,
     FAUX_SCCACHE_JOURNAL: process.env.FAUX_SCCACHE_JOURNAL,
+    XDG_CACHE_HOME: process.env.XDG_CACHE_HOME,
   };
   process.env.PATH = `${dossier}${path.delimiter}${process.env.PATH ?? ''}`;
   process.env.FAUX_CARGO_JOURNAL = journal;
@@ -245,6 +246,9 @@ export function avecFauxCargo(dossier: string, journal: string): () => void {
   delete process.env.FAUX_CARGO_COMPILATEUR;
   delete process.env.FAUX_CARGO_SANS_BINSTALL;
   delete process.env.FAUX_SCCACHE_JOURNAL;
+  // The caches of compilation of the runs (~/.cache/grillhouse/, grillhouse-xv9) go to the trial
+  // directory, never to the user's cache.
+  process.env.XDG_CACHE_HOME = path.join(dossier, 'cache');
   appendFileSync(journal, '');
   return () => {
     for (const [k, v] of Object.entries(avant)) {

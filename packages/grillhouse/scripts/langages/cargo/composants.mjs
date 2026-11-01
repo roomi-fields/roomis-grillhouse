@@ -46,6 +46,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
+import { cibleDeCompilation } from './sccache.mjs';
 
 // The loader of the optional peers this module reads when it needs them (smol-toml), under the
 // name by which knip reads a dependency.
@@ -63,8 +64,11 @@ export function metadonnees(racine) {
   if (!existsSync(path.join(racine, 'Cargo.toml'))) {
     return null;
   }
+  // The target directory cargo reports is the one the compilations use (./sccache.mjs), named
+  // without being made: a reading writes nothing in the home.
   const r = spawnSync('cargo', ['metadata', '--format-version', '1', '--no-deps', '--offline'], {
     cwd: racine,
+    env: { ...process.env, ...cibleDeCompilation(racine, process.env, { creer: false }) },
     encoding: 'utf8',
     maxBuffer: 256 * 1024 * 1024,
   });

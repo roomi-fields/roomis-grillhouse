@@ -323,6 +323,18 @@ export function ecrireLaMesure(o: {
 }): void;
 /** Opens the base of a pass of the kind `genre` (scripts/mesure/base-de-passe.mjs). */
 export function ouvrirBase(genre: string, o?: { dans?: string }): unknown;
+/** Whether `chemin` lies in a temporary directory under `env` (scripts/mesure/base-de-passe.mjs). */
+export function dansLeTemporaire(chemin: string, env?: NodeJS.ProcessEnv): boolean;
+/** The cache of compilation of `outil`, under `~/.cache/grillhouse/`, never in the temporary
+ * directory. */
+export function cacheDeCompilation(outil: string, env?: NodeJS.ProcessEnv): string;
+/** The cache of `outil` for the build rooted at `racine`, swept once `racine` is gone. */
+export function cacheDeLaRacine(
+  outil: string,
+  racine: string,
+  env?: NodeJS.ProcessEnv,
+  o?: { creer?: boolean }
+): string;
 /** The line of the guard of a pass of tests, what its tests left in their temporary directory
  * named; null when they left nothing. */
 export function ligneDesRestes(restes: string[]): string | null;
@@ -354,6 +366,8 @@ export function mesure(racine: string, o?: { tout?: boolean; dans?: string }): u
 export class AttenteDeLaMachine extends Error {}
 /** Runs `faire` under the lock of the machine. */
 export function avecLaMachine(...args: unknown[]): unknown;
+/** Waits for room in the temporary directory, as a heavy pass does before it plays. */
+export function attendreDeLaPlace(o?: Record<string, unknown>): void;
 /** The source files of the project at `racine` under `dossier`, as paths from `racine`, what the
  * tools of its language write left out (scripts/sources.mjs). */
 export function sources(racine: string, dossier?: string): string[];

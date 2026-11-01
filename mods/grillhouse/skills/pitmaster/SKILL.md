@@ -66,6 +66,12 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   `npx grillhouse retirer-copie <copie>`, qui retire avec elle le dossier de travail de son
   circuit (`<copie>.travail`). Ainsi le dépôt garde seulement le travail commité, et rien ne se
   supprime sans avoir été lu.
+- **Le dossier temporaire d'un ticket** : la consigne d'un sous-agent que je lance sur un ticket
+  nomme le dossier que donne `npx grillhouse temporaire <ticket>`, où vont ses fichiers
+  temporaires, légers, jamais une copie du dépôt, un `node_modules` ni un cache ; c'est celui que
+  le lanceur donne aux séances du ticket ; il vit tant que le ticket est ouvert, gel compris, et
+  part avec les copies finies quand le ticket se ferme. Ainsi mon scratchpad ne grossit pas des
+  agents du ticket.
 
 ## Un agent, un ticket
 

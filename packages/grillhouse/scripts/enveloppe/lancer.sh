@@ -80,7 +80,10 @@
 #   --publie <plan>`, a command of the module of the copy's language, read in the prepared copy; a reading that fails stops the launch,
 #   CODE_COPIE), then the
 #   section « Ton dossier de travail », which names the session's working directory, where every
-#   temporary file goes (`dossierDeTravail` of enveloppe.mjs, the envelope's TMPDIR), then the
+#   temporary file goes (`dossierDeTravail` of enveloppe.mjs, the envelope's TMPDIR, TMP and TEMP,
+#   in the temporary directory of the ticket, which the launcher opens once the call is judged and
+#   which stays from one session and one resumption to the next, removed when the ticket is
+#   closed, scripts/mesure/base-de-passe.mjs), then the
 #   section « La construction échoue » when it fails. The prompt
 #   carries « TON TICKET : <ticket> », which the role's locks read. The envelope is the sandbox, so
 #   the session runs without permission prompts, under the rights and the context of its role
@@ -184,6 +187,13 @@ if node --input-type=module -e "import { lireEntrees } from '$ici/../integration
   echo "$refus" >&2
   exit "$CODE_COPIE"
 fi
+# The temporary directory of the ticket (`ouvrirBaseDuTicket`, scripts/mesure/base-de-passe.mjs):
+# TMPDIR, TMP and TEMP of the rest of the launch and of the session, whose scratchpads and working
+# directory lie in it. It stays from one session and one resumption of the ticket to the next, and
+# goes when the ticket is closed (scripts/copies-finies.mjs).
+temporaire=$(node "$ici/../mesure/base-de-passe.mjs" "$ticket" 2>> "$journal") \
+  || { echo "⛔ Le dossier temporaire du ticket n'a pas pu s'ouvrir : voir $journal." >&2; exit "$CODE_COPIE"; }
+export TMPDIR="$temporaire" TMP="$temporaire" TEMP="$temporaire"
 # The output of the session's build, when it fails, behind its first line, which says what failed
 # and what was built: the module's command `construire` writes it.
 echec=$(mktemp)

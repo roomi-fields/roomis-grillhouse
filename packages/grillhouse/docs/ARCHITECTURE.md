@@ -437,6 +437,23 @@ tests (typescript : la base de chaque lancement de Vitest, `mkdtempSync` retiré
 cargo : `tester` et `verifier`, le crate `tempfile`). Ainsi un essai oublié ne remplit jamais le
 dossier temporaire de la machine, et le test qui l'oublie est nommé.
 
+**Un fichier temporaire meurt avec son propriétaire** : une base a pour propriétaire un
+processus, un ticket ou un dossier, comme `PrivateTmp=` de systemd donne à un service un /tmp
+détruit avec lui. Une passe et une séance hors ticket ont la base de leur processus. Le dossier
+temporaire d'un ticket, `grillhouse-ticket-<id>/`, est celui de ses agents : le lanceur le donne à
+chaque séance du ticket (son `TMPDIR`, `TMP` et `TEMP`, ses scratchpads et son dossier de travail
+dedans), `npx grillhouse temporaire <ticket>` au superviseur pour ses sous-agents ; il reste d'une
+séance et d'une reprise à l'autre, gel compris, et part avec les copies finies quand le ticket
+est fermé, comme une politique de rétention fixée d'avance. Ce qu'un agent doit avoir pour reprendre vit dans
+la copie du ticket ou sa passation, jamais dans le seul dossier temporaire. Les caches de compilation ne vivent jamais dans le dossier temporaire : sccache et uv sous
+`~/.cache/grillhouse/` (`cacheDeCompilation`), comme l'output_base de Bazel, et un espace cargo
+enraciné dans le dossier temporaire compile sous `~/.cache/grillhouse/cargo/`, balayé quand sa
+racine n'est plus, vue de l'espace de processus qui l'a ouvert, ou, depuis l'hôte, après 7 jours
+sans usage, comme un cache de GitHub Actions. Une passe lourde (le verrou de la machine, les tests de nuit) qui trouve moins
+de 4 Go libres dans le dossier temporaire attend la place sous la borne du verrou et dit ce qui
+l'occupe, le ticket dont le dossier tient la place nommé, au lieu d'échouer faute de place (la nuit du 2026-11-01 : 25 rouges, 8 Go de
+scratchpads sur 16). Ainsi le disque en mémoire du poste ne sature jamais.
+
 **Le dossier du circuit appartient au ticket** : `.claude/worktrees/<ticket>.travail` vit autant
 que le ticket, comme l'espace de travail d'un pipeline ; aucun balayage n'y touche, la file
 l'efface à la clôture, `npx grillhouse retirer-copie` avec la copie d'un ticket fermé sans
@@ -696,7 +713,7 @@ la tâche `test` de Turborepo dépend de `build` : des tests qui ne compilent pa
 « construction de <crate> » de la preuve du rouge, et se jouent aux contrôles ; la vérification par cargo-deny,
 sous le verrou de la machine ; chaque commande qui compile (tests, vérification, typage, clippy)
 à travers sccache (`RUSTC_WRAPPER=sccache`), le cache de compilation de Mozilla qu'emploient
-Firefox et les CI Rust, son cache sous la maison (`~/.cache/sccache`), commun aux copies du poste
+Firefox et les CI Rust, son cache sous la maison (`~/.cache/grillhouse/sccache`), commun aux copies du poste
 et que l'enveloppe ouvre en écriture : chaque copie garde son `target/`, sans le verrou que cargo
 pose sur un dossier commun, et ne recompile pas ce qu’une autre a compilé ; un serveur de sccache par copie et par espace de processus (`/proc/self/ns/pid`, que chaque enveloppe crée), sur un socket unix abstrait nommé d'après eux (`SCCACHE_SERVER_UDS`), puisque le serveur par défaut écoute 127.0.0.1:4226 pour toute la machine et que l'enveloppe partage le réseau ; ce serveur démarre avant chaque lancement de cargo qui compile, sous `/tmp` (celui de la machine, ou dans une enveloppe celui, vide, de la séance), car sccache 0.19.0 démarre le sien par un socket au chemin sous TMPDIR, refusé au-delà des 108 octets d'un chemin de socket, et le dossier temporaire d'une passe sous le dossier de travail d'une séance les dépasse ; un lanceur de rustc que le projet pose reste le sien, sans sccache, lu comme cargo le lit (l'environnement, puis `build.rustc-wrapper` des `.cargo/config.toml` du projet vers la racine, puis de `$CARGO_HOME`) ; sans sccache sur le PATH, ces commandes refusent avant cargo, en une ligne qui nomme `npx grillhouse maj` ; le refus, avant tout lancement de cargo, d'un espace dont git ne
 suit pas le Cargo.lock, comme `npm ci` refuse un projet sans package-lock.json : les tests, la
@@ -715,7 +732,7 @@ dans chaque paquet, leur rapport JUnit, le typage par `python -m compileall`, la
 `.python-version` ; le code-octet sous un seul `__pycache__` à la racine, PYTHONPYCACHEPREFIX, que
 l'enveloppe rend propre à la séance ; l'environnement de uv et le cache de pytest de chaque paquet
 sous `.venv/<dossier>` et `.pytest_cache/<dossier>` à la racine, que l'enveloppe ouvre en écriture
-avec `~/.cache/uv`, plutôt que dans le dossier du paquet, qu'une séance dont le plan ne l'écrit pas
+avec le cache de uv, `~/.cache/grillhouse/uv` (UV_CACHE_DIR), plutôt que dans le dossier du paquet, qu'une séance dont le plan ne l'écrit pas
 ne pourrait écrire ; les Python de uv en lecture ; la garde des tailles des tests en Python, et celle
 du dossier temporaire, `tempfile` et jamais `mkdtemp` à la main ; l'index des interfaces, qu'il
 engendre comme cargo, et que l'index du noyau remplace dans un projet de plusieurs langages), ses

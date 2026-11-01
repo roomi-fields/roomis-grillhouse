@@ -48,27 +48,43 @@
 //   names no one and goes. Between measures of one rank, the first to find the lock free takes
 //   it. The bound of the wait is the same for both ranks, and the wait says its rank.
 // - The lock is let go at the end of the measure, whether it succeeds or throws.
+// - A measure first wants room in the temporary directory (`os.tmpdir()` under its environment),
+//   a disk in memory that the sessions of the machine share: under LIBRE_MIN, 4 GB free
+//   (GRILLHOUSE_TEMPORAIRE_LIBRE names another floor, in bytes; the base configuration of the
+//   tests sets 0, scripts/langages/typescript/vitest-config/machine.setup.mjs), it waits for room
+//   instead of failing for lack of it (ENOSPC: 25 reds of the night of 2026-11-01, the
+//   scratchpads holding 8 GB of 16), as Kubernetes schedules no new pod on a node under
+//   DiskPressure. It says so, with what holds the directory (its largest
+//   entries, by the blocks their files hold, the temporary directory of a ticket naming its
+//   ticket), when it begins and every 30 s, under the same bound as the
+//   lock's, then « à repasser » (75).
 import { randomUUID } from 'node:crypto';
 import {
+  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
   readlinkSync,
   rmSync,
+  statfsSync,
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
 import { paquets } from './paquets.mjs';
 import { attendreUnPeu, lacherVerrou, prendreVerrou } from './verrou-de-fichier.mjs';
-import { vivant } from './mesure/base-de-passe.mjs';
+import { ticketDeLaBase, vivant } from './mesure/base-de-passe.mjs';
 import { A_REPASSER } from './mesure/pression.mjs';
 
 const VARIABLE_VERROU = 'GRILLHOUSE_VERROU_MACHINE';
 const VARIABLE_TENUE = 'GRILLHOUSE_MESURE_TENUE';
 const VARIABLE_ATTENTE = 'GRILLHOUSE_ATTENTE_MACHINE_MS';
+const VARIABLE_LIBRE = 'GRILLHOUSE_TEMPORAIRE_LIBRE';
+
+/** The room a heavy measure wants free in the temporary directory, in bytes: 4 GB. */
+export const LIBRE_MIN = 4 * 1024 ** 3;
 
 // The name of the frame's package, which a repository of the first rank develops.
 const CADRE = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).name;
@@ -227,6 +243,128 @@ function ancetre(pid) {
   return false;
 }
 
+// The floor of room under <env>, in bytes.
+function plancherDe(env) {
+  const n = Number(env[VARIABLE_LIBRE]);
+  return env[VARIABLE_LIBRE] && Number.isFinite(n) && n >= 0 ? n : LIBRE_MIN;
+}
+
+// The room free in <dossier>, in bytes; Infinity when it does not read.
+function libreDans(dossier) {
+  try {
+    const s = statfsSync(dossier);
+    return s.bavail * s.bsize;
+  } catch {
+    return Infinity;
+  }
+}
+
+const go = octets => `${(octets / 1024 ** 3).toFixed(1).replace('.', ',')} Go`;
+
+// The entries a count of what holds the temporary directory reads at most, so that it stays
+// short on a directory of millions of files: past it, a size is a floor.
+const ENTREES_LUES = 500_000;
+
+// The largest entries of <dossier>, the five first, each by the blocks its files hold, as `du`
+// counts them: « claude-1000 (8,0 Go), grillhouse-vitest-x (1,2 Go) ».
+function occupants(dossier) {
+  let noms;
+  try {
+    noms = readdirSync(dossier);
+  } catch {
+    return 'illisible';
+  }
+  if (noms.length === 0) return 'rien';
+  let budget = ENTREES_LUES;
+  const taille = racine => {
+    let octets = 0;
+    const pile = [racine];
+    while (pile.length > 0 && budget-- > 0) {
+      const p = pile.pop();
+      let e;
+      try {
+        e = lstatSync(p);
+      } catch {
+        continue;
+      }
+      octets += e.blocks * 512;
+      if (e.isDirectory()) {
+        try {
+          for (const n of readdirSync(p)) pile.push(path.join(p, n));
+        } catch {
+          // an unreadable directory counts for itself alone
+        }
+      }
+    }
+    return octets;
+  };
+  return noms
+    .map(nom => ({ nom, octets: taille(path.join(dossier, nom)) }))
+    .sort((a, b) => b.octets - a.octets)
+    .slice(0, 5)
+    .map(o => {
+      const ticket = ticketDeLaBase(o.nom);
+      return `${o.nom} (${ticket ? `le ticket ${ticket}, ` : ''}${go(o.octets)})`;
+    })
+    .join(', ');
+}
+
+// Waits until <dossier> holds <plancher> bytes free (`libre`, a statfs at each turn), saying so
+// (`dire`) with what holds it (`occupe`, counted only when a line is written) when it begins and
+// every <rappelMs>. Throws an AttenteDeLaMachine (75) at <borneMs>.
+function attendreLaPlace(dossier, { plancher, libre, occupe, dire, borneMs, rappelMs }) {
+  const debut = Date.now();
+  let dit = null;
+  for (;;) {
+    const l = libre(dossier);
+    if (l >= plancher) {
+      if (dit !== null)
+        dire(`✓ place dans le dossier temporaire après ${duree(Date.now() - debut)}.`);
+      return;
+    }
+    const t = Date.now();
+    const etat = () =>
+      `le dossier temporaire (${dossier}) n'a que ${go(l)} libres, moins des ${go(plancher)} qu'une passe lourde demande (${VARIABLE_LIBRE}) ; l'occupent : ${occupe(dossier)}`;
+    if (t - debut >= borneMs)
+      throw new AttenteDeLaMachine(
+        `⏱ attente de place bornée à ${duree(borneMs)} (${VARIABLE_ATTENTE}) : ${etat()} ; à repasser (code ${A_REPASSER}).`,
+        A_REPASSER
+      );
+    if (dit === null) dire(`⏳ ${etat()} ; attente de place, ${duree(borneMs)} au plus.`);
+    else if (t - dit >= rappelMs)
+      dire(`⏳ attente de place depuis ${duree(t - debut)} : ${etat()}.`);
+    if (dit === null || t - dit >= rappelMs) dit = t;
+    attendreUnPeu(Math.max(1, Math.min(200, borneMs - (Date.now() - debut))));
+  }
+}
+
+/**
+ * Waits for room in the temporary directory under <env> (`os.tmpdir()` as it reads it): what a
+ * heavy pass does before it plays (`avecLaMachine`, the night tests).
+ * @param {{ env?: Record<string, string | undefined>, dire?: (ligne: string) => void,
+ *   borneMs?: number, rappelMs?: number, libre?: (dossier: string) => number,
+ *   occupe?: (dossier: string) => string }} [options] as `avecLaMachine`'s
+ * @throws {AttenteDeLaMachine} at the bound of the wait (code 75)
+ */
+export function attendreDeLaPlace({
+  env = process.env,
+  dire = l => process.stdout.write(`${l}\n`),
+  borneMs = borneDe(env),
+  rappelMs = RAPPEL_MS,
+  libre = libreDans,
+  occupe = occupants,
+} = {}) {
+  const temporaire = env.TMPDIR || env.TMP || env.TEMP || tmpdir();
+  attendreLaPlace(temporaire, {
+    plancher: plancherDe(env),
+    libre,
+    occupe,
+    dire,
+    borneMs,
+    rappelMs,
+  });
+}
+
 // The bound of the wait under <env>, in ms.
 function borneDe(env) {
   const n = Number(env[VARIABLE_ATTENTE]);
@@ -282,11 +420,13 @@ function attendreAuRang(verrou, { rang, dire, borneMs, rappelMs }) {
  * environment of its children, which carries the lock to them.
  * @param {(envEnfant: Record<string, string | undefined>) => T} mesure a synchronous measure
  * @param {{ env?: Record<string, string | undefined>, racine?: string,
- *   dire?: (ligne: string) => void, borneMs?: number, rappelMs?: number }} options `racine`, the
+ *   dire?: (ligne: string) => void, borneMs?: number, rappelMs?: number,
+ *   libre?: (dossier: string) => number, occupe?: (dossier: string) => string }} options `racine`, the
  *   root of the repository the measure plays in, which gives its rank (`rangDeLaMesure`; the
  *   working directory by default); `borneMs`, the bound of the wait
  *   (GRILLHOUSE_ATTENTE_MACHINE_MS, else ATTENTE_MACHINE_MS); `rappelMs`, the gap between two
- *   lines that say the wait goes on (30 s)
+ *   lines that say the wait goes on (30 s); `libre`, the room free in a directory, in bytes
+ *   (`statfs`, at each turn); `occupe`, what holds it, counted when a line of the wait is written
  * @returns {T}
  * @throws {AttenteDeLaMachine} at the bound of the wait (code 75), or at once when an ancestor
  *   holds the lock (code 1)
@@ -300,11 +440,14 @@ export function avecLaMachine(
     dire = l => process.stdout.write(`${l}\n`),
     borneMs = borneDe(env),
     rappelMs = RAPPEL_MS,
+    libre = libreDans,
+    occupe = occupants,
   } = {}
 ) {
   if (paquetsDeLEnveloppe(env)) return mesure(env);
   const verrou = verrouDeMachine(env);
   if (env[VARIABLE_TENUE] && lire(verrou) === env[VARIABLE_TENUE]) return mesure(env);
+  attendreDeLaPlace({ env, libre, occupe, dire, borneMs, rappelMs });
   mkdirSync(path.dirname(verrou), { recursive: true });
   const rang = rangDeLaMesure(racine);
   if (!(peutPrendre(verrou, rang) && prendreVerrou(verrou, { attendre: false }))) {

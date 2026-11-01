@@ -48,7 +48,7 @@ import { elementsDuLot } from './elements-du-lot.mjs';
 import { enRetard, entreesDeLIndex, SORTIE } from './index-interfaces.mjs';
 import { miseAJour } from './mise-a-jour.mjs';
 import { squelette } from './squelette.mjs';
-import { CACHE } from './sccache.mjs';
+import { CACHE, CIBLES } from './sccache.mjs';
 import { touches } from './touches.mjs';
 import { verdict } from './verdict.mjs';
 
@@ -70,7 +70,8 @@ export default {
   // registry's index and sources, the git dependencies, cargo-deny's advisories, and the files of
   // its locks and of the SQLite cache of its packages (`.package-cache`, `.package-cache-mutate`,
   // `.global-cache`), files without a trailing `/`; the cache of sccache, common to the copies
-  // (./sccache.mjs), where a server of sccache the session starts writes. What it reads, read-only: its home, `~/.cargo`
+  // (./sccache.mjs), where a server of sccache the session starts writes; the targets of the
+  // workspaces rooted in the temporary directory, `~/.cache/grillhouse/cargo/` (./sccache.mjs). What it reads, read-only: its home, `~/.cargo`
   // (its binaries, its `env`, which the shells source, and its configuration stay unwritten), and
   // rustup's toolchains, `~/.rustup`. Measured on 2026-10-30: `cargo fetch --locked` of
   // osc-bridge in bwrap with these mounts alone, green, the cache of its packages written.
@@ -84,6 +85,7 @@ export default {
       '~/.cargo/.package-cache-mutate',
       '~/.cargo/.global-cache',
       CACHE,
+      CIBLES,
     ],
     propres: [],
     lues: ['~/.cargo/', '~/.rustup/'],

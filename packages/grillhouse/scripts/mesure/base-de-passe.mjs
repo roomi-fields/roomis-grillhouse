@@ -17,6 +17,23 @@
 //   beside its copy, which no sweep touches); `integration`, the working directory of an
 //   integration (scripts/integration/integrer.mjs); `enveloppe`, the throwaway state of a session's envelope
 //   (scripts/enveloppe/enveloppe.mjs).
+// - The owner of a base is the process that opens it, for a pass and a session out of a ticket
+//   (the night, a verification); a ticket (`ouvrirBaseDuTicket`: `<dans>/grillhouse-ticket-<id>/`,
+//   the temporary directory of the agents of one ticket, which the launcher gives each session of
+//   the ticket, scripts/enveloppe/lancer.sh, and `npx grillhouse temporaire <ticket>` the
+//   supervisor), kept from one session and one resumption to the next, removed when its ticket is
+//   closed (`balayerLesTickets`, which the removal of the finished copies plays,
+//   scripts/copies-finies.mjs), as a finished copy goes, and only then, frozen or not, as a
+//   retention policy fixed in advance; or a directory
+//   (`cacheDeLaRacine`: the cache of a build rooted in the temporary directory), swept once that
+//   directory is gone, from the namespace that opened it, or, from the host (the next base of a
+//   pass, out of an envelope, where the home is read-only), untouched for 7 days whatever its
+//   namespace, as GitHub Actions removes a cache unused for 7 days. What an agent needs to resume lives in its copy or its handover, never in
+//   the ticket's temporary directory alone, which holds what is made again.
+// - The caches of compilation never lie in the temporary directory, a disk in memory that the
+//   sessions of the machine share: they go under `${XDG_CACHE_HOME:-~/.cache}/grillhouse/<outil>`
+//   (`cacheDeCompilation`), as Bazel keeps its output_base under ~/.cache; a build rooted in the
+//   temporary directory (a project of trial) keeps its outputs there too (`cacheDeLaRacine`).
 // - The base is removed at the end of the pass, green or red (`fermer`), and when the pass is
 //   interrupted (SIGINT, SIGTERM, SIGHUP: `retirerALInterruption`), as pytest's `tmp_path` and
 //   Rust's `tempfile` remove theirs.
@@ -29,17 +46,22 @@
 //   namespace of the sweeper (an envelope has its own, bwrap --unshare-pid, where a number means
 //   nothing outside): a base of another namespace, a base without a readable owner (one being
 //   created) and a base whose owner lives are never touched.
+import { createHash } from 'node:crypto';
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
   readlinkSync,
   rmSync,
+  statSync,
+  utimesSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 // The prefix of a base's name, and the file of its owner.
 const PREFIXE = 'grillhouse-';
@@ -84,20 +106,31 @@ function espace() {
   }
 }
 
-// Whether the base <base> is an orphan: its owner reads, lives in this namespace, and is gone.
-function orpheline(base) {
-  let p;
+// The owner of the base <base>, or null when it does not read.
+function proprietaire(base) {
   try {
-    p = JSON.parse(readFileSync(path.join(base, PROPRIETAIRE), 'utf8'));
+    return JSON.parse(readFileSync(path.join(base, PROPRIETAIRE), 'utf8'));
   } catch {
-    return false;
+    return null;
   }
+}
+
+// Whether the base <base> is an orphan: its owner, a directory or a process, belongs to this
+// namespace of processes and is gone; a directory another namespace sees (an envelope's private
+// /tmp) or a process of another namespace is never judged here. A ticket's base goes with its
+// ticket (`balayerLesTickets`).
+function orpheline(base) {
+  const p = proprietaire(base);
   const ici = espace();
-  return ici !== null && p.espace === ici && Number.isInteger(p.pid) && !vivant(p.pid);
+  if (p === null || ici === null || p.espace !== ici) return false;
+  if (typeof p.racine === 'string') return !existsSync(p.racine);
+  return Number.isInteger(p.pid) && !vivant(p.pid);
 }
 
 // Removes every orphan base in <dans>.
-function balayer(dans) {
+// <vieilles> true (on the host): a base of a cache of a root untouched for AGE_DU_CACHE_MS goes too,
+// whatever namespace opened it.
+function balayer(dans, { vieilles = false } = {}) {
   let noms;
   try {
     noms = readdirSync(dans);
@@ -106,8 +139,34 @@ function balayer(dans) {
   }
   for (const nom of noms) {
     const base = path.join(dans, nom);
-    if (nom.startsWith(PREFIXE) && orpheline(base)) rmSync(base, { recursive: true, force: true });
+    if (nom.startsWith(PREFIXE) && (orpheline(base) || (vieilles && vieille(base))))
+      rmSync(base, { recursive: true, force: true });
   }
+}
+
+/** How long a cache of a root lives untouched: 7 days, as GitHub Actions keeps a cache unused. */
+export const AGE_DU_CACHE_MS = 7 * 24 * 3600 * 1000;
+
+// Whether <base> is a base of a cache of a root untouched (its directory's mtime) for
+// AGE_DU_CACHE_MS.
+function vieille(base) {
+  if (typeof proprietaire(base)?.racine !== 'string') return false;
+  try {
+    return Date.now() - statSync(base).mtimeMs > AGE_DU_CACHE_MS;
+  } catch {
+    return false;
+  }
+}
+
+// Whether <env> is an agent's envelope, where the home is read-only (scripts/enveloppe/).
+const enEnveloppe = env => Boolean(env.GRILLHOUSE_ENVELOPPE);
+
+// The sweep of the caches of the roots under <env> (`cacheDeLaRacine`, in each tool's directory of
+// the frame's caches), from the host only: the orphans and the old ones.
+function balayerLesCaches(env) {
+  if (enEnveloppe(env)) return;
+  const racine = path.dirname(cacheDeCompilation('-', env));
+  for (const outil of contenu(racine)) balayer(path.join(racine, outil), { vieilles: true });
 }
 
 // The variables that name the temporary directory: TMPDIR (POSIX, Node, Rust), TMP and TEMP
@@ -167,6 +226,7 @@ export function retirerALInterruption(retirer) {
  */
 export function ouvrirBase(genre, { dans = tmpdir() } = {}) {
   balayer(dans);
+  balayerLesCaches(process.env);
   mkdirSync(dans, { recursive: true });
   const base = mkdtempSync(path.join(dans, `${PREFIXE}${genre}-`));
   writeFileSync(
@@ -182,4 +242,137 @@ export function ouvrirBase(genre, { dans = tmpdir() } = {}) {
     restes: () => contenu(dossier),
     fermer: () => rmSync(base, { recursive: true, force: true }),
   };
+}
+
+// The prefix of the base of a ticket, and the form of a ticket's id.
+const DU_TICKET = `${PREFIXE}ticket-`;
+const ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+/**
+ * The base of the ticket <ticket> in <dans>: `<dans>/grillhouse-ticket-<ticket>/`, its owner the
+ * ticket, made when absent and the same at each call; the temporary directory of the agents of
+ * one ticket, kept from one session to the next, removed when it is closed (`balayerLesTickets`).
+ * @param {string} ticket the ticket's id
+ * @param {{ dans?: string }} options `dans`, the directory of the base (`os.tmpdir()`)
+ * @returns {{ base: string, dossier: string }} the base, and the directory its agents write in
+ */
+export function ouvrirBaseDuTicket(ticket, { dans = tmpdir() } = {}) {
+  if (!ID.test(ticket)) throw new Error(`⛔ « ${ticket} » n'est pas l'identifiant d'un ticket.`);
+  const base = path.join(dans, `${DU_TICKET}${ticket}`);
+  const dossier = path.join(base, 't');
+  mkdirSync(dossier, { recursive: true });
+  if (proprietaire(base) === null) {
+    writeFileSync(path.join(base, PROPRIETAIRE), `${JSON.stringify({ ticket })}\n`);
+  }
+  return { base, dossier };
+}
+
+/**
+ * Removes from <dans> the base of each ticket that is closed; the ids of the tickets whose base
+ * went. A ticket open, frozen or not, keeps its base, as a retention policy fixed in advance.
+ * <fermes> reads the closed tickets, null when they do not read: called once, and only when a
+ * ticket's base is there.
+ * @param {() => Set<string> | null} fermes
+ * @param {{ dans?: string }} options `dans`, the directory of the bases (`os.tmpdir()`)
+ * @returns {string[]}
+ */
+export function balayerLesTickets(fermes, { dans = tmpdir() } = {}) {
+  const tickets = contenu(dans)
+    .filter(n => n.startsWith(DU_TICKET))
+    .map(n => ({ base: path.join(dans, n), ticket: proprietaire(path.join(dans, n))?.ticket }))
+    .filter(b => typeof b.ticket === 'string');
+  if (tickets.length === 0) return [];
+  const clos = fermes();
+  if (clos === null) return [];
+  const retires = tickets.filter(b => clos.has(b.ticket));
+  for (const b of retires) rmSync(b.base, { recursive: true, force: true });
+  return retires.map(b => b.ticket);
+}
+
+/**
+ * The ticket whose base is the entry <nom> of the temporary directory, or null.
+ * @param {string} nom
+ */
+export function ticketDeLaBase(nom) {
+  return nom.startsWith(DU_TICKET) ? nom.slice(DU_TICKET.length) : null;
+}
+
+// Whether <chemin> lies in <dossier> or is it.
+const sous = (chemin, dossier) => {
+  const rel = path.relative(dossier, chemin);
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+};
+
+// The temporary directories under <env>: the one it names, the system's, and /tmp.
+const temporaires = env =>
+  [env.TMPDIR || env.TMP || env.TEMP, tmpdir(), '/tmp'].filter(Boolean).map(d => path.resolve(d));
+
+/**
+ * Whether <chemin> lies in a temporary directory under <env> (`TMPDIR`, `os.tmpdir()`, `/tmp`).
+ * @param {string} chemin
+ * @param {Record<string, string | undefined>} [env]
+ */
+export function dansLeTemporaire(chemin, env = process.env) {
+  return temporaires(env).some(t => sous(path.resolve(chemin), t));
+}
+
+/**
+ * The cache of compilation of <outil> under <env>: `${XDG_CACHE_HOME:-$HOME/.cache}/grillhouse/
+ * <outil>`, as the lock of the machine lives there (scripts/verrou-de-machine.mjs).
+ * @param {string} outil `sccache`, `uv`, `cargo`…
+ * @param {Record<string, string | undefined>} [env]
+ */
+export function cacheDeCompilation(outil, env = process.env) {
+  const cache = env.XDG_CACHE_HOME || path.join(env.HOME || homedir(), '.cache');
+  return path.join(path.resolve(cache), 'grillhouse', outil);
+}
+
+/**
+ * The cache of <outil> for the build rooted at <racine>: `<cacheDeCompilation(outil)>/
+ * grillhouse-<empreinte of racine>/`, its owner <racine> and the namespace of processes that
+ * opened it, made when absent; the caches of the roots that this namespace sees gone are swept
+ * first, and from the host the ones untouched for 7 days, whatever their namespace (`AGE_DU_CACHE_MS`,
+ * as GitHub Actions and cargo-sweep); each use renews its age. With `creer` false, its path alone, nothing made nor swept (a reading, `cargo metadata`).
+ * @param {string} outil
+ * @param {string} racine
+ * @param {Record<string, string | undefined>} [env]
+ */
+export function cacheDeLaRacine(outil, racine, env = process.env, { creer = true } = {}) {
+  const dans = cacheDeCompilation(outil, env);
+  const reelle = path.resolve(racine);
+  const empreinte = createHash('sha256').update(reelle).digest('hex').slice(0, 16);
+  const cache = path.join(dans, `${PREFIXE}${empreinte}`);
+  if (!creer) return cache;
+  if (enEnveloppe(env)) balayer(dans);
+  else balayerLesCaches(env);
+  mkdirSync(cache, { recursive: true });
+  // A use renews it: its age counts from the last.
+  const maintenant = new Date();
+  utimesSync(cache, maintenant, maintenant);
+  if (proprietaire(cache) === null) {
+    writeFileSync(
+      path.join(cache, PROPRIETAIRE),
+      `${JSON.stringify({ racine: reelle, espace: espace() })}\n`
+    );
+  }
+  return cache;
+}
+
+// `npx grillhouse temporaire <ticket>`: prints the directory of the ticket's agents.
+function commande(argv) {
+  if (argv.length !== 1 || argv[0].startsWith('-')) {
+    process.stderr.write('usage: npx grillhouse temporaire <ticket>\n');
+    return 2;
+  }
+  try {
+    process.stdout.write(`${ouvrirBaseDuTicket(argv[0]).dossier}\n`);
+    return 0;
+  } catch (e) {
+    process.stderr.write(`${e.message}\n`);
+    return 2;
+  }
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  process.exitCode = commande(process.argv.slice(2));
 }

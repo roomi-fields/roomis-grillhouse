@@ -30,6 +30,8 @@ describe('the environment of the session', () => {
     CLAUDE_CODE_SESSION_ID: 'session',
     GRILLHOUSE_ENVELOPPE: 'packages/x',
     TMPDIR: '/ailleurs',
+    TMP: '/ailleurs',
+    TEMP: '/ailleurs',
     npm_config_ignore_scripts: 'false',
   };
   const env = environnementDeLaSeance(lancement, {
@@ -57,11 +59,14 @@ describe('the environment of the session', () => {
       NODE_EXTRA_CA_CERTS: '/etc/ca.pem',
     });
   });
+  // grillhouse-xv9, critère 1: the session's temporary directory, by each variable that names one.
   it('sets the npm cache it mounts, no lifecycle script, its working directory and its plan', () => {
     expect(env).toMatchObject({
       npm_config_cache: '/h/.npm',
       npm_config_ignore_scripts: 'true',
       TMPDIR: '/tmp/claude-1/-wt/travail',
+      TMP: '/tmp/claude-1/-wt/travail',
+      TEMP: '/tmp/claude-1/-wt/travail',
       GRILLHOUSE_ENVELOPPE: 'packages/a',
     });
   });
@@ -81,6 +86,8 @@ describe('the environment of the session', () => {
         'npm_config_cache',
         'npm_config_ignore_scripts',
         'TMPDIR',
+        'TMP',
+        'TEMP',
         'GRILLHOUSE_ENVELOPPE',
       ].sort()
     );

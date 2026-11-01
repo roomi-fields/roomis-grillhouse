@@ -142,7 +142,7 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   dépendances git, ses avis de sécurité et les fichiers de ses verrous et du cache de ses paquets
   écrits ; `~/.cargo/` (son `env`, que les shells sourcent, sa configuration, ses binaires) et
   `~/.rustup/` lus ; `python` : `.venv/` et `.pytest_cache/`, où ses commandes font écrire uv et pytest pour chaque
-  paquet, et `~/.cache/uv/` écrits,
+  paquet, et `~/.cache/grillhouse/uv/` écrits,
   `__pycache__` propre (le code-octet de Python, sous un seul arbre à la racine), les Python de uv,
   `~/.local/share/uv/python/`, lus.
 - `droits` : les règles de Claude Code qui refusent à un rôle qui écrit l'outil de test lancé
@@ -235,7 +235,16 @@ qu'il emploie, et `scripts/jointure.d.ts` les type : le plan d'une enveloppe, l'
 passe et sa mesure, la base d'une passe (son dossier temporaire, nommé dans `TMPDIR`, `TMP` et
 `TEMP` ; la ligne de sa garde, qui nomme ce que les tests y laissent ; son retrait à
 l'interruption), la pression de la machine et son verrou, le dernier vert,
-les arbitrages d'un ticket, les fichiers sources d'un projet. Un module n'importe rien d'autre du noyau que ses entrées publiées
+les arbitrages d'un ticket, les fichiers sources d'un projet. Pour le dossier temporaire et les
+caches de compilation : `dansLeTemporaire(chemin, env)`, si un chemin est sous le dossier
+temporaire (`TMPDIR`, celui du système, `/tmp`) ; `cacheDeCompilation(outil, env)`, le cache d'un
+outil sous `${XDG_CACHE_HOME:-~/.cache}/grillhouse/<outil>`, jamais sous le dossier temporaire ;
+`cacheDeLaRacine(outil, racine, env, { creer })`, le cache d'une construction enracinée sous le
+dossier temporaire, balayé quand sa racine n'est plus, vue du même espace de processus, ou depuis l'hôte
+après 7 jours sans usage, son seul
+chemin quand `creer` est faux ;
+`attendreDeLaPlace(options)`, l'attente de 4 Go libres dans le dossier temporaire avant une passe
+lourde, qui nomme ce qui l'occupe et rend 75 à sa borne. Un module n'importe rien d'autre du noyau que ses entrées publiées
 (`./jointure`, `./paquets`, `./dette`, `./resultats`, `./conformite`).
 
 ## La conformité

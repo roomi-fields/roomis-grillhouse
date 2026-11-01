@@ -49,8 +49,9 @@
 //   sudo's env_reset and bwrap's --clearenv give it: the base of a login session, claude's own
 //   configuration and credentials (`ANTHROPIC_*`, `CLAUDE_CODE_OAUTH_TOKEN`), the author of its
 //   comments at the ticket (`BEADS_ACTOR`, which bd reads), the npm cache it
-//   mounts, `npm_config_ignore_scripts=true`, and `TMPDIR`, the session's working directory, where
-//   `mktemp` and `os.tmpdir()` write. With it npm runs no lifecycle script (`npm install` leaves the
+//   mounts, `npm_config_ignore_scripts=true`, and `TMPDIR`, `TMP` and `TEMP`, the session's working
+//   directory, where `mktemp`, `os.tmpdir()` and Python's `tempfile` write: under a launch, in the
+//   temporary directory of the ticket (scripts/enveloppe/lancer.sh), which goes with the ticket. With it npm runs no lifecycle script (`npm install` leaves the
 //   `prepare` that writes under the read-only `.git`; the launcher installs outside the session),
 //   while `npm test` and `npm run <script>` still run their script, without its `pre` or `post`
 //   (npm's `ignore-scripts`, docs/content/using-npm/config.md); no script of the frame has one. bwrap
@@ -221,7 +222,7 @@ function scratchpadsDe(copie, env = process.env) {
 
 // The working directory of a session in <copie> under the environment <env> of the launch:
 // `travail` in the copy's scratchpads, which the envelope mounts in writing. The envelope creates
-// it and names it in `TMPDIR`; the launcher names it in the instruction.
+// it and names it in `TMPDIR`, `TMP` and `TEMP`; the launcher names it in the instruction.
 export function dossierDeTravail(copie, env = process.env) {
   return path.join(scratchpadsDe(copie, env), 'travail');
 }
@@ -230,8 +231,8 @@ export function dossierDeTravail(copie, env = process.env) {
 // variables and families that <env> holds, `npm_config_cache` set to the npm cache that the
 // envelope mounts in writing, `npm_config_ignore_scripts` set to `true` (npm runs no lifecycle
 // script: a `prepare` that writes under the read-only `.git` would fail `npm install`; the
-// launcher installs outside the session), `TMPDIR` set to the session's working directory
-// <travail>, and `GRILLHOUSE_ENVELOPPE` set to the plan <paquets>; with them, each tool of the
+// launcher installs outside the session), `TMPDIR`, `TMP` and `TEMP` set to the session's working
+// directory <travail>, and `GRILLHOUSE_ENVELOPPE` set to the plan <paquets>; with them, each tool of the
 // project <outils> (`grillhouse.outils`), its variable set to its path. Nothing else of <env>
 // enters.
 export function environnementDeLaSeance(env, { cacheNpm, paquets, travail, outils = {} }) {
@@ -246,6 +247,8 @@ export function environnementDeLaSeance(env, { cacheNpm, paquets, travail, outil
     npm_config_cache: cacheNpm,
     npm_config_ignore_scripts: 'true',
     TMPDIR: travail,
+    TMP: travail,
+    TEMP: travail,
     [VARIABLE]: ecrireLaListe(paquets),
   };
 }

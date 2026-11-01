@@ -43,7 +43,8 @@
 //   environment of each package under `.venv/<dossier>` at the root (UV_PROJECT_ENVIRONMENT), and
 //   pytest its cache under `.pytest_cache/<dossier>` (`cache_dir`), where the envelope opens them
 //   in writing, rather than in the package's folder, which a session whose plan does not write the
-//   package could not write.
+//   package could not write; uv its cache under ~/.cache/grillhouse/uv (UV_CACHE_DIR), the frame's
+//   caches of compilation, never in the temporary directory.
 // - While the environment names a results directory (`GRILLHOUSE_RESULTATS`), the run writes
 //   there what ./verdict.mjs reads: its tasks, each planned before it plays, and the JUnit report
 //   of each run of pytest.
@@ -59,6 +60,7 @@ import { RESULTATS } from '../../resultats.mjs';
 import {
   AttenteDeLaMachine,
   avecLaMachine,
+  cacheDeCompilation,
   CHANGEMENTS,
   DEPUIS_LE_VERT,
   garderLeVert,
@@ -113,7 +115,12 @@ function passe(racine, env) {
   const id = `${Date.now()}-${process.pid}`;
   const taches = [];
   const rapports = {};
-  const environnement = { ...env, PYTHONPYCACHEPREFIX: path.join(racine, PYCACHE) };
+  // uv keeps its cache with the frame's caches of compilation, out of the temporary directory.
+  const environnement = {
+    ...env,
+    PYTHONPYCACHEPREFIX: path.join(racine, PYCACHE),
+    UV_CACHE_DIR: cacheDeCompilation('uv', env),
+  };
   const ecrire = () => {
     if (!dossier) {
       return;

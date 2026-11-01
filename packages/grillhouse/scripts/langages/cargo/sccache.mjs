@@ -2,8 +2,14 @@
 // (`RUSTC_WRAPPER=sccache`) that Firefox and the CI of Rust use, which the update installs
 // (./binaires.json). Each copy keeps its own target directory, so that two compilations never wait
 // on the lock cargo takes on a target directory; sccache shares their compilations, its cache one
-// directory of the home (`SCCACHE_DIR`, ~/.cache/sccache, sccache's default on Linux, named so
-// that the envelope opens the same, ./index.mjs `sorties`), common to every copy of the machine.
+// directory of the home (`SCCACHE_DIR`, ~/.cache/grillhouse/sccache, the frame's caches of
+// compilation, `cacheDeCompilation` of scripts/mesure/base-de-passe.mjs, named so that the envelope
+// opens the same, ./index.mjs `sorties`), common to every copy of the machine.
+// - A workspace rooted in the temporary directory (a project of trial) builds out of it: its
+//   target directory is `CARGO_TARGET_DIR`, a cache of the root under ~/.cache/grillhouse/cargo/
+//   (`cacheDeLaRacine`), swept once the root is gone, as Bazel keeps its output_base under
+//   ~/.cache and never on a disk in memory; a `CARGO_TARGET_DIR` already set stays
+//   (`cibleDeCompilation`).
 // Every command of the module that compiles (tests, verification, typing, clippy) runs cargo
 // under this environment, in a copy as in an agent's envelope.
 //
@@ -37,12 +43,17 @@ import { accessSync, constants, readFileSync, readlinkSync, realpathSync } from 
 import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import path from 'node:path';
+import { cacheDeCompilation, cacheDeLaRacine, dansLeTemporaire } from '../../services-du-noyau.mjs';
 
 // The loader of smol-toml, an optional peer of the package, a tool of this module.
 const require = createRequire(import.meta.url);
 
 /** The cache of sccache, from the home: what the envelope opens in writing. */
-export const CACHE = '~/.cache/sccache/';
+export const CACHE = '~/.cache/grillhouse/sccache/';
+
+/** The targets of the workspaces rooted in the temporary directory, from the home: what the
+ * envelope opens in writing (`cibleDeCompilation`). */
+export const CIBLES = '~/.cache/grillhouse/cargo/';
 
 // The machine's temporary directory, short whatever the copy: the one the server of sccache starts
 // under (`demarrerLeServeur`), an empty one proper to the session in an envelope.
@@ -153,20 +164,40 @@ export function demarrerLeServeur(racine, env) {
 }
 
 /**
+ * The target directory of the workspace at <racine> under <env>, out of the temporary directory:
+ * `{ CARGO_TARGET_DIR }`, a cache of the root (`cacheDeLaRacine`), for a root in the temporary
+ * directory; nothing otherwise, or when <env> sets one already. With `creer` false, a reading
+ * (`cargo metadata`): the path alone, nothing written.
+ * @param {string} racine
+ * @param {NodeJS.ProcessEnv} env
+ * @param {{ creer?: boolean }} [options]
+ * @returns {{ CARGO_TARGET_DIR?: string }}
+ */
+export function cibleDeCompilation(racine, env, { creer = true } = {}) {
+  if (env.CARGO_TARGET_DIR || !dansLeTemporaire(racine, env)) {
+    return {};
+  }
+  return { CARGO_TARGET_DIR: cacheDeLaRacine('cargo', racine, env, { creer }) };
+}
+
+/**
  * <env> with rustc wrapped by sccache for the copy at <racine>, its cache the home's, its server
- * the copy's; <env> as it is when the project sets its own wrapper.
+ * the copy's, its target out of the temporary directory (`cibleDeCompilation`); without sccache
+ * when the project sets its own wrapper.
  * @param {string} racine
  * @param {NodeJS.ProcessEnv} env
  * @returns {NodeJS.ProcessEnv}
  */
 export function avecSccache(racine, env) {
+  const cible = cibleDeCompilation(racine, env);
   if (lanceurDuProjet(racine, env)) {
-    return env;
+    return { ...env, ...cible };
   }
   return {
     ...env,
+    ...cible,
     RUSTC_WRAPPER: 'sccache',
-    SCCACHE_DIR: path.join(env.HOME || homedir(), '.cache', 'sccache'),
+    SCCACHE_DIR: cacheDeCompilation('sccache', env),
     SCCACHE_SERVER_UDS: socketDuServeur(racine),
   };
 }
