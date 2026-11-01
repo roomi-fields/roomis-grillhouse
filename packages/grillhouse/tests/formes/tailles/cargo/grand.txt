@@ -1,0 +1,10 @@
+use std::process::Command;
+use tempfile::TempDir;
+
+#[test]
+fn bout() {
+    let d = TempDir::new().unwrap();
+    Command::new("git").args(["init", "-q"]).current_dir(d.path()).status().unwrap();
+    let s = Command::new(env!("CARGO_BIN_EXE_app")).current_dir(d.path()).status().unwrap();
+    assert!(s.success());
+}

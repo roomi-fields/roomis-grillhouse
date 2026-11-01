@@ -1,0 +1,10 @@
+use std::process::Command;
+use tempfile::TempDir;
+
+#[test]
+fn depot() {
+    let d = TempDir::new().unwrap();
+    Command::new("git").args(["init", "-q"]).current_dir(d.path()).status().unwrap();
+    Command::new("git").args(["worktree", "add", "copie"]).current_dir(d.path()).status().unwrap();
+    assert!(app::lire(d.path()).is_ok());
+}

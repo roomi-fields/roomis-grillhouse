@@ -1,0 +1,9 @@
+use xshell::{cmd, Shell};
+
+#[test]
+fn bout() -> xshell::Result<()> {
+    let sh = Shell::new()?;
+    cmd!(sh, "git clone ../modele copie").run()?;
+    cmd!(sh, "cargo run -- copie").run()?;
+    Ok(())
+}

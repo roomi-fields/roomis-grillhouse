@@ -8,10 +8,11 @@
 //   node commandes.mjs typer                                    typer
 //   npx grillhouse preparer                                     preparer
 //   npx grillhouse tests-de-nuit                                tests-de-nuit
-//   npx grillhouse clippy | frontieres | index-interfaces       each guard, its own script
+//   npx grillhouse tailles-des-tests | clippy | frontieres | index-interfaces
+//                                                               each guard, its own script
 //
-// - Each guard of structure of the module (./clippy.mjs, ./frontieres.mjs, ./index-interfaces.mjs)
-//   is a command by its name too, its own script, as the module typescript's: the line of a red
+// - Each guard of structure of the module (./tailles-des-tests.mjs, ./clippy.mjs,
+//   ./frontieres.mjs, ./index-interfaces.mjs) is a command by its name too, its own script, as the module typescript's: the line of a red
 //   guard (`grillhouse <garde>`, scripts/gardes-du-cadre.mjs) names a command that exists.
 // - `tester` plays the tests of each crate chosen, one crate after the other. For a crate that
 //   plays tests (./composants.mjs, `joueDesTests`): the build of its test targets, `cargo test
@@ -158,6 +159,7 @@ const COMPILATIONS = ['test', 'nextest', 'check'];
 /** The guards of structure of the module, in the order they play: each its name, its script beside
  * this one, and its arguments as a guard. */
 export const GARDES = [
+  { nom: 'tailles-des-tests', args: [] },
   { nom: 'clippy', args: [] },
   { nom: 'frontieres', args: [] },
   { nom: 'index-interfaces', args: ['--verifier'] },

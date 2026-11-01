@@ -1,0 +1,7 @@
+use std::process::Command;
+
+#[test]
+fn aide() {
+    let s = Command::new(env!("CARGO_BIN_EXE_app")).arg("--help").output().unwrap();
+    assert!(s.status.success());
+}

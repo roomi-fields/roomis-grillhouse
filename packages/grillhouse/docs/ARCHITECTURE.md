@@ -512,7 +512,14 @@ importe, par un chemin relatif ou par le nom d'un paquet de la matière partagé
 autre chose que git ; moyen, il lance un processus ou importe plusieurs modules du dépôt ;
 petit, sinon. Un grand test de jour est un constat (`grand-de-jour`), un test de nuit ou un banc
 jamais ; les grands tests de jour d'un projet s'inscrivent dans sa dette à la mise à jour qui
-apporte la garde (`npx grillhouse maj`, migration 0.25.0), sans qu'un test se réécrive. Un grand
+apporte la garde (`npx grillhouse maj`, migration 0.25.0), sans qu'un test se réécrive. Chaque
+module de langage porte la sienne sous la même commande, chacune sa part de la dette : le module
+python lit un test et ses `conftest.py` ; le module cargo lit chaque cible de test et chaque
+fichier de tests unitaires d'un crate, les modules qu'il déclare (`mod common;`) et les crates de
+la matière partagée qu'il nomme, un processus étant `std::process`, `assert_cmd`, `duct` ou
+`xshell`, un dépôt d'essai celui de git ou de git2 (`Repository::init`), et un test de nuit ou un
+banc jamais un constat ; les grands tests de jour d'un projet de cargo s'inscrivent à la
+migration 0.28.4. Un grand
 test de jour qui ne vérifie qu'un module en sort ainsi : ses cas se réécrivent en petits tests par
 l'interface du module (le plan de l'enveloppe, les options qu'un greffon laisse à Vitest, la
 configuration du jour et celle de la nuit, la fonction qui lit l'avancement), le module recevant
@@ -729,7 +736,7 @@ et que l'enveloppe ouvre en écriture : chaque copie garde son `target/`, sans l
 pose sur un dossier commun, et ne recompile pas ce qu’une autre a compilé ; un serveur de sccache par copie et par espace de processus (`/proc/self/ns/pid`, que chaque enveloppe crée), sur un socket unix abstrait nommé d'après eux (`SCCACHE_SERVER_UDS`), puisque le serveur par défaut écoute 127.0.0.1:4226 pour toute la machine et que l'enveloppe partage le réseau ; ce serveur démarre avant chaque lancement de cargo qui compile, sous `/tmp` (celui de la machine, ou dans une enveloppe celui, vide, de la séance), car sccache 0.19.0 démarre le sien par un socket au chemin sous TMPDIR, refusé au-delà des 108 octets d'un chemin de socket, et le dossier temporaire d'une passe sous le dossier de travail d'une séance les dépasse ; un lanceur de rustc que le projet pose reste le sien, sans sccache, lu comme cargo le lit (l'environnement, puis `build.rustc-wrapper` des `.cargo/config.toml` du projet vers la racine, puis de `$CARGO_HOME`) ; sans sccache sur le PATH, ces commandes refusent avant cargo, en une ligne qui nomme `npx grillhouse maj` ; le refus, avant tout lancement de cargo, d'un espace dont git ne
 suit pas le Cargo.lock, comme `npm ci` refuse un projet sans package-lock.json : les tests, la
 vérification et la préparation le nomment en une ligne avec son geste (`git add Cargo.lock`), et
-`maj` le laisse au projet (`aFaire` de sa part), sans jouer la vérification ; ses gardes, clippy, les frontières entre crates contre la liste
+`maj` le laisse au projet (`aFaire` de sa part), sans jouer la vérification ; ses gardes, la taille des tests, clippy, les frontières entre crates contre la liste
 permise du manifeste de l'espace de travail, `[workspace.metadata.grillhouse.frontieres]`, comme
 les `depConstraints` de Nx, et l'index des interfaces, qu'il engendre, chacune aussi une
 commande de son nom, que la ligne d'une garde rouge nomme), ses

@@ -99,6 +99,7 @@ describe('grillhouse-pkl.3, critère 7 — les commandes du module cargo', () =>
       'typer',
       'preparer',
       'tests-de-nuit',
+      'tailles-des-tests',
       'clippy',
       'frontieres',
       'index-interfaces',
@@ -115,7 +116,7 @@ describe('grillhouse-pkl.3, critère 7 — les commandes du module cargo', () =>
   it('each guard of the module is a command by its script’s name, so the line of a red guard names a command that exists', () => {
     const c = cargo.commandes(d.espace);
     const gardes = cargo.gardes(d.espace);
-    expect(gardes.length).toBe(3);
+    expect(gardes.length).toBe(4);
     for (const [script] of gardes) {
       const nom = path.basename(script).replace(/\.[cm]?js$/, '');
       expect(c[nom], nom).toEqual({ script, args: [] });

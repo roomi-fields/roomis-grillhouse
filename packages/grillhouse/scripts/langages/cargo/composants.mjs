@@ -130,7 +130,7 @@ export const matieres = racine =>
 // Whether <parts>, a path from the folder of a crate split, is a unit test file under its `src/`:
 // a file `tests.rs`, or a file of a folder `tests/`.
 // `src/bin/tests.rs` and `src/bin/tests/` are a binary target for cargo, its code.
-const unitaire = parts =>
+export const unitaire = parts =>
   parts[0] === 'src' &&
   parts.length > 1 &&
   !(parts[1] === 'bin' && ['tests.rs', 'tests'].includes(parts[2])) &&

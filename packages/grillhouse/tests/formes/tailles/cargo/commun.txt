@@ -1,0 +1,7 @@
+use std::path::Path;
+use std::process::Command;
+
+pub fn monter(d: &Path) {
+    Command::new("git").arg("init").current_dir(d).status().unwrap();
+    Command::new(env!("CARGO_BIN_EXE_app")).current_dir(d).status().unwrap();
+}

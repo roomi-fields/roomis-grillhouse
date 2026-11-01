@@ -348,7 +348,7 @@ export default {
         invalide: enRetard,
         attendu: ["l'index des interfaces : en retard"],
       },
-      gardes: { valide: ['clippy', 'frontieres', 'index-interfaces'] },
+      gardes: { valide: ['tailles-des-tests', 'clippy', 'frontieres', 'index-interfaces'] },
       elementsDuLot: {
         valide: { racine: aJour, avant: 'HEAD', apres: 'HEAD' },
         invalide: { racine: lot, avant: avantLeLot, apres: 'HEAD' },

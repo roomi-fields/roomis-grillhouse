@@ -147,10 +147,12 @@
     "scripts/langages/cargo/frontieres.mjs",
     "scripts/langages/cargo/index-interfaces.mjs",
     "scripts/langages/cargo/index.mjs",
+    "scripts/langages/cargo/migrations/0.28.4-tailles-des-tests.mjs",
     "scripts/langages/cargo/mise-a-jour.mjs",
     "scripts/langages/cargo/nextest.toml",
     "scripts/langages/cargo/sccache.mjs",
     "scripts/langages/cargo/squelette.mjs",
+    "scripts/langages/cargo/tailles-des-tests.mjs",
     "scripts/langages/cargo/touches.mjs",
     "scripts/langages/cargo/verdict.mjs"
   ],
