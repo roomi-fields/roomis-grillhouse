@@ -293,7 +293,7 @@ test('critères 1 et 2 : the pane draws the board of several projects line by li
   expect(vu[n]).toMatch(/^── /)
   // Each ticket's line is a button, the ring chooses it as on one board.
   const cles = (await ui.findAll({ type: 'Button' })).map(b => b.key)
-  expect(cles).toEqual(expect.arrayContaining(['SH-13y.6:7', 'P-k2:9', 'SH-a:11', 'SH-k9:12']))
+  expect(cles).toEqual(expect.arrayContaining(['SH-13y.6:0', 'P-k2:0', 'SH-a:0', 'SH-k9:0']))
   await ui.unmount()
 })
 

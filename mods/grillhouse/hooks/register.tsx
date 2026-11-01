@@ -60,6 +60,7 @@ const etat = atom({ plugin: 'grillhouse', key: 'etat' } as const, {
   tableau: null,
   erreur: null,
   lu: 0,
+  revision: 0,
   choisi: null,
   element: null,
   grand: false,
@@ -135,10 +136,38 @@ export const defiler = (avant: number, by: number, n: number, rangs: number) =>
 // A line the pane lists, the key of its Button and `i`, its index in the lines shown.
 export type Visible = { l: Ligne; cle: string | null; i: number }
 
-// The lines the pane lists, each with the key of its Button: `<ticket>:<i>` for a ticket's line,
-// `>:<i>` for a folded group's title, none for a plain line.
+// The lines the pane lists, each with the key of its Button: `<ticket>:<n>` for the n-th line of a
+// ticket (from 0), `>:<groupe>` for a folded group's title, none for a plain line. A key names its
+// line by what it shows, never by its place, as React's keys do: a new measure that adds lines
+// above keeps the key the ring holds.
 export function visibles(lignes: Ligne[]): Visible[] {
-  return lignes.map((l, i) => ({ l, cle: l.ticket ? `${l.ticket}:${i}` : l.groupe ? `>:${i}` : null, i }))
+  const vus = new Map<string, number>()
+  return lignes.map((l, i) => {
+    if (l.ticket) {
+      const n = vus.get(l.ticket) ?? 0
+      vus.set(l.ticket, n + 1)
+      return { l, cle: `${l.ticket}:${n}`, i }
+    }
+    return { l, cle: l.groupe ? `>:${l.groupe}` : null, i }
+  })
+}
+
+// A computation kept from its last inputs, as React's useMemo keeps it from its dependencies:
+// called with the same dependencies (each the same value; by default every argument), it gives
+// the last result again without computing it.
+export function memoire<A extends unknown[], R>(
+  calcul: (...a: A) => R,
+  dependances: (...a: A) => unknown[] = (...a) => a,
+): (...a: A) => R {
+  let dernier: { d: unknown[]; r: R } | null = null
+  return (...a: A) => {
+    const d = dependances(...a)
+    const avant = dernier
+    if (avant && avant.d.length === d.length && d.every((x, j) => Object.is(x, avant.d[j]))) return avant.r
+    const r = calcul(...a)
+    dernier = { d, r }
+    return r
+  }
 }
 
 // The first of `n` lines to show in `rangs` rows: the window stays where it was (`avant`) while the
@@ -226,31 +255,55 @@ let cwd = ''
 let projet = false
 let eligible = false
 let actif = false
-// The pane's window: its first line, the element it last followed, and the rows and focus it was
-// last drawn with. The wheel moves it; the ring moving to another line makes it follow.
+// The pane's window: its first line, the element it last followed and that element's line, and
+// the wheel's notches not drawn yet. The wheel moves it; the ring moving to another line makes it
+// follow.
 let fenetre = 0
 let suivi: string | null = null
-let cadre = { rangs: 1, focus: false }
+let ligneSuivie = -1
+let crans: number[] = []
 // The whole card's window: the first row of its text shown, and, while it is drawn, the text's
 // rows and the rows it shows them in.
 let ligneTexte = 0
 let texteDessine: { n: number; rangs: number } | null = null
+// The lines the pane lists, kept until the board or the view changes.
+const listeDe = memoire(
+  (s: Etat) => visibles(lignesDe(s)),
+  s => [s.revision, s.vue, s.groupe],
+)
+// The cards the pane has drawn, by their key, kept until the board, the width or the surface's
+// elements change.
+const cartesGardees = memoire(
+  (_revision: number, _colonnes: number, _elements: unknown) => new Map<string, JSX.Element>(),
+)
 
-// The lines the window runs over, every line of the board, the window placed on them: when the
-// ring has moved to another line since the window last followed it, the window follows it
-// (`debut`); it stays within the lines.
-function placer(s: Etat, rangs: number, focus: boolean): Visible[] {
-  const liste = visibles(lignesDe(s))
-  const ici = liste.findIndex(x => x.cle === s.element)
-  if (focus && ici >= 0 && s.element !== suivi) {
+// The lines the window runs over, every line of the board, the window placed on them. A board
+// measured again keeps the followed line on its row, as a browser's scroll anchoring keeps the
+// line in view where it was. When the ring has moved to another line since the window last
+// followed it, the window follows it (`debut`). Then the wheel's notches move it, one by one,
+// each within the lines.
+function placer(liste: Visible[], element: string | null, rangs: number, focus: boolean): void {
+  const ici = liste.findIndex(x => x.cle === element)
+  if (focus && ici >= 0 && element === suivi && ligneSuivie >= 0) fenetre += ici - ligneSuivie
+  if (focus && ici >= 0 && element !== suivi) {
     // The ring's next stops: the nearest lines with a button, above and below.
     const avant = liste.slice(0, ici).findLastIndex(x => x.cle)
     const apres = liste.findIndex((x, j) => j > ici && x.cle)
     fenetre = debut(liste.length, ici, rangs, fenetre, avant < 0 ? ici - 1 : avant, apres < 0 ? ici + 1 : apres)
-    suivi = s.element
+    suivi = element
   }
+  ligneSuivie = ici
   fenetre = Math.max(0, Math.min(fenetre, liste.length - rangs))
-  return liste
+  for (const by of crans) fenetre = Math.max(0, Math.min(fenetre + by, liste.length - rangs))
+  crans = []
+}
+
+// Another view starts its window over: at its first line, following nothing, no notch kept.
+function recommencer(): void {
+  fenetre = 0
+  suivi = null
+  ligneSuivie = -1
+  crans = []
 }
 
 // Measures the board again and redraws the pane.
@@ -309,7 +362,7 @@ async function mesurer($: EngineInterface) {
     await update($, etat, s => ({ ...s, erreur: `Tableau illisible : ${(err as Error).message}`.slice(0, 300) }))
     return
   }
-  await update($, etat, s => ({ ...s, tableau, erreur: null, lu: Date.now() }))
+  await update($, etat, s => ({ ...s, tableau, erreur: null, lu: Date.now(), revision: (s.revision || 0) + 1 }))
 }
 
 // The folder of the project the ticket <id> belongs to, which the board names beside the
@@ -461,9 +514,10 @@ export const register: Register = on => {
     return r
   })
 
-  // The pane draws its own rows: the wheel moves its window by `e.by` rows, within its lines, and
-  // draws it again. On the whole card, the wheel, the arrows and the page keys move its text by
-  // `e.by` rows, and the engine's window is held on the row under the card's spare top row, so an
+  // The pane draws its own rows: each notch of the wheel is kept, and the next render moves the
+  // window by every notch kept, one by one within its lines, as a browser folds the scroll events
+  // of one frame into one paint: a notch reads nothing and computes nothing. On the whole card,
+  // the wheel, the arrows and the page keys move its text by `e.by` rows, and the engine's window is held on the row under the card's spare top row, so an
   // arrow up scrolls as an arrow down does, wherever the text stands.
   on('ui.scroll', async ($, e, next) => {
     if (e.requestId !== PANE) return next(e)
@@ -472,8 +526,7 @@ export const register: Register = on => {
       $.ui.invalidate('ui.render')
       return next({ ...e, offset: 1 })
     }
-    const liste = placer(await read($, etat), cadre.rangs, cadre.focus)
-    fenetre = Math.max(0, Math.min(fenetre + e.by, liste.length - cadre.rangs))
+    crans.push(e.by)
     $.ui.invalidate('ui.render')
     return {}
   })
@@ -488,8 +541,8 @@ export const register: Register = on => {
     const montre = e.props.isFocused ? choisi : (t.dernier ?? choisi)
     const fiche = montre ? t.fiches[montre] : undefined
     const rangs = Math.max(1, e.props.scroll.bodyRows - FICHE - 1)
-    cadre = { rangs, focus: e.props.isFocused }
-    const liste = placer(s, rangs, e.props.isFocused)
+    const liste = listeDe(s)
+    placer(liste, element, rangs, e.props.isFocused)
     const ici = liste.findIndex(x => x.cle === element)
     // The chantier the keyboard is on, which `h` switches on or off.
     const chantier = ici >= 0 && liste[ici]?.l.chantier ? liste[ici]?.l.ticket : undefined
@@ -506,8 +559,7 @@ export const register: Register = on => {
             plain
             hotkey="e"
             onPress={() => {
-              fenetre = 0
-              suivi = null
+              recommencer()
               void update($, etat, basculerVue)
             }}
           >
@@ -519,8 +571,7 @@ export const register: Register = on => {
               plain
               hotkey="o"
               onPress={() => {
-                fenetre = 0
-                suivi = null
+                recommencer()
                 void update($, etat, x => ouvrirGroupe(x, groupe))
               }}
             >
@@ -592,8 +643,18 @@ export const register: Register = on => {
       )
     }
     const premier = fenetre
+    const montrees = liste.slice(premier, premier + rangs)
     // A card fills the pane's last rows: the whole title on as many lines as it takes, then the
-    // component, state, duration and tokens, then the description in the rows left.
+    // component, state, duration and tokens, then the description in the rows left. Each card is
+    // drawn once for a board, a width and a surface, and kept.
+    const gardees = cartesGardees(s.revision, colonnes, Box)
+    const garder = (cle: string, dessin: () => JSX.Element) => {
+      const deja = gardees.get(cle)
+      if (deja) return deja
+      const neuf = dessin()
+      gardees.set(cle, neuf)
+      return neuf
+    }
     const carte = (f: Fiche | undefined) => {
       const [titre, etatDuTicket, resume] = ficheLignes(f)
       return (
@@ -621,7 +682,7 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column" height={e.props.scroll.bodyRows}>
         <Box flexDirection="column" flexGrow={1} overflow="hidden">
-          {liste.slice(premier, premier + rangs).map(({ l, cle }) => {
+          {montrees.map(({ l, cle }) => {
             const texte = (
               <Text bold={l.ton === 'titre'} dimColor={l.ton === 'discret'} color={couleur(l.ton)} wrap="truncate-end">
                 {l.texte || ' '}
@@ -652,21 +713,27 @@ export const register: Register = on => {
         </Box>
         {regle('tout le texte')}
         <Box flexDirection="column" height={FICHE} flexShrink={0}>
-          {carte(fiche)}
-          {Object.entries(t.fiches).map(([id, f]) => (
+          {garder(`carte:${montre ?? ''}`, () => carte(fiche))}
+          {[...new Set(montrees.map(x => x.l.ticket))].map(id => {
+            const f = id ? t.fiches[id] : undefined
             // The card of the ticket under the pointer, drawn over the chosen one on a blank of its
-            // size, so no character of the chosen card shows through.
-            <Box position="absolute" top={0} left={0} display="none" hover={{ scope: id, display: 'flex' }}>
-              <Box flexDirection="column">
-                {Array.from({ length: FICHE }, () => (
-                  <Text>{' '.repeat(colonnes)}</Text>
-                ))}
-              </Box>
-              <Box position="absolute" top={0} left={0}>
-                {carte(f)}
-              </Box>
-            </Box>
-          ))}
+            // size, so no character of the chosen card shows through: one for each ticket of the
+            // lines in the window, the only ones the pointer can be over.
+            return id && f
+              ? garder(`survol:${id}`, () => (
+                  <Box position="absolute" top={0} left={0} display="none" hover={{ scope: id, display: 'flex' }}>
+                    <Box flexDirection="column">
+                      {Array.from({ length: FICHE }, () => (
+                        <Text>{' '.repeat(colonnes)}</Text>
+                      ))}
+                    </Box>
+                    <Box position="absolute" top={0} left={0}>
+                      {carte(f)}
+                    </Box>
+                  </Box>
+                ))
+              : null
+          })}
         </Box>
       </Box>
     )

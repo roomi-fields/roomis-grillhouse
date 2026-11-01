@@ -58,7 +58,7 @@ test('the pane draws each ticket line as a button, and a hidden card per ticket 
       view: {} as never,
     },
   })
-  expect((await ui.findAll({ type: 'Button' })).map(b => b.key)).toEqual(['c.1.1:1', 'c.2:2', 'e'])
+  expect((await ui.findAll({ type: 'Button' })).map(b => b.key)).toEqual(['c.1.1:0', 'c.2:0', 'e'])
   expect(JSON.stringify(await ui.drawn())).toContain(' '.repeat(50))
   await ui.unmount()
 })
@@ -149,7 +149,7 @@ async function monter($: never, on: never) {
 
 test('g makes the card show the whole text, and g again brings it back', async ($, on) => {
   const ui = await monter($ as never, on as never)
-  await $.ui.press({ plugin: 'grillhouse', key: 'c.2:1' })
+  await $.ui.press({ plugin: 'grillhouse', key: 'c.2:0' })
   expect(JSON.stringify(await ui.drawn())).not.toContain('Le texte entier du ticket')
   await $.ui.press({ plugin: 'grillhouse', key: 'g' })
   expect(JSON.stringify(await ui.drawn())).toContain('Le texte entier du ticket')
@@ -197,7 +197,7 @@ test('3uv.24 critère 5 : h on the chosen chantier switches its status and measu
   const appels: string[][] = []
   const ui = await monterChantiers($ as never, on as never, appels)
   const avant = appels.filter(a => a[1] === 'tableau').length
-  await $.ui.press({ plugin: 'grillhouse', key: 'demo-a:1' })
+  await $.ui.press({ plugin: 'grillhouse', key: 'demo-a:0' })
   await new Promise(r => setTimeout(r, 50))
   expect(appels.some(a => a[0] === 'bd')).toBe(false)
   await $.ui.press({ plugin: 'grillhouse', key: 'h' })
@@ -210,7 +210,7 @@ test('3uv.24 critère 5 : h on the chosen chantier switches its status and measu
 test('3uv.24 critère 6 : on a ticket line, h is not drawn and nothing switches', async ($, on) => {
   const appels: string[][] = []
   const ui = await monterChantiers($ as never, on as never, appels)
-  await $.ui.press({ plugin: 'grillhouse', key: 'c.2:2' })
+  await $.ui.press({ plugin: 'grillhouse', key: 'c.2:0' })
   await new Promise(r => setTimeout(r, 50))
   await expect($.ui.press({ plugin: 'grillhouse', key: 'h' })).rejects.toBeDefined()
   expect(appels.some(a => a[0] === 'bd')).toBe(false)
@@ -347,7 +347,7 @@ test('o on a folded group opens it alone and whole, and o again comes back to th
   const vu = async () => JSON.stringify(await ui.drawn())
   expect(await vu()).not.toContain('Le neuvième, caché')
   expect((await ui.findAll({ type: 'Button' })).map(b => b.key)).not.toContain('o')
-  await $.ui.press({ plugin: 'grillhouse', key: '>:1' })
+  await $.ui.press({ plugin: 'grillhouse', key: '>:c/sansGo' })
   expect((await ui.findAll({ type: 'Button' })).map(b => b.key)).toContain('o')
   await $.ui.press({ plugin: 'grillhouse', key: 'o' })
   expect(await vu()).toContain('Le neuvième, caché')

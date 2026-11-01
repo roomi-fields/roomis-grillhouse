@@ -37,11 +37,13 @@ export type Tableau = {
 // the card fills the pane; `vue`: the lines shown, the board's, the states' view or one folded
 // group's (`groupe`, its key); `texte`: the
 // whole text of the ticket the filled card shows, read from Beads; `projets`: the folders of the
-// projects the pane shows beside the session's, kept for the session's folder.
+// projects the pane shows beside the session's, kept for the session's folder; `revision`: one more at
+// each board measured, the version the pane's kept computations read.
 export type Etat = {
   tableau: Tableau | null
   erreur: string | null
   lu: number
+  revision: number
   choisi: string | null
   element: string | null
   grand: boolean
