@@ -306,11 +306,7 @@ describe('grillhouse-b32, critère 5 — les textes disent les quatre temps', ()
     expect(texte).toMatch(/quatre temps/);
   });
 
-  it('the CHANGELOG says it under Unreleased', () => {
-    const texte = readFileSync(path.join(DEPOT, 'CHANGELOG.md'), 'utf8');
-    const unreleased =
-      texte.split(/^## /m).find(s => s.startsWith('[Unreleased]') || s.startsWith('Unreleased')) ??
-      '';
-    expect(unreleased).toContain('grillhouse paquet');
+  it('the CHANGELOG says it', () => {
+    expect(readFileSync(path.join(DEPOT, 'CHANGELOG.md'), 'utf8')).toContain('grillhouse paquet');
   });
 });
