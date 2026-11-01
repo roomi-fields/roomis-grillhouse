@@ -1,9 +1,14 @@
 import { rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { enProcessus } from './cadre.js';
 import { sortie, ARRETS, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
+
+const ouvrirBaseDuTicket = enProcessus<{ base: string; dossier: string }>(
+  'scripts/mesure/base-de-passe.mjs',
+  'ouvrirBaseDuTicket'
+);
 
 // grillhouse-527: a resumption of the circuit (scripts/circuit.mjs, `avantLaPasse`) prepares the
 // copy on the tip of main before it plays the checks again, by the one preparation of a copy
@@ -46,12 +51,11 @@ describe.runIf(canWrap)(
   { timeout: 600_000 },
   () => {
     afterEach(revenirAuDebut);
-    // The temporary directory of each ticket, which its sessions get and which outlives them
-    // (scripts/mesure/base-de-passe.mjs, `ouvrirBaseDuTicket`), goes with the test.
+    // The temporary directory of each ticket, which its sessions get and which outlives them,
+    // as the frame names it (scripts/mesure/base-de-passe.mjs, `ouvrirBaseDuTicket`), goes with
+    // the test.
     afterEach(() => {
-      for (const id of IDS) {
-        rmSync(path.join(tmpdir(), `grillhouse-ticket-${id}`), { recursive: true, force: true });
-      }
+      for (const id of IDS) rmSync(ouvrirBaseDuTicket(id).base, { recursive: true, force: true });
     });
 
     it('critère 1: a copy behind main, resumed at 3.1, moves forward before its checks, which main’s fix turns green', () => {

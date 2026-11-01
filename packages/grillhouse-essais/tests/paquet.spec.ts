@@ -197,13 +197,18 @@ describe('grillhouse-3dr.3.2 — the package of the tests of the chain', () => {
   });
 
   it('critère 5: each moved file keeps its it and its expect, and the frame keeps none of them', () => {
+    // The files moved, each among the night files of the package with its counts; a night test
+    // written since the move is the package's own, outside this inventory.
+    const deplaces = { ...AVANT, ...SCINDES };
     const apres = Object.fromEntries(
-      DE_NUIT.map(n => {
+      Object.keys(deplaces).map(nom => {
+        const n = `${nom}.nuit.spec.ts`;
+        expect(DE_NUIT, n).toContain(n);
         const t = readFileSync(path.join(PAQUET, 'tests', n), 'utf8');
-        return [n.replace('.nuit.spec.ts', ''), [compte(t, IT), compte(t, EXPECT)]];
+        return [nom, [compte(t, IT), compte(t, EXPECT)]];
       })
     );
-    expect(apres).toEqual({ ...AVANT, ...SCINDES });
+    expect(apres).toEqual(deplaces);
     const restes = readdirSync(path.join(RACINE, 'packages/grillhouse/tests/unit'));
     for (const nom of Object.keys(AVANT)) {
       expect(restes).not.toContain(`${nom}.spec.ts`);
@@ -231,9 +236,8 @@ describe('grillhouse-3dr.3.2 — the package of the tests of the chain', () => {
     }
   });
 
-  it('critère 6: the night configuration, played from the root of the copy, plays every moved file', () => {
+  it('critère 6: the night configuration, played from the root of the copy, plays every night file of the package', () => {
     const { include, exclude } = optionsDe('scripts/langages/typescript/vitest.nuit.config.mjs');
-    expect(DE_NUIT).toHaveLength(Object.keys({ ...AVANT, ...SCINDES }).length);
     for (const n of DE_NUIT) {
       const f = `packages/grillhouse-essais/tests/${n}`;
       expect(
