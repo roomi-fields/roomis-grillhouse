@@ -683,7 +683,7 @@ describe('3uv.44 critère 7 : each open night ticket raises its red alert, its s
       jour: MAINTENANT - 24 * 60 * MIN,
     });
     const l = (lignes(t, 'depot') as { texte: string }[]).map(x => x.texte);
-    expect(l).toContainEqual(expect.stringMatching(/^⚠ Nuit rouge depuis le 16\/10 +si61$/));
+    expect(l).toContainEqual(expect.stringMatching(/^🌙 Nuit rouge depuis le 16\/10 +si61$/));
   });
 
   it('3uv.44 critère 7 : on the pane, a subject too long for the line is cut and its number stays whole', () => {
@@ -695,7 +695,7 @@ describe('3uv.44 critère 7 : each open night ticket raises its red alert, its s
     const alerte = out.filter(x => x.ton === 'alerte');
     expect(alerte).toHaveLength(1);
     expect(alerte[0].texte.length).toBeLessThanOrEqual(52);
-    expect(alerte[0].texte.startsWith('⚠ La poussée de la nuit')).toBe(true);
+    expect(alerte[0].texte.startsWith('🌙 La poussée de la nuit')).toBe(true);
     expect(alerte[0].texte.endsWith('91')).toBe(true);
   });
 });

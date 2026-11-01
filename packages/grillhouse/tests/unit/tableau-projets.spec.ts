@@ -6,7 +6,7 @@
 //   [OB]  ▶ 2 en cours · 1 en attente · 40 faits
 //   [SH]  ▶ 1 en cours · 3 en attente · 112 faits
 //   [OSD] ▶ 0 en cours · 0 en attente · 9 faits
-//   ⚠ [SH] Nuit rouge depuis le 01/11            SH-zq7
+//   🌙 [SH] Nuit rouge depuis le 01/11            SH-zq7
 //
 //   AGENTS  ▶ en cours · en attente
 //   ▾ 1 · Plan · explorateur ⇄ questionneur
@@ -126,7 +126,7 @@ describe('critère 1 : the usual board, each project prefixed', () => {
       '[OB]  ▶ 1 en cours · 0 en attente · 0 faits',
       '[SH]  ▶ 1 en cours · 0 en attente · 0 faits',
       '[OSD] ▶ 0 en cours · 0 en attente · 0 faits',
-      expect.stringMatching(/^⚠ \[SH\] Nuit rouge depuis le 01\/11 +SH-zq7$/),
+      expect.stringMatching(/^🌙 \[SH\] Nuit rouge depuis le 01\/11 +SH-zq7$/),
     ]);
   });
 

@@ -314,13 +314,9 @@ export function ouvrirAvancement(o: {
 export function inscrireLePlan(dossier: string, o: { racine: string; taches: unknown[] }): void;
 /** Keeps the total of a pass that ended, for the next one's measure. */
 export function garderLeTotal(dossier: string, racine: string): void;
-/** Writes the measure of a pass. */
-export function ecrireLaMesure(o: {
-  env?: NodeJS.ProcessEnv;
-  depot: string;
-  commande: string;
-  dossier: string;
-}): void;
+/** Names the progress directory of the measure that holds the lock of the machine under `env`,
+ * beside the lock (scripts/verrou-de-machine.mjs); the function that takes it out. */
+export function nommerLAvancement(o: { env?: NodeJS.ProcessEnv; dossier: string }): () => void;
 /** Opens the base of a pass of the kind `genre` (scripts/mesure/base-de-passe.mjs). */
 export function ouvrirBase(genre: string, o?: { dans?: string }): unknown;
 /** Whether `chemin` lies in a temporary directory under `env` (scripts/mesure/base-de-passe.mjs). */

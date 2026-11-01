@@ -367,7 +367,8 @@
 // - The proof, the checks and the final pass are heavy passes: each holds the lock of the machine
 //   (scripts/verrou-de-machine.mjs), shared by every repository of the machine, and waits, the
 //   wait written to the log, while another measure holds it; the wait bounded, the pass is at 75,
-//   « à repasser ».
+//   « à repasser ». The pass names itself beside the lock, its ticket and its step's title, and
+//   its progress while it holds it, which the board of every project shows.
 // - The report a developpeur receives names his reds first, each on its line (test or finding,
 //   file and line, message, the beginning of a failed build's own log), then the count of the
 //   others and the path of the log; the report of a stop names every red with its package.
@@ -654,7 +655,7 @@ import { dossierCommun, lireEntrees } from './integration/file-attente.mjs';
 import { refusArbitrage } from './integration/integrer.mjs';
 import { AUTEUR_DU_VERDICT } from './integration/verdict.mjs';
 import { attendreUnPeu } from './verrou-de-fichier.mjs';
-import { AttenteDeLaMachine, avecLaMachine } from './verrou-de-machine.mjs';
+import { AttenteDeLaMachine, avecLaMachine, nommerLAvancement } from './verrou-de-machine.mjs';
 import { garderLeTotal, ouvrirAvancement } from './avancement.mjs';
 import { AVANCEMENT } from './mesure/avancement.mjs';
 import { nomsDesGardes } from './gardes-du-cadre.mjs';
@@ -2177,7 +2178,12 @@ function commandeDeReference(ctx, commande) {
           stdio: ['ignore', fd, fd],
           env: environnementDeLaPasse(ctx, env),
         }),
-      { racine: ctx.copie, dire: l => appendFileSync(ctx.journal, `${l}\n`) }
+      {
+        racine: ctx.copie,
+        dire: l => appendFileSync(ctx.journal, `${l}\n`),
+        ticket: ctx.ticket,
+        sorte: etapeDuCircuit({ etape: 'references' }).titre,
+      }
     );
     const code = r.status ?? 1;
     return {
@@ -2791,21 +2797,32 @@ function npm(ctx, etape, args, env = {}) {
   appendFileSync(ctx.journal, `$ ${prefixe.join('')}npm ${args.join(' ')}\n`);
   const fd = openSync(ctx.journal, 'a');
   try {
+    const finale = etape === 'controles' && args[1] === 'verifier';
     const r = avecLaMachine(
       envMachine =>
-        avecAvancement(ctx, genreDeLaPasse(ctx, etape, args), avancement =>
-          spawnSync('npm', args, {
-            cwd: ctx.copie,
-            stdio: ['ignore', fd, fd],
-            env: environnementDeLaPasse(ctx, envMachine, {
-              ...env,
-              [RESULTATS]: dossier,
-              [AVANCEMENT]: avancement,
-              ...(args[0] === 'test' ? { [DEPUIS_LE_VERT]: '1' } : {}),
-            }),
-          })
-        ),
-      { racine: ctx.copie, dire: l => appendFileSync(ctx.journal, `${l}\n`) }
+        avecAvancement(ctx, genreDeLaPasse(ctx, etape, args), avancement => {
+          const oublier = nommerLAvancement({ env: envMachine, dossier: avancement });
+          try {
+            return spawnSync('npm', args, {
+              cwd: ctx.copie,
+              stdio: ['ignore', fd, fd],
+              env: environnementDeLaPasse(ctx, envMachine, {
+                ...env,
+                [RESULTATS]: dossier,
+                [AVANCEMENT]: avancement,
+                ...(args[0] === 'test' ? { [DEPUIS_LE_VERT]: '1' } : {}),
+              }),
+            });
+          } finally {
+            oublier();
+          }
+        }),
+      {
+        racine: ctx.copie,
+        dire: l => appendFileSync(ctx.journal, `${l}\n`),
+        ticket: ctx.ticket,
+        sorte: etapeDuCircuit({ etape, finale })?.titre ?? etape,
+      }
     );
     return { code: r.status ?? 1, dossier };
   } catch (e) {

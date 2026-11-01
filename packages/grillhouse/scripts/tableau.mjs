@@ -64,14 +64,23 @@
 //   never the figures); the queue (5.2), the steps of its CI. Past FIGEE
 //   without a sign, « ⚠ figée <durée> · faits/prévus », the time since its last sign, in the
 //   tone of an alert.
-//   A measure out of a ticket that holds the lock of the machine (a supervisor's or an
-//   integration's `npm run verifier`) stands at the head of AGENTS:
-//   « ⏳ Mesure · <dépôt> · faits/prévus · <durée> », since its start,
-//   « ⚠ Mesure figée <durée> · … » past FIGEE. Such a line is marked `avancement`, which the
-//   pane measures again more often.
-// - Alerts: one red alert per open night ticket (its subject, then its number), tickets awaiting
-//   the responsable, a shell agent silent for 10 minutes, a ticket in progress without anything
-//   running for 30 minutes.
+// - The lock of the machine (scripts/verrou-de-machine.mjs, read by `lireLaMesure`), as lslocks
+//   names who holds a lock and cargo says what its wait waits for, at the head of AGENTS: its
+//   holder, whoever it is (a pass out of a ticket, the circuit of a ticket, of any project of the
+//   machine), « 🔒 <sorte> · <projet> · <ticket> · faits/prévus · <durée> » since it took the
+//   lock, « ⚠ <sorte> figée <durée> · … » past FIGEE without a sign of its progress; then each
+//   pass that waits for the lock or for room under /tmp, the oldest first, « ⏳ <sorte> ·
+//   <projet> · <ticket> · attend · <durée> ». The ticket shows without its prefix and its epic
+//   (`courtDuTicket`). Such a line is marked `avancement`, which the pane measures again more
+//   often. A circuit that waits shows ⏳ on its ticket's line, ▶ while it waits for nothing.
+// - Signs: each sign keeps one sense (the owner's decision of 2026-11-01): ▶ in progress, ⏸ a
+//   stopped circuit, 🔒 the holder of the lock, ⏳ a wait for it or for room, 💤 a ticket claimed
+//   with nothing running, 🌙 a red night, ⚠ the alerts without a kind of their own. A sign two
+//   columns wide stands as the others, a sign then a space; the width of a line counts its
+//   columns (`colonnes`), ⏳ two.
+// - Alerts: one red alert per open night ticket (🌙, its subject, then its number), tickets
+//   awaiting the responsable, a shell agent silent for 10 minutes, a ticket in progress without
+//   anything running for 30 minutes (💤).
 import { execFileSync } from 'node:child_process';
 import {
   closeSync,
@@ -693,7 +702,22 @@ export function lecture(t, prefix) {
   return { numero: brut, sujet: t.title ?? t.id, composant: '' };
 }
 
-// The board, from what was read. Pure: every source comes in, the time included.
+/**
+ * Who holds the lock of the machine, or waits for it, as the board shows it (`lireLaMesure` of
+ * scripts/avancement.mjs, its project named as the board names it, `nommerLesProjets`).
+ * @typedef {{ depot?: string | null, projet: string, ticket: string | null, sorte: string,
+ *   depuis: number | null, quoi?: string,
+ *   avancement?: { faits: number, prevus: number, debut?: number, dernier: number } | null }} DuVerrou
+ * @typedef {{ detenteur: DuVerrou | null, attentes: DuVerrou[] }} Machine
+ */
+
+/**
+ * The board, from what was read. Pure: every source comes in, the time included; `machine`, the
+ * lock of the machine.
+ * @param {{ tous: any[], prefix?: string, registre: any[], vivants: any[], circuits?: any[],
+ *   verdicts?: Record<string, any>, maintenant: number, jour: number,
+ *   machine?: Machine | null }} lu
+ */
 export function assembler({
   tous,
   prefix = '',
@@ -703,7 +727,7 @@ export function assembler({
   verdicts = {},
   maintenant,
   jour,
-  horsTicket = null,
+  machine = null,
 }) {
   // A circuit's lines are its steps, no agent's passage.
   const etapesFinies = lignesDuRegistre.filter(r => r.role === ROLE_DU_CIRCUIT);
@@ -1009,7 +1033,14 @@ export function assembler({
       /^La nuit est rouge\b/.test(titreLu) && !Number.isNaN(ouvert)
         ? `Nuit rouge depuis le ${jourEtMois(ouvert)}`
         : titreLu;
-    alertes.push({ niveau: 'rouge', texte: `${sujet} ${n}`, sujet, numero: n, id: t.id });
+    alertes.push({
+      niveau: 'rouge',
+      signe: '🌙',
+      texte: `${sujet} ${n}`,
+      sujet,
+      numero: n,
+      id: t.id,
+    });
   }
   for (const b of blocs) {
     for (const x of b.enCours) {
@@ -1041,7 +1072,11 @@ export function assembler({
       t.started_at &&
       maintenant - Date.parse(t.started_at) > SANS_AGENT
     ) {
-      alertes.push({ niveau: 'orange', texte: `${numero(t.id)} en cours sans rien qui tourne` });
+      alertes.push({
+        niveau: 'orange',
+        signe: '💤',
+        texte: `${numero(t.id)} en cours sans rien qui tourne`,
+      });
     }
   }
   // Each ticket's own measures: its agents' working time and tokens, running agents included.
@@ -1065,7 +1100,7 @@ export function assembler({
     autres,
     agents: blocs,
     maintenant,
-    horsTicket,
+    machine,
     faitsDuJour,
     etats,
     parTicket,
@@ -1124,14 +1159,30 @@ function temoinDe(c, maintenant) {
 const conso = (ms, jetons) =>
   Math.round(ms / MINUTE) === 0 && !jetons ? '' : `${duree(ms)} · ${k(jetons)}`;
 
+// The columns <s> takes in a terminal: a character one, ⏳ two, as the signs out of the basic
+// plane (🔒 💤 🌙), which count two code units, take two.
+const colonnes = s => s.length + (s.match(/⏳/g)?.length ?? 0);
+// The start of <s> that holds in <n> columns, a sign out of the basic plane never split.
+const debutDe = (s, n) => {
+  let out = '';
+  for (const c of s) {
+    if (colonnes(out + c) > n) {
+      break;
+    }
+    out += c;
+  }
+  return out;
+};
 // A line of `largeur` columns: the left part cut to leave the right part whole.
 const couper = (gauche, droite, largeur) => {
   if (!droite) {
-    return gauche.length > largeur ? `${gauche.slice(0, largeur - 1)}…` : gauche;
+    return colonnes(gauche) > largeur ? `${debutDe(gauche, largeur - 1)}…` : gauche;
   }
-  const place = largeur - droite.length - 1;
+  const place = largeur - colonnes(droite) - 1;
   const g =
-    gauche.length > place ? `${gauche.slice(0, Math.max(place - 1, 0))}…` : gauche.padEnd(place);
+    colonnes(gauche) > place
+      ? `${debutDe(gauche, Math.max(place - 1, 0))}…`
+      : `${gauche}${' '.repeat(place - colonnes(gauche))}`;
   return `${g} ${droite}`;
 };
 // A line of `largeur` columns whose left part ends with `suite`, kept whole: what comes before it
@@ -1140,9 +1191,19 @@ const couperAvant = (gauche, suite, droite, largeur) => {
   if (!suite) {
     return couper(gauche, droite, largeur);
   }
-  const place = (droite ? largeur - droite.length - 1 : largeur) - suite.length;
-  const g = gauche.length > place ? `${gauche.slice(0, Math.max(place - 1, 0))}…` : gauche;
+  const place = (droite ? largeur - colonnes(droite) - 1 : largeur) - colonnes(suite);
+  const g = colonnes(gauche) > place ? `${debutDe(gauche, Math.max(place - 1, 0))}…` : gauche;
   return couper(`${g}${suite}`, droite, largeur);
+};
+// The sign of the alert <a>: its kind's (`signe`: 🌙 a red night, 💤 a ticket claimed with
+// nothing running), ⚠ for the others.
+const signeDe = a => a.signe ?? '⚠';
+// A ticket's short name on the line of the lock, whatever its project: its id after the prefix,
+// without the epic's part when it has children's numbers, « bp-mono-vbwf.320.11 » → « 320.11 »,
+// « grillhouse-wui » → « wui ».
+const courtDuTicket = id => {
+  const n = id.slice(id.lastIndexOf('-') + 1);
+  return n.includes('.') ? n.slice(n.indexOf('.') + 1) : n;
 };
 // The board's lines, `largeur` columns wide, each with its tone (titre, alerte, attention, actif,
 // discret, or none), its section (`section`: agents, chantier or faits, in that order) and, for a
@@ -1215,36 +1276,39 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     const droite = plusieurs ? (a.id ?? a.numero) : a.numero;
     L(
       droite
-        ? cadre(`⚠ ${duProjet(a)}${a.sujet}`, droite, largeur)
-        : cadre(`⚠ ${duProjet(a)}${a.texte}`, '', largeur),
+        ? cadre(`${signeDe(a)} ${duProjet(a)}${a.sujet}`, droite, largeur)
+        : cadre(`${signeDe(a)} ${duProjet(a)}${a.texte}`, '', largeur),
       a.niveau === 'rouge' ? 'alerte' : 'attention'
     );
   }
 
   L('', undefined);
   L('AGENTS  ▶ en cours · en attente', 'titre');
-  // A measure out of a ticket that holds the lock of the machine (scripts/avancement.mjs), at the
-  // head: « ⏳ Mesure · <dépôt> · faits/prévus · <durée> », or past FIGEE without a sign
-  // « ⚠ Mesure figée <durée> · <dépôt> · faits/prévus », in the tone of an alert; the repository
-  // is cut, never the figures.
+  // The lock of the machine (scripts/avancement.mjs `lireLaMesure`), at the head: its holder,
+  // whoever it is, « 🔒 <sorte> · <projet> · <ticket> · faits/prévus · <durée> », the time since it
+  // took the lock, the ticket and the figures when it has them; past FIGEE without a sign of its
+  // progress « ⚠ <sorte> figée <durée> · <projet> · <ticket> · faits/prévus », in the tone of an
+  // alert. Then each wait, the oldest first, « ⏳ <sorte> · <projet> · <ticket> · attend ·
+  // <durée> ». The project and the ticket are cut, never the figures nor the time.
   const maintenant = t.maintenant ?? Date.now();
-  if (t.horsTicket) {
-    const m = t.horsTicket;
-    const age = maintenant - m.dernier;
-    const compte = m.faits || m.prevus ? `${m.faits}/${m.prevus}` : '';
+  const deQui = x => `${x.sorte} · ${x.projet}${x.ticket ? ` · ${courtDuTicket(x.ticket)}` : ''}`;
+  const tenu = t.machine?.detenteur;
+  if (tenu) {
+    const a = tenu.avancement;
+    const age = a ? maintenant - a.dernier : 0;
+    const compte = a && (a.faits || a.prevus) ? `${a.faits}/${a.prevus}` : '';
     const fige = age > FIGEE;
-    const quoi = m.depot;
     poser({
       texte: fige
         ? couperAvant(
-            `⚠ Mesure figée ${ilYa(age)} · ${quoi}`,
+            `⚠ ${tenu.sorte} figée ${ilYa(age)} · ${deQui(tenu).slice(tenu.sorte.length + 3)}`,
             compte ? ` · ${compte}` : '',
             '',
             largeur
           )
         : couperAvant(
-            `⏳ Mesure · ${quoi}`,
-            ` · ${compte ? `${compte} · ` : ''}${ilYa(maintenant - (m.debut || m.dernier))}`,
+            `🔒 ${deQui(tenu)}`,
+            ` · ${compte ? `${compte} · ` : ''}${ilYa(maintenant - (tenu.depuis ?? maintenant))}`,
             '',
             largeur
           ),
@@ -1252,6 +1316,20 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       avancement: true,
     });
   }
+  for (const w of [...(t.machine?.attentes ?? [])].sort((x, y) => x.depuis - y.depuis)) {
+    poser({
+      texte: couperAvant(
+        `⏳ ${deQui(w)}`,
+        ` · attend · ${ilYa(maintenant - w.depuis)}`,
+        '',
+        largeur
+      ),
+      ton: 'actif',
+      avancement: true,
+    });
+  }
+  // The tickets whose circuit waits for the lock or for room.
+  const enAttente = new Set((t.machine?.attentes ?? []).map(w => w.ticket).filter(Boolean));
   // The tree of the steps (scripts/etapes.mjs), in its order, as a pipeline of GitLab CI shows its
   // stages and folds the jobs of a stage that has nothing: a step with sub-steps is folded
   // (« ▸ 2 · Composants ») while none of them holds a ticket, unfolded (« ▾ ») once one does, all
@@ -1305,7 +1383,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   const droiteDe = (signe, droite) =>
     plusieurs ? `${signe}${droite ? ` ${droite}` : ''}` : droite;
   const ligneDuCircuit = c => {
-    const signe = c.vivant ? '▶' : '■';
+    const signe = !c.vivant ? '⏸' : enAttente.has(c.id) ? '⏳' : '▶';
     const droite = droiteDe(
       signe,
       conso(t.parTicket?.[c.id]?.travail ?? 0, t.parTicket?.[c.id]?.jetons ?? 0)
@@ -1319,7 +1397,8 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     const temoin = c.vivant && etape?.qui.includes(AUTO) ? temoinDe(c, maintenant) : null;
     // The progress after the counters of the loops while the subject keeps its room beside them,
     // in their place otherwise.
-    const reste = avec => largeur - (droite ? droite.length + 1 : 0) - tete.length - avec.length;
+    const reste = avec =>
+      largeur - (droite ? colonnes(droite) + 1 : 0) - colonnes(tete) - colonnes(avec);
     const suite = !temoin
       ? boucles
       : reste(`${boucles}${temoin.texte}`) >= Math.min(PLACE_DU_SUJET, c.sujet.length)
@@ -1686,9 +1765,20 @@ export function dernierBouge(tous, lignesDuTableau, vivants = [], maintenant = D
   return dernier;
 }
 
-// The status line: the chantier in progress, alerts first.
+// The status line: the chantier in progress; first the alerts, counted by their signs as the board
+// shows them (🌙, 💤, ⚠), then the holder of the lock of the machine, « 🔒 <sorte> · <projet> »,
+// and the count of its waits, « ⏳ <n> ».
 export function ligneEtat(t) {
-  const alerte = t.alertes.length ? `⚠ ${t.alertes.length} · ` : '';
+  const signes = t.alertes.map(signeDe);
+  const tenu = t.machine?.detenteur;
+  const attentes = t.machine?.attentes?.length ?? 0;
+  const alerte = [
+    ...[...new Set(signes)].map(s => `${s} ${signes.filter(x => x === s).length}`),
+    ...(tenu ? [`🔒 ${tenu.sorte} · ${tenu.projet}`] : []),
+    ...(attentes ? [`⏳ ${attentes}`] : []),
+  ]
+    .map(x => `${x} · `)
+    .join('');
   const ch = t.chantiers[0];
   const c = t.global.compteurs;
   if (!ch) {
@@ -1714,7 +1804,7 @@ const bdJson = (racine, ...args) => {
 
 // What the board reads of the repository at <racine>: its tickets, its prefix, its running agents
 // and its assembled board (`t`), with the folder git keeps its shared files in (`commun`).
-function lire(racine, { home, maintenant, horsTicket = null }) {
+function lire(racine, { home, maintenant, machine = null }) {
   let prefix = '';
   try {
     prefix = execFileSync('bd', ['config', 'get', 'issue_prefix'], {
@@ -1801,7 +1891,7 @@ function lire(racine, { home, maintenant, horsTicket = null }) {
     verdicts,
     maintenant,
     jour: minuit.getTime(),
-    horsTicket,
+    machine,
   });
   return { t, prefix, tous, vivants, commun };
 }
@@ -1836,7 +1926,7 @@ export function ensemble(lus) {
       return { ...b, enCours: de('enCours'), attend: de('attend') };
     }),
     maintenant: premier.t.maintenant,
-    horsTicket: premier.t.horsTicket,
+    machine: premier.t.machine,
     faitsDuJour: tous('faitsDuJour'),
     etats: premier.t.etats.map(e => ({
       ...e,
@@ -1861,6 +1951,25 @@ function lireUnAutre(dossier, o) {
   }
 }
 
+/**
+ * The lock of the machine <machine> with each project named as the board names it: <noms> gives
+ * the name of each project of the board by the root of its main tree (`depot`); a project out of
+ * the board keeps its folder's name.
+ * @param {Machine | null} machine
+ * @param {Map<string, string>} noms
+ * @returns {Machine | null}
+ */
+export function nommerLesProjets(machine, noms) {
+  if (!machine) {
+    return machine;
+  }
+  const nommer = x => ({ ...x, projet: (x.depot && noms.get(x.depot)) || x.projet });
+  return {
+    detenteur: machine.detenteur && nommer(machine.detenteur),
+    attentes: machine.attentes.map(nommer),
+  };
+}
+
 // The board of the repository at <racine>; with <projets>, the folders of other projects, the
 // board of them all (`ensemble`), named « <dépôt> + <projet> + … », with the folder of each
 // ticket's project (`dossiers`), where the pane runs Beads for it. The status line is the
@@ -1871,8 +1980,20 @@ export function tableau(
 ) {
   const ici = {
     dossier: racine,
-    ...lire(racine, { home, maintenant, horsTicket: lireLaMesure(process.env) }),
+    ...lire(racine, { home, maintenant, machine: lireLaMesure(process.env) }),
   };
+  const lus = [ici, ...projets.map(d => lireUnAutre(d, { home, maintenant }))];
+  const etiquette = l => l.prefix || path.basename(l.dossier);
+  // The lock of the machine names each project of the board as the board does: the session's by
+  // its folder, another by its label; the root of its main tree, its common git directory's parent.
+  ici.t.machine = nommerLesProjets(
+    ici.t.machine,
+    new Map(
+      lus
+        .filter(l => l.commun)
+        .map(l => [path.dirname(l.commun), l === ici ? path.basename(racine) : etiquette(l)])
+    )
+  );
   const etat = ligneEtat(ici.t);
   try {
     if (ici.commun) {
@@ -1881,8 +2002,6 @@ export function tableau(
   } catch {
     // A read-only place keeps the board working, without its status line.
   }
-  const lus = [ici, ...projets.map(d => lireUnAutre(d, { home, maintenant }))];
-  const etiquette = l => l.prefix || path.basename(l.dossier);
   const t = projets.length
     ? ensemble(lus.map(l => ({ etiquette: etiquette(l), t: l.t, erreur: l.erreur })))
     : ici.t;

@@ -3,7 +3,8 @@
 // runs an automatic step gives `faits/prévus · <durée>` since the last sign of its pass
 // (scripts/avancement.mjs), after the counters of its loops, or in their place when room lacks;
 // past FIGEE without a sign, `⚠ figée <durée> · faits/prévus`, in the tone of an alert. The queue
-// (5.2) gives the steps of its CI. A measure out of a ticket that holds the lock of the machine stands at the head of AGENTS.
+// (5.2) gives the steps of its CI. The holder of the lock of the machine and its waits, at the head of
+// AGENTS, are tests/unit/tableau-verrou.spec.ts's.
 // Witness: Romain, 2026-10-21, a pass frozen 40 min, the machine at rest, that nothing showed.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -98,10 +99,7 @@ const fin = {
   cout: null,
 };
 // The lines of AGENTS of the board of <racine>, its circuit running unless <vivant> is false.
-const agents = (
-  racine: string,
-  { vivant = true, registre = [] as object[], mesure = null as object | null } = {}
-) => {
+const agents = (racine: string, { vivant = true, registre = [] as object[] } = {}) => {
   if (vivant) {
     rendreVivant(racine, 'demo-12');
   }
@@ -115,7 +113,6 @@ const agents = (
         circuits: lireCircuits({ racine }),
         maintenant: MAINTENANT,
         jour: MAINTENANT - 24 * 60 * MIN,
-        horsTicket: mesure,
       }),
       'depot'
     ) as Ligne[]
@@ -203,43 +200,5 @@ describe('every automatic step carries its witness', () => {
     const a = agents(depot({ etape: 'file', avancement: avancement([], [3, 7, 10 * S]) }));
     expect(sous(a)).toBe('  5.2 · File : main, poussée, CI · auto');
     expect(duTicket(a).texte).toBe('▶ 12  Le sujet de demo-12 · 3/7 · 20 min');
-  });
-});
-
-describe('a measure out of a ticket stands at the head of AGENTS', () => {
-  const tete = (a: Ligne[]) => a[a.findIndex(x => x.texte.startsWith('AGENTS')) + 1];
-  const racine = () => depot({ etape: 'relecture' });
-
-  it('« ⏳ Mesure · <dépôt> · faits/prévus · <durée> », the repository cut, never the figures', () => {
-    const mesure = {
-      depot: 'Grillhouse',
-      commande: 'npm run verifier',
-      faits: 51,
-      prevus: 123,
-      debut: MAINTENANT - 20 * MIN,
-      dernier: MAINTENANT - 3 * S,
-    };
-    const l = tete(agents(racine(), { mesure }));
-    expect(l.texte.length).toBeLessThanOrEqual(LARGEUR);
-    expect(l.texte).toMatch(/^⏳ Mesure · Grillhouse · 51\/123 · 20 min$/);
-    expect(l).toMatchObject({ ton: 'actif', avancement: true });
-  });
-
-  it('past FIGEE without a sign: « ⚠ Mesure figée <durée> · … », in the tone of an alert', () => {
-    const mesure = {
-      depot: 'Grillhouse',
-      commande: 'npm run verifier',
-      faits: 51,
-      prevus: 123,
-      dernier: MAINTENANT - 12 * MIN,
-    };
-    const l = tete(agents(racine(), { mesure }));
-    expect(l.texte.length).toBeLessThanOrEqual(LARGEUR);
-    expect(l.texte).toMatch(/^⚠ Mesure figée 12 min · Grillhouse · 51\/123$/);
-    expect(l.ton).toBe('alerte');
-  });
-
-  it('without a measure, the steps follow the title', () => {
-    expect(tete(agents(racine())).texte).toMatch(/^ *[▸▾]? ?1 · Plan/);
   });
 });

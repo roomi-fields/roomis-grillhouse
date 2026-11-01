@@ -148,7 +148,7 @@ describe("a circuit's line carries its ticket's working time and tokens", () => 
     const a = agents(t);
     const i = a.indexOf('  3.1 · Contrôles · auto');
     expect(a[i + 1]).toBe(QUESTION);
-    expect(a[i + 2]).toMatch(/^■ 12 {2}Le sujet de demo-12 +1 h 00 · 10$/);
+    expect(a[i + 2]).toMatch(/^⏸ 12 {2}Le sujet de demo-12 +1 h 00 · 10$/);
   });
 });
 
@@ -277,7 +277,7 @@ describe('a circuit that stopped: under its step, its stop, its code and its rea
     const t = plateau([T('demo-13')], [], [], circuits(racine));
     const a = agents(t);
     const i = a.indexOf('  3.1 · Contrôles · auto');
-    expect(a[i + 1]).toBe('■ 13  Le sujet de demo-13');
+    expect(a[i + 1]).toBe('⏸ 13  Le sujet de demo-13');
     expect(lignesAgents(t)[i + 1]).toMatchObject({ ton: 'attention', ticket: 'demo-13' });
     expect(a).not.toContain(QUESTION);
     expect(carte(t, [T('demo-13')], 'demo-13')).toMatch(
@@ -290,7 +290,7 @@ describe('a circuit that stopped: under its step, its stop, its code and its rea
     const t = plateau([T('demo-13')], [], [], circuits(racine));
     const a = agents(t);
     const i = a.indexOf('  2.1 · Preuve du rouge · auto');
-    expect(a[i + 1]).toBe('■ 13  Le sujet de demo-13');
+    expect(a[i + 1]).toBe('⏸ 13  Le sujet de demo-13');
     expect(carte(t, [T('demo-13')], 'demo-13')).toMatch(
       /^Circuit arrêté en 2\.1 Preuve du rouge 1, interrompu : le circuit ne tourne plus/
     );
@@ -311,7 +311,7 @@ describe('a circuit that stopped: under its step, its stop, its code and its rea
     const a = agents(t);
     const i = a.indexOf(QUESTION);
     expect(a[i - 1]).toBe('  3.1 · Contrôles · auto');
-    expect(a[i + 1]).toBe('■ 13  Le sujet de demo-13');
+    expect(a[i + 1]).toBe('⏸ 13  Le sujet de demo-13');
     expect(lignesAgents(t)[i]).toMatchObject({ ton: 'titre' });
     expect(lignesAgents(t)[i + 1]).toMatchObject({ ton: 'attention', ticket: 'demo-13' });
     expect(carte(t, [T('demo-13')], 'demo-13')).toMatch(
@@ -338,8 +338,8 @@ describe('a circuit that stopped: under its step, its stop, its code and its rea
     const a = agents(t);
     const i = a.indexOf('  ⤷ Question · responsable');
     expect(a[i - 1]).toBe('  4.3 · Relecture · relecteur');
-    expect(a[i + 1]).toBe('■ 14  Le sujet de demo-14');
-    expect(a[a.indexOf(QUESTION) + 1]).toBe('■ 13  Le sujet de demo-13');
+    expect(a[i + 1]).toBe('⏸ 14  Le sujet de demo-14');
+    expect(a[a.indexOf(QUESTION) + 1]).toBe('⏸ 13  Le sujet de demo-13');
     expect(carte(t, [T('demo-14')], 'demo-14')).toMatch(
       /^Question · responsable : Le relecteur demande/
     );

@@ -22,17 +22,17 @@
 //   copies included, beside the last green (scripts/dernier-vert.mjs): `{ passes, taches }`, the
 //   total of the last pass of each kind and the files planned of each task by its hash (the
 //   latest TACHES_GARDEES); each pass keeps its own at its end (`garderLeTotal`).
-// - A measure out of a ticket (`npm run verifier` of a supervisor or of an integration) writes
-//   beside the lock of the machine (scripts/verrou-de-machine.mjs; the file of the lock with
-//   `.avancement.json` added, never the lock itself) its repository, its command, its progress
-//   directory and its process, removed at its end; the board reads it while that process lives
-//   and the lock is held (`lireLaMesure`).
+// - The holder of the lock of the machine (scripts/verrou-de-machine.mjs: a measure out of a
+//   ticket, `npm run verifier` of a supervisor or of an integration, or a heavy pass of the
+//   circuit of a ticket) names its progress directory beside the lock (`nommerLAvancement`); the
+//   board reads the holder with its progress, and the waits for the lock or for room
+//   (`lireLaMesure`).
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { ecrireAtomique, TACHES } from './mesure/avancement.mjs';
-import { verrouDeMachine } from './verrou-de-machine.mjs';
+import { lireLeVerrou } from './verrou-de-machine.mjs';
 
 const PASSE = 'passe.json';
 const PLAN = 'plan';
@@ -180,51 +180,34 @@ export function garderLeTotal(dossier, racine) {
   }
 }
 
-// The file of the measure out of a ticket under <env>: beside the lock of the machine.
-function fichierDeLaMesure(env = process.env) {
-  const verrou = verrouDeMachine(env);
-  return { verrou, fichier: `${verrou}.avancement.json` };
-}
-
 /**
- * Names beside the lock of the machine the measure out of a ticket that runs: the repository
- * <depot>, the command <commande>, its progress directory <dossier>, this process; a function that
- * removes it.
- * @param {{ env?: Record<string, string | undefined>, depot: string, commande: string, dossier: string }} o
- * @returns {() => void}
- */
-export function ecrireLaMesure({ env = process.env, depot, commande, dossier }) {
-  const { fichier } = fichierDeLaMesure(env);
-  try {
-    mkdirSync(path.dirname(fichier), { recursive: true });
-    ecrireAtomique(fichier, { depot, commande, dossier, pid: process.pid });
-  } catch {
-    return () => {};
-  }
-  return () => {
-    if (lireJson(fichier)?.pid === process.pid) rmSync(fichier, { force: true });
-  };
-}
-
-const vivant = pid => {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (e) {
-    return e.code === 'EPERM';
-  }
-};
-
-/**
- * The measure out of a ticket that holds the lock of the machine under <env>: its repository, its
- * command and its progress; null without one, or when its process is gone or the lock is not held.
+ * Who holds the lock of the machine under <env> and who waits for it, as the board shows them
+ * (scripts/tableau.mjs): `detenteur`, its repository (`depot`, the root of its main tree, and
+ * `projet`, its folder), ticket, kind, since when and progress
+ * (`avancement`, its files done and planned and its last sign; null while it names no progress
+ * directory, or that directory does not read), null when the lock is free or its process gone;
+ * `attentes`, each live wait, the oldest first, its project, ticket, kind, what it waits for
+ * (`quoi`) and since when (`lireLeVerrou` of scripts/verrou-de-machine.mjs).
  * @param {Record<string, string | undefined>} [env]
  */
 export function lireLaMesure(env = process.env) {
-  const { verrou, fichier } = fichierDeLaMesure(env);
-  const m = lireJson(fichier);
-  if (!m || !Number.isInteger(m.pid) || !vivant(m.pid) || !existsSync(verrou)) return null;
-  const a = typeof m.dossier === 'string' ? lireAvancement(m.dossier) : null;
-  if (!a) return null;
-  return { depot: String(m.depot ?? ''), commande: String(m.commande ?? ''), ...a };
+  const { detenteur: d, attentes } = lireLeVerrou(env);
+  return {
+    detenteur: d && {
+      depot: d.depot,
+      projet: d.projet,
+      ticket: d.ticket,
+      sorte: d.sorte,
+      depuis: d.depuis,
+      avancement: typeof d.dossier === 'string' ? lireAvancement(d.dossier) : null,
+    },
+    attentes: attentes.map(({ depot, projet, ticket, sorte, quoi, depuis }) => ({
+      depot,
+      projet,
+      ticket,
+      sorte,
+      quoi,
+      depuis,
+    })),
+  };
 }

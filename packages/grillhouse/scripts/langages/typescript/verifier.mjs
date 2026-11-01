@@ -54,8 +54,8 @@
 //   while Turborepo failed: red, code 1, each task named.
 // - The progress of the pass (scripts/avancement.mjs): the directory its caller names in
 //   GRILLHOUSE_AVANCEMENT (the circuit's), else one of its own, which it names beside the lock of
-//   the machine while it plays (its repository, its command), as a measure out of a ticket the
-//   board shows, and removes at its end, its total kept. Before its run of Turborepo, the plan of
+//   the machine it holds while it plays (`nommerLAvancement`), as the board shows its holder, and
+//   removes at its end, its total kept. Before its run of Turborepo, the plan of
 //   the run (`turbo run … --dry=json`) names its tasks of tests and counts done the files of those
 //   Turborepo replays from its cache.
 // - The red tasks: while the variable `GRILLHOUSE_ROUGES` (`ROUGES`) names a file, the pass writes
@@ -82,13 +82,12 @@ import {
   AVANCEMENT,
   avecLaMachine,
   CHANGEMENTS,
-  ecrireLaMesure,
   garderLeTotal,
   garderLeVert,
   mesure,
+  nommerLAvancement,
   ouvrirAvancement,
   ouvrirBase,
-  paquetsDeLEnveloppe,
   retirerALInterruption,
 } from '../../services-du-noyau.mjs';
 import { paquets, TYPAGE } from '../../paquets.mjs';
@@ -132,22 +131,11 @@ export function verifier({
     return avecLaMachine(
       envMachine => {
         // The progress of the pass: the directory its caller names (the circuit's), else its own,
-        // named beside the lock of the machine while it plays.
+        // named beside the lock of the machine, which it holds, while it plays.
         const propre = !envMachine[AVANCEMENT];
         const dossier =
           envMachine[AVANCEMENT] || ouvrirAvancement({ racine, genre: 'verification' });
-        const effacer =
-          propre && !paquetsDeLEnveloppe(envMachine)
-            ? ecrireLaMesure({
-                env: envMachine,
-                depot: nomDuDepot(racine),
-                commande: [
-                  'npm run verifier',
-                  ...(demandes.length ? ['--', ...demandes] : []),
-                ].join(' '),
-                dossier,
-              })
-            : () => {};
+        const effacer = propre ? nommerLAvancement({ env: envMachine, dossier }) : () => {};
         try {
           return passe({
             racine,
@@ -174,19 +162,6 @@ export function verifier({
     lacher();
     base.fermer();
   }
-}
-
-// The name of the repository at <racine>: the folder of its main tree, its copies included; the
-// folder of <racine> out of git.
-function nomDuDepot(racine) {
-  const r = spawnSync(
-    'git',
-    ['-C', racine, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
-    {
-      encoding: 'utf8',
-    }
-  );
-  return path.basename(r.status === 0 ? path.dirname(r.stdout.trim()) : path.resolve(racine));
 }
 
 // Whether a package of <racine>, or its root, plays tests (a script `test:unit`).

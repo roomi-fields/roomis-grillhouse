@@ -566,6 +566,25 @@ dit son rang et qui elle attend, sous la même borne. Ainsi la version suivante 
 les projets attendent, ne reste pas derrière leurs mesures, comme une file à priorités de Slurm et
 comme Bazel ordonne ses tests par priorité.
 
+**Le panneau montre qui tient le verrou et qui l'attend** : celui qui prend le verrou de la
+machine, quel qu'il soit (une passe hors ticket, le circuit d'un ticket, de n'importe quel projet
+de la machine), se nomme à côté (la racine de son dépôt, son ticket s'il en a un, sa sorte, depuis quand, puis
+son avancement) ; chaque passe qui attend le verrou ou la place sous /tmp s'y inscrit, une par
+processus. Le panneau de chaque projet les montre en tête des agents : « 🔒 <sorte> · <projet> ·
+<ticket> · faits/prévus · <durée> » pour le détenteur, « ⏳ <sorte> · <projet> · <ticket> ·
+attend · <durée> » pour chaque attente, le projet nommé comme le tableau le nomme (son dossier pour le projet de la séance, son étiquette pour un autre, son dossier hors du tableau) ; un circuit qui attend montre aussi ⏳ sur sa ligne de
+ticket. Une ligne part avec son processus, et un détenteur mort ne s'affiche pas ; un verrou tenu
+par un cadre plus ancien, qui ne se nomme pas, se montre « 🔒 Verrou · <projet> ». La ligne d'état
+compte les alertes par leur signe, puis nomme le détenteur et le nombre des attentes. Comme
+lslocks nomme qui tient un verrou et comme cargo dit qui bloque son attente (« Blocking waiting
+for file lock »). Ainsi une attente se voit, avec ce qui la bloque, depuis n'importe quel projet.
+
+**Un signe par sorte d'état** (décision du responsable, 2026-11-01) : ▶ en cours ; ⏸ circuit
+arrêté ; 🔒 tient le verrou de la machine ; ⏳ attend le verrou ou la place sous /tmp ; 💤 ticket
+pris sans rien qui tourne ; 🌙 nuit rouge ; ⚠ les alertes sans sorte à elles (une passe figée, un
+projet illisible, un agent silencieux). Un signe large se cale comme les autres, un signe puis une
+espace, et la largeur d'une ligne compte ses colonnes. Ainsi chaque signe garde un seul sens.
+
 **Une passe automatique montre son avancement** : chaque passe automatique écrit ses fichiers
 de tests faits sur prévus (la file, les étapes de sa CI), que le panneau affiche avec le temps
 depuis son dernier signe, « ⚠ figée » au-delà de 5 min, comme le compteur d'actions de Bazel.

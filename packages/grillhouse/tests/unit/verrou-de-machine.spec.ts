@@ -608,3 +608,134 @@ describe('grillhouse-3uv.95.2 — le rang d’une mesure', { timeout: 60_000 }, 
     }
   });
 });
+
+// grillhouse-wui — the lock of the machine names its holder and its waits, as lslocks names who
+// holds a lock and cargo's « Blocking waiting for file lock » says what a wait waits for: the
+// holder, whatever it is (a pass out of a ticket, the circuit of a ticket, of any project of the
+// machine), beside the lock (projet, ticket, sorte, since when); each wait for the lock or for
+// room under /tmp, one per process, gone with it. Witness: Romain, 2026-11-01 at 17 h, the
+// verification of Grillhouse waiting behind the circuit of BPScript 320.11, which the board did
+// not show (scripts/tableau.mjs reads them: tests/unit/tableau-verrou.spec.ts).
+describe(
+  'grillhouse-wui — le verrou nomme son détenteur et ses attentes',
+  { timeout: 60_000 },
+  () => {
+    interface Lu {
+      detenteur: Record<string, unknown> | null;
+      attentes: Record<string, unknown>[];
+    }
+    const lireLeVerrou = async (env: Record<string, string>) =>
+      (
+        (await import(MODULE)) as { lireLeVerrou: (env: Record<string, string>) => Lu }
+      ).lireLeVerrou(env);
+    // A child from <cwd>, its output read as it comes.
+    const lancerDans = (code: string, env: Record<string, string>, cwd: string) => {
+      const p = spawn(process.execPath, ['--input-type=module', '-e', code], {
+        env,
+        cwd,
+        stdio: 'pipe',
+      });
+      let sortie = '';
+      p.stdout?.on('data', b => (sortie += b));
+      p.stderr?.on('data', b => (sortie += b));
+      return { p, fini: fin(p), sortie: () => sortie };
+    };
+
+    it('critères 1 et 2 : le détenteur nomme son projet, son ticket, sa sorte ; une mesure qui attend s’inscrit ; tout part avec eux', async () => {
+      const d = unDossier();
+      const projet = path.join(d, 'BPScript');
+      const cadre = path.join(d, 'roomis-grillhouse');
+      mkdirSync(projet);
+      mkdirSync(cadre);
+      const verrou = path.join(d, 'mesure.lock');
+      const env = environnement({ GRILLHOUSE_VERROU_MACHINE: verrou });
+      const trace = path.join(d, 'trace');
+      const libere = path.join(d, 'libere');
+      const avant = Date.now();
+      const a = lancerDans(
+        preneur('A', trace, tenir(libere), "{ ticket: 'bp-mono-vbwf.320.11', sorte: 'Contrôles' }"),
+        env,
+        projet
+      );
+      await jusqua(() => lignes(trace).includes('A début'));
+      const tenu = await lireLeVerrou(env);
+      expect(tenu.detenteur).toMatchObject({
+        depot: projet,
+        projet: 'BPScript',
+        ticket: 'bp-mono-vbwf.320.11',
+        sorte: 'Contrôles',
+        pid: a.p.pid,
+      });
+      expect(tenu.detenteur?.depuis).toBeGreaterThanOrEqual(avant - 1_000);
+      expect(tenu.attentes).toEqual([]);
+      const b = lancerDans(preneur('B', trace), env, cadre);
+      await jusqua(() => b.sortie().includes('⏳'));
+      const attendu = await lireLeVerrou(env);
+      expect(attendu.detenteur).toMatchObject({ pid: a.p.pid });
+      expect(attendu.attentes).toEqual([
+        expect.objectContaining({
+          depot: cadre,
+          projet: 'roomis-grillhouse',
+          ticket: null,
+          sorte: 'Mesure',
+          quoi: 'verrou',
+          pid: b.p.pid,
+        }),
+      ]);
+      writeFileSync(libere, '');
+      const fins = await Promise.all([a.fini, b.fini]);
+      for (const f of fins) {
+        expect(f.code, f.sortie).toBe(0);
+      }
+      expect(await lireLeVerrou(env)).toEqual({ detenteur: null, attentes: [] });
+    });
+
+    it('critère 2 : une passe qui attend la place sous /tmp s’inscrit ; critère 3 : tuée, sa ligne disparaît', async () => {
+      const d = unDossier();
+      const env = environnement({
+        GRILLHOUSE_VERROU_MACHINE: path.join(d, 'mesure.lock'),
+        GRILLHOUSE_TEMPORAIRE_LIBRE: undefined,
+      });
+      const code = `
+      import { attendreDeLaPlace } from ${JSON.stringify(MODULE)};
+      attendreDeLaPlace({ libre: () => 0, occupe: () => 'rien', borneMs: 600000, ticket: 'demo-12', sorte: 'Preuve du rouge' });
+    `;
+      const p = lancerDans(code, env, d);
+      await jusqua(() => p.sortie().includes('⏳'));
+      expect((await lireLeVerrou(env)).attentes).toEqual([
+        expect.objectContaining({
+          projet: path.basename(d),
+          ticket: 'demo-12',
+          sorte: 'Preuve du rouge',
+          quoi: 'place',
+          pid: p.p.pid,
+        }),
+      ]);
+      p.p.kill('SIGKILL');
+      await p.fini;
+      expect(await lireLeVerrou(env)).toEqual({ detenteur: null, attentes: [] });
+    });
+
+    it('critère 3 : un détenteur mort ne s’affiche pas', async () => {
+      const d = unDossier();
+      const env = environnement({ GRILLHOUSE_VERROU_MACHINE: path.join(d, 'mesure.lock') });
+      const trace = path.join(d, 'trace');
+      const a = lancerDans(preneur('A', trace, tenir(path.join(d, 'jamais'))), env, d);
+      await jusqua(() => lignes(trace).includes('A début'));
+      expect((await lireLeVerrou(env)).detenteur).toMatchObject({ pid: a.p.pid });
+      a.p.kill('SIGKILL');
+      await a.fini;
+      expect(existsSync(path.join(d, 'mesure.lock'))).toBe(true);
+      expect((await lireLeVerrou(env)).detenteur).toBeNull();
+    });
+
+    it('critère 1 : un verrou tenu par un processus vivant qui ne se nomme pas (un cadre plus ancien) se montre, sorte « Verrou »', async () => {
+      const d = unDossier();
+      const verrou = path.join(d, 'mesure.lock');
+      writeFileSync(verrou, `${process.pid}:ancien`);
+      const lu = await lireLeVerrou(environnement({ GRILLHOUSE_VERROU_MACHINE: verrou }));
+      expect(lu.detenteur).toMatchObject({ sorte: 'Verrou', ticket: null, pid: process.pid });
+      expect(String(lu.detenteur?.projet)).not.toBe('');
+    });
+  }
+);

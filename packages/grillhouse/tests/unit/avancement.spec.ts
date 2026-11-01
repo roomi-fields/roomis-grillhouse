@@ -21,6 +21,7 @@ import {
   lireLaMesure,
   ouvrirAvancement,
 } from '../../scripts/avancement.mjs';
+import { avecLaMachine, nommerLAvancement } from '../../scripts/verrou-de-machine.mjs';
 import { AVANCEMENT } from '../../scripts/mesure/avancement.mjs';
 import AvancementReporter, {
   rapportAvancement,
@@ -194,27 +195,35 @@ describe('the total planned: the tasks started, the cache, the previous pass of 
   });
 });
 
-// A measure out of a ticket: `npm run verifier` writes its progress directory beside the lock of
-// the machine (a neighbouring file, not the lock itself), read by the board, removed at its end;
-// the pass of `npm run verifier` itself is the night's.
-describe('a measure out of a ticket names its progress beside the lock of the machine', () => {
-  it('the board reads the measure while its process lives and the lock is held', () => {
+// The holder of the lock of the machine and its progress (grillhouse-wui): the measure that holds
+// the lock names itself beside it (scripts/verrou-de-machine.mjs), then names its progress
+// directory (`nommerLAvancement`); the board reads both (`lireLaMesure`), the holder's figures
+// while its directory is named. The pass of `npm run verifier` itself is the night's.
+describe('the holder of the lock of the machine gives its progress', () => {
+  it('named, read with its figures, then without them, then gone with the lock', () => {
     const d = mkdtempSync(path.join(ESSAIS, 'lue-'));
     const verrou = path.join(d, 'mesure-lourde.lock');
-    const env = { GRILLHOUSE_VERROU_MACHINE: verrou };
+    const env = { GRILLHOUSE_VERROU_MACHINE: verrou, GRILLHOUSE_TEMPORAIRE_LIBRE: '0' };
     const dossier = ouvrirAvancement({ racine: d, genre: null, dans: d });
     ecrire(dossier, 'taches/x.json', json({ hash: null, faits: 51, prevus: 123, a: 1_000 }));
-    const mesure = { depot: 'Grillhouse', commande: 'npm run verifier', dossier, pid: process.pid };
-    writeFileSync(`${verrou}.avancement.json`, json(mesure));
-    expect(lireLaMesure(env)).toBeNull();
-    writeFileSync(verrou, `${process.pid}:marque`);
-    expect(lireLaMesure(env)).toMatchObject({
-      depot: 'Grillhouse',
-      commande: 'npm run verifier',
-      faits: 51,
-      prevus: 123,
+    const lu: unknown[] = [];
+    avecLaMachine(
+      (envMachine: Record<string, string | undefined>) => {
+        lu.push(lireLaMesure(envMachine));
+        const effacer = nommerLAvancement({ env: envMachine, dossier });
+        lu.push(lireLaMesure(envMachine));
+        effacer();
+        lu.push(lireLaMesure(envMachine));
+      },
+      { env, racine: d, sorte: 'Mesure', dire: () => {} }
+    );
+    const [avant, pendant, apres] = lu;
+    expect(avant).toMatchObject({
+      detenteur: { projet: path.basename(d), ticket: null, sorte: 'Mesure', avancement: null },
+      attentes: [],
     });
-    writeFileSync(`${verrou}.avancement.json`, json({ ...mesure, pid: 2 ** 22 + 7 }));
-    expect(lireLaMesure(env)).toBeNull();
+    expect(pendant).toMatchObject({ detenteur: { avancement: { faits: 51, prevus: 123 } } });
+    expect(apres).toMatchObject({ detenteur: { avancement: null } });
+    expect(lireLaMesure(env)).toEqual({ detenteur: null, attentes: [] });
   });
 });

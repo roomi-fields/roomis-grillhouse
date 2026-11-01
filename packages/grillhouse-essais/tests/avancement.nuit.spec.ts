@@ -192,12 +192,13 @@ describe('the total planned: the tasks started, the cache, the previous pass of 
   );
 });
 
-// A measure out of a ticket: `npm run verifier` writes its progress directory beside the lock of
-// the machine (a neighbouring file, not the lock itself), read by the board, removed at its end.
-// A stand-in of Turborepo, first on the PATH, copies that file to its trace.
-describe('a measure out of a ticket names its progress beside the lock of the machine', () => {
+// A measure out of a ticket: `npm run verifier`, holder of the lock of the machine, names itself
+// and its progress directory beside the lock (a neighbouring file, not the lock itself), read by
+// the board, removed at its end (grillhouse-wui). A stand-in of Turborepo, first on the PATH,
+// copies that file to its trace.
+describe('a measure out of a ticket names itself and its progress beside the lock of the machine', () => {
   it(
-    'npm run verifier writes it during its pass, the repository and the command named, and removes it at its end',
+    'npm run verifier writes it during its pass, its project and its kind named, and removes it at its end',
     () => {
       const d = mkdtempSync(path.join(ESSAIS, 'mesure-'));
       const bin = path.join(d, 'bin');
@@ -206,7 +207,7 @@ describe('a measure out of a ticket names its progress beside the lock of the ma
       const trace = path.join(d, 'trace');
       writeFileSync(
         path.join(bin, 'turbo'),
-        `#!/bin/sh\ncase "$*" in *--dry*) exit 0;; esac\ncat ${JSON.stringify(`${verrou}.avancement.json`)} >> ${JSON.stringify(trace)} 2>/dev/null\nexit 0\n`
+        `#!/bin/sh\ncase "$*" in *--dry*) exit 0;; esac\ncat ${JSON.stringify(`${verrou}.detenteur.json`)} >> ${JSON.stringify(trace)} 2>/dev/null\nexit 0\n`
       );
       chmodSync(path.join(bin, 'turbo'), 0o755);
       const projet = path.join(d, 'mon-depot');
@@ -224,11 +225,11 @@ describe('a measure out of a ticket names its progress beside the lock of the ma
       });
       expect(r.status, r.stdout + r.stderr).toBe(0);
       const vu = JSON.parse(readFileSync(trace, 'utf8')) as Record<string, unknown>;
-      expect(vu).toMatchObject({ depot: 'mon-depot', commande: 'npm run verifier -- --gardes' });
+      expect(vu).toMatchObject({ depot: projet, ticket: null, sorte: 'Mesure' });
       expect(typeof vu.dossier).toBe('string');
-      expect(existsSync(`${verrou}.avancement.json`)).toBe(false);
+      expect(existsSync(`${verrou}.detenteur.json`)).toBe(false);
       expect(existsSync(vu.dossier as string)).toBe(false);
-      expect(lireLaMesure(env)).toBeNull();
+      expect(lireLaMesure(env)).toEqual({ detenteur: null, attentes: [] });
     },
     LONG
   );

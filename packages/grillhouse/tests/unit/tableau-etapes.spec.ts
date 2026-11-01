@@ -9,7 +9,7 @@
 //   ▶ 320.3  Le binder lit les portées · essai 2/3   12 min · 340 k
 //     3.1 · Contrôles · auto
 //     ⤷ Question · superviseur
-//   ■ 318    Le checker refuse …                      41 min · 1,2 M
+//   ⏸ 318    Le checker refuse …                      41 min · 1,2 M
 //   ▸ 4 · Passe finale et relecture
 //   ▸ 5 · Intégration
 //
@@ -22,7 +22,7 @@
 //
 //   ▾ 1 · Plan · explorateur ⇄ questionneur
 //     ⤷ Question · superviseur
-//   ■ 322    Le parser garde…
+//   ⏸ 322    Le parser garde…
 //     1.1 · Geste mécanique · explorateur
 //
 // - Every step stands in its order. A step with sub-steps is folded (▸) while none of them holds
@@ -283,7 +283,7 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     expect(a.slice(i, i + 3)).toEqual([
       '  3.1 · Contrôles · auto',
       `  ${QUESTION}`,
-      expect.stringMatching(/^■ 36 {2}Le sujet de demo-36/),
+      expect.stringMatching(/^⏸ 36 {2}Le sujet de demo-36/),
     ]);
     expect(a).toContain('▾ 3 · Code · développeur');
     expect(
@@ -307,7 +307,7 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     expect(a.slice(i, i + 3)).toEqual([
       '  4.1 · Passe finale · auto',
       `  ${QUESTION}`,
-      expect.stringMatching(/^■ 37 {2}Le sujet de demo-37/),
+      expect.stringMatching(/^⏸ 37 {2}Le sujet de demo-37/),
     ]);
     expect(ligneDe(t, 'demo-37')).toMatchObject({ ton: 'attention' });
   });
@@ -329,7 +329,7 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     expect(a.slice(i, i + 3)).toEqual([
       '▾ 1 · Plan · explorateur ⇄ questionneur',
       `  ${QUESTION}`,
-      expect.stringMatching(/^■ 323 {2}Le sujet de demo-323( |$)/),
+      expect.stringMatching(/^⏸ 323 {2}Le sujet de demo-323( |$)/),
     ]);
     expect(agents(t)[i]).toMatchObject({ ton: 'titre' });
     expect(ligneDe(t, 'demo-323')).toMatchObject({ ton: 'attention' });
@@ -345,8 +345,8 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     });
     expect(sousUneQuestion(t, 'demo-324')).toBe(true);
     const a = textes(t);
-    expect(a[a.findIndex(x => x.startsWith('■ 324')) - 1]).toBe(`  ${QUESTION}`);
-    expect(a[a.findIndex(x => x.startsWith('■ 325')) - 1]).toBe('  ⤷ Question · responsable');
+    expect(a[a.findIndex(x => x.startsWith('⏸ 324')) - 1]).toBe(`  ${QUESTION}`);
+    expect(a[a.findIndex(x => x.startsWith('⏸ 325')) - 1]).toBe('  ⤷ Question · responsable');
   });
 
   it('two tickets at one step: the running one, then the line of the question and the stopped one', () => {
@@ -359,7 +359,7 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
       '▾ 3 · Code · développeur',
       expect.stringMatching(/^▶ 39 /),
       `  ${QUESTION}`,
-      expect.stringMatching(/^■ 40 /),
+      expect.stringMatching(/^⏸ 40 /),
     ]);
   });
 
@@ -383,7 +383,7 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     });
     expect(textes(t).slice(-2)).toEqual([
       QUESTION,
-      expect.stringMatching(/^■ 44 {2}Le sujet de demo-44/),
+      expect.stringMatching(/^⏸ 44 {2}Le sujet de demo-44/),
     ]);
   });
 });
@@ -415,7 +415,7 @@ describe('the line of a ticket in a circuit: its subject, then time and tokens',
       registre: [fin('t1', 'demo-50', 'testwriter', '08:41')],
       circuits: [circuit('demo-50', { vivant: false, code: 20, arret: 'besoin' })],
     });
-    expect(ligneDe(r, 'demo-50').texte).toMatch(/^■ 50 {2}Le sujet de demo-50 +41 min · 10$/);
+    expect(ligneDe(r, 'demo-50').texte).toMatch(/^⏸ 50 {2}Le sujet de demo-50 +41 min · 10$/);
     expect(ligneDe(r, 'demo-50')).toMatchObject({ ton: 'attention' });
   });
 
@@ -424,7 +424,7 @@ describe('the line of a ticket in a circuit: its subject, then time and tokens',
       circuits: [circuit('demo-320.3'), circuit('demo-318', { vivant: false, code: 20 })],
     });
     expect(ligneDe(r, 'demo-320.3').texte).toMatch(/^▶ 320\.3 {2}Le sujet/);
-    expect(ligneDe(r, 'demo-318').texte).toMatch(/^■ 318 {4}Le sujet/);
+    expect(ligneDe(r, 'demo-318').texte).toMatch(/^⏸ 318 {4}Le sujet/);
   });
 });
 

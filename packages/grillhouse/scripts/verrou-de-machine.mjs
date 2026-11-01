@@ -39,14 +39,29 @@
 //   played in the frame's own repository (one whose workspaces hold the package
 //   @roomi-fields/grillhouse in development, its agent copies included: `rangDeLaMesure`) is of
 //   the first rank, « mesure du cadre »; a project's (a circuit, a `npm run verifier`) is of the
-//   second, « mesure d'un projet ». A measure of the first rank that waits names itself in the
-//   directory `<lock>.premier-rang/` (one file per waiting process, named by its number, removed
-//   once it holds the lock or stops); a measure of the second rank does not take the lock, even
-//   free, while a live process waits there, so a check of the frame, whose next version every
-//   project waits for, never waits behind the projects' measures (the verification of 0.26.0
-//   waited 61 min behind five measures of two projects). A waiting file whose process is gone
-//   names no one and goes. Between measures of one rank, the first to find the lock free takes
-//   it. The bound of the wait is the same for both ranks, and the wait says its rank.
+//   second, « mesure d'un projet ». A measure that waits for the lock names its rank among the
+//   waits (`<lock>.attentes/`, below); a measure of the second rank does not take the lock, even
+//   free, while a live measure of the first waits for it, so a check of the frame, whose next
+//   version every project waits for, never waits behind the projects' measures (the verification
+//   of 0.26.0 waited 61 min behind five measures of two projects). Between measures of one rank,
+//   the first to find the lock free takes it. The bound of the wait is the same for both ranks,
+//   and the wait says its rank.
+// - The lock names its holder and its waits, as lslocks names who holds a lock and cargo's
+//   « Blocking waiting for file lock » says what a wait waits for. Whoever takes it, a pass out of
+//   a ticket or the circuit of a ticket, of any project of the machine, names itself beside it in
+//   `<lock>.detenteur.json`: its mark, its process, its project, its ticket or null, its kind
+//   (`sorte`: « Mesure » by default, a step's title for a circuit), since when, and its progress
+//   directory once it names it (`nommerLAvancement`); the name goes with the lock. Each measure
+//   that waits, for the lock or for room in the temporary directory, names itself in the
+//   directory `<lock>.attentes/`, one file per waiting process (its process, its rank, its
+//   project, ticket and kind, what it waits for `quoi`, since when), removed once it stops
+//   waiting. The project is named by the root of the main tree of the repository the measure
+//   plays in, its copies included (`depot`, `racineDuDepot`); the board gives it the name it
+//   gives that project, its folder's for a project out of the board (scripts/tableau.mjs).
+//   `lireLeVerrou` reads them for the board (through `lireLaMesure` of scripts/avancement.mjs): a
+//   holder or a wait whose process is gone names no one, and the wait's file goes; a lock a live
+//   process holds without naming itself (a frame older than this naming) shows as the repository
+//   of its process's directory, of the kind « Verrou ».
 // - The lock is let go at the end of the measure, whether it succeeds or throws.
 // - A measure first wants room in the temporary directory (`os.tmpdir()` under its environment),
 //   a disk in memory that the sessions of the machine share: under LIBRE_MIN, 4 GB free
@@ -58,6 +73,7 @@
 //   entries, by the blocks their files hold, the temporary directory of a ticket naming its
 //   ticket), when it begins and every 30 s, under the same bound as the
 //   lock's, then « à repasser » (75).
+import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import {
   lstatSync,
@@ -68,13 +84,13 @@ import {
   rmSync,
   statfsSync,
   statSync,
-  writeFileSync,
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
 import { paquets } from './paquets.mjs';
 import { attendreUnPeu, lacherVerrou, prendreVerrou } from './verrou-de-fichier.mjs';
+import { ecrireAtomique } from './mesure/avancement.mjs';
 import { ticketDeLaBase, vivant } from './mesure/base-de-passe.mjs';
 import { A_REPASSER } from './mesure/pression.mjs';
 
@@ -119,8 +135,8 @@ export class AttenteDeLaMachine extends Error {
   }
 }
 
-// The lock file of the machine under <env>, beside which a measure out of a ticket names its
-// progress (scripts/avancement.mjs).
+// The lock file of the machine under <env>, beside which its holder and its waits name
+// themselves.
 export function verrouDeMachine(env = process.env) {
   if (env[VARIABLE_VERROU]) return env[VARIABLE_VERROU];
   const cache = env.XDG_CACHE_HOME || path.join(env.HOME || homedir(), '.cache');
@@ -180,36 +196,194 @@ function qui(verrou) {
   return `${processus(pid)}${depuis}`;
 }
 
-// The directory where the measures of the first rank that wait for <verrou> name themselves.
-const fileDuPremierRang = verrou => `${verrou}.premier-rang`;
+/**
+ * The root of the repository at <racine>: its main tree, its copies included (the parent of its
+ * common directory of git); <racine> itself out of git.
+ * @param {string} racine
+ * @returns {string}
+ */
+export function racineDuDepot(racine) {
+  const r = spawnSync(
+    'git',
+    ['-C', racine, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+    { encoding: 'utf8' }
+  );
+  return r.status === 0 ? path.dirname(r.stdout.trim()) : path.resolve(racine);
+}
 
-// Names this process among the measures of the first rank that wait for <verrou>; a function that
-// removes its name.
-function attendreAuPremierRang(verrou) {
-  const dossier = fileDuPremierRang(verrou);
-  const f = path.join(dossier, `${process.pid}-${randomUUID()}`);
-  mkdirSync(dossier, { recursive: true });
-  writeFileSync(f, String(process.pid));
+const lireJson = f => {
+  try {
+    return JSON.parse(readFileSync(f, 'utf8'));
+  } catch {
+    return null;
+  }
+};
+
+// The file where the holder of <verrou> names itself, and the directory of its waits.
+const fichierDuDetenteur = verrou => `${verrou}.detenteur.json`;
+const dossierDesAttentes = verrou => `${verrou}.attentes`;
+
+// Who a measure is, from its options: `{ depot, ticket, sorte }`, the root of its repository
+// read when first asked.
+function identite({ racine, ticket = null, sorte = 'Mesure' }) {
+  let depot = null;
+  return {
+    get depot() {
+      depot ??= racineDuDepot(racine);
+      return depot;
+    },
+    ticket,
+    sorte,
+  };
+}
+
+// Names this process, <id>, among the waits of <verrou>, waiting for <quoi> (« verrou »,
+// « place ») at the rank <rang> (null for room); a function that removes its name.
+function inscrireLAttente(verrou, id, quoi, rang = null) {
+  const f = path.join(dossierDesAttentes(verrou), `${process.pid}-${randomUUID()}.json`);
+  try {
+    ecrireAtomique(f, {
+      pid: process.pid,
+      rang,
+      depot: id.depot,
+      ticket: id.ticket,
+      sorte: id.sorte,
+      quoi,
+      depuis: Date.now(),
+    });
+  } catch {
+    return () => {};
+  }
   return () => rmSync(f, { force: true });
 }
 
-// The live processes of the measures of the first rank that wait for <verrou>; the name of a
-// process that is gone is removed.
-function premiersQuiAttendent(verrou) {
-  const dossier = fileDuPremierRang(verrou);
+// The waits of <verrou> whose process lives, the oldest first; the file of a process that is gone
+// is removed.
+function attentesDe(verrou) {
+  const dossier = dossierDesAttentes(verrou);
   let noms;
   try {
     noms = readdirSync(dossier);
   } catch {
     return [];
   }
-  const pids = [];
+  const out = [];
   for (const nom of noms) {
     const pid = Number(/^(\d+)-/.exec(nom)?.[1]);
-    if (pid && vivant(pid)) pids.push(pid);
-    else rmSync(path.join(dossier, nom), { force: true });
+    if (!pid || !vivant(pid)) {
+      rmSync(path.join(dossier, nom), { force: true });
+      continue;
+    }
+    const a = nom.endsWith('.json') ? lireJson(path.join(dossier, nom)) : null;
+    if (a?.pid === pid) out.push(a);
   }
-  return pids;
+  return out.sort((a, b) => (a.depuis ?? 0) - (b.depuis ?? 0));
+}
+
+// The live processes of the measures of the first rank that wait for <verrou>.
+const premiersQuiAttendent = verrou =>
+  attentesDe(verrou)
+    .filter(a => a.quoi === 'verrou' && a.rang === 1)
+    .map(a => a.pid);
+
+// Names this process, <id>, holder of <verrou> under the mark it holds; a function that removes
+// the name while it is still this taking's.
+function nommerLeDetenteur(verrou, id) {
+  const f = fichierDuDetenteur(verrou);
+  const marque = lire(verrou);
+  try {
+    ecrireAtomique(f, {
+      marque,
+      pid: process.pid,
+      depot: id.depot,
+      ticket: id.ticket,
+      sorte: id.sorte,
+      depuis: Date.now(),
+      dossier: null,
+    });
+  } catch {
+    return () => {};
+  }
+  return () => {
+    if (lireJson(f)?.marque === marque) rmSync(f, { force: true });
+  };
+}
+
+/**
+ * Names the progress directory <dossier> of the measure that holds the lock of the machine under
+ * <env> (its mark in GRILLHOUSE_MESURE_TENUE), beside the lock, where the board reads it; a
+ * function that takes it out. Nothing without a lock this environment holds (in the envelope of
+ * an agent).
+ * @param {{ env?: Record<string, string | undefined>, dossier: string }} o
+ * @returns {() => void}
+ */
+export function nommerLAvancement({ env = process.env, dossier }) {
+  const f = fichierDuDetenteur(verrouDeMachine(env));
+  const marque = env[VARIABLE_TENUE];
+  const ecrire = d => {
+    const n = lireJson(f);
+    if (!marque || n?.marque !== marque) return false;
+    try {
+      ecrireAtomique(f, { ...n, dossier: d });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  return ecrire(dossier) ? () => void ecrire(null) : () => {};
+}
+
+/**
+ * Who holds the lock of the machine under <env> and who waits for it. `detenteur`: its process,
+ * repository (`depot`, the root of its main tree, and `projet`, its folder), ticket, kind, since
+ * when (ms) and progress directory; null when the lock is free or its process gone; a live process
+ * that names nothing beside the lock shows as the repository of its directory, of the kind
+ * « Verrou ». `attentes`: each live wait, the oldest first, its process, rank, repository,
+ * ticket, kind, what it waits for (`quoi`: « verrou » or « place ») and since when.
+ * @param {Record<string, string | undefined>} [env]
+ */
+export function lireLeVerrou(env = process.env) {
+  const verrou = verrouDeMachine(env);
+  const attentes = attentesDe(verrou).map(({ pid, rang, depot, ticket, sorte, quoi, depuis }) => ({
+    pid,
+    rang,
+    depot,
+    projet: path.basename(String(depot)),
+    ticket,
+    sorte,
+    quoi,
+    depuis,
+  }));
+  const marque = lire(verrou);
+  const pid = detenteur(verrou);
+  if (marque === null || pid === null || !vivant(pid)) return { detenteur: null, attentes };
+  const n = lireJson(fichierDuDetenteur(verrou));
+  if (n?.marque === marque) {
+    const { depot, ticket, sorte, depuis, dossier } = n;
+    const projet = path.basename(String(depot));
+    return { detenteur: { pid, depot, projet, ticket, sorte, depuis, dossier }, attentes };
+  }
+  let depuis = null;
+  let ou = null;
+  try {
+    depuis = statSync(verrou).mtimeMs;
+    ou = readlinkSync(`/proc/${pid}/cwd`);
+  } catch {
+    // the lock gone meanwhile, or the directory of its process unreadable: its number names it
+  }
+  const depot = ou ? racineDuDepot(ou) : null;
+  return {
+    detenteur: {
+      pid,
+      depot,
+      projet: depot ? path.basename(depot) : `processus ${pid}`,
+      ticket: null,
+      sorte: 'Verrou',
+      depuis,
+      dossier: null,
+    },
+    attentes,
+  };
 }
 
 // Whom a measure of the rank <rang> waits for at <verrou>: the holder of the lock, and for the
@@ -311,8 +485,26 @@ function occupants(dossier) {
 
 // Waits until <dossier> holds <plancher> bytes free (`libre`, a statfs at each turn), saying so
 // (`dire`) with what holds it (`occupe`, counted only when a line is written) when it begins and
-// every <rappelMs>. Throws an AttenteDeLaMachine (75) at <borneMs>.
-function attendreLaPlace(dossier, { plancher, libre, occupe, dire, borneMs, rappelMs }) {
+// every <rappelMs>, and naming itself among the waits once it waits (`inscrire`, a function that
+// returns the removal of its name). Throws an AttenteDeLaMachine (75) at <borneMs>.
+function attendreLaPlace(dossier, { inscrire, ...o }) {
+  let retirer = null;
+  try {
+    return attendreLaPlaceEnNommant(dossier, {
+      ...o,
+      nommer: () => {
+        retirer ??= inscrire();
+      },
+    });
+  } finally {
+    retirer?.();
+  }
+}
+
+function attendreLaPlaceEnNommant(
+  dossier,
+  { plancher, libre, occupe, dire, borneMs, rappelMs, nommer }
+) {
   const debut = Date.now();
   let dit = null;
   for (;;) {
@@ -322,6 +514,7 @@ function attendreLaPlace(dossier, { plancher, libre, occupe, dire, borneMs, rapp
         dire(`✓ place dans le dossier temporaire après ${duree(Date.now() - debut)}.`);
       return;
     }
+    nommer();
     const t = Date.now();
     const etat = () =>
       `le dossier temporaire (${dossier}) n'a que ${go(l)} libres, moins des ${go(plancher)} qu'une passe lourde demande (${VARIABLE_LIBRE}) ; l'occupent : ${occupe(dossier)}`;
@@ -343,7 +536,9 @@ function attendreLaPlace(dossier, { plancher, libre, occupe, dire, borneMs, rapp
  * heavy pass does before it plays (`avecLaMachine`, the night tests).
  * @param {{ env?: Record<string, string | undefined>, dire?: (ligne: string) => void,
  *   borneMs?: number, rappelMs?: number, libre?: (dossier: string) => number,
- *   occupe?: (dossier: string) => string }} [options] as `avecLaMachine`'s
+ *   occupe?: (dossier: string) => string, racine?: string, ticket?: string | null,
+ *   sorte?: string }} [options] as `avecLaMachine`'s; the wait names itself among those of the
+ *   lock of the machine under <env> while it waits
  * @throws {AttenteDeLaMachine} at the bound of the wait (code 75)
  */
 export function attendreDeLaPlace({
@@ -353,8 +548,12 @@ export function attendreDeLaPlace({
   rappelMs = RAPPEL_MS,
   libre = libreDans,
   occupe = occupants,
+  racine = process.cwd(),
+  ticket = null,
+  sorte = 'Mesure',
 } = {}) {
   const temporaire = env.TMPDIR || env.TMP || env.TEMP || tmpdir();
+  const id = identite({ racine, ticket, sorte });
   attendreLaPlace(temporaire, {
     plancher: plancherDe(env),
     libre,
@@ -362,6 +561,7 @@ export function attendreDeLaPlace({
     dire,
     borneMs,
     rappelMs,
+    inscrire: () => inscrireLAttente(verrouDeMachine(env), id, 'place'),
   });
 }
 
@@ -373,10 +573,10 @@ function borneDe(env) {
 
 // Waits for the lock <verrou> at the rank <rang>, saying so (`dire`) when it begins and every
 // <rappelMs>; returns the time waited, in ms. Throws an AttenteDeLaMachine at once when an ancestor
-// holds the lock, and at the bound <borneMs>. A measure of the first rank names itself among those
-// that wait while it waits.
-function attendreLaMachine(verrou, { rang, dire, borneMs, rappelMs }) {
-  const retirer = rang === 1 ? attendreAuPremierRang(verrou) : () => {};
+// holds the lock, and at the bound <borneMs>. The measure, <id>, names itself among the waits,
+// with its rank, while it waits.
+function attendreLaMachine(verrou, { id, rang, dire, borneMs, rappelMs }) {
+  const retirer = inscrireLAttente(verrou, id, 'verrou', rang);
   try {
     return attendreAuRang(verrou, { rang, dire, borneMs, rappelMs });
   } finally {
@@ -421,12 +621,15 @@ function attendreAuRang(verrou, { rang, dire, borneMs, rappelMs }) {
  * @param {(envEnfant: Record<string, string | undefined>) => T} mesure a synchronous measure
  * @param {{ env?: Record<string, string | undefined>, racine?: string,
  *   dire?: (ligne: string) => void, borneMs?: number, rappelMs?: number,
- *   libre?: (dossier: string) => number, occupe?: (dossier: string) => string }} options `racine`, the
+ *   libre?: (dossier: string) => number, occupe?: (dossier: string) => string,
+ *   ticket?: string | null, sorte?: string }} options `racine`, the
  *   root of the repository the measure plays in, which gives its rank (`rangDeLaMesure`; the
  *   working directory by default); `borneMs`, the bound of the wait
  *   (GRILLHOUSE_ATTENTE_MACHINE_MS, else ATTENTE_MACHINE_MS); `rappelMs`, the gap between two
  *   lines that say the wait goes on (30 s); `libre`, the room free in a directory, in bytes
- *   (`statfs`, at each turn); `occupe`, what holds it, counted when a line of the wait is written
+ *   (`statfs`, at each turn); `occupe`, what holds it, counted when a line of the wait is written;
+ *   `ticket` (null out of a ticket) and `sorte` (« Mesure » by default), who the measure is,
+ *   named beside the lock while it waits and while it holds it, with its project
  * @returns {T}
  * @throws {AttenteDeLaMachine} at the bound of the wait (code 75), or at once when an ancestor
  *   holds the lock (code 1)
@@ -442,21 +645,27 @@ export function avecLaMachine(
     rappelMs = RAPPEL_MS,
     libre = libreDans,
     occupe = occupants,
+    ticket = null,
+    sorte = 'Mesure',
   } = {}
 ) {
   if (paquetsDeLEnveloppe(env)) return mesure(env);
   const verrou = verrouDeMachine(env);
   if (env[VARIABLE_TENUE] && lire(verrou) === env[VARIABLE_TENUE]) return mesure(env);
-  attendreDeLaPlace({ env, libre, occupe, dire, borneMs, rappelMs });
+  attendreDeLaPlace({ env, libre, occupe, dire, borneMs, rappelMs, racine, ticket, sorte });
+  const id = identite({ racine, ticket, sorte });
   mkdirSync(path.dirname(verrou), { recursive: true });
   const rang = rangDeLaMesure(racine);
   if (!(peutPrendre(verrou, rang) && prendreVerrou(verrou, { attendre: false }))) {
-    const attendu = attendreLaMachine(verrou, { rang, dire, borneMs, rappelMs });
+    const attendu = attendreLaMachine(verrou, { id, rang, dire, borneMs, rappelMs });
     dire(`✓ verrou de la machine pris après ${Math.round(attendu / 1000)} s.`);
   }
+  let oublier = () => {};
   try {
+    oublier = nommerLeDetenteur(verrou, id);
     return mesure({ ...env, [VARIABLE_TENUE]: lire(verrou) ?? '' });
   } finally {
+    oublier();
     lacherVerrou(verrou);
   }
 }

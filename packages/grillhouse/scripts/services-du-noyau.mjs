@@ -13,7 +13,7 @@ export * from './langages.mjs';
 // pass and its measure, the base of a pass, the pressure of the machine and its lock, the last
 // green, the arbitrages of a ticket, the source files of a project.
 export { arbitrageTranche, estArbitrage } from './arbitrages.mjs';
-export { ecrireLaMesure, garderLeTotal, inscrireLePlan, ouvrirAvancement } from './avancement.mjs';
+export { garderLeTotal, inscrireLePlan, ouvrirAvancement } from './avancement.mjs';
 export { sources } from './sources.mjs';
 export { CHANGEMENTS, DEPUIS_LE_VERT, garderLeVert, mesure } from './dernier-vert.mjs';
 export { lireLaListe, paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
@@ -27,4 +27,9 @@ export {
   retirerALInterruption,
 } from './mesure/base-de-passe.mjs';
 export { A_REPASSER, ecrirePression, lirePression, SEUIL_PRESSION } from './mesure/pression.mjs';
-export { attendreDeLaPlace, AttenteDeLaMachine, avecLaMachine } from './verrou-de-machine.mjs';
+export {
+  attendreDeLaPlace,
+  AttenteDeLaMachine,
+  avecLaMachine,
+  nommerLAvancement,
+} from './verrou-de-machine.mjs';
