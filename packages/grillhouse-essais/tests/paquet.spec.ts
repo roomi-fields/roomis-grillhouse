@@ -51,7 +51,8 @@ const importsDe = (t: string) =>
 const AVANT: Record<string, [number, number]> = {
   // grillhouse-nt4: one more expect, the guard that names the trial directory the test leaves.
   'base-de-passe': [10, 55],
-  'circuit.arbitrage': [2, 15],
+  // grillhouse-pq6: three more expects, an immediate stop gives its code and its question.
+  'circuit.arbitrage': [2, 18],
   'circuit.avancement': [1, 6],
   'circuit.bilan': [2, 20],
   'circuit.conformite': [4, 22],

@@ -202,8 +202,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   question, le ticket, l'étape, la question et la commande qui répond. Une question déjà remontée
   (par l'attente, ou nommée à l'ouverture) ne la termine plus. Je ne sonde jamais les circuits
   moi-même. Je la relance une fois les questions de sa sortie répondues, ou portées au
-  responsable. Ainsi je ne suis réveillé que par une question neuve, et aucune n'attend des
-  heures.
+  responsable. Ainsi je ne suis réveillé que par une question neuve, et aucune ne reste sans
+  réponse.
 - **J'arrête tout agent que j'ai lancé moi-même** dès son rapport lu (`TaskStop`). Ainsi ma
   séance ne porte pas le détail des tickets, et elle reste courte.
 - **Un ticket débloqué repart de son état** : l'état du travail est dans l'état du circuit, au

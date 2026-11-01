@@ -72,7 +72,7 @@ describe('Q10 — the supervisor launches the circuit, which makes the gestures 
   it('the supervisor launches the circuit once and answers a question by a command of the circuit', () => {
     const pitmaster = lire('mods/grillhouse/skills/pitmaster/SKILL.md').replace(/\s+/g, ' ');
     expect(pitmaster).toMatch(
-      /`npx grillhouse circuit <ticket>`, que je lance une fois, en arrière-plan/
+      /`npx grillhouse circuit <ticket>`, que je lance une fois, au premier plan/
     );
     for (const commande of ['`--reprendre`', '`--etendre <paquet>`', '`--arreter`']) {
       expect(pitmaster).toContain(commande);
