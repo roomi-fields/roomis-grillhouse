@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // The removal of the working copies whose content is on main, run by the night once its steps
 // are played (scripts/nuit.sh) and at the end of each circuit (scripts/circuit.mjs,
 // `retirerLesCopiesDuDepot`), as `git worktree prune` and the workspace cleanup at the end of a
