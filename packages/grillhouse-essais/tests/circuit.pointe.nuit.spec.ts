@@ -55,7 +55,9 @@ describe.runIf(canWrap)(
     // as the frame names it (scripts/mesure/base-de-passe.mjs, `ouvrirBaseDuTicket`), goes with
     // the test.
     afterEach(() => {
-      for (const id of IDS) rmSync(ouvrirBaseDuTicket(id).base, { recursive: true, force: true });
+      for (const id of IDS) {
+        rmSync(ouvrirBaseDuTicket(id).base, { recursive: true, force: true });
+      }
     });
 
     it('critère 1: a copy behind main, resumed at 3.1, moves forward before its checks, which main’s fix turns green', () => {

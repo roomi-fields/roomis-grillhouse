@@ -14,7 +14,6 @@ import {
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
-import { expect } from 'vitest';
 import { configGit, declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { CADRE } from './cadre.js';
 

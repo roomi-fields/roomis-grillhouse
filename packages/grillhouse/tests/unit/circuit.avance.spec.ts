@@ -45,7 +45,9 @@ function nouveauDepot(fichiers: Record<string, string>) {
   git(dir, 'init', '-q', '-b', 'main');
   git(dir, 'config', 'user.email', 'essai@example.com');
   git(dir, 'config', 'user.name', 'essai');
-  for (const [f, c] of Object.entries(fichiers)) writeFileSync(path.join(dir, f), c);
+  for (const [f, c] of Object.entries(fichiers)) {
+    writeFileSync(path.join(dir, f), c);
+  }
   git(dir, 'add', '-A');
   git(dir, 'commit', '-q', '-m', 'base');
   return dir;
