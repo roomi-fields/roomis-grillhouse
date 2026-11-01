@@ -378,7 +378,7 @@ function creations(): { fichier: string; nom: string; source: string }[] {
 // The directories a script makes without removing them itself, each with its reason: the base,
 // which `fermer` removes; the progress directory, which its caller removes (scripts/langages/typescript/verifier.mjs)
 // or which lives in the base of the circuit's run; the results of a pass of the circuit, in that
-// base; the trials of the suite of conformity of the modules typescript and cargo, under the
+// base; the trials of the suite of conformity of the modules typescript, cargo and python, under the
 // directory their caller gives them and removes (scripts/conformite.mjs).
 const HORS_DU_SCRIPT = new Set([
   'scripts/mesure/base-de-passe.mjs: base',
@@ -394,6 +394,9 @@ const HORS_DU_SCRIPT = new Set([
   'scripts/langages/cargo/exemples.mjs: dossier',
   'scripts/langages/cargo/exemples.mjs: vide',
   'scripts/langages/cargo/exemples.mjs: typescript',
+  'scripts/langages/python/exemples.mjs: racine',
+  'scripts/langages/python/exemples.mjs: d',
+  'scripts/langages/python/exemples.mjs: vide',
 ]);
 
 describe('critère 9 — a script of the frame that makes a temporary directory removes it at its end', () => {

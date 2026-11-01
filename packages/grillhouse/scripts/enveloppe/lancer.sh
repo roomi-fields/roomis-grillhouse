@@ -43,7 +43,7 @@
 #   the work in progress of the copy in the copy, never in git's stash, which every copy of the
 #   repository shares: it is set aside as a lot, the copy fast-forwards, and the lot is applied
 #   three ways, as the lot of a branch sent back is (scripts/enveloppe/travail-de-la-copie.mjs).
-#   A refusal, such as commits of the agent on its branch or conflicts left unresolved, goes to
+#   A refusal, such as a branch that has left main or conflicts left unresolved, goes to
 #   the log and stops the launch, CODE_COPIE; so does a reapplication that conflicts: the log
 #   names the copy and each file in conflict, the conflicts stay marked in the copy's files and
 #   unmerged in its index, and no agent starts on a half-merged copy. Its

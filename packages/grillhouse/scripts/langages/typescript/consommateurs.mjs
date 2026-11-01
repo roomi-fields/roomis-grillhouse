@@ -35,7 +35,7 @@
 // writes its configuration). For the check of the uses, test files (under a folder `test/`,
 // `tests/` or `__tests__/`, or named `*.test.*`, `*.spec.*`) count only for their imports of a
 // package of the material; `dist/`, `docs/` and `node_modules/` are never read, nor are Vite's
-// temporary files, and a file gone between the walk and its read is passed over (`parcourir`).
+// temporary files, and a file gone between the walk and its read is passed over (`parcourir`, ./parcours.mjs).
 // The identity of a component is its name: two directories of the same name, one under `packages/`
 // and one under `src/`, are refused, both paths named (the way npm workspaces, Nx and Cargo refuse
 // two projects of one name). Names differing by case are two names.
@@ -43,12 +43,13 @@
 // A project's guard imports `matieres` by the package's entry
 // `@roomi-fields/grillhouse/consommateurs`, its types in ./consommateurs.d.ts (docs/ARCHITECTURE.md,
 // the package's named entries).
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { trancher } from '../../dette.mjs';
 import { horsCadre } from '../../paquets.mjs';
 import { composants, dossiers, matieres } from './composants.mjs';
+import { lireSiPresent, parcourir } from './parcours.mjs';
 
 // The components and the packages of the shared material, read by ./composants.mjs; the entry
 // publishes `matieres` from here.
@@ -160,45 +161,6 @@ export function imports(source) {
   }
   return out;
 }
-
-// The temporary file Vite writes beside a configuration it bundles, then removes
-// (`vitest.config.ts.timestamp-<n>-<hash>.mjs`).
-const TEMPORAIRE_DE_VITE = /\.timestamp-[^/\\]*\.mjs$/;
-
-// <f> read by <lire>, or <absent> when it no longer exists (ENOENT).
-function siPresent(lire, f, absent) {
-  try {
-    return lire(f);
-  } catch (e) {
-    if (e?.code === 'ENOENT') return absent;
-    throw e;
-  }
-}
-
-// The files under <chemin> (a directory, or a file), each its absolute path: an entry below it
-// whose path <sauter> keeps out is neither entered nor listed, and Vite's temporary files are
-// never listed. The guards of the frame walk the repository while other processes write in it
-// (`npm run verifier` plays them beside the tests): a file or a directory gone before the walk
-// reaches it is passed over. The walk of every guard of the frame.
-export function parcourir(chemin, sauter = () => false) {
-  const out = [];
-  const walk = (p, dossier) => {
-    if (!dossier) {
-      if (!TEMPORAIRE_DE_VITE.test(p)) out.push(p);
-      return;
-    }
-    for (const e of siPresent(d => readdirSync(d, { withFileTypes: true }), p, [])) {
-      const q = path.join(p, e.name);
-      if (!sauter(q)) walk(q, e.isDirectory());
-    }
-  };
-  const racine = siPresent(statSync, chemin, null);
-  if (racine) walk(chemin, racine.isDirectory());
-  return out;
-}
-
-// The text of the file <f> a walk listed, or null when it is gone since.
-export const lireSiPresent = f => siPresent(x => readFileSync(x, 'utf8'), f, null);
 
 // The source files under <dir>: [{ f, test }], `test` for a file under a test folder or of a test
 // name.

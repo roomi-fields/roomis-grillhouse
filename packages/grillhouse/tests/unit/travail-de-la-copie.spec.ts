@@ -144,6 +144,24 @@ describe('grillhouse-fy3 critère 2 — a relaunch without conflict moves as bef
     expect(d.lire('a.txt')).toBe(lignes('COPIE'));
   });
 
+  // Witness: the night of 2026-11-01 (grillhouse-zq7), circuit.passe-finale.nuit.spec.ts: a copy
+  // whose branch is ahead of main, main its ancestor, stopped the launch at « lancement »; git's
+  // `merge --ff-only`, which the launch ran before grillhouse-fy3, answers « Already up to date ».
+  it('leaves a copy ahead of main as it is, its commits and its work in place', () => {
+    const d = depot();
+    const main = git(d.racine, 'rev-parse', 'HEAD');
+    d.ecrire('b.txt', 'b\nAGENT\n');
+    git(d.copie, 'commit', '-qam', 'agent');
+    const tete = git(d.copie, 'rev-parse', 'HEAD');
+    d.ecrire('a.txt', lignes('COPIE'));
+    const r = avancer(d.copie, main);
+    expect(r, r.message).toEqual({ ok: true, message: '' });
+    expect(git(d.copie, 'rev-parse', 'HEAD')).toBe(tete);
+    expect(d.lire('a.txt')).toBe(lignes('COPIE'));
+    expect(d.lire('b.txt')).toBe('b\nAGENT\n');
+    expect(existsSync(d.lot())).toBe(false);
+  });
+
   it('refuses a copy whose branch carries commits main has not, its work in place', () => {
     const d = depot();
     git(d.copie, 'commit', '-q', '--allow-empty', '-m', 'agent');

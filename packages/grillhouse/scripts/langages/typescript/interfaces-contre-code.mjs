@@ -57,7 +57,8 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { composants, lireSiPresent, parcourir } from './consommateurs.mjs';
+import { composants } from './consommateurs.mjs';
+import { lireSiPresent, parcourir } from './parcours.mjs';
 import { paquetsDeLEnveloppe } from '../../services-du-noyau.mjs';
 import { trancher } from '../../dette.mjs';
 

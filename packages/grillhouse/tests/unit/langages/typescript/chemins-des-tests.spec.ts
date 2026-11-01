@@ -88,6 +88,18 @@ describe('grillhouse-3dr.3.4 critère 7 — the guard refuses a script named by 
     expect(verifier(declare)).toEqual([]);
   });
 
+  // Witness: the night of 2026-11-01 (grillhouse-rm7, .git/nuit/2026-11-01.log:1135): in the full
+  // pass, the guard counted packages/grillhouse-essais/vitest.config.ts.timestamp-…mjs, the file
+  // Vite writes beside a configuration it bundles and then removes, as a module of the package.
+  it('the temporary file Vite writes beside a configuration is no module of the package', () => {
+    const temporaire = 'vitest.config.ts.timestamp-1793498600475-43f5a84a3b1d4.mjs';
+    const r = projet({
+      [`packages/a/scripts/${temporaire}`]: 'export default {};\n',
+      'packages/a/tests/k.spec.ts': `const NOM = '${temporaire}';\nconst S = \`\${__dirname}/../scripts/\${NOM}\`;\nit('k', () => S);\n`,
+    });
+    expect(verifier(r)).toEqual([]);
+  });
+
   it('the guard is in the one list of the frame’s guards, which every project plays', () => {
     const scripts = gardesDuCadre(DEPOT).map(([f]) => path.basename(f));
     expect(scripts).toContain('chemins-des-tests.mjs');

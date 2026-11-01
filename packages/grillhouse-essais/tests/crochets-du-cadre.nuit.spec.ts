@@ -295,6 +295,14 @@ function fichiersDeScripts(dossier: string): string[] {
   });
 }
 
+// The repository's configuration without the merge driver of the CHANGELOG, which the placing of
+// the hooks writes beside them (grillhouse-tkv, scripts/fusion-du-changelog.mjs): the rest stays.
+const sansLePilote = (config: string) =>
+  config
+    .split('\n')
+    .filter(l => !l.startsWith('merge.grillhouse-changelog.'))
+    .join('\n');
+
 describe('grillhouse-3uv.84.5 critère 1 — grillhouse hooks places the frame’s hooks beside Beads’ sections', () => {
   const cas = [
     { titre: 'with core.hooksPath = .beads/hooks', hooksPath: true, dossier: '.beads/hooks' },
@@ -305,7 +313,7 @@ describe('grillhouse-3uv.84.5 critère 1 — grillhouse hooks places the frame�
       const repo = projet({ hooksPath });
       const avant = git(repo, 'config', '--local', '--list');
       hooks(repo);
-      expect(git(repo, 'config', '--local', '--list')).toBe(avant);
+      expect(sansLePilote(git(repo, 'config', '--local', '--list'))).toBe(avant);
       expect(dossierLu(repo)).toBe(path.join(repo, dossier));
       verifierLesDeux(repo);
     });
@@ -422,9 +430,16 @@ describe('grillhouse-3uv.84.5 critère 1 — grillhouse hooks places the frame�
     const scripts = fichiersDeScripts(path.join(PAQUET, 'scripts')).filter(
       f => !/\/(un-commit-par-ticket|branche-de-nuit)\.mjs$/.test(f)
     );
+    // A module that imports a guard's functions (the queue reads the deliveries by those of
+    // un-commit-par-ticket.mjs, grillhouse-906) places no hook: its import lines do not count.
+    const sansImports = (texte: string) =>
+      texte
+        .split('\n')
+        .filter(l => !/^\s*(import\b.*|\})\s*from\s+'[^']+';\s*$/.test(l))
+        .join('\n');
     const porteurs = (cible: string) =>
       scripts
-        .filter(f => nomme(readFileSync(f, 'utf8'), cible))
+        .filter(f => nomme(sansImports(readFileSync(f, 'utf8')), cible))
         .map(f => path.relative(PAQUET, f))
         .sort();
     expect(porteurs('un-commit-par-ticket.mjs')).toEqual(['scripts/crochets.mjs']);

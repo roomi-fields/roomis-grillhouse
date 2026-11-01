@@ -26,7 +26,8 @@
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { lireSiPresent, NOM_DE_TEST } from './consommateurs.mjs';
+import { NOM_DE_TEST } from './consommateurs.mjs';
+import { lireSiPresent } from './parcours.mjs';
 import { sorties } from './frontieres.mjs';
 
 const requis = createRequire(import.meta.url);

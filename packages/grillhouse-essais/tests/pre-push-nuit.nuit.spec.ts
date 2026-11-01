@@ -303,6 +303,14 @@ describe('grillhouse-3uv.59 critère 6 — several refs or a deletion towards th
   });
 });
 
+// The repository's configuration without the merge driver of the CHANGELOG, which the update
+// writes with the hooks (grillhouse-tkv, scripts/fusion-du-changelog.mjs): the rest stays.
+const sansLePilote = (config: string) =>
+  config
+    .split('\n')
+    .filter(l => !l.startsWith('merge.grillhouse-changelog.'))
+    .join('\n');
+
 describe('grillhouse-3uv.59 critère 7 — the update places the guard where git reads the hooks', () => {
   it('critère 7: without core.hooksPath, or without pre-push, the update creates the effective hook, executable, config unchanged', () => {
     const cas = [
@@ -311,7 +319,7 @@ describe('grillhouse-3uv.59 critère 7 — the update places the guard where git
     ];
     for (const { opts, crochet } of cas) {
       const p = projet({ poussee: { nuit: 'main' } }, opts);
-      expect(p.configApres).toBe(p.configAvant);
+      expect(sansLePilote(p.configApres)).toBe(p.configAvant);
       const f = path.join(p.repo, crochet);
       expect(existsSync(f), crochet).toBe(true);
       expect(readFileSync(f, 'utf8').startsWith('#!')).toBe(true);

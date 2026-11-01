@@ -72,7 +72,6 @@ roomis-grillhouse/
 │   │   │   │                          #   composants(): the components for every check, minus the packages out of
 │   │   │   │                          #   the frame listed in docs/agents/hors-cadre.txt, "<package> <reason>"; such a package stays a
 │   │   │   │                          #   workspace, and Turborepo plays none of its tasks (turbo-des-paquets.mjs)
-│   │   │   │                          #   parcourir(): the walk of every guard, Vite's temporary files left out, a file gone meanwhile passed over
 │   │   │   ├── elements-du-lot.mjs        # the elements a lot adds, changes or removes (function, class, type, interface, constant at the top, export), each with its package, its file:line and whether its package exports it, by the language service, the git diff of the lot and the diff of the API reports; the list the reviewer judges one line each
 │   │   │   ├── frontieres.mjs             # grillhouse:gardes: dependency-cruiser (after the build, which it reads), rules generated in .dependency-cruiser.cjs
 │   │   │   ├── index-interfaces.mjs       # npm run interfaces: docs/agents/index-des-interfaces.md from the generated parts, checked by grillhouse:gardes; --publie <composant>: what its providers publish (each provider's line, the names of the elements declared for it, the address of its CADRE.md « Rend »), for the launcher
@@ -80,6 +79,7 @@ roomis-grillhouse/
 │   │   │   │                          #   of INTERFACE.md between its two marks; npm run api writes the reports and the parts
 │   │   │   │                          #   (a package without a « . » export, the shared test material, has no API to check)
 │   │   │   │                          #   (in an envelope, the components of its plan alone: tests/unit/enveloppe.enceinte.spec.ts)
+│   │   │   ├── parcours.mjs               # parcourir(), lireSiPresent(): the walk of every guard, Vite's temporary files left out, a file gone meanwhile passed over
 │   │   │   ├── references-par-les-types.mjs # the references of a ticket's elements by TypeScript's language service: a symbol or a member resolved, the references of one its package's entry exports in the other packages; an internal one has no readers out of its package
 │   │   │   ├── resumes.mjs                # grillhouse:gardes: the first sentence of each published element's summary holds in 80 characters, refused at its INTERFACE.md § element
 │   │   │   ├── tests.mjs                  # npm test, npm run test:forcer: turbo run test:unit; each path named from the root plays in the package that holds it (--filter, the path made absolute), a path out of the frame's packages refused;

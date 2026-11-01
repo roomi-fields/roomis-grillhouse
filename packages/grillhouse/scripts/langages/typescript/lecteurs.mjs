@@ -19,14 +19,8 @@
 //   what its tests read (`parLesTests`): the components its tests import.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import {
-  declares,
-  imports,
-  lireSiPresent,
-  NOM_DE_TEST,
-  parcourir,
-  utilise,
-} from './consommateurs.mjs';
+import { declares, imports, NOM_DE_TEST, utilise } from './consommateurs.mjs';
+import { lireSiPresent, parcourir } from './parcours.mjs';
 import { lire } from './index-interfaces.mjs';
 import { elementsEcrits, parLesTypes } from './references-par-les-types.mjs';
 

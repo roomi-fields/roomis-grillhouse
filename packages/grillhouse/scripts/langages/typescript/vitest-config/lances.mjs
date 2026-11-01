@@ -47,11 +47,12 @@
 // takes from this module what a test file is, its material, its imports and their resolution.
 //
 // This module's top level uses Node alone (./changements.mjs imports it).
-import { existsSync, globSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { existsSync, globSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { matieres } from '../composants.mjs';
 import { paquets } from '../../../paquets.mjs';
+import { parcourir } from '../parcours.mjs';
 
 /** A test file, as Vitest's default `include` names one. */
 export const TEST = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
@@ -121,20 +122,10 @@ const estDossier = f => {
   }
 };
 
-// The files under the directory <dir>, absolute, SAUTES left out.
-function fichiersSous(dir) {
-  let entrees;
-  try {
-    entrees = readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return [];
-  }
-  return entrees.flatMap(e => {
-    if (SAUTES.has(e.name)) return [];
-    const f = path.join(dir, e.name);
-    return e.isDirectory() ? fichiersSous(f) : e.isFile() ? [f] : [];
-  });
-}
+// The files under the directory <dir>, absolute, SAUTES left out: the walk of the guards
+// (../parcours.mjs), which never lists Vite's temporary files (the night of 2026-11-01,
+// grillhouse-rm7: one, beside a configuration of another package, counted as a module).
+const fichiersSous = dir => parcourir(dir, f => SAUTES.has(path.basename(f)));
 
 // The specifiers <texte> imports.
 const specifiers = texte =>

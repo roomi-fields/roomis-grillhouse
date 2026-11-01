@@ -926,6 +926,8 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
       'enveloppe/paquets-du-plan.mjs',
       'paquets.mjs',
       'langages/typescript/consommateurs.mjs',
+      // The walk of the guards (grillhouse-rm7).
+      'langages/typescript/parcours.mjs',
       'langages/typescript/composants.mjs',
       'langages/typescript/script-des-tests.mjs',
       'dette.mjs',

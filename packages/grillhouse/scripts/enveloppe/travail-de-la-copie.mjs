@@ -23,11 +23,13 @@
 //   - A copy whose lot still waits in its git directory (git refused it whole, as a deletion of
 //     a file main changed) is not touched: the output names the file and how to take it back;
 //     exit 1. So no relaunch loses it.
-//   - A copy still in conflict (unmerged entries in its index) or whose branch carries commits
-//     main has not (no fast-forward) is not touched; the output says why; exit 1. A fast-forward
-//     that fails after the work is set aside (an untracked file in the way) gives the work back
-//     on HEAD; exit 1.
-//   - A copy at <cible> already, or without local work, simply fast-forwards; exit 0.
+//   - A copy still in conflict (unmerged entries in its index) or whose branch has left main
+//     (commits on both sides, no fast-forward) is not touched; the output says why; exit 1. A
+//     fast-forward that fails after the work is set aside (an untracked file in the way) gives
+//     the work back on HEAD; exit 1.
+//   - A copy at <cible> already, or ahead of it (<cible> an ancestor of its HEAD, as a branch
+//     whose commits main has not entered yet), is not touched, as `git merge --ff-only` answers
+//     « Already up to date »; a copy without local work simply fast-forwards; exit 0.
 // - Both: a generated file the project declares (`grillhouse.engendres`, scripts/engendres.mjs,
 //   read from the main tree) is not merged, as npm writes package-lock.json again after a merge:
 //   when the lot touches one of its files, or one it reads (the copy's untracked files counting),
@@ -178,7 +180,12 @@ export function avancer(copie, cible) {
   if (vise.status !== 0) {
     return { ok: false, message: `⛔ ${cible} ne nomme aucun commit : ${texte(vise)}` };
   }
-  if (tete === String(vise.stdout).trim()) {
+  // At <cible>, or ahead of it (<cible> an ancestor of HEAD): nothing to move, as git's
+  // `merge --ff-only` answers « Already up to date ».
+  if (
+    tete === String(vise.stdout).trim() ||
+    git(copie, ['merge-base', '--is-ancestor', cible, 'HEAD']).status === 0
+  ) {
     return { ok: true, message: '' };
   }
   if (git(copie, ['merge-base', '--is-ancestor', 'HEAD', cible]).status !== 0) {

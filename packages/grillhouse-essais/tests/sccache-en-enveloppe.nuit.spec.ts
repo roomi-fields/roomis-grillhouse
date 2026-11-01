@@ -2,7 +2,11 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import {
+  canWrap,
+  declarerLesLangages,
+  racineSousLaMaison,
+} from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { CADRE, enProcessus } from './cadre.js';
 
 // Witness: OSC Bridge, OB-p58, under Grillhouse 0.26.0 (2026-10-31). In the envelope of an agent,
@@ -38,7 +42,8 @@ const ecrire = (racine: string, f: string, texte: string) => {
 function depot() {
   const repo = path.join(ESSAIS, 'depot');
   const copie = path.join(repo, '.claude/worktrees/demo-1');
-  ecrire(repo, 'package.json', '{ "name": "essai", "grillhouse": { "langages": ["cargo"] } }\n');
+  ecrire(repo, 'package.json', '{ "name": "essai" }\n');
+  declarerLesLangages(repo, ['cargo']);
   ecrire(repo, 'Cargo.toml', '[package]\nname = "essai"\nversion = "0.1.0"\nedition = "2021"\n');
   ecrire(repo, 'src/lib.rs', 'pub fn un() -> u32 { 1 }\n');
   ecrire(repo, '.gitignore', 'target/\n');
