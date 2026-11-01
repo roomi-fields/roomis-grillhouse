@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // The frame's merge driver of the CHANGELOG, on the model of gnulib's git-merge-changelog: two
 // lots that each add an entry under the same heading both keep their entry, wherever git merges
 // three ways (the integration's `git apply --3way --index`, the relaunch's `git apply --3way`, the
