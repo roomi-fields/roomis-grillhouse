@@ -137,7 +137,7 @@ describe('grillhouse-3dr.3.4 — Grillhouse names the scripts its tests launch',
       .map(f => path.join(scripts, f))
       .filter(f => statSync(f).isFile());
     const manques: string[] = [];
-    for (const t of testsDuPaquet(PAQUET) as string[]) {
+    for (const t of testsDuPaquet(PAQUET)) {
       const lignes = readFileSync(t, 'utf8')
         .split('\n')
         .filter(l => !/^\s*(?:\/\/|\*|\/\*)/.test(l))

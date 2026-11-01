@@ -93,7 +93,7 @@ const R = depot(FICHIERS);
 const A = path.join(R, 'packages/a');
 const dans = (f: string) => path.join(R, f);
 const lanceurs = (f: string) =>
-  (testsQuiLancent(A, R, [dans(f)]) as string[]).map(t => path.relative(R, t));
+  (testsQuiLancent(A, R, [dans(f)])).map(t => path.relative(R, t));
 
 describe('grillhouse-3dr.3.4 — a test plays when a script it launches changes', () => {
   it('a test that names a script plays when a module the script imports changes', () => {
